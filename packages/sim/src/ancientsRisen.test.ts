@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { CARD_INDEX } from '@game/content';
-import { ANCIENT_CAP_SPENT_FLAG, type CombatEvent } from '@game/core';
+import { ANCIENT_CAP_SPENT_FLAG, ANCIENT_PROC_FLAG, type CombatEvent } from '@game/core';
 import {
   ANCIENT_IDS, ancientCombatMods, ancientOfferText, ancientRiseTint, createRun, enableAncients, heroPowerText, reduce,
   type AncientId, type BoardCard, type BoardSnapshot, type RunState,
@@ -70,7 +70,9 @@ describe('Risen × DEATH — Undying\'s target gains Rise again after it Rises (
     const ev = events(s);
     const i0 = ev.indexOf(back[0]!);
     const regain = ev.findIndex((e, j) => j > i0 && e.type === 'keyword' && e.target === a && e.keyword === 'R');
-    expect(regain, 'the Rise comes back right after the return').toBe(i0 + 1);
+    // Right after the return; the one event between is the Ancient's proc marker (R-FX-ANCIENT-PROC-01).
+    expect(ev[i0 + 1]).toMatchObject({ type: 'questTrigger', flag: ANCIENT_PROC_FLAG });
+    expect(regain, 'the Rise comes back right after the return').toBe(i0 + 2);
     expect((ev[regain] as Extract<CombatEvent, { type: 'keyword' }>).tint).toBe('blue');
   });
 

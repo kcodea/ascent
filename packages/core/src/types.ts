@@ -2169,6 +2169,11 @@ export interface QuestCombatMods {
   /** ANCIENT OF FORTUNE / GENESIS × Warden: record every FRIENDLY Ward that breaks (`CombatCarryBacks.wardBreaks`).
    *  Off by default so every other fight's result is byte-identical. Either side; rides a snapshot (`questMods`). */
   ancientTrackWardBreaks?: boolean;
+  /** ANCIENT TRIGGER PROCS (R-FX-ANCIENT-PROC-01, presentation only): combat events that fire this side's Ancient where
+   *  the Ancient's effect itself is paid later (at settle), so the simulator pulses `ANCIENT_PROC_FLAG` at the event.
+   *  `wardBreak`: Warden × Fortune (each friendly Ward that breaks). */
+  ancientProcOn?: { wardBreak?: boolean; /** Lord of the Risen × Fortune: each friendly Rise. */ rise?: boolean;
+    /** Merrin × Time / Hunch × Genesis: the `every`th spell cast (running count `tick` carried in; paid at settle). */ spellEvery?: { every: number; tick: number } };
   /** ANCIENT OF GENESIS × Warden, REAL-TIME (owner 2026-09-26): the running window of friendly Ward breaks (cardIds)
    *  carried in from the run. Every break joins it; the moment it reaches `every`, a plain copy of one of those
    *  minions goes to hand DURING the fight (`grantToHand`, a live `toHand`) and the window empties. The window after
@@ -4709,6 +4714,9 @@ export interface CombatContext {
   grantMaxGold(amount: number, side: Side): void;
   /** Bounty Bot: grant one-time Gold into the next shop; carried back via `CombatResult.playerBonusGold`. */
   grantBonusGold(amount: number, side: Side): void;
+  /** ANCIENT TRIGGER PROC (R-FX-ANCIENT-PROC-01): an Ancient-granted effect fired for `side` (Midas × Death's grafted
+   *  Echo). Presentation marker only. */
+  ancientProc?(side: Side): void;
   /** Bank `count` free shop rerolls for the player from combat (Gryphon). Player-only; carried back via
    *  CombatResult.playerFreeRolls. */
   grantFreeRolls(count: number, side: Side): void;

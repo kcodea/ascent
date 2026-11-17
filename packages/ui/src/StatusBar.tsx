@@ -1,4 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useAncientProcFx } from './ancientProcFx';
+import { ANCIENT_PROC_KEY } from './choreo/triggerCounts';
 import { createPortal } from 'react-dom';
 import { AncientMeter, AncientPill, AncientSplit } from './ancients/AncientMeter';
 import { AncientGate } from './ancients/AncientGate';
@@ -238,6 +240,10 @@ export function StatusBar() {
   // The hero-slot rune (Runesmith / Guardian forge) prints its CURRENT value like a rack rune (R-RUNE-LIVE-TEXT-01).
   const runeLive = usePlayerRuneLive();
   const heroPowerLive = useMemo(() => ({ attacks: combatAttacks, summons: combatSummons, friendlyDamage, clearanceStacks, friendlyDeaths: combatFriendlyDeaths, freeRefreshes: combatFreeRefreshes, rallyFires: combatRallyFires, swapCharges: combatSwapCharges, shoutFires: combatShoutFires, ewAvengeFired: combatEwAvenge, attackGifts: combatAttackGifts, capSpent: combatCapSpent }), [combatAttacks, combatSummons, friendlyDamage, clearanceStacks, combatFriendlyDeaths, combatFreeRefreshes, combatRallyFires, combatSwapCharges, combatShoutFires, combatEwAvenge, combatAttackGifts, combatCapSpent]);
+  // ANCIENT TRIGGER PROCS (R-FX-ANCIENT-PROC-01): an event-fired Ancient bursts the hero-power button with the rune-trigger
+  // flourish once per fire, in the Shop (`ancients.procs`) and in combat (the replayed proc count).
+  const combatAncientProcs = useGame((s) => s.combatTriggeredQuests[ANCIENT_PROC_KEY] ?? 0);
+  useAncientProcFx(ownRun?.ancients?.procs ?? 0, combatAncientProcs);
   // While spectating a replay, the hero panel belongs to the RECORDED player, so show their name — not the
   // local account's. Falls back to your own name for normal play (replaySession is null outside playback).
   // A Versus SPECTATOR: the hero panel is the WATCHED player's, so their name, never the spectator's own (live bug

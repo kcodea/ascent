@@ -75,6 +75,11 @@ Two failures worth knowing because both shipped here:
   flying in, at every speed. To reserve time for what a beat SHOWS, put a floor under the beat after it (`clock.ts`,
   the `tagIn` / `flyIn` branch) and take the same time off the lead-in, so no fight is longer. Measure the on-screen
   time live (how long the entrance class stays) rather than reading it off the config.
+- **An Ancient that fires from an event plays the rune-trigger burst on the hero-power button** (R-FX-ANCIENT-PROC-01,
+  `ancientProcFx.ts`). Shop: `procAncient(state)` at the payout. Combat: `ancientProc(side)` in `simulate` (a
+  `questTrigger` of `ANCIENT_PROC_FLAG`, or an alias in `sim/src/ancientProcs.ts` when the pairing already pulses a
+  per-fire flag). Start / End of Turn: a hero-sourced beat named for an Ancient bursts itself. A new event-fired
+  pairing adds its row to `ANCIENT_PROC_PHASES` and a case to `ancientProcs.test.ts`'s table.
 - **A CSS animation that must keep pace needs the LIVE speed stamped on its element** (`floatConfig.isSpeedTimedAnim`,
   `Unit.tsx`): `:root` only holds the base slider speed, never the auto-ramp or a Skip.
 

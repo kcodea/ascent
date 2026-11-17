@@ -147,6 +147,12 @@ export function badgeCenterOf(id: string, occurrence: number): { x: number; y: n
   return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
 }
 
+/** Play a rune-trigger burst def at a HUD point: the ONE `playDef` site for every rune-style trigger flourish (a rune
+ *  badge here, and an Ancient's proc on the hero-power button, `ancientProcFx.ts`, R-FX-ANCIENT-PROC-01). */
+export function playRuneBurstDef(def: string, at: { x: number; y: number }, index: number): void {
+  playDef(def, { source: at, camera: { x: window.innerWidth / 2, y: window.innerHeight / 2 } }, { index });
+}
+
 /**
  * Fire the bound def on every rune slot that triggered since the last render.
  *
@@ -191,7 +197,6 @@ export function useRuneTriggerFx(slots: readonly RuneSlotPulse[]): void {
       raf.current = 0;
       const queue = pending.current;
       pending.current = [];
-      const camera = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
       // Repeats on one badge are STAGGERED — two bursts fired on the same frame land exactly on top of each
       // other and read as one. `REPEAT_STAGGER_MS` apart, they read as two. Booked against the badge's own clock, so
       // a fire arriving while it is still flashing (a frequent Epic rune, beat after beat) coalesces (`bookBurst`).
@@ -204,7 +209,7 @@ export function useRuneTriggerFx(slots: readonly RuneSlotPulse[]): void {
           if (!binding) return; // this class of rune is unbound — nothing to play
           const at = badgeCenterOf(q.id, q.occurrence);
           if (!at) return; // badge left the DOM (rune sold, screen changed) before it could play
-          playDef(binding.def, { source: at, camera }, { index: q.index });
+          playRuneBurstDef(binding.def, at, q.index);
         };
         if (delay === 0) fire();
         else setTimeout(fire, delay);

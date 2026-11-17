@@ -3204,6 +3204,10 @@ export interface AncientsState {
   lastGain?: { amount: number; why: 'refresh' | 'combat' | 'set' };
   offerSeq?: number;
   pickSeq?: number;
+  /** ANCIENT TRIGGER PROCS (R-FX-ANCIENT-PROC-01): cumulative count of SHOP-phase fires of the picked Ancient's
+   *  event-fired effect (`procAncient`). Display only: the hero-power button plays the rune-trigger burst once per rise.
+   *  Nothing in the sim branches on it. */
+  procs?: number;
   /** Minions that became Gilded this run (Bonds' count): +1 per `gildMinion` call that gilds a minion (Masterwork,
    *  Golden Touch, gilded Discovers and payouts, every other gild effect) and +1 per triple. Ticks from the run's
    *  start whichever Ancient is picked, so Bonds counts gilds made before it awakened. */
@@ -3885,6 +3889,7 @@ export function ancientHunchShopDeath(state: RunState): void {
   if (!a || !e) return;
   a.hunchDeaths = ((a.hunchDeaths ?? 0) + 1) % Math.max(1, e.every);
   if (a.hunchDeaths !== 0) return;
+  procAncient(state); // HUNCH × DEATH fires (R-FX-ANCIENT-PROC-01)
   const r = improveReps(state);
   const at = e.attack * r, hp = e.health * r;
   state.spellBonus = { attack: (state.spellBonus?.attack ?? 0) + at, health: (state.spellBonus?.health ?? 0) + hp };
@@ -3945,6 +3950,7 @@ export function ancientOnSale(state: RunState, sold: BoardCard): void {
   if (!e || !sold.golden) return;
   const def = CARD_INDEX[sold.cardId];
   if (!def || def.spell) return;
+  procAncient(state); // INDY × FORTUNE fires (R-FX-ANCIENT-PROC-01)
   for (let i = 0; i < e.count; i++) grantMinionToHandOrBoard(state, def, false);
 }
 
@@ -3955,6 +3961,7 @@ export function ancientOnShopDeath(state: RunState, died: BoardCard): void {
   if (!e) return;
   const gilded = state.board.filter((c) => c.golden && c.uid !== died.uid);
   if (gilded.length === 0) return;
+  procAncient(state); // INDY × WAR fires (R-FX-ANCIENT-PROC-01)
   captureBuffFx(state, undefined, 'spell', () => {
     for (const c of gilded) addBuff(c, ANCIENTS.war.name, e.attack, e.health);
   });
@@ -3969,6 +3976,38 @@ function grantOriginMod(state: RunState): { origin?: 'trigger' | 'self' } {
 
 /** The combat modifiers the picked Ancient threads into this run's fight. They ride the run's side state, so a
  *  snapshot of this board captures them (`snapshot.ts` `questMods`) and a served seat fights with its Ancient. */
+/**
+ * ANCIENT TRIGGER PROC (owner 2026-11-17, R-FX-ANCIENT-PROC-01, verbatim: "can you do a quick pass at ancients that fire
+ * from events, like warden's fortune for example. this should play the same animation that runes do when they trigger in
+ * combat or in recruit so that the player knows it triggered.").
+ *
+ * Mark the picked Ancient as having fired in the SHOP, `times` times: call it at the point an event-fired pairing's effect
+ * resolves (a sale, a buy, a spell cast, a Shout, a shop death's Avenge paying, every Nth Refresh, a Triple Reward, ...),
+ * once per fire, never for a mere counter tick. The hero-power button bursts once per fire (`ancientProcFx.ts`), exactly
+ * like `procRuneId` drives a rune badge. Not for the paths that already present the Ancient as its own beat: a Start of
+ * Turn source (`recordSotBeat` with a hero source) and a virtual End-of-Turn entry (`recurringBeatSpec`'s hero source)
+ * play the same burst off that beat, and settle (`ancientAfterCombat`) is the combat proc's payout, not a new fire.
+ * COMBAT fires pulse `ANCIENT_PROC_FLAG` in `simulate` instead. A no-op outside an Ancients run or before the pick.
+ */
+/**
+ * A hero power's OWN Start-of-Turn beat that the picked Ancient adds to (R-FX-ANCIENT-PROC-01): Cassen's Commission
+ * payout (Fortune / War / Genesis / Bonds pay extras inside it) and Kindness's Great Presence (Death / War send a Gift on
+ * it). The beat is named for the Ancient while one of `primitives` is live, so the Shop plays the Ancient's proc when the
+ * beat pulses (a hero source named for an Ancient, `Recruit.tsx`). Otherwise `src` unchanged. The label is presentation
+ * only: the beat's source, timing and gains are the same either way.
+ */
+export function ancientSotSource<T extends { label: string }>(state: RunState, src: T, primitives: readonly AncientEffect['do'][]): T {
+  const picked = live(state)?.picked;
+  if (!picked || !primitives.some((d) => effectOf(state, d))) return src;
+  return { ...src, label: ANCIENTS[picked].name };
+}
+
+export function procAncient(state: RunState, times = 1): void {
+  const a = state.ancientsEnabled ? state.ancients : undefined;
+  if (!a?.picked || times <= 0) return;
+  a.procs = (a.procs ?? 0) + times;
+}
+
 export function ancientCombatMods(state: RunState): Partial<QuestCombatMods> {
   const out: Partial<QuestCombatMods> = {};
   const war = effectOf(state, 'friendlyDeathBuffsGilded');
@@ -3979,6 +4018,7 @@ export function ancientCombatMods(state: RunState): Partial<QuestCombatMods> {
   // (`heroPowerBuffLabelFor('Aegis')`), the same route as Warden × Time.
   if (bonds) out.ancientBonds = { attack: bonds.attack, label: WARDEN_TIME_COMBAT_LABEL, ...grantOriginMod(state) };
   if (effectOf(state, 'wardBreakGold') || effectOf(state, 'wardBreaksGetCopy')) out.ancientTrackWardBreaks = true;
+  if (effectOf(state, 'wardBreakGold')) out.ancientProcOn = { ...out.ancientProcOn, wardBreak: true }; // the proc at the break (R-FX-ANCIENT-PROC-01)
   const copy = effectOf(state, 'wardBreaksGetCopy');
   if (copy) out.ancientWardCopy = { every: copy.every, window: [...(live(state)?.wardWindow ?? [])] };
   const wt = effectOf(state, 'spellsGiveWardAttack'); // WARDEN × TIME: every combat cast
@@ -3995,7 +4035,7 @@ export function ancientCombatMods(state: RunState): Partial<QuestCombatMods> {
       out.ancientUndying = { uids, label: (riseWar ? ANCIENTS.war : ANCIENTS.death).name, ...(regain ? { regainRise: true } : {}), ...(riseWar ? { war: true } : {}) };
     }
   }
-  if (effectOf(state, 'riseGold')) out.ancientCountRises = true;
+  if (effectOf(state, 'riseGold')) { out.ancientCountRises = true; out.ancientProcOn = { ...out.ancientProcOn, rise: true }; } // the proc at each Rise (R-FX-ANCIENT-PROC-01)
   const extra = effectOf(state, 'summonsSummonExtra');
   if (extra) {
     out.ancientSummonExtra = extra.extra;
@@ -4010,6 +4050,8 @@ export function ancientCombatMods(state: RunState): Partial<QuestCombatMods> {
   }
   const avenge = effectOf(state, 'avengeImproveSpells');
   if (avenge) out.ancientAvengeSpells = { every: avenge.every, attack: avenge.attack, health: avenge.health, label: ANCIENTS.death.name, tick: live(state)?.hunchDeaths ?? 0 };
+  const hGen = effectOf(state, 'spellsRechargeSpellbook'); // HUNCH × GENESIS: the proc at the crossing cast (recharge paid at settle, R-FX-ANCIENT-PROC-01)
+  if (hGen) out.ancientProcOn = { ...out.ancientProcOn, spellEvery: { every: Math.max(1, hGen.every), tick: (live(state)?.genesisSpells ?? 0) % Math.max(1, hGen.every) } };
   const castExtra = effectOf(state, 'shopSpellsCastExtraInCombat');
   if (castExtra) out.ancientSpellCastExtra = castExtra.extra;
   const edges = effectOf(state, 'spellCastBuffsEdges');
@@ -4129,6 +4171,7 @@ function wardenOnSpellCast(state: RunState): void {
   const e = effectOf(state, 'spellsGiveWardAttack');
   const warded = e ? state.board.filter((c) => c.keywords.includes('DS')) : [];
   if (!e || warded.length === 0) return;
+  procAncient(state); // WARDEN × TIME fires (R-FX-ANCIENT-PROC-01)
   const from = state.recruitBuffFx.length;
   captureBuffFx(state, undefined, 'spell', () => { for (const c of warded) addBuff(c, ANCIENTS.time.name, e.attack, 0); });
   for (let i = from; i < state.recruitBuffFx.length; i++) state.recruitBuffFx[i]!.fromHeroPower = true;
@@ -4161,6 +4204,7 @@ export function ancientBondsReact(state: RunState, before: Map<string, { attack:
     const rng = makeRng(state.rngCursor);
     const pick = others[rng.int(others.length)]!;
     state.rngCursor = rng.state();
+    procAncient(state); // WARDEN × BONDS fires (R-FX-ANCIENT-PROC-01)
     // The tendril leaves the Ward minion that gained stats (owner 2026-11-17, R-FX-ANCIENT-ORIGIN-01: "warden should go
     // from the minion as well"): `g` is the capture's source, and `ANCIENT_GRANT_ORIGIN` keeps `addBuff` from tagging it.
     captureBuffFx(state, g, 'minion', () => addBuff(pick, ANCIENTS.bonds.name, e.attack, 0));
@@ -4301,6 +4345,7 @@ export function ancientOnShopShout(state: RunState, source: BoardCard | undefine
   if (!a) return;
   // DRAKKO × BONDS: every Shout fire gives your board Drakkos +a/+h, permanently, in real time.
   const dk = effectOf(state, 'shoutBuffsDrakkos');
+  if (dk) procAncient(state); // DRAKKO × BONDS fires on every Shout fire (R-FX-ANCIENT-PROC-01)
   if (dk?.improveEvery) {
     // Ancient pass 1 (owner 2026-11-16): board, hand AND Shop Drakkos gain the live +X/+X, then every `improveEvery`th
     // Shout improves X by the effect's +a.
@@ -4315,6 +4360,7 @@ export function ancientOnShopShout(state: RunState, source: BoardCard | undefine
   }
   const gold = effectOf(state, 'shopShoutGold');
   if (gold) {
+    procAncient(state); // AUCTIONEER × FORTUNE fires (R-FX-ANCIENT-PROC-01)
     state.bonusEmbersNextTurn = (state.bonusEmbersNextTurn ?? 0) + gold.gold;
     const cur = a.shoutGold?.wave === state.wave ? a.shoutGold.gold : 0;
     a.shoutGold = { wave: state.wave, gold: cur + gold.gold };
@@ -4393,6 +4439,7 @@ export function ancientOnShopRise(state: RunState, risen: BoardCard): void {
     target = near[rng.int(near.length)]!;
     state.rngCursor = rng.state();
   }
+  procAncient(state); // RISEN × BONDS fires (R-FX-ANCIENT-PROC-01)
   captureBuffFx(state, risen, 'minion', () => fireShopEchoOf(state, target));
 }
 
@@ -4452,6 +4499,7 @@ export function ancientOnPlay(state: RunState, played: BoardCard): void {
   const parity = tier % 2;
   const mates = state.board.filter((c) => c !== played && (CARD_INDEX[c.cardId]?.tier ?? -1) % 2 === parity);
   if (mates.length === 0) return;
+  procAncient(state); // ALBUS × BONDS fires (R-FX-ANCIENT-PROC-01)
   captureBuffFx(state, played, 'minion', () => { for (const c of mates) addBuff(c, ANCIENTS.bonds.name, e.attack, e.health); });
 }
 
@@ -4475,7 +4523,7 @@ function hunchGenesisTick(state: RunState, waveAhead: 0 | 1): void {
   const wave = state.wave + waveAhead;
   const priceThen = Math.max(0, 3 - Math.max(0, wave - (state.hunchResetWave ?? 1)));
   if (priceThen > e.price) state.hunchResetWave = wave - (3 - e.price);
-  if (!waveAhead) state.heroReady = true;
+  if (!waveAhead) { state.heroReady = true; procAncient(state); } // HUNCH × GENESIS fires (a settle tick already procced in the fight, R-FX-ANCIENT-PROC-01)
   a.rechargeFxSeq = (a.rechargeFxSeq ?? 0) + 1; // the hero-power pulse (presentation only)
 }
 
@@ -4602,6 +4650,7 @@ export function ancientAfterClearance(state: RunState): void {
 export function ancientOnClearanceBuy(state: RunState, offer: ShopCard): boolean {
   if (!live(state)) return false;
   if (offer.clearanceFree) {
+    if (effectOf(state, 'clearanceDestroyFirstFree')) procAncient(state); // FRANK × DEATH fires: the free buy (R-FX-ANCIENT-PROC-01)
     for (const o of state.shop) if (o.clearanceFree && o !== offer) { o.cost = 2; o.clearanceFree = undefined; }
   }
   return !!offer.clearance;
@@ -4643,6 +4692,7 @@ function ancientClearanceSale(state: RunState, sold: BoardCard): void {
   const rng = makeRng(state.rngCursor);
   const pick = state.board[rng.int(state.board.length)]!;
   state.rngCursor = rng.state();
+  procAncient(state); // FRANK × BONDS fires (R-FX-ANCIENT-PROC-01)
   // A `deathrattle`-kind capture keeps the sold body as its source: the UI streams the buff tendril from the slot it
   // just left (its last-known position) to the recipient, with the recipient's stat pop.
   captureBuffFx(state, sold, 'deathrattle', () => addBuff(pick, ANCIENTS.bonds.name, Math.max(0, sold.attack), Math.max(0, sold.health)));
@@ -4713,6 +4763,7 @@ export function ancientXeroxShopDeath(state: RunState, dead: BoardCard): void {
   const others = state.board.filter((c) => c.uid !== dead.uid && c.uid !== state.vacatingUid);
   const src = topBy(others, 'attack');
   if (!src || others.length >= CONFIG.boardMax) return;
+  procAncient(state); // XEROX × DEATH fires (R-FX-ANCIENT-PROC-01)
   const copy = exactBoardCopy(state, src);
   state.board.splice(state.board.indexOf(src) + 1, 0, copy);
 }
@@ -4835,7 +4886,7 @@ export function ancientTradesShopDeath(state: RunState): void {
   const e = a ? effectOf(state, 'avengeFreeRefresh') : undefined;
   if (!a || !e) return;
   a.tradesDeaths = ((a.tradesDeaths ?? 0) + 1) % Math.max(1, e.every);
-  if (a.tradesDeaths === 0) state.freeRolls = (state.freeRolls ?? 0) + 1;
+  if (a.tradesDeaths === 0) { state.freeRolls = (state.freeRolls ?? 0) + 1; procAncient(state); } // TRADESMAN / PETE × DEATH fires (R-FX-ANCIENT-PROC-01)
 }
 
 /** TRADESMAN × FORTUNE: a minion was BOUGHT from the Shop (a normal buy, the Starform, a displaced body re-bought).
@@ -4843,7 +4894,10 @@ export function ancientTradesShopDeath(state: RunState): void {
  *  never stacks). Separate from the `freeRolls` bank. Spells, Discovers and generated cards never reach this. */
 export function ancientTradesBuy(state: RunState): void {
   const a = live(state);
-  if (a && effectOf(state, 'buyNextRefreshFree')) a.tradesNextRefreshFree = true;
+  if (a && effectOf(state, 'buyNextRefreshFree')) {
+    if (!a.tradesNextRefreshFree) procAncient(state); // TRADESMAN × FORTUNE fires: the next Refresh is now free (already pending = no new fire, R-FX-ANCIENT-PROC-01)
+    a.tradesNextRefreshFree = true;
+  }
 }
 
 /** TRADESMAN × FORTUNE: is the next Refresh's 0 cost pending (the price `refreshCostOf` shows, the power text)? */
@@ -4953,13 +5007,17 @@ export function ancientAfterRefresh(state: RunState): void {
   const a = live(state);
   if (!a) return;
   const bonds = effectOf(state, 'refreshUpgradeDiscount');
-  if (bonds) cutUpgradeCost(state, bonds.amount);
+  if (bonds) {
+    const was = tradesUpgradeCost(state);
+    cutUpgradeCost(state, bonds.amount);
+    if (tradesUpgradeCost(state) < was) procAncient(state); // TRADESMAN × BONDS fires: the upgrade got cheaper (R-FX-ANCIENT-PROC-01)
+  }
   const gen = effectOf(state, 'refreshesCastSpell');
   if (!gen) return;
   a.tradesRefreshes = (a.tradesRefreshes ?? 0) + 1;
   if (a.tradesRefreshes % Math.max(1, gen.every) !== 0) return;
   const spell = CARD_INDEX[gen.spellId];
-  if (spell?.spell) castSpell(state, spell, undefined, 'hero');
+  if (spell?.spell) { procAncient(state); castSpell(state, spell, undefined, 'hero'); } // TRADESMAN × GENESIS fires (R-FX-ANCIENT-PROC-01)
 }
 
 // ── Soren (Reclaim) hooks ────────────────────────────────────────────────────────────────────────────────────
@@ -5031,7 +5089,7 @@ export function ancientOnShopSummon(state: RunState, minion: BoardCard): void {
   // RAYSE × FORTUNE: +attack per Gold spent this turn, permanently (a Shop summon).
   const rf = live(state) ? effectOf(state, 'summonGainPerGoldSpent') : undefined;
   const spent = countedGoldSpentThisTurn(state); // counted Gold (Big Spender)
-  if (rf && spent > 0 && state.board.includes(minion)) captureBuffFx(state, undefined, 'spell', () => addBuff(minion, ANCIENTS.fortune.name, rf.attack * spent, 0));
+  if (rf && spent > 0 && state.board.includes(minion)) { procAncient(state); captureBuffFx(state, undefined, 'spell', () => addBuff(minion, ANCIENTS.fortune.name, rf.attack * spent, 0)); } // RAYSE × FORTUNE fires (R-FX-ANCIENT-PROC-01)
 }
 
 /**
@@ -5046,10 +5104,11 @@ export function ancientOnRobinSale(state: RunState, sold: BoardCard, spoils: boo
   const fr = effectOf(state, 'sellsGrantFreeRefresh');
   if (fr) {
     a.robinSales = (a.robinSales ?? 0) + 1;
-    if (a.robinSales >= Math.max(1, fr.every)) { a.robinSales = 0; state.freeRolls += 1; }
+    if (a.robinSales >= Math.max(1, fr.every)) { a.robinSales = 0; state.freeRolls += 1; procAncient(state); } // ROBIN × FORTUNE fires (R-FX-ANCIENT-PROC-01)
   }
   const war = effectOf(state, 'saleBuffsLeftmost');
   const left = state.board[0];
+  if (war && left) procAncient(state); // ROBIN × WAR fires (R-FX-ANCIENT-PROC-01)
   if (war && left) captureBuffFx(state, undefined, 'spell', () => addBuff(left, ANCIENTS.war.name, war.attack, war.health));
   const gc = effectOf(state, 'sellsGetCopy');
   if (gc) {
@@ -5060,13 +5119,13 @@ export function ancientOnRobinSale(state: RunState, sold: BoardCard, spoils: boo
       state.rngCursor = rng.state();
       a.robinWindow = [];
       const def = CARD_INDEX[pick];
-      if (def && !def.spell) grantMinionToHandOrBoard(state, def, false);
+      if (def && !def.spell) { procAncient(state); grantMinionToHandOrBoard(state, def, false); } // ROBIN × GENESIS fires (R-FX-ANCIENT-PROC-01)
     } else a.robinWindow = win;
   }
   if (effectOf(state, 'saleDiscountsTribe')) {
     const cur = a.robinBonds ?? [];
     const add = robinTribesOf(CARD_INDEX[sold.cardId]).filter((m) => !cur.includes(m));
-    if (add.length > 0) a.robinBonds = [...cur, ...add];
+    if (add.length > 0) { a.robinBonds = [...cur, ...add]; procAncient(state); } // ROBIN × BONDS fires: a new type is marked (R-FX-ANCIENT-PROC-01)
   }
 }
 
@@ -5166,6 +5225,7 @@ export function ancientOnDiscoverAny(state: RunState): void {
   const a = live(state);
   const e = a ? effectOf(state, 'discoverImprovesSpells') : undefined;
   if (!a || !e) return;
+  procAncient(state); // RE-PETE × BONDS fires (R-FX-ANCIENT-PROC-01)
   state.spellBonus ??= { attack: 0, health: 0 };
   state.spellBonus.attack += e.attack;
   state.spellBonus.health += e.health;
@@ -5179,6 +5239,7 @@ function repeteOnPlay(state: RunState, played: BoardCard): void {
   const e = live(state) ? effectOf(state, 'duplicatePlayBuffsOthers') : undefined;
   if (!e || !state.board.some((c) => c !== played && c.cardId === played.cardId)) return;
   const others = state.board.filter((c) => c !== played);
+  procAncient(state); // RE-PETE × WAR fires (R-FX-ANCIENT-PROC-01)
   powerBuff(state, () => { for (const c of others) addBuff(c, ANCIENTS.war.name, e.attack, e.health); });
 }
 
@@ -5201,6 +5262,7 @@ export function ancientOnBuy(state: RunState, cardId: string, starform: boolean,
       a.repeteBuys = [];
       // The Starform is a buy (it counts) but no card: it is never offered.
       const ids = [...new Set(win)].filter((id) => id !== STARFORM_ID);
+      procAncient(state); // RE-PETE × FORTUNE fires (R-FX-ANCIENT-PROC-01)
       queueDiscover(state, { kind: 'pool', ids, spells: true, lockWave: state.wave + Math.max(1, rd.turns) });
     } else a.repeteBuys = win;
   }
@@ -5248,7 +5310,7 @@ function gorrOnBuy(state: RunState, a: AncientsState, cardId: string, starform: 
       a.gorrBuys = [...(a.gorrBuys ?? []).filter((b) => b.wave === state.wave - 1), { wave: state.wave, ids: [...cur, cardId] }];
     }
     // GENESIS: the first minion bought each turn also gives a plain copy (the Starform has no body to copy).
-    if (first && !starform && effectOf(state, 'firstBuyExtraCopy')) gorrCopyToHand(state, cardId);
+    if (first && !starform && effectOf(state, 'firstBuyExtraCopy') && gorrCopyToHand(state, cardId)) procAncient(state); // GORR × GENESIS fires (R-FX-ANCIENT-PROC-01)
   }
   // BONDS: every `every`th card bought (any card) pays the minions among them, wherever they are now.
   const gb = effectOf(state, 'buysBuffImproves');
@@ -5256,6 +5318,7 @@ function gorrOnBuy(state: RunState, a: AncientsState, cardId: string, starform: 
     const win = [...(a.gorrBondsWindow ?? []), body ? body.uid : null];
     if (win.length < Math.max(1, gb.every)) { a.gorrBondsWindow = win; return; }
     a.gorrBondsWindow = [];
+    procAncient(state); // GORR × BONDS fires (R-FX-ANCIENT-PROC-01)
     const x = a.gorrBondsGain ?? gb.amount;
     const targets = win.map((uid) => (uid ? state.board.find((c) => c.uid === uid) ?? state.hand.find((c) => c.uid === uid) : undefined))
       .filter((c): c is BoardCard => !!c);
@@ -5288,7 +5351,7 @@ export function ancientGorrShopDeath(state: RunState): void {
   a.gorrDeaths = ((a.gorrDeaths ?? 0) + 1) % Math.max(1, e.every);
   if (a.gorrDeaths !== 0) return;
   const id = pickId(state, gorrBuysOn(state, state.wave - 1));
-  if (id) gorrCopyToHand(state, id);
+  if (id && gorrCopyToHand(state, id)) procAncient(state); // GORR × DEATH fires (R-FX-ANCIENT-PROC-01)
 }
 
 /** GORR × TIME: is the End-of-Turn copy live (the `ancientGorrEotCopy` recurring entry)? */
@@ -5357,7 +5420,7 @@ export function ancientBramShopDeath(state: RunState): void {
   const e = a ? effectOf(state, 'deathsGetGildedMinion') : undefined;
   if (!a || !e) return;
   a.bramDeaths = ((a.bramDeaths ?? 0) + 1) % Math.max(1, e.every);
-  if (a.bramDeaths === 0) bramGildedPayout(state);
+  if (a.bramDeaths === 0) { procAncient(state); bramGildedPayout(state); }
 }
 
 /** BRAUM × FORTUNE: a Triple Reward was just GOT (`grantGoldenDiscover`, after the card landed): gain the Gold now. */
@@ -5365,6 +5428,7 @@ export function ancientOnTripleReward(state: RunState): void {
   const a = live(state);
   const e = a ? effectOf(state, 'tripleRewardGold') : undefined;
   if (!a || !e || e.gold <= 0) return;
+  procAncient(state); // Braum / Gildmaster × Fortune fired (R-FX-ANCIENT-PROC-01)
   gainGold(state, e.gold);
   a.bramTripleGold = (a.bramTripleGold ?? 0) + e.gold;
 }
@@ -5550,7 +5614,7 @@ export function ancientOnEnchantedBuy(state: RunState, cardId: string, body: Boa
   const war = effectOf(state, 'enchantedBuyBuffImproves');
   if (war && body) {
     const x = a.ayseWarGain ?? war.amount;
-    if (x > 0) captureBuffFx(state, undefined, 'spell', () => addBuff(body, ANCIENTS.war.name, x, x));
+    if (x > 0) { procAncient(state); captureBuffFx(state, undefined, 'spell', () => addBuff(body, ANCIENTS.war.name, x, x)); } // Ayse × War fired (R-FX-ANCIENT-PROC-01)
     a.ayseWarGain = x + war.amount;
   }
   if (!completed) return;
@@ -5560,7 +5624,7 @@ export function ancientOnEnchantedBuy(state: RunState, cardId: string, body: Boa
     const minions = win.filter((id) => { const d = CARD_INDEX[id]; return !!d && !d.spell && !d.ruby && id !== STARFORM_ID; });
     for (let r = 0; r < triggers && minions.length > 0; r++) {
       const def = CARD_INDEX[pickId(state, minions)!];
-      if (def) grantMinionToHandOrBoard(state, def, false);
+      if (def) { procAncient(state); grantMinionToHandOrBoard(state, def, false); } // Ayse × Genesis fired (R-FX-ANCIENT-PROC-01)
     }
   }
   const edges = effectOf(state, 'luckySeatBuffsEdges');
@@ -5743,7 +5807,7 @@ export function ancientNadjaShopDeath(state: RunState): void {
   const e = a ? effectOf(state, 'avengeMaxGold') : undefined;
   if (!a || !e) return;
   a.nadjaDeaths = ((a.nadjaDeaths ?? 0) + 1) % Math.max(1, e.every);
-  if (a.nadjaDeaths === 0) nadjaGainMaxGold(state, a, e.gold, true);
+  if (a.nadjaDeaths === 0) { procAncient(state); nadjaGainMaxGold(state, a, e.gold, true); } // Nadja × Death fired (R-FX-ANCIENT-PROC-01)
 }
 
 /** NADJA × WAR: the Attack the Start-of-Combat Rally gives right now (+attack per Gold spent this turn; 0 when War is not
@@ -5780,6 +5844,7 @@ export function ancientOnSpendGold(state: RunState, amount: number): void {
   const chosen: BoardCard[] = [];
   for (let i = 0; i < e.count && picks.length > 0; i++) chosen.push(picks.splice(rng.int(picks.length), 1)[0]!);
   state.rngCursor = rng.state();
+  procAncient(state); // Nadja × Bonds fired (R-FX-ANCIENT-PROC-01)
   captureBuffFx(state, undefined, 'spell', () => { for (const c of chosen) addBuff(c, ANCIENTS.bonds.name, e.attack, e.health); });
 }
 
@@ -5851,7 +5916,7 @@ export function ancientBrackusShopDeath(state: RunState, dead: BoardCard): void 
   const e = a ? effectOf(state, 'avengeBuffTier7') : undefined;
   if (!a || !e) return;
   a.brackusDeaths = ((a.brackusDeaths ?? 0) + 1) % Math.max(1, e.every);
-  if (a.brackusDeaths === 0) brackusBuffTier7(state, e.attack, e.health, { skip: [dead.uid, state.vacatingUid] });
+  if (a.brackusDeaths === 0) { procAncient(state); brackusBuffTier7(state, e.attack, e.health, { skip: [dead.uid, state.vacatingUid] }); } // Brackus × Death fired (R-FX-ANCIENT-PROC-01)
 }
 
 /** BRACKUS × DEATH, settle: the fight's deaths join the running count. Its fires already buffed the living Tier 7
@@ -5885,12 +5950,13 @@ export function ancientOnGoldSpent(state: RunState, amount: number): void {
   if (f) {
     const every = Math.max(1, f.every);
     let n = (a.brackusGold ?? 0) + amount;
-    while (n >= every) { n -= every; queueDiscover(state, { kind: 'minion', tier: 7, exactTier: 7 }); }
+    while (n >= every) { n -= every; procAncient(state); queueDiscover(state, { kind: 'minion', tier: 7, exactTier: 7 }); } // Brackus × Fortune fired, once per Discover (R-FX-ANCIENT-PROC-01)
     a.brackusGold = n;
   }
   if (a.brackusGildAt !== undefined && effectOf(state, 'summitGildTier7') && countedGoldSpent(state) >= a.brackusGildAt) {
     a.brackusGildAt = undefined;
     a.brackusGilded = true;
+    procAncient(state); // Brackus × Genesis fired (R-FX-ANCIENT-PROC-01)
     brackusGild(state, a);
   }
 }
@@ -6024,17 +6090,19 @@ export function ancientHeroAvengeShopDeath(state: RunState, dead: BoardCard): vo
   const r = effectOf(state, 'avengeSummonSprout');
   if (r) {
     a.rayseDeaths = ((a.rayseDeaths ?? 0) + 1) % Math.max(1, r.every);
-    if (a.rayseDeaths === 0) rayseShopSprout(state, a, dead);
+    if (a.rayseDeaths === 0) { procAncient(state); rayseShopSprout(state, a, dead); } // RAYSE × DEATH fires (R-FX-ANCIENT-PROC-01)
   }
   const c = effectOf(state, 'avengeAdvanceCommission');
   if (c) {
     a.cassenDeaths = ((a.cassenDeaths ?? 0) + 1) % Math.max(1, c.every);
-    if (a.cassenDeaths === 0) advanceCommission(state, 1);
+    if (a.cassenDeaths === 0) { procAncient(state); advanceCommission(state, 1); } // CASSEN × DEATH fires (R-FX-ANCIENT-PROC-01)
   }
   const g = effectOf(state, 'avengeGrantCard');
   if (g) {
     a.gildDeaths = ((a.gildDeaths ?? 0) + 1) % Math.max(1, g.every);
     const def = CARD_INDEX[g.cardId];
+    // GILDMASTER / ROBIN / JUGGLER × DEATH fires on the paying death (the combat half procs on pay too) (R-FX-ANCIENT-PROC-01)
+    if (a.gildDeaths === 0 && def) procAncient(state);
     if (a.gildDeaths === 0 && def && state.hand.length < handCap(state)) conjureToHand(state, [def], 1);
   }
   // KESHI × DEATH: the Crown advances right then; a Crown that is now full pays at the reducer's action boundary
@@ -6042,7 +6110,7 @@ export function ancientHeroAvengeShopDeath(state: RunState, dead: BoardCard): vo
   const k = effectOf(state, 'avengeAdvanceCrown');
   if (k) {
     a.keshiDeaths = ((a.keshiDeaths ?? 0) + 1) % Math.max(1, k.every);
-    if (a.keshiDeaths === 0) advanceCrown(state, k.points);
+    if (a.keshiDeaths === 0) { advanceCrown(state, k.points); procAncient(state); } // KESHI × DEATH fires (R-FX-ANCIENT-PROC-01)
   }
   batchBShopDeath(state, a); // MERRIN / EMISSARY / EMERALD WARDEN × DEATH: the Shop half of their running Avenge
   batchAShopDeath(state, a); // RASCAL / GAMBLER / FLINT × DEATH
@@ -6273,6 +6341,7 @@ function gildmasterOnPlay(state: RunState, played: BoardCard): void {
   const a = live(state);
   const e = a ? effectOf(state, 'gildedPlayBuffsGilded') : undefined;
   if (!a || !e || !played.golden) return;
+  if (state.board.some((c) => c.golden)) procAncient(state); // GILDMASTER × BONDS fires, once per Gilded play (its repeats are the magnitude) (R-FX-ANCIENT-PROC-01)
   const reps = 1 + Math.max(0, a.gilds ?? 0);
   for (let r = 0; r < reps; r++) {
     const gilded = state.board.filter((c) => c.golden);
@@ -6514,6 +6583,7 @@ function midasBondsReact(state: RunState, before: Map<string, { attack: number; 
   for (const g of gainers) {
     const others = state.board.filter((c) => c !== g && c.golden);
     if (others.length === 0) continue;
+    procAncient(state); // MIDAS × BONDS fires, once per Gilded gainer (R-FX-ANCIENT-PROC-01)
     captureBuffFx(state, g, 'minion', () => { for (const o of others) addBuff(o, ANCIENTS.bonds.name, e.attack, e.health); });
     touched.push(g.uid, ...others.map((o) => o.uid));
   }
@@ -6609,7 +6679,7 @@ export function ancientShapeDiscoverPick(state: RunState, tag: AncientDiscoverTa
   const kw = (k: Keyword): void => { if (!taken.keywords.includes(k)) taken.keywords.push(k); };
   if (tag === 'crown') {
     const k = crownPickKeyword(state, index, taken.cardId);
-    if (k) kw(k);
+    if (k) { kw(k); if (commit) procAncient(state); } // KESHI × WAR fires on the real pick (R-FX-ANCIENT-PROC-01)
   }
   const def = CARD_INDEX[taken.cardId];
   // QUILLEN × DEATH (owner 2026-11-16): an Echo pick arrives Gilded (the triple's own transform, counted as a gild); playing
@@ -6854,12 +6924,13 @@ export function ancientReopenDiscover(state: RunState, rest: readonly string[]):
  * that the Gift is also cast on (a random neighbour when it has two, seeded off the run cursor), or undefined. Chosen
  * BEFORE the cast, because a Gift may remove its target (Parting Gifts).
  */
-export function ancientGiftAdjacent(state: RunState, def: CardDef, target: BoardCard): BoardCard | undefined {
+export function ancientGiftAdjacent(state: RunState, def: CardDef, target: BoardCard, casts = 1): BoardCard | undefined {
   if (!live(state) || !def.gift || !effectOf(state, 'giftsCastOnAdjacent')) return undefined;
   const i = state.board.indexOf(target);
   if (i < 0) return undefined;
   const near = [state.board[i - 1], state.board[i + 1]].filter((c): c is BoardCard => !!c);
   if (near.length === 0) return undefined;
+  procAncient(state, casts); // KINDNESS × BONDS fires: one per extra cast on the neighbour (R-FX-ANCIENT-PROC-01)
   if (near.length === 1) return near[0];
   const rng = makeRng(state.rngCursor);
   const pick = near[rng.int(near.length)]!;
@@ -6898,10 +6969,12 @@ function batchBSpellTick(state: RunState, waveAhead: 0 | 1): boolean {
  *  EMISSARY × GENESIS: every `every`th gets a random Shop spell. MERRIN × BONDS: one minion of each type +a/+h, permanent. */
 function batchBOnSpellCast(state: RunState): void {
   const hit = batchBSpellTick(state, 0);
+  if (hit) procAncient(state); // MERRIN × TIME / EMISSARY × GENESIS fires (R-FX-ANCIENT-PROC-01)
   if (hit && effectOf(state, 'spellsGrantShopSpell')) conjureToHand(state, vgSpellPool(state), 1);
   const bonds = effectOf(state, 'spellCastBuffsEachType');
   if (!bonds) return;
   const each = bannerRecipientsOf(state);
+  if (each.length > 0) procAncient(state); // MERRIN × BONDS fires (R-FX-ANCIENT-PROC-01)
   if (each.length > 0) fromHeroPower(state, () => { for (const c of each) addBuff(c, ANCIENTS.bonds.name, bonds.attack, bonds.health); });
 }
 
@@ -7015,14 +7088,16 @@ function batchBShopDeath(state: RunState, a: AncientsState): void {
   if (!every) return;
   a.batchBDeaths = ((a.batchBDeaths ?? 0) + 1) % every;
   if (a.batchBDeaths !== 0) return;
-  if (effectOf(state, 'avengeRandomShopSpell')) conjureToHand(state, shopSpellPool(state), 1);
+  // Each pays as one Ancient fire (R-FX-ANCIENT-PROC-01); Emerald Warden's spent once-per-turn fire is not one.
+  if (effectOf(state, 'avengeRandomShopSpell')) { procAncient(state); conjureToHand(state, shopSpellPool(state), 1); }
   const ew = effectOf(state, 'avengeTierMinion');
   // EMERALD WARDEN × DEATH (ancient pass 1): once per turn. A fire past the turn's one is spent (the count still moves).
   if (ew && !(ew.oncePerTurn && a.ewAvengeWave === state.wave)) {
     if (ew.oncePerTurn) a.ewAvengeWave = state.wave;
+    procAncient(state);
     conjureToHand(state, tierMinionPool(state), 1);
   }
-  if (effectOf(state, 'avengeUnitedFront')) fromHeroPower(state, () => { fireShopUnitedFront(state); });
+  if (effectOf(state, 'avengeUnitedFront')) { procAncient(state); fromHeroPower(state, () => { fireShopUnitedFront(state); }); }
 }
 
 /** The pick-time stamp. EMERALD WARDEN: a Shop already at Tier 6 has Vanguard's button from the pick. */
@@ -7056,6 +7131,8 @@ function batchBCombatMods(state: RunState): Partial<QuestCombatMods> {
       ...(vb ? { all: true } : {}),
     };
   }
+  const mt = effectOf(state, 'spellsRechargePower');
+  if (mt) out.ancientProcOn = { ...out.ancientProcOn, spellEvery: { every: Math.max(1, mt.every), tick: (a.batchBSpells ?? 0) % Math.max(1, mt.every) } }; // MERRIN × TIME's proc at the crossing cast (R-FX-ANCIENT-PROC-01)
   const vg = effectOf(state, 'spellsGrantShopSpell');
   if (vg) out.ancientSpellCountGrant = { every: vg.every, tick: (a.batchBSpells ?? 0) % Math.max(1, vg.every), label: ANCIENTS.genesis.name, ...(vg.minTier ? { ids: vgSpellPool(state).map((c) => c.id) } : {}) };
   return out;
@@ -7144,16 +7221,17 @@ function batchAShopDeath(state: RunState, a: AncientsState): void {
   const r = effectOf(state, 'avengeAllInGold');
   if (r) {
     a.rascalDeaths = ((a.rascalDeaths ?? 0) + 1) % Math.max(1, r.every);
-    if (a.rascalDeaths === 0) a.rascalPot = (a.rascalPot ?? 0) + r.gold;
+    if (a.rascalDeaths === 0) { a.rascalPot = (a.rascalPot ?? 0) + r.gold; procAncient(state); } // RASCAL × DEATH fires (R-FX-ANCIENT-PROC-01)
   }
   const g = effectOf(state, 'avengeReduceDiceLock');
   if (g) {
     a.gamblerDeaths = ((a.gamblerDeaths ?? 0) + 1) % Math.max(1, g.every);
-    if (a.gamblerDeaths === 0) reduceDiceLock(state, g.turns);
+    if (a.gamblerDeaths === 0) { reduceDiceLock(state, g.turns); procAncient(state); } // GAMBLER × DEATH fires (R-FX-ANCIENT-PROC-01)
   }
   const f = effectOf(state, 'avengeGrantTribeMinion');
   if (f) {
     a.flintDeaths = ((a.flintDeaths ?? 0) + 1) % Math.max(1, f.every);
+    if (a.flintDeaths === 0) procAncient(state); // FLINT × DEATH fires (R-FX-ANCIENT-PROC-01)
     if (a.flintDeaths === 0 && state.hand.length < handCap(state)) conjureToHand(state, tribePool(state, f.tribe), 1);
   }
 }
@@ -7354,12 +7432,13 @@ export function ancientOnContraband(state: RunState, offer: ShopCard): void {
   const rng = makeRng(state.rngCursor);
   offer.keywords = [...(offer.keywords ?? []), open[rng.int(open.length)]!];
   state.rngCursor = rng.state();
+  procAncient(state); // PETE × WAR fires (R-FX-ANCIENT-PROC-01)
 }
 
 /** PETE × FORTUNE: a Shop offer was bought (the reducer's post-buy block). A Contrabanana minion banks the free Refreshes. */
 export function ancientOnBananaBuy(state: RunState, offer: Pick<ShopCard, 'banana'> | null | undefined): void {
   const e = live(state) && offer?.banana ? effectOf(state, 'contrabandBuyFreeRefresh') : undefined;
-  if (e) state.freeRolls = (state.freeRolls ?? 0) + e.count;
+  if (e) { state.freeRolls = (state.freeRolls ?? 0) + e.count; procAncient(state); } // PETE × FORTUNE fires (R-FX-ANCIENT-PROC-01)
 }
 
 // ── Foreman Flint (Company Rate) hooks ───────────────────────────────────────────────────────────────────────
@@ -7424,6 +7503,7 @@ export function ancientOnCoinCast(state: RunState, spellId: string): void {
   if (!a || !e) return;
   const reps = improveReps(state);
   a.jugglerCoinBonus = { attack: (a.jugglerCoinBonus?.attack ?? 0) + e.attack * reps, health: (a.jugglerCoinBonus?.health ?? 0) + e.health * reps };
+  procAncient(state); // JUGGLER × WAR fires (R-FX-ANCIENT-PROC-01)
 }
 
 /** JUGGLER: what a Carnival Coin's text must print right now (Fortune's Gold, War's banked improvement), or undefined
@@ -7449,7 +7529,7 @@ function batchAOnBuy(state: RunState, a: AncientsState, cardId: string, starform
   const fb = effectOf(state, 'tribeBuyBuffsOthers');
   if (fb && !starform && defIsTribe(def, fb.tribe, state)) {
     const others = state.board.filter((c) => c !== body && (isTribe(c, fb.tribe) || defIsTribe(CARD_INDEX[c.cardId], fb.tribe, state)));
-    if (others.length > 0) powerBuff(state, () => { for (const c of others) addBuff(c, ANCIENTS.bonds.name, fb.attack, fb.health); });
+    if (others.length > 0) { procAncient(state); powerBuff(state, () => { for (const c of others) addBuff(c, ANCIENTS.bonds.name, fb.attack, fb.health); }); } // FLINT × BONDS fires (R-FX-ANCIENT-PROC-01)
   }
   const jt = effectOf(state, 'firstBuysGrantCoin');
   const coin = jt ? CARD_INDEX[CARNIVAL_COIN_ID] : undefined;
@@ -7614,6 +7694,7 @@ export function ancientOnCardsGained(next: RunState, before: Pick<RunState, 'han
     const twin = next.board.find((b) => b.cardId === c.cardId && b.uid !== c.uid);
     if (!twin) continue;
     const x = a.underBondsGain ?? e.amount;
+    procAncient(next); // UNDERDWELLER × BONDS fires (R-FX-ANCIENT-PROC-01)
     if (x > 0) captureBuffFx(next, undefined, 'spell', () => { addBuff(c, ANCIENTS.bonds.name, x, x); addBuff(twin, ANCIENTS.bonds.name, x, x); });
     a.underBondsGain = x + e.amount;
   }
@@ -7664,7 +7745,7 @@ function batchCOnBuy(state: RunState, a: AncientsState, cardId: string, from: An
   if (from.memory) {
     const first = memoryBuysThisTurn(state) === 0;
     a.memoryBuys = { wave: state.wave, n: memoryBuysThisTurn(state) + 1 };
-    if (first && effectOf(state, 'memoryFirstBuyCopy')) gorrCopyToHand(state, cardId);
+    if (first && effectOf(state, 'memoryFirstBuyCopy')) { procAncient(state); gorrCopyToHand(state, cardId); } // MEMBRANCE × GENESIS fires (R-FX-ANCIENT-PROC-01)
   }
   const mb = effectOf(state, 'buyControlledBuffsGilded');
   if (mb && from.controlled) {
@@ -7684,6 +7765,7 @@ function gorunShopDeath(state: RunState, died: BoardCard): void {
   const others = state.board.filter((c) => c.uid !== died.uid);
   if (others.length === 0) return;
   a.gorunGives = { wave: state.wave, n: gorunGivesThisTurn(state) + 1 };
+  procAncient(state); // GORUN × DEATH fires (R-FX-ANCIENT-PROC-01)
   const rng = makeRng(state.rngCursor);
   const heir = others[rng.int(others.length)]!;
   state.rngCursor = rng.state();
@@ -7707,12 +7789,15 @@ export function ancientSpoilsPassive(state: RunState): number {
   const e = a ? effectOf(state, 'spoilsPassive') : undefined;
   if (!a || !e || e.gold <= 0) return 0;
   a.mimicSpoilGold = { wave: state.wave, gold: (a.mimicSpoilGold?.wave === state.wave ? a.mimicSpoilGold.gold : 0) + e.gold };
+  procAncient(state); // MIMIC × FORTUNE fires (R-FX-ANCIENT-PROC-01)
   return e.gold;
 }
 
 /** MIMIC × BONDS: Four Peat again, as a passive (read by the reducer's `gorrQuestBuy`, Four Peat's own code). */
-export function ancientFourPeatPassive(state: RunState): boolean {
-  return !!live(state) && !!effectOf(state, 'fourPeatPassive');
+export function ancientFourPeatPassive(state: RunState, fired = false): boolean {
+  const on = !!live(state) && !!effectOf(state, 'fourPeatPassive');
+  if (on && fired) procAncient(state); // `fired`: the passive's copy just paid, MIMIC × BONDS fires (R-FX-ANCIENT-PROC-01)
+  return on;
 }
 
 /** MIMIC × GENESIS: how many powers a pressed Mimicry offers (0 = Mimicry opens by itself at Start of Turn, as native). */
@@ -7832,6 +7917,8 @@ export function ancientNoteTargetedCast(state: RunState): void {
   // the pick turn are among "your first 3 this turn". Only Hunch × Bonds reads it.
   const a = live(state);
   if (!a) return;
+  const hb = effectOf(state, 'firstTargetedSpellsTwice');
+  if (hb && hunchTargetedThisTurn(state) < hb.count) procAncient(state); // HUNCH × BONDS fires: this cast was doubled (R-FX-ANCIENT-PROC-01)
   a.hunchTargeted = { wave: state.wave, n: hunchTargetedThisTurn(state) + 1 };
 }
 
@@ -7843,13 +7930,16 @@ export function ancientOnTripleRewardOpen(state: RunState): void {
   if (!a || !e || e.gold <= 0) return;
   gainGold(state, e.gold);
   a.keshiOpenGold = (a.keshiOpenGold ?? 0) + e.gold;
+  procAncient(state); // KESHI × FORTUNE fires (R-FX-ANCIENT-PROC-01)
 }
 
 /** MEMBRANCE × BONDS (owner 2026-11-16): "Playing a Gilded minion gives you 2 Triple Rewards." How many MORE Triple
  *  Rewards a Gilded play grants beyond its usual one (0 unless picked). */
-export function ancientGildedPlayExtraRewards(state: RunState): number {
+export function ancientGildedPlayExtraRewards(state: RunState, fire = false): number {
   const e = live(state) ? effectOf(state, 'gildedPlayExtraRewards') : undefined;
-  return e ? Math.max(0, e.extra) : 0;
+  const n = e ? Math.max(0, e.extra) : 0;
+  if (fire && n > 0) procAncient(state); // `fire`: a Gilded play is paying them now, MEMBRANCE × BONDS fires (R-FX-ANCIENT-PROC-01)
+  return n;
 }
 
 /** MIMIC × WAR: a Shop spell was cast (`castSpell`'s R-SHOPSPELL-01 tally). Counted on every Ancients run from its start,

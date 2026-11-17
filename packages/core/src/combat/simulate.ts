@@ -62,6 +62,13 @@ const OTHER: Record<Side, Side> = { player: 'enemy', enemy: 'player' };
  *  pulsed as a player `questTrigger` so the hero power's "(N left this combat)" counts down live with the replay. Only
  *  one pairing is active per run, so one flag serves every capped pairing (R-ANCFIX-09). */
 export const ANCIENT_CAP_SPENT_FLAG = 'ancientCapSpent';
+/** ANCIENT TRIGGER PROC (owner 2026-11-17, R-FX-ANCIENT-PROC-01): "ancients that fire from events, like warden's fortune
+ *  ... should play the same animation that runes do when they trigger". An Ancient whose effect fires from a combat EVENT
+ *  pulses one `questTrigger` of this flag per fire, for the side it belongs to, the moment it fires (before its
+ *  consequences), and the UI plays the rune-trigger burst on that side's hero-power button. Presentation only: nothing
+ *  reads it back. A pairing that already pulses its own per-fire Ancient flag (the live counters, R-ANCSYS-04) is
+ *  aliased in the sim's `ANCIENT_PROC_ALIAS_FLAGS` instead of pulsing this one too. */
+export const ANCIENT_PROC_FLAG = 'ancientProc';
 
 export const RALLY_WATCHER_EFFECTS = new Set<string>(['onRallyBuffOnePerTribe', 'onRallyProcLeftmostEcho', 'onRallyPlayRubiesTribe']);
 const ITERATION_GUARD = 300;
@@ -454,6 +461,9 @@ export function simulate(
   // A completed quest / owned rune's COMBAT effect just fired — emit a marker the UI folds into a badge pulse
   // (the `flag` maps to the quest/rune id via content). Purely cosmetic; zero effect on resolution.
   const fireTrigger = (flag: string, side: Side, from?: string): void => emit({ type: 'questTrigger', flag, side, ...(from !== undefined ? { from } : {}) });
+  /** An Ancient's event-fired effect just fired for `side` (R-FX-ANCIENT-PROC-01): one call per fire, at the point it
+   *  resolves, before its consequences. Cosmetic only. */
+  const ancientProc = (side: Side): void => fireTrigger(ANCIENT_PROC_FLAG, side);
   /** RUNE HIT IDENTITY (R-RUNE-SPIKE-FX-01, owner 2026-11-13: "for pitchforks and other similar runes/effects, use
    *  the fel spikes animation"). After a rune's own damage call on `target` (begun at log index `from`), stamp the
    *  hit's own event (its `dmg`, or the Ward pop that absorbed it) with `key: 'rune:<id>:hit'` + `srcCard: <id>`, so
@@ -543,12 +553,14 @@ export function simulate(
   bus.on('onRise', (payload) => {
     const { minion, side } = payload as { minion: Minion; side: Side };
     if (modsFor(side).ancientCountRises) riseLog[side] += 1;
+    if (modsFor(side).ancientProcOn?.rise) ancientProc(side); // RISEN × FORTUNE fires (paid at settle, R-FX-ANCIENT-PROC-01)
     const bonds = modsFor(side).ancientRiseEcho;
     if (!bonds || minion.dead) return;
     const echoes = livingNeighbours(ctx, minion).filter((n) => n.effects.some((e) => e.on === 'onDeath'));
     if (echoes.length === 0) return;
     const target = echoes.length === 1 ? echoes[0]! : rng.pick(echoes);
     nextStep();
+    ancientProc(side); // RISEN × BONDS fires (R-FX-ANCIENT-PROC-01)
     emit({ type: 'sc', source: minion.uid, text: `${bonds.label}: ${target.name}'s Echo` });
     triggerEcho(ctx, minion, target, 1);
   });
@@ -1313,7 +1325,7 @@ export function simulate(
     }
     // ANCIENT OF DEATH × Flash (owner 2026-10-09): "Also get a copy of the 2nd minion that dies." The 2nd enemy minion
     // this side kills, while First or Last is armed (it is an addition to that claim), live.
-    if (killCount[killer] === 2 && flashPickFor[killer] && modsFor(killer).ancientFlash?.second) flashToHand(killer, body, uid);
+    if (killCount[killer] === 2 && flashPickFor[killer] && modsFor(killer).ancientFlash?.second) { ancientProc(killer); flashToHand(killer, body, uid); } // FLASH × DEATH fires (R-FX-ANCIENT-PROC-01)
   };
 
   // ── Combat-phase quest tallies (carried back via playerQuestTally) ──────────────────────────────────────
@@ -1774,6 +1786,7 @@ export function simulate(
         const others = boards[target.side].filter((m) => m !== target && !m.dead && m.health > 0 && m.divineShield);
         if (others.length > 0) {
           const pick = rng.pick(others);
+          ancientProc(target.side); // WARDEN × BONDS fires (R-FX-ANCIENT-PROC-01)
           ancientBondsFiring = true;
           // Not the cast's own buff: no `spellId`, so a spell's cast effect never replaces Warden's hero-power tendril
           // (the Hunch × Bonds shape, `ancientSpellEdges` below). Presentation only.
@@ -1790,6 +1803,7 @@ export function simulate(
       if (gb && !ancientGildedBondsFiring && target.golden && !target.dead && (attack > 0 || health > 0)) {
         const others = boards[target.side].filter((m) => m !== target && !m.dead && m.health > 0 && m.golden);
         if (others.length > 0) {
+          ancientProc(target.side); // MIDAS × BONDS fires (R-FX-ANCIENT-PROC-01)
           ancientGildedBondsFiring = true;
           try { for (const o of others) { buffFromNext = grantFrom(gb.origin, target, o); ctx.buff(o, gb.attack, gb.health, gb.label); } } finally { ancientGildedBondsFiring = false; }
         }
@@ -1805,6 +1819,7 @@ export function simulate(
         const otherUid = tid === xb.a ? xb.b : tid === xb.b ? xb.a : undefined;
         const partner = otherUid ? boards[target.side].find((m) => runUid(m) === otherUid && !m.dead && m !== target) : undefined;
         if (partner) {
+          ancientProc(target.side); // XEROX × BONDS fires (R-FX-ANCIENT-PROC-01)
           xeroxBondMirroring = true;
           try { ctx.buff(partner, Math.max(0, attack), Math.max(0, health), xb.label); } finally { xeroxBondMirroring = false; }
         }
@@ -2169,6 +2184,7 @@ export function simulate(
     grantMaxGold: (amount, side) => {
       maxGoldGain[side] += amount;
     },
+    ancientProc: (side) => ancientProc(side), // R-FX-ANCIENT-PROC-01 (Midas × Death's grafted Echo)
     grantBonusGold: (amount, side) => {
       bonusGoldGain[side] += amount;
     },
@@ -2350,6 +2366,7 @@ export function simulate(
       const wardAtk = modsFor(side).ancientSpellWardAttack;
       if (wardAtk) {
         const warded = living(side).filter((m) => m.divineShield);
+        if (warded.length > 0) ancientProc(side); // WARDEN × TIME fires (R-FX-ANCIENT-PROC-01)
         const casting = ctx.castingSpellId;
         ctx.castingSpellId = undefined;
         try { for (const m of warded) ctx.buff(m, wardAtk.attack, 0, wardAtk.label); } finally { ctx.castingSpellId = casting; }
@@ -2360,6 +2377,7 @@ export function simulate(
       const banners = modsFor(side).ancientSpellBanners;
       if (banners) {
         const each = unitedFrontRecipients(side);
+        if (each.length > 0) ancientProc(side); // MERRIN × BONDS fires (R-FX-ANCIENT-PROC-01)
         const casting = ctx.castingSpellId;
         ctx.castingSpellId = undefined;
         try { for (const m of each) ctx.buff(m, banners.attack, banners.health, banners.label); } finally { ctx.castingSpellId = casting; }
@@ -2367,8 +2385,11 @@ export function simulate(
       // ANCIENT OF GENESIS × Emissary (owner 2026-11-10): "Every 5 spells you cast, get a random Shop spell." The running
       // count rides in (`tick`); the cast that lands on a multiple pays right then, mid-fight (a live `toHand`).
       const scg = modsFor(side).ancientSpellCountGrant;
+      const spe = modsFor(side).ancientProcOn?.spellEvery; // MERRIN × TIME fires (its recharge is paid at settle, R-FX-ANCIENT-PROC-01)
+      if (spe && (spe.tick + combatSpells[side]) % Math.max(1, spe.every) === 0) ancientProc(side);
       if (scg && (scg.tick + combatSpells[side]) % Math.max(1, scg.every) === 0) {
         nextStep();
+        ancientProc(side); // EMISSARY × GENESIS fires (R-FX-ANCIENT-PROC-01)
         // Ancient pass 1: a Tier 3+ pool rides in as `ids` (an empty pool grants nothing).
         if (scg.ids) { if (scg.ids.length > 0) ctx.grantToHand(scg.ids[grantRngFor(side).int(scg.ids.length)]!, side, undefined); }
         else ctx.grantRandomSpell(1, side, undefined);
@@ -2713,6 +2734,7 @@ export function simulate(
       summonsAttackUsed[side] += 1;
       out.attackNow = true;
       fireTrigger(ANCIENT_CAP_SPENT_FLAG, side); // the power's "(N left this combat)" ticks live
+      ancientProc(side); // RAYSE × WAR fires (R-FX-ANCIENT-PROC-01)
     }
     const hatch = modsFor(side).runeHatchery;
     if (hatch) {
@@ -2999,10 +3021,12 @@ export function simulate(
     // RAYSE × GENESIS (owner 2026-11-16: "only when you have room"): no free slot, no copy, and the budget is kept.
     if (modsFor(side).ancientSummonExtraNeedsRoom && occupied(side) >= 7) return 0;
     const left = summonExtraBudget[side];
-    if (left === undefined) return n;
-    if (left <= 0) return 0;
-    summonExtraBudget[side] = left - 1;
-    fireTrigger(ANCIENT_CAP_SPENT_FLAG, side); // the power's "(N left this combat)" ticks live
+    if (left !== undefined) {
+      if (left <= 0) return 0;
+      summonExtraBudget[side] = left - 1;
+      fireTrigger(ANCIENT_CAP_SPENT_FLAG, side); // the power's "(N left this combat)" ticks live
+    }
+    ancientProc(side); // RISEN / RAYSE × GENESIS fires: every caller summons the extras next (R-FX-ANCIENT-PROC-01)
     return n;
   }
 
@@ -3112,6 +3136,7 @@ export function simulate(
     // Den Marker order), a combat buff.
     const spoilsGain = modsFor(side).ancientSummonGain;
     if (spoilsGain && minion.side === side && !minion.dead && (spoilsGain.attack > 0 || spoilsGain.health > 0)) {
+      ancientProc(side); // RAYSE × FORTUNE fires (its only source today, R-FX-ANCIENT-PROC-01)
       ctx.buff(minion, spoilsGain.attack, spoilsGain.health, spoilsGain.label);
     }
     // ANCIENT OF BONDS × Rayse (owner 2026-10-09): "When a minion is summoned in combat, give 2 friendly minions +3/+3."
@@ -3124,6 +3149,7 @@ export function simulate(
         const chosen: Minion[] = [];
         for (let i = 0; i < sbo.count && pool.length > 0; i++) chosen.push(pool.splice(draw.int(pool.length), 1)[0]!);
         nextStep();
+        ancientProc(side); // RAYSE × BONDS fires (R-FX-ANCIENT-PROC-01)
         for (const m of chosen) ctx.buff(m, sbo.attack, sbo.health, sbo.label);
       }
     }
@@ -3555,6 +3581,7 @@ export function simulate(
     // ANCIENT OF DEATH × Soren: the Echo Reclaim's Start-of-Combat destroy triggers fires `echoExtra` more times. Scoped to
     // the one body Reclaim is destroying right now (`reclaimEchoUid`), so no other death is touched.
     const reclaimExtra = reclaimEchoUid !== undefined && reclaimEchoUid === minion.uid ? mods.ancientReclaim?.echoExtra ?? 0 : 0;
+    if (reclaimExtra > 0) ancientProc(minion.side); // SOREN × DEATH fires: the Reclaimed Echo fires extra (R-FX-ANCIENT-PROC-01)
     return foldEchoExtraFires({ reaperExtras, beastRitualExtra, echoExtraAlways: mods.echoExtraAlways ?? 0, firstEchoBonus }) + reclaimExtra;
   }
 
@@ -3886,6 +3913,7 @@ export function simulate(
         const band = boards[side].filter((m) => !m.dead && m.health > 0);
         if (band.length === 0) break;
         ancientPummelPays[side] += 1;
+        ancientProc(side); // GORR × WAR fires (R-FX-ANCIENT-PROC-01)
         ctx.grantToHand(band[draw.int(band.length)]!.cardId, side, dealer.uid);
       }
     }
@@ -3921,6 +3949,7 @@ export function simulate(
         const pick = band.length > 0 ? band[grantRngFor(side).int(band.length)]! : struck && struck.side === foe ? struck : undefined;
         if (!pick) break;
         ancientPummelPays[side] += 1;
+        ancientProc(side); // FLASH × WAR fires (R-FX-ANCIENT-PROC-01)
         flashToHand(side, flashBodyOf(pick), dealer.uid);
       }
     }
@@ -3929,6 +3958,7 @@ export function simulate(
     const every = Math.max(1, ap.every);
     if (Math.floor(after / every) - Math.floor(before / every) <= 0) return;
     ancientPummelPaid[side] = true;
+    ancientProc(side); // ALBUS × WAR fires (R-FX-ANCIENT-PROC-01)
     for (let i = 0; i < ap.count; i++) ctx.grantToHand(ap.cardId, side, dealer.uid);
   }
 
@@ -4218,6 +4248,7 @@ export function simulate(
       const spentTint = riseTint.get(minion.uid);
       riseTint.delete(minion.uid);
       nextStep(); // the body's return is its own moment, after the rattle's summons
+      if (undying?.war) ancientProc(minion.side); // RISEN × WAR fires on the Undying body's return (R-FX-ANCIENT-PROC-01)
       // A Rise return IS a combat summon (R-SUMMON-RETURN-01): the "summoned in combat" body grants (Undertow's
       // Ward, Hatchery, Packcraft, Food Chain, Spare Chair, Solid Ground, Containment) land on the printed body it returns as, after its
       // Auras, before the `reborn` event — so the return shows them from its first frame.
@@ -4232,6 +4263,7 @@ export function simulate(
         minion.rebornAvailable = true;
         riseTint.set(minion.uid, 'blue');
         nextStep();
+        ancientProc(minion.side); // RISEN × DEATH fires (R-FX-ANCIENT-PROC-01)
         emit({ type: 'keyword', target: minion.uid, keyword: 'R', source: minion.uid, tint: 'blue' });
         fireTrigger(ANCIENT_CAP_SPENT_FLAG, minion.side); // the power's "(N left this combat)" ticks live
       }
@@ -4811,11 +4843,11 @@ export function simulate(
     // only, but engraving etc would carry it back"; Bonds "That fight only"), so Engraved and every other keeper apply.
     if (reclaim && !copy.dead && copy.health > 0) {
       // WAR: the returned copy gains +X/+X (X = the run's live, improving amount).
-      if ((reclaim.gain ?? 0) > 0) { nextStep(); ctx.buff(copy, reclaim.gain!, reclaim.gain!, reclaim.label); }
+      if ((reclaim.gain ?? 0) > 0) { nextStep(); ancientProc(side); ctx.buff(copy, reclaim.gain!, reclaim.gain!, reclaim.label); } // SOREN × WAR fires (R-FX-ANCIENT-PROC-01)
       // BONDS: the minions next to it gain Attack equal to its Attack (read after War, so it is the body that landed).
       if (reclaim.bonds && copy.attack > 0) {
         const near = livingNeighbours(ctx, copy);
-        if (near.length > 0) { nextStep(); for (const n of near) ctx.buff(n, copy.attack, 0, reclaim.label); }
+        if (near.length > 0) { nextStep(); ancientProc(side); for (const n of near) ctx.buff(n, copy.attack, 0, reclaim.label); } // SOREN × BONDS fires (R-FX-ANCIENT-PROC-01)
       }
     }
     // Spare Chair / Ancient of War on a reclaimed body: it strikes the instant it lands, riding the same single
@@ -4885,6 +4917,8 @@ export function simulate(
       target.keywords = target.keywords.filter((k) => k !== 'DS');
       wardBroken.add(target.uid); // Rebirth restores it (see `killOrReborn`)
       emit({ type: 'shield', target: target.uid });
+      // ANCIENT OF FORTUNE × Warden: the break banks Gold for next turn (paid at settle); the Ancient's proc plays NOW.
+      if (modsFor(target.side).ancientProcOn?.wardBreak) ancientProc(target.side);
       // ANCIENT OF GENESIS × Warden (real-time): the break joins the window; the Nth pays a copy NOW, after the break.
       const wardCopy = modsFor(target.side).ancientWardCopy;
       if (wardCopy) {
@@ -4894,6 +4928,7 @@ export function simulate(
           const pickId = win[Math.floor(grantRngFor(target.side).next() * win.length)]!;
           wardWindow[target.side] = [];
           const def = cards[pickId];
+          ancientProc(target.side); // the Nth break: Warden × Genesis fires (R-FX-ANCIENT-PROC-01)
           if (def && !def.spell) ctx.grantToHand(pickId, target.side, target.uid);
         }
       }
@@ -5748,6 +5783,7 @@ export function simulate(
       spaceQueue.push({ side: rside, land: () => landResummon(anchor, copyBoard, rside, reclaim) });
       // TIME: "Reclaim summons twice". The extra copy is the same body again, but WITHOUT the run card's `sourceUid`, so
       // its carry-backs (an Engraved gain, a tally) never reach the run card twice; the first copy keeps that link.
+      if ((rc?.copies ?? 1) > 1) ancientProc(rside); // SOREN × TIME fires: one per Reclaim (R-FX-ANCIENT-PROC-01)
       for (let k = 1; k < (rc?.copies ?? 1); k++) {
         const extra: BoardMinion = { ...copyBoard, keywords: [...(copyBoard.keywords ?? [])], sourceUid: undefined };
         spaceQueue.push({ side: rside, land: () => landResummon(anchor, extra, rside, reclaim) });
@@ -5921,6 +5957,7 @@ export function simulate(
         if (tail && !tail.golden) {
           const def = cards[tail.cardId];
           nextStep();
+          ancientProc(scSide); // INDY × TIME fires (R-FX-ANCIENT-PROC-01)
           tail.golden = true;
           emit({ type: 'ascend', target: tail.uid, into: tail.cardId, gild: true });
           // An ENGRAVED body keeps the Gilded status after combat (the owner's Engraved ruling for Cindy × War, mirrored
@@ -5955,6 +5992,7 @@ export function simulate(
         const src = xeroxTop(scSide, 'health');
         if (src) {
           nextStep();
+          ancientProc(scSide); // XEROX × WAR fires (R-FX-ANCIENT-PROC-01)
           emit({ type: 'sc', source: src.uid, text: `${smods.ancientXeroxSoc.label}: a copy of ${src.name}` });
           if (occupied(scSide) < 7) xeroxCopy(scSide, src);
           else {
@@ -5972,6 +6010,7 @@ export function simulate(
         const band = boards[scSide].filter((m) => !m.dead && m.health > 0 && (!socAll.tribe || isTribeOf(m, socAll.tribe, cards)));
         if (band.length > 0) {
           nextStep();
+          ancientProc(scSide); // Braum / Flint × War (every `ancientSocBuffAll` source) fired (R-FX-ANCIENT-PROC-01)
           for (const m of band) {
             const kept = ctx.buff(m, socAll.attack, socAll.health, socAll.label).kept;
             // BRAUM × WAR (ancient pass 1): a permanent grant rides home (`permaGain`; an Engraved body already kept it).
@@ -5987,6 +6026,7 @@ export function simulate(
         if (band.length > 0) {
           nextStep();
           emit({ type: 'sc', source: band[0]!.uid, text: `${smods.ancientTripleNeutrals.label}: Neutral minions triple their stats`, side: scSide, heroPower: true });
+          ancientProc(scSide); // Braum × Bonds fired (R-FX-ANCIENT-PROC-01)
           const before = band.map((m) => ({ m, a: Math.max(0, m.attack), h: Math.max(0, m.health) }));
           for (const { m, a, h } of before) if (a > 0 || h > 0) ctx.buff(m, a * 2, h * 2, smods.ancientTripleNeutrals.label);
         }
@@ -6028,6 +6068,7 @@ export function simulate(
         const front = boards[scSide].filter((m) => !m.dead && m.health > 0).slice(0, Math.max(0, swf.count));
         if (front.length > 0) {
           nextStep();
+          ancientProc(scSide); // GORUN × GENESIS fires (R-FX-ANCIENT-PROC-01)
           for (const m of front) {
             if (!m.keywords.includes('W')) { m.keywords.push('W'); emit({ type: 'keyword', target: m.uid, keyword: 'W' }); }
             if (!m.divineShield) {
@@ -6051,6 +6092,7 @@ export function simulate(
           const draw = grantRngFor(scSide);
           nextStep();
           emit({ type: 'sc', source: open[0]!.uid, text: `${mw.label}: Ward`, side: scSide, heroPower: true });
+          ancientProc(scSide); // MIDAS × WAR fires (R-FX-ANCIENT-PROC-01)
           while (n > 0 && open.length > 0) {
             const m = open.splice(draw.int(open.length), 1)[0]!;
             m.divineShield = true;
@@ -6068,6 +6110,7 @@ export function simulate(
         if (band.length > 0) {
           const grant = bladeGrantOf(scSide);
           nextStep();
+          ancientProc(scSide); // GORUN × TIME fires (R-FX-ANCIENT-PROC-01)
           for (const m of band) ctx.buff(m, grant, 0, 'Blade Mastery');
         }
       }
@@ -6081,6 +6124,7 @@ export function simulate(
           const band = boards[scSide].filter((m) => !m.dead && m.health > 0);
           if (band.length === 0) break;
           nextStep();
+          if (r === 0) ancientProc(scSide); // DRAKKO × WAR fires: one Start of Combat fire, its repeats are its magnitude (R-FX-ANCIENT-PROC-01)
           ctx.buff(band[draw.int(band.length)]!, srb.attack, srb.health, srb.label);
         }
       }
@@ -6104,6 +6148,7 @@ export function simulate(
         if (src) {
           nextStep();
           emit({ type: 'sc', source: src.uid, text: `${smods.ancientSummitCopy.label}: a copy of ${src.name}` });
+          ancientProc(scSide); // Brackus × War fired (R-FX-ANCIENT-PROC-01)
           // BRACKUS × WAR (ancient pass 1): "and get one too": a plain copy to hand, live (a full hand gets none at settle).
           if (smods.ancientSummitCopy.toHand) ctx.grantToHand(src.cardId, scSide, src.uid);
           if (occupied(scSide) < 7) xeroxCopy(scSide, src);
@@ -6122,9 +6167,11 @@ export function simulate(
         const shouters = boards[scSide].filter((m) => !m.dead && m.health > 0 && m.effects.some((e) => e.on === 'onPlay' && !SILENT_ONPLAY.has(e.do)));
         // DRAKKO × TIME (ancient pass 1): `leftOnly` fires the left-most Shout minion alone.
         const edges = shouters.length === 0 ? [] : smods.ancientEdgeShouts.leftOnly ? [shouters[0]!] : [...new Set([shouters[0]!, shouters[shouters.length - 1]!])];
+        let edgeProc = false; // one Start-of-Combat fire, however many edges it triggers (R-FX-ANCIENT-PROC-01)
         for (const m of edges) {
           if (m.dead || m.health <= 0) continue;
           nextStep();
+          if (!edgeProc) { edgeProc = true; ancientProc(scSide); } // AUCTIONEER / DRAKKO × TIME fires
           emit({ type: 'sc', source: m.uid, text: `${smods.ancientEdgeShouts.label}: ${m.name}'s Shout` });
           for (let r = 0; r < drakkoRepeats(ctx, scSide); r++) fireShout(ctx, m, m);
         }
@@ -6139,6 +6186,7 @@ export function simulate(
         if (lead) {
           nextStep();
           emit({ type: 'sc', source: lead.uid, text: `${smods.ancientSocRally.label}: ${lead.name} gains Rally`, side: scSide, heroPower: true });
+          ancientProc(scSide); // Nadja × War fired (R-FX-ANCIENT-PROC-01)
           const eff: EffectDef = { on: 'onAttack', do: 'rallyBuff', params: { attack: smods.ancientSocRally.attack, health: 0, self: true, fixed: true } };
           lead.effects = [...lead.effects, eff];
           registerEffect(lead, eff);
@@ -7324,6 +7372,7 @@ export function simulate(
       const src = xeroxTop(side, 'attack');
       if (!src) return;
       nextStep();
+      ancientProc(side); // XEROX × DEATH fires (R-FX-ANCIENT-PROC-01)
       emit({ type: 'sc', source: victim?.uid ?? src.uid, text: `${xa.label}: a copy of ${src.name}`, side, heroPower: true });
       xeroxCopy(side, src);
     }
@@ -7342,7 +7391,10 @@ export function simulate(
     if (ga.flag) fireTrigger(ga.flag, side);
     const fires = 1 + (modsFor(side).runeFury ? flagCopiesOf(side, 'runeFury') : 0);
     const draw = grantRngFor(side);
-    for (let k = 0; k < fires; k++) ctx.grantToHand(ga.ids[draw.int(ga.ids.length)]!, side, victim?.uid);
+    for (let k = 0; k < fires; k++) {
+      ancientProc(side); // GORR / MERRIN / EMERALD WARDEN × DEATH fires, one per Fury repeat (R-FX-ANCIENT-PROC-01)
+      ctx.grantToHand(ga.ids[draw.int(ga.ids.length)]!, side, victim?.uid);
+    }
   });
   // CINDY × ANCIENT OF DEATH (Duos only, owner 2026-11-14, R-ANCCINDY-01): "Avenge (15): give your teammate a
   // Goldcrafter." The Xerox Death running count; each fire sends the gift to the TEAMMATE at once (`sendTeam`: a
@@ -7364,6 +7416,7 @@ export function simulate(
     const { side, count, victim } = payload as { side: Side; count: number; victim?: Minion };
     const bd = modsFor(side).ancientBramDeaths;
     if (!bd || (bd.tick + count) % Math.max(1, bd.every) !== 0) return;
+    ancientProc(side); // Braum × Death fired (R-FX-ANCIENT-PROC-01)
     const idx = handGrants[side].length;
     nextStep();
     ctx.grantRandomMinion(1, undefined, side, undefined, victim?.uid);
@@ -7467,7 +7520,7 @@ export function simulate(
     const av = uf?.avenge;
     if (!uf || !av || (av.tick + count) % Math.max(1, av.every) !== 0) return;
     const fires = 1 + (modsFor(side).runeFury ? flagCopiesOf(side, 'runeFury') : 0);
-    for (let k = 0; k < fires; k++) fireUnitedFront(side, spellTotals[side] * Math.max(1, av.mult), uf.all);
+    for (let k = 0; k < fires; k++) { ancientProc(side); fireUnitedFront(side, spellTotals[side] * Math.max(1, av.mult), uf.all); } // EMISSARY × DEATH fires (R-FX-ANCIENT-PROC-01)
   });
   // ANCIENT OF DEATH × Tradesman (owner 2026-10-02): "Avenge (3): Gain a free Refresh." A hero Avenge on ONE running
   // count across Shop and combat (`tick` carried in, the Xerox Death shape). Each fire banks a free Refresh right then
@@ -7576,6 +7629,7 @@ export function simulate(
     if (!d || ((d.tick ?? 0) + count) % Math.max(1, d.every) !== 0) return; // one running count across Shop and combat
     const fires = 1 + (modsFor(side).runeFury ? flagCopiesOf(side, 'runeFury') : 0);
     for (let k = 0; k < fires; k++) {
+      ancientProc(side); // HUNCH × DEATH fires (R-FX-ANCIENT-PROC-01)
       const r = ctx.improveRepsFor(side);
       const a = d.attack * r, h = d.health * r;
       ancientSpellImproved[side].attack += a;
@@ -7690,6 +7744,7 @@ export function simulate(
       const gilded = boards[side].filter((m) => m !== minion && !m.dead && m.health > 0 && m.golden);
       if (gilded.length === 0) return;
       nextStep(); // its own beat, not the death's
+      ancientProc(side); // INDY × WAR fires (R-FX-ANCIENT-PROC-01)
       for (const m of gilded) {
         const keptBy = ctx.buff(m, war.attack, war.health, war.label).kept; // true = an Engrave (EG or the Transcendant aura) already kept it (R-ENGRAVE-05)
         if (!keptBy) m.permaGain = { attack: (m.permaGain?.attack ?? 0) + war.attack, health: (m.permaGain?.health ?? 0) + war.health };
@@ -8112,12 +8167,14 @@ export function simulate(
     if (modsFor(side).ancientFirstFoeDeathCopy && ff) {
       firstFoeDeath[side] = undefined; // once (a tag-team step-in already claimed it)
       nextStep();
+      ancientProc(side); // UNDERDWELLER × TIME fires (R-FX-ANCIENT-PROC-01)
       ctx.grantToHand(ff.cardId, side, ff.uid);
     }
     const ld = modsFor(side).ancientLastDeathCopy;
     const last = lastFriendlyDeath[side];
     if (!ld || !last) return;
     nextStep();
+    ancientProc(side); // RE-PETE × DEATH fires (R-FX-ANCIENT-PROC-01)
     ctx.grantToHand(last.cardId, side, last.uid);
   };
   // Rune of Reinvestment: pays ONCE when the fight settles, scaled by how many bodies you put on the board.

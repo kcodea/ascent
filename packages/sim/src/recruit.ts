@@ -13,6 +13,8 @@ import { ancientNadjaShopDeath, ancientHunchShopDeath } from './ancients'; // Na
 import { ancientBrackusShopDeath } from './ancients'; // Brackus
 import { ancientHeroAvengeShopDeath, ancientDrakkoEotShoutLive, ancientRayseEotRiseLive, ancientRunRayseEotRise, commissionDelayOf, ancientCommissionReps } from './ancients'; // the 2026-10-09 batch
 import { ancientEotShoutCount, ancientLuckySeatNeed, ancientCommissionSecond } from './ancients'; // ancient pass 1
+import { procAncient as procAncientG1 } from './ancients'; // ancient trigger procs, group 1 (R-FX-ANCIENT-PROC-01)
+import { procAncient as procAncientG2 } from './ancients'; // ancient trigger procs, group 2 (R-FX-ANCIENT-PROC-01)
 import { ancientUnitedFrontShape, ancientUnitedFrontAtEot, ancientBatchBEotLive, ancientRunBatchBEot } from './ancients'; // the 2026-11-10 batch B
 import { ancientNoteShopSpell, ancientPass2EotLabel, ancientPass2EotLive, ancientRunPass2Eot, ancientTargetedSpellMult, ancientTargetedCastMult } from './ancients'; // ancient pass 2
 import { ancientGrantOriginOf, isAncientBuffLabel } from './ancientBuffFx'; // R-FX-ANCIENT-TENDRIL-01 / R-FX-ANCIENT-ORIGIN-01
@@ -791,6 +793,7 @@ export function addBuff(card: BoardCard, source: string, attack: number, health:
     const st = XEROX.state;
     const partner = partnerUid ? (st.board.find((c) => c.uid === partnerUid) ?? st.hand.find((c) => c.uid === partnerUid)) : undefined;
     if (partner && partner !== card) {
+      procAncientG1(st); // XEROX × BONDS fires (R-FX-ANCIENT-PROC-01)
       XEROX_MIRRORING = true;
       try { addBuff(partner, ANCIENTS.bonds.name, Math.max(0, attack), Math.max(0, health), count); } finally { XEROX_MIRRORING = false; }
     }
@@ -8781,6 +8784,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Burial Imp (recruit half) — add `count` copies of a specific card (a Gold Pouch) to hand; golden doubles. */
   // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
   deathrattleGrantCardToHand: (ctx, self, params) => {
+    if (params[MIDAS_ECHO_MARK]) procAncientG2(ctx.state); // MIDAS × DEATH's grafted Echo fires (R-FX-ANCIENT-PROC-01)
     ARENA_EFFECTS.deathrattleGrantCardToHand(shopArena(ctx.state, self), params);
   },
 
@@ -17239,13 +17243,17 @@ export function shopArrivals(before: readonly string[], after: readonly { uid: s
 const recruitTriggerSpecs: Array<{ policyKey?: string; source: TriggerSourceRef }> = [];
 
 /** The Shop resources an End-of-Turn trigger can move, as the HUD shows them (R-EOT-ECON-01). */
-interface EconSnapshot { upgrade: number; freeRolls: number; nextTurnGold: number; maxGold: number }
+interface EconSnapshot { upgrade: number; freeRolls: number; nextTurnGold: number; maxGold: number; coinBonus: number; vinesBonus: number }
 function econSnapshot(state: RunState): EconSnapshot {
+  const cb = state.ancients?.jugglerCoinBonus;
+  const vb = state.ancients?.rayseVinesBonus;
   return {
     upgrade: tradesUpgradeCost(state),
     freeRolls: state.freeRolls ?? 0,
     nextTurnGold: state.bonusEmbersNextTurn ?? 0,
     maxGold: state.maxEmbers + (state.maxGoldBonus ?? 0),
+    coinBonus: (cb?.attack ?? 0) + (cb?.health ?? 0), // Juggler × Time: the Carnival Coin improvement (R-FX-ANCIENT-PROC-01)
+    vinesBonus: (vb?.attack ?? 0) + (vb?.health ?? 0), // Rayse × Time: Empowering Vines' improvement (R-FX-ANCIENT-PROC-01)
   };
 }
 /** One `resourceChanged` per resource that moved, in a fixed order (deterministic batches). */
@@ -17254,6 +17262,10 @@ function emitEconDiff(collector: PresentationCollector, was: EconSnapshot, now: 
   if (now.freeRolls !== was.freeRolls) collector.emit({ type: 'resourceChanged', resource: 'freeRefresh', amount: now.freeRolls - was.freeRolls, valueAfter: now.freeRolls });
   if (now.nextTurnGold !== was.nextTurnGold) collector.emit({ type: 'resourceChanged', resource: 'nextTurnGold', amount: now.nextTurnGold - was.nextTurnGold, valueAfter: now.nextTurnGold });
   if (now.maxGold !== was.maxGold) collector.emit({ type: 'resourceChanged', resource: 'maxGold', amount: now.maxGold - was.maxGold, valueAfter: now.maxGold });
+  // Juggler × Time's improvement moves no card or HUD number, so without this its End-of-Turn beat would be empty.
+  if (now.coinBonus !== was.coinBonus) collector.emit({ type: 'counterChanged', counter: 'carnivalCoin', amount: now.coinBonus - was.coinBonus, valueAfter: now.coinBonus });
+  // Rayse × Time's improvement is the same shape: it moves no card or HUD number, so it carries its own counter.
+  if (now.vinesBonus !== was.vinesBonus) collector.emit({ type: 'counterChanged', counter: 'empoweringVines', amount: now.vinesBonus - was.vinesBonus, valueAfter: now.vinesBonus });
 }
 
 function withRecruitTrigger(

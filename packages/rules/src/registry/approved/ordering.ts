@@ -732,4 +732,28 @@ export const ORDERING_RULES: GameRule[] = [
       + "gain keeps its own one-shot).",
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/choreo/finalHold.test.ts'], lastVerifiedAt: '2026-11-17' },
   },
+  {
+    id: 'R-FX-ANCIENT-PROC-01',
+    title: 'Ancient triggers play the rune proc',
+    statement:
+      "When an Ancient's effect fires from an event (a death or Avenge, a Ward breaking, a sale, a buy, a spell cast, a "
+      + "Shout, a Refresh, a Triple Reward, a Pummel crossing, Start of Combat, Start of Turn, End of Turn, and the rest), "
+      + "your hero power button plays the same burst a rune badge plays when that rune triggers, once per fire, the moment "
+      + "it fires: in the Shop, on the Ancient's own Start of Turn and End of Turn beats, and mid-fight. A delayed reward "
+      + "flashes when its trigger happens (Warden x Fortune flashes at each Ward break; the Gold lands next turn as normal "
+      + "Gold). The flash marks the trigger; the hero power tendril still shows any stats the Ancient gives. Passive "
+      + "modifiers (prices, cadences, shapes of the hero power's own use) and the hero power's own click do not flash.",
+    domain: 'ordering',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-17', quote: "this should play the same animation that runes do when they trigger in combat or in recruit so that the player knows it triggered." },
+      { kind: 'code', ref: 'feat/ancient-trigger-procs: packages/sim/src/ancients.ts (procAncient, ancientSotSource); packages/core/src/combat/simulate.ts (ANCIENT_PROC_FLAG, ancientProc); packages/sim/src/ancientProcs.ts (isAncientProcFlag aliases); packages/ui/src/ancientProcFx.ts (the runeTriggered burst on the power button); packages/ui/src/Recruit.tsx (Start of Turn / End of Turn beats)' },
+    ],
+    currentBehaviour: "LIVE from 2026-11-17 (feat/ancient-trigger-procs) for every event-fired pairing of every hero Ancients "
+      + "reach (179 pairing x phase rows, `ANCIENT_PROC_PHASES` in packages/sim/src/ancientProcs.testkit.ts). Not covered: "
+      + "the Duos-only heroes (Priestess, Magician, Cindy), since Ancients are off in every reachable Duos game. Like the rune "
+      + "burst it plays on the player's own button only; a foe's Ancient pulses its marker in the log but shows no burst. "
+      + "A combat proc is its own short beat (the rune trigger's hold).",
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientProcs.test.ts', 'packages/ui/src/ancientProcFx.test.ts'], lastVerifiedAt: '2026-11-17' },
+  },
 ];

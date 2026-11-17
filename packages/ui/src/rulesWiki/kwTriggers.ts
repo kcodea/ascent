@@ -562,7 +562,7 @@ export const ENTRIES: readonly WikiEntry[] = [
   {
     id: 'spend',
     topic: 'keywords',
-    q: 'How do "When you spend X Gold" cards work?',
+    q: 'How do "Every X Gold spent" cards work?',
     a: "The minion keeps a meter of the **Gold you spend while it's on your board**. Every time the meter fills to X, it goes off. Leftover Gold **carries over**, even into later turns, and the card shows how close it is.",
     aliases: ['spend', 'spend gold', 'gold spent', 'when you spend'],
     seeAlso: ['spend-what-counts', 'what-things-cost'],

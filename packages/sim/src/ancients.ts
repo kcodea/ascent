@@ -2046,8 +2046,8 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
     },
     fortune: {
       // "When you spend 50g, Discover a Tier 7 minion."
-      offerText: 'Every time you spend **50 Gold**, **Discover** a **Tier 7** minion.',
-      powerText: '{base} Every time you spend **50 Gold**, **Discover** a **Tier 7** minion (**{smGoldLeft}** Gold to go).',
+      offerText: 'Every **50 Gold** spent, **Discover** a **Tier 7** minion.',
+      powerText: '{base} Every **50 Gold** spent, **Discover** a **Tier 7** minion (**{smGoldLeft}** Gold to go).',
       effects: [{ do: 'goldSpentDiscoverTier7', every: 50 }],
     },
     war: {
@@ -3127,8 +3127,8 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
     },
     fortune: {
       // "Spending 40 Gold refreshes your hero power." Repeats; the refresh gives the once-per-game use back.
-      offerText: 'Spending **40** Gold refreshes your hero power.',
-      powerText: '{base} Spending **40** Gold refreshes it (**{cfGold}/40**).{cfBanked}',
+      offerText: 'Every **40 Gold** spent, refresh your hero power.',
+      powerText: '{base} Every **40 Gold** spent, refresh it (**{cfGold}/40**).{cfBanked}',
       effects: [{ do: 'goldSpentRefreshesPower', every: 40 }],
     },
     war: {

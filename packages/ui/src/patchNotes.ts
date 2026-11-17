@@ -67,6 +67,15 @@ export const PATCH_NOTES: PatchNote[] = [
           'Bloodscent gives its +4/+4 to the Beast that died, so it keeps the stats for the next fight.',
         ],
       },
+      {
+        category: 'Systems',
+        text: 'Cards that trigger on Gold spent now all read "Every N Gold spent". How they work is unchanged.',
+        details: [
+          'Coinfire, Tapkeeper, Mountainbond, Billings, Dwarf King Brill and Stardust Peddler.',
+          'The runes Overtime, Showcase, Minted Gems, Dragon Hoard, Gold for Grub and Gemspam.',
+          "Brackus and Cindy's Ancient of Fortune pairings.",
+        ],
+      },
     ],
   },
   {

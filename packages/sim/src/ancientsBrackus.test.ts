@@ -114,7 +114,7 @@ describe('Brackus × DEATH (ancient pass 1, owner 2026-11-16): "Avenge (3): give
 describe('Brackus × FORTUNE: "When you spend 50g, Discover a Tier 7 minion."', () => {
   it('every 50 Gold spent (since the pick) opens a Tier 7 Discover; the countdown is printed live', () => {
     let s = picked('fortune', { wave: 3 });
-    expect(heroPowerText(s)).toBe(`${BASE} Every time you spend **50 Gold**, **Discover** a **Tier 7** minion (**50** Gold to go).`);
+    expect(heroPowerText(s)).toBe(`${BASE} Every **50 Gold** spent, **Discover** a **Tier 7** minion (**50** Gold to go).`);
     s = spend(s, 30, 'x1');
     expect(s.discover).toBeUndefined();
     expect(heroPowerText(s)).toContain('(**20** Gold to go)');

@@ -151,6 +151,10 @@
   border-radius: 50%; pointer-events: none; opacity: 0; transition: opacity 0.2s ease;
   box-shadow: 0 0 calc(64 * var(--phu)) calc(10 * var(--phu)) rgba(255, 196, 70, 0.34), 0 0 calc(18 * var(--phu)) rgba(255, 214, 110, 0.3); }
 .heroselect.hss .hss-card .phi-power:has(.phi-pwart:hover)::after { opacity: 1; }
+/* The power's name and text pick up a drop shadow while the medallion is hovered (owner 2026-11-17), so they read as
+   lifted with it. A short one-shot fade on hover, never a loop. */
+.heroselect.hss .hss-card :is(.phi-pwname, .phi-pwtext) { transition: text-shadow 0.2s ease; }
+.heroselect.hss .hss-card .phi-power:has(.phi-pwart:hover) :is(.phi-pwname, .phi-pwtext) { text-shadow: var(--ph-shadow), 0 calc(4 * var(--phu)) calc(12 * var(--phu)) rgba(0, 0, 0, 0.8); }
 .heroselect.hss .hss-card .phi-head::after { content: ''; position: absolute; left: 0; right: 0; top: calc(100% + var(--hss-rule-gap)); height: calc(1.5 * var(--phu)); pointer-events: none;
   background: linear-gradient(90deg, color-mix(in srgb, var(--ph-gold) 80%, transparent), color-mix(in srgb, var(--ph-gold) 0%, transparent)); }
 

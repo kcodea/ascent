@@ -451,6 +451,6 @@ export class GameSession extends LiveGameHost<SessionEnv> {
     };
     if (!dev) return { ...base };
     const sink = this.flushSink as Partial<LocalFlushSink>;
-    return { ...base, counters: this.counters, meta: m ?? null, flushCalls: sink.calls ?? null, savedRow: sink.savedRow?.() ?? null, rulesVersion: RANK_RULES_VERSION };
+    return { ...base, counters: this.counters, live: await this.metricsSnapshot(), meta: m ?? null, flushCalls: sink.calls ?? null, savedRow: sink.savedRow?.() ?? null, rulesVersion: RANK_RULES_VERSION };
   }
 }

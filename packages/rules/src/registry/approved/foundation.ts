@@ -13653,6 +13653,26 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/duosEndFrames.test.ts', 'packages/ui/src/versus/rankedDuosEnd.test.ts', 'workers/versus/test/it/room.it.ts', 'packages/ui/src/versus/chaos/versusChaosCf.test.ts'], lastVerifiedAt: '2026-11-02' },
   },
   {
+    id: 'R-SESSION-ALARM-01',
+    title: 'A game session sleeps between messages: its alarm is never re-armed to a passed clock',
+    statement:
+      'A live host object (the GameSession on the hub, the live game on a Versus Worker) arms its alarm only for a clock that will do '
+      + 'something when it fires: the session flush and forget times, the grace of a gone player, the listing keep-alive, the watch '
+      + 'record, the stale check of each socket, and the 2-minute linger of an ended game only while a socket is still connected and the linger '
+      + 'is still ahead. The idle forget of the live part counts only when the host may forget itself (a session keeps its state for its '
+      + '30-minute memory, so its own forget time stands in). A re-arm from inside the alarm is never sooner than 1 s (a backstop). With '
+      + 'nobody watching, a game in play wakes its object only for the messages it is sent.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'code', ref: 'workers/versus/src/core/liveAlarm.ts (liveAlarmAt); workers/versus/src/liveHost.ts (rearm, alarm)' },
+      { kind: 'fix-pr', ref: 'fix/hub-gamesession-request-storm (usage audit 2026-11-17: the GameSession on the hub took ~7.5 requests a second per game, ~13.8M Durable Object requests in 30 days against 1M included, and never hibernated)' },
+    ],
+    currentBehaviour: 'Conforms on a hub deployed with fix/hub-gamesession-request-storm. Before, an ended session game armed `LiveCore.nextAt` (already past for an ended game) and its passed 2-minute linger, the alarm found the session still holding its state and armed the same past time again: an alarm loop (measured locally: 644 alarms in 10 s) for up to 30 minutes after every game.',
+    example: 'A player finishes a game and closes the tab. The session keeps its state for 30 minutes and its object sleeps the whole time, waking once to forget itself.',
+    enforcement: { kind: 'scenario', refs: ['workers/versus/test/liveAlarm.test.ts', 'workers/versus/test/it/sessionIdle.it.ts'], lastVerifiedAt: '2026-11-17' },
+  },
+  {
     id: 'R-VERSUS-CF-ALARM-IDLE-01',
     title: 'A closed Versus room forgets itself: its alarm stops',
     statement:

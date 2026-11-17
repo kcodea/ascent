@@ -202,11 +202,11 @@ export function HeroShowcase(props: HeroShowcaseProps): JSX.Element {
       {!watching && (
         <button
           type="button"
-          className="hss-confirm phk-btn v-primary"
+          className={`hss-confirm ph-start${blocked === 'mate' ? ' is-long' : ''}`}
           aria-disabled={blocked !== null}
           onClick={() => { if (blocked !== null) onDenied(); else onConfirm(); }}
         >
-          {blocked === 'mate' ? 'Taken by your teammate' : 'Select Hero'}
+          <span>{blocked === 'mate' ? 'Taken by your teammate' : 'Select Hero'}</span>
         </button>
       )}
     </div>

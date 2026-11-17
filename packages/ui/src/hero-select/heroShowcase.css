@@ -164,16 +164,21 @@
 .heroselect.hss .hss-card .phi-head::after { content: ''; position: absolute; left: 0; right: 0; top: calc(100% + var(--hss-rule-gap)); height: calc(1.5 * var(--phu)); pointer-events: none;
   background: linear-gradient(90deg, color-mix(in srgb, var(--ph-gold) 80%, transparent), color-mix(in srgb, var(--ph-gold) 0%, transparent)); }
 
-/* ── SELECT HERO: the kit's gilded primary, large ── */
-.heroselect.hss .hss-confirm { flex: none; min-width: calc(360 * var(--phu)); height: calc(64 * var(--phu)); padding: 0 calc(72 * var(--phu)); font-size: calc(22 * var(--phu)); }
-.heroselect.hss .hss-confirm[aria-disabled='true'] { opacity: 0.5; filter: grayscale(0.6); }
+/* ── SELECT HERO: the main menu's START button itself (owner 2026-11-17: "the same button as the main menu start
+   button") ── It wears `.ph-start` (partyHome.css: the plaque, the type, its own hover grow, glow and press), so nothing
+   here repaints it. Blocked, it dims as a disabled START does; it stays pressable so the press can say why. */
+.heroselect.hss .hss-confirm { flex: none; }
+.heroselect.hss .hss-confirm[aria-disabled='true'] { filter: saturate(0.75) brightness(0.92); opacity: 0.55; }
+/* The teammate line is longer than START's plaque was drawn for. */
+.heroselect.hss .hss-confirm.is-long { font-size: calc(17 * var(--phu)); letter-spacing: 0.06em; }
+.heroselect.hss .hss-confirm.is-long > span { padding-left: 0.06em; }
 
 /* ── THE SPRING (the party home's: phCompendium.css `.book-cat`, the Collection tiles' curve) ── Hover grows with an overshoot;
    a press squeezes in fast and springs back past hover size on release. Transform only; none under reduced motion. */
 @media (prefers-reduced-motion: no-preference) {
-  .heroselect.hss :is(.hss-tile, .hss-reroll, .hss-stage > .phi-nav, .hss-confirm) { transition: transform 0.16s ease-out, box-shadow 0.12s ease; }
-  .heroselect.hss :is(.hss-tile, .hss-reroll, .hss-stage > .phi-nav, .hss-confirm:not([aria-disabled='true'])):hover { transform: scale(1.04); transition: transform 0.32s cubic-bezier(0.34, 1.9, 0.5, 1), box-shadow 0.12s ease; }
-  .heroselect.hss :is(.hss-tile, .hss-reroll, .hss-stage > .phi-nav, .hss-confirm:not([aria-disabled='true'])):active { transform: scale(0.96); transition: transform 0.08s ease-out; }
+  .heroselect.hss :is(.hss-tile, .hss-reroll, .hss-stage > .phi-nav) { transition: transform 0.16s ease-out, box-shadow 0.12s ease; }
+  .heroselect.hss :is(.hss-tile, .hss-reroll, .hss-stage > .phi-nav):hover { transform: scale(1.04); transition: transform 0.32s cubic-bezier(0.34, 1.9, 0.5, 1), box-shadow 0.12s ease; }
+  .heroselect.hss :is(.hss-tile, .hss-reroll, .hss-stage > .phi-nav):active { transform: scale(0.96); transition: transform 0.08s ease-out; }
   .heroselect.hss .hss-card .phi-power { transition: scale 0.16s ease-out; }
   .heroselect.hss .hss-card .phi-power:has(.phi-pwart:hover) { scale: 1.03; transition: scale 0.32s cubic-bezier(0.34, 1.9, 0.5, 1); }
   .heroselect.hss .hss-card .phi-power:has(.phi-pwart:active) { scale: 0.96; transition: scale 0.08s ease-out; }
@@ -181,10 +186,10 @@
      spring's `scale`; the block's entrance stays first in the list with its own values, so adding the bob never replays it. */
   .heroselect.hss .hss-card .phi-info > .phi-power:has(.phi-pwart:hover) { animation: phi-rise 0.47s cubic-bezier(0.2, 0.8, 0.2, 1) 0.07s both, hss-power-bob 3.4s ease-in-out infinite; }
 }
-/* A blocked Select Hero does not spring (the kit's own hover grow is held too). */
-.heroselect.hss .hss-confirm[aria-disabled='true']:is(:hover, :active) { transform: none; }
+/* A blocked Select Hero does not grow or light up (START's own hover is held). */
+.heroselect.hss .hss-confirm[aria-disabled='true']:is(:hover, :active) { transform: none; filter: saturate(0.75) brightness(0.92); }
 @media (prefers-reduced-motion: reduce) {
-  .heroselect.hss :is(.hss-tile, .hss-reroll, .hss-stage > .phi-nav, .hss-confirm):is(:hover, :active) { transform: none; }
+  .heroselect.hss :is(.hss-tile, .hss-reroll, .hss-stage > .phi-nav):is(:hover, :active) { transform: none; }
   .heroselect.hss .hss-glow.glide { transition: none; }
 }
 

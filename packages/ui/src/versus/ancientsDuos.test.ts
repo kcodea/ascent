@@ -69,7 +69,7 @@ describe('the Duos Ancients seam is the build, not a setting', () => {
       for (const name of readdirSync(dir)) {
         const p = join(dir, name);
         if (statSync(p).isDirectory()) walk(p);
-        else if (/\.tsx?$/.test(name) && !/\.test\.tsx?$/.test(name)) files.push(p);
+        else if (/\.tsx?$/.test(name) && !/\.test\.tsx?$/.test(name) && !/\.testkit\.ts$/.test(name)) files.push(p);
       }
     };
     walk(root);

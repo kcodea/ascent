@@ -485,7 +485,12 @@ const toRow = (b: BoardSnapshot) => ({
 /** A board on its way up, with its BOARD STRENGTH score (R-LOBBY-09) riding beside the snapshot. The score goes into
  *  its own columns (`strength_raw` / `strength_ref` / `strength_wave`), never into the snapshot jsonb, and it
  *  survives the offline queue with the board. */
-export type BoardUpload = BoardSnapshot & { strengthScore?: StrengthScore };
+export type BoardUpload = BoardSnapshot & {
+  strengthScore?: StrengthScore;
+  /** Strength v2 (2026-11-16): on the run's FINAL board only, its raw score against every later reference round
+   *  (`boards.strength_carried`). */
+  strengthCarried?: { ref: string; rounds: Record<string, number> };
+};
 
 /**
  * Upload a finished run's boards through the durable outbox (R-NET-OUTBOX-01). Never throws, never blocks the game.
@@ -499,10 +504,14 @@ export async function uploadBoards(boards: BoardUpload[], opts?: { unrated?: boo
   const rows = boards.map((b) => {
     const snap: BoardUpload = { ...b };
     delete snap.strengthScore;
+    delete snap.strengthCarried;
     const row: Record<string, unknown> = { ...toRow(snap), unrated: opts?.unrated ?? false };
     delete row.user_id; // stamped at send time from the account the run was played under
     const s = b.strengthScore;
-    return s ? { ...row, strength_raw: s.raw, strength_ref: s.ref, strength_wave: s.wave } : row;
+    const scored = s ? { ...row, strength_raw: s.raw, strength_ref: s.ref, strength_wave: s.wave } : row;
+    // Only a board that has them names the column: a server from before 2026-11-23-strength-v2.sql has no such column,
+    // and a short or unfinished run's upload must keep working against it.
+    return b.strengthCarried ? { ...scored, strength_carried: b.strengthCarried } : scored;
   });
   const first = boards[0]!;
   const key = `boards:${first.id ?? `${first.author ?? 'anon'}|${first.heroId}|${first.seed ?? ''}|${first.capturedAt ?? ''}`}:${boards.length}`;

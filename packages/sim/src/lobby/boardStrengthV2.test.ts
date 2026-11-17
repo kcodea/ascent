@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  STRENGTH_REF_VERSION, lastReferenceRound, loadStrengthReference, scoreBoard, type StrengthReference,
+  STRENGTH_REF_LAST_ROUND, STRENGTH_REF_VERSION, lastReferenceRound, loadStrengthReference, scoreBoard, type StrengthReference,
 } from './boardStrength';
 import type { BoardSnapshot } from '../snapshot';
 
@@ -19,6 +19,7 @@ describe('strength reference v2 and the any-round probe', () => {
     expect(ref.fightsPerRef).toBe(4);
     for (let r = 1; r <= 15; r++) expect(ref.waves[String(r)]?.length, `round ${r}`).toBe(40);
     expect(lastReferenceRound(ref)).toBe(15);
+    expect(STRENGTH_REF_LAST_ROUND).toBe(lastReferenceRound(ref));
   });
 
   it('scoring at the board\'s own round is the default', () => {

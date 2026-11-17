@@ -51,6 +51,12 @@ export interface StrengthReference {
 /** Scores against this reference version are comparable; bump the file (and this) to re-baseline. */
 export const STRENGTH_REF_VERSION = 'set2-v2';
 
+/** The last round reference set2-v2 has boards for. A run's final board is scored against every round after its own
+ *  up to this one (its CARRIED scores). A constant so the client can queue that work before the reference (a lazy
+ *  chunk) has loaded; `boardStrengthV2.test.ts` holds it equal to the file, and the SQL names the same number in
+ *  `strength_ref_last_round()`. */
+export const STRENGTH_REF_LAST_ROUND = 15;
+
 /** Lazy: the JSON is its own chunk in the web build. */
 export async function loadStrengthReference(): Promise<StrengthReference> {
   const mod = await import('./strengthReference.v2.json');

@@ -2,7 +2,7 @@
  * The app's board-strength wiring (R-LOBBY-09, 2026-09-30): one background scorer for the session, the rank band
  * the player draws opponents from, and the frozen numbers a finished game records.
  */
-import { loadStrengthReference, normalizePracticeRank, practiceStrengthBand, strengthBandForDivision, type LobbySeatOptions, type PlayerProfile, type PracticeConfig, type PracticeRank, type RunMode, type StrengthBand } from '@game/sim';
+import { STRENGTH_REF_LAST_ROUND, STRENGTH_REF_VERSION, loadStrengthReference, runLongEnough, normalizePracticeRank, practiceStrengthBand, strengthBandForDivision, type LobbySeatOptions, type PlayerProfile, type PracticeConfig, type PracticeRank, type RunMode, type StrengthBand } from '@game/sim';
 import { perfMonitor } from '../perfMonitor';
 import { createStrengthScorer, STRENGTH_SLICE_TIMEOUT_MS, type StrengthScorer } from './strengthScorer';
 
@@ -13,6 +13,38 @@ export { createStrengthScorer } from './strengthScorer';
  *  2026-11-16: Continue is greyed out while this runs, and the design's safety limit is 5 seconds: after it the run
  *  goes up with what is ready (an incomplete run is unscored) and Continue unlocks. It must never stay locked. */
 export const STRENGTH_RUN_END_WAIT_MS = 5000;
+
+/**
+ * Is this finished game SCORED IN FULL before it uploads (strength v2, owner 2026-11-16)? A lobby game (rated, or
+ * unrated because no recorded player sat at the table: its boards go to the pool either way) that reached round 7,
+ * the floor for a run to ever be an opponent. Its final board is then scored against every later reference round, and
+ * the end screen holds Continue behind "Calculating Score" until that is done. Practice, the tutorial, Gauntlet,
+ * Versus, a sandbox run and a game that ended before round 7 are never held.
+ */
+export function shouldScoreRunEnd(run: { mode: RunMode; sandbox?: unknown }, boards: readonly { wave: number }[] | null | undefined): boolean {
+  if (run.mode !== 'lobby' || run.sandbox || !boards?.length) return false;
+  return runLongEnough(boards.reduce((m, b) => Math.max(m, b.wave), 0));
+}
+
+/** The run's final captured board (the first one of its highest round), or null. */
+export function finalBoardOf<T extends { wave: number }>(boards: readonly T[] | null | undefined): T | null {
+  let best: T | null = null;
+  for (const b of boards ?? []) if (!best || b.wave > best.wave) best = b;
+  return best;
+}
+
+/** What rides on the final board's row: its carried scores, ONLY when every round from its own + 1 to the last
+ *  reference round is there (an incomplete map would make the run look complete to nobody: the SQL treats a run with
+ *  a missing round as unscored either way, so send nothing). */
+export function carriedUploadOf(lastWave: number, carried: ReadonlyMap<number, number>): { ref: string; rounds: Record<string, number> } | null {
+  const rounds: Record<string, number> = {};
+  for (let round = lastWave + 1; round <= STRENGTH_REF_LAST_ROUND; round++) {
+    const raw = carried.get(round);
+    if (typeof raw !== 'number') return null;
+    rounds[String(round)] = raw;
+  }
+  return { ref: STRENGTH_REF_VERSION, rounds };
+}
 
 let scorer: StrengthScorer | null = null;
 

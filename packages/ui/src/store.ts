@@ -126,8 +126,8 @@ import { goldClockOf, goldClockReading, pinMedalAtStart } from './goldClock';
 import { type AnnouncedSlice, type AnnouncerEvent, announcedFor, emptyAnnounced, withAnnounced } from './announcerSlice';
 import { perfMonitor } from './perfMonitor';
 import { rankedEntryPoolGate } from './opponentPool/lobbyPoolGate';
-import { boardStrengthScorer, lobbyBandFor, pendingPracticeRank, poolBandFor, seatExclusionsFor, STRENGTH_RUN_END_WAIT_MS } from './boardStrength';
-import { normalizePracticeRank, practiceStrengthBand, runStrengthFromScores, type LobbySeatOptions, type StrengthScore } from '@game/sim';
+import { boardStrengthScorer, carriedUploadOf, finalBoardOf, lobbyBandFor, pendingPracticeRank, poolBandFor, seatExclusionsFor, shouldScoreRunEnd, STRENGTH_RUN_END_WAIT_MS } from './boardStrength';
+import { STRENGTH_REF_LAST_ROUND, normalizePracticeRank, practiceStrengthBand, runStrengthFromScores, type LobbySeatOptions, type StrengthScore } from '@game/sim';
 import { withRecordedEmotes } from '@game/sim';
 import type { RuneCombatProgress } from '@game/sim';
 import { takeShopEmotes } from './emotes/emoteRecording';
@@ -690,6 +690,11 @@ interface GameStore {
   /** Boards this run contributed to the pool (captured on run-end) — shown on the post-run summary (A6).
    *  0 until the deferred capture runs; stays 0 for Practice (read-only). */
   lastRunBoards: number;
+  /** "CALCULATING SCORE" (strength v2, owner 2026-11-16): fights done / fights to do while a finished lobby game's
+   *  boards (and its final board's carried rounds) are scored before the upload. Non-null = the end screen's Continue
+   *  is locked and shows this as a bar. Null the moment the work is done, and after 5 seconds at the latest
+   *  (`STRENGTH_RUN_END_WAIT_MS`): the button must never stay locked. */
+  runScoring: { done: number; total: number } | null;
   /** The player's career profile (rating + Line + high-water marks). Loaded at boot, updated on each scored
    *  run's finish. The run's par is set from `profile.currentLine` at start. See `@game/sim` playerRating. */
   profile: PlayerProfile;
@@ -1903,6 +1908,9 @@ function commitResolvedAction(
     // deferred, and the end screen must not keep adding to it). Null = unknown (resumed from a pre-clock save).
     const endedActiveMs = (next.phase === 'gameover' || next.phase === 'victory') && s.run.phase !== 'gameover' && s.run.phase !== 'victory'
       ? activePlay.freeze(activeNow()) : null;
+    // "Calculating Score": set (in the slice this commit returns) when this action ended a lobby game whose scoring is
+    // still running; see the run-end block below.
+    let runScoringStart: { done: number; total: number } | null = null;
     // EMOTES (owner 2026-10-13): the shop emotes used this turn ride the round's board (emotes/emoteRecording.ts).
     const capturedBoards = action.type === 'faceOmen' && next !== s.run && next.lastCombat && next.mode === 'lobby'
       ? [...s.capturedBoards, withRecordedEmotes(snapshotBoard(next), next.sandbox ? [] : takeShopEmotes(next.wave))]
@@ -1964,12 +1972,32 @@ function commitResolvedAction(
       // STRENGTH_RUN_END_WAIT_MS, then goes without the missing scores (those boards stay unscored, nothing shows).
       const strengthSeed = next.seed;
       // Any captured board not offered yet (normally none) joins the queue first.
-      if (lobbyBoards) for (const b of lobbyBoards) boardStrengthScorer().enqueue(strengthSeed, { ...b, setId });
+      const strengthScorer = boardStrengthScorer();
+      if (lobbyBoards) for (const b of lobbyBoards) strengthScorer.enqueue(strengthSeed, { ...b, setId });
+      // STRENGTH V2 (owner 2026-11-16): a game that reached round 7 is scored IN FULL before it uploads. Its final
+      // board keeps being fielded after its recording ends, so it is also scored against every later reference round
+      // (the carried scores). The game is over, so the work leaves the idle queue for short back-to-back slices, and
+      // the end screen holds Continue behind "Calculating Score" (`runScoring`) until it is done or the cap passes.
+      const scoreInFull = shouldScoreRunEnd(next, lobbyBoards);
+      const lastCaptured = finalBoardOf(lobbyBoards);
+      if (scoreInFull && lastCaptured) strengthScorer.enqueueCarried(strengthSeed, { ...lastCaptured, setId }, STRENGTH_REF_LAST_ROUND);
+      if (lobbyBoards) strengthScorer.rush(strengthSeed);
+      let stopScoringProgress = (): void => {};
+      if (scoreInFull && strengthScorer.pending(strengthSeed) > 0) {
+        runScoringStart = strengthScorer.progress(strengthSeed);
+        const tick = setInterval(() => set({ runScoring: strengthScorer.progress(strengthSeed) }), 100);
+        stopScoringProgress = () => clearInterval(tick);
+      }
       const scoring = lobbyBoards && !next.sandbox
-        ? boardStrengthScorer().settled(strengthSeed, STRENGTH_RUN_END_WAIT_MS)
+        ? strengthScorer.settled(strengthSeed, STRENGTH_RUN_END_WAIT_MS)
         : Promise.resolve(new Map<number, StrengthScore>() as ReadonlyMap<number, StrengthScore>);
+      // Unlock the moment the scores are in (or the cap passes), not a timer tick later.
+      void scoring.then(() => { stopScoringProgress(); set({ runScoring: null }); });
       setTimeout(() => { void scoring.then((strengthScores) => {
-        boardStrengthScorer().forget(strengthSeed);
+        // The carried scores of the final board, sent only when every round is there (a run that timed out goes up
+        // without them and is simply unscored).
+        const carriedUpload = scoreInFull && lastCaptured ? carriedUploadOf(lastCaptured.wave, strengthScorer.carried(strengthSeed)) : null;
+        strengthScorer.forget(strengthSeed);
         // The frozen numbers: each round's percentile against the pool's boards as it stands now, and the run's
         // strength (their round-weighted average ranked among the pool's runs; R-LOBBY-12, restored 2026-10-06, the
         // same number the matchmaking bands use).
@@ -1978,7 +2006,8 @@ function commitResolvedAction(
         set({ lastRunBoards: fresh.length }); // A6: surface "you contributed N boards" on the end screen
         void uploadBoards(fresh.map((b) => {
           const score = strengthScores.get(b.wave);
-          return score ? { ...b, strengthScore: score } : b;
+          const scored = score ? { ...b, strengthScore: score } : b;
+          return carriedUpload && lastCaptured && b.wave === lastCaptured.wave ? { ...scored, strengthCarried: carriedUpload } : scored;
         }), unratedLobby ? { unrated: true } : undefined);
         // Between-runs pool + win-rate refresh (owner ask 2026-07-18): the NEXT run in this session sees
         // fresh remote boards (registerOpponents dedupes) + fresh ledger weights. Delayed a beat so this
@@ -2329,6 +2358,7 @@ function commitResolvedAction(
     return {
       run: next,
       savedRun,
+      ...(runScoringStart ? { runScoring: runScoringStart } : {}),
       heroArmed: false, // any action clears targeting
       equipArmed: false,
       inspect: null, // …and closes the inspect overlay
@@ -2375,6 +2405,7 @@ export const useGame = create<GameStore>((rawSet, get) => {
   pendingResumeSeconds: null,
   clearPendingResume: () => set({ pendingResumeSeconds: null }),
   lastRunBoards: 0,
+  runScoring: null,
   profile: loadProfile(),
   lastRating: null,
   rankResult: null,

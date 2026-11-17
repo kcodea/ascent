@@ -60,7 +60,7 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
-        text: 'New art for 115 Set 2 minions and 23 rune reward cards.',
+        text: 'New art for 122 Set 2 minions and 23 rune reward cards.',
       },
       {
         category: 'Systems',

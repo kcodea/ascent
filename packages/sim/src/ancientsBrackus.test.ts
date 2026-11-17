@@ -134,6 +134,9 @@ describe('Brackus × FORTUNE: "When you spend 50g, Discover a Tier 7 minion."', 
 
 describe('Brackus × WAR (ancient pass 1, owner 2026-11-16): "summon a copy, and get one too if you have room"', () => {
   const summons = (s: RunState) => events(s).filter((e): e is Extract<CombatEvent, { type: 'summon' }> => e.type === 'summon' && e.side === 'player' && e.minion.cardId === T7);
+  it('the offer names the left-most Tier 7, as the power and the behaviour do (R-ANCFIX-08)', () => {
+    expect(ancientOfferText('brackus', 'war')).toContain('your left-most Tier 7 minion');
+  });
   it('room: an exact copy of the left-most Tier 7 lands at Start of Combat', () => {
     const s = picked('war', { wave: 3, board: [card('p', N(1)), card('a', T7, { attack: 20, health: 30 }), card('b', T7B)] });
     expect(ancientCombatMods(s).ancientSummitCopy).toEqual({ label: 'Ancient of War', toHand: true });

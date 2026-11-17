@@ -243,6 +243,19 @@ describe('Ayse × BONDS (ancient pass 1, owner 2026-11-16): "Lucky Seat only nee
     s = buySlot(s, CHEAP);
     expect(s.ciaEnchantedBought).toBe(0);
   });
+  it('picked at 2 of 3: the count is clamped to 1 of 2, the glow is armed, and the next Enchanted buy pays (R-ANCFIX-07)', () => {
+    let s = picked('bonds', { ciaEnchantedBought: 2 });
+    expect(s.ciaEnchantedBought).toBe(1);
+    expect(heroPowerArmed(s, 0)).toBe(true);
+    const e0 = s.embers;
+    s = buy(s, N(0));
+    expect(s.ciaEnchantedBought, 'paid and restarted').toBe(0);
+    expect(s.embers).toBeGreaterThan(e0 - offerBuyPrice({ ...s, shop: [offer('x', N(0))] }, offer('x', N(0))).cost);
+  });
+  it('base text says Shop tier, never Tavern Tier (R-ANCFIX-08)', () => {
+    expect(heroPowerText(picked('bonds', { ciaSuit: 'hearts' }))).not.toMatch(/Tavern/);
+    expect(heroPowerText(picked('bonds', { ciaSuit: 'hearts' }))).toContain('Discover a minion of your Shop tier.');
+  });
   it('another pairing keeps the native 3', () => {
     const s = buy(buy(picked('fortune'), N(0)), N(1));
     expect(s.ciaEnchantedBought).toBe(2);

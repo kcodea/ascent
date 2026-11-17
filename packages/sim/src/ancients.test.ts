@@ -206,6 +206,17 @@ describe('Ancients × Indy — the six pairings', () => {
     expect([r.attack, r.health]).toEqual([CARD_INDEX.gnash!.attack, CARD_INDEX.gnash!.health]);
   });
 
+  it('TIME + Engraved: an Engraved right-most minion keeps the Gild after the fight, stats AND status (R-ANCFIX-05)', () => {
+    let s = picked('time', { board: [card('a', 'sandbag', { health: 50 }), card('r', 'gnash', { keywords: [...CARD_INDEX.gnash!.keywords, 'EG'] })] });
+    s = { ...s, servedBoards: { [s.wave]: dummies(s.wave, 0, 5) } };
+    const gilds0 = s.ancients!.gilds ?? 0;
+    s = reduce(reduce(s, { type: 'faceOmen' }), { type: 'resolveCombat' });
+    const r = s.board.find((c) => c.uid === 'r')!;
+    expect(r.golden).toBe(true);
+    expect(r.attack).toBeGreaterThanOrEqual(CARD_INDEX.gnash!.attack * 2);
+    expect(s.ancients!.gilds).toBe(gilds0 + 1);
+  });
+
   it('BONDS: Masterwork gilds AND grants +20/+20 per gild this run, the gild it just made included', () => {
     let s = picked('bonds', { board: [card('a', 'gnash')] });
     expect(s.ancients!.gilds ?? 0).toBe(0);

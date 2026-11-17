@@ -116,6 +116,11 @@ describe('Quillen × GENESIS: "Archive only requires 2 minions."', () => {
     expect(s.discover?.length).toBe(2);
     expect(s.archivedTribes).toEqual([]);
   });
+  it('picked with 2 types already archived: the Discover opens at the pick (the look-back, R-ANCFIX-03)', () => {
+    const s = picked('genesis', { archivedTribes: [T[0]!.tribe, T[1]!.tribe] });
+    expect(s.discover?.length).toBe(2);
+    expect(s.archivedTribes).toEqual([]);
+  });
   it('without it, two archived minions do not pay', () => {
     let s = enableAncients(base({ archivedTribes: [T[0]!.tribe], board: [card('x', T[1]!.id)] }));
     s = archive(s, 'x');

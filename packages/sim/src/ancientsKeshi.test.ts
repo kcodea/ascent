@@ -213,7 +213,7 @@ describe('Keshi × BONDS: "Buying a minion of your shop tier counts twice."', ()
     expect(s.keshiTierPoints).toBe(6);
     s = buyFromRow(s, minionOfTier(2));
     expect(s.keshiTierPoints).toBe(8);
-    expect(heroPowerText(s)).toBe(`${BASE} Buying a minion of your Tier (Tier **3**) counts **twice**.`);
+    expect(heroPowerText(s)).toBe(`${BASE} Buying a minion of your Shop tier (Tier **3**) counts **twice**.`);
   });
 });
 

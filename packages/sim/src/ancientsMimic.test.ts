@@ -126,7 +126,7 @@ describe('Mimic × FORTUNE: "For each minion you sell, gain 1 Gold next turn."',
     const before = s.bonusEmbersNextTurn ?? 0;
     s = sell(s, 'a');
     expect((s.bonusEmbersNextTurn ?? 0) - before).toBe(1);
-    expect(heroPowerText(s)).toContain('gain **1 Gold** next turn (**1** so far)');
+    expect(heroPowerText(s)).toContain('gain **1 Gold** next turn (**1 Gold** so far)');
     s = sell(s, 'b');
     expect((s.bonusEmbersNextTurn ?? 0) - before).toBe(2);
   });
@@ -308,7 +308,7 @@ describe('Mimic × save / restore and determinism', () => {
   it('the pairing, the Spoils tally and the Genesis shape survive a JSON round trip', () => {
     let s = sell(picked('fortune', { board: [card('a', N(0))] }, 'nadja'), 'a');
     s = JSON.parse(JSON.stringify(s)) as RunState;
-    expect(heroPowerText(s)).toContain('(**1** so far)');
+    expect(heroPowerText(s)).toContain('(**1 Gold** so far)');
     let g = settle(fightNow({ ...picked('genesis', {}, 'soren'), board: [card('a', N(0), { attack: 1, health: 900 })] }));
     g = JSON.parse(JSON.stringify(g)) as RunState;
     expect(reduce(g, { type: 'heroPower' }).powerOffer?.heroIds.length).toBe(4);

@@ -102,6 +102,8 @@ export interface CombatQuestDelta {
   rallyFires?: number;
   /** Darah × Ancient of War: Swap charges its Pummel gained so far this fight (`questTrigger` flags), live. */
   swapCharges?: number;
+  /** A capped Ancient pairing's per-combat budget spent so far this fight (`ANCIENT_CAP_SPENT_FLAG`), live. */
+  capSpent?: number;
 }
 import { sfx } from './sfx';
 import { ancientMeterOverride } from './ancients/ancientsConfig';

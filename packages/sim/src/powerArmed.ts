@@ -65,9 +65,9 @@ export function heroPowerArmed(run: RunState, slot: 0 | 1 = 0): boolean {
     case 'magicHat': return magicHatView(run).active;
     case 'secondHand': return run.wave % ancientSecondHandEvery(run) === 0 && ancientSecondHandSources(run).length > 0;
     case 'fourPeat': return (run.gorrBuys?.length ?? 0) === FOUR_PEAT_BUYS - 1;
-    case 'baldgecoin': return (run.jugglerBuys ?? 0) === ancientCoinNeed(run) - 1;
+    case 'baldgecoin': return (run.jugglerBuys ?? 0) >= ancientCoinNeed(run) - 1; // the next buy pays
     case 'contraband': { const every = ancientContrabandEvery(run); return (run.refreshCount ?? 0) % every === every - 1; }
-    case 'luckySeat': return (run.ciaEnchantedBought ?? 0) === ancientLuckySeatNeed(run) - 1; // 3; 2 with the Ancient of Bonds
+    case 'luckySeat': return (run.ciaEnchantedBought ?? 0) >= ancientLuckySeatNeed(run) - 1; // 3; 2 with the Ancient of Bonds (the next buy pays)
     case 'quest': {
       const holder = wieldedPowerId(run, slot);
       return !!holder && !powerLatchSpent(run, holder) && (run.drakkoBuys ?? 0) === ancientDrumlineNeed(run) - 1;

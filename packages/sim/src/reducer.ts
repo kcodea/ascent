@@ -6,7 +6,7 @@ import { ancientSyncEchoEnchants, ancientEnchantedPrice, ancientEnchantedSpellCu
 import { ancientGreatPresenceSpec, ancientAfterGreatPresence, ancientDiscoverPicksAgain, ancientReopenDiscover, ancientGiftAdjacent, ancientPocketMagicDiscovers, ancientAfterPocketMagic, ancientUnitedFrontAtEot, ancientTierPrice, ancientSyncVanguard, ancientVanguardActivate } from './ancients'; // the 2026-11-10 batch B
 import { ancientSwapFree, ancientSwapCharges, ancientSpendSwapCharge, ancientBeforeSwap, ancientAfterSwap } from './ancients'; // Darah
 import { ancientAfterGoldspring, ancientOnSpendGold } from './ancients'; // Nadja
-import { ancientGildedPlayExtraRewards, ancientNoteHandSpellCast, ancientOnTripleRewardOpen } from './ancients'; // ancient pass 2: Membrance / Hunch / Keshi
+import { ancientGildedPlayExtraRewards, ancientNoteHandSpellCast, ancientNoteTargetedCast, ancientOnTripleRewardOpen } from './ancients'; // ancient pass 2: Membrance / Hunch / Keshi
 import { ancientAllInPassive, ancientAfterAllIn, ancientDiceRollsTwo, ancientAfterDice, ancientLockedFirstDiscount, ancientContrabandEvery, ancientContrabandCount, ancientContrabandNewShop, ancientContrabandPool, ancientOnContraband, ancientOnBananaBuy, ancientTribeFirstFree, ancientFirstRefreshTribe, ancientCoinNeed, ancientCoinBuyCount } from './ancients'; // the 2026-11-10 batch A: Rascal / Gambler / Pete / Flint / Juggler
 import { ancientMarkSoulkeeperDiscover, ancientAfterDiscoverTaken, ancientOnCardsGained, ancientOnMemoryOffers, ancientFourPeatPassive, ancientMimicManual, lastCombatDeaths } from './ancients'; // Underdweller, Membrance, Mimic
 import { ancientOnGoldSpent, ancientOnCardPlayed } from './ancients'; // Brackus
@@ -44,7 +44,7 @@ import { blockedByShopClock } from './shopClock';
 import { magicHatBuy, restoreMagicHatSend } from './magicHat';
 import { armGratitude, gratitudeBuy, gratitudeLanded, restoreGratitudeArm, restoreGratitudePay } from './goldenGratitude';
 import { carryDuosLinkIntoTriple, duosLinkMods, duosLinkSync } from './duosLinks'; // Cindy × Ancient of Bonds
-import { ancientOnPassMade, ancientReceivePassBonds } from './ancients'; // Priestess (Duos)
+import { ancientOnPassMade, ancientReceivePassBonds, ancientNotePowerUse } from './ancients'; // Priestess (Duos); the pick-turn power use
 import { ancientVinesBonus } from './ancients'; // Rayse × Time
 import { applyDuosPass, duosDraft, isDuosTeamWire, landWaitingPasses, queueTeamEffect, receiveDuosPass, refundDuosPass, stampOutboxSrc, type DuosPassSource } from './duosPass';
 import { applyOwnTeamEffect, effectPassCard, fireSelfObtained, fireTeamPassTriggers, passariaTarget, passMinionToTeammate, receiveTeamEffect } from './recruit';
@@ -483,6 +483,44 @@ function appendDominantTypeOffer(s: RunState): void {
   takeFromPool(s, pick.id);
   s.shop[idx] = { uid: `s${s.uidSeq++}`, cardId: pick.id };
   stampNewShopOffers(s, [s.shop[idx]!], { onRefresh: true, cia: true, inPlace: true }); // keeps the replaced slot's enchant
+}
+
+/** QUILLEN: Archive pays out once it holds `ancientArchiveNeed` types (one random minion per recorded type, a Discover;
+ *  the overflow stays banked). From the Archive use, and from the Ancient pick (R-ANCFIX-03's look-back: Genesis picked
+ *  with 2 types already archived fills it right there). A Discover already open queues this one behind it. */
+function payArchiveIfFull(s: RunState): void {
+  const banked = s.archivedTribes ?? [];
+  // ANCIENT OF GENESIS × Quillen: Archive fills at 2 instead of 3.
+  const need = ancientArchiveNeed(s);
+  if (banked.length >= need) {
+    const paid = banked.slice(0, need);
+    // ANCIENT OF BONDS × Quillen: three different types pay out TWO Discovers (each its own roll).
+    const discovers = ancientArchiveDiscovers(s, paid);
+    const rollPicks = (): string[] => {
+      const rng = makeRng(s.rngCursor);
+      const picks: string[] = [];
+      // Exactly `need` counts pay out; anything above that stays banked toward the next bucket (owner
+      // ruling — an overflow from a doubled archive must not be discarded). Identical to the old
+      // clear-everything for an undoubled Quillen, which can never bank more than 3.
+      for (const tribe of paid) {
+        // `defIsTribe`, not a hand-rolled tribe/tribe2 pair: an All-types card counts as EVERY tribe, so
+        // archiving a type the SET does not carry (Undead / Mech) still offers Paragon / Standard Bearer
+        // rather than silently returning nothing (owner report 2026-08-20).
+        const pool = poolOf(s).buyable.filter((c) => !c.spell && !c.ruby && c.tier <= s.tier && defIsTribe(c, tribe, s));
+        if (pool.length > 0) picks.push(pool[rng.int(pool.length)]!.id);
+      }
+      s.rngCursor = rng.state();
+      return picks;
+    };
+    const picks = rollPicks();
+    s.archivedTribes = banked.slice(need); // keep the overflow
+    if (picks.length > 0 && s.discover?.length) queueDiscover(s, { kind: 'pool', ids: picks, ancientTag: 'archive' });
+    else if (picks.length > 0) { s.discover = picks; ancientMarkArchiveDiscover(s); }
+    for (let d = 1; d < discovers; d++) {
+      const more = rollPicks();
+      if (more.length > 0) queueDiscover(s, { kind: 'pool', ids: more, ancientTag: 'archive' });
+    }
+  }
 }
 
 /** Pete (Contrabanana): the RIGHT-MOST Shop minion is REPLACED by one from the tier ABOVE the Shop tier —
@@ -2371,6 +2409,7 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
         // Shared with the UI's ×N badge (`rubyCastCount`), so the number shown and the number resolved can't drift.
         const casts = rubyCastCount(s);
         spendNextSpellCharge(s); // Comet / Nimbus "next spell" charge spent on this Ruby (folded into `casts`, owner 2026-09-18)
+        ancientNoteTargetedCast(s); // ANCIENT OF BONDS × Hunch: a Ruby is a targeted spell, it spends one of the turn's doubles
         // Warding Ruby: its keyword rider (Ward = DS) rides EVERY landing through `fireOnRubyPlayed` — the direct
         // target, the Redirection tail, and every bounce off it — granted only to a KOBOLD (owner spec 2026-07-31:
         // "give it Ward if it is a Kobold"; the stat half lands on anyone). It used to be a trailing grant on the
@@ -2568,7 +2607,7 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
               castWhisperFromHand(s, def, whisperTarget);
             }
           }, card.grantedTier); // Hatcher's Whisper: the tier its copy was stamped with
-          if (def.giftMulticast && whisperTarget) spendNextSpellCharge(s); // Comet / Nimbus charge spent (folded into the count)
+          if (def.giftMulticast && whisperTarget) { spendNextSpellCharge(s); ancientNoteTargetedCast(s); } // Comet / Nimbus charge + Hunch × Bonds' double spent (folded into the count)
           clearVoicesOnHandCast(s, def); // Rune of Clear Voices (Set 3 Dragon runes): a distinct Whisper cast from hand
           noteHandCastPlay(s, def); // Rune of the Secret Exchange: one Whisper cast from hand (a Yazzus repeat is not another)
           checkTriples(s);
@@ -2595,7 +2634,7 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
               applyLorekeeping(s, giftAdjacent);
             }
           }
-          if (def.giftMulticast && giftTarget) spendNextSpellCharge(s); // Comet / Nimbus charge spent (folded into `giftCasts`)
+          if (def.giftMulticast && giftTarget) { spendNextSpellCharge(s); ancientNoteTargetedCast(s); } // Comet / Nimbus charge + Hunch × Bonds' double spent (folded into `giftCasts`)
           s.hand.splice(i, 1);
           s.playedThisTurn = [...(s.playedThisTurn ?? []), card.cardId];
           withHandCast(def.id, () => noteSpellCast(s, def)); // counts as a spell CAST from hand (but never as a Shop spell — see the flag's doc)
@@ -3950,36 +3989,7 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
         const banked = (s.archivedTribes ??= []);
         for (let r = 0; r < reps; r++) banked.push(t as Tribe);
         ancientOnArchive(s); // ANCIENT OF FORTUNE × Quillen: +1 max Gold per Archive
-        // ANCIENT OF GENESIS × Quillen: Archive fills at 2 instead of 3.
-        const need = ancientArchiveNeed(s);
-        if (banked.length >= need) {
-          const paid = banked.slice(0, need);
-          // ANCIENT OF BONDS × Quillen: three different types pay out TWO Discovers (each its own roll).
-          const discovers = ancientArchiveDiscovers(s, paid);
-          const rollPicks = (): string[] => {
-            const rng = makeRng(s.rngCursor);
-            const picks: string[] = [];
-            // Exactly `need` counts pay out; anything above that stays banked toward the next bucket (owner
-            // ruling — an overflow from a doubled archive must not be discarded). Identical to the old
-            // clear-everything for an undoubled Quillen, which can never bank more than 3.
-            for (const tribe of paid) {
-              // `defIsTribe`, not a hand-rolled tribe/tribe2 pair: an All-types card counts as EVERY tribe, so
-              // archiving a type the SET does not carry (Undead / Mech) still offers Paragon / Standard Bearer
-              // rather than silently returning nothing (owner report 2026-08-20).
-              const pool = poolOf(s).buyable.filter((c) => !c.spell && !c.ruby && c.tier <= s.tier && defIsTribe(c, tribe, s));
-              if (pool.length > 0) picks.push(pool[rng.int(pool.length)]!.id);
-            }
-            s.rngCursor = rng.state();
-            return picks;
-          };
-          const picks = rollPicks();
-          s.archivedTribes = banked.slice(need); // keep the overflow
-          if (picks.length > 0) { s.discover = picks; ancientMarkArchiveDiscover(s); }
-          for (let d = 1; d < discovers; d++) {
-            const more = rollPicks();
-            if (more.length > 0) queueDiscover(s, { kind: 'pool', ids: more, ancientTag: 'archive' });
-          }
-        }
+        payArchiveIfFull(s); // a full Archive pays out (Genesis: it fills at 2)
       } else if (power.kind === 'investment') {
         // Bram: bank 1 Gold a turn; the 4th invested pays out a random GILDED minion (up to your Shop tier,
         // owner ruling 2026-08-16) and resets the bank. Untargeted; the 1-Gold cost is spent by the shared
@@ -4270,6 +4280,7 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
       else if (slot === 1) s.heroReady2 = false;
       else s.heroReady = false;
       if (power.maxUses) { if (slot === 1) s.heroPowerUses2 = heroUses + 1; else s.heroPowerUses = heroUses + 1; } // whole-game activation budget (Gildmaster: 3)
+      ancientNotePowerUse(s, slot); // ANCIENTS: the turn this power was used (a pick later this turn counts it)
       if (power.cost) spendGold(s, Math.min(s.embers, power.cost)); // gold spent → Acid / Banksly meter
       // A power that summons or generates a minion (Myra's Battlecry replay → an Alleycat's Stray,
       // Dusk's End-of-Turn replay) can complete a triple — check now, like buy / play / discover do.
@@ -4530,6 +4541,9 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
     }
     case 'pickAncient': {
       if (!pickAncient(s, action.id)) return state;
+      // THE LOOK-BACK (R-ANCFIX-03): what already happened counts at the pick. QUILLEN × GENESIS: Archive now fills at
+      // 2, so 2 types already archived pay out right here (a no-op for every other run: the need is still unmet).
+      if (hasPower(s, 'archive')) payArchiveIfFull(s);
       return s;
     }
 

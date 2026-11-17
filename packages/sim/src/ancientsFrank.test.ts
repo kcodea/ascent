@@ -292,6 +292,16 @@ describe('Frank × TIME — Clearance becomes: the first 3 minions you buy each 
   });
 });
 
+describe('Frank × TIME picked after a minion was bought that turn (the look-back, R-ANCFIX-03)', () => {
+  it('the earlier buy is one of the first 3', () => {
+    let s = enableAncients(base({ shop: [{ uid: 'o1', cardId: T1 }] }));
+    s = reduce(s, { type: 'buy', uid: 'o1' });
+    s = { ...s, ancients: { ...s.ancients!, points: s.ancients!.cost, offer: ['time', ...ANCIENT_IDS.filter((a) => a !== 'time').slice(0, 2)] } };
+    s = reduce(s, { type: 'pickAncient', id: 'time' });
+    expect(heroPowerText(s)).toContain('(**2** left this turn)');
+  });
+});
+
 describe('Frank × BONDS — selling a Clearance minion gives its stats to a random friendly minion', () => {
   it('the sold Clearance minion\'s CURRENT stats go to the other friendly minion, right then', () => {
     let s = clearance(picked('bonds', { board: [card('x', T1, { attack: 1, health: 1 })] }));

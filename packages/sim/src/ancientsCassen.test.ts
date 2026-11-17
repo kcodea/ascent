@@ -61,7 +61,7 @@ describe('Cassen hero change (owner 2026-10-09): the offer is always Discover / 
   });
   it('the printed rule lists the three jobs, with no em dash', () => {
     const t = heroPowerText(base());
-    expect(t).toBe('Choose one: In **3 turns**, Discover a minion of your Tavern Tier. · In **2 turns**, gain **2 Gold**. · In **1 turn**, get a random Shop spell.');
+    expect(t).toBe('Choose one: In **3 turns**, Discover a minion of your Shop tier. · In **2 turns**, gain **2 Gold**. · In **1 turn**, get a random Shop spell.');
   });
   it('OLD SAVES: a Citadel already working still pays its free upgrade, a Fortress its Triple Reward', () => {
     let c = base({ tier: 2 });

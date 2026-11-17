@@ -227,9 +227,11 @@ export function StatusBar() {
   const combatRallyFires = useGame((s) => s.combatQuestDelta?.rallyFires);
   // DARAH × WAR, LIVE (R-REALTIME-01): Swap charges its Pummel gained so far this fight. Undefined outside a fight.
   const combatSwapCharges = useGame((s) => s.combatQuestDelta?.swapCharges);
+  // RAYSE / LORD OF THE RISEN capped pairings, LIVE (R-ANCFIX-09): the per-combat budget spent so far this fight.
+  const combatCapSpent = useGame((s) => s.combatQuestDelta?.capSpent);
   // The hero-slot rune (Runesmith / Guardian forge) prints its CURRENT value like a rack rune (R-RUNE-LIVE-TEXT-01).
   const runeLive = usePlayerRuneLive();
-  const heroPowerLive = useMemo(() => ({ attacks: combatAttacks, summons: combatSummons, friendlyDamage, clearanceStacks, friendlyDeaths: combatFriendlyDeaths, freeRefreshes: combatFreeRefreshes, rallyFires: combatRallyFires, swapCharges: combatSwapCharges }), [combatAttacks, combatSummons, friendlyDamage, clearanceStacks, combatFriendlyDeaths, combatFreeRefreshes, combatRallyFires, combatSwapCharges]);
+  const heroPowerLive = useMemo(() => ({ attacks: combatAttacks, summons: combatSummons, friendlyDamage, clearanceStacks, friendlyDeaths: combatFriendlyDeaths, freeRefreshes: combatFreeRefreshes, rallyFires: combatRallyFires, swapCharges: combatSwapCharges, capSpent: combatCapSpent }), [combatAttacks, combatSummons, friendlyDamage, clearanceStacks, combatFriendlyDeaths, combatFreeRefreshes, combatRallyFires, combatSwapCharges, combatCapSpent]);
   // While spectating a replay, the hero panel belongs to the RECORDED player, so show their name — not the
   // local account's. Falls back to your own name for normal play (replaySession is null outside playback).
   // A Versus SPECTATOR: the hero panel is the WATCHED player's, so their name, never the spectator's own (live bug

@@ -96,7 +96,7 @@ describe('Drakko × FORTUNE: "Shout minions cost 1 Gold less."', () => {
 describe('Drakko × WAR: "Start of Combat: Give a minion +1/+1. Repeat for every Shout triggered this turn."', () => {
   it('the base step plus one per Shout fired this turn, each its own beat on a random friendly minion', () => {
     let s = picked('war', { board: [card('a', N(0), { health: 50 }), card('b', N(1), { health: 50 })] });
-    expect(heroPowerText(s)).toContain('(**0** this turn: **1** times)');
+    expect(heroPowerText(s)).toContain('(**0** this turn: **1** time)');
     s = { ...s, shoutFiresThisTurn: 3 };
     expect(heroPowerText(s)).toContain('(**3** this turn: **4** times)');
     expect(ancientCombatMods(s).ancientSocRandomBuffs).toEqual({ reps: 4, attack: 1, health: 1, label: 'Ancient of War' });
@@ -139,6 +139,8 @@ describe('Drakko × GENESIS: "Drumline can be completed 3 times and costs 1 Shou
     buyShouts(1);
     expect(got).toBe(3);
     expect(s.heroPowerSpent).toBe(true);
+    // R-ANCFIX-08: all 3 used, so the text no longer promises another Drakko.
+    expect(heroPowerText(s)).toBe('Drumline is done for this game.');
     buyShouts(5);
     expect(got).toBe(3);
   });

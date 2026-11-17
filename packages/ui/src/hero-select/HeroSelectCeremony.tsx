@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type Dispatch, type MutableRefObject } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type Dispatch, type MutableRefObject, type RefObject } from 'react';
 import { getHero, heroTip, SHOW_HERO_TIPS } from '@game/sim';
 import { heroPortrait, useLiveLoadout } from '../skins/skins';
 import { useSharpArt } from '../fullResArt';
@@ -8,7 +8,7 @@ import {
   ceremonyReduce, ceremonyCanLaunch, CEREMONY_ORDER,
   type HeroCeremonyState, type HeroCeremonyEvent, type HeroCeremonyPhase, type RectSnapshot,
 } from './heroCeremonyMachine';
-import { destinationRect, exitVector, focusKeyframes, snapshotRect, stageScale, transformTo } from './heroCeremonyGeometry';
+import { coverSquare, destinationRect, exitVector, focusKeyframes, snapshotRect, splashDest, splashTravelTarget, stageScale, transformTo } from './heroCeremonyGeometry';
 import { ceremonyAdvanceSchedule, ceremonyTiming } from './heroCeremonyTiming';
 import { requestLaunch } from './heroLaunchController';
 import { getHeroCeremonyConfig, subscribeHeroCeremonyConfig } from './heroCeremonyTunerConfig';
@@ -81,11 +81,17 @@ function animateEl(
  *  overall than the original hero select animation", then "Shrink it ~15%"). */
 const PH_PORTRAIT_SHRINK = 0.85;
 
-function portraitBoundsOf(crop: RectSnapshot, ph = false): RectSnapshot {
+/** THE SHOWCASE shows more of the hero inside the same circle (owner 2026-11-17: "circle should remain the same size. the
+ *  art should shrink to fill more of the circle"): its final art is this fraction of the card path's size. At the shipped
+ *  dials the art's side was 1.32x the circle's diameter (the circle showed the middle 76% of the art); 0.82 makes it
+ *  1.08x (the middle 92%). 0.757 is the floor: below it the art no longer covers the circle. */
+const SPLASH_ART_FIT = 0.82;
+
+function portraitBoundsOf(crop: RectSnapshot, ph = false, fit = 1): RectSnapshot {
   const fx = getHeroCeremonyConfig();
   const vp = stageViewport();
   const k = stageScale(vp.w, vp.h); // offsets are REFERENCE px, like the rest of the UI
-  const grow = 1.18 * fx.portraitScale * (ph ? PH_PORTRAIT_SHRINK : 1);
+  const grow = 1.18 * fx.portraitScale * (ph ? PH_PORTRAIT_SHRINK : 1) * fit;
   const w = crop.width * grow;
   const h = crop.height * grow;
   return {
@@ -105,9 +111,17 @@ interface Props {
    *  launches (no Start Game, no Versus auto-start); `versus` says which screen it is; `fx: false` skips the Pixi layer
    *  (a Duos player's own ceremony may already run one underneath). */
   watch?: { versus: boolean; fx: boolean };
+  /** THE SHOWCASE body (hero select showcase, 2026-11-16): the ceremony starts from the inspect card's splash art, not a
+   *  hero card. `state.sourceRect` is then the art box's rect; `cardEls` is not read. Absent = today's card ceremony. */
+  splash?: {
+    /** The inspect card's .phi-art box: hidden under the clone one frame after commit, restored on cleanup. */
+    artEl: RefObject<HTMLElement>;
+    /** Elements that leave along exit vectors at the dismiss beat (the tile slots). */
+    exitEls: MutableRefObject<(HTMLElement | null)[]>;
+  };
 }
 
-export function HeroSelectCeremony({ state, dispatch, cardEls, watch }: Props) {
+export function HeroSelectCeremony({ state, dispatch, cardEls, watch, splash }: Props) {
   const heroId = state.heroId!;
   const source = state.sourceRect!;
   const hero = getHero(heroId);
@@ -134,7 +148,7 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch }: Props) {
   /** The clone's travel animation alone — the resize snap cancels THIS, never the card exits. */
   const focusAnimRef = useRef<Animation | null>(null);
   /** Unselected-card rects, snapshotted ONCE at commit (§8) — the dismiss beat reuses them. */
-  const cardRectsRef = useRef<{ el: HTMLButtonElement; rect: RectSnapshot; index: number }[]>([]);
+  const cardRectsRef = useRef<{ el: HTMLElement; rect: RectSnapshot; index: number }[]>([]);
   const launchedRef = useRef(false);
   /* One-shot latches for the phase-CROSSING effects below. The advance timers can land 20ms apart
      (dismissing@100 / focusing@120), and React 18 coalesces dispatches that close into ONE render — the
@@ -170,23 +184,24 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch }: Props) {
   const circleRef = useRef<{ cx: number; cy: number; r: number } | null>(null);
   const plateRef = useRef<HTMLDivElement | null>(null);
   const identityTopRef = useRef(0);
-  const liveBounds = useMemo(() => (portrait ? portraitBoundsOf(portrait.crop, ph) : null), [portrait, tunerCfg, ph]);
+  const liveBounds = useMemo(() => (portrait ? portraitBoundsOf(portrait.crop, ph, splash ? SPLASH_ART_FIT : 1) : null), [portrait, tunerCfg, ph, splash]);
 
   const t = useMemo(() => ceremonyTiming(), []);
 
   /* ---- Commit: snapshot the grid ONCE, hide the original under the painted clone, press-acknowledge. */
   useLayoutEffect(() => {
-    const els = cardEls.current;
-    const snaps: { el: HTMLButtonElement; rect: RectSnapshot; index: number }[] = [];
+    const els: (HTMLElement | null)[] = splash ? splash.exitEls.current : cardEls.current;
+    const snaps: { el: HTMLElement; rect: RectSnapshot; index: number }[] = [];
     els.forEach((el, index) => {
-      if (!el || index === state.sourceIndex) return;
+      // The showcase's exit set holds no source (the splash art is not a tile), so every one of them leaves.
+      if (!el || (!splash && index === state.sourceIndex)) return;
       snaps.push({ el, rect: snapshotRect(rectToStage(el.getBoundingClientRect())), index });
     });
     cardRectsRef.current = snaps;
 
     // §8 step 4: hide the original only AFTER the clone has painted — one rAF later. The card keeps its
     // slot (visibility, not display), so the exiting neighbours never reflow.
-    const original = els[state.sourceIndex];
+    const original = splash ? splash.artEl.current : els[state.sourceIndex];
     let raf = 0;
     if (typeof requestAnimationFrame === 'function') {
       raf = requestAnimationFrame(() => { if (original) original.style.visibility = 'hidden'; });
@@ -303,7 +318,8 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch }: Props) {
   useEffect(() => {
     if (!crossed('focusing') || didFocusRef.current) return;
     didFocusRef.current = true;
-    focusAnimRef.current = animateEl(cloneWrapRef.current, focusKeyframes(source, dest), {
+    // THE SHOWCASE: the splash box may be taller than wide; splashTravelTarget lands its cover-fit art square on the cover square.
+    focusAnimRef.current = animateEl(cloneWrapRef.current, focusKeyframes(source, splash ? splashTravelTarget(source, dest) : dest), {
       duration: t.focusMs + t.settleMs,
       easing: FOCUS_EASE,
       fill: 'forwards',
@@ -322,11 +338,13 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch }: Props) {
      below run the crossfade. No art → skip entirely and keep the framed clone (§19). */
   useEffect(() => {
     if (!crossed('materializing') || portrait || !art || !travelDone) return;
+    // THE SHOWCASE: the crop is the square the travelling art lands on (the cover square of the card path's party-home
+    // frame inside dest), not measured. Square, so the final art can sit close to the circle's size (SPLASH_ART_FIT).
     const frame = frameRef.current;
-    if (!frame) return;
-    const crop = artCrop(snapshotRect(rectToStage(frame.getBoundingClientRect())));
+    if (!frame && !splash) return;
+    const crop = splash ? coverSquare(splashDest(dest)) : artCrop(snapshotRect(rectToStage(frame!.getBoundingClientRect())));
     if (crop.width <= 0) return; // degenerate (hidden/unstyled test env): keep the framed fallback
-    setPortrait({ crop, bounds: portraitBoundsOf(crop, ph) });
+    setPortrait({ crop, bounds: portraitBoundsOf(crop, ph, splash ? SPLASH_ART_FIT : 1) });
   }, [state.phase, art, travelDone, portrait]);
 
   /* ---- Portrait entrance: from the card-art crop to the final bounds, opacity 0.35 → 1 (§13). */
@@ -355,6 +373,7 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch }: Props) {
       id = setTimeout(() => {
         const next = destinationRect(stageViewport().w, stageViewport().h, source);
         setDest(next);
+        const settle = splash ? splashTravelTarget(source, next) : next;
         const wrap = cloneWrapRef.current;
         // Only correct once travel is over (post-focus phases); mid-travel the running animation still
         // targets the old center and the settle lands close enough for the snap below to be jarring.
@@ -362,13 +381,13 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch }: Props) {
           // Cancel only the travel animation (its fill would fight the inline snap); card exits keep theirs.
           focusAnimRef.current?.cancel();
           focusAnimRef.current = null;
-          wrap.style.transform = transformTo(source, next);
+          wrap.style.transform = transformTo(source, settle);
           // Portrait correction: re-measure the snapped frame once and rebuild the (already faded-in)
           // portrait bounds around it. The entrance animation is long finished by any realistic resize.
-          if (portrait && frameRef.current) {
-            const crop = artCrop(snapshotRect(rectToStage(frameRef.current.getBoundingClientRect())));
+          if (portrait && (splash || frameRef.current)) {
+            const crop = splash ? coverSquare(splashDest(next)) : artCrop(snapshotRect(rectToStage(frameRef.current!.getBoundingClientRect())));
             if (crop.width > 0) {
-              setPortrait({ crop, bounds: portraitBoundsOf(crop, ph) });
+              setPortrait({ crop, bounds: portraitBoundsOf(crop, ph, splash ? SPLASH_ART_FIT : 1) });
               const p = portraitRef.current;
               if (p) { p.style.transform = 'translate(0px, 0px) scale(1)'; p.style.opacity = '1'; }
             }
@@ -426,7 +445,8 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch }: Props) {
   });
   // The party home look: banners have their own width per layout (the browse grid, phones), so the clone lays out at the
   // card's own width and wraps its text the same way. The shipped card is always BIG_CARD_W.
-  const cardZoom = (cardEls.current[state.sourceIndex] as (HTMLElement & { currentCSSZoom?: number }) | null | undefined)?.currentCSSZoom;
+  // (The splash clone has no card markup, so it skips this read and the .hsrow.browse / .hcdiff reads below.)
+  const cardZoom = splash ? undefined : (cardEls.current[state.sourceIndex] as (HTMLElement & { currentCSSZoom?: number }) | null | undefined)?.currentCSSZoom;
   const cloneW = ph && cardZoom ? source.width / cardZoom : BIG_CARD_W;
   const k = source.width > 0 ? source.width / cloneW : 1; // static adapter: natural card → source rect
 
@@ -453,7 +473,25 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch }: Props) {
           (all keyframes are viewport-px transforms); inner card = the real big-herocard markup at natural
           size, statically scaled to fit the source. `hsc-chrome-out` starts the §13 chrome dissolve;
           `hsc-done` hides the whole card once the clean portrait owns the stage (art only). */}
-      <div
+      {splash ? (
+        /* THE SHOWCASE: the splash art alone, at the inspect card's art box — the same file, cover crop and right-edge
+           fade (heroCeremony.css `.hsc-splash`). It travels to splashTravelTarget (its cover-fit art square onto
+           coverSquare(splashDest(dest)), whatever the box's aspect), so its art lines up with
+           the clean portrait's cover image inside the splashDest crop the materializing beat hands over (not measured). */
+        <div
+          ref={cloneWrapRef}
+          className={`hsc-clone hsc-splash${materialized && art ? ' hsc-chrome-out' : ''}${state.phase === 'ready' || state.phase === 'launching' ? (art ? ' hsc-done' : '') : ''}`}
+          style={{ left: source.left, top: source.top, width: source.width, height: source.height }}
+          aria-hidden="true"
+        >
+          <div ref={frameRef} className={`hsc-splash-art${art ? ' hsc-squareout' : ''}`}>
+            {art ? <img decoding="sync" src={art} alt="" draggable={false} /> : <Icon name="anvil" />}
+          </div>
+          {/* The same art held to a circle: it fades in as the square above fades out, so the travelling portrait is
+              round at once (owner 2026-11-17: "have the portrait immediately fade to a circle shape"). Opacity only. */}
+          {art && <div className="hsc-splash-round"><img decoding="sync" src={art} alt="" draggable={false} /></div>}
+        </div>
+      ) : <div
         ref={cloneWrapRef}
         className={`hsc-clone${materialized && art ? ' hsc-chrome-out' : ''}${state.phase === 'ready' || state.phase === 'launching' ? (art ? ' hsc-done' : '') : ''}`}
         style={{ left: source.left, top: source.top, width: source.width, height: source.height }}
@@ -487,7 +525,7 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch }: Props) {
           </div>
           {ph && <span className="hcfoot" aria-hidden="true" />}
         </div>
-      </div>
+      </div>}
 
       {/* Layer B (§13): the clean portrait — same art file, soft-masked edges, no chrome. Fixed at its
           FINAL bounds; the entrance animation shrinks it back to the card crop and releases. */}

@@ -75,6 +75,67 @@ export function destinationRect(viewportW: number, viewportH: number, _source?: 
 }
 
 /**
+ * The party-home banner's art frame inside its card, in the 784x1321 flag art's own units (heroSelectPh.css). The card
+ * is `padding: 0; container-type: inline-size`; `> .hcframe` is `width: calc(100cqi * 667 / 784); margin-inline: auto;
+ * margin-top: calc(100cqi * 96 / 784)`, and the unconditional "PLAY FLAG'S PORTRAIT" rule (R-HS-FADE-01) sets its
+ * `aspect-ratio: 667 / 844`. So on desktop the card path's frame is 667 x 844 (taller than wide), which the ceremony's
+ * `artCrop` leaves as it is (it only squares a crop WIDER than tall).
+ * Small touch screens differ: `html[data-touch-ui][data-touch-small]` rules override the aspect to 1/0.5 or 1/0.8 and
+ * `artCrop` then squares that frame to its width. This pure function cannot see that state; it matches desktop.
+ */
+const PH_FLAG_W = 784;
+const PH_FRAME_W = 667;
+const PH_FRAME_H = 844;
+const PH_FRAME_LEFT = (PH_FLAG_W - PH_FRAME_W) / 2;
+const PH_FRAME_TOP = 96;
+
+/**
+ * The SHOWCASE's portrait crop (hero select showcase, 2026-11-16; the showcase only renders in the party-home look): the
+ * rect the party-home card path's `.hcframe` settles at inside `dest`. The splash path hands THIS to the materializing
+ * beat as the art crop (it is not measured), so the final portrait, ring, clip and name plate keep today's size and place.
+ */
+export function splashDest(dest: RectSnapshot): RectSnapshot {
+  const u = Math.max(0, finite(dest.width, 0)) / PH_FLAG_W;
+  return {
+    left: finite(dest.left, 0) + u * PH_FRAME_LEFT,
+    top: finite(dest.top, 0) + u * PH_FRAME_TOP,
+    width: u * PH_FRAME_W,
+    height: u * PH_FRAME_H,
+  };
+}
+
+/**
+ * The square a cover-fit square image fills to cover `r`: side max(width, height), centred on `r`. The splash clone (a
+ * square of art) travels here, so at the handover its art sits at exactly the scale and place the clean portrait's
+ * `object-fit: cover` image draws inside the crop: no jump, only the overhang outside the crop, which fades out.
+ */
+export function coverSquare(r: RectSnapshot): RectSnapshot {
+  const w = Math.max(0, finite(r.width, 0));
+  const h = Math.max(0, finite(r.height, 0));
+  const side = Math.max(w, h);
+  return { left: finite(r.left, 0) + (w - side) / 2, top: finite(r.top, 0) + (h - side) / 2, width: side, height: side };
+}
+
+/**
+ * Where the splash clone TRAVELS (focus keyframes and the resize snap). The source box need not be square: on the showcase
+ * the inspect card can grow taller than its art column is wide (e.g. 500 x 532). Its cover-fit square art is then a square
+ * of side max(width, height) centred on the box, and THAT square must land on coverSquare(splashDest(dest)). So: uniform
+ * scale k = cover side / max(source side), the source box scaled by k and centred on the cover square. The width carries
+ * k (transformTo / focusKeyframes scale by width only). A square source gives coverSquare(splashDest(dest)) itself; a
+ * degenerate source falls back to it too.
+ */
+export function splashTravelTarget(source: RectSnapshot, dest: RectSnapshot): RectSnapshot {
+  const cover = coverSquare(splashDest(dest));
+  const w = Math.max(0, finite(source.width, 0));
+  const h = Math.max(0, finite(source.height, 0));
+  const side = Math.max(w, h);
+  if (side <= 0 || w <= 0) return cover;
+  const k = cover.width / side;
+  const c = rectCenter(cover);
+  return { left: c.x - (w * k) / 2, top: c.y - (h * k) / 2, width: w * k, height: h * k };
+}
+
+/**
  * Transform (translate+scale, relative to the clone sitting at the SOURCE rect) that lands the clone on a
  * target rect. The clone is positioned fixed at the source, `transform-origin: top left` — so start is
  * identity and every keyframe is a pure compositor transform.

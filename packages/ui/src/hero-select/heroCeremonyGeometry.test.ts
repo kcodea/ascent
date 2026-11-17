@@ -9,7 +9,7 @@
 import { describe, expect, it } from 'vitest';
 import type { RectSnapshot } from './heroCeremonyMachine';
 import {
-  destinationRect, exitVector, focusKeyframes, rectCenter, snapshotRect, transformTo, stageScale, CEREMONY_ASPECT } from './heroCeremonyGeometry';
+  coverSquare, destinationRect, exitVector, focusKeyframes, rectCenter, snapshotRect, splashDest, splashTravelTarget, transformTo, stageScale, CEREMONY_ASPECT } from './heroCeremonyGeometry';
 
 const rect = (left: number, top: number, width: number, height: number): RectSnapshot =>
   ({ left, top, width, height });
@@ -187,5 +187,61 @@ describe('exitVector — unselected cards yield away from the pick', () => {
     }
     // NaN delta collapses to the alternating tie-break, still inside the x clamp.
     expect(Math.abs(broken.x)).toBe(90);
+  });
+});
+
+describe('splashDest (the showcase portrait crop) and coverSquare (where the splash clone settles)', () => {
+  it("splashDest is the party-home card's 667 x 844 art frame inside the destination (centred, 96/784 down)", () => {
+    // A 784-wide destination makes the flag's own px exact: frame 667 x 844, (784 - 667) / 2 = 58.5 in, 96 down.
+    const d = splashDest(rect(100, 50, 784, 1027));
+    expect(d.left).toBeCloseTo(158.5, 6);
+    expect(d.top).toBeCloseTo(146, 6);
+    expect(d.width).toBeCloseTo(667, 6);
+    expect(d.height).toBeCloseTo(844, 6);
+    // Scales with the destination width, never its height.
+    const s = splashDest(rect(0, 0, 392, 9999));
+    expect(s.width).toBeCloseTo(333.5, 6);
+    expect(s.height).toBeCloseTo(422, 6);
+    expect(s.left).toBeCloseTo(29.25, 6);
+    expect(s.top).toBeCloseTo(48, 6);
+  });
+  it('coverSquare is the smallest square covering the rect, centred on it', () => {
+    expect(coverSquare(rect(158.5, 146, 667, 844))).toEqual({ left: 70, top: 146, width: 844, height: 844 });
+    expect(coverSquare(rect(0, 0, 200, 100))).toEqual({ left: 0, top: -50, width: 200, height: 200 });
+  });
+  it('stays finite on a degenerate destination', () => {
+    for (const v of Object.values(splashDest(rect(NaN, NaN, NaN, 0)))) expect(Number.isFinite(v)).toBe(true);
+    for (const v of Object.values(coverSquare(rect(NaN, NaN, NaN, NaN)))) expect(Number.isFinite(v)).toBe(true);
+  });
+});
+
+describe('splashTravelTarget — where the splash clone travels, from its cover geometry', () => {
+  const dest = rect(100, 50, 784, 1027);
+  it('a square source travels to the cover square itself', () => {
+    const t = splashTravelTarget(rect(200, 150, 420, 420), dest);
+    const cover = coverSquare(splashDest(dest));
+    for (const k of ['left', 'top', 'width', 'height'] as const) expect(t[k]).toBeCloseTo(cover[k], 9);
+  });
+  it("a taller-than-wide source's cover image (a 532 square) lands exactly on the cover square", () => {
+    const source = rect(200, 150, 500, 532);
+    const cover = coverSquare(splashDest(dest));
+    const t = splashTravelTarget(source, dest);
+    // Uniform scale k carried by the width (transformTo / focusKeyframes scale by width only).
+    expect(t.width / source.width).toBeCloseTo(cover.width / 532, 9);
+    expect(t.height / source.height).toBeCloseTo(cover.width / 532, 9);
+    // The image square is centred on the box, so the box's centre is the cover square's centre.
+    expect(rectCenter(t).x).toBeCloseTo(rectCenter(cover).x, 6);
+    expect(rectCenter(t).y).toBeCloseTo(rectCenter(cover).y, 6);
+    // Through the real transform: the source's image square (side 532, centred) maps onto the cover square.
+    const m = /translate\((-?[\d.]+)px, (-?[\d.]+)px\) scale\(([\d.]+)\)/.exec(focusKeyframes(source, t)[2]!.transform as string)!;
+    const [dx, dy, k] = [Number(m[1]), Number(m[2]), Number(m[3])];
+    const imgLeft = source.left + (source.width - 532) / 2;
+    const imgTop = source.top + (source.height - 532) / 2;
+    expect(source.left + dx + (imgLeft - source.left) * k).toBeCloseTo(cover.left, 0);
+    expect(source.top + dy + (imgTop - source.top) * k).toBeCloseTo(cover.top, 0);
+    expect(532 * k).toBeCloseTo(cover.width, 0);
+  });
+  it('stays finite on a degenerate source', () => {
+    for (const v of Object.values(splashTravelTarget(rect(NaN, NaN, 0, 0), dest))) expect(Number.isFinite(v)).toBe(true);
   });
 });

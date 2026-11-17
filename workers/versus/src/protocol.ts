@@ -27,8 +27,10 @@
  *  2 (2026-11-05): Duos teammates alternate who fights first (R-DUOS-ORDER-01).
  *  3 (2026-11-10): the Duos connection rules (#2648: 12 s away grace, an auto seat fights its newest board, team-only relays,
  *    the watched-cursor gate) and a new Duos-only hero the Worker deals (Magician, #2651; heroes are not in the content
- *    revision), with content unchanged since ascent-versus-v2-8a6257b2. A v2 client would be dealt a hero it does not know. */
-export const VERSUS_CF_PROTOCOL = 3;
+ *    revision), with content unchanged since ascent-versus-v2-8a6257b2. A v2 client would be dealt a hero it does not know.
+ *  4 (2026-11-16): a Duos pass to a full hand WAITS instead of being refused (R-DUOS-PASS-WAITS-01). The room no longer
+ *    refuses `hand_full`, and the receiving run no longer refuses a card; a v3 client would refuse it and refund. */
+export const VERSUS_CF_PROTOCOL = 4;
 /** The WebSocket subprotocol a client offers (the server echoes it back). */
 export const VERSUS_CF_SUBPROTOCOL = 'ascent-versus.v1';
 /** The subprotocol prefix carrying the bearer token (`bearer.<jwt>`). */

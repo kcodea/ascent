@@ -3,7 +3,8 @@
  *
  *   "a pass slot: drag a card from your hand/board to your teammate's portrait to give it to them."
  *   "passing should cost 1 gold" (closes at your End Turn).
- *   "Pass is refused if hand is full." (the sender keeps the card and is not charged)
+ *   "A passed minion when a teammates hand is full should actually not fail, and should enter the teammates hand when
+ *   they have space." (owner 2026-11-16, R-DUOS-PASS-WAITS-01: SUPERSEDES 2026-10-25's "Pass is refused if hand is full")
  *   "you should be able to pass cards back to your teammate" (2026-10-25: a card just passed to you can go straight
  *   back, and any card can be passed again later the same turn; every pass costs its 1 Gold).
  *   "you aren't supposed to be able to pass a card off your board, only from hand." (2026-10-25: HAND ONLY.)
@@ -11,13 +12,15 @@
  * Three recorded run actions, so a restore or a replay reproduces them:
  *  - `passCard { uid }` (the SENDER's run): the HAND card leaves, 1 Gold is spent through the one Gold-spend
  *    chokepoint, and the card AS IT LEFT (and where it came from) is appended to `duos.outbox`. The Versus store ships
- *    each entry to the server once (`versus_duos_pass`, which refuses a pass to a hand the teammate reported full).
+ *    each entry to the server once (`versus_duos_pass`; a full hand is never a reason to refuse, R-DUOS-PASS-WAITS-01).
  *  - `receivePass { from, seq, card }` (the RECEIVER's run): with room in the hand the card lands with a fresh uid and
  *    everything it carried, stamped with the pass key it came through (`passKey`, identity for a restore, never a
- *    restriction: it can be passed straight back); a FULL hand refuses it (recorded
- *    in `duos.refused`; the store answers the server, which tells the sender). A pass key lands or is refused once.
- *  - `passRefunded { seq }` (the SENDER's run, when the teammate's hand refused it): the card comes back where it was
- *    and the 1 Gold is given back (the Gold-spent tallies too: the pass was never paid), exactly once.
+ *    restriction: it can be passed straight back). A FULL hand never refuses a card (R-DUOS-PASS-WAITS-01): the pass is
+ *    received (answered as landed, every on-receive effect resolves now, once) and the card WAITS in `duos.waiting`,
+ *    first in first out, until the hand has room. A pass key is received once.
+ *  - `passRefunded { seq }` (the SENDER's run, when the ROOM refused it for another rule: the clock, the round cap, a
+ *    teammate away, a Golden spell pass): the card comes back where it was and the 1 Gold is given back (the Gold-spent
+ *    tallies too: the pass was never paid), exactly once, and what the pass gave the sender comes off again.
  */
 import { CARD_INDEX } from '@game/content';
 import type { TeamEffect, Tribe } from '@game/core';
@@ -44,7 +47,8 @@ export interface DuosOutboxEntry {
    *  can take a 'board' minion or a 'shop' one. */
   from: 'hand' | 'board' | 'shop';
   index: number;
-  /** The teammate's full hand refused it: the card and the Gold came back. */
+  /** The ROOM refused it (the clock, the round cap, a teammate away, a Golden spell pass): the card and the Gold came
+   *  back. Never a full hand any more (R-DUOS-PASS-WAITS-01). */
   refunded?: true;
   /** The Gold this pass cost (refunded exactly). Absent = `DUOS_PASS_GOLD` (an older checkpoint). 0 for a free pass
    *  (Brian's Pal), a spell's pass and a team effect. */
@@ -74,6 +78,9 @@ export interface DuosOutboxEntry {
   ancRise?: true;
   ancReset?: true;
   bonds?: { attack: number; health: number };
+  /** Priestess x Bonds: MY left-most minion that took the sender's half of `bonds`. A refund takes it off again, so a
+   *  refused pass can never be repeated for a free buff (audit F1, R-DUOS-PASS-WAITS-01). */
+  bondsUid?: string;
   copyUid?: string;
   copies?: number;
   /** Put back by a reload's restore replay (R-DUOS-PASS-RESTORE-EFFECT-01): already delivered, so nothing streams it. */
@@ -112,7 +119,8 @@ export interface DuosRunState {
   outbox: DuosOutboxEntry[];
   /** Every received pass key (`<fromSeat>:<seq>`) that LANDED. */
   received: string[];
-  /** Every received pass key the full hand REFUSED. */
+  /** Every received pass key this run REFUSED. Only a TEAM EFFECT is refused now (a gift with no room); a card pass to
+   *  a full hand waits instead (R-DUOS-PASS-WAITS-01). Older checkpoints may still hold refused card keys. */
   refused: string[];
   /** Brian's Pal (R-DUOS-CARDS-01): free passes spent this turn, and the turn they were counted on. */
   freePassesUsed?: number;
@@ -122,10 +130,11 @@ export interface DuosRunState {
   /** Matchmaker (R-DUOS-CARDS-05): the teammate's board as this run last saw it, minions per tribe of THEIR run
    *  (`noteMateTribes`). Absent = never seen (every tribe ties). */
   mateTribes?: Partial<Record<Tribe, number>>;
-  /** EFFECT PASSES WAITING FOR HAND ROOM (owner 2026-10-30, R-DUOS-EFFECT-PASS-QUEUE-01: "if your teammate's hand is
-   *  full, they get the card once there is space in their hand"). An effect pass (`passFrom: 'spell'`) that arrives to
-   *  a full hand is LANDED (answered, the sender keeps nothing back) and waits here, in arrival order; `landWaitingPasses`
-   *  moves each into the hand the moment there is room (after any action). Persisted with the run, so a reload keeps it. */
+  /** PASSES WAITING FOR HAND ROOM (owner 2026-10-30, R-DUOS-EFFECT-PASS-QUEUE-01: "if your teammate's hand is full,
+   *  they get the card once there is space in their hand"; owner 2026-11-16, R-DUOS-PASS-WAITS-01: the manual pass and
+   *  Passaria too). ANY card pass that arrives to a full hand (or behind cards already waiting) is LANDED (answered, the
+   *  sender keeps nothing back) and waits here, first in first out; `landWaitingPasses` moves each into the hand the
+   *  moment there is room (after any action). Persisted with the run, so a reload keeps it. */
   waiting?: { key: string; card: BoardCard; gift?: true }[];
   /** CINDY'S GOLDEN GRATITUDE (R-DUOS-CINDY-01): my teammate (Cindy) armed it, so my NEXT minion buy sends them a Gilded
    *  copy of that minion (`gratitudeBuy`) and clears this. Set by their `gratitude` team effect. */
@@ -183,9 +192,9 @@ export function duosFreeKind(s: RunState): 'pal' | 'catch' | null {
   return duosCatchLeft(s) ? 'catch' : null;
 }
 
-/** Why `uid` cannot be passed right now (null = it can). `mateHandFull` is the teammate's live hand state when the
- *  caller knows it (the UI, from the teammate's frame). The UI shows the refusal from this. */
-export function duosPassBlocked(s: RunState, uid: string, mateHandFull = false): 'not_duos' | 'phase' | 'no_card' | 'board' | 'gold' | 'hand_full' | null {
+/** Why `uid` cannot be passed right now (null = it can). The UI shows the refusal from this. The teammate's FULL HAND is
+ *  not a reason (owner 2026-11-16, R-DUOS-PASS-WAITS-01): the card waits on their run until they have room. */
+export function duosPassBlocked(s: RunState, uid: string): 'not_duos' | 'phase' | 'no_card' | 'board' | 'gold' | null {
   if (!s.duos) return 'not_duos';
   if (s.phase !== 'recruit') return 'phase';
   // HAND ONLY (owner 2026-10-25: "you aren't supposed to be able to pass a card off your board, only from hand").
@@ -194,7 +203,6 @@ export function duosPassBlocked(s: RunState, uid: string, mateHandFull = false):
   // A GOLDEN minion MAY be passed from hand (owner 2026-10-31, R-DUOS-PASS-GOLDEN-MANUAL-01: "gilded minions can be
   // passed from hand but not targeted by spells that pass"). This REVISES the 2026-10-30 no-golden rule for the manual
   // pass; a pass SPELL still cannot target one (`targetNoGolden`, `effectPassCard`).
-  if (mateHandFull) return 'hand_full';
   if (s.embers < duosPassCost(s)) return 'gold';
   return null;
 }
@@ -293,37 +301,25 @@ export function receiveDuosPass(state: RunState, from: string, seq: number, card
   if (state.duos.received.includes(key) || state.duos.refused.includes(key)) return state;
   const s = duosDraft(state);
   const duos = s.duos!;
-  // AN EFFECT PASS IS NEVER REFUSED FOR A FULL HAND (owner 2026-10-30, R-DUOS-EFFECT-PASS-QUEUE-01): it is landed (the
-  // sender is told it arrived) and waits for room, behind any effect pass already waiting (in order).
-  // An effect pass travels as `spell` (Handout, CueBee's Pass, Matchmaker) or `sale` (Salesman of the Year).
-  const pf = (card as { passFrom?: unknown }).passFrom;
-  const effectPass = pf === 'spell' || pf === 'sale';
   // MAGICIAN x GENESIS (R-ANCDUOS-01): a spell copy that arrives as several (`passCopies`, 3 at most). Only a Magic Hat
   // copy carries it; each copy past the first lands like the first: into the hand while there is room, else it waits.
-  const extra = effectPass && (card as { passHat?: unknown }).passHat === true ? Math.min(2, Math.max(0, Math.floor(Number((card as { passCopies?: unknown }).passCopies) || 1) - 1)) : 0;
-  if (effectPass && (s.hand.length >= handCap(s) || (duos.waiting?.length ?? 0) > 0)) {
-    duos.received.push(key);
+  const pf = (card as { passFrom?: unknown }).passFrom;
+  const extra = (pf === 'spell' || pf === 'sale') && (card as { passHat?: unknown }).passHat === true ? Math.min(2, Math.max(0, Math.floor(Number((card as { passCopies?: unknown }).passCopies) || 1) - 1)) : 0;
+  duos.received.push(key);
+  // My teammate's Playing Catch pass of THIS round: one of the team's free passes is gone (R-DUOS-RUNES-01). Counted
+  // when the pass is received, whether its card lands now or waits.
+  const teamCatch = (card as { teamCatch?: unknown }).teamCatch;
+  if (typeof teamCatch === 'number') duosCatchBump(s, 1, teamCatch);
+  // NO CARD PASS IS REFUSED FOR A FULL HAND (owner 2026-10-30 for effect passes, R-DUOS-EFFECT-PASS-QUEUE-01; owner
+  // 2026-11-16 for the manual pass and Passaria, R-DUOS-PASS-WAITS-01: "should enter the teammates hand when they have
+  // space"): it is received (the sender is told it arrived) and waits for room, behind any card already waiting (FIFO).
+  if (s.hand.length >= handCap(s) || (duos.waiting?.length ?? 0) > 0) {
     (duos.waiting ??= []).push({ key, card: landedCard(card) });
     for (let i = 1; i <= extra; i++) duos.waiting.push({ key: `${key}#${i}`, card: landedCard(card) });
     return s;
   }
-  if (s.hand.length >= handCap(s)) {
-    duos.refused.push(key);
-    return s;
-  }
-  duos.received.push(key);
-  // The transport's markers (`passFrom`, the server's hand-only check; `teamCatch`) never ride into the hand.
-  const { passFrom: _f, team: _t, teamCatch, passPower: _p, passPaid: _q, passHat: _h, passGratitude: _g, passBonds: _b, passCopies: _c, ...landed } = structuredClone(card) as BoardCard & { passFrom?: unknown; team?: unknown; teamCatch?: unknown; passPower?: unknown; passPaid?: unknown; passHat?: unknown; passGratitude?: unknown; passBonds?: unknown; passCopies?: unknown };
-  void _h;
-  void _g;
-  void _b;
-  void _c;
-  void _t;
-  void _f;
-  void _p;
-  void _q;
-  // My teammate's Playing Catch pass of THIS round: one of the team's free passes is gone (R-DUOS-RUNES-01).
-  if (typeof teamCatch === 'number') duosCatchBump(s, 1, teamCatch);
+  // The transport's markers (`passFrom`, the server's hand-only check; `teamCatch`, ...) never ride into the hand.
+  const landed = landedCard(card);
   s.hand.push({ ...landed, uid: `b${s.uidSeq++}`, passKey: key });
   for (let i = 1; i <= extra; i++) {
     if (s.hand.length < handCap(s)) s.hand.push({ ...structuredClone(landed), uid: `b${s.uidSeq++}`, passKey: `${key}#${i}` });
@@ -339,13 +335,14 @@ function landedCard(card: BoardCard): BoardCard {
   return landed;
 }
 
-/** How many effect passes are waiting for hand room (the "waiting" pill, the hand room this run reports). */
+/** How many passed cards are waiting for hand room (the "waiting" pill, the hand room this run reports). */
 export function duosWaitingCount(s: Pick<RunState, 'duos'>): number {
   return s.duos?.waiting?.length ?? 0;
 }
 
 /**
- * Land WAITING effect passes into the hand while there is room (R-DUOS-EFFECT-PASS-QUEUE-01), in arrival order. Pure:
+ * Land WAITING passes into the hand while there is room (R-DUOS-EFFECT-PASS-QUEUE-01, R-DUOS-PASS-WAITS-01), first in
+ * first out. Pure:
  * `state` itself when nothing can land, else a fresh draft. The reducer runs it after every action, so a card lands the
  * moment a play, sale, pass or the turn's flip makes room; deterministic (a function of the run alone).
  */
@@ -363,7 +360,24 @@ export function landWaitingPasses(state: RunState): RunState {
   return s;
 }
 
-/** The sender's refund, when the teammate's full hand refused pass `seq`. Exactly once. */
+/** The buff source Priestess x Bonds writes (`ANCIENTS.bonds.name`; pinned by test). */
+export const DUOS_BONDS_SOURCE = 'Ancient of Bonds';
+
+/** Take a stat gain back off a card (a refunded pass's Bonds): its stats and its buff ledger line. Attack floors at 0,
+ *  Health at 1 (a refund never kills a minion). */
+function takeBackBuff(card: BoardCard, source: string, attack: number, health: number): void {
+  card.attack = Math.max(0, card.attack - attack);
+  card.health = Math.max(1, card.health - health);
+  const b = card.buffs?.find((x) => x.source === source);
+  if (!b) return;
+  b.attack -= attack;
+  b.health -= health;
+  b.count = Math.max(0, b.count - 1);
+  if (b.attack === 0 && b.health === 0 && b.count === 0) card.buffs = card.buffs!.filter((x) => x !== b);
+}
+
+/** The sender's refund, when the ROOM refused pass `seq` for a rule other than hand room (the clock, the round cap, a
+ *  teammate away, a Golden spell pass). Exactly once. A full hand is never a refusal any more (R-DUOS-PASS-WAITS-01). */
 export function refundDuosPass(state: RunState, seq: number): RunState {
   const entry = state.duos?.outbox[seq];
   if (!entry || entry.refunded) return state;
@@ -383,6 +397,12 @@ export function refundDuosPass(state: RunState, seq: number): RunState {
   if (e.ancReset && e.wave === s.wave) {
     if (activePowers(s)[0]?.kind !== 'passaria' && activePowers(s)[1]?.kind === 'passaria') s.heroReady2 = false;
     else s.heroReady = false;
+  }
+  // Bonds' own half (+a/+h on my left-most minion) comes off the minion that took it, wherever it is now (audit F1: a
+  // refused pass kept it, so the same card could be passed again and again for a free +10/+10 each time).
+  if (e.bonds && e.bondsUid) {
+    const m = s.board.find((c) => c.uid === e.bondsUid) ?? s.hand.find((c) => c.uid === e.bondsUid);
+    if (m) takeBackBuff(m, DUOS_BONDS_SOURCE, e.bonds.attack, e.bonds.health);
   }
   if (e.copyUid) {
     const ci = s.hand.findIndex((c) => c.uid === e.copyUid);

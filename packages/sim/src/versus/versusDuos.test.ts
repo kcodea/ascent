@@ -288,17 +288,19 @@ describe('passing a card (R-DUOS-PASS-01: "passing should cost 1 gold")', () => 
     expect('passFrom' in marked.hand[0]!).toBe(false);
   });
 
-  it('"Pass is refused if hand is full": a full hand refuses it; the sender gets the card and the Gold back', () => {
+  it('a full hand never refuses a pass (R-DUOS-PASS-WAITS-01, superseding "Pass is refused if hand is full"): it waits; a ROOM refusal still refunds', () => {
     const base = duosRun();
     const full: BoardCard[] = Array.from({ length: handCap(base) }, (_, i) => ({ ...base.hand[0]!, uid: `f${i}` }));
     const recv = { ...base, hand: full };
     const got = reduce(recv, { type: 'receivePass', from: 'p1', seq: 3, card: base.board[0]! });
     expect(got.hand).toHaveLength(handCap(base));
-    expect(got.duos!.refused).toEqual(['p1:3']);
-    expect(got.duos!.received).toEqual([]);
-    // Answered once: the same pass again changes nothing, even with room now.
-    expect(reduce({ ...got, hand: [] }, { type: 'receivePass', from: 'p1', seq: 3, card: base.board[0]! }).hand).toHaveLength(0);
-    // The sender: the card goes back to its hand slot, the Gold and the Gold-spent tallies come back, once.
+    expect(got.duos!.refused).toEqual([]);
+    expect(got.duos!.received).toEqual(['p1:3']);
+    expect(got.duos!.waiting?.map((w) => w.key)).toEqual(['p1:3']);
+    // Answered once: the same pass again changes nothing.
+    expect(reduce(got, { type: 'receivePass', from: 'p1', seq: 3, card: base.board[0]! })).toBe(got);
+    // The sender, when the ROOM refuses (the clock, the cap, a teammate away): the card goes back to its hand slot, the
+    // Gold and the Gold-spent tallies come back, once.
     const sender = duosRun();
     const sent = reduce(sender, { type: 'passCard', uid: 'h1' });
     expect([sent.embers, sent.hand.length]).toEqual([sender.embers - 1, 0]);

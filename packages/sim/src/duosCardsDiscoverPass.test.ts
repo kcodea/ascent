@@ -191,13 +191,13 @@ describe('effect passes wait for room (owner 2026-10-30: "they get the card once
     expect(ship(ann, 'p1', bob)).toBe(bob);
   });
 
-  it('a later effect pass waits behind one already waiting, even with room (in order); a MANUAL pass is still refused when full', () => {
+  it('a later pass waits behind one already waiting (in order); since 2026-11-16 a MANUAL pass waits too (R-DUOS-PASS-WAITS-01)', () => {
     let bob = seat({ hand: filler(10, 'h') }, 12);
     const wire = (uid: string, passFrom: 'spell' | 'hand') => ({ ...card(fillerId(), uid), passFrom });
     bob = reduce(bob, { type: 'receivePass', from: 'p1', seq: 0, card: wire('x0', 'spell') as never });
     bob = reduce(bob, { type: 'receivePass', from: 'p1', seq: 1, card: wire('x1', 'hand') as never });
-    expect(bob.duos!.refused).toEqual(['p1:1']); // the drag pass keeps its rule
-    expect(duosWaitingCount(bob)).toBe(1);
+    expect(bob.duos!.refused).toEqual([]); // the drag pass is no longer refused for a full hand
+    expect(bob.duos!.waiting!.map((w) => w.key)).toEqual(['p1:0', 'p1:1']);
   });
 
   it("Golden: refused by default; Salesman of the Year's sale pass (the one override) carries it, and it waits too", () => {

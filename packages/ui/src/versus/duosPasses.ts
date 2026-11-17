@@ -2,12 +2,14 @@
  * VERSUS DUOS — the pass transport (owner 2026-10-25, R-DUOS-PASS-01). Pure plumbing between my run's recorded pass
  * actions and the server's `versus_duos_passes` rows; the run itself stays the authority on its hand and Gold.
  *
- *  - OUT: every new `duos.outbox` entry is sent once (`versus_duos_pass`). A server refusal ("Pass is refused if hand
- *    is full", the clock, the lock) gives the card and the Gold back at once (`passRefunded`).
- *  - IN: a teammate's pass row lands through `receivePass`; my run's answer (landed, or refused by a full hand) goes
+ *  - OUT: every new `duos.outbox` entry is sent once (`versus_duos_pass`). A server refusal (the clock, the lock, the
+ *    round cap, a teammate away) gives the card and the Gold back at once (`passRefunded`). A teammate's FULL HAND is
+ *    not a refusal (owner 2026-11-16, R-DUOS-PASS-WAITS-01): the card waits on their run, and my portrait says so.
+ *  - IN: a teammate's pass row lands through `receivePass` (into my hand, or waiting for room); my run's answer goes
  *    back to the server (`versus_duos_answer_pass`), which tells the sender.
- *  - REFUSED ON ARRIVAL: one of MY passes the teammate's full hand refused comes back through `passRefunded`.
- *  - HAND ROOM: my free hand slots, reported whenever they change, so the server refuses a pass to a full hand up front.
+ *  - REFUSED LATER: one of MY passes the room refused after it was sent (its receiver went away) comes back through
+ *    `passRefunded`.
+ *  - HAND ROOM: my free hand slots, reported whenever they change (informational since R-DUOS-PASS-WAITS-01).
  * Network only off the hot path: nothing here runs per frame; a shop click never waits on it.
  */
 import { duosWaitingCount, duosWireOf, handCap, mateTribeCounts, runReadsMateTribes, type BoardCard, type RunState, type VersusGroupSeat } from '@game/sim';
@@ -15,14 +17,14 @@ import { useGame } from '../store';
 import { playArrival, playEntryFlight } from './passLob';
 import { resetHatLines, speakHatLine } from './hatLines';
 import { resetGratitudeVoice, speakGratitude } from './gratitudeVoice';
-import { notePassRefused, passReturnedText } from './duosPassUi';
+import { PASS_WAITS_TEXT, mateHandFull, notePassRefused, passReturnedText } from './duosPassUi';
 import { sfx } from '../sfx';
 import { ownRunWhileWatching, setMateFrameHook, teammateViewOf } from './spectate';
 import { VersusError, versusRemote, type VersusDuosPassRow } from './versusRemote';
 import { localMate } from './localMate';
 
 /** Server refusals that mean "this pass will never be recorded": refund it now. */
-export const DUOS_PASS_REFUSALS: ReadonlySet<string> = new Set(['hand_full', 'locked', 'not_shop', 'deadline_passed', 'no_teammate', 'too_many_passes', 'bad_card', 'golden', 'not_duos', 'teammate_away']);
+export const DUOS_PASS_REFUSALS: ReadonlySet<string> = new Set(['locked', 'not_shop', 'deadline_passed', 'no_teammate', 'too_many_passes', 'bad_card', 'golden', 'not_duos', 'teammate_away']);
 
 /** A pass came back (the card and the Gold are mine again): say so on the teammate's portrait, with the deny sound, so
  *  a card reappearing is never a silent surprise (phase-3 live test, 2026-10-25). */
@@ -116,9 +118,13 @@ export function duosAfterRun(matchId: string, me: VersusGroupSeat, run: RunState
     // teammate portrait. This runs inside the store's commit, before React drops the source, so it is still on screen.
     if (!ownRunWhileWatching()) playEntryFlight(e, run);
     if (!e.team) lastRefusal = null;
+    // My teammate's hand is full right now (their live frame, read before the card arrives): the card will WAIT for
+    // room on their run (R-DUOS-PASS-WAITS-01). Said on their portrait once the room took it, so it is never a surprise.
+    const waits = !e.team && !e.restored && !e.hat && !e.gratitude && !ownRunWhileWatching() && mateHandFull();
     void versusRemote.duosPass(matchId, e.wave, seq, duosWireOf(e)).then(() => {
       s.shipped.add(idx);
       failures = 0;
+      if (waits && ses === s) notePassRefused(PASS_WAITS_TEXT);
     }).catch((err: unknown) => {
       const code = err instanceof VersusError ? err.code : '';
       if (DUOS_PASS_REFUSALS.has(code)) {
@@ -136,7 +142,7 @@ export function duosAfterRun(matchId: string, me: VersusGroupSeat, run: RunState
   }
   duosNoteMate(run);
   // My free hand slots, when they changed.
-  // Effect passes still waiting for room (R-DUOS-EFFECT-PASS-QUEUE-01) take theirs first, so a drag pass is refused up front.
+  // Passes still waiting for room (R-DUOS-PASS-WAITS-01) take theirs first.
   const room = Math.max(0, handCap(run) - run.hand.length - duosWaitingCount(run));
   if (room !== s.room) {
     s.room = room;
@@ -432,9 +438,9 @@ function applyRows(s: DuosSession, rows: readonly VersusDuosPassRow[]): void {
       const e = idx == null ? undefined : run.duos.outbox[idx];
       if (e && !e.refunded) {
         dispatch({ type: 'passRefunded', seq: idx! });
-        // The receiver's full hand refused it, unless the ROOM says why it did (`teammate_away`: it expired unanswered,
-        // R-DUOS-PASS-EXPIRE-01).
-        const why = typeof r.reason === 'string' && r.reason ? r.reason : 'hand_full';
+        // The ROOM says why (`teammate_away`: it expired unanswered, R-DUOS-PASS-EXPIRE-01). A card pass is never
+        // refused by a full hand any more (R-DUOS-PASS-WAITS-01); anything else reads as the generic line.
+        const why = typeof r.reason === 'string' && r.reason ? r.reason : '';
         if (!e.team) { lastRefusal = { seq: idx!, reason: why }; sayReturned(why); }
       }
     }

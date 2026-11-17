@@ -33,7 +33,7 @@ import { exitTeammateView } from './versus/teammateView';
 import { playArrival, playEntryFlight } from './versus/passLob';
 import { resetHatLines } from './versus/hatLines';
 import { resetGratitudeVoice } from './versus/gratitudeVoice';
-import { notePassRefused, passReturnedText } from './versus/duosPassUi';
+import { PASS_WAITS_TEXT, notePassRefused, passReturnedText } from './versus/duosPassUi';
 import { devCard } from './versus/duosDevTuner';
 import { sfx } from './sfx';
 import { setDuosViewing } from './duosViewing';
@@ -127,6 +127,8 @@ function pump(): void {
     const screen = onScreenSeat();
     for (const ev of events) {
       if (ev.kind === 'landed' && ev.to === screen && !ev.triple) for (const uid of ev.uids) playArrival(uid);
+      // A pass to a full hand waits for room (R-DUOS-PASS-WAITS-01): the sender's portrait says so.
+      if (ev.kind === 'landed' && ev.waiting && ev.from === screen) notePassRefused(PASS_WAITS_TEXT);
       if (ev.kind === 'refused' && ev.from === screen && !ev.team) {
         sfx.deny?.();
         notePassRefused(passReturnedText(ev.reason));

@@ -139,8 +139,9 @@ describe('Priestess × Bonds through the room: the teammate\'s +10/+10 rides the
     a = reduce(a, { type: 'passRefunded', seq: 0 });
     expect(a.hand.map((c) => c.uid)).toEqual(['h']);
     expect(a.embers).toBe(gold + 1);
-    // My own minion keeps what it gained when I passed; no row exists for the teammate to land.
-    expect(a.board[0]).toMatchObject({ attack: 11, health: 11 });
+    // The refused pass takes its Bonds back off my minion too (audit F1, R-DUOS-PASS-WAITS-01: a refund that kept it let
+    // the same card be passed again and again for free); no row exists for the teammate to land.
+    expect(a.board[0]).toMatchObject({ attack: 1, health: 1 });
     h.core.connect(U[1], h.now);
     const b = await pull(h, U[1], 'p2', mateRun({ board: mateBoard() }));
     expect(b.board[0]).toMatchObject({ attack: 2, health: 2 });

@@ -9426,7 +9426,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Owner ruling 2026-10-28 (workers/versus/scripts/deploy.ts header)', quote: 'that room finishes on its version' },
       { kind: 'code', ref: 'workers/versus/src/protocol.ts (VERSUS_CF_PROTOCOL); packages/content/src/revisions.ts (contentRevision)' },
     ],
-    currentBehaviour: 'Conforms from 2026-11-05 (fix/versus-worker-protocol-bump): #2600 changed the Duos fight order with content unchanged since exe v0.2.2, so protocol 2 keeps its rooms on ascent-versus-v1-5ed25b5c. Again 2026-11-10 (fix/versus-worker-protocol-3): #2648 changed the Duos connection rules and #2651 added a Duos-only hero the Worker deals, both with content unchanged at 8a6257b2, so protocol 3 leaves ascent-versus-v2-8a6257b2 to the builds already out. Heroes are not in the content revision: a new or changed hero the Worker deals needs a bump too.',
+    currentBehaviour: 'Conforms from 2026-11-05 (fix/versus-worker-protocol-bump): #2600 changed the Duos fight order with content unchanged since exe v0.2.2, so protocol 2 keeps its rooms on ascent-versus-v1-5ed25b5c. Again 2026-11-10 (fix/versus-worker-protocol-3): #2648 changed the Duos connection rules and #2651 added a Duos-only hero the Worker deals, both with content unchanged at 8a6257b2, so protocol 3 leaves ascent-versus-v2-8a6257b2 to the builds already out. Heroes are not in the content revision: a new or changed hero the Worker deals needs a bump too. Again 2026-11-16 (fix/duos-pass-full-hand-waits): a Duos pass to a full hand now waits instead of being refused (R-DUOS-PASS-WAITS-01), a room and client rule with no content change, so protocol 4.',
     example: 'Duos fight order changes, no card changes: the revision stays 5ed25b5c, the protocol goes 1 to 2, the new build plays on ascent-versus-v2-5ed25b5c, and rooms on v1 finish there.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusCfOnly.test.ts'], lastVerifiedAt: '2026-11-05' },
   },
@@ -9460,12 +9460,12 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'arrives in the teammate\x27s hand with everything it carried: stats, keywords, enchantments, Gilded. A card that arrived by a pass '
       + 'CAN be passed straight back, and any card can be passed again later the same turn: every pass is its own pass and costs its own '
       + '1 Gold. Passing stays open after your own End Turn (a ready signal since 2026-10-26, R-VERSUS-READY-01) and closes when the shop clock '
-      + 'runs out. A pass to a full hand is refused: the sender keeps the card and is not charged; if the hand fills while the pass is on '
-      + 'its way, it is refused on arrival and the card and the Gold go back to the sender. Arriving in hand is a card added to the hand '
+      + 'runs out. A pass to a full hand is NOT refused (since 2026-11-16, R-DUOS-PASS-WAITS-01, superseding the 2026-10-25 "Pass is '
+      + 'refused if hand is full"): the pass completes and the card waits for room in the teammate\x27s hand. Arriving in hand is a card added to the hand '
       + 'like any other. The server records each pass exactly once, only between teammates, at most 10 per player per round. '
       + 'A teammate who is away (their board plays on auto, or the match is paused for them) cannot be passed to: the portrait says '
-      + '"Away" and a drop is refused with "Your teammate is away" (the server refuses it too). A pass that comes back (a full hand, '
-      + 'the clock) says so on the portrait, "You got it back". After a reload the restored run lines its passes up with the server\x27s by '
+      + '"Away" and a drop is refused with "Your teammate is away" (the server refuses it too). A pass that comes back (the clock, '
+      + 'the round cap, a teammate away) says so on the portrait, "You got it back". After a reload the restored run lines its passes up with the server\x27s by '
       + 'card (uid and the pass it last arrived through) and round, never by position, then replays the round\x27s passes both ways in the '
       + 'order the server recorded them, finding a re-landed card by the pass it came through: a card passed A to B to A lands exactly '
       + 'once per pass and every pass is paid once, never duplicated and never lost.',
@@ -9474,7 +9474,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     evidence: [
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25 (Versus Duos design)', quote: 'drag a card from your hand/board to your teammate\x27s portrait to give it to them.' },
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25 (rulings)', quote: 'passing should cost 1 gold' },
-      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25 (full hand)', quote: 'Pass is refused if hand is full.' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25 (full hand; SUPERSEDED 2026-11-16 by R-DUOS-PASS-WAITS-01)', quote: 'Pass is refused if hand is full.' },
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25 (bottom-right portrait)', quote: 'dragging a minion over their portrait should have it glow that teal/blue glow to showcase it is going to pass, then it \x27drops\x27 into their portrait kinda' },
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25 (passing back)', quote: 'you should be able to pass cards back to your teammate' },
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25 (hand only)', quote: 'you aren\x27t supposed to be able to pass a card off your board, only from hand.' },
@@ -12865,8 +12865,8 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'them a card (Disco\x27s other options, Antsy, Toot Toot, Tribe Bundle, a Gold Pouch, a rune\x27s gift), and their hand is '
       + 'full, the card is not refused and does not come back. It waits, and lands in their hand the moment they have room (after '
       + 'they play, sell or pass a card, or the turn turns over), in the order it was passed. A Shop minion passed this way has left '
-      + 'the Shop for good. A waiting card survives a reload. Their portrait shows how many cards are waiting. A MANUAL pass (a drag '
-      + 'onto the portrait) keeps its rule: a full hand refuses it and the Gold comes back.',
+      + 'the Shop for good. A waiting card survives a reload. Their portrait shows how many cards are waiting. Since 2026-11-16 a MANUAL '
+      + 'pass (a drag onto the portrait) and Passaria wait the same way (R-DUOS-PASS-WAITS-01).',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -12876,6 +12876,31 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Built 2026-10-30. The waiting card lands after any action of the receiver that makes room.',
     example: 'Amy holds 10 cards when Ann casts CueBee\x27s Pass on a Shop minion. The minion leaves Ann\x27s Shop; Amy\x27s portrait says "Hand full: 1 card waiting". Amy plays a card and the passed minion drops into her hand.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/duosCardsDiscoverPass.test.ts', 'workers/versus/test/duosCore.test.ts'], lastVerifiedAt: '2026-10-30' },
+  },
+  {
+    id: 'R-DUOS-PASS-WAITS-01',
+    title: 'A pass to a teammate whose hand is full never fails: it is paid once and the card joins their hand when they have room',
+    statement:
+      'In Versus Duos and Ranked Duos, passing a card to a teammate whose hand is full is not refused and nothing comes back. This '
+      + 'covers every pass: the manual drag onto their portrait, Passaria, and the passes cards and runes make. The pass completes for '
+      + 'the sender at once: its Gold (or free pass, or hero power use) is spent and every effect of passing resolves once (Priestess '
+      + 'x Bonds\x27 +10/+10 on both left-most minions, a pass watcher, the round\x27s pass count). The card waits on the teammate\x27s '
+      + 'side and joins their hand the moment there is room, first in, first out, behind any card already waiting. Their portrait '
+      + 'shows "Hand full: N cards waiting"; the sender\x27s teammate portrait says "Their hand is full. It waits for room." A waiting '
+      + 'card belongs to the receiver: it survives a reload and later rounds, and it is never sent back, even if the receiver leaves. '
+      + 'When the game ends it simply ends with it. The other refusals are unchanged: the shop clock, the 10 passes per player per '
+      + 'round, a teammate who is away, a Golden minion by a pass spell. A pass the room refuses for one of those comes back whole, '
+      + 'and whatever it gave the sender comes off again (Bonds\x27 +10/+10 included), so a refused pass can never be repeated for '
+      + 'free.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-11-16 (Priestess / passing)', quote: 'A passed minion when a teammates hand is full should actually not fail, and should enter the teammates hand when they have space.' },
+      { kind: 'code', ref: 'packages/sim/src/duosPass.ts receiveDuosPass / landWaitingPasses / refundDuosPass (bondsUid); packages/sim/src/ancients.ts ancientOnPassMade; workers/versus/src/core/groupMatch.ts pass (no hand_full); workers/versus/src/protocol.ts VERSUS_CF_PROTOCOL 4; packages/ui/src/versus/duosPasses.ts; packages/ui/src/sbDuosChannel.ts' },
+    ],
+    currentBehaviour: 'Built 2026-11-16 (fix/duos-pass-full-hand-waits). Supersedes the full-hand half of R-DUOS-PASS-01 (2026-10-25 "Pass is refused if hand is full") and the manual-pass exception of R-DUOS-EFFECT-PASS-QUEUE-01. Before this, a refused full-hand pass refunded the card, the Gold and the Passaria use but left Bonds\x27 +10/+10 behind, so the same card could be passed again and again (ancients audit F1).',
+    example: 'Ann (Priestess, Ancient of Bonds) drags a card onto Bob\x27s portrait while Bob holds 10 cards. Ann pays 1 Gold, her left-most minion gains +10/+10 once, and so does Bob\x27s. Bob\x27s portrait reads "Hand full: 1 card waiting". Bob plays a card and Ann\x27s card drops into his hand.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/duosPassWaits.test.ts', 'workers/versus/test/duosCore.test.ts', 'packages/ui/src/sbDuosChannel.test.ts'], lastVerifiedAt: '2026-11-16' },
   },
   {
     id: 'R-DUOS-CARDS-05',
@@ -13031,8 +13056,8 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'carries its Duos state and stocks the set\x27s Duos pool, the same `duosPoolFor` a Duos match stocks from) with a placeholder '
       + 'teammate: a second run held in the browser, seeded off yours, with another hero, your tribes and your set. There is no Worker: a '
       + 'local team channel carries every pass and team effect both ways through the same run actions a match uses (`receivePass`, '
-      + '`passRefunded`, `noteMateTribes`) and mirrors the Worker\x27s refusals (no Golden card except a Salesman sale, a manual pass to a '
-      + 'full hand refused and refunded, an effect pass waiting for room, the per-round caps). A combat team effect is held until its replay '
+      + '`passRefunded`, `noteMateTribes`) and mirrors the Worker\x27s refusals (no Golden card except a Salesman sale, any card '
+      + 'pass to a full hand waiting for room, the per-round caps). A combat team effect is held until its replay '
       + 'beat. The real Duos teammate portrait sits bottom right: drag a hand card onto it to pass, click it (or Tab / Esc) to swap to their '
       + 'board with the same cross-fade. Their board is live: every Scene Builder tool edits their run while you look, and a drag onto your '
       + 'own portrait passes to you. Their run never fights: End Turn (or the clock) on their screen takes you back to your own board. The '

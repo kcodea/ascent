@@ -2,14 +2,13 @@
  * THE SCENE BUILDER'S LOCAL TEAM CHANNEL (DEV, owner ask 2026-10-31, R-SB-DUOS-01). Pure over injected run access.
  *
  * In a real Duos match a pass travels my run's `duos.outbox` -> the Worker (`groupMatch.pass`, which may refuse it) ->
- * the teammate's run (`receivePass`) -> the answer back (a full hand's refusal comes home as `passRefunded`). The rig
+ * the teammate's run (`receivePass`) -> the answer back (a room refusal comes home as `passRefunded`). The rig
  * has no Worker: its placeholder teammate is a second run in the browser. This is that round trip done locally, with
  * the SAME run actions on both sides (the reducer's `receivePass` / `passRefunded` / `noteMateTribes`, so
  * `receiveDuosPass`, `receiveTeamEffect`, the pass triggers, the waiting queue and the triple check all run exactly as
  * they do in a match) and the Worker's own refusals mirrored in between:
  *  - a Golden card never passes, except a Salesman of the Year sale (`passFrom: 'sale'`);
- *  - a manual drag pass is refused when the receiver has no hand room (its hand plus the effect passes waiting for
- *    room), never an effect pass (it waits on the receiver's run) or a team effect;
+ *  - NO card pass is refused for a full hand (owner 2026-11-16, R-DUOS-PASS-WAITS-01): it waits on the receiver's run;
  *  - at most `VERSUS_DUOS_PASS_CAP` card passes per sender per round (team effects ride their own, wider cap).
  * Not mirrored, because the placeholder teammate never leaves or pauses: `teammate_away`, `no_teammate`, the shop clock.
  *
@@ -46,7 +45,7 @@ export function newSbLedger(): SbLedger {
 
 /** What happened on one delivery (the rig plays the FX / the refusal note from these). */
 export type SbChannelEvent =
-  | { kind: 'landed'; from: SbSeat; to: SbSeat; seq: number; team: boolean; uids: string[]; triple: boolean }
+  | { kind: 'landed'; from: SbSeat; to: SbSeat; seq: number; team: boolean; uids: string[]; triple: boolean; /** the card waits for hand room (R-DUOS-PASS-WAITS-01) */ waiting?: true }
   | { kind: 'refused'; from: SbSeat; to: SbSeat; seq: number; team: boolean; reason: string };
 
 /** The replay reached these `teamSend` beats of `seat`'s fight on `wave`. */
@@ -63,14 +62,13 @@ function heldForReplay(run: RunState, e: DuosOutboxEntry, ledger: SbLedger, seat
     && !(ledger.released[seat].get(e.wave)?.has(e.combatIdx) ?? false);
 }
 
-/** The receiver's free hand slots as the Worker sees them (`versus_duos_hand_room`: hand + waiting effect passes). */
+/** The receiver's free hand slots (`versus_duos_hand_room`: hand + waiting passes). Never a refusal any more. */
 export const sbHandRoom = (run: RunState): number => Math.max(0, handCap(run) - run.hand.length - duosWaitingCount(run));
 
 /** The Worker's refusal of this row before it reaches the teammate (`groupMatch.pass`), or null. */
-export function sbWorkerRefusal(e: DuosOutboxEntry, to: RunState, ledger: SbLedger, from: SbSeat): string | null {
+export function sbWorkerRefusal(e: DuosOutboxEntry, ledger: SbLedger, from: SbSeat): string | null {
   const wire = duosWireOf(e);
   const team = wire.passFrom === 'team';
-  if (!team && wire.passFrom !== 'spell' && wire.passFrom !== 'sale' && sbHandRoom(to) <= 0) return 'hand_full';
   if (!team && wire.golden === true && wire.passFrom === 'spell') return 'golden'; // R-DUOS-PASS-GOLDEN-MANUAL-01
   const rowKey = `${e.wave}:${team ? 'team' : 'card'}`;
   if ((ledger.rows[from].get(rowKey) ?? 0) >= (team ? SB_TEAM_FX_CAP : VERSUS_DUOS_PASS_CAP)) return 'too_many_passes';
@@ -98,7 +96,7 @@ export function deliverSbTeam(get: (seat: SbSeat) => RunState, act: (seat: SbSea
         ledger.shipped[from].add(e.seq);
         moved = true;
         const team = !!e.team;
-        const why = sbWorkerRefusal(e, get(to), ledger, from);
+        const why = sbWorkerRefusal(e, ledger, from);
         if (why) {
           act(from, { type: 'passRefunded', seq: e.seq });
           events.push({ kind: 'refused', from, to, seq: e.seq, team, reason: why });
@@ -112,13 +110,14 @@ export function deliverSbTeam(get: (seat: SbSeat) => RunState, act: (seat: SbSea
         const key = `${from}:${e.seq}`;
         const after = get(to);
         if (after.duos?.refused.includes(key)) {
-          // The receiver's run refused it (a full hand, a gift with no room): the sender gets the card back.
+          // The receiver's run refused it (only a TEAM EFFECT can be: a gift with no room): the sender is told.
           act(from, { type: 'passRefunded', seq: e.seq });
-          events.push({ kind: 'refused', from, to, seq: e.seq, team, reason: 'hand_full' });
+          events.push({ kind: 'refused', from, to, seq: e.seq, team, reason: 'no_room' });
           continue;
         }
         const uids = after.hand.filter((c) => !before.has(c.uid)).map((c) => c.uid);
-        events.push({ kind: 'landed', from, to, seq: e.seq, team, uids, triple: (after.triplesMade ?? 0) !== triples });
+        const waiting = !team && !!after.duos?.waiting?.some((w) => w.key === key);
+        events.push({ kind: 'landed', from, to, seq: e.seq, team, uids, triple: (after.triplesMade ?? 0) !== triples, ...(waiting ? { waiting: true as const } : {}) });
       }
     }
     if (!moved) break;

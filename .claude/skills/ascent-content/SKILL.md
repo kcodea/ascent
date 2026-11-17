@@ -64,7 +64,7 @@ Cards that exist only in Versus Duos / Ranked Duos live in `cards/duos/<tribe>.t
 APPENDED to `DUOS_CARDS` (never in a set manifest). `duosPoolFor` adds them to any set whose tribes include theirs
 (neutrals and spells: every set). Team effects use the primitives in `recruit.ts` / `ARENA_EFFECTS` (`giftTeammate`,
 `teamGainMaxGold`, `effectPassCard`, the `passedCard` / `teamPassedCard` / `teammateSold` triggers). Only the manual
-drag pass costs Gold; an effect pass is free, never refused for a full hand (it waits on the teammate's run,
+drag pass costs Gold; an effect pass is free. No card pass (drag or effect) is ever refused for a full hand (it waits on the teammate's run,
 `duos.waiting`), and takes a Golden card only with `effectPassCard(..., { allowGolden: true })`. A Discover can carry a
 Duos rider (`DiscoverSpec.duos`: `'rest'` gifts the options not taken, `'pass'` passes the pick). A Duos Whisper goes in
 `cards/duos/whispers.ts` (`DUOS_WHISPERS`), never in `DUOS_CARDS`. Recipe and the list of primitives:

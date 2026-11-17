@@ -2225,6 +2225,9 @@ export function useCombatReplay(
       if (!tEl) continue; // target not on screen → nothing to land on
       const tr = tEl.getBoundingClientRect();
       const tc = { x: tr.left + tr.width / 2, y: tr.top + tr.height / 2 };
+      // A HERO-POWER grant (an Ancient's, United Front's: a label, never a body) keeps its tendril even when it landed
+      // inside a spell cast (R-FX-ANCIENT-TENDRIL-01): the cast's own effect presents the CAST's buffs, not the power's.
+      const spellId = !cardIds.has(c.source) && heroPowerBuffLabelFor(c.source) ? undefined : c.spellId;
       // AUTHORED REPLACES STOCK, per BUFF (owner report 2026-09-01: *"they are back to casting tendrils instead
       // of dragonflame"*). A spell whose combat def is bound `buffedOn` plays ON the buffed unit INSTEAD of the
       // generic tendril — the two reach the same body on the same beat, so firing both draws one effect twice.
@@ -2232,7 +2235,7 @@ export function useCombatReplay(
       // Decided here rather than at the moment level because an on-attack cast now resolves INSIDE the wind-up:
       // the moment belongs to the ATTACK, so the spell is no longer visible from the moment's own binding and
       // only the individual buff still knows which spell caused it.
-      const authored = authoredBuffDefFor(c.spellId);
+      const authored = authoredBuffDefFor(spellId);
       if (authored !== null) {
         playDef(authored, { source: tc, target: tc, cursor: tc, camera: { x: window.innerWidth / 2, y: window.innerHeight / 2 } },
           { uids: { source: c.target, target: c.target } });
@@ -2246,10 +2249,10 @@ export function useCombatReplay(
       // plays in the Shop, from the caster to this unit, INSTEAD of the tendril (owner 2026-09-24: "all spell
       // animations and sfx should be wired to play whenever a spell or minion is cast/played from any source"). The
       // same helper every other phase uses (`playCastFanOutBuffFx`), so the sound keeps its 120 ms burst gap.
-      const casterEl = c.spellId && cardIds.has(c.source) ? findEl(c.source) : null;
+      const casterEl = spellId && cardIds.has(c.source) ? findEl(c.source) : null;
       const casterRect = casterEl?.getBoundingClientRect();
       const casterAt = casterRect ? { x: casterRect.left + casterRect.width / 2, y: casterRect.top + casterRect.height / 2 } : null;
-      if (playCastFanOutBuffFx({ spellId: c.spellId, from: casterAt, target: tc, targetUid: c.target })) {
+      if (playCastFanOutBuffFx({ spellId: spellId, from: casterAt, target: tc, targetUid: c.target })) {
         if (!perTarget.has(c.target)) perTarget.set(c.target, AUTHORED_BUFF_ROLL_MS);
         continue;
       }
@@ -2258,7 +2261,7 @@ export function useCombatReplay(
       // The effect itself plays once per cast off the `sc` announcement (`spellCastFx` cue); each buff this cast
       // produced (`spellId`, stamped by `withCastingSpell`) draws no ribbon. The badge still rolls to the new value
       // on the authored clock. Unbound spells fall through to the tendril.
-      if (castFxReplacesTendril(c.spellId)) {
+      if (castFxReplacesTendril(spellId)) {
         if (!perTarget.has(c.target)) perTarget.set(c.target, AUTHORED_BUFF_ROLL_MS);
         continue;
       }
@@ -2333,7 +2336,7 @@ export function useCombatReplay(
           source: heroPowerFrom(), target: tc, cardId: '', tribe: 'neutral', sourceless: false,
           uids: { source: null, target: c.target },
         });
-        sfx.heroPower(heroFx.heroId);
+        if (heroFx.heroId) sfx.heroPower(heroFx.heroId);
         if (!perTarget.has(c.target)) perTarget.set(c.target, strikeMs);
         continue;
       }

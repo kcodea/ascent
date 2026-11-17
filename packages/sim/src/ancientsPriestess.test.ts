@@ -74,26 +74,25 @@ describe('Priestess × every Ancient has a written pairing', () => {
   });
 });
 
-describe('the seam: Ancients reach a Duos run only through createVersusRun\'s dev argument', () => {
-  it('no dev argument: the run has no Ancients, byte for byte the run of before', () => {
+describe('Ancients reach a Duos run through the release switch or the dev seam (R-ANCIENTS-RELEASE-01, R-ANCDUOS-01)', () => {
+  it('no dev argument: the run reads the release switch (shipped OFF), byte for byte the run of before', () => {
     const plain = createVersusRun(11, 'priestess', 'set2', DUOS, 'warden');
     expect(plain.ancientsEnabled).toBeUndefined();
     expect(plain.ancients).toBeUndefined();
     expect(serialize(createVersusRun(11, 'priestess', 'set2', DUOS, 'warden', undefined))).toBe(serialize(plain));
     expect(serialize(createVersusRun(11, 'priestess', 'set2', DUOS, 'warden', {}))).toBe(serialize(plain));
+    expect(serialize(createVersusRun(11, 'priestess', 'set2', DUOS, 'warden', { ancients: false }))).toBe(serialize(plain));
   });
 
-  it('the dev argument turns them on for a Duos run only, with the Scene Builder\'s meter', () => {
+  it('the dev argument turns them on (any mode), with the default meter or its own', () => {
     const on = createVersusRun(11, 'priestess', 'set2', DUOS, 'warden', { ancients: true });
     expect(on.ancientsEnabled).toBe(true);
     expect(on.ancients).toEqual({ points: 0, cost: 16, refresh: 1, combat: 2 });
     expect(createVersusRun(11, 'priestess', 'set2', DUOS, 'warden', { ancients: { cost: 1 } }).ancients!.cost).toBe(1);
-    // Everything else about the run is the run of before.
     const { ancientsEnabled: _e, ancients: _a, ...rest } = on;
     void _e; void _a;
     expect(JSON.stringify(rest)).toBe(JSON.stringify(createVersusRun(11, 'priestess', 'set2', DUOS, 'warden')));
-    // Never outside a team mode.
-    expect(createVersusRun(11, 'indy', 'set2', { v: 1, mode: 'duel', modifiers: [] }, null, { ancients: true }).ancients).toBeUndefined();
+    expect(createVersusRun(11, 'indy', 'set2', { v: 1, mode: 'duel', modifiers: [] }, null, { ancients: true }).ancientsEnabled).toBe(true);
   });
 
   it('a Duos game without Ancients is untouched: the same passes make the same bytes, with nothing new on the wire', () => {

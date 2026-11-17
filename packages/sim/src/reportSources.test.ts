@@ -52,6 +52,7 @@ function playLobby(seed: number, opts: { dropCaptureAtWave?: number } = {}): Pla
     if (s.chooseOne) { dispatch({ type: 'chooseOne', index: 0 }); continue; }
     if (s.pendingTarget) { dispatch({ type: 'battlecryTarget', targetUid: s.board[0]?.uid ?? s.pendingTarget.uid }); continue; }
     if (s.phase === 'combat') { dispatch({ type: 'resolveCombat' }); continue; }
+    if (s.ancients?.offer?.length) { dispatch({ type: 'pickAncient', id: s.ancients.offer[0]! }); continue; } // R-ANCIENTS-RELEASE-01
     if (s.wave % 2 === 0 && dispatch({ type: 'upgrade' })) continue;
     if (s.embers >= CONFIG.minionCost && s.shop.length > 0 && s.board.length + s.hand.length < CONFIG.boardMax && dispatch({ type: 'buy', uid: s.shop[0]!.uid })) continue;
     if (s.hand.length > 0 && s.board.length < CONFIG.boardMax && dispatch({ type: 'play', uid: s.hand[0]!.uid })) continue;

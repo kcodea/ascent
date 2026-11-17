@@ -41,6 +41,9 @@ export interface LiveReplayBundle {
   lobby: unknown;
   /** Each recorded seat's run, in seat order. */
   seatRuns: BoardSnapshot[][];
+  /** Did the recorded game play with Ancients (frame 0's `ancientsEnabled`)? The rebuild pins exactly that, never the
+   *  release switch of today (R-ANCIENTS-RELEASE-01). */
+  ancients?: boolean;
 }
 
 export interface LiveReplayStatus {
@@ -73,7 +76,7 @@ export async function fetchLiveReplayBundle(rowId: number): Promise<LiveReplayBu
   const rep = row.replay ?? (row.replay_path ? (await loadStoredReplay(c, row.replay_path)) as Rep | null : null);
   if (!rep) throw new Error(`game ${rowId} has no replay`);
   if (rep.mode !== 'lobby') throw new Error(`game ${rowId} is a ${rep.mode ?? 'non-lobby'} game; only lobby games are supported`);
-  const frames = (rep.v2?.frames ?? []) as (RecordedFrame & { view?: { lobby?: { seats?: { kind: string; runKey?: string }[]; setId?: string } } })[];
+  const frames = (rep.v2?.frames ?? []) as (RecordedFrame & { view?: { lobby?: { seats?: { kind: string; runKey?: string }[]; setId?: string }; ancientsEnabled?: boolean } })[];
   const lobby = frames[0]?.view?.lobby;
   if (!lobby?.seats) throw new Error(`game ${rowId} has no recorded lobby (no v2 replay)`);
   const seatRuns: BoardSnapshot[][] = [];
@@ -86,14 +89,14 @@ export async function fetchLiveReplayBundle(rowId: number): Promise<LiveReplayBu
   }
   return {
     rowId, patch: row.patch, seed: rep.seed, heroId: rep.heroId, setId: lobby.setId ?? row.set_id,
-    actions: rep.actions, frames, lobby, seatRuns,
+    actions: rep.actions, frames, lobby, seatRuns, ancients: frames[0]?.view?.ancientsEnabled === true,
   };
 }
 
 /** Rebuild the recorded game's opening state: same seed, hero and set, the recorded lobby, its seats' runs. */
 export function rebuildLiveReplayRun(b: LiveReplayBundle): RunState {
   restoreLobbySeatRecordings({ v: 1, runs: b.seatRuns, hybrids: [] });
-  const fresh = createLobbyRun(b.seed, b.heroId, {}, 'lobby', undefined, (b.setId ?? undefined) as Parameters<typeof createLobbyRun>[5]);
+  const fresh = createLobbyRun(b.seed, b.heroId, {}, 'lobby', undefined, (b.setId ?? undefined) as Parameters<typeof createLobbyRun>[5], undefined, { ancients: b.ancients === true });
   const lobby = structuredClone(b.lobby) as NonNullable<RunState['lobby']>;
   resetLobbyDrivers(lobby.seats);
   return { ...fresh, lobby };

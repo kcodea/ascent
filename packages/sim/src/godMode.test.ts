@@ -14,6 +14,8 @@ const fight = (s: RunState): RunState => {
   // The Runeforge opens on its round and blocks every other action until it closes — leave it, or the run stalls in
   // the shop and the loops below would pass without ever fighting again.
   if (s.runeforgeOffer) s = reduce(s, { type: 'skipRuneforge' });
+  // The Ancients awakening (R-ANCIENTS-RELEASE-01, on for every lobby run once the switch is on) refuses End Turn too: answer it.
+  if (s.ancients?.offer?.length) s = reduce(s, { type: 'pickAncient', id: s.ancients.offer[0]! });
   for (const a of [{ type: 'faceOmen' }, { type: 'settleCombat' }, { type: 'resolveCombat' }] as Action[]) s = reduce(s, a);
   return s;
 };

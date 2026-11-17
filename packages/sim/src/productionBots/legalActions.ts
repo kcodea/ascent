@@ -1,4 +1,5 @@
 import type { Action } from '../state';
+import type { AncientId } from '../ancients';
 import { ACTION_CATALOG } from './actionCatalog';
 import { CARD_INDEX, EQUIPMENT_INDEX } from '@game/content';
 import type { BotVisibleState } from './types';
@@ -66,6 +67,8 @@ export function mandatoryCandidates(v: BotVisibleState): Candidate[] {
     }
     case 'scout':
       return [{ action: { type: 'closeScout' }, tag: 'close scout' }];
+    case 'ancient':
+      return m.options.map((id) => ({ action: { type: 'pickAncient', id: id as AncientId }, tag: `ancient ${id}` }));
   }
 }
 

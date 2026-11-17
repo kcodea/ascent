@@ -20,6 +20,7 @@ import { gatherSnapshotBuffs } from './runBuffs';
 import { stageHost } from './stage';
 import { foePortrait } from './gauntlet/foePortrait';
 import { publicArt } from './phoneArt';
+import { FoeAncientLine } from './ancients/FoeAncientLine';
 
 /** A tier worth printing: a whole number from 1 up. Anything else (missing, NaN, 0) hides the pill. */
 export const tierKnown = (tier: number | null | undefined): tier is number =>
@@ -270,6 +271,8 @@ export const CombatOpponent = memo(function CombatOpponent(): JSX.Element | null
           <div className="herotip opp-power-tip" role="tooltip">
             <b>{power.name}</b>{power.passive ? ' · passive' : ''}
             <span className="herotip-rule" dangerouslySetInnerHTML={{ __html: mdBold(power.text) }} />
+            {/* The foe's picked ANCIENT under the base power (R-ANCIENTS-RELEASE-03): name + pairing text. */}
+            <FoeAncientLine ancient={next.board.snapshot?.ancient} />
           </div>
         ) : null;
       })()}

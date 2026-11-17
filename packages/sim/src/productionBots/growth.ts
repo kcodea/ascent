@@ -1,6 +1,7 @@
 import { CARD_INDEX, poolFor } from '@game/content';
 import { combatSide, makeRng, simulate, type BoardMinion, type CombatResult, type CombatSideState } from '@game/core';
 import type { Action } from '../state';
+import type { AncientId } from '../ancients';
 import { probeFuture, type ProbeSession } from './transition';
 import { fightScore, type FightResult } from './fightScore';
 import type { BotCardView, BotMandatoryDecision, BotVisibleState } from './types';
@@ -106,6 +107,7 @@ function firstAnswer(m: BotMandatoryDecision): Action | null {
     case 'powerOffer': return m.options.length ? { type: 'pickPower', index: 0 } : null;
     case 'runeforge': return m.canSkip ? { type: 'skipRuneforge' } : m.options.length ? { type: 'buyRune', index: 0 } : null;
     case 'scout': return { type: 'closeScout' };
+    case 'ancient': return m.options.length ? { type: 'pickAncient', id: m.options[0] as AncientId } : null;
   }
 }
 

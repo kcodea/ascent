@@ -161,7 +161,8 @@ export type BotMandatoryDecision =
   | { kind: 'quest'; options: string[] }
   | { kind: 'powerOffer'; options: string[] } // hero-power Discover (Mimic / Void): hero ids whose powers are offered
   | { kind: 'runeforge'; options: string[]; canReroll: boolean; canSkip: boolean }
-  | { kind: 'scout' };
+  | { kind: 'scout' }
+  | { kind: 'ancient'; options: string[] }; // the Ancients awakening offer (R-ANCIENTS-RELEASE-02): the three offered Ancient ids
 
 /**
  * THE ONLY state shape evaluation, strategy and tracing may inspect.

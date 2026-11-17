@@ -1,12 +1,10 @@
 /**
- * ANCIENTS IN A DUOS GAME: THE DEV SEAM (R-ANCDUOS-01; owner 2026-11-10: "we arent turning ancients on just yet, but
- * build it out").
+ * ANCIENTS IN VERSUS: THE DEV SEAM (R-ANCDUOS-01). The release switch (R-ANCIENTS-RELEASE-01, shipped OFF) turns
+ * Ancients on for every Versus run once flipped; until then this is the way to play them in Versus on a DEV build.
  *
- * Ancients are NOT on in any Versus or Ranked Duos game a player can reach. The Duos heroes' pairings (Priestess,
- * Magician) are built and tested, and this is the one way to play them end to end: on a DEV server or a bench bundle
- * (`VITE_PERF_BENCH=1`), a tab that sets `localStorage['ascent.dev.duosAncients']` gets `ancients` on the Duos runs it
- * builds, exactly as the Scene Builder turns them on for a solo run (`enableAncients`, through `createVersusRun`'s `dev`
- * argument).
+ * On a DEV server or a bench bundle (`VITE_PERF_BENCH=1`), a tab that sets `localStorage['ascent.dev.duosAncients']` gets
+ * `ancients` on the Versus runs it builds with ITS meter (any mode), whatever the release switch says, through
+ * `createVersusRun`'s `dev` argument.
  *
  * The gate is the BUILD, not a setting: both checks are static, so a player bundle folds this whole function to
  * `undefined` and no local storage key, URL or console call can turn it on there. Nothing about it is on the wire: the

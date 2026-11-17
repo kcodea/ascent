@@ -1,4 +1,5 @@
-import { partyDemoOn, partyHomeOn, partyRoomOn, setPartyDemo, setPartyHome, setPartyRoom } from './partyHome/partyHomeFlag';
+import { heroShowcaseOn, setHeroShowcase } from './hero-select/heroShowcaseFlag';
+import { partyDemoOn,partyHomeOn, partyRoomOn, setPartyDemo, setPartyHome, setPartyRoom } from './partyHome/partyHomeFlag';
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import {
   devChatChatterOn, devChatSandboxOn, devChatTeamOn, installDevChatSandbox, setDevChatChatter, setDevChatSandbox, setDevChatTeam, devChatLongDemo,
@@ -445,6 +446,9 @@ export function DevMenu() {
     { id: 'partyhome', icon: '🎉', label: 'Party home',
       hint: 'The game\'s UI. Turn it off here to compare the old screens (DEV only; production has no way off). Remembered on this machine',
       run: () => setPartyHome(!partyHomeOn()), live: () => partyHomeOn() },
+    { id: 'heroshowcase', icon: '🖼️', label: 'Hero Select: showcase layout',
+      hint: 'The new Hero Select showcase layout (DEV only; off by default). Remembered on this machine',
+      run: () => setHeroShowcase(!heroShowcaseOn()), live: () => heroShowcaseOn() },
     { id: 'partydemo', icon: '👥', label: 'Party home: sample party',
       hint: 'Fill the party home with a sample teammate and sample friends (no backend or second account needed). Start does nothing with it on',
       run: () => setPartyDemo(!partyDemoOn()), live: () => partyDemoOn() },

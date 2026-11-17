@@ -2262,6 +2262,15 @@ playable hero, that placeholder was reachable in real games until this ruling.
   Ancients (only Sets 2 and 3 have them, `ancientsSetSupported`); a hero without all six pairings written
   (`heroHasAncientPairings`): **Runesmith and Guardian today**. The owner writes their pairings; until then they get
   no meter. The Scene Builder ignores the switch and keeps its own toggle.
+- **An unpaired hero is ARCHIVED while the switch is on** (owner 2026-11-17, R-ANCIENTS-UNPAIRED-ARCHIVED-01: *"when
+  ancients go live, any hero that does not have ancients CANNOT be offered ... should join the archived heroes list
+  until re-added. (guardian + runesmith)"*). `isArchivedHero` reads true for a hero without all six pairings
+  (`heroArchivedByAncients`), so it follows every archived-hero rule (R-HERO-01, below): no hero select in any mode
+  (Play, Ranked, Practice, Gauntlet, Versus 1v1 / Group / Duos / Ranked Duos), no generated / bot seat or Practice bot
+  portrait, no synthesized pool board, no Mimic / Void / Power Shifter Discover, hidden from the Compendium Heroes tab;
+  the Scene Builder still lists it in its archived block. **A recorded seat of such a hero is still served** (as for
+  every archived hero: stored references resolve, the board is played as recorded). There is no list: writing all six
+  pairings re-adds the hero. The gate ignores the card set. With the switch off it does nothing.
 - **Bots answer the awakening** (R-ANCIENTS-RELEASE-02): `autoplayRun`'s modal ladder, the greedy bot and the
   production bot (`pickAncient` is a mandatory, revealing decision) and the Versus timeout / test bot all pick. The
   recorder and the greedy bot take the offer's first option, which is itself a seeded draw.

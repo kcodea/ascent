@@ -24,21 +24,39 @@
  *    Turn. It goes through `createRun` directly and never calls `releaseAncients`.
  *  · A hero with NO written pairings (`heroHasAncientPairings`): Runesmith and Guardian today. The owner writes
  *    pairings; until they are written those heroes get no meter (an offer of "Not written yet" cards would do nothing).
+ *    And while the switch is ON such a hero is ARCHIVED (`heroArchivedByAncients`, owner 2026-11-17): never offered
+ *    anywhere, so in practice no new run of it exists. A recorded seat of it still serves, like any archived hero.
  *  · A set without Ancients (`ancientsSetSupported`): Sets 2 and 3 have them, the same rule the Scene Builder uses.
  *  · The Scene Builder keeps its own toggle (`createLobbyRun(..., { ancients: false })`, then `enableAncients` when
  *    its toggle is on), so it can test Ancients with the switch off.
  */
 import type { SetId } from '@game/content';
 import { ANCIENT_IDS, ANCIENT_PAIRINGS, enableAncients } from './ancients';
+import { setHeroReleaseArchiveGate } from './heroes';
 import type { RunState } from './state';
 
 /** THE RELEASE SWITCH. OFF until the owner says (2026-11-16). `true` turns Ancients on for every NEW run; in-flight runs
  *  keep what they pinned either way. See the header for the protocol bump that must ship with the flip. */
 export const ANCIENTS_LIVE: boolean = false;
 
-/** Is the release switch on? Read only at run creation (see the header). */
+/** A scoped override of the switch for tests and tools (`withAncientsLive`). Undefined = the real switch. */
+let liveOverride: boolean | undefined;
+
+/** Is the release switch on? Read only at run creation and when a hero offer is dealt (see the header). */
 export function ancientsLive(): boolean {
-  return ANCIENTS_LIVE;
+  return liveOverride ?? ANCIENTS_LIVE;
+}
+
+/** Run `fn` as if the release switch were `live` (tests, tools), restoring the real switch afterwards. Synchronous
+ *  only: the override is a module-level value, so never hold it across an await. */
+export function withAncientsLive<T>(live: boolean, fn: () => T): T {
+  const prev = liveOverride;
+  liveOverride = live;
+  try {
+    return fn();
+  } finally {
+    liveOverride = prev;
+  }
 }
 
 /** The card sets whose runs can play Ancients (the Scene Builder's `sceneAncientsSet` reads this too). */
@@ -51,6 +69,21 @@ export function heroHasAncientPairings(heroId: string): boolean {
   const p = ANCIENT_PAIRINGS[heroId];
   return !!p && ANCIENT_IDS.every((id) => !!p[id]);
 }
+
+/**
+ * UNPAIRED HEROES ARE ARCHIVED WHILE ANCIENTS ARE LIVE (owner 2026-11-17, verbatim: "when ancients go live, any hero
+ * that does not have ancients CANNOT be offered. this means that any hero that does not have ancients should join
+ * the archived heroes list until re-added. (guardian + runesmith)"). With the switch on, a hero with no written
+ * pairings reads as archived through `isArchivedHero`, so every picker that withholds an archived hero withholds it
+ * too: the Play / Ranked / Practice / Gauntlet hero select, generated and bot seats, Versus / group / Duos / Ranked
+ * Duos deals, synthesized pool boards, the Mimic / Void / Power Shifter Discovers and the Compendium. The Scene
+ * Builder still lists it (marked archived). There is no list: writing all six pairings re-adds the hero by itself.
+ * With the switch off it archives nothing. The gate does not look at the card set (the ruling names no set).
+ */
+export function heroArchivedByAncients(heroId: string): boolean {
+  return ancientsLive() && !heroHasAncientPairings(heroId);
+}
+setHeroReleaseArchiveGate(heroArchivedByAncients);
 
 /** Would a new run of this hero on this set start with Ancients? `live` overrides the switch (tests, tools). */
 export function ancientsForNewRun(heroId: string, setId: SetId | string | undefined, live: boolean = ancientsLive()): boolean {

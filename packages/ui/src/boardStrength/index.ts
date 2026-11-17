@@ -2,7 +2,7 @@
  * The app's board-strength wiring (R-LOBBY-09, 2026-09-30): one background scorer for the session, the rank band
  * the player draws opponents from, and the frozen numbers a finished game records.
  */
-import { STRENGTH_REF_LAST_ROUND, STRENGTH_REF_VERSION, loadStrengthReference, runLongEnough, normalizePracticeRank, practiceStrengthBand, strengthBandForDivision, type LobbySeatOptions, type PlayerProfile, type PracticeConfig, type PracticeRank, type RunMode, type StrengthBand } from '@game/sim';
+import { STRENGTH_REF_LAST_ROUND, STRENGTH_REF_VERSION, loadStrengthReference, runLongEnough, type RunState, normalizePracticeRank, practiceStrengthBand, strengthBandForDivision, type LobbySeatOptions, type PlayerProfile, type PracticeConfig, type PracticeRank, type RunMode, type StrengthBand } from '@game/sim';
 import { perfMonitor } from '../perfMonitor';
 import { createStrengthScorer, STRENGTH_SLICE_TIMEOUT_MS, type StrengthScorer } from './strengthScorer';
 
@@ -21,7 +21,7 @@ export const STRENGTH_RUN_END_WAIT_MS = 5000;
  * the end screen holds Continue behind "Calculating Score" until that is done. Practice, the tutorial, Gauntlet,
  * Versus, a sandbox run and a game that ended before round 7 are never held.
  */
-export function shouldScoreRunEnd(run: { mode: RunMode; sandbox?: unknown }, boards: readonly { wave: number }[] | null | undefined): boolean {
+export function shouldScoreRunEnd(run: Pick<RunState, 'mode' | 'sandbox'>, boards: readonly { wave: number }[] | null | undefined): boolean {
   if (run.mode !== 'lobby' || run.sandbox || !boards?.length) return false;
   return runLongEnough(boards.reduce((m, b) => Math.max(m, b.wave), 0));
 }

@@ -280,3 +280,64 @@ describe('no shop-timer notice on any rank change', () => {
     expect(c.textContent).not.toMatch(OLD_NOTICE);
   });
 });
+
+/**
+ * "CALCULATING SCORE" (strength v2, owner 2026-11-16: "can we have the continue button greyed out and unavailable to
+ * click while the games are being scored?", "i want to make sure it says something like \"Calculating Score\" while the
+ * button to continue is greyed out. players should know why this is happening. preferably with a timer bar as well").
+ */
+describe('Continue waits behind "Calculating Score" while the game is scored', () => {
+  const f = fixtureById('pending')!;
+  const fill = (): HTMLElement | null => ui!.container.querySelector<HTMLElement>('.rankend-scoring-fill');
+
+  it('while scoring: the text, a bar at the real progress, and a Continue that cannot be pressed', () => {
+    const { onContinue } = render(f, { scoring: { done: 40, total: 160 } });
+    expect(text('.rankend-scoring-text')).toBe('Calculating Score');
+    expect(ui!.container.querySelector('.rankend-scoring')!.getAttribute('role')).toBe('status');
+    expect(fill()!.style.transform).toBe('scaleX(0.25)');
+    const cont = ui!.container.querySelector<HTMLButtonElement>('.rankend-continue')!;
+    expect(cont.disabled).toBe(true);
+    expect(cont.className).toContain('scoring');
+    act(() => cont.click());
+    act(() => { cont.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); });
+    expect(onContinue).not.toHaveBeenCalled();
+    // No native tooltip anywhere on it (UI convention).
+    expect(ui!.container.querySelector('.rankend-scoring [title]')).toBeNull();
+  });
+
+  it('no progress yet, and more done than counted, never break the bar', () => {
+    render(f, { scoring: { done: 0, total: 0 } });
+    expect(fill()!.style.transform).toBe('scaleX(0)');
+    ui!.unmount();
+    render(f, { scoring: { done: 200, total: 160 } });
+    expect(fill()!.style.transform).toBe('scaleX(1)');
+  });
+
+  it('when scoring ends the text and bar go, Continue takes focus and fires once', () => {
+    const { onContinue, props } = render(f, { scoring: { done: 10, total: 160 } });
+    ui!.render(<div className="heroselect endscreen lobbyend rankend"><RankScreen {...props} scoring={null} /></div>);
+    expect(ui!.container.querySelector('.rankend-scoring')).toBeNull();
+    const cont = ui!.container.querySelector<HTMLButtonElement>('.rankend-continue')!;
+    expect(cont.disabled).toBe(false);
+    expect(cont.className).not.toContain('scoring');
+    expect(document.activeElement).toBe(cont);
+    act(() => cont.click());
+    act(() => cont.click());
+    expect(onContinue).toHaveBeenCalledTimes(1);
+  });
+
+  it('with no scoring prop at all (Practice, an old caller) nothing changes', () => {
+    const { onContinue } = render(f);
+    expect(ui!.container.querySelector('.rankend-scoring')).toBeNull();
+    act(() => ui!.container.querySelector<HTMLButtonElement>('.rankend-continue')!.click());
+    expect(onContinue).toHaveBeenCalledTimes(1);
+  });
+
+  it('Skip animation and Match details are not locked', () => {
+    const onMatchDetails = vi.fn();
+    render(f, { scoring: { done: 1, total: 160 }, onMatchDetails });
+    const details = ui!.container.querySelector<HTMLButtonElement>('.rankend-details');
+    expect(details).not.toBeNull();
+    expect(details!.disabled).toBe(false);
+  });
+});

@@ -76,6 +76,8 @@ function LobbyEndScreen({ lobby, run, onPlayAgain }: {
   // MATCH DETAILS (owner ask 2026-09-28): the table at the moment this run ended, recorded by the run-end block a
   // tick after the phase flips (so the button pops in once it lands). Keyed by seed: never another run's record.
   const match = useGame((s) => (s.lastMatch && s.lastMatch.seed === run.seed ? s.lastMatch.details : null));
+  // "Calculating Score" (strength v2): Continue waits while this finished game is scored for the pool.
+  const scoring = useGame((s) => s.runScoring);
   const [showMatch, setShowMatch] = useState(false);
   const closeMatch = useCallback(() => setShowMatch(false), []);
   const openMatch = useCallback(() => { sfx.tick(); setShowMatch(true); }, []);
@@ -115,6 +117,7 @@ function LobbyEndScreen({ lobby, run, onPlayAgain }: {
               <ProgressionPostgame localKey={String(run.seed)} active={settled && (practice || rankSource!.submission !== 'pending')} />
             )}
             onMatchDetails={match ? openMatch : undefined}
+            scoring={scoring}
           />
         </div>
         {matchDialog}

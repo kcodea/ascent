@@ -15,7 +15,7 @@ import { SET, roundRobin, trimForReference } from './refBuild';
 import { pickReferenceIndices, referenceBuckets, REF_PICK_V2 } from './refPick.lib';
 import { driftOf, inBandV2, peakCapRows, rateRunsV2, rawRoundsOfRun, seatsOf, type RawRound, type RunV2 } from './measureV2.lib';
 import { gapCalibration, rateFights, runRecords, type FightRow } from './validate.lib';
-import { backfillRowsOfRun, backfillV2Sql, type BackfillRow } from './backfillV2.lib';
+import { applyV2Sql, backfillRowsOfRun, backfillV2Sql, type BackfillRow } from './backfillV2.lib';
 
 export const REF_V2_VERSION = 'set2-v2';
 export const REF_V2_CANDIDATE = 'packages/tools/.cache/strengthReference.v2.candidate.json';
@@ -179,6 +179,8 @@ export async function measureV2(): Promise<void> {
 }
 
 export const BACKFILL_V2_OUT = 'packages/tools/.cache/strength-backfill-v2.sql';
+export const APPLY_V2_OUT = 'packages/tools/.cache/strength-v2-apply.sql';
+const MIGRATION_V2 = 'supabase/migrations/2026-11-23-strength-v2.sql';
 
 /** Score EVERY pool board of the set (live or not) against the COMMITTED reference, plus each run's carried rounds,
  *  and write the SQL file an owner runs. Never writes to the backend. */
@@ -202,7 +204,9 @@ export async function backfillV2(): Promise<void> {
   mkdirSync(dirname(BACKFILL_V2_OUT), { recursive: true });
   writeFileSync(BACKFILL_V2_OUT, backfillV2Sql(ref.version, rows));
   console.log(`scored ${runs.length} runs, ${rows.length} boards, ${fights} fights in ${Math.round((performance.now() - t0) / 1000)} s`);
-  console.log(`wrote ${BACKFILL_V2_OUT}. An OWNER runs it in Supabase, in one transaction with the strength v2 migration.`);
+  writeFileSync(APPLY_V2_OUT, applyV2Sql(readFileSync(MIGRATION_V2, 'utf8'), ref.version, rows));
+  console.log(`wrote ${APPLY_V2_OUT}: the strength v2 migration with this backfill inside its transaction. FIRST APPLY: an OWNER runs this one file, then Ship Ascent.`);
+  console.log(`wrote ${BACKFILL_V2_OUT}: the backfill alone, for a later top-up (then select public.pool_refresh_dirty();).`);
 }
 
 export async function validate(): Promise<void> {

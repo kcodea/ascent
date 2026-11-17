@@ -151,8 +151,18 @@ export function RankScreen(props: RankScreenProps): JSX.Element {
     };
   }, [shouldAnimate, settled, armedFor, resultKey, anim, preview, runId]);
 
-  // Focus Continue on mount, and again the moment the score lock lifts (a disabled button cannot hold focus).
-  useEffect(() => { if (!locked) continueRef.current?.focus(); }, [locked]);
+  // Focus Continue on mount, and again the moment the score lock lifts (a disabled button cannot hold focus), but
+  // never away from something the player moved to meanwhile (Match details opened during the lock: a Space there
+  // must not leave the end screen).
+  const mountedRef = useRef(false);
+  useEffect(() => {
+    if (locked) return;
+    const active = document.activeElement;
+    const free = !active || active === document.body || active === continueRef.current;
+    if (!mountedRef.current || free) continueRef.current?.focus();
+    mountedRef.current = true;
+  }, [locked]);
+  useEffect(() => { mountedRef.current = true; }, []);
 
   // Continue → the rank layer CROSS-FADES into the main menu (owner 2026-09-20): the settled overlay is cloned
   // above the title, `onContinue` (→ openTitle) mounts the title and releases this element, and the clone

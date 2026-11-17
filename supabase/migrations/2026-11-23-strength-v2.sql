@@ -7,10 +7,14 @@
 -- Apply with `npm run db:apply -- supabase/migrations/2026-11-23-strength-v2.sql --yes`, AFTER
 -- 2026-11-22-pool-rolling-window.sql (it replaces functions that file defines, and refuses to run without it), and
 -- BEFORE the client that scores with reference set2-v2 ships: that client uploads `boards.strength_carried`, and an
--- upload naming a column that does not exist fails. RIGHT AFTER this file, run the generated backfill
--- (`npm run strength -- backfill` writes packages/tools/.cache/strength-backfill-v2.sql), then
--- `select public.pool_refresh_dirty();`. Between this file and the backfill every run is unscored (its scores are
--- still set2-v1): Bronze, Silver and Gold tables fill with generated seats for those minutes, nothing else changes.
+-- upload naming a column that does not exist fails.
+-- DO NOT APPLY THIS FILE ALONE ON THE LIVE DATABASE. On its own it leaves every run unscored (the stored scores are
+-- still set2-v1) until a backfill runs, and a hub that has not been redeployed still seats unscored runs in Bronze,
+-- Silver and Gold tables (its draw is the old port). Instead run `npm run strength -- backfill`: it writes
+-- packages/tools/.cache/strength-v2-apply.sql, which is THIS FILE with every pool board's set2-v2 score (and each
+-- run's carried scores) written inside the same transaction, just before step 8 re-rates the pool. Apply that one
+-- file, then Ship Ascent straight away (the new hub and client). Until the hub ships, a run uploaded by a client
+-- that has not updated is unscored and can still be drawn into a banded table by the old hub.
 -- Idempotent: safe to re-run.
 --
 -- WHAT:
@@ -178,15 +182,27 @@ create or replace function public.pool_strength_round_pcts()
 returns table (run_id bigint, set_id text, round int, carried boolean, p int)
 language sql stable set search_path = public as $$
   with e as materialized (select * from public.pool_strength_entries()),
-  h as (select e.set_id, e.bucket, e.raw, count(*) as n from e where e.member group by 1, 2, 3)
-  select e.run_id, e.set_id, e.round, e.carried,
-         public.board_strength_pct(a.below, a.equal + case when e.member then 0 else 1 end,
-                                   a.total + case when e.member then 0 else 1 end)
+  h as (select e.set_id, e.bucket, e.raw, count(*) as n from e where e.member group by 1, 2, 3),
+  -- Each value's count below it and its round's total, in one pass (a member reads its own row: no rescan).
+  hc as (
+    select h.set_id, h.bucket, h.raw, h.n,
+           coalesce(sum(h.n) over (partition by h.set_id, h.bucket order by h.raw
+                                   rows between unbounded preceding and 1 preceding), 0)::bigint as below,
+           sum(h.n) over (partition by h.set_id, h.bucket)::bigint as total
+    from h
+  )
+  select e.run_id, e.set_id, e.round, e.carried, public.board_strength_pct(hc.below, hc.n, hc.total)
+  from e join hc on hc.set_id is not distinct from e.set_id and hc.bucket = e.bucket and hc.raw = e.raw
+  where e.member
+  union all
+  -- The few visitors (a real board on a round past the last reference round): ranked against the round, plus itself.
+  select e.run_id, e.set_id, e.round, e.carried, public.board_strength_pct(a.below, a.equal + 1, a.total + 1)
   from e cross join lateral (
     select coalesce(sum(h.n) filter (where h.raw < e.raw), 0)::bigint as below,
            coalesce(sum(h.n) filter (where h.raw = e.raw), 0)::bigint as equal,
            coalesce(sum(h.n), 0)::bigint as total
     from h where h.set_id is not distinct from e.set_id and h.bucket = e.bucket) a
+  where not e.member
 $$;
 
 -- 2026-11-22-pool-rolling-window.sql; the change: the averages come from `pool_strength_round_pcts` (every live run,

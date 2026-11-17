@@ -116,18 +116,19 @@ export interface StrengthProbe {
  *
  * `atRound` (strength v2, 2026-11-16) scores the board as if it were fielded on that round instead of its own:
  * a run whose recording has ended keeps fielding its final board, so that board is also scored against every later
- * reference round (a CARRIED score). The board fights as itself; only the reference bucket (and so the dice) is the
- * other round's. Omitted, it is the board's own round, exactly as before.
+ * reference round (a CARRIED score). The reference bucket (and so the dice) is the other round's, and the board
+ * fights as a table would meet it there: a board served past its own round has already spent its next-combat banks
+ * (`snapshotBanksLive`), so they are dropped. Omitted, it is the board's own round, exactly as before.
  */
-export function createStrengthProbe(source: BoardSnapshot, ref: StrengthReference, atRound?: number): StrengthProbe {
-  const board = atRound === undefined || atRound === source.wave ? source : { ...source, wave: atRound };
-  const wave = referenceWaveOf(ref, board.wave);
+export function createStrengthProbe(board: BoardSnapshot, ref: StrengthReference, atRound?: number): StrengthProbe {
+  const carriedTo = atRound === undefined || atRound === board.wave ? undefined : atRound;
+  const wave = referenceWaveOf(ref, carriedTo ?? board.wave);
   const refs = wave === null ? [] : ref.waves[String(wave)] ?? [];
   const scorable = wave !== null && refs.length > 0 && (board.setId ?? 'set1') === ref.setId && (board.minions?.length ?? 0) > 0;
   const perRef = Math.max(1, ref.fightsPerRef);
   const total = scorable ? refs.length * perRef : 0;
   const poolIds = scorable ? poolFor(ref.setId).all.map((c) => c.id) : [];
-  const mySide = scorable ? sideFromSnapshot(board, board.tier, poolIds) : null;
+  const mySide = scorable ? sideFromSnapshot(board, board.tier, poolIds, carriedTo) : null;
   let i = 0;
   let points = 0;
   const step = (n: number): boolean => {

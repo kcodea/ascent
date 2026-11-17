@@ -46,6 +46,21 @@ export function carriedUploadOf(lastWave: number, carried: ReadonlyMap<number, n
   return { ref: STRENGTH_REF_VERSION, rounds };
 }
 
+/**
+ * Run `fn` as its own task as soon as the browser has had a turn. A MessageChannel, not `setTimeout(0)`: nested zero
+ * timers are clamped to 4 ms, which idles the scorer for almost half of every 10 ms, and not requestAnimationFrame,
+ * which stops in a hidden tab (the game would then upload unscored). Rendering still runs between tasks. Falls back
+ * to a zero timer where there is no MessageChannel.
+ */
+export function rushSoon(fn: () => void): () => void {
+  if (typeof MessageChannel !== 'function') { const t = setTimeout(fn, 0); return () => clearTimeout(t); }
+  let cancelled = false;
+  const ch = new MessageChannel();
+  ch.port1.onmessage = () => { ch.port1.close(); if (!cancelled) fn(); };
+  ch.port2.postMessage(0);
+  return () => { cancelled = true; ch.port1.close(); };
+}
+
 let scorer: StrengthScorer | null = null;
 
 /** The session scorer (idle slices via requestIdleCallback; a timer fallback where there is none). */
@@ -60,9 +75,7 @@ export function boardStrengthScorer(): StrengthScorer {
       const t = setTimeout(() => fn(), 32);
       return () => clearTimeout(t);
     },
-    // A zero timer, not requestAnimationFrame: it yields to rendering between slices and keeps working (slowly) in a
-    // hidden tab, where rAF stops and the run would otherwise go up unscored.
-    requestRush: (fn) => { const t = setTimeout(fn, 0); return () => clearTimeout(t); },
+    requestRush: rushSoon,
     setTimer: (fn, ms) => { const t = setTimeout(fn, ms); return () => clearTimeout(t); },
     measure: (label, fn) => perfMonitor.measure(label, fn),
   });

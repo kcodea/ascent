@@ -88,6 +88,7 @@ async function seedPlayerRuns(d: Device): Promise<void> {
   const snap = (author: string, heroId: string, seed: number, wave: number) => ({
     v: 1, wave, heroId, resolve: 30, tier: Math.min(6, 1 + Math.floor(wave / 3)), triples: 0, tribes: [], threat: 'glass',
     power: wave * 10, seed, origin: 'self', author, setId, ownerId: `u-${author}`,
+    runStrength: 10, runStrengthEarly: 10, runStrengthLate: 10, // scored and inside the Bronze band: an unscored run is outside every band (strength v2)
     minions: [{ cardId: 'pack', attack: wave, health: wave, keywords: [], golden: false }],
   }) as unknown as import('@game/sim').BoardSnapshot;
   const runs = heroes.slice(0, 6).map((hero, i) => Array.from({ length: 8 }, (_, w) => snap(`Rival${i}`, hero, 500 + i, w + 1)));

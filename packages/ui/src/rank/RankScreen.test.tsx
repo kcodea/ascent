@@ -326,6 +326,17 @@ describe('Continue waits behind "Calculating Score" while the game is scored', (
     expect(onContinue).toHaveBeenCalledTimes(1);
   });
 
+  it('when scoring ends it does not take focus from where the player went (Match details)', () => {
+    const onMatchDetails = vi.fn();
+    const { props } = render(f, { scoring: { done: 10, total: 160 }, onMatchDetails });
+    const details = ui!.container.querySelector<HTMLButtonElement>('.rankend-details')!;
+    details.focus();
+    expect(document.activeElement).toBe(details);
+    ui!.render(<div className="heroselect endscreen lobbyend rankend"><RankScreen {...props} scoring={null} /></div>);
+    expect(document.activeElement).toBe(details);
+    expect(ui!.container.querySelector<HTMLButtonElement>('.rankend-continue')!.disabled).toBe(false);
+  });
+
   it('with no scoring prop at all (Practice, an old caller) nothing changes', () => {
     const { onContinue } = render(f);
     expect(ui!.container.querySelector('.rankend-scoring')).toBeNull();

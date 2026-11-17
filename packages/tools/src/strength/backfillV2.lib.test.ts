@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { backfillRowsOfRun, backfillV2Sql, type BackfillRow } from './backfillV2.lib';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { applyV2Sql, backfillRowsOfRun, backfillV2Sql, type BackfillRow } from './backfillV2.lib';
 
 const id = (n: number): string => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 
@@ -58,3 +60,32 @@ describe('backfillV2Sql', () => {
     expect(() => backfillV2Sql("v'2", rows)).toThrow(/version/);
   });
 });
+
+describe('applyV2Sql: the one file an owner applies', () => {
+  const migration = readFileSync(join(__dirname, '../../../../supabase/migrations/2026-11-23-strength-v2.sql'), 'utf8');
+  const rows: BackfillRow[] = [{ rowId: id(1), raw: 0.25, refWave: 6, carried: { ref: 'set2-v2', rounds: { '7': 0.1 } } }];
+  const sql = applyV2Sql(migration, 'set2-v2', rows);
+
+  it('is the real migration with the backfill inside its one transaction, before the pool is re-rated', () => {
+    expect(sql.match(/^begin;$/gm)).toHaveLength(1);
+    expect(sql.match(/^commit;$/gm)).toHaveLength(1);
+    const begin = sql.search(/^begin;$/m);
+    const update = sql.indexOf('update public.boards b set strength_raw');
+    const rerate = sql.indexOf('select public.pool_strength_refresh(null, null, null);');
+    const commit = sql.search(/^commit;$/m);
+    expect(begin).toBeGreaterThan(0);
+    expect(update).toBeGreaterThan(sql.indexOf('add column if not exists strength_carried')); // the column exists first
+    expect(update).toBeGreaterThan(begin);
+    expect(rerate).toBeGreaterThan(update);
+    expect(commit).toBeGreaterThan(rerate);
+    // Nothing of the migration is lost: take the inserted block out and the file is the migration again.
+    const from = sql.indexOf('-- ── 7b. BACKFILL');
+    const to = sql.indexOf('where b.id = v.id;', from) + 'where b.id = v.id;'.length + 2;
+    expect(sql.slice(0, from) + sql.slice(to)).toBe(migration);
+  });
+
+  it('refuses a migration it cannot place the backfill in', () => {
+    expect(() => applyV2Sql('begin;\nselect 1;\ncommit;\n', 'set2-v2', rows)).toThrow(/8\. Start/);
+  });
+});
+

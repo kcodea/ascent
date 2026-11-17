@@ -32,6 +32,10 @@ vi.mock('../remoteBoards', async (importOriginal) => {
   };
 });
 
+// The scoring cap is the subject of runEndTimeout.test.ts. Here it is lifted, so these tests pin WHAT is scored and
+// uploaded and never depend on how fast this machine runs 2,400 fights.
+vi.mock('./index', async (importOriginal) => ({ ...(await importOriginal<typeof import('./index')>()), STRENGTH_RUN_END_WAIT_MS: 120_000 }));
+
 import { useGame } from '../store';
 import { carriedUploadOf, finalBoardOf, shouldScoreRunEnd } from './index';
 import { uploadBoards, uploadRunHistory } from '../remoteBoards';
@@ -131,7 +135,7 @@ describe('run end scores the run in full before it uploads', () => {
     const seen: Array<{ done: number; total: number } | null> = [];
     const stop = useGame.subscribe((st) => { if (seen[seen.length - 1] !== st.runScoring) seen.push(st.runScoring); });
     const t0 = Date.now();
-    await finishWith(captured, 41, 20_000);
+    await finishWith(captured, 41, 100_000);
     console.log(`7-round run end scored in ${Date.now() - t0} ms`);
     stop();
     // Held the moment the game ended, with real numbers, and released when the work was done.
@@ -149,7 +153,7 @@ describe('run end scores the run in full before it uploads', () => {
     expect(Object.keys(last.strengthCarried!.rounds)).toEqual(['8', '9', '10', '11', '12', '13', '14', '15']);
     for (const round of [8, 12, 15]) expect(last.strengthCarried!.rounds[String(round)]).toBe(scoreBoard(final, ref, round)!.raw);
     expect(uploaded.filter((b) => b.wave !== 7).every((b) => b.strengthCarried === undefined)).toBe(true);
-  }, 60_000);
+  }, 120_000);
 
   it('a game that ended before round 7 is never held and carries nothing (it can never be an opponent)', async () => {
     const ref = await loadStrengthReference();

@@ -24,6 +24,9 @@ export interface MirrorRun {
   strength: string | null;
   strength_early: string | null;
   strength_late: string | null;
+  /** The run's PEAK (R-LOBBY-21, 2026-11-24-strength-peak-cap.sql). ABSENT (not null) on an index synced from a
+   *  database before that SQL: the cap is then not applied and the keys rows carry no peak, as that database answers. */
+  strength_peak?: string | null;
   rev: string;
 }
 
@@ -39,6 +42,7 @@ export interface PickArgs {
   p_pool?: string | null;
   p_early_weight?: number | string | null;
   p_strength_cap?: number | string | null;
+  p_peak_cap?: number | string | null;
 }
 
 // ── Exact decimals ───────────────────────────────────────────────────────────────────────────────────────────────
@@ -143,14 +147,18 @@ export function pickRuns(runs: readonly MirrorRun[], args: PickArgs, random: () 
   const min = dec(args.p_strength_min);
   const max = dec(args.p_strength_max);
   const cap = dec(args.p_strength_cap);
+  // The peak cap applies only when the index carries peaks at all (see `MirrorRun.strength_peak`).
+  const peakCap = runs.some((r) => r.strength_peak !== undefined) ? dec(args.p_peak_cap) : null;
   const weight = dec(args.p_early_weight);
   const matches = (r: MirrorRun): boolean => {
     if (args.p_exclude_user != null && r.user_id === args.p_exclude_user) return false;
     if (args.p_pool != null && r.pool_id !== args.p_pool) return false;
     const strength = dec(r.strength);
     // Strength v2 (2026-11-23-strength-v2.sql): with a band or a cap, a run with no strength (unscored) is out.
-    if ((min != null || max != null || cap != null) && strength == null) return false;
+    if ((min != null || max != null || cap != null || peakCap != null) && strength == null) return false;
     if (cap != null && cmp(strength!, cap) > 0) return false;
+    // The peak cap (2026-11-24-strength-peak-cap.sql): `r.strength_peak <= p_peak_cap`, so a run with no peak is out.
+    if (peakCap != null) { const peak = dec(r.strength_peak); if (peak == null || cmp(peak, peakCap) > 0) return false; }
     const ms = matchScore(strength, dec(r.strength_early), dec(r.strength_late), weight);
     if (ms == null) return true;
     return (min == null || cmp(ms, min) >= 0) && (max == null || cmp(ms, max) <= 0);
@@ -186,7 +194,7 @@ const jsonNum = (t: string | null): string => (t == null ? 'null' : /^-?\d+(\.\d
  *  boards the mirror holds for the run, so a client asking for them gets exactly that rev. */
 export function keyRowJson(r: MirrorRun, rev: string): string {
   return `{"run_id":${r.run_id},"run_key":${JSON.stringify(r.run_key)},"author":${JSON.stringify(r.author)},"user_id":${r.user_id == null ? 'null' : JSON.stringify(r.user_id)},`
-    + `"wave_count":${r.wave_count},"strength":${jsonNum(r.strength)},"strength_early":${jsonNum(r.strength_early)},"strength_late":${jsonNum(r.strength_late)},"rev":${JSON.stringify(rev)}}`;
+    + `"wave_count":${r.wave_count},"strength":${jsonNum(r.strength)},"strength_early":${jsonNum(r.strength_early)},"strength_late":${jsonNum(r.strength_late)},${r.strength_peak === undefined ? '' : `"strength_peak":${jsonNum(r.strength_peak)},`}"rev":${JSON.stringify(rev)}}`;
 }
 
 /** One `pool_runs_boards` row as PostgREST serializes it: the boards are the database's own jsonb text, untouched. */

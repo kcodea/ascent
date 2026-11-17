@@ -75,13 +75,26 @@ export function destinationRect(viewportW: number, viewportH: number, _source?: 
 }
 
 /**
- * Where the SHOWCASE's splash-art clone settles (hero select showcase, 2026-11-16): a square of the destination's width
- * at its top-left. The splash is far bigger than a card's art frame, so it shrinks onto the spot where the card path's
- * square portrait frame lands; the materializing beat measures it there and the final portrait is today's size.
+ * The party-home banner's art frame inside its card, as fractions of the card's width (heroSelectPh.css: the card is
+ * `padding: 0; container-type: inline-size` on the 784-wide flag art, and `> .hcframe` is
+ * `width: calc(100cqi * 667 / 784); margin-inline: auto; margin-top: calc(100cqi * 96 / 784)`).
+ * The ceremony's `artCrop` squares that frame up to its width, so the card path's measured crop is this square.
+ */
+const PH_FLAG_W = 784;
+const PH_FRAME_W = 667 / PH_FLAG_W;
+const PH_FRAME_LEFT = (PH_FLAG_W - 667) / 2 / PH_FLAG_W;
+const PH_FRAME_TOP = 96 / PH_FLAG_W;
+
+/**
+ * Where the SHOWCASE's splash-art clone settles (hero select showcase, 2026-11-16; the showcase only renders in the
+ * party-home look). The splash is far bigger than a card's art frame, so it shrinks onto the exact square where the
+ * party-home card path's `.hcframe` settles inside `dest`; the materializing beat measures it there, so the final
+ * portrait has today's size and position (coordinator ruling 2026-11-16: the spec wins over a full-width square).
  */
 export function splashDest(dest: RectSnapshot): RectSnapshot {
-  const width = Math.max(0, finite(dest.width, 0));
-  return { left: finite(dest.left, 0), top: finite(dest.top, 0), width, height: width };
+  const w = Math.max(0, finite(dest.width, 0));
+  const side = w * PH_FRAME_W;
+  return { left: finite(dest.left, 0) + w * PH_FRAME_LEFT, top: finite(dest.top, 0) + w * PH_FRAME_TOP, width: side, height: side };
 }
 
 /**

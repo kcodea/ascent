@@ -191,9 +191,19 @@ describe('exitVector — unselected cards yield away from the pick', () => {
 });
 
 describe('splashDest (where the showcase splash clone settles)', () => {
-  it('splashDest is a square of the destination width at its top-left', () => {
-    expect(splashDest({ left: 100, top: 50, width: 300, height: 393, right: 400, bottom: 443 } as RectSnapshot))
-      .toMatchObject({ left: 100, top: 50, width: 300, height: 300 });
+  it("splashDest is the party-home card's art-frame square inside the destination (667/784 wide, centred, 96/784 down)", () => {
+    // A 784-wide destination makes the flag's own px exact: frame 667 wide, (784 - 667) / 2 = 58.5 in, 96 down.
+    const d = splashDest(rect(100, 50, 784, 1027));
+    expect(d.left).toBeCloseTo(158.5, 6);
+    expect(d.top).toBeCloseTo(146, 6);
+    expect(d.width).toBeCloseTo(667, 6);
+    expect(d.height).toBeCloseTo(667, 6);
+    // Scales with the destination width, never its height.
+    const s = splashDest(rect(0, 0, 392, 9999));
+    expect(s.width).toBeCloseTo(333.5, 6);
+    expect(s.height).toBeCloseTo(333.5, 6);
+    expect(s.left).toBeCloseTo(29.25, 6);
+    expect(s.top).toBeCloseTo(48, 6);
   });
   it('stays finite on a degenerate destination', () => {
     for (const v of Object.values(splashDest(rect(NaN, NaN, NaN, 0)))) expect(Number.isFinite(v)).toBe(true);

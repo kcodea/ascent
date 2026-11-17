@@ -106,6 +106,12 @@
 .heroselect.hss .hss-card .phi-info:has(.phi-anc) { gap: calc(12 * var(--phu)); padding-top: calc(24 * var(--phu)); padding-bottom: calc(32 * var(--phu)); }
 .heroselect.hss .hss-card .phi-info:has(.phi-anc) .phi-name { font-size: calc(44 * var(--phu)); }
 .heroselect.hss .hss-card .phi-stat { height: calc(40 * var(--phu)); }
+/* Health and Armor wear the game's painted medallions here, not the line icons (owner 2026-11-17: "use our health and
+   armor medallion pngs"): the same art the tiles above use. */
+.heroselect.hss .hss-card .phi-stat svg { display: none; }
+.heroselect.hss .hss-card .phi-stat::before { content: ''; flex: none; width: calc(28 * var(--phu)); height: calc(28 * var(--phu)); background: 50% 50% / contain no-repeat; }
+.heroselect.hss .hss-card .phi-stat.is-hp::before { background-image: url('/medallions/health.webp'); }
+.heroselect.hss .hss-card .phi-stat.is-armor::before { background-image: url('/medallions/armor.webp'); }
 .heroselect.hss .hss-card .phi-info:has(.phi-anc) .phi-power { padding-top: calc(12 * var(--phu)); }
 .heroselect.hss .hss-card .phi-pwname { font-size: calc(28 * var(--phu)); }
 .heroselect.hss .hss-card .phi-pwtext { font-size: calc(18 * var(--phu)); }

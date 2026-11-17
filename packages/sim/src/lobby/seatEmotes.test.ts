@@ -29,11 +29,11 @@ const board = (author: string, heroId: string, seed: number, wave: number, emote
 // Chatty: emotes on rounds 1 and 3 (shop and combat). Quiet: a run from before emotes, no field anywhere.
 // Its combat emote is Angry Mushy, RETIRED 2026-10-15: an old recording keeps the id verbatim (the sim never judges
 // liveness); the UI's `emoteOf` gate is what makes a retired emote play nothing.
-const CHATTY = Array.from({ length: 6 }, (_, i) => board('Chatty', 'albus', 5151, i + 1,
+const CHATTY = Array.from({ length: 7 }, (_, i) => board('Chatty', 'albus', 5151, i + 1,
   i === 0 ? [{ id: 'emote_zen_brian', phase: 'shop', at: 4200 }, { id: 'emote_angry_mushy', phase: 'combat', at: 1500 }]
     : i === 2 ? [{ id: 'emote_flirty_midas', phase: 'shop', at: 30_000 }, { id: 'emote_nervous_jensen', phase: 'shop', at: 9_000 }]
     : undefined));
-const QUIET = Array.from({ length: 6 }, (_, i) => board('Quiet', 'warden', 5252, i + 1));
+const QUIET = Array.from({ length: 7 }, (_, i) => board('Quiet', 'warden', 5252, i + 1));
 
 beforeAll(() => { registerOpponents([...CHATTY, ...QUIET]); });
 
@@ -127,7 +127,7 @@ describe('a served recording replays its emotes (and nobody else does)', () => {
     expect(emoteScheduleOf(seat.prepare(1)?.snapshot, 1, 'combat')).toEqual([{ id: 'emote_angry_mushy', phase: 'combat', at: 1500 }]);
     // round 3's two shop emotes, in time order
     expect(emoteScheduleOf(seat.prepare(3)?.snapshot, 3, 'shop').map((e) => e.at)).toEqual([9_000, 30_000]);
-    // a recording served past its end (round 9 gets the wave-6 board) says nothing
+    // a recording served past its end (round 9 gets the wave-7 board) says nothing
     expect(emoteScheduleOf(seat.prepare(9)?.snapshot, 9, 'shop')).toEqual([]);
   });
 

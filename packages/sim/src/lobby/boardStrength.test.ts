@@ -187,7 +187,7 @@ describe('the percentile', () => {
     // The owner reverted the final-board formula (#1928) on 2026-10-06: "matchmaking algorithm -> backtrack to the
     // weighted version"; the number computed here is that weighted one. The regime stamp names the score MATCHMAKING
     // filters on, which since the split bands (R-LOBBY-13, same day) is the early / late blend.
-    expect(RUN_STRENGTH_FORMULA).toBe('earlyLate');
+    expect(RUN_STRENGTH_FORMULA).toBe('earlyLateV2');
     const score = (wave: number, raw: number): StrengthScore => ({ raw, wave, ref: STRENGTH_REF_VERSION, fights: 60 });
     const hist = { '1': [{ raw: 0.2, count: 3 }, { raw: 0.8, count: 1 }], '2': [{ raw: 0.5, count: 4 }] };
     const runs = [{ avg: 40, count: 5 }, { avg: 80, count: 2 }, { avg: 90, count: 2 }];

@@ -45,7 +45,7 @@ const minionsOf = (tribe: Tribe): string[] => poolFor(SET).all
 const TRIBES: Tribe[] = (['beast', 'undead', 'mech', 'dragon', 'demon', 'kobold', 'dwarf'] as Tribe[]).filter((t) => minionsOf(t).length > 0);
 const QUESTS = Object.keys(QUEST_INDEX);
 const RUNES = Object.keys(RUNE_INDEX);
-const RUN_LENGTHS = [16, 6, 12, 9, 16, 5, 14]; // some recordings end early: their seats keep serving the final board
+const RUN_LENGTHS = [16, 7, 12, 9, 16, 8, 14]; // some recordings end early: their seats keep serving the final board
 /** Per-run strength, so the table sorts itself out: the weak runs fall, the strong ones knock them out. */
 const GROWTH = [0.2, 0.7, 0.3, 0.9, 0.2, 0.8, 0.4];
 

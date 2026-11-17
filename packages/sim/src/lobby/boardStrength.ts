@@ -235,8 +235,10 @@ export const STRENGTH_ROUND_GROUPS: readonly { readonly from: number; readonly t
  * changes how matchmaking scores a run (`runStrengthFromScores`, `matchScoreOf` / the SQL twins) -- it is the only way
  * a row can say which rule it was matched under.
  */
-export type StrengthFormula = 'average' | 'weighted' | 'final' | 'earlyLate';
-export const RUN_STRENGTH_FORMULA: StrengthFormula = 'earlyLate';
+export type StrengthFormula = 'average' | 'weighted' | 'final' | 'earlyLate' | 'earlyLateV2';
+/** `earlyLateV2` since strength v2 (2026-11-16): reference set2-v2, every live run ranked once per round with its
+ *  final board carried forward, LATE = rounds 10-15, unscored runs outside every band. */
+export const RUN_STRENGTH_FORMULA: StrengthFormula = 'earlyLateV2';
 
 /** The index into `STRENGTH_ROUND_GROUPS` of a round (anything below 1 counts with the first group). */
 export function strengthRoundGroup(round: number): number {

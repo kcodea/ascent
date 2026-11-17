@@ -30,7 +30,7 @@
  * (`runInStrengthBand`, runLobby.ts) refuses a run over the cap at every widening step. The widening here also counts
  * only the delivered runs under the cap (`runUnderOverallCap`), so a sample padded with over-cap runs still widens.
  */
-import { MIN_RUN_WAVES, OPPONENT_SEATS, bandSteps, runUnderOverallCap, runWavesCover, seatableRuns, type BoardSnapshot, type StrengthBand } from '@game/sim';
+import { MIN_RUN_WAVES, OPPONENT_SEATS, runLongEnough, bandSteps, runUnderOverallCap, runWavesCover, seatableRuns, type BoardSnapshot, type StrengthBand } from '@game/sim';
 import type { SetId } from '@game/content';
 import type { PoolFetch, PoolRun } from './poolLoader';
 import { poolPatchArg } from './poolPatch';
@@ -211,7 +211,7 @@ async function fallbackRuns(api: PoolApi, opts: PoolFetchOptions, signal: AbortS
   // 2. The eligible runs of this set (the same rule as seat selection), yours included, sampled uniformly.
   const eligible = [...byRun.entries()].filter(([, e]) =>
     e.setId === opts.setId
-    && e.waves.size >= MIN_RUN_WAVES && runWavesCover([...e.waves]));
+    && e.waves.size >= MIN_RUN_WAVES && runLongEnough(Math.max(...e.waves)) && runWavesCover([...e.waves]));
   const picked = sampleUniform(eligible, POOL_SAMPLE_RUNS, opts.random);
   // 3. Download the picked runs WHOLE: by seed, with no per-wave or per-run limit.
   const want = new Map(picked);

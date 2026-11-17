@@ -28,7 +28,7 @@ const minionsOf = (tribe: Tribe): string[] => poolFor(SET).all
   .filter((c) => !c.spell && !c.token && c.tribe === tribe && !c.tribe2 && c.tier <= 2).map((c) => c.id);
 const TRIBES = (['beast', 'undead', 'mech', 'dragon', 'demon', 'kobold', 'dwarf'] as Tribe[]).filter((t) => minionsOf(t).length > 0);
 const GROWTH = [0.2, 0.7, 0.3, 0.9, 0.2, 0.8, 0.4];
-const LENGTHS = [16, 6, 12, 9, 16, 5, 14];
+const LENGTHS = [16, 7, 12, 9, 16, 8, 14];
 
 const RECORDINGS: BoardSnapshot[] = (() => {
   const heroes = playableHeroes().filter((h) => h.id !== 'drakko' && !h.tribes);

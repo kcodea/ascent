@@ -15,7 +15,7 @@ import { normalizePracticeTribes, practiceSetOf } from '../practiceTribes';
 import { runeLiveStateOfSnapshot, type RuneLiveState } from '../runeLiveState';
 import { createPracticeBotLobby } from './practiceBots';
 import { botSeat, hybridSeat, type SeatPolicy } from './seats';
-import { MAX_SEATS_PER_PLAYER, MAX_SEATS_PER_PLAYER_SHORT, MIN_RUN_WAVES, playerRunByKey, playerRunsFrom, runOwnerOf, snapshotSeat, type PlayerRun } from './snapshotSeats';
+import { MAX_SEATS_PER_PLAYER, MAX_SEATS_PER_PLAYER_SHORT, MIN_RUN_WAVES, playerRunByKey, playerRunsFrom, runOwnerOf, seatablePlayerRuns, snapshotSeat, type PlayerRun } from './snapshotSeats';
 import { OPPONENT_POOL } from '../opponents';
 import { handleKeyOf, uniqueHandleFor, adjectiveHandle } from './handles';
 import type { LobbyEncounter, LobbyRules, PreparedBoard, SeatDriver } from './types';
@@ -552,7 +552,7 @@ function seatRunLobby(seed: number, playerHeroId: string | null, rules: Partial<
   // STRONG RUNS (R-LOBBY-17): at most two seated runs per strength tier (90-100, 80-89), hard.
   // `excludeRuns` is applied AFTER the shuffle, so without it the draw is the one of before, seat for seat.
   const exclude = opts.excludeRuns?.size ? opts.excludeRuns : null;
-  const shuffled = shuffleRuns(playerRunsFrom(undefined, undefined, setId), makeRng(seed ^ 0x2545f491));
+  const shuffled = shuffleRuns(seatablePlayerRuns(undefined, setId), makeRng(seed ^ 0x2545f491));
   const available = exclude ? shuffled.filter((run) => !exclude.has(run.key)) : shuffled;
   const seatsByOwner = new Map<string, number>();
   const maxSnapshotSeats = opts.setScopedBots ? 0 : Math.min(r.snapshotSeats ?? r.seatCount - 1, available.length);

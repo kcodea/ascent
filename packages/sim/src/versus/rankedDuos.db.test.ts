@@ -248,7 +248,8 @@ describe('the team rating (R-RANKED-DUOS-RATING-01)', () => {
 
 describe('the table seating (R-RANKED-DUOS-SEATING-01)', () => {
   const soloRows: RankedDuosSoloRow[] = ['keshi', 'nadja', 'drumline', 'mimic', 'yazzus', 'fi', 'tamby'].map((h, i) => ({
-    run_key: `P${i}|${h}|${i}`, author: `P${i}`, user_id: null, strength: null, strength_early: null, strength_late: null,
+    // Scored, inside the Bronze band: an unscored run is outside every band since strength v2 (2026-11-16).
+    run_key: `P${i}|${h}|${i}`, author: `P${i}`, user_id: null, strength: 10, strength_early: 10, strength_late: 10,
     boards: [{ heroId: h, wave: 1, minions: [] }, { heroId: h, wave: 2, minions: [{ cardId: 'sandbag' }] }],
   }));
   const store = (_m: string): RankedDuosSeatStore => ({

@@ -21,7 +21,7 @@ const snap = (author: string, heroId: string, seed: number, wave: number): Board
   v: 1, wave, heroId, resolve: 30, tier: 1, triples: 0, tribes: [], threat: 'glass', power: wave, seed, origin: 'self',
   author, ownerId: `${author}-id`, setId: SET, minions: [{ cardId: 'pack', attack: 2, health: 2, keywords: [], golden: false }],
 } as unknown as BoardSnapshot);
-const runOf = (author: string, heroId: string, seed: number): BoardSnapshot[] => [1, 2, 3, 4, 5, 6].map((w) => snap(author, heroId, seed, w));
+const runOf = (author: string, heroId: string, seed: number): BoardSnapshot[] => [1, 2, 3, 4, 5, 6, 7].map((w) => snap(author, heroId, seed, w)); // 7 rounds: the floor for a seat (strength v2)
 
 let lobby: RunLobby | null = null;
 afterEach(() => { OPPONENT_POOL.length = 0; if (lobby) resetLobbyDrivers(lobby.seats); lobby = null; });

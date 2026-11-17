@@ -82,6 +82,14 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'Ancients that trigger now flash your hero power, the same way runes flash when they go off.',
+        details: [
+          'It plays every time the Ancient fires, in the Shop, at the start and end of your turn, and in combat.',
+          "For example, Warden's Ancient of Fortune flashes each time one of your Wards breaks.",
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'New art for 123 Set 2 minions and 23 rune reward cards.',
       },
       {

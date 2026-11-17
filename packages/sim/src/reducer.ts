@@ -1,6 +1,7 @@
 import { type PresentationCollector, type ConsequenceDraft, beatIdentity, inRunTribes, socTwilightExtraFires, COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, ALE_IDS, combatSide, makeCollector, makeRng, simulate, handGrantUid, type BoardMinion, type CardDef, type CombatConfig, type CombatResult, type CombatSideState, type Keyword, type PendingCombatQuest, type PresentationBatch, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type RuneDef, type Tribe, TRIBES } from '@game/core';
 import { ROYAL_TREASURY_PER } from '@game/core'; // Set 2 Epic tribal runes (2026-11-12)
 import { ancientGorrFirstFree, ancientSecondHandEvery, ancientSecondHandSources, ancientSecondHandIsExact, ancientSecondHandExactCopy, ancientOnDiscoverAny, ancientOnBuy, ancientRobinBondsPrice, ancientSpendRobinBonds, ancientCopyChargeReady, ancientSpendCopyCharge, ancientOnCopyMachine, ancientXeroxBondTripled, ancientCombatMods, ancientAfterPowerGild, ancientOfferOpen, ancientPowerTargetsGilded, ancientReplacesPowerGild, ancientsCombatTick, ancientsRefreshTick, ancientsSetMeter, pickAncient, ancientPulseExtraThenDestroy, ancientPulseDiscovers, ancientPulsePassive, ancientAfterPulse, ancientAegisDestroys, ancientAegisRecipient, ancientAegisDestroyAndGive, ancientAegisResilient, ancientAfterCombat, ancientBondsReact, ancientStartOfTurn, ancientEmpowerPassive, ancientOnEmpowerPick, ancientOnSpellbook, ancientClearancePassive, ancientClearanceStacks, ancientSpendClearanceStack, ancientClearanceRefresh, ancientMarkClearanceOffer, ancientAfterClearance, ancientOnClearanceBuy, ancientTimePrice, ancientNoteMinionBuy, ancientAfterRefresh, ancientTradesBuy, ancientRallyGoldGraft, ancientUpgradeSurchargeOff, FRUGAL_UPGRADE_SURCHARGE, ancientReclaimInShop, ancientShopReclaim, ancientAfterReclaimMark, ancientTradesRefreshFree, ancientTradesSpendFreeRefresh } from './ancients';
+import { ancientSotSource } from './ancients'; // Ancient trigger procs (R-FX-ANCIENT-PROC-01)
 import { ancientInvestmentPassive, ancientInvestmentTime, ancientRunInvestmentTime, ancientInvestmentDiscovers, ancientRunInvestmentGenesis, ancientOnTripleReward, ancientOnDiscoverPick } from './ancients'; // Braum
 import { ancientSyncEchoEnchants, ancientEnchantedPrice, ancientEnchantedSpellCut, ancientOnEnchantedBuy } from './ancients'; // Ayse
 import { ancientGreatPresenceSpec, ancientAfterGreatPresence, ancientDiscoverPicksAgain, ancientReopenDiscover, ancientGiftAdjacent, ancientPocketMagicDiscovers, ancientAfterPocketMagic, ancientUnitedFrontAtEot, ancientTierPrice, ancientSyncVanguard, ancientVanguardActivate, ancientSyncPower, ancientOnEffectRefresh } from './ancients'; // the 2026-11-10 batch B
@@ -13,6 +14,7 @@ import { ancientOnGoldSpent, ancientOnCardPlayed } from './ancients'; // Brackus
 import { buildDiscoverPick } from './discoverPick'; // the one Discover pick body (shared with the offer preview)
 import { ancientCrownDueNow, ancientCrownBuyTimes, ancientMidasTripleToo, ancientTierDiscount, ancientSetlistPrice, ancientTripleRewardTag, ancientOnDiscoverTaken, ancientArchiveNeed, ancientOnArchive, ancientArchiveDiscovers, ancientMarkArchiveDiscover, ancientGildedEchoGraft } from './ancients'; // Midas / Keshi / Quillen / Disco Dan
 import { ancientCommissionSecond, ancientStartSecondCommission, ancientTakeDueSecondCommission, ancientSyncPass1, ancientLuckySeatNeed } from './ancients'; // ancient pass 1
+import { procAncient as procAncientG2 } from './ancients'; // ancient trigger procs, group 2 (R-FX-ANCIENT-PROC-01)
 import { ancientCommissionDueNow, ancientCommissionReps, ancientAfterCommission, commissionDelayOf, ancientDrumlineNeed, ancientDrumlineComplete, ancientShoutDiscount, ancientFlashCopies, ancientTripleRewardTwice, DRAKKO_CARD_ID } from './ancients'; // the 2026-10-09 batch
 import { runSpells } from './spellPool';
 import { currentCollector, withActiveCollector } from './activeCollector';
@@ -220,6 +222,7 @@ function gorrQuestBuy(s: RunState, card: CardDef): void {
   const buys = [...(s.gorrBuys ?? []), card.id];
   s.gorrBuys = buys;
   if (buys.length !== 3) return; // fires on EXACTLY the 3rd minion buy each turn
+  if (passive) ancientFourPeatPassive(s, true); // Mimic × Bonds' proc (R-FX-ANCIENT-PROC-01)
   const rng = makeRng(s.rngCursor);
   // Wishbone: another copy, RE-ROLLED among the same three — "not necessarily the same" (owner ruling).
   for (let r = 0; r < (held ? wishboneReps(s) : 0) + (passive ? 1 : 0); r++) conjurePlainCopy(s, buys[rng.int(3)]!);
@@ -2635,7 +2638,7 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
           // ANCIENT OF BONDS × Kindness (a no-op unless picked): "Gifts you cast on a minion also cast on an adjacent
           // minion." The neighbour is chosen BEFORE the cast (a Gift may remove its target: Parting Gifts) and takes
           // each cast right after the target does. It is the same cast: no second spell is counted.
-          const giftAdjacent = giftTarget ? ancientGiftAdjacent(s, def, giftTarget) : undefined;
+          const giftAdjacent = giftTarget ? ancientGiftAdjacent(s, def, giftTarget, giftCasts) : undefined;
           for (let n = 0; n < giftCasts; n++) {
             applyCastEffects(makeContext(s), def, giftTarget);
             // Rune of Lorekeeping (balance 9/23): a Gift cast ON a minion (a Clue, a Tower Shield) is "a spell cast on
@@ -4684,7 +4687,8 @@ let tripleRewardRepeating = false;
  *  "Playing a Gilded minion gives you 2 Triple Rewards"; 0 extra on every other run). */
 function grantGildedPlayRewards(s: RunState): void {
   grantGoldenDiscover(s);
-  for (let k = 0; k < ancientGildedPlayExtraRewards(s); k++) grantGoldenDiscover(s);
+  const extra = ancientGildedPlayExtraRewards(s, true); // `true`: Membrance × Bonds' proc (R-FX-ANCIENT-PROC-01)
+  for (let k = 0; k < extra; k++) grantGoldenDiscover(s);
 }
 
 function grantGoldenDiscover(s: RunState, crown = false, duos?: { tier?: number; synergy?: boolean }): void {
@@ -4696,6 +4700,7 @@ function grantGoldenDiscover(s: RunState, crown = false, duos?: { tier?: number;
     const pouch = CARD_INDEX['emberpouch'];
     if (pouch && s.hand.length < handCap(s)) conjureToHand(s, [pouch], 1);
     if (!ancientMidasTripleToo(s)) return;
+    procAncientG2(s); // MIDAS × GENESIS fires: the Gild's Triple Reward too (R-FX-ANCIENT-PROC-01)
   }
   // Rune of the Corrupted Tome: a Triple Reward grants TWO — and +1 more per extra copy held (repeat family,
   // owner 2026-08-27). Recursion is bounded by the flag being cleared for the inner calls, so the extras can
@@ -4711,6 +4716,7 @@ function grantGoldenDiscover(s: RunState, crown = false, duos?: { tier?: number;
   // guarded (module flag), so it never repeats itself; a Corrupted Tome extra above is a Triple Reward too and doubles.
   if (!tripleRewardRepeating && ancientTripleRewardTwice(s)) {
     tripleRewardRepeating = true;
+    procAncientG2(s); // GILDMASTER × GENESIS fires: the Triple Reward's repeat (R-FX-ANCIENT-PROC-01)
     try { grantGoldenDiscover(s, false, duos); } finally { tripleRewardRepeating = false; }
   }
   if (s.hand.length >= handCap(s)) return; // the hand cap — raised while the Runeforge is open (see handCap)
@@ -6266,9 +6272,11 @@ function advanceCombat(s: RunState): void {
   if (s.tutorialShopScript) s.tutorialShopRoll = 0;
   // Cassen: a commission that has come due pays out as this shop opens. Checked AFTER the wave bump, so
   // `dueWave` names the turn the reward actually lands on.
-  if (s.commission && s.wave >= s.commission.dueWave) { const due = s.commission; recordSotBeat(s, heroSource('commission'), () => payCommission(s, due)); }
+  // An Ancient that pays extras on the payout names the beat for itself, so its proc plays on it (R-FX-ANCIENT-PROC-01).
+  const commissionSrc = (): SotBeatSource => ancientSotSource(s, heroSource('commission'), ['commissionBuffsBoard', 'commissionFreeRefreshes', 'commissionGrantsTierMinion', 'commissionPaysTwice']);
+  if (s.commission && s.wave >= s.commission.dueWave) { const due = s.commission; recordSotBeat(s, commissionSrc(), () => payCommission(s, due)); }
   // Cassen × Ancient of Time (ancient pass 1): the second slot pays on its own beat (or moves up into the first slot).
-  { const due2 = ancientTakeDueSecondCommission(s); if (due2) recordSotBeat(s, heroSource('commission'), () => payCommission(s, due2, false)); }
+  { const due2 = ancientTakeDueSecondCommission(s); if (due2) recordSotBeat(s, commissionSrc(), () => payCommission(s, due2, false)); }
   // SET 4 WHISPERS (owner 2026-10-13, R-WHISPER-02): last turn's Whisper grants come off now — kept through the fight
   // that just resolved, gone before anything this turn reads the board. Engraved never kept them (combat gains only).
   expireWhisperBuffs(s);
@@ -6653,7 +6661,7 @@ function advanceCombat(s: RunState): void {
   if (hasPower(s, 'greatPresence') && s.wave % 4 === 0) {
     // ANCIENTS × Kindness (no-ops unless picked): GENESIS tags the Discover so two of its Gifts can be picked; DEATH and
     // WAR send their named Gift to hand on this same beat.
-    recordSotBeat(s, heroSource('greatPresence'), () => {
+    recordSotBeat(s, ancientSotSource(s, heroSource('greatPresence'), ['greatPresenceGrantsCard']), () => { // named for the Ancient when it adds a Gift (R-FX-ANCIENT-PROC-01)
       queueDiscover(s, { kind: 'pool', ids: [...GIFT_IDS], ...ancientGreatPresenceSpec(s) });
       ancientAfterGreatPresence(s);
     });

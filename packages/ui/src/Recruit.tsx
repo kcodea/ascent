@@ -70,6 +70,8 @@ import { relatedCardIds, relatedPickOneIds } from './cardRefs';
 import { countedGoldSpent, countedGoldSpentThisTurn } from '@game/sim'; // Big Spender: the counted Gold every spend mechanic reads
 import { carnivalCoinLive } from '@game/sim'; // Juggler × Ancients
 import { discoverOfferCard } from '@game/sim'; // the Discover pick preview (R-DISCOVER-PREVIEW-01)
+import { isAncientBuffLabel } from '@game/sim'; // Ancient trigger procs (R-FX-ANCIENT-PROC-01)
+import { playAncientProcBurst } from './ancientProcFx';
 import { type Action, aleHandMagnitude, shopArrivals, passariaTarget, battlecryTargetAllowed, ancientEnchantedSpellCut, grimToastFold, unityAuraFold, EQUIPMENT_FX_ANCHOR, ancientRiseTint, spiritsPlayedThisTurn, anySpellsCastThisTurn, unusedEquipmentCount, shopSpellsBoughtThisTurn, playerOpponent, alignmentsOf, boardHasCelestial, chooseBothActive, chooseBothStateOf, type ChooseBothState, chooseOneNeedsChoice, computeCombatOdds, type CombatOdds, rubyCastCount, giftCastCount, rubyStatBonus, CONFIG, riftDefFor, type RiftDef, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, defIsTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, endOfTurnTicksOf, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, chooseOneBranchText, spellAttackBonus, spellHealthBonus, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, squirlScoutBuffLive, conductorBuffLive, spellCasts, runeExtraCasts, spellCostReduction, implosionCasts, dragonflameCasts, minionCostOf, heldOfferPrice, heroOfferPrice, offerBuyPrice, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, nextRefreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot, gildCopiesNeeded, activePowers, ancientPairingHeroId, gateUses, runeStacksOf, starformSpellAimsToken, createOddsProbe, COMBAT_ODDS_SIMS, runLossCap, selectedEquipment, selectedEquipmentDef, runTallyFor } from '@game/sim';
 import { createPortal } from 'react-dom';
 import { setCardId, setCardStats, toggleCardKeyword, setEnemyStats, setEnemyCardId, toggleEnemyKeyword, toggleEnemyGolden, removeEnemy, foeSnapshotOf } from './sandboxEdit';
@@ -6425,6 +6427,8 @@ export function Recruit() {
           const c = centreOf(powerBtn());
           if (c) pixiFx.heroPowerBurst(c.x, c.y, getAimFxConfig());
           sfx.heroPower(src.id);
+          // An ANCIENT's Start of Turn fire also plays the rune-trigger burst on the button (R-FX-ANCIENT-PROC-01).
+          if (isAncientBuffLabel(src.label)) playAncientProcBurst();
         } else if (src.kind === 'minion') {
           pulseUnit(src.uid); // the minion's own medallion
           sfx.triggerPulse();
@@ -8000,6 +8004,9 @@ export function Recruit() {
         // A QUIET repeat tick plays no source cue and no trigger sound: the chain's accents already carry them,
         // spaced at least `accentGapMs` apart, so a fast chain ticks without a wall of noise (R-REPEAT-04).
         if (beat.pace && !beat.pace.accent) return;
+        // An ANCIENT's End of Turn entry (a hero source named for an Ancient) plays the rune-trigger burst on the
+        // hero-power button as its beat lands (R-FX-ANCIENT-PROC-01).
+        if (beat.source.kind === 'hero' && isAncientBuffLabel(beat.source.label)) playAncientProcBurst();
         // Only a beat with a card instance can light a medallion; rune/quest beats animate via their rail.
         const uid = beat.source.uid;
         // A MINION-sourced beat that belongs to a RUNE (Rune of the Reliquary firing an Echo, Lasting Cadence

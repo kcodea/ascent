@@ -1,6 +1,10 @@
 import type { CombatEvent } from '@game/core';
 import { badgeIdsForCombatFlag } from '@game/content';
-import type { RuneCombatProgress } from '@game/sim';
+import { isAncientProcFlag, type RuneCombatProgress } from '@game/sim';
+
+/** The reserved `triggerCounts` key the side's ANCIENT proc count rides under (R-FX-ANCIENT-PROC-01): the hero-power
+ *  button's rune-trigger burst reads it. Not a content id, so no badge ever matches it. */
+export const ANCIENT_PROC_KEY = '__ancientProc';
 
 /**
  * Which quest/rune combat triggers have fired so far this replay, as a per-badge-id count — the signal the
@@ -30,6 +34,8 @@ export function triggerCounts(
     // Every badge the flag belongs to (Basic AND Epic runes, R-RUNE-COMBAT-FLASH-01): how many times it has fired so
     // far, a fresh one-shot pulse per bump.
     for (const id of badgeIdsForCombatFlag(e.flag)) counts[id] = (counts[id] ?? 0) + 1;
+    // An Ancient fired (R-FX-ANCIENT-PROC-01): counted under the reserved key the hero-power button bursts on.
+    if (isAncientProcFlag(e.flag)) counts[ANCIENT_PROC_KEY] = (counts[ANCIENT_PROC_KEY] ?? 0) + 1;
   }
   return counts;
 }

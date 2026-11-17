@@ -4334,6 +4334,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
   deathrattleGrantCardToHand: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
+    if (params.ancientMidasEcho) ctx.ancientProc?.(self.side); // MIDAS × DEATH's grafted Echo fires (R-FX-ANCIENT-PROC-01)
     ARENA_EFFECTS.deathrattleGrantCardToHand(combatArena(ctx, self), params);
   },
 

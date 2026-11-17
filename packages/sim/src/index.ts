@@ -9,6 +9,7 @@ export * from './starform';
 export * from './whisper'; // Set 4 Whispers (owner 2026-10-13): the lifecycle + the live value the text reads
 export * from './ancients';
 export * from './ancientBuffFx';
+export * from './ancientProcs';
 export * from './ancientsRelease'; // the Ancients RELEASE SWITCH (owner 2026-11-16): read only at run creation
 export * from './discoverPick'; // the one Discover pick body + its offer preview (`discoverOfferCard`)
 export * from './state';

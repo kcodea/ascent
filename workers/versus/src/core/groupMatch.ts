@@ -121,7 +121,7 @@ export interface GSeatRow {
   eliminated_round: number | null;
   out_reason: GOutReason | null;
   placement: number | null;
-  /** VERSUS DUOS: the seat's team, and its free hand slots (the pass refusal, `versus_duos_hand_room`). */
+  /** VERSUS DUOS: the seat's team, and its free hand slots (`versus_duos_hand_room`; informational since R-DUOS-PASS-WAITS-01). */
   team?: GTeamId | null;
   hand_room?: number | null;
   /** RANKED DUOS: when the seat ended its turn, went auto, left the party for good. */
@@ -817,7 +817,8 @@ export class GroupEngine {
 
   // ── VERSUS DUOS: passing a card to the teammate (R-DUOS-PASS-01) ─────────────────────────────────────────────────
 
-  /** `versus_duos_pass`: exactly once per seq; refused when the teammate's hand is full, they are away, or past the cap. */
+  /** `versus_duos_pass`: exactly once per seq; refused when the teammate is away, out, or past the cap. Never for a full
+   *  hand (owner 2026-11-16, R-DUOS-PASS-WAITS-01): the receiver's run holds the card until it has room. */
   pass(userId: string, round: unknown, seq: unknown, card: unknown): GPass {
     const m = this.m;
     if (!this.teamPasses) this.h.fail('not_duos');
@@ -845,13 +846,10 @@ export class GroupEngine {
       if (mr.eliminated_round != null) this.h.fail('no_teammate');
       if (mr.auto || (m.paused_at != null && m.paused_seat === mate)) this.h.fail('teammate_away');
     }
-    // An EFFECT pass (`'spell'`: Handout, CueBee's Pass, Matchmaker; `'sale'`: Salesman of the Year) is never refused for a full hand (owner 2026-10-30,
-    // R-DUOS-EFFECT-PASS-QUEUE-01: "they get the card once there is space in their hand"): the receiver's run holds it
-    // until there is room. Only the manual drag keeps the hand-room refusal.
-    if (!teamFx && c?.passFrom !== 'spell' && c?.passFrom !== 'sale') {
-      const inFlight = Object.values(all).flat().filter((p) => p.to_seat === mate && p.status === 'sent' && p.card.passFrom !== 'team').length;
-      if (mr.hand_room != null && mr.hand_room - inFlight <= 0) this.h.fail('hand_full');
-    }
+    // NO CARD PASS IS REFUSED FOR A FULL HAND: an effect pass since 2026-10-30 (R-DUOS-EFFECT-PASS-QUEUE-01: "they get
+    // the card once there is space in their hand"), the manual drag and Passaria since 2026-11-16 (R-DUOS-PASS-WAITS-01:
+    // "should enter the teammates hand when they have space"). The receiver's run holds it until there is room, so
+    // `hand_room` (still reported) no longer refuses anything.
     // A card pass travels from the hand (`'hand'`, the drag) or from a Duos spell (`'spell'`, Handout: a Shop or board
     // minion); a team effect carries its `team` object. Anything else is refused as before.
     // `'sale'`: a minion Salesman of the Year passed as it was sold (Duos rune, R-DUOS-RUNES-01).

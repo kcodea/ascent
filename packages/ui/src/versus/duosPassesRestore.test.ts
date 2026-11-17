@@ -132,14 +132,13 @@ describe('passing back and forth survives a reload (A->B->A->B)', () => {
     expect([again.hand.length, again.embers, again.duos!.outbox.length]).toEqual([1, 3, 2]);
   });
 
-  it('a pass the receiver refused, then the same card passed again: both replay (refund, then the pass)', () => {
+  it('a pass the ROOM refused (it expired: the teammate went away), then the same card passed again: both replay (refund, then the pass)', () => {
     const t = table();
     const start = t.runs.p1;
-    t.runs.p2 = { ...t.runs.p2, hand: Array.from({ length: 10 }, (_, i) => minion(`f${i}`)) };
-    t.pass('p1', 'a1'); t.land('p2');
-    expect(t.rows[0]!.status).toBe('refused');
+    // A full hand is no refusal any more (R-DUOS-PASS-WAITS-01); the room's expiry (R-DUOS-PASS-EXPIRE-01) still is.
+    t.pass('p1', 'a1');
+    Object.assign(t.rows[0]!, { status: 'refused', reason: 'teammate_away' });
     t.runs.p1 = reduce(t.runs.p1, { type: 'passRefunded', seq: 0 });
-    t.runs.p2 = { ...t.runs.p2, hand: [] };
     t.pass('p1', 'a1'); t.land('p2');
     const ann = t.reload('p1', start);
     expect([ann.hand.length, ann.embers]).toEqual([t.runs.p1.hand.length, t.runs.p1.embers]);

@@ -4,7 +4,7 @@
  *
  * ── How to flip it ────────────────────────────────────────────────────────────────────────────────────────────
  * Owner 2026-11-16 (later the same day): "Ship the ancient switch off. I'll tell you when to turn it on." So it ships
- * `false`. FLIPPING IT ON is a one-line change here PLUS `VERSUS_CF_PROTOCOL` 3 -> 4 in workers/versus/src/protocol.ts
+ * `false`. FLIPPING IT ON is a one-line change here PLUS `VERSUS_CF_PROTOCOL` 4 -> 5 in workers/versus/src/protocol.ts
  * (a fight-rules change with no content change, R-VERSUS-WORKER-RULES-01) and a Versus Worker deploy; the tripwire in
  * packages/ui/src/versus/ancientsReleaseProtocol.test.ts fails CI until the bump is made.
  *

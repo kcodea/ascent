@@ -392,11 +392,12 @@ describe('Priestess × BONDS: "When you Pass, give your left-most minion and you
     expect(b.board[0]).toMatchObject({ attack: 12, health: 12 });
   });
 
-  it('an ordinary pass a full hand refuses gives the teammate nothing (the card never arrived)', () => {
+  it('an ordinary drag pass to a full hand is not refused (R-DUOS-PASS-WAITS-01): it waits, and the +10/+10 lands once', () => {
     const s = drag(start(), 'h');
     const b = ship(s, mate({ board: mateBoard(), hand: fullHand() }));
-    expect(b.duos!.refused).toEqual(['p1:0']);
-    expect(b.board[0]).toMatchObject({ attack: 2, health: 2 });
+    expect(b.duos!.refused).toEqual([]);
+    expect(duosWaitingCount(b)).toBe(1);
+    expect(b.board[0]).toMatchObject({ attack: 12, health: 12 });
   });
 
   it('a reload: the replayed pass buffs my minion again (the turn was dropped), and my teammate\'s run ignores the pass it already holds', () => {

@@ -26,7 +26,7 @@ import { useGame } from './store';
 import { CHOICE_OPEN, installSbDuos, sbMatePasses, sbMateRun, sbMateSells, sbMyRun, uninstallSbDuos, useSbDuos } from './sbDuos';
 import { enterTeammateView } from './versus/teammateView';
 import { localMate, useLocalMate } from './versus/localMate';
-import { duosPassRefusal } from './versus/duosPassUi';
+import { duosPassRefusal, mateHandFull } from './versus/duosPassUi';
 import { useSpectate } from './versus/spectate';
 
 const flush = async (): Promise<void> => { for (let i = 0; i < 4; i++) await Promise.resolve(); };
@@ -124,14 +124,15 @@ describe('Scene Builder Duos (R-SB-DUOS-01)', () => {
     expect(sbMateRun()!.board).toHaveLength(1);
   });
 
-  it('a manual pass is refused up front when the teammate hand is full (the portrait says why)', () => {
+  it('a manual pass to a full teammate hand is NOT refused (R-DUOS-PASS-WAITS-01): it goes through and waits', () => {
     useGame.setState({ sbDuos: true });
     useGame.getState().startSceneBuilder('warden', 'set2');
     installSbDuos();
     const mate = sbMateRun()!;
     useSbDuos.setState({ other: { ...mate, hand: Array.from({ length: 10 }, (_, i) => card(plainId, `h${i}`)) } });
     useGame.setState({ run: { ...useGame.getState().run, hand: [card(plainId, 'mine1')] } });
-    expect(duosPassRefusal(useGame.getState().run, 'mine1')).toBe('Their hand is full');
+    expect(duosPassRefusal(useGame.getState().run, 'mine1')).toBeNull();
+    expect(mateHandFull()).toBe(true); // what the portrait's "It waits for room." note reads
   });
 
   it('turning Duos off drops the teammate and the seam', () => {

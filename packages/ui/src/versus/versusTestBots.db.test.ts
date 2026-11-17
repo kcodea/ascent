@@ -7,7 +7,7 @@
  *    `dev_forced`; no XP row is ever written for a bot or for a forced match.
  *  - Four `VersusBotDriver`s (through `makeBotMatchApi`, the adapter the browser uses) fill a Duos room, gate, pick,
  *    shop, lock and play it to the end; a bot passes to its teammate bot through the real pass RPCs and run actions
- *    (landed), and the armed full-hand race comes back refused and refunded.
+ *    (landed), and the armed full-hand race lands and waits for room (R-DUOS-PASS-WAITS-01: no refusal, no refund).
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { PGlite } from '@electric-sql/pglite';
@@ -210,7 +210,7 @@ describe('the bots fill a Duos room and play it through (the browser adapter ove
     expect(ds[3]!.realSeat).toBe('p4');
   }, 240_000);
 
-  it('a bot passes to its teammate bot (landed, 1 Gold); an armed full-hand race comes back refused and refunded', async () => {
+  it('a bot passes to its teammate bot (landed, 1 Gold); an armed full-hand race lands and waits for room (R-DUOS-PASS-WAITS-01)', async () => {
     const roomId = await duosRoom();
     const ds = drivers(roomId);
     for (const d of ds) d.hooks = { holdLock: () => true }; // the shop stays open while the passes fly
@@ -229,9 +229,11 @@ describe('the bots fill a Duos room and play it through (the browser adapter ove
     await stepAll(ds, async () => true); // the armed room goes up first
     p1.edit((r) => withAddedCard({ ...r, embers: Math.max(r.embers, 1) }, 'sandbag', 'hand'));
     expect(p1.forcePass(p1.run!.hand.at(-1)!.uid)).toBeNull();
-    await stepAll(ds, async () => !!p1.run!.duos!.outbox[1]?.refunded);
-    expect((await rows<any>('select status from public.versus_duos_passes where seq = 1'))[0].status).toBe('refused');
-    expect(p2.run!.duos!.refused).toEqual(['p1:1']);
+    await stepAll(ds, async () => (await rows<any>('select status from public.versus_duos_passes where seq = 1'))[0]?.status === 'landed');
+    expect(p2.run!.duos!.refused).toEqual([]);
+    expect(p2.run!.duos!.received).toEqual(['p1:0', 'p1:1']);
+    expect(p2.run!.duos!.waiting?.map((w) => w.key)).toEqual(['p1:1']);
+    expect(p1.run!.duos!.outbox[1]!.refunded).toBeUndefined();
     // The bot never passes on its own (only the tuner's forcePass sends one).
     let n = 0;
     await stepAll(ds, async () => ++n >= 40);

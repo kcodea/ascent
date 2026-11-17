@@ -105,20 +105,19 @@ describe('local team channel parity with the Worker path (R-SB-DUOS-01)', () => 
     expect(runs.p2.hand.map((c) => c.cardId)).toEqual(['emberpouch']);
   });
 
-  it('a manual pass to a full hand is refused up front (the Worker\'s hand_full) and refunded: card and Gold back', () => {
+  it('a manual pass to a full hand is NOT refused: it is paid once and waits on the teammate run (R-DUOS-PASS-WAITS-01)', () => {
     const passed = filler(1, 'p')[0]!;
     let ann = sbRun(11, { hand: [passed] });
     const bob = sbRun(12, { hand: filler(10, 'h') });
     const before = ann;
     ann = reduce(ann, { type: 'passCard', uid: passed.uid });
     expect(ann.embers).toBe(before.embers - 1);
-    expect(sbWorkerRefusal(ann.duos!.outbox[0]!, bob, newSbLedger(), 'p1')).toBe('hand_full');
+    expect(sbWorkerRefusal(ann.duos!.outbox[0]!, newSbLedger(), 'p1')).toBeNull();
     const { runs, events } = local(ann, bob);
-    expect(runs.p2).toBe(bob); // never reached the teammate
-    expect(runs.p1).toEqual(reduce(ann, { type: 'passRefunded', seq: 0 })); // the client's answer to the refusal
-    expect(runs.p1.hand.map((c) => c.uid)).toEqual([passed.uid]);
-    expect(runs.p1.embers).toBe(before.embers);
-    expect(events[0]).toMatchObject({ kind: 'refused', reason: 'hand_full', team: false });
+    expect(runs.p2).toEqual(ship(ann, 'p1', bob)); // exactly the Worker path
+    expect(runs.p2.duos!.waiting?.map((w) => w.key)).toEqual(['p1:0']);
+    expect(runs.p1).toBe(ann); // nothing came back: the Gold stays spent
+    expect(events[0]).toMatchObject({ kind: 'landed', team: false, uids: [], waiting: true });
   });
 
   it('an effect pass to a full hand is never refused: it waits on the teammate run (R-DUOS-EFFECT-PASS-QUEUE-01)', () => {
@@ -135,9 +134,9 @@ describe('local team channel parity with the Worker path (R-SB-DUOS-01)', () => 
   it('a Golden card passes from hand and by a sale; a pass SPELL\'s Golden is refused (the Worker\'s golden guard, R-DUOS-PASS-GOLDEN-MANUAL-01)', () => {
     const ann = sbRun(11);
     const e = { seq: 0, wave: 1, card: card(filler(1)[0]!.cardId, 'g', true), from: 'hand' as const, index: 0, paid: 1 };
-    expect(sbWorkerRefusal(e, sbRun(12), newSbLedger(), 'p1')).toBeNull();
-    expect(sbWorkerRefusal({ ...e, via: 'sale' as const }, sbRun(12), newSbLedger(), 'p1')).toBeNull();
-    expect(sbWorkerRefusal({ ...e, via: 'spell' as const }, sbRun(12), newSbLedger(), 'p1')).toBe('golden');
+    expect(sbWorkerRefusal(e, newSbLedger(), 'p1')).toBeNull();
+    expect(sbWorkerRefusal({ ...e, via: 'sale' as const }, newSbLedger(), 'p1')).toBeNull();
+    expect(sbWorkerRefusal({ ...e, via: 'spell' as const }, newSbLedger(), 'p1')).toBe('golden');
     void ann;
   });
 

@@ -22,15 +22,14 @@ const boardOf = (w: number, i: number): BoardSnapshot => ({ ...ref.waves[String(
 const buffed = (b: BoardSnapshot, n: number): BoardSnapshot => ({ ...b, minions: b.minions.map((m) => ({ ...m, attack: m.attack + n, health: m.health + n })) });
 
 describe('the committed reference set', () => {
-  it('is version set2-v1: 30 boards per wave (fewer only where the pool had fewer), waves 1 to 15', () => {
+  it('is version set2-v2: 40 boards per wave, 4 fights each, waves 1 to 15', () => {
     expect(ref.version).toBe(STRENGTH_REF_VERSION);
     expect(ref.setId).toBe('set2');
-    expect(ref.fightsPerRef).toBe(2);
+    expect(ref.fightsPerRef).toBe(4);
     const waves = Object.keys(ref.waves).map(Number).sort((a, b) => a - b);
     expect(waves[0]).toBe(1);
     for (const w of waves) {
-      expect(ref.waves[String(w)]!.length, `wave ${w}`).toBeGreaterThanOrEqual(20);
-      expect(ref.waves[String(w)]!.length, `wave ${w}`).toBeLessThanOrEqual(30);
+      expect(ref.waves[String(w)]!.length, `wave ${w}`).toBe(40);
       for (const b of ref.waves[String(w)]!) expect(b.minions.length).toBeGreaterThan(0);
     }
   });
@@ -47,7 +46,7 @@ describe('scoring', () => {
   it('is deterministic: the same board scores the same, however the work is sliced', () => {
     const b = boardOf(8, 12);
     const once = scoreBoard(b, ref)!;
-    expect(once.fights).toBe(ref.waves['8']!.length * 2);
+    expect(once.fights).toBe(ref.waves['8']!.length * ref.fightsPerRef);
     expect(scoreBoard(b, ref)).toEqual(once);
     const sliced = createStrengthProbe(b, ref);
     let steps = 0;

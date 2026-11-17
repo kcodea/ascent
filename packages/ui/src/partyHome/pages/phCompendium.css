@@ -491,6 +491,61 @@ html[data-ph-compact] .phi-anc .hanc-body { font-size: calc(16 * var(--phu)); li
 /* A phone: the card stands under the top bar, never behind it. */
 html[data-ph-compact] .phi { --phi-h: min(calc(600 * var(--phu)), calc(100cqh - 112 * var(--phu))); margin-top: calc(88 * var(--phu)); }
 html[data-phone-gpu] .phi-wash { display: none; }
+
+/* ── THE LARGE VIEW, TUNED WITH THE HERO SELECT SHOWCASE (owner 2026-11-17: "can we make a lot of the same edits to the
+   compendium view?") ── The same looks the showcase card settled on (hero-select/heroShowcase.css), for the Compendium's
+   own large view only (`.phh-pop`), so the base `.phi` rules above stay as the shared starting point. Static paint and short
+   one-shots only: the showcase's hover bob is NOT here (this page's rules test allows no looping animation). */
+/* The colour wash: sharper and a touch stronger (72 at 14% -> 40 at 16%). */
+.phh-pop .phi .phi-wash { opacity: 0.16; filter: blur(calc(40 * var(--phu))) saturate(1.4); }
+/* Health and Armor wear the painted medallions, not the line icons. */
+.phh-pop .phi .phi-stat svg { display: none; }
+.phh-pop .phi .phi-stat::before { content: ''; flex: none; width: calc(30 * var(--phu)); height: calc(30 * var(--phu)); background: 50% 50% / contain no-repeat; }
+.phh-pop .phi .phi-stat.is-hp::before { background-image: url('/medallions/health.webp'); }
+.phh-pop .phi .phi-stat.is-armor::before { background-image: url('/medallions/armor.webp'); }
+/* The Ancients: 10% larger, and the one on show and the chosen one glow in their own ring colour (the medallion clips
+   its inside, so the glow is its outer shadow: a short one-shot fade on a state change). */
+.phh-pop .phi-anc .hanc { --hm: calc(48.4 * var(--phu)); }
+html[data-ph-compact] .phh-pop .phi-anc .hanc { --hm: calc(41.8 * var(--phu)); }
+.phh-pop .phi-anc .hanc-med { transition: transform 0.14s ease, opacity 0.14s ease, box-shadow 0.2s ease; }
+.phh-pop .phi-anc .hanc-med:is(.is-on, [aria-pressed='true']) {
+  box-shadow: 0 0 0 calc(2 * var(--hu)) var(--anc-c, #c8922e), 0 calc(2 * var(--hu)) calc(6 * var(--hu)) rgba(0, 0, 0, 0.55),
+    0 0 calc(26 * var(--phu)) calc(5 * var(--phu)) color-mix(in srgb, var(--anc-c, #c8922e) 55%, transparent); }
+/* The power block rises 30% slower (0.36s -> 0.47s). */
+.phh-pop .phi-info > .phi-power { animation-duration: 0.47s; }
+/* The side-by-side layout only (the upright one stacks the art on top and seats the medallion in the text's grid). */
+@container phipop not (max-aspect-ratio: 1/1) {
+  /* The art: 6% larger about a point near the top, starting bigger and settling slower (1.08 -> 1.19, 0.5s -> 0.6s); its
+     right fade moves to the BOX and eases out (solid to 72%, gone at 100%) instead of a straight ramp from 68%. */
+  .phh-pop .phi-art { -webkit-mask-image: linear-gradient(90deg, #000 72%, rgb(0 0 0 / 0.96) 76%, rgb(0 0 0 / 0.85) 80%, rgb(0 0 0 / 0.66) 84%, rgb(0 0 0 / 0.42) 88%, rgb(0 0 0 / 0.2) 92%, rgb(0 0 0 / 0.03) 96%, transparent 100%); mask-image: linear-gradient(90deg, #000 72%, rgb(0 0 0 / 0.96) 76%, rgb(0 0 0 / 0.85) 80%, rgb(0 0 0 / 0.66) 84%, rgb(0 0 0 / 0.42) 88%, rgb(0 0 0 / 0.2) 92%, rgb(0 0 0 / 0.03) 96%, transparent 100%); }
+  .phh-pop .phi-art img { scale: 1.06; transform-origin: 50% 20%; -webkit-mask-image: none; mask-image: none; animation: phi-art-big 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+  /* The rule above the power is drawn by the name block, one gap below itself, so it stays still while the power springs. */
+  .phh-pop .phi-info { --phi-rule-gap: calc(20 * var(--phu)); }
+  .phh-pop .phi-info:has(.phi-anc) { --phi-rule-gap: calc(14 * var(--phu)); }
+  html[data-ph-compact] .phh-pop .phi-info:has(.phi-anc) { --phi-rule-gap: calc(10 * var(--phu)); }
+  .phh-pop .phi-power::before { content: none; }
+  .phh-pop .phi-head::after { content: ''; position: absolute; left: 0; right: 0; top: calc(100% + var(--phi-rule-gap)); height: calc(1.5 * var(--phu)); pointer-events: none;
+    background: linear-gradient(90deg, color-mix(in srgb, var(--ph-gold) 80%, transparent), color-mix(in srgb, var(--ph-gold) 0%, transparent)); }
+  /* Hovering the power MEDALLION (not its text): the medallion and text spring as one group about the medallion's centre,
+     a large soft gold glow fades in around it, and the name and text gain a drop shadow. `scale`, so it composes with the
+     entrance (`phi-rise` holds `transform`). */
+  .phh-pop .phi-power { transform-origin: calc(-1 * var(--col)) calc(50% + 10 * var(--phu)); }
+  .phh-pop .phi-power.has-art::after { content: ''; position: absolute; left: calc(var(--col) * -1 - var(--pw) * 0.5); top: calc(50% + 10 * var(--phu)); width: var(--pw); height: var(--pw); margin-top: calc(var(--pw) * -0.5);
+    border-radius: 50%; pointer-events: none; opacity: 0; transition: opacity 0.2s ease;
+    box-shadow: 0 0 calc(64 * var(--phu)) calc(10 * var(--phu)) rgba(255, 196, 70, 0.34), 0 0 calc(18 * var(--phu)) rgba(255, 214, 110, 0.3); }
+  .phh-pop .phi-power:has(.phi-pwart:hover)::after { opacity: 1; }
+  .phh-pop :is(.phi-pwname, .phi-pwtext) { transition: text-shadow 0.2s ease; }
+  .phh-pop .phi-power:has(.phi-pwart:hover) :is(.phi-pwname, .phi-pwtext) { text-shadow: var(--ph-shadow), 0 calc(4 * var(--phu)) calc(12 * var(--phu)) rgba(0, 0, 0, 0.8); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  @container phipop not (max-aspect-ratio: 1/1) {
+    .phh-pop .phi-power { transition: scale 0.16s ease-out; }
+    .phh-pop .phi-power:has(.phi-pwart:hover) { scale: 1.03; transition: scale 0.32s cubic-bezier(0.34, 1.9, 0.5, 1); }
+    .phh-pop .phi-power:has(.phi-pwart:active) { scale: 0.96; transition: scale 0.08s ease-out; }
+  }
+}
+@keyframes phi-art-big { from { transform: scale(1.19); } to { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .phh-pop .phi-art img { animation: none; } }
 .phb-ov .phb-sub { white-space: normal; overflow: visible; text-overflow: clip; }
 
 /* The rail reaches further left and is wider (owner 2026-11-06: "can we have this left section move further left and widen it

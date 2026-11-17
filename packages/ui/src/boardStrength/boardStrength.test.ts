@@ -103,16 +103,16 @@ describe('the background scorer', () => {
 });
 
 describe('the rank band', () => {
-  it('follows the medal: Bronze early-only 0-20 capped at 40, Silver 80% early 10-30 capped at 60, Gold 60% early 10-50 capped at 75, open from Platinum (R-LOBBY-13 + R-LOBBY-15)', () => {
+  it('follows the medal: Bronze early-only 0-20 capped at 40, Silver 80% early 10-30 capped at 60, Gold 60% early 10-50 capped at 75, Platinum the cap 80 alone, Diamond the cap 90 alone, Ascendant open (R-LOBBY-13 + R-LOBBY-15 + R-LOBBY-22)', () => {
     const at = (divisionIndex: number) => lobbyBandFor({ rank: { position: { divisionIndex, points: 0 } } } as never);
     expect(at(0)).toEqual({ min: 0, max: 20, earlyWeight: 1, overallCap: 40, peakCap: 90 });
     expect(at(2)).toEqual({ min: 0, max: 20, earlyWeight: 1, overallCap: 40, peakCap: 90 });
     expect(at(3)).toEqual({ min: 10, max: 30, earlyWeight: 0.8, overallCap: 60, peakCap: 90 });
     expect(at(8)).toEqual({ min: 10, max: 50, earlyWeight: 0.6, overallCap: 75, peakCap: 90 });
-    expect(at(9)).toBeNull();
-    expect(at(11)).toBeNull();
-    expect(at(12)).toBeNull();
-    expect(at(14)).toBeNull();
+    expect(at(9)).toEqual({ min: 0, max: 100, overallCap: 80 });
+    expect(at(11)).toEqual({ min: 0, max: 100, overallCap: 80 });
+    expect(at(12)).toEqual({ min: 0, max: 100, overallCap: 90 });
+    expect(at(14)).toEqual({ min: 0, max: 100, overallCap: 90 });
     expect(at(15)).toBeNull();
     expect(at(17)).toBeNull();
     expect(lobbyBandFor(null)).toBeNull();

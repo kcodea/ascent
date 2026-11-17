@@ -9,7 +9,7 @@
 import { describe, expect, it } from 'vitest';
 import type { RectSnapshot } from './heroCeremonyMachine';
 import {
-  destinationRect, exitVector, focusKeyframes, rectCenter, snapshotRect, transformTo, stageScale, CEREMONY_ASPECT } from './heroCeremonyGeometry';
+  destinationRect, exitVector, focusKeyframes, rectCenter, snapshotRect, splashDest, transformTo, stageScale, CEREMONY_ASPECT } from './heroCeremonyGeometry';
 
 const rect = (left: number, top: number, width: number, height: number): RectSnapshot =>
   ({ left, top, width, height });
@@ -187,5 +187,15 @@ describe('exitVector — unselected cards yield away from the pick', () => {
     }
     // NaN delta collapses to the alternating tie-break, still inside the x clamp.
     expect(Math.abs(broken.x)).toBe(90);
+  });
+});
+
+describe('splashDest (where the showcase splash clone settles)', () => {
+  it('splashDest is a square of the destination width at its top-left', () => {
+    expect(splashDest({ left: 100, top: 50, width: 300, height: 393, right: 400, bottom: 443 } as RectSnapshot))
+      .toMatchObject({ left: 100, top: 50, width: 300, height: 300 });
+  });
+  it('stays finite on a degenerate destination', () => {
+    for (const v of Object.values(splashDest(rect(NaN, NaN, NaN, 0)))) expect(Number.isFinite(v)).toBe(true);
   });
 });

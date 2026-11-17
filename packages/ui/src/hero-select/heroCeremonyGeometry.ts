@@ -75,6 +75,16 @@ export function destinationRect(viewportW: number, viewportH: number, _source?: 
 }
 
 /**
+ * Where the SHOWCASE's splash-art clone settles (hero select showcase, 2026-11-16): a square of the destination's width
+ * at its top-left. The splash is far bigger than a card's art frame, so it shrinks onto the spot where the card path's
+ * square portrait frame lands; the materializing beat measures it there and the final portrait is today's size.
+ */
+export function splashDest(dest: RectSnapshot): RectSnapshot {
+  const width = Math.max(0, finite(dest.width, 0));
+  return { left: finite(dest.left, 0), top: finite(dest.top, 0), width, height: width };
+}
+
+/**
  * Transform (translate+scale, relative to the clone sitting at the SOURCE rect) that lands the clone on a
  * target rect. The clone is positioned fixed at the source, `transform-origin: top left` — so start is
  * identity and every keyframe is a pure compositor transform.

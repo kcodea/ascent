@@ -4347,14 +4347,14 @@ export const HEROES_RULES: GameRule[] = [
     id: "R-ANCCINDY-02",
     title: "Cindy × Ancient of Fortune: spending 40 Gold refreshes Golden Gratitude",
     statement:
-      "With the Ancient of Fortune, every 40 Gold Cindy spends (one running count since the pick, `cindyGold`, read at the reducer's `spendGold`) gives Golden Gratitude its once-per-game use back: the spent charge is cleared and the power reads ready again, so it can be armed again. A refresh earned while the power is still WAITING on the teammate's buy is banked (`cindyRefreshBanked`) and pays the moment the Gilded copy lands. One earned while the power is unused has nothing to refresh and is not kept. The power prints the Gold toward the next refresh (N/40) and a banked refresh.",
+      "With the Ancient of Fortune, every 40 Gold Cindy spends (one running count since the pick, `cindyGold`, read at the reducer's `spendGold`) gives Golden Gratitude its once-per-game use back: the spent charge is cleared and the power reads ready again, so it can be armed again. A refresh earned while the power is still WAITING on the teammate's buy is banked (`cindyRefreshBanked`) and pays the moment the Gilded copy lands. One earned while the power is still UNUSED is banked too (R-ANCSYS-05) and pays once the next use is spent. The power prints the Gold toward the next refresh (N/40) and a banked refresh.",
     domain: 'heroes',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: "Kevin via the lead, 2026-11-14 (Cindy's Ancient pairings)", quote: "Fortune: Spending 40 Gold refreshes your hero power." },
       { kind: 'code', ref: "packages/sim/src/ancients.ts cindyOnGoldSpent / refreshGratitude / ancientOnGratitudePaid; packages/sim/src/goldenGratitude.ts gratitudeLanded" },
     ],
-    currentBehaviour: "Conforms (built 2026-11-14). Dev-only (R-ANCDUOS-01). Judgement call for the owner: a refresh earned while waiting is banked; one earned while unused is wasted.",
+    currentBehaviour: "Conforms (built 2026-11-14). Dev-only (R-ANCDUOS-01). A refresh earned while waiting OR while unused is banked (R-ANCSYS-05, 2026-11-16).",
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsCindy.test.ts"], lastVerifiedAt: '2026-11-14' },
   },
   {
@@ -4680,5 +4680,61 @@ export const HEROES_RULES: GameRule[] = [
     ],
     currentBehaviour: "Conforms (built 2026-11-16). Supersedes R-ANCVALE-04. Dev-only (Scene Builder, Set 3, the Ancients flag).",
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsEmissary.test.ts"], lastVerifiedAt: '2026-11-16' },
+  },
+  {
+    id: "R-ANCSYS-01",
+    title: 'Ancients: a hero power gained after the pick gets its pairing in full (shape and starting stamps)',
+    statement:
+      "The picked Ancient's pairing follows the power in slot 0 (R-HERO-POWER-REPLACED-02), and so does everything the pick stamps for it. When slot 0 changes after the pick (Power Shifter, Void's turn-4 picks), `ancientSyncPower` re-stamps the power shape (`powerOverride`: cost, uses each turn, passive, untargeted, once per game, whole-game uses) for the new power, and runs that pairing's starting stamps (Xerox x Genesis' extra charge, the printed start gain of Soren x War / Gorr x Bonds / Ayse x War / Underdweller x Bonds, Midas x Fortune's Pouch value, Brackus x Time's countdown, and the pairing's pick-time grants) once per power per run (`AncientsState.pairedFor`), so swapping away and back never pays them twice. It runs from `pickAncient`, from `pickPower`, and at the reducer's every-action boundary; it is a no-op while the stamped power is still held. Mimic's pairing is Mimicry's own and never re-syncs.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Ancients system audit fix brief via the lead, 2026-11-16 (F1)', quote: "Power gained after the Ancient pick ... shows the new pairing's text but not its power changes." },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts ancientSyncPower / syncPower / pairingStamps; packages/sim/src/reducer.ts pickPower + the every-action boundary' },
+    ],
+    currentBehaviour: "Conforms from 2026-11-16. Before, the stamps ran once at the pick for the power held then, so e.g. Merrin x Fortune after a Power Shift still cost 1 Gold and refused its second use. Judgement call: the pick-time one-shot grants (Kindness x Fortune's card, Disco Dan's Discovers) also land for a power gained later, so their 'when this awakened' text stays true.",
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsSystem.test.ts'], lastVerifiedAt: '2026-11-16' },
+  },
+  {
+    id: "R-ANCSYS-03",
+    title: 'Ancients: every effect whose text says Refresh counts as a Refresh (meter and Refresh pairings)',
+    statement:
+      "A Shop re-roll made by an effect whose text says Refresh (Grand Larceny, Sigil of Kinship, Spell Cart, Membrance's power, Gorr x Time's End of Turn refresh) is a Refresh like a pressed one: it fills the Ancient meter by its `refresh` value and runs the Refresh pairings (Tradesman x Bonds' upgrade discount, Tradesman x Genesis' count toward Lasso) through `ancientOnEffectRefresh`, after the new row is in. Refreshes that already go through the reducer's `refreshTavern` (the button, free refreshes, Clearance, Buyout) count exactly once, as before. The turn-start roll is not a Refresh.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Ancients system audit fix brief via the lead, 2026-11-16 (F6)', quote: 'Owner rule: the text says "Refresh", so they count.' },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts ancientOnEffectRefresh; packages/sim/src/recruit.ts giftGrandLarceny / spellRefreshToTribe / spellRefreshToSpells; packages/sim/src/reducer.ts Membrance's power" },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-16. Before, these five re-rolled the Shop directly and skipped the meter and the Tradesman hooks.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsSystem.test.ts'], lastVerifiedAt: '2026-11-16' },
+  },
+  {
+    id: "R-ANCSYS-04",
+    title: 'Ancients: Drakko x Bonds, Emerald Warden x Death and Gorun x Death count live through a fight',
+    statement:
+      "Real time (R-REALTIME-01): during a replayed fight the hero power text folds in what the fight has done so far. Drakko x Bonds' +X/+X and 'more to go' move with each friendly Shout fire, Emerald Warden x Death shows 'Used this turn.' the moment its once-per-turn Avenge pays, and Gorun x Death's 'left this turn' counts down with each Attack gift. Each pulses a side-tagged `questTrigger` (`ANCIENT_DRAKKO_SHOUT_FLAG`, `ANCIENT_EW_AVENGE_FLAG`, `ANCIENT_GORUN_GIFT_FLAG`) that the replay tally counts up to the beat on screen (`AncientPowerLive.shoutFires` / `ewAvengeFired` / `attackGifts`). Drakko x Bonds' hand and Shop Drakkos still gain at settle: the fight is a pure function of the two boards and never writes run state.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Ancients system audit fix brief via the lead, 2026-11-16 (F7)', quote: 'Live mid-combat counters (owner real-time rule)' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts the Drakko Bonds listener + the ancientDeathGivesAttack give; packages/sim/src/ancients.ts batch5PowerText / ewAvengeUsedText / pass2PowerText; packages/ui/src/useCombatReplay.ts questDelta' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-16. Before, all three read only the settled run fields, so they froze for the whole fight.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsSystem.test.ts'], lastVerifiedAt: '2026-11-16' },
+  },
+  {
+    id: "R-ANCSYS-05",
+    title: 'Cindy x Ancient of Fortune: a refresh earned while Golden Gratitude is unused is banked, never lost',
+    statement:
+      "Every 40 Gold spent refreshes Golden Gratitude. A refresh earned while the power is still unused is banked (`cindyRefreshBanked`), printed on the power ('A refresh is banked for after your next use.'), and pays once the next use is spent (the Gilded copy lands), exactly like one earned while the power waits on the teammate's buy.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Ancients system audit fix brief via the lead, 2026-11-16 (F8)', quote: 'Bank it and apply it when the power is next spent (`cindyRefreshBanked`), and make the text show the banked refresh.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts refreshGratitude / ancientOnGratitudePaid / cindyPowerText' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-16. Dev-only (R-ANCDUOS-01). Before, a refresh earned while unused was dropped.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsCindy.test.ts'], lastVerifiedAt: '2026-11-16' },
   },
 ];

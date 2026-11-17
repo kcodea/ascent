@@ -147,12 +147,28 @@ describe('Fortune: spending 40 Gold refreshes Golden Gratitude (R-ANCCINDY-02)',
     expect(got.ancients!.cindyRefreshBanked).toBeUndefined();
   });
 
-  it('unused, there is nothing to refresh; the count prints live; without Fortune nothing refreshes', () => {
+  it('a refresh earned while it is still UNUSED is banked, shown, and pays once the next use is spent (R-ANCSYS-05)', () => {
     let s = picked('fortune');
     s = { ...s, ancients: { ...s.ancients!, cindyGold: 39 } } as RunState;
     s = reduce(s, { type: 'roll' });
     expect(s.cindyGratitude).toBeUndefined();
-    expect(s.ancients!.cindyRefreshBanked).toBeUndefined();
+    expect(s.heroPowerSpent).toBeFalsy();
+    expect(s.ancients!.cindyRefreshBanked).toBe(1);
+    expect(heroPowerText(s)).toContain('A refresh is banked for after your next use.');
+    const armed = press(s);
+    expect(armed.cindyGratitude).toBe('armed');
+    expect(heroPowerText(armed)).toContain('A refresh is waiting for your copy.');
+    const bob = reduce(ship(armed, mate()), { type: 'buy', uid: 's0' });
+    const got = ship(bob, armed);
+    expect(got.cindyGratitude, 'the banked refresh paid as the copy landed').toBeUndefined();
+    expect(got.heroPowerSpent).toBe(false);
+    expect(got.ancients!.cindyRefreshBanked).toBeUndefined();
+  });
+
+  it('the count prints live; without Fortune nothing refreshes', () => {
+    let s = picked('fortune');
+    s = { ...s, ancients: { ...s.ancients!, cindyGold: 39 } } as RunState;
+    s = reduce(s, { type: 'roll' });
     expect(heroPowerText(reduce(s, { type: 'roll' }))).toContain('(**1/40**)');
     const { ann } = payout('war');
     const spent = reduce({ ...ann, embers: 100, ancients: { ...ann.ancients!, cindyGold: 39 } } as RunState, { type: 'roll' });

@@ -1,7 +1,7 @@
 import { soulFurnaceHealth, rubyCastGainOf, ROSEYS_GARDEN_GAIN, isLegalRandomCard, ALE_IDS, aleGrantCount, RUBY_TYPE_IDS, SPECIAL_RUBY_IDS, TRIBES, runVaultPulse, improvingGrant, vaultPulseActive, inRunTribes, alignAllows, makeRng, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth, COMBAT_REPLAYABLE_BATTLECRIES, NO_COPY_SPELL_IDS, extraTriggerFires, extraTriggerContributors, boardShoutExtras, boardShoutContributors, RALLY_WATCHER_EFFECTS, foldEchoExtraFires, socTwilightExtraFires, BODY_COUNTING_DEATHS, ARENA_EFFECTS, pickAutoTarget, beatIdentity, seedEchoEffects, SEED_TOKEN_ID, rollableWhisperIds, whisperAllowedAtTier, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TeamEffect, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
 import { FERAL_RETURN_GAIN } from '@game/core'; // Set 2 Epic tribal runes (2026-11-12)
 import { ancientGorrShopDeath, ancientGorrEotCopyLive, ancientRunGorrEotCopy, ancientOnRobinSale, ancientOnShopSummon, ancientRobinMaxGoldLive, ancientRunRobinMaxGold, ancientRunXeroxPairs, ancientXeroxPairsLive, ancientRunTradesUpgrade, ancientTradesUpgradeLive, ancientTradesShopDeath, tradesUpgradeCost, ancientRallyGoldGraft, rallyGoldGraftEffect, noteTradesRallyGold, ancientXeroxBondValidate, ancientXeroxShopDeath, ancientOnSale, ancientOnShopDeath, ancientOnShopShout, ancientOnShopRise, ancientPowerText, ancientBondsReact, ancientOnPlay, ancientOnSpellCast, ANCIENTS, ancientClearanceSellValue } from './ancients';
-import { ancientBramShopDeath } from './ancients'; // Braum
+import { ancientBramShopDeath, ancientOnEffectRefresh } from './ancients'; // Braum; a "Refresh" effect outside refreshTavern (R-ANCSYS-03)
 import { ancientSpoilsPassive } from './ancients'; // Mimic
 import { ancientSpendRepeats } from './ancients'; // Rascal × Genesis
 import { ancientOnPassMade } from './ancients'; // Priestess (Duos)
@@ -1376,13 +1376,19 @@ export interface HeroPowerLive {
   rallyFires?: number;
   /** Darah × Ancient of War: Swap charges its Pummel gained SO FAR in the fight; undefined outside a fight. */
   swapCharges?: number;
+  /** Drakko × Ancient of Bonds: friendly Shout fires SO FAR in the fight; undefined outside a fight (R-ANCSYS-04). */
+  shoutFires?: number;
+  /** Emerald Warden × Ancient of Death: its once-per-turn Avenge has paid SO FAR in the fight (count of pulses). */
+  ewAvengeFired?: number;
+  /** Gorun × Ancient of Death: Attack gifts made SO FAR in the fight. */
+  attackGifts?: number;
 }
 
 export function heroPowerText(state: RunState, which = 0, live: HeroPowerLive = {}): string {
   const base = baseHeroPowerText(state, which, live);
   // ANCIENTS (owner ruling 2026-09-25): an awakened Ancient's pairing prints the COMBINED power on the main slot.
   // `ancientPowerText` is undefined unless the run has Ancients on and a written pairing is picked.
-  return (which === 0 ? ancientPowerText(state, base, { combatSummons: live.summons, friendlyDamage: live.friendlyDamage, clearanceStacks: live.clearanceStacks, friendlyDeaths: live.friendlyDeaths, freeRefreshes: live.freeRefreshes, rallyFires: live.rallyFires, swapCharges: live.swapCharges }) : undefined) ?? base;
+  return (which === 0 ? ancientPowerText(state, base, { combatSummons: live.summons, friendlyDamage: live.friendlyDamage, clearanceStacks: live.clearanceStacks, friendlyDeaths: live.friendlyDeaths, freeRefreshes: live.freeRefreshes, rallyFires: live.rallyFires, swapCharges: live.swapCharges, shoutFires: live.shoutFires, ewAvengeFired: live.ewAvengeFired, attackGifts: live.attackGifts }) : undefined) ?? base;
 }
 
 function baseHeroPowerText(state: RunState, which: number, live: HeroPowerLive): string {
@@ -4413,6 +4419,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     // the slot enchants / refresh watchers (owner bug 2026-10-14: every refresh serves buffed offers).
     rollCiaEnchants(st);
     applyShopRefreshed(st);
+    ancientOnEffectRefresh(st); // the text says Refresh: the meter + the Refresh pairings count it (R-ANCSYS-03)
   },
 
   /** ARCANE CLEARANCE: Shop Spells cost 1 less this turn (the same per-turn channel the shop discounts use). */
@@ -9712,6 +9719,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     // Endless Inventory and the shopRefreshed watchers. Not a player-pressed roll (Indy counts only those).
     refillShopFiltered(ctx.state, (c) => c.tier <= ctx.state.tier && defIsTribe(c, tribe, ctx.state)); // R-ALL-TYPES-EVERYWHERE-01
     applyShopRefreshed(ctx.state);
+    ancientOnEffectRefresh(ctx.state); // the text says Refresh: the meter + the Refresh pairings count it (R-ANCSYS-03)
   },
 
   /** Elevation Ritual — cast: upgrade EACH minion offer to a random minion one tier higher than itself (capped
@@ -10430,6 +10438,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     // Owner balance 2026-11-06: the first spell bought from this row costs 1 less. The buy path spends the mark.
     for (const o of ctx.state.shop) if (CARD_INDEX[o.cardId]?.spell) o.cartCut = true;
     applyShopRefreshed(ctx.state); // "Refresh the tavern": the same refresh tail as every refresh (see Sigil of Kinship)
+    ancientOnEffectRefresh(ctx.state); // the text says Refresh: the meter + the Refresh pairings count it (R-ANCSYS-03)
   },
 
   /** Steward of Spells — End of Turn: add a copy of the most recent spell cast this run to your hand (golden:

@@ -219,8 +219,13 @@ describe('R-HERO-POWER-REPLACED-02: Ancients pairings follow the held power', ()
   it('Gildmaster × Time: the passive reshape leaves with the power and never lands on its replacement', () => {
     const s = picked(shop('gildmaster'), 'time');
     expect(activePowers(s)[0]!.passive).toBe(true);
-    const shifted = shiftTo(s, 'nadja');
-    expect(activePowers(shifted)[0]!.kind).toBe('gainMaxMana');
-    expect(activePowers(shifted)[0]!.passive, 'Nadja\'s power keeps its own shape').toBeFalsy();
+    // Merrin × Time has no reshape, so Merrin's power keeps its own (active) shape. A replacement whose OWN Time pairing
+    // reshapes it (Nadja × Time is passive) takes that pairing's shape instead (R-ANCSYS-01), never Gildmaster's.
+    const shifted = shiftTo(s, 'merrin');
+    expect(activePowers(shifted)[0]!.passive, 'Merrin\'s power keeps its own shape').toBeFalsy();
+    expect(shifted.ancients!.powerOverrideFor).toBe('merrin');
+    const nadja = shiftTo(s, 'nadja');
+    expect(activePowers(nadja)[0]!.kind).toBe('gainMaxMana');
+    expect(activePowers(nadja)[0]!.passive, 'Nadja × Time is passive by its own pairing').toBe(true);
   });
 });

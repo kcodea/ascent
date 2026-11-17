@@ -177,6 +177,9 @@
   .heroselect.hss .hss-card .phi-power { transition: scale 0.16s ease-out; }
   .heroselect.hss .hss-card .phi-power:has(.phi-pwart:hover) { scale: 1.03; transition: scale 0.32s cubic-bezier(0.34, 1.9, 0.5, 1); }
   .heroselect.hss .hss-card .phi-power:has(.phi-pwart:active) { scale: 0.96; transition: scale 0.08s ease-out; }
+  /* A very slight, slow bob while the medallion is hovered (owner 2026-11-17). `translate` only, so it composes with the
+     spring's `scale`; the block's entrance stays first in the list with its own values, so adding the bob never replays it. */
+  .heroselect.hss .hss-card .phi-info > .phi-power:has(.phi-pwart:hover) { animation: phi-rise 0.47s cubic-bezier(0.2, 0.8, 0.2, 1) 0.07s both, hss-power-bob 3.4s ease-in-out infinite; }
 }
 /* A blocked Select Hero does not spring (the kit's own hover grow is held too). */
 .heroselect.hss .hss-confirm[aria-disabled='true']:is(:hover, :active) { transform: none; }
@@ -199,3 +202,4 @@
 /* The panel does not shrink and spring back on a new selection (owner 2026-11-17: "can we remove this motion?"): the
    Compendium's pop-in (`phi-in`) is off here. The contents still rise in. */
 .heroselect.hss .hss-card { animation: none; }
+@keyframes hss-power-bob { 0%, 100% { translate: 0 0; } 50% { translate: 0 calc(-3 * var(--phu)); } }

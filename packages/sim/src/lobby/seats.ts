@@ -3,6 +3,7 @@ import { CARD_INDEX, type SetId } from '@game/content';
 import type { BoardSnapshot } from '../snapshot';
 import { autoplayRun, snapshotBoard } from '../snapshot';
 import { createRun, type RunState } from '../state';
+import { releaseAncients } from '../ancientsRelease';
 import { reduce } from '../reducer';
 import { DEFAULT_BOT } from '../bots/index';
 import { createController, decide, type BotControllerState } from '../productionBots/controller';
@@ -236,7 +237,8 @@ export function recordRun(seed: number, heroId?: string, label?: string, setId?:
  */
 export function botSeat(seed: number, heroId?: string, label?: string, policy: SeatPolicy = 'hard', setId?: SetId): SeatDriver {
   // `setId`: the card set this seat plays (Practice's DEV set picker, 2026-10-26); absent = `createRun`'s default.
-  let run: RunState = createRun(seed, heroId, 'lobby', undefined, setId);
+  // ANCIENTS (R-ANCIENTS-RELEASE-02): a live bot seat reads the release switch at creation, like a player run.
+  let run: RunState = releaseAncients(createRun(seed, heroId, 'lobby', undefined, setId));
   const ctrl: { c: BotControllerState | null } = { c: null };
   const terminal = (r: RunState): boolean => r.phase === 'gameover' || r.phase === 'victory';
 

@@ -14,7 +14,7 @@ import { CARD_INDEX, QUEST_INDEX, RUNE_INDEX, type SetId } from '@game/content';
 import { createRun, type RunState, type Action } from './state';
 import { HEROES } from './heroes';
 import { reduce } from './reducer';
-import type { Replay } from './snapshot';
+import { ancientSnapshotOf, type Replay, type BoardSnapshot } from './snapshot';
 import type { LobbyPoolTelemetry } from './lobby/runLobby';
 import { RUN_STRENGTH_FORMULA, type StrengthFormula } from './lobby/boardStrength';
 import { STRENGTH_BANDS_VERSION } from './lobby/strengthBands';
@@ -107,6 +107,19 @@ export interface RunTelemetry {
    *  `derived` (jsonb, no SQL). Present only on a RATED lobby row; absent on older rows, which every reader treats
    *  as an UNKNOWN rank (`parseRankAtStart`). */
   rankAtStart?: RankAtStart;
+  /** ANCIENTS (R-ANCIENTS-RELEASE-04): whether the run played with Ancients on (`RunState.ancientsEnabled`, pinned at
+   *  creation), and the Ancient it picked: id, the hero whose pairing it was, and the wave the offer opened (the pick
+   *  wave: the Shop is paused until it is answered). Stamped at upload, inside `derived` too (jsonb, no SQL), so the
+   *  Balance Report can split results by Ancient. Absent = Ancients off (every row before 2026-11-16). */
+  ancients?: boolean;
+  ancient?: NonNullable<BoardSnapshot['ancient']>;
+}
+
+/** The Ancients stamp a telemetry row / derived payload carries (see `RunTelemetry.ancient`): empty when off. */
+export function ancientTelemetryOf(run: RunState): Pick<RunTelemetry, 'ancients' | 'ancient'> {
+  if (!run.ancientsEnabled) return {};
+  const ancient = ancientSnapshotOf(run);
+  return { ancients: true, ...(ancient ? { ancient } : {}) };
 }
 
 /** See `RunTelemetry.capture`. */
@@ -767,5 +780,6 @@ export function lobbyRunTelemetry(
     heroOffer,
     wins: liveRoundWins(final),
     capture: { v: 1, tierByWave: complete, choices: complete },
+    ...ancientTelemetryOf(final),
   };
 }

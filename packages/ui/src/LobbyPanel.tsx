@@ -40,6 +40,7 @@ import { ownsMine, useGuides } from './guides/guidesStore';
 import './lobbyRail.css'; // the Gem / Classic rail looks (switch: `data-lobby-rail`, 🎨 Lobby Rail Look tuner)
 import { railKey } from './pings/pingKeys';
 import { railHeroName } from './railHeroName';
+import { FoeAncientLine } from './ancients/FoeAncientLine';
 import './lobbyRailDocked.css'; // the Docked rail (owner 2026-10-31): slices set into the board's right side
 // Lobby Rail Tuner 2 (DEV only): applies its saved values before the panel is ever opened. Production never loads it and
 // renders the shipped defaults (the sheet's fallbacks + DOCK_DEFAULTS).
@@ -1313,6 +1314,8 @@ function ScoutCard({ lobby, seat, intel, at, pinned, hp, compact, run, teams }: 
           <div className="lrv-sc-power">
             <b>{heroPower.name}{heroPower.passive ? ' · Passive' : ''}</b>
             <span dangerouslySetInnerHTML={{ __html: mdBold(heroPower.text) }} />
+            {/* The seat's picked ANCIENT (R-ANCIENTS-RELEASE-03): name + pairing text under the base power. */}
+            <FoeAncientLine ancient={intel?.ancient} />
           </div>
         )}
         <div className="lrv-sc-chips">

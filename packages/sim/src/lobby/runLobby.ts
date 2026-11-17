@@ -10,6 +10,7 @@ import { CARD_INDEX } from '@game/content';
 import { HEROES, playableHeroes } from '../heroes';
 import { roundLossCap } from '../reducer';
 import { createRun, type RunState, type PracticeConfig } from '../state';
+import { releaseAncients } from '../ancientsRelease';
 import { normalizePracticeTribes, practiceSetOf } from '../practiceTribes';
 import { runeLiveStateOfSnapshot, type RuneLiveState } from '../runeLiveState';
 import { createPracticeBotLobby } from './practiceBots';
@@ -138,6 +139,9 @@ export interface SeatIntel {
    *  card's Rune of Recollection tip can name the spell it copies, as the owner's own badge does
    *  (R-RAIL-SCOUT-RUNE-TIP-02). Display only; omitted when the seat holds no rune or the snapshot never recorded it. */
   firstSpellId?: string;
+  /** The seat's picked ANCIENT on that board (`BoardSnapshot.ancient`), so the scout card names it under the hero power
+   *  (R-ANCIENTS-RELEASE-03). Display only; omitted when none is picked. */
+  ancient?: BoardSnapshot['ancient'];
 }
 
 export interface RunLobby {
@@ -887,6 +891,7 @@ export function boardIntel(board: PreparedBoard, round: number): SeatIntel {
     ...(runes.length ? { runes } : {}),
     ...(Object.keys(runeLive).length ? { runeLive } : {}),
     ...(runes.length && board.snapshot?.firstSpellThisTurnId ? { firstSpellId: board.snapshot.firstSpellThisTurnId } : {}),
+    ...(board.snapshot?.ancient ? { ancient: { ...board.snapshot.ancient } } : {}),
   };
 }
 
@@ -1232,8 +1237,10 @@ export function createLobbyRun(
   seed: number, heroId: string, rules: Partial<LobbyRules> = {}, mode: 'lobby' | 'practice' = 'lobby',
   practiceConfig?: PracticeConfig, setId?: SetId, seatOpts?: LobbySeatOptions,
   /** `duos`: a DUOS-style run (`state.duos` + the Duos pool, exactly as `createRun(..., { duos: true })`). Only the
-   *  Scene Builder's Duos toggle asks for it (DEV, R-SB-DUOS-01); every real Duos run is a Versus run. */
-  runOpts?: { duos?: boolean },
+   *  Scene Builder's Duos toggle asks for it (DEV, R-SB-DUOS-01); every real Duos run is a Versus run.
+   *  `ancients`: overrides the Ancients RELEASE SWITCH for this run (R-ANCIENTS-RELEASE-01). Absent = the switch
+   *  (`ancientsLive()`), read here once and pinned on the run. The Scene Builder passes `false` and applies its own toggle. */
+  runOpts?: { duos?: boolean; ancients?: boolean },
 ): RunState {
   // PRACTICE is a lobby too since 2026-07-31 — same 8 seats, same recorded opponents (reads the shared pool;
   // writes nothing back), same flow. Its extra rules (invulnerability, the round-15 curtain, the shop-timer
@@ -1253,7 +1260,8 @@ export function createLobbyRun(
   // `setId` argument (the Scene Builder, tests seating another set's recorded runs) keeps the table of before.
   const devSet = mode === 'practice' && setId === undefined && pinnedSet !== activeSet().id;
   const picked = mode === 'practice' && practiceConfig ? normalizePracticeTribes(practiceConfig.tribes, pinnedSet) : [];
-  const run = createRun(seed, heroId, mode, undefined, pinnedSet, picked.length > 0 ? picked : undefined, runOpts?.duos ? { duos: true } : undefined);
+  // ANCIENTS (R-ANCIENTS-RELEASE-01): the release switch is read HERE, at creation, and pinned on the run.
+  const run = releaseAncients(createRun(seed, heroId, mode, undefined, pinnedSet, picked.length > 0 ? picked : undefined, runOpts?.duos ? { duos: true } : undefined), runOpts?.ancients);
   // The run pins its set at creation; the lobby seats from the SAME set, so a set-2 run never faces a seat
   // driven by a set-1 recording (whose bodies are cards this run cannot otherwise see).
   // BOTS opponents: seat seven authored, scaling omen boards instead of recorded player runs.

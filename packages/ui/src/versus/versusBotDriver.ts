@@ -14,7 +14,7 @@
 import { makeRng, type CombatResult, type Rng } from '@game/core';
 import type { SetId } from '@game/content';
 import {
-  CONFIG, catchUpVersusRun, createVersusRun, duosPassBlocked, duosWireCard, handCap, legalModalAnswers, modalOpen, normalizeVersusOptions, offerBuyPrice, reduce, versusAutoResolve, versusHeroOffer,
+  CONFIG, ancientOfferOpen, catchUpVersusRun, createVersusRun, duosPassBlocked, duosWireCard, handCap, legalModalAnswers, modalOpen, normalizeVersusOptions, offerBuyPrice, reduce, versusAutoResolve, versusHeroOffer,
   type Action, type BoardCard, type RunState, type VersusGroupSeat, type VersusSeat,
   versusScoutOf,
 } from '@game/sim';
@@ -354,7 +354,7 @@ export class VersusBotDriver {
     let run = this.run;
     if (!run?.duos) return 'not_duos';
     if (run.phase !== 'recruit') return 'phase';
-    if (modalOpen(run)) run = versusAutoResolve(run, this.rng);
+    if (modalOpen(run) || ancientOfferOpen(run)) run = versusAutoResolve(run, this.rng);
     const cards = run.hand; // hand only (owner 2026-10-25); a card just passed in can go straight back
     const pick = uid ?? cards[this.rng.int(Math.max(1, cards.length))]?.uid;
     if (!pick) return 'no_card';
@@ -422,7 +422,8 @@ export class VersusBotDriver {
       }
       return null;
     };
-    if (modalOpen(run)) {
+    // The Ancients awakening (R-ANCIENTS-RELEASE-02) is its own gate, not a `modalOpen` member: answer it like one.
+    if (modalOpen(run) || ancientOfferOpen(run)) {
       const answers = legalModalAnswers(run);
       return answers.length ? tryAll([answers[this.rng.int(answers.length)]!]) : tryAll([{ type: 'cancelChoice' }]);
     }

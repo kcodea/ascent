@@ -15637,4 +15637,56 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'for the owner to tune; nobody has played a game on it yet.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/announcer.test.ts'], lastVerifiedAt: '2026-11-16' },
   },
+  {
+    id: 'R-ANCIENTS-RELEASE-02',
+    title: 'Bots and generated seats answer the Ancients awakening and keep playing',
+    statement:
+      'The awakening offer refuses End Turn, so every non-human driver answers it: autoplayRun (the generated-seat recorder) '
+      + 'after its other modals, the greedy bot, the production bot (`pickAncient` is a mandatory, revealing decision; its '
+      + 'fallback and growth probe take the first option), and the Versus timeout and test bot (`legalModalAnswers`). The '
+      + 'recorder and the greedy bot take the offer\'s first option, itself a seeded draw, so the pick is seeded and '
+      + 'deterministic. With the release switch on (it ships off), generated seats HAVE Ancients, so the table plays the same game.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner via the lead, 2026-11-16', quote: "Ancients will go live everywhere, so build the flip to turn them on/off as needed. When on, they're live everywhere" },
+      { kind: 'code', ref: 'packages/sim/src/snapshot.ts autoplayRun; packages/sim/src/bots/policy.ts decide; packages/sim/src/productionBots/actionCatalog.ts pickAncient; packages/ui/src/versus/versusBotDriver.ts randomAction' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-16. Before, a generated seat that awakened stopped recording there and went boardless (audit F5).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsRelease.test.ts'], lastVerifiedAt: '2026-11-16' },
+  },
+  {
+    id: 'R-ANCIENTS-RELEASE-03',
+    title: 'A foe\'s Ancient is captured with its board and shown under its hero power',
+    statement:
+      'snapshotBoard stores the picked Ancient on the board (`BoardSnapshot.ancient`: id, the hero whose pairing is in play, '
+      + 'the wave it awakened). It is display only (the combat half already rides questMods). The combat foe\'s hero-power tip '
+      + 'and the rail\'s scout card print the Ancient\'s name and its pairing text under the base power (FoeAncientLine), and '
+      + 'boardIntel passes it to the scout intel. A board with no field (none picked, or an older capture) shows the base power only.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner via the lead, 2026-11-16', quote: "Ancients will go live everywhere, so build the flip to turn them on/off as needed. When on, they're live everywhere" },
+      { kind: 'code', ref: 'packages/sim/src/snapshot.ts ancientSnapshotOf; packages/ui/src/ancients/FoeAncientLine.tsx; packages/ui/src/CombatOpponent.tsx; packages/ui/src/LobbyPanel.tsx' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-16. Before, a served foe fought with its Ancient but nothing on screen named it (audit F4).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsRelease.test.ts', 'packages/ui/src/ancients/foeAncientLine.test.tsx'], lastVerifiedAt: '2026-11-16' },
+  },
+  {
+    id: 'R-ANCIENTS-RELEASE-04',
+    title: 'The picked Ancient is recorded in match details and run telemetry',
+    statement:
+      'Every match-details seat carries its picked Ancient (`MatchSeat.ancient`: your own from your run, others from the board '
+      + 'they fielded), read back through parseMatchAncient (an unknown id is dropped). A lobby telemetry row carries '
+      + '`ancients` (on / off) and `ancient` (id, pairing hero, wave), also inside the `derived` jsonb, so the Balance Report '
+      + 'can split by Ancient. Both are additive jsonb keys; no SQL.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner via the lead, 2026-11-16', quote: "Ancients will go live everywhere, so build the flip to turn them on/off as needed. When on, they're live everywhere" },
+      { kind: 'code', ref: 'packages/sim/src/lobby/matchDetails.ts; packages/sim/src/runTelemetry.ts ancientTelemetryOf; packages/ui/src/store.ts (run-end upload)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-16.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsRelease.test.ts'], lastVerifiedAt: '2026-11-16' },
+  },
 ];

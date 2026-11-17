@@ -3,6 +3,7 @@ import { parseCosmeticSnapshot, type RunCosmeticSnapshot } from '@game/progressi
 import type { BoardSnapshot } from '../snapshot';
 import { driverFor, type LobbySeatState, type RunLobby } from './runLobby';
 import type { PreparedBoard } from './types';
+import { ANCIENT_IDS, type AncientId } from '../ancients';
 import { parseRuneLiveState, runeLiveStateOfSnapshot, type RuneLiveState } from '../runeLiveState';
 
 /**
@@ -124,7 +125,14 @@ export interface MatchSeat {
   strength?: number;
   /** Your own seat only: the strength of each round's board, in round order. */
   roundStrength?: MatchRoundStrength[];
+  /** The seat's picked ANCIENT (R-ANCIENTS-RELEASE-04): its id, the hero whose pairing it was, and the wave it was
+   *  picked. Your own seat reads your run; another seat reads the board it fielded (`BoardSnapshot.ancient`). Absent =
+   *  none picked, or a record from before 2026-11-16. */
+  ancient?: MatchAncient;
 }
+
+/** A picked Ancient as a match record stores it. */
+export interface MatchAncient { id: AncientId; heroId: string; wave?: number }
 
 /** One round's board strength (a percentile, 1-100). */
 export interface MatchRoundStrength { round: number; value: number }
@@ -149,13 +157,25 @@ export interface MatchDetailsInput {
   /** Your placement as the end screen shows it. */
   placement: number;
   /** Your board at the end (the end-state board the Career and the leaderboard show). */
-  selfBoard: Pick<BoardSnapshot, 'minions' | 'tier' | 'runes' | 'wildHuntGrown' | 'questMods'> | null;
+  selfBoard: Pick<BoardSnapshot, 'minions' | 'tier' | 'runes' | 'wildHuntGrown' | 'questMods'> & Partial<Pick<BoardSnapshot, 'ancient'>> | null;
   selfCosmetics?: RunCosmeticSnapshot | null;
   titleId?: string | null;
   /** Your own run's ledger key (ranked only; see `MatchSeat.runKey`). */
   selfRunKey?: string | null;
   /** Your board strength, when it was scored by the time the record is built (see `MatchSeat.strength`). */
   selfStrength?: { value: number | null; rounds: readonly MatchRoundStrength[] } | null;
+  /** Your picked Ancient (`ancientSnapshotOf(run)`); falls back to `selfBoard.ancient`. */
+  selfAncient?: MatchAncient | null;
+}
+
+/** A stored / captured Ancient read back: a known id and a hero id, else undefined (a record from another build). */
+export function parseMatchAncient(v: unknown): MatchAncient | undefined {
+  if (!v || typeof v !== 'object') return undefined;
+  const o = v as Record<string, unknown>;
+  if (typeof o.id !== 'string' || !(ANCIENT_IDS as readonly string[]).includes(o.id)) return undefined;
+  if (typeof o.heroId !== 'string' || !o.heroId || o.heroId.length > 40) return undefined;
+  const wave = typeof o.wave === 'number' && Number.isFinite(o.wave) && o.wave > 0 ? Math.floor(o.wave) : undefined;
+  return { id: o.id as AncientId, heroId: o.heroId, ...(wave ? { wave } : {}) };
 }
 
 const pctOf = (v: unknown): number | undefined =>
@@ -289,6 +309,8 @@ export function buildMatchDetails(lobby: RunLobby, input: MatchDetailsInput): Ma
         if (st !== undefined) out.strength = st;
         const rs = roundsOf(input.selfStrength?.rounds);
         if (rs.length) out.roundStrength = rs;
+        const anc = parseMatchAncient(input.selfAncient ?? input.selfBoard?.ancient);
+        if (anc) out.ancient = anc;
       } else {
         const round = seatBoardRound(seat, endRound);
         const b = fieldedBoard(lobby, seat, round);
@@ -298,6 +320,8 @@ export function buildMatchDetails(lobby: RunLobby, input: MatchDetailsInput): Ma
         // The run's pool strength, frozen here (a recorded seat's boards all carry it, stamped at pool load).
         const st = seat.kind === 'snapshot' ? pctOf(b?.snapshot?.runStrength) : undefined;
         if (st !== undefined) out.strength = st;
+        const anc = parseMatchAncient(b?.snapshot?.ancient);
+        if (anc) out.ancient = anc;
       }
       return out;
     });
@@ -408,6 +432,8 @@ function parseSeat(v: unknown): MatchSeat | null {
   if (st !== undefined) s.strength = st;
   const rs = roundsOf(o.roundStrength);
   if (rs.length) s.roundStrength = rs;
+  const anc = parseMatchAncient(o.ancient);
+  if (anc) s.ancient = anc;
   return s;
 }
 

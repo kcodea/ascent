@@ -1462,8 +1462,8 @@ function ensureRun(match: VersusMatch, seat: VersusSeat): void {
     // VERSUS DUOS (R-DUOS-HEALTH-01): the run carries the TEAM's pool, so it needs my teammate's hero too.
     const mateSeat = match.group?.duos?.mate ?? null;
     const mateHero = mateSeat ? match.group?.raw.seats.find((x) => x.seat === mateSeat)?.hero ?? null : null;
-    // (`versusDevAncients`: a DEV / bench build's own seam for the Duos heroes' Ancients, R-ANCDUOS-01. Undefined in a
-    // player build, so the run is built exactly as before.)
+    // ANCIENTS (R-ANCIENTS-RELEASE-01): `createVersusRun` reads the release switch and pins it on the run. `versusDevAncients`
+    // is a DEV / bench build's own meter override (undefined in a player build, so the switch alone decides).
     const devAncients = versusDevAncients();
     let run: RunState = createVersusRun(Number(priv.run_seed), hero, match.set_id as SetId, match.options ? normalizeVersusOptions(match.options) : null, mateHero, devAncients ? { ancients: devAncients } : undefined);
     const rr = get().priv?.hero_reroll;

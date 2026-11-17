@@ -17,6 +17,8 @@ import type { RunCosmeticSnapshot } from '@game/progression';
 import { CARD_INDEX } from '@game/content';
 import { HEROES } from './heroes';
 import { createRun, type Action, type RunState, type ShopCard, type RunMode } from './state';
+import { ancientOfferOpen, ancientPairingHeroId, type AncientId } from './ancients';
+import { releaseAncients } from './ancientsRelease';
 import { reduce, playerCombatSideState } from './reducer';
 import { handCardLocked, rubyStatBonus, spellAttackBonus, spellHealthBonus, tribesPlayedThisTurn } from './recruit';
 import { unusedEquipmentCount } from './equipment';
@@ -147,6 +149,11 @@ export interface BoardSnapshot {
    *  so a served Ancient board fought without its hero). Pre-emptive Assault (`attackFirstNext`) is still never
    *  captured (R-PREEMPTIVE-PLAYER-01). */
   questMods?: QuestCombatMods;
+  /** The owner's picked ANCIENT (R-ANCIENTS-RELEASE-03): its id, the hero whose pairing is in play (the slot-0 power's
+   *  hero, `ancientPairingHeroId`) and the wave it was picked on. DISPLAY ONLY: the Ancient's combat half already rides
+   *  `questMods`; this lets the foe's hero-power tooltip, scouting and the rail name it and print its pairing text.
+   *  Absent = no Ancient picked (or a capture from before 2026-11-16). */
+  ancient?: { id: AncientId; heroId: string; wave?: number };
   /** The owner's FIRST spell of the capture turn (Comet Conductor's Rally copies it). R-SYMMETRY-01. */
   firstSpellThisTurnId?: string;
   /** Rune of Spellhide's Start-of-Combat re-casts ({spellId, uid}: `uid` is the owner's run-card uid, which the
@@ -428,6 +435,13 @@ export function scopeCosmetics(c: RunCosmeticSnapshot | undefined, heroIds: read
   };
 }
 
+/** The run's picked Ancient as a snapshot / record carries it (R-ANCIENTS-RELEASE-03), or undefined when none is picked. */
+export function ancientSnapshotOf(s: RunState): BoardSnapshot['ancient'] {
+  const a = s.ancientsEnabled ? s.ancients : undefined;
+  if (!a?.picked) return undefined;
+  return { id: a.picked, heroId: ancientPairingHeroId(s), ...(a.awakenedWave ? { wave: a.awakenedWave } : {}) };
+}
+
 export function snapshotBoard(s: RunState): BoardSnapshot {
   const minions = cleanBoard(s);
   const cosmetics = scopeCosmetics(s.cosmetics, [s.heroId], minions.map((m) => m.cardId));
@@ -464,6 +478,7 @@ export function snapshotBoard(s: RunState): BoardSnapshot {
   const hasQmods = Object.keys(qmods).length > 0;
   const pendingQuests = own.pendingQuests ?? [];
   const spellhide = own.spellhide ?? [];
+  const pickedAncient = ancientSnapshotOf(s);
   const rubyPower = rubyStatBonus(s); // what `playerCombatSideState` hands the owner's own fight (Spellstone folds spell power in)
   return {
     v: 1,
@@ -497,6 +512,7 @@ export function snapshotBoard(s: RunState): BoardSnapshot {
     ...(s.magneticBuyAtk || s.magneticBuyHp ? { magneticAura: { attack: s.magneticBuyAtk ?? 0, health: s.magneticBuyHp ?? 0 } } : {}),
     ...(s.fodderConsumedThisTurn?.attack || s.fodderConsumedThisTurn?.health ? { fodderConsumed: { attack: s.fodderConsumedThisTurn.attack, health: s.fodderConsumedThisTurn.health } } : {}),
     ...(hasQmods ? { questMods: qmods } : {}),
+    ...(pickedAncient ? { ancient: pickedAncient } : {}),
     ...(s.firstSpellThisTurnId ? { firstSpellThisTurnId: s.firstSpellThisTurnId } : {}),
     ...(spellhide.length ? { spellhide: spellhide.map((h) => ({ ...h })) } : {}),
     ...(pendingQuests.length ? { pendingQuests: pendingQuests.map((p) => ({ ...p })) } : {}),
@@ -604,9 +620,11 @@ const BOOTSTRAP_HEROES = HEROES.map((h) => h.id); // vary the hero per seed → 
  * selection asks `autoplayRun(seed, hero, undefined, 1)` "will this seat's recording field anything at all?"
  * for a fraction of a full recording's cost.
  */
-export function autoplayRun(seed: number, heroId?: string, opts?: BotOptions, maxBoards = Infinity, setId?: SetId): BoardSnapshot[] {
+export function autoplayRun(seed: number, heroId?: string, opts?: BotOptions, maxBoards = Infinity, setId?: SetId, ancients?: boolean): BoardSnapshot[] {
   // `setId` (Practice's DEV set picker, 2026-10-26): record on that card set. Absent = `createRun`'s default.
-  let s = createRun(seed, heroId, undefined, undefined, setId);
+  // ANCIENTS (R-ANCIENTS-RELEASE-02): a generated seat plays the same game as the player, so its run reads the release
+  // switch at creation like every player run (`releaseAncients`). `ancients` overrides it (tests, tools).
+  let s = releaseAncients(createRun(seed, heroId, undefined, undefined, setId), ancients);
   // Separate RNG for bot pick decisions — doesn't touch the game's own seeded stream.
   const botRng: Rng | null = opts?.preferTribe || opts?.cardWeight ? makeRng(seed ^ 0xb07b07) : null;
   const snaps: BoardSnapshot[] = [];
@@ -656,6 +674,10 @@ export function autoplayRun(seed: number, heroId?: string, opts?: BotOptions, ma
     }
     if (s.chooseOne) { if (step({ type: 'chooseOne', index: 0 })) continue; break; }
     if (s.pendingTarget) { if (step({ type: 'battlecryTarget', targetUid: s.board[0]?.uid ?? s.pendingTarget.uid })) continue; break; }
+    // THE ANCIENTS AWAKENING (R-ANCIENTS-RELEASE-02): the offer refuses End Turn, so a recording that never answered it
+    // ended at the awakening and the seat went boardless. Answered after the other modals (the reducer takes the pick
+    // only once they are closed). The offer is a seeded draw of three, so its first option is a seeded pick.
+    if (ancientOfferOpen(s)) { if (step({ type: 'pickAncient', id: s.ancients!.offer![0]! })) continue; break; }
     if (s.phase === 'combat') { if (step({ type: 'resolveCombat' })) continue; break; }
     if (s.hand.length > 0 && s.board.length < 7) {
       // First PLAYABLE card, not blindly hand[0] — an unplayable card in slot 0 must not wedge the whole hand.

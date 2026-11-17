@@ -98,6 +98,7 @@ describe("practice IS a lobby now (owner rework 2026-07-31)", () => {
         if (s.runeforgeOffer) s = reduce(s, { type: 'skipRuneforge' });
         if (s.discover) s = reduce(s, { type: 'discover', index: 0 });
       }
+      if (s.ancients?.offer?.length) s = reduce(s, { type: 'pickAncient', id: s.ancients.offer[0]! }); // R-ANCIENTS-RELEASE-01
       s = reduce(s, { type: 'faceOmen' });
       s = reduce(s, { type: 'resolveCombat' });
     }

@@ -124,6 +124,12 @@
 .heroselect.hss .hss-card .phi-info { --hss-rule-gap: calc(20 * var(--phu)); }
 .heroselect.hss .hss-card .phi-info:has(.phi-anc) { --hss-rule-gap: calc(12 * var(--phu)); }
 .heroselect.hss .hss-card .phi-power::before { content: none; }
+/* A large, soft gold glow around the medallion while it is hovered (owner 2026-11-17: "large but subtle"). The shadow
+   is static on a ring laid over the circle; only its opacity fades. It rides the block's spring. */
+.heroselect.hss .hss-card .phi-power.has-art::after { content: ''; position: absolute; left: calc(var(--col) * -1 - var(--pw) * 0.5); top: calc(50% + 10 * var(--phu)); width: var(--pw); height: var(--pw); margin-top: calc(var(--pw) * -0.5);
+  border-radius: 50%; pointer-events: none; opacity: 0; transition: opacity 0.2s ease;
+  box-shadow: 0 0 calc(64 * var(--phu)) calc(10 * var(--phu)) rgba(255, 196, 70, 0.34), 0 0 calc(18 * var(--phu)) rgba(255, 214, 110, 0.3); }
+.heroselect.hss .hss-card .phi-power:has(.phi-pwart:hover)::after { opacity: 1; }
 .heroselect.hss .hss-card .phi-head::after { content: ''; position: absolute; left: 0; right: 0; top: calc(100% + var(--hss-rule-gap)); height: calc(1.5 * var(--phu)); pointer-events: none;
   background: linear-gradient(90deg, color-mix(in srgb, var(--ph-gold) 80%, transparent), color-mix(in srgb, var(--ph-gold) 0%, transparent)); }
 

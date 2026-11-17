@@ -62,6 +62,9 @@ export interface PoolRun {
    *  unscored. Stamped on every board as `runStrengthEarly` / `runStrengthLate` (matchmaking band only). */
   early?: number;
   late?: number;
+  /** The run's PEAK (`pool_runs.strength_peak`, R-LOBBY-21); absent = not delivered or unscored. Stamped on every
+   *  board as `runStrengthPeak` (matchmaking band only). */
+  peak?: number;
 }
 
 export interface PoolFetch {
@@ -233,6 +236,7 @@ export function createPoolLoader(deps: PoolLoaderDeps): PoolLoader {
       ...(typeof r.strength === 'number' ? { runStrength: r.strength } : {}),
       ...(typeof r.early === 'number' ? { runStrengthEarly: r.early } : {}),
       ...(typeof r.late === 'number' ? { runStrengthLate: r.late } : {}),
+      ...(typeof r.peak === 'number' ? { runStrengthPeak: r.peak } : {}),
     })));
     const res = deps.registerRuns(stamped);
     runs += res.runs;

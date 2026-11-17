@@ -44,6 +44,13 @@ import type { PracticeRank } from '../state';
  * that medal's lobby, whatever its match score. Bronze 40, Silver 60, Gold 75; exactly the cap is allowed. The cap is
  * HARD: widening (`widenBand`) moves only min/max and carries the cap along, so the last widening step of a capped band
  * is the cap alone (`{ min: 0, max: 100, overallCap }`), never null. An unscored run stays inside.
+ *
+ * THE PEAK CAP (owner 2026-11-16, asked which peak caps Bronze, Silver and Gold get after the v2 measurement: "90 for
+ * all"; R-LOBBY-21). A run's PEAK is its best REAL board from round 3 on, as a percentile (`runPeakOf`,
+ * `pool_runs.strength_peak`). A band may carry `peakCap`: a run whose peak is above it is never seated in that medal's
+ * lobby, however ordinary the rest of that game was (one runaway board is what a new player remembers). Bronze, Silver
+ * and Gold: 90; exactly the cap is allowed. It is HARD exactly like the overall cap: every widening step carries it,
+ * and a capped band's last step is its caps alone, never null.
  */
 export interface StrengthBand {
   min: number;
@@ -54,11 +61,17 @@ export interface StrengthBand {
   /** The OVERALL cap (R-LOBBY-15): a run whose weighted `strength` is above it is outside the band, at every widening
    *  step (the cap never widens). Absent = no cap (Platinum up, and a band saved before 2026-10-09). */
   overallCap?: number;
+  /** The PEAK cap (R-LOBBY-21): a run whose best real board from round 3 on ranks above it is outside the band, at
+   *  every widening step (the cap never widens). Absent = no cap (Platinum up, and a band saved before 2026-11-17). */
+  peakCap?: number;
 }
 
 /** A run's ratings as the pool delivers them: the weighted `strength` (R-LOBBY-12, what "Game strength" shows) and the
  *  EARLY / LATE ratings (R-LOBBY-13). Absent / null = not known or not scored. */
-export interface RunStrengths { strength?: number | null; early?: number | null; late?: number | null }
+export interface RunStrengths { strength?: number | null; early?: number | null; late?: number | null;
+  /** The run's PEAK (`pool_runs.strength_peak`): its best real board percentile from round 3 on. Absent / null = not
+   *  delivered (a server, hub or cache from before the peak SQL). */
+  peak?: number | null }
 
 const finiteOrNull = (v: number | null | undefined): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);
 
@@ -93,22 +106,22 @@ export function matchScoreOf(run: RunStrengths, weight: number | null | undefine
 }
 
 export const STRENGTH_BANDS: Readonly<Record<RankMedal, StrengthBand | null>> = Object.freeze({
-  Bronze: { min: 0, max: 20, earlyWeight: 1, overallCap: 40 },
-  Silver: { min: 10, max: 30, earlyWeight: 0.8, overallCap: 60 },
-  Gold: { min: 10, max: 50, earlyWeight: 0.6, overallCap: 75 },
+  Bronze: { min: 0, max: 20, earlyWeight: 1, overallCap: 40, peakCap: 90 },
+  Silver: { min: 10, max: 30, earlyWeight: 0.8, overallCap: 60, peakCap: 90 },
+  Gold: { min: 10, max: 50, earlyWeight: 0.6, overallCap: 75, peakCap: 90 },
   Platinum: null,
   Diamond: null,
   Ascendant: null,
 });
 
-/** One band as a label: `"10-30"`, with the early weight as `/e80` and the overall cap as `/c60` when it has them;
- *  `"*"` = uncapped. */
+/** One band as a label: `"10-30"`, with the early weight as `/e80`, the overall cap as `/c60` and the peak cap as
+ *  `/p90` when it has them; `"*"` = uncapped. */
 export const bandVersionLabel = (b: StrengthBand | null | undefined): string =>
-  (b ? `${b.min}-${b.max}${typeof b.earlyWeight === 'number' ? `/e${earlyWeightPct(b.earlyWeight)}` : ''}${typeof b.overallCap === 'number' ? `/c${b.overallCap}` : ''}` : '*');
+  (b ? `${b.min}-${b.max}${typeof b.earlyWeight === 'number' ? `/e${earlyWeightPct(b.earlyWeight)}` : ''}${typeof b.overallCap === 'number' ? `/c${b.overallCap}` : ''}${typeof b.peakCap === 'number' ? `/p${b.peakCap}` : ''}` : '*');
 
 /** The band TABLE as a version string, read off `STRENGTH_BANDS` itself (2026-10-03, the Balance Report regime
- *  stamp): `"B0-20/e100/c40 S10-30/e80/c60 G10-50/e60/c75 P* D* A*"` today (`*` = an uncapped null band, `/eN` = the
- *  early weight in percent, `/cN` = the overall cap, R-LOBBY-15). Any threshold or weight change changes the string, so a run stamped with it names the exact bands it
+ *  stamp): `"B0-20/e100/c40/p90 S10-30/e80/c60/p90 G10-50/e60/c75/p90 P* D* A*"` today (`*` = an uncapped null band, `/eN` = the
+ *  early weight in percent, `/cN` = the overall cap, R-LOBBY-15, `/pN` = the peak cap, R-LOBBY-21). Any threshold or weight change changes the string, so a run stamped with it names the exact bands it
  *  was matched under, with no version number to forget. */
 export const STRENGTH_BANDS_VERSION: string = (Object.entries(STRENGTH_BANDS) as [RankMedal, StrengthBand | null][])
   .map(([medal, b]) => `${medal.charAt(0)}${bandVersionLabel(b)}`)
@@ -168,8 +181,21 @@ export function runUnderOverallCap(run: Pick<RunStrengths, 'strength'>, band: St
   return strength === null || strength <= cap;
 }
 
+/** Is a run's PEAK at or under the band's peak cap (R-LOBBY-21)? True without a cap. Exactly the cap is under it.
+ *  A run with NO peak is under it: once the server has the peak SQL every scored run carries one (an unscored run is
+ *  already outside every band, `runInStrengthBand`), so a missing peak means the row came from a server, hub or cache
+ *  from before that SQL, where no run has one; refusing those would fill every Bronze, Silver and Gold table with
+ *  generated seats. SQL twin: the `p_peak_cap` filter of `pool_runs__pick`
+ *  (supabase/migrations/2026-11-24-strength-peak-cap.sql), where a null peak is always an unscored run. */
+export function runUnderPeakCap(run: Pick<RunStrengths, 'peak'>, band: StrengthBand | null | undefined): boolean {
+  const cap = band?.peakCap;
+  if (typeof cap !== 'number' || !Number.isFinite(cap)) return true;
+  const peak = finiteOrNull(run.peak);
+  return peak === null || peak <= cap;
+}
+
 /** Is a RUN inside the band? Its weighted strength must be at or under the band's overall cap (R-LOBBY-15,
- *  `runUnderOverallCap`), AND its match score for the band's early weight (R-LOBBY-13, `matchScoreOf`) inside min..max,
+ *  `runUnderOverallCap`), its peak at or under the band's peak cap (R-LOBBY-21, `runUnderPeakCap`), AND its match score for the band's early weight (R-LOBBY-13, `matchScoreOf`) inside min..max,
  *  checked in exact integers (score x 100 against min x 100 .. max x 100, as the SQL's exact numeric does). An
  *  UNSCORED run (no weighted `strength`) is OUTSIDE every band since strength v2 (owner ruling 2026-11-16: "Unscored
  *  runs are kept out of Bronze, Silver and Gold lobbies"; it used to be inside, which let a top run from an old build
@@ -178,7 +204,7 @@ export function runUnderOverallCap(run: Pick<RunStrengths, 'strength'>, band: St
 export function runInStrengthBand(run: RunStrengths, band: StrengthBand | null): boolean {
   if (!band) return true;
   if (finiteOrNull(run.strength) === null) return false;
-  if (!runUnderOverallCap(run, band)) return false;
+  if (!runUnderOverallCap(run, band) || !runUnderPeakCap(run, band)) return false;
   const s = matchScore100(run, band.earlyWeight);
   if (s === null) return false;
   return s >= band.min * 100 && s <= band.max * 100;
@@ -198,30 +224,33 @@ export function duoRunInStrengthBand(run: RunStrengths, band: StrengthBand | nul
   return s >= band.min * 100 && s <= band.max * 100;
 }
 
-const hasOverallCap = (b: StrengthBand | null | undefined): boolean => typeof b?.overallCap === 'number';
+/** Does the band carry a HARD cap (the overall cap or the peak cap)? Such a band never widens to "no band". */
+const hasHardCap = (b: StrengthBand | null | undefined): boolean => typeof b?.overallCap === 'number' || typeof b?.peakCap === 'number';
 const scoreBandOpen = (b: StrengthBand): boolean => b.min <= 0 && b.max >= 100;
 
-/** One widening step: each capped side of min..max moves `BAND_WIDEN_STEP` outwards; the early weight and the overall
- *  cap are kept (R-LOBBY-15: the cap NEVER widens). Null once nothing is capped. A band with an overall cap whose
- *  min..max opens fully becomes the cap alone, `{ min: 0, max: 100, overallCap }`, and only THAT widens to null (no
- *  further step: `bandSteps` never lists the null after it, so seat selection and the pool fetch never drop the cap). */
+/** One widening step: each capped side of min..max moves `BAND_WIDEN_STEP` outwards; the early weight, the overall
+ *  cap and the peak cap are kept (R-LOBBY-15, R-LOBBY-21: a cap NEVER widens). Null once nothing is capped. A band
+ *  with a hard cap whose min..max opens fully becomes its caps alone, `{ min: 0, max: 100, overallCap, peakCap }`, and
+ *  only THAT widens to null (no further step: `bandSteps` never lists the null after it, so seat selection and the
+ *  pool fetch never drop a cap). */
 export function widenBand(band: StrengthBand | null): StrengthBand | null {
   if (!band) return null;
   if (scoreBandOpen(band)) return null;
   const next: StrengthBand = { min: Math.max(0, band.min - BAND_WIDEN_STEP), max: Math.min(100, band.max + BAND_WIDEN_STEP) };
   if (typeof band.earlyWeight === 'number') next.earlyWeight = band.earlyWeight;
-  if (hasOverallCap(band)) next.overallCap = band.overallCap;
-  return scoreBandOpen(next) && !hasOverallCap(next) ? null : next;
+  if (typeof band.overallCap === 'number') next.overallCap = band.overallCap;
+  if (typeof band.peakCap === 'number') next.peakCap = band.peakCap;
+  return scoreBandOpen(next) && !hasHardCap(next) ? null : next;
 }
 
-/** The band and every widening of it. An uncapped band ends with null (anything goes); a band with an overall cap
- *  ends with the cap alone (`{ min: 0, max: 100, overallCap }`, R-LOBBY-15), never null. A null band is `[null]`. */
+/** The band and every widening of it. An uncapped band ends with null (anything goes); a band with a hard cap (the
+ *  overall cap, R-LOBBY-15, or the peak cap, R-LOBBY-21) ends with its caps alone, never null. A null band is `[null]`. */
 export function bandSteps(band: StrengthBand | null): (StrengthBand | null)[] {
   const out: (StrengthBand | null)[] = [band];
   let b = band;
   while (b) {
     const next = widenBand(b);
-    if (!next && hasOverallCap(b)) break; // the cap alone is the last step: never widened away
+    if (!next && hasHardCap(b)) break; // the caps alone are the last step: never widened away
     out.push(next);
     b = next;
   }
@@ -271,4 +300,4 @@ export function strengthSeatTierOf(strength: number | null | undefined): number 
 export const OPPONENT_SEATS = 7;
 
 export const sameBand = (a: StrengthBand | null | undefined, b: StrengthBand | null | undefined): boolean =>
-  (a ?? null) === (b ?? null) || (!!a && !!b && a.min === b.min && a.max === b.max && a.earlyWeight === b.earlyWeight && a.overallCap === b.overallCap);
+  (a ?? null) === (b ?? null) || (!!a && !!b && a.min === b.min && a.max === b.max && a.earlyWeight === b.earlyWeight && a.overallCap === b.overallCap && a.peakCap === b.peakCap);

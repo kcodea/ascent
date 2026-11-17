@@ -99,6 +99,10 @@ export interface BoardSnapshot {
    *  SQL; the band then reads `runStrength`) or unscored. */
   runStrengthEarly?: number;
   runStrengthLate?: number;
+  /** The RUN's PEAK (1-100, `pool_runs.strength_peak`: its best real board percentile from round 3 on), stamped like
+   *  `runStrength` (the peak cap, R-LOBBY-21, 2026-11-17). Read only by seat selection for the matchmaking band.
+   *  Absent = not delivered (a server or cache from before the peak SQL) or unscored. */
+  runStrengthPeak?: number;
   /** The skins its owner wore (skins v1, 2026-09-28): the run's recorded `cosmetics`, SCOPED to this board's
    *  hero and cards (handoff §13: only what the payload can show). Display only, never read by combat or
    *  matchmaking. Absent on every board from before skins = default art. */

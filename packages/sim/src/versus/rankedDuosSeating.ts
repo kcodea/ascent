@@ -54,6 +54,8 @@ export interface SoloRunCandidate {
   strength?: number | null;
   early?: number | null;
   late?: number | null;
+  /** The run's PEAK (`pool_runs.strength_peak`), for the band's peak cap (R-LOBBY-21). */
+  peak?: number | null;
 }
 
 export interface RankedDuosServedMember {

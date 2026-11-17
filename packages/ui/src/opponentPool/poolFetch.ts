@@ -29,8 +29,17 @@
  * every delivered row carries its `strength`, the loader stamps it on each board (`runStrength`), and seat selection
  * (`runInStrengthBand`, runLobby.ts) refuses a run over the cap at every widening step. The widening here also counts
  * only the delivered runs under the cap (`runUnderOverallCap`), so a sample padded with over-cap runs still widens.
+ *
+ * THE PEAK CAP (R-LOBBY-21, 2026-11-17): a band with a `peakCap` (Bronze, Silver, Gold: 90) also sends `p_peak_cap`,
+ * and the server drops every run whose best real board from round 3 on ranks above it
+ * (supabase/migrations/2026-11-24-strength-peak-cap.sql). Before the owner runs that SQL the RPC has no `p_peak_cap`,
+ * PostgREST answers "function not found", and the session drops ONLY the peak cap
+ * (`PoolFetchSession.peakCapsMissing`), tried before the older fallbacks. Each delivered row carries its peak
+ * (`strength_peak`), the loader stamps it on each board (`runStrengthPeak`), and seat selection refuses a run over
+ * the cap at every widening step; a server from before that SQL delivers no peak, and the cap then cannot be checked
+ * (`runUnderPeakCap`).
  */
-import { MIN_RUN_WAVES, OPPONENT_SEATS, runLongEnough, bandSteps, runUnderOverallCap, runWavesCover, seatableRuns, type BoardSnapshot, type StrengthBand } from '@game/sim';
+import { MIN_RUN_WAVES, OPPONENT_SEATS, runLongEnough, bandSteps, runUnderOverallCap, runUnderPeakCap, runWavesCover, seatableRuns, type BoardSnapshot, type StrengthBand } from '@game/sim';
 import type { SetId } from '@game/content';
 import type { PoolFetch, PoolRun } from './poolLoader';
 import { poolPatchArg } from './poolPatch';
@@ -50,7 +59,9 @@ export interface SampleRow { run_key: string; author: string; user_id: string | 
   strength?: number | string | null;
   /** The run's EARLY / LATE ratings (R-LOBBY-13); absent before the 2026-10-06 early/late SQL, null = unscored. */
   strength_early?: number | string | null;
-  strength_late?: number | string | null }
+  strength_late?: number | string | null;
+  /** The run's PEAK (R-LOBBY-21); absent before the 2026-11-24 peak SQL, null = unscored. */
+  strength_peak?: number | string | null }
 export interface SampleArgs {
   p_limit: number; p_set: string; p_patch_prefix: string | null; p_exclude_user: string | null;
   /** The matchmaking band (R-LOBBY-09). Only sent once the server has it (`PoolFetchSession.bandsMissing`). */
@@ -61,6 +72,9 @@ export interface SampleArgs {
   /** The band's overall cap (R-LOBBY-15): runs whose weighted `strength` is above it are not drawn. Only sent once the
    *  server has it (`PoolFetchSession.capsMissing`). */
   p_strength_cap?: number;
+  /** The band's peak cap (R-LOBBY-21): runs whose peak is above it are not drawn. Only sent once the server has it
+   *  (`PoolFetchSession.peakCapsMissing`). */
+  p_peak_cap?: number;
 }
 export interface LightRow { author: string | null; hero_id: string; seed: number | null; wave: number; user_id: string | null; set_id: string | null }
 export interface ApiError { code?: string; message: string }
@@ -88,8 +102,10 @@ export interface PoolFetchOptions {
  *  `splitBandsMissing`: the RPC takes a band but no early weight yet (the 2026-10-06 early/late SQL has not been run),
  *  so the band's min/max is sent without the weight (it then filters the weighted strength) this session.
  *  `capsMissing`: the RPC takes no overall cap yet (the 2026-10-09 caps SQL has not been run), so the cap is not sent
- *  this session and holds client-side only (seat selection, R-LOBBY-15). */
-export interface PoolFetchSession { rpcMissing: boolean; bandsMissing?: boolean; splitBandsMissing?: boolean; capsMissing?: boolean }
+ *  this session and holds client-side only (seat selection, R-LOBBY-15).
+ *  `peakCapsMissing`: the RPC takes no peak cap yet (the 2026-11-24 peak SQL has not been run), so it is not sent this
+ *  session (R-LOBBY-21). */
+export interface PoolFetchSession { rpcMissing: boolean; bandsMissing?: boolean; splitBandsMissing?: boolean; capsMissing?: boolean; peakCapsMissing?: boolean }
 
 /** PostgREST's "no such function" (schema cache miss), Postgres' undefined_function, or a bare 404. */
 export function isMissingFunction(error: ApiError | null | undefined): boolean {
@@ -143,8 +159,16 @@ export async function fetchPoolRuns(api: PoolApi, opts: PoolFetchOptions, signal
       const split = !!band && typeof band.earlyWeight === 'number' && !session.splitBandsMissing;
       const splitArgs: SampleArgs | null = plainBand ? (split ? { ...plainBand, p_early_weight: band!.earlyWeight } : plainBand) : null;
       const capped = !!splitArgs && typeof band?.overallCap === 'number' && !session.capsMissing && !session.splitBandsMissing;
-      const args: SampleArgs = splitArgs ? (capped ? { ...splitArgs, p_strength_cap: band!.overallCap } : splitArgs) : base;
+      const cappedArgs: SampleArgs = splitArgs ? (capped ? { ...splitArgs, p_strength_cap: band!.overallCap } : splitArgs) : base;
+      const peaked = !!splitArgs && typeof band?.peakCap === 'number' && !session.peakCapsMissing && !session.capsMissing && !session.splitBandsMissing;
+      const args: SampleArgs = peaked ? { ...cappedArgs, p_peak_cap: band!.peakCap } : cappedArgs;
       let res = await api.sample(args, signal);
+      if (res.error && peaked && isMissingFunction(res.error)) {
+        // The RPC takes no peak cap yet (R-LOBBY-21 SQL not run): drop it for the session and ask for the same band and
+        // overall cap without it.
+        session.peakCapsMissing = true;
+        res = await api.sample(cappedArgs, signal);
+      }
       if (res.error && capped && isMissingFunction(res.error)) {
         // The RPC takes no overall cap yet (R-LOBBY-15 SQL not run): drop the cap for the session and ask for the same
         // band without it. Seat selection still refuses every run over the cap (the rows carry `strength`).
@@ -173,15 +197,18 @@ export async function fetchPoolRuns(api: PoolApi, opts: PoolFetchOptions, signal
         const strength = strengthOfRow(r.strength);
         const early = strengthOfRow(r.strength_early);
         const late = strengthOfRow(r.strength_late);
+        const peak = strengthOfRow(r.strength_peak);
         byKey.set(r.run_key, {
           key: r.run_key, ownerId: r.user_id, waves: r.wave_count, snaps: Array.isArray(r.boards) ? r.boards : [],
           ...(strength !== undefined ? { strength } : {}),
           ...(early !== undefined ? { early } : {}), ...(late !== undefined ? { late } : {}),
+          ...(peak !== undefined ? { peak } : {}),
         });
       }
       // Enough runs to seat a table (or nothing narrower to ask for): stop widening. Only runs under the overall cap
-      // count (R-LOBBY-15): before the caps SQL the server delivers over-cap runs that seat selection will refuse.
-      const seatable = [...byKey.values()].filter((r) => runUnderOverallCap(r, opts.band));
+      // count (R-LOBBY-15, and under the peak cap, R-LOBBY-21): before the caps SQL the server delivers over-cap runs
+      // that seat selection will refuse.
+      const seatable = [...byKey.values()].filter((r) => runUnderOverallCap(r, opts.band) && runUnderPeakCap(r, opts.band));
       if (session.bandsMissing || !steps[i] || seatableRuns(seatable.map(ownerOfRun)) >= OPPONENT_SEATS) break;
     }
     if (!session.rpcMissing) return { runs: [...byKey.values()], path: 'rpc', ...(opts.band && !session.bandsMissing ? { widenings } : {}) };

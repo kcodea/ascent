@@ -31,14 +31,15 @@ it('has enough distinct heroes for these tables', () => { expect(HEROES.length).
 describe('the bands', () => {
   it('every division of a medal shares its band: Bronze early-only 0-20 capped at 40, Silver 80% early 10-30 capped at 60, Gold 60% early 10-50 capped at 75, open from Platinum (R-LOBBY-13 + R-LOBBY-15)', () => {
     for (let d = 0; d < rankDivisionCount(); d++) expect(strengthBandForDivision(d), `division ${d}`).toEqual(STRENGTH_BANDS[medalOf(d)]);
-    expect(STRENGTH_BANDS.Bronze).toEqual({ min: 0, max: 20, earlyWeight: 1, overallCap: 40 });
-    expect(STRENGTH_BANDS.Silver).toEqual({ min: 10, max: 30, earlyWeight: 0.8, overallCap: 60 });
-    expect(STRENGTH_BANDS.Gold).toEqual({ min: 10, max: 50, earlyWeight: 0.6, overallCap: 75 });
+    // Each also carries the peak cap of 90 since 2026-11-17 (R-LOBBY-21, strengthPeakCap.test.ts).
+    expect(STRENGTH_BANDS.Bronze).toEqual({ min: 0, max: 20, earlyWeight: 1, overallCap: 40, peakCap: 90 });
+    expect(STRENGTH_BANDS.Silver).toEqual({ min: 10, max: 30, earlyWeight: 0.8, overallCap: 60, peakCap: 90 });
+    expect(STRENGTH_BANDS.Gold).toEqual({ min: 10, max: 50, earlyWeight: 0.6, overallCap: 75, peakCap: 90 });
     expect(STRENGTH_BANDS.Platinum).toBeNull();
     expect(STRENGTH_BANDS.Diamond).toBeNull();
     expect(STRENGTH_BANDS.Ascendant).toBeNull();
     expect(RANK_MEDALS).toEqual(['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond', 'Ascendant']);
-    expect(STRENGTH_BANDS_VERSION).toBe('B0-20/e100/c40 S10-30/e80/c60 G10-50/e60/c75 P* D* A*');
+    expect(STRENGTH_BANDS_VERSION).toBe('B0-20/e100/c40/p90 S10-30/e80/c60/p90 G10-50/e60/c75/p90 P* D* A*');
   });
 
   it('early is rounds 1-9 and late is 10+, each a plain mean of the board percentiles, then ranked among runs', () => {
@@ -76,7 +77,7 @@ describe('the bands', () => {
     expect(bandSteps({ min: 10, max: 50, earlyWeight: 0.6 })).toEqual([{ min: 10, max: 50, earlyWeight: 0.6 }, { min: 0, max: 60, earlyWeight: 0.6 }, { min: 0, max: 70, earlyWeight: 0.6 },
       { min: 0, max: 80, earlyWeight: 0.6 }, { min: 0, max: 90, earlyWeight: 0.6 }, null]);
     expect(sameBand({ min: 10, max: 30, earlyWeight: 0.8 }, { min: 10, max: 30 })).toBe(false);
-    expect(sameBand({ min: 10, max: 30, earlyWeight: 0.8, overallCap: 60 }, { ...STRENGTH_BANDS.Silver! })).toBe(true);
+    expect(sameBand({ min: 10, max: 30, earlyWeight: 0.8, overallCap: 60, peakCap: 90 }, { ...STRENGTH_BANDS.Silver! })).toBe(true);
     // ...and the same overall cap (R-LOBBY-15): a band cached before the caps is not today's band.
     expect(sameBand({ min: 10, max: 30, earlyWeight: 0.8 }, { ...STRENGTH_BANDS.Silver! })).toBe(false);
   });
@@ -112,15 +113,12 @@ describe('the bands', () => {
       expect(steps).not.toContain(null);
       for (const st of steps) expect(st!.overallCap, `${medal} ${JSON.stringify(st)}`).toBe(band.overallCap);
       for (const st of steps) expect(st!.earlyWeight).toBe(band.earlyWeight);
-      expect(steps.at(-1)).toEqual({ min: 0, max: 100, earlyWeight: band.earlyWeight, overallCap: band.overallCap });
+      expect(steps.at(-1)).toEqual({ min: 0, max: 100, earlyWeight: band.earlyWeight, overallCap: band.overallCap, peakCap: band.peakCap });
       expect(widenBand(steps.at(-1)!)).toBeNull(); // nothing further: bandSteps stops on the cap alone
       // Every step refuses a run just over the cap, even one with the weakest possible early/late ratings.
       for (const st of steps) expect(runInStrengthBand({ strength: band.overallCap! + 1, early: 1, late: 1 }, st)).toBe(false);
     }
-    expect(bandSteps(STRENGTH_BANDS.Bronze)).toEqual([
-      { min: 0, max: 20, earlyWeight: 1, overallCap: 40 }, { min: 0, max: 30, earlyWeight: 1, overallCap: 40 }, { min: 0, max: 40, earlyWeight: 1, overallCap: 40 },
-      { min: 0, max: 50, earlyWeight: 1, overallCap: 40 }, { min: 0, max: 60, earlyWeight: 1, overallCap: 40 }, { min: 0, max: 70, earlyWeight: 1, overallCap: 40 },
-      { min: 0, max: 80, earlyWeight: 1, overallCap: 40 }, { min: 0, max: 90, earlyWeight: 1, overallCap: 40 }, { min: 0, max: 100, earlyWeight: 1, overallCap: 40 }]);
+    expect(bandSteps(STRENGTH_BANDS.Bronze)).toEqual([20, 30, 40, 50, 60, 70, 80, 90, 100].map((max) => ({ min: 0, max, earlyWeight: 1, overallCap: 40, peakCap: 90 })));
     expect(bandSteps(STRENGTH_BANDS.Platinum)).toEqual([null]);
   });
 
@@ -276,8 +274,8 @@ describe('seat selection inside a band', () => {
       // then 0-40 (e <= 31.67: runs up to e 30), then 0-50 (e <= 48.3): 3 + 3 + 3 = 9 >= 7 after two widenings.
       for (const r of seated) expect(matchScoreOf(r, 0.8)!).toBeLessThanOrEqual(50);
       expect(seated.filter((r) => matchScoreOf(r, 0.8)! <= 30).length).toBe(3); // every in-band run seated first
-      expect(lobby.poolAtStart?.band?.requested).toEqual({ min: 10, max: 30, earlyWeight: 0.8, overallCap: 60 });
-      expect(lobby.poolAtStart?.band?.used).toEqual({ min: 0, max: 50, earlyWeight: 0.8, overallCap: 60 });
+      expect(lobby.poolAtStart?.band?.requested).toEqual({ min: 10, max: 30, earlyWeight: 0.8, overallCap: 60, peakCap: 90 });
+      expect(lobby.poolAtStart?.band?.used).toEqual({ min: 0, max: 50, earlyWeight: 0.8, overallCap: 60, peakCap: 90 });
     }
   });
 
@@ -325,7 +323,7 @@ describe('seat selection inside a band', () => {
       expect(lobby.seats.length).toBe(8); // generated seats fill the rest, as for any thin band
       // The band widened all the way (8 steps), but only to the cap alone: never uncapped.
       expect(lobby.poolAtStart?.band).toEqual({
-        requested: { min: 0, max: 20, earlyWeight: 1, overallCap: 40 }, used: { min: 0, max: 100, earlyWeight: 1, overallCap: 40 }, widenings: 8,
+        requested: { min: 0, max: 20, earlyWeight: 1, overallCap: 40, peakCap: 90 }, used: { min: 0, max: 100, earlyWeight: 1, overallCap: 40, peakCap: 90 }, widenings: 8,
       });
     }
   });

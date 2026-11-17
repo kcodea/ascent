@@ -109,8 +109,8 @@
 @keyframes hss-art-in { from { transform: scale(1.19); } to { transform: none; } }
 .heroselect.hss .hss-card .phi-info > .phi-power { animation-duration: 0.47s; }
 @media (prefers-reduced-motion: reduce) { .heroselect.hss .hss-card .phi-art img { animation: none; } }
-/* The colour wash behind the card: a blur of 40 at 18% opacity, against the Compendium's 72 at 14% (owner 2026-11-17). Static. */
-.heroselect.hss .hss-card .phi-wash { opacity: 0.18; filter: blur(calc(40 * var(--phu))) saturate(1.4); }
+/* The colour wash behind the card: a blur of 40 at 16% opacity, against the Compendium's 72 at 14% (owner 2026-11-17). Static. */
+.heroselect.hss .hss-card .phi-wash { opacity: 0.16; filter: blur(calc(40 * var(--phu))) saturate(1.4); }
 /* No "Up / Down: Ancients" hint in the card's corner here (owner 2026-11-17: "remove this"); the keys still work. */
 .heroselect.hss .hss-card .phi-count { display: none; }
 /* Tighter type than the Compendium's full-screen view, so the card with its Ancients row fits the stage. */

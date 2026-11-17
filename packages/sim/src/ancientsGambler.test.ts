@@ -193,9 +193,9 @@ describe('Gambler × TIME (ancient pass 2, owner 2026-11-16): "Roll 1: random Ti
   });
 });
 
-describe('Gambler × BONDS (ancient pass 2, owner 2026-11-16): "When you roll, Discover 2 minions of that Tier."', () => {
+describe('Gambler × BONDS (ancient pass 2, owner 2026-11-16): "When you roll, Discover 2 minions of that tier."', () => {
   it('TWO Discovers, each of exactly the rolled Tier, whatever your Shop tier', () => {
-    expect(heroPowerText(picked('bonds'))).toBe(`${BASE} When you roll, **Discover** **2** minions of that Tier.`);
+    expect(heroPowerText(picked('bonds'))).toBe(`${BASE} When you roll, **Discover** **2** minions of that tier.`);
     for (let seed = 1; seed <= 8; seed++) {
       const s0 = { ...picked('bonds', { tier: 1 }), rngCursor: seed * 7919 };
       let s = reduce(s0, { type: 'heroPower' });

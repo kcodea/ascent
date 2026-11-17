@@ -155,10 +155,10 @@ describe('Nadja × WAR: "Start of Combat: Your left-most minion gains Rally: giv
   });
 });
 
-describe('Nadja × GENESIS (ancient pass 2, owner 2026-11-16): "Goldspring also gives a random Shop spell from any Tier."', () => {
+describe('Nadja × GENESIS (ancient pass 2, owner 2026-11-16): "Goldspring also gives a random Shop spell of any tier."', () => {
   it('Goldspring gives +1 max Gold AND a random Shop spell, any Tier, to hand', () => {
     let s = picked('genesis', { tier: 1 });
-    expect(heroPowerText(s)).toBe(`${BASE} Also get a random Shop spell from any Tier.`);
+    expect(heroPowerText(s)).toBe(`${BASE} Also get a random Shop spell of any tier.`);
     const bonus = s.maxGoldBonus ?? 0;
     s = spring(s);
     expect(s.maxGoldBonus).toBe(bonus + 1);
@@ -245,5 +245,20 @@ describe('Nadja × save / restore and determinism', () => {
       expect(JSON.stringify(a.ancients), id).toBe(JSON.stringify(b.ancients));
       expect(a.maxGoldBonus, id).toBe(b.maxGoldBonus);
     }
+  });
+});
+
+describe('Nadja × FORTUNE picked AFTER Goldspring was used that turn (R-ANCFIX-03)', () => {
+  it('the earlier use counts: one more use this turn, not two', () => {
+    let s = enableAncients(base());
+    s = spring(s);
+    const g0 = s.maxGoldBonus ?? 0;
+    s = { ...s, ancients: { ...s.ancients!, points: s.ancients!.cost, offer: ['fortune', ...ANCIENT_IDS.filter((a) => a !== 'fortune').slice(0, 2)] } };
+    s = reduce(s, { type: 'pickAncient', id: 'fortune' });
+    expect(heroPowerText(s)).toContain('(**1** left this turn)');
+    const once = spring(s);
+    expect(once).not.toBe(s);
+    expect(once.maxGoldBonus ?? 0).toBe(g0 + 1);
+    expect(spring(once)).toBe(once); // a third use this turn is refused
   });
 });

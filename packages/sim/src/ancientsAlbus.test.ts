@@ -160,7 +160,7 @@ describe('Albus × TIME — Empowerment becomes Start of Turn: Discover a minion
     for (const id of t7.discover!) expect(CARD_INDEX[id]!.tier).toBe(7);
   });
   it('prints the live tier', () => {
-    expect(heroPowerText(picked('time', { tier: 3 }))).toBe('**Start of Turn:** **Discover** a minion from the tier above your Shop (**Tier 4**).');
+    expect(heroPowerText(picked('time', { tier: 3 }))).toBe('**Start of Turn:** **Discover** a minion from the tier above your Shop tier (**Tier 4**).');
     expect(heroPowerText(picked('time', { tier: 6 }))).toContain('(**Tier 6**)');
   });
 });
@@ -201,8 +201,10 @@ describe('Albus × WAR — Pummel (80): get 2 Strange Revisions, once per combat
   it('prints the live progress, and folds in the fight on screen', () => {
     let s = picked('war');
     s = { ...s, ancients: { ...s.ancients!, pummelDealt: 170 } };
-    expect(heroPowerText(s)).toBe(`${BASE} **Pummel (80):** get **2** Strange Revisions. Once per combat. Counts damage dealt by all your minions (**10/80**).`);
+    expect(heroPowerText(s)).toBe(`${BASE} **Pummel (80):** get **2** Strange Revisions. Once per combat (**1** left this combat). Counts damage dealt by all your minions (**10/80**).`);
     expect(heroPowerText(s, 0, { friendlyDamage: 25 })).toContain('(**35/80**)');
+    // R-ANCFIX-09: the cap shows a counter, live: a crossing on screen spends the one payout.
+    expect(heroPowerText(s, 0, { friendlyDamage: 70 })).toContain('Once per combat (**0** left this combat)');
   });
 });
 

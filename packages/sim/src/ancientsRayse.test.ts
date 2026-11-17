@@ -120,7 +120,7 @@ describe('Rayse × FORTUNE: "Your summons gain +1 attack for every gold spent th
 describe('Rayse × WAR: "Your first 3 summoned minions attack immediately."', () => {
   it('the first 3 friendly combat summons strike the moment they land; the 4th does not', () => {
     const s = picked('war');
-    expect(heroPowerText(s)).toBe(`${BASE} In combat, the first **3** minions you summon attack immediately.`);
+    expect(heroPowerText(s)).toBe(`${BASE} In combat, the first **3** minions you summon attack immediately (**3** left this combat).`);
     expect(ancientCombatMods(s).ancientSummonsAttack).toEqual({ count: 3, label: 'Ancient of War' });
     const fight = (armed: boolean) => {
       let t = picked(armed ? 'war' : 'fortune', { board: ['a', 'b', 'c', 'd'].map((u) => card(u, ECHO.id, { attack: 1, health: 1 })) });
@@ -145,7 +145,7 @@ describe('Rayse × GENESIS: "The first 2 minions you summon in combat summon twi
     expect(ancientCombatMods(s).ancientSummonExtra).toBe(1);
     expect(ancientCombatMods(s).ancientSummonExtraLimit).toBe(2);
     expect(ancientCombatMods(s).ancientSummonExtraNeedsRoom).toBe(true);
-    expect(heroPowerText(s)).toBe(`${BASE} The first **2** minions you summon each combat summon twice, when you have room.`);
+    expect(heroPowerText(s)).toBe(`${BASE} The first **2** minions you summon each combat summon twice, when you have room (**2** left this combat).`);
     // An extra copy is summoned beside the body it copies (its `source` is that summoned body's uid); an ordinary Echo
     // summon's source is the dying Echo body.
     const made = summons(events(fightNow(s, 100, 5000)));

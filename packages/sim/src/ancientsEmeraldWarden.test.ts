@@ -101,7 +101,7 @@ describe('Emerald Warden × DEATH (ancient pass 1, owner 2026-11-16, Mike: once 
 describe('Emerald Warden × FORTUNE: "Minions of your tier cost 2g."', () => {
   it('a minion of your Shop tier costs 2 Gold; other tiers cost their price; it follows the tier', () => {
     const s = picked('fortune');
-    expect(heroPowerText(s)).toBe(`${BASE} Minions of your Tier (Tier **3**) cost **2 Gold**.`);
+    expect(heroPowerText(s)).toBe(`${BASE} Minions of your Shop tier (Tier **3**) cost **2 Gold**.`);
     const t3 = minionOfTier(s, 3), t2 = minionOfTier(s, 2);
     expect(offerBuyPrice(s, { cardId: t3 }).cost).toBe(2);
     expect(offerBuyPrice(s, { cardId: t2 }).cost).toBe(3);
@@ -172,7 +172,7 @@ describe('Emerald Warden × GENESIS (ancient pass 1, owner 2026-11-16: 5 Gold): 
 describe('Emerald Warden × TIME: "Vanguard gains End of Turn: Get a random minion of your tier."', () => {
   it('End of Turn puts a random minion of your Shop tier in hand', () => {
     let s = picked('time');
-    expect(heroPowerText(s)).toBe(`${BASE} **End of Turn:** get a random minion of your Tier (Tier **3**).`);
+    expect(heroPowerText(s)).toBe(`${BASE} **End of Turn:** get a random minion of your Shop tier (Tier **3**).`);
     s = fightNow(s);
     expect(s.hand.length).toBe(1);
     expect(tierIds(s)).toContain(s.hand[0]!.cardId);

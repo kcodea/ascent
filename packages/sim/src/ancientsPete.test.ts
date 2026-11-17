@@ -115,7 +115,7 @@ describe('Pete × WAR: "Contrabanana minions gain a random keyword."', () => {
 describe('Pete × GENESIS: "Contrabanana upgrades your 2 right-most Shop minions."', () => {
   it('the two right-most minion offers are both from the tier above', () => {
     const s0 = primed(picked('genesis'));
-    expect(heroPowerText(s0)).toBe('Every third refresh, your **2** right-most Shop minions are from the tier above your Shop tier (**1** more to go).');
+    expect(heroPowerText(s0)).toBe('Every third Refresh, your **2** right-most Shop minions are from the tier above your Shop tier (**1** more to go).');
     const s = reduce(s0, { type: 'roll' });
     const row = minionOffers(s);
     expect(bananas(s).length).toBe(2);

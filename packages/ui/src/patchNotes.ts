@@ -60,6 +60,18 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Ancients test mode: fixes to several Ancient powers so each one does what its text says.',
+        details: [
+          'An Ancient now counts what already happened this turn when you awaken it: a hero power you used, minions you bought, spells you cast, minions you archived and progress toward a reward.',
+          'Hunch with Bonds: Rubies, Clues and Tower Shield count as targeted spells, so they cast twice.',
+          'Hunch with Death: minions that die in the Shop now count toward its Avenge (4).',
+          'Indy with Time: an Engraved right-most minion stays Gilded after combat.',
+          'Ancient powers with a limit per combat or per turn now show how many are left, and count down during combat.',
+          'Power texts now show the real numbers, Chronos included, and say Shop tier everywhere.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Duos: passing to a teammate with a full hand now works. The card waits and joins their hand as soon as they have room.',
         details: [
           'Before, a pass to a full hand was refused and came back to you.',

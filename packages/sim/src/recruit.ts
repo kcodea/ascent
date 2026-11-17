@@ -9,12 +9,12 @@ import { ancientGildedEchoGraft, gildedEchoGraftEffect, ancientNoteDiscoverOpene
 import { ancientAyseTimeLive, ancientRunAyseTime } from './ancients'; // Ayse
 import { ancientAllInExtra, ancientForcedGambleRoll, ancientCoinGold, ancientCoinBonus, ancientOnCoinCast } from './ancients'; // the 2026-11-10 batch A: Rascal / Gambler / Juggler
 import { ancientDarahEotCopyLive, ancientRunDarahEotCopy } from './ancients'; // Darah
-import { ancientNadjaShopDeath } from './ancients'; // Nadja
+import { ancientNadjaShopDeath, ancientHunchShopDeath } from './ancients'; // Nadja / Hunch
 import { ancientBrackusShopDeath } from './ancients'; // Brackus
 import { ancientHeroAvengeShopDeath, ancientDrakkoEotShoutLive, ancientRayseEotRiseLive, ancientRunRayseEotRise, commissionLineOf } from './ancients'; // the 2026-10-09 batch
 import { ancientEotShoutCount, ancientLuckySeatNeed, ancientCommissionSecond } from './ancients'; // ancient pass 1
 import { ancientUnitedFrontShape, ancientUnitedFrontAtEot, ancientBatchBEotLive, ancientRunBatchBEot } from './ancients'; // the 2026-11-10 batch B
-import { ancientNoteShopSpell, ancientPass2EotLabel, ancientPass2EotLive, ancientRunPass2Eot, ancientTargetedSpellMult } from './ancients'; // ancient pass 2
+import { ancientNoteShopSpell, ancientPass2EotLabel, ancientPass2EotLive, ancientRunPass2Eot, ancientTargetedSpellMult, ancientTargetedCastMult } from './ancients'; // ancient pass 2
 import { runSpells } from './spellPool';
 import { duosDraft, queueTeamEffect, recordSpellPass, type DuosPassSource } from './duosPass';
 import { magicHatView } from './magicHat';
@@ -1278,7 +1278,7 @@ export function hoardWhelpStatsOf(state: RunState): { attack: number; health: nu
  *  nothing else — the player should see the one thing that will actually happen, not a four-line table (owner
  *  ask 2026-08-16). The reducer's payout switch and this map are the same four cases by construction. */
 export const CIA_SUIT_TEXT: Record<CiaSuit, string> = {
-  hearts: '**Hearts:** Discover a minion of your Tavern Tier.',
+  hearts: '**Hearts:** Discover a minion of your Shop tier.',
   spades: '**Spades:** Discover a Shop spell.',
   diamonds: '**Diamonds:** get a random minion from the tier **above** you.',
   clubs: '**Clubs:** gain **3 Gold**.',
@@ -1324,7 +1324,7 @@ export const COMMISSION_NAME: Record<CommissionKind, string> = {
   fortress: 'Zeppelin',
 };
 export const COMMISSION_REWARD: Record<CommissionKind, string> = {
-  discover: 'Discover a minion of your Tavern Tier',
+  discover: 'Discover a minion of your Shop tier',
   gold: 'Gain 2 Gold',
   spell: 'Get a random Shop spell',
   citadel: 'Your Shop is upgraded once, free',
@@ -1333,7 +1333,7 @@ export const COMMISSION_REWARD: Record<CommissionKind, string> = {
 
 /** Cassen's commissions, as printed. The delay is the whole trade, so it leads each line. */
 export const COMMISSION_TEXT: Record<CommissionKind, string> = {
-  discover: 'In **3 turns**, Discover a minion of your Tavern Tier.',
+  discover: 'In **3 turns**, Discover a minion of your Shop tier.',
   gold: 'In **2 turns**, gain **2 Gold**.',
   spell: 'In **1 turn**, get a random Shop spell.',
   citadel: 'In **3 turns**, your Shop is upgraded once.',
@@ -1376,6 +1376,8 @@ export interface HeroPowerLive {
   rallyFires?: number;
   /** Darah × Ancient of War: Swap charges its Pummel gained SO FAR in the fight; undefined outside a fight. */
   swapCharges?: number;
+  /** A per-combat Ancient budget spent SO FAR in the fight (`ANCIENT_CAP_SPENT_FLAG` pulses); undefined outside a fight. */
+  capSpent?: number;
   /** Drakko × Ancient of Bonds: friendly Shout fires SO FAR in the fight; undefined outside a fight (R-ANCSYS-04). */
   shoutFires?: number;
   /** Emerald Warden × Ancient of Death: its once-per-turn Avenge has paid SO FAR in the fight (count of pulses). */
@@ -1388,7 +1390,7 @@ export function heroPowerText(state: RunState, which = 0, live: HeroPowerLive = 
   const base = baseHeroPowerText(state, which, live);
   // ANCIENTS (owner ruling 2026-09-25): an awakened Ancient's pairing prints the COMBINED power on the main slot.
   // `ancientPowerText` is undefined unless the run has Ancients on and a written pairing is picked.
-  return (which === 0 ? ancientPowerText(state, base, { combatSummons: live.summons, friendlyDamage: live.friendlyDamage, clearanceStacks: live.clearanceStacks, friendlyDeaths: live.friendlyDeaths, freeRefreshes: live.freeRefreshes, rallyFires: live.rallyFires, swapCharges: live.swapCharges, shoutFires: live.shoutFires, ewAvengeFired: live.ewAvengeFired, attackGifts: live.attackGifts }) : undefined) ?? base;
+  return (which === 0 ? ancientPowerText(state, base, { combatSummons: live.summons, friendlyDamage: live.friendlyDamage, clearanceStacks: live.clearanceStacks, friendlyDeaths: live.friendlyDeaths, freeRefreshes: live.freeRefreshes, rallyFires: live.rallyFires, swapCharges: live.swapCharges, shoutFires: live.shoutFires, ewAvengeFired: live.ewAvengeFired, attackGifts: live.attackGifts, capSpent: live.capSpent }) : undefined) ?? base;
 }
 
 function baseHeroPowerText(state: RunState, which: number, live: HeroPowerLive): string {
@@ -1963,7 +1965,9 @@ export function rubyCastCount(state: RunState): number {
   // Comet / Nimbus: "your NEXT SPELL casts N additional times" — a Ruby is a spell (owner 2026-09-18: "this effect
   // says spell, which means ALL spells should count"). Added last, like `spellCasts` adds it, and spent by the
   // Ruby cast site the same way the Shop-spell sites spend it.
-  return (1 + extra) * grimoireMultActive(state) + nextSpellExtra(state);
+  // Ancient of Bonds × Hunch: a Ruby is a targeted spell (as for Yazzus), so it takes one of the turn's doubles
+  // (R-ANCFIX-04; read-only, the Ruby cast site spends it).
+  return (1 + extra) * grimoireMultActive(state) * ancientTargetedCastMult(state, true) + nextSpellExtra(state);
 }
 
 /** How many times a GIFT-class hand spell resolves. A Gift resolves exactly once (owner design 2026-08-26) — except a
@@ -1972,7 +1976,8 @@ export function rubyCastCount(state: RunState): number {
  *  2026-09-18). Side-effect free; shared by the reducer's gift cast site and the UI's ×N badge so they never drift. */
 export function giftCastCount(state: Pick<RunState, 'board' | 'nextSpellExtraCasts' | 'edictCharges' | 'edictExtra'>, def: Pick<CardDef, 'giftMulticast'>, aimed: boolean): number {
   if (!def.giftMulticast || !aimed) return 1;
-  return 1 + yazzusExtraCasts(state as RunState) + nextSpellExtra(state);
+  // Ancient of Bonds × Hunch: an aimed Clue / Tower Shield is a targeted spell too (R-ANCFIX-04; spent at the cast site).
+  return (1 + yazzusExtraCasts(state as RunState)) * ancientTargetedCastMult(state as RunState, true) + nextSpellExtra(state);
 }
 
 /** The "next spell cast from hand" extras on the NEXT hand cast: Comet / Nimbus' banked charge (`nextSpellExtraCasts`)
@@ -12192,6 +12197,7 @@ export function fireOnFriendDeath(state: RunState, dead: BoardCard, opts?: { ret
   ancientGorrShopDeath(state); // GORR × DEATH: the Shop half of the running Avenge (6)
   ancientBramShopDeath(state); // BRAUM × DEATH: the Shop half of the running "when 16 friendly minions die"
   ancientNadjaShopDeath(state); // NADJA × DEATH: the Shop half of the running Avenge (6), +1 max Gold
+  ancientHunchShopDeath(state); // HUNCH × DEATH: the Shop half of the running Avenge (4), +1/+1 spells (R-ANCFIX-10)
   ancientBrackusShopDeath(state, dead); // BRACKUS × DEATH: the Shop half of the running Avenge (3)
   ancientHeroAvengeShopDeath(state, dead); // RAYSE / CASSEN / GILDMASTER × DEATH: the Shop half of the running hero Avenge
   for (const card of [...state.board]) {

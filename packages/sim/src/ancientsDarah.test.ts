@@ -102,7 +102,7 @@ describe('Darah × FORTUNE: "Swapped minions are free."', () => {
 describe('Darah × WAR: "Pummel (200): Get a charge of Swap. Twice per combat." (ancient pass 1, owner 2026-11-16)', () => {
   it('the first TWO 200s crossed in a fight each pay a charge (live flags), later crossings are spent; the tally carries', () => {
     let s = picked('war', { wave: 3, board: [card('a', N(0), { attack: 100, health: 900 }), card('b', N(1), { attack: 100, health: 900 })] });
-    expect(heroPowerText(s)).toBe(`${BASE} **Pummel (200):** get a charge of Swap. Twice per combat. Counts damage dealt by all your minions (**0/200**). Each charge is one more Swap (**0** banked).`);
+    expect(heroPowerText(s)).toBe(`${BASE} **Pummel (200):** get a charge of Swap. Twice per combat (**2** left this combat). Counts damage dealt by all your minions (**0/200**). Each charge is one more Swap (**0** banked).`);
     expect(ancientCombatMods(s).ancientPummelCharge).toEqual({ every: 200, dealt: 0, flag: ANCIENT_SWAP_CHARGE_FLAG, label: 'Ancient of War', perCombat: 2 });
     s = fightNow(s, 1, 3000);
     const dealt = s.lastCombat!.playerAncientPummelDealt!;

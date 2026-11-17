@@ -439,7 +439,7 @@ export const HEROES_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-30 (Hunch Ancients)', quote: 'Death - Avenge (4) Improve your spells by +1/+1.' },
       { kind: 'code', ref: 'packages/sim/src/ancients.ts avengeImproveSpells / hunchLive; packages/core/src/combat/simulate.ts ancientAvengeSpells (avenge bus, grantSpellPower)' },
     ],
-    currentBehaviour: 'Conforms (built 2026-09-30). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    currentBehaviour: 'SUPERSEDED 2026-11-16 by R-ANCFIX-10 (owner: the Avenge counts Shop deaths too). Was: Conforms (built 2026-09-30). Dev-only (Scene Builder, Set 3, the Ancients flag).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsHunch.test.ts'], lastVerifiedAt: '2026-09-30' },
   },
   {
@@ -4680,6 +4680,104 @@ export const HEROES_RULES: GameRule[] = [
     ],
     currentBehaviour: "Conforms (built 2026-11-16). Supersedes R-ANCVALE-04. Dev-only (Scene Builder, Set 3, the Ancients flag).",
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsEmissary.test.ts"], lastVerifiedAt: '2026-11-16' },
+  },
+  {
+    id: "R-ANCFIX-03",
+    title: "Ancients: the pick looks back at what already happened this turn",
+    statement:
+      "One shared look-back at the pick: a pairing accounts for what already happened this turn or cycle. The reducer stamps the turn the slot-0 power was used (`AncientsState.powerUsedWave`); `pickTurnPowerUse` applies it: a `usesPerTurn` reshape (Nadja / Merrin × Fortune, Cassen × Time) counts it as this turn's first use, Xerox × Genesis marks its one use this turn, Rascal × Bonds gives that turn's discount. Counts already past a lowered need are clamped one short so the next action pays and the glow lights (Ayse × Bonds, Juggler × Genesis). Frank × Time counts the minions already bought this turn among its first 3; Hunch × Bonds counts targeted spells already cast this turn (counted on every Ancients run). Quillen × Genesis picked with 2 types already archived opens its Discover at the pick (`payArchiveIfFull`, the reducer's pick case).",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Ancient pairings audit 2026-11-16 (findings 1-3), fix list from the lead", quote: "Owner via the lead, 2026-11-16: a RETROACTIVE LOOK-BACK rule: when an Ancient is picked, it accounts for what already happened this turn/cycle. One shared rule at the pick: Xerox Genesis, Nadja Fortune, Rascal Bonds, Ayse Bonds, Quillen Genesis, and the same class elsewhere." },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts pickAncient / pickTurnPowerUse / ancientNotePowerUse; packages/sim/src/reducer.ts heroPower" },
+    ],
+    currentBehaviour: "Conforms (fixed 2026-11-16). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsXerox.test.ts"], lastVerifiedAt: '2026-11-16' },
+  },
+  {
+    id: "R-ANCFIX-04",
+    title: "Hunch × Ancient of Bonds: Rubies, Clues and aimed Gifts are targeted spells too",
+    statement:
+      "The first 3 targeted spells each turn cast twice: a Ruby (`rubyCastCount`) and an aimed card-minted Gift or Whisper (`giftCastCount`: Clue, Tower Shield) are targeted spells, as for Yazzus, so they cast twice and each spends one of the 3 (`ancientNoteTargetedCast` at those cast sites).",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Ancient pairings audit 2026-11-16 (findings 1-3), fix list from the lead", quote: "Owner via the lead, 2026-11-16: Hunch x Bonds: confirmed, ALL spells count (Rubies, Clues, Gifts, etc.)." },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts ancientTargetedCastMult / ancientNoteTargetedCast; packages/sim/src/recruit.ts rubyCastCount / giftCastCount; packages/sim/src/reducer.ts the Ruby / Gift / Whisper cast sites" },
+    ],
+    currentBehaviour: "Conforms (fixed 2026-11-16). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsHunch.test.ts"], lastVerifiedAt: '2026-11-16' },
+  },
+  {
+    id: "R-ANCFIX-05",
+    title: "Indy × Ancient of Time: an Engraved right-most minion keeps the Gild after combat",
+    statement:
+      "The Start of Combat gild on the right-most minion follows the Cindy × War Engraved ruling: an Engraved body keeps the doubled stats (the Engraved rule) and its run uid rides `ancientGildKept`, so settle keeps it Gilded (and it counts as a gild).",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Ancient pairings audit 2026-11-16 (findings 1-3), fix list from the lead", quote: "Owner via the lead, 2026-11-16: Indy x Time: confirmed, an Engraved right-most minion stays Gilded." },
+      { kind: 'code', ref: "packages/core/src/combat/simulate.ts ancientTimeGild (gildKeptLog); packages/sim/src/ancients.ts ancientAfterCombat (socGildRightmost)" },
+    ],
+    currentBehaviour: "Conforms (fixed 2026-11-16). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancients.test.ts"], lastVerifiedAt: '2026-11-16' },
+  },
+  {
+    id: "R-ANCFIX-07",
+    title: "Ayse × Ancient of Bonds picked at 2 of 3: the count is clamped one short of 2",
+    statement:
+      "When Bonds is picked with Lucky Seat already at or past the new need (2), the count is clamped to need - 1, so the counter never sits at 2/2 unpaid: the next Enchanted buy pays and the armed glow (`>= need - 1`) lights.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Ancient pairings audit 2026-11-16 (findings 1-3), fix list from the lead", quote: "clamp the count at the pick so 2/2 pays on the right buy and the armed glow lights" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts pickAncient (luckySeatNeed clamp); packages/sim/src/powerArmed.ts luckySeat" },
+    ],
+    currentBehaviour: "Conforms (fixed 2026-11-16). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsAyse.test.ts"], lastVerifiedAt: '2026-11-16' },
+  },
+  {
+    id: "R-ANCFIX-08",
+    title: "Ancient power texts print the real current value",
+    statement:
+      "Ancient power texts print the real current value and use the game's terms. End-of-Turn payouts fold the End-of-Turn repeats (Chronos, Chrono Staff, Parliament) into their numbers (Xerox × Fortune, Ayse × Time, Flint × Time); every other End-of-Turn pairing adds \"It triggers N times this turn.\" when it repeats. Counts read in the right number (\"1 time\", \"Uses left: 1\"), Mimic × Fortune names Gold, Drakko × Genesis says Drumline is done once its completions are used, Brackus × War's offer names the left-most Tier 7 minion, and texts say \"Shop tier\" (never Tavern Tier or a bare \"your Tier\") and \"Refresh\".",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Ancient pairings audit 2026-11-16 (findings 1-3), fix list from the lead", quote: "Owner via the lead, 2026-11-16: Fix all text inconsistencies; Xerox Fortune End of Turn multiplier text, look at it widespread." },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts ancientPowerText / batch5PowerText / the pairing texts; packages/sim/src/recruit.ts CIA_SUIT_TEXT / COMMISSION_TEXT" },
+    ],
+    currentBehaviour: "Conforms (fixed 2026-11-16). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsXerox.test.ts"], lastVerifiedAt: '2026-11-16' },
+  },
+  {
+    id: "R-ANCFIX-09",
+    title: "Ancients: every per-combat or per-turn cap shows a counter, live in combat",
+    statement:
+      "Any Ancient pairing with a max count per combat or per phase prints how many are left. Rayse × War / Genesis and Lord of the Risen × Death / Genesis print \"(N left this combat)\": the simulator pulses `ANCIENT_CAP_SPENT_FLAG` each time the budget is spent, and the replay's tally (`combatQuestDelta.capSpent` -> `AncientPowerLive.capSpent`) counts it down live. The capped Pummels (Albus, Gorr, Darah, Gildmaster × War) print their payouts left from the crossings the fight on screen has made, as Flash × War does.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Ancient pairings audit 2026-11-16, owner rulings via the lead", quote: "Owner via the lead, 2026-11-16: anything with a max count per combat or per phase must SHOW a counter. Lord of the Risen x Genesis shows its count on the hero power. Live in combat too where the pattern allows." },
+      { kind: 'code', ref: "packages/core/src/combat/simulate.ts ANCIENT_CAP_SPENT_FLAG; packages/sim/src/ancients.ts capLeftText; packages/ui/src/useCombatReplay.ts capSpent; packages/ui/src/StatusBar.tsx" },
+    ],
+    currentBehaviour: "Conforms (fixed 2026-11-16). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsRisen.test.ts"], lastVerifiedAt: '2026-11-16' },
+  },
+  {
+    id: "R-ANCFIX-10",
+    title: "Hunch × Ancient of Death: the Avenge (4) counts Shop deaths too",
+    statement:
+      "One running Avenge (4) count across the Shop and combat (`AncientsState.hunchDeaths`, carried into the fight as `ancientAvengeSpells.tick`, banked at settle), like every other hero Avenge. A Shop death ticks it (`ancientHunchShopDeath`) and every 4th improves your spells +1/+1 right then (Mastery's improve reps). The power prints the running count in both phases. Supersedes R-ANCHUNCH-01.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Ancient pairings audit 2026-11-16, owner rulings via the lead", quote: "Owner via the lead, 2026-11-16: Hunch x Death's Avenge (4) counts Shop deaths too, one running count across Shop and combat like every other hero Avenge." },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts ancientHunchShopDeath / hunchLive / ancientSpellbookAvengeLeft; packages/core/src/combat/simulate.ts ancientAvengeSpells.tick" },
+    ],
+    currentBehaviour: "Conforms (fixed 2026-11-16). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsHunch.test.ts"], lastVerifiedAt: '2026-11-16' },
   },
   {
     id: "R-ANCSYS-01",

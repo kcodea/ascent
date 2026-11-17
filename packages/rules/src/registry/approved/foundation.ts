@@ -794,7 +794,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       + '25-100, Ascendant 35-100 for the final-board scale); since 2026-10-09 an OVERALL cap on the weighted strength sits on '
       + 'top (R-LOBBY-15: over 40 never in Bronze, over 60 never in Silver, over 75 never in Gold, none from Platinum); '
       + 'every division of a medal shares its band, still whole runs, at '
-      + 'most 2 seats per player, 3 when the table is short (R-LOBBY-16; the player\'s own runs included, under the same cap). A run with no score yet is inside every band. When a '
+      + 'most 2 seats per player, 3 when the table is short (R-LOBBY-16; the player\'s own runs included, under the same cap). A run with no score is OUTSIDE every band since 2026-11-16 (R-LOBBY-20; it was inside every band before) and is seated only where there is no band. Since 2026-11-16 the reference set is set2-v2 (40 boards per round, four fights each) and the percentiles are R-LOBBY-18\'s. When a '
       + 'band cannot fill the table it widens by 10 on each capped side, step by step (each step logged), before '
       + 'generated seats fill the rest; the overall cap never widens. The tutorial has no band, and Practice has none unless its setup picks an Opponent Rank (R-PRACTICE-RANK-01). The player\'s own game shows '
       + '"Game strength N" (the display name, owner 2026-09-30: "game strength for the display"; the run\'s strength) in the Career and Recent Games rows and in Match details (with each '
@@ -4963,7 +4963,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'its board percentiles (R-LOBBY-09) in rounds 1-9, and LATE = the same for rounds 10 and later, each rounded '
       + 'half up and then RANKED among the set\'s runs by the tie-halving 1..100 rule of a run\'s strength. LATE is '
       + 'empty for a run with no scored board at round 10+. A run\'s score for a medal is weight x EARLY + (1 - weight) '
-      + 'x LATE, or EARLY alone when LATE is empty; a run with neither is unscored and is inside every band. A rated '
+      + 'x LATE, or EARLY alone when LATE is empty; a run with neither is unscored and, since 2026-11-16, outside every band (R-LOBBY-20; inside every band before). Since 2026-11-16 (R-LOBBY-18) LATE is rounds 10-15 over real and carried rounds, so every scored run has a LATE. A rated '
       + 'lobby seats recorded runs whose score is inside its medal\'s band (every division of a medal shares it): '
       + 'Bronze weight 1.0, band 0-20; Silver 0.8, 10-30; Gold 0.6, 10-50; Platinum, Diamond and Ascendant have NO '
       + 'band (anything goes: R-LOBBY-08\'s uniform selection). Since 2026-10-09 Bronze, Silver and Gold also carry an '
@@ -5458,7 +5458,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'the cap is allowed, anything above it is not. Platinum, Diamond and Ascendant have no cap (and no band). The cap '
       + 'is HARD: when a band cannot fill the table and widens (+10 per capped side), only the early / late band widens; '
       + 'the overall cap stays, and whatever the table still lacks is filled by generated seats. A run with no overall '
-      + 'strength yet (unscored) stays eligible. The tutorial has no band and no cap; Practice has them only when its setup picks an Opponent Rank (R-PRACTICE-RANK-01), and then exactly that medal\x27s. The rule holds whether '
+      + 'strength yet (unscored) stayed eligible until 2026-11-16 and is now outside every band (R-LOBBY-20). The tutorial has no band and no cap; Practice has them only when its setup picks an Opponent Rank (R-PRACTICE-RANK-01), and then exactly that medal\x27s. The rule holds whether '
       + 'or not the server applies the cap: the game re-checks every delivered run when it picks the seats.',
     domain: 'foundation',
     status: 'approved',
@@ -15769,5 +15769,109 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'are seated by packages/sim/src/versus/rankedDuosSeating.ts, which does not apply the tier limits. With a random '
       + 'draw of 7 a table would have held three or more 90+ runs about 3% of the time.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/lobby/seatTiers.test.ts', 'packages/sim/src/lobby/strengthBands.test.ts'], lastVerifiedAt: '2026-11-16' },
+  },
+  // ── Strength v2: carry-forward ranking (owner design 2026-11-16) ───────────────────────────────────────────
+  {
+    id: 'R-LOBBY-18',
+    domain: 'foundation',
+    title: 'Every recent run is ranked once per round, with the board it would really field: its own, or its final board carried forward',
+    statement:
+      'A board\x27s percentile is its place among the boards the LIVE runs (the rolling pool, R-POOL-ROLLING-01) field '
+      + 'that round, each run counted exactly once: its recorded board of that round (an empty board counts as raw 0), '
+      + 'or, when its recording ended earlier, its FINAL board, scored against that round\x27s reference (a carried '
+      + 'score). That is the board a table would be served. A board on a round past the last reference round (15) is '
+      + 'ranked against round 15\x27s boards without joining them. EARLY is the mean of rounds 1-9 and LATE the mean of '
+      + 'rounds 10-15, both over real and carried rounds, so every scored run has both; each is then ranked among the '
+      + 'live runs. Game strength (the number a player sees) keeps its formula over the run\x27s REAL rounds only: '
+      + 'being knocked out early never lowers it after the fact. The database and the TypeScript rule must rate a pool '
+      + 'identically.',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-16 (snapshot deep dive)', quote: 'i want to refine how we determine strength of boards. 2. i want to better determine what a player may face. i want to absolutely nail this down so we are crystal clear' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-16 (snapshot deep dive), on the five proposed bundles', quote: 'oh cool. yes lets do all five' },
+      { kind: 'fix-pr', ref: 'feat/strength-v2-scoring (2026-11-16): packages/sim/src/lobby/strengthV2.ts rateRunsV2; supabase/migrations/2026-11-23-strength-v2.sql pool_strength_entries / pool_strength_round_pcts / pool_strength_refresh; packages/sim/src/lobby/boardStrength.ts createStrengthProbe (atRound)' },
+      { kind: 'spec', ref: 'docs/superpowers/specs/2026-11-16-strength-v2-design.md section 6.B' },
+    ],
+    example: 'A run knocked out on round 8 with a strong board: before, it had no LATE rating and rounds 9-15 were ranked without it. Now its round-8 board is scored against rounds 9 to 15 and counts in each, exactly as a table would meet it.',
+    currentBehaviour:
+      'Conforms in code from 2026-11-16; live once the owner applies 2026-11-23-strength-v2.sql and its backfill. '
+      + 'Before, a board was ranked among every scored board of its round, live or not, and a run that ended before '
+      + 'round 10 had no LATE rating at all. Runs outside the rolling window keep their last numbers.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/lobby/strengthV2.db.test.ts', 'packages/sim/src/lobby/boardStrengthV2.test.ts', 'packages/tools/src/strength/measureV2.lib.test.ts'], lastVerifiedAt: '2026-11-16' },
+  },
+  // ── Strength v2: no run under 7 rounds (owner 2026-11-16) ──────────────────────────────────────────────────
+  {
+    id: 'R-LOBBY-19',
+    domain: 'foundation',
+    title: 'A recorded run that ended before round 7 is never an opponent',
+    statement:
+      'A run whose recording ends on round 6 or earlier is never seated at a new table, never counted in any strength '
+      + 'ranking, and never a reference board. A run that ends on round 7 is in. Runs already stored are excluded, not '
+      + 'deleted: the player\x27s own short game still shows in their Career, match details and replays, and a saved '
+      + 'game that already seated such a run keeps it.',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-16 (snapshot deep dive)', quote: 'we should never have any snapshots of boards that are below 7 rounds. those should be wiped and never included' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-16 (snapshot deep dive) (asked: delete them, or exclude them?)', quote: 'exclude them' },
+      { kind: 'fix-pr', ref: 'feat/strength-v2-scoring (2026-11-16): packages/sim/src/lobby/snapshotSeats.ts runCanBeSeated / seatablePlayerRuns; packages/sim/src/lobby/runLobby.ts seatRunLobby; packages/ui/src/opponentPool/poolFetch.ts (fallback); supabase/migrations/2026-11-23-strength-v2.sql pool_run_eligible (p_last_wave)' },
+    ],
+    example: 'A player quits a rated game on round 4. The game is in their Career, but nobody ever meets its boards.',
+    currentBehaviour:
+      'Conforms in code from 2026-11-16; the database side is live once the owner applies 2026-11-23-strength-v2.sql. '
+      + 'It replaces "at least 4 recorded rounds" for seating. On 2026-11-16 no eligible run ended before round 7, so '
+      + 'nothing left the pool: this is a guard, mostly against abandoned games. A short game\x27s boards are still '
+      + 'uploaded (the Career and the replay read them); the database marks the run ineligible.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/lobby/strengthV2Seating.test.ts', 'packages/sim/src/lobby/strengthV2.db.test.ts', 'packages/ui/src/opponentPool/poolFetch.test.ts'], lastVerifiedAt: '2026-11-16' },
+  },
+  // ── Strength v2: scored only when complete; unscored runs leave banded tables (owner ruling 2026-11-16) ─────
+  {
+    id: 'R-LOBBY-20',
+    domain: 'foundation',
+    title: 'A run is scored only when every board of it is scored, and an unscored run is never seated at a Bronze, Silver or Gold table',
+    statement:
+      'A run has a strength only when it is complete: every recorded board with minions has a score of the current '
+      + 'reference version, and its final board has a carried score for every round up to the last reference round. '
+      + 'Anything less is an UNSCORED run: it has no Game strength, EARLY or LATE at all, never a low number. An unscored '
+      + 'run is outside every strength band (Bronze, Silver, Gold, each widened step, and Practice set to one of those '
+      + 'ranks), in the server draw, in the hub\x27s draw and at seat selection alike; it is seated only where there is '
+      + 'no band (Platinum and up, Practice on All Ranks). Scores of different reference versions are never compared.',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-16 (snapshot deep dive), ruling 1 of the design ("Unscored runs leave Bronze, Silver and Gold lobbies (recommended), or stay inside every band as today?")', quote: 'Approve as recommended' },
+      { kind: 'fix-pr', ref: 'feat/strength-v2-scoring (2026-11-16): packages/sim/src/lobby/strengthV2.ts runCompleteV2; packages/sim/src/lobby/strengthBands.ts runInStrengthBand; supabase/migrations/2026-11-23-strength-v2.sql (pool_strength_entries, pool_runs__pick, pool_runs_sample); workers/versus/src/core/poolPick.ts pickRuns' },
+      { kind: 'spec', ref: 'docs/superpowers/specs/2026-11-16-strength-v2-design.md, "Transition and unscored runs" and ruling 1' },
+    ],
+    example: 'A top-strength run uploaded by a build from before the change carries old-version scores. It is unscored, so a Bronze table never seats it; a Diamond table may.',
+    currentBehaviour:
+      'Conforms in code from 2026-11-16; live once the owner applies 2026-11-23-strength-v2.sql. Before, an unscored run '
+      + 'was inside every band (R-LOBBY-09), and a run missing its strongest board\x27s score was rated on the rest. '
+      + 'A custom band with no overall cap still widens to "no band" as its last step and then seats unscored runs; '
+      + 'every medal band has a cap, so no rank reaches that step. pool_live_unscored() counts the live unscored runs.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/lobby/strengthV2Seating.test.ts', 'packages/sim/src/lobby/strengthV2.db.test.ts', 'packages/sim/src/lobby/strengthV2.test.ts', 'workers/versus/test/sessionCf.db.test.ts'], lastVerifiedAt: '2026-11-16' },
+  },
+  // ── "Calculating Score": Continue waits while a finished game is scored (owner 2026-11-16) ───────────────────
+  {
+    id: 'R-ENDSCREEN-SCORE-01',
+    domain: 'foundation',
+    title: 'While a finished lobby game is being scored, Continue is greyed out, says "Calculating Score", shows real progress, and always unlocks',
+    statement:
+      'When a lobby game that reached round 7 ends, its boards (and its final board against every later round) are '
+      + 'scored before the game uploads. While that runs, the end screen\x27s Continue is greyed out and cannot be '
+      + 'pressed, the text "Calculating Score" says why, and a bar fills with the real progress (fights done out of '
+      + 'fights to do). When the work is done the text and bar go away and Continue works. After 5 seconds Continue '
+      + 'unlocks regardless and the game uploads with what is ready: the button never stays locked. Practice, the '
+      + 'tutorial, Gauntlet, Versus and a game that ended before round 7 are never held.',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-16 (snapshot deep dive)', quote: 'can we have the continue button greyed out and unavailable to click while the games are being scored?' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-16 (snapshot deep dive)', quote: 'i want to make sure it says something like "Calculating Score" while the button to continue is greyed out. players should know why this is happening. preferably with a timer bar as well' },
+      { kind: 'fix-pr', ref: 'feat/strength-v2-scoring (2026-11-16): packages/ui/src/boardStrength/strengthScorer.ts (enqueueCarried, progress, rush); packages/ui/src/boardStrength/index.ts (shouldScoreRunEnd, STRENGTH_RUN_END_WAIT_MS 5000); packages/ui/src/store.ts (runScoring); packages/ui/src/rank/RankScreen.tsx (scoring)' },
+    ],
+    example: 'A rated game ends on round 9. For about a second Continue is grey under "Calculating Score" while the bar fills, then it lights up.',
+    currentBehaviour:
+      'Conforms from 2026-11-16. The lock also applies to an offline (unrated) lobby game, whose boards go to the pool '
+      + 'too. The work runs in slices of at most 6 ms on the main thread. NOT YET MEASURED in the running game on the '
+      + 'production build (frame times during the wait, and the wait itself): the owner checks it before the release.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/rank/RankScreen.test.tsx', 'packages/ui/src/boardStrength/runEndStrength.test.ts', 'packages/ui/src/boardStrength/runEndTimeout.test.ts', 'packages/ui/src/boardStrength/carriedScorer.test.ts'], lastVerifiedAt: '2026-11-16' },
   },
 ];

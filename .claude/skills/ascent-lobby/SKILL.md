@@ -142,6 +142,19 @@ behaviour from a legacy symbol.**
   Bronze makes the next rated lobby easier. Your own boards are scored in idle slices from capture
   (`ui/src/boardStrength/`), never on an interaction path; the run-end freeze reads them. Never read `runStrength`
   in combat.
+- **Strength v2** (2026-11-16, R-LOBBY-18 / -19 / -20, R-ENDSCREEN-SCORE-01; rules in `lobby/strengthV2.ts`, SQL in
+  `2026-11-23-strength-v2.sql`): reference `set2-v2` (40 x 4 fights, rounds 1-15; `createStrengthProbe(board, ref,
+  atRound)` scores a board at any round). Every LIVE run is ranked once per round with the board it fields: its own
+  (empty = raw 0) or its final board CARRIED (`boards.strength_carried` on the final board's row, `{ ref, rounds }`).
+  EARLY = rounds 1-9, LATE = 10-15, real and carried; Game strength = REAL rounds only. A run is scored only when
+  COMPLETE (`runCompleteV2`); an UNSCORED run is outside every band (`runInStrengthBand`, the SQL draw and the hub's
+  `pickRuns` together: change all three or none). A run that ended before round 7 is never SEATED
+  (`seatablePlayerRuns` / `runCanBeSeated`; `playerRunsFrom` and `playerRunByKey` still find it, so a save or a
+  replay never loses a seat). The database must rate a pool exactly as `rateRunsV2` does
+  (`lobby/strengthV2.db.test.ts`). At run end a lobby game that reached round 7 is scored in full BEFORE it uploads
+  (`shouldScoreRunEnd`, `scorer.enqueueCarried` + `rush`, store `runScoring`): the end screen locks Continue behind
+  "Calculating Score" for at most `STRENGTH_RUN_END_WAIT_MS` (5 s). A test fixture that must be seated needs 7 rounds,
+  and a fixture seated inside a band needs `runStrength`.
 - A generated (hybrid) seat is seated only if its RECORDING fields a board (`hybridSeat.canFieldBoard` checks a
   one-board `autoplayRun` prefix, not just the live bot). `autoplayRun` must answer every blocking modal a hero
   can raise (quest, Runeforge, `powerOffer`, Discover, chooseOne, target) or that hero records nothing — the

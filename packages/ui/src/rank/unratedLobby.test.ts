@@ -22,7 +22,7 @@ const board = (author: string, heroId: string, seed: number, wave: number): Boar
   seed, origin: 'self', author, setId: SET,
 } as unknown as BoardSnapshot);
 const runs = (n: number): BoardSnapshot[] =>
-  playableHeroes().slice(1, 1 + n).flatMap((h, i) => Array.from({ length: 6 }, (_, w) => board(`Real${i}`, h.id, 6100 + i, w + 1)));
+  playableHeroes().slice(1, 1 + n).flatMap((h, i) => Array.from({ length: 7 }, (_, w) => board(`Real${i}`, h.id, 6100 + i, w + 1)));
 
 afterEach(() => { OPPONENT_POOL.length = 0; });
 

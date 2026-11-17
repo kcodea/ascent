@@ -126,6 +126,9 @@ export function HeroShowcase(props: HeroShowcaseProps): JSX.Element {
   useLayoutEffect(() => { slotEls.current.length = n; }, [slotEls, n]);
   useTileGlow(rowRef, glowRef, slotEls, selected, n);
 
+  // The re-roll has just been used (the swap is still playing) and its buttons are gone. Not once the ceremony runs.
+  const rerollSpent = swapping !== null && !canReroll && blocked !== 'busy';
+
   const tip = heroTip(heroId);
   const extraFacts = showDifficulty && tip ? [tip.difficulty] : undefined;
 
@@ -175,6 +178,9 @@ export function HeroShowcase(props: HeroShowcaseProps): JSX.Element {
                   <Icon name="refresh" />
                 </button>
               )}
+              {/* The re-roll was just spent: every re-roll button grows and fades away (heroShowcase.css). A ghost, not
+                  the button: it takes no press and no focus, and is gone when the swap ends. */}
+              {rerollSpent && <span className="hss-reroll-gone" aria-hidden="true"><Icon name="refresh" /></span>}
             </div>
           );
         })}

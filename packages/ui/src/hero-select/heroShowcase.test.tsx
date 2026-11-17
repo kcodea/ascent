@@ -642,3 +642,28 @@ describe('Hero Select with the showcase body', () => {
     expect(readFileSync(fileURLToPath(new URL(src, import.meta.url)), 'utf8')).not.toMatch(/glow.style.opacity/);
   });
 });
+
+describe('HeroShowcase: the spent re-roll', () => {
+  let ui: Mounted | null = null;
+  afterEach(() => { ui?.unmount(); ui = null; });
+  const swap = { slot: 1, from: 'warden' };
+
+  it('while the swap plays and the re-roll is used up, every slot shows the fading ghost, not a button', () => {
+    ui = mount(<HeroShowcase {...props({ canReroll: false, swapping: swap })} />);
+    expect(ui.container.querySelectorAll('.hss-reroll')).toHaveLength(0);
+    const ghosts = [...ui.container.querySelectorAll('.hss-slot > .hss-reroll-gone')];
+    expect(ghosts).toHaveLength(3);
+    expect(ghosts.every((g) => g.tagName === 'SPAN' && g.getAttribute('aria-hidden') === 'true')).toBe(true);
+  });
+
+  it('no ghost at rest, while the re-roll is still available, or once the ceremony runs', () => {
+    ui = mount(<HeroShowcase {...props()} />);
+    expect(ui.container.querySelector('.hss-reroll-gone')).toBeNull();
+    ui.unmount();
+    ui = mount(<HeroShowcase {...props({ canReroll: true, swapping: swap })} />);
+    expect(ui.container.querySelector('.hss-reroll-gone')).toBeNull();
+    ui.unmount();
+    ui = mount(<HeroShowcase {...props({ canReroll: false, swapping: swap, blocked: 'busy' })} />);
+    expect(ui.container.querySelector('.hss-reroll-gone')).toBeNull();
+  });
+});

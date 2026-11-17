@@ -81,11 +81,17 @@
 
 /* THE RE-ROLL: a round navy button straddling the tile's top-right corner, the refresh icon in gold (the shipped re-roll's
    paint, heroSelectPh.css `.hcreroll`). A sibling of the tile, above the glow. */
-.heroselect.hss .hss-reroll { position: absolute; z-index: 3; top: calc(-14 * var(--phu)); right: calc(-14 * var(--phu)); display: grid; place-items: center;
+.heroselect.hss :is(.hss-reroll, .hss-reroll-gone) { position: absolute; z-index: 3; top: calc(-14 * var(--phu)); right: calc(-14 * var(--phu)); display: grid; place-items: center;
   width: calc(44 * var(--phu)); height: calc(44 * var(--phu)); margin: 0; padding: 0; border: 0; border-radius: 50%;
   background: var(--ph-gloss), var(--ph-plate), var(--ph-navy); box-shadow: var(--ph-gild-s), 0 calc(6 * var(--phu)) calc(16 * var(--phu)) calc(-6 * var(--phu)) rgba(0, 0, 0, 0.8);
   color: var(--ui-title, #ffd98a); }
-.heroselect.hss .hss-reroll svg { width: calc(22 * var(--phu)); height: calc(22 * var(--phu)); }
+.heroselect.hss :is(.hss-reroll, .hss-reroll-gone) svg { width: calc(22 * var(--phu)); height: calc(22 * var(--phu)); }
+/* SPENT (owner 2026-11-17: "grow and fade ... symbolizing they've been destroyed"): when the one re-roll is used, every
+   re-roll button swells and fades out. A ghost of the button (HeroShowcase `hss-reroll-gone`); transform and opacity only,
+   one shot. */
+.heroselect.hss .hss-reroll-gone { pointer-events: none; animation: hss-reroll-gone 0.5s cubic-bezier(0.2, 0.7, 0.3, 1) both; }
+@keyframes hss-reroll-gone { from { transform: scale(1); opacity: 1; } to { transform: scale(2.1); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .heroselect.hss .hss-reroll-gone { animation: none; opacity: 0; } }
 .heroselect.hss .hss-reroll:focus-visible { outline: none; box-shadow: var(--ph-gild-s), var(--ph-glow); }
 
 /* ── THE CARD'S STAGE: a size container that takes the height left between the tiles and the button ── */

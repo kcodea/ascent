@@ -95,7 +95,7 @@
    one-shot entrance (`phi-art` holds `transform`); it grows about a point near the top so heads stay in frame. The fade
    moves from the image to its BOX so it stays put under the larger image (the Compendium fades from 68%). Static.
    The ceremony's clone matches both (heroCeremony.css `.hsc-splash`). */
-.heroselect.hss .hss-card .phi-art { -webkit-mask-image: linear-gradient(90deg, #000 56%, transparent 100%); mask-image: linear-gradient(90deg, #000 56%, transparent 100%); }
+.heroselect.hss .hss-card .phi-art { -webkit-mask-image: linear-gradient(90deg, #000 38%, rgb(0 0 0 / 0.96) 45%, rgb(0 0 0 / 0.85) 52%, rgb(0 0 0 / 0.66) 60%, rgb(0 0 0 / 0.42) 69%, rgb(0 0 0 / 0.2) 78%, rgb(0 0 0 / 0.06) 87%, transparent 95%); mask-image: linear-gradient(90deg, #000 38%, rgb(0 0 0 / 0.96) 45%, rgb(0 0 0 / 0.85) 52%, rgb(0 0 0 / 0.66) 60%, rgb(0 0 0 / 0.42) 69%, rgb(0 0 0 / 0.2) 78%, rgb(0 0 0 / 0.06) 87%, transparent 95%); }
 .heroselect.hss .hss-card .phi-art img { scale: 1.06; transform-origin: 50% 20%; -webkit-mask-image: none; mask-image: none; }
 /* The colour wash behind the card: a blur of 40 at 18% opacity, against the Compendium's 72 at 14% (owner 2026-11-17). Static. */
 .heroselect.hss .hss-card .phi-wash { opacity: 0.18; filter: blur(calc(40 * var(--phu))) saturate(1.4); }

@@ -352,7 +352,11 @@ export function HeroSelect({ watch }: { watch?: HeroSelectWatch } = {}) {
     setOpenIndex(index);
   };
   const closeWindow = (): void => { if (!active) setOpenIndex(null); };
-  const onBrowseConfirm = (): void => { /* Task 4 */ };
+  // Its Select Hero: today's pick path, from the window card's splash art (the showcase's source). `shown` is the grid's order.
+  const onBrowseConfirm = (): void => {
+    const art = splashArtRef.current;
+    if (art && openNow !== null) commitPick(shown[openNow]!, openNow, art);
+  };
   // THE SHOWCASE BODY's Select Hero: blocked (aria-disabled, so the press still lands) by today's own guards, in their order.
   const sel = Math.min(selected, choices.length - 1);
   const showcaseBlocked = !ceremonyAcceptsClicks(ceremony) ? 'busy' as const
@@ -587,8 +591,9 @@ export function HeroSelect({ watch }: { watch?: HeroSelectWatch } = {}) {
       )}
       {/* The ceremony overlay mounts on commit and lives until pickHero (fired by the launch curtain)
           clears heroChoices — this component then renders null and the ceremony's cleanup aborts every
-          timer/animation it owns. The showcase body hands it the splash art to grow from and the tiles to send out. */}
-      {active && <HeroSelectCeremony state={ceremony} dispatch={dispatch} cardEls={cardRefs} {...(watch ? { watch: { versus: mode === 'versus', fx: watch.fx } } : {})} {...(showcase ? { splash: { artEl: splashArtRef, exitEls: slotRefs } } : {})} />}
+          timer/animation it owns. The showcase body hands it the splash art to grow from and the tiles to send out; the
+          "All heroes" window hands it its card's splash art and the grid's cards (every one leaves: none is the source). */}
+      {active && <HeroSelectCeremony state={ceremony} dispatch={dispatch} cardEls={cardRefs} {...(watch ? { watch: { versus: mode === 'versus', fx: watch.fx } } : {})} {...(showcase ? { splash: { artEl: splashArtRef, exitEls: slotRefs } } : openNow !== null ? { splash: { artEl: splashArtRef, exitEls: cardRefs } } : {})} />}
     </div>
   );
 }

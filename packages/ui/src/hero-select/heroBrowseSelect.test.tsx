@@ -168,3 +168,79 @@ describe('Hero Select whole roster with the showcase switch on', () => {
     expect(root().classList.contains('hsc-active')).toBe(true);
   });
 });
+
+describe('Hero Select whole roster: Select Hero and the ceremony', () => {
+  const confirm = (): HTMLElement => document.querySelector<HTMLElement>('.hsb-win .hss-confirm')!;
+  const frames = async (): Promise<void> => { await act(async () => { await new Promise((r) => setTimeout(r, 50)); }); };
+
+  it('Select Hero starts the ceremony for the hero on show, from the splash art', async () => {
+    await open();
+    await openCard(0);
+    click(document.querySelector('.hsb-win .phi-nav.is-next'));
+    const src = document.querySelector('.hsb-win .phi-art img')?.getAttribute('src');
+    click(confirm());
+    expect(root().classList.contains('hsc-active')).toBe(true);
+    expect(useOwnHeroPick.getState().heroId).toBe(SHOWN[1]);
+    const clone = document.querySelector('.hsc-clone.hsc-splash');
+    expect(clone).not.toBeNull();
+    expect(document.querySelector('.hsc-clone-card')).toBeNull();
+    if (src) expect(clone!.querySelector('img')!.getAttribute('src')).toBe(src);
+  });
+
+  it('Select Hero twice starts one ceremony', async () => {
+    await open();
+    await openCard(4);
+    click(confirm());
+    click(confirm());
+    expect(document.querySelectorAll('.hsc-clone.hsc-splash')).toHaveLength(1);
+    expect(useOwnHeroPick.getState().heroId).toBe(SHOWN[4]);
+  });
+
+  it('while the ceremony runs: Escape, the X and a scrim click close nothing; arrows step nothing', async () => {
+    await open();
+    await openCard(4);
+    click(confirm());
+    const name = cardName();
+    keyOn(win()!, 'Escape');
+    click(document.querySelector('.hsb-x'));
+    click(document.querySelector('.hsb-scrim'));
+    click(document.querySelector('.hsb-win .phi-nav.is-next'));
+    keyOn(win()!, 'ArrowRight');
+    expect(win()).not.toBeNull();
+    expect(cardName()).toBe(name);
+    expect(useOwnHeroPick.getState().heroId).toBe(SHOWN[4]);
+  });
+
+  it('every grid card is in the exit set (none is the source)', async () => {
+    await open();
+    await openCard(4);
+    click(confirm());
+    await frames();
+    // The source is the window's splash art, hidden under the clone; no grid card is hidden as the source.
+    expect(document.querySelector<HTMLElement>('.hsb-win .phi-art')!.style.visibility).toBe('hidden');
+    expect(cards().every((c) => c.style.visibility !== 'hidden')).toBe(true);
+  });
+
+  it('a new offer mid-ceremony restores the grid and closes the window', async () => {
+    await open();
+    await openCard(4);
+    click(confirm());
+    await frames();
+    act(() => { useGame.setState({ heroChoices: [...ALL].reverse() }); });
+    await settle();
+    expect(document.querySelector('.hsc-layer')).toBeNull();
+    expect(root().classList.contains('hsc-active')).toBe(false);
+    expect(win()).toBeNull();
+    expect(cards()).toHaveLength(ALL.length);
+    expect(document.querySelector('.hsrow.browse')!.hasAttribute('inert')).toBe(false);
+  });
+
+  it('switch off: the ceremony still clones the grid card', async () => {
+    await open({ showcase: false });
+    click(cards()[2]);
+    expect(document.querySelector('.hsc-splash')).toBeNull();
+    const card = document.querySelector('.hsc-clone > .hsc-clone-card');
+    expect(card).not.toBeNull();
+    expect(card!.classList.contains('hsc-browse')).toBe(true);
+  });
+});

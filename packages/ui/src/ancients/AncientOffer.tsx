@@ -141,8 +141,16 @@ function Reveal({ gated, closing, offer, heroId, seq, onPick }: { gated: boolean
           { opacity: 1, offset: 0.12 },
           { opacity: 1, transform: 'translateX(-50%)' },
         ], { duration: c.handoffMs, easing: 'cubic-bezier(0.5, 0, 0.15, 1)', fill: 'backwards' });
-      } else {
+      } else if (reduced) {
         anim(banner, [{ opacity: 0, transform: 'translateX(-50%) translateY(10px)' }, { opacity: 1, transform: 'translateX(-50%)' }], { duration: 400, easing: 'ease-out', fill: 'backwards' });
+      } else {
+        // No title to be born from (the panels carry none, owner 2026-11-18: "have it pop in once the ancient select
+        // moment occurs"): it pops.
+        anim(banner, [
+          { opacity: 0, transform: 'translateX(-50%) scale(0.6)' },
+          { opacity: 1, transform: 'translateX(-50%) scale(1.1)', offset: 0.6 },
+          { opacity: 1, transform: 'translateX(-50%)' },
+        ], { duration: 340, easing: 'cubic-bezier(0.2, 0.8, 0.3, 1)', fill: 'backwards' });
       }
     }
 

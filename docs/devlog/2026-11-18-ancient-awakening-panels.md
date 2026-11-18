@@ -14,6 +14,17 @@ it and the three-card reveal after it are unchanged.
   other edge of the screen"
 - "then 3 shake and their edges glow as the other three fade out and fall away, revealing the ancient select screen"
 
+Same day, after seeing the first build in the game (it popped all six colours left to right, then slid the Ancients
+in, with "An Ancient Awakens" over the six):
+
+- "i dont like how the rainbow of colors shows up and then the ancients slide in. i want each background to slide in
+  with the ancient quickly following. and we can try doing it outside to inside instead of left to right"
+- "lets remove the ancient has awwakened text from the animation and have it pop in once the ancient select moment
+  occurs"
+
+So the panels set off in pairs, outside to inside; each background slides in from its own side with its Ancient right
+behind it; the panels carry no title, and the select screen's banner pops in (with the title sting) on the reveal.
+
 Agreed first on a standalone HTML mock (two rejected directions before it: an upward climb through painted scenery,
 then panels that slid in whole), then built.
 
@@ -28,8 +39,8 @@ then panels that slid in whole), then built.
 - `wipeFx.ts`: `grind` (sparks along a moving point) and `spray` (a directional burst of streaks).
 - `ancientsSmoke.ts`: `ancientEruptionBlast` (the pick's ring and the slam sparks at several times their size, plus
   streaks), in the hero's theme colour.
-- Config and tuner: an "Awakening panels" group (pop gap, pop, slide, stagger, hold, rattle, fall, settle, shake,
-  sparks, lean) and two sound cues, `panelPop` and `panelSlam`.
+- Config and tuner: an "Awakening panels" group (pair stagger, pair gap, background slide, Ancient follows, slide, hold,
+  rattle, fall, settle, shake, sparks, lean) and two sound cues, `panelBg` and `panelSlam`.
 
 ## Things a later session would otherwise re-derive
 
@@ -45,6 +56,6 @@ then panels that slid in whole), then built.
 - **The figures are the flat 512px paintings with a soft oval mask**, a stand-in. The owner wants depth inside each
   portrait, which needs cut-out layers per Ancient (background, figure, optional foreground) at about 800x1440.
 - **The sounds are placeholders** from clips already in the repo.
-- **Length.** About 3.3 s from the explosion to the reveal at the defaults, against about 1.6 s for the curtain.
+- **Length.** About 2.8 s from the explosion to the reveal at the defaults, against about 1.6 s for the curtain.
 - A file named `ancientPanels.ts` next to `AncientPanels.tsx` breaks the Windows typecheck (names differing only in
   case), hence `panelClock.ts`.

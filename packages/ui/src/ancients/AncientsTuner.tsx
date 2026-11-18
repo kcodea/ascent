@@ -66,10 +66,11 @@ const ROWS: [Key, string, TunerUnit | undefined, string, string, ('color' | 'tog
   ['eruptionMs', 'Eruption bloom', 'ms', 'The curtain bursting out of the hero power.', 'Awakening beats'],
   ['seamGlow', 'Seam ring', 'opacity', 'The energy ring and runes riding the curtain’s edge.', 'Awakening beats'],
   ['titleHoldMs', 'Title hold', 'ms', 'How long "An Ancient Awakens" holds before the Ancients emerge.', 'Awakening beats'],
-  ['panelPopGapMs', 'Colour pop gap', 'ms', 'One background colour popping in after the one to its left.', 'Awakening panels'],
-  ['panelPopMs', 'Colour pop', 'ms', 'How long one colour takes to pop in.', 'Awakening panels'],
+  ['panelStaggerMs', 'Pair stagger', 'ms', 'One pair of panels setting off after the pair outside it (outside to inside).', 'Awakening panels'],
+  ['panelPairGapMs', 'Pair gap', 'ms', 'Within a pair, the right panel setting off after the left. 0 = together.', 'Awakening panels'],
+  ['panelBgMs', 'Background slide', 'ms', 'One background sliding in from off screen.', 'Awakening panels'],
+  ['panelFollowMs', 'Ancient follows', 'ms', 'The Ancient setting off after its own background.', 'Awakening panels'],
   ['panelSlideMs', 'Ancient slide', 'ms', 'One Ancient sliding in from off screen to its slam.', 'Awakening panels'],
-  ['panelStaggerMs', 'Ancient stagger', 'ms', 'One Ancient setting off after the one to its left.', 'Awakening panels'],
   ['panelHoldMs', 'Six hold', 'ms', 'How long all six stand under the title before three are chosen.', 'Awakening panels'],
   ['panelRattleMs', 'Three rattle', 'ms', 'The offered three shaking while their edges light.', 'Awakening panels'],
   ['panelFallMs', 'Three fall', 'ms', 'The other three fading out and falling away.', 'Awakening panels'],
@@ -172,7 +173,7 @@ function controls(): TunerControl<Key>[] {
   const base = [...BASE_CONTROLS.slice(0, HERO_AT), ...heroThemeControls(), ...BASE_CONTROLS.slice(HERO_AT)];
   const at = base.findIndex((ctl) => ctl.key === 'sparkMs');
   const withReveal = [...base.slice(0, at), REVEAL_STYLE_CONTROL, ...base.slice(at)];
-  const pn = withReveal.findIndex((ctl) => ctl.key === 'panelPopGapMs');
+  const pn = withReveal.findIndex((ctl) => ctl.key === 'panelStaggerMs');
   return [...withReveal.slice(0, pn), GATE_STYLE_CONTROL, ...withReveal.slice(pn)];
 }
 

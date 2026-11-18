@@ -5,17 +5,18 @@ import { rectToStage, stageViewport, toScreen } from '../stage';
 import { AncientFace } from './AncientFace';
 import { ancientColor, getAncientsConfig } from './ancientsConfig';
 import { playCue } from './ancientsSound';
-import { PANEL_LAND, PANEL_SLIDE_EASE, cardPolygon, panelFromTop, panelGeometry, panelTimeline, seamX, slideLeadY, stripPolygon } from './panelClock';
+import { PANEL_LAND, PANEL_SLIDE_EASE, cardPolygon, panelFromTop, panelGeometry, panelRank, panelTimeline, seamX, slideLeadY, stripPolygon } from './panelClock';
 
 /**
  * THE SIX PANELS (owner 2026-11-18; the clock and geometry are in `panelClock.ts`). Mounted by `AncientGate` for
  * its eruption, title and reveal beats when the gate style is `panels`:
- *   1. each panel's background COLOUR pops in, left to right;
- *   2. each ANCIENT slides in from fully off screen (top, bottom, top, ...), gathering speed, and slams to a stop: a
- *      shake, a spray of sparks off the far edge of the screen, and sparks grinding along its panel's seams on the way;
- *   3. "An Ancient Awakens" lands over the six;
- *   4. the three on offer rattle and their edges light; the other three fade and fall away;
- *   5. on the gate's `reveal` beat the three settle onto their cards' art on the select screen and give way to them.
+ *   1. OUTSIDE TO INSIDE (the two outer panels, then the next two, then the middle two), each panel's BACKGROUND
+ *      slides in from off screen (top, bottom, top, ...);
+ *   2. its ANCIENT follows at once from the same side, gathering speed, and slams to a stop: a shake, a spray of
+ *      sparks off the far edge of the screen, and sparks grinding along its panel's seams on the way;
+ *   3. the three on offer rattle and their edges light; the other three fade and fall away;
+ *   4. on the gate's `reveal` beat the three settle onto their cards' art on the select screen and give way to them.
+ * No title here: "An Ancient Awakens" pops in with the select screen (`AncientOffer`'s banner).
  * Everything is a one-shot WAAPI transform / opacity (plus the three's one-shot clip onto their cards); the sparks are
  * Pixi on the wipe's canvas. Only this layer's own host ever shakes (never the game tree, `gateLayout.test.ts`).
  * Layout is read once, on the reveal beat. Reduced motion never mounts this (the gate goes straight to the reveal).
@@ -37,7 +38,7 @@ export const AncientPanels = memo(function AncientPanels({ offered, phase }: { o
 
   useEffect(() => () => { for (const t of timers.current) window.clearTimeout(t); timers.current = []; }, []);
 
-  // BEATS 1-4, scheduled up front from the eruption's first frame.
+  // BEATS 1-3, scheduled up front from the eruption's first frame.
   useLayoutEffect(() => {
     const host = hostRef.current;
     if (!host) return;
@@ -56,14 +57,14 @@ export const AncientPanels = memo(function AncientPanels({ offered, phase }: { o
 
     panels.forEach((p, i) => {
       const id = ids[i]!, fromTop = panelFromTop(i), dir = fromTop ? -1 : 1, col = hexNum(ancientColor(id));
-      // 1. The colour pops in.
-      anim(p, [
-        { opacity: 0, transform: 'scale(0.88)' },
-        { opacity: 1, transform: 'scale(1.05)', offset: 0.55 },
-        { opacity: 1, transform: 'none' },
-      ], { duration: cfg.panelPopMs, delay: tl.pop[i]!, easing: 'ease-out', fill: 'both' });
-      playCue('panelPop', tl.pop[i]!, { rateMul: 1 + i * 0.06 });
-      // 2. The Ancient slides in from fully off screen and slams.
+      const rank = panelRank(i, geo.n);
+      // 1. The background slides in from off screen, inside its strip (the panel itself shows from that moment).
+      anim(p, [{ opacity: 0 }, { opacity: 1 }], { duration: 1, delay: tl.bg[i]!, fill: 'both' });
+      anim(p.querySelector('.anc-pn-fill'), [{ transform: `translateY(${(dir * geo.vh * 1.02).toFixed(1)}px)` }, { transform: 'translateY(0)' }],
+        { duration: cfg.panelBgMs, delay: tl.bg[i]!, easing: 'cubic-bezier(0.3, 0.7, 0.3, 1)', fill: 'both' });
+      anim(p.querySelector('.anc-pn-seam'), [{ opacity: 0 }, { opacity: 1 }], { duration: cfg.panelBgMs, delay: tl.bg[i]!, easing: 'ease-in', fill: 'both' });
+      playCue('panelBg', tl.bg[i]!, { rateMul: 1 + rank * 0.1 });
+      // 2. The Ancient follows from the same side, from fully off screen, and slams.
       anim(p.querySelector('.anc-pn-fig'), [
         { transform: `translateY(${(dir * geo.travel).toFixed(1)}px)`, easing: SLIDE_CSS },
         { transform: 'translateY(0)', offset: PANEL_LAND, easing: 'ease-out' },
@@ -72,7 +73,7 @@ export const AncientPanels = memo(function AncientPanels({ offered, phase }: { o
       ], { duration: cfg.panelSlideMs, delay: tl.slide[i]!, fill: 'both' });
       anim(p.querySelector('.anc-pn-name'), [{ opacity: 0, transform: 'translateX(-50%) translateY(18px)' }, { opacity: 1, transform: 'translateX(-50%)' }],
         { duration: 260, delay: tl.slide[i]! + cfg.panelSlideMs, easing: 'ease-out', fill: 'both' });
-      playCue('panelSlam', tl.land[i]!, { rateMul: 1 - i * 0.035 });
+      playCue('panelSlam', tl.land[i]!, { rateMul: 1 - rank * 0.08 });
       // Grinding: sparks along both of its panel's seams, at the Ancient's leading edge, until it lands. The position
       // comes from the slide's own easing (no layout read per frame).
       const landMs = cfg.panelSlideMs * PANEL_LAND;
@@ -96,7 +97,7 @@ export const AncientPanels = memo(function AncientPanels({ offered, phase }: { o
         wipeFx.spray(toScreen(cx), toScreen(y), toScreen(geo.stripW * 0.5), fromTop ? -Math.PI / 2 : Math.PI / 2, Math.PI * 0.42, Math.round(34 * sparks), [col, ...SPARK_HOT]);
       });
 
-      // 4. Three rattle and glow; three fade and fall away.
+      // 3. Three rattle and glow; three fade and fall away.
       anim(p.querySelector('.anc-pn-name'), [{ opacity: 1 }, { opacity: 0 }], { duration: 200, delay: tl.pickAt + cfg.panelRattleMs - 100, fill: 'forwards' });
       if (offered.includes(id)) {
         const k = cfg.panelShakePx * 0.8, f: Keyframe[] = [];
@@ -123,12 +124,11 @@ export const AncientPanels = memo(function AncientPanels({ offered, phase }: { o
     // Once per awakening: the component is mounted for exactly one.
   }, []);
 
-  // BEAT 5 (the gate's `reveal`): the three settle onto their cards' art and give way to the real cards.
+  // BEAT 4 (the gate's `reveal`): the three settle onto their cards' art and give way to the real cards.
   useLayoutEffect(() => {
     const host = hostRef.current;
     if (phase !== 'reveal' || !host) return;
     const c = cfg;
-    host.querySelector('.anc-pn-title')?.animate([{ opacity: 1 }, { opacity: 0 }], { duration: c.handoffMs > 0 ? 50 : 160, easing: 'ease-out', fill: 'forwards' });
     // The offer mounts on this same beat: read its cards once it has laid out (one read, next frame).
     const raf = window.requestAnimationFrame(() => {
       // Each card is still collapsed to its spark (a scale the reveal animates), so its own rect is a point. The SLOT is
@@ -196,11 +196,6 @@ export const AncientPanels = memo(function AncientPanels({ offered, phase }: { o
           <div className="anc-pn-name">{ANCIENTS[id].name.replace(/^Ancient of /, '')}</div>
         </div>
       ))}
-      <div className="anc-pn-title">
-        <div className={`anc-gate-title${phase !== 'eruption' ? ' in' : ''}`}>
-          <span className="anc-gate-label">An Ancient Awakens</span>
-        </div>
-      </div>
     </div>
   );
 });

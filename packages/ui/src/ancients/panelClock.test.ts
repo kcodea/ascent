@@ -1,11 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { ANCIENTS_DEFAULTS, gateStyleOf } from './ancientsConfig';
-import { PANEL_LAND, panelFromTop, panelGeometry, panelTimeline, seamX, slideLeadY, stripPolygon } from './panelClock';
+import { PANEL_LAND, panelFromTop, panelGeometry, panelRank, panelTimeline, seamX, slideLeadY, stripPolygon } from './panelClock';
 
 /**
- * THE AWAKENING'S SIX PANELS (owner 2026-11-18): "i want all 6 background colors to pop in from left to right, and
- * then the ancient itself to slide down into place from completely off the screen either top or bottom, and then
- * slide and slam to a stop", then "3 shake and their edges glow as the other three fade out and fall away, revealing
+ * THE AWAKENING'S SIX PANELS (owner 2026-11-18): "the ancient itself to slide down into place from completely off
+ * the screen either top or bottom, and then slide and slam to a stop", then "3 shake and their edges glow as the other three fade out and fall away, revealing
  * the ancient select screen". The clock and geometry every layer reads.
  */
 describe('the awakening panels clock', () => {
@@ -17,22 +16,34 @@ describe('the awakening panels clock', () => {
     expect(gateStyleOf('nonsense')).toBe('panels');
   });
 
-  it('pops the six colours left to right, all before any Ancient sets off', () => {
-    expect(tl.pop).toHaveLength(6);
-    for (let i = 1; i < 6; i++) expect(tl.pop[i]!).toBeGreaterThan(tl.pop[i - 1]!);
-    expect(tl.slide[0]!).toBeGreaterThan(tl.pop[5]! + ANCIENTS_DEFAULTS.panelPopMs * 0.5);
+  // Owner 2026-11-18: "i dont like how the rainbow of colors shows up and then the ancients slide in. i want each
+  // background to slide in with the ancient quickly following. and we can try doing it outside to inside".
+  it('sets the panels off outside to inside: the outer pair, the next pair, the middle pair', () => {
+    expect(tl.bg).toHaveLength(6);
+    expect([0, 1, 2, 3, 4, 5].map((i) => panelRank(i))).toEqual([0, 1, 2, 2, 1, 0]);
+    for (const [outer, inner] of [[0, 1], [5, 4], [1, 2], [4, 3], [5, 1], [4, 2]] as const) expect(tl.bg[inner]!).toBeGreaterThan(tl.bg[outer]!);
+    // A pair goes together, the left of the two a moment first.
+    for (const [l, r] of [[0, 5], [1, 4], [2, 3]] as const) expect(tl.bg[r]! - tl.bg[l]!).toBe(ANCIENTS_DEFAULTS.panelPairGapMs);
   });
 
-  it('slides each Ancient in after the one to its left, and each slams before its slide ends', () => {
+  it('sends each Ancient quickly after its OWN background, never after all six', () => {
     for (let i = 0; i < 6; i++) {
-      if (i > 0) expect(tl.slide[i]!).toBeGreaterThan(tl.slide[i - 1]!);
+      expect(tl.slide[i]! - tl.bg[i]!).toBe(ANCIENTS_DEFAULTS.panelFollowMs);
+      expect(ANCIENTS_DEFAULTS.panelFollowMs).toBeLessThan(ANCIENTS_DEFAULTS.panelBgMs);
+    }
+    // The outer Ancients are already moving before the middle backgrounds set off.
+    expect(tl.slide[0]!).toBeLessThan(tl.bg[2]!);
+  });
+
+  it('slams each Ancient before its slide ends', () => {
+    for (let i = 0; i < 6; i++) {
       expect(tl.land[i]!).toBeCloseTo(tl.slide[i]! + ANCIENTS_DEFAULTS.panelSlideMs * PANEL_LAND, 5);
       expect(tl.land[i]!).toBeLessThan(tl.allIn);
+      expect(tl.slide[i]! + ANCIENTS_DEFAULTS.panelSlideMs).toBeLessThanOrEqual(tl.allIn);
     }
   });
 
   it('holds the six, then picks three, then reveals: in that order', () => {
-    expect(tl.titleAt).toBeLessThanOrEqual(tl.allIn);
     expect(tl.pickAt).toBe(tl.allIn + ANCIENTS_DEFAULTS.panelHoldMs);
     expect(tl.fallAt).toBeGreaterThan(tl.pickAt);
     expect(tl.revealAt).toBeGreaterThanOrEqual(tl.pickAt + ANCIENTS_DEFAULTS.panelRattleMs);

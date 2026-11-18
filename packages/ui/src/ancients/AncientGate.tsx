@@ -192,9 +192,10 @@ export const AncientGate = memo(function AncientGate({ run }: { run: RunState })
     }, c.omenMs));
     // The panels run their own clock (`panelTimeline`); the curtain keeps its eruption + title hold.
     const tl = asPanels ? panelTimeline(c) : null;
-    const titleAt = tl ? tl.titleAt : c.eruptionMs, revealAt = tl ? tl.revealAt : c.eruptionMs + c.titleHoldMs;
-    timers.current.push(window.setTimeout(() => { go('title', seq); playCue('titleSting'); }, c.omenMs + titleAt));
-    timers.current.push(window.setTimeout(() => toReveal(seq), c.omenMs + revealAt));
+    // The panels carry no title: "An Ancient Awakens" (and its sting) arrive with the select screen (owner 2026-11-18).
+    const titleAt = tl ? tl.allIn : c.eruptionMs, revealAt = tl ? tl.revealAt : c.eruptionMs + c.titleHoldMs;
+    timers.current.push(window.setTimeout(() => { go('title', seq); if (!tl) playCue('titleSting'); }, c.omenMs + titleAt));
+    timers.current.push(window.setTimeout(() => { if (tl) playCue('titleSting'); toReveal(seq); }, c.omenMs + revealAt));
   }, [go, toReveal]);
 
   // While the awakening is up, the page is in its modal layering (`.app`'s stacking context dissolved, as every Discover

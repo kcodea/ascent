@@ -64,15 +64,17 @@ export interface AncientsConfig {
   /** THE GATE'S CENTRE BEAT (owner 2026-11-18): `panels` = the six Ancients slam in as tall slanted panels and three
    *  fall away; `curtain` = the earlier bloom of colour with the hero power's medallion and the title card. */
   gateStyle: string;
-  /** Panels: the gap between one background colour popping in and the next, left to right (ms). */
-  panelPopGapMs: number;
-  /** Panels: one colour's pop (ms). */
-  panelPopMs: number;
+  /** Panels: within an outside-to-inside pair, the right panel setting off after the left (ms). */
+  panelPairGapMs: number;
+  /** Panels: one background's slide in from off screen (ms). */
+  panelBgMs: number;
+  /** Panels: the Ancient setting off after its own background (ms). */
+  panelFollowMs: number;
   /** Panels: one Ancient's slide from off screen to its slam (ms). */
   panelSlideMs: number;
-  /** Panels: one Ancient setting off after the one before it (ms). */
+  /** Panels: one pair setting off after the pair outside it (ms). */
   panelStaggerMs: number;
-  /** Panels: how long the six stand under the title before three are chosen (ms). */
+  /** Panels: how long the six stand before three are chosen (ms). */
   panelHoldMs: number;
   /** Panels: the offered three rattling while their edges light (ms). */
   panelRattleMs: number;
@@ -216,7 +218,7 @@ const ART_DEFAULTS = Object.fromEntries(
 export type AncientColorKey = `${'death' | 'fortune' | 'war' | 'genesis' | 'time' | 'bonds'}Color`;
 /** THE AWAKENING SOUND CUES (owner: "i can help source sounds if you set up a tuner with timing cues"). Each cue is a
  *  clip id (swap in the owner's SFX in the tuner), a gain, an offset (ms, relative to its beat) and a rate (pitch). */
-export const ANCIENT_CUES = ['omenRumble', 'eruptionBoom', 'eruptionFlash', 'titleSting', 'revealSpark', 'cardReveal', 'ambientHum', 'pickWoosh', 'pickSeal', 'panelPop', 'panelSlam'] as const;
+export const ANCIENT_CUES = ['omenRumble', 'eruptionBoom', 'eruptionFlash', 'titleSting', 'revealSpark', 'cardReveal', 'ambientHum', 'pickWoosh', 'pickSeal', 'panelBg', 'panelSlam'] as const;
 export type AncientCue = (typeof ANCIENT_CUES)[number];
 export type AncientCueKey = `${AncientCue}${'Clip' | 'Gain' | 'Offset' | 'Rate'}`;
 /** The shipped picks (existing repo clips, pitched where it helps). Gains baked from the owner's tuner 2026-09-26. */
@@ -234,9 +236,9 @@ export const ANCIENT_CUE_DEFAULTS: Record<AncientCue, { clip: string; gain: numb
   // play on the undiminished hero bus and land exactly on the collapse / contact frames).
   pickWoosh: { clip: 'fx/metal-woosh', gain: 0.32, offset: 0, rate: 0.8 },
   pickSeal: { clip: 'fx/triple-impact', gain: 0.62, offset: 0, rate: 0.85 },
-  // The panels (2026-11-18): placeholders from clips already in the repo, for the owner to swap. One pop per colour
-  // (pitched up a step each), one slam per Ancient.
-  panelPop: { clip: 'triggerglow', gain: 0.16, offset: 0, rate: 1.5 },
+  // The panels (2026-11-18): placeholders from clips already in the repo, for the owner to swap. One whoosh per
+  // background (pitched up a step each pair), one slam per Ancient.
+  panelBg: { clip: 'triggerglow', gain: 0.16, offset: 0, rate: 1.5 },
   panelSlam: { clip: 'fx/universfield-ground-impact-352053', gain: 0.42, offset: 0, rate: 1.3 },
 };
 const CUE_DEFAULTS = Object.fromEntries(ANCIENT_CUES.flatMap((c) => {
@@ -277,10 +279,11 @@ export const ANCIENTS_DEFAULTS: AncientsFullConfig = {
   seamGlow: 0.9,
   titleHoldMs: 1050, // was 1500: ~1 s of an unchanging title card (whole-sequence pass 2026-09-27)
   gateStyle: 'panels',
-  panelPopGapMs: 80,
-  panelPopMs: 240,
+  panelPairGapMs: 70,
+  panelBgMs: 260,
+  panelFollowMs: 110,
   panelSlideMs: 440,
-  panelStaggerMs: 130,
+  panelStaggerMs: 260,
   panelHoldMs: 650,
   panelRattleMs: 620,
   panelFallMs: 640,
@@ -369,10 +372,11 @@ export const ANCIENTS_RANGES: Record<NumKey, [number, number, number]> = {
   seamGlow: [0, 1, 0.01],
   titleHoldMs: [0, 4000, 10],
   revealFadeMs: [60, 2000, 10],
-  panelPopGapMs: [0, 300, 5],
-  panelPopMs: [60, 800, 10],
+  panelPairGapMs: [0, 300, 5],
+  panelBgMs: [60, 800, 10],
+  panelFollowMs: [0, 500, 5],
   panelSlideMs: [150, 1500, 10],
-  panelStaggerMs: [0, 500, 5],
+  panelStaggerMs: [0, 800, 5],
   panelHoldMs: [0, 3000, 10],
   panelRattleMs: [100, 2000, 10],
   panelFallMs: [150, 2000, 10],

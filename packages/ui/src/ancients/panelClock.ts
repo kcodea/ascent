@@ -5,14 +5,16 @@ import { cubicBezier } from '../wipeGeometry';
  * Pure numbers only (the clock and the geometry), so the gate, the panels and the sparks all read ONE source and a
  * test can pin it. The owner's words:
  *   "a big (pixi fx driven) explosion occurs from the hero power"
- *   "i want all 6 background colors to pop in from left to right, and then the ancient itself to slide down into place
- *    from completely off the screen either top or bottom, and then slide and slam to a stop"
+ *   "the ancient itself to slide down into place from completely off the screen either top or bottom, and then slide
+ *    and slam to a stop"
+ *   "i dont like how the rainbow of colors shows up and then the ancients slide in. i want each background to slide in
+ *    with the ancient quickly following. and we can try doing it outside to inside instead of left to right"
  *   "almost grinding against eachother as their edges meet. and land with a shaking thud and sparks where they hit the
  *    other edge of the screen"
  *   "then 3 shake and their edges glow as the other three fade out and fall away, revealing the ancient select screen"
  */
 export interface PanelTiming {
-  panelPopGapMs: number; panelPopMs: number; panelSlideMs: number; panelStaggerMs: number;
+  panelPairGapMs: number; panelFollowMs: number; panelSlideMs: number; panelStaggerMs: number;
   panelHoldMs: number; panelRattleMs: number; panelFallMs: number;
 }
 
@@ -20,18 +22,16 @@ export interface PanelTiming {
 export const PANEL_LAND = 0.84;
 /** The slide's easing: it gathers speed the whole way (heavy stone) and stops dead. */
 export const PANEL_SLIDE_EASE = [0.55, 0, 0.95, 0.6] as const;
-/** The explosion's head start before the first colour pops (ms). */
+/** The explosion's head start before the first background sets off (ms). */
 export const PANEL_LEAD_MS = 220;
-/** After the last colour pops, before the first Ancient sets off (ms). */
-export const PANEL_AFTER_POP_MS = 280;
+/** Outside to inside: the two outermost panels are rank 0, the two in the middle the last rank. */
+export const panelRank = (i: number, n = 6): number => Math.min(i, n - 1 - i);
 
 export interface PanelTimeline {
-  /** Per panel, ms from the eruption's start: its colour pops, its Ancient sets off, its Ancient slams home. */
-  pop: number[]; slide: number[]; land: number[];
+  /** Per panel, ms from the eruption's start: its background sets off, its Ancient sets off, its Ancient slams home. */
+  bg: number[]; slide: number[]; land: number[];
   /** Every Ancient has settled. */
   allIn: number;
-  /** "An Ancient Awakens" arrives over the six. */
-  titleAt: number;
   /** The offered three start to rattle and glow. */
   pickAt: number;
   /** The other three start to fade and fall. */
@@ -41,18 +41,17 @@ export interface PanelTimeline {
 }
 
 export function panelTimeline(c: PanelTiming, n = 6): PanelTimeline {
-  const pop: number[] = [], slide: number[] = [], land: number[] = [];
-  const lastPop = PANEL_LEAD_MS + (n - 1) * Math.max(0, c.panelPopGapMs);
-  const t1 = lastPop + PANEL_AFTER_POP_MS;
+  const bg: number[] = [], slide: number[] = [], land: number[] = [];
   for (let i = 0; i < n; i++) {
-    pop.push(PANEL_LEAD_MS + i * Math.max(0, c.panelPopGapMs));
-    slide.push(t1 + i * Math.max(0, c.panelStaggerMs));
+    // A pair sets off together but for a beat: the left of the two first, the right a moment after.
+    bg.push(PANEL_LEAD_MS + panelRank(i, n) * Math.max(0, c.panelStaggerMs) + (i > n - 1 - i ? Math.max(0, c.panelPairGapMs) : 0));
+    slide.push(bg[i]! + Math.max(0, c.panelFollowMs));
     land.push(slide[i]! + c.panelSlideMs * PANEL_LAND);
   }
-  const allIn = slide[n - 1]! + c.panelSlideMs;
+  const allIn = Math.max(...slide) + c.panelSlideMs;
   const pickAt = allIn + Math.max(0, c.panelHoldMs);
   const fallAt = pickAt + c.panelRattleMs * 0.55;
-  return { pop, slide, land, allIn, titleAt: allIn - 60, pickAt, fallAt, revealAt: Math.max(pickAt + c.panelRattleMs, fallAt + c.panelFallMs * 0.75) };
+  return { bg, slide, land, allIn, pickAt, fallAt, revealAt: Math.max(pickAt + c.panelRattleMs, fallAt + c.panelFallMs * 0.75) };
 }
 
 /** Even panels come down from the top, odd ones up from the bottom. */

@@ -162,6 +162,9 @@
 .hsc-name {
   font-family: var(--font-title); font-weight: 900; font-size: calc(var(--hsc-namesize, 62) * 1px * var(--scale, 1)); letter-spacing: 0.06em;
   color: #f6efe2; text-shadow: 0 3px 12px rgba(0, 0, 0, 0.7);
+  /* The name is ONE row, always (owner 2026-11-17: "Keshi the Protector" wrapped inside a short plate). A name
+     wider than the plate overhangs it evenly on both sides instead of breaking. */
+  white-space: nowrap; text-align: center;
   opacity: 0;
   animation: hscRise 0.36s ease var(--hsc-identity-delay, 500ms) forwards;
 }

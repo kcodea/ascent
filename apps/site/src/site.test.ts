@@ -43,6 +43,9 @@ describe('index.html', () => {
       expect(note.textContent).toMatch(/unknown publisher/i);
       expect(note.textContent).toMatch(/More info/);
       expect(note.textContent).toMatch(/Run anyway/);
+      expect(note.id).toBeTruthy();
+      expect(a.getAttribute('aria-describedby')).toBe(note.id);
+      expect(document.querySelectorAll(`[id="${note.id}"]`)).toHaveLength(1);
       const copy = note.nextElementSibling as HTMLButtonElement;
       expect(copy.matches('button[data-copy-link]')).toBe(true);
       expect(copy.hidden).toBe(true);
@@ -87,6 +90,7 @@ describe('index.html', () => {
     const t = document.querySelector('#ancients')!.textContent!;
     expect(t).toMatch(/16 points/);
     expect(t).toMatch(/hero power/i);
+    expect(t).toMatch(/six Ancients\./);
     const imgs = [...document.querySelectorAll<HTMLImageElement>('#ancients img[data-ancient]')];
     expect(imgs).toHaveLength(6);
     expect(imgs.map((i) => i.getAttribute('src'))).toEqual(
@@ -122,13 +126,31 @@ describe('index.html', () => {
   });
 
   it('never makes a banned claim or uses a native tooltip', () => {
-    const t = document.body.textContent!;
+    // The whole document (head included) plus every meta content, so share text is held to the same rules.
+    const metas = [...document.querySelectorAll('meta[content]')].map((m) => m.getAttribute('content')!);
+    const t = [document.documentElement.textContent!, ...metas].join('\n');
     expect(t).not.toMatch(/pay to win/i);
     expect(t).not.toMatch(/never (played )?live|always offline/i);
     expect(t).not.toMatch(/what is an auto-?battler/i);
     expect(t).not.toMatch(/[\u2013\u2014]/);
     expect(document.querySelectorAll('[title], svg title')).toHaveLength(0);
     expect(document.querySelectorAll('[style]')).toHaveLength(0);
+  });
+
+  it('never claims every lobby seat is a live player or that you face all seven', () => {
+    const metas = [...document.querySelectorAll('meta[content]')].map((m) => m.getAttribute('content')!);
+    const t = [document.documentElement.textContent!, ...metas].join('\n');
+    expect(t).not.toMatch(/real players/i);
+    expect(t).not.toMatch(/seven other players/i);
+    expect(t).not.toMatch(/eight-player/i);
+    expect(t).toMatch(/lobby of eight/);
+    expect(t).toMatch(/other players' boards/);
+  });
+
+  it('save copy never implies quitting without saving keeps your game', () => {
+    const t = document.querySelector('figure[data-capture="save-continue"]')!.textContent!;
+    expect(t).toMatch(/Save and quit, then continue where you left off\./);
+    expect(t).not.toMatch(/close the game/i);
   });
 
   it('has share metadata and the fonts', () => {

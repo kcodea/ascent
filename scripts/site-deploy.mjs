@@ -34,6 +34,11 @@ for (const name of ['CLOUDFLARE_API_TOKEN', 'CLOUDFLARE_ACCOUNT_ID']) {
 
 function run(cmd) {
   const r = spawnSync(cmd, { cwd: root, stdio: 'inherit', shell: true });
+  if (r.error) {
+    // The spawn itself failed (no shell, bad cwd), so nothing printed a reason.
+    console.error(`Could not run "${cmd}": ${r.error.message}`);
+    process.exit(1);
+  }
   if (r.status !== 0) process.exit(r.status ?? 1);
 }
 

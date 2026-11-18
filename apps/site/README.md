@@ -31,6 +31,20 @@ it.
 
 Cloudflare Web Analytics needs no code. Turn it on with one toggle on the Pages project in the Cloudflare dashboard.
 
+## Before the first production deploy
+
+None of these are done yet. Tick every one before the first `site:deploy`:
+
+- [ ] Real captures are recorded and every placeholder still in `public/captures` (and `public/share.jpg`) is
+      replaced. See the Captures section below.
+- [ ] `og:image` in `index.html` is an absolute URL on the production address, and an `og:url` meta and a
+      `<link rel="canonical">` are added with that same address. Update the share metadata test in
+      `src/site.test.ts` to match (it pins `og:image` to `/share.jpg` today).
+- [ ] Cloudflare Web Analytics is switched on (the one toggle on the Pages project).
+- [ ] The Pages project `ascent-site` exists with `main` as its production branch (create it with
+      `--production-branch main`). Without that, `site:deploy` only makes another preview.
+- [ ] Mike has explicitly said go for this production deploy.
+
 ## Captures
 
 Each capture slot is a still poster (`public/captures/<slot>.jpg`) that shows first. If a clip exists for the slot, the

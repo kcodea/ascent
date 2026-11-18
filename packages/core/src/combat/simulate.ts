@@ -6081,14 +6081,14 @@ export function simulate(
           }
         }
       }
-      // ANCIENT OF WAR × Midas (ancient pass 2, owner 2026-11-16): "Start of Combat, give 2 random minions Ward for each
-      // Gilded enemy minion." Distinct random living friendly bodies without Ward, `per` for each living Gilded foe body,
-      // for that combat. Everyone already Warded: nothing.
+      // ANCIENT OF WAR × Midas (owner 2026-11-18, replacing the 2026-11-16 "2 per Gilded enemy minion"): "Start of Combat:
+      // give a friendly minion Ward for every Gilded minion you control." One Ward for each living Gilded body on THIS
+      // side's own board (board only, never hand), each to a distinct random living friendly body without Ward, for that
+      // combat. More Gilded bodies than open bodies: the rest fizzle. Everyone already Warded: nothing. (A snapshot
+      // recorded under the old rule may still carry `per`: it is ignored, so both sides always fight by the current text.)
       const mw = smods.ancientMidasWard;
       if (mw) {
-        const foe: Side = scSide === 'player' ? 'enemy' : 'player';
-        const gilded = boards[foe].filter((m) => !m.dead && m.health > 0 && m.golden).length;
-        let n = gilded * Math.max(0, mw.per);
+        let n = boards[scSide].filter((m) => !m.dead && m.health > 0 && m.golden).length;
         const open = boards[scSide].filter((m) => !m.dead && m.health > 0 && !m.divineShield);
         if (n > 0 && open.length > 0) {
           const draw = grantRngFor(scSide);

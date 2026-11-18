@@ -1246,8 +1246,8 @@ export type AncientEffect =
   | { do: 'tripleRewardOpenGold'; gold: number }
   /** Membrance: playing a Gilded minion gives `extra` more Triple Rewards. */
   | { do: 'gildedPlayExtraRewards'; extra: number }
-  /** Midas: Start of Combat, `per` random friendly minions gain Ward for each Gilded enemy minion. */
-  | { do: 'socWardPerGildedFoe'; per: number }
+  /** Midas: Start of Combat, a random friendly minion gains Ward for every Gilded minion on Midas's own board. */
+  | { do: 'socWardPerGilded' }
   /** Mimic: End of Turn, a friendly minion of each type gains +1/+1 per `every` Shop spells cast this game. */
   | { do: 'eotUnitedFrontPerShopSpells'; every: number }
   /** Nadja: each Goldspring fire also gets `count` random Shop spells, from any Tier. */
@@ -2317,9 +2317,11 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
       // "Start of Turn: Give a random Gilded minion Ward" (a board minion without Ward first; all Warded: nothing)
       // Owner 2026-11-16 (Ancient pass 2), replaced: "Start of Combat, give 2 random minions Ward for each Gilded enemy minion" (distinct living
       // friendly bodies without Ward; for that combat).
-      offerText: '**Start of Combat:** give **2** random friendly minions **Ward** for each **Gilded** enemy minion.',
-      powerText: '{base} **Start of Combat:** give **2** random friendly minions **Ward** for each **Gilded** enemy minion.',
-      effects: [{ do: 'socWardPerGildedFoe', per: 2 }],
+      // Owner 2026-11-18, replaced again: it counts Midas's OWN Gilded board minions now (one Ward each, distinct random
+      // friendly bodies without Ward; the board only, never the hand).
+      offerText: '**Start of Combat:** give a friendly minion **Ward** for every **Gilded** minion you control.',
+      powerText: '{base} **Start of Combat:** give a friendly minion **Ward** for every **Gilded** minion you control.',
+      effects: [{ do: 'socWardPerGilded' }],
     },
     genesis: {
       // "Gilding a minion grants a Triple Reward." (the Gild's reward moment: the Gold Pouch AND a Triple Reward)
@@ -8000,8 +8002,7 @@ function pass2CombatMods(state: RunState): Partial<QuestCombatMods> {
   if (!a?.picked) return out;
   const fk = effectOf(state, 'pummelClearanceStack');
   if (fk) out.ancientPummelCharge = { every: fk.every, dealt: a.pummelDealt ?? 0, flag: ANCIENT_CLEARANCE_STACK_FLAG, label: ANCIENTS.war.name, repeat: true };
-  const mw = effectOf(state, 'socWardPerGildedFoe');
-  if (mw) out.ancientMidasWard = { per: mw.per, label: ANCIENTS.war.name };
+  if (effectOf(state, 'socWardPerGilded')) out.ancientMidasWard = { label: ANCIENTS.war.name };
   return out;
 }
 

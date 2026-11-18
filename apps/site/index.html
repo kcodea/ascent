@@ -151,39 +151,57 @@
         <p class="runes__lead">Some runes hand you a card. Pick one to see what it gives.</p>
         <ul class="ancients runes" role="list">
           <li>
-            <button type="button" class="ancient" data-rune="chimerus" aria-pressed="true" aria-controls="rune-chimerus">
+            <button type="button" class="ancient rune" data-rune="chimerus" aria-pressed="true" aria-controls="rune-chimerus">
               <img src="/art/runes/chimerus.webp" alt="" width="384" height="384" loading="lazy" />
-              <span class="ancient__name">Chimerus</span>
+              <span class="rune__cap">
+                <span class="rune__name">Chimerus</span>
+                <span class="rune__text">Get a <b>Chimerus</b>.</span>
+              </span>
             </button>
           </li>
           <li>
-            <button type="button" class="ancient" data-rune="voidmother" aria-pressed="false" aria-controls="rune-voidmother">
+            <button type="button" class="ancient rune" data-rune="voidmother" aria-pressed="false" aria-controls="rune-voidmother">
               <img src="/art/runes/voidmother.webp" alt="" width="384" height="384" loading="lazy" />
-              <span class="ancient__name">Voidmother</span>
+              <span class="rune__cap">
+                <span class="rune__name">Voidmother</span>
+                <span class="rune__text">Get a <b>Voidmother</b>.</span>
+              </span>
             </button>
           </li>
           <li>
-            <button type="button" class="ancient" data-rune="bucky" aria-pressed="false" aria-controls="rune-bucky">
+            <button type="button" class="ancient rune" data-rune="bucky" aria-pressed="false" aria-controls="rune-bucky">
               <img src="/art/runes/bucky.webp" alt="" width="384" height="384" loading="lazy" />
-              <span class="ancient__name">Bucky</span>
+              <span class="rune__cap">
+                <span class="rune__name">Bucky</span>
+                <span class="rune__text">Get a <b>Bucky</b>.</span>
+              </span>
             </button>
           </li>
           <li>
-            <button type="button" class="ancient" data-rune="portrait" aria-pressed="false" aria-controls="rune-portrait">
+            <button type="button" class="ancient rune" data-rune="portrait" aria-pressed="false" aria-controls="rune-portrait">
               <img src="/art/runes/portrait.webp" alt="" width="384" height="384" loading="lazy" />
-              <span class="ancient__name">Bottomless Portrait</span>
+              <span class="rune__cap">
+                <span class="rune__name">Bottomless Portrait</span>
+                <span class="rune__text">Get an <b>Arcane Behemoth</b>.</span>
+              </span>
             </button>
           </li>
           <li>
-            <button type="button" class="ancient" data-rune="yazzus" aria-pressed="false" aria-controls="rune-yazzus">
+            <button type="button" class="ancient rune" data-rune="yazzus" aria-pressed="false" aria-controls="rune-yazzus">
               <img src="/art/runes/yazzus.webp" alt="" width="384" height="384" loading="lazy" />
-              <span class="ancient__name">Yazzus</span>
+              <span class="rune__cap">
+                <span class="rune__name">Yazzus</span>
+                <span class="rune__text">Get a <b>Yazzus</b>.</span>
+              </span>
             </button>
           </li>
           <li>
-            <button type="button" class="ancient" data-rune="gemsage" aria-pressed="false" aria-controls="rune-gemsage">
+            <button type="button" class="ancient rune" data-rune="gemsage" aria-pressed="false" aria-controls="rune-gemsage">
               <img src="/art/runes/gemsage.webp" alt="" width="384" height="384" loading="lazy" />
-              <span class="ancient__name">Gem Sage</span>
+              <span class="rune__cap">
+                <span class="rune__name">Gem Sage</span>
+                <span class="rune__text">Get a <b>Gem Sage</b>.</span>
+              </span>
             </button>
           </li>
         </ul>
@@ -194,12 +212,9 @@
               <img src="/art/cards/chimerus.webp" alt="" width="512" height="512" loading="lazy" />
             </div>
             <div class="ashow__info">
-              <h3 class="ashow__name">Chimerus</h3>
-              <p class="ashow__blurb">Get a <b>Chimerus</b>.</p>
-              <div class="ashow__eg">
-                <p class="ashow__eg-label">Card Reward</p>
-                <p class="ashow__eg-text"><span class="ashow__eg-name">Chimerus</span><span class="ashow__eg-meta">Tier 6 Dragon · 4 Attack · 8 Health</span><b>Rally:</b> give this minion's Health to 2 friendly Dragons.</p>
-              </div>
+              <h3 class="ashow__name ashow__name--reward"><span class="ashow__kicker">Card Reward</span> <span class="ashow__card">Chimerus</span></h3>
+              <p class="ashow__meta">Tier 6 Dragon · 4 Attack · 8 Health</p>
+              <p class="ashow__blurb"><b>Rally:</b> give this minion's Health to 2 friendly Dragons.</p>
             </div>
           </article>
           <article class="ashow__panel" id="rune-voidmother" data-rune-panel="voidmother" hidden>
@@ -208,12 +223,9 @@
               <img src="/art/cards/voidmother.webp" alt="" width="512" height="512" loading="lazy" />
             </div>
             <div class="ashow__info">
-              <h3 class="ashow__name">Voidmother</h3>
-              <p class="ashow__blurb">Get a <b>Voidmother</b>.</p>
-              <div class="ashow__eg">
-                <p class="ashow__eg-label">Card Reward</p>
-                <p class="ashow__eg-text"><span class="ashow__eg-name">Voidmother</span><span class="ashow__eg-meta">Tier 6 Beast · 6 Attack · 1 Health</span><b>Echo:</b> summon a <b>Void Panther</b>.</p>
-              </div>
+              <h3 class="ashow__name ashow__name--reward"><span class="ashow__kicker">Card Reward</span> <span class="ashow__card">Voidmother</span></h3>
+              <p class="ashow__meta">Tier 6 Beast · 6 Attack · 1 Health</p>
+              <p class="ashow__blurb"><b>Echo:</b> summon a <b>Void Panther</b>.</p>
             </div>
           </article>
           <article class="ashow__panel" id="rune-bucky" data-rune-panel="bucky" hidden>
@@ -222,12 +234,9 @@
               <img src="/art/cards/bucky.webp" alt="" width="512" height="512" loading="lazy" />
             </div>
             <div class="ashow__info">
-              <h3 class="ashow__name">Bucky</h3>
-              <p class="ashow__blurb">Get a <b>Bucky</b>.</p>
-              <div class="ashow__eg">
-                <p class="ashow__eg-label">Card Reward</p>
-                <p class="ashow__eg-text"><span class="ashow__eg-name">Bucky</span><span class="ashow__eg-meta">Tier 6 Dwarf · 6 Attack · 10 Health</span><b>Start of Combat:</b> give your Dwarves <b>+5/+5</b> for every <b>Dwarven Ale</b> you cast last turn.</p>
-              </div>
+              <h3 class="ashow__name ashow__name--reward"><span class="ashow__kicker">Card Reward</span> <span class="ashow__card">Bucky</span></h3>
+              <p class="ashow__meta">Tier 6 Dwarf · 6 Attack · 10 Health</p>
+              <p class="ashow__blurb"><b>Start of Combat:</b> give your Dwarves <b>+5/+5</b> for every <b>Dwarven Ale</b> you cast last turn.</p>
             </div>
           </article>
           <article class="ashow__panel" id="rune-portrait" data-rune-panel="portrait" hidden>
@@ -236,12 +245,9 @@
               <img src="/art/cards/portrait.webp" alt="" width="512" height="512" loading="lazy" />
             </div>
             <div class="ashow__info">
-              <h3 class="ashow__name">Bottomless Portrait</h3>
-              <p class="ashow__blurb">Get an <b>Arcane Behemoth</b>.</p>
-              <div class="ashow__eg">
-                <p class="ashow__eg-label">Card Reward</p>
-                <p class="ashow__eg-text"><span class="ashow__eg-name">Arcane Behemoth</span><span class="ashow__eg-meta">Tier 6 Demon · 6 Attack · 10 Health</span>When you <b>Sell</b> a <b>Demon</b>, this gains its stats.</p>
-              </div>
+              <h3 class="ashow__name ashow__name--reward"><span class="ashow__kicker">Card Reward</span> <span class="ashow__card">Arcane Behemoth</span></h3>
+              <p class="ashow__meta">Tier 6 Demon · 6 Attack · 10 Health</p>
+              <p class="ashow__blurb">When you <b>Sell</b> a <b>Demon</b>, this gains its stats.</p>
             </div>
           </article>
           <article class="ashow__panel" id="rune-yazzus" data-rune-panel="yazzus" hidden>
@@ -250,12 +256,9 @@
               <img src="/art/cards/yazzus.webp" alt="" width="512" height="512" loading="lazy" />
             </div>
             <div class="ashow__info">
-              <h3 class="ashow__name">Yazzus</h3>
-              <p class="ashow__blurb">Get a <b>Yazzus</b>.</p>
-              <div class="ashow__eg">
-                <p class="ashow__eg-label">Card Reward</p>
-                <p class="ashow__eg-text"><span class="ashow__eg-name">Yazzus</span><span class="ashow__eg-meta">Tier 7 · 4 Attack · 8 Health</span><b>Targeted</b> spells you cast from hand cast <b>an additional</b> time.</p>
-              </div>
+              <h3 class="ashow__name ashow__name--reward"><span class="ashow__kicker">Card Reward</span> <span class="ashow__card">Yazzus</span></h3>
+              <p class="ashow__meta">Tier 7 · 4 Attack · 8 Health</p>
+              <p class="ashow__blurb"><b>Targeted</b> spells you cast from hand cast <b>an additional</b> time.</p>
             </div>
           </article>
           <article class="ashow__panel" id="rune-gemsage" data-rune-panel="gemsage" hidden>
@@ -264,12 +267,9 @@
               <img src="/art/cards/gemsage.webp" alt="" width="512" height="512" loading="lazy" />
             </div>
             <div class="ashow__info">
-              <h3 class="ashow__name">Gem Sage</h3>
-              <p class="ashow__blurb">Get a <b>Gem Sage</b>.</p>
-              <div class="ashow__eg">
-                <p class="ashow__eg-label">Card Reward</p>
-                <p class="ashow__eg-text"><span class="ashow__eg-name">Gem Sage</span><span class="ashow__eg-meta">Tier 4 Kobold · 3 Attack · 7 Health</span>When you get a <b>Ruby</b>, also get a random <b>Ruby</b>.</p>
-              </div>
+              <h3 class="ashow__name ashow__name--reward"><span class="ashow__kicker">Card Reward</span> <span class="ashow__card">Gem Sage</span></h3>
+              <p class="ashow__meta">Tier 4 Kobold · 3 Attack · 7 Health</p>
+              <p class="ashow__blurb">When you get a <b>Ruby</b>, also get a random <b>Ruby</b>.</p>
             </div>
           </article>
         </div>

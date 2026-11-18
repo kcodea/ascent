@@ -59,11 +59,14 @@ describe('the rune rewards', () => {
       expect(document.querySelector(`[data-rune="${id}"]`)!.getAttribute('aria-controls')).toBe(panel.id);
       expect(document.querySelector(`[data-rune="${id}"] img`)!.getAttribute('src')).toBe(`/art/runes/${id}.webp`);
       expect(panel.querySelector('.ashow__art img')!.getAttribute('src')).toBe(`/art/cards/${id}.webp`);
-      expect(panel.querySelector('.ashow__blurb')!.textContent).toMatch(/^Get an? /);
-      expect(panel.querySelector('.ashow__eg-label')!.textContent).toBe('Card Reward');
-      const card = panel.querySelector('.ashow__eg-name')!.textContent!;
-      expect(panel.querySelector('.ashow__blurb')!.textContent).toContain(card);
-      expect(panel.querySelector('.ashow__eg-meta')!.textContent).toMatch(/^Tier \d.* · \d+ Attack · \d+ Health$/);
+      const tile = document.querySelector(`[data-rune="${id}"]`)!;
+      expect(tile.querySelector('.rune__name')!.textContent!.length).toBeGreaterThan(3);
+      expect(tile.querySelector('.rune__text')!.textContent).toMatch(/^Get an? /);
+      expect(panel.querySelector('.ashow__kicker')!.textContent).toBe('Card Reward');
+      const card = panel.querySelector('.ashow__card')!.textContent!;
+      expect(tile.querySelector('.rune__text')!.textContent).toContain(card);
+      expect(panel.querySelector('.ashow__meta')!.textContent).toMatch(/^Tier \d.* · \d+ Attack · \d+ Health$/);
+      expect(panel.querySelector('.ashow__blurb')!.textContent!.length).toBeGreaterThan(10);
     }
   });
 

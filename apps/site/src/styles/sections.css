@@ -307,14 +307,91 @@
   margin-top: var(--s4);
 }
 
-.ashow__eg-meta {
-  display: block;
-  margin-bottom: var(--s1);
+/* A rune tile is one gilded plate: the rune on top, and under it a navy foot that fades up into the art and carries
+   the rune's name and what it does. */
+.rune {
+  position: relative;
+  overflow: hidden;
+  height: 100%;
+  border: 2px solid transparent;
+  border-radius: var(--r-control);
+  background: linear-gradient(var(--showcase), var(--showcase)) padding-box, var(--edge) border-box;
+  box-shadow: 0 0 0 2px var(--night-deep), var(--contact);
+}
+
+.ancient.rune img,
+.ancient.rune[aria-pressed='true'] img {
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+
+.rune[aria-pressed='true'] {
+  box-shadow: 0 0 0 2px var(--anc), 0 0 26px 5px color-mix(in srgb, var(--anc) 55%, transparent), var(--contact);
+}
+
+.rune__cap {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.2rem;
+  width: 100%;
+  margin-top: -30%;
+  padding: 30% var(--s2) var(--s3);
+  text-align: center;
+  background: linear-gradient(0deg, var(--showcase) 52%, transparent);
+}
+
+.rune__name {
+  font-family: var(--font-title);
+  font-size: var(--fs-small);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.03em;
+}
+
+.rune__text {
+  font-size: var(--fs-label);
+  line-height: 1.35;
+  color: var(--muted);
+}
+
+.rune__text b {
+  color: color-mix(in srgb, var(--anc) 55%, var(--white));
+  font-weight: 800;
+}
+
+/* The reward card's title: a small "Card Reward" tag in the rune's colour, then the card's name. */
+.ashow__name--reward {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.15em var(--s3);
+}
+
+.ashow__kicker {
+  font-size: var(--fs-label);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  text-shadow: none;
+  color: color-mix(in srgb, var(--anc) 55%, var(--white));
+}
+
+.ashow__meta {
   font-size: var(--fs-label);
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: color-mix(in srgb, var(--anc) 45%, var(--muted));
+}
+
+.ashow__blurb b {
+  color: color-mix(in srgb, var(--anc) 55%, var(--white));
+  font-weight: 800;
 }
 
 /* The chosen portrait wears its Ancient's colour, as the game's medallions do. */

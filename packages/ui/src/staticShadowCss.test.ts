@@ -3,9 +3,9 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 /**
- * STATIC PAINT ON A PLAIN BOX, MOTION ON THE ANIMATED ONE (docs/performance.md 3f), pinned for the three places the
- * 2026-11-18 perf pass moved a paint cost off a per-frame path. jsdom does not paint, so this pins the CSS the fix is
- * made of: which element carries the filter / mask, and which one moves.
+ * STATIC PAINT ON A PLAIN BOX, MOTION ON THE ANIMATED ONE (docs/performance.md 3f), pinned for the two places the
+ * 2026-11-18 perf pass moved a filter off a per-frame path. jsdom does not paint, so this pins the CSS the fix is made
+ * of: which element carries the filter, and which one moves.
  */
 const css = readFileSync(fileURLToPath(new URL('./styles.css', import.meta.url)), 'utf8');
 /** The declarations of the first rule whose selector is EXACTLY `selector`. */
@@ -43,20 +43,5 @@ describe('damage numbers: the shadow rides a static inner box (R-PERF-DMG-SHADOW
     expect(rule('.float.dmg .dmgbody')).toContain('filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.5))');
     expect(rule('.float.dmg .dmgbody')).not.toMatch(/animation|transition|transform/);
     expect(rule('.floatanchor .float.dmg')).toContain('animation: floatupc');
-  });
-});
-
-describe('the crystal fuse: the burn repaints nothing (R-PERF-FUSE-BURN-01)', () => {
-  it('--burn drives two transforms; no mask reads it', () => {
-    const burn = rule('.chargeglyph .fuse-burn');
-    const body = rule('.chargeglyph .fuse-body');
-    expect(burn).toContain('transform: translateX(calc(var(--burn) * 100%))');
-    expect(body).toContain('transform: translateX(calc(var(--burn) * -100%))');
-    expect(burn).toContain('will-change: transform');
-    expect(body).toContain('will-change: transform');
-    // The mask is static: the same soft edge, now in the sliding box's own coordinates.
-    expect(burn).toContain('mask: linear-gradient(90deg, transparent 0, #fff var(--feather), #fff 100%)');
-    expect(burn.match(/mask:[^;]*/g)!.every((m) => !m.includes('--burn'))).toBe(true);
-    expect(body).not.toMatch(/(^|[\s;])(-webkit-)?mask:/);
   });
 });

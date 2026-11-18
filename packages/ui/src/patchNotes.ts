@@ -60,13 +60,12 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
-        text: 'The game runs smoother, most of all on fast displays and late in a game. Nothing looks or sounds different.',
+        text: 'The game does less background work between your actions, most of all on fast displays. Nothing looks different.',
         details: [
-          'An idle shop no longer does work on every frame. Before, three background loops kept every keyword glow on the board busy all the time.',
+          'An idle shop no longer runs three background loops on every frame.',
           'The crystal fuse at the end of a turn costs far less to draw.',
-          'Hovering a card no longer redraws its soft glow on every frame.',
-          'Big hits (500 Attack and up) no longer build new reverb sounds in the middle of a fight.',
           'Buying, selling and rolling no longer redraw the player rail.',
+          'A badge that glows forever (a 5,000 Attack minion) no longer redraws the whole effects layer on every frame.',
         ],
       },
       {
@@ -81,6 +80,15 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       { category: 'Systems', text: 'When an Ancient awakens, you can now Peek at the board before you choose, like a Discover. Press Return to Ancients to bring the choice back.' },
       { category: 'Systems', text: 'The Ancient choice now sits on the same dark backdrop as the Runeforge, so the Ancients stand out from the board.' },
+      {
+        category: 'Systems',
+        text: 'Hovering a card, damage numbers and big hits cost less to draw and play. They look and sound the same.',
+        details: [
+          'The soft glow around a hovered card is no longer redrawn on every frame.',
+          'The shadow under a damage number is no longer redrawn on every frame.',
+          'Hits at 500 Attack and up no longer build new reverb sounds in the middle of a fight.',
+        ],
+      },
     ],
   },
   {

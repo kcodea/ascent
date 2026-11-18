@@ -223,7 +223,7 @@
   color: var(--muted);
 }
 
-/* The one clip in the section: the Gold Fuse, the mechanic words alone do not show. */
+/* Each point's clip, on the far side of the spine from its words. */
 .point .capture {
   grid-column: 2;
   margin-top: var(--s4);

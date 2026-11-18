@@ -107,7 +107,10 @@ describe('index.html', () => {
 
   it('every capture slot has a poster image with alt text', () => {
     const slots: [string, string][] = [
+      ['discover-timer', 'async'],
       ['gold-fuse', 'async'],
+      ['rearrange', 'async'],
+      ['save-continue', 'async'],
       ['runeforge', 'runeforge'],
       ['ancient-select', 'ancients'],
       ['career-chart', 'tracking'],
@@ -125,7 +128,7 @@ describe('index.html', () => {
     }
   });
 
-  it('the async section lists its four points in order, each with a drawn sign, and only the Gold Fuse keeps a clip', () => {
+  it('the async section lists its four points in order, each with a drawn sign and its own clip', () => {
     const points = [...document.querySelectorAll('#async .point')];
     expect(points.map((p) => p.getAttribute('data-point'))).toEqual(['clock', 'fuse', 'swap', 'save']);
     for (const p of points) {
@@ -133,7 +136,7 @@ describe('index.html', () => {
       expect(p.querySelector('.point__text h3')!.textContent!.length).toBeGreaterThan(8);
       expect(p.querySelector('.point__text p')!.textContent!.length).toBeGreaterThan(30);
     }
-    expect([...document.querySelectorAll('#async figure[data-capture]')].map((f) => f.getAttribute('data-capture'))).toEqual(['gold-fuse']);
+    expect([...document.querySelectorAll('#async figure[data-capture]')].map((f) => f.getAttribute('data-capture'))).toEqual(['discover-timer', 'gold-fuse', 'rearrange', 'save-continue']);
   });
 
   it('the Ancients section states the real rule', () => {

@@ -19,7 +19,7 @@ const ROWS: [Tribe, string, string, string][] = [
   ['spirit', 'Spirit', 'Set 3 — the hand-summon tribe. Shipped copper orange, the card-frame gem hue (owner 2026-11-18).', 'Set 3'],
   ['beast', 'Beast', 'Shipped green.', 'Established'],
   ['dragon', 'Dragon', 'Shipped white.', 'Established'],
-  ['mech', 'Mech', 'Shipped blue.', 'Established'],
+  ['mech', 'Mech', 'Shipped indigo, the card-frame gem hue (owner 2026-11-18).', 'Established'],
   ['undead', 'Undead', 'Shipped teal.', 'Established'],
   ['demon', 'Demon', 'Shipped purple.', 'Established'],
   ['kobold', 'Kobold', 'Shipped ember orange.', 'Established'],

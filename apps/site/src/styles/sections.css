@@ -389,7 +389,12 @@
 }
 
 /* The stats line is a row: tier and tribe, a dot set well apart, then Attack and Health parted by a drawn line. */
+.ashow__name.ashow__name--reward::after {
+  height: 1px;
+}
+
 .ashow__meta {
+  margin-bottom: var(--s4);
   display: flex;
   flex-wrap: wrap;
   align-items: center;

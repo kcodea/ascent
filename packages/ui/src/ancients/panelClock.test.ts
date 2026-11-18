@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ANCIENTS_DEFAULTS, gateStyleOf } from './ancientsConfig';
-import { PANEL_LAND, panelFromTop, panelGeometry, panelRank, panelTimeline, seamX, slideLeadY, stripPolygon } from './panelClock';
+import { PANEL_LAND, PANEL_PULSE, panelFromTop, panelGeometry, panelRank, panelTimeline, seamX, slideLeadY, stripPolygon } from './panelClock';
 
 /**
  * THE AWAKENING'S SIX PANELS (owner 2026-11-18): "the ancient itself to slide down into place from completely off
@@ -45,7 +45,10 @@ describe('the awakening panels clock', () => {
 
   it('holds the six, then picks three, then reveals: in that order', () => {
     expect(tl.pickAt).toBe(tl.allIn + ANCIENTS_DEFAULTS.panelHoldMs);
-    expect(tl.fallAt).toBeGreaterThan(tl.pickAt);
+    // Owner 2026-11-18: "their edges to pulse before the others fade away": the fall waits for the whole pulse.
+    expect(tl.fallAt).toBeGreaterThanOrEqual(tl.pickAt + ANCIENTS_DEFAULTS.panelRattleMs);
+    expect(PANEL_PULSE.filter(([, o]) => o === 1).length).toBeGreaterThanOrEqual(3); // lit, then two more pulses
+    expect(PANEL_PULSE[PANEL_PULSE.length - 1]).toEqual([1, 1]); // ends lit
     expect(tl.revealAt).toBeGreaterThanOrEqual(tl.pickAt + ANCIENTS_DEFAULTS.panelRattleMs);
   });
 

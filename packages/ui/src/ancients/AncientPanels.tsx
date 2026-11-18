@@ -5,7 +5,7 @@ import { rectToStage, stageViewport, toScreen } from '../stage';
 import { AncientFace } from './AncientFace';
 import { ancientColor, getAncientsConfig } from './ancientsConfig';
 import { playCue } from './ancientsSound';
-import { PANEL_LAND, PANEL_SLIDE_EASE, cardPolygon, panelFromTop, panelGeometry, panelRank, panelTimeline, seamX, slideLeadY, stripPolygon } from './panelClock';
+import { PANEL_LAND, PANEL_PULSE, PANEL_SLIDE_EASE, cardPolygon, panelFromTop, panelGeometry, panelRank, panelTimeline, seamX, slideLeadY, stripPolygon } from './panelClock';
 
 /**
  * THE SIX PANELS (owner 2026-11-18; the clock and geometry are in `panelClock.ts`). Mounted by `AncientGate` for
@@ -103,7 +103,10 @@ export const AncientPanels = memo(function AncientPanels({ offered, phase }: { o
         const k = cfg.panelShakePx * 0.8, f: Keyframe[] = [];
         for (let s = 0; s <= 12; s++) { const d = s === 0 || s === 12 ? 0 : 0.35 + 0.65 * (s / 12); f.push({ transform: `translate(${(rnd(-k, k) * d).toFixed(2)}px, ${(rnd(-k, k) * 0.7 * d).toFixed(2)}px)` }); }
         anim(p, f, { duration: cfg.panelRattleMs, delay: tl.pickAt, easing: 'linear', fill: 'forwards' });
-        anim(p.querySelector('.anc-pn-glow'), [{ opacity: 0 }, { opacity: 1, offset: 0.7 }, { opacity: 0.85 }], { duration: cfg.panelRattleMs, delay: tl.pickAt, easing: 'ease-in', fill: 'forwards' });
+        // Its edges light and PULSE (the strokes, and a wash of its colour inside the edges), before the others go.
+        const pulse = PANEL_PULSE.map(([offset, opacity]) => ({ offset, opacity, easing: 'ease-in-out' }));
+        anim(p.querySelector('.anc-pn-glow'), pulse, { duration: cfg.panelRattleMs, delay: tl.pickAt, fill: 'forwards' });
+        anim(p.querySelector('.anc-pn-lit'), pulse, { duration: cfg.panelRattleMs, delay: tl.pickAt, fill: 'forwards' });
         if (sparks > 0) {
           at(tl.pickAt + cfg.panelRattleMs * 0.5, () => { // a few sparks shaken loose from its lit edges
             for (const b of [i, i + 1]) {
@@ -160,7 +163,8 @@ export const AncientPanels = memo(function AncientPanels({ offered, phase }: { o
           // The Ancient's square ends exactly on the card's art square, so the real card appears over the same picture.
           const dy = r.top + r.height / 2 - geo.vh / 2;
           p.querySelector('.anc-pn-fig')?.animate([{ transform: 'translateY(0) scale(1)' }, { transform: `translateY(${dy.toFixed(1)}px) scale(${(r.width / geo.figS).toFixed(4)})` }], { duration: dur, easing: ease, fill: 'forwards' });
-          p.querySelector('.anc-pn-glow')?.animate([{ opacity: 0.85 }, { opacity: 0 }], { duration: dur, fill: 'forwards' });
+          p.querySelector('.anc-pn-glow')?.animate([{ opacity: 1 }, { opacity: 0 }], { duration: dur, fill: 'forwards' });
+          p.querySelector('.anc-pn-lit')?.animate([{ opacity: 1 }, { opacity: 0 }], { duration: dur, fill: 'forwards' });
           p.querySelector('.anc-pn-seam')?.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 160, fill: 'forwards' });
         }
         p.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 180, delay: burst, easing: 'ease-out', fill: 'forwards', composite: 'replace' });
@@ -179,6 +183,7 @@ export const AncientPanels = memo(function AncientPanels({ offered, phase }: { o
             <div className="anc-pn-fig" style={{ width: geo.figS, height: geo.figS, marginLeft: -geo.figS / 2, marginTop: -geo.figS / 2 }}>
               <AncientFace id={id} className="anc-pn-face" />
             </div>
+            <div className="anc-pn-lit" />
           </div>
           {/* The strip's two slanted edges: a thin dark seam always, a glow in its colour for the three that stay. */}
           <svg className="anc-pn-edges" viewBox={`0 0 ${geo.boxW} ${geo.vh}`} preserveAspectRatio="none">

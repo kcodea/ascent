@@ -22,6 +22,8 @@ export interface PanelTiming {
 export const PANEL_LAND = 0.84;
 /** The slide's easing: it gathers speed the whole way (heavy stone) and stops dead. */
 export const PANEL_SLIDE_EASE = [0.55, 0, 0.95, 0.6] as const;
+/** The chosen three's edge glow over their rattle: up fast, then two pulses, ending lit. [offset, opacity]. */
+export const PANEL_PULSE: readonly (readonly [number, number])[] = [[0, 0], [0.16, 1], [0.38, 0.4], [0.58, 1], [0.8, 0.45], [1, 1]];
 /** The explosion's head start before the first background sets off (ms). */
 export const PANEL_LEAD_MS = 220;
 /** Outside to inside: the two outermost panels are rank 0, the two in the middle the last rank. */
@@ -34,7 +36,8 @@ export interface PanelTimeline {
   allIn: number;
   /** The offered three start to rattle and glow. */
   pickAt: number;
-  /** The other three start to fade and fall. */
+  /** The other three start to fade and fall: only once the chosen three have pulsed (owner 2026-11-18: "their edges
+   *  to pulse before the others fade away"). */
   fallAt: number;
   /** The select screen takes over (the gate's `reveal` beat). */
   revealAt: number;
@@ -50,7 +53,7 @@ export function panelTimeline(c: PanelTiming, n = 6): PanelTimeline {
   }
   const allIn = Math.max(...slide) + c.panelSlideMs;
   const pickAt = allIn + Math.max(0, c.panelHoldMs);
-  const fallAt = pickAt + c.panelRattleMs * 0.55;
+  const fallAt = pickAt + c.panelRattleMs;
   return { bg, slide, land, allIn, pickAt, fallAt, revealAt: Math.max(pickAt + c.panelRattleMs, fallAt + c.panelFallMs * 0.75) };
 }
 

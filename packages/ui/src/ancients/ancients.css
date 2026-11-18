@@ -566,9 +566,15 @@ body.ancgate .app { z-index: auto; }
 .anc-pn-seam line { stroke: rgba(0, 0, 0, 0.62); stroke-width: calc(3 * var(--u, 1px)); }
 /* The lit edge: three static strokes (a wide soft one, a brighter one, a white core) faded in as one group. */
 .anc-pn-glow { opacity: 0; will-change: opacity; }
-.anc-pn-glow-w line { stroke: var(--anc-c); stroke-width: calc(18 * var(--u, 1px)); opacity: 0.32; }
-.anc-pn-glow-m line { stroke: color-mix(in srgb, var(--anc-c) 60%, #fff); stroke-width: calc(7 * var(--u, 1px)); opacity: 0.8; }
-.anc-pn-glow-c line { stroke: #fff; stroke-width: calc(2 * var(--u, 1px)); }
+.anc-pn-glow-w line { stroke: var(--anc-c); stroke-width: calc(40 * var(--u, 1px)); opacity: 0.38; }
+.anc-pn-glow-m line { stroke: color-mix(in srgb, var(--anc-c) 55%, #fff); stroke-width: calc(14 * var(--u, 1px)); opacity: 0.85; }
+.anc-pn-glow-c line { stroke: #fff; stroke-width: calc(4 * var(--u, 1px)); }
+/* The same light INSIDE the strip: its colour washing in from both edges over the painting (static paint;
+   only its opacity animates, on the chosen three's pulse). */
+.anc-pn-lit {
+  position: absolute; inset: 0; opacity: 0; pointer-events: none; will-change: opacity;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--anc-c) 70%, #fff) 0%, color-mix(in srgb, var(--anc-c) 55%, transparent) 14%, transparent 42%, transparent 58%, color-mix(in srgb, var(--anc-c) 55%, transparent) 86%, color-mix(in srgb, var(--anc-c) 70%, #fff) 100%);
+}
 .anc-pn-name {
   position: absolute; left: 50%; bottom: 8.5%; transform: translateX(-50%); opacity: 0; white-space: nowrap;
   font-family: var(--title-font, 'Cinzel Decorative'), 'Cinzel Decorative', serif; font-weight: var(--title-weight, 700);

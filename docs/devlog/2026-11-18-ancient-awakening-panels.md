@@ -56,6 +56,6 @@ then panels that slid in whole), then built.
 - **The figures are the flat 512px paintings with a soft oval mask**, a stand-in. The owner wants depth inside each
   portrait, which needs cut-out layers per Ancient (background, figure, optional foreground) at about 800x1440.
 - **The sounds are placeholders** from clips already in the repo.
-- **Length.** About 2.8 s from the explosion to the reveal at the defaults, against about 1.6 s for the curtain.
+- **Length.** About 3.1 s from the explosion to the reveal at the defaults, against about 1.6 s for the curtain.
 - A file named `ancientPanels.ts` next to `AncientPanels.tsx` breaks the Windows typecheck (names differing only in
   case), hence `panelClock.ts`.

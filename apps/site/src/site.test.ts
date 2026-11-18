@@ -85,6 +85,11 @@ describe('index.html', () => {
       epic: '840x402',
       legendary: '840x393',
       ancient: '840x400',
+      'standard-lid': '819x238',
+      'rare-lid': '823x238',
+      'epic-lid': '816x242',
+      'legendary-lid': '795x250',
+      'ancient-lid': '819x246',
     };
     for (const img of document.querySelectorAll<HTMLImageElement>('#earn img[src^="/art/chests/"]')) {
       const name = img.getAttribute('src')!.replace(/^\/art\/chests\/|\.webp$/g, '');
@@ -137,7 +142,7 @@ describe('index.html', () => {
     expect(t).toMatch(/16 points/);
     expect(t).toMatch(/hero power/i);
     expect(t).toMatch(/six Ancients\./);
-    const imgs = [...document.querySelectorAll<HTMLImageElement>('#ancients img[data-ancient]')];
+    const imgs = [...document.querySelectorAll<HTMLImageElement>('#ancients [data-ancient] img')];
     expect(imgs).toHaveLength(6);
     expect(imgs.map((i) => i.getAttribute('src'))).toEqual(
       ['bonds', 'death', 'fortune', 'genesis', 'time', 'war'].map((n) => `/art/ancients/${n}.webp`),
@@ -153,7 +158,8 @@ describe('index.html', () => {
     expect(earn).toMatch(/free to earn and unlock, always/i);
     expect(document.querySelector('#earn .lede')!.textContent).toMatch(/Aether and cosmetics are free to earn and unlock, always\./);
     for (const c of ['Standard', 'Rare', 'Epic', 'Legendary', 'Ancient']) expect(earn).toContain(c);
-    expect(document.querySelectorAll('#earn img[src^="/art/chests/"]')).toHaveLength(5);
+    expect(document.querySelectorAll('#earn img.chestpic__body')).toHaveLength(5);
+    expect(document.querySelectorAll('#earn img.chestpic__lid')).toHaveLength(5);
   });
 
   it('names all three other modes', () => {

@@ -29,6 +29,36 @@
   --gem-rim: #3e1d16;
   --gem-ink: #062a6e;
 
+  /* From the game: its showcase card navy, the six Ancients' own accents, and the chest tiers' burst colours */
+  --showcase: #0d1a36;
+  --anc-death: #1fa89a;
+  --anc-fortune: #e3aa2b;
+  --anc-war: #c9363b;
+  --anc-genesis: #5aae3c;
+  --anc-time: #2f8fd8;
+  --anc-bonds: #9b5de5;
+  --rune-chimerus: #d2423a;
+  --rune-voidmother: #8b4fd8;
+  --rune-bucky: #2fa79a;
+  --rune-portrait: #3d78e0;
+  --rune-yazzus: #e3aa2b;
+  --rune-gemsage: #b05ae0;
+  --tier-standard-1: #ffffff;
+  --tier-standard-2: #d6e0ec;
+  --tier-rare-1: #5aa8ff;
+  --tier-rare-2: #a9d2ff;
+  --tier-rare-3: #ffffff;
+  --tier-epic-1: #c07bff;
+  --tier-epic-2: #e2bfff;
+  --tier-epic-3: #ffffff;
+  --tier-legendary-1: #ffb938;
+  --tier-legendary-2: #ffe08a;
+  --tier-legendary-3: #fff6d6;
+  --tier-legendary-4: #ffffff;
+  --tier-ancient-1: #8af5ff;
+  --tier-ancient-2: #ff9bf0;
+  --tier-ancient-3: #f4eeff;
+
   /* Pure light and shade, only ever used through color-mix() */
   --white: #ffffff;
   --black: #000000;

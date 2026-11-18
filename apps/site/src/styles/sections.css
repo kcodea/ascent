@@ -414,27 +414,66 @@
   color: var(--text);
 }
 
+/* The in-game example: a labelled break, then the hero's portrait beside what this Ancient does for them. */
 .ashow__eg {
   max-width: 34em;
-  font-size: var(--fs-small);
-  line-height: 1.45;
-  color: var(--muted);
-}
-
-.ashow__eg b {
-  color: color-mix(in srgb, var(--anc) 55%, var(--white));
-  font-weight: 800;
+  margin-top: var(--s2);
 }
 
 .ashow__eg-label {
-  display: block;
-  margin-bottom: 0.2rem;
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
   font-family: var(--font-title);
   font-size: var(--fs-label);
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: color-mix(in srgb, var(--anc) 55%, var(--white));
+}
+
+.ashow__eg-label::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--anc) 60%, transparent), transparent);
+}
+
+.ashow__eg-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  margin-top: var(--s2);
+}
+
+.ashow__eg-hero {
+  flex: none;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: 50% 20%;
+  box-shadow: 0 0 0 2px var(--gold), 0 4px 12px color-mix(in srgb, var(--black) 65%, transparent);
+}
+
+.ashow__eg-text {
+  font-size: var(--fs-small);
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.ashow__eg-name {
+  display: block;
+  font-family: var(--font-title);
+  font-size: var(--fs-body);
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--text);
+}
+
+.ashow__eg-text b {
+  color: color-mix(in srgb, var(--anc) 55%, var(--white));
+  font-weight: 800;
 }
 
 /* -- #tracking: the ladder medals --------------------------------------------------------------------------- */

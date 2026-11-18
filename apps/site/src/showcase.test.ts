@@ -25,7 +25,10 @@ describe('the Ancients showcase', () => {
       expect(document.querySelector(`[data-ancient="${id}"]`)!.getAttribute('aria-controls')).toBe(panel.id);
       expect(panel.querySelector('.ashow__name')!.textContent).toMatch(/^Ancient of /);
       expect(panel.querySelector('.ashow__blurb')!.textContent!.length).toBeGreaterThan(30);
-      expect(panel.querySelector('.ashow__eg')!.textContent).toMatch(/On the hero Indy/);
+      expect(panel.querySelector('.ashow__eg-label')!.textContent).toBe('In-game Example');
+      expect(panel.querySelector('.ashow__eg-hero')!.getAttribute('src')).toBe('/art/heroes/indy.webp');
+      expect(panel.querySelector('.ashow__eg-name')!.textContent).toBe('Indy');
+      expect(panel.querySelector('.ashow__eg-text')!.textContent!.length).toBeGreaterThan(20);
     }
   });
 

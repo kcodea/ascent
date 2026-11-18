@@ -79,7 +79,7 @@ describe('Ancient combat KEYWORD grants and minion-sourced pairings (reported, n
     { pairing: 'risen.death', run: () => inspect(power(P('risen', 'death', { board: [pup('a', 2, 2)] }), 'a'), 50, 400), keywords: ['R<-unit'], buffs: [] },
     { pairing: 'risen.war', run: () => inspect(power(P('risen', 'war', { board: [pup('a', 2, 2), pup('b', 0, 500)] }), 'a'), 50, 400, 3), keywords: [], buffs: [] },
     { pairing: 'gorun.genesis', run: () => inspect(P('gorun', 'genesis', { board: [pup('a', 1, 900), pup('b', 1, 900), pup('c', 1, 900)] })), keywords: ['W<-none', 'Ward<-none'], buffs: ['Blade Mastery'] },
-    { pairing: 'midas.war', run: () => inspect(P('midas', 'war', { board: ['a', 'b', 'c', 'd', 'e'].map((u) => pup(u, 1, 50)) }), 0, 400, 2, { golden: true }), keywords: ['Ward<-none'], buffs: [] },
+    { pairing: 'midas.war', run: () => inspect(P('midas', 'war', { board: ['a', 'b', 'c', 'd', 'e'].map((u, i) => ({ ...pup(u, 1, 50), golden: i < 2 })) }), 0, 400, 2), keywords: ['Ward<-none'], buffs: [] }, // owner 2026-11-18: it counts Midas's OWN Gilded board minions (two here)
     { pairing: 'nadja.war', run: () => inspect(P('nadja', 'war', { board: [pup('a', 2, 50), pup('b', 1, 50)], goldSpentThisTurn: 3 } as Partial<RunState>)), keywords: ['RL<-unit'], buffs: ['unit'] },
   ])('$pairing', ({ run, keywords, buffs }) => {
     const r = run();

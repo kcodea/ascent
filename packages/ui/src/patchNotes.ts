@@ -65,6 +65,19 @@ export const PATCH_NOTES: PatchNote[] = [
           'Before, a spectator could press the gem after a fight and their own screen left the fight early, even after the player was knocked out.',
           'The same holds while watching a replay or your Duos teammate.',
           'When the player you are watching is knocked out, their last fight stays up, then the game closes with their place as before.',
+        text: 'Mech and Spirit have new tribe colors that match the gems on their card frames.',
+        details: [
+          'Mech is now indigo instead of sky blue.',
+          'Spirit is now copper orange instead of pale peach.',
+        ],
+      },
+      {
+        category: 'Balance',
+        text: 'Midas with the Ancient of War now reads: Start of Combat: give a friendly minion Ward for every Gilded minion you control.',
+        details: [
+          'It counts the Gilded minions on your own board. Enemy Gilded minions no longer matter.',
+          'Each Ward goes to a different random friendly minion that does not have Ward yet.',
+          'It used to give 2 random friendly minions Ward for each Gilded enemy minion.',
         ],
       },
       {

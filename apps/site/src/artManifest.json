@@ -25,5 +25,10 @@
   "chests/rare.webp": "apps/web/public/collection/chest_rare_body.webp",
   "chests/epic.webp": "apps/web/public/collection/chest_epic_body.webp",
   "chests/legendary.webp": "apps/web/public/collection/chest_legendary_body.webp",
-  "chests/ancient.webp": "apps/web/public/collection/chest_ancient_body.webp"
+  "chests/ancient.webp": "apps/web/public/collection/chest_ancient_body.webp",
+  "chests/standard-lid.webp": "apps/web/public/collection/crate_lid.webp",
+  "chests/rare-lid.webp": "apps/web/public/collection/chest_rare_lid.webp",
+  "chests/epic-lid.webp": "apps/web/public/collection/chest_epic_lid.webp",
+  "chests/legendary-lid.webp": "apps/web/public/collection/chest_legendary_lid.webp",
+  "chests/ancient-lid.webp": "apps/web/public/collection/chest_ancient_lid.webp"
 }

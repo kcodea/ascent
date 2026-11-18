@@ -46,6 +46,8 @@ jobs:
           NODE_OPTIONS: --max-old-space-size=6144
       - run: npm run lint        # eslint (incl. the Math.random ban in core/content/sim/tools)
       - run: npm run build:web   # vite build MUST succeed = the game compiles
+      - run: npm run typecheck:site
+      - run: npm run build:site
 
   # vitest: determinism + golden + effect tests, split across parallel runners. vitest shards BY FILE, so the
   # floor is the slowest single file — the multi-minute balance self-play suites. So the groups are explicit

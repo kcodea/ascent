@@ -14,7 +14,7 @@
   },
   "scripts": {
     "db:export:board-results": "node scripts/supabase/export-board-results.mjs",
-    "typecheck": "npm run typecheck:pkgs && npm run typecheck:web && npm run typecheck:worker",
+    "typecheck": "npm run typecheck:pkgs && npm run typecheck:web && npm run typecheck:worker && npm run typecheck:site",
     "typecheck:pkgs": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "test:slow": "vitest run --mode nightly",
@@ -121,6 +121,9 @@
     "dev": "npm run dev -w apps/web",
     "dev:active": "node scripts/dev-active.mjs",
     "build:web": "npm run build -w apps/web",
+    "dev:site": "npm run dev -w apps/site",
+    "build:site": "npm run build -w apps/site",
+    "typecheck:site": "tsc -p apps/site/tsconfig.json --noEmit",
     "desktop": "npm run build:web && npm --workspace @game/desktop run start",
     "desktop:icon": "node scripts/make-icon.mjs",
     "package:desktop": "npm run build:web && node scripts/bundle-shell.mjs && node scripts/package-desktop.mjs",

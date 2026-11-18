@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-11-18',
     changes: [
+      { category: 'Systems', text: 'Smoother combat: background calculations no longer interrupt the fight.' },
       {
         category: 'Systems',
         text: 'Game results now show the hero power and the Ancient picked with it, for you and for every player in the lobby.',

@@ -1527,7 +1527,7 @@ export const Card = memo(function Card({
           the element a combat lunge is transforming. */}
       {refPos && hasPopup && createPortal(
         <div className="cardref" ref={popRef} style={{ left: refPos.left, top: refPos.top } as CSSProperties}>
-          <div className="cardref-inner" style={{ transformOrigin: `${refPos.origin} center` } as CSSProperties}>
+          <div className="cardref-shadow"><div className="cardref-inner" style={{ transformOrigin: `${refPos.origin} center` } as CSSProperties}>
             {/* When the reveal opens LEFT (flipped, origin 'right'), the cards sit nearest the hovered tile and
                 the defs go on the far (outward) side, so the column never laps back over the source. Opening
                 right, it's the reverse: cards first, defs on the far right. */}
@@ -1536,7 +1536,7 @@ export const Card = memo(function Card({
               <Card key={`${rc.cardId ?? i}-${i}`} card={rc} forceFull plated />
             ))}
             {refPos.origin === 'left' && <KeywordDefs card={card} mech={mech} />}
-          </div>
+          </div></div>
         </div>,
         stageHost(),
       )}

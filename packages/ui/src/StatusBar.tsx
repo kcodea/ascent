@@ -1198,9 +1198,9 @@ export function StatusBar() {
                 uses, so its printed value is the real one. */}
             {hunchPreview && hunchTip && createPortal(
               <div className="cardref" ref={hunchPopRef} style={{ left: hunchTip.left, top: hunchTip.top }}>
-                <div className="cardref-inner" style={{ transformOrigin: `${hunchTip.origin} center` }}>
+                <div className="cardref-shadow"><div className="cardref-inner" style={{ transformOrigin: `${hunchTip.origin} center` }}>
                   <Card card={hunchPreview} forceFull plated />
-                </div>
+                </div></div>
               </div>,
               stageHost(),
             )}

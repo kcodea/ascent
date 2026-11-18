@@ -12877,6 +12877,70 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/artPlanCoverage.test.ts'], lastVerifiedAt: '2026-11-04' },
   },
   {
+    id: 'R-PERF-SHARED-FX-REVERB-01',
+    title: 'A big hit never builds a reverb node mid-fight',
+    statement:
+      'A one-shot effect sound layer whose reverb had nothing after it but the fader (no Pan, a flat reverb mix, a flat '
+      + 'level curve) sends into a shared convolver for its bus and impulse, built once on idle time, instead of taking '
+      + 'a node of its own. The send carries the fader\'s level; the fader\'s fades stay behind the convolver on one '
+      + 'gate per node: plays with the same fade-in share a node whose gate rides the fade-in when the node has rung '
+      + 'out, and fading-out plays get two nodes per impulse (one on a phone) so two overlapping plays each keep their '
+      + 'own fade. A play on its own sounds exactly as before (an offline render of both graphs differs by '
+      + 'floating-point noise). While plays of one impulse overlap past that, an earlier tail rings under the later '
+      + 'play instead of being cut with its own clip. A finished voice is disconnected from its bus once whatever still '
+      + 'rings inside its own chain has died. The Ruby landing\'s tail convolver is built on idle time on desktop.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-18 (the bar: a 2D card game has no excuse for dropped frames; 240 fps constant, recruit phase first)' },
+      { kind: 'code', ref: 'packages/ui/src/fx/audioFilters.ts (sharedFxReverb, sharedReverbEligible, prewarmSharedFxReverbs); packages/ui/src/sfx.ts (playFxSound, playSample, fxChainRingSeconds, warmWipeGate)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-18 (perf/always-on). Before, the pool kept two idle convolvers per impulse and a third '
+      + 'overlapping play built one (about 6 ms of main thread at a 96 kHz context). A 500+ Attack hit plays a strike '
+      + 'impact whose reverb layers each held a node for 3 to 5 s, so past the first swings nearly every big hit built '
+      + 'one or two nodes; a burst of grant trails did the same.',
+    example: 'Seven minions at 900 Attack trade blows a third of a second apart. Before, each blow after the first two built a new reverb node while the fight played. Now every blow sends into the same one.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/fx/sharedFxReverb.test.ts', 'packages/ui/src/fx/convolverPool.test.ts'], lastVerifiedAt: '2026-11-18' },
+  },
+  {
+    id: 'R-PERF-HOVER-SHADOW-01',
+    title: 'The hover preview bobs without re-blurring its haze',
+    statement:
+      'The hover preview\'s white haze and drop shadow (three drop-shadows) sit on a box that never animates, inside the '
+      + 'element that slides in and bobs. The bob is on the separate translate property, so it never fights the '
+      + 'slide-in\'s transform, and travels the same distance (4 px times the popup zoom). The shadow looks the same: it '
+      + 'always moved rigidly with the card.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-18 (ruling: keep the hover shadow looking the same)' },
+      { kind: 'code', ref: 'packages/ui/src/styles.css (.cardref, .cardref-shadow, .cardref-inner, cardreffloat); the five .cardref surfaces: Card.tsx, RuneCard.tsx, QuestCard.tsx, StatusBar.tsx, guides/GuideParts.tsx' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-18 (perf/always-on). Before, the filter sat on the parent of a child that bobbed forever, '
+      + 'so its input changed every frame: three blur passes over the whole popup for as long as the pointer rested on a '
+      + 'card (devlog 2026-10-21 measured the hover sweep\'s worst frame at 24.7 ms with it and 9.7 ms without).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/staticShadowCss.test.ts'], lastVerifiedAt: '2026-11-18' },
+  },
+  {
+    id: 'R-PERF-DMG-SHADOW-01',
+    title: 'A damage number moves a rastered shadow, it does not re-blur one',
+    statement:
+      'A damage number\'s drop shadow sits on a static inner box that holds the number and its burst; the float that '
+      + 'pops, rises and fades carries no filter. The shadow is still cast by number and burst together.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-18 (the bar: a 2D card game has no excuse for dropped frames; 240 fps constant, recruit phase first)' },
+      { kind: 'code', ref: 'packages/ui/src/styles.css (.float.dmg, .float.dmg .dmgbody); packages/ui/src/Recruit.tsx (the float and death-float markup)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-18 (perf/always-on). Before, the filter was on the element that animates translate, scale '
+      + 'and opacity for its whole life: a blur pass per frame per number, up to 14 at once on a wave or cleave.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/staticShadowCss.test.ts'], lastVerifiedAt: '2026-11-18' },
+  },
+  {
     id: 'R-PERF-SHARED-TAIL-REVERB-01',
     title: 'A fight never builds reverb nodes as it starts, and the reverb pool never grows over a game',
     statement:

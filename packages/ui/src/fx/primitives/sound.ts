@@ -17,8 +17,8 @@
 import type { FxContext, FxInstance, FxPrimitive } from '../primitive';
 import type { ParamsOf, FxParamSpecs } from '../params';
 import { registerPrimitive } from '../registry';
-import { onAudioContextReady, playFxSound, type FxSoundHandle } from '../../sfx';
-import { audioFilterSpecs, prewarmConvolvers, reverbSpecsOf } from '../audioFilters';
+import { fxBusTarget, onAudioContextReady, playFxSound, type FxSoundHandle } from '../../sfx';
+import { audioFilterSpecs, prewarmConvolvers, prewarmSharedFxReverbs, reverbSpecsOf } from '../audioFilters';
 import { listDefs } from '../fxDefs';
 import { CURVE_PRESETS } from '../curve';
 import { BUS_NAMES, type BusName } from '../../audio/config';
@@ -146,4 +146,10 @@ registerPrimitive(soundPrimitive as FxPrimitive);
 
 // Pre-build the committed defs' reverb convolvers on idle time once audio exists (perf 2026-10-10, see
 // `prewarmConvolvers`): the Shout icon's reverb was ~6 ms of main thread on every fire until a pooled node existed.
-if (typeof window !== 'undefined') onAudioContextReady((a) => prewarmConvolvers(a, reverbSpecsOf(listDefs())));
+// Since R-PERF-SHARED-FX-REVERB-01 most reverb'd layers ride ONE shared convolver per (bus, impulse): those are built
+// here too, and only the layers that still need a node of their own (a Pan after the reverb, an automated mix) are pooled.
+if (typeof window !== 'undefined') onAudioContextReady((a) => {
+  const defs = listDefs();
+  prewarmSharedFxReverbs(a, defs, (bus) => fxBusTarget(a, bus as BusName));
+  prewarmConvolvers(a, reverbSpecsOf(defs));
+});

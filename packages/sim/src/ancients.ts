@@ -78,8 +78,9 @@
  *  AUCTIONEER (`myra`, Pulse, `replayBattlecry`; owner pairings 2026-09-26):
  *  · `pulseRepeatThenDestroy`     the reducer's `replayBattlecry` branch: the Shout fires `1 + extra` times per Pulse,
  *                                 then the target is destroyed (a real shop death via `destroyMinionInShop`). (Death)
- *  · `shopShoutGold`              `fireBattlecryTriggered` (every SHOP Shout fire walks it): +gold next turn per fire,
- *                                 real time. Combat Shouts do not count (the text says Shop phase). (Fortune)
+ *  · `shopShoutGold`              `fireBattlecryTriggered` (every SHOP Shout fire walks it): one running count
+ *                                 (`AncientsState.shoutTick`, carried across turns); every `every`th fire banks +gold
+ *                                 next turn, real time. Combat Shouts do not count (the text says Recruit phase). (Fortune)
  *  · `pulseGrantsRallyShout`      the `replayBattlecry` branch, after the Shout: the target gains the Rally keyword and a
  *                                 grafted `rallyTriggerOwnShout` (`grantedEffects`, so it rides into combat, snapshots
  *                                 and replays). Once per minion: a second Pulse does not stack it. (War)
@@ -198,10 +199,10 @@
  *  exact copy that returns the moment its side has room. The combat halves ride `QuestCombatMods.ancientReclaim`.
  *  · `reclaimEchoExtra`           COMBAT: the Echo Reclaim's destroy triggers fires `extra` more times, through
  *                                 `playerEchoExtras` (the shared Echo-multiplier fold), so Echo watchers hear each. (Death)
- *  · `reclaimInShop`              the reducer's `resummon` branch: no mark; the minion is destroyed in the Shop right away
- *                                 (`destroyMinionInShop`, a true death: no Rise / Rebirth, its Echo fires), an exact copy
- *                                 returns to its slot (a summon: `fireSummonBuffs`), and the use gains `gold`. No room
- *                                 after the Echo: an overflow (`fireSummonOverflow`), and the copy is lost. (Fortune)
+ *  · `reclaimInShop`              the reducer's `resummon` branch: no mark; the target is destroyed in the Recruit phase
+ *                                 right away (`destroyMinionInShop`, the shared Shop destroy: its Echo fires, Rise /
+ *                                 Rebirth / Open Grave apply as for every other Shop destroy) and the use gains `gold`.
+ *                                 No copy returns (owner 2026-11-17). (Fortune)
  *  · `reclaimGainImproves`        COMBAT: each returned copy gains +X/+X, a combat buff (Engraved keeps it); X starts at
  *                                 `amount` and `ancientStartOfTurn` improves it by `amount` (`AncientsState.sorenWarGain`). (War)
  *  · `reclaimCopyLocked`          the `resummon` branch, after the mark: a plain copy of the target to hand, locked for
@@ -710,7 +711,7 @@ export type AncientEffect =
   /** Pulse fires the target's Shout `extra` more times, then destroys it (a real shop death). */
   | { do: 'pulseRepeatThenDestroy'; extra: number }
   /** Every Shout FIRE in the Shop phase: gain `gold` next turn. Combat Shouts do not count. */
-  | { do: 'shopShoutGold'; gold: number }
+  | { do: 'shopShoutGold'; every: number; gold: number }
   /** The Pulse target also gains "Rally: trigger this minion's Shout" (once per minion). */
   | { do: 'pulseGrantsRallyShout' }
   /** Pulse is replaced: Discover a Shout minion at your tier or below (the cost rides the pairing's `power`). */
@@ -1399,10 +1400,11 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
       effects: [{ do: 'pulseRepeatThenDestroy', extra: 1 }],
     },
     fortune: {
-      // "Whenever you trigger a Shout during the Shop phase, gain 1 Gold next turn."
-      offerText: 'Whenever you trigger a **Shout** in the Shop, gain **1 Gold** next turn.',
-      powerText: '{base} Whenever you trigger a **Shout** in the Shop, gain **1 Gold** next turn. **{shoutGold} Gold** banked this turn.',
-      effects: [{ do: 'shopShoutGold', gold: 1 }],
+      // "Whenever you trigger a Shout during the Shop phase, gain 1 Gold next turn." Owner 2026-11-17: "every 2 Shouts
+      // gives 1 Gold next turn" (one running count, carried across turns, with a live countdown).
+      offerText: 'Every **2** **Shouts** you trigger in the Recruit phase give you **1 Gold** next turn.',
+      powerText: '{base} Every **2** **Shouts** you trigger in the Recruit phase give you **1 Gold** next turn (**{shoutLeft}** more to go). **{shoutGold} Gold** banked this turn.',
+      effects: [{ do: 'shopShoutGold', every: 2, gold: 1 }],
     },
     war: {
       // "The minion you Pulse gains 'Rally: trigger this minion's Shout'". Ancient pass 1 (owner 2026-11-16): "No
@@ -1703,11 +1705,11 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
       effects: [{ do: 'reclaimEchoExtra', extra: 1 }],
     },
     fortune: {
-      // "Reclaim works in Recruit phase instead. Gain 5g when it is used." Owner 2026-10-02 on a full board: "it'd be an
-      // 'overflow' technically, but if no room then it is lost".
-      offerText: 'Reclaim works in the Shop instead. Gain **5 Gold** when you use it.',
-      powerText: 'Choose a friendly minion. Destroy it and resummon a copy right away, if there is room. Gain **5 Gold**.',
-      effects: [{ do: 'reclaimInShop', gold: 5 }],
+      // Owner 2026-11-17 (replacing "Reclaim works in Recruit phase instead. Gain 5g when it is used."): "Target a
+      // friendly minion to destroy it and gain 4 Gold." Owner 2026-11-18: 1 Gold, not 4. No copy comes back.
+      offerText: 'Reclaim becomes: target a friendly minion to destroy it and gain **1 Gold**.',
+      powerText: 'Target a friendly minion to destroy it and gain **1 Gold**.',
+      effects: [{ do: 'reclaimInShop', gold: 1 }],
     },
     war: {
       // "Reclaimed minions gain +10/+10 on re-summon. Start of Turn: Improve this." Owner 2026-10-02: "fight only, but
@@ -2948,10 +2950,10 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
       effects: [{ do: 'deathGivesAttack', perTurn: 2 }],
     },
     fortune: {
-      // "Every 5 attacks, gain 1 Gold next turn."
-      offerText: 'Every **5** attacks, gain **1 Gold** next turn.',
-      powerText: '{base} Every **5** attacks, gain **1 Gold** next turn (**{goLeft}** more to go).',
-      effects: [{ do: 'attacksGold', every: 5, gold: 1 }],
+      // "Every 5 attacks, gain 1 Gold next turn." Owner 2026-11-17: every 4 attacks.
+      offerText: 'Every **4** attacks, gain **1 Gold** next turn.',
+      powerText: '{base} Every **4** attacks, gain **1 Gold** next turn (**{goLeft}** more to go).',
+      effects: [{ do: 'attacksGold', every: 4, gold: 1 }],
     },
     war: {
       // "Blade Mastery also gives the same Health." (The owner's Alt, "Your first attacker each combat keeps its Blade
@@ -3230,6 +3232,8 @@ export interface AncientsState {
   pairedFor?: string[];
   /** AUCTIONEER × FORTUNE: Gold banked by Shop Shouts on `wave` (the live power text prints it). */
   shoutGold?: { wave: number; gold: number };
+  /** AUCTIONEER × FORTUNE: Shop Shouts since the last Gold (the running count, carried across turns). */
+  shoutTick?: number;
   /** RISEN × FORTUNE: Gold the last combat's Rises banked for this turn (the live power text prints it). */
   riseGold?: number;
   /** RISEN × TIME: friendly minions summoned in the last combat (paid at the next Start of Turn; printed live). */
@@ -3744,6 +3748,8 @@ export function ancientPowerText(state: RunState, base: string, combat: AncientP
   const copy = effectOf(state, 'wardBreaksGetCopy');
   const wardLeft = copy ? copy.every - ((a?.wardWindow?.length ?? 0) % copy.every) : 0;
   const shoutGold = a?.shoutGold?.wave === state.wave ? a.shoutGold.gold : 0;
+  const sg = effectOf(state, 'shopShoutGold');
+  const shoutLeft = sg ? Math.max(1, sg.every ?? 1) - ((a?.shoutTick ?? 0) % Math.max(1, sg.every ?? 1)) : 0;
   const time = effectOf(state, 'sotBuffPerCombatSummon');
   // RISEN × TIME, REAL TIME (R-REALTIME-01 / R-ANCRISEN-07): during a fight the count is the replay's running tally of
   // friendly summons up to the beat on screen, so it ticks with each summon instead of jumping at resolution.
@@ -3834,7 +3840,7 @@ export function ancientPowerText(state: RunState, base: string, combat: AncientP
   return text.replace('{base}', base).replace('{avengeNow}', String(hunch.avengeNow)).replace('{deathA}', String(hunch.deathA)).replace('{deathH}', String(hunch.deathH))
     .replace('{bookGold}', String(a?.bookMaxGold ?? 0)).replace('{genesisLeft}', String(hunch.genesisLeft)).replace('{timeTier}', String(albusTimeTier(state)))
     .replace('{stacks}', String(stacks)).replace('{deathFree}', deathFree).replace('{genesisTribe}', genesisTribe).replace('{timeLeft}', String(ancientTimeBuysLeft(state)))
-    .replace('{pummelNow}', String(pummelNow)).replace('{pummelEvery}', String(pummel?.every ?? 0)).replace('{timeWhen}', liveSummons ? 'This combat' : 'Last combat').replace('{shoutGold}', String(shoutGold))
+    .replace('{pummelNow}', String(pummelNow)).replace('{pummelEvery}', String(pummel?.every ?? 0)).replace('{timeWhen}', liveSummons ? 'This combat' : 'Last combat').replace('{shoutGold}', String(shoutGold)).replace('{shoutLeft}', String(shoutLeft))
     .replace('{riseGold}', String(a?.riseGold ?? 0)).replace('{summons}', String(summons))
     .replace('{timeA}', String((time?.attack ?? 0) * summons)).replace('{timeH}', String((time?.health ?? 0) * summons)).replace('{aegis}', aegis).replace('{wardLeft}', String(wardLeft)).replace('{recharge}', String(INDY_GILD_RECHARGE_GOLD))
     .replace('{gilds}', String(gilds)).replace('{gildA}', String((per?.attack ?? 0) * gilds)).replace('{gildH}', String((per?.health ?? 0) * gilds));
@@ -4360,10 +4366,15 @@ export function ancientOnShopShout(state: RunState, source: BoardCard | undefine
   }
   const gold = effectOf(state, 'shopShoutGold');
   if (gold) {
-    procAncient(state); // AUCTIONEER × FORTUNE fires (R-FX-ANCIENT-PROC-01)
-    state.bonusEmbersNextTurn = (state.bonusEmbersNextTurn ?? 0) + gold.gold;
-    const cur = a.shoutGold?.wave === state.wave ? a.shoutGold.gold : 0;
-    a.shoutGold = { wave: state.wave, gold: cur + gold.gold };
+    // Owner 2026-11-17: every `every`th Shout pays (one running count, carried across turns).
+    const every = Math.max(1, gold.every ?? 1);
+    a.shoutTick = ((a.shoutTick ?? 0) + 1) % every;
+    if (a.shoutTick === 0) {
+      procAncient(state); // AUCTIONEER × FORTUNE fires (R-FX-ANCIENT-PROC-01)
+      state.bonusEmbersNextTurn = (state.bonusEmbersNextTurn ?? 0) + gold.gold;
+      const cur = a.shoutGold?.wave === state.wave ? a.shoutGold.gold : 0;
+      a.shoutGold = { wave: state.wave, gold: cur + gold.gold };
+    }
   }
   const adj = effectOf(state, 'shoutBuffsAdjacent');
   if (adj && source) {
@@ -5036,32 +5047,22 @@ function sorenStartOfTurn(state: RunState): void {
   a.sorenWarGain = (a.sorenWarGain ?? e.amount) + e.amount;
 }
 
-/** FORTUNE: Reclaim resolves in the Shop instead of marking the minion for Start of Combat. */
+/** FORTUNE: Reclaim resolves in the Recruit phase instead of marking the minion for Start of Combat. */
 export function ancientReclaimInShop(state: RunState): boolean {
   return !!effectOf(state, 'reclaimInShop');
 }
 
 /**
- * FORTUNE: Reclaim, in the Shop, right now. Combat's Reclaim exactly, moved to the Recruit phase: `card` is destroyed as
- * a TRUE death (`rise: false`, so no Rise / Rebirth return, as combat forces), its Echo fires where it stood, and an
- * exact copy of the body it had returns to its slot (to the right of anything its Echo summoned there), as a summon
- * (`fireSummonBuffs`). No room left after the Echo: an overflow (`fireSummonOverflow`, the Rise-return rule), and the
- * copy is lost (owner 2026-10-02). The use gains `gold` immediately.
+ * FORTUNE (owner 2026-11-17): "Target a friendly minion to destroy it and gain 1 Gold." (owner 2026-11-18, was 4) `card` is destroyed right now
+ * through the shared Shop destroy (`destroyMinionInShop`, default options): a real death, so its Echo fires and every
+ * death watcher hears it, and a Rise / Rebirth / Open Grave brings it back exactly as any other Shop destroy would. No
+ * copy is resummoned. The use gains `gold` immediately.
  */
 export function ancientShopReclaim(state: RunState, card: BoardCard): void {
   const e = effectOf(state, 'reclaimInShop');
   if (!e) return;
-  const slot = state.board.indexOf(card);
-  if (slot < 0) return;
-  const copy = exactBoardCopy(state, card); // the body as it is NOW (stats, buffs, keywords, counters)
-  const before = state.board.length;
-  destroyMinionInShop(makeContext(state), card, { rise: false });
-  if (state.board.length >= CONFIG.boardMax) fireSummonOverflow(state);
-  else {
-    const grew = state.board.length - (before - 1); // bodies the Echo added
-    state.board.splice(Math.min(state.board.length, slot + Math.max(0, grew)), 0, copy);
-    fireSummonBuffs(state, copy);
-  }
+  if (!state.board.includes(card)) return;
+  destroyMinionInShop(makeContext(state), card);
   gainGold(state, e.gold);
 }
 

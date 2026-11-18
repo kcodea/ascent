@@ -179,8 +179,8 @@ export const CASES: ProcCase[] = [
   },
   // ── AUCTIONEER (myra) ─────────────────────────────────────────────────────────────────────────────────────────
   {
-    hero: 'myra', ancient: 'fortune', phase: 'shop', fires: 2,
-    note: 'two Shout minions played from hand (each Shout fire banks 1 Gold)',
+    hero: 'myra', ancient: 'fortune', phase: 'shop', fires: 1,
+    note: 'two Shout minions played from hand: the 2nd Shout banks 1 Gold (every 2 Shouts, owner 2026-11-17), one fire',
     run: () => {
       const s = pickedRun('myra', 'fortune', { board: [], hand: [body('h1', 'cleric', { attack: 1, health: 50 }), body('h2', 'cleric', { attack: 1, health: 50 })] });
       return shopProcsOver(s, [{ type: 'play', uid: 'h1', toIndex: 0 }, { type: 'play', uid: 'h2', toIndex: 1 }]).procs;

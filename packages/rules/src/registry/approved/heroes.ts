@@ -176,7 +176,7 @@ export const HEROES_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-26 (Auctioneer Ancients)', quote: 'Whenever you trigger a Shout during the Shop phase, gain 1 Gold next turn.' },
       { kind: 'code', ref: 'packages/sim/src/ancients.ts shopShoutGold / ancientOnShopShout; packages/sim/src/recruit.ts fireBattlecryTriggered' },
     ],
-    currentBehaviour: 'Conforms (built 2026-09-26). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    currentBehaviour: 'SUPERSEDED 2026-11-17 by R-ANCFORT-AUCT-01 (the pairing changed). Was: Conforms (built 2026-09-26). Dev-only (Scene Builder, Set 3, the Ancients flag).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsAuctioneer.test.ts'], lastVerifiedAt: '2026-09-26' },
   },
   {
@@ -1052,7 +1052,7 @@ export const HEROES_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Soren Ancients)', quote: "it'd be an 'overflow' technically, but if no room then it is lost" },
       { kind: 'code', ref: 'packages/sim/src/ancients.ts ancientShopReclaim / ancientReclaimInShop; packages/sim/src/reducer.ts resummon branch' },
     ],
-    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    currentBehaviour: 'SUPERSEDED 2026-11-17 by R-ANCFORT-SOREN-01 (the pairing changed). Was: Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsSoren.test.ts'], lastVerifiedAt: '2026-10-02' },
   },
   {
@@ -3442,7 +3442,7 @@ export const HEROES_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch C: Underdweller, Membrance, Gorun, Mimic)", quote: "Fortune: Every 5 attacks, gain 1 Gold next turn." },
       { kind: 'code', ref: "packages/core/src/combat/simulate.ts ancientAttackGold; packages/sim/src/ancients.ts attacksGold / batchCAfterCombat" },
     ],
-    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    currentBehaviour: "SUPERSEDED 2026-11-17 by R-ANCFORT-GORUN-01 (the pairing changed). Was: Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsGorun.test.ts"], lastVerifiedAt: '2026-11-10' },
   },
   {
@@ -4855,5 +4855,56 @@ export const HEROES_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms from 2026-11-17, dormant while the switch ships off. Unpaired today: Runesmith and Guardian (runeguard).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsUnpairedArchive.test.ts'], lastVerifiedAt: '2026-11-17' },
+  },
+  {
+    id: 'R-ANCFORT-SOREN-01',
+    title: 'Soren × Ancient of Fortune: Reclaim becomes "Target a friendly minion to destroy it and gain 1 Gold"',
+    statement:
+      'With the Ancient of Fortune, Reclaim targets a friendly board minion, destroys it right away in the Recruit phase and '
+      + 'gains 1 Gold. No copy is resummoned and nothing is marked for Start of Combat. The destroy is the shared Shop destroy '
+      + '(destroyMinionInShop with default options), exactly as every other Recruit-phase destroy: a real death, so its Echo '
+      + 'fires and death watchers hear it, and a Rise, Rebirth or Open Grave brings it back. Still free and once per turn; '
+      + 'no target, or a minion not on the board, does nothing and spends nothing.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-17 (Fortune tweaks)', quote: 'SOREN x FORTUNE: Reclaim becomes: "Target a friendly minion to destroy it and gain 4 Gold."' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-18 (Fortune tweaks, follow-up)', quote: 'Soren x Fortune Reclaim gives 1 Gold instead of 4. Text: "Target a friendly minion to destroy it and gain 1 Gold."' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts reclaimInShop / ancientShopReclaim; packages/sim/src/reducer.ts resummon branch' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-17 (supersedes R-ANCSOREN-02).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsSoren.test.ts'], lastVerifiedAt: '2026-11-17' },
+  },
+  {
+    id: 'R-ANCFORT-GORUN-01',
+    title: 'Gorun × Ancient of Fortune: every 4 attacks, 1 Gold next turn',
+    statement:
+      'With the Ancient of Fortune, friendly attacks fill one running count that carries across fights. Every 4th attack '
+      + 'banks 1 Gold for next turn, pulsed live. The power text prints the attacks still needed, live through a fight.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-17 (Fortune tweaks)', quote: 'GORUN x FORTUNE: change "every 5 attacks" to "every 4 attacks"' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts attacksGold (every: 4); packages/core/src/combat/simulate.ts ancientAttackGold' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-17 (supersedes R-ANCGORUN-02).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsGorun.test.ts'], lastVerifiedAt: '2026-11-17' },
+  },
+  {
+    id: 'R-ANCFORT-AUCT-01',
+    title: 'Auctioneer × Ancient of Fortune: every 2 Shouts triggered in the Recruit phase bank 1 Gold for next turn',
+    statement:
+      'Every Shout FIRE in the Recruit phase (played from hand, Pulse, any replay, End-of-Turn replays) advances one running '
+      + 'count (AncientsState.shoutTick) that carries across turns. Every 2nd fire banks 1 Gold for next turn the moment it '
+      + 'fires and plays the Ancient proc; the other fires bank nothing. Shouts fired in combat do not count. The power text '
+      + 'prints the Shouts still needed for the next Gold ("(N more to go)") and the Gold banked so far this turn.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-17 (Fortune tweaks)', quote: 'AUCTIONEER x FORTUNE: change to every 2 Shouts gives 1 Gold next turn, with a live countdown' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts shopShoutGold (every: 2) / ancientOnShopShout / {shoutLeft}' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-17 (supersedes R-ANCAUCT-02).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsAuctioneer.test.ts'], lastVerifiedAt: '2026-11-17' },
   },
 ];

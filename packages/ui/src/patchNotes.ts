@@ -59,6 +59,23 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-11-17',
     changes: [
       {
+        category: 'Balance',
+        text: 'Three Ancient of Fortune pairings changed: Soren, Gorun and the Auctioneer.',
+        details: [
+          'Soren: Reclaim becomes "Target a friendly minion to destroy it and gain 1 Gold." No copy comes back.',
+          'Gorun: Gold now comes every 4 attacks, down from 5.',
+          'Auctioneer: every 2 Shouts you trigger in the Recruit phase give 1 Gold next turn, instead of every Shout. The count carries over between turns, and the power shows how many more you need.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Card text that meant the part of your turn where you shop now says "Recruit phase" instead of "in the Shop".',
+        details: [
+          '"in the Shop" still means the row of cards you can buy.',
+          'Changed on: Pack Leader, Archmagus Guel, Last Rites, Crowded Crypt, Gravedigger, Open Grave, the Forsaken Will quest, the Start of Turn, End of Turn and Aura glossary entries, and a tutorial tip.',
+        ],
+      },
+      {
         category: 'Systems',
         text: 'Hero Select has a new look. Pick a hero tile to read about them, then press Select Hero.',
         details: [

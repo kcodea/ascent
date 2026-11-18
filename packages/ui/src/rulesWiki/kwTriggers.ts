@@ -197,7 +197,7 @@ export const ENTRIES: readonly WikiEntry[] = [
     a: "It goes off **at the start of each of your shop turns**, right as you come back from a fight. Only minions **on your board** trigger it, not ones in your hand.",
     aliases: ['start of turn', 'beginning of turn', 'turn start', 'at the start of your turn'],
     seeAlso: ['start-of-turn-order', 'end-of-turn'],
-    covers: [{ keyword: 'startofturn', fp: '0f361616' }],
+    covers: [{ keyword: 'startofturn', fp: '702c8f9f' }],
   },
   {
     id: 'start-of-turn-order',
@@ -224,7 +224,7 @@ export const ENTRIES: readonly WikiEntry[] = [
     a: "It goes off **when your shop turn ends**, right before you fight. That's when you hit End Turn, or when the timer runs out. Only minions **on your board** trigger it.",
     aliases: ['end of turn', 'eot', 'turn end', 'at the end of your turn'],
     seeAlso: ['end-of-turn-order', 'end-turn', 'timer-runs-out'],
-    covers: [{ keyword: 'endofturn', fp: 'e71a0509' }],
+    covers: [{ keyword: 'endofturn', fp: '5d1f6a10' }],
   },
   {
     id: 'end-of-turn-order',
@@ -233,7 +233,7 @@ export const ENTRIES: readonly WikiEntry[] = [
     a: "Your board's End of Turn minions go **left to right**. After them come End of Turn rewards from your runes. So if one End of Turn minion buffs another, where you put them matters.",
     aliases: ['end of turn order', 'eot order', 'left to right'],
     seeAlso: ['end-of-turn', 'board-order'],
-    covers: [{ keyword: 'endofturn', fp: 'e71a0509' }],
+    covers: [{ keyword: 'endofturn', fp: '5d1f6a10' }],
   },
   {
     id: 'end-of-turn-repeat',

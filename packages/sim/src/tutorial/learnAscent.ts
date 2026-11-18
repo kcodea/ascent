@@ -405,7 +405,7 @@ const round6Steps: TutorialStep[] = [
   {
     id: 'r6-play',
     phase: 'shop', focusMode: 'action', title: 'Place It',
-    body: 'Play Kennelmaster onto your board. Every Beast you summon after it gets +1 Attack, in the Shop and in combat.',
+    body: 'Play Kennelmaster onto your board. Every Beast you summon after it gets +1 Attack, in the Recruit phase and in combat.',
     // Spotlight the CARD being asked for as well as the destination, with the drag drawn between
     // them — the bare `warband` anchor left the player hunting for which card to move.
     anchors: [{ kind: 'card', zone: 'hand', alias: CARD_IDS.kennel }, { kind: 'ui', id: 'warband' }],

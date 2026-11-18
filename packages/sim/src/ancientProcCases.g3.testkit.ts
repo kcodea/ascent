@@ -280,7 +280,7 @@ export const CASES: ProcCase[] = [
     run: () => combatDeaths(pickedRun('gorun', 'death', { board: frail(5) })),
   },
   {
-    hero: 'gorun', ancient: 'fortune', phase: 'combat', fires: 2, note: 'count at 3: seven attacks (one per harmless foe) pay at the 2nd and 7th',
+    hero: 'gorun', ancient: 'fortune', phase: 'combat', fires: 2, note: 'count at 3: seven attacks (one per harmless foe) pay at the 1st and 5th',
     run: () => {
       const s = withAncients(pickedRun('gorun', 'fortune', { board: [body('a', N(0), { attack: 5, health: 100 }), body('b', N(1), { attack: 5, health: 100 })] }), { gorunAttacks: 3 });
       const r = fight(s, foes(s.wave, 0, 1, 7));

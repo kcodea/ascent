@@ -1,0 +1,76 @@
+/* ASCENT site tokens. The ONLY file in the site allowed to hold a literal colour (styles.test.ts checks it).
+   Night palette from the title screen, golds from DESIGN.md (Struck Gold / Struck Gold Light), and the Gem plate
+   blues sampled from the game's own end-turn gem (frames/end_button.webp), so the download button is the game's
+   blue and not a new one. Everything translucent elsewhere is built from these with color-mix(). */
+:root {
+  /* Night (title screen) */
+  --night: #0d1220;
+  --night-deep: #080b15;
+  --panel: #141b2e;
+  --panel-hi: #1c2540;
+
+  /* Struck gold (DESIGN.md --gold / --gold-lt) and the turned-metal edge stops */
+  --gold: #c8922e;
+  --gold-light: #e6b45a;
+  --gold-hi: #ffe9b0;
+  --gold-deep: #7a571f;
+  --gold-lo: #e8c27a;
+
+  /* Text */
+  --text: #efe7db;
+  --muted: #a9b3c6;
+
+  /* The Gem (sampled from end_button.webp: face highlight, face, deep facet, darkest facet, outer rim) */
+  --gem-hi: #8fe7fe;
+  --gem: #2fbaff;
+  --gem-mid: #209bf3;
+  --gem-deep: #1683f5;
+  --gem-dark: #0c59ec;
+  --gem-rim: #3e1d16;
+  --gem-ink: #062a6e;
+
+  /* Pure light and shade, only ever used through color-mix() */
+  --white: #ffffff;
+  --black: #000000;
+
+  /* Composites */
+  --edge: linear-gradient(180deg, var(--gold-hi) 0%, var(--gold-light) 30%, var(--gold-deep) 56%, var(--gold) 80%, var(--gold-lo) 100%);
+  --plate: linear-gradient(180deg, var(--panel-hi) 0%, var(--panel) 55%, var(--night) 100%);
+  --sheen: radial-gradient(110% 70% at 50% 0%, color-mix(in srgb, var(--white) 10%, transparent), transparent 70%);
+  --ring: color-mix(in srgb, var(--gold-light) 22%, transparent);
+  --shade: color-mix(in srgb, var(--night-deep) 80%, transparent);
+  --contact: 0 18px 40px -18px color-mix(in srgb, var(--black) 85%, transparent);
+  --bevel: inset 0 1px 0 color-mix(in srgb, var(--white) 16%, transparent),
+    inset 0 -4px 6px -4px color-mix(in srgb, var(--black) 70%, transparent);
+
+  /* Type */
+  --font-title: 'Outfit', 'Segoe UI', system-ui, sans-serif;
+  --font-body: 'Nunito Sans', 'Segoe UI', system-ui, sans-serif;
+  --fs-small: 0.875rem;
+  --fs-label: 0.8125rem;
+  --fs-body: 1.0625rem;
+  --fs-button: 1.1875rem;
+  --fs-button-sm: 0.9375rem;
+  --fs-lede: clamp(1.0625rem, 0.98rem + 0.35vw, 1.25rem);
+  --fs-h3: clamp(1.125rem, 1.04rem + 0.35vw, 1.3125rem);
+  --fs-h2: clamp(1.9rem, 1.3rem + 2.4vw, 3.1rem);
+  --fs-h2-sm: clamp(1.6rem, 1.25rem + 1.4vw, 2.25rem);
+  --fs-h1: clamp(2.35rem, 1.2rem + 4.6vw, 4.9rem);
+
+  /* Space */
+  --gutter: clamp(16px, 4vw, 40px);
+  --maxw: 1160px;
+  --s1: 0.5rem;
+  --s2: 0.75rem;
+  --s3: 1rem;
+  --s4: 1.5rem;
+  --s5: 2rem;
+  --s6: 3rem;
+  --s7: clamp(4rem, 3rem + 5vw, 7.5rem);
+
+  /* Shape (DESIGN.md radii) */
+  --r-chip: 9px;
+  --r-card: 13px;
+  --r-control: 15px;
+  --r-panel: 22px;
+}

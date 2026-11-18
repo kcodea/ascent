@@ -1,0 +1,382 @@
+/* Base: reset, type, the shared section furniture (eyebrow, headings, gilded divider, framed plates) and the two
+   download controls. No literal colours here: every colour is a token from tokens.css. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  background: var(--night);
+  cursor: url('/art/cursors/gauntlet_default.svg') 6 2, auto;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  font-family: var(--font-body);
+  font-size: var(--fs-body);
+  line-height: 1.6;
+  color: var(--text);
+  background: var(--night);
+  cursor: url('/art/cursors/gauntlet_default.svg') 6 2, auto;
+  -webkit-font-smoothing: antialiased;
+}
+
+img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+h1,
+h2,
+h3,
+p,
+ul,
+ol,
+figure {
+  margin: 0;
+}
+
+ul,
+ol {
+  padding: 0;
+  list-style: none;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-title);
+  color: var(--text);
+  text-wrap: balance;
+}
+
+h2 {
+  font-size: var(--fs-h2);
+  font-weight: 800;
+  line-height: 1.08;
+  letter-spacing: -0.005em;
+}
+
+h3 {
+  font-size: var(--fs-h3);
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+p {
+  text-wrap: pretty;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--gold) 45%, transparent);
+  color: var(--text);
+}
+
+/* -- Section furniture ---------------------------------------------------------------------------------------- */
+
+/* Content is centred without a wrapper: the inline padding grows to keep the column at --maxw. */
+.section {
+  position: relative;
+  padding-block: var(--s7);
+  padding-inline: max(var(--gutter), calc((100% - var(--maxw)) / 2));
+}
+
+/* The gilded divider at the top of every section: a fading gold rule with a small gold diamond on it. */
+.section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: min(560px, 72%);
+  height: 1px;
+  transform: translateX(-50%);
+  background: linear-gradient(90deg, transparent, var(--gold) 30%, var(--gold-light) 50%, var(--gold) 70%, transparent);
+}
+
+.section::after {
+  content: '';
+  position: absolute;
+  top: -5px;
+  left: calc(50% - 5px);
+  width: 10px;
+  height: 10px;
+  transform: rotate(45deg);
+  background: linear-gradient(135deg, var(--gold-hi), var(--gold) 55%, var(--gold-deep));
+  box-shadow: 0 0 0 3px var(--night);
+}
+
+/* Small uppercase chrome label above each heading, flanked by short gold rules. */
+.eyebrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.85em;
+  margin-bottom: var(--s3);
+  font-family: var(--font-title);
+  font-size: var(--fs-label);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--gold-light);
+}
+
+.eyebrow::before,
+.eyebrow::after {
+  content: '';
+  flex: none;
+  width: 2.5em;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold));
+}
+
+.eyebrow::after {
+  background: linear-gradient(90deg, var(--gold), transparent);
+}
+
+.section > h2,
+.get > h2 {
+  text-align: center;
+}
+
+.lede {
+  max-width: 60ch;
+  margin: var(--s4) auto 0;
+  font-size: var(--fs-lede);
+  line-height: 1.65;
+  text-align: center;
+  color: var(--muted);
+}
+
+/* A framed plate: the Gem plate's gold edge around a night plate, a faint inner ring, and a contact shadow. Every
+   capture frame and mode card is one. */
+.capture,
+.mode {
+  border: 2px solid transparent;
+  border-radius: var(--r-control);
+  background: var(--sheen) padding-box, var(--plate) padding-box, var(--edge) border-box;
+  box-shadow: var(--bevel), inset 0 0 0 1px var(--shade), inset 0 0 0 2px var(--ring), var(--contact);
+}
+
+/* -- Download controls ---------------------------------------------------------------------------------------- */
+
+.download {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s3);
+  text-align: center;
+}
+
+.download__platform {
+  font-family: var(--font-title);
+  font-size: var(--fs-label);
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--gold-lo);
+}
+
+/* Calm helper text under the button: small, readable, muted; not a warning. */
+.download__note {
+  max-width: 46ch;
+  font-size: var(--fs-small);
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+/* THE GEM: the game's Gem plate rebuilt in CSS. A blue gem face lit from the top, a turned gold rim, a dark outer
+   rim, a lit top edge and a hard bottom edge so it reads as pressable. The look is shared with the copy-link button
+   when the page is opened somewhere the installer can't run (.is-other / .is-mobile on <html>, set in Task 5). */
+.gem,
+:is(.is-other, .is-mobile) .download__copy {
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 64px;
+  min-width: min(300px, 100%);
+  padding: 0 2.6rem;
+  border: 3px solid transparent;
+  border-radius: var(--r-control);
+  font-family: var(--font-title);
+  font-size: var(--fs-button);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  text-decoration: none;
+  color: var(--white);
+  text-shadow: 0 2px 0 var(--gem-ink), 0 0 12px color-mix(in srgb, var(--gem-ink) 70%, transparent);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--white) 22%, transparent) 0 22%, transparent 22% 100%) padding-box,
+    radial-gradient(120% 90% at 50% 0%, var(--gem-hi) 0%, var(--gem) 38%, var(--gem-mid) 62%, var(--gem-deep) 82%, var(--gem-dark) 100%) padding-box,
+    var(--edge) border-box;
+  box-shadow:
+    0 0 0 2px var(--gem-rim),
+    inset 0 2px 0 color-mix(in srgb, var(--white) 70%, transparent),
+    inset 0 -8px 14px -6px color-mix(in srgb, var(--gem-ink) 85%, transparent),
+    0 5px 0 2px var(--gem-rim),
+    0 18px 30px -10px color-mix(in srgb, var(--gem-dark) 60%, transparent);
+  cursor: url('/art/cursors/gauntlet_open.svg') 6 2, pointer;
+  transition: transform 0.12s ease, filter 0.12s ease;
+}
+
+/* The top highlight: a soft lit band across the upper face. */
+.gem::before,
+:is(.is-other, .is-mobile) .download__copy::before {
+  content: '';
+  position: absolute;
+  inset: 3px 10px 52% 10px;
+  border-radius: var(--r-card) var(--r-card) 40% 40% / var(--r-card) var(--r-card) 100% 100%;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--white) 45%, transparent), transparent);
+  pointer-events: none;
+}
+
+/* The glow: a static blue halo whose OPACITY breathes (see the reduced-motion block). */
+.gem::after,
+:is(.is-other, .is-mobile) .download__copy::after {
+  content: '';
+  position: absolute;
+  inset: -10px;
+  z-index: -1;
+  border-radius: var(--r-panel);
+  box-shadow: 0 0 28px 6px color-mix(in srgb, var(--gem) 55%, transparent);
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.gem:hover,
+:is(.is-other, .is-mobile) .download__copy:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.08) saturate(1.05);
+}
+
+.gem:active,
+:is(.is-other, .is-mobile) .download__copy:active {
+  transform: translateY(3px);
+  filter: brightness(0.96);
+}
+
+:is(.gem, .download__copy):focus-visible {
+  outline: 3px solid var(--gold-hi);
+  outline-offset: 5px;
+}
+
+/* The secondary control: a Gem plate (night plate, gold edge, cream text). The copy-link button by default, and the
+   download link itself when the page is opened on a phone or a non-Windows computer. */
+.download__copy,
+:is(.is-other, .is-mobile) .gem {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  min-width: 0;
+  padding: 0 1.6rem;
+  border: 2px solid transparent;
+  border-radius: var(--r-card);
+  font-family: var(--font-title);
+  font-size: var(--fs-button-sm);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  text-decoration: none;
+  text-shadow: none;
+  color: var(--text);
+  background: var(--sheen) padding-box, var(--plate) padding-box, var(--edge) border-box;
+  box-shadow: var(--bevel), inset 0 0 0 1px var(--shade), inset 0 0 0 2px var(--ring), 0 3px 0 var(--night-deep);
+  cursor: url('/art/cursors/gauntlet_open.svg') 6 2, pointer;
+  transition: transform 0.12s ease, filter 0.12s ease;
+}
+
+:is(.is-other, .is-mobile) .gem::before,
+:is(.is-other, .is-mobile) .gem::after {
+  display: none;
+}
+
+.download__copy:hover,
+:is(.is-other, .is-mobile) .gem:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.15);
+}
+
+/* Declared after the hover rule above, which matches it with the same weight while a mouse is down. */
+:is(.is-other, .is-mobile) .gem:active {
+  transform: translateY(2px);
+  filter: brightness(0.96);
+}
+
+/* The page link, shown here when the clipboard refuses it: small, plain, and selectable in one tap. */
+.download__url {
+  max-width: 100%;
+  font-family: var(--font-body);
+  font-size: var(--fs-small);
+  line-height: 1.5;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--text);
+  overflow-wrap: anywhere;
+  -webkit-user-select: all;
+  user-select: all;
+}
+
+/* When the copy button leads, it sits above the (now secondary) download link, with its fallback URL under it. */
+:is(.is-other, .is-mobile) :is(.download__copy, .download__url) {
+  order: -1;
+}
+
+:is(.is-other, .is-mobile) .download__platform {
+  order: -2;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .gem::after,
+  :is(.is-other, .is-mobile) .download__copy::after {
+    animation: gem-glow 3.2s ease-in-out infinite;
+  }
+
+  @keyframes gem-glow {
+    0%,
+    100% {
+      opacity: 0.4;
+    }
+    50% {
+      opacity: 0.9;
+    }
+  }
+}
+
+/* Where color-mix() is unsupported, every background built with it (directly or through --sheen / --edge) is invalid
+   at computed-value time and drops to transparent; an earlier plain declaration would not survive that, because the
+   var() makes the later one parse. So the plain token backgrounds sit behind a feature query instead. */
+@supports not (background: color-mix(in srgb, currentColor 50%, transparent)) {
+  .gem,
+  :is(.is-other, .is-mobile) .download__copy {
+    background: var(--gem-mid);
+  }
+
+  .capture,
+  .mode,
+  .download__copy,
+  :is(.is-other, .is-mobile) .gem {
+    background: var(--panel);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gem,
+  .download__copy {
+    transition: none;
+  }
+}

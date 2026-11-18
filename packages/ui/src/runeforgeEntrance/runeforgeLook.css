@@ -13,7 +13,7 @@
   --rf-ember: 255, 178, 92;
   background:
     url('/runeforgebg2.webp') 50% 55% / auto 72% no-repeat,
-    linear-gradient(rgba(14, 16, 22, 0.96), rgba(14, 16, 22, 0.96));
+    linear-gradient(var(--forge-scrim), var(--forge-scrim));
 }
 .rf-stage { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
 

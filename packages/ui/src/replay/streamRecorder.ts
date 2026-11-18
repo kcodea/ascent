@@ -91,7 +91,7 @@ export function startStreamCapture(): () => void {
 }
 
 /** The shop overlays' minimize state changed (`spectateTap.tapOverlay`, already de-duplicated there). */
-export function noteStreamOverlay(min: { discover: boolean; power: boolean; quest: boolean; forge: boolean }): void {
+export function noteStreamOverlay(min: { discover: boolean; power: boolean; quest: boolean; forge: boolean; ancient?: boolean }): void {
   const r = hooks?.recording();
   if (!r) return;
   const t = hooks!.clockAt(performance.now());

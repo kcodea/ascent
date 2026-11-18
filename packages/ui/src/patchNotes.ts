@@ -68,6 +68,8 @@ export const PATCH_NOTES: PatchNote[] = [
           'Games from before Ancients show the plain hero power.',
         ],
       },
+      { category: 'Systems', text: 'When an Ancient awakens, you can now Peek at the board before you choose, like a Discover. Press Return to Ancients to bring the choice back.' },
+      { category: 'Systems', text: 'The Ancient choice now sits on the same dark backdrop as the Runeforge, so the Ancients stand out from the board.' },
     ],
   },
   {

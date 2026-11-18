@@ -21,7 +21,8 @@ import { playDef } from './fx/playDef';
 export function overlayCoversShop(): boolean {
   if (typeof document === 'undefined') return false;
   const b = document.body.classList;
-  return b.contains('modalup') || b.contains('ancgate') || b.contains('ancoffer');
+  // A PEEKED awakening (`ancpeek`) leaves the Shop in view, like a peeked Discover.
+  return b.contains('modalup') || (b.contains('ancgate') && !b.contains('ancpeek')) || b.contains('ancoffer');
 }
 
 export function useCiaEnchantedFx(enchantedUids: readonly string[]): void {

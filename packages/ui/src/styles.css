@@ -15081,7 +15081,12 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .lp-tile:focus-visible { outline: 2px solid rgba(230, 200, 130, 0.95); outline-offset: 2px; }
 .lp-tile.on { border-color: rgba(255, 217, 138, 0.95); background: var(--ui-sheen), var(--ui-hover-plate); box-shadow: 0 0 0 1px rgba(255, 217, 138, 0.35), 0 10px 22px -12px rgba(0, 0, 0, 0.85); }
 .lp-tile-head { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.lp-chip-portrait { flex: none; display: grid; place-items: center; }
+.lp-chip-portrait { flex: none; display: grid; place-items: center; position: relative; }
+/* THE SEAT'S ANCIENT (R-RESULTS-ANCIENT-01): a small round badge of its power face on the portrait's lower right, ringed in
+   the Ancient's colour. Static. */
+.lp-tile-anc { position: absolute; right: -4px; bottom: -3px; z-index: 1; width: 17px; height: 17px; border-radius: 50%; overflow: hidden; pointer-events: none;
+  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--anc-c) 70%, #fff), 0 1px 3px rgba(0, 0, 0, 0.6); background: #0c0f17; }
+.lp-tile-anc .anc-face { display: block; width: 100%; height: 100%; object-fit: cover; }
 .lp-chip-portrait .mds-portrait, .lp-chip-portrait .cv2-heroframe { --ring: 36px; }
 .lp-chip-txt { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .lp-chip-place { font-family: var(--font-ui); font-weight: 900; font-size: 14px; letter-spacing: 0.03em; color: var(--band); white-space: nowrap; }

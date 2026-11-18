@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type CSSProperties } from 'react';
+import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type Ref } from 'react';
 import { ANCIENTS, type AncientId, type RunState } from '@game/sim';
 import { useGame } from '../store';
 import { sfx } from '../sfx';
@@ -268,27 +268,42 @@ export const AncientSplit = memo(function AncientSplit({ run }: { run: RunState 
   }, [id, pickSeq, demoSeq, reveal]);
 
   if (!id) return <span ref={btnRef} className="anc-split-anchor" aria-hidden="true" />;
+  return <SplitFace id={id} cfg={cfg} hidden={hidden} btnRef={btnRef} halfRef={halfRef} seamRef={seamRef} shineRef={shineRef} />;
+});
+
+/** The split face's markup: the Ancient's half through the crack, the crack's edge, and the (still) shine. Shared by the
+ *  live button (`AncientSplit`, which animates the refs) and the static record view (`AncientSplitStatic`). */
+function SplitFace({ id, cfg, hidden = false, btnRef, halfRef, seamRef, shineRef }: {
+  id: AncientId; cfg: AncientsFullConfig; hidden?: boolean;
+  btnRef?: Ref<HTMLSpanElement>; halfRef?: Ref<HTMLSpanElement>; seamRef?: Ref<SVGSVGElement>; shineRef?: Ref<HTMLSpanElement>;
+}) {
   const art = crackGeometry(cfg, id);
   const hasPowerArt = !!ancientPowerArt(id);
   return (
-    <>
-      <span ref={btnRef} className="anc-split" aria-hidden="true">
-        {/* The Ancient's half: its hero-power art at the SAME size and place as the power's own art (the power's
-            --hpb-art-* fit, then this Ancient's tuner fit), clipped to the right of the crack. */}
-        <span ref={halfRef} className="anc-split-half" style={{ clipPath: art.clip, ...(hidden ? { opacity: 0 } : {}) }}>
-          {hasPowerArt
-            ? <span className="anc-split-art" style={art.fit}><AncientFace id={id} variant="power" /></span>
-            : <AncientFace id={id} className="anc-split-emblem" />}
-        </span>
-        {/* The crack's edge: a soft shadow just inside it, then the thin bright highlight. Static paths. */}
-        <svg ref={seamRef} className="anc-split-crack" viewBox="0 0 100 100" preserveAspectRatio="none" style={hidden ? { opacity: 0 } : undefined}>
-          {cfg.crackShadow > 0 && <polyline className="anc-crack-shadow" points={art.shadowPts} pathLength={1} strokeDasharray="1" style={{ opacity: cfg.crackShadow, strokeWidth: `calc(${Math.max(1, cfg.crackEdge) * 2.5} * var(--u))` }} />}
-          {cfg.crackEdge > 0 && <polyline className="anc-crack-edge" points={art.pts} pathLength={1} strokeDasharray="1" style={{ opacity: cfg.crackEdgeAlpha, strokeWidth: `calc(${cfg.crackEdge} * var(--u))` }} />}
-        </svg>
-        <span className="anc-split-shinewrap"><span ref={shineRef} className="anc-split-shine" /></span>
+    <span ref={btnRef} className="anc-split" aria-hidden="true">
+      {/* The Ancient's half: its hero-power art at the SAME size and place as the power's own art (the power's
+          --hpb-art-* fit, then this Ancient's tuner fit), clipped to the right of the crack. */}
+      <span ref={halfRef} className="anc-split-half" style={{ clipPath: art.clip, ...(hidden ? { opacity: 0 } : {}) }}>
+        {hasPowerArt
+          ? <span className="anc-split-art" style={art.fit}><AncientFace id={id} variant="power" /></span>
+          : <AncientFace id={id} className="anc-split-emblem" />}
       </span>
-    </>
+      {/* The crack's edge: a soft shadow just inside it, then the thin bright highlight. Static paths. */}
+      <svg ref={seamRef} className="anc-split-crack" viewBox="0 0 100 100" preserveAspectRatio="none" style={hidden ? { opacity: 0 } : undefined}>
+        {cfg.crackShadow > 0 && <polyline className="anc-crack-shadow" points={art.shadowPts} pathLength={1} strokeDasharray="1" style={{ opacity: cfg.crackShadow, strokeWidth: `calc(${Math.max(1, cfg.crackEdge) * 2.5} * var(--u))` }} />}
+        {cfg.crackEdge > 0 && <polyline className="anc-crack-edge" points={art.pts} pathLength={1} strokeDasharray="1" style={{ opacity: cfg.crackEdgeAlpha, strokeWidth: `calc(${cfg.crackEdge} * var(--u))` }} />}
+      </svg>
+      <span className="anc-split-shinewrap"><span ref={shineRef} className="anc-split-shine" /></span>
+    </span>
   );
+}
+
+/** THE SETTLED SPLIT for a RECORD (R-RESULTS-ANCIENT-01): the same cracked face the live button settles on, for a picked
+ *  Ancient read off a finished game. No run, no reveal beat, no sound: it is a still picture. Render it inside a
+ *  `.heropowerbtn`, over its `.hpb-artwrap`. */
+export const AncientSplitStatic = memo(function AncientSplitStatic({ id }: { id: AncientId }) {
+  const cfg = useAncCfg();
+  return <SplitFace id={id} cfg={cfg} />;
 });
 
 /** Fixed pseudo-random numbers in [0, 1): deterministic, so the crack never changes shape between renders. */

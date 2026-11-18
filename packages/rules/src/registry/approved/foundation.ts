@@ -16084,4 +16084,24 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'before the fight landed) until the strike, so mid-fight arrivals and the fight\x27s held gifts only showed after it.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectateDuosCombat.test.ts'], lastVerifiedAt: '2026-11-17' },
   },
+  {
+    id: 'R-RESULTS-ANCIENT-01',
+    domain: 'foundation',
+    title: "A finished game's results show the shown board's hero power with its picked Ancient",
+    statement:
+      'The game detail (Recent Games, Career Match History and Practice) shows the hero power of whichever board it shows, '
+      + "beside that board's runes: the round power art cracked with the picked Ancient's face (the settled split the "
+      + "live button shows), the power's name and the Ancient's name in its colour. Hover or focus opens the hero-power "
+      + "tip: the name with the Ancient tag, the base power text, and the Ancient's pairing text. Picking a lobby seat "
+      + "shows THAT seat's power and Ancient. It reads `MatchSeat.ancient` (R-ANCIENTS-RELEASE-04), and for your own "
+      + "board without a lobby the stored final board's `ancient`. No Ancient = the plain power; no hero id = nothing. "
+      + 'Each lobby tile with an Ancient carries a small Ancient badge on its portrait. Static: a record has no live numbers.',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-18', quote: 'we need results to now show the hero power w/ the ancient selected as well so players can see what ancient was selected' },
+      { kind: 'code', ref: 'packages/ui/src/matchDetails/SeatPower.tsx; packages/ui/src/partyHome/pages/gameView.tsx; packages/ui/src/matchDetails/LobbyPicker.tsx; packages/ui/src/ancients/AncientMeter.tsx AncientSplitStatic' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-18. Before, the results page never named the picked Ancient. No data change: the Ancient already rode the record from 2026-11-16.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/matchDetails/seatPower.test.tsx'], lastVerifiedAt: '2026-11-18' },
+  },
 ];

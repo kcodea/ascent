@@ -56,6 +56,21 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-11-18',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Game results now show the hero power and the Ancient picked with it, for you and for every player in the lobby.',
+        details: [
+          'The hero power sits beside the runes under the final board. Hover it to read the power and what its Ancient adds.',
+          'Pick a player in the lobby to see their hero power and Ancient.',
+          'Lobby tiles show a small Ancient badge on the hero portrait.',
+          'Games from before Ancients show the plain hero power.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-11-17',
     changes: [
       { category: 'Systems', text: 'Spectating: the players you can switch between now sit in a row along the top. Click one, or press its number. Watching a single player no longer shows an extra name plate.' },

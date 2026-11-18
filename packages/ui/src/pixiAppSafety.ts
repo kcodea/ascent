@@ -1,4 +1,4 @@
-import { UPDATE_PRIORITY, type Application, type Ticker } from 'pixi.js';
+import { Ticker as PixiTicker, UPDATE_PRIORITY, type Application, type Ticker } from 'pixi.js';
 import { perfMonitor } from './perfMonitor';
 
 /**
@@ -182,3 +182,31 @@ export function watchContextLoss(app: Application, site: string, onRecover?: () 
 
 /** Rebuilds after a context loss since load (the perf log and tests read it). */
 export function contextRecoveryCount(): number { return contextRecoveries; }
+
+
+/**
+ * PIXI'S SYSTEM TICKER IS PARKED (R-PERF-PIXI-SYSTEM-TICKER-01, perf pass 2026-11-18).
+ *
+ * Every Pixi renderer's `SchedulerSystem` adds a listener to `Ticker.system`, a ticker of Pixi's own that auto-starts
+ * and then holds a `requestAnimationFrame` loop for the rest of the session, whatever the app's own ticker is doing.
+ * Its work is nothing (a walk over a few GC timers), but a live rAF makes the browser produce a main frame on every
+ * display frame, and on each one every running CSS animation is updated on the main thread (performance.md 3o). It
+ * was the third always-on frame loop on an idle shop, after the perf monitor's and the board overlay's, and the one
+ * no earlier pass saw: with the other two parked the idle shop still ran a main frame per display frame.
+ *
+ * Here it is stopped for good and stepped from a timer instead. What it runs are the renderers' housekeeping timers
+ * (texture and renderable GC, each on a period of seconds), which only need a look now and then. ASCENT uses neither
+ * of the system ticker's other users: the DOM event system is detached from every canvas (`pixiNoDomEvents.ts`) and
+ * nothing calls `renderer.prepare`.
+ */
+export const PIXI_SYSTEM_TICK_MS = 500;
+let systemTickerParked = false;
+export function parkPixiSystemTicker(): void {
+  if (systemTickerParked || typeof window === 'undefined') return;
+  systemTickerParked = true;
+  const t = PixiTicker.system;
+  t.autoStart = false; // a renderer created later adds its scheduler without restarting the frame loop
+  t.stop();
+  setInterval(() => { if (!document.hidden) t.update(performance.now()); }, PIXI_SYSTEM_TICK_MS);
+}
+if (import.meta.env.MODE !== 'test') parkPixiSystemTicker();

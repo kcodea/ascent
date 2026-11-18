@@ -540,6 +540,7 @@ function start(): void {
   winStart = now();
   note('boot', `${window.innerWidth}x${window.innerHeight}@${window.devicePixelRatio || 1}`);
   perfMonitor.subscribe(onBucket);
+  perfMonitor.setContinuous(true); // this log reads the frame ring second by second: it wants every frame
   // Drag spans from the drag store (it notifies on a state change, never per pointer move).
   let dragging = false;
   dragStore.subscribe(() => {

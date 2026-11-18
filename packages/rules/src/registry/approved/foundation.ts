@@ -12900,6 +12900,183 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/audio/sharedTailReverb.test.ts', 'packages/ui/src/fx/convolverPool.test.ts', 'packages/tools/src/perfGauntletStats.test.ts'], lastVerifiedAt: '2026-10-30' },
   },
   {
+    id: 'R-PERF-MONITOR-DUTY-01',
+    title: 'The perf monitor samples frames only while there is something to measure',
+    statement:
+      'The always-on perf monitor does not hold a frame loop for the whole session. It samples frames for 2 s after any '
+      + 'input event, mark, measured span or recorded render (starting with the frame the work lands in), through every '
+      + 'fight and every warm-up, for 1 s in every 10 s of an idle screen, and on every frame while the HUD or the phone '
+      + 'perf log asks for it. Otherwise its frame loop is parked on a once-a-second timer; long tasks and long animation '
+      + 'frames are still recorded while parked. The FX ticker\'s own per-frame spans (fx:tick, fx:sim, fx:render, '
+      + 'fx:def:*) do not wake it. A second with no sampled frames writes no bucket and its marks, timings and long tasks '
+      + 'are carried into the next bucket. The DOM census (nodes, nodesBy) runs on idle time when the phase or wave '
+      + 'changes and otherwise at most every 15 s. Every bucket field keeps its name and meaning; a partly sampled '
+      + 'second adds sampledMs and its fps is frames over that span.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-18 (the bar: a 2D card game has no excuse for dropped frames; frames at or under 6.25 ms on the prod build from round 1 to the end)' },
+      { kind: 'code', ref: 'packages/ui/src/perfMonitor.ts (ACTIVE_HOLD_MS, shouldSampleFrames, wake / park, closeBucket, takeNodeCount); packages/ui/src/Game.tsx (setContinuous while the HUD is open)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-18 (perf/always-on). Before, the sampler requested a frame on every display frame of every '
+      + 'session in every build, so the browser produced a main frame per display frame and updated every running CSS '
+      + 'animation on the main thread each time (docs/performance.md 3o), and it counted every DOM element once a second.',
+    example: 'An idle shop with a board of Rise, Execute and Flurry minions. Before, the monitor kept the main thread updating all of those auras on every frame. Now it samples for a second every ten, and for two seconds after anything the player does.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/perfMonitorDuty.test.ts', 'packages/ui/src/perfWarmup.test.ts'], lastVerifiedAt: '2026-11-18' },
+  },
+  {
+    id: 'R-PERF-PIXI-SYSTEM-TICKER-01',
+    title: "Pixi's system ticker holds no frame loop",
+    statement:
+      'Pixi\'s own Ticker.system (every renderer\'s scheduler adds a listener to it, and it then auto-starts a frame loop '
+      + 'for the rest of the session) is stopped for good and stepped from a 500 ms timer. It only runs the renderers\' '
+      + 'housekeeping timers (texture and renderable GC), which have periods of seconds. A renderer created later does '
+      + 'not restart it.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-18 (the bar: a 2D card game has no excuse for dropped frames; frames at or under 6.25 ms on the prod build from round 1 to the end)' },
+      { kind: 'code', ref: 'packages/ui/src/pixiAppSafety.ts (parkPixiSystemTicker)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-18 (perf/always-on). Before, it was a third always-on frame loop on an idle shop, after the '
+      + 'perf monitor\'s and the board overlay\'s: with those two parked, the page still ran a main frame per display frame.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/pixiSystemTicker.test.ts'], lastVerifiedAt: '2026-11-18' },
+  },
+  {
+    id: 'R-PERF-FX-SLOW-CLOCK-01',
+    title: 'A looping effect alone steps the FX canvases 60 times a second, not once per display frame',
+    statement:
+      'While the only live work on the board FX overlay is persistent plays (a caller-owned loop or follow: the '
+      + 'milestone badges, the Amplified slot, the Cia mark, On Loan, the Both marker), the Pixi ticker\'s own frame loop '
+      + 'is stopped and a slow clock steps the same ticker 60 times a second, sleeping between frames on a faster '
+      + 'display. Anything else that arrives (a one-shot effect, an aim line, a mount on the under or above canvas) '
+      + 'restores the real ticker in the same call, and so does a pointer press, for as long as the button is down and '
+      + '1 s after, so a followed card is tracked at the display rate while it moves. On a 60 Hz display nothing changes.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-18 (the bar: a 2D card game has no excuse for dropped frames; frames at or under 6.25 ms on the prod build from round 1 to the end)' },
+      { kind: 'code', ref: 'packages/ui/src/pixiFx.ts (startSlowClock, onlyPersistentWork, pointerBusy, wake); packages/ui/src/fx/playDef.ts (the persistent flag on addUpdater); packages/ui/src/cappedRaf.ts' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-18 (perf/always-on). Before, one looping effect on screen kept the ticker (and up to three '
+      + 'full-viewport canvases) stepping on every display frame of an otherwise idle shop.',
+    example: 'A minion at 5,000 Attack wears its badge flame in the shop. On a 360 Hz display the flame used to be stepped and drawn 360 times a second while nothing else moved. Now it is 60, and back to 360 the moment the player presses the mouse.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/cappedRaf.test.ts'], lastVerifiedAt: '2026-11-18' },
+  },
+  {
+    id: 'R-PERF-FUSE-BURN-01',
+    title: 'The crystal fuse burns without repainting, and steps 60 times a second',
+    statement:
+      'The Gold Fuse\'s burn is two transforms (a sliding box that carries a static soft-edged mask, and the art inside '
+      + 'it sliding back by the same amount), so a burn write repaints nothing. The burn, the debris simulation and its '
+      + 'two canvas passes step 60 times a second on desktop whatever the display\'s refresh (about 30 on a phone, as '
+      + 'before), and sleep between steps on a faster display. One frame walks the particles once, and the debris canvas '
+      + 'clears only the rectangle the last frame drew in. The look is unchanged: the same art, soft edge, particles, '
+      + 'sprites and timing against the clock.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-18 (the bar: a 2D card game has no excuse for dropped frames; frames at or under 6.25 ms on the prod build from round 1 to the end)' },
+      { kind: 'code', ref: 'packages/ui/src/styles.css (.chargeglyph .fuse-burn / .fuse-body); packages/ui/src/Recruit.tsx (ChargeGlyph frame loop); packages/ui/src/fuseRender.ts (drawFrame); packages/ui/src/cappedRaf.ts' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-18 (perf/always-on). Before, the burn was a mask gradient whose stops read --burn, written '
+      + 'every display frame: the whole fuse (a tiled background and two masked caps) repainted for the last 20 s of '
+      + 'every turn from the round the fuse first lights, and the debris was walked three times and both canvases fully '
+      + 'cleared on each of those frames.',
+    example: 'From round 8 a Bronze player\'s turn ends with the crystal fuse burning for 20 s. On a 240 Hz display that was 240 repaints of the fuse and 240 debris redraws a second. Now it is 60 debris steps and no repaint.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/staticShadowCss.test.ts', 'packages/ui/src/cappedRaf.test.ts', 'packages/ui/src/fuseRender.test.ts'], lastVerifiedAt: '2026-11-18' },
+  },
+  {
+    id: 'R-PERF-SHARED-FX-REVERB-01',
+    title: 'A big hit never builds a reverb node mid-fight',
+    statement:
+      'A one-shot effect sound layer whose reverb had nothing after it but the fader (no Pan, a flat reverb mix, a flat '
+      + 'level curve) sends into a shared convolver for its bus and impulse, built once on idle time, instead of taking '
+      + 'a node of its own. The send carries the fader\'s level; the fader\'s fades stay behind the convolver on one '
+      + 'gate per node: plays with the same fade-in share a node whose gate rides the fade-in when the node has rung '
+      + 'out, and fading-out plays get two nodes per impulse (one on a phone) so two overlapping plays each keep their '
+      + 'own fade. A play on its own sounds exactly as before (an offline render of both graphs differs by '
+      + 'floating-point noise). While plays of one impulse overlap past that, an earlier tail rings under the later '
+      + 'play instead of being cut with its own clip. A finished voice is disconnected from its bus once whatever still '
+      + 'rings inside its own chain has died. The Ruby landing\'s tail convolver is built on idle time on desktop.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-18 (the bar: a 2D card game has no excuse for dropped frames; frames at or under 6.25 ms on the prod build from round 1 to the end)' },
+      { kind: 'code', ref: 'packages/ui/src/fx/audioFilters.ts (sharedFxReverb, sharedReverbEligible, prewarmSharedFxReverbs); packages/ui/src/sfx.ts (playFxSound, playSample, fxChainRingSeconds, warmWipeGate)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-18 (perf/always-on). Before, the pool kept two idle convolvers per impulse and a third '
+      + 'overlapping play built one (about 6 ms of main thread at a 96 kHz context). A 500+ Attack hit plays a strike '
+      + 'impact whose reverb layers each held a node for 3 to 5 s, so past the first swings nearly every big hit built '
+      + 'one or two nodes; a burst of grant trails did the same.',
+    example: 'Seven minions at 900 Attack trade blows a third of a second apart. Before, each blow after the first two built a new reverb node while the fight played. Now every blow sends into the same one.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/fx/sharedFxReverb.test.ts', 'packages/ui/src/fx/convolverPool.test.ts'], lastVerifiedAt: '2026-11-18' },
+  },
+  {
+    id: 'R-PERF-LOBBY-STABLE-01',
+    title: 'A shop action does not re-render the lobby rail or the Ancient meter',
+    statement:
+      'The reducer clones the run on every dispatch, so props taken straight off it are new objects after every buy, '
+      + 'sell, roll and reorder. Where the content has not changed the UI hands its children the previous object: the '
+      + 'lobby rail keeps the last lobby while a signature of everything the reducer writes in it holds (the round, the '
+      + 'encounter list, each seat\'s Resolve, Armor, alive, placement and scout intel); the Ancient meter, split and '
+      + 'pill compare the four things they read; and the reference-popup map, the triple-ready set and the hand '
+      + 'previews keep their identity when their contents are equal. A Versus display lobby is passed through as given.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-18 (the bar: a 2D card game has no excuse for dropped frames; frames at or under 6.25 ms on the prod build from round 1 to the end)' },
+      { kind: 'code', ref: 'packages/ui/src/stableLobby.ts; packages/ui/src/LobbyPanel.tsx (runTribes); packages/ui/src/ancients/AncientMeter.tsx (sameAncientRun); packages/ui/src/cardViewEqual.ts (stabilizeRefMap); packages/ui/src/Recruit.tsx (tripleReadyUids, handPreviewViews)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-18 (perf/always-on). Before, LobbyPanel rebuilt all eight seat rows on every dispatch '
+      + '(and on every mid-fight preview dispatch with the rail slid away), and the three Ancient components and the '
+      + 'shop and hand rows re-ran for props that had not changed.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/stableLobby.test.ts', 'packages/ui/src/cardViewEqual.test.ts', 'packages/ui/src/ancients/AncientMeter.test.tsx'], lastVerifiedAt: '2026-11-18' },
+  },
+  {
+    id: 'R-PERF-HOVER-SHADOW-01',
+    title: 'The hover preview bobs without re-blurring its haze',
+    statement:
+      'The hover preview\'s white haze and drop shadow (three drop-shadows) sit on a box that never animates, inside the '
+      + 'element that slides in and bobs. The bob is on the separate translate property, so it never fights the '
+      + 'slide-in\'s transform, and travels the same distance (4 px times the popup zoom). The shadow looks the same: it '
+      + 'always moved rigidly with the card.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-18 (ruling: keep the hover shadow looking the same)' },
+      { kind: 'code', ref: 'packages/ui/src/styles.css (.cardref, .cardref-shadow, .cardref-inner, cardreffloat); the five .cardref surfaces: Card.tsx, RuneCard.tsx, QuestCard.tsx, StatusBar.tsx, guides/GuideParts.tsx' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-18 (perf/always-on). Before, the filter sat on the parent of a child that bobbed forever, '
+      + 'so its input changed every frame: three blur passes over the whole popup for as long as the pointer rested on a '
+      + 'card (devlog 2026-10-21 measured the hover sweep\'s worst frame at 24.7 ms with it and 9.7 ms without).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/staticShadowCss.test.ts'], lastVerifiedAt: '2026-11-18' },
+  },
+  {
+    id: 'R-PERF-DMG-SHADOW-01',
+    title: 'A damage number moves a rastered shadow, it does not re-blur one',
+    statement:
+      'A damage number\'s drop shadow sits on a static inner box that holds the number and its burst; the float that '
+      + 'pops, rises and fades carries no filter. The shadow is still cast by number and burst together.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-18 (the bar: a 2D card game has no excuse for dropped frames; frames at or under 6.25 ms on the prod build from round 1 to the end)' },
+      { kind: 'code', ref: 'packages/ui/src/styles.css (.float.dmg, .float.dmg .dmgbody); packages/ui/src/Recruit.tsx (the float and death-float markup)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-18 (perf/always-on). Before, the filter was on the element that animates translate, scale '
+      + 'and opacity for its whole life: a blur pass per frame per number, up to 14 at once on a wave or cleave.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/staticShadowCss.test.ts'], lastVerifiedAt: '2026-11-18' },
+  },
+  {
     id: 'R-DUOS-EFFECT-PASS-QUEUE-01',
     title: 'A card passed or given to your teammate by an effect waits for room in a full hand; it is never lost or sent back',
     statement:

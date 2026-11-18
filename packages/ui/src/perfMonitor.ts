@@ -56,6 +56,49 @@ const COUNTER_SAMPLE_MS = 50;
  * disabled path pays nothing for it.
  */
 const MAX_FRAMES_PER_BUCKET = 1024;
+/**
+ * DUTY-CYCLED SAMPLING (R-PERF-MONITOR-DUTY-01, perf pass 2026-11-18).
+ *
+ * The sampler used to hold a `requestAnimationFrame` loop for the whole session, in every build. Its own work per
+ * frame is tiny; what it COST was not: a pending rAF makes the browser produce a main frame on every display frame,
+ * and on each one every running CSS animation is updated on the main thread (`docs/performance.md` 3o: 200 to 345 ms
+ * of main-thread work a second on an idle shop, against 13 to 38 with the loops parked). So the game paid for every
+ * keyword aura on the board, every frame, just so the monitor could time frames in which nothing happened.
+ *
+ * Now the frame loop runs only while there is something to measure:
+ *   - for `ACTIVE_HOLD_MS` after any input event, mark, measured span or recorded render (so every action, drag,
+ *     hover, FX and store commit is sampled, starting with the frame the work itself lands in);
+ *   - through every fight (the phase is `combat`) and every warm-up;
+ *   - for `HEARTBEAT_MS` every `HEARTBEAT_EVERY_MS` of an otherwise idle screen, so idle frame health still gets a
+ *     sample (about one second in ten);
+ *   - always, while something asked for it (`setContinuous`: the HUD, the phone perf log, `?perf=1`).
+ * Parked, it holds one timer a second (bucket bookkeeping, counter peaks) and its observers: `longtask` and
+ * `long-animation-frame` entries cost nothing until a hitch happens, and a hitch is still recorded while parked.
+ *
+ * WHAT CHANGES IN THE DATA. A bucket is written only for a second in which frames were sampled, so an idle stretch
+ * leaves a gap in `t` (still wall-clock ms) instead of a row per second. Marks, timings and long tasks from a second
+ * with no sampled frames are carried into the next bucket, never dropped. A bucket the sampler was parked for part of
+ * carries `sampledMs`, and its `fps` is frames over that span (not over the whole second), so a half-sampled second
+ * does not read as half the frame rate. `nodes` / `nodesBy` are refreshed on idle time (see `NODE_COUNT_EVERY_MS`)
+ * and repeated in between. Every field keeps its name and meaning.
+ */
+/** How long the frame loop keeps running after the last sign of activity. */
+export const ACTIVE_HOLD_MS = 2000;
+/** An idle screen is sampled for `HEARTBEAT_MS` every `HEARTBEAT_EVERY_MS`. */
+export const HEARTBEAT_EVERY_MS = 10_000;
+export const HEARTBEAT_MS = 1000;
+/**
+ * The DOM census (`nodes`, `nodesBy`: a full-document element count plus a `querySelectorAll` and a descendant count
+ * per container) ran at every bucket close, once a second. It now runs on idle time, when the phase or wave changes
+ * and otherwise at most this often; buckets in between repeat the last count. A leak still shows as a climb, at this
+ * grain instead of per second.
+ */
+export const NODE_COUNT_EVERY_MS = 15_000;
+/** Should the frame loop be running? Pure, exported for its test. `nowMs` and `activeUntilMs` share a clock. */
+export function shouldSampleFrames(a: { continuous: boolean; warming: boolean; inCombat: boolean; nowMs: number; activeUntilMs: number }): boolean {
+  return a.continuous || a.warming || a.inCombat || a.nowMs < a.activeUntilMs;
+}
+
 /** Frames a single warm-up can hold. A warm-up ends after `frames` presented frames once its `ms` has also
  *  elapsed; 4096 covers a 10 s warm-up at 360 Hz, which is far past anything worth configuring. */
 const MAX_WARMUP_FRAMES = 4096;
@@ -180,6 +223,9 @@ export interface PerfBucket {
   longAttrib?: Record<string, { ms: number; frames: number }>;
   /** True if the tab was backgrounded (rAF throttled) — excluded from summaries. */
   hidden?: boolean;
+  /** Present when the frame sampler was PARKED for part of this second (R-PERF-MONITOR-DUTY-01): the ms of it that
+   *  were sampled. `fps` is then frames over this span, and the frame stats describe only it. */
+  sampledMs?: number;
   /** Frames this second that were DIVERTED to a startup record by the warm-up (see `WarmupConfig`). The
    *  bucket's own stats cover only the frames that counted; this says how much of the second was warming up. */
   warmup?: number;
@@ -311,6 +357,29 @@ class PerfMonitor {
   private lastFrame = 0;
   private bucketStart = 0;
   private hiddenDuringBucket = false;
+
+  // ── Duty cycle (R-PERF-MONITOR-DUTY-01; see `ACTIVE_HOLD_MS`) ──────────────────────────────────────────────
+  /** Something asked for every frame (the HUD, the phone perf log, `?perf=1`). */
+  private continuousAsks = 0;
+  /** The rAF loop is live. False = parked on `parkTimer`. */
+  private sampling = false;
+  private parkTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Sample until this time (`performance.now()` clock). */
+  private activeUntil = 0;
+  /** Activity was noted since the last tick: the tick turns it into `activeUntil` (no clock read at the call site). */
+  private activity = false;
+  private lastHeartbeat = 0;
+  /** The next tick is the first after a wake: its interval started at the wake, not at a display frame. */
+  private wakeFrame = false;
+  /** The sampler was parked for part of the open bucket, and the ms of it that frames covered. */
+  private bucketPartial = false;
+  private bucketSampledMs = 0;
+  /** The last DOM census, repeated on buckets until the next one (see `NODE_COUNT_EVERY_MS`). */
+  private nodeCount = 0;
+  private nodeCountBy: Record<string, number> | undefined;
+  private nodeCountAt = -Infinity;
+  private nodeCountKey = '';
+  private nodeCountPending = false;
 
   /** Pre-allocated on `start()` so the per-frame path never grows an array — and so the DISABLED path
    *  allocates nothing at all. (It used to be a field initializer, so the buffer was built at module load
@@ -447,6 +516,7 @@ class PerfMonitor {
    *  sites don't need to guard. This is what turns "a spike at t=412s" into "a spike on 7 batched welds". */
   mark(label: string): void {
     if (!this.running) return;
+    this.noteActivity();
     this.pendingMarks.set(label, (this.pendingMarks.get(label) ?? 0) + 1);
   }
 
@@ -479,6 +549,10 @@ class PerfMonitor {
    */
   begin(label: string): void {
     if (!this.running) return;
+    // Every measured span is activity worth sampling frames around, EXCEPT the FX ticker's own per-frame brackets
+    // (`fx:tick`, `fx:sim`, `fx:render`, `fx:def:<id>`): a looping effect would otherwise hold the frame loop awake for
+    // as long as it lives. The FIRE of an effect is a `mark` (and usually a store commit), which does wake it.
+    if (!label.startsWith('fx:')) this.noteActivity();
     this.spanLabel.push(label);
     this.spanT0.push(performance.now());
     this.childMs.push(0);
@@ -514,6 +588,7 @@ class PerfMonitor {
    */
   record(label: string, ms: number, self: number = ms): void {
     if (!this.running) return;
+    this.noteActivity();
     const now = performance.now();
     this.rememberSpan(label, now - ms, now);
     this.recordSpan(label, ms, self);
@@ -564,7 +639,118 @@ class PerfMonitor {
 
   /** One capture-phase listener for every `EVENT_RING_TYPES` type: one ring write, no clock read (the
    *  event carries its own `timeStamp` on the same clock as `performance.now()`). */
-  private readonly onDomEvent = (e: Event): void => { this.events.push(e.type, e.target, e.timeStamp); };
+  private readonly onDomEvent = (e: Event): void => { this.events.push(e.type, e.target, e.timeStamp); this.noteActivity(); };
+
+  // ── Duty cycle ─────────────────────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Ask for every frame (the HUD's rolling graph, the phone perf log, an explicit `?perf=1`), or give that back.
+   * Counted, so two askers do not cancel each other. Safe before `start()`.
+   */
+  setContinuous(on: boolean): void {
+    this.continuousAsks = Math.max(0, this.continuousAsks + (on ? 1 : -1));
+    if (on && this.running) this.wake(0);
+  }
+
+  /** Is the frame loop live right now (false = parked)? For the tests and the dev readout. */
+  get isSampling(): boolean { return this.sampling; }
+
+  /** Something happened that frames should be sampled around. While the loop is live this is one store. */
+  private noteActivity(): void {
+    if (this.sampling) { this.activity = true; return; }
+    this.wake(ACTIVE_HOLD_MS);
+  }
+
+  /** Start the frame loop (if parked) and keep it for at least `holdMs`. */
+  private wake(holdMs: number): void {
+    if (!this.running) return;
+    const now = performance.now();
+    if (now + holdMs > this.activeUntil) this.activeUntil = now + holdMs;
+    if (this.sampling) return;
+    this.sampling = true;
+    if (this.parkTimer !== null) { clearTimeout(this.parkTimer); this.parkTimer = null; }
+    // The interval of the first frame back starts HERE: the work that woke the loop runs between now and that frame,
+    // so a slow action's own frame is still measured (see `wakeFrame` in `tick`).
+    this.lastFrame = now;
+    this.wakeFrame = true;
+    this.bucketPartial = true;
+    this.raf = requestAnimationFrame(this.tick);
+  }
+
+  private wantsFrames(now: number): boolean {
+    return shouldSampleFrames({
+      continuous: this.continuousAsks > 0, warming: this.warm !== null, inCombat: this.phaseCode === PHASE_CODES.combat,
+      nowMs: now, activeUntilMs: this.activeUntil,
+    });
+  }
+
+  /** Stop the frame loop; keep the buckets and the heartbeat on one timer. */
+  private park(now: number): void {
+    this.sampling = false;
+    this.raf = 0;
+    this.bucketPartial = true;
+    this.lastHeartbeat = now; // frames were just sampled: the next idle sample is a full interval away
+    this.armParkTimer(now);
+  }
+
+  private armParkTimer(now: number): void {
+    const nextBucket = this.bucketStart + BUCKET_MS;
+    const nextBeat = this.lastHeartbeat + HEARTBEAT_EVERY_MS;
+    this.parkTimer = setTimeout(this.onParkTimer, Math.max(16, Math.min(nextBucket, nextBeat) - now));
+  }
+
+  private readonly onParkTimer = (): void => {
+    this.parkTimer = null;
+    if (!this.running || this.sampling) return;
+    const now = performance.now();
+    if (now - this.bucketStart >= BUCKET_MS) {
+      // No frames to aggregate: `closeBucket` carries anything pending into the next sampled bucket. Counters still
+      // get their peak sample, and the phase is re-read (a fight that starts with no mark must still be sampled).
+      this.sampleCounters();
+      this.closeBucket(now);
+    }
+    if (document.hidden) { this.armParkTimer(now); return; }
+    if (now - this.lastHeartbeat >= HEARTBEAT_EVERY_MS) { this.lastHeartbeat = now; this.wake(HEARTBEAT_MS); return; }
+    if (this.wantsFrames(now)) { this.wake(0); return; }
+    this.armParkTimer(now);
+  };
+
+  /** Take the DOM census on idle time (never inside a frame the player is waiting on). */
+  private scheduleNodeCount(): void {
+    if (this.nodeCountPending) return;
+    this.nodeCountPending = true;
+    const run = (): void => {
+      this.nodeCountPending = false;
+      if (!this.running) return;
+      this.takeNodeCount();
+    };
+    const ric = (globalThis as unknown as { requestIdleCallback?: (f: () => void, o?: { timeout: number }) => number }).requestIdleCallback;
+    if (typeof ric === 'function') ric(run, { timeout: 3000 }); else setTimeout(run, 200);
+  }
+
+  private takeNodeCount(): void {
+    const nodes = document.getElementsByTagName('*').length;
+    // Per-container counts: a `querySelectorAll` per container and a `.length` read of each match's descendants.
+    // The remainder is `other`. See `perfDomContainers.ts` for why the map is disjoint.
+    let nodesBy: Record<string, number> | undefined;
+    const containerNames = Object.keys(this.domContainers);
+    if (containerNames.length > 0) {
+      nodesBy = {};
+      let inContainers = 0;
+      for (const name of containerNames) {
+        let count = 0;
+        try {
+          for (const el of document.querySelectorAll(this.domContainers[name]!)) count += 1 + el.getElementsByTagName('*').length;
+        } catch { /* a bad selector must never break the sampler */ }
+        nodesBy[name] = count;
+        inContainers += count;
+      }
+      nodesBy.other = Math.max(0, nodes - inContainers);
+    }
+    this.nodeCount = nodes;
+    this.nodeCountBy = nodesBy;
+    this.nodeCountAt = performance.now();
+  }
 
   /**
    * A layout read (`getBoundingClientRect`, `offsetLeft`, `elementFromPoint`) just happened — see
@@ -642,6 +828,7 @@ class PerfMonitor {
       hiddenMs: 0,
     };
     this.nWarmFrames = 0;
+    this.wake(0); // a warm-up is measured in frames: the loop runs until it closes (`wantsFrames`)
   }
 
   /** Close the warm-up into a `PerfStartup`. Frames it diverted are aggregated against the SAME thresholds
@@ -728,6 +915,17 @@ class PerfMonitor {
     this.lastFrame = this.t0;
     this.bucketStart = this.t0;
     this.hiddenSinceFrame = false;
+    this.sampling = false;
+    this.activity = false;
+    this.activeUntil = this.t0 + ACTIVE_HOLD_MS;
+    this.lastHeartbeat = this.t0;
+    this.wakeFrame = false;
+    this.bucketPartial = false;
+    this.bucketSampledMs = 0;
+    this.nodeCountAt = -Infinity;
+    this.nodeCountKey = '';
+    this.nodeCountPending = false;
+    if (this.parkTimer !== null) { clearTimeout(this.parkTimer); this.parkTimer = null; }
     // The monitor's own start is a phase start: page load / module eval / first paint is the biggest spike
     // of all, and the one every capture used to open with.
     this.beginWarmup('start');
@@ -757,7 +955,10 @@ class PerfMonitor {
     // The input-event ring (see `perfEventRing.ts`): capture phase, so the entry is written before any
     // handler runs; passive, so it can never delay scrolling. Only while the monitor runs.
     for (const type of EVENT_RING_TYPES) document.addEventListener(type, this.onDomEvent, { capture: true, passive: true });
-    this.raf = requestAnimationFrame(this.tick);
+    // `beginWarmup('start')` above already woke the frame loop. This is the fallback for a warm-up rule of zero.
+    if (!this.sampling) { this.sampling = true; this.raf = requestAnimationFrame(this.tick); }
+    this.wakeFrame = false; // the monitor's first frame is a real interval from `t0`, as it always was
+    this.bucketPartial = false;
   }
 
   stop(): void {
@@ -766,6 +967,8 @@ class PerfMonitor {
     this.running = false;
     this.inputDepth = 0;
     cancelAnimationFrame(this.raf);
+    this.sampling = false;
+    if (this.parkTimer !== null) { clearTimeout(this.parkTimer); this.parkTimer = null; }
     this.observer?.disconnect();
     this.observer = null;
     this.loafObserver?.disconnect();
@@ -786,6 +989,18 @@ class PerfMonitor {
     const dt = now - this.lastFrame;
     this.lastFrame = now;
     const w = this.warm;
+    if (this.activity) { this.activity = false; if (now + ACTIVE_HOLD_MS > this.activeUntil) this.activeUntil = now + ACTIVE_HOLD_MS; }
+    // THE FIRST FRAME AFTER A WAKE (R-PERF-MONITOR-DUTY-01). Its interval began at the wake (the input event, the
+    // dispatch), not at the previous display frame, so it reads SHORT by up to one refresh interval. It is kept only
+    // when it is a long frame anyway (the action that woke the loop was itself slow: exactly the frame worth having);
+    // a short one would be a made-up fast frame, so it is left out of the ring, the bucket and the warm-up.
+    const skipFrame = this.wakeFrame && !(dt > thresholds.longFrameMs);
+    this.wakeFrame = false;
+    const spannedHidden = this.hiddenSinceFrame;
+    this.hiddenSinceFrame = false;
+    if (skipFrame) {
+      // not a measured interval: nothing is recorded
+    } else {
     // The frame ring: three stores and a masked increment. See `FrameRing`.
     const r = this.ring;
     r.dt[r.head] = dt;
@@ -793,9 +1008,10 @@ class PerfMonitor {
     r.flag[r.head] = (w ? FLAG_WARM : 0) | (this.phaseCode << 1);
     r.head = (r.head + 1) & (RING_FRAMES - 1);
     if (r.n < RING_FRAMES) r.n++;
-    const spannedHidden = this.hiddenSinceFrame;
-    this.hiddenSinceFrame = false;
-    if (w && spannedHidden) {
+    }
+    if (skipFrame) {
+      // (see above)
+    } else if (w && spannedHidden) {
       // The interval spans a hidden tab: no frame was dropped, the tab was away. Kept out of the record.
       w.hiddenMs += dt;
       this.warmThisBucket++;
@@ -808,6 +1024,7 @@ class PerfMonitor {
       if (w.framesLeft <= 0 && now >= w.until) this.closeWarmup(now);
     } else if (this.nFrames < this.frames.length) {
       this.frames[this.nFrames++] = dt;
+      this.bucketSampledMs += dt;
     }
     // ATTRIBUTE THE FRAME. Everything measured since the last tick ran inside the interval that just ended;
     // if that interval was a dropped frame, charge each label its self time. `frameSelf` is empty on the
@@ -827,7 +1044,8 @@ class PerfMonitor {
       this.sampleCounters();
     }
     if (now - this.bucketStart >= BUCKET_MS) this.closeBucket(now);
-    this.raf = requestAnimationFrame(this.tick);
+    if (this.wantsFrames(now)) this.raf = requestAnimationFrame(this.tick);
+    else this.park(now);
   };
 
   /**
@@ -855,11 +1073,23 @@ class PerfMonitor {
 
   private closeBucket(now: number): void {
     const n = this.nFrames;
-    const elapsed = now - this.bucketStart;
+    const partial = this.bucketPartial;
+    const sampledMs = this.bucketSampledMs;
+    // `fps` is frames over the time they covered. A fully sampled second is the whole second, as before.
+    const elapsed = partial && sampledMs > 0 ? sampledMs : now - this.bucketStart;
     this.bucketStart = now;
     this.nFrames = 0;
+    this.bucketPartial = !this.sampling;
+    this.bucketSampledMs = 0;
     const warmup = this.warmThisBucket;
     this.warmThisBucket = 0;
+    // The phase is re-read every second, sampled or parked: `wantsFrames` keys on it (a fight is always sampled).
+    const ctx = this.context();
+    this.refreshPhaseCode(ctx);
+    // NO FRAMES WERE SAMPLED this second and the sampler was parked for it (R-PERF-MONITOR-DUTY-01): there is no
+    // bucket to write, and whatever is pending (marks, timings, long tasks, the longest task, counter peaks) is
+    // CARRIED into the next bucket that has frames, never dropped. A warm-up-only second keeps its old path below.
+    if (n === 0 && partial && warmup === 0) return;
     const longestTask = this.longestTask;
     this.longestTask = 0;
     const hidden = this.hiddenDuringBucket || document.hidden;
@@ -906,26 +1136,14 @@ class PerfMonitor {
     for (const [name, v] of this.tallies) counts[name] = v; // rates (per bucket), alongside the peak levels
     this.tallies.clear();
     const mem = (performance as { memory?: { usedJSHeapSize: number } }).memory;
-    const ctx = this.context();
-    this.refreshPhaseCode(ctx);
-    const nodes = document.getElementsByTagName('*').length;
-    // Per-container counts, once a second: a `querySelectorAll` per container and a `.length` read of each
-    // match's descendants. The remainder is `other`. See `perfDomContainers.ts` for why the map is disjoint.
-    let nodesBy: Record<string, number> | undefined;
-    const containerNames = Object.keys(this.domContainers);
-    if (containerNames.length > 0) {
-      nodesBy = {};
-      let inContainers = 0;
-      for (const name of containerNames) {
-        let count = 0;
-        try {
-          for (const el of document.querySelectorAll(this.domContainers[name]!)) count += 1 + el.getElementsByTagName('*').length;
-        } catch { /* a bad selector must never break the sampler */ }
-        nodesBy[name] = count;
-        inContainers += count;
-      }
-      nodesBy.other = Math.max(0, nodes - inContainers);
-    }
+    // THE DOM CENSUS, off the frame path (see `NODE_COUNT_EVERY_MS`): the very first bucket takes it in place (there
+    // is nothing to repeat yet); after that it is refreshed on idle time when the phase or wave moves, or when it is
+    // old, and every bucket in between repeats the last count.
+    const nodeKey = `${ctx.overlay ?? ctx.phase ?? ''}|${ctx.wave ?? ''}`;
+    if (this.nodeCountAt === -Infinity) { this.takeNodeCount(); this.nodeCountKey = nodeKey; }
+    else if (nodeKey !== this.nodeCountKey || now - this.nodeCountAt >= NODE_COUNT_EVERY_MS) { this.nodeCountKey = nodeKey; this.scheduleNodeCount(); }
+    const nodes = this.nodeCount;
+    const nodesBy = this.nodeCountBy ? { ...this.nodeCountBy } : undefined;
 
     const bucket: PerfBucket = {
       t: Math.round(now - this.t0),
@@ -944,6 +1162,7 @@ class PerfMonitor {
       ...(nodesBy ? { nodesBy } : {}),
       ...(hidden ? { hidden: true } : {}),
       ...(warmup > 0 ? { warmup } : {}),
+      ...(partial ? { sampledMs: Math.round(sampledMs) } : {}),
     };
 
     this.buckets.push(bucket);

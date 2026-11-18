@@ -37,6 +37,7 @@ import { checkScenePipes } from './pixiScenePipes';
 import { crumb } from './crashLog';
 import { onPixiPageScale, phonePixiOptions, pixiAllowed } from './phoneDiag';
 import { followStage } from './pixiStageFollow';
+import { cappedRaf } from './cappedRaf';
 
 // THE PAGE SCALE (R-PHONE-PAGESCALE-01): a filter renders each pass into a pooled texture sized by its bounds (layout px
 // on the page scale) times its own resolution, 1 by default, so a full-screen filter took four 4096 x 2048 textures
@@ -438,6 +439,32 @@ export const MAX_SPRITE_PARTICLES = 1200;
 /** Consecutive main-render faults before the overlay rebuilds itself (see `renderOver`). ~0.1 s at 240 Hz. */
 const RENDER_FAULT_REBUILD_STREAK = 24;
 
+/**
+ * IS THE PLAYER MOVING SOMETHING? (R-PERF-FX-SLOW-CLOCK-01.) True while a pointer button is down and for a moment
+ * after it lifts: a drag, and the cards that settle after a drop. A persistent effect that FOLLOWS a card (a milestone
+ * badge, the On Loan mark) must track it at the display's own rate then; the rest of the time the board is still and
+ * the slow clock is indistinguishable. One passive listener pair for the page, installed on first use.
+ */
+const POINTER_SETTLE_MS = 1000;
+let pointerDown = false;
+let pointerUpAt = -Infinity;
+let pointerWatch = false;
+const pointerWakers = new Set<() => void>();
+function watchPointer(): void {
+  if (pointerWatch || typeof window === 'undefined') return;
+  pointerWatch = true;
+  const down = (): void => { pointerDown = true; for (const w of pointerWakers) w(); };
+  const up = (): void => { pointerDown = false; pointerUpAt = performance.now(); };
+  window.addEventListener('pointerdown', down, { capture: true, passive: true });
+  window.addEventListener('pointerup', up, { capture: true, passive: true });
+  window.addEventListener('pointercancel', up, { capture: true, passive: true });
+}
+function pointerBusy(): boolean {
+  return pointerDown || performance.now() - pointerUpAt < POINTER_SETTLE_MS;
+}
+/** The slow clock's rate: what a persistent loop is stepped and presented at while nothing else is live. */
+export const FX_SLOW_CLOCK_HZ = 60;
+
 class FxController {
   private app: Application | null = null;
   /** Frame-rate cap for this controller's ticker (0 = uncapped). Every canvas renders from the MAIN app's
@@ -538,6 +565,11 @@ class FxController {
   /** Externally-mounted per-frame updaters (the FX workbench player). Kept deliberately small: this is the
    *  only seam through which code outside this file draws on the overlay canvas. */
   private extraUpdaters: ((dtMs: number) => void)[] = [];
+  /** The updaters of PERSISTENT plays (a caller-owned loop / follow: a milestone badge, the Amplified slot, Cia's
+   *  mark, On Loan, the Both marker). While these are the only live work the slow clock drives the stage. */
+  private readonly persistentUpdaters = new Set<(dtMs: number) => void>();
+  /** Stops the slow clock while it runs; null otherwise. */
+  private slowStop: (() => void) | null = null;
   /** The perf brackets around the ticker pass — see `attach`. Held so `detach` can remove them. */
   private perfTickStart: (() => void) | null = null;
   private perfRenderStart: (() => void) | null = null;
@@ -844,14 +876,63 @@ class FxController {
     return this.timeScale;
   }
 
-  addUpdater(fn: (dtMs: number) => void): () => void {
+  addUpdater(fn: (dtMs: number) => void, opts?: { /** A caller-owned loop / follow play (see `persistentUpdaters`). */ persistent?: boolean }): () => void {
     this.extraUpdaters.push(fn);
+    if (opts?.persistent) this.persistentUpdaters.add(fn);
     this.wake(); // an idled controller must wake while an external updater is live
     return () => {
       const i = this.extraUpdaters.indexOf(fn);
       if (i >= 0) this.extraUpdaters.splice(i, 1);
+      this.persistentUpdaters.delete(fn);
     };
   }
+
+  /**
+   * THE SLOW CLOCK (R-PERF-FX-SLOW-CLOCK-01, perf pass 2026-11-18). A looping effect never ends, so while one was on
+   * screen `hasLiveWork()` stayed true and the ticker ran every display frame of an otherwise idle shop: up to three
+   * full-viewport canvases stepped and presented 240 or 360 times a second for a badge that breathes, and (because a
+   * frame loop was live) every CSS animation on the board updated on the main thread each of those frames.
+   *
+   * While the ONLY live work is persistent plays, the Pixi ticker's own rAF is stopped and this clock steps the same
+   * ticker (`ticker.update`: every listener, in the same order, with the real elapsed time) `FX_SLOW_CLOCK_HZ` times
+   * a second, sleeping between frames on a fast display (`cappedRaf`). On a 60 Hz display nothing changes at all. On
+   * a faster one a slow loop advances the same distance per second in fewer, larger steps.
+   *
+   * Anything else that arrives calls `wake()`, which ends the slow clock and restarts the real ticker in the same
+   * call, so a one-shot effect still renders the frame it fires. So does a pointer press (see `pointerBusy`).
+   */
+  private onlyPersistentWork(): boolean {
+    return (
+      this.persistentUpdaters.size > 0 && this.extraUpdaters.length === this.persistentUpdaters.size &&
+      this.live.length === 0 && this.skullPops.length === 0 && this.tendrils.length === 0 &&
+      this.weldRings.length === 0 && this.spellArrows.length === 0 &&
+      this.waves.length === 0 && this.slashes.length === 0 && this.critFxs.length === 0 &&
+      this.pulses.length === 0 && this.descends.length === 0 && this.aim === null &&
+      this.finishingAim.length === 0
+    );
+  }
+  private readonly onPointerWake = (): void => { if (this.slowStop) this.wake(); };
+  private startSlowClock(): void {
+    const app = this.app;
+    if (!app || this.slowStop || this.manuallyPaused) return;
+    watchPointer();
+    pointerWakers.add(this.onPointerWake);
+    app.ticker.stop();
+    this.slowStop = cappedRaf((now) => {
+      const a = this.app;
+      if (!a || this.manuallyPaused) { this.stopSlowClock(); return; }
+      if (pointerBusy()) { this.wake(); return; }
+      a.ticker.update(now); // `update`'s tail ends this clock when the work is gone, or hands back to the ticker
+    }, FX_SLOW_CLOCK_HZ, () => perfMonitor.display.refreshHz);
+  }
+  private stopSlowClock(): void {
+    if (!this.slowStop) return;
+    this.slowStop();
+    this.slowStop = null;
+    pointerWakers.delete(this.onPointerWake);
+  }
+  /** True while the slow clock is driving the stage (tests, the bench). */
+  get slowClock(): boolean { return this.slowStop !== null; }
 
   /** The live renderer, for external effect layers (the FX workbench) that build GPU resources.
    *  Null until `attach()`/`init()` has resolved. */
@@ -870,6 +951,7 @@ class FxController {
    *  and this is the single, audited way back. A no-op when already running; never overrides a Skip freeze. */
   private wake(): void {
     if (this.manuallyPaused) return;
+    this.stopSlowClock(); // work that is not a persistent loop gets the real ticker back, this call
     if (this.app) reviveTicker(this.app.ticker, `pixiFx${this.label ? ` ${this.label}` : ''}`); // start, or restart a dead ticker (pixiAppSafety.ts)
     else this.startDetachedClock();
   }
@@ -1068,6 +1150,7 @@ class FxController {
    *  live here is retired first (see below), so nothing built on this context survives into the next one. */
   detach(): void {
     if (!this.app) return;
+    this.stopSlowClock();
     // Retire every registered def play (`playDef`) BEFORE anything below is torn down, so each one retires
     // against a live stage in its own order — updater off, player + layers + filters + particles destroyed,
     // container unmounted and destroyed — and its pooled particle layer files back into the pool normally
@@ -1907,6 +1990,7 @@ class FxController {
    *  out (the canvas opacity is faded separately via CSS, which doesn't need the ticker running). */
   setPaused(paused: boolean): void {
     this.manuallyPaused = paused; // recorded even pre-attach, so a wake() during the freeze can't thaw it
+    if (paused) this.stopSlowClock();
     if (!this.app) return;
     if (paused) this.app.ticker.stop();
     else reviveTicker(this.app.ticker, `pixiFx${this.label ? ` ${this.label}` : ''}`);
@@ -3377,7 +3461,11 @@ class FxController {
 
     // Idle controller (discoverFx): the instant nothing is left to draw, release the ticker so this second
     // full-viewport context stops clearing + presenting an empty stage every frame. A spawn restarts it.
-    if (this.autoIdle && !this.hasLiveWork()) this.app?.ticker.stop();
+    if (this.autoIdle) {
+      if (!this.hasLiveWork()) { this.app?.ticker.stop(); this.stopSlowClock(); }
+      // Only persistent loops left, and the player is not moving anything: hand the stage to the slow clock.
+      else if (!this.slowStop && this.onlyPersistentWork() && !pointerBusy()) this.startSlowClock();
+    }
   }
 
   /** A small bright dot with a soft edge — the spark. Generated once, tinted per particle. */

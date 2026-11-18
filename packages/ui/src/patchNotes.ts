@@ -60,6 +60,17 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'The game runs smoother, most of all on fast displays and late in a game. Nothing looks or sounds different.',
+        details: [
+          'An idle shop no longer does work on every frame. Before, three background loops kept every keyword glow on the board busy all the time.',
+          'The crystal fuse at the end of a turn costs far less to draw.',
+          'Hovering a card no longer redraws its soft glow on every frame.',
+          'Big hits (500 Attack and up) no longer build new reverb sounds in the middle of a fight.',
+          'Buying, selling and rolling no longer redraw the player rail.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Game results now show the hero power and the Ancient picked with it, for you and for every player in the lobby.',
         details: [
           'The hero power sits beside the runes under the final board. Hover it to read the power and what its Ancient adds.',

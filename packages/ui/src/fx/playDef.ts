@@ -833,7 +833,7 @@ function playDefInner(
       timeMs: nowMs,
       durationMs: def.duration,
     });
-  });
+  }, { persistent: opts.loop === true || follow !== undefined }); // a persistent loop may ride the slow clock (R-PERF-FX-SLOW-CLOCK-01)
 
   // DEV-only fire log: a Pixi effect paints to a canvas with no DOM class, so the browser harness can't rAF-
   // sample it. This gives the committed harness a way to observe that a def fired, and when. Positive

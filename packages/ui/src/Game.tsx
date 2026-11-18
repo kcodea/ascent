@@ -296,6 +296,16 @@ export function Game() {
   // (see the `{perfOn && <PerfHud …>}` below). The cost is a one-second tick and a passive pointermove
   // counter, which is what the telemetry is made of — a sampler that only runs when someone remembers to
   // open a dev panel is not telemetry.
+  //
+  // DUTY-CYCLED since 2026-11-18 (R-PERF-MONITOR-DUTY-01): "unconditional" no longer means a frame loop on every
+  // frame of the session. The monitor samples frames around activity, through fights and for a second in ten of an
+  // idle screen, and parks its rAF otherwise (see `ACTIVE_HOLD_MS` in perfMonitor.ts for why that matters). The HUD
+  // draws a rolling per-frame graph, so while it is open it asks for every frame.
+  useEffect(() => {
+    if (!perfOn) return undefined;
+    perfMonitor.setContinuous(true);
+    return () => perfMonitor.setContinuous(false);
+  }, [perfOn]);
   useEffect(() => {
     perfMonitor.registerContext(() => {
       const s = useGame.getState().run;
@@ -380,7 +390,9 @@ export function Game() {
       void uploadRun(
         toRun(buckets, {
           id: `${Date.now()}`,
-          startedAt: Date.now() - buckets.length * 1000,
+          // The session's length is the last bucket's clock, not the bucket count: an idle stretch writes no buckets
+          // (R-PERF-MONITOR-DUTY-01).
+          startedAt: Date.now() - (buckets[buckets.length - 1]?.t ?? buckets.length * 1000),
           build: `${__APP_VERSION__}+${__BUILD_SHA__}`,
           mode: st.run?.mode,
           heroId: st.run?.heroId,

@@ -10,5 +10,8 @@
     "prebuild": "npm run sync-art",
     "build": "vite build",
     "preview": "vite preview"
+  },
+  "devDependencies": {
+    "wrangler": "4.149.0"
   }
 }

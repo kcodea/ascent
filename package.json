@@ -122,6 +122,8 @@
     "dev:active": "node scripts/dev-active.mjs",
     "build:web": "npm run build -w apps/web",
     "dev:site": "npm run dev -w apps/site",
+    "site:preview": "node scripts/site-deploy.mjs",
+    "site:deploy": "node scripts/site-deploy.mjs --production",
     "build:site": "npm run build -w apps/site",
     "typecheck:site": "tsc -p apps/site/tsconfig.json --noEmit",
     "desktop": "npm run build:web && npm --workspace @game/desktop run start",

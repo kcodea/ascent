@@ -15,10 +15,21 @@ From the repo root:
 
 ## Deploying
 
-- `npm run site:preview` makes a preview deploy. It may be run freely.
-- `npm run site:deploy` is the production deploy. Run it only after Mike has explicitly said go for that deploy.
+The site deploys to the Cloudflare Pages project `ascent-site`. This is separate from Ship Ascent, which ships the
+desktop app.
 
-Both scripts arrive in Task 7 of the site plan.
+- `npm run site:preview` builds the site and makes a preview deploy (branch `preview`). It may be run freely.
+- `npm run site:deploy` is the production deploy. Run it only after Mike has explicitly said go for that deploy. The
+  script refuses unless you also pass `--owner-approved`, which is only for after he has said so:
+  `npm run site:deploy -- --owner-approved`.
+- Add `--dry-run` to either one (for example `npm run site:preview -- --dry-run`) to print the wrangler command it
+  would run. It does not build, does not need credentials, and does not deploy.
+
+Both need two environment variables set: `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`. The token needs the
+Account, Cloudflare Pages, Edit permission. If either variable is missing the script stops with exit code 2 and names
+it.
+
+Cloudflare Web Analytics needs no code. Turn it on with one toggle on the Pages project in the Cloudflare dashboard.
 
 ## Captures
 

@@ -173,10 +173,12 @@ export const ROUTINES = {
       console.log('RUNES', JSON.stringify(cards));
       const pick = Math.max(0, cards.findIndex((c, i) => !c.no && i >= 1));
       await click(p, await rectOf(p, '.forge-cards button.runecard', pick));
+      const clicked = p.now();
       await sleep(500);
       await moveTo(p, { x: 1560, y: 900 });
       await sleep(2600);
-      return { start: start + 0.9, end: Math.min(p.now(), start + 8.4), still: start + 3.5, crop: { x: 468, y: 286, w: 984, h: 530 } };
+      // Only the forge itself: the board before it opens and after the rune locks in would sit oddly inside the frame.
+      return { start: start + 1.6, end: clicked + 1.2, still: start + 3.5, crop: { x: 468, y: 286, w: 984, h: 530 } };
     },
   },
   'ancient-select': {

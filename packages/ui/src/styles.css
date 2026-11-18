@@ -1539,54 +1539,53 @@ body.etb-glow-preview .etbwrap:not(.pressed):not(:disabled) .etb-gem {
 }
 body.dragging .tvbwrap { pointer-events: none; } /* a card dragged across it drops through */
 /* THE SHOP SLICE (ShopTierSlice.tsx, owner ask 2026-11-18: "put another slice here that says 'Shop' and then move the
-   'Tier x' into that slice, in the same rail aesthetic"). A Docked-rail plate on the shop frame's top edge, from under the
-   Tavern Up stone to the Freeze diamond: flat left end (the stone's ring overlaps it, z 40 under the HUD pieces' 41), a
-   clean cut on the right end parallel to the diamond's upper-left edge, the rail's navy plate + gold edge + text
-   treatment (uiTheme.css `--pill-*`). Stage-pinned like the Freeze diamond: `--shopslice-x/y` place the plate's RIGHT
-   end (the top of the cut, on the frame line) off the stage's top-centre, `--shopslice-w` is its length (Layout Lab "Shop slice"), and
-   it takes the same board-grow shift as the diamond so it stays on the frame line at any grow.
-   MOTION: the box clips at the frame line (a static `clip-path`), and the plate inside it rises from below that line: a
-   one-shot transform + opacity transition when `.tucked` comes off (the return trip's reveal, see the component). The
-   drop shadow is a static filter on the plate; nothing loops. */
+   'Tier x' into that slice, in the same rail aesthetic"; then "make it sit cleanly above the board / not touching it,
+   like how the rail works"). A freestanding plate in the Docked rail's language, floating ABOVE the shop frame's top edge
+   with the rail's gap to the board, its left end clear of the Tavern Up stone, sized to its content, with a clean
+   diagonal cut on its right end. Plate, edge weight, shadow and type are the rail's (lobbyRailDocked.css): the
+   `--pill-plate` navy, a 2 px `--pill-edge` gold rim with a black hairline, the slice's 0 2 4 shadow, the round slice's
+   gold title (TIER N) and its light caps label (SHOP), a thin gold divider between them.
+   Stage-pinned off the stage's top-centre (the Freeze diamond's anchor) with the board-grow shift, so it keeps its gap
+   to the frame at any grow: `--shopslice-x` is its LEFT end, `--shopslice-y` its FOOT (Layout Lab "Shop slice").
+   Reference px x `--scale` (at 1600 x 900 a reference px is 0.625 screen px, the rail's 1 px = 1.6 here).
+   MOTION: returning from a fight it mounts `.tucked` (a little below its seat, transparent) and rises into place as the
+   Shop is revealed: a one-shot transform + opacity transition. Static paint otherwise; nothing loops. */
 .shopslice {
-  --sh: calc(50px * var(--scale));
-  --cut: calc(44px * var(--scale));
-  --rim: max(1.5px, calc(4px * var(--scale)));
+  --sh: calc(60px * var(--scale));
+  --cut: calc(26px * var(--scale));
+  --rim: max(1px, calc(3.2px * var(--scale)));
   position: fixed; z-index: 40; pointer-events: none;
-  left: calc(var(--bar-x) + 0.5 * var(--gw) + (var(--shopslice-x, -37px) - var(--shopslice-w, 700px)) * var(--scale));
-  top: calc(var(--bar-y) + var(--shopslice-y, 271px) * var(--scale) - var(--sh));
-  width: calc(var(--shopslice-w, 700px) * var(--scale)); height: var(--sh);
-  translate: calc((var(--board-grow, 1.05) - 1) * (var(--shopslice-x, -37px) - var(--board-x, 0px)) * var(--scale)) calc((var(--board-grow, 1.05) - 1) * ((var(--shopslice-y, 271px) - var(--board-y, 5px)) * var(--scale) - 0.5 * var(--gh)));
-  /* Tucked behind the frame: everything below the frame line is clipped (room left for the shadow on the other sides). */
-  clip-path: inset(-40px -40px 0 -40px);
+  left: calc(var(--bar-x) + 0.5 * var(--gw) + var(--shopslice-x, -667px) * var(--scale));
+  top: calc(var(--bar-y) + var(--shopslice-y, 258px) * var(--scale) - var(--sh));
+  height: var(--sh);
+  translate: calc((var(--board-grow, 1.05) - 1) * (var(--shopslice-x, -667px) - var(--board-x, 0px)) * var(--scale)) calc((var(--board-grow, 1.05) - 1) * ((var(--shopslice-y, 258px) - var(--board-y, 5px)) * var(--scale) - 0.5 * var(--gh)));
 }
 .shopslice-plate {
-  position: absolute; inset: 0;
-  filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.95)) drop-shadow(0 calc(3px * var(--scale)) calc(5px * var(--scale)) rgba(0, 0, 0, 0.75));
-  transition: transform 460ms cubic-bezier(0.2, 0.9, 0.3, 1.04) 180ms, opacity 220ms ease-out 180ms;
+  position: relative; height: 100%; display: inline-flex; align-items: center; box-sizing: border-box;
+  gap: calc(16px * var(--scale));
+  padding: 0 calc(var(--cut) + 22px * var(--scale)) 0 calc(var(--rim) + 20px * var(--scale));
+  filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.95)) drop-shadow(0 calc(3.2px * var(--scale)) calc(6.4px * var(--scale)) rgba(0, 0, 0, 0.75));
+  transition: transform 420ms cubic-bezier(0.2, 0.9, 0.3, 1) 200ms, opacity 260ms ease-out 200ms;
 }
-.shopslice.tucked .shopslice-plate { transform: translateY(115%); opacity: 0; transition: none; }
-.shopslice-edge { position: absolute; inset: 0; background: var(--pill-edge); clip-path: polygon(0 0, 100% 0, calc(100% - var(--cut)) 100%, 0 100%); }
-/* The plate, inset by the rim on the left, the top and the cut (the cut's run is moved in by rim x 1.33, the 44:50 cut's
-   secant, so the diagonal edge reads the same width as the top). */
+.shopslice.tucked .shopslice-plate { transform: translateY(45%); opacity: 0; transition: none; }
+/* The rim and the plate: two clipped layers, the plate inset by the rim on every side (the cut's run moved in by
+   rim x 1.09, the 26:60 cut's secant, so the diagonal reads the same weight as the top). */
+.shopslice-edge, .shopslice-fill { position: absolute; z-index: -1; }
+.shopslice-edge { inset: 0; background: var(--pill-edge); clip-path: polygon(0 0, 100% 0, calc(100% - var(--cut)) 100%, 0 100%); }
 .shopslice-fill {
-  --d: calc(var(--rim) * 1.332);
-  position: absolute; left: var(--rim); top: var(--rim); right: 0; bottom: 0;
+  --d: calc(var(--rim) * 1.09);
+  inset: var(--rim); right: 0;
   background: var(--pill-plate);
-  clip-path: polygon(0 0, calc(100% - var(--d) - var(--cut) * 0.08) 0, calc(100% - var(--d) - var(--cut)) 100%, 0 100%);
+  clip-path: polygon(0 0, calc(100% - var(--d) - var(--cut) * 0.053) 0, calc(100% - var(--d) - var(--cut) * 0.947) 100%, 0 100%);
 }
-/* SHOP | TIER N, centred on the plate clear of the cut: the round slice's text (gold title, light caps). */
-.shopslice-text {
-  position: absolute; top: var(--rim); bottom: 0; left: var(--rim); right: calc(var(--cut) * 0.6);
-  display: flex; align-items: center; justify-content: center; gap: calc(16px * var(--scale));
-  font-family: var(--pill-font), sans-serif; font-size: calc(25px * var(--scale)); line-height: 1; white-space: nowrap;
-  text-transform: uppercase; text-shadow: var(--pill-text-shadow);
-}
-.shopslice-label { font-weight: 800; letter-spacing: 0.12em; color: var(--ui-title); }
-.shopslice-div { flex: none; width: max(1px, calc(2px * var(--scale))); height: calc(26px * var(--scale)); background: color-mix(in srgb, var(--pill-edge) 75%, transparent); }
-.shopslice-tier { font-weight: 900; letter-spacing: 0.08em; color: var(--pill-text); font-variant-numeric: tabular-nums; }
+/* SHOP | TIER N: the round slice's light caps label, then its gold title. Centred on the plate's optical middle. */
+.shopslice-text { display: contents; }
+.shopslice-label, .shopslice-tier { font-family: var(--pill-font), sans-serif; line-height: 1; white-space: nowrap; text-transform: uppercase; text-shadow: var(--pill-text-shadow); }
+.shopslice-label { font-size: calc(15.5px * var(--scale)); font-weight: 900; letter-spacing: 0.1em; color: var(--ui-text); }
+.shopslice-div { flex: none; align-self: center; width: max(1px, calc(2.4px * var(--scale))); height: calc(28px * var(--scale)); background: color-mix(in srgb, var(--pill-edge) 70%, transparent); }
+.shopslice-tier { font-size: calc(23px * var(--scale)); font-weight: 800; letter-spacing: 0.12em; color: var(--ui-title); font-variant-numeric: tabular-nums; }
 @media (prefers-reduced-motion: reduce) {
-  .shopslice-plate { transition: opacity 220ms ease-out 180ms; }
+  .shopslice-plate { transition: opacity 260ms ease-out 200ms; }
   .shopslice.tucked .shopslice-plate { transform: none; }
 }
 .tvbwrap:disabled { cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }

@@ -58,7 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-11-18',
     changes: [
-      { category: 'Systems', text: 'Your Shop tier now shows in a new Shop plate on top of the shop frame, next to Freeze. It slides up when you return from a fight.' },
+      { category: 'Systems', text: 'Your Shop tier now shows in a new Shop plate above the shop frame, next to the upgrade button. It slides up when you return from a fight.' },
     ],
   },
   {

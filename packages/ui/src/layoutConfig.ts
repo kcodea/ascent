@@ -130,13 +130,12 @@ export const LAYOUT_VARS: LayoutVarDef[] = [
   { key: 'goldX', cssVar: '--gold-x', label: 'Inset from right', group: 'Gold pill', min: -200, max: 800, step: 1, def: 407, fmt: 'px' },
   { key: 'goldY', cssVar: '--gold-y', label: 'Inset from bottom', group: 'Gold pill', min: -200, max: 800, step: 1, def: 421, fmt: 'px' },
 
-  // The SHOP slice ("Shop | Tier N", owner ask 2026-11-18; replaced the Tavern tier pill on the stone). X places its
-  // RIGHT end (the top of the cut, beside the Freeze diamond) and Y its foot (the frame line) off the stage's
-  // top-centre, the Freeze diamond's own anchor; Length is how far its flat left end reaches back under the Tavern Up
-  // stone. Reference px x --scale. Match the styles.css `.shopslice` fallbacks.
-  { key: 'sliceX', cssVar: '--shopslice-x', label: 'X (right end)', group: 'Shop slice', min: -800, max: 400, step: 1, def: -37, fmt: 'px' },
-  { key: 'sliceY', cssVar: '--shopslice-y', label: 'Y (frame line)', group: 'Shop slice', min: 0, max: 600, step: 1, def: 271, fmt: 'px' },
-  { key: 'sliceW', cssVar: '--shopslice-w', label: 'Length', group: 'Shop slice', min: 200, max: 1200, step: 1, def: 700, fmt: 'px' },
+  // The SHOP slice ("Shop | Tier N", owner ask 2026-11-18; replaced the Tavern tier pill on the stone). A freestanding
+  // rail-style plate floating above the shop frame: X is its LEFT end (clear of the Tavern Up stone) and Y its FOOT
+  // (just above the frame line), both off the stage's top-centre, the Freeze diamond's own anchor. It sizes to its
+  // text. Reference px x --scale. Match the styles.css `.shopslice` fallbacks.
+  { key: 'sliceX', cssVar: '--shopslice-x', label: 'X (left end)', group: 'Shop slice', min: -1200, max: 400, step: 1, def: -667, fmt: 'px' },
+  { key: 'sliceY', cssVar: '--shopslice-y', label: 'Y (foot)', group: 'Shop slice', min: 0, max: 600, step: 1, def: 258, fmt: 'px' },
 
   // The end-of-turn CRYSTAL FUSE (the Charge Glyph's look since 2026-10-26). STATIC px scaled by --scale, anchored
   // to the measured board midline (--charge-y); Length extends the fuse (more crystal, tips unchanged) and Thickness sets its height, X/Y nudge it so its right tip

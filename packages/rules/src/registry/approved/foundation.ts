@@ -16087,21 +16087,22 @@ export const FOUNDATION_RULES: GameRule[] = [
   {
     id: 'R-SHOP-SLICE-01',
     domain: 'foundation',
-    title: 'The Shop tier reads in a rail-style Shop slice on the frame, which is absent in combat and rises back on the return',
+    title: 'The Shop tier reads in a rail-style Shop slice above the frame, which is absent in combat and rises back on the return',
     statement:
-      'In the Shop phase a navy and gold plate in the Docked rail\x27s style sits on the shop frame\x27s top edge, from under '
-      + 'the Tavern Up stone to the Freeze diamond, with a flat left end and a clean cut on the right end leaning into the '
-      + 'diamond. It reads SHOP | TIER N with the live shop tier; the floating Tier pill over the stone is gone. It is shop '
-      + 'furniture: not shown in combat, and on the way back from a fight it rises from behind the frame line as the Shop is '
-      + 'revealed (a one-shot slide, transform and opacity only). On the first turn of a run, or a resume into the Shop, it '
-      + 'is simply there. It is a label and never takes the pointer.',
+      'In the Shop phase a freestanding navy and gold plate in the Docked rail\x27s style floats above the shop frame, just '
+      + 'right of the Tavern Up stone, touching neither the frame, the stone nor the Freeze diamond, sized to its text with a '
+      + 'clean diagonal cut on its right end. It reads SHOP | TIER N with the live shop tier; the floating Tier pill over the '
+      + 'stone is gone. It is shop furniture: not shown in combat, and on the way back from a fight it rises into place from '
+      + 'just below, fading in, as the Shop is revealed (a one-shot slide, transform and opacity only). On the first turn of '
+      + 'a run, or a resume into the Shop, it is simply there. It is a label and never takes the pointer.',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Kevin, 2026-11-18 (recruit-screen screenshot)', quote: 'can you put another slice here that says Shop and then move the Tier x into that slice, in the same rail aesthetic?' },
+      { kind: 'owner-chat', ref: 'Kevin on PR #2773, 2026-11-18', quote: 'make it sit cleanly above the board / not touching it, like how the rail works' },
       { kind: 'code', ref: 'packages/ui/src/ShopTierSlice.tsx, packages/ui/src/styles.css (.shopslice), packages/ui/src/Recruit.tsx (ShopControls mounts it on !combatBgShown, tucked on wipe coveredOut)' },
     ],
     currentBehaviour: 'Conforms from 2026-11-18. Before, the tier was a small "Tier N" pill floating above the Tavern Up stone.',
-    example: 'Kev ends a fight on Tier 3: the combat screen shows no slice; as the return vista dives onto the Shop, the SHOP | TIER 3 plate slides up out of the frame beside the Freeze diamond.',
+    example: 'Kev ends a fight on Tier 3: the combat screen shows no slice; as the return vista dives onto the Shop, the SHOP | TIER 3 plate rises into place above the frame beside the stone.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/shopTierSlice.test.tsx'], lastVerifiedAt: '2026-11-18' },
   },
 ];

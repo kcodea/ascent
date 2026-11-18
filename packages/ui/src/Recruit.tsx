@@ -84,7 +84,7 @@ import { PortraitFrame, frameIdOf, usePortraitFrame } from './portraitFrame/Port
 import { resolvePortraitFrame } from './portraitFrame/portraitFrameConfig';
 import { beginDragTrace, cancelDragTrace, endDragTrace, sampleDragTrace } from './replay/dragTrace';
 import { SYM_KINDS } from './choreo/channels/float';
-import { stabilizeViewMap, stabilizeRefMap, stabilizeView } from './cardViewEqual';
+import { cardViewEqual, stabilizeViewMap, stabilizeRefMap, stabilizeView } from './cardViewEqual';
 import { buildShopViews, type ShopViewCacheEntry } from './shopViewCache';
 import { deriveDragDecision, dragDecisionEqual, computeCastingSpell, handDragLines, handMinionCommits, NO_DRAG_DECISION, INSERT_FRAC, indexFromSlots, reorderIndexFromSlots, type DragGeo, type DragDecision } from './dragDecision';
 import { dragStore, useDragSlice, type DragSnapshot, type DragState } from './dragStore';
@@ -105,6 +105,7 @@ import { grantedTriggersOfBoard } from './grantedTriggers';
 import { clearAllHandBuffs, diffHandBuffs, fireHandBuff, fireHandBuffOnHandSpells, fireHandBuffOnHandRubies } from './handBuffFx';
 import { HudBar } from './HudBar';
 import { LobbyPanel } from './LobbyPanel';
+import { useStableLobby } from './stableLobby';
 import { GauntletFoe } from './gauntlet/GauntletFoe';
 import { TRIBE_ICON } from './gauntlet/tribeIcon';
 import { foePortrait } from './gauntlet/foePortrait';
@@ -302,6 +303,7 @@ import { visibleHandPreviews } from './handPreview';
 import { useChargePreview } from './chargeGlyphTune';
 import { FuseSim, type FuseGeom } from './fuseSim';
 import { FuseRenderer, gemCanvasHalf, type FuseView } from './fuseRender';
+import { cappedRaf } from './cappedRaf';
 import { FUSE_CFG_EVENT, fuseArtSpan, fuseSeed, getFuseCfg } from './fuseTune';
 import './backdrop'; // applies the player's saved board backdrop (Settings → Board) before the board paints
 import { fuseAppearsAt, fuseExitKind, fusePhaseOnLight, type FuseExit } from './fusePhase';
@@ -632,6 +634,9 @@ export const ShopTimer = memo(function ShopTimer({ practice, goldGoal }: { pract
 
 /** A phone repaints the charge glyph at most this often (R-PHONE-CHARGE-30HZ-01): ~30 Hz. */
 const PHONE_CHARGE_PAINT_MS = 32;
+/** Desktop steps the fuse (burn write, debris sim, both canvas passes) this many times a second, whatever the
+ *  display's refresh (R-PERF-FUSE-BURN-01). */
+const FUSE_DESKTOP_HZ = 60;
 /** The crystal fuse's live pieces for one light: the sim, its renderer, and the measured geometry (stage px). */
 interface FuseFx {
   sim: FuseSim;
@@ -806,6 +811,7 @@ const ChargeGlyph = memo(function ChargeGlyph({ inCombat, window: chargeWindow, 
       behind.width = Math.max(1, Math.round((right - left) * scale * dpr));
       behind.height = Math.max(1, Math.round((bottom - top) * scale * dpr));
       fx.behindView = { ox: left, oy: top, scale, dpr };
+      renderer.resetBehind(); // a resized canvas is blank, and last frame's rectangle no longer means anything
       // Gem canvas: a square over the button (fixed inside the stage, so stage px are its coordinates).
       // Pieces over the End Turn button draw ON TOP of it (owner 2026-10-27): the gem pass covers the button.
       const btn = document.querySelector('.etbwrap');
@@ -872,8 +878,7 @@ const ChargeGlyph = memo(function ChargeGlyph({ inCombat, window: chargeWindow, 
       // 0:00 reached while lit: everything collapses into the gem with a burst (lands with sfx.turnExplode()).
       if (charge >= 1 && sim.mode === 'charging' && !heldRef.current) { sim.collapse(); renderer.burst(); }
       if (!heldRef.current) sim.step(dt, charge, geom);
-      if (fx.behindCtx) renderer.drawBehind(fx.behindCtx, sim, geom, fx.behindView); // no-op once empty and clean
-      if (fx.gemCtx) renderer.drawGem(fx.gemCtx, sim, geom, fx.gemView, charge, now / 1000);
+      renderer.drawFrame(fx.behindCtx, fx.gemCtx, sim, geom, fx.behindView, fx.gemView, charge, now / 1000);
     };
     const chargeNow = (): number => {
       if (previewRef.current != null) return previewRef.current; // dev preview: pin to the forced charge (no clock)
@@ -883,27 +888,22 @@ const ChargeGlyph = memo(function ChargeGlyph({ inCombat, window: chargeWindow, 
     };
     // Frozen where the clock stopped: one paint + one draw (no sim step), no rAF while held.
     if (heldFx) { const c = chargeNow(); paint(c); simFrame(c, 0, performance.now()); return; }
-    let raf = 0;
-    // PHONES (R-PHONE-CHARGE-30HZ-01): each write of the burn changes the fuse's mask, which repaints it. A 120 Hz
-    // iPhone paid that 120 times a second for the last 20 s of every shop. The fuse moves about a layout px a frame,
-    // so ~30 writes a second look the same and cost a quarter; the sim steps on the same beat.
-    // Desktop paints every frame, as before.
-    let last = -Infinity;
+    // THE CADENCE (R-PERF-FUSE-BURN-01, perf pass 2026-11-18). The burn is transform-only now (styles.css `.fuse-burn`),
+    // so a write repaints nothing; what is left per tick is the debris sim and its two canvas passes. The fuse moves
+    // about one layout px a 60th of a second and the debris drifts, so DESKTOP ticks 60 times a second whatever the
+    // display runs at: on the 240 / 360 Hz panels the game is played on that is a quarter / a sixth of the old
+    // per-display-frame work, and `cappedRaf` sleeps through the frames it skips so they stop forcing a main frame
+    // (and with it a main-thread pass over every CSS loop on the board). PHONES keep their ~30 Hz
+    // (R-PHONE-CHARGE-30HZ-01). A hidden tab runs no frames at all.
     let lastStep = performance.now();
-    const draw = (now: number): void => {
-      if (!PHONE_GPU || now - last >= PHONE_CHARGE_PAINT_MS) {
-        last = now;
-        const c = chargeNow();
-        paint(c);
-        // Never one giant catch-up step (a backgrounded tab, a long frame): cap it.
-        const dt = Math.min(0.25, Math.max(0, (now - lastStep) / 1000));
-        lastStep = now;
-        simFrame(c, dt, now);
-      }
-      raf = requestAnimationFrame(draw);
-    };
-    raf = requestAnimationFrame(draw);
-    return () => cancelAnimationFrame(raf);
+    return cappedRaf((now) => {
+      const c = chargeNow();
+      paint(c);
+      // Never one giant catch-up step (a backgrounded tab, a long frame): cap it.
+      const dt = Math.min(0.25, Math.max(0, (now - lastStep) / 1000));
+      lastStep = now;
+      simFrame(c, dt, now);
+    }, PHONE_GPU ? 1000 / PHONE_CHARGE_PAINT_MS : FUSE_DESKTOP_HZ, () => perfMonitor.display.refreshHz);
   }, [shown, heldFx, chargeWindow, preview]);
 
   // Render the moment `lit` is true — `mounted` only HOLDS the DOM through the exit. `mounted` alone lags one
@@ -916,7 +916,7 @@ const ChargeGlyph = memo(function ChargeGlyph({ inCombat, window: chargeWindow, 
   return (
     <>
       <div className={`chargeglyph${exitCls}${heldFx ? ' held' : ''}`} ref={boxRef} aria-label={`${seconds}s left`} aria-hidden="true">
-        <div className="fuse-body" />
+        <div className="fuse-burn"><div className="fuse-body" /></div>
       </div>
       <canvas className={`charge-motes${exitCls}`} ref={canvasRef} aria-hidden="true" />
       {createPortal(<canvas className={`fuse-gemfx${exitCls}`} ref={gemRef} aria-hidden="true" />, stageHost())}
@@ -1504,6 +1504,8 @@ export function Recruit() {
   const screenId = screenIdOf(run);
   const swapped = useScreenSwapped(screenId);
   const dispatch = useGame((s) => s.dispatch);
+  // The lobby rail's prop keeps its identity across shop actions (R-PERF-LOBBY-STABLE-01, stableLobby.ts).
+  const stableLobby = useStableLobby(run.lobby, run.mode === 'versus');
   const heroArmed = useGame((s) => s.heroArmed);
   const compactCards = useGame((s) => s.compactCards);
   const armHero = useGame((s) => s.armHero);
@@ -4761,6 +4763,7 @@ export function Recruit() {
   // `checkTriples`' counting AND its threshold: the copies needed is 3 normally but 2 under Rune of Twin
   // Gilding or Midas' Touch, so the number you must already hold is `need - 1`. This was hardcoded to 2, so a
   // Midas player (who Gilds at 2) saw NO highlight on the duplicate that would complete it (owner 2026-08-21).
+  const tripleReadyCache = useRef<Set<string>>(new Set());
   const tripleReadyUids = useMemo(() => {
     const counts = new Map<string, number>();
     for (const c of [...run.board, ...run.hand]) {
@@ -4774,6 +4777,11 @@ export function Recruit() {
       const cd = CARD_INDEX[o.cardId];
       if (!cd?.spell && !cd?.ruby && !cd?.noTriple && (counts.get(o.cardId) ?? 0) >= gildCopiesNeeded(run, o.cardId) - 1) out.add(o.uid);
     }
+    // The same uids as last time: hand back the same Set, so the shop row keeps its memo (the run's arrays are new
+    // objects after every action, so this memo re-runs on each one; R-PERF-LOBBY-STABLE-01).
+    const prev = tripleReadyCache.current;
+    if (prev.size === out.size && [...out].every((u) => prev.has(u))) return prev;
+    tripleReadyCache.current = out;
     return out;
   }, [run.board, run.hand, run.shop, run.heroId, run.runeTwinGilding]);
   // DUOS (owner 2026-11-02, R-DUOS-MATE-TRIPLE-01): "when a teammate has a pair, and the minion shows up in your shop. we
@@ -9007,8 +9015,19 @@ export function Recruit() {
     return heldConsume.length || eotHeld.length ? new Set([...heldConsume.map((h) => h.uid), ...eotHeld]) : null;
   }, [heldConsume, eotRefillPending, eotConsumedUids]);
   // The grant previews' views, built once per (previews, run) instead of inside the hand row's map on every render.
+  // Keyed on the whole run (the builders read it broadly), so it re-runs on every action: an unchanged list keeps its
+  // identity (no previews = one shared empty array; otherwise the last array when every view is equal), so the hand
+  // row keeps its memo (R-PERF-LOBBY-STABLE-01).
+  const handPreviewCache = useRef<CardView[]>(NO_HAND_PREVIEWS);
   const handPreviewViews = useMemo(
-    () => handPreviews.map((cardId) => conjuredView(cardId, run) ?? tokenRefView(cardId, cardBuffsLive, run.impBuff, undefined, run.rubyBonus)),
+    () => {
+      if (handPreviews.length === 0) { handPreviewCache.current = NO_HAND_PREVIEWS; return NO_HAND_PREVIEWS; }
+      const fresh = handPreviews.map((cardId) => conjuredView(cardId, run) ?? tokenRefView(cardId, cardBuffsLive, run.impBuff, undefined, run.rubyBonus));
+      const prev = handPreviewCache.current;
+      if (prev.length === fresh.length && fresh.every((v, i) => cardViewEqual(prev[i]!, v))) return prev;
+      handPreviewCache.current = fresh;
+      return fresh;
+    },
     [handPreviews, run, cardBuffsLive],
   );
   // R-HAND-GRANT-SUMMON-01 (owner 2026-10-23): a minion granted mid-fight is in the combat hand under the uid its
@@ -9165,7 +9184,7 @@ export function Recruit() {
       {/* GOD MODE (owner 2026-10-08): the background table is invisible — the player picks each round's foe. */}
       {run.lobby && !run.godMode && (run.mode === 'gauntlet'
         ? <GauntletFoe />
-        : <LobbyPanel lobby={run.lobby} />)}
+        : <LobbyPanel lobby={stableLobby ?? run.lobby} />)}
       {/* GOD MODE panel: shop phase only — gone for the fight (owner: "the panel should not be visible during the
           fight phase") and while End of Turn plays out (the same interaction lock as the shop / board); also kept off
           hero select, the Good Luck intro and the full-screen pages (title, Compendium, …), which it would float over. */}

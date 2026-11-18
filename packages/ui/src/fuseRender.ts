@@ -71,6 +71,9 @@ export class FuseRenderer {
   private minCapture = 0;
   /** The behind-cards canvas may hold pixels (true until a frame finds nothing to draw and clears it). */
   private behindDrawn = true;
+  /** Last frame's behind-pass bounding box in backing px [x0, y0, x1, y1], and whether it is known. */
+  private readonly behindDirty: [number, number, number, number] = [0, 0, 0, 0];
+  private behindDirtyKnown = false;
   private burstAt = -1;
 
   constructor(cfg: FuseCfg, factory: SpriteFactory = domFactory) {
@@ -96,34 +99,141 @@ export class FuseRenderer {
   /** Draws the particles outside the gem pass; returns how many. An empty frame on an already-clean canvas does
    *  nothing at all (the charged wait after 0:00 keeps every orbiter in the gem pass, so this canvas goes idle). */
   drawBehind(ctx: CanvasRenderingContext2D, sim: FuseSim, g: FuseGeom, v: FuseView): number {
-    const R = Math.max(this.cfg.captureR, this.minCapture);
-    const ps = sim.particles;
-    let n = 0;
-    // The charged wait's orbiters always ride the gem pass (whatever the capture radius), so the big canvas goes idle.
-    const idle = sim.mode === 'idle';
-    if (!idle) for (let i = 0; i < ps.length; i++) if (!inGemPass(ps[i], g, R)) n++;
-    if (n === 0 && !this.behindDrawn) return 0;
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-    ctx.globalCompositeOperation = 'lighter';
-    if (!idle) for (let i = 0; i < ps.length; i++) if (!inGemPass(ps[i], g, R)) this.drawParticle(ctx, ps[i], v);
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.globalAlpha = 1;
-    this.behindDrawn = n > 0;
-    return n;
+    return this.drawFrame(ctx, null, sim, g, v, v, 0, 0);
   }
 
   drawGem(ctx: CanvasRenderingContext2D, sim: FuseSim, g: FuseGeom, v: FuseView, charge: number, timeSec: number): void {
+    this.drawFrame(null, ctx, sim, g, v, v, charge, timeSec);
+  }
+
+  /**
+   * ONE FRAME, ONE WALK over the particles (R-PERF-FUSE-BURN-01, perf pass 2026-11-18): each particle is classified
+   * once (inside the gem's capture radius or not) and blitted to its canvas. It used to be three walks (count the
+   * behind pass, draw it, draw the gem pass), each re-testing every particle. Also:
+   *   - the behind canvas clears only the rectangle last frame's debris covered, not its whole backing store (it spans
+   *     the fuse and 180 px around it; the debris is a narrow band in it for most of the burn);
+   *   - a shard no longer resets the transform after itself: the next mote does, if one follows.
+   * The picture is the same: additive blits, the same sprite, size, alpha and place for every particle.
+   * Either context may be null (a pass with no canvas). Returns how many particles the behind pass drew.
+   */
+  drawFrame(
+    behind: CanvasRenderingContext2D | null, gem: CanvasRenderingContext2D | null, sim: FuseSim, g: FuseGeom,
+    bv: FuseView, gv: FuseView, charge: number, timeSec: number,
+  ): number {
+    const c = this.cfg;
+    const R = Math.max(c.captureR, this.minCapture);
+    const R2 = R * R;
+    const ps = sim.particles;
+    // The charged wait's orbiters always ride the gem pass (whatever the capture radius), so the big canvas goes idle.
+    const idle = sim.mode === 'idle';
+    const bk = bv.scale * bv.dpr;
+    const gk = gv.scale * gv.dpr;
+
+    if (gem) {
+      gem.setTransform(1, 0, 0, 1, 0, 0);
+      gem.clearRect(0, 0, gem.canvas.width, gem.canvas.height);
+      gem.globalCompositeOperation = 'lighter';
+      this.drawGemGlow(gem, sim, g, gv, charge, timeSec);
+    }
+
+    // The behind canvas is cleared lazily: when the first behind particle turns up, or at the end if none did and
+    // last frame left pixels.
+    let n = 0;
+    let bx0 = Infinity; let by0 = Infinity; let bx1 = -Infinity; let by1 = -Infinity;
+    let bRot = false; // the context is left under a shard's rotation
+    let gRot = false;
+    for (let i = 0; i < ps.length; i++) {
+      const p = ps[i];
+      const dx = p.x - g.gemX;
+      const dy = p.y - g.gemY;
+      const inGem = idle || dx * dx + dy * dy < R2;
+      const ctx = inGem ? gem : behind;
+      if (!ctx) continue;
+      const k = inGem ? gk : bk;
+      const v = inGem ? gv : bv;
+      let alpha: number;
+      if (p.life === Infinity) alpha = 0.85;
+      else {
+        const fadeIn = Math.min(1, p.age / 0.12);
+        const fadeOut = Math.min(1, Math.max(0, (p.life - p.age) / (p.life * 0.25)));
+        alpha = fadeIn * fadeOut;
+      }
+      if (alpha <= 0.002) alpha = 0; // still one blit, so the passes stay exactly-once
+      const lvl = Math.min(HEAT_LEVELS - 1, Math.floor(p.heat * HEAT_LEVELS));
+      const shard = p.kind === 'shard';
+      const s = p.size * k * (shard ? 2.4 : 3.2);
+      const px = (p.x - v.ox) * k;
+      const py = (p.y - v.oy) * k;
+      if (!inGem) {
+        if (n === 0) this.clearBehind(ctx);
+        n++;
+        // A rotated square of side s fits a circle of radius s * 0.7072.
+        const h = shard ? s * 0.7072 : s * 0.5;
+        if (px - h < bx0) bx0 = px - h;
+        if (py - h < by0) by0 = py - h;
+        if (px + h > bx1) bx1 = px + h;
+        if (py + h > by1) by1 = py + h;
+      }
+      ctx.globalAlpha = alpha;
+      if (shard) {
+        const cs = Math.cos(p.rot); const sn = Math.sin(p.rot);
+        ctx.setTransform(cs, sn, -sn, cs, px, py);
+        ctx.drawImage(this.shards[lvl], -s / 2, -s / 2, s, s);
+        if (inGem) gRot = true; else bRot = true;
+      } else {
+        if (inGem ? gRot : bRot) {
+          ctx.setTransform(1, 0, 0, 1, 0, 0);
+          if (inGem) gRot = false; else bRot = false;
+        }
+        ctx.drawImage(this.motes[lvl], px - s / 2, py - s / 2, s, s);
+      }
+    }
+    if (gem) { gem.setTransform(1, 0, 0, 1, 0, 0); gem.globalAlpha = 1; }
+    if (behind) {
+      if (n === 0 && this.behindDrawn) this.clearBehind(behind);
+      if (n > 0) { behind.setTransform(1, 0, 0, 1, 0, 0); behind.globalAlpha = 1; }
+      this.behindDrawn = n > 0;
+      if (n > 0) {
+        const d = this.behindDirty;
+        d[0] = Math.floor(bx0) - 2; d[1] = Math.floor(by0) - 2; d[2] = Math.ceil(bx1) + 2; d[3] = Math.ceil(by1) + 2;
+        this.behindDirtyKnown = true;
+      }
+    }
+    return n;
+  }
+
+  /** The debris canvas's size changed (a resize, a new light): the next clear takes the whole canvas. */
+  resetBehind(): void {
+    this.behindDrawn = true;
+    this.behindDirtyKnown = false;
+  }
+
+  /** Clear what last frame's behind pass drew (its bounding box, when known; the whole canvas otherwise), and leave
+   *  the context ready for additive blits. */
+  private clearBehind(ctx: CanvasRenderingContext2D): void {
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    const w = ctx.canvas.width; const h = ctx.canvas.height;
+    if (this.behindDirtyKnown) {
+      const d = this.behindDirty;
+      const x0 = Math.max(0, d[0]); const y0 = Math.max(0, d[1]);
+      const x1 = Math.min(w, d[2]); const y1 = Math.min(h, d[3]);
+      if (x1 > x0 && y1 > y0) ctx.clearRect(x0, y0, x1 - x0, y1 - y0);
+    } else {
+      ctx.clearRect(0, 0, w, h);
+    }
+    this.behindDirtyKnown = false;
+    ctx.globalCompositeOperation = 'lighter';
+  }
+
+  /** The gem pass's own layers, under its particles: the glow, and the 0:00 collapse burst. */
+  private drawGemGlow(ctx: CanvasRenderingContext2D, sim: FuseSim, g: FuseGeom, v: FuseView, charge: number, timeSec: number): void {
     const c = this.cfg;
     const k = v.scale * v.dpr;
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-    ctx.globalCompositeOperation = 'lighter';
     const gx = (g.gemX - v.ox) * k;
     const gy = (g.gemY - v.oy) * k;
     const p = Math.min(1, Math.max(0, charge));
 
-    // Glow: faint → white-hot over the window, kicked by absorbs; a slow hum once charged and waiting.
+    // Glow: faint to white-hot over the window, kicked by absorbs; a slow hum once charged and waiting.
     const hum = sim.mode === 'idle' ? 0.9 + 0.1 * Math.sin(timeSec * 2.6) : 1;
     const a = Math.min(1, (c.gemGlow * (0.15 + 0.85 * p * p) + sim.absorbPulse * 0.5) * hum);
     if (a > 0.001) {
@@ -152,40 +262,6 @@ export class FuseRenderer {
           ctx.drawImage(this.core, gx - fs / 2, gy - fs / 2, fs, fs);
         }
       }
-    }
-
-    const R = Math.max(c.captureR, this.minCapture);
-    const ps = sim.particles;
-    const idle = sim.mode === 'idle';
-    for (let i = 0; i < ps.length; i++) if (idle || inGemPass(ps[i], g, R)) this.drawParticle(ctx, ps[i], v);
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.globalAlpha = 1;
-  }
-
-  private drawParticle(ctx: CanvasRenderingContext2D, p: FuseParticle, v: FuseView): void {
-    const k = v.scale * v.dpr;
-    let alpha: number;
-    if (p.life === Infinity) alpha = 0.85;
-    else {
-      const fadeIn = Math.min(1, p.age / 0.12);
-      const fadeOut = Math.min(1, Math.max(0, (p.life - p.age) / (p.life * 0.25)));
-      alpha = fadeIn * fadeOut;
-    }
-    if (alpha <= 0.002) alpha = 0; // still one blit, so the passes stay exactly-once
-    const lvl = Math.min(HEAT_LEVELS - 1, Math.floor(p.heat * HEAT_LEVELS));
-    const shard = p.kind === 'shard';
-    const spr = shard ? this.shards[lvl] : this.motes[lvl];
-    const s = p.size * k * (shard ? 2.4 : 3.2);
-    const px = (p.x - v.ox) * k;
-    const py = (p.y - v.oy) * k;
-    ctx.globalAlpha = alpha;
-    if (shard) {
-      const cs = Math.cos(p.rot); const sn = Math.sin(p.rot);
-      ctx.setTransform(cs, sn, -sn, cs, px, py);
-      ctx.drawImage(spr, -s / 2, -s / 2, s, s);
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
-    } else {
-      ctx.drawImage(spr, px - s / 2, py - s / 2, s, s);
     }
   }
 

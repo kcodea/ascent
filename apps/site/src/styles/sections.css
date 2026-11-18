@@ -388,6 +388,37 @@
   font-weight: 900;
 }
 
+/* The stats line is a row: tier and tribe, a dot set well apart, then Attack and Health parted by a drawn line. */
+.ashow__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.2em 0.7em;
+}
+
+.ashow__dot {
+  margin-inline: 0.5em;
+}
+
+/* On a narrow card the stats drop to their own row, so the dot would be left dangling. */
+@media (max-width: 759px) {
+  .ashow__dot {
+    display: none;
+  }
+
+  .ashow__meta b {
+    flex-basis: 100%;
+  }
+}
+
+.ashow__bar {
+  align-self: stretch;
+  width: 1px;
+  margin-block: 0.15em;
+  background: currentColor;
+  opacity: 0.7;
+}
+
 .ashow__blurb b {
   color: color-mix(in srgb, var(--anc) 55%, var(--white));
   font-weight: 800;

@@ -65,7 +65,8 @@ describe('the rune rewards', () => {
       expect(panel.querySelector('.ashow__kicker')!.textContent).toBe('Card Reward');
       const card = panel.querySelector('.ashow__card')!.textContent!;
       expect(tile.querySelector('.rune__text')!.textContent).toContain(card);
-      expect(panel.querySelector('.ashow__meta')!.textContent).toMatch(/^Tier \d.* · \d+ Attack \| \d+ Health$/);
+      expect(panel.querySelector('.ashow__meta')!.textContent).toMatch(/^Tier \d.* · \d+ Attack\s+\d+ Health$/);
+      expect(panel.querySelector('.ashow__meta .ashow__bar')).not.toBeNull();
       expect(panel.querySelector('.ashow__meta b')!.textContent).toMatch(/^Tier \d( \w+)?$/);
       expect(panel.querySelector('.ashow__blurb')!.textContent!.length).toBeGreaterThan(10);
     }

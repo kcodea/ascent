@@ -65,6 +65,19 @@ export const PATCH_NOTES: PatchNote[] = [
           'The Gilded minion starts at the furthest progress of the copies that combined. It used to start again from 0.',
           'This covers every counter under a minion: Gold spent, cards bought, cards played, minions sold, spells and Rubies cast, Shouts, Orbits, Refreshes and Spirits played.',
           'Combining never pays the effect out. The next step pays it as normal.',
+        text: 'Mech and Spirit have new tribe colors that match the gems on their card frames.',
+        details: [
+          'Mech is now indigo instead of sky blue.',
+          'Spirit is now copper orange instead of pale peach.',
+        ],
+      },
+      {
+        category: 'Balance',
+        text: 'Midas with the Ancient of War now reads: Start of Combat: give a friendly minion Ward for every Gilded minion you control.',
+        details: [
+          'It counts the Gilded minions on your own board. Enemy Gilded minions no longer matter.',
+          'Each Ward goes to a different random friendly minion that does not have Ward yet.',
+          'It used to give 2 random friendly minions Ward for each Gilded enemy minion.',
         ],
       },
       {

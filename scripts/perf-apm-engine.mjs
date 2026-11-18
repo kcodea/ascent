@@ -16,6 +16,9 @@
  *      (drag board -> shop), refresh when the shop is empty, at --rate actions a second for --secs seconds. What to do
  *      next is read off the store (no layout); where to click is one rect read per action (timed and reported).
  *      The shop is restocked with the scripted Shout minions inside the same task as the game's own refresh.
+ *      The driver is CLOSED-LOOP, like a player: it waits for Chrome to take each mouse event, so a slower page is
+ *      driven more slowly. Accepted actions a second is therefore a RESULT; at a rate the page cannot hold, every
+ *      build's main thread is saturated, and builds compare on ms per accepted action, not on ms per second.
  *   3. THE TAIL: no input for --tail seconds, to see what is still playing.
  *
  * What it measures, separately:
@@ -25,11 +28,17 @@
  *                pointerup -> the first frame after it, and Event Timing's own input -> next paint. Actions that the
  *                game did not accept (a missed pick-up, a refused drop) are counted and listed.
  *   (c) BACKLOG  sampled every 100 ms: stat badges whose printed number is behind the run's real number (and by how
- *                much), live GSAP tweens, live Pixi FX plays, pending timeouts, DOM nodes; peak vs idle, growth
- *                across the burst, and how long after the LAST input each one takes to return to idle.
- *   (d) COST     main-thread time from CDP (script / style / layout / all tasks) per second and per accepted action;
- *                with --perf-timings the in-game monitor's labelled spans; --profile a CPU profile (top self time);
- *                --trace a GPU / raster trace summary.
+ *                much), live GSAP tweens, live Pixi FX plays, the Shop's paced steps still waiting
+ *                (fx/shopFxQueue.ts), pending timeouts, DOM nodes; peak vs idle, growth across the burst, and how
+ *                long after the LAST input each one takes to return to idle.
+ *   (d) COST     main-thread time from CDP (script / style / layout / all tasks) per second and per accepted action,
+ *                and the in-game monitor's labelled spans; --profile a CPU profile (top self time, and who called
+ *                the layout natives); --trace a GPU / raster trace summary; --trace-style who forced and who dirtied
+ *                style; --per-action what one buy / play / cast / sell / refresh costs.
+ *
+ * THE MACHINE IS USUALLY SHARED. Every run prints the whole machine's CPU share during its burst. Compare builds
+ * ROUND-ROBIN (one run of each, then the next round: `--runs 1 --label <build>-<round>`), never one build's runs
+ * after another's.
  *
  * Usage:
  *   npm run perf:apm                         build this working tree, 1 run, print the report
@@ -42,10 +51,12 @@
  *                                            the same bundle with the rapid-input presentation (fx/rapidConfig.ts) switched off
  *   npm run perf:apm -- --toggle nofx        the same run with one cost class switched off: nofx | nofilter | nocardfilter | noanim
  *   npm run perf:apm -- --profile | --trace | --trace-style | --census | --shots <dir> | --headed | --label <name>
+ *   npm run perf:apm -- --per-action         before the burst, one action every 1.2 s: what a buy / play / cast / sell / refresh costs
  *   npm run perf:apm -- --screencast <dir>   JPEG frames of five seconds of the burst (a capture to look at, not a measurement)
+ *   npm run perf:apm -- --no-priority        do not raise this run's Chrome and driver to High priority (Windows)
  * Exit code: 0 done; 1 the scene could not be built; 2 setup error; 3 the --guard failed.
  */
-import { execSync, spawn } from 'node:child_process';
+import { execFileSync, execSync, spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import fs from 'node:fs';
 import http from 'node:http';
@@ -180,6 +191,25 @@ async function launch(profile) {
   const close = () => { try { sock.close(); } catch { /* closed */ } proc.kill(); };
   return { send, on, close };
 }
+/**
+ * ON A SHARED MACHINE THE BENCH RUNS ABOVE THE CROWD. With other builders' tests and builds holding every core, this
+ * Chrome and this driver were starved: a third of the actions and frames that belong to the scheduler, not the game
+ * (2026-11-18: 55 actions in 25 s at 100% machine CPU, 130 to 170 when it was quiet). So the driver and every
+ * process of this run's Chrome (found by its throwaway profile path) go to HIGH priority: they use about two cores
+ * of sixteen and take them first. Windows only; --no-priority turns it off. It changes who gets a core, not what the
+ * page costs.
+ */
+function raisePriority(profile) {
+  if (flag('no-priority')) return 'off';
+  try { os.setPriority(process.pid, os.constants.priority.PRIORITY_HIGH); } catch { /* not allowed: carry on */ }
+  if (process.platform !== 'win32') return 'driver only';
+  try {
+    const key = path.basename(profile).replace(/'/g, '');
+    const ps = `$n = 0; Get-CimInstance Win32_Process -Filter "Name='chrome.exe'" | Where-Object { $_.CommandLine -like '*${key}*' } | ForEach-Object { try { (Get-Process -Id $_.ProcessId).PriorityClass = 'High'; $n++ } catch {} }; $n`;
+    return `${execFileSync('powershell', ['-NoProfile', '-Command', ps], { encoding: 'utf8', timeout: 30_000 }).trim()} Chrome processes + the driver at High`;
+  } catch { return 'failed'; }
+}
+
 async function evaluate(c, expression, ms = 120_000) {
   // A page whose main thread is stuck never answers: fail the run with what was asked instead of hanging forever.
   const r = await Promise.race([c.send('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true }), sleep(ms).then(() => null)]);
@@ -305,7 +335,6 @@ async function oneRun(port, runIdx, dist) {
       void (local ? c.send('Fetch.continueRequest', { requestId: p.requestId }) : c.send('Fetch.failRequest', { requestId: p.requestId, errorReason: 'BlockedByClient' })).catch(() => {});
     });
     await c.send('Page.addScriptToEvaluateOnNewDocument', { source: PROBE });
-    if (flag('perf-timings')) await c.send('Page.addScriptToEvaluateOnNewDocument', { source: `try { localStorage.setItem('ascent.perf', '1'); } catch {}` });
     if (arg('css', '')) await c.send('Page.addScriptToEvaluateOnNewDocument', { source: `document.addEventListener('DOMContentLoaded', () => { const s = document.createElement('style'); s.textContent = ${JSON.stringify(arg('css', ''))}; document.head.appendChild(s); });` });
     if (arg('init-js', '')) await c.send('Page.addScriptToEvaluateOnNewDocument', { source: arg('init-js') });
     await c.send('Emulation.setDeviceMetricsOverride', { width: W, height: H, deviceScaleFactor: 1, mobile: false });
@@ -341,6 +370,7 @@ async function oneRun(port, runIdx, dist) {
       await sleep(600);
     }
     if (!(await ev(inShop))) throw new Error('first shop not reached');
+    const priority = raisePriority(profile);
     await sleep(2500);
 
     // ---- the scene, through the store (the game's own actions) ----
@@ -482,6 +512,28 @@ async function oneRun(port, runIdx, dist) {
     }
     if (arg('toggle', '')) await sleep(1500);
 
+    // ---- --per-action: what ONE action costs, by kind (a slow pass before the burst: one action, then 250 ms) ----
+    // The main-thread time (CDP) of the 250 ms after each action, less what the same 250 ms costs with no action.
+    let perAction = null;
+    if (flag('per-action')) {
+      const WIN = 250; const rows = []; const idleRows = [];
+      const delta = (a, b) => ({ task: b.TaskDuration - a.TaskDuration, script: b.ScriptDuration - a.ScriptDuration, style: b.RecalcStyleDuration - a.RecalcStyleDuration, layout: b.LayoutDuration - a.LayoutDuration });
+      for (let i = 0; i < 66; i++) {
+        await sleep(650); // the previous action's effects have mostly played out
+        const i0 = await metrics(); await sleep(WIN); const i1 = await metrics(); idleRows.push(delta(i0, i1));
+        const a0 = await metrics(); const kind = await act(); await sleep(WIN); const a1 = await metrics();
+        if (kind) rows.push({ kind, ...delta(a0, a1) });
+      }
+      const med = (v) => { const x = [...v].sort((a, b) => a - b); return x.length ? x[x.length >> 1] : 0; };
+      const base = { task: med(idleRows.map((r) => r.task)), script: med(idleRows.map((r) => r.script)), style: med(idleRows.map((r) => r.style)), layout: med(idleRows.map((r) => r.layout)) };
+      perAction = { windowMs: WIN, idle: base, byKind: {} };
+      for (const kind of [...new Set(rows.map((r) => r.kind))]) {
+        const rs = rows.filter((r) => r.kind === kind);
+        perAction.byKind[kind] = { n: rs.length, task: r1(med(rs.map((r) => r.task)) - base.task), script: r1(med(rs.map((r) => r.script)) - base.script), style: r1(med(rs.map((r) => r.style)) - base.style), layout: r1(med(rs.map((r) => r.layout)) - base.layout) };
+      }
+      await sleep(3000);
+    }
+
     // ---- idle baseline ----
     await ev(`window.__apm.startSampler(${flag('census')})`);
     await ev(`window.__apm.mark('idle')`);
@@ -524,8 +576,8 @@ async function oneRun(port, runIdx, dist) {
     await ev(`window.__apm.mark('tail')`);
     const machineBusyPct = cpuBusyPct(cpu0, os.cpus());
     const m2 = await metrics();
-    let profile = null;
-    if (flag('profile')) profile = (await c.send('Profiler.stop')).profile;
+    let cpuProfile = null;
+    if (flag('profile')) cpuProfile = (await c.send('Profiler.stop')).profile;
     if (flag('trace') || flag('trace-style')) { const done = new Promise((r) => c.on('Tracing.tracingComplete', r)); await c.send('Tracing.end'); await Promise.race([done, sleep(60000)]); }
     if (arg('shots', '')) { for (const [i, ms] of [[0, 150], [1, 600], [2, 1500]]) { await sleep(ms - (i ? [150, 600][i - 1] : 0)); const s = await c.send('Page.captureScreenshot', { format: 'png' }); fs.writeFileSync(path.join(arg('shots'), `tail-${LABEL || 'run'}-${runIdx}-${ms}ms.png`), Buffer.from(s.data, 'base64')); } }
     await sleep(TAIL * 1000);
@@ -534,7 +586,7 @@ async function oneRun(port, runIdx, dist) {
     await ev(`window.__apm.stopSampler()`);
     const final = await ev(`(() => { const r = ${g}.run; return { board: r.board.map((b) => [b.cardId, b.attack, b.health]) }; })()`);
     const dump = await ev(`window.__apm.dump()`);
-    return { gpu, built, dump, dist, hungInputs, machineBusyPct, metrics: { idle: [m0, m1], burst: [m1, m2], tail: [m2, m3] }, attempted, profile, traceEvents, final };
+    return { gpu, built, dump, dist, hungInputs, machineBusyPct, priority, perAction, metrics: { idle: [m0, m1], burst: [m1, m2], tail: [m2, m3] }, attempted, profile: cpuProfile, traceEvents, final };
   } catch (e) {
     // What was on screen when the run failed (the usual cause: a screen the script did not expect).
     try { fs.mkdirSync(OUT, { recursive: true }); const s = await Promise.race([c.send('Page.captureScreenshot', { format: 'png' }), sleep(8000).then(() => { throw new Error('no screenshot'); })]); fs.writeFileSync(path.join(OUT, `failed-${LABEL || 'run'}-${runIdx}.png`), Buffer.from(s.data, 'base64')); } catch { /* the page is gone */ }
@@ -553,7 +605,7 @@ function analyse(run) {
   const d = run.dump;
   const markAt = (n) => (d.marks.find((m) => m[1] === n) || [0])[0];
   const tIdle = markAt('idle'), tBurst = markAt('burst'), tTail = markAt('tail'), tEnd = markAt('end');
-  const out = { gpu: run.gpu, attempted: run.attempted, hungInputs: run.hungInputs, machineBusyPct: run.machineBusyPct };
+  const out = { gpu: run.gpu, attempted: run.attempted, hungInputs: run.hungInputs, machineBusyPct: run.machineBusyPct, priority: run.priority };
   out.frames = { idle: frameStats(d.ft, tIdle, tBurst), burst: frameStats(d.ft, tBurst, tTail), tail: frameStats(d.ft, tTail, tEnd) };
   out.loaf = { burst: d.loaf.filter((l) => l[0] >= tBurst && l[0] < tTail).length, tail: d.loaf.filter((l) => l[0] >= tTail && l[0] < tEnd).length, worstMs: r1(Math.max(0, ...d.loaf.filter((l) => l[0] >= tBurst && l[0] < tEnd).map((l) => l[1]))) };
   out.longtasks = { burst: d.longtasks.filter((l) => l[0] >= tBurst && l[0] < tTail).length, totalMs: r1(d.longtasks.filter((l) => l[0] >= tBurst && l[0] < tTail).reduce((a, l) => a + l[1], 0)) };
@@ -641,6 +693,7 @@ function analyse(run) {
   if (run.profile) out.profileTop = topSelf(run.profile, 40, run.dist);
   if (run.traceEvents.length && flag('trace-style')) out.styleTrace = styleTrace(run.traceEvents, run.dist, bs, ok.length);
   else if (run.traceEvents.length) out.trace = traceSummary(run.traceEvents, bs);
+  if (run.perAction) out.perActionCost = run.perAction;
   out.final = run.final;
   return out;
 }
@@ -764,7 +817,7 @@ function report(results) {
   const a0 = results[0];
   lines.push(`# perf:apm ${LABEL ? `[${LABEL}] ` : ''}scene ${SCENE}, ${RATE} actions/s for ${SECS} s, ${results.length} run(s)`);
   lines.push(`GPU: ${a0.gpu}. Values are the median of the runs (min-max).`);
-  lines.push(`Whole-machine CPU busy during the burst: ${results.map((r) => r.machineBusyPct + '%').join(' / ')} (this page and Chrome's own processes are about 15 to 20 points of it; more means other work on the machine).`);
+  lines.push(`Whole-machine CPU busy during the burst: ${results.map((r) => r.machineBusyPct + '%').join(' / ')} (this page and Chrome's own processes are about 15 to 20 points of it; more means other work on the machine). Priority: ${a0.priority}.`);
   lines.push('');
   lines.push('## (a) Frames');
   lines.push('| window | mean ms | p95 | p99 | max | % over 240 Hz budget | % over 6.25 | dropped/s | over 16.7/s | over 33 ms |');
@@ -795,6 +848,12 @@ function report(results) {
   for (const [w, n] of [['idlePerSec', 'idle'], ['burstPerSec', 'burst'], ['tailPerSec', 'tail']]) lines.push(`| ${n} | ${pick((r) => r.cost[w].TaskDuration)} | ${pick((r) => r.cost[w].ScriptDuration)} | ${pick((r) => r.cost[w].RecalcStyleDuration)} | ${pick((r) => r.cost[w].LayoutDuration)} | ${pick((r) => r.cost[w].RecalcStyleCount)} | ${pick((r) => r.cost[w].LayoutCount)} |`);
   lines.push(`Per accepted action: ${pick((r) => r.cost.perAction.task)} ms of tasks (script ${pick((r) => r.cost.perAction.script)}, style ${pick((r) => r.cost.perAction.style)}, layout ${pick((r) => r.cost.perAction.layout)}).`);
   lines.push(`Harness: ${pick((r) => r.harness.rectReads)} rect reads, ${pick((r) => r.harness.ms)} ms in total (${pick((r) => r.harness.msPerRead)} ms each; they force a layout the next frame would have done).`);
+  if (a0.perActionCost) {
+    lines.push(''); lines.push(`### What one action costs, by kind (run 1: main-thread ms in the ${a0.perActionCost.windowMs} ms after it, less an idle ${a0.perActionCost.windowMs} ms; one action every 1.2 s)`);
+    lines.push('| action | n | all tasks | script | style | layout |'); lines.push('|---|---|---|---|---|---|');
+    for (const [k, v] of Object.entries(a0.perActionCost.byKind)) lines.push(`| ${k} | ${v.n} | ${v.task} | ${v.script} | ${v.style} | ${v.layout} |`);
+    lines.push(`(idle ${a0.perActionCost.windowMs} ms: ${r1(a0.perActionCost.idle.task)} ms of tasks, ${r1(a0.perActionCost.idle.style)} style)`);
+  }
   if (a0.spans) { lines.push(''); lines.push('### In-game monitor spans (run 1, self ms per second of burst)'); lines.push('| label | calls | self ms/s | total ms/s | worst ms |'); lines.push('|---|---|---|---|---|'); for (const s of a0.spans) lines.push(`| ${s.label} | ${s.n} | ${s.selfMsPerSec} | ${s.totalMsPerSec} | ${s.max} |`); lines.push(''); lines.push(`Inside dropped frames: ${a0.longAttrib.map((x) => `${x.label} ${x.ms} ms / ${x.frames} frames`).join('; ')}`); lines.push(`Peak FX counters: ${JSON.stringify(a0.fxCounts)}`); }
   if (a0.profileTop) { lines.push(''); lines.push('### CPU profile, top self time (run 1)'); for (const p of a0.profileTop.top) lines.push(`- ${p.ms} ms (${p.pct}%) ${p.fn}`); lines.push(''); lines.push('### Who called the layout / lookup natives (run 1, self ms)'); for (const p of a0.profileTop.nativeCallers) lines.push(`- ${p.ms} ms (${p.pct}%) ${p.fn}`); }
   if (a0.styleTrace) { lines.push(''); lines.push('### Style / layout trace (run 1)'); lines.push(...a0.styleTrace); }

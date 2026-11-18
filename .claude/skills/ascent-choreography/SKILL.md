@@ -92,6 +92,21 @@ Other rules:
 - A missing FX after adding a beat hook is acceptable. A missing gameplay consequence is not.
 - Clean up Pixi tickers, filters, containers, listeners, particles and transient textures.
 
+## Rapid input in the Shop
+
+While the player lands three or more Shop actions inside a second, only the newest action is presented in full
+(R-PERF-APM-01, `fx/actionPressure.ts`, dials in `fx/rapidConfig.ts`). Two rules for anything new you add to the Shop:
+
+- **A paced step goes through `shopFxLater`** (`fx/shopFxQueue.ts`), never a bare `setTimeout`: a later buff wave, a
+  chain link, a buffer waiting its turn. A new action under rapid input drops the earlier actions' steps that have not
+  started; at up to two actions a second it is `setTimeout`.
+- **A withheld number goes through `holdStat`**. Under rapid input it does not hold (the badge shows the truth and
+  pops once), so never keep your own copy of "the number to reveal later".
+
+`playDef` handles the rest on its own (one live copy of an effect per recipient, paced with the input), except for a
+play you sequence on with `onDone`, a loop or a follow: those are yours. Check a new Shop effect with
+`npm run perf:apm -- --guard`.
+
 ## Perf rules that bite here
 
 Never animate paint properties (`box-shadow`, `filter`, `drop-shadow`, `background`, `border-radius`) in a

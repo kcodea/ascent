@@ -17,11 +17,11 @@ export type TribeColorConfig = Record<Tribe, string>;
 /** The shipped hues — MUST equal the `--t-*` tokens at the top of styles.css. */
 const DEFAULTS: TribeColorConfig = {
   // The two set-3 tribes — the owner's picks (2026-09-14): Celestial a moonlit periwinkle, Spirit a warm
-  // lantern peach.
+  // lantern peach. Owner 2026-11-18: Spirit and Mech moved to their card-frame gem hues (copper orange, indigo).
   celestial: '#96a0c5',
-  spirit: '#f8cd90',
+  spirit: '#ff9d5c',
   // The eight that already had a hue, unchanged.
-  beast: '#4ea83b', dragon: '#ffffff', mech: '#27a9dd', undead: '#22b8a8', demon: '#b15cf0', neutral: '#9a8d79',
+  beast: '#4ea83b', dragon: '#ffffff', mech: '#6352ff', undead: '#22b8a8', demon: '#b15cf0', neutral: '#9a8d79',
   dwarf: '#f0c33c', kobold: '#e8553a',
 };
 export { DEFAULTS as TRIBE_COLOR_DEFAULTS };

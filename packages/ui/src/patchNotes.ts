@@ -58,6 +58,16 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-11-18',
     changes: [
+      {
+        category: 'Systems',
+        text: 'Game results now show the hero power and the Ancient picked with it, for you and for every player in the lobby.',
+        details: [
+          'The hero power sits beside the runes under the final board. Hover it to read the power and what its Ancient adds.',
+          'Pick a player in the lobby to see their hero power and Ancient.',
+          'Lobby tiles show a small Ancient badge on the hero portrait.',
+          'Games from before Ancients show the plain hero power.',
+        ],
+      },
       { category: 'Systems', text: 'When an Ancient awakens, you can now Peek at the board before you choose, like a Discover. Press Return to Ancients to bring the choice back.' },
       { category: 'Systems', text: 'The Ancient choice now sits on the same dark backdrop as the Runeforge, so the Ancients stand out from the board.' },
     ],

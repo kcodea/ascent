@@ -12,7 +12,7 @@
  * cosmetics").
  */
 import { memo, useCallback, useMemo, useState, type ReactNode } from 'react';
-import type { MatchDetails, MatchSeat } from '@game/sim';
+import { ANCIENTS, type MatchDetails, type MatchSeat } from '@game/sim';
 import type { BoardMinion } from '@game/core';
 import type { RunCosmeticSnapshot } from '@game/progression';
 import { RUNE_INDEX } from '@game/content';
@@ -23,6 +23,7 @@ import { StoredTeam } from '../StoredTeam';
 import { RuneEmblem } from '../RuneEmblem';
 import { opponentSkins } from '../skins/skins';
 import { SeatPortrait } from './MatchScoreboard';
+import { SeatAncientBadge } from './SeatPower';
 import { GAME_STRENGTH_LABEL, ordinalOf } from './matchDetailsText';
 
 /** The seat's place as a real place: "1st" ... "8th", or "Still in" for a seat standing when your game ended whose
@@ -62,6 +63,8 @@ export function seatFate(seat: MatchSeat, d: MatchDetails): string | null {
 function seatTip(seat: MatchSeat, d: MatchDetails, own: boolean): string {
   const parts = [`${seatOut(seat, d)}.`];
   if (typeof seat.strength === 'number') parts.push(`${GAME_STRENGTH_LABEL} ${seat.strength}.`);
+  const anc = seat.ancient ? ANCIENTS[seat.ancient.id] : undefined;
+  if (anc) parts.push(`${anc.name}.`);
   if (seat.health > 0) parts.push(`${seat.health} Health${seat.armor > 0 ? `, ${seat.armor} Armor` : ''}.`);
   if (seat.id === d.knockedOutBy) parts.push(own ? 'Knocked you out.' : `Knocked ${ownerNameOf(d)} out.`);
   return parts.join(' ');
@@ -164,7 +167,7 @@ export const LobbyTiles = memo(function LobbyTiles({ details, selectedId, onPick
             }}
           >
             <span className="lp-tile-head">
-              <span className="lp-chip-portrait"><SeatPortrait heroId={seat.heroId} skins={seatSkinsOf(seat, own, showOpp)} self={!!seat.self && own} /></span>
+              <span className="lp-chip-portrait"><SeatPortrait heroId={seat.heroId} skins={seatSkinsOf(seat, own, showOpp)} self={!!seat.self && own} /><SeatAncientBadge ancient={seat.ancient} /></span>
               <span className="lp-chip-txt">
                 <span className="lp-chip-place">{seatPlace(seat, details)}{seatFate(seat, details) !== null && <span className="lp-tile-out">{seatFate(seat, details)}</span>}</span>
                 <span className="lp-chip-name">{seatName(seat, own)}</span>

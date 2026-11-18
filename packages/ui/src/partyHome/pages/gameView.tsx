@@ -14,7 +14,7 @@
  * PERFORMANCE: static paint; only the open game's board mounts; its card FX stay still until pointed at.
  */
 import { memo, useMemo, useEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react';
-import type { BoardSnapshot, BuffRow, MatchDetails, RuneLiveState } from '@game/sim';
+import type { BoardSnapshot, BuffRow, MatchAncient, MatchDetails, RuneLiveState } from '@game/sim';
 import { usePhLayer } from '../shell/usePhLayer';
 import { sfx } from '../../sfx';
 import type { RunCosmeticSnapshot } from '@game/progression';
@@ -24,6 +24,7 @@ import { StoredTeam } from '../../StoredTeam';
 import { LbRunes } from '../../LadderBits';
 import { bandOf, placeText, type GameBand } from '../../GameCard';
 import { LobbyTiles, MiniBoard, SeatBoard, SeatRuneRow, ShowingLine, useLobbySeat } from '../../matchDetails/LobbyPicker';
+import { SeatPower } from '../../matchDetails/SeatPower';
 import { PhButton, PhFact, PhSelectList } from '../kit';
 import './gamesPages.css';
 
@@ -154,6 +155,10 @@ export interface GameDetailProps {
   /** The band, when the placement's own split does not fit. Absent = `bandOf(place)`. */
   band?: GameBand;
   who: string; heroName: string; art?: string;
+  /** The game's hero, for its hero power beside the runes (R-RESULTS-ANCIENT-01). Absent = the lobby's own seat's. */
+  heroId?: string;
+  /** The game's picked Ancient, read off the stored final board (`BoardSnapshot.ancient`) when the lobby has none. */
+  ancient?: MatchAncient | null;
   record: string; recordTone: 'up' | 'down' | '';
   rank: number | null;
   facts: readonly GameFact[];
@@ -254,6 +259,7 @@ export const GameDetail = memo(function GameDetail(p: GameDetailProps) {
   // Fades only when it was waited for: a revisit (the answer already in hand) paints as it always did.
   const waited = useRef(!!p.matchPending);
   const { seat, pick } = useLobbySeat(p.match);
+  const selfSeat = p.match?.seats.find((x) => x.self);
   // A pick in the lobby (below the board) brings the board back into view; nothing moves when it is already on screen.
   const boardRef = useRef<HTMLElement | null>(null);
   // Only on a real change of seat (StrictMode runs effects twice), and it scrolls only the detail column, never the page.
@@ -323,6 +329,10 @@ export const GameDetail = memo(function GameDetail(p: GameDetailProps) {
               : <div className="rgp-none">No board recorded for this game</div>}
         </div></div>
         <div className="rgp-runes">
+          {/* WHOSE POWER, WITH ITS ANCIENT (R-RESULTS-ANCIENT-01): the shown board's hero power, ahead of its runes. */}
+          {seat
+            ? <SeatPower heroId={seat.heroId} ancient={seat.ancient} who={seat.name} />
+            : <SeatPower heroId={p.heroId ?? selfSeat?.heroId} ancient={selfSeat?.ancient ?? p.ancient} who={p.who} />}
           {seat ? <SeatRuneRow seat={seat} /> : <LbRunes runes={p.runes} live={p.runeLive} empty="No runes taken" />}
         </div>
       </section>

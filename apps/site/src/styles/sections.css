@@ -325,6 +325,9 @@
   border-radius: 0;
   background: none;
   box-shadow: none;
+  /* The art itself thins out over its lower half, so the plate's navy shows through with no edge to see. */
+  -webkit-mask-image: linear-gradient(180deg, var(--black) 48%, color-mix(in srgb, var(--black) 62%, transparent) 68%, color-mix(in srgb, var(--black) 22%, transparent) 86%, transparent);
+  mask-image: linear-gradient(180deg, var(--black) 48%, color-mix(in srgb, var(--black) 62%, transparent) 68%, color-mix(in srgb, var(--black) 22%, transparent) 86%, transparent);
 }
 
 .rune[aria-pressed='true'] {
@@ -337,10 +340,9 @@
   flex: 1;
   flex-direction: column;
   width: 100%;
-  margin-top: -30%;
-  padding: 40% var(--s3) var(--s4);
+  margin-top: 0;
+  padding: 0 var(--s3) var(--s4);
   text-align: center;
-  background: linear-gradient(0deg, var(--showcase) 52%, transparent);
 }
 
 .rune__name {
@@ -396,6 +398,11 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: color-mix(in srgb, var(--anc) 45%, var(--muted));
+}
+
+.ashow__meta b {
+  font-weight: 900;
+  color: var(--white);
 }
 
 .ashow__blurb b {

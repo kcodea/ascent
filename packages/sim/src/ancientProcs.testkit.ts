@@ -51,7 +51,7 @@ export const ANCIENT_PROC_PHASES: Readonly<Record<string, readonly ProcPhase[]>>
   pummelPowerUse: ['combat'], pummelSwapCharge: ['combat'], autoReclaimLeftmostEcho: ['combat'],
   socBladeMastery: ['combat'], socBuffPerGildedPlayed: ['combat'], socBuffPerShout: ['combat'], socBuffTribePerBought: ['combat'],
   socCopyTier7: ['combat'], socCopyTopHealth: ['combat'], socGildRightmost: ['combat'], socRallyPerGoldSpent: ['combat'],
-  socTriggerEdgeShouts: ['combat'], socTripleNeutrals: ['combat'], socWardFlurry: ['combat'], socWardPerGildedFoe: ['combat'],
+  socTriggerEdgeShouts: ['combat'], socTripleNeutrals: ['combat'], socWardFlurry: ['combat'], socWardPerGilded: ['combat'],
   // ── Shop events ──
   buyNextRefreshFree: ['shop'], buysBuffImproves: ['shop'], buysDiscoverLocked: ['shop'], clearanceDestroyFirstFree: ['shop'],
   clearanceSaleGivesStats: ['shop'], coinCastImproves: ['shop'], contrabandBuyFreeRefresh: ['shop'], contrabandKeyword: ['shop'],

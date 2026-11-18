@@ -602,15 +602,13 @@ export const CASES: ProcCase[] = [
       return r.procs;
     },
   },
-  // WAR: Start of Combat Ward, one fire (2 Gilded foes: 4 Wards).
+  // WAR: Start of Combat Ward, one fire (2 Gilded minions on Midas's own board: 2 Wards).
   {
     hero: 'midas', ancient: 'war', phase: 'combat', fires: 1,
-    note: 'two Gilded foes: four Wards, one Start of Combat fire',
+    note: 'two Gilded minions on your board: two Wards, one Start of Combat fire',
     run: () => {
-      const s = pickedRun('midas', 'war', { embers: 20, board: ['a', 'b', 'c', 'd', 'e'].map((u, i) => body(u, N(i), { attack: 1, health: 50 })) });
-      const foe = foes(s.wave, 0, 300, 3);
-      foe.minions = foe.minions.map((m, i) => (i < 2 ? { ...m, golden: true } : m)) as typeof foe.minions;
-      return fight(s, foe).procs;
+      const s = pickedRun('midas', 'war', { embers: 20, board: ['a', 'b', 'c', 'd', 'e'].map((u, i) => (i < 2 ? gilded(u, N(i), { attack: 1, health: 50 }) : body(u, N(i), { attack: 1, health: 50 }))) });
+      return fight(s, foes(s.wave, 0, 300, 3)).procs;
     },
   },
   // GENESIS: each Gild (a Gilded play) also grants a Triple Reward.

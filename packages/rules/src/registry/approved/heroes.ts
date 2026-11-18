@@ -2436,7 +2436,7 @@ export const HEROES_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: "Kevin via the lead, 2026-11-16 (Ancient pass 2 review board)", quote: "Midas / war: Change: Start of Combat, give 2 random minions Ward for each Gilded enemy minion" },
       { kind: 'code', ref: "packages/sim/src/ancients.ts socWardPerGildedFoe / pass2CombatMods; packages/core/src/combat/simulate.ts the Start-of-Combat ancientMidasWard block" },
     ],
-    currentBehaviour: "Conforms (built 2026-11-16). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    currentBehaviour: "SUPERSEDED 2026-11-18 by R-ANCWAR-MIDAS-01 (the Ward now counts Midas's own Gilded board minions, one each). Was: Conforms (built 2026-11-16).",
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsMidas.test.ts"], lastVerifiedAt: '2026-11-16' },
   },
   {
@@ -4906,5 +4906,24 @@ export const HEROES_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms from 2026-11-17 (supersedes R-ANCAUCT-02).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsAuctioneer.test.ts'], lastVerifiedAt: '2026-11-17' },
+  },
+  {
+    id: 'R-ANCWAR-MIDAS-01',
+    title: 'Midas × Ancient of War: Start of Combat, a friendly minion gains Ward for every Gilded minion you control',
+    statement:
+      'With the Ancient of War, at Start of Combat, count the living Gilded minions on that side\'s OWN board (the board only, '
+      + 'never the hand; enemy Gilded minions do not count). That many friendly minions gain Ward for that combat: each a '
+      + 'DISTINCT random living friendly minion that does not already have Ward, drawn from the side\'s seeded grant stream. '
+      + 'More Gilded minions than minions without Ward: the rest fizzle. No Gilded minion on the board: nothing. One Start of '
+      + 'Combat beat and one Ancient proc for the whole grant. It works identically for a recorded or enemy Midas (it reads its '
+      + 'own side), and a board recorded under the old rule fights by this one. Supersedes R-ANCPASS2-19.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-11-18', quote: 'Start of Combat: give a friendly minion Ward for every Gilded minion you control.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts socWardPerGilded / pass2CombatMods; packages/core/src/combat/simulate.ts the Start-of-Combat ancientMidasWard block' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-18 (supersedes R-ANCPASS2-19).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsMidas.test.ts'], lastVerifiedAt: '2026-11-18' },
   },
 ];

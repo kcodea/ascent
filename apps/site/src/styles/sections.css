@@ -149,50 +149,69 @@
   pointer-events: none;
 }
 
-/* -- #async: four numbered points, each a framed capture with its text below -------------------------------- */
+/* -- #async: four points down a gold spine, each a struck medallion with its words beside it ----------------- */
 
+/* On a phone the spine runs down the left through the medallions; from tablet up it runs down the middle and the
+   points step from one side to the other. */
 .points {
+  --medal: 72px;
+  position: relative;
   display: grid;
-  gap: var(--s6) var(--s5);
+  gap: var(--s6);
   margin-top: var(--s6);
   counter-reset: point;
 }
 
+.points::before {
+  content: '';
+  position: absolute;
+  top: calc(var(--medal) / 2);
+  bottom: calc(var(--medal) / 2);
+  left: calc(var(--medal) / 2);
+  width: 2px;
+  margin-left: -1px;
+  background: linear-gradient(180deg, transparent, var(--gold) 12%, var(--gold) 88%, transparent);
+  opacity: 0.55;
+}
+
 .point {
   position: relative;
+  display: grid;
+  grid-template-columns: var(--medal) minmax(0, 1fr);
+  column-gap: var(--s4);
+  align-items: center;
   counter-increment: point;
 }
 
-/* A struck-gold medallion carrying the point's numeral, seated on the frame's top-left corner. */
-.point::before {
-  content: counter(point, upper-roman);
-  position: absolute;
-  top: -16px;
-  left: 18px;
-  z-index: 1;
+/* The medallion: a night plate in a turned gold rim, the point's sign struck in gold on its face. */
+.point__icon {
+  position: relative;
   display: grid;
   place-items: center;
-  width: 42px;
-  height: 42px;
+  width: var(--medal);
+  height: var(--medal);
+  border: 3px solid transparent;
   border-radius: 50%;
+  color: var(--gold-light);
+  background: var(--sheen) padding-box, var(--plate) padding-box, var(--edge) border-box;
+  box-shadow: var(--bevel), 0 0 0 3px var(--night-deep), 0 0 26px -2px color-mix(in srgb, var(--gold) 45%, transparent), var(--contact);
+}
+
+.point__icon svg {
+  width: 56%;
+  height: 56%;
+}
+
+/* The point's numeral, as a small gold kicker over its heading. */
+.point__text::before {
+  content: counter(point, upper-roman);
+  display: block;
+  margin-bottom: 0.2rem;
   font-family: var(--font-title);
-  font-size: var(--fs-small);
+  font-size: var(--fs-label);
   font-weight: 800;
-  letter-spacing: 0.04em;
-  color: var(--gem-rim);
-  background: radial-gradient(circle at 40% 30%, var(--gold-hi), var(--gold-light) 45%, var(--gold) 80%, var(--gold-deep));
-  box-shadow: 0 0 0 3px var(--gem-rim), inset 0 1px 0 color-mix(in srgb, var(--white) 70%, transparent), 0 4px 10px -2px var(--night-deep);
-}
-
-.point .capture {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  padding: 6px;
-}
-
-.point__text {
-  padding: var(--s4) var(--s3) var(--s3);
+  letter-spacing: 0.2em;
+  color: var(--gold-light);
 }
 
 .point__text h3 {
@@ -200,7 +219,15 @@
 }
 
 .point__text p {
+  max-width: 30em;
   color: var(--muted);
+}
+
+/* The one clip in the section: the Gold Fuse, the mechanic words alone do not show. */
+.point .capture {
+  grid-column: 2;
+  margin-top: var(--s4);
+  padding: 6px;
 }
 
 /* -- #runeforge: the game's whole forge in the same gilded plate as every other capture -------------------- */
@@ -983,8 +1010,48 @@
 }
 
 @media (min-width: 760px) {
+  /* The spine moves to the middle and the points step left, right, left, right. */
   .points {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    --medal: 96px;
+    gap: var(--s6);
+  }
+
+  .points::before {
+    left: 50%;
+  }
+
+  .point {
+    grid-template-columns: minmax(0, 1fr) var(--medal) minmax(0, 1fr);
+    column-gap: var(--s5);
+  }
+
+  .point__icon {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .point__text {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  .point .capture {
+    grid-column: 1;
+    grid-row: 1;
+    margin-top: 0;
+  }
+
+  .point:nth-child(odd) .point__text {
+    grid-column: 1;
+    text-align: right;
+  }
+
+  .point:nth-child(odd) .point__text p {
+    margin-left: auto;
+  }
+
+  .point:nth-child(odd) .capture {
+    grid-column: 3;
   }
 
   .ancients,

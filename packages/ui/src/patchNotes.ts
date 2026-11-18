@@ -66,6 +66,19 @@ export const PATCH_NOTES: PatchNote[] = [
           'A rolling stat number now redraws only its own badge, not the whole card.',
           'Long fights no longer get heavier as they go on.',
           'Nothing looks or plays differently.',
+        text: 'Mech and Spirit have new tribe colors that match the gems on their card frames.',
+        details: [
+          'Mech is now indigo instead of sky blue.',
+          'Spirit is now copper orange instead of pale peach.',
+        ],
+      },
+      {
+        category: 'Balance',
+        text: 'Midas with the Ancient of War now reads: Start of Combat: give a friendly minion Ward for every Gilded minion you control.',
+        details: [
+          'It counts the Gilded minions on your own board. Enemy Gilded minions no longer matter.',
+          'Each Ward goes to a different random friendly minion that does not have Ward yet.',
+          'It used to give 2 random friendly minions Ward for each Gilded enemy minion.',
         ],
       },
       {

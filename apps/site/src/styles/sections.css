@@ -126,6 +126,23 @@
   background: var(--night-deep);
 }
 
+/* The clip fills the poster's box. Until it is playing it is kept out of the layout so the poster holds the space. */
+.capture__video {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: var(--r-chip);
+  background: var(--night-deep);
+}
+
+.capture__video:not([data-playing]) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
 /* -- #async: four numbered points, each a framed capture with its text below -------------------------------- */
 
 .points {
@@ -194,7 +211,7 @@
 }
 
 /* The frame's leather window, measured from forge-bg.webp (1536 x 1024): x 112 to 1424, y 148 to 856. */
-.section--runeforge > .capture img {
+.section--runeforge > .capture :is(img, .capture__video[data-playing]) {
   position: absolute;
   top: 14.45%;
   left: 7.3%;

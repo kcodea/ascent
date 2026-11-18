@@ -534,7 +534,8 @@ export class RankedEngine extends GroupEngine {
     return fitFinishRow({
       match: { ...j, room_id: null, ranked_team: this.r.ranked_team, unrated: this.r.unrated, seated_at: this.r.seated_at == null ? null : new Date(this.r.seated_at).toISOString() },
       seats: m.seats.map(wireSeat), teams: this.r.teams, served: this.g.served ?? [],
-      rounds: Object.values(this.r.rounds).sort((a, b) => a.round - b.round), submissions: subs, placement,
+      // The display-only odds inputs never reach the archive, nor count against its budget (R-ODDS-ALL-MODES-01).
+      rounds: Object.values(this.r.rounds).sort((a, b) => a.round - b.round).map(withoutOddsInputs), submissions: subs, placement,
       // DUOS MATCH HISTORY (R-DUOS-HISTORY-01): built from memory BEFORE the fit, so a trimmed recording never empties it.
       history: this.rankedHistory(),
     });
@@ -753,6 +754,28 @@ export function fitFinishRow(row: Record<string, unknown>, budget = RANKED_FINIS
     }
   }
   return out;
+}
+
+/** A row with every fight result's `oddsInput` dropped: the 1v1 round's `p1_result` / `p2_result`, a group round's
+ *  fights' `a_result` / `b_result`, a Ranked Duos finish's rounds' `live_result`. Never mutates; other keys untouched. */
+export function withoutOddsInputs<T>(row: T): T {
+  const strip = (r: unknown): unknown => {
+    if (!r || typeof r !== 'object' || !('oddsInput' in r)) return r;
+    const rest = { ...(r as Record<string, unknown>) };
+    delete rest.oddsInput;
+    return rest;
+  };
+  const fights = (fs: unknown): unknown => Array.isArray(fs)
+    ? fs.map((f) => (f && typeof f === 'object' ? { ...f, ...('a_result' in f ? { a_result: strip(f.a_result) } : {}), ...('b_result' in f ? { b_result: strip(f.b_result) } : {}), ...('live_result' in f ? { live_result: strip(f.live_result) } : {}) } : f))
+    : fs;
+  if (!row || typeof row !== 'object') return row;
+  const o = row as Record<string, unknown>;
+  const out: Record<string, unknown> = { ...o };
+  if ('p1_result' in o) out.p1_result = strip(o.p1_result);
+  if ('p2_result' in o) out.p2_result = strip(o.p2_result);
+  if ('fights' in o) out.fights = fights(o.fights);
+  if (Array.isArray(o.rounds)) out.rounds = o.rounds.map((r) => (r && typeof r === 'object' && 'fights' in r ? { ...r, fights: fights((r as { fights: unknown }).fights) } : r));
+  return out as T;
 }
 
 /** A queued `ranked_finish` row made wire-safe at write time (a job queued by an older build still lands). */

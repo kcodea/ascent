@@ -22,7 +22,7 @@
  * `../reducer` VALUES here.
  */
 import { CARD_INDEX } from '@game/content';
-import { combatSide, makeRng, simulate, type CombatResult } from '@game/core';
+import { combatSide, makeRng, simulate, type CombatConfig, type CombatResult } from '@game/core';
 import type { PreparedCombatSide } from '../state';
 import { mirrorForEnemySeat } from './mirror';
 import type { VersusSeat } from './constants';
@@ -76,12 +76,27 @@ export function versusChair(round: number): VersusSeat {
   return round % 2 === 1 ? 'p1' : 'p2';
 }
 
+/**
+ * THE ODDS INPUT OF A SERVER-RESOLVED FIGHT (R-ODDS-ALL-MODES-01, owner 2026-11-17: "add summary chance to win etc for
+ * duos and our lobby modes"). The exact inputs the ONE `simulate` ran on (both boards, both run contexts, the tie-break
+ * and any reserves), stamped on each seat's view with that seat's chair, so the client runs the same idle-sliced odds
+ * probe the solo game runs, over the same fight, from its own side. Display only: nothing reads it to settle.
+ */
+export function versusOddsInput(
+  player: PreparedCombatSide, enemy: PreparedCombatSide, config: CombatConfig, perspective: 'player' | 'enemy',
+): NonNullable<CombatResult['oddsInput']> {
+  return {
+    player: player.board, enemy: enemy.board, playerState: player.state, enemyState: enemy.state, config,
+    ...(perspective === 'enemy' ? { perspective } : {}),
+  };
+}
+
 /** Resolve the round's one fight. Pure and deterministic: same input, same bytes, in Node and in Deno. */
 export function resolveVersusFight(input: VersusFightInput): VersusFightResult {
   const chair = versusChair(input.round);
   // p1 is `player`, p2 is `enemy`; the tie-break side rotates through `firstSide`. Attack-first never reaches here
   // (out of Versus pools), so only the tie-break is set on the fight's config.
-  const config = { firstSide: chair === 'p1' ? ('player' as const) : ('enemy' as const) };
+  const config: CombatConfig = { firstSide: chair === 'p1' ? ('player' as const) : ('enemy' as const) };
   // Private copies: the parked sides belong to the callers (and `simulate` mutates boards in place).
   const result = simulate(
     structuredClone(input.p1.board),
@@ -97,6 +112,8 @@ export function resolveVersusFight(input: VersusFightInput): VersusFightResult {
   const cap = versusRoundCap(input.round);
   // The lobby's damage, capped, read off the ONE result: each seat's own `playerDamage` (0 unless it lost).
   const views = { p1: stampVersusDamage(result, cap), p2: stampVersusDamage(mirrorForEnemySeat(result), cap) };
+  views.p1.oddsInput = versusOddsInput(input.p1, input.p2, config, 'player');
+  views.p2.oddsInput = versusOddsInput(input.p1, input.p2, config, 'enemy');
   const damage = { p1: views.p1.playerDamage, p2: views.p2.playerDamage };
   let vitals: Partial<Record<VersusSeat, VersusVitals>> | undefined;
   if (input.vitals) {

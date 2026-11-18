@@ -60,6 +60,16 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Duos and Versus fights now show your chance to win in the Combat Summary.',
+        details: [
+          'Versus, Versus group games, Versus Duos and Ranked Duos all show the win, draw and loss chance, plus the typical damage.',
+          'In Duos the chance is your team\'s, for both teammates.',
+          'Spectators see the same numbers as the player they watch.',
+          'In Practice against bots, the typical loss now counts the extra damage bots deal.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Hero Select has a new look. Pick a hero tile to read about them, then press Select Hero.',
         details: [
           'Three hero tiles sit at the top. The selected hero shows large below, with their hero power and their Ancients.',

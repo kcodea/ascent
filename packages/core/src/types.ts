@@ -4150,6 +4150,12 @@ export interface CombatResult {
     playerState: CombatSideState;
     enemyState: CombatSideState;
     config: CombatConfig;
+    /** Whose odds these are (R-ODDS-ALL-MODES-01): absent / 'player' = simulate's `player` side; 'enemy' = the seat that
+     *  fought as simulate's `enemy` (a Versus p2, Duos team B), so the probe reads every sim from that chair. */
+    perspective?: 'player' | 'enemy';
+    /** A multiplier the real fight applied to the viewer's LOSS damage before the round cap (Practice bots,
+     *  `practiceBotDamageMult`). Absent = 1. */
+    lossDamageMult?: number;
   };
   /** Per-instance state to persist on the run board after combat, keyed by the board
    *  card's uid (Kennelmaster's Avenge-improved summon bonus). Only entries that changed. */

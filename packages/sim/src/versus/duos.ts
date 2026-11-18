@@ -32,9 +32,9 @@
  * Bundle-safe: core + content + pure siblings only (rides `versus-resolve`).
  */
 import { CARD_INDEX } from '@game/content';
-import { makeRng, simulate, type CombatCarryBacks, type CombatResult } from '@game/core';
+import { makeRng, simulate, type CombatCarryBacks, type CombatConfig, type CombatResult } from '@game/core';
 import type { PreparedCombatSide } from '../state';
-import { versusSideOrEmpty } from './combat';
+import { versusOddsInput, versusSideOrEmpty } from './combat';
 import { carryAsPlayerFields, mirrorForEnemySeat } from './mirror';
 import { hitVitals, stampVersusDamage, versusRoundCap, type VersusVitals } from './vitals';
 import type { VersusGroupSeat } from './group';
@@ -157,6 +157,13 @@ export function resolveVersusDuosRound(input: VersusDuosRoundInput): VersusDuosR
   const B = sides[first.b];
   const B2 = sides[duosMateOf(first.b)];
   const chair = duosChair(input.round);
+  const reserveConfig = (): CombatConfig => ({
+    firstSide: chair === 'a' ? 'player' : 'enemy',
+    reserve: {
+      player: { board: structuredClone(A2.board), state: structuredClone(A2.state) },
+      enemy: { board: structuredClone(B2.board), state: structuredClone(B2.state) },
+    },
+  });
   const result = simulate(
     structuredClone(A.board),
     structuredClone(B.board),
@@ -164,13 +171,7 @@ export function resolveVersusDuosRound(input: VersusDuosRoundInput): VersusDuosR
     CARD_INDEX,
     structuredClone(A.state),
     structuredClone(B.state),
-    {
-      firstSide: chair === 'a' ? 'player' : 'enemy',
-      reserve: {
-        player: { board: structuredClone(A2.board), state: structuredClone(A2.state) },
-        enemy: { board: structuredClone(B2.board), state: structuredClone(B2.state) },
-      },
-    },
+    reserveConfig(),
   );
   // Every seat's locked board and the order, by real seat, on the result (perspective-free: the mirror keeps them).
   result.duosBoards = { p1: structuredClone(sides.p1.board), p2: structuredClone(sides.p2.board), p3: structuredClone(sides.p3.board), p4: structuredClone(sides.p4.board) };
@@ -180,6 +181,11 @@ export function resolveVersusDuosRound(input: VersusDuosRoundInput): VersusDuosR
   const cap = versusRoundCap(input.round);
   const aResult = stampVersusDamage(result, cap);
   const bResult = stampVersusDamage(mirrorForEnemySeat(result), cap);
+  // The TEAM fight's odds (R-ODDS-ALL-MODES-01): both leads, both reserves, the tie-break, each team from its own chair.
+  // `duosMemberView` keeps it, so each member reads its team's chance (the outcome and the damage are the team's).
+  const oddsConfig = reserveConfig();
+  aResult.oddsInput = versusOddsInput(A, B, oddsConfig, 'player');
+  bResult.oddsInput = versusOddsInput(A, B, oddsConfig, 'enemy');
   const damage = losingTeam === 'a' ? aResult.playerDamage : losingTeam === 'b' ? bResult.playerDamage : 0;
   let vitals: Partial<Record<VersusDuosTeam, VersusVitals>> | undefined;
   if (input.vitals) {

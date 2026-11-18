@@ -17,7 +17,7 @@
  * The writer is the limited RPC `versus_cf_persist` (see SupabaseRpcSink), never the service role.
  */
 import type { PersistJob } from './core/roomCore';
-import { rankedFinishWire } from './core/rankedMatch';
+import { rankedFinishWire, withoutOddsInputs } from './core/rankedMatch';
 
 export interface PersistEnv {
   SUPABASE_URL?: string;
@@ -76,10 +76,13 @@ export class SupabaseRpcSink implements PersistSink {
   }
 }
 
-/** The row as the writer sends it: a `ranked_finish` queued before the wire fix is made safe here too (R-VERSUS-CF-PERSIST-01). */
+/** The row as the writer sends it: a `ranked_finish` queued before the wire fix is made safe here too (R-VERSUS-CF-PERSIST-01).
+ *  Every fight result loses its `oddsInput` on the way (R-ODDS-ALL-MODES-01): the client's display-only odds probe input
+ *  (both whole sides, ~8 KB a fight, ~17 KB a tag-team one) is never archived in Supabase. */
 export function wireRow(job: PersistJob): unknown {
-  return job.kind === 'ranked_finish' ? rankedFinishWire(job.row) : job.row;
+  return withoutOddsInputs(job.kind === 'ranked_finish' ? rankedFinishWire(job.row) : job.row);
 }
+
 
 export function sinkFor(env: PersistEnv): PersistSink {
   if (env.PERSIST === '1' && env.SUPABASE_URL && env.SUPABASE_ANON_KEY && env.VERSUS_WRITER_SECRET) {

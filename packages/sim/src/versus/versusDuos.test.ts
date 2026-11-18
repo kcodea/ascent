@@ -163,7 +163,9 @@ describe('a Duos round: one tag-team fight (R-DUOS-01)', () => {
   it('team B\'s view is the mirror, with the member ledger flipped to its side', () => {
     const r = resolveVersusDuosRound({ matchSeed: 9, round: 1, sides: { [fa]: small, [ma]: big, [fb]: small, [mb]: small } });
     // Both views are stamped with the round's cap (R-DUOS-HEALTH-01); the mirror carries the rest unchanged.
-    const unstamp = ({ damageCap: _c, playerDamageUncapped: _u, ...rest }: CombatResult): CombatResult => rest as CombatResult;
+    // ...and each view carries its own chair's odds input (R-ODDS-ALL-MODES-01): same inputs, team B reads them as `enemy`.
+    const unstamp = ({ damageCap: _c, playerDamageUncapped: _u, oddsInput: _o, ...rest }: CombatResult): CombatResult => rest as CombatResult;
+    expect(r.bResult.oddsInput).toEqual({ ...r.aResult.oddsInput, perspective: 'enemy' });
     expect(unstamp(r.bResult)).toEqual(unstamp(mirrorForEnemySeat(r.aResult)));
     expect(r.bResult.tagTeam?.members.player).toEqual(r.aResult.tagTeam?.members.enemy);
     expect(r.bResult.tagTeam?.tagInAt.enemy).toBe(r.aResult.tagTeam?.tagInAt.player);

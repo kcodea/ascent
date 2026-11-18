@@ -1,4 +1,5 @@
 import { memo, useEffect, useRef } from 'react';
+import { viewerPress } from './viewerGuard';
 import { onPressCue } from './pressCue';
 import { playDef } from './fx/playDef';
 import { Icon } from './Icon';
@@ -65,6 +66,7 @@ export const TavernUpButton = memo(function TavernUpButton({ tier, maxTier, cost
   };
   useEffect(() => onPressCue('upgrade', playPress));
   const click = (): void => {
+    if (viewerPress(wrapRef.current)) return; // a viewer's press does nothing (R-SPECTATE-INERT-01)
     playPress();
     onUpgrade();
   };

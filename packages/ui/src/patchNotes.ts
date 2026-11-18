@@ -60,6 +60,15 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Spectators can no longer press the End Turn gem, Freeze, Refresh or Tier up on the game they are watching.',
+        details: [
+          'Before, a spectator could press the gem after a fight and their own screen left the fight early, even after the player was knocked out.',
+          'The same holds while watching a replay or your Duos teammate.',
+          'When the player you are watching is knocked out, their last fight stays up, then the game closes with their place as before.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Game results now show the hero power and the Ancient picked with it, for you and for every player in the lobby.',
         details: [
           'The hero power sits beside the runes under the final board. Hover it to read the power and what its Ancient adds.',

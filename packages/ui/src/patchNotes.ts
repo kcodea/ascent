@@ -60,6 +60,15 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Spectating Duos: switching players during a fight no longer restarts it, and cards passed mid-fight show as they happen.',
+        details: [
+          'Switching to another player in the same fight picks up at the same moment, from their side.',
+          'In Versus Group, switching to a player in the other fight starts it near where that player is.',
+          'A card a teammate passes or gifts during a fight now lands in the watched hand at that moment, with its animation.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Hero Select has a new look. Pick a hero tile to read about them, then press Select Hero.',
         details: [
           'Three hero tiles sit at the top. The selected hero shows large below, with their hero power and their Ancients.',

@@ -221,8 +221,15 @@ export function Game() {
   // swap render instead (screenSwap.ts). The StatusBar and the EmoteLayer stay on the LIVE key: they are small, the hero
   // panel is a different hero anyway, and remounting them keeps their per-run refs (`prevHp`) honest for free.
   const watchingMate = useSpectate((s) => s.teammate === true);
+  // THE WATCH SCREEN SWITCHING SEATS MID-FIGHT (R-SPECTATE-DUOS-SWITCH-01): the other seat's run (another hero) goes in
+  // the store, and a remount here replayed the whole fight entry (curtain, the 800 ms settle) from the opening boards
+  // before the resume seek. In a fight the key holds, as for the teammate view; the remount, if one is owed, comes at the
+  // shop, under the exit curtain.
+  const watchActive = useSpectate((s) => s.active);
+  const runInFight = useGame((s) => s.run.phase === 'combat');
+  const watchFight = watchActive && runInFight;
   const runKeyRef = useRef(liveRunKey);
-  runKeyRef.current = heldScreenKey(runKeyRef.current, liveRunKey, watchingMate);
+  runKeyRef.current = heldScreenKey(runKeyRef.current, liveRunKey, watchingMate || watchFight);
   const runKey = runKeyRef.current;
   // See `isPreRun`: the board must not render (or tick) until a run is actually entered.
   const preRun = useGame(isPreRun);

@@ -324,7 +324,7 @@ import { heroSlotRuneId, rackRunes, runeNodeEl } from './heroSlotRune';
 import { VersusHud, useVersusRecruit } from './versus/VersusHud';
 import { useDuosViewingClass } from './duosViewing';
 import { finishVersusMatch, useVersusPaused, versusEndCombatPressed, versusMatchEndsAtPress } from './versus/versusStore';
-import { noteSpectatorBeat, overlayMinOf, spectatorFightCovered, spectatorStrikeLanded, spectatorStrikeStarted, takeSpectatorResume, useSpectate } from './versus/spectate';
+import { noteSpectatorBeat, overlayMinOf, spectatorFightCovered, spectatorResumePending, spectatorStrikeLanded, spectatorStrikeStarted, takeSpectatorResume, useSpectate } from './versus/spectate';
 import { useReplayStream } from './replay/replayStreamPlayer';
 import { notePlayerBeat, tapOdds, tapOverlay, tapSkipCombat } from './versus/spectateTap';
 import { WatchersBadge } from './versus/WatchersBadge';
@@ -3577,6 +3577,12 @@ export function Recruit() {
     }
   }, [inCombat, run.combatSettled, cbA, cbH, cpEsc.attack, cpEsc.health, cpCasts, cpDeaths, cpBlades, cpScout, cpCond, cpCondE, dispatch]);
 
+  // A WATCH SCREEN SWITCHING SEATS MID-FIGHT (R-SPECTATE-DUOS-SWITCH-01): the other side of the SAME fight lands as a new
+  // `lastCombat` to resume at the beat on screen (`takeSpectatorResume`). It is not a fight starting: no closing intro and
+  // no 800 ms settle, which showed the fight's opening boards for most of a second before the resume seek. Read during
+  // render, before the resume effect below takes the request.
+  const keepFightingRef = useRef(false);
+  keepFightingRef.current = watchingVersus && inCombat && combatStage === 'fighting' && spectatorResumePending(run.wave);
   // Entering combat: hold on the "shop closing" intro, then let the enemies arrive
   // and the replay begin, and snapshot the hand so post-combat grants can be detected. (The "End of Turn" banner
   // that flashed here was retired 2026-10-29, owner: "that is redundant now".)
@@ -3593,6 +3599,7 @@ export function Recruit() {
     setEotShopStats(null); // shop-buff climb is committed too — the real offers now carry it
     setFodderAnim(null); // never let a lingering Fodder ghost survive into combat + replay on return
     setHeldConsume([]); // and never carry a held (invisible) consumed slot into combat / the next shop
+    if (keepFightingRef.current) return; // a watch-screen seat switch: the same fight goes on (above)
     setCombatStage('closing');
   }, [inCombat, run.lastCombat]);
   // START OF COMBAT waits for the CURTAIN, not a fixed 480ms (owner ask 2026-08-28): with the two-stage

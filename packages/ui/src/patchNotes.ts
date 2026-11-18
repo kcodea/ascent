@@ -59,6 +59,15 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-11-18',
     changes: [
       {
+        category: 'Systems',
+        text: 'The Rise, Flurry, Execute and Rebirth effects on minions are much lighter to draw, so boards full of them no longer slow the game down.',
+        details: [
+          'Each effect is now one picture made from the original effect, instead of dozens of moving pieces per minion.',
+          'They should look the same as before. Tell us if one looks different.',
+          'Phones still use the original effects for now.',
+        ],
+      },
+      {
         category: 'Balance',
         text: 'Midas with the Ancient of War now reads: Start of Combat: give a friendly minion Ward for every Gilded minion you control.',
         details: [

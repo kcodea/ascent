@@ -46,13 +46,13 @@ export function shopOfferCovering(o: {
   discover: boolean; discoverMin: boolean;
   quest: boolean; questMin: boolean;
   power: boolean; powerMin: boolean;
-  chooseOne: boolean; scouting: boolean; ancientOffer: boolean;
+  chooseOne: boolean; scouting: boolean; ancientOffer: boolean; ancientMin?: boolean;
 }): boolean {
   return (o.runeforge && !o.forgeMin) || o.runeLockIn
     || (o.discover && !o.discoverMin)
     || (o.quest && !o.questMin)
     || (o.power && !o.powerMin)
-    || o.chooseOne || o.scouting || o.ancientOffer;
+    || o.chooseOne || o.scouting || (o.ancientOffer && !o.ancientMin);
 }
 
 /** A parked gild may play once the Shop is in front of the player: recruit, wipe at rest, the Start-of-Turn beats

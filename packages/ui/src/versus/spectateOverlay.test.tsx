@@ -57,7 +57,7 @@ describe('R-SPECTATE-OVERLAY-01: minimize and restore follow the player', () => 
     expect(sp.useSpectate.getState().overlay?.p1).toBeUndefined(); // the overlay stays open, as before
     sp.receiveSpectate({ ...base, seq: 2, ov: { f: 1 } });
     expect(sp.useSpectate.getState().overlay?.p1).toEqual({ f: 1 });
-    expect(sp.overlayMinOf(sp.useSpectate.getState().overlay!.p1!)).toEqual({ discover: false, power: false, quest: false, forge: true });
+    expect(sp.overlayMinOf(sp.useSpectate.getState().overlay!.p1!)).toEqual({ discover: false, power: false, quest: false, forge: true, ancient: false });
     sp.receiveSpectate({ ...base, seq: 3, ov: {} }); // restored
     expect(sp.overlayMinOf(sp.useSpectate.getState().overlay!.p1!).forge).toBe(false);
     expect(sp.parseWireOverlay({ f: true, d: 1, x: 1 })).toEqual({ d: 1 }); // junk dropped
@@ -65,9 +65,21 @@ describe('R-SPECTATE-OVERLAY-01: minimize and restore follow the player', () => 
     sp.liveSync(null);
   });
 
+  it('R-ANCIENT-PEEK-01: the Ancient pick Peek travels as `a` and lands as the fifth flag', () => {
+    tap.tapOverlay({ discover: false, power: false, quest: false, forge: false, ancient: true });
+    tap.setSpectatorTap(true, 'p1', () => undefined, vi.fn());
+    expect(tap.takeOverlay(true)).toEqual({ a: 1 });
+    expect(sp.parseWireOverlay({ a: 1, f: 1 })).toEqual({ f: 1, a: 1 });
+    expect(sp.overlayMinOf({ a: 1 })).toEqual({ discover: false, power: false, quest: false, forge: false, ancient: true });
+    const src = readFileSync(join(__dirname, '..', 'Recruit.tsx'), 'utf8');
+    const reset = src.indexOf('useEffect(() => { setAncientMin(false); }, [run.ancients?.offerSeq]);');
+    expect(reset).toBeGreaterThan(0);
+    expect(src.indexOf('setAncientMin(min.ancient);')).toBeGreaterThan(reset); // the stands apply it after the reset
+  });
+
   it('Recruit wires both ends, and the stands apply the state AFTER each offer resets its own toggle', () => {
     const src = readFileSync(join(__dirname, '..', 'Recruit.tsx'), 'utf8');
-    expect(src).toContain('tapOverlay({ discover: discoverMin, power: powerMin, quest: questMin, forge: forgeMin })');
+    expect(src).toContain('tapOverlay({ discover: discoverMin, power: powerMin, quest: questMin, forge: forgeMin, ancient: ancientMin })');
     const reset = src.indexOf('useEffect(() => { setForgeMin(false); }, [run.runeforgeOffer]);');
     const mirror = src.indexOf('const min = overlayMinOf(watchedOverlay);');
     expect(reset).toBeGreaterThan(0);

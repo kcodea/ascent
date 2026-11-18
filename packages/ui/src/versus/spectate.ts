@@ -397,19 +397,19 @@ export function parseWireOdds(v: unknown): WireOdds | null {
   };
 }
 
-const overlayKey = (o: WireOverlay | undefined): string => (o ? `${o.d ?? 0}${o.p ?? 0}${o.q ?? 0}${o.f ?? 0}` : '');
+const overlayKey = (o: WireOverlay | undefined): string => (o ? `${o.d ?? 0}${o.p ?? 0}${o.q ?? 0}${o.f ?? 0}${o.a ?? 0}` : '');
 /** A player's minimized overlays as they travel (`ov`), validated; null when absent or malformed. Pure. */
 export function parseWireOverlay(v: unknown): WireOverlay | null {
   if (!v || typeof v !== 'object' || Array.isArray(v)) return null;
   const o = v as Record<string, unknown>;
   const out: WireOverlay = {};
-  for (const k of ['d', 'p', 'q', 'f'] as const) if (o[k] === 1) out[k] = 1;
+  for (const k of ['d', 'p', 'q', 'f', 'a'] as const) if (o[k] === 1) out[k] = 1;
   return out;
 }
 
 /** The overlays a watched player's state minimizes (the spectator's screen applies exactly these). Pure. */
-export function overlayMinOf(o: WireOverlay): { discover: boolean; power: boolean; quest: boolean; forge: boolean } {
-  return { discover: o.d === 1, power: o.p === 1, quest: o.q === 1, forge: o.f === 1 };
+export function overlayMinOf(o: WireOverlay): { discover: boolean; power: boolean; quest: boolean; forge: boolean; ancient: boolean } {
+  return { discover: o.d === 1, power: o.p === 1, quest: o.q === 1, forge: o.f === 1, ancient: o.a === 1 };
 }
 
 /** A broadcast frame from a player. */

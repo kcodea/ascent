@@ -6778,7 +6778,8 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'The player now sends which of them are minimized on the spectate channel (ov), once on a change and on every keyframe (a joiner gets it too), and the spectator minimizes and restores with them, through the same toggles and transitions. '
       + 'It is applied after an offer resets its own toggle, so a fresh offer that the player already minimized stays minimized. '
       + 'An older player sends no state, and the spectator shows the overlay open as before. The spectator own toggles stay inert. '
-      + 'Choose One, the Farseer scout report and the Ancients offer have no minimize; the hero-power and Battlecry target aim already follows the player (R-SPECTATE-AIM-01); the spectator own panels (rail, guides, Summary) stay local (R-SPECTATE-LOCAL-01).',
+      + 'The Ancient awakening pick has one too since 2026-11-18 (R-ANCIENT-PEEK-01) and travels the same way. '
+      + 'Choose One and the Farseer scout report have no minimize; the hero-power and Battlecry target aim already follows the player (R-SPECTATE-AIM-01); the spectator own panels (rail, guides, Summary) stay local (R-SPECTATE-LOCAL-01).',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -6787,6 +6788,24 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Fixed on 2026-10-16.',
     example: 'The player presses Inspect the board on an Epic Runeforge: the spectator sees the forge fold down to the Return to the Runeforge bar, and come back when the player returns.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectateOverlay.test.tsx'], lastVerifiedAt: '2026-10-16' },
+  },
+  {
+    id: 'R-ANCIENT-PEEK-01',
+    title: 'The Ancient awakening pick has the Discover Peek: hide it to read the board, return to choose',
+    statement:
+      'Once the Ancients have revealed and settled, the pick shows the Discover Peek toggle (the same button, one fixed spot below Choose one for both states). '
+      + 'Peek hides the offer and the awakening backdrop and brings the Shop row back, so the player can hover and inspect the board, Shop and hand. Return shows the same offer again without replaying the reveal. '
+      + 'The pick stays pending while peeking: the reducer still holds every Shop action and End Turn until an Ancient is picked, exactly as it does with the offer open. '
+      + 'Each new awakening opens expanded. The stands and a replay follow the player Peek (spectate flag a, replay stream bit OV_ANCIENT); an older client or recording shows the pick open. '
+      + 'Not offered during the reveal, while the pick closes, on a tuner demo, or in Learn (its coached pick step parks the coach panel on that spot).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin, 2026-11-18 (An Ancient Awakens screenshot)', quote: 'there needs to be a peek button to minimize back to board like other mechanics have' },
+    ],
+    currentBehaviour: 'Shipped on 2026-11-18.',
+    example: 'An Ancient awakens with Death, Time and Fortune. The player presses Peek at board, hovers a Shop minion to read it, presses Return to Ancients and picks Time.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectateOverlay.test.tsx', 'packages/ui/src/discoverEntrance/DiscoverPeekToggle.test.tsx'], lastVerifiedAt: '2026-11-18' },
   },
   {
     id: 'R-SPECTATE-RUNEHOVER-01',

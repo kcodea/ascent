@@ -98,7 +98,7 @@ describe('R-REPLAY-PLAYBACK-01: a stream replay plays through the spectator pipe
     player.seekReplay(600);
     const at600 = handState();
     expect((at600 as { drag: string }).drag).toBe(uid);
-    expect((at600 as { overlay: unknown }).overlay).toEqual({ discover: false, power: false, quest: false, forge: true });
+    expect((at600 as { overlay: unknown }).overlay).toEqual({ discover: false, power: false, quest: false, forge: true, ancient: false });
     // play, scrub around, come back: the same hand
     player.resumeReplay();
     vi.advanceTimersByTime(300);

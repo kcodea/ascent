@@ -631,3 +631,15 @@ body.ancgate .app { z-index: auto; }
 .foe-ancient { display: flex; flex-direction: column; gap: 2px; margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(255, 255, 255, 0.14); }
 .foe-ancient-name { font-family: var(--font-title), sans-serif; font-weight: 800; letter-spacing: 0.02em; filter: brightness(1.35) saturate(1.1); }
 .foe-ancient-rule { display: block; }
+
+/* ── PEEK (owner ask 2026-11-18, R-ANCIENT-PEEK-01): the Discover's Peek toggle on the awakening's pick ───────────────
+   While peeking (`body.ancpeek`, set by Recruit) the gate's backdrop and the offer step aside and the Shop row comes
+   back, so the board and Shop read exactly as they do under a peeked Discover. The offer stays MOUNTED (display only),
+   so Return shows it as it was instead of replaying the emergence; its `.discover-ov` fade-in plays on the way back.
+   Static: a display switch and the Shop row's existing one-shot opacity transition. */
+body.ancpeek .anc-gate,
+body.ancpeek .anc-offer { display: none; }
+body.ancpeek.ancgate:not(.ancclosing) [data-zone="tavern"] { opacity: 1; }
+/* The Ancients' cards run taller than a Discover's (art, name, effect, then "Choose one"), so the shared 67% spot sits
+   on their text: the button takes ONE spot below "Choose one", the same for both states. */
+.disc-toggle.disc-peek.anc-peek { top: 80%; }

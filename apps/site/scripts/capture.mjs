@@ -44,6 +44,10 @@ const INIT = () => {
     localStorage.setItem('ascent.lobbyRevealOn', 'off');
     if (!localStorage.getItem('ascent.playername')) localStorage.setItem('ascent.playername', 'Wayfarer');
   } catch { /* storage blocked: the page still loads */ }
+  // Watch the page's own frame clock, so a freeze in the game can be told apart from a freeze in the recording.
+  window.__gaps = []; let last = performance.now();
+  const tick = (t) => { if (t - last > 50) window.__gaps.push([Date.now(), Math.round(t - last)]); last = t; requestAnimationFrame(tick); };
+  requestAnimationFrame(tick);
   // Dev-only corner controls stay out of frame, and the pointer (which a screen recording does not include) is drawn.
   const boot = () => {
     const st = document.createElement('style');
@@ -175,9 +179,12 @@ async function main() {
     try {
       p = await openPlayer(browser, slot, { query: routine.query ?? '' });
       const cut = await routine.run(p);
+      const pageGaps = await p.ev(() => window.__gaps).catch(() => []);
       await p.ctx.close();
       const raw = stitch(p);
       if (cut && !process.env.CAPTURE_PROBE) encode(routine.out ?? slot, raw, cut);
+      if (cut) console.log('PAGE-GAPS', slot, pageGaps.filter(([t]) => t >= p.t0 + cut.start * 1000 && t <= p.t0 + cut.end * 1000).map(([t, d]) => ((t - p.t0) / 1000 - cut.start).toFixed(1) + 's:' + d + 'ms').join(' ') || 'none');
+      if (cut) { const fr = p.frames.filter((f) => f.t >= p.t0 + cut.start * 1000 && f.t <= p.t0 + cut.end * 1000); console.log('REC-GAPS', slot, fr.slice(1).map((f, i) => [f.t, f.t - fr[i].t]).filter(([, d]) => d > 50).map(([t, d]) => ((t - p.t0) / 1000 - cut.start).toFixed(1) + 's:' + Math.round(d) + 'ms').join(' ') || 'none'); }
       console.log('STATS', slot, frameStats(p, cut), await p.gpu);
       console.log('OK', slot, JSON.stringify(cut ?? {}), raw, p.errs.length ? `pageerrors: ${p.errs.join(' | ')}` : '');
     } catch (e) {

@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 const SITE_ROOT = fileURLToPath(new URL('..', import.meta.url));
 const SKIP = new Set(['node_modules', 'dist', 'public']);
 // JSON is deliberately not scanned: artManifest.json lists packages/ui source paths as data.
-const EXT = /\.(ts|html|css|mjs)$/;
+const EXT = /\.(m?[jt]sx?|cjs|html|css|svg)$/;
 
 // A quoted specifier that points at a game package or into packages/.
 const GAME = String.raw`(?:@game\/|[^'"\`\s)]*packages\/)`;
@@ -18,9 +18,14 @@ const GAME_IMPORT_FORMS: { form: string; re: RegExp }[] = [
   { form: 'side-effect import', re: new RegExp(String.raw`(?<!@)\bimport\s*${Q}${GAME}`) },
   { form: 'dynamic import', re: new RegExp(String.raw`\bimport\s*\(\s*${Q}${GAME}`) },
   { form: 'require', re: new RegExp(String.raw`\brequire\s*\(\s*${Q}${GAME}`) },
+  { form: 'import.meta.glob', re: new RegExp(String.raw`\bimport\.meta\.glob(?:Eager)?\s*(?:<[^>]*>)?\(\s*\[?\s*${Q}${GAME}`) },
+  { form: 'new URL(..., import.meta.url)', re: new RegExp(String.raw`\bnew\s+URL\s*\(\s*${Q}${GAME}`) },
   { form: 'CSS @import', re: new RegExp(String.raw`@import\s+(?:url\(\s*)?${Q}?${GAME}`) },
   { form: 'CSS url()', re: new RegExp(String.raw`\burl\(\s*${Q}?${GAME}`) },
   { form: 'HTML src/href', re: new RegExp(String.raw`\b(?:src|href)\s*=\s*${Q}?${GAME}`) },
+  // srcset lists several candidates; any one pointing at game code counts.
+  { form: 'HTML srcset', re: new RegExp(String.raw`\bsrcset\s*=\s*${Q}?[^'"\`>]*?${GAME}`) },
+  { form: 'HTML poster', re: new RegExp(String.raw`\bposter\s*=\s*${Q}?${GAME}`) },
 ];
 
 function gameImportIn(text: string): string | null {
@@ -60,6 +65,12 @@ describe('site boundary', () => {
     ['CSS url()', `.a { background: url(../../packages/ui/src/art/x.webp); }`, 'CSS url()'],
     ['HTML src', `<script type="module" src="/packages/ui/src/main.ts"></script>`, 'HTML src/href'],
     ['HTML href', `<link rel="stylesheet" href="@game/ui/styles.css" />`, 'HTML src/href'],
+    ['import.meta.glob', `const art = import.meta.glob('../../../packages/ui/src/art/*.webp');`, 'import.meta.glob'],
+    ['import.meta.glob of a package', `const m = import.meta.glob(['@game/content/*.ts'], { eager: true });`, 'import.meta.glob'],
+    ['new URL into packages', `const u = new URL('../../packages/ui/src/art/x.webp', import.meta.url);`, 'new URL(..., import.meta.url)'],
+    ['new URL of a package', 'const u = new URL(`@game/ui/art/x.webp`, import.meta.url);', 'new URL(..., import.meta.url)'],
+    ['HTML srcset', `<img srcset="/art/a.webp 1x, /packages/ui/src/art/a@2x.webp 2x" alt="" />`, 'HTML srcset'],
+    ['HTML poster', `<video poster="../packages/ui/src/art/still.jpg"></video>`, 'HTML poster'],
   ])('catches a %s', (_name, text, form) => {
     expect(gameImportIn(text)).toBe(form);
   });
@@ -69,6 +80,8 @@ describe('site boundary', () => {
     ['node import', `import { readFileSync } from 'node:fs';`],
     ['site art', `<img src="/art/ancients/war.webp" alt="" />`],
     ['site module entry', `<script type="module" src="/src/main.ts"></script>`],
+    ['site-local new URL', `const SITE = fileURLToPath(new URL('..', import.meta.url));`],
+    ['site-local srcset and poster', `<img srcset="/art/a.webp 1x, /art/b.webp 2x" alt="" /><video poster="/captures/x.jpg"></video>`],
     ['manifest-style data string', `const source = 'packages/ui/src/art/ancients/war.webp';`],
     ['prose mentioning packages', `// copied from packages/ui at build time, never imported`],
   ])('allows a %s', (_name, text) => {

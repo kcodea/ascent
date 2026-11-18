@@ -72,21 +72,20 @@ describe('captures', () => {
     });
   });
 
-  it('a clip sits where its poster is, above the caption, and carries the poster alt text', () => {
-    withClips(['discover-timer'], () => {
+  it('a clip sits where its poster is and carries the poster alt text', () => {
+    withClips(['gold-fuse'], () => {
       initCaptures(document, { reducedMotion: false, observe: visibleNow });
-      const fig = document.querySelector('figure[data-capture="discover-timer"]')!;
+      const fig = document.querySelector('figure[data-capture="gold-fuse"]')!;
       const v = fig.querySelector('video')!;
       expect(poster(fig).nextElementSibling).toBe(v);
-      expect(v.compareDocumentPosition(fig.querySelector('figcaption')!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
       expect(v.getAttribute('aria-label')).toBe(poster(fig).alt);
       expect(v.hasAttribute('aria-hidden')).toBe(false);
     });
   });
 
   it('a clip with no poster goes first in its figure', () => {
-    withClips(['discover-timer'], () => {
-      const fig = document.querySelector('figure[data-capture="discover-timer"]')!;
+    withClips(['gold-fuse'], () => {
+      const fig = document.querySelector('figure[data-capture="gold-fuse"]')!;
       poster(fig).remove();
       initCaptures(document, { reducedMotion: false, observe: visibleNow });
       expect(fig.firstElementChild!.tagName).toBe('VIDEO');

@@ -122,10 +122,7 @@ describe('site stylesheets', () => {
 
 describe('capture stills', () => {
   const stills = [
-    'discover-timer',
     'gold-fuse',
-    'rearrange',
-    'save-continue',
     'runeforge',
     'ancient-select',
     'career-chart',

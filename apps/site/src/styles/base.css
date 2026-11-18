@@ -11,6 +11,14 @@
   display: none !important;
 }
 
+/* Every control gets the open gauntlet. A button does not inherit the page cursor, so without this it falls back to
+   the system arrow. */
+a,
+button,
+[role='button'] {
+  cursor: url('/art/cursors/gauntlet_open.svg') 6 2, pointer;
+}
+
 html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;

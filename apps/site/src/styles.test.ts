@@ -70,6 +70,10 @@ describe('site stylesheets', () => {
     expect(allSiteCss()).not.toMatch(/cursor:\s*pointer\s*;/);
   });
 
+  it('every link and button gets the open gauntlet, so none falls back to the system arrow', () => {
+    expect(read('base.css')).toMatch(/a,\s*button,\s*\[role='button'\]\s*\{\s*cursor:\s*url\('\/art\/cursors\/gauntlet_open\.svg'\) 6 2, pointer;/);
+  });
+
   it('the download button uses the gauntlet cursor and body the default gauntlet', () => {
     const css = allSiteCss();
     expect(css).toContain("cursor: url('/art/cursors/gauntlet_open.svg') 6 2, pointer");

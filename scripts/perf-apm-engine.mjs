@@ -42,6 +42,7 @@
  *                                            the same bundle with the rapid-input presentation (fx/rapidConfig.ts) switched off
  *   npm run perf:apm -- --toggle nofx        the same run with one cost class switched off: nofx | nofilter | nocardfilter | noanim
  *   npm run perf:apm -- --profile | --trace | --trace-style | --census | --shots <dir> | --headed | --label <name>
+ *   npm run perf:apm -- --screencast <dir>   JPEG frames of five seconds of the burst (a capture to look at, not a measurement)
  * Exit code: 0 done; 1 the scene could not be built; 2 setup error; 3 the --guard failed.
  */
 import { execSync, spawn } from 'node:child_process';
@@ -98,8 +99,9 @@ const HERO = arg('hero', 'nadja');
  *  without it (the same toggles as the 2026-11-18 scope measurement, E1). Not a fix: a measuring stick. */
 const STY = (css) => `(() => { const s = document.createElement('style'); s.textContent = ${JSON.stringify(css)}; document.head.appendChild(s); })()`;
 const TOGGLES = {
-  // No Pixi effects at all: every canvas hidden and the main FX ticker stopped.
-  nofx: `(() => { const s = document.createElement('style'); s.textContent = 'canvas { display: none !important; }'; document.head.appendChild(s); const a = window.__bench.pixiFx && window.__bench.pixiFx.app; if (a && a.ticker) a.ticker.stop(); })()`,
+  // No Pixi effects at all: the FX overlay is detached, so no effect can start (`canPlayDefs()` is false) and nothing
+  // ticks or draws. (Hiding the canvases alone changes nothing: the effects still simulate and render.)
+  nofx: `(() => { const p = window.__bench.pixiFx; try { p.detach(); } catch (e) { console.error('nofx', e); } const s = document.createElement('style'); s.textContent = 'canvas { display: none !important; }'; document.head.appendChild(s); })()`,
   // No CSS filter / shadow anywhere (the card raster cost).
   nofilter: STY('*, *::before, *::after { filter: none !important; backdrop-filter: none !important; box-shadow: none !important; text-shadow: none !important; }'),
   // Only the card frame filters and the card shadow.
@@ -209,7 +211,7 @@ const PROBE = `(() => {
   // WebGL draw calls (all contexts) and audio source starts.
   let draws = 0; let sounds = 0;
   try { for (const C of [window.WebGLRenderingContext, window.WebGL2RenderingContext]) { if (!C) continue; for (const m of ['drawElements', 'drawArrays', 'drawElementsInstanced', 'drawArraysInstanced']) { const o = C.prototype[m]; if (o) C.prototype[m] = function (...a) { draws++; return o.apply(this, a); }; } } } catch {}
-  try { const P = AudioScheduledSourceNode.prototype; const o = P.start; P.start = function (...a) { sounds++; return o.apply(this, a); }; } catch {}
+  try { for (const C of [window.AudioBufferSourceNode, window.OscillatorNode]) { if (!C) continue; const P = C.prototype; const o = P.start; P.start = function (...a) { sounds++; return o.apply(this, a); }; } } catch {}
   const marks = []; const storeLog = []; const samples = []; const notes = []; const harness = { n: 0, ms: 0 };
   let sampler = 0; let perfBuckets = [];
   const num = (s) => { const t = (s || '').trim().replace(/,/g, ''); return /^-?\\d+$/.test(t) ? Number(t) : null; };
@@ -488,6 +490,17 @@ async function oneRun(port, runIdx, dist) {
       await c.send('Tracing.start', { transferMode: 'ReportEvents', traceConfig: { includedCategories: ['devtools.timeline', 'disabled-by-default-devtools.timeline', 'disabled-by-default-devtools.timeline.stack', 'disabled-by-default-blink.debug', 'v8.execute', '__metadata'] } });
     }
     await ev(`window.__apm.mark('burst')`);
+    // --screencast <dir>: what the burst LOOKS like (a capture for a review, never a measuring run: it costs frames).
+    // JPEG frames of seconds 4 to 9 of the burst, named by their time, to be stitched by any tool.
+    if (arg('screencast', '')) {
+      const dir = arg('screencast'); fs.mkdirSync(dir, { recursive: true }); let n = 0; const t0 = Date.now();
+      c.on('Page.screencastFrame', (p) => {
+        void c.send('Page.screencastFrameAck', { sessionId: p.sessionId }).catch(() => {});
+        fs.writeFileSync(path.join(dir, `${LABEL || 'run'}-${String(n++).padStart(4, '0')}-${Date.now() - t0}ms.jpg`), Buffer.from(p.data, 'base64'));
+      });
+      setTimeout(() => { void c.send('Page.startScreencast', { format: 'jpeg', quality: 72, maxWidth: 1280, maxHeight: 720, everyNthFrame: 1 }).catch(() => {}); }, 4000);
+      setTimeout(() => { void c.send('Page.stopScreencast').catch(() => {}); }, 9000);
+    }
     const period = 1000 / RATE; const tStart = Date.now(); let attempted = 0; const shotAt = arg('shots', '') ? [0.4, 0.8].map((k) => tStart + SECS * 1000 * k) : [];
     while (Date.now() - tStart < SECS * 1000) {
       const t0 = Date.now();

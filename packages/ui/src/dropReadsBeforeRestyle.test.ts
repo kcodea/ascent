@@ -32,6 +32,8 @@ describe('a drop reads layout before the drag class comes off (Recruit.tsx sourc
     const before = RECRUIT.slice(up, classOff);
     expect(before.includes('dropRectsRef.current = {'), 'the pre-read sits before the class removal').toBe(true);
     expect(before.includes("document.querySelector<HTMLElement>('.dragcard .cardplate')?.getBoundingClientRect()")).toBe(true);
+    // ...for ANY hand minion: a play only needs the play line, so the pre-read must not wait for the warband zone.
+    expect(before.includes("plate: d.source === 'hand' && !d.view.spell && !d.view.ruby ?")).toBe(true);
     expect(before.includes("document.querySelector<HTMLElement>('.goldpill')?.getBoundingClientRect()")).toBe(true);
   });
 

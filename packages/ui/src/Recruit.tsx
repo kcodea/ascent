@@ -487,6 +487,13 @@ function restingCenterOf(el: HTMLElement): { x: number; y: number } | null {
   return { x: p.left + toScreen(el.offsetLeft + el.offsetWidth / 2), y: p.top + toScreen(el.offsetTop + el.offsetHeight / 2) };
 }
 
+/** Do two uid sets hold the same uids? (A state setter keeps the old set when they do: no render.) */
+function sameUids(a: ReadonlySet<string>, b: ReadonlySet<string>): boolean {
+  if (a.size !== b.size) return false;
+  for (const u of a) if (!b.has(u)) return false;
+  return true;
+}
+
 /** How long a sale's Gold float stays mounted: its 0.9 s animation ends invisible, and it is gone by this. */
 const SELL_FLOAT_MS = 1000;
 
@@ -5257,7 +5264,8 @@ export function Recruit() {
       // 4 to 5 ms each on an engine board, twice the handler's other work). Same boxes, read in the layout pass the row
       // snapshot above already paid for.
       dropRectsRef.current = {
-        plate: handMinionDrop ? document.querySelector<HTMLElement>('.dragcard .cardplate')?.getBoundingClientRect() ?? null : undefined,
+        // Any hand minion, not only one released over the warband zone: a play needs the play line, not the zone.
+        plate: d.source === 'hand' && !d.view.spell && !d.view.ruby ? document.querySelector<HTMLElement>('.dragcard .cardplate')?.getBoundingClientRect() ?? null : undefined,
         gold: sellDrop ? document.querySelector<HTMLElement>('.goldpill')?.getBoundingClientRect() ?? null : undefined,
       };
       document.body.classList.remove('dragging'); // cursor reverts on release
@@ -6789,14 +6797,20 @@ export function Recruit() {
       // white. Split so a card is in exactly one set (crit wins in Card.tsx's class chain regardless, but a
       // clean split keeps the two props honest).
       const critUid = run.karwindCritUid;
-      setKarwindCritPulseUids(new Set([...authoredSources].filter((u) => u === critUid)));
-      setKarwindPulseUids(new Set([...authoredSources].filter((u) => u !== critUid)));
+      // THE SAME BUFFER PULSING AGAIN IS NOT A STATE CHANGE (R-PERF-APM-03). Karwind procs on every Shout, and each
+      // proc handed React two fresh Sets holding the same uid: one whole extra `Recruit` render per Shout, to put a
+      // class on a medallion that already wears it (the clear below is 760 ms out and re-armed by every proc). An
+      // unchanged set keeps its identity, so React has nothing to render. A crit still restarts through its nonce.
+      const critNow = new Set([...authoredSources].filter((u) => u === critUid));
+      const pulseNow = new Set([...authoredSources].filter((u) => u !== critUid));
+      setKarwindCritPulseUids((prev) => (sameUids(prev, critNow) ? prev : critNow));
+      setKarwindPulseUids((prev) => (sameUids(prev, pulseNow) ? prev : pulseNow));
       sfx.triggerPulse();
       if (karwindPulseTimerRef.current !== undefined) window.clearTimeout(karwindPulseTimerRef.current);
       karwindPulseTimerRef.current = window.setTimeout(() => {
         karwindPulseTimerRef.current = undefined;
-        setKarwindPulseUids(new Set());
-        setKarwindCritPulseUids(new Set());
+        setKarwindPulseUids((prev) => (prev.size === 0 ? prev : new Set()));
+        setKarwindCritPulseUids((prev) => (prev.size === 0 ? prev : new Set()));
       }, 760); // matches the battlecry medallion hold
     }
     const uids = (run.karwindFlash ?? []).filter((u) => !authored.has(u));

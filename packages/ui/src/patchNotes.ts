@@ -60,6 +60,15 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'A Gilded minion now keeps the progress its copies had. A Billings at 9/10 Gold spent stays at 9/10 when it is Gilded.',
+        details: [
+          'The Gilded minion starts at the furthest progress of the copies that combined. It used to start again from 0.',
+          'This covers every counter under a minion: Gold spent, cards bought, cards played, minions sold, spells and Rubies cast, Shouts, Orbits, Refreshes and Spirits played.',
+          'Combining never pays the effect out. The next step pays it as normal.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Game results now show the hero power and the Ancient picked with it, for you and for every player in the lobby.',
         details: [
           'The hero power sits beside the runes under the final board. Hover it to read the power and what its Ancient adds.',

@@ -10,10 +10,7 @@ export const CAPTURE_SLOTS: readonly string[] = [
 
 /** Slots that have a recorded clip in public/captures (webm + mp4). Recorded by scripts/capture.mjs. */
 export const CLIPS: ReadonlySet<string> = new Set<string>([
-  'discover-timer',
   'gold-fuse',
-  'rearrange',
-  'save-continue',
   'runeforge',
   'ancient-select',
   'career-chart',

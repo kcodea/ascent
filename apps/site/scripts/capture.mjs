@@ -58,6 +58,15 @@ const INIT = () => {
     c.src = '/cursors/gauntlet_open.svg';
     c.decoding = 'sync';
     document.documentElement.append(c);
+    // A full-screen veil too faint to see (about 1/255 of black) whose opacity changes every frame. Chrome's screen
+    // recorder follows whichever area of the page is animating and pauses for a quarter of a second each time that
+    // area changes, which shows in a clip as a freeze. With the whole screen changing on every frame it never re-aims.
+    const veil = document.createElement('div');
+    veil.style.cssText = 'position:fixed;inset:0;z-index:2147483646;pointer-events:none;background:rgb(0 0 0 / 0.008)';
+    document.documentElement.append(veil);
+    let flip = false;
+    const beat = () => { flip = !flip; veil.style.opacity = flip ? '1' : '0.5'; requestAnimationFrame(beat); };
+    requestAnimationFrame(beat);
     window.addEventListener('mousemove', (e) => { c.style.opacity = '1'; c.style.transform = 'translate(' + (e.clientX - 6) + 'px,' + (e.clientY - 2) + 'px)'; }, true);
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
@@ -79,25 +88,30 @@ async function openPlayer(browser, slot, { record = true, query = '' } = {}) {
   await page.waitForFunction(() => !!window.useGame && !document.querySelector('#bootsplash') && document.querySelectorAll('.ph-navhost .ph-navtab').length > 3, null, { timeout: 180000, polling: 250 });
   // Screen recording: the browser hands over a frame each time the picture changes; ffmpeg stitches them later.
   const frames = [];
+  const writes = [];
   let n = 0;
   if (record) {
     const cdp = await ctx.newCDPSession(page);
     cdp.on('Page.screencastFrame', (f) => {
       const file = path.join(dir, `f${String(n++).padStart(6, '0')}.jpg`);
-      fs.writeFileSync(file, Buffer.from(f.data, 'base64'));
+      // Acknowledge first, and save without blocking: the browser holds back new frames until the last is acknowledged.
+      cdp.send('Page.screencastFrameAck', { sessionId: f.sessionId }).catch(() => undefined);
+      writes.push(fs.promises.writeFile(file, Buffer.from(f.data, 'base64')));
       // The browser stamps each frame with when it was drawn, which is steadier than when it reaches us.
       const drawn = (f.metadata?.timestamp ?? 0) * 1000;
       frames.push({ file, t: Math.abs(drawn - Date.now()) < 5000 ? drawn : Date.now() });
-      cdp.send('Page.screencastFrameAck', { sessionId: f.sessionId }).catch(() => undefined);
     });
     await cdp.send('Page.startScreencast', { format: 'jpeg', quality: 92, everyNthFrame: 1 });
   }
   const gpu = page.evaluate(() => { const g = document.createElement('canvas').getContext('webgl'); const e = g && g.getExtension('WEBGL_debug_renderer_info'); return e ? g.getParameter(e.UNMASKED_RENDERER_WEBGL) : 'no webgl'; }).catch(() => 'unknown');
   const p = {
-    ctx, page, dir, errs, slot, frames, t0, gpu,
+    ctx, page, dir, errs, slot, frames, writes, t0, gpu,
     /** Seconds since the recording began: use for the clip's start and end. */
     now: () => (Date.now() - t0) / 1000,
     shot: async (name) => { const file = path.join(dir, `${name}.png`); await page.screenshot({ path: file }); return file; },
+    /** A look at where a routine has got to. Off unless CAPTURE_SHOTS=1: a screenshot stalls the recording for about a
+     *  quarter of a second, which shows in the clip as a freeze. */
+    debugShot: async (name) => (process.env.CAPTURE_SHOTS ? p.shot(name) : undefined),
     ev: (fn, arg) => page.evaluate(fn, arg),
   };
   return p;
@@ -162,6 +176,10 @@ function encode(slot, raw, { start, end, crop, still, png, width = 1280, share, 
   ff([...cut, '-an', '-vf', `${vf},fps=60`, '-c:v', 'libx264', '-preset', 'slow', '-crf', '26', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', `${base}.mp4`]);
 }
 
+/** Pauses of this script itself (ms epoch, length): if it stalls, frames go unacknowledged and the browser stops sending. */
+const LAGS = [];
+{ let last = Date.now(); setInterval(() => { const n = Date.now(); if (n - last > 60) LAGS.push([n, n - last - 10]); last = n; }, 10).unref(); }
+
 async function main() {
   const asked = process.argv.slice(2);
   const slots = asked.includes('all') ? Object.keys(ROUTINES) : asked;
@@ -171,7 +189,7 @@ async function main() {
   }
   fs.mkdirSync(OUT, { recursive: true });
   const server = await startServer();
-  const browser = await chromium.launch({ headless: true, executablePath: CHROME, args: ['--mute-audio', '--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist'] });
+  const browser = await chromium.launch({ headless: !process.env.CAPTURE_HEADED, executablePath: CHROME, args: ['--mute-audio', '--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist', '--disable-backgrounding-occluded-windows', '--disable-renderer-backgrounding', '--disable-background-timer-throttling'] });
   let failed = 0;
   for (const slot of slots) {
     const routine = ROUTINES[slot];
@@ -181,8 +199,10 @@ async function main() {
       const cut = await routine.run(p);
       const pageGaps = await p.ev(() => window.__gaps).catch(() => []);
       await p.ctx.close();
+      await Promise.all(p.writes);
       const raw = stitch(p);
       if (cut && !process.env.CAPTURE_PROBE) encode(routine.out ?? slot, raw, cut);
+      if (cut) console.log('NODE-LAGS', slot, LAGS.filter(([t]) => t >= p.t0 + cut.start * 1000 && t <= p.t0 + cut.end * 1000).map(([t, d]) => ((t - p.t0) / 1000 - cut.start).toFixed(1) + 's:' + d + 'ms').join(' ') || 'none');
       if (cut) console.log('PAGE-GAPS', slot, pageGaps.filter(([t]) => t >= p.t0 + cut.start * 1000 && t <= p.t0 + cut.end * 1000).map(([t, d]) => ((t - p.t0) / 1000 - cut.start).toFixed(1) + 's:' + d + 'ms').join(' ') || 'none');
       if (cut) { const fr = p.frames.filter((f) => f.t >= p.t0 + cut.start * 1000 && f.t <= p.t0 + cut.end * 1000); console.log('REC-GAPS', slot, fr.slice(1).map((f, i) => [f.t, f.t - fr[i].t]).filter(([, d]) => d > 50).map(([t, d]) => ((t - p.t0) / 1000 - cut.start).toFixed(1) + 's:' + Math.round(d) + 'ms').join(' ') || 'none'); }
       console.log('STATS', slot, frameStats(p, cut), await p.gpu);

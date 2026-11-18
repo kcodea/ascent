@@ -15,9 +15,9 @@
  *   `maxRounds` (60) is the lobby's stalemate backstop: the teams still in are then placed by Health + Armor.
  */
 import { CARD_INDEX } from '@game/content';
-import { makeRng, simulate, type BoardMinion, type CombatResult } from '@game/core';
+import { makeRng, simulate, type BoardMinion, type CombatConfig, type CombatResult } from '@game/core';
 import type { PreparedCombatSide } from '../state';
-import { versusSideOrEmpty } from './combat';
+import { versusOddsInput, versusSideOrEmpty } from './combat';
 import { mirrorForEnemySeat } from './mirror';
 import { hitVitals, stampVersusDamage, versusRoundCap, vitalsTotal, type VersusVitals } from './vitals';
 import type { RankedDuosTeam } from './rankedDuos';
@@ -230,17 +230,18 @@ export function resolveRankedDuosRound(input: RankedDuosRoundInput): RankedDuosR
     const A = sidesOf(byTeam.get(a)!);
     const B = sidesOf(byTeam.get(b)!);
     const chair: 'a' | 'b' = input.round % 2 === 1 ? 'a' : 'b';
+    const reserveConfig = (): CombatConfig => ({
+      firstSide: chair === 'a' ? 'player' : 'enemy',
+      reserve: {
+        player: { board: structuredClone(A.second.board), state: structuredClone(A.second.state) },
+        enemy: { board: structuredClone(B.second.board), state: structuredClone(B.second.state) },
+      },
+    });
     const result = simulate(
       structuredClone(A.first.board), structuredClone(B.first.board),
       makeRng(rankedDuosCombatSeed(input.matchSeed, input.round, fight)), CARD_INDEX,
       structuredClone(A.first.state), structuredClone(B.first.state),
-      {
-        firstSide: chair === 'a' ? 'player' : 'enemy',
-        reserve: {
-          player: { board: structuredClone(A.second.board), state: structuredClone(A.second.state) },
-          enemy: { board: structuredClone(B.second.board), state: structuredClone(B.second.state) },
-        },
-      },
+      reserveConfig(),
     );
     // The live team's fight carries every board and the order by SEAT, perspective-free (the Versus Duos shape, so the
     // Duos client plays it unchanged): the live pair are p1 / p2, a recorded team its stable virtual seats
@@ -267,6 +268,8 @@ export function resolveRankedDuosRound(input: RankedDuosRoundInput): RankedDuosR
     if (a === input.liveTeam || b === input.liveTeam) {
       const view = a === input.liveTeam ? aView : bView;
       out.liveResult = { ...view, ...(after.get(input.liveTeam) ? { versusVitals: { ...after.get(input.liveTeam)! } } : {}) };
+      // The live team's odds over this exact team fight, from its own chair (R-ODDS-ALL-MODES-01).
+      out.liveResult.oddsInput = versusOddsInput(A.first, B.first, reserveConfig(), a === input.liveTeam ? 'player' : 'enemy');
       liveFirst = a === input.liveTeam ? A.firstMember : B.firstMember;
     }
     fights.push(out);

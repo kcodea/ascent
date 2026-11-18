@@ -273,4 +273,26 @@ export const COMBAT_RULES: GameRule[] = [
     currentBehaviour: 'Conforms as of 2026-11-17. Before, all six skipped their payout when the killer died in the clash, while its own Slaughter still fired.',
     enforcement: { kind: 'scenario', refs: ['packages/core/src/combat/slaughterExtrasMutualKill.test.ts'], lastVerifiedAt: '2026-11-17' },
   },
+  {
+    id: 'R-ODDS-ALL-MODES-01',
+    title: 'The Combat Summary odds re-run the exact fight inputs in every mode, from the viewer\x27s own side',
+    statement:
+      'The win / draw / loss chance and the typical damage in the Combat Summary come from re-running the SAME inputs the '
+      + 'real fight ran on (both boards, both run contexts including every hero, rune, quest and Ancient combat mod, the '
+      + 'tie-break, and any Duos reserves) on separate odds seeds, read from the viewer\x27s chair. Solo, Practice, Ranked and '
+      + 'the Scene Builder stash them in the reducer; Versus 1v1, Versus group, Versus Duos and Ranked Duos stamp them on '
+      + 'each seat\x27s view of the one server fight (`perspective: enemy` for the seat that fought as simulate\x27s enemy). A '
+      + 'tag-team fight\x27s odds are the TEAM\x27s, for both members. A damage multiplier the real fight applies to the '
+      + 'viewer\x27s loss (Practice bots) rides the input, so the typical loss is the real blow. Spectators receive the '
+      + 'player\x27s numbers over the spectate tap and never run a probe. The inputs are display only: never archived in '
+      + 'Supabase.',
+    domain: 'combat',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ask 2026-11-17', quote: 'can we also add summary chance to win etc for duos and our lobby modes?' },
+      { kind: 'code', ref: 'packages/sim/src/odds.ts createOddsProbe; packages/sim/src/reducer.ts faceOmen resolveCombatVs; packages/sim/src/versus/combat.ts versusOddsInput; workers/versus/src/core/rankedMatch.ts withoutOddsInputs' },
+    ],
+    currentBehaviour: 'Conforms as of 2026-11-17. Before, only the solo modes showed odds (every server-resolved Versus / Duos fight and the Scene Builder tag-team fight showed none), and a Practice bot fight\x27s typical loss ignored the bot damage multiplier. Solo odds were already exact with Ancients (every Ancient combat effect rides the side mods the input captures).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/oddsParity.test.ts'], lastVerifiedAt: '2026-11-17' },
+  },
 ];

@@ -19,7 +19,13 @@ export const COMBAT_ODDS_SIMS = 200;
 
 export type CombatOdds = NonNullable<CombatResult['odds']>;
 
-export type CombatOddsInput = { player: BoardMinion[]; enemy: BoardMinion[]; playerState: CombatSideState; enemyState: CombatSideState; config: CombatConfig };
+export type CombatOddsInput = {
+  player: BoardMinion[]; enemy: BoardMinion[]; playerState: CombatSideState; enemyState: CombatSideState; config: CombatConfig;
+  /** Whose odds (R-ODDS-ALL-MODES-01): 'enemy' reads every sim from simulate's `enemy` chair (Versus p2, Duos team B). */
+  perspective?: 'player' | 'enemy';
+  /** The real fight's multiplier on the viewer's loss damage, before the cap (Practice bots). Absent = 1. */
+  lossDamageMult?: number;
+};
 
 /**
  * A RESUMABLE odds probe (perf pass 2026-09-16, owner-approved as a mechanical cleanup).
@@ -47,13 +53,21 @@ export interface OddsProbe {
 export function createOddsProbe(input: CombatOddsInput, seed: number, wave: number, sims = COMBAT_ODDS_SIMS, cap = lossDamageCap(wave)): OddsProbe {
   let win = 0, draw = 0, lose = 0, lossDamageTotal = 0, winDamageTotal = 0, i = 0;
   const lossDamages: number[] = []; // per-sim, for the recap's typical-loss RANGE (display only)
+  // THE VIEWER'S CHAIR (R-ODDS-ALL-MODES-01): a server-resolved Versus / Duos fight is ONE simulate, and the seat that
+  // fought as its `enemy` reads it mirrored. The probe re-runs the SAME inputs (boards, sides, tie-break, reserves) and
+  // reads each sim from that chair, so it can never drift from the real fight's framing.
+  const asEnemy = input.perspective === 'enemy';
+  const mult = input.lossDamageMult ?? 1;
   const step = (n: number): boolean => {
     const end = Math.min(sims, i + Math.max(0, n));
     for (; i < end; i++) {
       const r = simulate(input.player, input.enemy, makeRng(mixSeed(seed, wave, TAG.ODDS, i)), CARD_INDEX, input.playerState, input.enemyState, input.config);
-      if (r.result === 'win') { win++; winDamageTotal += Math.min(r.enemyDamage ?? 0, cap); } // round-capped, as the recap's real "You dealt" is
-      else if (r.result === 'draw') draw++;
-      else { const d = Math.min(r.playerDamage, cap); lose++; lossDamageTotal += d; lossDamages.push(d); } // round-capped, as a real loss would be
+      const mine = asEnemy ? (r.result === 'win' ? 'lose' : r.result === 'lose' ? 'win' : 'draw') : r.result;
+      const dealt = asEnemy ? r.playerDamage : (r.enemyDamage ?? 0);
+      const taken = asEnemy ? (r.enemyDamage ?? 0) : r.playerDamage;
+      if (mine === 'win') { win++; winDamageTotal += Math.min(dealt, cap); } // round-capped, as the recap's real "You dealt" is
+      else if (mine === 'draw') draw++;
+      else { const d = Math.min(mult === 1 ? taken : Math.round(taken * mult), cap); lose++; lossDamageTotal += d; lossDamages.push(d); } // scaled then round-capped, as a real loss would be
     }
     return i >= sims;
   };

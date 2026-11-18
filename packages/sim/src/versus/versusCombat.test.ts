@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
 import { CARD_INDEX } from '@game/content';
-import { makeRng, simulate } from '@game/core';
+import { makeRng, simulate, type CombatResult } from '@game/core';
 import { describe, expect, it } from 'vitest';
 import { reduce } from '../reducer';
 import { createRun, mixSeed, TAG, type PreparedCombatSide } from '../state';
@@ -77,9 +77,11 @@ describe('Versus resolver — one fight, two perspectives', () => {
     const direct = (first: 'player' | 'enemy') => canonicalJson(simulate(structuredClone(c.p1.board), structuredClone(c.p2.board), makeRng(versusCombatSeed(c.matchSeed, c.round)), CARD_INDEX, structuredClone(c.p1.state), structuredClone(c.p2.state), { firstSide: first }));
     // The resolver's p1 view is the raw fight, stamped with the round's cap (R-VERSUS-HEALTH-01).
     const stamped = (json: string, round: number): string => canonicalJson(stampVersusDamage(JSON.parse(json), versusRoundCap(round)));
-    expect(canonicalJson(resolveVersusFight(input(c)).p1)).toBe(stamped(direct('enemy'), c.round));
+    // The display-only odds input (R-ODDS-ALL-MODES-01) is the one field the raw fight does not carry.
+    const fight = (r: CombatResult): string => { const { oddsInput: _o, ...rest } = r; return canonicalJson(rest); };
+    expect(fight(resolveVersusFight(input(c)).p1)).toBe(stamped(direct('enemy'), c.round));
     const odd = FIXTURE.cases.find((x) => x.round % 2 === 1)!;
-    expect(canonicalJson(resolveVersusFight(input(odd)).p1)).toBe(stamped(canonicalJson(simulate(structuredClone(odd.p1.board), structuredClone(odd.p2.board), makeRng(versusCombatSeed(odd.matchSeed, odd.round)), CARD_INDEX, structuredClone(odd.p1.state), structuredClone(odd.p2.state), { firstSide: 'player' })), odd.round));
+    expect(fight(resolveVersusFight(input(odd)).p1)).toBe(stamped(canonicalJson(simulate(structuredClone(odd.p1.board), structuredClone(odd.p2.board), makeRng(versusCombatSeed(odd.matchSeed, odd.round)), CARD_INDEX, structuredClone(odd.p1.state), structuredClone(odd.p2.state), { firstSide: 'player' })), odd.round));
   });
 
   it('the chair rotates by round: p1 on odd rounds, p2 on even ones (attack-first is out of Versus pools)', () => {

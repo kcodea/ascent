@@ -33,9 +33,9 @@
  * Bundle-safe: core + content + pure siblings only.
  */
 import { CARD_INDEX } from '@game/content';
-import { makeRng, simulate, type CombatResult } from '@game/core';
+import { makeRng, simulate, type CombatConfig, type CombatResult } from '@game/core';
 import type { PreparedCombatSide } from '../state';
-import { versusSideOrEmpty } from './combat';
+import { versusOddsInput, versusSideOrEmpty } from './combat';
 import { mirrorForEnemySeat } from './mirror';
 import { hitVitals, stampVersusDamage, versusRoundCap, type VersusVitals } from './vitals';
 
@@ -184,6 +184,7 @@ export function resolveVersusGroupRound(input: VersusGroupRoundInput): VersusGro
   const fights = pairings.map((p, i): VersusGroupFight => {
     const A = sides.get(p.a)!;
     const B = sides.get(p.b)!;
+    const config: CombatConfig = { firstSide: chair === 'a' ? 'player' : 'enemy' };
     const result = simulate(
       structuredClone(A.board),
       structuredClone(B.board),
@@ -191,7 +192,7 @@ export function resolveVersusGroupRound(input: VersusGroupRoundInput): VersusGro
       CARD_INDEX,
       structuredClone(A.state),
       structuredClone(B.state),
-      { firstSide: chair === 'a' ? 'player' : 'enemy' },
+      { ...config },
     );
     const outcome: VersusGroupFight['outcome'] = result.result === 'draw' ? 'draw' : result.result === 'win' ? 'a' : 'b';
     const lost = outcome === 'a' ? p.b : outcome === 'b' ? p.a : null;
@@ -199,6 +200,8 @@ export function resolveVersusGroupRound(input: VersusGroupRoundInput): VersusGro
     const loser = lost && !loserIsCopy && stillIn(lost) ? lost : null;
     const aResult = stampVersusDamage(result, cap);
     const bResult = stampVersusDamage(mirrorForEnemySeat(result), cap);
+    aResult.oddsInput = versusOddsInput(A, B, config, 'player'); // each seat's chance, from its own chair (R-ODDS-ALL-MODES-01)
+    bResult.oddsInput = versusOddsInput(A, B, config, 'enemy');
     const damage = loser === p.a ? aResult.playerDamage : loser === p.b ? bResult.playerDamage : 0;
     return { fight: i, a: p.a, b: p.b, copy: p.copy, chair, outcome, loser, damage, aResult, bResult };
   });

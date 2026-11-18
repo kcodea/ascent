@@ -4434,6 +4434,7 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
         // (`duosMemberView`), and the rig lands the teammate's view on their run from the same result.
         const sd = s.sandbox === true && s.duos && action.sandboxDuos ? action.sandboxDuos : null;
         let combat: CombatResult;
+        let teamOdds: NonNullable<CombatResult['oddsInput']> | null = null;
         if (sd) {
           const mine = { board: player, state: playerState };
           const mate = { board: structuredClone(sd.mate.board), state: structuredClone(sd.mate.state) };
@@ -4441,9 +4442,12 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
           const lead = mateLeads ? mate : mine;
           const waiting = mateLeads ? mine : mate;
           const foeMate = sd.foeMate ? { board: opponentBoard(sd.foeMate), state: enemySideFrom(sd.foeMate, s.tier) } : null;
-          const team = simulate(lead.board, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.COMBAT)), CARD_INDEX, lead.state, enemyState,
-            { ...config, reserve: { player: waiting, ...(foeMate ? { enemy: foeMate } : {}) } });
+          const teamConfig: CombatConfig = { ...config, reserve: { player: waiting, ...(foeMate ? { enemy: foeMate } : {}) } };
+          const team = simulate(lead.board, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.COMBAT)), CARD_INDEX, lead.state, enemyState, teamConfig);
           combat = duosMemberView(team, mateLeads ? 1 : 0);
+          // The TEAM fight's odds (R-ODDS-ALL-MODES-01): the same lead, reserves and foes, re-run on the odds seeds. The
+          // outcome and the damage are the team's, which is exactly what this member's view shows.
+          teamOdds = { player: lead.board, enemy, playerState: lead.state, enemyState, config: teamConfig };
         } else {
           combat = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.COMBAT)), CARD_INDEX, playerState, enemyState, config);
         }
@@ -4451,7 +4455,8 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
         // `opponent tier + 1 per surviving minion`, which tops out ~13 even at tier 6 with a full board — against
         // 30 Resolve + 15 Armor that is ~10 losing rounds, and far longer for a player winning some. Scale the
         // bot's damage by difficulty BEFORE the round cap, so the cap still bounds the early rounds.
-        combat.playerDamage = Math.round(combat.playerDamage * practiceBotDamageMult(s));
+        const botMult = practiceBotDamageMult(s);
+        combat.playerDamage = Math.round(combat.playerDamage * botMult);
         // The presentation's hero damage formation (owner ask 2026-09-28) shows the blow before and after the cap:
         // stamp both here, where the cap is applied, so the screen never recomputes either.
         const roundCap = runLossCap(s);
@@ -4463,7 +4468,9 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
         // inputs instead (the banks ride the side mods, which `simulate` never mutates, so the probe sees them
         // UN-SPENT and applies them exactly as the real fight did) and
         // let the UI run `computeCombatOdds` in idle time after the transition. Same seeds → identical odds.
-        if (!sd) combat.oddsInput = { player, enemy, playerState, enemyState, config }; // a tag-team fight has no 1v1 odds
+        // The loss multiplier rides along (R-ODDS-ALL-MODES-01), so a Practice bot fight's "typical loss" is the blow it
+        // would really cost. A Scene Builder tag-team fight stashes the TEAM fight (lead + reserves) instead of a 1v1.
+        combat.oddsInput = { ...(teamOdds ?? { player, enemy, playerState, enemyState, config }), ...(botMult !== 1 ? { lossDamageMult: botMult } : {}) };
         return combat;
       };
       // Belt-and-suspenders: a stale served board is filtered at load (`registerOpponents`), but if one ever

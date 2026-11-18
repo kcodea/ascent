@@ -1,4 +1,5 @@
 import { noteShopActionOrigin, shopKeywordOrigin } from './fx/keywordOrigin';
+import { noteShopAction } from './fx/actionPressure';
 import { KEYWORD_BEAMS } from './fx/keywordBeam';
 import { canPlayDefs } from './fx/playDef';
 import { getDef } from './fx/fxDefs';
@@ -2729,6 +2730,10 @@ export const useGame = create<GameStore>((rawSet, get) => {
       // prepared End-of-Turn transaction commits identically to an ordinary dispatch.
       return commitResolvedAction(s, action, beat.state, beat.batch, captureBeats, set);
     });
+    // HOW FAST THE PLAYER IS ACTING (R-PERF-APM-01): every ACCEPTED Shop action is noted before React renders it, so
+    // its presentation can ask whether input is rapid (`fx/actionPressure.ts`). Presentation only: nothing the
+    // reducer, a replay or a snapshot reads.
+    if (prev.phase === 'recruit' && get().run !== prev) noteShopAction(action.type);
     // Feed the tutorial action bus AFTER the commit — a no-op (one set-size check) on every non-tutorial run,
     // so it's safe on the hot path. Only the tutorial controller subscribes, and only while a course is live.
     notifyTutorialActions(action, prev, get().run);

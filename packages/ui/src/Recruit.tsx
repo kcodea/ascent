@@ -268,6 +268,7 @@ import { QUICK_SALE_ID } from './sellMedallion';
 import { buffSourceDelayMs, buffSourceRanks, oneBitePerTarget, playBuffSourceWatcher } from './choreo/buffWatcher';
 import { cascade, scheduleLands, waves as asWaves } from './fx/land';
 import { holdStat, releaseAllStats, releaseStat } from './fx/statHold';
+import { cancelShopFx, shopFxLater } from './fx/shopFxQueue';
 import { ScreenContext, screenIdOf, useScreenSwapped, useSwapRef, useSwapState } from './screenSwap';
 /** Set 4 self-damage in the Shop: how long a hit's dip holds when no +Health follows it on screen, and how long the
  *  Health badge takes to roll back up (owner 2026-10-13: down, a beat, then back up). */
@@ -485,6 +486,9 @@ function restingCenterOf(el: HTMLElement): { x: number; y: number } | null {
   // offset* are stage px; the result feeds FX (screen) — toScreen (stage.ts)
   return { x: p.left + toScreen(el.offsetLeft + el.offsetWidth / 2), y: p.top + toScreen(el.offsetTop + el.offsetHeight / 2) };
 }
+
+/** No drop in progress: nothing was read ahead (R-PERF-APM-01, `dropRectsRef`). */
+const NO_DROP_RECTS: { plate?: DOMRect | null; gold?: DOMRect | null } = {};
 
 type DragSource = 'shop' | 'hand' | 'board';
 
@@ -5242,6 +5246,15 @@ export function Recruit() {
       const placeBox = (handMinionDrop || boardReorderDrop || shopReorderDrop) && flipZoneSel
         ? document.querySelector<HTMLElement>('.dragcard')?.getBoundingClientRect()
         : undefined;
+      // ...AND THE TWO RECTS THE DROP'S OWN PRESENTATION READS (R-PERF-APM-01): the played card's plate (its dissolve)
+      // and the Gold pill (a sale's coins). `applyDrop` used to read them AFTER the class came off below, which forced
+      // that whole-document restyle inside this handler after all, on every play and every sale (profiled 2026-11-18:
+      // 4 to 5 ms each on an engine board, twice the handler's other work). Same boxes, read in the layout pass the row
+      // snapshot above already paid for.
+      dropRectsRef.current = {
+        plate: handMinionDrop ? document.querySelector<HTMLElement>('.dragcard .cardplate')?.getBoundingClientRect() ?? null : undefined,
+        gold: sellDrop ? document.querySelector<HTMLElement>('.goldpill')?.getBoundingClientRect() ?? null : undefined,
+      };
       document.body.classList.remove('dragging'); // cursor reverts on release
       hideDragCursorVeil();
 
@@ -5275,6 +5288,7 @@ export function Recruit() {
       }
 
       const acted = applyDropRef.current(d, zone, e.clientX, e.clientY);
+      dropRectsRef.current = NO_DROP_RECTS; // this drop's reads are spent: a spectator's replayed action measures for itself
       // Route drag-drop commits through the manual per-card FLIP (see `handPlaySnapRef`) instead of the
       // whole-row Flip.from, which would replay the dragged card's move after the drop. Covers a played hand
       // minion entering the board, a board/shop-offer reorder, AND a SELL / BUY pull-out — each snapshotted its
@@ -6170,7 +6184,7 @@ export function Recruit() {
       watcherRang.add(sourceUid);
       const play = (): void => playBuffSourceWatcher(ev.sourceCardId, sourceUid, { x: at.x, y: at.y }, to ? { uid: ev.targetUid, at: { x: to.x, y: to.y } } : undefined, mute);
       const wait = buffSourceDelayMs(watcherRanks.get(sourceUid));
-      if (wait > 0) window.setTimeout(play, wait); else play();
+      if (wait > 0) shopFxLater(play, wait); else play(); // paced steps drop under rapid input (fx/shopFxQueue.ts)
     }
     // Collapse K Brightwing tendrils to one per target before grouping — see `coalesceBuffFxByTarget`. This is
     // the fix for the "many Brightwings slow it down" jank: K×(M−1) ribbons → M−1, presentation-only.
@@ -6223,7 +6237,7 @@ export function Recruit() {
         fireOne(ev);
       };
       if (land.at <= 0) fire();
-      else window.setTimeout(fire, land.at);
+      else shopFxLater(fire, land.at);
     }
   }, [findEl]);
 
@@ -6277,7 +6291,7 @@ export function Recruit() {
       const playing = new Set(events);
       for (const p of chain.links) {
         const mine = p.buffs.filter((b) => playing.has(b));
-        if (mine.length) shoutChainTimersRef.current.push(window.setTimeout(() => replayBuffFxEvents(mine), p.buffAtMs));
+        if (mine.length) shoutChainTimersRef.current.push(shopFxLater(() => replayBuffFxEvents(mine), p.buffAtMs));
       }
     }
     if (rest.length === 0) return;
@@ -6315,7 +6329,7 @@ export function Recruit() {
         });
       };
       if (p.linkAtMs <= 0) fire();
-      else shoutChainTimersRef.current.push(window.setTimeout(fire, p.linkAtMs));
+      else shoutChainTimersRef.current.push(shopFxLater(fire, p.linkAtMs));
     }
   }, [run.shoutLinkFxSeq]);
   useEffect(() => {
@@ -6324,7 +6338,7 @@ export function Recruit() {
     if (inCombat || wipe !== 'idle') return;
     fireEpicWatchers(run.epicFireFx ?? []);
   }, [run.epicFireFxSeq]);
-  useEffect(() => () => { for (const t of shoutChainTimersRef.current) window.clearTimeout(t); shoutChainTimersRef.current = []; }, [screenId]);
+  useEffect(() => () => { for (const t of shoutChainTimersRef.current) cancelShopFx(t); shoutChainTimersRef.current = []; }, [screenId]);
   // …and the parked wave plays once the curtain has revealed the shop (`wipe` back to `idle` with the phase on
   // `recruit`), when the warband is measurable again. A decisive combat (end screen) drops it — no board to land on.
   useEffect(() => {
@@ -8763,6 +8777,9 @@ export function Recruit() {
      The player's input handlers above and the spectator's action queue (versus/spectate.ts) both present through
      here, so a watcher sees and hears exactly what the player did: the touch, the own play landing (plate dissolve,
      dust, not counted as an arrival), a spell's cast FX or sparks, a reposition's dust, a sale's Gold float and coins. */
+  /** The rects the player's own drop read before the drag's body class came off (see `onUp`). `undefined` = not read
+   *  for this drop (the consumer measures for itself); `null` = read, and the element was not there. */
+  const dropRectsRef = useRef<{ plate?: DOMRect | null; gold?: DOMRect | null }>(NO_DROP_RECTS);
   const presentRef = useRef<(a: PresentedAction) => void>(() => undefined);
   presentRef.current = (a: PresentedAction): void => {
     switch (a.kind) {
@@ -8812,9 +8829,10 @@ export function Recruit() {
         setSellFloats((f) => [...f, { id, x: a.at.x, y: a.at.y, amount: a.amount }]);
         window.setTimeout(() => setSellFloats((f) => f.filter((s) => s.id !== id)), 1000);
         // Sprinkle gold coins out of the GOLD PILL: the authored `coin` def, fed the pill's centre as every anchor.
-        const goldEl = document.querySelector('.goldpill');
-        if (goldEl) {
-          const gr = goldEl.getBoundingClientRect();
+        // The player's own drop read the pill's box before the drag ended (`dropRectsRef`, no second layout); a
+        // spectator's replayed sale measures it here.
+        const gr = dropRectsRef.current.gold !== undefined ? dropRectsRef.current.gold : document.querySelector('.goldpill')?.getBoundingClientRect() ?? null;
+        if (gr) {
           const g = { x: gr.left + gr.width / 2, y: gr.top + gr.height / 2 };
           playDef('coin', { source: g, target: g, cursor: g });
         }
@@ -8964,7 +8982,8 @@ export function Recruit() {
       if (run.board.length >= CONFIG.boardMax) return false;
       const to = prevWarbandGapRef.current >= 0 ? prevWarbandGapRef.current : warbandIndexAt(cx);
       // The plate is measured on the LIVE drag card (`applyDrop` runs before `setDrag(null)`, so it is still mounted).
-      const plate = document.querySelector<HTMLElement>('.dragcard .cardplate')?.getBoundingClientRect() ?? null;
+      // (read with the drop's row snapshot, before the drag's body class came off: `dropRectsRef`, R-PERF-APM-01)
+      const plate = dropRectsRef.current.plate !== undefined ? dropRectsRef.current.plate : document.querySelector<HTMLElement>('.dragcard .cardplate')?.getBoundingClientRect() ?? null;
       noteDuosRelease(d, x, y, false);
       playWithSummonDelay({ type: 'play', uid: d.uid, toIndex: to });
       presentAction({ kind: 'played', uid: d.uid, plate }); // the plate dissolves, the minion lands in its dust

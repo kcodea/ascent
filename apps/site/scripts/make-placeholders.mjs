@@ -175,7 +175,7 @@ await heroCrop('mode-gauntlet.jpg', sixteenNine(0, 260, 900), 640, 360, null, 0.
   const W = 1200;
   const H = 630;
   const sky = await sharp(art('hero.webp')).resize(W, H, { fit: 'cover', position: 'centre' }).toBuffer();
-  const crest = await sharp(art('crest.png')).resize(250, 250).png().toBuffer();
+  const crest = await sharp(art('crest.webp')).resize(250, 250).png().toBuffer();
   const words = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">
   <text x="600" y="452" text-anchor="middle" font-family="${FONT}" font-size="92" font-weight="900" letter-spacing="10" fill="${CREAM}">ASCENT</text>
   <text x="600" y="520" text-anchor="middle" font-family="${FONT}" font-size="36" font-weight="700" fill="${GOLD}">The auto-battler that waits for you.</text>

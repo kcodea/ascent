@@ -1,7 +1,13 @@
 {
   "hero.webp": "apps/web/public/homescreen.webp",
-  "crest.png": "apps/web/public/frames/title-logo.png",
+  "crest.webp": {
+    "src": "apps/web/public/frames/title-logo.png",
+    "width": 320,
+    "format": "webp"
+  },
   "forge-bg.webp": "apps/web/public/runeforgebg2.webp",
+  "icon-192.png": "apps/web/public/icon-192.png",
+  "apple-touch-icon.png": "apps/web/public/apple-touch-icon.png",
   "cursors/gauntlet_default.svg": "apps/web/public/cursors/gauntlet_default.svg",
   "cursors/gauntlet_open.svg": "apps/web/public/cursors/gauntlet_open.svg",
   "ancients/bonds.webp": "packages/ui/src/art/ancients/bonds.webp",
@@ -20,6 +26,5 @@
   "chests/rare.webp": "apps/web/public/collection/chest_rare_body.webp",
   "chests/epic.webp": "apps/web/public/collection/chest_epic_body.webp",
   "chests/legendary.webp": "apps/web/public/collection/chest_legendary_body.webp",
-  "chests/ancient.webp": "apps/web/public/collection/chest_ancient_body.webp",
-  "end-button.webp": "apps/web/public/frames/end_button.webp"
+  "chests/ancient.webp": "apps/web/public/collection/chest_ancient_body.webp"
 }

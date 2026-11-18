@@ -20,7 +20,7 @@
  */
 import { create } from 'zustand';
 import { CARD_INDEX } from '@game/content';
-import { chooseOneNeedsChoice, resetLobbyDrivers, sellValueWithBonus, type RunState, type VersusGroupSeat } from '@game/sim';
+import { chooseOneNeedsChoice, duosMateOf, resetLobbyDrivers, sellValueWithBonus, type RunState, type VersusGroupSeat } from '@game/sim';
 import { presentAction, type ScreenPoint } from '../actionPresenter';
 import { playsAsSpell } from '../instView';
 import { actionSfx, useGame } from '../store';
@@ -36,7 +36,7 @@ import type { CursorSample, SpectatorAct, WireDecision, WireOdds, WireOverlay } 
 import { applySpectatorMessage, newReceiver, type CombatBeat, type HeroSelectFrame, type SpectatorMessage, type SpectatorReceiver, type VersusSpectatorView } from './spectatorView';
 import type { VersusMatch, VersusRoundRow } from './versusRemote';
 import { endWatchedGame, startSpectatorBeat, stopSpectatorBeat } from '../live/spectatorEnd';
-import { roundResultFor } from './versusGroupView';
+import { isDuosFight, roundResultFor } from './versusGroupView';
 import { playArrival, playEntryFlight, playWatchedDragPass } from './passLob';
 import { isDragPass, watchedPasses } from './spectatorPasses';
 import { sfx } from '../sfx';
@@ -97,6 +97,9 @@ let io: Io | null = null;
 const newReceivers = (): Record<VersusGroupSeat, SpectatorReceiver> => ({ p1: newReceiver(), p2: newReceiver(), p3: newReceiver(), p4: newReceiver() });
 let matchId: string | null = null;
 let rx: Record<VersusGroupSeat, SpectatorReceiver> = newReceivers();
+/** Each seat's latest reported fight position (`cb`, from any of its keyframes), so a switch to a seat in ANOTHER fight
+ *  of the round starts that fight where its player is, not at its first beat (R-SPECTATE-DUOS-SWITCH-01). */
+let seatBeats: Partial<Record<VersusGroupSeat, CombatBeat>> = {};
 let rounds: Record<number, VersusRoundRow> = {};
 let fetching = false;
 let lastKeyAsk = 0;
@@ -129,6 +132,7 @@ export function trackDuosMatch(match: VersusMatch | null, allRounds: Record<numb
     leaveTeammateHero();
     matchId = match.id;
     rx = newReceivers();
+    seatBeats = {};
     lobbyCache = null;
     last = null;
     resumeAt = null;
@@ -260,6 +264,7 @@ export function spectateSync(match: VersusMatch | null, allRounds: Record<number
     if (useSpectate.getState().active) stopSpectating();
     matchId = match.id;
     rx = newReceivers();
+    seatBeats = {};
     lobbyCache = null;
     last = null;
     resumeAt = null;
@@ -362,6 +367,7 @@ export function liveSync(gameId: string | null): void {
     if (useSpectate.getState().active) stopSpectating();
     matchId = gameId;
     rx = newReceivers();
+    seatBeats = {};
     lobbyCache = null;
     last = null;
     resumeAt = null;
@@ -432,6 +438,7 @@ export function receiveSpectate(payload: unknown): void {
   const ov = parseWireOverlay(msg.ov);
   if (ov) { const cur = useSpectate.getState().overlay ?? {}; if (overlayKey(cur[msg.seat]) !== overlayKey(ov)) useSpectate.setState({ overlay: { ...cur, [msg.seat]: ov } }); }
   // Where the watched player's fight is (a broadcast keyframe while it plays): catch the screen up to it.
+  if (msg.cb && typeof msg.cb.w === 'number' && typeof msg.cb.b === 'number') seatBeats[msg.seat] = { w: msg.cb.w, b: msg.cb.b };
   if (msg.cb && msg.seat === useSpectate.getState().seat) syncFightBeat(msg.cb);
   if (needKeyframe) { askForKey(); void fetchKeyframes(); return; }
   // A Duos player's teammate on Hero Select: their pick is my bottom-right portrait's face (R-DUOS-HEROSELECT-01).
@@ -1211,7 +1218,15 @@ const STRIKE_MS = 2600;
 function pinnedView(seat: VersusGroupSeat, view: VersusSpectatorView): VersusSpectatorView {
   if (view.phase === 'combat') {
     const key = `${matchId}|${seat}|${view.wave}`;
-    if (pin?.key !== key) pin = { key, view: { ...view, combatSettled: false }, released: false, late: lateEntry };
+    if (pin?.key !== key) pin = { key, view: view.combatSettled ? { ...view, combatSettled: false } : view, released: false, late: lateEntry };
+    // THE FIGHT'S OWN CHANGES SHOW AS THEY HAPPEN (R-SPECTATE-DUOS-LIVE-01, owner report 2026-11-17: "the cards granted in
+    // combat and/or passed in combat dont happen or show the animation until AFTER combat resolves"). The pin holds back
+    // the SETTLE only (the Health drop, the settled hand), never the player's live frames before it: a card their
+    // teammate passed or gifted mid-fight landing in their hand, and the fight's own held gifts (the outbox entries the
+    // fight queued as it landed, which this screen streams on their `teamSend` beats, `duosCombat.tsx`). The first combat
+    // frame is usually the one from before the fight landed, so holding it hid every one of those until the strike.
+    // The fight itself never restarts: it is read off the round row, not the view.
+    else if (!pin.released && !view.combatSettled && pin.view !== view) pin.view = view;
   }
   lateEntry = false;
   return pin && !pin.released ? pin.view : view;
@@ -1271,6 +1286,9 @@ export function takeSpectatorResume(wave: number): number | null {
   return b;
 }
 
+/** A seat switch's resume is waiting for this wave's fight (Recruit keeps the fight running through the swap). */
+export const spectatorResumePending = (wave: number): boolean => !!resumeAt && resumeAt.wave === wave && resumeAt.beat > 0;
+
 /** A spectator this many beats behind the player's fight is seeked; closer than that it plays on (no visible jump). */
 export const SEEK_LAG_BEATS = 3;
 /** Every seek request's number, never reused (across watch sessions too), so a request runs exactly once. */
@@ -1300,11 +1318,19 @@ export function watchSeat(seat: VersusGroupSeat): void {
   const from = useSpectate.getState().seat;
   if (from === seat) return;
   const run = useGame.getState().run;
-  // VERSUS GROUP: two seats in DIFFERENT fights of the round share no beats, so a switch there starts the other fight
-  // fresh (the late-join seek then catches it up); the same fight continues from the same moment, as in 1v1.
+  // The same fight (1v1, every seat of a Duos tag-team fight) continues from the same moment, from the other side. Two
+  // seats in DIFFERENT fights of a Versus Group round share no beats: the other fight starts where that seat's player
+  // last said they were (their latest `cb`), and the keyframe asked for here seeks it on to where they are now
+  // (R-SPECTATE-JOIN-01). Never from the first beat when anything better is known (R-SPECTATE-DUOS-SWITCH-01).
   const same = sameFightAt(rounds[run.wave], from, seat);
   if (same && run.phase === 'combat' && fightBeat?.key === `${matchId}|${run.wave}`) resumeAt = { wave: run.wave, beat: fightBeat.beat };
-  if (!same) { pin = null; lateEntry = true; askForKey(true); }
+  if (!same) {
+    pin = null;
+    lateEntry = true;
+    const known = seatBeats[seat];
+    if (run.phase === 'combat' && known && known.w === run.wave && known.b > 0) resumeAt = { wave: run.wave, beat: known.b };
+    askForKey(true);
+  }
   // The pin follows the fight, not the seat: carry its state to the other side.
   if (pin && same && run.phase === 'combat') {
     const other = rx[seat].view;
@@ -1321,9 +1347,18 @@ export function watchSeat(seat: VersusGroupSeat): void {
 }
 
 /** Are two seats in the same fight of a round? Always for a 1v1 round (one fight); a group round may have two. */
-function sameFightAt(round: VersusRoundRow | undefined, a: VersusGroupSeat, b: VersusGroupSeat): boolean {
+export function sameFightAt(round: VersusRoundRow | undefined, a: VersusGroupSeat, b: VersusGroupSeat): boolean {
   const g = round?.group;
   if (!g) return true;
+  // VERSUS DUOS / RANKED DUOS (R-SPECTATE-DUOS-SWITCH-01, owner report 2026-11-17: "switching views in combat restarts
+  // combat"): the round is ONE tag-team fight. Its row names only each team's FIRST board (`a_seat` / `b_seat`), so the
+  // reserves (the teammates) matched no fight here and every switch to or from one restarted the fight from zero. All
+  // four seats of that fight share its beats: the teammate, the foes and their teammate continue from the same moment.
+  const d = g.fights[0];
+  if (d && isDuosFight(d)) {
+    const inIt = (s: VersusGroupSeat): boolean => s === d.a_seat || s === d.b_seat || s === duosMateOf(d.a_seat) || s === duosMateOf(d.b_seat);
+    return inIt(a) && inIt(b);
+  }
   const f = g.fights.find((x) => x.a_seat === a || (x.b_seat === a && !x.b_copy));
   return !!f && (f.a_seat === b || (f.b_seat === b && !f.b_copy));
 }
@@ -1388,6 +1423,7 @@ export function resetSpectate(): void {
   syncMatch = null;
   asPlayer = false;
   rx = newReceivers();
+  seatBeats = {};
   rounds = {};
   useSpectate.setState({ seat: 'p1', optedOut: null, name: null, odds: {}, overlay: {}, teammate: false, teammateHero: false, hero: null, matePick: null });
   resetDuosMateSignals();

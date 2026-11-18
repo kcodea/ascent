@@ -16042,4 +16042,46 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'ask for by name: unscored runs are no longer met in Platinum and Diamond, only in Ascendant.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/lobby/strengthBands.test.ts', 'packages/sim/src/lobby/seatTiers.test.ts'], lastVerifiedAt: '2026-11-17' },
   },
+  {
+    id: 'R-SPECTATE-DUOS-SWITCH-01',
+    domain: 'foundation',
+    title: 'Switching the watched player mid-fight never replays the fight from the start',
+    statement:
+      'On the watch screen, switching to another player during a fight (a chip or the 1-4 keys) continues that fight from the '
+      + 'moment on screen, from the new player\x27s side. In Versus Duos and Ranked Duos every seat of the round (both teammates '
+      + 'and both foes) is in the one tag-team fight, so any switch keeps the same beat. In a Versus Group round a switch to a '
+      + 'player in the OTHER fight starts that fight where its player last said they were, and the screen then seeks on to '
+      + 'where they are now. A fight never starts over at its first beat because of a switch.',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-17 (spectating a Duos game)', quote: 'switching views in combat restarts combat' },
+      { kind: 'fix-pr', ref: 'fix/duos-spectate-combat (2026-11-17): packages/ui/src/versus/spectate.ts (sameFightAt, seatBeats, watchSeat, spectatorResumePending); packages/ui/src/Recruit.tsx (keepFightingRef); packages/ui/src/Game.tsx (the key holds in a watched fight)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-17. Before, a Duos round row names only each team\x27s first board, so a switch to or from a '
+      + 'reserve (the teammate) counted as a different fight and the replay restarted at beat 0 until a keyframe seek caught up. '
+      + 'And the other side\x27s fight object replayed the fight entry (the 800 ms settle) before its resume seek, showing the '
+      + 'opening boards for most of a second; a seat-switch resume now skips that entry.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectateDuosCombat.test.ts'], lastVerifiedAt: '2026-11-17' },
+  },
+  {
+    id: 'R-SPECTATE-DUOS-LIVE-01',
+    domain: 'foundation',
+    title: 'On the watch screen, cards passed or gifted during a fight land at that moment, not after the fight',
+    statement:
+      'While a watched fight plays, the watched player\x27s own changes from inside it reach the watch screen as they happen: '
+      + 'a card their teammate passes or gifts them mid-fight lands in their hand with its arrival stream, and the gifts their '
+      + 'own board sends stream from the unit on that beat. Only the fight\x27s SETTLE (the blow taken, the settled hand) waits '
+      + 'for the watch screen\x27s own hero strike (R-SPECTATE-STRIKE-01). A pass to a full hand still waits for room '
+      + '(R-DUOS-PASS-WAITS-01). The fight on screen is never restarted by these frames.',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-17 (spectating a Duos game)', quote: 'the cards granted in combat and/or passed in combat dont happen or show the animation until AFTER combat resolves' },
+      { kind: 'fix-pr', ref: 'fix/duos-spectate-combat (2026-11-17): packages/ui/src/versus/spectate.ts (pinnedView follows the unsettled frames)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-17. Before, the watch screen pinned the FIRST combat frame it received (usually the one from '
+      + 'before the fight landed) until the strike, so mid-fight arrivals and the fight\x27s held gifts only showed after it.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectateDuosCombat.test.ts'], lastVerifiedAt: '2026-11-17' },
+  },
 ];

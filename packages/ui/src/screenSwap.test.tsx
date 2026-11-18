@@ -117,7 +117,9 @@ describe('the wiring (source pins)', () => {
   const src = (f: string): string => readFileSync(join(__dirname, f), 'utf8');
   it('Recruit is keyed on the held key; the StatusBar and the EmoteLayer stay on the live one', () => {
     const game = src('Game.tsx');
-    expect(game).toMatch(/runKeyRef\.current = heldScreenKey\(runKeyRef\.current, liveRunKey, watchingMate\)/);
+    expect(game).toMatch(/runKeyRef\.current = heldScreenKey\(runKeyRef\.current, liveRunKey, watchingMate \|\| watchFight\)/);
+    // R-SPECTATE-DUOS-SWITCH-01: the watch screen holds it through a fight too (a seat switch never remounts the fight).
+    expect(game).toMatch(/const watchFight = watchActive && runInFight;/);
     expect(game).toMatch(/<Recruit key=\{runKey\} \/>/);
     expect(game).toMatch(/<StatusBar key=\{`sb:\$\{liveRunKey\}`\} \/>/);
     expect(game).toMatch(/<EmoteLayer key=\{`em:\$\{liveRunKey\}`\} \/>/);

@@ -128,28 +128,33 @@ describe('Gorun × DEATH cap (ancient pass 2, owner 2026-11-16): "twice per turn
   });
 });
 
-describe('Gorun × FORTUNE: "Every 5 attacks, gain 1 Gold next turn."', () => {
-  it('every 5th friendly attack banks 1 Gold for next turn, on one running count across fights; printed live', () => {
+describe('Gorun × FORTUNE: "Every 4 attacks, gain 1 Gold next turn." (owner 2026-11-17, was 5)', () => {
+  it('every 4th friendly attack banks 1 Gold for next turn, on one running count across fights; printed live', () => {
     const start = picked('fortune', { board: trio() });
-    expect(heroPowerText(start)).toContain('Every **5** attacks, gain **1 Gold** next turn (**5** more to go).');
+    expect(heroPowerText(start)).toContain('Every **4** attacks, gain **1 Gold** next turn (**4** more to go).');
     const fought = fightNow(start);
     const attacks = triggers(events(fought), 'bladeMastery');
-    expect(attacks).toBeGreaterThanOrEqual(5);
-    expect(triggers(events(fought), 'ancientAttackGold')).toBe(Math.floor(attacks / 5));
-    expect(fought.lastCombat!.playerBonusGold).toBe(Math.floor(attacks / 5));
+    expect(attacks).toBeGreaterThanOrEqual(4);
+    expect(triggers(events(fought), 'ancientAttackGold')).toBe(Math.floor(attacks / 4));
+    expect(fought.lastCombat!.playerBonusGold).toBe(Math.floor(attacks / 4));
     const s = settle(fought);
-    expect(s.ancients!.gorunAttacks).toBe(attacks % 5);
+    expect(s.ancients!.gorunAttacks).toBe(attacks % 4);
     const control = settle(fightNow(picked('war', { board: trio() })));
-    expect(s.embers - control.embers).toBe(Math.floor(attacks / 5));
-    expect(heroPowerText(s)).toContain(`(**${5 - (attacks % 5)}** more to go)`);
-    // The carried count continues: with 4 banked, the very first attack of the next fight pays.
-    const next = fightNow({ ...s, ancients: { ...s.ancients!, gorunAttacks: 4 } });
+    expect(s.embers - control.embers).toBe(Math.floor(attacks / 4));
+    expect(heroPowerText(s)).toContain(`(**${4 - (attacks % 4)}** more to go)`);
+    // The carried count continues: with 3 banked, the very first attack of the next fight pays.
+    const next = fightNow({ ...s, ancients: { ...s.ancients!, gorunAttacks: 3 } });
     const n2 = triggers(events(next), 'bladeMastery');
-    expect(triggers(events(next), 'ancientAttackGold')).toBe(Math.floor((4 + n2) / 5));
+    expect(triggers(events(next), 'ancientAttackGold')).toBe(Math.floor((3 + n2) / 4));
+  });
+  it('the combat mod carries every 4', () => {
+    const s = picked('fortune', { board: trio() });
+    const mods = ancientCombatMods(s).ancientAttackGold!;
+    expect(mods.every).toBe(4);
   });
   it('the live text follows the fight on screen', () => {
     const s = picked('fortune', { board: trio() });
-    expect(heroPowerText({ ...s, fxBladeAttacksPreview: 3 } as RunState)).toContain('(**2** more to go)');
+    expect(heroPowerText({ ...s, fxBladeAttacksPreview: 3 } as RunState)).toContain('(**1** more to go)');
   });
 });
 

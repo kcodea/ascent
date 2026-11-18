@@ -321,7 +321,7 @@ export const ENTRIES: readonly WikiEntry[] = [
     a: "**Start of Turn** fires when your Shop opens. **End of Turn** fires after you press End Turn, right before the fight. **Each turn** (or \"once per turn\") is a limit: you get it once per turn, and it's ready again when your next Shop opens.",
     aliases: ['each turn', 'once per turn', 'start of turn', 'end of turn', 'every turn', 'resets'],
     seeAlso: ['this-turn-includes-combat', 'end-turn'],
-    covers: [{ keyword: 'startofturn', fp: '0f361616' }, { keyword: 'endofturn', fp: 'e71a0509' }],
+    covers: [{ keyword: 'startofturn', fp: '702c8f9f' }, { keyword: 'endofturn', fp: '5d1f6a10' }],
   },
   {
     id: 'when-vs-whenever',
@@ -404,7 +404,7 @@ export const ENTRIES: readonly WikiEntry[] = [
     a: "An **Aura** is a run-wide bonus for a whole group. Giving your Beast Aura +2/+4 buffs **every Beast you have**, on your board, in your hand and in the Shop, **plus every Beast you get later**. It never wears off, even if it happened in combat.",
     aliases: ['aura', 'beast aura', 'imp aura', 'undead aura', 'run wide', 'everywhere', 'wherever they are'],
     seeAlso: ['combat-vs-permanent-wording', 'plain-copy'],
-    covers: [{ keyword: 'aura', fp: '602ebf18' }, { rule: 'R-AURA-02', fp: '5884cd85' }],
+    covers: [{ keyword: 'aura', fp: 'b871a698' }, { rule: 'R-AURA-02', fp: '5884cd85' }],
   },
   {
     id: 'card-tier-meaning',

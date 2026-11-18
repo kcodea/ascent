@@ -104,44 +104,48 @@ describe('Soren × DEATH: "Echoes triggered by Reclaim trigger an additional tim
   });
 });
 
-describe('Soren × FORTUNE: "Reclaim works in Recruit phase instead. Gain 5g when it is used."', () => {
-  it('destroys and resummons an exact copy in its slot right away, +5 Gold, no mark, nothing at Start of Combat', () => {
-    let s = picked('fortune', { board: [card('l', OTHER, { health: 40 }), card('a', T1, { attack: 9, health: 40, keywords: ['T'], buffs: [{ source: 'X', attack: 6, health: 37, count: 1 }] }), card('r', OTHER, { health: 40 })] });
+describe('Soren × FORTUNE: "Target a friendly minion to destroy it and gain 1 Gold." (owner 2026-11-17, 1 Gold from 2026-11-18)', () => {
+  it('the power text is the new one, and the offer says Reclaim becomes it', () => {
+    const s = picked('fortune');
+    expect(heroPowerText(s)).toBe('Target a friendly minion to destroy it and gain **1 Gold**.');
+    expect(ancientOfferText('soren', 'fortune')).toBe('Reclaim becomes: target a friendly minion to destroy it and gain **1 Gold**.');
+    expect(ancientOfferText('soren', 'fortune')).not.toMatch(/in the Shop/);
+  });
+  it('destroys the target right away and gains 1 Gold; no copy returns, no mark, nothing at Start of Combat', () => {
+    let s = picked('fortune', { board: [card('l', OTHER, { health: 40 }), card('a', T1, { attack: 9, health: 40 }), card('r', OTHER, { health: 40 })] });
     const gold = s.embers;
     s = reclaim(s, 'a');
-    expect(s.embers).toBe(gold + 5);
+    expect(s.embers).toBe(gold + 1);
     expect(s.heroReady).toBe(false);
-    expect(s.board.some((c) => c.uid === 'a'), 'the original is gone').toBe(false);
-    const copy = s.board[1]!;
-    expect(copy).toMatchObject({ cardId: T1, attack: 9, health: 40, keywords: ['T'] });
-    expect(copy.buffs).toEqual([{ source: 'X', attack: 6, health: 37, count: 1 }]);
+    expect(s.board.map((c) => c.uid), 'the target is gone and nothing replaced it').toEqual(['l', 'r']);
+    expect(s.board.some((c) => c.cardId === T1), 'no copy').toBe(false);
     expect(s.board.some((c) => c.resummon)).toBe(false);
-    expect(reclaim(s, copy.uid), 'once per turn').toBe(s);
+    expect(reclaim(s, 'l'), 'still once per turn').toBe(s);
     s = fightNow(s);
     expect(summonsOf(events(s), T1).length, 'no Start-of-Combat Reclaim').toBe(0);
   });
-  it('the Echo fires in the Shop, where the minion stood; the copy returns to the right of its summons', () => {
+  it('targets a friendly minion only: no target, or a uid off the board, does nothing and spends nothing', () => {
+    const s = picked('fortune', { board: [card('a', T1)] });
+    expect(reduce(s, { type: 'heroPower' })).toBe(s);
+    expect(reduce(s, { type: 'heroPower', uid: 'nope' })).toBe(s);
+  });
+  it('a real Recruit-phase death: the Echo fires where the minion stood', () => {
     let s = picked('fortune', { board: [card('l', T1), card('e', ECHO.id), card('r', T1)] });
     s = reclaim(s, 'e');
     const ids = s.board.map((c) => c.cardId);
     expect(ids[0]).toBe(T1);
     expect(ids[ids.length - 1]).toBe(T1);
-    expect(ids.length).toBeGreaterThan(3); // the Echo summoned
-    expect(ids[ids.length - 2], 'the copy sits right after the Echo summons').toBe(ECHO.id);
+    expect(s.board.some((c) => c.uid === 'e')).toBe(false);
+    expect(ids.length, 'the Echo summoned in its slot').toBeGreaterThan(2);
   });
-  it('a full board after the Echo: an overflow, and the copy is lost (owner 2026-10-02)', () => {
-    let s = picked('fortune', { board: [card('e', ECHO.id), ...['b', 'c', 'd', 'f', 'g', 'h'].map((u, i) => card(u, FILL[i]!))] });
-    s = reclaim(s, 'e');
-    expect(s.board.length).toBe(7);
-    expect(s.board.some((c) => c.cardId === ECHO.id && c.uid !== 'e'), 'no copy').toBe(ECHO.effects[0]!.params?.cardId === ECHO.id);
-    expect(s.hand.length, 'never sent to hand').toBe(0);
-    expect(s.embers).toBe(65);
-  });
-  it('a Rise is ignored (a true death, like combat Reclaim)', () => {
+  it('like every other Shop destroy, a Rise brings the minion back', () => {
     let s = picked('fortune', { board: [card('a', T1, { keywords: ['R'] })] });
+    const gold = s.embers;
     s = reclaim(s, 'a');
+    expect(s.embers).toBe(gold + 1);
     expect(s.board.length).toBe(1);
-    expect(s.board[0]!.keywords).toEqual(['R']); // the exact copy keeps its Rise; nothing Rose
+    expect(s.board[0]!.cardId).toBe(T1);
+    expect(s.board[0]!.keywords, 'the Rise was spent').not.toContain('R');
   });
 });
 

@@ -881,4 +881,22 @@ export const TEXT_RULES: GameRule[] = [
     example: 'A golden Salvatore McKlusky opens a Discover: every option is drawn Gilded at golden stats, and the one you take arrives exactly so.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/discoverPreview.test.ts', 'packages/ui/src/discoverPreviewText.test.ts'], lastVerifiedAt: '2026-11-16' },
   },
+  {
+    id: 'R-TEXT-RECRUIT-PHASE-01',
+    title: 'Text that means the shopping part of the turn says "Recruit phase"; "the Shop" means only the offer row',
+    statement:
+      'Player-facing text names the part of the turn where you buy, sell and play cards "the Recruit phase" (for example '
+      + '"in the Recruit phase", "in the Recruit phase and in combat"). "The Shop" means only the row of offers you buy from '
+      + '(minions in the Shop, the right-most Shop minion, steal from the Shop, upgrade your Shop). Text changes only: no '
+      + 'mechanic moves with the wording.',
+    domain: 'text',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-17 (Fortune tweaks)', quote: "anything that says 'in the shop' but means 'in the recruit phase' should have that text change to be corrected" },
+      { kind: 'code', ref: 'packages/content/src/runes.ts (Last Rites, Crowded Crypt, Gravedigger, Open Grave); packages/content/src/cards/set1 (Pack Leader, Archmagus Guel); packages/ui/src/cardText.ts; packages/ui/src/questText.ts; packages/ui/src/keywordGlossary.ts; packages/sim/src/ancients.ts (Soren, Auctioneer)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-17 for cards, runes, quests, hero powers, Ancient pairings, the keyword glossary and the tutorial. The rules wiki FAQ (packages/ui/src/rulesWiki) still says "the shop" for the phase in its prose.',
+    example: 'Crowded Crypt: "Overflow: give your minions +1/+1 permanently. Triggers twice in the Recruit phase." Contract Butcher keeps "Shout: give minions in the Shop +2/+2".',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/recruitPhaseWording.test.ts'], lastVerifiedAt: '2026-11-17' },
+  },
 ];

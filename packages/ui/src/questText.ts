@@ -354,7 +354,7 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
     case 'friedCircuits':
       return `Each minion you buy buffs shop Mechs +${r.stepAttack}/+${r.stepHealth}, improving by +${r.stepAttack}/+${r.stepHealth} each purchase`;
     case 'undeadSpellAura':
-      return `Casting a Shop spell gives your Undead +${r.attack} Attack (in the shop and combat)`;
+      return `Casting a Shop spell gives your Undead +${r.attack} Attack (in the Recruit phase and in combat)`;
     case 'baneDemonAura':
       return `Your Banes' Shout payoff also gives your Demons +${r.attack}/+${r.health}`;
     case 'openEpicRuneforge':

@@ -77,36 +77,55 @@ describe('Auctioneer × DEATH — Pulse triggers the Shout one more time, then d
   });
 });
 
-describe('Auctioneer × FORTUNE — every Shop Shout banks 1 Gold for next turn', () => {
-  it('a Pulse is a Shop Shout: +1 next turn, and the power text prints the live amount banked', () => {
-    let s = picked('fortune', { board: [cleric()] });
+describe('Auctioneer × FORTUNE — every 2 Recruit-phase Shouts bank 1 Gold for next turn (owner 2026-11-17)', () => {
+  it('the 1st Shout banks nothing and the text counts down; the 2nd banks 1 Gold, in real time', () => {
+    let s = picked('fortune', { board: [], hand: [cleric('h1'), cleric('h2')] });
     const bank0 = s.bonusEmbersNextTurn ?? 0;
-    expect(heroPowerText(s)).toContain('**0 Gold** banked this turn');
-    s = reduce(s, { type: 'heroPower', uid: 'c' });
+    expect(heroPowerText(s)).toContain('Every **2** **Shouts** you trigger in the Recruit phase give you **1 Gold** next turn (**2** more to go). **0 Gold** banked this turn');
+    s = reduce(s, { type: 'play', uid: 'h1', toIndex: 0 });
+    expect((s.bonusEmbersNextTurn ?? 0) - bank0).toBe(0);
+    expect(heroPowerText(s)).toContain('(**1** more to go). **0 Gold** banked this turn');
+    s = reduce(s, { type: 'play', uid: 'h2', toIndex: 1 });
     expect((s.bonusEmbersNextTurn ?? 0) - bank0).toBe(1);
-    expect(heroPowerText(s)).toContain('**1 Gold** banked this turn');
+    expect(heroPowerText(s)).toContain('(**2** more to go). **1 Gold** banked this turn');
   });
 
-  it('a Shout PLAYED from hand counts too, in real time', () => {
-    let s = picked('fortune', { board: [], hand: [cleric('h')] });
+  it('a Pulse is a Recruit-phase Shout and counts toward the 2', () => {
+    let s = picked('fortune', { board: [cleric()], hand: [cleric('h')] });
     const bank0 = s.bonusEmbersNextTurn ?? 0;
-    s = reduce(s, { type: 'play', uid: 'h', toIndex: 0 });
-    expect(s.board.some((c) => c.uid === 'h')).toBe(true);
+    s = reduce(s, { type: 'heroPower', uid: 'c' });
+    expect((s.bonusEmbersNextTurn ?? 0) - bank0).toBe(0);
+    s = reduce(s, { type: 'play', uid: 'h', toIndex: 1 });
     expect((s.bonusEmbersNextTurn ?? 0) - bank0).toBe(1);
+  });
+
+  it('the count carries across turns: one Shout this turn and one next turn pay 1 Gold', () => {
+    let s = picked('fortune', { board: [cleric()], hand: [] });
+    s = reduce(s, { type: 'heroPower', uid: 'c' }); // Shout 1 of 2
+    expect(s.ancients!.shoutTick).toBe(1);
+    s = reduce(fightNow(s), { type: 'resolveCombat' });
+    expect(s.ancients!.shoutTick, 'the count survives the turn').toBe(1);
+    expect(heroPowerText(s)).toContain('(**1** more to go). **0 Gold** banked this turn');
+    const bank0 = s.bonusEmbersNextTurn ?? 0;
+    s = reduce(s, { type: 'heroPower', uid: 'c' }); // Shout 2 of 2, a turn later
+    expect((s.bonusEmbersNextTurn ?? 0) - bank0).toBe(1);
+    expect(s.ancients!.shoutTick).toBe(0);
   });
 
   it('the Gold arrives next turn', () => {
-    let s = picked('fortune', { board: [cleric()] });
+    let s = picked('fortune', { board: [cleric()], hand: [cleric('h')] });
     s = reduce(s, { type: 'heroPower', uid: 'c' });
+    s = reduce(s, { type: 'play', uid: 'h', toIndex: 1 });
     const withF = reduce(fightNow(s), { type: 'resolveCombat' });
-    let t = picked('war', { board: [cleric()] }); // same Pulse, no Fortune
+    let t = picked('war', { board: [cleric()], hand: [cleric('h')] }); // same Shouts, no Fortune
     t = reduce(t, { type: 'heroPower', uid: 'c' });
+    t = reduce(t, { type: 'play', uid: 'h', toIndex: 1 });
     t = { ...t, board: t.board.map((c) => ({ ...c, grantedEffects: undefined, keywords: c.keywords.filter((k) => k !== 'RL') })) };
     const without = reduce(fightNow(t), { type: 'resolveCombat' });
     expect(withF.embers - without.embers).toBe(1);
   });
 
-  it('COMBAT Shouts do not count (the text says Shop phase)', () => {
+  it('COMBAT Shouts do not count (the text says Recruit phase)', () => {
     // A cleric carrying the War graft re-fires its Shout on every attack in the fight.
     let s = picked('fortune', { board: [cleric('c', { keywords: ['RL'], grantedEffects: [{ on: 'onAttack', do: 'rallyTriggerOwnShout', params: {} }] })] });
     const bank0 = s.bonusEmbersNextTurn ?? 0;
@@ -114,6 +133,7 @@ describe('Auctioneer × FORTUNE — every Shop Shout banks 1 Gold for next turn'
     expect(events(s).some((e) => e.type === 'shout')).toBe(true);
     expect(s.bonusEmbersNextTurn ?? 0).toBe(bank0);
     expect(s.ancients!.shoutGold).toBeUndefined();
+    expect(s.ancients!.shoutTick).toBeUndefined();
   });
 });
 

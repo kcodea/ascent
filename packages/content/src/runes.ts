@@ -1529,7 +1529,7 @@ export const RUNES: RuneDef[] = [
     name: 'Last Rites',
     cost: 3, // owner 2026-10-23 -1 (was 4)
     tribes: ['undead'],
-    text: 'The first **Undead** you destroy during the Shop phase each turn returns a plain copy to your hand.',
+    text: 'The first **Undead** you destroy in the Recruit phase each turn returns a plain copy to your hand.',
     reward: { kind: 'runeLastRites' },
     sets: ['set3'],
   },
@@ -1540,7 +1540,7 @@ export const RUNES: RuneDef[] = [
     tribes: ['undead'], // RE-TAG Neutral -> Undead (owner 2026-09-27, Set 3 rune design pass): in Set 3 only Undead print Overflow
     name: 'Crowded Crypt',
     cost: 3, // owner 2026-10-23 -1 (was 4)
-    text: '**Overflow:** give your minions **+1/+1 permanently**. Triggers **twice** in the Shop.',
+    text: '**Overflow:** give your minions **+1/+1 permanently**. Triggers **twice** in the Recruit phase.',
     reward: { kind: 'multi', rewards: [
       { kind: 'combatFlag', flag: 'runeOverflow', amount: 1 },
       { kind: 'runeCrowdedCrypt', attack: 1, health: 1, times: 2 },
@@ -1724,7 +1724,7 @@ export const RUNES: RuneDef[] = [
     tribes: ['undead'],
     name: 'Gravedigger',
     cost: 2, // owner 2026-10-23 -1 (was 3)
-    text: 'After you destroy a friendly minion in the **Shop**, give your **Undead +2/+2**.',
+    text: 'After you destroy a friendly minion in the **Recruit phase**, give your **Undead +2/+2**.',
     reward: { kind: 'combatFlag', flag: 'runeGravedigger' },
     sets: ['set3'],
   },
@@ -4327,7 +4327,7 @@ export const EPIC_RUNES: RuneDef[] = [
     name: 'Open Grave',
     cost: 3, // owner 2026-10-23 -1 (was 4)
     epic: true,
-    text: 'The first friendly minion you destroy in the **Shop** each turn gains **Rise** before it dies.',
+    text: 'The first friendly minion you destroy in the **Recruit phase** each turn gains **Rise** before it dies.',
     reward: { kind: 'combatFlag', flag: 'runeOpenGrave' },
     sets: ['set3'],
   },

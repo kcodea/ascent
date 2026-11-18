@@ -894,8 +894,10 @@ function collectModifiers(sentence: string, base: number, stripped: string, out:
   if (rnd) out.randomness.push({ kind: 'random', span: span(stripped, base + rnd.index, base + rnd.index + rnd[0].length) });
   const choice = /\b(?:Discover|Choose)\b/.exec(sentence);
   if (choice) out.randomness.push({ kind: 'player-choice', span: span(stripped, base + choice.index, base + choice.index + choice[0].length) });
-  if (/\bIn combat\b|\bin combat\b|\(shop or combat\)/.test(sentence)) out.phases.push(/\(shop or combat\)/.test(sentence) ? 'both' : 'combat');
-  if (/\bin the Shop\b/.test(sentence)) out.phases.push('shop');
+  // "(in the Recruit phase or in combat)" is the current wording of the old "(shop or combat)" (2026-11-17).
+  const both = /\(shop or combat\)|\(in the Recruit phase or in combat\)/;
+  if (/\bIn combat\b|\bin combat\b|\(shop or combat\)/.test(sentence)) out.phases.push(both.test(sentence) ? 'both' : 'combat');
+  if (/\bin the Shop\b/.test(sentence) || (/\bin the (?:\*\*)?Recruit phase\b/.test(sentence) && !both.test(sentence))) out.phases.push('shop');
 }
 
 /** Tails a recognized effect may carry. Each is consumed AND listed in `consumedModifiers`. */
@@ -908,7 +910,7 @@ const EFFECT_TAIL = new RegExp('^\\s*(?:,\\s*)?(?:'
   + '|for the next \\d+ turns|every turn|each turn|per turn|\\(shop or combat\\)|\\(random\\)|\\(as room allows\\)|\\(Deathrattle\\)|\\(up to Tier \\d+\\)|\\(up to your tavern tier\\)'
   + '|\\(at least \\+\\d+\\/\\+\\d+\\)|\\(\\+\\d+\\/\\+\\d+ during combat\\)|\\(can\'t die from that attack\\)|\\(costs \\d+\\)|\\(twice as much\\)|— even in the shop —|with (?:Taunt|Ward)(?: and (?:Taunt|Ward))?'
   + '|only in combat|if it is a (?:Kobold|Dragon)|if none are alive|if you play it this turn|with this on board|while Pack Leader is on the board|while attacking|and it attacks first|plus (?:double )?this minion\'s Rubies|with (?:double )?this minion\'s Rubies'
-  + '|\\(procs its Deathrattle\\)|\\(takes no damage back\\)|on your board|that has learned it|from the Shop|from the tavern|of that Tier|of the same Tier|in the Shop|on this|onto this|to them|on them'
+  + '|\\(procs its Deathrattle\\)|\\(takes no damage back\\)|on your board|that has learned it|from the Shop|from the tavern|of that Tier|of the same Tier|in the Shop|\\(in the Recruit phase or in combat\\)|in the Recruit phase|on this|onto this|to them|on them'
   + ')(?=[\\s.,;)]|$)');
 
 /** Scalers: "for each Spirit you played this turn" / "for every 3 Gold you have spent this run" / "per Gold spent this

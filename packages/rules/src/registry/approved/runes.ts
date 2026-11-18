@@ -1297,7 +1297,7 @@ export const RUNES_RULES: GameRule[] = [
       { kind: 'code', ref: "packages/sim/src/recruit.ts armOpenGrave (destroyMinionInShop + settlePendingDeath); packages/sim/src/reducer.ts turn reset" },
     ],
     contentIds: ["rune_open_grave"],
-    cardText: "The first friendly minion you destroy in the **Shop** each turn gains **Rise** before it dies.",
+    cardText: "The first friendly minion you destroy in the **Recruit phase** each turn gains **Rise** before it dies.",
     currentBehaviour: 'Conforms (built with the rune, 2026-09-27).',
     enforcement: {
       kind: 'scenario',

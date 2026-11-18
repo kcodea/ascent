@@ -67,8 +67,8 @@ export const KEYWORD_GLOSSARY: KeywordDef[] = [
   { id: 'shout', name: 'Shout', aliases: ['Battlecry'], section: 'triggers', mechanic: 'shout', def: 'Triggers when you play this minion from your hand.' },
   { id: 'echo', name: 'Echo', aliases: ['Deathrattle', 'Deathrattles', 'Echoes'], section: 'triggers', mechanic: 'echo', def: 'Triggers when this minion dies.' },
   { id: 'startofcombat', name: 'Start of Combat', aliases: [], badge: 'SC', section: 'triggers', mechanic: 'startCombat', def: 'Triggers immediately when combat begins, before any attacks.' },
-  { id: 'startofturn', name: 'Start of Turn', aliases: [], section: 'triggers', icon: 'refresh', def: 'Triggers at the start of each of your shop turns.' },
-  { id: 'endofturn', name: 'End of Turn', aliases: [], section: 'triggers', mechanic: 'endTurn', def: 'Triggers at the end of each of your shop turns, before you fight.' },
+  { id: 'startofturn', name: 'Start of Turn', aliases: [], section: 'triggers', icon: 'refresh', def: 'Triggers at the start of each of your turns, as the Recruit phase opens.' },
+  { id: 'endofturn', name: 'End of Turn', aliases: [], section: 'triggers', mechanic: 'endTurn', def: 'Triggers at the end of each Recruit phase, before you fight.' },
   { id: 'avenge', name: 'Avenge', aliases: [], section: 'triggers', mechanic: 'avenge', def: 'Avenge (N): triggers each time N of your minions have died this combat.' },
   // Pummel (owner keyword 2026-09-21): the damage-dealt threshold trigger — "**Pummel (40):** …" on Han Gover,
   // "**Pummel (6):** …" on Goldvein. Declared like Avenge (N): the name matches the printed "Pummel (X)" on its
@@ -125,7 +125,7 @@ export const KEYWORD_GLOSSARY: KeywordDef[] = [
   { id: 'spend', name: 'Spend', aliases: [], section: 'build', mechanic: 'spend', detectRe: /\bspend\b|\bGold\**\s+spent,/i, def: 'Triggers an effect based on how much Gold you spend. The Gold you spend adds up across turns.' },
   // Aura — the run-wide scope noun (owner ruling 2026-08-28): "your <Tribe> Aura". Wording is the owner's
   // verbatim (2026-09-21).
-  { id: 'aura', name: 'Aura', aliases: ['Auras'], section: 'build', icon: 'up', def: 'A run wide bonus for every minion that it suits. Carries through shop and combat phases.' },
+  { id: 'aura', name: 'Aura', aliases: ['Auras'], section: 'build', icon: 'up', def: 'A run wide bonus for every minion that it suits. Carries through the Recruit phase and combat.' },
   // The Spirits' hand-summon (owner design 2026-09-09): an exact copy at the moment of summon, the card stays.
   { id: 'summonfromhand', name: 'Summon from hand', aliases: [], section: 'build', icon: 'house', detectRe: /\bsummon(?:ed|s)?\b[^.]*?\bfrom your hand\b/, def: 'Summons an exact copy of a minion in your hand into combat. The card stays in your hand and can be summoned this way once per combat.' },
   // Equipment minions print "**Equip <Name> (cost):**" — the word "Equip" is the text hit that raises the pill

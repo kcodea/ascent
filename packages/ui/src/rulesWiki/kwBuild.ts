@@ -170,7 +170,7 @@ export const ENTRIES: readonly WikiEntry[] = [
     a: "A **run-wide bonus** for every minion it suits, like your \"Beast Aura\" or \"Undead Aura\". It reaches the ones on your board and in your hand, and every matching minion you get later arrives with it too. It holds in both the Shop and combat.",
     aliases: ['auras', 'tribe aura', 'global buff', 'wherever they are', 'run buff'],
     seeAlso: ['aura-stacking', 'aura-after-source-leaves', 'check-my-auras'],
-    covers: [{ keyword: 'aura', fp: '602ebf18' }, { rule: 'R-AURA-01', fp: '9edd5889' }],
+    covers: [{ keyword: 'aura', fp: 'b871a698' }, { rule: 'R-AURA-01', fp: '9edd5889' }],
   },
   {
     id: 'aura-stacking',

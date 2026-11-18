@@ -338,7 +338,7 @@
   flex-direction: column;
   width: 100%;
   margin-top: -30%;
-  padding: 30% var(--s3) var(--s4);
+  padding: 40% var(--s3) var(--s4);
   text-align: center;
   background: linear-gradient(0deg, var(--showcase) 52%, transparent);
 }

@@ -65,6 +65,10 @@ export const PATCH_NOTES: PatchNote[] = [
           'The Gilded minion starts at the furthest progress of the copies that combined. It used to start again from 0.',
           'This covers every counter under a minion: Gold spent, cards bought, cards played, minions sold, spells and Rubies cast, Shouts, Orbits, Refreshes and Spirits played.',
           'Combining never pays the effect out. The next step pays it as normal.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Mech and Spirit have new tribe colors that match the gems on their card frames.',
         details: [
           'Mech is now indigo instead of sky blue.',

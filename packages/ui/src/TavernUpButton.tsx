@@ -117,10 +117,8 @@ export const TavernUpButton = memo(function TavernUpButton({ tier, maxTier, cost
           <b>{cost}</b>
         </span>
       )}
-      {/* Current-tier pill (owner ask 2026-08-11) — the Tier readout moved off the top bar onto the stone, so
-          the tier lives with the button that changes it. Purely a label; pointer-events off so it never eats a
-          click meant for the upgrade. */}
-      <span className="tvb-tierpill hudpill-name" aria-hidden="true">Tier {tier}</span>
+      {/* (The "Tier N" pill that sat over the stone moved into the Shop slice on the frame's top edge, owner ask
+          2026-11-18: ShopTierSlice.tsx.) */}
       <span className="tvb-tip">{combat ? `Shop tier ${tier}` : maxed ? 'Shop at max tier' : `Upgrade Shop to tier ${tier + 1}`}</span>
     </button>
   );

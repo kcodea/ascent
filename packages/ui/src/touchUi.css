@@ -53,7 +53,8 @@ html[data-touch-ui] .bookbtn { right: calc(var(--edge-r) + 16px + var(--touch-cb
 html[data-touch-ui] .statcell .timermult { scale: calc(var(--touch-k) * 1.3); transform-origin: 100% 50%; }
 /* Name / cost pills: their own transform carries a tuned offset AND a scale, so the scale term is multiplied in place
    (a separate `scale` property would multiply the offset too and push the pill off its button). */
-html[data-touch-ui] .tvbwrap .tvb-tierpill { transform: translate(calc(-50% + var(--tierpill-x, 87px) * var(--scale)), calc(var(--tierpill-y, -141px) * var(--scale))) scale(calc(var(--tierpill-s, 1.21) * var(--touch-k))); }
+/* The Shop slice's text grows with the Touch UI size (its plate is board furniture and keeps its size). */
+html[data-touch-ui] .shopslice-text { font-size: calc(25px * var(--scale) * var(--touch-k)); }
 html[data-touch-ui] .frzwrap .frz-pill { transform: translate(calc(-50% + var(--frz-pill-x, 65.5) * var(--u)), calc(-50% + var(--frz-pill-y, -26.5) * var(--u))) scale(calc(var(--frz-pill-s, 1.04) * var(--touch-k))); }
 html[data-touch-ui] .tvbwrap .tvb-cost { transform: translate(-50%, -50%) scale(calc(var(--tvb-cost-s, 0.84) * var(--touch-k))); }
 html[data-touch-ui] .rfb-cost { transform: translate(calc(-50% + var(--rfb-cost-x, -66) * var(--u)), calc(-50% + var(--rfb-cost-y, -64) * var(--u))) scale(calc(var(--rfb-cost-s, 0.72) * var(--touch-k))); }

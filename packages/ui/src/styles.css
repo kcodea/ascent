@@ -1538,10 +1538,57 @@ body.etb-glow-preview .etbwrap:not(.pressed):not(:disabled) .etb-gem {
   cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
 }
 body.dragging .tvbwrap { pointer-events: none; } /* a card dragged across it drops through */
-/* Current-tier pill on the stone (owner ask 2026-08-11) — the Tier readout moved off the top bar onto the
-   button that changes it. A cream/gold label eclipsing the stone's bottom edge, matching the hero-name pill;
-   pointer-events off so it never eats the upgrade click. Scales with the button (it's a child of the wrap). */
-.tvbwrap .tvb-tierpill { position: absolute; left: 50%; bottom: calc(6 * var(--u)); transform: translate(calc(-50% + var(--tierpill-x, 87px) * var(--scale)), calc(var(--tierpill-y, -141px) * var(--scale))) scale(var(--tierpill-s, 1.21)); z-index: 6; pointer-events: none; white-space: nowrap; padding: calc(2 * var(--u)) calc(12 * var(--u)); border-radius: 999px; background: linear-gradient(180deg, #fff, #f3ead4); color: var(--ink); border: 2px solid var(--gold); font-family: var(--font-ui); font-weight: 800; font-size: calc(12 * var(--u)); letter-spacing: 0.02em; box-shadow: 0 calc(2 * var(--u)) calc(6 * var(--u)) -2px var(--shadow); }
+/* THE SHOP SLICE (ShopTierSlice.tsx, owner ask 2026-11-18: "put another slice here that says 'Shop' and then move the
+   'Tier x' into that slice, in the same rail aesthetic"). A Docked-rail plate on the shop frame's top edge, from under the
+   Tavern Up stone to the Freeze diamond: flat left end (the stone's ring overlaps it, z 40 under the HUD pieces' 41), a
+   clean cut on the right end parallel to the diamond's upper-left edge, the rail's navy plate + gold edge + text
+   treatment (uiTheme.css `--pill-*`). Stage-pinned like the Freeze diamond: `--shopslice-x/y` place the plate's RIGHT
+   end (the top of the cut, on the frame line) off the stage's top-centre, `--shopslice-w` is its length (Layout Lab "Shop slice"), and
+   it takes the same board-grow shift as the diamond so it stays on the frame line at any grow.
+   MOTION: the box clips at the frame line (a static `clip-path`), and the plate inside it rises from below that line: a
+   one-shot transform + opacity transition when `.tucked` comes off (the return trip's reveal, see the component). The
+   drop shadow is a static filter on the plate; nothing loops. */
+.shopslice {
+  --sh: calc(50px * var(--scale));
+  --cut: calc(44px * var(--scale));
+  --rim: max(1.5px, calc(4px * var(--scale)));
+  position: fixed; z-index: 40; pointer-events: none;
+  left: calc(var(--bar-x) + 0.5 * var(--gw) + (var(--shopslice-x, -37px) - var(--shopslice-w, 700px)) * var(--scale));
+  top: calc(var(--bar-y) + var(--shopslice-y, 271px) * var(--scale) - var(--sh));
+  width: calc(var(--shopslice-w, 700px) * var(--scale)); height: var(--sh);
+  translate: calc((var(--board-grow, 1.05) - 1) * (var(--shopslice-x, -37px) - var(--board-x, 0px)) * var(--scale)) calc((var(--board-grow, 1.05) - 1) * ((var(--shopslice-y, 271px) - var(--board-y, 5px)) * var(--scale) - 0.5 * var(--gh)));
+  /* Tucked behind the frame: everything below the frame line is clipped (room left for the shadow on the other sides). */
+  clip-path: inset(-40px -40px 0 -40px);
+}
+.shopslice-plate {
+  position: absolute; inset: 0;
+  filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.95)) drop-shadow(0 calc(3px * var(--scale)) calc(5px * var(--scale)) rgba(0, 0, 0, 0.75));
+  transition: transform 460ms cubic-bezier(0.2, 0.9, 0.3, 1.04) 180ms, opacity 220ms ease-out 180ms;
+}
+.shopslice.tucked .shopslice-plate { transform: translateY(115%); opacity: 0; transition: none; }
+.shopslice-edge { position: absolute; inset: 0; background: var(--pill-edge); clip-path: polygon(0 0, 100% 0, calc(100% - var(--cut)) 100%, 0 100%); }
+/* The plate, inset by the rim on the left, the top and the cut (the cut's run is moved in by rim x 1.33, the 44:50 cut's
+   secant, so the diagonal edge reads the same width as the top). */
+.shopslice-fill {
+  --d: calc(var(--rim) * 1.332);
+  position: absolute; left: var(--rim); top: var(--rim); right: 0; bottom: 0;
+  background: var(--pill-plate);
+  clip-path: polygon(0 0, calc(100% - var(--d) - var(--cut) * 0.08) 0, calc(100% - var(--d) - var(--cut)) 100%, 0 100%);
+}
+/* SHOP | TIER N, centred on the plate clear of the cut: the round slice's text (gold title, light caps). */
+.shopslice-text {
+  position: absolute; top: var(--rim); bottom: 0; left: var(--rim); right: calc(var(--cut) * 0.6);
+  display: flex; align-items: center; justify-content: center; gap: calc(16px * var(--scale));
+  font-family: var(--pill-font), sans-serif; font-size: calc(25px * var(--scale)); line-height: 1; white-space: nowrap;
+  text-transform: uppercase; text-shadow: var(--pill-text-shadow);
+}
+.shopslice-label { font-weight: 800; letter-spacing: 0.12em; color: var(--ui-title); }
+.shopslice-div { flex: none; width: max(1px, calc(2px * var(--scale))); height: calc(26px * var(--scale)); background: color-mix(in srgb, var(--pill-edge) 75%, transparent); }
+.shopslice-tier { font-weight: 900; letter-spacing: 0.08em; color: var(--pill-text); font-variant-numeric: tabular-nums; }
+@media (prefers-reduced-motion: reduce) {
+  .shopslice-plate { transition: opacity 220ms ease-out 180ms; }
+  .shopslice.tucked .shopslice-plate { transform: none; }
+}
 .tvbwrap:disabled { cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
 
 /* Standalone GOLD pill (owner ask 2026-08-11) — the Gold readout moved off the top strip to its own glass
@@ -10275,7 +10322,7 @@ body.dragging .row.hand .card.compact.showtext::after { pointer-events: none; }
    filter (no loop). Wins over the `.on` frozen bloom on hover. */
 .frzwrap .frz-gem { transition: filter 0.16s ease; }
 .frzwrap:not(:disabled):hover .frz-gem { filter: var(--frz-gemglow, drop-shadow(0 0 8px rgba(120, 200, 255, 0.95))) brightness(var(--frz-gem-hover, 1.2)); }
-/* "Freeze" LABEL PILL — the same cream/gold plaque as the Tavern Up tier pill (`.tvb-tierpill`), seated near
+/* "Freeze" LABEL PILL — a cream/gold label plaque (the Gem look repaints it navy, healthPills.css), seated near
    the gem. Position (design px × --u from the button centre) + size from the ❄️ tuner's `--frz-pill-*`. */
 .frzwrap .frz-pill {
   position: absolute; left: 50%; top: 50%; z-index: 6; pointer-events: none; white-space: nowrap;
@@ -13390,8 +13437,8 @@ html[data-phone-gpu] .opphand-card.spent > img { filter: grayscale(0.72) brightn
 .combatopp-armor { margin-left: calc(3 * var(--u)); font-size: calc(17 * var(--u)); color: #b7c2cf; }
 /* Opponent SHOP TIER (owner ask 2026-10-02) — a smaller pill of the health pill's family hung just BELOW it.
    Absolutely positioned inside `.combatopp-hp`, so it rides that pill's transform + strike fade and takes NO space
-   in the column (nothing else moves). Static paint, no animation. The number wears the gold of the player's own
-   Tier plaque (`.tvb-tierpill`). When the foe has Buffs, the arrow cue rides under this pill instead. */
+   in the column (nothing else moves). Static paint, no animation. The number wears gold (the player's own tier now
+   reads in the Shop slice, `.shopslice`). When the foe has Buffs, the arrow cue rides under this pill instead. */
 .combatopp-tier {
   position: absolute; left: 50%; top: calc(100% + 4 * var(--u)); transform: translateX(-50%);
   display: inline-flex; align-items: baseline; gap: calc(5 * var(--u)); white-space: nowrap; pointer-events: none;

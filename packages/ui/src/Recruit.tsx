@@ -196,6 +196,7 @@ import { RefreshButton } from './RefreshButton';
 import { CombatRoundLabel, combatRound } from './CombatRoundLabel';
 import { FreezeButton } from './FreezeButton';
 import { TavernUpButton } from './TavernUpButton';
+import { ShopTierSlice } from './ShopTierSlice';
 import { GoldPill } from './GoldPill';
 import { Icon } from './Icon';
 import { sfx, resumeAudio, beginSkipTurboAudio, stopTurnCharge, turnTickLevel } from './sfx';
@@ -9182,7 +9183,7 @@ export function Recruit() {
         fighting={fighting} inCombat={inCombat} mode={run.mode} sandbox={!!run.sandbox} godMode={run.godMode === true} goldClockGold={goldClockGold} readyNote={versusGate.readyNote} gemLocked={versusGate.gemLocked} gemReady={versusGate.gemReady} gemLabel={versusGate.gemLabel}
         replayDone={replay.done} replayTurboing={replay.turboing} replayResult={replay.result} sandboxReplay={sandboxReplay} lossPhase={lossPhase} combatSettled={run.combatSettled}
         eotAnimating={eotAnimating} hasQuestOffer={!!run.questOffer} hasPowerOffer={!!run.powerOffer} hasRuneforgeOffer={!!run.runeforgeOffer}
-        roundSettled={roundSettled} timeUp={timeUp} combatBgShown={combatBgShown} frozen={!!run.frozen} embers={run.embers}
+        roundSettled={roundSettled} timeUp={timeUp} combatBgShown={combatBgShown} shopSliceTucked={wipe === 'coveredOut'} frozen={!!run.frozen} embers={run.embers}
         refreshCost={(eotRes?.freeRefresh ?? 0) > 0 ? 0 : nextRefreshCostOf(run)} freeRolls={run.freeRolls + (eotRes?.freeRefresh ?? 0)} tier={run.tier} maxTier={maxTierFor(run.rift)}
         upgradeCost={Math.max(0, upgradeCostOf(run) + (eotRes?.upgradeCost ?? 0))}
         nextTurnGold={nextTurnGold + (eotRes?.nextTurnGold ?? 0)} afterNextGold={afterNextGold} wave={run.wave} rift={run.rift ? riftDefFor(run.rift, run.mode) : null}
@@ -9521,7 +9522,7 @@ export function Recruit() {
  *  tick or an overlay toggle no longer reconciles seven buttons and the timer for nothing). */
 const ShopControls = memo(function ShopControls({
   fighting, inCombat, mode, sandbox, godMode, replayDone, replayTurboing, replayResult, sandboxReplay, lossPhase, combatSettled, eotAnimating,
-  hasQuestOffer, hasPowerOffer, hasRuneforgeOffer, roundSettled, timeUp, combatBgShown, frozen, embers,
+  hasQuestOffer, hasPowerOffer, hasRuneforgeOffer, roundSettled, timeUp, combatBgShown, shopSliceTucked, frozen, embers,
   refreshCost, freeRolls, tier, maxTier, upgradeCost, nextTurnGold, afterNextGold, wave, rift, combatRoundNo,
   onSummary, onEndTurn, onEndCombat, onFreeze, onRefresh, onUpgrade, onSkip, goldClockGold, readyNote, gemLocked, gemReady = false, gemLabel = null, screen,
 }: {
@@ -9544,6 +9545,8 @@ const ShopControls = memo(function ShopControls({
   replayResult: 'win' | 'lose' | 'draw' | null; sandboxReplay: boolean; lossPhase: null | 'tally' | 'blast' | 'done'; combatSettled: boolean;
   eotAnimating: boolean; hasQuestOffer: boolean; hasPowerOffer: boolean; hasRuneforgeOffer: boolean;
   roundSettled: boolean; timeUp: boolean; combatBgShown: boolean; frozen: boolean; embers: number;
+  /** The return trip's covered hold (`wipe === 'coveredOut'`): the Shop slice mounts tucked and rises on the reveal. */
+  shopSliceTucked: boolean;
   refreshCost: number; freeRolls: RunState['freeRolls']; tier: number; maxTier: number; upgradeCost: number;
   nextTurnGold: number; afterNextGold: number; wave: number; rift: RiftDef | null; combatRoundNo: number | null;
   onSummary: () => void; onEndTurn: () => void; onEndCombat: () => void; onFreeze: () => void;
@@ -9687,6 +9690,10 @@ const ShopControls = memo(function ShopControls({
         onUpgrade={onUpgrade}
       />
       )}
+      {/* The SHOP slice (owner ask 2026-11-18): the rail-style "Shop | Tier N" plate on the frame's top edge between
+          the stone and the Freeze diamond. Shop furniture like the stone: gone in combat; on the return trip it mounts
+          tucked under the cover and slides up as the Shop is revealed. */}
+      {!combatBgShown && <ShopTierSlice tier={tier} tucked={shopSliceTucked} />}
       {!combatBgShown && (
       <GoldPill gold={embers} nextTurnGold={nextTurnGold} afterNextGold={afterNextGold} wave={wave} />
       )}

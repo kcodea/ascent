@@ -56,6 +56,12 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-11-18',
+    changes: [
+      { category: 'Systems', text: 'Your Shop tier now shows in a new Shop plate on top of the shop frame, next to Freeze. It slides up when you return from a fight.' },
+    ],
+  },
+  {
     date: '2026-11-17',
     changes: [
       { category: 'Systems', text: 'Spectating: the players you can switch between now sit in a row along the top. Click one, or press its number. Watching a single player no longer shows an extra name plate.' },

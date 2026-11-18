@@ -10,8 +10,8 @@
                     (.hchp, also the ceremony clone), the Gauntlet foe's round / loss-cap pills
      .hudpill-arm   the ARMOR chip inside one (.armval, .combatopp-armor, .hcarmor)
      .hudpill-name  a NAME / LABEL pill: your hero name (.heroname), the opponent's (.combatopp-name, also the
-                    Gauntlet foe), the hero-select names (.hcname), the shop's "Tier N" (.tvb-tierpill) and
-                    "Freeze" (.frz-pill) labels, the title-screen account name (.titlename + its edit field), the
+                    Gauntlet foe), the hero-select names (.hcname), the shop's "Freeze"
+                    (.frz-pill) label, the title-screen account name (.titlename + its edit field), the
                     mode cards (.mcname), the Career hero name (.cv2-heroname), the Gauntlet stage tag (.gslot-tag)
    plus the opponent's Shop Tier pill (.combatopp-tier), the TURN TIMER box (.statstrip) and the combat controls
   (.combatsummary, .combathud-skip, the End Combat pill .etbwrap.ready .etb-tip).

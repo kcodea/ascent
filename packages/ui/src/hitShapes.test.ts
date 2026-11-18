@@ -88,11 +88,11 @@ describe('every HUD control takes the pointer only through its shape (R-HIT-SHAP
     // not keyed to any rail look (the old rule only held while the Docked rail was on)
     for (const r of rules.filter((x) => /(tvbwrap|frzwrap|rfbwrap|etbwrap)/.test(x.sel))) expect(r.sel).not.toMatch(/data-lobby-rail/);
     // the label pills and cost chips are drawn as part of the button and take the pointer through their own rounded box
-    expect(bodyOf('.tvbwrap :is(.tvb-cost, .tvb-tierpill), .frzwrap .frz-pill, .rfbwrap .rfb-cost')).toMatch(/pointer-events:\s*auto/);
+    expect(bodyOf('.tvbwrap .tvb-cost, .frzwrap .frz-pill, .rfbwrap .rfb-cost')).toMatch(/pointer-events:\s*auto/);
   });
 
   it('a dragged card drops through every hit layer', () => {
-    expect(bodyOf('body.dragging .tvbwrap::after, body.dragging .frzwrap::after, body.dragging .rfbwrap::after, body.dragging .etbwrap::after, body.dragging .tvbwrap .tvb-cost, body.dragging .tvbwrap .tvb-tierpill, body.dragging .frzwrap .frz-pill, body.dragging .rfbwrap .rfb-cost')).toMatch(/pointer-events:\s*none/);
+    expect(bodyOf('body.dragging .tvbwrap::after, body.dragging .frzwrap::after, body.dragging .rfbwrap::after, body.dragging .etbwrap::after, body.dragging .tvbwrap .tvb-cost, body.dragging .frzwrap .frz-pill, body.dragging .rfbwrap .rfb-cost')).toMatch(/pointer-events:\s*none/);
     expect(bodyOf('body.dragging .statusbar .heropanel .heropowerbtn .hpb-artwrap, body.dragging .statusbar .heropanel .heropowerbtn .hpb-glow')).toMatch(/pointer-events:\s*none/);
     expect(bodyOf('body.dragging .statusbar .hero .hpbox')).toMatch(/pointer-events:\s*none/);
   });

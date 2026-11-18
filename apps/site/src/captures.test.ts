@@ -28,8 +28,10 @@ describe('captures', () => {
   });
 
   it('leaves every slot as a poster when no clips exist', () => {
-    initCaptures(document, { reducedMotion: false, observe: visibleNow });
-    expect(document.querySelectorAll('video')).toHaveLength(0);
+    withClips([], () => {
+      initCaptures(document, { reducedMotion: false, observe: visibleNow });
+      expect(document.querySelectorAll('video')).toHaveLength(0);
+    });
   });
 
   it('reduced motion never inserts a video', () => {

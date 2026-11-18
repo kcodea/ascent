@@ -116,7 +116,7 @@ describe('site stylesheets', () => {
   });
 });
 
-describe('placeholder stills', () => {
+describe('capture stills', () => {
   const stills = [
     'discover-timer',
     'gold-fuse',

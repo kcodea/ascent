@@ -127,6 +127,8 @@ export const OV_DISCOVER = 1;
 export const OV_POWER = 2;
 export const OV_QUEST = 4;
 export const OV_FORGE = 8;
+/** The Ancient awakening's pick (R-ANCIENT-PEEK-01). An older recording never sets it: the pick shows open. */
+export const OV_ANCIENT = 16;
 
 /** A segment past this many messages records only the ones that change something (a held card, an aim, a hide, a
  *  drop): about 150 s of continuous motion in one round, far past any real shop. */
@@ -258,9 +260,9 @@ export function decodeStreamEmotes(seg: Pick<StreamSegment, 't0' | 'em'>): { t: 
   return out;
 }
 
-/** The overlay minimize bits of a `{ discover, power, quest, forge }` state. */
-export function overlayBitsOf(o: { discover: boolean; power: boolean; quest: boolean; forge: boolean }): number {
-  return (o.discover ? OV_DISCOVER : 0) | (o.power ? OV_POWER : 0) | (o.quest ? OV_QUEST : 0) | (o.forge ? OV_FORGE : 0);
+/** The overlay minimize bits of a `{ discover, power, quest, forge, ancient }` state. */
+export function overlayBitsOf(o: { discover: boolean; power: boolean; quest: boolean; forge: boolean; ancient?: boolean }): number {
+  return (o.discover ? OV_DISCOVER : 0) | (o.power ? OV_POWER : 0) | (o.quest ? OV_QUEST : 0) | (o.forge ? OV_FORGE : 0) | (o.ancient ? OV_ANCIENT : 0);
 }
 
 /** The segment as it is stored: a copy of the encoder's fields with the messages packed. The encoder keeps going. */

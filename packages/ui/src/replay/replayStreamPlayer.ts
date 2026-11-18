@@ -29,7 +29,7 @@
  */
 import { create } from 'zustand';
 import {
-  EV_OVERLAY, EV_SKIP, OV_DISCOVER, OV_FORGE, OV_POWER, OV_QUEST, decodeStreamEmotes, decodeStreamEvents, decodeStreamSegment, isReplayStream,
+  EV_OVERLAY, EV_SKIP, OV_ANCIENT, OV_DISCOVER, OV_FORGE, OV_POWER, OV_QUEST, decodeStreamEmotes, decodeStreamEvents, decodeStreamSegment, isReplayStream,
   type RecordedCursorBody, type ReplayStream, type StreamSegment,
 } from '@game/sim';
 import { deliverEmote } from '../emotes/emoteTransport';
@@ -48,7 +48,7 @@ export const EMOTE_LATE_MS = 1500;
 /** What Recruit applies from the stream: the recorded overlay minimize state, and a Skip of the fight on screen. */
 export interface ReplayStreamUi {
   /** The minimized overlays at the replay's current moment (null: nothing recorded yet, leave them alone). */
-  overlay: { discover: boolean; power: boolean; quest: boolean; forge: boolean } | null;
+  overlay: { discover: boolean; power: boolean; quest: boolean; forge: boolean; ancient?: boolean } | null;
   /** Skip the fight of `wave` (`n` bumps per request; Recruit performs it once that fight plays). */
   skip: { wave: number; n: number } | null;
 }
@@ -74,7 +74,7 @@ let skipTimer: ReturnType<typeof setTimeout> | null = null;
 
 const msgsOf = (s: Seg): RecordedCursorBody[] => (s.msgs ??= decodeStreamSegment(s.seg));
 const bitsToOverlay = (v: number): NonNullable<ReplayStreamUi['overlay']> => ({
-  discover: (v & OV_DISCOVER) !== 0, power: (v & OV_POWER) !== 0, quest: (v & OV_QUEST) !== 0, forge: (v & OV_FORGE) !== 0,
+  discover: (v & OV_DISCOVER) !== 0, power: (v & OV_POWER) !== 0, quest: (v & OV_QUEST) !== 0, forge: (v & OV_FORGE) !== 0, ancient: (v & OV_ANCIENT) !== 0,
 });
 
 /** Does this recording carry a playable stream? */

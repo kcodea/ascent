@@ -2959,6 +2959,8 @@ export function Recruit() {
   const [powerMin, setPowerMin] = useSwapState(false, swapped); // the hero-power Discover's Peek (same toggle, same contract)
   const [questMin, setQuestMin] = useSwapState(false, swapped); // the Quest overlay is minimized (inspect the shop rolled behind it)
   const [forgeMin, setForgeMin] = useSwapState(false, swapped);
+  // The Ancient awakening's pick, minimized (owner ask 2026-11-18, R-ANCIENT-PEEK-01): Peek like the others.
+  const [ancientMin, setAncientMin] = useSwapState(false, swapped);
 
   /**
    * RUNE LOCK-IN CEREMONY (owner ask 2026-08-29) — the short flourish after a rune is bought.
@@ -2980,7 +2982,7 @@ export function Recruit() {
     discover: !!run.discover, discoverMin,
     quest: !!run.questOffer, questMin,
     power: !!run.powerOffer, powerMin,
-    chooseOne: !!run.chooseOne, scouting: (run.scoutedNextOpponent?.length ?? 0) > 0, ancientOffer: (run.ancients?.offer?.length ?? 0) > 0,
+    chooseOne: !!run.chooseOne, scouting: (run.scoutedNextOpponent?.length ?? 0) > 0, ancientOffer: (run.ancients?.offer?.length ?? 0) > 0, ancientMin,
   });
   const gildPlayRef = useSwapRef<HeldGild | null>(null, swapped);
   useEffect(() => {
@@ -3455,16 +3457,20 @@ export function Recruit() {
   // A board-covering modal is open (Discover / Choose One / a quest or runeforge offer / a scouted board).
   useEffect(() => {
     // A minimized Discover / Quest overlay leaves the board visible, so it doesn't count as covering.
-    const modalCovering = showLog || (!overlaysHeld && ((run.discover && !discoverMin && !discoverDeathHold) || (run.questOffer && !questMin) || (run.powerOffer && !powerMin) || (run.runeforgeOffer && !forgeMin) || run.chooseOne || (run.scoutedNextOpponent?.length ?? 0) > 0 || (run.ancients?.offer?.length ?? 0) > 0));
+    const ancOffer = (run.ancients?.offer?.length ?? 0) > 0;
+    const modalCovering = showLog || (!overlaysHeld && ((run.discover && !discoverMin && !discoverDeathHold) || (run.questOffer && !questMin) || (run.powerOffer && !powerMin) || (run.runeforgeOffer && !forgeMin) || run.chooseOne || (run.scoutedNextOpponent?.length ?? 0) > 0 || (ancOffer && !ancientMin)));
     // The Fight Recap counts too (2026-09-24): without it the hand + hero panels painted OVER its scrim.
     // The hero portrait / pills / power diamond live OUTSIDE the overlay's backdrop root (their own fixed
     // stacking contexts), so the overlay's backdrop-filter can't blur them — mark the body and let CSS blur
     // + dim them to match the rest of the covered board (owner report 2026-07-16). One-shot filter change.
     document.body.classList.toggle('modalup', !!modalCovering);
     // ANCIENTS: the awakening (gate + offer) also marks the body, so the Shop row can step back behind it.
-    document.body.classList.toggle('ancoffer', !overlaysHeld && (run.ancients?.offer?.length ?? 0) > 0);
-    return () => { document.body.classList.remove('modalup'); document.body.classList.remove('ancoffer'); };
-  }, [run.discover, run.chooseOne, discoverMin, run.questOffer, run.powerOffer, powerMin, questMin, run.runeforgeOffer, forgeMin, overlaysHeld, discoverDeathHold, showLog, run.ancients?.offer]);
+    document.body.classList.toggle('ancoffer', !overlaysHeld && ancOffer && !ancientMin);
+    // PEEKING at the awakening (R-ANCIENT-PEEK-01): the gate's backdrop and the offer step aside and the Shop row comes
+    // back, while the pick itself stays pending (the reducer still holds the Shop until it is made). See ancients.css.
+    document.body.classList.toggle('ancpeek', !overlaysHeld && ancOffer && ancientMin);
+    return () => { document.body.classList.remove('modalup'); document.body.classList.remove('ancoffer'); document.body.classList.remove('ancpeek'); };
+  }, [run.discover, run.chooseOne, discoverMin, run.questOffer, run.powerOffer, powerMin, questMin, run.runeforgeOffer, forgeMin, overlaysHeld, discoverDeathHold, showLog, run.ancients?.offer, ancientMin]);
   // B2: each Discover opens expanded — reset the minimized flag whenever the pending Discover changes.
   useEffect(() => { setDiscoverMin(false); }, [run.discover]);
   // The hero-power Discover likewise: Void's second pick and the next turn's Mimicry each open expanded.
@@ -3472,6 +3478,8 @@ export function Recruit() {
   // Each quest offer opens expanded too — reset the minimized flag when the offer changes.
   useEffect(() => { setQuestMin(false); }, [run.questOffer]);
   useEffect(() => { setForgeMin(false); }, [run.runeforgeOffer]);
+  // Each awakening opens expanded (keyed by its seq, not the offer array, so an unrelated clone never re-opens it).
+  useEffect(() => { setAncientMin(false); }, [run.ancients?.offerSeq]);
   // THE STANDS FOLLOW THE PLAYER'S MINIMIZE (owner 2026-10-16: "when a player minimizes the runeforge, the spectator
   // doesnt see that"; R-SPECTATE-OVERLAY-01). The player tells the stands which overlays are minimized (a no-op send
   // with nobody watching); a spectator applies the watched player's state AFTER the resets above, so a new offer that
@@ -3480,8 +3488,8 @@ export function Recruit() {
   const watchedOverlay = useSpectate((s) => (s.active ? s.overlay?.[s.seat] ?? null : null));
   useEffect(() => {
     if (spectatorOn) return;
-    tapOverlay({ discover: discoverMin, power: powerMin, quest: questMin, forge: forgeMin });
-  }, [spectatorOn, discoverMin, powerMin, questMin, forgeMin]);
+    tapOverlay({ discover: discoverMin, power: powerMin, quest: questMin, forge: forgeMin, ancient: ancientMin });
+  }, [spectatorOn, discoverMin, powerMin, questMin, forgeMin, ancientMin]);
   useEffect(() => {
     if (!spectatorOn || !watchedOverlay) return;
     const min = overlayMinOf(watchedOverlay);
@@ -3489,7 +3497,8 @@ export function Recruit() {
     setPowerMin(min.power);
     setQuestMin(min.quest);
     setForgeMin(min.forge);
-  }, [spectatorOn, watchedOverlay, run.discover, run.powerOffer, run.questOffer, run.runeforgeOffer]);
+    setAncientMin(min.ancient);
+  }, [spectatorOn, watchedOverlay, run.discover, run.powerOffer, run.questOffer, run.runeforgeOffer, run.ancients?.offerSeq]);
   // A REPLAY follows the recorded player's minimize the same way (R-REPLAY-PLAYBACK-01): the stream's overlay state at
   // the replay's moment, applied after the same resets. Nothing recorded (an older replay): nothing changes.
   const replayOverlay = useReplayStream((s) => s.overlay);
@@ -3499,7 +3508,8 @@ export function Recruit() {
     setPowerMin(replayOverlay.power);
     setQuestMin(replayOverlay.quest);
     setForgeMin(replayOverlay.forge);
-  }, [spectatorOn, replayOverlay, run.discover, run.powerOffer, run.questOffer, run.runeforgeOffer]);
+    setAncientMin(!!replayOverlay.ancient);
+  }, [spectatorOn, replayOverlay, run.discover, run.powerOffer, run.questOffer, run.runeforgeOffer, run.ancients?.offerSeq]);
   // Bridge the live enemy-death count to the store so the StatusBar's Cassen counter ticks up during the
   // replay. Zero it once the combat is SETTLED (not just when we leave combat): at replay's end settleCombat
   // banks the kills into run.cassenKills, so continuing to add the live count too would double-show them
@@ -9423,7 +9433,8 @@ export function Recruit() {
 
       {/* ANCIENTS (proof of concept): the awakening Discover. It waits for every other decision overlay, and for
           the curtain, so it never stacks on one. */}
-      <AncientOfferOverlay held={overlaysHeld || !!(run.discover || run.questOffer || run.powerOffer || run.runeforgeOffer || run.pendingTarget || run.chooseOne || run.scoutedNextOpponent?.length)} run={run} dispatch={dispatch} />
+      <AncientOfferOverlay held={overlaysHeld || !!(run.discover || run.questOffer || run.powerOffer || run.runeforgeOffer || run.pendingTarget || run.chooseOne || run.scoutedNextOpponent?.length)} run={run} dispatch={dispatch}
+        minimized={ancientMin} setMinimized={setAncientMin} />
 
       <RuneforgeOverlay
         overlaysHeld={overlaysHeld} run={run} forgeMin={forgeMin} setForgeMin={setForgeMin} lockIn={lockIn} lockInSlow={lockInSlow} setLockIn={setLockIn}

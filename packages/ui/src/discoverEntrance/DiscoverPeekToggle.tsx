@@ -8,23 +8,27 @@
  * moving the mouse). Hover and press are transform + opacity only, over a STATIC glow (see `.disc-peek` in
  * `discoverEntrance.css`); the game's gauntlet cursor comes from the global `button` rule.
  */
-export function DiscoverPeekToggle({ minimized, options, onToggle }: {
+export function DiscoverPeekToggle({ minimized, options, onToggle, noun = 'Discover', className }: {
   minimized: boolean;
   /** How many options the hidden Discover holds (shown while minimized). */
   options: number;
   onToggle: () => void;
+  /** What the hidden offer is called ("Return to …"): the Discover by default, "Ancients" for the awakening's pick. */
+  noun?: string;
+  /** An extra class for an offer whose layout needs the button seated elsewhere (the Ancients' taller cards). */
+  className?: string;
 }): JSX.Element {
   return (
     <button
       type="button"
-      className={`disc-toggle disc-peek${minimized ? ' is-min' : ''}`}
+      className={`disc-toggle disc-peek${minimized ? ' is-min' : ''}${className ? ` ${className}` : ''}`}
       onClick={onToggle}
       aria-pressed={minimized}
-      aria-description={minimized ? 'Bring your Discover back' : 'Hide the Discover to look at your board, then return to choose'}
+      aria-description={minimized ? `Bring your ${noun} back` : `Hide the ${noun} to look at your board, then return to choose`}
     >
       <span className="disc-peek-glow" aria-hidden="true" />
       {minimized ? <ReturnIcon /> : <PeekIcon />}
-      <span className="disc-peek-label">{minimized ? 'Return to Discover' : 'Peek at board'}</span>
+      <span className="disc-peek-label">{minimized ? `Return to ${noun}` : 'Peek at board'}</span>
       {minimized && <span className="disc-peek-count">{options} {options === 1 ? 'option' : 'options'}</span>}
     </button>
   );

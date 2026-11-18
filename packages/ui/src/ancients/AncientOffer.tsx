@@ -1,6 +1,7 @@
-import { memo, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
+import { memo, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type Dispatch, type SetStateAction } from 'react';
 import { ANCIENTS, ancientOfferText, ancientPairingHeroId, type Action, type AncientId, type RunState } from '@game/sim';
 import { OfferBanner } from '../discoverEntrance/OfferBanner';
+import { DiscoverPeekToggle } from '../discoverEntrance/DiscoverPeekToggle';
 import { AncientCard } from './AncientCard';
 import { playAwakenDemo, prefersReducedMotion, setAwakenStage, useAwakenStage } from './ancientsFx';
 import { pickTimeline, playPickSlam } from './ancientPickSlam';
@@ -32,8 +33,11 @@ function idleVars(): CSSProperties {
   return { '--anc-idle-px': String(c.idleFloat), '--anc-idle-ms': `${c.idleMs}ms`, '--anc-hover-dim': String(c.hoverDim) } as CSSProperties;
 }
 
-export const AncientOfferOverlay = memo(function AncientOfferOverlay({ held, run, dispatch }: {
+export const AncientOfferOverlay = memo(function AncientOfferOverlay({ held, run, dispatch, minimized = false, setMinimized }: {
   held: boolean; run: RunState; dispatch: (a: Action) => void;
+  /** PEEK (owner ask 2026-11-18, R-ANCIENT-PEEK-01): the pick is minimized so the board and Shop can be inspected.
+   *  Recruit owns it (like `discoverMin`), so the stands and a replay follow it. */
+  minimized?: boolean; setMinimized?: Dispatch<SetStateAction<boolean>>;
 }) {
   const realOffer = run.ancientsEnabled ? run.ancients?.offer : undefined;
   const offerSeq = run.ancients?.offerSeq ?? 0;
@@ -58,7 +62,14 @@ export const AncientOfferOverlay = memo(function AncientOfferOverlay({ held, run
   }, [realOffer, offerSeq]);
   if (!offer?.length || held || run.phase !== 'recruit') return null;
   if (!inReveal && !closing && !(timedOut === offerSeq && !demo)) return null;
-  return <Reveal key={`${stage.seq}`} gated={inReveal || closing} closing={closing} offer={offer} heroId={ancientPairingHeroId(run)} seq={demo ? stage.seq : offerSeq}
+  // THE PEEK TOGGLE: the Discover's own button (same component, same contract: one spot for both states). Offered
+  // once the reveal has SETTLED (the emergence swallows clicks, and peeking mid-reveal would hide it half-played),
+  // never on a tuner demo or while the pick closes. While minimized the reveal stays MOUNTED and is only hidden
+  // (`body.ancpeek`, ancients.css): unmounting would replay the whole emergence, sparks and sounds, on Return.
+  // Not in Learn: its coached pick step parks the coach panel exactly where this button sits, and steers the pick.
+  const settledHere = (stage.stage === 'settled' && stage.seq === offerSeq) || (timedOut === offerSeq && !inReveal);
+  const peekable = !demo && !closing && !!realOffer?.length && settledHere && !!setMinimized && run.mode !== 'tutorial';
+  const reveal = <Reveal key={`${stage.seq}`} gated={inReveal || closing} closing={closing} offer={offer} heroId={ancientPairingHeroId(run)} seq={demo ? stage.seq : offerSeq}
     onPick={(id, el) => {
       // The slam measures the card where it was clicked, before anything re-renders; the awakening then closes
       // (the backdrop fades) in the same render as the pick lands in the run.
@@ -67,6 +78,15 @@ export const AncientOfferOverlay = memo(function AncientOfferOverlay({ held, run
       if (demo) playAwakenDemo(id, pickTimeline().end + 3000); // a demo's hero power splits too, run untouched
       else dispatch({ type: 'pickAncient', id });
     }} />;
+  return (
+    <>
+      {reveal}
+      {peekable && (
+        <DiscoverPeekToggle minimized={minimized} options={realOffer.length} noun="Ancients" className="anc-peek"
+          onToggle={() => setMinimized((m) => !m)} />
+      )}
+    </>
+  );
 });
 
 function Reveal({ gated, closing, offer, heroId, seq, onPick }: { gated: boolean; closing: boolean; offer: AncientId[]; heroId: string; seq: number; onPick: (id: AncientId, el: Element) => void }): JSX.Element {

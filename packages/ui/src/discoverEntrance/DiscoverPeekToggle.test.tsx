@@ -29,6 +29,13 @@ describe('the Discover peek toggle', () => {
     expect(btn().querySelector('.disc-peek-count')?.textContent).toBe('1 option');
   });
 
+  it('R-ANCIENT-PEEK-01: the Ancient pick reuses it, naming the Ancients and seated by its own class', () => {
+    m = mount(<DiscoverPeekToggle minimized options={3} noun="Ancients" className="anc-peek" onToggle={() => {}} />);
+    expect(btn().classList.contains('anc-peek')).toBe(true);
+    expect(btn().querySelector('.disc-peek-label')?.textContent).toBe('Return to Ancients');
+    expect(btn().getAttribute('aria-description')).toBe('Bring your Ancients back');
+  });
+
   it('a click toggles; there is no native title tooltip and no em dash in the text', () => {
     let n = 0;
     m = mount(<DiscoverPeekToggle minimized={false} options={3} onToggle={() => { n++; }} />);

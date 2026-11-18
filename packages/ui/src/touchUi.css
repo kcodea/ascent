@@ -332,7 +332,7 @@ html[data-touch-ui][data-touch-small][data-phone-zoom] .forge-ov .forge-actions 
    second layer of one fixed height (1000) about the overlay's centre (the same frame-to-card proportion on every phone), so the frame keeps its desktop composition while everything behind is dimmed
    edge to edge exactly as on desktop. */
 html[data-touch-ui][data-touch-small][data-phone-zoom] .discover-ov.forge-ov { background: none; }
-html[data-touch-ui][data-touch-small][data-phone-zoom] .discover-ov.forge-ov::before { content: ''; position: absolute; inset: -60%; z-index: -1; background: rgba(14, 16, 22, 0.96); }
+html[data-touch-ui][data-touch-small][data-phone-zoom] .discover-ov.forge-ov::before { content: ''; position: absolute; inset: -60%; z-index: -1; background: var(--forge-scrim); }
 html[data-touch-ui][data-touch-small][data-phone-zoom] .discover-ov.forge-ov::after { content: ''; position: absolute; left: 0; right: 0; top: calc(50% - 500px); height: 1000px; z-index: -1; pointer-events: none; background: url('/runeforgebg2.webp') 50% 55% / auto 72% no-repeat; }
 
 /* Zoomed phone: the hero power's name plate a size up (it read at ~6 pt). */

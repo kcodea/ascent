@@ -336,10 +336,9 @@
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 0.2rem;
   width: 100%;
   margin-top: -30%;
-  padding: 30% var(--s2) var(--s3);
+  padding: 30% var(--s3) var(--s4);
   text-align: center;
   background: linear-gradient(0deg, var(--showcase) 52%, transparent);
 }
@@ -350,6 +349,16 @@
   font-weight: 700;
   line-height: 1.2;
   letter-spacing: 0.03em;
+}
+
+/* A short rule in the rune's colour parts the name from what the rune does. */
+.rune__name::after {
+  content: '';
+  display: block;
+  width: 60%;
+  height: 1px;
+  margin: var(--s2) auto;
+  background: linear-gradient(90deg, transparent, var(--anc), transparent);
 }
 
 .rune__text {

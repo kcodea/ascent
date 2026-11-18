@@ -6,20 +6,18 @@
  *    (the same plate the PLAYER sees for me in their "Spectating" indicator, so both screens agree on where the stands
  *    are), then the other people in the stands (the player's plates, `StandsPlates`), then Leave. My plate is my emote
  *    access: click or right-click it for the emote menu, which opens under it (R-SPECTATE-EMOTE-01).
- *  - BOTTOM RIGHT, `WatchedPanel`: who I am watching. In Versus (two players) the two seat buttons (portrait, name,
- *    Health and Armor, the 1 / 2 key): the switcher. In a live ranked game (one player) a compact name + rank plate, without a
- *    second portrait, because that player's hero portrait is already on screen bottom left.
+ *  - TOP, right of it, `WatchedPanel`: who I am watching, when there is a choice (Versus, Versus Group, Duos): one chip
+ *    per player (portrait, name, Health and Armor, the number key). Watching one player (a live ranked game) draws
+ *    nothing: that player's hero portrait and name are already on screen (R-SPECTATE-WATCHBAR-01, 2026-11-17).
  *
- * All existing pieces: `MemberRing`, the name / heart pills (`.vsspec-*`), `RankCrest`, the Gem plate (`.vsplate`).
+ * All existing pieces: `MemberRing`, the name pill (`.vsspec-*`), the Docked rail's navy plate, the Gem plate (`.vsplate`).
  * No cursor rule anywhere here: the plates are buttons (the global gauntlet rule paints them), the rest inherits the
  * body's gauntlet (R-SPECTATE-CURSOR-02).
  */
 import { memo, useMemo } from 'react';
-import { rankLabel } from '@game/sim';
 import { currentUserId } from '../identity';
 import { Icon } from '../Icon';
 import { openEmoteMenu } from '../emotes/emoteRuntime';
-import { RankCrest } from '../rank/RankBar';
 import { sfx } from '../sfx';
 import { toStage } from '../stage';
 import { useGame } from '../store';
@@ -83,43 +81,33 @@ export interface WatchSeat {
   out?: boolean;
 }
 
-/** Bottom right: who I am watching. Two or more players: the switcher. One: the compact name + rank plate. */
-export function WatchedPanel({ seats, single, duos = false }: {
-  seats?: readonly WatchSeat[];
-  single?: { name: string; divisionIndex: number; rankPoints: number };
-  /** A Duos match: the bottom-right corner is the watched player's teammate portrait (R-SPECTATE-DUOS-MATEDOCK-01), so the
-   *  switcher sits along the top edge instead, right of my own plate, never over that portrait. */
-  duos?: boolean;
-}): JSX.Element | null {
-  if (seats && seats.length > 1) {
-    return (
-      <div className={`vsspec vswatchpanel${duos ? ' vswatchpanel-top' : ''}`} role="group" aria-label="Choose who to watch">
-        <span className="vsspec-label">Watching</span>
-        <div className="vsspec-seats">
-          {seats.map((s, i) => (
-            <button key={s.key} type="button" className={`vsspec-seat${s.on ? ' on' : ''}${s.out ? ' out' : ''}`} aria-pressed={s.on} disabled={s.out}
-              aria-label={`Watch ${s.name}, Health ${s.health}${s.armor > 0 ? `, Armor ${s.armor}` : ''}${s.vs ? `, ${s.vs}` : ''} (${i + 1})`} onClick={() => { if (!s.on && !s.out) { sfx.tick(); s.pick(); } }}>
-              <MemberRing name={s.name} heroId={s.heroId} profile={s.profile} className="vsspec-ring" />
-              <span className="vsspec-info">
-                <span className="vsspec-name hudpill-name">{s.name}</span>
-                <span className="vsspec-hp hudpill-hp"><HeartIcon />{s.health}{s.armor > 0 && <b className="armval hudpill-arm"><Icon name="armor" /><span className="hp-armplus">+</span>{s.armor}</b>}</span>
-                {s.vs && <span className="vsspec-vs">{s.vs}</span>}
-              </span>
-              <kbd className="vsspec-key" aria-hidden="true">{i + 1}</kbd>
-            </button>
-          ))}
-        </div>
-      </div>
-    );
-  }
-  if (!single) return null;
+/**
+ * THE WATCH SWITCHER, along the TOP edge (owner 2026-11-17: "this is redundant and outdated - this doesnt need to show
+ * when spectating one player. for lobby or duos spectating, make this cleaner and put it in the top somewhere to navigate
+ * to different players instead"; R-SPECTATE-WATCHBAR-01). Two or more players: one compact chip each (portrait ring,
+ * name, Health and Armor, who they fight, the number key), right of my own top-left plate, the watched one lit and the
+ * players already out dimmed. One player (a live ranked game): nothing, the watched player's own portrait and name are
+ * already on screen.
+ */
+export function WatchedPanel({ seats }: { seats: readonly WatchSeat[] }): JSX.Element | null {
+  if (seats.length < 2) return null;
   return (
-    <div className="vsspec vswatchpanel vswatchpanel-one" role="group" aria-label={`Watching ${single.name}`}>
-      <span className="vsspec-label">Watching</span>
-      <span className="vsspec-info">
-        <span className="vsspec-name hudpill-name">{single.name}</span>
-        <span className="vsspec-hp hudpill-hp"><RankCrest divisionIndex={single.divisionIndex} size="mini" />{rankLabel({ divisionIndex: single.divisionIndex, points: single.rankPoints })}</span>
-      </span>
+    <div className="vsspec vswatchbar" role="group" aria-label="Choose who to watch">
+      {seats.map((s, i) => (
+        <button key={s.key} type="button" className={`vswatchchip${s.on ? ' on' : ''}${s.out ? ' out' : ''}`} aria-pressed={s.on} disabled={s.out}
+          aria-label={`Watch ${s.name}, Health ${s.health}${s.armor > 0 ? `, Armor ${s.armor}` : ''}${s.vs ? `, ${s.vs}` : ''} (${i + 1})`} onClick={() => { if (!s.on && !s.out) { sfx.tick(); s.pick(); } }}>
+          <MemberRing name={s.name} heroId={s.heroId} profile={s.profile} className="vswatchchip-ring" />
+          <kbd className="vswatchchip-key" aria-hidden="true">{i + 1}</kbd>
+          <span className="vswatchchip-info">
+            <span className="vswatchchip-name">{s.name}</span>
+            <span className="vswatchchip-stats">
+              <span className="vswatchchip-hp"><HeartIcon />{s.health}</span>
+              {s.armor > 0 && <span className="vswatchchip-arm"><Icon name="armor" />{s.armor}</span>}
+              {s.vs && <span className="vswatchchip-vs">{s.vs}</span>}
+            </span>
+          </span>
+        </button>
+      ))}
     </div>
   );
 }

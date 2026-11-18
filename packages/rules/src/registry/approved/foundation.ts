@@ -6705,11 +6705,11 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-SPECTATE-HUD-01',
-    title: 'The spectator sees themselves top left; the watched player and the switcher sit bottom right',
+    title: 'The spectator sees themselves top left',
     statement:
       'On the watch screen the TOP LEFT shows the spectator as a spectator: their portrait ring in their own frame, their name and a Spectating pill (the plate the player sees for them), then the other spectators, then Leave. '
-      + 'The BOTTOM RIGHT, above the corner Settings, book and rules buttons, shows who is being watched: in Versus the two seat buttons (portrait, name, Health and Armor, the 1 and 2 keys) to switch players; in a live ranked game one compact name and rank plate, with no second portrait (that player hero is already bottom left). '
-      + 'Built from existing pieces only (MemberRing, the name and heart pills, RankCrest, the Gem plate). It does not collide with the Versus Guides plate, the Summary pill or the corner buttons in shop or combat.',
+      + 'Who is being watched is R-SPECTATE-WATCHBAR-01 (until 2026-11-17 a bottom-right panel with a vertical Watching label). '
+      + 'Built from existing pieces only (MemberRing, the name pills, the Gem plate). It does not collide with the Versus Guides plate, the Summary pill or the corner buttons in shop or combat.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -6718,6 +6718,24 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'New on 2026-10-16.',
     example: 'A Versus spectator sees their own portrait and Spectating top left, and the two players to pick from bottom right.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectatorHud.test.tsx'], lastVerifiedAt: '2026-10-16' },
+  },
+  {
+    id: 'R-SPECTATE-WATCHBAR-01',
+    title: 'The player switcher is a row of chips along the top, and only when there is a choice',
+    statement:
+      'Watching one player (a live ranked lobby game) shows no "who I watch" plate at all: that player\x27s hero portrait and name are already on screen. '
+      + 'With two or more players to watch (Versus, Versus Group, Versus Duos, Ranked Duos) the switcher is one row of compact chips along the TOP edge, right of the spectator\x27s own top-left plate: '
+      + 'each chip the player\x27s portrait ring, name, Health and Armor (and who they fight, or their team), with the number key that picks them; the watched one lit, a player who is out dimmed and not pickable. '
+      + 'No vertical Watching label. It never sits over the clock, the tier gem, the Duos teammate portrait (bottom right) or the lobby rail. The number keys keep working.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin, 2026-11-17 (spectator view screenshot)', quote: 'this doesnt need to show when spectating one player' },
+      { kind: 'code', ref: 'packages/ui/src/versus/SpectatorHud.tsx (WatchedPanel); packages/ui/src/versus/versus.css (.vswatchbar); packages/ui/src/live/LiveWatchBar.tsx' },
+    ],
+    currentBehaviour: 'New on 2026-11-17 (feat/spectator-watch-top). Before, a bottom-right panel with a vertical Watching label, and a name + rank plate for one player.',
+    example: 'A Duos spectator sees four chips across the top left (1 to 4); a Live Games watcher of a ranked game sees only their own plate and Leave.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectatorHud.test.tsx', 'packages/ui/src/versus/spectatorHudDupe.test.tsx'], lastVerifiedAt: '2026-11-17' },
   },
   {
     id: 'R-SPECTATE-CURSOR-02',
@@ -14117,7 +14135,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'player sees it, in the shop and the fight: the same face and frame, the "still working" glow, the tier-up burst, '
       + 'Away, the tag-in copy over the hero when the teammate\x27s board fights, and the waiting-cards pill. It switches with '
       + 'the watched player. It is only a face for the stands (no click, no pass target). In Duos the stands\x27 player switcher '
-      + 'sits along the top edge so it never covers the portrait.',
+      + 'sits along the top edge (R-SPECTATE-WATCHBAR-01) so it never covers the portrait.',
     domain: 'foundation',
     status: 'approved',
     evidence: [

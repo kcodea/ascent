@@ -682,33 +682,16 @@ body:has(.vsms-scrim) .inspect-ov { z-index: 590; }
    plates are BUTTONS (the global gauntlet cursor paints them). ── */
 .vsspec { position: fixed; z-index: 70; left: calc(var(--edge-l, 0px) + 20 * var(--u)); top: calc(var(--edge-t, 0px) + 12 * var(--u));
   display: flex; align-items: center; gap: calc(12 * var(--u)); pointer-events: auto; }
-.vsspec-label { font-family: var(--font-ui); font-weight: 800; font-size: calc(11 * var(--u)); letter-spacing: 0.16em; text-transform: uppercase;
-  color: var(--ui-title, #ffd98a); text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8); writing-mode: vertical-rl; transform: rotate(180deg); }
 .vsspec-seats { display: flex; gap: calc(10 * var(--u)); }
 .vsspec-seat { position: relative; display: inline-flex; align-items: center; gap: calc(6 * var(--u)); padding: 0; margin: 0;
   background: none; border: none; opacity: 0.62; transition: opacity 0.14s ease, transform 0.14s ease; }
 .vsspec-seat:hover { opacity: 0.9; transform: translateY(-1px); }
 .vsspec-seat.on { opacity: 1; }
 .vsspec-seat:focus-visible { outline: 2px solid var(--ui-title, #ffd98a); outline-offset: 3px; border-radius: 999px; }
-.vsspec-ring { --ring: calc(54 * var(--u)); }
-.vsspec-seat.on .vsspec-ring { filter: drop-shadow(0 0 calc(5 * var(--u)) rgba(255, 214, 120, 0.85)); }
-.vsspec-info { display: flex; flex-direction: column; align-items: flex-start; gap: calc(3 * var(--u)); }
 .vsspec-name { max-width: calc(140 * var(--u)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   padding: calc(1.5 * var(--u)) calc(9 * var(--u)); border-radius: 999px; font-family: var(--font-ui); font-weight: 800; font-size: calc(13 * var(--u)); line-height: 1.15;
   background: linear-gradient(180deg, #fff, #f3ead4); color: var(--ink); border: 2px solid var(--gold); }
 :root[data-hp-look="gem"] .vsspec-seat.on .vsspec-name.hudpill-name { color: #fff; background: var(--pill-plate-hover) padding-box; border-color: var(--pill-edge-hover); }
-.vsspec-hp { display: inline-flex; align-items: center; gap: calc(3 * var(--u)); padding: calc(2 * var(--u)) calc(8 * var(--u));
-  border: 2px solid color-mix(in srgb, var(--gold) 55%, #000); border-radius: calc(8 * var(--u)); background: linear-gradient(180deg, #241a13, #17110c);
-  font-family: var(--font-ui); font-weight: 800; font-size: calc(13 * var(--u)); line-height: 1; color: #ff9db0; }
-.vsspec-hp svg { width: calc(13 * var(--u)); height: calc(13 * var(--u)); color: var(--threat); }
-/* VERSUS GROUP's fight picker (R-VERSUS-GROUP-04): who each player fights this round, and the players already out. */
-.vsspec-vs { max-width: calc(140 * var(--u)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  font-family: var(--font-ui); font-weight: 700; font-size: calc(11 * var(--u)); color: #f3ead4; text-shadow: 0 1px 2px #000; }
-.vsspec-seat.out { opacity: 0.45; }
-.vsspec-seat.out:hover { opacity: 0.45; transform: none; }
-.vsspec-key { position: absolute; left: calc(40 * var(--u)); top: calc(-3 * var(--u)); z-index: 3;
-  display: grid; place-items: center; width: calc(15 * var(--u)); height: calc(15 * var(--u)); border-radius: 50%;
-  font-family: var(--font-ui); font-weight: 900; font-size: calc(9 * var(--u)); color: var(--ink); background: linear-gradient(180deg, #fff, #f3ead4); border: 1.5px solid var(--gold); }
 .vsspec-leave { font-size: calc(13 * var(--u)); }
 /* A member's face in the portrait ring (MemberRing.tsx): the initial when they have no art. */
 .vsring .vsring-initial { display: grid; place-items: center; width: 100%; height: 100%; font-family: var(--font-ui); font-weight: 900;
@@ -773,16 +756,45 @@ body:has(.vsms-scrim) .inspect-ov { z-index: 590; }
 
 /* THE SPECTATOR'S OWN HUD (SpectatorHud.tsx, owner 2026-10-16, R-SPECTATE-HUD-01). TOP LEFT (`.vsspec.vsself`, the
    `.vsspec` anchor): me as a spectator, the same plate the player sees for me, then the rest of the stands, then Leave.
-   BOTTOM RIGHT (`.vswatchpanel`): who I watch, the Versus switcher or one compact name + rank plate, sitting ABOVE the
-   corner's Settings / book / rules buttons and the version line. Static paint; no cursor rule (buttons take the global
-   gauntlet, everything else inherits the body's). */
+   Static paint; no cursor rule (buttons take the global gauntlet, everything else inherits the body's). */
 .vsself .vsself-seat { opacity: 1; }
-.vswatchpanel { left: auto; top: auto; right: calc(var(--edge-r, 0px) + 20 * var(--u));
-  bottom: calc(var(--edge-b, 0px) + 16px + 40 * var(--u) + 30px); }
-.vswatchpanel-one .vsspec-info { align-items: flex-end; }
-/* DUOS (R-SPECTATE-DUOS-MATEDOCK-01): the bottom-right corner is the watched player's teammate portrait, as on their own
-   screen, so the switcher runs along the top edge, right of my own plate and clear of the tier gem and the clock. */
-.vswatchpanel.vswatchpanel-top { right: auto; bottom: auto; left: calc(var(--edge-l, 0px) + 150 * var(--u)); top: calc(var(--edge-t, 0px) + 10 * var(--u)); }
+/* THE WATCH SWITCHER (`.vswatchbar`, owner 2026-11-17, R-SPECTATE-WATCHBAR-01): who I watch, only when there is a choice
+   (Versus, Versus Group, Duos). One row of chips along the TOP edge, right of my own top-left plate, above the tier gem
+   and left of the clock: never over the Duos teammate portrait (bottom right) or the lobby rail (right). Each chip is the
+   Docked rail's cut: the navy plate, a hairline gold edge, the portrait ring, the name over Health / Armor. The watched one
+   is lit (bright edge, the hover plate, a gold foot); a player who is out sits back, greyed, not pickable. Static paint;
+   hover moves only `transform` / `opacity`. */
+.vsspec.vswatchbar { left: calc(var(--edge-l, 0px) + 128 * var(--u)); top: calc(var(--edge-t, 0px) + 10 * var(--u));
+  gap: calc(6 * var(--u)); align-items: stretch; }
+.vswatchchip { position: relative; display: inline-flex; align-items: center; gap: calc(7 * var(--u)); margin: 0;
+  height: calc(54 * var(--u)); padding: 0 calc(14 * var(--u)) 0 calc(6 * var(--u)); border-radius: calc(3 * var(--u));
+  background: var(--pill-plate); border: calc(1.5 * var(--u)) solid color-mix(in srgb, var(--ui-edge-main) 60%, transparent);
+  box-shadow: 0 calc(2 * var(--u)) calc(6 * var(--u)) rgba(0, 0, 0, 0.55);
+  opacity: 0.78; transition: opacity 0.14s ease, transform 0.14s ease; }
+.vswatchchip:hover { opacity: 1; transform: translateY(calc(-1 * var(--u))); }
+.vswatchchip:focus-visible { outline: 2px solid var(--ui-title, #ffd98a); outline-offset: 2px; }
+.vswatchchip.on { opacity: 1; background: var(--pill-plate-hover); border-color: var(--pill-edge-hover); }
+.vswatchchip.on::after { content: ""; position: absolute; left: calc(6 * var(--u)); right: calc(6 * var(--u)); bottom: calc(-2 * var(--u));
+  height: calc(3 * var(--u)); border-radius: calc(2 * var(--u)); background: var(--ui-title, #ffd98a); }
+.vswatchchip.out, .vswatchchip.out:hover { opacity: 0.42; transform: none; }
+.vswatchchip.out .vswatchchip-ring { filter: grayscale(1); }
+.vswatchchip-ring { --ring: calc(42 * var(--u)); flex: none; }
+.vswatchchip-key { position: absolute; left: calc(1 * var(--u)); top: calc(1 * var(--u)); z-index: 3; display: grid; place-items: center;
+  width: calc(16 * var(--u)); height: calc(16 * var(--u)); border-radius: calc(2 * var(--u)); font-family: var(--font-ui); font-weight: 900;
+  font-size: calc(10 * var(--u)); line-height: 1; color: var(--ink, #1b1410); background: var(--ui-title, #ffd98a); }
+.vswatchchip-info { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: calc(2 * var(--u)); min-width: 0; }
+.vswatchchip-name { max-width: calc(120 * var(--u)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-family: var(--font-title), sans-serif; font-weight: 800; font-size: calc(16 * var(--u)); line-height: 1.1; letter-spacing: 0.02em;
+  color: var(--pill-text); text-shadow: var(--pill-text-shadow); }
+.vswatchchip.on .vswatchchip-name { color: var(--ui-title, #ffd98a); }
+.vswatchchip-stats { display: inline-flex; align-items: center; gap: calc(7 * var(--u)); font-family: var(--font-ui); font-weight: 800;
+  font-size: calc(13.5 * var(--u)); line-height: 1; color: #f3ead4; }
+.vswatchchip-hp, .vswatchchip-arm { display: inline-flex; align-items: center; gap: calc(2 * var(--u)); }
+.vswatchchip-hp svg, .vswatchchip-arm svg { width: calc(13 * var(--u)); height: calc(13 * var(--u)); }
+.vswatchchip-hp svg { color: var(--threat); }
+.vswatchchip-arm { color: #cfe0ff; }
+.vswatchchip-vs { max-width: calc(90 * var(--u)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700;
+  font-size: calc(12 * var(--u)); color: color-mix(in srgb, var(--pill-text) 70%, transparent); }
 /* A spectator's plate takes a right-click (mute their emotes) and a hover (the tip), on either screen. A muted one sits
    back and reads "Muted". */
 .vswatch .vswatch-seat, .vsself .vswatch-seat { pointer-events: auto; }

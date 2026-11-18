@@ -5,8 +5,8 @@
  *    player's own cooldown, and pops from that spectator's chip in the player's "Spectating" indicator; the receiver
  *    refuses an unknown sender (held a moment for their row), a second one inside the cooldown on its OWN clock, a burst,
  *    a muted spectator and everything while "Spectator emotes" is off. Fellow spectators are the other room spectators.
- *  - R-SPECTATE-HUD-01: top left is ME as a spectator (my plate, Spectating, Leave); the watched player and the switcher
- *    are bottom right (Versus: the two seat buttons; a live game: one compact name + rank plate).
+ *  - R-SPECTATE-HUD-01: top left is ME as a spectator (my plate, Spectating, Leave).
+ *  - R-SPECTATE-WATCHBAR-01: the switcher is a row of chips along the top (two or more players); one player, nothing.
  *  - R-SPECTATE-CURSOR-02: no bare keyword cursor anywhere in the spectator HUD or the watchers indicator.
  *  - R-SPECTATE-LOCAL-01: a spectator flips the rail to their guides, reads them (no Edit), pins a scout card, all
  *    without sending anything; the player's hover never opens a rail card on the spectator's screen; the fight's odds
@@ -181,27 +181,32 @@ describe('R-SPECTATE-HUD-01: me top left, the watched player and the switcher bo
     expect(leave).toHaveBeenCalledOnce();
   });
 
-  it('bottom right: Versus shows the two-seat switcher; a live game one compact name + rank plate', () => {
+  it('R-SPECTATE-WATCHBAR-01: two or more players: one chip each along the top; one player: nothing', () => {
     const pick = vi.fn();
     ui = mount(<WatchedPanel seats={[
       { key: 'p1', name: 'Rooks', heroId: 'warden', profile: null, health: 30, armor: 5, on: true, pick: () => undefined },
       { key: 'p2', name: 'Claudebot1', heroId: 'warden', profile: null, health: 24, armor: 0, on: false, pick },
+      { key: 'p3', name: 'Gone', heroId: 'warden', profile: null, health: 0, armor: 0, on: false, out: true, pick },
     ]} />);
-    const panel = ui.container.querySelector('.vswatchpanel')!;
-    expect(panel.querySelectorAll('button.vsspec-seat')).toHaveLength(2);
-    click(panel.querySelectorAll('button.vsspec-seat')[1]!);
+    const bar = ui.container.querySelector('.vswatchbar')!;
+    const chips = [...bar.querySelectorAll<HTMLButtonElement>('button.vswatchchip')];
+    expect(chips).toHaveLength(3);
+    expect(chips[0]!.classList.contains('on')).toBe(true);
+    expect(chips[2]!.disabled).toBe(true);
+    expect(chips.map((c) => c.querySelector('.vswatchchip-key')!.textContent)).toEqual(['1', '2', '3']);
+    expect(bar.querySelector('.vsspec-label')).toBeNull(); // no vertical "Watching" label any more
+    click(chips[1]!);
+    click(chips[2]!);
     expect(pick).toHaveBeenCalledOnce();
-    ui.render(<WatchedPanel single={{ name: 'Rooks', divisionIndex: 0, rankPoints: 10 }} />);
-    const one = ui.container.querySelector('.vswatchpanel.vswatchpanel-one')!;
-    expect(one.textContent).toContain('Rooks');
-    expect(one.querySelector('.portring:not(.rankcrest)')).toBeNull(); // no second portrait: theirs is bottom left
-    // the panel is anchored bottom right, above the corner buttons; the self plate keeps the top-left anchor
+    // Watching one player (a live ranked game): no plate at all, their portrait and name are already on screen.
+    ui.render(<WatchedPanel seats={[{ key: 'p1', name: 'Rooks', heroId: 'warden', profile: null, health: 30, armor: 5, on: true, pick: () => undefined }]} />);
+    expect(ui.container.querySelector('.vswatchbar')).toBeNull();
+    // Anchored along the TOP edge, right of my own top-left plate (never the bottom-right corner: the Duos teammate dock).
     const css = readFileSync(join(__dirname, 'versus.css'), 'utf8');
-    const rule = css.match(/\.vswatchpanel \{([^}]*)\}/)![1]!;
-    expect(rule).toMatch(/left: auto/);
-    expect(rule).toMatch(/right: calc/);
-    // It rides the corner buttons, which sit on the real screen edge since R-TOUCH-FILL-01 (2026-10-18).
-    expect(rule).toMatch(/bottom: calc\(var\(--edge-b, 0px\) \+ 16px \+ 40 \* var\(--u\)/);
+    const rule = css.match(/\.vsspec\.vswatchbar \{([^}]*)\}/)![1]!;
+    expect(rule).toMatch(/top: calc\(var\(--edge-t/);
+    expect(rule).toMatch(/left: calc\(var\(--edge-l/);
+    expect(rule).not.toMatch(/bottom:/);
   });
 });
 

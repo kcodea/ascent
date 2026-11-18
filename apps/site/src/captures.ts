@@ -39,7 +39,8 @@ function addVideo(fig: Element, slot: string, poster: HTMLImageElement | null): 
   video.setAttribute('autoplay', '');
   video.setAttribute('preload', 'none');
   video.setAttribute('poster', `/captures/${slot}.jpg`);
-  video.setAttribute('aria-hidden', 'true');
+  // The poster is hidden while the clip plays, so the clip carries the poster's description.
+  if (poster?.alt) video.setAttribute('aria-label', poster.alt);
 
   const drop = (): void => {
     video.remove();
@@ -62,7 +63,9 @@ function addVideo(fig: Element, slot: string, poster: HTMLImageElement | null): 
     video.setAttribute('data-playing', '');
     if (poster) poster.hidden = true;
   });
-  fig.append(video);
+  // Straight after the poster, so in a figure with a caption the clip sits where the still was, above the words.
+  if (poster) poster.after(video);
+  else fig.prepend(video);
 }
 
 export function initCaptures(doc: Document, opts: CaptureOptions): void {

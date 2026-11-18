@@ -16,6 +16,21 @@
     />
     <meta property="og:image" content="/share.jpg" />
     <meta name="twitter:card" content="summary_large_image" />
+    <!-- The night token from src/styles/tokens.css (site.test.ts keeps the two equal). -->
+    <meta name="theme-color" content="#0d1220" />
+    <link rel="icon" type="image/png" href="/art/icon-192.png" />
+    <link rel="apple-touch-icon" href="/art/apple-touch-icon.png" />
+    <!-- Classify the visitor before the first paint so phones and Macs never see the Windows button swap. Same rules
+         as detectPlatform in src/platform.ts, which stays the tested source of truth (platform.test.ts checks they agree). -->
+    <script>
+      (function (n, d) {
+        var ua = n.userAgent || '';
+        var c = '';
+        if (/iPhone|iPad|iPod|Android/i.test(ua) || (/Macintosh/i.test(ua) && n.maxTouchPoints > 1)) c = 'is-mobile';
+        else if (!/Windows/i.test(ua)) c = 'is-other';
+        if (c) d.documentElement.classList.add(c);
+      })(navigator, document);
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -27,7 +42,7 @@
     <header id="top" class="top">
       <img class="top__sky" src="/art/hero.webp" alt="" width="1915" height="821" fetchpriority="high" />
       <div class="top__inner">
-        <img class="top__crest" src="/art/crest.png" alt="ASCENT" width="1254" height="1254" />
+        <img class="top__crest" src="/art/crest.webp" alt="ASCENT" width="320" height="320" />
         <h1 class="top__headline">The auto-battler that waits for you.</h1>
         <p class="top__pitch">Build your board in a lobby of eight and fight other players' boards, on your own time.</p>
         <div class="download">
@@ -37,7 +52,8 @@
             Windows will show an "unknown publisher" warning the first time you install, because the installer is not
             signed yet. Choose "More info", then "Run anyway".
           </p>
-          <button class="download__copy" type="button" data-copy-link hidden>Copy link</button>
+          <button class="download__copy" type="button" data-copy-link aria-live="polite" hidden>Copy link for your PC</button>
+          <p data-copy-url class="download__url" hidden></p>
         </div>
       </div>
     </header>
@@ -50,7 +66,7 @@
           You fight other players' boards, and nobody else has to be online when you are. The clock gives you room to
           think.
         </p>
-        <ol class="points">
+        <ol class="points" role="list">
           <li class="point">
             <figure class="capture" data-capture="discover-timer">
               <img
@@ -120,8 +136,8 @@
 
       <section id="runeforge" class="section section--runeforge">
         <p class="eyebrow">The Runeforge</p>
-        <h2>One rune for the whole run</h2>
-        <p class="lede">The forge offers four runes and you take one. Its power stays with you for the rest of the run.</p>
+        <h2>Runes that last the whole run</h2>
+        <p class="lede">Each time the forge opens it offers four runes and you take one. Its power stays with you for the rest of the run.</p>
         <figure class="capture" data-capture="runeforge">
           <img
             data-poster
@@ -231,8 +247,8 @@
         <p class="eyebrow">Earn it</p>
         <h2>Free to earn and unlock, always</h2>
         <p class="lede">
-          Cosmetics come from playing, and the higher you place, the more you earn. Chests hand out hero attacks,
-          portraits and frames.
+          Aether and cosmetics are free to earn and unlock, always. Cosmetics come from playing, and the higher you
+          place, the more you earn. Chests hand out hero attacks, portraits and frames.
         </p>
         <figure class="capture" data-capture="chest-opening">
           <img
@@ -247,19 +263,19 @@
         <figure class="chests">
           <ul class="chests__list">
             <li class="chest">
-              <img src="/art/chests/standard.webp" alt="" width="840" height="400" loading="lazy" />
+              <img src="/art/chests/standard.webp" alt="" width="840" height="457" loading="lazy" />
               <span class="chest__name">Standard</span>
             </li>
             <li class="chest">
-              <img src="/art/chests/rare.webp" alt="" width="840" height="400" loading="lazy" />
+              <img src="/art/chests/rare.webp" alt="" width="840" height="410" loading="lazy" />
               <span class="chest__name">Rare</span>
             </li>
             <li class="chest">
-              <img src="/art/chests/epic.webp" alt="" width="840" height="400" loading="lazy" />
+              <img src="/art/chests/epic.webp" alt="" width="840" height="402" loading="lazy" />
               <span class="chest__name">Epic</span>
             </li>
             <li class="chest">
-              <img src="/art/chests/legendary.webp" alt="" width="840" height="400" loading="lazy" />
+              <img src="/art/chests/legendary.webp" alt="" width="840" height="393" loading="lazy" />
               <span class="chest__name">Legendary</span>
             </li>
             <li class="chest">
@@ -304,7 +320,8 @@
           Windows will show an "unknown publisher" warning the first time you install, because the installer is not
           signed yet. Choose "More info", then "Run anyway".
         </p>
-        <button class="download__copy" type="button" data-copy-link hidden>Copy link</button>
+        <button class="download__copy" type="button" data-copy-link aria-live="polite" hidden>Copy link for your PC</button>
+        <p data-copy-url class="download__url" hidden></p>
       </div>
       <p class="get__small">ASCENT is free to play on Windows.</p>
     </footer>

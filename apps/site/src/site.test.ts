@@ -49,9 +49,55 @@ describe('index.html', () => {
       const copy = note.nextElementSibling as HTMLButtonElement;
       expect(copy.matches('button[data-copy-link]')).toBe(true);
       expect(copy.hidden).toBe(true);
-      expect(copy.textContent!.trim().length).toBeGreaterThan(0);
+      expect(copy.textContent!.trim()).toBe('Copy link for your PC');
+      expect(copy.getAttribute('aria-live')).toBe('polite');
+      const url = copy.nextElementSibling as HTMLElement;
+      expect(url.matches('p[data-copy-url].download__url')).toBe(true);
+      expect(url.hidden).toBe(true);
+      expect(url.textContent).toBe('');
       expect(a.parentElement!.textContent).toMatch(/Windows, free to play/);
     }
+  });
+
+  it('the Runeforge section says a rune is taken at every forge visit', () => {
+    expect(document.querySelector('#runeforge h2')!.textContent).toBe('Runes that last the whole run');
+    expect(document.querySelector('#runeforge .lede')!.textContent).toBe(
+      'Each time the forge opens it offers four runes and you take one. Its power stays with you for the rest of the run.',
+    );
+    expect(document.querySelector('#runeforge')!.textContent).not.toMatch(/One rune for the whole run/);
+  });
+
+  it('the async points keep list semantics with their list styling removed', () => {
+    expect(document.querySelector('ol.points')!.getAttribute('role')).toBe('list');
+  });
+
+  it('the crest is the small webp, sized to match the file', () => {
+    const crest = document.querySelector<HTMLImageElement>('img.top__crest')!;
+    expect(crest.getAttribute('src')).toBe('/art/crest.webp');
+    expect(crest.getAttribute('width')).toBe('320');
+    expect(crest.getAttribute('height')).toBe('320');
+  });
+
+  it('chest images declare their real pixel sizes', () => {
+    const want: Record<string, string> = {
+      standard: '840x457',
+      rare: '840x410',
+      epic: '840x402',
+      legendary: '840x393',
+      ancient: '840x400',
+    };
+    for (const img of document.querySelectorAll<HTMLImageElement>('#earn img[src^="/art/chests/"]')) {
+      const name = img.getAttribute('src')!.replace(/^\/art\/chests\/|\.webp$/g, '');
+      expect(`${img.getAttribute('width')}x${img.getAttribute('height')}`, name).toBe(want[name]);
+    }
+  });
+
+  it('has a favicon, a touch icon and a theme colour matching the night token', () => {
+    expect(document.querySelector('link[rel="icon"][type="image/png"]')!.getAttribute('href')).toBe('/art/icon-192.png');
+    expect(document.querySelector('link[rel="apple-touch-icon"]')!.getAttribute('href')).toBe('/art/apple-touch-icon.png');
+    const tokens = readFileSync(resolve(dirname(INDEX), 'src/styles/tokens.css'), 'utf8');
+    const night = /--night:\s*(#[0-9a-f]{3,8})\s*;/i.exec(tokens)![1];
+    expect(document.querySelector('meta[name="theme-color"]')!.getAttribute('content')!.toLowerCase()).toBe(night.toLowerCase());
   });
 
   it('every capture slot has a poster image with alt text', () => {
@@ -105,6 +151,7 @@ describe('index.html', () => {
     expect(document.querySelectorAll('#tracking img[src^="/art/ranks/"]')).toHaveLength(6);
     const earn = document.querySelector('#earn')!.textContent!;
     expect(earn).toMatch(/free to earn and unlock, always/i);
+    expect(document.querySelector('#earn .lede')!.textContent).toMatch(/Aether and cosmetics are free to earn and unlock, always\./);
     for (const c of ['Standard', 'Rare', 'Epic', 'Legendary', 'Ancient']) expect(earn).toContain(c);
     expect(document.querySelectorAll('#earn img[src^="/art/chests/"]')).toHaveLength(5);
   });

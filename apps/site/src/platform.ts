@@ -1,6 +1,7 @@
 export type Platform = 'windows' | 'other-desktop' | 'mobile';
 
 const COPIED_LABEL = 'Link copied';
+const COPY_BELOW_LABEL = 'Copy it from below';
 const WINDOWS_ONLY_LABEL = 'Windows only for now';
 const COPIED_MS = 2000;
 
@@ -30,13 +31,19 @@ export function applyPlatform(doc: Document, p: Platform): void {
     b.hidden = false;
     const original = b.textContent;
     let timer: ReturnType<typeof setTimeout> | undefined;
+    const shown = b.nextElementSibling?.matches('[data-copy-url]') ? (b.nextElementSibling as HTMLElement) : null;
     b.addEventListener('click', () => {
       const win = doc.defaultView!;
       const url = win.location.origin + win.location.pathname;
-      // Wrapped so an undefined clipboard (non-secure origin) or a synchronous throw lands in the same fallback.
-      Promise.resolve()
-        .then(() => win.navigator.clipboard.writeText(url))
-        .then(
+      // writeText is called inside the click itself: Safari only honours the user gesture synchronously. The
+      // try catches an undefined clipboard (non-secure origin) or a synchronous throw into the same fallback.
+      let p: Promise<void>;
+      try {
+        p = win.navigator.clipboard.writeText(url);
+      } catch (e) {
+        p = Promise.reject(e);
+      }
+      p.then(
         () => {
           b.textContent = COPIED_LABEL;
           clearTimeout(timer);
@@ -45,9 +52,15 @@ export function applyPlatform(doc: Document, p: Platform): void {
           }, COPIED_MS);
         },
         () => {
-          // Clipboard refused: show the URL itself so it can be selected by hand.
+          // Clipboard refused: show the URL below the button, where it can be selected by hand.
           clearTimeout(timer);
-          b.textContent = url;
+          if (!shown) {
+            b.textContent = url;
+            return;
+          }
+          shown.textContent = url;
+          shown.hidden = false;
+          b.textContent = COPY_BELOW_LABEL;
         },
       );
     });

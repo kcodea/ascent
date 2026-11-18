@@ -262,6 +262,17 @@ const PROBE = `(() => {
 // ---------------------------------------------------------------------------------------------------------------
 // Stats
 // ---------------------------------------------------------------------------------------------------------------
+/** The whole machine's CPU busy share between two `os.cpus()` readings (0..100). This machine is shared with other
+ *  builders: a run made while they were busy drives fewer actions and drops more frames, whatever the build. */
+function cpuBusyPct(a, b) {
+  let idle = 0, total = 0;
+  for (let i = 0; i < Math.min(a.length, b.length); i++) {
+    for (const k of Object.keys(b[i].times)) total += b[i].times[k] - a[i].times[k];
+    idle += b[i].times.idle - a[i].times.idle;
+  }
+  return total > 0 ? Math.round(1000 * (1 - idle / total)) / 10 : 0;
+}
+
 const pct = (a, p) => { if (!a.length) return 0; const s = [...a].sort((x, y) => x - y); return s[Math.min(s.length - 1, Math.floor(p * s.length))]; };
 const mean = (a) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0);
 const median = (a) => pct(a, 0.5);
@@ -490,6 +501,7 @@ async function oneRun(port, runIdx, dist) {
       await c.send('Tracing.start', { transferMode: 'ReportEvents', traceConfig: { includedCategories: ['devtools.timeline', 'disabled-by-default-devtools.timeline', 'disabled-by-default-devtools.timeline.stack', 'disabled-by-default-blink.debug', 'v8.execute', '__metadata'] } });
     }
     await ev(`window.__apm.mark('burst')`);
+    const cpu0 = os.cpus();
     // --screencast <dir>: what the burst LOOKS like (a capture for a review, never a measuring run: it costs frames).
     // JPEG frames of seconds 4 to 9 of the burst, named by their time, to be stitched by any tool.
     if (arg('screencast', '')) {
@@ -510,6 +522,7 @@ async function oneRun(port, runIdx, dist) {
       if (left > 0) await sleep(left);
     }
     await ev(`window.__apm.mark('tail')`);
+    const machineBusyPct = cpuBusyPct(cpu0, os.cpus());
     const m2 = await metrics();
     let profile = null;
     if (flag('profile')) profile = (await c.send('Profiler.stop')).profile;
@@ -521,7 +534,7 @@ async function oneRun(port, runIdx, dist) {
     await ev(`window.__apm.stopSampler()`);
     const final = await ev(`(() => { const r = ${g}.run; return { board: r.board.map((b) => [b.cardId, b.attack, b.health]) }; })()`);
     const dump = await ev(`window.__apm.dump()`);
-    return { gpu, built, dump, dist, hungInputs, metrics: { idle: [m0, m1], burst: [m1, m2], tail: [m2, m3] }, attempted, profile, traceEvents, final };
+    return { gpu, built, dump, dist, hungInputs, machineBusyPct, metrics: { idle: [m0, m1], burst: [m1, m2], tail: [m2, m3] }, attempted, profile, traceEvents, final };
   } catch (e) {
     // What was on screen when the run failed (the usual cause: a screen the script did not expect).
     try { fs.mkdirSync(OUT, { recursive: true }); const s = await Promise.race([c.send('Page.captureScreenshot', { format: 'png' }), sleep(8000).then(() => { throw new Error('no screenshot'); })]); fs.writeFileSync(path.join(OUT, `failed-${LABEL || 'run'}-${runIdx}.png`), Buffer.from(s.data, 'base64')); } catch { /* the page is gone */ }
@@ -540,7 +553,7 @@ function analyse(run) {
   const d = run.dump;
   const markAt = (n) => (d.marks.find((m) => m[1] === n) || [0])[0];
   const tIdle = markAt('idle'), tBurst = markAt('burst'), tTail = markAt('tail'), tEnd = markAt('end');
-  const out = { gpu: run.gpu, attempted: run.attempted, hungInputs: run.hungInputs };
+  const out = { gpu: run.gpu, attempted: run.attempted, hungInputs: run.hungInputs, machineBusyPct: run.machineBusyPct };
   out.frames = { idle: frameStats(d.ft, tIdle, tBurst), burst: frameStats(d.ft, tBurst, tTail), tail: frameStats(d.ft, tTail, tEnd) };
   out.loaf = { burst: d.loaf.filter((l) => l[0] >= tBurst && l[0] < tTail).length, tail: d.loaf.filter((l) => l[0] >= tTail && l[0] < tEnd).length, worstMs: r1(Math.max(0, ...d.loaf.filter((l) => l[0] >= tBurst && l[0] < tEnd).map((l) => l[1]))) };
   out.longtasks = { burst: d.longtasks.filter((l) => l[0] >= tBurst && l[0] < tTail).length, totalMs: r1(d.longtasks.filter((l) => l[0] >= tBurst && l[0] < tTail).reduce((a, l) => a + l[1], 0)) };
@@ -751,6 +764,7 @@ function report(results) {
   const a0 = results[0];
   lines.push(`# perf:apm ${LABEL ? `[${LABEL}] ` : ''}scene ${SCENE}, ${RATE} actions/s for ${SECS} s, ${results.length} run(s)`);
   lines.push(`GPU: ${a0.gpu}. Values are the median of the runs (min-max).`);
+  lines.push(`Whole-machine CPU busy during the burst: ${results.map((r) => r.machineBusyPct + '%').join(' / ')} (this page and Chrome's own processes are about 15 to 20 points of it; more means other work on the machine).`);
   lines.push('');
   lines.push('## (a) Frames');
   lines.push('| window | mean ms | p95 | p99 | max | % over 240 Hz budget | % over 6.25 | dropped/s | over 16.7/s | over 33 ms |');
@@ -818,7 +832,7 @@ async function main() {
         if (run.profile) fs.writeFileSync(path.join(OUT, `profile-${LABEL || 'run'}-${i + 1}.cpuprofile`), JSON.stringify(run.profile));
         results.push(a);
         fs.writeFileSync(path.join(OUT, `raw-${LABEL || 'run'}-${i + 1}.json`), JSON.stringify({ analysis: a, dump: { ...run.dump, ft: undefined }, frames: run.dump.ft.length }));
-        log(`   frames burst: mean ${a.frames.burst.mean} p99 ${a.frames.burst.p99} max ${a.frames.burst.max} dropped/s ${a.frames.burst.droppedPerSec} | accepted ${a.input.accepted}/${a.input.attempted} | task ${a.cost.burstPerSec.TaskDuration} ms/s | stale badges ${a.staleBadge.pctOfBurst}% longest ${a.staleBadge.longestMs} ms`);
+        log(`   frames burst: mean ${a.frames.burst.mean} p99 ${a.frames.burst.p99} max ${a.frames.burst.max} dropped/s ${a.frames.burst.droppedPerSec} | accepted ${a.input.accepted}/${a.input.attempted} | task ${a.cost.burstPerSec.TaskDuration} ms/s | stale badges ${a.staleBadge.pctOfBurst}% longest ${a.staleBadge.longestMs} ms | machine ${a.machineBusyPct}% busy`);
       } catch (e) { failed = true; log(`   RUN FAILED: ${e.message}`); }
     }
   } finally { server.close(); }

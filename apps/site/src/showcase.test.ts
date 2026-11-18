@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { initAncients } from './ancients';
+import { initAncients, initRunes } from './ancients';
 import { initChests, TIER_FX } from './chests';
 
 const INDEX = resolve(dirname(fileURLToPath(import.meta.url)), '../index.html');
@@ -44,6 +44,37 @@ describe('the Ancients showcase', () => {
     expect(document.querySelector('[data-ancient-panel="time"]')!.classList.contains('is-on')).toBe(true);
     expect(document.querySelector('[data-ancient-panel="bonds"]')!.classList.contains('is-on')).toBe(false);
     expect([...document.querySelectorAll('[data-ancient][aria-pressed="true"]')].map((b) => b.getAttribute('data-ancient'))).toEqual(['time']);
+  });
+});
+
+describe('the rune rewards', () => {
+  const RUNE_IDS = ['chimerus', 'voidmother', 'bucky', 'portrait', 'yazzus', 'gemsage'];
+  const up = (): string[] =>
+    [...document.querySelectorAll<HTMLElement>('[data-rune-panel]')].filter((p) => !p.hidden).map((p) => p.getAttribute('data-rune-panel')!);
+
+  it('has a tile and a card for each rune, naming the card it gives', () => {
+    expect([...document.querySelectorAll('#runeforge button[data-rune]')].map((t) => t.getAttribute('data-rune'))).toEqual(RUNE_IDS);
+    for (const id of RUNE_IDS) {
+      const panel = document.querySelector(`#runeforge [data-rune-panel="${id}"]`)!;
+      expect(document.querySelector(`[data-rune="${id}"]`)!.getAttribute('aria-controls')).toBe(panel.id);
+      expect(document.querySelector(`[data-rune="${id}"] img`)!.getAttribute('src')).toBe(`/art/runes/${id}.webp`);
+      expect(panel.querySelector('.ashow__art img')!.getAttribute('src')).toBe(`/art/cards/${id}.webp`);
+      expect(panel.querySelector('.ashow__blurb')!.textContent).toMatch(/^Get an? /);
+      expect(panel.querySelector('.ashow__eg-label')!.textContent).toBe('Card Reward');
+      const card = panel.querySelector('.ashow__eg-name')!.textContent!;
+      expect(panel.querySelector('.ashow__blurb')!.textContent).toContain(card);
+      expect(panel.querySelector('.ashow__eg-meta')!.textContent).toMatch(/^Tier \d.* · \d+ Attack · \d+ Health$/);
+    }
+  });
+
+  it('shows the first rune with no script, and browsing runes leaves the Ancients alone', () => {
+    expect(up()).toEqual([RUNE_IDS[0]]);
+    initAncients(document);
+    initRunes(document);
+    document.querySelector('[data-rune="yazzus"]')!.dispatchEvent(new Event('mouseenter'));
+    expect(up()).toEqual(['yazzus']);
+    expect(shown()).toEqual(['bonds']);
+    expect([...document.querySelectorAll('[data-rune][aria-pressed="true"]')].map((t) => t.getAttribute('data-rune'))).toEqual(['yazzus']);
   });
 });
 

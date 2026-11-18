@@ -1,7 +1,7 @@
 import './styles/tokens.css';
 import './styles/base.css';
 import './styles/sections.css';
-import { initAncients } from './ancients';
+import { initAncients, initRunes } from './ancients';
 import { initCaptures } from './captures';
 import { initChests } from './chests';
 import { applyPlatform, detectPlatform } from './platform';
@@ -28,5 +28,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   initCaptures(document, { reducedMotion, observe });
   initAncients(document);
+  initRunes(document);
   initChests(document, { reducedMotion });
 });

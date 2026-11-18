@@ -271,6 +271,52 @@
   --anc: var(--anc-war);
 }
 
+/* The rune tiles under the forge reuse the portrait row and the showcase card, each in its rune's own colour. */
+:is(.ancient[data-rune='chimerus'], .ashow__panel[data-rune-panel='chimerus']) {
+  --anc: var(--rune-chimerus);
+}
+
+:is(.ancient[data-rune='voidmother'], .ashow__panel[data-rune-panel='voidmother']) {
+  --anc: var(--rune-voidmother);
+}
+
+:is(.ancient[data-rune='bucky'], .ashow__panel[data-rune-panel='bucky']) {
+  --anc: var(--rune-bucky);
+}
+
+:is(.ancient[data-rune='portrait'], .ashow__panel[data-rune-panel='portrait']) {
+  --anc: var(--rune-portrait);
+}
+
+:is(.ancient[data-rune='yazzus'], .ashow__panel[data-rune-panel='yazzus']) {
+  --anc: var(--rune-yazzus);
+}
+
+:is(.ancient[data-rune='gemsage'], .ashow__panel[data-rune-panel='gemsage']) {
+  --anc: var(--rune-gemsage);
+}
+
+.runes__lead {
+  margin-top: var(--s6);
+  font-size: var(--fs-small);
+  text-align: center;
+  color: var(--muted);
+}
+
+.runes {
+  margin-top: var(--s4);
+}
+
+.ashow__eg-meta {
+  display: block;
+  margin-bottom: var(--s1);
+  font-size: var(--fs-label);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--anc) 45%, var(--muted));
+}
+
 /* The chosen portrait wears its Ancient's colour, as the game's medallions do. */
 .ancient[aria-pressed='true'] img {
   box-shadow: 0 0 0 2px var(--anc), 0 0 26px 5px color-mix(in srgb, var(--anc) 55%, transparent), var(--contact);
@@ -891,14 +937,28 @@
     grid-column: 1;
   }
 
-  :is(.section--ancients, .section--tracking, .section--earn) > :is(.ancients, .ranks, .chests) {
+  :is(.section--runeforge, .section--ancients, .section--tracking, .section--earn) > :is(.ancients, .ranks, .chests) {
     grid-column: 1 / -1;
     grid-row: 6;
   }
 
-  .section--ancients > .ashow {
+  :is(.section--runeforge, .section--ancients) > .ashow {
     grid-column: 1 / -1;
     grid-row: 7;
+  }
+
+  /* The rune row sits under a one-line lead-in, so its three rows shift down by one. */
+  .section--runeforge > .runes__lead {
+    grid-column: 1 / -1;
+    grid-row: 6;
+  }
+
+  .section--runeforge > .runes {
+    grid-row: 7;
+  }
+
+  .section--runeforge > .ashow {
+    grid-row: 8;
   }
 
   .ashow__panel {

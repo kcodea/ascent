@@ -1,11 +1,12 @@
-/** The Ancients showcase: pointing at, focusing or tapping a portrait brings up that Ancient's card below the row. */
+/** A showcase row: pointing at, focusing or tapping a tile brings up that tile's card below the row. The Ancients
+ *  ('ancient') and the rune rewards ('rune') are each one row, keyed by data-<key> tiles and data-<key>-panel cards. */
 
-function select(doc: Document, id: string): void {
-  for (const tile of doc.querySelectorAll('[data-ancient]')) {
-    tile.setAttribute('aria-pressed', String(tile.getAttribute('data-ancient') === id));
+function select(doc: Document, key: string, id: string): void {
+  for (const tile of doc.querySelectorAll(`[data-${key}]`)) {
+    tile.setAttribute('aria-pressed', String(tile.getAttribute(`data-${key}`) === id));
   }
-  for (const panel of doc.querySelectorAll<HTMLElement>('[data-ancient-panel]')) {
-    const on = panel.getAttribute('data-ancient-panel') === id;
+  for (const panel of doc.querySelectorAll<HTMLElement>(`[data-${key}-panel]`)) {
+    const on = panel.getAttribute(`data-${key}-panel`) === id;
     if (on === panel.classList.contains('is-on') && on !== panel.hidden) continue;
     panel.hidden = !on;
     // Dropping the class first restarts the card's entrance when it is shown again.
@@ -17,13 +18,16 @@ function select(doc: Document, id: string): void {
   }
 }
 
-export function initAncients(doc: Document): void {
-  for (const tile of doc.querySelectorAll('[data-ancient]')) {
-    const id = tile.getAttribute('data-ancient');
+export function initShowcase(doc: Document, key: 'ancient' | 'rune'): void {
+  for (const tile of doc.querySelectorAll(`[data-${key}]`)) {
+    const id = tile.getAttribute(`data-${key}`);
     if (!id) continue;
-    const pick = (): void => select(doc, id);
+    const pick = (): void => select(doc, key, id);
     tile.addEventListener('mouseenter', pick);
     tile.addEventListener('focus', pick);
     tile.addEventListener('click', pick);
   }
 }
+
+export const initAncients = (doc: Document): void => initShowcase(doc, 'ancient');
+export const initRunes = (doc: Document): void => initShowcase(doc, 'rune');

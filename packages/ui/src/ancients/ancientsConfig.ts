@@ -61,6 +61,31 @@ export interface AncientsConfig {
   seamGlow: number;
   /** Title: how long "An Ancient Awakens" holds before the reveal (ms). */
   titleHoldMs: number;
+  /** THE GATE'S CENTRE BEAT (owner 2026-11-18): `panels` = the six Ancients slam in as tall slanted panels and three
+   *  fall away; `curtain` = the earlier bloom of colour with the hero power's medallion and the title card. */
+  gateStyle: string;
+  /** Panels: the gap between one background colour popping in and the next, left to right (ms). */
+  panelPopGapMs: number;
+  /** Panels: one colour's pop (ms). */
+  panelPopMs: number;
+  /** Panels: one Ancient's slide from off screen to its slam (ms). */
+  panelSlideMs: number;
+  /** Panels: one Ancient setting off after the one before it (ms). */
+  panelStaggerMs: number;
+  /** Panels: how long the six stand under the title before three are chosen (ms). */
+  panelHoldMs: number;
+  /** Panels: the offered three rattling while their edges light (ms). */
+  panelRattleMs: number;
+  /** Panels: the other three fading and falling away (ms). */
+  panelFallMs: number;
+  /** Panels: the three settling onto their cards on the select screen (ms). */
+  panelToCardMs: number;
+  /** Panels: the shake on each slam, and the rattle's size (design px). 0 = none. */
+  panelShakePx: number;
+  /** Panels: the sparks (grinding edges, each slam, the explosion) (×). 0 = none. */
+  panelSparks: number;
+  /** Panels: how far each panel leans (% of the screen's width). 0 = upright. */
+  panelSlant: number;
   /** Reveal: the curtain fading off (ms). */
   revealFadeMs: number;
   /** Reveal: the pause before the first Ancient emerges (ms). */
@@ -191,7 +216,7 @@ const ART_DEFAULTS = Object.fromEntries(
 export type AncientColorKey = `${'death' | 'fortune' | 'war' | 'genesis' | 'time' | 'bonds'}Color`;
 /** THE AWAKENING SOUND CUES (owner: "i can help source sounds if you set up a tuner with timing cues"). Each cue is a
  *  clip id (swap in the owner's SFX in the tuner), a gain, an offset (ms, relative to its beat) and a rate (pitch). */
-export const ANCIENT_CUES = ['omenRumble', 'eruptionBoom', 'eruptionFlash', 'titleSting', 'revealSpark', 'cardReveal', 'ambientHum', 'pickWoosh', 'pickSeal'] as const;
+export const ANCIENT_CUES = ['omenRumble', 'eruptionBoom', 'eruptionFlash', 'titleSting', 'revealSpark', 'cardReveal', 'ambientHum', 'pickWoosh', 'pickSeal', 'panelPop', 'panelSlam'] as const;
 export type AncientCue = (typeof ANCIENT_CUES)[number];
 export type AncientCueKey = `${AncientCue}${'Clip' | 'Gain' | 'Offset' | 'Rate'}`;
 /** The shipped picks (existing repo clips, pitched where it helps). Gains baked from the owner's tuner 2026-09-26. */
@@ -209,6 +234,10 @@ export const ANCIENT_CUE_DEFAULTS: Record<AncientCue, { clip: string; gain: numb
   // play on the undiminished hero bus and land exactly on the collapse / contact frames).
   pickWoosh: { clip: 'fx/metal-woosh', gain: 0.32, offset: 0, rate: 0.8 },
   pickSeal: { clip: 'fx/triple-impact', gain: 0.62, offset: 0, rate: 0.85 },
+  // The panels (2026-11-18): placeholders from clips already in the repo, for the owner to swap. One pop per colour
+  // (pitched up a step each), one slam per Ancient.
+  panelPop: { clip: 'triggerglow', gain: 0.16, offset: 0, rate: 1.5 },
+  panelSlam: { clip: 'fx/universfield-ground-impact-352053', gain: 0.42, offset: 0, rate: 1.3 },
 };
 const CUE_DEFAULTS = Object.fromEntries(ANCIENT_CUES.flatMap((c) => {
   const d = ANCIENT_CUE_DEFAULTS[c];
@@ -247,6 +276,18 @@ export const ANCIENTS_DEFAULTS: AncientsFullConfig = {
   eruptionMs: 520,
   seamGlow: 0.9,
   titleHoldMs: 1050, // was 1500: ~1 s of an unchanging title card (whole-sequence pass 2026-09-27)
+  gateStyle: 'panels',
+  panelPopGapMs: 80,
+  panelPopMs: 240,
+  panelSlideMs: 440,
+  panelStaggerMs: 130,
+  panelHoldMs: 650,
+  panelRattleMs: 620,
+  panelFallMs: 640,
+  panelToCardMs: 380,
+  panelShakePx: 7,
+  panelSparks: 1,
+  panelSlant: 2.2,
   revealFadeMs: 320, // was 480 (2026-09-27 whole-sequence pass: shorter + ease-in, no murky mid-fade)
   revealDelayMs: 120, // the middle Ancient's spark lights as the title starts rising (spark reveal 2026-09-27)
   revealStyle: 'burst',
@@ -328,6 +369,17 @@ export const ANCIENTS_RANGES: Record<NumKey, [number, number, number]> = {
   seamGlow: [0, 1, 0.01],
   titleHoldMs: [0, 4000, 10],
   revealFadeMs: [60, 2000, 10],
+  panelPopGapMs: [0, 300, 5],
+  panelPopMs: [60, 800, 10],
+  panelSlideMs: [150, 1500, 10],
+  panelStaggerMs: [0, 500, 5],
+  panelHoldMs: [0, 3000, 10],
+  panelRattleMs: [100, 2000, 10],
+  panelFallMs: [150, 2000, 10],
+  panelToCardMs: [100, 1200, 10],
+  panelShakePx: [0, 24, 0.5],
+  panelSparks: [0, 3, 0.05],
+  panelSlant: [0, 6, 0.1],
   revealDelayMs: [0, 2000, 10],
   sparkMs: [80, 1000, 10],
   materialiseMs: [120, 1200, 10],
@@ -400,6 +452,7 @@ let cfg: AncientsFullConfig = (() => {
     if (rev < REV) { for (const k of RETUNED) delete s[k]; try { localStorage.setItem(REV_KEY, String(REV)); } catch { /* ignore */ } }
     for (const k of ['closeMs', 'pickLiftMs', 'pickFlightMs', 'beat1Ms', 'beatGapMs', 'beat2Ms', 'slamStrength', 'slamDust', 'gatherMs', 'cardStaggerMs', 'cardRevealMs']) delete s[k]; // retired keys
     if (typeof s.revealStyle !== 'string') delete s.revealStyle;
+    if (typeof s.gateStyle !== 'string') delete s.gateStyle;
     return { ...ANCIENTS_DEFAULTS, ...(s as Partial<AncientsFullConfig>) };
   } catch {
     return { ...ANCIENTS_DEFAULTS };
@@ -429,6 +482,14 @@ export function ancientMeterOverride(): { cost: number; refresh: number; combat:
 /** The Ancient's colour — the tuner's override, else the sim's colour table. */
 export function ancientColor(id: string): string {
   return (cfg as unknown as Record<string, string>)[`${id}Color`] ?? '#c8922e';
+}
+
+/** The gate's centre beat (the ✦ tuner's "Awakening style"). */
+export const GATE_STYLES = ['panels', 'curtain'] as const;
+export type GateStyle = (typeof GATE_STYLES)[number];
+/** A config value as a gate style (anything unknown = the default, `panels`). */
+export function gateStyleOf(v: unknown): GateStyle {
+  return (GATE_STYLES as readonly unknown[]).includes(v) ? (v as GateStyle) : 'panels';
 }
 
 /** The spark reveal's styles (the ✦ tuner's "Reveal style"). */

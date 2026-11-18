@@ -547,6 +547,36 @@ body.ancgate .app { z-index: auto; }
 .anc-gate-runes svg { width: 100%; height: 100%; overflow: visible; }
 .anc-gate-runes circle { fill: none; stroke: var(--anc-seam, #fff1bd); stroke-width: 7; stroke-dasharray: 3 14 10 14 3 30; stroke-linecap: round; opacity: 0.9; }
 
+/* ── THE SIX PANELS (`AncientPanels`, owner 2026-11-18): the gate's centre beat. Six tall slanted strips, one Ancient
+   each. Sizes and the slanted clip are stage px written by the component (it knows the layout viewport); everything
+   here is static paint. Motion is one-shot WAAPI transform / opacity from the component, plus the three's one-shot
+   clip onto their cards. Above the backdrop, under the eruption's flash (z 3) and the offer (z 160). ── */
+.anc-pn-host { position: absolute; inset: 0; z-index: 2; overflow: hidden; will-change: transform; }
+.anc-pn { position: absolute; top: 0; height: 100%; opacity: 0; will-change: transform, opacity; }
+.anc-pn-clip { position: absolute; inset: 0; will-change: clip-path; }
+.anc-pn-fill { position: absolute; inset: 0; background: linear-gradient(180deg, color-mix(in srgb, var(--anc-c) 82%, #000), color-mix(in srgb, var(--anc-c) 34%, #000)); }
+/* The Ancient: its painting as a square, soft at the edges so it sits on its colour (a stand-in for a cut-out figure). */
+.anc-pn-fig {
+  position: absolute; left: 50%; top: 50%; will-change: transform;
+  -webkit-mask-image: radial-gradient(ellipse 46% 56% at 50% 46%, #000 52%, transparent 96%); mask-image: radial-gradient(ellipse 46% 56% at 50% 46%, #000 52%, transparent 96%);
+}
+.anc-pn-face { display: block; width: 100%; height: 100%; object-fit: cover; -webkit-user-drag: none; }
+.anc-pn-edges { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.anc-pn-edges line { vector-effect: non-scaling-stroke; stroke-linecap: round; }
+.anc-pn-seam line { stroke: rgba(0, 0, 0, 0.62); stroke-width: calc(3 * var(--u, 1px)); }
+/* The lit edge: three static strokes (a wide soft one, a brighter one, a white core) faded in as one group. */
+.anc-pn-glow { opacity: 0; will-change: opacity; }
+.anc-pn-glow-w line { stroke: var(--anc-c); stroke-width: calc(18 * var(--u, 1px)); opacity: 0.32; }
+.anc-pn-glow-m line { stroke: color-mix(in srgb, var(--anc-c) 60%, #fff); stroke-width: calc(7 * var(--u, 1px)); opacity: 0.8; }
+.anc-pn-glow-c line { stroke: #fff; stroke-width: calc(2 * var(--u, 1px)); }
+.anc-pn-name {
+  position: absolute; left: 50%; bottom: 8.5%; transform: translateX(-50%); opacity: 0; white-space: nowrap;
+  font-family: var(--title-font, 'Cinzel Decorative'), 'Cinzel Decorative', serif; font-weight: var(--title-weight, 700);
+  font-size: calc(27 * var(--u, 1px)); letter-spacing: 0.14em; text-transform: uppercase; color: #fff;
+  text-shadow: 0 calc(2 * var(--u, 1px)) calc(5 * var(--u, 1px)) #000, 0 0 calc(14 * var(--u, 1px)) var(--anc-c);
+}
+.anc-pn-title { position: absolute; left: 50%; top: 66%; transform: translate(-50%, -50%); z-index: 1; }
+
 .anc-slot { position: relative; }
 .anc-card:disabled { opacity: 1; }
 

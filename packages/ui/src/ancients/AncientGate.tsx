@@ -1,14 +1,16 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
-import type { RunState } from '@game/sim';
+import type { AncientId, RunState } from '@game/sim';
 import { useGame } from '../store';
 import { wipeFx } from '../wipeFx';
 import { wipeAspect, wipeCoverEllipse, wipeFrontScale } from '../wipeGeometry';
-import { getAncientsConfig, subscribeAncientsConfig } from './ancientsConfig';
+import { gateStyleOf, getAncientsConfig, subscribeAncientsConfig } from './ancientsConfig';
+import { panelTimeline } from './panelClock';
+import { AncientPanels } from './AncientPanels';
 import { getAwakenStage, prefersReducedMotion, setAwakenStage, useAwakenStage, useGateDemo, useRingSettledSeq } from './ancientsFx';
 import { duckForAwakening, playCue, warmAncientCues } from './ancientsSound';
 import { pickTimeline, warmPickBurst } from './ancientPickSlam';
-import { ancientLandDust } from './ancientsSmoke';
+import { ancientEruptionBlast, ancientLandDust } from './ancientsSmoke';
 import { heroMotePalette, isBloomStyle, isThemedHero, resolveAncientHeroSignature, resolveAncientHeroTheme, type BloomStyle } from './ancientHeroThemes';
 import { playHeroBloom } from './ancientHeroBloom';
 import { AncientBloomMedal } from './AncientBloom';
@@ -23,6 +25,11 @@ import { stageHost, toStage } from '../stage';
  *
  *   OMEN      the world holds its breath: music + other sounds duck, a low rumble swells, the screen's edges darken,
  *             arcane glyphs flicker around the hero power and embers drift up from it (`omenRumble`).
+ *   PANELS    (the default since 2026-11-18, `gateStyle: 'panels'`; `AncientPanels`) the eruption is an explosion from
+ *             the hero power, then the six Ancients' colours pop in as tall slanted panels, each Ancient slides in
+ *             from off screen and slams, the title lands over them, the offered three rattle with lit edges and the
+ *             other three fall away onto the select screen. The ERUPTION and TITLE below are the earlier `curtain`
+ *             style, still selectable in the ✦ Ancients tuner.
  *   ERUPTION  a deep boom and a flash in the hero's theme from the hero power, one short dust burst in the theme's
  *             seam colour, and the curtain blooming out in the go-to-combat wipe's language (the wipe's
  *             aspect-stretched ellipse, its seam ring — here carrying runes — and `wipeFx` stardust) (`eruptionBoom`,
@@ -43,6 +50,8 @@ import { stageHost, toStage } from '../stage';
  * forward (omen / eruption / title → reveal; the offer takes reveal → settled). Never under a curtain, in combat or
  * over another decision overlay. Reduced motion: the backdrop and offer fade, the sounds still play.
  */
+/** A tuner demo's offer (the same three `AncientOffer` shows for one). */
+const DEMO_OFFER: readonly AncientId[] = ['death', 'fortune', 'war'];
 type Phase = 'idle' | 'omen' | 'eruption' | 'title' | 'reveal' | 'settled' | 'closing';
 interface Geo { x: number; y: number; rx: number; ry: number; r: number; hp: number; art?: string; pal: readonly number[] }
 /** `Geo` is SCREEN px (it feeds `wipeFx`, a Pixi layer); the DOM layer (clip ellipses, --gx/--gy, halo, ring, embers,
@@ -104,6 +113,10 @@ export const AncientGate = memo(function AncientGate({ run }: { run: RunState })
   heroIdRef.current = run.heroId;
   const [phase, setPhase] = useState<Phase>('idle');
   const [geo, setGeo] = useState<Geo | null>(null);
+  // THE PANELS (the gate style and the offered three, pinned when the sequence starts).
+  const [panels, setPanels] = useState<readonly AncientId[] | null>(null);
+  const offerRef = useRef(anc?.offer);
+  offerRef.current = anc?.offer;
   const bgRef = useRef<HTMLDivElement | null>(null);
   const curtainRef = useRef<HTMLDivElement | null>(null);
   const frontRef = useRef<HTMLDivElement | null>(null);
@@ -147,6 +160,8 @@ export const AncientGate = memo(function AncientGate({ run }: { run: RunState })
     setGeo({ x, y, rx, ry, r: Math.max(rx, ry), hp: w, art: (asHero ? heroPowerArt(asHero) : undefined) ?? art ?? heroPowerArt(heroIdRef.current), pal });
     seqRef.current = seq;
     closingRef.current = false;
+    const asPanels = gateStyleOf(c.gateStyle) === 'panels';
+    setPanels(asPanels ? (seq > 0 && offerRef.current?.length ? [...offerRef.current] : DEMO_OFFER) : null);
     duckForAwakening(true);
     if (fromReveal || prefersReducedMotion()) {
       if (prefersReducedMotion() && !fromReveal) { playCue('eruptionBoom'); playCue('titleSting', 200); }
@@ -166,7 +181,8 @@ export const AncientGate = memo(function AncientGate({ run }: { run: RunState })
       rumble.current?.stop(900); rumble.current = null;
       playCue('eruptionBoom');
       playCue('eruptionFlash');
-      wipeFx.bloom(x, y, rx, ry, c.eruptionMs, EASE, pal);
+      if (asPanels) ancientEruptionBlast(theme.seamColor, { x, y }, w, pal);
+      else wipeFx.bloom(x, y, rx, ry, c.eruptionMs, EASE, pal);
       // ONE crisp, short burst of the Runeforge landing dust from the hero power. Its life is
       // cut by the "Hero-power dust life" dial so it has played out by the time the curtain has bloomed: no fog.
       // In the theme's SEAM colour (light): tinted to the curtain centre it read as dark smudges over the bright bloom
@@ -174,8 +190,11 @@ export const AncientGate = memo(function AncientGate({ run }: { run: RunState })
       const burst = ancientLandDust(theme.seamColor, { x, y }, c.hpDustLife);
       if (burst) hpFx.current.push(burst);
     }, c.omenMs));
-    timers.current.push(window.setTimeout(() => { go('title', seq); playCue('titleSting'); }, c.omenMs + c.eruptionMs));
-    timers.current.push(window.setTimeout(() => toReveal(seq), c.omenMs + c.eruptionMs + c.titleHoldMs));
+    // The panels run their own clock (`panelTimeline`); the curtain keeps its eruption + title hold.
+    const tl = asPanels ? panelTimeline(c) : null;
+    const titleAt = tl ? tl.titleAt : c.eruptionMs, revealAt = tl ? tl.revealAt : c.eruptionMs + c.titleHoldMs;
+    timers.current.push(window.setTimeout(() => { go('title', seq); playCue('titleSting'); }, c.omenMs + titleAt));
+    timers.current.push(window.setTimeout(() => toReveal(seq), c.omenMs + revealAt));
   }, [go, toReveal]);
 
   // While the awakening is up, the page is in its modal layering (`.app`'s stacking context dissolved, as every Discover
@@ -309,6 +328,11 @@ export const AncientGate = memo(function AncientGate({ run }: { run: RunState })
       omenRef.current?.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 240, easing: 'ease-out', fill: 'forwards' });
       flashRef.current?.animate([{ opacity: 0, transform: 'translate(-50%, -50%) scale(0.3)' }, { opacity: 1, transform: 'translate(-50%, -50%) scale(1)', offset: 0.18 }, { opacity: 0, transform: 'translate(-50%, -50%) scale(1.6)' }],
         { duration: 520, easing: 'ease-out', fill: 'forwards' });
+      if (panels) {
+        // PANELS: the Shop darkens under the explosion (the backdrop fades in whole; no bloom, no seam ring).
+        bg?.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 380, delay: 80, easing: 'ease-out', fill: 'both' });
+        return;
+      }
       curtain?.animate([{ clipPath: ell(0) }, { clipPath: ell(1) }], { duration: c.eruptionMs, easing: ease, fill: 'forwards' });
       // The hero power's art settles into the middle of the bloom as it opens, in the hero's own way, with the hero's
       // signature accent round it (`ancientHeroBloom.ts`; the default keeps the generic scale/fade). Transform/opacity
@@ -343,7 +367,7 @@ export const AncientGate = memo(function AncientGate({ run }: { run: RunState })
       bg?.getAnimations().forEach((a) => a.cancel());
       bg?.animate([{ opacity: reduced ? 1 : Number(getComputedStyle(bg).opacity) || 1 }, { opacity: 0 }], { duration: pickTimeline(c, reduced).fade, easing: 'cubic-bezier(0.4, 0, 0.2, 1)', fill: 'forwards' });
     }
-  }, [phase, geo]);
+  }, [phase, geo, panels]);
 
   // Cracks of light: jagged paths from points across the board toward the hero power, fixed per awakening.
   const cracks = useMemo(() => {
@@ -368,7 +392,8 @@ export const AncientGate = memo(function AncientGate({ run }: { run: RunState })
   if (!geo || phase === 'idle') return null;
   const sg = stageGeo(geo); // DOM writes below are stage px; `geo` stays screen px for wipeFx
   const reduced = prefersReducedMotion();
-  const curtainOn = !reduced && (phase === 'eruption' || phase === 'title' || phase === 'reveal');
+  const centreOn = !reduced && (phase === 'eruption' || phase === 'title' || phase === 'reveal');
+  const curtainOn = centreOn && !panels;
   const ring = sg.hp * 0.95;
   return createPortal(
     <div className="anc-gate" aria-hidden="true" style={{
@@ -381,7 +406,7 @@ export const AncientGate = memo(function AncientGate({ run }: { run: RunState })
     } as CSSProperties}>
       {/* The Discover view's backdrop: what the awakening ends on, under the offer. */}
       {phase !== 'omen' && (
-        <div ref={bgRef} className="anc-gate-bg" style={reduced || phase === 'reveal' || phase === 'settled' || phase === 'closing' ? (reduced ? { opacity: 0 } : undefined) : { clipPath: `ellipse(0px 0px at ${sg.x}px ${sg.y}px)` }} />
+        <div ref={bgRef} className="anc-gate-bg" style={reduced || phase === 'reveal' || phase === 'settled' || phase === 'closing' ? (reduced ? { opacity: 0 } : undefined) : panels ? undefined : { clipPath: `ellipse(0px 0px at ${sg.x}px ${sg.y}px)` }} />
       )}
       {/* OMEN: darkening edges, glyphs flickering around the hero power, embers drifting up from it. */}
       {(phase === 'omen' || phase === 'eruption') && !reduced && (
@@ -411,6 +436,7 @@ export const AncientGate = memo(function AncientGate({ run }: { run: RunState })
           <div ref={flashRef} className="anc-erupt-flash" style={{ left: sg.x, top: sg.y }} />
         </>
       )}
+      {centreOn && panels && <AncientPanels offered={panels} phase={phase as 'eruption' | 'title' | 'reveal'} />}
       {curtainOn && (
         <div ref={curtainRef} className="anc-gate-curtain" style={phase === 'reveal' ? undefined : { clipPath: `ellipse(0px 0px at ${sg.x}px ${sg.y}px)` }}>
           <div className="anc-gate-center">
@@ -423,7 +449,7 @@ export const AncientGate = memo(function AncientGate({ run }: { run: RunState })
           </div>
         </div>
       )}
-      {phase === 'eruption' && !reduced && (
+      {phase === 'eruption' && !reduced && !panels && (
         <>
           <div ref={frontRef} className="anc-gate-front" />
           <div ref={runesRef} className="anc-gate-runes">

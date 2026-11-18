@@ -1,5 +1,6 @@
 import { canPlayDefs, playDef } from '../fx/playDef';
 import { getAncientsConfig } from './ancientsConfig';
+import { wipeFx } from '../wipeFx';
 
 /**
  * THE ANCIENTS' PIXI, RESTRAINED (owner 2026-09-25: "the smoke effect is all biffed and so sloppy. make the animation
@@ -72,6 +73,19 @@ export function ancientPickBurst(color: string, at: Pt, scale: number, intensity
   if (!canPlayDefs() || scale <= 0) return;
   // Brighter than the dust's muted tint: this is a flash of light off the hit, rim in the colour, core white-hot.
   playDef('ancient-pick-impact', { source: at, target: at, cursor: at }, { scale, intensity, recolor: [shade(color, -0.1), shade(color, 0.2), shade(color, 0.55), 0xffffff], slot: 'over', ...(alpha != null ? { alpha } : {}) });
+}
+
+/** THE PANELS' EXPLOSION (owner 2026-11-18: "a big (pixi fx driven) explosion occurs from the hero power"): the pick's
+ *  ring at several times its size, the turbulent spark blast at full, and a ring of hot streaks thrown outward, in the
+ *  hero's seam colour. `widthPx` is the hero power's width (it sizes the blast); `palette` is the hero's motes. */
+export function ancientEruptionBlast(color: string, at: Pt, widthPx: number, palette: readonly number[]): void {
+  const c = getAncientsConfig();
+  if (c.panelSparks <= 0) return;
+  const fit = Math.max(0.6, Math.min(3, widthPx / 110));
+  wipeFx.spray(at.x, at.y, widthPx * 0.2, 0, Math.PI, Math.round(150 * c.panelSparks), [...palette, 0xffffff]);
+  if (!canPlayDefs()) return;
+  ancientPickBurst(color, at, 3.2 * fit, 1.5);
+  playDef('ancient-slam-sparks', { source: at, target: at, cursor: at }, { intensity: 2.2 * c.panelSparks, scale: 2.4 * fit, recolor: tint(color), slot: 'over' });
 }
 
 /** The TRIPLE trail's palette in an Ancient's colour: the gild's own ramp shape (a deep rim through to a near-white

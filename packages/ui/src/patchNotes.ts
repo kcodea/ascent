@@ -60,6 +60,17 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       { category: 'Systems', text: 'When an Ancient awakens, you can now Peek at the board before you choose, like a Discover. Press Return to Ancients to bring the choice back.' },
       { category: 'Systems', text: 'The Ancient choice now sits on the same dark backdrop as the Runeforge, so the Ancients stand out from the board.' },
+      {
+        category: 'Systems',
+        text: 'A new awakening. When an Ancient awakens, all six Ancients now slam onto the screen before three are offered.',
+        details: [
+          'Your hero power explodes and the Shop darkens.',
+          'Six tall panels pop in from left to right, one colour for each Ancient.',
+          'Each Ancient slides in from off the screen and slams to a stop, with sparks and a shake.',
+          'The three you can choose from shake and their edges light up. The other three fall away.',
+          'The choice itself is unchanged.',
+        ],
+      },
     ],
   },
   {

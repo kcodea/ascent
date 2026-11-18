@@ -3541,13 +3541,13 @@ export function Recruit() {
   // Bridge this fight's live run-buff gains (spell power, max Gold) to the store so the Buffs window ticks up
   // in sync with the replay. Cleared to `null` once combat is SETTLED — settleCombat folds the gains into the
   // run state, so the row then reads them from there (adding the live delta too would briefly double-count).
-  const { spellAttack: cbA, spellHealth: cbH, rubyAttack: cbRA, rubyHealth: cbRH, gold: cbGold, auras: cbAuras } = replay.combatBuffs;
-  // A compact signature of the per-aura map so the effect re-runs when ANY aura row ticks (the map is a fresh
-  // object each beat, so we key on its contents, not its reference).
-  const cbAuraSig = JSON.stringify(cbAuras);
+  // `replay.combatBuffs` keeps its reference until a number in it (an aura row included) moves (`useStableValue` in
+  // the replay hook), so the effect is keyed on the object itself: no per-render signature of the aura map.
+  const combatBuffsNow = replay.combatBuffs;
+  const { spellAttack: cbA, spellHealth: cbH } = combatBuffsNow;
   useEffect(() => {
-    setCombatBuffs(inCombat && !run.combatSettled ? { spellAttack: cbA, spellHealth: cbH, rubyAttack: cbRA, rubyHealth: cbRH, gold: cbGold, auras: cbAuras } : null);
-  }, [inCombat, run.combatSettled, cbA, cbH, cbRA, cbRH, cbGold, cbAuraSig, setCombatBuffs]);
+    setCombatBuffs(inCombat && !run.combatSettled ? combatBuffsNow : null);
+  }, [inCombat, run.combatSettled, combatBuffsNow, setCombatBuffs]);
   // …and the same fold drives every printed SPELL number (owner report 2026-09-22: "front to backs text /
   // maybe all spells? not updating in real time from buffs in combat"). `simulate` keeps its own spell power
   // live inside the fight, but the run's `spellBonus` is written only at settle — so a Chorus Drake pumping

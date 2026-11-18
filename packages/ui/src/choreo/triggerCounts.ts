@@ -1,6 +1,7 @@
 import type { CombatEvent } from '@game/core';
 import { badgeIdsForCombatFlag } from '@game/content';
 import { isAncientProcFlag, type RuneCombatProgress } from '@game/sim';
+import { eventsOfType } from './prefixFold';
 
 /** The reserved `triggerCounts` key the side's ANCIENT proc count rides under (R-FX-ANCIENT-PROC-01): the hero-power
  *  button's rune-trigger burst reads it. Not a content id, so no badge ever matches it. */
@@ -29,8 +30,10 @@ export function triggerCounts(
   const counts: Record<string, number> = {};
   if (beatIdxIsStale || processedEnd <= 0) return counts;
   const curStep = events[processedEnd - 1]?.step ?? Infinity;
-  for (const e of events) {
-    if (e.type !== 'questTrigger' || e.side !== side || (e.step ?? 0) > curStep) continue;
+  // By STEP, not by position (the replay reorders inside a step), so this is not a prefix of the log: it walks the
+  // fight's trigger events only (`eventsOfType`, indexed once per log), never the whole log on every beat.
+  for (const { e } of eventsOfType(events, 'questTrigger')) {
+    if (e.side !== side || (e.step ?? 0) > curStep) continue;
     // Every badge the flag belongs to (Basic AND Epic runes, R-RUNE-COMBAT-FLASH-01): how many times it has fired so
     // far, a fresh one-shot pulse per bump.
     for (const id of badgeIdsForCombatFlag(e.flag)) counts[id] = (counts[id] ?? 0) + 1;
@@ -71,16 +74,16 @@ export function runeProgress(
   if (beatIdxIsStale || processedEnd <= 0) return null;
   const curStep = events[processedEnd - 1]?.step ?? Infinity;
   const triggers: Record<string, number> = {};
-  for (const e of events) {
-    if (e.type !== 'questTrigger' || e.side !== side || (e.step ?? 0) > curStep) continue;
+  for (const { e } of eventsOfType(events, 'questTrigger')) {
+    if (e.side !== side || (e.step ?? 0) > curStep) continue;
     triggers[e.flag] = (triggers[e.flag] ?? 0) + 1;
   }
   let deaths = 0;
   for (const q of questEvents ?? []) if (q.kind === 'friendlyDeath' && q.step <= curStep) deaths += 1;
   // Rune of Sequencing: the last replayed sequence tick for this side (each carries the whole list).
   let sequence: string[] | undefined;
-  for (const e of events) {
-    if (e.type === 'runeSequence' && e.side === side && (e.step ?? 0) <= curStep) sequence = e.seq;
+  for (const { e } of eventsOfType(events, 'runeSequence')) {
+    if (e.side === side && (e.step ?? 0) <= curStep) sequence = e.seq;
   }
   return sequence ? { triggers, deaths, sequence } : { triggers, deaths };
 }

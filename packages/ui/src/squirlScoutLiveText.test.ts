@@ -85,7 +85,10 @@ describe('R-TEXT-11 — Squirl Scout prints its CURRENT grant as it grows mid-fi
     for (const f of ['Unit.tsx', 'Recruit.tsx']) {
       const src = read(f);
       expect(/squirlScoutBuff: (foe \? 0 : )?run\.squirlScoutBuff\b/.test(src), `${f} prints the frozen snowball`).toBe(false);
-      expect(src.includes('squirlScoutBuffLive(run)'), `${f} reads the live snowball`).toBe(true);
+      // Unit.tsx reads it through its own store selector (R-PERF-COMBAT-PREVIEW-01: a unit no longer subscribes to the
+      // whole run, so the live value must come from the LIVE run, `s.run`, never the frozen one).
+      const live = f === 'Unit.tsx' ? 'squirlScoutBuffLive(s.run)' : 'squirlScoutBuffLive(run)';
+      expect(src.includes(live), `${f} reads the live snowball`).toBe(true);
     }
   });
 });

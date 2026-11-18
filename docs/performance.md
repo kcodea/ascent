@@ -141,7 +141,8 @@ Counters (levels, peak-sampled at 20 Hz): `fx:particles` (the WHOLE population â
 ParticleContainers plus the sprite particles; the older `particles` counter is the sprite pool alone),
 `fx:layers` (acquired def layers), `fx:filters` (filters applied across live `FilterStack`s), `fx:culled`
 (plays the FX budget has trimmed since load â€” see below), `sprite pool`, `weld rings`, `spell arrows`.
-Rates (per second): `unit renders`, `recruit renders`, `pointermoves`, `fx:culled` (also tallied per bucket).
+Rates (per second): `unit renders`, `card renders` (every whole `Card` render, shop and combat: a render that starts
+inside the card never showed in `unit renders`), `recruit renders`, `pointermoves`, `fx:culled` (also tallied per bucket).
 
 **Long-task attribution and the input-event ring (perf PR 1, 2026-09-17).** Every `longtask` entry is
 intersected against a ring of recently closed spans; the labels that overlapped it are recorded on the bucket

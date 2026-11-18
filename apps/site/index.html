@@ -3,10 +3,312 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ASCENT</title>
+    <title>ASCENT | The auto-battler that waits for you</title>
+    <meta
+      name="description"
+      content="ASCENT is a free auto-battler for Windows. Build your board in an eight-player lobby on your own time, take a rune from the Runeforge, summon an Ancient and climb the ladder."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="ASCENT | The auto-battler that waits for you" />
+    <meta
+      property="og:description"
+      content="A free auto-battler for Windows. Build your board in an eight-player lobby on your own time, then watch it fight."
+    />
+    <meta property="og:image" content="/share.jpg" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;700;800;900&family=Nunito+Sans:wght@400;600;700&display=swap"
+    />
   </head>
   <body>
-    <h1>ASCENT</h1>
+    <header id="top" class="top">
+      <img class="top__sky" src="/art/hero.webp" alt="" width="1915" height="821" fetchpriority="high" />
+      <div class="top__inner">
+        <img class="top__crest" src="/art/crest.png" alt="ASCENT" width="1254" height="1254" />
+        <h1 class="top__headline">The auto-battler that waits for you.</h1>
+        <p class="top__pitch">Build your board in an eight-player lobby and fight real players' boards, on your own time.</p>
+        <div class="download">
+          <p class="download__platform">Windows, free to play</p>
+          <a class="gem" data-download href="https://github.com/kcodea/ascent/releases/latest/download/ASCENT-Setup.exe">Download free</a>
+          <p class="download__note" data-download-note>
+            Windows will show an "unknown publisher" warning the first time you install, because the installer is not
+            signed yet. Choose "More info", then "Run anyway".
+          </p>
+          <button class="download__copy" type="button" data-copy-link hidden>Copy link</button>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section id="async" class="section section--async">
+        <p class="eyebrow">Play on your time</p>
+        <h2>Take the time you need</h2>
+        <p class="lede">
+          You face the boards of seven other players, and none of them has to be online when you are. The clock gives
+          you room to think.
+        </p>
+        <ol class="points">
+          <li class="point">
+            <figure class="capture" data-capture="discover-timer">
+              <img
+                data-poster
+                src="/captures/discover-timer.jpg"
+                alt="A Discover offering three cards while the turn timer is paused"
+                width="1280"
+                height="720"
+                loading="lazy"
+              />
+              <figcaption class="point__text">
+                <h3>The clock stops for big choices</h3>
+                <p>While a Discover, the Runeforge or Ancient select is open, your timer waits until you pick.</p>
+              </figcaption>
+            </figure>
+          </li>
+          <li class="point">
+            <figure class="capture" data-capture="gold-fuse">
+              <img
+                data-poster
+                src="/captures/gold-fuse.jpg"
+                alt="The Gold Fuse in the shop, holding the turn timer until Gold is spent"
+                width="1280"
+                height="720"
+                loading="lazy"
+              />
+              <figcaption class="point__text">
+                <h3>The Gold Fuse</h3>
+                <p>Your turn timer does not start until you have spent a set amount of Gold.</p>
+              </figcaption>
+            </figure>
+          </li>
+          <li class="point">
+            <figure class="capture" data-capture="rearrange">
+              <img
+                data-poster
+                src="/captures/rearrange.jpg"
+                alt="A board being rearranged after the turn timer has run out"
+                width="1280"
+                height="720"
+                loading="lazy"
+              />
+              <figcaption class="point__text">
+                <h3>Out of time? Keep arranging.</h3>
+                <p>When your time is up, you can still rearrange your board before the fight.</p>
+              </figcaption>
+            </figure>
+          </li>
+          <li class="point">
+            <figure class="capture" data-capture="save-continue">
+              <img
+                data-poster
+                src="/captures/save-continue.jpg"
+                alt="Save and Quit, then Continue picking up a game where it was left"
+                width="1280"
+                height="720"
+                loading="lazy"
+              />
+              <figcaption class="point__text">
+                <h3>Save and quit any time</h3>
+                <p>Close the game mid-run and come back to exactly where you left off.</p>
+              </figcaption>
+            </figure>
+          </li>
+        </ol>
+      </section>
+
+      <section id="runeforge" class="section section--runeforge">
+        <p class="eyebrow">The Runeforge</p>
+        <h2>One rune for the whole run</h2>
+        <p class="lede">The forge offers four runes and you take one. Its power stays with you for the rest of the run.</p>
+        <figure class="capture" data-capture="runeforge">
+          <img
+            data-poster
+            src="/captures/runeforge.jpg"
+            alt="The Runeforge offering four runes, with one being taken"
+            width="1280"
+            height="720"
+            loading="lazy"
+          />
+        </figure>
+      </section>
+
+      <section id="ancients" class="section section--ancients">
+        <p class="eyebrow">The Ancients</p>
+        <h2>Summon an Ancient, change your hero</h2>
+        <p class="lede">
+          Earn 16 points to summon one: 1 for every shop roll and 2 for every combat round you finish. Then Discover
+          three of your hero's six Ancients and choose one, which changes your hero power for the rest of the game.
+        </p>
+        <figure class="capture" data-capture="ancient-select">
+          <img
+            data-poster
+            src="/captures/ancient-select.jpg"
+            alt="Ancient select offering three Ancients to choose from"
+            width="1280"
+            height="720"
+            loading="lazy"
+          />
+        </figure>
+        <ul class="ancients">
+          <li class="ancient">
+            <img data-ancient src="/art/ancients/bonds.webp" alt="" width="512" height="512" loading="lazy" />
+            <span class="ancient__name">Bonds</span>
+          </li>
+          <li class="ancient">
+            <img data-ancient src="/art/ancients/death.webp" alt="" width="512" height="512" loading="lazy" />
+            <span class="ancient__name">Death</span>
+          </li>
+          <li class="ancient">
+            <img data-ancient src="/art/ancients/fortune.webp" alt="" width="512" height="512" loading="lazy" />
+            <span class="ancient__name">Fortune</span>
+          </li>
+          <li class="ancient">
+            <img data-ancient src="/art/ancients/genesis.webp" alt="" width="512" height="512" loading="lazy" />
+            <span class="ancient__name">Genesis</span>
+          </li>
+          <li class="ancient">
+            <img data-ancient src="/art/ancients/time.webp" alt="" width="512" height="512" loading="lazy" />
+            <span class="ancient__name">Time</span>
+          </li>
+          <li class="ancient">
+            <img data-ancient src="/art/ancients/war.webp" alt="" width="512" height="512" loading="lazy" />
+            <span class="ancient__name">War</span>
+          </li>
+        </ul>
+      </section>
+
+      <section id="tracking" class="section section--tracking">
+        <p class="eyebrow">Everything is tracked</p>
+        <h2>Every game on record</h2>
+        <p class="lede">
+          Your Career page charts your rating over time and lists your placements. Open any past game to see its board
+          and runes.
+        </p>
+        <figure class="capture" data-capture="career-chart">
+          <img
+            data-poster
+            src="/captures/career-chart.jpg"
+            alt="The Career page rating chart, with a past game opened to show its board and runes"
+            width="1280"
+            height="720"
+            loading="lazy"
+          />
+        </figure>
+        <figure class="ranks">
+          <ul class="ranks__list">
+            <li class="rank">
+              <img src="/art/ranks/bronze.webp" alt="" width="512" height="512" loading="lazy" />
+              <span class="rank__name">Bronze</span>
+            </li>
+            <li class="rank">
+              <img src="/art/ranks/silver.webp" alt="" width="512" height="512" loading="lazy" />
+              <span class="rank__name">Silver</span>
+            </li>
+            <li class="rank">
+              <img src="/art/ranks/gold.webp" alt="" width="512" height="512" loading="lazy" />
+              <span class="rank__name">Gold</span>
+            </li>
+            <li class="rank">
+              <img src="/art/ranks/platinum.webp" alt="" width="512" height="512" loading="lazy" />
+              <span class="rank__name">Platinum</span>
+            </li>
+            <li class="rank">
+              <img src="/art/ranks/diamond.webp" alt="" width="512" height="512" loading="lazy" />
+              <span class="rank__name">Diamond</span>
+            </li>
+            <li class="rank">
+              <img src="/art/ranks/ascendant.webp" alt="" width="512" height="512" loading="lazy" />
+              <span class="rank__name">Ascendant</span>
+            </li>
+          </ul>
+          <figcaption class="ranks__caption">The ranked ladder, Bronze to Ascendant</figcaption>
+        </figure>
+      </section>
+
+      <section id="earn" class="section section--earn">
+        <p class="eyebrow">Earn it</p>
+        <h2>Free to earn and unlock, always</h2>
+        <p class="lede">
+          Cosmetics come from playing, and the higher you place, the more you earn. Chests hand out hero attacks,
+          portraits and frames.
+        </p>
+        <figure class="capture" data-capture="chest-opening">
+          <img
+            data-poster
+            src="/captures/chest-opening.jpg"
+            alt="A chest opening and revealing a cosmetic reward"
+            width="1280"
+            height="720"
+            loading="lazy"
+          />
+        </figure>
+        <figure class="chests">
+          <ul class="chests__list">
+            <li class="chest">
+              <img src="/art/chests/standard.webp" alt="" width="840" height="400" loading="lazy" />
+              <span class="chest__name">Standard</span>
+            </li>
+            <li class="chest">
+              <img src="/art/chests/rare.webp" alt="" width="840" height="400" loading="lazy" />
+              <span class="chest__name">Rare</span>
+            </li>
+            <li class="chest">
+              <img src="/art/chests/epic.webp" alt="" width="840" height="400" loading="lazy" />
+              <span class="chest__name">Epic</span>
+            </li>
+            <li class="chest">
+              <img src="/art/chests/legendary.webp" alt="" width="840" height="400" loading="lazy" />
+              <span class="chest__name">Legendary</span>
+            </li>
+            <li class="chest">
+              <img src="/art/chests/ancient.webp" alt="" width="840" height="400" loading="lazy" />
+              <span class="chest__name">Ancient</span>
+            </li>
+          </ul>
+          <figcaption class="chests__caption">Five chest tiers, from Standard to Ancient</figcaption>
+        </figure>
+      </section>
+
+      <section id="modes" class="section section--modes">
+        <p class="eyebrow">And more</p>
+        <h2>Other game modes</h2>
+        <ul class="modes">
+          <li class="mode">
+            <img data-mode="versus" src="/captures/mode-versus.jpg" alt="A live Versus match between two players" width="640" height="360" loading="lazy" />
+            <h3>Versus</h3>
+            <p>Play another player live, head to head.</p>
+          </li>
+          <li class="mode">
+            <img data-mode="duos" src="/captures/mode-duos.jpg" alt="A Duos game with two teams of two" width="640" height="360" loading="lazy" />
+            <h3>Duos</h3>
+            <p>Team up with a partner for 2v2 tag-team games.</p>
+          </li>
+          <li class="mode">
+            <img data-mode="gauntlet" src="/captures/mode-gauntlet.jpg" alt="The Gauntlet stage select" width="640" height="360" loading="lazy" />
+            <h3>Gauntlet</h3>
+            <p>Clear single-player stages, each a 10-round duel against one hand-built opponent.</p>
+          </li>
+        </ul>
+      </section>
+    </main>
+
+    <footer id="get" class="get">
+      <p class="eyebrow">Get ASCENT</p>
+      <h2>Your lobby is waiting</h2>
+      <div class="download">
+        <p class="download__platform">Windows, free to play</p>
+        <a class="gem" data-download href="https://github.com/kcodea/ascent/releases/latest/download/ASCENT-Setup.exe">Download free</a>
+        <p class="download__note" data-download-note>
+          Windows will show an "unknown publisher" warning the first time you install, because the installer is not
+          signed yet. Choose "More info", then "Run anyway".
+        </p>
+        <button class="download__copy" type="button" data-copy-link hidden>Copy link</button>
+      </div>
+      <p class="get__small">ASCENT is free to play on Windows.</p>
+    </footer>
+
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

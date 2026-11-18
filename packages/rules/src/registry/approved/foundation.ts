@@ -8541,7 +8541,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     title: 'Under rapid Shop input the game presents the newest action only: numbers are true at once and nothing queues',
     statement:
       'Rapid input means three or more accepted Shop actions (buy, sell, play, cast, refresh, tier up, hero power, freeze) inside '
-      + 'one second. At up to two actions a second every effect, stat roll and buff wave plays exactly as authored. While input is '
+      + 'one second; once rapid it stays rapid until fewer than two are inside a second. At up to two actions a second every effect, stat roll and buff wave plays exactly as authored. While input is '
       + 'rapid: (1) a stat change is printed at once with the badge\x27s one pop instead of being withheld for a roll, and the '
       + 'numbers an earlier action was still rolling in are printed with it, so a badge never shows less than the run really '
       + 'holds; (2) a new action drops the paced steps of earlier actions that have not started yet (later buff waves, Shout '

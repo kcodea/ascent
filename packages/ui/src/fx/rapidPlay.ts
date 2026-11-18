@@ -1,4 +1,4 @@
-import { RAPID_ACTIONS, shopActionPressure } from './actionPressure';
+import { RAPID_ACTIONS, shopActionPressure, shopInputRapid } from './actionPressure';
 import { RAPID_FX } from './rapidConfig';
 
 /**
@@ -47,8 +47,8 @@ export interface RapidPlay {
  * coins, a button's dust), so two fires on the same spot are one moment and fires on different cards never share one.
  */
 export function rapidPlay(t: PlayTarget, now?: number): RapidPlay | null {
+  if (!shopInputRapid(now)) return null;
   const pressure = shopActionPressure(now);
-  if (pressure < RAPID_ACTIONS) return null;
   let key: string | undefined;
   if (RAPID_FX.dedupe) {
     const uid = t.uids?.target;

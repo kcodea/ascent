@@ -13,8 +13,10 @@
  * the new numbers land with one pop instead of a roll.
  *
  * RAPID = at least `RAPID_ACTIONS` accepted actions inside the last `RAPID_WINDOW_MS`. Three inside one second: the
- * third action of a burst is the first one presented in short form, and one second without input ends it. A player
- * acting at up to two actions a second never sees any of this: every effect plays exactly as authored.
+ * third action of a burst is the first one presented in short form. Once rapid it STAYS rapid until fewer than
+ * `RAPID_EXIT_ACTIONS` (two) are inside the window, so a steady two and a half actions a second is presented one way,
+ * not short and full by turns; a second without input ends it. A player acting at up to two actions a second never
+ * sees any of this: every effect plays exactly as authored.
  *
  * It never touches gameplay: nothing here is read by the reducer, a replay or a snapshot.
  */
@@ -23,6 +25,8 @@
 export const RAPID_WINDOW_MS = 1000;
 /** Accepted actions inside the window (this one included) from which input counts as rapid. */
 export const RAPID_ACTIONS = 3;
+/** Once rapid, input stays rapid until fewer than this many actions are inside the window. */
+export const RAPID_EXIT_ACTIONS = 2;
 
 /** The player actions that count: the ones a player repeats at speed. Not End Turn, not a modal's pick. */
 const COUNTED: ReadonlySet<string> = new Set(['buy', 'sell', 'play', 'roll', 'upgrade', 'heroPower', 'freeze', 'buyHenchman', 'activateEquipment']);
@@ -33,6 +37,8 @@ const ENDS_TURN: ReadonlySet<string> = new Set(['faceOmen', 'landCombat', 'settl
 let stamps: number[] = [];
 /** Bumped on every counted action: "which action is this presentation from". */
 let epoch = 0;
+/** Is input rapid right now? Latched: set at `RAPID_ACTIONS`, cleared under `RAPID_EXIT_ACTIONS`. */
+let rapid = false;
 const listeners = new Set<(rapid: boolean) => void>();
 
 function trim(now: number): void {
@@ -40,6 +46,8 @@ function trim(now: number): void {
   let drop = 0;
   while (drop < stamps.length && stamps[drop]! <= from) drop++;
   if (drop > 0) stamps = stamps.slice(drop);
+  if (stamps.length >= RAPID_ACTIONS) rapid = true;
+  else if (stamps.length < RAPID_EXIT_ACTIONS) rapid = false;
 }
 
 /** Does this action type count toward the pressure? */
@@ -53,12 +61,11 @@ export function countsAsShopAction(type: string): boolean {
  * this action. `now` is injectable for tests.
  */
 export function noteShopAction(type: string, now: number = performance.now()): void {
-  if (ENDS_TURN.has(type)) { stamps = []; return; }
+  if (ENDS_TURN.has(type)) { stamps = []; rapid = false; return; }
   if (!COUNTED.has(type)) return;
-  trim(now);
   stamps.push(now);
+  trim(now);
   epoch++;
-  const rapid = stamps.length >= RAPID_ACTIONS;
   for (const l of listeners) l(rapid);
 }
 
@@ -70,7 +77,8 @@ export function shopActionPressure(now: number = performance.now()): number {
 
 /** Is the player acting fast enough that only the newest action should be presented in full? */
 export function shopInputRapid(now: number = performance.now()): boolean {
-  return shopActionPressure(now) >= RAPID_ACTIONS;
+  trim(now);
+  return rapid;
 }
 
 /** The number of counted actions so far: presentation scheduled under an older number belongs to an older action. */
@@ -87,4 +95,5 @@ export function onShopAction(fn: (rapid: boolean) => void): () => void {
 /** Forget everything (a new run, a phase change, a test). */
 export function resetShopActionPressure(): void {
   stamps = [];
+  rapid = false;
 }

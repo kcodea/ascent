@@ -497,7 +497,7 @@ function sameUids(a: ReadonlySet<string>, b: ReadonlySet<string>): boolean {
 /** How long a sale's Gold float stays mounted: its 0.9 s animation ends invisible, and it is gone by this. */
 const SELL_FLOAT_MS = 1000;
 
-/** No drop in progress: nothing was read ahead (R-PERF-APM-01, `dropRectsRef`). */
+/** No drop in progress: nothing was read ahead (R-PERF-APM-03, `dropRectsRef`). */
 const NO_DROP_RECTS: { plate?: DOMRect | null; gold?: DOMRect | null } = {};
 
 type DragSource = 'shop' | 'hand' | 'board';
@@ -5258,7 +5258,7 @@ export function Recruit() {
       const placeBox = (handMinionDrop || boardReorderDrop || shopReorderDrop) && flipZoneSel
         ? document.querySelector<HTMLElement>('.dragcard')?.getBoundingClientRect()
         : undefined;
-      // ...AND THE TWO RECTS THE DROP'S OWN PRESENTATION READS (R-PERF-APM-01): the played card's plate (its dissolve)
+      // ...AND THE TWO RECTS THE DROP'S OWN PRESENTATION READS (R-PERF-APM-03): the played card's plate (its dissolve)
       // and the Gold pill (a sale's coins). `applyDrop` used to read them AFTER the class came off below, which forced
       // that whole-document restyle inside this handler after all, on every play and every sale (profiled 2026-11-18:
       // 4 to 5 ms each on an engine board, twice the handler's other work). Same boxes, read in the layout pass the row
@@ -6597,7 +6597,7 @@ export function Recruit() {
     const pulseFallback = fresh.filter(
       (uid) => !bindingFor(run.board.find((c) => c.uid === uid)?.cardId ?? null, 'shout'),
     );
-    // Only when a card actually takes the medallion pulse (R-PERF-APM-01): the unconditional write handed React a NEW
+    // Only when a card actually takes the medallion pulse (R-PERF-APM-03): the unconditional write handed React a NEW
     // Set on every played Shout, bound burst or not, which is one whole extra `Recruit` render per play.
     if (pulseFallback.length > 0) setBattlecryUids((s) => new Set([...s, ...pulseFallback]));
     // ...except when the card that just landed is the one that raised RUBY strength in this same action: the Ruby
@@ -8847,7 +8847,7 @@ export function Recruit() {
       case 'sold': {
         // Float the actual Gold gained where the minion was released (not over the Gold counter).
         const id = ++sellFloatId.current;
-        // ONE RENDER PER SALE, NOT TWO (R-PERF-APM-01). Each float used to be removed by its own timer a second later:
+        // ONE RENDER PER SALE, NOT TWO (R-PERF-APM-03). Each float used to be removed by its own timer a second later:
         // a whole `Recruit` render to unmount a number that had already faded (its animation ends invisible at 0.9 s).
         // Finished floats now leave in the NEXT sale's own commit, and a single sweep follows the last sale. A lone
         // sale behaves exactly as before.
@@ -9009,7 +9009,7 @@ export function Recruit() {
       if (run.board.length >= CONFIG.boardMax) return false;
       const to = prevWarbandGapRef.current >= 0 ? prevWarbandGapRef.current : warbandIndexAt(cx);
       // The plate is measured on the LIVE drag card (`applyDrop` runs before `setDrag(null)`, so it is still mounted).
-      // (read with the drop's row snapshot, before the drag's body class came off: `dropRectsRef`, R-PERF-APM-01)
+      // (read with the drop's row snapshot, before the drag's body class came off: `dropRectsRef`, R-PERF-APM-03)
       const plate = dropRectsRef.current.plate !== undefined ? dropRectsRef.current.plate : document.querySelector<HTMLElement>('.dragcard .cardplate')?.getBoundingClientRect() ?? null;
       noteDuosRelease(d, x, y, false);
       playWithSummonDelay({ type: 'play', uid: d.uid, toIndex: to });

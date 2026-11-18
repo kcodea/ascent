@@ -393,16 +393,16 @@ export function revealStat(uid: string, progress: number, reel = 0): void {
 let raf = 0;
 
 /**
- * The shortest time between two steps of the shared roll (R-PERF-APM-01): 60 steps a second.
+ * The shortest time between two steps of the shared roll (R-PERF-APM-02): 60 steps a second (`STAT_ROLL.stepMs`).
  *
  * Every step that moves a printed number re-renders that badge, restarts its pop and re-rasterises the card under
  * it. On a 240 Hz display the loop below ran 240 times a second, so a 420 ms roll on seven badges was about 700
  * badge updates where a 60 Hz display, showing the same roll, makes 175. Nobody reads a digit that stands for 4 ms;
  * the roll looks the same and costs a quarter. The LAST step is never late by more than this: a hold whose roll is
- * over is delivered on the next frame whatever the cap says (`due` below).
+ * over is delivered on the next frame whatever the cap says (`anyRollOver` below).
+ *
+ * `lastStepAt` is `performance.now()` of the last step the loop ran.
  */
-export const ROLL_STEP_MS = STAT_ROLL.stepMs;
-/** `performance.now()` of the last step the loop ran. */
 let lastStepAt = -Infinity;
 
 /** Is any ticker-owned hold's roll over (so its final number is due on this frame, cap or no cap)? */

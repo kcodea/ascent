@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
-  RAPID_ACTIONS, RAPID_WINDOW_MS, countsAsShopAction, noteShopAction, onShopAction, resetShopActionPressure,
+  RAPID_ACTIONS, RAPID_EXIT_ACTIONS, RAPID_WINDOW_MS, countsAsShopAction, noteShopAction, onShopAction, resetShopActionPressure,
   shopActionEpoch, shopActionPressure, shopInputRapid,
 } from './actionPressure';
 
@@ -25,12 +25,26 @@ describe('shop action pressure (R-PERF-APM-01)', () => {
     expect(RAPID_ACTIONS).toBe(3);
   });
 
-  it('ends one window after the input stops', () => {
+  it('ends within one window after the input stops', () => {
     for (const t of [0, 100, 200, 300]) noteShopAction('buy', t);
     expect(shopInputRapid(300)).toBe(true);
-    // 1.15 s after the first action only the two newest remain inside the window; a second after the last, none.
-    expect(shopInputRapid(RAPID_WINDOW_MS + 150)).toBe(false);
+    // 1.15 s after the first action the two newest are still inside the window: still rapid (it is latched).
+    expect(shopInputRapid(RAPID_WINDOW_MS + 150)).toBe(true);
+    // Once only one is left it is over, and a second after the last action nothing is left at all.
+    expect(shopInputRapid(RAPID_WINDOW_MS + 250)).toBe(false);
     expect(shopActionPressure(300 + RAPID_WINDOW_MS)).toBe(0);
+  });
+
+  it('is latched: a steady two and a half actions a second is presented one way, not short and full by turns', () => {
+    // An action every 400 ms: two or three inside any one second. It enters at the first three and never leaves.
+    const seen: boolean[] = [];
+    for (let i = 0; i < 30; i++) { noteShopAction('play', i * 400); seen.push(shopInputRapid(i * 400)); }
+    expect(seen.slice(0, 2)).toEqual([false, false]);
+    expect(seen.slice(2).every((x) => x)).toBe(true);
+    expect(RAPID_EXIT_ACTIONS).toBe(2);
+    // ...while a steady two a second never enters at all.
+    resetShopActionPressure();
+    for (let i = 0; i < 30; i++) { noteShopAction('play', 100_000 + i * 500); expect(shopInputRapid(100_000 + i * 500)).toBe(false); }
   });
 
   it('counts only the actions a player repeats at speed', () => {

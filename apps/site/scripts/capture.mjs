@@ -118,7 +118,7 @@ function stitch(p) {
 }
 
 /** Cut [start, end] seconds, crop to {x,y,w,h} (source pixels), scale to at most 1280 wide, write jpg + webm + mp4. */
-function encode(slot, raw, { start, end, crop, still, png, width = 1280, share }) {
+function encode(slot, raw, { start, end, crop, still, png, width = 1280, share, then }) {
   const c = crop ?? { x: 0, y: 0, w: VIEW.width, h: VIEW.height };
   const outW = Math.min(width, c.w) & ~1;
   const outH = Math.round((outW * c.h) / c.w) & ~1;
@@ -131,6 +131,16 @@ function encode(slot, raw, { start, end, crop, still, png, width = 1280, share }
   // The social share card (1200x630) is cut from the same moment, full frame.
   if (share) ff(['-ss', String(still ?? start), '-i', raw, '-frames:v', '1', '-vf', 'crop=1920:1008:0:36,scale=1200:630:flags=lanczos', '-q:v', '5', path.resolve(OUT, '../share.jpg')]);
   if (end <= start) return;
+  // "then" switches to a second framing part-way through (a cut to a wider view), at the same output size.
+  if (then) {
+    const t = then.crop;
+    const part = (a, b, k, tag) => `[0:v]trim=start=${a}:end=${b},setpts=PTS-STARTPTS,crop=${k.w}:${k.h}:${k.x}:${k.y},scale=${outW}:${outH}:flags=lanczos,setsar=1,fps=30[${tag}]`;
+    const graph = `${part(start, then.at, c, 'a')};${part(then.at, end, t, 'b')};[a][b]concat=n=2:v=1:a=0[v]`;
+    const src = ['-i', raw, '-an', '-filter_complex', graph, '-map', '[v]'];
+    ff([...src, '-c:v', 'libvpx-vp9', '-b:v', '0', '-crf', '36', '-row-mt', '1', `${base}.webm`]);
+    ff([...src, '-c:v', 'libx264', '-preset', 'slow', '-crf', '26', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', `${base}.mp4`]);
+    return;
+  }
   ff([...cut, '-an', '-vf', `${vf},fps=30`, '-c:v', 'libvpx-vp9', '-b:v', '0', '-crf', '36', '-row-mt', '1', `${base}.webm`]);
   ff([...cut, '-an', '-vf', `${vf},fps=30`, '-c:v', 'libx264', '-preset', 'slow', '-crf', '26', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', `${base}.mp4`]);
 }

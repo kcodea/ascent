@@ -177,8 +177,8 @@ export const ROUTINES = {
       await sleep(500);
       await moveTo(p, { x: 1560, y: 900 });
       await sleep(2600);
-      // Only the forge itself: the board before it opens and after the rune locks in would sit oddly inside the frame.
-      return { start: start + 1.6, end: clicked + 1.2, still: start + 3.5, crop: { x: 468, y: 286, w: 984, h: 530 } };
+      // The whole forge, its own frame and buttons included (3:2), so nothing is cut off. It ends as the rune locks in.
+      return { start: start + 1.6, end: clicked + 1.15, still: start + 3.5, crop: { x: 294, y: 112, w: 1332, h: 888 } };
     },
   },
   'ancient-select': {

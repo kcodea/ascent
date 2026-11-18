@@ -5,7 +5,6 @@
     "width": 320,
     "format": "webp"
   },
-  "forge-bg.webp": "apps/web/public/runeforgebg2.webp",
   "icon-192.png": "apps/web/public/icon-192.png",
   "apple-touch-icon.png": "apps/web/public/apple-touch-icon.png",
   "cursors/gauntlet_default.svg": "apps/web/public/cursors/gauntlet_default.svg",

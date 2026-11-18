@@ -126,6 +126,12 @@
   background: var(--night-deep);
 }
 
+/* Block boxes: an inline image or video leaves a strip of line space under it, which showed as padding in the frame. */
+.capture img:not([hidden]),
+.capture__video {
+  display: block;
+}
+
 /* The clip fills the poster's box. Until it is playing it is kept out of the layout so the poster holds the space. */
 .capture__video {
   width: 100%;
@@ -197,29 +203,27 @@
   color: var(--muted);
 }
 
-/* -- #runeforge: the capture set into the game's own forge frame -------------------------------------------- */
+/* -- #runeforge: the game's whole forge, its own gold frame included, floating on the page ------------------ */
 
+/* No plate here: the clip already carries the forge's frame, title and buttons, so nothing of it can be cut off.
+   Its corners fade into the page. */
 .section--runeforge > .capture {
-  position: relative;
-  aspect-ratio: 1536 / 1024;
+  aspect-ratio: 3 / 2;
   padding: 0;
   border: 0;
   border-radius: 0;
-  background: url('/art/forge-bg.webp') center / 100% 100% no-repeat;
+  background: none;
   box-shadow: none;
-  filter: drop-shadow(0 26px 30px color-mix(in srgb, var(--night-deep) 75%, transparent));
 }
 
-/* The frame's leather window, measured from forge-bg.webp (1536 x 1024): x 112 to 1424, y 148 to 856. */
 .section--runeforge > .capture :is(img, .capture__video[data-playing]) {
-  position: absolute;
-  top: 14.45%;
-  left: 7.3%;
-  width: 85.4%;
-  height: 69.15%;
-  aspect-ratio: auto;
-  border-radius: 1.6% / 2.4%;
-  box-shadow: 0 0 0 1px var(--gem-rim);
+  width: 100%;
+  height: 100%;
+  aspect-ratio: 3 / 2;
+  border-radius: 0;
+  background: none;
+  -webkit-mask-image: radial-gradient(ellipse 72% 72% at 50% 50%, var(--night-deep) 80%, transparent 100%);
+  mask-image: radial-gradient(ellipse 72% 72% at 50% 50%, var(--night-deep) 80%, transparent 100%);
 }
 
 /* -- #ancients: the six portraits, each with a name plaque mounted on its lower edge ------------------------ */

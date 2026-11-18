@@ -19,6 +19,9 @@
 @property --hand-glide { syntax: '<length>'; inherits: false; initial-value: 0px; }
 
 :root {
+  /* THE RUNEFORGE'S DARK LAYER: the near-opaque scrim behind the forge, shared with the Ancient awakening's pick
+     (owner 2026-11-18: "use the runeforge darker backdrop"). Static paint, no blur. */
+  --forge-scrim: rgba(14, 16, 22, 0.96);
   /* Font roles (swappable live via the dev font selector on the title). `title` = big display headings,
      `ui` = labels / buttons / stats, `body` = descriptions / prose. Default to the shipped Outfit + Nunito. */
   --font-title: 'Outfit', sans-serif;

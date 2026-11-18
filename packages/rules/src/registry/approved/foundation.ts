@@ -6797,11 +6797,13 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'Peek hides the offer and the awakening backdrop and brings the Shop row back, so the player can hover and inspect the board, Shop and hand. Return shows the same offer again without replaying the reveal. '
       + 'The pick stays pending while peeking: the reducer still holds every Shop action and End Turn until an Ancient is picked, exactly as it does with the offer open. '
       + 'Each new awakening opens expanded. The stands and a replay follow the player Peek (spectate flag a, replay stream bit OV_ANCIENT); an older client or recording shows the pick open. '
-      + 'Not offered during the reveal, while the pick closes, on a tuner demo, or in Learn (its coached pick step parks the coach panel on that spot).',
+      + 'Not offered during the reveal, while the pick closes, on a tuner demo, or in Learn (its coached pick step parks the coach panel on that spot). '
+      + 'The awakening backdrop is the Runeforge dark layer (the shared --forge-scrim, near-opaque, no blur; owner 2026-11-18), and Peek hides it with the offer.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Kevin, 2026-11-18 (An Ancient Awakens screenshot)', quote: 'there needs to be a peek button to minimize back to board like other mechanics have' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-18 (PR #2772)', quote: 'use the runeforge darker backdrop' },
     ],
     currentBehaviour: 'Shipped on 2026-11-18.',
     example: 'An Ancient awakens with Death, Time and Fortune. The player presses Peek at board, hovers a Shop minion to read it, presses Return to Ancients and picks Time.',

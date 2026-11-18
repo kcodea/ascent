@@ -250,18 +250,11 @@ body:has(.anc-pv) .heropanel .herotip, .heropanel:has(.anc-meter .tt-on) .heroti
    so the smoke, slam and burst draw over the backdrop and BEHIND the offer (z 160). */
 .anc-gate { position: fixed; inset: 0; z-index: 105; pointer-events: none; }
 .anc-gate-bg {
-  /* EXACTLY the Discover view's backdrop (`.discover-ov.disc-look`, driven by the same --dcl-* vars), so the gate
-     ends on it and the offer takes over seamlessly. */
+  /* THE RUNEFORGE'S DARK LAYER (owner 2026-11-18: "use the runeforge darker backdrop"): the forge's near-opaque scrim
+     (`--forge-scrim`, styles.css), so the board falls away behind the Ancients. Static paint, no blur; the iris still
+     opens it by a one-shot clip-path. The offer paints the same layer when it shows without the gate (below). */
   position: absolute; inset: 0;
-  background:
-    radial-gradient(ellipse calc(var(--dcl-spot-r, 40) * calc(1.6 * var(--vh, 1vh))) calc(var(--dcl-spot-r, 40) * calc(1 * var(--vh, 1vh))) at 50% 51%,
-      rgba(255, 196, 112, calc(var(--dcl-spot, 0.4) * 0.34)) 0%,
-      rgba(255, 170, 80, calc(var(--dcl-spot, 0.4) * 0.14)) 50%,
-      rgba(255, 160, 70, 0) 100%),
-    radial-gradient(ellipse 72% 68% at 50% 51%,
-      color-mix(in srgb, var(--anc-tint, #060d0f) calc(var(--dcl-tint, 0.84) * 100%), transparent) 0%,
-      color-mix(in srgb, var(--anc-tint, #060d0f) calc(var(--dcl-tint, 0.84) * 100%), transparent) 30%,
-      rgba(4, 3, 2, var(--dcl-vignette, 0.95)) 100%);
+  background: var(--forge-scrim);
 }
 .anc-gate-ring {
   position: absolute; left: var(--gx); top: var(--gy); width: var(--gate-d); height: var(--gate-d); border-radius: 50%;
@@ -271,6 +264,8 @@ body:has(.anc-pv) .heropanel .herotip, .heropanel:has(.anc-meter .tt-on) .heroti
 }
 .anc-gate-flash { position: absolute; inset: 0; opacity: 0; background: radial-gradient(circle at var(--gx) var(--gy), rgba(255, 246, 220, 0.9), rgba(255, 236, 200, 0.25) 45%, transparent 75%); }
 .discover-ov.disc-look.anc-offer.gated { background: transparent; }
+/* The safety-net path (no gate: the hero power never reached the screen) paints the same dark layer itself. */
+.discover-ov.disc-look.anc-offer:not(.gated) { background: var(--forge-scrim); }
 
 /* While the awakening is up, the Shop row steps fully back (a one-shot opacity fade), so no offer peeks through the
    title or between the Ancient cards. */

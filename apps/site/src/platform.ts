@@ -13,11 +13,18 @@ export function detectPlatform(ua: string, maxTouchPoints: number): Platform {
   return 'other-desktop';
 }
 
+/** Replace only the label text node, so any icon or span inside the link survives. */
+function setLabel(a: HTMLAnchorElement): void {
+  const text = [...a.childNodes].find((n) => n.nodeType === 3 && n.nodeValue!.trim() !== '');
+  if (text) text.nodeValue = WINDOWS_ONLY_LABEL;
+  else a.prepend(WINDOWS_ONLY_LABEL);
+}
+
 export function applyPlatform(doc: Document, p: Platform): void {
   if (p === 'windows') return;
   doc.documentElement.classList.add(p === 'mobile' ? 'is-mobile' : 'is-other');
 
-  for (const a of doc.querySelectorAll<HTMLAnchorElement>('a[data-download]')) a.textContent = WINDOWS_ONLY_LABEL;
+  for (const a of doc.querySelectorAll<HTMLAnchorElement>('a[data-download]')) setLabel(a);
 
   for (const b of doc.querySelectorAll<HTMLButtonElement>('[data-copy-link]')) {
     b.hidden = false;
@@ -26,7 +33,10 @@ export function applyPlatform(doc: Document, p: Platform): void {
     b.addEventListener('click', () => {
       const win = doc.defaultView!;
       const url = win.location.origin + win.location.pathname;
-      win.navigator.clipboard.writeText(url).then(
+      // Wrapped so an undefined clipboard (non-secure origin) or a synchronous throw lands in the same fallback.
+      Promise.resolve()
+        .then(() => win.navigator.clipboard.writeText(url))
+        .then(
         () => {
           b.textContent = COPIED_LABEL;
           clearTimeout(timer);

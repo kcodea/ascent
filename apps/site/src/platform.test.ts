@@ -70,8 +70,7 @@ describe('applyPlatform', () => {
     const b = copyButtons()[0]!;
     const original = b.textContent;
     b.click();
-    await Promise.resolve();
-    await Promise.resolve();
+    await vi.advanceTimersByTimeAsync(0);
     expect(writeText).toHaveBeenCalledWith(location.origin + location.pathname);
     expect(b.textContent).toBe('Link copied');
     vi.advanceTimersByTime(1999);
@@ -80,13 +79,30 @@ describe('applyPlatform', () => {
     expect(b.textContent).toBe(original);
   });
 
-  it('falls back to showing the URL when the clipboard is refused', async () => {
-    Object.assign(navigator, { clipboard: { writeText: () => Promise.reject(new Error('denied')) } });
+  it.each([
+    ['is refused', { writeText: () => Promise.reject(new Error('denied')) }],
+    [
+      'throws synchronously',
+      {
+        writeText: () => {
+          throw new Error('boom');
+        },
+      },
+    ],
+    ['is undefined (non-secure origin)', undefined],
+  ])('falls back to showing the URL when the clipboard %s', async (_name, clipboard) => {
+    Object.assign(navigator, { clipboard });
     applyPlatform(document, 'mobile');
     const b = copyButtons()[0]!;
     b.click();
-    await Promise.resolve();
-    await Promise.resolve();
-    expect(b.textContent).toContain(location.origin);
+    await vi.waitFor(() => expect(b.textContent).toBe(location.origin + location.pathname));
+  });
+
+  it('keeps child elements inside the download link when relabelling', () => {
+    const a = downloadLinks()[0]!;
+    a.append(Object.assign(document.createElement('span'), { className: 'icon' }));
+    applyPlatform(document, 'mobile');
+    expect(a.querySelector('span.icon')).not.toBeNull();
+    expect(a.textContent).toMatch(/Windows only for now/);
   });
 });

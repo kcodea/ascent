@@ -76,6 +76,39 @@ describe('site stylesheets', () => {
     expect(css).toMatch(/cursor:\s*url\('\/art\/cursors\/gauntlet_default\.svg'\)/);
   });
 
+  it('gives the colour-mixed plates a plain token background where color-mix() is unsupported', () => {
+    const css = uncomment(allSiteCss());
+    const block = /@supports not \(background: color-mix\(in srgb, currentColor 50%, transparent\)\)\s*\{([\s\S]*?)\n\}/.exec(css);
+    expect(block).not.toBeNull();
+    for (const sel of ['.gem', '.capture', '.mode']) expect(block![1]).toContain(sel);
+    expect(block![1]).not.toMatch(/color-mix/);
+  });
+
+  it('the secondary download link shows a pressed state', () => {
+    expect(uncomment(allSiteCss())).toMatch(/:is\(\.is-other, \.is-mobile\) \.gem:active\s*\{/);
+  });
+
+  it('hover lifts the whole Ancient, medal and chest, plaque included', () => {
+    const css = uncomment(read('sections.css'));
+    expect(css).not.toMatch(/:hover img/);
+    for (const li of ['.ancient:hover', '.rank:hover', '.chest:hover']) expect(css).toContain(li);
+  });
+
+  it('the copy-link fallback URL is small, selectable and wraps', () => {
+    const rule = /\.download__url\s*\{([^}]*)\}/.exec(uncomment(read('base.css')));
+    expect(rule).not.toBeNull();
+    expect(rule![1]).toMatch(/user-select:\s*all/);
+    expect(rule![1]).toMatch(/overflow-wrap:\s*anywhere/);
+    expect(rule![1]).toMatch(/letter-spacing:\s*normal/);
+    expect(rule![1]).toMatch(/text-transform:\s*none/);
+  });
+
+  it('carries no dead token or unused smooth scrolling', () => {
+    const css = uncomment(allSiteCss());
+    expect(css).not.toMatch(/--line\b/);
+    expect(css).not.toMatch(/scroll-behavior/);
+  });
+
   it('styles the platform states Task 5 sets on <html>', () => {
     const css = allSiteCss();
     expect(css).toMatch(/\.is-other/);

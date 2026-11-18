@@ -14,7 +14,6 @@
 html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
-  scroll-behavior: smooth;
   background: var(--night);
   cursor: url('/art/cursors/gauntlet_default.svg') 6 2, auto;
 }
@@ -312,8 +311,28 @@ p {
   filter: brightness(1.15);
 }
 
-/* When the copy button leads, it sits above the (now secondary) download link. */
-:is(.is-other, .is-mobile) .download__copy {
+/* Declared after the hover rule above, which matches it with the same weight while a mouse is down. */
+:is(.is-other, .is-mobile) .gem:active {
+  transform: translateY(2px);
+  filter: brightness(0.96);
+}
+
+/* The page link, shown here when the clipboard refuses it: small, plain, and selectable in one tap. */
+.download__url {
+  max-width: 100%;
+  font-family: var(--font-body);
+  font-size: var(--fs-small);
+  line-height: 1.5;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--text);
+  overflow-wrap: anywhere;
+  -webkit-user-select: all;
+  user-select: all;
+}
+
+/* When the copy button leads, it sits above the (now secondary) download link, with its fallback URL under it. */
+:is(.is-other, .is-mobile) :is(.download__copy, .download__url) {
   order: -1;
 }
 
@@ -338,11 +357,24 @@ p {
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  html {
-    scroll-behavior: auto;
+/* Where color-mix() is unsupported, every background built with it (directly or through --sheen / --edge) is invalid
+   at computed-value time and drops to transparent; an earlier plain declaration would not survive that, because the
+   var() makes the later one parse. So the plain token backgrounds sit behind a feature query instead. */
+@supports not (background: color-mix(in srgb, currentColor 50%, transparent)) {
+  .gem,
+  :is(.is-other, .is-mobile) .download__copy {
+    background: var(--gem-mid);
   }
 
+  .capture,
+  .mode,
+  .download__copy,
+  :is(.is-other, .is-mobile) .gem {
+    background: var(--panel);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
   .gem,
   .download__copy {
     transition: none;

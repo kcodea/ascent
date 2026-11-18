@@ -505,16 +505,17 @@
     animation: crest-float 6s ease-in-out infinite;
   }
 
+  /* The whole item lifts, so the name plaque moves with its picture. */
   @media (hover: hover) {
-    .ancient img,
-    .rank img,
-    .chest img {
+    .ancient,
+    .rank,
+    .chest {
       transition: transform 0.2s ease;
     }
 
-    .ancient:hover img,
-    .rank:hover img,
-    .chest:hover img {
+    .ancient:hover,
+    .rank:hover,
+    .chest:hover {
       transform: translateY(-4px);
     }
   }

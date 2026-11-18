@@ -4,7 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "sync-art": "node scripts/sync-art.mjs",
+    "predev": "npm run sync-art",
     "dev": "vite",
+    "prebuild": "npm run sync-art",
     "build": "vite build",
     "preview": "vite preview"
   }

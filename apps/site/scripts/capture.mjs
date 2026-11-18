@@ -81,19 +81,32 @@ async function openPlayer(browser, slot, { record = true, query = '' } = {}) {
     cdp.on('Page.screencastFrame', (f) => {
       const file = path.join(dir, `f${String(n++).padStart(6, '0')}.jpg`);
       fs.writeFileSync(file, Buffer.from(f.data, 'base64'));
-      frames.push({ file, t: Date.now() });
+      // The browser stamps each frame with when it was drawn, which is steadier than when it reaches us.
+      const drawn = (f.metadata?.timestamp ?? 0) * 1000;
+      frames.push({ file, t: Math.abs(drawn - Date.now()) < 5000 ? drawn : Date.now() });
       cdp.send('Page.screencastFrameAck', { sessionId: f.sessionId }).catch(() => undefined);
     });
     await cdp.send('Page.startScreencast', { format: 'jpeg', quality: 92, everyNthFrame: 1 });
   }
+  const gpu = page.evaluate(() => { const g = document.createElement('canvas').getContext('webgl'); const e = g && g.getExtension('WEBGL_debug_renderer_info'); return e ? g.getParameter(e.UNMASKED_RENDERER_WEBGL) : 'no webgl'; }).catch(() => 'unknown');
   const p = {
-    ctx, page, dir, errs, slot, frames, t0,
+    ctx, page, dir, errs, slot, frames, t0, gpu,
     /** Seconds since the recording began: use for the clip's start and end. */
     now: () => (Date.now() - t0) / 1000,
     shot: async (name) => { const file = path.join(dir, `${name}.png`); await page.screenshot({ path: file }); return file; },
     ev: (fn, arg) => page.evaluate(fn, arg),
   };
   return p;
+}
+
+/** How evenly the frames arrived: count, average rate, and the gaps between frames (ms). */
+function frameStats(p, cut) {
+  const fr = cut && cut.end > cut.start ? p.frames.filter((f) => f.t >= p.t0 + cut.start * 1000 && f.t <= p.t0 + cut.end * 1000) : p.frames;
+  const d = fr.slice(1).map((f, i) => f.t - fr[i].t).sort((x, y) => x - y);
+  if (!d.length) return 'no frames';
+  const q = (k) => d[Math.min(d.length - 1, Math.floor(d.length * k))];
+  const secs = (fr[fr.length - 1].t - fr[0].t) / 1000;
+  return 'frames ' + fr.length + ', ' + (fr.length / secs).toFixed(1) + ' fps avg, gap ms p50 ' + q(0.5).toFixed(0) + ' p90 ' + q(0.9).toFixed(0) + ' p99 ' + q(0.99).toFixed(0) + ' max ' + d[d.length - 1].toFixed(0);
 }
 
 function ff(args) {
@@ -113,7 +126,7 @@ function stitch(p) {
   const lead = p.frames.length ? (p.frames[0].t - p.t0) / 1000 : 0;
   fs.writeFileSync(list, lines.join('\n') + '\n');
   const raw = path.join(p.dir, 'raw.mp4');
-  ff(['-f', 'concat', '-safe', '0', '-i', list, '-vf', `tpad=start_duration=${lead.toFixed(3)}:start_mode=clone,fps=30`, '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '12', '-pix_fmt', 'yuv420p', raw]);
+  ff(['-f', 'concat', '-safe', '0', '-i', list, '-vf', `tpad=start_duration=${lead.toFixed(3)}:start_mode=clone,fps=60`, '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '12', '-pix_fmt', 'yuv420p', raw]);
   return raw;
 }
 
@@ -134,15 +147,15 @@ function encode(slot, raw, { start, end, crop, still, png, width = 1280, share, 
   // "then" switches to a second framing part-way through (a cut to a wider view), at the same output size.
   if (then) {
     const t = then.crop;
-    const part = (a, b, k, tag) => `[0:v]trim=start=${a}:end=${b},setpts=PTS-STARTPTS,crop=${k.w}:${k.h}:${k.x}:${k.y},scale=${outW}:${outH}:flags=lanczos,setsar=1,fps=30[${tag}]`;
+    const part = (a, b, k, tag) => `[0:v]trim=start=${a}:end=${b},setpts=PTS-STARTPTS,crop=${k.w}:${k.h}:${k.x}:${k.y},scale=${outW}:${outH}:flags=lanczos,setsar=1,fps=60[${tag}]`;
     const graph = `${part(start, then.at, c, 'a')};${part(then.at, end, t, 'b')};[a][b]concat=n=2:v=1:a=0[v]`;
     const src = ['-i', raw, '-an', '-filter_complex', graph, '-map', '[v]'];
     ff([...src, '-c:v', 'libvpx-vp9', '-b:v', '0', '-crf', '36', '-row-mt', '1', `${base}.webm`]);
     ff([...src, '-c:v', 'libx264', '-preset', 'slow', '-crf', '26', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', `${base}.mp4`]);
     return;
   }
-  ff([...cut, '-an', '-vf', `${vf},fps=30`, '-c:v', 'libvpx-vp9', '-b:v', '0', '-crf', '36', '-row-mt', '1', `${base}.webm`]);
-  ff([...cut, '-an', '-vf', `${vf},fps=30`, '-c:v', 'libx264', '-preset', 'slow', '-crf', '26', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', `${base}.mp4`]);
+  ff([...cut, '-an', '-vf', `${vf},fps=60`, '-c:v', 'libvpx-vp9', '-b:v', '0', '-crf', '36', '-row-mt', '1', `${base}.webm`]);
+  ff([...cut, '-an', '-vf', `${vf},fps=60`, '-c:v', 'libx264', '-preset', 'slow', '-crf', '26', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', `${base}.mp4`]);
 }
 
 async function main() {
@@ -165,6 +178,7 @@ async function main() {
       await p.ctx.close();
       const raw = stitch(p);
       if (cut && !process.env.CAPTURE_PROBE) encode(routine.out ?? slot, raw, cut);
+      console.log('STATS', slot, frameStats(p, cut), await p.gpu);
       console.log('OK', slot, JSON.stringify(cut ?? {}), raw, p.errs.length ? `pageerrors: ${p.errs.join(' | ')}` : '');
     } catch (e) {
       failed++;

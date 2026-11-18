@@ -116,6 +116,28 @@ perf monitor's own attribution of self time inside long frames (one candidate ru
 and `choreo:step` 242 ms (329 before). The long tasks are all `fx:render` GL hitches (65 to 200 ms, both builds).
 Those belong to the FX findings (S3 F2 / F5 / F10 and the milestone loops), not this PR.
 
+**A long fight (added after the measurement agent's note that short fights show nothing).** The same boards with 4x
+Health: 894 events, 204 beats, 96 attacks, 537 buff events, combat speed 3x, two alternating pairs (averages).
+
+| per fight | before | after |
+|---|---|---|
+| `card renders` | 9,560 | **731** |
+| `unit renders` | 1,471 | 1,401 |
+| store commits | 664 | 212 |
+| `choreo:frame` total / worst single beat | 90.5 ms / 4.4 ms | 16.0 ms / 0.9 ms |
+| `choreo:step` total | 947 ms | 878 ms |
+| `render:combat` total | 1,331 ms | 1,171 ms |
+| frames over 6.25 ms (of about 11,000) | 4,386 and 4,558 | 4,581 and 5,109 |
+
+The board fold alone cost up to 4.4 ms on one beat before (a whole 240 Hz frame) and 0.9 ms after. The frame tail did
+NOT improve in this scene: about 40% of frames are over 6.25 ms in both builds, and the two candidate runs are no
+better than the two baseline runs. The time in those frames is Pixi (the looping 5,000+ milestone badge effect on 14
+big stats, `fx:render`, `fx:sim`, tendrils, strike impacts: 5 to 10 s of self time each per fight) against about 1.2 s
+of `render:combat` and 0.9 s of `choreo:step`. This PR removes the React and fold share; it cannot move that tail.
+
+Not measured: the return-to-shop commit. Nothing here changes how cards mount (each Card now mounts two small badge
+components more), so no gain is expected there.
+
 **The fold, in isolation** (Node, best of 7, the frame + buffs + previews folds only, fuzz fights):
 
 | fight | rebuilt every beat | continued | the last beat alone, rebuilt |

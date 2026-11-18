@@ -59,6 +59,15 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-11-18',
     changes: [
       {
+        category: 'Balance',
+        text: 'Midas with the Ancient of War now reads: Start of Combat: give a friendly minion Ward for every Gilded minion you control.',
+        details: [
+          'It counts the Gilded minions on your own board. Enemy Gilded minions no longer matter.',
+          'Each Ward goes to a different random friendly minion that does not have Ward yet.',
+          'It used to give 2 random friendly minions Ward for each Gilded enemy minion.',
+        ],
+      },
+      {
         category: 'Systems',
         text: 'Game results now show the hero power and the Ancient picked with it, for you and for every player in the lobby.',
         details: [

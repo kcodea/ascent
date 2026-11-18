@@ -2406,10 +2406,10 @@ export interface QuestCombatMods {
    *  death (a Rise death included) gives the Attack it died with to one random living friendly minion, a combat buff,
    *  on its own beat. The pick draws from the side's grant stream. */
   ancientDeathGivesAttack?: { label: string; /** Gives left this turn (ancient pass 2: "twice per turn", the Shop's share already spent). Absent = no cap. */ left?: number; /** A `questTrigger` pulsed on every give, so the replay ticks "left this turn" (R-ANCSYS-04). */ flag?: string };
-  /** ANCIENT OF WAR × Midas (ancient pass 2, owner 2026-11-16): "Start of Combat, give 2 random minions Ward for each
-   *  Gilded enemy minion." `per` distinct random living friendly bodies without Ward gain Ward for each living Gilded body
-   *  on the OTHER side at Start of Combat, for that combat. The picks draw from the side's grant stream. */
-  ancientMidasWard?: { per: number; label: string };
+  /** ANCIENT OF WAR × Midas (owner 2026-11-18): "Start of Combat: give a friendly minion Ward for every Gilded minion
+   *  you control." One distinct random living friendly body without Ward gains Ward for each living Gilded body on this
+   *  side's OWN board at Start of Combat, for that combat. The picks draw from the side's grant stream. */
+  ancientMidasWard?: { label: string };
   /** ANCIENT OF FORTUNE × Gorun: "Every 5 attacks, gain 1 Gold next turn." `tick` = the running count of friendly
    *  attacks carried in; every `every`th attack banks `gold` for the next Shop (`bonusGold`) and pulses a `questTrigger`
    *  of `flag`. The count comes home as `CombatCarryBacks.ancientAttackGoldTick`. */

@@ -300,11 +300,7 @@ export const AncientGate = memo(function AncientGate({ run }: { run: RunState })
         g.animate([{ opacity: 0 }, { opacity: 1, offset: 0.2 }, { opacity: 0.45, offset: 0.35 }, { opacity: 1, offset: 0.5 }, { opacity: 0.6, offset: 0.7 }, { opacity: 1 }],
           { duration: Math.max(200, c.omenMs - d), delay: d, fill: 'both' });
       });
-      // Cracks of light spreading across the board toward the hero power (a one-shot dash draw on static paths).
-      om?.querySelectorAll<SVGPolylineElement>('.anc-omen-crack').forEach((p, i) => {
-        p.animate([{ strokeDashoffset: 1, opacity: 0 }, { strokeDashoffset: 0.35, opacity: 1, offset: 0.6 }, { strokeDashoffset: 0, opacity: 0.85 }],
-          { duration: c.omenMs * 0.8, delay: c.omenMs * 0.15 + i * 40, easing: 'ease-in', fill: 'both' });
-      });
+      // (No cracks of light across the board: owner 2026-11-18, "i want to remove these tendrils".)
       // A light tremor on the board ART only: the fixed `.boardbg` layers are leaves, so moving them shifts nothing
       // else. NEVER transform `.app` or any ancestor of fixed UI: that makes a new containing block for every fixed
       // descendant and collapses the stage scaler (the 21:9 layout shrank into a 16:9 box, owner report 2026-09-25).
@@ -325,7 +321,7 @@ export const AncientGate = memo(function AncientGate({ run }: { run: RunState })
           { duration: rnd(700, 1200), delay: d, easing: 'ease-out', fill: 'both' });
       });
     } else if (phase === 'eruption') {
-      // The omen's layer (vignette, glyphs, cracks) gives way as the curtain blooms: nothing of it rides over the curtain.
+      // The omen's layer (vignette, glyphs) gives way as the curtain blooms: nothing of it rides over the curtain.
       omenRef.current?.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 240, easing: 'ease-out', fill: 'forwards' });
       flashRef.current?.animate([{ opacity: 0, transform: 'translate(-50%, -50%) scale(0.3)' }, { opacity: 1, transform: 'translate(-50%, -50%) scale(1)', offset: 0.18 }, { opacity: 0, transform: 'translate(-50%, -50%) scale(1.6)' }],
         { duration: 520, easing: 'ease-out', fill: 'forwards' });
@@ -370,24 +366,6 @@ export const AncientGate = memo(function AncientGate({ run }: { run: RunState })
     }
   }, [phase, geo, panels]);
 
-  // Cracks of light: jagged paths from points across the board toward the hero power, fixed per awakening.
-  const cracks = useMemo(() => {
-    if (!geo) return [] as string[];
-    const out: string[] = [];
-    for (let i = 0; i < 7; i++) {
-      const sx = rnd(window.innerWidth * 0.3, window.innerWidth * 0.85), sy = rnd(window.innerHeight * 0.15, window.innerHeight * 0.85);
-      const pts: string[] = [];
-      const n = 7;
-      for (let k = 0; k <= n; k++) {
-        const t = k / n;
-        const x = sx + (geo.x - sx) * t * 0.8 + (k > 0 && k < n ? rnd(-22, 22) : 0);
-        const y = sy + (geo.y - sy) * t * 0.8 + (k > 0 && k < n ? rnd(-22, 22) : 0);
-        pts.push(`${x.toFixed(1)},${y.toFixed(1)}`);
-      }
-      out.push(pts.join(' '));
-    }
-    return out;
-  }, [geo]);
   // Ember starts, fixed per awakening (not per render, so nothing jumps between beats).
   const embers = useMemo(() => { const g = geo && stageGeo(geo); return g ? Array.from({ length: N_EMBERS }, () => ({ left: g.x + rnd(-g.hp * 0.45, g.hp * 0.45), top: g.y + rnd(-g.hp * 0.2, g.hp * 0.35) })) : []; }, [geo]);
   if (!geo || phase === 'idle') return null;
@@ -413,10 +391,6 @@ export const AncientGate = memo(function AncientGate({ run }: { run: RunState })
       {(phase === 'omen' || phase === 'eruption') && !reduced && (
         <div ref={omenRef} className="anc-omen">
           <div className="anc-omen-vignette" style={{ transformOrigin: `${sg.x}px ${sg.y}px` }} />
-          {/* Screen-px viewBox stretched over the stage-px layer: the crack points (from screen `geo`) map correctly. */}
-          <svg className="anc-omen-cracks" viewBox={`0 0 ${window.innerWidth} ${window.innerHeight}`} preserveAspectRatio="none">
-            {cracks.map((pts, i) => <polyline key={i} className="anc-omen-crack" points={pts} pathLength={1} strokeDasharray="1" />)}
-          </svg>
           <div className="anc-omen-halo" style={{ left: sg.x, top: sg.y, width: sg.hp * 3.4, height: sg.hp * 3.4 }} />
           <div className="anc-omen-ring" style={{ left: sg.x, top: sg.y }}>
             {Array.from({ length: N_GLYPHS }, (_, i) => {

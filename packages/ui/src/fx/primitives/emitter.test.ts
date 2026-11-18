@@ -381,3 +381,24 @@ describe('emitter reverse', () => {
     }
   });
 });
+
+// R-PERF-FX-DEAD-TAIL-01: a mote past the point where its size or alpha curve is 0 for good leaves the sim and the
+// draw list, and still counts toward the mote cap and the completion moment (so nothing else changes).
+describe('emitter invisible-tail cull', () => {
+  it('culls at the zero tail, and ghosts hold their seat under the cap and in isComplete', () => {
+    expect(EMITTER_SRC).toMatch(/if \(m\.age >= m\.maxLife \* deadFrac\) \{ this\.ghosts\.push\(m\.maxLife - m\.age\); continue; \}/);
+    expect(EMITTER_SRC).toMatch(/const room = MAX_MOTES - motes\.length - ghosts\.length;/);
+    expect(EMITTER_SRC).toMatch(/const alive = this\.motes\.length \+ this\.ghosts\.length;/);
+    expect(EMITTER_SRC).toMatch(/this\.deadFrac = reverse \? 1 : Math\.min\(zeroTailStart\(p\.sizeCurve\), zeroTailStart\(p\.alphaCurve\)\);/);
+  });
+
+  it('the milestone ring is the case it was written for: its motes are invisible for the last 43% of their life', () => {
+    for (const id of ['test-ascent-frame-health', 'test-ascent-frame-attack']) {
+      const def = JSON.parse(readFileSync(new URL(`../defs/${id}.json`, import.meta.url), 'utf8')) as { layers: { params: { sizeCurve: [number, number][] } }[] };
+      const c = def.layers[0]!.params.sizeCurve;
+      expect(c[c.length - 1]![1]).toBe(0);
+      expect(c[c.length - 2]![1]).toBe(0);
+      expect(c[c.length - 2]![0]).toBeLessThan(0.6);
+    }
+  });
+});

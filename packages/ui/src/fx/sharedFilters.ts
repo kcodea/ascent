@@ -100,7 +100,8 @@ export interface FilterGroupSeat {
 }
 
 /**
- * Join (creating on first use) the shared filter group `key` on `slot`, whose filters are `params`. Returns
+ * Join (creating on first use) the shared filter group `key` on `slot`, whose filters are `params`. `tight`: the
+ * group holds particle layers, so its filter area follows their particles (R-PERF-FX-FILTER-AREA-01). Returns
  * null when the FX runtime cannot build a stack (the primitives are not loaded), so the caller falls back.
  */
 export function joinFilterGroup(
@@ -108,12 +109,13 @@ export function joinFilterGroup(
   slot: FxSlot,
   params: P,
   mount: (c: Container, slot: FxSlot) => () => void,
+  tight = false,
 ): FilterGroupSeat | null {
   const gk = `${slot}|${key}`;
   let g = groups.get(gk);
   if (!g) {
     const host = new Container();
-    const stack = fxMakeFilterStack(host);
+    const stack = fxMakeFilterStack(host, tight);
     if (!stack) { host.destroy(); return null; }
     stack.frame(params, 0, 0); // time-invariant (checked by `sharedFilterParams`): one write, never re-run
     g = { host, stack, unmount: mount(host, slot), refs: 0 };
@@ -135,6 +137,13 @@ export function joinFilterGroup(
       if (!group.host.destroyed) group.host.destroy({ children: false });
     },
   };
+}
+
+/** The primitives whose layers are particle containers (their bounds follow their particles). */
+const PARTICLE_PRIMITIVES: ReadonlySet<string> = new Set(['burst', 'emitter', 'smoke']);
+/** PURE: `def` draws at least one particle layer. */
+export function hasParticleLayer(def: Pick<FxDef, 'layers'>): boolean {
+  return def.layers.some((l) => PARTICLE_PRIMITIVES.has(l.primitive));
 }
 
 /** Live groups, for tests and the DEV console. */

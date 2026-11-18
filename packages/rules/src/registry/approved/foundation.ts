@@ -16196,4 +16196,70 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'Beat 300 of a 1,000-event fight plays. Before, the screen re-read events 1 to 600 about twelve times to draw it. Now it reads the two or three new events.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/frameFold.test.ts', 'packages/ui/src/choreo/prefixFold.test.ts', 'packages/ui/src/computeFrame.purity.test.ts'], lastVerifiedAt: '2026-11-18' },
   },
+  {
+    id: 'R-PERF-FX-FILTER-AREA-01',
+    title: 'A filter on a particle effect covers the particles, not the whole screen, and the picture is the same',
+    statement:
+      'A Bloom, Glow, Blur or colour filter on a spark burst, an emitter or a smoke layer is drawn over the box its '
+      + 'live particles occupy plus the filter\x27s own reach, never over the whole viewport. This applies only to '
+      + 'filters whose result does not depend on where their area starts or how large it is; a filter that warps, tiles '
+      + 'or lights by position (godrays, zoom and radial blur, twist, shockwave, CRT, pixelate and the rest) keeps the '
+      + 'whole viewport, as does a layer under a filter that something other than a particle stack put above it. The '
+      + 'effect looks the same: no glow is cut off at the edge of the box, and no stale glow from another effect '
+      + 'shows at its edge.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-18', quote: '> 240 fps (frames <= 4.17 ms) constantly, no hitching' },
+      { kind: 'code', ref: 'packages/ui/src/fx/filterStack.ts (TIGHT_FILTERS, filterAreaMode); packages/ui/src/fx/particleLayerPool.ts (fitParticleBounds); packages/ui/src/fx/blurPassClear.ts' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-18 (perf/pixi-fx). Before, a particle layer reported an effectively infinite box, so '
+      + 'every pass of every filter on it filled the full 1920 x 1080 viewport. One buff trail to a full board ran 28 '
+      + 'filters over 28 megapixels a frame and held the shop at 40% of frames over 4.17 ms for its whole flight. '
+      + 'Tight boxes exposed a Pixi 8.19 defect (its blur pass never clears its pooled scratch texture on WebGL), '
+      + 'fixed in the same change.',
+    example: 'An Ancient gives your whole board +2/+2. Seven trails fly from the hero power, each ending in a glowing spark burst. Before, each burst\x27s Glow was computed for the entire screen. Now it is computed for the burst.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/fx/filterAreaTight.test.ts'], lastVerifiedAt: '2026-11-18' },
+  },
+  {
+    id: 'R-PERF-FX-DEAD-TAIL-01',
+    title: 'A particle that can no longer be seen stops being simulated and drawn, and nothing else changes',
+    statement:
+      'When an emitter\x27s size or alpha curve is 0 from some point to the end of a particle\x27s life, a particle past '
+      + 'that point leaves the simulation and the draw list. It still counts toward the emitter\x27s particle cap and '
+      + 'toward the moment the effect is finished, so the effect emits the same particles and ends at the same time. '
+      + 'A reversed emitter is left alone.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-18', quote: '> 240 fps (frames <= 4.17 ms) constantly, no hitching' },
+      { kind: 'code', ref: 'packages/ui/src/fx/primitives/emitter.ts (ghosts, deadFrac); packages/ui/src/fx/curve.ts (zeroTailStart)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-18 (perf/pixi-fx). Before, the 5,000+ stat ring (the heaviest effect in a late fight by '
+      + 'measured time) simulated, uploaded and drew every particle for its full 2.37 s although its size curve is 0 '
+      + 'for the last 43% of that.',
+    example: 'A minion at 6,000 Health wears the blue ring on its Health badge. Each mote shrinks to nothing after 1.35 s and used to be carried, invisible, for one more second. Now it is dropped when it vanishes.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/fx/curve.test.ts', 'packages/ui/src/fx/primitives/emitter.test.ts'], lastVerifiedAt: '2026-11-18' },
+  },
+  {
+    id: 'R-PERF-FX-FILTER-KEYS-01',
+    title: 'An effect layer with no filter costs nothing per frame for the filters it does not have',
+    statement:
+      'The per-frame filter pass of an effect layer reads prebuilt keys: it builds no strings and allocates nothing '
+      + 'for a layer whose filters are all off, and it builds one filter list only when a filter is on. Which filters '
+      + 'are on, their amounts, knobs and order are exactly as before.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-18', quote: '> 240 fps (frames <= 4.17 ms) constantly, no hitching' },
+      { kind: 'code', ref: 'packages/ui/src/fx/filterStack.ts (keysOf, orderedSpecs, FilterStack.frame)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-18 (perf/pixi-fx). Before, every live layer checked all 32 registered filters every '
+      + 'frame by building the key string for each one, and built its own id map at spawn.',
+    example: 'A fight has 60 effect layers alive and 6 of them carry a filter. Before, each frame built about 1,900 key strings to find those 6. Now it builds none.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/fx/filterOrder.test.ts', 'packages/ui/src/fx/filterStack.test.ts', 'packages/ui/src/fx/filterAreaTight.test.ts'], lastVerifiedAt: '2026-11-18' },
+  },
 ];

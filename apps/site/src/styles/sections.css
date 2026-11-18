@@ -330,8 +330,10 @@
   box-shadow: 0 24px 72px -20px color-mix(in srgb, var(--black) 60%, transparent);
 }
 
+/* A card that is not up still takes its space (beating the site-wide [hidden] rule), so the showcase is always as
+   tall as its tallest card and the page never shifts as you browse. */
 .ashow__panel[hidden] {
-  display: grid;
+  display: grid !important;
   visibility: hidden;
 }
 

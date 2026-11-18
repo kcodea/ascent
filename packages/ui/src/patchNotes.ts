@@ -58,6 +58,8 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-11-18',
     changes: [
+      { category: 'Systems', text: "Another player's Career page now has an Add friend button at the top. One press sends the request." },
+      { category: 'Systems', text: 'Settings, Account now shows your name and tag (like Name#1234) with a Copy button, so you can share it with friends.' },
       {
         category: 'Systems',
         text: 'Game results now show the hero power and the Ancient picked with it, for you and for every player in the lobby.',

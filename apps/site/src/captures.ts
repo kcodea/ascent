@@ -1,10 +1,7 @@
 /** Capture slots: a still poster first, a looping clip swapped in only when one exists, motion is allowed and it plays. */
 
 export const CAPTURE_SLOTS: readonly string[] = [
-  'discover-timer',
   'gold-fuse',
-  'rearrange',
-  'save-continue',
   'runeforge',
   'ancient-select',
   'career-chart',

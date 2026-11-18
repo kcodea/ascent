@@ -38,7 +38,10 @@
  *   npm run perf:apm -- --scene dragons-max  the same board with Orivax (Shouts trigger 2 additional times)
  *   npm run perf:apm -- --rate 8 --secs 30   actions a second, burst length
  *   npm run perf:apm -- --guard              exit 3 when the backlog guard fails (see GUARD below)
- *   npm run perf:apm -- --perf-timings | --profile | --trace | --census | --shots <dir> | --headed | --label <name>
+ *   npm run perf:apm -- --rapid '{"snapStats":false,"dropStale":false,"dedupe":false,"maxSpeed":1,"minIntensity":1}' --roll-step 0
+ *                                            the same bundle with the rapid-input presentation (fx/rapidConfig.ts) switched off
+ *   npm run perf:apm -- --toggle nofx        the same run with one cost class switched off: nofx | nofilter | nocardfilter | noanim
+ *   npm run perf:apm -- --profile | --trace | --trace-style | --census | --shots <dir> | --headed | --label <name>
  * Exit code: 0 done; 1 the scene could not be built; 2 setup error; 3 the --guard failed.
  */
 import { execSync, spawn } from 'node:child_process';
@@ -91,11 +94,25 @@ if (arg('shop', '')) scene.shop = arg('shop').split(',');
 const ANCIENT = arg('ancient', 'bonds');
 const HERO = arg('hero', 'nadja');
 
+/** --toggle <name[,name]>: applied after the warm-up. Each removes one class of cost, so the run shows what is left
+ *  without it (the same toggles as the 2026-11-18 scope measurement, E1). Not a fix: a measuring stick. */
+const STY = (css) => `(() => { const s = document.createElement('style'); s.textContent = ${JSON.stringify(css)}; document.head.appendChild(s); })()`;
+const TOGGLES = {
+  // No Pixi effects at all: every canvas hidden and the main FX ticker stopped.
+  nofx: `(() => { const s = document.createElement('style'); s.textContent = 'canvas { display: none !important; }'; document.head.appendChild(s); const a = window.__bench.pixiFx && window.__bench.pixiFx.app; if (a && a.ticker) a.ticker.stop(); })()`,
+  // No CSS filter / shadow anywhere (the card raster cost).
+  nofilter: STY('*, *::before, *::after { filter: none !important; backdrop-filter: none !important; box-shadow: none !important; text-shadow: none !important; }'),
+  // Only the card frame filters and the card shadow.
+  nocardfilter: STY('.cshadow { display: none !important } .cframe, .tframe, .msframe, .msglow, .cgem-img { filter: none !important }'),
+  // No CSS animation or transition (keyword loops, pops, glides).
+  noanim: STY('*, *::before, *::after { animation: none !important; transition: none !important; }'),
+};
+
 // GUARD (--guard): the bounds the burst must stay inside. Chosen from the measured numbers in
 // docs/devlog/2026-11-18-perf-apm-engine.md, with headroom for a shared machine.
 const GUARD = {
   acceptedPct: Number(arg('guard-accepted', '97')),     // % of attempted actions the game accepted
-  settleMs: Number(arg('guard-settle', '2500')),        // every backlog counter back to idle this long after the last input
+  settleMs: Number(arg('guard-settle', '3500')),        // every backlog counter back to idle this long after the last input
   staleBadgeMs: Number(arg('guard-stale', '1500')),     // the longest any stat badge stayed behind the real number
   growthPct: Number(arg('guard-growth', '60')),         // last third of the burst vs the first third, per counter
 };
@@ -209,7 +226,8 @@ const PROBE = `(() => {
     }
     let tweens = 0; try { tweens = b.gsap.globalTimeline.getChildren(true, true, false).length; } catch {}
     let plays = 0, particles = 0; try { const lp = b.livePlays(); plays = lp.length; for (const p of lp) particles += p.particles || 0; } catch {}
-    const row = { t: performance.now(), behind, owed, tweens, plays, particles, timeouts: to.size, nodes: document.getElementsByTagName('*').length, draws, sounds, toMade, floats: document.querySelectorAll('.floatnum, .statfloat, .sellfloat, .bufffloat, .dmgfloat, .goldfloat').length };
+    let queued = 0, droppedFx = 0, pressure = 0; try { if (b.shopFx) { queued = b.shopFx.pending(); droppedFx = b.shopFx.dropped(); pressure = b.shopFx.pressure(); } } catch {}
+    const row = { t: performance.now(), behind, owed, tweens, plays, particles, queued, droppedFx, pressure, timeouts: to.size, nodes: document.getElementsByTagName('*').length, draws, sounds, toMade, floats: document.querySelectorAll('.floatnum, .statfloat, .sellfloat, .bufffloat, .dmgfloat, .goldfloat').length };
     if (census) { try { row.anims = document.getAnimations().length; } catch {} }
     samples.push(row);
   };
@@ -435,6 +453,22 @@ async function oneRun(port, runIdx, dist) {
     await sleep(3500);
     if (arg('shots', '')) { fs.mkdirSync(arg('shots'), { recursive: true }); const s = await c.send('Page.captureScreenshot', { format: 'png' }); fs.writeFileSync(path.join(arg('shots'), `scene-${LABEL || 'run'}-${runIdx}.png`), Buffer.from(s.data, 'base64')); }
 
+    // ---- --rapid '{"dedupe":false}' / --roll-step <ms>: the rapid-input presentation's dials (fx/rapidConfig.ts) ----
+    const dials = await ev(`(() => {
+      const b = window.__bench; if (!b.rapidFx) return null;
+      const want = ${JSON.stringify(arg('rapid', ''))}; if (want) Object.assign(b.rapidFx, JSON.parse(want));
+      const step = ${JSON.stringify(arg('roll-step', ''))}; if (step !== '') b.statRoll.stepMs = Number(step);
+      return { ...b.rapidFx, rollStepMs: Math.round(b.statRoll.stepMs * 10) / 10 };
+    })()`);
+    if (arg('rapid', '') || arg('roll-step', '') !== '') log(`   dials: ${JSON.stringify(dials)}`);
+
+    // ---- --toggle: switch one cost class off for the measured part (an upper bound on what fixing it could buy) ----
+    for (const t of arg('toggle', '').split(',').filter(Boolean)) {
+      if (!TOGGLES[t]) throw new Error(`unknown --toggle ${t} (known: ${Object.keys(TOGGLES).join(', ')})`);
+      await ev(TOGGLES[t]);
+    }
+    if (arg('toggle', '')) await sleep(1500);
+
     // ---- idle baseline ----
     await ev(`window.__apm.startSampler(${flag('census')})`);
     await ev(`window.__apm.mark('idle')`);
@@ -447,6 +481,11 @@ async function oneRun(port, runIdx, dist) {
     if (flag('trace')) {
       c.on('Tracing.dataCollected', (p) => { for (const e of p.value) traceEvents.push(e); });
       await c.send('Tracing.start', { transferMode: 'ReportEvents', traceConfig: { includedCategories: ['devtools.timeline', 'disabled-by-default-devtools.timeline', 'cc', 'gpu', 'viz', 'blink', 'toplevel'] } });
+    }
+    // --trace-style: the timeline WITH stacks: which code forced each style recalc / layout, and who dirtied them.
+    if (flag('trace-style')) {
+      c.on('Tracing.dataCollected', (p) => { for (const e of p.value) traceEvents.push(e); });
+      await c.send('Tracing.start', { transferMode: 'ReportEvents', traceConfig: { includedCategories: ['devtools.timeline', 'disabled-by-default-devtools.timeline', 'disabled-by-default-devtools.timeline.stack', 'disabled-by-default-blink.debug', 'v8.execute', '__metadata'] } });
     }
     await ev(`window.__apm.mark('burst')`);
     const period = 1000 / RATE; const tStart = Date.now(); let attempted = 0; const shotAt = arg('shots', '') ? [0.4, 0.8].map((k) => tStart + SECS * 1000 * k) : [];
@@ -461,7 +500,7 @@ async function oneRun(port, runIdx, dist) {
     const m2 = await metrics();
     let profile = null;
     if (flag('profile')) profile = (await c.send('Profiler.stop')).profile;
-    if (flag('trace')) { const done = new Promise((r) => c.on('Tracing.tracingComplete', r)); await c.send('Tracing.end'); await Promise.race([done, sleep(30000)]); }
+    if (flag('trace') || flag('trace-style')) { const done = new Promise((r) => c.on('Tracing.tracingComplete', r)); await c.send('Tracing.end'); await Promise.race([done, sleep(60000)]); }
     if (arg('shots', '')) { for (const [i, ms] of [[0, 150], [1, 600], [2, 1500]]) { await sleep(ms - (i ? [150, 600][i - 1] : 0)); const s = await c.send('Page.captureScreenshot', { format: 'png' }); fs.writeFileSync(path.join(arg('shots'), `tail-${LABEL || 'run'}-${runIdx}-${ms}ms.png`), Buffer.from(s.data, 'base64')); } }
     await sleep(TAIL * 1000);
     await ev(`window.__apm.mark('end')`);
@@ -533,7 +572,7 @@ function analyse(run) {
   const S = d.samples; const inWin = (a, b) => S.filter((s) => s.t >= a && s.t < b);
   const idle = inWin(tIdle, tBurst), burst = inWin(tBurst, tTail), tail = inWin(tTail, tEnd);
   const lastInput = Math.max(tBurst, ...d.input.filter((e) => e[2] < tTail + 200).map((e) => e[2]));
-  const keys = ['behind', 'owed', 'tweens', 'plays', 'particles', 'timeouts', 'nodes', 'floats'].concat(S.some((s) => s.anims !== undefined) ? ['anims'] : []);
+  const keys = ['behind', 'owed', 'tweens', 'plays', 'particles', 'queued', 'timeouts', 'nodes', 'floats'].concat(S.some((s) => s.anims !== undefined) ? ['anims'] : []);
   const third = Math.floor(burst.length / 3);
   out.backlog = {};
   for (const k of keys) {
@@ -551,8 +590,9 @@ function analyse(run) {
   let longest = 0, cur = null;
   for (const s of S.filter((x) => x.t >= tBurst)) { if (s.behind > 0) { cur ??= s.t; longest = Math.max(longest, s.t - cur); } else cur = null; }
   out.staleBadge = { pctOfBurst: r1(100 * burst.filter((s) => s.behind > 0).length / Math.max(1, burst.length)), meanBehind: r1(mean(burst.map((s) => s.behind))), longestMs: Math.round(longest), afterLastInputMs: out.backlog.behind.settleMs };
+  out.rapidPct = r1(100 * burst.filter((x) => (x.pressure || 0) >= 3).length / Math.max(1, burst.length));
   const perSec = (k) => burst.length > 1 ? r1((burst[burst.length - 1][k] - burst[0][k]) / ((burst[burst.length - 1].t - burst[0].t) / 1000)) : 0;
-  out.rates = { drawCallsPerSec: perSec('draws'), soundsPerSec: perSec('sounds'), timeoutsMadePerSec: perSec('toMade') };
+  out.rates = { drawCallsPerSec: perSec('draws'), soundsPerSec: perSec('sounds'), timeoutsMadePerSec: perSec('toMade'), pacedStepsDroppedPerSec: perSec('droppedFx') };
 
   // (d) cost
   const cost = (pair, secs) => { const [a, b] = pair; const o = {}; for (const k of Object.keys(b)) o[k] = r1((b[k] - a[k]) / secs); return o; };
@@ -573,7 +613,8 @@ function analyse(run) {
     out.fxCounts = counts;
   }
   if (run.profile) out.profileTop = topSelf(run.profile, 40, run.dist);
-  if (run.traceEvents.length) out.trace = traceSummary(run.traceEvents, bs);
+  if (run.traceEvents.length && flag('trace-style')) out.styleTrace = styleTrace(run.traceEvents, run.dist, bs, ok.length);
+  else if (run.traceEvents.length) out.trace = traceSummary(run.traceEvents, bs);
   out.final = run.final;
   return out;
 }
@@ -632,6 +673,61 @@ function traceSummary(events, secs) {
   };
 }
 
+/** --trace-style: main-thread time by kind, and the style recalcs / layouts that JS FORCED, grouped by the code that
+ *  forced them (source-mapped), the biggest single recalcs, and who dirtied style (the gauntlet's summary, per action). */
+function styleTrace(events, dist, secs, actions) {
+  const require_ = createRequire(import.meta.url); const maps = new Map();
+  const mapFor = (url) => { if (maps.has(url)) return maps.get(url); let m = null; try { const file = path.join(dist, new URL(url).pathname + '.map'); if (fs.existsSync(file)) { const { SourceMapConsumer } = require_('source-map-js'); m = new SourceMapConsumer(JSON.parse(fs.readFileSync(file, 'utf8'))); } } catch { /* unnamed */ } maps.set(url, m); return m; };
+  const frame = (f) => {
+    const m = f.url && /^https?:/.test(f.url) ? mapFor(f.url) : null;
+    const o = m ? m.originalPositionFor({ line: f.lineNumber, column: Math.max(0, (f.columnNumber || 1) - 1) }) : null;
+    return o && o.source ? `${o.name || f.functionName || '(anon)'} @ ${o.source.replace(/^.*?(packages|node_modules)\//, '$1/')}:${o.line}` : `${f.functionName || '(anon)'} @ ${(f.url || '').replace(/^.*\//, '')}:${f.lineNumber}`;
+  };
+  const mains = events.filter((e) => e.name === 'thread_name' && e.args?.name === 'CrRendererMain');
+  const count = new Map();
+  for (const e of events) if (e.ph === 'X') { const k = `${e.pid}:${e.tid}`; count.set(k, (count.get(k) || 0) + 1); }
+  const main = mains.map((m) => `${m.pid}:${m.tid}`).sort((a, b) => (count.get(b) || 0) - (count.get(a) || 0))[0];
+  const on = events.filter((e) => e.ph === 'X' && `${e.pid}:${e.tid}` === main);
+  const NAMES = ['RunTask', 'FunctionCall', 'FireAnimationFrame', 'TimerFire', 'EventDispatch', 'UpdateLayoutTree', 'Layout', 'PrePaint', 'Paint', 'Layerize', 'Commit', 'MinorGC', 'MajorGC', 'HitTest', 'UpdateLayer', 'CompositeLayers', 'RunMicrotasks'];
+  const byName = new Map();
+  for (const e of on) if (NAMES.includes(e.name)) { const r = byName.get(e.name) || { ms: 0, n: 0 }; r.ms += (e.dur || 0) / 1000; r.n++; byName.set(e.name, r); }
+  const forced = { Layout: new Map(), UpdateLayoutTree: new Map() }; const forcedTotal = { Layout: 0, UpdateLayoutTree: 0 };
+  for (const e of on) {
+    if (e.name !== 'Layout' && e.name !== 'UpdateLayoutTree') continue;
+    const st = e.args?.beginData?.stackTrace; if (!st || !st.length) continue;
+    const ms = (e.dur || 0) / 1000; forcedTotal[e.name] += ms;
+    const key = st.slice(0, 2).map(frame).join('  <  ');
+    const r = forced[e.name].get(key) || { ms: 0, n: 0 }; r.ms += ms; r.n++; forced[e.name].set(key, r);
+  }
+  const dirtied = new Map();
+  for (const e of events) {
+    if ((e.name !== 'ScheduleStyleRecalculation' && e.name !== 'InvalidateLayout') || `${e.pid}:${e.tid}` !== main) continue;
+    const st = e.args?.data?.stackTrace;
+    const key = `${e.name === 'InvalidateLayout' ? 'layout' : 'style'}  ${st && st.length ? st.slice(0, 2).map(frame).join('  <  ') : '(no JS: animation / browser)'}`;
+    dirtied.set(key, (dirtied.get(key) || 0) + 1);
+  }
+  const recalcs = on.filter((e) => e.name === 'UpdateLayoutTree');
+  const big = [...recalcs].sort((a, b) => b.dur - a.dur).slice(0, 10).map((e) => `${(e.dur / 1000).toFixed(1)} ms, ${e.args?.elementCount ?? '?'} elements${e.args?.beginData?.stackTrace ? ', forced by ' + frame(e.args.beginData.stackTrace[0]) : ''}`);
+  // The recalcs by size: how much of the style time is the per-frame trickle and how much the big per-action ones.
+  const buckets = [[0, 20], [20, 100], [100, 400], [400, 1e9]].map(([lo, hi]) => { const b = recalcs.filter((e) => (e.args?.elementCount ?? 0) >= lo && (e.args?.elementCount ?? 0) < hi); return `${lo}${hi > 1e8 ? '+' : '-' + hi} elements: x${b.length}, ${(b.reduce((a, e) => a + e.dur, 0) / 1000).toFixed(0)} ms`; });
+  const lines = [];
+  lines.push(`main thread, per second of burst (and per accepted action):`);
+  for (const n of NAMES) { const r = byName.get(n); if (r) lines.push(`  ${n.padEnd(20)} ${(r.ms / secs).toFixed(1).padStart(7)} ms/s  ${(r.ms / Math.max(1, actions)).toFixed(2).padStart(7)} ms/action  x${r.n}`); }
+  for (const kind of ['Layout', 'UpdateLayoutTree']) {
+    const all = byName.get(kind) || { ms: 0, n: 0 };
+    lines.push(`FORCED ${kind === 'Layout' ? 'layout' : 'style recalc'}: ${forcedTotal[kind].toFixed(0)} ms of ${all.ms.toFixed(0)} ms (x${all.n}), by the code that forced it:`);
+    for (const [k, r] of [...forced[kind].entries()].sort((a, b) => b[1].ms - a[1].ms).slice(0, 14)) lines.push(`  ${r.ms.toFixed(0).padStart(7)} ms  x${String(r.n).padEnd(6)} ${k}`);
+  }
+  lines.push('style recalcs by size: ' + buckets.join('; '));
+  lines.push('biggest single style recalcs:', ...big.map((l) => '  ' + l));
+  const sel = new Map();
+  for (const e of events) { const t = e.args?.selector_stats?.selector_timings; if (!t) continue; for (const x of t) { const r = sel.get(x.selector) || { us: 0, attempts: 0, matches: 0 }; r.us += x['elapsed (us)'] || 0; r.attempts += x.match_attempts || 0; r.matches += x.match_count || 0; sel.set(x.selector, r); } }
+  if (sel.size) { lines.push('costliest CSS selectors:'); for (const [k, r] of [...sel.entries()].sort((a, b) => b[1].us - a[1].us).slice(0, 15)) lines.push(`  ${(r.us / 1000).toFixed(1).padStart(7)} ms  ${String(r.attempts).padStart(8)} tries ${String(r.matches).padStart(7)} hits  ${k.slice(0, 140)}`); }
+  lines.push('who dirtied style / layout (count):');
+  for (const [k, n] of [...dirtied.entries()].sort((a, b) => b[1] - a[1]).slice(0, 18)) lines.push(`  x${String(n).padEnd(6)} ${k}`);
+  return lines;
+}
+
 // ---------------------------------------------------------------------------------------------------------------
 // Report
 // ---------------------------------------------------------------------------------------------------------------
@@ -663,7 +759,8 @@ function report(results) {
   lines.push('|---|---|---|---|---|---|---|---|');
   for (const k of Object.keys(a0.backlog)) lines.push(`| ${k} | ${pick((r) => r.backlog[k].idle)} | ${pick((r) => r.backlog[k].burstMean)} | ${pick((r) => r.backlog[k].peak)} | ${pick((r) => r.backlog[k].firstThird)} | ${pick((r) => r.backlog[k].lastThird)} | ${pick((r) => r.backlog[k].growthPct)}% | ${results.map((r) => r.backlog[k].settleMs ?? 'never').join(' / ')} |`);
   lines.push(`Stat badges behind the real number: ${pick((r) => r.staleBadge.pctOfBurst)}% of burst samples, ${pick((r) => r.staleBadge.meanBehind)} badges on average, longest stretch ${pick((r) => r.staleBadge.longestMs)} ms.`);
-  lines.push(`Per second of burst: ${pick((r) => r.rates.drawCallsPerSec)} WebGL draw calls, ${pick((r) => r.rates.soundsPerSec)} sounds started, ${pick((r) => r.rates.timeoutsMadePerSec)} timeouts scheduled.`);
+  lines.push(`Rapid-input presentation engaged in ${pick((r) => r.rapidPct)}% of burst samples (three or more accepted actions inside a second; 0 on a build without it).`);
+  lines.push(`Per second of burst: ${pick((r) => r.rates.drawCallsPerSec)} WebGL draw calls, ${pick((r) => r.rates.soundsPerSec)} sounds started, ${pick((r) => r.rates.timeoutsMadePerSec)} timeouts scheduled, ${pick((r) => r.rates.pacedStepsDroppedPerSec)} paced steps of earlier actions dropped.`);
   lines.push('');
   lines.push('## (d) Main-thread cost (CDP)');
   lines.push('| | all tasks ms/s | script | style | layout | style recalcs/s | layouts/s |');
@@ -673,6 +770,7 @@ function report(results) {
   lines.push(`Harness: ${pick((r) => r.harness.rectReads)} rect reads, ${pick((r) => r.harness.ms)} ms in total (${pick((r) => r.harness.msPerRead)} ms each; they force a layout the next frame would have done).`);
   if (a0.spans) { lines.push(''); lines.push('### In-game monitor spans (run 1, self ms per second of burst)'); lines.push('| label | calls | self ms/s | total ms/s | worst ms |'); lines.push('|---|---|---|---|---|'); for (const s of a0.spans) lines.push(`| ${s.label} | ${s.n} | ${s.selfMsPerSec} | ${s.totalMsPerSec} | ${s.max} |`); lines.push(''); lines.push(`Inside dropped frames: ${a0.longAttrib.map((x) => `${x.label} ${x.ms} ms / ${x.frames} frames`).join('; ')}`); lines.push(`Peak FX counters: ${JSON.stringify(a0.fxCounts)}`); }
   if (a0.profileTop) { lines.push(''); lines.push('### CPU profile, top self time (run 1)'); for (const p of a0.profileTop.top) lines.push(`- ${p.ms} ms (${p.pct}%) ${p.fn}`); lines.push(''); lines.push('### Who called the layout / lookup natives (run 1, self ms)'); for (const p of a0.profileTop.nativeCallers) lines.push(`- ${p.ms} ms (${p.pct}%) ${p.fn}`); }
+  if (a0.styleTrace) { lines.push(''); lines.push('### Style / layout trace (run 1)'); lines.push(...a0.styleTrace); }
   if (a0.trace) { lines.push(''); lines.push('### Trace (run 1)'); lines.push(`Thread busy ms/s: ${a0.trace.threadBusyMsPerSec.map((t) => `${t.thread} ${t.msPerSec}`).join('; ')}`); for (const t of a0.trace.top) lines.push(`- ${t.msPerSec} ms/s x${t.n} ${t.event}`); }
   return lines.join('\n');
 }
@@ -680,7 +778,7 @@ function guard(results) {
   const fails = [];
   for (const [i, r] of results.entries()) {
     if (r.input.acceptedPct < GUARD.acceptedPct) fails.push(`run ${i + 1}: only ${r.input.acceptedPct}% of actions accepted (< ${GUARD.acceptedPct}%)`);
-    for (const k of ['behind', 'tweens', 'plays', 'timeouts', 'floats']) {
+    for (const k of ['behind', 'tweens', 'plays', 'queued', 'timeouts', 'floats']) {
       const b = r.backlog[k]; if (!b) continue;
       if (b.settleMs === null || b.settleMs > GUARD.settleMs) fails.push(`run ${i + 1}: ${k} not back to idle ${GUARD.settleMs} ms after the last input (${b.settleMs ?? 'never'})`);
       if (b.firstThird >= 4 && b.growthPct > GUARD.growthPct) fails.push(`run ${i + 1}: ${k} grew ${b.growthPct}% across the burst (${b.firstThird} -> ${b.lastThird})`);

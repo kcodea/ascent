@@ -1,5 +1,6 @@
 import { onShopAction, shopActionEpoch } from './actionPressure';
 import { deliverAllStats } from './statHold';
+import { RAPID_FX } from './rapidConfig';
 
 /**
  * THE SHOP'S DEFERRED PRESENTATION, BOUNDED UNDER RAPID INPUT (R-PERF-APM-01).
@@ -83,6 +84,6 @@ export function clearShopFx(): void {
 // THE ONE RULE: a new action under rapid input finishes the earlier actions' presentation on the spot.
 onShopAction((rapid) => {
   if (!rapid) return;
-  dropShopFxBefore(shopActionEpoch());
-  deliverAllStats();
+  if (RAPID_FX.dropStale) dropShopFxBefore(shopActionEpoch());
+  if (RAPID_FX.snapStats) deliverAllStats();
 });

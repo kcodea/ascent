@@ -487,6 +487,9 @@ function restingCenterOf(el: HTMLElement): { x: number; y: number } | null {
   return { x: p.left + toScreen(el.offsetLeft + el.offsetWidth / 2), y: p.top + toScreen(el.offsetTop + el.offsetHeight / 2) };
 }
 
+/** How long a sale's Gold float stays mounted: its 0.9 s animation ends invisible, and it is gone by this. */
+const SELL_FLOAT_MS = 1000;
+
 /** No drop in progress: nothing was read ahead (R-PERF-APM-01, `dropRectsRef`). */
 const NO_DROP_RECTS: { plate?: DOMRect | null; gold?: DOMRect | null } = {};
 
@@ -3080,7 +3083,9 @@ export function Recruit() {
   const prevStatsRef = useSwapRef<Map<string, { a: number; h: number }>>(new Map(), swapped);
   const prevPhaseRef = useSwapRef(run.phase, swapped);
   // Gold floats at the spot a minion was sold (the actual sell value) — fixed-screen, auto-cleared.
-  const [sellFloats, setSellFloats] = useSwapState<{ id: number; x: number; y: number; amount: number }[]>([], swapped);
+  const [sellFloats, setSellFloats] = useSwapState<{ id: number; x: number; y: number; amount: number; at: number }[]>([], swapped);
+  /** The one timer that clears the sale floats a second after the LAST sale (see the `sold` presenter). */
+  const sellSweepRef = useRef(0);
   const sellFloatId = useRef(0);
   // True on the single render where we flip combat → recruit (prevPhaseRef is updated later, in the
   // layout effect). The warband cards mount on exactly this render, so passing it as `suppressPop`
@@ -6584,7 +6589,9 @@ export function Recruit() {
     const pulseFallback = fresh.filter(
       (uid) => !bindingFor(run.board.find((c) => c.uid === uid)?.cardId ?? null, 'shout'),
     );
-    setBattlecryUids((s) => new Set([...s, ...pulseFallback]));
+    // Only when a card actually takes the medallion pulse (R-PERF-APM-01): the unconditional write handed React a NEW
+    // Set on every played Shout, bound burst or not, which is one whole extra `Recruit` render per play.
+    if (pulseFallback.length > 0) setBattlecryUids((s) => new Set([...s, ...pulseFallback]));
     // ...except when the card that just landed is the one that raised RUBY strength in this same action: the Ruby
     // cue rings its own whoosh + pickaxe strike, and the generic chime on top was one sound too many (owner
     // 2026-11-11). Read off the reducer's own stamp (`rubyPowerFxUid`), not the card's printed effects, so it
@@ -8826,8 +8833,14 @@ export function Recruit() {
       case 'sold': {
         // Float the actual Gold gained where the minion was released (not over the Gold counter).
         const id = ++sellFloatId.current;
-        setSellFloats((f) => [...f, { id, x: a.at.x, y: a.at.y, amount: a.amount }]);
-        window.setTimeout(() => setSellFloats((f) => f.filter((s) => s.id !== id)), 1000);
+        // ONE RENDER PER SALE, NOT TWO (R-PERF-APM-01). Each float used to be removed by its own timer a second later:
+        // a whole `Recruit` render to unmount a number that had already faded (its animation ends invisible at 0.9 s).
+        // Finished floats now leave in the NEXT sale's own commit, and a single sweep follows the last sale. A lone
+        // sale behaves exactly as before.
+        const soldAt = performance.now();
+        setSellFloats((f) => [...f.filter((s) => soldAt - s.at < SELL_FLOAT_MS), { id, x: a.at.x, y: a.at.y, amount: a.amount, at: soldAt }]);
+        window.clearTimeout(sellSweepRef.current);
+        sellSweepRef.current = window.setTimeout(() => setSellFloats((f) => (f.length > 0 ? [] : f)), SELL_FLOAT_MS);
         // Sprinkle gold coins out of the GOLD PILL: the authored `coin` def, fed the pill's centre as every anchor.
         // The player's own drop read the pill's box before the drag ended (`dropRectsRef`, no second layout); a
         // spectator's replayed sale measures it here.

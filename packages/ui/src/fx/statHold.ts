@@ -27,6 +27,7 @@
  */
 
 import { shopInputRapid } from './actionPressure';
+import { RAPID_FX, STAT_ROLL } from './rapidConfig';
 
 export interface StatDelta {
   /** How much of the unit's CURRENT attack has not been shown yet. */
@@ -176,7 +177,7 @@ export function holdStat(
   // RAPID SHOP INPUT (R-PERF-APM-01): the player is acting three or more times a second, so the number lands NOW,
   // with the badge's one pop, instead of being withheld for a roll the next action would restart. Anything still
   // withheld for this unit from an earlier action lands with it. See `fx/actionPressure.ts`.
-  if (shopInputRapid()) { releaseStat(uid); return; }
+  if (RAPID_FX.snapStats && shopInputRapid()) { releaseStat(uid); return; }
   const prev = holds.get(uid);
   const live = prev !== undefined && prev.until > now();
   // A better-informed placer owns this change; a worse-informed one stands down rather than stacking a
@@ -400,7 +401,7 @@ let raf = 0;
  * the roll looks the same and costs a quarter. The LAST step is never late by more than this: a hold whose roll is
  * over is delivered on the next frame whatever the cap says (`due` below).
  */
-export const ROLL_STEP_MS = 1000 / 60;
+export const ROLL_STEP_MS = STAT_ROLL.stepMs;
 /** `performance.now()` of the last step the loop ran. */
 let lastStepAt = -Infinity;
 
@@ -415,10 +416,11 @@ function anyRollOver(t: number): boolean {
 /** Start the loop if it isn't already running. Called whenever a hold is placed. */
 function ensureTicking(): void {
   if (raf !== 0 || typeof requestAnimationFrame === 'undefined') return;
+  lastStepAt = -Infinity; // a loop that starts fresh always steps on its first frame
   const loop = (): void => {
     const t = now();
     // 0.5 ms of slack: a 60 Hz display's own frames are 16.67 ms apart and must each still step.
-    if (t - lastStepAt >= ROLL_STEP_MS - 0.5 || anyRollOver(t)) { lastStepAt = t; stepHolds(); }
+    if (t - lastStepAt >= STAT_ROLL.stepMs - 0.5 || anyRollOver(t)) { lastStepAt = t; stepHolds(); }
     raf = holds.size > 0 ? requestAnimationFrame(loop) : 0;
   };
   raf = requestAnimationFrame(loop);

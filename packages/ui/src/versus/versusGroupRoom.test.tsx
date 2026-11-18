@@ -136,10 +136,10 @@ describe('Knocked out into the stands (R-VERSUS-GROUP-06)', () => {
     const ui = mount(<SpectatorBar />);
     try {
       expect(ui.container.querySelector('.lvend .endplace-num')?.textContent).toBe('3RD');
-      const plates = [...ui.container.querySelectorAll('.vswatchpanel .vsspec-seat')];
+      const plates = [...ui.container.querySelectorAll('.vswatchbar .vswatchchip')];
       expect(plates).toHaveLength(3);
       expect(plates.filter((p) => p.classList.contains('out'))).toHaveLength(1);
-      expect(ui.container.querySelector('.vsspec-vs')?.textContent).toBe('vs P3');
+      expect(ui.container.querySelector('.vswatchchip-vs')?.textContent).toBe('vs P3');
       press(ui.container.querySelector('.lvend button'));
       expect(ui.container.querySelector('.lvend')).toBeNull();
     } finally { ui.unmount(); useSpectate.setState({ active: false }); useVersus.setState({ match: null, knockout: null } as never); }

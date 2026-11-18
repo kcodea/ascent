@@ -61,6 +61,9 @@ describe('R-SPECTATE-HUD-02: never two of me', () => {
     act(() => { useLiveWatch.setState({ game: row }); sp.useSpectate.setState({ active: true }); useGame.setState({ run: createLobbyRun(1, 'warden') }); });
     ui = mount(<LiveWatchBar />);
     expect(ui.container.querySelectorAll('.vsself')).toHaveLength(1);
+    // One player to watch: no "who I watch" plate at all (R-SPECTATE-WATCHBAR-01).
+    expect(ui.container.querySelector('.vswatchbar')).toBeNull();
+    expect(ui.container.textContent).not.toContain('Watching');
     act(() => { useGame.setState({ run: { ...useGame.getState().run, mode: 'versus' } }); });
     expect(ui.container.querySelector('.vsself')).toBeNull();
   });

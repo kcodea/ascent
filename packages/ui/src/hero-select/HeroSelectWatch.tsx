@@ -53,7 +53,7 @@ export function HeroSelectWatch(): JSX.Element | null {
       )}
       {/* The teammate's screen wears the team frame, as in the shop (R-DUOS-VIEW-01). */}
       {shown && teammate && <div className="duosview-vignette hsvignette" aria-hidden="true" />}
-      {/* The Versus stands' own chrome (me top left with Leave, the players bottom right). A live game's is LiveWatchBar. */}
+      {/* The Versus stands' own chrome (me top left with Leave, the switcher along the top). A live game's is LiveWatchBar. */}
       {shown && !teammate && inMatch && !seated && <SpectatorBar />}
       {duosHere && <DuosMateDock watching={teammate} heroSelect />}
     </>

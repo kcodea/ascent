@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-11-17',
     changes: [
+      { category: 'Systems', text: 'Spectating: the players you can switch between now sit in a row along the top. Click one, or press its number. Watching a single player no longer shows an extra name plate.' },
       {
         category: 'Systems',
         text: 'Hero Select has a new look. Pick a hero tile to read about them, then press Select Hero.',

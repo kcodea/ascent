@@ -3,9 +3,9 @@
  * spectating within a spectator ui"; re-laid out 2026-10-16, R-SPECTATE-HUD-01: "maybe in the top left it shows me as
  * a spectator, and if there are multiple players to spectate, that can be in the bottom right instead").
  *
- * TOP LEFT: me, as a spectator (`SpectatorSelf`: my plate and emotes, the rest of the stands, Leave). BOTTOM RIGHT: the
- * switcher (`WatchedPanel`): both players as plates (Match details' seat portrait in their skin and frame, name pill,
- * Health box), the watched one lit; click a plate, or press 1 / 2, to watch that player's screen. Instant: both views
+ * TOP LEFT: me, as a spectator (`SpectatorSelf`: my plate and emotes, the rest of the stands, Leave). ALONG THE TOP,
+ * right of it: the switcher (`WatchedPanel`, R-SPECTATE-WATCHBAR-01): every player as a chip (portrait in their skin and
+ * frame, name, Health and Armor), the watched one lit; click a chip, or press its number, to watch that player's screen. Instant: both views
  * are cached (spectate.ts). In a fight the same plates pick whose side it is shown from.
  */
 import { useEffect, useMemo, useRef } from 'react';
@@ -158,7 +158,7 @@ export function SpectatorBar(): JSX.Element | null {
     <>
       {mateDock && <DuosMateDock key="dock" watching={false} inCombat={phase === 'combat'} stands />}
       <SpectatorSelf onLeave={leaveSpectating} />
-      <WatchedPanel seats={group ? groupSeats : seats} duos={!!match.group?.duos} />
+      <WatchedPanel seats={group ? groupSeats : seats} />
       <KnockoutNotice matchId={match.id} />
     </>
   );

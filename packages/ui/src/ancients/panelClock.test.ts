@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ANCIENTS_DEFAULTS } from './ancientsConfig';
-import { PANEL_FIGURE_FITS, PANEL_LAND, PANEL_PULSE, panelBackWidth, panelFigureRest, panelFromTop, panelGeometry, panelRank, panelTimeline, seamX, slideLeadY, stripPolygon } from './panelClock';
+import { PANEL_FIGURE_FITS, PANEL_LAND, PANEL_PULSE, panelBackWidth, panelFigureRest, panelFromTop, panelGeometry, panelRank, panelTimeline, seamX, spreadX, slideLeadY, stripPolygon } from './panelClock';
 
 /**
  * THE AWAKENING'S SIX PANELS (owner 2026-11-18): "the ancient itself to slide down into place from completely off
@@ -49,6 +49,15 @@ describe('the awakening panels clock', () => {
     expect(PANEL_PULSE.filter(([, o]) => o === 1).length).toBeGreaterThanOrEqual(3); // lit, then two more pulses
     expect(PANEL_PULSE[PANEL_PULSE.length - 1]).toEqual([1, 1]); // ends lit
     expect(tl.revealAt).toBeGreaterThanOrEqual(tl.pickAt + ANCIENTS_DEFAULTS.panelRattleMs);
+  });
+
+  // Owner 2026-11-19: "have the three that are selected slide along the bottom to take up even space and then move
+  // into the select boxes. have all 6 backgrounds fall away and fade".
+  it('lets the backgrounds start to go, spreads the three out, and only then reveals', () => {
+    expect(tl.spreadAt).toBeGreaterThan(tl.fallAt);
+    expect(tl.revealAt).toBeGreaterThanOrEqual(tl.spreadAt + ANCIENTS_DEFAULTS.panelSpreadMs);
+    const g = panelGeometry(1920, 1080, ANCIENTS_DEFAULTS.panelSlant);
+    expect([0, 1, 2].map((k) => spreadX(g, k))).toEqual([320, 960, 1600]); // the centres of three equal thirds
   });
 
   it('alternates top and bottom', () => {

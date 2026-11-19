@@ -6,7 +6,7 @@ import { rectToStage, stageViewport, toScreen } from '../stage';
 import { AncientFace } from './AncientFace';
 import { ancientColor, getAncientsConfig, type AncientsFullConfig } from './ancientsConfig';
 import { playCue } from './ancientsSound';
-import { PANEL_LAND, PANEL_PULSE, PANEL_SLIDE_EASE, cardPolygon, openPolygon, panelBackWidth, panelFigureFit, panelFigureRest, panelFromTop, panelGeometry, panelRank, panelTimeline, seamX, slideLeadY, stripPolygon } from './panelClock';
+import { PANEL_LAND, PANEL_PULSE, PANEL_SLIDE_EASE, cardPolygon, openPolygon, panelBackWidth, panelFigureFit, panelFigureRest, panelFromTop, panelGeometry, panelRank, panelTimeline, seamX, spreadX, slideLeadY, stripPolygon } from './panelClock';
 
 /**
  * THE SIX PANELS (owner 2026-11-18; the clock and geometry are in `panelClock.ts`). Mounted by `AncientGate` for
@@ -15,8 +15,9 @@ import { PANEL_LAND, PANEL_PULSE, PANEL_SLIDE_EASE, cardPolygon, openPolygon, pa
  *      slides in from off screen (top, bottom, top, ...);
  *   2. its ANCIENT follows at once from the same side, gathering speed, and slams to a stop: a shake, a spray of
  *      sparks off the far edge of the screen, and sparks grinding along its panel's seams on the way;
- *   3. the three on offer rattle and their edges light; the other three fade and fall away;
- *   4. on the gate's `reveal` beat the three settle onto their cards' art on the select screen and give way to them.
+ *   3. the three on offer rattle and their edges light and pulse; then all six backgrounds fade and fall away (with
+ *      the three Ancients not on offer) and the three on offer slide along the bottom to even spacing;
+ *   4. on the gate's `reveal` beat the three move onto their cards' art on the select screen and give way to them.
  * FIGURES IN FRONT (owner 2026-11-19: "i want the 'back' files to fall in the same slice format you currently have,
  * but i want the 'figures' not to be cut from those edges ... have them in front of those edges"): each panel is two
  * boxes over the same place. `.anc-pn` holds what the slanted strip clips (the background, the lit wash, the seam);
@@ -41,6 +42,8 @@ const SPARK_HOT = [0xffe7a8, 0xffffff, 0xffd98a] as const;
 export const AncientPanels = memo(function AncientPanels({ offered, phase }: { offered: readonly AncientId[]; phase: 'eruption' | 'title' | 'reveal' }) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const timers = useRef<number[]>([]);
+  /** Where each chosen panel's figure stands after its slide along the bottom (its box's x offset, stage px). */
+  const spreadDx = useRef<Record<number, number>>({});
   // The geometry and the clock are fixed for this awakening (a tuner change applies to the next one).
   const { geo, tl, cfg } = useMemo(() => {
     const c = getAncientsConfig(), v = stageViewport();
@@ -74,6 +77,9 @@ export const AncientPanels = memo(function AncientPanels({ offered, phase }: { o
       const q = (sel: string): Element | null => p.querySelector(sel) ?? o?.querySelector(sel) ?? null;
       const id = ids[i]!, fromTop = panelFromTop(i), dir = fromTop ? -1 : 1, col = hexNum(ancientColor(id));
       const rank = panelRank(i, geo.n);
+      // The backgrounds alternate top and bottom; the Ancients all rise from the bottom (owner 2026-11-19: "have the
+      // ancient figures all come up from the bottom"), with their foreground magic and their sparks.
+      const fDir = 1, fFromTop = false;
       // 1. The background slides in from off screen, inside its strip (the panel itself shows from that moment).
       anim(p, [{ opacity: 0 }, { opacity: 1 }], { duration: 1, delay: tl.bg[i]!, fill: 'both' });
       anim(q('.anc-pn-fill'), [{ transform: `translateY(${(dir * geo.vh * 1.02).toFixed(1)}px)` }, { transform: 'translateY(0)' }],
@@ -85,9 +91,9 @@ export const AncientPanels = memo(function AncientPanels({ offered, phase }: { o
       const rest = p.dataset.layered ? panelFigureRest(geo, panelFigureFit(id), figSize(cfg, id)) : { tx: 0, ty: 0, s: 1 };
       const at0 = (y: number): string => `translate(${rest.tx.toFixed(1)}px, ${(rest.ty + y).toFixed(1)}px) scale(${rest.s.toFixed(4)})`;
       anim(q('.anc-pn-fig'), [
-        { transform: at0(dir * geo.travel), easing: SLIDE_CSS },
+        { transform: at0(fDir * geo.travel), easing: SLIDE_CSS },
         { transform: at0(0), offset: PANEL_LAND, easing: 'ease-out' },
-        { transform: at0(-dir * geo.vh * 0.009), offset: 0.92, easing: 'ease-in' },
+        { transform: at0(-fDir * geo.vh * 0.009), offset: 0.92, easing: 'ease-in' },
         { transform: at0(0) },
       ], { duration: cfg.panelSlideMs, delay: tl.slide[i]!, fill: 'both' });
       anim(q('.anc-pn-name'), [{ opacity: 0, transform: 'translateX(-50%) translateY(18px)' }, { opacity: 1, transform: 'translateX(-50%)' }],
@@ -98,13 +104,13 @@ export const AncientPanels = memo(function AncientPanels({ offered, phase }: { o
       const depth = Math.max(0, cfg.panelDepth);
       if (p.dataset.layered) {
         anim(q('.anc-pn-front'), [
-          { transform: `translateY(${(dir * geo.vh * 1.15).toFixed(1)}px)`, easing: SLIDE_CSS },
-          { transform: `translateY(${(-dir * geo.vh * 0.022 * depth).toFixed(1)}px)`, offset: 0.78, easing: 'ease-in-out' },
+          { transform: `translateY(${(fDir * geo.vh * 1.15).toFixed(1)}px)`, easing: SLIDE_CSS },
+          { transform: `translateY(${(-fDir * geo.vh * 0.022 * depth).toFixed(1)}px)`, offset: 0.78, easing: 'ease-in-out' },
           { transform: 'translateY(0)' },
         ], { duration: cfg.panelSlideMs * 1.25, delay: tl.slide[i]! + 70, fill: 'both' });
         const drift: KeyframeAnimationOptions = { duration: tl.revealAt - tl.bg[i]! + 900, delay: tl.bg[i]!, easing: 'cubic-bezier(0.2, 0.5, 0.4, 1)', fill: 'both' };
         anim(q('.anc-pn-back'), [{ transform: `translateY(${(dir * 2.5 * depth).toFixed(2)}%) scale(${(1.04 + 0.07 * depth).toFixed(3)})` }, { transform: 'translateY(0%) scale(1.04)' }], drift);
-        anim(q('.anc-pn-cut'), [{ transform: `scale(${(1 - 0.03 * depth).toFixed(3)})` }, { transform: `scale(${(1 + 0.025 * depth).toFixed(3)})` }], drift);
+        for (const sel of ['.anc-pn-cut', '.anc-pn-rim']) anim(q(sel), [{ transform: `scale(${(1 - 0.03 * depth).toFixed(3)})` }, { transform: `scale(${(1 + 0.025 * depth).toFixed(3)})` }], drift);
         anim(q('.anc-pn-front-img'), [{ transform: 'translateY(0%) scale(1)' }, { transform: `translateY(${(2.5 * depth).toFixed(2)}%) scale(${(1 + 0.12 * depth).toFixed(3)})` }], drift);
       }
       // Grinding: sparks along both of its panel's seams, at the Ancient's leading edge, until it lands. The position
@@ -115,9 +121,9 @@ export const AncientPanels = memo(function AncientPanels({ offered, phase }: { o
           for (const b of [i, i + 1]) {
             if (b <= 0 || b >= geo.n) continue;
             wipeFx.grind((age) => {
-              const y = slideLeadY(geo, fromTop, age / landMs);
+              const y = slideLeadY(geo, fFromTop, age / landMs);
               return { x: toScreen(seamX(geo, b, y)), y: toScreen(y) };
-            }, landMs, 110 * sparks, -dir, SPARK_HOT);
+            }, landMs, 110 * sparks, -fDir, SPARK_HOT);
           }
         });
       }
@@ -125,12 +131,22 @@ export const AncientPanels = memo(function AncientPanels({ offered, phase }: { o
       at(tl.land[i]!, () => {
         shake(cfg.panelShakePx);
         if (sparks <= 0) return;
-        const y = fromTop ? geo.vh : 0;
-        const cx = (i + 0.5) * geo.stripW + (fromTop ? -geo.slant : geo.slant);
-        wipeFx.spray(toScreen(cx), toScreen(y), toScreen(geo.stripW * 0.5), fromTop ? -Math.PI / 2 : Math.PI / 2, Math.PI * 0.42, Math.round(34 * sparks), [col, ...SPARK_HOT]);
+        const y = fFromTop ? geo.vh : 0;
+        const cx = (i + 0.5) * geo.stripW + (fFromTop ? -geo.slant : geo.slant);
+        wipeFx.spray(toScreen(cx), toScreen(y), toScreen(geo.stripW * 0.5), fFromTop ? -Math.PI / 2 : Math.PI / 2, Math.PI * 0.42, Math.round(34 * sparks), [col, ...SPARK_HOT]);
       });
 
-      // 3. Three rattle and glow; three fade and fall away.
+      // 3. Three rattle and glow. Then ALL SIX backgrounds fade and fall away (owner 2026-11-19: "have all 6 backgrounds
+      // fall away and fade"), with the three Ancients not on offer; the three on offer slide along the bottom to even
+      // spacing, ready to move into their cards.
+      const tip = (i % 2 ? 1 : -1) * rnd(3, 7);
+      const fall: Keyframe[] = [
+        { transform: 'translateY(0) rotate(0deg)', opacity: 1 },
+        { transform: `translateY(${(geo.vh * 0.08).toFixed(1)}px) rotate(${(tip * 0.25).toFixed(2)}deg)`, opacity: 0.75, offset: 0.3 },
+        { transform: `translateY(${(geo.vh * 1.15).toFixed(1)}px) rotate(${tip.toFixed(2)}deg)`, opacity: 0 },
+      ];
+      const fallOpts: KeyframeAnimationOptions = { duration: cfg.panelFallMs, delay: tl.fallAt + rnd(0, 120), easing: 'cubic-bezier(0.5, 0, 0.9, 0.5)', fill: 'forwards' };
+      anim(p, fall, fallOpts);
       anim(q('.anc-pn-name'), [{ opacity: 1 }, { opacity: 0 }], { duration: 200, delay: tl.pickAt + cfg.panelRattleMs - 100, fill: 'forwards' });
       if (offered.includes(id)) {
         const k = cfg.panelShakePx * 0.8, f: Keyframe[] = [];
@@ -142,6 +158,8 @@ export const AncientPanels = memo(function AncientPanels({ offered, phase }: { o
         const pulse = PANEL_PULSE.map(([offset, opacity]) => ({ offset, opacity, easing: 'ease-in-out' }));
         anim(q('.anc-pn-glow'), pulse, { duration: cfg.panelRattleMs, delay: tl.pickAt, fill: 'forwards' });
         anim(q('.anc-pn-lit'), pulse, { duration: cfg.panelRattleMs, delay: tl.pickAt, fill: 'forwards' });
+        // ...and so does the Ancient's own outline (owner 2026-11-19: "can you have their edges flash with a glow as well?").
+        anim(q('.anc-pn-rim'), pulse, { duration: cfg.panelRattleMs, delay: tl.pickAt, fill: 'forwards' });
         if (sparks > 0) {
           at(tl.pickAt + cfg.panelRattleMs * 0.5, () => { // a few sparks shaken loose from its lit edges
             for (const b of [i, i + 1]) {
@@ -150,15 +168,15 @@ export const AncientPanels = memo(function AncientPanels({ offered, phase }: { o
             }
           });
         }
+        // The strip is going: its edge glow, its lit wash and its foreground magic (cut to the strip's shape) go with
+        // it. The outline glow stays on the figure.
+        for (const sel of ['.anc-pn-glow', '.anc-pn-front']) anim(q(sel), [{ opacity: 1 }, { opacity: 0 }], { duration: 220, delay: tl.fallAt, easing: 'ease-out', fill: 'forwards' });
+        // The slide along the bottom, to its third of the screen (in the order of the cards).
+        const dxs = spreadX(geo, offered.indexOf(id), offered.length) - (geo.left[i]! + geo.boxW / 2);
+        spreadDx.current[i] = dxs;
+        anim(o, [{ transform: 'translate(0px, 0px)' }, { transform: `translate(${dxs.toFixed(1)}px, 0px)` }], { duration: Math.max(1, cfg.panelSpreadMs), delay: tl.spreadAt, easing: 'cubic-bezier(0.45, 0, 0.2, 1)', fill: 'forwards' });
       } else {
-        const tip = (i % 2 ? 1 : -1) * rnd(3, 7);
-        const fall: Keyframe[] = [
-          { transform: 'translateY(0) rotate(0deg)', opacity: 1 },
-          { transform: `translateY(${(geo.vh * 0.08).toFixed(1)}px) rotate(${(tip * 0.25).toFixed(2)}deg)`, opacity: 0.75, offset: 0.3 },
-          { transform: `translateY(${(geo.vh * 1.15).toFixed(1)}px) rotate(${tip.toFixed(2)}deg)`, opacity: 0 },
-        ];
-        const fallOpts: KeyframeAnimationOptions = { duration: cfg.panelFallMs, delay: tl.fallAt + rnd(0, 120), easing: 'cubic-bezier(0.5, 0, 0.9, 0.5)', fill: 'forwards' };
-        for (const el of [p, o]) anim(el, fall, fallOpts);
+        anim(o, fall, fallOpts);
       }
     });
     // Once per awakening: the component is mounted for exactly one.
@@ -196,20 +214,17 @@ export const AncientPanels = memo(function AncientPanels({ offered, phase }: { o
         if (r && r.width > 0) {
           const dx = r.left + r.width / 2 - (geo.left[i]! + geo.boxW / 2);
           const dur = Math.min(c.panelToCardMs, Math.max(120, burst));
-          for (const el of [p, o]) el?.animate([{ transform: 'translate(0px, 0px)' }, { transform: `translate(${dx.toFixed(1)}px, 0px)` }], { duration: dur, easing: ease, fill: 'forwards' });
-          p.querySelector('.anc-pn-clip')?.animate([{ clipPath: stripPolygon(geo, i) }, { clipPath: cardPolygon(geo, r.width, r.top, r.bottom) }], { duration: dur, easing: ease, fill: 'forwards' });
+          // Its background has fallen away; the figure moves from its third of the screen onto its card.
+          o?.animate([{ transform: `translate(${(spreadDx.current[i] ?? 0).toFixed(1)}px, 0px)` }, { transform: `translate(${dx.toFixed(1)}px, 0px)` }], { duration: dur, easing: ease, fill: 'forwards' });
           // The uncut figure is cropped to the card only now, as it settles onto it.
           o?.animate([{ clipPath: openPolygon(geo) }, { clipPath: cardPolygon(geo, r.width, r.top, r.bottom) }], { duration: dur, easing: ease, fill: 'forwards' });
           // The Ancient's square ends exactly on the card's art square, so the real card appears over the same picture.
           const dy = r.top + r.height / 2 - geo.vh / 2;
           const rest = p.dataset.layered ? panelFigureRest(geo, panelFigureFit(id), figSize(c, id)) : { tx: 0, ty: 0, s: 1 };
           q('.anc-pn-fig')?.animate([{ transform: `translate(${rest.tx.toFixed(1)}px, ${rest.ty.toFixed(1)}px) scale(${rest.s.toFixed(4)})` }, { transform: `translate(0px, ${dy.toFixed(1)}px) scale(${(r.width / geo.figS).toFixed(4)})` }], { duration: dur, easing: ease, fill: 'forwards' });
-          q('.anc-pn-glow')?.animate([{ opacity: 1 }, { opacity: 0 }], { duration: dur, fill: 'forwards' });
-          p.querySelector('.anc-pn-lit')?.animate([{ opacity: 1 }, { opacity: 0 }], { duration: dur, fill: 'forwards' });
-          q('.anc-pn-front')?.animate([{ opacity: 1 }, { opacity: 0 }], { duration: dur * 0.6, fill: 'forwards' });
-          p.querySelector('.anc-pn-seam')?.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 160, fill: 'forwards' });
+          q('.anc-pn-rim')?.animate([{ opacity: 1 }, { opacity: 0 }], { duration: dur * 0.5, fill: 'forwards' });
         }
-        for (const el of [p, o]) el?.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 180, delay: burst, easing: 'ease-out', fill: 'forwards', composite: 'replace' });
+        o?.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 180, delay: burst, easing: 'ease-out', fill: 'forwards', composite: 'replace' });
       });
     });
     return () => window.cancelAnimationFrame(raf);
@@ -250,6 +265,9 @@ export const AncientPanels = memo(function AncientPanels({ offered, phase }: { o
           </svg>
           {layers && (
             <div className="anc-pn-fig anc-pn-fig-cut" style={{ width: geo.figS, height: geo.figS, marginLeft: -geo.figS / 2, marginTop: -geo.figS / 2 }}>
+              {/* The chosen three's OUTLINE glow: the same cut-out behind the figure, with a static glow in its colour, so
+                  only the halo round its silhouette shows. Only its opacity animates (the pulse). */}
+              {offered.includes(id) && <img decoding="sync" className="anc-pn-rim" src={layers.figure} alt="" draggable={false} style={{ left: `${fit.left}%`, top: `${fit.top}%`, width: `${fit.width}%`, transformOrigin: `${(fit.mx * 100).toFixed(1)}% 28%` }} />}
               <img decoding="sync" className="anc-pn-cut" src={layers.figure} alt="" draggable={false} style={{ left: `${fit.left}%`, top: `${fit.top}%`, width: `${fit.width}%`, transformOrigin: `${(fit.mx * 100).toFixed(1)}% 28%` }} />
             </div>
           )}

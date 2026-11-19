@@ -73,6 +73,8 @@ export interface AncientsConfig {
   panelFallMs: number;
   /** Panels: the three settling onto their cards on the select screen (ms). */
   panelToCardMs: number;
+  /** Panels: the chosen three sliding along the bottom to even spacing, after the backgrounds fall away (ms). */
+  panelSpreadMs: number;
   /** Panels: the shake on each slam, and the rattle's size (design px). 0 = none. */
   panelShakePx: number;
   /** Panels: the sparks (grinding edges, each slam, the explosion) (×). 0 = none. */
@@ -274,6 +276,7 @@ export const ANCIENTS_DEFAULTS: AncientsFullConfig = {
   panelRattleMs: 820,
   panelFallMs: 640,
   panelToCardMs: 380,
+  panelSpreadMs: 460,
   panelShakePx: 7,
   panelSparks: 1,
   panelSlant: 2.2,
@@ -362,6 +365,7 @@ export const ANCIENTS_RANGES: Record<NumKey, [number, number, number]> = {
   panelRattleMs: [100, 2000, 10],
   panelFallMs: [150, 2000, 10],
   panelToCardMs: [100, 1200, 10],
+  panelSpreadMs: [0, 1500, 10],
   panelShakePx: [0, 24, 0.5],
   panelSparks: [0, 3, 0.05],
   panelSlant: [0, 6, 0.1],

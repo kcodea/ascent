@@ -15,7 +15,7 @@ import { cubicBezier } from '../wipeGeometry';
  */
 export interface PanelTiming {
   panelPairGapMs: number; panelFollowMs: number; panelSlideMs: number; panelStaggerMs: number;
-  panelHoldMs: number; panelRattleMs: number; panelFallMs: number;
+  panelHoldMs: number; panelRattleMs: number; panelFallMs: number; panelSpreadMs: number;
 }
 
 /** The slide is HOME at this fraction of its length; the rest is the thud settling from a small overshoot. */
@@ -73,6 +73,8 @@ export interface PanelTimeline {
   /** The other three start to fade and fall: only once the chosen three have pulsed (owner 2026-11-18: "their edges
    *  to pulse before the others fade away"). */
   fallAt: number;
+  /** The chosen three set off along the bottom to even spacing (owner 2026-11-19). */
+  spreadAt: number;
   /** The select screen takes over (the gate's `reveal` beat). */
   revealAt: number;
 }
@@ -88,10 +90,17 @@ export function panelTimeline(c: PanelTiming, n = 6): PanelTimeline {
   const allIn = Math.max(...slide) + c.panelSlideMs;
   const pickAt = allIn + Math.max(0, c.panelHoldMs);
   const fallAt = pickAt + c.panelRattleMs;
-  return { bg, slide, land, allIn, pickAt, fallAt, revealAt: Math.max(pickAt + c.panelRattleMs, fallAt + c.panelFallMs * 0.75) };
+  // The chosen three set off along the bottom once the backgrounds have started to go, and the reveal (onto the
+  // cards) waits until they have spread out and stood a beat.
+  const spreadAt = fallAt + c.panelFallMs * 0.2;
+  return { bg, slide, land, allIn, pickAt, fallAt, spreadAt, revealAt: spreadAt + Math.max(0, c.panelSpreadMs) + 90 };
 }
 
-/** Even panels come down from the top, odd ones up from the bottom. */
+/** Where the chosen three stand once they have spread out along the bottom: the centres of three equal thirds of the
+ *  screen, in the order of their cards (stage px). Owner 2026-11-19: "slide along the bottom to take up even space". */
+export const spreadX = (g: PanelGeo, slot: number, count = 3): number => g.vw * (slot + 0.5) / Math.max(1, count);
+
+/** Even panels' BACKGROUNDS come down from the top, odd ones up from the bottom (the Ancients all rise from the bottom). */
 export const panelFromTop = (i: number): boolean => i % 2 === 0;
 
 export interface PanelGeo {

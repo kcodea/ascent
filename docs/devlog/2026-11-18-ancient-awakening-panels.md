@@ -86,3 +86,13 @@ would paint over it. Whatever moves a whole panel moves both boxes. The overs st
 three come to the front at the pick; the reveal crops each uncut figure to its card (`openPolygon` to `cardPolygon`).
 At full size the figures overlap and cover most of the backgrounds; `panelFigureScale` ("Figure size") shrinks them
 about their bottom edge.
+
+## 2026-11-19: the ending (owner, same day)
+
+- The names sit at the top of each panel; each Ancient has its own size dial (`<id>PanelSize`, on top of `panelFigureScale`).
+- Every figure rises from the bottom (the backgrounds still alternate top and bottom).
+- The chosen three get an OUTLINE glow (`.anc-pn-rim`: the cut-out again behind the figure with a static
+  drop-shadow; only its opacity animates) that pulses with the strip edges.
+- After the pulse ALL SIX backgrounds fall and fade, with the three Ancients not on offer. The chosen three slide
+  along the bottom to the centres of three equal thirds (`spreadX`, `panelSpreadMs`), then the reveal moves each onto
+  its card. `panelTimeline` gained `spreadAt`; `revealAt` now waits for the spread.

@@ -113,6 +113,21 @@ R-PERF-STAT-ROLL-01):
   read through its own primitive selector. Never subscribe a per-unit component to the whole `run`.
 - **A rolling number** belongs to `StatBadge` (`Card.tsx`). Nothing that changes per frame may be read by `Card` itself.
 
+Pixi filters on particle layers are TIGHT (R-PERF-FX-FILTER-AREA-01, `fx/filterStack.ts` + `fx/particleLayerPool.ts`):
+
+- A burst / emitter / smoke layer reports the box its live particles occupy (`fitParticleBounds`, called at the end of
+  `update`), so a filter above it covers that box, not the viewport. **A new particle primitive must build its
+  `FilterStack` with `tight = true` and call `fitParticleBounds` after its `pc.update()`.**
+- **A new filter in `filterRegistry.ts` keeps the whole viewport until it is added to `TIGHT_FILTERS`.** Add it only if
+  its picture does not depend on where its area starts or how big it is, and give it a reach function if it does not set
+  its own `padding` (Bloom did not). A filter that warps, tiles or lights by position must stay off the list.
+- `fx/blurPassClear.ts` replaces one Pixi 8.19 method (the blur pass never cleared its pooled scratch texture on WebGL).
+  A Pixi upgrade fails `filterAreaTight.test.ts` on purpose: re-read `BlurFilterPass._applyOptimized` before bumping it.
+- Prove a filter change with a same-frame diff: a `VITE_PERF_BENCH=1` build honours `globalThis.__fxTightOff = true`, so
+  one frozen frame can be drawn both ways and compared (method in `docs/devlog/2026-11-18-perf-pixi-fx.md`).
+- An emitter mote past the point where its size or alpha curve is 0 for good is dropped (R-PERF-FX-DEAD-TAIL-01). Author
+  a fade-out as a curve that reaches 0 and stays there, and the tail is free.
+
 ## Verify
 
 `npm run beats:audit`, focused Choreographer/Beat Lab tests, and live playback at normal, accelerated and

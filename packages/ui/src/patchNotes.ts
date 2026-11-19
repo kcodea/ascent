@@ -58,6 +58,14 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-11-19',
     changes: [
+      {
+        category: 'Balance',
+        text: 'Darah: two Ancient pairings changed.',
+        details: [
+          'Ancient of Fortune: minions you Swap into the Shop now cost 2 Gold to buy back (was free).',
+          'Ancient of Time: Lasso is now cast at Start of Turn as well as End of Turn.',
+        ],
+      },
       { category: 'Systems', text: 'New rank medals: Bronze through Ascendant each have new medal art.' },
       {
         category: 'Systems',

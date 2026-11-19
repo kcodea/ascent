@@ -66,7 +66,7 @@ export const ANCIENT_PROC_PHASES: Readonly<Record<string, readonly ProcPhase[]>>
   commissionBuffsBoard: ['shop'], commissionFreeRefreshes: ['shop'], commissionGrantsTierMinion: ['shop'], commissionPaysTwice: ['shop'],
   // ── Start of Turn (the Ancient's own beat) ──
   sotBuffPerCombatSummon: ['sot'], sotCopyLastCombatDeath: ['sot'], sotCopyLastFoe: ['sot'], sotCopyToHand: ['sot'],
-  sotDiscoverTierAbove: ['sot'], sotGainGold: ['sot'], sotGetCard: ['sot'], sotGildRandom: ['sot'],
+  sotDiscoverTierAbove: ['sot'], sotGainGold: ['sot'], sotGetCard: ['sot'], sotGildRandom: ['sot'], sotCastSpell: ['sot'],
   discoverTier7InTurns: ['sot'], investmentDiscoverTierCopies: ['sot'], greatPresenceGrantsCard: ['sot'],
   // ── End of Turn (the Ancient's own virtual entry beat) ──
   eotBuffPerEnchantedBuy: ['eot'], eotBuffPerTribeBuy: ['eot'], eotCastSpell: ['eot'], eotCoinsImprove: ['eot'], eotMaxGold: ['eot'],

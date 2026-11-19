@@ -172,6 +172,12 @@ export const CASES: ProcCase[] = [
     note: 'one Shop minion to steal: the Lasso beat',
     run: () => eotAncientBeatsNested(pickedRun('darah', 'time', { embers: 99, board: [body('a', N(0))], shop: [{ uid: 'o', cardId: N(1) } as RunState['shop'][number]] })),
   },
+  // TIME: Start of Turn casts Lasso too (owner 2026-11-19), its own Start-of-Turn beat.
+  {
+    hero: 'darah', ancient: 'time', phase: 'sot', fires: 1,
+    note: 'the new Shop has a minion to steal: the Start-of-Turn Lasso beat',
+    run: () => sotProcsAfterFight(pickedRun('darah', 'time', { board: [body('a', N(0), { health: 50 })] })).procs,
+  },
   // ── NADJA ─────────────────────────────────────────────────────────────────────────────────────────────────────
   // DEATH, Shop: every 6th friendly Shop death; 4 → 5 is a tick.
   {

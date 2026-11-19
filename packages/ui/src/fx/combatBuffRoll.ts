@@ -1,5 +1,5 @@
 import type { CombatEvent } from '@game/core';
-import { revealStat } from './statHold';
+import { revealStat, revealStats } from './statHold';
 import { prefoldedShareOf } from '../choreo/clashOrder';
 
 /**
@@ -153,17 +153,68 @@ export function driveRoll(uid: string, rollMs: number, speedGetter: () => number
 export function driveRollSegment(
   uid: string, from: number, to: number, rollMs: number, speedGetter: () => number, onComplete?: () => void,
 ): () => void {
-  let progress = 0;
-  let last = typeof performance !== 'undefined' ? performance.now() : Date.now();
-  let raf = 0;
-  const tick = (): void => {
-    const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
-    progress = advanceRollProgress(progress, now - last, rollMs, speedGetter());
-    last = now;
-    revealStat(uid, from + (to - from) * progress);
-    if (progress < 1) raf = requestAnimationFrame(tick);
-    else onComplete?.();
+  const roll: Roll = { uid, from, to, rollMs, speedGetter, onComplete, progress: 0, last: clock(), raf: 0, live: true };
+  // The FIRST step runs on this roll's own frame request, exactly when it always did (the frame after the call). From
+  // the second step on it rides the shared loop below.
+  roll.raf = requestAnimationFrame(() => {
+    roll.raf = 0;
+    if (!roll.live) return;
+    const p = stepRoll(roll);
+    revealStat(uid, p);
+    if (roll.progress < 1) { rolls.add(roll); ensureRollLoop(); }
+    else { roll.live = false; onComplete?.(); }
+  });
+  return () => {
+    roll.live = false;
+    if (roll.raf !== 0) { cancelAnimationFrame(roll.raf); roll.raf = 0; }
+    rolls.delete(roll);
   };
-  raf = requestAnimationFrame(tick);
-  return () => { if (raf !== 0) cancelAnimationFrame(raf); };
 }
+
+/**
+ * ONE frame loop for every roll in flight, and ONE notification per frame (R-PERF-STAT-ROLL-01).
+ *
+ * Each roll used to run its own `requestAnimationFrame` loop and call `revealStat` itself, which notifies every stat
+ * badge on screen: a 7-wide buff was 7 loops and 7 passes over every badge per frame. The rolls are stepped together
+ * here and handed to `revealStats`, which notifies once. Each roll keeps its own clock (`last`), its own live speed
+ * read and its own `onComplete`, fired after the frame's reveal as before, in the order the rolls started.
+ */
+interface Roll {
+  uid: string; from: number; to: number; rollMs: number;
+  speedGetter: () => number; onComplete?: () => void;
+  progress: number; last: number; raf: number; live: boolean;
+}
+
+const rolls = new Set<Roll>();
+let rollLoop = 0;
+
+const clock = (): number => (typeof performance !== 'undefined' ? performance.now() : Date.now());
+
+/** Advance one roll by the time since its last step; returns the reveal progress to print. */
+function stepRoll(r: Roll): number {
+  const now = clock();
+  r.progress = advanceRollProgress(r.progress, now - r.last, r.rollMs, r.speedGetter());
+  r.last = now;
+  return r.from + (r.to - r.from) * r.progress;
+}
+
+function ensureRollLoop(): void {
+  if (rollLoop !== 0) return;
+  const tick = (): void => {
+    rollLoop = 0;
+    const batch: [string, number][] = [];
+    const finished: Roll[] = [];
+    for (const r of rolls) {
+      batch.push([r.uid, stepRoll(r)]);
+      if (r.progress >= 1) finished.push(r);
+    }
+    revealStats(batch);
+    for (const r of finished) { rolls.delete(r); r.live = false; }
+    for (const r of finished) r.onComplete?.();
+    if (rolls.size > 0) rollLoop = requestAnimationFrame(tick);
+  };
+  rollLoop = requestAnimationFrame(tick);
+}
+
+/** Rolls riding the shared loop right now (tests / diagnostics). */
+export function sharedRollCount(): number { return rolls.size; }

@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-11-18',
     changes: [
+      { category: 'Systems', text: 'Smoother combat: background calculations no longer interrupt the fight.' },
       {
         category: 'Balance',
         text: 'Ancient of Death: Gildmaster and Cindy now count friendly deaths across fights and the Shop, and Cassen needs 5 deaths instead of 7.',
@@ -131,6 +132,25 @@ export const PATCH_NOTES: PatchNote[] = [
       {
         category: 'Systems',
         text: 'The crystal fuse at the end of a turn costs far less to draw, and buying, selling and rolling no longer redraw the player rail. Nothing looks different.',
+      },
+      {
+        category: 'Systems',
+        text: 'Glowing effects cost far less to draw, most of all when a whole board is buffed at once.',
+        details: [
+          'A buff that flies to every minion on your board no longer slows the Shop while its trails are in flight.',
+          'Strike bursts, the 5,000 stat rings and other glowing sparks are lighter in long fights.',
+          'These effects look the same as before.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Fights run smoother, most of all late in the game with big boards and big numbers.',
+        details: [
+          'A minion dying or a spell being cast mid-fight no longer redraws every card on the board.',
+          'A rolling stat number now redraws only its own badge, not the whole card.',
+          'Long fights no longer get heavier as they go on.',
+          'Nothing looks or plays differently.',
+        ],
       },
       {
         category: 'Systems',

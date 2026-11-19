@@ -64,3 +64,12 @@ layout read per frame per playing effect, and many cues anchor to the slot on pu
 
 In the shop, a bound End of Turn effect also replaces the under-card flourish, and a Rally's own consequences
 (Crownvein's Ruby Power gain) are read as the Rally by the scan.
+
+## Arena Heckler into a minion that already Taunts (R-HECKLER-SHOWN-01)
+
+Owner: "if the unit he is meant to target already has taunt, the medallion effect nor the taunt apply effect occurs.
+can we have this effect happen regardless". `scGrantEnemyTaunt` skipped an already-Taunted victim, so the log held no
+`keyword` event: nothing carried the Start of Combat stamp into its own moment (the narration is absorbed into the
+immediate attack, and `startOfCombatFx` is not on `attackExchange`), and the Taunt-given beam had no grant to read.
+New arena verb `showKeywordGrant`: combat logs the same event, the body is untouched, the shop no-ops. Every
+consumer of the event already dedupes the keyword (`computeFrame`, `snapshot.ts`). Heckler only.

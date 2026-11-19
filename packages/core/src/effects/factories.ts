@@ -582,6 +582,7 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
       if (kw === 'R') mm.rebornAvailable = true;
       if (!silent) ctx.log({ type: 'keyword', target: mm.uid, keyword: kw as Keyword, source: self.uid });
     },
+    showKeywordGrant: (t, kw) => ctx.log({ type: 'keyword', target: (t as Minion).uid, keyword: kw as Keyword, source: self.uid }),
     grantSpellPower: (a, h) => ctx.grantSpellPower(a, h, self.side, self.uid),
     targetTribe: () => ctx.getCard(self.cardId)?.targetTribe,
     grantReborn: (t) => {

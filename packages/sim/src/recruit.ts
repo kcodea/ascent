@@ -318,6 +318,7 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
     hasReborn: (t) => t.keywords.includes('R'),
     grantReborn: (t) => { const c = t as BoardCard; c.keywords = [...c.keywords, 'R']; },
     grantKeywordTo: (t, kw) => { const c = t as BoardCard; c.keywords = [...c.keywords, kw as Keyword]; },
+    showKeywordGrant: () => {}, // a combat presentation event; the shop has no log to write it to
     grantSpellPower: (a, h) => {
       state.spellBonus ??= { attack: 0, health: 0 };
       state.spellBonus.attack += a;

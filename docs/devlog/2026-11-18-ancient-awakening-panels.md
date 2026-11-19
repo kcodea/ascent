@@ -55,9 +55,10 @@ then panels that slid in whole), then built.
 - **Only the panels' own host shakes**, never the game tree (`gateLayout.test.ts`).
 - **Layered portraits (2026-11-19).** An Ancient with `art/ancients/panels/<id>_{back,figure,front}.webp` is drawn from
   three sheets (the place, the cut-out Ancient, loose magic painted on black and converted to alpha) that move by
-  different amounts (`panelDepth`). Death has them; the other five still show the flat 512px painting with a soft oval
-  mask. `PANEL_FIGURE_FIT` places the tall figure so its mask lands where the flat painting's mask is, because the
-  panel ends on the card and the card shows the flat painting; `PANEL_FIGURE_REST` is its smaller size at rest. Masters:
+  different amounts (`panelDepth`). All six have them (an Ancient without falls back to the flat 512px painting with a soft oval mask).
+  `PANEL_FIGURE_FITS` places each tall figure so its mask lands where the flat painting's mask is, because the panel
+  ends on the card and the card shows the flat painting; the figures are framed differently, so each has its own,
+  measured by eye. `panelFigureRest` stands the figure whole in the strip before that. Masters:
   `C:Game AssetsAscent ArtAncientsParallax`; the ChatGPT brief is `docs/art-briefs/ancient-panel-layers.md`.
 - **The sounds are placeholders** from clips already in the repo.
 - **Length.** About 3.1 s from the explosion to the reveal at the defaults, against about 1.6 s for the curtain.

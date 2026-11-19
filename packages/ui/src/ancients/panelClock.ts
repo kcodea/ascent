@@ -23,15 +23,35 @@ export const PANEL_LAND = 0.84;
 /** The slide's easing: it gathers speed the whole way (heavy stone) and stops dead. */
 export const PANEL_SLIDE_EASE = [0.55, 0, 0.95, 0.6] as const;
 /**
- * Where a layered portrait's tall cut-out figure (2:3) sits in the Ancient's square, in % of that square, so its mask
- * lands where the flat painting's mask is: the panel ends by shrinking that square onto the card's art, and the card
- * shows the flat painting. Measured on Death (mask centre and height in both images); the brief asks every figure
- * for the same framing (mask in the upper third, thighs up).
+ * LAYERED PORTRAITS (owner 2026-11-19). Where an Ancient's tall cut-out figure (a 2:3 image) sits in its square, in %
+ * of that square, so its mask lands where the flat painting's mask is: the panel ends by shrinking that square onto
+ * the card's art, and the card shows the flat painting. `mx` is the mask's centre across the figure image (0..1).
+ * Each was measured by eye from the mask's centre and height in both images; the figures are framed differently, so
+ * each has its own.
  */
-export const PANEL_FIGURE_FIT = { left: 4.4, top: -11.8, width: 88, origin: '53% 27%' } as const;
-/** A layered figure's size at rest, against that square: the whole cut-out, antlers to thighs, fits the strip's height
- *  (the flat painting only ever showed its middle). The reveal scales it from here onto the card. */
-export const PANEL_FIGURE_REST = 0.7;
+export interface PanelFigureFit { left: number; top: number; width: number; mx: number }
+export const PANEL_FIGURE_FITS: Readonly<Record<string, PanelFigureFit>> = {
+  death: { left: 4.4, top: -11.8, width: 88, mx: 0.527 },
+  war: { left: -18.3, top: -34.6, width: 133, mx: 0.51 },
+  fortune: { left: -0.9, top: -0.6, width: 98, mx: 0.54 },
+  time: { left: 0, top: -20, width: 100, mx: 0.52 },
+  genesis: { left: -3, top: -20, width: 100, mx: 0.52 },
+  bonds: { left: -3.3, top: -9.8, width: 96, mx: 0.555 },
+};
+export const panelFigureFit = (id: string): PanelFigureFit => PANEL_FIGURE_FITS[id] ?? PANEL_FIGURE_FITS.death!;
+/** A layered figure's height at rest, in screen heights: the whole cut-out stands in the strip and runs off the bottom
+ *  (the flat painting only ever showed its middle). */
+export const PANEL_FIGURE_REST_H = 1.09;
+/**
+ * The square's transform that stands a layered figure at rest (`translate(tx, ty) scale(s)` about the square's
+ * centre, stage px): the figure `PANEL_FIGURE_REST_H` screens tall, its top just above the top of the screen and its
+ * mask on the strip's centre line. The reveal animates from here onto the card (`translate(0, dy) scale(card / figS)`).
+ */
+export function panelFigureRest(g: PanelGeo, fit: PanelFigureFit): { tx: number; ty: number; s: number } {
+  const w0 = g.figS * fit.width / 100, left0 = (fit.left / 100 - 0.5) * g.figS, top0 = (fit.top / 100 - 0.5) * g.figS;
+  const s = PANEL_FIGURE_REST_H * g.vh / (w0 * 1.5);
+  return { tx: -(left0 + fit.mx * w0) * s, ty: -0.02 * g.vh - g.vh / 2 - top0 * s, s };
+}
 /** The chosen three's edge glow over their rattle: up fast, then two pulses, ending lit. [offset, opacity]. */
 export const PANEL_PULSE: readonly (readonly [number, number])[] = [[0, 0], [0.16, 1], [0.38, 0.4], [0.58, 1], [0.8, 0.45], [1, 1]];
 /** The explosion's head start before the first background sets off (ms). */

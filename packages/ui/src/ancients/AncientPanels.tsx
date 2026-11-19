@@ -6,7 +6,7 @@ import { rectToStage, stageViewport, toScreen } from '../stage';
 import { AncientFace } from './AncientFace';
 import { ancientColor, getAncientsConfig } from './ancientsConfig';
 import { playCue } from './ancientsSound';
-import { PANEL_LAND, PANEL_PULSE, PANEL_SLIDE_EASE, PANEL_FIGURE_FIT, PANEL_FIGURE_REST, cardPolygon, panelFromTop, panelGeometry, panelRank, panelTimeline, seamX, slideLeadY, stripPolygon } from './panelClock';
+import { PANEL_LAND, PANEL_PULSE, PANEL_SLIDE_EASE, cardPolygon, panelFigureFit, panelFigureRest, panelFromTop, panelGeometry, panelRank, panelTimeline, seamX, slideLeadY, stripPolygon } from './panelClock';
 
 /**
  * THE SIX PANELS (owner 2026-11-18; the clock and geometry are in `panelClock.ts`). Mounted by `AncientGate` for
@@ -70,12 +70,13 @@ export const AncientPanels = memo(function AncientPanels({ offered, phase }: { o
       playCue('panelBg', tl.bg[i]!, { rateMul: 1 + rank * 0.1 });
       // 2. The Ancient follows from the same side, from fully off screen, and slams. A layered figure stands smaller
       // than the flat painting's square (the whole cut-out fits the strip's height), so its slide carries that scale.
-      const rs = p.dataset.layered ? ` scale(${PANEL_FIGURE_REST})` : '';
+      const rest = p.dataset.layered ? panelFigureRest(geo, panelFigureFit(id)) : { tx: 0, ty: 0, s: 1 };
+      const at0 = (y: number): string => `translate(${rest.tx.toFixed(1)}px, ${(rest.ty + y).toFixed(1)}px) scale(${rest.s.toFixed(4)})`;
       anim(p.querySelector('.anc-pn-fig'), [
-        { transform: `translateY(${(dir * geo.travel).toFixed(1)}px)${rs}`, easing: SLIDE_CSS },
-        { transform: `translateY(0px)${rs}`, offset: PANEL_LAND, easing: 'ease-out' },
-        { transform: `translateY(${(-dir * geo.vh * 0.009).toFixed(1)}px)${rs}`, offset: 0.92, easing: 'ease-in' },
-        { transform: `translateY(0px)${rs}` },
+        { transform: at0(dir * geo.travel), easing: SLIDE_CSS },
+        { transform: at0(0), offset: PANEL_LAND, easing: 'ease-out' },
+        { transform: at0(-dir * geo.vh * 0.009), offset: 0.92, easing: 'ease-in' },
+        { transform: at0(0) },
       ], { duration: cfg.panelSlideMs, delay: tl.slide[i]!, fill: 'both' });
       anim(p.querySelector('.anc-pn-name'), [{ opacity: 0, transform: 'translateX(-50%) translateY(18px)' }, { opacity: 1, transform: 'translateX(-50%)' }],
         { duration: 260, delay: tl.slide[i]! + cfg.panelSlideMs, easing: 'ease-out', fill: 'both' });
@@ -182,7 +183,8 @@ export const AncientPanels = memo(function AncientPanels({ offered, phase }: { o
           p.querySelector('.anc-pn-clip')?.animate([{ clipPath: stripPolygon(geo, i) }, { clipPath: cardPolygon(geo, r.width, r.top, r.bottom) }], { duration: dur, easing: ease, fill: 'forwards' });
           // The Ancient's square ends exactly on the card's art square, so the real card appears over the same picture.
           const dy = r.top + r.height / 2 - geo.vh / 2;
-          p.querySelector('.anc-pn-fig')?.animate([{ transform: `translateY(0px) scale(${p.dataset.layered ? PANEL_FIGURE_REST : 1})` }, { transform: `translateY(${dy.toFixed(1)}px) scale(${(r.width / geo.figS).toFixed(4)})` }], { duration: dur, easing: ease, fill: 'forwards' });
+          const rest = p.dataset.layered ? panelFigureRest(geo, panelFigureFit(id)) : { tx: 0, ty: 0, s: 1 };
+          p.querySelector('.anc-pn-fig')?.animate([{ transform: `translate(${rest.tx.toFixed(1)}px, ${rest.ty.toFixed(1)}px) scale(${rest.s.toFixed(4)})` }, { transform: `translate(0px, ${dy.toFixed(1)}px) scale(${(r.width / geo.figS).toFixed(4)})` }], { duration: dur, easing: ease, fill: 'forwards' });
           p.querySelector('.anc-pn-glow')?.animate([{ opacity: 1 }, { opacity: 0 }], { duration: dur, fill: 'forwards' });
           p.querySelector('.anc-pn-lit')?.animate([{ opacity: 1 }, { opacity: 0 }], { duration: dur, fill: 'forwards' });
           p.querySelector('.anc-pn-front')?.animate([{ opacity: 1 }, { opacity: 0 }], { duration: dur * 0.6, fill: 'forwards' });
@@ -197,7 +199,7 @@ export const AncientPanels = memo(function AncientPanels({ offered, phase }: { o
 
   return (
     <div ref={hostRef} className="anc-pn-host">
-      {ids.map((id, i) => { const layers = ancientPanelLayers(id); return (
+      {ids.map((id, i) => { const layers = ancientPanelLayers(id), fit = panelFigureFit(id); return (
         <div key={id} className="anc-pn" data-layered={layers ? '1' : undefined} style={{ left: geo.left[i], width: geo.boxW, '--anc-c': ancientColor(id) } as CSSProperties}>
           <div className="anc-pn-clip" style={{ clipPath: stripPolygon(geo, i) }}>
             <div className="anc-pn-fill">
@@ -205,7 +207,7 @@ export const AncientPanels = memo(function AncientPanels({ offered, phase }: { o
             </div>
             <div className={`anc-pn-fig${layers ? ' anc-pn-fig-cut' : ''}`} style={{ width: geo.figS, height: geo.figS, marginLeft: -geo.figS / 2, marginTop: -geo.figS / 2 }}>
               {layers
-                ? <img decoding="sync" className="anc-pn-cut" src={layers.figure} alt="" draggable={false} style={{ left: `${PANEL_FIGURE_FIT.left}%`, top: `${PANEL_FIGURE_FIT.top}%`, width: `${PANEL_FIGURE_FIT.width}%`, transformOrigin: PANEL_FIGURE_FIT.origin }} />
+                ? <img decoding="sync" className="anc-pn-cut" src={layers.figure} alt="" draggable={false} style={{ left: `${fit.left}%`, top: `${fit.top}%`, width: `${fit.width}%`, transformOrigin: `${(fit.mx * 100).toFixed(1)}% 28%` }} />
                 : <AncientFace id={id} className="anc-pn-face" />}
             </div>
             {layers?.front && (

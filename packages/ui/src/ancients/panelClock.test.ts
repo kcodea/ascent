@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ANCIENTS_DEFAULTS, gateStyleOf } from './ancientsConfig';
-import { PANEL_FIGURE_FIT, PANEL_FIGURE_REST, PANEL_LAND, PANEL_PULSE, panelFromTop, panelGeometry, panelRank, panelTimeline, seamX, slideLeadY, stripPolygon } from './panelClock';
+import { PANEL_FIGURE_FITS, PANEL_LAND, PANEL_PULSE, panelFigureRest, panelFromTop, panelGeometry, panelRank, panelTimeline, seamX, slideLeadY, stripPolygon } from './panelClock';
 
 /**
  * THE AWAKENING'S SIX PANELS (owner 2026-11-18): "the ancient itself to slide down into place from completely off
@@ -82,10 +82,16 @@ describe('the awakening panels geometry', () => {
 
     // Owner 2026-11-19 (layered portraits): the tall cut-out stands whole in the strip, running off the bottom.
     it(`stands a layered figure top to bottom in the ${vw}x${vh} strip`, () => {
-      const h = g.figS * (PANEL_FIGURE_FIT.width / 100) * 1.5 * PANEL_FIGURE_REST; // a 2:3 image, at its rest size
-      const top = vh / 2 + (-g.figS / 2 + g.figS * PANEL_FIGURE_FIT.top / 100) * PANEL_FIGURE_REST;
-      expect(top).toBeLessThanOrEqual(vh * 0.02); // its top is at the top of the screen
-      expect(top + h).toBeGreaterThanOrEqual(vh); // and it runs off the bottom
+      for (const fit of Object.values(PANEL_FIGURE_FITS)) {
+        const r = panelFigureRest(g, fit);
+        const w = g.figS * (fit.width / 100) * r.s, h = w * 1.5; // a 2:3 image, at its rest size
+        const top = vh / 2 + (fit.top / 100 - 0.5) * g.figS * r.s + r.ty;
+        const left = (fit.left / 100 - 0.5) * g.figS * r.s + r.tx; // from the strip's centre line
+        expect(top).toBeLessThanOrEqual(0); // its top is at the top of the screen
+        expect(top + h).toBeGreaterThanOrEqual(vh); // and it runs off the bottom
+        expect(left + fit.mx * w).toBeCloseTo(0, 5); // its mask is on the strip's centre line
+        expect(g.travel).toBeGreaterThanOrEqual(top + h); // and its slide starts it fully off screen
+      }
     });
 
     it(`sweeps the grinding sparks across the whole ${vw}x${vh} height`, () => {

@@ -132,10 +132,11 @@ import { spriteForTribe } from './sprites';
 import { useGame } from './store';
 import { ScreenContext } from './screenSwap';
 import { lastPointerWasTouch, tapInspectAllowed } from './touchInput';
-import { FLURRY_RINGS, flurryBoxStyle, flurryWrapStyle, flurryRingStyle, flurryRingPaintStyle } from './flurryConfig';
+import { FLURRY, FLURRY_RINGS, flurryBoxStyle, flurryWrapStyle, flurryRingStyle, flurryRingPaintStyle } from './flurryConfig';
 import { pixiFx } from './pixiFx';
 import { getStepProcFxConfig, isStepProcTick } from './stepProcFxConfig';
 import { getExecuteSnapshot, subscribeExecute } from './executeConfig';
+import { KWFX_BOX, useAuraLive } from './kwfx/kwfx';
 import { getCardPlateConfig, plateTextBucket } from './cardPlateConfig';
 import { rectToStage, stageHost, stageViewport } from './stage';
 import { trackCardName } from './cardNameFilter';
@@ -1248,20 +1249,7 @@ export const Card = memo(function Card({
           {/* REBIRTH (`RB`) — the VEIL: soft blue fire licking up over the portrait's lower edge (clipped to the window,
               z2 like Rise's dome), the over-the-card half of its look; the crown on the frame is RebirthCrown below. */}
           {card.keywords.includes('RB') && <div className="rebirth-veil" aria-hidden="true"><div className="rbv" /></div>}
-          {card.keywords.includes('R') && !riseHeld && (
-            <div className="reborn" aria-hidden="true">
-              <div className="reborn-dome" />
-              <div className="reborn-wisps">
-                {REBORN_WISPS.map((w, i) => (
-                  <div
-                    key={i}
-                    className="wisp"
-                    style={{ left: w.left, bottom: w.bottom, animationDelay: w.delay, '--wisp-size': w.size, '--wisp-rise': w.rise, '--wx': w.wx } as CSSProperties}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
+          {card.keywords.includes('R') && !riseHeld && <RiseAura />}
         </div>
         {/* Card Art transform session (dev). Mounted on the CARD ROOT, not inside `.art`: the art window
             clips, so buttons parented there could never sit outside the card. The drag maths still measures
@@ -1285,17 +1273,7 @@ export const Card = memo(function Card({
             Lives in the archbox (NOT `.art`, which clips) at z2 — above the art, below the frame — so the
             swirl orbits AROUND the card like the preview. Static gradient/mask paint from flurryConfig; only
             transform (spin + wrapper squash) and opacity (breathe) animate. Rides drag + the lunge for free. */}
-        {card.keywords.includes('W') && !flurryHeld && (
-          <div className="flurry" aria-hidden="true" style={flurryBoxStyle()}>
-            <div className="fl-breathe">
-              {FLURRY_RINGS.map((r, i) => (
-                <div key={i} className="fl-ring-wrap" style={flurryWrapStyle(r)}>
-                  <div className="fl-ring" style={flurryRingStyle(r)}><div className="fl-ring-paint" style={flurryRingPaintStyle(r)} /></div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        {card.keywords.includes('W') && !flurryHeld && <FlurryAura />}
         {/* Execute (V) — a swirling ring of rage: smoke, comet arcs, glints and drifting shards. Sits at z4,
             over the art AND the frame but under the badges, exactly like the Ward shell (owner ruling) — not
             Flurry's z2. Every gradient/mask/blur is static paint precomputed in executeConfig; only transform
@@ -1682,8 +1660,13 @@ function whisperRipple(card: Element): void {
   art.addEventListener('animationend', done);
 }
 
+// KWFX-LIVE-BEGIN (the authored aura markup: a change here needs a re-bake, scripts/kwfx/capture.mjs)
 const ExecuteAura = memo(function ExecuteAura() {
-  const { layers, box } = useSyncExternalStore(subscribeExecute, getExecuteSnapshot, getExecuteSnapshot);
+  const { cfg, layers, box } = useSyncExternalStore(subscribeExecute, getExecuteSnapshot, getExecuteSnapshot);
+  // The BAKED aura (kwfx/kwfx.ts): one picture on one layer, captured from the live markup below.
+  const live = useAuraLive('execute');
+  const baked = useMemo<CSSProperties>(() => ({ ...KWFX_BOX.execute, top: `${cfg.y}%` }), [cfg.y]);
+  if (!live) return <div className="kwfx kwfx-execute" aria-hidden="true" style={baked} />;
   return (
     <div className="execute" aria-hidden="true" style={box}>
       <div className="ex-breathe">
@@ -1723,19 +1706,37 @@ const ExecuteAura = memo(function ExecuteAura() {
   );
 });
 
-/** Rebirth embers — a fixed randomized set (module load; presentation-only jitter), capped by the tuner's count.
+/** A seeded generator for the auras' scatter (mulberry32, a local copy: presentation only). SEEDED, not Math.random, so
+ *  the wisps and embers are the same set on every load: the baked pictures (kwfx/kwfx.ts) are a capture of exactly this
+ *  set, and `scripts/kwfx/compare.mjs` can difference the live aura against its picture frame for frame. */
+function auraRng(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/** Rebirth embers — a fixed scattered set (seeded; presentation-only jitter), capped by the tuner's count.
  *  Each rises off the crown's upper arc (`left` across the top, `top` near the rim) and drifts sideways by `ex`. */
+const emberRnd = auraRng(0x52424d42);
 const REBIRTH_EMBERS = Array.from({ length: 12 }, (_, i) => ({
-  left: (50 + (((i * 37) % 12) / 11 - 0.5) * 40 + (Math.random() - 0.5) * 6).toFixed(1) + '%',
-  top: (28 + Math.random() * 10).toFixed(1) + '%',
-  delay: (-Math.random() * 2.6).toFixed(2) + 's',
-  dur: (1.7 + Math.random() * 1.1).toFixed(2) + 's',
-  ex: ((Math.random() - 0.5) * 22).toFixed(0) + '%',
+  left: (50 + (((i * 37) % 12) / 11 - 0.5) * 40 + (emberRnd() - 0.5) * 6).toFixed(1) + '%',
+  top: (28 + emberRnd() * 10).toFixed(1) + '%',
+  delay: (-emberRnd() * 2.6).toFixed(2) + 's',
+  dur: (1.7 + emberRnd() * 1.1).toFixed(2) + 's',
+  ex: ((emberRnd() - 0.5) * 22).toFixed(0) + '%',
 }));
 
 /** The REBIRTH crown: a glow, CROWN_FRAMES pre-rendered flame frames (`--rb-crown-N`, or `--rb-crown-s-N` on a
  *  Taunt shield; rebirthConfig.ts) that cross-fade in turn, and a few embers. Memoised on its one prop. */
 const RebirthCrown = memo(function RebirthCrown({ shield }: { shield: boolean }) {
+  // The BAKED crown (kwfx/kwfx.ts): glow, flame frames and embers as one picture on one layer.
+  const live = useAuraLive('rebirth');
+  if (!live) return <div className={`kwfx kwfx-rebirth${shield ? ' shield' : ''}`} aria-hidden="true" style={shield ? KWFX_BOX.rebirthShield : KWFX_BOX.rebirth} />;
   return (
     <div className={`rebirth-crown${shield ? ' shield' : ''}`} aria-hidden="true">
       <div className="rbc-glow" />
@@ -1756,13 +1757,56 @@ const RebirthCrown = memo(function RebirthCrown({ shield }: { shield: boolean })
 /** Reborn wisps — a fixed randomized set (generated once at module load) of rising ethereal spirit wisps. Each
  *  carries its own position / size / rise / sideways-drift so they read as an organic cloud, not a line. Count +
  *  ranges mirror the tuner (fx/reborn-css-preview.html): count 27, spread 38%, size 27%±35%, rise 320%±, wx ±22px.
- *  Math.random is presentation-only jitter (the ban is scoped to core/content/sim). */
+ *  The jitter is presentation-only and SEEDED (`auraRng`): the same cloud on every load. */
+const wispRnd = auraRng(0x52495345);
 const REBORN_WISPS = Array.from({ length: 27 }, () => ({
-  left: (50 + (Math.random() - 0.5) * 38).toFixed(1) + '%',
-  bottom: (Math.random() * 16).toFixed(1) + '%',
-  delay: (-Math.random() * 10.3).toFixed(2) + 's',
-  size: (27 * (0.65 + Math.random() * 0.7)).toFixed(1) + '%',
-  rise: (320 * (0.8 + Math.random() * 0.45)).toFixed(0) + '%',
-  wx: ((Math.random() - 0.5) * 44).toFixed(0) + 'px',
+  left: (50 + (wispRnd() - 0.5) * 38).toFixed(1) + '%',
+  bottom: (wispRnd() * 16).toFixed(1) + '%',
+  delay: (-wispRnd() * 10.3).toFixed(2) + 's',
+  size: (27 * (0.65 + wispRnd() * 0.7)).toFixed(1) + '%',
+  rise: (320 * (0.8 + wispRnd() * 0.45)).toFixed(0) + '%',
+  wx: ((wispRnd() - 0.5) * 44).toFixed(0) + 'px',
 }));
+
+/** RISE (`R`) aura: the dome and its rising wisps. Players see the BAKED capture (kwfx/kwfx.ts: one picture, one
+ *  layer, no CSS animation); the live markup below is the authored look the capture is made from, and what renders
+ *  on a phone or while retuning. Lives inside `.art`, so the portrait's window clips either one. */
+const RiseAura = memo(function RiseAura() {
+  const live = useAuraLive('rise');
+  if (!live) return <div className="kwfx kwfx-rise" aria-hidden="true" style={KWFX_BOX.rise} />;
+  return (
+    <div className="reborn" aria-hidden="true">
+      <div className="reborn-dome" />
+      <div className="reborn-wisps">
+        {REBORN_WISPS.map((w, i) => (
+          <div
+            key={i}
+            className="wisp"
+            style={{ left: w.left, bottom: w.bottom, animationDelay: w.delay, '--wisp-size': w.size, '--wisp-rise': w.rise, '--wx': w.wx } as CSSProperties}
+          />
+        ))}
+      </div>
+    </div>
+  );
+});
+
+/** FLURRY (`W`) aura: the wind-blade ring stack. Baked for players exactly like `RiseAura`; the live rings below are
+ *  the authored look (flurryConfig). */
+const FLURRY_BAKED_STYLE: CSSProperties = { ...KWFX_BOX.flurry, top: `${FLURRY.y}%` };
+const FlurryAura = memo(function FlurryAura() {
+  const live = useAuraLive('flurry');
+  if (!live) return <div className="kwfx kwfx-flurry" aria-hidden="true" style={FLURRY_BAKED_STYLE} />;
+  return (
+    <div className="flurry" aria-hidden="true" style={flurryBoxStyle()}>
+      <div className={FLURRY.pulse > 0 ? 'fl-breathe' : 'fl-breathe steady'}>
+        {FLURRY_RINGS.map((r, i) => (
+          <div key={i} className="fl-ring-wrap" style={flurryWrapStyle(r)}>
+            <div className="fl-ring" style={flurryRingStyle(r)}><div className="fl-ring-paint" style={flurryRingPaintStyle(r)} /></div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+});
+// KWFX-LIVE-END
 

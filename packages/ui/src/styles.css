@@ -5182,7 +5182,7 @@ body.dsh-preview .card.compact.taunt .tframe.cshadow {
   left: calc(var(--ccw) * (0.5 - 0.737 * var(--sh)));
   top: calc(var(--ccw) * (0.5 - 1.126 * var(--sh) + var(--dy) + var(--frameY)));
 }
-.card.compact.stdframe .cglow-rim { -webkit-mask-image: url('/frames/standard-oval-v2.png?mask'); mask-image: url('/frames/standard-oval-v2.png?mask'); }
+.card.compact.stdframe .cglow-rim { -webkit-mask-image: url('/frames/w640/standard-oval-v2.webp?mask'); mask-image: url('/frames/w640/standard-oval-v2.webp?mask'); }
 /* Spell cards have their OWN glow dials (🔆 Hover Glow tuner → "Spell …" groups, owner ask 2026-10-27):
    re-pointing the shared --hg-* vars here lets the base .cglow / .cglow-rim rules pick the spell values up
    unchanged. The fallbacks mirror glowConfig.ts DEFAULTS (spell*). */
@@ -5206,7 +5206,7 @@ body.dsh-preview .card.compact.taunt .tframe.cshadow {
   left: calc(var(--ccw) * (0.5 - 0.758 * var(--sh)));
   top: calc(var(--ccw) * (0.5 - 1.086 * var(--sh)));
 }
-.card.compact.taunt .cglow-rim { -webkit-mask-image: url('/frames/taunt-shield.png?mask'); mask-image: url('/frames/taunt-shield.png?mask'); }
+.card.compact.taunt .cglow-rim { -webkit-mask-image: url('/frames/w640/taunt-shield.webp?mask'); mask-image: url('/frames/w640/taunt-shield.webp?mask'); }
 /* COLOR OVERLAY layer (🖼️ Card Frames tuner): a solid tint masked to the frame's own PNG silhouette, laid
    directly OVER the frame img (same geometry as .cglow, later sibling at the same z). `--fovl` (colour) +
    `--fovl-a` (opacity) are per-frame-class knobs from the tuner; the opacity-0 default makes this a no-op in
@@ -5226,7 +5226,7 @@ body.dsh-preview .card.compact.taunt .tframe.cshadow {
   width: calc(var(--ccw) * 1.481 * var(--sh)); aspect-ratio: 1059 / 1427;
   left: calc(var(--ccw) * (0.5 - 0.737 * var(--sh)));
   top: calc(var(--ccw) * (0.5 - 1.126 * var(--sh) + var(--dy) + var(--frameY)));
-  -webkit-mask-image: url('/frames/standard-oval-v2.png?mask'); mask-image: url('/frames/standard-oval-v2.png?mask');
+  -webkit-mask-image: url('/frames/w640/standard-oval-v2.webp?mask'); mask-image: url('/frames/w640/standard-oval-v2.webp?mask');
 }
 .card.compact.spellframe .cframe-tint {
   /* Same box as the spell .cframe-img (the ARCH frame, 705x862) — was an older, larger spell frame's box (1.387,

@@ -1131,6 +1131,12 @@ turns in the same page, `--trace` for GPU raster time, `--shots` + `perf-card-ra
 - **Then the filters stop mattering.** With the cards isolated, every filter, shadow and text shadow on every card is
   under 10% of the remaining raster. Do not bake card shadows into images for speed: it buys almost nothing, and their
   radii are fixed px on a card that scales with the window, so a baked copy is a different picture at every other size.
+- **A smaller copy of an image is not free on the GPU and not free on the eye** (R-PERF-FRAME-SIZE-01,
+  `docs/devlog/2026-11-19-perf-frame-size.md`). Chrome's compositor uploads an image at the mip level it is drawn at,
+  so a 6 MB-decoded card frame drawn 240 px wide holds about 0.4 MB on the GPU: right-sizing the 42 frames took the
+  GPU transfer cache from 180 to 175 MB, not by the 160 MB the decoded sizes suggest. And any copy made ahead of the
+  browser (640, 800, 900 px, Lanczos or box, lossy or lossless) measured 1 to 11% less edge energy than Chrome's own
+  downscale of the master. Measure GPU memory with a memory-infra dump before promising a saving, and diff the look.
 - **A layer hint is not free of side effects. Measure the picture, not just the frames.**
   - A layer under a ROTATED or fractionally placed transform is drawn through a second resample: a hand card on its
     own layer is 17 to 21% softer. Put the layer where the transform is a plain translation (the hand ZONE), and the

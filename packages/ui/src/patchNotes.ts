@@ -56,6 +56,15 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-11-19',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Card frames load lighter on desktop, so a frame that comes back mid-turn costs less.',
+      },
+    ],
+  },
+  {
     date: '2026-11-18',
     changes: [
       {

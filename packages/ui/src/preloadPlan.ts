@@ -6,7 +6,7 @@ import { ART_ALIAS } from './artAlias';
 import { requestArtList, requestHeldArtList, requestMaskArt } from './artPreload';
 import { MECH_MEDALLION_MASK_ARTS } from './mechMedallion';
 import { CARD_PLATE_LOOKS, cardPlateLookOf, plateLookUrls } from './cardPlate/cardPlateLook';
-import { LITE_ART, phonePublicUrl } from './phoneArt';
+import { CARD_FRAME_DIR, DERIVED_CARD_FRAMES, LITE_ART, phonePublicUrl, publicArtWanted } from './phoneArt';
 import type { Lane } from './assetQueue';
 import { crumb } from './crashLog';
 
@@ -57,14 +57,20 @@ const TRIBE_FILE = /^frames\/(?:oval|taunt|cardplate)-([a-z]+)/;
 export function splitPublicArt(
   list: readonly string[],
   tribes?: ReadonlySet<string>,
+  derivedFrames: boolean = DERIVED_CARD_FRAMES,
 ): { chrome: string[]; title: string[]; play: string[]; rest: string[] } {
   const groups: string[][] = PUBLIC_CHROME_ORDER.map(() => []);
   const rest: string[] = [];
-  for (const p of list) {
+  const all = new Set(list);
+  for (const file of list) {
+    // A card frame and its right-sized twin (`frames/w640/`, R-PERF-FRAME-SIZE-01): only the one this device draws.
+    // The twin rides the lane its full-size file would have.
+    if (!publicArtWanted(file, all, derivedFrames)) continue;
+    const p = file.startsWith(CARD_FRAME_DIR) ? `frames/${file.slice(CARD_FRAME_DIR.length)}` : file;
     const tribe = TRIBE_FILE.exec(p)?.[1];
     const offTribe = !!(tribes && tribe && tribe !== 'wire' && !tribes.has(tribe));
     const g = offTribe ? -1 : PUBLIC_CHROME_ORDER.findIndex((re) => re.test(p));
-    (g >= 0 ? groups[g]! : rest).push(phonePublicUrl(p, BASE));
+    (g >= 0 ? groups[g]! : rest).push(phonePublicUrl(file, BASE));
   }
   return { chrome: groups.flat(), title: groups[0]!, play: groups.slice(1).flat(), rest };
 }
@@ -107,7 +113,7 @@ const EXTRA_ART: string[] = Object.values({
 
 /** Every public image a stylesheet draws as a `mask` (`artPlanCoverage.test.ts` checks the list against styles.css). */
 export const PUBLIC_MASK_ART: readonly string[] = [
-  'frames/standard-oval-v2.png', 'frames/spell-frame-arch.webp', 'frames/taunt-shield.png', 'frames/spell-art-window-arch.webp',
+  'frames/w640/standard-oval-v2.webp', 'frames/spell-frame-arch.webp', 'frames/w640/taunt-shield.webp', 'frames/spell-art-window-arch.webp',
   'frames/ranked-gate-crystal.webp', 'frames/cardplate-wire.webp', 'fx/ward-hexsphere.svg',
 ];
 

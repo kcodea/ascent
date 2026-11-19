@@ -26,7 +26,7 @@ import { crossedUp, tierOf } from './choreo/statMilestones';
 import { fireStatMilestone } from './fx/statMilestone';
 import { useMilestoneBadgeFx } from './fx/milestoneBadgeFx';
 import { claimPopSlot, type PopSlot } from './fx/popStack';
-import { publicArt } from './phoneArt';
+import { cardFrameArt, publicArt } from './phoneArt';
 
 /** The badge's scale-pop: how far it swells and over how long. See `useBadgePop`. */
 const BADGE_POP_SCALE = 1.35;
@@ -162,7 +162,7 @@ function CardName({ name }: { name: string }) {
 // and the graceful fallback silently rendered the OLD pre-frame look (owner's mobile itch test). Vite rewrites
 // CSS url(/…) to relative at build, but it can't rewrite JS string literals — these must carry the base
 // themselves (BASE_URL is '/' in dev, './' in the build).
-const TAUNT_FRAME_SRC = publicArt(`frames/taunt-shield.png`);
+const TAUNT_FRAME_SRC = cardFrameArt(`frames/taunt-shield.png`);
 /* PER-TRIBE TAUNT SHIELDS (owner-authored, 2026-07-26) — the heater equivalent of `TRIBE_OVALS` below, so a
    Taunt minion is themed like its non-Taunt kin instead of falling back to the shared gold shield. Same
    1086×1448 dims and window silhouette as `taunt-shield.png`, so the `--heater` clip + geometry are unchanged. */
@@ -182,7 +182,7 @@ const TRIBE_TAUNTS: Partial<Record<Tribe, { base: string; gold: string }>> = {
 function tauntFrameSrcFor(tribe: Tribe | undefined, golden: boolean): string {
   const t = tribe && TRIBE_TAUNTS[tribe];
   if (!t) return TAUNT_FRAME_SRC;
-  return publicArt(`frames/${golden ? t.gold : t.base}`);
+  return cardFrameArt(`frames/${golden ? t.gold : t.base}`);
 }
 const hasTribeTaunt = (tribe: Tribe | undefined): boolean => !!(tribe && TRIBE_TAUNTS[tribe]);
 let tauntFrameAvailable = true;
@@ -194,7 +194,7 @@ let tauntFrameAvailable = true;
 // to `standard-oval.png` (the original PNG stays on disk, untouched). Same 1059×1427 dims + window as the
 // original, so the "AUTHORED FRAMES" geometry drops in unchanged; rendered SILVER via `--frame-tone:
 // grayscale(...)` on `.stdframe` (Gilded minions still show it gold).
-const STD_FRAME_SRC = publicArt(`frames/standard-oval-v2.png`);
+const STD_FRAME_SRC = cardFrameArt(`frames/standard-oval-v2.png`);
 let stdFrameAvailable = true;
 /* PER-TRIBE OVAL FRAMES (owner-authored, 2026-07-26). Each tribe has its own coloured oval plus a dedicated
    GILDED variant, all 1059×1427 with the same window as `standard-oval-v2.png`, so the "AUTHORED FRAMES"
@@ -218,7 +218,7 @@ const TRIBE_OVALS: Partial<Record<Tribe, { base: string; gold: string }>> = {
 function stdFrameSrcFor(tribe: Tribe | undefined, golden: boolean): string {
   const t = tribe && TRIBE_OVALS[tribe];
   if (!t) return STD_FRAME_SRC;
-  return publicArt(`frames/${golden ? t.gold : t.base}`);
+  return cardFrameArt(`frames/${golden ? t.gold : t.base}`);
 }
 const hasTribeOval = (tribe: Tribe | undefined): boolean => !!(tribe && TRIBE_OVALS[tribe]);
 // New spell frame art (owner-supplied, session 42). Filename-swapped for one-line revert (original untouched).

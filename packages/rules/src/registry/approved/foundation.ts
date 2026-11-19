@@ -12930,6 +12930,31 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/cardLayer.test.ts'], lastVerifiedAt: '2026-11-18' },
   },
   {
+    id: 'R-PERF-FRAME-SIZE-01',
+    title: 'A desktop loads right-sized card frames; the full-size masters are never changed',
+    statement:
+      'The 42 card frame masters (every tribe oval and Taunt shield, their Gilded versions, standard-oval-v2.png, '
+      + 'taunt-shield.png) each have a 640 px wide derived copy in apps/web/public/frames/w640/, written by '
+      + 'scripts/optimize-art.mjs as a plain Lanczos resize (the masters are never written to, re-toned or removed). '
+      + 'A desktop loads the copy when its screen cannot draw a card frame wider than 640 device px (the Inspect card, '
+      + '0.27 of the viewport height, times the device pixel ratio); a larger screen keeps the masters, and a phone keeps '
+      + 'its own 512 px build copies. The preload plan loads exactly one of a master and its copy. The glow-rim masks '
+      + 'use the copy.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-19 (perf push)', quote: 'Generate right-sized DERIVED variants in the optimize-art pipeline ... never touching the masters' },
+      { kind: 'code', ref: 'scripts/optimize-art.mjs (DERIVED CARD FRAMES); packages/ui/src/phoneArt.ts (cardFrameArt, cardFramesFit); packages/ui/src/preloadPlan.ts; docs/devlog/2026-11-19-perf-frame-size.md' },
+    ],
+    currentBehaviour:
+      'Built 2026-11-19 on perf/frame-size, waiting for the owner to look at it. Decoded size of the 42 frames 247 MB to '
+      + '88 MB, but the GPU holds only about 5 MB less (Chrome uploads a frame at the mip level it is drawn at). The '
+      + 'frames measure 1 to 11% less edge energy per card (smoother carved stone; art, names and numbers unchanged), '
+      + 'and a larger copy (800, 900 px) does not remove it.',
+    example: 'A Mech minion in the Shop on a 1080p screen draws its oval frame from a 640 px copy instead of the 1059 px master: a third of the pixels to decode when the frame comes back mid-turn.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/cardFrameSize.test.ts'], lastVerifiedAt: '2026-11-19' },
+  },
+  {
     id: 'R-DUOS-EFFECT-PASS-QUEUE-01',
     title: 'A card passed or given to your teammate by an effect waits for room in a full hand; it is never lost or sent back',
     statement:

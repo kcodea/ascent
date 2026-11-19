@@ -60,7 +60,9 @@ export function phonePublicCap(rel: string): number | null {
   if (rel === 'vista-flat.webp') return 1280;
   // Card frames, plates, desc boxes, tier stars, the shop buttons. NOT the title logo (drawn huge on the title), the
   // Compendium frame (a border-image sliced in image pixels) or the ranked gate (CSS-painted).
-  if (/^frames\/(?!title-logo|compendium-|ranked-gate)/.test(rel)) return 512;
+  // (`frames/w640/`: the desktop's right-sized card frames, R-PERF-FRAME-SIZE-01. A phone never asks for one as an
+  // image, it has its own 512 px copy of the full-size file, so a copy of the copy would only be dead bytes.)
+  if (/^frames\/(?!title-logo|compendium-|ranked-gate|w640\/)/.test(rel)) return 512;
   // The painted chests (body + lid, 840 px masters) as the Chest Shop and the Collection bay draw them in plain DOM
   // (`ChestPicture`, about 230 / 124 stage px). ChestPicture lays out in percents of the body's width, so a smaller
   // copy composes the same. The opening theatre (Pixi, `crateFx/chestArt.ts`) still loads the originals.
@@ -225,6 +227,61 @@ export function phonePublicUrl(
 
 /** Shorthand every UI module uses for a public image: `publicArt('frames/oval-beast.webp')`. */
 export const publicArt = (rel: string): string => phonePublicUrl(rel);
+
+// ─── right-sized card frames (R-PERF-FRAME-SIZE-01, 2026-11-18) ───────────────────────────────────────────────────────
+
+/** Width (px) of the derived card frames in `apps/web/public/frames/w640/` (`scripts/optimize-art.mjs` writes them). */
+export const CARD_FRAME_WIDTH = 640;
+/** Folder of the derived frames, relative to the site root. */
+export const CARD_FRAME_DIR = `frames/w${CARD_FRAME_WIDTH}/`;
+/** The LARGEST a card frame is ever drawn, as a fraction of the viewport's height: the Inspect card (measured
+ *  2026-11-18 at 1920 x 1080: 283.6 px = 0.2626; the hover preview is 0.210, a popped hand card 0.203, a hand card
+ *  0.160, a Shop / board card 0.138). Rounded up for headroom. */
+export const CARD_FRAME_MAX_VH = 0.27;
+/** The full-size files that have a derived copy: every tribe's oval and Taunt shield (and Gilded), the two shared ones. */
+const CARD_FRAME_FILE = /^frames\/((?:oval|taunt)-[a-z]+(?:-gilded)?|standard-oval-v2)\.(?:webp|png)$/;
+
+/** Pure: does the 640 px frame cover the largest card this screen can draw? `cssHeight` in CSS px. A 4K screen
+ *  (2,160 device px tall) does; a 5K one does not and keeps the full-size files. Exported for its test. */
+export function cardFramesFit(cssHeight: number, dpr: number): boolean {
+  return cssHeight * (dpr || 1) * CARD_FRAME_MAX_VH <= CARD_FRAME_WIDTH;
+}
+
+/** True where card frames load from the derived folder: a desktop whose screen the 640 px copy covers. Fixed for the
+ *  session (like LITE_ART). False on a phone (its own 512 px build copies) and headless (tests, SSR). */
+export const DERIVED_CARD_FRAMES: boolean = !LITE_ART && typeof window !== 'undefined' && typeof screen !== 'undefined'
+  && cardFramesFit(Math.max(screen.height || 0, window.innerHeight || 0), window.devicePixelRatio || 1);
+
+/** The derived twin of a full-size card frame path (`frames/oval-beast.webp` -> `frames/w640/oval-beast.webp`,
+ *  `frames/taunt-shield.png` -> `frames/w640/taunt-shield.webp`), or null when `rel` is not a card frame. */
+export function cardFrameTwin(rel: string): string | null {
+  const m = CARD_FRAME_FILE.exec(rel);
+  return m ? `${CARD_FRAME_DIR}${m[1]}.webp` : null;
+}
+
+/**
+ * The URL to load for a CARD FRAME (an oval or a Taunt shield), `rel` its full-size public path. About 6 MB decoded
+ * each at full size, drawn at 150 to 570 device px: a desktop loads the 640 px copy (2.2 MB decoded). A phone keeps
+ * its build copy, and a screen the copy would not cover keeps the original. Pure given its inputs.
+ */
+export function cardFrameArt(
+  rel: string,
+  derived: boolean = DERIVED_CARD_FRAMES,
+  base: string = import.meta.env?.BASE_URL ?? '/',
+): string {
+  const twin = derived ? cardFrameTwin(rel) : null;
+  return twin ? `${base}${twin}` : phonePublicUrl(rel, base);
+}
+
+/**
+ * Should the preload plan load public image `rel`, given the build's whole public list? Of a card frame and its
+ * derived twin exactly one is ever drawn as an image on a device, so only that one is loaded. Exported for its test.
+ */
+export function publicArtWanted(rel: string, list: ReadonlySet<string>, derived: boolean = DERIVED_CARD_FRAMES): boolean {
+  if (rel.startsWith(CARD_FRAME_DIR)) return derived;
+  const twin = cardFrameTwin(rel);
+  return !(derived && twin && list.has(twin));
+}
 
 /** The stylesheet's custom properties a phone re-points at the phone copy (each var's default names the original). */
 export const PHONE_CSS_VARS: ReadonlyArray<readonly [string, string]> = [

@@ -126,7 +126,17 @@ on the next frame. This one holds at every speed.
 
 Target 8 actions a second, three round-robin rounds, the machine fully busy:
 
-TABLE8
+| build | runs | actions/s | mean frame ms | p95 | p99 | % frames over 6.25 ms | release to frame p50 / p95 ms | main-thread ms per action | script ms per action | effects alive, mean / peak | badges behind, % of time | longest behind, s |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| main | 3 | 5.2 (5.1-5.2) | 18.6 (18.4-19.2) | 41.7 (40.6-41.7) | 54.2 (49.5-54.2) | 94 (89-94) | 41 (40-42) / 55 (53-56) | 163 (162-164) | 70 (70-72) | 22 (21-22) / 33 (33-34) | 97 (94-98) | 8.3 (6.2-11.3) |
+| perf/combat-render #2781 | 3 | 5.1 (5.1-5.3) | 18.2 (18.1-19.0) | 41.7 (40.0-41.7) | 50.0 (48.0-50.0) | 94 (87-96) | 41 (39-41) / 52 (52-54) | 162 (160-162) | 67 (67-69) | 22 (22-22) / 31 (31-32) | 95 (95-98) | 5.4 (4.6-12.8) |
+| perf/sim-worker #2780 | 3 | 5.1 (5.1-5.3) | 18.8 (18.1-19.2) | 41.7 (40.0-41.7) | 50.0 (47.1-54.1) | 95 (88-96) | 41 (40-41) / 54 (54-56) | 163 (163-168) | 73 (70-74) | 21 (21-22) / 33 (31-37) | 94 | 5.7 (5.3-6.0) |
+| perf/always-on #2786 | 3 | 5.1 (5.1-5.3) | 19.1 (17.9-19.2) | 41.7 (40.1-41.8) | 54.1 (46.4-54.1) | 94 (88-95) | 40 (39-40) / 54 (52-56) | 163 (161-167) | 70 (68-73) | 22 (22-22) / 34 (33-36) | 95 (94-97) | 8.6 (4.9-9.6) |
+| perf/shared-reverb-static-shadows #2784 | 3 | 5.2 (5.2-5.3) | 18.7 (18.7-18.8) | 41.7 (41.1-41.7) | 50.0 (49.8-50.1) | 94 (90-94) | 41 (39-41) / 55 (52-56) | 162 (158-163) | 69 (68-70) | 22 (22-22) / 35 (32-36) | 96 (96-98) | 11.7 (10.1-12.1) |
+| those four merged | 3 | 5.3 (5.3-5.4) | 18.4 (17.8-18.6) | 41.6 (39.3-41.7) | 50.0 (49.9-50.1) | 94 (86-95) | 39 (38-40) / 53 (52-53) | 155 (153-157) | 67 (64-68) | 22 (22-22) / 34 (34-36) | 96 (96-97) | 8.4 (6.7-9.2) |
+| this PR, rapid form switched off | 3 | 5.3 (5.1-5.4) | 17.9 (17.6-19.1) | 40.0 (39.7-41.8) | 47.0 (46.0-50.0) | 91 (88-95) | 39 (39-42) / 55 (50-55) | 163 (162-166) | 70 (70-76) | 22 (21-22) / 33 (31-36) | 96 (96-98) | 11.9 (8.1-12.9) |
+| this PR (before the hand-card skip) | 3 | 5.6 (5.6-6.0) | 15.4 (14.7-15.9) | 39.6 (39.1-41.6) | 46.6 (45.5-50.0) | 76 (67-82) | 39 (36-39) / 53 (49-54) | 142 (131-145) | 56 (54-58) | 14 (14-14) / 19 | 0 | 0.0 |
+| the four + this PR | 3 | 5.9 (5.7-6.2) | 14.3 (14.0-15.4) | 37.5 (34.0-39.2) | 47.0 (44.4-50.0) | 72 (67-78) | 34 (33-38) / 47 (46-50) | 132 (131-140) | 55 (52-58) | 14 (14-14) / 19 (19-20) | 0 | 0.0 |
 
 Read it as: **each pushed perf branch alone moves nothing in this scenario** (they fix other things: fights, the sim,
 the fuse, the reverb). The four merged take 5% off the per-action cost (163 to 155 ms), mostly the reverb. **This PR
@@ -137,22 +147,61 @@ inside the noise of main: those are small, clean wins, not what moves this scena
 
 The final build (the hand-card canvas skip added) and the same table again, taken afterwards:
 
-TABLEG
+| build | runs | actions/s | mean frame ms | p95 | p99 | % frames over 6.25 ms | release to frame p50 / p95 ms | main-thread ms per action | script ms per action | effects alive, mean / peak | badges behind, % of time | longest behind, s |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| main | 3 | 6.0 (5.4-6.2) | 14.5 (13.5-16.7) | 33.4 (33.3-37.5) | 37.6 (37.6-45.8) | 83 (80-90) | 33 (30-38) / 44 (41-49) | 138 (135-158) | 61 (60-68) | 24 (23-24) / 37 (36-38) | 99 (96-99) | 16.2 (6.6-25.2) |
+| those four merged | 3 | 5.9 (5.9-6.4) | 14.9 (13.1-14.9) | 33.4 (29.2-33.4) | 41.7 (35.9-41.7) | 85 (81-85) | 31 (29-32) / 45 (39-46) | 134 (126-137) | 55 (52-57) | 24 (24-25) / 39 (36-40) | 99 (98-99) | 24.8 (13.0-24.9) |
+| this PR (before the hand-card skip) | 3 | 6.1 (6.1-7.1) | 12.4 (8.9-13.0) | 33.3 (25.0-33.4) | 41.6 (33.3-41.7) | 69 (52-73) | 31 (22-33) / 42 (33-42) | 129 (108-131) | 53 (45-53) | 15 (15-15) / 19 (19-24) | 0 (0-0) | 0.0 |
+| this PR | 3 | 6.5 (6.0-7.0) | 10.6 (8.1-12.7) | 29.3 (25.0-33.4) | 37.6 (33.4-41.7) | 58 (41-73) | 30 (22-35) / 38 (35-44) | 122 (107-134) | 46 (40-49) | 14 (14-15) / 19 (19-20) | 0 | 0.0 |
+| the four + this PR | 3 | 7.3 (7.1-7.3) | 8.0 (7.3-8.6) | 24.9 (20.8-25.0) | 33.3 (29.1-33.4) | 41 (35-44) | 22 (20-24) / 31 (29-35) | 105 (101-108) | 38 (35-40) | 15 (15-15) / 22 (21-23) | 0 | 0.0 |
+
+And at 4 actions a second in that same sitting:
+
+| build | runs | actions/s | mean frame ms | p95 | p99 | % frames over 6.25 ms | release to frame p50 / p95 ms | main-thread ms per action | script ms per action | effects alive, mean / peak | badges behind, % of time | longest behind, s |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| main | 2 | 3.9 | 10.8 (8.8-12.7) | 29.2 (25.0-33.4) | 39.6 (33.4-45.8) | 60 (50-70) | 30 (26-34) / 42 (38-45) | 179 (175-184) | 73 (71-75) | 20 (19-20) / 32 | 85 (84-86) | 1.4 (1.1-1.8) |
+| this PR | 2 | 3.8 (3.8-3.9) | 7.3 (5.6-9.0) | 22.9 (16.6-29.2) | 33.4 (25.0-41.7) | 32 (16-47) | 20 (12-27) / 33 (23-44) | 147 (131-164) | 57 (49-65) | 14 (14-14) / 19 | 1 (0-1) | 0.0 (0.0-0.1) |
+| the four + this PR | 2 | 3.9 | 7.7 (6.1-9.3) | 25.0 (16.7-33.3) | 35.5 (29.2-41.7) | 34 (21-47) | 23 (15-31) / 34 (28-40) | 150 (134-167) | 56 (49-63) | 14 (14-14) / 20 (19-20) | 1 | 0.1 (0.1-0.1) |
+
+**On top of all eight perf PRs** (2026-11-19, after the restart: the local `perf/integration-bench` at f2c495441,
+which merges #2780, #2781, #2784, #2786, #2788, #2789, #2790 and #2791, with and without this branch; two round-robin
+rounds, 20 s bursts). This branch merges onto it with one conflict, the patch notes list:
+
+| build | runs | actions/s | mean frame ms | p95 | p99 | % frames over 6.25 ms | release to frame p50 / p95 ms | main-thread ms per action | script ms per action | effects alive, mean / peak | badges behind, % of time | longest behind, s |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| all eight perf PRs | 2 | 6.9 (6.3-7.5) | 10.2 (8.1-12.3) | 22.9 (16.7-29.1) | 31.3 (25.1-37.5) | 70 (58-82) | 27 (22-31) / 39 (31-48) | 136 (121-150) | 59 (52-66) | 26 (25-27) / 40 (40-41) | 99 | 20.0 (20.0-20.0) |
+| all eight + this PR | 2 | 7.5 | 5.9 (5.7-6.1) | 12.6 (12.5-12.6) | 25.0 | 24 (21-27) | 21 (20-22) / 31 (31-32) | 112 (111-113) | 40 (39-40) | 15 (15-15) / 22 (21-22) | 0 | 0.0 |
+
+| build | runs | actions/s | mean frame ms | p95 | p99 | % frames over 6.25 ms | release to frame p50 / p95 ms | main-thread ms per action | script ms per action | effects alive, mean / peak | badges behind, % of time | longest behind, s |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| all eight perf PRs | 2 | 3.8 (3.8-3.9) | 5.9 (5.5-6.3) | 14.6 (12.5-16.6) | 22.9 (20.8-25.0) | 25 (20-29) | 22 (18-25) / 27 (24-31) | 191 (186-197) | 75 (74-76) | 19 (19-20) / 32 (32-33) | 85 (85-86) | 1.1 (1.1-1.1) |
+| all eight + this PR | 2 | 3.8 (3.8-3.9) | 5.0 (4.7-5.2) | 10.4 (8.4-12.5) | 20.8 (16.7-24.9) | 10 (8-12) | 13 (4-22) / 27 (24-31) | 160 (146-175) | 62 (56-68) | 14 (14-14) / 19 | 1 | 0.1 (0.1-0.1) |
 
 Target 4 actions a second, which every build holds, so frames compare directly (two rounds):
 
-TABLE4
+| build | runs | actions/s | mean frame ms | p95 | p99 | % frames over 6.25 ms | release to frame p50 / p95 ms | main-thread ms per action | script ms per action | effects alive, mean / peak | badges behind, % of time | longest behind, s |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| main | 2 | 3.9 | 14.8 (14.8-14.9) | 37.5 (36.6-38.5) | 45.9 (45.7-46.0) | 72 (70-73) | 37 (37-37) / 48 (48-49) | 196 (195-196) | 83 (83-83) | 19 (19-20) / 32 (31-32) | 84 (84-85) | 1.3 (1.1-1.6) |
+| those four merged | 2 | 3.9 | 12.2 (10.8-13.7) | 30.9 (27.7-34.0) | 37.9 (34.6-41.2) | 60 (52-68) | 29 (26-32) / 42 (38-46) | 189 (184-194) | 80 (77-83) | 20 (20-20) / 32 (32-33) | 85 (84-86) | 1.7 (1.5-1.8) |
+| this PR (before the hand-card skip) | 2 | 3.8 (3.8-3.9) | 11.1 (10.2-12.1) | 30.9 (28.2-33.6) | 39.7 (38.7-40.6) | 49 (42-55) | 27 (25-29) / 41 (40-43) | 166 (163-170) | 71 (70-72) | 14 (14-14) / 19 | 1 | 0.1 (0.1-0.1) |
+| the four + this PR | 2 | 3.9 | 12.0 (11.8-12.2) | 33.5 (33.2-33.9) | 40.8 (40.5-41.1) | 54 (53-54) | 31 (31-31) / 44 (43-45) | 172 (169-175) | 72 (70-74) | 14 (14-14) / 19 | 1 | 0.1 (0.1-0.1) |
 
 1.5 actions a second, normal play (one run each): **nothing changes**, as intended.
 
-TABLE15
+| build | runs | actions/s | mean frame ms | p95 | p99 | % frames over 6.25 ms | release to frame p50 / p95 ms | main-thread ms per action | script ms per action | effects alive, mean / peak | badges behind, % of time | longest behind, s |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| main | 1 | 1.5 | 7.8 | 17.2 | 34.0 | 24 | 33 / 48 | 409 | 181 | 11 / 20 | 35 | 0.3 |
+| this PR | 1 | 1.5 | 7.6 | 17.0 | 33.5 | 22 | 31 / 47 | 401 | 173 | 11 / 18 | 35 | 0.3 |
 
 One action at a time, 1.2 s apart (`--per-action`): the same on both builds (play 182 / 176 ms of main thread in the
 quarter second after it, cast 144 / 150, sell 128 / 126, buy 96 / 96, refresh 77 / 77).
 
 On a quieter hour earlier in the day (not round-robin; an earlier build of this PR, three runs each):
 
-TABLEQ
+| build | runs | actions/s | mean frame ms | p95 | p99 | % frames over 6.25 ms | release to frame p50 / p95 ms | main-thread ms per action | script ms per action | effects alive, mean / peak | badges behind, % of time | longest behind, s |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| main | 3 | 5.1 (4.3-5.4) | 16.1 (15.6-16.6) | 37.5 (33.5-37.6) | 45.9 (45.8-50.0) | 88 (86-89) | 39 (34-40) / 51 (48-54) | 170 (158-201) | 71 (69-87) | 22 (19-23) / 34 (32-34) | 94 (82-94) | 4.3 (1.9-7.2) |
+| this PR (an earlier build) | 3 | 6.7 (6.3-6.7) | 10.6 (10.6-11.1) | 29.2 (29.2-29.3) | 37.5 | 62 (61-62) | 27 (27-30) / 41 (39-42) | 118 (117-124) | 49 (46-53) | 15 (15-15) / 20 (19-20) | 0 (0-0) | 0.0 |
 
 ## 5. What changes on screen, for the owner to approve
 
@@ -180,7 +229,13 @@ Dials, if any of it reads wrong: `RAPID_FX` in `packages/ui/src/fx/rapidConfig.t
 The same run with one cost class switched off (`--toggle`, on this PR's build, two runs each). These are upper bounds
 on what fixing each class can buy here, not fixes:
 
-TABLETOG
+| build | runs | actions/s | mean frame ms | p95 | p99 | % frames over 6.25 ms | release to frame p50 / p95 ms | main-thread ms per action | script ms per action | effects alive, mean / peak | badges behind, % of time | longest behind, s |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| this PR | 3 | 5.6 (5.6-6.0) | 15.4 (14.7-15.9) | 39.6 (39.1-41.6) | 46.6 (45.5-50.0) | 76 (67-82) | 39 (36-39) / 53 (49-54) | 142 (131-145) | 56 (54-58) | 14 (14-14) / 19 | 0 | 0.0 |
+| no Pixi effects | 2 | 6.8 (6.7-6.9) | 10.8 (10.4-11.1) | 28.7 (28.2-29.2) | 38.8 (37.6-40.0) | 51 (48-54) | 26 (26-27) / 37 (37-37) | 106 (105-108) | 31 (30-31) | 0 / 0 | 0 | 0.0 |
+| no CSS filter or shadow | 2 | 6.5 | 11.3 (11.0-11.6) | 29.4 (29.3-29.4) | 41.1 (40.6-41.6) | 67 (60-74) | 36 (35-37) / 49 (48-51) | 146 (145-146) | 61 (60-62) | 15 (15-15) / 20 | 0 | 0.0 |
+| no CSS animation or transition | 2 | 6.0 (5.9-6.1) | 13.2 (12.7-13.7) | 34.0 (33.4-34.6) | 43.7 (41.7-45.6) | 67 (63-71) | 32 (30-33) / 44 (41-46) | 126 (125-128) | 58 (58-59) | 14 / 19 | 0 | 0.0 |
+| all three off | 2 | 7.7 (7.6-7.7) | 6.8 (5.7-7.9) | 15.3 (12.6-18.0) | 24.7 (20.9-28.5) | 22 (20-24) | 21 (19-23) / 31 (28-35) | 98 (96-100) | 33 (31-34) | 0 / 0 | 0 | 0.0 |
 
 - **Pixi effects** (`perf/pixi-fx`): the largest presentation cost left. Without them a frame is 10.8 ms and an action
   106 ms of main thread instead of 142. Even at one copy per recipient, 14 effects are alive and `fx:render` is

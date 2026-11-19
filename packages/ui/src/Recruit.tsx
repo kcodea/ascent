@@ -269,6 +269,8 @@ import { buffSourceDelayMs, buffSourceRanks, oneBitePerTarget, playBuffSourceWat
 import { cascade, scheduleLands, waves as asWaves } from './fx/land';
 import { holdStat, releaseAllStats, releaseStat } from './fx/statHold';
 import { cancelShopFx, shopFxLater } from './fx/shopFxQueue';
+import { shopInputRapid } from './fx/actionPressure';
+import { RAPID_FX } from './fx/rapidConfig';
 import { ScreenContext, screenIdOf, useScreenSwapped, useSwapRef, useSwapState } from './screenSwap';
 /** Set 4 self-damage in the Shop: how long a hit's dip holds when no +Health follows it on screen, and how long the
  *  Health badge takes to roll back up (owner 2026-10-13: down, a beat, then back up). */
@@ -4162,6 +4164,9 @@ export function Recruit() {
       if (isPassArrival(c.uid)) continue;
       const card = document.querySelector<HTMLElement>(`[data-zone="hand"] .card[data-uid="${c.uid}"]`);
       if (!card) continue;
+      // RAPID INPUT (R-PERF-APM-01): the materialise hides the card until it has re-formed, and it draws on a 2D
+      // canvas every frame of its life. At three or more actions a second the card simply arrives, ready to take.
+      if (RAPID_FX.skipPlates && shopInputRapid()) continue;
       const plate = card.querySelector<HTMLElement>('.cardplate');
       const r = (plate ?? card).getBoundingClientRect();
       if (r.width > 0) playPlateCoalesce(r, card);
@@ -8809,7 +8814,8 @@ export function Recruit() {
       case 'played':
         // The hand-card backplate's exit: an arcane wireframe of itself burning off to blue dust (`plateDissolve.ts`),
         // on its own clock, built on <body> at the plate's rect so it survives the card unmounting under it.
-        if (a.plate && a.plate.width > 0) playPlateDissolve(a.plate);
+        // (Not under rapid input, R-PERF-APM-01: a per-frame 2D canvas for each play, stacking when plays do.)
+        if (a.plate && a.plate.width > 0 && !(RAPID_FX.skipPlates && shopInputRapid())) playPlateDissolve(a.plate);
         puffOnBoard(a.uid);
         return;
       case 'repositioned': puffOnBoard(a.uid); return;

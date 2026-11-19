@@ -26,6 +26,9 @@ export const RAPID_FX = {
   maxSpeed: 1.6,
   /** ...and carry fewer particles: `3 / actions a second`, floored here (1 = never thinner). */
   minIntensity: 0.6,
+  /** The hand card's own canvas effects are skipped: the materialise of a card granted to hand (which hides the card
+   *  until it has re-formed) and the backplate dissolve of a played one. The card simply arrives, or lands. */
+  skipPlates: true,
 };
 
 /**

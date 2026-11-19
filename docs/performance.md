@@ -552,6 +552,90 @@ Repeat until the critic picks ours. The exit code never fails on the budget: it 
 
 ---
 
+## 2c. APM on an engine board — `npm run perf:apm` (frames, input latency, backlog)
+
+The scenario the owner named on 2026-11-18 (R-PERF-APM-01): *"when i have a board with cards like Karwind and im
+playing APM the game gets bogged down and nearly impossible to play"*. The gauntlet's turn is driven through the
+store, so it cannot see input handling, drag code or what queues behind the input. This one drives the Shop by **real
+mouse input** and measures the three things "bogged down" can be, separately. Numbers and method:
+`docs/devlog/2026-11-18-perf-apm-engine.md`.
+
+```
+npm run perf:apm                          # build this tree (VITE_PERF_BENCH=1), 1 run, the report
+npm run perf:apm -- --runs 3              # medians and ranges (the machine is usually shared)
+npm run perf:apm -- --dist <dir>          # an existing bench dist, no build
+npm run perf:apm -- --rate 4 --secs 30    # actions a second (8 by default), burst length (25 s)
+npm run perf:apm -- --scene dragons-max   # the same board with Orivax (Shouts trigger 2 more times)
+npm run perf:apm -- --guard               # the regression guard: exit 3 when the backlog is not bounded
+npm run perf:apm -- --rapid '{"snapStats":false,"dropStale":false,"dedupe":false,"maxSpeed":1,"minIntensity":1}' --roll-step 0
+                                          # the same bundle with the rapid-input presentation off (A/B without a rebuild)
+npm run perf:apm -- --toggle nofx         # one cost class off: nofx | nofilter | nocardfilter | noanim (what is left without it)
+npm run perf:apm -- --profile             # CPU profile: top self time, and WHO called getBoundingClientRect & co
+npm run perf:apm -- --trace               # GPU / raster trace summary;  --trace-style: who forced and who dirtied style
+npm run perf:apm -- --screencast <dir>    # JPEG frames of five seconds of the burst (to look at, not to measure)
+```
+
+- **The scene** (built through the store with the game's own actions, in a seeded Practice game with no clock): a
+  gilded Karwind, Firebird, Scalechanter, Embermouth, Herzog, Transcendence, five held cards, Tier 6, the Ancient of
+  Bonds awake. **The burst**: buy a Shout minion, play it, cast what it gave, sell it, refresh when the shop is empty,
+  by CDP mouse events, at `--rate` for `--secs`; then six seconds with no input.
+- **The driver is closed-loop, like a player**: it reads the run before each action and waits for Chrome to take
+  each mouse event. A slower page is driven more slowly, so **accepted actions a second is a result**, and at a target
+  the page cannot keep up with, every build's main thread is saturated. Compare builds on `ms per accepted action`,
+  `actions a second` and `release -> the first frame`; compare frames at a rate both builds hold (`--rate 4`).
+- **What it reports**: (a) frame intervals in the burst and the tail; (b) input: press to handler, release to the
+  store, release to the first frame after it, Event Timing's slow interactions, and any action the game did not
+  accept; (c) backlog, sampled every 100 ms: stat badges whose printed number is behind the run's real number, live
+  effects and particles, paced steps waiting (`fx/shopFxQueue.ts`), live timeouts, DOM nodes; peak against idle,
+  growth across the burst, and how long after the LAST input each goes back to idle; (d) main-thread time from CDP
+  per second and per accepted action, plus the in-game monitor's spans.
+- **Run builds round-robin when the machine is shared** (one run of each, then the next round), and read the
+  "whole-machine CPU busy" line: a run made while another builder was compiling drives half the actions.
+- **The guard** (`--guard`): 97% of actions accepted; no stat badge behind the real number for more than 1.5 s; every
+  backlog counter back at idle within 3.5 s of the last input; no counter growing more than 60% across the burst.
+  `fx/shopFxQueue.test.ts` is the same contract without a browser.
+
+Baseline, 2026-11-18, RTX 4080 SUPER at 240 Hz, target 8 actions a second, median of three round-robin runs:
+
+| | main (58c8a5256) | this PR |
+|---|---|---|
+| target 8 a second: accepted actions a second | 5.2 | 5.6 |
+| mean frame / p95 / p99, ms | 18.6 / 41.7 / 54.2 | 15.4 / 39.6 / 46.6 |
+| frames over 6.25 ms | 94% | 76% |
+| release to the first frame, p50 / p95 | 41 / 55 ms | 39 / 53 ms |
+| main-thread ms per accepted action (script) | 163 (70) | 142 (56) |
+| effects alive, mean / peak | 22 / 33 | 14 / 19 |
+| stat badges behind the real number | 97% of the time, up to 8.3 s in a row | never |
+| target 4 a second (both hold it): mean frame / frames over 6.25 ms | 14.8 ms / 72% | 11.1 ms / 49% |
+| ... release to the first frame, p50 | 37 ms | 27 ms |
+| ... main-thread ms a second | 759 | 645 |
+| 1.5 a second (normal play): effects alive / badges behind | 11 / 35% of the time | 11 / 35% (unchanged) |
+
+All of it was measured with the machine's sixteen threads fully busy with other builders' work (the bench's Chrome and
+driver at High priority). On a quieter hour the same main was 16.1 ms a frame at 5.1 actions a second and an earlier
+build of the PR 10.6 ms at 6.7: the order holds, the sizes move. Re-take the baseline round-robin before judging a
+change against it.
+
+What the first pass taught (keep these):
+
+- **"Bogged down" was never lost input.** Nothing in the Shop holds a pointerdown for an effect. It was a saturated
+  main thread (a 35 to 50 ms frame for every action) and a board whose numbers were seconds behind the run.
+- **Presentation that is right for one action is a queue at eight a second.** A roll that restarts on every action
+  never ends; a wave paced 150 ms apart is still firing three actions later. Anything paced in the Shop goes through
+  `shopFxLater`, and anything that withholds a number goes through `holdStat`, so the rapid-input rule reaches it.
+- **Faster input makes a stale number staler, and a faster build takes faster input.** A roll that every action
+  restarts falls further behind the more actions land: behind for up to 1.3 s at four a second, 6 to 12 s at five.
+  Frame work alone cannot fix that. Measure the backlog, not only the frames.
+- **Do not step a visual counter faster than anyone can read it.** The stat roll stepped on every display frame;
+  capping it at 60 a second is invisible and a quarter of the work on a 240 Hz display (R-PERF-APM-02).
+- **A read after `body.dragging` comes off is a whole-page restyle inside the handler** (the 2026-10-09 note, hit
+  again in `applyDrop`). Read everything the drop needs before the class changes (R-PERF-APM-03).
+- **Find the second render.** `render:recruit` calls against accepted actions showed 1.6 renders per action: a state
+  setter handed a fresh `Set` with the same contents, and a timer unmounted a number that had already faded. Count
+  renders per action whenever a per-action cost looks high.
+
+---
+
 ## 3. Render profiling in the browser (we do this together)
 
 The harness can't catch frame drops — those come from the browser painting/compositing. When the game feels

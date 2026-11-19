@@ -74,6 +74,7 @@ export const PATCH_NOTES: PatchNote[] = [
           'Stat numbers show their new value at once with one pop. They used to roll, and on a fast turn they fell seconds behind.',
           'Buff effects from your earlier moves that have not started yet are skipped. Effects already playing finish.',
           'A minion shows one copy of an effect at a time. Effects play a little faster and lighter the faster you go.',
+          'A card added to your hand appears at once, ready to grab.',
           'At normal speed nothing changes. Your stats and results are the same either way.',
         ],
       },

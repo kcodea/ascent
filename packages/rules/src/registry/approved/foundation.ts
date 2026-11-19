@@ -8548,7 +8548,8 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'chain links, a waiting buffer); effects already playing finish; (3) a one-shot effect is keyed by its recipient, so a '
       + 'card carries one live copy of an effect: a second fire inside 250 ms is the same moment, a later one replaces the '
       + 'copy it finds; (4) effects play in step with the input, up to 1.6 times faster and down to 60% of their particles at '
-      + 'five or more actions a second. End Turn ends it at once: End of Turn beats and the fight are always presented in '
+      + 'five or more actions a second; (5) the hand card\x27s own canvas effects are skipped: a card granted to hand arrives '
+      + 'at once instead of being hidden until it has re-formed, and a played card\x27s backplate does not dissolve. End Turn ends it at once: End of Turn beats and the fight are always presented in '
       + 'full. It is presentation only: nothing the reducer, a replay or a snapshot reads. Input is never held for '
       + 'presentation at any speed.',
     domain: 'foundation',

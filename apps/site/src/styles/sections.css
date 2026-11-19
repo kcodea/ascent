@@ -159,7 +159,6 @@
   display: grid;
   gap: var(--s6);
   margin-top: var(--s6);
-  counter-reset: point;
 }
 
 .points::before {
@@ -180,7 +179,6 @@
   grid-template-columns: var(--medal) minmax(0, 1fr);
   column-gap: var(--s4);
   align-items: center;
-  counter-increment: point;
 }
 
 /* The medallion: a night plate in a turned gold rim, holding one of the game's own gold medallions. */
@@ -203,20 +201,11 @@
   object-fit: contain;
 }
 
-/* The point's numeral, as a small gold kicker over its heading. */
-.point__text::before {
-  content: counter(point, upper-roman);
-  display: block;
-  margin-bottom: 0.2rem;
-  font-family: var(--font-title);
-  font-size: var(--fs-label);
-  font-weight: 800;
-  letter-spacing: 0.2em;
-  color: var(--gold-light);
-}
-
 .point__text h3 {
-  margin-bottom: var(--s1);
+  margin-bottom: var(--s2);
+  font-size: var(--fs-point);
+  font-weight: 800;
+  line-height: 1.15;
 }
 
 .point__text p {

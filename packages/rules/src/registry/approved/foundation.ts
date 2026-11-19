@@ -12900,6 +12900,36 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/audio/sharedTailReverb.test.ts', 'packages/ui/src/fx/convolverPool.test.ts', 'packages/tools/src/perfGauntletStats.test.ts'], lastVerifiedAt: '2026-10-30' },
   },
   {
+    id: 'R-PERF-CARD-LAYER-01',
+    title: 'A recruit card is painted once: a buy, sell, play or refresh never repaints the cards it did not change',
+    statement:
+      'In the recruit rows each Shop card and each board card is its own compositor layer, and the hand is one layer '
+      + '(the hand zone), all by `will-change: transform`. A card is painted when it arrives and again only when its own '
+      + 'pixels change; a neighbour arriving, leaving or sliding is a compositor move that paints nothing. A hand card '
+      + 'is never held on a layer of its own (its fan transform would resample the texture and soften the card), the '
+      + 'hint is never `opacity` (an opacity-hinted card keeps its sub-pixel position and is painted again on every '
+      + 'move), and no layer is held under a card for its stat badges or their numbers. The static filters and shadows '
+      + 'on the cards stay as they are: with the cards isolated they cost under a tenth of the remaining raster.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-18 (top priority)', quote: 'this 2D card game must hold > 240 fps constantly, no hitching, especially in the recruit phase' },
+      { kind: 'code', ref: 'packages/ui/src/styles.css (RECRUIT CARDS PAINT ONCE); scripts/perf-card-raster.mjs; scripts/perf-card-raster-diff.mjs; docs/devlog/2026-11-18-perf-card-raster.md' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-18 (perf/card-raster). Before, every Shop, board and hand card was painted into the same few '
+      + 'big tiles as its neighbours and the HUD, so one action repainted every card in the tile, with the 14 to 25 static '
+      + 'paint effects on each and their art. Measured on the prod build in the same late-game state, same page, the rule '
+      + 'switched on and off in turns (frames over 6.25 ms): buy 38.6% to 26.1%, sell 22.1% to 6.5%, play 23.3% to 8.8%, '
+      + 'refresh 16.8% to 9.7%, a stat tick 31.6% to 16.7%, on a machine shared with other builds. GPU raster time about '
+      + 'halves, and the page holds fewer layers than before (106 against 121). Two differences on screen, both below '
+      + 'what the eye resolves: a Shop or board card sits on whole pixels (up to half a pixel from where the centred row '
+      + 'put it, sharpness unchanged), and where two neighbouring cards overlap the later card draws over the earlier '
+      + 'one. The hand is pixel-identical.',
+    example: 'You buy a minion late in the game with a full board and a full hand. Before, the six other Shop cards, the seven board cards and the hand were all painted again, shadows and all. Now only the hand is painted again, and the Shop cards just slide.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/cardLayer.test.ts'], lastVerifiedAt: '2026-11-18' },
+  },
+  {
     id: 'R-DUOS-EFFECT-PASS-QUEUE-01',
     title: 'A card passed or given to your teammate by an effect waits for room in a full hand; it is never lost or sent back',
     statement:

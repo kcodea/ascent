@@ -5044,6 +5044,44 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
 }
 
 /* ============================================================================================================
+   RECRUIT CARDS PAINT ONCE (perf/card-raster 2026-11-18, R-PERF-CARD-LAYER-01).
+   Every card carries 14 to 25 STATIC paint effects (the frame drop-shadow, the blurred contact-shadow copy of the
+   frame, tier plate / star / medallion / badge shadows, text shadows, the art tone). A static effect costs nothing
+   until the pixels under it are painted again, and before this rule every shop, board and hand card was painted
+   into the SAME few big tiles as its neighbours and the HUD. One buy, sell, play or refresh dirtied a tile, and the
+   GPU painted every card in it again, effects, art uploads and all: a late-game buy held 28 to 51% of its frames
+   over the 240 Hz budget, and half of the GPU process's raster time went to cards nothing had happened to.
+   - Each SHOP and BOARD card is its own compositor layer (`will-change: transform`). It is painted once when it
+     arrives and again only when its OWN pixels change; a neighbour arriving, leaving or sliding is a compositor
+     move that paints nothing.
+   - The HAND is ONE layer (the zone), not one per card. A hand card's fan transform is a rotation plus a fraction
+     of a pixel, and a card held on its own layer is then drawn from its texture through a second resample: measured
+     17 to 21% softer (text and stat numbers visibly so). Inside the zone's layer the cards are painted directly, as
+     before, so the hand is pixel-identical, and a hand change no longer repaints the HUD around it (or the reverse).
+   Measured on the prod build (scripts/perf-card-raster.mjs; numbers in docs/devlog/2026-11-18-perf-card-raster.md):
+   a third to two thirds of the over-budget frames on a buy, a tenth to a third on a sell or a play, GPU raster
+   time about halved, and FEWER layers than before (106 vs 121, 18.4 vs 19.9 Mpx): the cards no longer push their neighbours'
+   overlapping pieces into extra squashed layers.
+   WHAT IT CHANGES ON SCREEN (listed in the PR; both below what the eye resolves):
+   - A shop / board card's layer sits on whole pixels, so the card lands up to half a pixel from where the
+     centred row put it. Its sharpness is unchanged (within 3%).
+   - A shop / board card is now a stacking context, so where two neighbours overlap (a Ward bubble, a tall
+     milestone badge) the later card draws over the earlier one's overhang instead of sorting piece by piece.
+   RULES THAT KEEP IT RIGHT:
+   - `transform`, not `opacity`, is the hint. `will-change: opacity` keeps the card's sub-pixel position, which
+     means it is painted again every time it moves: measured no gain at all.
+   - NO layers under a card for the badges or the numbers: `.badge` / `.value` layers take the page from 112 to 195
+     layers and made every scene slower than the card layer alone.
+   - Recruit rows only. Combat units, the drag copy and the hover preview have their own owners and their own rules.
+   - The filters themselves stay. With the cards isolated, removing every filter, shadow and text shadow on every
+     card moved GPU raster by under 10%, so baking them into images would buy almost nothing and cost a visible
+     change at other window sizes (their radii are fixed px while the card scales with the window).
+   ============================================================================================================ */
+.zone[data-zone='tavern'] .row > .card,
+.zone[data-zone='warband'] .row > .card,
+.zone[data-zone='hand'] { will-change: transform; }
+
+/* ============================================================================================================
    AUTHORED FRAMES — the gold OVAL on every non-Taunt minion, the purple SQUARE on regular spells. Same pipeline
    as the Taunt heater shield above: portrait clipped to the frame's WINDOW → authored PNG frame over it → (minion
    only) per-tribe tint → DOM data (badges/tier) → fx. `.stdframe` / `.spellframe` are added by Card.tsx ONLY when

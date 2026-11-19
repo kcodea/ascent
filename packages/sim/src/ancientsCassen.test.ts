@@ -203,19 +203,21 @@ describe('Cassen: +1 max Gold per finished commission, with each Ancient', () =>
   });
 });
 
-describe('Cassen × DEATH: "Avenge (7): advance your commission 1 turn."', () => {
-  it('Shop: the 7th friendly death moves the commission a turn sooner; one now due pays at once', () => {
+describe('Cassen × DEATH: "Avenge (5): advance your commission 1 turn." (owner 2026-11-19: 5, was 7; still per combat)', () => {
+  it('Shop: the 5th friendly death moves the commission a turn sooner; one now due pays at once', () => {
     let s = commission(picked('death', { board: [...['d1', 'd2', 'd3', 'd4', 'd5', 'd6', 'd7'].map((u, i) => card(u, N(i))), card('k', N(8))] }), 'gold');
     const due = s.commission!.dueWave;
     expect(due).toBe(s.wave + 2);
-    expect(heroPowerText(s)).toBe('Working: **House** pays out in 2 turns. Gain 4 Gold. Gain 1 max Gold. **Avenge (7):** your commission pays out **1** turn sooner (**7** more to go).');
+    expect(heroPowerText(s)).toBe('Working: **House** pays out in 2 turns. Gain 4 Gold. Gain 1 max Gold. **Avenge (5):** your commission pays out **1** turn sooner (**5** more to go).');
+    expect(ancientOfferText('cassen', 'death')).toBe('**Avenge (5):** your commission pays out **1** turn sooner.');
     s = structuredClone(s);
-    for (const u of ['d1', 'd2', 'd3', 'd4', 'd5', 'd6']) destroyMinionInShop(makeContext(s), at(s, u));
+    for (const u of ['d1', 'd2', 'd3', 'd4']) destroyMinionInShop(makeContext(s), at(s, u));
     expect(s.commission!.dueWave).toBe(due);
-    destroyMinionInShop(makeContext(s), at(s, 'd7'));
+    expect(heroPowerText(s)).toContain('(**1** more to go)');
+    destroyMinionInShop(makeContext(s), at(s, 'd5'));
     expect(s.commission!.dueWave).toBe(due - 1);
     // A second full Avenge brings it due THIS turn: the next action's boundary pays it.
-    s = { ...s, ancients: { ...s.ancients!, cassenDeaths: 6 }, board: [...s.board, card('d8', N(9))] };
+    s = { ...s, ancients: { ...s.ancients!, cassenDeaths: 4 }, board: [...s.board, card('d8', N(9))] };
     destroyMinionInShop(makeContext(s), at(s, 'd8'));
     expect(s.commission!.dueWave).toBe(s.wave);
     const gold = s.embers;
@@ -223,11 +225,11 @@ describe('Cassen × DEATH: "Avenge (7): advance your commission 1 turn."', () =>
     expect(s.commission).toBeUndefined();
     expect(s.embers).toBeGreaterThanOrEqual(gold + 4 + 1);
   });
-  it('combat: the carried count fires mid-fight (a flagged pulse); settle moves the commission', () => {
-    let s = commission(picked('death', { board: ['a', 'b'].map((u, i) => card(u, N(i), { attack: 1, health: 1 })) }), 'discover');
-    s = { ...s, ancients: { ...s.ancients!, cassenDeaths: 6 } };
+  it('combat: the 5th death in the fight fires mid-fight (a flagged pulse); 7 deaths still once; settle moves the commission (per combat, R-AVENGE-PER-COMBAT-01: the Shop count never comes in)', () => {
+    let s = commission(picked('death', { board: ['a', 'b', 'c', 'd', 'e', 'f', 'g'].map((u, i) => card(u, N(i), { attack: 1, health: 1 })) }), 'discover');
+    s = { ...s, ancients: { ...s.ancients!, cassenDeaths: 4 } };
     const due = s.commission!.dueWave;
-    expect(ancientCombatMods(s).ancientAvengePulse).toEqual({ every: 7, tick: 6, flag: ANCIENT_COMMISSION_FLAG, label: 'Ancient of Death' });
+    expect(ancientCombatMods(s).ancientAvengePulse).toEqual({ every: 5, tick: 4, flag: ANCIENT_COMMISSION_FLAG, label: 'Ancient of Death' });
     expect(ancientAvengeCountdown(s)).toBe(1);
     expect(heroPowerText(s)).toContain('**Bridge** pays out in 3 turns.');
     expect(heroPowerText(s, 0, { friendlyDeaths: 1 })).toContain('**Bridge** pays out in 2 turns.');
@@ -238,9 +240,9 @@ describe('Cassen × DEATH: "Avenge (7): advance your commission 1 turn."', () =>
     expect(s.commission!.dueWave).toBe(due - 1);
   });
   it('no commission running: an Avenge does nothing', () => {
-    let s = picked('death', { board: ['d1', 'd2', 'd3', 'd4', 'd5', 'd6', 'd7'].map((u, i) => card(u, N(i))) });
+    let s = picked('death', { board: ['d1', 'd2', 'd3', 'd4', 'd5'].map((u, i) => card(u, N(i))) });
     s = structuredClone(s);
-    for (const u of ['d1', 'd2', 'd3', 'd4', 'd5', 'd6', 'd7']) destroyMinionInShop(makeContext(s), at(s, u));
+    for (const u of ['d1', 'd2', 'd3', 'd4', 'd5']) destroyMinionInShop(makeContext(s), at(s, u));
     expect(s.commission).toBeUndefined();
     expect(s.ancients!.cassenDeaths).toBe(0);
   });
@@ -344,7 +346,7 @@ describe('Cassen × BONDS: "Commission pays out twice."', () => {
 describe('Cassen × save / restore and determinism', () => {
   it('the running count survives a JSON round trip', () => {
     let s = picked('death');
-    s = JSON.parse(JSON.stringify({ ...s, ancients: { ...s.ancients!, cassenDeaths: 5 } })) as RunState;
+    s = JSON.parse(JSON.stringify({ ...s, ancients: { ...s.ancients!, cassenDeaths: 3 } })) as RunState;
     expect(ancientAvengeCountdown(s)).toBe(2);
   });
   it('every pairing replays identically from the same state', () => {

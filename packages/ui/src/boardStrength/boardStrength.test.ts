@@ -28,12 +28,18 @@ function manualSlices(): { request: (fn: (d?: IdleDeadlineLike) => void) => () =
   };
 }
 const flush = (): Promise<void> => new Promise((r) => setTimeout(r, 0));
+/** A clock on which every reading costs half a millisecond, so a fight "costs" 0.5 ms and the cost-sized step
+ *  (R-PERF-SIM-WORKER-01: about 2 ms, at most STRENGTH_SLICE_FIGHTS) is the same size on every machine: one fight to
+ *  measure, then four. */
+const halfMsClock = (): (() => number) => { let t = 0; return () => (t += 0.5); };
+/** Steps a job of `total` fights takes on that clock. */
+const stepsFor = (total: number): number => 1 + Math.ceil((total - 1) / STRENGTH_SLICE_FIGHTS);
 
 describe('the background scorer', () => {
   it('runs a bounded slice of fights per idle callback, and scores exactly what the one-shot scorer does', async () => {
     const ref = await refP;
     const slices = manualSlices();
-    const scorer = createStrengthScorer({ loadReference: () => refP, requestSlice: slices.request, setTimer: (fn, ms) => { const t = setTimeout(fn, ms); return () => clearTimeout(t); } });
+    const scorer = createStrengthScorer({ loadReference: () => refP, requestSlice: slices.request, now: halfMsClock(), setTimer: (fn, ms) => { const t = setTimeout(fn, ms); return () => clearTimeout(t); } });
     const a = boardOf(ref, 5, 3); const b = boardOf(ref, 6, 20);
     scorer.enqueue(42, a);
     scorer.enqueue(42, b);
@@ -46,7 +52,7 @@ describe('the background scorer', () => {
     const noIdle: IdleDeadlineLike = { didTimeout: true, timeRemaining: () => 0 };
     let before = scorer.fightsRun();
     slices.tick(noIdle);
-    expect(scorer.fightsRun() - before).toBe(STRENGTH_SLICE_FIGHTS);
+    expect(scorer.fightsRun() - before).toBe(1); // a job's first step is one fight: it measures what a fight costs
     let slicesRun = 1;
     while (scorer.pending(42) > 0) {
       before = scorer.fightsRun();
@@ -54,7 +60,7 @@ describe('the background scorer', () => {
       expect(scorer.fightsRun() - before).toBeLessThanOrEqual(STRENGTH_SLICE_FIGHTS);
       slicesRun++;
     }
-    expect(slicesRun).toBe(Math.ceil((ref.waves['5']!.length * ref.fightsPerRef) / STRENGTH_SLICE_FIGHTS) + Math.ceil((ref.waves['6']!.length * ref.fightsPerRef) / STRENGTH_SLICE_FIGHTS));
+    expect(slicesRun).toBe(stepsFor(ref.waves['5']!.length * ref.fightsPerRef) + stepsFor(ref.waves['6']!.length * ref.fightsPerRef));
     expect(scorer.scores(42).get(5)).toEqual(scoreBoard(a, ref));
     expect(scorer.scores(42).get(6)).toEqual(scoreBoard(b, ref));
     expect(slices.pending()).toBe(false); // nothing left: no more callbacks requested
@@ -63,12 +69,12 @@ describe('the background scorer', () => {
   it('uses the idle time it is given, and stops when it runs low', async () => {
     const ref = await refP;
     const slices = manualSlices();
-    const scorer = createStrengthScorer({ loadReference: () => refP, requestSlice: slices.request, setTimer: (fn, ms) => { const t = setTimeout(fn, ms); return () => clearTimeout(t); } });
+    const scorer = createStrengthScorer({ loadReference: () => refP, requestSlice: slices.request, now: halfMsClock(), setTimer: (fn, ms) => { const t = setTimeout(fn, ms); return () => clearTimeout(t); } });
     scorer.enqueue(1, boardOf(ref, 3, 1));
     slices.tick(); await flush();
     let budget = 3; // three steps' worth of idle time, then it runs low
     slices.tick({ didTimeout: false, timeRemaining: () => (budget-- > 0 ? 10 : 0) });
-    expect(scorer.fightsRun()).toBe(STRENGTH_SLICE_FIGHTS * 4);
+    expect(scorer.fightsRun()).toBe(1 + STRENGTH_SLICE_FIGHTS * 3); // the measuring fight, then three full steps
   });
 
   it('settles at once when done, and never waits past its cap', async () => {

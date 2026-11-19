@@ -8,7 +8,8 @@ import { duosMateRunNow } from './versus/duosMateRun';
 const NO_HAND_PREVIEWS: CardView[] = [];
 import { targetPromptFor } from './targetPrompt';
 import { CARD_INDEX, EQUIPMENT_INDEX, QUEST_INDEX, RUNE_INDEX, activeSet } from '@game/content';
-import { createOddsStepper } from './oddsStepper';
+import { runBackgroundOdds } from './simWorker/backgroundOdds';
+import { prewarmSimWorker } from './simWorker/client';
 import { compileTimeline } from './choreographer/compileTimeline';
 import { normalizePresentationBatch } from './choreographer/adapters/presentationBatchAdapter';
 import { createTimelinePlayer, runTimeline } from './choreographer/livePlayer';
@@ -72,7 +73,7 @@ import { carnivalCoinLive } from '@game/sim'; // Juggler × Ancients
 import { discoverOfferCard } from '@game/sim'; // the Discover pick preview (R-DISCOVER-PREVIEW-01)
 import { isAncientBuffLabel } from '@game/sim'; // Ancient trigger procs (R-FX-ANCIENT-PROC-01)
 import { playAncientProcBurst } from './ancientProcFx';
-import { type Action, aleHandMagnitude, shopArrivals, passariaTarget, battlecryTargetAllowed, ancientEnchantedSpellCut, grimToastFold, unityAuraFold, EQUIPMENT_FX_ANCHOR, ancientRiseTint, spiritsPlayedThisTurn, anySpellsCastThisTurn, unusedEquipmentCount, shopSpellsBoughtThisTurn, playerOpponent, alignmentsOf, boardHasCelestial, chooseBothActive, chooseBothStateOf, type ChooseBothState, chooseOneNeedsChoice, computeCombatOdds, type CombatOdds, rubyCastCount, giftCastCount, rubyStatBonus, CONFIG, riftDefFor, type RiftDef, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, defIsTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, endOfTurnTicksOf, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, chooseOneBranchText, spellAttackBonus, spellHealthBonus, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, squirlScoutBuffLive, conductorBuffLive, spellCasts, runeExtraCasts, spellCostReduction, implosionCasts, dragonflameCasts, minionCostOf, heldOfferPrice, heroOfferPrice, offerBuyPrice, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, nextRefreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot, gildCopiesNeeded, activePowers, ancientPairingHeroId, gateUses, runeStacksOf, starformSpellAimsToken, createOddsProbe, COMBAT_ODDS_SIMS, runLossCap, selectedEquipment, selectedEquipmentDef, runTallyFor } from '@game/sim';
+import { type Action, aleHandMagnitude, shopArrivals, passariaTarget, battlecryTargetAllowed, ancientEnchantedSpellCut, grimToastFold, unityAuraFold, EQUIPMENT_FX_ANCHOR, ancientRiseTint, spiritsPlayedThisTurn, anySpellsCastThisTurn, unusedEquipmentCount, shopSpellsBoughtThisTurn, playerOpponent, alignmentsOf, boardHasCelestial, chooseBothActive, chooseBothStateOf, type ChooseBothState, chooseOneNeedsChoice, computeCombatOdds, type CombatOdds, rubyCastCount, giftCastCount, rubyStatBonus, CONFIG, riftDefFor, type RiftDef, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, defIsTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, endOfTurnTicksOf, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, chooseOneBranchText, spellAttackBonus, spellHealthBonus, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, squirlScoutBuffLive, conductorBuffLive, spellCasts, runeExtraCasts, spellCostReduction, implosionCasts, dragonflameCasts, minionCostOf, heldOfferPrice, heroOfferPrice, offerBuyPrice, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, nextRefreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot, gildCopiesNeeded, activePowers, ancientPairingHeroId, gateUses, runeStacksOf, starformSpellAimsToken, runLossCap, selectedEquipment, selectedEquipmentDef, runTallyFor } from '@game/sim';
 import { createPortal } from 'react-dom';
 import { setCardId, setCardStats, toggleCardKeyword, setEnemyStats, setEnemyCardId, toggleEnemyKeyword, toggleEnemyGolden, removeEnemy, foeSnapshotOf } from './sandboxEdit';
 import { UnitEditor } from './UnitEditor';
@@ -2904,56 +2905,20 @@ export function Recruit() {
     setCombatOdds(lc?.odds ?? null); // legacy pre-deferral saves carry odds inline
     if (spectatorOn) return; // the stands show the player's own odds (above), never a probe of their own
     if (!lc?.oddsInput || lc.odds) return;
-    const input = lc.oddsInput;
-    let cancelled = false;
-    // INCREMENTAL (perf pass 2026-09-16): the one-shot probe was a single 7-44 ms synchronous block (bigger
-    // boards → longer sims) that the rIC `timeout` dropped mid-frame on a busy replay — a long task at every
-    // combat start. `createOddsProbe` runs the SAME per-sim seeds in resumable steps, so we drive it in
-    // slices: each idle callback runs one cost-sized step, then keeps stepping only while the deadline holds.
-    // Each slice records under `odds:deferred`, so the monitor shows many small calls, not one long one.
-    // The result is byte-identical to `computeCombatOdds` (pinned in odds.test.ts).
-    // Each uninterruptible step is sized by its measured cost (oddsStepper.ts, mobile perf pass 2026-10-18): a fixed
-    // 10-sim step was a 59 ms long task on a throttled phone late-game, several frame budgets on the 240 Hz desktop.
-    const ODDS_STEP_TARGET_MS = 2;    // aim each step at ~2 ms (one sim minimum, ten maximum)
-    const ODDS_YIELD_MS = 4;          // keep stepping only while the idle deadline has more than this left
-    const ODDS_SLICE_TIMEOUT_MS = 200; // rIC timeout per callback — a saturated main thread still drains a step every 200 ms
-    const ODDS_FALLBACK_MS = 32;      // no rIC: one step every couple of frames
-    const probe = createOddsProbe(input, run.seed, run.wave, COMBAT_ODDS_SIMS, oddsLossCap);
-    const stepper = createOddsStepper(probe, () => performance.now(), ODDS_STEP_TARGET_MS);
-    const hasRIC = typeof requestIdleCallback === 'function';
-    let idleId = 0; let timerId = 0;
-    const slice = (deadline?: IdleDeadline): void => {
-      if (cancelled) return;
-      const done = perfMonitor.measure('odds:deferred', () => {
-        // A timed-out callback (`didTimeout`) has no idle budget — still run one step so a busy replay can't
-        // starve the probe forever; otherwise keep stepping while the deadline holds.
-        let finished = stepper.step();
-        while (!finished && deadline && !deadline.didTimeout && deadline.timeRemaining() > ODDS_YIELD_MS) finished = stepper.step();
-        return finished;
-      });
-      if (cancelled) return;
-      if (done) {
-        const odds = probe.result();
-        setCombatOdds(odds);
-        // REPLAY V2 (2026-09-19): the number the player is about to see is the number the replay prints.
-        useGame.getState().stampReplayOdds(odds);
-        tapOdds(run.wave, odds); // the stands' Summary shows these exact numbers (a no-op with nobody watching)
-        return;
-      }
-      schedule();
-    };
-    // rIC waits for a quiet frame during the combat intro; the timeout stops a busy replay starving a slice.
-    const schedule = (): void => {
-      if (hasRIC) idleId = requestIdleCallback(slice, { timeout: ODDS_SLICE_TIMEOUT_MS });
-      else timerId = window.setTimeout(() => slice(), ODDS_FALLBACK_MS);
-    };
-    schedule();
-    return () => {
-      cancelled = true;
-      if (idleId && typeof cancelIdleCallback === 'function') cancelIdleCallback(idleId);
-      if (timerId) window.clearTimeout(timerId);
-    };
+    // OFF THE MAIN THREAD (perf pass 2026-11-18, R-PERF-SIM-WORKER-01): the 200 sims run in the sim worker and only
+    // the result comes back. Where there is no worker the same probe runs in idle slices, never in a frame the
+    // browser had to force (simWorker/backgroundOdds.ts). Byte-identical either way (pinned in odds.test.ts and
+    // simWorker/handler.test.ts).
+    const wave = run.wave;
+    return runBackgroundOdds({ input: lc.oddsInput, seed: run.seed, wave, cap: oddsLossCap }, (odds) => {
+      setCombatOdds(odds);
+      // REPLAY V2 (2026-09-19): the number the player is about to see is the number the replay prints.
+      useGame.getState().stampReplayOdds(odds);
+      tapOdds(wave, odds); // the stands' Summary shows these exact numbers (a no-op with nobody watching)
+    });
   }, [run.lastCombat, run.seed, run.wave, oddsLossCap, spectatorOn]);
+  // The sim worker is up before the first fight needs it (a no-op once it is running, or where there is none).
+  useEffect(() => { prewarmSimWorker(); }, []);
   const shownOdds = spectatorOn ? (watchedOdds && watchedOdds.w === run.wave ? watchedOdds.o : null) : combatOdds;
   const [discoverMin, setDiscoverMin] = useSwapState(false, swapped); // B2: the Discover overlay is minimized (inspect the board)
   const [powerMin, setPowerMin] = useSwapState(false, swapped); // the hero-power Discover's Peek (same toggle, same contract)
@@ -3541,13 +3506,13 @@ export function Recruit() {
   // Bridge this fight's live run-buff gains (spell power, max Gold) to the store so the Buffs window ticks up
   // in sync with the replay. Cleared to `null` once combat is SETTLED — settleCombat folds the gains into the
   // run state, so the row then reads them from there (adding the live delta too would briefly double-count).
-  const { spellAttack: cbA, spellHealth: cbH, rubyAttack: cbRA, rubyHealth: cbRH, gold: cbGold, auras: cbAuras } = replay.combatBuffs;
-  // A compact signature of the per-aura map so the effect re-runs when ANY aura row ticks (the map is a fresh
-  // object each beat, so we key on its contents, not its reference).
-  const cbAuraSig = JSON.stringify(cbAuras);
+  // `replay.combatBuffs` keeps its reference until a number in it (an aura row included) moves (`useStableValue` in
+  // the replay hook), so the effect is keyed on the object itself: no per-render signature of the aura map.
+  const combatBuffsNow = replay.combatBuffs;
+  const { spellAttack: cbA, spellHealth: cbH } = combatBuffsNow;
   useEffect(() => {
-    setCombatBuffs(inCombat && !run.combatSettled ? { spellAttack: cbA, spellHealth: cbH, rubyAttack: cbRA, rubyHealth: cbRH, gold: cbGold, auras: cbAuras } : null);
-  }, [inCombat, run.combatSettled, cbA, cbH, cbRA, cbRH, cbGold, cbAuraSig, setCombatBuffs]);
+    setCombatBuffs(inCombat && !run.combatSettled ? combatBuffsNow : null);
+  }, [inCombat, run.combatSettled, combatBuffsNow, setCombatBuffs]);
   // …and the same fold drives every printed SPELL number (owner report 2026-09-22: "front to backs text /
   // maybe all spells? not updating in real time from buffs in combat"). `simulate` keeps its own spell power
   // live inside the fight, but the run's `spellBonus` is written only at settle — so a Chorus Drake pumping

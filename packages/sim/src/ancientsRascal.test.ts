@@ -71,14 +71,15 @@ describe('Rascal × DEATH: "All In gains a use. Avenge (4): add 1 gold to All In
     expect(allInPayoutOf(s)).toBe(1);
     expect(heroPowerText(s)).toContain('Uses left: **2**.');
   });
-  it('combat: the carried count pulses mid-fight, and settle adds the Gold', () => {
-    let s = picked('death', { board: [card('a', N(0), { attack: 1, health: 1 })] });
+  it('combat: the 4th death in the fight pulses mid-fight, and settle adds the Gold (per combat, R-AVENGE-PER-COMBAT-01: the Shop count never comes in)', () => {
+    let s = picked('death', { board: ['a', 'b', 'c', 'd'].map((u) => card(u, N(0), { attack: 1, health: 1 })) });
     s = { ...s, ancients: { ...s.ancients!, rascalDeaths: 3 } };
     expect(ancientCombatMods(s).ancientAvengePulse).toEqual({ every: 4, tick: 3, flag: ANCIENT_ALLIN_FLAG, label: 'Ancient of Death' });
     expect(ancientAvengeCountdown(s)).toBe(1);
     s = fightNow(s, 100, 1000);
     expect((s.lastCombat!.events ?? []).filter((e) => e.type === 'questTrigger' && e.flag === ANCIENT_ALLIN_FLAG).length).toBe(1);
-    expect(heroPowerText(s, 0, { friendlyDeaths: 1 }), 'live through the fight').toContain('(**4** more to go)');
+    expect(heroPowerText(s, 0, { friendlyDeaths: 1 }), 'live through the fight: it counts from 0').toContain('(**3** more to go)');
+    expect(heroPowerText(s, 0, { friendlyDeaths: 4 }), 'the 4th death fires and the count starts over').toContain('(**4** more to go)');
     s = reduce(s, { type: 'resolveCombat' });
     expect(s.ancients!.rascalPot).toBe(1);
     expect(s.ancients!.rascalDeaths).toBe(0);

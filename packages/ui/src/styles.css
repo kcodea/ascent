@@ -956,21 +956,24 @@ body.wipe-up .bgrtoast { z-index: 3170; }
   100% { opacity: 1; filter: brightness(1); }
 }
 /* The fuse: the art, eaten away from the LEFT as --burn rises (the burnt part disappears; a soft --feather edge).
-   COMPOSITOR-ONLY BURN (R-PERF-FUSE-BURN-01, perf pass 2026-11-18). The burn used to be a `mask` gradient on
-   `.fuse-body` whose stops read --burn: every write repainted the whole fuse (a tiled background, two masked caps) for
-   the last 20 s of every turn. Now the SAME gradient is a static mask on `.fuse-burn`, a box the size of the fuse that
-   slides right by --burn of its own width, and the art inside it slides back by the same amount, so the art stays
-   exactly where it was and only the mask's leading edge moves. Both are transform-only on their own layers: a --burn
-   write repaints nothing. Left of the box there is no mask (a mask outside its box is transparent), which is the
+   THE BURN MOVES A STATIC MASK (R-PERF-FUSE-BURN-01, perf pass 2026-11-18). The burn used to be a `mask` gradient on
+   `.fuse-body` whose stops read --burn, so every write re-evaluated the gradient and repainted the whole fuse (a tiled
+   background, two masked caps) for the last 20 s of every turn. Now the SAME gradient is a static mask on `.fuse-burn`,
+   a box the size of the fuse that slides right by --burn of its own width, and the art inside it slides back by the
+   same amount, so the art stays exactly where it was and only the mask's leading edge moves. Paint in the burn window
+   fell from about 53 to 13 ms a second at 240 Hz. NO `will-change` here, deliberately (owner 2026-11-19: the fuse must
+   look exactly as authored): promoting these boxes to their own layers cut paint to nothing but rastered the crystal
+   at a different sub-pixel origin (up to 99 of 255 on its texture); without it the art matches the old render to
+   within 2 of 255. Left of the box there is no mask (a mask outside its box is transparent), which is the
    "burnt" part; the first --feather of the box is the soft edge; the rest is solid, as before. */
 .chargeglyph .fuse-burn {
-  position: absolute; inset: 0; will-change: transform;
+  position: absolute; inset: 0;
   transform: translateX(calc(var(--burn) * 100%));
   -webkit-mask: linear-gradient(90deg, transparent 0, #fff var(--feather), #fff 100%);
   mask: linear-gradient(90deg, transparent 0, #fff var(--feather), #fff 100%);
 }
 .chargeglyph .fuse-body {
-  position: absolute; inset: 0; will-change: transform;
+  position: absolute; inset: 0;
   transform: translateX(calc(var(--burn) * -100%));
   /* THREE PIECES (owner 2026-10-28, "extend it, not stretch it"): the tips are the `::before` / `::after` caps at
      their own aspect (200 x 194 px of art each), and the seamless crystal tile repeats along the content box between

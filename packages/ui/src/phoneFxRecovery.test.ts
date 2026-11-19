@@ -82,14 +82,8 @@ describe('the falling gate on a phone', () => {
 });
 
 describe('phone paint relief (R-PHONE-CHARGE-30HZ-01, R-PHONE-RUN-PAINT-01)', () => {
-  // Desktop used to paint every display frame. Since R-PERF-FUSE-BURN-01 (2026-11-18) the burn is transform-only and
-  // desktop steps 60 times a second whatever the display runs at; phones keep their ~30 Hz.
-  it('the charge glyph steps at ~30 Hz on a phone and 60 times a second on desktop, whatever the display rate', () => {
-    const r = src('Recruit.tsx');
-    expect(r).toMatch(/const PHONE_CHARGE_PAINT_MS = 32;/);
-    expect(r).toMatch(/const FUSE_DESKTOP_HZ = 60;/);
-    expect(r).toMatch(/\}, PHONE_GPU \? 1000 \/ PHONE_CHARGE_PAINT_MS : FUSE_DESKTOP_HZ, \(\) => perfMonitor\.display\.refreshHz\);/);
-    expect(r).not.toMatch(/if \(!PHONE_GPU \|\| now - last >= PHONE_CHARGE_PAINT_MS\)/); // no per-display-frame desktop path
+  it('the charge glyph repaints at ~30 Hz on a phone and every frame on desktop', () => {
+    expect(src('Recruit.tsx')).toMatch(/if \(!PHONE_GPU \|\| now - last >= PHONE_CHARGE_PAINT_MS\)/);
   });
   it('the Gold pill and Inspect scrim lose their backdrop blur, and the rail its will-change, on phones only', () => {
     const t = src('touchUi.css');

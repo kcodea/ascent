@@ -303,7 +303,6 @@ import { visibleHandPreviews } from './handPreview';
 import { useChargePreview } from './chargeGlyphTune';
 import { FuseSim, type FuseGeom } from './fuseSim';
 import { FuseRenderer, gemCanvasHalf, type FuseView } from './fuseRender';
-import { cappedRaf } from './cappedRaf';
 import { FUSE_CFG_EVENT, fuseArtSpan, fuseSeed, getFuseCfg } from './fuseTune';
 import './backdrop'; // applies the player's saved board backdrop (Settings → Board) before the board paints
 import { fuseAppearsAt, fuseExitKind, fusePhaseOnLight, type FuseExit } from './fusePhase';
@@ -634,9 +633,6 @@ export const ShopTimer = memo(function ShopTimer({ practice, goldGoal }: { pract
 
 /** A phone repaints the charge glyph at most this often (R-PHONE-CHARGE-30HZ-01): ~30 Hz. */
 const PHONE_CHARGE_PAINT_MS = 32;
-/** Desktop steps the fuse (burn write, debris sim, both canvas passes) this many times a second, whatever the
- *  display's refresh (R-PERF-FUSE-BURN-01). */
-const FUSE_DESKTOP_HZ = 60;
 /** The crystal fuse's live pieces for one light: the sim, its renderer, and the measured geometry (stage px). */
 interface FuseFx {
   sim: FuseSim;
@@ -888,22 +884,28 @@ const ChargeGlyph = memo(function ChargeGlyph({ inCombat, window: chargeWindow, 
     };
     // Frozen where the clock stopped: one paint + one draw (no sim step), no rAF while held.
     if (heldFx) { const c = chargeNow(); paint(c); simFrame(c, 0, performance.now()); return; }
-    // THE CADENCE (R-PERF-FUSE-BURN-01, perf pass 2026-11-18). The burn is transform-only now (styles.css `.fuse-burn`),
-    // so a write repaints nothing; what is left per tick is the debris sim and its two canvas passes. The fuse moves
-    // about one layout px a 60th of a second and the debris drifts, so DESKTOP ticks 60 times a second whatever the
-    // display runs at: on the 240 / 360 Hz panels the game is played on that is a quarter / a sixth of the old
-    // per-display-frame work, and `cappedRaf` sleeps through the frames it skips so they stop forcing a main frame
-    // (and with it a main-thread pass over every CSS loop on the board). PHONES keep their ~30 Hz
-    // (R-PHONE-CHARGE-30HZ-01). A hidden tab runs no frames at all.
+    let raf = 0;
+    // PHONES (R-PHONE-CHARGE-30HZ-01): each write of the burn changes the fuse's mask, which repaints it. A 120 Hz
+    // iPhone paid that 120 times a second for the last 20 s of every shop. The fuse moves about a layout px a frame,
+    // so ~30 writes a second look the same and cost a quarter; the sim steps on the same beat.
+    // Desktop paints every frame, as before: since R-PERF-FUSE-BURN-01 (2026-11-18) the burn write is transform-only
+    // (styles.css `.fuse-burn`), so it repaints nothing, and the motion stays as smooth as the display.
+    let last = -Infinity;
     let lastStep = performance.now();
-    return cappedRaf((now) => {
-      const c = chargeNow();
-      paint(c);
-      // Never one giant catch-up step (a backgrounded tab, a long frame): cap it.
-      const dt = Math.min(0.25, Math.max(0, (now - lastStep) / 1000));
-      lastStep = now;
-      simFrame(c, dt, now);
-    }, PHONE_GPU ? 1000 / PHONE_CHARGE_PAINT_MS : FUSE_DESKTOP_HZ, () => perfMonitor.display.refreshHz);
+    const draw = (now: number): void => {
+      if (!PHONE_GPU || now - last >= PHONE_CHARGE_PAINT_MS) {
+        last = now;
+        const c = chargeNow();
+        paint(c);
+        // Never one giant catch-up step (a backgrounded tab, a long frame): cap it.
+        const dt = Math.min(0.25, Math.max(0, (now - lastStep) / 1000));
+        lastStep = now;
+        simFrame(c, dt, now);
+      }
+      raf = requestAnimationFrame(draw);
+    };
+    raf = requestAnimationFrame(draw);
+    return () => cancelAnimationFrame(raf);
   }, [shown, heldFx, chargeWindow, preview]);
 
   // Render the moment `lit` is true — `mounted` only HOLDS the DOM through the exit. `mounted` alone lags one

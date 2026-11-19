@@ -12901,27 +12901,26 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-PERF-FUSE-BURN-01',
-    title: 'The crystal fuse burns without repainting, and steps 60 times a second',
+    title: 'The crystal fuse burns by sliding a static mask, and still moves every display frame',
     statement:
       'The Gold Fuse\'s burn is two transforms (a sliding box that carries a static soft-edged mask, and the art inside '
-      + 'it sliding back by the same amount), so a burn write repaints nothing. The burn, the debris simulation and its '
-      + 'two canvas passes step 60 times a second on desktop whatever the display\'s refresh (about 30 on a phone, as '
-      + 'before), and sleep between steps on a faster display. One frame walks the particles once, and the debris canvas '
-      + 'clears only the rectangle the last frame drew in. The look is unchanged: the same art, soft edge, particles, '
-      + 'sprites and timing against the clock.',
+      + 'it sliding back by the same amount), so a burn write no longer re-evaluates a mask gradient. The burn, the debris '
+      + 'simulation and its two canvas passes still advance on every display frame on desktop (about 30 times a second on '
+      + 'a phone, as before). Neither box is promoted to its own layer, so the crystal rasters exactly as before. One frame '
+      + 'walks the particles once, and the debris canvas clears only the rectangle the last frame drew in. The look is '
+      + 'unchanged: the same art, soft edge, particles, sprites, smoothness and timing against the clock.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-18 (the bar: a 2D card game has no excuse for dropped frames; 240 fps constant, recruit phase first)' },
-      { kind: 'code', ref: 'packages/ui/src/styles.css (.chargeglyph .fuse-burn / .fuse-body); packages/ui/src/Recruit.tsx (ChargeGlyph frame loop); packages/ui/src/fuseRender.ts (drawFrame); packages/ui/src/cappedRaf.ts' },
+      { kind: 'code', ref: 'packages/ui/src/styles.css (.chargeglyph .fuse-burn / .fuse-body); packages/ui/src/Recruit.tsx (ChargeGlyph frame loop); packages/ui/src/fuseRender.ts (drawFrame)' },
     ],
     currentBehaviour:
-      'Conforms from 2026-11-18 (perf/always-on). Before, the burn was a mask gradient whose stops read --burn, written '
-      + 'every display frame: the whole fuse (a tiled background and two masked caps) repainted for the last 20 s of '
-      + 'every turn from the round the fuse first lights, and the debris was walked three times and both canvases fully '
-      + 'cleared on each of those frames.',
-    example: 'From round 8 a Bronze player\'s turn ends with the crystal fuse burning for 20 s. On a 240 Hz display that was 240 repaints of the fuse and 240 debris redraws a second. Now it is 60 debris steps and no repaint.',
-    enforcement: { kind: 'scenario', refs: ['packages/ui/src/fuseBurnCss.test.ts', 'packages/ui/src/cappedRaf.test.ts', 'packages/ui/src/fuseRender.test.ts'], lastVerifiedAt: '2026-11-18' },
+      'Conforms from 2026-11-19 (perf/always-on). Before, the burn was a mask gradient whose stops read --burn, written '
+      + 'every display frame: the whole fuse repainted for the last 20 s of every turn from the round the fuse first '
+      + 'lights. Measured at 240 Hz: paint in the burn window 53 -> 13 ms a second, raster 12 -> 8.',
+    example: 'From round 8 a Bronze player\'s turn ends with the crystal fuse burning for 20 s. Before, each of those frames re-evaluated the fuse\'s mask and repainted the whole crystal. Now only the soft edge moves, and it looks the same.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/fuseBurnCss.test.ts', 'packages/ui/src/fuseRender.test.ts'], lastVerifiedAt: '2026-11-18' },
   },
   {
     id: 'R-PERF-LOBBY-STABLE-01',

@@ -1204,6 +1204,33 @@ Numbers and method: `docs/devlog/2026-11-18-perf-phase-transitions.md`.
   54 ms decode in the middle of a turn or a fight. Not fixed here (it needs right-sized copies from the art pipeline);
   see the devlog's follow-ups.
 
+## 3r. Card raster, 2026-11-18: static filters are free until the tile is painted again, so stop painting the tile
+
+Numbers and method: `docs/devlog/2026-11-18-perf-card-raster.md` (R-PERF-CARD-LAYER-01). Bench:
+`scripts/perf-card-raster.mjs` (one late-game state, buy / refresh / tick / sell / play, stylesheet variants run in
+turns in the same page, `--trace` for GPU raster time, `--shots` + `perf-card-raster-diff.mjs` for the pixel proof).
+
+- **Ask "what gets painted again", before "what is expensive to paint".** With GPU raster a tile is about as wide as
+  the window, so a row of cards shares its tiles. One card changing repaints the row, every static filter in it and
+  its art. Removing filters one at a time moved a late buy by a few points each; giving each card its own layer
+  (`will-change: transform`) with nothing removed did as well as removing all of them, halved GPU raster time and
+  left the page with fewer layers.
+- **Then the filters stop mattering.** With the cards isolated, every filter, shadow and text shadow on every card is
+  under 10% of the remaining raster. Do not bake card shadows into images for speed: it buys almost nothing, and their
+  radii are fixed px on a card that scales with the window, so a baked copy is a different picture at every other size.
+- **A layer hint is not free of side effects. Measure the picture, not just the frames.**
+  - A layer under a ROTATED or fractionally placed transform is drawn through a second resample: a hand card on its
+    own layer is 17 to 21% softer. Put the layer where the transform is a plain translation (the hand ZONE), and the
+    content is painted directly into it.
+  - A layer on an element with a fractional LAYOUT position snaps to whole pixels (up to half a pixel, sharpness
+    unchanged). `will-change: opacity` avoids the snap by keeping the sub-pixel position, and repaints the layer on
+    every move for it: no gain.
+  - The element becomes a stacking context. Check what its children used to sort against.
+  - More layers is not better: badge and number layers under the card layer made every scene slower (195 vs 112).
+- **`Page.captureScreenshot` hangs in headless Chrome on a full late-game screen** (more than about 20 cards, or
+  anything at DPR 2 at 1080p). Capture a row at a time, with a timeout. The page holds about 180 MB of GPU image cache
+  in that state, and the hang tracks content, not any one element.
+
 ## 4. Established anti-patterns (don't reintroduce these)
 
 These are the rules the audits surfaced; the codebase already follows them — keep it that way.

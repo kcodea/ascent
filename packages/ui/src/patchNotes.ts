@@ -58,6 +58,14 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-11-19',
     changes: [
+      {
+        category: 'Balance',
+        text: 'Darah: two Ancient pairings changed.',
+        details: [
+          'Ancient of Fortune: minions you Swap into the Shop now cost 2 Gold to buy back (was free).',
+          'Ancient of Time: Lasso is now cast at Start of Turn as well as End of Turn.',
+        ],
+      },
       { category: 'Systems', text: 'Match history lobby: hovering a player now blurs their hero portrait and Ancient too, and the hero portrait is the same size as the Ancient.' },
       { category: 'Systems', text: 'Start of Combat, Avenge, End of Turn and Rally now show a new effect on the minion when they trigger. The old badge pulse is gone from every minion.' },
       { category: 'Systems', text: 'Arena Heckler now shows its Start of Combat and the Taunt landing even when the minion opposite it already has Taunt.' },

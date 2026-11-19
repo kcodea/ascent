@@ -5,7 +5,7 @@ import { ancientSotSource } from './ancients'; // Ancient trigger procs (R-FX-AN
 import { ancientInvestmentPassive, ancientInvestmentTime, ancientRunInvestmentTime, ancientInvestmentDiscovers, ancientRunInvestmentGenesis, ancientOnTripleReward, ancientOnDiscoverPick } from './ancients'; // Braum
 import { ancientSyncEchoEnchants, ancientEnchantedPrice, ancientEnchantedSpellCut, ancientOnEnchantedBuy } from './ancients'; // Ayse
 import { ancientGreatPresenceSpec, ancientAfterGreatPresence, ancientDiscoverPicksAgain, ancientReopenDiscover, ancientGiftAdjacent, ancientPocketMagicDiscovers, ancientAfterPocketMagic, ancientUnitedFrontAtEot, ancientTierPrice, ancientSyncVanguard, ancientVanguardActivate, ancientSyncPower, ancientOnEffectRefresh } from './ancients'; // the 2026-11-10 batch B
-import { ancientSwapFree, ancientSwapCharges, ancientSpendSwapCharge, ancientBeforeSwap, ancientAfterSwap } from './ancients'; // Darah
+import { ancientSwapBuyBackPrice, ancientSwapCharges, ancientSpendSwapCharge, ancientBeforeSwap, ancientAfterSwap } from './ancients'; // Darah
 import { ancientAfterGoldspring, ancientOnSpendGold } from './ancients'; // Nadja
 import { ancientGildedPlayExtraRewards, ancientNoteHandSpellCast, ancientNoteTargetedCast, ancientOnTripleRewardOpen } from './ancients'; // ancient pass 2: Membrance / Hunch / Keshi
 import { ancientAllInPassive, ancientAfterAllIn, ancientDiceRollsTwo, ancientAfterDice, ancientLockedFirstDiscount, ancientContrabandEvery, ancientContrabandCount, ancientContrabandNewShop, ancientContrabandPool, ancientOnContraband, ancientOnBananaBuy, ancientTribeFirstFree, ancientFirstRefreshTribe, ancientCoinNeed, ancientCoinBuyCount } from './ancients'; // the 2026-11-10 batch A: Rascal / Gambler / Pete / Flint / Juggler
@@ -413,10 +413,13 @@ export function minionCostOf(s: RunState): number {
   return hasPower(s, 'cheapMinions') ? 2 : CONFIG.minionCost;
 }
 
-/** The price a HELD (displaced) offer buys back at: the flat `minionCostOf`, never discounted, or 0 for a minion Swap
- *  sent to the Shop under Darah × Ancient of Fortune. One source for the reducer's held re-buy and the UI's cost coin. */
+/** The price a HELD (displaced) offer buys back at: the flat `minionCostOf`, never discounted. A minion Swap sent to the
+ *  Shop under Darah × Ancient of Fortune buys back at the pairing's set price instead (2 Gold, owner 2026-11-19; was 0),
+ *  never above the flat price; like every held buy-back, no other discount applies on top. One source for the reducer's
+ *  held re-buy and the UI's cost coin. */
 export function heldOfferPrice(s: RunState, offer: Pick<ShopCard, 'swapFree' | 'held'>): number {
-  return ancientSwapFree(s, offer) ? 0 : minionCostOf(s);
+  const set = ancientSwapBuyBackPrice(s, offer);
+  return set === undefined ? minionCostOf(s) : Math.min(set, minionCostOf(s));
 }
 
 /** The Gold a tavern-up costs right now: the running `upgradeCost` plus Hermit Hank's +2 surcharge (his
@@ -2145,7 +2148,7 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
       // Displacement: a minion stashed in the tavern (held) is restored INTACT on buy — all buffs/progression
       // (deliberately NO applyOnBuy: it's a restoration, not a fresh purchase, so Broker & co. don't re-bake).
       if (offer.held) {
-        const heldCost = heldOfferPrice(s, offer); // ANCIENT OF FORTUNE × Darah: a swapped-away minion buys back for 0
+        const heldCost = heldOfferPrice(s, offer); // ANCIENT OF FORTUNE × Darah: a swapped-away minion buys back for 2
         if (s.embers < heldCost || s.hand.length >= handCap(s)) return state;
         spendGold(s, heldCost);
         s.shop.splice(i, 1);
@@ -3920,7 +3923,7 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
         // missing target, a golden minion (can't trade away a triple — enforced in swapWithTavern), or an
         // empty tavern.
         // ANCIENTS × Darah (no-ops unless picked): DEATH fires an Echo first; after the swap, TIME records the minion sent
-        // away, BONDS trades stats, FORTUNE makes it free to buy back, GENESIS copies the minion brought in. A failed swap
+        // away, BONDS trades stats, FORTUNE sets its buy-back to 2 Gold, GENESIS copies the minion brought in. A failed swap
         // returns `state`, so a Death Echo that fired before it is discarded with the rest of the action.
         if (!card) return state;
         ancientBeforeSwap(s, card);

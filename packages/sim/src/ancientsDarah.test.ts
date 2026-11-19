@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { CARD_INDEX } from '@game/content';
 import type { CombatEvent } from '@game/core';
 import {
-  ANCIENT_IDS, ANCIENT_SWAP_CHARGE_FLAG, ancientCombatMods, ancientOfferText, ancientSwapUsesBadge, createRun, enableAncients, heldOfferPrice,
+  ANCIENT_IDS, ANCIENT_SWAP_CHARGE_FLAG, ancientCombatMods, ancientOfferText, ancientSwapUsesBadge, createRun, enableAncients, handCap, heldOfferPrice,
   heroPowerText, reduce, type AncientId, type BoardCard, type BoardSnapshot, type RunState, type ShopCard,
 } from './index';
 
@@ -82,16 +82,29 @@ describe('Darah × DEATH: "Swapping an Echo minion triggers its effect first."',
   });
 });
 
-describe('Darah × FORTUNE: "Swapped minions are free."', () => {
-  it('the minion Swap sends to the Shop buys back for 0 Gold (the coin and the buy agree), intact', () => {
+describe('Darah × FORTUNE (owner 2026-11-19: "costs 2g instead of 0g")', () => {
+  it('the text names the 2 Gold price', () => {
+    expect(ancientOfferText('darah', 'fortune')).toBe('Minions you Swap into the Shop cost **2 Gold** to buy back.');
+    expect(heroPowerText(scene('fortune', card('a', N(0))))).toBe(`${BASE} The minion you send to the Shop costs **2 Gold** to buy back.`);
+  });
+  it('the minion Swap sends to the Shop buys back for 2 Gold (the shown price and the charge agree), intact', () => {
     let s = swap(scene('fortune', card('a', N(0), { attack: 9, health: 9 })), 'a');
     const held = heldOf(s);
     expect(held.swapFree).toBe(true);
-    expect(heldOfferPrice(s, held)).toBe(0);
+    expect(heldOfferPrice(s, held)).toBe(2);
     const gold = s.embers;
     s = reduce(s, { type: 'buy', uid: held.uid });
-    expect(s.embers).toBe(gold);
+    expect(s.embers).toBe(gold - 2);
     expect(s.hand.find((c) => c.cardId === N(0))).toMatchObject({ attack: 9, health: 9 });
+  });
+  it('with 1 Gold it cannot be bought back; with exactly 2 it can', () => {
+    const s = swap(scene('fortune', card('a', N(0))), 'a');
+    const held = heldOf(s);
+    const poor = { ...s, embers: 1 };
+    expect(reduce(poor, { type: 'buy', uid: held.uid })).toBe(poor);
+    const two = reduce({ ...s, embers: 2 }, { type: 'buy', uid: held.uid });
+    expect(two.embers).toBe(0);
+    expect(two.hand.map((c) => c.cardId)).toEqual([N(0)]);
   });
   it('another pairing leaves the held offer at the flat price', () => {
     const s = swap(scene('genesis', card('a', N(0))), 'a');
@@ -145,13 +158,32 @@ describe('Darah × GENESIS: "Swap grants a copy of the minion swapped with."', (
   });
 });
 
-describe('Darah × TIME (ancient pass 1, owner 2026-11-16): "Gain the Lasso card effect." (End of Turn: cast Lasso)', () => {
+describe('Darah × TIME (owner 2026-11-16 + 2026-11-19): Start of Turn and End of Turn: cast Lasso', () => {
   it('End of Turn casts Lasso: a random Shop minion is stolen into the hand (no Swap needed)', () => {
     const s0 = scene('time', card('a', N(0)), N(1));
-    expect(heroPowerText(s0)).toBe(`${BASE} **End of Turn:** cast **Lasso**.`);
+    expect(ancientOfferText('darah', 'time')).toBe('**Start of Turn** and **End of Turn:** cast **Lasso**.');
+    expect(heroPowerText(s0)).toBe(`${BASE} **Start of Turn** and **End of Turn:** cast **Lasso**.`);
     const s = fightNow(s0);
     expect(s.hand.map((c) => c.cardId)).toEqual([N(1)]);
     expect(s.shop.some((o) => o.uid === 'o')).toBe(false);
+  });
+  it('casts once at End of Turn and once at the next Start of Turn, the second as its own Ancient beat', () => {
+    let s = fightNow(scene('time', card('a', N(0), { health: 50 }), N(1)));
+    expect(s.hand).toHaveLength(1); // End of Turn
+    s = reduce(s, { type: 'resolveCombat' });
+    expect(s.hand).toHaveLength(2); // + Start of Turn
+    const beats = (s.sotBeatFx ?? []).filter((b) => b.source.kind === 'hero' && b.source.label === 'Ancient of Time');
+    expect(beats).toHaveLength(1);
+    expect(beats[0]!.handGrants).toHaveLength(1);
+    const stolen = s.hand[1]!;
+    expect(CARD_INDEX[stolen.cardId]!.spell).toBeFalsy();
+  });
+  it('a full hand at Start of Turn: Lasso steals nothing (its End-of-Turn rule), no beat', () => {
+    const fought = fightNow(scene('time', card('a', N(0), { health: 50 }), N(1)));
+    const full = { ...fought, hand: Array.from({ length: handCap(fought) }, (_, i) => card(`h${i}`, N(i + 2))) };
+    const s = reduce(full, { type: 'resolveCombat' });
+    expect(s.hand).toHaveLength(full.hand.length);
+    expect((s.sotBeatFx ?? []).some((b) => b.source.kind === 'hero' && b.source.label === 'Ancient of Time')).toBe(false);
   });
   it('an empty Shop: Lasso steals nothing; another pairing casts nothing', () => {
     expect(fightNow(scene('time', card('a', N(0)), N(1), { shop: [] })).hand.length).toBe(0);

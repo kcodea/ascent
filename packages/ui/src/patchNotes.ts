@@ -109,6 +109,16 @@ export const PATCH_NOTES: PatchNote[] = [
         ],
       },
       {
+        category: 'Systems',
+        text: 'The shop stays smoother late in the game. Buying, selling, playing a card or refreshing no longer redraws every card on screen.',
+        details: [
+          'Each card in the shop and on your board is now drawn once and then only moved.',
+          'A stat change redraws that one card, not its neighbours.',
+          'Your hand is drawn on its own, apart from the rest of the screen.',
+          'Nothing looks different.',
+        ],
+      },
+      {
         category: 'Balance',
         text: 'Midas with the Ancient of War now reads: Start of Combat: give a friendly minion Ward for every Gilded minion you control.',
         details: [

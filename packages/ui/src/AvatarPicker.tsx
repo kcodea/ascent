@@ -10,7 +10,6 @@ import { HeroPortraitRing } from './portraitFrame/HeroPortraitRing';
 import { mirrorFor, useProgression } from './progression/progressionStore';
 import { albumOf, ownedIds, skinTargetName } from './progression/collectionModel';
 import { skinArtOf } from './skins/skinArt';
-import './progression/collection.css';
 import './avatarPicker.css';
 
 /**
@@ -20,7 +19,7 @@ import './avatarPicker.css';
  *
  *   TABS      My Skins (every hero / minion skin you OWN), Heroes, Minions, Hero Powers. Each tab shows its count; while
  *             a search is typed the counts are the matches, so you can see which tab holds what you are looking for.
- *   GRID      round tiles, the gold edge painted over the art. Only this list scrolls. A press SELECTS (it no longer
+ *   GRID      round tiles, the gold edge painted over the art; a skin's edge is its rarity colour (Ancient glows). Only this list scrolls. A press SELECTS (it no longer
  *             picks and closes); a double press applies at once. The tile in use wears an "In use" tag.
  *   PREVIEW   the selection inside YOUR equipped portrait frame, its name, and your banner wearing it.
  *   ACTIONS   "Use portrait" applies and closes; "Reset to default" selects the plain default.
@@ -190,8 +189,8 @@ function PortraitWindow() {
             <HeroPortraitRing art={chosenSrc} alt="" className="avp-ring" />
             <div className="avp-name">{chosen?.name ?? (sel ? 'Portrait' : 'Default')}</div>
             <div className={`avp-sub${chosen?.rarity ? ` r-${chosen.rarity}` : ''}`}>
-              {chosen?.rarity && <span className="colls-gem" aria-hidden="true" />}
-              <span>{chosen ? (chosen.rarity ? `${RARITY_LABELS[chosen.rarity]} · ${chosen.sub}` : chosen.sub) : sel ? '' : 'No picture'}</span>
+              {chosen?.rarity && <span className="avp-rarname">{RARITY_LABELS[chosen.rarity]}</span>}
+              <span>{chosen ? chosen.sub : sel ? '' : 'No picture'}</span>
             </div>
             <div className="avp-banner" aria-hidden="true" {...{ inert: '' }}>
               <span className="avp-lbl">On your banner</span>
@@ -214,7 +213,6 @@ const Tile = memo(function Tile({ e, on, used, onPick, onApply }: { e: Entry; on
       aria-pressed={on} aria-label={`${e.name}, ${e.rarity ? `${RARITY_LABELS[e.rarity]} ` : ''}${e.sub}${used ? ', in use' : ''}`}
       onClick={() => onPick(e.id)} onDoubleClick={() => onApply(e.id)}>
       <span className="avp-art"><img src={e.src} alt="" draggable={false} loading="lazy" /></span>
-      {e.rarity && <span className="avp-rar" aria-hidden="true"><span className="colls-gem" /></span>}
       {used && <span className="avp-used" aria-hidden="true">In use</span>}
     </button>
   );

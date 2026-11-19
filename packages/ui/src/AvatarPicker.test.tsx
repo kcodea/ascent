@@ -72,8 +72,11 @@ describe('the portrait window', () => {
     expect($$('.avp-tile')).toHaveLength(2);
     expect(countOf('My Skins')).toBe('2');
     const brian = $$('.avp-tile').find((t) => t.dataset.name === 'Sheriff Brian')!;
-    expect(brian.querySelector('.colls-gem')).not.toBeNull();
+    // The rarity is the EDGE colour (the shared .r-* tokens), not a symbol.
+    expect(brian.classList.contains('r-common')).toBe(true);
+    expect(brian.querySelector('.colls-gem')).toBeNull();
     act(() => brian.click());
+    expect($('.avp-rarname')!.textContent).toBe('Common');
     expect($('.avp-sub')!.textContent).toContain('skin');
     act(() => $('.avp-use')!.click());
     expect(useGame.getState().playerAvatar).toBe('skin:skin_blackbelt_1');

@@ -209,8 +209,8 @@ const MODE_ART = indexArt(
 );
 export const modeArt = (modeId: string): string | undefined => MODE_ART[modeId];
 
-/** MEDAL CRESTS (2026-09-20) — one square master per medal (`ranks/<medal>.webp`, lower-case: `gold.webp`),
- *  composited inside the circular hero frame by `RankCrest`; the division numeral is a plate on the frame,
+/** MEDAL CRESTS (2026-09-20; shaped cutouts on a clear square since 2026-11-19) — one square master per medal
+ *  (`ranks/<medal>.webp`, lower-case: `gold.webp`), seated whole inside the circular hero frame by `RankCrest`; the division numeral is a plate on the frame,
  *  not a separate painting. Keyed by the lower-cased medal name. Preloaded with the rest of the art so the
  *  post-game screen never pops its crest in. */
 const RANK_ART = indexArt(

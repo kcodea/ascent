@@ -672,13 +672,12 @@
   gap: var(--s2);
 }
 
+/* Each medal is a shaped cutout, shown whole with a soft shadow under it. */
 .rank img {
-  width: min(100%, 128px);
+  width: min(100%, 144px);
   aspect-ratio: 1;
-  border: 2px solid transparent;
-  border-radius: 50%;
-  background: var(--edge) border-box;
-  box-shadow: 0 0 0 2px var(--night-deep), var(--contact);
+  object-fit: contain;
+  filter: drop-shadow(0 8px 10px color-mix(in srgb, var(--night-deep) 80%, transparent));
 }
 
 .rank__name,

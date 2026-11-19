@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-11-19',
     changes: [
+      { category: 'Systems', text: 'New rank medals: Bronze through Ascendant each have new medal art.' },
       {
         category: 'Systems',
         text: 'Fast turns stay smoother. Buying or playing a card no longer redraws your whole hand.',

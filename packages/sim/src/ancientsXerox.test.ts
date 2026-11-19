@@ -85,8 +85,8 @@ describe('Xerox × DEATH — Avenge (5): summon a copy of your highest Attack mi
     expect(s.board.length).toBe(7);
     expect(s.board.filter((c) => c.attack === 6).length, 'the highest-Attack minion was copied').toBe(2);
   });
-  it('combat: the carried count + this fight\'s deaths fire the Avenge MID-FIGHT, and settle carries the remainder', () => {
-    let s = picked('death', { board: [card('big', T1, { attack: 9, health: 1 }), ...['a', 'b', 'c'].map((u) => card(u, T1, { attack: 1, health: 1 }))] });
+  it('combat: the 5th death in the fight fires the Avenge MID-FIGHT; nothing carries in or out (per combat, R-AVENGE-PER-COMBAT-01: the Shop count never comes in)', () => {
+    let s = picked('death', { board: [card('big', T1, { attack: 9, health: 1 }), ...['a', 'b', 'c', 'd', 'e'].map((u) => card(u, T1, { attack: 1, health: 1 }))] });
     s = { ...s, ancients: { ...s.ancients!, xeroxDeaths: 4 } };
     expect(ancientCombatMods(s).ancientXeroxAvenge).toMatchObject({ every: 5, tick: 4 });
     s = fightNow(s, 100, 1000);
@@ -94,11 +94,11 @@ describe('Xerox × DEATH — Avenge (5): summon a copy of your highest Attack mi
     const cast = ev.findIndex((e) => e.type === 'sc' && e.text.startsWith('Ancient of Death: a copy of'));
     expect(cast).toBeGreaterThan(-1);
     const firstDeath = ev.findIndex((e) => e.type === 'death' && e.side === 'player');
-    expect(cast, 'right after the first friendly death (the 5th counted)').toBeGreaterThan(firstDeath);
+    expect(cast, 'after the first friendly death').toBeGreaterThan(firstDeath);
+    expect(ev.slice(0, cast).filter((e) => e.type === 'death' && e.side === 'player').length, 'not before the 5th death of this fight').toBeGreaterThanOrEqual(4);
     expect(playerSummons(ev).length).toBeGreaterThanOrEqual(1);
-    const deaths = s.lastCombat!.playerDeaths ?? 0;
     s = reduce(s, { type: 'resolveCombat' });
-    expect(s.ancients!.xeroxDeaths).toBe((4 + deaths) % 5);
+    expect(s.ancients!.xeroxDeaths ?? 0).toBe(0);
   });
   it('prints the live countdown on the power (and folds the fight\'s deaths in)', () => {
     const s = picked('death');

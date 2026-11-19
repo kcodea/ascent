@@ -84,20 +84,24 @@ export function summonFlatZooText(cardId: string, golden: boolean, zooSummons: n
  * +N/+N (leaving the "Improves +N/+N" step as printed) and appends the countdown to the next step. Only for the
  * escalating shape (an `improve` param); returns null otherwise so the flat/zoo helpers handle their cases.
  */
-export function summonEscalatingText(cardId: string, golden: boolean, summonBonus: number | null | undefined): string | null {
+export function summonEscalatingText(cardId: string, golden: boolean, summonBonus: number | null | undefined, zooSummons?: number | null): string | null {
   const def = CARD_INDEX[cardId];
   const eff = def?.effects.find((e) => e.do === 'onSummonTribeBuffFlat' && (e.params as { improve?: number } | undefined)?.improve);
   if (!def || !eff) return null;
-  const p = eff.params as { attack?: number; health?: number; improve?: number; every?: number };
+  const p = eff.params as { attack?: number; health?: number; improve?: number; improveHealth?: number; every?: number };
   const seen = Math.max(0, summonBonus ?? 0);
   const base = Number(p?.attack ?? 3);
   const baseHealth = Number(p?.health ?? base); // Beardsley's grant is uneven since 2026-11-06 (+2/+1)
   const improve = Number(p?.improve ?? 3);
   const every = Math.max(1, Number(p?.every ?? 3));
   // Every-1 reads the count raw: an in-place gild halves it (GOLD_SCALED_ACCRUAL_CARDS), so a half-count is legal here.
-  const steps = improve * (every <= 1 ? seen : Math.floor(seen / every));
-  const cur = (base + steps) * (golden ? 2 : 1);
-  const curHealth = (baseHealth + steps) * (golden ? 2 : 1);
+  const count = every <= 1 ? seen : Math.floor(seen / every);
+  // The Health step can differ from the Attack step (Beardsley improves +2/+1 since 2026-11-18).
+  const improveHealth = Number(p?.improveHealth ?? improve);
+  // Rune of the Zoo (combat only): the NEXT summon's grant is scaled by its ordinal, as the engine does.
+  const reps = zooSummons == null ? 1 : Math.max(1, zooSummons + 1);
+  const cur = (base + improve * count) * (golden ? 2 : 1) * reps;
+  const curHealth = (baseHealth + improveHealth * count) * (golden ? 2 : 1) * reps;
   const toNext = every - (seen % every);
   const src = golden ? (def.goldenText ?? def.text) : def.text;
   const live = src.replace(/\*\*\+\d+\/\+\d+\*\*/, `{{+${cur}/+${curHealth}}}`);

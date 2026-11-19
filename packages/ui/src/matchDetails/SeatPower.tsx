@@ -56,12 +56,18 @@ export const SeatPower = memo(function SeatPower({ heroId, ancient, who }: { her
   );
 });
 
-/** A lobby tile's small Ancient badge on the hero portrait: the Ancient's round power face. Nothing without a pick. */
+/**
+ * A lobby tile's ANCIENT (owner 2026-11-19, R-LOBBY-TILE-ANCIENT-01: "put the ancient's face in the top right instead of
+ * eclipsing the hero art, and make it the same size as the hero art. put it in the hero power frame so it's wrapped").
+ * The Ancient's round power face inside the hero power disc (`.heropowerbtn` + `.hpb-artwrap`, the frame the results
+ * pill and the rail scout card use), at the tile head's right end, the hero portrait's size. Static. Nothing without a
+ * pick.
+ */
 export const SeatAncientBadge = memo(function SeatAncientBadge({ ancient }: { ancient?: MatchAncient | null }) {
   if (!ancient || !ANCIENTS[ancient.id]) return null;
   return (
-    <span className="lp-tile-anc" style={{ '--anc-c': ancientColor(ancient.id) } as CSSProperties} aria-hidden="true">
-      <AncientFace id={ancient.id} variant="power" />
+    <span className="heropowerbtn lp-tile-anc" style={{ '--anc-c': ancientColor(ancient.id) } as CSSProperties} aria-hidden="true">
+      <span className="hpb-artwrap"><AncientFace id={ancient.id} variant="power" className="hpb-art" /></span>
     </span>
   );
 });

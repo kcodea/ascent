@@ -167,11 +167,13 @@ export const LobbyTiles = memo(function LobbyTiles({ details, selectedId, onPick
             }}
           >
             <span className="lp-tile-head">
-              <span className="lp-chip-portrait"><SeatPortrait heroId={seat.heroId} skins={seatSkinsOf(seat, own, showOpp)} self={!!seat.self && own} /><SeatAncientBadge ancient={seat.ancient} /></span>
+              <span className="lp-chip-portrait"><SeatPortrait heroId={seat.heroId} skins={seatSkinsOf(seat, own, showOpp)} self={!!seat.self && own} /></span>
               <span className="lp-chip-txt">
                 <span className="lp-chip-place">{seatPlace(seat, details)}{seatFate(seat, details) !== null && <span className="lp-tile-out">{seatFate(seat, details)}</span>}</span>
                 <span className="lp-chip-name">{seatName(seat, own)}</span>
               </span>
+              {/* The seat's Ancient: its face in the hero power frame, top right, the portrait's size (R-LOBBY-TILE-ANCIENT-01). */}
+              <SeatAncientBadge ancient={seat.ancient} />
               {seat.id === details.knockedOutBy && <span className="lp-ko" aria-hidden="true"><Icon name="sword" /></span>}
             </span>
             <MiniBoard minions={minions} />

@@ -3117,8 +3117,9 @@ body.modalup .zone .kwfx-rebirth.shield, .lazy-row.is-far .kwfx-rebirth.shield, 
   opacity: 0; pointer-events: none; z-index: 60; transition: opacity 0.14s;
 }
 .herotip-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 6px; padding-bottom: 0.5em; border-bottom: 1px solid var(--atip-divider); }
-/* The Ancient tag keeps its colour, lifted toward white so it reads on navy. */
-.herotip-anc { font-family: var(--font-title); font-weight: 800; font-size: var(--atip-z-title); line-height: 1.15; filter: brightness(1.35) saturate(1.1); }
+/* The Ancient tag: EXACTLY the Ancient's name colour (`ancientColor`, inline), the same value as the Ancient's heading
+   under it (owner 2026-11-19: one colour per Ancient everywhere; R-ANCIENT-COLOUR-01). No filter lift: that drifted. */
+.herotip-anc { font-family: var(--font-title); font-weight: 800; font-size: var(--atip-z-title); line-height: 1.15; }
 /* Glossary pills inside a hero-panel tooltip (the Equipment slot): the same `.kwbox` chrome as the card hover,
    stacked full-width under the rule text, left-aligned like a definition list. */
 .herotip .kwdefs { display: flex; max-width: none; margin-top: 10px; text-align: left; align-self: stretch; }
@@ -4909,7 +4910,7 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
   width: calc(40 * var(--u)); height: calc(40 * var(--u)); box-sizing: border-box;
   display: grid; place-items: center; border-radius: 50%;
   background: rgba(14, 12, 18, 0.78);
-  border: calc(3 * var(--u)) solid #c9363b;
+  border: calc(3 * var(--u)) solid var(--anc-c, #c9363b); /* the picked Ancient's own colour (ancientColor) */
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
   font-size: calc(24 * var(--u)); font-weight: 900; color: #fff1d6;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
@@ -15264,11 +15265,17 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .lp-tile.on { border-color: rgba(255, 217, 138, 0.95); background: var(--ui-sheen), var(--ui-hover-plate); box-shadow: 0 0 0 1px rgba(255, 217, 138, 0.35), 0 10px 22px -12px rgba(0, 0, 0, 0.85); }
 .lp-tile-head { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .lp-chip-portrait { flex: none; display: grid; place-items: center; position: relative; }
-/* THE SEAT'S ANCIENT (R-RESULTS-ANCIENT-01): a small round badge of its power face on the portrait's lower right, ringed in
-   the Ancient's colour. Static. */
-.lp-tile-anc { position: absolute; right: -4px; bottom: -3px; z-index: 1; width: 17px; height: 17px; border-radius: 50%; overflow: hidden; pointer-events: none;
-  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--anc-c) 70%, #fff), 0 1px 3px rgba(0, 0, 0, 0.6); background: #0c0f17; }
-.lp-tile-anc .anc-face { display: block; width: 100%; height: 100%; object-fit: cover; }
+/* THE SEAT'S ANCIENT (R-LOBBY-TILE-ANCIENT-01, owner 2026-11-19): its power face in the hero power disc (`.heropowerbtn`,
+   sized through `--u` like the results pill's and the rail card's), at the head's right end, the portrait's size (the
+   portrait ring is 36px), wrapped in the same thin gold edge as the rail card's power disc. In the head row, so the tile
+   keeps its height and the name ellipsises before it. Static paint. */
+.lp-tile-anc.heropowerbtn { --u: calc(36px / 128); flex: none; margin-left: auto; border-radius: 50%; pointer-events: none; background: #0c0f17;
+  box-shadow: 0 0 0 1.5px var(--pill-edge), 0 1px 3px rgba(0, 0, 0, 0.6); }
+/* Beside the disc, the text column takes the rest and its lines ellipsise instead of running under it; the knockout
+   sword steps a little further out on the corner so it never covers the face. */
+.lp-tile-head:has(.lp-tile-anc) .lp-chip-txt { flex: 1; }
+.lp-tile-head:has(.lp-tile-anc) .lp-chip-place { overflow: hidden; text-overflow: ellipsis; }
+.lp-tile-head:has(.lp-tile-anc) .lp-ko { top: -9px; right: -9px; }
 .lp-chip-portrait .mds-portrait, .lp-chip-portrait .cv2-heroframe { --ring: 36px; }
 .lp-chip-txt { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .lp-chip-place { font-family: var(--font-ui); font-weight: 900; font-size: 14px; letter-spacing: 0.03em; color: var(--band); white-space: nowrap; }

@@ -485,7 +485,7 @@ body:has(.book-ov) .cardref { z-index: 490; }
 .hanc-text { grid-area: 1 / 1; min-width: 0; visibility: hidden; }
 .hanc-text.is-on { visibility: visible; }
 .hanc-name { display: block; font-family: var(--ph-font, var(--font-ui)); font-weight: 900; font-size: calc(14 * var(--hu)); line-height: 1.2;
-  color: color-mix(in srgb, var(--anc-c, #c8922e) 55%, #ffffff); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7); }
+  color: var(--anc-c, #c8922e); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7); }
 .hanc-body { margin: calc(2 * var(--hu)) 0 0; font-family: var(--ph-body, var(--font-ui)); font-weight: 500; font-size: calc(14 * var(--hu)); line-height: 1.4; color: var(--ph-text, var(--ui-text)); }
 .hanc-body b { color: var(--ph-ink, var(--ui-title)); font-weight: 800; }
 .hanc-text.is-unwritten .hanc-body { font-style: italic; color: var(--ph-muted, var(--ui-muted)); }

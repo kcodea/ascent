@@ -1124,7 +1124,7 @@ export function StatusBar() {
                 RIGHT NOW. Suppressed while the Gambler's die owns the centre, so two heroes can never both
                 claim the slot (only reachable at all through a Void holding both). */}
             {powerCenter && dieRoll == null && diceHeld == null && (
-              <span key={powerCenter} className={`hpb-tally hpb-center${avengeLeft != null ? ' hpb-avenge' : ''}`} data-testid={avengeLeft != null ? 'ancient-avenge' : undefined}>{powerCenter}</span>
+              <span key={powerCenter} className={`hpb-tally hpb-center${avengeLeft != null ? ' hpb-avenge' : ''}`} style={avengeLeft != null && pickedAncient ? { '--anc-c': ancientColor(pickedAncient) } as CSSProperties : undefined} data-testid={avengeLeft != null ? 'ancient-avenge' : undefined}>{powerCenter}</span>
             )}
             {/* CASSEN'S COMMISSION PICKER — reuses the Discover overlay's shell so it reads as the same kind of
           decision, but its options are plain text tiles rather than cards (a commission is not a card). Only

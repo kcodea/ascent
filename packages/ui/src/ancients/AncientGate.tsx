@@ -8,7 +8,7 @@ import { getAncientsConfig, subscribeAncientsConfig } from './ancientsConfig';
 import { panelTimeline } from './panelClock';
 import { AncientPanels } from './AncientPanels';
 import { getAwakenStage, prefersReducedMotion, setAwakenStage, useAwakenStage, useGateDemo, useRingSettledSeq } from './ancientsFx';
-import { duckForAwakening, playCue, warmAncientCues } from './ancientsSound';
+import { duckForAwakening, playCue, playOmenRise, warmAncientCues } from './ancientsSound';
 import { pickTimeline, warmPickBurst } from './ancientPickSlam';
 import { ancientEruptionBlast, ancientLandDust } from './ancientsSmoke';
 import { heroMotePalette, resolveAncientHeroTheme } from './ancientHeroThemes';
@@ -147,7 +147,7 @@ export const AncientGate = memo(function AncientGate({ run }: { run: RunState })
     // 2026-09-27, headless Chrome).
     warmPickBurst();
     go('omen', seq);
-    rumble.current = playCue('omenRumble', 0, { fadeInMs: Math.min(600, c.omenMs) });
+    rumble.current = playOmenRise(c.omenMs);
     wipeFx.charge(x, y, c.omenMs, pal);
     timers.current.push(window.setTimeout(() => {
       go('eruption', seq);

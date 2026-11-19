@@ -17,6 +17,18 @@ export const PANEL_SLIDE_CLIPS = [
   'fx/ancient-stone-slide-4', 'fx/ancient-stone-slide-5', 'fx/ancient-stone-slide-6',
 ] as const;
 
+/** The opening's rise and where its peak is in the clip. `playOmenRise` starts it partway in (or late) so the peak
+ *  lands on the explosion. A clip typed into the tuner instead plays from its start, fading in. */
+export const OMEN_RISE = { clip: 'fx/ancient-opening-rise', peakMs: 2450 } as const;
+export function playOmenRise(omenMs: number): { stop: (fadeMs?: number) => void } {
+  const c = getAncientsConfig() as unknown as Record<string, string | number>;
+  if (String(c.omenRumbleClip) !== OMEN_RISE.clip) return playCue('omenRumble', 0, { fadeInMs: Math.min(600, omenMs) });
+  // A sped-up clip reaches its peak sooner.
+  const peak = OMEN_RISE.peakMs / Math.max(0.1, Number(c.omenRumbleRate ?? 1));
+  const lead = peak - omenMs; // > 0: skip this much of the rise; < 0: wait this long before starting
+  return playCue('omenRumble', Math.max(0, -lead), { fadeInMs: lead > 0 ? 90 : 20, startOffsetMs: Math.max(0, lead) * Math.max(0.1, Number(c.omenRumbleRate ?? 1)) });
+}
+
 /** Decode every cue's clip ahead of the moment (a silent play kicks the decode), so the first awakening is not
  *  missing its first sounds. */
 export function warmAncientCues(): void {
@@ -29,7 +41,7 @@ export function warmAncientCues(): void {
 }
 
 /** Play `cue` at its tuner offset (+ `extraDelayMs`). Retries once if the clip is still decoding. */
-export function playCue(cue: AncientCue, extraDelayMs = 0, opts: { loop?: boolean; rateMul?: number; fadeInMs?: number; variant?: number } = {}): { stop: (fadeMs?: number) => void } {
+export function playCue(cue: AncientCue, extraDelayMs = 0, opts: { loop?: boolean; rateMul?: number; fadeInMs?: number; variant?: number; startOffsetMs?: number } = {}): { stop: (fadeMs?: number) => void } {
   const c = getAncientsConfig() as unknown as Record<string, string | number>;
   let clip = String(c[`${cue}Clip`] ?? '');
   // `variant` picks one of a cue's own set of clips (the stone slides, one per Ancient) while the slot's clip is the
@@ -42,7 +54,7 @@ export function playCue(cue: AncientCue, extraDelayMs = 0, opts: { loop?: boolea
   let stopped = false;
   const fire = (retry: boolean, delay: number): void => {
     if (stopped || !clip || !(gain > 0)) return;
-    handle = playFxSound(clip, { gain, rate, delayMs: delay, bus: BUS, loop: opts.loop, fadeInMs: opts.fadeInMs ?? 20, fadeOutMs: opts.loop ? 0 : 260 });
+    handle = playFxSound(clip, { gain, rate, delayMs: delay, bus: BUS, loop: opts.loop, startOffsetMs: opts.startOffsetMs, fadeInMs: opts.fadeInMs ?? 20, fadeOutMs: opts.loop ? 0 : 260 });
     if (!handle && retry) window.setTimeout(() => fire(false, Math.max(0, delay - 90)), 90);
   };
   fire(true, delayMs);

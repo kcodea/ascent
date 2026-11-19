@@ -208,7 +208,7 @@ const ART_DEFAULTS = Object.fromEntries(
 export type AncientColorKey = `${'death' | 'fortune' | 'war' | 'genesis' | 'time' | 'bonds'}Color`;
 /** THE AWAKENING SOUND CUES (owner: "i can help source sounds if you set up a tuner with timing cues"). Each cue is a
  *  clip id (swap in the owner's SFX in the tuner), a gain, an offset (ms, relative to its beat) and a rate (pitch). */
-export const ANCIENT_CUES = ['omenRumble', 'eruptionBoom', 'eruptionFlash', 'titleSting', 'revealSpark', 'cardReveal', 'ambientHum', 'pickWoosh', 'pickSeal', 'panelBg', 'panelSlide', 'panelSlam', 'pickPulse'] as const;
+export const ANCIENT_CUES = ['omenRumble', 'eruptionBoom', 'eruptionFlash', 'titleSting', 'revealSpark', 'cardReveal', 'ambientHum', 'pickWoosh', 'pickSeal', 'panelBg', 'panelSlide', 'panelSlam', 'pickPulse', 'pickClick'] as const;
 export type AncientCue = (typeof ANCIENT_CUES)[number];
 export type AncientCueKey = `${AncientCue}${'Clip' | 'Gain' | 'Offset' | 'Rate'}`;
 /** The shipped picks (existing repo clips, pitched where it helps). Gains baked from the owner's tuner 2026-09-26. */
@@ -219,7 +219,11 @@ export type AncientCueKey = `${AncientCue}${'Clip' | 'Gain' | 'Offset' | 'Rate'}
  *  slam 5 dB under it (six land in a second and their tails add up), each stone slide 7 dB under its slam, and the
  *  three-chosen sparkle at -22, well above the deliberately quiet card sounds (-39 to -42). */
 export const ANCIENT_CUE_DEFAULTS: Record<AncientCue, { clip: string; gain: number; offset: number; rate: number }> = {
-  omenRumble: { clip: 'turncharge', gain: 0.7, offset: 0, rate: 0.62 },
+  // The opening (owner 2026-11-19): a woosh that rises for 2.4 s and peaks. It is played so that peak lands ON the
+  // explosion whatever the omen's length (`OMEN_RISE`, ancientsSound.ts). At its peak it hits -5 dB, the hottest clip
+  // here, and it peaks with the boom: 0.3 puts it at -16, under the boom's -12. (The old slot was the turn-charge clip
+  // slowed down, whose first half second is near silent: the opening had no audible sound.)
+  omenRumble: { clip: 'fx/ancient-opening-rise', gain: 0.3, offset: 0, rate: 1 },
   // The explosion (owner 2026-11-19): his own two clips, made for this moment, so they play at their own pitch.
   eruptionBoom: { clip: 'fx/ancient-hp-explosion', gain: 0.55, offset: 0, rate: 1 },
   eruptionFlash: { clip: 'fx/ancient-explosion-swoosh', gain: 0.6, offset: 40, rate: 1 },
@@ -245,6 +249,9 @@ export const ANCIENT_CUE_DEFAULTS: Record<AncientCue, { clip: string; gain: numb
   // The three on offer rattling and pulsing (owner 2026-11-19): a shine on the first two pulses under a sparkle whoosh
   // that rises through the rattle and peaks as the pulse ends. One sound for the three, not one each.
   pickPulse: { clip: 'fx/ancient-pick-pulse', gain: 0.4, offset: 0, rate: 1 },
+  // The click on an Ancient's card (owner 2026-11-19): a click with a long reverb, on the frame of the click, before
+  // the woosh and the impact. A quiet clip (its hit is -20 dB), so the gain is high: heard at -22, like the pulse.
+  pickClick: { clip: 'fx/ancient-pick-click', gain: 0.8, offset: 0, rate: 1 },
 };
 const CUE_DEFAULTS = Object.fromEntries(ANCIENT_CUES.flatMap((c) => {
   const d = ANCIENT_CUE_DEFAULTS[c];
@@ -436,13 +443,14 @@ export const ANCIENTS_RANGES: Record<NumKey, [number, number, number]> = {
 
 const KEY = 'ascent.ancients';
 const REV_KEY = 'ascent.ancients.rev';
-const REV = 6;
+const REV = 7;
 /** The defaults retuned at each revision (see the loader): a save older than a revision takes that revision's keys
  *  from the new defaults and keeps everything else. Rev 5 (2026-11-19): the owner's new explosion and slam clips; rev 6: their levels. */
 const RETUNED_AT: Record<number, readonly string[]> = {
   4: ['splitMs', 'shineMs', 'crackOpenMs', 'revealDelayMs', 'beatGapMs', 'hitStopMs', 'burstScale', 'trailTime', 'trailIntensity', 'revealStyle', 'landFlash', 'cardRevealClip', 'cardRevealGain', 'cardRevealRate', 'cardRevealOffset'],
   5: ['eruptionBoomClip', 'eruptionBoomRate', 'eruptionFlashClip', 'eruptionFlashRate', 'panelSlamClip', 'panelSlamGain', 'panelSlamRate'],
   6: ['eruptionBoomGain', 'panelSlamGain', 'panelSlideGain', 'pickPulseGain'], // the level pass (see ANCIENT_CUE_DEFAULTS)
+  7: ['omenRumbleClip', 'omenRumbleGain', 'omenRumbleRate'], // the opening's own rise
 };
 let cfg: AncientsFullConfig = (() => {
   if (!import.meta.env.DEV) return { ...ANCIENTS_DEFAULTS };

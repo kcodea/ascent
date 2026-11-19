@@ -121,4 +121,10 @@ about their bottom edge.
 - Audio work used the repo's `ffmpeg-static`; the build scripts were session scratch, not committed.
 - `pickPulse` ("Three chosen"): `fx/ancient-pick-pulse`, a shine twice (0 and 345 ms, +11 dB) under a sparkle whoosh with
   its 0.5 s silent lead-in cut, so it peaks around 0.75 to 1.25 s, as the 820 ms pulse ends. One sound for the three.
-- Still silent: the opening rumble, the backgrounds falling, the slide along the bottom, the shooting stars.
+- LEVELS: measured as heard (a clip's loudest 100 ms + the cue's gain in dB). Anchors tuned by the owner on
+  2026-09-26: old explosion -11, title sting -12, pick impact -13. New: explosion -12 (gain 0.55), slam -18 (0.4),
+  each stone slide -25 (0.32, all six re-rendered equally loud), three chosen -22 (0.4), pick click -22 (0.8).
+- `omenRumble` is now `fx/ancient-opening-rise` (a 2.4 s riser). `playOmenRise` offsets or delays its start so the
+  peak (`OMEN_RISE.peakMs`) lands on the explosion at any `omenMs`; gain 0.3 (its peak hits -5 dB, with the boom).
+- `pickClick` ("Pick click"): `fx/ancient-pick-click`, on the click, before the woosh and impact.
+- Still silent: the backgrounds falling, the slide along the bottom, the shooting stars.

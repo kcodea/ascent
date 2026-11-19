@@ -42,7 +42,7 @@ function heroThemeControls(): TunerControl<Key>[] {
 }
 /** Each sound's plain name and the moment it plays at (the Sound group's labels and hints). */
 const CUE_NAMES: Record<AncientCue, [string, string]> = {
-  omenRumble: ['Opening rumble', 'The low rumble swelling while the hero power glows, before the explosion.'],
+  omenRumble: ['Opening rise', 'The woosh rising while the hero power glows, timed so its peak lands on the explosion. ▶ plays it from its start.'],
   eruptionBoom: ['Explosion boom', 'The deep hit as the hero power explodes.'],
   eruptionFlash: ['Explosion swoosh', 'The swoosh layered over the explosion.'],
   panelBg: ['Background slides in', 'Each of the six backgrounds sliding in (pitched up a step per pair).'],
@@ -53,6 +53,7 @@ const CUE_NAMES: Record<AncientCue, [string, string]> = {
   revealSpark: ['Card spark', 'The point of light gathering before each card appears.'],
   cardReveal: ['Card appears', 'Each card bursting out of its spark.'],
   ambientHum: ['Select screen hum', 'The quiet hum under the select screen (it loops in the game; ▶ plays it once).'],
+  pickClick: ['Pick click', 'The click as you choose an Ancient.'],
   pickWoosh: ['Pick woosh', 'The chosen card turning into a trail toward the hero power.'],
   pickSeal: ['Pick impact', 'The trail hitting the hero power.'],
 };

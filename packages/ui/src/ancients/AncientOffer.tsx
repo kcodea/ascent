@@ -75,6 +75,7 @@ export const AncientOfferOverlay = memo(function AncientOfferOverlay({ held, run
     onPick={(id, el) => {
       // The slam measures the card where it was clicked, before anything re-renders; the awakening then closes
       // (the backdrop fades) in the same render as the pick lands in the run.
+      playCue('pickClick');
       playPickSlam(el as HTMLElement, id);
       if (inReveal) setAwakenStage('closing', stage.seq);
       if (demo) playAwakenDemo(id, pickTimeline().end + 3000); // a demo's hero power splits too, run untouched

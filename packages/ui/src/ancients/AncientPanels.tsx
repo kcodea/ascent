@@ -239,7 +239,13 @@ export const AncientPanels = memo(function AncientPanels({ offered, phase }: { o
     // Fires once, when the gate reaches its reveal.
   }, [phase]);
 
-  const edge = (<><line x1={2 * geo.slant} y1={0} x2={0} y2={geo.vh} /><line x1={geo.boxW} y1={0} x2={geo.boxW - 2 * geo.slant} y2={geo.vh} /></>);
+  // A strip's two slanted edges. The first strip has no left edge and the last no right edge: those would be lines
+  // across the screen's top-left and bottom-right corners, where the outer backgrounds simply fill to the corner
+  // (owner 2026-11-19: "can we remove those and have death and bonds just fill those corners?").
+  const edge = (i: number): JSX.Element => (<>
+    {i > 0 && <line x1={2 * geo.slant} y1={0} x2={0} y2={geo.vh} />}
+    {i < geo.n - 1 && <line x1={geo.boxW} y1={0} x2={geo.boxW - 2 * geo.slant} y2={geo.vh} />}
+  </>);
   return (
     <div ref={hostRef} className="anc-pn-host">
       {/* THE STRIPS: what the slanted clip cuts (the background, the lit wash) and the thin dark seam. */}
@@ -258,7 +264,7 @@ export const AncientPanels = memo(function AncientPanels({ offered, phase }: { o
             <div className="anc-pn-lit" />
           </div>
           <svg className="anc-pn-edges" viewBox={`0 0 ${geo.boxW} ${geo.vh}`} preserveAspectRatio="none">
-            <g className="anc-pn-seam">{edge}</g>
+            <g className="anc-pn-seam">{edge(i)}</g>
           </svg>
         </div>
       ); })}
@@ -268,7 +274,7 @@ export const AncientPanels = memo(function AncientPanels({ offered, phase }: { o
         <div key={`over-${id}`} className="anc-pn-over" style={{ left: geo.left[i], width: geo.boxW, zIndex: panelRank(i, geo.n), '--anc-c': ancientColor(id) } as CSSProperties}>
           <svg className="anc-pn-edges" viewBox={`0 0 ${geo.boxW} ${geo.vh}`} preserveAspectRatio="none">
             <g className="anc-pn-glow">
-              {(['w', 'm', 'c'] as const).map((k) => <g key={k} className={`anc-pn-glow-${k}`}>{edge}</g>)}
+              {(['w', 'm', 'c'] as const).map((k) => <g key={k} className={`anc-pn-glow-${k}`}>{edge(i)}</g>)}
             </g>
           </svg>
           {layers && (

@@ -1,3 +1,4 @@
+import { foldPrefix, type PrefixFoldSpec } from './choreo/prefixFold';
 import { gatherRunBuffs, type BoardSnapshot, type BuffRow } from '@game/sim';
 import type { CombatEvent } from '@game/core';
 
@@ -31,40 +32,43 @@ const RUBY_POWER_RE = /^\+(\d+)\/\+(\d+) Ruby Power$/;
 
 /** Sum the live-trackable combat buff gains over `events[0, upto)` (the events the replay has played so far). */
 export function combatBuffDelta(events: readonly CombatEvent[], upto: number): CombatBuffDelta {
-  let spellAttack = 0;
-  let spellHealth = 0;
-  let rubyAttack = 0;
-  let rubyHealth = 0;
-  let gold = 0;
-  const auras: Record<string, { attack: number; health: number }> = {};
-  const n = Math.min(upto, events.length);
-  for (let i = 0; i < n; i++) {
-    const e = events[i];
+  return foldPrefix(COMBAT_BUFF_FOLD, events, upto, undefined);
+}
+
+/** `combatBuffDelta` as a continuable fold (`choreo/prefixFold.ts`): the replay hook steps it beat by beat. */
+export const COMBAT_BUFF_FOLD: PrefixFoldSpec<CombatBuffDelta, CombatBuffDelta> = {
+  init: () => ({ spellAttack: 0, spellHealth: 0, rubyAttack: 0, rubyHealth: 0, gold: 0, auras: {} }),
+  step: (d, e) => {
     if (e.type === 'sc') {
       const m = SPELL_POWER_RE.exec(e.text);
       // Spell Power is side-tagged since R-SYMMETRY-01 (2026-10-13): the foe's grows live too. An untagged line is
       // the player's (logs recorded before the tag).
       if (m && e.side !== 'enemy') {
-        spellAttack += Number(m[1]);
-        spellHealth += Number(m[2]);
+        d.spellAttack += Number(m[1]);
+        d.spellHealth += Number(m[2]);
       }
       // Ruby Power is stamped with `side` because BOTH sides can gain it (an enemy Crownvein's Rally) —
       // only the player's ticks the drawer.
       const rb = RUBY_POWER_RE.exec(e.text);
       if (rb && e.side === 'player') {
-        rubyAttack += Number(rb[1]);
-        rubyHealth += Number(rb[2]);
+        d.rubyAttack += Number(rb[1]);
+        d.rubyHealth += Number(rb[2]);
       }
     } else if (e.type === 'maxGold' && e.side === 'player') {
-      gold += e.amount;
+      d.gold += e.amount;
     } else if (e.type === 'tribeAura' && e.side === 'player' && e.aura) {
-      const a = (auras[e.aura] ??= { attack: 0, health: 0 });
+      const a = (d.auras[e.aura] ??= { attack: 0, health: 0 });
       a.attack += e.attack ?? 0;
       a.health += e.health ?? 0;
     }
-  }
-  return { spellAttack, spellHealth, rubyAttack, rubyHealth, gold, auras };
-}
+  },
+  // A fresh reading every call (the state lives on): the aura rows are copied, in the order they first appeared.
+  read: (d) => {
+    const auras: CombatBuffDelta['auras'] = {};
+    for (const k in d.auras) { const a = d.auras[k]!; auras[k] = { attack: a.attack, health: a.health }; }
+    return { spellAttack: d.spellAttack, spellHealth: d.spellHealth, rubyAttack: d.rubyAttack, rubyHealth: d.rubyHealth, gold: d.gold, auras };
+  },
+};
 
 /**
  * The display-only COMBAT PREVIEW counters, folded over `events[0, upto)` exactly the way `combatBuffDelta`
@@ -99,27 +103,31 @@ const ESCALATION_RE = /improves \+(\d+)\/\+(\d+)$/;
 
 /** Fold the four display-only preview counters over `events[0, upto)`. Pure; one pass. */
 export function combatPreviewFold(events: readonly CombatEvent[], upto: number): CombatPreviewFold {
-  let escA = 0, escH = 0, spellsCast = 0, friendlyDeaths = 0, bladeAttacks = 0, scout = 0, conductor = 0, conductorEnemy = 0;
-  const n = Math.min(upto, events.length);
-  for (let i = 0; i < n; i++) {
-    const e = events[i];
-    if (!e) continue;
+  return foldPrefix(COMBAT_PREVIEW_FOLD, events, upto, undefined);
+}
+
+interface PreviewAcc { escA: number; escH: number; spellsCast: number; friendlyDeaths: number; bladeAttacks: number; scout: number; conductor: number; conductorEnemy: number }
+
+/** `combatPreviewFold` as a continuable fold (`choreo/prefixFold.ts`): the replay hook steps it beat by beat. */
+export const COMBAT_PREVIEW_FOLD: PrefixFoldSpec<PreviewAcc, CombatPreviewFold> = {
+  init: () => ({ escA: 0, escH: 0, spellsCast: 0, friendlyDeaths: 0, bladeAttacks: 0, scout: 0, conductor: 0, conductorEnemy: 0 }),
+  step: (a, e) => {
     // Every one of these is the PLAYER's own readout, so each channel checks `side` after narrowing (an enemy
     // Quil's casts must not move your hand). `side` lives on the individual event shapes, not the union base.
-    if (e.type === 'spellcast') { if (e.side === 'player') spellsCast++; }
-    else if (e.type === 'death') { if (e.side === 'player' && !e.rise) friendlyDeaths++; }
-    else if (e.type === 'questTrigger') { if (e.side === 'player' && e.flag === 'bladeMastery') bladeAttacks++; }
+    if (e.type === 'spellcast') { if (e.side === 'player') a.spellsCast++; }
+    else if (e.type === 'death') { if (e.side === 'player' && !e.rise) a.friendlyDeaths++; }
+    else if (e.type === 'questTrigger') { if (e.side === 'player' && e.flag === 'bladeMastery') a.bladeAttacks++; }
     else if (e.type === 'improve') {
-      if (e.scout && e.side !== 'enemy') scout += e.scout;
-      if (e.conductor) { if (e.side === 'enemy') conductorEnemy += e.conductor; else conductor += e.conductor; } // Conductor (owner 2026-10-24), either side
+      if (e.scout && e.side !== 'enemy') a.scout += e.scout;
+      if (e.conductor) { if (e.side === 'enemy') a.conductorEnemy += e.conductor; else a.conductor += e.conductor; } // Conductor (owner 2026-10-24), either side
     } // either side's Squirl Scout stamps `scout` + `side` (R-SYMMETRY-01); an untagged one is the player's (older logs)
     else if (e.type === 'sc' && e.side === 'player') {
       const m = ESCALATION_RE.exec(e.text);
-      if (m) { escA += Number(m[1]); escH += Number(m[2]); }
+      if (m) { a.escA += Number(m[1]); a.escH += Number(m[2]); }
     }
-  }
-  return { escalation: { attack: escA, health: escH }, spellsCast, friendlyDeaths, bladeAttacks, scout, conductor, conductorEnemy };
-}
+  },
+  read: (a) => ({ escalation: { attack: a.escA, health: a.escH }, spellsCast: a.spellsCast, friendlyDeaths: a.friendlyDeaths, bladeAttacks: a.bladeAttacks, scout: a.scout, conductor: a.conductor, conductorEnemy: a.conductorEnemy }),
+};
 
 /**
  * The FOE's run-wide buffs, read off a served board's captured `BoardSnapshot` (owner ask 2026-08-30 — the

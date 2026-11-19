@@ -16149,4 +16149,75 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms from 2026-11-18 (perf/sim-worker). Before, both probes ran on the main thread in idle slices during the combat replay: about 100 ms a round early and 450-600 ms by rounds 10-15 (measured in Node on real boards), the strength scorer in fixed 4-fight steps of 7-21 ms that a 250 ms timeout forced into busy frames.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/simWorker/handler.test.ts', 'packages/ui/src/simWorker/client.test.ts', 'packages/sim/src/odds.test.ts'], lastVerifiedAt: '2026-11-18' },
   },
+  {
+    id: 'R-PERF-COMBAT-PREVIEW-01',
+    title: 'A live combat readout re-renders only the cards that print it, and never copies the run',
+    statement:
+      'The display-only combat previews (spell power gained this fight, Front to Back\x27s step, spells cast, friendly '
+      + 'deaths, Blade Mastery attacks, Squirl Scout and Conductor growth) are published as the replay reaches them. '
+      + 'Publishing one sets that one number on the run and nothing else: no object on the run is copied (the board, hand, '
+      + 'Shop and lobby keep their identity), no per-action bookkeeping runs, and an unchanged value is a no-op. A combat '
+      + 'unit re-renders only when a number its own text prints has moved, and its card only when the card\x27s content '
+      + 'changed. Every printed value still shows its current number mid-fight (the live-value rule is unchanged), and '
+      + 'settle still clears every preview and banks the real totals.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-18', quote: 'this is a 2D HTML card game; there is no excuse for dropped frames or hitching' },
+      { kind: 'code', ref: 'packages/sim/src/reducer.ts (reduceCombatPreview); packages/ui/src/combatRun.ts (runSansPreviews, keepIfSame, useStableValue); packages/ui/src/Unit.tsx' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-18 (perf/combat-render). Before, each publish went through the full reducer: a deep copy '
+      + 'of the run and every action-boundary sweep, 11 to 14 times a late fight. Every unit subscribed to the whole run '
+      + 'and built a fresh card view, so each publish re-rendered all 14 units and their whole cards. Measured on a 7v7 '
+      + 'big-stat fight (prod build, median of 3): 4,919 card renders a fight before, 337 after.',
+    example: 'Your Imp dies mid-fight. Cindara\x27s Hoard counter on the hero power ticks. Before, all 14 minions on screen and their cards re-rendered for that tick. Now none do.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/combatRenderCount.test.tsx', 'packages/sim/src/heroPillReadouts.test.ts'], lastVerifiedAt: '2026-11-18' },
+  },
+  {
+    id: 'R-PERF-STAT-ROLL-01',
+    title: 'A rolling stat number re-renders its badge, never the card, and a board rolling together notifies once per frame',
+    statement:
+      'While a stat number rolls to a new value, only that stat\x27s badge re-renders: the card around it (art, frame, '
+      + 'keyword auras, text) does not. Every combat buff roll in flight is stepped by ONE frame loop that notifies the '
+      + 'badges once per frame, however many units are rolling. The look is unchanged: the same values on the same '
+      + 'frames, the same roll length at every combat speed, and the badge still pops on every visible change.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-18', quote: 'frames <= 6.25 ms on the prod build from round 1 to the end' },
+      { kind: 'code', ref: 'packages/ui/src/Card.tsx (StatBadge); packages/ui/src/fx/combatBuffRoll.ts (the shared roll loop); packages/ui/src/fx/statHold.ts (revealStats)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-18 (perf/combat-render). Before, the Card owned the hold subscription, so a +3,000 buff '
+      + 're-rendered the whole card on every frame of its 650 ms roll, each rolling unit ran its own frame loop, and '
+      + 'each loop notified every badge on screen. A late fight is where this bit: the bigger the buff, the more frames '
+      + 'show a new number.',
+    example: 'Runmaw gives your whole board +1,200/+4,500 at the start of combat. Seven attack and seven health numbers roll for 650 ms. Before, seven whole cards re-rendered every frame. Now fourteen small badges do.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/combatRenderCount.test.tsx', 'packages/ui/src/fx/combatBuffRoll.test.ts', 'packages/ui/src/fx/statHold.test.ts'], lastVerifiedAt: '2026-11-18' },
+  },
+  {
+    id: 'R-PERF-COMBAT-FOLD-01',
+    title: 'The combat replay continues its folds beat by beat; it never re-reads the fight from the first event',
+    statement:
+      'Each beat, the replay applies only the events since the previous beat to the board it draws and to its running '
+      + 'readouts (enemy deaths, buffs gained, the previews, the quest tally). It starts over from the fight\x27s opening '
+      + 'boards only when the cursor moves BACKWARD (a seek, a rewatch, a spectator joining mid-fight) or a new fight '
+      + 'begins. The board and every readout are the same at every beat as a from-scratch fold gives, so normal, '
+      + 'accelerated and skipped playback, and any seek, reach the same state. A frame already on screen is never '
+      + 'changed by a later beat. The per-beat position sweep reads only the units on screen.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-18', quote: 'frames <= 6.25 ms on the prod build from round 1 to the end' },
+      { kind: 'code', ref: 'packages/ui/src/useCombatReplay.ts (makeFrameFolder, stepFrameFold, frameOf, logIndexOf); packages/ui/src/choreo/prefixFold.ts' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-18 (perf/combat-render). Before, every beat rebuilt every body from the starting snapshot '
+      + 'and replayed the whole log, and about a dozen other passes re-read the log from event 0 (four of them after '
+      + 'copying it), so a fight cost events times beats and the last beats of a long fight cost the most. Each beat '
+      + 'also ran one document-wide lookup per body the fight ever had (50 to 150 in a summon-heavy fight).',
+    example: 'Beat 300 of a 1,000-event fight plays. Before, the screen re-read events 1 to 600 about twelve times to draw it. Now it reads the two or three new events.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/frameFold.test.ts', 'packages/ui/src/choreo/prefixFold.test.ts', 'packages/ui/src/computeFrame.purity.test.ts'], lastVerifiedAt: '2026-11-18' },
+  },
 ];

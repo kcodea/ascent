@@ -12877,6 +12877,36 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/artPlanCoverage.test.ts'], lastVerifiedAt: '2026-11-04' },
   },
   {
+    id: 'R-PERF-PHASE-ART-HELD-01',
+    title: 'A phase change never decodes a full-screen picture again while a frame waits on it',
+    statement:
+      'The pictures a phase change shows (the return trip\x27s layers, the falling gate, the combat board) are ready to '
+      + 'draw when their moment comes, every round, not only the first. The browser\x27s compositor drops big pictures '
+      + 'that are off screen for a phase and decodes them again when they come back, with the main thread stuck behind '
+      + 'the decode. So on desktop the return trip\x27s five layers are canvases the page paints once and keeps for the '
+      + 'session (nothing to decode, however long they were hidden), and the pictures that stay CSS backgrounds are '
+      + 'asked for off the main thread a moment before the frame that draws them. A layer that rides a big zoom keeps '
+      + 'what it drew instead of drawing again at the zoomed size. And the combat layering (the app\x27s stacking context '
+      + 'dissolved, the hero bar under the units) switches when the combat scene is swapped in under the gate, never at '
+      + 'the End Turn press while the Shop is still on screen: that switch redraws every layer inside the app. Phones '
+      + 'keep their one small flattened picture and their bounded picture memory.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-18 (top priority, above everything)', quote: '240 fps constantly with no hitching, especially around the recruit phase' },
+      { kind: 'code', ref: 'packages/ui/src/heldArt.ts (the held canvases); packages/ui/src/decodeAhead.ts (warmEndTurnArt, warmVistaDoorArt); packages/ui/src/Recruit.tsx (VISTA_HELD, the fight-end warm-up); packages/ui/src/styles.css (.wipevista-layer.canvased, the door pieces\x27 will-change, .app.combat.staged)' },
+      { kind: 'fix-pr', ref: 'perf/phase-decode' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-18 (perf/phase-decode). Before, the end of every fight decoded the return trip\x27s five '
+      + '2560 x 1440 layers again (25 to 73 ms each, the main thread blocked behind them), and the dive through the '
+      + 'door drew the door\x27s pieces again at the zoomed size (30 to 60 ms of GPU work in its first frames). The '
+      + 'End Turn press also redrew the whole Shop behind the falling gate (the layering switched at the press). '
+      + 'Numbers: docs/devlog/2026-11-18-perf-phase-transitions.md.',
+    example: 'A fight ends on round 8. Before, the frame that readied the trip back to the Shop decoded five big pictures and the last hits of the fight froze for about a tenth of a second. Now the layers are already held, and nothing is decoded.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heldArt.test.ts', 'packages/ui/src/combatZOrder.test.ts'], lastVerifiedAt: '2026-11-18' },
+  },
+  {
     id: 'R-PERF-SHARED-FX-REVERB-01',
     title: 'A big hit never builds a reverb node mid-fight',
     statement:
@@ -12992,6 +13022,51 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'one. The hand is pixel-identical.',
     example: 'You buy a minion late in the game with a full board and a full hand. Before, the six other Shop cards, the seven board cards and the hand were all painted again, shadows and all. Now only the hand is painted again, and the Shop cards just slide.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/cardLayer.test.ts'], lastVerifiedAt: '2026-11-18' },
+  },
+  {
+    id: 'R-PERF-FUSE-BURN-01',
+    title: 'The crystal fuse burns by sliding a static mask, and still moves every display frame',
+    statement:
+      'The Gold Fuse\'s burn is two transforms (a sliding box that carries a static soft-edged mask, and the art inside '
+      + 'it sliding back by the same amount), so a burn write no longer re-evaluates a mask gradient. The burn, the debris '
+      + 'simulation and its two canvas passes still advance on every display frame on desktop (about 30 times a second on '
+      + 'a phone, as before). Neither box is promoted to its own layer, so the crystal rasters exactly as before. One frame '
+      + 'walks the particles once, and the debris canvas clears only the rectangle the last frame drew in. The look is '
+      + 'unchanged: the same art, soft edge, particles, sprites, smoothness and timing against the clock.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-18 (the bar: a 2D card game has no excuse for dropped frames; 240 fps constant, recruit phase first)' },
+      { kind: 'code', ref: 'packages/ui/src/styles.css (.chargeglyph .fuse-burn / .fuse-body); packages/ui/src/Recruit.tsx (ChargeGlyph frame loop); packages/ui/src/fuseRender.ts (drawFrame)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-19 (perf/always-on). Before, the burn was a mask gradient whose stops read --burn, written '
+      + 'every display frame: the whole fuse repainted for the last 20 s of every turn from the round the fuse first '
+      + 'lights. Measured at 240 Hz: paint in the burn window 53 -> 13 ms a second, raster 12 -> 8.',
+    example: 'From round 8 a Bronze player\'s turn ends with the crystal fuse burning for 20 s. Before, each of those frames re-evaluated the fuse\'s mask and repainted the whole crystal. Now only the soft edge moves, and it looks the same.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/fuseBurnCss.test.ts', 'packages/ui/src/fuseRender.test.ts'], lastVerifiedAt: '2026-11-18' },
+  },
+  {
+    id: 'R-PERF-LOBBY-STABLE-01',
+    title: 'A shop action does not re-render the lobby rail or the Ancient meter',
+    statement:
+      'The reducer clones the run on every dispatch, so props taken straight off it are new objects after every buy, '
+      + 'sell, roll and reorder. Where the content has not changed the UI hands its children the previous object: the '
+      + 'lobby rail keeps the last lobby while a signature of everything the reducer writes in it holds (the round, the '
+      + 'encounter list, each seat\'s Resolve, Armor, alive, placement and scout intel); the Ancient meter, split and '
+      + 'pill compare the four things they read; and the reference-popup map, the triple-ready set and the hand '
+      + 'previews keep their identity when their contents are equal. A Versus display lobby is passed through as given.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-18 (the bar: a 2D card game has no excuse for dropped frames; 240 fps constant, recruit phase first)' },
+      { kind: 'code', ref: 'packages/ui/src/stableLobby.ts; packages/ui/src/LobbyPanel.tsx (runTribes); packages/ui/src/ancients/AncientMeter.tsx (sameAncientRun); packages/ui/src/cardViewEqual.ts (stabilizeRefMap); packages/ui/src/Recruit.tsx (tripleReadyUids, handPreviewViews)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-18 (perf/always-on). Before, LobbyPanel rebuilt all eight seat rows on every dispatch '
+      + '(and on every mid-fight preview dispatch with the rail slid away), and the three Ancient components and the '
+      + 'shop and hand rows re-ran for props that had not changed.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/stableLobby.test.ts', 'packages/ui/src/cardViewEqual.test.ts', 'packages/ui/src/ancients/AncientMeter.test.tsx'], lastVerifiedAt: '2026-11-18' },
   },
   {
     id: 'R-DUOS-EFFECT-PASS-QUEUE-01',
@@ -16218,6 +16293,31 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms from 2026-11-18. Before, the results page never named the picked Ancient. No data change: the Ancient already rode the record from 2026-11-16.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/matchDetails/seatPower.test.tsx'], lastVerifiedAt: '2026-11-18' },
+  },
+  {
+    id: 'R-PERF-KEYWORD-AURA-01',
+    title: 'A keyword aura costs one layer and no running animation per card, and looks the same',
+    statement:
+      'On desktop, the Rise, Flurry, Execute and Rebirth-crown auras each show as ONE element with one looping picture '
+      + 'captured from the authored aura, played at 60 pictures a second (an animated image cannot go faster than about '
+      + '90 in Chromium, and 60 divides 60, 120 and 240 Hz displays evenly), with no CSS animation, blend mode, filter or '
+      + 'mask on it. The authored DOM and '
+      + 'CSS aura stays the source of truth: the pictures are generated from it by a committed script, and a change to '
+      + 'the authored aura without a new capture fails the suite. The authored aura itself renders until the pictures '
+      + 'have loaded, while a tuner has moved it, and on phones. A board covered by a full-screen choice shows the still.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-18 (top priority: over 240 fps at all times, no hitching, the recruit phase above all)', quote: 'make every keyword aura cost ~1 layer and ~0 main-thread per card while looking the same' },
+      { kind: 'code', ref: 'packages/ui/src/kwfx/kwfx.ts; packages/ui/src/Card.tsx (RiseAura, FlurryAura, ExecuteAura, RebirthCrown); packages/ui/src/styles.css (.kwfx); scripts/kwfx/capture.mjs' },
+      { kind: 'owner-chat', ref: 'Kevin, 2026-11-19 (plays at 240 Hz; perf fixes keep animations as smooth as the display unless the cost is massive)', quote: 'Can we keep flurry rise etc animations faster than 60fps?' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-18 (perf/keyword-loops). Before, each of these auras was 10 to 40 animating compositor layers '
+      + 'and as many running CSS animations per card: every keyword on 14 cards was about 1,500 layers and 1,225 animations '
+      + 'and an idle shop at 37 to 64 ms a frame on an RTX 4080. Phones still render the authored aura.',
+    example: 'A board of seven Rise minions used to hold 196 blended wisp and dome layers. Now it holds seven pictures, and the idle shop stays at 4.17 ms a frame.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/kwfx/kwfx.test.ts'], lastVerifiedAt: '2026-11-19' },
   },
   {
     id: 'R-PERF-COMBAT-PREVIEW-01',

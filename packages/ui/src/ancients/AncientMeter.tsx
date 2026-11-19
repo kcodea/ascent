@@ -39,6 +39,20 @@ function useAncCfg(): AncientsFullConfig {
   return useSyncExternalStore(subscribeAncientsConfig, getAncientsConfig, getAncientsConfig);
 }
 
+/**
+ * THE MEMO THAT HOLDS (R-PERF-LOBBY-STABLE-01, perf pass 2026-11-18). The three components below are `memo`'d on
+ * `{ run }`, and the reducer clones the run on every dispatch, so the default identity check never held: each one
+ * re-rendered on every buy, sell and roll. They read four things off the run (whether Ancients are on, the phase, the
+ * hero, and the small `ancients` record), so this compares those. The record is a few numbers and ids; its JSON is a
+ * cheap, complete comparison of it.
+ */
+export function sameAncientRun(a: { run: RunState }, b: { run: RunState }): boolean {
+  const x = a.run; const y = b.run;
+  if (x === y) return true;
+  if (x.ancientsEnabled !== y.ancientsEnabled || x.phase !== y.phase || x.heroId !== y.heroId) return false;
+  return x.ancients === y.ancients || JSON.stringify(x.ancients) === JSON.stringify(y.ancients);
+}
+
 export const AncientMeter = memo(function AncientMeter({ run }: { run: RunState }) {
   const anc = run.ancientsEnabled ? run.ancients : undefined;
   const cfg = useAncCfg();
@@ -176,7 +190,7 @@ export const AncientMeter = memo(function AncientMeter({ run }: { run: RunState 
       )}
     </div>
   );
-});
+}, sameAncientRun);
 
 /** The full-ring flash: a light halo blooms once. */
 function Flash({ ms }: { ms: number }): JSX.Element {
@@ -269,7 +283,7 @@ export const AncientSplit = memo(function AncientSplit({ run }: { run: RunState 
 
   if (!id) return <span ref={btnRef} className="anc-split-anchor" aria-hidden="true" />;
   return <SplitFace id={id} cfg={cfg} hidden={hidden} btnRef={btnRef} halfRef={halfRef} seamRef={seamRef} shineRef={shineRef} />;
-});
+}, sameAncientRun);
 
 /** The split face's markup: the Ancient's half through the crack, the crack's edge, and the (still) shine. Shared by the
  *  live button (`AncientSplit`, which animates the refs) and the static record view (`AncientSplitStatic`). */
@@ -366,4 +380,4 @@ export const AncientPill = memo(function AncientPill({ run }: { run: RunState })
       <span className="anc-pill-dot" aria-hidden="true" />{ANCIENTS[id].name}
     </div>
   );
-});
+}, sameAncientRun);

@@ -1,3 +1,4 @@
+import { useShallow } from 'zustand/react/shallow';
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
@@ -274,7 +275,8 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
   // at the seats. The Versus 1v1 keeps its own drawer (the rail's Guides face, opened from the opponent block's plate).
   const runKey = useGame((st) => `${st.run.runId ?? ''}:${st.run.seed}`);
   const setId = useGame((st) => st.run.setId);
-  const runTribes = useGame((st) => st.run.tribes);
+  // Shallow: the run is cloned on every dispatch, so the raw array is a new object after every click (R-PERF-LOBBY-STABLE-01).
+  const runTribes = useGame(useShallow((st) => st.run.tribes));
   const guidesOn = useGame((st) => st.run.mode !== 'tutorial');
   // EVERY MODE ON THE RAIL (owner 2026-10-31: "I think we should move all modes to this rail type. 1v1, even 3 and 4 player
   // group games"; R-RAIL-DOCKED-ALLMODES-01): a Versus 1v1 is the rail like every other mode (you and the opponent as two

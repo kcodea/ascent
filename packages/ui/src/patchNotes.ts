@@ -131,6 +131,28 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'The end of a fight and the trip back to the Shop are smoother.',
+        details: [
+          'The game no longer freezes for a moment as a fight ends. It was reloading the pictures for the trip back to the Shop every round.',
+          'The dive through the Shop door no longer stutters as it starts.',
+          'Nothing looks different. This is speed only, on desktop.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'The Rise, Flurry, Execute and Rebirth effects on minions are much lighter to draw, so boards full of them no longer slow the game down.',
+        details: [
+          'Each effect is now one picture made from the original effect, instead of dozens of moving pieces per minion.',
+          'They should look the same as before. Tell us if one looks different.',
+          'Phones still use the original effects for now.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'The crystal fuse at the end of a turn costs far less to draw, and buying, selling and rolling no longer redraw the player rail. Nothing looks different.',
+      },
+      {
+        category: 'Systems',
         text: 'Glowing effects cost far less to draw, most of all when a whole board is buffed at once.',
         details: [
           'A buff that flies to every minion on your board no longer slows the Shop while its trails are in flight.',

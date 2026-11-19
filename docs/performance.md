@@ -1128,7 +1128,83 @@ Numbers and method: `docs/devlog/2026-11-10-duos-perf-wins.md`.
 - **A CPU profile's self time is a sum, not a moment.** "`drawImage` 30 ms" in the pass's profile was 0.5 ms on each
   of some hundred frames of the plate dissolve, not one 30 ms call. Bucket the samples by time before naming a frame.
 
-## 3p. Card raster, 2026-11-18: static filters are free until the tile is painted again, so stop painting the tile
+## 3p. Keyword auras, 2026-11-18: count layers and animations PER CARD, and bake a loop that cannot be made cheap
+
+Numbers and method: `docs/devlog/2026-11-18-perf-keyword-loops.md`. Rule: R-PERF-KEYWORD-AURA-01.
+
+- **A per-card loop is multiplied by the board.** Rise (27 wisps and a dome), Execute (3 rings and 12 shards of 3
+  pieces), Flurry (7 rings) and Rebirth's crown each followed every rule above (transform and opacity only, static
+  paint on a child) and still cost 20 to 37 compositor layers and 9 to 46 running animations per minion. Every keyword
+  on 14 cards: about 1,500 layers, 1,225 animations, 37 to 65 ms a frame in an idle shop on an RTX 4080. A loop that is
+  cheap once is not cheap fourteen times: budget an always-on card effect at ONE layer and ZERO CSS animations.
+- **The fix is a capture, not a cut.** `scripts/kwfx/capture.mjs` plays the authored aura in headless Chrome, seeks it
+  frame by frame and packs one loop into an animated AVIF (`apps/web/public/kwfx/`). The card shows that picture on one
+  `will-change` element (`.kwfx`, `kwfx/kwfx.ts`). Chrome advances an animated image on the compositor and decodes a
+  frame once for every element showing it, so 14 cards cost what one does and the main thread does nothing. The same
+  scene after: 200 layers, 35 animations, 4.2 ms.
+- **An aura's `mix-blend-mode` was blending with nothing but itself.** Every aura root has a transform, so it is a
+  stacking context and its screen-blended children never saw the card under them: 28 blend passes per Rise card for a
+  picture that is a plain RGBA group. That is also why a transparent capture of the group is exact. Before adding a
+  blend mode to a layer, check what its nearest stacking context is.
+- **AV1, not WebP, for a soft moving picture.** The same 299 Rise frames: 2.7 MB as an animated WebP (every frame is
+  nearly a key frame), 0.18 MB as an animated AVIF (each frame predicted from the last).
+- **An animated image plays at up to about 90 pictures a second in Chromium, and no faster** (measured 2026-11-19 with
+  a frame-numbered probe on a 240 Hz clock, `docs/devlog/2026-11-19-kwfx-60fps.md`). A frame of 10 ms or less is held
+  for 100 ms (an old Blink rule for broken GIFs), so 100, 120 or 240 a second all play at 10. 90 plays, but each
+  picture is held for an uneven 1 to 4 refreshes of a 240 Hz display. The auras ship at **60**: it divides 60, 120 and
+  240 Hz evenly; doubling from 30 cost about +1.2 MB of desktop download and +90 to +180 ms/s of off-main-thread decode
+  with every aura on 14 cards, and no measurable frame time. `capture.mjs --fps N` re-bakes at another rate and
+  refuses above 90. Interpolating per display frame on a shared canvas worked but cost about 4x the GPU time of the
+  images; keeping Flurry live (even without its blend mode) cost 7.5 ms a frame on 14 cards. Neither ships.
+- **An animated image cannot be paused or offset.** Where the live loops were paused (`body.modalup`, far menu rows) the
+  element swaps to a still of frame 0. Every card showing one picture is in phase; cards that mount together already
+  were.
+- **Retuning.** The live DOM aura still renders in DEV whenever a tuner has moved a value, with
+  `localStorage['ascent.kwfx'] = 'live'`, on phones, and until the pictures have loaded. After a retune run the capture
+  again; `kwfx.test.ts` fails while the manifest's signature does not match the aura sources.
+  `scripts/kwfx/compare.mjs` differences live against baked on the card, frame for frame, and
+  `scripts/kwfx/measure.mjs` / `measure-combat.mjs` are the keyword scenes.
+
+## 3q. Phase transitions, 2026-11-18: the compositor drops the big pictures a phase is not showing
+
+Numbers and method: `docs/devlog/2026-11-18-perf-phase-transitions.md`.
+
+- **A big picture that is off screen for a phase is decoded again when it comes back.** The compositor draws CSS
+  backgrounds and `<img>` from its own decode cache, which has a budget. The game's full-screen pictures are a lot to
+  hold in it: backdrop, both boards and their shadows, the gate, the return trip's five 2560 x 1440 layers. The ones
+  not drawn right now are the first to go. (Which budget is not established: raising Chrome's discardable GPU limit to
+  1 GB did not stop it.) Holding an `Image`, or
+  `img.decode()` at boot, does not keep them: that fills the same cache. The decode runs on a worker, but the frame that
+  needs the picture cannot be shown without it, so the main thread sits in `WaitForCommitCompletion` for the whole
+  decode (25 to 110 ms for these).
+- **Find them with a trace, by URL.** Categories `devtools.timeline` + `disabled-by-default-devtools.timeline`: every
+  `Decode LazyPixelRef` carries a `LazyPixelRef` id, and the `PaintImage` event before each `Draw LazyPixelRef` with
+  the same id carries the URL and the source size. `performance.mark()` calls (category `blink.user_timing`) put the
+  phase flips on the same clock.
+- **A picture that must be ready every time goes on a canvas the page keeps** (`heldArt.ts`): decoded once off the main
+  thread (`createImageBitmap`), drawn in on an idle slot, shown as a texture with nothing to decode or raster. Size
+  the canvas to what is drawn, not to the file. Count the bytes you hold (`heldArtStats()`).
+- **A picture that stays a CSS background can be asked for early** (`decodeAhead.ts`): `img.decode()` on hover or on
+  the press runs the decode without holding a frame. It still has to be uploaded and rastered when drawn (measured: a
+  14 ms upload and a 25 ms raster for the 3840 px combat board), so this halves the hitch, it does not remove it.
+- **A layer inside a big zoom is drawn again at the zoomed size unless it says `will-change: transform`.** The dive
+  through the Shop door scales its stage 18x. The door's three small pictures had `will-change: opacity` only, so the
+  compositor re-rastered them at up to 8x in the dive's first frames (30 to 60 ms on the GPU main thread, which also
+  presents frames, so the dive itself stalled). A 201 px picture has no more detail at 8x.
+- **Dissolving a stacking context re-rasters everything inside it.** `.app.combat { z-index: auto }` switched the
+  combat z-ladder on at the End Turn press, with the whole Shop still on screen behind the falling gate: every layer of
+  it was repainted and rastered again (20 to 30 ms of GPU work in the press frame; the worst frame at the flip fell from
+  about 50 ms to about 30 with the switch moved under the gate, `.app.combat.staged`). The same switch still happens on
+  every hand-card hover (`body:not(.dragging) .app:has(.row.hand .card:hover) { z-index: auto }`) and under
+  `body.modalup`: not measured here, a lead for the recruit phase.
+- **A warm-up that plays a transition invisibly is itself a hitch.** The fight-end warm-up decoded and rastered the
+  whole return trip behind the game while the fight's last hits were on screen. Prefer making the art impossible to
+  drop (above) over drawing it early.
+- **Card frames are 1086 x 1448 files drawn about 150 px wide.** Each one that falls out of the cache costs a 17 to
+  54 ms decode in the middle of a turn or a fight. Not fixed here (it needs right-sized copies from the art pipeline);
+  see the devlog's follow-ups.
+
+## 3r. Card raster, 2026-11-18: static filters are free until the tile is painted again, so stop painting the tile
 
 Numbers and method: `docs/devlog/2026-11-18-perf-card-raster.md` (R-PERF-CARD-LAYER-01). Bench:
 `scripts/perf-card-raster.mjs` (one late-game state, buy / refresh / tick / sell / play, stylesheet variants run in
@@ -1165,6 +1241,8 @@ These are the rules the audits surfaced; the codebase already follows them — k
   animate its **opacity** (see `.card.compact.dscard::before` + `@keyframes kwglow` in `styles.css`). A
   **one-shot** transition or non-looping animation (a single fade/pop that runs once and stops) MAY animate a
   paint property when it reads better — profile it first to confirm the single repaint is cheap.
+- **An always-on card effect gets ONE layer and NO CSS animation per card** (§3p). A loop of many moving pieces is
+  baked into a looping picture from its authored DOM (`scripts/kwfx/capture.mjs`), never shipped as the pieces.
 - **Don't read layout (`getBoundingClientRect`, `elementFromPoint`) per frame**, especially after a style
   write — that forces a synchronous reflow (layout thrash). Cache rects once per drag in a ref (see
   `targetRectsRef` / `insertRectsRef` in `Recruit.tsx`).

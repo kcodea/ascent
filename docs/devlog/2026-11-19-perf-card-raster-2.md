@@ -165,6 +165,23 @@ What would move it, in order of what the profile says:
    Flagged as its own task.
 3. **The card frame images** (6 MB decoded each): `perf/frame-size`, the next PR in this stack.
 
+## 5. Combat units: measured, not shipped
+
+`.unit { will-change: transform }` as a variant, the bench's long big-stat 7v7 (`--scenes fight`), three cycles in
+turns: frames that missed 240 Hz **18.0% -> 10.6%**, frames over 16.7 ms 249 -> 135, mean 5.16 -> 4.73 ms (the
+machine was busy; first halves 23.2% vs 12.4%, second halves 9.1% vs 7.3%). It helps. It is not in this PR because it
+would not look identical: the lunge (`choreo/channels/lunge.ts`) tilts the attacker (`leadTilt`, the rebound) and
+scales it on the wind-up, and a 1:1 layer drawn tilted or scaled is the soft picture section 1 measured on the hand
+(24 to 34% less edge energy) for the length of every swing. The way to ship it is the hand's: a supersampled wrapper
+inside the unit (`.card-ssl` / `.card-ss` at 1.35x, which `Card.tsx` already renders for a hand card), then a
+captured attack, at rest and mid-lunge, against today. Next PR.
+
+## 6. Card frames
+
+Split out to `perf/frame-size` (its own devlog, `2026-11-19-perf-frame-size.md`): the right-sized frames save about
+5 MB of GPU memory, not the 160 MB their decoded sizes suggest, and they look a little smoother, so that PR waits for
+the owner's eye.
+
 ## Re-measuring
 
 ```

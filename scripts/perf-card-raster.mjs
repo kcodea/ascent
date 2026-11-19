@@ -115,7 +115,13 @@ function gpuSummary(evs) {
   const img = new Map();
   for (const e of evs) { if ((e.ph !== 'X' && e.ph !== 'B' && e.ph !== 'i' && e.ph !== 'I') || !/decode|upload|transfercache|CreateLockedEntry|DeleteEntry/i.test(e.name || '')) continue; const k = (pname.get(e.pid) || e.pid) + ' | ' + e.name; const o = img.get(k) || [0, 0]; o[0]++; o[1] += (e.dur || 0) / 1000; img.set(k, o); }
   const images = [...img.entries()].sort((x, y) => y[1][1] - x[1][1] || y[1][0] - x[1][0]).slice(0, 10).map(([k, [n, ms]]) => [k, n, +ms.toFixed(1)]);
-  return { spanMs: Math.round(span), busyMs: +(busy / 1000).toFixed(1), rasterMs: +(raster / 1000).toFixed(1), top, images };
+  // The page's own main thread and compositor thread (--trace-main adds the devtools.timeline events): self time by event.
+  const threadTop = (re, n) => { const ys = evs.filter((e) => e.ph === 'X' && typeof e.dur === 'number' && pname.get(e.pid) === 'Renderer' && re.test(tname.get(e.pid + ':' + e.tid) || '')).sort((x, y) => x.ts - y.ts || y.dur - x.dur);
+    const byTid = new Map(); for (const e of ys) { const k = e.pid + ':' + e.tid; if (!byTid.has(k)) byTid.set(k, []); byTid.get(k).push(e); }
+    const acc = new Map(); let total = 0; const long = [];
+    for (const list of byTid.values()) { const st = []; for (const e of list) { while (st.length && st[st.length - 1].end <= e.ts) st.pop(); const rec = { self: e.dur, name: e.name }; if (st.length) st[st.length - 1].rec.self -= e.dur; else { total += e.dur; if (e.dur > 4000) { e.__in = new Map(); long.push([e.name, +(e.dur / 1000).toFixed(1), e.__in]); } } e.__s = rec; e.__root = st.length ? st[0].ev : e; st.push({ end: e.ts + e.dur, rec, ev: e }); } for (const e of list) { acc.set(e.name, (acc.get(e.name) || 0) + Math.max(0, e.__s.self)); const m = e.__root && e.__root.__in; if (m) m.set(e.name, (m.get(e.name) || 0) + Math.max(0, e.__s.self)); } }
+    return { busyMs: +(total / 1000).toFixed(1), top: [...acc.entries()].sort((x, y) => y[1] - x[1]).slice(0, n).map(([k, v]) => [k, +(v / 1000).toFixed(1)]), longTasks: long.sort((x, y) => y[1] - x[1]).slice(0, 12).map(([n2, d, m]) => [n2, d, [...m.entries()].sort((x, y) => y[1] - x[1]).slice(0, 7).map(([k, v]) => k.replace(/^.*::/, '') + ' ' + (v / 1000).toFixed(1)).join(', ')]) }; };
+  return { spanMs: Math.round(span), busyMs: +(busy / 1000).toFixed(1), rasterMs: +(raster / 1000).toFixed(1), top, images, main: threadTop(/CrRendererMain/, 18), compositor: threadTop(/^Compositor$/, 8) };
 }
 
 const DUMP = `(() => {
@@ -240,14 +246,37 @@ async function main() {
       sellplay: async (tag) => { for (let k = 0; k < Math.ceil(REPS / 2); k++) { await restore(); await mark('sell@' + tag); await ev(`(() => { const S = () => ${g}; const b = S().run.board; S().dispatch({ type: 'sell', uid: b[b.length - 1].uid }); })()`); await sleep(500); await mark('ff'); await ev('window.__pcrSettle()'); await sleep(150);
           const uid = await ev(`(() => { const C = window.__bench.combat.cards; const h = ${g}.run.hand.find((c) => !C[c.cardId]?.spell); return h ? h.uid : null; })()`); if (!uid) continue;
           await mark('play@' + tag); await ev(`(() => { const S = () => ${g}; S().dispatch({ type: 'play', uid: ${JSON.stringify(uid)}, toIndex: S().run.board.length }); })()`); await sleep(500); await mark('ff'); await ev('window.__pcrSettle()'); } },
+      // ENGINE TURN: 60 actions at 4 a second (sell, buy, play, with a roll when the Shop runs dry), and EVERY action
+      // also ticks all seven board cards' stats, the way an engine board does on each play. One 15 s window.
+      engine: async (tag) => { await restore(); await ev(`window.__bench.store.setState((s) => ({ run: { ...s.run, hand: s.run.hand.slice(0, 7) } }))`); await sleep(400); await mark('engine@' + tag);
+        await ev(`(async () => { const st = window.__bench.store; const S = () => st.getState(); const C = window.__bench.combat.cards; const wait = (ms) => new Promise((r) => setTimeout(r, ms)); const t0 = performance.now(); let step = 0, cur = null;
+          for (let n = 0; n < 60; n++) { const due = t0 + n * 250; const now = performance.now(); if (due > now) await wait(due - now); window.__pcrGold(); const run = S().run; let a;
+            if (step % 3 === 0) { const b = run.board; a = b.length >= 7 ? { type: 'sell', uid: b[b.length - 1].uid } : null; step++; }
+            if (!a && step % 3 === 1) { const m = run.shop.find((c) => !C[c.cardId]?.spell); if (m && run.hand.length < 10) { a = { type: 'buy', uid: m.uid }; cur = m.uid; step++; } else a = { type: 'roll' }; }
+            else if (!a && step % 3 === 2) { const h = run.hand.find((c) => c.uid === cur) || run.hand.find((c) => !C[c.cardId]?.spell); a = h && run.board.length < 7 ? { type: 'play', uid: h.uid, toIndex: run.board.length } : { type: 'roll' }; step++; }
+            if (!a) a = { type: 'roll' };
+            S().dispatch(a); for (let k = 0; k < 6 && window.__bench.sim && (await window.__bench.sim()).modalOpen(S().run); k++) await window.__pcrSettle();
+            st.setState((s) => ({ run: { ...s.run, board: s.run.board.map((b) => ({ ...b, attack: b.attack + 1, health: b.health + 2 })) } })); } })()`);
+        await sleep(600); await mark('ff'); },
+      // FIGHT: the bench's long big-stat 7v7 (C3 of BENCH-before-after.md), stat ticks on almost every beat. --fight-hp
+      // scales its length (4 is the bench's; 2 is about half).
+      fight: async (tag) => { await restore(); await sleep(400);
+        await ev(`(() => { const b = window.__bench; const C = b.combat; const st = b.store; const hp = ${Number(arg('fight-hp', '2'))};
+          const big = (cardId, attack, health, x = {}) => ({ cardId, attack, health: health * hp, ...x });
+          const side = () => [big('runmaw', 2400, 9000), big('cryptdrake', 1800, 7000, { golden: true }), big('brood', 300, 900), big('pack', 400, 700), big('spore', 350, 600), big('spellappraiser', 900, 5000), big('cryptdrake', 1500, 6000)];
+          const res = C.simulate(side(), side(), C.makeRng(7), C.cards, C.combatSide({ tier: 6 }), C.combatSide({ tier: 6 }));
+          st.setState({ run: { ...st.getState().run, phase: 'combat', lastCombat: res, combatSettled: false } }); return res.events.length; })()`);
+        await sleep(1500); await mark('fight@' + tag);
+        for (let t0 = Date.now(); Date.now() - t0 < 240_000;) { await sleep(250); if (await ev(`(() => { const r = ${g}.run; return !!r.combatSettled || r.phase !== 'combat'; })()`)) break; }
+        await mark('ff'); await sleep(500); await restore(); await sleep(1500); },
       idle: async (tag) => { await restore(); await sleep(400); await mark('idle@' + tag); await sleep(2000); await mark('ff'); },
     };
-    const only = arg('scenes', '') ? arg('scenes').split(',') : Object.keys(scenes);
+    const only = arg('scenes', '') ? arg('scenes').split(',') : Object.keys(scenes).filter((k) => k !== 'engine' && k !== 'fight'); // --scenes engine / fight to run those
     for (let cy = 0; cy < CYCLES; cy++) for (const v of VARIANTS) {
       await ev(`(() => { document.getElementById('pcrvar')?.remove(); const css = ${JSON.stringify(v.css)}; if (css) { const s = document.createElement('style'); s.id = 'pcrvar'; s.textContent = css; document.head.appendChild(s); } })()`);
       await restore(); await sleep(900);
       if (lastLayers) { const dc = lastLayers.filter((l) => l.drawsContent); (layerRows[v.name] ||= []).push([lastLayers.length, dc.length, +(dc.reduce((a, l) => a + l.width * l.height, 0) / 1e6).toFixed(2)]); }
-      if (flag('trace')) { traceEvents.length = 0; await c.send('Tracing.start', { transferMode: 'ReportEvents', traceConfig: { includedCategories: ['toplevel', 'gpu', 'viz', 'cc', 'blink', 'disabled-by-default-gpu.service', ...(flag('trace-images') ? ['disabled-by-default-cc.debug', 'disabled-by-default-devtools.timeline'] : []), '__metadata'] } }); }
+      if (flag('trace')) { traceEvents.length = 0; await c.send('Tracing.start', { transferMode: 'ReportEvents', traceConfig: { includedCategories: ['toplevel', 'gpu', 'viz', 'cc', 'blink', 'disabled-by-default-gpu.service', ...(flag('trace-images') ? ['disabled-by-default-cc.debug', 'disabled-by-default-devtools.timeline'] : []), ...(flag('trace-main') ? ['devtools.timeline', 'v8', 'loading'] : []), '__metadata'] } }); }
       for (const s of only) await scenes[s](v.name);
       if (flag('trace')) { const done = new Promise((r) => { traceDone = r; }); await c.send('Tracing.end'); await done; (gpu[v.name] ||= []).push(gpuSummary(traceEvents)); traceEvents.length = 0; }
       log(`cycle ${cy + 1}/${CYCLES} ${v.name} done`);
@@ -260,7 +289,10 @@ async function main() {
       (res[scene] ||= {})[variant] = { ...stats(lists.flat()), halves: [lists.slice(0, half).flat(), lists.slice(half).flat()].map((h) => { const s = stats(h); return s ? [s.mean, s.over625] : null; }) }; }
     log('\nscene      variant                    n    mean    p50    p95    p99    max  >4.17%  >6.25%  >16.7 | halves (mean, >6.25%)');
     for (const [scene, vs] of Object.entries(res)) for (const [variant, s] of Object.entries(vs)) log(`${scene.padEnd(10)} ${variant.padEnd(22)} ${String(s.n).padStart(5)} ${String(s.mean).padStart(7)} ${String(s.p50).padStart(6)} ${String(s.p95).padStart(6)} ${String(s.p99).padStart(6)} ${String(s.max).padStart(6)} ${String(s.over417).padStart(7)} ${String(s.over625).padStart(7)} ${String(s.over167).padStart(6)} | ${JSON.stringify(s.halves)}`);
-    if (flag('trace')) { log('\nGPU process main thread per variant pass (all scenes): busy ms / raster ms'); for (const [v, list] of Object.entries(gpu)) log(`  ${v.padEnd(22)} ${list.map((x) => (x ? `${x.busyMs} / ${x.rasterMs} (span ${x.spanMs})` : 'n/a')).join('   ')}\n      top: ${JSON.stringify(list[0]?.top)}\n      image events [name, count, ms]: ${JSON.stringify(list[0]?.images)}`); }
+    if (flag('trace')) { log('\nGPU process main thread per variant pass (all scenes): busy ms / raster ms'); for (const [v, list] of Object.entries(gpu)) log(`  ${v.padEnd(22)} ${list.map((x) => (x ? `${x.busyMs} / ${x.rasterMs} (span ${x.spanMs})` : 'n/a')).join('   ')}\n      top: ${JSON.stringify(list[0]?.top)}\n      image events [name, count, ms]: ${JSON.stringify(list[0]?.images)}${flag('trace-main') ? `
+      page main thread: busy ${list[0]?.main?.busyMs} ms; self ms by event ${JSON.stringify(list[0]?.main?.top)}
+      main tasks over 4 ms: ${JSON.stringify(list[0]?.main?.longTasks)}
+      page compositor thread: busy ${list[0]?.compositor?.busyMs} ms ${JSON.stringify(list[0]?.compositor?.top)}` : ''}`); }
     log(String.fromCharCode(10) + 'layers per variant [all, drawing, Mpx]: ' + JSON.stringify(layerRows));
     if (arg('out', '')) fs.writeFileSync(arg('out'), JSON.stringify({ state, res, gpu, layerRows }, null, 1));
   } finally { c.close(); server.close(); }

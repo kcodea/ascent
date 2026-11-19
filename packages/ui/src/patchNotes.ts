@@ -56,6 +56,19 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-11-19',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Fast turns stay smoother. Buying or playing a card no longer redraws your whole hand.',
+        details: [
+          'Each card in your hand is now drawn once and then only moved.',
+          'Your hand looks exactly as it did.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-11-18',
     changes: [
       {

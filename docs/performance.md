@@ -1132,9 +1132,17 @@ turns in the same page, `--trace` for GPU raster time, `--shots` + `perf-card-ra
   under 10% of the remaining raster. Do not bake card shadows into images for speed: it buys almost nothing, and their
   radii are fixed px on a card that scales with the window, so a baked copy is a different picture at every other size.
 - **A layer hint is not free of side effects. Measure the picture, not just the frames.**
-  - A layer under a ROTATED or fractionally placed transform is drawn through a second resample: a hand card on its
-    own layer is 17 to 21% softer. Put the layer where the transform is a plain translation (the hand ZONE), and the
-    content is painted directly into it.
+  - A layer under a ROTATED or fractionally placed transform is drawn through a second resample: a hand card on a
+    1:1 layer is 24 to 34% softer. **Supersample the layer instead of giving it up** (R-PERF-HAND-LAYER-01,
+    `docs/devlog/2026-11-19-perf-card-raster-2.md`): an outer wrapper with `will-change: transform` drawn at
+    `scale(1 / k)` and an inner one scaling the content back by `k`. Chrome never rasters a `will-change: transform`
+    layer below 1:1 in its own space, so the texture holds the content at `k` and the tilt is drawn down from it.
+    `k` = 1.35 matched a direct paint (edge energy -8% to +5% per card); 1.25 is softer, 1.5 and 2 crisper. Drop both scales in the state the
+    player reads up close (the hover pop), so that one is rastered natively. Keep every moving transform on the
+    element OUTSIDE the layer, so nothing that animates it can repaint it.
+  - **Do not spread a mount over several small commits to save a frame.** Every commit pays a fixed 2.5 to 3 ms of
+    style and about 2 ms of paint and layer update in this app, however few elements it adds: six one-card commits
+    measured no better than one six-card commit on a Shop refresh.
   - A layer on an element with a fractional LAYOUT position snaps to whole pixels (up to half a pixel, sharpness
     unchanged). `will-change: opacity` avoids the snap by keeping the sub-pixel position, and repaints the layer on
     every move for it: no gain.

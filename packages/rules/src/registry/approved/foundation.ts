@@ -12905,8 +12905,9 @@ export const FOUNDATION_RULES: GameRule[] = [
     statement:
       'In the recruit rows each Shop card and each board card is its own compositor layer, and the hand is one layer '
       + '(the hand zone), all by `will-change: transform`. A card is painted when it arrives and again only when its own '
-      + 'pixels change; a neighbour arriving, leaving or sliding is a compositor move that paints nothing. A hand card '
-      + 'is never held on a layer of its own (its fan transform would resample the texture and soften the card), the '
+      + 'pixels change; a neighbour arriving, leaving or sliding is a compositor move that paints nothing. The hand card '
+      + 'ELEMENT is never itself the layer (its fan transform would resample a 1:1 texture and soften the card; a hand '
+      + 'card is layered through the supersampled wrapper of R-PERF-HAND-LAYER-01 instead), the '
       + 'hint is never `opacity` (an opacity-hinted card keeps its sub-pixel position and is painted again on every '
       + 'move), and no layer is held under a card for its stat badges or their numbers. The static filters and shadows '
       + 'on the cards stay as they are: with the cards isolated they cost under a tenth of the remaining raster.',
@@ -12928,6 +12929,36 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'one. The hand is pixel-identical.',
     example: 'You buy a minion late in the game with a full board and a full hand. Before, the six other Shop cards, the seven board cards and the hand were all painted again, shadows and all. Now only the hand is painted again, and the Shop cards just slide.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/cardLayer.test.ts'], lastVerifiedAt: '2026-11-18' },
+  },
+  {
+    id: 'R-PERF-HAND-LAYER-01',
+    title: 'A hand card is painted once and stays sharp: a buy paints the bought card, not the hand',
+    statement:
+      'In the recruit hand (not on phones) each card holds its body on a compositor layer of its own, inside the card: '
+      + '`.card-ssl` carries `will-change: transform` and is drawn at 1 / --hand-ss, and `.card-ss` inside it scales the '
+      + 'body back up by --hand-ss (1.35), both from the top left corner so the two cancel exactly. The layer is therefore '
+      + 'rastered at 1.35 times the card and the fan tilt is drawn down from it, which keeps the card as sharp as one '
+      + 'painted directly. The hand card element itself is never the layer and keeps every transform it had (tilt, tuck, '
+      + 'make-room glide, reorder slide, hover pop). A hovered card drops both scales so the popped card is rastered at '
+      + 'its own size, exactly as before. Outside the hand row, and on phones, the wrappers are `display: contents`.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-19 (top priority)', quote: 'sharp layer per hand card (a buy must repaint only the bought card)' },
+      { kind: 'code', ref: 'packages/ui/src/styles.css (A SHARP LAYER PER HAND CARD); packages/ui/src/Card.tsx (HandLayer); scripts/perf-card-raster.mjs; docs/devlog/2026-11-19-perf-card-raster-2.md' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-19 (perf/card-raster-2). Before, the hand was one layer, so a buy, a play or a hand buff '
+      + 'painted every hand card again (about twenty card paints per buy). Measured on the prod build with the eight '
+      + 'performance PRs of 2026-11-18 merged in, same page, the rule switched on and off in turns (share of frames that '
+      + 'missed 240 Hz, before to after): the 60-action engine turn 13.8% to 5.2% (193 to 222 fps), a buy 3.2% to 1.8%, a '
+      + 'play 3.3% to 1.1%, a sell 0.7% to 0.5%, a refresh unchanged (1.2% and 1.5%, inside the noise); re-measured on a '
+      + 'busy machine at the shipped 1.35: a buy 14.9% to 7.7%, a play 4.7% to 2.2%. On screen: a resting hand card '
+      + 'measures -8% to +5% in edge energy (mean -1%) against one painted directly, the same picture (a 1x layer '
+      + 'measured 24 to 34% softer, 1.5 measured 3 to 27% crisper, which is why the factor is 1.35), and the hovered '
+      + 'card is the same as before.',
+    example: 'You buy a minion with eight cards in hand. Before, all nine hand cards were painted again while the others slid over to make room. Now the new card is painted once and the other eight just move.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/cardLayer.test.ts'], lastVerifiedAt: '2026-11-19' },
   },
   {
     id: 'R-DUOS-EFFECT-PASS-QUEUE-01',

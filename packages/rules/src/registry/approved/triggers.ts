@@ -1809,4 +1809,29 @@ export const TRIGGERS_RULES: GameRule[] = [
     currentBehaviour: 'Conforms as of 2026-11-15 (balance/cinderchef-earthbreaker). Before, Cinderchef gained a flat +1/+1 per Rally.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/cinderchefEarthbreaker1115.test.ts', 'packages/ui/src/cinderchefText.test.ts'], lastVerifiedAt: '2026-11-15' },
   },
+  {
+    id: 'R-SHOUT-NOTARGET-01',
+    title: 'A Shout minion played with nothing to aim at still triggers its Shout, once per fire',
+    statement:
+      'Playing a minion with a Shout always TRIGGERS that Shout, whether or not its body does anything. An aimed Shout with '
+      + 'no legal target (Baby Gastrid with no other Dwarf, Appetite Agent with no other Demon, Humphry, Brood Whelp, '
+      + 'Twilight Emissary, Graverobber, Gravetwin, Auric Runemaster, Cage Breaker, Roomworks with no End of Turn minion) '
+      + 'opens no prompt and its body does nothing (R-TARGET-03: never its own body), but every Shout watcher and counter '
+      + 'hears it exactly like any other played Shout: the shop Shout fold (Drakko, the Choir family, the per-turn charges, '
+      + 'the Shout tally, quests and rune meters) and one `battlecryTriggered` per fire (Karwind, Bane, Ember Whelp, '
+      + 'Grimoire, the Shout runes, the Ancients). Untargeted Shouts whose body no-ops (an empty Shop, a failed condition) '
+      + 'already counted this way. Gilding doubles the magnitude, not the trigger count. A Shout re-fired in combat already '
+      + 'counted with no target. CANCELLING an aim (R-TARGET-CANCEL-01) is not a play: the card returns to hand and '
+      + 'nothing triggers. A turn that ends on an open aim resolves it on a random legal pick (R-TARGET-07), and with no '
+      + 'pick left it still triggers.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner bug report 2026-11-19 (Karwind + Baby Gastrid / Appetite Agent)', quote: 'these should still trigger as if a shout was played even if their effect isnt triggered' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts playCard + hasShoutAimTarget + fireShoutWithoutTarget; packages/sim/src/reducer.ts opensBattlecryAim, resolveStrandedAim' },
+    ],
+    contentIds: ['dw_dorrin', 'dm_agent', 'karwind'],
+    currentBehaviour: 'Conforms from 2026-11-19. Before, `playCard` returned early for every aimed Shout, and with no legal target the reducer never opened the aim, so the Shout fired nothing: no Karwind, no tally, no counter.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/shoutNoTarget1119.test.ts'], lastVerifiedAt: '2026-11-19' },
+  },
 ];

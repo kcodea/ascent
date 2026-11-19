@@ -60,6 +60,15 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'A Shout minion played with nothing to target still triggers its Shout. Karwind and other Shout watchers now react.',
+        details: [
+          'Baby Gastrid with no other Dwarf, or Appetite Agent with no other Demon, still counts as a Shout.',
+          'This covers every Shout that needs a target, and Drakko still makes it count twice.',
+          'Backing out of a target choice still plays nothing.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Buying, playing and selling in the Shop costs less work per move, so a fast turn on a big board stays smoother.',
         details: ['Nothing looks or plays different.'],
       },

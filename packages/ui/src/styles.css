@@ -2460,6 +2460,9 @@ body.aimpick .zone[data-zone='tavern'] .card { pointer-events: none; }
   z-index: 2; pointer-events: none; overflow: visible;
 }
 .card.compact.flurrycard .fl-breathe { position: absolute; inset: 0; animation: flbreathe var(--fl-pulse, 3.4s) ease-in-out infinite; will-change: opacity; }
+/* A STEADY aura (flurryConfig `pulse: 0`, the shipped value) has no breathe: no animation and no layer for one
+   (perf 2026-11-19: it used to run a 9999 s placeholder animation on its own composited layer, on every card). */
+.card.compact.flurrycard .fl-breathe.steady { animation: none; will-change: auto; }
 @keyframes flbreathe { 0%, 100% { opacity: 1; } 50% { opacity: var(--fl-pulse-min, 0.72); } }
 .card.compact.flurrycard .fl-ring-wrap {
   position: absolute; inset: 0; will-change: transform;
@@ -2468,7 +2471,10 @@ body.aimpick .zone[data-zone='tavern'] .card { pointer-events: none; }
   -webkit-mask-size: 100% 100%; mask-size: 100% 100%;
 }
 .card.compact.flurrycard .fl-ring {
-  position: absolute; border-radius: 50%; mix-blend-mode: screen; will-change: transform;
+  /* NO blend mode (perf 2026-11-19). `.flurry` is a stacking context (its transform), so a ring could only ever blend
+     with the other rings, and the rings are white: `screen` of white over white IS plain alpha compositing. It bought
+     nothing and cost a render pass per ring per frame (7 a card). kwfx.test.ts holds the rings white. */
+  position: absolute; border-radius: 50%; will-change: transform;
   animation: flspin var(--fl-s, 3s) linear infinite; animation-direction: var(--fl-dir, normal);
 }
 /* The ring's look (comet gradient, band mask, blur, opacity — inline from flurryConfig) is painted by this plain

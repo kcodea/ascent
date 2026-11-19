@@ -2,8 +2,9 @@ import { ANCIENT_IDS, type AncientId } from '@game/sim';
 import { TunerPanel } from '../TunerPanel';
 import type { TunerControl, TunerSpec, TunerUnit } from '../tunerSchema';
 import { useGame } from '../store';
-import { REVEAL_STYLES, ANCIENTS_DEFAULTS, ANCIENTS_RANGES, getAncientsConfig, resetAncientsConfig, setAncientsValue, type AncientsFullConfig, type AncientsNumKey, ANCIENT_ART_IDS, ANCIENT_CUES, ART_FIELDS } from './ancientsConfig';
+import { REVEAL_STYLES, ANCIENTS_DEFAULTS, ANCIENTS_RANGES, getAncientsConfig, resetAncientsConfig, setAncientsValue, type AncientsFullConfig, type AncientsNumKey, ANCIENT_ART_IDS, ANCIENT_CUES, ART_FIELDS, type AncientCue } from './ancientsConfig';
 import { playAwakenDemo, playGateDemo } from './ancientsFx';
+import { auditionCue } from './ancientsSound';
 import { ANCIENT_HERO_THEMES, heroThemeKey, isThemedHero, THEME_FIELDS, THEMED_HEROES, type ThemeField } from './ancientHeroThemes';
 
 /**
@@ -39,6 +40,20 @@ function heroThemeControls(): TunerControl<Key>[] {
     ...themeRows(hero, HERO_GROUP).map(([key, label, , hint, group, kind]): TunerControl<Key> => ({ key, label, hint, group, kind, min: 0, max: 0, step: 0 })),
   ];
 }
+/** Each sound's plain name and the moment it plays at (the Sound group's labels and hints). */
+const CUE_NAMES: Record<AncientCue, [string, string]> = {
+  omenRumble: ['Opening rumble', 'The low rumble swelling while the hero power glows, before the explosion.'],
+  eruptionBoom: ['Explosion boom', 'The deep hit as the hero power explodes.'],
+  eruptionFlash: ['Explosion swoosh', 'The swoosh layered over the explosion.'],
+  panelBg: ['Background slides in', 'Each of the six backgrounds sliding in (pitched up a step per pair).'],
+  panelSlam: ['Ancient slams in', 'Each of the six Ancients landing (pitched down a step per pair).'],
+  titleSting: ['Title sting', '"An Ancient Awakens" popping in on the select screen.'],
+  revealSpark: ['Card spark', 'The point of light gathering before each card appears.'],
+  cardReveal: ['Card appears', 'Each card bursting out of its spark.'],
+  ambientHum: ['Select screen hum', 'The quiet hum under the select screen (it loops in the game; ▶ plays it once).'],
+  pickWoosh: ['Pick woosh', 'The chosen card turning into a trail toward the hero power.'],
+  pickSeal: ['Pick impact', 'The trail hitting the hero power.'],
+};
 const ROWS: [Key, string, TunerUnit | undefined, string, string, ('color' | 'toggle' | 'text')?][] = [
   ['cost', 'Points to fill', undefined, 'The meter fills up to this and then awakens. Re-stamps the live sandbox run.', 'Meter (balance)'],
   ['refresh', 'Points per refresh', undefined, 'Points one Shop refresh adds (paid or free).', 'Meter (balance)'],
@@ -110,12 +125,15 @@ const ROWS: [Key, string, TunerUnit | undefined, string, string, ('color' | 'tog
   ['recoil', 'Hero power recoil', '×', 'The hero power squashing in on contact, holding through the hit-stop, then springing back. 0 = none.', 'Pick → slam'],
   ['duckAmount', 'Duck level', 'opacity', 'Music and other sounds dip to this during the awakening (1 = no duck).', 'Awakening sound'],
   ['duckRampMs', 'Duck ramp', 'ms', 'How quickly the duck goes in and comes back.', 'Awakening sound'],
-  ...ANCIENT_CUES.flatMap((cue): [Key, string, TunerUnit | undefined, string, string, ('text')?][] => [
-    [`${cue}Clip` as Key, `${cue}: clip`, undefined, `The clip id for ${cue} (e.g. fx/waking-rift). Swap in the owner’s SFX here.`, '✦ Ancients: Sound', 'text'],
-    [`${cue}Gain` as Key, `${cue}: gain`, undefined, `Volume of ${cue}. 0 mutes it.`, '✦ Ancients: Sound'],
-    [`${cue}Offset` as Key, `${cue}: offset`, 'ms', `Delay of ${cue} relative to its beat.`, '✦ Ancients: Sound'],
-    [`${cue}Rate` as Key, `${cue}: pitch`, '×', `Playback rate (pitch + speed) of ${cue}.`, '✦ Ancients: Sound'],
-  ]),
+  ...ANCIENT_CUES.flatMap((cue): [Key, string, TunerUnit | undefined, string, string, ('text')?][] => {
+    const [name, when] = CUE_NAMES[cue];
+    return [
+      [`${cue}Gain` as Key, `${name}: volume`, undefined, `${when} Press ▶ to hear it. 0 mutes it.`, '✦ Ancients: Sound'],
+      [`${cue}Clip` as Key, `${name}: clip`, undefined, `The clip id for this sound (e.g. fx/waking-rift). Swap a new sound in here.`, '✦ Ancients: Sound', 'text'],
+      [`${cue}Offset` as Key, `${name}: delay`, 'ms', 'How long after its moment this sound starts.', '✦ Ancients: Sound'],
+      [`${cue}Rate` as Key, `${name}: pitch`, '×', 'Playback rate: pitch and speed together.', '✦ Ancients: Sound'],
+    ];
+  }),
   ['pvInMs', 'Preview in', 'ms', 'The preview card’s slide and fade in on hover.', 'Preview'],
   ['pvOutMs', 'Preview out', 'ms', 'The quick slide and fade out when the pointer leaves.', 'Preview'],
   ['pvGraceMs', 'Hover grace', 'ms', 'How long the pointer has to cross from the ring into the card before it starts leaving.', 'Preview'],
@@ -143,12 +161,14 @@ const ROWS: [Key, string, TunerUnit | undefined, string, string, ('color' | 'tog
 ];
 void ART_FIELDS;
 
+/** Each sound's gain row carries a ▶ that plays it (its live clip, gain and pitch). */
+const CUE_OF_GAIN = new Map<Key, AncientCue>(ANCIENT_CUES.map((cue) => [`${cue}Gain` as Key, cue]));
 const BASE_CONTROLS: TunerControl<Key>[] = ROWS.map(([key, label, unit, hint, group, kind]) => {
   if (kind === 'color' || kind === 'text') return { key, label, hint, group, kind, min: 0, max: 0, step: 0 };
   const [min, max, step] = ANCIENTS_RANGES[key as AncientsNumKey];
   return kind === 'toggle'
     ? { key, label, hint, group, kind, min, max, step, onValue: 1, offValue: 0 }
-    : { key, label, unit, hint, group, min, max, step };
+    : { key, label, unit, hint, group, min, max, step, ...(CUE_OF_GAIN.has(key) ? { preview: () => auditionCue(CUE_OF_GAIN.get(key)!) } : {}) };
 });
 
 /** The hero-theme group goes where the theme groups always sat: after the Dust group. */

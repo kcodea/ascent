@@ -38,6 +38,14 @@ export function playCue(cue: AncientCue, extraDelayMs = 0, opts: { loop?: boolea
   return { stop: (fadeMs = 400) => { stopped = true; handle?.stop(fadeMs); } };
 }
 
+/** AUDITION a cue from the tuner (the ▶ beside its gain; owner 2026-11-19: "a play button next to every sound
+currently in use"): the cue once, with its live clip, gain and pitch, never looped. A second press cuts the first. */
+let audition: { stop: (fadeMs?: number) => void } | null = null;
+export function auditionCue(cue: AncientCue): void {
+  audition?.stop(60);
+  audition = playCue(cue);
+}
+
 /** Duck the music and every other sound bus for the awakening; `duck(false)` restores them. */
 export function duckForAwakening(on: boolean): void {
   const c = getAncientsConfig();

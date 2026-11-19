@@ -212,7 +212,7 @@ export const ANCIENT_CUES = ['omenRumble', 'eruptionBoom', 'eruptionFlash', 'rev
 export type AncientCue = (typeof ANCIENT_CUES)[number];
 export type AncientCueKey = `${AncientCue}${'Clip' | 'Gain' | 'Offset' | 'Rate'}`;
 /** The shipped picks (existing repo clips, pitched where it helps). Gains baked from the owner's tuner 2026-09-26. */
-/** LEVELS (2026-11-19, owner: "make sure the volumes are adjusted to be in line with our other stuff"). Measured as
+/** LEVELS (2026-11-19; the owner then mixed them by ear in the tuner and those values are baked in below, owner: "make sure the volumes are adjusted to be in line with our other stuff"). Measured as
  *  heard: each clip's loudest 100 ms and loudest second, plus the cue's gain in dB. The anchors are the sounds the owner
  *  tuned on 2026-09-26: the old explosion (hit -11 dB), the title sting (-12) and the pick impact (-13). The new
  *  explosion sits with those (hit -12; his export is 3 dB hotter and far denser than the old boom, hence 0.55), each
@@ -225,29 +225,29 @@ export const ANCIENT_CUE_DEFAULTS: Record<AncientCue, { clip: string; gain: numb
   // slowed down, whose first half second is near silent: the opening had no audible sound.)
   omenRumble: { clip: 'fx/ancient-opening-rise', gain: 0.3, offset: 0, rate: 1 },
   // The explosion (owner 2026-11-19): his own two clips, made for this moment, so they play at their own pitch.
-  eruptionBoom: { clip: 'fx/ancient-hp-explosion', gain: 0.55, offset: 0, rate: 1 },
-  eruptionFlash: { clip: 'fx/ancient-explosion-swoosh', gain: 0.6, offset: 40, rate: 1 },
+  eruptionBoom: { clip: 'fx/ancient-hp-explosion', gain: 0.41, offset: 0, rate: 1 },
+  eruptionFlash: { clip: 'fx/ancient-explosion-swoosh', gain: 0.26, offset: 40, rate: 1 },
   // The reveal, re-scored as MAGIC not impact (owner 2026-09-27: "a bit less BOOMING"): the trigger glow rising as
   // each spark gathers, and the equipment sheen (the Good Luck shine's clip) as it blooms. Was `runeselectimplosion`.
-  revealSpark: { clip: 'triggerglow', gain: 0.22, offset: 0, rate: 1.15 },
-  cardReveal: { clip: 'equipmentsheen', gain: 0.3, offset: 0, rate: 1 },
+  revealSpark: { clip: 'triggerglow', gain: 0.37, offset: 0, rate: 1.15 },
+  cardReveal: { clip: 'equipmentsheen', gain: 0.24, offset: 0, rate: 1 },
   ambientHum: { clip: 'turncharge', gain: 0.18, offset: 0, rate: 0.45 },
   // The pick's trail: the triple's own woosh + impact clips (the gild-trail def's sound layers, muted there so these
   // play on the undiminished hero bus and land exactly on the collapse / contact frames).
   pickWoosh: { clip: 'fx/metal-woosh', gain: 0.32, offset: 0, rate: 0.8 },
-  pickSeal: { clip: 'fx/triple-impact', gain: 0.62, offset: 0, rate: 0.85 },
+  pickSeal: { clip: 'fx/triple-impact', gain: 0.46, offset: 0, rate: 0.85 },
   // The panels (2026-11-18): placeholders from clips already in the repo, for the owner to swap. One whoosh per
   // background (pitched up a step each pair), one slam per Ancient.
-  panelBg: { clip: 'triggerglow', gain: 0.16, offset: 0, rate: 1.5 },
+  panelBg: { clip: 'triggerglow', gain: 0.58, offset: -20, rate: 1.5 },
   // Each Ancient sliding in (owner 2026-11-19): six stone slides, one per Ancient (`PANEL_SLIDE_CLIPS`, ancientsSound.ts),
   // each a take of "sliding stone 1" layered with a take of "sliding stone 2" and time-compressed to the slide's length.
   // This slot's clip is the first of the six; while it is left as shipped, each Ancient plays its own.
-  panelSlide: { clip: 'fx/ancient-stone-slide-1', gain: 0.32, offset: 0, rate: 1 },
+  panelSlide: { clip: 'fx/ancient-stone-slide-1', gain: 0.2, offset: 0, rate: 1 },
   // Each Ancient slamming in (owner 2026-11-19): two cinematic booms layered into one clip.
-  panelSlam: { clip: 'fx/ancient-slam', gain: 0.4, offset: 0, rate: 1 },
+  panelSlam: { clip: 'fx/ancient-slam', gain: 0.4, offset: -90, rate: 1 },
   // The three on offer rattling and pulsing (owner 2026-11-19): a shine on the first two pulses under a sparkle whoosh
   // that rises through the rattle and peaks as the pulse ends. One sound for the three, not one each.
-  pickPulse: { clip: 'fx/ancient-pick-pulse', gain: 0.4, offset: 0, rate: 1 },
+  pickPulse: { clip: 'fx/ancient-pick-pulse', gain: 0.14, offset: 0, rate: 1 },
   // The click on an Ancient's card (owner 2026-11-19): a click with a long reverb, on the frame of the click, before
   // the woosh and the impact. A quiet clip (its hit is -20 dB), so the gain is high: heard at -22, like the pulse.
   pickClick: { clip: 'fx/ancient-pick-click', gain: 0.8, offset: 0, rate: 1 },
@@ -442,7 +442,7 @@ export const ANCIENTS_RANGES: Record<NumKey, [number, number, number]> = {
 
 const KEY = 'ascent.ancients';
 const REV_KEY = 'ascent.ancients.rev';
-const REV = 7;
+const REV = 8;
 /** The defaults retuned at each revision (see the loader): a save older than a revision takes that revision's keys
  *  from the new defaults and keeps everything else. Rev 5 (2026-11-19): the owner's new explosion and slam clips; rev 6: their levels. */
 const RETUNED_AT: Record<number, readonly string[]> = {
@@ -450,6 +450,7 @@ const RETUNED_AT: Record<number, readonly string[]> = {
   5: ['eruptionBoomClip', 'eruptionBoomRate', 'eruptionFlashClip', 'eruptionFlashRate', 'panelSlamClip', 'panelSlamGain', 'panelSlamRate'],
   6: ['eruptionBoomGain', 'panelSlamGain', 'panelSlideGain', 'pickPulseGain'], // the level pass (see ANCIENT_CUE_DEFAULTS)
   7: ['omenRumbleClip', 'omenRumbleGain', 'omenRumbleRate'], // the opening's own rise
+  8: ['eruptionBoomGain', 'eruptionFlashGain', 'revealSparkGain', 'cardRevealGain', 'pickSealGain', 'panelBgGain', 'panelBgOffset', 'panelSlideGain', 'panelSlamOffset', 'pickPulseGain'], // the owner's mix, by ear
 };
 let cfg: AncientsFullConfig = (() => {
   if (!import.meta.env.DEV) return { ...ANCIENTS_DEFAULTS };

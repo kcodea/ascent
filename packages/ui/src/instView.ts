@@ -268,7 +268,7 @@ function liveCardTextCore(cardId: string, p: LiveTextParams): { text: string; go
 
             packLeaderText(c.id, p.summonBonus ?? 0, p.golden) ??
             asymSummonBuffText(c.id, p.summonBonus ?? 0, p.golden) ?? // Groveweaver: live asymmetric grant
-            summonEscalatingText(c.id, p.golden, p.summonBonus) ?? // Beardsley: the current escalating grant + countdown
+            summonEscalatingText(c.id, p.golden, p.summonBonus, p.zooSummons) ?? // Beardsley: the current escalating grant + countdown
             summonFlatZooText(c.id, p.golden, p.zooSummons) ?? // Beardsley under Rune of the Zoo: the NEXT summon's live grant
             summonBuffText(c.id, p.summonBonus ?? 0, p.golden) ??
             summitTierText(c.id, p.tier7Access ?? false) ?? // Beyond the Summit: only promise Tier 7 when reachable

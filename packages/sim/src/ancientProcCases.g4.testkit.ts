@@ -140,7 +140,7 @@ export const CASES: ProcCase[] = [
   // ── CINDY ──
   {
     hero: 'cindy', ancient: 'death', phase: 'shop', fires: 2,
-    note: 'Avenge (15) on Shop deaths: the 15th and the 30th pay, the 14 between do not',
+    note: 'When 15 friendly minions die, on Shop deaths: the 15th and the 30th pay, the 14 between do not',
     run: () => {
       const s = duosPicked('cindy', 'death', { board: [card('d1', PLAIN[0]!)] });
       s.ancients = { ...s.ancients!, cindyDeaths: 14 };
@@ -151,9 +151,9 @@ export const CASES: ProcCase[] = [
   },
   {
     hero: 'cindy', ancient: 'death', phase: 'combat', fires: 1,
-    note: 'one death short of the 15th carried in: the first friendly death in the fight pays',
+    note: 'five Mama Pups and their Pups with 14 carried in (R-ANCIENT-CARRYOVER-01): the first death pays, the other 14 tick',
     run: () => {
-      const s = duosPicked('cindy', 'death', { board: [card('a', PLAIN[0]!, { attack: 1, health: 1 }), card('b', PLAIN[1]!, { attack: 1, health: 1 })] });
+      const s = duosPicked('cindy', 'death', { board: ['a', 'b', 'c', 'd', 'e'].map((u) => card(u, 'pack', { attack: 1, health: 1 })) });
       s.ancients = { ...s.ancients!, cindyDeaths: 14 };
       const side = buildVersusCandidate(s, makeRng(3))!;
       const foe = [{ cardId: PLAIN[2]!, attack: 50, health: 500, keywords: [] }];

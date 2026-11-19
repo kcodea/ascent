@@ -1,7 +1,7 @@
 /**
  * CINDY × THE ANCIENTS, the combat halves (Duos only; owner pairings 2026-11-14, R-ANCCINDY-01 / 03 / 06).
  *
- *  - DEATH (`ancientMateGiftAvenge`): "Avenge (15): give your teammate a Goldcrafter." The running count is carried in;
+ *  - DEATH (`ancientMateGiftAvenge`): "Avenge (15): give your teammate a Goldcrafter." The count is this fight's own;
  *    each fire sends the gift to the TEAMMATE at once (`sendTeam`: a `teamSend` event, the carry's `mate` half).
  *  - WAR (`ancientSocGildLeftmost`): "Start of Combat: your left-most minion is Gilded." For the fight; an Engraved one
  *    keeps the Gilded status (`ancientGildKept`).
@@ -64,8 +64,10 @@ describe('Cindy × Death: every 15th friendly death gives the teammate a Goldcra
     simulate([bm(A, 1, 1, 'c0'), bm(B, 1, 1, 'c1'), bm(C, 1, 1, 'c2')], [bm(A, 50, 500, 'f0')], makeRng(5), CARD_INDEX, combatSide({ questMods: mods }), combatSide());
   const mateGifts = (r: Fight) => (r.playerShoutCarry?.teamEffects ?? []).filter((t) => t.mate && t.effect.kind === 'gift');
 
-  it('the carried count reaching 15 mid-fight sends the gift to the teammate (a teamSend, the mate half)', () => {
-    const r = fight({ ancientMateGiftAvenge: { every: 15, tick: 13, gift, label: DEATH } });
+  it('the fight\'s own count reaching N mid-fight sends the gift to the teammate (a teamSend, the mate half)', () => {
+    // Per combat (R-AVENGE-PER-COMBAT-01): a carried tick is ignored, so 3 deaths never reach 15.
+    expect(mateGifts(fight({ ancientMateGiftAvenge: { every: 15, tick: 13, gift, label: DEATH } }))).toHaveLength(0);
+    const r = fight({ ancientMateGiftAvenge: { every: 3, tick: 0, gift, label: DEATH } });
     expect(mateGifts(r)).toHaveLength(1);
     expect(mateGifts(r)[0]!.effect).toEqual(gift);
     expect(mateGifts(r)[0]!.self).toBe(false);
@@ -79,7 +81,7 @@ describe('Cindy × Death: every 15th friendly death gives the teammate a Goldcra
   });
 
   it('Rune of Fury fires it again, like every hero Avenge', () => {
-    const r = fight({ ancientMateGiftAvenge: { every: 15, tick: 13, gift, label: DEATH }, runeFury: true });
+    const r = fight({ ancientMateGiftAvenge: { every: 3, tick: 0, gift, label: DEATH }, runeFury: true });
     expect(mateGifts(r)).toHaveLength(2);
   });
 });

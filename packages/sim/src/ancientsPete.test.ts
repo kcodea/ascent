@@ -60,8 +60,8 @@ describe('Pete × DEATH: "Avenge (3): gain a free Refresh."', () => {
     expect(s.freeRolls).toBe(1);
     expect(s.ancients!.tradesDeaths).toBe(0);
   });
-  it('combat: the carried count fires mid-fight and the free Refresh comes home', () => {
-    let s = picked('death', { board: [card('a', N(0), { attack: 1, health: 1 })] });
+  it('combat: the 3rd death in the fight fires it mid-fight and the free Refresh comes home (per combat, R-AVENGE-PER-COMBAT-01: the Shop count never comes in)', () => {
+    let s = picked('death', { board: ['a', 'b', 'c'].map((u) => card(u, N(0), { attack: 1, health: 1 })) });
     s = { ...s, ancients: { ...s.ancients!, tradesDeaths: 2 } };
     expect(ancientCombatMods(s).ancientRefreshAvenge).toEqual({ every: 3, tick: 2, flag: ANCIENT_REFRESH_AVENGE_FLAG, label: 'Ancient of Death' });
     expect(ancientAvengeCountdown(s)).toBe(1);

@@ -53,7 +53,7 @@ export const CASES: ProcCase[] = [
     run: () => shopDeaths(withAncients(pickedRun('keshi', 'death', { board: frail(6) }), { keshiDeaths: 3 }), 5),
   },
   {
-    hero: 'keshi', ancient: 'death', phase: 'combat', fires: 2, note: 'count at 3: five deaths in the fight pay at the 1st and 5th',
+    hero: 'keshi', ancient: 'death', phase: 'combat', fires: 1, note: 'five deaths in the fight: the 4th pays (per combat: the Shop count of 3 never comes in)',
     run: () => combatDeaths(withAncients(pickedRun('keshi', 'death', { board: frail(5) }), { keshiDeaths: 3 })),
   },
   {
@@ -132,7 +132,7 @@ export const CASES: ProcCase[] = [
     run: () => shopDeaths(pickedRun('vale', 'death', { spellsCast: 2, board: frail(9) } as Partial<RunState>), 8),
   },
   {
-    hero: 'vale', ancient: 'death', phase: 'combat', fires: 1, note: 'Avenge (4): count at 3, the fight\'s first death pays (then 3 more die, short of the next)',
+    hero: 'vale', ancient: 'death', phase: 'combat', fires: 1, note: 'Avenge (4): four deaths in the fight, the 4th pays (the Shop count of 3 never comes in)',
     run: () => combatDeaths(withAncients(pickedRun('vale', 'death', { spellsCast: 2, board: frail(4) } as Partial<RunState>), { batchBDeaths: 3 })),
   },
   {
@@ -154,7 +154,7 @@ export const CASES: ProcCase[] = [
     run: () => shopDeaths(withAncients(pickedRun('emeraldwarden', 'death', { board: frail(8) }), { batchBDeaths: 5 }), 7),
   },
   {
-    hero: 'emeraldwarden', ancient: 'death', phase: 'combat', fires: 1, note: 'count at 5: seven deaths in the fight, once per turn',
+    hero: 'emeraldwarden', ancient: 'death', phase: 'combat', fires: 1, note: 'seven deaths in the fight: the 6th pays, once per turn (the Shop count of 5 never comes in)',
     run: () => combatDeaths(withAncients(pickedRun('emeraldwarden', 'death', { board: frail(7) }), { batchBDeaths: 5 })),
   },
   {
@@ -167,7 +167,7 @@ export const CASES: ProcCase[] = [
     run: () => shopDeaths(pickedRun('baggerben', 'death', { board: frail(9) }), 8),
   },
   {
-    hero: 'baggerben', ancient: 'death', phase: 'combat', fires: 2, note: 'Avenge (4): eight combat deaths (count at 1, seven die: the 3rd and 7th)',
+    hero: 'baggerben', ancient: 'death', phase: 'combat', fires: 1, note: 'Avenge (4): seven combat deaths, the 4th pays (per combat: the Shop count of 1 never comes in)',
     run: () => combatDeaths(withAncients(pickedRun('baggerben', 'death', { board: frail(7) }), { rascalDeaths: 1 })),
   },
   {
@@ -180,7 +180,7 @@ export const CASES: ProcCase[] = [
     run: () => shopDeaths(pickedRun('gambler', 'death', { board: frail(9) }), 8),
   },
   {
-    hero: 'gambler', ancient: 'death', phase: 'combat', fires: 2, note: 'Avenge (4): count at 1, seven combat deaths pay at the 3rd and 7th',
+    hero: 'gambler', ancient: 'death', phase: 'combat', fires: 1, note: 'Avenge (4): seven combat deaths, the 4th pays (per combat: the Shop count of 1 never comes in)',
     run: () => combatDeaths(withAncients(pickedRun('gambler', 'death', { board: frail(7) }), { gamblerDeaths: 1 })),
   },
   // ── PETE ──────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -206,7 +206,7 @@ export const CASES: ProcCase[] = [
     run: () => shopDeaths(pickedRun('flint', 'death', { board: frail(9) }), 8),
   },
   {
-    hero: 'flint', ancient: 'death', phase: 'combat', fires: 2, note: 'Avenge (4): count at 1, seven combat deaths pay at the 3rd and 7th',
+    hero: 'flint', ancient: 'death', phase: 'combat', fires: 1, note: 'Avenge (4): seven combat deaths, the 4th pays (per combat: the Shop count of 1 never comes in)',
     run: () => combatDeaths(withAncients(pickedRun('flint', 'death', { board: frail(7) }), { flintDeaths: 1 })),
   },
   {
@@ -227,7 +227,7 @@ export const CASES: ProcCase[] = [
     run: () => shopDeaths(pickedRun('juggler', 'death', { board: frail(9) }), 8),
   },
   {
-    hero: 'juggler', ancient: 'death', phase: 'combat', fires: 2, note: 'Avenge (4): count at 1, seven combat deaths pay at the 3rd and 7th',
+    hero: 'juggler', ancient: 'death', phase: 'combat', fires: 1, note: 'Avenge (4): seven combat deaths, the 4th pays (per combat: the Shop count of 1 never comes in)',
     run: () => combatDeaths(withAncients(pickedRun('juggler', 'death', { board: frail(7) }), { gildDeaths: 1 })),
   },
   {

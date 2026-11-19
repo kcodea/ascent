@@ -227,7 +227,13 @@ export const AVATAR_ART: AvatarArt[] = [
   ...Object.entries(MINION_ART).map(([key, src]): AvatarArt => ({ id: `minion:${key}`, src, kind: 'minion', key })),
   ...Object.entries(POWER_ART).map(([key, src]): AvatarArt => ({ id: `power:${key}`, src, kind: 'power', key })),
 ];
-const AVATAR_SRC = new Map(AVATAR_ART.map((a) => [a.id, a.src] as const));
+/** A SKIN as a portrait (2026-11-19): `skin:<art key>` (the catalog item's `assets.art`). Not in `AVATAR_ART`: that
+ *  list is what everyone may pick; the portrait window offers a skin only to an account that owns it. Resolved here
+ *  for every viewer, since the art is in every bundle. */
+const AVATAR_SRC = new Map<string, string>([
+  ...AVATAR_ART.map((a) => [a.id, a.src] as const),
+  ...Object.entries(SKIN_ART).map(([key, src]) => [`skin:${key}`, src] as const),
+]);
 /** Resolve a stored avatar id (`kind:key`) to its art URL — undefined if unset or no longer bundled. */
 export const avatarSrc = (id?: string | null): string | undefined => (id ? AVATAR_SRC.get(id) : undefined);
 

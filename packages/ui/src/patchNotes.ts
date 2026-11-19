@@ -59,6 +59,16 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-11-19',
     changes: [
       {
+        category: 'Systems',
+        text: 'The portrait menu is rebuilt, and any hero or minion skin you own can now be your portrait.',
+        details: [
+          'Pick a portrait to preview it on your banner, then press Use portrait.',
+          'Portraits are sorted into tabs (My Skins, Heroes, Minions, Hero Powers) and you can search by name.',
+          'Minions are grouped by tribe, and a filter narrows My Skins to hero or minion skins and Minions to one tribe.',
+          "A skin's edge shows its rarity colour.",
+        ],
+      },
+      {
         category: 'Balance',
         text: 'Darah: two Ancient pairings changed.',
         details: [

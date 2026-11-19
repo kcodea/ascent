@@ -81,11 +81,17 @@ export function stabilizeViewMap(fresh: Map<string, CardView>, cache: Map<string
  *  element is unchanged, so `Card`'s `refCards` prop stays reference-stable and doesn't defeat the memo. */
 export function stabilizeRefMap(fresh: Map<string, CardView[]>, cache: Map<string, CardView[]>): Map<string, CardView[]> {
   const out = new Map<string, CardView[]>();
+  let allReused = fresh.size === cache.size;
   for (const [uid, arr] of fresh) {
     const prev = cache.get(uid);
-    out.set(uid, prev && prev.length === arr.length && arr.every((v, i) => cardViewEqual(prev[i]!, v)) ? prev : arr);
+    const reuse = !!prev && prev.length === arr.length && arr.every((v, i) => cardViewEqual(prev[i]!, v));
+    if (!reuse) allReused = false;
+    out.set(uid, reuse ? prev! : arr);
   }
-  return out;
+  // Nothing changed at all (the same cards, every popup reused): hand back the CACHE itself, so a row that takes the
+  // map as a prop keeps its memo across the action (R-PERF-LOBBY-STABLE-01). Same size + every key found in the cache
+  // means the key sets are equal.
+  return allReused ? cache : out;
 }
 
 /** Single-view stabilization (the pinned spell slot): reuse `prev` when equal. */

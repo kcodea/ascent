@@ -17,7 +17,7 @@ import {
   type ParticleStyle,
 } from '../particleMaterial';
 import { FX_BLEND_MODES } from '../blendModes';
-import { acquireParticleLayer, releaseParticleLayer } from '../particleLayerPool';
+import { acquireParticleLayer, fitParticleBounds, releaseParticleLayer } from '../particleLayerPool';
 import { resolveParticleScale } from '../shapeTextures';
 import { getShapeTextureById } from '../shapeLibrary';
 import { turbulenceX, turbulenceY, emissionOffset, spawnVelocity, EMIT_SHAPES, fieldPhaseOffset } from '../motion';
@@ -581,7 +581,7 @@ class BurstInstance implements FxInstance<BurstParams> {
     });
     this.shader = layer.shader;
     this.pc = layer.pc;
-    this.filters = new FilterStack(ctx.container, FILTERS);
+    this.filters = new FilterStack(ctx.container, FILTERS, true); // tight: its area follows the particles (R-PERF-FX-FILTER-AREA-01)
     this.transform = new ContainerTransform(ctx.container);
     // Deliberately no emit here. `headX/headY` default to (0, 0) until the first real `setHead()` call,
     // and the real caller (`FxPlayer.update` → this instance's `update()`, THEN `FxPlayer.setHead` →
@@ -844,6 +844,7 @@ class BurstInstance implements FxInstance<BurstParams> {
     }
 
     this.pc.update();
+    fitParticleBounds(this.pc, this.headX, this.headY);
   }
 
   /** See `burstFireComplete`'s header comment for the completion contract. */

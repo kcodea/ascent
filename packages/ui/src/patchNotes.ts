@@ -71,6 +71,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-11-18',
     changes: [
+      { category: 'Systems', text: 'Smoother combat: background calculations no longer interrupt the fight.' },
       {
         category: 'Balance',
         text: 'Ancient of Death: Gildmaster and Cindy now count friendly deaths across fights and the Shop, and Cassen needs 5 deaths instead of 7.',
@@ -143,6 +144,47 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'The end of a fight and the trip back to the Shop are smoother.',
+        details: [
+          'The game no longer freezes for a moment as a fight ends. It was reloading the pictures for the trip back to the Shop every round.',
+          'The dive through the Shop door no longer stutters as it starts.',
+          'Nothing looks different. This is speed only, on desktop.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'The Rise, Flurry, Execute and Rebirth effects on minions are much lighter to draw, so boards full of them no longer slow the game down.',
+        details: [
+          'Each effect is now one picture made from the original effect, instead of dozens of moving pieces per minion.',
+          'They should look the same as before. Tell us if one looks different.',
+          'Phones still use the original effects for now.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'The crystal fuse at the end of a turn costs far less to draw, and buying, selling and rolling no longer redraw the player rail. Nothing looks different.',
+      },
+      {
+        category: 'Systems',
+        text: 'Glowing effects cost far less to draw, most of all when a whole board is buffed at once.',
+        details: [
+          'A buff that flies to every minion on your board no longer slows the Shop while its trails are in flight.',
+          'Strike bursts, the 5,000 stat rings and other glowing sparks are lighter in long fights.',
+          'These effects look the same as before.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Fights run smoother, most of all late in the game with big boards and big numbers.',
+        details: [
+          'A minion dying or a spell being cast mid-fight no longer redraws every card on the board.',
+          'A rolling stat number now redraws only its own badge, not the whole card.',
+          'Long fights no longer get heavier as they go on.',
+          'Nothing looks or plays differently.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Mech and Spirit have new tribe colors that match the gems on their card frames.',
         details: [
           'Mech is now indigo instead of sky blue.',
@@ -180,6 +222,15 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       { category: 'Systems', text: 'When an Ancient awakens, you can now Peek at the board before you choose, like a Discover. Press Return to Ancients to bring the choice back.' },
       { category: 'Systems', text: 'The Ancient choice now sits on the same dark backdrop as the Runeforge, so the Ancients stand out from the board.' },
+      {
+        category: 'Systems',
+        text: 'Reverb sounds, hovering a card and damage numbers all cost less. They look and sound the same.',
+        details: [
+          'Sounds with reverb now share a few reverb units, so a busy late turn no longer piles them up.',
+          'The soft glow around a hovered card is no longer redrawn on every frame.',
+          'The shadow under a damage number is no longer redrawn on every frame.',
+        ],
+      },
     ],
   },
   {

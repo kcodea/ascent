@@ -115,6 +115,11 @@ export function vistaClassFor(w: WipeState): string {
  * moment a fight's replay ends (End Combat can only be pressed after it), the vista plays its hold and its dive once,
  * INVISIBLY: `warming` puts it behind the game at 1% (the compositor still draws covered content, measured). By the
  * press it is warm, and the trip is frame-for-frame the same as a warm one. `null` = not warming.
+ *
+ * PHONES ONLY since 2026-11-18 (R-PERF-PHASE-ART-HELD-01). On desktop the five layers are canvases the page painted once
+ * and keeps (heldArt.ts), so there is nothing for the compositor to decode or drop, and the invisible play is skipped:
+ * it cost a 60 to 110 ms hitch at the end of every fight. A phone's one flattened picture is still a CSS background, so
+ * it keeps this warm-up.
  */
 export type VistaWarmStep = 'hold' | 'dive';
 /** How long each warm step is shown (ms): long enough for the compositor to draw it at every scale it will need. */

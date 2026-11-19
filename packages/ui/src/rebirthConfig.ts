@@ -1,4 +1,5 @@
 import { CROWN_FRAMES, crownUrl, embersSvg, pillarUrl, svgUrl, veilSvg } from './rebirthCrown';
+import { markAuraRetuned } from './kwfx/kwfx';
 
 /**
  * The REBIRTH look. History: 2026-09-25 the owner asked for a phoenix look "similar to rise, but less intrusive,
@@ -158,14 +159,22 @@ export function applyRebirthVars(): void {
   }
 }
 
+/** Players see a capture of the shipped crown (kwfx/kwfx.ts): a retuned one renders its live markup instead. */
+function syncRetuned(): void {
+  markAuraRetuned('rebirth', (Object.keys(DEFAULTS) as (keyof RebirthConfig)[]).some((k) => cfg[k] !== DEFAULTS[k]));
+}
+
 export function setRebirthValue(key: keyof RebirthConfig, value: number | string): void {
   cfg = { ...cfg, [key]: value };
   applyRebirthVars();
+  syncRetuned();
   try { localStorage.setItem(KEY, JSON.stringify(cfg)); } catch { /* ignore */ }
 }
 export function resetRebirthConfig(): void {
   cfg = { ...DEFAULTS };
   applyRebirthVars();
+  syncRetuned();
   try { localStorage.removeItem(KEY); } catch { /* ignore */ }
 }
 applyRebirthVars();
+syncRetuned();

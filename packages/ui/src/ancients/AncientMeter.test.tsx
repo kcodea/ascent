@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { act } from 'react';
 import { createRun, enableAncients, type RunState } from '@game/sim';
 import { mount, type Mounted } from '../renderedText.mount';
-import { AncientMeter } from './AncientMeter';
+import { AncientMeter, sameAncientRun } from './AncientMeter';
 
 /** THE ANCIENTS PILL (owner 2026-09-25): "Ancients x/16", and ONLY it opens the preview (never the ring). */
 let m: Mounted | null = null;
@@ -33,5 +33,30 @@ describe('the Ancients meter pill', () => {
     m = mount(<AncientMeter run={run()} />);
     for (const el of Array.from(m.container.querySelectorAll('.anc-ring, .anc-ring svg, .anc-ring circle'))) hover(el);
     expect(document.body.querySelector('.anc-pv')).toBeNull();
+  });
+});
+
+// R-PERF-LOBBY-STABLE-01: the reducer clones the run on every dispatch, so a memo on `{ run }` never held. The
+// comparator keys on what the Ancient components read.
+describe('sameAncientRun (the memo that holds across shop actions)', () => {
+  it('a deep clone of the run is the same Ancient picture', () => {
+    const a = run();
+    expect(sameAncientRun({ run: a }, { run: structuredClone(a) })).toBe(true);
+  });
+  it('a point, an offer, a pick, the phase and the hero each re-render', () => {
+    const a = run();
+    const edits: Array<(r: RunState) => void> = [
+      (r) => { r.ancients!.points += 1; },
+      (r) => { r.ancients!.picked = 'x' as never; },
+      (r) => { (r.ancients as unknown as { offerSeq: number }).offerSeq = 99; },
+      (r) => { r.phase = 'combat'; },
+      (r) => { r.heroId = 'fi'; },
+      (r) => { r.ancientsEnabled = false as never; },
+    ];
+    for (const edit of edits) {
+      const b = structuredClone(a);
+      edit(b);
+      expect(sameAncientRun({ run: a }, { run: b })).toBe(false);
+    }
   });
 });

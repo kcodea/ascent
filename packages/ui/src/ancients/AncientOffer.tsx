@@ -8,6 +8,7 @@ import { pickTimeline, playPickSlam } from './ancientPickSlam';
 import { ancientColor, getAncientsConfig, revealStyleOf } from './ancientsConfig';
 import { playCue } from './ancientsSound';
 import { ancientRevealBurst, ancientRevealSpark } from './ancientsSmoke';
+import { panelTimeline } from './panelClock';
 import { toStage } from '../stage';
 import '../discoverEntrance/discoverEntrance.css';
 import './ancients.css';
@@ -17,7 +18,7 @@ import { ancientKey } from '../pings/pingKeys';
  * THE ANCIENTS' REVEAL: its own emergence, not the standard Discover entrance (owner 2026-09-25: "make the discover
  * animation unique to the ancients in timing, sound and appearance"). Mounted by the awakening (`AncientGate`) on its
  * `reveal` beat, over the Discover view's backdrop:
- *   · the curtain's title hands off to the banner (one title, rising into place);
+ *   · the banner ("An Ancient Awakens") pops in;
  *   · each Ancient REVEALS OUT OF A SPARK (owner 2026-09-27; the rise-and-slam was retired the same day): a point of its
  *     colour gathers, bursts, and the card appears out of the light, overexposed and settling. The middle first, then
  *     the sides left → right. Three styles (`revealStyle`, the ✦ tuner): burst / seam / bloom;
@@ -57,7 +58,7 @@ export const AncientOfferOverlay = memo(function AncientOfferOverlay({ held, run
   useEffect(() => {
     if (!realOffer?.length) return;
     const c = getAncientsConfig();
-    const id = window.setTimeout(() => setTimedOut(offerSeq), 6000 + c.omenMs + c.eruptionMs + c.titleHoldMs);
+    const id = window.setTimeout(() => setTimedOut(offerSeq), 6000 + c.omenMs + panelTimeline(c).revealAt);
     return () => window.clearTimeout(id);
   }, [realOffer, offerSeq]);
   if (!offer?.length || held || run.phase !== 'recruit') return null;
@@ -124,28 +125,13 @@ function Reveal({ gated, closing, offer, heroId, seq, onPick }: { gated: boolean
     const land = (i: number): void => setLanded((l) => l.map((v, k) => (k === i ? true : v)));
     const finish = (total: number): void => { at(total, () => { setSettled(true); setAwakenStage('settled', seq); }); };
 
-    // THE TITLE HANDS OFF: the curtain's centred "An Ancient Awakens" is not faded out while a second copy fades in at
-    // the top: the banner is BORN where the curtain's title stands (same centre, same size) and rises into its place as
-    // the curtain drops, so the eye rides the title up and lands on the first spark. One layout read of each, now.
+    // THE TITLE: "An Ancient Awakens" pops in with the select screen (owner 2026-11-18: "have it pop in once the ancient
+    // select moment occurs"). The panels carry no title of their own.
     const banner = root.querySelector<HTMLElement>('.disc-ornate');
     if (banner) {
-      const from = reduced ? null : document.querySelector('.anc-gate-title .anc-gate-label')?.getBoundingClientRect();
-      const bt = banner.querySelector('.disc-ornate-title')?.getBoundingClientRect();
-      const br = banner.getBoundingClientRect();
-      if (from && bt && from.width > 0 && bt.width > 0 && c.handoffMs > 0) {
-        const dx = toStage(from.left + from.width / 2 - (br.left + br.width / 2));
-        const dy = toStage(from.top + from.height / 2 - (bt.top + bt.height / 2));
-        const sc = Math.max(0.3, Math.min(3, from.width / bt.width));
-        anim(banner, [
-          { opacity: 0.4, transform: `translateX(-50%) translate(${dx.toFixed(1)}px, ${dy.toFixed(1)}px) scale(${sc.toFixed(3)})` },
-          { opacity: 1, offset: 0.12 },
-          { opacity: 1, transform: 'translateX(-50%)' },
-        ], { duration: c.handoffMs, easing: 'cubic-bezier(0.5, 0, 0.15, 1)', fill: 'backwards' });
-      } else if (reduced) {
+      if (reduced) {
         anim(banner, [{ opacity: 0, transform: 'translateX(-50%) translateY(10px)' }, { opacity: 1, transform: 'translateX(-50%)' }], { duration: 400, easing: 'ease-out', fill: 'backwards' });
       } else {
-        // No title to be born from (the panels carry none, owner 2026-11-18: "have it pop in once the ancient select
-        // moment occurs"): it pops.
         anim(banner, [
           { opacity: 0, transform: 'translateX(-50%) scale(0.6)' },
           { opacity: 1, transform: 'translateX(-50%) scale(1.1)', offset: 0.6 },

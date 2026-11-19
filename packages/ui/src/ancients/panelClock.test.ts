@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ANCIENTS_DEFAULTS, gateStyleOf } from './ancientsConfig';
+import { ANCIENTS_DEFAULTS } from './ancientsConfig';
 import { PANEL_FIGURE_FITS, PANEL_LAND, PANEL_PULSE, panelBackWidth, panelFigureRest, panelFromTop, panelGeometry, panelRank, panelTimeline, seamX, slideLeadY, stripPolygon } from './panelClock';
 
 /**
@@ -10,10 +10,9 @@ import { PANEL_FIGURE_FITS, PANEL_LAND, PANEL_PULSE, panelBackWidth, panelFigure
 describe('the awakening panels clock', () => {
   const tl = panelTimeline(ANCIENTS_DEFAULTS);
 
-  it('is the default gate style, with the curtain still selectable', () => {
-    expect(ANCIENTS_DEFAULTS.gateStyle).toBe('panels');
-    expect(gateStyleOf('curtain')).toBe('curtain');
-    expect(gateStyleOf('nonsense')).toBe('panels');
+  // Owner 2026-11-19: "delete the curtain and its dials". The panels are the only awakening; nothing selects another.
+  it('is the only awakening: the curtain and its dials are gone', () => {
+    for (const k of ['gateStyle', 'eruptionMs', 'seamGlow', 'titleHoldMs', 'revealFadeMs', 'handoffMs', 'tunerStyle']) expect(ANCIENTS_DEFAULTS).not.toHaveProperty(k);
   });
 
   // Owner 2026-11-18: "i dont like how the rainbow of colors shows up and then the ancients slide in. i want each

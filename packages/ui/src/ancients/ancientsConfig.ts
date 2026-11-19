@@ -55,15 +55,6 @@ export interface AncientsConfig {
   omenDark: number;
   /** Omen: the board's tremor at its peak (px). 0 = none. The hero power never moves. */
   omenTremor: number;
-  /** Eruption: the curtain bloom out of the hero power (ms). */
-  eruptionMs: number;
-  /** Eruption: the energy ring riding the curtain's seam (peak opacity). */
-  seamGlow: number;
-  /** Title: how long "An Ancient Awakens" holds before the reveal (ms). */
-  titleHoldMs: number;
-  /** THE GATE'S CENTRE BEAT (owner 2026-11-18): `panels` = the six Ancients slam in as tall slanted panels and three
-   *  fall away; `curtain` = the earlier bloom of colour with the hero power's medallion and the title card. */
-  gateStyle: string;
   /** Panels: within an outside-to-inside pair, the right panel setting off after the left (ms). */
   panelPairGapMs: number;
   /** Panels: one background's slide in from off screen (ms). */
@@ -90,8 +81,6 @@ export interface AncientsConfig {
   panelSlant: number;
   /** Panels: how far a layered portrait's sheets move apart (×). 0 = the layers move as one. */
   panelDepth: number;
-  /** Reveal: the curtain fading off (ms). */
-  revealFadeMs: number;
   /** Reveal: the pause before the first Ancient emerges (ms). */
   revealDelayMs: number;
   /** THE SPARK REVEAL (owner 2026-09-27: "if they revealed out of the spark or something that may be cool? i think the
@@ -111,9 +100,6 @@ export interface AncientsConfig {
   overexposeMs: number;
   /** Spark reveal: the burst's ring size (×, the pick's own ring). 0 = none. */
   burstRing: number;
-  /** REVEAL PASS (owner 2026-09-27: "make the ancient reveal sequence better"). The title handoff: the banner is born
-   *  where the curtain's title stands and rises into place (ms). 0 = a plain fade. */
-  handoffMs: number;
   /** Each card's name and effect rising in after it lands (ms each). 0 = shown with the card. */
   textInMs: number;
   /** The overexposure: a flood of each Ancient's colour and white over its art as it appears (peak opacity). 0 = none. */
@@ -149,8 +135,6 @@ export interface AncientsConfig {
   /** Tuner only: the hero the Hero theme group edits and the Play button plays as (`default` = every hero without
    *  its own theme). Nothing in the game reads it. */
   tunerHero: string;
-  /** Tuner only: preview another bloom style on that hero (`auto` = the hero's own). Nothing in the game reads it. */
-  tunerStyle: string;
   /** THE PICK → SLAM (owner 2026-09-27: "i dont want the black circle to go back to the hero power, id rather the screen
    *  fade back and give more emphasis on the choice slamming the hero power"). See `ancientPickSlam.ts` and the
    *  research note docs/devlog/2026-09-27-ancient-pick-research.md for why these numbers.
@@ -277,10 +261,6 @@ export const ANCIENTS_DEFAULTS: AncientsFullConfig = {
   omenMs: 850,
   omenDark: 1,
   omenTremor: 2.5,
-  eruptionMs: 520,
-  seamGlow: 0.9,
-  titleHoldMs: 1050, // was 1500: ~1 s of an unchanging title card (whole-sequence pass 2026-09-27)
-  gateStyle: 'panels',
   panelPairGapMs: 70,
   panelBgMs: 260,
   panelFollowMs: 110,
@@ -294,7 +274,6 @@ export const ANCIENTS_DEFAULTS: AncientsFullConfig = {
   panelSparks: 1,
   panelSlant: 2.2,
   panelDepth: 1,
-  revealFadeMs: 320, // was 480 (2026-09-27 whole-sequence pass: shorter + ease-in, no murky mid-fade)
   revealDelayMs: 120, // the middle Ancient's spark lights as the title starts rising (spark reveal 2026-09-27)
   revealStyle: 'burst',
   sparkMs: 280,
@@ -303,7 +282,6 @@ export const ANCIENTS_DEFAULTS: AncientsFullConfig = {
   sideStaggerMs: 90,
   overexposeMs: 520,
   burstRing: 1.3,
-  handoffMs: 440,
   textInMs: 240,
   landFlash: 0.85,
   idleFloat: 3,
@@ -318,7 +296,6 @@ export const ANCIENTS_DEFAULTS: AncientsFullConfig = {
   // The DEFAULT hero theme (every hero without its own entry): the owner-baked screen colours, from the theme table.
   ...ANCIENT_HERO_THEMES.default,
   tunerHero: 'indy',
-  tunerStyle: 'auto',
   // The pick → collapse → triple trail → slam (owner 2026-09-27; numbers argued in
   // docs/devlog/2026-09-27-ancient-pick-research.md). See `pickTimeline` for the resulting clock.
   pickFadeMs: 380,
@@ -371,10 +348,6 @@ export const ANCIENTS_RANGES: Record<NumKey, [number, number, number]> = {
   omenMs: [0, 3000, 10],
   omenDark: [0, 1, 0.01],
   omenTremor: [0, 10, 0.1],
-  eruptionMs: [100, 2000, 10],
-  seamGlow: [0, 1, 0.01],
-  titleHoldMs: [0, 4000, 10],
-  revealFadeMs: [60, 2000, 10],
   panelPairGapMs: [0, 300, 5],
   panelBgMs: [60, 800, 10],
   panelFollowMs: [0, 500, 5],
@@ -395,7 +368,6 @@ export const ANCIENTS_RANGES: Record<NumKey, [number, number, number]> = {
   sideStaggerMs: [0, 600, 10],
   overexposeMs: [0, 1500, 10],
   burstRing: [0, 3, 0.05],
-  handoffMs: [0, 1200, 10],
   textInMs: [0, 800, 10],
   landFlash: [0, 1, 0.01],
   idleFloat: [0, 12, 0.5],
@@ -445,7 +417,7 @@ const KEY = 'ascent.ancients';
 const REV_KEY = 'ascent.ancients.rev';
 const REV = 4;
 /** The defaults retuned at `REV` (see the loader). */
-const RETUNED = ['splitMs', 'shineMs', 'crackOpenMs', 'titleHoldMs', 'revealFadeMs', 'revealDelayMs', 'beatGapMs', 'hitStopMs', 'burstScale', 'trailTime', 'trailIntensity', 'revealStyle', 'landFlash', 'cardRevealClip', 'cardRevealGain', 'cardRevealRate', 'cardRevealOffset'];
+const RETUNED = ['splitMs', 'shineMs', 'crackOpenMs', 'revealDelayMs', 'beatGapMs', 'hitStopMs', 'burstScale', 'trailTime', 'trailIntensity', 'revealStyle', 'landFlash', 'cardRevealClip', 'cardRevealGain', 'cardRevealRate', 'cardRevealOffset'];
 let cfg: AncientsFullConfig = (() => {
   if (!import.meta.env.DEV) return { ...ANCIENTS_DEFAULTS };
   try {
@@ -458,9 +430,8 @@ let cfg: AncientsFullConfig = (() => {
     let rev = 0;
     try { rev = Number(localStorage.getItem(REV_KEY) ?? 0); } catch { /* ignore */ }
     if (rev < REV) { for (const k of RETUNED) delete s[k]; try { localStorage.setItem(REV_KEY, String(REV)); } catch { /* ignore */ } }
-    for (const k of ['closeMs', 'pickLiftMs', 'pickFlightMs', 'beat1Ms', 'beatGapMs', 'beat2Ms', 'slamStrength', 'slamDust', 'gatherMs', 'cardStaggerMs', 'cardRevealMs']) delete s[k]; // retired keys
+    for (const k of ['closeMs', 'pickLiftMs', 'pickFlightMs', 'beat1Ms', 'beatGapMs', 'beat2Ms', 'slamStrength', 'slamDust', 'gatherMs', 'cardStaggerMs', 'cardRevealMs', 'eruptionMs', 'seamGlow', 'titleHoldMs', 'revealFadeMs', 'handoffMs', 'gateStyle', 'tunerStyle']) delete s[k]; // retired keys (the last seven: the curtain, deleted 2026-11-19)
     if (typeof s.revealStyle !== 'string') delete s.revealStyle;
-    if (typeof s.gateStyle !== 'string') delete s.gateStyle;
     return { ...ANCIENTS_DEFAULTS, ...(s as Partial<AncientsFullConfig>) };
   } catch {
     return { ...ANCIENTS_DEFAULTS };
@@ -492,13 +463,6 @@ export function ancientColor(id: string): string {
   return (cfg as unknown as Record<string, string>)[`${id}Color`] ?? '#c8922e';
 }
 
-/** The gate's centre beat (the ✦ tuner's "Awakening style"). */
-export const GATE_STYLES = ['panels', 'curtain'] as const;
-export type GateStyle = (typeof GATE_STYLES)[number];
-/** A config value as a gate style (anything unknown = the default, `panels`). */
-export function gateStyleOf(v: unknown): GateStyle {
-  return (GATE_STYLES as readonly unknown[]).includes(v) ? (v as GateStyle) : 'panels';
-}
 
 /** The spark reveal's styles (the ✦ tuner's "Reveal style"). */
 export const REVEAL_STYLES = ['burst', 'seam', 'bloom'] as const;

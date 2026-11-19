@@ -64,3 +64,13 @@ then panels that slid in whole), then built.
 - **Length.** About 3.1 s from the explosion to the reveal at the defaults, against about 1.6 s for the curtain.
 - A file named `ancientPanels.ts` next to `AncientPanels.tsx` breaks the Windows typecheck (names differing only in
   case), hence `panelClock.ts`.
+
+## 2026-11-19: the curtain is deleted
+
+Owner: "delete the curtain and its dials". The panels are the only awakening. Gone: the bloom, the hero power
+medallion, the nine per-hero bloom styles and medallion entrances (`ancientHeroBloom.ts`, `AncientBloom.tsx`), the held
+title card and its handoff to the banner, the seam ring and runes, the `gateStyle` switch and the dials `eruptionMs`,
+`seamGlow`, `titleHoldMs`, `revealFadeMs`, `handoffMs`, `tunerStyle` (dropped from saved tuner values on load). Each
+hero keeps its five awakening colours (omen, explosion, backdrop); their config names still say `curtain…` so saved
+values survive. Anything above that describes the curtain as selectable is history. To bring the bloom styles back,
+recover them from git before this commit.

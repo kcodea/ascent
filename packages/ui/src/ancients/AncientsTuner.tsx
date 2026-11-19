@@ -2,9 +2,9 @@ import { ANCIENT_IDS, type AncientId } from '@game/sim';
 import { TunerPanel } from '../TunerPanel';
 import type { TunerControl, TunerSpec, TunerUnit } from '../tunerSchema';
 import { useGame } from '../store';
-import { GATE_STYLES, REVEAL_STYLES, gateStyleOf, ANCIENTS_DEFAULTS, ANCIENTS_RANGES, getAncientsConfig, resetAncientsConfig, setAncientsValue, type AncientsFullConfig, type AncientsNumKey, ANCIENT_ART_IDS, ANCIENT_CUES, ART_FIELDS } from './ancientsConfig';
+import { REVEAL_STYLES, ANCIENTS_DEFAULTS, ANCIENTS_RANGES, getAncientsConfig, resetAncientsConfig, setAncientsValue, type AncientsFullConfig, type AncientsNumKey, ANCIENT_ART_IDS, ANCIENT_CUES, ART_FIELDS } from './ancientsConfig';
 import { playAwakenDemo, playGateDemo } from './ancientsFx';
-import { ANCIENT_HERO_THEMES, BLOOM_STYLES, heroThemeKey, isThemedHero, STYLE_FAMILY, THEME_FIELDS, THEMED_HEROES, type ThemeField } from './ancientHeroThemes';
+import { ANCIENT_HERO_THEMES, heroThemeKey, isThemedHero, THEME_FIELDS, THEMED_HEROES, type ThemeField } from './ancientHeroThemes';
 
 /**
  * DEV ✦ ANCIENTS tuner (proof of concept 2026-09-25). The METER group is balance: moving it re-stamps the live
@@ -16,10 +16,10 @@ type Key = keyof AncientsFullConfig;
 /** A hero's display name (the theme's label), or "Default" for every hero without its own theme. */
 const heroName = (h: string): string => (isThemedHero(h) ? ANCIENT_HERO_THEMES[h].label : 'Default (every other hero)');
 const THEME_LABELS: Record<ThemeField, [string, string]> = {
-  curtainInner: ['Curtain centre', 'The curtain’s colour at its centre (it blooms out of the hero power).'],
-  curtainOuter: ['Curtain edge', 'The curtain’s colour at its edge.'],
-  seamColor: ['Seam ring + medallion rim', 'The energy ring riding the curtain’s edge as it opens, and the rim round the hero power art.'],
-  titleGlow: ['Title glow', 'The glow around the title and the medallion.'],
+  curtainInner: ['Main colour', 'The hero’s main awakening colour: the glow around the hero power and the eruption’s flash.'],
+  curtainOuter: ['Dark colour', 'The dark companion of the main colour.'],
+  seamColor: ['Light colour', 'The glyphs around the hero power, and the eruption’s dust and blast.'],
+  titleGlow: ['Glow colour', 'The glow and embers around the hero power.'],
   backdropTint: ['Backdrop tint', 'The dark tint behind the cards once they are revealed.'],
 };
 function themeRows(hero: string, group: string): [Key, string, TunerUnit | undefined, string, string, 'color'][] {
@@ -27,8 +27,7 @@ function themeRows(hero: string, group: string): [Key, string, TunerUnit | undef
 }
 const HERO_GROUP = 'Hero theme';
 const HERO_OPTIONS = ['default', ...[...THEMED_HEROES].sort((a, b) => heroName(a).localeCompare(heroName(b)))];
-const STYLE_OPTIONS = ['auto', ...BLOOM_STYLES];
-/** The HERO THEME group (owner 2026-09-26): pick a hero (and optionally preview another bloom style on it), then its
+/** The HERO THEME group (owner 2026-09-26): pick a hero, then its
  *  five colours. Only the SELECTED hero's colours show, so the panel stays one group, not sixty. */
 function heroThemeControls(): TunerControl<Key>[] {
   const hero = String(getAncientsConfig().tunerHero);
@@ -36,9 +35,7 @@ function heroThemeControls(): TunerControl<Key>[] {
     ({ key, label, hint, group: HERO_GROUP, kind: 'select', min: 0, max: 0, step: 0, options, optionLabels });
   return [
     sel('tunerHero', 'Hero', 'The hero whose awakening colours are below, and who ▶ Play plays as.', HERO_OPTIONS,
-      Object.fromEntries(HERO_OPTIONS.map((h) => [h, isThemedHero(h) ? `${heroName(h)} (${STYLE_FAMILY[ANCIENT_HERO_THEMES[h].style].split(' ')[0]})` : heroName(h)]))),
-    sel('tunerStyle', 'Style preview', 'Play the hero with another bloom style (Auto = its own). A preview only: the hero keeps its own style in the game.', STYLE_OPTIONS,
-      { auto: 'Auto (the hero’s own)', ...STYLE_FAMILY }),
+      Object.fromEntries(HERO_OPTIONS.map((h) => [h, heroName(h)]))),
     ...themeRows(hero, HERO_GROUP).map(([key, label, , hint, group, kind]): TunerControl<Key> => ({ key, label, hint, group, kind, min: 0, max: 0, step: 0 })),
   ];
 }
@@ -63,9 +60,6 @@ const ROWS: [Key, string, TunerUnit | undefined, string, string, ('color' | 'tog
   ['omenMs', 'Omen', 'ms', 'The world holds its breath: the duck, the rumble, the darkening edges, the glyphs and embers around the hero power.', 'Awakening beats'],
   ['omenDark', 'Omen edge darkness', 'opacity', 'How strongly the vignette creeps in from the edges during the omen.', 'Awakening beats'],
   ['omenTremor', 'Omen tremor', 'px', 'The board’s tremor at the peak of the omen. The hero power never moves. 0 turns it off.', 'Awakening beats'],
-  ['eruptionMs', 'Eruption bloom', 'ms', 'The curtain bursting out of the hero power.', 'Awakening beats'],
-  ['seamGlow', 'Seam ring', 'opacity', 'The energy ring and runes riding the curtain’s edge.', 'Awakening beats'],
-  ['titleHoldMs', 'Title hold', 'ms', 'How long "An Ancient Awakens" holds before the Ancients emerge.', 'Awakening beats'],
   ['panelStaggerMs', 'Pair stagger', 'ms', 'One pair of panels setting off after the pair outside it (outside to inside).', 'Awakening panels'],
   ['panelPairGapMs', 'Pair gap', 'ms', 'Within a pair, the right panel setting off after the left. 0 = together.', 'Awakening panels'],
   ['panelBgMs', 'Background slide', 'ms', 'One background sliding in from off screen.', 'Awakening panels'],
@@ -79,9 +73,7 @@ const ROWS: [Key, string, TunerUnit | undefined, string, string, ('color' | 'tog
   ['panelSparks', 'Sparks', '×', 'The explosion, the grinding edges and the spray off each slam. 0 = none.', 'Awakening panels'],
   ['panelSlant', 'Panel lean', undefined, 'How far each panel leans, % of the width of the screen. 0 = upright.', 'Awakening panels'],
   ['panelDepth', 'Depth', '×', 'How far a layered portrait\'s background, Ancient and foreground move apart. 0 = they move as one.', 'Awakening panels'],
-  ['revealFadeMs', 'Curtain fade', 'ms', 'The curtain fading off into the reveal.', 'Awakening beats'],
   ['revealDelayMs', 'First Ancient delay', 'ms', 'The pause before the first Ancient emerges.', 'Awakening beats'],
-  ['handoffMs', 'Title handoff', 'ms', 'The banner is born where the curtain’s title stands and rises into place. 0 = a plain fade.', 'Reveal'],
   ['sparkMs', 'Spark gathers', 'ms', 'The point of light gathering (motes drawn in, a ring closing) before it bursts.', 'Reveal'],
   ['materialiseMs', 'Card appears', 'ms', 'The card appearing out of the burst.', 'Reveal'],
   ['overexposeMs', 'Light settles', 'ms', 'The art’s overexposure resolving back to normal.', 'Reveal'],
@@ -164,25 +156,10 @@ const REVEAL_STYLE_CONTROL: TunerControl<Key> = {
   hint: 'How each Ancient appears out of its spark. Burst: it expands from the spark. Seam: a slash of light opens and it is inside. Bloom: the spark swells into light that resolves into it.',
   optionLabels: { burst: 'Burst (expands from the spark)', seam: 'Seam (a slash of light opens)', bloom: 'Bloom (light resolves into it)' },
 };
-/** THE AWAKENING STYLE (owner 2026-11-18): the six panels, or the earlier curtain. A select above the panel dials. */
-const GATE_STYLE_CONTROL: TunerControl<Key> = {
-  key: 'gateStyle', label: 'Awakening style', group: 'Awakening panels', kind: 'select', min: 0, max: 0, step: 0, options: GATE_STYLES,
-  hint: 'Panels: the six Ancients slam in as tall panels and three fall away. Curtain: the earlier bloom of colour with the hero power medallion and the title card.',
-  optionLabels: { panels: 'Panels (the six Ancients)', curtain: 'Curtain (medallion + title)' },
-};
-/** Dials only the CURTAIN style reads: its bloom, seam ring, title hold and fade, the title's handoff to the banner,
- *  and the bloom-style preview. The panels run their own clock (`panelClock.ts`) and carry no title. */
-const CURTAIN_ONLY: ReadonlySet<Key> = new Set<Key>(['eruptionMs', 'seamGlow', 'titleHoldMs', 'revealFadeMs', 'handoffMs', 'tunerStyle']);
 function controls(): TunerControl<Key>[] {
   const base = [...BASE_CONTROLS.slice(0, HERO_AT), ...heroThemeControls(), ...BASE_CONTROLS.slice(HERO_AT)];
   const at = base.findIndex((ctl) => ctl.key === 'sparkMs');
-  const withReveal = [...base.slice(0, at), REVEAL_STYLE_CONTROL, ...base.slice(at)];
-  const pn = withReveal.findIndex((ctl) => ctl.key === 'panelStaggerMs');
-  const all = [...withReveal.slice(0, pn), GATE_STYLE_CONTROL, ...withReveal.slice(pn)];
-  // Only the dials the selected awakening style reads (owner 2026-11-19: "can we remove all that no longer are
-  // applicable?"). The curtain's dials come back when the style is switched to Curtain; their values are kept.
-  const asPanels = gateStyleOf(getAncientsConfig().gateStyle) === 'panels';
-  return all.filter((ctl) => (asPanels ? !CURTAIN_ONLY.has(ctl.key) : !(String(ctl.key).startsWith('panel'))));
+  return [...base.slice(0, at), REVEAL_STYLE_CONTROL, ...base.slice(at)];
 }
 
 /** Push the meter's balance numbers into the live sandbox run (only a run that has Ancients, before it awakens). */
@@ -211,16 +188,13 @@ export const SPEC: TunerSpec<AncientsFullConfig> = {
   actions: [
     {
       label: '▶ Play full sequence',
-      hint: 'The whole awakening on the hero power: omen, eruption, title, the Ancients emerging, settled; closes after a moment. Needs a Set 3 sandbox with Ancients on. Run state is untouched.',
+      hint: 'The whole awakening on the hero power: omen, explosion, the six panels, the Ancients emerging, settled; closes after a moment. Needs a Set 3 sandbox with Ancients on. Run state is untouched.',
       run: () => playGateDemo('full'),
     },
     {
       label: '▶ Play selected hero',
-      hint: 'The full awakening as the hero picked in Hero theme (its colours, power art, bloom style and medallion entrance), with the Style preview if one is set, whoever the run’s hero is. Run state is untouched.',
-      run: () => {
-        const c = getAncientsConfig();
-        playGateDemo('full', String(c.tunerHero), c.tunerStyle === 'auto' ? undefined : String(c.tunerStyle));
-      },
+      hint: 'The full awakening in the colours of the hero picked in Hero theme, whoever the run’s hero is. Run state is untouched.',
+      run: () => playGateDemo('full', String(getAncientsConfig().tunerHero)),
     },
     {
       label: '▶ Play from reveal',

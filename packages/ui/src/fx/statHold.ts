@@ -26,6 +26,9 @@
  * codebase keeps re-learning is that a silent wrong answer costs more than a loud absence.
  */
 
+import { shopInputRapid } from './actionPressure';
+import { RAPID_FX, STAT_ROLL } from './rapidConfig';
+
 export interface StatDelta {
   /** How much of the unit's CURRENT attack has not been shown yet. */
   attack: number;
@@ -171,6 +174,10 @@ export function holdStat(
   const attack = delta.attack ?? 0;
   const health = delta.health ?? 0;
   if (attack === 0 && health === 0) return;
+  // RAPID SHOP INPUT (R-PERF-APM-01): the player is acting three or more times a second, so the number lands NOW,
+  // with the badge's one pop, instead of being withheld for a roll the next action would restart. Anything still
+  // withheld for this unit from an earlier action lands with it. See `fx/actionPressure.ts`.
+  if (RAPID_FX.snapStats && shopInputRapid()) { releaseStat(uid); return; }
   const prev = holds.get(uid);
   const live = prev !== undefined && prev.until > now();
   // A better-informed placer owns this change; a worse-informed one stands down rather than stacking a
@@ -318,6 +325,23 @@ export function releaseStat(uid: string): void {
   if (holds.delete(uid)) emit();
 }
 
+/**
+ * DELIVER every withheld number now, in one notification (R-PERF-APM-01). Called when a new Shop action lands while
+ * the player is acting rapidly: the numbers an earlier action was still rolling in are shown at their true value
+ * before the new action's changes arrive, so a badge is never more than one action behind. A hold an effect owns
+ * (`effect`) is delivered too: its player's later `revealStat` / `releaseStat` calls find nothing and do nothing.
+ * Returns how many holds it delivered.
+ */
+export function deliverAllStats(): number {
+  const n = holds.size;
+  if (n === 0) return 0;
+  for (const t of expiries.values()) clearTimeout(t);
+  expiries.clear();
+  holds.clear();
+  emit();
+  return n;
+}
+
 /** Drop every hold. For a scene change (combat ends, a run is abandoned) where the units are gone and any
  *  surviving hold would apply to whatever reuses the uid. */
 export function releaseAllStats(): void {
@@ -366,13 +390,54 @@ export function revealStat(uid: string, progress: number, reel = 0): void {
   emit();
 }
 
+/**
+ * `revealStat` for MANY units in one notification (R-PERF-STAT-ROLL-01): each `[uid, progress]` advances exactly as a
+ * `revealStat(uid, progress)` call would (monotonic, reel reset on a real advance, release at 1), and subscribers are
+ * told ONCE at the end. Every mounted badge subscribes, so a per-unit emit made N rolling units cost N passes over
+ * every badge on screen per frame. The shared combat roll loop (`combatBuffRoll.ts`) is the caller.
+ */
+export function revealStats(items: Iterable<readonly [uid: string, progress: number]>): void {
+  let changed = false;
+  for (const [uid, progress] of items) {
+    if (!revealQuiet(uid, progress)) continue;
+    changed = true;
+    const h = holds.get(uid);
+    if (h !== undefined) h.reel = 0;
+  }
+  if (changed) emit();
+}
+
 let raf = 0;
+
+/**
+ * The shortest time between two steps of the shared roll (R-PERF-APM-02): 60 steps a second (`STAT_ROLL.stepMs`).
+ *
+ * Every step that moves a printed number re-renders that badge, restarts its pop and re-rasterises the card under
+ * it. On a 240 Hz display the loop below ran 240 times a second, so a 420 ms roll on seven badges was about 700
+ * badge updates where a 60 Hz display, showing the same roll, makes 175. Nobody reads a digit that stands for 4 ms;
+ * the roll looks the same and costs a quarter. The LAST step is never late by more than this: a hold whose roll is
+ * over is delivered on the next frame whatever the cap says (`anyRollOver` below).
+ *
+ * `lastStepAt` is `performance.now()` of the last step the loop ran.
+ */
+let lastStepAt = -Infinity;
+
+/** Is any ticker-owned hold's roll over (so its final number is due on this frame, cap or no cap)? */
+function anyRollOver(t: number): boolean {
+  for (const h of holds.values()) {
+    if (h.origin !== 'effect' && t >= h.placedAt + h.startAt + h.rollMs) return true;
+  }
+  return false;
+}
 
 /** Start the loop if it isn't already running. Called whenever a hold is placed. */
 function ensureTicking(): void {
   if (raf !== 0 || typeof requestAnimationFrame === 'undefined') return;
+  lastStepAt = -Infinity; // a loop that starts fresh always steps on its first frame
   const loop = (): void => {
-    stepHolds();
+    const t = now();
+    // 0.5 ms of slack: a 60 Hz display's own frames are 16.67 ms apart and must each still step.
+    if (t - lastStepAt >= STAT_ROLL.stepMs - 0.5 || anyRollOver(t)) { lastStepAt = t; stepHolds(); }
     raf = holds.size > 0 ? requestAnimationFrame(loop) : 0;
   };
   raf = requestAnimationFrame(loop);

@@ -60,11 +60,55 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       { category: 'Systems', text: 'Start of Combat, Avenge, End of Turn and Rally now show a new effect on the minion when they trigger. The old badge pulse is gone from every minion.' },
       { category: 'Systems', text: 'Arena Heckler now shows its Start of Combat and the Taunt landing even when the minion opposite it already has Taunt.' },
+      { category: 'Systems', text: 'New rank medals: Bronze through Ascendant each have new medal art.' },
+      {
+        category: 'Systems',
+        text: 'A Shout minion played with nothing to target still triggers its Shout. Karwind and other Shout watchers now react.',
+        details: [
+          'Baby Gastrid with no other Dwarf, or Appetite Agent with no other Demon, still counts as a Shout.',
+          'This covers every Shout that needs a target, and Drakko still makes it count twice.',
+          'Backing out of a target choice still plays nothing.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Buying, playing and selling in the Shop costs less work per move, so a fast turn on a big board stays smoother.',
+        details: ['Nothing looks or plays different.'],
+      },
+      {
+        category: 'Systems',
+        text: 'Fast turns stay smoother. Buying or playing a card no longer redraws your whole hand.',
+        details: [
+          'Each card in your hand is now drawn once and then only moved.',
+          'Your hand looks exactly as it did.',
+        ],
+      },
     ],
   },
   {
     date: '2026-11-18',
     changes: [
+      { category: 'Systems', text: 'Smoother combat: background calculations no longer interrupt the fight.' },
+      {
+        category: 'Balance',
+        text: 'Ancient of Death: Gildmaster and Cindy now count friendly deaths across fights and the Shop, and Cassen needs 5 deaths instead of 7.',
+        details: [
+          'Gildmaster: When 17 friendly minions die, get a Goldcrafter. It used to be Avenge (17), which needed all 17 in one fight.',
+          'Cindy: When 15 friendly minions die, give your teammate a Goldcrafter. It used to be Avenge (15).',
+          'Both keep counting from one fight to the next and through the Shop, like Braum. The power shows how many more deaths to go.',
+          'Cassen: Avenge (5): your commission pays out 1 turn sooner. It was Avenge (7). It still counts one fight at a time.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'The lobby rail card for each player now shows their hero power and Ancient, in a new look.',
+        details: [
+          "Hover a player on the rail (tap on touch) to see their hero art, Health and Armor, and their hero power with its full text.",
+          'If they have picked an Ancient, the power shows it cracked open, with the Ancient named and what it does for that hero.',
+          'Shop tier, Gilded made, top tribe, runes and the last three fights are all still there.',
+          "In combat, your opponent's hero power icon now shows their Ancient too.",
+        ],
+      },
       { category: 'Systems', text: "Another player's Career page now has an Add friend button at the top. One press sends the request." },
       { category: 'Systems', text: 'Settings, Account now shows your name and tag (like Name#1234) with a Copy button, so you can share it with friends.' },
       {
@@ -108,10 +152,82 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'Spectators can no longer press the End Turn gem, Freeze, Refresh or Tier up on the game they are watching.',
+        details: [
+          'Before, a spectator could press the gem after a fight and their own screen left the fight early, even after the player was knocked out.',
+          'The same holds while watching a replay or your Duos teammate.',
+          'When the player you are watching is knocked out, their last fight stays up, then the game closes with their place as before.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'The end of a fight and the trip back to the Shop are smoother.',
+        details: [
+          'The game no longer freezes for a moment as a fight ends. It was reloading the pictures for the trip back to the Shop every round.',
+          'The dive through the Shop door no longer stutters as it starts.',
+          'Nothing looks different. This is speed only, on desktop.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'The Rise, Flurry, Execute and Rebirth effects on minions are much lighter to draw, so boards full of them no longer slow the game down.',
+        details: [
+          'Each effect is now one picture made from the original effect, instead of dozens of moving pieces per minion.',
+          'They should look the same as before. Tell us if one looks different.',
+          'Phones still use the original effects for now.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'The crystal fuse at the end of a turn costs far less to draw, and buying, selling and rolling no longer redraw the player rail. Nothing looks different.',
+      },
+      {
+        category: 'Systems',
+        text: 'Glowing effects cost far less to draw, most of all when a whole board is buffed at once.',
+        details: [
+          'A buff that flies to every minion on your board no longer slows the Shop while its trails are in flight.',
+          'Strike bursts, the 5,000 stat rings and other glowing sparks are lighter in long fights.',
+          'These effects look the same as before.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Fights run smoother, most of all late in the game with big boards and big numbers.',
+        details: [
+          'A minion dying or a spell being cast mid-fight no longer redraws every card on the board.',
+          'A rolling stat number now redraws only its own badge, not the whole card.',
+          'Long fights no longer get heavier as they go on.',
+          'Nothing looks or plays differently.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Mech and Spirit have new tribe colors that match the gems on their card frames.',
         details: [
           'Mech is now indigo instead of sky blue.',
           'Spirit is now copper orange instead of pale peach.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Playing very fast on a big engine board is smoother. Stat numbers land at once and effects keep pace with you instead of piling up.',
+        details: [
+          'This applies when you make three or more moves a second in the Shop: buying, playing, selling, casting, refreshing.',
+          'Stat numbers show their new value at once with one pop. They used to roll, and on a fast turn they fell seconds behind.',
+          'Buff effects from your earlier moves that have not started yet are skipped. Effects already playing finish.',
+          'A minion shows one copy of an effect at a time. Effects play a little faster and lighter the faster you go.',
+          'A card added to your hand appears at once, ready to grab.',
+          'At normal speed nothing changes. Your stats and results are the same either way.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'The shop stays smoother late in the game. Buying, selling, playing a card or refreshing no longer redraws every card on screen.',
+        details: [
+          'Each card in the shop and on your board is now drawn once and then only moved.',
+          'A stat change redraws that one card, not its neighbours.',
+          'Your hand is drawn on its own, apart from the rest of the screen.',
+          'Nothing looks different.',
         ],
       },
       {
@@ -135,6 +251,15 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       { category: 'Systems', text: 'When an Ancient awakens, you can now Peek at the board before you choose, like a Discover. Press Return to Ancients to bring the choice back.' },
       { category: 'Systems', text: 'The Ancient choice now sits on the same dark backdrop as the Runeforge, so the Ancients stand out from the board.' },
+      {
+        category: 'Systems',
+        text: 'Reverb sounds, hovering a card and damage numbers all cost less. They look and sound the same.',
+        details: [
+          'Sounds with reverb now share a few reverb units, so a busy late turn no longer piles them up.',
+          'The soft glow around a hovered card is no longer redrawn on every frame.',
+          'The shadow under a damage number is no longer redrawn on every frame.',
+        ],
+      },
     ],
   },
   {

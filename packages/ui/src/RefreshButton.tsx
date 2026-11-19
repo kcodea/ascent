@@ -1,4 +1,5 @@
 import { memo, useEffect, useRef, useState } from 'react';
+import { viewerPress } from './viewerGuard';
 import { onPressCue } from './pressCue';
 import { Icon } from './Icon';
 import { pixiFx } from './pixiFx';
@@ -86,6 +87,7 @@ export const RefreshButton = memo(function RefreshButton({
   };
   useEffect(() => onPressCue('refresh', playPress));
   const click = (): void => {
+    if (viewerPress(wrapRef.current)) return; // a viewer's press does nothing (R-SPECTATE-INERT-01)
     playPress();
     onRefresh();
   };

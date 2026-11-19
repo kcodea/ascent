@@ -12,12 +12,18 @@ describe('the board FLIP writes in one batch', () => {
   it('found the RowFlip block', () => {
     expect(rowFlip.length).toBeGreaterThan(1000);
   });
-  it('never starts a tween per card inside a loop', () => {
-    expect(rowFlip).not.toMatch(/for \(const el of (pool|targets)\) \{[\s\S]{0,400}?gsap\.fromTo\(\s*el,/);
+  // R-PERF-ROW-SLIDE-01 (2026-11-19): the slide itself is a compositor animation now (`slideHome`, rowSlide.ts), so
+  // there is no tween left to batch. The contract this file pins is unchanged: one call per commit over every mover.
+  it('never starts a slide per card inside a loop', () => {
+    expect(rowFlip).not.toMatch(/for \(const el of (pool|targets|all)\) \{[\s\S]{0,400}?(gsap\.fromTo|slideHome)\(\s*\[?el/);
   });
-  it('both commit slides are a single fromTo over every mover, deltas by index', () => {
-    const batched = rowFlip.match(/gsap\.fromTo\(\s*movers,\s*\{ x: \(i: number\) => moverDeltas\[i\] \?\? 0 \}/g) ?? [];
+  it('both commit slides are a single slideHome over every mover, deltas by index', () => {
+    const batched = rowFlip.match(/slideHome\(movers, moverDeltas, flipCfg\.commitMs/g) ?? [];
     expect(batched.length).toBe(2);
+  });
+  it('the row FLIP runs no GSAP tween and reads no computed transform', () => {
+    expect(rowFlip).not.toMatch(/gsap\.(fromTo|to|from|set|timeline)\(/);
+    expect(rowFlip).not.toMatch(/Flip\.(from|to|getState)\(/);
   });
   it('the drop branch reads every rect before writing any transition', () => {
     const drop = rowFlip.slice(rowFlip.indexOf('handPlaySnapRef.current = false;'), rowFlip.indexOf('const place = placePendingRef.current;'));

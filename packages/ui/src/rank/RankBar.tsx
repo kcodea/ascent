@@ -4,27 +4,15 @@ import { Icon } from '../Icon';
 import { FadeImg } from '../FadeImg';
 import { barFraction, pointsText, rankLabel, standingGateText } from './rankFormat';
 import { divisionNumeralOf, isPromotionReady, medalOf, type RankPosition } from './types';
-import { PortraitFrame, pfClass } from '../portraitFrame/PortraitFrame';
-import { resolveImageFrame } from '../portraitFrame/portraitFrameConfig';
-
-/**
- * THE TIER RING (owner 2026-10-12: "the RANK badge portrait frame should change based on rank, not the player's
- * portrait"): every crest wears its medal's painted ring from the Ranked Rewards masters (`art/frames/frame_bronze`
- * ... `frame_ascendant`, wired with measured holes for the portrait-frame tuner) in place of the generic gold
- * portrait ring, through the one frame renderer (`PortraitFrame`). The Rank #1 ring (`frame_rank1`) is for a tier
- * ABOVE Ascendant ("Rank 1 frame also only applies > ascendant rank"); the ladder has no such tier today (Ascendant
- * III is the uncapped top division), so it is not used here. Resolved once per medal and cached by the resolver.
- */
-export const crestFrameOf = (divisionIndex: number) => resolveImageFrame(medalOf(divisionIndex).toLowerCase());
 
 /**
  * THE SHARED RANK PRESENTATION (blueprint §8: one component so the end screen, the Title's Play card, the
  * Rankings rows and the Career card cannot disagree). Two pieces:
  *
- *  • `RankCrest` — the medal crest seated inside the game's gold hero-portrait RING (the heroportrait.png the
- *    hero-select ceremony and the Career portrait wear), the disc keeping the in-run `.hero > .f > img.heroimg`
- *    markup, plus a small division PLATE (I / II / III) on the ring's bottom edge (owner decision 2026-09-20:
- *    the marker is composited, not eighteen paintings).
+ *  • `RankCrest` — the medal itself, a shaped cutout shown whole with NO ring around it (owner 2026-11-19:
+ *    "Drop the ring"; the tier rings of 2026-10-12 are gone from the crest), keeping the `.portring` box for its
+ *    size and the in-run `.hero > .f > img.heroimg` markup, plus a small division PLATE (I / II / III) on its
+ *    bottom edge (owner decision 2026-09-20: the marker is composited, not eighteen paintings).
  *  • `RankBar` — crest + label + the division progress bar + points, with the promotion-ready line when the
  *    player sits on the gate. `size` picks the footprint; `anim` hands the end screen the refs GSAP drives.
  *
@@ -48,17 +36,13 @@ export function RankCrest({ divisionIndex, size = 'row', className = '', style, 
 }): JSX.Element {
   const medal = medalOf(divisionIndex);
   const art = rankArt(medal);
-  const frame = crestFrameOf(divisionIndex);
-  // `.portring` is the game's gold hero-portrait ring (hero-select/heroportrait.png, painted by CSS as the
-  // ring's ::after) with the crest disc seated in its hole — the same composition the Career hero portrait
-  // wears (owner ask 2026-09-20). The disc keeps the in-run `.hero > .f > img.heroimg` markup.
+  // `.portring` only sizes the box here: the crest's ring and dark disc are switched off in CSS (`.rankcrest`).
   return (
-    <div className={`rankcrest portring rankcrest-${size} rankcrest-${medal.toLowerCase()}${pfClass(frame)} ${className}`.trim()} style={frame ? { ...frame.hostStyle, ...style } : style} ref={crestRef} aria-hidden="true">
+    <div className={`rankcrest portring rankcrest-${size} rankcrest-${medal.toLowerCase()} ${className}`.trim()} style={style} ref={crestRef} aria-hidden="true">
       <div className="hero">
         <div className="f">
           {art ? <FadeImg className="heroimg" src={art} alt="" draggable={false} /> : <Icon name="crown" />}
         </div>
-        <PortraitFrame frame={frame} />
       </div>
       {!hideDivision && <span className="rankcrest-plate">{divisionNumeralOf(divisionIndex)}</span>}
     </div>

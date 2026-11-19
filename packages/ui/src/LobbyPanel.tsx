@@ -1,3 +1,4 @@
+import { useShallow } from 'zustand/react/shallow';
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
@@ -19,7 +20,6 @@ import { useDockCfg, useSliceLabel } from './lobbyRailVariant';
 import { useDockedRail } from './useDockedRail';
 import { teamPlatePath, type DockPanel, type Pt } from './lobbyRailDockedLayout';
 import { RuneTipBody, type RuneTipSource } from './runeTipBody';
-import { mdBold } from './Card';
 import { Icon } from './Icon';
 import { ArmorMedal, HealthMedal, MenuMedal } from './menuIcons';
 import { FadeImg } from './FadeImg';
@@ -40,7 +40,7 @@ import { ownsMine, useGuides } from './guides/guidesStore';
 import './lobbyRail.css'; // the Gem / Classic rail looks (switch: `data-lobby-rail`, 🎨 Lobby Rail Look tuner)
 import { railKey } from './pings/pingKeys';
 import { railHeroName } from './railHeroName';
-import { FoeAncientLine } from './ancients/FoeAncientLine';
+import { RailScoutShowcase } from './RailScoutShowcase';
 import './lobbyRailDocked.css'; // the Docked rail (owner 2026-10-31): slices set into the board's right side
 // Lobby Rail Tuner 2 (DEV only): applies its saved values before the panel is ever opened. Production never loads it and
 // renders the shipped defaults (the sheet's fallbacks + DOCK_DEFAULTS).
@@ -275,7 +275,8 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
   // at the seats. The Versus 1v1 keeps its own drawer (the rail's Guides face, opened from the opponent block's plate).
   const runKey = useGame((st) => `${st.run.runId ?? ''}:${st.run.seed}`);
   const setId = useGame((st) => st.run.setId);
-  const runTribes = useGame((st) => st.run.tribes);
+  // Shallow: the run is cloned on every dispatch, so the raw array is a new object after every click (R-PERF-LOBBY-STABLE-01).
+  const runTribes = useGame(useShallow((st) => st.run.tribes));
   const guidesOn = useGame((st) => st.run.mode !== 'tutorial');
   // EVERY MODE ON THE RAIL (owner 2026-10-31: "I think we should move all modes to this rail type. 1v1, even 3 and 4 player
   // group games"; R-RAIL-DOCKED-ALLMODES-01): a Versus 1v1 is the rail like every other mode (you and the opponent as two
@@ -1188,7 +1189,6 @@ function ScoutCard({ lobby, seat, intel, at, pinned, hp, compact, run, teams }: 
   const versusCard = useGame((st) => st.run.mode === 'versus');
   // Shared reads + building blocks; each layout below arranges the SAME data differently.
   const heroName = getHero(seat.heroId).name;
-  const heroPower = getHero(seat.heroId)?.power;
   const tribe = intel?.topTribe;
   const tribeLabel = tribe ? TRIBE_LABEL[tribe] : 'Mixed';
   const tribeCount = intel?.topTribeCount;
@@ -1297,27 +1297,9 @@ function ScoutCard({ lobby, seat, intel, at, pinned, hp, compact, run, teams }: 
     });
     body = (
       <>
-        <div className="lrv-sc-top">
-          <span className="lobbyscout-name">{seat.label}</span>
-          {hp?.alive && (
-            <span className="lrv-sc-hp" aria-label={`Health ${hp.resolve}, Armor ${hp.armor}`}>
-              <span className="lrv-sc-heart"><HealthMedal />{hp.resolve}</span>
-              <span className="lrv-sc-arm"><ArmorMedal />{hp.armor}</span>
-            </span>
-          )}
-        </div>
-        {/* THE HERO AND ITS POWER under the name, in every mode (owner 2026-10-31: "we need the hero name and description of
-            what the hero power does here"). The power's STATIC text, as the combat foe's power tip shows it: we do not
-            simulate another player's run state, so there is no live number to fold in. */}
-        <div className="lrv-sc-hero">{heroName}</div>
-        {heroPower && (
-          <div className="lrv-sc-power">
-            <b>{heroPower.name}{heroPower.passive ? ' · Passive' : ''}</b>
-            <span dangerouslySetInnerHTML={{ __html: mdBold(heroPower.text) }} />
-            {/* The seat's picked ANCIENT (R-ANCIENTS-RELEASE-03): name + pairing text under the base power. */}
-            <FoeAncientLine ancient={intel?.ancient} />
-          </div>
-        )}
+        {/* THE HERO, ITS POWER AND ITS ANCIENT in the hero showcase's language (R-RAIL-SCOUT-SHOWCASE-01), then the
+            owner's list (shop tier, Gilded, top tribe, runes, last fights) unchanged beneath it. */}
+        <RailScoutShowcase name={seat.label} heroId={seat.heroId} portrait={faceOf({ foeId: seat.id, foeHeroId: seat.heroId })} hp={hp} ancient={intel?.ancient}>
         <div className="lrv-sc-chips">
           <span className="lrv-sc-chip"><i>Shop tier</i><b><Icon name="up" />{intel ? intel.tier : '—'}</b></span>
           <span className="lrv-sc-chip"><i>Gilded made</i><b><Icon name="star" />{intel ? intel.triples : '—'}</b></span>
@@ -1336,6 +1318,7 @@ function ScoutCard({ lobby, seat, intel, at, pinned, hp, compact, run, teams }: 
             </div>
           ))}
         </div>
+        </RailScoutShowcase>
       </>
     );
   } else if (variant === 2) {

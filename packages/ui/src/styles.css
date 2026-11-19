@@ -647,7 +647,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* (Its shape is the painted interior's own picture, the one `.wipevista-doorfill` already draws, turned into a black
    silhouette by a STATIC filter: no picture mask for the compositor to wait on, R-PRESENT-36.) */
 .wipevista-doordark { position: absolute; inset: 0; background: url('/vista-doorfill.webp') 0 0 / 100% 100% no-repeat;
-  filter: brightness(0); opacity: 0; will-change: opacity; }
+  filter: brightness(0); opacity: 0; will-change: opacity, transform; }
 .wipevista.dive .wipevista-doordark { animation: vistadoordark var(--wipe-reveal-dur, 450ms) both; }
 @keyframes vistadoordark { 0% { opacity: 0; animation-timing-function: ease-out; } 28% { opacity: 0.78; } 100% { opacity: 0.78; } }
 /* THE DIVE KEEPS ITS PARALLAX (owner 2026-10-23: "the background shouldnt zoom in as fast as the house and foreground").
@@ -716,13 +716,17 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* The doorway's interior (`vista-doorfill.webp`: the owner's door shape grown 3 px, so it overlaps the frame and no
    hairline can show), at its box. */
 .wipevista-doorfill { position: absolute; left: 43.75%; top: 65.4861%; width: 7.8516%; height: 18.2639%;
-  background: url('/vista-doorfill.webp') 0 0 / 100% 100% no-repeat; will-change: opacity; }
+  background: url('/vista-doorfill.webp') 0 0 / 100% 100% no-repeat; will-change: opacity, transform; }
+/* (`will-change: transform` on the door's three pieces, 2026-11-18, R-PERF-PHASE-ART-HELD-01: the stage zooms 18x through
+   the door, and a layer without the hint is drawn AGAIN at the zoomed size as the dive starts. For these small pictures
+   (201 and 413 px wide) that was 30 to 60 ms of GPU work in the dive's first frames, for no extra detail: the pictures
+   have none to give at that size. With the hint the compositor scales what it already drew.) */
 /* THE DOORWAY GLOWS (owner 2026-10-23: "use the shape of the mask to create a glow along the edge of it so it looks like the
    doorway begins glowing as it zooms into the door after the gem flash"): a turquoise-white line along the edge of the
    owner's door shape with a soft halo (`vista-doorglow.webp`, made from his shape), carried with the door. It lights up as
    the dive starts, just after the gem's flash, and stays lit as the doorway grows past the screen. */
 .wipevista-doorglow { position: absolute; left: 39.6094%; top: 58.125%; width: 16.1328%; height: 32.9861%;
-  background: url('/vista-doorglow.webp') 0 0 / 100% 100% no-repeat; opacity: 0; will-change: opacity; }
+  background: url('/vista-doorglow.webp') 0 0 / 100% 100% no-repeat; opacity: 0; will-change: opacity, transform; }
 .wipevista.dive .wipevista-doorglow { animation: vistadoorglow var(--wipe-reveal-dur, 450ms) both; }
 @keyframes vistadoorglow { 0% { opacity: 0; animation-timing-function: ease-out; } 18% { opacity: 1; } 100% { opacity: 1; } }
 /* THE SHOP COMES OUT OF SHADOW (owner 2026-10-23: "at the moment the board is revealed, it would be nice if it started darker
@@ -742,6 +746,13 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .wipevista-mid { background-image: url('/vista-mid.webp'); }
 .wipevista-shop { background-image: url('/vista-shop.webp'); }
 .wipevista-fore { background-image: url('/vista-fore.webp'); }
+/* HELD CANVASES (heldArt.ts, R-PERF-PHASE-ART-HELD-01): on desktop each of the five layers is drawn by a canvas the page
+   painted once and keeps, not by a CSS background the compositor decodes again on every trip (five 25 to 55 ms decodes
+   at the end of every fight, measured 2026-11-18). The canvas fills the layer exactly like the `100% 100%` background
+   did. `.heldart-off` (the canvas could not be painted) puts the background back. */
+.wipevista-layer.canvased:not(.heldart-off) { background-image: none; }
+.heldart { position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; }
+.heldart-off > .heldart { display: none; }
 /* Phones: one flattened picture instead of six full-screen layers (touchUi.css swaps them). */
 /* `--vista-flat` is set only on a phone (applyPhoneCssArt: its 1280 px copy, R-TOUCH-RUN-MEMORY-02); desktop reads the
    fallback, the 2560 px original. */
@@ -955,20 +966,33 @@ body.wipe-up .bgrtoast { z-index: 3170; }
   20% { opacity: 1; filter: brightness(var(--appear-peak, 2.2)); }
   100% { opacity: 1; filter: brightness(1); }
 }
-/* The fuse: the art, eaten away from the LEFT as --burn rises (the burnt part disappears; a soft --feather edge). */
+/* The fuse: the art, eaten away from the LEFT as --burn rises (the burnt part disappears; a soft --feather edge).
+   THE BURN MOVES A STATIC MASK (R-PERF-FUSE-BURN-01, perf pass 2026-11-18). The burn used to be a `mask` gradient on
+   `.fuse-body` whose stops read --burn, so every write re-evaluated the gradient and repainted the whole fuse (a tiled
+   background, two masked caps) for the last 20 s of every turn. Now the SAME gradient is a static mask on `.fuse-burn`,
+   a box the size of the fuse that slides right by --burn of its own width, and the art inside it slides back by the
+   same amount, so the art stays exactly where it was and only the mask's leading edge moves. Paint in the burn window
+   fell from about 53 to 13 ms a second at 240 Hz. NO `will-change` here, deliberately (owner 2026-11-19: the fuse must
+   look exactly as authored): promoting these boxes to their own layers cut paint to nothing but rastered the crystal
+   at a different sub-pixel origin (up to 99 of 255 on its texture); without it the art matches the old render to
+   within 2 of 255. Left of the box there is no mask (a mask outside its box is transparent), which is the
+   "burnt" part; the first --feather of the box is the soft edge; the rest is solid, as before. */
+.chargeglyph .fuse-burn {
+  position: absolute; inset: 0;
+  transform: translateX(calc(var(--burn) * 100%));
+  -webkit-mask: linear-gradient(90deg, transparent 0, #fff var(--feather), #fff 100%);
+  mask: linear-gradient(90deg, transparent 0, #fff var(--feather), #fff 100%);
+}
 .chargeglyph .fuse-body {
   position: absolute; inset: 0;
+  transform: translateX(calc(var(--burn) * -100%));
   /* THREE PIECES (owner 2026-10-28, "extend it, not stretch it"): the tips are the `::before` / `::after` caps at
      their own aspect (200 x 194 px of art each), and the seamless crystal tile repeats along the content box between
-     them, so a longer fuse shows more crystal. The burn mask on this element covers the caps too. */
+     them, so a longer fuse shows more crystal. The burn mask on `.fuse-burn` covers the caps too. */
   /* The tile starts 70% of the way into each cap; the caps fade over their last 30% into it, so the join never shows. */
   padding: 0 calc(var(--charge-h, 90px) * var(--scale) * 140 / 194);
   background: url('/fx/crystal-fuse-mid.png') left center / auto 100% repeat-x;
   background-origin: content-box; background-clip: content-box;
-  -webkit-mask: linear-gradient(90deg, transparent 0, transparent calc(var(--burn) * 100%),
-    #fff calc(var(--burn) * 100% + var(--feather)), #fff 100%);
-  mask: linear-gradient(90deg, transparent 0, transparent calc(var(--burn) * 100%),
-    #fff calc(var(--burn) * 100% + var(--feather)), #fff 100%);
 }
 .chargeglyph .fuse-body::before, .chargeglyph .fuse-body::after {
   content: ''; position: absolute; top: 0; height: 100%; aspect-ratio: 200 / 194; background: center / 100% 100% no-repeat;
@@ -2293,6 +2317,9 @@ body.aimpick .zone[data-zone='tavern'] .card { pointer-events: none; }
 @media (prefers-reduced-motion: reduce) {
   .card.compact .immshield.up, .card.compact .immshield.down, .card.compact .immshield.hit .ims-body { animation-duration: 1ms; }
 }
+/* KWFX-LIVE-BEGIN: the AUTHORED keyword auras (Rise, Rebirth, Flurry, Execute). Players see a capture of these
+   (scripts/kwfx/capture.mjs -> /kwfx/*.webp, shown by the `.kwfx` rules below the END marker); this block is the source
+   of truth and the tuning surface. A change between the two markers needs a re-bake: kwfx.test.ts fails until then. */
 /* ========================================================================================================== */
 /* Reborn — wispy ethereal AQUA-GREEN aura (tuned on fx/reborn-css-preview.html), replacing the old Pixi wisp.
    A faint ghost DOME + N rising RANDOMIZED wisps, seated on the oval window inside the ellipse-clipped art
@@ -2457,6 +2484,9 @@ body.aimpick .zone[data-zone='tavern'] .card { pointer-events: none; }
   z-index: 2; pointer-events: none; overflow: visible;
 }
 .card.compact.flurrycard .fl-breathe { position: absolute; inset: 0; animation: flbreathe var(--fl-pulse, 3.4s) ease-in-out infinite; will-change: opacity; }
+/* A STEADY aura (flurryConfig `pulse: 0`, the shipped value) has no breathe: no animation and no layer for one
+   (perf 2026-11-19: it used to run a 9999 s placeholder animation on its own composited layer, on every card). */
+.card.compact.flurrycard .fl-breathe.steady { animation: none; will-change: auto; }
 @keyframes flbreathe { 0%, 100% { opacity: 1; } 50% { opacity: var(--fl-pulse-min, 0.72); } }
 .card.compact.flurrycard .fl-ring-wrap {
   position: absolute; inset: 0; will-change: transform;
@@ -2465,7 +2495,10 @@ body.aimpick .zone[data-zone='tavern'] .card { pointer-events: none; }
   -webkit-mask-size: 100% 100%; mask-size: 100% 100%;
 }
 .card.compact.flurrycard .fl-ring {
-  position: absolute; border-radius: 50%; mix-blend-mode: screen; will-change: transform;
+  /* NO blend mode (perf 2026-11-19). `.flurry` is a stacking context (its transform), so a ring could only ever blend
+     with the other rings, and the rings are white: `screen` of white over white IS plain alpha compositing. It bought
+     nothing and cost a render pass per ring per frame (7 a card). kwfx.test.ts holds the rings white. */
+  position: absolute; border-radius: 50%; will-change: transform;
   animation: flspin var(--fl-s, 3s) linear infinite; animation-direction: var(--fl-dir, normal);
 }
 /* The ring's look (comet gradient, band mask, blur, opacity — inline from flurryConfig) is painted by this plain
@@ -2579,6 +2612,46 @@ body.aimpick .zone[data-zone='tavern'] .card { pointer-events: none; }
 @keyframes exshardtail {
   0%   { transform: translate(-50%, -100%) scale(0.6); }
   100% { transform: translate(-50%, -100%) scale(1); }
+}
+/* KWFX-LIVE-END */
+/* BAKED KEYWORD AURAS (perf 2026-11-18, R-PERF-KEYWORD-AURA-01; kwfx/kwfx.ts). What players see for Rise, Flurry,
+   Execute and Rebirth's crown: ONE element per aura showing a looping animated AVIF captured from the live aura above
+   (scripts/kwfx/capture.mjs). One compositor layer, no CSS animation: the browser advances an animated image off the
+   main thread and decodes a frame once for every card showing it. `will-change` keeps the picture on its own small
+   layer, so a new frame re-rasters that layer only, never the card under it.
+   Each box is seated on its live aura's centre (the capture is cropped symmetrically about it) and sized inline from
+   the capture's manifest. The picture is picked by CLASS here: a literal url() in a rule is one shared image.
+   STILL: a looping picture cannot be paused, so wherever the live loops were paused (a covered board, a far menu row)
+   the box shows the capture's first frame instead (`<id>-still.webp`). */
+.card.compact .kwfx {
+  position: absolute; left: 50%; transform: translate(-50%, -50%); pointer-events: none;
+  background: center / 100% 100% no-repeat; will-change: transform;
+}
+.card.compact .kwfx-rise { top: var(--reborny, 53%); z-index: 2; background-image: url('/kwfx/rise.avif'); }
+.card.compact.risetint-blue .kwfx-rise { background-image: url('/kwfx/rise-blue.avif'); }
+.card.compact.risetint-red .kwfx-rise { background-image: url('/kwfx/rise-red.avif'); }
+.card.compact .kwfx-flurry { z-index: 2; background-image: url('/kwfx/flurry.avif'); }
+.card.compact .kwfx-execute { z-index: 4; background-image: url('/kwfx/execute.avif'); }
+.card.compact .kwfx-rebirth { z-index: 4; top: calc(var(--ccw) * (0.5 + var(--dy, 0))); background-image: url('/kwfx/rebirth.avif'); }
+.card.compact .kwfx-rebirth.shield { background-image: url('/kwfx/rebirth-shield.avif'); }
+/* STILL while the board is covered by a full-screen choice (Discover, Runeforge, an Ancient's offer, a scouted board:
+   Recruit's `body.modalup`), on a menu board that is not pointed at, and for reduced motion. The cards INSIDE the
+   overlay are not under `.app .zone`, so their auras keep playing. Named subjects only, never a universal one. */
+body.modalup .zone .kwfx-rise, .lazy-row.is-far .kwfx-rise, .lb-row:not(:hover) .lb-team .kwfx-rise, .gc .cv2-team .kwfx-rise, .ct-board:not(.ct-pinboard) .kwfx-rise { background-image: url('/kwfx/rise-still.webp'); }
+body.modalup .zone .risetint-blue .kwfx-rise, .lazy-row.is-far .risetint-blue .kwfx-rise, .lb-row:not(:hover) .lb-team .risetint-blue .kwfx-rise, .gc .cv2-team .risetint-blue .kwfx-rise, .ct-board:not(.ct-pinboard) .risetint-blue .kwfx-rise { background-image: url('/kwfx/rise-blue-still.webp'); }
+body.modalup .zone .risetint-red .kwfx-rise, .lazy-row.is-far .risetint-red .kwfx-rise, .lb-row:not(:hover) .lb-team .risetint-red .kwfx-rise, .gc .cv2-team .risetint-red .kwfx-rise, .ct-board:not(.ct-pinboard) .risetint-red .kwfx-rise { background-image: url('/kwfx/rise-red-still.webp'); }
+body.modalup .zone .kwfx-flurry, .lazy-row.is-far .kwfx-flurry, .lb-row:not(:hover) .lb-team .kwfx-flurry, .gc:not(:hover) .cv2-team .kwfx-flurry, .ct-board:not(.ct-pinboard) .kwfx-flurry { background-image: url('/kwfx/flurry-still.webp'); }
+body.modalup .zone .kwfx-execute, .lazy-row.is-far .kwfx-execute, .lb-row:not(:hover) .lb-team .kwfx-execute, .gc:not(:hover) .cv2-team .kwfx-execute, .ct-board:not(.ct-pinboard) .kwfx-execute { background-image: url('/kwfx/execute-still.webp'); }
+body.modalup .zone .kwfx-rebirth, .lazy-row.is-far .kwfx-rebirth, .lb-row:not(:hover) .lb-team .kwfx-rebirth, .gc:not(:hover) .cv2-team .kwfx-rebirth, .ct-board:not(.ct-pinboard) .kwfx-rebirth { background-image: url('/kwfx/rebirth-still.webp'); }
+body.modalup .zone .kwfx-rebirth.shield, .lazy-row.is-far .kwfx-rebirth.shield, .lb-row:not(:hover) .lb-team .kwfx-rebirth.shield, .gc:not(:hover) .cv2-team .kwfx-rebirth.shield, .ct-board:not(.ct-pinboard) .kwfx-rebirth.shield { background-image: url('/kwfx/rebirth-shield-still.webp'); }
+@media (prefers-reduced-motion: reduce) {
+  .card.compact .kwfx-rise { background-image: url('/kwfx/rise-still.webp'); }
+  .card.compact.risetint-blue .kwfx-rise { background-image: url('/kwfx/rise-blue-still.webp'); }
+  .card.compact.risetint-red .kwfx-rise { background-image: url('/kwfx/rise-red-still.webp'); }
+  .card.compact .kwfx-flurry { background-image: url('/kwfx/flurry-still.webp'); }
+  .card.compact .kwfx-execute { background-image: url('/kwfx/execute-still.webp'); }
+  .card.compact .kwfx-rebirth { background-image: url('/kwfx/rebirth-still.webp'); }
+  .card.compact .kwfx-rebirth.shield { background-image: url('/kwfx/rebirth-shield-still.webp'); }
 }
 /* Taunt (Tier B) — the unit is reshaped into a forged HEATER SHIELD (the T keyword: enemies must attack it
    first). Scoped to `.card.compact.taunt`; the `.taunt` class is reactive off the card's keywords, so a spell
@@ -3759,10 +3832,22 @@ body.modalup .app { z-index: auto; }
    to <body>, so it floats above neighbouring cards / spells. Position (left/top) is set inline. It
    slides in, then gently bobs + wobbles in place (so it clearly reads as an info card, not a real one),
    wrapped in a soft white haze. */
+/* THE BOB DOES NOT RE-BLUR THE HAZE (R-PERF-HOVER-SHADOW-01, perf pass 2026-11-18; owner ruling: the shadow keeps its
+   look). The three drop-shadows used to sit on `.cardref` while its CHILD `.cardref-inner` bobbed forever, so the
+   filter's input changed every frame: three blur passes (up to 28 px) over the whole popup for as long as the pointer
+   rested on a card (removing the filter took a hover sweep's worst frame from 24.7 to 9.7 ms, devlog 2026-10-21).
+   Now the nesting is the house rule (performance.md 3f: static paint on a plain child, motion on the animated
+   element): `.cardref` carries the motion (the slide-in on `transform`, the bob on the separate `translate`
+   property, so the two never fight), and `.cardref-shadow`, a plain box inside it that never animates, carries the
+   filter. The haze is rastered once and the compositor moves it. Same picture: the shadow always moved rigidly with
+   the card. The bob's 4 px is multiplied by the popup's zoom here, because it used to be a transform on the ZOOMED
+   element (whose own lengths the zoom scales) and `.cardref` is not zoomed. */
 .cardref {
   position: fixed; z-index: 460; pointer-events: none;
+  animation: cardrefin 0.3s ease-out, cardreffloat 3.6s ease-in-out infinite;
+}
+.cardref-shadow {
   filter: drop-shadow(0 0 11px rgba(255, 255, 255, 0.75)) drop-shadow(0 0 26px rgba(255, 255, 255, 0.45)) drop-shadow(0 12px 28px rgba(0, 0, 0, 0.45));
-  animation: cardrefin 0.3s ease-out;
 }
 /* the hover reveal sits at full size (it's the readable full card now) with a gentle bob */
 /* `--inspect-zoom` (JS-set, 1.3 on phone stages else 1) enlarges the tap/hover reveal popup ~30% so a minion's text
@@ -3770,7 +3855,7 @@ body.modalup .app { z-index: auto; }
    showRefTip folds the same factor into its placement so the bigger popup still lands on-screen. */
 /* `--inspect-zoom` is the device base (1 desktop, 1.3 mobile, set in Game.tsx); `--z-inspect-s` is the Layout
    Lab's live size dial for the hover/inspect preview (owner ask 2026-08-11) — they multiply. */
-.cardref-inner { display: flex; gap: calc(8 * var(--u)); animation: cardreffloat 3.6s ease-in-out infinite; zoom: calc(var(--inspect-zoom, 1) * var(--z-inspect-s, 1.52)); }
+.cardref-inner { display: flex; gap: calc(8 * var(--u)); zoom: calc(var(--inspect-zoom, 1) * var(--z-inspect-s, 1.52)); }
 /* The plate overhangs the card box by half its extra width on each side, and that overhang is invisible to
    flex — so with a referenced card trailing alongside, the two plates ate straight through the gap and
    overlapped. Reserve the overhang as margin: footprint becomes exactly --ccw × --plate-scale, the flex gap
@@ -3797,8 +3882,8 @@ body.modalup .app { z-index: auto; }
 @keyframes castprevin { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes castprevout { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(-8px); } }
 @keyframes cardreffloat {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-4px); }
+  0%, 100% { translate: 0 0; }
+  50% { translate: 0 calc(-4px * var(--inspect-zoom, 1) * var(--z-inspect-s, 1.52)); }
 }
 /* Choose One — two big option buttons */
 /* (`.chooseone-opts` / `.chooseopt` — the old cream text-button Choose One prompt — removed 2026-07-24 when
@@ -4196,8 +4281,10 @@ body.modalup .app { z-index: auto; }
    so they weigh (0,1,0), the same as the base rule above (they win by ORDER, so they must stay below it), and
    LESS than the DUEL rule (`body.duel-attacker-player .statusbar` z100 at (0,2,1), further down), which must
    keep winning mid-strike. A bare `body:has(.app.combat)` would weigh (0,3,1) and silently out-rank the duel. */
-:where(body:has(.app.combat)) .statusbar { z-index: 0; }
-:where(body:has(.app.combat)) .statusbar:where(:has(.heropanel:hover, .questbadge:hover, .buffsopen)) { z-index: 41; }
+/* `.staged` (2026-11-18, R-PERF-PHASE-ART-HELD-01): the ladder switches when the combat scene is swapped in under the
+   gate, not at the End Turn press. See `.app.combat.staged`. */
+:where(body:has(.app.combat.staged)) .statusbar { z-index: 0; }
+:where(body:has(.app.combat.staged)) .statusbar:where(:has(.heropanel:hover, .questbadge:hover, .buffsopen)) { z-index: 41; }
 /* Player name — a small white box above the hero panel; black text (mirrors the opponent name up top). */
 /* Player name — a pill eclipsing the TOP edge of the hero box (mirrors the opponent's `.opp-name` on its frame):
    absolutely centered on the top border, nudged up so it half-overlaps. Cream/gold to read as friendly (the
@@ -4980,6 +5067,71 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
 }
 
 /* ============================================================================================================
+   RECRUIT CARDS PAINT ONCE (perf/card-raster 2026-11-18, R-PERF-CARD-LAYER-01).
+   Every card carries 14 to 25 STATIC paint effects (the frame drop-shadow, the blurred contact-shadow copy of the
+   frame, tier plate / star / medallion / badge shadows, text shadows, the art tone). A static effect costs nothing
+   until the pixels under it are painted again, and before this rule every shop, board and hand card was painted
+   into the SAME few big tiles as its neighbours and the HUD. One buy, sell, play or refresh dirtied a tile, and the
+   GPU painted every card in it again, effects, art uploads and all: a late-game buy held 28 to 51% of its frames
+   over the 240 Hz budget, and half of the GPU process's raster time went to cards nothing had happened to.
+   - Each SHOP and BOARD card is its own compositor layer (`will-change: transform`). It is painted once when it
+     arrives and again only when its OWN pixels change; a neighbour arriving, leaving or sliding is a compositor
+     move that paints nothing.
+   - The HAND is ONE layer (the zone), not one per card. A hand card's fan transform is a rotation plus a fraction
+     of a pixel, and a card held on its own layer is then drawn from its texture through a second resample: measured
+     17 to 21% softer (text and stat numbers visibly so). Inside the zone's layer the cards are painted directly, as
+     before, so the hand is pixel-identical, and a hand change no longer repaints the HUD around it (or the reverse).
+   Measured on the prod build (scripts/perf-card-raster.mjs; numbers in docs/devlog/2026-11-18-perf-card-raster.md):
+   a third to two thirds of the over-budget frames on a buy, a tenth to a third on a sell or a play, GPU raster
+   time about halved, and FEWER layers than before (106 vs 121, 18.4 vs 19.9 Mpx): the cards no longer push their neighbours'
+   overlapping pieces into extra squashed layers.
+   WHAT IT CHANGES ON SCREEN (listed in the PR; both below what the eye resolves):
+   - A shop / board card's layer sits on whole pixels, so the card lands up to half a pixel from where the
+     centred row put it. Its sharpness is unchanged (within 3%).
+   - A shop / board card is now a stacking context, so where two neighbours overlap (a Ward bubble, a tall
+     milestone badge) the later card draws over the earlier one's overhang instead of sorting piece by piece.
+   RULES THAT KEEP IT RIGHT:
+   - `transform`, not `opacity`, is the hint. `will-change: opacity` keeps the card's sub-pixel position, which
+     means it is painted again every time it moves: measured no gain at all.
+   - NO layers under a card for the badges or the numbers: `.badge` / `.value` layers take the page from 112 to 195
+     layers and made every scene slower than the card layer alone.
+   - Recruit rows only. Combat units, the drag copy and the hover preview have their own owners and their own rules.
+   - The filters themselves stay. With the cards isolated, removing every filter, shadow and text shadow on every
+     card moved GPU raster by under 10%, so baking them into images would buy almost nothing and cost a visible
+     change at other window sizes (their radii are fixed px while the card scales with the window).
+   ============================================================================================================ */
+.zone[data-zone='tavern'] .row > .card,
+.zone[data-zone='warband'] .row > .card,
+.zone[data-zone='hand'] { will-change: transform; }
+
+/* A SHARP LAYER PER HAND CARD (perf/card-raster-2 2026-11-19, R-PERF-HAND-LAYER-01).
+   The hand zone's one layer above still painted EVERY hand card again on a buy, a play or a hand buff (about twenty
+   card paints per buy). A hand card now has a layer of its own, like a shop or board card, and stays sharp:
+   - A layer is a picture. Tilted by the fan it is resampled, and a 1:1 picture resampled is soft (measured 24 to 34%
+     less edge energy than a card painted directly). So the picture is taken at --hand-ss times the card's size:
+     `.card-ssl` (the layer) is drawn at 1 / --hand-ss and `.card-ss` inside scales the body back up. Chrome never
+     rasters a `will-change: transform` layer below 1:1 in its own space, so the texture holds the card at --hand-ss
+     and the tilt is drawn DOWN from it. 1.35 measures closest to a directly painted card (edge energy -8% to +5%
+     per card, mean -1%); 1.25 is softer (-5% to -18%), 1.5 crisper (+3% to +21%), 2 visibly crisper than the game
+     has ever drawn the hand. 1.35 is 1.82 times the pixels of the card.
+   - The HOVERED card drops both scales, so its layer is rastered again at the pop's own size: the popped card the
+     player reads is painted natively, exactly as before (two single-card paints per hover; the zone layer used to
+     paint all ten, twice). Not during a drag, when the hover pop is off and the card stays in the fan.
+   - The tilt, the tuck, the make-room glide, the reorder slide and the hover pop all stay on `.card` itself, which
+     is not the layer: every writer of a hand card's transform (CSS, Card.tsx, GSAP Flip, the summon and coalesce
+     effects) is untouched, and none of them can repaint the card.
+   - Not on phones (`html.lite-art`): ten more textures is memory a phone does not have. There, and in any clone
+     of a hand card outside the hand row, the wrappers are `display: contents` and the card is as it was.
+   - `transform-origin: 0 0` on both, so the two scales cancel exactly. */
+.card-ssl, .card-ss { display: contents; }
+html:not(.lite-art) .row.hand .card > .card-ssl,
+html:not(.lite-art) .row.hand .card > .card-ssl > .card-ss { display: flex; flex-direction: column; position: relative; flex: 1 1 auto; min-width: 0; transform-origin: 0 0; }
+html:not(.lite-art) .row.hand .card > .card-ssl { --hand-ss: 1.35; transform: scale(calc(1 / var(--hand-ss))); will-change: transform; }
+html:not(.lite-art) .row.hand .card > .card-ssl > .card-ss { transform: scale(var(--hand-ss)); }
+html:not(.lite-art) body:not(.dragging) .row.hand .card:hover > .card-ssl,
+html:not(.lite-art) body:not(.dragging) .row.hand .card:hover > .card-ssl > .card-ss { transform: none; }
+
+/* ============================================================================================================
    AUTHORED FRAMES — the gold OVAL on every non-Taunt minion, the purple SQUARE on regular spells. Same pipeline
    as the Taunt heater shield above: portrait clipped to the frame's WINDOW → authored PNG frame over it → (minion
    only) per-tribe tint → DOM data (badges/tier) → fx. `.stdframe` / `.spellframe` are added by Card.tsx ONLY when
@@ -5569,7 +5721,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
 /* And the hover reveal / cast preview popups (owner 2026-10-19: "hovering a card in shop, the blur and grey isnt
    applied"): their white haze is a `filter` on the whole popup, so with a glass card the haze moves onto the frame and
    each side panel, and the reveal slides in without its opacity fade (a fade is a backdrop root too). */
-.cardref:has(.plate-frosted), .castprev:has(.plate-frosted) { filter: none; }
+.cardref:has(.plate-frosted) .cardref-shadow, .castprev:has(.plate-frosted) { filter: none; }
 /* `.kwdefs`, not `:not(.card)` (desktop jank pass 2026-10-20, R-PERF-HAS-SUBJECT-01): a `:has()` rule whose last part
    has no class, id, tag or attribute makes Blink restyle the WHOLE subtree of every element whose `:has()` state changes,
    and `.app` and `<body>` change on nearly every commit, so `:not(.card)` restyled the whole document (700-1,000
@@ -5579,7 +5731,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
 .castprev:has(.plate-frosted) .plate-frame {
   filter: drop-shadow(0 0 11px rgba(255, 255, 255, 0.75)) drop-shadow(0 0 26px rgba(255, 255, 255, 0.45)) drop-shadow(0 12px 28px rgba(0, 0, 0, 0.45));
 }
-.cardref:has(.plate-frosted) { animation-name: cardrefin-glass; }
+.cardref:has(.plate-frosted) { animation-name: cardrefin-glass, cardreffloat; } /* the slide-in swaps; the bob (second in the list) stays */
 @keyframes cardrefin-glass { from { transform: translateX(-10px); } to { transform: translateX(0); } }
 /* No opacity on the glass's way IN either (owner 2026-10-19: "theres a brief mooment that it takes before it loads the
    blur when hovering"): a glass card's mount pop is motion-only, and the glass skips the art-pending hide (it paints
@@ -6028,7 +6180,15 @@ body.hglow-preview .card.plated .plateglow { opacity: 1; }
    to `contain` and animated only via the float's transform/opacity — compositor-only, so it costs no more per
    frame than the solid pill, and every float shares the one 384px texture. Its size scales with the number
    (em) and is tunable via `--dmg-splash-size`. */
-.float.dmg { color: #fff; padding: 0 6px; font-size: var(--float-dmg-size, 48px); -webkit-text-stroke: var(--dmg-num-stroke, 1.5px) var(--dmg-num-stroke-color, #000000); paint-order: stroke fill; filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.5)); }
+.float.dmg { color: #fff; padding: 0 6px; font-size: var(--float-dmg-size, 48px); -webkit-text-stroke: var(--dmg-num-stroke, 1.5px) var(--dmg-num-stroke-color, #000000); paint-order: stroke fill; }
+/* THE SHADOW SITS ON A STATIC INNER BOX (R-PERF-DMG-SHADOW-01, perf pass 2026-11-18). `.float.dmg` animates
+   translate / scale / opacity for its whole life; with the drop-shadow on that same element every frame of every
+   damage number was a fresh blur pass (up to 14 at once on a wave or cleave; performance.md 3f). `.dmgbody` holds the
+   number AND its burst, never animates, and carries the same shadow: it is rastered once and the float's motion moves
+   it. Same picture (the shadow is still cast by number + burst together). It is a block box exactly filling the
+   float's content box, so the burst (absolute, centred on its containing block: the box with the filter) lands where
+   it did: the float's padding is symmetric, so the two boxes share a centre. */
+.float.dmg .dmgbody { display: block; filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.5)); }
 .float.dmg .dmgsplash {
   position: absolute; left: 50%; top: 50%; z-index: -1; pointer-events: none; user-select: none;
   width: var(--dmg-splash-size, 2.84em); height: auto; aspect-ratio: 1 / 1; object-fit: contain;
@@ -6320,7 +6480,13 @@ body:has(.fxwb-stage-mount) .pixifx { z-index: 501; }
    (0,2,0): the idle base must LOSE to `.unit.attacking` / `.struck` / `.poisoned` / `.reborn` (0,2,0, earlier
    in the file) and only beat the bare `.unit`; the dying rule must beat `.unit.dying` (0,2,0, earlier) by
    order alone. `combatZOrder.test.ts` pins the ladder. */
-.app.combat { z-index: auto; }
+/* ONLY ONCE THE COMBAT SCENE IS STAGED (`.staged`: from the swap under the fallen gate to the swap back under the vista;
+   2026-11-18, R-PERF-PHASE-ART-HELD-01). Units exist only inside that window (`combatUnitsShown`), so the ladder is
+   only needed there. `.combat` alone used to switch it at the End Turn press, while the Shop was still on screen behind
+   the falling gate: dissolving `.app`'s stacking context repaints and re-rasters every layer of the Shop, 20 to 30 ms
+   of GPU work in the very frame the press lands, for a scene that is replaced half a second later. The same switch now
+   lands with the swap itself, under the gate. */
+.app.combat.staged { z-index: auto; }
 :where(.app.combat) .unit { z-index: 1; }
 :where(.app.combat) .unit.dying { z-index: 2; }
 
@@ -13796,7 +13962,13 @@ html[data-phone-gpu] .opphand-card.spent > img { filter: grayscale(0.72) brightn
 .portring > .hero { display: block; box-sizing: border-box; border: none; border-radius: 50%; background: #0b0f18; }
 .portring > .hero .f { width: 100%; height: 100%; border-radius: 50%; overflow: hidden; }
 .portring > .hero .f svg { width: 40%; height: 40%; }
-/* The rank crest IS a portrait ring; the size classes set its width. */
+/* The size classes set the crest's width. */
+/* The medal art is a shaped cutout shown whole, with no ring and no disc behind it (owner 2026-11-19). The crest
+   keeps the `.portring` box for its size only. */
+.rankcrest.portring::after { content: none; }
+.rankcrest.portring > .hero { left: 0; top: 0; width: 100%; height: 100%; overflow: visible; border-radius: 0; background: none; box-shadow: none; }
+.rankcrest.portring > .hero .f { overflow: visible; border-radius: 0; background: none; }
+.rankcrest .hero .f .heroimg { object-fit: contain; border-radius: 0; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.55)); }
 .rankcrest { --ring: 56px; }
 .rankcrest-mini { --ring: 44px; }
 /* row — the Rankings table: the ring matches the 1/2/3 placement medallion's 64px coin (owner 2026-09-21;
@@ -14290,13 +14462,25 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 /* PERF (WS-5 bonus, 2026-10-16): a menu board's cards keep their keyword FX (wisps, rings, ward glass) still until
    you point at that row; ten banners of seven looping cards were ~226 running animations and a 4 ms idle frame on
    the Hall, and every hover sweep repainted them. The row you hover plays (the `.is-far` pause, made local). */
-.lb-row:not(:hover) .lb-team *, .lb-row:not(:hover) .lb-team *::before, .lb-row:not(:hover) .lb-team *::after,
+/* "POINTED AT" IS `[data-pointed]`, NEVER `:hover`, IN FRONT OF A UNIVERSAL SUBJECT (R-PERF-HOVER-SUBJECT-01, 2026-11-19).
+   The browser keeps ONE invalidation set for `:hover` across the whole stylesheet. These three rules used to read
+   `.lb-row:not(:hover) .lb-team *`, and that one universal subject made EVERY hover change on ANY element restyle that
+   element's whole subtree: in a game, every card the pointer entered or left (100 to 150 elements each, two or three
+   times per action, the largest part of an action's style recalculation). `pointedBoard.ts` stamps `data-pointed` on
+   the menu board under the mouse; an attribute's set is only consulted when that attribute changes, which never
+   happens in a game. Inside `(hover: hover)` by hand, exactly where the build's hover guard used to put the `:hover`
+   form, so a phone still never matches them. `hoverSubjects.test.ts` fails on the old shape. */
+@media (hover: hover) {
+  .lb-row:not([data-pointed]) .lb-team *, .lb-row:not([data-pointed]) .lb-team *::before, .lb-row:not([data-pointed]) .lb-team *::after { animation-play-state: paused !important; }
+}
 /* The Reborn wisps and dome stay still on a menu board even when the card is pointed at (measured 2026-10-16 on Recent
    Games: their keyframes run on the main thread, ~46k style invalidations and most of the hover cost over a 3 s sweep).
    In a game they play as always; this is the menu boards only. */
 .gc .cv2-team .wisp, .gc .cv2-team .reborn-dome { animation-play-state: paused !important; }
 /* Every game card (Career AND Recent Games, which share the StoredTeam board since layout B, 2026-10-16). */
-.gc:not(:hover) .cv2-team *, .gc:not(:hover) .cv2-team *::before, .gc:not(:hover) .cv2-team *::after { animation-play-state: paused !important; }
+@media (hover: hover) {
+  .gc:not([data-pointed]) .cv2-team *, .gc:not([data-pointed]) .cv2-team *::before, .gc:not([data-pointed]) .cv2-team *::after { animation-play-state: paused !important; }
+}
 /* `!important` like `.is-far`'s: the card FX rules set the `animation` SHORTHAND, which resets play-state to running and
    out-ranks a plain declaration here (measured 2026-10-16: wisp / fl-ring / ex-shard / wardglass kept animating, a
    239-element style recalc every frame on Recent Games, ~0.9 s of style per 2 s idle). */

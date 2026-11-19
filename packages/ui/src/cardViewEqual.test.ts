@@ -76,6 +76,17 @@ describe('stabilizeRefMap', () => {
     const out = stabilizeRefMap(new Map([['u1', freshArr]]), cached);
     expect(out.get('u1')).toBe(freshArr);
   });
+
+  // R-PERF-LOBBY-STABLE-01: the map itself is a row prop; an action that changed no popup must not hand the row a new one.
+  it('hands back the CACHE itself when nothing changed at all, and a new map when a card came or went', () => {
+    const arr = (): CardView[] => [base()];
+    const cached = new Map<string, CardView[]>([['u1', arr()], ['u2', arr()]]);
+    expect(stabilizeRefMap(new Map([['u1', arr()], ['u2', arr()]]), cached)).toBe(cached);
+    expect(stabilizeRefMap(new Map([['u1', arr()]]), cached)).not.toBe(cached);                               // one left
+    expect(stabilizeRefMap(new Map([['u1', arr()], ['u2', arr()], ['u3', arr()]]), cached)).not.toBe(cached); // one came
+    expect(stabilizeRefMap(new Map([['u1', arr()], ['u3', arr()]]), cached)).not.toBe(cached);                // swapped
+    expect(stabilizeRefMap(new Map([['u1', arr()], ['u2', [{ ...base(), attack: 9 }]]]), cached)).not.toBe(cached);
+  });
 });
 
 describe('stabilizeView (single)', () => {

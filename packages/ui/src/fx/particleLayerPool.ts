@@ -15,6 +15,7 @@ import {
   type ParticleStyle,
 } from './particleMaterial';
 import { linkShader } from './shaderPool';
+import { filterAreaMode } from './filterStack';
 import type { FxBlendMode } from './blendModes';
 
 /**
@@ -118,6 +119,53 @@ const particleBounds = (): Rectangle => new Rectangle(
   PARTICLE_BOUNDS_HALF_EXTENT * 2, PARTICLE_BOUNDS_HALF_EXTENT * 2,
 );
 
+/** Bench builds only (`VITE_PERF_BENCH=1`): `globalThis.__fxTightOff = true` puts every layer back on the unbounded
+ *  box, so one bundle can draw the same frame both ways and diff the pixels. Dropped from player builds. */
+const tightOff = (): boolean => import.meta.env.VITE_PERF_BENCH === '1' && (globalThis as { __fxTightOff?: boolean }).__fxTightOff === true;
+
+function unbound(area: Rectangle): void {
+  if (area.width === PARTICLE_BOUNDS_HALF_EXTENT * 2) return;
+    area.x = -PARTICLE_BOUNDS_HALF_EXTENT; area.y = -PARTICLE_BOUNDS_HALF_EXTENT;
+    area.width = PARTICLE_BOUNDS_HALF_EXTENT * 2; area.height = PARTICLE_BOUNDS_HALF_EXTENT * 2;
+}
+
+/**
+ * Report the box `pc`'s live particles occupy, when a filter above it will read it (R-PERF-FX-FILTER-AREA-01, see
+ * `TIGHT_FILTERS` in filterStack.ts). Called by burst / emitter / smoke at the end of `update`, after this frame's
+ * spawns. With no filter above the layer nothing reads the bounds and nothing is computed; with a filter that needs
+ * the whole viewport the unbounded box is kept. `(x, y)` places the (empty) box while no particle is alive, so an
+ * idle layer does not stretch a shared filter group to the origin.
+ */
+export function fitParticleBounds(pc: ParticleContainer, x: number, y: number): void {
+  const area = pc.boundsArea;
+  if (!area) return;
+  const mode = tightOff() ? 'full' : filterAreaMode(pc);
+  if (mode !== 'tight') { unbound(area); return; }
+  const ps = pc.particleChildren;
+  const n = ps.length;
+  if (n === 0) { area.x = x; area.y = y; area.width = 0; area.height = 0; return; }
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity, scale = 0;
+  for (let i = 0; i < n; i++) {
+    const q = ps[i]!;
+    const px = q.x, py = q.y;
+    if (px < minX) minX = px;
+    if (px > maxX) maxX = px;
+    if (py < minY) minY = py;
+    if (py > maxY) maxY = py;
+    const sx = q.scaleX < 0 ? -q.scaleX : q.scaleX;
+    const sy = q.scaleY < 0 ? -q.scaleY : q.scaleY;
+    if (sx > scale) scale = sx;
+    if (sy > scale) scale = sy;
+  }
+  // A particle is a quad of its texture, scaled and turned about its anchor: its full diagonal bounds it at any
+  // rotation and any anchor. +2 px for the texture's own soft edge sampling.
+  const tex = pc.texture;
+  const reach = Math.ceil(scale * Math.hypot(tex.width, tex.height)) + 2;
+  if (!(minX <= maxX) || !(minY <= maxY) || !Number.isFinite(reach)) { unbound(area); return; } // a NaN position: never trust it
+  area.x = minX - reach; area.y = minY - reach;
+  area.width = maxX - minX + reach * 2; area.height = maxY - minY + reach * 2;
+}
+
 /**
  * All three primitives need per-frame position/rotation/colour/vertex uploads, which is what lets ONE pool
  * serve all three.
@@ -208,6 +256,8 @@ function resetLayer(layer: ParticleLayer, req: ParticleLayerRequest): void {
   setParticleTime(shader, 0);
   pc.texture = req.texture;
   pc.blendMode = req.blendMode;
+  // Back to the unbounded box: the last tenant may have left a tight one (`fitParticleBounds`).
+  if (pc.boundsArea) unbound(pc.boundsArea);
   pc.particleChildren.length = 0;
   pc.update(); // mark the child list dirty so the pipe re-uploads rather than drawing last fire's buffer
   pc.position.set(0, 0);

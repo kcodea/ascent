@@ -141,7 +141,8 @@ Counters (levels, peak-sampled at 20 Hz): `fx:particles` (the WHOLE population �
 ParticleContainers plus the sprite particles; the older `particles` counter is the sprite pool alone),
 `fx:layers` (acquired def layers), `fx:filters` (filters applied across live `FilterStack`s), `fx:culled`
 (plays the FX budget has trimmed since load — see below), `sprite pool`, `weld rings`, `spell arrows`.
-Rates (per second): `unit renders`, `recruit renders`, `pointermoves`, `fx:culled` (also tallied per bucket).
+Rates (per second): `unit renders`, `card renders` (every whole `Card` render, shop and combat: a render that starts
+inside the card never showed in `unit renders`), `recruit renders`, `pointermoves`, `fx:culled` (also tallied per bucket).
 
 **Long-task attribution and the input-event ring (perf PR 1, 2026-09-17).** Every `longtask` entry is
 intersected against a ring of recently closed spans; the labels that overlapped it are recorded on the bucket
@@ -552,6 +553,94 @@ Repeat until the critic picks ours. The exit code never fails on the budget: it 
 
 ---
 
+## 2c. APM on an engine board — `npm run perf:apm` (frames, input latency, backlog)
+
+The scenario the owner named on 2026-11-18 (R-PERF-APM-01): *"when i have a board with cards like Karwind and im
+playing APM the game gets bogged down and nearly impossible to play"*. The gauntlet's turn is driven through the
+store, so it cannot see input handling, drag code or what queues behind the input. This one drives the Shop by **real
+mouse input** and measures the three things "bogged down" can be, separately. Numbers and method:
+`docs/devlog/2026-11-18-perf-apm-engine.md`.
+
+```
+npm run perf:apm                          # build this tree (VITE_PERF_BENCH=1), 1 run, the report
+npm run perf:apm -- --runs 3              # medians and ranges (the machine is usually shared)
+npm run perf:apm -- --dist <dir>          # an existing bench dist, no build
+npm run perf:apm -- --rate 4 --secs 30    # actions a second (8 by default), burst length (25 s)
+npm run perf:apm -- --scene dragons-max   # the same board with Orivax (Shouts trigger 2 more times)
+npm run perf:apm -- --guard               # the regression guard: exit 3 when the backlog is not bounded
+npm run perf:apm -- --rapid '{"snapStats":false,"dropStale":false,"dedupe":false,"maxSpeed":1,"minIntensity":1}' --roll-step 0
+                                          # the same bundle with the rapid-input presentation off (A/B without a rebuild)
+npm run perf:apm -- --toggle nofx         # one cost class off: nofx | nofilter | nocardfilter | noanim (what is left without it)
+npm run perf:apm -- --profile             # CPU profile: top self time, and WHO called getBoundingClientRect & co
+npm run perf:apm -- --trace               # GPU / raster trace summary;  --trace-style: who forced and who dirtied style
+npm run perf:apm -- --screencast <dir>    # JPEG frames of five seconds of the burst (to look at, not to measure)
+```
+
+- **The scene** (built through the store with the game's own actions, in a seeded Practice game with no clock): a
+  gilded Karwind, Firebird, Scalechanter, Embermouth, Herzog, Transcendence, five held cards, Tier 6, the Ancient of
+  Bonds awake. **The burst**: buy a Shout minion, play it, cast what it gave, sell it, refresh when the shop is empty,
+  by CDP mouse events, at `--rate` for `--secs`; then six seconds with no input.
+- **The driver is closed-loop, like a player**: it reads the run before each action and waits for Chrome to take
+  each mouse event. A slower page is driven more slowly, so **accepted actions a second is a result**, and at a target
+  the page cannot keep up with, every build's main thread is saturated. Compare builds on `ms per accepted action`,
+  `actions a second` and `release -> the first frame`; compare frames at a rate both builds hold (`--rate 4`).
+- **What it reports**: (a) frame intervals in the burst and the tail; (b) input: press to handler, release to the
+  store, release to the first frame after it, Event Timing's slow interactions, and any action the game did not
+  accept; (c) backlog, sampled every 100 ms: stat badges whose printed number is behind the run's real number, live
+  effects and particles, paced steps waiting (`fx/shopFxQueue.ts`), live timeouts, DOM nodes; peak against idle,
+  growth across the burst, and how long after the LAST input each goes back to idle; (d) main-thread time from CDP
+  per second and per accepted action, plus the in-game monitor's spans.
+- **Run builds round-robin when the machine is shared** (one run of each, then the next round), and read the
+  "whole-machine CPU busy" line: a run made while another builder was compiling drives half the actions.
+- **The guard** (`--guard`): 97% of actions accepted; no stat badge behind the real number for more than 1.5 s; every
+  backlog counter back at idle within 3.5 s of the last input; no counter growing more than 60% across the burst.
+  `fx/shopFxQueue.test.ts` is the same contract without a browser.
+
+Baseline, 2026-11-18, RTX 4080 SUPER at 240 Hz, target 8 actions a second, median of three round-robin runs:
+
+| | main (58c8a5256) | this PR |
+|---|---|---|
+| target 8 a second: accepted actions a second | 5.2 | 5.6 |
+| mean frame / p95 / p99, ms | 18.6 / 41.7 / 54.2 | 15.4 / 39.6 / 46.6 |
+| frames over 6.25 ms | 94% | 76% |
+| release to the first frame, p50 / p95 | 41 / 55 ms | 39 / 53 ms |
+| main-thread ms per accepted action (script) | 163 (70) | 142 (56) |
+| effects alive, mean / peak | 22 / 33 | 14 / 19 |
+| stat badges behind the real number | 97% of the time, up to 8.3 s in a row | never |
+| target 4 a second (both hold it): mean frame / frames over 6.25 ms | 14.8 ms / 72% | 11.1 ms / 49% |
+| ... release to the first frame, p50 | 37 ms | 27 ms |
+| ... main-thread ms a second | 759 | 645 |
+| 1.5 a second (normal play): effects alive / badges behind | 11 / 35% of the time | 11 / 35% (unchanged) |
+
+On top of the eight perf PRs of 2026-11-18 (two rounds, a quieter machine): a target of 8 a second went from 6.9 to
+7.5 accepted actions a second, a mean frame from 10.2 to 5.9 ms and frames over 6.25 ms from 70% to 24%; at 4 a
+second from 5.9 to 5.0 ms and from 25% to 10%.
+
+All of it was measured with the machine's sixteen threads fully busy with other builders' work (the bench's Chrome and
+driver at High priority). On a quieter hour the same main was 16.1 ms a frame at 5.1 actions a second and an earlier
+build of the PR 10.6 ms at 6.7: the order holds, the sizes move. Re-take the baseline round-robin before judging a
+change against it.
+
+What the first pass taught (keep these):
+
+- **"Bogged down" was never lost input.** Nothing in the Shop holds a pointerdown for an effect. It was a saturated
+  main thread (a 35 to 50 ms frame for every action) and a board whose numbers were seconds behind the run.
+- **Presentation that is right for one action is a queue at eight a second.** A roll that restarts on every action
+  never ends; a wave paced 150 ms apart is still firing three actions later. Anything paced in the Shop goes through
+  `shopFxLater`, and anything that withholds a number goes through `holdStat`, so the rapid-input rule reaches it.
+- **Faster input makes a stale number staler, and a faster build takes faster input.** A roll that every action
+  restarts falls further behind the more actions land: behind for up to 1.3 s at four a second, 6 to 12 s at five.
+  Frame work alone cannot fix that. Measure the backlog, not only the frames.
+- **Do not step a visual counter faster than anyone can read it.** The stat roll stepped on every display frame;
+  capping it at 60 a second is invisible and a quarter of the work on a 240 Hz display (R-PERF-APM-02).
+- **A read after `body.dragging` comes off is a whole-page restyle inside the handler** (the 2026-10-09 note, hit
+  again in `applyDrop`). Read everything the drop needs before the class changes (R-PERF-APM-03).
+- **Find the second render.** `render:recruit` calls against accepted actions showed 1.6 renders per action: a state
+  setter handed a fresh `Set` with the same contents, and a timer unmounted a number that had already faded. Count
+  renders per action whenever a per-action cost looks high.
+
+---
+
 ## 3. Render profiling in the browser (we do this together)
 
 The harness can't catch frame drops — those come from the browser painting/compositing. When the game feels
@@ -958,6 +1047,16 @@ throttle) and at 1920x1080 with no throttle. Numbers and method: `docs/devlog/20
   is not enough: its module is side-effect-free, so Rollup drops an unused reference.
 - **An uninterruptible idle-time step is sized by measured cost, not a fixed count.** The odds probe's 10-sim step
   was a 59 ms task on the throttled phone late-game (`oddsStepper.ts` now aims each step at ~2 ms).
+- **Background combat simulation runs in the sim worker, never on the main thread (R-PERF-SIM-WORKER-01,
+  2026-11-18).** The odds probe (200 sims a fight) and the board-strength scorer (160 fights a board) were 100 ms a
+  round early and 450-600 ms by rounds 10-15, all during the combat replay, with single strength steps of 7-21 ms.
+  Both now run in one module worker (`packages/ui/src/simWorker/`): the page posts plain data (`oddsInput`, a
+  `BoardSnapshot`), the worker imports the card index and the reference itself and runs the same pure probes with
+  the same seeds, so results are byte-identical (`simWorker/handler.test.ts`). Any NEW batch of `simulate()` calls
+  the UI wants (a preview, a what-if, a backfill) goes through that worker: add a message to `protocol.ts` and a
+  case to `handler.ts`. The main-thread path is a fallback only (no Worker, or it failed): steps sized by measured
+  cost, and never in a slice the browser had to force while a fight plays. Triage switch:
+  `localStorage['ascent:simWorker'] = 'off'` keeps the work on the page.
 - **A drag re-layerizes every frame (Chromium; measured 2026-10-29, cheap).** `Layerize` runs on every drag frame.
   It is the dragged card (hiding `.dragcard` removes it) and mostly its 3D tilt, not `zoom` (forcing `zoom: 1` changed
   nothing). It is ~0.1 ms a frame unthrottled, so it was left alone. The real drag costs were the pickup, the drop and
@@ -1117,6 +1216,132 @@ Numbers and method: `docs/devlog/2026-11-10-duos-perf-wins.md`.
 - **A CPU profile's self time is a sum, not a moment.** "`drawImage` 30 ms" in the pass's profile was 0.5 ms on each
   of some hundred frames of the plate dissolve, not one 30 ms call. Bucket the samples by time before naming a frame.
 
+## 3p. Keyword auras, 2026-11-18: count layers and animations PER CARD, and bake a loop that cannot be made cheap
+
+Numbers and method: `docs/devlog/2026-11-18-perf-keyword-loops.md`. Rule: R-PERF-KEYWORD-AURA-01.
+
+- **A per-card loop is multiplied by the board.** Rise (27 wisps and a dome), Execute (3 rings and 12 shards of 3
+  pieces), Flurry (7 rings) and Rebirth's crown each followed every rule above (transform and opacity only, static
+  paint on a child) and still cost 20 to 37 compositor layers and 9 to 46 running animations per minion. Every keyword
+  on 14 cards: about 1,500 layers, 1,225 animations, 37 to 65 ms a frame in an idle shop on an RTX 4080. A loop that is
+  cheap once is not cheap fourteen times: budget an always-on card effect at ONE layer and ZERO CSS animations.
+- **The fix is a capture, not a cut.** `scripts/kwfx/capture.mjs` plays the authored aura in headless Chrome, seeks it
+  frame by frame and packs one loop into an animated AVIF (`apps/web/public/kwfx/`). The card shows that picture on one
+  `will-change` element (`.kwfx`, `kwfx/kwfx.ts`). Chrome advances an animated image on the compositor and decodes a
+  frame once for every element showing it, so 14 cards cost what one does and the main thread does nothing. The same
+  scene after: 200 layers, 35 animations, 4.2 ms.
+- **An aura's `mix-blend-mode` was blending with nothing but itself.** Every aura root has a transform, so it is a
+  stacking context and its screen-blended children never saw the card under them: 28 blend passes per Rise card for a
+  picture that is a plain RGBA group. That is also why a transparent capture of the group is exact. Before adding a
+  blend mode to a layer, check what its nearest stacking context is.
+- **AV1, not WebP, for a soft moving picture.** The same 299 Rise frames: 2.7 MB as an animated WebP (every frame is
+  nearly a key frame), 0.18 MB as an animated AVIF (each frame predicted from the last).
+- **An animated image plays at up to about 90 pictures a second in Chromium, and no faster** (measured 2026-11-19 with
+  a frame-numbered probe on a 240 Hz clock, `docs/devlog/2026-11-19-kwfx-60fps.md`). A frame of 10 ms or less is held
+  for 100 ms (an old Blink rule for broken GIFs), so 100, 120 or 240 a second all play at 10. 90 plays, but each
+  picture is held for an uneven 1 to 4 refreshes of a 240 Hz display. The auras ship at **60**: it divides 60, 120 and
+  240 Hz evenly; doubling from 30 cost about +1.2 MB of desktop download and +90 to +180 ms/s of off-main-thread decode
+  with every aura on 14 cards, and no measurable frame time. `capture.mjs --fps N` re-bakes at another rate and
+  refuses above 90. Interpolating per display frame on a shared canvas worked but cost about 4x the GPU time of the
+  images; keeping Flurry live (even without its blend mode) cost 7.5 ms a frame on 14 cards. Neither ships.
+- **An animated image cannot be paused or offset.** Where the live loops were paused (`body.modalup`, far menu rows) the
+  element swaps to a still of frame 0. Every card showing one picture is in phase; cards that mount together already
+  were.
+- **Retuning.** The live DOM aura still renders in DEV whenever a tuner has moved a value, with
+  `localStorage['ascent.kwfx'] = 'live'`, on phones, and until the pictures have loaded. After a retune run the capture
+  again; `kwfx.test.ts` fails while the manifest's signature does not match the aura sources.
+  `scripts/kwfx/compare.mjs` differences live against baked on the card, frame for frame, and
+  `scripts/kwfx/measure.mjs` / `measure-combat.mjs` are the keyword scenes.
+
+## 3q. Phase transitions, 2026-11-18: the compositor drops the big pictures a phase is not showing
+
+Numbers and method: `docs/devlog/2026-11-18-perf-phase-transitions.md`.
+
+- **A big picture that is off screen for a phase is decoded again when it comes back.** The compositor draws CSS
+  backgrounds and `<img>` from its own decode cache, which has a budget. The game's full-screen pictures are a lot to
+  hold in it: backdrop, both boards and their shadows, the gate, the return trip's five 2560 x 1440 layers. The ones
+  not drawn right now are the first to go. (Which budget is not established: raising Chrome's discardable GPU limit to
+  1 GB did not stop it.) Holding an `Image`, or
+  `img.decode()` at boot, does not keep them: that fills the same cache. The decode runs on a worker, but the frame that
+  needs the picture cannot be shown without it, so the main thread sits in `WaitForCommitCompletion` for the whole
+  decode (25 to 110 ms for these).
+- **Find them with a trace, by URL.** Categories `devtools.timeline` + `disabled-by-default-devtools.timeline`: every
+  `Decode LazyPixelRef` carries a `LazyPixelRef` id, and the `PaintImage` event before each `Draw LazyPixelRef` with
+  the same id carries the URL and the source size. `performance.mark()` calls (category `blink.user_timing`) put the
+  phase flips on the same clock.
+- **A picture that must be ready every time goes on a canvas the page keeps** (`heldArt.ts`): decoded once off the main
+  thread (`createImageBitmap`), drawn in on an idle slot, shown as a texture with nothing to decode or raster. Size
+  the canvas to what is drawn, not to the file. Count the bytes you hold (`heldArtStats()`).
+- **A picture that stays a CSS background can be asked for early** (`decodeAhead.ts`): `img.decode()` on hover or on
+  the press runs the decode without holding a frame. It still has to be uploaded and rastered when drawn (measured: a
+  14 ms upload and a 25 ms raster for the 3840 px combat board), so this halves the hitch, it does not remove it.
+- **A layer inside a big zoom is drawn again at the zoomed size unless it says `will-change: transform`.** The dive
+  through the Shop door scales its stage 18x. The door's three small pictures had `will-change: opacity` only, so the
+  compositor re-rastered them at up to 8x in the dive's first frames (30 to 60 ms on the GPU main thread, which also
+  presents frames, so the dive itself stalled). A 201 px picture has no more detail at 8x.
+- **Dissolving a stacking context re-rasters everything inside it.** `.app.combat { z-index: auto }` switched the
+  combat z-ladder on at the End Turn press, with the whole Shop still on screen behind the falling gate: every layer of
+  it was repainted and rastered again (20 to 30 ms of GPU work in the press frame; the worst frame at the flip fell from
+  about 50 ms to about 30 with the switch moved under the gate, `.app.combat.staged`). The same switch still happens on
+  every hand-card hover (`body:not(.dragging) .app:has(.row.hand .card:hover) { z-index: auto }`) and under
+  `body.modalup`: not measured here, a lead for the recruit phase.
+- **A warm-up that plays a transition invisibly is itself a hitch.** The fight-end warm-up decoded and rastered the
+  whole return trip behind the game while the fight's last hits were on screen. Prefer making the art impossible to
+  drop (above) over drawing it early.
+- **Card frames are 1086 x 1448 files drawn about 150 px wide.** Each one that falls out of the cache costs a 17 to
+  54 ms decode in the middle of a turn or a fight. Not fixed here (it needs right-sized copies from the art pipeline);
+  see the devlog's follow-ups.
+
+## 3r. Card raster, 2026-11-18: static filters are free until the tile is painted again, so stop painting the tile
+
+Numbers and method: `docs/devlog/2026-11-18-perf-card-raster.md` (R-PERF-CARD-LAYER-01). Bench:
+`scripts/perf-card-raster.mjs` (one late-game state, buy / refresh / tick / sell / play, stylesheet variants run in
+turns in the same page, `--trace` for GPU raster time, `--shots` + `perf-card-raster-diff.mjs` for the pixel proof).
+
+- **Ask "what gets painted again", before "what is expensive to paint".** With GPU raster a tile is about as wide as
+  the window, so a row of cards shares its tiles. One card changing repaints the row, every static filter in it and
+  its art. Removing filters one at a time moved a late buy by a few points each; giving each card its own layer
+  (`will-change: transform`) with nothing removed did as well as removing all of them, halved GPU raster time and
+  left the page with fewer layers.
+- **Then the filters stop mattering.** With the cards isolated, every filter, shadow and text shadow on every card is
+  under 10% of the remaining raster. Do not bake card shadows into images for speed: it buys almost nothing, and their
+  radii are fixed px on a card that scales with the window, so a baked copy is a different picture at every other size.
+- **A layer hint is not free of side effects. Measure the picture, not just the frames.**
+  - A layer under a ROTATED or fractionally placed transform is drawn through a second resample: a hand card on a
+    1:1 layer is 24 to 34% softer. **Supersample the layer instead of giving it up** (R-PERF-HAND-LAYER-01,
+    `docs/devlog/2026-11-19-perf-card-raster-2.md`): an outer wrapper with `will-change: transform` drawn at
+    `scale(1 / k)` and an inner one scaling the content back by `k`. Chrome never rasters a `will-change: transform`
+    layer below 1:1 in its own space, so the texture holds the content at `k` and the tilt is drawn down from it.
+    `k` = 1.35 matched a direct paint (edge energy -8% to +5% per card); 1.25 is softer, 1.5 and 2 crisper. Drop both scales in the state the
+    player reads up close (the hover pop), so that one is rastered natively. Keep every moving transform on the
+    element OUTSIDE the layer, so nothing that animates it can repaint it.
+  - **Do not spread a mount over several small commits to save a frame.** Every commit pays a fixed 2.5 to 3 ms of
+    style and about 2 ms of paint and layer update in this app, however few elements it adds: six one-card commits
+    measured no better than one six-card commit on a Shop refresh.
+  - A layer on an element with a fractional LAYOUT position snaps to whole pixels (up to half a pixel, sharpness
+    unchanged). `will-change: opacity` avoids the snap by keeping the sub-pixel position, and repaints the layer on
+    every move for it: no gain.
+  - The element becomes a stacking context. Check what its children used to sort against.
+  - More layers is not better: badge and number layers under the card layer made every scene slower (195 vs 112).
+- **`Page.captureScreenshot` hangs in headless Chrome on a full late-game screen** (more than about 20 cards, or
+  anything at DPR 2 at 1080p). Capture a row at a time, with a timeout. The page holds about 180 MB of GPU image cache
+  in that state, and the hang tracks content, not any one element.
+
+## 3s. The Shop's per-action commit, 2026-11-19: keep the layer list still
+
+Numbers and method: `docs/devlog/2026-11-19-perf-commit-floor.md` (R-PERF-ROW-SLIDE-01, R-PERF-BADGE-POP-01,
+R-PERF-HOVER-SUBJECT-01).
+
+- **`Layerize` is a per-frame cost you can cause from script.** A script write of `transform` on a layer (a GSAP
+  tween) and an ADDITIVE Web Animation (`composite: 'add'`, which never runs on the compositor) both make Blink rebuild
+  the page's layer list on every frame they run. It was the largest single slice of a Shop action. Slide with a Web
+  Animation of `translate` (`rowSlide.ts`); pop in the replace mode unless another pop must multiply with it.
+- **`:hover` in front of a featureless subject restyles every hovered element's subtree**, in every screen, because
+  the invalidation set is per pseudo-class for the whole stylesheet. Name the subject, or use an attribute the page
+  sets (`pointedBoard.ts`). `hoverSubjects.test.ts` enforces it for `:hover`, `:active` and the focus pseudos.
+- **Split one action before optimising it**: `npm run perf:apm -- --per-action --per-action-trace` gives each action's
+  script / style / layout / paint, elements restyled and renders.
+
 ## 4. Established anti-patterns (don't reintroduce these)
 
 These are the rules the audits surfaced; the codebase already follows them — keep it that way.
@@ -1127,6 +1352,8 @@ These are the rules the audits surfaced; the codebase already follows them — k
   animate its **opacity** (see `.card.compact.dscard::before` + `@keyframes kwglow` in `styles.css`). A
   **one-shot** transition or non-looping animation (a single fade/pop that runs once and stops) MAY animate a
   paint property when it reads better — profile it first to confirm the single repaint is cheap.
+- **An always-on card effect gets ONE layer and NO CSS animation per card** (§3p). A loop of many moving pieces is
+  baked into a looping picture from its authored DOM (`scripts/kwfx/capture.mjs`), never shipped as the pieces.
 - **Don't read layout (`getBoundingClientRect`, `elementFromPoint`) per frame**, especially after a style
   write — that forces a synchronous reflow (layout thrash). Cache rects once per drag in a ref (see
   `targetRectsRef` / `insertRectsRef` in `Recruit.tsx`).

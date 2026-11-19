@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react';
+import { markAuraRetuned } from './kwfx/kwfx';
 
 /**
  * EXECUTE (keyword `V`) persistent aura — a swirling ring of rage: red smoke, comet arcs, glints and drifting
@@ -461,6 +462,8 @@ export function subscribeExecute(fn: () => void): () => void {
 
 function commit(): void {
   snapshot = { cfg, layers: buildExecuteLayers(cfg), box: executeBoxStyle(cfg) };
+  // Players see a capture of the shipped values (kwfx/kwfx.ts): a retuned aura renders its live markup instead.
+  markAuraRetuned('execute', executeOverrides().length > 0);
   for (const fn of listeners) fn();
 }
 
@@ -478,6 +481,8 @@ export function setExecuteValue(key: keyof ExecuteConfig, value: number | string
   }
   commit();
 }
+
+markAuraRetuned('execute', executeOverrides().length > 0); // DEV: a saved tuning session is live from the first card
 
 /** The shipped values, exported so the tuner can mark which controls you have moved away from them. */
 export { DEFAULTS as EXECUTE_DEFAULTS };

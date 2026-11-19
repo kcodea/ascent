@@ -99,3 +99,43 @@ describe('An Avenge (N) counts this fight only (R-AVENGE-PER-COMBAT-01)', () => 
     expect(JSON.stringify(c.events)).toBe(JSON.stringify(a.events));
   });
 });
+
+describe('The carry-over kind (R-ANCIENT-CARRYOVER-01): Gildmaster x Death and Cindy x Death read "When N friendly minions die"', () => {
+  const gift = { kind: 'gift' as const, cardId: 'goldcrafter' };
+  const crafter = (tick: number, extra: Partial<QuestCombatMods> = {}): Partial<QuestCombatMods> =>
+    ({ ancientGorrAvenge: { every: 17, tick, ids: ['goldcrafter'], label: DEATH, carry: true }, ...extra });
+  const mateGift = (tick: number, extra: Partial<QuestCombatMods> = {}): Partial<QuestCombatMods> =>
+    ({ ancientMateGiftAvenge: { every: 15, tick, gift, label: DEATH, carry: true }, ...extra });
+  const toHand = (r: Fight, side: Side) => r.events.filter((e) => e.type === 'toHand' && e.side === side).length;
+  const sends = (r: Fight, side: Side) => r.events.filter((e) => e.type === 'teamSend' && e.side === side).length;
+
+  it('the carried tick counts: 16 carried pays on the first death, 15 carried on the second, 14 carried never in 2 deaths', () => {
+    expect(toHand(fight(1, crafter(16)), 'player')).toBe(1);
+    expect(toHand(fight(2, crafter(15)), 'player')).toBe(1);
+    expect(toHand(fight(1, crafter(15)), 'player')).toBe(0);
+    expect(toHand(fight(2, crafter(14)), 'player')).toBe(0);
+    expect(sends(fight(1, mateGift(14)), 'player')).toBe(1);
+    expect(sends(fight(3, mateGift(11)), 'player')).toBe(0);
+    // Without `carry` the same tick is ignored (the Avenge rule, unchanged for every other hero).
+    expect(toHand(fight(1, { ancientGorrAvenge: { every: 17, tick: 16, ids: ['goldcrafter'], label: DEATH } }), 'player')).toBe(0);
+  });
+
+  it('repeats every N on the running count: 16 carried + 18 deaths pays twice (deaths 1 and 18)', () => {
+    const r = fight(18, crafter(16));
+    expect(r.playerDeaths).toBe(18);
+    expect(toHand(r, 'player')).toBe(2);
+    expect(sends(fight(16, mateGift(14)), 'player')).toBe(2);
+  });
+
+  it('is not an Avenge, so Rune of Fury does not repeat it (Braum x Death\'s rule)', () => {
+    expect(toHand(fight(1, crafter(16, { runeFury: true })), 'player')).toBe(1);
+    expect(sends(fight(1, mateGift(14, { runeFury: true })), 'player')).toBe(1);
+  });
+
+  it('is symmetric: the enemy side carries its tick the same way', () => {
+    expect(toHand(fightEnemy(1, crafter(16)), 'enemy')).toBe(1);
+    expect(toHand(fightEnemy(2, crafter(14)), 'enemy')).toBe(0);
+    expect(sends(fightEnemy(1, mateGift(14)), 'enemy')).toBe(1);
+    expect(toHand(fightEnemy(1, crafter(16)), 'player'), 'never the other side').toBe(0);
+  });
+});

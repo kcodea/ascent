@@ -39,7 +39,7 @@ import {
   equipmentChargesOf, equipmentCostOf, expireEquipmentTurn, rebuildEquipment, spendEquipmentCharge,
   selectEquipment, selectedEquipment, amplifyAllHeld, amplifyUnactivated, consumeAmplified, EQUIPMENT_AMPLIFIED_COUNTER, equipmentAmplifiedOf,
 } from './equipment';
-import { noteHandCastPlay, applyChooseOnePlayed, spendChooseBothCharge, noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, heroPowerCostOf, commissionOffer, COMMISSION_HOUSE_GOLD, COMMISSION_CASTLE_DISCOUNT, COMMISSION_MAX_GOLD, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, stampXeroxBond, stampVaultkeeper, battlecryTargetAllowed, exactBoardCopy, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, withGemSagesHeld, roseyHearsRubies, applyRubyRiderAction, mintRandomRubies, recordRubyRiderFx, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, fireDemonPlayRunes, foldOfferBuffs, creditShopBuffSource, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, applyShopSpellHalf, replayEndOfTurn, restoreHeldOffer, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, giftCastCount, rubyStatBonus, yazzusExtraCasts, stampYazzusCasts, consumeGrimoireCharge, countRubyAsShopSpell, fireSpellCastWatchersForRuby, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, resolveRefreshMultipliers, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, equipmentFxMark, buffedFxTargets, fireEquipmentTriggers, fireEquipmentActivated, buyHealthAura, undeadBuyBonus, weldMagnetic, defIsTribe, handCardLocked, fireStatGainReactors, fireEquipmentFree, applyRuneGrafts, noteSpellForCountRunes, settleMinionSale, distillationEdges, fireRunicHoard, applyLorekeeping, runeExtraCasts, castWithRuneRepeats, withCastActor, withHandCast, fireSoldChoice, noteGilded, destroyMinionInShop, refireTarget, flushGrubBites, GOLD_SCALED_ACCRUAL_CARDS } from './recruit';
+import { noteHandCastPlay, applyChooseOnePlayed, spendChooseBothCharge, noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, heroPowerCostOf, commissionOffer, COMMISSION_HOUSE_GOLD, COMMISSION_CASTLE_DISCOUNT, COMMISSION_MAX_GOLD, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, stampXeroxBond, stampVaultkeeper, battlecryTargetAllowed, hasShoutAimTarget, fireShoutWithoutTarget, exactBoardCopy, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, withGemSagesHeld, roseyHearsRubies, applyRubyRiderAction, mintRandomRubies, recordRubyRiderFx, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, fireDemonPlayRunes, foldOfferBuffs, creditShopBuffSource, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, applyShopSpellHalf, replayEndOfTurn, restoreHeldOffer, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, giftCastCount, rubyStatBonus, yazzusExtraCasts, stampYazzusCasts, consumeGrimoireCharge, countRubyAsShopSpell, fireSpellCastWatchersForRuby, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, resolveRefreshMultipliers, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, equipmentFxMark, buffedFxTargets, fireEquipmentTriggers, fireEquipmentActivated, buyHealthAura, undeadBuyBonus, weldMagnetic, defIsTribe, handCardLocked, fireStatGainReactors, fireEquipmentFree, applyRuneGrafts, noteSpellForCountRunes, settleMinionSale, distillationEdges, fireRunicHoard, applyLorekeeping, runeExtraCasts, castWithRuneRepeats, withCastActor, withHandCast, fireSoldChoice, noteGilded, destroyMinionInShop, refireTarget, flushGrubBites, GOLD_SCALED_ACCRUAL_CARDS } from './recruit';
 import { createRun, handCap, withRuneAcquisition, runeGrantOverflow, recordBounceFx, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, type DeferredFight, type PreparedCombatSide, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx, type SotBeatSource, gateUses, procRune, procRuneId, runeBuffMagnitude, PACKCRAFT_STEP, REINVESTMENT_PER_SUMMON, SLAYING_KILLS, EQUIPMENT_FX_ANCHOR } from './state';
 import { alignmentsOf } from './alignment';
 import { blockedByShopClock } from './shopClock';
@@ -1146,6 +1146,13 @@ function heroBeat(state: RunState, powerKind: string, label: string, run: () => 
 }
 
 export function reduce(state: RunState, action: Action): RunState {
+  // THE DISPLAY-ONLY COMBAT PREVIEWS take a SHALLOW path (R-PERF-COMBAT-PREVIEW-01, perf 2026-11-18). They set one
+  // display scalar the replay folded from the event log; nothing else on the run moves. The full path below cloned the
+  // whole run for that (every board / hand / shop / lobby object got a new identity, so every unit and card on screen
+  // re-rendered, 11-14 times a late fight) and ran every action-boundary sweep over a state no action had changed.
+  // Before anything else in `reduce` on purpose: a preview is not a player action, so it resets no per-action scratch,
+  // settles nothing and pins nothing. `settleCombat` clears every preview field, and `deserialize` does too.
+  if (isCombatPreview(action)) return reduceCombatPreview(state, action);
   // Shop-buff FX are per-ACTION: reset the scratch buffer on the INPUT state BEFORE reduceCore's clone, so the
   // clone (`next`) starts empty and, after the action, holds EXACTLY this action's captures (never accumulated
   // across dispatches). For a rejected no-op reduceCore returns `state` itself → `next.recruitBuffFx` stays [].
@@ -1725,16 +1732,16 @@ function settleAction(state: RunState, action: Action, next: RunState): RunState
 /** Will playing this minion open the generic targeted-Shout prompt? The ONE predicate the play case and Rune of
  *  Refrain share: a Mage-Pup's taught aimed spell, or a friendly-targeted non-Choose-One Shout with a viable pick
  *  (a tribe-restricted aim needs another matching friend; `targetNotSelf` (Graverobber) needs any other body —
- *  with none, the Shout simply doesn't fire and the minion plays as a plain body, no prompt). */
+ *  with none, no prompt: its body does nothing, but the Shout still triggers, R-SHOUT-NOTARGET-01). */
 function opensBattlecryAim(s: RunState, card: BoardCard): boolean {
   if (taughtAimSpell(card)) return true;
   const def = CARD_INDEX[card.cardId];
   if (def?.target !== 'friendly' || def.chooseOne?.length) return false;
   // R-TARGET-03 (owner 2026-09-18, global): an aimed Shout NEVER targets its own body — a board holding ONLY this
-  // minion has no legal pick, so don't prompt; the Battlecry simply doesn't fire and it plays as a plain body.
+  // minion has no legal pick, so don't prompt; the Shout's body does nothing.
   // (Was Graverobber's `targetNotSelf` opt-in; now the rule for every aimed Shout.)
-  if (def.targetTribe) return s.board.some((c) => c.uid !== card.uid && isTribe(c, def.targetTribe!) && battlecryTargetAllowed(def, c));
-  return s.board.some((c) => c.uid !== card.uid && battlecryTargetAllowed(def, c)); // Roomworks: needs an End of Turn minion
+  // With none, `playCard` resolves it as a Shout with no target: no body, but it still TRIGGERS (R-SHOUT-NOTARGET-01).
+  return hasShoutAimTarget(s, card); // shared with `playCard`, so the two can never disagree
 }
 
 /** May this aimed Shout land on `target`? The ONE check behind every player pick.
@@ -1761,7 +1768,7 @@ function resolveStrandedAim(s: RunState, src: BoardCard, optionIndex?: number): 
   const autoTribe = effectiveTargetTribe(s, def);
   const pool = s.board.filter((c) => c !== src && (!autoTribe || isTribe(c, autoTribe)) && (!def || !!opt || battlecryTargetAllowed(def, c)));
   const carry = refireTarget(s, pool);
-  if (!carry) return;
+  if (!carry) { if (!opt) fireShoutWithoutTarget(s, src); return; } // still a Shout that triggered (R-SHOUT-NOTARGET-01)
   if (opt) applyChooseOneTarget(s, src, opt.effects, carry);
   else applyBattlecryTarget(s, src, carry);
 }
@@ -1793,6 +1800,58 @@ interface ReduceInner { aimSettled?: boolean; hold?: NonNullable<RunState['pendi
  *  `state`, the card is still in hand, and no counter, trigger or RNG draw survives. */
 function holdPlayForAim(state: RunState, action: Action, hold: NonNullable<RunState['pendingTarget']>): RunState {
   return reduceCore(state, action, { hold });
+}
+
+type CombatPreviewAction = Extract<Action, { type:
+  'combatEscalationPreview' | 'combatSpellPowerPreview' | 'combatSpellCastPreview' | 'combatFriendlyDeathPreview'
+  | 'combatBladeAttackPreview' | 'combatScoutPreview' }>;
+
+function isCombatPreview(action: Action): action is CombatPreviewAction {
+  return action.type === 'combatEscalationPreview' || action.type === 'combatSpellPowerPreview'
+    || action.type === 'combatSpellCastPreview' || action.type === 'combatFriendlyDeathPreview'
+    || action.type === 'combatBladeAttackPreview' || action.type === 'combatScoutPreview';
+}
+
+/**
+ * THE DISPLAY-ONLY COMBAT PREVIEWS (owner report 2026-09-22: spell text "not updating in real time from buffs in
+ * combat"). These carry no gameplay: the replay publishes what the EVENT LOG already says has happened so far this
+ * fight, so a printed number ticks with the fight instead of jumping at settle. They are dispatched WHILE
+ * `phase === 'combat'` and with a Discover open, so neither the phase guard nor the modal guard applies to them.
+ *
+ * EVERY PREVIEW IS A FOLD, NEVER A BUMP (review 2026-09-22). The action carries the ABSOLUTE value so far, not "+1":
+ * an accumulate is only correct when each beat is played exactly once, and Skip (runs the beat effect for the last
+ * beat alone), a seek (re-runs the same beat) and a mid-fight Save & Quit (Continue replays from beat 0) each break
+ * that. `settleCombat` clears them all and applies the REAL carry-backs, so nothing here can stack with the banked value.
+ *
+ * SHALLOW (R-PERF-COMBAT-PREVIEW-01): one new top-level object, every nested object shared. An unchanged value returns
+ * `state` itself (a no-op is free and is not an accepted action).
+ */
+function reduceCombatPreview(state: RunState, action: CombatPreviewAction): RunState {
+  if (state.phase === 'gameover' || state.phase === 'victory') return state; // a finished run takes no more actions
+  const pair = (a: number, h: number): { attack: number; health: number } | undefined => (a === 0 && h === 0 ? undefined : { attack: a, health: h });
+  const samePair = (p: { attack: number; health: number } | undefined, a: number, h: number): boolean => (p?.attack ?? 0) === a && (p?.health ?? 0) === h;
+  const count = (n: number): number | undefined => (n === 0 ? undefined : n);
+  switch (action.type) {
+    case 'combatEscalationPreview': // an escalating spell (Front to Back) improving itself mid-fight
+      return samePair(state.fxEscalationPreview, action.attack, action.health) ? state : { ...state, fxEscalationPreview: pair(action.attack, action.health) };
+    case 'combatSpellPowerPreview': // spell power gained mid-fight; the real total lands at settle (`playerSpellPower`)
+      return samePair(state.fxSpellPowerPreview, action.attack, action.health) ? state : { ...state, fxSpellPowerPreview: pair(action.attack, action.health) };
+    case 'combatSpellCastPreview': // Yirin's Attunement counter
+      return (state.fxSpellsCastPreview ?? 0) === action.count ? state : { ...state, fxSpellsCastPreview: count(action.count) };
+    case 'combatFriendlyDeathPreview': // Cindara's live Avenge tracker
+      return (state.fxFriendlyDeathPreview ?? 0) === action.count ? state : { ...state, fxFriendlyDeathPreview: count(action.count) };
+    case 'combatBladeAttackPreview': // Gorun's live grant / countdown
+      return (state.fxBladeAttacksPreview ?? 0) === action.count ? state : { ...state, fxBladeAttacksPreview: count(action.count) };
+    case 'combatScoutPreview': {
+      // Squirl Scout's live snowball (R-TEXT-11) + Conductor's run-wide improvement grown this fight, per side
+      // (owner 2026-10-24): the two ride one bridge action.
+      const cp = action.conductor ?? 0, ce = action.conductorEnemy ?? 0;
+      if ((state.fxScoutPreview ?? 0) === action.amount && (state.fxConductorPreview?.player ?? 0) === cp && (state.fxConductorPreview?.enemy ?? 0) === ce) return state;
+      return { ...state, fxScoutPreview: count(action.amount), fxConductorPreview: cp === 0 && ce === 0 ? undefined : { player: cp, enemy: ce } };
+    }
+    default:
+      return state;
+  }
 }
 
 function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunState {
@@ -1859,19 +1918,9 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
   // A repeat expiry (or one outside the Shop) is a free no-op.
   if (action.type === 'shopClockExpired' && (state.phase !== 'recruit' || state.shopClockExpired)) return state;
 
-  // THE DISPLAY-ONLY COMBAT PREVIEWS (owner report 2026-09-22: spell text "not updating in real time from
-  // buffs in combat"). These carry no gameplay: the replay publishes what the EVENT LOG already says has
-  // happened so far this fight, so a printed number ticks with the fight instead of jumping at settle. They
-  // are dispatched WHILE `phase === 'combat'`, which is the one thing the guard below forbade — so every one
-  // of them was silently swallowed and every live readout they feed (Front to Back's step, spell power,
-  // Yirin's Attunement, Cindara's Hoard, Gorun's Blade Mastery) sat frozen for the whole combat. `settleCombat`
-  // clears all of them and applies the REAL carry-backs, so letting them through can never double-count, and a
-  // Discover raised mid-fight must not freeze them either (hence the modal guard below exempts them too).
-  const combatPreview = action.type === 'combatEscalationPreview' || action.type === 'combatSpellPowerPreview'
-    || action.type === 'combatSpellCastPreview' || action.type === 'combatFriendlyDeathPreview'
-    || action.type === 'combatBladeAttackPreview' || action.type === 'combatScoutPreview';
+  // (The display-only combat previews never reach here: `reduce` takes them through `reduceCombatPreview`.)
   // Recruit actions apply only in the recruit phase; `settleCombat` / `resolveCombat` only in combat.
-  if (state.phase !== 'recruit' && !combatPreview && action.type !== 'resolveCombat' && action.type !== 'settleCombat' && action.type !== 'landCombat') return state;
+  if (state.phase !== 'recruit' && action.type !== 'resolveCombat' && action.type !== 'settleCombat' && action.type !== 'landCombat') return state;
 
   // Modal recruit states — a pending Discover / Choose One / targeted Battlecry — block every other board
   // action until they resolve. The player can still inspect (a UI-only concern), so a Discover can be
@@ -1906,14 +1955,14 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
   // before the pick resolves either way — it only lets the settle be its own commit, so the shop can play the
   // dissolve and THEN raise the Discover (Recruit.tsx holds the overlay on `pendingDeath`).
   const settlesDeath = action.type === 'resolveShopDeath' && !!state.pendingDeath;
-  if (modalOpen(state) && !combatTransition && !combatPreview && !settlesDeath && action.type !== 'discover' && action.type !== 'chooseOne' && action.type !== 'cancelChoice' && action.type !== 'battlecryTarget' && action.type !== 'buyQuest' && action.type !== 'pickPower' && action.type !== 'buyRune' && action.type !== 'skipRuneforge' && action.type !== 'rerollRuneforge' && action.type !== 'devGrant' && action.type !== 'closeScout' && !endTurnEscapesAim && !clockEndsAim) {
+  if (modalOpen(state) && !combatTransition && !settlesDeath && action.type !== 'discover' && action.type !== 'chooseOne' && action.type !== 'cancelChoice' && action.type !== 'battlecryTarget' && action.type !== 'buyQuest' && action.type !== 'pickPower' && action.type !== 'buyRune' && action.type !== 'skipRuneforge' && action.type !== 'rerollRuneforge' && action.type !== 'devGrant' && action.type !== 'closeScout' && !endTurnEscapesAim && !clockEndsAim) {
     return state;
   }
 
   // ANCIENTS: the awakening Discover PAUSES THE SHOP (owner ruling 3). It is its own gate rather than a `modalOpen`
   // member so it never changes how the other modals queue: a quest / Runeforge / Discover raised alongside it stays
   // answerable (the UI presents those first), and only the Shop's own actions wait for the pick.
-  if (ancientOfferOpen(state) && !combatTransition && !combatPreview && !settlesDeath && action.type !== 'pickAncient'
+  if (ancientOfferOpen(state) && !combatTransition && !settlesDeath && action.type !== 'pickAncient'
     && action.type !== 'discover' && action.type !== 'chooseOne' && action.type !== 'cancelChoice' && action.type !== 'battlecryTarget'
     && action.type !== 'buyQuest' && action.type !== 'pickPower' && action.type !== 'buyRune' && action.type !== 'skipRuneforge'
     && action.type !== 'rerollRuneforge' && action.type !== 'devGrant' && action.type !== 'closeScout') {
@@ -4520,52 +4569,11 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
       return s;
     }
 
-    /* ---------------------------------------------------------------------------------------------------
-     * THE FIVE DISPLAY-ONLY COMBAT PREVIEWS. Every one of them is an ABSOLUTE publish of a FOLD the replay
-     * computed over `events[0, processedEnd)` — never a per-event accumulate (review 2026-09-22). An
-     * accumulate is only correct when each beat is played exactly once, and three ordinary things break that:
-     * the Skip button jumps to the last beat and runs the beat effect for that beat alone (every skipped
-     * bump lost), a seek re-runs the same beat (bumped twice), and a Save & Quit taken mid-fight persists the
-     * counter and then replays the log from beat 0 on Continue (everything counted twice). Publishing the
-     * fold makes all three land on the same number, which is exactly what these readouts promise: tick with
-     * the fight, equal what settle banks. `settleCombat` clears them all and applies the REAL carry-backs, and
-     * `deserialize` clears them too, so nothing here can ever stack with the banked value.
-     * ------------------------------------------------------------------------------------------------- */
-    case 'combatEscalationPreview': {
-      // An escalating spell (Front to Back) improving itself mid-fight — the held card's printed step moves
-      // with it. The REAL gain lands at settle through `playerSpellEscalationGain`.
-      s.fxEscalationPreview = action.attack === 0 && action.health === 0
-        ? undefined
-        : { attack: action.attack, health: action.health };
-      return s;
-    }
-    case 'combatSpellPowerPreview': {
-      // Spell power gained mid-fight — the fold of the simulator's own "+A/+H Spell Power" narrations. The
-      // real total lands at settle through `playerSpellPower`.
-      s.fxSpellPowerPreview = action.attack === 0 && action.health === 0
-        ? undefined
-        : { attack: action.attack, health: action.health };
-      return s;
-    }
-    case 'combatSpellCastPreview': {
-      s.fxSpellsCastPreview = action.count === 0 ? undefined : action.count; // Yirin's Attunement counter
-      return s;
-    }
-    case 'combatFriendlyDeathPreview': {
-      s.fxFriendlyDeathPreview = action.count === 0 ? undefined : action.count; // Cindara's live Avenge tracker
-      return s;
-    }
-    case 'combatBladeAttackPreview': {
-      s.fxBladeAttacksPreview = action.count === 0 ? undefined : action.count; // Gorun's live grant/countdown
-      return s;
-    }
-    case 'combatScoutPreview': {
-      s.fxScoutPreview = action.amount === 0 ? undefined : action.amount; // Squirl Scout's live snowball (R-TEXT-11)
-      // Conductor's run-wide improvement grown this fight, per side (owner 2026-10-24) — rides the same bridge.
-      const cp = action.conductor ?? 0, ce = action.conductorEnemy ?? 0;
-      s.fxConductorPreview = cp === 0 && ce === 0 ? undefined : { player: cp, enemy: ce };
-      return s;
-    }
+    // The display-only combat previews never reach this switch (`reduce` takes them through `reduceCombatPreview`,
+    // the shallow path). Listed so the switch stays exhaustive.
+    case 'combatEscalationPreview': case 'combatSpellPowerPreview': case 'combatSpellCastPreview':
+    case 'combatFriendlyDeathPreview': case 'combatBladeAttackPreview': case 'combatScoutPreview':
+      return state;
     case 'pickAncient': {
       if (!pickAncient(s, action.id)) return state;
       // THE LOOK-BACK (R-ANCFIX-03): what already happened counts at the pick. QUILLEN × GENESIS: Archive now fills at

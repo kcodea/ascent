@@ -1,4 +1,4 @@
-import { memo, type CSSProperties } from 'react';
+import { memo, useRef, type CSSProperties } from 'react';
 import { damageMeterOf } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { grantedTriggersOfSnapshot } from './grantedTriggers';
@@ -8,6 +8,7 @@ import { Card, type CardView } from './Card';
 import { stepProgress } from './cardText';
 import { LINKED_TAG, liveCardText } from './instView';
 import { useGame } from './store';
+import { keepIfSame, runSansPreviews } from './combatRun';
 import { perfMonitor } from './perfMonitor';
 import { isSpeedTimedAnim, liveCombatSpeed } from './floatConfig';
 import type { UnitFrame } from './useCombatReplay';
@@ -99,7 +100,13 @@ function UnitInner({ u, side, anim, framePulse, holdStep }: UnitProps) {
   // come from the snapshot (u.*); run-level scalers are per-side (player = the live run, frozen for the fight;
   // enemy = its captured `enemyScalers`); run-wide economy (Steward's last spell, Cling enchant, Soulsman Gold,
   // Eternal Knight's run tally, …) is player-only — an enemy carries no run, so those fall back to base text.
-  const run = useGame((s) => s.run);
+  // THE FROZEN RUN, NOT THE WHOLE RUN (R-PERF-COMBAT-PREVIEW-01): this object's identity moves only when a field other
+  // than a display preview moved, and it carries no preview at all. Subscribing to `s.run` re-rendered every unit and
+  // its whole Card on each preview publish (a friendly death, a spell cast). The two previews this text prints that
+  // are not read above (Squirl Scout, Conductor) get their own primitive selectors.
+  const run = useGame((s) => runSansPreviews(s.run));
+  const scoutLive = useGame((s) => (foe ? 0 : squirlScoutBuffLive(s.run)));
+  const conductorLive = useGame((s) => (foe ? (s.run.lastCombat?.enemyScalers?.conductorBuff ?? 0) + (s.run.fxConductorPreview?.enemy ?? 0) : conductorBuffLive(s.run)));
   const { text: liveText, goldenText: liveGoldenText } = def
     ? liveCardText(u.cardId, {
         tier: run.tier, golden: u.golden,
@@ -149,10 +156,10 @@ function UnitInner({ u, side, anim, framePulse, holdStep }: UnitProps) {
         sellBonus: u.sellBonus, attackSeen: u.attackSeen, permaGain: u.permaGain,
         // Squirl Scout's snowball LIVE (R-TEXT-11): a combat Squirl Scout Shout grows it mid-fight, and the replay's
         // display-only fold (`fxScoutPreview`) rides on the frozen run value so the printed grant moves on the beat.
-        playedThisTurn: beastsPlayed, squirlScoutBuff: foe ? 0 : squirlScoutBuffLive(run),
+        playedThisTurn: beastsPlayed, squirlScoutBuff: scoutLive,
         // CONDUCTOR (owner 2026-10-24): the SIDE's run-wide improvement, live — the player's run value + this
         // fight's replayed growth; a served foe's own snapshot value + ITS growth (symmetric, never the player's).
-        conductorBuff: foe ? (enemyScalers?.conductorBuff ?? 0) + (run.fxConductorPreview?.enemy ?? 0) : conductorBuffLive(run),
+        conductorBuff: conductorLive,
         // Drunken Oaf's rep count. Player-only: `enemyScalers` carries no Ale tally, so a served Oaf reads its
         // printed text — the same fallback every other run-scoped scaler takes on the foe side.
         alesThisTurn: foe ? enemyScalers?.alesLastTurn : run.alesCastThisTurn,
@@ -198,7 +205,7 @@ function UnitInner({ u, side, anim, framePulse, holdStep }: UnitProps) {
         keywords: u.keywords,
       })
     : { text: '', goldenText: undefined };
-  const view: CardView = {
+  const nextView: CardView = {
     name: u.name, cardId: u.cardId, tribe: u.tribe, tribe2: u.tribe2 ?? def?.tribe2, // the combat body's folded pair (Rune of Drakko / Anomaly Reactor)
     chosenOption: u.chosenOption, // the branch's ART rides into combat with it, same as its text
     attack: u.attack,
@@ -233,6 +240,11 @@ function UnitInner({ u, side, anim, framePulse, holdStep }: UnitProps) {
     // replay is done, a DAMAGE METER's counter holds instead (see `holdStep`) — its final reading is the point.
     stepEphemeral: !(holdStep && def && damageMeterOf(def)),
   };
+  // The SAME view object while nothing in it changed (compared by value): `Card` is memo'd on its props, so a unit
+  // that re-renders only for its own wrapper (an `anim` class: a lunge, a hit) no longer re-renders its whole Card.
+  const viewRef = useRef<CardView | null>(null);
+  const view = keepIfSame(viewRef.current, nextView);
+  viewRef.current = view;
   return (
     // A `ghost` (a dead body kept only to anchor its own still-playing FX) is hidden but keeps its layout box,
     // so the volley launches from its slot and the board doesn't reflow into the gap until the effect finishes.
@@ -263,6 +275,14 @@ function sameNumRecord(a: Readonly<Record<string, number>> | undefined, b: Reado
   return true;
 }
 
+/** Does this card print the fight's global attack count (the bleed cadence, `scArmBleed`)? Cached per card id. */
+const bleedCard = new Map<string, boolean>();
+function printsBleed(cardId: string): boolean {
+  let v = bleedCard.get(cardId);
+  if (v === undefined) { v = !!CARD_INDEX[cardId]?.effects.some((e) => e.do === 'scArmBleed'); bleedCard.set(cardId, v); }
+  return v;
+}
+
 export const Unit = memo(UnitInner, (a, b) =>
   a.side === b.side &&
   a.anim === b.anim &&
@@ -282,8 +302,8 @@ export const Unit = memo(UnitInner, (a, b) =>
   a.u.damageDealt === b.u.damageDealt && // Pummel (Han Gover, Goldvein): only its own hits move it, so this is a per-unit compare
   // avengeSeen only ticks on a death (a rare board-reflow beat) — cheap to compare, and it's what
   // restarts the avenge counter's fade-in. (bleedAttacks is the GLOBAL attack count stamped on every
-  // unit every attack; comparing it here would re-render the whole board each beat — deliberately left
-  // out. A bleed unit's counter still refreshes when that unit re-renders for its own attack/buff.)
+  // unit every attack; comparing it for every unit would re-render the whole board each beat, so it is
+  // compared below for bleed cards only.)
   a.u.avengeSeen === b.u.avengeSeen &&
   a.u.ascendProgress === b.u.ascendProgress &&
   a.u.hpGrantBonus === b.u.hpGrantBonus &&
@@ -308,5 +328,22 @@ export const Unit = memo(UnitInner, (a, b) =>
   a.u.baseAttack === b.u.baseAttack &&
   a.u.baseHealth === b.u.baseHealth &&
   a.u.riseTint === b.u.riseTint &&
+  // EVERY per-instance field the text / view reads is compared here (R-PERF-COMBAT-PREVIEW-01). Until 2026-11-18 a
+  // unit also re-rendered on every run change (a friendly death's preview publish, a spell cast), which is what kept
+  // the fields below fresh by accident: Ashen Heir's bank grows on exactly the deaths that re-rendered the board.
+  // With the run subscription narrowed, each one is compared for itself.
+  a.u.tribe2 === b.u.tribe2 &&
+  a.u.chosenOption === b.u.chosenOption &&
+  a.u.taughtSpellId === b.u.taughtSpellId &&
+  a.u.rallySpreadAtk === b.u.rallySpreadAtk &&
+  a.u.overflowBonus === b.u.overflowBonus &&
+  a.u.eotBonus === b.u.eotBonus &&
+  a.u.eotTick === b.u.eotTick &&
+  a.u.sellBonus === b.u.sellBonus &&
+  a.u.linked === b.u.linked &&
+  a.u.impBank?.attack === b.u.impBank?.attack &&
+  a.u.impBank?.health === b.u.impBank?.health &&
+  // The global attack count moves on every swing: compared only for a card that prints it (the bleed cadence).
+  (a.u.bleedAttacks === b.u.bleedAttacks || !printsBleed(b.u.cardId)) &&
   sameKeywords(a.u.keywords, b.u.keywords),
 );

@@ -799,7 +799,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
             "attack": 2,
             "every": 1,
             "health": 1,
-            "improve": 1
+            "improve": 2,
+            "improveHealth": 1
           }
         }
       }

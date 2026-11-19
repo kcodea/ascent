@@ -2144,11 +2144,11 @@ export interface QuestCombatMods {
    *  minion becomes Gilded for the fight (the Time gild's shape). An ENGRAVED one keeps the Gilded status after the fight
    *  (`CombatCarryBacks.ancientGildKept`, its run uid; the doubled stats come home through the Engraved rule). */
   ancientSocGildLeftmost?: { label: string };
-  /** CINDY × ANCIENT OF DEATH (Duos only, owner 2026-11-14, R-ANCCINDY-01): "Avenge (15): give your teammate a
+  /** CINDY × ANCIENT OF DEATH (Duos only, owner 2026-11-14, R-ANCCINDY-01; "When 15 friendly minions die" with `carry` since R-ANCIENT-CARRYOVER-01): "Avenge (15): give your teammate a
    *  Goldcrafter." A hero Avenge on ONE running count of friendly deaths across the Shop and combat (`tick` carried in,
    *  the Xerox Death shape). Each fire sends `gift` to the TEAMMATE through `sendTeam` (real time, a `teamSend` event on
    *  the death that paid it). Rune of Fury fires it again, like every hero Avenge. */
-  ancientMateGiftAvenge?: { every: number; tick: number; gift: TeamEffect; label: string };
+  ancientMateGiftAvenge?: { every: number; tick: number; gift: TeamEffect; label: string; /** CARRY-OVER (owner 2026-11-19, R-ANCIENT-CARRYOVER-01): "When N friendly minions die", not an Avenge. The Braum × Death counter: `tick` carried in counts, and Rune of Fury does not repeat it. */ carry?: true };
   /** CINDY × ANCIENT OF BONDS (Duos only, owner 2026-11-14, R-ANCCINDY-06): this side's LINKED cards (`BoardCard.duosLink`),
    *  as link id + run uid. Every run that holds one carries it, with or without an Ancient (the link lives on both
    *  teammates' cards). In a tag-team fight, while this board fights and its teammate's board is the waiting reserve, a
@@ -2222,7 +2222,7 @@ export interface QuestCombatMods {
    *  pulses a `questTrigger` of `flag`, and grows `size` by 1 for the rest of the fight; settle banks the growth.
    *  Either side; rides a snapshot (`questMods`). */
   ancientSproutAvenge?: { every: number; tick: number; cardId: string; size: number; flag: string; label: string };
-  /** ANCIENT OF DEATH × Cassen (owner 2026-10-09): "Avenge (7): advance your commission 1 turn." A hero Avenge on ONE
+  /** ANCIENT OF DEATH × Cassen (owner 2026-10-09; Avenge (5) since 2026-11-19): "Avenge (7): advance your commission 1 turn." A hero Avenge on ONE
    *  running count across Shop and combat; each fire (Rune of Fury repeats) pulses a `questTrigger` of `flag`, which
    *  settle counts to move the running commission. Either side; rides a snapshot (`questMods`). */
   ancientAvengePulse?: { every: number; tick: number; flag: string; label: string };
@@ -2322,7 +2322,7 @@ export interface QuestCombatMods {
    *  on ONE running count of friendly deaths across the Shop and combat (`tick` carried in, the Xerox Death shape). Each
    *  fire sends a plain copy of a random one of `ids` (the minions bought LAST turn) to hand through `grantToHand`; none
    *  bought: nothing (the count still moves). Rune of Fury fires it again. Either side; rides a snapshot (`questMods`). */
-  ancientGorrAvenge?: { every: number; tick: number; ids: string[]; label: string; /** ANCIENT PASS 1 (owner 2026-11-16): Emerald Warden × Death pays at most `limit` fires this fight, each pulsing a `questTrigger` of `flag`. */ limit?: number; flag?: string };
+  ancientGorrAvenge?: { every: number; tick: number; ids: string[]; label: string; /** ANCIENT PASS 1 (owner 2026-11-16): Emerald Warden × Death pays at most `limit` fires this fight, each pulsing a `questTrigger` of `flag`. */ limit?: number; flag?: string; /** CARRY-OVER (owner 2026-11-19, R-ANCIENT-CARRYOVER-01): Gildmaster × Death reads "When N friendly minions die", not an Avenge. The Braum × Death counter: `tick` carried in counts, and Rune of Fury does not repeat it. */ carry?: true };
   /** ANCIENT OF WAR × Gorr (owner 2026-10-02): "pummel (200): get a copy of a minion in your warband." A HERO-level Pummel
    *  on the same landed-hit tally as Albus' `ancientPummel` (`dealt` = the LIFETIME tally carried in, Heavy Hand's share),
    *  but REPEATING: every multiple of `every` crossed sends a plain copy of a random LIVING friendly minion to hand

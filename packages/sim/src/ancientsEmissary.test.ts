@@ -76,8 +76,8 @@ describe('Emissary × DEATH: "Avenge (4): Trigger United Front."', () => {
     destroyMinionInShop(makeContext(s), at(s, 'd'));
     expect(at(s, 'm1').attack).toBe(1);
   });
-  it('combat: the carried count fires a second United Front mid-fight; without the pairing there is one', () => {
-    const fodder = (): BoardCard[] => [card('f', 'sandbag', { attack: 1, health: 1 }), card('m1', 'beatboxer', { attack: 1, health: 5000 })];
+  it('combat: the 4th death in the fight fires a second United Front mid-fight; without the pairing there is one (per combat, R-AVENGE-PER-COMBAT-01: the Shop count never comes in)', () => {
+    const fodder = (): BoardCard[] => [...['f', 'f2', 'f3', 'f4'].map((u) => card(u, 'sandbag', { attack: 1, health: 1 })), card('m1', 'beatboxer', { attack: 1, health: 5000 })];
     let s = picked('death', { board: fodder() });
     s = { ...s, ancients: { ...s.ancients!, batchBDeaths: 3 } };
     expect(ancientCombatMods(s).ancientFrontShape).toEqual({ label: 'Ancient of Death', avenge: { every: 4, tick: 3, mult: 1 } });
@@ -85,7 +85,7 @@ describe('Emissary × DEATH: "Avenge (4): Trigger United Front."', () => {
     expect(frontTriggers(s)).toBe(2);
     expect(frontTriggers(fightNow(picked('fortune', { board: fodder() }), 100, 100000))).toBe(1);
     s = reduce(s, { type: 'resolveCombat' });
-    expect(s.ancients!.batchBDeaths).toBe((3 + (s.lastCombat?.playerDeaths ?? 0)) % 4);
+    expect(s.ancients!.batchBDeaths ?? 0, 'nothing carries out of the fight').toBe(0);
     // A combat buff: the Shop body is unchanged.
     expect(s.board.find((c) => c.uid === 'm1')?.attack ?? 1).toBe(1);
   });

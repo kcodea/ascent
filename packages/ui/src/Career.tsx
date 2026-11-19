@@ -24,6 +24,7 @@ import { sfx } from './sfx';
 import { MenuSidebar, SidebarHost } from './MenuSidebar';
 import { refuseInGame } from './gameMenuParts';
 import { AddFriendButton } from './friends/AddFriendButton';
+import { PhAddFriend } from './partyHome/pages/career/PhAddFriend';
 import { loadSocial, peekSocial, putSocial, useSocial } from './socialCache';
 import { useGame, syncProfileFromServer, tempHandle, type CareerFocus } from './store';
 import { CareerDuosTeams } from './versus/DuosBoards';
@@ -907,7 +908,7 @@ export function Career() {
             title={headerTitle ? (headerTitleMaster
               ? <TitleBadge id={accountProgression?.equippedTitleId ?? null} className="cv2-titleplate" />
               : <span className={`cv2-titlechip phc-titlechip${headerTitleRarity ? ` r-${headerTitleRarity}` : ''}`}>{headerTitle}</span>) : null}
-            addFriend={viewing ? <AddFriendButton userId={viewing.userId} /> : null}
+            addFriend={viewing ? <PhAddFriend userId={viewing.userId} /> : null}
             pageState={pageState}
             profileArt={profileArt}
             favoriteHero={heroId ? heroName : 'None yet'}

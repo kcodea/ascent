@@ -207,8 +207,10 @@ export const SET2_BEASTS: CardDef[] = [
     // Owner 2026-10-07: "When you summon a Beast, give it +1/+1 and improve this." +1/+1 per Beast summoned (every 1).
     // The owner text names no Ward, so Ward is DROPPED (was keywords ['DS']).
     keywords: [],
-    // Owner balance 2026-11-06: base grant +1/+1 -> +2/+1; the improve step stays +1/+1 per Beast.
-    effects: [{ on: 'onSummon', do: 'onSummonTribeBuffFlat', params: { tribe: 'beast', attack: 2, health: 1, improve: 1, every: 1 } }],
+    // Owner balance 2026-11-06: base grant +1/+1 -> +2/+1. Owner balance 2026-11-18 ("should improve by +2/+1 not
+    // +1/+1"): the improve step is +2/+1 per Beast too (`improve` = the Attack step, `improveHealth` = the Health
+    // step), so the grant runs +2/+1, +4/+2, +6/+3... Gilded doubles the grant and the step, as before.
+    effects: [{ on: 'onSummon', do: 'onSummonTribeBuffFlat', params: { tribe: 'beast', attack: 2, health: 1, improve: 2, improveHealth: 1, every: 1 } }],
     text: 'When you summon a **Beast**, give it **+2/+1** and improve this.',
     goldenText: 'When you summon a **Beast**, give it **+4/+2** and improve this.',
   },

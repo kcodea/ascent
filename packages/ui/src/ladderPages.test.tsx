@@ -335,13 +335,13 @@ describe('Rankings — portrait skins and the rank crest ring (owner 2026-10-12)
   const portraitSrc = (): string[] => [...ui.container.querySelectorAll('.lb-trow-btn .heroimg')].map((n) => n.getAttribute('src') ?? '');
   const frames = (): Array<string | null> => [...ui.container.querySelectorAll('.lb-trow-btn .lb-heroframe')].map((n) => n.querySelector('.pframe-box')?.getAttribute('data-frame') ?? null);
 
-  it('each ranked row’s RANK crest wears its medal ring; the hero portrait keeps its own outline; no Rank #1 ring on #1', async () => {
+  it('each ranked row’s RANK crest is its medal with no ring; the hero portrait keeps its own outline; no Rank #1 ring on #1', async () => {
     fetchTopPlayers.mockResolvedValue([{ ...PLAYERS[0]!, rank: rankAt(9) }, { ...PLAYERS[1]!, rank: rankAt(6) }, { ...PLAYERS[2]!, rank: rankAt(15) }]);
     useGame.setState({ showRankings: true });
     ui = mount(<Rankings />);
     await flush();
-    const crests = [...ui.container.querySelectorAll('.lb-trow-btn .rankcrest')].map((n) => n.querySelector('.pframe-box')?.getAttribute('data-frame') ?? null);
-    expect(crests).toEqual(['ascendant', 'platinum', 'gold']); // rank-sorted: Ascendant, Platinum, Gold
+    const crests = [...ui.container.querySelectorAll('.lb-trow-btn .rankcrest')].map((n) => [n.className.match(/rankcrest-(ascendant|diamond|platinum|gold|silver|bronze)/)?.[1] ?? null, n.querySelector('.pframe-box')]);
+    expect(crests).toEqual([['ascendant', null], ['platinum', null], ['gold', null]]); // rank-sorted, and no ring on any crest
     expect(frames()).toEqual([null, null, null]);
   });
 

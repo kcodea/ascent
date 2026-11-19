@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-11-19',
     changes: [
+      { category: 'Systems', text: 'New rank medals: Bronze through Ascendant each have new medal art.' },
       {
         category: 'Systems',
         text: 'A Shout minion played with nothing to target still triggers its Shout. Karwind and other Shout watchers now react.',

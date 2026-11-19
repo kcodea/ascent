@@ -139,7 +139,7 @@ export const careerChart = {
     await p.ev(() => { const st = document.createElement('style'); st.textContent = '.ph-dock { visibility: hidden !important; }'; document.head.append(st); });
     await p.ev(() => window.useGame.getState().goTo('career'));
     await sleep(2500);
-    await p.shot('career-open');
+    await p.debugShot('career-open');
     const tabs = await p.ev(() => [...document.querySelectorAll('.phk-tabs .phk-tab')].map((b) => { const r = b.getBoundingClientRect(); return { t: b.textContent.trim(), x: r.x + r.width / 2, y: r.y + r.height / 2 }; }));
     const trends = tabs.find((t) => /^trends$/i.test(t.t));
     if (!trends) throw new Error('no Trends tab');
@@ -156,7 +156,7 @@ export const careerChart = {
     const rest = { x: xOf(made.pin), y: y - 30 };
     await moveTo(p, from);
     await sleep(900);
-    await p.shot('trends');
+    await p.debugShot('trends');
     const start = p.now();
     await sleep(300);
     // Onto the line, then along it (the crosshair follows), coming to rest on the game to pin.
@@ -175,7 +175,7 @@ export const careerChart = {
     await glide(p, { x: rest.x + 46, y: rest.y + 92 }, { x: rest.x + 50, y: rest.y + 96 }, 300);
     await sleep(150);
     const end = p.now() - 0.1;
-    await p.shot('pinned');
+    await p.debugShot('pinned');
     // Frame: the pinned game above, the MMR and Placement charts whole beneath it (16:9).
     const panels = await p.ev(() => ['mmr', 'place'].map((k) => { const r = document.querySelector('.ct-panel[data-kind="' + k + '"]').getBoundingClientRect(); return { l: r.left, t: r.top, r: r.right, b: r.bottom }; }));
     const left = Math.min(tip.x - (rest.x - join.x), panels[0].l) - 14; // room for the tips of the games passed on the way

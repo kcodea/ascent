@@ -97,63 +97,6 @@ export const ROUTINES = {
       return { start, end: Math.min(p.now(), start + 8), still: start + 4.4, crop: SHOPVIEW };
     },
   },
-  'discover-timer': {
-    async run(p) {
-      await startPractice(p);
-      await breakFuse(p);
-      await sleep(2500);
-      const start = p.now();
-      await sleep(2200); // the clock is seen ticking first
-      await p.ev(() => { const pool = [...new Set(window.useGame.getState().run.shop.map((x) => x.cardId))]; const more = ['d2_cinderchef', 'k_chipwick', 'dm_leech', 'dw_orin', 'dm_knocked'].filter((x) => !pool.includes(x)); const ids = [...pool, ...more].slice(0, 3); window.useGame.setState((s) => ({ run: { ...s.run, discover: ids } })); });
-      await sleep(5300);
-      return { start, end: start + 7.5, still: start + 5, crop: WIDE };
-    },
-  },
-  rearrange: {
-    async run(p) {
-      await startPractice(p);
-      await breakFuse(p);
-      await playHand(p);
-      await p.page.waitForFunction(() => !!window.useGame.getState().run.shopClockExpired, null, { timeout: 60000, polling: 250 });
-      await sleep(1200);
-      const start = p.now();
-      await sleep(600);
-      for (let i = 0; i < 2; i++) {
-        const a = await rectOf(p, BOARD, 0);
-        const b = await rectOf(p, BOARD, 2);
-        if (!a || !b) throw new Error('board not ready');
-        await drag(p, a, { x: b.x + b.w * 0.45, y: b.y }, 26);
-        await sleep(1300);
-      }
-      await sleep(500);
-      return { start, end: Math.min(p.now(), start + 8), still: start + 1.6, crop: WIDE };
-    },
-  },
-  'save-continue': {
-    async run(p) {
-      await startPractice(p);
-      await breakFuse(p);
-      await playHand(p);
-      await sleep(1200);
-      const start = p.now();
-      await sleep(500);
-      await p.ev(() => window.useGame.getState().openGameMenu());
-      await p.page.waitForSelector('.msb-leave', { timeout: 10000 });
-      await sleep(900);
-      await click(p, await rectOf(p, '.msb-leave'));
-      await sleep(700);
-      await click(p, await rectOf(p, '.msb-leave'));
-      await p.page.waitForFunction(() => !!window.useGame.getState().savedRun && window.useGame.getState().showTitle, null, { timeout: 20000 });
-      await sleep(1800);
-      const homeAt = p.now() - 0.4;
-      const c = await byText(p, '^\\s*continue');
-      if (!c) throw new Error('no Continue button');
-      await click(p, c);
-      await p.page.waitForFunction(() => !window.useGame.getState().showTitle, null, { timeout: 30000 });
-      await sleep(2200);
-      return { start, end: Math.min(p.now(), start + 8), still: homeAt };
-    },
-  },
   runeforge: {
     async run(p) {
       await startPractice(p);
@@ -168,7 +111,7 @@ export const ROUTINES = {
       await p.ev(() => window.useGame.getState().dispatch({ type: 'devOpenRuneforge', epic: false }));
       await p.page.waitForSelector('.forge-cards button.runecard', { timeout: 15000 });
       await sleep(3600);
-      await p.shot('forge');
+      await p.debugShot('forge');
       const cards = await p.ev(() => [...document.querySelectorAll('.forge-cards button.runecard')].map((b) => ({ label: b.getAttribute('aria-label'), no: b.classList.contains('cantafford') })));
       console.log('RUNES', JSON.stringify(cards));
       const pick = Math.max(0, cards.findIndex((c, i) => !c.no && i >= 1));
@@ -196,7 +139,7 @@ export const ROUTINES = {
       await sleep(1800);
       await click(p, await rectOf(p, '.anc-cards .anc-slot button.anc-card', 1));
       await sleep(3000);
-      await p.shot('anc-after');
+      await p.debugShot('anc-after');
       return { start: start + 2.3, end: Math.min(p.now(), start + 9.5), still: start + 5.5, crop: { x: 320, y: 180, w: 1280, h: 720 }, share: true };
     },
   },
@@ -205,7 +148,7 @@ export const ROUTINES = {
       await sleep(1500);
       const start = p.now();
       await p.ev(() => window.dispatchEvent(new CustomEvent('ascent:cratefx-play', { detail: { mode: 'epic', speed: 1, chest: 'epic' } })));
-      for (let i = 0; i < 9; i++) { await sleep(1000); await p.shot(`crate-${i}`); }
+      for (let i = 0; i < 9; i++) { await sleep(1000); await p.debugShot(`crate-${i}`); }
       console.log('CRATE', JSON.stringify(await p.ev(() => ({ cls: document.querySelector('.crate')?.className, name: document.querySelector('.crate-reward-name')?.textContent, rarity: document.querySelector('.crate-reward-rarity')?.textContent }))));
       return { start, end: start + 6.5, still: start + 5, crop: { x: 320, y: 130, w: 1280, h: 720 } };
     },

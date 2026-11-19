@@ -647,7 +647,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* (Its shape is the painted interior's own picture, the one `.wipevista-doorfill` already draws, turned into a black
    silhouette by a STATIC filter: no picture mask for the compositor to wait on, R-PRESENT-36.) */
 .wipevista-doordark { position: absolute; inset: 0; background: url('/vista-doorfill.webp') 0 0 / 100% 100% no-repeat;
-  filter: brightness(0); opacity: 0; will-change: opacity; }
+  filter: brightness(0); opacity: 0; will-change: opacity, transform; }
 .wipevista.dive .wipevista-doordark { animation: vistadoordark var(--wipe-reveal-dur, 450ms) both; }
 @keyframes vistadoordark { 0% { opacity: 0; animation-timing-function: ease-out; } 28% { opacity: 0.78; } 100% { opacity: 0.78; } }
 /* THE DIVE KEEPS ITS PARALLAX (owner 2026-10-23: "the background shouldnt zoom in as fast as the house and foreground").
@@ -716,13 +716,17 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* The doorway's interior (`vista-doorfill.webp`: the owner's door shape grown 3 px, so it overlaps the frame and no
    hairline can show), at its box. */
 .wipevista-doorfill { position: absolute; left: 43.75%; top: 65.4861%; width: 7.8516%; height: 18.2639%;
-  background: url('/vista-doorfill.webp') 0 0 / 100% 100% no-repeat; will-change: opacity; }
+  background: url('/vista-doorfill.webp') 0 0 / 100% 100% no-repeat; will-change: opacity, transform; }
+/* (`will-change: transform` on the door's three pieces, 2026-11-18, R-PERF-PHASE-ART-HELD-01: the stage zooms 18x through
+   the door, and a layer without the hint is drawn AGAIN at the zoomed size as the dive starts. For these small pictures
+   (201 and 413 px wide) that was 30 to 60 ms of GPU work in the dive's first frames, for no extra detail: the pictures
+   have none to give at that size. With the hint the compositor scales what it already drew.) */
 /* THE DOORWAY GLOWS (owner 2026-10-23: "use the shape of the mask to create a glow along the edge of it so it looks like the
    doorway begins glowing as it zooms into the door after the gem flash"): a turquoise-white line along the edge of the
    owner's door shape with a soft halo (`vista-doorglow.webp`, made from his shape), carried with the door. It lights up as
    the dive starts, just after the gem's flash, and stays lit as the doorway grows past the screen. */
 .wipevista-doorglow { position: absolute; left: 39.6094%; top: 58.125%; width: 16.1328%; height: 32.9861%;
-  background: url('/vista-doorglow.webp') 0 0 / 100% 100% no-repeat; opacity: 0; will-change: opacity; }
+  background: url('/vista-doorglow.webp') 0 0 / 100% 100% no-repeat; opacity: 0; will-change: opacity, transform; }
 .wipevista.dive .wipevista-doorglow { animation: vistadoorglow var(--wipe-reveal-dur, 450ms) both; }
 @keyframes vistadoorglow { 0% { opacity: 0; animation-timing-function: ease-out; } 18% { opacity: 1; } 100% { opacity: 1; } }
 /* THE SHOP COMES OUT OF SHADOW (owner 2026-10-23: "at the moment the board is revealed, it would be nice if it started darker
@@ -742,6 +746,13 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .wipevista-mid { background-image: url('/vista-mid.webp'); }
 .wipevista-shop { background-image: url('/vista-shop.webp'); }
 .wipevista-fore { background-image: url('/vista-fore.webp'); }
+/* HELD CANVASES (heldArt.ts, R-PERF-PHASE-ART-HELD-01): on desktop each of the five layers is drawn by a canvas the page
+   painted once and keeps, not by a CSS background the compositor decodes again on every trip (five 25 to 55 ms decodes
+   at the end of every fight, measured 2026-11-18). The canvas fills the layer exactly like the `100% 100%` background
+   did. `.heldart-off` (the canvas could not be painted) puts the background back. */
+.wipevista-layer.canvased:not(.heldart-off) { background-image: none; }
+.heldart { position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; }
+.heldart-off > .heldart { display: none; }
 /* Phones: one flattened picture instead of six full-screen layers (touchUi.css swaps them). */
 /* `--vista-flat` is set only on a phone (applyPhoneCssArt: its 1280 px copy, R-TOUCH-RUN-MEMORY-02); desktop reads the
    fallback, the 2560 px original. */
@@ -4325,8 +4336,10 @@ body.modalup .app { z-index: auto; }
    so they weigh (0,1,0), the same as the base rule above (they win by ORDER, so they must stay below it), and
    LESS than the DUEL rule (`body.duel-attacker-player .statusbar` z100 at (0,2,1), further down), which must
    keep winning mid-strike. A bare `body:has(.app.combat)` would weigh (0,3,1) and silently out-rank the duel. */
-:where(body:has(.app.combat)) .statusbar { z-index: 0; }
-:where(body:has(.app.combat)) .statusbar:where(:has(.heropanel:hover, .questbadge:hover, .buffsopen)) { z-index: 41; }
+/* `.staged` (2026-11-18, R-PERF-PHASE-ART-HELD-01): the ladder switches when the combat scene is swapped in under the
+   gate, not at the End Turn press. See `.app.combat.staged`. */
+:where(body:has(.app.combat.staged)) .statusbar { z-index: 0; }
+:where(body:has(.app.combat.staged)) .statusbar:where(:has(.heropanel:hover, .questbadge:hover, .buffsopen)) { z-index: 41; }
 /* Player name — a small white box above the hero panel; black text (mirrors the opponent name up top). */
 /* Player name — a pill eclipsing the TOP edge of the hero box (mirrors the opponent's `.opp-name` on its frame):
    absolutely centered on the top border, nudged up so it half-overlaps. Cream/gold to read as friendly (the
@@ -6457,7 +6470,13 @@ body:has(.fxwb-stage-mount) .pixifx { z-index: 501; }
    (0,2,0): the idle base must LOSE to `.unit.attacking` / `.struck` / `.poisoned` / `.reborn` (0,2,0, earlier
    in the file) and only beat the bare `.unit`; the dying rule must beat `.unit.dying` (0,2,0, earlier) by
    order alone. `combatZOrder.test.ts` pins the ladder. */
-.app.combat { z-index: auto; }
+/* ONLY ONCE THE COMBAT SCENE IS STAGED (`.staged`: from the swap under the fallen gate to the swap back under the vista;
+   2026-11-18, R-PERF-PHASE-ART-HELD-01). Units exist only inside that window (`combatUnitsShown`), so the ladder is
+   only needed there. `.combat` alone used to switch it at the End Turn press, while the Shop was still on screen behind
+   the falling gate: dissolving `.app`'s stacking context repaints and re-rasters every layer of the Shop, 20 to 30 ms
+   of GPU work in the very frame the press lands, for a scene that is replaced half a second later. The same switch now
+   lands with the swap itself, under the gate. */
+.app.combat.staged { z-index: auto; }
 :where(.app.combat) .unit { z-index: 1; }
 :where(.app.combat) .unit.dying { z-index: 2; }
 

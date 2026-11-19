@@ -93,6 +93,15 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'The end of a fight and the trip back to the Shop are smoother.',
+        details: [
+          'The game no longer freezes for a moment as a fight ends. It was reloading the pictures for the trip back to the Shop every round.',
+          'The dive through the Shop door no longer stutters as it starts.',
+          'Nothing looks different. This is speed only, on desktop.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Mech and Spirit have new tribe colors that match the gems on their card frames.',
         details: [
           'Mech is now indigo instead of sky blue.',

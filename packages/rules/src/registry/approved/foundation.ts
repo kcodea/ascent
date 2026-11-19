@@ -12941,6 +12941,36 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/staticShadowCss.test.ts'], lastVerifiedAt: '2026-11-18' },
   },
   {
+    id: 'R-PERF-PHASE-ART-HELD-01',
+    title: 'A phase change never decodes a full-screen picture again while a frame waits on it',
+    statement:
+      'The pictures a phase change shows (the return trip\x27s layers, the falling gate, the combat board) are ready to '
+      + 'draw when their moment comes, every round, not only the first. The browser\x27s compositor drops big pictures '
+      + 'that are off screen for a phase and decodes them again when they come back, with the main thread stuck behind '
+      + 'the decode. So on desktop the return trip\x27s five layers are canvases the page paints once and keeps for the '
+      + 'session (nothing to decode, however long they were hidden), and the pictures that stay CSS backgrounds are '
+      + 'asked for off the main thread a moment before the frame that draws them. A layer that rides a big zoom keeps '
+      + 'what it drew instead of drawing again at the zoomed size. And the combat layering (the app\x27s stacking context '
+      + 'dissolved, the hero bar under the units) switches when the combat scene is swapped in under the gate, never at '
+      + 'the End Turn press while the Shop is still on screen: that switch redraws every layer inside the app. Phones '
+      + 'keep their one small flattened picture and their bounded picture memory.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-18 (top priority, above everything)', quote: '240 fps constantly with no hitching, especially around the recruit phase' },
+      { kind: 'code', ref: 'packages/ui/src/heldArt.ts (the held canvases); packages/ui/src/decodeAhead.ts (warmEndTurnArt, warmVistaDoorArt); packages/ui/src/Recruit.tsx (VISTA_HELD, the fight-end warm-up); packages/ui/src/styles.css (.wipevista-layer.canvased, the door pieces\x27 will-change, .app.combat.staged)' },
+      { kind: 'fix-pr', ref: 'perf/phase-decode' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-18 (perf/phase-decode). Before, the end of every fight decoded the return trip\x27s five '
+      + '2560 x 1440 layers again (25 to 73 ms each, the main thread blocked behind them), and the dive through the '
+      + 'door drew the door\x27s pieces again at the zoomed size (30 to 60 ms of GPU work in its first frames). The '
+      + 'End Turn press also redrew the whole Shop behind the falling gate (the layering switched at the press). '
+      + 'Numbers: docs/devlog/2026-11-18-perf-phase-transitions.md.',
+    example: 'A fight ends on round 8. Before, the frame that readied the trip back to the Shop decoded five big pictures and the last hits of the fight froze for about a tenth of a second. Now the layers are already held, and nothing is decoded.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heldArt.test.ts', 'packages/ui/src/combatZOrder.test.ts'], lastVerifiedAt: '2026-11-18' },
+  },
+  {
     id: 'R-PERF-SHARED-TAIL-REVERB-01',
     title: 'A fight never builds reverb nodes as it starts, and the reverb pool never grows over a game',
     statement:

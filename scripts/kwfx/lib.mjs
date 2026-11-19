@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import http from 'node:http';
-import { spawn } from 'node:child_process';
+import { spawn, execFileSync } from 'node:child_process';
 
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 export const arg = (name, dflt) => { const i = process.argv.indexOf(`--${name}`); return i >= 0 && process.argv[i + 1] !== undefined ? process.argv[i + 1] : dflt; };
@@ -73,7 +73,7 @@ export async function launch({ cdpPort = 9552, width = 1920, height = 1080, dpr 
     void (local ? send('Fetch.continueRequest', { requestId: p.requestId }) : send('Fetch.failRequest', { requestId: p.requestId, errorReason: 'BlockedByClient' })).catch(() => {});
   });
   await send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: dpr, mobile: false });
-  return { send, on, off, close, ev, waitFor };
+  return { send, on, off, close, ev, waitFor, profile };
 }
 
 const G = `window.__bench.store.getState()`;
@@ -187,3 +187,4 @@ export async function toCombat(c, scene) {
   }
   return c.waitFor(`document.querySelectorAll('.unit .card.compact').length >= 8 && !document.body.classList.contains('wipe-up')`, 30000);
 }
+

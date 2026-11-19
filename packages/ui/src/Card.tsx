@@ -1782,7 +1782,7 @@ const FlurryAura = memo(function FlurryAura() {
   if (!live) return <div className="kwfx kwfx-flurry" aria-hidden="true" style={FLURRY_BAKED_STYLE} />;
   return (
     <div className="flurry" aria-hidden="true" style={flurryBoxStyle()}>
-      <div className="fl-breathe">
+      <div className={FLURRY.pulse > 0 ? 'fl-breathe' : 'fl-breathe steady'}>
         {FLURRY_RINGS.map((r, i) => (
           <div key={i} className="fl-ring-wrap" style={flurryWrapStyle(r)}>
             <div className="fl-ring" style={flurryRingStyle(r)}><div className="fl-ring-paint" style={flurryRingPaintStyle(r)} /></div>

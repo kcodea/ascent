@@ -16161,4 +16161,63 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms from 2026-11-18. Before, the Account tab showed only Signed in, the email and Sign out.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/partyHome/pages/career/phAddFriend.test.tsx'], lastVerifiedAt: '2026-11-18' },
   },
+  {
+    id: 'R-PERF-ROW-SLIDE-01',
+    title: 'The row slide after a buy, play or sale is a compositor animation of `translate`, never a script write per frame',
+    statement:
+      'When a Shop or board row changes, the cards that move slide from their old spot to their new one over `flipConfig.commitMs` '
+      + 'with the GSAP `power2.out` curve, after the death hold when a minion died. The slide is a Web Animation of the `translate` '
+      + 'property started once (`slideHome`, rowSlide.ts), never a tween that writes each card\x27s `transform` every frame: a script '
+      + 'write on a layer makes the main thread rebuild the page\x27s layer list that frame. `translate` composes with the card\x27s own '
+      + 'transform (the drag shift, a hover lift, the buy slide) as GSAP\x27s `x` did, so the motion on screen is the same. A card '
+      + 'asked to slide again mid-slide cancels the earlier slide and starts from the new offset.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-18 (performance push, relayed by the coordinator)', quote: 'the biggest problem to me is when i have a board with cards like Karwind and im playing APM and the game gets bogged down and nearly impossible to play. this needs to be butter smooth.' },
+      { kind: 'code', ref: 'packages/ui/src/rowSlide.ts; packages/ui/src/Recruit.tsx (RowFlip: slideFromSweep and the drop branch call slideHome)' },
+    ],
+    example: 'One action every 1.2 s on the Karwind board (`npm run perf:apm -- --per-action --per-action-trace`, prod bench build, on top of the nine open perf PRs): the layer-list rebuild (Layerize) an action adds fell from 36 to 23 ms with the badge pop below, and a sale from 130 to 98 ms of main thread.',
+    currentBehaviour: 'Conforms from 2026-11-19 (perf/commit-floor). Before, a GSAP tween wrote each moved card\x27s transform for 200 ms.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/rowSlide.test.ts', 'packages/ui/src/flipBatch.test.ts'], lastVerifiedAt: '2026-11-19' },
+  },
+  {
+    id: 'R-PERF-BADGE-POP-01',
+    title: 'A stat badge\x27s number pop runs on the compositor when no other pop is on that badge',
+    statement:
+      'The scale pop a stat badge plays when its printed number changes keeps its keyframes, easing and duration. It runs in the '
+      + 'default replace mode (a compositor animation) when no other scale pop is playing on that badge or built and waiting to '
+      + 'land there; while one is (a `react` layer pop such as a Ruby gem\x27s), it is additive (`composite: add`) so the two scales '
+      + 'multiply exactly as before. An additive animation cannot run on the compositor, and every frame of one was a style '
+      + 'recalculation, a layer-list rebuild and a re-raster of the card under the badge; an engine board pops fourteen badges on a play.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-18 (performance push, relayed by the coordinator)', quote: 'the biggest problem to me is when i have a board with cards like Karwind and im playing APM and the game gets bogged down and nearly impossible to play. this needs to be butter smooth.' },
+      { kind: 'code', ref: 'packages/ui/src/Card.tsx (useBadgePop); packages/ui/src/fx/popStack.ts (popsOn, noteScheduledPop); packages/ui/src/fx/primitives/react.ts' },
+    ],
+    example: 'Fourteen badges pop on a Karwind buff. Each pop used to tick on the main thread for its whole length; now the main thread starts it and the compositor plays it.',
+    currentBehaviour: 'Conforms from 2026-11-19 (perf/commit-floor). Before, every badge pop was additive.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/badgePopMode.test.tsx', 'packages/ui/src/fx/popStack.test.ts'], lastVerifiedAt: '2026-11-19' },
+  },
+  {
+    id: 'R-PERF-HOVER-SUBJECT-01',
+    title: 'No `:hover`, `:active` or focus rule styles a featureless subject; a menu board is "pointed at" by an attribute',
+    statement:
+      'No stylesheet rule puts `:hover`, `:active`, `:focus`, `:focus-within` or `:focus-visible` on an ancestor or sibling of a '
+      + 'subject with no class, id, tag or attribute (`*`, `*::before`, `:not(.x)`). The browser keeps one invalidation set per '
+      + 'pseudo-class for the whole stylesheet, so one such rule makes every hover change on ANY element restyle its whole subtree: '
+      + 'in a game, every card the pointer crossed. The menu boards (Hall rows, game cards, the party home game view) that keep '
+      + 'their cards\x27 loops still until pointed at read `[data-pointed]`, which `pointedBoard.ts` stamps on the board under the '
+      + 'mouse, inside the same `(hover: hover)` query the build\x27s hover guard used to add.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-18 (performance push, relayed by the coordinator)', quote: 'the biggest problem to me is when i have a board with cards like Karwind and im playing APM and the game gets bogged down and nearly impossible to play. this needs to be butter smooth.' },
+      { kind: 'code', ref: 'packages/ui/src/pointedBoard.ts; packages/ui/src/Game.tsx (installPointedBoards); packages/ui/src/styles.css; packages/ui/src/partyHome/pages/gamesPages.css' },
+    ],
+    example: '`.lb-row:not(:hover) .lb-team * { animation-play-state: paused }` paused a Hall row\x27s card loops, and restyled 100 to 150 elements every time the pointer entered or left a card in a game. It reads `.lb-row:not([data-pointed]) .lb-team *` now, and the menu boards pause and play exactly as before.',
+    currentBehaviour: 'Conforms from 2026-11-19 (perf/commit-floor).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/hoverSubjects.test.ts'], lastVerifiedAt: '2026-11-19' },
+  },
 ];

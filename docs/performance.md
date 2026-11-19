@@ -1117,6 +1117,21 @@ Numbers and method: `docs/devlog/2026-11-10-duos-perf-wins.md`.
 - **A CPU profile's self time is a sum, not a moment.** "`drawImage` 30 ms" in the pass's profile was 0.5 ms on each
   of some hundred frames of the plate dissolve, not one 30 ms call. Bucket the samples by time before naming a frame.
 
+## 3p. The Shop's per-action commit, 2026-11-19: keep the layer list still
+
+Numbers and method: `docs/devlog/2026-11-19-perf-commit-floor.md` (R-PERF-ROW-SLIDE-01, R-PERF-BADGE-POP-01,
+R-PERF-HOVER-SUBJECT-01).
+
+- **`Layerize` is a per-frame cost you can cause from script.** A script write of `transform` on a layer (a GSAP
+  tween) and an ADDITIVE Web Animation (`composite: 'add'`, which never runs on the compositor) both make Blink rebuild
+  the page's layer list on every frame they run. It was the largest single slice of a Shop action. Slide with a Web
+  Animation of `translate` (`rowSlide.ts`); pop in the replace mode unless another pop must multiply with it.
+- **`:hover` in front of a featureless subject restyles every hovered element's subtree**, in every screen, because
+  the invalidation set is per pseudo-class for the whole stylesheet. Name the subject, or use an attribute the page
+  sets (`pointedBoard.ts`). `hoverSubjects.test.ts` enforces it for `:hover`, `:active` and the focus pseudos.
+- **Split one action before optimising it**: `npm run perf:apm -- --per-action --per-action-trace` gives each action's
+  script / style / layout / paint, elements restyled and renders.
+
 ## 4. Established anti-patterns (don't reintroduce these)
 
 These are the rules the audits surfaced; the codebase already follows them — keep it that way.

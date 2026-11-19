@@ -208,7 +208,7 @@ const ART_DEFAULTS = Object.fromEntries(
 export type AncientColorKey = `${'death' | 'fortune' | 'war' | 'genesis' | 'time' | 'bonds'}Color`;
 /** THE AWAKENING SOUND CUES (owner: "i can help source sounds if you set up a tuner with timing cues"). Each cue is a
  *  clip id (swap in the owner's SFX in the tuner), a gain, an offset (ms, relative to its beat) and a rate (pitch). */
-export const ANCIENT_CUES = ['omenRumble', 'eruptionBoom', 'eruptionFlash', 'titleSting', 'revealSpark', 'cardReveal', 'ambientHum', 'pickWoosh', 'pickSeal', 'panelBg', 'panelSlide', 'panelSlam'] as const;
+export const ANCIENT_CUES = ['omenRumble', 'eruptionBoom', 'eruptionFlash', 'titleSting', 'revealSpark', 'cardReveal', 'ambientHum', 'pickWoosh', 'pickSeal', 'panelBg', 'panelSlide', 'panelSlam', 'pickPulse'] as const;
 export type AncientCue = (typeof ANCIENT_CUES)[number];
 export type AncientCueKey = `${AncientCue}${'Clip' | 'Gain' | 'Offset' | 'Rate'}`;
 /** The shipped picks (existing repo clips, pitched where it helps). Gains baked from the owner's tuner 2026-09-26. */
@@ -236,6 +236,9 @@ export const ANCIENT_CUE_DEFAULTS: Record<AncientCue, { clip: string; gain: numb
   panelSlide: { clip: 'fx/ancient-stone-slide-1', gain: 0.55, offset: 0, rate: 1 },
   // Each Ancient slamming in (owner 2026-11-19): two cinematic booms layered into one clip.
   panelSlam: { clip: 'fx/ancient-slam', gain: 0.5, offset: 0, rate: 1 },
+  // The three on offer rattling and pulsing (owner 2026-11-19): a shine on the first two pulses under a sparkle whoosh
+  // that rises through the rattle and peaks as the pulse ends. One sound for the three, not one each.
+  pickPulse: { clip: 'fx/ancient-pick-pulse', gain: 0.6, offset: 0, rate: 1 },
 };
 const CUE_DEFAULTS = Object.fromEntries(ANCIENT_CUES.flatMap((c) => {
   const d = ANCIENT_CUE_DEFAULTS[c];

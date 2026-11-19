@@ -77,6 +77,9 @@ export const AncientPanels = memo(function AncientPanels({ offered, phase }: { o
     const overs = Array.from(host.querySelectorAll<HTMLElement>('.anc-pn-over'));
     const sparks = cfg.panelSparks;
 
+    // The pick: one sound for the three's rattle and pulse.
+    playCue('pickPulse', tl.pickAt);
+
     panels.forEach((p, i) => {
       const o = overs[i];
       const q = (sel: string): Element | null => p.querySelector(sel) ?? o?.querySelector(sel) ?? null;

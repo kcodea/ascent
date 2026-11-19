@@ -119,4 +119,6 @@ about their bottom edge.
 - `RETUNED_AT` replaces `RETUNED`: bumping `REV` used to re-reset every key an EARLIER revision had retuned, which
   would have wiped the owner's later tuning of those. Each revision now lists only its own keys.
 - Audio work used the repo's `ffmpeg-static`; the build scripts were session scratch, not committed.
-- Still silent: the pick's pulse, the backgrounds falling, the slide along the bottom, the shooting stars.
+- `pickPulse` ("Three chosen"): `fx/ancient-pick-pulse`, a shine twice (0 and 345 ms, +11 dB) under a sparkle whoosh with
+  its 0.5 s silent lead-in cut, so it peaks around 0.75 to 1.25 s, as the 820 ms pulse ends. One sound for the three.
+- Still silent: the opening rumble, the backgrounds falling, the slide along the bottom, the shooting stars.

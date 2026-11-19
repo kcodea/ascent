@@ -1,6 +1,6 @@
 import { type PresentationCollector, type ConsequenceDraft, beatIdentity, inRunTribes, socTwilightExtraFires, COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, ALE_IDS, combatSide, makeCollector, makeRng, simulate, handGrantUid, type BoardMinion, type CardDef, type CombatConfig, type CombatResult, type CombatSideState, type Keyword, type PendingCombatQuest, type PresentationBatch, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type RuneDef, type Tribe, TRIBES } from '@game/core';
 import { ROYAL_TREASURY_PER } from '@game/core'; // Set 2 Epic tribal runes (2026-11-12)
-import { ancientGorrFirstFree, ancientSecondHandEvery, ancientSecondHandSources, ancientSecondHandIsExact, ancientSecondHandExactCopy, ancientOnDiscoverAny, ancientOnBuy, ancientRobinBondsPrice, ancientSpendRobinBonds, ancientCopyChargeReady, ancientSpendCopyCharge, ancientOnCopyMachine, ancientXeroxBondTripled, ancientCombatMods, ancientAfterPowerGild, ancientOfferOpen, ancientPowerTargetsGilded, ancientReplacesPowerGild, ancientsCombatTick, ancientsRefreshTick, ancientsSetMeter, pickAncient, ancientPulseExtraThenDestroy, ancientPulseDiscovers, ancientPulsePassive, ancientAfterPulse, ancientAegisDestroys, ancientAegisRecipient, ancientAegisDestroyAndGive, ancientAegisResilient, ancientAfterCombat, ancientBondsReact, ancientStartOfTurn, ancientEmpowerPassive, ancientOnEmpowerPick, ancientOnSpellbook, ancientClearancePassive, ancientClearanceStacks, ancientSpendClearanceStack, ancientClearanceRefresh, ancientMarkClearanceOffer, ancientAfterClearance, ancientOnClearanceBuy, ancientTimePrice, ancientNoteMinionBuy, ancientAfterRefresh, ancientTradesBuy, ancientRallyGoldGraft, ancientUpgradeSurchargeOff, FRUGAL_UPGRADE_SURCHARGE, ancientReclaimInShop, ancientShopReclaim, ancientAfterReclaimMark, ancientTradesRefreshFree, ancientTradesSpendFreeRefresh } from './ancients';
+import { ancientAvengeReset, ancientGorrFirstFree, ancientSecondHandEvery, ancientSecondHandSources, ancientSecondHandIsExact, ancientSecondHandExactCopy, ancientOnDiscoverAny, ancientOnBuy, ancientRobinBondsPrice, ancientSpendRobinBonds, ancientCopyChargeReady, ancientSpendCopyCharge, ancientOnCopyMachine, ancientXeroxBondTripled, ancientCombatMods, ancientAfterPowerGild, ancientOfferOpen, ancientPowerTargetsGilded, ancientReplacesPowerGild, ancientsCombatTick, ancientsRefreshTick, ancientsSetMeter, pickAncient, ancientPulseExtraThenDestroy, ancientPulseDiscovers, ancientPulsePassive, ancientAfterPulse, ancientAegisDestroys, ancientAegisRecipient, ancientAegisDestroyAndGive, ancientAegisResilient, ancientAfterCombat, ancientBondsReact, ancientStartOfTurn, ancientEmpowerPassive, ancientOnEmpowerPick, ancientOnSpellbook, ancientClearancePassive, ancientClearanceStacks, ancientSpendClearanceStack, ancientClearanceRefresh, ancientMarkClearanceOffer, ancientAfterClearance, ancientOnClearanceBuy, ancientTimePrice, ancientNoteMinionBuy, ancientAfterRefresh, ancientTradesBuy, ancientRallyGoldGraft, ancientUpgradeSurchargeOff, FRUGAL_UPGRADE_SURCHARGE, ancientReclaimInShop, ancientShopReclaim, ancientAfterReclaimMark, ancientTradesRefreshFree, ancientTradesSpendFreeRefresh } from './ancients';
 import { ancientSotSource } from './ancients'; // Ancient trigger procs (R-FX-ANCIENT-PROC-01)
 import { ancientInvestmentPassive, ancientInvestmentTime, ancientRunInvestmentTime, ancientInvestmentDiscovers, ancientRunInvestmentGenesis, ancientOnTripleReward, ancientOnDiscoverPick } from './ancients'; // Braum
 import { ancientSyncEchoEnchants, ancientEnchantedPrice, ancientEnchantedSpellCut, ancientOnEnchantedBuy } from './ancients'; // Ayse
@@ -46,6 +46,7 @@ import { blockedByShopClock } from './shopClock';
 import { magicHatBuy, restoreMagicHatSend } from './magicHat';
 import { armGratitude, gratitudeBuy, gratitudeLanded, restoreGratitudeArm, restoreGratitudePay } from './goldenGratitude';
 import { carryDuosLinkIntoTriple, duosLinkMods, duosLinkSync } from './duosLinks'; // Cindy × Ancient of Bonds
+import { gildProgressCarry } from './gildProgress'; // a triple keeps the furthest progress (R-GILD-PROGRESS-01)
 import { ancientOnPassMade, ancientReceivePassBonds, ancientNotePowerUse } from './ancients'; // Priestess (Duos); the pick-turn power use
 import { ancientVinesBonus } from './ancients'; // Rayse × Time
 import { applyDuosPass, duosDraft, isDuosTeamWire, landWaitingPasses, queueTeamEffect, receiveDuosPass, refundDuosPass, stampOutboxSrc, type DuosPassSource } from './duosPass';
@@ -4927,17 +4928,10 @@ function combineIntoGolden(s: RunState, tripleId: string, combined: BoardCard[])
     const maxBonus = Math.max(...combined.map((c) => c.hpGrantBonus ?? 0));
     hpGrantBonus = maxBonus > 0 ? maxBonus : undefined;
   }
-  // Frontdrake / Money Maker: keep the copy furthest into its cadence (closest to the next proc) — tripling
-  // one about to proc keeps the "procs this turn" timing. Only the cycle position (mod every) matters, so the
-  // golden inherits the max position; a fresh/just-procced set (all 0) starts a clean cycle. Any End-of-Turn
-  // effect with an `every` param counts (Frontdrake's conjure, Money Maker's card grant).
-  const cadenceEffect = def.effects.find((e) => e.on === 'endOfTurn' && (e.params as { every?: number } | undefined)?.every !== undefined);
-  let goldenEotTick: number | undefined;
-  if (cadenceEffect) {
-    const every = Math.max(1, Number((cadenceEffect.params as { every?: number })?.every ?? 3));
-    const pos = Math.max(...combined.map((c) => (c.eotTick ?? 0) % every));
-    goldenEotTick = pos > 0 ? pos : undefined;
-  }
+  // PROGRESS TRACKERS (owner 2026-11-18, R-GILD-PROGRESS-01): every per-instance meter (Gold spent, cards bought /
+  // played, casts, Shouts, Orbits, sales, Spirits, the End-of-Turn and Refresh cadences) starts at the FURTHEST of the
+  // copies, through the ONE shared helper. Frontdrake / Money Maker's cycle position lives there too.
+  const progress = gildProgressCarry(def, combined);
   // Absorbed mana-per-turn (a Money Bot magnetized into one of the copies) carries through the
   // triple so the income survives (the golden's own def.manaPerTurn handles the un-merged case).
   const absorbedMana = combined.reduce((sum, c) => sum + (c.manaBonus ?? 0), 0);
@@ -4998,7 +4992,7 @@ function combineIntoGolden(s: RunState, tripleId: string, combined: BoardCard[])
     ascendProgress: goldenAscend > 0 ? goldenAscend : undefined,
     damageDealt: goldenDamageDealt > 0 ? goldenDamageDealt : undefined,
     boughtWave: goldenBoughtWave,
-    eotTick: goldenEotTick,
+    ...progress,
   };
   // Respect the hard 10-card hand cap. If the hand is full the golden goes onto the board rather than
   // over-capping the hand — the reward is never lost. Board copies are consumed FIRST (see `pullCopies`), so a
@@ -5236,6 +5230,7 @@ export function playerBoardMinions(board: readonly BoardCard[]): BoardMinion[] {
  * the one builder the shipped player fight uses.
  */
 function preparePlayerCombatSide(s: RunState): PreparedCombatSide {
+  ancientAvengeReset(s); // the fight starts: no Avenge progress carries in from the Shop (R-AVENGE-PER-COMBAT-01)
   const player = playerBoardMinions(s.board);
   // CHOREOGRAPHER PR 7 — the pending Start-of-Combat payouts EMIT a source-attributed moment on the End Turn
   // dispatch (Beat Lab / the beats audit read these). Gameplay moved into `simulate` (above), so this is now a

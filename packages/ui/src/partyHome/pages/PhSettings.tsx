@@ -26,7 +26,7 @@ import { getVolume, isMuted, setVolume, sfx, toggleMute } from '../../sfx';
 import { getMusicVolume, isMusicMuted, setMusicVolume, toggleMusicMute } from '../../music';
 import { getAnnouncerVolume, isAnnouncerMuted, setAnnouncerVolume, toggleAnnouncerMute } from '../../announcer';
 import { getMasterVolume, isMasterMuted, setMasterVolume, toggleMasterMute } from '../../audio/master';
-import { inGameScreen, useGame } from '../../store';
+import { formatHandle, inGameScreen, useGame } from '../../store';
 import { concedeAreaOf, leaveGame, leaveKindOf, settingsLeaveText } from '../../gameMenuParts';
 import { useVersus } from '../../versus/versusStore';
 import { useSpectate } from '../../versus/spectate';
@@ -241,14 +241,42 @@ function SocialTab() {
   );
 }
 
+/** How long the Copy button reads Copied. */
+const COPIED_MS = 1600;
+
+/** YOUR TAG (owner 2026-11-18: "display the player's account#1234 here so they know their username information";
+ *  R-SETTINGS-ACCOUNT-TAG-01): the name with its tag, the handle friends type to add you, and a Copy button. */
+function TagRow({ handle, guest }: { handle: string; guest: boolean }) {
+  const [copied, setCopied] = useState<'yes' | 'no' | null>(null);
+  useEffect(() => {
+    if (!copied) return undefined;
+    const t = window.setTimeout(() => setCopied(null), COPIED_MS);
+    return () => window.clearTimeout(t);
+  }, [copied]);
+  const copy = (): void => {
+    sfx.pulse();
+    let p: Promise<void>;
+    try { p = navigator.clipboard.writeText(handle); } catch (e) { p = Promise.reject(e); }
+    p.then(() => setCopied('yes'), () => setCopied('no'));
+  };
+  return (
+    <ButtonRow label={handle} note={guest ? 'Your name and tag. Sign in to add friends.' : 'Your name and tag. Friends add you with this.'}
+      button={<PhButton size="s" onClick={copy} aria-label={copied ? undefined : `Copy ${handle}`}>{copied === 'yes' ? 'Copied' : copied === 'no' ? 'Could not copy' : 'Copy'}</PhButton>} />
+  );
+}
+
 function AccountTab() {
   const onTitle = useGame((s) => s.showTitle);
   const account = useGame((s) => s.account);
+  const playerName = useGame((s) => s.playerName);
   const signOutAccount = useGame((s) => s.signOutAccount);
   const openAccountPanel = useGame((s) => s.openAccountPanel);
   const signedIn = !account.anonymous && !!account.email;
+  // Guests get a tag too once their name is claimed; with no tag yet (offline, no name) the row is left out.
+  const handle = playerName && account.discriminator ? formatHandle(playerName, account.discriminator) : null;
   return (
     <Section title="Account">
+      {handle && <TagRow handle={handle} guest={!signedIn} />}
       {signedIn ? (
         <ButtonRow label="Signed in" note={account.email ?? undefined}
           button={<PhButton size="s" onClick={() => { sfx.pulse(); void signOutAccount(); }}>Sign out</PhButton>} />

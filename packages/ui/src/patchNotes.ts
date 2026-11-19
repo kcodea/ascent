@@ -70,6 +70,18 @@ export const PATCH_NOTES: PatchNote[] = [
         ],
       },
       {
+        category: 'Balance',
+        text: 'Beardsley now improves by +2/+1 for every Beast, up from +1/+1.',
+        details: [
+          'The grant now runs +2/+1, then +4/+2, then +6/+3.',
+          'Gilded Beardsley gives +4/+2 and improves by +4/+2.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Beardsley and Vicious now show their current buff during combat. The number grows as each Beast is summoned.',
+      },
+      {
         category: 'Systems',
         text: 'Mech and Spirit have new tribe colors that match the gems on their card frames.',
         details: [

@@ -8,7 +8,8 @@ import { duosMateRunNow } from './versus/duosMateRun';
 const NO_HAND_PREVIEWS: CardView[] = [];
 import { targetPromptFor } from './targetPrompt';
 import { CARD_INDEX, EQUIPMENT_INDEX, QUEST_INDEX, RUNE_INDEX, activeSet } from '@game/content';
-import { createOddsStepper } from './oddsStepper';
+import { runBackgroundOdds } from './simWorker/backgroundOdds';
+import { prewarmSimWorker } from './simWorker/client';
 import { compileTimeline } from './choreographer/compileTimeline';
 import { normalizePresentationBatch } from './choreographer/adapters/presentationBatchAdapter';
 import { createTimelinePlayer, runTimeline } from './choreographer/livePlayer';
@@ -72,7 +73,7 @@ import { carnivalCoinLive } from '@game/sim'; // Juggler × Ancients
 import { discoverOfferCard } from '@game/sim'; // the Discover pick preview (R-DISCOVER-PREVIEW-01)
 import { isAncientBuffLabel } from '@game/sim'; // Ancient trigger procs (R-FX-ANCIENT-PROC-01)
 import { playAncientProcBurst } from './ancientProcFx';
-import { type Action, aleHandMagnitude, shopArrivals, passariaTarget, battlecryTargetAllowed, ancientEnchantedSpellCut, grimToastFold, unityAuraFold, EQUIPMENT_FX_ANCHOR, ancientRiseTint, spiritsPlayedThisTurn, anySpellsCastThisTurn, unusedEquipmentCount, shopSpellsBoughtThisTurn, playerOpponent, alignmentsOf, boardHasCelestial, chooseBothActive, chooseBothStateOf, type ChooseBothState, chooseOneNeedsChoice, computeCombatOdds, type CombatOdds, rubyCastCount, giftCastCount, rubyStatBonus, CONFIG, riftDefFor, type RiftDef, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, defIsTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, endOfTurnTicksOf, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, chooseOneBranchText, spellAttackBonus, spellHealthBonus, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, squirlScoutBuffLive, conductorBuffLive, spellCasts, runeExtraCasts, spellCostReduction, implosionCasts, dragonflameCasts, minionCostOf, heldOfferPrice, heroOfferPrice, offerBuyPrice, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, nextRefreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot, gildCopiesNeeded, activePowers, ancientPairingHeroId, gateUses, runeStacksOf, starformSpellAimsToken, createOddsProbe, COMBAT_ODDS_SIMS, runLossCap, selectedEquipment, selectedEquipmentDef, runTallyFor } from '@game/sim';
+import { type Action, aleHandMagnitude, shopArrivals, passariaTarget, battlecryTargetAllowed, ancientEnchantedSpellCut, grimToastFold, unityAuraFold, EQUIPMENT_FX_ANCHOR, ancientRiseTint, spiritsPlayedThisTurn, anySpellsCastThisTurn, unusedEquipmentCount, shopSpellsBoughtThisTurn, playerOpponent, alignmentsOf, boardHasCelestial, chooseBothActive, chooseBothStateOf, type ChooseBothState, chooseOneNeedsChoice, computeCombatOdds, type CombatOdds, rubyCastCount, giftCastCount, rubyStatBonus, CONFIG, riftDefFor, type RiftDef, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, defIsTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, endOfTurnTicksOf, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, chooseOneBranchText, spellAttackBonus, spellHealthBonus, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, squirlScoutBuffLive, conductorBuffLive, spellCasts, runeExtraCasts, spellCostReduction, implosionCasts, dragonflameCasts, minionCostOf, heldOfferPrice, heroOfferPrice, offerBuyPrice, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, nextRefreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot, gildCopiesNeeded, activePowers, ancientPairingHeroId, gateUses, runeStacksOf, starformSpellAimsToken, runLossCap, selectedEquipment, selectedEquipmentDef, runTallyFor } from '@game/sim';
 import { createPortal } from 'react-dom';
 import { setCardId, setCardStats, toggleCardKeyword, setEnemyStats, setEnemyCardId, toggleEnemyKeyword, toggleEnemyGolden, removeEnemy, foeSnapshotOf } from './sandboxEdit';
 import { UnitEditor } from './UnitEditor';
@@ -84,7 +85,7 @@ import { PortraitFrame, frameIdOf, usePortraitFrame } from './portraitFrame/Port
 import { resolvePortraitFrame } from './portraitFrame/portraitFrameConfig';
 import { beginDragTrace, cancelDragTrace, endDragTrace, sampleDragTrace } from './replay/dragTrace';
 import { SYM_KINDS } from './choreo/channels/float';
-import { stabilizeViewMap, stabilizeRefMap, stabilizeView } from './cardViewEqual';
+import { cardViewEqual, stabilizeViewMap, stabilizeRefMap, stabilizeView } from './cardViewEqual';
 import { buildShopViews, type ShopViewCacheEntry } from './shopViewCache';
 import { deriveDragDecision, dragDecisionEqual, computeCastingSpell, handDragLines, handMinionCommits, NO_DRAG_DECISION, INSERT_FRAC, indexFromSlots, reorderIndexFromSlots, type DragGeo, type DragDecision } from './dragDecision';
 import { dragStore, useDragSlice, type DragSnapshot, type DragState } from './dragStore';
@@ -105,6 +106,7 @@ import { grantedTriggersOfBoard } from './grantedTriggers';
 import { clearAllHandBuffs, diffHandBuffs, fireHandBuff, fireHandBuffOnHandSpells, fireHandBuffOnHandRubies } from './handBuffFx';
 import { HudBar } from './HudBar';
 import { LobbyPanel } from './LobbyPanel';
+import { useStableLobby } from './stableLobby';
 import { GauntletFoe } from './gauntlet/GauntletFoe';
 import { TRIBE_ICON } from './gauntlet/tribeIcon';
 import { foePortrait } from './gauntlet/foePortrait';
@@ -313,6 +315,8 @@ import { gateFx } from './rankedGate/gateFx';
 import { PHONE_GPU } from './phoneDiag';
 import { fxNote } from './fxLedger';
 import { publicArt } from './phoneArt';
+import { mountHeldArt } from './heldArt';
+import { warmEndTurnArt, warmVistaDoorArt } from './decodeAhead';
 import { crumbTick } from './crashLog';
 import { afterBeat, afterSweep, combatBackdropShown, curtainClassFor, vistaClassFor, vistaDrivesMachine, vistaWarmClassFor, VISTA_WARM_MS, wipeExiting, wipeSweeping, wipeUp, type VistaWarmStep, type WipeState } from './wipeMachine';
 import { VISTA_DOOR_CLIP, VISTA_DOOR_CLIP_ID } from './vistaDoor';
@@ -345,6 +349,17 @@ const GOLDEN_RUBY_COIN_GAP_MS = 220;
 /** The return trip's vista layers, back to front (`public/vista-<name>.webp`; owner 2026-10-23: six parallax layers, then
  *  "lets actually not use the floating islands layer", so five). */
 const VISTA_LAYERS = ['sky', 'far', 'mid', 'shop', 'fore'] as const;
+/** The vista's drawn size in device px: its stage is the window, cover-fit to 16:9 (`.wipevista-stage`). No layout read. */
+const vistaDrawnSize = (): { w: number; h: number } => {
+  const dpr = window.devicePixelRatio || 1;
+  return { w: Math.max(window.innerWidth, window.innerHeight * 1.7778) * dpr, h: Math.max(window.innerHeight, window.innerWidth / 1.7778) * dpr };
+};
+/** DESKTOP: each vista layer is a HELD canvas (heldArt.ts, R-PERF-PHASE-ART-HELD-01), mounted by these stable refs, so
+ *  the trip back never waits on a decode. Phones keep their one flattened CSS picture (null here). */
+const VISTA_HELD: Record<(typeof VISTA_LAYERS)[number], (el: HTMLDivElement | null) => void> | null = PHONE_GPU ? null
+  : Object.fromEntries(VISTA_LAYERS.map((n) => [n, (el: HTMLDivElement | null): void => {
+    if (el) mountHeldArt(el, publicArt(`vista-${n}.webp`), vistaDrawnSize);
+  }])) as Record<(typeof VISTA_LAYERS)[number], (el: HTMLDivElement | null) => void>;
 /** The return trip's arrival, ms: the land finishes rising 0.15 + 0.7 s in (styles.css, "THE ARRIVAL"); its sweep backstop. */
 const VISTA_ARRIVAL_MS = 800; // 0.85 s -> 0.75 s -> 0.8 s (owner 2026-10-23: "adjust the arrival to .75 s", then "the arrival to .8"); the CSS arrival is scaled to match
 /** The vista's turquoise GEM (on the medallion over the shop door) on SCREEN at the end of the push (screen px, for the
@@ -822,6 +837,7 @@ const ChargeGlyph = memo(function ChargeGlyph({ inCombat, window: chargeWindow, 
       behind.width = Math.max(1, Math.round((right - left) * scale * dpr));
       behind.height = Math.max(1, Math.round((bottom - top) * scale * dpr));
       fx.behindView = { ox: left, oy: top, scale, dpr };
+      renderer.resetBehind(); // a resized canvas is blank, and last frame's rectangle no longer means anything
       // Gem canvas: a square over the button (fixed inside the stage, so stage px are its coordinates).
       // Pieces over the End Turn button draw ON TOP of it (owner 2026-10-27): the gem pass covers the button.
       const btn = document.querySelector('.etbwrap');
@@ -888,8 +904,7 @@ const ChargeGlyph = memo(function ChargeGlyph({ inCombat, window: chargeWindow, 
       // 0:00 reached while lit: everything collapses into the gem with a burst (lands with sfx.turnExplode()).
       if (charge >= 1 && sim.mode === 'charging' && !heldRef.current) { sim.collapse(); renderer.burst(); }
       if (!heldRef.current) sim.step(dt, charge, geom);
-      if (fx.behindCtx) renderer.drawBehind(fx.behindCtx, sim, geom, fx.behindView); // no-op once empty and clean
-      if (fx.gemCtx) renderer.drawGem(fx.gemCtx, sim, geom, fx.gemView, charge, now / 1000);
+      renderer.drawFrame(fx.behindCtx, fx.gemCtx, sim, geom, fx.behindView, fx.gemView, charge, now / 1000);
     };
     const chargeNow = (): number => {
       if (previewRef.current != null) return previewRef.current; // dev preview: pin to the forced charge (no clock)
@@ -903,7 +918,8 @@ const ChargeGlyph = memo(function ChargeGlyph({ inCombat, window: chargeWindow, 
     // PHONES (R-PHONE-CHARGE-30HZ-01): each write of the burn changes the fuse's mask, which repaints it. A 120 Hz
     // iPhone paid that 120 times a second for the last 20 s of every shop. The fuse moves about a layout px a frame,
     // so ~30 writes a second look the same and cost a quarter; the sim steps on the same beat.
-    // Desktop paints every frame, as before.
+    // Desktop paints every frame, as before: since R-PERF-FUSE-BURN-01 (2026-11-18) the burn write is transform-only
+    // (styles.css `.fuse-burn`), so it repaints nothing, and the motion stays as smooth as the display.
     let last = -Infinity;
     let lastStep = performance.now();
     const draw = (now: number): void => {
@@ -932,7 +948,7 @@ const ChargeGlyph = memo(function ChargeGlyph({ inCombat, window: chargeWindow, 
   return (
     <>
       <div className={`chargeglyph${exitCls}${heldFx ? ' held' : ''}`} ref={boxRef} aria-label={`${seconds}s left`} aria-hidden="true">
-        <div className="fuse-body" />
+        <div className="fuse-burn"><div className="fuse-body" /></div>
       </div>
       <canvas className={`charge-motes${exitCls}`} ref={canvasRef} aria-hidden="true" />
       {createPortal(<canvas className={`fuse-gemfx${exitCls}`} ref={gemRef} aria-hidden="true" />, stageHost())}
@@ -1520,6 +1536,8 @@ export function Recruit() {
   const screenId = screenIdOf(run);
   const swapped = useScreenSwapped(screenId);
   const dispatch = useGame((s) => s.dispatch);
+  // The lobby rail's prop keeps its identity across shop actions (R-PERF-LOBBY-STABLE-01, stableLobby.ts).
+  const stableLobby = useStableLobby(run.lobby, run.mode === 'versus');
   const heroArmed = useGame((s) => s.heroArmed);
   const compactCards = useGame((s) => s.compactCards);
   const armHero = useGame((s) => s.armHero);
@@ -2689,8 +2707,10 @@ export function Recruit() {
     document.body.classList.toggle('wipe-up', wipeOnScreen);
   }, [wipeOnScreen]);
   useEffect(() => () => document.body.classList.remove('wipe-up'), []);
-  // The vista's art, fetched on mount and kept referenced (the network is never the wait). This does NOT keep it ready to
-  // draw: the compositor decodes for itself, and drops it again (R-PRESENT-36). THE WARM-UP below does that part.
+  // The vista's CSS art, fetched on mount and kept referenced (the network is never the wait). This does NOT keep it
+  // ready to draw: the compositor decodes for itself, and drops it again (R-PRESENT-36). On desktop the five big layers
+  // are HELD CANVASES instead (`VISTA_HELD`, heldArt.ts): painted once, never decoded again. On a phone THE WARM-UP
+  // below readies its one flattened picture.
   const vistaArtRef = useRef<HTMLImageElement[]>([]);
   // The live state, for the vista's animation handlers: only a real trip moves the machine (`vistaDrivesMachine`).
   const wipeNowRef = useRef(wipe);
@@ -2708,7 +2728,9 @@ export function Recruit() {
     // …and the return trip's vista: its six layers, or (phones) its one flattened picture.
     // Fetched and decoded up front and kept referenced. Through `publicArt`: on a phone the flat picture is its 1280 px
     // copy (the same URL the stylesheet's `--vista-flat` points at, R-TOUCH-RUN-MEMORY-02); desktop, the originals.
-    const art = (PHONE_GPU ? ['flat', 'doorfill', 'doorglow'] : [...VISTA_LAYERS, 'doorfill', 'doorglow']).map((n) => `vista-${n}.webp`);
+    // (Desktop's five big layers are held canvases, painted by their own refs: `VISTA_HELD`. Only the door's two small
+    // pictures are CSS backgrounds there.)
+    const art = (PHONE_GPU ? ['flat', 'doorfill', 'doorglow'] : ['doorfill', 'doorglow']).map((n) => `vista-${n}.webp`);
     vistaArtRef.current = art.map((f) => {
       const img = new Image();
       img.src = publicArt(f);
@@ -2766,6 +2788,10 @@ export function Recruit() {
     // 0.3 s earlier than it first fired (owner 2026-10-23: "have the gem flash ... .3 seconds earlier, so it has a bit more time to flair").
     }, Math.max(0, getScreenWipeConfig().holdOutMs - charge - 420));
     return () => window.clearTimeout(t);
+  }, [wipe]);
+  useEffect(() => {
+    // The combat board is asked for again as the gate starts to fall (decodeAhead.ts): the swap is ~0.35 s away.
+    if (wipe === 'chargeIn' || wipe === 'coverIn') warmEndTurnArt();
   }, [wipe]);
   useEffect(() => {
     // The gate's sounds and dust belong to the ENTRY pass only: the return trip is the vista (owner 2026-10-23).
@@ -2920,56 +2946,20 @@ export function Recruit() {
     setCombatOdds(lc?.odds ?? null); // legacy pre-deferral saves carry odds inline
     if (spectatorOn) return; // the stands show the player's own odds (above), never a probe of their own
     if (!lc?.oddsInput || lc.odds) return;
-    const input = lc.oddsInput;
-    let cancelled = false;
-    // INCREMENTAL (perf pass 2026-09-16): the one-shot probe was a single 7-44 ms synchronous block (bigger
-    // boards → longer sims) that the rIC `timeout` dropped mid-frame on a busy replay — a long task at every
-    // combat start. `createOddsProbe` runs the SAME per-sim seeds in resumable steps, so we drive it in
-    // slices: each idle callback runs one cost-sized step, then keeps stepping only while the deadline holds.
-    // Each slice records under `odds:deferred`, so the monitor shows many small calls, not one long one.
-    // The result is byte-identical to `computeCombatOdds` (pinned in odds.test.ts).
-    // Each uninterruptible step is sized by its measured cost (oddsStepper.ts, mobile perf pass 2026-10-18): a fixed
-    // 10-sim step was a 59 ms long task on a throttled phone late-game, several frame budgets on the 240 Hz desktop.
-    const ODDS_STEP_TARGET_MS = 2;    // aim each step at ~2 ms (one sim minimum, ten maximum)
-    const ODDS_YIELD_MS = 4;          // keep stepping only while the idle deadline has more than this left
-    const ODDS_SLICE_TIMEOUT_MS = 200; // rIC timeout per callback — a saturated main thread still drains a step every 200 ms
-    const ODDS_FALLBACK_MS = 32;      // no rIC: one step every couple of frames
-    const probe = createOddsProbe(input, run.seed, run.wave, COMBAT_ODDS_SIMS, oddsLossCap);
-    const stepper = createOddsStepper(probe, () => performance.now(), ODDS_STEP_TARGET_MS);
-    const hasRIC = typeof requestIdleCallback === 'function';
-    let idleId = 0; let timerId = 0;
-    const slice = (deadline?: IdleDeadline): void => {
-      if (cancelled) return;
-      const done = perfMonitor.measure('odds:deferred', () => {
-        // A timed-out callback (`didTimeout`) has no idle budget — still run one step so a busy replay can't
-        // starve the probe forever; otherwise keep stepping while the deadline holds.
-        let finished = stepper.step();
-        while (!finished && deadline && !deadline.didTimeout && deadline.timeRemaining() > ODDS_YIELD_MS) finished = stepper.step();
-        return finished;
-      });
-      if (cancelled) return;
-      if (done) {
-        const odds = probe.result();
-        setCombatOdds(odds);
-        // REPLAY V2 (2026-09-19): the number the player is about to see is the number the replay prints.
-        useGame.getState().stampReplayOdds(odds);
-        tapOdds(run.wave, odds); // the stands' Summary shows these exact numbers (a no-op with nobody watching)
-        return;
-      }
-      schedule();
-    };
-    // rIC waits for a quiet frame during the combat intro; the timeout stops a busy replay starving a slice.
-    const schedule = (): void => {
-      if (hasRIC) idleId = requestIdleCallback(slice, { timeout: ODDS_SLICE_TIMEOUT_MS });
-      else timerId = window.setTimeout(() => slice(), ODDS_FALLBACK_MS);
-    };
-    schedule();
-    return () => {
-      cancelled = true;
-      if (idleId && typeof cancelIdleCallback === 'function') cancelIdleCallback(idleId);
-      if (timerId) window.clearTimeout(timerId);
-    };
+    // OFF THE MAIN THREAD (perf pass 2026-11-18, R-PERF-SIM-WORKER-01): the 200 sims run in the sim worker and only
+    // the result comes back. Where there is no worker the same probe runs in idle slices, never in a frame the
+    // browser had to force (simWorker/backgroundOdds.ts). Byte-identical either way (pinned in odds.test.ts and
+    // simWorker/handler.test.ts).
+    const wave = run.wave;
+    return runBackgroundOdds({ input: lc.oddsInput, seed: run.seed, wave, cap: oddsLossCap }, (odds) => {
+      setCombatOdds(odds);
+      // REPLAY V2 (2026-09-19): the number the player is about to see is the number the replay prints.
+      useGame.getState().stampReplayOdds(odds);
+      tapOdds(wave, odds); // the stands' Summary shows these exact numbers (a no-op with nobody watching)
+    });
   }, [run.lastCombat, run.seed, run.wave, oddsLossCap, spectatorOn]);
+  // The sim worker is up before the first fight needs it (a no-op once it is running, or where there is none).
+  useEffect(() => { prewarmSimWorker(); }, []);
   const shownOdds = spectatorOn ? (watchedOdds && watchedOdds.w === run.wave ? watchedOdds.o : null) : combatOdds;
   const [discoverMin, setDiscoverMin] = useSwapState(false, swapped); // B2: the Discover overlay is minimized (inspect the board)
   const [powerMin, setPowerMin] = useSwapState(false, swapped); // the hero-power Discover's Peek (same toggle, same contract)
@@ -3355,6 +3345,7 @@ export function Recruit() {
   // that commit was a drag decision that never re-rendered `Recruit`. The refs above are theirs to write.
 
   const replay = useCombatReplay(run.lastCombat, { active: fighting, findEl, combatSpeed, paused: overlayOpen || versusPaused || combatHalted, rampEnabled });
+  // (PHONES. Desktop skips the play, see below: its layers are held canvases.)
   // THE VISTA'S WARM-UP (R-PRESENT-36; wipeMachine.ts `vistaWarmClassFor`): the moment a fight's replay ends, while it
   // still sits on screen (End Combat only opens now), the return trip's hold and dive play once, unseen, behind the
   // game, so the compositor has drawn every layer at every scale the trip needs. Once per fight. A press during it ends
@@ -3364,6 +3355,12 @@ export function Recruit() {
   useEffect(() => {
     if (wipe !== 'combat' || !replay.done || !run.lastCombat || vistaWarmedForRef.current === run.lastCombat) return undefined;
     vistaWarmedForRef.current = run.lastCombat;
+    // DESKTOP (R-PERF-PHASE-ART-HELD-01, 2026-11-18): the five big layers are held canvases, so there is nothing to
+    // decode and nothing to draw ahead. The invisible play is skipped: it re-decoded all five (25 to 73 ms each) and
+    // rastered the door at dive scale while the fight's last hits were still on screen, a 60 to 110 ms hitch at the end
+    // of every fight. Only the door's two small CSS pictures are asked for, off the main thread. Phones keep the play
+    // (their one flattened picture is a CSS background).
+    if (!PHONE_GPU) { warmVistaDoorArt(); return undefined; }
     setVistaWarm('hold');
     const t1 = window.setTimeout(() => setVistaWarm('dive'), VISTA_WARM_MS.hold);
     const t2 = window.setTimeout(() => setVistaWarm(null), VISTA_WARM_MS.hold + VISTA_WARM_MS.dive);
@@ -3559,13 +3556,13 @@ export function Recruit() {
   // Bridge this fight's live run-buff gains (spell power, max Gold) to the store so the Buffs window ticks up
   // in sync with the replay. Cleared to `null` once combat is SETTLED — settleCombat folds the gains into the
   // run state, so the row then reads them from there (adding the live delta too would briefly double-count).
-  const { spellAttack: cbA, spellHealth: cbH, rubyAttack: cbRA, rubyHealth: cbRH, gold: cbGold, auras: cbAuras } = replay.combatBuffs;
-  // A compact signature of the per-aura map so the effect re-runs when ANY aura row ticks (the map is a fresh
-  // object each beat, so we key on its contents, not its reference).
-  const cbAuraSig = JSON.stringify(cbAuras);
+  // `replay.combatBuffs` keeps its reference until a number in it (an aura row included) moves (`useStableValue` in
+  // the replay hook), so the effect is keyed on the object itself: no per-render signature of the aura map.
+  const combatBuffsNow = replay.combatBuffs;
+  const { spellAttack: cbA, spellHealth: cbH } = combatBuffsNow;
   useEffect(() => {
-    setCombatBuffs(inCombat && !run.combatSettled ? { spellAttack: cbA, spellHealth: cbH, rubyAttack: cbRA, rubyHealth: cbRH, gold: cbGold, auras: cbAuras } : null);
-  }, [inCombat, run.combatSettled, cbA, cbH, cbRA, cbRH, cbGold, cbAuraSig, setCombatBuffs]);
+    setCombatBuffs(inCombat && !run.combatSettled ? combatBuffsNow : null);
+  }, [inCombat, run.combatSettled, combatBuffsNow, setCombatBuffs]);
   // …and the same fold drives every printed SPELL number (owner report 2026-09-22: "front to backs text /
   // maybe all spells? not updating in real time from buffs in combat"). `simulate` keeps its own spell power
   // live inside the fight, but the run's `spellBonus` is written only at settle — so a Chorus Drake pumping
@@ -4782,6 +4779,7 @@ export function Recruit() {
   // `checkTriples`' counting AND its threshold: the copies needed is 3 normally but 2 under Rune of Twin
   // Gilding or Midas' Touch, so the number you must already hold is `need - 1`. This was hardcoded to 2, so a
   // Midas player (who Gilds at 2) saw NO highlight on the duplicate that would complete it (owner 2026-08-21).
+  const tripleReadyCache = useRef<Set<string>>(new Set());
   const tripleReadyUids = useMemo(() => {
     const counts = new Map<string, number>();
     for (const c of [...run.board, ...run.hand]) {
@@ -4795,6 +4793,11 @@ export function Recruit() {
       const cd = CARD_INDEX[o.cardId];
       if (!cd?.spell && !cd?.ruby && !cd?.noTriple && (counts.get(o.cardId) ?? 0) >= gildCopiesNeeded(run, o.cardId) - 1) out.add(o.uid);
     }
+    // The same uids as last time: hand back the same Set, so the shop row keeps its memo (the run's arrays are new
+    // objects after every action, so this memo re-runs on each one; R-PERF-LOBBY-STABLE-01).
+    const prev = tripleReadyCache.current;
+    if (prev.size === out.size && [...out].every((u) => prev.has(u))) return prev;
+    tripleReadyCache.current = out;
     return out;
   }, [run.board, run.hand, run.shop, run.heroId, run.runeTwinGilding]);
   // DUOS (owner 2026-11-02, R-DUOS-MATE-TRIPLE-01): "when a teammate has a pair, and the minion shows up in your shop. we
@@ -8238,6 +8241,9 @@ export function Recruit() {
   // Omen. (The effects themselves still *resolve* inside `faceOmen` — this is purely the telegraph.)
   const endTurn = (): void => {
     if (inCombat || endTurnPendingRef.current) return;
+    // The gate and the combat board start decoding now, off the main thread, so the swap under the gate never waits on
+    // them (decodeAhead.ts, R-PERF-PHASE-ART-HELD-01). A no-op when they are still decoded.
+    warmEndTurnArt();
     // VERSUS (2026-10-13): End Turn LOCKS the round on the server; the real End Turn plays once the round's one
     // fight is in (`useVersusRecruit` re-enters here with the gate open), so its commit lands that fight.
     if (versusGate.intercept()) return;
@@ -9059,8 +9065,19 @@ export function Recruit() {
     return heldConsume.length || eotHeld.length ? new Set([...heldConsume.map((h) => h.uid), ...eotHeld]) : null;
   }, [heldConsume, eotRefillPending, eotConsumedUids]);
   // The grant previews' views, built once per (previews, run) instead of inside the hand row's map on every render.
+  // Keyed on the whole run (the builders read it broadly), so it re-runs on every action: an unchanged list keeps its
+  // identity (no previews = one shared empty array; otherwise the last array when every view is equal), so the hand
+  // row keeps its memo (R-PERF-LOBBY-STABLE-01).
+  const handPreviewCache = useRef<CardView[]>(NO_HAND_PREVIEWS);
   const handPreviewViews = useMemo(
-    () => handPreviews.map((cardId) => conjuredView(cardId, run) ?? tokenRefView(cardId, cardBuffsLive, run.impBuff, undefined, run.rubyBonus)),
+    () => {
+      if (handPreviews.length === 0) { handPreviewCache.current = NO_HAND_PREVIEWS; return NO_HAND_PREVIEWS; }
+      const fresh = handPreviews.map((cardId) => conjuredView(cardId, run) ?? tokenRefView(cardId, cardBuffsLive, run.impBuff, undefined, run.rubyBonus));
+      const prev = handPreviewCache.current;
+      if (prev.length === fresh.length && fresh.every((v, i) => cardViewEqual(prev[i]!, v))) return prev;
+      handPreviewCache.current = fresh;
+      return fresh;
+    },
     [handPreviews, run, cardBuffsLive],
   );
   // R-HAND-GRANT-SUMMON-01 (owner 2026-10-23): a minion granted mid-fight is in the combat hand under the uid its
@@ -9178,13 +9195,13 @@ export function Recruit() {
                 <div className="wipevista-dive wipevista-dive-title"><div className="wipevista-titlebox">
                   <div className="wipevista-title wipevs-label"><span>Returning</span><span>To Shop</span></div>
                 </div></div>
-                <div className="wipevista-layer wipevista-shop" />
+                <div className={`wipevista-layer wipevista-shop${VISTA_HELD ? ' canvased' : ''}`} ref={VISTA_HELD?.shop} />
               </Fragment>
-              : <div key={n} className={`wipevista-dive wipevista-dive-${n}`}><div className={`wipevista-layer wipevista-${n}`} /></div>)}
+              : <div key={n} className={`wipevista-dive wipevista-dive-${n}`}><div className={`wipevista-layer wipevista-${n}${VISTA_HELD ? ' canvased' : ''}`} ref={VISTA_HELD?.[n]} /></div>)}
             <div className="wipevista-layer wipevista-flat" />
           </div>
           <div className="wipevista-doorwrap"><div className="wipevista-doorfill"><div className="wipevista-doordark" /></div><div className="wipevista-doorglow" /></div>
-          <div className="wipevista-dive wipevista-dive-fore"><div className="wipevista-layer wipevista-fore" /></div>
+          <div className="wipevista-dive wipevista-dive-fore"><div className={`wipevista-layer wipevista-fore${VISTA_HELD ? ' canvased' : ''}`} ref={VISTA_HELD?.fore} /></div>
         </div>
         {/* The flash that hides the cut from the fight into the sky (`.wipevista-flash`). */}
         <div className="wipevista-flash" />
@@ -9217,7 +9234,7 @@ export function Recruit() {
       {/* GOD MODE (owner 2026-10-08): the background table is invisible — the player picks each round's foe. */}
       {run.lobby && !run.godMode && (run.mode === 'gauntlet'
         ? <GauntletFoe />
-        : <LobbyPanel lobby={run.lobby} />)}
+        : <LobbyPanel lobby={stableLobby ?? run.lobby} />)}
       {/* GOD MODE panel: shop phase only — gone for the fight (owner: "the panel should not be visible during the
           fight phase") and while End of Turn plays out (the same interaction lock as the shop / board); also kept off
           hero select, the Good Luck intro and the full-screen pages (title, Compendium, …), which it would float over. */}
@@ -9372,8 +9389,12 @@ export function Recruit() {
                   aria-hidden="true"
                 >
                   <span className={`float ${f.kind}${sym ? ' sym' : ''}${f.climb ? ' climb' : ''}`} style={splashStyle}>
-                    {f.kind === 'dmg' && <img className="dmgsplash" src={splashImgSrc(f.atkTier)} alt="" aria-hidden draggable={false} decoding="sync" />}
-                    {f.text}
+                    {/* `.dmgbody`: the number + its burst on ONE static box that carries the drop-shadow, so the float's
+                        pop / rise / fade (on the span above) moves a rastered shadow instead of re-blurring it every
+                        frame (R-PERF-DMG-SHADOW-01). */}
+                    {f.kind === 'dmg'
+                      ? <span className="dmgbody"><img className="dmgsplash" src={splashImgSrc(f.atkTier)} alt="" aria-hidden draggable={false} decoding="sync" />{f.text}</span>
+                      : f.text}
                   </span>
                 </div>
               );
@@ -9383,8 +9404,9 @@ export function Recruit() {
             {replay.deathFloats.map((f) => (
               <div key={`death-${f.id}`} className="deathfloat" style={{ ...f.sv, left: toStage(f.x), top: toStage(f.y) } as CSSProperties} aria-hidden="true">
                 <span className={`float ${f.kind}`}>
-                  {f.kind === 'dmg' && <img className="dmgsplash" src={splashImgSrc(f.atkTier)} alt="" aria-hidden draggable={false} decoding="sync" />}
-                  {f.text}
+                  {f.kind === 'dmg'
+                    ? <span className="dmgbody"><img className="dmgsplash" src={splashImgSrc(f.atkTier)} alt="" aria-hidden draggable={false} decoding="sync" />{f.text}</span>
+                    : f.text}
                 </span>
               </div>
             ))}

@@ -4,6 +4,7 @@
  */
 import { STRENGTH_REF_LAST_ROUND, STRENGTH_REF_VERSION, loadStrengthReference, runLongEnough, type RunState, normalizePracticeRank, practiceStrengthBand, strengthBandForDivision, type LobbySeatOptions, type PlayerProfile, type PracticeConfig, type PracticeRank, type RunMode, type StrengthBand } from '@game/sim';
 import { perfMonitor } from '../perfMonitor';
+import { simWorker } from '../simWorker/client';
 import { createStrengthScorer, STRENGTH_SLICE_TIMEOUT_MS, type StrengthScorer } from './strengthScorer';
 
 export { createStrengthScorer } from './strengthScorer';
@@ -69,7 +70,13 @@ export const STRENGTH_LATE_UPLOAD_WAIT_MS = 60_000;
 
 let scorer: StrengthScorer | null = null;
 
-/** The session scorer (idle slices via requestIdleCallback; a timer fallback where there is none). */
+/** Is a fight playing? The store answers (it cannot be imported here: it imports this module). Only the main-thread
+ *  fallback asks: while a fight plays it never works in a slice the browser had to force. */
+let fightPlaying: () => boolean = () => false;
+export function setStrengthHold(fn: () => boolean): void { fightPlaying = fn; }
+
+/** The session scorer. Boards are scored in the sim worker (R-PERF-SIM-WORKER-01); the idle-slice path below is the
+ *  fallback for where there is no worker (requestIdleCallback; a timer where there is none). */
 export function boardStrengthScorer(): StrengthScorer {
   scorer ??= createStrengthScorer({
     loadReference: loadStrengthReference,
@@ -84,6 +91,8 @@ export function boardStrengthScorer(): StrengthScorer {
     requestRush: rushSoon,
     setTimer: (fn, ms) => { const t = setTimeout(fn, ms); return () => clearTimeout(t); },
     measure: (label, fn) => perfMonitor.measure(label, fn),
+    remote: { score: (board, atRound, onProgress) => simWorker().strength(board, atRound, onProgress) },
+    hold: () => fightPlaying(),
   });
   return scorer;
 }

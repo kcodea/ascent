@@ -12,7 +12,7 @@
  */
 import type { CombatResult } from '@game/core';
 import {
-  COMBAT_ODDS_SIMS, createOddsProbe, cursorAt, expandFrames, GAUNTLET_LOSS_CAPS, oddsInputFromCombatFrame, rollupRounds, roundLossCap, roundMarks,
+  cursorAt, expandFrames, GAUNTLET_LOSS_CAPS, oddsInputFromCombatFrame, rollupRounds, roundLossCap, roundMarks,
   type RunMode,
   type Action, type CombatFrame, type CursorSample, type DragPath, type InspectEvent, type ReplayV2, type RoundMark, type RoundStat, type ShopFrame, type ShopView,
 } from '@game/sim';
@@ -25,6 +25,7 @@ import { captureRuneLockIn, chosenRuneIndex } from '../runeLockInCapture';
 import { skipRuneforgeEntrance } from '../runeforgeEntrance/entrance';
 import type { RuneLockInCard } from '../RuneLockIn';
 import { synthRunFromShopView } from './synthRun';
+import { runBackgroundOdds } from '../simWorker/backgroundOdds';
 import { presentHeldDrop } from '../versus/spectate';
 import { noteReplayAuthor } from '../friends/friendsPrefs';
 import { currentUserId } from '../identity';
@@ -173,23 +174,19 @@ export function roundInfoOf(fr: readonly Frame[], mk: readonly RoundMark[]): Rou
   });
 }
 
-/** Sims per idle step of the odds backfill — the same slicing the live Combat Summary uses. */
-const BACKFILL_SLICE = 10;
-const BACKFILL_YIELD_MS = 4;
-const BACKFILL_TIMEOUT_MS = 500;
-const BACKFILL_FALLBACK_MS = 48;
-let backfillHandle: { idle?: number; timer?: ReturnType<typeof setTimeout> } = {};
+let cancelBackfillJob: (() => void) | null = null;
 function cancelBackfill(): void {
-  if (backfillHandle.idle && typeof cancelIdleCallback === 'function') cancelIdleCallback(backfillHandle.idle);
-  if (backfillHandle.timer) clearTimeout(backfillHandle.timer);
-  backfillHandle = {};
+  cancelBackfillJob?.();
+  cancelBackfillJob = null;
 }
 
 /**
  * ODDS BACKFILL for recordings made before the capture layer stamped `odds` (2026-09-19): re-run the odds probe
- * over each round's recorded rosters, one round at a time, in IDLE slices — never on the render path (it is
- * ~200 sims per round). Each finished round lands in `roundInfo` and bumps `roundInfoTick` so the rail
- * re-renders that row. Cancelled by seek-free `endReplay`; a stale slice checks the token and bails.
+ * over each round's recorded rosters, one round at a time, never on the render path (it is ~200 sims per round).
+ * Since 2026-11-18 (R-PERF-SIM-WORKER-01) the sims run in the sim worker, like the live Combat Summary's; where
+ * there is no worker they run in idle slices (`simWorker/backgroundOdds.ts`). Each finished round lands in
+ * `roundInfo` and bumps `roundInfoTick` so the rail re-renders that row. Cancelled by seek-free `endReplay`;
+ * a stale result checks the epoch and bails.
  */
 let replayEpoch = 0; // bumps on start/end only — a SEEK must not cancel a running backfill (`token` does)
 function scheduleOddsBackfill(myEpoch: number, seed: number, mode: RunMode): void {
@@ -198,50 +195,34 @@ function scheduleOddsBackfill(myEpoch: number, seed: number, mode: RunMode): voi
   const pending = roundInfo
     .map((info, i) => ({ info, mark: marks[i]! }))
     .filter(({ info, mark }) => info.winPct === null && mark.combatIndex !== undefined);
-  if (pending.length === 0) return;
   let cursor = 0;
-  let probe: ReturnType<typeof createOddsProbe> | null = null;
-  const hasRIC = typeof requestIdleCallback === 'function';
-  const slice = (deadline?: IdleDeadline): void => {
+  const next = (): void => {
+    cancelBackfillJob = null;
     if (myEpoch !== replayEpoch) return;
-    const cur = pending[cursor];
+    const cur = pending[cursor++];
     if (!cur) return;
-    if (!probe) {
-      const combat = frames[cur.mark.combatIndex!];
-      const shop = cur.mark.lastShopIndex !== undefined ? frames[cur.mark.lastShopIndex] : undefined;
-      try {
-        if (combat?.kind !== 'combat') throw new Error('no combat frame');
-        probe = createOddsProbe(oddsInputFromCombatFrame(combat, shop?.kind === 'shop' ? shop.view : null), seed, cur.mark.wave, COMBAT_ODDS_SIMS, roundLossCap(capRules, cur.mark.wave));
-      } catch {
-        // A roster this build can no longer instantiate (a retired card) — leave the cell blank, move on.
-        cursor += 1; probe = null; schedule(); return;
-      }
-    }
-    let finished = false;
+    const combat = frames[cur.mark.combatIndex!];
+    const shop = cur.mark.lastShopIndex !== undefined ? frames[cur.mark.lastShopIndex] : undefined;
+    let input: ReturnType<typeof oddsInputFromCombatFrame>;
     try {
-      finished = probe.step(BACKFILL_SLICE);
-      while (!finished && deadline && !deadline.didTimeout && deadline.timeRemaining() > BACKFILL_YIELD_MS) finished = probe.step(BACKFILL_SLICE);
+      if (combat?.kind !== 'combat') throw new Error('no combat frame');
+      input = oddsInputFromCombatFrame(combat, shop?.kind === 'shop' ? shop.view : null);
     } catch {
-      cursor += 1; probe = null; schedule(); return; // a sim threw mid-fight on drifted content — skip the round
+      next(); // a roster this build can no longer instantiate (a retired card): leave the cell blank, move on
+      return;
     }
-    if (finished) {
+    cancelBackfillJob = runBackgroundOdds({ input, seed, wave: cur.mark.wave, cap: roundLossCap(capRules, cur.mark.wave) }, (odds) => {
+      if (myEpoch !== replayEpoch) return;
       const i = roundInfo.indexOf(cur.info);
       if (i >= 0) {
         roundInfo = roundInfo.slice();
-        roundInfo[i] = { ...cur.info, winPct: Math.round(probe.result().win * 100), winApprox: true };
+        roundInfo[i] = { ...cur.info, winPct: Math.round(odds.win * 100), winApprox: true };
         patchSession({ roundInfoTick: (useGame.getState().replaySession?.roundInfoTick ?? 0) + 1 });
       }
-      cursor += 1; probe = null;
-      if (cursor >= pending.length) { backfillHandle = {}; return; }
-    }
-    schedule();
+      next();
+    }, { onError: () => next() }); // a sim threw mid-fight on drifted content: skip the round
   };
-  const schedule = (): void => {
-    if (myEpoch !== replayEpoch) return;
-    if (hasRIC) backfillHandle = { idle: requestIdleCallback(slice, { timeout: BACKFILL_TIMEOUT_MS }) };
-    else backfillHandle = { timer: setTimeout(() => slice(), BACKFILL_FALLBACK_MS) };
-  };
-  schedule();
+  next();
 }
 
 /** Every store key the player writes while rendering — snapshotted on start, restored verbatim on exit, so

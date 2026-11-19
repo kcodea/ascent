@@ -16,7 +16,7 @@ import { createPlayer } from './player';
 import { playLifetimeMs } from './playLifetime';
 import { hasPrimitives } from './registry';
 import { scaleDef, type FxScaleAxes } from './scaleDef';
-import { joinFilterGroup, sharedFilterParams, stripFilters, type FilterGroupSeat } from './sharedFilters';
+import { hasParticleLayer, joinFilterGroup, sharedFilterParams, stripFilters, type FilterGroupSeat } from './sharedFilters';
 import { stageScale } from '../stage';
 import type { FxHeadSink } from './anchors';
 import { recolorDef } from './recolorDef';
@@ -697,7 +697,7 @@ function playDefInner(
   if (opts.shareFilters) {
     const fp = sharedFilterParams(sized);
     if (fp) {
-      filterSeat = joinFilterGroup(`${sized.id}|${opts.shareFilters}`, slot, fp, (c, s) => pixiFx.mountLayer(c, s));
+      filterSeat = joinFilterGroup(`${sized.id}|${opts.shareFilters}`, slot, fp, (c, s) => pixiFx.mountLayer(c, s), hasParticleLayer(sized));
       if (filterSeat) shared = stripFilters(sized);
     }
   }

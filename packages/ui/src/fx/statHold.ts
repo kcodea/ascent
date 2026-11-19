@@ -390,6 +390,23 @@ export function revealStat(uid: string, progress: number, reel = 0): void {
   emit();
 }
 
+/**
+ * `revealStat` for MANY units in one notification (R-PERF-STAT-ROLL-01): each `[uid, progress]` advances exactly as a
+ * `revealStat(uid, progress)` call would (monotonic, reel reset on a real advance, release at 1), and subscribers are
+ * told ONCE at the end. Every mounted badge subscribes, so a per-unit emit made N rolling units cost N passes over
+ * every badge on screen per frame. The shared combat roll loop (`combatBuffRoll.ts`) is the caller.
+ */
+export function revealStats(items: Iterable<readonly [uid: string, progress: number]>): void {
+  let changed = false;
+  for (const [uid, progress] of items) {
+    if (!revealQuiet(uid, progress)) continue;
+    changed = true;
+    const h = holds.get(uid);
+    if (h !== undefined) h.reel = 0;
+  }
+  if (changed) emit();
+}
+
 let raf = 0;
 
 /**

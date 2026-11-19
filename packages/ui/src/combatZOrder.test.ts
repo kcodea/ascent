@@ -33,11 +33,11 @@ const lineIndexOf = (needle: string): number => {
 
 describe('combat z-order ladder: the hero cluster sits under the units, its popovers over them', () => {
   const bar = zOf('.statusbar');
-  const barInCombat = zOf(':where(body:has(.app.combat)) .statusbar');
-  const barLifted = zOf(':where(body:has(.app.combat)) .statusbar:where(:has(.heropanel:hover, .questbadge:hover, .buffsopen))');
+  const barInCombat = zOf(':where(body:has(.app.combat.staged)) .statusbar');
+  const barLifted = zOf(':where(body:has(.app.combat.staged)) .statusbar:where(:has(.heropanel:hover, .questbadge:hover, .buffsopen))');
   const barDuel = zOf('body.duel-attacker-player .statusbar');
   const app = zRaw('.app');
-  const appInCombat = zRaw('.app.combat');
+  const appInCombat = zRaw('.app.combat.staged');
   const unitIdle = zOf(':where(.app.combat) .unit');
   const unitDying = zOf(':where(.app.combat) .unit.dying');
   const unitAttacking = zOf('.unit.attacking');
@@ -87,7 +87,17 @@ describe('combat z-order ladder: the hero cluster sits under the units, its popo
     expect(barDuel).toBeGreaterThan(barLifted);
     expect(barDuel).toBeLessThan(pixifx);
     expect(lineIndexOf('body.duel-attacker-player .statusbar {'))
-      .toBeGreaterThan(lineIndexOf(':where(body:has(.app.combat)) .statusbar:where('));
+      .toBeGreaterThan(lineIndexOf(':where(body:has(.app.combat.staged)) .statusbar:where('));
+  });
+
+  it('the ladder switches with the staged scene, never at the End Turn press (R-PERF-PHASE-ART-HELD-01)', () => {
+    // `.app.combat` alone dissolved the app at the press, re-rastering the whole Shop behind the falling gate
+    // (20 to 30 ms in the press frame, measured 2026-11-18). Units only exist while `.staged` is on.
+    expect(css).not.toMatch(/^\.app\.combat \{[^}]*z-index/m);
+    expect(css).not.toMatch(/body:has\(\.app\.combat\)\) \.statusbar/);
+    const recruit = readFileSync(fileURLToPath(new URL('./Recruit.tsx', import.meta.url)), 'utf8');
+    expect(recruit).toContain('const combatUnitsShown = inCombat && combatBgShown;');
+    expect(recruit).toContain("${combatBgShown ? ' staged' : ''}");
   });
 
   it('the combat rules lose to the unit-state rules by specificity, not order', () => {
@@ -97,6 +107,6 @@ describe('combat z-order ladder: the hero cluster sits under the units, its popo
     expect(css).toMatch(/^:where\(\.app\.combat\) \.unit \{ z-index: 1; \}$/m);
     expect(css).not.toMatch(/^\.app\.combat \.unit \{/m);
     // Likewise the bar's combat rules weigh (0,1,0) so the (0,2,1) duel rule keeps winning.
-    expect(css).not.toMatch(/^body:has\(\.app\.combat\) \.statusbar/m);
+    expect(css).not.toMatch(/^body:has\(\.app\.combat(?:\.staged)?\) \.statusbar/m);
   });
 });

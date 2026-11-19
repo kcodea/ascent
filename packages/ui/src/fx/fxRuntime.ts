@@ -30,7 +30,7 @@ export interface FxRuntimeHooks {
   /** Filters currently applied across every live `FilterStack` — the perf `fx:filters` counter. */
   activeFilters(): number;
   /** A `FilterStack` over the filter-lab registry on `container` (`sharedFilters.ts`). */
-  makeFilterStack?(container: Container): FxFilterStackHandle;
+  makeFilterStack?(container: Container, tight?: boolean): FxFilterStackHandle;
   /** The ids of the registry filters whose look does not depend on an ever-advancing clock. */
   staticFilterIds?(): readonly string[];
 }
@@ -63,8 +63,8 @@ export function fxLiveParticles(): number { return hooks?.liveParticles() ?? 0; 
 export function fxLiveLayers(): number { return hooks?.liveLayers() ?? 0; }
 export function fxActiveFilters(): number { return hooks?.activeFilters() ?? 0; }
 /** A filter stack on `container`, or null before the primitives have loaded. */
-export function fxMakeFilterStack(container: Container): FxFilterStackHandle | null {
-  return hooks?.makeFilterStack?.(container) ?? null;
+export function fxMakeFilterStack(container: Container, tight = false): FxFilterStackHandle | null {
+  return hooks?.makeFilterStack?.(container, tight) ?? null;
 }
 /** The static (clock-free) filter ids, or none before the primitives have loaded. */
 export function fxFilterIds(): readonly string[] {

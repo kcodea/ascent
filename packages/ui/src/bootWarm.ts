@@ -19,6 +19,7 @@
  */
 import { loadStrengthReference } from '@game/sim';
 import { LITE_ART } from './phoneArt';
+import { prewarmSimWorker } from './simWorker/client';
 import { whenFxPrewarmed } from './fx/playDef';
 import { warmDiscoverFxNow } from './pixiFx';
 import { wipeFx } from './wipeFx';
@@ -40,7 +41,9 @@ export function bootWarm(capMs = BOOT_WARM_CAP_MS): Promise<void> {
     warmDiscoverFxNow(),
     wipeFx.ready(),
     gateFx.ready(),
-    loadStrengthReference(),
+    // Since the sim worker (R-PERF-SIM-WORKER-01) boards are scored there and the worker loads its own copy of the
+    // reference, so the page no longer evaluates it at all. Only where there is no worker is it still warmed here.
+    prewarmSimWorker() ? Promise.resolve() : loadStrengthReference(),
   ].map((p) => p.catch(() => undefined))).then(() => undefined);
   return Promise.race([all, new Promise<void>((r) => window.setTimeout(r, capMs))]);
 }

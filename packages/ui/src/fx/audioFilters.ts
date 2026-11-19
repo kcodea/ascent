@@ -46,6 +46,26 @@ export interface FxFilterCtx {
   /** The play ENDS (a one-shot, not a loop) at `t0 + durSec`, so heavy nodes it builds (the reverb's convolver)
    *  may be returned to a pool once its tail has died out. Absent = never pooled. */
   oneShot?: boolean;
+  /** Set by a one-shot play that may route its reverb through the SHARED convolver for its impulse (see
+   *  `SharedReverbSend`, R-PERF-SHARED-FX-REVERB-01). Absent = the play builds / pools its own node. */
+  shared?: SharedReverbSend;
+}
+/**
+ * What a one-shot play hands the reverb so its wet can ride the ONE shared convolver for its impulse instead of a
+ * node of its own (R-PERF-SHARED-FX-REVERB-01). The wet then no longer passes the play's fader, so the send carries
+ * the fader's level, and the fader's fades are applied after the shared convolver, on its gate (see `sharedFxReverb`).
+ */
+export interface SharedReverbSend {
+  /** The STABLE bus node the shared convolvers are keyed by (they outlive hard-stop epochs)... */
+  bus: AudioNode;
+  /** ...and the node they ring into right now: that bus's current hard-stop epoch input. */
+  out: AudioNode;
+  /** The play's fader level (gain x jitter) and its fades, in seconds. */
+  level: number;
+  fadeInSec: number;
+  fadeOutSec: number;
+  /** Receives the send gain: the caller's `stop()` closes it and the clip's end disconnects it. */
+  onSend(send: GainNode): void;
 }
 /** A ctx that disables automation — every param is set statically. The default for callers/tests with no
  *  timing window (a workbench-less unit test, or a fire with an unknown length). */
@@ -361,6 +381,146 @@ function releaseConvolver(a: BaseAudioContext, conv: ConvolverNode, feed: AudioN
 }
 
 /**
+ * ONE SHARED CONVOLVER PER (bus, impulse) FOR THE EFFECT LAYERS' REVERB (R-PERF-SHARED-FX-REVERB-01, perf pass
+ * 2026-11-18). The pool above covers two overlapping plays of an impulse; a third builds a node: ~6 ms of main
+ * thread at a 96 kHz context (and ~60 MB until its tail ends). A 500+ Attack hit plays `strike-impact-*`, whose
+ * reverb'd layers each hold a node for 3 to 5 s, and late-game swings land well inside that, so nearly every big hit
+ * built one or two nodes mid-fight. `rune-buff-trail` (every hero power / Ancient / rune grant) did the same in a
+ * burst of grants.
+ *
+ * Convolution is linear and time-invariant, so the sum of every play's send through ONE convolver is exactly the sum
+ * of their separate wets: the same argument `sharedTailReverb` (sfx.ts) made for the soft-tail voice. Each play keeps
+ * its own send gain (its level x mix); the shared node, built once per (bus, impulse), rings into the bus the play's
+ * dry signal goes to. What the per-play node did AFTER the convolver has to be reproduced: the wet used to pass the
+ * play's FADER, so it carried the fader's level (now on the send) and the fader's fades. The fades are a gain that
+ * changes over time, which cannot move in front of the convolver without changing the sound (a faded-in attack would
+ * feed the tail less), so they stay behind it, on ONE gate gain per shared node:
+ *   - a play with no fades needs no gate: its node rings straight into the bus;
+ *   - FADE-IN: plays with the same fade-in share a node (the fade-in is part of its key), and its gate rides that
+ *     fade-in whenever a play starts on a node that has rung out. A play that starts while an earlier tail is still
+ *     ringing leaves the gate open (ducking the tail would be the audible change), so only that play's own wet onset
+ *     goes un-faded, under the ringing tail;
+ *   - FADE-OUT (the wet used to be faded with the dry at the clip's end, cutting the tail): the gate closes over the
+ *     play's fade-out. Fading plays get up to `FADING_NODES` nodes per key (two on desktop: what the pool kept idle
+ *     per impulse before, so no more memory), and a new play takes a node no play is still fading on, so two
+ *     overlapping plays each keep their own gate. Only a third overlapping play shares one: the gate then follows
+ *     the play that ends LAST, and the earlier play's tail rings under the later one until that one fades.
+ * So a play on its own, and layers that fire together with the same fades, sound exactly as before (an offline render
+ * of the old graph against this one differs by floating-point noise, about -140 dB); the differences above exist only
+ * while plays of one impulse overlap. A play is routed here only when nothing else sat after its convolver: no Pan
+ * filter, a flat reverb-mix curve and a flat level curve (`sharedReverbEligible`). Anything else keeps its own pooled
+ * node, as before.
+ *
+ * A hard stop (R-COMBAT-HARDSTOP-01) leaves the node ringing into the silenced old epoch, so a stopped fight's tails
+ * are cut with everything else; the next play re-points it at the live epoch. A single play stopped early
+ * (`FxSoundHandle.stop`) closes its send: what it already fed the convolver rings out.
+ */
+interface SharedFxReverb {
+  conv: ConvolverNode; gate: GainNode | null; out: AudioNode | null;
+  /** When the last scheduled fade-out lands (-Infinity = none scheduled), and until when the node still rings. */
+  gateEnd: number; ringUntil: number;
+}
+const sharedFxReverbs = new WeakMap<AudioNode, Map<string, SharedFxReverb[]>>();
+/** How many shared nodes a FADING-OUT class may hold per (bus, impulse): see the header. A phone holds one. */
+export const FADING_NODES = LITE_ART ? 1 : 2;
+/** The gate re-opens over this long when a new play arrives mid-fade (no click). */
+const GATE_REOPEN_S = 0.005;
+/** The class a play's fades put it in: plays share a node only with plays of the same fade-in, and fading-out plays
+ *  never share with ringing ones. */
+function fadeClassOf(fadeInSec: number, fadeOutSec: number): string {
+  return `${Math.round(Math.max(0, fadeInSec) * 1000)}|${fadeOutSec > 0 ? 'gated' : 'ring'}`;
+}
+function buildSharedFxReverb(a: BaseAudioContext, size: number, damping: number, gated: boolean): SharedFxReverb {
+  const conv = a.createConvolver();
+  conv.normalize = true;
+  conv.buffer = reverbImpulse(a, size, damping); // cached per (length, damping, rate)
+  if (LITE_ART) crumbOnce('reverb built');
+  let gate: GainNode | null = null;
+  if (gated) { gate = a.createGain(); gate.gain.value = 1; conv.connect(gate); }
+  return { conv, gate, out: null, gateEnd: -Infinity, ringUntil: -Infinity };
+}
+/** The shared node a play starting at `t0` sends into (built on first use). `all` = build every node the class may
+ *  hold now (the prewarm), so no play builds one mid-game. */
+function sharedFxReverb(a: BaseAudioContext, bus: AudioNode, size: number, damping: number, fadeInSec: number, fadeOutSec: number, t0 = 0, all = false): SharedFxReverb {
+  let byKey = sharedFxReverbs.get(bus);
+  if (!byKey) { byKey = new Map(); sharedFxReverbs.set(bus, byKey); }
+  const gated = fadeInSec > 0 || fadeOutSec > 0;
+  const key = `${impulseKeyOf(a, size, damping)}|${fadeClassOf(fadeInSec, fadeOutSec)}`;
+  let list = byKey.get(key);
+  if (!list) { list = [buildSharedFxReverb(a, size, damping, gated)]; byKey.set(key, list); }
+  const max = fadeOutSec > 0 ? FADING_NODES : 1;
+  if (all) while (list.length < max) list.push(buildSharedFxReverb(a, size, damping, gated));
+  if (max === 1) return list[0]!;
+  // A fading class: a node no play is still fading on (the one that has rung longest), else a new one while the
+  // class has room, else the one whose fade lands first.
+  let free: SharedFxReverb | null = null;
+  let soonest = list[0]!;
+  for (const e of list) {
+    if (e.gateEnd <= t0 && (!free || e.ringUntil < free.ringUntil)) free = e;
+    if (e.gateEnd < soonest.gateEnd) soonest = e;
+  }
+  if (free) return free;
+  if (list.length < max) { const e = buildSharedFxReverb(a, size, damping, gated); list.push(e); return e; }
+  return soonest;
+}
+/** Point the shared node at the bus's current epoch (a hard stop swaps it). */
+function pointSharedFxReverb(e: SharedFxReverb, out: AudioNode): void {
+  if (e.out === out) return;
+  const tail: AudioNode = e.gate ?? e.conv;
+  if (e.out) { try { tail.disconnect(); } catch { /* already */ } }
+  tail.connect(out);
+  e.out = out;
+}
+/** Tests: how many shared effect reverbs exist for a bus. */
+export const sharedFxReverbCount = (bus: AudioNode): number => { let n = 0; for (const l of sharedFxReverbs.get(bus)?.values() ?? []) n += l.length; return n; };
+
+/** May this `sound` layer's reverb ride the shared convolver? Only when nothing but the fader sat after its own:
+ *  the reverb is on, no Pan filter follows it, and neither the reverb mix nor the clip level is automated. */
+export function sharedReverbEligible(p: P | undefined): boolean {
+  if (!p || !bool(p, onKey('reverb'))) return false;
+  if (bool(p, onKey('pan'))) return false;
+  if (curveVaries(p[curveKey('reverb', 'mix')])) return false;
+  if (curveVaries(p.gainCurve)) return false;
+  return true;
+}
+
+/** Build the shared (bus, impulse) nodes the committed defs will use, one per idle callback, so no fire builds one
+ *  mid-frame. `busOf` resolves a layer's bus name to its stable node. Phones build each on first use, as before. */
+export function prewarmSharedFxReverbs(
+  a: BaseAudioContext,
+  defs: ReadonlyArray<{ layers?: ReadonlyArray<{ primitive?: string; params?: unknown }> }>,
+  busOf: (name: string) => AudioNode | null,
+): void {
+  if (LITE_ART) return;
+  const jobs: Array<() => void> = [];
+  const seen = new Set<string>();
+  for (const d of defs) {
+    for (const l of d.layers ?? []) {
+      const p = (l.params ?? {}) as P;
+      if (l.primitive !== 'sound' || bool(p, 'loop') || !sharedReverbEligible(p)) continue;
+      const size = num(p, knobKey('reverb', 'size'), 1.8);
+      const damping = num(p, knobKey('reverb', 'damping'), 0.35);
+      const fadeInSec = Math.max(0, num(p, 'fadeIn', 0)) / 1000;
+      const fadeOutSec = Math.max(0, num(p, 'fadeOut', 0)) / 1000;
+      const busName = typeof p.bus === 'string' ? p.bus : 'combat';
+      const id = `${busName}|${impulseKeyOf(a, size, damping)}|${fadeClassOf(fadeInSec, fadeOutSec)}`;
+      if (seen.has(id)) continue;
+      seen.add(id);
+      const step = reverbImpulseSteps(a, size, damping);
+      const fill = (): void => { if (!step()) jobs.unshift(fill); };
+      jobs.push(fill);
+      jobs.push(() => { const bus = busOf(busName); if (bus) sharedFxReverb(a, bus, size, damping, fadeInSec, fadeOutSec, 0, true); });
+    }
+  }
+  const idle = (cb: () => void): void => {
+    const ric = (globalThis as unknown as { requestIdleCallback?: (f: () => void, o?: { timeout: number }) => number }).requestIdleCallback;
+    if (typeof ric === 'function') ric(cb, { timeout: 4000 }); else setTimeout(cb, 50);
+  };
+  const next = (): void => { const job = jobs.shift(); if (!job) return; try { job(); } catch { /* best-effort */ } idle(next); };
+  idle(next);
+}
+
+/**
  * Pre-build `perKey` pooled convolvers for each reverb impulse the committed defs use, ONE per idle callback (each is
  * ~6 ms of main thread), so the first reverb'd fires of a session reuse a ready node instead of building one
  * mid-frame. Called once the AudioContext exists (`sound` primitive → `onAudioContextReady`).
@@ -400,6 +560,8 @@ export function reverbSpecsOf(defs: ReadonlyArray<{ layers?: ReadonlyArray<{ pri
     for (const l of d.layers ?? []) {
       const p = (l.params ?? {}) as P;
       if (l.primitive !== 'sound' || !bool(p, onKey('reverb'))) continue;
+      // A one-shot layer that rides the shared convolver never takes a pooled node (R-PERF-SHARED-FX-REVERB-01).
+      if (!bool(p, 'loop') && sharedReverbEligible(p)) continue;
       out.push({ size: num(p, knobKey('reverb', 'size'), 1.8), damping: num(p, knobKey('reverb', 'damping'), 0.35) });
     }
   }
@@ -421,6 +583,55 @@ const REVERB: AudioFilterSpec = {
     const dry = a.createGain(); dry.gain.value = 1;
     const wet = a.createGain(); setAuto(wet.gain, num(p, knobKey('reverb', 'mix'), 0.3), p[curveKey('reverb', 'mix')], ctx);
     const size = num(p, knobKey('reverb', 'size'), 1.8);
+    const sh = ctx.shared;
+    if (sh && ctx.oneShot && ctx.durSec > 0 && sharedReverbEligible(p)) {
+      // THE SHARED PATH (R-PERF-SHARED-FX-REVERB-01): dry through this play's chain as before; wet = this play's send
+      // (fader level x mix) into the one convolver for (bus, impulse, fades), whose gate carries the fades.
+      const e = sharedFxReverb(a, sh.bus, size, num(p, knobKey('reverb', 'damping'), 0.35), sh.fadeInSec, sh.fadeOutSec, ctx.t0);
+      pointSharedFxReverb(e, sh.out);
+      const send = a.createGain();
+      // The fader held max(0.0001, level) and the wet was mix x that: the send is the same product.
+      const lvl = Math.max(0.0001, sh.level);
+      send.gain.setValueAtTime(lvl * num(p, knobKey('reverb', 'mix'), 0.3), ctx.t0);
+      if (e.gate) {
+        const now = a.currentTime;
+        const end = ctx.t0 + ctx.durSec;
+        const g = e.gate.gain;
+        // The fader's floor (0.0001) as a fraction of its level: send x gate then traces the fader's own curve.
+        const floor = Math.min(1, 0.0001 / lvl);
+        let reopened = false;
+        if (sh.fadeInSec > 0 && ctx.t0 >= e.ringUntil) {
+          // The node has rung out: the gate rides this play's fade-in, exactly as its fader did.
+          g.cancelScheduledValues(now);
+          g.setValueAtTime(floor, ctx.t0);
+          g.exponentialRampToValueAtTime(1, ctx.t0 + sh.fadeInSec);
+        } else if (e.gateEnd > -Infinity && e.gateEnd <= ctx.t0) {
+          // The last play on this node has finished fading: the gate opens exactly as this play starts.
+          g.cancelScheduledValues(now);
+          g.setValueAtTime(1, Math.max(now, ctx.t0));
+        } else if (e.gateEnd > -Infinity && end > e.gateEnd) {
+          // An earlier play's fade-out is closing the gate and this play outlasts it (a burst past the class's nodes):
+          // re-open, over a few ms so the tail still in the node does not click.
+          g.cancelScheduledValues(now);
+          g.setValueAtTime(Math.max(0.0001, g.value), now);
+          g.linearRampToValueAtTime(1, now + GATE_REOPEN_S);
+          reopened = true;
+        }
+        if (sh.fadeOutSec > 0 && end > e.gateEnd) {
+          // The gate follows the fade-out of the play that ends LAST.
+          const at = ctx.t0 + Math.max(sh.fadeInSec, ctx.durSec - sh.fadeOutSec); // where the fader's own fade-out began
+          const outStart = reopened ? Math.max(now + GATE_REOPEN_S, at) : at;
+          g.setValueAtTime(1, outStart);
+          g.exponentialRampToValueAtTime(floor, outStart + sh.fadeOutSec);
+          e.gateEnd = end;
+        }
+        e.ringUntil = Math.max(e.ringUntil, end + size);
+      }
+      input.connect(dry); dry.connect(output);
+      input.connect(send); send.connect(e.conv);
+      sh.onSend(send);
+      return { input, output };
+    }
     const conv = acquireConvolver(a, size, num(p, knobKey('reverb', 'damping'), 0.35), ctx);
     input.connect(dry); dry.connect(output);
     input.connect(conv); conv.connect(wet); wet.connect(output);

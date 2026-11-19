@@ -1820,7 +1820,7 @@ export const HEROES_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "Death: \"Avenge (7): advance your commission 1 turn.\" With no commission running it does nothing." },
       { kind: 'code', ref: "packages/sim/src/ancients.ts avengeAdvanceCommission / ancientCommissionDueNow; packages/core/src/combat/simulate.ts ancientAvengePulse; packages/sim/src/reducer.ts action boundary" },
     ],
-    currentBehaviour: "PARTLY SUPERSEDED 2026-11-18 by R-AVENGE-PER-COMBAT-01 (an Avenge count is per phase: nothing carries from the Shop into a fight or from one fight to the next). Was: Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    currentBehaviour: "PARTLY SUPERSEDED 2026-11-18 by R-AVENGE-PER-COMBAT-01 (an Avenge count is per phase) and 2026-11-19 by R-ANCIENT-CARRYOVER-02 (Avenge (5), was 7). Was: Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsCassen.test.ts"], lastVerifiedAt: '2026-10-09' },
   },
   {
@@ -2282,7 +2282,7 @@ export const HEROES_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: "Kevin via the lead, 2026-11-16 (Ancient pass 2 review board)", quote: "Gildmaster / death: avenge 17" },
       { kind: 'code', ref: "packages/sim/src/ancients.ts ANCIENT_PAIRINGS.gildmaster.death (avengeGrantCard every 17)" },
     ],
-    currentBehaviour: "PARTLY SUPERSEDED 2026-11-18 by R-AVENGE-PER-COMBAT-01 (an Avenge count is per phase: nothing carries from the Shop into a fight or from one fight to the next). Was: Conforms (built 2026-11-16). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    currentBehaviour: "SUPERSEDED 2026-11-19 by R-ANCIENT-CARRYOVER-01 (now \"When 17 friendly minions die\", a carry-over count); before that partly superseded 2026-11-18 by R-AVENGE-PER-COMBAT-01. Was: Conforms (built 2026-11-16). Dev-only (Scene Builder, Set 3, the Ancients flag).",
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsGildmaster.test.ts"], lastVerifiedAt: '2026-11-16' },
   },
   {
@@ -4341,7 +4341,7 @@ export const HEROES_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: "Kevin via the lead, 2026-11-14 (Cindy's Ancient pairings)", quote: "counts ALL friendly deaths in EVERY phase ... Consumes do NOT count." },
       { kind: 'code', ref: "packages/sim/src/ancients.ts cindyShopDeath / cindyCombatMods / cindyAfterCombat; packages/core/src/combat/simulate.ts the ancientMateGiftAvenge listener" },
     ],
-    currentBehaviour: "PARTLY SUPERSEDED 2026-11-18 by R-AVENGE-PER-COMBAT-01 (an Avenge count is per phase: nothing carries from the Shop into a fight or from one fight to the next). Was: Conforms (built 2026-11-14). Dev-only: Ancients are off in every Duos game players can reach (R-ANCDUOS-01). \"Gildcrafter\" is the Goldcrafter spell.",
+    currentBehaviour: "PARTLY SUPERSEDED 2026-11-19 by R-ANCIENT-CARRYOVER-01 (now \"When 15 friendly minions die\": the one running count across every phase is back, and Rune of Fury no longer repeats it); 2026-11-18 R-AVENGE-PER-COMBAT-01 no longer applies to it. Was: Conforms (built 2026-11-14). Dev-only: Ancients are off in every Duos game players can reach (R-ANCDUOS-01). \"Gildcrafter\" is the Goldcrafter spell.",
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsCindy.test.ts", "packages/core/src/combat/cindyAncients.test.ts"], lastVerifiedAt: '2026-11-14' },
   },
   {
@@ -4925,5 +4925,45 @@ export const HEROES_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms from 2026-11-18 (supersedes R-ANCPASS2-19).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsMidas.test.ts'], lastVerifiedAt: '2026-11-18' },
+  },
+  {
+    id: 'R-ANCIENT-CARRYOVER-01',
+    title: 'Gildmaster × Death and Cindy × Death read "When N friendly minions die" and carry over, like Braum × Death',
+    statement:
+      'With the Ancient of Death, Gildmaster reads "When 17 friendly minions die, get a Goldcrafter." and Cindy reads "When '
+      + '15 friendly minions die, give your teammate a Goldcrafter." (was Avenge (17) / Avenge (15)). Neither is an Avenge: '
+      + 'each is ONE running count of friendly deaths across the Shop and every fight, the Braum × Death counter (Rune of '
+      + 'Body Counting\'s shape). A Shop death ticks it (and the Nth pays right then); the count goes into the fight as the '
+      + 'carried tick and pays mid-fight on the death that completes it (a live toHand for Gildmaster, a real-time teamSend '
+      + 'for Cindy); settle adds the fight\'s friendly deaths, and the phase reset (`ancientAvengeReset`) keeps it. It '
+      + 'repeats every N on that running count. Being "when N die" and not an Avenge, Rune of Fury does not repeat it '
+      + '(Braum × Death\'s rule). Both sides fight by the same rule (a snapshot carries its tick and the `carry` flag). '
+      + 'The power prints the live countdown "(N more to go)", ticking with each death through a fight. Every other Ancient '
+      + 'of Death hero Avenge stays per combat (R-AVENGE-PER-COMBAT-01). Supersedes R-ANCPASS2-08 and the count clause of '
+      + 'R-ANCCINDY-01; R-AVENGE-PER-COMBAT-01 no longer covers these two.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-11-19 (after #2793)', quote: "change both to the 'When x minions die' text so they carry over" },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts ANCIENT_PAIRINGS.gildmaster.death / cindy.death (`carry: true`), ancientAvengeReset, batch5AfterCombat, cindyAfterCombat; packages/core/src/combat/simulate.ts carriedDue' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-19. Dev-only (the Ancients flag; Cindy is Duos only).',
+    enforcement: { kind: 'scenario', refs: ['packages/core/src/combat/avengePerCombat.test.ts', 'packages/sim/src/ancientsGildmaster.test.ts', 'packages/sim/src/ancientsCindy.test.ts'], lastVerifiedAt: '2026-11-19' },
+  },
+  {
+    id: 'R-ANCIENT-CARRYOVER-02',
+    title: 'Cassen × Ancient of Death: Avenge (5), still per combat',
+    statement:
+      'With the Ancient of Death, Cassen reads "Avenge (5): your commission pays out 1 turn sooner." (was Avenge (7)). It is '
+      + 'still an Avenge, so it counts one phase only (R-AVENGE-PER-COMBAT-01): the 5th friendly death in a Shop phase or in '
+      + 'a fight fires it, and Rune of Fury repeats a combat fire. Everything else is R-ANCCASSEN-01.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-11-19', quote: 'Avenge (5): your commission pays out 1 turn sooner.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts ANCIENT_PAIRINGS.cassen.death (avengeAdvanceCommission every 5)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-19. Dev-only (the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsCassen.test.ts'], lastVerifiedAt: '2026-11-19' },
   },
 ];

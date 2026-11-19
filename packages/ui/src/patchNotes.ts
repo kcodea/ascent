@@ -58,6 +58,16 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-11-18',
     changes: [
+      {
+        category: 'Balance',
+        text: 'Ancient of Death: Gildmaster and Cindy now count friendly deaths across fights and the Shop, and Cassen needs 5 deaths instead of 7.',
+        details: [
+          'Gildmaster: When 17 friendly minions die, get a Goldcrafter. It used to be Avenge (17), which needed all 17 in one fight.',
+          'Cindy: When 15 friendly minions die, give your teammate a Goldcrafter. It used to be Avenge (15).',
+          'Both keep counting from one fight to the next and through the Shop, like Braum. The power shows how many more deaths to go.',
+          'Cassen: Avenge (5): your commission pays out 1 turn sooner. It was Avenge (7). It still counts one fight at a time.',
+        ],
+      },
       { category: 'Systems', text: "Another player's Career page now has an Add friend button at the top. One press sends the request." },
       { category: 'Systems', text: 'Settings, Account now shows your name and tag (like Name#1234) with a Copy button, so you can share it with friends.' },
       {

@@ -1,4 +1,5 @@
 import { memo, useEffect, useRef } from 'react';
+import { viewerPress } from './viewerGuard';
 import { onPressCue } from './pressCue';
 import { playDef } from './fx/playDef';
 import { publicArt } from './phoneArt';
@@ -60,6 +61,7 @@ export const FreezeButton = memo(function FreezeButton({
   };
   useEffect(() => onPressCue('freeze', playPress));
   const click = (): void => {
+    if (viewerPress(wrapRef.current)) return; // a viewer's press does nothing (R-SPECTATE-INERT-01)
     playPress();
     onFreeze();
   };

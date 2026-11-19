@@ -60,17 +60,22 @@ describe('Gildmaster × DEATH: "Avenge (17): Get a Goldcrafter." (owner 2026-11-
     expect(s.hand.map((c) => c.cardId)).toEqual(['goldcrafter']);
     expect(s.ancients!.gildDeaths).toBe(0);
   });
-  it('combat: the carried count pays a Goldcrafter MID-FIGHT (a live toHand); settle carries the remainder', () => {
-    let s = picked('death', { board: ['a', 'b'].map((u, i) => card(u, N(i), { attack: 1, health: 1 })) });
+  it('combat: the 17th death IN the fight pays a Goldcrafter MID-FIGHT (a live toHand); nothing carries in or out (per combat, R-AVENGE-PER-COMBAT-01: the Shop count never comes in)', () => {
+    // Two bodies and a Shop count of 16: under the old running count the first death paid. It must not.
+    let two = picked('death', { board: ['a', 'b'].map((u, i) => card(u, N(i), { attack: 1, health: 1 })) });
+    two = fightNow({ ...two, ancients: { ...two.ancients!, gildDeaths: 16 } }, 100, 1000);
+    expect(events(two).filter((e) => e.type === 'toHand' && e.cardId === 'goldcrafter').length).toBe(0);
+    // Seven Mama Pups (each summons two Pups): 17 or more deaths in one fight.
+    let s = picked('death', { board: ['a', 'b', 'c', 'd', 'e', 'f', 'g'].map((u) => card(u, 'pack', { attack: 1, health: 1 })) });
     s = { ...s, ancients: { ...s.ancients!, gildDeaths: 16 } };
     expect(ancientCombatMods(s).ancientGorrAvenge).toEqual({ every: 17, tick: 16, ids: ['goldcrafter'], label: 'Ancient of Death' });
     expect(ancientAvengeCountdown(s)).toBe(1);
     s = fightNow(s, 100, 1000);
     expect(events(s).filter((e) => e.type === 'toHand' && e.cardId === 'goldcrafter').length).toBe(1);
-    const deaths = s.lastCombat!.playerDeaths ?? 0;
+    expect(s.lastCombat!.playerDeaths ?? 0).toBeGreaterThanOrEqual(17);
     s = reduce(s, { type: 'resolveCombat' });
     expect(s.hand.map((c) => c.cardId)).toContain('goldcrafter');
-    expect(s.ancients!.gildDeaths).toBe((16 + deaths) % 17);
+    expect(s.ancients!.gildDeaths ?? 0).toBe(0);
   });
 });
 

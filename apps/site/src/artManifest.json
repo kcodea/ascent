@@ -5,7 +5,6 @@
     "width": 320,
     "format": "webp"
   },
-  "forge-bg.webp": "apps/web/public/runeforgebg2.webp",
   "icon-192.png": "apps/web/public/icon-192.png",
   "apple-touch-icon.png": "apps/web/public/apple-touch-icon.png",
   "cursors/gauntlet_default.svg": "apps/web/public/cursors/gauntlet_default.svg",
@@ -16,6 +15,11 @@
   "ancients/genesis.webp": "packages/ui/src/art/ancients/genesis.webp",
   "ancients/time.webp": "packages/ui/src/art/ancients/time.webp",
   "ancients/war.webp": "packages/ui/src/art/ancients/war.webp",
+  "heroes/indy.webp": {
+    "src": "packages/ui/src/art/heroes/indy.webp",
+    "width": 192,
+    "format": "webp"
+  },
   "ranks/bronze.webp": "packages/ui/src/art/ranks/bronze.webp",
   "ranks/silver.webp": "packages/ui/src/art/ranks/silver.webp",
   "ranks/gold.webp": "packages/ui/src/art/ranks/gold.webp",
@@ -26,5 +30,46 @@
   "chests/rare.webp": "apps/web/public/collection/chest_rare_body.webp",
   "chests/epic.webp": "apps/web/public/collection/chest_epic_body.webp",
   "chests/legendary.webp": "apps/web/public/collection/chest_legendary_body.webp",
-  "chests/ancient.webp": "apps/web/public/collection/chest_ancient_body.webp"
+  "chests/ancient.webp": "apps/web/public/collection/chest_ancient_body.webp",
+  "chests/standard-lid.webp": "apps/web/public/collection/crate_lid.webp",
+  "chests/rare-lid.webp": "apps/web/public/collection/chest_rare_lid.webp",
+  "chests/epic-lid.webp": "apps/web/public/collection/chest_epic_lid.webp",
+  "chests/legendary-lid.webp": "apps/web/public/collection/chest_legendary_lid.webp",
+  "chests/ancient-lid.webp": "apps/web/public/collection/chest_ancient_lid.webp",
+  "runes/chimerus.webp": {
+    "src": "packages/ui/src/art/runes/rune_chimerus.webp",
+    "width": 384,
+    "format": "webp"
+  },
+  "cards/chimerus.webp": "packages/ui/src/art/minions/chimerus.webp",
+  "runes/voidmother.webp": {
+    "src": "packages/ui/src/art/runes/rune_voidmother.webp",
+    "width": 384,
+    "format": "webp"
+  },
+  "cards/voidmother.webp": "packages/ui/src/art/minions/b2_voidmother.webp",
+  "runes/bucky.webp": {
+    "src": "packages/ui/src/art/runes/rune_bucky.webp",
+    "width": 384,
+    "format": "webp"
+  },
+  "cards/bucky.webp": "packages/ui/src/art/minions/dw_bucky.webp",
+  "runes/portrait.webp": {
+    "src": "packages/ui/src/art/runes/rune_bottomless_portrait.webp",
+    "width": 384,
+    "format": "webp"
+  },
+  "cards/portrait.webp": "packages/ui/src/art/minions/dm_behemoth.webp",
+  "runes/yazzus.webp": {
+    "src": "packages/ui/src/art/runes/rune_yazzus.webp",
+    "width": 384,
+    "format": "webp"
+  },
+  "cards/yazzus.webp": "packages/ui/src/art/minions/yazzus.webp",
+  "runes/gemsage.webp": {
+    "src": "packages/ui/src/art/runes/rune_gem_sage.webp",
+    "width": 384,
+    "format": "webp"
+  },
+  "cards/gemsage.webp": "packages/ui/src/art/minions/k_gemsage.webp"
 }

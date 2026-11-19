@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "sync-art": "node scripts/sync-art.mjs",
+    "capture": "node scripts/capture.mjs",
     "predev": "npm run sync-art",
     "dev": "vite",
     "prebuild": "npm run sync-art",

@@ -11,6 +11,14 @@
   display: none !important;
 }
 
+/* Every control gets the open gauntlet. A button does not inherit the page cursor, so without this it falls back to
+   the system arrow. */
+a,
+button,
+[role='button'] {
+  cursor: url('/art/cursors/gauntlet_open.svg') 6 2, pointer;
+}
+
 html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
@@ -249,10 +257,12 @@ p {
 :is(.is-other, .is-mobile) .download__copy::after {
   content: '';
   position: absolute;
-  inset: -10px;
+  /* Sized to the button's own outline (its dark rim and hard bottom edge), so the halo starts at the button with no
+     dark gap between them. */
+  inset: -2px -2px -7px;
   z-index: -1;
-  border-radius: var(--r-panel);
-  box-shadow: 0 0 28px 6px color-mix(in srgb, var(--gem) 55%, transparent);
+  border-radius: inherit;
+  box-shadow: 0 0 26px 8px color-mix(in srgb, var(--gem) 55%, transparent);
   opacity: 0.55;
   pointer-events: none;
 }

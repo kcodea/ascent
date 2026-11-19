@@ -28,7 +28,7 @@ export type ProcPhase = 'shop' | 'combat' | 'sot' | 'eot';
  * fires" notes.
  */
 export const ANCIENT_PROC_PHASES: Readonly<Record<string, readonly ProcPhase[]>> = {
-  // ── deaths: every hero Avenge is ONE running count across the Shop AND combat ──
+  // ── deaths: every hero Avenge counts in the Shop AND in combat, each phase from 0 (R-AVENGE-PER-COMBAT-01) ──
   avengeAdvanceCommission: ['shop', 'combat'], avengeAdvanceCrown: ['shop', 'combat'], avengeAllInGold: ['shop', 'combat'],
   avengeBuffTier7: ['shop', 'combat'], avengeCopyLastTurnBuy: ['shop', 'combat'], avengeCopyTopAttack: ['shop', 'combat'],
   avengeFreeRefresh: ['shop', 'combat'], avengeGrantCard: ['shop', 'combat'], avengeGrantTribeMinion: ['shop', 'combat'],
@@ -51,7 +51,7 @@ export const ANCIENT_PROC_PHASES: Readonly<Record<string, readonly ProcPhase[]>>
   pummelPowerUse: ['combat'], pummelSwapCharge: ['combat'], autoReclaimLeftmostEcho: ['combat'],
   socBladeMastery: ['combat'], socBuffPerGildedPlayed: ['combat'], socBuffPerShout: ['combat'], socBuffTribePerBought: ['combat'],
   socCopyTier7: ['combat'], socCopyTopHealth: ['combat'], socGildRightmost: ['combat'], socRallyPerGoldSpent: ['combat'],
-  socTriggerEdgeShouts: ['combat'], socTripleNeutrals: ['combat'], socWardFlurry: ['combat'], socWardPerGildedFoe: ['combat'],
+  socTriggerEdgeShouts: ['combat'], socTripleNeutrals: ['combat'], socWardFlurry: ['combat'], socWardPerGilded: ['combat'],
   // ── Shop events ──
   buyNextRefreshFree: ['shop'], buysBuffImproves: ['shop'], buysDiscoverLocked: ['shop'], clearanceDestroyFirstFree: ['shop'],
   clearanceSaleGivesStats: ['shop'], coinCastImproves: ['shop'], contrabandBuyFreeRefresh: ['shop'], contrabandKeyword: ['shop'],

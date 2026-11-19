@@ -6081,14 +6081,14 @@ export function simulate(
           }
         }
       }
-      // ANCIENT OF WAR × Midas (ancient pass 2, owner 2026-11-16): "Start of Combat, give 2 random minions Ward for each
-      // Gilded enemy minion." Distinct random living friendly bodies without Ward, `per` for each living Gilded foe body,
-      // for that combat. Everyone already Warded: nothing.
+      // ANCIENT OF WAR × Midas (owner 2026-11-18, replacing the 2026-11-16 "2 per Gilded enemy minion"): "Start of Combat:
+      // give a friendly minion Ward for every Gilded minion you control." One Ward for each living Gilded body on THIS
+      // side's own board (board only, never hand), each to a distinct random living friendly body without Ward, for that
+      // combat. More Gilded bodies than open bodies: the rest fizzle. Everyone already Warded: nothing. (A snapshot
+      // recorded under the old rule may still carry `per`: it is ignored, so both sides always fight by the current text.)
       const mw = smods.ancientMidasWard;
       if (mw) {
-        const foe: Side = scSide === 'player' ? 'enemy' : 'player';
-        const gilded = boards[foe].filter((m) => !m.dead && m.health > 0 && m.golden).length;
-        let n = gilded * Math.max(0, mw.per);
+        let n = boards[scSide].filter((m) => !m.dead && m.health > 0 && m.golden).length;
         const open = boards[scSide].filter((m) => !m.dead && m.health > 0 && !m.divineShield);
         if (n > 0 && open.length > 0) {
           const draw = grantRngFor(scSide);
@@ -7331,6 +7331,13 @@ export function simulate(
     fireTrigger('runeBodyCounting', side);
     ctx.grantRandomMinion(flagCopiesOf(side, 'runeBodyCounting'), 'undead', side, undefined, victim?.uid);
   });
+  // AN AVENGE (N) IS PER COMBAT (owner 2026-11-18, R-AVENGE-PER-COMBAT-01): "avenge (x): do not carry over combat to
+  // combat. if it were 'when x minions die' that carries over, but avenge means it needs to happen in combat." The ONE
+  // test every hero-level Ancient Avenge below uses: the fight's own friendly-death count (the bus `count`, 0 at the
+  // start of every fight) reaching a multiple of N. The mods' `tick` (the old carried running count) is IGNORED here, so
+  // a stored snapshot that still carries one fights by the same rule. A counter worded "When N friendly minions die"
+  // (Rune of Body Counting, Braum × Death) is NOT an Avenge and keeps its carried tick.
+  const avengeDue = (every: number, count: number): boolean => count % Math.max(1, every) === 0;
   // ANCIENT OF WAR × Frantic Frank (owner 2026-09-30): "Avenge (3): Gain a Clearance stack." A hero-level Avenge, like
   // Cindara's Hoard: every `every`th friendly death this fight is one stack, gained right then (a `questTrigger` the
   // replay counts, so the power text ticks mid-fight, R-REALTIME-01), and Rune of Fury fires it again per copy. The
@@ -7352,7 +7359,7 @@ export function simulate(
   bus.on('avenge', (payload) => {
     const { side, count, victim } = payload as { side: Side; count: number; victim?: Minion };
     const mg = modsFor(side).ancientMaxGoldAvenge;
-    if (!mg || (mg.tick + count) % Math.max(1, mg.every) !== 0) return;
+    if (!mg || !avengeDue(mg.every, count)) return;
     const fires = 1 + (modsFor(side).runeFury ? flagCopiesOf(side, 'runeFury') : 0);
     for (let k = 0; k < fires; k++) {
       maxGoldAvengeFires[side] += 1;
@@ -7367,7 +7374,7 @@ export function simulate(
   bus.on('avenge', (payload) => {
     const { side, count, victim } = payload as { side: Side; count: number; victim?: Minion };
     const xa = modsFor(side).ancientXeroxAvenge;
-    if (!xa || (xa.tick + count) % Math.max(1, xa.every) !== 0) return;
+    if (!xa || !avengeDue(xa.every, count)) return;
     const fires = 1 + (modsFor(side).runeFury ? flagCopiesOf(side, 'runeFury') : 0);
     for (let k = 0; k < fires; k++) {
       if (occupied(side) >= 7) return;
@@ -7385,7 +7392,7 @@ export function simulate(
   bus.on('avenge', (payload) => {
     const { side, count, victim } = payload as { side: Side; count: number; victim?: Minion };
     const ga = modsFor(side).ancientGorrAvenge;
-    if (!ga || ga.ids.length === 0 || (ga.tick + count) % Math.max(1, ga.every) !== 0) return;
+    if (!ga || ga.ids.length === 0 || !avengeDue(ga.every, count)) return;
     // EMERALD WARDEN × DEATH (ancient pass 1): "once per turn". `limit` = the triggers this fight may still pay; Rune of
     // Fury still repeats a paying trigger.
     if (ga.limit !== undefined && gorrAvengePaid[side] >= ga.limit) return;
@@ -7404,7 +7411,7 @@ export function simulate(
   bus.on('avenge', (payload) => {
     const { side, count, victim } = payload as { side: Side; count: number; victim?: Minion };
     const mg = modsFor(side).ancientMateGiftAvenge;
-    if (!mg || (mg.tick + count) % Math.max(1, mg.every) !== 0) return;
+    if (!mg || !avengeDue(mg.every, count)) return;
     const fires = 1 + (modsFor(side).runeFury ? flagCopiesOf(side, 'runeFury') : 0);
     for (let k = 0; k < fires; k++) {
       ancientProc(side); // CINDY × DEATH fires (Rune of Fury repeats included) (R-FX-ANCIENT-PROC-01)
@@ -7438,7 +7445,7 @@ export function simulate(
   bus.on('avenge', (payload) => {
     const { side, count } = payload as { side: Side; count: number };
     const ba = modsFor(side).ancientBrackusAvenge;
-    if (!ba || (ba.tick + count) % Math.max(1, ba.every) !== 0) return;
+    if (!ba || !avengeDue(ba.every, count)) return;
     const fires = 1 + (modsFor(side).runeFury ? flagCopiesOf(side, 'runeFury') : 0);
     for (let k = 0; k < fires; k++) {
       nextStep();
@@ -7462,7 +7469,7 @@ export function simulate(
   bus.on('avenge', (payload) => {
     const { side, count, victim } = payload as { side: Side; count: number; victim?: Minion };
     const sp = modsFor(side).ancientSproutAvenge;
-    if (!sp || (sp.tick + count) % Math.max(1, sp.every) !== 0) return;
+    if (!sp || !avengeDue(sp.every, count)) return;
     const def = cards[sp.cardId];
     if (!def) return;
     const fires = 1 + (modsFor(side).runeFury ? flagCopiesOf(side, 'runeFury') : 0);
@@ -7480,7 +7487,7 @@ export function simulate(
   bus.on('avenge', (payload) => {
     const { side, count, victim } = payload as { side: Side; count: number; victim?: Minion };
     const ap = modsFor(side).ancientAvengePulse;
-    if (!ap || (ap.tick + count) % Math.max(1, ap.every) !== 0) return;
+    if (!ap || !avengeDue(ap.every, count)) return;
     const fires = 1 + (modsFor(side).runeFury ? flagCopiesOf(side, 'runeFury') : 0);
     for (let k = 0; k < fires; k++) {
       nextStep();
@@ -7521,7 +7528,7 @@ export function simulate(
     const { side, count } = payload as { side: Side; count: number };
     const uf = modsFor(side).ancientFrontShape;
     const av = uf?.avenge;
-    if (!uf || !av || (av.tick + count) % Math.max(1, av.every) !== 0) return;
+    if (!uf || !av || !avengeDue(av.every, count)) return;
     const fires = 1 + (modsFor(side).runeFury ? flagCopiesOf(side, 'runeFury') : 0);
     for (let k = 0; k < fires; k++) { ancientProc(side); fireUnitedFront(side, spellTotals[side] * Math.max(1, av.mult), uf.all); } // EMISSARY × DEATH fires (R-FX-ANCIENT-PROC-01)
   });
@@ -7532,7 +7539,7 @@ export function simulate(
   bus.on('avenge', (payload) => {
     const { side, count } = payload as { side: Side; count: number };
     const ra = modsFor(side).ancientRefreshAvenge;
-    if (!ra || (ra.tick + count) % Math.max(1, ra.every) !== 0) return;
+    if (!ra || !avengeDue(ra.every, count)) return;
     const fires = 1 + (modsFor(side).runeFury ? flagCopiesOf(side, 'runeFury') : 0);
     for (let k = 0; k < fires; k++) {
       ctx.grantFreeRolls(1, side);
@@ -7629,7 +7636,7 @@ export function simulate(
   bus.on('avenge', (payload) => {
     const { side, count, victim } = payload as { side: Side; count: number; victim?: Minion };
     const d = modsFor(side).ancientAvengeSpells;
-    if (!d || ((d.tick ?? 0) + count) % Math.max(1, d.every) !== 0) return; // one running count across Shop and combat
+    if (!d || !avengeDue(d.every, count)) return; // per combat (R-AVENGE-PER-COMBAT-01)
     const fires = 1 + (modsFor(side).runeFury ? flagCopiesOf(side, 'runeFury') : 0);
     for (let k = 0; k < fires; k++) {
       ancientProc(side); // HUNCH × DEATH fires (R-FX-ANCIENT-PROC-01)

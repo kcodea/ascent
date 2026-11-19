@@ -61,6 +61,83 @@ export const PATCH_NOTES: PatchNote[] = [
       { category: 'Systems', text: 'Smoother combat: background calculations no longer interrupt the fight.' },
       {
         category: 'Systems',
+        text: 'The lobby rail card for each player now shows their hero power and Ancient, in a new look.',
+        details: [
+          "Hover a player on the rail (tap on touch) to see their hero art, Health and Armor, and their hero power with its full text.",
+          'If they have picked an Ancient, the power shows it cracked open, with the Ancient named and what it does for that hero.',
+          'Shop tier, Gilded made, top tribe, runes and the last three fights are all still there.',
+          "In combat, your opponent's hero power icon now shows their Ancient too.",
+        ],
+      },
+      { category: 'Systems', text: "Another player's Career page now has an Add friend button at the top. One press sends the request." },
+      { category: 'Systems', text: 'Settings, Account now shows your name and tag (like Name#1234) with a Copy button, so you can share it with friends.' },
+      {
+        category: 'Systems',
+        text: 'A Gilded minion now keeps the progress its copies had. A Billings at 9/10 Gold spent stays at 9/10 when it is Gilded.',
+        details: [
+          'The Gilded minion starts at the furthest progress of the copies that combined. It used to start again from 0.',
+          'This covers every counter under a minion: Gold spent, cards bought, cards played, minions sold, spells and Rubies cast, Shouts, Orbits, Refreshes and Spirits played.',
+          'Combining never pays the effect out. The next step pays it as normal.',
+        ],
+      },
+      {
+        category: 'Balance',
+        text: 'Beardsley now improves by +2/+1 for every Beast, up from +1/+1.',
+        details: [
+          'The grant now runs +2/+1, then +4/+2, then +6/+3.',
+          'Gilded Beardsley gives +4/+2 and improves by +4/+2.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Beardsley and Vicious now show their current buff during combat. The number grows as each Beast is summoned.',
+      },
+      {
+        category: 'Balance',
+        text: 'Avenge now counts one fight at a time. Leftover progress no longer carries into the next fight.',
+        details: [
+          'An Avenge (4) needs 4 of your minions to die in the same fight. 3 deaths in one fight and 1 in the next no longer trigger it.',
+          'This fixes the hero Avenges the Ancient of Death adds, which were keeping one count across the Shop and every fight.',
+          'Those Avenges still count minions that die in the Shop. That count ends when the fight starts, and each fight starts from 0.',
+          'Effects worded "When X friendly minions die" are not Avenges. They still keep their count between turns.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Gambler with the Ancient of Death: the Dice lock now drops during the fight, the moment its Avenge triggers.',
+        details: [
+          'The lock number on the hero power, the locked line under the hero name and the power text all update as the Avenge fires.',
+          'The number you see when the fight ends is the number you keep.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Spectators can no longer press the End Turn gem, Freeze, Refresh or Tier up on the game they are watching.',
+        details: [
+          'Before, a spectator could press the gem after a fight and their own screen left the fight early, even after the player was knocked out.',
+          'The same holds while watching a replay or your Duos teammate.',
+          'When the player you are watching is knocked out, their last fight stays up, then the game closes with their place as before.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Mech and Spirit have new tribe colors that match the gems on their card frames.',
+        details: [
+          'Mech is now indigo instead of sky blue.',
+          'Spirit is now copper orange instead of pale peach.',
+        ],
+      },
+      {
+        category: 'Balance',
+        text: 'Midas with the Ancient of War now reads: Start of Combat: give a friendly minion Ward for every Gilded minion you control.',
+        details: [
+          'It counts the Gilded minions on your own board. Enemy Gilded minions no longer matter.',
+          'Each Ward goes to a different random friendly minion that does not have Ward yet.',
+          'It used to give 2 random friendly minions Ward for each Gilded enemy minion.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Game results now show the hero power and the Ancient picked with it, for you and for every player in the lobby.',
         details: [
           'The hero power sits beside the runes under the final board. Hover it to read the power and what its Ancient adds.',

@@ -624,7 +624,7 @@ export const HEROES_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Xerox Ancients)', quote: 'death - Avenge (5): Summon a copy of your highest attack minion' },
       { kind: 'code', ref: 'packages/sim/src/ancients.ts avengeCopyTopAttack / ancientXeroxShopDeath / ancientXeroxAvengeLeft; packages/core/src/combat/simulate.ts ancientXeroxAvenge avenge listener' },
     ],
-    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    currentBehaviour: 'PARTLY SUPERSEDED 2026-11-18 by R-AVENGE-PER-COMBAT-01 (an Avenge count is per phase: nothing carries from the Shop into a fight or from one fight to the next). Was: Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsXerox.test.ts'], lastVerifiedAt: '2026-10-02' },
   },
   {
@@ -877,7 +877,7 @@ export const HEROES_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: "Kevin via the lead, 2026-11-16 (Ancient pairing review, part 3)", quote: "Change: Avenge (3): get a Buddy Buddy" },
       { kind: 'code', ref: "packages/sim/src/ancients.ts avengeGrantCard (robin.death)" },
     ],
-    currentBehaviour: "Conforms (built 2026-11-16, supersedes R-ANCROBIN-01). Dev-only (Ancients flag).",
+    currentBehaviour: "PARTLY SUPERSEDED 2026-11-18 by R-AVENGE-PER-COMBAT-01 (an Avenge count is per phase: nothing carries from the Shop into a fight or from one fight to the next). Was: Conforms (built 2026-11-16, supersedes R-ANCROBIN-01). Dev-only (Ancients flag).",
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsRobin.test.ts"], lastVerifiedAt: '2026-11-16' },
   },
   {
@@ -947,7 +947,7 @@ export const HEROES_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Tradesman Ancients)', quote: 'Death - Avenge (3): Gain a free Refresh' },
       { kind: 'code', ref: 'packages/sim/src/ancients.ts avengeFreeRefresh / ancientTradesShopDeath / ancientAfterCombat; packages/core/src/combat/simulate.ts ancientRefreshAvenge' },
     ],
-    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    currentBehaviour: 'PARTLY SUPERSEDED 2026-11-18 by R-AVENGE-PER-COMBAT-01 (an Avenge count is per phase: nothing carries from the Shop into a fight or from one fight to the next). Was: Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsTradesman.test.ts'], lastVerifiedAt: '2026-10-02' },
   },
   {
@@ -1294,7 +1294,7 @@ export const HEROES_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Gorr Ancients)', quote: 'death - Avenge (6): Get a copy of a minion you bought last turn.' },
       { kind: 'code', ref: 'packages/sim/src/ancients.ts avengeCopyLastTurnBuy / ancientGorrShopDeath / gorrBuys; packages/core/src/combat/simulate.ts ancientGorrAvenge' },
     ],
-    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    currentBehaviour: 'PARTLY SUPERSEDED 2026-11-18 by R-AVENGE-PER-COMBAT-01 (an Avenge count is per phase: nothing carries from the Shop into a fight or from one fight to the next). Was: Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsGorr.test.ts'], lastVerifiedAt: '2026-10-02' },
   },
   {
@@ -1578,7 +1578,7 @@ export const HEROES_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-06 (Nadja Ancients)', quote: 'Death: Goldspring becomes: Avenge (6): Gain 1 max gold.' },
       { kind: 'code', ref: 'packages/sim/src/ancients.ts avengeMaxGold / ancientNadjaShopDeath / ancientAfterCombat; packages/core/src/combat/simulate.ts ancientMaxGoldAvenge' },
     ],
-    currentBehaviour: 'Conforms (built 2026-10-06). Dev-only (Scene Builder, Set 3, the Ancients flag). The "no cap" and "Shop deaths count" readings await owner confirmation.',
+    currentBehaviour: 'PARTLY SUPERSEDED 2026-11-18 by R-AVENGE-PER-COMBAT-01 (an Avenge count is per phase: nothing carries from the Shop into a fight or from one fight to the next). Was: Conforms (built 2026-10-06). Dev-only (Scene Builder, Set 3, the Ancients flag). The "no cap" and "Shop deaths count" readings await owner confirmation.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsNadja.test.ts'], lastVerifiedAt: '2026-10-06' },
   },
   {
@@ -1721,7 +1721,7 @@ export const HEROES_RULES: GameRule[] = [
       { kind: 'code', ref: "packages/sim/src/ancients.ts avengeSummonSprout / ancientHeroAvengeShopDeath / batch5AfterCombat; packages/core/src/combat/simulate.ts ancientSproutAvenge; packages/content/src/cards/set1/tokens.ts raysesprout" },
     ],
     contentIds: ["raysesprout"],
-    currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    currentBehaviour: "PARTLY SUPERSEDED 2026-11-18 by R-AVENGE-PER-COMBAT-01 (an Avenge count is per phase: nothing carries from the Shop into a fight or from one fight to the next). Was: Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsRayse.test.ts"], lastVerifiedAt: '2026-10-09' },
   },
   {
@@ -1820,7 +1820,7 @@ export const HEROES_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "Death: \"Avenge (7): advance your commission 1 turn.\" With no commission running it does nothing." },
       { kind: 'code', ref: "packages/sim/src/ancients.ts avengeAdvanceCommission / ancientCommissionDueNow; packages/core/src/combat/simulate.ts ancientAvengePulse; packages/sim/src/reducer.ts action boundary" },
     ],
-    currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    currentBehaviour: "PARTLY SUPERSEDED 2026-11-18 by R-AVENGE-PER-COMBAT-01 (an Avenge count is per phase: nothing carries from the Shop into a fight or from one fight to the next). Was: Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsCassen.test.ts"], lastVerifiedAt: '2026-10-09' },
   },
   {
@@ -2282,7 +2282,7 @@ export const HEROES_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: "Kevin via the lead, 2026-11-16 (Ancient pass 2 review board)", quote: "Gildmaster / death: avenge 17" },
       { kind: 'code', ref: "packages/sim/src/ancients.ts ANCIENT_PAIRINGS.gildmaster.death (avengeGrantCard every 17)" },
     ],
-    currentBehaviour: "Conforms (built 2026-11-16). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    currentBehaviour: "PARTLY SUPERSEDED 2026-11-18 by R-AVENGE-PER-COMBAT-01 (an Avenge count is per phase: nothing carries from the Shop into a fight or from one fight to the next). Was: Conforms (built 2026-11-16). Dev-only (Scene Builder, Set 3, the Ancients flag).",
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsGildmaster.test.ts"], lastVerifiedAt: '2026-11-16' },
   },
   {
@@ -2436,7 +2436,7 @@ export const HEROES_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: "Kevin via the lead, 2026-11-16 (Ancient pass 2 review board)", quote: "Midas / war: Change: Start of Combat, give 2 random minions Ward for each Gilded enemy minion" },
       { kind: 'code', ref: "packages/sim/src/ancients.ts socWardPerGildedFoe / pass2CombatMods; packages/core/src/combat/simulate.ts the Start-of-Combat ancientMidasWard block" },
     ],
-    currentBehaviour: "Conforms (built 2026-11-16). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    currentBehaviour: "SUPERSEDED 2026-11-18 by R-ANCWAR-MIDAS-01 (the Ward now counts Midas's own Gilded board minions, one each). Was: Conforms (built 2026-11-16).",
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsMidas.test.ts"], lastVerifiedAt: '2026-11-16' },
   },
   {
@@ -2579,7 +2579,7 @@ export const HEROES_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: "Claude Code session, 2026-10-27 (Ancients batch: Midas, Keshi, Quillen, Disco Dan)", quote: "Death: \"Avenge (4): Advance Keshi's Crown by 4\"" },
       { kind: 'code', ref: "packages/sim/src/ancients.ts avengeAdvanceCrown / ancientHeroAvengeShopDeath / ancientCrownDueNow; reducer.ts keshiCrownPayout" },
     ],
-    currentBehaviour: "Conforms (built 2026-10-27). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    currentBehaviour: "PARTLY SUPERSEDED 2026-11-18 by R-AVENGE-PER-COMBAT-01 (an Avenge count is per phase: nothing carries from the Shop into a fight or from one fight to the next). Was: Conforms (built 2026-10-27). Dev-only (Scene Builder, Set 3, the Ancients flag).",
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsKeshi.test.ts"], lastVerifiedAt: '2026-10-27' },
   },
   {
@@ -2823,7 +2823,7 @@ export const HEROES_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch A: Rascal, Gambler, Pete, Foreman Flint, Juggler)", quote: "Death: \"All In gains a use. Avenge (4): add 1 gold to All In.\"" },
       { kind: 'code', ref: "packages/sim/src/ancients.ts avengeAllInGold / batchAShopDeath / batchAAfterCombat / ancientAllInExtra / ancientAfterAllIn; recruit.ts allInPayoutOf" },
     ],
-    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    currentBehaviour: "PARTLY SUPERSEDED 2026-11-18 by R-AVENGE-PER-COMBAT-01 (an Avenge count is per phase: nothing carries from the Shop into a fight or from one fight to the next). Was: Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsRascal.test.ts"], lastVerifiedAt: '2026-11-10' },
   },
   {
@@ -2907,7 +2907,7 @@ export const HEROES_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch A: Rascal, Gambler, Pete, Foreman Flint, Juggler)", quote: "Death: \"Avenge (4): reduce the Dice lock by 1 turn.\"" },
       { kind: 'code', ref: "packages/sim/src/ancients.ts avengeReduceDiceLock / reduceDiceLock / batchAShopDeath / batchAAfterCombat" },
     ],
-    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    currentBehaviour: "PARTLY SUPERSEDED 2026-11-18 by R-AVENGE-PER-COMBAT-01 (an Avenge count is per phase: nothing carries from the Shop into a fight or from one fight to the next). Was: Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsGambler.test.ts"], lastVerifiedAt: '2026-11-10' },
   },
   {
@@ -2991,7 +2991,7 @@ export const HEROES_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch A: Rascal, Gambler, Pete, Foreman Flint, Juggler)", quote: "Death: \"Avenge (3): gain a free Refresh.\"" },
       { kind: 'code', ref: "packages/sim/src/ancients.ts avengeFreeRefresh (reused) / ancientTradesShopDeath; QuestCombatMods.ancientRefreshAvenge" },
     ],
-    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    currentBehaviour: "PARTLY SUPERSEDED 2026-11-18 by R-AVENGE-PER-COMBAT-01 (an Avenge count is per phase: nothing carries from the Shop into a fight or from one fight to the next). Was: Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsPete.test.ts"], lastVerifiedAt: '2026-11-10' },
   },
   {
@@ -3075,7 +3075,7 @@ export const HEROES_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch A: Rascal, Gambler, Pete, Foreman Flint, Juggler)", quote: "Death: \"Avenge (4): get a random Dwarf.\"" },
       { kind: 'code', ref: "packages/sim/src/ancients.ts avengeGrantTribeMinion / tribePool / batchAShopDeath; QuestCombatMods.ancientGorrAvenge" },
     ],
-    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    currentBehaviour: "PARTLY SUPERSEDED 2026-11-18 by R-AVENGE-PER-COMBAT-01 (an Avenge count is per phase: nothing carries from the Shop into a fight or from one fight to the next). Was: Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsFlint.test.ts"], lastVerifiedAt: '2026-11-10' },
   },
   {
@@ -3159,7 +3159,7 @@ export const HEROES_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch A: Rascal, Gambler, Pete, Foreman Flint, Juggler)", quote: "Death: \"Avenge (4): get a Carnival Coin.\"" },
       { kind: 'code', ref: "packages/sim/src/ancients.ts avengeGrantCard (reused) / ancientHeroAvengeShopDeath; QuestCombatMods.ancientGorrAvenge" },
     ],
-    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    currentBehaviour: "PARTLY SUPERSEDED 2026-11-18 by R-AVENGE-PER-COMBAT-01 (an Avenge count is per phase: nothing carries from the Shop into a fight or from one fight to the next). Was: Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsJuggler.test.ts"], lastVerifiedAt: '2026-11-10' },
   },
   {
@@ -3917,7 +3917,7 @@ export const HEROES_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch B: Kindness, Merrin, Emissary, Emerald Warden)", quote: "Death: \"Avenge (3): get a random Shop spell.\"" },
       { kind: 'code', ref: "packages/sim/src/ancients.ts avengeRandomShopSpell / batchBShopDeath / batchBCombatMods (ancientGorrAvenge)" },
     ],
-    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    currentBehaviour: "PARTLY SUPERSEDED 2026-11-18 by R-AVENGE-PER-COMBAT-01 (an Avenge count is per phase: nothing carries from the Shop into a fight or from one fight to the next). Was: Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsMerrin.test.ts"], lastVerifiedAt: '2026-11-10' },
   },
   {
@@ -4001,7 +4001,7 @@ export const HEROES_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch B: Kindness, Merrin, Emissary, Emerald Warden)", quote: "Death: \"Avenge (4): Trigger United Front.\"" },
       { kind: 'code', ref: "packages/sim/src/ancients.ts avengeUnitedFront / batchBShopDeath (fireShopUnitedFront); core simulate.ts (ancientFrontShape.avenge, fireUnitedFront)" },
     ],
-    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    currentBehaviour: "PARTLY SUPERSEDED 2026-11-18 by R-AVENGE-PER-COMBAT-01 (an Avenge count is per phase: nothing carries from the Shop into a fight or from one fight to the next). Was: Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsEmissary.test.ts"], lastVerifiedAt: '2026-11-10' },
   },
   {
@@ -4341,7 +4341,7 @@ export const HEROES_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: "Kevin via the lead, 2026-11-14 (Cindy's Ancient pairings)", quote: "counts ALL friendly deaths in EVERY phase ... Consumes do NOT count." },
       { kind: 'code', ref: "packages/sim/src/ancients.ts cindyShopDeath / cindyCombatMods / cindyAfterCombat; packages/core/src/combat/simulate.ts the ancientMateGiftAvenge listener" },
     ],
-    currentBehaviour: "Conforms (built 2026-11-14). Dev-only: Ancients are off in every Duos game players can reach (R-ANCDUOS-01). \"Gildcrafter\" is the Goldcrafter spell.",
+    currentBehaviour: "PARTLY SUPERSEDED 2026-11-18 by R-AVENGE-PER-COMBAT-01 (an Avenge count is per phase: nothing carries from the Shop into a fight or from one fight to the next). Was: Conforms (built 2026-11-14). Dev-only: Ancients are off in every Duos game players can reach (R-ANCDUOS-01). \"Gildcrafter\" is the Goldcrafter spell.",
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsCindy.test.ts", "packages/core/src/combat/cindyAncients.test.ts"], lastVerifiedAt: '2026-11-14' },
   },
   {
@@ -4455,7 +4455,7 @@ export const HEROES_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: "Ancient pairing review, owner picks via the lead, 2026-11-16 (part 1)", quote: "Owner picked: \"Change: Tiers 5 and 6 instead of Tier 7\"" },
       { kind: 'code', ref: "packages/sim/src/ancients.ts avengeBuffTier7 (tiers) / brackusBuffTier7; packages/core/src/combat/simulate.ts ancientBrackusAvenge.tiers" },
     ],
-    currentBehaviour: "Conforms (built 2026-11-16). Supersedes R-ANCBRACKUS-01. Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    currentBehaviour: "PARTLY SUPERSEDED 2026-11-18 by R-AVENGE-PER-COMBAT-01 (an Avenge count is per phase: nothing carries from the Shop into a fight or from one fight to the next). Was: Conforms (built 2026-11-16). Supersedes R-ANCBRACKUS-01. Dev-only (Scene Builder, Set 3, the Ancients flag).",
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsBrackus.test.ts"], lastVerifiedAt: '2026-11-16' },
   },
   {
@@ -4651,7 +4651,7 @@ export const HEROES_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: "Ancient pairing review, owner picks via the lead, 2026-11-16 (part 1)", quote: "Mike: once per turn. Owner picked: Use the suggestion" },
       { kind: 'code', ref: "packages/sim/src/ancients.ts avengeTierMinion (oncePerTurn) / batchBShopDeath / ewAvengeWave; packages/core/src/combat/simulate.ts ancientGorrAvenge.limit" },
     ],
-    currentBehaviour: "Conforms (built 2026-11-16). Supersedes R-ANCEMERALD-01. Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    currentBehaviour: "PARTLY SUPERSEDED 2026-11-18 by R-AVENGE-PER-COMBAT-01 (an Avenge count is per phase: nothing carries from the Shop into a fight or from one fight to the next). Was: Conforms (built 2026-11-16). Supersedes R-ANCEMERALD-01. Dev-only (Scene Builder, Set 3, the Ancients flag).",
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsEmeraldWarden.test.ts"], lastVerifiedAt: '2026-11-16' },
   },
   {
@@ -4777,7 +4777,7 @@ export const HEROES_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: "Ancient pairings audit 2026-11-16, owner rulings via the lead", quote: "Owner via the lead, 2026-11-16: Hunch x Death's Avenge (4) counts Shop deaths too, one running count across Shop and combat like every other hero Avenge." },
       { kind: 'code', ref: "packages/sim/src/ancients.ts ancientHunchShopDeath / hunchLive / ancientSpellbookAvengeLeft; packages/core/src/combat/simulate.ts ancientAvengeSpells.tick" },
     ],
-    currentBehaviour: "Conforms (fixed 2026-11-16). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    currentBehaviour: "PARTLY SUPERSEDED 2026-11-18 by R-AVENGE-PER-COMBAT-01 (an Avenge count is per phase: nothing carries from the Shop into a fight or from one fight to the next). Was: Conforms (fixed 2026-11-16). Dev-only (Scene Builder, Set 3, the Ancients flag).",
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsHunch.test.ts"], lastVerifiedAt: '2026-11-16' },
   },
   {
@@ -4906,5 +4906,24 @@ export const HEROES_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms from 2026-11-17 (supersedes R-ANCAUCT-02).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsAuctioneer.test.ts'], lastVerifiedAt: '2026-11-17' },
+  },
+  {
+    id: 'R-ANCWAR-MIDAS-01',
+    title: 'Midas × Ancient of War: Start of Combat, a friendly minion gains Ward for every Gilded minion you control',
+    statement:
+      'With the Ancient of War, at Start of Combat, count the living Gilded minions on that side\'s OWN board (the board only, '
+      + 'never the hand; enemy Gilded minions do not count). That many friendly minions gain Ward for that combat: each a '
+      + 'DISTINCT random living friendly minion that does not already have Ward, drawn from the side\'s seeded grant stream. '
+      + 'More Gilded minions than minions without Ward: the rest fizzle. No Gilded minion on the board: nothing. One Start of '
+      + 'Combat beat and one Ancient proc for the whole grant. It works identically for a recorded or enemy Midas (it reads its '
+      + 'own side), and a board recorded under the old rule fights by this one. Supersedes R-ANCPASS2-19.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-11-18', quote: 'Start of Combat: give a friendly minion Ward for every Gilded minion you control.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts socWardPerGilded / pass2CombatMods; packages/core/src/combat/simulate.ts the Start-of-Combat ancientMidasWard block' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-18 (supersedes R-ANCPASS2-19).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsMidas.test.ts'], lastVerifiedAt: '2026-11-18' },
   },
 ];

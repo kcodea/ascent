@@ -126,6 +126,12 @@
   background: var(--night-deep);
 }
 
+/* Block boxes: an inline image or video leaves a strip of line space under it, which showed as padding in the frame. */
+.capture img:not([hidden]),
+.capture__video {
+  display: block;
+}
+
 /* The clip fills the poster's box. Until it is playing it is kept out of the layout so the poster holds the space. */
 .capture__video {
   width: 100%;
@@ -143,50 +149,69 @@
   pointer-events: none;
 }
 
-/* -- #async: four numbered points, each a framed capture with its text below -------------------------------- */
+/* -- #async: four points down a gold spine, each a struck medallion with its words beside it ----------------- */
 
+/* On a phone the spine runs down the left through the medallions; from tablet up it runs down the middle and the
+   points step from one side to the other. */
 .points {
+  --medal: 72px;
+  position: relative;
   display: grid;
-  gap: var(--s6) var(--s5);
+  gap: var(--s6);
   margin-top: var(--s6);
   counter-reset: point;
 }
 
+.points::before {
+  content: '';
+  position: absolute;
+  top: calc(var(--medal) / 2);
+  bottom: calc(var(--medal) / 2);
+  left: calc(var(--medal) / 2);
+  width: 2px;
+  margin-left: -1px;
+  background: linear-gradient(180deg, transparent, var(--gold) 12%, var(--gold) 88%, transparent);
+  opacity: 0.55;
+}
+
 .point {
   position: relative;
+  display: grid;
+  grid-template-columns: var(--medal) minmax(0, 1fr);
+  column-gap: var(--s4);
+  align-items: center;
   counter-increment: point;
 }
 
-/* A struck-gold medallion carrying the point's numeral, seated on the frame's top-left corner. */
-.point::before {
-  content: counter(point, upper-roman);
-  position: absolute;
-  top: -16px;
-  left: 18px;
-  z-index: 1;
+/* The medallion: a night plate in a turned gold rim, the point's sign struck in gold on its face. */
+.point__icon {
+  position: relative;
   display: grid;
   place-items: center;
-  width: 42px;
-  height: 42px;
+  width: var(--medal);
+  height: var(--medal);
+  border: 3px solid transparent;
   border-radius: 50%;
+  color: var(--gold-light);
+  background: var(--sheen) padding-box, var(--plate) padding-box, var(--edge) border-box;
+  box-shadow: var(--bevel), 0 0 0 3px var(--night-deep), 0 0 26px -2px color-mix(in srgb, var(--gold) 45%, transparent), var(--contact);
+}
+
+.point__icon svg {
+  width: 56%;
+  height: 56%;
+}
+
+/* The point's numeral, as a small gold kicker over its heading. */
+.point__text::before {
+  content: counter(point, upper-roman);
+  display: block;
+  margin-bottom: 0.2rem;
   font-family: var(--font-title);
-  font-size: var(--fs-small);
+  font-size: var(--fs-label);
   font-weight: 800;
-  letter-spacing: 0.04em;
-  color: var(--gem-rim);
-  background: radial-gradient(circle at 40% 30%, var(--gold-hi), var(--gold-light) 45%, var(--gold) 80%, var(--gold-deep));
-  box-shadow: 0 0 0 3px var(--gem-rim), inset 0 1px 0 color-mix(in srgb, var(--white) 70%, transparent), 0 4px 10px -2px var(--night-deep);
-}
-
-.point .capture {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  padding: 6px;
-}
-
-.point__text {
-  padding: var(--s4) var(--s3) var(--s3);
+  letter-spacing: 0.2em;
+  color: var(--gold-light);
 }
 
 .point__text h3 {
@@ -194,32 +219,22 @@
 }
 
 .point__text p {
+  max-width: 30em;
   color: var(--muted);
 }
 
-/* -- #runeforge: the capture set into the game's own forge frame -------------------------------------------- */
-
-.section--runeforge > .capture {
-  position: relative;
-  aspect-ratio: 1536 / 1024;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: url('/art/forge-bg.webp') center / 100% 100% no-repeat;
-  box-shadow: none;
-  filter: drop-shadow(0 26px 30px color-mix(in srgb, var(--night-deep) 75%, transparent));
+/* The one clip in the section: the Gold Fuse, the mechanic words alone do not show. */
+.point .capture {
+  grid-column: 2;
+  margin-top: var(--s4);
+  padding: 6px;
 }
 
-/* The frame's leather window, measured from forge-bg.webp (1536 x 1024): x 112 to 1424, y 148 to 856. */
+/* -- #runeforge: the game's whole forge in the same gilded plate as every other capture -------------------- */
+
+/* The clip is 3:2, not 16:9, so the forge's own frame, title and buttons all fit with nothing cut off. */
 .section--runeforge > .capture :is(img, .capture__video[data-playing]) {
-  position: absolute;
-  top: 14.45%;
-  left: 7.3%;
-  width: 85.4%;
-  height: 69.15%;
-  aspect-ratio: auto;
-  border-radius: 1.6% / 2.4%;
-  box-shadow: 0 0 0 1px var(--gem-rim);
+  aspect-ratio: 3 / 2;
 }
 
 /* -- #ancients: the six portraits, each with a name plaque mounted on its lower edge ------------------------ */
@@ -235,6 +250,221 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+}
+
+:is(.ancient[data-ancient='bonds'], .ashow__panel[data-ancient-panel='bonds']) {
+  --anc: var(--anc-bonds);
+}
+
+:is(.ancient[data-ancient='death'], .ashow__panel[data-ancient-panel='death']) {
+  --anc: var(--anc-death);
+}
+
+:is(.ancient[data-ancient='fortune'], .ashow__panel[data-ancient-panel='fortune']) {
+  --anc: var(--anc-fortune);
+}
+
+:is(.ancient[data-ancient='genesis'], .ashow__panel[data-ancient-panel='genesis']) {
+  --anc: var(--anc-genesis);
+}
+
+:is(.ancient[data-ancient='time'], .ashow__panel[data-ancient-panel='time']) {
+  --anc: var(--anc-time);
+}
+
+:is(.ancient[data-ancient='war'], .ashow__panel[data-ancient-panel='war']) {
+  --anc: var(--anc-war);
+}
+
+/* The rune tiles under the forge reuse the portrait row and the showcase card, each in its rune's own colour. */
+:is(.ancient[data-rune='chimerus'], .ashow__panel[data-rune-panel='chimerus']) {
+  --anc: var(--rune-chimerus);
+}
+
+:is(.ancient[data-rune='voidmother'], .ashow__panel[data-rune-panel='voidmother']) {
+  --anc: var(--rune-voidmother);
+}
+
+:is(.ancient[data-rune='bucky'], .ashow__panel[data-rune-panel='bucky']) {
+  --anc: var(--rune-bucky);
+}
+
+:is(.ancient[data-rune='portrait'], .ashow__panel[data-rune-panel='portrait']) {
+  --anc: var(--rune-portrait);
+}
+
+:is(.ancient[data-rune='yazzus'], .ashow__panel[data-rune-panel='yazzus']) {
+  --anc: var(--rune-yazzus);
+}
+
+:is(.ancient[data-rune='gemsage'], .ashow__panel[data-rune-panel='gemsage']) {
+  --anc: var(--rune-gemsage);
+}
+
+.runes__lead {
+  margin-top: var(--s6);
+  font-size: var(--fs-small);
+  text-align: center;
+  color: var(--muted);
+}
+
+.runes {
+  margin-top: var(--s4);
+}
+
+/* A rune tile is one gilded plate: the rune on top, and under it a navy foot that fades up into the art and carries
+   the rune's name and what it does. */
+.rune {
+  position: relative;
+  overflow: hidden;
+  height: 100%;
+  border: 2px solid transparent;
+  border-radius: var(--r-control);
+  background: linear-gradient(var(--showcase), var(--showcase)) padding-box, var(--edge) border-box;
+  box-shadow: 0 0 0 2px var(--night-deep), var(--contact);
+}
+
+.ancient.rune img,
+.ancient.rune[aria-pressed='true'] img {
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  /* The art itself thins out over its lower half, so the plate's navy shows through with no edge to see. */
+  -webkit-mask-image: linear-gradient(180deg, var(--black) 48%, color-mix(in srgb, var(--black) 62%, transparent) 68%, color-mix(in srgb, var(--black) 22%, transparent) 86%, transparent);
+  mask-image: linear-gradient(180deg, var(--black) 48%, color-mix(in srgb, var(--black) 62%, transparent) 68%, color-mix(in srgb, var(--black) 22%, transparent) 86%, transparent);
+}
+
+.rune[aria-pressed='true'] {
+  box-shadow: 0 0 0 2px var(--anc), 0 0 26px 5px color-mix(in srgb, var(--anc) 55%, transparent), var(--contact);
+}
+
+.rune__cap {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  width: 100%;
+  margin-top: 0;
+  padding: 0 var(--s3) var(--s4);
+  text-align: center;
+}
+
+.rune__name {
+  font-family: var(--font-title);
+  font-size: var(--fs-small);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.03em;
+}
+
+/* A short rule in the rune's colour parts the name from what the rune does. */
+.rune__name::after {
+  content: '';
+  display: block;
+  width: 60%;
+  height: 1px;
+  margin: var(--s2) auto;
+  background: linear-gradient(90deg, transparent, var(--anc), transparent);
+}
+
+.rune__text {
+  font-size: var(--fs-label);
+  line-height: 1.35;
+  color: var(--muted);
+}
+
+.rune__text b {
+  color: color-mix(in srgb, var(--anc) 55%, var(--white));
+  font-weight: 800;
+}
+
+/* The reward card's title: a small "Card Reward" tag in the rune's colour, then the card's name. */
+.ashow__name--reward {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.15em var(--s3);
+}
+
+.ashow__kicker {
+  font-size: var(--fs-label);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  text-shadow: none;
+  color: color-mix(in srgb, var(--anc) 55%, var(--white));
+}
+
+.ashow__meta {
+  font-size: var(--fs-label);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--anc) 45%, var(--muted));
+}
+
+.ashow__meta b {
+  font-weight: 900;
+}
+
+/* The stats line is a row: tier and tribe, a dot set well apart, then Attack and Health parted by a drawn line. */
+.ashow__name.ashow__name--reward::after {
+  height: 1px;
+}
+
+.ashow__meta {
+  margin-bottom: var(--s4);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.2em 0.7em;
+}
+
+.ashow__dot {
+  margin-inline: 0.5em;
+}
+
+/* On a narrow card the stats drop to their own row, so the dot would be left dangling. */
+@media (max-width: 759px) {
+  .ashow__dot {
+    display: none;
+  }
+
+  .ashow__meta b {
+    flex-basis: 100%;
+  }
+}
+
+.ashow__bar {
+  align-self: stretch;
+  width: 1px;
+  margin-block: 0.15em;
+  background: currentColor;
+  opacity: 0.7;
+}
+
+.ashow__blurb b {
+  color: color-mix(in srgb, var(--anc) 55%, var(--white));
+  font-weight: 800;
+}
+
+/* The chosen portrait wears its Ancient's colour, as the game's medallions do. */
+.ancient[aria-pressed='true'] img {
+  box-shadow: 0 0 0 2px var(--anc), 0 0 26px 5px color-mix(in srgb, var(--anc) 55%, transparent), var(--contact);
+}
+
+.ancient:focus-visible {
+  outline: 2px solid var(--gold-hi);
+  outline-offset: 6px;
+  border-radius: var(--r-control);
 }
 
 .ancient img {
@@ -264,6 +494,173 @@
   letter-spacing: 0.03em;
   background: var(--sheen) padding-box, var(--plate) padding-box, var(--edge) border-box;
   box-shadow: var(--bevel), 0 4px 10px -4px var(--night-deep);
+}
+
+/* The showcase card, in the style of the game's hero showcase: a navy card with a gilded edge, the portrait on the
+   left fading into the card, and a blurred wash of the same art behind the words. Every panel shares one grid cell,
+   so the card keeps one height whichever Ancient is up. */
+.ashow {
+  display: grid;
+  margin-top: var(--s5);
+}
+
+.ashow__panel {
+  position: relative;
+  grid-area: 1 / 1;
+  display: grid;
+  grid-template-columns: minmax(104px, 34%) minmax(0, 1fr);
+  overflow: hidden;
+  border-radius: var(--r-panel);
+  background: var(--showcase);
+  box-shadow: 0 24px 72px -20px color-mix(in srgb, var(--black) 60%, transparent);
+}
+
+/* A card that is not up still takes its space (beating the site-wide [hidden] rule), so the showcase is always as
+   tall as its tallest card and the page never shifts as you browse. */
+.ashow__panel[hidden] {
+  display: grid !important;
+  visibility: hidden;
+}
+
+.ashow__panel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--gold) 85%, transparent),
+    inset 0 2.5px 0 -1px color-mix(in srgb, var(--gold-hi) 45%, transparent),
+    inset 0 -2.5px 0 -1px color-mix(in srgb, var(--black) 60%, transparent);
+}
+
+.ashow__wash {
+  position: absolute;
+  left: -25%;
+  top: -25%;
+  width: 150%;
+  height: 150%;
+  object-fit: cover;
+  opacity: 0.16;
+  filter: blur(40px) saturate(1.4);
+  pointer-events: none;
+}
+
+.ashow__art {
+  position: relative;
+  min-height: 100%;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(90deg, var(--black) 72%, transparent 100%);
+  mask-image: linear-gradient(90deg, var(--black) 72%, transparent 100%);
+}
+
+.ashow__art img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 20%;
+}
+
+.ashow__info {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--s2);
+  padding: var(--s4) var(--s4) var(--s4) var(--s3);
+}
+
+.ashow__name {
+  position: relative;
+  padding-bottom: var(--s2);
+  font-family: var(--font-title);
+  font-size: clamp(1.35rem, 1rem + 1.9vw, 2.75rem);
+  font-weight: 900;
+  line-height: 1.02;
+  letter-spacing: -0.01em;
+  color: var(--white);
+  text-shadow: 0 3px 14px color-mix(in srgb, var(--black) 70%, transparent);
+}
+
+/* The showcase's rule under the name, here in the Ancient's own colour. */
+.ashow__name::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--anc), transparent);
+}
+
+.ashow__blurb {
+  max-width: 34em;
+  font-size: var(--fs-lede);
+  line-height: 1.45;
+  color: var(--text);
+}
+
+/* The in-game example: a labelled break, then the hero's portrait beside what this Ancient does for them. */
+.ashow__eg {
+  max-width: 34em;
+  margin-top: var(--s2);
+}
+
+.ashow__eg-label {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  font-family: var(--font-title);
+  font-size: var(--fs-label);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--anc) 55%, var(--white));
+}
+
+.ashow__eg-label::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--anc) 60%, transparent), transparent);
+}
+
+.ashow__eg-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  margin-top: var(--s2);
+}
+
+.ashow__eg-hero {
+  flex: none;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: 50% 20%;
+  box-shadow: 0 0 0 2px var(--gold), 0 4px 12px color-mix(in srgb, var(--black) 65%, transparent);
+}
+
+.ashow__eg-text {
+  font-size: var(--fs-small);
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.ashow__eg-name {
+  display: block;
+  font-family: var(--font-title);
+  font-size: var(--fs-body);
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--text);
+}
+
+.ashow__eg-text b {
+  color: color-mix(in srgb, var(--anc) 55%, var(--white));
+  font-weight: 800;
 }
 
 /* -- #tracking: the ladder medals --------------------------------------------------------------------------- */
@@ -323,21 +720,222 @@
   gap: var(--s5) var(--s3);
 }
 
-.chest {
-  display: flex;
+.chests__list {
+  align-items: flex-end;
+}
+
+.chests__list > li {
   flex: 1 1 136px;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--s2);
   max-width: 220px;
 }
 
-.chest img {
+.chest {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s2);
   width: 100%;
-  aspect-ratio: 840 / 457;
-  object-fit: contain;
-  object-position: 50% 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+}
+
+.chest:focus-visible {
+  outline: 2px solid var(--gold-hi);
+  outline-offset: 6px;
+  border-radius: var(--r-chip);
+}
+
+/* How high each tier hops (the game's own numbers). */
+.chest.t-standard {
+  --h: 6;
+}
+
+.chest.t-rare {
+  --h: 10;
+}
+
+.chest.t-epic {
+  --h: 15;
+}
+
+.chest.t-legendary {
+  --h: 21;
+}
+
+.chest.t-ancient {
+  --h: 28;
+}
+
+.chest__art {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  width: 100%;
   filter: drop-shadow(0 12px 12px color-mix(in srgb, var(--night-deep) 80%, transparent));
+}
+
+/* The chest picture: the body, then the lid fitted onto its rim, the game's own way. Every offset is a percentage of
+   the body's width (padding and margin percentages resolve against width), set inline per tier. On the Epic and
+   Ancient chests the lock plate's point is drawn again over the lid. */
+.chestpic {
+  position: relative;
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  pointer-events: none;
+}
+
+.chest.t-standard .chestpic {
+  width: 93%;
+}
+
+.chestpic img {
+  display: block;
+  max-width: none;
+  height: auto;
+  user-select: none;
+}
+
+.chestpic__body {
+  width: 100%;
+}
+
+.chestpic__lid {
+  position: absolute;
+  top: 0;
+}
+
+.chestpic__spike {
+  position: absolute;
+  top: 0;
+  overflow: hidden;
+}
+
+.chestpic__spike img {
+  position: absolute;
+}
+
+/* Each tier's lid fit, from the game's chest model (percentages of the body's width). */
+.chest.t-standard .chestpic {
+  padding-top: 24.5998%;
+}
+
+.chest.t-standard .chestpic__lid {
+  left: 1.3058%;
+  width: 97.5569%;
+}
+
+.chest.t-rare .chestpic {
+  padding-top: 24.3292%;
+}
+
+.chest.t-rare .chestpic__lid {
+  left: 1.0137%;
+  width: 97.9726%;
+}
+
+.chest.t-epic .chestpic {
+  padding-top: 23.9857%;
+}
+
+.chest.t-epic .chestpic__lid {
+  left: 1.432%;
+  width: 97.136%;
+}
+
+.chest.t-epic .chestpic__spike {
+  left: 46.42%;
+  width: 7.1599%;
+  margin-top: 23.9857%;
+  aspect-ratio: 120 / 74;
+}
+
+.chest.t-epic .chestpic__spike img {
+  top: 0;
+  left: -648.3333%;
+  width: 1396.6667%;
+}
+
+.chest.t-legendary .chestpic {
+  padding-top: 24.284%;
+}
+
+.chest.t-legendary .chestpic__lid {
+  left: 2.685%;
+  width: 94.6301%;
+}
+
+.chest.t-ancient .chestpic {
+  padding-top: 24.3147%;
+}
+
+.chest.t-ancient .chestpic__lid {
+  left: 1.1919%;
+  width: 97.497%;
+}
+
+.chest.t-ancient .chestpic__spike {
+  left: 46.4243%;
+  width: 7.1514%;
+  margin-top: 24.3147%;
+  aspect-ratio: 120 / 76;
+}
+
+.chest.t-ancient .chestpic__spike img {
+  top: 0;
+  left: -649.1667%;
+  width: 1398.3333%;
+}
+
+/* The click burst: rings, sparks and rising motes, added by chests.ts and removed when they finish. */
+.chest__burst {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.chest-ring {
+  position: absolute;
+  left: 50%;
+  top: 40%;
+  width: 70px;
+  height: 70px;
+  margin: -35px 0 0 -35px;
+  border: 3px solid var(--c);
+  border-radius: 50%;
+  opacity: 0;
+  box-shadow: 0 0 12px var(--c), inset 0 0 10px var(--c);
+}
+
+.chest-spark {
+  position: absolute;
+  left: 50%;
+  top: 40%;
+  width: 9px;
+  height: 9px;
+  margin: -4.5px 0 0 -4.5px;
+  border-radius: 2px;
+  opacity: 0;
+  background: var(--c);
+  box-shadow: 0 0 8px 1px var(--c);
+  transform: rotate(45deg);
+}
+
+.chest-mote {
+  position: absolute;
+  bottom: 30%;
+  width: 6px;
+  height: 6px;
+  margin-left: -3px;
+  border-radius: 50%;
+  opacity: 0;
+  background: var(--c);
+  box-shadow: 0 0 8px 2px var(--c);
 }
 
 /* -- #modes: three smaller cards ---------------------------------------------------------------------------- */
@@ -412,8 +1010,48 @@
 }
 
 @media (min-width: 760px) {
+  /* The spine moves to the middle and the points step left, right, left, right. */
   .points {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    --medal: 96px;
+    gap: var(--s6);
+  }
+
+  .points::before {
+    left: 50%;
+  }
+
+  .point {
+    grid-template-columns: minmax(0, 1fr) var(--medal) minmax(0, 1fr);
+    column-gap: var(--s5);
+  }
+
+  .point__icon {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .point__text {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  .point .capture {
+    grid-column: 1;
+    grid-row: 1;
+    margin-top: 0;
+  }
+
+  .point:nth-child(odd) .point__text {
+    grid-column: 1;
+    text-align: right;
+  }
+
+  .point:nth-child(odd) .point__text p {
+    margin-left: auto;
+  }
+
+  .point:nth-child(odd) .capture {
+    grid-column: 3;
   }
 
   .ancients,
@@ -478,9 +1116,37 @@
     grid-column: 1;
   }
 
-  :is(.section--ancients, .section--tracking, .section--earn) > :is(.ancients, .ranks, .chests) {
+  :is(.section--runeforge, .section--ancients, .section--tracking, .section--earn) > :is(.ancients, .ranks, .chests) {
     grid-column: 1 / -1;
     grid-row: 6;
+  }
+
+  :is(.section--runeforge, .section--ancients) > .ashow {
+    grid-column: 1 / -1;
+    grid-row: 7;
+  }
+
+  /* The rune row sits under a one-line lead-in, so its three rows shift down by one. */
+  .section--runeforge > .runes__lead {
+    grid-column: 1 / -1;
+    grid-row: 6;
+  }
+
+  .section--runeforge > .runes {
+    grid-row: 7;
+  }
+
+  .section--runeforge > .ashow {
+    grid-row: 8;
+  }
+
+  .ashow__panel {
+    grid-template-columns: 300px minmax(0, 1fr);
+    min-height: 300px;
+  }
+
+  .ashow__info {
+    padding: var(--s5) var(--s6) var(--s5) var(--s5);
   }
 
   /* Mirrored: capture on the left, words on the right. */
@@ -517,6 +1183,190 @@
     .rank:hover,
     .chest:hover {
       transform: translateY(-4px);
+    }
+  }
+
+  /* The showcase card's entrance, as in the game: the portrait settles from a slight zoom and the words rise. */
+  .ashow__panel.is-on .ashow__art img {
+    animation: ashow-art 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+
+  .ashow__panel.is-on .ashow__info > * {
+    animation: ashow-rise 0.36s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+
+  .ashow__panel.is-on .ashow__info > .ashow__blurb {
+    animation-delay: 0.07s;
+  }
+
+  .ashow__panel.is-on .ashow__info > .ashow__eg {
+    animation-delay: 0.14s;
+  }
+
+  @keyframes ashow-art {
+    from {
+      transform: scale(1.12);
+    }
+    to {
+      transform: none;
+    }
+  }
+
+  @keyframes ashow-rise {
+    from {
+      opacity: 0;
+      transform: translateY(14px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  /* The chest's click reaction, from the game's chest shop: the chest hops (the richer tiers wiggle as they do),
+     the two best tiers shake, and the burst flies out. */
+  .chest[data-pop] .chest__art {
+    animation: chest-hop 0.65s cubic-bezier(0.3, 1.5, 0.5, 1);
+  }
+
+  .chest.t-epic[data-pop] .chest__art {
+    animation: chest-hopwiggle 0.75s cubic-bezier(0.3, 1.5, 0.5, 1);
+  }
+
+  .chest:is(.t-legendary, .t-ancient)[data-pop] .chest__art {
+    animation: chest-hopwiggle 0.85s cubic-bezier(0.3, 1.5, 0.5, 1);
+  }
+
+  .chest.t-legendary[data-pop] {
+    animation: chest-shake-s 0.4s ease-out;
+  }
+
+  .chest.t-ancient[data-pop] {
+    animation: chest-shake-l 0.55s ease-out;
+  }
+
+  .chest-ring {
+    animation: chest-ring 0.7s ease-out forwards;
+  }
+
+  .chest-spark {
+    animation: chest-spark 0.75s cubic-bezier(0.15, 0.7, 0.3, 1) forwards;
+  }
+
+  .chest-mote {
+    animation: chest-rise 1.2s ease-out forwards;
+  }
+
+  @keyframes chest-hop {
+    0% {
+      transform: none;
+    }
+    35% {
+      transform: translateY(calc(var(--h) * -1px)) scale(calc(1 + var(--h) * 0.006));
+    }
+    65% {
+      transform: translateY(2px) scale(1.03, 0.96);
+    }
+    100% {
+      transform: none;
+    }
+  }
+
+  @keyframes chest-hopwiggle {
+    0% {
+      transform: none;
+    }
+    25% {
+      transform: translateY(calc(var(--h) * -1px)) scale(calc(1 + var(--h) * 0.006)) rotate(-4deg);
+    }
+    45% {
+      transform: translateY(calc(var(--h) * -0.8px)) scale(calc(1 + var(--h) * 0.006)) rotate(4deg);
+    }
+    70% {
+      transform: translateY(2px) scale(1.04, 0.95) rotate(0);
+    }
+    100% {
+      transform: none;
+    }
+  }
+
+  @keyframes chest-shake-s {
+    0%,
+    100% {
+      transform: translateY(-4px);
+    }
+    20% {
+      transform: translate(-3px, -4px);
+    }
+    40% {
+      transform: translate(3px, -5px);
+    }
+    60% {
+      transform: translate(-2px, -4px);
+    }
+    80% {
+      transform: translate(2px, -4px);
+    }
+  }
+
+  @keyframes chest-shake-l {
+    0%,
+    100% {
+      transform: translateY(-4px);
+    }
+    12% {
+      transform: translate(-7px, -6px) rotate(-1deg);
+    }
+    26% {
+      transform: translate(7px, -2px) rotate(1deg);
+    }
+    40% {
+      transform: translate(-5px, -6px);
+    }
+    55% {
+      transform: translate(5px, -3px);
+    }
+    70% {
+      transform: translate(-3px, -5px);
+    }
+    85% {
+      transform: translate(2px, -4px);
+    }
+  }
+
+  @keyframes chest-ring {
+    0% {
+      opacity: 1;
+      transform: scale(0.3);
+    }
+    100% {
+      opacity: 0;
+      transform: scale(var(--rs));
+    }
+  }
+
+  @keyframes chest-spark {
+    0% {
+      opacity: 1;
+      transform: translate(0, 0) rotate(45deg) scale(1.2);
+    }
+    100% {
+      opacity: 0;
+      transform: translate(var(--dx), var(--dy)) rotate(225deg) scale(0.2);
+    }
+  }
+
+  @keyframes chest-rise {
+    0% {
+      opacity: 0;
+      transform: translateY(0) scale(0.6);
+    }
+    20% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+      transform: translateY(-150px) scale(1.1);
     }
   }
 

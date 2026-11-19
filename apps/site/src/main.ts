@@ -1,7 +1,9 @@
 import './styles/tokens.css';
 import './styles/base.css';
 import './styles/sections.css';
+import { initAncients, initRunes } from './ancients';
 import { initCaptures } from './captures';
+import { initChests } from './chests';
 import { applyPlatform, detectPlatform } from './platform';
 
 /** Calls onVisible once, the first time el is within 200px of the viewport (at once if there is no observer). */
@@ -23,8 +25,9 @@ function observe(el: Element, onVisible: () => void): void {
 
 document.addEventListener('DOMContentLoaded', () => {
   applyPlatform(document, detectPlatform(navigator.userAgent, navigator.maxTouchPoints));
-  initCaptures(document, {
-    reducedMotion: window.matchMedia('(prefers-reduced-motion: reduce)').matches,
-    observe,
-  });
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  initCaptures(document, { reducedMotion, observe });
+  initAncients(document);
+  initRunes(document);
+  initChests(document, { reducedMotion });
 });

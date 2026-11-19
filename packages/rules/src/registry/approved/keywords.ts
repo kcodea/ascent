@@ -444,4 +444,37 @@ export const KEYWORDS_RULES: GameRule[] = [
       'Conforms (2026-10-21). Before, only Foamguard re-armed; every other per-body cap stayed spent after a Rise or Rebirth.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/riseResetLimits.test.ts', 'packages/ui/src/riseResetLiveText.test.ts'], lastVerifiedAt: '2026-10-21' },
   },
+  {
+    id: 'R-AVENGE-PER-COMBAT-01',
+    title: 'An Avenge (N) counts one phase only: its progress never carries into a fight or from one fight to the next',
+    statement:
+      'Avenge (N) fires each time N friendly minions have died in the CURRENT fight. Every fight starts the count at 0 and '
+      + 'whatever partial progress is left when the fight ends is discarded. This holds for every Avenge in the game: a '
+      + 'minion (its counter lives on the combat body, new every fight), a rune or a hero power such as Hoard (the fight '
+      + 'death count of the side), and every hero Avenge an Ancient of Death pairing adds. Those pairings also count '
+      + 'Shop deaths (R-ANCFIX-10 and the per-pairing rules): a Shop death ticks the count and the Nth Shop death of '
+      + 'that Shop phase fires right then, but the Shop count is discarded as the fight starts and the fight count is '
+      + 'discarded as it settles, so no progress ever crosses a phase boundary. One shared mechanism: `simulate` tests '
+      + 'every hero Avenge with `avengeDue` (the fight death count alone; a carried `tick` on a stored snapshot is '
+      + 'ignored, for both sides) and the run zeroes every Avenge count with `ancientAvengeReset` at the two boundaries. '
+      + 'A counter worded "When N friendly minions die" is NOT an Avenge and keeps carrying over (Rune of Body Counting, '
+      + 'Braum with the Ancient of Death). Real time: the countdown and everything the Avenge moves print the value the '
+      + 'engine has resolved by the beat on screen, so Gambler with the Ancient of Death shows the Dice lock dropping '
+      + 'the moment the Avenge fires (the power text, the pill on the power and the locked line all read '
+      + '`ancientDiceLockTurns`), and settle lands on that same number. Supersedes the "one running count across the '
+      + 'Shop and combat" clause of: R-ANCXEROX-01, R-ANCPASS3-13, R-ANCTRADES-01, R-ANCGORR-01, R-ANCNADJA-01, R-ANCRAYSE-01, R-ANCCASSEN-01, R-ANCPASS2-08, R-ANCKESHI-01, R-ANCRASCAL-01, R-ANCGAMBLER-01, R-ANCPETE-01, R-ANCFLINT-01, R-ANCJUGGLER-01, R-ANCMERRIN-01, R-ANCVALE-01, R-ANCCINDY-01, R-ANCPASS1-03, R-ANCPASS1-17, R-ANCFIX-10.',
+    domain: 'keywords',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner bug report 2026-11-18 (Hunch x Death and the Dice (Death) power text)', quote: "bug - avenge (x): do not carry over combat to combat. if it were 'when x minions die' that carries over, but avenge means it needs to happen in combat. we also need to make sure that we show real time values for this kind of metric as well, so the locked number should drop in combat from the avenge triggers etc." },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts avengeDue; packages/sim/src/ancients.ts AVENGE_COUNT_FIELDS / ancientAvengeReset / ancientDiceLockTurns / ancientAfterCombat; packages/sim/src/reducer.ts preparePlayerCombatSide; packages/ui/src/StatusBar.tsx diceLock' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-18. Before, every Ancient of Death hero Avenge ran ONE count across the Shop and every fight '
+      + '(3 deaths in one fight and 1 in the next fired an Avenge (4)), and the Dice lock pill did not move during a fight. '
+      + 'OPEN for the owner: whether Shop deaths should count at all (the keyword wiki said they do not; the 2026-11-16 '
+      + 'ruling says the Ancient Avenges count them, kept here within one Shop phase), and Avenge (17) Gildmaster / '
+      + 'Avenge (15) Cindy, which now need that many deaths in a single fight.',
+    enforcement: { kind: 'scenario', refs: ['packages/core/src/combat/avengePerCombat.test.ts', 'packages/sim/src/avengePerCombat.test.ts'], lastVerifiedAt: '2026-11-18' },
+  },
 ];

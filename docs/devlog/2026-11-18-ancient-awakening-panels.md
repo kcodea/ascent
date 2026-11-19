@@ -74,3 +74,15 @@ title card and its handoff to the banner, the seam ring and runes, the `gateStyl
 hero keeps its five awakening colours (omen, explosion, backdrop); their config names still say `curtain…` so saved
 values survive. Anything above that describes the curtain as selectable is history. To bring the bloom styles back,
 recover them from git before this commit.
+
+## 2026-11-19: the figures stand in front of the strips
+
+Owner: "i want the 'back' files to fall in the same slice format you currently have, but i want the 'figures' not to be
+cut from those edges ... have them in front of those edges". Each panel is now two boxes over the same place:
+`.anc-pn` (what the slanted strip clips: background, lit wash, seam) and `.anc-pn-over` in a second layer above all six
+strips (the uncut figure, the foreground magic still clipped to its strip, the edge glow, the name). A figure cannot
+simply be un-clipped inside its own panel: each panel is its own stacking context, so the next panel's background
+would paint over it. Whatever moves a whole panel moves both boxes. The overs stack middle pair on top; the offered
+three come to the front at the pick; the reveal crops each uncut figure to its card (`openPolygon` to `cardPolygon`).
+At full size the figures overlap and cover most of the backgrounds; `panelFigureScale` ("Figure size") shrinks them
+about their bottom edge.

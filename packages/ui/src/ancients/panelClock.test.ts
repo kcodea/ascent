@@ -93,6 +93,11 @@ describe('the awakening panels geometry', () => {
         expect(top + h).toBeGreaterThanOrEqual(vh); // and it runs off the bottom
         expect(left + fit.mx * w).toBeCloseTo(0, 5); // its mask is on the strip's centre line
         expect(g.travel).toBeGreaterThanOrEqual(top + h); // and its slide starts it fully off screen
+        // The "Figure size" dial shrinks it about its bottom edge: it still runs off the bottom at the same place.
+        const small = panelFigureRest(g, fit, 0.7);
+        const sTop = vh / 2 + (fit.top / 100 - 0.5) * g.figS * small.s + small.ty, sH = g.figS * (fit.width / 100) * small.s * 1.5;
+        expect(sTop + sH).toBeCloseTo(top + h, 5);
+        expect(sTop).toBeGreaterThan(top);
       }
     });
 

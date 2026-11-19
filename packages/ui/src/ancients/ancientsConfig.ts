@@ -81,6 +81,8 @@ export interface AncientsConfig {
   panelSlant: number;
   /** Panels: how far a layered portrait's sheets move apart (×). 0 = the layers move as one. */
   panelDepth: number;
+  /** Panels: a layered figure's size (×), scaled about its bottom edge. 1 = it fills the screen's height. */
+  panelFigureScale: number;
   /** Reveal: the pause before the first Ancient emerges (ms). */
   revealDelayMs: number;
   /** THE SPARK REVEAL (owner 2026-09-27: "if they revealed out of the spark or something that may be cool? i think the
@@ -274,6 +276,7 @@ export const ANCIENTS_DEFAULTS: AncientsFullConfig = {
   panelSparks: 1,
   panelSlant: 2.2,
   panelDepth: 1,
+  panelFigureScale: 0.8, // owner 2026-11-19: "can you make the figures smaller?"
   revealDelayMs: 120, // the middle Ancient's spark lights as the title starts rising (spark reveal 2026-09-27)
   revealStyle: 'burst',
   sparkMs: 280,
@@ -361,6 +364,7 @@ export const ANCIENTS_RANGES: Record<NumKey, [number, number, number]> = {
   panelSparks: [0, 3, 0.05],
   panelSlant: [0, 6, 0.1],
   panelDepth: [0, 3, 0.05],
+  panelFigureScale: [0.6, 1.3, 0.01],
   revealDelayMs: [0, 2000, 10],
   sparkMs: [80, 1000, 10],
   materialiseMs: [120, 1200, 10],

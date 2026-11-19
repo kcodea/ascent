@@ -321,6 +321,8 @@ body.ancgate .app { z-index: auto; }
 .anc-pn-host { position: absolute; inset: 0; z-index: 2; overflow: hidden; will-change: transform; }
 .anc-pn { position: absolute; top: 0; height: 100%; opacity: 0; will-change: transform, opacity; }
 .anc-pn-clip { position: absolute; inset: 0; will-change: clip-path; }
+/* The second box of each panel, above all six strips: the uncut figure, the foreground magic, the edge glow, the name. */
+.anc-pn-over { position: absolute; top: 0; height: 100%; pointer-events: none; will-change: transform, opacity; }
 .anc-pn-fill { position: absolute; inset: 0; will-change: transform; background: linear-gradient(180deg, color-mix(in srgb, var(--anc-c) 82%, #000), color-mix(in srgb, var(--anc-c) 34%, #000)); }
 /* The Ancient: its painting as a square, soft at the edges so it sits on its colour (a stand-in for a cut-out figure). */
 .anc-pn-fig {

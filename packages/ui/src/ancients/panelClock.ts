@@ -50,10 +50,11 @@ export const PANEL_FIGURE_REST_H = 1.09;
  * centre, stage px): the figure `PANEL_FIGURE_REST_H` screens tall, its top just above the top of the screen and its
  * mask on the strip's centre line. The reveal animates from here onto the card (`translate(0, dy) scale(card / figS)`).
  */
-export function panelFigureRest(g: PanelGeo, fit: PanelFigureFit): { tx: number; ty: number; s: number } {
+export function panelFigureRest(g: PanelGeo, fit: PanelFigureFit, size = 1): { tx: number; ty: number; s: number } {
   const w0 = g.figS * fit.width / 100, left0 = (fit.left / 100 - 0.5) * g.figS, top0 = (fit.top / 100 - 0.5) * g.figS;
-  const s = PANEL_FIGURE_REST_H * g.vh / (w0 * 1.5);
-  return { tx: -(left0 + fit.mx * w0) * s, ty: -0.02 * g.vh - g.vh / 2 - top0 * s, s };
+  const k = Math.max(0.1, size), s = PANEL_FIGURE_REST_H * g.vh / (w0 * 1.5) * k;
+  // `size` (the "Figure size" dial) scales it about its bottom edge, so a smaller figure still runs off the bottom.
+  return { tx: -(left0 + fit.mx * w0) * s, ty: -0.02 * g.vh - g.vh / 2 - top0 * s + (1 - k) * PANEL_FIGURE_REST_H * g.vh, s };
 }
 /** The chosen three's edge glow over their rattle: up fast, then two pulses, ending lit. [offset, opacity]. */
 export const PANEL_PULSE: readonly (readonly [number, number])[] = [[0, 0], [0.16, 1], [0.38, 0.4], [0.58, 1], [0.8, 0.45], [1, 1]];
@@ -118,6 +119,13 @@ export function stripPolygon(g: PanelGeo, i: number): string {
   const far = g.vw; // comfortably off stage
   const l = i === 0 ? -far : 0, r = i === g.n - 1 ? g.boxW + far : g.boxW;
   return `polygon(${px(l + 2 * g.slant)} 0px, ${px(r)} 0px, ${px(r - 2 * g.slant)} ${px(g.vh)}, ${px(l)} ${px(g.vh)})`;
+}
+
+/** No clip at all, as a four-point polygon in a panel's box (so it can animate to `cardPolygon`): a figure stands in
+ *  front of the strips' edges until the reveal crops it to its card. */
+export function openPolygon(g: PanelGeo): string {
+  const far = g.vw * 2;
+  return `polygon(${px(-far)} ${px(-g.vh)}, ${px(g.boxW + far)} ${px(-g.vh)}, ${px(g.boxW + far)} ${px(2 * g.vh)}, ${px(-far)} ${px(2 * g.vh)})`;
 }
 
 /** A card's art square, `w` wide from `top` to `bottom`, centred in the panel's box (the box itself is moved onto it). */

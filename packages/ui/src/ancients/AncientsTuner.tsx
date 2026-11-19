@@ -73,6 +73,7 @@ const ROWS: [Key, string, TunerUnit | undefined, string, string, ('color' | 'tog
   ['panelSparks', 'Sparks', '×', 'The explosion, the grinding edges and the spray off each slam. 0 = none.', 'Awakening panels'],
   ['panelSlant', 'Panel lean', undefined, 'How far each panel leans, % of the width of the screen. 0 = upright.', 'Awakening panels'],
   ['panelDepth', 'Depth', '×', 'How far a layered portrait\'s background, Ancient and foreground move apart. 0 = they move as one.', 'Awakening panels'],
+  ['panelFigureScale', 'Figure size', '×', 'How big each Ancient stands in front of its panel. 1 = it fills the height of the screen; smaller shows more of the backgrounds.', 'Awakening panels'],
   ['revealDelayMs', 'First Ancient delay', 'ms', 'The pause before the first Ancient emerges.', 'Awakening beats'],
   ['sparkMs', 'Spark gathers', 'ms', 'The point of light gathering (motes drawn in, a ring closing) before it bursts.', 'Reveal'],
   ['materialiseMs', 'Card appears', 'ms', 'The card appearing out of the burst.', 'Reveal'],

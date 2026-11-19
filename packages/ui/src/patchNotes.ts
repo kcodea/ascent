@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-11-18',
     changes: [
+      { category: 'Systems', text: 'Smoother combat: background calculations no longer interrupt the fight.' },
       {
         category: 'Systems',
         text: 'Mech and Spirit have new tribe colors that match the gems on their card frames.',

@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-11-19',
     changes: [
+      { category: 'Systems', text: 'Match history lobby: hovering a player now blurs their hero portrait and Ancient too, and the hero portrait is the same size as the Ancient.' },
       { category: 'Systems', text: 'Start of Combat, Avenge, End of Turn and Rally now show a new effect on the minion when they trigger. The old badge pulse is gone from every minion.' },
       { category: 'Systems', text: 'Arena Heckler now shows its Start of Combat and the Taunt landing even when the minion opposite it already has Taunt.' },
       { category: 'Systems', text: 'New rank medals: Bronze through Ascendant each have new medal art.' },

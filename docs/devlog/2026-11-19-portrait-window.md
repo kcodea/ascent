@@ -10,10 +10,15 @@ cosmetic they've unlocked from their collection".
 `PhButton`, `PhEmpty`, `PhBanner`) with its own stylesheet, `avatarPicker.css`. The old `.avatarpick-*` rules are gone
 from `styles.css` (only `.avatarpick-close` stays: the account panel uses it).
 
-- Tabs: My Skins, Heroes, Minions, Hero Powers. Only the grid scrolls.
-- A press selects and previews (your equipped portrait frame, your banner); "Use portrait" saves. A double press
-  applies at once. It used to pick and close on one press.
-- Search filters by name; the tab counts become the match counts.
+- Tabs: My Skins, Heroes, Minions, Hero Powers. Only the grid scrolls (a styled gold scroll bar, five large tiles a row).
+- A press selects and previews on your banner in the side column; "Use portrait" saves. A double press applies at
+  once. It used to pick and close on one press. (A portrait frame preview was built and removed at the owner's ask.)
+- Search by name; the tab counts become the match counts. Under the search, a per-tab filter: My Skins by kind (hero /
+  minion skins), Minions by tribe. Heroes and Hero Powers have none: the owner asked for rarity and Set there, but
+  heroes carry neither in the data, and chose to skip them.
+- Minions are grouped by tribe and sorted by tier inside each.
+- A skin tile's edge is its rarity colour (no gem symbol). Ancient has an orbiting halo (a rotation only: the gradient
+  and blur are static paint), Legendary a still gold glow.
 - "Reset to default" replaces the lone dash tile.
 
 ## Skins as portraits

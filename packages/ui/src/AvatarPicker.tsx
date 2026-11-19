@@ -245,7 +245,6 @@ function PortraitWindow() {
               </div>
             </div>
             <div className="avp-banner" aria-hidden="true" {...{ inert: '' }}>
-              <span className="avp-lbl">On your banner</span>
               <PhBanner art={chosenSrc} width={156} label="Banner preview"><PhBannerName>{playerName || 'You'}</PhBannerName></PhBanner>
             </div>
             <div className="avp-actions">

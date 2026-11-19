@@ -90,7 +90,6 @@
 .avp-rarname { font-weight: 800; color: var(--rc); }
 .avp-sub { display: flex; align-items: center; justify-content: center; gap: calc(8 * var(--phu)); min-height: calc(20 * var(--phu)); font-size: var(--ph-t2); color: var(--ph-muted); }
 .avp-banner { display: flex; flex-direction: column; align-items: center; gap: calc(8 * var(--phu)); flex: 1 1 auto; min-height: 0; justify-content: center; pointer-events: none; }
-.avp-lbl { font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.2em; text-transform: uppercase; color: var(--ph-muted); }
 .avp-actions { display: flex; flex-direction: column; align-items: center; gap: calc(4 * var(--phu)); flex: none; width: 100%; }
 .avp-use.phk-btn { width: 100%; padding: 0 calc(16 * var(--phu)); }
 .avp-use.phk-btn:disabled, .avp-reset.phk-btn:disabled { opacity: 0.45; }

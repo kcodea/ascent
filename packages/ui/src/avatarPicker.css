@@ -68,8 +68,8 @@
 @keyframes avp-orbit { to { transform: rotate(1turn); } }
 @media (prefers-reduced-motion: reduce) { .avp-tile.r-ancient::before { animation: none; } }
 /* The portrait you wear now. */
-.avp-used { position: absolute; left: 50%; bottom: calc(-4 * var(--phu)); z-index: 1; translate: -50% 0; padding: calc(3 * var(--phu)) calc(10 * var(--phu)); border-radius: 999px; white-space: nowrap; pointer-events: none;
-  background: var(--ph-metal-gold); color: var(--ph-navy); font-family: var(--ph-font); font-weight: 900; font-size: calc(10 * var(--phu)); letter-spacing: 0.08em; text-transform: uppercase; }
+.avp-used { position: absolute; left: 50%; bottom: calc(-6 * var(--phu)); z-index: 1; translate: -50% 0; padding: calc(5 * var(--phu)) calc(14 * var(--phu)); border-radius: 999px; white-space: nowrap; pointer-events: none;
+  background: var(--ph-metal-gold); color: var(--ph-navy); font-family: var(--ph-font); font-weight: 900; font-size: calc(14 * var(--phu)); letter-spacing: 0.08em; text-transform: uppercase; box-shadow: 0 calc(2 * var(--phu)) calc(6 * var(--phu)) rgba(0, 0, 0, 0.5); }
 
 /* THE PREVIEW COLUMN. */
 .avp-side { display: flex; flex-direction: column; align-items: center; gap: calc(8 * var(--phu)); flex: none; width: calc(280 * var(--phu)); min-height: 0; text-align: center; }

@@ -75,7 +75,10 @@ After a UI change, re-record the affected slots from this table.
 
 | Slot | What it must show |
 | --- | --- |
+| `discover-timer` | A Discover open with the turn timer visibly frozen. |
 | `gold-fuse` | The Gold Fuse filling as Gold is spent, then the timer starting. |
+| `rearrange` | A minion being dragged to a new slot after the turn's time is up. |
+| `save-continue` | Save & Quit, then the title screen's Continue. |
 | `runeforge` | A four-rune offer and one being bought. |
 | `ancient-select` | The three-of-six Ancient Discover and a pick. |
 | `career-chart` | The Career chart with a game pinned, its board and runes showing. |

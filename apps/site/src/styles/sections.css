@@ -159,7 +159,6 @@
   display: grid;
   gap: var(--s6);
   margin-top: var(--s6);
-  counter-reset: point;
 }
 
 .points::before {
@@ -180,10 +179,9 @@
   grid-template-columns: var(--medal) minmax(0, 1fr);
   column-gap: var(--s4);
   align-items: center;
-  counter-increment: point;
 }
 
-/* The medallion: a night plate in a turned gold rim, the point's sign struck in gold on its face. */
+/* The medallion: a night plate in a turned gold rim, holding one of the game's own gold medallions. */
 .point__icon {
   position: relative;
   display: grid;
@@ -197,25 +195,17 @@
   box-shadow: var(--bevel), 0 0 0 3px var(--night-deep), 0 0 26px -2px color-mix(in srgb, var(--gold) 45%, transparent), var(--contact);
 }
 
-.point__icon svg {
-  width: 56%;
-  height: 56%;
-}
-
-/* The point's numeral, as a small gold kicker over its heading. */
-.point__text::before {
-  content: counter(point, upper-roman);
-  display: block;
-  margin-bottom: 0.2rem;
-  font-family: var(--font-title);
-  font-size: var(--fs-label);
-  font-weight: 800;
-  letter-spacing: 0.2em;
-  color: var(--gold-light);
+.point__icon img {
+  width: 68%;
+  height: 68%;
+  object-fit: contain;
 }
 
 .point__text h3 {
-  margin-bottom: var(--s1);
+  margin-bottom: var(--s2);
+  font-size: var(--fs-point);
+  font-weight: 800;
+  line-height: 1.15;
 }
 
 .point__text p {
@@ -223,7 +213,7 @@
   color: var(--muted);
 }
 
-/* The one clip in the section: the Gold Fuse, the mechanic words alone do not show. */
+/* Each point's clip, on the far side of the spine from its words. */
 .point .capture {
   grid-column: 2;
   margin-top: var(--s4);

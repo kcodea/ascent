@@ -1137,6 +1137,14 @@ Numbers and method: `docs/devlog/2026-11-18-perf-keyword-loops.md`. Rule: R-PERF
   blend mode to a layer, check what its nearest stacking context is.
 - **AV1, not WebP, for a soft moving picture.** The same 299 Rise frames: 2.7 MB as an animated WebP (every frame is
   nearly a key frame), 0.18 MB as an animated AVIF (each frame predicted from the last).
+- **An animated image plays at up to about 90 pictures a second in Chromium, and no faster** (measured 2026-11-19 with
+  a frame-numbered probe on a 240 Hz clock, `docs/devlog/2026-11-19-kwfx-60fps.md`). A frame of 10 ms or less is held
+  for 100 ms (an old Blink rule for broken GIFs), so 100, 120 or 240 a second all play at 10. 90 plays, but each
+  picture is held for an uneven 1 to 4 refreshes of a 240 Hz display. The auras ship at **60**: it divides 60, 120 and
+  240 Hz evenly; doubling from 30 cost about +1.2 MB of desktop download and +90 to +180 ms/s of off-main-thread decode
+  with every aura on 14 cards, and no measurable frame time. `capture.mjs --fps N` re-bakes at another rate and
+  refuses above 90. Interpolating per display frame on a shared canvas worked but cost about 4x the GPU time of the
+  images; keeping Flurry live (even without its blend mode) cost 7.5 ms a frame on 14 cards. Neither ships.
 - **An animated image cannot be paused or offset.** Where the live loops were paused (`body.modalup`, far menu rows) the
   element swaps to a still of frame 0. Every card showing one picture is in phase; cards that mount together already
   were.

@@ -59,7 +59,7 @@ The authored DOM + CSS aura stays, untouched, as the source of truth and the tun
   comments and whitespace stripped) and fails while the manifest's differs. `capture.mjs --stamp` re-stamps after an
   edit that does not change the look.
 
-Assets added: 7 animated AVIF (1.82 MB together: rise 0.18 + 0.17 + 0.14 MB, flurry 0.17, execute 0.19, rebirth 0.47 + 0.50) and
+Assets added: 7 animated AVIF (2.99 MB together at 60 a second since 2026-11-19: rise 0.31 + 0.29 + 0.24 MB, flurry 0.17, execute 0.31, rebirth 0.82 + 0.86; 1.82 MB in the first cut at 30) and
 7 WebP stills (70 KB). Fetched once, about 1.5 s after boot, on desktop only. The same Rise frames as an animated WebP
 were 2.7 MB against 0.18 MB as AVIF.
 
@@ -120,9 +120,9 @@ Visible differences, for the owner:
 1. **Timing, a few percent.** To close a loop each animation's period is rounded to a whole number of cycles: Rise
    3.7% (wisps 10.3 s -> 9.95 s, dome 3.2 s -> 3.32 s), Flurry at most 3.0% on a ring, Execute at most 6.1% on a shard
    (rings within 3.9%), Rebirth at most 4.6% on an ember (flicker and glow within 2%).
-2. **Frame rate.** Rise, Execute and Rebirth play at 30 pictures a second and Flurry at 60, where the live loops moved
-   on every display frame. The slow, soft ones do not show it; Flurry's blades are the fastest thing here and are the
-   one to look at.
+2. **Frame rate.** All four play at 60 pictures a second (Rise, Execute and Rebirth were 30 in the first cut; raised
+   2026-11-19, see `2026-11-19-kwfx-60fps.md`), where the live loops moved on every display frame. Chromium cannot
+   play an animated image faster than about 90 a second.
 3. **Sharpness above 1080p.** The pictures are captured at 1920 x 1080 scale and stretched on a larger card. At 2x the
    differences stay small (table above); Flurry's thin blades and Execute's shards are slightly softer. A 2x capture
    of those two would cost roughly 3x their bytes.

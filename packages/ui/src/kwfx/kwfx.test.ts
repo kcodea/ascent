@@ -4,6 +4,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import manifest from './manifest.json';
 import { auraIsLive } from './kwfx';
+import { FLURRY } from '../flurryConfig';
 
 /**
  * THE BAKED KEYWORD AURAS (R-PERF-KEYWORD-AURA-01). Players see a capture of the authored Rise / Flurry / Execute /
@@ -58,6 +59,26 @@ describe('baked keyword auras', () => {
       const body = r.split('{').slice(1).join('{');
       expect(/animation|mix-blend-mode|filter|mask/.test(body), `a .kwfx rule animates or blends: ${r.trim().slice(0, 90)}`).toBe(false);
     }
+  });
+
+  it('plays at 60 pictures a second, never above 90 (Chromium holds a frame of 10 ms or less for 100 ms)', () => {
+    for (const id of IDS) {
+      const a = auras[id]! as unknown as { fps: number };
+      expect(a.fps, `${id} fps`).toBeGreaterThanOrEqual(60);
+      expect(a.fps, `${id} fps`).toBeLessThanOrEqual(90);
+    }
+  });
+
+  it('the live Flurry rings carry no blend mode, and are white (which is why none is needed)', () => {
+    // `.flurry` is a stacking context, so a ring only ever blends with the other rings; screen of white over white is
+    // plain alpha compositing. A coloured ring would make the removed `mix-blend-mode: screen` a visible change.
+    expect(FLURRY.rings.every((r) => r.col.toLowerCase() === '#ffffff')).toBe(true);
+    const strip = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, '');
+    const ring = css.split('}').find((r) => /^\s*\.card\.compact\.flurrycard \.fl-ring\s*\{/.test(strip(r)));
+    expect(ring, 'the .fl-ring rule').toBeTruthy();
+    expect(/mix-blend-mode\s*:/.test(strip(ring!))).toBe(false);
+    // A steady aura (pulse 0) runs no breathe animation and holds no layer for one.
+    expect(css).toContain('.card.compact.flurrycard .fl-breathe.steady { animation: none; will-change: auto; }');
   });
 
   it('renders the live aura until the pictures are in, on a device that opts out, and while retuning', () => {

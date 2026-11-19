@@ -31,6 +31,22 @@ export type AuraId = 'rise' | 'flurry' | 'execute' | 'rebirth';
 function forcedLive(): boolean {
   try { return typeof localStorage !== 'undefined' && localStorage.getItem('ascent.kwfx') === 'live'; } catch { return false; }
 }
+/**
+ * WHICH AURAS STAY LIVE BY DEFAULT: none. All four play their picture at 60 a second (measured 2026-11-19, devlog
+ * 2026-11-19-kwfx-60fps): an animated image cannot play faster than about 90 a second in Chromium (a frame of 10 ms
+ * or less is held for 100 ms), and keeping Flurry live, even with its no-op blend mode and idle breathe layer
+ * removed, held 14 Flurry cards at 7.5 ms a frame (all four keywords: 11.6 ms). A per-display-frame canvas that
+ * cross-fades the pictures cost about 4x the GPU time of the images.
+ * `localStorage['ascent.kwfx.live']` lists auras to keep live (comma separated, e.g. `flurry`) to compare by eye.
+ */
+const DEFAULT_LIVE = '';
+function liveList(): ReadonlySet<string> {
+  let v: string | null = null;
+  try { v = typeof localStorage !== 'undefined' ? localStorage.getItem('ascent.kwfx.live') : null; } catch { /* default */ }
+  return new Set((v ?? DEFAULT_LIVE).split(',').map((s) => s.trim()).filter(Boolean));
+}
+const LIVE_AURAS = liveList();
+
 /** Decided once per page: may this device show the baked auras at all? */
 export const KWFX_ENABLED: boolean = typeof window !== 'undefined' && !forcedLive() && !isPhone();
 
@@ -55,7 +71,7 @@ export function auraIsLive(enabled: boolean, loaded: boolean, moved: boolean): b
 
 /** True when this aura must render its live DOM (see above). In production it flips once, when the pictures land. */
 export function useAuraLive(id: AuraId): boolean {
-  return useSyncExternalStore(subscribe, () => auraIsLive(KWFX_ENABLED, ready, retuned.has(id)), () => true);
+  return useSyncExternalStore(subscribe, () => auraIsLive(KWFX_ENABLED, ready, retuned.has(id) || LIVE_AURAS.has(id)), () => true);
 }
 
 type Baked = { w: number; h: number };
@@ -96,7 +112,8 @@ export function loadKwfx(): void {
     img.onerror = () => rej(new Error(src));
     img.src = src;
   });
-  const ids = Object.keys(AURAS);
+  // An aura that stays live never shows its picture: do not fetch it.
+  const ids = Object.keys(AURAS).filter((id) => !LIVE_AURAS.has(id.split('-')[0]!));
   void dec.isTypeSupported('image/avif')
     .then((ok) => (ok ? Promise.all(ids.flatMap((id) => [one(`${base}kwfx/${id}.avif`), one(`${base}kwfx/${id}-still.webp`)])) : Promise.reject(new Error('no AVIF decoder'))))
     .then(() => { ready = true; notify(); })

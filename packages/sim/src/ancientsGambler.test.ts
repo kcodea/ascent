@@ -59,14 +59,15 @@ describe('Gambler × DEATH: "Avenge (4): reduce the Dice lock by 1 turn."', () =
     expect(open.heroDiceLockUntil).toBe(2);
     expect(heroPowerText(open)).toContain('Not locked.');
   });
-  it('combat: the carried count pulses mid-fight, and settle shortens the lock', () => {
-    let s = picked('death', { wave: 3, heroDiceLockUntil: 7, board: [card('a', N(0), { attack: 1, health: 1 })] });
+  it('combat: the 4th death in the fight pulses mid-fight, and settle shortens the lock (per combat, R-AVENGE-PER-COMBAT-01: the Shop count never comes in)', () => {
+    let s = picked('death', { wave: 3, heroDiceLockUntil: 7, board: ['a', 'b', 'c', 'd'].map((u) => card(u, N(0), { attack: 1, health: 1 })) });
     s = { ...s, ancients: { ...s.ancients!, gamblerDeaths: 3 } };
     expect(ancientCombatMods(s).ancientAvengePulse).toEqual({ every: 4, tick: 3, flag: ANCIENT_DICE_LOCK_FLAG, label: 'Ancient of Death' });
     expect(ancientAvengeCountdown(s)).toBe(1);
     s = fightNow(s, 100, 1000);
     expect((s.lastCombat!.events ?? []).filter((e) => e.type === 'questTrigger' && e.flag === ANCIENT_DICE_LOCK_FLAG).length).toBe(1);
-    expect(heroPowerText(s, 0, { friendlyDeaths: 1 }), 'live through the fight').toContain('Locked for **3** more turns.');
+    expect(heroPowerText(s, 0, { friendlyDeaths: 3 }), 'live through the fight: 3 deaths, not yet').toContain('Locked for **4** more turns.');
+    expect(heroPowerText(s, 0, { friendlyDeaths: 4 }), 'the 4th death drops the lock right then').toContain('Locked for **3** more turns.');
     s = reduce(s, { type: 'resolveCombat' });
     expect(s.heroDiceLockUntil).toBe(6);
   });

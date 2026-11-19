@@ -80,11 +80,11 @@ describe('Gorr × DEATH: "Avenge (6): Get a copy of a minion you bought last tur
     expect([N(0), N(1)]).toContain(s.hand[0]!.cardId);
     expect(s.hand[0]!.attack, 'plain').toBe(CARD_INDEX[s.hand[0]!.cardId]!.attack);
   });
-  it('combat: the carried count fires MID-FIGHT (a toHand of a last-turn buy), and settle carries the remainder', () => {
+  it('combat: the 6th death in the fight fires MID-FIGHT (a toHand of a last-turn buy); nothing carries out (per combat, R-AVENGE-PER-COMBAT-01: the Shop count never comes in)', () => {
     let s = picked('death', { wave: 4 });
     s = buyAll(s, [N(0)]);
     s = reduce(fightNow({ ...s, hand: [] }, 0, 1), { type: 'resolveCombat' });
-    s = { ...s, hand: [], board: ['a', 'b', 'c'].map((u) => card(u, N(2), { attack: 1, health: 1 })), ancients: { ...s.ancients!, gorrDeaths: 5 } };
+    s = { ...s, hand: [], board: ['a', 'b', 'c', 'd', 'e', 'f'].map((u) => card(u, N(2), { attack: 1, health: 1 })), ancients: { ...s.ancients!, gorrDeaths: 5 } };
     expect(ancientCombatMods(s).ancientGorrAvenge).toEqual({ every: 6, tick: 5, ids: [N(0)], label: 'Ancient of Death' });
     expect(ancientAvengeCountdown(s)).toBe(1);
     s = fightNow(s, 100, 1000);
@@ -92,9 +92,8 @@ describe('Gorr × DEATH: "Avenge (6): Get a copy of a minion you bought last tur
     expect(th.map((e) => e.cardId)).toEqual([N(0)]);
     const firstDeath = events(s).findIndex((e) => e.type === 'death' && e.side === 'player');
     expect(events(s).indexOf(th[0]!)).toBeGreaterThan(firstDeath);
-    const deaths = s.lastCombat!.playerDeaths ?? 0;
     s = reduce(s, { type: 'resolveCombat' });
-    expect(s.ancients!.gorrDeaths).toBe((5 + deaths) % 6);
+    expect(s.ancients!.gorrDeaths ?? 0).toBe(0);
     expect(s.hand.some((c) => c.cardId === N(0))).toBe(true);
   });
   it('nothing bought last turn: the Avenge pays nothing', () => {

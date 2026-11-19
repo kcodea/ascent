@@ -1,0 +1,103 @@
+/* THE RAIL'S HOVER CARD, HERO SHOWCASE LANGUAGE (owner 2026-11-19, R-RAIL-SCOUT-SHOWCASE-01; RailScoutShowcase.tsx). The
+   Docked rail's scout card (`.lobbyscout.lrv-scout`, lobbyRailDocked.css: the navy plate in its thin gold edge) opens with
+   the Compendium / Hero Select inspect card's vocabulary (`.phi`, phCompendium.css): the hero's portrait at the top left
+   fading into the navy, the player's name large, bold and white, Health / Armor in dark round pills, thin gold dividers
+   that fade out to the right, the round power disc on the art / panel seam, the power's name in pale gold with its fact
+   pills, the text, and the Ancient's name in its colour. The chips, runes and fights follow, unchanged.
+
+   PERFORMANCE: static paint only. No blur, no backdrop-filter, no animated shadow; the art's fade is a static mask and the
+   card's one-shot open (`lobbyscoutin`, transform / opacity) is the card's own. Units: the card's `--c` / `--lfont`. */
+
+.lobbyscout.lrv-scout {
+  /* The art column (the seam sits on its right edge) and the power disc's size. */
+  --rsc-aw: calc(88 * var(--c));
+  --rsc-pw: calc(46 * var(--c));
+  --rsc-gold: color-mix(in srgb, var(--pill-edge) 85%, transparent);
+}
+/* The top section bleeds to the card's edges (the art reaches the corner), then pads its content back in. */
+.lobbyscout.lrv-scout > .rsc-top {
+  position: relative; display: grid; grid-template-columns: var(--rsc-aw) minmax(0, 1fr); align-items: start;
+  margin: calc(-10 * var(--c)) calc(-11 * var(--c)) 0; padding: calc(10 * var(--c)) calc(11 * var(--c)) 0;
+}
+.lobbyscout.lrv-scout > .rsc-top:not(.has-art) { --rsc-aw: calc(30 * var(--c)); }
+/* The portrait: drawn as it is, faded into the plate to the right and at the foot (a static mask, as `.phi-art` does). */
+.rsc-art {
+  position: absolute; z-index: 0; left: 0; top: 0; width: calc(var(--rsc-aw) + 78 * var(--c)); height: calc(150 * var(--c));
+  overflow: hidden; border-top-left-radius: calc(8 * var(--c) - 1.5px); pointer-events: none;
+  -webkit-mask-image: linear-gradient(90deg, #000 42%, transparent 100%), linear-gradient(180deg, #000 52%, transparent 100%);
+  -webkit-mask-composite: source-in;
+  mask-image: linear-gradient(90deg, #000 42%, transparent 100%), linear-gradient(180deg, #000 52%, transparent 100%);
+  mask-composite: intersect;
+}
+.rsc-art > img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: 30% 18%; -webkit-user-drag: none; }
+.rsc-info, .rsc-power { display: contents; }
+
+/* Name, hero, vitals: right of the seam, with the first gold divider under them. */
+.rsc-head {
+  grid-column: 2; grid-row: 1; position: relative; z-index: 1; min-width: 0;
+  display: flex; flex-direction: column; align-items: flex-start; gap: calc(4 * var(--c));
+  padding: calc(2 * var(--c)) 0 calc(9 * var(--c)) calc(12 * var(--c));
+  background: linear-gradient(90deg, var(--rsc-gold), transparent) 0 100% / 100% 1.5px no-repeat;
+}
+.lobbyscout.lrv-scout .lobbyscout-name.rsc-name {
+  max-width: 100%; font-family: var(--font-title), sans-serif; font-weight: 900; font-size: calc(20 * var(--lfont)); line-height: 1.05;
+  letter-spacing: 0; color: #fff; text-shadow: var(--pill-text-shadow), 0 2px 8px rgba(0, 0, 0, 0.7);
+}
+.rsc-hero {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: calc(11 * var(--lfont)); font-weight: 700; letter-spacing: 0.03em; color: #aebddb; text-shadow: var(--pill-text-shadow);
+}
+.rsc-sub { display: flex; align-items: center; gap: calc(8 * var(--c)); max-width: 100%; min-width: 0; margin-top: calc(2 * var(--c)); }
+.rsc-vitals { display: flex; flex: none; gap: calc(6 * var(--c)); }
+.rsc-stat {
+  display: inline-flex; align-items: center; gap: calc(5 * var(--c)); height: calc(24 * var(--c));
+  padding: 0 calc(10 * var(--c)) 0 calc(7 * var(--c)); border-radius: calc(12 * var(--c));
+  background: rgba(6, 12, 28, 0.72); box-shadow: inset 0 0 0 1px rgba(174, 189, 219, 0.22);
+}
+.rsc-stat :is(svg, .armormedal, .healthmedal) { width: calc(15 * var(--c)); height: calc(15 * var(--c)); flex: none; }
+.rsc-stat.is-hp svg { color: var(--ui-heart); }
+.rsc-stat.is-armor svg { color: #7f9cc6; }
+.rsc-stat > b { font-size: calc(13.5 * var(--lfont)); font-weight: 900; font-variant-numeric: tabular-nums; color: #fff; }
+.rsc-stat.is-armor > b { color: var(--pill-armor); }
+
+/* The power: its disc on the seam (centred on the column edge), the gold name and fact pills beside it. */
+.lobbyscout.lrv-scout .heropowerbtn.rsc-disc {
+  --u: calc(var(--rsc-pw) / 128);
+  grid-column: 2; grid-row: 2; align-self: center; z-index: 1; margin: calc(6 * var(--c)) 0 0 calc(var(--rsc-pw) * -0.5);
+  pointer-events: none; border-radius: 50%;
+  box-shadow: 0 0 0 calc(2 * var(--c)) var(--pill-edge), 0 calc(3 * var(--c)) calc(10 * var(--c)) rgba(0, 0, 0, 0.65);
+}
+.rsc-pwhead {
+  grid-column: 2; grid-row: 2; align-self: center; position: relative; z-index: 1; min-width: 0;
+  display: flex; flex-wrap: wrap; align-items: center; align-content: center; gap: calc(4 * var(--c)) calc(5 * var(--c));
+  padding: calc(6 * var(--c)) 0 0 calc(12 * var(--c));
+}
+.rsc-power.has-art .rsc-pwhead { padding-left: calc(var(--rsc-pw) * 0.5 + 9 * var(--c)); min-height: calc(var(--rsc-pw) + 6 * var(--c)); }
+.rsc-pwname {
+  flex: 1 1 100%; min-width: 0; font-family: var(--font-title), sans-serif; font-weight: 900; font-size: calc(14.5 * var(--lfont)); line-height: 1.1;
+  color: #fbe6a6; text-shadow: var(--pill-text-shadow);
+}
+.rsc-fact {
+  display: inline-flex; align-items: center; height: calc(16 * var(--c)); padding: 0 calc(7 * var(--c)); border-radius: calc(8 * var(--c));
+  background: rgba(174, 189, 219, 0.16); font-size: calc(9.5 * var(--lfont)); font-weight: 700; color: #c6d2ea; white-space: nowrap;
+}
+/* The text and the Ancient run the card's full width under the disc (the art has faded out by then). */
+.rsc-pwtext, .rsc-anc { grid-column: 1 / -1; position: relative; z-index: 1; }
+.rsc-pwtext {
+  grid-row: 3; margin-top: calc(5 * var(--c)); font-size: calc(11.5 * var(--lfont)); line-height: 1.35; font-weight: 500;
+  color: #fff6ea; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.85);
+}
+.rsc-pwtext b { color: #fff; font-weight: 800; }
+.rsc-anc { grid-row: 4; font-size: calc(11.5 * var(--lfont)); line-height: 1.35; color: #fff6ea; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.85); }
+/* The Ancient sits UNDER the power as a soft band (owner 2026-11-19, with his mock-up: no divider, a faint wash of the
+   Ancient's colour strongest at the left edge fading out to the right). The wash is shared with the combat foe tip
+   (ancients.css, the `.foe-ancient` band rule); here it only gets the card's spacing. */
+.rsc-anc .foe-ancient { margin-top: calc(5 * var(--c)); padding: calc(5 * var(--c)) calc(8 * var(--c)); border-radius: calc(5 * var(--c)); }
+.rsc-anc .foe-ancient-name { font-size: calc(13 * var(--lfont)); }
+
+/* Everything the card showed before (chips, runes, fights) under the second gold divider. */
+.lobbyscout.lrv-scout > .rsc-rest {
+  display: flex; flex-direction: column; gap: calc(8 * var(--c)); padding-top: calc(10 * var(--c));
+  background: linear-gradient(90deg, var(--rsc-gold), transparent) 0 0 / 100% 1.5px no-repeat;
+}
+.lobbyscout.lrv-scout > .rsc-rest > * { margin: 0; }

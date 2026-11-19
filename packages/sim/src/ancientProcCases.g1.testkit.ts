@@ -281,8 +281,8 @@ export const CASES: ProcCase[] = [
     },
   },
   {
-    hero: 'hunch', ancient: 'death', phase: 'combat', fires: 2,
-    note: 'carried 3/4: the 1st and 5th combat deaths pay',
+    hero: 'hunch', ancient: 'death', phase: 'combat', fires: 1,
+    note: 'five deaths in the fight: the 4th pays (per combat: the Shop count of 3 never comes in)',
     run: () => {
       const r = fight(withA(pickedRun('hunch', 'death', { board: ['m0', 'm1', 'm2', 'm3', 'm4'].map((u) => body(u, T1, { attack: 1, health: 1 })) }), { hunchDeaths: 3 }), foes(7, 50, 1000));
       need(deaths(r.events) === 5, `expected 5 deaths, saw ${deaths(r.events)}`);
@@ -360,8 +360,8 @@ export const CASES: ProcCase[] = [
   },
   {
     hero: 'xerox', ancient: 'death', phase: 'combat', fires: XEROX_DEATH_COMBAT,
-    note: 'carried 4/5: the first combat death pays (copies dying keep counting)',
-    run: () => fight(withA(pickedRun('xerox', 'death', { board: [body('big', T1, { attack: 9, health: 1 }), ...['a', 'b'].map((u) => body(u, T1, { attack: 1, health: 1 }))] }), { xeroxDeaths: 4 }), foes(7, 100, 1000)).procs,
+    note: 'six bodies: the 5th death in the fight pays (per combat: the Shop count of 4 never comes in)',
+    run: () => fight(withA(pickedRun('xerox', 'death', { board: [body('big', T1, { attack: 9, health: 1 }), ...['a', 'b', 'c', 'd', 'e'].map((u) => body(u, T1, { attack: 1, health: 1 }))] }), { xeroxDeaths: 4 }), foes(7, 100, 1000)).procs,
   },
   {
     hero: 'xerox', ancient: 'fortune', phase: 'eot', fires: 1,
@@ -407,8 +407,8 @@ export const CASES: ProcCase[] = [
     },
   },
   {
-    hero: 'hermithank', ancient: 'death', phase: 'combat', fires: 2,
-    note: 'carried 2/3: the 1st and 4th combat deaths (the Refresh-Avenge flag, aliased)',
+    hero: 'hermithank', ancient: 'death', phase: 'combat', fires: 1,
+    note: 'four deaths in the fight: the 3rd pays (the Refresh-Avenge flag, aliased; the Shop count never comes in)',
     run: () => {
       const r = fight(withA(pickedRun('hermithank', 'death', { board: ['a', 'b', 'c', 'd'].map((u) => body(u, T1, { attack: 1, health: 1 })) }), { tradesDeaths: 2 }), foes(7, 100, 1000));
       need(deaths(r.events) === 4, `deaths ${deaths(r.events)}`);
@@ -481,8 +481,8 @@ export const CASES: ProcCase[] = [
     },
   },
   {
-    hero: 'robin', ancient: 'death', phase: 'combat', fires: 2,
-    note: 'carried 2/3: the 1st and 4th combat deaths',
+    hero: 'robin', ancient: 'death', phase: 'combat', fires: 1,
+    note: 'four deaths in the fight: the 3rd pays (the Shop count never comes in)',
     run: () => {
       const r = fight(withA(pickedRun('robin', 'death', { board: ['a', 'b', 'c', 'd'].map((u, i) => body(u, N(i), { attack: 1, health: 1 })) }), { gildDeaths: 2 }), foes(7, 100, 1000));
       need(deaths(r.events) === 4, `deaths ${deaths(r.events)}`);
@@ -561,8 +561,8 @@ export const CASES: ProcCase[] = [
     },
   },
   {
-    hero: 'gorr', ancient: 'death', phase: 'combat', fires: 2,
-    note: 'carried 5/6 with a last-turn buy: the 1st and 7th combat deaths pay',
+    hero: 'gorr', ancient: 'death', phase: 'combat', fires: 1,
+    note: 'a last-turn buy, seven deaths in the fight: the 6th pays (the Shop count never comes in)',
     run: () => {
       const s0 = pickedRun('gorr', 'death', { wave: 5, board: ['a', 'b', 'c', 'd', 'e', 'f', 'g'].map((u) => body(u, N(2), { attack: 1, health: 1 })) });
       const r = fight(withA(s0, { gorrDeaths: 5, gorrBuys: [{ wave: 4, ids: [N(0)] }] }), foes(5, 100, 1000));

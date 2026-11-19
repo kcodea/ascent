@@ -14,7 +14,7 @@ import {
   ANCIENT_IDS, ANCIENTS_LIVE, ancientsForNewRun, ancientsLive, ancientsSetSupported, heroHasAncientPairings, releaseAncients, withAncientsLive,
   autoplayRun, boardIntel, buildMatchDetails, createGauntletRun, createLobbyRun, createRun, createTutorialRun, createVersusRun,
   deserialize, enableAncients, lobbyRunTelemetry, emptyTelemetryLog, parseMatchDetails, reduce, serialize, snapshotBoard,
-  DEFAULT_BOT, decide, createController, ancientTelemetryOf, legalModalAnswers,
+  DEFAULT_BOT, decide, createController, ancientTelemetryOf, ancientOfferFor, legalModalAnswers,
   type AncientId, type PracticeConfig, type RunState, type VersusRoomOptions,
 } from './index';
 
@@ -199,7 +199,9 @@ describe('the enemy Ancient is recorded and visible (R-ANCIENTS-RELEASE-03 / -04
     const bad = JSON.parse(JSON.stringify(md));
     bad.seats.find((x: { self?: boolean }) => x.self).ancient.id = 'nope';
     expect(parseMatchDetails(bad)!.seats.find((x) => x.self)!.ancient).toBeUndefined();
-    expect(ancientTelemetryOf(s)).toEqual({ ancients: true, ancient: me.ancient });
+    // + the offer it was picked from (R-TELEMETRY-ANCIENT-01), rebuilt from the seed when no live log is passed.
+    const wave = s.ancients!.awakenedWave!;
+    expect(ancientTelemetryOf(s)).toEqual({ ancients: true, ancient: me.ancient, ancientOffer: ancientOfferFor(s.seed, wave), ancientOfferWave: wave });
     expect(ancientTelemetryOf(createRun(7, 'indy'))).toEqual({});
     const row = lobbyRunTelemetry({ ...emptyTelemetryLog(), tierByWave: [] }, s, [], () => { throw new Error('no fallback'); });
     expect(row.ancient).toEqual(me.ancient);

@@ -68,6 +68,7 @@ export * from './goldSpent'; // Big Spender: the COUNTED Gold spent every spend 
 export * from './runDerive';
 export * from './reportCohorts'; // the honest-associations cohorts (2026-09-22): segments, exposed diagnostic, episodes, adjusted association, Welch, evidence
 export * from './reportSources'; // the export fix (2026-10-03): best source per field (live > derived > replay), the regime stamp + inference
+export * from './reportOutliers'; // the Balance Report's at-a-glance read (2026-11-19): outliers, never picked, never offered, Ancients
 export * from './playerReport'; // the Balance Report's read side (2026-09-22): set/ladder filters, per-card impact, the whole-dataset export
 export * from './opponentPool.data';
 export { MATCHMAKING, adjustedWinRate, bandWeight, boardRecord, clearBoardRecords, registerBoardRecords, selectionWeight, type BoardRecord } from './matchmaking';

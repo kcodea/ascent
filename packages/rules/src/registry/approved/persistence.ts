@@ -742,6 +742,29 @@ export const PERSISTENCE_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/telemetryRankAtStart.test.ts', 'packages/ui/src/balanceFetch.test.ts', 'packages/tools/src/newcomer/newcomerRate.test.ts'], lastVerifiedAt: '2026-10-06' },
   },
   {
+    id: 'R-TELEMETRY-ANCIENT-01',
+    title: 'Every ladder game with Ancients records the three Ancients it was offered, the turn, and the pick',
+    statement:
+      'Each uploaded ladder game played with Ancients on records, inside its telemetry, the three Ancients its awakening '
+      + 'offer showed (in offer order), the turn the offer opened, and the Ancient picked with the hero whose pairing it was. '
+      + 'A game that never filled the meter records Ancients on and no offer. A row uploaded before the offer was recorded '
+      + 'has its offer rebuilt from the run seed and pick turn (the offer is seeded) and is labelled rebuilt; a row with '
+      + 'neither reads as no Ancient data, never as a choice. The Balance Report compares each Ancient and each hero x '
+      + 'Ancient pairing picked against offered and picked another, within the same round band of the offer, with the '
+      + 'standard evidence labels.',
+    domain: 'persistence',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ask 2026-11-19 (Balance Report lost in the party-home UI change)', quote: 'add ancient data capture' },
+      { kind: 'code', ref: 'packages/sim/src/runTelemetry.ts (TelemetryLog.ancientOffer, recordTelemetryAction, ancientTelemetryOf); packages/sim/src/ancients.ts ancientOfferFor; packages/ui/src/store.ts the lobby telemetry upload (derived); packages/ui/src/remoteBoards.ts BALANCE_ANCIENT_SCALARS + parseAncientScalars; packages/sim/src/reportOutliers.ts (ancientFactsOf, ancientReach, ancientOutliers)' },
+    ],
+    currentBehaviour:
+      'Conforms for uploads from this change. No backend change: the offer, its turn and the seed ride inside the existing '
+      + 'derived jsonb and are read as JSON paths. Rows from 2026-11-16 to this change carry the pick (and the seed inside '
+      + 'derived), so their offers are rebuilt.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/reportOutliers.test.ts', 'packages/ui/src/balanceFetch.test.ts'], lastVerifiedAt: '2026-11-19' },
+  },
+  {
     id: 'R-GAME-RANK-01',
     title: 'Every finished ranked game shows the rank it was played at, from a stored division, never a guessed one',
     statement:

@@ -119,6 +119,25 @@ describe('fetchRunTelemetry — the select ladder', () => {
     expect(res.rows[2]!.rankAtStart, 'a malformed rank is dropped, never guessed').toBeUndefined();
   });
 
+  it('reads the Ancient stamps as JSON paths (R-TELEMETRY-ANCIENT-01); an old or malformed row reads as no Ancient data', async () => {
+    respond = () => ({ data: [
+      { ...FLAT[0], derived_ancients: true, derived_ancient: { id: 'war', heroId: 'indy', wave: 6 }, derived_ancient_offer: ['war', 'time', 'bonds'], derived_ancient_offer_wave: 6, derived_seed: 42 },
+      { ...FLAT[1], derived_ancients: null, derived_ancient: null, derived_ancient_offer: null, derived_ancient_offer_wave: null, derived_seed: null },
+      { ...FLAT[1], id: 98, derived_ancients: true, derived_ancient: { id: 7 }, derived_ancient_offer: ['war', 3], derived_seed: 'x' },
+    ], error: null });
+    const res = await (await load()).fetchRunTelemetry({ cap: 500 });
+    for (const path of ['derived_ancients:derived->ancients', 'derived_ancient:derived->ancient', 'derived_ancient_offer:derived->ancientOffer', 'derived_ancient_offer_wave:derived->ancientOfferWave', 'derived_seed:derived->seed']) {
+      expect(queries[0]!.select).toContain(path);
+    }
+    expect(res.rows[0]).toMatchObject({ ancients: true, ancient: { id: 'war', heroId: 'indy', wave: 6 }, ancientOffer: ['war', 'time', 'bonds'], ancientOfferWave: 6, seed: 42 });
+    expect(res.rows[1]!.ancients, 'an old row: no data').toBeUndefined();
+    expect(res.rows[1]!.ancient).toBeUndefined();
+    expect(res.rows[2]!.ancients).toBe(true);
+    expect(res.rows[2]!.ancient, 'a malformed pick is dropped').toBeUndefined();
+    expect(res.rows[2]!.ancientOffer, 'a malformed offer is dropped').toBeUndefined();
+    expect(res.rows[2]!.seed).toBeUndefined();
+  });
+
   it('a backend WITHOUT the 2026-09-22 columns errors the first rung and answers from the second, where a stamp written inside derived still reads', async () => {
     respond = (q) => (q.select!.includes('set_id') ? missingColumn('set_id') : { data: FLAT_RUNG2, error: null });
     const res = await (await load()).fetchRunTelemetry({ cap: 500 });

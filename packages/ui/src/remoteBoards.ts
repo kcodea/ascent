@@ -831,7 +831,12 @@ const BALANCE_PLACE = `${BALANCE_BUYS}, placement`; // 2026-08-02
  *  past the derived cap (or before stage two lands) still knows its live final wave (to clamp its tier series),
  *  whether its flat fields were captured live, its regime stamp and its band, and (2026-10-06, R-TELEMETRY-RANK-01)
  *  the player's rank at game start. A path a payload lacks reads null (an old row's rank then reads as unknown). */
-const BALANCE_DERIVED_SCALARS = 'derived_final_wave:derived->finalWave, derived_capture:derived->capture, derived_regime:derived->regime, derived_lobby_pool:derived->lobbyPool, derived_rank_at_start:derived->rankAtStart';
+/** 2026-11-19 (R-TELEMETRY-ANCIENT-01): the Ancient stamps, read as JSON paths like the scalars above: on/off, the
+ *  pick ({ id, heroId, wave }), the three offered ids, the wave the offer opened, and the run seed (a number) so a row
+ *  that predates offer capture can have its seeded offer rebuilt. A few dozen bytes per row; no column, no SQL. A
+ *  payload without them reads null, which the report shows as "no Ancient data". */
+const BALANCE_ANCIENT_SCALARS = 'derived_ancients:derived->ancients, derived_ancient:derived->ancient, derived_ancient_offer:derived->ancientOffer, derived_ancient_offer_wave:derived->ancientOfferWave, derived_seed:derived->seed';
+const BALANCE_DERIVED_SCALARS = 'derived_final_wave:derived->finalWave, derived_capture:derived->capture, derived_regime:derived->regime, derived_lobby_pool:derived->lobbyPool, derived_rank_at_start:derived->rankAtStart, ' + BALANCE_ANCIENT_SCALARS;
 /** 2026-08-05: `content_revision` arrived in the same migration as the `derived` jsonb, so this rung ALSO reads
  *  the two stamps the client writes INSIDE derived (`derived->>setId`, `derived->>source`): two short scalars
  *  per row, never the payload. A row uploaded by a 2026-09-22 client to a table that still lacks the columns
@@ -928,6 +933,7 @@ export async function fetchRunTelemetry(opts: { cap?: number; pageSize?: number 
       const regime = isObj(r.derived_regime) ? (r.derived_regime as unknown as RunRegime) : undefined;
       const lobbyPool = isObj(r.derived_lobby_pool) ? (r.derived_lobby_pool as unknown as LobbyPoolTelemetry) : undefined;
       const rankAtStart = parseRankAtStart(r.derived_rank_at_start) ?? undefined; // absent / malformed = unknown rank
+      const ancientStamp = parseAncientScalars(r);
       return {
         id,
         createdAt: (r.created_at as string | null) ?? null,
@@ -960,12 +966,28 @@ export async function fetchRunTelemetry(opts: { cap?: number; pageSize?: number 
         ...(regime ? { regime } : {}),
         ...(lobbyPool ? { lobbyPool } : {}),
         ...(rankAtStart ? { rankAtStart } : {}),
+        ...ancientStamp,
       };
     });
     return { rows, fetched: rows.length, truncated, cap, pageSize, playerKeyBasis: select === BALANCE_PLAYER ? 'playerKey' : 'displayName' };
   } catch {
     return empty;
   }
+}
+
+/** The Ancient scalars of one flat row (R-TELEMETRY-ANCIENT-01), shape-checked: anything malformed is dropped, so an
+ *  odd payload reads as "no Ancient data" rather than breaking the report. Exported for tests. */
+export function parseAncientScalars(r: Record<string, unknown>): Pick<RunTelemetryRow, 'ancients' | 'ancient' | 'ancientOffer' | 'ancientOfferWave' | 'seed'> {
+  const out: Pick<RunTelemetryRow, 'ancients' | 'ancient' | 'ancientOffer' | 'ancientOfferWave' | 'seed'> = {};
+  if (r.derived_ancients === true) out.ancients = true;
+  const a = r.derived_ancient as { id?: unknown; heroId?: unknown; wave?: unknown } | null | undefined;
+  if (a && typeof a === 'object' && typeof a.id === 'string' && typeof a.heroId === 'string') {
+    out.ancient = { id: a.id as NonNullable<RunTelemetryRow['ancient']>['id'], heroId: a.heroId, ...(typeof a.wave === 'number' ? { wave: a.wave } : {}) };
+  }
+  if (Array.isArray(r.derived_ancient_offer) && r.derived_ancient_offer.every((x) => typeof x === 'string')) out.ancientOffer = r.derived_ancient_offer as string[];
+  if (typeof r.derived_ancient_offer_wave === 'number') out.ancientOfferWave = r.derived_ancient_offer_wave;
+  if (typeof r.derived_seed === 'number') out.seed = r.derived_seed;
+  return out;
 }
 
 /** The derived payloads are the heavy half (~100 KB per run today, ~16 MB for the live table), so they are NOT

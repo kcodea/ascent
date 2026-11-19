@@ -53,6 +53,9 @@ export type CohortRow = RunTelemetry & {
   /** The live final wave, read from the derived payload as a scalar by the flat fetch (2026-10-03), so a row whose
    *  payload is not loaded can still clamp its tier series. */
   finalWave?: number | null;
+  /** The run seed, read from the derived payload as a scalar by the flat fetch (2026-11-19), so a row that predates
+   *  live Ancient offer capture can have its seeded offer rebuilt (`ancientFactsOf`). */
+  seed?: number | null;
   /** Filled by `withBestSources` (`applyReportFilters` runs it on every row): where each corrected field came
    *  from, and the row's regime with its basis. */
   sources?: RowSources;

@@ -189,6 +189,12 @@ export interface DerivedRun {
   /** The player's rank at game start (2026-10-06, R-TELEMETRY-RANK-01) -- see `RunTelemetry.rankAtStart`. Stamped by
    *  the UI at upload on a RATED lobby only; absent on earlier payloads (= unknown rank). */
   rankAtStart?: RankAtStart;
+  /** Ancients on/off, the pick, and the offer (R-ANCIENTS-RELEASE-04, R-TELEMETRY-ANCIENT-01) -- see the same fields on
+   *  `RunTelemetry`. Stamped by the UI at upload; absent on earlier payloads and on runs with Ancients off. */
+  ancients?: boolean;
+  ancient?: { id: string; heroId: string; wave?: number };
+  ancientOffer?: string[];
+  ancientOfferWave?: number;
 }
 
 // ── Derivation ─────────────────────────────────────────────────────────────────────────────────────────────

@@ -2226,7 +2226,7 @@ function commitResolvedAction(
                 heroId: next.heroId, mode: 'lobby', seed: next.seed, won: lobbyWon, setId: stampSet, source: stampSource,
               });
               // ANCIENTS (R-ANCIENTS-RELEASE-04): on/off and the picked Ancient ride `derived` too (jsonb, no SQL).
-              const derived = { ...derivedBase, ...(lobbyPool ? { lobbyPool } : {}), capture: base.capture, regime, ...(rankAtStart ? { rankAtStart } : {}), ...ancientTelemetryOf(next) };
+              const derived = { ...derivedBase, ...(lobbyPool ? { lobbyPool } : {}), capture: base.capture, regime, ...(rankAtStart ? { rankAtStart } : {}), ...ancientTelemetryOf(next, telemetryLog) };
               // REPLAY V2 rides INSIDE the same `replay` jsonb as the v1 action log (which balance
               // re-derivation still reads — both stay). Viewers gate on `replay.v2?.version === 2`.
               // `v2` itself is assembled above (it also feeds "Rewatch last game" for non-lobby runs).

@@ -65,6 +65,8 @@ export interface RunTelemetryRow extends RunTelemetry {
   derived: DerivedRun | null;
   /** The live final wave, read as a scalar from `derived` by the flat fetch (2026-10-03); absent on older rungs. */
   finalWave?: number | null;
+  /** The run seed, a scalar from `derived` (2026-11-19): rebuilds a pre-capture Ancient offer. */
+  seed?: number | null;
   /** Filled by `applyReportFilters` (`withBestSources`): where each corrected field came from, and the regime. */
   sources?: RowSources;
   regimeInfo?: ResolvedRegime;

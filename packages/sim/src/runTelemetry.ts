@@ -15,6 +15,7 @@ import { createRun, type RunState, type Action } from './state';
 import { HEROES } from './heroes';
 import { reduce } from './reducer';
 import { ancientSnapshotOf, type Replay, type BoardSnapshot } from './snapshot';
+import { ancientOfferFor } from './ancients';
 import type { LobbyPoolTelemetry } from './lobby/runLobby';
 import { RUN_STRENGTH_FORMULA, type StrengthFormula } from './lobby/boardStrength';
 import { STRENGTH_BANDS_VERSION } from './lobby/strengthBands';
@@ -113,13 +114,31 @@ export interface RunTelemetry {
    *  Balance Report can split results by Ancient. Absent = Ancients off (every row before 2026-11-16). */
   ancients?: boolean;
   ancient?: NonNullable<BoardSnapshot['ancient']>;
+  /** THE ANCIENT OFFER (R-TELEMETRY-ANCIENT-01, owner ask 2026-11-19): the three Ancient ids the awakening offer
+   *  showed, in offer order, and the wave it opened. Present = the run REACHED the pick (picked or not); absent on a
+   *  run with Ancients on = it never filled the meter. Six short ids and a number inside `derived` (jsonb, no SQL).
+   *  Absent on every row before 2026-11-19: the report then rebuilds the offer from the seed + pick wave
+   *  (`ancientOfferFor`, the offer is seeded) and labels it reconstructed, and a row with neither reads "no data". */
+  ancientOffer?: string[];
+  ancientOfferWave?: number;
 }
 
-/** The Ancients stamp a telemetry row / derived payload carries (see `RunTelemetry.ancient`): empty when off. */
-export function ancientTelemetryOf(run: RunState): Pick<RunTelemetry, 'ancients' | 'ancient'> {
+/** The Ancients stamp a telemetry row / derived payload carries (see `RunTelemetry.ancient`): empty when off. The
+ *  offer comes from the live log when it saw one, else from the final state's seeded offer (an open offer, or the
+ *  rebuilt offer of the pick), so a resumed run whose log predates offer capture still reports it. */
+export function ancientTelemetryOf(run: RunState, log?: Pick<TelemetryLog, 'ancientOffer' | 'ancientOfferWave'>): Pick<RunTelemetry, 'ancients' | 'ancient' | 'ancientOffer' | 'ancientOfferWave'> {
   if (!run.ancientsEnabled) return {};
   const ancient = ancientSnapshotOf(run);
-  return { ancients: true, ...(ancient ? { ancient } : {}) };
+  const a = run.ancients;
+  const wave = log?.ancientOffer?.length ? log.ancientOfferWave : a?.awakenedWave;
+  const offer = log?.ancientOffer?.length ? log.ancientOffer
+    : a?.offer?.length ? [...a.offer]
+      : a?.picked && a.awakenedWave ? ancientOfferFor(run.seed, a.awakenedWave)
+        : undefined;
+  return {
+    ancients: true, ...(ancient ? { ancient } : {}),
+    ...(offer ? { ancientOffer: [...offer], ...(wave ? { ancientOfferWave: wave } : {}) } : {}),
+  };
 }
 
 /** See `RunTelemetry.capture`. */
@@ -627,6 +646,10 @@ export interface TelemetryLog {
   questStart?: Record<string, number>;
   offeredRunes?: string[];
   pickedRunes?: string[];
+  /** THE ANCIENT OFFER (R-TELEMETRY-ANCIENT-01): the first awakening offer seen and the wave it opened. Optional, so
+   *  an older save loads; `ancientTelemetryOf` falls back to the run's seeded offer when it is missing. */
+  ancientOffer?: string[];
+  ancientOfferWave?: number;
 }
 
 /** Per-log Set index over `seenShopUids` — see the note in `recordTelemetryAction`. WeakMap-keyed on the
@@ -692,6 +715,11 @@ export function recordTelemetryAction(log: TelemetryLog, before: RunState, actio
   if (tiers[before.wave] == null) { tiers[before.wave] = before.tier; noteQuests(log, before); }
   if (before.questOffer) for (const id of before.questOffer) addOnce(log.offeredQuests ??= [], id);
   if (before.runeforgeOffer) for (const id of before.runeforgeOffer) addOnce(log.offeredRunes ??= [], id);
+  // THE ANCIENT OFFER (R-TELEMETRY-ANCIENT-01): opens once per run, so the first one seen is the one.
+  if (!log.ancientOffer && after.ancientsEnabled) {
+    const a = after.ancients?.offer?.length ? after.ancients : before.ancients?.offer?.length ? before.ancients : undefined;
+    if (a?.offer) { log.ancientOffer = [...a.offer]; log.ancientOfferWave = a.awakenedWave ?? before.wave; }
+  }
 
   if (after === before) return log; // rejected action — nothing was acquired
   tiers[after.wave] = after.tier; // tier only rises, so the last write of a wave is the tier the wave ended on
@@ -780,6 +808,6 @@ export function lobbyRunTelemetry(
     heroOffer,
     wins: liveRoundWins(final),
     capture: { v: 1, tierByWave: complete, choices: complete },
-    ...ancientTelemetryOf(final),
+    ...ancientTelemetryOf(final, log),
   };
 }

@@ -11,6 +11,7 @@ import { activeSet, contentRevision } from '@game/content';
 import { sfx } from './sfx';
 import { useGame } from './store';
 import { fetchRunDerived, fetchRunTelemetry, remoteEnabled, BALANCE_FLAT_CAP, BALANCE_FLAT_PAGE } from './remoteBoards';
+import { BalanceOverview, type OverviewView } from './balance/BalanceOverview';
 
 /**
  * Balance Report (owner request 2026-07-13) — the REAL-PLAYER balance report, opened from the home screen. It
@@ -582,6 +583,9 @@ function EvidenceBanner({ setName, runs, sliced, quality, coverage, scope, epoch
   const proxy = fetch.playerKeyBasis === 'displayName';
   const players = coverage.uniquePlayers === null ? 'n/a players' : `${coverage.uniquePlayers} ${proxy ? 'display names' : 'players'}`;
   const derivedDropped = fetch.derivedRequested - fetch.derivedFetched;
+  // The coverage + caveat rows fold behind one toggle (2026-11-19) so the at-a-glance views lead; truncation and the
+  // prolific-player exclusion stay on the always-visible row.
+  const [more, setMore] = useState(false);
   return (
     <div className="balbanner" role="note" aria-label="Evidence summary">
       <div className="balbanner-row">
@@ -592,7 +596,10 @@ function EvidenceBanner({ setName, runs, sliced, quality, coverage, scope, epoch
         <span data-tip="The balance epoch is the content revision the runs were played under. It is a filter, never a stratum.">{epochLabel}</span>
         <span>{windowLabel}</span>
         {prolific && <span className="balwarn" data-tip="The sensitivity toggle is on: every table below leaves this player's runs out">excluding {prolific.runs} runs of the most prolific player</span>}
+        {fetch.flatTruncated && <span className="balwarn">flat rows TRUNCATED at {BALANCE_FLAT_CAP}</span>}
+        <button type="button" className="balchip balmore" aria-expanded={more} onClick={() => { sfx.tick(); setMore((v) => !v); }}>{more ? 'Hide data details' : 'Data details'}</button>
       </div>
+      {more && <>
       <div className="balbanner-row balbanner-dim">
         <span data-tip={`Flat rows are paged from the database, ${BALANCE_FLAT_PAGE} a page, up to ${BALANCE_FLAT_CAP}. Truncated means the cap stopped the walk and the report is a bounded preview.`}>flat rows {fetch.flatFetched} fetched, cap {BALANCE_FLAT_CAP}, {fetch.flatTruncated ? 'TRUNCATED' : 'complete'}</span>
         <span data-tip={`Derived payloads are fetched by id for the newest ${derivedCap} in-set rows. Dropped = asked for and not returned. The exposed and adjusted reads need them.`}>derived {derivedLoading ? 'loading' : `${fetch.derivedFetched} of ${fetch.derivedRequested} requested`}, cap {derivedCap}{derivedDropped > 0 && !derivedLoading ? `, ${derivedDropped} dropped` : ''}</span>
@@ -608,13 +615,18 @@ function EvidenceBanner({ setName, runs, sliced, quality, coverage, scope, epoch
         <span>Every number below is an association among the runs observed, not a measured effect: comparing buyers with all other runs rewards survival and card access, the exposed and adjusted reads narrow the comparison to runs that had the chance, and no label here means confirmed overpowered or underpowered.</span>
         <span data-tip="Stage C of the analytics correction (a player-cluster bootstrap that recomputes the whole estimate, and false-discovery screening across every card) is deferred on purpose. Both need many independent players; over a handful they would manufacture confidence. The Welch ranges and the evidence labels are the whole uncertainty read for now.">No bootstrap or multiple-comparison screening is run: over {players} it would manufacture confidence, so each 95% range stands alone and is not a screened discovery.</span>
       </div>
+      </>}
     </div>
   );
 }
 
 // ── The panel ──────────────────────────────────────────────────────────────────────────────────────────────
 
-type SectionKey = 'minions' | 'spells' | 'heroes' | 'runes' | 'shopcurve' | 'economy' | 'upgrades';
+type DetailKey = 'minions' | 'spells' | 'heroes' | 'runes' | 'shopcurve' | 'economy' | 'upgrades';
+/** The at-a-glance views (2026-11-19) lead; the detailed tables stay one pick away. */
+type SectionKey = OverviewView | DetailKey;
+const OVERVIEW_TABS: { key: OverviewView; label: string }[] = [{ key: 'outliers', label: 'Outliers' }, { key: 'gaps', label: 'Never picked' }, { key: 'ancients', label: 'Ancients' }];
+const isOverview = (k: SectionKey): k is OverviewView => k === 'outliers' || k === 'gaps' || k === 'ancients';
 
 /** How many of the newest in-set rows get their derived payload fetched (~100 KB each today). Stated on the
  *  banner and in the export meta; a slice past it is bounded, never silently short. */
@@ -637,7 +649,8 @@ export function BalancePanel() {
   const [rows, setRows] = useState<RunTelemetryRow[]>([]); // every fetched row; the filters run below
   const [fetchState, setFetchState] = useState<FetchState>({ flatFetched: 0, flatTruncated: false, derivedRequested: 0, derivedFetched: 0, playerKeyBasis: 'playerKey' });
   const [loading, setLoading] = useState(false);
-  const [sectionKey, setSectionKey] = useState<SectionKey>('minions');
+  const [sectionKey, setSectionKey] = useState<SectionKey>('outliers');
+  const [lastDetail, setLastDetail] = useState<DetailKey>('minions');
   // HERO FILTER (owner ask 2026-08-02: "what minions does Robin buy vs Guardian"). Re-AGGREGATES from the raw
   // rows rather than filtering the finished tables, so the denominators are that hero's too. A VIEW filter:
   // the export always carries every hero.
@@ -764,7 +777,7 @@ export function BalancePanel() {
 
   const back = (): void => { sfx.pulse(); close(); };
   const refresh = (): void => { sfx.pulse(); load(); };
-  const pickSection = (k: SectionKey): void => { sfx.pulse(); setSectionKey(k); };
+  const pickSection = (k: SectionKey): void => { sfx.pulse(); setSectionKey(k); if (!isOverview(k)) setLastDetail(k); };
   const pickEpoch = (v: string): void => { sfx.pulse(); setEpochPick(v); setShowThin(false); };
   const counts = scoped.counts;
   const isDerived = sectionKey === 'economy' || sectionKey === 'upgrades';
@@ -781,11 +794,17 @@ export function BalancePanel() {
         {/* Section picker + the filters + the buttons, centred at the top. */}
         <div className="balhead-c">
           <div className="balcontrols">
+            <div className="bov-tabs" role="tablist" aria-label="Report view">
+              {OVERVIEW_TABS.map((t) => (
+                <button key={t.key} type="button" role="tab" aria-selected={sectionKey === t.key} className={`bov-tab${sectionKey === t.key ? ' on' : ''}`} onClick={() => pickSection(t.key)}>{t.label}</button>
+              ))}
+              <button type="button" role="tab" aria-selected={!isOverview(sectionKey)} className={`bov-tab${!isOverview(sectionKey) ? ' on' : ''}`} onClick={() => pickSection(lastDetail)}>Detailed tables</button>
+            </div>
             <select
               className="balpick"
-              value={sectionKey}
+              value={isOverview(sectionKey) ? lastDetail : sectionKey}
               onChange={(e) => pickSection(e.target.value as SectionKey)}
-              aria-label="Choose report"
+              aria-label="Choose detailed table"
             >
               <option value="minions">Minions ({impact.minions.length})</option>
               <option value="spells">Spells ({impact.spells.length})</option>
@@ -876,7 +895,10 @@ export function BalancePanel() {
             <EvidenceBanner setName={set.name} runs={heroRows.length} sliced={heroFilter ? getHero(heroFilter).name : null} quality={tableQuality} coverage={impactRes.coverage} scope={scope} epochs={epochs}
               fetch={fetchState} derivedCap={DERIVED_CAP} derivedLoading={derivedLoading} prolific={excludeProlific ? prolific : null} oldest={dates.oldest} newest={dates.newest} />
             {heroFilter && sectionKey !== 'heroes' && <div className="balsub">{getHero(heroFilter).name} only ({heroRows.length} runs)</div>}
-            {sectionKey === 'minions' || sectionKey === 'spells' ? (
+            {isOverview(sectionKey) ? (
+              <BalanceOverview view={sectionKey} setId={set.id} setName={set.name} cards={impactRes.rows} heroes={heroes} runes={runes}
+                rows={heroRows} keyOf={keyOf} derivedLoading={derivedLoading} />
+            ) : sectionKey === 'minions' || sectionKey === 'spells' ? (
               <ImpactSection
                 key={sectionKey}
                 rows={sectionKey === 'minions' ? impact.minions : impact.spells}

@@ -340,8 +340,10 @@ body.ancgate .app { z-index: auto; }
   filter: brightness(1.7) drop-shadow(0 0 calc(7 * var(--u, 1px)) #fff) drop-shadow(0 0 calc(22 * var(--u, 1px)) var(--anc-c)) drop-shadow(0 0 calc(48 * var(--u, 1px)) var(--anc-c));
 }
 .anc-pn-cut { position: absolute; height: auto; aspect-ratio: 2 / 3; will-change: transform; -webkit-user-drag: none; }
-.anc-pn-front { position: absolute; left: -15%; bottom: 0; width: 130%; aspect-ratio: 2 / 3; pointer-events: none; will-change: transform, opacity; }
-.anc-pn-front-img { display: block; width: 100%; height: 100%; transform-origin: 50% 100%; will-change: transform; -webkit-user-drag: none; }
+/* The foreground magic sits on the bottom edge, wider than its strip and uncut (like the figure it wraps); its height
+   follows each file's own shape. */
+.anc-pn-front { position: absolute; left: -25%; bottom: 0; width: 150%; pointer-events: none; will-change: transform, opacity; }
+.anc-pn-front-img { display: block; width: 100%; height: auto; transform-origin: 50% 100%; will-change: transform; -webkit-user-drag: none; }
 .anc-pn-face { display: block; width: 100%; height: 100%; object-fit: cover; -webkit-user-drag: none; }
 .anc-pn-edges { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
 .anc-pn-edges line { vector-effect: non-scaling-stroke; stroke-linecap: round; }

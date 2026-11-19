@@ -24,8 +24,8 @@ import { PANEL_LAND, PANEL_PULSE, PANEL_SLIDE_EASE, PANEL_MASK_Y, panelBackWidth
  * FIGURES IN FRONT (owner 2026-11-19: "i want the 'back' files to fall in the same slice format you currently have,
  * but i want the 'figures' not to be cut from those edges ... have them in front of those edges"): each panel is two
  * boxes over the same place. `.anc-pn` holds what the slanted strip clips (the background, the lit wash, the seam);
- * `.anc-pn-over`, in a second layer above ALL six strips, holds the uncut figure, the foreground magic (still clipped
- * to the strip), the edge glow and the name. Whatever moves a whole panel (rattle, fall, the settle onto the card)
+ * `.anc-pn-over`, in a second layer above ALL six strips, holds the uncut figure, the foreground magic (uncut
+ * too), the edge glow and the name. Whatever moves a whole panel (rattle, fall, the settle onto the card)
  * moves both. The overs stack middle pair on top (they land last); the offered three come to the front when picked.
  * LAYERED PORTRAITS (owner 2026-11-19): an Ancient with `art/ancients/panels/<id>_{back,figure,front}` is drawn from
  * three sheets instead of the flat painting: the place rides the background, the cut-out Ancient is the figure, loose
@@ -173,8 +173,8 @@ export const AncientPanels = memo(function AncientPanels({ offered, phase }: { o
             }
           });
         }
-        // The strip is going: its edge glow, its lit wash and its foreground magic (cut to the strip's shape) go with
-        // it. The outline glow stays on the figure.
+        // The strip is going: its edge glow goes with it. The foreground magic fades too (it would trail behind the
+        // figure's slide along the bottom). The outline glow stays on the figure.
         for (const sel of ['.anc-pn-glow', '.anc-pn-front']) anim(q(sel), [{ opacity: 1 }, { opacity: 0 }], { duration: 220, delay: tl.fallAt, easing: 'ease-out', fill: 'forwards' });
         // The slide along the bottom, to its third of the screen (in the order of the cards).
         const dxs = spreadX(geo, offered.indexOf(id), offered.length) - (geo.left[i]! + geo.boxW / 2);
@@ -279,11 +279,11 @@ export const AncientPanels = memo(function AncientPanels({ offered, phase }: { o
               <img decoding="sync" className="anc-pn-cut" src={layers.figure} alt="" draggable={false} style={{ left: `${fit.left}%`, top: `${fit.top}%`, width: `${fit.width}%`, transformOrigin: `${(fit.mx * 100).toFixed(1)}% ${PANEL_MASK_Y * 100}%` }} />
             </div>
           )}
+          {/* The foreground magic: cropped tight to its art (each file has its own shape), uncut, wrapped round the
+              figure's lower half. */}
           {layers?.front && (
-            <div className="anc-pn-clip" style={{ clipPath: stripPolygon(geo, i) }}>
-              <div className="anc-pn-front">
-                <img decoding="sync" className="anc-pn-front-img" src={layers.front} alt="" draggable={false} />
-              </div>
+            <div className="anc-pn-front">
+              <img decoding="sync" className="anc-pn-front-img" src={layers.front} alt="" draggable={false} />
             </div>
           )}
           <div className="anc-pn-name">{ANCIENTS[id].name.replace(/^Ancient of /, '')}</div>

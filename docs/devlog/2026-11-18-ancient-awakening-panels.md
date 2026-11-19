@@ -100,3 +100,7 @@ about their bottom edge.
   own `gild-trail` (recoloured, muted) carries it to its card, timed to land as the card bursts out of its spark. The
   figure no longer shrinks onto the card's art, so `PANEL_FIGURE_FITS` now only places the figure in its panel;
   `panelToCardMs` is retired.
+- New front layers (same day): the masters are no longer 2:3 (1201x1310 with empty margins; War 1024x1536), so the
+  converter crops each to its art and the panel shows it at its natural shape, on the bottom edge, 1.5 strips wide and
+  uncut. Converter scripts live in the session scratchpad, not the repo: black to alpha is `a = clamp((max(r,g,b) - 10)
+  * 255 / 200)` with the colour un-multiplied, then a bounding-box crop on alpha > 24 with 10 px of padding.

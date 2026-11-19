@@ -107,6 +107,15 @@ export const CARD_EVENT_SLOTS: readonly CardEventSlot[] = [
     kindFor: (card) => (hasEffectOn(card, 'avenge') ? 'avenge' : null),
   },
   {
+    id: 'echo',
+    label: 'On Echo',
+    blurb: 'Plays when this minion’s Echo fires as it dies in combat, in place of the medallion pulse. Echo minions only.',
+    // An `onDeath` effect. The combat score’s `deathFx` channel plays `triggerFxFor(cardId, 'echo')` on the dying
+    // body: this card’s row, else the stock Echo effect (`choreo/stockTriggerFx.ts`). Distinct from On Death,
+    // which plays for any minion that dies, Echo or not.
+    kindFor: (card) => (hasEffectOn(card, 'onDeath') ? 'echo' : null),
+  },
+  {
     id: 'wardGiven',
     label: 'On Ward given',
     blurb: 'Plays from this minion to each minion it gives Ward (Lastlight’s Echo), in combat. The Ward appears when the effect arrives: when its travelling layer lands.',

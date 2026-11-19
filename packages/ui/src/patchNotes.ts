@@ -56,6 +56,12 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-11-19',
+    changes: [
+      { category: 'Systems', text: 'Start of Combat, Avenge, End of Turn and Rally now show a new effect on the minion when they trigger, in place of the old badge pulse.' },
+    ],
+  },
+  {
     date: '2026-11-18',
     changes: [
       { category: 'Systems', text: "Another player's Career page now has an Add friend button at the top. One press sends the request." },

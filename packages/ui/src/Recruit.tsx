@@ -264,6 +264,7 @@ import { chooseKey, questOfferKey } from './pings/pingKeys';
 import { captureRecruitSeqs, chooseOneMoment, endOfTurnMoment, minionPlayedMoment, recruitMomentsSince, recruitSeqsOf, selfBuffMoment, shieldGainMoment, shoutMoment, spellCastMoment } from './choreo/recruitMoments';
 import { runRecruitMomentCues } from './choreo/recruitCues';
 import { bindingDefIds, bindingFor, castFxReplacesTendril } from './choreo/bindings';
+import { triggerFxFor } from './choreo/stockTriggerFx';
 import { QUICK_SALE_ID } from './sellMedallion';
 import { buffSourceDelayMs, buffSourceRanks, oneBitePerTarget, playBuffSourceWatcher } from './choreo/buffWatcher';
 import { cascade, scheduleLands, waves as asWaves } from './fx/land';
@@ -8050,7 +8051,12 @@ export function Recruit() {
           }
         }
         setEotProcUids(uid ? new Set([uid]) : new Set());
-        setEotPulseUids(uid && beat.mode === 'ownBeat' ? new Set([uid]) : new Set());
+        // An End of Turn with an effect of its own (the card's On End of Turn slot, else the stock one) shows that
+        // effect INSTEAD of the medallion pulse (R-FX-TRIGGER-STOCK-01): the same test the `endOfTurn` cue below
+        // makes before it plays. The sound stays either way.
+        const eotCardId = uid ? run.board.find((c) => c.uid === uid)?.cardId ?? null : null;
+        const eotFxBound = beat.family === 'endOfTurn' && canPlayDefs() && eotCardId !== null && triggerFxFor(eotCardId, 'endOfTurn') !== null;
+        setEotPulseUids(uid && beat.mode === 'ownBeat' && !eotFxBound ? new Set([uid]) : new Set());
         if (beat.mode === 'ownBeat') sfx.triggerPulse(); else sfx.triggerGlow();
         if (uid) {
           const card = run.board.find((c) => c.uid === uid);

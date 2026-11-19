@@ -111,11 +111,11 @@ export function QuestCard({ quest, onBuy, readOnly = false, pingKey }: { quest: 
       <span className="questcard-gem" aria-hidden />
       {tip && hasPreview && createPortal(
         <div className="cardref questref" ref={popRef} style={{ left: tip.left, top: tip.top } as CSSProperties}>
-          <div className="cardref-inner" style={{ transformOrigin: `${tip.origin} center` } as CSSProperties}>
+          <div className="cardref-shadow"><div className="cardref-inner" style={{ transformOrigin: `${tip.origin} center` } as CSSProperties}>
             {rewardCards.map((rv, i) => (
               <Card key={`${rv.cardId ?? i}-${i}`} card={rv} forceFull suppressPop plated />
             ))}
-          </div>
+          </div></div>
         </div>,
         stageHost(),
       )}

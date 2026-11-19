@@ -6,7 +6,7 @@ import { rectToStage, stageViewport, toScreen } from '../stage';
 import { AncientFace } from './AncientFace';
 import { ancientColor, getAncientsConfig } from './ancientsConfig';
 import { playCue } from './ancientsSound';
-import { PANEL_LAND, PANEL_PULSE, PANEL_SLIDE_EASE, cardPolygon, panelFigureFit, panelFigureRest, panelFromTop, panelGeometry, panelRank, panelTimeline, seamX, slideLeadY, stripPolygon } from './panelClock';
+import { PANEL_LAND, PANEL_PULSE, PANEL_SLIDE_EASE, cardPolygon, panelBackWidth, panelFigureFit, panelFigureRest, panelFromTop, panelGeometry, panelRank, panelTimeline, seamX, slideLeadY, stripPolygon } from './panelClock';
 
 /**
  * THE SIX PANELS (owner 2026-11-18; the clock and geometry are in `panelClock.ts`). Mounted by `AncientGate` for
@@ -39,6 +39,7 @@ export const AncientPanels = memo(function AncientPanels({ offered, phase }: { o
     return { geo: panelGeometry(v.w, v.h, c.panelSlant), tl: panelTimeline(c), cfg: c };
   }, []);
   const ids = ANCIENT_IDS;
+  const backW = panelBackWidth(geo);
 
   useEffect(() => () => { for (const t of timers.current) window.clearTimeout(t); timers.current = []; }, []);
 
@@ -203,7 +204,7 @@ export const AncientPanels = memo(function AncientPanels({ offered, phase }: { o
         <div key={id} className="anc-pn" data-layered={layers ? '1' : undefined} style={{ left: geo.left[i], width: geo.boxW, '--anc-c': ancientColor(id) } as CSSProperties}>
           <div className="anc-pn-clip" style={{ clipPath: stripPolygon(geo, i) }}>
             <div className="anc-pn-fill">
-              {layers && <img decoding="sync" className="anc-pn-back" src={layers.back} alt="" draggable={false} style={{ marginLeft: -geo.vh / 3 }} />}
+              {layers && <img decoding="sync" className="anc-pn-back" src={layers.back} alt="" draggable={false} style={{ width: backW, height: backW * 1.5, marginLeft: -backW / 2, top: (geo.vh - backW * 1.5) / 2 }} />}
             </div>
             <div className={`anc-pn-fig${layers ? ' anc-pn-fig-cut' : ''}`} style={{ width: geo.figS, height: geo.figS, marginLeft: -geo.figS / 2, marginTop: -geo.figS / 2 }}>
               {layers

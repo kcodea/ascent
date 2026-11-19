@@ -39,6 +39,9 @@ export const PANEL_FIGURE_FITS: Readonly<Record<string, PanelFigureFit>> = {
   bonds: { left: -3.3, top: -9.8, width: 96, mx: 0.555 },
 };
 export const panelFigureFit = (id: string): PanelFigureFit => PANEL_FIGURE_FITS[id] ?? PANEL_FIGURE_FITS.death!;
+/** A layered portrait's background (a 2:3 image): as tall as the screen, and wider than its strip on any screen shape
+ *  (on a very wide screen the strip is wider than a screen-tall 2:3 image, so it grows to cover). Stage px. */
+export const panelBackWidth = (g: PanelGeo): number => Math.max(g.vh * 2 / 3, g.boxW * 1.12);
 /** A layered figure's height at rest, in screen heights: the whole cut-out stands in the strip and runs off the bottom
  *  (the flat painting only ever showed its middle). */
 export const PANEL_FIGURE_REST_H = 1.09;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ANCIENTS_DEFAULTS, gateStyleOf } from './ancientsConfig';
-import { PANEL_FIGURE_FITS, PANEL_LAND, PANEL_PULSE, panelFigureRest, panelFromTop, panelGeometry, panelRank, panelTimeline, seamX, slideLeadY, stripPolygon } from './panelClock';
+import { PANEL_FIGURE_FITS, PANEL_LAND, PANEL_PULSE, panelBackWidth, panelFigureRest, panelFromTop, panelGeometry, panelRank, panelTimeline, seamX, slideLeadY, stripPolygon } from './panelClock';
 
 /**
  * THE AWAKENING'S SIX PANELS (owner 2026-11-18): "the ancient itself to slide down into place from completely off
@@ -59,7 +59,7 @@ describe('the awakening panels clock', () => {
 
 describe('the awakening panels geometry', () => {
   // A 16:9 stage and an ultrawide one: the panels span the layout viewport, whatever its shape.
-  for (const [vw, vh] of [[1920, 1080], [2520, 1080]] as const) {
+  for (const [vw, vh] of [[1920, 1080], [2520, 1080], [3840, 1080]] as const) {
     const g = panelGeometry(vw, vh, ANCIENTS_DEFAULTS.panelSlant);
 
     it(`tiles ${vw}x${vh} edge to edge with no gap between neighbours`, () => {
@@ -82,6 +82,9 @@ describe('the awakening panels geometry', () => {
 
     // Owner 2026-11-19 (layered portraits): the tall cut-out stands whole in the strip, running off the bottom.
     it(`stands a layered figure top to bottom in the ${vw}x${vh} strip`, () => {
+      // The background covers its strip with room to drift, on any screen shape (and is never shorter than the screen).
+      expect(panelBackWidth(g)).toBeGreaterThan(g.boxW * 1.1);
+      expect(panelBackWidth(g) * 1.5).toBeGreaterThanOrEqual(vh);
       for (const fit of Object.values(PANEL_FIGURE_FITS)) {
         const r = panelFigureRest(g, fit);
         const w = g.figS * (fit.width / 100) * r.s, h = w * 1.5; // a 2:3 image, at its rest size

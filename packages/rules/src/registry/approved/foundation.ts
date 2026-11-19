@@ -12877,6 +12877,70 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/artPlanCoverage.test.ts'], lastVerifiedAt: '2026-11-04' },
   },
   {
+    id: 'R-PERF-SHARED-FX-REVERB-01',
+    title: 'A big hit never builds a reverb node mid-fight',
+    statement:
+      'A one-shot effect sound layer whose reverb had nothing after it but the fader (no Pan, a flat reverb mix, a flat '
+      + 'level curve) sends into a shared convolver for its bus and impulse, built once on idle time, instead of taking '
+      + 'a node of its own. The send carries the fader\'s level; the fader\'s fades stay behind the convolver on one '
+      + 'gate per node: plays with the same fade-in share a node whose gate rides the fade-in when the node has rung '
+      + 'out, and fading-out plays get two nodes per impulse (one on a phone) so two overlapping plays each keep their '
+      + 'own fade. A play on its own sounds exactly as before (an offline render of both graphs differs by '
+      + 'floating-point noise). While plays of one impulse overlap past that, an earlier tail rings under the later '
+      + 'play instead of being cut with its own clip. A finished voice is disconnected from its bus once whatever still '
+      + 'rings inside its own chain has died. The Ruby landing\'s tail convolver is built on idle time on desktop.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-18 (the bar: a 2D card game has no excuse for dropped frames; 240 fps constant, recruit phase first)' },
+      { kind: 'code', ref: 'packages/ui/src/fx/audioFilters.ts (sharedFxReverb, sharedReverbEligible, prewarmSharedFxReverbs); packages/ui/src/sfx.ts (playFxSound, playSample, fxChainRingSeconds, warmWipeGate)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-18 (perf/always-on). Before, the pool kept two idle convolvers per impulse and a third '
+      + 'overlapping play built one (about 6 ms of main thread at a 96 kHz context). A 500+ Attack hit plays a strike '
+      + 'impact whose reverb layers each held a node for 3 to 5 s, so past the first swings nearly every big hit built '
+      + 'one or two nodes; a burst of grant trails did the same.',
+    example: 'Seven minions at 900 Attack trade blows a third of a second apart. Before, each blow after the first two built a new reverb node while the fight played. Now every blow sends into the same one.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/fx/sharedFxReverb.test.ts', 'packages/ui/src/fx/convolverPool.test.ts'], lastVerifiedAt: '2026-11-18' },
+  },
+  {
+    id: 'R-PERF-HOVER-SHADOW-01',
+    title: 'The hover preview bobs without re-blurring its haze',
+    statement:
+      'The hover preview\'s white haze and drop shadow (three drop-shadows) sit on a box that never animates, inside the '
+      + 'element that slides in and bobs. The bob is on the separate translate property, so it never fights the '
+      + 'slide-in\'s transform, and travels the same distance (4 px times the popup zoom). The shadow looks the same: it '
+      + 'always moved rigidly with the card.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-18 (ruling: keep the hover shadow looking the same)' },
+      { kind: 'code', ref: 'packages/ui/src/styles.css (.cardref, .cardref-shadow, .cardref-inner, cardreffloat); the five .cardref surfaces: Card.tsx, RuneCard.tsx, QuestCard.tsx, StatusBar.tsx, guides/GuideParts.tsx' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-18 (perf/always-on). Before, the filter sat on the parent of a child that bobbed forever, '
+      + 'so its input changed every frame: three blur passes over the whole popup for as long as the pointer rested on a '
+      + 'card (devlog 2026-10-21 measured the hover sweep\'s worst frame at 24.7 ms with it and 9.7 ms without).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/staticShadowCss.test.ts'], lastVerifiedAt: '2026-11-18' },
+  },
+  {
+    id: 'R-PERF-DMG-SHADOW-01',
+    title: 'A damage number moves a rastered shadow, it does not re-blur one',
+    statement:
+      'A damage number\'s drop shadow sits on a static inner box that holds the number and its burst; the float that '
+      + 'pops, rises and fades carries no filter. The shadow is still cast by number and burst together.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-18 (the bar: a 2D card game has no excuse for dropped frames; 240 fps constant, recruit phase first)' },
+      { kind: 'code', ref: 'packages/ui/src/styles.css (.float.dmg, .float.dmg .dmgbody); packages/ui/src/Recruit.tsx (the float and death-float markup)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-18 (perf/always-on). Before, the filter was on the element that animates translate, scale '
+      + 'and opacity for its whole life: a blur pass per frame per number, up to 14 at once on a wave or cleave.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/staticShadowCss.test.ts'], lastVerifiedAt: '2026-11-18' },
+  },
+  {
     id: 'R-PERF-SHARED-TAIL-REVERB-01',
     title: 'A fight never builds reverb nodes as it starts, and the reverb pool never grows over a game',
     statement:
@@ -16149,6 +16213,167 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'and an idle shop at 37 to 64 ms a frame on an RTX 4080. Phones still render the authored aura.',
     example: 'A board of seven Rise minions used to hold 196 blended wisp and dome layers. Now it holds seven pictures, and the idle shop stays at 4.17 ms a frame.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/kwfx/kwfx.test.ts'], lastVerifiedAt: '2026-11-19' },
+  },
+  {
+    id: 'R-PERF-COMBAT-PREVIEW-01',
+    title: 'A live combat readout re-renders only the cards that print it, and never copies the run',
+    statement:
+      'The display-only combat previews (spell power gained this fight, Front to Back\x27s step, spells cast, friendly '
+      + 'deaths, Blade Mastery attacks, Squirl Scout and Conductor growth) are published as the replay reaches them. '
+      + 'Publishing one sets that one number on the run and nothing else: no object on the run is copied (the board, hand, '
+      + 'Shop and lobby keep their identity), no per-action bookkeeping runs, and an unchanged value is a no-op. A combat '
+      + 'unit re-renders only when a number its own text prints has moved, and its card only when the card\x27s content '
+      + 'changed. Every printed value still shows its current number mid-fight (the live-value rule is unchanged), and '
+      + 'settle still clears every preview and banks the real totals.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-18', quote: 'this is a 2D HTML card game; there is no excuse for dropped frames or hitching' },
+      { kind: 'code', ref: 'packages/sim/src/reducer.ts (reduceCombatPreview); packages/ui/src/combatRun.ts (runSansPreviews, keepIfSame, useStableValue); packages/ui/src/Unit.tsx' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-18 (perf/combat-render). Before, each publish went through the full reducer: a deep copy '
+      + 'of the run and every action-boundary sweep, 11 to 14 times a late fight. Every unit subscribed to the whole run '
+      + 'and built a fresh card view, so each publish re-rendered all 14 units and their whole cards. Measured on a 7v7 '
+      + 'big-stat fight (prod build, median of 3): 4,919 card renders a fight before, 337 after.',
+    example: 'Your Imp dies mid-fight. Cindara\x27s Hoard counter on the hero power ticks. Before, all 14 minions on screen and their cards re-rendered for that tick. Now none do.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/combatRenderCount.test.tsx', 'packages/sim/src/heroPillReadouts.test.ts'], lastVerifiedAt: '2026-11-18' },
+  },
+  {
+    id: 'R-PERF-STAT-ROLL-01',
+    title: 'A rolling stat number re-renders its badge, never the card, and a board rolling together notifies once per frame',
+    statement:
+      'While a stat number rolls to a new value, only that stat\x27s badge re-renders: the card around it (art, frame, '
+      + 'keyword auras, text) does not. Every combat buff roll in flight is stepped by ONE frame loop that notifies the '
+      + 'badges once per frame, however many units are rolling. The look is unchanged: the same values on the same '
+      + 'frames, the same roll length at every combat speed, and the badge still pops on every visible change.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-18', quote: 'frames <= 6.25 ms on the prod build from round 1 to the end' },
+      { kind: 'code', ref: 'packages/ui/src/Card.tsx (StatBadge); packages/ui/src/fx/combatBuffRoll.ts (the shared roll loop); packages/ui/src/fx/statHold.ts (revealStats)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-18 (perf/combat-render). Before, the Card owned the hold subscription, so a +3,000 buff '
+      + 're-rendered the whole card on every frame of its 650 ms roll, each rolling unit ran its own frame loop, and '
+      + 'each loop notified every badge on screen. A late fight is where this bit: the bigger the buff, the more frames '
+      + 'show a new number.',
+    example: 'Runmaw gives your whole board +1,200/+4,500 at the start of combat. Seven attack and seven health numbers roll for 650 ms. Before, seven whole cards re-rendered every frame. Now fourteen small badges do.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/combatRenderCount.test.tsx', 'packages/ui/src/fx/combatBuffRoll.test.ts', 'packages/ui/src/fx/statHold.test.ts'], lastVerifiedAt: '2026-11-18' },
+  },
+  {
+    id: 'R-PERF-COMBAT-FOLD-01',
+    title: 'The combat replay continues its folds beat by beat; it never re-reads the fight from the first event',
+    statement:
+      'Each beat, the replay applies only the events since the previous beat to the board it draws and to its running '
+      + 'readouts (enemy deaths, buffs gained, the previews, the quest tally). It starts over from the fight\x27s opening '
+      + 'boards only when the cursor moves BACKWARD (a seek, a rewatch, a spectator joining mid-fight) or a new fight '
+      + 'begins. The board and every readout are the same at every beat as a from-scratch fold gives, so normal, '
+      + 'accelerated and skipped playback, and any seek, reach the same state. A frame already on screen is never '
+      + 'changed by a later beat. The per-beat position sweep reads only the units on screen.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-18', quote: 'frames <= 6.25 ms on the prod build from round 1 to the end' },
+      { kind: 'code', ref: 'packages/ui/src/useCombatReplay.ts (makeFrameFolder, stepFrameFold, frameOf, logIndexOf); packages/ui/src/choreo/prefixFold.ts' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-18 (perf/combat-render). Before, every beat rebuilt every body from the starting snapshot '
+      + 'and replayed the whole log, and about a dozen other passes re-read the log from event 0 (four of them after '
+      + 'copying it), so a fight cost events times beats and the last beats of a long fight cost the most. Each beat '
+      + 'also ran one document-wide lookup per body the fight ever had (50 to 150 in a summon-heavy fight).',
+    example: 'Beat 300 of a 1,000-event fight plays. Before, the screen re-read events 1 to 600 about twelve times to draw it. Now it reads the two or three new events.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/frameFold.test.ts', 'packages/ui/src/choreo/prefixFold.test.ts', 'packages/ui/src/computeFrame.purity.test.ts'], lastVerifiedAt: '2026-11-18' },
+  },
+  {
+    id: 'R-PERF-FX-FILTER-AREA-01',
+    title: 'A filter on a particle effect covers the particles, not the whole screen, and the picture is the same',
+    statement:
+      'A Bloom, Glow, Blur or colour filter on a spark burst, an emitter or a smoke layer is drawn over the box its '
+      + 'live particles occupy plus the filter\x27s own reach, never over the whole viewport. This applies only to '
+      + 'filters whose result does not depend on where their area starts or how large it is; a filter that warps, tiles '
+      + 'or lights by position (godrays, zoom and radial blur, twist, shockwave, CRT, pixelate and the rest) keeps the '
+      + 'whole viewport, as does a layer under a filter that something other than a particle stack put above it. The '
+      + 'effect looks the same: no glow is cut off at the edge of the box, and no stale glow from another effect '
+      + 'shows at its edge.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-18', quote: '> 240 fps (frames <= 4.17 ms) constantly, no hitching' },
+      { kind: 'code', ref: 'packages/ui/src/fx/filterStack.ts (TIGHT_FILTERS, filterAreaMode); packages/ui/src/fx/particleLayerPool.ts (fitParticleBounds); packages/ui/src/fx/blurPassClear.ts' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-18 (perf/pixi-fx). Before, a particle layer reported an effectively infinite box, so '
+      + 'every pass of every filter on it filled the full 1920 x 1080 viewport. One buff trail to a full board ran 28 '
+      + 'filters over 28 megapixels a frame and held the shop at 40% of frames over 4.17 ms for its whole flight. '
+      + 'Tight boxes exposed a Pixi 8.19 defect (its blur pass never clears its pooled scratch texture on WebGL), '
+      + 'fixed in the same change.',
+    example: 'An Ancient gives your whole board +2/+2. Seven trails fly from the hero power, each ending in a glowing spark burst. Before, each burst\x27s Glow was computed for the entire screen. Now it is computed for the burst.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/fx/filterAreaTight.test.ts'], lastVerifiedAt: '2026-11-18' },
+  },
+  {
+    id: 'R-PERF-FX-DEAD-TAIL-01',
+    title: 'A particle that can no longer be seen stops being simulated and drawn, and nothing else changes',
+    statement:
+      'When an emitter\x27s size or alpha curve is 0 from some point to the end of a particle\x27s life, a particle past '
+      + 'that point leaves the simulation and the draw list. It still counts toward the emitter\x27s particle cap and '
+      + 'toward the moment the effect is finished, so the effect emits the same particles and ends at the same time. '
+      + 'A reversed emitter is left alone.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-18', quote: '> 240 fps (frames <= 4.17 ms) constantly, no hitching' },
+      { kind: 'code', ref: 'packages/ui/src/fx/primitives/emitter.ts (ghosts, deadFrac); packages/ui/src/fx/curve.ts (zeroTailStart)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-18 (perf/pixi-fx). Before, the 5,000+ stat ring (the heaviest effect in a late fight by '
+      + 'measured time) simulated, uploaded and drew every particle for its full 2.37 s although its size curve is 0 '
+      + 'for the last 43% of that.',
+    example: 'A minion at 6,000 Health wears the blue ring on its Health badge. Each mote shrinks to nothing after 1.35 s and used to be carried, invisible, for one more second. Now it is dropped when it vanishes.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/fx/curve.test.ts', 'packages/ui/src/fx/primitives/emitter.test.ts'], lastVerifiedAt: '2026-11-18' },
+  },
+  {
+    id: 'R-PERF-FX-FILTER-KEYS-01',
+    title: 'An effect layer with no filter costs nothing per frame for the filters it does not have',
+    statement:
+      'The per-frame filter pass of an effect layer reads prebuilt keys: it builds no strings and allocates nothing '
+      + 'for a layer whose filters are all off, and it builds one filter list only when a filter is on. Which filters '
+      + 'are on, their amounts, knobs and order are exactly as before.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-18', quote: '> 240 fps (frames <= 4.17 ms) constantly, no hitching' },
+      { kind: 'code', ref: 'packages/ui/src/fx/filterStack.ts (keysOf, orderedSpecs, FilterStack.frame)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-18 (perf/pixi-fx). Before, every live layer checked all 32 registered filters every '
+      + 'frame by building the key string for each one, and built its own id map at spawn.',
+    example: 'A fight has 60 effect layers alive and 6 of them carry a filter. Before, each frame built about 1,900 key strings to find those 6. Now it builds none.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/fx/filterOrder.test.ts', 'packages/ui/src/fx/filterStack.test.ts', 'packages/ui/src/fx/filterAreaTight.test.ts'], lastVerifiedAt: '2026-11-18' },
+  },
+  {
+    id: 'R-PERF-SIM-WORKER-01',
+    domain: 'foundation',
+    title: 'Background combat simulation runs in the sim worker, never on the main thread during a fight',
+    statement:
+      'Every batch of combat simulations the UI runs in the background (the Combat Summary odds: 200 sims a fight, also '
+      + 'for Versus and Duos fights and the replay viewer backfill; the board-strength scorer: 160 fights a board, plus the '
+      + 'carried rounds at run end) runs in one Web Worker. The page posts plain data and receives the result. The worker '
+      + 'imports the card index and the strength reference itself and runs the same pure probes with the same seeds, so '
+      + 'the odds a player reads, the replay stamp, the spectators copy and the stored strength score are byte-identical '
+      + 'to the main-thread functions. A new fight or the run ending cancels the job by id. The worker is created once, '
+      + 'kept alive, and started before the first fight. If there is no Worker, its script cannot load, it errors, it '
+      + 'never answers within 10 s, or a job throws, the same work runs on the page in idle slices instead, sized by '
+      + 'measured cost (about 2 ms a step), and a slice the browser had to force never works while a fight is playing.',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-18 (relayed, not verbatim): no dropped frames or hitching in a 2D card game; frames at or under 6.25 ms on the prod build from round 1 to the end' },
+      { kind: 'owner-chat', ref: 'Owner bar, 2026-10-09 (docs/performance.md, memory fps-bar-160)', quote: '>160 fps at ALL times, ideally 240+' },
+      { kind: 'code', ref: 'packages/ui/src/simWorker/ (protocol.ts, handler.ts, simWorker.entry.ts, client.ts, backgroundOdds.ts); packages/ui/src/boardStrength/strengthScorer.ts (deps.remote, deps.hold); packages/ui/src/Recruit.tsx (runBackgroundOdds); packages/ui/src/replay/replayPlayer.ts (scheduleOddsBackfill); apps/web/vite.config.ts (worker.format es)' },
+    ],
+    example: 'Prod bench build, headless Chromium on the GPU, one seeded lobby game, rounds 10-13, two runs of each build. Before: 263-356 ms of simulation on the main thread in every fight, in 32-60 slices, the longest 13-19 ms, 19-28 of them over 6.25 ms. After: none. The odds reach the page 0.1-0.4 s after the fight starts and the board score in 0.3-1.0 s, and the odds were identical to computeCombatOdds run on the page for the same fight in all eight rounds.',
+    currentBehaviour: 'Conforms from 2026-11-18 (perf/sim-worker). Before, both probes ran on the main thread in idle slices during the combat replay: about 100 ms a round early and 450-600 ms by rounds 10-15 (measured in Node on real boards), the strength scorer in fixed 4-fight steps of 7-21 ms that a 250 ms timeout forced into busy frames.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/simWorker/handler.test.ts', 'packages/ui/src/simWorker/client.test.ts', 'packages/sim/src/odds.test.ts'], lastVerifiedAt: '2026-11-18' },
   },
   {
     id: 'R-SPECTATE-INERT-01',

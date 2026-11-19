@@ -132,6 +132,6 @@ registerFxRuntimeHooks({
   liveParticles: liveParticleCount,
   liveLayers: liveLayerCount,
   activeFilters: activeFilterCount,
-  makeFilterStack: (container) => new FilterStack(container, FILTERS),
+  makeFilterStack: (container, tight) => new FilterStack(container, FILTERS, tight),
   staticFilterIds: () => STATIC_FILTER_IDS,
 });

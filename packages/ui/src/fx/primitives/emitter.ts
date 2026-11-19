@@ -6,7 +6,7 @@ import { ContainerTransform, TRANSFORM_PARAM_SPECS } from '../transformEnvelope'
 import type { FxParamSpecs, ParamsOf } from '../params';
 import type { FxContext, FxInstance, FxPrimitive } from '../primitive';
 import { PALETTE_PRESETS, paletteTuple } from '../palettes';
-import { sampleCurve, CURVE_PRESETS } from '../curve';
+import { sampleCurve, zeroTailStart, CURVE_PRESETS } from '../curve';
 import {
   updateParticleMaterial,
   updateParticleMaterialShaping,
@@ -17,7 +17,7 @@ import {
   type ParticleStyle,
 } from '../particleMaterial';
 import { FX_BLEND_MODES } from '../blendModes';
-import { acquireParticleLayer, releaseParticleLayer } from '../particleLayerPool';
+import { acquireParticleLayer, fitParticleBounds, releaseParticleLayer } from '../particleLayerPool';
 import { resolveParticleScale } from '../shapeTextures';
 import { getShapeTextureById } from '../shapeLibrary';
 import { turbulenceX, turbulenceY, emissionOffset, spawnVelocity, EMIT_SHAPES, fieldPhaseOffset } from '../motion';
@@ -401,6 +401,12 @@ class EmitterInstance implements FxInstance<EmitterParams> {
   private readonly shader: Shader;
   private params: EmitterParams;
   private readonly motes: Mote[] = [];
+  /** Remaining life (ms) of each mote culled in its invisible tail (R-PERF-FX-DEAD-TAIL-01, see `update`). */
+  private readonly ghosts: number[] = [];
+  private deadFrac = 1;
+  private deadSize: unknown = null;
+  private deadAlpha: unknown = null;
+  private deadReverse = false;
   private originX = 0;
   private originY = 0;
   private headSet = false;
@@ -464,7 +470,7 @@ class EmitterInstance implements FxInstance<EmitterParams> {
     });
     this.shader = layer.shader;
     this.particles = layer.pc;
-    this.filters = new FilterStack(ctx.container, FILTERS);
+    this.filters = new FilterStack(ctx.container, FILTERS, true); // tight: its area follows the particles (R-PERF-FX-FILTER-AREA-01)
     this.transform = new ContainerTransform(ctx.container);
   }
 
@@ -506,6 +512,20 @@ class EmitterInstance implements FxInstance<EmitterParams> {
     const motes = this.motes;
     const children = this.particles.particleChildren;
 
+    // 0) age the ghosts (motes culled in their invisible tail, see below): plain arithmetic, no curve or field.
+    const ghosts = this.ghosts;
+    if (ghosts.length > 0) {
+      let gw = 0;
+      for (let i = 0; i < ghosts.length; i++) { const left = ghosts[i]! - dtMs; if (left > 0) ghosts[gw++] = left; }
+      ghosts.length = gw;
+    }
+    if (p.sizeCurve !== this.deadSize || p.alphaCurve !== this.deadAlpha || reverse !== this.deadReverse) {
+      this.deadSize = p.sizeCurve; this.deadAlpha = p.alphaCurve; this.deadReverse = reverse;
+      // A reversed emitter reads its curves back to front, so a zero tail is its first moments: left alone.
+      this.deadFrac = reverse ? 1 : Math.min(zeroTailStart(p.sizeCurve), zeroTailStart(p.alphaCurve));
+    }
+    const deadFrac = this.deadFrac;
+
     // 1) advance + cull live motes, compacting both arrays in one pass (swap-free — write index trails read
     //    index, so a dead mote is simply not copied forward; no per-mote array splice).
     let write = 0;
@@ -513,6 +533,10 @@ class EmitterInstance implements FxInstance<EmitterParams> {
       const m = motes[i];
       m.age += dtMs;
       if (m.age >= m.maxLife) continue;
+      // THE INVISIBLE TAIL (R-PERF-FX-DEAD-TAIL-01): past `deadFrac` this mote's size or alpha curve is 0 until it
+      // dies, so it draws nothing. It leaves the sim and the draw list here; `ghosts` keeps its remaining life so
+      // the mote cap and the completion moment are exactly what they were.
+      if (m.age >= m.maxLife * deadFrac) { this.ghosts.push(m.maxLife - m.age); continue; }
       m.vy += p.gravity * dtSec;
       // Pseudo-turbulence: a swirling lateral acceleration folded into velocity (turbulence 0 → adds 0, so
       // the default is a byte-identical no-op). Uses the mote's current position + the instance clock.
@@ -566,7 +590,7 @@ class EmitterInstance implements FxInstance<EmitterParams> {
     bs.budget = b - bs.spawnCount;
     const emitting = this.headSet && !this.stopped && (!this.oneShot || withinEmitWindow(this.emitElapsedMs, p.life));
     if (emitting) {
-      const room = MAX_MOTES - motes.length;
+      const room = MAX_MOTES - motes.length - ghosts.length; // ghosts still hold their seat under the cap
       const toSpawn = bs.spawnCount < room ? bs.spawnCount : Math.max(0, room);
       for (let i = 0; i < toSpawn; i++) {
         const mote = this.spawnMote();
@@ -585,12 +609,14 @@ class EmitterInstance implements FxInstance<EmitterParams> {
     }
 
     this.particles.update();
+    fitParticleBounds(this.particles, this.originX, this.originY);
   }
 
   /** See `emitterFireComplete`'s header comment for the completion contract. */
   isComplete(): boolean {
-    return emitterFireComplete(this.oneShot, this.emitElapsedMs, this.params.life, this.motes.length)
-      || emitterStoppedComplete(this.stopped, this.motes.length);
+    const alive = this.motes.length + this.ghosts.length; // a ghost is a mote still living out its invisible tail
+    return emitterFireComplete(this.oneShot, this.emitElapsedMs, this.params.life, alive)
+      || emitterStoppedComplete(this.stopped, alive);
   }
 
   setParams(next: EmitterParams): void {

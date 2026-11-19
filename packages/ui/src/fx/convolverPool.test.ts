@@ -81,10 +81,13 @@ describe('reverb pool never grows over a game', () => {
 });
 
 describe('reverb prewarm', () => {
-  it('reads (size, damping) from reverb-enabled sound layers only', () => {
+  it('reads (size, damping) from the reverb-enabled sound layers that still need a node of their own', () => {
+    // Since R-PERF-SHARED-FX-REVERB-01 a plain one-shot reverb rides the shared convolver and is never pooled; a layer
+    // with something after its convolver (a Pan, an automated mix) or a loop still is.
     const specs = reverbSpecsOf([
-      { layers: [{ primitive: 'sound', params: { reverbOn: true, reverb_size: 2.5, reverb_damping: 0.2 } }, { primitive: 'burst', params: { reverbOn: true } }] },
-      { layers: [{ primitive: 'sound', params: { reverbOn: false } }, { primitive: 'sound', params: { reverbOn: true } }] },
+      { layers: [{ primitive: 'sound', params: { reverbOn: true, panOn: true, reverb_size: 2.5, reverb_damping: 0.2 } }, { primitive: 'burst', params: { reverbOn: true } }] },
+      { layers: [{ primitive: 'sound', params: { reverbOn: false } }, { primitive: 'sound', params: { reverbOn: true, loop: true } }] },
+      { layers: [{ primitive: 'sound', params: { reverbOn: true, reverb_size: 3 } }] }, // shared: not pooled
     ]);
     expect(specs).toEqual([{ size: 2.5, damping: 0.2 }, { size: 1.8, damping: 0.35 }]);
   });

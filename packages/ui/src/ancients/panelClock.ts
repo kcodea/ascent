@@ -130,6 +130,15 @@ export function stripPolygon(g: PanelGeo, i: number): string {
   return `polygon(${px(l + 2 * g.slant)} 0px, ${px(r)} 0px, ${px(r - 2 * g.slant)} ${px(g.vh)}, ${px(l)} ${px(g.vh)})`;
 }
 
+/** How far down a figure image its mask sits (0..1): the point a figure pinches to when it becomes a shooting star,
+ *  and the origin of its slow push-in. */
+export const PANEL_MASK_Y = 0.28;
+/** Stage y of a resting layered figure's mask (its x is its panel's centre line, by `panelFigureRest`). */
+export function panelFigureMaskY(g: PanelGeo, fit: PanelFigureFit, size = 1): number {
+  const r = panelFigureRest(g, fit, size), h = g.figS * fit.width / 100 * 1.5 * r.s;
+  return g.vh / 2 + (fit.top / 100 - 0.5) * g.figS * r.s + r.ty + PANEL_MASK_Y * h;
+}
+
 /** No clip at all, as a four-point polygon in a panel's box (so it can animate to `cardPolygon`): a figure stands in
  *  front of the strips' edges until the reveal crops it to its card. */
 export function openPolygon(g: PanelGeo): string {

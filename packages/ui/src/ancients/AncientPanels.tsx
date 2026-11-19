@@ -1,12 +1,14 @@
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, type CSSProperties } from 'react';
 import { ANCIENT_IDS, ANCIENTS, type AncientId } from '@game/sim';
 import { wipeFx } from '../wipeFx';
+import { canPlayDefs, playDef } from '../fx/playDef';
+import { ancientTrailPalette } from './ancientsSmoke';
 import { ancientPanelLayers } from '../art';
 import { rectToStage, stageViewport, toScreen } from '../stage';
 import { AncientFace } from './AncientFace';
 import { ancientColor, getAncientsConfig, type AncientsFullConfig } from './ancientsConfig';
 import { playCue } from './ancientsSound';
-import { PANEL_LAND, PANEL_PULSE, PANEL_SLIDE_EASE, cardPolygon, openPolygon, panelBackWidth, panelFigureFit, panelFigureRest, panelFromTop, panelGeometry, panelRank, panelTimeline, seamX, spreadX, slideLeadY, stripPolygon } from './panelClock';
+import { PANEL_LAND, PANEL_PULSE, PANEL_SLIDE_EASE, PANEL_MASK_Y, panelBackWidth, panelFigureMaskY, panelFigureFit, panelFigureRest, panelFromTop, panelGeometry, panelRank, panelTimeline, seamX, spreadX, slideLeadY, stripPolygon } from './panelClock';
 
 /**
  * THE SIX PANELS (owner 2026-11-18; the clock and geometry are in `panelClock.ts`). Mounted by `AncientGate` for
@@ -17,7 +19,8 @@ import { PANEL_LAND, PANEL_PULSE, PANEL_SLIDE_EASE, cardPolygon, openPolygon, pa
  *      sparks off the far edge of the screen, and sparks grinding along its panel's seams on the way;
  *   3. the three on offer rattle and their edges light and pulse; then all six backgrounds fade and fall away (with
  *      the three Ancients not on offer) and the three on offer slide along the bottom to even spacing;
- *   4. on the gate's `reveal` beat the three move onto their cards' art on the select screen and give way to them.
+ *   4. on the gate's `reveal` beat each of the three pinches to a point of light and flies to its card as a shooting
+ *      star (the pick's own trail, in its colour), landing as the card bursts out of its spark.
  * FIGURES IN FRONT (owner 2026-11-19: "i want the 'back' files to fall in the same slice format you currently have,
  * but i want the 'figures' not to be cut from those edges ... have them in front of those edges"): each panel is two
  * boxes over the same place. `.anc-pn` holds what the slanted strip clips (the background, the lit wash, the seam);
@@ -36,6 +39,8 @@ const hexNum = (hex: string): number => parseInt(hex.replace('#', '').slice(0, 6
 const rnd = (a: number, b: number): number => a + Math.random() * (b - a); // presentation-only jitter
 /** An Ancient's figure size: the shared dial times its own (`<id>PanelSize`). */
 const figSize = (c: AncientsFullConfig, id: AncientId): number => c.panelFigureScale * ((c as unknown as Record<string, number>)[`${id}PanelSize`] ?? 1);
+/** The triple trail's own flight as authored (`gild-trail`'s landing layers), before any speed-up. */
+const TRAIL_MS = 420;
 const SLIDE_CSS = `cubic-bezier(${PANEL_SLIDE_EASE.join(', ')})`;
 const SPARK_HOT = [0xffe7a8, 0xffffff, 0xffd98a] as const;
 
@@ -210,21 +215,24 @@ export const AncientPanels = memo(function AncientPanels({ offered, phase }: { o
         if (!p) return;
         const q = (sel: string): Element | null => p.querySelector(sel) ?? o?.querySelector(sel) ?? null;
         const burst = slot === mid ? midBurst : sideT0 + side++ * Math.max(0, c.sideStaggerMs) + c.sparkMs;
-        const ease = 'cubic-bezier(0.5, 0, 0.15, 1)';
-        if (r && r.width > 0) {
-          const dx = r.left + r.width / 2 - (geo.left[i]! + geo.boxW / 2);
-          const dur = Math.min(c.panelToCardMs, Math.max(120, burst));
-          // Its background has fallen away; the figure moves from its third of the screen onto its card.
-          o?.animate([{ transform: `translate(${(spreadDx.current[i] ?? 0).toFixed(1)}px, 0px)` }, { transform: `translate(${dx.toFixed(1)}px, 0px)` }], { duration: dur, easing: ease, fill: 'forwards' });
-          // The uncut figure is cropped to the card only now, as it settles onto it.
-          o?.animate([{ clipPath: openPolygon(geo) }, { clipPath: cardPolygon(geo, r.width, r.top, r.bottom) }], { duration: dur, easing: ease, fill: 'forwards' });
-          // The Ancient's square ends exactly on the card's art square, so the real card appears over the same picture.
-          const dy = r.top + r.height / 2 - geo.vh / 2;
-          const rest = p.dataset.layered ? panelFigureRest(geo, panelFigureFit(id), figSize(c, id)) : { tx: 0, ty: 0, s: 1 };
-          q('.anc-pn-fig')?.animate([{ transform: `translate(${rest.tx.toFixed(1)}px, ${rest.ty.toFixed(1)}px) scale(${rest.s.toFixed(4)})` }, { transform: `translate(0px, ${dy.toFixed(1)}px) scale(${(r.width / geo.figS).toFixed(4)})` }], { duration: dur, easing: ease, fill: 'forwards' });
-          q('.anc-pn-rim')?.animate([{ opacity: 1 }, { opacity: 0 }], { duration: dur * 0.5, fill: 'forwards' });
+        // THE SHOOTING STAR (owner 2026-11-19: "have the figures turn into little shooting stars when they transform into
+        // the ancient select panels"): the figure pinches to a bright point at its mask, and the triple's trail (the
+        // pick's own `gild-trail`, in the Ancient's colour) carries that point to its card, landing as the card bursts
+        // out of its spark.
+        const pinch = Math.min(220, Math.max(90, burst * 0.45));
+        const collapse: Keyframe[] = [{ transform: 'scale(1)', opacity: 1 }, { transform: 'scale(0.82)', opacity: 1, offset: 0.35 }, { transform: 'scale(0.03)', opacity: 0 }];
+        for (const sel of ['.anc-pn-cut', '.anc-pn-rim']) q(sel)?.animate(collapse, { duration: pinch, easing: 'cubic-bezier(0.6, 0, 0.9, 0.4)', fill: 'forwards' });
+        if (r && r.width > 0 && p.dataset.layered && canPlayDefs()) {
+          const launch = pinch * 0.7, flight = Math.max(120, burst - launch);
+          const from = { x: toScreen(geo.left[i]! + geo.boxW / 2 + (spreadDx.current[i] ?? 0)), y: toScreen(panelFigureMaskY(geo, panelFigureFit(id), figSize(c, id))) };
+          const to = { x: toScreen(r.left + r.width / 2), y: toScreen(r.top + r.height / 2) };
+          timers.current.push(window.setTimeout(() => {
+            playDef('gild-trail', { source: from, target: to, camera: { x: window.innerWidth / 2, y: window.innerHeight / 2 } }, {
+              index: 0, time: Math.max(0.05, flight / TRAIL_MS), intensity: Math.max(0, c.trailIntensity), recolor: ancientTrailPalette(ancientColor(id)), recolorGlow: true, muteSound: true,
+            });
+          }, launch));
         }
-        o?.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 180, delay: burst, easing: 'ease-out', fill: 'forwards', composite: 'replace' });
+        o?.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 120, delay: pinch, fill: 'forwards', composite: 'replace' });
       });
     });
     return () => window.cancelAnimationFrame(raf);
@@ -267,8 +275,8 @@ export const AncientPanels = memo(function AncientPanels({ offered, phase }: { o
             <div className="anc-pn-fig anc-pn-fig-cut" style={{ width: geo.figS, height: geo.figS, marginLeft: -geo.figS / 2, marginTop: -geo.figS / 2 }}>
               {/* The chosen three's OUTLINE glow: the same cut-out behind the figure, with a static glow in its colour, so
                   only the halo round its silhouette shows. Only its opacity animates (the pulse). */}
-              {offered.includes(id) && <img decoding="sync" className="anc-pn-rim" src={layers.figure} alt="" draggable={false} style={{ left: `${fit.left}%`, top: `${fit.top}%`, width: `${fit.width}%`, transformOrigin: `${(fit.mx * 100).toFixed(1)}% 28%` }} />}
-              <img decoding="sync" className="anc-pn-cut" src={layers.figure} alt="" draggable={false} style={{ left: `${fit.left}%`, top: `${fit.top}%`, width: `${fit.width}%`, transformOrigin: `${(fit.mx * 100).toFixed(1)}% 28%` }} />
+              {offered.includes(id) && <img decoding="sync" className="anc-pn-rim" src={layers.figure} alt="" draggable={false} style={{ left: `${fit.left}%`, top: `${fit.top}%`, width: `${fit.width}%`, transformOrigin: `${(fit.mx * 100).toFixed(1)}% ${PANEL_MASK_Y * 100}%` }} />}
+              <img decoding="sync" className="anc-pn-cut" src={layers.figure} alt="" draggable={false} style={{ left: `${fit.left}%`, top: `${fit.top}%`, width: `${fit.width}%`, transformOrigin: `${(fit.mx * 100).toFixed(1)}% ${PANEL_MASK_Y * 100}%` }} />
             </div>
           )}
           {layers?.front && (

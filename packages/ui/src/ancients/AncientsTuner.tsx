@@ -69,7 +69,6 @@ const ROWS: [Key, string, TunerUnit | undefined, string, string, ('color' | 'tog
   ['panelRattleMs', 'Three rattle', 'ms', 'The offered three shaking while their edges light and pulse; the other three fall only after it.', 'Awakening panels'],
   ['panelFallMs', 'Backgrounds fall', 'ms', 'All six backgrounds, and the three Ancients not on offer, fading out and falling away.', 'Awakening panels'],
   ['panelSpreadMs', 'Three spread out', 'ms', 'The three on offer sliding along the bottom to even spacing, before they move into their cards.', 'Awakening panels'],
-  ['panelToCardMs', 'Settle onto cards', 'ms', 'The three moving onto their cards on the select screen.', 'Awakening panels'],
   ['panelShakePx', 'Slam shake', 'px', 'The shake on each slam, and the size of the rattle. 0 = none.', 'Awakening panels'],
   ['panelSparks', 'Sparks', '×', 'The explosion, the grinding edges and the spray off each slam. 0 = none.', 'Awakening panels'],
   ['panelSlant', 'Panel lean', undefined, 'How far each panel leans, % of the width of the screen. 0 = upright.', 'Awakening panels'],

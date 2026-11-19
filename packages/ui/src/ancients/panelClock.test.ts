@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ANCIENTS_DEFAULTS } from './ancientsConfig';
-import { PANEL_FIGURE_FITS, PANEL_LAND, PANEL_PULSE, panelBackWidth, panelFigureRest, panelFromTop, panelGeometry, panelRank, panelTimeline, seamX, spreadX, slideLeadY, stripPolygon } from './panelClock';
+import { PANEL_FIGURE_FITS, PANEL_LAND, PANEL_PULSE, panelBackWidth, panelFigureMaskY, panelFigureRest, panelFromTop, panelGeometry, panelRank, panelTimeline, seamX, spreadX, slideLeadY, stripPolygon } from './panelClock';
 
 /**
  * THE AWAKENING'S SIX PANELS (owner 2026-11-18): "the ancient itself to slide down into place from completely off
@@ -102,6 +102,9 @@ describe('the awakening panels geometry', () => {
         expect(top + h).toBeGreaterThanOrEqual(vh); // and it runs off the bottom
         expect(left + fit.mx * w).toBeCloseTo(0, 5); // its mask is on the strip's centre line
         expect(g.travel).toBeGreaterThanOrEqual(top + h); // and its slide starts it fully off screen
+        // The point it pinches to when it becomes a shooting star is on screen, in its upper half.
+        expect(panelFigureMaskY(g, fit)).toBeGreaterThan(0);
+        expect(panelFigureMaskY(g, fit)).toBeLessThan(vh / 2);
         // The "Figure size" dial shrinks it about its bottom edge: it still runs off the bottom at the same place.
         const small = panelFigureRest(g, fit, 0.7);
         const sTop = vh / 2 + (fit.top / 100 - 0.5) * g.figS * small.s + small.ty, sH = g.figS * (fit.width / 100) * small.s * 1.5;

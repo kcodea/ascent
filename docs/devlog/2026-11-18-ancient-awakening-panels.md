@@ -96,3 +96,7 @@ about their bottom edge.
 - After the pulse ALL SIX backgrounds fall and fade, with the three Ancients not on offer. The chosen three slide
   along the bottom to the centres of three equal thirds (`spreadX`, `panelSpreadMs`), then the reveal moves each onto
   its card. `panelTimeline` gained `spreadAt`; `revealAt` now waits for the spread.
+- The reveal is a SHOOTING STAR: each chosen figure pinches to a point at its mask (`panelFigureMaskY`) and the pick's
+  own `gild-trail` (recoloured, muted) carries it to its card, timed to land as the card bursts out of its spark. The
+  figure no longer shrinks onto the card's art, so `PANEL_FIGURE_FITS` now only places the figure in its panel;
+  `panelToCardMs` is retired.

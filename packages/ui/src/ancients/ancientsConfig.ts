@@ -71,8 +71,6 @@ export interface AncientsConfig {
   panelRattleMs: number;
   /** Panels: the other three fading and falling away (ms). */
   panelFallMs: number;
-  /** Panels: the three settling onto their cards on the select screen (ms). */
-  panelToCardMs: number;
   /** Panels: the chosen three sliding along the bottom to even spacing, after the backgrounds fall away (ms). */
   panelSpreadMs: number;
   /** Panels: the shake on each slam, and the rattle's size (design px). 0 = none. */
@@ -275,7 +273,6 @@ export const ANCIENTS_DEFAULTS: AncientsFullConfig = {
   panelHoldMs: 400,
   panelRattleMs: 820,
   panelFallMs: 640,
-  panelToCardMs: 380,
   panelSpreadMs: 460,
   panelShakePx: 7,
   panelSparks: 1,
@@ -364,7 +361,6 @@ export const ANCIENTS_RANGES: Record<NumKey, [number, number, number]> = {
   panelHoldMs: [0, 3000, 10],
   panelRattleMs: [100, 2000, 10],
   panelFallMs: [150, 2000, 10],
-  panelToCardMs: [100, 1200, 10],
   panelSpreadMs: [0, 1500, 10],
   panelShakePx: [0, 24, 0.5],
   panelSparks: [0, 3, 0.05],
@@ -440,7 +436,7 @@ let cfg: AncientsFullConfig = (() => {
     let rev = 0;
     try { rev = Number(localStorage.getItem(REV_KEY) ?? 0); } catch { /* ignore */ }
     if (rev < REV) { for (const k of RETUNED) delete s[k]; try { localStorage.setItem(REV_KEY, String(REV)); } catch { /* ignore */ } }
-    for (const k of ['closeMs', 'pickLiftMs', 'pickFlightMs', 'beat1Ms', 'beatGapMs', 'beat2Ms', 'slamStrength', 'slamDust', 'gatherMs', 'cardStaggerMs', 'cardRevealMs', 'eruptionMs', 'seamGlow', 'titleHoldMs', 'revealFadeMs', 'handoffMs', 'gateStyle', 'tunerStyle']) delete s[k]; // retired keys (the last seven: the curtain, deleted 2026-11-19)
+    for (const k of ['closeMs', 'pickLiftMs', 'pickFlightMs', 'beat1Ms', 'beatGapMs', 'beat2Ms', 'slamStrength', 'slamDust', 'gatherMs', 'cardStaggerMs', 'cardRevealMs', 'eruptionMs', 'seamGlow', 'titleHoldMs', 'revealFadeMs', 'handoffMs', 'gateStyle', 'tunerStyle', 'panelToCardMs']) delete s[k]; // retired keys (the last seven: the curtain, deleted 2026-11-19)
     if (typeof s.revealStyle !== 'string') delete s.revealStyle;
     return { ...ANCIENTS_DEFAULTS, ...(s as Partial<AncientsFullConfig>) };
   } catch {

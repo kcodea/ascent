@@ -5168,6 +5168,33 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
 .zone[data-zone='warband'] .row > .card,
 .zone[data-zone='hand'] { will-change: transform; }
 
+/* A SHARP LAYER PER HAND CARD (perf/card-raster-2 2026-11-19, R-PERF-HAND-LAYER-01).
+   The hand zone's one layer above still painted EVERY hand card again on a buy, a play or a hand buff (about twenty
+   card paints per buy). A hand card now has a layer of its own, like a shop or board card, and stays sharp:
+   - A layer is a picture. Tilted by the fan it is resampled, and a 1:1 picture resampled is soft (measured 24 to 34%
+     less edge energy than a card painted directly). So the picture is taken at --hand-ss times the card's size:
+     `.card-ssl` (the layer) is drawn at 1 / --hand-ss and `.card-ss` inside scales the body back up. Chrome never
+     rasters a `will-change: transform` layer below 1:1 in its own space, so the texture holds the card at --hand-ss
+     and the tilt is drawn DOWN from it. 1.35 measures closest to a directly painted card (edge energy -8% to +5%
+     per card, mean -1%); 1.25 is softer (-5% to -18%), 1.5 crisper (+3% to +21%), 2 visibly crisper than the game
+     has ever drawn the hand. 1.35 is 1.82 times the pixels of the card.
+   - The HOVERED card drops both scales, so its layer is rastered again at the pop's own size: the popped card the
+     player reads is painted natively, exactly as before (two single-card paints per hover; the zone layer used to
+     paint all ten, twice). Not during a drag, when the hover pop is off and the card stays in the fan.
+   - The tilt, the tuck, the make-room glide, the reorder slide and the hover pop all stay on `.card` itself, which
+     is not the layer: every writer of a hand card's transform (CSS, Card.tsx, GSAP Flip, the summon and coalesce
+     effects) is untouched, and none of them can repaint the card.
+   - Not on phones (`html.lite-art`): ten more textures is memory a phone does not have. There, and in any clone
+     of a hand card outside the hand row, the wrappers are `display: contents` and the card is as it was.
+   - `transform-origin: 0 0` on both, so the two scales cancel exactly. */
+.card-ssl, .card-ss { display: contents; }
+html:not(.lite-art) .row.hand .card > .card-ssl,
+html:not(.lite-art) .row.hand .card > .card-ssl > .card-ss { display: flex; flex-direction: column; position: relative; flex: 1 1 auto; min-width: 0; transform-origin: 0 0; }
+html:not(.lite-art) .row.hand .card > .card-ssl { --hand-ss: 1.35; transform: scale(calc(1 / var(--hand-ss))); will-change: transform; }
+html:not(.lite-art) .row.hand .card > .card-ssl > .card-ss { transform: scale(var(--hand-ss)); }
+html:not(.lite-art) body:not(.dragging) .row.hand .card:hover > .card-ssl,
+html:not(.lite-art) body:not(.dragging) .row.hand .card:hover > .card-ssl > .card-ss { transform: none; }
+
 /* ============================================================================================================
    AUTHORED FRAMES — the gold OVAL on every non-Taunt minion, the purple SQUARE on regular spells. Same pipeline
    as the Taunt heater shield above: portrait clipped to the frame's WINDOW → authored PNG frame over it → (minion

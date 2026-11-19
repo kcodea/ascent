@@ -6,7 +6,7 @@ import { isTauntHeld, subscribeTauntHolds } from './fx/tauntHold';
 import { openCardPingMenu } from './pings/PingLayer';
 import { memo, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
-import type { CSSProperties, DragEvent, PointerEvent as ReactPointerEvent } from 'react';
+import type { CSSProperties, DragEvent, PointerEvent as ReactPointerEvent, ReactElement, ReactNode } from 'react';
 import { damageMeterOf, type Keyword, type RiseTint, type Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { bindingFor } from './choreo/bindings';
@@ -182,6 +182,14 @@ function tauntFrameSrcFor(tribe: Tribe | undefined, golden: boolean): string {
   const t = tribe && TRIBE_TAUNTS[tribe];
   if (!t) return TAUNT_FRAME_SRC;
   return publicArt(`frames/${golden ? t.gold : t.base}`);
+}
+/** A HAND card's own compositor layer (R-PERF-HAND-LAYER-01, styles.css "A SHARP LAYER PER HAND CARD"): two wrappers
+ *  around the card's body. The outer one is the layer and is drawn at 1 / --hand-ss; the inner one scales the body
+ *  back up, so the layer's texture holds the card at --hand-ss times its size and the fan tilt and the hover pop are
+ *  drawn from it without going soft. Only in the hand (the one caller that passes `fanRot`); anywhere else, and in a
+ *  cloned ghost outside the hand row, the wrappers are `display: contents` and change nothing. */
+function HandLayer({ on, children }: { on: boolean; children: ReactNode }): ReactElement {
+  return on ? <div className="card-ssl"><div className="card-ss">{children}</div></div> : <>{children}</>;
 }
 const hasTribeTaunt = (tribe: Tribe | undefined): boolean => !!(tribe && TRIBE_TAUNTS[tribe]);
 let tauntFrameAvailable = true;
@@ -1109,6 +1117,7 @@ export const Card = memo(function Card({
       onDragOver={onDragOver}
       onDrop={onDrop}
     >
+      <HandLayer on={fanRot !== undefined}>
       {/* CELESTIAL alignment crescent — FIRST child so it paints behind the card body, whose opaque frame
           conceals the ring's upper half: what remains reads as an arc wrapping beneath the minion. */}
       {align && <div className={`alignarc aa-${align}`} aria-hidden="true" />}
@@ -1534,6 +1543,7 @@ export const Card = memo(function Card({
         </div>,
         stageHost(),
       )}
+      </HandLayer>
     </div>
   );
 });

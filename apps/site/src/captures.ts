@@ -1,10 +1,7 @@
 /** Capture slots: a still poster first, a looping clip swapped in only when one exists, motion is allowed and it plays. */
 
 export const CAPTURE_SLOTS: readonly string[] = [
-  'discover-timer',
   'gold-fuse',
-  'rearrange',
-  'save-continue',
   'runeforge',
   'ancient-select',
   'career-chart',
@@ -13,10 +10,7 @@ export const CAPTURE_SLOTS: readonly string[] = [
 
 /** Slots that have a recorded clip in public/captures (webm + mp4). Recorded by scripts/capture.mjs. */
 export const CLIPS: ReadonlySet<string> = new Set<string>([
-  'discover-timer',
   'gold-fuse',
-  'rearrange',
-  'save-continue',
   'runeforge',
   'ancient-select',
   'career-chart',

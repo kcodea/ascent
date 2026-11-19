@@ -15219,6 +15219,16 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .lp-tile-head:has(.lp-tile-anc) .lp-chip-place { overflow: hidden; text-overflow: ellipsis; }
 .lp-tile-head:has(.lp-tile-anc) .lp-ko { top: -9px; right: -9px; }
 .lp-chip-portrait .mds-portrait, .lp-chip-portrait .cv2-heroframe { --ring: 36px; }
+/* THE PORTRAIT MATCHES THE ANCIENT (owner 2026-11-19: "make the hero art as large as the ancient art"): the ring is the
+   Ancient disc's OUTER size, its 36px face plus the 1.5px gold edge each side. The 3px it grows is taken back from the
+   head row with a negative block margin, so the tile keeps its height and the board row never moves. */
+.lp-tile .lp-chip-portrait { margin-block: -1.5px; }
+.lp-tile .lp-chip-portrait .mds-portrait, .lp-tile .lp-chip-portrait .cv2-heroframe { --ring: 39px; }
+/* THE BLUR COVERS THE RING AND THE ANCIENT (owner 2026-11-19: "the mouse over should blur out the ancient and the hero
+   portrait ring too"; R-LOBBY-TILE-BLUR-01). The ring paints from the frame's ::after at z 2 and the Ancient's face from
+   its art wrap at z 2, which out-stacked the Game strength overlay (z 1) and stayed sharp over it. Each now stacks in its
+   own context, so the whole head sits under the overlay like the board does. Static; changes nothing at rest. */
+.lp-chip-portrait, .lp-tile-anc { isolation: isolate; }
 .lp-chip-txt { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .lp-chip-place { font-family: var(--font-ui); font-weight: 900; font-size: 14px; letter-spacing: 0.03em; color: var(--band); white-space: nowrap; }
 .lp-chip-name { font-family: var(--font-ui); font-weight: 800; font-size: 15px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

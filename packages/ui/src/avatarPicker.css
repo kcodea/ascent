@@ -51,13 +51,13 @@
    disc masked down to the ring. */
 .avp-tile:is(.r-ancient, .r-secret)::after { box-shadow: none; background: var(--rc-grad);
   -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3.5 * var(--phu)), #000 calc(100% - 3.5 * var(--phu) + 0.5px)); mask: radial-gradient(farthest-side, transparent calc(100% - 3.5 * var(--phu)), #000 calc(100% - 3.5 * var(--phu) + 0.5px)); }
-.avp-tile.r-ancient::after { background: conic-gradient(from 210deg, #8af5ff, #c9b8ff, #ff7ae0, #c9b8ff, #8af5ff); }
+.avp-tile.r-ancient::after { background: conic-gradient(from 210deg, var(--rc), var(--rc2), var(--rc)); }
 /* Selected: the outer bright ring cannot ride a masked overlay, so it sits on the art's disc. */
 .avp-tile:is(.r-ancient, .r-secret).on .avp-art { box-shadow: 0 0 0 calc(3 * var(--phu)) var(--ph-gold-hi), 0 0 calc(14 * var(--phu)) calc(2 * var(--phu)) color-mix(in srgb, var(--ph-gold) 80%, transparent); }
 /* ANCIENT ONLY: a halo behind the tile whose colours slowly orbit. The gradient and the blur are static paint; the
    loop is a rotation only (transform, compositor), per the no-looping-paint rule. */
 .avp-tile.r-ancient::before { content: ''; position: absolute; inset: calc(-5 * var(--phu)); z-index: -1; border-radius: 50%; pointer-events: none;
-  background: conic-gradient(#8af5ff, #ff7ae0, #c9b8ff, #8af5ff, #ff7ae0, #8af5ff); filter: blur(calc(6 * var(--phu))); opacity: 0.9;
+  background: conic-gradient(var(--rc), var(--rc2), var(--rc), var(--rc2), var(--rc)); filter: blur(calc(6 * var(--phu))); opacity: 0.9;
   animation: avp-orbit 7s linear infinite; }
 .avp-tile.r-ancient { isolation: isolate; }
 @keyframes avp-orbit { to { transform: rotate(1turn); } }

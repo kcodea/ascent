@@ -14026,9 +14026,13 @@ html[data-phone-gpu] .opphand-card.spent > img { filter: grayscale(0.72) brightn
 .portring > .hero { display: block; box-sizing: border-box; border: none; border-radius: 50%; background: #0b0f18; }
 .portring > .hero .f { width: 100%; height: 100%; border-radius: 50%; overflow: hidden; }
 .portring > .hero .f svg { width: 40%; height: 40%; }
-/* The rank crest IS a portrait ring; the size classes set its width. */
-/* The medal art is a shaped cutout, so it sits whole inside the disc instead of being cropped to fill it. */
-.rankcrest .hero .f .heroimg { object-fit: contain; box-sizing: border-box; padding: 7%; }
+/* The size classes set the crest's width. */
+/* The medal art is a shaped cutout shown whole, with no ring and no disc behind it (owner 2026-11-19). The crest
+   keeps the `.portring` box for its size only. */
+.rankcrest.portring::after { content: none; }
+.rankcrest.portring > .hero { left: 0; top: 0; width: 100%; height: 100%; overflow: visible; border-radius: 0; background: none; box-shadow: none; }
+.rankcrest.portring > .hero .f { overflow: visible; border-radius: 0; background: none; }
+.rankcrest .hero .f .heroimg { object-fit: contain; border-radius: 0; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.55)); }
 .rankcrest { --ring: 56px; }
 .rankcrest-mini { --ring: 44px; }
 /* row — the Rankings table: the ring matches the 1/2/3 placement medallion's 64px coin (owner 2026-09-21;

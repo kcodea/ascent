@@ -6930,12 +6930,13 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'through Show opponent cosmetics: the Leaderboard (their live loadout, read in the same one loadout read as the '
       + 'skins), Recent Games (the frame recorded with the game), the Hall of Champions, Live Games, Match details, the '
       + 'lobby rail, the Versus opponent block and the spectator plates. Your own row wears your frame regardless of the '
-      + 'switch. The RANK crest ring is a separate, rank-based frame and is never replaced by the cosmetic.',
+      + 'switch. The RANK crest is the medal itself with no ring around it, and never wears the cosmetic.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-16 (Leaderboard screenshot: only the YOU row had a frame)', quote: 'the player frames they have equipped arent showing here and they should' },
       { kind: 'fix-pr', ref: "fix/player-list-frames (2026-10-16): fetchPortraitLoadouts reads hero_skin + portrait_frame; Rankings and RecentGames pass each row\x27s frameId" },
+      { kind: 'owner-chat', ref: 'Mike, 2026-11-19 (new shaped rank medals: keep the tier ring around them or stand alone)', quote: 'Drop the ring' },
     ],
     currentBehaviour: "Conforms as of 2026-10-16. Before, the Leaderboard read only the hero_skin slot and passed no frame, so every other player showed the default gold ring; Recent Games showed neither the recorded frame nor the recorded skin.",
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/ladderPages.test.tsx'], lastVerifiedAt: '2026-10-16' },

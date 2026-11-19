@@ -3823,10 +3823,22 @@ body.modalup .app { z-index: auto; }
    to <body>, so it floats above neighbouring cards / spells. Position (left/top) is set inline. It
    slides in, then gently bobs + wobbles in place (so it clearly reads as an info card, not a real one),
    wrapped in a soft white haze. */
+/* THE BOB DOES NOT RE-BLUR THE HAZE (R-PERF-HOVER-SHADOW-01, perf pass 2026-11-18; owner ruling: the shadow keeps its
+   look). The three drop-shadows used to sit on `.cardref` while its CHILD `.cardref-inner` bobbed forever, so the
+   filter's input changed every frame: three blur passes (up to 28 px) over the whole popup for as long as the pointer
+   rested on a card (removing the filter took a hover sweep's worst frame from 24.7 to 9.7 ms, devlog 2026-10-21).
+   Now the nesting is the house rule (performance.md 3f: static paint on a plain child, motion on the animated
+   element): `.cardref` carries the motion (the slide-in on `transform`, the bob on the separate `translate`
+   property, so the two never fight), and `.cardref-shadow`, a plain box inside it that never animates, carries the
+   filter. The haze is rastered once and the compositor moves it. Same picture: the shadow always moved rigidly with
+   the card. The bob's 4 px is multiplied by the popup's zoom here, because it used to be a transform on the ZOOMED
+   element (whose own lengths the zoom scales) and `.cardref` is not zoomed. */
 .cardref {
   position: fixed; z-index: 460; pointer-events: none;
+  animation: cardrefin 0.3s ease-out, cardreffloat 3.6s ease-in-out infinite;
+}
+.cardref-shadow {
   filter: drop-shadow(0 0 11px rgba(255, 255, 255, 0.75)) drop-shadow(0 0 26px rgba(255, 255, 255, 0.45)) drop-shadow(0 12px 28px rgba(0, 0, 0, 0.45));
-  animation: cardrefin 0.3s ease-out;
 }
 /* the hover reveal sits at full size (it's the readable full card now) with a gentle bob */
 /* `--inspect-zoom` (JS-set, 1.3 on phone stages else 1) enlarges the tap/hover reveal popup ~30% so a minion's text
@@ -3834,7 +3846,7 @@ body.modalup .app { z-index: auto; }
    showRefTip folds the same factor into its placement so the bigger popup still lands on-screen. */
 /* `--inspect-zoom` is the device base (1 desktop, 1.3 mobile, set in Game.tsx); `--z-inspect-s` is the Layout
    Lab's live size dial for the hover/inspect preview (owner ask 2026-08-11) — they multiply. */
-.cardref-inner { display: flex; gap: calc(8 * var(--u)); animation: cardreffloat 3.6s ease-in-out infinite; zoom: calc(var(--inspect-zoom, 1) * var(--z-inspect-s, 1.52)); }
+.cardref-inner { display: flex; gap: calc(8 * var(--u)); zoom: calc(var(--inspect-zoom, 1) * var(--z-inspect-s, 1.52)); }
 /* The plate overhangs the card box by half its extra width on each side, and that overhang is invisible to
    flex — so with a referenced card trailing alongside, the two plates ate straight through the gap and
    overlapped. Reserve the overhang as margin: footprint becomes exactly --ccw × --plate-scale, the flex gap
@@ -3861,8 +3873,8 @@ body.modalup .app { z-index: auto; }
 @keyframes castprevin { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes castprevout { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(-8px); } }
 @keyframes cardreffloat {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-4px); }
+  0%, 100% { translate: 0 0; }
+  50% { translate: 0 calc(-4px * var(--inspect-zoom, 1) * var(--z-inspect-s, 1.52)); }
 }
 /* Choose One — two big option buttons */
 /* (`.chooseone-opts` / `.chooseopt` — the old cream text-button Choose One prompt — removed 2026-07-24 when
@@ -5633,7 +5645,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
 /* And the hover reveal / cast preview popups (owner 2026-10-19: "hovering a card in shop, the blur and grey isnt
    applied"): their white haze is a `filter` on the whole popup, so with a glass card the haze moves onto the frame and
    each side panel, and the reveal slides in without its opacity fade (a fade is a backdrop root too). */
-.cardref:has(.plate-frosted), .castprev:has(.plate-frosted) { filter: none; }
+.cardref:has(.plate-frosted) .cardref-shadow, .castprev:has(.plate-frosted) { filter: none; }
 /* `.kwdefs`, not `:not(.card)` (desktop jank pass 2026-10-20, R-PERF-HAS-SUBJECT-01): a `:has()` rule whose last part
    has no class, id, tag or attribute makes Blink restyle the WHOLE subtree of every element whose `:has()` state changes,
    and `.app` and `<body>` change on nearly every commit, so `:not(.card)` restyled the whole document (700-1,000
@@ -5643,7 +5655,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
 .castprev:has(.plate-frosted) .plate-frame {
   filter: drop-shadow(0 0 11px rgba(255, 255, 255, 0.75)) drop-shadow(0 0 26px rgba(255, 255, 255, 0.45)) drop-shadow(0 12px 28px rgba(0, 0, 0, 0.45));
 }
-.cardref:has(.plate-frosted) { animation-name: cardrefin-glass; }
+.cardref:has(.plate-frosted) { animation-name: cardrefin-glass, cardreffloat; } /* the slide-in swaps; the bob (second in the list) stays */
 @keyframes cardrefin-glass { from { transform: translateX(-10px); } to { transform: translateX(0); } }
 /* No opacity on the glass's way IN either (owner 2026-10-19: "theres a brief mooment that it takes before it loads the
    blur when hovering"): a glass card's mount pop is motion-only, and the glass skips the art-pending hide (it paints
@@ -6092,7 +6104,15 @@ body.hglow-preview .card.plated .plateglow { opacity: 1; }
    to `contain` and animated only via the float's transform/opacity — compositor-only, so it costs no more per
    frame than the solid pill, and every float shares the one 384px texture. Its size scales with the number
    (em) and is tunable via `--dmg-splash-size`. */
-.float.dmg { color: #fff; padding: 0 6px; font-size: var(--float-dmg-size, 48px); -webkit-text-stroke: var(--dmg-num-stroke, 1.5px) var(--dmg-num-stroke-color, #000000); paint-order: stroke fill; filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.5)); }
+.float.dmg { color: #fff; padding: 0 6px; font-size: var(--float-dmg-size, 48px); -webkit-text-stroke: var(--dmg-num-stroke, 1.5px) var(--dmg-num-stroke-color, #000000); paint-order: stroke fill; }
+/* THE SHADOW SITS ON A STATIC INNER BOX (R-PERF-DMG-SHADOW-01, perf pass 2026-11-18). `.float.dmg` animates
+   translate / scale / opacity for its whole life; with the drop-shadow on that same element every frame of every
+   damage number was a fresh blur pass (up to 14 at once on a wave or cleave; performance.md 3f). `.dmgbody` holds the
+   number AND its burst, never animates, and carries the same shadow: it is rastered once and the float's motion moves
+   it. Same picture (the shadow is still cast by number + burst together). It is a block box exactly filling the
+   float's content box, so the burst (absolute, centred on its containing block: the box with the filter) lands where
+   it did: the float's padding is symmetric, so the two boxes share a centre. */
+.float.dmg .dmgbody { display: block; filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.5)); }
 .float.dmg .dmgsplash {
   position: absolute; left: 50%; top: 50%; z-index: -1; pointer-events: none; user-select: none;
   width: var(--dmg-splash-size, 2.84em); height: auto; aspect-ratio: 1 / 1; object-fit: contain;

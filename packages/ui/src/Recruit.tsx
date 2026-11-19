@@ -9320,8 +9320,12 @@ export function Recruit() {
                   aria-hidden="true"
                 >
                   <span className={`float ${f.kind}${sym ? ' sym' : ''}${f.climb ? ' climb' : ''}`} style={splashStyle}>
-                    {f.kind === 'dmg' && <img className="dmgsplash" src={splashImgSrc(f.atkTier)} alt="" aria-hidden draggable={false} decoding="sync" />}
-                    {f.text}
+                    {/* `.dmgbody`: the number + its burst on ONE static box that carries the drop-shadow, so the float's
+                        pop / rise / fade (on the span above) moves a rastered shadow instead of re-blurring it every
+                        frame (R-PERF-DMG-SHADOW-01). */}
+                    {f.kind === 'dmg'
+                      ? <span className="dmgbody"><img className="dmgsplash" src={splashImgSrc(f.atkTier)} alt="" aria-hidden draggable={false} decoding="sync" />{f.text}</span>
+                      : f.text}
                   </span>
                 </div>
               );
@@ -9331,8 +9335,9 @@ export function Recruit() {
             {replay.deathFloats.map((f) => (
               <div key={`death-${f.id}`} className="deathfloat" style={{ ...f.sv, left: toStage(f.x), top: toStage(f.y) } as CSSProperties} aria-hidden="true">
                 <span className={`float ${f.kind}`}>
-                  {f.kind === 'dmg' && <img className="dmgsplash" src={splashImgSrc(f.atkTier)} alt="" aria-hidden draggable={false} decoding="sync" />}
-                  {f.text}
+                  {f.kind === 'dmg'
+                    ? <span className="dmgbody"><img className="dmgsplash" src={splashImgSrc(f.atkTier)} alt="" aria-hidden draggable={false} decoding="sync" />{f.text}</span>
+                    : f.text}
                 </span>
               </div>
             ))}

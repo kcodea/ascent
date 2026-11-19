@@ -12,6 +12,10 @@ import { ANCIENTS, ancientOfferText, getHero, type MatchDetails, type MatchSeat 
 import { mount, type Mounted } from '../renderedText.mount';
 import { GameDetail, type GameDetailProps } from '../partyHome/pages/gameView';
 import { SeatPower } from './SeatPower';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { ancientColor, ancientTextColor, mixWithWhite } from '../ancients/ancientsConfig';
 
 const plain = (md: string): string => md.replace(/\*\*/g, '');
 const seat = (id: string, name: string, heroId: string, over: Partial<MatchSeat> = {}): MatchSeat => ({ id, name, heroId, health: 0, armor: 0, board: null, ...over });
@@ -63,7 +67,10 @@ describe('the results page shows the hero power with its Ancient (R-RESULTS-ANCI
   it('the game detail shows your own seat, then the picked seat, and the lobby tiles carry the Ancient badge', () => {
     ui = mount(<GameDetail {...props()} />);
     expect(q('.rgp-runes .rgp-power-anc')?.textContent).toBe(ANCIENTS.death.name);
-    expect(ui.container.querySelectorAll('.lp-tile .lp-tile-anc').length).toBe(2);
+    // R-LOBBY-TILE-ANCIENT-01: the face in the hero power frame at the head's right end, never on the portrait.
+    expect(ui.container.querySelectorAll('.lp-tile .lp-tile-head > .heropowerbtn.lp-tile-anc .hpb-artwrap .anc-face').length).toBe(2);
+    expect(ui.container.querySelectorAll('.lp-chip-portrait .lp-tile-anc').length).toBe(0);
+    expect(q('.lp-tile[data-seat="s2"] .lp-tile-anc')).toBeNull();
     act(() => { (q('.lp-tile[data-seat="s1"]') as HTMLButtonElement).click(); });
     expect(q('.rgp-runes .rgp-power-name')?.textContent).toBe(getHero('indy').power.name);
     expect(q('.rgp-runes .rgp-power-anc')?.textContent).toBe(ANCIENTS.fortune.name);
@@ -78,5 +85,34 @@ describe('the results page shows the hero power with its Ancient (R-RESULTS-ANCI
     ui.render(<GameDetail {...props({ match: null, heroId: 'darah', ancient: null })} />);
     expect(q('.rgp-runes .rgp-power-name')?.textContent).toBe(getHero('darah').power.name);
     expect(q('.rgp-runes .rgp-power-anc')).toBeNull();
+  });
+
+  // R-ANCIENT-COLOUR-01 (owner 2026-11-19): the tip's "(Bonds)" tag, the "Ancient of Bonds" heading and the results pill's
+  // label are ONE colour: the Ancient's TEXT tint (`ancientTextColor`: the base 55% mixed with white, the soft colour
+  // the results pill's label first showed), with no filter or second mix in their CSS to make them drift.
+  it("the tip tag, the Ancient heading and the pill label all print exactly the Ancient's text tint", () => {
+    // The tint is the CSS `color-mix(in srgb, base 55%, #fff)` the results label used on main: Bonds #9b5de5 -> #c8a6f1.
+    expect(mixWithWhite('#9b5de5', 0.55)).toBe('#c8a6f1');
+    expect(mixWithWhite('#1fa89a', 0.55)).toBe('#84cfc7');
+    for (const id of ['bonds', 'death'] as const) {
+      ui?.unmount();
+      ui = mount(<SeatPower heroId="xerox" ancient={{ id, heroId: 'xerox' }} who="Claudebot1" />);
+      const norm = (c: string): string => { const el = document.createElement('i'); el.style.color = c; return el.style.color; };
+      const want = norm(ancientTextColor(id));
+      expect(ancientTextColor(id)).toBe(mixWithWhite(ancientColor(id), 0.55));
+      expect((q('.rgp-power-pop .herotip-anc') as HTMLElement).style.color).toBe(want);
+      expect((q('.rgp-power-pop .foe-ancient-name') as HTMLElement).style.color).toBe(want);
+      expect((q('.rgp-power-anc') as HTMLElement).style.getPropertyValue('--anc-t')).toBe(ancientTextColor(id));
+    }
+    const src = join(dirname(fileURLToPath(import.meta.url)), '..');
+    const rule = (file: string, sel: string): string => {
+      const css = readFileSync(join(src, file), 'utf8');
+      const at = css.indexOf(`${sel} {`);
+      expect(at, `${sel} in ${file}`).toBeGreaterThanOrEqual(0);
+      return css.slice(at, css.indexOf('}', at));
+    };
+    expect(rule('styles.css', '.herotip-anc')).not.toMatch(/filter|color-mix/);
+    expect(rule('ancients/ancients.css', '.foe-ancient-name')).not.toMatch(/filter|color-mix/);
+    expect(rule('partyHome/pages/gamesPages.css', '.rgp-power-anc')).toMatch(/color: var\(--anc-t\);/);
   });
 });

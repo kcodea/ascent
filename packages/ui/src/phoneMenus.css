@@ -550,6 +550,7 @@ html[data-touch-ui][data-touch-small][data-page-scale] :is(.cv2-page, .rg-page) 
 html[data-touch-ui][data-touch-small][data-page-scale] :is(.cv2-page, .rg-page) .gc.gc-detail .lp-tile-head { gap: calc(6 * var(--pt)); }
 html[data-touch-ui][data-touch-small][data-page-scale] :is(.cv2-page, .rg-page) .gc.gc-detail .lp-chip-portrait :is(.mds-portrait, .cv2-heroframe) { --ring: calc(26 * var(--pt)); }
 html[data-touch-ui][data-touch-small][data-page-scale] :is(.cv2-page, .rg-page) .gc.gc-detail .lp-tile .lp-chip-place { font-size: calc(11 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] :is(.cv2-page, .rg-page) .gc.gc-detail .lp-tile-anc.heropowerbtn { --u: calc(26 * var(--pt) / 128); } /* the portrait's size */
 html[data-touch-ui][data-touch-small][data-page-scale] :is(.cv2-page, .rg-page) .gc.gc-detail .lp-tile .lp-chip-name { font-size: calc(12.5 * var(--pt)); }
 html[data-touch-ui][data-touch-small][data-page-scale] :is(.cv2-page, .rg-page) .gc.gc-detail .lp-tile-out { font-size: calc(10.5 * var(--pt)); }
 html[data-touch-ui][data-touch-small][data-page-scale] :is(.cv2-page, .rg-page) .gc.gc-detail .lp-mini-star { font-size: calc(8 * var(--pt)); }

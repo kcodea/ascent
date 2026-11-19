@@ -3,7 +3,7 @@ import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, MouseEvent as 
 import { ANCIENTS, ANCIENT_IDS, ancientOfferText, ancientPairingFor, type AncientId } from '@game/sim';
 import { mdBold } from './Card';
 import { AncientFace } from './ancients/AncientFace';
-import { ancientColor } from './ancients/ancientsConfig';
+import { ancientVars } from './ancients/ancientsConfig';
 
 /**
  * THE COMPENDIUM'S ANCIENTS ROW (owner ask 2026-11-16: "an ancients display on the heroes tab ... scan through all of
@@ -53,7 +53,7 @@ export const HeroAncients = memo(function HeroAncients({ heroId, picked, onPick,
             key={id}
             type="button"
             className={`hanc-med${id === shown ? ' is-on' : ''}`}
-            style={{ '--anc-c': ancientColor(id) } as CSSProperties}
+            style={ancientVars(id) as CSSProperties}
             aria-label={ANCIENTS[id].name}
             aria-pressed={id === picked}
             onClick={(e) => { e.stopPropagation(); rememberAncient(id); onPick(id); }}
@@ -72,7 +72,7 @@ export const HeroAncients = memo(function HeroAncients({ heroId, picked, onPick,
             <div
               key={id}
               className={`hanc-text${id === shown ? ' is-on' : ''}${written ? '' : ' is-unwritten'}`}
-              style={{ '--anc-c': ancientColor(id) } as CSSProperties}
+              style={ancientVars(id) as CSSProperties}
               aria-hidden={id !== shown}
               data-ancient={id}
             >

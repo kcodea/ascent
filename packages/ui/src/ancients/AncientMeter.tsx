@@ -5,7 +5,7 @@ import { sfx } from '../sfx';
 import { AncientFace } from './AncientFace';
 import { ancientPowerArt } from '../art';
 import { AncientPreview, useAncientCycler, type PreviewAnchor } from './AncientPreview';
-import { ancientColor, getAncientsConfig, subscribeAncientsConfig, type AncientsFullConfig } from './ancientsConfig';
+import { ancientVars, getAncientsConfig, subscribeAncientsConfig, type AncientsFullConfig } from './ancientsConfig';
 import { markRingSettled, prefersReducedMotion, takePickRelease, tickAllowed, useAwakenDemo } from './ancientsFx';
 import { playPickImpactNow } from './ancientPickSlam';
 import { rectToStage } from '../stage';
@@ -376,7 +376,7 @@ export const AncientPill = memo(function AncientPill({ run }: { run: RunState })
   const id = run.ancientsEnabled ? run.ancients?.picked : undefined;
   if (!id) return null;
   return (
-    <div className="anc-pill" style={{ '--anc-c': ancientColor(id) } as CSSProperties}>
+    <div className="anc-pill" style={ancientVars(id) as CSSProperties}>
       <span className="anc-pill-dot" aria-hidden="true" />{ANCIENTS[id].name}
     </div>
   );

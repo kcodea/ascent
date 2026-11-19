@@ -426,9 +426,37 @@ export function ancientMeterOverride(): { cost: number; refresh: number; combat:
   return { cost: cfg.cost, refresh: cfg.refresh, combat: cfg.combat };
 }
 
-/** The Ancient's colour — the tuner's override, else the sim's colour table. */
+/** The Ancient's BASE colour — the tuner's override, else the sim's colour table. For fills, glows, washes and FX. */
 export function ancientColor(id: string): string {
   return (cfg as unknown as Record<string, string>)[`${id}Color`] ?? '#c8922e';
+}
+
+/** How much of the base colour the TEXT tint keeps (the rest is white). */
+export const ANCIENT_TEXT_MIX = 0.55;
+
+/** A `#rrggbb` colour mixed toward white, keeping `keep` of it: exactly CSS `color-mix(in srgb, c keep%, #fff)`, rounded. */
+export function mixWithWhite(hex: string, keep: number): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return hex;
+  const n = parseInt(m[1]!, 16);
+  const ch = (v: number): string => Math.round(v * keep + 255 * (1 - keep)).toString(16).padStart(2, '0');
+  return `#${ch((n >> 16) & 255)}${ch((n >> 8) & 255)}${ch(n & 255)}`;
+}
+
+/**
+ * THE ANCIENT'S TEXT COLOUR (owner 2026-11-19, R-ANCIENT-COLOUR-01: "i liked these colors ... the colors that were already
+ * in as their names"): the base colour 55% mixed with white, the soft tint the results pill's Ancient name first showed.
+ * EVERY Ancient-coloured text and small accent uses this one value: the "(Bonds)" tip tag, the "Ancient of …" headings,
+ * the pill labels and dots, the in-game pill edge, the Compendium / Hero Select name, the Avenge rim. The base
+ * `ancientColor` stays only for fills, glows and washes.
+ */
+export function ancientTextColor(id: string): string {
+  return mixWithWhite(ancientColor(id), ANCIENT_TEXT_MIX);
+}
+
+/** The inline custom properties a component sets for an Ancient: `--anc-c` (base) and `--anc-t` (text tint). */
+export function ancientVars(id: string): Record<'--anc-c' | '--anc-t', string> {
+  return { '--anc-c': ancientColor(id), '--anc-t': ancientTextColor(id) };
 }
 
 /** The spark reveal's styles (the ✦ tuner's "Reveal style"). */

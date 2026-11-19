@@ -70,6 +70,14 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: "Each Ancient's name now shows in one soft colour everywhere: hero power tips, results and the Compendium.",
+        details: [
+          'The tag beside a hero power\'s name, like "(Bonds)", now matches the Ancient\'s name below it.',
+          "In a game's results, each player's tile shows their Ancient at the top right, in a hero power frame the size of the hero portrait, instead of a small badge over the hero.",
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Buying, playing and selling in the Shop costs less work per move, so a fast turn on a big board stays smoother.',
         details: ['Nothing looks or plays different.'],
       },

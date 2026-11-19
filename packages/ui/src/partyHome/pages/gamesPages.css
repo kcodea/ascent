@@ -166,7 +166,7 @@
 .rgp-power-txt { display: flex; flex-direction: column; align-items: flex-start; gap: calc(2 * var(--phu)); min-width: 0; }
 .rgp-power-name { font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t2); line-height: 1.1; color: var(--ph-ink); text-shadow: var(--ph-shadow); white-space: nowrap; }
 .rgp-power-anc { display: inline-flex; align-items: center; gap: calc(5 * var(--phu)); font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); line-height: 1.1; white-space: nowrap;
-  color: color-mix(in srgb, var(--anc-c) 55%, #fff); text-shadow: var(--ph-shadow); }
+  color: var(--anc-t); text-shadow: var(--ph-shadow); } /* exactly ancientTextColor, as the tip's tag and heading */
 .rgp-power-anc .anc-pill-dot { width: calc(7 * var(--phu)); height: calc(7 * var(--phu)); }
 .rgp-power .rgp-power-pop { bottom: calc(100% + 10px); left: 50%; transform: translateX(-50%); }
 .rgp-power:hover .rgp-power-pop, .rgp-power:focus-visible .rgp-power-pop { opacity: 1; transition-delay: 0.25s; }
@@ -198,7 +198,7 @@ html[data-ph-shell] .rgp .rgp-power-name { font-size: calc(var(--ph-t2) * 0.9); 
 .rgp .lp-mini { gap: calc(4 * var(--phu)); }
 .rgp .lp-mini-m { border-color: color-mix(in srgb, var(--ph-gold) 30%, transparent); }
 .rgp .lp-ko { top: calc(4 * var(--phu)); right: calc(8 * var(--phu)); }
-.rgp .lp-tile-anc { width: calc(17 * var(--phu)); height: calc(17 * var(--phu)); right: calc(-4 * var(--phu)); bottom: calc(-3 * var(--phu)); }
+.rgp .lp-tile-anc.heropowerbtn { --u: calc(36 * var(--phu) / 128); box-shadow: 0 0 0 calc(1.5 * var(--phu)) var(--ph-gold), 0 calc(1 * var(--phu)) calc(3 * var(--phu)) rgba(0, 0, 0, 0.6); }
 
 /* DUOS: the shared Duos card, sat on the kit plate instead of its own card frame. */
 .rgp-duos .gc.gc-detail { min-height: 100%; border: 0; background: var(--ph-plate); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); border-radius: var(--ph-r-l); }

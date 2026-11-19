@@ -5,7 +5,7 @@ import { mdBold } from '../Card';
 import { AncientFace } from '../ancients/AncientFace';
 import { AncientSplitStatic } from '../ancients/AncientMeter';
 import { FoeAncientLine } from '../ancients/FoeAncientLine';
-import { ancientColor } from '../ancients/ancientsConfig';
+import { ancientTextColor, ancientVars } from '../ancients/ancientsConfig';
 
 /**
  * A FINISHED GAME'S HERO POWER, WITH ITS ANCIENT (R-RESULTS-ANCIENT-01, owner 2026-11-18: "we need results to now show
@@ -38,7 +38,7 @@ export const SeatPower = memo(function SeatPower({ heroId, ancient, who }: { her
       <span className="rgp-power-txt" aria-hidden="true">
         <span className="rgp-power-name">{power.name}</span>
         {anc && def && (
-          <span className="rgp-power-anc" style={{ '--anc-c': ancientColor(anc.id) } as CSSProperties}>
+          <span className="rgp-power-anc" style={ancientVars(anc.id) as CSSProperties}>
             <span className="anc-pill-dot" />{def.name}
           </span>
         )}
@@ -46,7 +46,7 @@ export const SeatPower = memo(function SeatPower({ heroId, ancient, who }: { her
       <span className="herotip rgp-power-pop" role="tooltip">
         <span className="herotip-head">
           <b>{power.name}</b>
-          {anc && def && <span className="herotip-anc" style={{ color: ancientColor(anc.id) }}>({def.name.replace(/^Ancient of /, '')})</span>}
+          {anc && def && <span className="herotip-anc" style={{ color: ancientTextColor(anc.id) }}>({def.name.replace(/^Ancient of /, '')})</span>}
           {power.passive && <span className="herotip-tag">passive</span>}
         </span>
         <span className="herotip-rule" dangerouslySetInnerHTML={{ __html: mdBold(power.text) }} />
@@ -56,12 +56,18 @@ export const SeatPower = memo(function SeatPower({ heroId, ancient, who }: { her
   );
 });
 
-/** A lobby tile's small Ancient badge on the hero portrait: the Ancient's round power face. Nothing without a pick. */
+/**
+ * A lobby tile's ANCIENT (owner 2026-11-19, R-LOBBY-TILE-ANCIENT-01: "put the ancient's face in the top right instead of
+ * eclipsing the hero art, and make it the same size as the hero art. put it in the hero power frame so it's wrapped").
+ * The Ancient's round power face inside the hero power disc (`.heropowerbtn` + `.hpb-artwrap`, the frame the results
+ * pill and the rail scout card use), at the tile head's right end, the hero portrait's size. Static. Nothing without a
+ * pick.
+ */
 export const SeatAncientBadge = memo(function SeatAncientBadge({ ancient }: { ancient?: MatchAncient | null }) {
   if (!ancient || !ANCIENTS[ancient.id]) return null;
   return (
-    <span className="lp-tile-anc" style={{ '--anc-c': ancientColor(ancient.id) } as CSSProperties} aria-hidden="true">
-      <AncientFace id={ancient.id} variant="power" />
+    <span className="heropowerbtn lp-tile-anc" style={ancientVars(ancient.id) as CSSProperties} aria-hidden="true">
+      <span className="hpb-artwrap"><AncientFace id={ancient.id} variant="power" className="hpb-art" /></span>
     </span>
   );
 });

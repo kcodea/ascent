@@ -16381,7 +16381,8 @@ export const FOUNDATION_RULES: GameRule[] = [
       + "tip: the name with the Ancient tag, the base power text, and the Ancient's pairing text. Picking a lobby seat "
       + "shows THAT seat's power and Ancient. It reads `MatchSeat.ancient` (R-ANCIENTS-RELEASE-04), and for your own "
       + "board without a lobby the stored final board's `ancient`. No Ancient = the plain power; no hero id = nothing. "
-      + 'Each lobby tile with an Ancient carries a small Ancient badge on its portrait. Static: a record has no live numbers.',
+      + "Each lobby tile with an Ancient shows its face in the hero power frame at the tile's top right (R-LOBBY-TILE-ANCIENT-01). "
+      + 'Static: a record has no live numbers.',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-18', quote: 'we need results to now show the hero power w/ the ancient selected as well so players can see what ancient was selected' },
@@ -16741,5 +16742,44 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms from 2026-11-19. Before, the card printed the power as plain text in a box, with no art or disc.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/railScoutShowcase.test.tsx'], lastVerifiedAt: '2026-11-19' },
+  },
+  {
+    id: 'R-ANCIENT-COLOUR-01',
+    domain: 'foundation',
+    title: "Every Ancient-coloured text and accent is exactly the Ancient's text tint",
+    statement:
+      "Each Ancient has ONE text colour: `ancientTextColor(id)`, its base colour (`ancientColor`: the sim's "
+      + "`ANCIENTS[id].color`, or the Ancients tuner's override in dev) 55% mixed with white, the soft tint the results "
+      + "pill's Ancient name showed first. The hero-power tip's tag (\"Copy Machine (Bonds)\") in the Shop, combat and "
+      + "results, the Ancient heading under a power (combat foe tip, rail scout card, results tip), the results pill's "
+      + "Ancient label and dot, the in-game Ancient pill's edge and dot, the Compendium / Hero Select Ancient name and the "
+      + "Avenge countdown's rim all print that exact value: no filter, no other mix. The darker base colour stays only "
+      + 'for fills, glows and washes (the band behind the Ancient block, the pick cards, the effects), always derived from '
+      + 'the same base, never a second palette.',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-19', quote: "use the ancient's name color for any flavor coloring or related colors etc for them" },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-19 (PR #2805 review)', quote: 'i liked these colors, though.. the colors that were already in as their names' },
+      { kind: 'code', ref: 'packages/ui/src/ancients/ancientsConfig.ts ancientTextColor / ancientVars;packages/ui/src/styles.css .herotip-anc; packages/ui/src/ancients/ancients.css .foe-ancient-name / .anc-pill / .anc-pill-dot; packages/ui/src/partyHome/pages/gamesPages.css .rgp-power-anc; packages/ui/src/compendium.css .hanc-name' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-19. Before, the tip tag and heading printed the base colour under a brightness filter (rendered differently where it applied), while only the results label, Compendium name and dots used the soft tint.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/matchDetails/seatPower.test.tsx'], lastVerifiedAt: '2026-11-19' },
+  },
+  {
+    id: 'R-LOBBY-TILE-ANCIENT-01',
+    domain: 'foundation',
+    title: "A lobby tile shows the seat's Ancient at its top right, in the hero power frame, at the portrait's size",
+    statement:
+      "On every lobby tile (the game detail's lobby in Recent Games, Career Match History, Practice and the party home), a "
+      + "seat with a picked Ancient shows the Ancient's power face inside the hero power disc (`.heropowerbtn`, gold edge) at "
+      + "the right end of the tile's head row, the same size as the hero portrait. It never overlaps the portrait; the "
+      + 'text beside it ellipsises instead of running under it, and the tile keeps its height. No Ancient = nothing there.',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-19', quote: "put the ancient's face in the top right instead of eclipsing the hero art, and make it the same size as the hero art" },
+      { kind: 'code', ref: 'packages/ui/src/matchDetails/SeatPower.tsx SeatAncientBadge; packages/ui/src/matchDetails/LobbyPicker.tsx LobbyTiles; packages/ui/src/styles.css .lp-tile-anc' },
+    ],
+    currentBehaviour: "Conforms from 2026-11-19. Before, a 17px badge sat on the portrait's lower right, covering the hero art.",
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/matchDetails/seatPower.test.tsx'], lastVerifiedAt: '2026-11-19' },
   },
 ];

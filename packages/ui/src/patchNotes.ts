@@ -131,6 +131,16 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'Fights run smoother, most of all late in the game with big boards and big numbers.',
+        details: [
+          'A minion dying or a spell being cast mid-fight no longer redraws every card on the board.',
+          'A rolling stat number now redraws only its own badge, not the whole card.',
+          'Long fights no longer get heavier as they go on.',
+          'Nothing looks or plays differently.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Mech and Spirit have new tribe colors that match the gems on their card frames.',
         details: [
           'Mech is now indigo instead of sky blue.',

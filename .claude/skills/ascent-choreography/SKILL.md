@@ -99,6 +99,20 @@ Never animate paint properties (`box-shadow`, `filter`, `drop-shadow`, `backgrou
 `::before` with a *static* shadow (see `kwglow` in `styles.css`). A short **one-shot** transition may touch
 paint properties if profiled.
 
+The combat replay's per-beat work is CONTINUED, never rebuilt (R-PERF-COMBAT-FOLD-01, R-PERF-COMBAT-PREVIEW-01,
+R-PERF-STAT-ROLL-01):
+
+- **The frame fold** (`useCombatReplay.ts`: `stepFrameFold` / `frameOf` / `makeFrameFolder`) applies only the new
+  events each beat and hands React SHALLOW copies of its bodies. So inside `stepFrameFold` a body's nested value
+  (`keywords`, `buffs`, `permaGain`, `impBank`) is REPLACED, never edited in place: a `push` would change the frame
+  still on screen and the unit would not re-render. `frameFold.test.ts` fails on it. A new running readout goes
+  through `choreo/prefixFold.ts` (a `PrefixFoldSpec`), not a fresh loop over the log from event 0.
+- **A new per-instance field the combat text reads** must be added to `Unit`'s memo comparator (`Unit.tsx`). A unit no
+  longer re-renders on every run change, so a field that is not compared stays stale.
+- **A display-only readout** published mid-fight goes through the shallow preview path (`reduceCombatPreview`) and is
+  read through its own primitive selector. Never subscribe a per-unit component to the whole `run`.
+- **A rolling number** belongs to `StatBadge` (`Card.tsx`). Nothing that changes per frame may be read by `Card` itself.
+
 ## Verify
 
 `npm run beats:audit`, focused Choreographer/Beat Lab tests, and live playback at normal, accelerated and

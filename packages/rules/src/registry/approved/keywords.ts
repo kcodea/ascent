@@ -496,6 +496,6 @@ export const KEYWORDS_RULES: GameRule[] = [
       + "so the fight had no event for either effect to play on. Arena Heckler only: every other effect that gives a "
       + "keyword a target may already have still shows nothing in that case. The test pins the engine's event, not the "
       + "two effects on screen.",
-    enforcement: { kind: 'scenario', refs: ['packages/sim/src/reworks0918.test.ts'], lastVerifiedAt: '2026-11-19' },
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/reworks0918.test.ts', 'packages/ui/src/fx/tauntBeam.test.ts'], lastVerifiedAt: '2026-11-19' },
   },
 ];

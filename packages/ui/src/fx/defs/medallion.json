@@ -9,12 +9,12 @@
       "anchorPart": "medallion",
       "at": 0,
       "params": {
-        "count": 84,
+        "count": 112,
         "interval": 600,
         "spread": 1,
         "aimMode": "travel",
         "angle": -90,
-        "speed": 400,
+        "speed": 650,
         "speedVar": 0.5,
         "reverse": false,
         "speedCurve": [
@@ -566,9 +566,9 @@
       "at": 0,
       "params": {
         "rings": 1,
-        "speed": 3.8,
-        "thickness": 0.06,
-        "fade": 3.9,
+        "speed": 2.35,
+        "thickness": 0.19,
+        "fade": 3.1,
         "radius": 160,
         "squash": 1,
         "offsetX": 0,

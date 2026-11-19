@@ -20,7 +20,7 @@ import './avatarPicker.css';
  *
  *   TABS      My Skins (every hero / minion skin you OWN), Heroes, Minions, Hero Powers. Each tab shows its count; while
  *             a search is typed the counts are the matches, so you can see which tab holds what you are looking for.
- *   FILTER    a dropdown under the search, per tab: Minions by tribe or tier, My Skins by kind or rarity. Minions are
+ *   FILTER    a dropdown under the search, per tab: My Skins by kind (hero / minion skins), Minions by tribe. Minions are
  *             sorted and grouped by tribe, then tier.
  *   GRID      round tiles, the gold edge painted over the art; a skin's edge is its rarity colour (Ancient glows). Only this list scrolls. A press SELECTS (it no longer
  *             picks and closes); a double press applies at once. The tile in use wears an "In use" tag.
@@ -71,20 +71,17 @@ function baseEntries(): Record<Exclude<TabId, 'skins'>, Entry[]> {
 
 /** One choice in a tab's filter dropdown. */
 interface FilterOption { value: string; label: string }
-const RARITY_ORDER: readonly CosmeticRarity[] = ['secret', 'ancient', 'legendary', 'epic', 'rare', 'common'];
 /** The filter dropdown of a tab: only choices that some portrait in it matches. Heroes and Hero Powers have no
  *  category to filter by, so they get none (an empty list hides the dropdown). */
 export function filterOptions(tab: TabId, rows: readonly Entry[]): FilterOption[] {
   const has = (tag: string): boolean => rows.some((e) => e.tags?.includes(tag));
   if (tab === 'minion') return [
-    { value: 'all', label: 'All minions' },
+    { value: 'all', label: 'All tribes' },
     ...TRIBE_ORDER.filter((t) => has(`tribe:${t}`)).map((t) => ({ value: `tribe:${t}`, label: TRIBE_LABEL[t] })),
-    ...[1, 2, 3, 4, 5, 6, 7].filter((n) => has(`tier:${n}`)).map((n) => ({ value: `tier:${n}`, label: `Tier ${n}` })),
   ];
   if (tab === 'skins' && rows.length) return [
     { value: 'all', label: 'All skins' },
     ...(['hero', 'minion'] as const).filter((k) => has(`kind:${k}`)).map((k) => ({ value: `kind:${k}`, label: k === 'hero' ? 'Hero skins' : 'Minion skins' })),
-    ...RARITY_ORDER.filter((r) => has(`rarity:${r}`)).map((r) => ({ value: `rarity:${r}`, label: RARITY_LABELS[r] })),
   ];
   return [];
 }
@@ -249,7 +246,7 @@ function PortraitWindow() {
             </div>
             <div className="avp-banner" aria-hidden="true" {...{ inert: '' }}>
               <span className="avp-lbl">On your banner</span>
-              <PhBanner art={chosenSrc} width={128} label="Banner preview"><PhBannerName>{playerName || 'You'}</PhBannerName></PhBanner>
+              <PhBanner art={chosenSrc} width={156} label="Banner preview"><PhBannerName>{playerName || 'You'}</PhBannerName></PhBanner>
             </div>
             <div className="avp-actions">
               <PhButton variant="primary" size="l" className="avp-use" disabled={unchanged} onClick={() => apply(sel)}>{unchanged ? 'In use' : 'Use portrait'}</PhButton>

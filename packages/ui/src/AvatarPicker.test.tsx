@@ -129,7 +129,7 @@ describe('the portrait window', () => {
     expect(useGame.getState().avatarPickerOpen).toBe(false);
   });
 
-  it('Minions are grouped by tribe and run tier-up inside each tribe; the dropdown filters by tribe or tier', () => {
+  it('Minions are grouped by tribe and run tier-up inside each tribe; the dropdown filters by tribe', () => {
     open();
     act(() => tab('Minions').click());
     const groups = $$('.avp-grouplbl').map((g) => g.textContent);
@@ -141,24 +141,25 @@ describe('the portrait window', () => {
     expect([...tiers].sort((a, b) => a - b)).toEqual(tiers);
 
     const select = $('.avp-filter')!;
-    expect(select.textContent).toContain('All minions');
+    expect(select.textContent).toContain('All tribes');
     act(() => select.click());
     const opts = $$('[role="option"]');
-    expect(opts.map((o) => o.textContent)).toEqual(expect.arrayContaining(['All minions', 'Beast', 'Dragon', 'Tier 1', 'Tier 6']));
+    expect(opts.map((o) => o.textContent)).toEqual(expect.arrayContaining(['All tribes', 'Beast', 'Dragon', 'Neutral']));
+    expect(opts.some((o) => o.textContent!.startsWith('Tier'))).toBe(false);
     const total = $$('.avp-tile').length;
-    act(() => opts.find((o) => o.textContent === 'Tier 1')!.click());
+    act(() => opts.find((o) => o.textContent === 'Dragon')!.click());
     const left = $$('.avp-tile');
     expect(left.length).toBeGreaterThan(0);
     expect(left.length).toBeLessThan(total);
-    expect(left.every((t) => t.getAttribute('aria-label')!.includes('Tier 1 '))).toBe(true);
+    expect(left.every((t) => t.getAttribute('aria-label')!.includes('Dragon'))).toBe(true);
     // The tab count follows the search, not the filter.
     expect(Number(countOf('Minions'))).toBe(total);
   });
 
-  it('My Skins filters by kind or rarity; Heroes and Hero Powers have no dropdown', () => {
+  it('My Skins filters by kind (hero or minion skins); Heroes and Hero Powers have no dropdown', () => {
     open();
     act(() => $('.avp-filter')!.click());
-    expect($$('[role="option"]').map((o) => o.textContent)).toEqual(['All skins', 'Hero skins', 'Minion skins', 'Epic', 'Common']);
+    expect($$('[role="option"]').map((o) => o.textContent)).toEqual(['All skins', 'Hero skins', 'Minion skins']);
     act(() => $$('[role="option"]').find((o) => o.textContent === 'Minion skins')!.click());
     expect($$('.avp-tile').map((t) => t.dataset.name)).toEqual(['Sheriff Brian']);
     act(() => tab('Heroes').click());

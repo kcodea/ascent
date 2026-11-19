@@ -44,6 +44,10 @@ const OUT = path.resolve(arg('out', path.join(ROOT, 'apps/web/public/kwfx')));
 const MANIFEST = path.resolve(arg('manifest', path.join(ROOT, 'packages/ui/src/kwfx/manifest.json')));
 const only = arg('only', '') ? new Set(arg('only').split(',')) : null;
 const keep = arg('keep-frames', '');
+// --fps N: capture every aura at N pictures a second instead of its own rate (variants.mjs). Chromium plays an animated
+// image at up to 90 a second: a frame of 10 ms or less is shown for 100 ms (measured, docs/performance.md 3p).
+const fpsAll = Number(arg('fps', '0'));
+if (fpsAll > 90) throw new Error('--fps above 90 would play at 10 pictures a second (frames of 10 ms or less are held for 100 ms)');
 
 
 
@@ -60,8 +64,9 @@ async function main() {
     // The LIVE aura is what gets photographed, whatever the build's default (kwfx/kwfxMode.ts).
     await toShop(c, { url: `http://127.0.0.1:${port}/`, initJs: `try { localStorage.setItem('ascent.kwfx', 'live'); } catch {}` });
     await c.ev(AURA_PAGE_JS);
-    for (const v of VARIANTS) {
-      if (only && !only.has(v.id)) continue;
+    for (const v0 of VARIANTS) {
+      if (only && !only.has(v0.id)) continue;
+      const v = fpsAll ? { ...v0, fps: fpsAll } : v0;
       await c.send('Emulation.setDeviceMetricsOverride', { width: 1920, height: 1080, deviceScaleFactor: v.scale, mobile: false });
       await setScene(c, { keywords: v.kw, hand: 0 });
       const info = await c.ev(`window.__kwcap.prep(${JSON.stringify(v.sel)}, ${JSON.stringify(v.sym || null)}, ${JSON.stringify(v.tint || null)}, true)`);

@@ -3,20 +3,25 @@
 /**
  * One entry per baked picture.
  *  kw / tint  what the capture card carries;  sel  the live aura root inside the card
- *  loop  seconds;  fps;  scale  capture pixels per CSS px at 1920 x 1080 (card art width 138 px)
+ *  loop  seconds;  scale  capture pixels per CSS px at 1920 x 1080 (card art width 138 px)
+ *  fps   pictures a second. 60 for all (2026-11-19): it divides 60, 120 and 240 Hz displays evenly, and the slow auras
+ *        then move under a pixel a picture. Chromium plays an animated image at up to 90 a second and no faster (a
+ *        frame of 10 ms or less is held for 100 ms); 90 does not divide a 60 Hz display. `capture.mjs --fps N` overrides.
+ *        Rebirth's loop is 7.2 s: its flicker and glow land within 4%; the embers (a seeded scatter of rise times)
+ *        move by up to 9%.
  *  sym   blades per ring by element class: a ring of k blades repeats k times a turn (flurryConfig `blades`,
  *        executeConfig `arcBlades`; change these with the config)
  *  box   'art' = crop to the largest art window (the card clips it there anyway); otherwise the alpha bounds
  *  crf   AV1 quality (lower = better, larger)
  */
 export const VARIANTS = [
-  { id: 'rise', kw: ['R'], sel: '.reborn', loop: 9.95, fps: 30, scale: 1, box: 'art', crf: 30 },
-  { id: 'rise-blue', kw: ['R'], tint: 'blue', sel: '.reborn', loop: 9.95, fps: 30, scale: 1, box: 'art', crf: 30 },
-  { id: 'rise-red', kw: ['R'], tint: 'red', sel: '.reborn', loop: 9.95, fps: 30, scale: 1, box: 'art', crf: 30 },
+  { id: 'rise', kw: ['R'], sel: '.reborn', loop: 9.95, fps: 60, scale: 1, box: 'art', crf: 30 },
+  { id: 'rise-blue', kw: ['R'], tint: 'blue', sel: '.reborn', loop: 9.95, fps: 60, scale: 1, box: 'art', crf: 30 },
+  { id: 'rise-red', kw: ['R'], tint: 'red', sel: '.reborn', loop: 9.95, fps: 60, scale: 1, box: 'art', crf: 30 },
   { id: 'flurry', kw: ['W'], sel: '.flurry', loop: 6.8, fps: 60, scale: 1, sym: { 'fl-ring': 3 }, crf: 30 },
-  { id: 'execute', kw: ['V'], sel: '.execute', loop: 12.15, fps: 30, scale: 1, sym: { 'ex-arc': 6 }, crf: 30 },
-  { id: 'rebirth', kw: ['RB'], sel: '.rebirth-crown', loop: 13.75, fps: 30, scale: 1, crf: 30 },
-  { id: 'rebirth-shield', kw: ['RB', 'T'], sel: '.rebirth-crown', loop: 13.75, fps: 30, scale: 1, crf: 30 },
+  { id: 'execute', kw: ['V'], sel: '.execute', loop: 12.15, fps: 60, scale: 1, sym: { 'ex-arc': 6 }, crf: 30 },
+  { id: 'rebirth', kw: ['RB'], sel: '.rebirth-crown', loop: 7.2, fps: 60, scale: 1, crf: 30 },
+  { id: 'rebirth-shield', kw: ['RB', 'T'], sel: '.rebirth-crown', loop: 7.2, fps: 60, scale: 1, crf: 30 },
 ];
 /** The largest art window around the Rise aura's centre, in card-art widths (measured: the oval's overfilled art box
  *  is -0.467..0.467 x -0.636..0.564, Taunt's heater -0.404..0.404 x -0.52..0.465), kept symmetric. */

@@ -126,7 +126,7 @@ import { goldClockOf, goldClockReading, pinMedalAtStart } from './goldClock';
 import { type AnnouncedSlice, type AnnouncerEvent, announcedFor, emptyAnnounced, withAnnounced } from './announcerSlice';
 import { perfMonitor } from './perfMonitor';
 import { rankedEntryPoolGate } from './opponentPool/lobbyPoolGate';
-import { boardStrengthScorer, carriedUploadOf, finalBoardOf, lobbyBandFor, pendingPracticeRank, poolBandFor, seatExclusionsFor, shouldScoreRunEnd, STRENGTH_LATE_UPLOAD_WAIT_MS, STRENGTH_RUN_END_WAIT_MS } from './boardStrength';
+import { boardStrengthScorer, carriedUploadOf, finalBoardOf, lobbyBandFor, pendingPracticeRank, poolBandFor, seatExclusionsFor, setStrengthHold, shouldScoreRunEnd, STRENGTH_LATE_UPLOAD_WAIT_MS, STRENGTH_RUN_END_WAIT_MS } from './boardStrength';
 import { STRENGTH_REF_LAST_ROUND, normalizePracticeRank, practiceStrengthBand, runStrengthFromScores, type LobbySeatOptions, type StrengthScore } from '@game/sim';
 import { withRecordedEmotes } from '@game/sim';
 import type { RuneCombatProgress } from '@game/sim';
@@ -3420,6 +3420,10 @@ export const useGame = create<GameStore>((rawSet, get) => {
   },
   });
 });
+
+// BOARD STRENGTH FALLBACK (R-PERF-SIM-WORKER-01): boards are scored in the sim worker. Where there is none they are
+// scored on this thread in idle time, and never in a forced slice while a fight is playing.
+setStrengthHold(() => useGame.getState().run?.phase === 'combat');
 
 // The autosave writes at turn boundaries (see `dispatch`), so leaving mid-turn needs an explicit flush or the
 // shop turn in progress would roll back on Continue. Two events, deliberately both:

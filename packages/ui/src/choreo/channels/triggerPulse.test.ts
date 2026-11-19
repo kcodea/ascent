@@ -52,6 +52,14 @@ describe('triggerPulseScan (R-FX-TRIGGER-STOCK-01)', () => {
     expect(scan([ev({ type: 'death', target: 'AVG' })], bound('avenge', 'echo')).pulse).toEqual(['AVG']);
   });
 
+  it('a Rally\'s own consequences do not re-pulse a rallier whose Rally has an effect (Crownvein)', () => {
+    const gain = ev({ type: 'sc', source: 'SOC', srcCard: 'c_soc', key: 'factory:rallyRubyStatGain:onAttack', text: '+1/+2 Ruby Power' });
+    expect(scan([gain]).pulse).toEqual(['SOC']);
+    const r = scan([gain], bound('rally'));
+    expect(r.fired).toEqual(['SOC']);
+    expect(r.pulse).toEqual([]);
+  });
+
   it('an Ancient grant\'s origin body, a shout and a hero-power grant keep their old handling', () => {
     const r = scan([
       ev({ type: 'buff', target: 'x', attack: 1, health: 1, source: 'SOC', from: 'PLAIN', key: 'factory:a:startOfCombat' }),

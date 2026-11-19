@@ -1,7 +1,7 @@
 import type { CombatEvent } from '@game/core';
 
 /** The triggers whose medallion pulse an effect can replace in the per-beat scan. */
-export type PulseTrigger = 'startOfCombat' | 'avenge' | 'echo';
+export type PulseTrigger = 'startOfCombat' | 'avenge' | 'echo' | 'rally';
 
 export interface TriggerPulseScan {
   /** Every unit whose effect fired in this beat, first-seen order: they all keep their trigger SOUND. */
@@ -21,8 +21,8 @@ export interface TriggerPulseScan {
  * paths.
  *
  * What is new is the REASON each event gives. The simulator stamps `key: 'factory:<do>:<on>'` and `avenge: true` on
- * the events an effect emits, so a Start of Combat, an Avenge and an Echo can be told apart from "some effect
- * fired". A unit's pulse is dropped only when EVERY reason it fired for has an effect (`hasFx`): a body that fires
+ * the events an effect emits, so a Start of Combat, an Avenge, an Echo and a Rally's own consequences can be told
+ * apart from "some effect fired". A unit's pulse is dropped only when EVERY reason it fired for has an effect (`hasFx`): a body that fires
  * its Start of Combat and also buffs for an unrelated reason in the same beat still pulses. A reason is attributed
  * only when the event's `srcCard` is that unit's own card, so a buff a rune or another card caused never counts as
  * this unit's trigger.
@@ -48,6 +48,11 @@ export function triggerPulseScan(
     if (typeof e.key === 'string') {
       if (e.key.endsWith(':startOfCombat')) return 'startOfCombat';
       if (e.key.endsWith(':onDeath')) return 'echo';
+      // A Rally's OWN consequences (Crownvein's Ruby Power gain, a rally buff): the yellow pulse comes from the lunge,
+      // but these events also named the rallier as an acting unit and pulsed it a second time, on top of its effect
+      // (owner 2026-11-19: "i also see it on rally with crownvein"). `hasFx` answers for Rally cards only, so an
+      // ally-attack Watcher (also `onAttack`) is unaffected.
+      if (e.key.endsWith(':onAttack')) return 'rally';
     }
     return 'other';
   };

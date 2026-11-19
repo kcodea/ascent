@@ -62,6 +62,15 @@ export const PATCH_NOTES: PatchNote[] = [
       { category: 'Systems', text: 'Settings, Account now shows your name and tag (like Name#1234) with a Copy button, so you can share it with friends.' },
       {
         category: 'Systems',
+        text: 'A Gilded minion now keeps the progress its copies had. A Billings at 9/10 Gold spent stays at 9/10 when it is Gilded.',
+        details: [
+          'The Gilded minion starts at the furthest progress of the copies that combined. It used to start again from 0.',
+          'This covers every counter under a minion: Gold spent, cards bought, cards played, minions sold, spells and Rubies cast, Shouts, Orbits, Refreshes and Spirits played.',
+          'Combining never pays the effect out. The next step pays it as normal.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Mech and Spirit have new tribe colors that match the gems on their card frames.',
         details: [
           'Mech is now indigo instead of sky blue.',

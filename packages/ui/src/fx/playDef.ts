@@ -21,6 +21,7 @@ import { stageScale } from '../stage';
 import type { FxHeadSink } from './anchors';
 import { recolorDef } from './recolorDef';
 import { holdStat, revealStat } from './statHold';
+import { rapidPlay } from './rapidPlay';
 import { PHONE_GPU } from '../phoneDiag';
 import { FX_LEDGER_ON, fxNote, fxOutcome, fxRequest, rendererContextLost } from '../fxLedger';
 
@@ -658,6 +659,18 @@ function playDefInner(
     };
   }
 
+  // RAPID SHOP INPUT (R-PERF-APM-01, `rapidPlay.ts`): while the player acts three or more times a second, a one-shot
+  // play with no key of its own is keyed by its recipient (a card carries one copy of an effect, not one per action)
+  // and plays in step with the input: faster and with fewer particles, so the load of a fast turn stays about that of
+  // a slow one. Never a play the caller sequences on (`onDone`) or owns (a loop, a follow). `null` at normal speed.
+  const rapid = opts.dedupeKey === undefined && opts.onDone === undefined && opts.loop !== true && opts.follow === undefined && stored.followSource !== true
+    ? rapidPlay({ uids: opts.uids, target: anchors.target, source: anchors.source })
+    : null;
+  if (rapid && (rapid.intensity < 1 || rapid.speed > 1)) {
+    const base = opts.speed !== undefined && Number.isFinite(opts.speed) && opts.speed > 0 ? opts.speed : 1;
+    opts = { ...opts, intensity: (opts.intensity ?? 1) * rapid.intensity, speed: base * rapid.speed };
+  }
+
   // Per-call sizing, applied AFTER `getDef` — `scaleDef` reads the primitive registry, and nothing may do
   // that before `playDef`'s own `canPlayDefs()`-gated path (see `fxDefs.ts`'s ORDER MATTERS note). With both
   // axes at their default 1 this returns `playableDef`'s object by identity: an exact no-op.
@@ -689,8 +702,10 @@ function playDefInner(
     }
   }
   const admissionLoad = expectedLoad(shared);
+  // (`playKey`: the caller's own `dedupeKey`, or the rapid-input one from above.)
+  const playKey = opts.dedupeKey ?? rapid?.key;
   const admission = admit(id, admissionLoad, {
-    thinnable: !persistent, key: opts.dedupeKey, coalesceMs: opts.coalesceMs, authoredScale: opts.intensity,
+    thinnable: !persistent, key: playKey, coalesceMs: opts.dedupeKey === undefined && rapid?.key !== undefined ? rapid.coalesceMs : opts.coalesceMs, authoredScale: opts.intensity,
   });
   // Deduped (`opts.dedupeKey`): the same moment is already playing on this key, so nothing new spawns.
   if (admission.skip) {
@@ -780,7 +795,7 @@ function playDefInner(
   unregisterPlay = registerLivePlay({
     id, load, retire, protected: opts.loop === true || follow !== undefined || opts.onDone !== undefined,
     persistent: opts.loop === true || follow !== undefined,
-    bornAt: performance.now(), rampMs: rampMsOf(def), key: opts.dedupeKey,
+    bornAt: performance.now(), rampMs: rampMsOf(def), key: playKey,
   });
 
   // `fx:def:<id>` — the def's PER-FRAME cost (its layers' sims + filter retunes), as distinct from the spawn

@@ -39,7 +39,7 @@ import {
 } from '../reactTargets';
 import { EASES, EASE_IDS, amplitudeAt, keyframesFor } from '../reactMotion';
 import { claimStat, releaseStat, revealStat } from '../statHold';
-import { claimPopSlot, type PopSlot } from '../popStack';
+import { claimPopSlot, noteScheduledPop, type PopSlot } from '../popStack';
 
 
 const SPECS = {
@@ -260,6 +260,8 @@ class ReactInstance implements FxInstance<ReactParams> {
         // reaction in Chrome.
         const anim = el.animate(frames, { duration: p.hold, fill: 'none', composite: 'add' });
         anim.pause(); // the player owns the clock — see the module header
+        // Seen by `Card`'s number pop before its slot is claimed, so that pop stays additive over it (R-PERF-BADGE-POP-01).
+        noteScheduledPop(el, anim);
         const whole = p.part === 'card' ? el : null;
         if (whole) claimPop(whole);
         this.beats.push({ anim, at: land.at, duration: p.hold, last: Number.NaN, claimed: whole, el, slot: null });

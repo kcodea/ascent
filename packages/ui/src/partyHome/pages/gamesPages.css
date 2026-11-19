@@ -141,7 +141,10 @@
 .rgp-none, .rgp-board .cv2-row-none { padding: calc(40 * var(--phu)) 0; text-align: center; font-size: var(--ph-t2); color: var(--ph-muted); }
 /* A menu board's card FX stay still until pointed at; the Reborn wisps never run here (the classic page's measured rule). */
 .rgp-board .cv2-team .wisp, .rgp-board .cv2-team .reborn-dome { animation-play-state: paused !important; }
-.rgp-board:not(:hover) .cv2-team *, .rgp-board:not(:hover) .cv2-team *::before, .rgp-board:not(:hover) .cv2-team *::after { animation-play-state: paused !important; }
+/* `[data-pointed]` (pointedBoard.ts), not `:hover`: a universal subject behind `:hover` restyles every hovered card in a game (R-PERF-HOVER-SUBJECT-01). */
+@media (hover: hover) {
+  .rgp-board:not([data-pointed]) .cv2-team *, .rgp-board:not([data-pointed]) .cv2-team *::before, .rgp-board:not([data-pointed]) .cv2-team *::after { animation-play-state: paused !important; }
+}
 .rgp-runes { display: flex; justify-content: center; min-width: 0; padding-top: calc(8 * var(--phu)); }
 .rgp-runes .cv2-runes, .rgp-runes .lb-runes { display: flex; flex-wrap: wrap; justify-content: center; gap: calc(8 * var(--phu)); }
 .rgp-runes .cv2-rune, .rgp-runes .lb-rune { display: inline-flex; align-items: center; gap: calc(8 * var(--phu)); padding: calc(4 * var(--phu)) calc(16 * var(--phu)) calc(4 * var(--phu)) calc(4 * var(--phu)); border: 0; 

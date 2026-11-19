@@ -51,3 +51,38 @@ export function claimPopSlot(el: object, anim: Cancellable): PopSlot {
 export function livePopCount(el: object): number {
   return live.get(el)?.size ?? 0;
 }
+
+/** The bit of WAAPI's `Animation` `popsOn` reads off a scheduled pop. */
+export interface ScheduledPop { readonly effect: { getComputedTiming(): { progress?: number | null } } | null }
+
+/**
+ * Pops CREATED on an element but not claimed yet: the `react` layer builds its additive pops paused, ahead of the
+ * moment they land, and claims a slot only once its clock reaches them. Kept so `popsOn` sees them.
+ */
+const scheduled = new WeakMap<object, Set<ScheduledPop>>();
+
+/** Note an additive pop built on `el` that will play later (the `react` layer, R-PERF-BADGE-POP-01). */
+export function noteScheduledPop(el: object, anim: ScheduledPop): void {
+  let set = scheduled.get(el);
+  if (!set) { set = new Set(); scheduled.set(el, set); }
+  set.add(anim);
+}
+
+/**
+ * Is any other scale pop on `el` playing or still to play (R-PERF-BADGE-POP-01)? A claimed pop counts, and so does a
+ * scheduled one whose effect is still inside its active interval (paused at its start counts; finished or
+ * cancelled does not, and is dropped here). `Card`'s number pop runs in the replace mode, on the compositor, only
+ * when this is false, so an authored pop built earlier on the same badge is never covered by it.
+ */
+export function popsOn(el: object): boolean {
+  if ((live.get(el)?.size ?? 0) > 0) return true;
+  const set = scheduled.get(el);
+  if (!set) return false;
+  let any = false;
+  for (const a of set) {
+    const p = a.effect?.getComputedTiming().progress;
+    if (p === null || p === undefined) set.delete(a);
+    else any = true;
+  }
+  return any;
+}

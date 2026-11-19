@@ -236,6 +236,7 @@ import { AncientOfferOverlay } from './ancients/AncientOffer';
 import { playGildTrail } from './gildTrail';
 import { commitSlidePlan } from './rowSlides';
 import { resolveGildSources, snapshotGildCandidates, type GildSnap, type Pt } from './gildTrailSources';
+import { slideHome } from './rowSlide';
 import { playBuySlide, type BuyFrom } from './buySlide';
 import { clearHandSummonFx, isHandSummonInFlight, launchHandSummonFlights, playerGrantUidsOf, setPlayerGrantUids, shopHandSummonFlights } from './handSummonFx';
 import { fireBuffFx, playRuneBuffTrail } from './buffFxRender';
@@ -10340,7 +10341,7 @@ const RowFlip = memo(function RowFlip({ rowsKey, shopFxSeq, shopDeathFx, findEl,
       // commit branch never runs mid-drag, the drop's own commit lands in the `handPlaySnapRef` branch, and a
       // drag that ends in a snap-back changed no layout at all.
       commitLefts = new Map(
-        gsap.utils.toArray<HTMLElement>(FLIP_SELECTOR).map((el) => [el.dataset.uid ?? '', el.offsetLeft]),
+        Array.from(document.querySelectorAll<HTMLElement>(FLIP_SELECTOR), (el) => [el.dataset.uid ?? '', el.offsetLeft]),
       );
     });
     perfMonitor.measure('layout:flip:write', () => {
@@ -10354,7 +10355,7 @@ const RowFlip = memo(function RowFlip({ rowsKey, shopFxSeq, shopDeathFx, findEl,
        * triple empties copies out of the warband, and a played minion's Shout can take a card out of the shop.
        */
       const slideFromSweep = (dropSel: string | null): void => {
-        const all = gsap.utils.toArray<HTMLElement>(FLIP_SELECTOR);
+        const all = Array.from(document.querySelectorAll<HTMLElement>(FLIP_SELECTOR));
         const inDrop = (el: HTMLElement): boolean => dropSel !== null && el.matches(dropSel);
         const moved = commitLefts ? commitFlipDeltas(commitRectsRef.current, { key: rowsKey, lefts: commitLefts }) : new Map<string, number>();
         const plan = commitSlidePlan(
@@ -10364,38 +10365,24 @@ const RowFlip = memo(function RowFlip({ rowsKey, shopFxSeq, shopDeathFx, findEl,
         );
         if (plan.length === 0) return;
         const deltas = new Map(plan.map((p) => [p.uid, p.delta]));
-        const pool = all.filter((el) => !inDrop(el));
-        gsap.set(pool, { transition: 'none' });
-        // ONE multi-target tween, not a tween per card (desktop jank pass 2026-10-18, R-PERF-FLIP-BATCH-01). GSAP
-        // reads each target's computed transform when a tween initialises (`clearProps` drops its cache every
-        // slide), and a per-card `fromTo` interleaved that read with the previous card's transform WRITE: a forced
-        // style recalc per moved card (`layout:flip:write`, worst 21.7 ms in the owner's 240 Hz capture). A
-        // multi-target tween initialises every target first (all reads) and renders after (all writes). Same
-        // values, same ease, same duration, same per-card clearProps: one recalc.
+        // THE SLIDE IS A COMPOSITOR ANIMATION (R-PERF-ROW-SLIDE-01, rowSlide.ts), not a GSAP tween. A tween wrote each
+        // moved card's `transform` every frame for 200 ms, and a script write on a layer makes the main thread rebuild
+        // the page's layer list that frame (0.6 ms, on 83% of the frames of a four-actions-a-second turn). `slideHome`
+        // animates `translate` with the same curve, duration and death hold: no per-frame script, style or layer work,
+        // no computed-transform read at start (R-PERF-FLIP-BATCH-01's forced recalc is gone with the tween), and no
+        // card's `transition` has to be killed, because nothing writes its `transform`.
         const movers: HTMLElement[] = [];
         const moverDeltas: number[] = [];
-        for (const el of pool) {
+        for (const el of all) {
+          if (inDrop(el)) continue;
           const delta = deltas.get(el.dataset.uid ?? '');
-          if (delta === undefined) {
-            el.style.transition = ''; // unmoved (or new) card — restore base
-            continue;
-          }
+          if (delta === undefined) continue; // unmoved (or new) card
           movers.push(el);
           moverDeltas.push(delta);
         }
-        if (movers.length > 0) {
-          gsap.fromTo(
-            movers,
-            { x: (i: number) => moverDeltas[i] ?? 0 },
-            {
-              x: 0, duration: flipCfg.commitMs / 1000, ease: 'power2.out', clearProps: 'transform,transition',
-              // A DEATH holds the row still for a beat first (owner 2026-08-28) — the survivors seed at their
-              // old offsets and simply wait there, so the gap stays open under the animation playing over it.
-              // Zero for every other commit, which is `gsap`'s default and the behaviour this always had.
-              ...(shiftHold > 0 ? { delay: shiftHold / 1000 } : {}),
-            },
-          );
-        }
+        // A DEATH holds the row still for a beat first (owner 2026-08-28) — the survivors stand at their old offsets
+        // and simply wait there, so the gap stays open under the animation playing over it. Zero for every other commit.
+        slideHome(movers, moverDeltas, flipCfg.commitMs, shiftHold > 0 ? shiftHold : 0);
       };
       if (draggingNow) {
         // The PRE-EMPTIVE slide: as the drag crosses a slot boundary, the drop slot moves and the cards glide to
@@ -10426,8 +10413,8 @@ const RowFlip = memo(function RowFlip({ rowsKey, shopFxSeq, shopDeathFx, findEl,
         handFlipRef.current = null;
         const sel = handFlipSelRef.current ?? '[data-zone="warband"] .row .card[data-uid]';
         handFlipSelRef.current = null;
-        const targets = gsap.utils.toArray<HTMLElement>(sel);
-        gsap.set(targets, { transition: 'none' });
+        const targets = Array.from(document.querySelectorAll<HTMLElement>(sel));
+        for (const el of targets) el.style.transition = 'none';
         void document.body.offsetWidth; // reflow so transform:0 is the instant baseline (no rebound)
         // READ every card's rect FIRST, then write (R-PERF-FLIP-BATCH-01). The loop used to read a rect, then write
         // that card's transition / tween, then read the next rect: every read after a write forced a fresh style
@@ -10444,14 +10431,12 @@ const RowFlip = memo(function RowFlip({ rowsKey, shopFxSeq, shopDeathFx, findEl,
           if (Math.abs(delta) < 0.5) settled.push(el); // static card (or the new one)
           else { movers.push(el); moverDeltas.push(delta); }
         }
-        for (const el of settled) el.style.transition = ''; // restore its base transition
-        if (movers.length > 0) {
-          gsap.fromTo(
-            movers,
-            { x: (i: number) => moverDeltas[i] ?? 0 },
-            { x: 0, duration: flipCfg.commitMs / 1000, ease: 'power2.out', clearProps: 'transform,transition' },
-          );
-        }
+        // Every card gets its base transition back at once: the reflow above already applied the cleared slides
+        // instantly, and the neighbours' glide animates `translate` on the compositor (R-PERF-ROW-SLIDE-01,
+        // rowSlide.ts), which the `transform` transition does not touch.
+        for (const el of settled) el.style.transition = '';
+        for (const el of movers) el.style.transition = '';
+        slideHome(movers, moverDeltas, flipCfg.commitMs);
         // The dragged card itself now sits at its committed slot (excluded from the FLIP above). Slide IT the
         // last stretch from where you released it — same motion as a buy, 30% faster. WAAPI transform, so it
         // doesn't fight the neighbours' GSAP x-tween. Runs here (not a separate effect) to guarantee it fires

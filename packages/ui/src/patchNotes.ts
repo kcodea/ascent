@@ -69,6 +69,11 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'Buying, playing and selling in the Shop costs less work per move, so a fast turn on a big board stays smoother.',
+        details: ['Nothing looks or plays different.'],
+      },
+      {
+        category: 'Systems',
         text: 'Fast turns stay smoother. Buying or playing a card no longer redraws your whole hand.',
         details: [
           'Each card in your hand is now drawn once and then only moved.',

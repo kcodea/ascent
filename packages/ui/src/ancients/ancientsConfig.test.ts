@@ -8,9 +8,9 @@ describe('the Ancients tuner defaults', () => {
   it('carry the owner-baked screen colours, cue gains and reveal style', () => {
     expect(ANCIENTS_DEFAULTS).toMatchObject({
       curtainInner: '#247067', curtainOuter: '#0a0618', seamColor: '#fff1bd', titleGlow: '#9effd5', backdropTint: '#060d0f',
-      pickSealGain: 0.62,
+      pickSealGain: 0.46, // the owner's mix by ear (2026-11-19)
       // the reveal's sound, a magic reveal not a slam (owner 2026-09-27)
-      revealSparkClip: 'triggerglow', revealSparkGain: 0.22, revealSparkRate: 1.15, cardRevealClip: 'equipmentsheen', cardRevealGain: 0.3, cardRevealRate: 1,
+      revealSparkClip: 'triggerglow', revealSparkGain: 0.37, revealSparkRate: 1.15, cardRevealClip: 'equipmentsheen', cardRevealGain: 0.24, cardRevealRate: 1,
       revealStyle: 'burst', // the spark reveal (owner 2026-09-27): burst | seam | bloom
       sparkMs: 280, materialiseMs: 380, sideDelayMs: 120, sideStaggerMs: 90, overexposeMs: 520, burstRing: 1.3,
       hpDustLife: 0.45, dustAmount: 1, dustSize: 1, dustLife: 1, dustOpacity: 0.85, slamSparks: 1,

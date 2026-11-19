@@ -116,8 +116,10 @@ describe('the card plate a card wears', () => {
     expect(css).toMatch(/\.inspect-ov:has\(\.plate-frosted\) \{ animation: none; \}/);
     // ...and in the shop's hover reveal and the cast preview (owner 2026-10-19: "hovering a card in shop, the blur and grey
     // isnt applied"): their haze filter moves off the popup, and the reveal slides in without an opacity fade.
-    expect(css).toMatch(/\.cardref:has\(\.plate-frosted\), \.castprev:has\(\.plate-frosted\) \{ filter: none; \}/);
-    expect(css).toMatch(/\.cardref:has\(\.plate-frosted\) \{ animation-name: cardrefin-glass; \}/);
+    // The popup's haze sits on `.cardref-shadow` since R-PERF-HOVER-SHADOW-01 (the bob no longer re-blurs it): that is the
+    // box a glass card switches off.
+    expect(css).toMatch(/\.cardref:has\(\.plate-frosted\) \.cardref-shadow, \.castprev:has\(\.plate-frosted\) \{ filter: none; \}/);
+    expect(css).toMatch(/\.cardref:has\(\.plate-frosted\) \{ animation-name: cardrefin-glass, cardreffloat; \}/); // the slide-in swaps, the bob stays
     const refIn = css.slice(css.indexOf('@keyframes cardrefin-glass'));
     expect(refIn.slice(0, refIn.indexOf('} }'))).not.toMatch(/opacity/);
     // No fade on the way in at all (owner 2026-10-19: "theres a brief mooment that it takes before it loads the blur when

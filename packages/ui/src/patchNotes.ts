@@ -177,6 +177,15 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       { category: 'Systems', text: 'When an Ancient awakens, you can now Peek at the board before you choose, like a Discover. Press Return to Ancients to bring the choice back.' },
       { category: 'Systems', text: 'The Ancient choice now sits on the same dark backdrop as the Runeforge, so the Ancients stand out from the board.' },
+      {
+        category: 'Systems',
+        text: 'Reverb sounds, hovering a card and damage numbers all cost less. They look and sound the same.',
+        details: [
+          'Sounds with reverb now share a few reverb units, so a busy late turn no longer piles them up.',
+          'The soft glow around a hovered card is no longer redrawn on every frame.',
+          'The shadow under a damage number is no longer redrawn on every frame.',
+        ],
+      },
     ],
   },
   {

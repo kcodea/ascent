@@ -49,7 +49,6 @@ const CUE_NAMES: Record<AncientCue, [string, string]> = {
   panelSlide: ['Ancient slides in', 'Each Ancient sliding up into place: six stone slides, one per Ancient (▶ steps through them).'],
   panelSlam: ['Ancient slams in', 'Each of the six Ancients landing (pitched down a step per pair).'],
   pickPulse: ['Three chosen', 'The three on offer rattling while their edges and outlines pulse.'],
-  titleSting: ['Title sting', '"An Ancient Awakens" popping in on the select screen.'],
   revealSpark: ['Card spark', 'The point of light gathering before each card appears.'],
   cardReveal: ['Card appears', 'Each card bursting out of its spark.'],
   ambientHum: ['Select screen hum', 'The quiet hum under the select screen (it loops in the game; ▶ plays it once).'],

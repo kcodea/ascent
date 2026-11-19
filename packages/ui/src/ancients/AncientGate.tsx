@@ -26,7 +26,7 @@ import { stageHost, toStage } from '../stage';
  *             (`AncientPanels`, owner 2026-11-18): each Ancient's background slides in as a tall slanted panel, the
  *             Ancient follows and slams, the offered three rattle with lit, pulsing edges and the other three fall
  *             away. The gate's `title` beat is the moment all six are in; it shows no title.
- *   REVEAL    the three settle onto their cards on the select screen, "An Ancient Awakens" pops in (`titleSting`) and
+ *   REVEAL    the three settle onto their cards on the select screen, "An Ancient Awakens" pops in (silently: its sting was removed, owner 2026-11-19) and
  *             the offer runs its OWN emergence (`AncientOffer`: one Ancient at a time out of a flash of its colour,
  *             `cardReveal` each).
  *   SETTLED   drifting motes behind the cards and a quiet hum under the (still ducked) music (`ambientHum`).
@@ -137,7 +137,7 @@ export const AncientGate = memo(function AncientGate({ run }: { run: RunState })
     setPanels(seq > 0 && offerRef.current?.length ? [...offerRef.current] : demoOffer?.length ? demoOffer : DEMO_OFFER);
     duckForAwakening(true);
     if (fromReveal || prefersReducedMotion()) {
-      if (prefersReducedMotion() && !fromReveal) { playCue('eruptionBoom'); playCue('titleSting', 200); }
+      if (prefersReducedMotion() && !fromReveal) { playCue('eruptionBoom'); }
       toReveal(seq);
       return;
     }
@@ -164,7 +164,7 @@ export const AncientGate = memo(function AncientGate({ run }: { run: RunState })
     // the select screen (owner 2026-11-18). The `title` beat is the moment all six are in.
     const tl = panelTimeline(c);
     timers.current.push(window.setTimeout(() => go('title', seq), c.omenMs + tl.allIn));
-    timers.current.push(window.setTimeout(() => { playCue('titleSting'); toReveal(seq); }, c.omenMs + tl.revealAt));
+    timers.current.push(window.setTimeout(() => { toReveal(seq); }, c.omenMs + tl.revealAt));
   }, [go, toReveal]);
 
   // While the awakening is up, the page is in its modal layering (`.app`'s stacking context dissolved, as every Discover

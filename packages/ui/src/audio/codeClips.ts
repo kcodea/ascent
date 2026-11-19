@@ -34,7 +34,6 @@ export const CODE_FX_CLIPS: readonly string[] = [
   'fx/triple-impact',
   'fx/universfield-cinematic-swoosh-impact-454392',
   'fx/universfield-ground-impact-352053',
-  'fx/waking-rift',
   'fx/whoosh-03',
 ];
 

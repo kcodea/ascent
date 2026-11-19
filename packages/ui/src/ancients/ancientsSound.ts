@@ -10,6 +10,13 @@ import { ANCIENT_CUES, getAncientsConfig, type AncientCue } from './ancientsConf
  */
 const BUS = 'hero' as const;
 
+/** The six stone slides, one per Ancient in panel order (owner 2026-11-19: "use each one for each ancient sliding in").
+ *  Literal ids so the phone pre-decode scan (`audio/codeClips.ts`) finds them. */
+export const PANEL_SLIDE_CLIPS = [
+  'fx/ancient-stone-slide-1', 'fx/ancient-stone-slide-2', 'fx/ancient-stone-slide-3',
+  'fx/ancient-stone-slide-4', 'fx/ancient-stone-slide-5', 'fx/ancient-stone-slide-6',
+] as const;
+
 /** Decode every cue's clip ahead of the moment (a silent play kicks the decode), so the first awakening is not
  *  missing its first sounds. */
 export function warmAncientCues(): void {
@@ -18,12 +25,16 @@ export function warmAncientCues(): void {
     const clip = c[`${cue}Clip`];
     if (clip) playFxSound(clip, { gain: 0, bus: BUS })?.stop(0);
   }
+  for (const clip of PANEL_SLIDE_CLIPS) playFxSound(clip, { gain: 0, bus: BUS })?.stop(0);
 }
 
 /** Play `cue` at its tuner offset (+ `extraDelayMs`). Retries once if the clip is still decoding. */
-export function playCue(cue: AncientCue, extraDelayMs = 0, opts: { loop?: boolean; rateMul?: number; fadeInMs?: number } = {}): { stop: (fadeMs?: number) => void } {
+export function playCue(cue: AncientCue, extraDelayMs = 0, opts: { loop?: boolean; rateMul?: number; fadeInMs?: number; variant?: number } = {}): { stop: (fadeMs?: number) => void } {
   const c = getAncientsConfig() as unknown as Record<string, string | number>;
-  const clip = String(c[`${cue}Clip`] ?? '');
+  let clip = String(c[`${cue}Clip`] ?? '');
+  // `variant` picks one of a cue's own set of clips (the stone slides, one per Ancient) while the slot's clip is the
+  // shipped first of the set; a clip typed into the tuner replaces all of them.
+  if (cue === 'panelSlide' && opts.variant !== undefined && clip === PANEL_SLIDE_CLIPS[0]) clip = PANEL_SLIDE_CLIPS[opts.variant % PANEL_SLIDE_CLIPS.length]!;
   const gain = Number(c[`${cue}Gain`] ?? 0);
   const rate = Number(c[`${cue}Rate`] ?? 1) * (opts.rateMul ?? 1);
   const delayMs = Math.max(0, Number(c[`${cue}Offset`] ?? 0) + extraDelayMs);
@@ -41,9 +52,10 @@ export function playCue(cue: AncientCue, extraDelayMs = 0, opts: { loop?: boolea
 /** AUDITION a cue from the tuner (the ▶ beside its gain; owner 2026-11-19: "a play button next to every sound
 currently in use"): the cue once, with its live clip, gain and pitch, never looped. A second press cuts the first. */
 let audition: { stop: (fadeMs?: number) => void } | null = null;
+let auditionN = 0;
 export function auditionCue(cue: AncientCue): void {
   audition?.stop(60);
-  audition = playCue(cue);
+  audition = playCue(cue, 0, cue === 'panelSlide' ? { variant: auditionN++ } : {}); // each press steps through the six slides
 }
 
 /** Duck the music and every other sound bus for the awakening; `duck(false)` restores them. */

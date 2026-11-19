@@ -12,6 +12,15 @@
  */
 export const CODE_FX_CLIPS: readonly string[] = [
   'fx/alexis_gaming_cam-woosh-long-cartoon-370386',
+  'fx/ancient-explosion-swoosh',
+  'fx/ancient-hp-explosion',
+  'fx/ancient-slam',
+  'fx/ancient-stone-slide-1',
+  'fx/ancient-stone-slide-2',
+  'fx/ancient-stone-slide-3',
+  'fx/ancient-stone-slide-4',
+  'fx/ancient-stone-slide-5',
+  'fx/ancient-stone-slide-6',
   'fx/djartmusic-christmas-sparkle-whoosh-1-275404',
   'fx/duos-drop-whoosh',
   'fx/duos-land',

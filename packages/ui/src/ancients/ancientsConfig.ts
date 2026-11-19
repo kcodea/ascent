@@ -208,14 +208,15 @@ const ART_DEFAULTS = Object.fromEntries(
 export type AncientColorKey = `${'death' | 'fortune' | 'war' | 'genesis' | 'time' | 'bonds'}Color`;
 /** THE AWAKENING SOUND CUES (owner: "i can help source sounds if you set up a tuner with timing cues"). Each cue is a
  *  clip id (swap in the owner's SFX in the tuner), a gain, an offset (ms, relative to its beat) and a rate (pitch). */
-export const ANCIENT_CUES = ['omenRumble', 'eruptionBoom', 'eruptionFlash', 'titleSting', 'revealSpark', 'cardReveal', 'ambientHum', 'pickWoosh', 'pickSeal', 'panelBg', 'panelSlam'] as const;
+export const ANCIENT_CUES = ['omenRumble', 'eruptionBoom', 'eruptionFlash', 'titleSting', 'revealSpark', 'cardReveal', 'ambientHum', 'pickWoosh', 'pickSeal', 'panelBg', 'panelSlide', 'panelSlam'] as const;
 export type AncientCue = (typeof ANCIENT_CUES)[number];
 export type AncientCueKey = `${AncientCue}${'Clip' | 'Gain' | 'Offset' | 'Rate'}`;
 /** The shipped picks (existing repo clips, pitched where it helps). Gains baked from the owner's tuner 2026-09-26. */
 export const ANCIENT_CUE_DEFAULTS: Record<AncientCue, { clip: string; gain: number; offset: number; rate: number }> = {
   omenRumble: { clip: 'turncharge', gain: 0.7, offset: 0, rate: 0.62 },
-  eruptionBoom: { clip: 'fx/universfield-ground-impact-352053', gain: 0.9, offset: 0, rate: 0.82 },
-  eruptionFlash: { clip: 'fx/universfield-cinematic-swoosh-impact-454392', gain: 0.6, offset: 40, rate: 0.9 },
+  // The explosion (owner 2026-11-19): his own two clips, made for this moment, so they play at their own pitch.
+  eruptionBoom: { clip: 'fx/ancient-hp-explosion', gain: 0.9, offset: 0, rate: 1 },
+  eruptionFlash: { clip: 'fx/ancient-explosion-swoosh', gain: 0.6, offset: 40, rate: 1 },
   titleSting: { clip: 'fx/waking-rift', gain: 0.75, offset: 60, rate: 1 },
   // The reveal, re-scored as MAGIC not impact (owner 2026-09-27: "a bit less BOOMING"): the trigger glow rising as
   // each spark gathers, and the equipment sheen (the Good Luck shine's clip) as it blooms. Was `runeselectimplosion`.
@@ -229,7 +230,12 @@ export const ANCIENT_CUE_DEFAULTS: Record<AncientCue, { clip: string; gain: numb
   // The panels (2026-11-18): placeholders from clips already in the repo, for the owner to swap. One whoosh per
   // background (pitched up a step each pair), one slam per Ancient.
   panelBg: { clip: 'triggerglow', gain: 0.16, offset: 0, rate: 1.5 },
-  panelSlam: { clip: 'fx/universfield-ground-impact-352053', gain: 0.42, offset: 0, rate: 1.3 },
+  // Each Ancient sliding in (owner 2026-11-19): six stone slides, one per Ancient (`PANEL_SLIDE_CLIPS`, ancientsSound.ts),
+  // each a take of "sliding stone 1" layered with a take of "sliding stone 2" and time-compressed to the slide's length.
+  // This slot's clip is the first of the six; while it is left as shipped, each Ancient plays its own.
+  panelSlide: { clip: 'fx/ancient-stone-slide-1', gain: 0.55, offset: 0, rate: 1 },
+  // Each Ancient slamming in (owner 2026-11-19): two cinematic booms layered into one clip.
+  panelSlam: { clip: 'fx/ancient-slam', gain: 0.5, offset: 0, rate: 1 },
 };
 const CUE_DEFAULTS = Object.fromEntries(ANCIENT_CUES.flatMap((c) => {
   const d = ANCIENT_CUE_DEFAULTS[c];
@@ -421,9 +427,13 @@ export const ANCIENTS_RANGES: Record<NumKey, [number, number, number]> = {
 
 const KEY = 'ascent.ancients';
 const REV_KEY = 'ascent.ancients.rev';
-const REV = 4;
-/** The defaults retuned at `REV` (see the loader). */
-const RETUNED = ['splitMs', 'shineMs', 'crackOpenMs', 'revealDelayMs', 'beatGapMs', 'hitStopMs', 'burstScale', 'trailTime', 'trailIntensity', 'revealStyle', 'landFlash', 'cardRevealClip', 'cardRevealGain', 'cardRevealRate', 'cardRevealOffset'];
+const REV = 5;
+/** The defaults retuned at each revision (see the loader): a save older than a revision takes that revision's keys
+ *  from the new defaults and keeps everything else. Rev 5 (2026-11-19): the owner's new explosion and slam clips. */
+const RETUNED_AT: Record<number, readonly string[]> = {
+  4: ['splitMs', 'shineMs', 'crackOpenMs', 'revealDelayMs', 'beatGapMs', 'hitStopMs', 'burstScale', 'trailTime', 'trailIntensity', 'revealStyle', 'landFlash', 'cardRevealClip', 'cardRevealGain', 'cardRevealRate', 'cardRevealOffset'],
+  5: ['eruptionBoomClip', 'eruptionBoomRate', 'eruptionFlashClip', 'eruptionFlashRate', 'panelSlamClip', 'panelSlamGain', 'panelSlamRate'],
+};
 let cfg: AncientsFullConfig = (() => {
   if (!import.meta.env.DEV) return { ...ANCIENTS_DEFAULTS };
   try {
@@ -435,7 +445,10 @@ let cfg: AncientsFullConfig = (() => {
     // reveal's magic re-score (a save stamped rev 3 before the re-score kept the old `runeselectimplosion` boom).
     let rev = 0;
     try { rev = Number(localStorage.getItem(REV_KEY) ?? 0); } catch { /* ignore */ }
-    if (rev < REV) { for (const k of RETUNED) delete s[k]; try { localStorage.setItem(REV_KEY, String(REV)); } catch { /* ignore */ } }
+    if (rev < REV) {
+      for (const [at, keys] of Object.entries(RETUNED_AT)) if (rev < Number(at)) for (const k of keys) delete s[k];
+      try { localStorage.setItem(REV_KEY, String(REV)); } catch { /* ignore */ }
+    }
     for (const k of ['closeMs', 'pickLiftMs', 'pickFlightMs', 'beat1Ms', 'beatGapMs', 'beat2Ms', 'slamStrength', 'slamDust', 'gatherMs', 'cardStaggerMs', 'cardRevealMs', 'eruptionMs', 'seamGlow', 'titleHoldMs', 'revealFadeMs', 'handoffMs', 'gateStyle', 'tunerStyle', 'panelToCardMs']) delete s[k]; // retired keys (the last seven: the curtain, deleted 2026-11-19)
     if (typeof s.revealStyle !== 'string') delete s.revealStyle;
     return { ...ANCIENTS_DEFAULTS, ...(s as Partial<AncientsFullConfig>) };

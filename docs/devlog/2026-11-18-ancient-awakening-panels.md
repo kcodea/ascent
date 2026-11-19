@@ -104,3 +104,19 @@ about their bottom edge.
   converter crops each to its art and the panel shows it at its natural shape, on the bottom edge, 1.5 strips wide and
   uncut. Converter scripts live in the session scratchpad, not the repo: black to alpha is `a = clamp((max(r,g,b) - 10)
   * 255 / 200)` with the colour un-multiplied, then a bounding-box crop on alpha > 24 with 10 px of padding.
+
+## 2026-11-19: sound
+
+- **The opening rumble was inaudible.** `omenRumble` is the 21 s turn-charge clip slowed to 0.62; the omen lasts 0.85 s,
+  so only the clip's first half second ever played, which measures -61 to -49 dB at 30 to 90 Hz. Still to replace.
+- New clips in `audio/fx/`: `ancient-stone-slide-1..6` (the owner's "sliding stone 1/2" takes layered in pairs and
+  time-compressed with `atempo`, pitch kept, to about 0.5 s), `ancient-slam` (two cinematic booms layered, tail faded
+  by 1.5 s), `ancient-hp-explosion` and `ancient-explosion-swoosh` (the owner's Cubase exports, unchanged).
+- New cue `panelSlide` ("Ancient slides in"): `playCue`'s `variant` picks each Ancient's own slide from
+  `PANEL_SLIDE_CLIPS` while the slot's clip is the shipped first one. The ids are literals so the phone pre-decode
+  scan (`audio/codeClips.ts`) finds them.
+- The tuner has a play button on every sound's volume row (`auditionCue`), and the sounds are named for their moment.
+- `RETUNED_AT` replaces `RETUNED`: bumping `REV` used to re-reset every key an EARLIER revision had retuned, which
+  would have wiped the owner's later tuning of those. Each revision now lists only its own keys.
+- Audio work used the repo's `ffmpeg-static`; the build scripts were session scratch, not committed.
+- Still silent: the pick's pulse, the backgrounds falling, the slide along the bottom, the shooting stars.

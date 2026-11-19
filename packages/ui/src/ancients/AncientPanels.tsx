@@ -103,6 +103,8 @@ export const AncientPanels = memo(function AncientPanels({ offered, phase }: { o
       ], { duration: cfg.panelSlideMs, delay: tl.slide[i]!, fill: 'both' });
       anim(q('.anc-pn-name'), [{ opacity: 0, transform: 'translateX(-50%) translateY(18px)' }, { opacity: 1, transform: 'translateX(-50%)' }],
         { duration: 260, delay: tl.slide[i]! + cfg.panelSlideMs, easing: 'ease-out', fill: 'both' });
+      // Its own stone slide for the length of the slide, then the slam.
+      playCue('panelSlide', tl.slide[i]!, { variant: i });
       playCue('panelSlam', tl.land[i]!, { rateMul: 1 - rank * 0.08 });
       // LAYERED: the foreground magic arrives last and overshoots, then all three sheets push in by different amounts
       // (the place least, the magic most): one long one-shot each, from the background's first frame to past the reveal.

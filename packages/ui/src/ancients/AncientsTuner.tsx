@@ -46,6 +46,7 @@ const CUE_NAMES: Record<AncientCue, [string, string]> = {
   eruptionBoom: ['Explosion boom', 'The deep hit as the hero power explodes.'],
   eruptionFlash: ['Explosion swoosh', 'The swoosh layered over the explosion.'],
   panelBg: ['Background slides in', 'Each of the six backgrounds sliding in (pitched up a step per pair).'],
+  panelSlide: ['Ancient slides in', 'Each Ancient sliding up into place: six stone slides, one per Ancient (▶ steps through them).'],
   panelSlam: ['Ancient slams in', 'Each of the six Ancients landing (pitched down a step per pair).'],
   titleSting: ['Title sting', '"An Ancient Awakens" popping in on the select screen.'],
   revealSpark: ['Card spark', 'The point of light gathering before each card appears.'],

@@ -4,8 +4,9 @@ Owner, 2026-11-18: *"the biggest problem to me is when i have a board with cards
 the game gets bogged down and nearly impossible to play. this needs to be butter smooth."*
 
 Branch `perf/apm-engine`. Rules `R-PERF-APM-01`, `R-PERF-APM-02`, `R-PERF-APM-03`. This entry is the measurement, the
-fix, and a plain list of what is still over budget and who owns it. **It is not butter smooth yet**: this PR removes
-the queue and about a fifth of the per-action cost. Section 6 says what the rest is.
+fix, and a plain list of what is still over budget and who owns it. **It is not butter smooth yet.** On top of the
+eight perf PRs this one takes a frame at 7.5 actions a second from 10.2 ms to 5.9 and removes the queue; a quarter of
+frames are still over 6.25 ms. Section 6 says what the rest is.
 
 ## 1. The bench: `npm run perf:apm`
 
@@ -165,7 +166,8 @@ And at 4 actions a second in that same sitting:
 
 **On top of all eight perf PRs** (2026-11-19, after the restart: the local `perf/integration-bench` at f2c495441,
 which merges #2780, #2781, #2784, #2786, #2788, #2789, #2790 and #2791, with and without this branch; two round-robin
-rounds, 20 s bursts). This branch merges onto it with one conflict, the patch notes list:
+rounds, 20 s bursts, the machine 40 to 90% busy). This branch merges onto it with one conflict, the patch notes list.
+At a target of 8 a second, then 4:
 
 | build | runs | actions/s | mean frame ms | p95 | p99 | % frames over 6.25 ms | release to frame p50 / p95 ms | main-thread ms per action | script ms per action | effects alive, mean / peak | badges behind, % of time | longest behind, s |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -215,8 +217,10 @@ Only while three or more actions land inside a second:
 - Effects run up to 1.6 times faster with down to 60% of their particles, from five actions a second.
 - A card added to your hand appears at once (no materialise), and a played card's backplate does not dissolve.
 
-Captures of five seconds of the burst, main and this PR (animated WebP and an eight-frame sheet each), on the owner's
-machine: `C:\Users\kevin\the ascent\.claude\perf-scope-2026-11-18\apm-captures\`.
+Captures of five seconds of the burst at a target of 8 actions a second (an animated WebP and an eight-frame sheet
+each), on the owner's machine in `.claude/perf-scope-2026-11-18/apm-captures/` under the primary checkout:
+`main-8aps`, `eight-PRs-8aps` (the authored presentation on the fast build) and `eight-PRs-plus-apm-8aps` (the
+rapid form).
 
 And at every speed: a rolling number changes its digits 60 times a second instead of 240 on a 240 Hz display. I could
 not see a difference; it is listed because it changes how an authored roll is drawn.
@@ -264,12 +268,13 @@ on what fixing each class can buy here, not fixes:
   (the real loop on a hand-cranked frame clock) and `dropReadsBeforeRestyle.test.ts` (a source contract).
 - `npm run perf:apm -- --guard` is the same check on the real game: exit 3 when fewer than 97% of actions were
   accepted, when a stat badge stayed behind the real number for more than 1.5 s, when a backlog counter is not back at
-  idle 3.5 s after the last input, or when one grew by more than 60% across the burst. On this PR: `GUARD OK`. On
-  main: `GUARD FAILED: a stat badge stayed behind the real number for 9496 ms`.
+  idle 3.5 s after the last input, or when one grew by more than 60% across the burst. On this PR, and on the eight
+  PRs plus this one: `GUARD OK`. On main: `GUARD FAILED: a stat badge stayed behind the real number for 9496 ms`.
 
 ## 8. Checks
 
-`npm run typecheck`, `npm run lint` (0 errors), `npm run build:web` pass. `npm test`: 1,922 of 1,926 files passed on
+`npm run typecheck`, `npm run lint` (0 errors), `npm run build:web` pass (run again after taking main on 2026-11-19).
+`npm test` (run on 2026-11-18, before the hand-card skip and the merge of main): 1,922 of 1,926 files passed on
 a machine with every thread busy; three files timed out (`guides/guidesReport.test.tsx`,
 `partyHome/pages/phInfoPages.test.tsx`, `workers/versus/test/dm.db.test.ts`, none touched here) and all three pass
 when run on their own. The new tests and the source-contract tests on `Recruit.tsx` were run again after the last

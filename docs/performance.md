@@ -611,6 +611,10 @@ Baseline, 2026-11-18, RTX 4080 SUPER at 240 Hz, target 8 actions a second, media
 | ... main-thread ms a second | 759 | 645 |
 | 1.5 a second (normal play): effects alive / badges behind | 11 / 35% of the time | 11 / 35% (unchanged) |
 
+On top of the eight perf PRs of 2026-11-18 (two rounds, a quieter machine): a target of 8 a second went from 6.9 to
+7.5 accepted actions a second, a mean frame from 10.2 to 5.9 ms and frames over 6.25 ms from 70% to 24%; at 4 a
+second from 5.9 to 5.0 ms and from 25% to 10%.
+
 All of it was measured with the machine's sixteen threads fully busy with other builders' work (the bench's Chrome and
 driver at High priority). On a quieter hour the same main was 16.1 ms a frame at 5.1 actions a second and an earlier
 build of the PR 10.6 ms at 6.7: the order holds, the sizes move. Re-take the baseline round-robin before judging a

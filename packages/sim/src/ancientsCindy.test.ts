@@ -10,7 +10,7 @@ import { describe, expect, it } from 'vitest';
 import { CARD_INDEX } from '@game/content';
 import type { CombatResult } from '@game/core';
 import {
-  ANCIENT_IDS, ANCIENT_PAIRINGS, ancientAfterCombat, ancientCombatMods, ancientOfferText, ancientStartOfTurn, heroPowerText, questCombatMods, reduce,
+  ANCIENT_IDS, ANCIENT_PAIRINGS, ancientAfterCombat, ancientAvengeReset, ancientCombatMods, ancientOfferText, ancientStartOfTurn, heroPowerText, questCombatMods, reduce,
   type AncientId, type BoardCard, type RunState, type ShopCard,
 } from './index';
 import { createVersusRun } from './versus/run';
@@ -69,7 +69,7 @@ describe('Cindy × every Ancient has a written pairing', () => {
   });
 
   it('the owner\'s words, on the offer', () => {
-    expect(ANCIENT_PAIRINGS.cindy!.death!.offerText).toBe('**Avenge (15):** give your teammate a **Goldcrafter**.');
+    expect(ANCIENT_PAIRINGS.cindy!.death!.offerText).toBe('When **15** friendly minions die, give your teammate a **Goldcrafter**.');
     expect(ANCIENT_PAIRINGS.cindy!.fortune!.offerText).toBe('Every **40 Gold** spent, refresh your hero power.');
     expect(ANCIENT_PAIRINGS.cindy!.war!.offerText).toBe('**Start of Combat:** your left-most minion is **Gilded**.');
     expect(ANCIENT_PAIRINGS.cindy!.genesis!.offerText).toBe("Your teammate's copy is **Gilded**, too.");
@@ -78,7 +78,7 @@ describe('Cindy × every Ancient has a written pairing', () => {
   });
 });
 
-describe('Death: Avenge (15), give your teammate a Goldcrafter (R-ANCCINDY-01)', () => {
+describe('Death: When 15 friendly minions die, give your teammate a Goldcrafter (R-ANCCINDY-01, carry-over since R-ANCIENT-CARRYOVER-01)', () => {
   it('the 15th friendly death in the Shop gives the teammate a Goldcrafter right then, and it repeats', () => {
     let s = picked('death', { board: [card('d1', PLAIN[0]!)] });
     s = { ...s, ancients: { ...s.ancients!, cindyDeaths: 14 } };
@@ -95,12 +95,21 @@ describe('Death: Avenge (15), give your teammate a Goldcrafter (R-ANCCINDY-01)',
     expect(teamOf(s, before)).toHaveLength(2);
   });
 
-  it('the count is per phase: settle discards the Shop count and the fight\'s deaths (per combat, R-AVENGE-PER-COMBAT-01: the Shop count never comes in)', () => {
+  it('one running count across phases (the carry-over kind, R-ANCIENT-CARRYOVER-01): combat carries it in, settle adds the fight\'s deaths, the phase reset keeps it', () => {
     let s = picked('death');
     s = { ...s, ancients: { ...s.ancients!, cindyDeaths: 9 } };
-    expect(ancientCombatMods(s).ancientMateGiftAvenge).toEqual({ every: 15, tick: 9, gift: { kind: 'gift', cardId: 'goldcrafter' }, label: 'Ancient of Death' });
+    expect(ancientCombatMods(s).ancientMateGiftAvenge).toEqual({ every: 15, tick: 9, gift: { kind: 'gift', cardId: 'goldcrafter' }, label: 'Ancient of Death', carry: true });
+    ancientAvengeReset(s); // the fight-start boundary
+    expect(s.ancients!.cindyDeaths).toBe(9);
     ancientAfterCombat(s, { playerDeaths: 8 } as CombatResult);
-    expect(s.ancients!.cindyDeaths ?? 0).toBe(0); // nothing carries: the next Shop and the next fight each count from 0
+    expect(s.ancients!.cindyDeaths).toBe(2); // 9 + 8 = 17: one fire (paid live in the fight), 2 toward the next
+    // ...and the next Shop picks up from there: 13 Shop deaths pay the next one.
+    s = { ...s, board: [card('d1', PLAIN[0]!)] };
+    const before = s.duos!.outbox.length;
+    for (let i = 0; i < 12; i++) fireOnFriendDeath(s, s.board[0]!);
+    expect(teamOf(s, before)).toHaveLength(0);
+    fireOnFriendDeath(s, s.board[0]!);
+    expect(teamOf(s, before)).toEqual([{ kind: 'gift', cardId: 'goldcrafter' }]);
   });
 
   it('a sale is not a death (it never counts)', () => {
@@ -111,7 +120,8 @@ describe('Death: Avenge (15), give your teammate a Goldcrafter (R-ANCCINDY-01)',
   it('the power prints the live count; without Death nothing counts (fails without the effect)', () => {
     let s = picked('death');
     s = { ...s, ancients: { ...s.ancients!, cindyDeaths: 4 } };
-    expect(heroPowerText(s)).toContain('(**4/15**)');
+    expect(heroPowerText(s)).toContain('When **15** friendly minions die, give your teammate a **Goldcrafter** (**11** more to go).');
+    expect(heroPowerText(s, 0, { friendlyDeaths: 6 }), 'live through a fight: the replay adds to the carried count').toContain('(**5** more to go)');
     const war = picked('war', { board: [card('d1', PLAIN[0]!)] });
     fireOnFriendDeath(war, war.board[0]!);
     expect(war.ancients!.cindyDeaths).toBeUndefined();

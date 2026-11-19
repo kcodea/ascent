@@ -473,8 +473,9 @@ export const KEYWORDS_RULES: GameRule[] = [
       'Conforms from 2026-11-18. Before, every Ancient of Death hero Avenge ran ONE count across the Shop and every fight '
       + '(3 deaths in one fight and 1 in the next fired an Avenge (4)), and the Dice lock pill did not move during a fight. '
       + 'OPEN for the owner: whether Shop deaths should count at all (the keyword wiki said they do not; the 2026-11-16 '
-      + 'ruling says the Ancient Avenges count them, kept here within one Shop phase), and Avenge (17) Gildmaster / '
-      + 'Avenge (15) Cindy, which now need that many deaths in a single fight.',
+      + 'ruling says the Ancient Avenges count them, kept here within one Shop phase). Gildmaster and Cindy with the '
+      + 'Ancient of Death are no longer Avenges (R-ANCIENT-CARRYOVER-01, 2026-11-19: "When N friendly minions die", '
+      + 'carried like Braum); Cassen is Avenge (5) (R-ANCIENT-CARRYOVER-02).',
     enforcement: { kind: 'scenario', refs: ['packages/core/src/combat/avengePerCombat.test.ts', 'packages/sim/src/avengePerCombat.test.ts'], lastVerifiedAt: '2026-11-18' },
   },
 ];

@@ -28,7 +28,7 @@ const ALIASES = new Set<string>([
   ANCIENT_MAX_GOLD_AVENGE_FLAG, // Nadja × Death: one per Avenge (6) fire (Rune of Fury repeats included)
   ANCIENT_SUMMIT_AVENGE_FLAG, // Brackus × Death: one per Avenge (3) fire
   ANCIENT_SPROUT_FLAG, // Rayse × Death: one per Sprout summoned by Avenge (4)
-  ANCIENT_COMMISSION_FLAG, // Cassen × Death: one per Avenge (7) advance
+  ANCIENT_COMMISSION_FLAG, // Cassen × Death: one per Avenge (5) advance
   ANCIENT_DRAKKO_SHOUT_FLAG, // Drakko × Bonds: one per Shout triggered (each one grows the Drakkos)
   // group 3 (Keshi..Mimic): each pulses once per fire of its one pairing
   ANCIENT_CROWN_FLAG, // Keshi × Death: one per Avenge (4) fire (Rune of Fury repeats included)

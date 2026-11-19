@@ -1,0 +1,66 @@
+/* THE PORTRAIT WINDOW (AvatarPicker.tsx): a party home dialog. The root is `.phk-dialog.ph-tokens` (the veil and the
+   tokens come from the kit); everything here is the box. Static paint: the only motion is one-shot transforms.
+   Only `.avp-scroll` scrolls; the header, tabs, caption and the preview column always stay in view. */
+.avp-box { position: relative; display: flex; flex-direction: column; gap: calc(16 * var(--phu)); box-sizing: border-box;
+  width: min(calc(1080 * var(--phu)), calc(var(--lvw, 100vw) * 0.94)); height: min(calc(720 * var(--phu)), calc(var(--ph-h, var(--lvh, 100vh)) - 32 * var(--phu)));
+  padding: calc(28 * var(--phu)) calc(32 * var(--phu)) calc(24 * var(--phu)); border-radius: var(--ph-r-l); background: var(--ph-plate);
+  box-shadow: var(--ph-gild), inset 0 0 0 calc(4 * var(--phu)) rgba(0, 0, 0, 0.25), 0 calc(24 * var(--phu)) calc(64 * var(--phu)) rgba(0, 0, 0, 0.6);
+  animation: phk-pop 0.22s cubic-bezier(0.2, 0.9, 0.3, 1.15) both; }
+@media (prefers-reduced-motion: reduce) { .avp-box { animation: none; } }
+
+.avp-head { display: flex; align-items: flex-start; justify-content: space-between; gap: calc(16 * var(--phu)); flex: none; }
+.avp-titles { display: flex; flex-direction: column; gap: calc(4 * var(--phu)); min-width: 0; }
+.avp-title { margin: 0; font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t4); line-height: 1.1; letter-spacing: 0.02em; color: var(--ph-ink); text-shadow: var(--ph-shadow); }
+.avp-close.phk-btn { width: calc(40 * var(--phu)); height: calc(40 * var(--phu)); padding: 0; font-size: var(--ph-t3); letter-spacing: 0; background: var(--ph-well); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); }
+
+.avp-bar { display: flex; align-items: center; justify-content: space-between; gap: calc(16 * var(--phu)); flex: none; min-width: 0; }
+.avp-bar .phk-tabs { min-width: 0; }
+.avp-n { margin-left: calc(8 * var(--phu)); font-weight: 700; letter-spacing: 0; color: var(--ph-muted); font-variant-numeric: tabular-nums; }
+.avp-capdef { font-weight: 600; color: var(--ph-muted); }
+.avp-capname:not(:empty) + .avp-capdef { display: none; }
+.avp-search { flex: 0 1 calc(260 * var(--phu)); }
+
+.avp-body { display: flex; gap: calc(20 * var(--phu)); flex: 1 1 auto; min-height: 0; }
+.avp-main { display: flex; flex-direction: column; flex: 1 1 auto; min-width: 0; min-height: 0; border-radius: var(--ph-r-s); background: var(--ph-well); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); }
+.avp-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; padding: calc(16 * var(--phu)); }
+.avp-group + .avp-group { margin-top: calc(20 * var(--phu)); }
+.avp-grouplbl { margin-bottom: calc(10 * var(--phu)); font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.2em; text-transform: uppercase; color: var(--ph-muted); }
+.avp-grid { display: grid; grid-template-columns: repeat(auto-fill, calc(76 * var(--phu))); justify-content: space-between; gap: calc(12 * var(--phu)); }
+.avp-caption { flex: none; height: calc(32 * var(--phu)); padding: 0 calc(16 * var(--phu)); display: flex; align-items: center; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  border-top: calc(1 * var(--phu)) solid var(--ph-hair); font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t2); color: var(--ph-ink); text-shadow: var(--ph-shadow); }
+
+/* A TILE: a round portrait. The art sits in its own clipped disc; the gold edge is an overlay on top of it, so the art
+   never paints over the ring. Selected = the bright thick ring and a small lift. */
+.avp-tile { position: relative; width: calc(76 * var(--phu)); height: calc(76 * var(--phu)); margin: 0; padding: 0; border: 0; border-radius: 50%; background: none; transition: transform 0.12s cubic-bezier(0, 0, 0.2, 1); }
+.avp-art { position: absolute; inset: 0; border-radius: 50%; overflow: hidden; background: rgba(0, 0, 0, 0.35); }
+.avp-art img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: 50% 20%; }
+.avp-tile::after { content: ''; position: absolute; inset: 0; border-radius: 50%; pointer-events: none;
+  box-shadow: inset 0 0 0 calc(2 * var(--phu)) color-mix(in srgb, var(--ph-gold) 70%, transparent), inset 0 0 0 calc(3 * var(--phu)) rgba(0, 0, 0, 0.35); }
+.avp-tile:hover { transform: scale(1.07); }
+.avp-tile:hover::after { box-shadow: inset 0 0 0 calc(2 * var(--phu)) var(--ph-gold-hi), inset 0 0 0 calc(3 * var(--phu)) rgba(0, 0, 0, 0.35); }
+.avp-tile.on { transform: scale(1.07); }
+.avp-tile.on::after { box-shadow: inset 0 0 0 calc(4 * var(--phu)) var(--ph-gold-hi), 0 0 0 calc(2 * var(--phu)) rgba(0, 0, 0, 0.55), 0 0 calc(14 * var(--phu)) color-mix(in srgb, var(--ph-gold) 80%, transparent); }
+.avp-tile:active { transform: scale(0.97); }
+/* The rarity gem of a skin, on a dark seat at the top right. */
+.avp-rar { position: absolute; top: calc(-2 * var(--phu)); right: calc(-2 * var(--phu)); z-index: 1; display: grid; place-items: center; width: calc(24 * var(--phu)); height: calc(24 * var(--phu)); border-radius: 50%;
+  background: color-mix(in srgb, var(--ph-navy) 92%, #000); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); pointer-events: none; }
+/* The portrait you wear now. */
+.avp-used { position: absolute; left: 50%; bottom: calc(-6 * var(--phu)); z-index: 1; translate: -50% 0; padding: calc(2 * var(--phu)) calc(8 * var(--phu)); border-radius: 999px; white-space: nowrap; pointer-events: none;
+  background: var(--ph-metal-gold); color: var(--ph-navy); font-family: var(--ph-font); font-weight: 900; font-size: calc(10 * var(--phu)); letter-spacing: 0.08em; text-transform: uppercase; }
+
+/* THE PREVIEW COLUMN. */
+.avp-side { display: flex; flex-direction: column; align-items: center; gap: calc(8 * var(--phu)); flex: none; width: calc(280 * var(--phu)); min-height: 0; text-align: center; }
+.avp-ring { --ring: calc(148 * var(--phu)); flex: none; }
+.avp-name { max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-family: var(--ph-font); font-weight: 900; font-size: calc(22 * var(--phu)); line-height: 1.15; color: var(--ph-ink); text-shadow: var(--ph-shadow); }
+.avp-sub { display: flex; align-items: center; justify-content: center; gap: calc(8 * var(--phu)); min-height: calc(20 * var(--phu)); font-size: var(--ph-t2); color: var(--ph-muted); }
+.avp-banner { display: flex; flex-direction: column; align-items: center; gap: calc(8 * var(--phu)); flex: 1 1 auto; min-height: 0; justify-content: center; pointer-events: none; }
+.avp-lbl { font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.2em; text-transform: uppercase; color: var(--ph-muted); }
+.avp-actions { display: flex; flex-direction: column; align-items: center; gap: calc(4 * var(--phu)); flex: none; width: 100%; }
+.avp-use.phk-btn { width: 100%; padding: 0 calc(16 * var(--phu)); }
+.avp-use.phk-btn:disabled, .avp-reset.phk-btn:disabled { opacity: 0.45; }
+
+/* A short or phone-sized window: drop the banner preview, narrow the preview column. */
+html[data-ph-compact] .avp-banner { display: none; }
+html[data-ph-compact] .avp-side { width: calc(220 * var(--phu)); justify-content: center; }
+html[data-ph-compact] .avp-ring { --ring: calc(128 * var(--phu)); }
+html[data-ph-compact] .avp-box { padding: calc(16 * var(--phu)) calc(20 * var(--phu)); gap: calc(10 * var(--phu)); height: calc(var(--ph-h, var(--lvh, 100vh)) - 16 * var(--phu)); }

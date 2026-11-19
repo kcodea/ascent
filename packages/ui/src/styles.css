@@ -7100,21 +7100,8 @@ button.endpip { border: none; padding: 0; font: inherit; }
 .endplay:hover { background: linear-gradient(180deg, #f0982f, #d97722); }
 
 /* Avatar picker — a modal grid of every bundled hero / minion / token / power art. */
-.avatarpick { position: fixed; inset: 0; z-index: 520; display: grid; place-items: center; background: rgba(8, 10, 20, 0.74); backdrop-filter: blur(3px); }
-.avatarpick-panel { display: flex; flex-direction: column; width: min(760px, calc(92 * var(--vw, 1vw))); max-height: calc(84 * var(--vh, 1vh)); background: rgba(18, 20, 32, 0.98); border: 2px solid rgba(255, 255, 255, 0.14); border-radius: 20px; box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55); }
-.avatarpick-head { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 20px 24px 14px; }
-.avatarpick-title { font-family: var(--font-ui); font-weight: 800; font-size: 22px; letter-spacing: 0.06em; text-transform: uppercase; color: #f6efe2; }
 .avatarpick-close { font-family: var(--font-ui); font-weight: 800; font-size: 18px; color: #ddd2c0; background: rgba(255, 255, 255, 0.08); border: none; border-radius: 10px; width: 40px; height: 40px; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
 .avatarpick-close:hover { background: rgba(255, 255, 255, 0.16); color: #fff; }
-.avatarpick-scroll { overflow-y: auto; padding: 4px 24px 24px; }
-.avatarpick-grouplabel { font-family: var(--font-ui); font-weight: 700; font-size: 13px; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(255, 255, 255, 0.5); margin: 16px 0 10px; }
-.avatarpick-grid { display: grid; grid-template-columns: repeat(auto-fill, 60px); gap: 10px; }
-.avatarpick-opt { width: 60px; height: 60px; padding: 0; border: 2px solid rgba(255, 255, 255, 0.14); border-radius: 50%; overflow: hidden; background: rgba(255, 255, 255, 0.05); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; transition: transform 0.08s ease, border-color 0.08s ease; }
-.avatarpick-opt img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.avatarpick-opt:hover { transform: scale(1.08); border-color: rgba(255, 255, 255, 0.4); }
-.avatarpick-opt.active { border-color: var(--acc); box-shadow: 0 0 0 2px var(--acc); }
-.avatarpick-opt.default { display: grid; place-items: center; }
-.avatarpick-default { font-family: var(--font-ui); font-weight: 800; font-size: 24px; color: rgba(255, 255, 255, 0.5); }
 .endscreen.won .eyebrow { color: var(--acc); }
 
 /* Title screen — the front door, layered above the hero picker. Mirrors the picker's dimmed-board backdrop. */
@@ -15272,7 +15259,7 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .lbsub { font-size: 14px; margin-top: 2px; }
 /* THE ACCOUNT PANEL: wider, the menu type scale, the Gem plate on its buttons (it was a pale blue off the palette),
    and no full-screen backdrop-filter (a plain dim; the rule for every menu overlay). */
-.acctpanel, .avatarpick { backdrop-filter: none; -webkit-backdrop-filter: none; background: rgba(4, 8, 18, 0.74); }
+.acctpanel { backdrop-filter: none; -webkit-backdrop-filter: none; background: rgba(4, 8, 18, 0.74); }
 .acctpanel-box { width: min(520px, calc(92 * var(--vw, 1vw))); }
 .acctpanel-title { font-size: 22px; }
 .acctpanel-lead { font-size: 19px; }

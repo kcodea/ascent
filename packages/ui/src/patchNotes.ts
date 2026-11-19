@@ -58,6 +58,14 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-11-19',
     changes: [
+      {
+        category: 'Systems',
+        text: 'The portrait menu is rebuilt, and any hero or minion skin you own can now be your portrait.',
+        details: [
+          'Pick a portrait to preview it in your portrait frame and on your banner, then press Use portrait.',
+          'Portraits are sorted into tabs (My Skins, Heroes, Minions, Hero Powers) and you can search by name.',
+        ],
+      },
       { category: 'Systems', text: 'Match history lobby: hovering a player now blurs their hero portrait and Ancient too, and the hero portrait is the same size as the Ancient.' },
       { category: 'Systems', text: 'Start of Combat, Avenge, End of Turn and Rally now show a new effect on the minion when they trigger. The old badge pulse is gone from every minion.' },
       { category: 'Systems', text: 'Arena Heckler now shows its Start of Combat and the Taunt landing even when the minion opposite it already has Taunt.' },

@@ -478,4 +478,25 @@ export const KEYWORDS_RULES: GameRule[] = [
       + 'carried like Braum); Cassen is Avenge (5) (R-ANCIENT-CARRYOVER-02).',
     enforcement: { kind: 'scenario', refs: ['packages/core/src/combat/avengePerCombat.test.ts', 'packages/sim/src/avengePerCombat.test.ts'], lastVerifiedAt: '2026-11-18' },
   },
+  {
+    id: 'R-HECKLER-SHOWN-01',
+    title: 'A "give Taunt" effect shows even when the target already Taunts',
+    statement:
+      "When Arena Heckler's Start of Combat gives the minion opposite it Taunt and that minion already has Taunt, the "
+      + "effect still shows exactly as it does on a minion without Taunt: the Heckler's own trigger effect and the Taunt "
+      + "arriving on the target both play, and the Heckler still attacks it immediately. Nothing about the target changes "
+      + "and it never holds a second Taunt. The same holds for the adjacent minion a Gilded Heckler also reaches.",
+    domain: 'keywords',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-19', quote: "for arena heckler, if the unit he is meant to target already has taunt, the medallion effect nor the taunt apply effect occurs. can we have this effect happen regardless of whether the unit has taunt or not?" },
+      { kind: 'code', ref: 'fx/trigger-pulse-replacements: packages/core/src/effects/arena.ts (scGrantEnemyTaunt, the showKeywordGrant verb); packages/core/src/effects/factories.ts (the combat adapter logs the keyword event); packages/sim/src/recruit.ts (the shop adapter no-ops)' },
+    ],
+    currentBehaviour: "LIVE from 2026-11-19. The engine logs the same keyword event a real grant logs, with the Heckler as "
+      + "its source and its Start of Combat stamp, and leaves the target's keywords alone; before this it logged nothing, "
+      + "so the fight had no event for either effect to play on. Arena Heckler only: every other effect that gives a "
+      + "keyword a target may already have still shows nothing in that case. The test pins the engine's event, not the "
+      + "two effects on screen.",
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/reworks0918.test.ts', 'packages/ui/src/fx/tauntBeam.test.ts'], lastVerifiedAt: '2026-11-19' },
+  },
 ];

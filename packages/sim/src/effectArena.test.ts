@@ -37,6 +37,7 @@ const fakeArena = (uids: string[], seed: number, golden = false): { arena: Effec
     hasReborn: () => false,
     grantReborn: () => {},
     grantKeywordTo: () => {},
+    showKeywordGrant: () => {},
     grantSpellPower: () => {},
     grantMagneticAura: () => {},
     grantBeastExtra: () => {},

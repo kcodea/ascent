@@ -267,6 +267,7 @@ import { chooseKey, questOfferKey } from './pings/pingKeys';
 import { captureRecruitSeqs, chooseOneMoment, endOfTurnMoment, minionPlayedMoment, recruitMomentsSince, recruitSeqsOf, selfBuffMoment, shieldGainMoment, shoutMoment, spellCastMoment } from './choreo/recruitMoments';
 import { runRecruitMomentCues } from './choreo/recruitCues';
 import { bindingDefIds, bindingFor, castFxReplacesTendril } from './choreo/bindings';
+import { triggerFxFor } from './choreo/stockTriggerFx';
 import { QUICK_SALE_ID } from './sellMedallion';
 import { buffSourceDelayMs, buffSourceRanks, oneBitePerTarget, playBuffSourceWatcher } from './choreo/buffWatcher';
 import { cascade, scheduleLands, waves as asWaves } from './fx/land';
@@ -8093,8 +8094,15 @@ export function Recruit() {
             });
           }
         }
-        setEotProcUids(uid ? new Set([uid]) : new Set());
-        setEotPulseUids(uid && beat.mode === 'ownBeat' ? new Set([uid]) : new Set());
+        // An End of Turn with an effect of its own (the card's On End of Turn slot, else the stock one) shows that
+        // effect INSTEAD of the stock cues (R-FX-TRIGGER-STOCK-01): the medallion pulse, AND the medallion glow and
+        // under-card flourish that `eotProcUids` draws (owner 2026-11-19: "i still see the old medallion pulse effect
+        // on top of the new pixi effect (used gemling as a test)"). The same test the `endOfTurn` cue below makes
+        // before it plays, so a cadence tick that only glows (nothing plays) keeps its glow. The sound stays.
+        const eotCardId = uid ? run.board.find((c) => c.uid === uid)?.cardId ?? null : null;
+        const eotFxBound = beat.family === 'endOfTurn' && beat.mode === 'ownBeat' && canPlayDefs() && eotCardId !== null && triggerFxFor(eotCardId, 'endOfTurn') !== null;
+        setEotProcUids(uid && !eotFxBound ? new Set([uid]) : new Set());
+        setEotPulseUids(uid && beat.mode === 'ownBeat' && !eotFxBound ? new Set([uid]) : new Set());
         if (beat.mode === 'ownBeat') sfx.triggerPulse(); else sfx.triggerGlow();
         if (uid) {
           const card = run.board.find((c) => c.uid === uid);
@@ -9967,8 +9975,8 @@ const TavernRow = memo(function TavernRow({
 /** The warband zone: your board (or, in combat, your units). Memoized the same way as `TavernRow`. */
 const WarbandRow = memo(function WarbandRow({
   replay, displayBoard, boardOrder, boardAligns, boardViews, refViewsByUid, heroArmed,
-  isPendingTarget, soulboundUids, battlecryUids, eotProcUids, eotPulseUids,
-  karwindPulseUids, karwindCritPulseUids, karwindFlashSeq, summonDelayUids, electrifyUids, karwindFlameUids,
+  isPendingTarget, soulboundUids, battlecryUids, eotProcUids,
+  summonDelayUids, electrifyUids, karwindFlameUids,
   returningFromCombat, hasPendingTarget, onCardPointerDown,
 }: {
   replay: ReturnType<typeof useCombatReplay> | null; displayBoard: BoardCard[];
@@ -10051,9 +10059,6 @@ const WarbandRow = memo(function WarbandRow({
                     battlecry={battlecryUids.has(m.uid) || eotProcUids.has(m.uid)}
                     // Medallion: a Battlecry / an officially-firing End-of-Turn pulses (ring); a cadence
                     // card that only ticked this turn (proc'd but not complete) just glows.
-                    pulse={battlecryUids.has(m.uid) || eotPulseUids.has(m.uid) || karwindPulseUids.has(m.uid)}
-                    pulseCrit={karwindCritPulseUids.has(m.uid) ? karwindFlashSeq : undefined}
-                    glow={eotProcUids.has(m.uid)}
                     popDelay={summonDelayUids.has(m.uid)}
                     electrify={electrifyUids.has(m.uid) || magTargetUid === m.uid}
                     karwind={karwindFlameUids.has(m.uid) ? (m.cardId === 'bane' || CARD_INDEX[m.cardId]?.keywords.includes('FD') ? 'haze' : 'flame') : false}

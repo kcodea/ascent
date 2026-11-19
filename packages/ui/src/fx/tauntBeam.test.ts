@@ -75,10 +75,12 @@ describe('the Taunt beam', () => {
     expect(beats.flatMap((beat) => bankedKeywordGrantsIn(beat, events))).toEqual([]);
     expect(beats.flatMap((beat) => runeKeywordGrantsIn(beat, events, null, []).grants)).toEqual([]);
   });
-  it('a minion that already has Taunt gets no second one from Heckler', () => {
+  it('Heckler\'s beam still plays onto a minion that already has Taunt, once (R-HECKLER-SHOWN-01)', () => {
+    // Owner 2026-11-19: "can we have this effect happen regardless of whether the unit has taunt or not?" The engine
+    // logs the grant for show; the body is unchanged and never holds two Taunts (reworks0918.test.ts pins that).
     const { events: raw } = simulate([{ cardId: 'arenaheckler', attack: 1, health: 60, keywords: [] }], [{ cardId: 'trainingdummy', attack: 1, health: 60, keywords: ['T'] }], makeRng(7), CARD_INDEX,
       combatSide({ tier: 4 }), combatSide({ tier: 4 }));
-    expect(replayBeats(raw).flatMap((beat) => minionTauntGrantsIn(beat, replayOrder(raw)))).toEqual([]);
+    expect(replayBeats(raw).flatMap((beat) => minionTauntGrantsIn(beat, replayOrder(raw)))).toEqual([{ source: 'm0', target: 'm1' }]);
   });
   it('Marked Target, banked in the Shop, on a REAL fight: the Taunt leaves the caster for the FOE minion it marks', () => {
     const bm = (cardId: string, attack: number, health: number): BoardMinion => ({ cardId, attack, health, keywords: [] });

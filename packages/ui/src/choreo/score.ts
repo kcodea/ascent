@@ -26,6 +26,7 @@ import { sfx } from '../sfx';
 import { anchorsForUnits } from '../fx/combatAnchors';
 import { claimDamageFx, damagedUidsIn, struckUidsIn, expireDamageFxClaim, isDamageFxClaimed } from './cardFx';
 import { bindingDefIds, bindingFor, sourceBuffDefFor } from './bindings';
+import { cardHasEcho, triggerFxFor } from './stockTriggerFx';
 import { extraWardGainsIn, wardsGivenIn } from './channels/wardGiven';
 import { isTravelledWard, playWardGained } from '../fx/wardGivenLaunch';
 import { spellCastsIn, type CombatSpellCast } from './channels/castPreview';
@@ -416,7 +417,7 @@ export function boundRalliesIn(moment: Moment, ctx: Pick<CueContext, 'events' | 
   if (!canPlayDefs()) return [];
   const out: BoundRally[] = [];
   for (const r of ralliesFiredIn(moment, ctx.events)) {
-    const binding = bindingFor(ctx.cardIds?.get(r.source) ?? null, 'rally');
+    const binding = triggerFxFor(ctx.cardIds?.get(r.source) ?? null, 'rally');
     if (binding) out.push({ ...r, binding });
   }
   return out;
@@ -523,15 +524,19 @@ function firstBodyOfCard(cardId: string, ctx: Pick<CueContext, 'cardIds'>): stri
 function playCardMechanic(
   cardId: string,
   srcUid: string | null,
-  kind: 'startOfCombat' | 'avenge' | 'death',
+  kind: 'startOfCombat' | 'avenge' | 'death' | 'echo',
   ctx: Pick<CueContext, 'cardIds'>,
 ): void {
-  const binding = bindingFor(cardId, kind);
+  // The card's own binding, else the stock effect for that trigger (R-FX-TRIGGER-STOCK-01). `death` has no stock.
+  const binding = triggerFxFor(cardId, kind);
   if (!binding) return;
   const uid = srcUid ?? firstBodyOfCard(cardId, ctx);
   if (uid === null) return;
   const anchors = anchorsForUnits(uid, uid);
-  if (anchors) playDef(binding.def, anchors, { uids: { source: uid, target: uid }, gain: binding.gain });
+  // `trackUnits`: a trigger's effect rides its card (and its medallion) for as long as it plays. The body is often
+  // moving: an Avenge fires inside the exchange that caused the death, while the board closes the gap (owner
+  // 2026-11-19: "that tracking will be necessary for avenge as well").
+  if (anchors) playDef(binding.def, anchors, { uids: { source: uid, target: uid }, gain: binding.gain, trackUnits: true });
 }
 
 /** Run one moment's plain-effect cues (sfx + float + the three aura sub-channels). Each cue fires at
@@ -570,7 +575,7 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
       // a no-FX playback keeps its number on time.
       const atk = moment.kind === 'attackExchange' && moment.primary.type === 'attack' ? moment.primary.attacker : null;
       const ownRally = atk !== null && canPlayDefs()
-        ? ownRallyBindingFor(moment, ctx.events, atk, ctx.cardIds?.get(atk) ?? null, true, bindingFor)
+        ? ownRallyBindingFor(moment, ctx.events, atk, ctx.cardIds?.get(atk) ?? null, true, triggerFxFor)
         : null;
       if (ownRally && atk !== null) {
         const { now, later } = splitOwnRallyFloats(floats, atk);
@@ -857,7 +862,7 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
           if (!canPlayDefs()) continue;
           // An End of Turn fired mid-fight (R-ROOMWORKS-02) plays the flourish bound to the card whose End of Turn it
           // is, the Shop's `endOfTurnMoment` cue, rather than the re-trigger card's Shout burst.
-          const binding = f.eot ? bindingFor(ctx.cardIds?.get(f.target) ?? null, 'endOfTurn') : bindingFor(ctx.cardIds?.get(f.source) ?? null, 'shout');
+          const binding = f.eot ? triggerFxFor(ctx.cardIds?.get(f.target) ?? null, 'endOfTurn') : bindingFor(ctx.cardIds?.get(f.source) ?? null, 'shout');
           if (!binding) continue;
           // Play the shout FX ON THE OWNER (`f.target`) — whose Shout is firing — not travelling from the
           // re-triggering unit. Both anchors are the owner, so a combat re-fire is byte-for-byte the shop cast
@@ -923,15 +928,18 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
     // the killer). Guarded before `at()` like the other scans: no defs ready, no allocation.
     else if (cue.ch === 'deathFx') {
       if (!canPlayDefs()) continue;
-      const dying: Array<[string, string]> = [];
+      // …and its ECHO (the By-card "On Echo" slot, else the stock Echo effect): a dying card with an Echo of its own
+      // plays that on the same body, in place of the medallion pulse (R-FX-TRIGGER-STOCK-01).
+      const dying: Array<[string, string, 'death' | 'echo']> = [];
       for (let i = moment.start; i < moment.end; i++) {
         const e = ctx.events[i];
         if (e?.type !== 'death') continue;
         const cardId = ctx.cardIds?.get(e.target);
-        if (cardId && bindingFor(cardId, 'death')) dying.push([cardId, e.target]);
+        if (cardId && bindingFor(cardId, 'death')) dying.push([cardId, e.target, 'death']);
+        if (cardId && cardHasEcho(cardId) && triggerFxFor(cardId, 'echo')) dying.push([cardId, e.target, 'echo']);
       }
       if (!dying.length) continue;
-      at(cue, () => { for (const [cardId, uid] of dying) playCardMechanic(cardId, uid, 'death', ctx); });
+      at(cue, () => { for (const [cardId, uid, kind] of dying) playCardMechanic(cardId, uid, kind, ctx); });
     }
     else if (cue.ch === 'wardGainFx') {
       if (!canPlayDefs()) continue;

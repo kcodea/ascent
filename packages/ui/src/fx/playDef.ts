@@ -4,8 +4,8 @@ import { perfMonitor } from '../perfMonitor';
 import { pixiFx } from '../pixiFx';
 import { combatHeld } from '../combatHold';
 import { driveLayerHeads, type FxAnchors } from './anchors';
-import { partsUsedByLayers, withUnitParts, type UnitElementLike } from './anchorParts';
-import type { FxDef, FxSlot } from './def';
+import { partsUsedByLayers, readUnitPartPoints, withUnitParts, type UnitElementLike } from './anchorParts';
+import type { FxAnchorPart, FxDef, FxSlot } from './def';
 import type { StoredFxDef, StoredFxLayer } from './defStore';
 import { anchorsForUnits, unitSelector } from './combatAnchors';
 import { getDef, listDefs } from './fxDefs';
@@ -168,6 +168,18 @@ export interface PlayDefOptions extends FxScaleAxes {
    */
   target?: () => { x: number; y: number } | null;
   /**
+   * RIDE THE UNITS for the length of a one-shot: each frame the source / target anchors AND their anchor parts
+   * (the medallion, a badge) are re-read from where `uids` are drawn right now, so the effect stays on a card that
+   * is MOVING while it plays (owner 2026-11-19: Crownvein's Rally effect "is not coming from the medallion ...
+   * its pulsing in the center of the card": the rallier leans back in its wind-up, so a fire-time snapshot of its
+   * slot's medallion sits on the middle of the pulled-back card).
+   *
+   * This IS a layout read per frame (one rect per unit plus one per part the def uses), for one short play:
+   * the same cost class as `followSource`. Use it only where the unit genuinely moves during the effect. A unit
+   * that leaves the board keeps its last snapshot. The play still retires on its own. Ignored with `follow`.
+   */
+  trackUnits?: boolean;
+  /**
    * A per-call PALETTE recolor: a 4-stop rim→core palette (`0xRRGGBB` numbers) written onto every
    * palette-bearing layer before the def plays, so ONE committed def can fire in a caller-chosen colour — the
    * milestone celebration plays the single bound `rune-select-implosion` in each tier's colour this way. It is
@@ -273,6 +285,34 @@ export function gainScaledDef(def: FxDef, mul: number | undefined, muteSound = f
         : l,
     ),
   };
+}
+
+/**
+ * A `trackUnits` play's anchors for THIS frame: each end's centre and parts re-read live off its unit. An end
+ * whose unit is gone (or has no box) keeps the fire-time snapshot, so a dying source never throws the effect.
+ */
+function trackedAnchors(
+  anchors: FxAnchors,
+  uids: { source?: string | null; target?: string | null } | undefined,
+  parts: readonly FxAnchorPart[],
+): FxAnchors {
+  if (typeof document === 'undefined' || !uids) return anchors;
+  const out: FxAnchors = { ...anchors, parts: { ...anchors.parts } };
+  for (const end of ['source', 'target'] as const) {
+    const uid = uids[end];
+    // Both ends on one card (a trigger's effect on itself): read it once.
+    if (end === 'target' && uid && uid === uids.source) {
+      out.target = out.source;
+      if (out.parts!.source) out.parts!.target = out.parts!.source;
+      continue;
+    }
+    const el = uid ? document.querySelector<HTMLElement>(unitSelector(uid)) : null;
+    const r = el?.getBoundingClientRect();
+    if (!el || !r || !(r.width > 0) || !(r.height > 0)) continue;
+    out[end] = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    if (parts.length) out.parts![end] = readUnitPartPoints(el as unknown as UnitElementLike, parts, true);
+  }
+  return out;
 }
 
 /**
@@ -736,6 +776,9 @@ function playDefInner(
   const follow: PlayDefOptions['follow'] =
     opts.follow ?? (stored.followSource && !followTargetUid ? () => liveSourcePoint(opts.uids?.source) : undefined);
 
+  // `trackUnits`: the parts to re-read each frame (see the option). Null = the snapshot stands, as before.
+  const trackedParts = opts.trackUnits && !follow && !followTargetUid && opts.uids ? partsUsedByLayers(stored.layers) : null;
+
   const container = new Container();
   if (opts.alpha !== undefined && Number.isFinite(opts.alpha) && opts.alpha < 1) container.alpha = Math.max(0, opts.alpha);
   // THE SCALED STAGE (stage.ts): a def is authored in px at the 1080p layout, and the renderer is in SCREEN px. On
@@ -840,6 +883,8 @@ function playDefInner(
       const src = liveSourcePoint(opts.uids?.source) ?? anchors.source;
       const tgt = liveSourcePoint(followTargetUid) ?? opts.target?.() ?? anchors.target;
       live = { ...anchors, source: src, target: tgt, cursor: tgt };
+    } else if (trackedParts !== null) {
+      live = trackedAnchors(anchors, opts.uids, trackedParts);
     } else if (opts.target) {
       const t = opts.target();
       if (t) live = { ...anchors, target: t };

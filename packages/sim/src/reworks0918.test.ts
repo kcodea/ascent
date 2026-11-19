@@ -236,6 +236,22 @@ describe('Arena Heckler — Start of Combat: Give the minion opposite this Taunt
     expect(r.events.some((e) => e.type === 'dmg' && (e as { target: string; amount: number }).target === e1 && (e as { amount: number }).amount === 6), 'a real 6-damage hit').toBe(true);
   });
 
+  it('an opposite minion that ALREADY Taunts still shows the grant, and keeps exactly one Taunt (R-HECKLER-SHOWN-01)', () => {
+    const taunter = { ...foe('omen', 1, 100), keywords: ['T'] } as BoardMinion;
+    const r = fight([bm('arenaheckler', 'H', 6, 5)], [taunter, foe('omen', 1, 100)]);
+    const h = uidOf(r, 'arenaheckler');
+    const e0 = r.initial.enemy[0]!.uid;
+    const grants = r.events.filter((e) => e.type === 'keyword' && (e as { keyword: string }).keyword === 'T') as unknown as { target: string; source?: string; key?: string }[];
+    expect(grants.map((g) => g.target), 'one shown grant, on the opposite minion').toEqual([e0]);
+    expect(grants[0]!.source, 'from the Heckler, so its trigger and the Taunt arrival both play').toBe(h);
+    expect(grants[0]!.key?.endsWith(':startOfCombat'), 'stamped as its Start of Combat').toBe(true);
+    const strike = r.events.find((e) => e.type === 'attack') as { attacker: string; defender: string };
+    expect([strike.attacker, strike.defender], 'and it still strikes it').toEqual([h, e0]);
+    // No second Taunt was stacked on the body: one lost Taunt would otherwise leave another behind.
+    const plain = fight([bm('sandbag', 'A', 0, 100)], [taunter, foe('omen', 1, 100)]);
+    expect(plain.initial.enemy[0]!.keywords.filter((k) => k === 'T')).toHaveLength(1);
+  });
+
   it('gilded: the neighbour is Taunted too, and the strike still goes at the opposite one', () => {
     const r = fight([bm('arenaheckler', 'H', 12, 10, { golden: true })], [foe('omen', 1, 100), foe('omen', 1, 100)]);
     const e0 = r.initial.enemy[0]!.uid; const e1 = r.initial.enemy[1]!.uid;

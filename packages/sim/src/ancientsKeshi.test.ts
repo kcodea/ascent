@@ -63,8 +63,8 @@ describe('Keshi × DEATH: "Avenge (4): Advance Keshi\'s Crown by 4"', () => {
     expect(rewards(s)).toBe(1);
     expect(s.keshiTierPoints).toBe(0);
   });
-  it('combat: the carried count pulses mid-fight, and settle advances the Crown by 4 per pulse', () => {
-    let s = picked('death', { board: [card('a', N(0), { attack: 1, health: 1 })], keshiTierPoints: 3 });
+  it('combat: the 4th death in the fight pulses mid-fight, and settle advances the Crown by 4 per pulse (per combat, R-AVENGE-PER-COMBAT-01: the Shop count never comes in)', () => {
+    let s = picked('death', { board: ['a', 'b', 'c', 'd'].map((u) => card(u, N(0), { attack: 1, health: 1 })), keshiTierPoints: 3 });
     s = { ...s, ancients: { ...s.ancients!, keshiDeaths: 3 } };
     expect(ancientCombatMods(s).ancientAvengePulse).toEqual({ every: 4, tick: 3, flag: ANCIENT_CROWN_FLAG, label: 'Ancient of Death' });
     expect(ancientAvengeCountdown(s)).toBe(1);

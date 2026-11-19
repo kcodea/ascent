@@ -1556,7 +1556,8 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   R-ANCMAGICIAN-01..06), and so does Cindy (R-ANCCINDY-01..06), reachable only on a DEV server or a bench bundle. No
   player build, room option or setting turns them on. What each does, and what is still needed to switch them on, is in
   `docs/devlog/2026-11-10-ancients-duos-heroes.md` and `docs/devlog/2026-11-14-ancients-cindy.md`. Cindy's: Death,
-  Avenge (15) gives the teammate a Goldcrafter (every friendly death in every phase, never a consume or a sale); Fortune,
+  "When 15 friendly minions die" gives the teammate a Goldcrafter (every friendly death in every phase, never a consume or
+  a sale; not an Avenge, so the count carries across the Shop and every fight like Braum's, R-ANCIENT-CARRYOVER-01); Fortune,
   every 40 Gold spent gives Golden Gratitude its use back (banked while it waits on the buy); War, Start of Combat the
   left-most minion is Gilded for the fight (an Engraved one stays Gilded); Genesis, the teammate's bought minion is
   Gilded too; Time, once, next turn, a Goldcrafter for her and one for her teammate; Bonds, the two copies are

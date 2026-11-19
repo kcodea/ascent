@@ -51,25 +51,69 @@ describe('Gildmaster × every Ancient has a written pairing', () => {
   });
 });
 
-describe('Gildmaster × DEATH: "Avenge (17): Get a Goldcrafter." (owner 2026-11-16: 17, was 14)', () => {
+describe('Gildmaster × DEATH: "When 17 friendly minions die, get a Goldcrafter." (owner 2026-11-19, R-ANCIENT-CARRYOVER-01: the carry-over kind, was Avenge (17))', () => {
+  const crafters = (s: RunState) => events(s).filter((e) => e.type === 'toHand' && e.cardId === 'goldcrafter').length;
+  it('the offer and the power read the carry-over wording, with the live countdown', () => {
+    expect(ancientOfferText('gildmaster', 'death')).toBe('When **17** friendly minions die, get a **Goldcrafter**.');
+    let s = picked('death');
+    expect(heroPowerText(s)).toBe(`${BASE} When **17** friendly minions die, get a **Goldcrafter** (**17** more to go).`);
+    s = { ...s, ancients: { ...s.ancients!, gildDeaths: 10 } };
+    expect(heroPowerText(s)).toContain('(**7** more to go)');
+    // Combat chain: the replay's deaths so far add to the carried count, live.
+    expect(heroPowerText(s, 0, { friendlyDeaths: 4 })).toContain('(**3** more to go)');
+    expect(heroPowerText(s, 0, { friendlyDeaths: 7 })).toContain('(**17** more to go)');
+  });
   it('Shop: the 17th friendly Shop death gets a Goldcrafter right then', () => {
     let s = picked('death');
-    expect(heroPowerText(s)).toBe(`${BASE} **Avenge (17):** get a **Goldcrafter** (**17** more to go).`);
     s = structuredClone({ ...s, board: [card('d', N(0))], ancients: { ...s.ancients!, gildDeaths: 16 } });
     destroyMinionInShop(makeContext(s), at(s, 'd'));
     expect(s.hand.map((c) => c.cardId)).toEqual(['goldcrafter']);
     expect(s.ancients!.gildDeaths).toBe(0);
   });
-  it('combat: the carried count pays a Goldcrafter MID-FIGHT (a live toHand); settle carries the remainder', () => {
+  it('the count carries into the fight: 16 carried, the FIRST combat death pays a Goldcrafter mid-fight (a live toHand)', () => {
     let s = picked('death', { board: ['a', 'b'].map((u, i) => card(u, N(i), { attack: 1, health: 1 })) });
     s = { ...s, ancients: { ...s.ancients!, gildDeaths: 16 } };
-    expect(ancientCombatMods(s).ancientGorrAvenge).toEqual({ every: 17, tick: 16, ids: ['goldcrafter'], label: 'Ancient of Death' });
+    expect(ancientCombatMods(s).ancientGorrAvenge).toEqual({ every: 17, tick: 16, ids: ['goldcrafter'], label: 'Ancient of Death', carry: true });
     expect(ancientAvengeCountdown(s)).toBe(1);
     s = fightNow(s, 100, 1000);
-    expect(events(s).filter((e) => e.type === 'toHand' && e.cardId === 'goldcrafter').length).toBe(1);
-    const deaths = s.lastCombat!.playerDeaths ?? 0;
+    expect(s.lastCombat!.playerDeaths).toBe(2);
+    expect(crafters(s)).toBe(1);
     s = reduce(s, { type: 'resolveCombat' });
     expect(s.hand.map((c) => c.cardId)).toContain('goldcrafter');
+    expect(s.ancients!.gildDeaths, 'the second death is 1 toward the next').toBe(1);
+  });
+  it('fires at exactly N: 15 carried + 2 deaths pays once, 14 carried + 2 deaths pays nothing', () => {
+    const run = (tick: number) => {
+      let s = picked('death', { board: ['a', 'b'].map((u, i) => card(u, N(i), { attack: 1, health: 1 })) });
+      s = fightNow({ ...s, ancients: { ...s.ancients!, gildDeaths: tick } }, 100, 1000);
+      return s;
+    };
+    expect(crafters(run(15))).toBe(1);
+    const miss = run(14);
+    expect(crafters(miss)).toBe(0);
+    expect(reduce(miss, { type: 'resolveCombat' }).ancients!.gildDeaths, '14 + 2 = 16, kept for the next phase').toBe(16);
+  });
+  it('carries fight -> Shop -> fight: 3 deaths, then 13 Shop deaths, then the next fight pays on its first death', () => {
+    let s = picked('death', { board: ['a', 'b', 'c'].map((u, i) => card(u, N(i), { attack: 1, health: 1 })) });
+    s = fightNow(s, 100, 1000);
+    expect(crafters(s)).toBe(0);
+    s = reduce(s, { type: 'resolveCombat' });
+    expect(s.ancients!.gildDeaths).toBe(3);
+    s = structuredClone({ ...s, phase: 'recruit' as const, board: Array.from({ length: 13 }, (_, i) => card(`s${i}`, N(i))) });
+    for (let i = 0; i < 13; i++) destroyMinionInShop(makeContext(s), at(s, `s${i}`));
+    expect(s.hand.filter((c) => c.cardId === 'goldcrafter')).toHaveLength(0);
+    expect(s.ancients!.gildDeaths).toBe(16);
+    expect(heroPowerText(s)).toContain('(**1** more to go)');
+    s = fightNow({ ...s, board: [card('z', N(0), { attack: 1, health: 1 })] }, 100, 1000);
+    expect(crafters(s), 'the Shop count came into the fight').toBe(1);
+  });
+  it('repeats: 16 carried and 18+ deaths in one fight pays twice (deaths 1 and 18)', () => {
+    let s = picked('death', { board: ['a', 'b', 'c', 'd', 'e', 'f', 'g'].map((u) => card(u, 'pack', { attack: 1, health: 1 })) });
+    s = fightNow({ ...s, ancients: { ...s.ancients!, gildDeaths: 16 } }, 100, 1000);
+    const deaths = s.lastCombat!.playerDeaths ?? 0;
+    expect(deaths).toBeGreaterThanOrEqual(18);
+    expect(crafters(s)).toBe(Math.floor((16 + deaths) / 17));
+    s = reduce(s, { type: 'resolveCombat' });
     expect(s.ancients!.gildDeaths).toBe((16 + deaths) % 17);
   });
 });

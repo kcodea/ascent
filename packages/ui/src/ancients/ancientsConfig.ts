@@ -197,11 +197,13 @@ export interface AncientsConfig {
 
 /** Per-Ancient art fit for the hero-power half: offset (design px), scale (x), rotation (deg), and a crack-position
  *  nudge (% of the button) when the default split cuts the art badly. Keys: `<ancient><X|Y|S|R|Crack>`. */
-export type AncientArtKey = `${'death' | 'fortune' | 'war' | 'genesis' | 'time' | 'bonds'}${'X' | 'Y' | 'S' | 'R' | 'Crack'}`;
+export type AncientArtKey = `${'death' | 'fortune' | 'war' | 'genesis' | 'time' | 'bonds'}${'X' | 'Y' | 'S' | 'R' | 'Crack' | 'PanelSize'}`;
 export const ANCIENT_ART_IDS = ['death', 'fortune', 'war', 'genesis', 'time', 'bonds'] as const;
-export const ART_FIELDS = ['X', 'Y', 'S', 'R', 'Crack'] as const;
+/** `PanelSize` is not hero-power art: it is the Ancient's own figure size on its awakening panel (×, on top of the
+ *  shared `panelFigureScale`; owner 2026-11-19: "dials for me to be able to change the size of each ancient figure"). */
+export const ART_FIELDS = ['X', 'Y', 'S', 'R', 'Crack', 'PanelSize'] as const;
 const ART_DEFAULTS = Object.fromEntries(
-  ANCIENT_ART_IDS.flatMap((id) => ART_FIELDS.map((f) => [`${id}${f}`, f === 'S' ? 1 : 0])),
+  ANCIENT_ART_IDS.flatMap((id) => ART_FIELDS.map((f) => [`${id}${f}`, f === 'S' || f === 'PanelSize' ? 1 : 0])),
 ) as Record<AncientArtKey, number>;
 export type AncientColorKey = `${'death' | 'fortune' | 'war' | 'genesis' | 'time' | 'bonds'}Color`;
 /** THE AWAKENING SOUND CUES (owner: "i can help source sounds if you set up a tuner with timing cues"). Each cue is a
@@ -413,7 +415,7 @@ export const ANCIENTS_RANGES: Record<NumKey, [number, number, number]> = {
   crackShadow: [0, 1, 0.01],
   crackOpenMs: [0, 1500, 10],
   ...(Object.fromEntries(ANCIENT_ART_IDS.flatMap((id) => [
-    [`${id}X`, [-80, 80, 0.5]], [`${id}Y`, [-80, 80, 0.5]], [`${id}S`, [0.3, 3, 0.01]], [`${id}R`, [-180, 180, 0.5]], [`${id}Crack`, [-30, 30, 0.5]],
+    [`${id}X`, [-80, 80, 0.5]], [`${id}Y`, [-80, 80, 0.5]], [`${id}S`, [0.3, 3, 0.01]], [`${id}R`, [-180, 180, 0.5]], [`${id}Crack`, [-30, 30, 0.5]], [`${id}PanelSize`, [0.5, 1.6, 0.01]],
   ])) as Record<AncientArtKey, [number, number, number]>),
 };
 

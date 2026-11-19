@@ -352,7 +352,7 @@ body.ancgate .app { z-index: auto; }
   background: linear-gradient(90deg, color-mix(in srgb, var(--anc-c) 70%, #fff) 0%, color-mix(in srgb, var(--anc-c) 55%, transparent) 14%, transparent 42%, transparent 58%, color-mix(in srgb, var(--anc-c) 55%, transparent) 86%, color-mix(in srgb, var(--anc-c) 70%, #fff) 100%);
 }
 .anc-pn-name {
-  position: absolute; left: 50%; bottom: 8.5%; transform: translateX(-50%); opacity: 0; white-space: nowrap;
+  position: absolute; left: 50%; top: 9%; transform: translateX(-50%); opacity: 0; white-space: nowrap;
   font-family: var(--title-font, 'Cinzel Decorative'), 'Cinzel Decorative', serif; font-weight: var(--title-weight, 700);
   font-size: calc(27 * var(--u, 1px)); letter-spacing: 0.14em; text-transform: uppercase; color: #fff;
   text-shadow: 0 calc(2 * var(--u, 1px)) calc(5 * var(--u, 1px)) #000, 0 0 calc(14 * var(--u, 1px)) var(--anc-c);

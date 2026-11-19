@@ -4,7 +4,7 @@ import { wipeFx } from '../wipeFx';
 import { ancientPanelLayers } from '../art';
 import { rectToStage, stageViewport, toScreen } from '../stage';
 import { AncientFace } from './AncientFace';
-import { ancientColor, getAncientsConfig } from './ancientsConfig';
+import { ancientColor, getAncientsConfig, type AncientsFullConfig } from './ancientsConfig';
 import { playCue } from './ancientsSound';
 import { PANEL_LAND, PANEL_PULSE, PANEL_SLIDE_EASE, cardPolygon, openPolygon, panelBackWidth, panelFigureFit, panelFigureRest, panelFromTop, panelGeometry, panelRank, panelTimeline, seamX, slideLeadY, stripPolygon } from './panelClock';
 
@@ -33,6 +33,8 @@ import { PANEL_LAND, PANEL_PULSE, PANEL_SLIDE_EASE, cardPolygon, openPolygon, pa
  */
 const hexNum = (hex: string): number => parseInt(hex.replace('#', '').slice(0, 6), 16) || 0xffffff;
 const rnd = (a: number, b: number): number => a + Math.random() * (b - a); // presentation-only jitter
+/** An Ancient's figure size: the shared dial times its own (`<id>PanelSize`). */
+const figSize = (c: AncientsFullConfig, id: AncientId): number => c.panelFigureScale * ((c as unknown as Record<string, number>)[`${id}PanelSize`] ?? 1);
 const SLIDE_CSS = `cubic-bezier(${PANEL_SLIDE_EASE.join(', ')})`;
 const SPARK_HOT = [0xffe7a8, 0xffffff, 0xffd98a] as const;
 
@@ -80,7 +82,7 @@ export const AncientPanels = memo(function AncientPanels({ offered, phase }: { o
       playCue('panelBg', tl.bg[i]!, { rateMul: 1 + rank * 0.1 });
       // 2. The Ancient follows from the same side, from fully off screen, and slams. A layered figure stands smaller
       // than the flat painting's square (the whole cut-out fits the strip's height), so its slide carries that scale.
-      const rest = p.dataset.layered ? panelFigureRest(geo, panelFigureFit(id), cfg.panelFigureScale) : { tx: 0, ty: 0, s: 1 };
+      const rest = p.dataset.layered ? panelFigureRest(geo, panelFigureFit(id), figSize(cfg, id)) : { tx: 0, ty: 0, s: 1 };
       const at0 = (y: number): string => `translate(${rest.tx.toFixed(1)}px, ${(rest.ty + y).toFixed(1)}px) scale(${rest.s.toFixed(4)})`;
       anim(q('.anc-pn-fig'), [
         { transform: at0(dir * geo.travel), easing: SLIDE_CSS },
@@ -200,7 +202,7 @@ export const AncientPanels = memo(function AncientPanels({ offered, phase }: { o
           o?.animate([{ clipPath: openPolygon(geo) }, { clipPath: cardPolygon(geo, r.width, r.top, r.bottom) }], { duration: dur, easing: ease, fill: 'forwards' });
           // The Ancient's square ends exactly on the card's art square, so the real card appears over the same picture.
           const dy = r.top + r.height / 2 - geo.vh / 2;
-          const rest = p.dataset.layered ? panelFigureRest(geo, panelFigureFit(id), c.panelFigureScale) : { tx: 0, ty: 0, s: 1 };
+          const rest = p.dataset.layered ? panelFigureRest(geo, panelFigureFit(id), figSize(c, id)) : { tx: 0, ty: 0, s: 1 };
           q('.anc-pn-fig')?.animate([{ transform: `translate(${rest.tx.toFixed(1)}px, ${rest.ty.toFixed(1)}px) scale(${rest.s.toFixed(4)})` }, { transform: `translate(0px, ${dy.toFixed(1)}px) scale(${(r.width / geo.figS).toFixed(4)})` }], { duration: dur, easing: ease, fill: 'forwards' });
           q('.anc-pn-glow')?.animate([{ opacity: 1 }, { opacity: 0 }], { duration: dur, fill: 'forwards' });
           p.querySelector('.anc-pn-lit')?.animate([{ opacity: 1 }, { opacity: 0 }], { duration: dur, fill: 'forwards' });

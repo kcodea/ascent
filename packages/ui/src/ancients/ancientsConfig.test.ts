@@ -33,7 +33,7 @@ describe('the Ancients tuner defaults', () => {
   });
   it('fit every Ancient’s hero-power art at the neutral offset (0) and scale (1)', () => {
     for (const id of ANCIENT_ART_IDS) {
-      for (const f of ART_FIELDS) expect(ANCIENTS_DEFAULTS[`${id}${f}`], `${id}${f}`).toBe(f === 'S' ? 1 : 0);
+      for (const f of ART_FIELDS) expect(ANCIENTS_DEFAULTS[`${id}${f}`], `${id}${f}`).toBe(f === 'S' || f === 'PanelSize' ? 1 : 0); // both scales are neutral at 1
     }
   });
   it('carry the baked hero themes: the default (today’s teal) and Indy’s gold (redone 2026-09-26)', () => {

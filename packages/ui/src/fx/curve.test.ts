@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   sampleCurve,
+  zeroTailStart,
   bakeCurveLut,
   isIdentityCurve,
   CURVE_PRESETS,
@@ -268,5 +269,27 @@ describe('bakeCurveLut', () => {
     const one = new Float32Array(1);
     bakeCurveLut([[0, 0.4], [1, 0.9]], one);
     expect(one[0]).toBeCloseTo(0.4, 6);
+  });
+});
+
+describe('zeroTailStart (R-PERF-FX-DEAD-TAIL-01)', () => {
+  it('is 1 for a curve that never settles at 0', () => {
+    expect(zeroTailStart([[0, 1], [1, 1]])).toBe(1);
+    expect(zeroTailStart([[0, 1], [0.5, 0], [1, 0.2]])).toBe(1);
+    expect(zeroTailStart([])).toBe(1);
+  });
+  it('is where the trailing run of zeros begins', () => {
+    expect(zeroTailStart([[0, 1], [0.57, 0], [1, 0]])).toBe(0.57);
+    expect(zeroTailStart([[0, 1], [0.3, 0], [0.6, 0], [1, 0]])).toBe(0.3);
+    expect(zeroTailStart([[0, 1], [1, 0]])).toBe(1); // reaches 0 only at the very end: nothing to cut
+  });
+  it('is 0 for a curve that is 0 throughout', () => {
+    expect(zeroTailStart([[0, 0], [1, 0]])).toBe(0);
+  });
+  it('agrees with sampleCurve: every sample at or past the start is exactly 0, and one just before is not', () => {
+    const c: [number, number][] = [[0, 0.5], [0.4, 1], [0.57, 0], [0.8, 0], [1, 0]];
+    const t0 = zeroTailStart(c);
+    for (let t = t0; t <= 1; t += 0.01) expect(sampleCurve(c, t)).toBe(0);
+    expect(sampleCurve(c, t0 - 0.01)).toBeGreaterThan(0);
   });
 });

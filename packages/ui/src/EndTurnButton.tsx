@@ -7,6 +7,7 @@ import { sfx } from './sfx';
 import { viewerPress } from './viewerGuard';
 import { onPressCue } from './pressCue';
 import { publicArt } from './phoneArt';
+import { warmEndTurnArt } from './decodeAhead';
 import { CountdownTail } from './versus/countdownBeat';
 import { useDuosViewingClass } from './duosViewing';
 
@@ -304,6 +305,7 @@ export const EndTurnButton = memo(function EndTurnButton({ onEndTurn, disabled, 
       className={`etbwrap${pressed ? ' pressed' : ''}${urgent && !pressed ? ' urgent' : ''}${combatReady ? ' ready' : ''}${skipReady ? ' skip' : ''}${note ? ' noted' : ''}${readyOn && !combatReady && !skipReady ? ' readyon' : ''}${mateView}`}
       disabled={disabled}
       onClick={click}
+      onPointerEnter={combatReady || skipReady ? undefined : warmEndTurnArt}
       aria-pressed={readyOn && !combatReady && !skipReady ? true : undefined}
       aria-label={skipReady ? 'Skip combat' : combatReady ? 'End combat and go back to shop' : readyOn ? 'Ready. Press again to cancel' : label ?? 'End your turn and start combat'}
     >

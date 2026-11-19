@@ -33,6 +33,20 @@ export function sampleCurve(points: ReadonlyArray<CurvePoint>, t: number): numbe
 }
 
 /**
+ * PURE: the life fraction from which `points` is 0 for the REST of the life, or 1 when it never settles at 0.
+ * A particle whose size or alpha curve has such a tail draws nothing from that moment on (a zero-area or fully
+ * transparent quad), so a primitive may stop simulating and drawing it there (R-PERF-FX-DEAD-TAIL-01).
+ */
+export function zeroTailStart(points: ReadonlyArray<CurvePoint>): number {
+  const n = points.length;
+  if (n === 0) return 1; // an empty curve samples as 1
+  if (points[n - 1][1] > 0) return 1;
+  let i = n - 1;
+  while (i > 0 && !(points[i - 1][1] > 0)) i--;
+  return i === 0 ? 0 : points[i][0];
+}
+
+/**
  * The fewest control points a curve may have. `coerceParams` rejects a shorter list outright (see the
  * `curve` case in params.ts) — a one-point curve has no span to interpolate over — so an editor's remove
  * affordance must refuse to cross this rather than emit a value the param layer will silently discard.

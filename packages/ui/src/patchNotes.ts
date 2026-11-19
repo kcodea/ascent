@@ -63,11 +63,20 @@ export const PATCH_NOTES: PatchNote[] = [
         text: 'Buying, playing and selling in the Shop costs less work per move, so a fast turn on a big board stays smoother.',
         details: ['Nothing looks or plays different.'],
       },
+      {
+        category: 'Systems',
+        text: 'Fast turns stay smoother. Buying or playing a card no longer redraws your whole hand.',
+        details: [
+          'Each card in your hand is now drawn once and then only moved.',
+          'Your hand looks exactly as it did.',
+        ],
+      },
     ],
   },
   {
     date: '2026-11-18',
     changes: [
+      { category: 'Systems', text: 'Smoother combat: background calculations no longer interrupt the fight.' },
       {
         category: 'Balance',
         text: 'Ancient of Death: Gildmaster and Cindy now count friendly deaths across fights and the Shop, and Cassen needs 5 deaths instead of 7.',
@@ -140,10 +149,73 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'The end of a fight and the trip back to the Shop are smoother.',
+        details: [
+          'The game no longer freezes for a moment as a fight ends. It was reloading the pictures for the trip back to the Shop every round.',
+          'The dive through the Shop door no longer stutters as it starts.',
+          'Nothing looks different. This is speed only, on desktop.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'The Rise, Flurry, Execute and Rebirth effects on minions are much lighter to draw, so boards full of them no longer slow the game down.',
+        details: [
+          'Each effect is now one picture made from the original effect, instead of dozens of moving pieces per minion.',
+          'They should look the same as before. Tell us if one looks different.',
+          'Phones still use the original effects for now.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'The crystal fuse at the end of a turn costs far less to draw, and buying, selling and rolling no longer redraw the player rail. Nothing looks different.',
+      },
+      {
+        category: 'Systems',
+        text: 'Glowing effects cost far less to draw, most of all when a whole board is buffed at once.',
+        details: [
+          'A buff that flies to every minion on your board no longer slows the Shop while its trails are in flight.',
+          'Strike bursts, the 5,000 stat rings and other glowing sparks are lighter in long fights.',
+          'These effects look the same as before.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Fights run smoother, most of all late in the game with big boards and big numbers.',
+        details: [
+          'A minion dying or a spell being cast mid-fight no longer redraws every card on the board.',
+          'A rolling stat number now redraws only its own badge, not the whole card.',
+          'Long fights no longer get heavier as they go on.',
+          'Nothing looks or plays differently.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Mech and Spirit have new tribe colors that match the gems on their card frames.',
         details: [
           'Mech is now indigo instead of sky blue.',
           'Spirit is now copper orange instead of pale peach.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Playing very fast on a big engine board is smoother. Stat numbers land at once and effects keep pace with you instead of piling up.',
+        details: [
+          'This applies when you make three or more moves a second in the Shop: buying, playing, selling, casting, refreshing.',
+          'Stat numbers show their new value at once with one pop. They used to roll, and on a fast turn they fell seconds behind.',
+          'Buff effects from your earlier moves that have not started yet are skipped. Effects already playing finish.',
+          'A minion shows one copy of an effect at a time. Effects play a little faster and lighter the faster you go.',
+          'A card added to your hand appears at once, ready to grab.',
+          'At normal speed nothing changes. Your stats and results are the same either way.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'The shop stays smoother late in the game. Buying, selling, playing a card or refreshing no longer redraws every card on screen.',
+        details: [
+          'Each card in the shop and on your board is now drawn once and then only moved.',
+          'A stat change redraws that one card, not its neighbours.',
+          'Your hand is drawn on its own, apart from the rest of the screen.',
+          'Nothing looks different.',
         ],
       },
       {
@@ -167,6 +239,15 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       { category: 'Systems', text: 'When an Ancient awakens, you can now Peek at the board before you choose, like a Discover. Press Return to Ancients to bring the choice back.' },
       { category: 'Systems', text: 'The Ancient choice now sits on the same dark backdrop as the Runeforge, so the Ancients stand out from the board.' },
+      {
+        category: 'Systems',
+        text: 'Reverb sounds, hovering a card and damage numbers all cost less. They look and sound the same.',
+        details: [
+          'Sounds with reverb now share a few reverb units, so a busy late turn no longer piles them up.',
+          'The soft glow around a hovered card is no longer redrawn on every frame.',
+          'The shadow under a damage number is no longer redrawn on every frame.',
+        ],
+      },
     ],
   },
   {

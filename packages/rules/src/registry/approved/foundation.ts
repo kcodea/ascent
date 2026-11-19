@@ -8537,6 +8537,70 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/fx/fxBudget.test.ts', 'packages/ui/src/handBuffFx.test.tsx', 'packages/ui/src/fx/reactPopLayer.test.ts'], lastVerifiedAt: '2026-10-22' },
   },
   {
+    id: 'R-PERF-APM-01',
+    title: 'Under rapid Shop input the game presents the newest action only: numbers are true at once and nothing queues',
+    statement:
+      'Rapid input means three or more accepted Shop actions (buy, sell, play, cast, refresh, tier up, hero power, freeze) inside '
+      + 'one second; once rapid it stays rapid until fewer than two are inside a second. At up to two actions a second every effect, stat roll and buff wave plays exactly as authored. While input is '
+      + 'rapid: (1) a stat change is printed at once with the badge\x27s one pop instead of being withheld for a roll, and the '
+      + 'numbers an earlier action was still rolling in are printed with it, so a badge never shows less than the run really '
+      + 'holds; (2) a new action drops the paced steps of earlier actions that have not started yet (later buff waves, Shout '
+      + 'chain links, a waiting buffer); effects already playing finish; (3) a one-shot effect is keyed by its recipient, so a '
+      + 'card carries one live copy of an effect: a second fire inside 250 ms is the same moment, a later one replaces the '
+      + 'copy it finds; (4) effects play in step with the input, up to 1.6 times faster and down to 60% of their particles at '
+      + 'five or more actions a second; (5) the hand card\x27s own canvas effects are skipped: a card granted to hand arrives '
+      + 'at once instead of being hidden until it has re-formed, and a played card\x27s backplate does not dissolve. End Turn ends it at once: End of Turn beats and the fight are always presented in '
+      + 'full. It is presentation only: nothing the reducer, a replay or a snapshot reads. Input is never held for '
+      + 'presentation at any speed.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-18 (performance push, relayed by the coordinator)', quote: 'the biggest problem to me is when i have a board with cards like Karwind and im playing APM and the game gets bogged down and nearly impossible to play. this needs to be butter smooth.' },
+      { kind: 'code', ref: 'packages/ui/src/fx/actionPressure.ts; packages/ui/src/fx/rapidConfig.ts; packages/ui/src/fx/shopFxQueue.ts; packages/ui/src/fx/rapidPlay.ts; packages/ui/src/fx/statHold.ts (holdStat, deliverAllStats); packages/ui/src/fx/playDef.ts; packages/ui/src/store.ts (dispatch notes the action); packages/ui/src/Recruit.tsx (paced steps through shopFxLater); scripts/perf-apm-engine.mjs' },
+    ],
+    example: 'Karwind\x27s board (a gilded Karwind, Firebird, Scalechanter, Embermouth, Herzog, Transcendence, the Ancient of Bonds awake), a Shout minion bought, played and sold over and over by real mouse input at up to 8 actions a second for 25 s (`npm run perf:apm`, prod bench build). Before: every stat badge was behind the real number in 82 to 94% of samples, for up to 7 seconds in a row; 19 to 23 effects were alive on average and 34 at peak. Now a badge is never behind, and the effects alive stay at the level of one action.',
+    currentBehaviour: 'Conforms from 2026-11-18 (perf/apm-engine). Before, every action queued its whole authored presentation behind the previous ones.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/fx/actionPressure.test.ts', 'packages/ui/src/fx/shopFxQueue.test.ts', 'packages/ui/src/fx/rapidPlay.test.ts'], lastVerifiedAt: '2026-11-18' },
+  },
+  {
+    id: 'R-PERF-APM-02',
+    title: 'The shared stat roll steps at most 60 times a second, and its last step is never late',
+    statement:
+      'A stat badge that rolls to a new number (the shared roll in fx/statHold.ts) changes its printed digits at most 60 times '
+      + 'a second, on every display. A roll that is over prints its final number on the next frame whatever the cap says. On a '
+      + '60 Hz display nothing changes; on a 240 Hz display the same roll makes a quarter of the badge updates, each of which '
+      + 're-renders the badge, restarts its pop and re-draws the card under it.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-18 (performance push, relayed by the coordinator)', quote: 'the biggest problem to me is when i have a board with cards like Karwind and im playing APM and the game gets bogged down and nearly impossible to play. this needs to be butter smooth.' },
+      { kind: 'code', ref: 'packages/ui/src/fx/statHold.ts (ensureTicking, anyRollOver); packages/ui/src/fx/rapidConfig.ts (STAT_ROLL)' },
+    ],
+    example: 'A +4/+4 from Karwind on seven Dragons: a 420 ms roll on 14 badges was about 1,400 badge updates on a 240 Hz display. It is 350 now, the number a 60 Hz display always made.',
+    currentBehaviour: 'Conforms from 2026-11-18 (perf/apm-engine). Before, the roll stepped on every display frame.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/fx/statRollStep.test.ts'], lastVerifiedAt: '2026-11-18' },
+  },
+  {
+    id: 'R-PERF-APM-03',
+    title: 'A drop reads its rects before the drag\x27s body class comes off, and an action renders the Shop once',
+    statement:
+      'The release handler of a drag reads every rect the drop\x27s own presentation needs (the played card\x27s plate, the Gold '
+      + 'pill a sale sprays coins from) together with its row snapshot, BEFORE it removes `body.dragging`. Removing that class '
+      + 'dirties style for the whole page, so a rect read after it forces that restyle inside the handler. And one player '
+      + 'action renders the Shop screen once: a played Shout writes the medallion-pulse state only when a card takes the '
+      + 'pulse, and a sale\x27s Gold float is unmounted in the next sale\x27s own commit (one sweep follows the last sale) instead '
+      + 'of by a render of its own a second later.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-18 (performance push, relayed by the coordinator)', quote: 'the biggest problem to me is when i have a board with cards like Karwind and im playing APM and the game gets bogged down and nearly impossible to play. this needs to be butter smooth.' },
+      { kind: 'code', ref: 'packages/ui/src/Recruit.tsx (onUp: dropRectsRef before the class removal; applyDrop and the sold presenter read it; setBattlecryUids guard; SELL_FLOAT_MS sweep)' },
+    ],
+    example: 'CPU profile of `npm run perf:apm` on main, 2026-11-18: the plate read cost 90 ms over about 20 plays and the Gold pill read 101 ms over about 20 sales, each a whole-page restyle forced inside pointerup. The Shop screen rendered 256 times for 164 actions: one extra render per played Shout and one per sale.',
+    currentBehaviour: 'Conforms from 2026-11-18 (perf/apm-engine).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/dropReadsBeforeRestyle.test.ts'], lastVerifiedAt: '2026-11-18' },
+  },
+  {
     id: 'R-PROG-AETHER-06',
     title: 'Announcers can never be a chest focus; they still drop from unfocused chests, and ticking every focusable category is an unfocused, free chest that can give one',
     statement:
@@ -12877,6 +12941,100 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/artPlanCoverage.test.ts'], lastVerifiedAt: '2026-11-04' },
   },
   {
+    id: 'R-PERF-PHASE-ART-HELD-01',
+    title: 'A phase change never decodes a full-screen picture again while a frame waits on it',
+    statement:
+      'The pictures a phase change shows (the return trip\x27s layers, the falling gate, the combat board) are ready to '
+      + 'draw when their moment comes, every round, not only the first. The browser\x27s compositor drops big pictures '
+      + 'that are off screen for a phase and decodes them again when they come back, with the main thread stuck behind '
+      + 'the decode. So on desktop the return trip\x27s five layers are canvases the page paints once and keeps for the '
+      + 'session (nothing to decode, however long they were hidden), and the pictures that stay CSS backgrounds are '
+      + 'asked for off the main thread a moment before the frame that draws them. A layer that rides a big zoom keeps '
+      + 'what it drew instead of drawing again at the zoomed size. And the combat layering (the app\x27s stacking context '
+      + 'dissolved, the hero bar under the units) switches when the combat scene is swapped in under the gate, never at '
+      + 'the End Turn press while the Shop is still on screen: that switch redraws every layer inside the app. Phones '
+      + 'keep their one small flattened picture and their bounded picture memory.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-18 (top priority, above everything)', quote: '240 fps constantly with no hitching, especially around the recruit phase' },
+      { kind: 'code', ref: 'packages/ui/src/heldArt.ts (the held canvases); packages/ui/src/decodeAhead.ts (warmEndTurnArt, warmVistaDoorArt); packages/ui/src/Recruit.tsx (VISTA_HELD, the fight-end warm-up); packages/ui/src/styles.css (.wipevista-layer.canvased, the door pieces\x27 will-change, .app.combat.staged)' },
+      { kind: 'fix-pr', ref: 'perf/phase-decode' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-18 (perf/phase-decode). Before, the end of every fight decoded the return trip\x27s five '
+      + '2560 x 1440 layers again (25 to 73 ms each, the main thread blocked behind them), and the dive through the '
+      + 'door drew the door\x27s pieces again at the zoomed size (30 to 60 ms of GPU work in its first frames). The '
+      + 'End Turn press also redrew the whole Shop behind the falling gate (the layering switched at the press). '
+      + 'Numbers: docs/devlog/2026-11-18-perf-phase-transitions.md.',
+    example: 'A fight ends on round 8. Before, the frame that readied the trip back to the Shop decoded five big pictures and the last hits of the fight froze for about a tenth of a second. Now the layers are already held, and nothing is decoded.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heldArt.test.ts', 'packages/ui/src/combatZOrder.test.ts'], lastVerifiedAt: '2026-11-18' },
+  },
+  {
+    id: 'R-PERF-SHARED-FX-REVERB-01',
+    title: 'A big hit never builds a reverb node mid-fight',
+    statement:
+      'A one-shot effect sound layer whose reverb had nothing after it but the fader (no Pan, a flat reverb mix, a flat '
+      + 'level curve) sends into a shared convolver for its bus and impulse, built once on idle time, instead of taking '
+      + 'a node of its own. The send carries the fader\'s level; the fader\'s fades stay behind the convolver on one '
+      + 'gate per node: plays with the same fade-in share a node whose gate rides the fade-in when the node has rung '
+      + 'out, and fading-out plays get two nodes per impulse (one on a phone) so two overlapping plays each keep their '
+      + 'own fade. A play on its own sounds exactly as before (an offline render of both graphs differs by '
+      + 'floating-point noise). While plays of one impulse overlap past that, an earlier tail rings under the later '
+      + 'play instead of being cut with its own clip. A finished voice is disconnected from its bus once whatever still '
+      + 'rings inside its own chain has died. The Ruby landing\'s tail convolver is built on idle time on desktop.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-18 (the bar: a 2D card game has no excuse for dropped frames; 240 fps constant, recruit phase first)' },
+      { kind: 'code', ref: 'packages/ui/src/fx/audioFilters.ts (sharedFxReverb, sharedReverbEligible, prewarmSharedFxReverbs); packages/ui/src/sfx.ts (playFxSound, playSample, fxChainRingSeconds, warmWipeGate)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-18 (perf/always-on). Before, the pool kept two idle convolvers per impulse and a third '
+      + 'overlapping play built one (about 6 ms of main thread at a 96 kHz context). A 500+ Attack hit plays a strike '
+      + 'impact whose reverb layers each held a node for 3 to 5 s, so past the first swings nearly every big hit built '
+      + 'one or two nodes; a burst of grant trails did the same.',
+    example: 'Seven minions at 900 Attack trade blows a third of a second apart. Before, each blow after the first two built a new reverb node while the fight played. Now every blow sends into the same one.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/fx/sharedFxReverb.test.ts', 'packages/ui/src/fx/convolverPool.test.ts'], lastVerifiedAt: '2026-11-18' },
+  },
+  {
+    id: 'R-PERF-HOVER-SHADOW-01',
+    title: 'The hover preview bobs without re-blurring its haze',
+    statement:
+      'The hover preview\'s white haze and drop shadow (three drop-shadows) sit on a box that never animates, inside the '
+      + 'element that slides in and bobs. The bob is on the separate translate property, so it never fights the '
+      + 'slide-in\'s transform, and travels the same distance (4 px times the popup zoom). The shadow looks the same: it '
+      + 'always moved rigidly with the card.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-18 (ruling: keep the hover shadow looking the same)' },
+      { kind: 'code', ref: 'packages/ui/src/styles.css (.cardref, .cardref-shadow, .cardref-inner, cardreffloat); the five .cardref surfaces: Card.tsx, RuneCard.tsx, QuestCard.tsx, StatusBar.tsx, guides/GuideParts.tsx' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-18 (perf/always-on). Before, the filter sat on the parent of a child that bobbed forever, '
+      + 'so its input changed every frame: three blur passes over the whole popup for as long as the pointer rested on a '
+      + 'card (devlog 2026-10-21 measured the hover sweep\'s worst frame at 24.7 ms with it and 9.7 ms without).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/staticShadowCss.test.ts'], lastVerifiedAt: '2026-11-18' },
+  },
+  {
+    id: 'R-PERF-DMG-SHADOW-01',
+    title: 'A damage number moves a rastered shadow, it does not re-blur one',
+    statement:
+      'A damage number\'s drop shadow sits on a static inner box that holds the number and its burst; the float that '
+      + 'pops, rises and fades carries no filter. The shadow is still cast by number and burst together.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-18 (the bar: a 2D card game has no excuse for dropped frames; 240 fps constant, recruit phase first)' },
+      { kind: 'code', ref: 'packages/ui/src/styles.css (.float.dmg, .float.dmg .dmgbody); packages/ui/src/Recruit.tsx (the float and death-float markup)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-18 (perf/always-on). Before, the filter was on the element that animates translate, scale '
+      + 'and opacity for its whole life: a blur pass per frame per number, up to 14 at once on a wave or cleave.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/staticShadowCss.test.ts'], lastVerifiedAt: '2026-11-18' },
+  },
+  {
     id: 'R-PERF-SHARED-TAIL-REVERB-01',
     title: 'A fight never builds reverb nodes as it starts, and the reverb pool never grows over a game',
     statement:
@@ -12898,6 +13056,112 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'each, so the renderer grew in 60 MB steps over a game.',
     example: 'Every End Turn drops the gate and winches it back up with a reverb crank. Before, each fight built four reverb nodes for it, about 155 MB, and threw them away 3 s later. Now the crank sends into one reverb built when the game starts.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/audio/sharedTailReverb.test.ts', 'packages/ui/src/fx/convolverPool.test.ts', 'packages/tools/src/perfGauntletStats.test.ts'], lastVerifiedAt: '2026-10-30' },
+  },
+  {
+    id: 'R-PERF-CARD-LAYER-01',
+    title: 'A recruit card is painted once: a buy, sell, play or refresh never repaints the cards it did not change',
+    statement:
+      'In the recruit rows each Shop card and each board card is its own compositor layer, and the hand is one layer '
+      + '(the hand zone), all by `will-change: transform`. A card is painted when it arrives and again only when its own '
+      + 'pixels change; a neighbour arriving, leaving or sliding is a compositor move that paints nothing. The hand card '
+      + 'ELEMENT is never itself the layer (its fan transform would resample a 1:1 texture and soften the card; a hand '
+      + 'card is layered through the supersampled wrapper of R-PERF-HAND-LAYER-01 instead), the '
+      + 'hint is never `opacity` (an opacity-hinted card keeps its sub-pixel position and is painted again on every '
+      + 'move), and no layer is held under a card for its stat badges or their numbers. The static filters and shadows '
+      + 'on the cards stay as they are: with the cards isolated they cost under a tenth of the remaining raster.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-18 (top priority)', quote: 'this 2D card game must hold > 240 fps constantly, no hitching, especially in the recruit phase' },
+      { kind: 'code', ref: 'packages/ui/src/styles.css (RECRUIT CARDS PAINT ONCE); scripts/perf-card-raster.mjs; scripts/perf-card-raster-diff.mjs; docs/devlog/2026-11-18-perf-card-raster.md' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-18 (perf/card-raster). Before, every Shop, board and hand card was painted into the same few '
+      + 'big tiles as its neighbours and the HUD, so one action repainted every card in the tile, with the 14 to 25 static '
+      + 'paint effects on each and their art. Measured on the prod build in the same late-game state, same page, the rule '
+      + 'switched on and off in turns (frames over 6.25 ms): buy 38.6% to 26.1%, sell 22.1% to 6.5%, play 23.3% to 8.8%, '
+      + 'refresh 16.8% to 9.7%, a stat tick 31.6% to 16.7%, on a machine shared with other builds. GPU raster time about '
+      + 'halves, and the page holds fewer layers than before (106 against 121). Two differences on screen, both below '
+      + 'what the eye resolves: a Shop or board card sits on whole pixels (up to half a pixel from where the centred row '
+      + 'put it, sharpness unchanged), and where two neighbouring cards overlap the later card draws over the earlier '
+      + 'one. The hand is pixel-identical.',
+    example: 'You buy a minion late in the game with a full board and a full hand. Before, the six other Shop cards, the seven board cards and the hand were all painted again, shadows and all. Now only the hand is painted again, and the Shop cards just slide.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/cardLayer.test.ts'], lastVerifiedAt: '2026-11-18' },
+  },
+  {
+    id: 'R-PERF-HAND-LAYER-01',
+    title: 'A hand card is painted once and stays sharp: a buy paints the bought card, not the hand',
+    statement:
+      'In the recruit hand (not on phones) each card holds its body on a compositor layer of its own, inside the card: '
+      + '`.card-ssl` carries `will-change: transform` and is drawn at 1 / --hand-ss, and `.card-ss` inside it scales the '
+      + 'body back up by --hand-ss (1.35), both from the top left corner so the two cancel exactly. The layer is therefore '
+      + 'rastered at 1.35 times the card and the fan tilt is drawn down from it, which keeps the card as sharp as one '
+      + 'painted directly. The hand card element itself is never the layer and keeps every transform it had (tilt, tuck, '
+      + 'make-room glide, reorder slide, hover pop). A hovered card drops both scales so the popped card is rastered at '
+      + 'its own size, exactly as before. Outside the hand row, and on phones, the wrappers are `display: contents`.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-19 (top priority)', quote: 'sharp layer per hand card (a buy must repaint only the bought card)' },
+      { kind: 'code', ref: 'packages/ui/src/styles.css (A SHARP LAYER PER HAND CARD); packages/ui/src/Card.tsx (HandLayer); scripts/perf-card-raster.mjs; docs/devlog/2026-11-19-perf-card-raster-2.md' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-19 (perf/card-raster-2). Before, the hand was one layer, so a buy, a play or a hand buff '
+      + 'painted every hand card again (about twenty card paints per buy). Measured on the prod build with the eight '
+      + 'performance PRs of 2026-11-18 merged in, same page, the rule switched on and off in turns (share of frames that '
+      + 'missed 240 Hz, before to after): the 60-action engine turn 13.8% to 5.2% (193 to 222 fps), a buy 3.2% to 1.8%, a '
+      + 'play 3.3% to 1.1%, a sell 0.7% to 0.5%, a refresh unchanged (1.2% and 1.5%, inside the noise); re-measured on a '
+      + 'busy machine at the shipped 1.35: a buy 14.9% to 7.7%, a play 4.7% to 2.2%. On screen: a resting hand card '
+      + 'measures -8% to +5% in edge energy (mean -1%) against one painted directly, the same picture (a 1x layer '
+      + 'measured 24 to 34% softer, 1.5 measured 3 to 27% crisper, which is why the factor is 1.35), and the hovered '
+      + 'card is the same as before.',
+    example: 'You buy a minion with eight cards in hand. Before, all nine hand cards were painted again while the others slid over to make room. Now the new card is painted once and the other eight just move.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/cardLayer.test.ts'], lastVerifiedAt: '2026-11-19' },
+  },
+  {
+    id: 'R-PERF-FUSE-BURN-01',
+    title: 'The crystal fuse burns by sliding a static mask, and still moves every display frame',
+    statement:
+      'The Gold Fuse\'s burn is two transforms (a sliding box that carries a static soft-edged mask, and the art inside '
+      + 'it sliding back by the same amount), so a burn write no longer re-evaluates a mask gradient. The burn, the debris '
+      + 'simulation and its two canvas passes still advance on every display frame on desktop (about 30 times a second on '
+      + 'a phone, as before). Neither box is promoted to its own layer, so the crystal rasters exactly as before. One frame '
+      + 'walks the particles once, and the debris canvas clears only the rectangle the last frame drew in. The look is '
+      + 'unchanged: the same art, soft edge, particles, sprites, smoothness and timing against the clock.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-18 (the bar: a 2D card game has no excuse for dropped frames; 240 fps constant, recruit phase first)' },
+      { kind: 'code', ref: 'packages/ui/src/styles.css (.chargeglyph .fuse-burn / .fuse-body); packages/ui/src/Recruit.tsx (ChargeGlyph frame loop); packages/ui/src/fuseRender.ts (drawFrame)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-19 (perf/always-on). Before, the burn was a mask gradient whose stops read --burn, written '
+      + 'every display frame: the whole fuse repainted for the last 20 s of every turn from the round the fuse first '
+      + 'lights. Measured at 240 Hz: paint in the burn window 53 -> 13 ms a second, raster 12 -> 8.',
+    example: 'From round 8 a Bronze player\'s turn ends with the crystal fuse burning for 20 s. Before, each of those frames re-evaluated the fuse\'s mask and repainted the whole crystal. Now only the soft edge moves, and it looks the same.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/fuseBurnCss.test.ts', 'packages/ui/src/fuseRender.test.ts'], lastVerifiedAt: '2026-11-18' },
+  },
+  {
+    id: 'R-PERF-LOBBY-STABLE-01',
+    title: 'A shop action does not re-render the lobby rail or the Ancient meter',
+    statement:
+      'The reducer clones the run on every dispatch, so props taken straight off it are new objects after every buy, '
+      + 'sell, roll and reorder. Where the content has not changed the UI hands its children the previous object: the '
+      + 'lobby rail keeps the last lobby while a signature of everything the reducer writes in it holds (the round, the '
+      + 'encounter list, each seat\'s Resolve, Armor, alive, placement and scout intel); the Ancient meter, split and '
+      + 'pill compare the four things they read; and the reference-popup map, the triple-ready set and the hand '
+      + 'previews keep their identity when their contents are equal. A Versus display lobby is passed through as given.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-18 (the bar: a 2D card game has no excuse for dropped frames; 240 fps constant, recruit phase first)' },
+      { kind: 'code', ref: 'packages/ui/src/stableLobby.ts; packages/ui/src/LobbyPanel.tsx (runTribes); packages/ui/src/ancients/AncientMeter.tsx (sameAncientRun); packages/ui/src/cardViewEqual.ts (stabilizeRefMap); packages/ui/src/Recruit.tsx (tripleReadyUids, handPreviewViews)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-18 (perf/always-on). Before, LobbyPanel rebuilt all eight seat rows on every dispatch '
+      + '(and on every mid-fight preview dispatch with the rail slid away), and the three Ancient components and the '
+      + 'shop and hand rows re-ran for props that had not changed.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/stableLobby.test.ts', 'packages/ui/src/cardViewEqual.test.ts', 'packages/ui/src/ancients/AncientMeter.test.tsx'], lastVerifiedAt: '2026-11-18' },
   },
   {
     id: 'R-DUOS-EFFECT-PASS-QUEUE-01',
@@ -16124,6 +16388,192 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms from 2026-11-18. Before, the results page never named the picked Ancient. No data change: the Ancient already rode the record from 2026-11-16.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/matchDetails/seatPower.test.tsx'], lastVerifiedAt: '2026-11-18' },
+  },
+  {
+    id: 'R-PERF-KEYWORD-AURA-01',
+    title: 'A keyword aura costs one layer and no running animation per card, and looks the same',
+    statement:
+      'On desktop, the Rise, Flurry, Execute and Rebirth-crown auras each show as ONE element with one looping picture '
+      + 'captured from the authored aura, played at 60 pictures a second (an animated image cannot go faster than about '
+      + '90 in Chromium, and 60 divides 60, 120 and 240 Hz displays evenly), with no CSS animation, blend mode, filter or '
+      + 'mask on it. The authored DOM and '
+      + 'CSS aura stays the source of truth: the pictures are generated from it by a committed script, and a change to '
+      + 'the authored aura without a new capture fails the suite. The authored aura itself renders until the pictures '
+      + 'have loaded, while a tuner has moved it, and on phones. A board covered by a full-screen choice shows the still.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-18 (top priority: over 240 fps at all times, no hitching, the recruit phase above all)', quote: 'make every keyword aura cost ~1 layer and ~0 main-thread per card while looking the same' },
+      { kind: 'code', ref: 'packages/ui/src/kwfx/kwfx.ts; packages/ui/src/Card.tsx (RiseAura, FlurryAura, ExecuteAura, RebirthCrown); packages/ui/src/styles.css (.kwfx); scripts/kwfx/capture.mjs' },
+      { kind: 'owner-chat', ref: 'Kevin, 2026-11-19 (plays at 240 Hz; perf fixes keep animations as smooth as the display unless the cost is massive)', quote: 'Can we keep flurry rise etc animations faster than 60fps?' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-18 (perf/keyword-loops). Before, each of these auras was 10 to 40 animating compositor layers '
+      + 'and as many running CSS animations per card: every keyword on 14 cards was about 1,500 layers and 1,225 animations '
+      + 'and an idle shop at 37 to 64 ms a frame on an RTX 4080. Phones still render the authored aura.',
+    example: 'A board of seven Rise minions used to hold 196 blended wisp and dome layers. Now it holds seven pictures, and the idle shop stays at 4.17 ms a frame.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/kwfx/kwfx.test.ts'], lastVerifiedAt: '2026-11-19' },
+  },
+  {
+    id: 'R-PERF-COMBAT-PREVIEW-01',
+    title: 'A live combat readout re-renders only the cards that print it, and never copies the run',
+    statement:
+      'The display-only combat previews (spell power gained this fight, Front to Back\x27s step, spells cast, friendly '
+      + 'deaths, Blade Mastery attacks, Squirl Scout and Conductor growth) are published as the replay reaches them. '
+      + 'Publishing one sets that one number on the run and nothing else: no object on the run is copied (the board, hand, '
+      + 'Shop and lobby keep their identity), no per-action bookkeeping runs, and an unchanged value is a no-op. A combat '
+      + 'unit re-renders only when a number its own text prints has moved, and its card only when the card\x27s content '
+      + 'changed. Every printed value still shows its current number mid-fight (the live-value rule is unchanged), and '
+      + 'settle still clears every preview and banks the real totals.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-18', quote: 'this is a 2D HTML card game; there is no excuse for dropped frames or hitching' },
+      { kind: 'code', ref: 'packages/sim/src/reducer.ts (reduceCombatPreview); packages/ui/src/combatRun.ts (runSansPreviews, keepIfSame, useStableValue); packages/ui/src/Unit.tsx' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-18 (perf/combat-render). Before, each publish went through the full reducer: a deep copy '
+      + 'of the run and every action-boundary sweep, 11 to 14 times a late fight. Every unit subscribed to the whole run '
+      + 'and built a fresh card view, so each publish re-rendered all 14 units and their whole cards. Measured on a 7v7 '
+      + 'big-stat fight (prod build, median of 3): 4,919 card renders a fight before, 337 after.',
+    example: 'Your Imp dies mid-fight. Cindara\x27s Hoard counter on the hero power ticks. Before, all 14 minions on screen and their cards re-rendered for that tick. Now none do.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/combatRenderCount.test.tsx', 'packages/sim/src/heroPillReadouts.test.ts'], lastVerifiedAt: '2026-11-18' },
+  },
+  {
+    id: 'R-PERF-STAT-ROLL-01',
+    title: 'A rolling stat number re-renders its badge, never the card, and a board rolling together notifies once per frame',
+    statement:
+      'While a stat number rolls to a new value, only that stat\x27s badge re-renders: the card around it (art, frame, '
+      + 'keyword auras, text) does not. Every combat buff roll in flight is stepped by ONE frame loop that notifies the '
+      + 'badges once per frame, however many units are rolling. The look is unchanged: the same values on the same '
+      + 'frames, the same roll length at every combat speed, and the badge still pops on every visible change.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-18', quote: 'frames <= 6.25 ms on the prod build from round 1 to the end' },
+      { kind: 'code', ref: 'packages/ui/src/Card.tsx (StatBadge); packages/ui/src/fx/combatBuffRoll.ts (the shared roll loop); packages/ui/src/fx/statHold.ts (revealStats)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-18 (perf/combat-render). Before, the Card owned the hold subscription, so a +3,000 buff '
+      + 're-rendered the whole card on every frame of its 650 ms roll, each rolling unit ran its own frame loop, and '
+      + 'each loop notified every badge on screen. A late fight is where this bit: the bigger the buff, the more frames '
+      + 'show a new number.',
+    example: 'Runmaw gives your whole board +1,200/+4,500 at the start of combat. Seven attack and seven health numbers roll for 650 ms. Before, seven whole cards re-rendered every frame. Now fourteen small badges do.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/combatRenderCount.test.tsx', 'packages/ui/src/fx/combatBuffRoll.test.ts', 'packages/ui/src/fx/statHold.test.ts'], lastVerifiedAt: '2026-11-18' },
+  },
+  {
+    id: 'R-PERF-COMBAT-FOLD-01',
+    title: 'The combat replay continues its folds beat by beat; it never re-reads the fight from the first event',
+    statement:
+      'Each beat, the replay applies only the events since the previous beat to the board it draws and to its running '
+      + 'readouts (enemy deaths, buffs gained, the previews, the quest tally). It starts over from the fight\x27s opening '
+      + 'boards only when the cursor moves BACKWARD (a seek, a rewatch, a spectator joining mid-fight) or a new fight '
+      + 'begins. The board and every readout are the same at every beat as a from-scratch fold gives, so normal, '
+      + 'accelerated and skipped playback, and any seek, reach the same state. A frame already on screen is never '
+      + 'changed by a later beat. The per-beat position sweep reads only the units on screen.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-18', quote: 'frames <= 6.25 ms on the prod build from round 1 to the end' },
+      { kind: 'code', ref: 'packages/ui/src/useCombatReplay.ts (makeFrameFolder, stepFrameFold, frameOf, logIndexOf); packages/ui/src/choreo/prefixFold.ts' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-18 (perf/combat-render). Before, every beat rebuilt every body from the starting snapshot '
+      + 'and replayed the whole log, and about a dozen other passes re-read the log from event 0 (four of them after '
+      + 'copying it), so a fight cost events times beats and the last beats of a long fight cost the most. Each beat '
+      + 'also ran one document-wide lookup per body the fight ever had (50 to 150 in a summon-heavy fight).',
+    example: 'Beat 300 of a 1,000-event fight plays. Before, the screen re-read events 1 to 600 about twelve times to draw it. Now it reads the two or three new events.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/frameFold.test.ts', 'packages/ui/src/choreo/prefixFold.test.ts', 'packages/ui/src/computeFrame.purity.test.ts'], lastVerifiedAt: '2026-11-18' },
+  },
+  {
+    id: 'R-PERF-FX-FILTER-AREA-01',
+    title: 'A filter on a particle effect covers the particles, not the whole screen, and the picture is the same',
+    statement:
+      'A Bloom, Glow, Blur or colour filter on a spark burst, an emitter or a smoke layer is drawn over the box its '
+      + 'live particles occupy plus the filter\x27s own reach, never over the whole viewport. This applies only to '
+      + 'filters whose result does not depend on where their area starts or how large it is; a filter that warps, tiles '
+      + 'or lights by position (godrays, zoom and radial blur, twist, shockwave, CRT, pixelate and the rest) keeps the '
+      + 'whole viewport, as does a layer under a filter that something other than a particle stack put above it. The '
+      + 'effect looks the same: no glow is cut off at the edge of the box, and no stale glow from another effect '
+      + 'shows at its edge.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-18', quote: '> 240 fps (frames <= 4.17 ms) constantly, no hitching' },
+      { kind: 'code', ref: 'packages/ui/src/fx/filterStack.ts (TIGHT_FILTERS, filterAreaMode); packages/ui/src/fx/particleLayerPool.ts (fitParticleBounds); packages/ui/src/fx/blurPassClear.ts' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-18 (perf/pixi-fx). Before, a particle layer reported an effectively infinite box, so '
+      + 'every pass of every filter on it filled the full 1920 x 1080 viewport. One buff trail to a full board ran 28 '
+      + 'filters over 28 megapixels a frame and held the shop at 40% of frames over 4.17 ms for its whole flight. '
+      + 'Tight boxes exposed a Pixi 8.19 defect (its blur pass never clears its pooled scratch texture on WebGL), '
+      + 'fixed in the same change.',
+    example: 'An Ancient gives your whole board +2/+2. Seven trails fly from the hero power, each ending in a glowing spark burst. Before, each burst\x27s Glow was computed for the entire screen. Now it is computed for the burst.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/fx/filterAreaTight.test.ts'], lastVerifiedAt: '2026-11-18' },
+  },
+  {
+    id: 'R-PERF-FX-DEAD-TAIL-01',
+    title: 'A particle that can no longer be seen stops being simulated and drawn, and nothing else changes',
+    statement:
+      'When an emitter\x27s size or alpha curve is 0 from some point to the end of a particle\x27s life, a particle past '
+      + 'that point leaves the simulation and the draw list. It still counts toward the emitter\x27s particle cap and '
+      + 'toward the moment the effect is finished, so the effect emits the same particles and ends at the same time. '
+      + 'A reversed emitter is left alone.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-18', quote: '> 240 fps (frames <= 4.17 ms) constantly, no hitching' },
+      { kind: 'code', ref: 'packages/ui/src/fx/primitives/emitter.ts (ghosts, deadFrac); packages/ui/src/fx/curve.ts (zeroTailStart)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-18 (perf/pixi-fx). Before, the 5,000+ stat ring (the heaviest effect in a late fight by '
+      + 'measured time) simulated, uploaded and drew every particle for its full 2.37 s although its size curve is 0 '
+      + 'for the last 43% of that.',
+    example: 'A minion at 6,000 Health wears the blue ring on its Health badge. Each mote shrinks to nothing after 1.35 s and used to be carried, invisible, for one more second. Now it is dropped when it vanishes.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/fx/curve.test.ts', 'packages/ui/src/fx/primitives/emitter.test.ts'], lastVerifiedAt: '2026-11-18' },
+  },
+  {
+    id: 'R-PERF-FX-FILTER-KEYS-01',
+    title: 'An effect layer with no filter costs nothing per frame for the filters it does not have',
+    statement:
+      'The per-frame filter pass of an effect layer reads prebuilt keys: it builds no strings and allocates nothing '
+      + 'for a layer whose filters are all off, and it builds one filter list only when a filter is on. Which filters '
+      + 'are on, their amounts, knobs and order are exactly as before.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-18', quote: '> 240 fps (frames <= 4.17 ms) constantly, no hitching' },
+      { kind: 'code', ref: 'packages/ui/src/fx/filterStack.ts (keysOf, orderedSpecs, FilterStack.frame)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-18 (perf/pixi-fx). Before, every live layer checked all 32 registered filters every '
+      + 'frame by building the key string for each one, and built its own id map at spawn.',
+    example: 'A fight has 60 effect layers alive and 6 of them carry a filter. Before, each frame built about 1,900 key strings to find those 6. Now it builds none.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/fx/filterOrder.test.ts', 'packages/ui/src/fx/filterStack.test.ts', 'packages/ui/src/fx/filterAreaTight.test.ts'], lastVerifiedAt: '2026-11-18' },
+  },
+  {
+    id: 'R-PERF-SIM-WORKER-01',
+    domain: 'foundation',
+    title: 'Background combat simulation runs in the sim worker, never on the main thread during a fight',
+    statement:
+      'Every batch of combat simulations the UI runs in the background (the Combat Summary odds: 200 sims a fight, also '
+      + 'for Versus and Duos fights and the replay viewer backfill; the board-strength scorer: 160 fights a board, plus the '
+      + 'carried rounds at run end) runs in one Web Worker. The page posts plain data and receives the result. The worker '
+      + 'imports the card index and the strength reference itself and runs the same pure probes with the same seeds, so '
+      + 'the odds a player reads, the replay stamp, the spectators copy and the stored strength score are byte-identical '
+      + 'to the main-thread functions. A new fight or the run ending cancels the job by id. The worker is created once, '
+      + 'kept alive, and started before the first fight. If there is no Worker, its script cannot load, it errors, it '
+      + 'never answers within 10 s, or a job throws, the same work runs on the page in idle slices instead, sized by '
+      + 'measured cost (about 2 ms a step), and a slice the browser had to force never works while a fight is playing.',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-18 (relayed, not verbatim): no dropped frames or hitching in a 2D card game; frames at or under 6.25 ms on the prod build from round 1 to the end' },
+      { kind: 'owner-chat', ref: 'Owner bar, 2026-10-09 (docs/performance.md, memory fps-bar-160)', quote: '>160 fps at ALL times, ideally 240+' },
+      { kind: 'code', ref: 'packages/ui/src/simWorker/ (protocol.ts, handler.ts, simWorker.entry.ts, client.ts, backgroundOdds.ts); packages/ui/src/boardStrength/strengthScorer.ts (deps.remote, deps.hold); packages/ui/src/Recruit.tsx (runBackgroundOdds); packages/ui/src/replay/replayPlayer.ts (scheduleOddsBackfill); apps/web/vite.config.ts (worker.format es)' },
+    ],
+    example: 'Prod bench build, headless Chromium on the GPU, one seeded lobby game, rounds 10-13, two runs of each build. Before: 263-356 ms of simulation on the main thread in every fight, in 32-60 slices, the longest 13-19 ms, 19-28 of them over 6.25 ms. After: none. The odds reach the page 0.1-0.4 s after the fight starts and the board score in 0.3-1.0 s, and the odds were identical to computeCombatOdds run on the page for the same fight in all eight rounds.',
+    currentBehaviour: 'Conforms from 2026-11-18 (perf/sim-worker). Before, both probes ran on the main thread in idle slices during the combat replay: about 100 ms a round early and 450-600 ms by rounds 10-15 (measured in Node on real boards), the strength scorer in fixed 4-fight steps of 7-21 ms that a 250 ms timeout forced into busy frames.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/simWorker/handler.test.ts', 'packages/ui/src/simWorker/client.test.ts', 'packages/sim/src/odds.test.ts'], lastVerifiedAt: '2026-11-18' },
   },
   {
     id: 'R-SPECTATE-INERT-01',

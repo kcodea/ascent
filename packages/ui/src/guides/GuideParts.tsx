@@ -184,9 +184,9 @@ function GuideCardLink({ view, refs, children }: { view: CardView; refs?: CardVi
       {children}
       {pos && createPortal(
         <div className="cardref" ref={popRef} style={{ left: pos.left, top: pos.top } as CSSProperties}>
-          <div className="cardref-inner" style={{ transformOrigin: `${pos.origin} center` } as CSSProperties}>
+          <div className="cardref-shadow"><div className="cardref-inner" style={{ transformOrigin: `${pos.origin} center` } as CSSProperties}>
             {cards.map((c, i) => <Card key={`${c.cardId ?? i}-${i}`} card={c} forceFull plated />)}
-          </div>
+          </div></div>
         </div>,
         stageHost(),
       )}

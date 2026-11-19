@@ -273,6 +273,12 @@ export interface TunerSpec<C extends object> {
    * and a Play row under 100+ controls meant scrolling for every replay (owner ask 2026-09-29).
    */
   buttonsOnTop?: boolean;
+  /**
+   * Put the button row at the top AND pin it there while the controls scroll under it, so Play is always one click
+   * away (implies `buttonsOnTop`). Owner ask 2026-11-19, Ancients: "have the play full animation button persistently
+   * on the tuner screen at all times when scrolling".
+   */
+  buttonsSticky?: boolean;
   /** Preview switches that pin an otherwise-transient state so it can be tuned. See `TunerToggle`. */
   toggles?: TunerToggle[];
   /**

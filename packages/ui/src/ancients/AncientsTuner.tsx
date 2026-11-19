@@ -208,6 +208,8 @@ export const SPEC: TunerSpec<AncientsFullConfig> = {
   writeColor: (key, value) => setAncientsValue(key, value),
   reset: resetAncientsConfig,
   defaults: ANCIENTS_DEFAULTS,
+  // Play is always on screen, however far the dials are scrolled (owner 2026-11-19).
+  buttonsSticky: true,
   // Recomputed on every render: the colour rows follow the selected hero.
   get controls() { return controls(); },
   actions: [

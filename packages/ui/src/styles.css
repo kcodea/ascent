@@ -7921,6 +7921,10 @@ html[data-bl="game"] .devmenu { left: auto; right: calc(var(--edge-r) + 16px); b
 .tunerpanel .lunge-btns.tuner-btns-top { flex-wrap: wrap; padding: 10px 12px; border-bottom: 1px solid var(--line); }
 /* A dozen Play buttons squeezed onto one line wrapped every label letter by letter: let them flow onto rows. */
 .tunerpanel .lunge-btns.tuner-btns-top .sfxmix-copy { width: auto; flex: 1 0 auto; padding: 6px 9px; }
+/* `buttonsSticky`: the row stays pinned to the panel's top edge while the controls scroll beneath it. Opaque (the
+   panel face) so the rows passing under it never show through; the panel has no top padding, so top 0 is flush. */
+.tunerpanel .lunge-btns.tuner-btns-sticky { position: sticky; top: 0; z-index: 3; background: var(--card);
+  box-shadow: 0 6px 10px -6px rgba(0, 0, 0, 0.7); }
 .tunerpanel .sfxmix-copy { margin-top: 0; font-size: 12.5px; }
 .tunerpanel .sfxmix-copy:hover, .tunerpanel .tuner-cmp:hover:not(:disabled) {
   filter: brightness(1.12); border-color: #7a6236; }

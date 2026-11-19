@@ -56,6 +56,16 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-11-19',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Buying, playing and selling in the Shop costs less work per move, so a fast turn on a big board stays smoother.',
+        details: ['Nothing looks or plays different.'],
+      },
+    ],
+  },
+  {
     date: '2026-11-18',
     changes: [
       { category: 'Systems', text: 'Smoother combat: background calculations no longer interrupt the fight.' },

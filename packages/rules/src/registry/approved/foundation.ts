@@ -16197,6 +16197,30 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/frameFold.test.ts', 'packages/ui/src/choreo/prefixFold.test.ts', 'packages/ui/src/computeFrame.purity.test.ts'], lastVerifiedAt: '2026-11-18' },
   },
   {
+    id: 'R-PERF-SIM-WORKER-01',
+    domain: 'foundation',
+    title: 'Background combat simulation runs in the sim worker, never on the main thread during a fight',
+    statement:
+      'Every batch of combat simulations the UI runs in the background (the Combat Summary odds: 200 sims a fight, also '
+      + 'for Versus and Duos fights and the replay viewer backfill; the board-strength scorer: 160 fights a board, plus the '
+      + 'carried rounds at run end) runs in one Web Worker. The page posts plain data and receives the result. The worker '
+      + 'imports the card index and the strength reference itself and runs the same pure probes with the same seeds, so '
+      + 'the odds a player reads, the replay stamp, the spectators copy and the stored strength score are byte-identical '
+      + 'to the main-thread functions. A new fight or the run ending cancels the job by id. The worker is created once, '
+      + 'kept alive, and started before the first fight. If there is no Worker, its script cannot load, it errors, it '
+      + 'never answers within 10 s, or a job throws, the same work runs on the page in idle slices instead, sized by '
+      + 'measured cost (about 2 ms a step), and a slice the browser had to force never works while a fight is playing.',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-18 (relayed, not verbatim): no dropped frames or hitching in a 2D card game; frames at or under 6.25 ms on the prod build from round 1 to the end' },
+      { kind: 'owner-chat', ref: 'Owner bar, 2026-10-09 (docs/performance.md, memory fps-bar-160)', quote: '>160 fps at ALL times, ideally 240+' },
+      { kind: 'code', ref: 'packages/ui/src/simWorker/ (protocol.ts, handler.ts, simWorker.entry.ts, client.ts, backgroundOdds.ts); packages/ui/src/boardStrength/strengthScorer.ts (deps.remote, deps.hold); packages/ui/src/Recruit.tsx (runBackgroundOdds); packages/ui/src/replay/replayPlayer.ts (scheduleOddsBackfill); apps/web/vite.config.ts (worker.format es)' },
+    ],
+    example: 'Prod bench build, headless Chromium on the GPU, one seeded lobby game, rounds 10-13, two runs of each build. Before: 263-356 ms of simulation on the main thread in every fight, in 32-60 slices, the longest 13-19 ms, 19-28 of them over 6.25 ms. After: none. The odds reach the page 0.1-0.4 s after the fight starts and the board score in 0.3-1.0 s, and the odds were identical to computeCombatOdds run on the page for the same fight in all eight rounds.',
+    currentBehaviour: 'Conforms from 2026-11-18 (perf/sim-worker). Before, both probes ran on the main thread in idle slices during the combat replay: about 100 ms a round early and 450-600 ms by rounds 10-15 (measured in Node on real boards), the strength scorer in fixed 4-fight steps of 7-21 ms that a 250 ms timeout forced into busy frames.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/simWorker/handler.test.ts', 'packages/ui/src/simWorker/client.test.ts', 'packages/sim/src/odds.test.ts'], lastVerifiedAt: '2026-11-18' },
+  },
+  {
     id: 'R-SPECTATE-INERT-01',
     domain: 'foundation',
     title: 'A viewer presses nothing on the board: the gem, Freeze, Refresh and Tier up are inert on a watch screen',

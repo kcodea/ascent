@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-11-18',
     changes: [
+      { category: 'Systems', text: 'Smoother combat: background calculations no longer interrupt the fight.' },
       {
         category: 'Balance',
         text: 'Ancient of Death: Gildmaster and Cindy now count friendly deaths across fights and the Shop, and Cassen needs 5 deaths instead of 7.',

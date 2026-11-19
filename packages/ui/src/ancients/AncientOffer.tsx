@@ -3,7 +3,7 @@ import { ANCIENTS, ancientOfferText, ancientPairingHeroId, type Action, type Anc
 import { OfferBanner } from '../discoverEntrance/OfferBanner';
 import { DiscoverPeekToggle } from '../discoverEntrance/DiscoverPeekToggle';
 import { AncientCard } from './AncientCard';
-import { playAwakenDemo, prefersReducedMotion, setAwakenStage, useAwakenStage } from './ancientsFx';
+import { playAwakenDemo, prefersReducedMotion, setAwakenStage, useAwakenStage, useGateDemo } from './ancientsFx';
 import { pickTimeline, playPickSlam } from './ancientPickSlam';
 import { ancientColor, getAncientsConfig, revealStyleOf } from './ancientsConfig';
 import { playCue } from './ancientsSound';
@@ -49,7 +49,8 @@ export const AncientOfferOverlay = memo(function AncientOfferOverlay({ held, run
   // hero power and the rest fade with the backdrop. The run's offer is already gone by then, so the last one shown
   // is kept for its seq.
   const shown = useRef<{ seq: number; offer: AncientId[] } | null>(null);
-  const live = demo ? DEMO_OFFER : realOffer;
+  const gateDemo = useGateDemo();
+  const live = demo ? (gateDemo?.offer.length ? gateDemo.offer : DEMO_OFFER) : realOffer;
   if (inReveal && live?.length) shown.current = { seq: stage.seq, offer: live };
   const closing = stage.stage === 'closing' && shown.current?.seq === stage.seq;
   const offer = closing ? shown.current!.offer : live;

@@ -201,7 +201,7 @@ export const SPEC: TunerSpec<AncientsFullConfig> = {
     },
     {
       label: '▶ Play from reveal',
-      hint: 'Just the Ancients emerging (Death, Fortune, War) and the settled state. Run state is untouched.',
+      hint: 'Just the Ancients emerging (a random three) and the settled state. Run state is untouched.',
       run: () => playGateDemo('reveal'),
     },
     {

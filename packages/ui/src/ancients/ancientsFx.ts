@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react';
-import type { AncientId } from '@game/sim';
+import { ANCIENT_IDS, type AncientId } from '@game/sim';
 
 /**
  * The Ancients' PRESENTATION bus (proof of concept 2026-09-25). Three pieces of UI take part in one orchestrated
@@ -38,7 +38,16 @@ export type AwakenStage = 'idle' | 'omen' | 'eruption' | 'title' | 'reveal' | 's
 let stage: { stage: AwakenStage; seq: number } = { stage: 'idle', seq: 0 };
 let skipSeq = 0;
 /** A tuner demo of the awakening. `hero` plays it in that hero's colours instead of the run hero's. */
-export interface GateDemo { seq: number; mode: 'full' | 'reveal'; hero?: string }
+export interface GateDemo { seq: number; mode: 'full' | 'reveal'; hero?: string; offer: AncientId[] }
+/** A tuner demo's offer: a fresh random three each time (owner 2026-11-19: "the preview only ever shows the same three
+ *  ancients being selected. can we randomize the three"), kept in the Ancients' own left-to-right order. Presentation
+ *  only: a demo never touches run state, so `Math.random` is fine here. */
+export function randomDemoOffer(count = 3): AncientId[] {
+  const pool = [...ANCIENT_IDS];
+  for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j]!, pool[i]!]; }
+  const picked = new Set(pool.slice(0, count));
+  return ANCIENT_IDS.filter((id) => picked.has(id));
+}
 let gateDemo: GateDemo | null = null;
 let gateDemoSeq = 0;
 export function setAwakenStage(next: AwakenStage, seq: number): void {
@@ -53,7 +62,7 @@ export function useAwakenStage(): { stage: AwakenStage; seq: number } {
 export function requestSkip(): void { skipSeq++; emit(); }
 export function useSkipSeq(): number { return useSyncExternalStore(subscribe, () => skipSeq, () => skipSeq); }
 export function playGateDemo(mode: 'full' | 'reveal' = 'full', hero?: string): void {
-  gateDemo = { seq: ++gateDemoSeq, mode, ...(hero ? { hero } : {}) };
+  gateDemo = { seq: ++gateDemoSeq, mode, ...(hero ? { hero } : {}), offer: randomDemoOffer() };
   emit();
 }
 export function useGateDemo(): GateDemo | null {

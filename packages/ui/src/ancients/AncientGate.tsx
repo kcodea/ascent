@@ -41,7 +41,7 @@ import { stageHost, toStage } from '../stage';
  * All one-shot WAAPI (transform / opacity). Never under a wipe, in combat or over another decision overlay. Reduced
  * motion: the backdrop and offer fade, the sounds still play.
  */
-/** A tuner demo's offer (the same three `AncientOffer` shows for one). */
+/** A fallback offer before any sequence has started (a tuner demo brings its own random three, `ancientsFx.ts`). */
 const DEMO_OFFER: readonly AncientId[] = ['death', 'fortune', 'war'];
 type Phase = 'idle' | 'omen' | 'eruption' | 'title' | 'reveal' | 'settled' | 'closing';
 interface Geo { x: number; y: number; r: number; hp: number; pal: readonly number[] }
@@ -122,7 +122,7 @@ export const AncientGate = memo(function AncientGate({ run }: { run: RunState })
   }, [go]);
 
   /** Start the sequence for offer `seq` (< 0: a tuner demo). `fromReveal` jumps straight to the Ancients. */
-  const start = useCallback((seq: number, fromReveal = false, asHero?: string) => {
+  const start = useCallback((seq: number, fromReveal = false, asHero?: string, demoOffer?: readonly AncientId[]) => {
     const c = getAncientsConfig();
     const { x, y, w } = hpBox();
     const vw = window.innerWidth, vh = window.innerHeight;
@@ -134,7 +134,7 @@ export const AncientGate = memo(function AncientGate({ run }: { run: RunState })
     setGeo({ x, y, r: Math.max(rx, ry), hp: w, pal });
     seqRef.current = seq;
     closingRef.current = false;
-    setPanels(seq > 0 && offerRef.current?.length ? [...offerRef.current] : DEMO_OFFER);
+    setPanels(seq > 0 && offerRef.current?.length ? [...offerRef.current] : demoOffer?.length ? demoOffer : DEMO_OFFER);
     duckForAwakening(true);
     if (fromReveal || prefersReducedMotion()) {
       if (prefersReducedMotion() && !fromReveal) { playCue('eruptionBoom'); playCue('titleSting', 200); }
@@ -238,7 +238,7 @@ export const AncientGate = memo(function AncientGate({ run }: { run: RunState })
   // The tuner's ▶ Play full sequence / ▶ Play from reveal.
   useEffect(() => {
     if (!demo || blocked || offerOpen) return;
-    start(-demo.seq, demo.mode === 'reveal', demo.hero);
+    start(-demo.seq, demo.mode === 'reveal', demo.hero, demo.offer);
     // Auto-close a demo that nobody picks from, after a while.
     const t = window.setTimeout(() => { if (getAwakenStage().seq === -demo.seq) setAwakenStage('closing', -demo.seq); }, 14000);
     return () => window.clearTimeout(t);

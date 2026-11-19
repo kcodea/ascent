@@ -56,7 +56,7 @@ describe('the call sites', () => {
     expect(recruit).toContain("keyword === 'R' || keyword === 'V' || keyword === 'DS' || keyword === 'W'");
   });
   it('the card hides a held Flurry, and the hold releases', () => {
-    expect(read('../../Card.tsx')).toContain("card.keywords.includes('W') && !flurryHeld && (");
+    expect(read('../../Card.tsx')).toContain("card.keywords.includes('W') && !flurryHeld && <FlurryAura />");
     holdFlurry('f1', 500);
     expect(isFlurryHeld('f1')).toBe(true);
     holdFlurry('f1', 0);

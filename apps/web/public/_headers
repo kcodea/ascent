@@ -29,6 +29,8 @@
   Cache-Control: public, max-age=86400
 /cursors/*
   Cache-Control: public, max-age=86400
+/kwfx/*
+  Cache-Control: public, max-age=86400
 /fx/*
   Cache-Control: public, max-age=86400
 /collection/*

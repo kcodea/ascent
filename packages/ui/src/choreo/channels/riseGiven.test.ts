@@ -113,7 +113,7 @@ describe('both phases call it', () => {
   });
   it('the card hides a held Rise', () => {
     const card = readFileSync(new URL('../../Card.tsx', import.meta.url), 'utf8');
-    expect(card).toContain("card.keywords.includes('R') && !riseHeld && (");
+    expect(card).toContain("card.keywords.includes('R') && !riseHeld && <RiseAura />");
   });
 });
 

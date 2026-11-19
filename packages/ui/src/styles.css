@@ -14354,13 +14354,25 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 /* PERF (WS-5 bonus, 2026-10-16): a menu board's cards keep their keyword FX (wisps, rings, ward glass) still until
    you point at that row; ten banners of seven looping cards were ~226 running animations and a 4 ms idle frame on
    the Hall, and every hover sweep repainted them. The row you hover plays (the `.is-far` pause, made local). */
-.lb-row:not(:hover) .lb-team *, .lb-row:not(:hover) .lb-team *::before, .lb-row:not(:hover) .lb-team *::after,
+/* "POINTED AT" IS `[data-pointed]`, NEVER `:hover`, IN FRONT OF A UNIVERSAL SUBJECT (R-PERF-HOVER-SUBJECT-01, 2026-11-19).
+   The browser keeps ONE invalidation set for `:hover` across the whole stylesheet. These three rules used to read
+   `.lb-row:not(:hover) .lb-team *`, and that one universal subject made EVERY hover change on ANY element restyle that
+   element's whole subtree: in a game, every card the pointer entered or left (100 to 150 elements each, two or three
+   times per action, the largest part of an action's style recalculation). `pointedBoard.ts` stamps `data-pointed` on
+   the menu board under the mouse; an attribute's set is only consulted when that attribute changes, which never
+   happens in a game. Inside `(hover: hover)` by hand, exactly where the build's hover guard used to put the `:hover`
+   form, so a phone still never matches them. `hoverSubjects.test.ts` fails on the old shape. */
+@media (hover: hover) {
+  .lb-row:not([data-pointed]) .lb-team *, .lb-row:not([data-pointed]) .lb-team *::before, .lb-row:not([data-pointed]) .lb-team *::after { animation-play-state: paused !important; }
+}
 /* The Reborn wisps and dome stay still on a menu board even when the card is pointed at (measured 2026-10-16 on Recent
    Games: their keyframes run on the main thread, ~46k style invalidations and most of the hover cost over a 3 s sweep).
    In a game they play as always; this is the menu boards only. */
 .gc .cv2-team .wisp, .gc .cv2-team .reborn-dome { animation-play-state: paused !important; }
 /* Every game card (Career AND Recent Games, which share the StoredTeam board since layout B, 2026-10-16). */
-.gc:not(:hover) .cv2-team *, .gc:not(:hover) .cv2-team *::before, .gc:not(:hover) .cv2-team *::after { animation-play-state: paused !important; }
+@media (hover: hover) {
+  .gc:not([data-pointed]) .cv2-team *, .gc:not([data-pointed]) .cv2-team *::before, .gc:not([data-pointed]) .cv2-team *::after { animation-play-state: paused !important; }
+}
 /* `!important` like `.is-far`'s: the card FX rules set the `animation` SHORTHAND, which resets play-state to running and
    out-ranks a plain declaration here (measured 2026-10-16: wisp / fl-ring / ex-shard / wardglass kept animating, a
    239-element style recalc every frame on Recent Games, ~0.9 s of style per 2 s idle). */

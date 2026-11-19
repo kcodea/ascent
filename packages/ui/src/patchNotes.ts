@@ -82,6 +82,24 @@ export const PATCH_NOTES: PatchNote[] = [
         text: 'Beardsley and Vicious now show their current buff during combat. The number grows as each Beast is summoned.',
       },
       {
+        category: 'Balance',
+        text: 'Avenge now counts one fight at a time. Leftover progress no longer carries into the next fight.',
+        details: [
+          'An Avenge (4) needs 4 of your minions to die in the same fight. 3 deaths in one fight and 1 in the next no longer trigger it.',
+          'This fixes the hero Avenges the Ancient of Death adds, which were keeping one count across the Shop and every fight.',
+          'Those Avenges still count minions that die in the Shop. That count ends when the fight starts, and each fight starts from 0.',
+          'Effects worded "When X friendly minions die" are not Avenges. They still keep their count between turns.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Gambler with the Ancient of Death: the Dice lock now drops during the fight, the moment its Avenge triggers.',
+        details: [
+          'The lock number on the hero power, the locked line under the hero name and the power text all update as the Avenge fires.',
+          'The number you see when the fight ends is the number you keep.',
+        ],
+      },
+      {
         category: 'Systems',
         text: 'Mech and Spirit have new tribe colors that match the gems on their card frames.',
         details: [

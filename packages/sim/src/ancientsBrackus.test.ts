@@ -91,15 +91,15 @@ describe('Brackus × DEATH (ancient pass 1, owner 2026-11-16): "Avenge (3): give
     expect(s.shop.find((o) => o.uid === 'o1')!.atk ?? 0).toBe(0);
     expect(at(s, 'p').attack, 'a Tier 2 gets nothing').toBe(CARD_INDEX['n2_spellsword']!.attack);
   });
-  it('combat: the carried count fires MID-FIGHT on the living Tier 5 / 6 bodies (carried home), Tier 7 untouched; settle pays the hand', () => {
+  it('combat: the 3rd death in the fight fires MID-FIGHT on the living Tier 5 / 6 bodies (carried home), Tier 7 untouched; settle pays the hand (per combat, R-AVENGE-PER-COMBAT-01: the Shop count never comes in)', () => {
     let s = picked('death', {
       wave: 3,
-      board: [card('a', T5, { attack: 1, health: 500 }), card('z', T7B, { health: 500 }), card('f1', N(2), { attack: 1, health: 1 }), card('f2', N(2), { attack: 1, health: 1 })],
+      board: [card('a', T5, { attack: 1, health: 500 }), card('z', T7B, { health: 500 }), card('f1', N(2), { attack: 1, health: 1 }), card('f2', N(2), { attack: 1, health: 1 }), card('f3', N(2), { attack: 1, health: 1 })],
       hand: [card('h', T6)],
     });
     s = { ...s, ancients: { ...s.ancients!, brackusDeaths: 2 } };
     expect(ancientCombatMods(s).ancientBrackusAvenge).toEqual({ every: 3, tick: 2, attack: 6, health: 6, flag: ANCIENT_SUMMIT_AVENGE_FLAG, label: 'Ancient of Death', tiers: [5, 6] });
-    s = fightNow(s, 2, 60);
+    s = fightNow(s, 2, 6000);
     const ev = events(s);
     const pulses = ev.filter((e) => e.type === 'questTrigger' && e.side === 'player' && e.flag === ANCIENT_SUMMIT_AVENGE_FLAG);
     expect(pulses.length).toBeGreaterThanOrEqual(1);

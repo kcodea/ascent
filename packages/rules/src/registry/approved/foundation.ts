@@ -12964,6 +12964,51 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/audio/sharedTailReverb.test.ts', 'packages/ui/src/fx/convolverPool.test.ts', 'packages/tools/src/perfGauntletStats.test.ts'], lastVerifiedAt: '2026-10-30' },
   },
   {
+    id: 'R-PERF-FUSE-BURN-01',
+    title: 'The crystal fuse burns by sliding a static mask, and still moves every display frame',
+    statement:
+      'The Gold Fuse\'s burn is two transforms (a sliding box that carries a static soft-edged mask, and the art inside '
+      + 'it sliding back by the same amount), so a burn write no longer re-evaluates a mask gradient. The burn, the debris '
+      + 'simulation and its two canvas passes still advance on every display frame on desktop (about 30 times a second on '
+      + 'a phone, as before). Neither box is promoted to its own layer, so the crystal rasters exactly as before. One frame '
+      + 'walks the particles once, and the debris canvas clears only the rectangle the last frame drew in. The look is '
+      + 'unchanged: the same art, soft edge, particles, sprites, smoothness and timing against the clock.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-18 (the bar: a 2D card game has no excuse for dropped frames; 240 fps constant, recruit phase first)' },
+      { kind: 'code', ref: 'packages/ui/src/styles.css (.chargeglyph .fuse-burn / .fuse-body); packages/ui/src/Recruit.tsx (ChargeGlyph frame loop); packages/ui/src/fuseRender.ts (drawFrame)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-19 (perf/always-on). Before, the burn was a mask gradient whose stops read --burn, written '
+      + 'every display frame: the whole fuse repainted for the last 20 s of every turn from the round the fuse first '
+      + 'lights. Measured at 240 Hz: paint in the burn window 53 -> 13 ms a second, raster 12 -> 8.',
+    example: 'From round 8 a Bronze player\'s turn ends with the crystal fuse burning for 20 s. Before, each of those frames re-evaluated the fuse\'s mask and repainted the whole crystal. Now only the soft edge moves, and it looks the same.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/fuseBurnCss.test.ts', 'packages/ui/src/fuseRender.test.ts'], lastVerifiedAt: '2026-11-18' },
+  },
+  {
+    id: 'R-PERF-LOBBY-STABLE-01',
+    title: 'A shop action does not re-render the lobby rail or the Ancient meter',
+    statement:
+      'The reducer clones the run on every dispatch, so props taken straight off it are new objects after every buy, '
+      + 'sell, roll and reorder. Where the content has not changed the UI hands its children the previous object: the '
+      + 'lobby rail keeps the last lobby while a signature of everything the reducer writes in it holds (the round, the '
+      + 'encounter list, each seat\'s Resolve, Armor, alive, placement and scout intel); the Ancient meter, split and '
+      + 'pill compare the four things they read; and the reference-popup map, the triple-ready set and the hand '
+      + 'previews keep their identity when their contents are equal. A Versus display lobby is passed through as given.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-18 (the bar: a 2D card game has no excuse for dropped frames; 240 fps constant, recruit phase first)' },
+      { kind: 'code', ref: 'packages/ui/src/stableLobby.ts; packages/ui/src/LobbyPanel.tsx (runTribes); packages/ui/src/ancients/AncientMeter.tsx (sameAncientRun); packages/ui/src/cardViewEqual.ts (stabilizeRefMap); packages/ui/src/Recruit.tsx (tripleReadyUids, handPreviewViews)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-18 (perf/always-on). Before, LobbyPanel rebuilt all eight seat rows on every dispatch '
+      + '(and on every mid-fight preview dispatch with the rail slid away), and the three Ancient components and the '
+      + 'shop and hand rows re-ran for props that had not changed.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/stableLobby.test.ts', 'packages/ui/src/cardViewEqual.test.ts', 'packages/ui/src/ancients/AncientMeter.test.tsx'], lastVerifiedAt: '2026-11-18' },
+  },
+  {
     id: 'R-DUOS-EFFECT-PASS-QUEUE-01',
     title: 'A card passed or given to your teammate by an effect waits for room in a full hand; it is never lost or sent back',
     statement:

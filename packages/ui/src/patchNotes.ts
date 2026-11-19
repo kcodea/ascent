@@ -60,6 +60,15 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'A Shout minion played with nothing to target still triggers its Shout. Karwind and other Shout watchers now react.',
+        details: [
+          'Baby Gastrid with no other Dwarf, or Appetite Agent with no other Demon, still counts as a Shout.',
+          'This covers every Shout that needs a target, and Drakko still makes it count twice.',
+          'Backing out of a target choice still plays nothing.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Fast turns stay smoother. Buying or playing a card no longer redraws your whole hand.',
         details: [
           'Each card in your hand is now drawn once and then only moved.',

@@ -25,7 +25,7 @@ import { epicMedallionSrc, isEpicUnit } from './epicMedallion';
 import { crossedUp, tierOf } from './choreo/statMilestones';
 import { fireStatMilestone } from './fx/statMilestone';
 import { useMilestoneBadgeFx } from './fx/milestoneBadgeFx';
-import { claimPopSlot, type PopSlot } from './fx/popStack';
+import { claimPopSlot, popsOn, type PopSlot } from './fx/popStack';
 import { publicArt } from './phoneArt';
 
 /** The badge's scale-pop: how far it swells and over how long. See `useBadgePop`. */
@@ -91,11 +91,22 @@ function useBadgePop(ref: RefObject<HTMLSpanElement>, value: number, screen: str
       slot.current?.release(); // free it now: the cancel event lands a frame later, after the claim below
       anim.current?.cancel();
       try {
+        // ON THE COMPOSITOR WHEN IT IS THE ONLY POP (R-PERF-BADGE-POP-01, 2026-11-19). An additive animation
+        // (`composite: 'add'`) cannot run on the compositor: Chrome ticked every badge pop on the main thread, and
+        // each frame of it was a style recalculation, a rebuild of the page's layer list and a re-raster of the whole
+        // card under the badge. An engine board pops fourteen badges on every play. A badge has no base `transform`
+        // (its phone / Versus sizing is the `scale` and `translate` PROPERTIES, which sit outside `transform`), so on
+        // a badge nothing else is popping, the same keyframes in the default replace mode draw the identical pop and
+        // run on the compositor: no main-thread frame, and the card is painted twice (badge lifted out, badge back).
+        // While an authored `react` pop is live on this badge, or built and waiting to land (a Ruby gem), it stays
+        // additive so the two scales still multiply exactly as before; a `react` pop built later adds onto this one
+        // either way (`popsOn`, fx/popStack.ts).
+        const alone = !popsOn(el);
         const a = el.animate([
           { transform: 'scale(1)' },
           { transform: `scale(${BADGE_POP_SCALE})`, offset: 0.35 },
           { transform: 'scale(1)' },
-        ], { duration: BADGE_POP_MS, easing: 'ease-out', composite: 'add' });
+        ], alone ? { duration: BADGE_POP_MS, easing: 'ease-out' } : { duration: BADGE_POP_MS, easing: 'ease-out', composite: 'add' });
         anim.current = a;
         // Shared with the `react` layer's badge pops (a Ruby gem): at most two scales stack on this badge.
         const claimed = claimPopSlot(el, a);

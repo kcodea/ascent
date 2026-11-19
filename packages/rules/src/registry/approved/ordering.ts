@@ -759,29 +759,31 @@ export const ORDERING_RULES: GameRule[] = [
   },
   {
     id: 'R-FX-TRIGGER-STOCK-01',
-    title: "A trigger's own effect replaces its medallion pulse",
+    title: "A trigger shows its own effect; the medallion pulse is gone",
     statement:
-      "When a minion's trigger fires and that trigger has an effect to play (the card's own, or the stock effect for "
-      + "that kind of trigger), the effect plays instead of the medallion's trigger pulse; a trigger with no effect "
-      + "keeps the pulse as its fallback. This holds for Start of Combat, Avenge, Echo, End of Turn, Rally and Watcher, "
-      + "as it already did for Shout and Pummel. A card's own effect outranks the stock one. The trigger's sound is "
-      + "unchanged, and a minion that fires for a second, unrelated reason in the same beat still pulses.",
+      "The medallion's trigger pulse (the glow flash and expanding ring, in every colour: gold, Rally yellow, Watcher "
+      + "light blue, crit red, and the progress glow) is not drawn anywhere in the game. When a minion's trigger fires it "
+      + "shows the effect that trigger has (the card's own, or the stock effect for that kind of trigger) and nothing on "
+      + "the medallion otherwise. A card's own effect outranks the stock one. A trigger effect that plays on its own card "
+      + "in combat rides that card, and the part of it the effect is anchored to, for as long as it plays. The trigger's "
+      + "sound is unchanged.",
     domain: 'ordering',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Owner, 2026-11-19', quote: "what is this medallion pulse called? and can you find every single card that it is currently tied to? i want to start creating effects to replace it" },
       { kind: 'owner-chat', ref: 'Owner, 2026-11-19', quote: "yes, wire them and tell me what i should save each as in the workbench" },
-      { kind: 'code', ref: 'fx/trigger-pulse-replacements: packages/ui/src/choreo/stockTriggerFx.ts (STOCK_TRIGGER_DEFS, triggerFxFor); packages/ui/src/choreo/channels/triggerPulse.ts (triggerPulseScan); packages/ui/src/useCombatReplay.ts (the per-beat scan, the watcher loop, firePulse); packages/ui/src/choreo/score.ts (deathFx plays the Echo slot); packages/ui/src/Recruit.tsx (the End of Turn beat)' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-19', quote: "i also see avenge emitting that same old pulse effect, i want this pulse effect removed entirely from the game at this point" },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-19', quote: "the medallion effect is not coming from the medallion when crownveins rally goes off. can we made sure it stays tracking to the medallion?" },
+      { kind: 'code', ref: 'fx/trigger-pulse-replacements: packages/ui/src/choreo/stockTriggerFx.ts (STOCK_TRIGGER_DEFS, triggerFxFor); packages/ui/src/choreo/channels/triggerPulse.ts (triggerPulseScan); packages/ui/src/Card.tsx + styles.css (the .cgem pulse classes and their CSS removed); packages/ui/src/fx/playDef.ts (trackUnits); packages/ui/src/choreo/score.ts (playCardMechanic, deathFx plays the Echo slot); packages/ui/src/Recruit.tsx (the End of Turn beat)' },
     ],
-    currentBehaviour: "LIVE from 2026-11-19. Start of Combat, Avenge, End of Turn and Rally all play the owner's "
-      + "'medallion' def as their stock effect (owner 2026-11-19: 'use that as the effect for start of combat, avenge, end "
-      + "of turn, and rally. lets ignore the others for now'), so those four no longer pulse. Echo and Watcher have a "
-      + "stock slot by def name (echo-stock, watcher-stock) that resolves to nothing until a def is saved, so both still "
-      + "pulse. A Rally card with its own On Rally effect (Chorus Drake, Echohorn, Gasket) shows that instead of the "
-      + "yellow pulse, and a Watcher with its own On Watcher effect no longer shows the light-blue medallion pulse (its "
-      + "card-frame bloom stays). PARTIAL: an Echo "
-      + "fired without a death (another card's Rally procs it), a granted Echo or Rally, Start of Turn, the shop-only "
-      + "Watchers and Karwind's crit pulse are not covered and keep their present look.",
+    currentBehaviour: "LIVE from 2026-11-19. The pulse's CSS and the classes that drew it are deleted. Start of Combat, "
+      + "Avenge, End of Turn and Rally play the owner's 'medallion' def as their stock effect. Echo and Watcher have a stock "
+      + "slot by def name (echo-stock, watcher-stock) with nothing saved, so an Echo shows nothing on its medallion and a "
+      + "Watcher shows only its card-frame bloom. Also left with no medallion cue: Karwind's crit, a Rise or Rebirth "
+      + "firing, a cadence card's progress tick, Start of Turn, a granted Rally or Echo, and any other combat effect with "
+      + "no bound def. PARTIAL: the state that used to feed the pulse (the per-beat scan's pulse list, the rally and "
+      + "watcher nonces, the shop's pulse sets) is still computed and now unused, and the enforcement refs pin the stock "
+      + "resolver and the scan, not the absence of the CSS.",
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/choreo/stockTriggerFx.test.ts', 'packages/ui/src/choreo/channels/triggerPulse.test.ts'], lastVerifiedAt: '2026-11-19' },
   },
 ];

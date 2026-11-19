@@ -44,3 +44,23 @@ lightning medallion but pulses from the Start of Turn beat player), the shop-onl
 ## Verified
 
 `stockTriggerFx.test.ts`, `channels/triggerPulse.test.ts`; typecheck, lint, full test run and web build.
+
+## Later the same day: the pulse is removed outright, and trigger effects ride their card
+
+Owner: "i want this pulse effect removed entirely from the game at this point". The `.cgem.pulsing` / `.glowing` CSS
+(gold, Rally yellow, Watcher light blue, crit red, and both keyframes) is deleted, and `Card` no longer takes the
+`pulse` / `pulseCrit` / `pulseRally` / `pulseWatcher` / `glow` props. The medallion span lost its nonce `key`, so a
+trigger no longer remounts it. A trigger with no authored effect now shows nothing on the medallion: Echo, Watcher
+(its frame bloom stays), Karwind's crit, Rise / Rebirth, a cadence progress tick, Start of Turn.
+
+Follow-up worth its own PR: the state that fed the pulse is still computed and unused (`triggers`, `rallyPulse`,
+`watcherPulse` in `useCombatReplay`; `eotPulseUids`, the Karwind pulse sets in `Recruit`).
+
+Also: `PlayDefOptions.trackUnits`. Crownvein's Rally effect sat on the middle of the card because the anchor part is
+resolved once, against the card's SETTLED slot, and the rallier is leaning back in its wind-up. A tracked play re-reads
+the unit's live rect and parts each frame (one rect plus one per part, for one short play). Used by the own-Rally play
+and `playCardMechanic` (Start of Combat, Avenge, Echo, On Death). Not made the default for every effect: it is a
+layout read per frame per playing effect, and many cues anchor to the slot on purpose.
+
+In the shop, a bound End of Turn effect also replaces the under-card flourish, and a Rally's own consequences
+(Crownvein's Ruby Power gain) are read as the Rally by the scan.

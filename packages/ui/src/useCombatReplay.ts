@@ -3657,7 +3657,9 @@ export function useCombatReplay(
             if (ownRally && canPlayDefs()) {
               const a = anchorsForUnits(atkUid, atkUid);
               // `also` rides along (Gasket's Rally sound is its own def), like every other binding's extra defs.
-              if (a) for (const id of bindingDefIds(ownRally)) playDef(id, a, { uids: { source: atkUid, target: atkUid }, gain: ownRally.gain });
+              // `trackUnits`: the rallier is leaning back in its wind-up as this plays, so the effect rides the card
+              // (and its medallion) instead of sitting on the slot it left.
+              if (a) for (const id of bindingDefIds(ownRally)) playDef(id, a, { uids: { source: atkUid, target: atkUid }, gain: ownRally.gain, trackUnits: true });
             }
           } : undefined,
           // How many procs this swing carries — the wind-up stretches to fit their pulse→sparkle pairs.

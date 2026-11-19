@@ -533,7 +533,10 @@ function playCardMechanic(
   const uid = srcUid ?? firstBodyOfCard(cardId, ctx);
   if (uid === null) return;
   const anchors = anchorsForUnits(uid, uid);
-  if (anchors) playDef(binding.def, anchors, { uids: { source: uid, target: uid }, gain: binding.gain });
+  // `trackUnits`: a trigger's effect rides its card (and its medallion) for as long as it plays. The body is often
+  // moving: an Avenge fires inside the exchange that caused the death, while the board closes the gap (owner
+  // 2026-11-19: "that tracking will be necessary for avenge as well").
+  if (anchors) playDef(binding.def, anchors, { uids: { source: uid, target: uid }, gain: binding.gain, trackUnits: true });
 }
 
 /** Run one moment's plain-effect cues (sfx + float + the three aura sub-channels). Each cue fires at

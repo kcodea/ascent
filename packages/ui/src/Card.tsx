@@ -489,12 +489,7 @@ export const Card = memo(function Card({
   battlecry,
   electrify,
   karwind,
-  pulse,
-  pulseCrit,
-  pulseRally,
-  pulseWatcher,
   pulseFrame,
-  glow,
   popDelay,
   refCards,
   dragging,
@@ -552,29 +547,9 @@ export const Card = memo(function Card({
   /** Battlecry-trigger proc flash: `'flame'` = a Dragon just buffed by Karwind (orange); `'haze'` = Bane
    *  just enchanted Fodder (purple). On top of the normal buff flash. */
   karwind?: 'flame' | 'haze' | false;
-  /** Pulse the trigger medallion — a brief glow + a slow ring of energy when this unit's effect
-   *  *officially* fires (a Deathrattle, a Battlecry, a cadence card paying off, …). */
-  pulse?: boolean;
-  /** Pulse the trigger medallion RED — this unit's effect CRIT (Karwind's 20% doubled buff). Same ring as
-   *  `pulse`, forced red, and the HIGHEST precedence: a crit is the most significant proc, so it wins over
-   *  the plain trigger pulse (and the combat rally/watcher colours it never co-occurs with). A per-fire NONCE
-   *  (used as the medallion `key`, like `pulseRally`) so a repeat crit restarts the animation. */
-  pulseCrit?: number;
-  /** Pulse the trigger medallion YELLOW — a Rally fired as this unit attacks. Same ring as `pulse`, forced
-   *  yellow; takes precedence over `pulse`. A per-fire NONCE (truthy = pulsing): it's used as the medallion's
-   *  `key` so the element remounts each Rally and the CSS pulse restarts, even when `.pulsing` is already on
-   *  from the unit's own trigger glow (a plain class re-add wouldn't replay the animation). */
-  pulseRally?: number;
-  /** Pulse the trigger medallion LIGHT BLUE — a watcher answered an ally's attack. Same ring as `pulse`,
-   *  forced light blue; sits between `pulseRally` (yellow) and `pulse` (white) in precedence. A per-fire NONCE
-   *  (used as the medallion `key`, like `pulseRally`) so a repeat watcher pulse restarts the animation. */
-  pulseWatcher?: number;
   /** Bloom the CARD FRAME light blue — the watcher's frame surface (CSS fallback when the Pixi `watcher-pulse`
    *  def can't play). A per-fire nonce keyed onto the `.framepulsering` overlay so each fire replays. */
   pulseFrame?: number;
-  /** Glow the trigger medallion only (no ring) — a multi-turn mechanic made *progress* this turn but
-   *  hasn't officially fired yet (e.g. Frontdrake ticking toward its every-3-turns grant). */
-  glow?: boolean;
   /** Hold this card's mount pop for ~0.2s before it appears — a battlecry-summoned token waits a beat
    *  after the trigger pulse fires, so you see the pulse THEN the token (e.g. Alleycat → Stray). */
   popDelay?: boolean;
@@ -1422,7 +1397,7 @@ export const Card = memo(function Card({
               const medSrc = mechMedallionSrc(mech.id);
               const medTint = mechMedallionArtTint(mech.id); // per-mechanic colour sheen (Execute → red multiply)
               return (
-                <span key={`cgem-${pulseCrit ?? 0}-${pulseRally ?? 0}-${pulseWatcher ?? 0}`} className={`cgem${pulseCrit ? ' pulsing crit' : pulseRally ? ' pulsing rally' : pulseWatcher ? ' pulsing watcher' : pulse ? ' pulsing' : glow ? ' glowing' : ''}`} aria-hidden="true">{medSrc
+                <span className="cgem" aria-hidden="true">{medSrc
                   ? <><FadeImg className="cgem-img" src={medSrc} alt="" aria-hidden="true" style={{ '--cgem-art-mech': mechMedallionArtScale(mech.id), '--cgem-art-rot': `${mechMedallionArtRotate(mech.id)}deg` } as CSSProperties} /><span className="cgem-tint" data-art={mechMedallionArtId(mech.id) ?? undefined} style={{ '--cgem-art-mech': mechMedallionArtScale(mech.id), '--cgem-art-rot': `${mechMedallionArtRotate(mech.id)}deg`, ...(medTint ? { '--cgem-tint': medTint.color, '--cgem-tint-amt': medTint.amt, '--cgem-tint-blend': medTint.blend } : {}) } as CSSProperties} aria-hidden="true" /></>
                   : <Icon name={mech.glyph} />}</span>
               );

@@ -9900,8 +9900,8 @@ const TavernRow = memo(function TavernRow({
 /** The warband zone: your board (or, in combat, your units). Memoized the same way as `TavernRow`. */
 const WarbandRow = memo(function WarbandRow({
   replay, displayBoard, boardOrder, boardAligns, boardViews, refViewsByUid, heroArmed,
-  isPendingTarget, soulboundUids, battlecryUids, eotProcUids, eotPulseUids,
-  karwindPulseUids, karwindCritPulseUids, karwindFlashSeq, summonDelayUids, electrifyUids, karwindFlameUids,
+  isPendingTarget, soulboundUids, battlecryUids, eotProcUids,
+  summonDelayUids, electrifyUids, karwindFlameUids,
   returningFromCombat, hasPendingTarget, onCardPointerDown,
 }: {
   replay: ReturnType<typeof useCombatReplay> | null; displayBoard: BoardCard[];
@@ -9984,9 +9984,6 @@ const WarbandRow = memo(function WarbandRow({
                     battlecry={battlecryUids.has(m.uid) || eotProcUids.has(m.uid)}
                     // Medallion: a Battlecry / an officially-firing End-of-Turn pulses (ring); a cadence
                     // card that only ticked this turn (proc'd but not complete) just glows.
-                    pulse={battlecryUids.has(m.uid) || eotPulseUids.has(m.uid) || karwindPulseUids.has(m.uid)}
-                    pulseCrit={karwindCritPulseUids.has(m.uid) ? karwindFlashSeq : undefined}
-                    glow={eotProcUids.has(m.uid)}
                     popDelay={summonDelayUids.has(m.uid)}
                     electrify={electrifyUids.has(m.uid) || magTargetUid === m.uid}
                     karwind={karwindFlameUids.has(m.uid) ? (m.cardId === 'bane' || CARD_INDEX[m.cardId]?.keywords.includes('FD') ? 'haze' : 'flame') : false}

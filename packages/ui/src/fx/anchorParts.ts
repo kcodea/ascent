@@ -119,9 +119,12 @@ function settledCardRect(unit: UnitElementLike, raw: PartRect): PartRect {
  * mid-animation (owner reports 2026-09-18). With no transform (combat, workbench, test stubs) the settled box
  * equals the live rect and the mapping is the identity, so nothing else changes.
  */
-export function readUnitPartPoints(unit: UnitElementLike, parts: readonly FxAnchorPart[]): FxPartPoints {
+export function readUnitPartPoints(unit: UnitElementLike, parts: readonly FxAnchorPart[], live = false): FxPartPoints {
   const raw = unit.getBoundingClientRect();
-  const settled = settledCardRect(unit, raw);
+  // `live`: where the part is drawn RIGHT NOW, transform and all, for a play that rides a moving unit
+  // (`PlayDefOptions.trackUnits`): a rallier leaning back in its wind-up wears its medallion where the card is,
+  // not at the slot it left.
+  const settled = live ? raw : settledCardRect(unit, raw);
   const sx = raw.width > 0 ? settled.width / raw.width : 1;
   const sy = raw.height > 0 ? settled.height / raw.height : 1;
   const toSettled = (r: PartRect): PartRect => ({

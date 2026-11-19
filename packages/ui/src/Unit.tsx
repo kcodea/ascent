@@ -41,7 +41,7 @@ const sameKeywords = (a: string[], b: string[]): boolean =>
   a === b || (a.length === b.length && a.every((k, i) => k === b[i]));
 
 /** A combat unit — the same Card as recruit, wrapped for animations and the DS ring. */
-function UnitInner({ u, side, anim, triggered, rallyPulse, watcherPulse, framePulse, holdStep }: UnitProps) {
+function UnitInner({ u, side, anim, framePulse, holdStep }: UnitProps) {
   // How many units actually re-rendered this second — the memo above is supposed to keep this at 1–3 per
   // beat; a number near the board size means the comparator is missing. One branch when the monitor is off.
   perfMonitor.count('unit renders');
@@ -241,7 +241,7 @@ function UnitInner({ u, side, anim, triggered, rallyPulse, watcherPulse, framePu
           way a shop gem does; `autoRoll={false}` keeps damage instant — damage is an unheld change, so the
           number updates immediately and the pop still fires off it, while a buff (an `effect`-origin hold
           the replay itself drives via `driveRoll`) is the only thing that rolls. See `useCombatReplay`. */}
-      <Card card={view} uid={u.uid} own={!foe} autoRoll={false} pulse={triggered} pulseRally={rallyPulse} pulseWatcher={watcherPulse} pulseFrame={framePulse} />
+      <Card card={view} uid={u.uid} own={!foe} autoRoll={false} pulseFrame={framePulse} />
     </div>
   );
 }

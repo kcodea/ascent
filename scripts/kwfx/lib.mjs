@@ -73,7 +73,7 @@ export async function launch({ cdpPort = 9552, width = 1920, height = 1080, dpr 
     void (local ? send('Fetch.continueRequest', { requestId: p.requestId }) : send('Fetch.failRequest', { requestId: p.requestId, errorReason: 'BlockedByClient' })).catch(() => {});
   });
   await send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: dpr, mobile: false });
-  return { send, on, off, close, ev, waitFor };
+  return { send, on, off, close, ev, waitFor, profile };
 }
 
 const G = `window.__bench.store.getState()`;

@@ -626,6 +626,14 @@ body.ancgate .app { z-index: auto; }
 .foe-ancient { display: flex; flex-direction: column; gap: 2px; margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(255, 255, 255, 0.14); }
 .foe-ancient-name { font-family: var(--font-title), sans-serif; font-weight: 800; letter-spacing: 0.02em; filter: brightness(1.35) saturate(1.1); }
 .foe-ancient-rule { display: block; }
+/* THE BAND (owner 2026-11-19): where the Ancient sits under a hero power (the rail scout card, the combat foe's power
+   tip), it drops the divider and reads as a soft band: a faint wash of the Ancient's colour (`--anc-c`, set by
+   FoeAncientLine from ancientColor) strongest at the left edge, gone by ~75% across. Static paint. */
+:is(.rsc-anc, .opp-power-tip) .foe-ancient {
+  border-top: 0; border-radius: 5px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--anc-c, #fff) 20%, transparent), color-mix(in srgb, var(--anc-c, #fff) 7%, transparent) 40%, transparent 78%);
+}
+.opp-power-tip .foe-ancient { padding: 5px 8px; }
 
 /* ── PEEK (owner ask 2026-11-18, R-ANCIENT-PEEK-01): the Discover's Peek toggle on the awakening's pick ───────────────
    While peeking (`body.ancpeek`, set by Recruit) the gate's backdrop and the offer step aside and the Shop row comes

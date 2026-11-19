@@ -13,6 +13,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { ANCIENTS, HEROES, ancientOfferText, getHero } from '@game/sim';
 import { mount, type Mounted } from './renderedText.mount';
 import { RailScoutShowcase } from './RailScoutShowcase';
+import { ancientColor } from './ancients/ancientsConfig';
 
 const plain = (md: string): string => md.replace(/\*\*/g, '');
 const passive = HEROES.find((h) => h.power.passive)!;
@@ -40,6 +41,8 @@ describe('the rail scout card, hero showcase top (R-RAIL-SCOUT-SHOWCASE-01)', ()
     expect(q('.rsc-pwtext')?.textContent).toBe(plain(passive.power.text));
     expect(q('.rsc-anc .foe-ancient-name')?.textContent).toBe(ANCIENTS.fortune.name);
     expect(q('.rsc-anc .foe-ancient-rule')?.textContent).toBe(plain(ancientOfferText(passive.id, 'fortune')));
+    // The band's wash is the Ancient's own colour (the name's), carried as --anc-c on the block.
+    expect((q('.rsc-anc .foe-ancient') as HTMLElement).style.getPropertyValue('--anc-c')).toBe(ancientColor('fortune'));
     expect(q('.rsc-rest .kept')?.textContent).toBe('chips');
     expect(ui.container.querySelector('[title]')).toBeNull();
   });

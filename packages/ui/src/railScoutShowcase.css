@@ -89,7 +89,10 @@
 }
 .rsc-pwtext b { color: #fff; font-weight: 800; }
 .rsc-anc { grid-row: 4; font-size: calc(11.5 * var(--lfont)); line-height: 1.35; color: #fff6ea; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.85); }
-.rsc-anc .foe-ancient { margin-top: calc(6 * var(--c)); padding-top: calc(6 * var(--c)); border-top-color: color-mix(in srgb, var(--anc-c, #fff) 30%, transparent); }
+/* The Ancient sits UNDER the power as a soft band (owner 2026-11-19, with his mock-up: no divider, a faint wash of the
+   Ancient's colour strongest at the left edge fading out to the right). The wash is shared with the combat foe tip
+   (ancients.css, the `.foe-ancient` band rule); here it only gets the card's spacing. */
+.rsc-anc .foe-ancient { margin-top: calc(5 * var(--c)); padding: calc(5 * var(--c)) calc(8 * var(--c)); border-radius: calc(5 * var(--c)); }
 .rsc-anc .foe-ancient-name { font-size: calc(13 * var(--lfont)); }
 
 /* Everything the card showed before (chips, runes, fights) under the second gold divider. */

@@ -67,23 +67,29 @@
           think.
         </p>
         <ol class="points" role="list">
-          <li class="point">
+          <li class="point point--clip" data-point="clock">
+            <span class="point__icon"><img src="/art/medallions/clock.webp" alt="" width="128" height="128" loading="lazy" /></span>
+            <div class="point__text">
+              <h3>The clock stops for big choices</h3>
+              <p>While a Discover, the Runeforge or Ancient select is open, your timer waits until you pick.</p>
+            </div>
             <figure class="capture" data-capture="discover-timer">
               <img
                 data-poster
                 src="/captures/discover-timer.jpg"
-                alt="A Discover offering three cards while the turn timer is paused"
+                alt="A Discover open in the shop with the turn timer stopped"
                 width="1280"
                 height="720"
                 loading="lazy"
               />
-              <figcaption class="point__text">
-                <h3>The clock stops for big choices</h3>
-                <p>While a Discover, the Runeforge or Ancient select is open, your timer waits until you pick.</p>
-              </figcaption>
             </figure>
           </li>
-          <li class="point">
+          <li class="point point--clip" data-point="fuse">
+            <span class="point__icon"><img src="/art/medallions/gold.webp" alt="" width="128" height="128" loading="lazy" /></span>
+            <div class="point__text">
+              <h3>The Gold Fuse</h3>
+              <p>Your turn timer does not start until you have spent a set amount of Gold.</p>
+            </div>
             <figure class="capture" data-capture="gold-fuse">
               <img
                 data-poster
@@ -93,42 +99,40 @@
                 height="720"
                 loading="lazy"
               />
-              <figcaption class="point__text">
-                <h3>The Gold Fuse</h3>
-                <p>Your turn timer does not start until you have spent a set amount of Gold.</p>
-              </figcaption>
             </figure>
           </li>
-          <li class="point">
+          <li class="point point--clip" data-point="swap">
+            <span class="point__icon"><img src="/art/medallions/swap.webp" alt="" width="128" height="128" loading="lazy" /></span>
+            <div class="point__text">
+              <h3>Out of time? Keep arranging.</h3>
+              <p>When your time is up, you can still rearrange your board before the fight.</p>
+            </div>
             <figure class="capture" data-capture="rearrange">
               <img
                 data-poster
                 src="/captures/rearrange.jpg"
-                alt="A board being rearranged after the turn timer has run out"
+                alt="A minion dragged to a new slot on the board after the turn timer has run out"
                 width="1280"
                 height="720"
                 loading="lazy"
               />
-              <figcaption class="point__text">
-                <h3>Out of time? Keep arranging.</h3>
-                <p>When your time is up, you can still rearrange your board before the fight.</p>
-              </figcaption>
             </figure>
           </li>
-          <li class="point">
+          <li class="point point--clip" data-point="save">
+            <span class="point__icon"><img src="/art/medallions/return.webp" alt="" width="128" height="128" loading="lazy" /></span>
+            <div class="point__text">
+              <h3>Come back to your game</h3>
+              <p>Save and quit, then continue where you left off.</p>
+            </div>
             <figure class="capture" data-capture="save-continue">
               <img
                 data-poster
                 src="/captures/save-continue.jpg"
-                alt="Save and Quit, then Continue picking up a game where it was left"
+                alt="Save and Quit from a game, then Continue on the home screen"
                 width="1280"
                 height="720"
                 loading="lazy"
               />
-              <figcaption class="point__text">
-                <h3>Come back to your game</h3>
-                <p>Save and quit, then continue where you left off.</p>
-              </figcaption>
             </figure>
           </li>
         </ol>
@@ -148,6 +152,131 @@
             loading="lazy"
           />
         </figure>
+        <p class="runes__lead">Some runes hand you a card. Pick one to see what it gives.</p>
+        <ul class="ancients runes" role="list">
+          <li>
+            <button type="button" class="ancient rune" data-rune="chimerus" aria-pressed="true" aria-controls="rune-chimerus">
+              <img src="/art/runes/chimerus.webp" alt="" width="384" height="384" loading="lazy" />
+              <span class="rune__cap">
+                <span class="rune__name">Chimerus</span>
+                <span class="rune__text">Get a <b>Chimerus</b>.</span>
+              </span>
+            </button>
+          </li>
+          <li>
+            <button type="button" class="ancient rune" data-rune="voidmother" aria-pressed="false" aria-controls="rune-voidmother">
+              <img src="/art/runes/voidmother.webp" alt="" width="384" height="384" loading="lazy" />
+              <span class="rune__cap">
+                <span class="rune__name">Voidmother</span>
+                <span class="rune__text">Get a <b>Voidmother</b>.</span>
+              </span>
+            </button>
+          </li>
+          <li>
+            <button type="button" class="ancient rune" data-rune="bucky" aria-pressed="false" aria-controls="rune-bucky">
+              <img src="/art/runes/bucky.webp" alt="" width="384" height="384" loading="lazy" />
+              <span class="rune__cap">
+                <span class="rune__name">Bucky</span>
+                <span class="rune__text">Get a <b>Bucky</b>.</span>
+              </span>
+            </button>
+          </li>
+          <li>
+            <button type="button" class="ancient rune" data-rune="portrait" aria-pressed="false" aria-controls="rune-portrait">
+              <img src="/art/runes/portrait.webp" alt="" width="384" height="384" loading="lazy" />
+              <span class="rune__cap">
+                <span class="rune__name">Bottomless Portrait</span>
+                <span class="rune__text">Get an <b>Arcane Behemoth</b>.</span>
+              </span>
+            </button>
+          </li>
+          <li>
+            <button type="button" class="ancient rune" data-rune="yazzus" aria-pressed="false" aria-controls="rune-yazzus">
+              <img src="/art/runes/yazzus.webp" alt="" width="384" height="384" loading="lazy" />
+              <span class="rune__cap">
+                <span class="rune__name">Yazzus</span>
+                <span class="rune__text">Get a <b>Yazzus</b>.</span>
+              </span>
+            </button>
+          </li>
+          <li>
+            <button type="button" class="ancient rune" data-rune="gemsage" aria-pressed="false" aria-controls="rune-gemsage">
+              <img src="/art/runes/gemsage.webp" alt="" width="384" height="384" loading="lazy" />
+              <span class="rune__cap">
+                <span class="rune__name">Gem Sage</span>
+                <span class="rune__text">Get a <b>Gem Sage</b>.</span>
+              </span>
+            </button>
+          </li>
+        </ul>
+        <div class="ashow" aria-live="polite">
+          <article class="ashow__panel is-on" id="rune-chimerus" data-rune-panel="chimerus">
+            <img class="ashow__wash" src="/art/cards/chimerus.webp" alt="" width="512" height="512" loading="lazy" />
+            <div class="ashow__art">
+              <img src="/art/cards/chimerus.webp" alt="" width="512" height="512" loading="lazy" />
+            </div>
+            <div class="ashow__info">
+              <h3 class="ashow__name ashow__name--reward"><span class="ashow__kicker">Card Reward</span> <span class="ashow__card">Chimerus</span></h3>
+              <p class="ashow__meta"><b>Tier 6 Dragon</b> <span class="ashow__dot">·</span> <span>4 Attack</span> <span class="ashow__bar"></span> <span>8 Health</span></p>
+              <p class="ashow__blurb"><b>Rally:</b> give this minion's Health to 2 friendly Dragons.</p>
+            </div>
+          </article>
+          <article class="ashow__panel" id="rune-voidmother" data-rune-panel="voidmother" hidden>
+            <img class="ashow__wash" src="/art/cards/voidmother.webp" alt="" width="512" height="512" loading="lazy" />
+            <div class="ashow__art">
+              <img src="/art/cards/voidmother.webp" alt="" width="512" height="512" loading="lazy" />
+            </div>
+            <div class="ashow__info">
+              <h3 class="ashow__name ashow__name--reward"><span class="ashow__kicker">Card Reward</span> <span class="ashow__card">Voidmother</span></h3>
+              <p class="ashow__meta"><b>Tier 6 Beast</b> <span class="ashow__dot">·</span> <span>6 Attack</span> <span class="ashow__bar"></span> <span>1 Health</span></p>
+              <p class="ashow__blurb"><b>Echo:</b> summon a <b>Void Panther</b>.</p>
+            </div>
+          </article>
+          <article class="ashow__panel" id="rune-bucky" data-rune-panel="bucky" hidden>
+            <img class="ashow__wash" src="/art/cards/bucky.webp" alt="" width="512" height="512" loading="lazy" />
+            <div class="ashow__art">
+              <img src="/art/cards/bucky.webp" alt="" width="512" height="512" loading="lazy" />
+            </div>
+            <div class="ashow__info">
+              <h3 class="ashow__name ashow__name--reward"><span class="ashow__kicker">Card Reward</span> <span class="ashow__card">Bucky</span></h3>
+              <p class="ashow__meta"><b>Tier 6 Dwarf</b> <span class="ashow__dot">·</span> <span>6 Attack</span> <span class="ashow__bar"></span> <span>10 Health</span></p>
+              <p class="ashow__blurb"><b>Start of Combat:</b> give your Dwarves <b>+5/+5</b> for every <b>Dwarven Ale</b> you cast last turn.</p>
+            </div>
+          </article>
+          <article class="ashow__panel" id="rune-portrait" data-rune-panel="portrait" hidden>
+            <img class="ashow__wash" src="/art/cards/portrait.webp" alt="" width="512" height="512" loading="lazy" />
+            <div class="ashow__art">
+              <img src="/art/cards/portrait.webp" alt="" width="512" height="512" loading="lazy" />
+            </div>
+            <div class="ashow__info">
+              <h3 class="ashow__name ashow__name--reward"><span class="ashow__kicker">Card Reward</span> <span class="ashow__card">Arcane Behemoth</span></h3>
+              <p class="ashow__meta"><b>Tier 6 Demon</b> <span class="ashow__dot">·</span> <span>6 Attack</span> <span class="ashow__bar"></span> <span>10 Health</span></p>
+              <p class="ashow__blurb">When you <b>Sell</b> a <b>Demon</b>, this gains its stats.</p>
+            </div>
+          </article>
+          <article class="ashow__panel" id="rune-yazzus" data-rune-panel="yazzus" hidden>
+            <img class="ashow__wash" src="/art/cards/yazzus.webp" alt="" width="512" height="512" loading="lazy" />
+            <div class="ashow__art">
+              <img src="/art/cards/yazzus.webp" alt="" width="512" height="512" loading="lazy" />
+            </div>
+            <div class="ashow__info">
+              <h3 class="ashow__name ashow__name--reward"><span class="ashow__kicker">Card Reward</span> <span class="ashow__card">Yazzus</span></h3>
+              <p class="ashow__meta"><b>Tier 7</b> <span class="ashow__dot">·</span> <span>4 Attack</span> <span class="ashow__bar"></span> <span>8 Health</span></p>
+              <p class="ashow__blurb"><b>Targeted</b> spells you cast from hand cast <b>an additional</b> time.</p>
+            </div>
+          </article>
+          <article class="ashow__panel" id="rune-gemsage" data-rune-panel="gemsage" hidden>
+            <img class="ashow__wash" src="/art/cards/gemsage.webp" alt="" width="512" height="512" loading="lazy" />
+            <div class="ashow__art">
+              <img src="/art/cards/gemsage.webp" alt="" width="512" height="512" loading="lazy" />
+            </div>
+            <div class="ashow__info">
+              <h3 class="ashow__name ashow__name--reward"><span class="ashow__kicker">Card Reward</span> <span class="ashow__card">Gem Sage</span></h3>
+              <p class="ashow__meta"><b>Tier 4 Kobold</b> <span class="ashow__dot">·</span> <span>3 Attack</span> <span class="ashow__bar"></span> <span>7 Health</span></p>
+              <p class="ashow__blurb">When you get a <b>Ruby</b>, also get a random <b>Ruby</b>.</p>
+            </div>
+          </article>
+        </div>
       </section>
 
       <section id="ancients" class="section section--ancients">
@@ -167,32 +296,148 @@
             loading="lazy"
           />
         </figure>
-        <ul class="ancients">
-          <li class="ancient">
-            <img data-ancient src="/art/ancients/bonds.webp" alt="" width="512" height="512" loading="lazy" />
-            <span class="ancient__name">Bonds</span>
+        <ul class="ancients" role="list">
+          <li>
+            <button type="button" class="ancient" data-ancient="bonds" aria-pressed="true" aria-controls="ancient-bonds">
+              <img src="/art/ancients/bonds.webp" alt="" width="512" height="512" loading="lazy" />
+              <span class="ancient__name">Bonds</span>
+            </button>
           </li>
-          <li class="ancient">
-            <img data-ancient src="/art/ancients/death.webp" alt="" width="512" height="512" loading="lazy" />
-            <span class="ancient__name">Death</span>
+          <li>
+            <button type="button" class="ancient" data-ancient="death" aria-pressed="false" aria-controls="ancient-death">
+              <img src="/art/ancients/death.webp" alt="" width="512" height="512" loading="lazy" />
+              <span class="ancient__name">Death</span>
+            </button>
           </li>
-          <li class="ancient">
-            <img data-ancient src="/art/ancients/fortune.webp" alt="" width="512" height="512" loading="lazy" />
-            <span class="ancient__name">Fortune</span>
+          <li>
+            <button type="button" class="ancient" data-ancient="fortune" aria-pressed="false" aria-controls="ancient-fortune">
+              <img src="/art/ancients/fortune.webp" alt="" width="512" height="512" loading="lazy" />
+              <span class="ancient__name">Fortune</span>
+            </button>
           </li>
-          <li class="ancient">
-            <img data-ancient src="/art/ancients/genesis.webp" alt="" width="512" height="512" loading="lazy" />
-            <span class="ancient__name">Genesis</span>
+          <li>
+            <button type="button" class="ancient" data-ancient="genesis" aria-pressed="false" aria-controls="ancient-genesis">
+              <img src="/art/ancients/genesis.webp" alt="" width="512" height="512" loading="lazy" />
+              <span class="ancient__name">Genesis</span>
+            </button>
           </li>
-          <li class="ancient">
-            <img data-ancient src="/art/ancients/time.webp" alt="" width="512" height="512" loading="lazy" />
-            <span class="ancient__name">Time</span>
+          <li>
+            <button type="button" class="ancient" data-ancient="time" aria-pressed="false" aria-controls="ancient-time">
+              <img src="/art/ancients/time.webp" alt="" width="512" height="512" loading="lazy" />
+              <span class="ancient__name">Time</span>
+            </button>
           </li>
-          <li class="ancient">
-            <img data-ancient src="/art/ancients/war.webp" alt="" width="512" height="512" loading="lazy" />
-            <span class="ancient__name">War</span>
+          <li>
+            <button type="button" class="ancient" data-ancient="war" aria-pressed="false" aria-controls="ancient-war">
+              <img src="/art/ancients/war.webp" alt="" width="512" height="512" loading="lazy" />
+              <span class="ancient__name">War</span>
+            </button>
           </li>
         </ul>
+        <div class="ashow" aria-live="polite">
+          <article class="ashow__panel is-on" id="ancient-bonds" data-ancient-panel="bonds">
+            <img class="ashow__wash" src="/art/ancients/bonds.webp" alt="" width="512" height="512" loading="lazy" />
+            <div class="ashow__art">
+              <img src="/art/ancients/bonds.webp" alt="" width="512" height="512" loading="lazy" />
+            </div>
+            <div class="ashow__info">
+              <h3 class="ashow__name">Ancient of Bonds</h3>
+              <p class="ashow__blurb">Links your minions together, so a buff or a trigger on one spreads to the others.</p>
+              <div class="ashow__eg">
+                <p class="ashow__eg-label">In-game Example</p>
+                <div class="ashow__eg-row">
+                  <img class="ashow__eg-hero" src="/art/heroes/indy.webp" alt="" width="96" height="96" loading="lazy" />
+                  <p class="ashow__eg-text"><span class="ashow__eg-name">Indy</span>Masterwork also gives <b>+20/+20</b> for every <b>Gilded</b> minion this game. It can target <b>Gilded</b> minions.</p>
+                </div>
+              </div>
+            </div>
+          </article>
+          <article class="ashow__panel" id="ancient-death" data-ancient-panel="death" hidden>
+            <img class="ashow__wash" src="/art/ancients/death.webp" alt="" width="512" height="512" loading="lazy" />
+            <div class="ashow__art">
+              <img src="/art/ancients/death.webp" alt="" width="512" height="512" loading="lazy" />
+            </div>
+            <div class="ashow__info">
+              <h3 class="ashow__name">Ancient of Death</h3>
+              <p class="ashow__blurb">Turns dying into an advantage. Minions come back, and you are rewarded when they fall.</p>
+              <div class="ashow__eg">
+                <p class="ashow__eg-label">In-game Example</p>
+                <div class="ashow__eg-row">
+                  <img class="ashow__eg-hero" src="/art/heroes/indy.webp" alt="" width="96" height="96" loading="lazy" />
+                  <p class="ashow__eg-text"><span class="ashow__eg-name">Indy</span>Masterwork targets gain <b>Rebirth</b> and <b>Taunt</b>.</p>
+                </div>
+              </div>
+            </div>
+          </article>
+          <article class="ashow__panel" id="ancient-fortune" data-ancient-panel="fortune" hidden>
+            <img class="ashow__wash" src="/art/ancients/fortune.webp" alt="" width="512" height="512" loading="lazy" />
+            <div class="ashow__art">
+              <img src="/art/ancients/fortune.webp" alt="" width="512" height="512" loading="lazy" />
+            </div>
+            <div class="ashow__info">
+              <h3 class="ashow__name">Ancient of Fortune</h3>
+              <p class="ashow__blurb">All about Gold. Earn more of it, spend less of it, and get things for free.</p>
+              <div class="ashow__eg">
+                <p class="ashow__eg-label">In-game Example</p>
+                <div class="ashow__eg-row">
+                  <img class="ashow__eg-hero" src="/art/heroes/indy.webp" alt="" width="96" height="96" loading="lazy" />
+                  <p class="ashow__eg-text"><span class="ashow__eg-name">Indy</span><b>Selling</b> a <b>Gilded</b> minion gets you a plain copy of it.</p>
+                </div>
+              </div>
+            </div>
+          </article>
+          <article class="ashow__panel" id="ancient-genesis" data-ancient-panel="genesis" hidden>
+            <img class="ashow__wash" src="/art/ancients/genesis.webp" alt="" width="512" height="512" loading="lazy" />
+            <div class="ashow__art">
+              <img src="/art/ancients/genesis.webp" alt="" width="512" height="512" loading="lazy" />
+            </div>
+            <div class="ashow__info">
+              <h3 class="ashow__name">Ancient of Genesis</h3>
+              <p class="ashow__blurb">Makes more of what you have. Extra copies of your minions, and more to Discover.</p>
+              <div class="ashow__eg">
+                <p class="ashow__eg-label">In-game Example</p>
+                <div class="ashow__eg-row">
+                  <img class="ashow__eg-hero" src="/art/heroes/indy.webp" alt="" width="96" height="96" loading="lazy" />
+                  <p class="ashow__eg-text"><span class="ashow__eg-name">Indy</span>Masterwork gets <b>2</b> plain copies of a chosen minion instead.</p>
+                </div>
+              </div>
+            </div>
+          </article>
+          <article class="ashow__panel" id="ancient-time" data-ancient-panel="time" hidden>
+            <img class="ashow__wash" src="/art/ancients/time.webp" alt="" width="512" height="512" loading="lazy" />
+            <div class="ashow__art">
+              <img src="/art/ancients/time.webp" alt="" width="512" height="512" loading="lazy" />
+            </div>
+            <div class="ashow__info">
+              <h3 class="ashow__name">Ancient of Time</h3>
+              <p class="ashow__blurb">Changes when your power works. Effects at the start of a turn or a combat, and things that happen twice.</p>
+              <div class="ashow__eg">
+                <p class="ashow__eg-label">In-game Example</p>
+                <div class="ashow__eg-row">
+                  <img class="ashow__eg-hero" src="/art/heroes/indy.webp" alt="" width="96" height="96" loading="lazy" />
+                  <p class="ashow__eg-text"><span class="ashow__eg-name">Indy</span><b>Start of Combat:</b> your right-most minion becomes <b>Gilded</b> for that combat.</p>
+                </div>
+              </div>
+            </div>
+          </article>
+          <article class="ashow__panel" id="ancient-war" data-ancient-panel="war" hidden>
+            <img class="ashow__wash" src="/art/ancients/war.webp" alt="" width="512" height="512" loading="lazy" />
+            <div class="ashow__art">
+              <img src="/art/ancients/war.webp" alt="" width="512" height="512" loading="lazy" />
+            </div>
+            <div class="ashow__info">
+              <h3 class="ashow__name">Ancient of War</h3>
+              <p class="ashow__blurb">Raw fighting power. Bigger stats, extra attacks and harder hits in combat.</p>
+              <div class="ashow__eg">
+                <p class="ashow__eg-label">In-game Example</p>
+                <div class="ashow__eg-row">
+                  <img class="ashow__eg-hero" src="/art/heroes/indy.webp" alt="" width="96" height="96" loading="lazy" />
+                  <p class="ashow__eg-text"><span class="ashow__eg-name">Indy</span><b>Gilded</b> minions gain <b>+8/+8</b> when a friendly minion dies, permanently.</p>
+                </div>
+              </div>
+            </div>
+          </article>
+        </div>
       </section>
 
       <section id="tracking" class="section section--tracking">
@@ -261,26 +506,72 @@
           />
         </figure>
         <figure class="chests">
-          <ul class="chests__list">
-            <li class="chest">
-              <img src="/art/chests/standard.webp" alt="" width="840" height="457" loading="lazy" />
-              <span class="chest__name">Standard</span>
+          <ul class="chests__list" role="list">
+            <li>
+              <button type="button" class="chest t-standard" data-chest="standard" aria-label="Standard chest">
+                <span class="chest__burst" data-burst aria-hidden="true"></span>
+                <span class="chest__art">
+                  <span class="chestpic">
+                    <img class="chestpic__body" src="/art/chests/standard.webp" alt="" width="840" height="457" loading="lazy" />
+                    <img class="chestpic__lid" src="/art/chests/standard-lid.webp" alt="" width="819" height="238" loading="lazy" />
+                  </span>
+                </span>
+                <span class="chest__name">Standard</span>
+              </button>
             </li>
-            <li class="chest">
-              <img src="/art/chests/rare.webp" alt="" width="840" height="410" loading="lazy" />
-              <span class="chest__name">Rare</span>
+            <li>
+              <button type="button" class="chest t-rare" data-chest="rare" aria-label="Rare chest">
+                <span class="chest__burst" data-burst aria-hidden="true"></span>
+                <span class="chest__art">
+                  <span class="chestpic">
+                    <img class="chestpic__body" src="/art/chests/rare.webp" alt="" width="840" height="410" loading="lazy" />
+                    <img class="chestpic__lid" src="/art/chests/rare-lid.webp" alt="" width="823" height="238" loading="lazy" />
+                  </span>
+                </span>
+                <span class="chest__name">Rare</span>
+              </button>
             </li>
-            <li class="chest">
-              <img src="/art/chests/epic.webp" alt="" width="840" height="402" loading="lazy" />
-              <span class="chest__name">Epic</span>
+            <li>
+              <button type="button" class="chest t-epic" data-chest="epic" aria-label="Epic chest">
+                <span class="chest__burst" data-burst aria-hidden="true"></span>
+                <span class="chest__art">
+                  <span class="chestpic">
+                    <img class="chestpic__body" src="/art/chests/epic.webp" alt="" width="840" height="402" loading="lazy" />
+                    <img class="chestpic__lid" src="/art/chests/epic-lid.webp" alt="" width="816" height="242" loading="lazy" />
+                    <span class="chestpic__spike">
+                      <img src="/art/chests/epic.webp" alt="" width="840" height="402" loading="lazy" />
+                    </span>
+                  </span>
+                </span>
+                <span class="chest__name">Epic</span>
+              </button>
             </li>
-            <li class="chest">
-              <img src="/art/chests/legendary.webp" alt="" width="840" height="393" loading="lazy" />
-              <span class="chest__name">Legendary</span>
+            <li>
+              <button type="button" class="chest t-legendary" data-chest="legendary" aria-label="Legendary chest">
+                <span class="chest__burst" data-burst aria-hidden="true"></span>
+                <span class="chest__art">
+                  <span class="chestpic">
+                    <img class="chestpic__body" src="/art/chests/legendary.webp" alt="" width="840" height="393" loading="lazy" />
+                    <img class="chestpic__lid" src="/art/chests/legendary-lid.webp" alt="" width="795" height="250" loading="lazy" />
+                  </span>
+                </span>
+                <span class="chest__name">Legendary</span>
+              </button>
             </li>
-            <li class="chest">
-              <img src="/art/chests/ancient.webp" alt="" width="840" height="400" loading="lazy" />
-              <span class="chest__name">Ancient</span>
+            <li>
+              <button type="button" class="chest t-ancient" data-chest="ancient" aria-label="Ancient chest">
+                <span class="chest__burst" data-burst aria-hidden="true"></span>
+                <span class="chest__art">
+                  <span class="chestpic">
+                    <img class="chestpic__body" src="/art/chests/ancient.webp" alt="" width="840" height="400" loading="lazy" />
+                    <img class="chestpic__lid" src="/art/chests/ancient-lid.webp" alt="" width="819" height="246" loading="lazy" />
+                    <span class="chestpic__spike">
+                      <img src="/art/chests/ancient.webp" alt="" width="840" height="400" loading="lazy" />
+                    </span>
+                  </span>
+                </span>
+                <span class="chest__name">Ancient</span>
+              </button>
             </li>
           </ul>
           <figcaption class="chests__caption">Five chest tiers, from Standard to Ancient</figcaption>
@@ -292,12 +583,12 @@
         <h2>Other game modes</h2>
         <ul class="modes">
           <li class="mode">
-            <img data-mode="versus" src="/captures/mode-versus.jpg" alt="A live Versus match between two players" width="640" height="360" loading="lazy" />
+            <img data-mode="versus" src="/captures/mode-versus.jpg" alt="A Versus room with two players facing off" width="640" height="360" loading="lazy" />
             <h3>Versus</h3>
             <p>Play another player live, head to head.</p>
           </li>
           <li class="mode">
-            <img data-mode="duos" src="/captures/mode-duos.jpg" alt="A Duos game with two teams of two" width="640" height="360" loading="lazy" />
+            <img data-mode="duos" src="/captures/mode-duos.jpg" alt="A Duos room with two teams of two" width="640" height="360" loading="lazy" />
             <h3>Duos</h3>
             <p>Team up with a partner for 2v2 tag-team games.</p>
           </li>

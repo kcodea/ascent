@@ -318,6 +318,7 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
     hasReborn: (t) => t.keywords.includes('R'),
     grantReborn: (t) => { const c = t as BoardCard; c.keywords = [...c.keywords, 'R']; },
     grantKeywordTo: (t, kw) => { const c = t as BoardCard; c.keywords = [...c.keywords, kw as Keyword]; },
+    showKeywordGrant: () => {}, // a combat presentation event; the shop has no log to write it to
     grantSpellPower: (a, h) => {
       state.spellBonus ??= { attack: 0, health: 0 };
       state.spellBonus.attack += a;
@@ -6697,8 +6698,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     // An every-1 improve reads the count RAW (no floor): an in-place gild halves it (GOLD_SCALED_ACCRUAL_CARDS, Flo Rida /
     // Beardsley), and the x2 read must land on exactly the value already earned, a half-count included.
     const step = improve > 0 ? (every <= 1 ? (self.summonBonus ?? 0) : Math.floor((self.summonBonus ?? 0) / every)) : 0;
+    const improveHealth = num(params.improveHealth, improve); // the Health step when it differs (Beardsley +2/+1)
     const a = (num(params.attack, 6) + improve * step) * g;
-    const h = (num(params.health, 6) + improve * step) * g;
+    const h = (num(params.health, 6) + improveHealth * step) * g;
     if (a > 0 || h > 0) addBuff(minion, nameOf(self), a, h);
     if (improve > 0) self.summonBonus = (self.summonBonus ?? 0) + 1;
   },
@@ -13668,6 +13670,37 @@ export function battlecryTargetAllowed(def: Pick<CardDef, 'targetHasEndOfTurn'>,
 }
 
 /**
+ * Does this friendly-aimed Shout have ANY legal pick on the board right now? The ONE predicate `playCard` (defer the
+ * Shout to the aim, or resolve it with no target) and the reducer's `opensBattlecryAim` (open the prompt) share.
+ * R-TARGET-03: never its own body; a tribe-restricted aim needs a matching friend; `battlecryTargetAllowed` filters
+ * the rest (Roomworks). Mage-Pup's taught aim is NOT this (its own body is always a legal pick).
+ */
+export function hasShoutAimTarget(state: RunState, card: BoardCard): boolean {
+  const def = CARD_INDEX[card.cardId];
+  if (!def) return false;
+  if (def.targetTribe) return state.board.some((c) => c.uid !== card.uid && isTribe(c, def.targetTribe!) && battlecryTargetAllowed(def, c));
+  return state.board.some((c) => c.uid !== card.uid && battlecryTargetAllowed(def, c));
+}
+
+/**
+ * A Shout that was PLAYED but has nothing to aim at (R-SHOUT-NOTARGET-01, owner report 2026-11-19: "playing gastrid
+ * didnt trigger karwind, same with an appetite agent without a target. these should still trigger as if a shout was
+ * played even if their effect isnt triggered"). Its body does nothing (R-TARGET-03: never itself), but the Shout still
+ * TRIGGERED: the same shop fold every Shout passes (`shoutFireCount`: Drakko, the Choir family, the per-turn charges,
+ * the Shout tally) and one `fireBattlecryTriggered` per fire (Karwind, Bane, Ember Whelp, Grimoire, the Shout runes,
+ * the Ancients). An untargeted Shout whose body no-ops already counted this way (`playCard` keys on the Shout, not on
+ * what it did); this brings the aimed family in line.
+ */
+export function fireShoutWithoutTarget(state: RunState, card: BoardCard): void {
+  const def = CARD_INDEX[card.cardId];
+  if (!def || !hasBattlecry(def)) return;
+  state.karwindFlash = [];
+  const repeats = shoutFireCount(state, def, card.uid);
+  for (let r = 0; r < repeats; r++) fireBattlecryTriggered(state, card);
+  if (state.karwindFlash && state.karwindFlash.length) state.karwindFlashSeq = (state.karwindFlashSeq ?? 0) + 1;
+}
+
+/**
  * Dusk's hero power: proc a friendly minion's End of Turn effect right now (an extra trigger),
  * honoring Chronos repeats — exactly like the natural end-of-turn, but for one chosen minion.
  * Returns whether anything fired (the charge is only spent when it did).
@@ -17600,7 +17633,12 @@ export function playCard(state: RunState, played: BoardCard): void {
   if (def.chooseOne && def.chooseOne.length > 0) return;
   // Targeted Battlecry (Toxin Tender): the player picks the friendly target next — deferred to
   // `applyBattlecryTarget` (the reducer sets `pendingTarget`). onSummon already fired above.
-  if (def.target === 'friendly') return;
+  // With NO legal pick the reducer opens no aim: the body does nothing, but the Shout still triggers
+  // (R-SHOUT-NOTARGET-01), so every Shout watcher and counter sees it exactly like any other played Shout.
+  if (def.target === 'friendly') {
+    if (!hasShoutAimTarget(state, played)) fireShoutWithoutTarget(state, played);
+    return;
+  }
   // A Mage-Pup taught an AIMED spell defers the same way, but the check is per-instance (its CardDef is
   // untargeted — the taught spell is what needs a target). The Pup is already on the board by the time this
   // runs and a friendly spell may target the Pup itself, so a legal target always exists; the reducer opens

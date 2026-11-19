@@ -11,8 +11,17 @@ export const CAPTURE_SLOTS: readonly string[] = [
   'chest-opening',
 ];
 
-/** Slots that have a recorded clip in public/captures (webm + mp4). Empty until the clips are recorded. */
-export const CLIPS: ReadonlySet<string> = new Set<string>();
+/** Slots that have a recorded clip in public/captures (webm + mp4). Recorded by scripts/capture.mjs. */
+export const CLIPS: ReadonlySet<string> = new Set<string>([
+  'discover-timer',
+  'gold-fuse',
+  'rearrange',
+  'save-continue',
+  'runeforge',
+  'ancient-select',
+  'career-chart',
+  'chest-opening',
+]);
 
 let clips: ReadonlySet<string> = CLIPS;
 

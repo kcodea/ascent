@@ -4,8 +4,8 @@ import { perfMonitor } from '../perfMonitor';
 import { pixiFx } from '../pixiFx';
 import { combatHeld } from '../combatHold';
 import { driveLayerHeads, type FxAnchors } from './anchors';
-import { partsUsedByLayers, withUnitParts, type UnitElementLike } from './anchorParts';
-import type { FxDef, FxSlot } from './def';
+import { partsUsedByLayers, readUnitPartPoints, withUnitParts, type UnitElementLike } from './anchorParts';
+import type { FxAnchorPart, FxDef, FxSlot } from './def';
 import type { StoredFxDef, StoredFxLayer } from './defStore';
 import { anchorsForUnits, unitSelector } from './combatAnchors';
 import { getDef, listDefs } from './fxDefs';
@@ -16,11 +16,12 @@ import { createPlayer } from './player';
 import { playLifetimeMs } from './playLifetime';
 import { hasPrimitives } from './registry';
 import { scaleDef, type FxScaleAxes } from './scaleDef';
-import { joinFilterGroup, sharedFilterParams, stripFilters, type FilterGroupSeat } from './sharedFilters';
+import { hasParticleLayer, joinFilterGroup, sharedFilterParams, stripFilters, type FilterGroupSeat } from './sharedFilters';
 import { stageScale } from '../stage';
 import type { FxHeadSink } from './anchors';
 import { recolorDef } from './recolorDef';
 import { holdStat, revealStat } from './statHold';
+import { rapidPlay } from './rapidPlay';
 import { PHONE_GPU } from '../phoneDiag';
 import { FX_LEDGER_ON, fxNote, fxOutcome, fxRequest, rendererContextLost } from '../fxLedger';
 
@@ -167,6 +168,18 @@ export interface PlayDefOptions extends FxScaleAxes {
    */
   target?: () => { x: number; y: number } | null;
   /**
+   * RIDE THE UNITS for the length of a one-shot: each frame the source / target anchors AND their anchor parts
+   * (the medallion, a badge) are re-read from where `uids` are drawn right now, so the effect stays on a card that
+   * is MOVING while it plays (owner 2026-11-19: Crownvein's Rally effect "is not coming from the medallion ...
+   * its pulsing in the center of the card": the rallier leans back in its wind-up, so a fire-time snapshot of its
+   * slot's medallion sits on the middle of the pulled-back card).
+   *
+   * This IS a layout read per frame (one rect per unit plus one per part the def uses), for one short play:
+   * the same cost class as `followSource`. Use it only where the unit genuinely moves during the effect. A unit
+   * that leaves the board keeps its last snapshot. The play still retires on its own. Ignored with `follow`.
+   */
+  trackUnits?: boolean;
+  /**
    * A per-call PALETTE recolor: a 4-stop rim→core palette (`0xRRGGBB` numbers) written onto every
    * palette-bearing layer before the def plays, so ONE committed def can fire in a caller-chosen colour — the
    * milestone celebration plays the single bound `rune-select-implosion` in each tier's colour this way. It is
@@ -272,6 +285,34 @@ export function gainScaledDef(def: FxDef, mul: number | undefined, muteSound = f
         : l,
     ),
   };
+}
+
+/**
+ * A `trackUnits` play's anchors for THIS frame: each end's centre and parts re-read live off its unit. An end
+ * whose unit is gone (or has no box) keeps the fire-time snapshot, so a dying source never throws the effect.
+ */
+function trackedAnchors(
+  anchors: FxAnchors,
+  uids: { source?: string | null; target?: string | null } | undefined,
+  parts: readonly FxAnchorPart[],
+): FxAnchors {
+  if (typeof document === 'undefined' || !uids) return anchors;
+  const out: FxAnchors = { ...anchors, parts: { ...anchors.parts } };
+  for (const end of ['source', 'target'] as const) {
+    const uid = uids[end];
+    // Both ends on one card (a trigger's effect on itself): read it once.
+    if (end === 'target' && uid && uid === uids.source) {
+      out.target = out.source;
+      if (out.parts!.source) out.parts!.target = out.parts!.source;
+      continue;
+    }
+    const el = uid ? document.querySelector<HTMLElement>(unitSelector(uid)) : null;
+    const r = el?.getBoundingClientRect();
+    if (!el || !r || !(r.width > 0) || !(r.height > 0)) continue;
+    out[end] = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    if (parts.length) out.parts![end] = readUnitPartPoints(el as unknown as UnitElementLike, parts, true);
+  }
+  return out;
 }
 
 /**
@@ -658,6 +699,18 @@ function playDefInner(
     };
   }
 
+  // RAPID SHOP INPUT (R-PERF-APM-01, `rapidPlay.ts`): while the player acts three or more times a second, a one-shot
+  // play with no key of its own is keyed by its recipient (a card carries one copy of an effect, not one per action)
+  // and plays in step with the input: faster and with fewer particles, so the load of a fast turn stays about that of
+  // a slow one. Never a play the caller sequences on (`onDone`) or owns (a loop, a follow). `null` at normal speed.
+  const rapid = opts.dedupeKey === undefined && opts.onDone === undefined && opts.loop !== true && opts.follow === undefined && stored.followSource !== true
+    ? rapidPlay({ uids: opts.uids, target: anchors.target, source: anchors.source })
+    : null;
+  if (rapid && (rapid.intensity < 1 || rapid.speed > 1)) {
+    const base = opts.speed !== undefined && Number.isFinite(opts.speed) && opts.speed > 0 ? opts.speed : 1;
+    opts = { ...opts, intensity: (opts.intensity ?? 1) * rapid.intensity, speed: base * rapid.speed };
+  }
+
   // Per-call sizing, applied AFTER `getDef` — `scaleDef` reads the primitive registry, and nothing may do
   // that before `playDef`'s own `canPlayDefs()`-gated path (see `fxDefs.ts`'s ORDER MATTERS note). With both
   // axes at their default 1 this returns `playableDef`'s object by identity: an exact no-op.
@@ -684,13 +737,15 @@ function playDefInner(
   if (opts.shareFilters) {
     const fp = sharedFilterParams(sized);
     if (fp) {
-      filterSeat = joinFilterGroup(`${sized.id}|${opts.shareFilters}`, slot, fp, (c, s) => pixiFx.mountLayer(c, s));
+      filterSeat = joinFilterGroup(`${sized.id}|${opts.shareFilters}`, slot, fp, (c, s) => pixiFx.mountLayer(c, s), hasParticleLayer(sized));
       if (filterSeat) shared = stripFilters(sized);
     }
   }
   const admissionLoad = expectedLoad(shared);
+  // (`playKey`: the caller's own `dedupeKey`, or the rapid-input one from above.)
+  const playKey = opts.dedupeKey ?? rapid?.key;
   const admission = admit(id, admissionLoad, {
-    thinnable: !persistent, key: opts.dedupeKey, coalesceMs: opts.coalesceMs, authoredScale: opts.intensity,
+    thinnable: !persistent, key: playKey, coalesceMs: opts.dedupeKey === undefined && rapid?.key !== undefined ? rapid.coalesceMs : opts.coalesceMs, authoredScale: opts.intensity,
   });
   // Deduped (`opts.dedupeKey`): the same moment is already playing on this key, so nothing new spawns.
   if (admission.skip) {
@@ -720,6 +775,9 @@ function playDefInner(
     ? opts.uids.target : null;
   const follow: PlayDefOptions['follow'] =
     opts.follow ?? (stored.followSource && !followTargetUid ? () => liveSourcePoint(opts.uids?.source) : undefined);
+
+  // `trackUnits`: the parts to re-read each frame (see the option). Null = the snapshot stands, as before.
+  const trackedParts = opts.trackUnits && !follow && !followTargetUid && opts.uids ? partsUsedByLayers(stored.layers) : null;
 
   const container = new Container();
   if (opts.alpha !== undefined && Number.isFinite(opts.alpha) && opts.alpha < 1) container.alpha = Math.max(0, opts.alpha);
@@ -780,7 +838,7 @@ function playDefInner(
   unregisterPlay = registerLivePlay({
     id, load, retire, protected: opts.loop === true || follow !== undefined || opts.onDone !== undefined,
     persistent: opts.loop === true || follow !== undefined,
-    bornAt: performance.now(), rampMs: rampMsOf(def), key: opts.dedupeKey,
+    bornAt: performance.now(), rampMs: rampMsOf(def), key: playKey,
   });
 
   // `fx:def:<id>` — the def's PER-FRAME cost (its layers' sims + filter retunes), as distinct from the spawn
@@ -825,6 +883,8 @@ function playDefInner(
       const src = liveSourcePoint(opts.uids?.source) ?? anchors.source;
       const tgt = liveSourcePoint(followTargetUid) ?? opts.target?.() ?? anchors.target;
       live = { ...anchors, source: src, target: tgt, cursor: tgt };
+    } else if (trackedParts !== null) {
+      live = trackedAnchors(anchors, opts.uids, trackedParts);
     } else if (opts.target) {
       const t = opts.target();
       if (t) live = { ...anchors, target: t };

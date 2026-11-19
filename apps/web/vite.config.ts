@@ -79,6 +79,10 @@ export default defineConfig(({ command }) => ({
   // PERF BENCH builds only (never a player build): hidden source maps, so `npm run perf:gauntlet -- --profile <scene>`
   // can name the minified functions in a CPU profile. 'hidden' writes the .map files without linking them.
   build: { sourcemap: process.env.VITE_PERF_BENCH === '1' ? 'hidden' : false },
+  // THE SIM WORKER (packages/ui/src/simWorker, R-PERF-SIM-WORKER-01) is a MODULE worker: it lazy-loads the strength
+  // reference as its own chunk, and code splitting needs the ES format (the default 'iife' cannot split). Its chunk
+  // is addressed relative to the bundle (`base: './'`), so it loads from itch.io's sub-path and the exe's app://.
+  worker: { format: 'es' },
   server: { watch: { ignored: [STAGES_DIR.replaceAll('\\', '/') + '/**'] } },
   resolve: {
     alias: {

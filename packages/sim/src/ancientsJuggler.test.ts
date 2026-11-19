@@ -77,8 +77,8 @@ describe('Juggler × DEATH: "Avenge (4): get a Carnival Coin."', () => {
     expect(coins(s)).toBe(1);
     expect(s.ancients!.gildDeaths).toBe(0);
   });
-  it('combat: the carried count fires mid-fight and the Coin flies to hand', () => {
-    let s = picked('death', { board: [card('a', N(0), { attack: 1, health: 1 })] });
+  it('combat: the 4th death in the fight fires it mid-fight and the Coin flies to hand (per combat, R-AVENGE-PER-COMBAT-01: the Shop count never comes in)', () => {
+    let s = picked('death', { board: ['a', 'b', 'c', 'd'].map((u) => card(u, N(0), { attack: 1, health: 1 })) });
     s = { ...s, ancients: { ...s.ancients!, gildDeaths: 3 } };
     expect(ancientCombatMods(s).ancientGorrAvenge).toEqual({ every: 4, tick: 3, ids: [COIN], label: 'Ancient of Death' });
     expect(ancientAvengeCountdown(s)).toBe(1);

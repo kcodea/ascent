@@ -212,12 +212,12 @@ export function RuneCard({ rune, affordable, onBuy, cost, duplicating, pickSfx }
       {!affordable && <div className="runecard-lock">Not enough Gold</div>}
       {tip && hasPreview && createPortal(
         <div className="cardref questref" ref={popRef} style={{ left: tip.left, top: tip.top } as CSSProperties}>
-          <div className="cardref-inner" style={{ transformOrigin: `${tip.origin} center` } as CSSProperties}>
+          <div className="cardref-shadow"><div className="cardref-inner" style={{ transformOrigin: `${tip.origin} center` } as CSSProperties}>
             {rewardCards.map((rv, i) => (
               <Card key={`${rv.cardId ?? i}-${i}`} card={rv} forceFull suppressPop plated />
             ))}
             {hasDefs && <KeywordDefs card={kwCard} />}
-          </div>
+          </div></div>
         </div>,
         stageHost(),
       )}

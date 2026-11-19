@@ -17,7 +17,7 @@ import {
   type ParticleStyle,
 } from '../particleMaterial';
 import { FX_BLEND_MODES } from '../blendModes';
-import { acquireParticleLayer, releaseParticleLayer } from '../particleLayerPool';
+import { acquireParticleLayer, fitParticleBounds, releaseParticleLayer } from '../particleLayerPool';
 import { resolveParticleScale } from '../shapeTextures';
 import { getShapeTextureById } from '../shapeLibrary';
 import { turbulenceX, turbulenceY, emissionOffset, spawnVelocity, EMIT_SHAPES, fieldPhaseOffset } from '../motion';
@@ -484,7 +484,7 @@ class SmokeInstance implements FxInstance<SmokeParams> {
     });
     this.shader = layer.shader;
     this.particles = layer.pc;
-    this.filters = new FilterStack(ctx.container, FILTERS);
+    this.filters = new FilterStack(ctx.container, FILTERS, true); // tight: its area follows the particles (R-PERF-FX-FILTER-AREA-01)
     this.transform = new ContainerTransform(ctx.container);
   }
 
@@ -605,6 +605,7 @@ class SmokeInstance implements FxInstance<SmokeParams> {
     }
 
     this.particles.update();
+    fitParticleBounds(this.particles, this.originX, this.originY);
   }
 
   /** See `smokeFireComplete`'s header comment for the completion contract. */

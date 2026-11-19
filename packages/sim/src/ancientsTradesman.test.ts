@@ -67,7 +67,7 @@ describe('Tradesman × DEATH: Avenge (3), gain a free Refresh (Shop and combat, 
     expect(s.ancients!.tradesDeaths, 'the count resets').toBe(0);
     expect(s.freeRolls).toBe(before + 1);
   });
-  it('combat: the carried count + this fight\'s deaths fire mid-fight (a questTrigger per Refresh), the Refresh comes home, the remainder carries', () => {
+  it('combat: this fight\'s own deaths fire mid-fight (a questTrigger per Refresh), the Refresh comes home, nothing carries in or out (per combat, R-AVENGE-PER-COMBAT-01: the Shop count never comes in)', () => {
     let s = picked('death', { board: ['a', 'b', 'c', 'd'].map((u) => card(u, T1, { attack: 1, health: 1 })) });
     s = { ...s, ancients: { ...s.ancients!, tradesDeaths: 2 } };
     expect(ancientCombatMods(s).ancientRefreshAvenge).toMatchObject({ every: 3, tick: 2 });
@@ -76,11 +76,11 @@ describe('Tradesman × DEATH: Avenge (3), gain a free Refresh (Shop and combat, 
     const deaths = s.lastCombat!.playerDeaths ?? 0;
     expect(deaths).toBe(4);
     const fires = flags(s, ANCIENT_REFRESH_AVENGE_FLAG);
-    expect(fires, '(2 + 4) deaths = two Avenge (3) fires').toBe(2);
-    expect(s.lastCombat!.playerFreeRolls).toBe(2);
+    expect(fires, '4 deaths in the fight = one Avenge (3) fire; the Shop count of 2 never comes in').toBe(1);
+    expect(s.lastCombat!.playerFreeRolls).toBe(1);
     s = reduce(s, { type: 'resolveCombat' });
-    expect(s.freeRolls).toBe(rollsBefore + 2);
-    expect(s.ancients!.tradesDeaths).toBe((2 + deaths) % 3);
+    expect(s.freeRolls).toBe(rollsBefore + 1);
+    expect(s.ancients!.tradesDeaths ?? 0).toBe(0);
   });
   it('a banked free Refresh is spent by the next roll (0 Gold)', () => {
     let s = picked('death');

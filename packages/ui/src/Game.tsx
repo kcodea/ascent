@@ -128,6 +128,7 @@ import { anyPageOpen, useGame, isPreRun, inGameScreen } from './store';
 import { RankedGate } from './rankedGate/RankedGate';
 import { installStage, onStageChange, setStageInRun, setStageMenuZoom, stageFit, stageScale, stageViewport } from './stage';
 import { installTouchInput } from './touchInput';
+import { installPointedBoards } from './pointedBoard';
 import { installTouchUi, touchUi } from './touchUi';
 import { installTouchSlop } from './touchSlop';
 import { installTouchKeyboard } from './touchKeyboard';
@@ -619,6 +620,9 @@ export function Game() {
   }, []);
   // TOUCH (owner ask 2026-09-26): a finger tap reaches everything a mouse hover reaches; tap-away closes it.
   useEffect(() => installTouchInput(), []);
+  // The menu board under the mouse wears `data-pointed` (its cards' loops play only then): an attribute, because a
+  // universal subject behind `:hover` restyles every hovered card in a game (R-PERF-HOVER-SUBJECT-01, pointedBoard.ts).
+  useEffect(() => installPointedBoards(), []);
 
   // Tab toggles the Compendium, on the menus and in a run (R-COMPENDIUM-TAB-01).
   useEffect(() => installCompendiumHotkey(), []);

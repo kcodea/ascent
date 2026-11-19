@@ -41,8 +41,8 @@ export interface ShopCard {
   /** Spell Cart (owner 2026-11-06): this spell offer came from a cast Cart and costs 1 less. Buying one clears the mark
    *  from the whole row, so only the first buy pays the cut. A refresh replaces the offers, and the mark with them. */
   cartCut?: boolean;
-  /** ANCIENT OF FORTUNE × Darah: this HELD offer is a minion Swap sent to the Shop, and it buys back for 0 Gold
-   *  (`heldOfferPrice`). Read only while that pairing is live. */
+  /** ANCIENT OF FORTUNE × Darah: this HELD offer is a minion Swap sent to the Shop, and it buys back at the pairing's set price
+   *  (2 Gold since owner 2026-11-19, was 0; `heldOfferPrice`). Read only while that pairing is live. */
   swapFree?: boolean;
   /** ANCIENTS × Membrance: this offer was made by Memory (a "Memory minion"). Set only on a run with Ancients on; read
    *  when it is bought (Genesis' first-buy copy). */

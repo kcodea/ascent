@@ -221,8 +221,8 @@ const MODE_ART = indexArt(
 );
 export const modeArt = (modeId: string): string | undefined => MODE_ART[modeId];
 
-/** MEDAL CRESTS (2026-09-20) — one square master per medal (`ranks/<medal>.webp`, lower-case: `gold.webp`),
- *  composited inside the circular hero frame by `RankCrest`; the division numeral is a plate on the frame,
+/** MEDAL CRESTS (2026-09-20; shaped cutouts on a clear square since 2026-11-19) — one square master per medal
+ *  (`ranks/<medal>.webp`, lower-case: `gold.webp`), seated whole inside the circular hero frame by `RankCrest`; the division numeral is a plate on the frame,
  *  not a separate painting. Keyed by the lower-cased medal name. Preloaded with the rest of the art so the
  *  post-game screen never pops its crest in. */
 const RANK_ART = indexArt(
@@ -239,7 +239,13 @@ export const AVATAR_ART: AvatarArt[] = [
   ...Object.entries(MINION_ART).map(([key, src]): AvatarArt => ({ id: `minion:${key}`, src, kind: 'minion', key })),
   ...Object.entries(POWER_ART).map(([key, src]): AvatarArt => ({ id: `power:${key}`, src, kind: 'power', key })),
 ];
-const AVATAR_SRC = new Map(AVATAR_ART.map((a) => [a.id, a.src] as const));
+/** A SKIN as a portrait (2026-11-19): `skin:<art key>` (the catalog item's `assets.art`). Not in `AVATAR_ART`: that
+ *  list is what everyone may pick; the portrait window offers a skin only to an account that owns it. Resolved here
+ *  for every viewer, since the art is in every bundle. */
+const AVATAR_SRC = new Map<string, string>([
+  ...AVATAR_ART.map((a) => [a.id, a.src] as const),
+  ...Object.entries(SKIN_ART).map(([key, src]) => [`skin:${key}`, src] as const),
+]);
 /** Resolve a stored avatar id (`kind:key`) to its art URL — undefined if unset or no longer bundled. */
 export const avatarSrc = (id?: string | null): string | undefined => (id ? AVATAR_SRC.get(id) : undefined);
 

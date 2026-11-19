@@ -31,7 +31,10 @@ describe('FoeAncientLine', () => {
   it('is wired under the foe power in combat and on the scout card', () => {
     const combat = readFileSync(join(__dirname, '..', 'CombatOpponent.tsx'), 'utf8');
     const rail = readFileSync(join(__dirname, '..', 'LobbyPanel.tsx'), 'utf8');
+    const card = readFileSync(join(__dirname, '..', 'RailScoutShowcase.tsx'), 'utf8');
     expect(combat).toContain('<FoeAncientLine ancient={next.board.snapshot?.ancient} />');
-    expect(rail).toContain('<FoeAncientLine ancient={intel?.ancient} />');
+    // The rail's scout card hands the seat's Ancient to its showcase top (R-RAIL-SCOUT-SHOWCASE-01), which prints it.
+    expect(rail).toContain('ancient={intel?.ancient}');
+    expect(card).toContain('<FoeAncientLine ancient={anc} />');
   });
 });

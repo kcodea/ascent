@@ -6,7 +6,7 @@ import { isTauntHeld, subscribeTauntHolds } from './fx/tauntHold';
 import { openCardPingMenu } from './pings/PingLayer';
 import { memo, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
-import type { CSSProperties, DragEvent, PointerEvent as ReactPointerEvent } from 'react';
+import type { CSSProperties, DragEvent, PointerEvent as ReactPointerEvent, ReactElement, ReactNode } from 'react';
 import { damageMeterOf, type Keyword, type RiseTint, type Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { bindingFor } from './choreo/bindings';
@@ -17,7 +17,7 @@ import {
 } from './cardArtConfig';
 import { CardArtEditor } from './CardArtEditor';
 import { perfMonitor } from './perfMonitor';
-import { heldFor, holdStat, statHoldKey, subscribeStatHolds } from './fx/statHold';
+import { heldFor, holdStat, subscribeStatHolds } from './fx/statHold';
 import { resolveMech } from './mechIcon';
 import type { GrantedTrigger } from './grantedTriggers';
 import { mechMedallionArtId, mechMedallionArtRotate, mechMedallionArtScale, mechMedallionArtTint, mechMedallionSrc } from './mechMedallion';
@@ -25,7 +25,7 @@ import { epicMedallionSrc, isEpicUnit } from './epicMedallion';
 import { crossedUp, tierOf } from './choreo/statMilestones';
 import { fireStatMilestone } from './fx/statMilestone';
 import { useMilestoneBadgeFx } from './fx/milestoneBadgeFx';
-import { claimPopSlot, type PopSlot } from './fx/popStack';
+import { claimPopSlot, popsOn, type PopSlot } from './fx/popStack';
 import { publicArt } from './phoneArt';
 
 /** The badge's scale-pop: how far it swells and over how long. See `useBadgePop`. */
@@ -54,8 +54,7 @@ const BADGE_POP_MS = 180;
  * a swell that only gets partway before the next digit lands, so the badge rides slightly enlarged for the
  * length of the roll and then completes one full pop as it settles.
  */
-function useBadgePop(value: number, screen: string): RefObject<HTMLSpanElement> {
-  const ref = useRef<HTMLSpanElement>(null);
+function useBadgePop(ref: RefObject<HTMLSpanElement>, value: number, screen: string): void {
   /** The value as of the last frame that actually reached the screen — see the rAF below. */
   const painted = useRef(value);
   const anim = useRef<Animation | null>(null);
@@ -92,11 +91,22 @@ function useBadgePop(value: number, screen: string): RefObject<HTMLSpanElement> 
       slot.current?.release(); // free it now: the cancel event lands a frame later, after the claim below
       anim.current?.cancel();
       try {
+        // ON THE COMPOSITOR WHEN IT IS THE ONLY POP (R-PERF-BADGE-POP-01, 2026-11-19). An additive animation
+        // (`composite: 'add'`) cannot run on the compositor: Chrome ticked every badge pop on the main thread, and
+        // each frame of it was a style recalculation, a rebuild of the page's layer list and a re-raster of the whole
+        // card under the badge. An engine board pops fourteen badges on every play. A badge has no base `transform`
+        // (its phone / Versus sizing is the `scale` and `translate` PROPERTIES, which sit outside `transform`), so on
+        // a badge nothing else is popping, the same keyframes in the default replace mode draw the identical pop and
+        // run on the compositor: no main-thread frame, and the card is painted twice (badge lifted out, badge back).
+        // While an authored `react` pop is live on this badge, or built and waiting to land (a Ruby gem), it stays
+        // additive so the two scales still multiply exactly as before; a `react` pop built later adds onto this one
+        // either way (`popsOn`, fx/popStack.ts).
+        const alone = !popsOn(el);
         const a = el.animate([
           { transform: 'scale(1)' },
           { transform: `scale(${BADGE_POP_SCALE})`, offset: 0.35 },
           { transform: 'scale(1)' },
-        ], { duration: BADGE_POP_MS, easing: 'ease-out', composite: 'add' });
+        ], alone ? { duration: BADGE_POP_MS, easing: 'ease-out' } : { duration: BADGE_POP_MS, easing: 'ease-out', composite: 'add' });
         anim.current = a;
         // Shared with the `react` layer's badge pops (a Ruby gem): at most two scales stack on this badge.
         const claimed = claimPopSlot(el, a);
@@ -106,8 +116,7 @@ function useBadgePop(value: number, screen: string): RefObject<HTMLSpanElement> 
       } catch { /* WAAPI composite unsupported: skip the pop rather than clobber the badge's transform */ }
     });
     return () => cancelAnimationFrame(raf.current);
-  }, [value, screen]);
-  return ref;
+  }, [value, screen, ref]);
 }
 // Side-effect import: `cardPillsConfig` applies the pill layout vars (`--cpl-*-t`) to :root at module
 // load. Imported HERE rather than only from the dev tuner because the tuner is stripped from production —
@@ -134,10 +143,11 @@ import { spriteForTribe } from './sprites';
 import { useGame } from './store';
 import { ScreenContext } from './screenSwap';
 import { lastPointerWasTouch, tapInspectAllowed } from './touchInput';
-import { FLURRY_RINGS, flurryBoxStyle, flurryWrapStyle, flurryRingStyle, flurryRingPaintStyle } from './flurryConfig';
+import { FLURRY, FLURRY_RINGS, flurryBoxStyle, flurryWrapStyle, flurryRingStyle, flurryRingPaintStyle } from './flurryConfig';
 import { pixiFx } from './pixiFx';
 import { getStepProcFxConfig, isStepProcTick } from './stepProcFxConfig';
 import { getExecuteSnapshot, subscribeExecute } from './executeConfig';
+import { KWFX_BOX, useAuraLive } from './kwfx/kwfx';
 import { getCardPlateConfig, plateTextBucket } from './cardPlateConfig';
 import { rectToStage, stageHost, stageViewport } from './stage';
 import { trackCardName } from './cardNameFilter';
@@ -183,6 +193,14 @@ function tauntFrameSrcFor(tribe: Tribe | undefined, golden: boolean): string {
   const t = tribe && TRIBE_TAUNTS[tribe];
   if (!t) return TAUNT_FRAME_SRC;
   return publicArt(`frames/${golden ? t.gold : t.base}`);
+}
+/** A HAND card's own compositor layer (R-PERF-HAND-LAYER-01, styles.css "A SHARP LAYER PER HAND CARD"): two wrappers
+ *  around the card's body. The outer one is the layer and is drawn at 1 / --hand-ss; the inner one scales the body
+ *  back up, so the layer's texture holds the card at --hand-ss times its size and the fan tilt and the hover pop are
+ *  drawn from it without going soft. Only in the hand (the one caller that passes `fanRot`); anywhere else, and in a
+ *  cloned ghost outside the hand row, the wrappers are `display: contents` and change nothing. */
+function HandLayer({ on, children }: { on: boolean; children: ReactNode }): ReactElement {
+  return on ? <div className="card-ssl"><div className="card-ss">{children}</div></div> : <>{children}</>;
 }
 const hasTribeTaunt = (tribe: Tribe | undefined): boolean => !!(tribe && TRIBE_TAUNTS[tribe]);
 let tauntFrameAvailable = true;
@@ -478,6 +496,53 @@ const statCls = (cur: number, base?: number, floor?: number): string => {
 export const inspectViewOf = (card: CardView, scopeSkin: string | undefined): CardView =>
   card.artUrl !== undefined || card.skinArt !== undefined ? card : { ...card, skinArt: scopeSkin ?? '' };
 
+/**
+ * ONE STAT BADGE (plate + number), and the only thing that re-renders while a number rolls (R-PERF-STAT-ROLL-01).
+ *
+ * A stat change can be WITHHELD from the badge until an effect delivers it (see `fx/statHold.ts`): the cue holds the
+ * delta, the roll reveals it, so the digits change on the effect's clock instead of the reducer's. `Card` used to own
+ * that subscription, so every step of a roll re-rendered the whole 1,700-line card (art, frame, keyword auras, text):
+ * a big buff shows a new value every frame for 650 ms, per buffed unit. The badge owns it now. Its snapshot is this
+ * stat's own withheld remainder (a primitive), so a card with nothing held, or with only its other stat rolling,
+ * never re-renders.
+ *
+ * What it prints: the live value MINUS whatever has not been shown yet, so the number stays correct under anything
+ * else that touches the unit mid-hold (see statHold.ts on why it is a delta). Floored at 0 as a last line of defence:
+ * an AUTHORED `react` layer sets `reel` by hand in a def, and a mid-roll frame may overshoot, but it may not print a
+ * negative stat.
+ */
+const StatBadge = memo(function StatBadge({ stat, uid, value, base, floor, ms, screen, popRef }: {
+  stat: 'attack' | 'health';
+  uid?: string;
+  /** The unit's TRUE current value (`card.attack` / `card.health`). */
+  value: number;
+  base?: number;
+  floor?: number;
+  /** Milestone tier of the SETTLED stat (0 = no frame disc). */
+  ms: number;
+  screen: string;
+  /** Owned by `Card`: the milestone FX and the crossing burst measure this element. */
+  popRef: RefObject<HTMLSpanElement>;
+}) {
+  const heldNow = useSyncExternalStore(subscribeStatHolds, () => (uid ? heldFor(uid)?.[stat] ?? 0 : 0), () => 0);
+  const shown = heldNow !== 0 ? Math.max(0, value - heldNow) : value;
+  // The printed number (abbreviated from 100k) and its shrink-to-fit bucket (`statFit`): a 4+ glyph value steps its
+  // font down so it stays inside the badge's disc instead of spilling over it (owner report 2026-10-16).
+  const text = formatStat(shown);
+  // Each badge pops independently, so a buff that only moves attack leaves the health badge alone.
+  useBadgePop(popRef, shown, screen);
+  const short = stat === 'attack' ? 'atk' : 'hp';
+  return (
+    <span ref={popRef} data-milestone={ms} className={`badge ${short}${statCls(shown, base, floor)}`}>
+      {ms >= 1 && <span className="msglow" aria-hidden="true" />}
+      {ms >= 1 && <span className="mstint" aria-hidden="true" />}
+      {ms >= 1 && <FadeImg className="msframe" src={msFrameSrc(short, ms)} alt="" aria-hidden="true" />}
+      <span className="plate" aria-hidden="true" />
+      <span className="value" data-fit={statFit(text)}>{text}</span>
+    </span>
+  );
+});
+
 export const Card = memo(function Card({
   card,
   uid,
@@ -489,12 +554,7 @@ export const Card = memo(function Card({
   battlecry,
   electrify,
   karwind,
-  pulse,
-  pulseCrit,
-  pulseRally,
-  pulseWatcher,
   pulseFrame,
-  glow,
   popDelay,
   refCards,
   dragging,
@@ -552,29 +612,9 @@ export const Card = memo(function Card({
   /** Battlecry-trigger proc flash: `'flame'` = a Dragon just buffed by Karwind (orange); `'haze'` = Bane
    *  just enchanted Fodder (purple). On top of the normal buff flash. */
   karwind?: 'flame' | 'haze' | false;
-  /** Pulse the trigger medallion — a brief glow + a slow ring of energy when this unit's effect
-   *  *officially* fires (a Deathrattle, a Battlecry, a cadence card paying off, …). */
-  pulse?: boolean;
-  /** Pulse the trigger medallion RED — this unit's effect CRIT (Karwind's 20% doubled buff). Same ring as
-   *  `pulse`, forced red, and the HIGHEST precedence: a crit is the most significant proc, so it wins over
-   *  the plain trigger pulse (and the combat rally/watcher colours it never co-occurs with). A per-fire NONCE
-   *  (used as the medallion `key`, like `pulseRally`) so a repeat crit restarts the animation. */
-  pulseCrit?: number;
-  /** Pulse the trigger medallion YELLOW — a Rally fired as this unit attacks. Same ring as `pulse`, forced
-   *  yellow; takes precedence over `pulse`. A per-fire NONCE (truthy = pulsing): it's used as the medallion's
-   *  `key` so the element remounts each Rally and the CSS pulse restarts, even when `.pulsing` is already on
-   *  from the unit's own trigger glow (a plain class re-add wouldn't replay the animation). */
-  pulseRally?: number;
-  /** Pulse the trigger medallion LIGHT BLUE — a watcher answered an ally's attack. Same ring as `pulse`,
-   *  forced light blue; sits between `pulseRally` (yellow) and `pulse` (white) in precedence. A per-fire NONCE
-   *  (used as the medallion `key`, like `pulseRally`) so a repeat watcher pulse restarts the animation. */
-  pulseWatcher?: number;
   /** Bloom the CARD FRAME light blue — the watcher's frame surface (CSS fallback when the Pixi `watcher-pulse`
    *  def can't play). A per-fire nonce keyed onto the `.framepulsering` overlay so each fire replays. */
   pulseFrame?: number;
-  /** Glow the trigger medallion only (no ring) — a multi-turn mechanic made *progress* this turn but
-   *  hasn't officially fired yet (e.g. Frontdrake ticking toward its every-3-turns grant). */
-  glow?: boolean;
   /** Hold this card's mount pop for ~0.2s before it appears — a battlecry-summoned token waits a beat
    *  after the trigger pulse fires, so you see the pulse THEN the token (e.g. Alleycat → Stray). */
   popDelay?: boolean;
@@ -637,13 +677,12 @@ export const Card = memo(function Card({
    *  replay's own `effect` holds), so an intrinsic roll on top would double-drive damage. */
   autoRoll?: boolean;
 }) {
+  // How many whole Cards rendered this second (perf HUD). `unit renders` counts the combat wrapper only, and a render
+  // that starts inside the card (a hold, a keyword wait) never showed there. One branch when the monitor is off.
+  perfMonitor.count('card renders');
   const inspectCard = useGame((s) => s.inspectCard);
   // A hand card getting stronger plays the owner-authored `hand-buff` def ON the card (`handBuffFx.ts`, 2026-09-15)
   // — a `react` layer pops this element through `unitSelector`, so the card itself carries no cue state.
-  // A stat change can be WITHHELD from the badge until an effect delivers it (see `fx/statHold.ts`): the
-  // cue holds the delta, a `react` layer with "carries the number" releases it at its peak, so the digits
-  // change on the effect's clock instead of the reducer's. Subscribed per-uid so a card with nothing held
-  // reads 0 and never re-renders when some other card is gemmed.
   // A Ward given by an "On Ward given" effect waits for that effect to arrive (fx/wardHold).
   const wardHeld = useSyncExternalStore(subscribeWardHolds, () => (uid ? isWardHeld(uid) : false), () => false);
   // …and an Execute given by an "On Execute given" effect waits the same way (fx/executeHold).
@@ -659,10 +698,7 @@ export const Card = memo(function Card({
   // bit late"). The frame image is only mounted once the hold lifts, so without this its fetch and decode START at
   // the landing and the frame shows a beat after it.
   useEffect(() => { if (tauntHeld) requestArt(tauntFrameSrcFor(card.tribe, !!card.golden), 'now'); }, [tauntHeld, card.tribe, card.golden]);
-  const statHoldSeq = useSyncExternalStore(subscribeStatHolds, () => (uid ? statHoldKey(uid) : 0), () => 0);
-  // `statHoldSeq` IS the dependency here: it encodes the held delta, and re-reading `heldFor` is what turns
-  // that primitive back into the pair of numbers. `uid` alone would never invalidate.
-  const held = useMemo(() => (uid && statHoldSeq !== 0 ? heldFor(uid) : null), [uid, statHoldSeq]);
+  // (The stat hold itself is read by `StatBadge`, not here: a roll re-renders the two badges, never this card.)
   /**
    * ANY stat change rolls the badge — a shop buff, a gem, a Shout, a hero power, up or down, with nothing
    * authored anywhere.
@@ -723,26 +759,13 @@ export const Card = memo(function Card({
     }
   }, [uid, screen, card.attack, card.health, autoRoll, card.cardId]);
 
-  // What the badges actually print. Live value MINUS whatever hasn't been shown yet, so the number stays
-  // correct under anything else that touches the unit mid-hold (see statHold.ts on why it is a delta).
-  //
-  // Floored at 0 as a last line of defence. The intrinsic roll fits its own reel to the room underneath it
-  // (see above), but an AUTHORED `react` layer sets `reel` by hand in a def, and nothing stops a dial from
-  // being turned past what the minion has room for. A mid-roll frame is allowed to overshoot; it is not
-  // allowed to print a negative stat.
-  const shownAttack = held ? Math.max(0, card.attack - held.attack) : card.attack;
-  const shownHealth = held ? Math.max(0, card.health - held.health) : card.health;
-  // The printed badge numbers (abbreviated from 100k) and their shrink-to-fit bucket (`statFit`): a 4+ glyph value
-  // steps its font down so it stays inside the badge's disc instead of spilling over it (owner report 2026-10-16).
-  const atkText = formatStat(shownAttack);
-  const hpText = formatStat(shownHealth);
   // Milestone tier of each SETTLED stat (0 = below the first threshold → no frame; 1..5 → a frame disc). Drives
   // the badge frame art AND the data-milestone attribute below.
   const atkMs = tierOf('attack', card.attack);
   const hpMs = tierOf('health', card.health);
-  // Each badge pops independently, so a buff that only moves attack leaves the health badge alone.
-  const atkPopRef = useBadgePop(shownAttack, screen);
-  const hpPopRef = useBadgePop(shownHealth, screen);
+  // The two badge elements. `StatBadge` renders and pops them; this card only measures them (milestones).
+  const atkPopRef = useRef<HTMLSpanElement>(null);
+  const hpPopRef = useRef<HTMLSpanElement>(null);
   // A persistent Pixi effect rides each badge that has reached the FINAL milestone tier (≥5000), everywhere —
   // shop, warband and combat (combat units render through this same Card). Latches on for the unit's life.
   useMilestoneBadgeFx(uid, 'attack', atkMs, () => atkPopRef.current, own);
@@ -1080,6 +1103,7 @@ export const Card = memo(function Card({
       onDragOver={onDragOver}
       onDrop={onDrop}
     >
+      <HandLayer on={fanRot !== undefined}>
       {/* CELESTIAL alignment crescent — FIRST child so it paints behind the card body, whose opaque frame
           conceals the ring's upper half: what remains reads as an arc wrapping beneath the minion. */}
       {align && <div className={`alignarc aa-${align}`} aria-hidden="true" />}
@@ -1220,20 +1244,7 @@ export const Card = memo(function Card({
           {/* REBIRTH (`RB`) — the VEIL: soft blue fire licking up over the portrait's lower edge (clipped to the window,
               z2 like Rise's dome), the over-the-card half of its look; the crown on the frame is RebirthCrown below. */}
           {card.keywords.includes('RB') && <div className="rebirth-veil" aria-hidden="true"><div className="rbv" /></div>}
-          {card.keywords.includes('R') && !riseHeld && (
-            <div className="reborn" aria-hidden="true">
-              <div className="reborn-dome" />
-              <div className="reborn-wisps">
-                {REBORN_WISPS.map((w, i) => (
-                  <div
-                    key={i}
-                    className="wisp"
-                    style={{ left: w.left, bottom: w.bottom, animationDelay: w.delay, '--wisp-size': w.size, '--wisp-rise': w.rise, '--wx': w.wx } as CSSProperties}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
+          {card.keywords.includes('R') && !riseHeld && <RiseAura />}
         </div>
         {/* Card Art transform session (dev). Mounted on the CARD ROOT, not inside `.art`: the art window
             clips, so buttons parented there could never sit outside the card. The drag maths still measures
@@ -1257,17 +1268,7 @@ export const Card = memo(function Card({
             Lives in the archbox (NOT `.art`, which clips) at z2 — above the art, below the frame — so the
             swirl orbits AROUND the card like the preview. Static gradient/mask paint from flurryConfig; only
             transform (spin + wrapper squash) and opacity (breathe) animate. Rides drag + the lunge for free. */}
-        {card.keywords.includes('W') && !flurryHeld && (
-          <div className="flurry" aria-hidden="true" style={flurryBoxStyle()}>
-            <div className="fl-breathe">
-              {FLURRY_RINGS.map((r, i) => (
-                <div key={i} className="fl-ring-wrap" style={flurryWrapStyle(r)}>
-                  <div className="fl-ring" style={flurryRingStyle(r)}><div className="fl-ring-paint" style={flurryRingPaintStyle(r)} /></div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        {card.keywords.includes('W') && !flurryHeld && <FlurryAura />}
         {/* Execute (V) — a swirling ring of rage: smoke, comet arcs, glints and drifting shards. Sits at z4,
             over the art AND the frame but under the badges, exactly like the Ward shell (owner ruling) — not
             Flurry's z2. Every gradient/mask/blur is static paint precomputed in executeConfig; only transform
@@ -1398,20 +1399,8 @@ export const Card = memo(function Card({
             {/* Stat badges — three nodes each so FX can target them separately (docs/fx-vocabulary.md):
                 the `.badge` wrapper seats the pair, `.plate` is the shape, `.value` is the digit. Plate and
                 value are SIBLINGS, not nested, so the plate can scale without dragging the number. */}
-            <span ref={atkPopRef} data-milestone={atkMs} className={`badge atk${statCls(shownAttack, card.baseAttack, card.floorAttack)}`}>
-              {atkMs >= 1 && <span className="msglow" aria-hidden="true" />}
-              {atkMs >= 1 && <span className="mstint" aria-hidden="true" />}
-              {atkMs >= 1 && <FadeImg className="msframe" src={msFrameSrc('atk', atkMs)} alt="" aria-hidden="true" />}
-              <span className="plate" aria-hidden="true" />
-              <span className="value" data-fit={statFit(atkText)}>{atkText}</span>
-            </span>
-            <span ref={hpPopRef} data-milestone={hpMs} className={`badge hp${statCls(shownHealth, card.baseHealth, card.floorHealth)}`}>
-              {hpMs >= 1 && <span className="msglow" aria-hidden="true" />}
-              {hpMs >= 1 && <span className="mstint" aria-hidden="true" />}
-              {hpMs >= 1 && <FadeImg className="msframe" src={msFrameSrc('hp', hpMs)} alt="" aria-hidden="true" />}
-              <span className="plate" aria-hidden="true" />
-              <span className="value" data-fit={statFit(hpText)}>{hpText}</span>
-            </span>
+            <StatBadge stat="attack" uid={uid} value={card.attack} base={card.baseAttack} floor={card.floorAttack} ms={atkMs} screen={screen} popRef={atkPopRef} />
+            <StatBadge stat="health" uid={uid} value={card.health} base={card.baseHealth} floor={card.floorHealth} ms={hpMs} screen={screen} popRef={hpPopRef} />
             {/* mechanic medallion — the card's primary mechanic glyph, eclipsing the arch's base centre. Rendered
                 ONLY when a mechanic resolves: no icon → no gem at all (owner ask 2026-09-22), never an empty circle.
                 Epic units wear the epic badge INSTEAD of a mechanic gem, so suppress the gem for them (owner ask
@@ -1422,7 +1411,7 @@ export const Card = memo(function Card({
               const medSrc = mechMedallionSrc(mech.id);
               const medTint = mechMedallionArtTint(mech.id); // per-mechanic colour sheen (Execute → red multiply)
               return (
-                <span key={`cgem-${pulseCrit ?? 0}-${pulseRally ?? 0}-${pulseWatcher ?? 0}`} className={`cgem${pulseCrit ? ' pulsing crit' : pulseRally ? ' pulsing rally' : pulseWatcher ? ' pulsing watcher' : pulse ? ' pulsing' : glow ? ' glowing' : ''}`} aria-hidden="true">{medSrc
+                <span className="cgem" aria-hidden="true">{medSrc
                   ? <><FadeImg className="cgem-img" src={medSrc} alt="" aria-hidden="true" style={{ '--cgem-art-mech': mechMedallionArtScale(mech.id), '--cgem-art-rot': `${mechMedallionArtRotate(mech.id)}deg` } as CSSProperties} /><span className="cgem-tint" data-art={mechMedallionArtId(mech.id) ?? undefined} style={{ '--cgem-art-mech': mechMedallionArtScale(mech.id), '--cgem-art-rot': `${mechMedallionArtRotate(mech.id)}deg`, ...(medTint ? { '--cgem-tint': medTint.color, '--cgem-tint-amt': medTint.amt, '--cgem-tint-blend': medTint.blend } : {}) } as CSSProperties} aria-hidden="true" /></>
                   : <Icon name={mech.glyph} />}</span>
               );
@@ -1527,7 +1516,7 @@ export const Card = memo(function Card({
           the element a combat lunge is transforming. */}
       {refPos && hasPopup && createPortal(
         <div className="cardref" ref={popRef} style={{ left: refPos.left, top: refPos.top } as CSSProperties}>
-          <div className="cardref-inner" style={{ transformOrigin: `${refPos.origin} center` } as CSSProperties}>
+          <div className="cardref-shadow"><div className="cardref-inner" style={{ transformOrigin: `${refPos.origin} center` } as CSSProperties}>
             {/* When the reveal opens LEFT (flipped, origin 'right'), the cards sit nearest the hovered tile and
                 the defs go on the far (outward) side, so the column never laps back over the source. Opening
                 right, it's the reverse: cards first, defs on the far right. */}
@@ -1536,10 +1525,11 @@ export const Card = memo(function Card({
               <Card key={`${rc.cardId ?? i}-${i}`} card={rc} forceFull plated />
             ))}
             {refPos.origin === 'left' && <KeywordDefs card={card} mech={mech} />}
-          </div>
+          </div></div>
         </div>,
         stageHost(),
       )}
+      </HandLayer>
     </div>
   );
 });
@@ -1666,8 +1656,13 @@ function whisperRipple(card: Element): void {
   art.addEventListener('animationend', done);
 }
 
+// KWFX-LIVE-BEGIN (the authored aura markup: a change here needs a re-bake, scripts/kwfx/capture.mjs)
 const ExecuteAura = memo(function ExecuteAura() {
-  const { layers, box } = useSyncExternalStore(subscribeExecute, getExecuteSnapshot, getExecuteSnapshot);
+  const { cfg, layers, box } = useSyncExternalStore(subscribeExecute, getExecuteSnapshot, getExecuteSnapshot);
+  // The BAKED aura (kwfx/kwfx.ts): one picture on one layer, captured from the live markup below.
+  const live = useAuraLive('execute');
+  const baked = useMemo<CSSProperties>(() => ({ ...KWFX_BOX.execute, top: `${cfg.y}%` }), [cfg.y]);
+  if (!live) return <div className="kwfx kwfx-execute" aria-hidden="true" style={baked} />;
   return (
     <div className="execute" aria-hidden="true" style={box}>
       <div className="ex-breathe">
@@ -1707,19 +1702,37 @@ const ExecuteAura = memo(function ExecuteAura() {
   );
 });
 
-/** Rebirth embers — a fixed randomized set (module load; presentation-only jitter), capped by the tuner's count.
+/** A seeded generator for the auras' scatter (mulberry32, a local copy: presentation only). SEEDED, not Math.random, so
+ *  the wisps and embers are the same set on every load: the baked pictures (kwfx/kwfx.ts) are a capture of exactly this
+ *  set, and `scripts/kwfx/compare.mjs` can difference the live aura against its picture frame for frame. */
+function auraRng(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/** Rebirth embers — a fixed scattered set (seeded; presentation-only jitter), capped by the tuner's count.
  *  Each rises off the crown's upper arc (`left` across the top, `top` near the rim) and drifts sideways by `ex`. */
+const emberRnd = auraRng(0x52424d42);
 const REBIRTH_EMBERS = Array.from({ length: 12 }, (_, i) => ({
-  left: (50 + (((i * 37) % 12) / 11 - 0.5) * 40 + (Math.random() - 0.5) * 6).toFixed(1) + '%',
-  top: (28 + Math.random() * 10).toFixed(1) + '%',
-  delay: (-Math.random() * 2.6).toFixed(2) + 's',
-  dur: (1.7 + Math.random() * 1.1).toFixed(2) + 's',
-  ex: ((Math.random() - 0.5) * 22).toFixed(0) + '%',
+  left: (50 + (((i * 37) % 12) / 11 - 0.5) * 40 + (emberRnd() - 0.5) * 6).toFixed(1) + '%',
+  top: (28 + emberRnd() * 10).toFixed(1) + '%',
+  delay: (-emberRnd() * 2.6).toFixed(2) + 's',
+  dur: (1.7 + emberRnd() * 1.1).toFixed(2) + 's',
+  ex: ((emberRnd() - 0.5) * 22).toFixed(0) + '%',
 }));
 
 /** The REBIRTH crown: a glow, CROWN_FRAMES pre-rendered flame frames (`--rb-crown-N`, or `--rb-crown-s-N` on a
  *  Taunt shield; rebirthConfig.ts) that cross-fade in turn, and a few embers. Memoised on its one prop. */
 const RebirthCrown = memo(function RebirthCrown({ shield }: { shield: boolean }) {
+  // The BAKED crown (kwfx/kwfx.ts): glow, flame frames and embers as one picture on one layer.
+  const live = useAuraLive('rebirth');
+  if (!live) return <div className={`kwfx kwfx-rebirth${shield ? ' shield' : ''}`} aria-hidden="true" style={shield ? KWFX_BOX.rebirthShield : KWFX_BOX.rebirth} />;
   return (
     <div className={`rebirth-crown${shield ? ' shield' : ''}`} aria-hidden="true">
       <div className="rbc-glow" />
@@ -1740,13 +1753,56 @@ const RebirthCrown = memo(function RebirthCrown({ shield }: { shield: boolean })
 /** Reborn wisps — a fixed randomized set (generated once at module load) of rising ethereal spirit wisps. Each
  *  carries its own position / size / rise / sideways-drift so they read as an organic cloud, not a line. Count +
  *  ranges mirror the tuner (fx/reborn-css-preview.html): count 27, spread 38%, size 27%±35%, rise 320%±, wx ±22px.
- *  Math.random is presentation-only jitter (the ban is scoped to core/content/sim). */
+ *  The jitter is presentation-only and SEEDED (`auraRng`): the same cloud on every load. */
+const wispRnd = auraRng(0x52495345);
 const REBORN_WISPS = Array.from({ length: 27 }, () => ({
-  left: (50 + (Math.random() - 0.5) * 38).toFixed(1) + '%',
-  bottom: (Math.random() * 16).toFixed(1) + '%',
-  delay: (-Math.random() * 10.3).toFixed(2) + 's',
-  size: (27 * (0.65 + Math.random() * 0.7)).toFixed(1) + '%',
-  rise: (320 * (0.8 + Math.random() * 0.45)).toFixed(0) + '%',
-  wx: ((Math.random() - 0.5) * 44).toFixed(0) + 'px',
+  left: (50 + (wispRnd() - 0.5) * 38).toFixed(1) + '%',
+  bottom: (wispRnd() * 16).toFixed(1) + '%',
+  delay: (-wispRnd() * 10.3).toFixed(2) + 's',
+  size: (27 * (0.65 + wispRnd() * 0.7)).toFixed(1) + '%',
+  rise: (320 * (0.8 + wispRnd() * 0.45)).toFixed(0) + '%',
+  wx: ((wispRnd() - 0.5) * 44).toFixed(0) + 'px',
 }));
+
+/** RISE (`R`) aura: the dome and its rising wisps. Players see the BAKED capture (kwfx/kwfx.ts: one picture, one
+ *  layer, no CSS animation); the live markup below is the authored look the capture is made from, and what renders
+ *  on a phone or while retuning. Lives inside `.art`, so the portrait's window clips either one. */
+const RiseAura = memo(function RiseAura() {
+  const live = useAuraLive('rise');
+  if (!live) return <div className="kwfx kwfx-rise" aria-hidden="true" style={KWFX_BOX.rise} />;
+  return (
+    <div className="reborn" aria-hidden="true">
+      <div className="reborn-dome" />
+      <div className="reborn-wisps">
+        {REBORN_WISPS.map((w, i) => (
+          <div
+            key={i}
+            className="wisp"
+            style={{ left: w.left, bottom: w.bottom, animationDelay: w.delay, '--wisp-size': w.size, '--wisp-rise': w.rise, '--wx': w.wx } as CSSProperties}
+          />
+        ))}
+      </div>
+    </div>
+  );
+});
+
+/** FLURRY (`W`) aura: the wind-blade ring stack. Baked for players exactly like `RiseAura`; the live rings below are
+ *  the authored look (flurryConfig). */
+const FLURRY_BAKED_STYLE: CSSProperties = { ...KWFX_BOX.flurry, top: `${FLURRY.y}%` };
+const FlurryAura = memo(function FlurryAura() {
+  const live = useAuraLive('flurry');
+  if (!live) return <div className="kwfx kwfx-flurry" aria-hidden="true" style={FLURRY_BAKED_STYLE} />;
+  return (
+    <div className="flurry" aria-hidden="true" style={flurryBoxStyle()}>
+      <div className={FLURRY.pulse > 0 ? 'fl-breathe' : 'fl-breathe steady'}>
+        {FLURRY_RINGS.map((r, i) => (
+          <div key={i} className="fl-ring-wrap" style={flurryWrapStyle(r)}>
+            <div className="fl-ring" style={flurryRingStyle(r)}><div className="fl-ring-paint" style={flurryRingPaintStyle(r)} /></div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+});
+// KWFX-LIVE-END
 

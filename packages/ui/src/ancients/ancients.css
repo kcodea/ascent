@@ -237,11 +237,11 @@ body:has(.anc-pv) .heropanel .herotip, .heropanel:has(.anc-meter .tt-on) .heroti
   font-family: var(--pill-font), sans-serif; font-weight: 800; font-size: calc(11.5 * var(--u)); letter-spacing: 0.02em; line-height: 1.1;
   color: var(--pill-text);
   background: var(--pill-plate);
-  border: 1.5px solid color-mix(in srgb, var(--anc-c) 70%, #fff);
+  border: 1.5px solid var(--anc-t);
   box-shadow: var(--pill-outline), 0 calc(3 * var(--u)) calc(8 * var(--u)) -3px rgba(0, 0, 0, 0.45);
   text-shadow: var(--pill-text-shadow);
 }
-.anc-pill-dot { width: calc(7 * var(--u)); height: calc(7 * var(--u)); border-radius: 50%; background: color-mix(in srgb, var(--anc-c) 75%, #fff); opacity: 0.95; flex: none; }
+.anc-pill-dot { width: calc(7 * var(--u)); height: calc(7 * var(--u)); border-radius: 50%; background: var(--anc-t); flex: none; } /* exactly ancientTextColor */
 
 /* ── THE GATE (`AncientGate`): the hero power bursts and an iris opens from it into the offer. Below the offer
    (z 160), above the board and HUD. The backdrop is STATIC paint revealed by a one-shot clip-path (like the wipe's);
@@ -443,8 +443,16 @@ body.ancgate .app { z-index: auto; }
 /* A FOE'S ANCIENT under its hero power (R-ANCIENTS-RELEASE-03): the combat foe's power tip and the rail's scout card.
    Static, no animation. The name takes the Ancient's colour inline (`ancientColor`). */
 .foe-ancient { display: flex; flex-direction: column; gap: 2px; margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(255, 255, 255, 0.14); }
-.foe-ancient-name { font-family: var(--font-title), sans-serif; font-weight: 800; letter-spacing: 0.02em; filter: brightness(1.35) saturate(1.1); }
+.foe-ancient-name { font-family: var(--font-title), sans-serif; font-weight: 800; letter-spacing: 0.02em; } /* exactly ancientTextColor (inline), no filter */
 .foe-ancient-rule { display: block; }
+/* THE BAND (owner 2026-11-19): where the Ancient sits under a hero power (the rail scout card, the combat foe's power
+   tip), it drops the divider and reads as a soft band: a faint wash of the Ancient's colour (`--anc-c`, set by
+   FoeAncientLine from ancientColor) strongest at the left edge, gone by ~75% across. Static paint. */
+:is(.rsc-anc, .opp-power-tip) .foe-ancient {
+  border-top: 0; border-radius: 5px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--anc-c, #fff) 20%, transparent), color-mix(in srgb, var(--anc-c, #fff) 7%, transparent) 40%, transparent 78%);
+}
+.opp-power-tip .foe-ancient { padding: 0.38em 0.6em; } /* em, so the Tooltips tuner's size dials reach it */
 
 /* ── PEEK (owner ask 2026-11-18, R-ANCIENT-PEEK-01): the Discover's Peek toggle on the awakening's pick ───────────────
    While peeking (`body.ancpeek`, set by Recruit) the gate's backdrop and the offer step aside and the Shop row comes

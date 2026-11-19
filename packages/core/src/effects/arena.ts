@@ -236,6 +236,11 @@ export interface EffectArena {
    *  Herald stamping `RL` on a Beast so the UI reads it as a Rally minion — the legacy body never logged it,
    *  and an extra event would change the replay). */
   grantKeywordTo(t: ArenaBody, kw: string, silent?: boolean): void;
+  /** SHOW a keyword grant on a body that ALREADY has the keyword: combat logs the same `keyword` event a real
+   *  grant logs (so the giver's trigger and the keyword's arrival both play), and nothing about the body changes;
+   *  the shop no-ops. For an effect whose sentence is "give X", which must read as having fired even when X was
+   *  already there (R-HECKLER-SHOWN-01, Arena Heckler into a minion that already Taunts). */
+  showKeywordGrant(t: ArenaBody, kw: string): void;
   /** Scrap Herald's whole ritual: buff every current Magnetic (combat: living M-keyword bodies; shop: board
    *  + hand) AND stack the run's `magneticBuyAtk/Hp` so future Magnetics carry it (combat carries back —
    *  settle stacks + buffs the run's Magnetics). */
@@ -2342,8 +2347,11 @@ export const ARENA_EFFECTS = {
     }
     arena.narrate(str(params.text) || `${arena.nameOf(arena.self)} works the crowd`);
     for (const victim of picks) {
-      if (victim.keywords.includes('T')) continue;
-      arena.grantKeywordTo(victim, 'T');
+      // Already Taunted: nothing to change, but the grant is still SHOWN (owner 2026-11-19: "can we have this
+      // effect happen regardless of whether the unit has taunt or not?", R-HECKLER-SHOWN-01). Without the event the
+      // Heckler's Start of Combat left nothing in the log to play on, and it read as not having fired.
+      if (victim.keywords.includes('T')) arena.showKeywordGrant(victim, 'T');
+      else arena.grantKeywordTo(victim, 'T');
     }
     // Owner rework 2026-09-18: "...and attack it immediately" — `attack: true` sends THIS body at the OPPOSITE
     // minion right now (a golden Heckler still strikes the opposite one, never the neighbour it also Taunted).

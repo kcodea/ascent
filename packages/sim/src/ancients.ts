@@ -322,7 +322,8 @@
  *  · `swapEchoFirst`              `ancientBeforeSwap`: a friendly minion with an Echo fires it (the Shop Echo ritual,
  *                                 `fireShopEchoOf`: Echo multipliers and the Echo tally apply) before it leaves. (Death)
  *  · `swapFree`                   `ancientAfterSwap` stamps the held offer `ShopCard.swapFree`; `heldOfferPrice` (the
- *                                 reducer's held re-buy and the UI coin) reads it as 0 Gold. (Fortune)
+ *                                 reducer's held re-buy and the UI coin) reads it as the effect's `price` (2 Gold since
+ *                                 owner 2026-11-19, was 0), never above the flat buy-back. (Fortune)
  *  · `pummelSwapCharge`           COMBAT: `QuestCombatMods.ancientPummelCharge`, a HERO-level Pummel on Albus' lifetime
  *                                 tally (`pummelDealt`), once per combat: the payout is a `questTrigger` with
  *                                 `ANCIENT_SWAP_CHARGE_FLAG` (live), banked at settle into `AncientsState.darahCharges`.
@@ -331,7 +332,9 @@
  *                                 when the hand is full (`grantMinionToHandOrBoard`; the branch's `checkTriples`). (Genesis)
  *  · `eotCopySwapped`             `ancientAfterSwap` records the LAST minion sent to the Shop this turn (`darahSwapped`);
  *                                 a virtual recurring End-of-Turn entry (`ancientDarahEotCopy`) gives a plain copy of it
- *                                 to hand. Hand full, or no Swap this turn: nothing. (Time)
+ *                                 to hand. Hand full, or no Swap this turn: nothing. (Time, retired primitive)
+ *  · `eotCastSpell` / `sotCastSpell` End of Turn (the `ancientDarahEotCopy` entry) and Start of Turn
+ *                                 (`darahStartOfTurn`, its own beat) cast the spell (Lasso) from the hero power. (Time)
  *  · `swapExchangeStats`          `ancientAfterSwap`: the incoming minion gains the outgoing minion's stats and the
  *                                 outgoing (held) body gains the incoming's, both read before either gain. (Bonds)
  *  NADJA (Goldspring, `gainMaxMana`, 3 Gold, untargeted; owner pairings 2026-10-06). Goldspring = "Gain 1 maximum Gold."
@@ -383,7 +386,7 @@
  *                                 once per real play: minions, spells and Rubies): your OTHER Tier 7 minions (board and
  *                                 hand) gain +a/+h per tier of the played card, permanently. Combat has no play. (Bonds)
  *
- *  THE 2026-10-09 BATCH (owner pairings 2026-10-09). Every hero Avenge below (Rayse 4, Cassen 7, Gildmaster 14) is ONE
+ *  THE 2026-10-09 BATCH (owner pairings 2026-10-09). Every hero Avenge below (Rayse 4, Cassen 5, Gildmaster 17) is ONE
  *  running count of friendly deaths across the Shop AND combat (owner ruling, the Xerox / Gorr / Nadja / Brackus shape):
  *  SHOP deaths tick it at `fireOnFriendDeath` (`ancientHeroAvengeShopDeath`); COMBAT carries it in and settle adds the
  *  fight's deaths. Rune of Fury fires the combat half again (every hero Avenge's rule).
@@ -440,8 +443,12 @@
  *  · `socEnemyCopy`               COMBAT, Start of Combat: a copy of a random enemy minion, live. (Time)
  *  · `flashExactCopies`           every Flash copy is EXACT (`ShoutCarry.handExact`: stats, keywords, Gilded). (Bonds)
  *  GILDMASTER (Gildcrafter, `gildcrafter`, 3 Gold, 3 uses per game).
- *  · `avengeGrantCard`            each fire: a `goldcrafter` to hand. SHOP: right then; COMBAT: Gorr's
- *                                 `ancientGorrAvenge` (a live `toHand`). (Death)
+ *  · `avengeGrantCard` + `carry`  "When 17 friendly minions die, get a Goldcrafter" (owner 2026-11-19,
+ *                                 R-ANCIENT-CARRYOVER-01: was Avenge (17)). The CARRY-OVER kind, Braum × Death's counter:
+ *                                 `gildDeaths` is one running count across the Shop and every fight (never reset), each
+ *                                 Nth death a `goldcrafter` to hand. SHOP: right then; COMBAT: Gorr's `ancientGorrAvenge`
+ *                                 with `carry` (the tick carried in counts, a live `toHand`), settle adding the fight's
+ *                                 deaths. Rune of Fury does not repeat it (not an Avenge). (Death)
  *  · `tripleRewardGold`           Braum's Fortune primitive, reused: every Triple Reward also gains N Gold. (Fortune)
  *  · `pummelPowerUse`             a hero Pummel (N), once per combat (Darah's `ancientPummelCharge`, own flag): +1 to
  *                                 Gildcrafter's whole-game use budget (`powerOverride.maxUses`). (War)
@@ -884,8 +891,8 @@ export type AncientEffect =
   // ── Darah (Swap) ──
   /** Swapping a friendly minion with an Echo fires its Echo first (the Shop Echo ritual). */
   | { do: 'swapEchoFirst' }
-  /** The friendly minion Swap sends to the Shop costs 0 Gold to buy back. */
-  | { do: 'swapFree' }
+  /** The friendly minion Swap sends to the Shop buys back for a set `price` (owner 2026-11-19: 2 Gold, was 0). */
+  | { do: 'swapFree'; price: number }
   /** Hero-level Pummel (`every`), once per combat: bank a charge of Swap (one more use, kept until used). */
   | { do: 'pummelSwapCharge'; every: number; perCombat?: number }
   /** Swap also gives a plain copy of the minion it brings in from the Shop. */
@@ -894,6 +901,8 @@ export type AncientEffect =
   | { do: 'eotCopySwapped' }
   /** End of Turn: cast `spellId` (the real Shop cast pipeline, from the hero power). Ancient pass 1 (owner 2026-11-16). */
   | { do: 'eotCastSpell'; spellId: string }
+  /** Start of Turn: cast `spellId` (the same cast as `eotCastSpell`, its own Start-of-Turn beat). Owner 2026-11-19. */
+  | { do: 'sotCastSpell'; spellId: string }
   /** The two minions Swap exchanges gain each other's stats. */
   | { do: 'swapExchangeStats' }
   // ── Nadja (Goldspring) ──
@@ -975,8 +984,9 @@ export type AncientEffect =
   /** Flash's copies are exact (stats, keywords, Gilded). */
   | { do: 'flashExactCopies' }
   // ── Gildmaster (Gildcrafter) ──
-  /** Avenge (`every`), Shop AND combat (one running count): get `cardId`. */
-  | { do: 'avengeGrantCard'; every: number; cardId: string }
+  /** Avenge (`every`), Shop AND combat: get `cardId`. Per phase (R-AVENGE-PER-COMBAT-01), unless `carry`: then it is
+   *  "When N friendly minions die", one running count across the Shop and every fight (R-ANCIENT-CARRYOVER-01). */
+  | { do: 'avengeGrantCard'; every: number; cardId: string; carry?: true }
   /** Hero-level Pummel (`every`), once per combat: +1 use of the hero power's whole-game budget. */
   | { do: 'pummelPowerUse'; every: number }
   /** Every Triple Reward triggers twice. */
@@ -1215,8 +1225,9 @@ export type AncientEffect =
   /** Magic Hat has no per-turn cap. */
   | { do: 'hatNoCap' }
   // ── CINDY (Golden Gratitude, Duos only; owner pairings 2026-11-14) ──
-  /** A hero Avenge (N), one running count across the Shop and combat: each fire gives the TEAMMATE `cardId`. */
-  | { do: 'avengeTeammateGetsCard'; every: number; cardId: string }
+  /** Each `every`th friendly death gives the TEAMMATE `cardId`. Per phase (an Avenge), unless `carry`: then it is "When N
+   *  friendly minions die", one running count across the Shop and every fight (R-ANCIENT-CARRYOVER-01). */
+  | { do: 'avengeTeammateGetsCard'; every: number; cardId: string; carry?: true }
   /** Every `every` Gold spent (a running count since the pick) refreshes the hero power's once-per-game use. */
   | { do: 'goldSpentRefreshesPower'; every: number }
   /** Start of Combat: the left-most minion is Gilded for the fight; an Engraved one stays Gilded. */
@@ -1246,8 +1257,8 @@ export type AncientEffect =
   | { do: 'tripleRewardOpenGold'; gold: number }
   /** Membrance: playing a Gilded minion gives `extra` more Triple Rewards. */
   | { do: 'gildedPlayExtraRewards'; extra: number }
-  /** Midas: Start of Combat, `per` random friendly minions gain Ward for each Gilded enemy minion. */
-  | { do: 'socWardPerGildedFoe'; per: number }
+  /** Midas: Start of Combat, a random friendly minion gains Ward for every Gilded minion on Midas's own board. */
+  | { do: 'socWardPerGilded' }
   /** Mimic: End of Turn, a friendly minion of each type gains +1/+1 per `every` Shop spells cast this game. */
   | { do: 'eotUnitedFrontPerShopSpells'; every: number }
   /** Nadja: each Goldspring fire also gets `count` random Shop spells, from any Tier. */
@@ -1961,10 +1972,10 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
       effects: [{ do: 'swapEchoFirst' }],
     },
     fortune: {
-      // "Swapped minions are free."
-      offerText: 'Minions you Swap into the Shop are free to buy back.',
-      powerText: '{base} The minion you send to the Shop costs **0 Gold** to buy back.',
-      effects: [{ do: 'swapFree' }],
+      // "Swapped minions are free." Owner 2026-11-19: "costs 2g instead of 0g".
+      offerText: 'Minions you Swap into the Shop cost **2 Gold** to buy back.',
+      powerText: '{base} The minion you send to the Shop costs **2 Gold** to buy back.',
+      effects: [{ do: 'swapFree', price: 2 }],
     },
     war: {
       // "Pummel (140): Get a charge of Swap. (Once per combat.)" Ancient pass 1 (owner 2026-11-16, Mike's suggestion):
@@ -1981,10 +1992,11 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
     },
     time: {
       // "End of Turn: Get a copy of the minion you swapped." Ancient pass 1 (owner 2026-11-16): "Gain the Lasso card
-      // effect." Read as End of Turn: cast Lasso (steal a random minion from the Shop).
-      offerText: '**End of Turn:** cast **Lasso**.',
-      powerText: '{base} **End of Turn:** cast **Lasso**.',
-      effects: [{ do: 'eotCastSpell', spellId: 'lasso' }],
+      // effect." Read as End of Turn: cast Lasso (steal a random minion from the Shop). Owner 2026-11-19: also at Start
+      // of Turn.
+      offerText: '**Start of Turn** and **End of Turn:** cast **Lasso**.',
+      powerText: '{base} **Start of Turn** and **End of Turn:** cast **Lasso**.',
+      effects: [{ do: 'sotCastSpell', spellId: 'lasso' }, { do: 'eotCastSpell', spellId: 'lasso' }],
     },
     bonds: {
       // "Swapped minions gain each others stats."
@@ -2131,9 +2143,10 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
   cassen: {
     death: {
       // "Avenge (7): advance your commission 1 turn." (no commission running: nothing)
-      offerText: '**Avenge (7):** your commission pays out **1** turn sooner.',
-      powerText: '{base} **Avenge (7):** your commission pays out **1** turn sooner (**{cDeathLeft}** more to go).',
-      effects: [{ do: 'avengeAdvanceCommission', every: 7 }],
+      // Owner 2026-11-19: Avenge (5), still per combat (R-ANCIENT-CARRYOVER-02).
+      offerText: '**Avenge (5):** your commission pays out **1** turn sooner.',
+      powerText: '{base} **Avenge (5):** your commission pays out **1** turn sooner (**{cDeathLeft}** more to go).',
+      effects: [{ do: 'avengeAdvanceCommission', every: 5 }],
     },
     fortune: {
       // "Commission also grants 5 free refreshes." (on payout)
@@ -2260,10 +2273,11 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
   // have 2 copies of a minion, this grants a third." A Goldcrafter is the `goldcrafter` spell token.
   gildmaster: {
     death: {
-      // "Avenge (14): Get a Goldcrafter." Owner 2026-11-16 (Ancient pass 2): "avenge 17".
-      offerText: '**Avenge (17):** get a **Goldcrafter**.',
-      powerText: '{base} **Avenge (17):** get a **Goldcrafter** (**{gmDeathLeft}** more to go).',
-      effects: [{ do: 'avengeGrantCard', every: 17, cardId: 'goldcrafter' }],
+      // "Avenge (14): Get a Goldcrafter." Owner 2026-11-16 (Ancient pass 2): "avenge 17". Owner 2026-11-19
+      // (R-ANCIENT-CARRYOVER-01): "change both to the 'When x minions die' text so they carry over" (Braum × Death's kind).
+      offerText: 'When **17** friendly minions die, get a **Goldcrafter**.',
+      powerText: '{base} When **17** friendly minions die, get a **Goldcrafter** (**{gmDeathLeft}** more to go).',
+      effects: [{ do: 'avengeGrantCard', every: 17, cardId: 'goldcrafter', carry: true }],
     },
     fortune: {
       // "Triple Rewards also grant 5 Gold."
@@ -2317,9 +2331,11 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
       // "Start of Turn: Give a random Gilded minion Ward" (a board minion without Ward first; all Warded: nothing)
       // Owner 2026-11-16 (Ancient pass 2), replaced: "Start of Combat, give 2 random minions Ward for each Gilded enemy minion" (distinct living
       // friendly bodies without Ward; for that combat).
-      offerText: '**Start of Combat:** give **2** random friendly minions **Ward** for each **Gilded** enemy minion.',
-      powerText: '{base} **Start of Combat:** give **2** random friendly minions **Ward** for each **Gilded** enemy minion.',
-      effects: [{ do: 'socWardPerGildedFoe', per: 2 }],
+      // Owner 2026-11-18, replaced again: it counts Midas's OWN Gilded board minions now (one Ward each, distinct random
+      // friendly bodies without Ward; the board only, never the hand).
+      offerText: '**Start of Combat:** give a friendly minion **Ward** for every **Gilded** minion you control.',
+      powerText: '{base} **Start of Combat:** give a friendly minion **Ward** for every **Gilded** minion you control.',
+      effects: [{ do: 'socWardPerGilded' }],
     },
     genesis: {
       // "Gilding a minion grants a Triple Reward." (the Gild's reward moment: the Gold Pouch AND a Triple Reward)
@@ -3124,9 +3140,10 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
     death: {
       // "Avenge (15): give your teammate a Goldcrafter." Repeats; every friendly death in every phase counts (combat
       // deaths and Shop destroys), never a consume.
-      offerText: '**Avenge (15):** give your teammate a **Goldcrafter**.',
-      powerText: '{base} **Avenge (15):** give your teammate a **Goldcrafter** (**{cdNow}/15**).',
-      effects: [{ do: 'avengeTeammateGetsCard', every: 15, cardId: 'goldcrafter' }],
+      // Owner 2026-11-19 (R-ANCIENT-CARRYOVER-01): "When 15 friendly minions die", the carry-over kind (Braum × Death's).
+      offerText: 'When **15** friendly minions die, give your teammate a **Goldcrafter**.',
+      powerText: '{base} When **15** friendly minions die, give your teammate a **Goldcrafter** (**{cdLeft}** more to go).',
+      effects: [{ do: 'avengeTeammateGetsCard', every: 15, cardId: 'goldcrafter', carry: true }],
     },
     fortune: {
       // "Spending 40 Gold refreshes your hero power." Repeats; the refresh gives the once-per-game use back.
@@ -4008,6 +4025,46 @@ export function ancientSotSource<T extends { label: string }>(state: RunState, s
   return { ...src, label: ANCIENTS[picked].name };
 }
 
+/**
+ * AN AVENGE (N) IS PER PHASE, NEVER CARRIED (owner 2026-11-18, R-AVENGE-PER-COMBAT-01): "avenge (x): do not carry over
+ * combat to combat. if it were 'when x minions die' that carries over, but avenge means it needs to happen in combat."
+ * Every hero-level Ancient Avenge keeps its Shop-phase count in one of these fields (Shop deaths still count, the
+ * 2026-11-16 ruling R-ANCFIX-10, and fire at N within that Shop). `ancientAvengeReset` zeroes them all at the two phase
+ * boundaries: as the fight starts (`preparePlayerCombatSide`) and as it settles (`ancientAfterCombat`). Inside the fight
+ * `simulate` counts from 0 on its own (`avengeDue`), and the live text adds the replay's deaths to the (zero) count.
+ * `bramDeaths` is NOT here: Braum × Death reads "When 16 friendly minions die", the carry-over kind.
+ */
+const AVENGE_COUNT_FIELDS = [
+  'hunchDeaths', 'xeroxDeaths', 'tradesDeaths', 'gorrDeaths', 'nadjaDeaths', 'brackusDeaths', 'rayseDeaths', 'cassenDeaths',
+  'gildDeaths', 'keshiDeaths', 'batchBDeaths', 'rascalDeaths', 'gamblerDeaths', 'flintDeaths', 'cindyDeaths',
+] as const satisfies readonly (keyof AncientsState)[];
+
+/** Discard every hero Avenge's partial progress (see `AVENGE_COUNT_FIELDS`). A no-op without Ancients. A count whose
+ *  pairing is the CARRY-OVER kind (`carry`: "When N friendly minions die", Gildmaster / Cindy × Death since the owner's
+ *  2026-11-19 ruling R-ANCIENT-CARRYOVER-01) is kept, like Braum's `bramDeaths`. */
+export function ancientAvengeReset(state: RunState): void {
+  const a = state.ancientsEnabled ? state.ancients : undefined;
+  if (!a) return;
+  const kept = new Set<string>();
+  if (effectOf(state, 'avengeGrantCard')?.carry) kept.add('gildDeaths');
+  if (effectOf(state, 'avengeTeammateGetsCard')?.carry) kept.add('cindyDeaths');
+  for (const f of AVENGE_COUNT_FIELDS) if (a[f] && !kept.has(f)) a[f] = 0;
+}
+
+/**
+ * GAMBLER: the turns the Dice lock still runs, LIVE through the fight on screen (`deaths` = its friendly deaths so far):
+ * with the Ancient of Death each Avenge (4) the fight has fired so far (Rune of Fury's repeats included) takes its turn
+ * off right then, the number settle then banks (`batchAAfterCombat`). The hero-power pill, the "locked Nt" line and the
+ * power text's `{gaLock}` all read this one number (R-AVENGE-PER-COMBAT-01). Without the pairing: the plain lock.
+ */
+export function ancientDiceLockTurns(state: RunState, deaths = 0): number {
+  const base = Math.max(0, (state.heroDiceLockUntil ?? 0) - state.wave);
+  const g = live(state) ? effectOf(state, 'avengeReduceDiceLock') : undefined;
+  if (!g || deaths <= 0) return base;
+  const fires = Math.floor(((live(state)?.gamblerDeaths ?? 0) + deaths) / Math.max(1, g.every)) * (1 + furyExtra(state));
+  return Math.max(0, base - fires * g.turns);
+}
+
 export function procAncient(state: RunState, times = 1): void {
   const a = state.ancientsEnabled ? state.ancients : undefined;
   if (!a?.picked || times <= 0) return;
@@ -4262,14 +4319,10 @@ export function ancientAfterCombat(state: RunState, result: CombatResult): void 
     const got = (result.events ?? []).filter((e) => e.type === 'questTrigger' && e.side === 'player' && e.flag === ANCIENT_SWAP_CHARGE_FLAG).length;
     if (got > 0) a.darahCharges = (a.darahCharges ?? 0) + got;
   }
-  // GORR × DEATH: the fight's friendly deaths join the running Avenge count (its copies already flew to hand mid-fight).
-  const gd = effectOf(state, 'avengeCopyLastTurnBuy');
-  if (gd) a.gorrDeaths = ((a.gorrDeaths ?? 0) + (result.playerDeaths ?? 0)) % Math.max(1, gd.every);
-  // NADJA × DEATH: the fight's deaths join the running Avenge count, and its fires (each shown live as a `maxGold`
-  // event) pay their max Gold now, for next turn's Gold.
+  // GORR × DEATH: its copies already flew to hand mid-fight (the Avenge count is per combat, R-AVENGE-PER-COMBAT-01).
+  // NADJA × DEATH: its fires (each shown live as a `maxGold` event) pay their max Gold now, for next turn's Gold.
   const nd = effectOf(state, 'avengeMaxGold');
   if (nd) {
-    a.nadjaDeaths = ((a.nadjaDeaths ?? 0) + (result.playerDeaths ?? 0)) % Math.max(1, nd.every);
     const fires = result.playerAncientMaxGoldFires ?? 0;
     if (fires > 0 && nd.gold > 0) nadjaGainMaxGold(state, a, fires * nd.gold, false);
   }
@@ -4277,7 +4330,6 @@ export function ancientAfterCombat(state: RunState, result: CombatResult): void 
   // `playerSpellPower`, like every combat spell-power gain).
   const imp = result.playerAncientSpellImproved;
   const hd = effectOf(state, 'avengeImproveSpells');
-  if (hd) a.hunchDeaths = ((a.hunchDeaths ?? 0) + Math.max(0, result.playerDeaths ?? 0)) % Math.max(1, hd.every);
   if (hd && imp && (imp.attack > 0 || imp.health > 0)) {
     a.spellImproved = { attack: (a.spellImproved?.attack ?? 0) + imp.attack, health: (a.spellImproved?.health ?? 0) + imp.health };
   }
@@ -4290,23 +4342,20 @@ export function ancientAfterCombat(state: RunState, result: CombatResult): void 
   if (effectOf(state, 'avengeClearanceStack') && (result.playerAncientClearanceStacks ?? 0) > 0) {
     a.clearanceStacks = (a.clearanceStacks ?? 0) + result.playerAncientClearanceStacks!;
   }
-  // XEROX × DEATH: the fight's friendly deaths join the running Avenge count (its copies already landed mid-fight).
-  const xd = effectOf(state, 'avengeCopyTopAttack');
-  if (xd) a.xeroxDeaths = ((a.xeroxDeaths ?? 0) + (result.playerDeaths ?? 0)) % Math.max(1, xd.every);
+  // XEROX × DEATH: its copies already landed mid-fight (the Avenge count is per combat).
   // BRAUM × DEATH: the fight's friendly deaths join the running count (its payouts already flew to hand mid-fight).
   const bd = effectOf(state, 'deathsGetGildedMinion');
   if (bd) a.bramDeaths = ((a.bramDeaths ?? 0) + (result.playerDeaths ?? 0)) % Math.max(1, bd.every);
-  // TRADESMAN × DEATH: the fight's deaths join the running count (its free Refreshes already came home through
-  // `playerFreeRolls`, the Gryphon carry-back). WAR: the Gold the fight's Rallies banked (one flag per fire) is
-  // recorded for the live text; the Gold itself came home through `playerBonusGold`.
-  const td = effectOf(state, 'avengeFreeRefresh');
-  if (td) a.tradesDeaths = ((a.tradesDeaths ?? 0) + (result.playerDeaths ?? 0)) % Math.max(1, td.every);
+  // TRADESMAN × DEATH: its free Refreshes already came home through `playerFreeRolls`, the Gryphon carry-back (the
+  // Avenge count is per combat). WAR: the Gold the fight's Rallies banked (one flag per fire) is recorded for the live
+  // text; the Gold itself came home through `playerBonusGold`.
   const rg = effectOf(state, 'minionsRallyGold');
   if (rg) {
     const fires = (result.events ?? []).filter((e) => e.type === 'questTrigger' && e.side === 'player' && e.flag === ANCIENT_RALLY_GOLD_FLAG).length;
     if (fires > 0) noteTradesRallyGold(state, fires * rg.gold);
   }
-  brackusAfterCombat(state, a, result); // BRACKUS × DEATH: the running count + the hand / Shop share of the fight's fires
+  brackusAfterCombat(state, a, result); // BRACKUS × DEATH: the hand / Shop share of the fight's fires
+  ancientAvengeReset(state); // every hero Avenge starts the next phase at 0 (R-AVENGE-PER-COMBAT-01)
   if (!effectOf(state, 'wardBreaksGetCopy')) return;
   a.wardBreaks = (a.wardBreaks ?? 0) + breaks.length;
   if (result.playerWardWindow) a.wardWindow = [...result.playerWardWindow];
@@ -4412,6 +4461,7 @@ export function ancientStartOfTurn(state: RunState): void {
   batchCStartOfTurn(state); // MEMBRANCE × TIME, MIMIC × TIME
   duosStartOfTurn(state); // MAGICIAN × TIME
   cindyStartOfTurn(state); // CINDY × TIME
+  darahStartOfTurn(state); // DARAH × TIME
   const a = live(state);
   const e = effectOf(state, 'sotBuffPerCombatSummon');
   const n = a?.lastSummons ?? 0;
@@ -5691,9 +5741,12 @@ export function ancientSwapUsesBadge(state: Pick<RunState, 'ancientsEnabled' | '
   return uses >= 2 ? uses : null;
 }
 
-/** DARAH × FORTUNE: does this held offer (a minion Swap sent to the Shop) buy back for 0 Gold? */
-export function ancientSwapFree(state: Pick<RunState, 'ancientsEnabled' | 'ancients' | 'heroId'>, offer: Pick<ShopCard, 'swapFree' | 'held'>): boolean {
-  return !!offer.held && !!offer.swapFree && !!live(state as RunState) && !!effectOf(state as RunState, 'swapFree');
+/** DARAH × FORTUNE: the set buy-back price of this held offer (a minion Swap sent to the Shop), or undefined when the
+ *  pairing does not reach it (the flat held price applies). Owner 2026-11-19: 2 Gold (was 0). */
+export function ancientSwapBuyBackPrice(state: Pick<RunState, 'ancientsEnabled' | 'ancients' | 'heroId'>, offer: Pick<ShopCard, 'swapFree' | 'held'>): number | undefined {
+  if (!offer.held || !offer.swapFree || !live(state as RunState)) return undefined;
+  const e = effectOf(state as RunState, 'swapFree');
+  return e ? Math.max(0, e.price) : undefined;
 }
 
 /**
@@ -5750,6 +5803,16 @@ function darahSwappedText(state: RunState): string {
  *  2026-11-16) it casts Lasso (`eotCastSpell`); the older copy primitive (`eotCopySwapped`) still runs the same entry. */
 export function ancientDarahEotCopyLive(state: RunState): boolean {
   return !!live(state) && (!!effectOf(state, 'eotCopySwapped') || !!effectOf(state, 'eotCastSpell'));
+}
+
+/** DARAH × TIME: Start of Turn (owner 2026-11-19). `sotCastSpell`: the same Lasso cast as End of Turn, from the hero
+ *  power, recorded as its own Start-of-Turn beat (R-SOT-BEAT-01; the Ancient's label gives the proc burst). A full hand
+ *  or an empty Shop: Lasso's own rule (nothing stolen, no beat). */
+function darahStartOfTurn(state: RunState): void {
+  const e = live(state) ? effectOf(state, 'sotCastSpell') : undefined;
+  const spell = e ? CARD_INDEX[e.spellId] : undefined;
+  if (!spell?.spell) return;
+  recordSotBeat(state, { kind: 'hero', id: state.heroId, label: ANCIENTS.time.name }, () => castSpell(state, spell, undefined, 'hero'));
 }
 
 /** DARAH × TIME: End of Turn. `eotCastSpell`: cast the spell (Lasso) through the real Shop cast pipeline, from the hero
@@ -5925,7 +5988,6 @@ export function ancientBrackusShopDeath(state: RunState, dead: BoardCard): void 
 function brackusAfterCombat(state: RunState, a: AncientsState, result: CombatResult): void {
   const e = effectOf(state, 'avengeBuffTier7');
   if (!e) return;
-  a.brackusDeaths = ((a.brackusDeaths ?? 0) + (result.playerDeaths ?? 0)) % Math.max(1, e.every);
   const fires = (result.events ?? []).filter((ev) => ev.type === 'questTrigger' && ev.side === 'player' && ev.flag === ANCIENT_SUMMIT_AVENGE_FLAG).length;
   if (fires > 0) brackusBuffTier7(state, e.attack * fires, e.health * fires, { board: false });
 }
@@ -6076,7 +6138,7 @@ export function ancientHeroAvengeLeft(state: RunState, deaths = 0): number | nul
 function heroAvengeLiveFires(state: RunState, deaths: number): number {
   const h = heroAvengeOf(state);
   if (!h || deaths <= 0) return 0;
-  return Math.floor((h.tick + deaths) / h.every) * (1 + furyExtra(state));
+  return Math.floor((h.tick + deaths) / h.every) * (1 + (effectOf(state, 'avengeGrantCard')?.carry ? 0 : furyExtra(state)));
 }
 
 /**
@@ -6415,7 +6477,7 @@ function batch5CombatMods(state: RunState): Partial<QuestCombatMods> {
     };
   }
   const gd = effectOf(state, 'avengeGrantCard');
-  if (gd) out.ancientGorrAvenge = { every: gd.every, tick: a.gildDeaths ?? 0, ids: [gd.cardId], label: ANCIENTS.death.name };
+  if (gd) out.ancientGorrAvenge = { every: gd.every, tick: a.gildDeaths ?? 0, ids: [gd.cardId], label: ANCIENTS.death.name, ...(gd.carry ? { carry: true as const } : {}) };
   const gw = effectOf(state, 'pummelPowerUse');
   if (gw) out.ancientPummelCharge = { every: gw.every, dealt: a.pummelDealt ?? 0, flag: ANCIENT_GILD_CHARGE_FLAG, label: ANCIENTS.war.name };
   return out;
@@ -6426,20 +6488,17 @@ function batch5CombatMods(state: RunState): Partial<QuestCombatMods> {
  *  Pummel payout is one more Gildcrafter use. */
 function batch5AfterCombat(state: RunState, a: AncientsState, result: CombatResult): void {
   const pulses = (flag: string): number => (result.events ?? []).filter((e) => e.type === 'questTrigger' && e.side === 'player' && e.flag === flag).length;
-  const deaths = result.playerDeaths ?? 0;
   const rd = effectOf(state, 'avengeSummonSprout');
   if (rd) {
-    a.rayseDeaths = ((a.rayseDeaths ?? 0) + deaths) % Math.max(1, rd.every);
     const grew = pulses(ANCIENT_SPROUT_FLAG);
     if (grew > 0) a.rayseSproutSize = Math.max(1, a.rayseSproutSize ?? 1) + grew;
   }
   const cd = effectOf(state, 'avengeAdvanceCommission');
-  if (cd) {
-    a.cassenDeaths = ((a.cassenDeaths ?? 0) + deaths) % Math.max(1, cd.every);
-    advanceCommission(state, pulses(ANCIENT_COMMISSION_FLAG));
-  }
+  if (cd) advanceCommission(state, pulses(ANCIENT_COMMISSION_FLAG));
+  // GILDMASTER × DEATH, the carry-over kind (R-ANCIENT-CARRYOVER-01): the fight's friendly deaths join the running count,
+  // Braum × Death's settle (its Goldcrafters already flew to hand mid-fight).
   const gd = effectOf(state, 'avengeGrantCard');
-  if (gd) a.gildDeaths = ((a.gildDeaths ?? 0) + deaths) % Math.max(1, gd.every);
+  if (gd?.carry) a.gildDeaths = ((a.gildDeaths ?? 0) + Math.max(0, result.playerDeaths ?? 0)) % Math.max(1, gd.every);
   if (effectOf(state, 'pummelPowerUse')) {
     const got = pulses(ANCIENT_GILD_CHARGE_FLAG);
     if (got > 0) a.powerOverride = { ...(a.powerOverride ?? {}), maxUses: powerMaxUses(state, a) + got };
@@ -6823,7 +6882,6 @@ function batch6CombatMods(state: RunState): Partial<QuestCombatMods> {
 function batch6AfterCombat(state: RunState, a: AncientsState, result: CombatResult): void {
   const kd = effectOf(state, 'avengeAdvanceCrown');
   if (!kd) return;
-  a.keshiDeaths = ((a.keshiDeaths ?? 0) + (result.playerDeaths ?? 0)) % Math.max(1, kd.every);
   const pulses = (result.events ?? []).filter((e) => e.type === 'questTrigger' && e.side === 'player' && e.flag === ANCIENT_CROWN_FLAG).length;
   advanceCrown(state, kd.points * pulses);
 }
@@ -7142,8 +7200,6 @@ function batchBCombatMods(state: RunState): Partial<QuestCombatMods> {
 /** Settle. The fight's deaths join the running Avenge count (its fires already resolved mid-fight), and its casts join
  *  the running spell count (Emissary's Shop spells already flew to hand mid-fight; Merrin's recharge is the new turn's). */
 function batchBAfterCombat(state: RunState, a: AncientsState, result: CombatResult): void {
-  const every = batchBAvenge(state);
-  if (every) a.batchBDeaths = ((a.batchBDeaths ?? 0) + (result.playerDeaths ?? 0)) % every;
   // EMERALD WARDEN × DEATH: the fight's payout spends this turn's one.
   if (effectOf(state, 'avengeTierMinion')?.oncePerTurn && (result.events ?? []).some((e) => e.type === 'questTrigger' && e.side === 'player' && e.flag === ANCIENT_EW_AVENGE_FLAG)) a.ewAvengeWave = state.wave;
   for (let i = 0; i < (result.playerSpellsCast ?? 0); i++) batchBSpellTick(state, 1);
@@ -7261,20 +7317,13 @@ function batchACombatMods(state: RunState): Partial<QuestCombatMods> {
  *  flew to hand mid-fight. */
 function batchAAfterCombat(state: RunState, a: AncientsState, result: CombatResult): void {
   const pulses = (flag: string): number => (result.events ?? []).filter((e) => e.type === 'questTrigger' && e.side === 'player' && e.flag === flag).length;
-  const deaths = result.playerDeaths ?? 0;
   const r = effectOf(state, 'avengeAllInGold');
   if (r) {
-    a.rascalDeaths = ((a.rascalDeaths ?? 0) + deaths) % Math.max(1, r.every);
     const got = pulses(ANCIENT_ALLIN_FLAG);
     if (got > 0) a.rascalPot = (a.rascalPot ?? 0) + got * r.gold;
   }
   const g = effectOf(state, 'avengeReduceDiceLock');
-  if (g) {
-    a.gamblerDeaths = ((a.gamblerDeaths ?? 0) + deaths) % Math.max(1, g.every);
-    reduceDiceLock(state, pulses(ANCIENT_DICE_LOCK_FLAG) * g.turns);
-  }
-  const f = effectOf(state, 'avengeGrantTribeMinion');
-  if (f) a.flintDeaths = ((a.flintDeaths ?? 0) + deaths) % Math.max(1, f.every);
+  if (g) reduceDiceLock(state, pulses(ANCIENT_DICE_LOCK_FLAG) * g.turns);
 }
 
 /** RASCAL × TIME: Start of Turn, gain the Gold, on its own beat (R-SOT-BEAT-01). */
@@ -7557,8 +7606,7 @@ function batchAPowerText(state: RunState, text: string, combat: AncientPowerLive
   const rw = effectOf(state, 'allInBuffPerGold');
   const rb = effectOf(state, 'allInTurnDiscount');
   // GAMBLER
-  const gd = effectOf(state, 'avengeReduceDiceLock');
-  const lock = Math.max(0, (state.heroDiceLockUntil ?? 0) - state.wave - (gd ? fires * gd.turns : 0));
+  const lock = ancientDiceLockTurns(state, deaths);
   const rolled = a.gamblerRoll?.wave === state.wave ? a.gamblerRoll.dice : undefined;
   const gw = effectOf(state, 'diceBuffPerPip');
   const pips = rolled ? rolled.reduce((n, d) => n + d, 0) : 0;
@@ -8000,8 +8048,7 @@ function pass2CombatMods(state: RunState): Partial<QuestCombatMods> {
   if (!a?.picked) return out;
   const fk = effectOf(state, 'pummelClearanceStack');
   if (fk) out.ancientPummelCharge = { every: fk.every, dealt: a.pummelDealt ?? 0, flag: ANCIENT_CLEARANCE_STACK_FLAG, label: ANCIENTS.war.name, repeat: true };
-  const mw = effectOf(state, 'socWardPerGildedFoe');
-  if (mw) out.ancientMidasWard = { per: mw.per, label: ANCIENTS.war.name };
+  if (effectOf(state, 'socWardPerGilded')) out.ancientMidasWard = { label: ANCIENTS.war.name };
   return out;
 }
 
@@ -8287,7 +8334,7 @@ function cindyCombatMods(state: RunState): Partial<QuestCombatMods> {
   const a = live(state);
   if (!a?.picked) return out;
   const d = effectOf(state, 'avengeTeammateGetsCard');
-  if (d) out.ancientMateGiftAvenge = { every: d.every, tick: a.cindyDeaths ?? 0, gift: { kind: 'gift', cardId: d.cardId }, label: ANCIENTS.death.name };
+  if (d) out.ancientMateGiftAvenge = { every: d.every, tick: a.cindyDeaths ?? 0, gift: { kind: 'gift', cardId: d.cardId }, label: ANCIENTS.death.name, ...(d.carry ? { carry: true as const } : {}) };
   if (effectOf(state, 'socGildLeftmost')) out.ancientSocGildLeftmost = { label: ANCIENTS.war.name };
   return out;
 }
@@ -8295,8 +8342,9 @@ function cindyCombatMods(state: RunState): Partial<QuestCombatMods> {
 /** Settle. DEATH: the fight's friendly deaths join the running count (its gifts already went, live). WAR: an Engraved
  *  body the gild reached stays Gilded (its doubled stats came home through the Engraved rule; this keeps the flag). */
 function cindyAfterCombat(state: RunState, a: AncientsState, result: CombatResult): void {
+  // DEATH, the carry-over kind (R-ANCIENT-CARRYOVER-01): the fight's friendly deaths join the running count (Braum's settle).
   const d = effectOf(state, 'avengeTeammateGetsCard');
-  if (d) a.cindyDeaths = ((a.cindyDeaths ?? 0) + Math.max(0, result.playerDeaths ?? 0)) % Math.max(1, d.every);
+  if (d?.carry) a.cindyDeaths = ((a.cindyDeaths ?? 0) + Math.max(0, result.playerDeaths ?? 0)) % Math.max(1, d.every);
   if (effectOf(state, 'socGildLeftmost')) {
     for (const uid of result.playerAncientGildKept ?? []) {
       const c = state.board.find((x) => x.uid === uid);
@@ -8363,6 +8411,7 @@ function cindyPowerText(state: RunState, text: string, combat: AncientPowerLive)
   if (!a || !text.includes('{c')) return text;
   const d = effectOf(state, 'avengeTeammateGetsCard');
   const cdNow = d ? ((a.cindyDeaths ?? 0) + Math.max(0, combat.friendlyDeaths ?? 0)) % Math.max(1, d.every) : 0;
+  const cdLeft = d ? Math.max(1, d.every) - cdNow : 0;
   const head = state.board[0];
   const cwLeft = head ? ` (now **${CARD_INDEX[head.cardId]?.name ?? head.cardId}**)` : '';
   const t = effectOf(state, 'nextTurnTeamCard');
@@ -8373,7 +8422,7 @@ function cindyPowerText(state: RunState, text: string, combat: AncientPowerLive)
   const linked = [...state.board, ...state.hand].find((c) => c.duosLink);
   const cbLinked = linked ? ` Linked now: **${CARD_INDEX[linked.cardId]?.name ?? linked.cardId}**.` : '';
   const banked = a.cindyRefreshBanked ?? 0;
-  return text.replace('{cdNow}', String(cdNow)).replace('{cfGold}', String(a.cindyGold ?? 0))
+  return text.replace('{cdNow}', String(cdNow)).replace('{cdLeft}', String(cdLeft)).replace('{cfGold}', String(a.cindyGold ?? 0))
     .replace('{cfBanked}', banked <= 0 ? '' : state.cindyGratitude === 'armed' ? ' A refresh is waiting for your copy.'
       : banked > 1 ? ` **${banked}** refreshes are banked for after your next use.` : ' A refresh is banked for after your next use.')
     .replace('{cwLeft}', cwLeft).replace('{ctTime}', ctTime).replace('{cbLinked}', cbLinked);

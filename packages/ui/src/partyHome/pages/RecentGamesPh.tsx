@@ -22,7 +22,7 @@ import { memo, useEffect, useMemo, useRef, useState, type MouseEvent } from 'rea
 import type { MatchDetails } from '@game/sim';
 import { finalBoardBuffs } from '../../runBuffs';
 import type { RunCosmeticSnapshot } from '@game/progression';
-import { getHero, runeLiveStateOfSnapshot, strengthText } from '@game/sim';
+import { getHero, parseMatchAncient, runeLiveStateOfSnapshot, strengthText } from '@game/sim';
 import { heroThumb } from '../../art';
 import { isPhone } from '../../deviceClass';
 import { Icon } from '../../Icon';
@@ -277,6 +277,7 @@ const FeedDetail = memo(function FeedDetail({ row, practice, busy, unplayable, o
   return (
     <GameDetail
       place={r.placement} who={r.author || 'Unnamed player'} heroName={r.heroId ? getHero(r.heroId).name : 'Unknown hero'}
+      heroId={r.heroId || undefined} ancient={parseMatchAncient(r.board?.ancient)}
       art={heroThumb(heroPortrait(r.heroId, skins))}
       record={r.record ? recordText(r.record) : `${r.wins} ${r.wins === 1 ? 'win' : 'wins'}`}
       recordTone={r.record ? (r.record.wins >= r.record.losses ? 'up' : 'down') : ''}

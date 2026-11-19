@@ -56,10 +56,8 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
-    date: '2026-11-18',
+    date: '2026-11-19',
     changes: [
-      { category: 'Systems', text: 'When an Ancient awakens, you can now Peek at the board before you choose, like a Discover. Press Return to Ancients to bring the choice back.' },
-      { category: 'Systems', text: 'The Ancient choice now sits on the same dark backdrop as the Runeforge, so the Ancients stand out from the board.' },
       {
         category: 'Systems',
         text: 'A new awakening. When an Ancient awakens, all six Ancients now slam onto the screen before three are offered.',
@@ -69,6 +67,235 @@ export const PATCH_NOTES: PatchNote[] = [
           'Each Ancient slides in from off the screen and slams to a stop, with sparks and a shake.',
           'The three you can choose from shake and their edges light up. The other three fall away.',
           'The choice itself is unchanged.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'The portrait menu is rebuilt, and any hero or minion skin you own can now be your portrait.',
+        details: [
+          'Pick a portrait to preview it on your banner, then press Use portrait.',
+          'Portraits are sorted into tabs (My Skins, Heroes, Minions, Hero Powers) and you can search by name.',
+          'Minions are grouped by tribe, and a filter narrows My Skins to hero or minion skins and Minions to one tribe.',
+          "A skin's edge shows its rarity colour.",
+        ],
+      },
+      {
+        category: 'Balance',
+        text: 'Darah: two Ancient pairings changed.',
+        details: [
+          'Ancient of Fortune: minions you Swap into the Shop now cost 2 Gold to buy back (was free).',
+          'Ancient of Time: Lasso is now cast at Start of Turn as well as End of Turn.',
+        ],
+      },
+      { category: 'Systems', text: 'Match history lobby: hovering a player now blurs their hero portrait and Ancient too, and the hero portrait is the same size as the Ancient.' },
+      { category: 'Systems', text: 'Start of Combat, Avenge, End of Turn and Rally now show a new effect on the minion when they trigger. The old badge pulse is gone from every minion.' },
+      { category: 'Systems', text: 'Arena Heckler now shows its Start of Combat and the Taunt landing even when the minion opposite it already has Taunt.' },
+      { category: 'Systems', text: 'New rank medals: Bronze through Ascendant each have new medal art.' },
+      {
+        category: 'Systems',
+        text: 'A Shout minion played with nothing to target still triggers its Shout. Karwind and other Shout watchers now react.',
+        details: [
+          'Baby Gastrid with no other Dwarf, or Appetite Agent with no other Demon, still counts as a Shout.',
+          'This covers every Shout that needs a target, and Drakko still makes it count twice.',
+          'Backing out of a target choice still plays nothing.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: "Each Ancient's name now shows in one soft colour everywhere: hero power tips, results and the Compendium.",
+        details: [
+          'The tag beside a hero power\'s name, like "(Bonds)", now matches the Ancient\'s name below it.',
+          "In a game's results, each player's tile shows their Ancient at the top right, in a hero power frame the size of the hero portrait, instead of a small badge over the hero.",
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Buying, playing and selling in the Shop costs less work per move, so a fast turn on a big board stays smoother.',
+        details: ['Nothing looks or plays different.'],
+      },
+      {
+        category: 'Systems',
+        text: 'Fast turns stay smoother. Buying or playing a card no longer redraws your whole hand.',
+        details: [
+          'Each card in your hand is now drawn once and then only moved.',
+          'Your hand looks exactly as it did.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-11-18',
+    changes: [
+      { category: 'Systems', text: 'Smoother combat: background calculations no longer interrupt the fight.' },
+      {
+        category: 'Balance',
+        text: 'Ancient of Death: Gildmaster and Cindy now count friendly deaths across fights and the Shop, and Cassen needs 5 deaths instead of 7.',
+        details: [
+          'Gildmaster: When 17 friendly minions die, get a Goldcrafter. It used to be Avenge (17), which needed all 17 in one fight.',
+          'Cindy: When 15 friendly minions die, give your teammate a Goldcrafter. It used to be Avenge (15).',
+          'Both keep counting from one fight to the next and through the Shop, like Braum. The power shows how many more deaths to go.',
+          'Cassen: Avenge (5): your commission pays out 1 turn sooner. It was Avenge (7). It still counts one fight at a time.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'The lobby rail card for each player now shows their hero power and Ancient, in a new look.',
+        details: [
+          "Hover a player on the rail (tap on touch) to see their hero art, Health and Armor, and their hero power with its full text.",
+          'If they have picked an Ancient, the power shows it cracked open, with the Ancient named and what it does for that hero.',
+          'Shop tier, Gilded made, top tribe, runes and the last three fights are all still there.',
+          "In combat, your opponent's hero power icon now shows their Ancient too.",
+        ],
+      },
+      { category: 'Systems', text: "Another player's Career page now has an Add friend button at the top. One press sends the request." },
+      { category: 'Systems', text: 'Settings, Account now shows your name and tag (like Name#1234) with a Copy button, so you can share it with friends.' },
+      {
+        category: 'Systems',
+        text: 'A Gilded minion now keeps the progress its copies had. A Billings at 9/10 Gold spent stays at 9/10 when it is Gilded.',
+        details: [
+          'The Gilded minion starts at the furthest progress of the copies that combined. It used to start again from 0.',
+          'This covers every counter under a minion: Gold spent, cards bought, cards played, minions sold, spells and Rubies cast, Shouts, Orbits, Refreshes and Spirits played.',
+          'Combining never pays the effect out. The next step pays it as normal.',
+        ],
+      },
+      {
+        category: 'Balance',
+        text: 'Beardsley now improves by +2/+1 for every Beast, up from +1/+1.',
+        details: [
+          'The grant now runs +2/+1, then +4/+2, then +6/+3.',
+          'Gilded Beardsley gives +4/+2 and improves by +4/+2.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Beardsley and Vicious now show their current buff during combat. The number grows as each Beast is summoned.',
+      },
+      {
+        category: 'Balance',
+        text: 'Avenge now counts one fight at a time. Leftover progress no longer carries into the next fight.',
+        details: [
+          'An Avenge (4) needs 4 of your minions to die in the same fight. 3 deaths in one fight and 1 in the next no longer trigger it.',
+          'This fixes the hero Avenges the Ancient of Death adds, which were keeping one count across the Shop and every fight.',
+          'Those Avenges still count minions that die in the Shop. That count ends when the fight starts, and each fight starts from 0.',
+          'Effects worded "When X friendly minions die" are not Avenges. They still keep their count between turns.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Gambler with the Ancient of Death: the Dice lock now drops during the fight, the moment its Avenge triggers.',
+        details: [
+          'The lock number on the hero power, the locked line under the hero name and the power text all update as the Avenge fires.',
+          'The number you see when the fight ends is the number you keep.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Spectators can no longer press the End Turn gem, Freeze, Refresh or Tier up on the game they are watching.',
+        details: [
+          'Before, a spectator could press the gem after a fight and their own screen left the fight early, even after the player was knocked out.',
+          'The same holds while watching a replay or your Duos teammate.',
+          'When the player you are watching is knocked out, their last fight stays up, then the game closes with their place as before.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'The end of a fight and the trip back to the Shop are smoother.',
+        details: [
+          'The game no longer freezes for a moment as a fight ends. It was reloading the pictures for the trip back to the Shop every round.',
+          'The dive through the Shop door no longer stutters as it starts.',
+          'Nothing looks different. This is speed only, on desktop.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'The Rise, Flurry, Execute and Rebirth effects on minions are much lighter to draw, so boards full of them no longer slow the game down.',
+        details: [
+          'Each effect is now one picture made from the original effect, instead of dozens of moving pieces per minion.',
+          'They should look the same as before. Tell us if one looks different.',
+          'Phones still use the original effects for now.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'The crystal fuse at the end of a turn costs far less to draw, and buying, selling and rolling no longer redraw the player rail. Nothing looks different.',
+      },
+      {
+        category: 'Systems',
+        text: 'Glowing effects cost far less to draw, most of all when a whole board is buffed at once.',
+        details: [
+          'A buff that flies to every minion on your board no longer slows the Shop while its trails are in flight.',
+          'Strike bursts, the 5,000 stat rings and other glowing sparks are lighter in long fights.',
+          'These effects look the same as before.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Fights run smoother, most of all late in the game with big boards and big numbers.',
+        details: [
+          'A minion dying or a spell being cast mid-fight no longer redraws every card on the board.',
+          'A rolling stat number now redraws only its own badge, not the whole card.',
+          'Long fights no longer get heavier as they go on.',
+          'Nothing looks or plays differently.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Mech and Spirit have new tribe colors that match the gems on their card frames.',
+        details: [
+          'Mech is now indigo instead of sky blue.',
+          'Spirit is now copper orange instead of pale peach.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Playing very fast on a big engine board is smoother. Stat numbers land at once and effects keep pace with you instead of piling up.',
+        details: [
+          'This applies when you make three or more moves a second in the Shop: buying, playing, selling, casting, refreshing.',
+          'Stat numbers show their new value at once with one pop. They used to roll, and on a fast turn they fell seconds behind.',
+          'Buff effects from your earlier moves that have not started yet are skipped. Effects already playing finish.',
+          'A minion shows one copy of an effect at a time. Effects play a little faster and lighter the faster you go.',
+          'A card added to your hand appears at once, ready to grab.',
+          'At normal speed nothing changes. Your stats and results are the same either way.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'The shop stays smoother late in the game. Buying, selling, playing a card or refreshing no longer redraws every card on screen.',
+        details: [
+          'Each card in the shop and on your board is now drawn once and then only moved.',
+          'A stat change redraws that one card, not its neighbours.',
+          'Your hand is drawn on its own, apart from the rest of the screen.',
+          'Nothing looks different.',
+        ],
+      },
+      {
+        category: 'Balance',
+        text: 'Midas with the Ancient of War now reads: Start of Combat: give a friendly minion Ward for every Gilded minion you control.',
+        details: [
+          'It counts the Gilded minions on your own board. Enemy Gilded minions no longer matter.',
+          'Each Ward goes to a different random friendly minion that does not have Ward yet.',
+          'It used to give 2 random friendly minions Ward for each Gilded enemy minion.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Game results now show the hero power and the Ancient picked with it, for you and for every player in the lobby.',
+        details: [
+          'The hero power sits beside the runes under the final board. Hover it to read the power and what its Ancient adds.',
+          'Pick a player in the lobby to see their hero power and Ancient.',
+          'Lobby tiles show a small Ancient badge on the hero portrait.',
+          'Games from before Ancients show the plain hero power.',
+        ],
+      },
+      { category: 'Systems', text: 'When an Ancient awakens, you can now Peek at the board before you choose, like a Discover. Press Return to Ancients to bring the choice back.' },
+      { category: 'Systems', text: 'The Ancient choice now sits on the same dark backdrop as the Runeforge, so the Ancients stand out from the board.' },
+      {
+        category: 'Systems',
+        text: 'Reverb sounds, hovering a card and damage numbers all cost less. They look and sound the same.',
+        details: [
+          'Sounds with reverb now share a few reverb units, so a busy late turn no longer piles them up.',
+          'The soft glow around a hovered card is no longer redrawn on every frame.',
+          'The shadow under a damage number is no longer redrawn on every frame.',
         ],
       },
     ],

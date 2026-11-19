@@ -90,17 +90,16 @@ describe('Robin × DEATH: "Avenge (3): get a Buddy Buddy." (owner 2026-11-16)', 
     expect(s.ancients!.gildDeaths).toBe(0);
     expect(heroPowerText(s)).toContain('(**3** more to go)');
   });
-  it('combat: the carried count pays a Buddy Buddy MID-FIGHT (a live toHand); settle carries the remainder', () => {
-    let s = picked('death', { board: ['a', 'b'].map((u, i) => card(u, NEUTRALS[i]!, { attack: 1, health: 1 })) });
+  it('combat: the 3rd death in the fight pays a Buddy Buddy MID-FIGHT (a live toHand); nothing carries out (per combat, R-AVENGE-PER-COMBAT-01: the Shop count never comes in)', () => {
+    let s = picked('death', { board: ['a', 'b', 'c'].map((u, i) => card(u, NEUTRALS[i % 2]!, { attack: 1, health: 1 })) });
     s = { ...s, ancients: { ...s.ancients!, gildDeaths: 2 } };
     expect(ancientCombatMods(s).ancientGorrAvenge).toEqual({ every: 3, tick: 2, ids: ['buddy'], label: 'Ancient of Death' });
     expect(ancientAvengeCountdown(s)).toBe(1);
     s = fightNow(s, 100, 1000);
     expect(events(s).filter((e) => e.type === 'toHand' && e.cardId === 'buddy').length).toBe(1);
-    const deaths = s.lastCombat!.playerDeaths ?? 0;
     s = reduce(s, { type: 'resolveCombat' });
     expect(s.hand.map((c) => c.cardId)).toContain('buddy');
-    expect(s.ancients!.gildDeaths).toBe((2 + deaths) % 3);
+    expect(s.ancients!.gildDeaths ?? 0).toBe(0);
   });
   it('summons no longer gain per sale', () => {
     let s = picked('death', { hand: [card('p', N1), ...handOf(2, 'x').map((c, i) => ({ ...c, cardId: NEUTRALS[i + 1]! }))] });

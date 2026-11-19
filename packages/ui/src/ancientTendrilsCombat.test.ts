@@ -52,7 +52,7 @@ const CASES: Case[] = [
   { pairing: 'vale.bonds', run: () => fight(P('vale', 'bonds', { tier: 3, spellsCast: 3, board: [body('m1', 'beatboxer', { attack: 1, health: 5000 }), body('dw', 'dw_brakka', { attack: 1, health: 5000 }), body('n', 'sandbag', { attack: 1, health: 5000 })] }), 0, 400, 1, ['United Front']) },
   { pairing: 'vale.war', run: () => fight(P('vale', 'war', { tier: 3, spellsCast: 3, board: [body('m1', 'beatboxer', { attack: 1, health: 5000 }), body('dw', 'dw_brakka', { attack: 1, health: 5000 })] }), 0, 400, 1, ['United Front']) },
   { pairing: 'vale.death', run: () => fight(P('vale', 'death', { tier: 3, spellsCast: 3, board: [...['a', 'b', 'c', 'd'].map((u) => body(u, 'sandbag', { attack: 1, health: 1 })), body('m1', 'beatboxer', { attack: 1, health: 5000 })] }), 100, 100000, 1, ['United Front']) },
-  { pairing: 'brackus.death', run: () => fight(anc(P('brackus', 'death', { wave: 3, discover: undefined, discoverQueue: undefined, discoverLockGold: undefined, board: [body('a', 'drummer', { attack: 1, health: 500 }), body('z', 'zyff', { health: 500 }), pup('f', 1, 1), pup('g', 1, 1)] } as Partial<RunState>), { brackusDeaths: 2 }), 2, 60) },
+  { pairing: 'brackus.death', run: () => fight(anc(P('brackus', 'death', { wave: 3, discover: undefined, discoverQueue: undefined, discoverLockGold: undefined, board: [body('a', 'drummer', { attack: 1, health: 500 }), body('z', 'zyff', { health: 500 }), pup('f', 1, 1), pup('g', 1, 1), pup('h', 1, 1)] } as Partial<RunState>), { brackusDeaths: 2 }), 2, 600) }, // three deaths IN the fight (R-AVENGE-PER-COMBAT-01),
   { pairing: 'xerox.bonds', run: () => fight(power(P('xerox', 'bonds', { board: [body('a', T1, { attack: 2, health: 90 }), body('t', 'taragosa', { health: 900 })] }), 'a')) },
   { pairing: 'cindy.war', run: () => fight(P('cindy', 'war', { board: [body('a', 'gnash', { health: 50 }), pup('b', 1, 50)] })) },
 ];
@@ -79,7 +79,7 @@ describe('Ancient combat KEYWORD grants and minion-sourced pairings (reported, n
     { pairing: 'risen.death', run: () => inspect(power(P('risen', 'death', { board: [pup('a', 2, 2)] }), 'a'), 50, 400), keywords: ['R<-unit'], buffs: [] },
     { pairing: 'risen.war', run: () => inspect(power(P('risen', 'war', { board: [pup('a', 2, 2), pup('b', 0, 500)] }), 'a'), 50, 400, 3), keywords: [], buffs: [] },
     { pairing: 'gorun.genesis', run: () => inspect(P('gorun', 'genesis', { board: [pup('a', 1, 900), pup('b', 1, 900), pup('c', 1, 900)] })), keywords: ['W<-none', 'Ward<-none'], buffs: ['Blade Mastery'] },
-    { pairing: 'midas.war', run: () => inspect(P('midas', 'war', { board: ['a', 'b', 'c', 'd', 'e'].map((u) => pup(u, 1, 50)) }), 0, 400, 2, { golden: true }), keywords: ['Ward<-none'], buffs: [] },
+    { pairing: 'midas.war', run: () => inspect(P('midas', 'war', { board: ['a', 'b', 'c', 'd', 'e'].map((u, i) => ({ ...pup(u, 1, 50), golden: i < 2 })) }), 0, 400, 2), keywords: ['Ward<-none'], buffs: [] }, // owner 2026-11-18: it counts Midas's OWN Gilded board minions (two here)
     { pairing: 'nadja.war', run: () => inspect(P('nadja', 'war', { board: [pup('a', 2, 50), pup('b', 1, 50)], goldSpentThisTurn: 3 } as Partial<RunState>)), keywords: ['RL<-unit'], buffs: ['unit'] },
   ])('$pairing', ({ run, keywords, buffs }) => {
     const r = run();

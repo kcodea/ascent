@@ -1,0 +1,100 @@
+/* THE PORTRAIT WINDOW (AvatarPicker.tsx): a party home dialog. The root is `.phk-dialog.ph-tokens` (the veil and the
+   tokens come from the kit); everything here is the box. Static paint: the only motion is one-shot transforms.
+   Only `.avp-scroll` scrolls; the header, tabs, caption and the preview column always stay in view. */
+.avp-box { position: relative; display: flex; flex-direction: column; gap: calc(16 * var(--phu)); box-sizing: border-box;
+  width: min(calc(1080 * var(--phu)), calc(var(--lvw, 100vw) * 0.94)); height: min(calc(720 * var(--phu)), calc(var(--ph-h, var(--lvh, 100vh)) - 32 * var(--phu)));
+  padding: calc(28 * var(--phu)) calc(32 * var(--phu)) calc(24 * var(--phu)); border-radius: var(--ph-r-l); background: var(--ph-plate);
+  box-shadow: var(--ph-gild), inset 0 0 0 calc(4 * var(--phu)) rgba(0, 0, 0, 0.25), 0 calc(24 * var(--phu)) calc(64 * var(--phu)) rgba(0, 0, 0, 0.6);
+  animation: phk-pop 0.22s cubic-bezier(0.2, 0.9, 0.3, 1.15) both; }
+@media (prefers-reduced-motion: reduce) { .avp-box { animation: none; } }
+
+.avp-head { display: flex; align-items: flex-start; justify-content: space-between; gap: calc(16 * var(--phu)); flex: none; }
+.avp-titles { display: flex; flex-direction: column; gap: calc(4 * var(--phu)); min-width: 0; }
+.avp-title { margin: 0; font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t4); line-height: 1.1; letter-spacing: 0.02em; color: var(--ph-ink); text-shadow: var(--ph-shadow); }
+.avp-close.phk-btn { width: calc(40 * var(--phu)); height: calc(40 * var(--phu)); padding: 0; font-size: var(--ph-t3); letter-spacing: 0; background: var(--ph-well); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); }
+
+.avp-bar { display: flex; align-items: center; justify-content: space-between; gap: calc(16 * var(--phu)); flex: none; min-width: 0; }
+.avp-bar .phk-tabs { min-width: 0; }
+.avp-n { margin-left: calc(8 * var(--phu)); font-weight: 700; letter-spacing: 0; color: var(--ph-muted); font-variant-numeric: tabular-nums; }
+.avp-capdef { font-weight: 600; color: var(--ph-muted); }
+.avp-capname:not(:empty) + .avp-capdef { display: none; }
+.avp-bar .phk-tabs { flex: 1 1 auto; }
+.avp-search, .avp-filter.phk-select { flex: none; width: 100%; box-sizing: border-box; }
+.avp-filter.phk-select { justify-content: space-between; }
+
+.avp-body { display: flex; gap: calc(20 * var(--phu)); flex: 1 1 auto; min-height: 0; }
+.avp-left { display: flex; flex-direction: column; gap: calc(12 * var(--phu)); flex: 1 1 auto; min-width: 0; min-height: 0; }
+.avp-main { display: flex; flex-direction: column; flex: 1 1 auto; min-width: 0; min-height: 0; border-radius: var(--ph-r-s); background: var(--ph-well); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); }
+.avp-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; padding: calc(16 * var(--phu)); }
+/* THE SCROLL BAR (owner 2026-11-19: "add a scroll bar here"): the shell's styled gold bar, declared here too so the window
+   has it off the shell. Styled (never the OS bar), so the game cursor holds over it; the gutter is reserved, so the grid
+   does not shift between a long tab and a short one. */
+.avp-scroll { scrollbar-gutter: stable; }
+.avp-scroll::-webkit-scrollbar { width: calc(12 * var(--phu)); }
+.avp-scroll::-webkit-scrollbar-thumb { border: calc(3 * var(--phu)) solid transparent; border-radius: 999px; background: var(--ph-gold) padding-box; }
+.avp-scroll::-webkit-scrollbar-thumb:hover { background: var(--ph-gold-hi) padding-box; }
+.avp-scroll::-webkit-scrollbar-track { background: transparent; margin: calc(8 * var(--phu)); }
+.avp-scroll::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
+.avp-group + .avp-group { margin-top: calc(20 * var(--phu)); }
+.avp-grouplbl { margin-bottom: calc(10 * var(--phu)); font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.2em; text-transform: uppercase; color: var(--ph-muted); }
+.avp-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: calc(20 * var(--phu)); padding: calc(4 * var(--phu)); }
+.avp-caption { flex: none; height: calc(32 * var(--phu)); padding: 0 calc(16 * var(--phu)); display: flex; align-items: center; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  border-top: calc(1 * var(--phu)) solid var(--ph-hair); font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t2); color: var(--ph-ink); text-shadow: var(--ph-shadow); }
+
+/* A TILE: a round portrait. The art sits in its own clipped disc; the gold edge is an overlay on top of it, so the art
+   never paints over the ring. Selected = the bright thick ring and a small lift. */
+.avp-tile { position: relative; width: 100%; aspect-ratio: 1; margin: 0; padding: 0; border: 0; border-radius: 50%; background: none; transition: transform 0.12s cubic-bezier(0, 0, 0.2, 1); }
+.avp-art { position: absolute; inset: 0; border-radius: 50%; overflow: hidden; background: rgba(0, 0, 0, 0.35); }
+.avp-art img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: 50% 20%; }
+/* THE EDGE. `--edge` is the ring's colour: the shell gold, or a skin's RARITY colour (the shared `.r-*` tokens in
+   styles.css; owner 2026-11-19: "instead of the symbols, can you have the edges the color of the rarity"). Selecting adds
+   an OUTER bright ring and a glow, so the rarity colour stays readable on the selected tile. */
+.avp-tile { --edge: color-mix(in srgb, var(--ph-gold) 70%, transparent); --edge-w: calc(3 * var(--phu)); }
+.avp-tile[class*=' r-'] { --edge: var(--rc); --edge-w: calc(4 * var(--phu)); }
+.avp-tile::after { content: ''; position: absolute; inset: 0; border-radius: 50%; pointer-events: none;
+  box-shadow: inset 0 0 0 var(--edge-w) var(--edge), inset 0 0 0 calc(var(--edge-w) + 1 * var(--phu)) rgba(0, 0, 0, 0.35); }
+.avp-tile:hover { transform: scale(1.07); }
+.avp-tile:not([class*=' r-']):hover { --edge: var(--ph-gold-hi); }
+.avp-tile.on { transform: scale(1.07); }
+.avp-tile.on::after { box-shadow: inset 0 0 0 var(--edge-w) var(--edge), inset 0 0 0 calc(var(--edge-w) + 1 * var(--phu)) rgba(0, 0, 0, 0.35),
+  0 0 0 calc(3 * var(--phu)) var(--ph-gold-hi), 0 0 calc(14 * var(--phu)) calc(2 * var(--phu)) color-mix(in srgb, var(--ph-gold) 80%, transparent); }
+.avp-tile:active { transform: scale(0.97); }
+/* ANCIENT and SECRET: the edge is the rarity's own gradient. A box-shadow cannot be one, so the overlay is a gradient
+   disc masked down to the ring. */
+.avp-tile:is(.r-ancient, .r-secret)::after { box-shadow: none; background: var(--rc-grad);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4.5 * var(--phu)), #000 calc(100% - 4.5 * var(--phu) + 0.5px)); mask: radial-gradient(farthest-side, transparent calc(100% - 4.5 * var(--phu)), #000 calc(100% - 4.5 * var(--phu) + 0.5px)); }
+.avp-tile.r-ancient::after { background: conic-gradient(from 210deg, var(--rc), var(--rc2), var(--rc)); }
+/* Selected: the outer bright ring cannot ride a masked overlay, so it sits on the art's disc. */
+.avp-tile:is(.r-ancient, .r-secret).on .avp-art { box-shadow: 0 0 0 calc(3 * var(--phu)) var(--ph-gold-hi), 0 0 calc(14 * var(--phu)) calc(2 * var(--phu)) color-mix(in srgb, var(--ph-gold) 80%, transparent); }
+/* ANCIENT ONLY: a halo behind the tile whose colours slowly orbit. The gradient and the blur are static paint; the
+   loop is a rotation only (transform, compositor), per the no-looping-paint rule. */
+.avp-tile:is(.r-ancient, .r-legendary)::before { content: ''; position: absolute; inset: calc(-6 * var(--phu)); z-index: -1; border-radius: 50%; pointer-events: none; filter: blur(calc(8 * var(--phu))); }
+.avp-tile.r-legendary { isolation: isolate; }
+/* LEGENDARY: a subtle gold glow, still (owner 2026-11-19). */
+.avp-tile.r-legendary::before { background: var(--rc); opacity: 0.4; }
+/* Ancient's halo at 0.72: the owner asked for 20% off the first pass's 0.9. */
+.avp-tile.r-ancient::before {
+  background: conic-gradient(var(--rc), var(--rc2), var(--rc), var(--rc2), var(--rc)); opacity: 0.72;
+  animation: avp-orbit 7s linear infinite; }
+.avp-tile.r-ancient { isolation: isolate; }
+@keyframes avp-orbit { to { transform: rotate(1turn); } }
+@media (prefers-reduced-motion: reduce) { .avp-tile.r-ancient::before { animation: none; } }
+/* The portrait you wear now. */
+.avp-used { position: absolute; left: 50%; bottom: calc(-6 * var(--phu)); z-index: 1; translate: -50% 0; padding: calc(5 * var(--phu)) calc(14 * var(--phu)); border-radius: 999px; white-space: nowrap; pointer-events: none;
+  background: var(--ph-metal-gold); color: var(--ph-navy); font-family: var(--ph-font); font-weight: 900; font-size: calc(14 * var(--phu)); letter-spacing: 0.08em; text-transform: uppercase; box-shadow: 0 calc(2 * var(--phu)) calc(6 * var(--phu)) rgba(0, 0, 0, 0.5); }
+
+/* THE SIDE COLUMN: search, the filter under it, then the selection (its name, your banner wearing it) and the actions. */
+.avp-side { display: flex; flex-direction: column; align-items: center; gap: calc(8 * var(--phu)); flex: none; width: calc(280 * var(--phu)); min-height: 0; text-align: center; }
+.avp-picked { display: flex; flex-direction: column; align-items: center; gap: calc(4 * var(--phu)); max-width: 100%; margin-top: calc(12 * var(--phu)); }
+.avp-name { max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-family: var(--ph-font); font-weight: 900; font-size: calc(22 * var(--phu)); line-height: 1.15; color: var(--ph-ink); text-shadow: var(--ph-shadow); }
+.avp-rarname { font-weight: 800; color: var(--rc); }
+.avp-sub { display: flex; align-items: center; justify-content: center; gap: calc(8 * var(--phu)); min-height: calc(20 * var(--phu)); font-size: var(--ph-t2); color: var(--ph-muted); }
+.avp-banner { display: flex; flex-direction: column; align-items: center; gap: calc(8 * var(--phu)); flex: 1 1 auto; min-height: 0; justify-content: center; pointer-events: none; }
+.avp-actions { display: flex; flex-direction: column; align-items: center; gap: calc(4 * var(--phu)); flex: none; width: 100%; }
+.avp-use.phk-btn { width: 100%; padding: 0 calc(16 * var(--phu)); }
+.avp-use.phk-btn:disabled, .avp-reset.phk-btn:disabled { opacity: 0.45; }
+
+/* A short or phone-sized window: drop the banner preview, narrow the preview column. */
+html[data-ph-compact] .avp-banner { display: none; }
+html[data-ph-compact] .avp-side { width: calc(220 * var(--phu)); justify-content: center; }
+html[data-ph-compact] .avp-box { padding: calc(16 * var(--phu)) calc(20 * var(--phu)); gap: calc(10 * var(--phu)); height: calc(var(--ph-h, var(--lvh, 100vh)) - 16 * var(--phu)); }

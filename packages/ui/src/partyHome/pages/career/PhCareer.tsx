@@ -50,6 +50,7 @@ export interface PhCareerProps {
   back: { label: string; onClick: () => void } | null;
   /** The equipped title, already rendered. Not shown on this page (owner 2026-11-06: "remove the tag from the top right"). */
   title: ReactNode;
+  /** The Add friend control for another player's page (`PhAddFriend`), null on your own. */
   addFriend: ReactNode;
   /** A whole-page state instead of the career (no backend, signed out, loading, offline). */
   pageState: PhState | null;
@@ -148,14 +149,14 @@ export function PhCareer(p: PhCareerProps) {
     { id: 'practice', label: 'Practice' },
     ...(p.achievementsOn ? [{ id: 'achievements' as const, label: 'Achievements' }] : []),
   ];
-  // Another player's career shows no "Last 50 runs" note and no Friends control (owner 2026-11-06: "remove the friends and last 50
-  // runs text"); it closes with the Settings X instead (phCareer.css).
+  // Another player's career shows no "Last 50 runs" note (owner 2026-11-06); it closes with the Settings X instead (phCareer.css).
+  // Its header carries the one-press Add friend button, left of that X (owner 2026-11-18, R-CAREER-ADD-FRIEND-01).
   const viewingOther = !p.own;
   const scope = !viewingOther && !p.pageState && (p.tab === 'history' || p.tab === 'practice') ? p.tabSub : '';
   const actions = (
     <>
       {scope && <span className="phc-scope">{scope}</span>}
-      {!viewingOther && p.addFriend}
+      {viewingOther && !p.pageState && p.addFriend}
       {p.onCreateAccount && (
         <span className="gtip" data-tip="Playing as a guest. Create an account to save your progress.">
           <PhButton size="s" onClick={p.onCreateAccount}>Create account</PhButton>

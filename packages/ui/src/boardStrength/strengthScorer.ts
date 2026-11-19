@@ -23,11 +23,24 @@
  * `settled(seed, maxWaitMs)` is what the run-end block waits on before it uploads: it resolves at once when the
  * work is done, and never later than `maxWaitMs`, after which the upload goes out with what is ready (a run missing
  * a score is simply unscored). The reference set is loaded lazily on first use (its own chunk).
+ *
+ * OFF THE MAIN THREAD (perf pass 2026-11-18, R-PERF-SIM-WORKER-01). Strength v2 made a board 160 fights, and by
+ * rounds 10-15 that is 250-340 ms a round with single 4-fight steps of 7-21 ms, all during the combat replay. With
+ * `deps.remote` (the sim worker) every job is handed to the worker the moment it is queued and this file only keeps
+ * the books: which jobs are out, their progress, their scores. The worker runs the same `createStrengthProbe` with
+ * the same seeds, so a score is the same number either way. Everything above describes the FALLBACK, which runs
+ * only when there is no worker, or once it has failed (then every job still out is run here instead). The fallback
+ * has two changes of its own: a step is sized by its measured cost (`createOddsStepper`, about 2 ms, never more
+ * than `STRENGTH_SLICE_FIGHTS` fights), and a slice the browser had to force while a fight is playing
+ * (`deps.hold`) runs nothing.
  */
 import { createStrengthProbe, type BoardSnapshot, type StrengthProbe, type StrengthReference, type StrengthScore } from '@game/sim';
+import { createOddsStepper, type OddsStepper } from '../oddsStepper';
 
-/** Fights per uninterruptible step. */
+/** The most fights one uninterruptible step runs (it runs fewer when a fight is slow: about `STRENGTH_STEP_TARGET_MS`). */
 export const STRENGTH_SLICE_FIGHTS = 4;
+/** What one main-thread step aims to cost (ms). */
+export const STRENGTH_STEP_TARGET_MS = 2;
 /** Keep stepping only while the idle deadline has more than this left (ms). */
 export const STRENGTH_YIELD_MS = 4;
 /** rIC timeout per slice: a saturated main thread still drains one step this often. */
@@ -52,10 +65,24 @@ export interface StrengthScorerDeps {
   now?(): number;
   /** Wrap a slice for the perf monitor (optional). */
   measure?<T>(label: string, fn: () => T): T;
+  /** Score a board somewhere else (the sim worker). Null = it cannot take the job; a rejected promise = it failed.
+   *  Either way the scorer stops using it and runs everything still out on the main thread. */
+  remote?: StrengthRemote;
+  /** Is a fight playing right now? While it is, a slice the browser had to force (no idle time) runs nothing. */
+  hold?(): boolean;
 }
 
-/** `atRound` set = a CARRIED job: the final board scored against that later round. */
-interface Job { seed: number; wave: number; atRound?: number; board: BoardSnapshot; probe: StrengthProbe | null }
+export interface StrengthRemoteJob { promise: Promise<{ score: StrengthScore | null; total: number }>; cancel(): void }
+export interface StrengthRemote {
+  score(board: BoardSnapshot, atRound: number | undefined, onProgress: (done: number, total: number) => void): StrengthRemoteJob | null;
+}
+
+/** `atRound` set = a CARRIED job: the final board scored against that later round. `remote` set = the job is out
+ *  with the worker (`rDone` / `rTotal` are the progress it last reported). */
+interface Job {
+  seed: number; wave: number; atRound?: number; board: BoardSnapshot; probe: StrengthProbe | null;
+  stepper?: OddsStepper; remote?: StrengthRemoteJob; rDone?: number; rTotal?: number;
+}
 
 export interface StrengthScorer {
   /** Queue a board of the run `seed` (one per wave; a wave already queued or scored is ignored). */
@@ -116,15 +143,9 @@ export function createStrengthScorer(deps: StrengthScorerDeps): StrengthScorer {
   const probeOf = (job: Job): StrengthProbe => (job.probe ??= createStrengthProbe(job.board, ref!, job.atRound));
   const rushing = (): boolean => !!deps.requestRush && queue.some((j) => rushed.has(j.seed));
 
-  /** Step the job a few fights. True when it finished (and was taken off the queue). */
-  const stepJob = (job: Job): boolean => {
-    const probe = probeOf(job);
-    const before = probe.progress();
-    const finished = probe.step(STRENGTH_SLICE_FIGHTS);
-    fights += probe.progress() - before;
-    if (!finished) return false;
+  /** Take a finished job off the queue and record what it scored (null = unscorable). */
+  const finishJob = (job: Job, score: StrengthScore | null, total: number): void => {
     queue.splice(queue.indexOf(job), 1);
-    const score = probe.result();
     if (score) {
       if (job.atRound === undefined) {
         const m = results.get(job.seed) ?? new Map<number, StrengthScore>();
@@ -136,8 +157,59 @@ export function createStrengthScorer(deps: StrengthScorerDeps): StrengthScorer {
         carriedBy.set(job.seed, m);
       }
     }
-    fightsDone.set(job.seed, (fightsDone.get(job.seed) ?? 0) + probe.total());
+    fightsDone.set(job.seed, (fightsDone.get(job.seed) ?? 0) + total);
     markDone(job.seed, keyOf(job.wave, job.atRound));
+  };
+
+  /** Step the job on THIS thread: as many fights as fit the step target. True when it finished. */
+  const stepJob = (job: Job): boolean => {
+    const probe = probeOf(job);
+    job.stepper ??= createOddsStepper(probe, now, STRENGTH_STEP_TARGET_MS, STRENGTH_SLICE_FIGHTS);
+    const before = probe.progress();
+    const finished = job.stepper.step();
+    fights += probe.progress() - before;
+    if (!finished) return false;
+    finishJob(job, probe.result(), probe.total());
+    return true;
+  };
+
+  // ── The worker path ──────────────────────────────────────────────────────────────────────────────────────
+  let remoteOff = !deps.remote;
+  /** The worker is gone (or refused a job): everything still out comes back to this thread. */
+  const leaveRemote = (): void => {
+    remoteOff = true;
+    for (const j of queue) {
+      const h = j.remote;
+      j.remote = undefined; j.rDone = undefined; j.rTotal = undefined;
+      h?.cancel();
+    }
+  };
+  /** Hand every job not yet out to the worker. False when the worker cannot be used (the caller goes local). */
+  const dispatchRemote = (): boolean => {
+    for (const job of [...queue]) {
+      if (job.remote) continue;
+      const h = deps.remote!.score(job.board, job.atRound, (done, total) => {
+        if (job.remote !== h) return;
+        fights += Math.max(0, done - (job.rDone ?? 0));
+        job.rDone = done; job.rTotal = total;
+      });
+      if (!h) { leaveRemote(); return false; }
+      job.remote = h;
+      h.promise.then(
+        ({ score, total }) => {
+          if (job.remote !== h) return; // forgotten, or taken back
+          fights += Math.max(0, total - (job.rDone ?? 0));
+          job.remote = undefined;
+          finishJob(job, score, total);
+          wake();
+        },
+        () => {
+          if (job.remote !== h) return;
+          leaveRemote();
+          schedule();
+        },
+      );
+    }
     return true;
   };
 
@@ -156,6 +228,10 @@ export function createStrengthScorer(deps: StrengthScorerDeps): StrengthScorer {
   const slice = (deadline?: IdleDeadlineLike): void => {
     scheduled = false;
     if (!ready()) return;
+    // NEVER FORCED INTO A FIGHT: with no idle time to spend (the browser forced this callback, or there is no idle
+    // callback here at all) and a fight playing, do nothing and ask again. The score is not needed until the run
+    // ends, and `rush` covers that.
+    if ((!deadline || deadline.didTimeout) && deps.hold?.()) { schedule(); return; }
     const run = (): void => {
       let budget = true;
       while (queue.length > 0 && budget) {
@@ -190,6 +266,7 @@ export function createStrengthScorer(deps: StrengthScorerDeps): StrengthScorer {
   };
 
   function schedule(): void {
+    if (!remoteOff && dispatchRemote()) return; // every job is out with the worker: nothing to run here
     if (scheduled || queue.length === 0 || refLoading) return;
     scheduled = true;
     scheduledRush = rushing();
@@ -232,6 +309,7 @@ export function createStrengthScorer(deps: StrengthScorerDeps): StrengthScorer {
       let total = doneFights;
       for (const j of queue) {
         if (j.seed !== seed) continue;
+        if (j.remote) { doneFights += j.rDone ?? 0; total += j.rTotal ?? ASSUMED_JOB_FIGHTS; continue; }
         const probe = ref ? probeOf(j) : null;
         doneFights += probe ? probe.progress() : 0;
         total += probe ? probe.total() : ASSUMED_JOB_FIGHTS;
@@ -253,7 +331,14 @@ export function createStrengthScorer(deps: StrengthScorerDeps): StrengthScorer {
       });
     },
     forget(seed) {
-      for (let i = queue.length - 1; i >= 0; i--) if (queue[i]!.seed === seed) queue.splice(i, 1);
+      for (let i = queue.length - 1; i >= 0; i--) {
+        const j = queue[i]!;
+        if (j.seed !== seed) continue;
+        const h = j.remote;
+        j.remote = undefined; // a late reply for it is ignored
+        h?.cancel();
+        queue.splice(i, 1);
+      }
       results.delete(seed);
       carriedBy.delete(seed);
       done.delete(seed);

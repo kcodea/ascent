@@ -594,6 +594,18 @@ export const RETIRED_RULES: RetiredRule[] = [
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsDarah.test.ts"], lastVerifiedAt: '2026-11-16' },
   },
   {
+    id: 'R-ANCDARAH-02',
+    why: "Superseded by R-ANCDARAH-07 (owner 2026-11-19, \"costs 2g instead of 0g\"): Darah × Ancient of Fortune: the minion Swap sends to the Shop bought back for 0 Gold; it now costs 2 Gold.",
+    retiredAt: '2026-11-19',
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsDarah.test.ts"], lastVerifiedAt: '2026-11-19' },
+  },
+  {
+    id: 'R-ANCPASS1-11',
+    why: "Superseded by R-ANCDARAH-08 (owner 2026-11-19): Darah × Ancient of Time cast Lasso at End of Turn only; it now also casts it at Start of Turn.",
+    retiredAt: '2026-11-19',
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsDarah.test.ts"], lastVerifiedAt: '2026-11-19' },
+  },
+  {
     id: 'R-ANCDISCO-03',
     why: "Superseded by R-ANCPASS1-12 (ancient pairing review, owner 2026-11-16): Disco Dan × Ancient of War: your Setlist cards gain +20/+20. Owner: Mike voted Change, Kevin voted Neutral. Owner picked: \"Change: Setlist cards gain +20/+20\"",
     retiredAt: '2026-11-16',

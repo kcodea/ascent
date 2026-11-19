@@ -3,6 +3,7 @@ import { sfx } from '../sfx';
 import { canPlayDefs, playDef } from '../fx/playDef';
 import { spellCastShopTarget, spellCastSoundAllowed } from '../fx/spellCastFx';
 import { bindingFor, type FxBinding } from './bindings';
+import { triggerFxFor } from './stockTriggerFx';
 import { RUBY_BEAT_MS, RUBY_GAP_MS, RIPPLE_GEM_SPACING_MS, darkRubyGemSpacingMs, spaceLands } from './channels/rubyLanded';
 import { getConsumeFxConfig } from '../consumeFxConfig';
 import type { RecruitMoment } from './recruitMoments';
@@ -70,7 +71,9 @@ export function runRecruitMomentCues(moment: RecruitMoment, ctx: RecruitCueConte
   const first = moment.recipients[0];
   if (!first) return () => {};
   const bindingCard = moment.sourceCardId ?? ctx.cardIdOf(first.uid);
-  const resolved = bindingFor(bindingCard, moment.kind);
+  // A trigger with a stock effect (End of Turn) falls back to it when the card has none of its own
+  // (R-FX-TRIGGER-STOCK-01); for every other kind this is exactly `bindingFor`.
+  const resolved = triggerFxFor(bindingCard, moment.kind);
   if (!resolved) return () => {};
   // A crit wave plays the binding's `critDef` in place of its `def` — a red ring for Karwind's doubled buff
   // REPLACES the ordinary one (owner ruling 2026-08-11). Swap `def` only; `sfx` and everything else ride along,

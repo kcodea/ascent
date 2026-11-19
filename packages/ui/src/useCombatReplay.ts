@@ -48,7 +48,6 @@ import { runAttackExchangeCues, runRiseReturn } from './choreo/engine';
 import { killLiveLunges, setTransition } from './choreo/channels/lunge';
 import { burstDeathAuras, breakShieldAura, crackResilientWard, reformReborn, reformRebirth } from './choreo/channels/aura';
 import { type Float, type DeathFloat, KW_FLOAT } from './choreo/channels/float';
-import { combatBuffDelta, combatPreviewFold, type CombatBuffDelta, type CombatPreviewFold } from './runBuffs';
 import type { CombatQuestDelta } from './store'; // type-only (erased) — no runtime edge back to the store
 import { PULSE_PRESETS, pulsePreset } from './pulsePresets';
 import { ASCEND_PRESETS, ascendPreset } from './ascendPresets';
@@ -71,9 +70,14 @@ import { spellPowerNarrationAnchor } from './choreo/spellPowerAnchor';
 import { getDef } from './fx/fxDefs';
 import { WATCHER_PULSE_DEF_ID, watcherPixiReady } from './fx/watcherPulse';
 import { watcherPulseUids } from './choreo/channels/watcherPulse';
+import { triggerPulseScan } from './choreo/channels/triggerPulse';
+import { triggerFxFor } from './choreo/stockTriggerFx';
 import { combatBuffDeltas, combatDamageDeltas, driveRoll, driveRollSegment } from './fx/combatBuffRoll';
 import { HOLD_GRACE_MS, heldFor, holdStat, releaseStat, replaceHold } from './fx/statHold';
 import { fightBodies } from './fightRoster';
+import { useStableValue } from './combatRun';
+import { eventsOfType, makePrefixFold, type PrefixFoldSpec } from './choreo/prefixFold';
+import { COMBAT_BUFF_FOLD, COMBAT_PREVIEW_FOLD, type CombatBuffDelta, type CombatPreviewFold } from './runBuffs';
 
 /** Card display name from its id (for combat-log lines about generated cards). */
 const cardName = (id: string): string => CARD_INDEX[id]?.name ?? id;
@@ -310,10 +314,16 @@ export function countsFriendlyAttacks(cardId: string): boolean {
 
 /** Merge one buff into a per-source breakdown (find-and-sum by source, else push) — the combat counterpart
  *  of sim's recruit `bumpBuff`, used to fold `buff` events into a unit's inspect breakdown. */
-function recordBuff(buffs: MinionBuff[], source: string, attack: number, health: number): void {
-  const e = buffs.find((b) => b.source === source);
-  if (e) { e.attack += attack; e.health += health; e.count += 1; }
-  else buffs.push({ source, attack, health, count: 1 });
+/** COPY-ON-WRITE: returns a NEW list (and a new row for the one it changed). A frame already handed to React shares
+ *  the old list, so editing it in place would change a frame that is still on screen (see the frame fold's ONE RULE). */
+function recordBuff(buffs: MinionBuff[] | undefined, source: string, attack: number, health: number): MinionBuff[] {
+  const list = buffs ?? [];
+  const at = list.findIndex((b) => b.source === source);
+  if (at < 0) return [...list, { source, attack, health, count: 1 }];
+  const e = list[at]!;
+  const next = list.slice();
+  next[at] = { ...e, attack: e.attack + attack, health: e.health + health, count: e.count + 1 };
+  return next;
 }
 
 /**
@@ -336,7 +346,12 @@ export function grantsShownThrough(events: CombatEvent[], beats: Beat[], beatIdx
   const through = beatIdx === 0 ? 0 : (beats[beatIdx - 1]?.end ?? events.length);
   // YOUR hand only: since R-SYMMETRY-01 (2026-10-13) the foe's grants fly to ITS hand in the log too (side-tagged).
   // And in Duos YOUR board's only, not your teammate's (`own`, R-DUOS-HAND-OWN-01).
-  return events.slice(0, through).flatMap((e, i) => (e.type === 'toHand' && e.side === 'player' && inHandRange(i, own) ? [e.cardId] : []));
+  const out: string[] = [];
+  for (const { i, e } of eventsOfType(events, 'toHand')) { // the fight's `toHand` events only, in log order
+    if (i >= through) break;
+    if (e.side === 'player' && inHandRange(i, own)) out.push(e.cardId);
+  }
+  return out;
 }
 
 /**
@@ -348,8 +363,9 @@ export function grantsShownThrough(events: CombatEvent[], beats: Beat[], beatIdx
 export function handBuffsShownThrough(events: CombatEvent[], beats: Beat[], beatIdx: number, own: HandRange = WHOLE_LOG): Record<string, { attack: number; health: number }> {
   const through = beatIdx === 0 ? 0 : (beats[beatIdx - 1]?.end ?? events.length);
   const out: Record<string, { attack: number; health: number }> = {};
-  for (const [i, e] of events.slice(0, through).entries()) {
-    if (e.type !== 'handBuff' || e.side !== 'player' || !inHandRange(i, own)) continue;
+  for (const { i, e } of eventsOfType(events, 'handBuff')) {
+    if (i >= through) break;
+    if (e.side !== 'player' || !inHandRange(i, own)) continue;
     const cur = out[e.uid] ?? { attack: 0, health: 0 };
     out[e.uid] = { attack: cur.attack + e.attack, health: cur.health + e.health };
   }
@@ -376,8 +392,9 @@ export function handBuffUidsIn(beat: { start: number; end: number }, events: rea
 export function handSummonedShownThrough(events: CombatEvent[], beats: Beat[], beatIdx: number, withheld?: (boardUid: string) => boolean, side: Side = 'player'): ReadonlySet<string> {
   const through = beatIdx === 0 ? 0 : (beats[beatIdx - 1]?.end ?? events.length);
   const out = new Set<string>();
-  for (const e of events.slice(0, through)) {
-    if (e.type === 'summon' && e.side === side && e.fromHandUid && !withheld?.(e.minion.uid)) out.add(e.fromHandUid);
+  for (const { i, e } of eventsOfType(events, 'summon')) {
+    if (i >= through) break;
+    if (e.side === side && e.fromHandUid && !withheld?.(e.minion.uid)) out.add(e.fromHandUid);
   }
   return out;
 }
@@ -393,324 +410,354 @@ function foeHandMinions(): readonly HandCardLike[] {
 }
 
 /**
- * Fold the event log up to `upto` into the live board state. Deaths from *before*
- * the current beat (index < `beatStart`) are removed outright; a minion dying in
- * the current beat is kept one beat (rendered with its death pop, no grey) so the
- * killing blow reads, then it's gone next beat.
+ * THE FRAME FOLD (R-PERF-COMBAT-FOLD-01, perf 2026-11-18): the event log folded into the live board, as a state that
+ * can be CONTINUED. `computeFrame` used to rebuild every body from the starting snapshot and replay events
+ * `0..upto` on every beat: a fight cost O(events x beats), and every beat threw the whole board away and built it
+ * again. The fold now has three parts:
+ *
+ *   newFrameFold(initial)                 the starting boards and empty tallies
+ *   stepFrameFold(f, e, i, names)         ONE event applied to the state (everything the old loop body did)
+ *   frameOf(f, events, upto, beatStart)   the frame to draw: fresh copies of the bodies on screen, stamped with the
+ *                                         live tallies. Reads the state, never writes it.
+ *
+ * `computeFrame` is the three run from scratch (the reference, and what a backward seek falls back to).
+ * `makeFrameFolder()` keeps one fold alive and steps it forward from where it stopped.
+ *
+ * THE ONE RULE for anyone editing `stepFrameFold`: the state's bodies are handed out as SHALLOW copies, so a nested
+ * array or object on a body (`keywords`, `buffs`, `permaGain`, `impBank`) is REPLACED, never edited in place. An
+ * in-place `push` would also change the frame React is still holding from the previous beat, and the unit would not
+ * re-render. `frameFold.test.ts` holds both halves: the continued fold equals the from-scratch fold at every beat, and
+ * no frame already handed out ever changes.
  */
-export function computeFrame(
-  initial: { player: MinionSnapshot[]; enemy: MinionSnapshot[] },
-  events: CombatEvent[],
-  upto: number,
-  beatStart: number,
-  names: Map<string, string>,
-): { player: UnitFrame[]; enemy: UnitFrame[] } {
-  const player = initial.player.map(fromSnap);
-  const enemy = initial.enemy.map(fromSnap);
+interface FrameFold {
+  player: UnitFrame[];
+  enemy: UnitFrame[];
   // ASHEN HEIR banks a dying Imp's MAX Health, not the 0 it has left after the killing blow — so the replay
   // has to know each body's max. `UnitFrame` doesn't carry one, and adding it would widen a hot per-beat
   // structure for one card, so it is tracked here instead: seeded from the starting/summoned body and grown
   // by every Health buff, which is exactly how the sim's `maxHealth` moves.
-  const maxHp = new Map<string, number>();
-  for (const u of [...player, ...enemy]) maxHp.set(u.uid, u.health);
+  maxHp: Map<string, number>;
   // Per-uid Avenge floors, stamped on Rise AND on every mid-combat summon — a risen body's counter restarts at 0
   // and a summoned body counts from its own arrival (mirrors the sim's `avengeBaseline`; subtracted where
-  // `avengeSeen` is stamped at the bottom).
-  const avengeBase = new Map<string, number>();
-  const find = (uid: string) => player.find((u) => u.uid === uid) ?? enemy.find((u) => u.uid === uid);
-  const gone = new Set<string>();
+  // `avengeSeen` is stamped in `frameOf`).
+  avengeBase: Map<string, number>;
+  /** uid -> the index of its EARLIEST death since it last returned (absent = standing, or risen again). */
+  deathAt: Map<string, number>;
+  /** uids with a rise-flagged death since their last `reborn` (a body that may be on its way back). */
+  risePending: Set<string>;
   // Running tallies for the live Avenge / Bleed step counters: FRIENDLY deaths per side (a Rise death counts too,
   // owner 2026-07-27 — matches the sim's Avenge gate) and total GLOBAL attack swings (Bloodbinder's Bleed fires
   // every N, either side).
-  const deaths: Record<'player' | 'enemy', number> = { player: 0, enemy: 0 };
-  let attackCount = 0;
+  deaths: Record<'player' | 'enemy', number>;
+  attackCount: number;
   // Spells cast per side THIS combat (Vaultkeeper's live umbrella). Counted here rather than read off the event's
   // `count`, which the sim seeds with the player's run-lifetime total (and 0 for the enemy) — the run already
   // supplies that half, so the frame carries only the in-fight delta.
-  const spellCasts: Record<'player' | 'enemy', number> = { player: 0, enemy: 0 };
+  spellCasts: Record<'player' | 'enemy', number>;
   // Cinderchef: each side's live "Shop spells cast this turn" (the sim's own running total, last marker wins).
-  const shopTally: Record<'player' | 'enemy', number | undefined> = { player: undefined, enemy: undefined };
+  shopTally: Record<'player' | 'enemy', number | undefined>;
   // Set 3 Whispers: each side's live per-Whisper improvement (the `sc.whisperImprove` totals) and each caster's Whisper
   // cast count (Whaloo's cap), folded from the combat Whisper casts so far.
-  const whisperImp: Record<'player' | 'enemy', Record<string, number> | undefined> = { player: undefined, enemy: undefined };
-  const whisperCasts = new Map<string, number>();
-  const attacksBy = new Map<string, number>(); // Immune Iggy: each body's swings so far (its immune countdown)
-  const whisperTriggerSeen = new Set<string>();
+  whisperImp: Record<'player' | 'enemy', Record<string, number> | undefined>;
+  whisperCasts: Map<string, number>;
+  attacksBy: Map<string, number>; // Immune Iggy: each body's swings so far (its immune countdown)
+  whisperTriggerSeen: Set<string>;
   /** uid → how far below 0 its last hit took it (see the `dmg` branch). */
-  const overkill = new Map<string, number>();
-  for (let i = 0; i < Math.min(upto, events.length); i++) {
-    const e = events[i];
-    if (e.type === 'attack') {
-      attackCount++; attacksBy.set(e.attacker, (attacksBy.get(e.attacker) ?? 0) + 1);
-      // FRACK ATTACK's meter (owner report 2026-10-22: "frack attack's counter isnt working in combat"). The sim ticks
-      // `attackSeen` on every living Frack on the attacker's side per swing (`friendlyAttacksPlayRubiesSelf`, the onAttack
-      // bus fires once per `attack` event, Flurry swings included), but nothing crossed the event boundary, so the
-      // combat counter sat on the snapshot's value all fight. Mirror the same rule off the log: the N/3 under the card
-      // ticks on the swing's beat, and the Ruby repeat lands on its own `ownBeat` right after.
-      const arr = player.some((u) => u.uid === e.attacker) ? player : enemy.some((u) => u.uid === e.attacker) ? enemy : null;
-      if (arr) for (const u of arr) if (u.alive && u.health > 0 && countsFriendlyAttacks(u.cardId)) u.attackSeen = (u.attackSeen ?? 0) + 1;
+  overkill: Map<string, number>;
+}
+
+function newFrameFold(initial: { player: MinionSnapshot[]; enemy: MinionSnapshot[] }): FrameFold {
+  const player = initial.player.map(fromSnap);
+  const enemy = initial.enemy.map(fromSnap);
+  const maxHp = new Map<string, number>();
+  for (const u of [...player, ...enemy]) maxHp.set(u.uid, u.health);
+  return {
+    player, enemy, maxHp, avengeBase: new Map(), deathAt: new Map(), risePending: new Set(),
+    deaths: { player: 0, enemy: 0 }, attackCount: 0, spellCasts: { player: 0, enemy: 0 },
+    shopTally: { player: undefined, enemy: undefined }, whisperImp: { player: undefined, enemy: undefined },
+    whisperCasts: new Map(), attacksBy: new Map(), whisperTriggerSeen: new Set(), overkill: new Map(),
+  };
+}
+
+/** Apply event `i` of the log to the fold. See THE ONE RULE above: replace a body's nested values, never edit them. */
+function stepFrameFold(f: FrameFold, e: CombatEvent, i: number, names: Map<string, string>): void {
+  const { player, enemy, maxHp, avengeBase, deathAt, risePending, deaths, spellCasts, shopTally, whisperImp, whisperCasts, attacksBy, whisperTriggerSeen, overkill } = f;
+  const find = (uid: string) => player.find((u) => u.uid === uid) ?? enemy.find((u) => u.uid === uid);
+  // A RISING body (see `frameOf`): a rise-flagged death since its last return. Any `reborn` clears it.
+  if (e.type === 'death' && e.rise) risePending.add(e.target);
+  else if (e.type === 'reborn') risePending.delete(e.target);
+  if (e.type === 'attack') {
+    f.attackCount++; attacksBy.set(e.attacker, (attacksBy.get(e.attacker) ?? 0) + 1);
+    // FRACK ATTACK's meter (owner report 2026-10-22: "frack attack's counter isnt working in combat"). The sim ticks
+    // `attackSeen` on every living Frack on the attacker's side per swing (`friendlyAttacksPlayRubiesSelf`, the onAttack
+    // bus fires once per `attack` event, Flurry swings included), but nothing crossed the event boundary, so the
+    // combat counter sat on the snapshot's value all fight. Mirror the same rule off the log: the N/3 under the card
+    // ticks on the swing's beat, and the Ruby repeat lands on its own `ownBeat` right after.
+    const arr = player.some((u) => u.uid === e.attacker) ? player : enemy.some((u) => u.uid === e.attacker) ? enemy : null;
+    if (arr) for (const u of arr) if (u.alive && u.health > 0 && countsFriendlyAttacks(u.cardId)) u.attackSeen = (u.attackSeen ?? 0) + 1;
+  }
+  if (e.type === 'spellcast') spellCasts[e.side]++;
+  if (e.type === 'shopSpellTally') shopTally[e.side] = e.count;
+  if (e.type === 'sc' && e.spellId && e.target && CARD_INDEX[e.spellId]?.whisper) {
+    // One TRIGGER per (caster, step): a Queen Morro repeat is the same trigger cast again (same step), so Whaloo's
+    // "3 times per combat" counts its triggers, never the extra casts.
+    const key = `${e.source}@${(e as { step?: number }).step ?? i}`;
+    if (!whisperTriggerSeen.has(key)) { whisperTriggerSeen.add(key); whisperCasts.set(e.source, (whisperCasts.get(e.source) ?? 0) + 1); }
+    if (e.whisperImprove !== undefined && e.side) whisperImp[e.side] = { ...(whisperImp[e.side] ?? {}), [e.spellId]: e.whisperImprove };
+  }
+  if (e.type === 'dmg') {
+    const u = find(e.target);
+    if (u) {
+      // OVERKILL DEBT (R-DEMON-DMG-DEATH-01): `remainingHp` is floored at 0, but a body a pass takes BELOW 0 is not
+      // dead yet: the pass's Demon-damage reactions (Rad Rachel) buff it before its death check, and the sim adds
+      // that Health to the true (negative) value. Remember how far under 0 it went, so those buffs pay the debt
+      // first and the badge reads the engine's number (3 - 4 + 5 = 4, not 0 + 5).
+      const under = e.remainingHp <= 0 ? Math.max(0, e.amount - Math.max(0, u.health)) : 0;
+      if (under > 0) overkill.set(u.uid, under); else overkill.delete(u.uid);
+      u.health = e.remainingHp;
     }
-    if (e.type === 'spellcast') spellCasts[e.side]++;
-    if (e.type === 'shopSpellTally') shopTally[e.side] = e.count;
-    if (e.type === 'sc' && e.spellId && e.target && CARD_INDEX[e.spellId]?.whisper) {
-      // One TRIGGER per (caster, step): a Queen Morro repeat is the same trigger cast again (same step), so Whaloo's
-      // "3 times per combat" counts its triggers, never the extra casts.
-      const key = `${e.source}@${(e as { step?: number }).step ?? i}`;
-      if (!whisperTriggerSeen.has(key)) { whisperTriggerSeen.add(key); whisperCasts.set(e.source, (whisperCasts.get(e.source) ?? 0) + 1); }
-      if (e.whisperImprove !== undefined && e.side) whisperImp[e.side] = { ...(whisperImp[e.side] ?? {}), [e.spellId]: e.whisperImprove };
+    // The PUMMEL meters (Han Gover, Goldvein — core's `DAMAGE_METER_MARKERS`): a meter is the sum of every
+    // landed hit its body dealt — the `dmg` events stamped with it as `source`, the same amounts the sim's
+    // `noteDamageDealt` added — on top of the seeded value (the run card's lifetime tally, so the badge picks
+    // up where the shop left it and `damageMeterReading` prints `total mod X`). Keyed off the card's MARKER, not an id: the
+    // id gate (`dw3_hangover` only) is why Goldvein's badge never moved in combat (owner report 2026-09-19).
+    // This fold runs to the END of the beat being cued, so the badge ticks on the beat the damage lands —
+    // the same moment the damage number pops — including the blow that ends the fight (the `done` frame
+    // folds the whole log, so the last increment stays on the badge through the end-of-combat sequence).
+    if (e.source) {
+      const src = find(e.source);
+      if (src && damageMeterOf(CARD_INDEX[src.cardId])) src.damageDealt = (src.damageDealt ?? 0) + e.amount;
     }
-    if (e.type === 'dmg') {
-      const u = find(e.target);
-      if (u) {
-        // OVERKILL DEBT (R-DEMON-DMG-DEATH-01): `remainingHp` is floored at 0, but a body a pass takes BELOW 0 is not
-        // dead yet: the pass's Demon-damage reactions (Rad Rachel) buff it before its death check, and the sim adds
-        // that Health to the true (negative) value. Remember how far under 0 it went, so those buffs pay the debt
-        // first and the badge reads the engine's number (3 - 4 + 5 = 4, not 0 + 5).
-        const under = e.remainingHp <= 0 ? Math.max(0, e.amount - Math.max(0, u.health)) : 0;
-        if (under > 0) overkill.set(u.uid, under); else overkill.delete(u.uid);
-        u.health = e.remainingHp;
+  } else if (e.type === 'sc' && e.setHealth !== undefined) {
+    // A cast that SETS a body's Health (Weaken -> 1): absolute, like a `dmg`'s `remainingHp`. Without this fold
+    // the card kept its full Health on screen until the next hit (owner report 2026-10-13).
+    const u = find(e.source);
+    if (u) { u.health = e.setHealth; maxHp.set(u.uid, e.setHealth); }
+  } else if (e.type === 'shield') {
+    const u = find(e.target);
+    if (u) { u.divineShield = false; u.keywords = u.keywords.filter((k) => k !== 'DS' && k !== 'RW'); }
+  } else if (e.type === 'wardDowngrade') {
+    // A Resilient Ward took its first hit: it drops to a plain Ward (the card's orange layer cracks away).
+    const u = find(e.target);
+    if (u) u.keywords = u.keywords.filter((k) => k !== 'RW');
+  } else if (e.type === 'shieldUp') {
+    const u = find(e.target);
+    if (u) { u.divineShield = true; if (!u.keywords.includes('DS')) u.keywords = [...u.keywords, 'DS']; }
+  } else if (e.type === 'poison') {
+    const u = find(e.target);
+    if (u) u.health = 0;
+  } else if (e.type === 'reborn') {
+    // Returns at base stats: overwrite attack/health/keywords/shield (not a delta) so the buffed
+    // body sheds its combat buffs + granted keywords and the blue Reborn aura drops (no more 'R').
+    const u = find(e.target);
+    if (u) {
+      u.health = e.hp;
+      u.attack = e.attack;
+      // The returned body is a fresh one: the overkill debt of the blow that killed it is spent (the sim set its
+      // Health outright), and its max-Health track restarts. A stale debt swallowed the first Health buffs the
+      // risen body took, so they never showed (owner report 2026-10-14, R-REALTIME-STATS-01).
+      overkill.delete(u.uid);
+      maxHp.set(u.uid, e.hp);
+      u.keywords = [...e.keywords];
+      u.riseTint = undefined; // the tinted Rise is spent by this return (a regained one re-tints on its `keyword` beat)
+      u.divineShield = e.keywords.includes('DS');
+      // A risen body's Avenge restarts (owner ruling 2026-08-08) — the sim stamps its baseline AFTER its
+      // own rise-death was tallied, and the reborn event lands after that death here too, so the current
+      // side tally IS the baseline. The counter below subtracts it, mirroring `avengeCountFor`.
+      avengeBase.set(u.uid, player.includes(u) ? deaths.player : deaths.enemy);
+      u.baseAttack = e.attack; // a returned minion is "fresh" — its stats become the new baseline
+      u.baseHealth = e.hp;
+      u.buffs = undefined; // back at base stats — the old buff breakdown no longer applies
+      // A returned body (Rise AND Rebirth) starts its per-combat caps fresh (owner 2026-10-21, R-RETURN-RESET-01): the
+      // live "N left this combat" counters (Whaloo's casts, Immune Iggy / Bounty Bot's immune swings) restart.
+      whisperCasts.delete(u.uid);
+      attacksBy.delete(u.uid);
+      // Frack Attack's 3-attack meter starts over on a return too (`resetPerCombatLimits`, R-KOBOLD-1022-02). Crypt
+      // Drake's `attackSeen` is a cadence, not a limit, and keeps running in the sim, so it keeps running here.
+      if (countsFriendlyAttacks(u.cardId)) u.attackSeen = undefined;
+      // A RISE returns the fresh printed copy (R-RISE-01): mirror the sim's per-instance reset so the combat card
+      // text prints the risen body's reset value, not the original's stacks. Combat only: the Shop card keeps
+      // the original's stacks (R-RISE-06). A Rebirth is the full body and keeps them.
+      if (!e.rebirth) {
+        u.summonBonus = 0;
+        u.hpGrantBonus = undefined;
+        u.eotBonus = undefined;
+        u.sellBonus = undefined;
+        u.overflowBonus = undefined;
       }
-      // The PUMMEL meters (Han Gover, Goldvein — core's `DAMAGE_METER_MARKERS`): a meter is the sum of every
-      // landed hit its body dealt — the `dmg` events stamped with it as `source`, the same amounts the sim's
-      // `noteDamageDealt` added — on top of the seeded value (the run card's lifetime tally, so the badge picks
-      // up where the shop left it and `damageMeterReading` prints `total mod X`). Keyed off the card's MARKER, not an id: the
-      // id gate (`dw3_hangover` only) is why Goldvein's badge never moved in combat (owner report 2026-09-19).
-      // This fold runs to the END of the beat being cued, so the badge ticks on the beat the damage lands —
-      // the same moment the damage number pops — including the blow that ends the fight (the `done` frame
-      // folds the whole log, so the last increment stays on the badge through the end-of-combat sequence).
-      if (e.source) {
-        const src = find(e.source);
-        if (src && damageMeterOf(CARD_INDEX[src.cardId])) src.damageDealt = (src.damageDealt ?? 0) + e.amount;
-      }
-    } else if (e.type === 'sc' && e.setHealth !== undefined) {
-      // A cast that SETS a body's Health (Weaken -> 1): absolute, like a `dmg`'s `remainingHp`. Without this fold
-      // the card kept its full Health on screen until the next hit (owner report 2026-10-13).
-      const u = find(e.source);
-      if (u) { u.health = e.setHealth; maxHp.set(u.uid, e.setHealth); }
-    } else if (e.type === 'shield') {
-      const u = find(e.target);
-      if (u) { u.divineShield = false; u.keywords = u.keywords.filter((k) => k !== 'DS' && k !== 'RW'); }
-    } else if (e.type === 'wardDowngrade') {
-      // A Resilient Ward took its first hit: it drops to a plain Ward (the card's orange layer cracks away).
-      const u = find(e.target);
-      if (u) u.keywords = u.keywords.filter((k) => k !== 'RW');
-    } else if (e.type === 'shieldUp') {
-      const u = find(e.target);
-      if (u) { u.divineShield = true; if (!u.keywords.includes('DS')) u.keywords.push('DS'); }
-    } else if (e.type === 'poison') {
-      const u = find(e.target);
-      if (u) u.health = 0;
-    } else if (e.type === 'reborn') {
-      // Returns at base stats: overwrite attack/health/keywords/shield (not a delta) so the buffed
-      // body sheds its combat buffs + granted keywords and the blue Reborn aura drops (no more 'R').
-      const u = find(e.target);
-      if (u) {
-        u.health = e.hp;
-        u.attack = e.attack;
-        // The returned body is a fresh one: the overkill debt of the blow that killed it is spent (the sim set its
-        // Health outright), and its max-Health track restarts. A stale debt swallowed the first Health buffs the
-        // risen body took, so they never showed (owner report 2026-10-14, R-REALTIME-STATS-01).
-        overkill.delete(u.uid);
-        maxHp.set(u.uid, e.hp);
-        u.keywords = [...e.keywords];
-        u.riseTint = undefined; // the tinted Rise is spent by this return (a regained one re-tints on its `keyword` beat)
-        u.divineShield = e.keywords.includes('DS');
-        // A risen body's Avenge restarts (owner ruling 2026-08-08) — the sim stamps its baseline AFTER its
-        // own rise-death was tallied, and the reborn event lands after that death here too, so the current
-        // side tally IS the baseline. The counter below subtracts it, mirroring `avengeCountFor`.
-        avengeBase.set(u.uid, player.includes(u) ? deaths.player : deaths.enemy);
-        u.baseAttack = e.attack; // a returned minion is "fresh" — its stats become the new baseline
-        u.baseHealth = e.hp;
-        u.buffs = undefined; // back at base stats — the old buff breakdown no longer applies
-        // A returned body (Rise AND Rebirth) starts its per-combat caps fresh (owner 2026-10-21, R-RETURN-RESET-01): the
-        // live "N left this combat" counters (Whaloo's casts, Immune Iggy / Bounty Bot's immune swings) restart.
-        whisperCasts.delete(u.uid);
-        attacksBy.delete(u.uid);
-        // Frack Attack's 3-attack meter starts over on a return too (`resetPerCombatLimits`, R-KOBOLD-1022-02). Crypt
-        // Drake's `attackSeen` is a cadence, not a limit, and keeps running in the sim, so it keeps running here.
-        if (countsFriendlyAttacks(u.cardId)) u.attackSeen = undefined;
-        // A RISE returns the fresh printed copy (R-RISE-01): mirror the sim's per-instance reset so the combat card
-        // text prints the risen body's reset value, not the original's stacks. Combat only: the Shop card keeps
-        // the original's stacks (R-RISE-06). A Rebirth is the full body and keeps them.
-        if (!e.rebirth) {
-          u.summonBonus = 0;
-          u.hpGrantBonus = undefined;
-          u.eotBonus = undefined;
-          u.sellBonus = undefined;
-          u.overflowBonus = undefined;
-        }
-        u.alive = true; // a Rise dies FIRST (a `rise` death precedes this) → bring the body back to life…
-        gone.delete(e.target); // …and un-remove it if that death landed in an earlier beat
-        // Re-slot to the RIGHT of `after` — the token its Deathrattle summoned into its old slot — so the
-        // risen body returns to that token's right (mirrors the sim's board move). No `after` → it stays put.
-        if (e.after) {
-          const arr = player.includes(u) ? player : enemy;
-          const from = arr.indexOf(u);
-          if (from >= 0) {
-            arr.splice(from, 1);
-            const anchor = arr.findIndex((x) => x.uid === e.after);
-            arr.splice(anchor >= 0 ? anchor + 1 : arr.length, 0, u);
-          }
+      u.alive = true; // a Rise dies FIRST (a `rise` death precedes this) → bring the body back to life…
+      deathAt.delete(e.target); // …and un-remove it if that death landed in an earlier beat
+      // Re-slot to the RIGHT of `after` — the token its Deathrattle summoned into its old slot — so the
+      // risen body returns to that token's right (mirrors the sim's board move). No `after` → it stays put.
+      if (e.after) {
+        const arr = player.includes(u) ? player : enemy;
+        const from = arr.indexOf(u);
+        if (from >= 0) {
+          arr.splice(from, 1);
+          const anchor = arr.findIndex((x) => x.uid === e.after);
+          arr.splice(anchor >= 0 ? anchor + 1 : arr.length, 0, u);
         }
       }
-    } else if (e.type === 'reveal') {
-      const u = find(e.target);
-      if (u) u.keywords = u.keywords.filter((k) => k !== 'ST'); // Stealth lost on attack
-    } else if (e.type === 'keyword') {
-      // A combat effect granted a keyword (Mumi → Rise, a Ryme-replayed keyword battlecry) — the
-      // pill appears on the card from this beat on. DS also raises the shield flag (bubble).
-      const u = find(e.target);
-      if (u && !u.keywords.includes(e.keyword)) {
-        u.keywords = [...u.keywords, e.keyword];
-        if (e.keyword === 'DS') u.divineShield = true;
-      }
-      if (u && e.keyword === 'R' && e.tint) u.riseTint = e.tint; // Risen × Death: the regained Rise is blue
-    } else if (e.type === 'keywordLost') {
-      // A combat effect STRIPPED a keyword (Tauntbreaker → Taunt/Rise off the enemy it hit) — drop the pill.
-      const u = find(e.target);
-      if (u) u.keywords = u.keywords.filter((k) => k !== e.keyword);
-    } else if (e.type === 'venomLost') {
-      const u = find(e.target);
-      if (u) u.keywords = u.keywords.filter((k) => k !== 'V'); // Venomous spent on its first proc
-    } else if (e.type === 'death') {
-      const u = find(e.target);
-      if (u) { u.alive = false; u.health = 0; }
-      // ASHEN HEIR's bank, re-derived from the log exactly the way Crypt Drake's `attackSeen` is. The sim banks
-      // a dying friendly Imp's stats onto each friendly Heir, and empties the bank when an Imp arrives — both
-      // halves are mirrored here (the summon half below) so the Heir's printed text can show what the NEXT Imp
-      // would actually inherit. Nothing new crosses the event boundary; the replay just applies the same rule.
-      if (u && CARD_INDEX[u.cardId]?.imp) {
-        // `u.health` is already 0 by now, so the banked Health comes from the max-Health track — the Heir
-        // passes on what the Imp WAS, which is the `maxHealth` the sim read.
-        const arr = e.side === 'player' ? player : enemy;
-        const banked = { attack: Math.max(0, u.attack), health: Math.max(0, maxHp.get(e.target) ?? 0) };
-        // Only a death with NO living Imp left to receive it reaches the bank — otherwise the stats went
-        // straight to that Imp as a normal buff event, which the replay already applies. Mirrors the sim's
-        // rule exactly; a mirror that banked unconditionally would show a bank the fight doesn't have.
-        const anyImpAlive = arr.some((m) => m !== u && m.alive && CARD_INDEX[m.cardId]?.imp);
-        if (!anyImpAlive && (banked.attack > 0 || banked.health > 0)) {
-          for (const h of arr) if (h.cardId === 'ashen_heir' && h.alive) {
-            h.impBank = { attack: (h.impBank?.attack ?? 0) + banked.attack,
-              health: (h.impBank?.health ?? 0) + banked.health };
-          }
-        }
-      }
-      // A RISE death counts (owner ruling 2026-07-27, and `killOrReborn` in the sim calls `emitAvenge` for it).
-      // This skipped `e.rise`, so the DISPLAYED Avenge counter disagreed with the tally that actually fires the
-      // effect — a Kennelmaster/Solaris behind a Rise minion looked stuck while its Avenge really was advancing
-      // (owner report 2026-07-29). The replay must mirror the sim, not hold its own older rule.
-      if (e.side === 'player' || e.side === 'enemy') deaths[e.side] += 1; // friendly-death tally → Avenge counter
-      if (i < beatStart) gone.add(e.target);
-    } else if (e.type === 'buff') {
-      const u = find(e.target);
-      // A buff the replay slid past an event that already CARRIES its stats (a later hit's absolute `remainingHp`, its
-      // own body's `summon` snapshot) folds only the share that event does not hold (`prefoldedShareOf`, R-REALTIME-STATS-01).
-      const pre = prefoldedShareOf(e);
-      if (u && pre !== 'all') {
-        u.attack += e.attack;
-        const gainHp = pre === 'health' ? 0 : e.health;
-        const debt = gainHp > 0 ? overkill.get(u.uid) ?? 0 : 0;
-        if (debt > 0) {
-          const paid = Math.min(debt, gainHp);
-          if (debt - paid > 0) overkill.set(u.uid, debt - paid); else overkill.delete(u.uid);
-          u.health += gainHp - paid;
-        } else u.health += gainHp;
-        if (e.health > 0) maxHp.set(u.uid, (maxHp.get(u.uid) ?? u.health) + e.health); // Ashen Heir's max-Health track
-        // Itemize the buff under its source for the inspect panel (combat buffs merge alongside recruit ones).
-        if (e.attack !== 0 || e.health !== 0) {
-          u.buffs ??= [];
-          // A source is EITHER a minion uid (resolved through `names`) or an authored label a rune passed in
-          // ("Rune of Savagery"). Collapsing the second kind to 'Combat' hid which rune granted what — every
-          // rune buff read as anonymous in the inspect panel. Combat uids are `m<n>` / `e<n>`, so anything
-          // that doesn't match that shape is a label and is kept verbatim.
-          const isUid = /^[me]\d+$/.test(e.source ?? '');
-          // A combat WHISPER cast (Whaloo's Runebind, a Whisp echo) is its own named row, "Runebind" (owner 2026-10-14:
-          // Runebind is a tracked buff, and "doesnt need to say 'this combat'"), not the caster's name.
-          recordBuff(u.buffs, whisperCombatBuffLabel(e.spellId) ?? names.get(e.source) ?? (!isUid && e.source ? e.source : 'Combat'), e.attack, e.health);
-        }
-        // Tara: tally stat-grants on minions with ascendAt toward their ascend threshold.
-        if ((e.attack !== 0 || e.health !== 0) && CARD_INDEX[u.cardId]?.ascendAt) {
-          u.ascendProgress = (u.ascendProgress ?? 0) + 1;
-        }
-        // Thundering Abomination (EG): accumulate permanent stat gains for live card text.
-        if (u.keywords.includes('EG') && (e.attack !== 0 || e.health !== 0)) {
-          u.permaGain = {
-            attack: (u.permaGain?.attack ?? 0) + e.attack,
-            health: (u.permaGain?.health ?? 0) + e.health,
-          };
-        }
-      }
-      // Crypt Drake: detect its self-buff (source === target, attack > 0) to count ally-attack triggers.
-      // Its onAllyAttackBuffAll buffs all friends including itself — this event is uniquely self-sourced.
-      if (e.source === e.target && e.attack > 0) {
-        const src = find(e.source);
-        if (src?.cardId === 'cryptdrake') src.attackSeen = (src.attackSeen ?? 0) + 1;
-      }
-    } else if (e.type === 'hpGrant') {
-      const u = find(e.target);
-      if (u) u.hpGrantBonus = e.amount; // Sergeant: absolute cumulative HP-grant bonus → live card text
-    } else if (e.type === 'spellProgress') {
-      const u = find(e.target);
-      if (u) u.spellProgress = e.amount; // Archmagus Guel: on-board spell tally after a combat cast → live countdown
-    } else if (e.type === 'improve') {
-      const u = find(e.target);
-      if (u) u.summonBonus += e.amount; // Kennelmaster's aura climbs mid-fight → live card text
-    } else if (e.type === 'tagIn') {
-      // VERSUS DUOS (R-DUOS-TAGTEAM-01): the teammate's board steps in. The side's row becomes its bodies (the fallen
-      // board's dead are gone), and its Avenge tally restarts with it, as the sim's does (its own fight starts now).
+    }
+  } else if (e.type === 'reveal') {
+    const u = find(e.target);
+    if (u) u.keywords = u.keywords.filter((k) => k !== 'ST'); // Stealth lost on attack
+  } else if (e.type === 'keyword') {
+    // A combat effect granted a keyword (Mumi → Rise, a Ryme-replayed keyword battlecry) — the
+    // pill appears on the card from this beat on. DS also raises the shield flag (bubble).
+    const u = find(e.target);
+    if (u && !u.keywords.includes(e.keyword)) {
+      u.keywords = [...u.keywords, e.keyword];
+      if (e.keyword === 'DS') u.divineShield = true;
+    }
+    if (u && e.keyword === 'R' && e.tint) u.riseTint = e.tint; // Risen × Death: the regained Rise is blue
+  } else if (e.type === 'keywordLost') {
+    // A combat effect STRIPPED a keyword (Tauntbreaker → Taunt/Rise off the enemy it hit) — drop the pill.
+    const u = find(e.target);
+    if (u) u.keywords = u.keywords.filter((k) => k !== e.keyword);
+  } else if (e.type === 'venomLost') {
+    const u = find(e.target);
+    if (u) u.keywords = u.keywords.filter((k) => k !== 'V'); // Venomous spent on its first proc
+  } else if (e.type === 'death') {
+    const u = find(e.target);
+    if (u) { u.alive = false; u.health = 0; }
+    // ASHEN HEIR's bank, re-derived from the log exactly the way Crypt Drake's `attackSeen` is. The sim banks
+    // a dying friendly Imp's stats onto each friendly Heir, and empties the bank when an Imp arrives — both
+    // halves are mirrored here (the summon half below) so the Heir's printed text can show what the NEXT Imp
+    // would actually inherit. Nothing new crosses the event boundary; the replay just applies the same rule.
+    if (u && CARD_INDEX[u.cardId]?.imp) {
+      // `u.health` is already 0 by now, so the banked Health comes from the max-Health track — the Heir
+      // passes on what the Imp WAS, which is the `maxHealth` the sim read.
       const arr = e.side === 'player' ? player : enemy;
-      arr.length = 0;
-      for (const m of e.minions) { arr.push(fromSnap(m)); maxHp.set(m.uid, m.health); avengeBase.set(m.uid, 0); }
-      deaths[e.side] = 0;
-      spellCasts[e.side] = 0;
-      shopTally[e.side] = undefined; // the teammate's own count takes over (its snapshot value)
-    } else if (e.type === 'flyIn') {
-      // DUOS (R-DUOS-FLYIN-01): the fight is won and the unfought teammate board flies into the empty slots, after the
-      // survivors, left to right. They trigger nothing; they stand there so the damage formation counts them.
-      const arr = e.side === 'player' ? player : enemy;
-      for (const m of e.minions) { arr.push(fromSnap(m)); maxHp.set(m.uid, m.health); avengeBase.set(m.uid, deaths[e.side]); }
-    } else if (e.type === 'summon') {
-      const arr = e.side === 'player' ? player : enemy;
-      arr.splice(Math.min(e.index, arr.length), 0, fromSnap(e.minion));
-      maxHp.set(e.minion.uid, e.minion.health);
-      // A SUMMONED body's Avenge counts from its own arrival (rule R-AVWIN-01 "Late entry starts at zero"): the
-      // sim stamps `avengeBaseline = deaths[side]` in `placeSummon`, AFTER the death that summoned it was
-      // tallied, and the log carries that death before this summon, so the current side tally IS the baseline.
-      // Only the Rise branch stamped it before, so a Dunkey that Bullseye's Echo summoned after two friendly
-      // deaths landed reading 2/4 while the sim's own window for it read 0/4 (owner report 2026-09-21).
-      avengeBase.set(e.minion.uid, deaths[e.side]);
-      // Ashen Heir, the paying half: an arriving Imp inherits the bank, so the bank empties (see the death branch).
-      if (CARD_INDEX[e.minion.cardId]?.imp) {
-        for (const h of arr) if (h.cardId === 'ashen_heir' && h.alive) h.impBank = undefined;
+      const banked = { attack: Math.max(0, u.attack), health: Math.max(0, maxHp.get(e.target) ?? 0) };
+      // Only a death with NO living Imp left to receive it reaches the bank — otherwise the stats went
+      // straight to that Imp as a normal buff event, which the replay already applies. Mirrors the sim's
+      // rule exactly; a mirror that banked unconditionally would show a bank the fight doesn't have.
+      const anyImpAlive = arr.some((m) => m !== u && m.alive && CARD_INDEX[m.cardId]?.imp);
+      if (!anyImpAlive && (banked.attack > 0 || banked.health > 0)) {
+        for (const h of arr) if (h.cardId === 'ashen_heir' && h.alive) {
+          h.impBank = { attack: (h.impBank?.attack ?? 0) + banked.attack,
+            health: (h.impBank?.health ?? 0) + banked.health };
+        }
       }
-    } else if (e.type === 'ascend') {
-      // A mid-combat transform (Tara → Taragosa, Spirit Pup → Spirit Worgen): adopt the new form's identity so
-      // the card's art / name / tribe / rule text / new-form keyword pills update live, exactly as the sim does
-      // in `ascendMinion` (the stat buffs keep landing on the same uid via `buff` events). Without this the card
-      // kept its pre-ascension face for the rest of the replay.
-      const u = find(e.target);
-      const def = CARD_INDEX[e.into];
-      // ANCIENT OF TIME: an in-fight GILD rides this event (`gild`, same card) — the body turns golden for the
-      // fight; its doubled stats land as the `buff` that follows.
-      if (u && e.gild) u.golden = true;
-      if (u && def) {
-        u.cardId = e.into;
-        u.name = def.name;
-        u.tribe = def.tribe;
-        for (const k of def.keywords) if (!u.keywords.includes(k)) u.keywords.push(k);
-        if (def.keywords.includes('DS')) u.divineShield = true;
+    }
+    // A RISE death counts (owner ruling 2026-07-27, and `killOrReborn` in the sim calls `emitAvenge` for it).
+    // This skipped `e.rise`, so the DISPLAYED Avenge counter disagreed with the tally that actually fires the
+    // effect — a Kennelmaster/Solaris behind a Rise minion looked stuck while its Avenge really was advancing
+    // (owner report 2026-07-29). The replay must mirror the sim, not hold its own older rule.
+    if (e.side === 'player' || e.side === 'enemy') deaths[e.side] += 1; // friendly-death tally → Avenge counter
+    // The EARLIEST death since the body's last return: `frameOf` reads it as gone once that death is before the beat
+    // on screen (a death IN the current beat is kept one beat, so the killing blow reads).
+    if (!deathAt.has(e.target)) deathAt.set(e.target, i);
+  } else if (e.type === 'buff') {
+    const u = find(e.target);
+    // A buff the replay slid past an event that already CARRIES its stats (a later hit's absolute `remainingHp`, its
+    // own body's `summon` snapshot) folds only the share that event does not hold (`prefoldedShareOf`, R-REALTIME-STATS-01).
+    const pre = prefoldedShareOf(e);
+    if (u && pre !== 'all') {
+      u.attack += e.attack;
+      const gainHp = pre === 'health' ? 0 : e.health;
+      const debt = gainHp > 0 ? overkill.get(u.uid) ?? 0 : 0;
+      if (debt > 0) {
+        const paid = Math.min(debt, gainHp);
+        if (debt - paid > 0) overkill.set(u.uid, debt - paid); else overkill.delete(u.uid);
+        u.health += gainHp - paid;
+      } else u.health += gainHp;
+      if (e.health > 0) maxHp.set(u.uid, (maxHp.get(u.uid) ?? u.health) + e.health); // Ashen Heir's max-Health track
+      // Itemize the buff under its source for the inspect panel (combat buffs merge alongside recruit ones).
+      if (e.attack !== 0 || e.health !== 0) {
+        // A source is EITHER a minion uid (resolved through `names`) or an authored label a rune passed in
+        // ("Rune of Savagery"). Collapsing the second kind to 'Combat' hid which rune granted what — every
+        // rune buff read as anonymous in the inspect panel. Combat uids are `m<n>` / `e<n>`, so anything
+        // that doesn't match that shape is a label and is kept verbatim.
+        const isUid = /^[me]\d+$/.test(e.source ?? '');
+        // A combat WHISPER cast (Whaloo's Runebind, a Whisp echo) is its own named row, "Runebind" (owner 2026-10-14:
+        // Runebind is a tracked buff, and "doesnt need to say 'this combat'"), not the caster's name.
+        u.buffs = recordBuff(u.buffs, whisperCombatBuffLabel(e.spellId) ?? names.get(e.source) ?? (!isUid && e.source ? e.source : 'Combat'), e.attack, e.health);
       }
+      // Tara: tally stat-grants on minions with ascendAt toward their ascend threshold.
+      if ((e.attack !== 0 || e.health !== 0) && CARD_INDEX[u.cardId]?.ascendAt) {
+        u.ascendProgress = (u.ascendProgress ?? 0) + 1;
+      }
+      // Thundering Abomination (EG): accumulate permanent stat gains for live card text.
+      if (u.keywords.includes('EG') && (e.attack !== 0 || e.health !== 0)) {
+        u.permaGain = {
+          attack: (u.permaGain?.attack ?? 0) + e.attack,
+          health: (u.permaGain?.health ?? 0) + e.health,
+        };
+      }
+    }
+    // Crypt Drake: detect its self-buff (source === target, attack > 0) to count ally-attack triggers.
+    // Its onAllyAttackBuffAll buffs all friends including itself — this event is uniquely self-sourced.
+    if (e.source === e.target && e.attack > 0) {
+      const src = find(e.source);
+      if (src?.cardId === 'cryptdrake') src.attackSeen = (src.attackSeen ?? 0) + 1;
+    }
+  } else if (e.type === 'hpGrant') {
+    const u = find(e.target);
+    if (u) u.hpGrantBonus = e.amount; // Sergeant: absolute cumulative HP-grant bonus → live card text
+  } else if (e.type === 'spellProgress') {
+    const u = find(e.target);
+    if (u) u.spellProgress = e.amount; // Archmagus Guel: on-board spell tally after a combat cast → live countdown
+  } else if (e.type === 'improve') {
+    const u = find(e.target);
+    if (u) u.summonBonus += e.amount; // Kennelmaster's aura climbs mid-fight → live card text
+  } else if (e.type === 'tagIn') {
+    // VERSUS DUOS (R-DUOS-TAGTEAM-01): the teammate's board steps in. The side's row becomes its bodies (the fallen
+    // board's dead are gone), and its Avenge tally restarts with it, as the sim's does (its own fight starts now).
+    const arr = e.side === 'player' ? player : enemy;
+    arr.length = 0;
+    for (const m of e.minions) { arr.push(fromSnap(m)); maxHp.set(m.uid, m.health); avengeBase.set(m.uid, 0); }
+    deaths[e.side] = 0;
+    spellCasts[e.side] = 0;
+    shopTally[e.side] = undefined; // the teammate's own count takes over (its snapshot value)
+  } else if (e.type === 'flyIn') {
+    // DUOS (R-DUOS-FLYIN-01): the fight is won and the unfought teammate board flies into the empty slots, after the
+    // survivors, left to right. They trigger nothing; they stand there so the damage formation counts them.
+    const arr = e.side === 'player' ? player : enemy;
+    for (const m of e.minions) { arr.push(fromSnap(m)); maxHp.set(m.uid, m.health); avengeBase.set(m.uid, deaths[e.side]); }
+  } else if (e.type === 'summon') {
+    const arr = e.side === 'player' ? player : enemy;
+    arr.splice(Math.min(e.index, arr.length), 0, fromSnap(e.minion));
+    maxHp.set(e.minion.uid, e.minion.health);
+    // A SUMMONED body's Avenge counts from its own arrival (rule R-AVWIN-01 "Late entry starts at zero"): the
+    // sim stamps `avengeBaseline = deaths[side]` in `placeSummon`, AFTER the death that summoned it was
+    // tallied, and the log carries that death before this summon, so the current side tally IS the baseline.
+    // Only the Rise branch stamped it before, so a Dunkey that Bullseye's Echo summoned after two friendly
+    // deaths landed reading 2/4 while the sim's own window for it read 0/4 (owner report 2026-09-21).
+    avengeBase.set(e.minion.uid, deaths[e.side]);
+    // Ashen Heir, the paying half: an arriving Imp inherits the bank, so the bank empties (see the death branch).
+    if (CARD_INDEX[e.minion.cardId]?.imp) {
+      for (const h of arr) if (h.cardId === 'ashen_heir' && h.alive) h.impBank = undefined;
+    }
+  } else if (e.type === 'ascend') {
+    // A mid-combat transform (Tara → Taragosa, Spirit Pup → Spirit Worgen): adopt the new form's identity so
+    // the card's art / name / tribe / rule text / new-form keyword pills update live, exactly as the sim does
+    // in `ascendMinion` (the stat buffs keep landing on the same uid via `buff` events). Without this the card
+    // kept its pre-ascension face for the rest of the replay.
+    const u = find(e.target);
+    const def = CARD_INDEX[e.into];
+    // ANCIENT OF TIME: an in-fight GILD rides this event (`gild`, same card) — the body turns golden for the
+    // fight; its doubled stats land as the `buff` that follows.
+    if (u && e.gild) u.golden = true;
+    if (u && def) {
+      u.cardId = e.into;
+      u.name = def.name;
+      u.tribe = def.tribe;
+      for (const k of def.keywords) if (!u.keywords.includes(k)) u.keywords = [...u.keywords, k];
+      if (def.keywords.includes('DS')) u.divineShield = true;
     }
   }
-  // Stamp the live step-counter tallies onto every frame: each unit sees its OWN side's death count (Avenge) and
-  // the global attack count (Bleed). stepProgress only reads these for the qualifying cards; others ignore them.
-  for (const u of player) { u.avengeSeen = deaths.player - (avengeBase.get(u.uid) ?? 0); u.bleedAttacks = attackCount; u.spellsCastCombat = spellCasts.player; u.shopSpellsLive = shopTally.player; }
-  for (const u of enemy) { u.avengeSeen = deaths.enemy - (avengeBase.get(u.uid) ?? 0); u.bleedAttacks = attackCount; u.spellsCastCombat = spellCasts.enemy; u.shopSpellsLive = shopTally.enemy; }
-  if (whisperCasts.size > 0) for (const u of [...player, ...enemy]) { const n = whisperCasts.get(u.uid); if (n) u.whisperCastsUsed = n; }
-  // Only the bodies whose text reads it (Immune Iggy), so no other unit's memo churns on every swing.
-  for (const u of [...player, ...enemy]) { if (CARD_INDEX[u.cardId]?.attackImmuneTurns) { const n = attacksBy.get(u.uid); if (n) u.attacksMade = n; } }
-  if (whisperImp.player) for (const u of player) u.whisperImproveLive = whisperImp.player;
-  if (whisperImp.enemy) for (const u of enemy) u.whisperImproveLive = whisperImp.enemy;
+}
+
+/**
+ * The frame to draw from a fold that has consumed `events[0, upto)`. Deaths from *before* the current beat (index <
+ * `beatStart`) are removed outright; a minion dying in the current beat is kept one beat (rendered with its death
+ * pop, no grey) so the killing blow reads, then it's gone next beat. READ-ONLY on the fold.
+ */
+function frameOf(f: FrameFold, events: CombatEvent[], upto: number, beatStart: number): { player: UnitFrame[]; enemy: UnitFrame[] } {
+  const { deathAt, risePending } = f;
+  const gone = (uid: string): boolean => { const d = deathAt.get(uid); return d !== undefined && d < beatStart; };
   // Keep a DEAD unit on screen for the beat in which it is still DEALING damage — a Deathrattle whose Echo
   // sprays the board (Fel Spikes) fires its volley one beat AFTER its body would have left, and a source→target
   // FX anchored to that body needs it present to launch from. Only the CURRENT beat's damage ([beatStart, upto))
@@ -725,16 +772,16 @@ export function computeFrame(
   // to one of the sprayer's waves (same wave id) keeps the ghost, so the row reflows ONCE, after the spray.
   const dealingSources = new Set<string>();
   const beatWaves = new Set<number>();
-  for (let i = beatStart; i < Math.min(upto, events.length); i++) {
+  const end = Math.min(upto, events.length);
+  for (let i = beatStart; i < end; i++) {
     const e = events[i];
     if (e?.type === 'dmg' && typeof e.source === 'string') dealingSources.add(e.source);
     if (e?.wave !== undefined) beatWaves.add(e.wave);
   }
   if (beatWaves.size > 0) {
-    for (let i = 0; i < Math.min(upto, events.length); i++) {
-      const e = events[i];
-      if (e?.type === 'dmg' && typeof e.source === 'string' && e.wave !== undefined && beatWaves.has(e.wave)) dealingSources.add(e.source);
-    }
+    // Every sourced hit of those waves played so far, from the per-fight index (not a scan of the whole log).
+    const byWave = logIndexOf(events).waveHits;
+    for (const w of beatWaves) for (const h of byWave.get(w) ?? []) { if (h.i >= end) break; dealingSources.add(h.source); }
   }
   // A RISING body's slot is HELD from its (rise-flagged) death until its `reborn` lands (owner report 2026-10-14, Eatah:
   // "it janks the board around when it rises"). Between the two the sim fires its Echo (Eatah's hits, the reactions,
@@ -742,25 +789,178 @@ export function computeFrame(
   // own damage, then slid back out when it rose. Only a death whose Rise really returns LATER in the log holds (a Rise
   // that found no room stays dead, and its slot closes as before); the held body is a ghost, invisible.
   const risingHeld = new Set<string>();
-  if (gone.size > 0) {
-    const pending = new Set<string>();
-    for (let i = 0; i < Math.min(upto, events.length); i++) {
-      const e = events[i];
-      if (e?.type === 'death' && e.rise && gone.has(e.target)) pending.add(e.target);
-      else if (e?.type === 'reborn') pending.delete(e.target);
-    }
-    for (let i = Math.min(upto, events.length); i < events.length && pending.size > 0; i++) {
-      const e = events[i];
-      if (e?.type === 'reborn' && pending.has(e.target)) { risingHeld.add(e.target); pending.delete(e.target); }
-      else if (e?.type === 'death' && pending.has(e.target)) pending.delete(e.target);
+  if (risePending.size > 0) {
+    // The body's NEXT life event at or after the cursor decides: a `reborn` holds the slot, another death does not.
+    const life = logIndexOf(events).life;
+    for (const uid of risePending) {
+      if (!gone(uid)) continue;
+      const next = life.get(uid)?.find((x) => x.i >= end);
+      if (next?.reborn) risingHeld.add(uid);
     }
   }
-  const keep = (u: UnitFrame): boolean => {
-    if (!gone.has(u.uid)) return true;
-    if (dealingSources.has(u.uid) || risingHeld.has(u.uid)) { u.ghost = true; return true; } // kept ONLY to hold its slot / anchor its FX → invisible
-    return false;
+  const { deaths, attackCount, spellCasts, shopTally, whisperImp, whisperCasts, attacksBy, avengeBase } = f;
+  /** One side's bodies to draw: a fresh COPY of each (the fold's own objects are never handed out), stamped with the
+   *  live step-counter tallies: its OWN side's death count (Avenge) and the global attack count (Bleed). stepProgress
+   *  only reads these for the qualifying cards; others ignore them. */
+  const draw = (arr: UnitFrame[], side: 'player' | 'enemy'): UnitFrame[] => {
+    const out: UnitFrame[] = [];
+    for (const src of arr) {
+      let ghost = false;
+      if (gone(src.uid)) {
+        if (!dealingSources.has(src.uid) && !risingHeld.has(src.uid)) continue;
+        ghost = true; // kept ONLY to hold its slot / anchor its FX → invisible
+      }
+      const u: UnitFrame = { ...src };
+      u.avengeSeen = deaths[side] - (avengeBase.get(u.uid) ?? 0); u.bleedAttacks = attackCount; u.spellsCastCombat = spellCasts[side]; u.shopSpellsLive = shopTally[side];
+      if (whisperCasts.size > 0) { const n = whisperCasts.get(u.uid); if (n) u.whisperCastsUsed = n; }
+      // Only the bodies whose text reads it (Immune Iggy), so no other unit's memo churns on every swing.
+      if (CARD_INDEX[u.cardId]?.attackImmuneTurns) { const n = attacksBy.get(u.uid); if (n) u.attacksMade = n; }
+      const imp = whisperImp[side];
+      if (imp) u.whisperImproveLive = imp;
+      if (ghost) u.ghost = true;
+      out.push(u);
+    }
+    return out;
   };
-  return { player: player.filter(keep), enemy: enemy.filter(keep) };
+  return { player: draw(f.player, 'player'), enemy: draw(f.enemy, 'enemy') };
+}
+
+
+/**
+ * Fold the event log up to `upto` into the live board state, FROM SCRATCH. Deaths from *before*
+ * the current beat (index < `beatStart`) are removed outright; a minion dying in
+ * the current beat is kept one beat (rendered with its death pop, no grey) so the
+ * killing blow reads, then it's gone next beat.
+ */
+export function computeFrame(
+  initial: { player: MinionSnapshot[]; enemy: MinionSnapshot[] },
+  events: CombatEvent[],
+  upto: number,
+  beatStart: number,
+  names: Map<string, string>,
+): { player: UnitFrame[]; enemy: UnitFrame[] } {
+  const f = newFrameFold(initial);
+  const n = Math.min(upto, events.length);
+  for (let i = 0; i < n; i++) stepFrameFold(f, events[i]!, i, names);
+  return frameOf(f, events, upto, beatStart);
+}
+
+/**
+ * `computeFrame`, CONTINUED (R-PERF-COMBAT-FOLD-01): the returned function has `computeFrame`'s signature and result,
+ * but keeps its fold between calls and only applies the events past where it stopped. Stepping forward (the replay
+ * playing, at any speed, or a Skip to the end) costs the new events only. Anything else starts over from the snapshot:
+ * a different fight (`initial` / `events` / `names` by identity) or a cursor that went BACKWARD (a seek, a rewatch, a
+ * spectator resume). One folder per replay hook.
+ */
+export function makeFrameFolder(): typeof computeFrame {
+  let fold: FrameFold | null = null;
+  let pos = 0;
+  let kInitial: unknown = null, kEvents: unknown = null, kNames: unknown = null;
+  return (initial, events, upto, beatStart, names) => {
+    const n = Math.max(0, Math.min(upto, events.length));
+    if (fold === null || initial !== kInitial || events !== kEvents || names !== kNames || n < pos) {
+      fold = newFrameFold(initial);
+      pos = 0;
+      kInitial = initial; kEvents = events; kNames = names;
+    }
+    for (; pos < n; pos++) stepFrameFold(fold, events[pos]!, pos, names);
+    return frameOf(fold, events, upto, beatStart);
+  };
+}
+
+/**
+ * PER-FIGHT LOOKUPS over one event log, built once (one pass) and kept for as long as the log is alive. They answer
+ * the questions the frame used to scan the whole log for on every beat.
+ */
+interface LogIndex {
+  /** wave id -> every sourced hit of that wave, in log order (a dead sprayer's ghost is kept through its waves). */
+  waveHits: Map<number, { i: number; source: string }[]>;
+  /** uid -> its deaths and returns, in log order (is a fallen Rise body coming back?). */
+  life: Map<string, { i: number; reborn: boolean }[]>;
+}
+const logIndexes = new WeakMap<readonly CombatEvent[], LogIndex>();
+function logIndexOf(events: readonly CombatEvent[]): LogIndex {
+  let ix = logIndexes.get(events);
+  if (ix) return ix;
+  ix = { waveHits: new Map(), life: new Map() };
+  for (let i = 0; i < events.length; i++) {
+    const e = events[i];
+    if (!e) continue;
+    if (e.type === 'dmg' && typeof e.source === 'string' && e.wave !== undefined) {
+      let a = ix.waveHits.get(e.wave);
+      if (!a) ix.waveHits.set(e.wave, a = []);
+      a.push({ i, source: e.source });
+    } else if (e.type === 'death' || e.type === 'reborn') {
+      let a = ix.life.get(e.target);
+      if (!a) ix.life.set(e.target, a = []);
+      a.push({ i, reborn: e.type === 'reborn' });
+    }
+  }
+  logIndexes.set(events, ix);
+  return ix;
+}
+
+/** Enemy minions killed so far: enemy-side deaths, matching simulate's `minion.side === 'enemy'` tally exactly (the
+ *  death event carries `side`), so the live count agrees with the settled total. A Rise's death isn't a kill (it
+ *  returns), as in the sim's `enemyDeaths`. */
+const ENEMY_DEATHS_FOLD: PrefixFoldSpec<{ n: number }, number> = {
+  init: () => ({ n: 0 }),
+  step: (s, e) => { if (e.type === 'death' && e.side === 'enemy' && !e.rise) s.n++; },
+  read: (s) => s.n,
+};
+
+/** The LOG half of the live quest tally (`questDelta`): friendly damage landed so far (Albus × War's hero Pummel
+ *  readout: a `dmg` whose dealer is a player body, and the player's bodies are the starting board plus every
+ *  player-side summon replayed so far), the Ancient pairings' per-fight flags, and friendly deaths. `ctx` = the
+ *  fight's starting player board. `read` hands back a whole fresh tally with the step-tagged half still at zero. */
+interface QuestEventAcc {
+  mine: Set<string>;
+  friendlyDamage: number; clearanceStacks: number; friendlyDeaths: number; freeRefreshes: number; rallyFires: number;
+  swapCharges: number; capSpent: number; shoutFires: number; ewAvengeFired: number; attackGifts: number;
+}
+const QUEST_EVENT_FOLD: PrefixFoldSpec<QuestEventAcc, ReturnType<typeof emptyQuestDelta>, readonly MinionSnapshot[] | undefined> = {
+  init: (board) => ({
+    mine: new Set((board ?? []).map((m) => m.uid)),
+    friendlyDamage: 0, clearanceStacks: 0, friendlyDeaths: 0, freeRefreshes: 0, rallyFires: 0, swapCharges: 0, capSpent: 0, shoutFires: 0, ewAvengeFired: 0, attackGifts: 0,
+  }),
+  step: (d, e) => {
+    if (e.type === 'summon') { if (e.side === 'player') d.mine.add(e.minion.uid); }
+    else if (e.type === 'dmg' && e.source && e.amount > 0 && d.mine.has(e.source)) d.friendlyDamage += e.amount;
+    else if (e.type === 'questTrigger' && e.side === 'player' && e.flag === ANCIENT_CLEARANCE_STACK_FLAG) d.clearanceStacks += 1;
+    else if (e.type === 'questTrigger' && e.side === 'player' && e.flag === ANCIENT_REFRESH_AVENGE_FLAG) d.freeRefreshes += 1;
+    else if (e.type === 'questTrigger' && e.side === 'player' && e.flag === ANCIENT_RALLY_GOLD_FLAG) d.rallyFires += 1;
+    else if (e.type === 'questTrigger' && e.side === 'player' && e.flag === ANCIENT_SWAP_CHARGE_FLAG) d.swapCharges += 1;
+    else if (e.type === 'questTrigger' && e.side === 'player' && e.flag === ANCIENT_CAP_SPENT_FLAG) d.capSpent += 1;
+    else if (e.type === 'questTrigger' && e.side === 'player' && e.flag === ANCIENT_DRAKKO_SHOUT_FLAG) d.shoutFires += 1;
+    else if (e.type === 'questTrigger' && e.side === 'player' && e.flag === ANCIENT_EW_AVENGE_FLAG) d.ewAvengeFired += 1;
+    else if (e.type === 'questTrigger' && e.side === 'player' && e.flag === ANCIENT_GORUN_GIFT_FLAG) d.attackGifts += 1;
+    else if (e.type === 'death' && e.side === 'player' && !e.rise) d.friendlyDeaths += 1;
+  },
+  read: (d) => ({
+    ...emptyQuestDelta(),
+    friendlyDamage: d.friendlyDamage, clearanceStacks: d.clearanceStacks, friendlyDeaths: d.friendlyDeaths, freeRefreshes: d.freeRefreshes,
+    rallyFires: d.rallyFires, swapCharges: d.swapCharges, capSpent: d.capSpent, shoutFires: d.shoutFires, ewAvengeFired: d.ewAvengeFired, attackGifts: d.attackGifts,
+  }),
+};
+
+/** A zeroed live quest tally: same shape as `playerQuestTally` (total + by-tribe per kind) plus the log-half readouts. */
+function emptyQuestDelta() {
+  return {
+    attack: 0, summonCombat: 0, slaughter: 0, slaughterKeyword: 0, deathrattle: 0, friendlyDeath: 0, rally: 0, summonImp: 0,
+    attackByTribe: {} as Partial<Record<Tribe, number>>,
+    summonCombatByTribe: {} as Partial<Record<Tribe, number>>,
+    slaughterByTribe: {} as Partial<Record<Tribe, number>>,
+    friendlyDamage: 0,
+    clearanceStacks: 0,
+    friendlyDeaths: 0,
+    freeRefreshes: 0,
+    rallyFires: 0,
+    swapCharges: 0,
+    capSpent: 0,
+    shoutFires: 0,
+    ewAvengeFired: 0,
+    attackGifts: 0,
+  };
 }
 
 // Per-beat lengths (ms) + the global tempo baseline + float/hold lifetimes all live in `choreo/choreoConfig.ts`,
@@ -1650,9 +1850,34 @@ export function useCombatReplay(
   const [floats, setFloats] = useState<Float[]>([]);
   const [deathFloats, setDeathFloats] = useState<DeathFloat[]>([]); // damage on dying units (board overlay)
   const [triggers, setTriggers] = useState<Set<string>>(new Set()); // uids whose effect just fired → medallion pulse
-  // Per-uid clear timers for that pulse. In a ref, not the effect's cleanup, so a hold outlives the beat that
-  // started it — see the trigger effect for what cancelling them on every beat cost.
-  const pulseTimersRef = useRef<Map<string, number>>(new Map());
+  // The pulse's hold, per uid, and the timers that end holds. In refs, not the effect's cleanup, so a hold outlives the
+  // beat that started it — see the trigger effect for what cancelling them on every beat cost.
+  //   `pulseHoldRef`   uid -> the id of its STANDING hold (a re-trigger inside the window takes a new id)
+  //   `pulseTimersRef` every hold timer still pending (cleared together on a reset)
+  // ONE timer per batch of uids, not one per uid (perf 2026-11-18): the units a beat pulses together are released
+  // together, in one state update and one render, instead of one timer and one render of the whole screen each. A uid
+  // is only released by the hold that is still its standing one, so each unit's pulse still lasts exactly as long.
+  const pulseHoldRef = useRef<Map<string, number>>(new Map());
+  const pulseTimersRef = useRef<Set<number>>(new Set());
+  const pulseSeqRef = useRef(0);
+  const holdPulses = useCallback((uids: Iterable<string>): void => {
+    const batch = [...uids];
+    if (batch.length === 0) return;
+    const id = ++pulseSeqRef.current;
+    for (const uid of batch) pulseHoldRef.current.set(uid, id);
+    const t = window.setTimeout(() => {
+      pulseTimersRef.current.delete(t);
+      const over = batch.filter((uid) => pulseHoldRef.current.get(uid) === id);
+      if (over.length === 0) return;
+      for (const uid of over) pulseHoldRef.current.delete(uid);
+      setTriggers((prev) => {
+        let next: Set<string> | null = null;
+        for (const uid of over) if (prev.has(uid)) { next ??= new Set(prev); next.delete(uid); }
+        return next ?? prev;
+      });
+    }, 1150);
+    pulseTimersRef.current.add(t);
+  }, []);
   // uid → a monotonic nonce, bumped on EACH Rally fire. The nonce is used as a React `key` on the medallion
   // (see Card) so it REMOUNTS every fire and the gold pulse animation restarts — a rally unit's own Rally also
   // sets the normal trigger pulse, so `.pulsing` never leaves the element between swings and a plain class
@@ -1731,20 +1956,15 @@ export function useCombatReplay(
   const pulseTrigger = useCallback((uid: string): void => {
     sfx.triggerPulse();
     setTriggers((prev) => new Set([...prev, uid]));
-    const prevT = pulseTimersRef.current.get(uid);
-    if (prevT !== undefined) window.clearTimeout(prevT);
-    pulseTimersRef.current.set(uid, window.setTimeout(() => {
-      pulseTimersRef.current.delete(uid);
-      setTriggers((prev) => {
-        if (!prev.has(uid)) return prev;
-        const next = new Set(prev);
-        next.delete(uid);
-        return next;
-      });
-    }, 1150));
-  }, []);
+    holdPulses([uid]);
+  }, [holdPulses]);
+  // uid → cardId for the callbacks declared above the `cardIds` memo (kept current right after it).
+  const cardIdsRef = useRef<Map<string, string>>(new Map());
   const firePulse = useCallback((uid: string): void => {
     sfx.triggerPulse();
+    // A Rally with an effect of its own (the card's On Rally slot, else the stock one) shows that effect INSTEAD of
+    // the yellow medallion pulse (R-FX-TRIGGER-STOCK-01). The sound above stays.
+    if (canPlayDefs() && triggerFxFor(cardIdsRef.current.get(uid) ?? null, 'rally')) return;
     const n = ++rallyNonceRef.current;
     setRallyPulse((prev) => new Map(prev).set(uid, n));
     // Cleared only if THIS fire is still the current one — a later proc's nonce must not be cancelled by an
@@ -2100,8 +2320,9 @@ export function useCombatReplay(
    * Put the replay at `index` and clear every piece of transient per-beat state.
    *
    * Extracted from the fresh-combat reset so a SEEK can reuse it: jumping to an arbitrary beat needs exactly
-   * the same clearing that starting a new fight does. The board itself needs no repair — `computeFrame`
-   * rebuilds from `initial` on every call (see `computeFrame.purity.test.ts`) — but this transient state is
+   * the same clearing that starting a new fight does. The board itself needs no repair — the frame fold starts
+   * over from `initial` whenever the cursor goes backward (`makeFrameFolder`, `frameFold.test.ts`), and every
+   * running readout does the same (`choreo/prefixFold.ts`) — but this transient state is
    * accumulated per beat and would otherwise carry stale floats, pulses and holds across the jump.
    *
    * `useCallback` with one dep (`cancelPendingRolls`, itself stable — see its own definition): every setter
@@ -2128,8 +2349,9 @@ export function useCombatReplay(
     setFloats([]);
     setDeathFloats([]);
     // …and drop the pulse holds with it, or a timer from the last fight clears a uid mid-pulse in this one.
-    for (const t of pulseTimersRef.current.values()) window.clearTimeout(t);
+    for (const t of pulseTimersRef.current) window.clearTimeout(t);
     pulseTimersRef.current.clear();
+    pulseHoldRef.current.clear();
     setTriggers(new Set());
     setRallyPulse(new Map());
     setWatcherPulse(new Map());
@@ -2174,6 +2396,16 @@ export function useCombatReplay(
     for (const b of fightBodies(combat)) m.set(b.uid, b.cardId); // + every tagIn body (R-DUOS-FX-01)
     return m;
   }, [combat]);
+  cardIdsRef.current = cardIds;
+
+  // The PLAYER's uids for the whole fight: the initial player board + every player-side summon in the log + the
+  // teammate's board that steps in on a `tagIn` (R-DUOS-FX-01). Enemy-sourced narrations (spell power, auras) are
+  // filtered against this so they never draw on the player's board and vice-versa. Once per fight.
+  const playerUidsOfFight = useMemo(() => {
+    const set = new Set<string>();
+    if (combat) for (const b of fightBodies(combat, events)) if (b.side === 'player') set.add(b.uid);
+    return set;
+  }, [combat, events]);
 
   // uid → side for the whole fight (initial boards + every summon), so a side-scoped presentation never has to
   // guess from the DOM: an ENEMY Fatecarver's Growth plays on the enemy's board (owner bug 2026-09-27).
@@ -2688,23 +2920,29 @@ export function useCombatReplay(
     if (!active || beatIdx === 0) return;
     const beat = beats[beatIdx - 1];
     if (!beat) return;
-    const trig = new Set<string>();
+    const trig = new Set<string>(); // the units that show the stock medallion pulse
     const beatWatchers: string[] = [];
     // The player's uids: the initial player board + every player-side summon in the whole log. Enemy-sourced
     // narrations (spell power, auras) are filtered against this so they never draw on the player's board and
     // vice-versa. Cheap — a Set built once per beat effect from data already in scope.
     // + the teammate's board that steps in on a `tagIn` (R-DUOS-FX-01).
-    const playerUids = new Set<string>();
-    if (combat) for (const b of fightBodies(combat, events)) if (b.side === 'player') playerUids.add(b.uid);
+    const playerUids = playerUidsOfFight; // (built once per fight, below the hook's lookups; it was rebuilt here every beat)
     // Refresh the last-known rects for everyone still on screen, THEN resolve anchors below through
     // `anchorOf`. Order matters: a unit that dies in this beat is already gone from the DOM, so its entry has
     // to come from the previous beat's snapshot.
     // BOTH sides (2026-09-16): a fallen ENEMY Echo buffer streams its tendril from its last slot too
-    // (`fireBuffCasts`), so the enemy board's rects are kept as well — one querySelector per unit per beat.
+    // (`fireBuffCasts`), so the enemy board's rects are kept as well.
+    // ONE query for the units on screen (R-PERF-COMBAT-FOLD-01), not one per body the fight ever had: this looped
+    // every uid of the fight (50-150 in a summon-heavy one) through a document-wide `querySelector`, and a fallen
+    // body's selector misses, so each miss walked the whole document. The first element per uid in document order is
+    // the one `findEl` would have returned (a unit's wrapper comes before the card inside it).
     const rects = lastRectRef.current;
-    for (const uid of cardIds.keys()) {
-      const el = findEl(uid);
-      if (el) rects.set(uid, layoutRectOf(el));
+    const swept = new Set<string>();
+    for (const el of document.querySelectorAll('[data-zone="warband"] [data-uid], [data-zone="tavern"] [data-uid]')) {
+      const uid = el.getAttribute('data-uid');
+      if (!uid || swept.has(uid) || !cardIds.has(uid)) continue;
+      swept.add(uid);
+      rects.set(uid, layoutRectOf(el));
     }
     /** The slot to hang a source-anchored effect on: live if the unit is still up, else where it last was. */
     const anchorOf = (uid: string): { cx: number; cy: number; w: number; h: number } | null => {
@@ -2718,22 +2956,18 @@ export function useCombatReplay(
       // TUTORIAL (read-only): report this event as PRESENTED so a Predict/Confirm coach step can advance at the
       // right beat. A no-op on every non-tutorial fight (the bus is empty). Never changes timing/order/FX.
       notifyPresented(e);
-      // NB: `rally` is intentionally NOT here — a Rally that fires as a unit attacks pulses YELLOW from the
-      // lunge's wind-up pause instead (see the attack layout effect), so it reads at the swing, not beat-start.
-      // A `shout` pulses through `onShoutProc` (the re-triggering unit + the Shout's owner), not the white trigger.
-      if (e.type === 'shout') continue;
-      if (e.type === 'sc' && e.heroPower) continue; // a hero-power grant pulses no body (it plays at the power button)
-      if (e.type === 'buff' && e.from) trig.add(e.from); // the body an Ancient's grant visibly starts from (R-FX-ANCIENT-ORIGIN-01)
-      else if ((e.type === 'sc' || e.type === 'buff' || e.type === 'keyword') && e.source) trig.add(e.source);
-      else if ((e.type === 'summon' || e.type === 'toHand') && e.source) trig.add(e.source);
-      else if (e.type === 'improve' || e.type === 'maxGold' || e.type === 'hpGrant' || e.type === 'reborn') trig.add(e.target);
-      // A death whose unit has a Deathrattle/Avenge effect: its trigger just fired (the cleanest signal —
-      // the resulting summon/buff events don't reliably carry the dying unit as their source).
-      else if (e.type === 'death') {
-        const effs = CARD_INDEX[cardIds.get(e.target) ?? '']?.effects;
-        if (effs?.some((f) => f.on === 'onDeath' || f.on === 'avenge')) trig.add(e.target);
-      }
     }
+    // WHO fired, and who still wears the stock medallion pulse (`channels/triggerPulse.ts`). `rally` is not in
+    // the scan: a Rally pulses YELLOW from the lunge's wind-up pause (see the attack layout effect), so it reads at
+    // the swing. A `shout` pulses through `onShoutProc`. A Start of Combat, an Avenge or an Echo whose effect is
+    // bound (the card's own, or the stock one) plays that effect INSTEAD of the pulse (R-FX-TRIGGER-STOCK-01).
+    const pulseScan = triggerPulseScan(
+      beat, events, cardIds,
+      (cardId, on) => !!CARD_INDEX[cardId]?.effects?.some((f) => f.on === on),
+      (cardId, trigger) => canPlayDefs() && triggerFxFor(cardId, trigger) !== null,
+    );
+    for (const uid of pulseScan.pulse) trig.add(uid);
+    const firedUids = new Set(pulseScan.fired);
     // WATCHER pulse: on an attack beat, a non-attacker unit (any side, mirroring the trigger scan) that fired
     // an effect this beat is a watcher answering the swing (Crypt Drake, Mineral Master, …). Give it the distinct
     // light-blue look — medallion recolored + a card-frame bloom — instead of the generic white medallion pulse.
@@ -2743,11 +2977,17 @@ export function useCombatReplay(
       const watchers = watcherPulseUids(beat, events, beat.primary.attacker);
       for (const uid of watchers) {
         trig.delete(uid); // take the light-blue medallion class, not white
+        firedUids.delete(uid);
         beatWatchers.push(uid); // still feed the SFX gate below so watcher-only beats keep their sound
+        // The watcher's own effect (its By-card On Watcher slot, else the stock one) REPLACES the light-blue
+        // medallion pulse (R-FX-TRIGGER-STOCK-01). The card-frame bloom below stays either way.
+        const wb = canPlayDefs() ? triggerFxFor(cardIds.get(uid) ?? null, 'watcher') : null;
         // light-blue medallion (nonce → remount → animation restarts, mirroring firePulse/rallyPulse)
-        const wn = ++watcherNonceRef.current;
-        setWatcherPulse((prev) => new Map(prev).set(uid, wn));
-        window.setTimeout(() => setWatcherPulse((prev) => { const m = new Map(prev); if (m.get(uid) === wn) m.delete(uid); return m; }), 1150);
+        if (!wb) {
+          const wn = ++watcherNonceRef.current;
+          setWatcherPulse((prev) => new Map(prev).set(uid, wn));
+          window.setTimeout(() => setWatcherPulse((prev) => { const m = new Map(prev); if (m.get(uid) === wn) m.delete(uid); return m; }), 1150);
+        }
         // card-frame bloom: Pixi ring-bloom when the def is committed + playable, else the CSS overlay
         if (watcherPixiReady(!!getDef(WATCHER_PULSE_DEF_ID), canPlayDefs())) {
           const a = anchorsForUnits(uid, uid); // source = target = the watcher's own card
@@ -2760,15 +3000,12 @@ export function useCombatReplay(
           setFramePulse((prev) => new Map(prev).set(uid, fn));
           window.setTimeout(() => setFramePulse((prev) => { const m = new Map(prev); if (m.get(uid) === fn) m.delete(uid); return m; }), 1150);
         }
-        // A card can bind an effect/sound to WATCHING (the By-card binder's On Watcher slot) — play it on the
-        // reacting card as it answers an ally's swing, layered over the stock watcher pulse above. Per-card
-        // volume rides the binding's `gain`, like the other cues. No-op when nothing is bound / defs don't ship.
-        if (canPlayDefs()) {
-          const wb = bindingFor(cardIds.get(uid) ?? null, 'watcher');
-          if (wb) {
-            const a = anchorsForUnits(uid, uid);
-            if (a) playDef(wb.def, a, { uids: { source: uid, target: uid }, gain: wb.gain });
-          }
+        // A card can bind an effect/sound to WATCHING (the By-card binder's On Watcher slot), and the stock
+        // watcher effect covers every card without one: play it on the reacting card as it answers an ally's
+        // swing. Per-card volume rides the binding's `gain`. No-op when nothing is bound / defs don't ship.
+        if (wb) {
+          const a = anchorsForUnits(uid, uid);
+          if (a) playDef(wb.def, a, { uids: { source: uid, target: uid }, gain: wb.gain });
         }
       }
     }
@@ -2780,7 +3017,7 @@ export function useCombatReplay(
     // off first, then the +1.
     const spAtk = beat.kind === 'attackExchange' && beat.primary.type === 'attack' ? beat.primary.attacker : null;
     const spOwnRally = spAtk !== null && canPlayDefs()
-      && !!ownRallyBindingFor(beat, events, spAtk, cardIds.get(spAtk) ?? null, true, bindingFor);
+      && !!ownRallyBindingFor(beat, events, spAtk, cardIds.get(spAtk) ?? null, true, triggerFxFor);
     const spLater: CombatEvent[] = [];
     for (let i = beat.start; i < beat.end; i++) {
       const e = events[i];
@@ -2929,14 +3166,14 @@ export function useCombatReplay(
         playGenericCastSound(e.spellId);
       }
     }
-    if (trig.size === 0 && beatWatchers.length === 0) return;
+    if (firedUids.size === 0 && beatWatchers.length === 0) return;
     sfx.triggerPulse(); // once per beat regardless of how many units pulse (the dedupe is built in too)
     // Each triggering unit also plays its OWN effect voiceline (cards/<id>.effect.mp3) — the combat half of the
     // per-card effect sound (the shop half fires from store.ts on a Battlecry). Deduped by cardId so a beat with
     // several copies of one card firing plays that clip once. Silent until the clip is recorded. Watchers are
     // included here (though rerouted out of `trig` above) so a watcher-only beat still plays its trigger sound.
     const firedEffect = new Set<string>();
-    for (const uid of [...trig, ...beatWatchers]) {
+    for (const uid of [...firedUids, ...beatWatchers]) {
       const cid = cardIds.get(uid);
       if (cid && !firedEffect.has(cid)) { firedEffect.add(cid); sfx.cardEffect(cid); }
     }
@@ -2948,22 +3185,10 @@ export function useCombatReplay(
        next trigger couldn't toggle the class off→on and simply did not animate — the owner's "the effect icon
        doesn't pulse every time" (the Avenge counter, driven separately, kept firing). Keyed timers in a ref
        survive the beat change; a re-trigger inside the window restarts its own hold. */
-    for (const uid of trig) {
-      const prevT = pulseTimersRef.current.get(uid);
-      if (prevT !== undefined) window.clearTimeout(prevT);
-      pulseTimersRef.current.set(uid, window.setTimeout(() => {
-        pulseTimersRef.current.delete(uid);
-        setTriggers((prev) => {
-          if (!prev.has(uid)) return prev;
-          const next = new Set(prev);
-          next.delete(uid);
-          return next;
-        });
-      }, 1150));
-    }
+    holdPulses(trig); // one hold for the beat's units together (see `holdPulses`)
     // `seekNonce`: re-seeking the beat you are already on leaves `beatIdx` identical, so without it this
     // per-beat cue would not re-run and the pulse would never replay. Constant during normal playback.
-  }), [active, beatIdx, seekNonce, beats, events, cardIds]);
+  }), [active, beatIdx, seekNonce, beats, events, cardIds, playerUidsOfFight, holdPulses]);
 
   // Combat cues — sfx (choreo/channels/sfx.ts) + floats (choreo/channels/float.ts) for the moment just
   // resolved, dispatched via the Score's channel registry (choreo/score.ts). The melee smack/impact-FX/
@@ -3006,7 +3231,7 @@ export function useCombatReplay(
       // to decide whether the def plays (the binding resolves off the re-triggering card).
       onShoutProc: (source: string, target: string, eot?: boolean) => {
         pulseWatcher(source);
-        if (!(eot ? bindingFor(cardIds.get(target) ?? null, 'endOfTurn') : bindingFor(cardIds.get(source) ?? null, 'shout'))) bloomFrame(target);
+        if (!(eot ? triggerFxFor(cardIds.get(target) ?? null, 'endOfTurn') : bindingFor(cardIds.get(source) ?? null, 'shout'))) bloomFrame(target);
         // A CHAIN trigger-er (Dawnclaw / Ryme's Echo — R-SHRIEKER-BEATS-01, owner 2026-10-10: "dawnclaw and mykel
         // should also do one at a time"): its tribe tendril to the Shout it is firing, on that fire's own moment (one
         // moment per `shout` already, left neighbour first). An Echo's body has usually fallen, so it streams from its
@@ -3200,7 +3425,7 @@ export function useCombatReplay(
         if (e.type === 'toHand' && e.side === 'player' && inHandRange(i, ownHand)) ledger.note(now, getPlateCoalesceConfig().total);
         if (e.avenge && typeof e.srcCard === 'string' && !avenged.has(e.srcCard)) {
           avenged.add(e.srcCard);
-          const b = canPlayDefs() ? bindingFor(e.srcCard, 'avenge') : null;
+          const b = canPlayDefs() ? triggerFxFor(e.srcCard, 'avenge') : null;
           if (b) ledger.note(now, defReadMs(b.def));
         }
       }
@@ -3525,7 +3750,7 @@ export function useCombatReplay(
         const atkUnit = frameRef.current?.player.find((u) => u.uid === atkUid) ?? frameRef.current?.enemy.find((u) => u.uid === atkUid);
         let rallies = !!atkUnit?.keywords.includes('RL') || !!CARD_INDEX[cardIds.get(atkUid) ?? '']?.keywords?.includes('RL');
         if (!rallies) for (let i = cur.start; i < cur.end; i++) { const e = events[i]; if (e?.type === 'rally' && e.source === atkUid) { rallies = true; break; } }
-        const ownRally = ownRallyBindingFor(cur, events, atkUid, cardIds.get(atkUid) ?? null, rallies, bindingFor);
+        const ownRally = ownRallyBindingFor(cur, events, atkUid, cardIds.get(atkUid) ?? null, rallies, triggerFxFor);
         // Buffs absorbed into this attack's wind-up (on-attack / on-ally-attack / Rally buffers) → fire their FX at
         // the top of the wind-up (after the yellow rally pulse), so the beat reads pulse → tendril → lunge. Buff-
         // OTHERS rain a tendril/descend; the buffer's own SELF-buff (which `groupBuffCasts` skips) pops an in-place
@@ -3650,7 +3875,9 @@ export function useCombatReplay(
             if (ownRally && canPlayDefs()) {
               const a = anchorsForUnits(atkUid, atkUid);
               // `also` rides along (Gasket's Rally sound is its own def), like every other binding's extra defs.
-              if (a) for (const id of bindingDefIds(ownRally)) playDef(id, a, { uids: { source: atkUid, target: atkUid }, gain: ownRally.gain });
+              // `trackUnits`: the rallier is leaning back in its wind-up as this plays, so the effect rides the card
+              // (and its medallion) instead of sitting on the slot it left.
+              if (a) for (const id of bindingDefIds(ownRally)) playDef(id, a, { uids: { source: atkUid, target: atkUid }, gain: ownRally.gain, trackUnits: true });
             }
           } : undefined,
           // How many procs this swing carries — the wind-up stretches to fit their pulse→sparkle pairs.
@@ -3778,14 +4005,24 @@ export function useCombatReplay(
   // spike, owner probe 2026-08-20) no longer exists. Kept as cheap insurance so a future out-of-range `beatIdx`
   // still can't leak the `events.length` fallback into the one-shot rune-badge burst.
   const beatIdxIsStale = beatIdx !== 0 && beats[beatIdx - 1] === undefined;
+  // This hook's continued folds (one each, for the life of the hook; each resets itself on a new fight or a seek back).
+  const [{ foldFrame, foldEnemyDeaths, foldBuffs, foldPreviews, foldQuestEvents }] = useState(() => ({
+    foldFrame: makeFrameFolder(),
+    foldEnemyDeaths: makePrefixFold(ENEMY_DEATHS_FOLD),
+    foldBuffs: makePrefixFold(COMBAT_BUFF_FOLD),
+    foldPreviews: makePrefixFold(COMBAT_PREVIEW_FOLD),
+    foldQuestEvents: makePrefixFold(QUEST_EVENT_FOLD),
+  }));
   // Mid-replay, keep the current beat's dying minions one beat; once done, drop
   // every dead minion so the result shows only survivors.
   const beatStart = done ? processedEnd : beatIdx === 0 ? 0 : (beats[beatIdx - 1]?.start ?? 0);
   // `choreo:frame` — the fold of the event log into this beat's board (perf). `choreo:step` is the cue
   // effects that fire on the beat (the five per-beat effects below); together they are a combat beat's JS.
+  // CONTINUED, not rebuilt (R-PERF-COMBAT-FOLD-01): `foldFrame` is `computeFrame` that keeps its fold between beats and
+  // applies only the new events. A backward cursor (seek / rewatch / spectator resume) or a new fight starts it over.
   const frame = useMemo(
-    () => perfMonitor.measure('choreo:frame', () => (combat ? computeFrame(combat.initial, events, processedEnd, beatStart, names) : { player: [], enemy: [] })),
-    [combat, events, processedEnd, beatStart, names],
+    () => perfMonitor.measure('choreo:frame', () => (combat ? foldFrame(combat.initial, events, processedEnd, beatStart, names) : { player: [], enemy: [] })),
+    [combat, events, processedEnd, beatStart, names, foldFrame],
   );
   frameRef.current = frame;
 
@@ -4031,69 +4268,28 @@ export function useCombatReplay(
 
   // Enemy minions killed so far (deaths landed up to the current beat) — Cassen's Collision counter ticks
   // up live in combat off this; settleCombat banks the same total at the end.
-  const enemyDeaths = useMemo(() => {
-    // Count enemy-side deaths landed up to the current beat — matches simulate's `minion.side === 'enemy'`
-    // tally exactly (the death event now carries `side`), so the live count agrees with the settled total.
-    let n = 0;
-    for (let i = 0; i < processedEnd; i++) {
-      const e = events[i];
-      if (e?.type === 'death' && e.side === 'enemy' && !e.rise) n++; // a Rise's death isn't a kill (it returns) — matches sim's enemyDeaths
-    }
-    return n;
-  }, [events, processedEnd]);
+  // (Continued beat by beat, like every running readout here: `choreo/prefixFold.ts`.)
+  const enemyDeaths = useMemo(() => foldEnemyDeaths(events, processedEnd, undefined), [events, processedEnd, foldEnemyDeaths]);
 
   // Run-buff gains telegraphed so far this fight (spell power, max Gold) — folded into the live Buffs window so
   // it ticks up in sync with the replay, then settles into the run state at combat end. Same up-to-the-beat
   // accumulation as `enemyDeaths`.
-  const combatBuffs = useMemo(() => combatBuffDelta(events, processedEnd), [events, processedEnd]);
+  // (Every fold below is handed on through `useStableValue`: the SAME reference until its content moves, so a beat
+  // that changed nothing in it writes nothing to the store and re-renders nothing that reads it.)
+  const combatBuffs = useStableValue(useMemo(() => foldBuffs(events, processedEnd, undefined), [events, processedEnd, foldBuffs]));
 
   // The four display-only PREVIEW counters, folded the same way and for the same reason (review 2026-09-22):
   // escalation, spells cast, friendly deaths, Blade Mastery attacks. Derived from the log rather than bumped
   // per event, so a skip, a scrub and a resumed save all land on the number settle banks. Recruit publishes
   // these into run state, where the card-text and hero-pill chains read them.
-  const combatPreviews = useMemo(() => combatPreviewFold(events, processedEnd), [events, processedEnd]);
+  const combatPreviews = useStableValue(useMemo(() => foldPreviews(events, processedEnd, undefined), [events, processedEnd, foldPreviews]));
 
   // Combat quest progress landed so far this fight — for the quest panel to LIVE-TICK. Counts the engine's
   // step-tagged `playerQuestEvents` up to the current step (= the last processed event's step), so it agrees
   // exactly with the settled tally. Same shape as `playerQuestTally` (total + by-tribe per kind).
-  const questDelta = useMemo(() => {
-    const d = {
-      attack: 0, summonCombat: 0, slaughter: 0, slaughterKeyword: 0, deathrattle: 0, friendlyDeath: 0, rally: 0, summonImp: 0,
-      attackByTribe: {} as Partial<Record<Tribe, number>>,
-      summonCombatByTribe: {} as Partial<Record<Tribe, number>>,
-      slaughterByTribe: {} as Partial<Record<Tribe, number>>,
-      friendlyDamage: 0,
-      clearanceStacks: 0,
-      friendlyDeaths: 0,
-      freeRefreshes: 0,
-      rallyFires: 0,
-      swapCharges: 0,
-      capSpent: 0,
-      shoutFires: 0,
-      ewAvengeFired: 0,
-      attackGifts: 0,
-    };
-    // Friendly damage landed so far (Albus × War's hero Pummel readout): a `dmg` whose dealer is a player body. The
-    // player's bodies are the starting board plus every player-side summon replayed so far.
-    if (combat && processedEnd > 0) {
-      const mine = new Set(combat.initial.player.map((m) => m.uid));
-      const n = Math.min(processedEnd, events.length);
-      for (let i = 0; i < n; i++) {
-        const e = events[i];
-        if (!e) continue;
-        if (e.type === 'summon') { if (e.side === 'player') mine.add(e.minion.uid); }
-        else if (e.type === 'dmg' && e.source && e.amount > 0 && mine.has(e.source)) d.friendlyDamage += e.amount;
-        else if (e.type === 'questTrigger' && e.side === 'player' && e.flag === ANCIENT_CLEARANCE_STACK_FLAG) d.clearanceStacks += 1;
-        else if (e.type === 'questTrigger' && e.side === 'player' && e.flag === ANCIENT_REFRESH_AVENGE_FLAG) d.freeRefreshes += 1;
-        else if (e.type === 'questTrigger' && e.side === 'player' && e.flag === ANCIENT_RALLY_GOLD_FLAG) d.rallyFires += 1;
-        else if (e.type === 'questTrigger' && e.side === 'player' && e.flag === ANCIENT_SWAP_CHARGE_FLAG) d.swapCharges += 1;
-        else if (e.type === 'questTrigger' && e.side === 'player' && e.flag === ANCIENT_CAP_SPENT_FLAG) d.capSpent += 1;
-        else if (e.type === 'questTrigger' && e.side === 'player' && e.flag === ANCIENT_DRAKKO_SHOUT_FLAG) d.shoutFires += 1;
-        else if (e.type === 'questTrigger' && e.side === 'player' && e.flag === ANCIENT_EW_AVENGE_FLAG) d.ewAvengeFired += 1;
-        else if (e.type === 'questTrigger' && e.side === 'player' && e.flag === ANCIENT_GORUN_GIFT_FLAG) d.attackGifts += 1;
-        else if (e.type === 'death' && e.side === 'player' && !e.rise) d.friendlyDeaths += 1;
-      }
-    }
+  const questDeltaRaw = useMemo(() => {
+    // The log half (friendly damage, the Ancient flags, friendly deaths): a continued fold of the events played so far.
+    const d = foldQuestEvents(events, combat ? processedEnd : 0, combat?.initial.player);
     const qe = combat?.playerQuestEvents;
     if (!qe || processedEnd <= 0) return d;
     const curStep = events[processedEnd - 1]?.step ?? Infinity;
@@ -4106,15 +4302,16 @@ export function useCombatReplay(
       }
     }
     return d;
-  }, [combat, events, processedEnd]);
+  }, [combat, events, processedEnd, foldQuestEvents]);
+  const questDelta = useStableValue(questDeltaRaw);
 
   // Quest/rune badges whose COMBAT effect has fired so far this fight (player side): each `questTrigger` event's
   // `flag` resolves to its badge id (via content). The node glows the moment its trigger is REPLAYED (up-to-the-
   // beat, like questDelta), so the player sees e.g. The Bone Throne's Avenge actually go off. Cosmetic only.
-  const triggeredQuests = useMemo(
+  const triggeredQuests = useStableValue(useMemo(
     () => triggerCounts(events, processedEnd, beatIdxIsStale),
     [events, processedEnd, beatIdxIsStale],
-  );
+  ));
 
   // Each side's RUNE PROGRESS so far this fight (R-RUNE-LIVE-TEXT-01): its rune triggers (by flag) and its friendly
   // deaths, up to the replayed step, so a self-improving rune's text ticks in real time on both sides. Each is keyed on
@@ -4137,15 +4334,15 @@ export function useCombatReplay(
   // the replayed beat. The quest node doesn't exist in the badge row yet (it only settles as `completed` after
   // the replay), so the QuestBadges row renders + pulses these live off this set — the reward "lights up" the
   // instant its objective crosses, matching the effect (Feeding Line etc.) that just went live in the fight.
-  const completedQuests = useMemo(() => {
+  const completedQuests = useStableValue(useMemo(() => {
     if (processedEnd <= 0) return [] as string[];
     const curStep = events[processedEnd - 1]?.step ?? Infinity;
     const ids: string[] = [];
-    for (const e of events) {
-      if (e.type === 'questComplete' && e.side === 'player' && (e.step ?? 0) <= curStep) ids.push(e.questId);
+    for (const { e } of eventsOfType(events, 'questComplete')) { // by STEP, so not a prefix: the fight's completions only
+      if (e.side === 'player' && (e.step ?? 0) <= curStep) ids.push(e.questId);
     }
     return ids;
-  }, [events, processedEnd]);
+  }, [events, processedEnd]));
 
   // Death reflow is CSS-driven (see `.unit.dying` / `.unit.summoned` in styles.css): the dying unit
   // collapses its own flex slot AS it plays its death pop, so the survivors glide in simultaneously
@@ -4239,23 +4436,23 @@ export function useCombatReplay(
      replay is done" and hands back EVERY grant at once. That painted the whole fight's grants into the hand
      for one frame the instant you pressed Start Combat, coalesce and all, before the reset wiped them (owner
      clip 2026-07-27). `active` only turns true after the intro, by which point the reset has landed. */
-  const handGrantsShown = useMemo(
+  const handGrantsShown = useStableValue(useMemo(
     () => (active ? grantsShownThrough(events, beats, beatIdx, ownHand) : EMPTY_GRANTS),
     [active, beatIdx, beats, events, ownHand],
-  );
-  const handSummonedShown = useMemo(
+  ));
+  const handSummonedShown = useStableValue(useMemo(
     // The hand card greys the moment its body is DRAWN (as its copy lifts away), not while a hold still withholds it.
     () => (active ? handSummonedShownThrough(events, beats, beatIdx, (uid) => summonHeldV >= 0 && isSummonHeld(uid)) : EMPTY_HAND_SUMMONED),
     [active, events, beats, beatIdx, summonHeldV],
-  );
-  const enemyHandSummonedShown = useMemo(
+  ));
+  const enemyHandSummonedShown = useStableValue(useMemo(
     () => (active ? handSummonedShownThrough(events, beats, beatIdx, (uid) => summonHeldV >= 0 && isSummonHeld(uid), 'enemy') : EMPTY_HAND_SUMMONED),
     [active, events, beats, beatIdx, summonHeldV],
-  );
-  const handBuffsShown = useMemo(
+  ));
+  const handBuffsShown = useStableValue(useMemo(
     () => (active ? handBuffsShownThrough(events, beats, beatIdx, ownHand) : EMPTY_HAND_BUFFS),
     [active, beatIdx, beats, events],
-  );
+  ));
 
   return {
     frame, visibleFrame, anims, lungeUid, projectiles, floats, deathFloats, log, fullLog, procs, handGrant, handGrantsShown, handBuffsShown, handSummonedShown, enemyHandSummonedShown,

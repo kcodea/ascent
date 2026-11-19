@@ -3,7 +3,7 @@ import { GameSplit, type GameListItem } from './GameSplit';
 import { GameRank } from './gameRank';
 import { SeatBoard, SeatRuneRow, useLobbyParts } from './matchDetails/LobbyPicker';
 import { RUNE_INDEX } from '@game/content';
-import { DEFAULT_HERO_ID, getHero, runeLiveStateOfSnapshot, strengthText } from '@game/sim';
+import { DEFAULT_HERO_ID, getHero, parseMatchAncient, runeLiveStateOfSnapshot, strengthText } from '@game/sim';
 import { SHOW_LOBBY_STRENGTH } from './lobbyStrengthDisplay';
 import type { BoardSnapshot, MatchDetails } from '@game/sim';
 import { finalBoardBuffs } from './runBuffs';
@@ -24,6 +24,7 @@ import { sfx } from './sfx';
 import { MenuSidebar, SidebarHost } from './MenuSidebar';
 import { refuseInGame } from './gameMenuParts';
 import { AddFriendButton } from './friends/AddFriendButton';
+import { PhAddFriend } from './partyHome/pages/career/PhAddFriend';
 import { loadSocial, peekSocial, putSocial, useSocial } from './socialCache';
 import { useGame, syncProfileFromServer, tempHandle, type CareerFocus } from './store';
 import { CareerDuosTeams } from './versus/DuosBoards';
@@ -695,11 +696,11 @@ export function Career() {
   // THE SHELL's MATCH HISTORY (owner 2026-11-03: "make them match and use the recent games look"): the runs as the props of
   // the list + detail Recent Games wears (partyHome/pages/gameView.tsx). A row wears the skins RECORDED on its board.
   const gameSkins = (snap: RunCosmeticSnapshot | null | undefined): RunCosmeticSnapshot | null => (!viewing ? snap ?? null : opponentSkins(showOppSkins, snap));
-  const gameBits = (heroId: string, rec: { wins: number; losses: number; draws: number } | null | undefined, board: BoardSnapshot | null | undefined, runes: readonly string[]): Pick<GameDetailProps, 'who' | 'heroName' | 'art' | 'record' | 'recordTone' | 'own' | 'minions' | 'skins' | 'runes' | 'runeLive' | 'buffs'> => {
+  const gameBits = (heroId: string, rec: { wins: number; losses: number; draws: number } | null | undefined, board: BoardSnapshot | null | undefined, runes: readonly string[]): Pick<GameDetailProps, 'who' | 'heroName' | 'heroId' | 'ancient' | 'art' | 'record' | 'recordTone' | 'own' | 'minions' | 'skins' | 'runes' | 'runeLive' | 'buffs'> => {
     const skins = gameSkins(board?.cosmetics);
     const fought = !!rec && rec.wins + rec.losses + rec.draws > 0;
     return {
-      who: shownName, heroName: heroId ? getHero(heroId).name : 'Unknown hero', art: heroThumb(heroPortrait(heroId, skins)),
+      who: shownName, heroName: heroId ? getHero(heroId).name : 'Unknown hero', heroId: heroId || undefined, ancient: parseMatchAncient(board?.ancient), art: heroThumb(heroPortrait(heroId, skins)),
       record: fought ? recordText(rec!) : '', recordTone: fought ? (rec!.wins >= rec!.losses ? 'up' : 'down') : '',
       own: !viewing, minions: board?.minions, skins, runes: runes.filter((id) => RUNE_INDEX[id]), runeLive: runeLiveStateOfSnapshot(board), buffs: finalBoardBuffs(board),
     };
@@ -907,7 +908,7 @@ export function Career() {
             title={headerTitle ? (headerTitleMaster
               ? <TitleBadge id={accountProgression?.equippedTitleId ?? null} className="cv2-titleplate" />
               : <span className={`cv2-titlechip phc-titlechip${headerTitleRarity ? ` r-${headerTitleRarity}` : ''}`}>{headerTitle}</span>) : null}
-            addFriend={viewing ? <AddFriendButton userId={viewing.userId} /> : null}
+            addFriend={viewing ? <PhAddFriend userId={viewing.userId} /> : null}
             pageState={pageState}
             profileArt={profileArt}
             favoriteHero={heroId ? heroName : 'None yet'}

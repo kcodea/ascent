@@ -1,4 +1,5 @@
 import { noteShopActionOrigin, shopKeywordOrigin } from './fx/keywordOrigin';
+import { noteShopAction } from './fx/actionPressure';
 import { KEYWORD_BEAMS } from './fx/keywordBeam';
 import { canPlayDefs } from './fx/playDef';
 import { getDef } from './fx/fxDefs';
@@ -126,7 +127,7 @@ import { goldClockOf, goldClockReading, pinMedalAtStart } from './goldClock';
 import { type AnnouncedSlice, type AnnouncerEvent, announcedFor, emptyAnnounced, withAnnounced } from './announcerSlice';
 import { perfMonitor } from './perfMonitor';
 import { rankedEntryPoolGate } from './opponentPool/lobbyPoolGate';
-import { boardStrengthScorer, carriedUploadOf, finalBoardOf, lobbyBandFor, pendingPracticeRank, poolBandFor, seatExclusionsFor, shouldScoreRunEnd, STRENGTH_LATE_UPLOAD_WAIT_MS, STRENGTH_RUN_END_WAIT_MS } from './boardStrength';
+import { boardStrengthScorer, carriedUploadOf, finalBoardOf, lobbyBandFor, pendingPracticeRank, poolBandFor, seatExclusionsFor, setStrengthHold, shouldScoreRunEnd, STRENGTH_LATE_UPLOAD_WAIT_MS, STRENGTH_RUN_END_WAIT_MS } from './boardStrength';
 import { STRENGTH_REF_LAST_ROUND, normalizePracticeRank, practiceStrengthBand, runStrengthFromScores, type LobbySeatOptions, type StrengthScore } from '@game/sim';
 import { withRecordedEmotes } from '@game/sim';
 import type { RuneCombatProgress } from '@game/sim';
@@ -2729,6 +2730,10 @@ export const useGame = create<GameStore>((rawSet, get) => {
       // prepared End-of-Turn transaction commits identically to an ordinary dispatch.
       return commitResolvedAction(s, action, beat.state, beat.batch, captureBeats, set);
     });
+    // HOW FAST THE PLAYER IS ACTING (R-PERF-APM-01): every ACCEPTED Shop action is noted before React renders it, so
+    // its presentation can ask whether input is rapid (`fx/actionPressure.ts`). Presentation only: nothing the
+    // reducer, a replay or a snapshot reads.
+    if (prev.phase === 'recruit' && get().run !== prev) noteShopAction(action.type);
     // Feed the tutorial action bus AFTER the commit — a no-op (one set-size check) on every non-tutorial run,
     // so it's safe on the hot path. Only the tutorial controller subscribes, and only while a course is live.
     notifyTutorialActions(action, prev, get().run);
@@ -3420,6 +3425,10 @@ export const useGame = create<GameStore>((rawSet, get) => {
   },
   });
 });
+
+// BOARD STRENGTH FALLBACK (R-PERF-SIM-WORKER-01): boards are scored in the sim worker. Where there is none they are
+// scored on this thread in idle time, and never in a forced slice while a fight is playing.
+setStrengthHold(() => useGame.getState().run?.phase === 'combat');
 
 // The autosave writes at turn boundaries (see `dispatch`), so leaving mid-turn needs an explicit flush or the
 // shop turn in progress would roll back on Continue. Two events, deliberately both:

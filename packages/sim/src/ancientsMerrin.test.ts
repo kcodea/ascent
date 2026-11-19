@@ -71,8 +71,8 @@ describe('Merrin × DEATH: "Avenge (3): get a random Shop spell."', () => {
     expect(s.ancients!.batchBDeaths).toBe(1);
     expect(s.hand.length).toBe(0);
   });
-  it('combat: the carried count fires mid-fight (a live card to hand) and settle keeps the count', () => {
-    let s = picked('death', { board: [card('a', 'sandbag', { attack: 1, health: 1 })] });
+  it('combat: the 3rd death in the fight fires it mid-fight (a live card to hand); nothing carries out (per combat, R-AVENGE-PER-COMBAT-01: the Shop count never comes in)', () => {
+    let s = picked('death', { board: ['a', 'b', 'c'].map((u) => card(u, 'sandbag', { attack: 1, health: 1 })) });
     s = { ...s, ancients: { ...s.ancients!, batchBDeaths: 2 } };
     expect(ancientCombatMods(s).ancientGorrAvenge).toEqual({ every: 3, tick: 2, ids: spellIds(s), label: 'Ancient of Death' });
     s = fightNow(s, 100, 1000);

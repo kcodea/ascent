@@ -85,6 +85,11 @@ describe('index.html', () => {
       epic: '840x402',
       legendary: '840x393',
       ancient: '840x400',
+      'standard-lid': '819x238',
+      'rare-lid': '823x238',
+      'epic-lid': '816x242',
+      'legendary-lid': '795x250',
+      'ancient-lid': '819x246',
     };
     for (const img of document.querySelectorAll<HTMLImageElement>('#earn img[src^="/art/chests/"]')) {
       const name = img.getAttribute('src')!.replace(/^\/art\/chests\/|\.webp$/g, '');
@@ -123,13 +128,15 @@ describe('index.html', () => {
     }
   });
 
-  it('the async section lists its four points in order', () => {
-    expect([...document.querySelectorAll('#async figure[data-capture]')].map((f) => f.getAttribute('data-capture'))).toEqual([
-      'discover-timer',
-      'gold-fuse',
-      'rearrange',
-      'save-continue',
-    ]);
+  it('the async section lists its four points in order, each with a game medallion and its own clip', () => {
+    const points = [...document.querySelectorAll('#async .point')];
+    expect(points.map((p) => p.getAttribute('data-point'))).toEqual(['clock', 'fuse', 'swap', 'save']);
+    for (const p of points) {
+      expect(p.querySelector('.point__icon img[alt=""]')!.getAttribute('src'), p.getAttribute('data-point')!).toMatch(/^\/art\/medallions\/\w+\.webp$/);
+      expect(p.querySelector('.point__text h3')!.textContent!.length).toBeGreaterThan(8);
+      expect(p.querySelector('.point__text p')!.textContent!.length).toBeGreaterThan(30);
+    }
+    expect([...document.querySelectorAll('#async figure[data-capture]')].map((f) => f.getAttribute('data-capture'))).toEqual(['discover-timer', 'gold-fuse', 'rearrange', 'save-continue']);
   });
 
   it('the Ancients section states the real rule', () => {
@@ -137,7 +144,7 @@ describe('index.html', () => {
     expect(t).toMatch(/16 points/);
     expect(t).toMatch(/hero power/i);
     expect(t).toMatch(/six Ancients\./);
-    const imgs = [...document.querySelectorAll<HTMLImageElement>('#ancients img[data-ancient]')];
+    const imgs = [...document.querySelectorAll<HTMLImageElement>('#ancients [data-ancient] img')];
     expect(imgs).toHaveLength(6);
     expect(imgs.map((i) => i.getAttribute('src'))).toEqual(
       ['bonds', 'death', 'fortune', 'genesis', 'time', 'war'].map((n) => `/art/ancients/${n}.webp`),
@@ -153,7 +160,8 @@ describe('index.html', () => {
     expect(earn).toMatch(/free to earn and unlock, always/i);
     expect(document.querySelector('#earn .lede')!.textContent).toMatch(/Aether and cosmetics are free to earn and unlock, always\./);
     for (const c of ['Standard', 'Rare', 'Epic', 'Legendary', 'Ancient']) expect(earn).toContain(c);
-    expect(document.querySelectorAll('#earn img[src^="/art/chests/"]')).toHaveLength(5);
+    expect(document.querySelectorAll('#earn img.chestpic__body')).toHaveLength(5);
+    expect(document.querySelectorAll('#earn img.chestpic__lid')).toHaveLength(5);
   });
 
   it('names all three other modes', () => {
@@ -195,7 +203,7 @@ describe('index.html', () => {
   });
 
   it('save copy never implies quitting without saving keeps your game', () => {
-    const t = document.querySelector('figure[data-capture="save-continue"]')!.textContent!;
+    const t = document.querySelector('#async [data-point="save"]')!.textContent!;
     expect(t).toMatch(/Save and quit, then continue where you left off\./);
     expect(t).not.toMatch(/close the game/i);
   });

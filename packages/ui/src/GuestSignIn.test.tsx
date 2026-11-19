@@ -126,7 +126,10 @@ describe('the portrait lock: guests sign in to change their portrait (owner 2026
     expect($('.pfgate-panel')).toBeNull();
     expect($('.avatarpick')).not.toBeNull();
     const before = useGame.getState().playerAvatar;
-    act(() => document.querySelector<HTMLButtonElement>('.avatarpick-opt:not(.default)')!.click());
+    // The rebuilt window (2026-11-19): a press selects, "Use portrait" saves.
+    act(() => [...document.querySelectorAll<HTMLElement>('[role="tab"]')].find((t) => t.textContent!.startsWith('Heroes'))!.click());
+    act(() => document.querySelector<HTMLButtonElement>('.avp-tile')!.click());
+    act(() => document.querySelector<HTMLButtonElement>('.avp-use')!.click());
     expect(useGame.getState().playerAvatar).not.toBe(before);
   });
 

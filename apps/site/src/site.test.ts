@@ -128,11 +128,11 @@ describe('index.html', () => {
     }
   });
 
-  it('the async section lists its four points in order, each with a drawn sign and its own clip', () => {
+  it('the async section lists its four points in order, each with a game medallion and its own clip', () => {
     const points = [...document.querySelectorAll('#async .point')];
     expect(points.map((p) => p.getAttribute('data-point'))).toEqual(['clock', 'fuse', 'swap', 'save']);
     for (const p of points) {
-      expect(p.querySelector('.point__icon svg[aria-hidden="true"]'), p.getAttribute('data-point')!).not.toBeNull();
+      expect(p.querySelector('.point__icon img[alt=""]')!.getAttribute('src'), p.getAttribute('data-point')!).toMatch(/^\/art\/medallions\/\w+\.webp$/);
       expect(p.querySelector('.point__text h3')!.textContent!.length).toBeGreaterThan(8);
       expect(p.querySelector('.point__text p')!.textContent!.length).toBeGreaterThan(30);
     }

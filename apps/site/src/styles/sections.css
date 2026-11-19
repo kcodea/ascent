@@ -183,7 +183,7 @@
   counter-increment: point;
 }
 
-/* The medallion: a night plate in a turned gold rim, the point's sign struck in gold on its face. */
+/* The medallion: a night plate in a turned gold rim, holding one of the game's own gold medallions. */
 .point__icon {
   position: relative;
   display: grid;
@@ -197,9 +197,10 @@
   box-shadow: var(--bevel), 0 0 0 3px var(--night-deep), 0 0 26px -2px color-mix(in srgb, var(--gold) 45%, transparent), var(--contact);
 }
 
-.point__icon svg {
-  width: 56%;
-  height: 56%;
+.point__icon img {
+  width: 68%;
+  height: 68%;
+  object-fit: contain;
 }
 
 /* The point's numeral, as a small gold kicker over its heading. */

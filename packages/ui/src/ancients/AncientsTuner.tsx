@@ -78,6 +78,7 @@ const ROWS: [Key, string, TunerUnit | undefined, string, string, ('color' | 'tog
   ['panelShakePx', 'Slam shake', 'px', 'The shake on each slam, and the size of the rattle. 0 = none.', 'Awakening panels'],
   ['panelSparks', 'Sparks', '×', 'The explosion, the grinding edges and the spray off each slam. 0 = none.', 'Awakening panels'],
   ['panelSlant', 'Panel lean', undefined, 'How far each panel leans, % of the width of the screen. 0 = upright.', 'Awakening panels'],
+  ['panelDepth', 'Depth', '×', 'How far a layered portrait\'s background, Ancient and foreground move apart. 0 = they move as one.', 'Awakening panels'],
   ['revealFadeMs', 'Curtain fade', 'ms', 'The curtain fading off into the reveal.', 'Awakening beats'],
   ['revealDelayMs', 'First Ancient delay', 'ms', 'The pause before the first Ancient emerges.', 'Awakening beats'],
   ['handoffMs', 'Title handoff', 'ms', 'The banner is born where the curtain’s title stands and rises into place. 0 = a plain fade.', 'Reveal'],

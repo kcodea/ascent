@@ -53,8 +53,12 @@ then panels that slid in whole), then built.
   spark, so its rect is a point (the three panels shrank to dots in the first build). The slot is never transformed:
   the target is the slot's rect plus the art frame's layout offsets.
 - **Only the panels' own host shakes**, never the game tree (`gateLayout.test.ts`).
-- **The figures are the flat 512px paintings with a soft oval mask**, a stand-in. The owner wants depth inside each
-  portrait, which needs cut-out layers per Ancient (background, figure, optional foreground) at about 800x1440.
+- **Layered portraits (2026-11-19).** An Ancient with `art/ancients/panels/<id>_{back,figure,front}.webp` is drawn from
+  three sheets (the place, the cut-out Ancient, loose magic painted on black and converted to alpha) that move by
+  different amounts (`panelDepth`). Death has them; the other five still show the flat 512px painting with a soft oval
+  mask. `PANEL_FIGURE_FIT` places the tall figure so its mask lands where the flat painting's mask is, because the
+  panel ends on the card and the card shows the flat painting; `PANEL_FIGURE_REST` is its smaller size at rest. Masters:
+  `C:Game AssetsAscent ArtAncientsParallax`; the ChatGPT brief is `docs/art-briefs/ancient-panel-layers.md`.
 - **The sounds are placeholders** from clips already in the repo.
 - **Length.** About 3.1 s from the explosion to the reveal at the defaults, against about 1.6 s for the curtain.
 - A file named `ancientPanels.ts` next to `AncientPanels.tsx` breaks the Windows typecheck (names differing only in

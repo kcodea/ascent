@@ -1,11 +1,12 @@
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, type CSSProperties } from 'react';
 import { ANCIENT_IDS, ANCIENTS, type AncientId } from '@game/sim';
 import { wipeFx } from '../wipeFx';
+import { ancientPanelLayers } from '../art';
 import { rectToStage, stageViewport, toScreen } from '../stage';
 import { AncientFace } from './AncientFace';
 import { ancientColor, getAncientsConfig } from './ancientsConfig';
 import { playCue } from './ancientsSound';
-import { PANEL_LAND, PANEL_PULSE, PANEL_SLIDE_EASE, cardPolygon, panelFromTop, panelGeometry, panelRank, panelTimeline, seamX, slideLeadY, stripPolygon } from './panelClock';
+import { PANEL_LAND, PANEL_PULSE, PANEL_SLIDE_EASE, PANEL_FIGURE_FIT, PANEL_FIGURE_REST, cardPolygon, panelFromTop, panelGeometry, panelRank, panelTimeline, seamX, slideLeadY, stripPolygon } from './panelClock';
 
 /**
  * THE SIX PANELS (owner 2026-11-18; the clock and geometry are in `panelClock.ts`). Mounted by `AncientGate` for
@@ -16,6 +17,9 @@ import { PANEL_LAND, PANEL_PULSE, PANEL_SLIDE_EASE, cardPolygon, panelFromTop, p
  *      sparks off the far edge of the screen, and sparks grinding along its panel's seams on the way;
  *   3. the three on offer rattle and their edges light; the other three fade and fall away;
  *   4. on the gate's `reveal` beat the three settle onto their cards' art on the select screen and give way to them.
+ * LAYERED PORTRAITS (owner 2026-11-19): an Ancient with `art/ancients/panels/<id>_{back,figure,front}` is drawn from
+ * three sheets instead of the flat painting: the place rides the background, the cut-out Ancient is the figure, loose
+ * magic comes in last and overshoots; a slow push-in then moves the three by different amounts (`panelDepth`).
  * No title here: "An Ancient Awakens" pops in with the select screen (`AncientOffer`'s banner).
  * Everything is a one-shot WAAPI transform / opacity (plus the three's one-shot clip onto their cards); the sparks are
  * Pixi on the wipe's canvas. Only this layer's own host ever shakes (never the game tree, `gateLayout.test.ts`).
@@ -64,16 +68,32 @@ export const AncientPanels = memo(function AncientPanels({ offered, phase }: { o
         { duration: cfg.panelBgMs, delay: tl.bg[i]!, easing: 'cubic-bezier(0.3, 0.7, 0.3, 1)', fill: 'both' });
       anim(p.querySelector('.anc-pn-seam'), [{ opacity: 0 }, { opacity: 1 }], { duration: cfg.panelBgMs, delay: tl.bg[i]!, easing: 'ease-in', fill: 'both' });
       playCue('panelBg', tl.bg[i]!, { rateMul: 1 + rank * 0.1 });
-      // 2. The Ancient follows from the same side, from fully off screen, and slams.
+      // 2. The Ancient follows from the same side, from fully off screen, and slams. A layered figure stands smaller
+      // than the flat painting's square (the whole cut-out fits the strip's height), so its slide carries that scale.
+      const rs = p.dataset.layered ? ` scale(${PANEL_FIGURE_REST})` : '';
       anim(p.querySelector('.anc-pn-fig'), [
-        { transform: `translateY(${(dir * geo.travel).toFixed(1)}px)`, easing: SLIDE_CSS },
-        { transform: 'translateY(0)', offset: PANEL_LAND, easing: 'ease-out' },
-        { transform: `translateY(${(-dir * geo.vh * 0.009).toFixed(1)}px)`, offset: 0.92, easing: 'ease-in' },
-        { transform: 'translateY(0)' },
+        { transform: `translateY(${(dir * geo.travel).toFixed(1)}px)${rs}`, easing: SLIDE_CSS },
+        { transform: `translateY(0px)${rs}`, offset: PANEL_LAND, easing: 'ease-out' },
+        { transform: `translateY(${(-dir * geo.vh * 0.009).toFixed(1)}px)${rs}`, offset: 0.92, easing: 'ease-in' },
+        { transform: `translateY(0px)${rs}` },
       ], { duration: cfg.panelSlideMs, delay: tl.slide[i]!, fill: 'both' });
       anim(p.querySelector('.anc-pn-name'), [{ opacity: 0, transform: 'translateX(-50%) translateY(18px)' }, { opacity: 1, transform: 'translateX(-50%)' }],
         { duration: 260, delay: tl.slide[i]! + cfg.panelSlideMs, easing: 'ease-out', fill: 'both' });
       playCue('panelSlam', tl.land[i]!, { rateMul: 1 - rank * 0.08 });
+      // LAYERED: the foreground magic arrives last and overshoots, then all three sheets push in by different amounts
+      // (the place least, the magic most): one long one-shot each, from the background's first frame to past the reveal.
+      const depth = Math.max(0, cfg.panelDepth);
+      if (p.dataset.layered) {
+        anim(p.querySelector('.anc-pn-front'), [
+          { transform: `translateY(${(dir * geo.vh * 1.15).toFixed(1)}px)`, easing: SLIDE_CSS },
+          { transform: `translateY(${(-dir * geo.vh * 0.022 * depth).toFixed(1)}px)`, offset: 0.78, easing: 'ease-in-out' },
+          { transform: 'translateY(0)' },
+        ], { duration: cfg.panelSlideMs * 1.25, delay: tl.slide[i]! + 70, fill: 'both' });
+        const drift: KeyframeAnimationOptions = { duration: tl.revealAt - tl.bg[i]! + 900, delay: tl.bg[i]!, easing: 'cubic-bezier(0.2, 0.5, 0.4, 1)', fill: 'both' };
+        anim(p.querySelector('.anc-pn-back'), [{ transform: `translateY(${(dir * 2.5 * depth).toFixed(2)}%) scale(${(1.04 + 0.07 * depth).toFixed(3)})` }, { transform: 'translateY(0%) scale(1.04)' }], drift);
+        anim(p.querySelector('.anc-pn-cut'), [{ transform: `scale(${(1 - 0.03 * depth).toFixed(3)})` }, { transform: `scale(${(1 + 0.025 * depth).toFixed(3)})` }], drift);
+        anim(p.querySelector('.anc-pn-front-img'), [{ transform: 'translateY(0%) scale(1)' }, { transform: `translateY(${(2.5 * depth).toFixed(2)}%) scale(${(1 + 0.12 * depth).toFixed(3)})` }], drift);
+      }
       // Grinding: sparks along both of its panel's seams, at the Ancient's leading edge, until it lands. The position
       // comes from the slide's own easing (no layout read per frame).
       const landMs = cfg.panelSlideMs * PANEL_LAND;
@@ -162,9 +182,10 @@ export const AncientPanels = memo(function AncientPanels({ offered, phase }: { o
           p.querySelector('.anc-pn-clip')?.animate([{ clipPath: stripPolygon(geo, i) }, { clipPath: cardPolygon(geo, r.width, r.top, r.bottom) }], { duration: dur, easing: ease, fill: 'forwards' });
           // The Ancient's square ends exactly on the card's art square, so the real card appears over the same picture.
           const dy = r.top + r.height / 2 - geo.vh / 2;
-          p.querySelector('.anc-pn-fig')?.animate([{ transform: 'translateY(0) scale(1)' }, { transform: `translateY(${dy.toFixed(1)}px) scale(${(r.width / geo.figS).toFixed(4)})` }], { duration: dur, easing: ease, fill: 'forwards' });
+          p.querySelector('.anc-pn-fig')?.animate([{ transform: `translateY(0px) scale(${p.dataset.layered ? PANEL_FIGURE_REST : 1})` }, { transform: `translateY(${dy.toFixed(1)}px) scale(${(r.width / geo.figS).toFixed(4)})` }], { duration: dur, easing: ease, fill: 'forwards' });
           p.querySelector('.anc-pn-glow')?.animate([{ opacity: 1 }, { opacity: 0 }], { duration: dur, fill: 'forwards' });
           p.querySelector('.anc-pn-lit')?.animate([{ opacity: 1 }, { opacity: 0 }], { duration: dur, fill: 'forwards' });
+          p.querySelector('.anc-pn-front')?.animate([{ opacity: 1 }, { opacity: 0 }], { duration: dur * 0.6, fill: 'forwards' });
           p.querySelector('.anc-pn-seam')?.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 160, fill: 'forwards' });
         }
         p.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 180, delay: burst, easing: 'ease-out', fill: 'forwards', composite: 'replace' });
@@ -176,13 +197,22 @@ export const AncientPanels = memo(function AncientPanels({ offered, phase }: { o
 
   return (
     <div ref={hostRef} className="anc-pn-host">
-      {ids.map((id, i) => (
-        <div key={id} className="anc-pn" style={{ left: geo.left[i], width: geo.boxW, '--anc-c': ancientColor(id) } as CSSProperties}>
+      {ids.map((id, i) => { const layers = ancientPanelLayers(id); return (
+        <div key={id} className="anc-pn" data-layered={layers ? '1' : undefined} style={{ left: geo.left[i], width: geo.boxW, '--anc-c': ancientColor(id) } as CSSProperties}>
           <div className="anc-pn-clip" style={{ clipPath: stripPolygon(geo, i) }}>
-            <div className="anc-pn-fill" />
-            <div className="anc-pn-fig" style={{ width: geo.figS, height: geo.figS, marginLeft: -geo.figS / 2, marginTop: -geo.figS / 2 }}>
-              <AncientFace id={id} className="anc-pn-face" />
+            <div className="anc-pn-fill">
+              {layers && <img decoding="sync" className="anc-pn-back" src={layers.back} alt="" draggable={false} style={{ marginLeft: -geo.vh / 3 }} />}
             </div>
+            <div className={`anc-pn-fig${layers ? ' anc-pn-fig-cut' : ''}`} style={{ width: geo.figS, height: geo.figS, marginLeft: -geo.figS / 2, marginTop: -geo.figS / 2 }}>
+              {layers
+                ? <img decoding="sync" className="anc-pn-cut" src={layers.figure} alt="" draggable={false} style={{ left: `${PANEL_FIGURE_FIT.left}%`, top: `${PANEL_FIGURE_FIT.top}%`, width: `${PANEL_FIGURE_FIT.width}%`, transformOrigin: PANEL_FIGURE_FIT.origin }} />
+                : <AncientFace id={id} className="anc-pn-face" />}
+            </div>
+            {layers?.front && (
+              <div className="anc-pn-front">
+                <img decoding="sync" className="anc-pn-front-img" src={layers.front} alt="" draggable={false} />
+              </div>
+            )}
             <div className="anc-pn-lit" />
           </div>
           {/* The strip's two slanted edges: a thin dark seam always, a glow in its colour for the three that stay. */}
@@ -200,7 +230,7 @@ export const AncientPanels = memo(function AncientPanels({ offered, phase }: { o
           </svg>
           <div className="anc-pn-name">{ANCIENTS[id].name.replace(/^Ancient of /, '')}</div>
         </div>
-      ))}
+      ); })}
     </div>
   );
 });

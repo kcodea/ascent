@@ -88,6 +88,8 @@ export interface AncientsConfig {
   panelSparks: number;
   /** Panels: how far each panel leans (% of the screen's width). 0 = upright. */
   panelSlant: number;
+  /** Panels: how far a layered portrait's sheets move apart (×). 0 = the layers move as one. */
+  panelDepth: number;
   /** Reveal: the curtain fading off (ms). */
   revealFadeMs: number;
   /** Reveal: the pause before the first Ancient emerges (ms). */
@@ -291,6 +293,7 @@ export const ANCIENTS_DEFAULTS: AncientsFullConfig = {
   panelShakePx: 7,
   panelSparks: 1,
   panelSlant: 2.2,
+  panelDepth: 1,
   revealFadeMs: 320, // was 480 (2026-09-27 whole-sequence pass: shorter + ease-in, no murky mid-fade)
   revealDelayMs: 120, // the middle Ancient's spark lights as the title starts rising (spark reveal 2026-09-27)
   revealStyle: 'burst',
@@ -384,6 +387,7 @@ export const ANCIENTS_RANGES: Record<NumKey, [number, number, number]> = {
   panelShakePx: [0, 24, 0.5],
   panelSparks: [0, 3, 0.05],
   panelSlant: [0, 6, 0.1],
+  panelDepth: [0, 3, 0.05],
   revealDelayMs: [0, 2000, 10],
   sparkMs: [80, 1000, 10],
   materialiseMs: [120, 1200, 10],

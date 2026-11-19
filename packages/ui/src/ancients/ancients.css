@@ -555,6 +555,13 @@ body.ancgate .app { z-index: auto; }
   position: absolute; left: 50%; top: 50%; will-change: transform;
   -webkit-mask-image: radial-gradient(ellipse 46% 56% at 50% 46%, #000 52%, transparent 96%); mask-image: radial-gradient(ellipse 46% 56% at 50% 46%, #000 52%, transparent 96%);
 }
+/* LAYERED portraits (owner 2026-11-19): the place rides the sliding fill, the cut-out figure needs no soft mask, and
+   loose magic sits low in front. Static images; the component moves them (one-shot transform / opacity). */
+.anc-pn-back { position: absolute; left: 50%; top: 0; height: 100%; width: auto; aspect-ratio: 2 / 3; will-change: transform; -webkit-user-drag: none; }
+.anc-pn-fig-cut { -webkit-mask-image: none; mask-image: none; }
+.anc-pn-cut { position: absolute; height: auto; aspect-ratio: 2 / 3; will-change: transform; -webkit-user-drag: none; }
+.anc-pn-front { position: absolute; left: -15%; bottom: 0; width: 130%; aspect-ratio: 2 / 3; pointer-events: none; will-change: transform, opacity; }
+.anc-pn-front-img { display: block; width: 100%; height: 100%; transform-origin: 50% 100%; will-change: transform; -webkit-user-drag: none; }
 .anc-pn-face { display: block; width: 100%; height: 100%; object-fit: cover; -webkit-user-drag: none; }
 .anc-pn-edges { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
 .anc-pn-edges line { vector-effect: non-scaling-stroke; stroke-linecap: round; }

@@ -22,6 +22,16 @@ export interface PanelTiming {
 export const PANEL_LAND = 0.84;
 /** The slide's easing: it gathers speed the whole way (heavy stone) and stops dead. */
 export const PANEL_SLIDE_EASE = [0.55, 0, 0.95, 0.6] as const;
+/**
+ * Where a layered portrait's tall cut-out figure (2:3) sits in the Ancient's square, in % of that square, so its mask
+ * lands where the flat painting's mask is: the panel ends by shrinking that square onto the card's art, and the card
+ * shows the flat painting. Measured on Death (mask centre and height in both images); the brief asks every figure
+ * for the same framing (mask in the upper third, thighs up).
+ */
+export const PANEL_FIGURE_FIT = { left: 4.4, top: -11.8, width: 88, origin: '53% 27%' } as const;
+/** A layered figure's size at rest, against that square: the whole cut-out, antlers to thighs, fits the strip's height
+ *  (the flat painting only ever showed its middle). The reveal scales it from here onto the card. */
+export const PANEL_FIGURE_REST = 0.7;
 /** The chosen three's edge glow over their rattle: up fast, then two pulses, ending lit. [offset, opacity]. */
 export const PANEL_PULSE: readonly (readonly [number, number])[] = [[0, 0], [0.16, 1], [0.38, 0.4], [0.58, 1], [0.8, 0.45], [1, 1]];
 /** The explosion's head start before the first background sets off (ms). */

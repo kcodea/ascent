@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ANCIENTS_DEFAULTS, gateStyleOf } from './ancientsConfig';
-import { PANEL_LAND, PANEL_PULSE, panelFromTop, panelGeometry, panelRank, panelTimeline, seamX, slideLeadY, stripPolygon } from './panelClock';
+import { PANEL_FIGURE_FIT, PANEL_FIGURE_REST, PANEL_LAND, PANEL_PULSE, panelFromTop, panelGeometry, panelRank, panelTimeline, seamX, slideLeadY, stripPolygon } from './panelClock';
 
 /**
  * THE AWAKENING'S SIX PANELS (owner 2026-11-18): "the ancient itself to slide down into place from completely off
@@ -78,6 +78,14 @@ describe('the awakening panels geometry', () => {
     it(`starts each Ancient completely off the ${vw}x${vh} screen`, () => {
       // The Ancient's square is centred on the stage; moved by `travel` it must clear the edge it came from.
       expect(g.travel).toBeGreaterThanOrEqual(vh / 2 + g.figS / 2);
+    });
+
+    // Owner 2026-11-19 (layered portraits): the tall cut-out stands whole in the strip, running off the bottom.
+    it(`stands a layered figure top to bottom in the ${vw}x${vh} strip`, () => {
+      const h = g.figS * (PANEL_FIGURE_FIT.width / 100) * 1.5 * PANEL_FIGURE_REST; // a 2:3 image, at its rest size
+      const top = vh / 2 + (-g.figS / 2 + g.figS * PANEL_FIGURE_FIT.top / 100) * PANEL_FIGURE_REST;
+      expect(top).toBeLessThanOrEqual(vh * 0.02); // its top is at the top of the screen
+      expect(top + h).toBeGreaterThanOrEqual(vh); // and it runs off the bottom
     });
 
     it(`sweeps the grinding sparks across the whole ${vw}x${vh} height`, () => {

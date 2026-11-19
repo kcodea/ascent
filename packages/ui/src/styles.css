@@ -253,10 +253,10 @@ html { cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
 /* Scroll areas hide the NATIVE scrollbar and scroll by wheel/trackpad. A native scrollbar (even a styled
    ::-webkit-scrollbar) forces the OS arrow cursor — the browser ignores `cursor` on it — which breaks the
    game's custom gauntlet cursor. Hiding it keeps the cursor consistent everywhere; content still scrolls. */
-.book-grid, .book-rail, .avatarpick-scroll, .lbscroll, .heroselect, .fr-body, .inspect-buffs, .sfxmix, .colls-gridwrap {
+.book-grid, .book-rail, .lbscroll, .heroselect, .fr-body, .inspect-buffs, .sfxmix, .colls-gridwrap {
   scrollbar-width: none; -ms-overflow-style: none;
 }
-.book-grid::-webkit-scrollbar, .book-rail::-webkit-scrollbar, .avatarpick-scroll::-webkit-scrollbar,
+.book-grid::-webkit-scrollbar, .book-rail::-webkit-scrollbar,
 .lbscroll::-webkit-scrollbar, .heroselect::-webkit-scrollbar, .fr-body::-webkit-scrollbar,
 .inspect-buffs::-webkit-scrollbar, .sfxmix::-webkit-scrollbar, .colls-gridwrap::-webkit-scrollbar { width: 0; height: 0; display: none; }
 /* The hero frame is no longer clickable (the power fires from its button only) — don't show the action cursor on it.

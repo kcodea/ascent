@@ -213,7 +213,7 @@ function PortraitWindow() {
         </div>
         <div className="avp-body">
           <div className="avp-main">
-            <div ref={scrollRef} className="avp-scroll avatarpick-scroll"
+            <div ref={scrollRef} className="avp-scroll"
               onPointerOver={(e) => { const t = (e.target as HTMLElement).closest<HTMLElement>('.avp-tile'); if (t) caption(t.dataset.name ?? ''); }}
               onPointerLeave={() => caption('')}>
               {rows.length === 0 && (all[tab].length > 0

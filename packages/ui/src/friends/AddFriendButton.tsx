@@ -8,12 +8,14 @@
 import { useEffect } from 'react';
 import { sfx } from '../sfx';
 import { useGame } from '../store';
-import { acceptRequest, addFriend, friendsAccount, refreshFriendsList, relationOf, useFriends } from './friendsStore';
+import { acceptRequest, addFriend, friendsAccount, refreshFriendsList, relationOf, useFriends, type Relation } from './friendsStore';
 import './friends.css';
 
 let askedOnce = false;
 
-export function AddFriendButton({ userId, className = '' }: { userId: string | null | undefined; className?: string }) {
+/** What an Add friend control shows for a player: nothing (`show` false: yourself, a guest, a blocked player, no backend)
+ *  or the relationship. Shared by the classic button below and the party home Career header (`PhAddFriend`). */
+export function useAddFriend(userId: string | null | undefined): { show: boolean; rel: Relation; busy: boolean } {
   const account = useGame((s) => s.account);
   const rel = useFriends((s) => (userId ? relationOf(userId, s) : 'self'));
   const busy = useFriends((s) => !!userId && !!s.busy[userId]);
@@ -25,7 +27,12 @@ export function AddFriendButton({ userId, className = '' }: { userId: string | n
     askedOnce = true;
     void refreshFriendsList();
   }, [on, known]);
-  if (!on || rel === 'self' || rel === 'blocked') return null;
+  return { show: on && rel !== 'self' && rel !== 'blocked', rel, busy };
+}
+
+export function AddFriendButton({ userId, className = '' }: { userId: string | null | undefined; className?: string }) {
+  const { show, rel, busy } = useAddFriend(userId);
+  if (!show || !userId) return null;
   if (rel === 'friend') return <span className={`fr-chip ${className}`}>Friends</span>;
   if (rel === 'outgoing') return <span className={`fr-chip ${className}`}>Request sent</span>;
   if (rel === 'incoming') {

@@ -192,9 +192,9 @@ export const CASES: ProcCase[] = [
   // DEATH, combat: a carried 5 pays at the first death (aliased flag); two more deaths only tick.
   {
     hero: 'nadja', ancient: 'death', phase: 'combat', fires: 1,
-    note: 'three friendly deaths from a carried 5: one Avenge',
+    note: 'six friendly deaths in the fight: one Avenge (6) (the Shop count of 5 never comes in)',
     run: () => {
-      let s = pickedRun('nadja', 'death', { embers: 99, board: ['a', 'b', 'c'].map((u) => body(u, N(1), { attack: 1, health: 1 })) });
+      let s = pickedRun('nadja', 'death', { embers: 99, board: ['a', 'b', 'c', 'd', 'e', 'f'].map((u) => body(u, N(1), { attack: 1, health: 1 })) });
       s = { ...s, ancients: { ...s.ancients!, nadjaDeaths: 5 } };
       return fight(s, foes(s.wave, 100, 1000)).procs;
     },
@@ -251,13 +251,13 @@ export const CASES: ProcCase[] = [
   // DEATH, combat: a carried 2 pays at the first death (aliased flag); the next death only ticks.
   {
     hero: 'brackus', ancient: 'death', phase: 'combat', fires: 1,
-    note: 'two 1/1 deaths from a carried 2: one Avenge',
+    note: 'three 1/1 deaths in the fight: one Avenge (3) (the Shop count of 2 never comes in)',
     run: () => {
-      let s = pickedRun('brackus', 'death', { ...BRACKUS, wave: 3, board: [body('a', 'drummer', { attack: 1, health: 500 }), body('f1', N(2), { attack: 1, health: 1 }), body('f2', N(2), { attack: 1, health: 1 })] });
+      let s = pickedRun('brackus', 'death', { ...BRACKUS, wave: 3, board: [body('a', 'drummer', { attack: 1, health: 500 }), body('f1', N(2), { attack: 1, health: 1 }), body('f2', N(2), { attack: 1, health: 1 }), body('f3', N(2), { attack: 1, health: 1 })] });
       s = { ...s, ancients: { ...s.ancients!, brackusDeaths: 2 } };
       const r = fight(s, foes(s.wave, 2, 60));
       const deaths = r.events.filter((e) => e.type === 'death' && e.side === 'player').length;
-      if (deaths !== 2) throw new Error(`expected 2 friendly deaths, saw ${deaths}`);
+      if (deaths !== 3) throw new Error(`expected 3 friendly deaths, saw ${deaths}`);
       return r.procs;
     },
   },
@@ -330,9 +330,9 @@ export const CASES: ProcCase[] = [
   // DEATH, combat: a carried 3 pays at the first death (aliased Sprout flag); two more deaths only tick.
   {
     hero: 'rayse', ancient: 'death', phase: 'combat', fires: 1,
-    note: 'three friendly deaths from a carried 3: one Sprout',
+    note: 'four friendly deaths in the fight: one Sprout (the Shop count of 3 never comes in)',
     run: () => {
-      let s = pickedRun('rayse', 'death', { board: ['a', 'b', 'c'].map((u, i) => body(u, N(i), { attack: 1, health: 1 })) });
+      let s = pickedRun('rayse', 'death', { board: ['a', 'b', 'c', 'd'].map((u, i) => body(u, N(i), { attack: 1, health: 1 })) });
       s = { ...s, ancients: { ...s.ancients!, rayseDeaths: 3 } };
       return fight(s, foes(s.wave, 100, 1000)).procs;
     },
@@ -400,18 +400,18 @@ export const CASES: ProcCase[] = [
     },
   },
   // ── CASSEN ────────────────────────────────────────────────────────────────────────────────────────────────────
-  // DEATH, Shop: every 7th friendly Shop death advances the commission; 5 → 6 is a tick.
+  // DEATH, Shop: every 5th friendly Shop death advances the commission (owner 2026-11-19: 5, was 7); 3 → 4 is a tick.
   {
     hero: 'cassen', ancient: 'death', phase: 'shop', fires: 2,
-    note: 'a tick (5 to 6) does not proc; two 7th deaths do',
+    note: 'a tick (3 to 4) does not proc; two 5th deaths do',
     run: () => {
       let s = pickedRun('cassen', 'death', CASSEN);
-      s = structuredClone({ ...s, ancients: { ...s.ancients!, cassenDeaths: 5 }, board: [body('x', N(0)), body('y', N(1)), body('z', N(2))] });
+      s = structuredClone({ ...s, ancients: { ...s.ancients!, cassenDeaths: 3 }, board: [body('x', N(0)), body('y', N(1)), body('z', N(2))] });
       const p0 = procsOf(s);
       shopKill(s, 'x');
       if (procsOf(s) !== p0) throw new Error('a tick procced');
       shopKill(s, 'y');
-      s.ancients!.cassenDeaths = 6;
+      s.ancients!.cassenDeaths = 4;
       shopKill(s, 'z');
       return procsOf(s) - p0;
     },
@@ -419,10 +419,10 @@ export const CASES: ProcCase[] = [
   // DEATH, combat: a carried 6 pays at the first death (aliased flag); two more deaths only tick.
   {
     hero: 'cassen', ancient: 'death', phase: 'combat', fires: 1,
-    note: 'three friendly deaths from a carried 6: one advance',
+    note: 'seven friendly deaths in the fight: one advance at the 5th (the Shop count of 4 never comes in)',
     run: () => {
-      let s = pickedRun('cassen', 'death', { ...CASSEN, board: ['a', 'b', 'c'].map((u, i) => body(u, N(i), { attack: 1, health: 1 })) });
-      s = { ...s, ancients: { ...s.ancients!, cassenDeaths: 6 } };
+      let s = pickedRun('cassen', 'death', { ...CASSEN, board: ['a', 'b', 'c', 'd', 'e', 'f', 'g'].map((u, i) => body(u, N(i), { attack: 1, health: 1 })) });
+      s = { ...s, ancients: { ...s.ancients!, cassenDeaths: 4 } };
       return fight(s, foes(s.wave, 100, 1000)).procs;
     },
   },
@@ -522,14 +522,18 @@ export const CASES: ProcCase[] = [
       return procsOf(s) - p0;
     },
   },
-  // DEATH, combat: a carried 16 pays at the first death; the second only ticks.
+  // DEATH, combat: "When 17 friendly minions die" carries (R-ANCIENT-CARRYOVER-01): a carried 16 pays at the first
+  // death; the second only ticks.
   {
     hero: 'gildmaster', ancient: 'death', phase: 'combat', fires: 1,
-    note: 'two friendly deaths from a carried 16: one Goldcrafter',
+    note: 'two friendly deaths with 16 carried in: the first pays one Goldcrafter, the second ticks',
     run: () => {
       let s = pickedRun('gildmaster', 'death', { embers: 20, board: ['a', 'b'].map((u, i) => body(u, N(i), { attack: 1, health: 1 })) });
       s = { ...s, ancients: { ...s.ancients!, gildDeaths: 16 } };
-      return fight(s, foes(s.wave, 100, 1000)).procs;
+      const r = fight(s, foes(s.wave, 100, 1000));
+      const died = r.events.filter((e) => e.type === 'death' && e.side === 'player').length;
+      if (died !== 2) throw new Error(`expected 2 friendly deaths, saw ${died}`);
+      return r.procs;
     },
   },
   // FORTUNE: two Gilded plays = two Triple Rewards = two 5-Gold payouts.

@@ -36,7 +36,7 @@ import { createPickPressLatch } from './pickPressLatch';
 import { SCENES } from './audio/scenes';
 import { slugify, isValidSlug, saveSound } from './fx/defStore';
 import { getBuffFxConfig } from './buffFxConfig';
-import { buildAudioFilterChain, curveVaries, applyAudioCurve, reverbImpulse, type FxFilterCtx } from './fx/audioFilters';
+import { buildAudioFilterChain, curveVaries, applyAudioCurve, reverbImpulse, sharedReverbEligible, type FxFilterCtx } from './fx/audioFilters';
 import { getGoodLuckIntroConfig, goodLuckTail } from './goodLuck/goodLuckIntroConfig';
 import { masterOutput } from './audio/master';
 import { combatHeld } from './combatHold';
@@ -301,6 +301,27 @@ export function hardStopSfx(): void {
 /** Test/diagnostic: how many epoch gains the current epoch holds (one per bus a sound has used). */
 export function epochGainCount(): number {
   return epochGains.size;
+}
+
+/** The STABLE node an FX `sound` layer's bus feeds (its bus input, else the master limiter, else destination). The
+ *  shared effect reverbs are keyed by it (R-PERF-SHARED-FX-REVERB-01); `playFxSound` wraps it in the current epoch. */
+export function fxBusTarget(a: AudioContext, bus: BusName): AudioNode {
+  return busNodes.get(bus)?.input ?? master ?? masterOutput(a);
+}
+/** How long (s) a finished `sound` play's OWN chain can still ring: a per-play reverb's tail (none when it rode the
+ *  shared convolver) plus a feedback delay's audible repeats, capped. 0 = nothing rings, release at once. */
+export function fxChainRingSeconds(p: Record<string, unknown> | undefined, sharedReverb: boolean): number {
+  if (!p) return 0;
+  let s = 0;
+  if (p.reverbOn === true && !sharedReverb) s += (typeof p.reverb_size === 'number' ? p.reverb_size : 1.8) + 0.5;
+  if (p.delayOn === true) {
+    const time = (typeof p.delay_time === 'number' ? p.delay_time : 250) / 1000;
+    const fb = Math.min(0.95, Math.max(0, typeof p.delay_feedback === 'number' ? p.delay_feedback : 0.35));
+    // Repeats until the echo is 60 dB down.
+    const repeats = fb > 0 ? Math.ceil(Math.log(0.001) / Math.log(fb)) : 1;
+    s += Math.min(12, time * (repeats + 1));
+  }
+  return s;
 }
 
 /** Callbacks for the moment the AudioContext first exists (perf 2026-10-10): the FX sound layer uses it to
@@ -723,6 +744,9 @@ function playSample(name: string, category: string, delay = 0, onNodes?: (nodes:
   if (slice) src.start(when, Math.max(0, slice.offset), Math.max(0, slice.duration));
   else src.start(when);
   holdWhilePlaying(name, src);
+  // Let go of the finished voice (R-AUDIO-VOICE-RELEASE-01): a source that has ended is otherwise left wired into its
+  // bus until the collector finds it, and older WebKit kept finished-but-connected nodes alive for the session.
+  src.addEventListener('ended', () => { try { src.disconnect(); g.disconnect(); } catch { /* already */ } }, { once: true });
   onNodes?.({ src, gain: g });
   return true;
 }
@@ -2110,6 +2134,17 @@ export const sfx = {
     onAudioContextReady((a) => {
       reverbImpulse(a, WIPE_CRANK_REVERB_SEC, 0.55);
       for (const l of WIPE_GATE_LAYERS.crank) if (l.reverb) sharedTailReverb(a, busTarget(a, l.category ?? l.clip), WIPE_CRANK_REVERB_SEC, busInput(a, l.category ?? l.clip));
+      // The Ruby landing's tail too (R-PERF-SHARED-FX-REVERB-01): its 2.2 s convolver was built by the FIRST Ruby of a
+      // session, mid-game (~6 ms of main thread at 96 kHz). Desktop builds it now, on idle time; a phone keeps the
+      // lazy path (a convolver is ~70 MB there, and many runs never land a Ruby).
+      if (!LITE_ART) {
+        const warmRuby = (): void => {
+          reverbImpulse(a, RUBY_REVERB_SEC, 0.55);
+          sharedTailReverb(a, busTarget(a, 'gemapply'), RUBY_REVERB_SEC, busInput(a, 'gemapply'));
+        };
+        const ric = (globalThis as unknown as { requestIdleCallback?: (f: () => void, o?: { timeout: number }) => number }).requestIdleCallback;
+        if (typeof ric === 'function') ric(warmRuby, { timeout: 5000 }); else setTimeout(warmRuby, 500);
+      }
     });
   },
   warmGate: (): void => { for (const clip of [...Object.values(GATE_CLIP), 'combatStart', 'gatehum', 'placelow']) loadSample(clip); }, // + the End Turn cue "Yes" plays, the hum, and the end-of-match tone
@@ -2824,7 +2859,8 @@ export function playFxSound(clip: string, opts: FxSoundOpts = {}): FxSoundHandle
   const gainJit = opts.gainVar ? 1 - Math.random() * opts.gainVar : 1; // only DOWN, so it never exceeds the set level
   const level = Math.max(0, (opts.gain ?? 1) * gainJit);
   const g = a.createGain();
-  const busIn = epochInput(a, busNodes.get(opts.bus ?? 'combat')?.input ?? master ?? masterOutput(a));
+  const busStable = fxBusTarget(a, opts.bus ?? 'combat');
+  const busIn = epochInput(a, busStable);
   const t0 = a.currentTime + Math.max(0, (opts.delayMs ?? 0) / 1000);
   const offset = Math.max(0, (opts.startOffsetMs ?? 0) / 1000);
   const endTrim = Math.max(0, (opts.endOffsetMs ?? 0) / 1000);
@@ -2836,6 +2872,15 @@ export function playFxSound(clip: string, opts: FxSoundOpts = {}): FxSoundHandle
   // reused by the one-shot fade-out below.
   const playDur = clipLen / src.playbackRate.value;
   const fireCtx: FxFilterCtx = { t0, durSec: playDur, oneShot: !src.loop }; // a one-shot may pool its reverb (audioFilters.ts)
+  // ...or, when nothing but this fader sat after its convolver, send into the ONE shared convolver for its impulse
+  // (R-PERF-SHARED-FX-REVERB-01): the wet then skips the fader, so the send is given the fader's level and fades.
+  let reverbSend: GainNode | null = null;
+  const fadeInS = Math.max(0, (opts.fadeInMs ?? 0) / 1000);
+  const fadeOutS = Math.max(0, (opts.fadeOutMs ?? 0) / 1000);
+  const sharedReverb = !src.loop && playDur > 0 && sharedReverbEligible(opts.filterParams);
+  if (sharedReverb) {
+    fireCtx.shared = { bus: busStable, out: busIn, level, fadeInSec: fadeInS, fadeOutSec: fadeOutS, onSend: (n) => { reverbSend = n; } };
+  }
   // Channel strip: source → [Filter Lab inserts] → fader (g) → [Level-curve gain] → bus. `g` (level, fades,
   // jitter) is the fader; the Filter Lab dials automate on the fireCtx window. No enabled filters → straight in.
   const chain = buildAudioFilterChain(a, opts.filterParams, fireCtx);
@@ -2869,12 +2914,32 @@ export function playFxSound(clip: string, opts: FxSoundOpts = {}): FxSoundHandle
   if (endTrim > 0) src.start(t0, offset, clipLen); else src.start(t0, offset);
   holdWhilePlaying(clip, src);
   let isEnded = false;
-  src.onended = () => { isEnded = true; };
+  // RELEASE THE FINISHED VOICE (R-AUDIO-VOICE-RELEASE-01): once the clip has ended and whatever still rings inside
+  // this play's own chain has died (a per-play reverb's tail, a feedback delay's repeats), unhook it from the bus.
+  // A chain with neither is let go at once; the shared reverb's tail lives in the shared node, not here.
+  const ringS = chain ? fxChainRingSeconds(opts.filterParams, sharedReverb) : 0;
+  const releaseVoice = (): void => {
+    const s = reverbSend as GainNode | null;
+    try { src.disconnect(); } catch { /* already */ }
+    try { s?.disconnect(); } catch { /* already */ }
+    const drop = (): void => { try { tail.disconnect(); } catch { /* already */ } };
+    if (ringS > 0) setTimeout(drop, ringS * 1000 + 100); else drop();
+  };
+  src.onended = () => { isEnded = true; releaseVoice(); };
   return {
     stop(fadeMs = 60) {
       if (isEnded) return;
       const now = a.currentTime;
       const f = Math.max(0, fadeMs / 1000);
+      const s = reverbSend as GainNode | null;
+      if (s) {
+        // Close this play's send into the shared reverb with the same fade: what it already fed rings out.
+        try {
+          s.gain.cancelScheduledValues(now);
+          s.gain.setValueAtTime(Math.max(0.0001, s.gain.value), now);
+          s.gain.exponentialRampToValueAtTime(0.0001, now + Math.max(0.01, f));
+        } catch { /* already gone */ }
+      }
       try {
         g.gain.cancelScheduledValues(now);
         g.gain.setValueAtTime(Math.max(0.0001, g.gain.value), now);

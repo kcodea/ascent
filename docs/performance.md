@@ -141,7 +141,8 @@ Counters (levels, peak-sampled at 20 Hz): `fx:particles` (the WHOLE population â
 ParticleContainers plus the sprite particles; the older `particles` counter is the sprite pool alone),
 `fx:layers` (acquired def layers), `fx:filters` (filters applied across live `FilterStack`s), `fx:culled`
 (plays the FX budget has trimmed since load â€” see below), `sprite pool`, `weld rings`, `spell arrows`.
-Rates (per second): `unit renders`, `recruit renders`, `pointermoves`, `fx:culled` (also tallied per bucket).
+Rates (per second): `unit renders`, `card renders` (every whole `Card` render, shop and combat: a render that starts
+inside the card never showed in `unit renders`), `recruit renders`, `pointermoves`, `fx:culled` (also tallied per bucket).
 
 **Long-task attribution and the input-event ring (perf PR 1, 2026-09-17).** Every `longtask` entry is
 intersected against a ring of recently closed spans; the labels that overlapped it are recorded on the bucket
@@ -958,6 +959,16 @@ throttle) and at 1920x1080 with no throttle. Numbers and method: `docs/devlog/20
   is not enough: its module is side-effect-free, so Rollup drops an unused reference.
 - **An uninterruptible idle-time step is sized by measured cost, not a fixed count.** The odds probe's 10-sim step
   was a 59 ms task on the throttled phone late-game (`oddsStepper.ts` now aims each step at ~2 ms).
+- **Background combat simulation runs in the sim worker, never on the main thread (R-PERF-SIM-WORKER-01,
+  2026-11-18).** The odds probe (200 sims a fight) and the board-strength scorer (160 fights a board) were 100 ms a
+  round early and 450-600 ms by rounds 10-15, all during the combat replay, with single strength steps of 7-21 ms.
+  Both now run in one module worker (`packages/ui/src/simWorker/`): the page posts plain data (`oddsInput`, a
+  `BoardSnapshot`), the worker imports the card index and the reference itself and runs the same pure probes with
+  the same seeds, so results are byte-identical (`simWorker/handler.test.ts`). Any NEW batch of `simulate()` calls
+  the UI wants (a preview, a what-if, a backfill) goes through that worker: add a message to `protocol.ts` and a
+  case to `handler.ts`. The main-thread path is a fallback only (no Worker, or it failed): steps sized by measured
+  cost, and never in a slice the browser had to force while a fight plays. Triage switch:
+  `localStorage['ascent:simWorker'] = 'off'` keeps the work on the page.
 - **A drag re-layerizes every frame (Chromium; measured 2026-10-29, cheap).** `Layerize` runs on every drag frame.
   It is the dragged card (hiding `.dragcard` removes it) and mostly its 3D tilt, not `zoom` (forcing `zoom: 1` changed
   nothing). It is ~0.1 ms a frame unthrottled, so it was left alone. The real drag costs were the pickup, the drop and

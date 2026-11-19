@@ -182,4 +182,33 @@ export const GILDING_RULES: GameRule[] = [
       'Conforms from 2026-11-13. Was: a Golden body weighed as three copies, so a lone Golden was never offered.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/runeMinionsAug20.test.ts'], lastVerifiedAt: '2026-11-13' },
   },
+  {
+    id: 'R-GILD-PROGRESS-01',
+    title: 'A Gilded minion starts at the furthest progress of the copies that combined',
+    statement:
+      'When copies combine into a Gilded minion (three copies, or two under Midas Touch, Twin Gilding or Gilded Shortcut; '
+      + 'board and hand copies alike), every per-instance progress tracker on the Gilded minion starts at the FURTHEST progress '
+      + 'among the copies: the highest count, never the sum and never zero. A Billings at 9/10, 3/10 and 0/10 Gold spent gilds '
+      + 'to 9/10. This covers every meter a minion carries: Gold spent, cards bought, cards played, minions sold, spells and '
+      + 'Rubies cast, Shouts, Orbits, Refreshes, Spirits played and the End of Turn cadences. A carried count always sits below '
+      + 'its threshold, so combining never pays the effect out and the next step pays it exactly once. A gild in place (a hero '
+      + 'power, a spell, a Start of Combat gild) keeps the same minion and so keeps its counts. Accumulated values (improved '
+      + 'buffs, welds) keep their own merge rulings (R-AVWIN-05, R-GILD-SUM-01).',
+    domain: 'gilding',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat', ref: 'Owner report, 2026-11-18 (a Billings one Gold from paying out reset when Gilded)',
+        quote: 'minions that track anything like spend etc should not reset when gilded. aka a Billings at 9/10 when gilded should be at the furthest progress of the cards that tripled.',
+      },
+      { kind: 'code', ref: 'fix/gild-keeps-progress: packages/sim/src/gildProgress.ts gildProgressCarry (the one helper); packages/sim/src/reducer.ts combineIntoGolden' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-18. Was: the combine carried spell progress, ascend progress, the Pummel tally and the End of Turn '
+      + 'cadence, and minted every other meter unset (Gold spent, cards bought and played, sales, casts, Shouts, Orbits, '
+      + 'Refreshes, Spirits played all restarted at 0). Left for an owner call: per-turn latches and the accumulated values '
+      + 'that still restart on a triple (Ritualist, Trail Forager, Sunmane Herald, the Attachment count), and the Flowing Monk '
+      + 'countdown, which starts fresh by its 2026-07-03 ruling.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/gildKeepsProgress1118.test.ts'], lastVerifiedAt: '2026-11-18' },
+  },
 ];

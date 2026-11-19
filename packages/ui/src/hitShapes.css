@@ -45,6 +45,14 @@
 .tvbwrap :is(.tvb-cost, .tvb-tierpill), .frzwrap .frz-pill, .rfbwrap .rfb-cost { pointer-events: auto; }
 body.dragging .tvbwrap::after, body.dragging .frzwrap::after, body.dragging .rfbwrap::after, body.dragging .etbwrap::after,
 body.dragging .tvbwrap .tvb-cost, body.dragging .tvbwrap .tvb-tierpill, body.dragging .frzwrap .frz-pill, body.dragging .rfbwrap .rfb-cost { pointer-events: none; }
+/* A VIEWER (a replay, a live watch screen, the Duos teammate view: `.app.viewing`, styles.css) presses nothing
+   (R-SPECTATE-INERT-01). That screen's rule takes the pointer off every button, but the hit layers above are their own
+   boxes with `pointer-events: auto`, and a press on one counts as a press on its button: from the day they shipped the
+   four board buttons took a viewer's click again (owner report 2026-11-18: a spectator pressed End Combat after the
+   watched player's last fight and their own screen left it). The layers and chips are off on a viewer's screen, so the
+   whole button is click-through there, as before. */
+.app.viewing :is(.tvbwrap, .frzwrap, .rfbwrap, .etbwrap)::after,
+.app.viewing .tvbwrap :is(.tvb-cost, .tvb-tierpill), .app.viewing .frzwrap .frz-pill, .app.viewing .rfbwrap .rfb-cost { pointer-events: none; }
 /* Focus follows the art. */
 :is(.tvbwrap, .frzwrap, .rfbwrap, .etbwrap):focus { outline: none; }
 .tvbwrap:focus-visible .tvb-base, .frzwrap:focus-visible .frz-base, .rfbwrap:focus-visible .rfb-art, .etbwrap:focus-visible .etb-base {

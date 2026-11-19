@@ -2229,7 +2229,10 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     }
     ctx.grantRunShopBuff(a, h, self.side, self.uid, self.name, self.cardId);
     const step = num(params.improve, 0);
-    if (step > 0) self.summonBonus = bonus + step;
+    if (step > 0) {
+      self.summonBonus = bonus + step;
+      ctx.log({ type: 'improve', target: self.uid, amount: step }); // R-IMPROVE-LIVE-TEXT-01: live combat text
+    }
   },
 
   /** The Great Attractor's "give THIS shop +a/+h": no Shop stands mid-fight, so, like a shop-buff SPELL cast in
@@ -5342,12 +5345,19 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     // An every-1 improve reads the count RAW (no floor): an in-place gild halves it (GOLD_SCALED_ACCRUAL_CARDS, Flo Rida /
     // Beardsley), and the x2 read must land on exactly the value already earned, a half-count included.
     const step = improve > 0 ? (every <= 1 ? (self.summonBonus ?? 0) : Math.floor((self.summonBonus ?? 0) / every)) : 0;
+    // `improve` is the Attack step; `improveHealth` the Health step when the two differ (Beardsley +2/+1, 2026-11-18).
+    const improveHealth = num(params.improveHealth, improve);
     const a = (num(params.attack, 6) + improve * step) * g;
-    const h = (num(params.health, 6) + improve * step) * g;
+    const h = (num(params.health, 6) + improveHealth * step) * g;
     // R-RUNE-COMBAT-FLASH-01: the Zoo's extra triggers are the rune firing, so its badge pulses (a marker event only).
     if (zoo > 1 && (a > 0 || h > 0)) ctx.log({ type: 'questTrigger', flag: 'runeZoo', side: self.side });
     if (a > 0 || h > 0) ctx.buff(minion, a, h, self.uid);
-    if (improve > 0) self.summonBonus = (self.summonBonus ?? 0) + 1; // count this Beast toward the next step
+    if (improve > 0) {
+      self.summonBonus = (self.summonBonus ?? 0) + 1; // count this Beast toward the next step
+      // R-IMPROVE-LIVE-TEXT-01: logged on the beat, so the replay folds the count into this body and its printed grant
+      // climbs mid-fight on either side (it used to stay at the pre-fight value until the fight settled).
+      ctx.log({ type: 'improve', target: self.uid, amount: 1, display: improve * mul(self) });
+    }
   },
 
   /** Set 2 — Lastlight (Echo): give `count` friendly minions Ward (golden doubles).

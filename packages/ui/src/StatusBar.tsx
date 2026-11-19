@@ -16,7 +16,7 @@ import { countedGoldSpent } from '@game/sim';
 import { ancientArchiveNeed, passariaHasTarget, gratitudeView } from '@game/sim'; // Quillen × Ancients (Genesis: fills at 2)
 import { ancientContrabandEvery, ancientCoinNeed } from '@game/sim'; // Pete / Juggler × Ancients (the live cadence)
 import { ancientLuckySeatNeed, ancientCommissionSecond } from '@game/sim'; // Ayse × Bonds (needs 2), Cassen × Time (two slots)
-import { heroGrantOf, shopLocked, henchmanOffer, ancientAvengeCountdown, ancientCopyCharges, ancientCopyChargeReady, ancientClearanceStacks, ancientClearanceUsesBadge, ancientInvestmentTally, ancientSwapCharges, ancientSwapUsesBadge } from '@game/sim';
+import { heroGrantOf, shopLocked, henchmanOffer, ancientAvengeCountdown, ancientDiceLockTurns, ancientCopyCharges, ancientCopyChargeReady, ancientClearanceStacks, ancientClearanceUsesBadge, ancientInvestmentTally, ancientSwapCharges, ancientSwapUsesBadge } from '@game/sim';
 import { useEotAmplified } from './choreographer/equipmentFx';
 import { equipmentWillAmplify, equipmentCostOf, equipmentPool, equipmentState, equipmentText, equipmentUsesLeft, selectedEquipment, selectedEquipmentDef } from '@game/sim';
 import { CARD_INDEX, EQUIPMENT_INDEX } from '@game/content';
@@ -565,7 +565,9 @@ export function StatusBar() {
   // Turns still owed on a recharge-locked power (Gambler's dice, Aster's Preparation). Shared with the
   // tutorial's readiness predicate via `heroPowerLockTurns` so the button, the coach and the reducer agree —
   // Preparation used to be missing here, so a locked power looked armed and clicking it silently no-opped.
-  const diceLock = heroPowerLockTurns(run, power.kind);
+  // GAMBLER × ANCIENT OF DEATH, LIVE (R-AVENGE-PER-COMBAT-01): each Avenge the fight on screen has fired takes its turn off
+  // the lock right then, so the pill and the "locked Nt" line drop mid-fight and land where settle banks them.
+  const diceLock = power.kind === 'dice' ? ancientDiceLockTurns(run, combatFriendlyDeaths ?? 0) : heroPowerLockTurns(run, power.kind);
   // GAMBLER'S DICE ROLL (owner ask 2026-08-14; 3D die per the 2026-09-17 handoff): the shared `DiceRoll`
   // overlay tumbles a real die and lands it ON the power button, then HANDS OFF to the held face below as it
   // fades — so the number is never taken away. Presentation only — the value is the seeded roll the reducer
@@ -1198,9 +1200,9 @@ export function StatusBar() {
                 uses, so its printed value is the real one. */}
             {hunchPreview && hunchTip && createPortal(
               <div className="cardref" ref={hunchPopRef} style={{ left: hunchTip.left, top: hunchTip.top }}>
-                <div className="cardref-inner" style={{ transformOrigin: `${hunchTip.origin} center` }}>
+                <div className="cardref-shadow"><div className="cardref-inner" style={{ transformOrigin: `${hunchTip.origin} center` }}>
                   <Card card={hunchPreview} forceFull plated />
-                </div>
+                </div></div>
               </div>,
               stageHost(),
             )}
@@ -1275,7 +1277,7 @@ export function StatusBar() {
           const passive2 = !!p2.passive;
           const uses2 = run.heroPowerUses2 ?? 0;
           const spent2 = p2.oncePerGame ? !!run.heroPowerSpent2 : p2.maxUses ? uses2 >= p2.maxUses : false;
-          const diceLock2 = heroPowerLockTurns(run, p2.kind);
+          const diceLock2 = p2.kind === 'dice' ? ancientDiceLockTurns(run, combatFriendlyDeaths ?? 0) : heroPowerLockTurns(run, p2.kind);
           // The SAME readouts the main power computes — from slot-1 state — so the second power's coin, tracker
           // and centre magnitude are 1:1 with a regular hero power (owner ask 2026-08-24).
           const liveCost2 = heroPowerCostOf(p2, run, uses2);

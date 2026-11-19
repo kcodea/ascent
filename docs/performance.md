@@ -1165,6 +1165,45 @@ Numbers and method: `docs/devlog/2026-11-18-perf-keyword-loops.md`. Rule: R-PERF
   `scripts/kwfx/compare.mjs` differences live against baked on the card, frame for frame, and
   `scripts/kwfx/measure.mjs` / `measure-combat.mjs` are the keyword scenes.
 
+## 3q. Phase transitions, 2026-11-18: the compositor drops the big pictures a phase is not showing
+
+Numbers and method: `docs/devlog/2026-11-18-perf-phase-transitions.md`.
+
+- **A big picture that is off screen for a phase is decoded again when it comes back.** The compositor draws CSS
+  backgrounds and `<img>` from its own decode cache, which has a budget. The game's full-screen pictures are a lot to
+  hold in it: backdrop, both boards and their shadows, the gate, the return trip's five 2560 x 1440 layers. The ones
+  not drawn right now are the first to go. (Which budget is not established: raising Chrome's discardable GPU limit to
+  1 GB did not stop it.) Holding an `Image`, or
+  `img.decode()` at boot, does not keep them: that fills the same cache. The decode runs on a worker, but the frame that
+  needs the picture cannot be shown without it, so the main thread sits in `WaitForCommitCompletion` for the whole
+  decode (25 to 110 ms for these).
+- **Find them with a trace, by URL.** Categories `devtools.timeline` + `disabled-by-default-devtools.timeline`: every
+  `Decode LazyPixelRef` carries a `LazyPixelRef` id, and the `PaintImage` event before each `Draw LazyPixelRef` with
+  the same id carries the URL and the source size. `performance.mark()` calls (category `blink.user_timing`) put the
+  phase flips on the same clock.
+- **A picture that must be ready every time goes on a canvas the page keeps** (`heldArt.ts`): decoded once off the main
+  thread (`createImageBitmap`), drawn in on an idle slot, shown as a texture with nothing to decode or raster. Size
+  the canvas to what is drawn, not to the file. Count the bytes you hold (`heldArtStats()`).
+- **A picture that stays a CSS background can be asked for early** (`decodeAhead.ts`): `img.decode()` on hover or on
+  the press runs the decode without holding a frame. It still has to be uploaded and rastered when drawn (measured: a
+  14 ms upload and a 25 ms raster for the 3840 px combat board), so this halves the hitch, it does not remove it.
+- **A layer inside a big zoom is drawn again at the zoomed size unless it says `will-change: transform`.** The dive
+  through the Shop door scales its stage 18x. The door's three small pictures had `will-change: opacity` only, so the
+  compositor re-rastered them at up to 8x in the dive's first frames (30 to 60 ms on the GPU main thread, which also
+  presents frames, so the dive itself stalled). A 201 px picture has no more detail at 8x.
+- **Dissolving a stacking context re-rasters everything inside it.** `.app.combat { z-index: auto }` switched the
+  combat z-ladder on at the End Turn press, with the whole Shop still on screen behind the falling gate: every layer of
+  it was repainted and rastered again (20 to 30 ms of GPU work in the press frame; the worst frame at the flip fell from
+  about 50 ms to about 30 with the switch moved under the gate, `.app.combat.staged`). The same switch still happens on
+  every hand-card hover (`body:not(.dragging) .app:has(.row.hand .card:hover) { z-index: auto }`) and under
+  `body.modalup`: not measured here, a lead for the recruit phase.
+- **A warm-up that plays a transition invisibly is itself a hitch.** The fight-end warm-up decoded and rastered the
+  whole return trip behind the game while the fight's last hits were on screen. Prefer making the art impossible to
+  drop (above) over drawing it early.
+- **Card frames are 1086 x 1448 files drawn about 150 px wide.** Each one that falls out of the cache costs a 17 to
+  54 ms decode in the middle of a turn or a fight. Not fixed here (it needs right-sized copies from the art pipeline);
+  see the devlog's follow-ups.
+
 ## 4. Established anti-patterns (don't reintroduce these)
 
 These are the rules the audits surfaced; the codebase already follows them — keep it that way.

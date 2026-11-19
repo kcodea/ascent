@@ -4010,6 +4010,41 @@ export function ancientSotSource<T extends { label: string }>(state: RunState, s
   return { ...src, label: ANCIENTS[picked].name };
 }
 
+/**
+ * AN AVENGE (N) IS PER PHASE, NEVER CARRIED (owner 2026-11-18, R-AVENGE-PER-COMBAT-01): "avenge (x): do not carry over
+ * combat to combat. if it were 'when x minions die' that carries over, but avenge means it needs to happen in combat."
+ * Every hero-level Ancient Avenge keeps its Shop-phase count in one of these fields (Shop deaths still count, the
+ * 2026-11-16 ruling R-ANCFIX-10, and fire at N within that Shop). `ancientAvengeReset` zeroes them all at the two phase
+ * boundaries: as the fight starts (`preparePlayerCombatSide`) and as it settles (`ancientAfterCombat`). Inside the fight
+ * `simulate` counts from 0 on its own (`avengeDue`), and the live text adds the replay's deaths to the (zero) count.
+ * `bramDeaths` is NOT here: Braum × Death reads "When 16 friendly minions die", the carry-over kind.
+ */
+const AVENGE_COUNT_FIELDS = [
+  'hunchDeaths', 'xeroxDeaths', 'tradesDeaths', 'gorrDeaths', 'nadjaDeaths', 'brackusDeaths', 'rayseDeaths', 'cassenDeaths',
+  'gildDeaths', 'keshiDeaths', 'batchBDeaths', 'rascalDeaths', 'gamblerDeaths', 'flintDeaths', 'cindyDeaths',
+] as const satisfies readonly (keyof AncientsState)[];
+
+/** Discard every hero Avenge's partial progress (see `AVENGE_COUNT_FIELDS`). A no-op without Ancients. */
+export function ancientAvengeReset(state: RunState): void {
+  const a = state.ancientsEnabled ? state.ancients : undefined;
+  if (!a) return;
+  for (const f of AVENGE_COUNT_FIELDS) if (a[f]) a[f] = 0;
+}
+
+/**
+ * GAMBLER: the turns the Dice lock still runs, LIVE through the fight on screen (`deaths` = its friendly deaths so far):
+ * with the Ancient of Death each Avenge (4) the fight has fired so far (Rune of Fury's repeats included) takes its turn
+ * off right then, the number settle then banks (`batchAAfterCombat`). The hero-power pill, the "locked Nt" line and the
+ * power text's `{gaLock}` all read this one number (R-AVENGE-PER-COMBAT-01). Without the pairing: the plain lock.
+ */
+export function ancientDiceLockTurns(state: RunState, deaths = 0): number {
+  const base = Math.max(0, (state.heroDiceLockUntil ?? 0) - state.wave);
+  const g = live(state) ? effectOf(state, 'avengeReduceDiceLock') : undefined;
+  if (!g || deaths <= 0) return base;
+  const fires = Math.floor(((live(state)?.gamblerDeaths ?? 0) + deaths) / Math.max(1, g.every)) * (1 + furyExtra(state));
+  return Math.max(0, base - fires * g.turns);
+}
+
 export function procAncient(state: RunState, times = 1): void {
   const a = state.ancientsEnabled ? state.ancients : undefined;
   if (!a?.picked || times <= 0) return;
@@ -4264,14 +4299,10 @@ export function ancientAfterCombat(state: RunState, result: CombatResult): void 
     const got = (result.events ?? []).filter((e) => e.type === 'questTrigger' && e.side === 'player' && e.flag === ANCIENT_SWAP_CHARGE_FLAG).length;
     if (got > 0) a.darahCharges = (a.darahCharges ?? 0) + got;
   }
-  // GORR × DEATH: the fight's friendly deaths join the running Avenge count (its copies already flew to hand mid-fight).
-  const gd = effectOf(state, 'avengeCopyLastTurnBuy');
-  if (gd) a.gorrDeaths = ((a.gorrDeaths ?? 0) + (result.playerDeaths ?? 0)) % Math.max(1, gd.every);
-  // NADJA × DEATH: the fight's deaths join the running Avenge count, and its fires (each shown live as a `maxGold`
-  // event) pay their max Gold now, for next turn's Gold.
+  // GORR × DEATH: its copies already flew to hand mid-fight (the Avenge count is per combat, R-AVENGE-PER-COMBAT-01).
+  // NADJA × DEATH: its fires (each shown live as a `maxGold` event) pay their max Gold now, for next turn's Gold.
   const nd = effectOf(state, 'avengeMaxGold');
   if (nd) {
-    a.nadjaDeaths = ((a.nadjaDeaths ?? 0) + (result.playerDeaths ?? 0)) % Math.max(1, nd.every);
     const fires = result.playerAncientMaxGoldFires ?? 0;
     if (fires > 0 && nd.gold > 0) nadjaGainMaxGold(state, a, fires * nd.gold, false);
   }
@@ -4279,7 +4310,6 @@ export function ancientAfterCombat(state: RunState, result: CombatResult): void 
   // `playerSpellPower`, like every combat spell-power gain).
   const imp = result.playerAncientSpellImproved;
   const hd = effectOf(state, 'avengeImproveSpells');
-  if (hd) a.hunchDeaths = ((a.hunchDeaths ?? 0) + Math.max(0, result.playerDeaths ?? 0)) % Math.max(1, hd.every);
   if (hd && imp && (imp.attack > 0 || imp.health > 0)) {
     a.spellImproved = { attack: (a.spellImproved?.attack ?? 0) + imp.attack, health: (a.spellImproved?.health ?? 0) + imp.health };
   }
@@ -4292,23 +4322,20 @@ export function ancientAfterCombat(state: RunState, result: CombatResult): void 
   if (effectOf(state, 'avengeClearanceStack') && (result.playerAncientClearanceStacks ?? 0) > 0) {
     a.clearanceStacks = (a.clearanceStacks ?? 0) + result.playerAncientClearanceStacks!;
   }
-  // XEROX × DEATH: the fight's friendly deaths join the running Avenge count (its copies already landed mid-fight).
-  const xd = effectOf(state, 'avengeCopyTopAttack');
-  if (xd) a.xeroxDeaths = ((a.xeroxDeaths ?? 0) + (result.playerDeaths ?? 0)) % Math.max(1, xd.every);
+  // XEROX × DEATH: its copies already landed mid-fight (the Avenge count is per combat).
   // BRAUM × DEATH: the fight's friendly deaths join the running count (its payouts already flew to hand mid-fight).
   const bd = effectOf(state, 'deathsGetGildedMinion');
   if (bd) a.bramDeaths = ((a.bramDeaths ?? 0) + (result.playerDeaths ?? 0)) % Math.max(1, bd.every);
-  // TRADESMAN × DEATH: the fight's deaths join the running count (its free Refreshes already came home through
-  // `playerFreeRolls`, the Gryphon carry-back). WAR: the Gold the fight's Rallies banked (one flag per fire) is
-  // recorded for the live text; the Gold itself came home through `playerBonusGold`.
-  const td = effectOf(state, 'avengeFreeRefresh');
-  if (td) a.tradesDeaths = ((a.tradesDeaths ?? 0) + (result.playerDeaths ?? 0)) % Math.max(1, td.every);
+  // TRADESMAN × DEATH: its free Refreshes already came home through `playerFreeRolls`, the Gryphon carry-back (the
+  // Avenge count is per combat). WAR: the Gold the fight's Rallies banked (one flag per fire) is recorded for the live
+  // text; the Gold itself came home through `playerBonusGold`.
   const rg = effectOf(state, 'minionsRallyGold');
   if (rg) {
     const fires = (result.events ?? []).filter((e) => e.type === 'questTrigger' && e.side === 'player' && e.flag === ANCIENT_RALLY_GOLD_FLAG).length;
     if (fires > 0) noteTradesRallyGold(state, fires * rg.gold);
   }
-  brackusAfterCombat(state, a, result); // BRACKUS × DEATH: the running count + the hand / Shop share of the fight's fires
+  brackusAfterCombat(state, a, result); // BRACKUS × DEATH: the hand / Shop share of the fight's fires
+  ancientAvengeReset(state); // every hero Avenge starts the next phase at 0 (R-AVENGE-PER-COMBAT-01)
   if (!effectOf(state, 'wardBreaksGetCopy')) return;
   a.wardBreaks = (a.wardBreaks ?? 0) + breaks.length;
   if (result.playerWardWindow) a.wardWindow = [...result.playerWardWindow];
@@ -5927,7 +5954,6 @@ export function ancientBrackusShopDeath(state: RunState, dead: BoardCard): void 
 function brackusAfterCombat(state: RunState, a: AncientsState, result: CombatResult): void {
   const e = effectOf(state, 'avengeBuffTier7');
   if (!e) return;
-  a.brackusDeaths = ((a.brackusDeaths ?? 0) + (result.playerDeaths ?? 0)) % Math.max(1, e.every);
   const fires = (result.events ?? []).filter((ev) => ev.type === 'questTrigger' && ev.side === 'player' && ev.flag === ANCIENT_SUMMIT_AVENGE_FLAG).length;
   if (fires > 0) brackusBuffTier7(state, e.attack * fires, e.health * fires, { board: false });
 }
@@ -6428,20 +6454,13 @@ function batch5CombatMods(state: RunState): Partial<QuestCombatMods> {
  *  Pummel payout is one more Gildcrafter use. */
 function batch5AfterCombat(state: RunState, a: AncientsState, result: CombatResult): void {
   const pulses = (flag: string): number => (result.events ?? []).filter((e) => e.type === 'questTrigger' && e.side === 'player' && e.flag === flag).length;
-  const deaths = result.playerDeaths ?? 0;
   const rd = effectOf(state, 'avengeSummonSprout');
   if (rd) {
-    a.rayseDeaths = ((a.rayseDeaths ?? 0) + deaths) % Math.max(1, rd.every);
     const grew = pulses(ANCIENT_SPROUT_FLAG);
     if (grew > 0) a.rayseSproutSize = Math.max(1, a.rayseSproutSize ?? 1) + grew;
   }
   const cd = effectOf(state, 'avengeAdvanceCommission');
-  if (cd) {
-    a.cassenDeaths = ((a.cassenDeaths ?? 0) + deaths) % Math.max(1, cd.every);
-    advanceCommission(state, pulses(ANCIENT_COMMISSION_FLAG));
-  }
-  const gd = effectOf(state, 'avengeGrantCard');
-  if (gd) a.gildDeaths = ((a.gildDeaths ?? 0) + deaths) % Math.max(1, gd.every);
+  if (cd) advanceCommission(state, pulses(ANCIENT_COMMISSION_FLAG));
   if (effectOf(state, 'pummelPowerUse')) {
     const got = pulses(ANCIENT_GILD_CHARGE_FLAG);
     if (got > 0) a.powerOverride = { ...(a.powerOverride ?? {}), maxUses: powerMaxUses(state, a) + got };
@@ -6825,7 +6844,6 @@ function batch6CombatMods(state: RunState): Partial<QuestCombatMods> {
 function batch6AfterCombat(state: RunState, a: AncientsState, result: CombatResult): void {
   const kd = effectOf(state, 'avengeAdvanceCrown');
   if (!kd) return;
-  a.keshiDeaths = ((a.keshiDeaths ?? 0) + (result.playerDeaths ?? 0)) % Math.max(1, kd.every);
   const pulses = (result.events ?? []).filter((e) => e.type === 'questTrigger' && e.side === 'player' && e.flag === ANCIENT_CROWN_FLAG).length;
   advanceCrown(state, kd.points * pulses);
 }
@@ -7144,8 +7162,6 @@ function batchBCombatMods(state: RunState): Partial<QuestCombatMods> {
 /** Settle. The fight's deaths join the running Avenge count (its fires already resolved mid-fight), and its casts join
  *  the running spell count (Emissary's Shop spells already flew to hand mid-fight; Merrin's recharge is the new turn's). */
 function batchBAfterCombat(state: RunState, a: AncientsState, result: CombatResult): void {
-  const every = batchBAvenge(state);
-  if (every) a.batchBDeaths = ((a.batchBDeaths ?? 0) + (result.playerDeaths ?? 0)) % every;
   // EMERALD WARDEN × DEATH: the fight's payout spends this turn's one.
   if (effectOf(state, 'avengeTierMinion')?.oncePerTurn && (result.events ?? []).some((e) => e.type === 'questTrigger' && e.side === 'player' && e.flag === ANCIENT_EW_AVENGE_FLAG)) a.ewAvengeWave = state.wave;
   for (let i = 0; i < (result.playerSpellsCast ?? 0); i++) batchBSpellTick(state, 1);
@@ -7263,20 +7279,13 @@ function batchACombatMods(state: RunState): Partial<QuestCombatMods> {
  *  flew to hand mid-fight. */
 function batchAAfterCombat(state: RunState, a: AncientsState, result: CombatResult): void {
   const pulses = (flag: string): number => (result.events ?? []).filter((e) => e.type === 'questTrigger' && e.side === 'player' && e.flag === flag).length;
-  const deaths = result.playerDeaths ?? 0;
   const r = effectOf(state, 'avengeAllInGold');
   if (r) {
-    a.rascalDeaths = ((a.rascalDeaths ?? 0) + deaths) % Math.max(1, r.every);
     const got = pulses(ANCIENT_ALLIN_FLAG);
     if (got > 0) a.rascalPot = (a.rascalPot ?? 0) + got * r.gold;
   }
   const g = effectOf(state, 'avengeReduceDiceLock');
-  if (g) {
-    a.gamblerDeaths = ((a.gamblerDeaths ?? 0) + deaths) % Math.max(1, g.every);
-    reduceDiceLock(state, pulses(ANCIENT_DICE_LOCK_FLAG) * g.turns);
-  }
-  const f = effectOf(state, 'avengeGrantTribeMinion');
-  if (f) a.flintDeaths = ((a.flintDeaths ?? 0) + deaths) % Math.max(1, f.every);
+  if (g) reduceDiceLock(state, pulses(ANCIENT_DICE_LOCK_FLAG) * g.turns);
 }
 
 /** RASCAL × TIME: Start of Turn, gain the Gold, on its own beat (R-SOT-BEAT-01). */
@@ -7559,8 +7568,7 @@ function batchAPowerText(state: RunState, text: string, combat: AncientPowerLive
   const rw = effectOf(state, 'allInBuffPerGold');
   const rb = effectOf(state, 'allInTurnDiscount');
   // GAMBLER
-  const gd = effectOf(state, 'avengeReduceDiceLock');
-  const lock = Math.max(0, (state.heroDiceLockUntil ?? 0) - state.wave - (gd ? fires * gd.turns : 0));
+  const lock = ancientDiceLockTurns(state, deaths);
   const rolled = a.gamblerRoll?.wave === state.wave ? a.gamblerRoll.dice : undefined;
   const gw = effectOf(state, 'diceBuffPerPip');
   const pips = rolled ? rolled.reduce((n, d) => n + d, 0) : 0;
@@ -8296,8 +8304,6 @@ function cindyCombatMods(state: RunState): Partial<QuestCombatMods> {
 /** Settle. DEATH: the fight's friendly deaths join the running count (its gifts already went, live). WAR: an Engraved
  *  body the gild reached stays Gilded (its doubled stats came home through the Engraved rule; this keeps the flag). */
 function cindyAfterCombat(state: RunState, a: AncientsState, result: CombatResult): void {
-  const d = effectOf(state, 'avengeTeammateGetsCard');
-  if (d) a.cindyDeaths = ((a.cindyDeaths ?? 0) + Math.max(0, result.playerDeaths ?? 0)) % Math.max(1, d.every);
   if (effectOf(state, 'socGildLeftmost')) {
     for (const uid of result.playerAncientGildKept ?? []) {
       const c = state.board.find((x) => x.uid === uid);

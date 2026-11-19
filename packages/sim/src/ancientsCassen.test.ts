@@ -223,8 +223,8 @@ describe('Cassen × DEATH: "Avenge (7): advance your commission 1 turn."', () =>
     expect(s.commission).toBeUndefined();
     expect(s.embers).toBeGreaterThanOrEqual(gold + 4 + 1);
   });
-  it('combat: the carried count fires mid-fight (a flagged pulse); settle moves the commission', () => {
-    let s = commission(picked('death', { board: ['a', 'b'].map((u, i) => card(u, N(i), { attack: 1, health: 1 })) }), 'discover');
+  it('combat: the 7th death in the fight fires mid-fight (a flagged pulse); settle moves the commission (per combat, R-AVENGE-PER-COMBAT-01: the Shop count never comes in)', () => {
+    let s = commission(picked('death', { board: ['a', 'b', 'c', 'd', 'e', 'f', 'g'].map((u, i) => card(u, N(i), { attack: 1, health: 1 })) }), 'discover');
     s = { ...s, ancients: { ...s.ancients!, cassenDeaths: 6 } };
     const due = s.commission!.dueWave;
     expect(ancientCombatMods(s).ancientAvengePulse).toEqual({ every: 7, tick: 6, flag: ANCIENT_COMMISSION_FLAG, label: 'Ancient of Death' });

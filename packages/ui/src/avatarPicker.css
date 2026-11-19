@@ -19,10 +19,11 @@
 .avp-capdef { font-weight: 600; color: var(--ph-muted); }
 .avp-capname:not(:empty) + .avp-capdef { display: none; }
 .avp-bar .phk-tabs { flex: 1 1 auto; }
-.avp-filter.phk-select { flex: none; min-width: calc(168 * var(--phu)); }
-.avp-search { flex: 0 1 calc(260 * var(--phu)); }
+.avp-search, .avp-filter.phk-select { flex: none; width: 100%; box-sizing: border-box; }
+.avp-filter.phk-select { justify-content: space-between; }
 
 .avp-body { display: flex; gap: calc(20 * var(--phu)); flex: 1 1 auto; min-height: 0; }
+.avp-left { display: flex; flex-direction: column; gap: calc(12 * var(--phu)); flex: 1 1 auto; min-width: 0; min-height: 0; }
 .avp-main { display: flex; flex-direction: column; flex: 1 1 auto; min-width: 0; min-height: 0; border-radius: var(--ph-r-s); background: var(--ph-well); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); }
 .avp-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; padding: calc(16 * var(--phu)); }
 /* THE SCROLL BAR (owner 2026-11-19: "add a scroll bar here"): the shell's styled gold bar, declared here too so the window
@@ -82,9 +83,9 @@
 .avp-used { position: absolute; left: 50%; bottom: calc(-6 * var(--phu)); z-index: 1; translate: -50% 0; padding: calc(5 * var(--phu)) calc(14 * var(--phu)); border-radius: 999px; white-space: nowrap; pointer-events: none;
   background: var(--ph-metal-gold); color: var(--ph-navy); font-family: var(--ph-font); font-weight: 900; font-size: calc(14 * var(--phu)); letter-spacing: 0.08em; text-transform: uppercase; box-shadow: 0 calc(2 * var(--phu)) calc(6 * var(--phu)) rgba(0, 0, 0, 0.5); }
 
-/* THE PREVIEW COLUMN. */
+/* THE SIDE COLUMN: search, the filter under it, then the selection (its name, your banner wearing it) and the actions. */
 .avp-side { display: flex; flex-direction: column; align-items: center; gap: calc(8 * var(--phu)); flex: none; width: calc(280 * var(--phu)); min-height: 0; text-align: center; }
-.avp-ring { --ring: calc(148 * var(--phu)); flex: none; }
+.avp-picked { display: flex; flex-direction: column; align-items: center; gap: calc(4 * var(--phu)); max-width: 100%; margin-top: calc(12 * var(--phu)); }
 .avp-name { max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-family: var(--ph-font); font-weight: 900; font-size: calc(22 * var(--phu)); line-height: 1.15; color: var(--ph-ink); text-shadow: var(--ph-shadow); }
 .avp-rarname { font-weight: 800; color: var(--rc); }
 .avp-sub { display: flex; align-items: center; justify-content: center; gap: calc(8 * var(--phu)); min-height: calc(20 * var(--phu)); font-size: var(--ph-t2); color: var(--ph-muted); }
@@ -97,5 +98,4 @@
 /* A short or phone-sized window: drop the banner preview, narrow the preview column. */
 html[data-ph-compact] .avp-banner { display: none; }
 html[data-ph-compact] .avp-side { width: calc(220 * var(--phu)); justify-content: center; }
-html[data-ph-compact] .avp-ring { --ring: calc(128 * var(--phu)); }
 html[data-ph-compact] .avp-box { padding: calc(16 * var(--phu)) calc(20 * var(--phu)); gap: calc(10 * var(--phu)); height: calc(var(--ph-h, var(--lvh, 100vh)) - 16 * var(--phu)); }

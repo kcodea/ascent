@@ -8,7 +8,6 @@ import { AVATAR_ART, avatarSrc, type AvatarArt } from './art';
 import { useGame } from './store';
 import { PhBanner, PhBannerName, PhButton, PhEmpty, PhSearch, PhSelect, PhTabs } from './partyHome/kit';
 import { usePhLayer } from './partyHome/shell/usePhLayer';
-import { HeroPortraitRing } from './portraitFrame/HeroPortraitRing';
 import { mirrorFor, useProgression } from './progression/progressionStore';
 import { albumOf, ownedIds, skinTargetName } from './progression/collectionModel';
 import { skinArtOf } from './skins/skinArt';
@@ -21,11 +20,11 @@ import './avatarPicker.css';
  *
  *   TABS      My Skins (every hero / minion skin you OWN), Heroes, Minions, Hero Powers. Each tab shows its count; while
  *             a search is typed the counts are the matches, so you can see which tab holds what you are looking for.
- *   FILTER    a dropdown beside the search, per tab: Minions by tribe or tier, My Skins by kind or rarity. Minions are
+ *   FILTER    a dropdown under the search, per tab: Minions by tribe or tier, My Skins by kind or rarity. Minions are
  *             sorted and grouped by tribe, then tier.
  *   GRID      round tiles, the gold edge painted over the art; a skin's edge is its rarity colour (Ancient glows). Only this list scrolls. A press SELECTS (it no longer
  *             picks and closes); a double press applies at once. The tile in use wears an "In use" tag.
- *   PREVIEW   the selection inside YOUR equipped portrait frame, its name, and your banner wearing it.
+ *   SIDE      the search, the filter under it, then the selection: its name and your banner wearing it.
  *   ACTIONS   "Use portrait" applies and closes; "Reset to default" selects the plain default.
  *
  * A skin portrait is saved as `skin:<art key>` (art.ts resolves it for every viewer). Ownership is checked here only,
@@ -198,20 +197,16 @@ function PortraitWindow() {
           </div>
           <PhButton variant="ghost" size="s" className="avp-close" aria-label="Close" onClick={close}>✕</PhButton>
         </header>
-        <div className="avp-bar">
-          <PhTabs<TabId> label="Portrait kind" value={tab} onChange={setTab} tabs={[
-            { id: 'skins', label: tabLabel('My Skins', shown.skins.length) },
-            { id: 'hero', label: tabLabel('Heroes', shown.hero.length) },
-            { id: 'minion', label: tabLabel('Minions', shown.minion.length) },
-            { id: 'power', label: tabLabel('Hero Powers', shown.power.length) },
-          ]} />
-          {options.length > 0 && (
-            <PhSelect<string> className="avp-filter" label="Filter portraits" value={filter} options={options}
-              onChange={(v) => setFilters((f) => ({ ...f, [tab]: v }))} />
-          )}
-          <PhSearch className="avp-search" placeholder="Search by name" aria-label="Search portraits by name" value={query} onChange={(e) => setQuery(e.target.value)} />
-        </div>
         <div className="avp-body">
+          <div className="avp-left">
+          <div className="avp-bar">
+            <PhTabs<TabId> label="Portrait kind" value={tab} onChange={setTab} tabs={[
+              { id: 'skins', label: tabLabel('My Skins', shown.skins.length) },
+              { id: 'hero', label: tabLabel('Heroes', shown.hero.length) },
+              { id: 'minion', label: tabLabel('Minions', shown.minion.length) },
+              { id: 'power', label: tabLabel('Hero Powers', shown.power.length) },
+            ]} />
+          </div>
           <div className="avp-main">
             <div ref={scrollRef} className="avp-scroll"
               onPointerOver={(e) => { const t = (e.target as HTMLElement).closest<HTMLElement>('.avp-tile'); if (t) caption(t.dataset.name ?? ''); }}
@@ -236,16 +231,25 @@ function PortraitWindow() {
               <span className="avp-capdef">{rows.length === 1 ? '1 portrait' : `${rows.length} portraits`}</span>
             </div>
           </div>
-          <aside className="avp-side" aria-live="polite">
-            <HeroPortraitRing art={chosenSrc} alt="" className="avp-ring" />
-            <div className="avp-name">{chosen?.name ?? (sel ? 'Portrait' : 'Default')}</div>
-            <div className={`avp-sub${chosen?.rarity ? ` r-${chosen.rarity}` : ''}`}>
-              {chosen?.rarity && <span className="avp-rarname">{RARITY_LABELS[chosen.rarity]}</span>}
-              <span>{chosen ? chosen.sub : sel ? '' : 'No picture'}</span>
+          </div>
+          {/* THE SIDE COLUMN: the search, the tab's filter right under it, then the selection on your banner (owner
+              2026-11-19: "remove the portrait frame preview and put the dropdown right under the search bar"). */}
+          <aside className="avp-side">
+            <PhSearch className="avp-search" placeholder="Search by name" aria-label="Search portraits by name" value={query} onChange={(e) => setQuery(e.target.value)} />
+            {options.length > 0 && (
+              <PhSelect<string> className="avp-filter" label="Filter portraits" value={filter} options={options}
+                onChange={(v) => setFilters((f) => ({ ...f, [tab]: v }))} />
+            )}
+            <div className="avp-picked" aria-live="polite">
+              <div className="avp-name">{chosen?.name ?? (sel ? 'Portrait' : 'Default')}</div>
+              <div className={`avp-sub${chosen?.rarity ? ` r-${chosen.rarity}` : ''}`}>
+                {chosen?.rarity && <span className="avp-rarname">{RARITY_LABELS[chosen.rarity]}</span>}
+                <span>{chosen ? chosen.sub : sel ? '' : 'No picture'}</span>
+              </div>
             </div>
             <div className="avp-banner" aria-hidden="true" {...{ inert: '' }}>
               <span className="avp-lbl">On your banner</span>
-              <PhBanner art={chosenSrc} width={92} label="Banner preview"><PhBannerName>{playerName || 'You'}</PhBannerName></PhBanner>
+              <PhBanner art={chosenSrc} width={128} label="Banner preview"><PhBannerName>{playerName || 'You'}</PhBannerName></PhBanner>
             </div>
             <div className="avp-actions">
               <PhButton variant="primary" size="l" className="avp-use" disabled={unchanged} onClick={() => apply(sel)}>{unchanged ? 'In use' : 'Use portrait'}</PhButton>

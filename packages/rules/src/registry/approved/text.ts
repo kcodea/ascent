@@ -899,4 +899,27 @@ export const TEXT_RULES: GameRule[] = [
     example: 'Crowded Crypt: "Overflow: give your minions +1/+1 permanently. Triggers twice in the Recruit phase." Contract Butcher keeps "Shout: give minions in the Shop +2/+2".',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/recruitPhaseWording.test.ts'], lastVerifiedAt: '2026-11-17' },
   },
+  {
+    id: 'R-IMPROVE-LIVE-TEXT-01',
+    title: 'A summon buff that improves itself prints its current grant in combat, on the beat, on both sides',
+    statement:
+      'Beardsley and Vicious count every Beast they buff, and each count makes the next grant bigger. In combat the '
+      + 'count is logged on the beat it happens, so the number printed on the card is always the grant the next Beast '
+      + 'will get, for your side and the opponent’s. The number on the last beat is exactly what the board card '
+      + 'keeps after the fight, so nothing jumps at settle. With Rune of the Zoo the printed grant also carries the '
+      + 'next summon’s multiplier. Beardsley gives +2/+1 and improves by +2/+1 for every Beast (owner balance '
+      + '2026-11-18, was +1/+1); Gilded doubles the grant and the step (+4/+2, improving +4/+2).',
+    domain: 'text',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-18, Beardsley', quote: 'beardsley’s text isnt updating live in combat, and should improve by +2/+1 not +1/+1' },
+      { kind: 'code', ref: 'packages/core/src/effects/factories.ts onSummonTribeBuffFlat (improve event, improveHealth); packages/sim/src/recruit.ts onSummonTribeBuffFlat; packages/ui/src/cardText.ts summonEscalatingText; packages/ui/src/useCombatReplay.ts (improve fold)' },
+    ],
+    cardText: 'When you summon a **Beast**, give it **+2/+1** and improve this.',
+    contentIds: ['b2_beardsley', 'b2_florida'],
+    currentBehaviour:
+      'Conforms, FIXED 2026-11-18: the combat effect counted each Beast on the body but never logged an improve event, '
+      + 'so the replay kept the count the fight started with and the text only caught up at settle.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/beardsleyLiveCombatText.test.ts'], lastVerifiedAt: '2026-11-18' },
+  },
 ];

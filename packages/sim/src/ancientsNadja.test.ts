@@ -83,8 +83,8 @@ describe('Nadja × DEATH: "Goldspring becomes: Avenge (6): Gain 1 max gold."', (
     expect(s.maxGoldBonus).toBe(bonus + 1);
     expect(heroPowerText(s)).toBe('**Avenge (6):** gain **+1 max Gold** (**6** more to go). **+1** so far.');
   });
-  it('combat: the carried count fires MID-FIGHT (a +1 max Gold float), settle pays the max Gold and carries the remainder', () => {
-    let s = picked('death', { board: ['a', 'b', 'c'].map((u) => card(u, N(1), { attack: 1, health: 1 })) });
+  it('combat: the 6th death in the fight fires MID-FIGHT (a +1 max Gold float), settle pays the max Gold; nothing carries out (per combat, R-AVENGE-PER-COMBAT-01: the Shop count never comes in)', () => {
+    let s = picked('death', { board: ['a', 'b', 'c', 'd', 'e', 'f'].map((u) => card(u, N(1), { attack: 1, health: 1 })) });
     s = { ...s, ancients: { ...s.ancients!, nadjaDeaths: 5 } };
     expect(ancientCombatMods(s).ancientMaxGoldAvenge).toEqual({ every: 6, tick: 5, gold: 1, flag: 'ancientMaxGoldAvenge', label: 'Ancient of Death' });
     expect(ancientAvengeCountdown(s)).toBe(1);
@@ -97,10 +97,9 @@ describe('Nadja × DEATH: "Goldspring becomes: Avenge (6): Gain 1 max gold."', (
     const firstDeath = events(s).findIndex((e) => e.type === 'death' && e.side === 'player');
     expect(events(s).indexOf(floats[0]!)).toBeGreaterThanOrEqual(firstDeath);
     expect(s.lastCombat!.playerAncientMaxGoldFires).toBe(1);
-    const deaths = s.lastCombat!.playerDeaths ?? 0;
     s = reduce(s, { type: 'resolveCombat' });
     expect(s.maxGoldBonus).toBe(bonus + 1);
-    expect(s.ancients!.nadjaDeaths).toBe((5 + deaths) % 6);
+    expect(s.ancients!.nadjaDeaths ?? 0).toBe(0);
   });
 });
 

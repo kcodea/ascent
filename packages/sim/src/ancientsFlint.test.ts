@@ -67,8 +67,8 @@ describe('Flint × DEATH: "Avenge (4): get a random Dwarf."', () => {
     expect(isDwarf(s, s.hand[0]!.cardId)).toBe(true);
     expect(CARD_INDEX[s.hand[0]!.cardId]!.tier).toBeLessThanOrEqual(2);
   });
-  it('combat: the carried count fires mid-fight and the Dwarf flies to hand', () => {
-    let s = picked('death', { board: [card('a', OTHER, { attack: 1, health: 1 })] });
+  it('combat: the 4th death in the fight fires it mid-fight and the Dwarf flies to hand (per combat, R-AVENGE-PER-COMBAT-01: the Shop count never comes in)', () => {
+    let s = picked('death', { board: ['a', 'b', 'c', 'd'].map((u) => card(u, OTHER, { attack: 1, health: 1 })) });
     s = { ...s, ancients: { ...s.ancients!, flintDeaths: 3 } };
     const mod = ancientCombatMods(s).ancientGorrAvenge!;
     expect(mod).toMatchObject({ every: 4, tick: 3, label: 'Ancient of Death' });

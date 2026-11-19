@@ -277,7 +277,7 @@ export const ENTRIES: readonly WikiEntry[] = [
     id: 'avenge-resets',
     topic: 'keywords',
     q: 'Does Avenge progress carry over to the next fight?',
-    a: "No. Avenge counts deaths **in this fight only** and starts from zero every combat. Minions dying in the shop don't count toward it.",
+    a: "No. Avenge counts deaths **in this fight only** and starts from zero every combat. Leftover progress is discarded when the fight ends. Minions dying in the shop don't count toward a minion's or a rune's Avenge. A hero power Avenge from an Ancient also counts Shop deaths, but that count ends when the fight starts. An effect worded \"When X friendly minions die\" is not an Avenge and keeps its count.",
     aliases: ['avenge reset', 'avenge carry over', 'avenge shop'],
     seeAlso: ['avenge'],
     covers: [{ keyword: 'avenge', fp: 'c671d6fa' }],

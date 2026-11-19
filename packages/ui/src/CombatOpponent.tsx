@@ -6,7 +6,7 @@ import { badgePulsesFromProgress } from './choreo/triggerCounts';
 import { runeAccentTribe } from './RuneCard';
 import { createPortal } from 'react-dom';
 import { useGame } from './store';
-import { playerOpponent, getHero, seatBoardThisRound } from '@game/sim';
+import { ANCIENTS, playerOpponent, getHero, seatBoardThisRound } from '@game/sim';
 import { localMate } from './versus/localMate';
 import { RUNE_INDEX } from '@game/content';
 import { runeArt, heroPowerArt } from './art';
@@ -21,6 +21,8 @@ import { stageHost } from './stage';
 import { foePortrait } from './gauntlet/foePortrait';
 import { publicArt } from './phoneArt';
 import { FoeAncientLine } from './ancients/FoeAncientLine';
+import { AncientSplitStatic } from './ancients/AncientMeter';
+import { ancientColor } from './ancients/ancientsConfig';
 
 /** A tier worth printing: a whole number from 1 up. Anything else (missing, NaN, 0) hides the pill. */
 export const tierKnown = (tier: number | null | undefined): tier is number =>
@@ -142,6 +144,9 @@ export const CombatOpponent = memo(function CombatOpponent(): JSX.Element | null
     : undefined;
   const runes = (forced ?? next?.board.snapshot?.runes ?? []).filter((id) => RUNE_INDEX[id]);
   const buffRows = gatherSnapshotBuffs(next?.board.snapshot);
+  // The foe's picked Ancient (`BoardSnapshot.ancient`); unknown ids (an archived Ancient on an old capture) show nothing.
+  const foeAncientRaw = next.board.snapshot?.ancient;
+  const foeAncient = foeAncientRaw && ANCIENTS[foeAncientRaw.id] ? foeAncientRaw : undefined;
   // The tier of the board this foe is fielding (`PreparedBoard.tier`, the same number that feeds face damage).
   const oppTier = next.board.tier;
   const hasBuffs = buffRows.length > 0;
@@ -259,6 +264,10 @@ export const CombatOpponent = memo(function CombatOpponent(): JSX.Element | null
       <>
       <div className="heropowerbtn opp-power passive">
         <span className="hpb-artwrap" aria-hidden="true"><img decoding="sync" className="hpb-art" src={heroPowerArt(seat.heroId)} alt="" draggable={false} /></span>
+        {/* The foe's picked ANCIENT cracks its power open exactly as the player's own button does once picked
+            (R-COMBAT-FOE-ANCIENT-ICON-01): the same settled split face (`AncientSplitStatic`, what the live button
+            settles on), so the two can never drift. No reveal beat, no sound: it is already picked. */}
+        {foeAncient && <AncientSplitStatic id={foeAncient.id} />}
       </div>
       {/* Hover tooltip — the same .herotip face the player's power shows (owner ask 2026-08-29), with the foe
           hero's STATIC power text (no live run numbers — we don't simulate the foe's shop state). A SIBLING
@@ -269,7 +278,12 @@ export const CombatOpponent = memo(function CombatOpponent(): JSX.Element | null
         const power = getHero(seat.heroId)?.power;
         return power ? (
           <div className="herotip opp-power-tip" role="tooltip">
-            <b>{power.name}</b>{power.passive ? ' · passive' : ''}
+            {/* The player's own power tip head: the name, the Ancient tag in its colour, the passive tag. */}
+            <div className="herotip-head">
+              <b>{power.name}</b>
+              {foeAncient && <span className="herotip-anc" style={{ color: ancientColor(foeAncient.id) }}>({ANCIENTS[foeAncient.id].name.replace(/^Ancient of /, '')})</span>}
+              {power.passive && <span className="herotip-tag">passive</span>}
+            </div>
             <span className="herotip-rule" dangerouslySetInnerHTML={{ __html: mdBold(power.text) }} />
             {/* The foe's picked ANCIENT under the base power (R-ANCIENTS-RELEASE-03): name + pairing text. */}
             <FoeAncientLine ancient={next.board.snapshot?.ancient} />

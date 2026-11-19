@@ -109,12 +109,12 @@ describe('R-GILD-SUM-01: the other (base + accrual) x golden improvers', () => {
     expect(summonBuffText('trophystalker', g.summonBonus ?? 0, true)).toContain('{{+25/+25}}');
   });
 
-  it('Beardsley: +5/+4 and +4/+3 copies gild to +9/+7', () => {
-    // Base +2/+1 since the owner balance 2026-11-06, the +1/+1 accrual on each stat.
+  it('Beardsley: +8/+4 and +6/+3 copies gild to +14/+7', () => {
+    // Base +2/+1 (owner balance 2026-11-06), improving +2/+1 per counted Beast (owner balance 2026-11-18).
     const g = tripleOf('b2_beardsley', [3, 2, 1], 'set2');
-    expect((2 + (g.summonBonus ?? 0)) * 2).toBe(9);
+    expect((2 + 2 * (g.summonBonus ?? 0)) * 2).toBe(14);
     expect((1 + (g.summonBonus ?? 0)) * 2).toBe(7);
-    expect(summonEscalatingText('b2_beardsley', true, g.summonBonus)).toContain('+9/+7');
+    expect(summonEscalatingText('b2_beardsley', true, g.summonBonus)).toContain('+14/+7');
   });
 
   it('Vicious: +20/+20 and +10/+10 copies gild to +30/+30', () => {

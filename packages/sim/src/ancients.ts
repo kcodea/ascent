@@ -322,7 +322,8 @@
  *  · `swapEchoFirst`              `ancientBeforeSwap`: a friendly minion with an Echo fires it (the Shop Echo ritual,
  *                                 `fireShopEchoOf`: Echo multipliers and the Echo tally apply) before it leaves. (Death)
  *  · `swapFree`                   `ancientAfterSwap` stamps the held offer `ShopCard.swapFree`; `heldOfferPrice` (the
- *                                 reducer's held re-buy and the UI coin) reads it as 0 Gold. (Fortune)
+ *                                 reducer's held re-buy and the UI coin) reads it as the effect's `price` (2 Gold since
+ *                                 owner 2026-11-19, was 0), never above the flat buy-back. (Fortune)
  *  · `pummelSwapCharge`           COMBAT: `QuestCombatMods.ancientPummelCharge`, a HERO-level Pummel on Albus' lifetime
  *                                 tally (`pummelDealt`), once per combat: the payout is a `questTrigger` with
  *                                 `ANCIENT_SWAP_CHARGE_FLAG` (live), banked at settle into `AncientsState.darahCharges`.
@@ -331,7 +332,9 @@
  *                                 when the hand is full (`grantMinionToHandOrBoard`; the branch's `checkTriples`). (Genesis)
  *  · `eotCopySwapped`             `ancientAfterSwap` records the LAST minion sent to the Shop this turn (`darahSwapped`);
  *                                 a virtual recurring End-of-Turn entry (`ancientDarahEotCopy`) gives a plain copy of it
- *                                 to hand. Hand full, or no Swap this turn: nothing. (Time)
+ *                                 to hand. Hand full, or no Swap this turn: nothing. (Time, retired primitive)
+ *  · `eotCastSpell` / `sotCastSpell` End of Turn (the `ancientDarahEotCopy` entry) and Start of Turn
+ *                                 (`darahStartOfTurn`, its own beat) cast the spell (Lasso) from the hero power. (Time)
  *  · `swapExchangeStats`          `ancientAfterSwap`: the incoming minion gains the outgoing minion's stats and the
  *                                 outgoing (held) body gains the incoming's, both read before either gain. (Bonds)
  *  NADJA (Goldspring, `gainMaxMana`, 3 Gold, untargeted; owner pairings 2026-10-06). Goldspring = "Gain 1 maximum Gold."
@@ -888,8 +891,8 @@ export type AncientEffect =
   // ── Darah (Swap) ──
   /** Swapping a friendly minion with an Echo fires its Echo first (the Shop Echo ritual). */
   | { do: 'swapEchoFirst' }
-  /** The friendly minion Swap sends to the Shop costs 0 Gold to buy back. */
-  | { do: 'swapFree' }
+  /** The friendly minion Swap sends to the Shop buys back for a set `price` (owner 2026-11-19: 2 Gold, was 0). */
+  | { do: 'swapFree'; price: number }
   /** Hero-level Pummel (`every`), once per combat: bank a charge of Swap (one more use, kept until used). */
   | { do: 'pummelSwapCharge'; every: number; perCombat?: number }
   /** Swap also gives a plain copy of the minion it brings in from the Shop. */
@@ -898,6 +901,8 @@ export type AncientEffect =
   | { do: 'eotCopySwapped' }
   /** End of Turn: cast `spellId` (the real Shop cast pipeline, from the hero power). Ancient pass 1 (owner 2026-11-16). */
   | { do: 'eotCastSpell'; spellId: string }
+  /** Start of Turn: cast `spellId` (the same cast as `eotCastSpell`, its own Start-of-Turn beat). Owner 2026-11-19. */
+  | { do: 'sotCastSpell'; spellId: string }
   /** The two minions Swap exchanges gain each other's stats. */
   | { do: 'swapExchangeStats' }
   // ── Nadja (Goldspring) ──
@@ -1967,10 +1972,10 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
       effects: [{ do: 'swapEchoFirst' }],
     },
     fortune: {
-      // "Swapped minions are free."
-      offerText: 'Minions you Swap into the Shop are free to buy back.',
-      powerText: '{base} The minion you send to the Shop costs **0 Gold** to buy back.',
-      effects: [{ do: 'swapFree' }],
+      // "Swapped minions are free." Owner 2026-11-19: "costs 2g instead of 0g".
+      offerText: 'Minions you Swap into the Shop cost **2 Gold** to buy back.',
+      powerText: '{base} The minion you send to the Shop costs **2 Gold** to buy back.',
+      effects: [{ do: 'swapFree', price: 2 }],
     },
     war: {
       // "Pummel (140): Get a charge of Swap. (Once per combat.)" Ancient pass 1 (owner 2026-11-16, Mike's suggestion):
@@ -1987,10 +1992,11 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
     },
     time: {
       // "End of Turn: Get a copy of the minion you swapped." Ancient pass 1 (owner 2026-11-16): "Gain the Lasso card
-      // effect." Read as End of Turn: cast Lasso (steal a random minion from the Shop).
-      offerText: '**End of Turn:** cast **Lasso**.',
-      powerText: '{base} **End of Turn:** cast **Lasso**.',
-      effects: [{ do: 'eotCastSpell', spellId: 'lasso' }],
+      // effect." Read as End of Turn: cast Lasso (steal a random minion from the Shop). Owner 2026-11-19: also at Start
+      // of Turn.
+      offerText: '**Start of Turn** and **End of Turn:** cast **Lasso**.',
+      powerText: '{base} **Start of Turn** and **End of Turn:** cast **Lasso**.',
+      effects: [{ do: 'sotCastSpell', spellId: 'lasso' }, { do: 'eotCastSpell', spellId: 'lasso' }],
     },
     bonds: {
       // "Swapped minions gain each others stats."
@@ -4455,6 +4461,7 @@ export function ancientStartOfTurn(state: RunState): void {
   batchCStartOfTurn(state); // MEMBRANCE × TIME, MIMIC × TIME
   duosStartOfTurn(state); // MAGICIAN × TIME
   cindyStartOfTurn(state); // CINDY × TIME
+  darahStartOfTurn(state); // DARAH × TIME
   const a = live(state);
   const e = effectOf(state, 'sotBuffPerCombatSummon');
   const n = a?.lastSummons ?? 0;
@@ -5734,9 +5741,12 @@ export function ancientSwapUsesBadge(state: Pick<RunState, 'ancientsEnabled' | '
   return uses >= 2 ? uses : null;
 }
 
-/** DARAH × FORTUNE: does this held offer (a minion Swap sent to the Shop) buy back for 0 Gold? */
-export function ancientSwapFree(state: Pick<RunState, 'ancientsEnabled' | 'ancients' | 'heroId'>, offer: Pick<ShopCard, 'swapFree' | 'held'>): boolean {
-  return !!offer.held && !!offer.swapFree && !!live(state as RunState) && !!effectOf(state as RunState, 'swapFree');
+/** DARAH × FORTUNE: the set buy-back price of this held offer (a minion Swap sent to the Shop), or undefined when the
+ *  pairing does not reach it (the flat held price applies). Owner 2026-11-19: 2 Gold (was 0). */
+export function ancientSwapBuyBackPrice(state: Pick<RunState, 'ancientsEnabled' | 'ancients' | 'heroId'>, offer: Pick<ShopCard, 'swapFree' | 'held'>): number | undefined {
+  if (!offer.held || !offer.swapFree || !live(state as RunState)) return undefined;
+  const e = effectOf(state as RunState, 'swapFree');
+  return e ? Math.max(0, e.price) : undefined;
 }
 
 /**
@@ -5793,6 +5803,16 @@ function darahSwappedText(state: RunState): string {
  *  2026-11-16) it casts Lasso (`eotCastSpell`); the older copy primitive (`eotCopySwapped`) still runs the same entry. */
 export function ancientDarahEotCopyLive(state: RunState): boolean {
   return !!live(state) && (!!effectOf(state, 'eotCopySwapped') || !!effectOf(state, 'eotCastSpell'));
+}
+
+/** DARAH × TIME: Start of Turn (owner 2026-11-19). `sotCastSpell`: the same Lasso cast as End of Turn, from the hero
+ *  power, recorded as its own Start-of-Turn beat (R-SOT-BEAT-01; the Ancient's label gives the proc burst). A full hand
+ *  or an empty Shop: Lasso's own rule (nothing stolen, no beat). */
+function darahStartOfTurn(state: RunState): void {
+  const e = live(state) ? effectOf(state, 'sotCastSpell') : undefined;
+  const spell = e ? CARD_INDEX[e.spellId] : undefined;
+  if (!spell?.spell) return;
+  recordSotBeat(state, { kind: 'hero', id: state.heroId, label: ANCIENTS.time.name }, () => castSpell(state, spell, undefined, 'hero'));
 }
 
 /** DARAH × TIME: End of Turn. `eotCastSpell`: cast the spell (Lasso) through the real Shop cast pipeline, from the hero

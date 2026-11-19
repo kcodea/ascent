@@ -1526,18 +1526,18 @@ export const HEROES_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsDarah.test.ts'], lastVerifiedAt: '2026-10-06' },
   },
   {
-    id: 'R-ANCDARAH-02',
-    title: 'Darah × Ancient of Fortune: the minion Swap sends to the Shop buys back for 0 Gold',
+    id: 'R-ANCDARAH-07',
+    title: 'Darah × Ancient of Fortune: the minion Swap sends to the Shop buys back for 2 Gold',
     statement:
-      "With the Ancient of Fortune, the friendly minion Swap sends to the Shop (a held offer) costs 0 Gold to buy back, intact. The price is one function (heldOfferPrice) shared by the buy and the Shop's cost coin. Swap itself was already free.",
+      "With the Ancient of Fortune, the friendly minion Swap sends to the Shop (a held offer) costs 2 Gold to buy back, intact (it was 0). 2 is a set price, never above the flat held buy-back price, and like every held buy-back no other discount applies on top. The price is one function (heldOfferPrice) shared by the buy and the Shop's cost coin, so the shown price is the charged price; with less than 2 Gold the buy is refused. The mark rides the held offer, so freeze and refresh behave as before.",
     domain: 'heroes',
     status: 'approved',
     evidence: [
-      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-06 (Darah Ancients)', quote: 'Fortune: Swapped minions are free.' },
-      { kind: 'code', ref: 'packages/sim/src/ancients.ts swapFree / ancientAfterSwap / ancientSwapFree; packages/sim/src/reducer.ts heldOfferPrice; packages/ui/src/Recruit.tsx shop cost coin' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-19 (Darah Ancients)', quote: 'costs 2g instead of 0g' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts swapFree (price) / ancientAfterSwap / ancientSwapBuyBackPrice; packages/sim/src/reducer.ts heldOfferPrice; packages/ui/src/Recruit.tsx shop cost coin' },
     ],
-    currentBehaviour: 'Conforms (built 2026-10-06). Dev-only. "Swapped minions" read as the minion sent to the Shop: pending owner confirmation.',
-    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsDarah.test.ts'], lastVerifiedAt: '2026-10-06' },
+    currentBehaviour: 'Conforms (built 2026-11-19). Supersedes R-ANCDARAH-02.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsDarah.test.ts'], lastVerifiedAt: '2026-11-19' },
   },
   {
     id: 'R-ANCDARAH-04',
@@ -4557,18 +4557,18 @@ export const HEROES_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsDarah.test.ts"], lastVerifiedAt: '2026-11-16' },
   },
   {
-    id: "R-ANCPASS1-11",
-    title: "Darah × Ancient of Time: End of Turn casts Lasso",
+    id: "R-ANCDARAH-08",
+    title: "Darah × Ancient of Time: Start of Turn and End of Turn cast Lasso",
     statement:
-      "With the Ancient of Time, End of Turn (its own beat) casts Lasso through the real Shop cast pipeline, from the hero power: a random minion is stolen from the Shop into your hand (an empty Shop: nothing). It replaces the old plain copy of the swapped minion.",
+      "With the Ancient of Time, Lasso is cast twice a turn through the real Shop cast pipeline, from the hero power: at Start of Turn (when the recruit phase opens, its own Start-of-Turn beat with the Ancient proc burst) and at End of Turn (its own beat). Each steals a random minion from the Shop into your hand; an empty Shop or a full hand: nothing (Lasso's own rule).",
     domain: 'heroes',
     status: 'approved',
     evidence: [
-      { kind: 'owner-chat', ref: "Ancient pairing review, owner picks via the lead, 2026-11-16 (part 1)", quote: "Proposal: \"Gain the Lasso card effect.\" Owner picked: Use this" },
-      { kind: 'code', ref: "packages/sim/src/ancients.ts eotCastSpell / ancientRunDarahEotCopy; packages/sim/src/recruit.ts the ancientDarahEotCopy entry" },
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-19 (Darah Ancients)", quote: "Start of Turn and End of Turn: cast Lasso." },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts sotCastSpell / darahStartOfTurn / eotCastSpell / ancientRunDarahEotCopy; packages/sim/src/recruit.ts the ancientDarahEotCopy entry" },
     ],
-    currentBehaviour: "Conforms (built 2026-11-16). Supersedes R-ANCDARAH-05. Dev-only (Scene Builder, Set 3, the Ancients flag).",
-    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsDarah.test.ts"], lastVerifiedAt: '2026-11-16' },
+    currentBehaviour: "Conforms (built 2026-11-19). Supersedes R-ANCPASS1-11.",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsDarah.test.ts", "packages/sim/src/ancientProcCases.g2.testkit.ts"], lastVerifiedAt: '2026-11-19' },
   },
   {
     id: "R-ANCPASS1-12",

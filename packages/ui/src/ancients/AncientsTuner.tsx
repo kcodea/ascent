@@ -2,7 +2,7 @@ import { ANCIENT_IDS, type AncientId } from '@game/sim';
 import { TunerPanel } from '../TunerPanel';
 import type { TunerControl, TunerSpec, TunerUnit } from '../tunerSchema';
 import { useGame } from '../store';
-import { GATE_STYLES, REVEAL_STYLES, ANCIENTS_DEFAULTS, ANCIENTS_RANGES, getAncientsConfig, resetAncientsConfig, setAncientsValue, type AncientsFullConfig, type AncientsNumKey, ANCIENT_ART_IDS, ANCIENT_CUES, ART_FIELDS } from './ancientsConfig';
+import { GATE_STYLES, REVEAL_STYLES, gateStyleOf, ANCIENTS_DEFAULTS, ANCIENTS_RANGES, getAncientsConfig, resetAncientsConfig, setAncientsValue, type AncientsFullConfig, type AncientsNumKey, ANCIENT_ART_IDS, ANCIENT_CUES, ART_FIELDS } from './ancientsConfig';
 import { playAwakenDemo, playGateDemo } from './ancientsFx';
 import { ANCIENT_HERO_THEMES, BLOOM_STYLES, heroThemeKey, isThemedHero, STYLE_FAMILY, THEME_FIELDS, THEMED_HEROES, type ThemeField } from './ancientHeroThemes';
 
@@ -71,8 +71,8 @@ const ROWS: [Key, string, TunerUnit | undefined, string, string, ('color' | 'tog
   ['panelBgMs', 'Background slide', 'ms', 'One background sliding in from off screen.', 'Awakening panels'],
   ['panelFollowMs', 'Ancient follows', 'ms', 'The Ancient setting off after its own background.', 'Awakening panels'],
   ['panelSlideMs', 'Ancient slide', 'ms', 'One Ancient sliding in from off screen to its slam.', 'Awakening panels'],
-  ['panelHoldMs', 'Six hold', 'ms', 'How long all six stand under the title before three are chosen.', 'Awakening panels'],
-  ['panelRattleMs', 'Three rattle', 'ms', 'The offered three shaking while their edges light.', 'Awakening panels'],
+  ['panelHoldMs', 'Six hold', 'ms', 'How long all six stand before three are chosen.', 'Awakening panels'],
+  ['panelRattleMs', 'Three rattle', 'ms', 'The offered three shaking while their edges light and pulse; the other three fall only after it.', 'Awakening panels'],
   ['panelFallMs', 'Three fall', 'ms', 'The other three fading out and falling away.', 'Awakening panels'],
   ['panelToCardMs', 'Settle onto cards', 'ms', 'The three moving onto their cards on the select screen.', 'Awakening panels'],
   ['panelShakePx', 'Slam shake', 'px', 'The shake on each slam, and the size of the rattle. 0 = none.', 'Awakening panels'],
@@ -170,12 +170,19 @@ const GATE_STYLE_CONTROL: TunerControl<Key> = {
   hint: 'Panels: the six Ancients slam in as tall panels and three fall away. Curtain: the earlier bloom of colour with the hero power medallion and the title card.',
   optionLabels: { panels: 'Panels (the six Ancients)', curtain: 'Curtain (medallion + title)' },
 };
+/** Dials only the CURTAIN style reads: its bloom, seam ring, title hold and fade, the title's handoff to the banner,
+ *  and the bloom-style preview. The panels run their own clock (`panelClock.ts`) and carry no title. */
+const CURTAIN_ONLY: ReadonlySet<Key> = new Set<Key>(['eruptionMs', 'seamGlow', 'titleHoldMs', 'revealFadeMs', 'handoffMs', 'tunerStyle']);
 function controls(): TunerControl<Key>[] {
   const base = [...BASE_CONTROLS.slice(0, HERO_AT), ...heroThemeControls(), ...BASE_CONTROLS.slice(HERO_AT)];
   const at = base.findIndex((ctl) => ctl.key === 'sparkMs');
   const withReveal = [...base.slice(0, at), REVEAL_STYLE_CONTROL, ...base.slice(at)];
   const pn = withReveal.findIndex((ctl) => ctl.key === 'panelStaggerMs');
-  return [...withReveal.slice(0, pn), GATE_STYLE_CONTROL, ...withReveal.slice(pn)];
+  const all = [...withReveal.slice(0, pn), GATE_STYLE_CONTROL, ...withReveal.slice(pn)];
+  // Only the dials the selected awakening style reads (owner 2026-11-19: "can we remove all that no longer are
+  // applicable?"). The curtain's dials come back when the style is switched to Curtain; their values are kept.
+  const asPanels = gateStyleOf(getAncientsConfig().gateStyle) === 'panels';
+  return all.filter((ctl) => (asPanels ? !CURTAIN_ONLY.has(ctl.key) : !(String(ctl.key).startsWith('panel'))));
 }
 
 /** Push the meter's balance numbers into the live sandbox run (only a run that has Ancients, before it awakens). */

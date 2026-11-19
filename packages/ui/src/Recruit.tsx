@@ -8050,12 +8050,14 @@ export function Recruit() {
             });
           }
         }
-        setEotProcUids(uid ? new Set([uid]) : new Set());
         // An End of Turn with an effect of its own (the card's On End of Turn slot, else the stock one) shows that
-        // effect INSTEAD of the medallion pulse (R-FX-TRIGGER-STOCK-01): the same test the `endOfTurn` cue below
-        // makes before it plays. The sound stays either way.
+        // effect INSTEAD of the stock cues (R-FX-TRIGGER-STOCK-01): the medallion pulse, AND the medallion glow and
+        // under-card flourish that `eotProcUids` draws (owner 2026-11-19: "i still see the old medallion pulse effect
+        // on top of the new pixi effect (used gemling as a test)"). The same test the `endOfTurn` cue below makes
+        // before it plays, so a cadence tick that only glows (nothing plays) keeps its glow. The sound stays.
         const eotCardId = uid ? run.board.find((c) => c.uid === uid)?.cardId ?? null : null;
-        const eotFxBound = beat.family === 'endOfTurn' && canPlayDefs() && eotCardId !== null && triggerFxFor(eotCardId, 'endOfTurn') !== null;
+        const eotFxBound = beat.family === 'endOfTurn' && beat.mode === 'ownBeat' && canPlayDefs() && eotCardId !== null && triggerFxFor(eotCardId, 'endOfTurn') !== null;
+        setEotProcUids(uid && !eotFxBound ? new Set([uid]) : new Set());
         setEotPulseUids(uid && beat.mode === 'ownBeat' && !eotFxBound ? new Set([uid]) : new Set());
         if (beat.mode === 'ownBeat') sfx.triggerPulse(); else sfx.triggerGlow();
         if (uid) {

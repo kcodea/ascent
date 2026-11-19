@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import { ANCIENTS, ancientOfferText, type BoardSnapshot } from '@game/sim';
 import { mdBold } from '../Card';
 import { ancientColor } from './ancientsConfig';
@@ -14,7 +15,7 @@ export function FoeAncientLine({ ancient, className }: { ancient: BoardSnapshot[
   const def = ancient ? ANCIENTS[ancient.id] : undefined;
   if (!ancient || !def) return null;
   return (
-    <span className={`foe-ancient${className ? ` ${className}` : ''}`}>
+    <span className={`foe-ancient${className ? ` ${className}` : ''}`} style={{ '--anc-c': ancientColor(ancient.id) } as CSSProperties}>
       <b className="foe-ancient-name" style={{ color: ancientColor(ancient.id) }}>{def.name}</b>
       <span className="foe-ancient-rule" dangerouslySetInnerHTML={{ __html: mdBold(ancientOfferText(ancient.heroId, ancient.id)) }} />
     </span>

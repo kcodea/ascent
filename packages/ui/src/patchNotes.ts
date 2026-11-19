@@ -68,6 +68,16 @@ export const PATCH_NOTES: PatchNote[] = [
           'Cassen: Avenge (5): your commission pays out 1 turn sooner. It was Avenge (7). It still counts one fight at a time.',
         ],
       },
+      {
+        category: 'Systems',
+        text: 'The lobby rail card for each player now shows their hero power and Ancient, in a new look.',
+        details: [
+          "Hover a player on the rail (tap on touch) to see their hero art, Health and Armor, and their hero power with its full text.",
+          'If they have picked an Ancient, the power shows it cracked open, with the Ancient named and what it does for that hero.',
+          'Shop tier, Gilded made, top tribe, runes and the last three fights are all still there.',
+          "In combat, your opponent's hero power icon now shows their Ancient too.",
+        ],
+      },
       { category: 'Systems', text: "Another player's Career page now has an Add friend button at the top. One press sends the request." },
       { category: 'Systems', text: 'Settings, Account now shows your name and tag (like Name#1234) with a Copy button, so you can share it with friends.' },
       {

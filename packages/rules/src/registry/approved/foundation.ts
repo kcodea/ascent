@@ -16782,4 +16782,24 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: "Conforms from 2026-11-19. Before, a 17px badge sat on the portrait's lower right, covering the hero art.",
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/matchDetails/seatPower.test.tsx'], lastVerifiedAt: '2026-11-19' },
   },
+  {
+    id: 'R-LOBBY-TILE-BLUR-01',
+    domain: 'foundation',
+    title: "A lobby tile's Game strength blur covers the hero portrait ring and the Ancient, and the portrait matches the Ancient's size",
+    statement:
+      "When a lobby tile shows its Game strength (hover or tap), the darkening and blur cover everything on the tile under it: the "
+      + "board, the text, the hero portrait with its ring, and the Ancient disc with its frame. Only the Game strength text (and the "
+      + "tile's gold edge, the result band and the knockout sword) stay crisp. The hero portrait's ring is the Ancient disc's outer "
+      + 'size (face plus its gold edge), on every surface, with or without an Ancient, and the tile keeps its height.',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-19 (screenshot of a hovered results lobby tile)', quote: 'the mouse over should blur out the ancient and the hero portrait ring too' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-19', quote: 'can you also make the hero art as large as the ancient art?' },
+      { kind: 'fix-pr', ref: 'fix/tile-hover-blur: packages/ui/src/styles.css (.lp-chip-portrait, .lp-tile-anc isolation; ring 39px); gamesPages.css; phoneMenus.css' },
+    ],
+    currentBehaviour:
+      "Conforms from 2026-11-19 (fix/tile-hover-blur). Before, the ring (the frame's ::after at z 2) and the Ancient's art wrap (z 2) "
+      + 'out-stacked the overlay (z 1) and stayed sharp over it, and the portrait ring was 36px against the 39px Ancient disc.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/partyHome/pages/recentGamesPolish.test.ts'], lastVerifiedAt: '2026-11-19' },
+  },
 ];

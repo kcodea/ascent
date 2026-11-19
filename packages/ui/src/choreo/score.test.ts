@@ -1114,11 +1114,13 @@ describe('rallyFx channel — summon delivery', () => {
   });
 
   /** An UNBOUND rallier plays no effect, so nothing would ever release its summons — they must never be
-   *  held in the first place. This is the guard that keeps the tombstoned global `rally` row safe. */
+   *  held in the first place. This is the guard that keeps the tombstoned global `rally` row safe.
+   *  Hawkus is the rallier here because it procs an Echo WITHOUT the Rally keyword, so it stays unbound even once
+   *  the stock Rally effect (`rally-stock`, R-FX-TRIGGER-STOCK-01) is saved: that one reaches Rally cards only. */
   it('names nothing for an unbound rallier', () => {
-    const events = [attack('ds', 'foe'), rally('ds', 'ally'), summon('c1')];
+    const events = [attack('hk', 'foe'), rally('hk', 'ally'), summon('c1')];
     const moment = compileMoments(events)[0]!;
-    expect(rallyDeliveredUids(moment, { events, cardIds: new Map([['ds', 'deathsayer']]) })).toEqual([]);
+    expect(rallyDeliveredUids(moment, { events, cardIds: new Map([['hk', 'b2_hawkus']]) })).toEqual([]);
   });
 
   /** …and likewise when defs can't play at all (headless, or before `ensureDefsReady`): the cue schedules

@@ -70,6 +70,8 @@ import { spellPowerNarrationAnchor } from './choreo/spellPowerAnchor';
 import { getDef } from './fx/fxDefs';
 import { WATCHER_PULSE_DEF_ID, watcherPixiReady } from './fx/watcherPulse';
 import { watcherPulseUids } from './choreo/channels/watcherPulse';
+import { triggerPulseScan } from './choreo/channels/triggerPulse';
+import { triggerFxFor } from './choreo/stockTriggerFx';
 import { combatBuffDeltas, combatDamageDeltas, driveRoll, driveRollSegment } from './fx/combatBuffRoll';
 import { HOLD_GRACE_MS, heldFor, holdStat, releaseStat, replaceHold } from './fx/statHold';
 import { fightBodies } from './fightRoster';
@@ -1956,8 +1958,13 @@ export function useCombatReplay(
     setTriggers((prev) => new Set([...prev, uid]));
     holdPulses([uid]);
   }, [holdPulses]);
+  // uid → cardId for the callbacks declared above the `cardIds` memo (kept current right after it).
+  const cardIdsRef = useRef<Map<string, string>>(new Map());
   const firePulse = useCallback((uid: string): void => {
     sfx.triggerPulse();
+    // A Rally with an effect of its own (the card's On Rally slot, else the stock one) shows that effect INSTEAD of
+    // the yellow medallion pulse (R-FX-TRIGGER-STOCK-01). The sound above stays.
+    if (canPlayDefs() && triggerFxFor(cardIdsRef.current.get(uid) ?? null, 'rally')) return;
     const n = ++rallyNonceRef.current;
     setRallyPulse((prev) => new Map(prev).set(uid, n));
     // Cleared only if THIS fire is still the current one — a later proc's nonce must not be cancelled by an
@@ -2389,6 +2396,7 @@ export function useCombatReplay(
     for (const b of fightBodies(combat)) m.set(b.uid, b.cardId); // + every tagIn body (R-DUOS-FX-01)
     return m;
   }, [combat]);
+  cardIdsRef.current = cardIds;
 
   // The PLAYER's uids for the whole fight: the initial player board + every player-side summon in the log + the
   // teammate's board that steps in on a `tagIn` (R-DUOS-FX-01). Enemy-sourced narrations (spell power, auras) are
@@ -2912,7 +2920,7 @@ export function useCombatReplay(
     if (!active || beatIdx === 0) return;
     const beat = beats[beatIdx - 1];
     if (!beat) return;
-    const trig = new Set<string>();
+    const trig = new Set<string>(); // the units that show the stock medallion pulse
     const beatWatchers: string[] = [];
     // The player's uids: the initial player board + every player-side summon in the whole log. Enemy-sourced
     // narrations (spell power, auras) are filtered against this so they never draw on the player's board and
@@ -2948,22 +2956,18 @@ export function useCombatReplay(
       // TUTORIAL (read-only): report this event as PRESENTED so a Predict/Confirm coach step can advance at the
       // right beat. A no-op on every non-tutorial fight (the bus is empty). Never changes timing/order/FX.
       notifyPresented(e);
-      // NB: `rally` is intentionally NOT here — a Rally that fires as a unit attacks pulses YELLOW from the
-      // lunge's wind-up pause instead (see the attack layout effect), so it reads at the swing, not beat-start.
-      // A `shout` pulses through `onShoutProc` (the re-triggering unit + the Shout's owner), not the white trigger.
-      if (e.type === 'shout') continue;
-      if (e.type === 'sc' && e.heroPower) continue; // a hero-power grant pulses no body (it plays at the power button)
-      if (e.type === 'buff' && e.from) trig.add(e.from); // the body an Ancient's grant visibly starts from (R-FX-ANCIENT-ORIGIN-01)
-      else if ((e.type === 'sc' || e.type === 'buff' || e.type === 'keyword') && e.source) trig.add(e.source);
-      else if ((e.type === 'summon' || e.type === 'toHand') && e.source) trig.add(e.source);
-      else if (e.type === 'improve' || e.type === 'maxGold' || e.type === 'hpGrant' || e.type === 'reborn') trig.add(e.target);
-      // A death whose unit has a Deathrattle/Avenge effect: its trigger just fired (the cleanest signal —
-      // the resulting summon/buff events don't reliably carry the dying unit as their source).
-      else if (e.type === 'death') {
-        const effs = CARD_INDEX[cardIds.get(e.target) ?? '']?.effects;
-        if (effs?.some((f) => f.on === 'onDeath' || f.on === 'avenge')) trig.add(e.target);
-      }
     }
+    // WHO fired, and who still wears the stock medallion pulse (`channels/triggerPulse.ts`). `rally` is not in
+    // the scan: a Rally pulses YELLOW from the lunge's wind-up pause (see the attack layout effect), so it reads at
+    // the swing. A `shout` pulses through `onShoutProc`. A Start of Combat, an Avenge or an Echo whose effect is
+    // bound (the card's own, or the stock one) plays that effect INSTEAD of the pulse (R-FX-TRIGGER-STOCK-01).
+    const pulseScan = triggerPulseScan(
+      beat, events, cardIds,
+      (cardId, on) => !!CARD_INDEX[cardId]?.effects?.some((f) => f.on === on),
+      (cardId, trigger) => canPlayDefs() && triggerFxFor(cardId, trigger) !== null,
+    );
+    for (const uid of pulseScan.pulse) trig.add(uid);
+    const firedUids = new Set(pulseScan.fired);
     // WATCHER pulse: on an attack beat, a non-attacker unit (any side, mirroring the trigger scan) that fired
     // an effect this beat is a watcher answering the swing (Crypt Drake, Mineral Master, …). Give it the distinct
     // light-blue look — medallion recolored + a card-frame bloom — instead of the generic white medallion pulse.
@@ -2973,11 +2977,17 @@ export function useCombatReplay(
       const watchers = watcherPulseUids(beat, events, beat.primary.attacker);
       for (const uid of watchers) {
         trig.delete(uid); // take the light-blue medallion class, not white
+        firedUids.delete(uid);
         beatWatchers.push(uid); // still feed the SFX gate below so watcher-only beats keep their sound
+        // The watcher's own effect (its By-card On Watcher slot, else the stock one) REPLACES the light-blue
+        // medallion pulse (R-FX-TRIGGER-STOCK-01). The card-frame bloom below stays either way.
+        const wb = canPlayDefs() ? triggerFxFor(cardIds.get(uid) ?? null, 'watcher') : null;
         // light-blue medallion (nonce → remount → animation restarts, mirroring firePulse/rallyPulse)
-        const wn = ++watcherNonceRef.current;
-        setWatcherPulse((prev) => new Map(prev).set(uid, wn));
-        window.setTimeout(() => setWatcherPulse((prev) => { const m = new Map(prev); if (m.get(uid) === wn) m.delete(uid); return m; }), 1150);
+        if (!wb) {
+          const wn = ++watcherNonceRef.current;
+          setWatcherPulse((prev) => new Map(prev).set(uid, wn));
+          window.setTimeout(() => setWatcherPulse((prev) => { const m = new Map(prev); if (m.get(uid) === wn) m.delete(uid); return m; }), 1150);
+        }
         // card-frame bloom: Pixi ring-bloom when the def is committed + playable, else the CSS overlay
         if (watcherPixiReady(!!getDef(WATCHER_PULSE_DEF_ID), canPlayDefs())) {
           const a = anchorsForUnits(uid, uid); // source = target = the watcher's own card
@@ -2990,15 +3000,12 @@ export function useCombatReplay(
           setFramePulse((prev) => new Map(prev).set(uid, fn));
           window.setTimeout(() => setFramePulse((prev) => { const m = new Map(prev); if (m.get(uid) === fn) m.delete(uid); return m; }), 1150);
         }
-        // A card can bind an effect/sound to WATCHING (the By-card binder's On Watcher slot) — play it on the
-        // reacting card as it answers an ally's swing, layered over the stock watcher pulse above. Per-card
-        // volume rides the binding's `gain`, like the other cues. No-op when nothing is bound / defs don't ship.
-        if (canPlayDefs()) {
-          const wb = bindingFor(cardIds.get(uid) ?? null, 'watcher');
-          if (wb) {
-            const a = anchorsForUnits(uid, uid);
-            if (a) playDef(wb.def, a, { uids: { source: uid, target: uid }, gain: wb.gain });
-          }
+        // A card can bind an effect/sound to WATCHING (the By-card binder's On Watcher slot), and the stock
+        // watcher effect covers every card without one: play it on the reacting card as it answers an ally's
+        // swing. Per-card volume rides the binding's `gain`. No-op when nothing is bound / defs don't ship.
+        if (wb) {
+          const a = anchorsForUnits(uid, uid);
+          if (a) playDef(wb.def, a, { uids: { source: uid, target: uid }, gain: wb.gain });
         }
       }
     }
@@ -3010,7 +3017,7 @@ export function useCombatReplay(
     // off first, then the +1.
     const spAtk = beat.kind === 'attackExchange' && beat.primary.type === 'attack' ? beat.primary.attacker : null;
     const spOwnRally = spAtk !== null && canPlayDefs()
-      && !!ownRallyBindingFor(beat, events, spAtk, cardIds.get(spAtk) ?? null, true, bindingFor);
+      && !!ownRallyBindingFor(beat, events, spAtk, cardIds.get(spAtk) ?? null, true, triggerFxFor);
     const spLater: CombatEvent[] = [];
     for (let i = beat.start; i < beat.end; i++) {
       const e = events[i];
@@ -3159,14 +3166,14 @@ export function useCombatReplay(
         playGenericCastSound(e.spellId);
       }
     }
-    if (trig.size === 0 && beatWatchers.length === 0) return;
+    if (firedUids.size === 0 && beatWatchers.length === 0) return;
     sfx.triggerPulse(); // once per beat regardless of how many units pulse (the dedupe is built in too)
     // Each triggering unit also plays its OWN effect voiceline (cards/<id>.effect.mp3) — the combat half of the
     // per-card effect sound (the shop half fires from store.ts on a Battlecry). Deduped by cardId so a beat with
     // several copies of one card firing plays that clip once. Silent until the clip is recorded. Watchers are
     // included here (though rerouted out of `trig` above) so a watcher-only beat still plays its trigger sound.
     const firedEffect = new Set<string>();
-    for (const uid of [...trig, ...beatWatchers]) {
+    for (const uid of [...firedUids, ...beatWatchers]) {
       const cid = cardIds.get(uid);
       if (cid && !firedEffect.has(cid)) { firedEffect.add(cid); sfx.cardEffect(cid); }
     }
@@ -3224,7 +3231,7 @@ export function useCombatReplay(
       // to decide whether the def plays (the binding resolves off the re-triggering card).
       onShoutProc: (source: string, target: string, eot?: boolean) => {
         pulseWatcher(source);
-        if (!(eot ? bindingFor(cardIds.get(target) ?? null, 'endOfTurn') : bindingFor(cardIds.get(source) ?? null, 'shout'))) bloomFrame(target);
+        if (!(eot ? triggerFxFor(cardIds.get(target) ?? null, 'endOfTurn') : bindingFor(cardIds.get(source) ?? null, 'shout'))) bloomFrame(target);
         // A CHAIN trigger-er (Dawnclaw / Ryme's Echo — R-SHRIEKER-BEATS-01, owner 2026-10-10: "dawnclaw and mykel
         // should also do one at a time"): its tribe tendril to the Shout it is firing, on that fire's own moment (one
         // moment per `shout` already, left neighbour first). An Echo's body has usually fallen, so it streams from its
@@ -3418,7 +3425,7 @@ export function useCombatReplay(
         if (e.type === 'toHand' && e.side === 'player' && inHandRange(i, ownHand)) ledger.note(now, getPlateCoalesceConfig().total);
         if (e.avenge && typeof e.srcCard === 'string' && !avenged.has(e.srcCard)) {
           avenged.add(e.srcCard);
-          const b = canPlayDefs() ? bindingFor(e.srcCard, 'avenge') : null;
+          const b = canPlayDefs() ? triggerFxFor(e.srcCard, 'avenge') : null;
           if (b) ledger.note(now, defReadMs(b.def));
         }
       }
@@ -3743,7 +3750,7 @@ export function useCombatReplay(
         const atkUnit = frameRef.current?.player.find((u) => u.uid === atkUid) ?? frameRef.current?.enemy.find((u) => u.uid === atkUid);
         let rallies = !!atkUnit?.keywords.includes('RL') || !!CARD_INDEX[cardIds.get(atkUid) ?? '']?.keywords?.includes('RL');
         if (!rallies) for (let i = cur.start; i < cur.end; i++) { const e = events[i]; if (e?.type === 'rally' && e.source === atkUid) { rallies = true; break; } }
-        const ownRally = ownRallyBindingFor(cur, events, atkUid, cardIds.get(atkUid) ?? null, rallies, bindingFor);
+        const ownRally = ownRallyBindingFor(cur, events, atkUid, cardIds.get(atkUid) ?? null, rallies, triggerFxFor);
         // Buffs absorbed into this attack's wind-up (on-attack / on-ally-attack / Rally buffers) → fire their FX at
         // the top of the wind-up (after the yellow rally pulse), so the beat reads pulse → tendril → lunge. Buff-
         // OTHERS rain a tendril/descend; the buffer's own SELF-buff (which `groupBuffCasts` skips) pops an in-place
@@ -3868,7 +3875,9 @@ export function useCombatReplay(
             if (ownRally && canPlayDefs()) {
               const a = anchorsForUnits(atkUid, atkUid);
               // `also` rides along (Gasket's Rally sound is its own def), like every other binding's extra defs.
-              if (a) for (const id of bindingDefIds(ownRally)) playDef(id, a, { uids: { source: atkUid, target: atkUid }, gain: ownRally.gain });
+              // `trackUnits`: the rallier is leaning back in its wind-up as this plays, so the effect rides the card
+              // (and its medallion) instead of sitting on the slot it left.
+              if (a) for (const id of bindingDefIds(ownRally)) playDef(id, a, { uids: { source: atkUid, target: atkUid }, gain: ownRally.gain, trackUnits: true });
             }
           } : undefined,
           // How many procs this swing carries — the wind-up stretches to fit their pulse→sparkle pairs.

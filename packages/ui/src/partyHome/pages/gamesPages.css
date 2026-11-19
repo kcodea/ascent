@@ -194,7 +194,8 @@ html[data-ph-shell] .rgp .rgp-power-name { font-size: calc(var(--ph-t2) * 0.9); 
 .rgp .lp-tile-out { font-size: var(--ph-t1); color: var(--ph-muted); }
 .rgp .lp-chip-name { font-family: var(--ph-name-font); font-weight: 900; font-size: var(--ph-t2); color: var(--ph-ink); text-shadow: var(--ph-shadow); }
 .rgp .lp-tile.self .lp-chip-name { color: var(--ph-ready); }
-.rgp .lp-chip-portrait .mds-portrait, .rgp .lp-chip-portrait .cv2-heroframe { --ring: calc(36 * var(--phu)); }
+.rgp .lp-tile .lp-chip-portrait .mds-portrait, .rgp .lp-tile .lp-chip-portrait .cv2-heroframe { --ring: calc(39 * var(--phu)); } /* the Ancient disc's outer size */
+.rgp .lp-tile .lp-chip-portrait { margin-block: calc(-1.5 * var(--phu)); }
 .rgp .lp-mini { gap: calc(4 * var(--phu)); }
 .rgp .lp-mini-m { border-color: color-mix(in srgb, var(--ph-gold) 30%, transparent); }
 .rgp .lp-ko { top: calc(4 * var(--phu)); right: calc(8 * var(--phu)); }
@@ -349,7 +350,7 @@ html[data-touch-small] .rgp-lobby { padding: calc(8 * var(--phu)) calc(24 * var(
    line, the panel width and the art do not move when it lands; the real tiles fade in (one-shot opacity). */
 .rgp .lp-tile.rgp-ghost, .rgp .lp-tile.rgp-ghost:hover { opacity: 0.4; transform: none; background: var(--ph-well); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); }
 .rgp .lp-tile.rgp-ghost::before { background: none; }
-.rgp-ghostface { display: block; width: calc(37.125 * var(--phu)); height: calc(37.125 * var(--phu)); border-radius: 50%; background: color-mix(in srgb, var(--ph-ink) 10%, transparent); }
+.rgp-ghostface { display: block; width: calc(40.2 * var(--phu)); height: calc(40.2 * var(--phu)); border-radius: 50%; background: color-mix(in srgb, var(--ph-ink) 10%, transparent); }
 .rgp-lobby.fadein .lp-tiles { animation: lp-swap 0.22s cubic-bezier(0, 0, 0.2, 1) both; }
 @media (prefers-reduced-motion: reduce) { .rgp-lobby.fadein .lp-tiles { animation: none; } }
 

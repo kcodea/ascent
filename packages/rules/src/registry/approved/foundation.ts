@@ -8537,6 +8537,70 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/fx/fxBudget.test.ts', 'packages/ui/src/handBuffFx.test.tsx', 'packages/ui/src/fx/reactPopLayer.test.ts'], lastVerifiedAt: '2026-10-22' },
   },
   {
+    id: 'R-PERF-APM-01',
+    title: 'Under rapid Shop input the game presents the newest action only: numbers are true at once and nothing queues',
+    statement:
+      'Rapid input means three or more accepted Shop actions (buy, sell, play, cast, refresh, tier up, hero power, freeze) inside '
+      + 'one second; once rapid it stays rapid until fewer than two are inside a second. At up to two actions a second every effect, stat roll and buff wave plays exactly as authored. While input is '
+      + 'rapid: (1) a stat change is printed at once with the badge\x27s one pop instead of being withheld for a roll, and the '
+      + 'numbers an earlier action was still rolling in are printed with it, so a badge never shows less than the run really '
+      + 'holds; (2) a new action drops the paced steps of earlier actions that have not started yet (later buff waves, Shout '
+      + 'chain links, a waiting buffer); effects already playing finish; (3) a one-shot effect is keyed by its recipient, so a '
+      + 'card carries one live copy of an effect: a second fire inside 250 ms is the same moment, a later one replaces the '
+      + 'copy it finds; (4) effects play in step with the input, up to 1.6 times faster and down to 60% of their particles at '
+      + 'five or more actions a second; (5) the hand card\x27s own canvas effects are skipped: a card granted to hand arrives '
+      + 'at once instead of being hidden until it has re-formed, and a played card\x27s backplate does not dissolve. End Turn ends it at once: End of Turn beats and the fight are always presented in '
+      + 'full. It is presentation only: nothing the reducer, a replay or a snapshot reads. Input is never held for '
+      + 'presentation at any speed.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-18 (performance push, relayed by the coordinator)', quote: 'the biggest problem to me is when i have a board with cards like Karwind and im playing APM and the game gets bogged down and nearly impossible to play. this needs to be butter smooth.' },
+      { kind: 'code', ref: 'packages/ui/src/fx/actionPressure.ts; packages/ui/src/fx/rapidConfig.ts; packages/ui/src/fx/shopFxQueue.ts; packages/ui/src/fx/rapidPlay.ts; packages/ui/src/fx/statHold.ts (holdStat, deliverAllStats); packages/ui/src/fx/playDef.ts; packages/ui/src/store.ts (dispatch notes the action); packages/ui/src/Recruit.tsx (paced steps through shopFxLater); scripts/perf-apm-engine.mjs' },
+    ],
+    example: 'Karwind\x27s board (a gilded Karwind, Firebird, Scalechanter, Embermouth, Herzog, Transcendence, the Ancient of Bonds awake), a Shout minion bought, played and sold over and over by real mouse input at up to 8 actions a second for 25 s (`npm run perf:apm`, prod bench build). Before: every stat badge was behind the real number in 82 to 94% of samples, for up to 7 seconds in a row; 19 to 23 effects were alive on average and 34 at peak. Now a badge is never behind, and the effects alive stay at the level of one action.',
+    currentBehaviour: 'Conforms from 2026-11-18 (perf/apm-engine). Before, every action queued its whole authored presentation behind the previous ones.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/fx/actionPressure.test.ts', 'packages/ui/src/fx/shopFxQueue.test.ts', 'packages/ui/src/fx/rapidPlay.test.ts'], lastVerifiedAt: '2026-11-18' },
+  },
+  {
+    id: 'R-PERF-APM-02',
+    title: 'The shared stat roll steps at most 60 times a second, and its last step is never late',
+    statement:
+      'A stat badge that rolls to a new number (the shared roll in fx/statHold.ts) changes its printed digits at most 60 times '
+      + 'a second, on every display. A roll that is over prints its final number on the next frame whatever the cap says. On a '
+      + '60 Hz display nothing changes; on a 240 Hz display the same roll makes a quarter of the badge updates, each of which '
+      + 're-renders the badge, restarts its pop and re-draws the card under it.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-18 (performance push, relayed by the coordinator)', quote: 'the biggest problem to me is when i have a board with cards like Karwind and im playing APM and the game gets bogged down and nearly impossible to play. this needs to be butter smooth.' },
+      { kind: 'code', ref: 'packages/ui/src/fx/statHold.ts (ensureTicking, anyRollOver); packages/ui/src/fx/rapidConfig.ts (STAT_ROLL)' },
+    ],
+    example: 'A +4/+4 from Karwind on seven Dragons: a 420 ms roll on 14 badges was about 1,400 badge updates on a 240 Hz display. It is 350 now, the number a 60 Hz display always made.',
+    currentBehaviour: 'Conforms from 2026-11-18 (perf/apm-engine). Before, the roll stepped on every display frame.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/fx/statRollStep.test.ts'], lastVerifiedAt: '2026-11-18' },
+  },
+  {
+    id: 'R-PERF-APM-03',
+    title: 'A drop reads its rects before the drag\x27s body class comes off, and an action renders the Shop once',
+    statement:
+      'The release handler of a drag reads every rect the drop\x27s own presentation needs (the played card\x27s plate, the Gold '
+      + 'pill a sale sprays coins from) together with its row snapshot, BEFORE it removes `body.dragging`. Removing that class '
+      + 'dirties style for the whole page, so a rect read after it forces that restyle inside the handler. And one player '
+      + 'action renders the Shop screen once: a played Shout writes the medallion-pulse state only when a card takes the '
+      + 'pulse, and a sale\x27s Gold float is unmounted in the next sale\x27s own commit (one sweep follows the last sale) instead '
+      + 'of by a render of its own a second later.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-18 (performance push, relayed by the coordinator)', quote: 'the biggest problem to me is when i have a board with cards like Karwind and im playing APM and the game gets bogged down and nearly impossible to play. this needs to be butter smooth.' },
+      { kind: 'code', ref: 'packages/ui/src/Recruit.tsx (onUp: dropRectsRef before the class removal; applyDrop and the sold presenter read it; setBattlecryUids guard; SELL_FLOAT_MS sweep)' },
+    ],
+    example: 'CPU profile of `npm run perf:apm` on main, 2026-11-18: the plate read cost 90 ms over about 20 plays and the Gold pill read 101 ms over about 20 sales, each a whole-page restyle forced inside pointerup. The Shop screen rendered 256 times for 164 actions: one extra render per played Shout and one per sale.',
+    currentBehaviour: 'Conforms from 2026-11-18 (perf/apm-engine).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/dropReadsBeforeRestyle.test.ts'], lastVerifiedAt: '2026-11-18' },
+  },
+  {
     id: 'R-PROG-AETHER-06',
     title: 'Announcers can never be a chest focus; they still drop from unfocused chests, and ticking every focusable category is an unfocused, free chest that can give one',
     statement:

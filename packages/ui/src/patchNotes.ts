@@ -193,6 +193,18 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'Playing very fast on a big engine board is smoother. Stat numbers land at once and effects keep pace with you instead of piling up.',
+        details: [
+          'This applies when you make three or more moves a second in the Shop: buying, playing, selling, casting, refreshing.',
+          'Stat numbers show their new value at once with one pop. They used to roll, and on a fast turn they fell seconds behind.',
+          'Buff effects from your earlier moves that have not started yet are skipped. Effects already playing finish.',
+          'A minion shows one copy of an effect at a time. Effects play a little faster and lighter the faster you go.',
+          'A card added to your hand appears at once, ready to grab.',
+          'At normal speed nothing changes. Your stats and results are the same either way.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'The shop stays smoother late in the game. Buying, selling, playing a card or refreshing no longer redraws every card on screen.',
         details: [
           'Each card in the shop and on your board is now drawn once and then only moved.',

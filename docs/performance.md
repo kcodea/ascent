@@ -1128,6 +1128,35 @@ Numbers and method: `docs/devlog/2026-11-10-duos-perf-wins.md`.
 - **A CPU profile's self time is a sum, not a moment.** "`drawImage` 30 ms" in the pass's profile was 0.5 ms on each
   of some hundred frames of the plate dissolve, not one 30 ms call. Bucket the samples by time before naming a frame.
 
+## 3p. Keyword auras, 2026-11-18: count layers and animations PER CARD, and bake a loop that cannot be made cheap
+
+Numbers and method: `docs/devlog/2026-11-18-perf-keyword-loops.md`. Rule: R-PERF-KEYWORD-AURA-01.
+
+- **A per-card loop is multiplied by the board.** Rise (27 wisps and a dome), Execute (3 rings and 12 shards of 3
+  pieces), Flurry (7 rings) and Rebirth's crown each followed every rule above (transform and opacity only, static
+  paint on a child) and still cost 20 to 37 compositor layers and 9 to 46 running animations per minion. Every keyword
+  on 14 cards: about 1,500 layers, 1,225 animations, 37 to 65 ms a frame in an idle shop on an RTX 4080. A loop that is
+  cheap once is not cheap fourteen times: budget an always-on card effect at ONE layer and ZERO CSS animations.
+- **The fix is a capture, not a cut.** `scripts/kwfx/capture.mjs` plays the authored aura in headless Chrome, seeks it
+  frame by frame and packs one loop into an animated AVIF (`apps/web/public/kwfx/`). The card shows that picture on one
+  `will-change` element (`.kwfx`, `kwfx/kwfx.ts`). Chrome advances an animated image on the compositor and decodes a
+  frame once for every element showing it, so 14 cards cost what one does and the main thread does nothing. The same
+  scene after: 200 layers, 35 animations, 4.2 ms.
+- **An aura's `mix-blend-mode` was blending with nothing but itself.** Every aura root has a transform, so it is a
+  stacking context and its screen-blended children never saw the card under them: 28 blend passes per Rise card for a
+  picture that is a plain RGBA group. That is also why a transparent capture of the group is exact. Before adding a
+  blend mode to a layer, check what its nearest stacking context is.
+- **AV1, not WebP, for a soft moving picture.** The same 299 Rise frames: 2.7 MB as an animated WebP (every frame is
+  nearly a key frame), 0.18 MB as an animated AVIF (each frame predicted from the last).
+- **An animated image cannot be paused or offset.** Where the live loops were paused (`body.modalup`, far menu rows) the
+  element swaps to a still of frame 0. Every card showing one picture is in phase; cards that mount together already
+  were.
+- **Retuning.** The live DOM aura still renders in DEV whenever a tuner has moved a value, with
+  `localStorage['ascent.kwfx'] = 'live'`, on phones, and until the pictures have loaded. After a retune run the capture
+  again; `kwfx.test.ts` fails while the manifest's signature does not match the aura sources.
+  `scripts/kwfx/compare.mjs` differences live against baked on the card, frame for frame, and
+  `scripts/kwfx/measure.mjs` / `measure-combat.mjs` are the keyword scenes.
+
 ## 4. Established anti-patterns (don't reintroduce these)
 
 These are the rules the audits surfaced; the codebase already follows them — keep it that way.
@@ -1138,6 +1167,8 @@ These are the rules the audits surfaced; the codebase already follows them — k
   animate its **opacity** (see `.card.compact.dscard::before` + `@keyframes kwglow` in `styles.css`). A
   **one-shot** transition or non-looping animation (a single fade/pop that runs once and stops) MAY animate a
   paint property when it reads better — profile it first to confirm the single repaint is cheap.
+- **An always-on card effect gets ONE layer and NO CSS animation per card** (§3p). A loop of many moving pieces is
+  baked into a looping picture from its authored DOM (`scripts/kwfx/capture.mjs`), never shipped as the pieces.
 - **Don't read layout (`getBoundingClientRect`, `elementFromPoint`) per frame**, especially after a style
   write — that forces a synchronous reflow (layout thrash). Cache rects once per drag in a ref (see
   `targetRectsRef` / `insertRectsRef` in `Recruit.tsx`).

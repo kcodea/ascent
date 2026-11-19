@@ -16396,4 +16396,26 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'A fight has 60 effect layers alive and 6 of them carry a filter. Before, each frame built about 1,900 key strings to find those 6. Now it builds none.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/fx/filterOrder.test.ts', 'packages/ui/src/fx/filterStack.test.ts', 'packages/ui/src/fx/filterAreaTight.test.ts'], lastVerifiedAt: '2026-11-18' },
   },
+  {
+    id: 'R-PERF-KEYWORD-AURA-01',
+    title: 'A keyword aura costs one layer and no running animation per card, and looks the same',
+    statement:
+      'On desktop, the Rise, Flurry, Execute and Rebirth-crown auras each show as ONE element with one looping picture '
+      + 'captured from the authored aura, with no CSS animation, blend mode, filter or mask on it. The authored DOM and '
+      + 'CSS aura stays the source of truth: the pictures are generated from it by a committed script, and a change to '
+      + 'the authored aura without a new capture fails the suite. The authored aura itself renders until the pictures '
+      + 'have loaded, while a tuner has moved it, and on phones. A board covered by a full-screen choice shows the still.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-18 (top priority: over 240 fps at all times, no hitching, the recruit phase above all)', quote: 'make every keyword aura cost ~1 layer and ~0 main-thread per card while looking the same' },
+      { kind: 'code', ref: 'packages/ui/src/kwfx/kwfx.ts; packages/ui/src/Card.tsx (RiseAura, FlurryAura, ExecuteAura, RebirthCrown); packages/ui/src/styles.css (.kwfx); scripts/kwfx/capture.mjs' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-18 (perf/keyword-loops). Before, each of these auras was 10 to 40 animating compositor layers '
+      + 'and as many running CSS animations per card: every keyword on 14 cards was about 1,500 layers and 1,225 animations '
+      + 'and an idle shop at 37 to 64 ms a frame on an RTX 4080. Phones still render the authored aura.',
+    example: 'A board of seven Rise minions used to hold 196 blended wisp and dome layers. Now it holds seven pictures, and the idle shop stays at 4.17 ms a frame.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/kwfx/kwfx.test.ts'], lastVerifiedAt: '2026-11-18' },
+  },
 ];

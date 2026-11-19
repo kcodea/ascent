@@ -2303,6 +2303,9 @@ body.aimpick .zone[data-zone='tavern'] .card { pointer-events: none; }
 @media (prefers-reduced-motion: reduce) {
   .card.compact .immshield.up, .card.compact .immshield.down, .card.compact .immshield.hit .ims-body { animation-duration: 1ms; }
 }
+/* KWFX-LIVE-BEGIN: the AUTHORED keyword auras (Rise, Rebirth, Flurry, Execute). Players see a capture of these
+   (scripts/kwfx/capture.mjs -> /kwfx/*.webp, shown by the `.kwfx` rules below the END marker); this block is the source
+   of truth and the tuning surface. A change between the two markers needs a re-bake: kwfx.test.ts fails until then. */
 /* ========================================================================================================== */
 /* Reborn — wispy ethereal AQUA-GREEN aura (tuned on fx/reborn-css-preview.html), replacing the old Pixi wisp.
    A faint ghost DOME + N rising RANDOMIZED wisps, seated on the oval window inside the ellipse-clipped art
@@ -2589,6 +2592,46 @@ body.aimpick .zone[data-zone='tavern'] .card { pointer-events: none; }
 @keyframes exshardtail {
   0%   { transform: translate(-50%, -100%) scale(0.6); }
   100% { transform: translate(-50%, -100%) scale(1); }
+}
+/* KWFX-LIVE-END */
+/* BAKED KEYWORD AURAS (perf 2026-11-18, R-PERF-KEYWORD-AURA-01; kwfx/kwfx.ts). What players see for Rise, Flurry,
+   Execute and Rebirth's crown: ONE element per aura showing a looping animated AVIF captured from the live aura above
+   (scripts/kwfx/capture.mjs). One compositor layer, no CSS animation: the browser advances an animated image off the
+   main thread and decodes a frame once for every card showing it. `will-change` keeps the picture on its own small
+   layer, so a new frame re-rasters that layer only, never the card under it.
+   Each box is seated on its live aura's centre (the capture is cropped symmetrically about it) and sized inline from
+   the capture's manifest. The picture is picked by CLASS here: a literal url() in a rule is one shared image.
+   STILL: a looping picture cannot be paused, so wherever the live loops were paused (a covered board, a far menu row)
+   the box shows the capture's first frame instead (`<id>-still.webp`). */
+.card.compact .kwfx {
+  position: absolute; left: 50%; transform: translate(-50%, -50%); pointer-events: none;
+  background: center / 100% 100% no-repeat; will-change: transform;
+}
+.card.compact .kwfx-rise { top: var(--reborny, 53%); z-index: 2; background-image: url('/kwfx/rise.avif'); }
+.card.compact.risetint-blue .kwfx-rise { background-image: url('/kwfx/rise-blue.avif'); }
+.card.compact.risetint-red .kwfx-rise { background-image: url('/kwfx/rise-red.avif'); }
+.card.compact .kwfx-flurry { z-index: 2; background-image: url('/kwfx/flurry.avif'); }
+.card.compact .kwfx-execute { z-index: 4; background-image: url('/kwfx/execute.avif'); }
+.card.compact .kwfx-rebirth { z-index: 4; top: calc(var(--ccw) * (0.5 + var(--dy, 0))); background-image: url('/kwfx/rebirth.avif'); }
+.card.compact .kwfx-rebirth.shield { background-image: url('/kwfx/rebirth-shield.avif'); }
+/* STILL while the board is covered by a full-screen choice (Discover, Runeforge, an Ancient's offer, a scouted board:
+   Recruit's `body.modalup`), on a menu board that is not pointed at, and for reduced motion. The cards INSIDE the
+   overlay are not under `.app .zone`, so their auras keep playing. Named subjects only, never a universal one. */
+body.modalup .zone .kwfx-rise, .lazy-row.is-far .kwfx-rise, .lb-row:not(:hover) .lb-team .kwfx-rise, .gc .cv2-team .kwfx-rise, .ct-board:not(.ct-pinboard) .kwfx-rise { background-image: url('/kwfx/rise-still.webp'); }
+body.modalup .zone .risetint-blue .kwfx-rise, .lazy-row.is-far .risetint-blue .kwfx-rise, .lb-row:not(:hover) .lb-team .risetint-blue .kwfx-rise, .gc .cv2-team .risetint-blue .kwfx-rise, .ct-board:not(.ct-pinboard) .risetint-blue .kwfx-rise { background-image: url('/kwfx/rise-blue-still.webp'); }
+body.modalup .zone .risetint-red .kwfx-rise, .lazy-row.is-far .risetint-red .kwfx-rise, .lb-row:not(:hover) .lb-team .risetint-red .kwfx-rise, .gc .cv2-team .risetint-red .kwfx-rise, .ct-board:not(.ct-pinboard) .risetint-red .kwfx-rise { background-image: url('/kwfx/rise-red-still.webp'); }
+body.modalup .zone .kwfx-flurry, .lazy-row.is-far .kwfx-flurry, .lb-row:not(:hover) .lb-team .kwfx-flurry, .gc:not(:hover) .cv2-team .kwfx-flurry, .ct-board:not(.ct-pinboard) .kwfx-flurry { background-image: url('/kwfx/flurry-still.webp'); }
+body.modalup .zone .kwfx-execute, .lazy-row.is-far .kwfx-execute, .lb-row:not(:hover) .lb-team .kwfx-execute, .gc:not(:hover) .cv2-team .kwfx-execute, .ct-board:not(.ct-pinboard) .kwfx-execute { background-image: url('/kwfx/execute-still.webp'); }
+body.modalup .zone .kwfx-rebirth, .lazy-row.is-far .kwfx-rebirth, .lb-row:not(:hover) .lb-team .kwfx-rebirth, .gc:not(:hover) .cv2-team .kwfx-rebirth, .ct-board:not(.ct-pinboard) .kwfx-rebirth { background-image: url('/kwfx/rebirth-still.webp'); }
+body.modalup .zone .kwfx-rebirth.shield, .lazy-row.is-far .kwfx-rebirth.shield, .lb-row:not(:hover) .lb-team .kwfx-rebirth.shield, .gc:not(:hover) .cv2-team .kwfx-rebirth.shield, .ct-board:not(.ct-pinboard) .kwfx-rebirth.shield { background-image: url('/kwfx/rebirth-shield-still.webp'); }
+@media (prefers-reduced-motion: reduce) {
+  .card.compact .kwfx-rise { background-image: url('/kwfx/rise-still.webp'); }
+  .card.compact.risetint-blue .kwfx-rise { background-image: url('/kwfx/rise-blue-still.webp'); }
+  .card.compact.risetint-red .kwfx-rise { background-image: url('/kwfx/rise-red-still.webp'); }
+  .card.compact .kwfx-flurry { background-image: url('/kwfx/flurry-still.webp'); }
+  .card.compact .kwfx-execute { background-image: url('/kwfx/execute-still.webp'); }
+  .card.compact .kwfx-rebirth { background-image: url('/kwfx/rebirth-still.webp'); }
+  .card.compact .kwfx-rebirth.shield { background-image: url('/kwfx/rebirth-shield-still.webp'); }
 }
 /* Taunt (Tier B) — the unit is reshaped into a forged HEATER SHIELD (the T keyword: enemies must attack it
    first). Scoped to `.card.compact.taunt`; the `.taunt` class is reactive off the card's keywords, so a spell

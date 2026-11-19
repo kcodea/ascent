@@ -2,10 +2,12 @@ import { describe, it, expect } from 'vitest';
 import { createRun, type RunState, type Action } from './state';
 import { reduce } from './reducer';
 import { ANCIENT_IDS, ancientOfferFor, enableAncients, type AncientId } from './ancients';
-import { ancientTelemetryOf, emptyTelemetryLog, recordTelemetryAction, type RunTelemetry } from './runTelemetry';
+import { ancientTelemetryOf, emptyTelemetryLog, offerTelemetryOf, recordTelemetryAction, type RunTelemetry } from './runTelemetry';
+import { cardImpact } from './playerReport';
+import { CARD_INDEX } from '@game/content';
 import {
   ancientFactsOf, ancientOutliers, ancientReach, neverOffered, outlierSentence, pickGaps, questOutliers, rankOutliers, reportUniverse,
-  NEVER_MIN_OFFERED, RARE_MIN_OFFERED, type OutlierItem,
+  NEVER_MIN_OFFERED, RARE_MIN_OFFERED, heroRerollCounts, outliersFromCards, rankRates, rateRows, soldCounts, standardisedAvgs, type OutlierItem,
 } from './reportOutliers';
 import type { CohortRow } from './reportCohorts';
 
@@ -23,8 +25,10 @@ let pk = 0;
 const placed = (placement: number, o: Partial<CohortRow> = {}): CohortRow => row({ placement, playerKey: `p${pk++}`, ...o });
 
 const item = (o: Partial<OutlierItem>): OutlierItem => ({
-  kind: 'minion', id: 'x', name: 'X', offered: 0, taken: 0, takeRate: null, gain: null, ci: null,
-  takers: 0, passers: 0, players: null, takerAvg: null, passerAvg: null, evidence: 'insufficient', basis: 'none', note: null, ...o,
+  kind: 'minion', id: 'x', name: 'X', offered: 0, taken: 0, takeRate: null, runRate: null, gain: null, ci: null,
+  takers: 0, passers: 0, players: null, takerAvg: null, passerAvg: null, evidence: 'insufficient', basis: 'none', note: null,
+  peerKey: 'minion:T1', peerLabel: 'Tier 1 minions', ...o,
+  shown: o.shown ?? o.offered ?? 0, takenEvents: o.takenEvents ?? o.taken ?? 0,
 });
 
 describe('Ancient offer capture (R-TELEMETRY-ANCIENT-01)', () => {
@@ -120,7 +124,7 @@ describe('evidence gating: tiny samples never top the list', () => {
 
   it('ranks only gated rows; the thin row is apart, never ranked', () => {
     const r = rankOutliers([tiny, mid, big, bad]);
-    expect(r.over.map((x) => x.id), 'by the size of the gain').toEqual(['mid', 'big']);
+    expect(r.over.map((x) => x.id), 'a clear interval first, then by size').toEqual(['big', 'mid']);
     expect(r.under.map((x) => x.id)).toEqual(['bad']);
     expect(r.thin.map((x) => x.id)).toEqual(['tiny']);
   });
@@ -176,9 +180,81 @@ describe('quests and the plain-words read', () => {
 
   it('says it in one paragraph, with no em dash', () => {
     const s = outlierSentence(qa);
-    expect(s).toMatch(/^Offered in 10 runs, taken in 5 \(50%\)\. Runs that took it placed 4\.6 higher on average than the 5 placed runs that were offered it and skipped it/);
+    expect(s).toMatch(/^Offered in 10 runs, taken in 5 \(50% of those runs\)\. Runs that took it finished 4\.6 places better \(closer to 1st\) on average compared with the 5 placed runs that were offered it and skipped it/);
+    expect(s).toMatch(/Average finish 1\.8 \(took\) vs 6\.4 \(passed\)/);
     expect(s).toMatch(/95% interval \+/);
     expect(s).not.toMatch(/—|--/);
     expect(outlierSentence(item({ offered: 9, taken: 0, takeRate: 0 }))).toMatch(/No run took it/);
+  });
+});
+
+describe('per-event offers, sells and re-rolls (R-TELEMETRY-OFFERS-01)', () => {
+  it('a sale is logged with its wave; each distinct rune offer counts its runes once', () => {
+    const s0: RunState = { ...createRun(4242), embers: 20 };
+    const log = emptyTelemetryLog();
+    const buy: Action = { type: 'buy', uid: s0.shop[0]!.uid };
+    const s1 = reduce(s0, buy); recordTelemetryAction(log, s0, buy, s1);
+    const placed = s1.hand[0] ?? s1.board[0];
+    let s2 = s1;
+    if (s1.hand[0]) { const play = { type: 'play', uid: s1.hand[0].uid, index: 0 } as Action; s2 = reduce(s1, play); recordTelemetryAction(log, s1, play, s2); }
+    const onBoard = s2.board[0]!;
+    const sell: Action = { type: 'sell', uid: onBoard.uid };
+    const s3 = reduce(s2, sell); recordTelemetryAction(log, s2, sell, s3);
+    expect(placed).toBeTruthy();
+    expect(log.sellEvents).toEqual([{ id: onBoard.cardId, wave: s2.wave }]);
+    // Rune offers: the same open offer across actions counts once; a fresh one counts again.
+    const f1 = { ...s3, runeforgeOffer: ['rune_a', 'rune_b'] } as RunState;
+    const noop: Action = { type: 'sell', uid: 'missing' };
+    recordTelemetryAction(log, f1, noop, f1); recordTelemetryAction(log, f1, noop, f1);
+    const closed = { ...f1, runeforgeOffer: undefined } as RunState;
+    recordTelemetryAction(log, closed, noop, closed);
+    recordTelemetryAction(log, f1, noop, f1);
+    expect(log.runeOfferTimes).toEqual({ rune_a: 2, rune_b: 2 });
+    const t = offerTelemetryOf({ heroReroll: { slot: 1, from: 'drakko', to: 'fi' } }, log);
+    expect(t.heroRerolled).toBe('drakko');
+    expect(t.offerTimes?.rune).toEqual({ rune_a: 2, rune_b: 2 });
+    expect(t.sellEvents).toHaveLength(1);
+  });
+
+  const CID = Object.keys(CARD_INDEX)[0]!;
+  it('cards count every buy (per event) and keep the per-run count apart; sells come from the capture', () => {
+    const c = cardImpact([
+      row({ placement: 2, offeredCards: [CID, CID, CID], boughtCards: [CID, CID], sellEvents: [{ id: CID, wave: 3 }] }),
+      row({ placement: 5, offeredCards: [CID], boughtCards: [] }),
+    ]).filter((r) => r.id === CID);
+    const rows = [row({ sellEvents: [{ id: CID, wave: 3 }] })];
+    const [it] = outliersFromCards(c, soldCounts(rows));
+    expect([it!.offered, it!.taken, it!.shown, it!.takenEvents, it!.takeRate, it!.runRate, it!.sold]).toEqual([2, 1, 4, 2, 50, 50, 1]);
+    expect(soldCounts([row({})]), 'no row recorded sells: unknown, not zero').toBeNull();
+  });
+
+  it('a hero re-rolled away counts as shown and not chosen', () => {
+    const rows = [row({ heroId: 'warden', heroOffer: ['warden', 'fi', 'indy'], heroRerolled: 'drakko' }), row({ heroId: 'drakko', heroOffer: ['drakko', 'fi', 'indy'] })];
+    expect(heroRerollCounts(rows).get('drakko')).toBe(1);
+  });
+});
+
+describe('rate outliers: taken far more or less than the peer group', () => {
+  const peer = (id: string, shown: number, taken: number, peerKey = 'minion:T3'): OutlierItem => item({ id, name: id, shown, takenEvents: taken, offered: shown, taken, takeRate: Math.round((100 * taken) / shown), peerKey });
+  const rows = rateRows([peer('a', 100, 4), peer('b', 100, 30), peer('c', 100, 32), peer('d', 100, 70), peer('thin', 5, 5), peer('other', 100, 90, 'minion:T4')]);
+  const a = rows.find((r) => r.item.id === 'a')!;
+
+  it('compares with the peers pooled WITHOUT the item, and gates thin rows', () => {
+    expect(a.peerRate, '(30 + 32 + 70 + 5) / 305').toBe(45);
+    expect(a.diff).toBe(-41);
+    expect(a.clear).toBe(true);
+    expect(rows.find((r) => r.item.id === 'other')!.peerRate, 'alone in its tier: no peers').toBeNull();
+    const ranked = rankRates(rows);
+    expect(ranked.less[0]!.item.id).toBe('a');
+    expect(ranked.more[0]!.item.id).toBe('d');
+    expect([...ranked.more, ...ranked.less].some((r) => r.item.id === 'thin')).toBe(false);
+  });
+
+  it('standardised averages reproduce the stratified association', () => {
+    const avgs = standardisedAvgs({ buyersInSupport: 4, supported: [
+      { key: 'a', buyers: 3, skippers: 2, buyerAvg: 2, skipperAvg: 4, delta: -2 },
+      { key: 'b', buyers: 1, skippers: 2, buyerAvg: 6, skipperAvg: 6, delta: 0 },
+    ] });
+    expect(avgs).toEqual({ takerAvg: 3, passerAvg: 4.5 });
   });
 });

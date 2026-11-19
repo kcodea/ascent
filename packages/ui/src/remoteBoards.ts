@@ -835,7 +835,7 @@ const BALANCE_PLACE = `${BALANCE_BUYS}, placement`; // 2026-08-02
  *  pick ({ id, heroId, wave }), the three offered ids, the wave the offer opened, and the run seed (a number) so a row
  *  that predates offer capture can have its seeded offer rebuilt. A few dozen bytes per row; no column, no SQL. A
  *  payload without them reads null, which the report shows as "no Ancient data". */
-const BALANCE_ANCIENT_SCALARS = 'derived_ancients:derived->ancients, derived_ancient:derived->ancient, derived_ancient_offer:derived->ancientOffer, derived_ancient_offer_wave:derived->ancientOfferWave, derived_seed:derived->seed';
+const BALANCE_ANCIENT_SCALARS = 'derived_ancients:derived->ancients, derived_ancient:derived->ancient, derived_ancient_offer:derived->ancientOffer, derived_ancient_offer_wave:derived->ancientOfferWave, derived_seed:derived->seed, derived_offer_times:derived->offerTimes, derived_hero_rerolled:derived->>heroRerolled, derived_sell_events:derived->sellEvents';
 const BALANCE_DERIVED_SCALARS = 'derived_final_wave:derived->finalWave, derived_capture:derived->capture, derived_regime:derived->regime, derived_lobby_pool:derived->lobbyPool, derived_rank_at_start:derived->rankAtStart, ' + BALANCE_ANCIENT_SCALARS;
 /** 2026-08-05: `content_revision` arrived in the same migration as the `derived` jsonb, so this rung ALSO reads
  *  the two stamps the client writes INSIDE derived (`derived->>setId`, `derived->>source`): two short scalars
@@ -977,8 +977,8 @@ export async function fetchRunTelemetry(opts: { cap?: number; pageSize?: number 
 
 /** The Ancient scalars of one flat row (R-TELEMETRY-ANCIENT-01), shape-checked: anything malformed is dropped, so an
  *  odd payload reads as "no Ancient data" rather than breaking the report. Exported for tests. */
-export function parseAncientScalars(r: Record<string, unknown>): Pick<RunTelemetryRow, 'ancients' | 'ancient' | 'ancientOffer' | 'ancientOfferWave' | 'seed'> {
-  const out: Pick<RunTelemetryRow, 'ancients' | 'ancient' | 'ancientOffer' | 'ancientOfferWave' | 'seed'> = {};
+export function parseAncientScalars(r: Record<string, unknown>): Pick<RunTelemetryRow, 'ancients' | 'ancient' | 'ancientOffer' | 'ancientOfferWave' | 'seed' | 'offerTimes' | 'heroRerolled' | 'sellEvents'> {
+  const out: Pick<RunTelemetryRow, 'ancients' | 'ancient' | 'ancientOffer' | 'ancientOfferWave' | 'seed' | 'offerTimes' | 'heroRerolled' | 'sellEvents'> = {};
   if (r.derived_ancients === true) out.ancients = true;
   const a = r.derived_ancient as { id?: unknown; heroId?: unknown; wave?: unknown } | null | undefined;
   if (a && typeof a === 'object' && typeof a.id === 'string' && typeof a.heroId === 'string') {
@@ -987,6 +987,22 @@ export function parseAncientScalars(r: Record<string, unknown>): Pick<RunTelemet
   if (Array.isArray(r.derived_ancient_offer) && r.derived_ancient_offer.every((x) => typeof x === 'string')) out.ancientOffer = r.derived_ancient_offer as string[];
   if (typeof r.derived_ancient_offer_wave === 'number') out.ancientOfferWave = r.derived_ancient_offer_wave;
   if (typeof r.derived_seed === 'number') out.seed = r.derived_seed;
+  // R-TELEMETRY-OFFERS-01: per-offer counts (only finite non-negative counts survive) and the re-rolled-away hero.
+  const counts = (v: unknown): Record<string, number> | undefined => {
+    if (!v || typeof v !== 'object' || Array.isArray(v)) return undefined;
+    const e = Object.entries(v as Record<string, unknown>).filter((x): x is [string, number] => typeof x[1] === 'number' && Number.isFinite(x[1]) && x[1] >= 0);
+    return e.length ? Object.fromEntries(e) : undefined;
+  };
+  const ot = r.derived_offer_times as { rune?: unknown; quest?: unknown } | null | undefined;
+  if (ot && typeof ot === 'object') {
+    const rune = counts(ot.rune), quest = counts(ot.quest);
+    if (rune || quest) out.offerTimes = { ...(rune ? { rune } : {}), ...(quest ? { quest } : {}) };
+  }
+  if (typeof r.derived_hero_rerolled === 'string' && r.derived_hero_rerolled) out.heroRerolled = r.derived_hero_rerolled;
+  if (Array.isArray(r.derived_sell_events)) {
+    out.sellEvents = (r.derived_sell_events as unknown[]).filter((e): e is { id: string; wave: number } =>
+      !!e && typeof e === 'object' && typeof (e as { id?: unknown }).id === 'string' && typeof (e as { wave?: unknown }).wave === 'number');
+  }
   return out;
 }
 

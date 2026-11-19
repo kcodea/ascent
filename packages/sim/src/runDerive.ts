@@ -195,6 +195,10 @@ export interface DerivedRun {
   ancient?: { id: string; heroId: string; wave?: number };
   ancientOffer?: string[];
   ancientOfferWave?: number;
+  /** Per-offer counts and the re-rolled-away hero (R-TELEMETRY-OFFERS-01): see `RunTelemetry`. */
+  offerTimes?: { rune?: Record<string, number>; quest?: Record<string, number> };
+  heroRerolled?: string;
+  sellEvents?: { id: string; wave: number }[];
 }
 
 // ── Derivation ─────────────────────────────────────────────────────────────────────────────────────────────

@@ -121,6 +121,27 @@ export interface RunTelemetry {
    *  (`ancientOfferFor`, the offer is seeded) and labels it reconstructed, and a row with neither reads "no data". */
   ancientOffer?: string[];
   ancientOfferWave?: number;
+  /** TIMES SHOWN (R-TELEMETRY-OFFERS-01, owner ask 2026-11-19): how many distinct Runeforge / quest offers showed each
+   *  rune / quest this run (a re-roll is a new offer). `offeredRunes` / `offeredQuests` are deduplicated per run, so
+   *  this is the only per-offer count for them. Inside `derived`; absent on older rows (read as "not recorded"). */
+  offerTimes?: { rune?: Record<string, number>; quest?: Record<string, number> };
+  /** The hero the pre-run picker showed and the player RE-ROLLED away (R-TELEMETRY-OFFERS-01). `heroOffer` is the trio
+   *  after the re-roll, so without this a re-rolled-away hero was never counted as shown. Inside `derived`. */
+  heroRerolled?: string;
+  /** Every card SOLD this run (R-TELEMETRY-OFFERS-01, owner 2026-11-19: "cycling cards is common"): one entry per sale
+   *  with its wave, so "bought 40, sold 31" is visible. Inside `derived`; absent on older rows. */
+  sellEvents?: { id: string; wave: number }[];
+}
+
+/** The offer counts a row carries (`offerTimes`, `heroRerolled`): empty when nothing was recorded. */
+export function offerTelemetryOf(run: Pick<RunState, 'heroReroll'>, log?: Pick<TelemetryLog, 'runeOfferTimes' | 'questOfferTimes' | 'sellEvents'>): Pick<RunTelemetry, 'offerTimes' | 'heroRerolled' | 'sellEvents'> {
+  const rune = log?.runeOfferTimes && Object.keys(log.runeOfferTimes).length ? { ...log.runeOfferTimes } : undefined;
+  const quest = log?.questOfferTimes && Object.keys(log.questOfferTimes).length ? { ...log.questOfferTimes } : undefined;
+  return {
+    ...(rune || quest ? { offerTimes: { ...(rune ? { rune } : {}), ...(quest ? { quest } : {}) } } : {}),
+    ...(run.heroReroll?.from ? { heroRerolled: run.heroReroll.from } : {}),
+    ...(log?.sellEvents?.length ? { sellEvents: log.sellEvents.filter((e) => CARD_INDEX[e.id]).map((e) => ({ ...e })) } : {}),
+  };
 }
 
 /** The Ancients stamp a telemetry row / derived payload carries (see `RunTelemetry.ancient`): empty when off. The
@@ -650,6 +671,14 @@ export interface TelemetryLog {
    *  an older save loads; `ancientTelemetryOf` falls back to the run's seeded offer when it is missing. */
   ancientOffer?: string[];
   ancientOfferWave?: number;
+  /** Per-offer counts (R-TELEMETRY-OFFERS-01): each distinct Runeforge / quest offer (by its id list) counts every id
+   *  in it once; `lastRuneOffer` / `lastQuestOffer` are the joined ids of the offer last counted. Optional (old saves). */
+  runeOfferTimes?: Record<string, number>;
+  questOfferTimes?: Record<string, number>;
+  lastRuneOffer?: string;
+  lastQuestOffer?: string;
+  /** Every sale, with its wave (R-TELEMETRY-OFFERS-01). Optional (old saves). */
+  sellEvents?: { id: string; wave: number }[];
 }
 
 /** Per-log Set index over `seenShopUids` — see the note in `recordTelemetryAction`. WeakMap-keyed on the
@@ -715,6 +744,18 @@ export function recordTelemetryAction(log: TelemetryLog, before: RunState, actio
   if (tiers[before.wave] == null) { tiers[before.wave] = before.tier; noteQuests(log, before); }
   if (before.questOffer) for (const id of before.questOffer) addOnce(log.offeredQuests ??= [], id);
   if (before.runeforgeOffer) for (const id of before.runeforgeOffer) addOnce(log.offeredRunes ??= [], id);
+  // TIMES SHOWN (R-TELEMETRY-OFFERS-01): a new offer (a different id list) counts each id once; an offer that stays open
+  // across actions counts once. Cleared when the offer closes, so the next forge visit counts even if identical.
+  const runeKey = before.runeforgeOffer?.length ? before.runeforgeOffer.join(',') : undefined;
+  if (runeKey !== log.lastRuneOffer) {
+    if (runeKey) { const t = (log.runeOfferTimes ??= {}); for (const id of before.runeforgeOffer!) t[id] = (t[id] ?? 0) + 1; }
+    log.lastRuneOffer = runeKey;
+  }
+  const questKey = before.questOffer?.length ? before.questOffer.join(',') : undefined;
+  if (questKey !== log.lastQuestOffer) {
+    if (questKey) { const t = (log.questOfferTimes ??= {}); for (const id of before.questOffer!) t[id] = (t[id] ?? 0) + 1; }
+    log.lastQuestOffer = questKey;
+  }
   // THE ANCIENT OFFER (R-TELEMETRY-ANCIENT-01): opens once per run, so the first one seen is the one.
   if (!log.ancientOffer && after.ancientsEnabled) {
     const a = after.ancients?.offer?.length ? after.ancients : before.ancients?.offer?.length ? before.ancients : undefined;
@@ -730,6 +771,10 @@ export function recordTelemetryAction(log: TelemetryLog, before: RunState, actio
   } else if (action.type === 'buyRune' && before.runeforgeOffer) {
     const picked = before.runeforgeOffer[action.index];
     if (picked) addOnce(log.pickedRunes ??= [], picked);
+  }
+  if (action.type === 'sell') {
+    const sold = before.board.find((c) => c.uid === action.uid);
+    if (sold?.cardId) (log.sellEvents ??= []).push({ id: sold.cardId, wave: before.wave });
   }
   if (action.type === 'buy') {
     // A buy resolves from the shop row OR the right-hand spell slot.
@@ -809,5 +854,6 @@ export function lobbyRunTelemetry(
     wins: liveRoundWins(final),
     capture: { v: 1, tierByWave: complete, choices: complete },
     ...ancientTelemetryOf(final, log),
+    ...offerTelemetryOf(final, log),
   };
 }

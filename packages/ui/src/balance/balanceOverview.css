@@ -27,14 +27,16 @@
 .bov-cat h3 { margin: 0; font-family: var(--font-title, 'Outfit'), sans-serif; font-weight: 800; font-size: 19px; letter-spacing: 0.02em; color: var(--bov-gold-hi); }
 .bov-sum { color: var(--bov-muted); font-size: 12px; font-weight: 700; }
 .bov-more { margin-left: auto; font-family: var(--font-ui), sans-serif; font-weight: 800; font-size: 12px; color: var(--bov-gold-hi); background: transparent; border: 1px solid var(--bov-hair); border-radius: 7px; padding: 4px 10px; }
-.bov h4 { margin: 4px 0 6px; font-size: 12px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; }
+.bov h4 { margin: 12px 0 6px; font-size: 12px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; }
 .bov h4 small { font-size: 11px; opacity: 0.7; letter-spacing: 0; }
 .bov-split { display: grid; grid-template-columns: repeat(auto-fit, minmax(600px, 1fr)); gap: 14px; }
 .bov-thinwrap { margin-top: 10px; opacity: 0.85; }
 
 /* The table: a grid of rows; the header sticks to the top of the panel's scroller. */
 .bov-table { border-radius: 9px; overflow: clip; background: rgba(0, 0, 0, 0.22); }
-.bov-head, .bov-rowbtn { display: grid; grid-template-columns: minmax(150px, 1fr) 136px 58px 100px 76px 88px; align-items: center; gap: 8px; padding: 0 10px; }
+.bov-head, .bov-rowbtn { display: grid; grid-template-columns: minmax(170px, 1fr) 66px 66px 92px 116px 128px 136px 80px 88px; align-items: center; gap: 8px; padding: 0 10px; }
+/* The rate table: name, shown, taken, a wider rate bar with the peer tick, vs peers, 95% range. */
+.bov-head.bov-raterow, .bov-rowbtn.bov-raterow { grid-template-columns: minmax(200px, 1fr) 70px 90px 220px 180px 100px; }
 .bov-head { position: sticky; top: 0; z-index: 2; height: 30px; background: linear-gradient(180deg, #1c2f58, #0f1d3c); box-shadow: inset 0 -1px 0 var(--bov-hair);
   font-size: 10.5px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--bov-muted); }
 .bov-row { border-top: 1px solid rgba(255, 255, 255, 0.05); }
@@ -51,7 +53,28 @@
 .bov-c-n i { opacity: 0.5; font-style: normal; margin: 0 2px; }
 .bov-c-ev { text-align: right; }
 .bov-head .bov-c-gain, .bov-head .bov-c-n, .bov-head .bov-c-ev { text-align: right; }
-.bov-head > span { font-size: 10.5px; font-weight: 800; color: var(--bov-muted); line-height: 1.1; }
+.bov-head > span, .bov-head > .bov-sort { font-size: 10.5px; font-weight: 800; color: var(--bov-muted); line-height: 1.1; letter-spacing: 0.08em; text-transform: uppercase; }
+.bov-sort { background: transparent; border: 0; padding: 0; font-family: var(--font-ui), sans-serif; text-align: inherit; }
+.bov-sort.on { color: var(--bov-gold-hi) !important; }
+.bov-head .bov-c-num, .bov-c-num { text-align: right; }
+.bov-c-num { font-size: 13px; font-weight: 800; font-variant-numeric: tabular-nums; display: flex; flex-direction: column; align-items: flex-end; line-height: 1.1; }
+.bov-c-num small { font-size: 10px; color: var(--bov-muted); font-weight: 700; }
+.bov-axislbl { display: flex; justify-content: space-between; padding: 0 4px; }
+.bov-axislbl span:first-child { color: var(--bov-neg); } .bov-axislbl span:last-child { color: var(--bov-pos); }
+.bov-fin { display: flex; flex-direction: column; line-height: 1.1; }
+.bov-fin b { font-size: 15px; font-weight: 900; font-variant-numeric: tabular-nums; }
+.bov-fin small { font-size: 10px; color: var(--bov-muted); font-weight: 700; }
+.bov-fin.unclear b { font-size: 11.5px; color: var(--bov-muted); font-weight: 800; }
+.bov-fin.none b { color: var(--bov-muted); }
+.bov-c-vs { font-size: 12px; font-weight: 700; color: var(--bov-muted); display: flex; flex-direction: column; line-height: 1.15; }
+.bov-c-vs b { font-size: 15px; font-weight: 900; color: var(--bov-text); }
+.bov-c-vs.more b { color: #4ef08a; } .bov-c-vs.less b { color: #ff5a6a; }
+.bov-c-vs small { font-size: 10.5px; }
+.bov-ratebar { position: relative; }
+.bov-ratebar i { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; background: var(--bov-gold-hi); border-radius: 1px; }
+.bov-c-rate.wide .bov-ratebar { height: 7px; }
+.bov-plot.unclear .bov-ci, .bov-plot.unclear .bov-dot, .bov-plot.unclear .bov-bar { stroke: #8b97b3; fill: #8b97b3; }
+.balpage .balunclear { color: rgba(255, 255, 255, 0.42); font-weight: 700; }
 
 /* The colour scale on the gain: three steps each way, ranked rows only. */
 .bov .hp3 { color: #4ef08a; } .bov .hp2 { color: #7fe0a2; } .bov .hp1 { color: #b5e8c6; } .bov .hp0 { color: #d9e6dd; }
@@ -80,7 +103,8 @@
 
 .bov-rate { display: flex; align-items: center; gap: 6px; }
 .bov-rate b { font-size: 12.5px; font-weight: 800; font-variant-numeric: tabular-nums; min-width: 34px; text-align: right; }
-.bov-ratebar { flex: 1; height: 5px; border-radius: 3px; background: rgba(255, 255, 255, 0.1); overflow: hidden; }
+.bov-ratebar { flex: 1; height: 5px; border-radius: 3px; background: rgba(255, 255, 255, 0.1); }
+.bov-ratebar > span { border-radius: 3px; }
 .bov-ratebar span { display: block; height: 100%; background: var(--bov-gold); transform-origin: left; }
 
 .bov-ev { display: inline-block; font-size: 10.5px; font-weight: 900; letter-spacing: 0.06em; text-transform: uppercase; padding: 3px 7px; border-radius: 5px; }

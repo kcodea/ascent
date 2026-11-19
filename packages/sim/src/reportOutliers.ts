@@ -45,11 +45,28 @@ export interface OutlierItem {
   /** Cards: the current tier and tribe (a reading aid only). */
   tier?: number;
   tribe?: string;
-  /** Runs it was offered in (once per run) and runs that took it (bought / picked). */
+  /** PER RUN: runs it was offered in, and runs that took it at least once (the placement comparison's unit). */
   offered: number;
   taken: number;
-  /** taken / offered, whole percent; null with no offers. */
+  /** PER EVENT: times it was SHOWN (a card seen in four Shops counts four; a rune in two forge visits two; a lower bound
+   *  where older rows did not record per-offer counts, which count one per offered run) and times it was TAKEN (every
+   *  buy counts: a card bought, sold and bought again counts twice). */
+  shown: number;
+  takenEvents: number;
+  /** THE PRIMARY RATE, the same in every category: taken events / shown events (per offer), whole percent. */
   takeRate: number | null;
+  /** The per-run rate: runs that took it / runs offered it. */
+  runRate: number | null;
+  /** Cards only: the Shop and Discover halves of `shown` / `takenEvents`, copies SOLD (per event; null when no row in
+   *  scope recorded sells) and the percent of acquired copies still on the final board (descriptive, never "bought"). */
+  shop?: { shown: number; taken: number };
+  discover?: { shown: number; taken: number };
+  sold?: number | null;
+  finalBoardPct?: number | null;
+  /** The fair PEER GROUP for the rate comparison (same Shop tier for cards, same forge for runes, same quest tier, all
+   *  heroes, all Ancients, the same hero's six pairings): a key and its label. */
+  peerKey: string;
+  peerLabel: string;
   /** PLACES BETTER: the offered-conditioned comparison flipped so positive = takers finished higher. Null = no
    *  comparison (no passers, no placed takers, or no comparable stratum). */
   gain: number | null;
@@ -79,30 +96,84 @@ const mean = (xs: number[]): number | null => (xs.length ? xs.reduce((s, x) => s
 // ── Folding the existing category rows ─────────────────────────────────────────────────────────────────────
 
 /** Minions and spells: the adjusted association when the card's evidence rests on it, else the exposed diagnostic. */
-export function outliersFromCards(rows: readonly CardImpactRow[]): OutlierItem[] {
+export function outliersFromCards(rows: readonly CardImpactRow[], sold?: SoldCounts | null): OutlierItem[] {
   return rows.map((r): OutlierItem => {
     const adj = r.adjusted.association != null && r.evidenceBasis !== 'exposed';
     const exp = !adj && r.exposed.delta != null;
     return {
       kind: r.spell ? 'spell' : 'minion', id: r.id, name: r.name, tier: r.tier, tribe: r.tribe2 ? `${r.tribe}/${r.tribe2}` : r.tribe,
-      offered: r.runsSeen, taken: Math.min(r.runsBought, r.runsSeen || r.runsBought), takeRate: pctOf(r.runsBought, r.runsSeen),
+      offered: r.runsSeen, taken: Math.min(r.runsBought, r.runsSeen || r.runsBought),
+      shown: r.shopSeen + r.discSeen, takenEvents: r.shopBought + r.discBought,
+      takeRate: pctOf(r.shopBought + r.discBought, r.shopSeen + r.discSeen), runRate: pctOf(r.runsBought, r.runsSeen),
+      shop: { shown: r.shopSeen, taken: r.shopBought }, discover: { shown: r.discSeen, taken: r.discBought },
+      sold: sold ? sold.counts.get(r.id) ?? 0 : null, finalBoardPct: r.role.finalBoardPct,
+      peerKey: `${r.spell ? 'spell' : 'minion'}:T${r.tier}`, peerLabel: `Tier ${r.tier} ${r.spell ? 'spells' : 'minions'}`,
       gain: adj ? flip(r.adjusted.association) : exp ? flip(r.exposed.delta) : null,
       ci: adj ? flipCi(r.adjusted.ci) : exp ? flipCi(r.exposed.ci) : null,
       takers: adj ? r.adjusted.buyersInSupport : r.exposed.buyers,
       passers: adj ? r.adjusted.skippersInSupport : r.exposed.skippers,
       players: adj ? minPlayers(r.adjusted.buyerPlayers, r.adjusted.skipperPlayers) : minPlayers(r.exposed.buyerPlayers, r.exposed.skipperPlayers),
-      takerAvg: exp ? r.exposed.buyerAvg : null, passerAvg: exp ? r.exposed.skipperAvg : null,
+      ...(adj ? standardisedAvgs(r.adjusted) : { takerAvg: exp ? r.exposed.buyerAvg : null, passerAvg: exp ? r.exposed.skipperAvg : null }),
       evidence: r.evidence, basis: adj ? 'adjusted' : exp ? 'exposed' : 'none',
       note: null,
     };
   });
 }
 
-/** Heroes: chosen against offered-not-chosen. */
-export function outliersFromHeroes(rows: readonly HeroImpactRow[]): OutlierItem[] {
+/** The buyer-weighted average finish of each side over a stratified read's supported strata: the two numbers whose
+ *  difference IS the association, so "avg finish 3.4 (took) vs 4.5 (passed)" is concrete and matches it exactly. */
+export function standardisedAvgs(a: Pick<AdjustedStats, 'supported' | 'buyersInSupport'>): { takerAvg: number | null; passerAvg: number | null } {
+  if (a.buyersInSupport <= 0 || a.supported.length === 0) return { takerAvg: null, passerAvg: null };
+  let t = 0, p = 0;
+  for (const x of a.supported) { const w = x.buyers / a.buyersInSupport; t += w * x.buyerAvg; p += w * x.skipperAvg; }
+  return { takerAvg: r1(t), passerAvg: r1(p) };
+}
+
+/** Copies SOLD per card (per event), from the live sell capture (R-TELEMETRY-OFFERS-01) or, on an older row whose
+ *  derived payload is loaded, its acquisitions' sold marks. `rows` = how many rows in scope had either. */
+export interface SoldCounts { counts: Map<string, number>; rows: number }
+export function soldCounts(rows: readonly CohortRow[]): SoldCounts | null {
+  const counts = new Map<string, number>();
+  let n = 0;
+  for (const r of rows) {
+    const ev = r.sellEvents ?? r.derived?.sellEvents;
+    if (ev) { n++; for (const e of ev) counts.set(e.id, (counts.get(e.id) ?? 0) + 1); continue; }
+    const acq = r.derived && !r.derived.diverged ? r.derived.acquisitions : null;
+    if (acq) { n++; for (const a of acq) if (a.soldWave != null) counts.set(a.cardId, (counts.get(a.cardId) ?? 0) + 1); }
+  }
+  return n > 0 ? { counts, rows: n } : null;
+}
+
+/** Heroes the pre-run picker showed and the player re-rolled away (R-TELEMETRY-OFFERS-01), per hero. */
+export function heroRerollCounts(rows: readonly CohortRow[]): Map<string, number> {
+  const m = new Map<string, number>();
+  for (const r of rows) {
+    const h = r.heroRerolled ?? r.derived?.heroRerolled;
+    if (h && !r.heroOffer.includes(h)) m.set(h, (m.get(h) ?? 0) + 1);
+  }
+  return m;
+}
+
+/** Times each rune / quest was SHOWN: the recorded per-offer counts (R-TELEMETRY-OFFERS-01), or one per offered run on
+ *  a row that predates them (a lower bound). */
+export function offerShownCounts(rows: readonly CohortRow[], kind: 'rune' | 'quest'): Map<string, number> {
+  const m = new Map<string, number>();
+  for (const r of rows) {
+    const rec = (r.offerTimes ?? r.derived?.offerTimes)?.[kind];
+    const offered = kind === 'rune' ? [...r.offeredRunes, ...r.pickedRunes] : [...(r.offeredQuests ?? []), ...(r.pickedQuests ?? [])];
+    for (const id of new Set(offered)) m.set(id, (m.get(id) ?? 0) + Math.max(1, rec?.[id] ?? 0));
+  }
+  return m;
+}
+
+/** Heroes: chosen against offered-not-chosen. A hero re-rolled away in the picker counts as offered (shown, not chosen)
+ *  for the RATE; the placement comparison stays the recorded trio's. */
+export function outliersFromHeroes(rows: readonly HeroImpactRow[], rerolled: ReadonlyMap<string, number> = new Map()): OutlierItem[] {
   return rows.map((r): OutlierItem => ({
     kind: 'hero', id: r.id, name: r.name,
-    offered: r.offered, taken: r.runs, takeRate: r.pickRate,
+    offered: r.offered + (rerolled.get(r.id) ?? 0), taken: r.runs, takenEvents: r.runs,
+    takeRate: pctOf(r.runs, r.offered + (rerolled.get(r.id) ?? 0)), runRate: pctOf(r.runs, r.offered + (rerolled.get(r.id) ?? 0)),
+    shown: r.offered + (rerolled.get(r.id) ?? 0), peerKey: 'hero', peerLabel: 'all heroes',
     gain: flip(r.offeredDelta), ci: flipCi(r.offeredCi),
     takers: r.placedN, passers: r.offeredSkippers, players: minPlayers(r.players, r.skipperPlayers),
     takerAvg: r.avgPlace, passerAvg: r.offeredSkipperAvg,
@@ -111,10 +182,12 @@ export function outliersFromHeroes(rows: readonly HeroImpactRow[]): OutlierItem[
 }
 
 /** Runes: takers against the runs offered them that skipped. */
-export function outliersFromRunes(rows: readonly RuneImpactRow[]): OutlierItem[] {
+export function outliersFromRunes(rows: readonly RuneImpactRow[], shown: ReadonlyMap<string, number> = new Map()): OutlierItem[] {
   return rows.map((r): OutlierItem => ({
     kind: 'rune', id: r.id, name: r.name,
-    offered: r.offered, taken: r.picked, takeRate: r.pickRate,
+    offered: r.offered, taken: r.picked, takenEvents: r.picked, runRate: r.pickRate,
+    takeRate: pctOf(r.picked, Math.max(r.offered, shown.get(r.id) ?? 0)),
+    shown: Math.max(r.offered, shown.get(r.id) ?? 0), peerKey: `rune:${r.forge}`, peerLabel: r.forge === 'epic' ? 'Epic forge runes' : 'Basic forge runes',
     gain: flip(r.delta), ci: flipCi(r.deltaWelch),
     takers: r.placedN, passers: r.baselineN, players: minPlayers(r.players, r.skipperPlayers),
     takerAvg: r.avgPlace, passerAvg: r.baselineAvgPlace,
@@ -142,8 +215,14 @@ export function questOutliers(rows: readonly CohortRow[], keyOf: PlayerKeyOf = a
     }
   }
   const out: OutlierItem[] = [];
+  const shown = offerShownCounts(rows, 'quest');
   for (const [id, a] of acc) {
-    out.push(twoGroupItem('quest', id, QUEST_INDEX[id]?.name ?? id, a.offered, a.picked, a.tp, a.sp, a.tk, a.sk));
+    const q = QUEST_INDEX[id];
+    const tier = q?.heroQuest ? 'hero' : q?.tier ?? 'other';
+    out.push({
+      ...twoGroupItem('quest', id, q?.name ?? id, a.offered, a.picked, a.tp, a.sp, a.tk, a.sk),
+      shown: Math.max(a.offered, shown.get(id) ?? 0), takeRate: pctOf(a.picked, Math.max(a.offered, shown.get(id) ?? 0)), peerKey: `quest:${tier}`, peerLabel: tier === 'hero' ? 'hero quests' : `${tier} quests`,
+    });
   }
   return out;
 }
@@ -158,7 +237,7 @@ function twoGroupItem(kind: OutlierKind, id: string, name: string, offered: numb
   ], () => 'all');
   const players = minPlayers(uniquePlayers(tk), uniquePlayers(sk));
   return {
-    kind, id, name, offered, taken, takeRate: pctOf(taken, offered),
+    kind, id, name, offered, taken, takeRate: pctOf(taken, offered), runRate: pctOf(taken, offered), shown: offered, takenEvents: taken, peerKey: kind, peerLabel: `all ${kind}s`,
     gain: ta != null && sa != null ? flip(ta - sa) : null, ci: flipCi(adj.ci),
     takers: tp.length, passers: sp.length, players,
     takerAvg: ta == null ? null : r1(ta), passerAvg: sa == null ? null : r1(sa),
@@ -273,10 +352,11 @@ function episodeItems(kind: OutlierKind, eps: Map<string, { offered: number; tak
     const players = minPlayers(adj.buyerPlayers, adj.skipperPlayers);
     out.push({
       kind, id: key, name: nameOf(key), ...extra(key),
-      offered: a.offered, taken: a.taken, takeRate: pctOf(a.taken, a.offered),
+      offered: a.offered, taken: a.taken, takeRate: pctOf(a.taken, a.offered), runRate: pctOf(a.taken, a.offered), shown: a.offered, takenEvents: a.taken,
+      peerKey: kind, peerLabel: 'all Ancients',
       gain: flip(adj.association), ci: flipCi(adj.ci),
       takers: adj.buyersInSupport, passers: adj.skippersInSupport, players,
-      takerAvg: null, passerAvg: null,
+      ...standardisedAvgs(adj),
       evidence: evidenceLabel(adj.buyersInSupport, adj.skippersInSupport, players),
       basis: adj.association == null ? 'none' : 'offeredStrat',
       note: a.rebuilt > 0 ? `${a.rebuilt} of ${a.offered} offers rebuilt from the run seed (uploaded before live offer capture)` : null,
@@ -319,7 +399,7 @@ export function ancientOutliers(rows: readonly CohortRow[], keyOf: PlayerKeyOf =
   });
   const ancients = withNoOffer(episodeItems('ancient', anc, (k) => ANCIENTS[k as AncientId]?.name ?? k, (k) => ({ ancientId: k })), anc);
   const pairings = withNoOffer(episodeItems('pairing', pair, (k) => { const [h, a] = k.split('|'); return pairingName(h!, a as AncientId); },
-    (k) => { const [h, a] = k.split('|'); return { heroId: h!, ancientId: a! }; }), pair);
+    (k) => { const [h, a] = k.split('|'); return { heroId: h!, ancientId: a!, peerKey: `pairing:${h}`, peerLabel: `${heroName(h!)}'s pairings` }; }), pair);
   return { ancients, pairings };
 }
 
@@ -344,21 +424,23 @@ export interface RankedOutliers {
 
 /**
  * Rank a category. GATING FIRST: only rows meeting `min` evidence are ranked at all, so no 3-run row can top a list.
- * Within the ranked rows: by the size of the gain (the whisker on each row shows whether its interval crosses zero).
+ * Within the ranked rows: those whose interval clears zero (a CLEAR difference, shown in colour) first, then the ones that
+ * only lean (shown grey, "no clear difference"), each by the size of the gain.
  */
 export function rankOutliers(items: readonly OutlierItem[], min: EvidenceLabel = 'candidate'): RankedOutliers {
   const ranked = items.filter((it) => it.gain != null && meetsEvidence(it, min) && it.evidence !== 'insufficient');
   const byName = (a: OutlierItem, b: OutlierItem): number => a.name.localeCompare(b.name);
+  const clear = (it: OutlierItem): number => (clearOfZero(it) ? 0 : 1);
   return {
-    over: ranked.filter((it) => it.gain! > 0).sort((a, b) => b.gain! - a.gain! || byName(a, b)),
-    under: ranked.filter((it) => it.gain! < 0).sort((a, b) => a.gain! - b.gain! || byName(a, b)),
+    over: ranked.filter((it) => it.gain! > 0).sort((a, b) => clear(a) - clear(b) || b.gain! - a.gain! || byName(a, b)),
+    under: ranked.filter((it) => it.gain! < 0).sort((a, b) => clear(a) - clear(b) || a.gain! - b.gain! || byName(a, b)),
     even: ranked.filter((it) => it.gain === 0).sort(byName),
     thin: items.filter((it) => !ranked.includes(it)).sort((a, b) => Math.min(b.takers, b.passers) - Math.min(a.takers, a.passers) || b.offered - a.offered || byName(a, b)),
   };
 }
 
-/** The never / rarely picked gates: offered at least `NEVER_MIN_OFFERED` times and taken never; or offered at least
- *  `RARE_MIN_OFFERED` times and taken in at most `RARE_MAX_RATE` percent of them. */
+/** The never / rarely picked gates, PER OFFER: shown at least `NEVER_MIN_OFFERED` times and taken never; or shown at
+ *  least `RARE_MIN_OFFERED` times and taken in at most `RARE_MAX_RATE` percent of those offers. */
 export const NEVER_MIN_OFFERED = 3;
 export const RARE_MIN_OFFERED = 10;
 export const RARE_MAX_RATE = 8;
@@ -371,10 +453,10 @@ export interface PickGaps {
 }
 
 export function pickGaps(items: readonly OutlierItem[]): PickGaps {
-  const never = items.filter((it) => it.taken === 0 && it.offered >= NEVER_MIN_OFFERED).sort((a, b) => b.offered - a.offered || a.name.localeCompare(b.name));
-  const rarely = items.filter((it) => it.taken > 0 && it.offered >= RARE_MIN_OFFERED && (it.takeRate ?? 100) <= RARE_MAX_RATE)
-    .sort((a, b) => (a.takeRate ?? 0) - (b.takeRate ?? 0) || b.offered - a.offered || a.name.localeCompare(b.name));
-  const neverThin = items.filter((it) => it.taken === 0 && it.offered > 0 && it.offered < NEVER_MIN_OFFERED).length;
+  const never = items.filter((it) => it.takenEvents === 0 && it.shown >= NEVER_MIN_OFFERED).sort((a, b) => b.shown - a.shown || a.name.localeCompare(b.name));
+  const rarely = items.filter((it) => it.takenEvents > 0 && it.shown >= RARE_MIN_OFFERED && (it.takeRate ?? 100) <= RARE_MAX_RATE)
+    .sort((a, b) => (a.takeRate ?? 0) - (b.takeRate ?? 0) || b.shown - a.shown || a.name.localeCompare(b.name));
+  const neverThin = items.filter((it) => it.takenEvents === 0 && it.shown > 0 && it.shown < NEVER_MIN_OFFERED).length;
   return { never, rarely, neverThin };
 }
 
@@ -451,7 +533,9 @@ const sgn = (n: number): string => `${n > 0 ? '+' : ''}${n.toFixed(1)}`;
 export function outlierSentence(it: OutlierItem): string {
   const [t, took, p] = VERB[it.kind];
   const runs = (n: number): string => `${n} ${n === 1 ? 'run' : 'runs'}`;
-  const head = `Offered in ${runs(it.offered)}, ${t} ${it.taken}${it.takeRate == null ? '' : ` (${it.takeRate}%)`}.`;
+  const perOffer = it.shown !== it.offered || it.takenEvents !== it.taken
+    ? ` Per offer: shown ${it.shown} times, ${took} ${it.takenEvents} times${it.takeRate == null ? '' : ` (${it.takeRate}%)`}${it.sold != null ? `, sold ${it.sold}` : ''}.` : '';
+  const head = `Offered in ${runs(it.offered)}, ${t} ${it.taken}${it.runRate == null ? '' : ` (${it.runRate}% of those runs)`}.${perOffer}`;
   if (it.gain == null) {
     const why = it.taken === 0 ? 'No run took it, so there is nothing to compare.'
       : it.takers === 0 && it.passers === 0 ? 'No placed runs on either side yet.'
@@ -459,10 +543,65 @@ export function outlierSentence(it: OutlierItem): string {
           : it.takers === 0 ? 'No placed run that took it is in a comparable situation yet.' : 'No comparable stratum holds both sides yet.';
     return `${head} ${why}${it.note ? ` ${it.note}.` : ''}`;
   }
-  const dir = it.gain > 0 ? 'higher' : it.gain < 0 ? 'lower' : 'the same';
+  const dir = it.gain > 0 ? 'places better (closer to 1st)' : it.gain < 0 ? 'places worse (further from 1st)' : 'the same';
   const size = it.gain === 0 ? '' : `${Math.abs(it.gain).toFixed(1)} `;
   const ci = it.ci ? `, 95% interval ${sgn(it.ci.lo)} to ${sgn(it.ci.hi)}` : ', interval not shown under 5 runs a side';
-  const avgs = it.takerAvg != null && it.passerAvg != null ? ` Average place ${it.takerAvg.toFixed(1)} against ${it.passerAvg.toFixed(1)}.` : '';
+  const avgs = it.takerAvg != null && it.passerAvg != null ? ` Average finish ${it.takerAvg.toFixed(1)} (took) vs ${it.passerAvg.toFixed(1)} (passed)${it.basis === 'adjusted' || it.basis === 'offeredStrat' ? ', weighted to where the takers were' : ''}.` : '';
   const players = it.players == null ? '' : ` ${it.players} players on the smaller side.`;
-  return `${head} Runs that ${took} it placed ${size}${dir} on average than the ${it.passers} placed runs that ${p} (${it.takers} placed runs took it; ${BASIS_WORDS[it.basis]}). ${EVIDENCE_WORDS[it.evidence]}${ci}.${avgs}${players}${it.note ? ` ${it.note}.` : ''}`;
+  return `${head} Runs that ${took} it finished ${size}${dir} on average compared with the ${it.passers} placed runs that ${p} (${it.takers} placed runs took it; ${BASIS_WORDS[it.basis]}). ${EVIDENCE_WORDS[it.evidence]}${ci}.${avgs}${players}${it.note ? ` ${it.note}.` : ''}`;
+}
+
+// ── Rate outliers: taken far more or far less than its peers ───────────────────────────────────────────────
+
+/** Times SHOWN an item needs before its per-offer take rate is ranked against its peers. */
+export const RATE_MIN_OFFERED = 20;
+
+export interface RateRow {
+  item: OutlierItem;
+  /** The peer group's pooled take rate WITHOUT this item (whole percent), and how many items / offers it holds. */
+  peerRate: number | null;
+  peerItems: number;
+  /** Item rate minus peer rate, percentage points. */
+  diff: number | null;
+  /** 95% Wilson interval on the item's own rate (whole percents). */
+  ci: Interval | null;
+  /** The peer rate sits outside the item's interval: the gap is not just noise at this sample. */
+  clear: boolean;
+  gated: boolean;
+}
+
+function wilsonPct(k: number, n: number): Interval | null {
+  if (n <= 0) return null;
+  const z = 1.96, ph = k / n, d = 1 + (z * z) / n;
+  const c = (ph + (z * z) / (2 * n)) / d, h = (z * Math.sqrt((ph * (1 - ph)) / n + (z * z) / (4 * n * n))) / d;
+  return { lo: Math.round(100 * Math.max(0, c - h)), hi: Math.round(100 * Math.min(1, c + h)) };
+}
+
+/** Each item's take rate against its peer group (pooled over the OTHER items of the group, so an item never props up
+ *  its own baseline). Gated on `RATE_MIN_OFFERED` offered runs; the lists rank only gated rows. */
+export function rateRows(items: readonly OutlierItem[]): RateRow[] {
+  const groups = new Map<string, { taken: number; offered: number; n: number }>();
+  for (const it of items) {
+    const g = groups.get(it.peerKey) ?? groups.set(it.peerKey, { taken: 0, offered: 0, n: 0 }).get(it.peerKey)!;
+    g.taken += it.takenEvents; g.offered += it.shown; g.n++;
+  }
+  return items.map((it): RateRow => {
+    const g = groups.get(it.peerKey)!;
+    const pOff = g.offered - it.shown, pTak = g.taken - it.takenEvents;
+    const peerRate = pOff > 0 ? Math.round((100 * pTak) / pOff) : null;
+    const ci = wilsonPct(Math.min(it.takenEvents, it.shown), it.shown);
+    const diff = it.takeRate == null || peerRate == null ? null : it.takeRate - peerRate;
+    return { item: it, peerRate, peerItems: g.n - 1, diff, ci, clear: !!ci && peerRate != null && (peerRate < ci.lo || peerRate > ci.hi), gated: it.shown >= RATE_MIN_OFFERED && peerRate != null };
+  });
+}
+
+/** The most- and least-taken items relative to their peers (gated rows only, by the size of the gap). */
+export function rankRates(rows: readonly RateRow[]): { more: RateRow[]; less: RateRow[]; thin: number } {
+  const g = rows.filter((r) => r.gated && r.diff != null);
+  const byName = (a: RateRow, b: RateRow): number => a.item.name.localeCompare(b.item.name);
+  return {
+    more: g.filter((r) => r.diff! > 0).sort((a, b) => b.diff! - a.diff! || byName(a, b)),
+    less: g.filter((r) => r.diff! < 0).sort((a, b) => a.diff! - b.diff! || byName(a, b)),
+    thin: rows.length - g.length,
+  };
 }

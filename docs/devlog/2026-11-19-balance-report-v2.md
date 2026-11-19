@@ -33,3 +33,16 @@ never filled the meter. No SQL, no new column: a few dozen bytes per row.
 Verified on a synthetic 720-run fixture (local only, never committed) through headless Playwright on 5331: opens in
 about 0.4 s, scroll p95 17.5 ms, Back closes cleanly. Real-data caveat: pairings are ~200+ cells, so most will read
 thin for a long time; the Ancient-level rows fill much faster.
+
+**Follow-ups the same day (owner on #2809).**
+- *"Is a placement of +1 good or bad?"* No bare signed placement number anywhere now: the overview's "Finish vs.
+  passed" reads "1.1 better" / "0.6 worse" (better = closer to 1st), grey "no clear difference" when the interval
+  crosses zero or the evidence is thin; the expanded row adds "average finish 3.7 (bought) vs 4.3 (passed)" (for a
+  stratified read, buyer-weighted so the two numbers differ by exactly the association). The Detailed tables print
+  every placement delta and interval in the same words (`placeWords`), coloured only when the range clears zero
+  (`clearHeat`); sort values are unchanged (best finish first). The effect plot's ends read worse / better.
+- *Same rates everywhere* + *count buys, not board presence* (R-TELEMETRY-OFFERS-01): one column set for every category
+  (Offered runs, Shown times, Bought / Chosen / Picked times, Take rate per offer, finish). New capture inside `derived`:
+  every sale with its wave, per-offer counts for runes and quests, the hero re-rolled away. New **Pick rates** tab: each
+  item's take rate per offer against its peer group (same tier / forge / quest tier / all heroes / all Ancients / the
+  hero's pairings), pooled without the item, gated at 20 offers, with a Wilson range.

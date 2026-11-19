@@ -765,6 +765,32 @@ export const PERSISTENCE_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/reportOutliers.test.ts', 'packages/ui/src/balanceFetch.test.ts'], lastVerifiedAt: '2026-11-19' },
   },
   {
+    id: 'R-TELEMETRY-OFFERS-01',
+    title: 'Telemetry counts every offer, buy and sale per event, and the Balance Report reads rates the same way in every category',
+    statement:
+      'Each uploaded ladder game records card offers and buys PER EVENT (every Shop sighting, every Discover option, every '
+      + 'buy and Discover pick; a card bought, sold and bought again counts twice), every SALE with its wave, how many '
+      + 'distinct Runeforge and quest offers showed each rune and quest (a re-roll is a new offer), and the hero the picker '
+      + 'showed that the player re-rolled away. Final-board presence is never used as "bought". The Balance Report shows, '
+      + 'for every category (minions, spells, heroes, runes, quests, Ancients, hero x Ancient), the same columns: Offered '
+      + '(runs), Shown (times), Bought / Chosen / Picked (times), Take rate per offer, and the finish comparison; the finish '
+      + 'comparison stays one decision per run. A placement difference is always written as places better or worse (better '
+      + '= closer to 1st), never as a bare signed number, and reads "no clear difference" when its 95% interval crosses '
+      + 'zero or the evidence is thin. Pick-rate outliers compare each item with its peer group (same Shop tier, same forge, '
+      + 'same quest tier, all heroes, all Ancients, the pairings of the same hero) pooled without the item, from 20 offers.',
+    domain: 'persistence',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner asks 2026-11-19 on PR #2809', quote: 'Minions etc should be counting times bought and not just times it shows on a board because cycling cards is common' },
+      { kind: 'code', ref: 'packages/sim/src/runTelemetry.ts (TelemetryLog.sellEvents / runeOfferTimes / questOfferTimes, offerTelemetryOf); packages/ui/src/remoteBoards.ts parseAncientScalars; packages/sim/src/reportOutliers.ts (OutlierItem shown / takenEvents / takeRate, rateRows, rankRates); packages/ui/src/balance/BalanceOverview.tsx; packages/ui/src/BalancePanel.tsx placeWords / clearHeat' },
+    ],
+    currentBehaviour:
+      'Conforms for uploads from this change. Sells, per-offer rune and quest counts and the re-rolled hero ride inside the '
+      + 'existing derived jsonb (no SQL). Older rows: card offers and buys were already per event; sells read from the derived '
+      + 'acquisitions where the payload is loaded; rune and quest offers count one per offered run (a lower bound).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/reportOutliers.test.ts', 'packages/ui/src/balanceFetch.test.ts'], lastVerifiedAt: '2026-11-19' },
+  },
+  {
     id: 'R-GAME-RANK-01',
     title: 'Every finished ranked game shows the rank it was played at, from a stored division, never a guessed one',
     statement:

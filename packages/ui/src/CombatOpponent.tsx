@@ -22,7 +22,7 @@ import { foePortrait } from './gauntlet/foePortrait';
 import { publicArt } from './phoneArt';
 import { FoeAncientLine } from './ancients/FoeAncientLine';
 import { AncientSplitStatic } from './ancients/AncientMeter';
-import { ancientColor } from './ancients/ancientsConfig';
+import { ancientTextColor } from './ancients/ancientsConfig';
 
 /** A tier worth printing: a whole number from 1 up. Anything else (missing, NaN, 0) hides the pill. */
 export const tierKnown = (tier: number | null | undefined): tier is number =>
@@ -281,7 +281,7 @@ export const CombatOpponent = memo(function CombatOpponent(): JSX.Element | null
             {/* The player's own power tip head: the name, the Ancient tag in its colour, the passive tag. */}
             <div className="herotip-head">
               <b>{power.name}</b>
-              {foeAncient && <span className="herotip-anc" style={{ color: ancientColor(foeAncient.id) }}>({ANCIENTS[foeAncient.id].name.replace(/^Ancient of /, '')})</span>}
+              {foeAncient && <span className="herotip-anc" style={{ color: ancientTextColor(foeAncient.id) }}>({ANCIENTS[foeAncient.id].name.replace(/^Ancient of /, '')})</span>}
               {power.passive && <span className="herotip-tag">passive</span>}
             </div>
             <span className="herotip-rule" dangerouslySetInnerHTML={{ __html: mdBold(power.text) }} />

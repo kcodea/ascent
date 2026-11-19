@@ -3117,8 +3117,8 @@ body.modalup .zone .kwfx-rebirth.shield, .lazy-row.is-far .kwfx-rebirth.shield, 
   opacity: 0; pointer-events: none; z-index: 60; transition: opacity 0.14s;
 }
 .herotip-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 6px; padding-bottom: 0.5em; border-bottom: 1px solid var(--atip-divider); }
-/* The Ancient tag: EXACTLY the Ancient's name colour (`ancientColor`, inline), the same value as the Ancient's heading
-   under it (owner 2026-11-19: one colour per Ancient everywhere; R-ANCIENT-COLOUR-01). No filter lift: that drifted. */
+/* The Ancient tag: EXACTLY the Ancient's text colour (`ancientTextColor`, inline), the same value as the Ancient's heading
+   under it and the results pill's label (owner 2026-11-19: one colour per Ancient everywhere; R-ANCIENT-COLOUR-01). No filter. */
 .herotip-anc { font-family: var(--font-title); font-weight: 800; font-size: var(--atip-z-title); line-height: 1.15; }
 /* Glossary pills inside a hero-panel tooltip (the Equipment slot): the same `.kwbox` chrome as the card hover,
    stacked full-width under the rule text, left-aligned like a definition list. */
@@ -4910,7 +4910,7 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
   width: calc(40 * var(--u)); height: calc(40 * var(--u)); box-sizing: border-box;
   display: grid; place-items: center; border-radius: 50%;
   background: rgba(14, 12, 18, 0.78);
-  border: calc(3 * var(--u)) solid var(--anc-c, #c9363b); /* the picked Ancient's own colour (ancientColor) */
+  border: calc(3 * var(--u)) solid var(--anc-t, #c9363b); /* the picked Ancient's text tint (ancientTextColor) */
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
   font-size: calc(24 * var(--u)); font-weight: 900; color: #fff1d6;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);

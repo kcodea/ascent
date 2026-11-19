@@ -6,7 +6,7 @@ import { heroPowerFacts } from './HeroInspectCard';
 import { ArmorMedal, HealthMedal } from './menuIcons';
 import { AncientSplitStatic } from './ancients/AncientMeter';
 import { FoeAncientLine } from './ancients/FoeAncientLine';
-import { ancientColor } from './ancients/ancientsConfig';
+import { ancientVars } from './ancients/ancientsConfig';
 import './railScoutShowcase.css';
 
 /**
@@ -72,7 +72,7 @@ export const RailScoutShowcase = memo(function RailScoutShowcase({ name, heroId,
               </span>
               <span className="rsc-pwtext" dangerouslySetInnerHTML={{ __html: mdBold(power.text) }} />
               {/* The seat's picked ANCIENT (R-ANCIENTS-RELEASE-03): name in its colour + pairing text under the power. */}
-              {anc && <span className="rsc-anc" style={{ '--anc-c': ancientColor(anc.id) } as CSSProperties}><FoeAncientLine ancient={anc} /></span>}
+              {anc && <span className="rsc-anc" style={ancientVars(anc.id) as CSSProperties}><FoeAncientLine ancient={anc} /></span>}
             </div>
           )}
         </div>

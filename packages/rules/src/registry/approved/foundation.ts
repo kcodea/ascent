@@ -16745,21 +16745,23 @@ export const FOUNDATION_RULES: GameRule[] = [
   {
     id: 'R-ANCIENT-COLOUR-01',
     domain: 'foundation',
-    title: "Every Ancient accent is exactly the Ancient's name colour",
+    title: "Every Ancient-coloured text and accent is exactly the Ancient's text tint",
     statement:
-      "Everything the game colours by Ancient uses ONE value: `ancientColor(id)` (the sim's `ANCIENTS[id].color`, or the "
-      + "Ancients tuner's override in dev), the same colour the Ancient's name heading prints in. The hero-power tip's tag "
-      + '("Copy Machine (Bonds)") in the Shop, combat and results, the Ancient heading under a power (combat foe tip, rail '
-      + "scout card, results tip), the results pill's Ancient label and dot, the in-game Ancient pill's edge and dot, the "
-      + "Compendium / Hero Select Ancient name, the lobby tile's Ancient and the Avenge countdown's rim all print that exact "
-      + 'value: no filter lift, no mix toward white. Washes, glows and lighting gradients may fade or shade it, but only '
-      + 'derived from that one value (CSS `color-mix` on `--anc-c`, or the FX palette helpers), never a second palette.',
+      "Each Ancient has ONE text colour: `ancientTextColor(id)`, its base colour (`ancientColor`: the sim's "
+      + "`ANCIENTS[id].color`, or the Ancients tuner's override in dev) 55% mixed with white, the soft tint the results "
+      + "pill's Ancient name showed first. The hero-power tip's tag (\"Copy Machine (Bonds)\") in the Shop, combat and "
+      + "results, the Ancient heading under a power (combat foe tip, rail scout card, results tip), the results pill's "
+      + "Ancient label and dot, the in-game Ancient pill's edge and dot, the Compendium / Hero Select Ancient name and the "
+      + "Avenge countdown's rim all print that exact value: no filter, no other mix. The darker base colour stays only "
+      + 'for fills, glows and washes (the band behind the Ancient block, the pick cards, the effects), always derived from '
+      + 'the same base, never a second palette.',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-19', quote: "use the ancient's name color for any flavor coloring or related colors etc for them" },
-      { kind: 'code', ref: 'packages/ui/src/ancients/ancientsConfig.ts ancientColor; packages/ui/src/styles.css .herotip-anc; packages/ui/src/ancients/ancients.css .foe-ancient-name / .anc-pill / .anc-pill-dot; packages/ui/src/partyHome/pages/gamesPages.css .rgp-power-anc; packages/ui/src/compendium.css .hanc-name' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-19 (PR #2805 review)', quote: 'i liked these colors, though.. the colors that were already in as their names' },
+      { kind: 'code', ref: 'packages/ui/src/ancients/ancientsConfig.ts ancientTextColor / ancientVars;packages/ui/src/styles.css .herotip-anc; packages/ui/src/ancients/ancients.css .foe-ancient-name / .anc-pill / .anc-pill-dot; packages/ui/src/partyHome/pages/gamesPages.css .rgp-power-anc; packages/ui/src/compendium.css .hanc-name' },
     ],
-    currentBehaviour: 'Conforms from 2026-11-19. Before, the tip tag and heading carried a brightness filter (rendered brighter than the name colour where it applied), and the results label, pill edge, dots and Compendium name were mixed toward white.',
+    currentBehaviour: 'Conforms from 2026-11-19. Before, the tip tag and heading printed the base colour under a brightness filter (rendered differently where it applied), while only the results label, Compendium name and dots used the soft tint.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/matchDetails/seatPower.test.tsx'], lastVerifiedAt: '2026-11-19' },
   },
   {

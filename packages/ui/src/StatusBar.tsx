@@ -4,7 +4,7 @@ import { ANCIENT_PROC_KEY } from './choreo/triggerCounts';
 import { createPortal } from 'react-dom';
 import { AncientMeter, AncientPill, AncientSplit } from './ancients/AncientMeter';
 import { AncientGate } from './ancients/AncientGate';
-import { ancientColor } from './ancients/ancientsConfig';
+import { ancientTextColor, ancientVars } from './ancients/ancientsConfig';
 import { renameTerms } from './terms';
 import { magicHatBadge } from './magicHatUi';
 import './versus/hatSend'; // registers the Magic Hat's send (the copy's face rising out of this button) with the pass module
@@ -1124,7 +1124,7 @@ export function StatusBar() {
                 RIGHT NOW. Suppressed while the Gambler's die owns the centre, so two heroes can never both
                 claim the slot (only reachable at all through a Void holding both). */}
             {powerCenter && dieRoll == null && diceHeld == null && (
-              <span key={powerCenter} className={`hpb-tally hpb-center${avengeLeft != null ? ' hpb-avenge' : ''}`} style={avengeLeft != null && pickedAncient ? { '--anc-c': ancientColor(pickedAncient) } as CSSProperties : undefined} data-testid={avengeLeft != null ? 'ancient-avenge' : undefined}>{powerCenter}</span>
+              <span key={powerCenter} className={`hpb-tally hpb-center${avengeLeft != null ? ' hpb-avenge' : ''}`} style={avengeLeft != null && pickedAncient ? ancientVars(pickedAncient) as CSSProperties : undefined} data-testid={avengeLeft != null ? 'ancient-avenge' : undefined}>{powerCenter}</span>
             )}
             {/* CASSEN'S COMMISSION PICKER — reuses the Discover overlay's shell so it reads as the same kind of
           decision, but its options are plain text tiles rather than cards (a commission is not a card). Only
@@ -1230,7 +1230,7 @@ export function StatusBar() {
             <div className="herotip-head">
               <b>{grantQuestDef?.name ?? grantRuneDef?.name ?? power.name}</b>
               {/* ANCIENTS: "Masterwork (Death)", the tag in the Ancient's colour, so the power reads as modified. */}
-              {pickedAncient && <span className="herotip-anc" style={{ color: ancientColor(pickedAncient) }}>({ANCIENTS[pickedAncient].name.replace(/^Ancient of /, '')})</span>}
+              {pickedAncient && <span className="herotip-anc" style={{ color: ancientTextColor(pickedAncient) }}>({ANCIENTS[pickedAncient].name.replace(/^Ancient of /, '')})</span>}
               {isPassive && <span className="herotip-tag">passive</span>}
             </div>
             {/* `**word**` = a keyword reference → renders BOLD (mdBold), never raw asterisks. */}

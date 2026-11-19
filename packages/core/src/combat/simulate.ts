@@ -7338,6 +7338,10 @@ export function simulate(
   // a stored snapshot that still carries one fights by the same rule. A counter worded "When N friendly minions die"
   // (Rune of Body Counting, Braum × Death) is NOT an Avenge and keeps its carried tick.
   const avengeDue = (every: number, count: number): boolean => count % Math.max(1, every) === 0;
+  // The CARRY-OVER counter ("When N friendly minions die": Braum × Death, and since the owner's 2026-11-19 ruling
+  // R-ANCIENT-CARRYOVER-01 Gildmaster × Death and Cindy × Death too): the carried running count `tick` plus the fight's
+  // own deaths reaching a multiple of N. Not an Avenge, so Rune of Fury never repeats one.
+  const carriedDue = (every: number, tick: number, count: number): boolean => (tick + count) % Math.max(1, every) === 0;
   // ANCIENT OF WAR × Frantic Frank (owner 2026-09-30): "Avenge (3): Gain a Clearance stack." A hero-level Avenge, like
   // Cindara's Hoard: every `every`th friendly death this fight is one stack, gained right then (a `questTrigger` the
   // replay counts, so the power text ticks mid-fight, R-REALTIME-01), and Rune of Fury fires it again per copy. The
@@ -7392,27 +7396,28 @@ export function simulate(
   bus.on('avenge', (payload) => {
     const { side, count, victim } = payload as { side: Side; count: number; victim?: Minion };
     const ga = modsFor(side).ancientGorrAvenge;
-    if (!ga || ga.ids.length === 0 || !avengeDue(ga.every, count)) return;
+    if (!ga || ga.ids.length === 0 || !(ga.carry ? carriedDue(ga.every, ga.tick, count) : avengeDue(ga.every, count))) return;
     // EMERALD WARDEN × DEATH (ancient pass 1): "once per turn". `limit` = the triggers this fight may still pay; Rune of
     // Fury still repeats a paying trigger.
     if (ga.limit !== undefined && gorrAvengePaid[side] >= ga.limit) return;
     gorrAvengePaid[side] += 1;
     if (ga.flag) fireTrigger(ga.flag, side);
-    const fires = 1 + (modsFor(side).runeFury ? flagCopiesOf(side, 'runeFury') : 0);
+    const fires = 1 + (!ga.carry && modsFor(side).runeFury ? flagCopiesOf(side, 'runeFury') : 0);
     const draw = grantRngFor(side);
     for (let k = 0; k < fires; k++) {
       ancientProc(side); // GORR / MERRIN / EMERALD WARDEN × DEATH fires, one per Fury repeat (R-FX-ANCIENT-PROC-01)
       ctx.grantToHand(ga.ids[draw.int(ga.ids.length)]!, side, victim?.uid);
     }
   });
-  // CINDY × ANCIENT OF DEATH (Duos only, owner 2026-11-14, R-ANCCINDY-01): "Avenge (15): give your teammate a
+  // CINDY × ANCIENT OF DEATH (Duos only, owner 2026-11-14, R-ANCCINDY-01; R-ANCIENT-CARRYOVER-01 2026-11-19: now "When 15
+  // friendly minions die", `carry`, the tick counts and Fury does not repeat it): was "Avenge (15): give your teammate a
   // Goldcrafter." The Xerox Death running count; each fire sends the gift to the TEAMMATE at once (`sendTeam`: a
   // `teamSend` event on the death that paid it, so the stream leaves that body in real time). Rune of Fury repeats.
   bus.on('avenge', (payload) => {
     const { side, count, victim } = payload as { side: Side; count: number; victim?: Minion };
     const mg = modsFor(side).ancientMateGiftAvenge;
-    if (!mg || !avengeDue(mg.every, count)) return;
-    const fires = 1 + (modsFor(side).runeFury ? flagCopiesOf(side, 'runeFury') : 0);
+    if (!mg || !(mg.carry ? carriedDue(mg.every, mg.tick, count) : avengeDue(mg.every, count))) return;
+    const fires = 1 + (!mg.carry && modsFor(side).runeFury ? flagCopiesOf(side, 'runeFury') : 0);
     for (let k = 0; k < fires; k++) {
       ancientProc(side); // CINDY × DEATH fires (Rune of Fury repeats included) (R-FX-ANCIENT-PROC-01)
       if (victim) emit({ type: 'sc', source: victim.uid, text: `${mg.label}: ${(mg.gift.kind === 'gift' && mg.gift.cardId ? cards[mg.gift.cardId]?.name : undefined) ?? 'a gift'} for your teammate`, side, heroPower: true });
@@ -7425,7 +7430,7 @@ export function simulate(
   bus.on('avenge', (payload) => {
     const { side, count, victim } = payload as { side: Side; count: number; victim?: Minion };
     const bd = modsFor(side).ancientBramDeaths;
-    if (!bd || (bd.tick + count) % Math.max(1, bd.every) !== 0) return;
+    if (!bd || !carriedDue(bd.every, bd.tick, count)) return;
     ancientProc(side); // Braum × Death fired (R-FX-ANCIENT-PROC-01)
     const idx = handGrants[side].length;
     nextStep();
@@ -7482,7 +7487,7 @@ export function simulate(
       sproutSize[side] = n + 1;
     }
   });
-  // ANCIENT OF DEATH × Cassen (owner 2026-10-09): "Avenge (7): advance your commission 1 turn." The Xerox Death running
+  // ANCIENT OF DEATH × Cassen (owner 2026-10-09; Avenge (5) since 2026-11-19): "Avenge (7): advance your commission 1 turn." The Xerox Death running
   // count; each fire (Rune of Fury repeats) is a `questTrigger` pulse, counted at settle to move the commission.
   bus.on('avenge', (payload) => {
     const { side, count, victim } = payload as { side: Side; count: number; victim?: Minion };

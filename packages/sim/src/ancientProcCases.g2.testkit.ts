@@ -400,18 +400,18 @@ export const CASES: ProcCase[] = [
     },
   },
   // ── CASSEN ────────────────────────────────────────────────────────────────────────────────────────────────────
-  // DEATH, Shop: every 7th friendly Shop death advances the commission; 5 → 6 is a tick.
+  // DEATH, Shop: every 5th friendly Shop death advances the commission (owner 2026-11-19: 5, was 7); 3 → 4 is a tick.
   {
     hero: 'cassen', ancient: 'death', phase: 'shop', fires: 2,
-    note: 'a tick (5 to 6) does not proc; two 7th deaths do',
+    note: 'a tick (3 to 4) does not proc; two 5th deaths do',
     run: () => {
       let s = pickedRun('cassen', 'death', CASSEN);
-      s = structuredClone({ ...s, ancients: { ...s.ancients!, cassenDeaths: 5 }, board: [body('x', N(0)), body('y', N(1)), body('z', N(2))] });
+      s = structuredClone({ ...s, ancients: { ...s.ancients!, cassenDeaths: 3 }, board: [body('x', N(0)), body('y', N(1)), body('z', N(2))] });
       const p0 = procsOf(s);
       shopKill(s, 'x');
       if (procsOf(s) !== p0) throw new Error('a tick procced');
       shopKill(s, 'y');
-      s.ancients!.cassenDeaths = 6;
+      s.ancients!.cassenDeaths = 4;
       shopKill(s, 'z');
       return procsOf(s) - p0;
     },
@@ -419,10 +419,10 @@ export const CASES: ProcCase[] = [
   // DEATH, combat: a carried 6 pays at the first death (aliased flag); two more deaths only tick.
   {
     hero: 'cassen', ancient: 'death', phase: 'combat', fires: 1,
-    note: 'seven friendly deaths in the fight: one advance (the Shop count of 6 never comes in)',
+    note: 'seven friendly deaths in the fight: one advance at the 5th (the Shop count of 4 never comes in)',
     run: () => {
       let s = pickedRun('cassen', 'death', { ...CASSEN, board: ['a', 'b', 'c', 'd', 'e', 'f', 'g'].map((u, i) => body(u, N(i), { attack: 1, health: 1 })) });
-      s = { ...s, ancients: { ...s.ancients!, cassenDeaths: 6 } };
+      s = { ...s, ancients: { ...s.ancients!, cassenDeaths: 4 } };
       return fight(s, foes(s.wave, 100, 1000)).procs;
     },
   },
@@ -522,16 +522,17 @@ export const CASES: ProcCase[] = [
       return procsOf(s) - p0;
     },
   },
-  // DEATH, combat: a carried 16 pays at the first death; the second only ticks.
+  // DEATH, combat: "When 17 friendly minions die" carries (R-ANCIENT-CARRYOVER-01): a carried 16 pays at the first
+  // death; the second only ticks.
   {
     hero: 'gildmaster', ancient: 'death', phase: 'combat', fires: 1,
-    note: 'seven Mama Pups and their Pups: the 17th death IN the fight pays one Goldcrafter (the Shop count of 16 never comes in)',
+    note: 'two friendly deaths with 16 carried in: the first pays one Goldcrafter, the second ticks',
     run: () => {
-      let s = pickedRun('gildmaster', 'death', { embers: 20, board: ['a', 'b', 'c', 'd', 'e', 'f', 'g'].map((u) => body(u, 'pack', { attack: 1, health: 1 })) });
+      let s = pickedRun('gildmaster', 'death', { embers: 20, board: ['a', 'b'].map((u, i) => body(u, N(i), { attack: 1, health: 1 })) });
       s = { ...s, ancients: { ...s.ancients!, gildDeaths: 16 } };
       const r = fight(s, foes(s.wave, 100, 1000));
       const died = r.events.filter((e) => e.type === 'death' && e.side === 'player').length;
-      if (died < 17 || died >= 34) throw new Error(`expected 17 to 33 friendly deaths, saw ${died}`);
+      if (died !== 2) throw new Error(`expected 2 friendly deaths, saw ${died}`);
       return r.procs;
     },
   },

@@ -16126,6 +16126,36 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/matchDetails/seatPower.test.tsx'], lastVerifiedAt: '2026-11-18' },
   },
   {
+    id: 'R-SPECTATE-INERT-01',
+    domain: 'foundation',
+    title: 'A viewer presses nothing on the board: the gem, Freeze, Refresh and Tier up are inert on a watch screen',
+    statement:
+      'On a viewer\x27s screen (a live watch screen, a recorded replay, the Duos teammate view: `.app.viewing`) no board '
+      + 'control takes a press, in the shop, in a fight, after a fight, and while the watched player\x27s last fight is held '
+      + 'after they are eliminated. The End Turn gem (End Turn, Skip Combat, End Combat), Freeze, Refresh and Tier up take '
+      + 'no pointer (their shaped hit layers and drawn chips are off under `.app.viewing`, hitShapes.css) and refuse a '
+      + 'press that arrives any other way (a focused button and Enter or Space, a synthetic click): no strike, no relight, '
+      + 'no sound, no exit curtain, nothing called (`viewerPress`, viewerGuard.ts). The store still swallows every '
+      + 'dispatch. The watched player\x27s own presses still play, as press cues. The spectator\x27s own panels keep working '
+      + '(R-SPECTATE-LOCAL-01), emotes and pings included. When the watched player is eliminated the screen holds their '
+      + 'last fight, then follows the existing end: a lobby game closes the end gate and opens on the menu with their '
+      + 'place (R-SPECTATE-END-01); a Versus table moves to a player still in (R-VERSUS-GROUP-WATCH-01).',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-18', quote: 'when spectating, spectators shouldnt be able to hit the end turn gem etc. for some reason i was spectating and the combat ended and the player died and i could hit the gem which took me to their shop with them at 0 hp' },
+      { kind: 'fix-pr', ref: 'fix/spectator-no-gem (2026-11-18): packages/ui/src/hitShapes.css; packages/ui/src/viewerGuard.ts; EndTurnButton.tsx, FreezeButton.tsx, RefreshButton.tsx, TavernUpButton.tsx' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-18. From 2026-10-31 (R-HIT-SHAPE-01) the four board buttons took a viewer\x27s click again: '
+      + 'each got a shaped `::after` hit layer with `pointer-events: auto`, which out-ranks the inherited '
+      + '`pointer-events: none` the viewing screen puts on every button, and a press on the layer is a press on the button. '
+      + 'The store refused the dispatch, but End Combat\x27s exit is local: the curtain ran, nothing resolved, and the '
+      + 'spectator\x27s screen dropped the fight\x27s staging and showed the watched player\x27s shop dressing over their '
+      + 'finished fight (at 0 Health when that fight had eliminated them).',
+    example: 'Kev watches a ranked game. The player loses their last fight and drops to 0 Health. The gem on Kev\x27s screen does not light under his mouse and a click does nothing; the fight stays up until the player leaves it, then the gate closes and opens on the menu with "finished 6th".',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/viewerInert.test.tsx', 'packages/ui/src/hitShapes.test.ts'], lastVerifiedAt: '2026-11-18' },
+  },
+  {
     id: 'R-CAREER-ADD-FRIEND-01',
     domain: 'foundation',
     title: "Another player's Career header has a one-press Add friend button",
@@ -16219,5 +16249,46 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: '`.lb-row:not(:hover) .lb-team * { animation-play-state: paused }` paused a Hall row\x27s card loops, and restyled 100 to 150 elements every time the pointer entered or left a card in a game. It reads `.lb-row:not([data-pointed]) .lb-team *` now, and the menu boards pause and play exactly as before.',
     currentBehaviour: 'Conforms from 2026-11-19 (perf/commit-floor).',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/hoverSubjects.test.ts'], lastVerifiedAt: '2026-11-19' },
+  },
+  {
+    id: 'R-COMBAT-FOE-ANCIENT-ICON-01',
+    domain: 'foundation',
+    title: "The combat foe's hero power icon shows its picked Ancient",
+    statement:
+      "In combat, the foe's hero power icon (top right) wears the foe board's picked Ancient the way the player's own power "
+      + "button does once picked: the power art cracked open with the Ancient's face (the settled split, `AncientSplitStatic`, "
+      + "the same markup and classes, so the two cannot drift). Its hover tip opens with the player tip's head (the power "
+      + "name, the Ancient tag in its colour, the passive tag), then the base power text and the Ancient's pairing text. "
+      + 'It reads `BoardSnapshot.ancient` off the served board; no Ancient (none picked, an older capture, an unknown id) = '
+      + 'the plain power. Display only: no reveal beat, no sound.',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-19', quote: 'do ancients show on enemy hero powers in combat?' },
+      { kind: 'code', ref: 'packages/ui/src/CombatOpponent.tsx; packages/ui/src/ancients/AncientMeter.tsx AncientSplitStatic' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-19. Before, the tip named the Ancient but the icon was the plain power art.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/railScoutShowcase.test.tsx'], lastVerifiedAt: '2026-11-19' },
+  },
+  {
+    id: 'R-RAIL-SCOUT-SHOWCASE-01',
+    domain: 'foundation',
+    title: "The rail's scout card shows the seat's hero power and Ancient in the hero showcase's style",
+    statement:
+      "The Docked lobby rail's hover / pinned scout card opens in the hero showcase card's language (the Compendium / Hero "
+      + "Select inspect card): the seat's hero portrait at the top left fading into the navy panel, the player's name large "
+      + "and bold with the hero's name under it, Health and Armor in dark round pills, a thin gold divider, the hero power's "
+      + "round disc on the art / panel seam (cracked with the picked Ancient as the player's own button settles), the power's "
+      + "name in gold with its fact pills (Passive, cost, limits), its base text, and the Ancient's name in its colour with "
+      + 'its pairing text. Under a second gold divider it keeps everything it showed before: shop tier, Gilded made, top '
+      + 'tribe, the three rune sockets (with their tips) and the last three fights. Same card for every seat (yours '
+      + 'included), every mode that docks the rail (lobby, Practice, Versus, Duos, spectating), hover and touch pin alike. '
+      + 'Static paint: no blur, no backdrop filter, nothing looping; every image is one the boot plan already decoded.',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-19', quote: 'add the hero power to the rail enemy card and restyle it to the same vibe as the hero showcase card' },
+      { kind: 'code', ref: 'packages/ui/src/RailScoutShowcase.tsx; packages/ui/src/railScoutShowcase.css; packages/ui/src/LobbyPanel.tsx ScoutCard' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-19. Before, the card printed the power as plain text in a box, with no art or disc.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/railScoutShowcase.test.tsx'], lastVerifiedAt: '2026-11-19' },
   },
 ];

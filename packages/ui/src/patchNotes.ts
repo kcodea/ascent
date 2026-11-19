@@ -68,6 +68,26 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-11-18',
     changes: [
+      {
+        category: 'Balance',
+        text: 'Ancient of Death: Gildmaster and Cindy now count friendly deaths across fights and the Shop, and Cassen needs 5 deaths instead of 7.',
+        details: [
+          'Gildmaster: When 17 friendly minions die, get a Goldcrafter. It used to be Avenge (17), which needed all 17 in one fight.',
+          'Cindy: When 15 friendly minions die, give your teammate a Goldcrafter. It used to be Avenge (15).',
+          'Both keep counting from one fight to the next and through the Shop, like Braum. The power shows how many more deaths to go.',
+          'Cassen: Avenge (5): your commission pays out 1 turn sooner. It was Avenge (7). It still counts one fight at a time.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'The lobby rail card for each player now shows their hero power and Ancient, in a new look.',
+        details: [
+          "Hover a player on the rail (tap on touch) to see their hero art, Health and Armor, and their hero power with its full text.",
+          'If they have picked an Ancient, the power shows it cracked open, with the Ancient named and what it does for that hero.',
+          'Shop tier, Gilded made, top tribe, runes and the last three fights are all still there.',
+          "In combat, your opponent's hero power icon now shows their Ancient too.",
+        ],
+      },
       { category: 'Systems', text: "Another player's Career page now has an Add friend button at the top. One press sends the request." },
       { category: 'Systems', text: 'Settings, Account now shows your name and tag (like Name#1234) with a Copy button, so you can share it with friends.' },
       {
@@ -107,6 +127,15 @@ export const PATCH_NOTES: PatchNote[] = [
         details: [
           'The lock number on the hero power, the locked line under the hero name and the power text all update as the Avenge fires.',
           'The number you see when the fight ends is the number you keep.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Spectators can no longer press the End Turn gem, Freeze, Refresh or Tier up on the game they are watching.',
+        details: [
+          'Before, a spectator could press the gem after a fight and their own screen left the fight early, even after the player was knocked out.',
+          'The same holds while watching a replay or your Duos teammate.',
+          'When the player you are watching is knocked out, their last fight stays up, then the game closes with their place as before.',
         ],
       },
       {

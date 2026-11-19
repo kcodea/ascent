@@ -58,6 +58,47 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-11-18',
     changes: [
+      { category: 'Systems', text: "Another player's Career page now has an Add friend button at the top. One press sends the request." },
+      { category: 'Systems', text: 'Settings, Account now shows your name and tag (like Name#1234) with a Copy button, so you can share it with friends.' },
+      {
+        category: 'Systems',
+        text: 'A Gilded minion now keeps the progress its copies had. A Billings at 9/10 Gold spent stays at 9/10 when it is Gilded.',
+        details: [
+          'The Gilded minion starts at the furthest progress of the copies that combined. It used to start again from 0.',
+          'This covers every counter under a minion: Gold spent, cards bought, cards played, minions sold, spells and Rubies cast, Shouts, Orbits, Refreshes and Spirits played.',
+          'Combining never pays the effect out. The next step pays it as normal.',
+        ],
+      },
+      {
+        category: 'Balance',
+        text: 'Beardsley now improves by +2/+1 for every Beast, up from +1/+1.',
+        details: [
+          'The grant now runs +2/+1, then +4/+2, then +6/+3.',
+          'Gilded Beardsley gives +4/+2 and improves by +4/+2.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Beardsley and Vicious now show their current buff during combat. The number grows as each Beast is summoned.',
+      },
+      {
+        category: 'Balance',
+        text: 'Avenge now counts one fight at a time. Leftover progress no longer carries into the next fight.',
+        details: [
+          'An Avenge (4) needs 4 of your minions to die in the same fight. 3 deaths in one fight and 1 in the next no longer trigger it.',
+          'This fixes the hero Avenges the Ancient of Death adds, which were keeping one count across the Shop and every fight.',
+          'Those Avenges still count minions that die in the Shop. That count ends when the fight starts, and each fight starts from 0.',
+          'Effects worded "When X friendly minions die" are not Avenges. They still keep their count between turns.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Gambler with the Ancient of Death: the Dice lock now drops during the fight, the moment its Avenge triggers.',
+        details: [
+          'The lock number on the hero power, the locked line under the hero name and the power text all update as the Avenge fires.',
+          'The number you see when the fight ends is the number you keep.',
+        ],
+      },
       {
         category: 'Systems',
         text: 'Spectators can no longer press the End Turn gem, Freeze, Refresh or Tier up on the game they are watching.',

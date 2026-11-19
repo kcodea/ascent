@@ -72,8 +72,8 @@ describe('Rayse × DEATH: "Avenge (4): Summon a 1/1 Sprout and improve this."', 
     expect(s.ancients!.rayseSproutSize).toBe(2);
     expect(heroPowerText(s)).toContain('summon a **2/2** Sprout');
   });
-  it('combat: the carried count fires MID-FIGHT, the Sprout takes Vines (+2/+3, Taunt), and settle banks the growth', () => {
-    let s = picked('death', { board: ['a', 'b', 'c'].map((u, i) => card(u, N(i), { attack: 1, health: 1 })) });
+  it('combat: the 4th death in the fight fires MID-FIGHT, the Sprout takes Vines (+2/+3, Taunt), and settle banks the growth (per combat, R-AVENGE-PER-COMBAT-01: the Shop count never comes in)', () => {
+    let s = picked('death', { board: ['a', 'b', 'c', 'd'].map((u, i) => card(u, N(i), { attack: 1, health: 1 })) });
     s = { ...s, ancients: { ...s.ancients!, rayseDeaths: 3, rayseSproutSize: 3 } };
     expect(ancientCombatMods(s).ancientSproutAvenge).toEqual({ every: 4, tick: 3, cardId: RAYSE_SPROUT_ID, size: 3, flag: ANCIENT_SPROUT_FLAG, label: 'Ancient of Death' });
     expect(ancientAvengeCountdown(s)).toBe(1);
@@ -85,10 +85,9 @@ describe('Rayse × DEATH: "Avenge (4): Summon a 1/1 Sprout and improve this."', 
     expect(sprouts[0]!.minion.keywords).toContain('T');
     const fires = events(s).filter((e) => e.type === 'questTrigger' && e.side === 'player' && e.flag === ANCIENT_SPROUT_FLAG).length;
     expect(fires).toBe(sprouts.length);
-    const deaths = s.lastCombat!.playerDeaths ?? 0;
     s = reduce(s, { type: 'resolveCombat' });
     expect(s.ancients!.rayseSproutSize).toBe(3 + fires);
-    expect(s.ancients!.rayseDeaths).toBe((3 + deaths) % 4);
+    expect(s.ancients!.rayseDeaths ?? 0).toBe(0);
   });
 });
 

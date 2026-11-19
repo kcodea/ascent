@@ -95,12 +95,12 @@ describe('Death: Avenge (15), give your teammate a Goldcrafter (R-ANCCINDY-01)',
     expect(teamOf(s, before)).toHaveLength(2);
   });
 
-  it('one running count across phases: combat carries it in, settle adds the fight\'s deaths', () => {
+  it('the count is per phase: settle discards the Shop count and the fight\'s deaths (per combat, R-AVENGE-PER-COMBAT-01: the Shop count never comes in)', () => {
     let s = picked('death');
     s = { ...s, ancients: { ...s.ancients!, cindyDeaths: 9 } };
     expect(ancientCombatMods(s).ancientMateGiftAvenge).toEqual({ every: 15, tick: 9, gift: { kind: 'gift', cardId: 'goldcrafter' }, label: 'Ancient of Death' });
     ancientAfterCombat(s, { playerDeaths: 8 } as CombatResult);
-    expect(s.ancients!.cindyDeaths).toBe(2); // 9 + 8 = 17: one fire (paid live in the fight), 2 toward the next
+    expect(s.ancients!.cindyDeaths ?? 0).toBe(0); // nothing carries: the next Shop and the next fight each count from 0
   });
 
   it('a sale is not a death (it never counts)', () => {

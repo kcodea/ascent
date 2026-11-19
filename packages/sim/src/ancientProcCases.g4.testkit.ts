@@ -151,9 +151,9 @@ export const CASES: ProcCase[] = [
   },
   {
     hero: 'cindy', ancient: 'death', phase: 'combat', fires: 1,
-    note: 'one death short of the 15th carried in: the first friendly death in the fight pays',
+    note: 'five Mama Pups and their Pups: the 15th death IN the fight pays (the Shop count of 14 never comes in)',
     run: () => {
-      const s = duosPicked('cindy', 'death', { board: [card('a', PLAIN[0]!, { attack: 1, health: 1 }), card('b', PLAIN[1]!, { attack: 1, health: 1 })] });
+      const s = duosPicked('cindy', 'death', { board: ['a', 'b', 'c', 'd', 'e'].map((u) => card(u, 'pack', { attack: 1, health: 1 })) });
       s.ancients = { ...s.ancients!, cindyDeaths: 14 };
       const side = buildVersusCandidate(s, makeRng(3))!;
       const foe = [{ cardId: PLAIN[2]!, attack: 50, health: 500, keywords: [] }];

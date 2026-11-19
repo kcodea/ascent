@@ -6697,8 +6697,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     // An every-1 improve reads the count RAW (no floor): an in-place gild halves it (GOLD_SCALED_ACCRUAL_CARDS, Flo Rida /
     // Beardsley), and the x2 read must land on exactly the value already earned, a half-count included.
     const step = improve > 0 ? (every <= 1 ? (self.summonBonus ?? 0) : Math.floor((self.summonBonus ?? 0) / every)) : 0;
+    const improveHealth = num(params.improveHealth, improve); // the Health step when it differs (Beardsley +2/+1)
     const a = (num(params.attack, 6) + improve * step) * g;
-    const h = (num(params.health, 6) + improve * step) * g;
+    const h = (num(params.health, 6) + improveHealth * step) * g;
     if (a > 0 || h > 0) addBuff(minion, nameOf(self), a, h);
     if (improve > 0) self.summonBonus = (self.summonBonus ?? 0) + 1;
   },

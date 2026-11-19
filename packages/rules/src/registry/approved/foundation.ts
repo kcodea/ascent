@@ -16155,4 +16155,40 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'Kev watches a ranked game. The player loses their last fight and drops to 0 Health. The gem on Kev\x27s screen does not light under his mouse and a click does nothing; the fight stays up until the player leaves it, then the gate closes and opens on the menu with "finished 6th".',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/viewerInert.test.tsx', 'packages/ui/src/hitShapes.test.ts'], lastVerifiedAt: '2026-11-18' },
   },
+  {
+    id: 'R-CAREER-ADD-FRIEND-01',
+    domain: 'foundation',
+    title: "Another player's Career header has a one-press Add friend button",
+    statement:
+      "On the party home Career of ANOTHER player the header carries one button, left of the close X. Add friend sends the "
+      + 'request by player id in one press (no handle typing) and then reads Request sent (not pressable). A player who is '
+      + 'already a friend reads Friends (not pressable). A player who already asked you gets Accept friend, and one press '
+      + 'makes you friends. A refused request (a limit, no connection) says why beside the button and leaves Add friend. '
+      + 'It is hidden on your own Career, for a guest, on a blocked player and with no backend (R-FRIENDS-01). Every way '
+      + "into another player's Career (a Leaderboard row, a Recent Games row) hands over that player's id.",
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-18 (screenshot of a Career page)', quote: 'add an add friend button up here for a 1 click add friend' },
+      { kind: 'code', ref: 'packages/ui/src/partyHome/pages/career/PhAddFriend.tsx; packages/ui/src/friends/AddFriendButton.tsx useAddFriend; packages/ui/src/partyHome/pages/career/PhCareer.tsx' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-18. Before, the party home Career of another player had no friend control (it was taken off the header on 2026-11-06).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/partyHome/pages/career/phAddFriend.test.tsx'], lastVerifiedAt: '2026-11-18' },
+  },
+  {
+    id: 'R-SETTINGS-ACCOUNT-TAG-01',
+    domain: 'foundation',
+    title: 'Settings, Account shows your name with its tag and a Copy button',
+    statement:
+      'The Account tab of Settings shows your handle, Name#1234 (the same handle friends type to add you), as its first row, '
+      + 'with a Copy button that puts it on the clipboard and reads Copied (or Could not copy when the browser refuses). '
+      + 'A guest whose name has a tag sees it too, with a note that adding friends needs a sign in. With no tag yet (no '
+      + 'name, offline) the row is left out.',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-18 (screenshot of Settings, Account)', quote: "display the player's account#1234 here so they know their username information" },
+      { kind: 'code', ref: 'packages/ui/src/partyHome/pages/PhSettings.tsx TagRow, AccountTab' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-18. Before, the Account tab showed only Signed in, the email and Sign out.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/partyHome/pages/career/phAddFriend.test.tsx'], lastVerifiedAt: '2026-11-18' },
+  },
 ];

@@ -16191,4 +16191,45 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms from 2026-11-18. Before, the Account tab showed only Signed in, the email and Sign out.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/partyHome/pages/career/phAddFriend.test.tsx'], lastVerifiedAt: '2026-11-18' },
   },
+  {
+    id: 'R-COMBAT-FOE-ANCIENT-ICON-01',
+    domain: 'foundation',
+    title: "The combat foe's hero power icon shows its picked Ancient",
+    statement:
+      "In combat, the foe's hero power icon (top right) wears the foe board's picked Ancient the way the player's own power "
+      + "button does once picked: the power art cracked open with the Ancient's face (the settled split, `AncientSplitStatic`, "
+      + "the same markup and classes, so the two cannot drift). Its hover tip opens with the player tip's head (the power "
+      + "name, the Ancient tag in its colour, the passive tag), then the base power text and the Ancient's pairing text. "
+      + 'It reads `BoardSnapshot.ancient` off the served board; no Ancient (none picked, an older capture, an unknown id) = '
+      + 'the plain power. Display only: no reveal beat, no sound.',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-19', quote: 'do ancients show on enemy hero powers in combat?' },
+      { kind: 'code', ref: 'packages/ui/src/CombatOpponent.tsx; packages/ui/src/ancients/AncientMeter.tsx AncientSplitStatic' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-19. Before, the tip named the Ancient but the icon was the plain power art.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/railScoutShowcase.test.tsx'], lastVerifiedAt: '2026-11-19' },
+  },
+  {
+    id: 'R-RAIL-SCOUT-SHOWCASE-01',
+    domain: 'foundation',
+    title: "The rail's scout card shows the seat's hero power and Ancient in the hero showcase's style",
+    statement:
+      "The Docked lobby rail's hover / pinned scout card opens in the hero showcase card's language (the Compendium / Hero "
+      + "Select inspect card): the seat's hero portrait at the top left fading into the navy panel, the player's name large "
+      + "and bold with the hero's name under it, Health and Armor in dark round pills, a thin gold divider, the hero power's "
+      + "round disc on the art / panel seam (cracked with the picked Ancient as the player's own button settles), the power's "
+      + "name in gold with its fact pills (Passive, cost, limits), its base text, and the Ancient's name in its colour with "
+      + 'its pairing text. Under a second gold divider it keeps everything it showed before: shop tier, Gilded made, top '
+      + 'tribe, the three rune sockets (with their tips) and the last three fights. Same card for every seat (yours '
+      + 'included), every mode that docks the rail (lobby, Practice, Versus, Duos, spectating), hover and touch pin alike. '
+      + 'Static paint: no blur, no backdrop filter, nothing looping; every image is one the boot plan already decoded.',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-19', quote: 'add the hero power to the rail enemy card and restyle it to the same vibe as the hero showcase card' },
+      { kind: 'code', ref: 'packages/ui/src/RailScoutShowcase.tsx; packages/ui/src/railScoutShowcase.css; packages/ui/src/LobbyPanel.tsx ScoutCard' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-19. Before, the card printed the power as plain text in a box, with no art or disc.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/railScoutShowcase.test.tsx'], lastVerifiedAt: '2026-11-19' },
+  },
 ];

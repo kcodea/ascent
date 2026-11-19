@@ -72,8 +72,11 @@ const AUTHORED_CARD_W = 230;
 
 interface Rect { cx: number; cy: number; bottom: number; w: number }
 
-/** Test hook: every cue this module has played, in order (cleared by `resetDiscoverEntranceForTests`). */
+/** Test hook: every cue this module has played, in order (cleared by `resetDiscoverEntranceForTests`). Filled only
+ *  under a test runner: in a shipped build it grew by a few entries per Discover for the whole session and nothing ever
+ *  read or cleared it (perf pass 2026-11-18). */
 export const cueLog: { cue: EntranceCue; slot: number }[] = [];
+const LOG_CUES = import.meta.env.MODE === 'test';
 
 /**
  * Start one entrance on `root` (the `.discover-ov` element). Cards are its `.disc-slot` children, in order.
@@ -111,7 +114,7 @@ export function runEntrance(root: HTMLElement, opts: EntranceOptions = {}): Entr
     const key = `${name}:${slot}`;
     if (played.has(key)) return;
     played.add(key);
-    cueLog.push({ cue: name, slot });
+    if (LOG_CUES) cueLog.push({ cue: name, slot });
     const s = cueSetting(c, name);
     if (!s.clip || !(s.gain > 0)) return;
     // Fire and forget: a sound already playing rings out on its own soft tail even if the Discover is picked.

@@ -129,6 +129,53 @@ describe('the portrait window', () => {
     expect(useGame.getState().avatarPickerOpen).toBe(false);
   });
 
+  it('Minions are grouped by tribe and run tier-up inside each tribe; the dropdown filters by tribe or tier', () => {
+    open();
+    act(() => tab('Minions').click());
+    const groups = $$('.avp-grouplbl').map((g) => g.textContent);
+    expect(groups.length).toBeGreaterThan(3);
+    expect(new Set(groups).size).toBe(groups.length);
+    // Inside the first tribe the tiers never go down ("Tier N Tribe" is the tile's spoken sub-line).
+    const tiers = [...$('.avp-group')!.querySelectorAll<HTMLElement>('.avp-tile')].map((t) => Number(/Tier (\d)/.exec(t.getAttribute('aria-label')!)![1]));
+    expect(tiers.length).toBeGreaterThan(3);
+    expect([...tiers].sort((a, b) => a - b)).toEqual(tiers);
+
+    const select = $('.avp-filter')!;
+    expect(select.textContent).toContain('All minions');
+    act(() => select.click());
+    const opts = $$('[role="option"]');
+    expect(opts.map((o) => o.textContent)).toEqual(expect.arrayContaining(['All minions', 'Beast', 'Dragon', 'Tier 1', 'Tier 6']));
+    const total = $$('.avp-tile').length;
+    act(() => opts.find((o) => o.textContent === 'Tier 1')!.click());
+    const left = $$('.avp-tile');
+    expect(left.length).toBeGreaterThan(0);
+    expect(left.length).toBeLessThan(total);
+    expect(left.every((t) => t.getAttribute('aria-label')!.includes('Tier 1 '))).toBe(true);
+    // The tab count follows the search, not the filter.
+    expect(Number(countOf('Minions'))).toBe(total);
+  });
+
+  it('My Skins filters by kind or rarity; Heroes and Hero Powers have no dropdown', () => {
+    open();
+    act(() => $('.avp-filter')!.click());
+    expect($$('[role="option"]').map((o) => o.textContent)).toEqual(['All skins', 'Hero skins', 'Minion skins', 'Epic', 'Common']);
+    act(() => $$('[role="option"]').find((o) => o.textContent === 'Minion skins')!.click());
+    expect($$('.avp-tile').map((t) => t.dataset.name)).toEqual(['Sheriff Brian']);
+    act(() => tab('Heroes').click());
+    expect($('.avp-filter')).toBeNull();
+    act(() => tab('Hero Powers').click());
+    expect($('.avp-filter')).toBeNull();
+  });
+
+  it('Esc with the filter list open closes only the list', () => {
+    open();
+    act(() => $('.avp-filter')!.click());
+    expect($('.phk-selectlayer')).not.toBeNull();
+    act(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); });
+    expect($('.phk-selectlayer')).toBeNull();
+    expect(useGame.getState().avatarPickerOpen).toBe(true);
+  });
+
   it('the stylesheet keeps the house rules: no plain cursor, no raw viewport units, only the list scrolls', () => {
     const css = readFileSync(join(__dirname, 'avatarPicker.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
     expect(css).not.toMatch(/cursor\s*:/);

@@ -1,10 +1,12 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CARD_INDEX } from '@game/content';
+import { TRIBES, type Tribe } from '@game/core';
+import { TRIBE_LABEL } from './careerData';
 import { getHero } from '@game/sim';
 import { RARITY_LABELS, withStarterCosmetics, type CosmeticDef, type CosmeticRarity } from '@game/progression';
 import { AVATAR_ART, avatarSrc, type AvatarArt } from './art';
 import { useGame } from './store';
-import { PhBanner, PhBannerName, PhButton, PhEmpty, PhSearch, PhTabs } from './partyHome/kit';
+import { PhBanner, PhBannerName, PhButton, PhEmpty, PhSearch, PhSelect, PhTabs } from './partyHome/kit';
 import { usePhLayer } from './partyHome/shell/usePhLayer';
 import { HeroPortraitRing } from './portraitFrame/HeroPortraitRing';
 import { mirrorFor, useProgression } from './progression/progressionStore';
@@ -19,6 +21,8 @@ import './avatarPicker.css';
  *
  *   TABS      My Skins (every hero / minion skin you OWN), Heroes, Minions, Hero Powers. Each tab shows its count; while
  *             a search is typed the counts are the matches, so you can see which tab holds what you are looking for.
+ *   FILTER    a dropdown beside the search, per tab: Minions by tribe or tier, My Skins by kind or rarity. Minions are
+ *             sorted and grouped by tribe, then tier.
  *   GRID      round tiles, the gold edge painted over the art; a skin's edge is its rarity colour (Ancient glows). Only this list scrolls. A press SELECTS (it no longer
  *             picks and closes); a double press applies at once. The tile in use wears an "In use" tag.
  *   PREVIEW   the selection inside YOUR equipped portrait frame, its name, and your banner wearing it.
@@ -31,23 +35,59 @@ import './avatarPicker.css';
  */
 
 type TabId = 'skins' | 'hero' | 'minion' | 'power';
-interface Entry { id: string; src: string; name: string; sub: string; find: string; rarity?: CosmeticRarity; group?: string }
+/** `tags`: what the tab's filter dropdown matches (`tribe:beast`, `tier:3`, `kind:hero`, `rarity:epic`). `order`: the
+ *  sort key inside a tab (minions: tribe, then tier). */
+interface Entry { id: string; src: string; name: string; sub: string; find: string; rarity?: CosmeticRarity; group?: string; tags?: string[]; order?: number }
 
 const heroName = (key: string): string => { try { return getHero(key).name; } catch { return key; } };
 
+/** Tribe order for the Minions tab: the tribes as the game lists them, Neutral last, art with no card after that. */
+const TRIBE_ORDER: readonly Tribe[] = [...TRIBES.filter((t) => t !== 'neutral'), 'neutral'];
+
 function baseEntry(a: AvatarArt): Entry {
-  const name = a.kind === 'minion' ? CARD_INDEX[a.key]?.name ?? a.key : heroName(a.key);
-  const sub = a.kind === 'hero' ? 'Hero' : a.kind === 'minion' ? 'Minion' : 'Hero Power';
-  return { id: a.id, src: a.src, name, sub, find: name.toLowerCase() };
+  if (a.kind !== 'minion') {
+    const name = heroName(a.key);
+    return { id: a.id, src: a.src, name, sub: a.kind === 'hero' ? 'Hero' : 'Hero Power', find: name.toLowerCase() };
+  }
+  const card = CARD_INDEX[a.key];
+  const name = card?.name ?? a.key;
+  if (!card) return { id: a.id, src: a.src, name, sub: 'Minion', find: name.toLowerCase(), group: 'Other', order: 1e6 };
+  const tribes = [card.tribe, ...(card.tribe2 ? [card.tribe2] : [])];
+  return {
+    id: a.id, src: a.src, name, sub: `Tier ${card.tier} ${tribes.map((t) => TRIBE_LABEL[t]).join(' / ')}`, find: name.toLowerCase(),
+    group: TRIBE_LABEL[card.tribe], tags: [...tribes.map((t) => `tribe:${t}`), `tier:${card.tier}`],
+    order: TRIBE_ORDER.indexOf(card.tribe) * 100 + card.tier,
+  };
 }
 
-/** The bundled portraits by tab, built once on first open (hundreds of rows; never at load). */
+/** The bundled portraits by tab, built once on first open (hundreds of rows; never at load). Minions are sorted by
+ *  tribe, then tier, then name (owner 2026-11-19: "sort minions by tribe and by tier"). */
 let BASE: Record<Exclude<TabId, 'skins'>, Entry[]> | null = null;
 function baseEntries(): Record<Exclude<TabId, 'skins'>, Entry[]> {
   if (BASE) return BASE;
   const of = (kind: AvatarArt['kind']): Entry[] => AVATAR_ART.filter((a) => a.kind === kind).map(baseEntry);
-  BASE = { hero: of('hero'), minion: of('minion'), power: of('power') };
+  BASE = { hero: of('hero'), minion: of('minion').sort((x, y) => (x.order ?? 0) - (y.order ?? 0) || x.name.localeCompare(y.name)), power: of('power') };
   return BASE;
+}
+
+/** One choice in a tab's filter dropdown. */
+interface FilterOption { value: string; label: string }
+const RARITY_ORDER: readonly CosmeticRarity[] = ['secret', 'ancient', 'legendary', 'epic', 'rare', 'common'];
+/** The filter dropdown of a tab: only choices that some portrait in it matches. Heroes and Hero Powers have no
+ *  category to filter by, so they get none (an empty list hides the dropdown). */
+export function filterOptions(tab: TabId, rows: readonly Entry[]): FilterOption[] {
+  const has = (tag: string): boolean => rows.some((e) => e.tags?.includes(tag));
+  if (tab === 'minion') return [
+    { value: 'all', label: 'All minions' },
+    ...TRIBE_ORDER.filter((t) => has(`tribe:${t}`)).map((t) => ({ value: `tribe:${t}`, label: TRIBE_LABEL[t] })),
+    ...[1, 2, 3, 4, 5, 6, 7].filter((n) => has(`tier:${n}`)).map((n) => ({ value: `tier:${n}`, label: `Tier ${n}` })),
+  ];
+  if (tab === 'skins' && rows.length) return [
+    { value: 'all', label: 'All skins' },
+    ...(['hero', 'minion'] as const).filter((k) => has(`kind:${k}`)).map((k) => ({ value: `kind:${k}`, label: k === 'hero' ? 'Hero skins' : 'Minion skins' })),
+    ...RARITY_ORDER.filter((r) => has(`rarity:${r}`)).map((r) => ({ value: `rarity:${r}`, label: RARITY_LABELS[r] })),
+  ];
+  return [];
 }
 
 /** The skins this account owns, hero skins first: live, with art in the bundle. */
@@ -57,7 +97,8 @@ export function ownedSkinEntries(owned: ReadonlySet<string>): Entry[] {
       const src = skinArtOf(c);
       if (!src) return [];
       const target = skinTargetName(c);
-      return [{ id: `skin:${c.assets.art}`, src, name: c.name, sub: target ? `${target} skin` : 'Skin', find: `${c.name} ${target ?? ''}`.toLowerCase(), rarity: c.rarity, group }];
+      return [{ id: `skin:${c.assets.art}`, src, name: c.name, sub: target ? `${target} skin` : 'Skin', find: `${c.name} ${target ?? ''}`.toLowerCase(), rarity: c.rarity, group,
+        tags: [`kind:${category === 'hero_skin' ? 'hero' : 'minion'}`, `rarity:${c.rarity}`] }];
     });
   return [...rows('hero_skin', 'Hero skins'), ...rows('minion_skin', 'Minion skins')];
 }
@@ -112,7 +153,8 @@ function PortraitWindow() {
   usePhLayer(true, close);
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
-      if (e.key !== 'Escape') return;
+      // An open filter list takes Esc first (it closes itself); the window stays.
+      if (e.key !== 'Escape' || document.querySelector('.phk-selectlayer')) return;
       e.preventDefault(); e.stopImmediatePropagation(); close();
     };
     window.addEventListener('keydown', onKey, true);
@@ -130,11 +172,16 @@ function PortraitWindow() {
   const capRef = useRef<HTMLSpanElement>(null);
   const caption = (text: string): void => { if (capRef.current) capRef.current.textContent = text; };
 
-  const rows = shown[tab];
+  // THE FILTER: one dropdown per tab, remembered per tab while the window is open. It narrows the grid only; the tab
+  // counts keep following the search.
+  const [filters, setFilters] = useState<Partial<Record<TabId, string>>>({});
+  const options = useMemo(() => filterOptions(tab, all[tab]), [tab, all]);
+  const filter = options.some((o) => o.value === filters[tab]) ? filters[tab]! : 'all';
+  const rows = useMemo(() => (filter === 'all' ? shown[tab] : shown[tab].filter((e) => e.tags?.includes(filter))), [shown, tab, filter]);
   const chosen = sel ? byId.get(sel) : undefined;
   const chosenSrc = chosen?.src ?? avatarSrc(sel);
   const unchanged = sel === current;
-  const groups = tab === 'skins' ? [...new Set(rows.map((e) => e.group ?? ''))] : [''];
+  const groups = [...new Set(rows.map((e) => e.group ?? ''))];
 
   return (
     <div className="phk-dialog ph-tokens avatarpick avp" role="dialog" aria-modal="true" aria-label="Choose your portrait">
@@ -158,6 +205,10 @@ function PortraitWindow() {
             { id: 'minion', label: tabLabel('Minions', shown.minion.length) },
             { id: 'power', label: tabLabel('Hero Powers', shown.power.length) },
           ]} />
+          {options.length > 0 && (
+            <PhSelect<string> className="avp-filter" label="Filter portraits" value={filter} options={options}
+              onChange={(v) => setFilters((f) => ({ ...f, [tab]: v }))} />
+          )}
           <PhSearch className="avp-search" placeholder="Search by name" aria-label="Search portraits by name" value={query} onChange={(e) => setQuery(e.target.value)} />
         </div>
         <div className="avp-body">
@@ -165,8 +216,8 @@ function PortraitWindow() {
             <div ref={scrollRef} className="avp-scroll avatarpick-scroll"
               onPointerOver={(e) => { const t = (e.target as HTMLElement).closest<HTMLElement>('.avp-tile'); if (t) caption(t.dataset.name ?? ''); }}
               onPointerLeave={() => caption('')}>
-              {rows.length === 0 && (q
-                ? <PhEmpty title="No matches" sub="Try another name, or look in another tab." />
+              {rows.length === 0 && (all[tab].length > 0
+                ? <PhEmpty title="No matches" sub="Try another name or filter, or look in another tab." />
                 : <PhEmpty title="No skins yet" sub="Open chests to unlock hero and minion skins. Any skin you own can be your portrait."
                     action={<PhButton onClick={() => { close(); openCollection(); }}>Go to Collection</PhButton>} />)}
               {rows.length > 0 && groups.map((g) => (

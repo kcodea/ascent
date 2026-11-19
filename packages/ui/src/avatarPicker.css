@@ -18,6 +18,8 @@
 .avp-n { margin-left: calc(8 * var(--phu)); font-weight: 700; letter-spacing: 0; color: var(--ph-muted); font-variant-numeric: tabular-nums; }
 .avp-capdef { font-weight: 600; color: var(--ph-muted); }
 .avp-capname:not(:empty) + .avp-capdef { display: none; }
+.avp-bar .phk-tabs { flex: 1 1 auto; }
+.avp-filter.phk-select { flex: none; min-width: calc(168 * var(--phu)); }
 .avp-search { flex: 0 1 calc(260 * var(--phu)); }
 
 .avp-body { display: flex; gap: calc(20 * var(--phu)); flex: 1 1 auto; min-height: 0; }

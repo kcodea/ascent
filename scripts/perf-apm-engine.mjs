@@ -52,6 +52,8 @@
  *   npm run perf:apm -- --toggle nofx        the same run with one cost class switched off: nofx | nofilter | nocardfilter | noanim
  *   npm run perf:apm -- --profile | --trace | --trace-style | --census | --shots <dir> | --headed | --label <name>
  *   npm run perf:apm -- --per-action         before the burst, one action every 1.2 s: what a buy / play / cast / sell / refresh costs
+ *   npm run perf:apm -- --per-action --per-action-trace   the same pass under a trace: each action split into script / style /
+ *                                            layout / paint, elements restyled, Recruit and card renders
  *   npm run perf:apm -- --screencast <dir>   JPEG frames of five seconds of the burst (a capture to look at, not a measurement)
  *   npm run perf:apm -- --no-priority        do not raise this run's Chrome and driver to High priority (Windows)
  * Exit code: 0 done; 1 the scene could not be built; 2 setup error; 3 the --guard failed.
@@ -264,7 +266,7 @@ const PROBE = `(() => {
     samples.push(row);
   };
   window.__apm = {
-    mark: (name) => { marks.push([performance.now(), name]); },
+    mark: (name) => { marks.push([performance.now(), name]); try { performance.mark('apm:' + name); } catch {} },
     note: (kind, extra) => { notes.push([performance.now(), kind, extra || null]); },
     harness,
     startSampler: (census) => { if (sampler) return; sampler = setInterval(() => sample(census), 100); },
@@ -518,11 +520,34 @@ async function oneRun(port, runIdx, dist) {
     if (flag('per-action')) {
       const WIN = 250; const rows = []; const idleRows = [];
       const delta = (a, b) => ({ task: b.TaskDuration - a.TaskDuration, script: b.ScriptDuration - a.ScriptDuration, style: b.RecalcStyleDuration - a.RecalcStyleDuration, layout: b.LayoutDuration - a.LayoutDuration });
+      // --per-action-trace: the same pass under a timeline trace, so each action's main thread splits into script /
+      // style / layout / paint, with the elements each style recalculation touched and the renders it cost
+      // (`recruit renders` / `card renders`, counted off the monitor's own `count` calls). The trace costs a little
+      // time of its own; read these as a split, and the CDP numbers above as the totals.
+      const PAT = flag('per-action-trace');
+      const patEvents = []; const patWin = [];
+      if (PAT) {
+        await ev(`(() => { const p = window.__perf; if (!p || p.__apmCount) return; const o = p.count.bind(p); window.__apmCnt = {}; p.count = (n, k = 1) => { window.__apmCnt[n] = (window.__apmCnt[n] || 0) + k; o(n, k); }; p.__apmCount = true; })()`);
+        c.on('Tracing.dataCollected', (p) => { if (PAT && patEvents.done !== true) for (const e of p.value) patEvents.push(e); });
+        await c.send('Tracing.start', { transferMode: 'ReportEvents', traceConfig: { recordMode: 'recordAsMuchAsPossible', includedCategories: ['devtools.timeline', 'disabled-by-default-devtools.timeline', 'blink.user_timing', '__metadata'] } });
+      }
+      const cnt = () => (PAT ? ev(`Object.assign({}, window.__apmCnt || {})`) : null);
       for (let i = 0; i < 66; i++) {
         await sleep(650); // the previous action's effects have mostly played out
+        if (PAT) await ev(`performance.mark('apmw:idle:${i}')`);
         const i0 = await metrics(); await sleep(WIN); const i1 = await metrics(); idleRows.push(delta(i0, i1));
+        if (PAT) await ev(`performance.mark('apmw:idleend:${i}')`);
+        const c0 = await cnt();
+        if (PAT) await ev(`performance.mark('apmw:act:${i}')`);
         const a0 = await metrics(); const kind = await act(); await sleep(WIN); const a1 = await metrics();
+        if (PAT) await ev(`performance.mark('apmw:actend:${i}')`);
+        const c1 = await cnt();
         if (kind) rows.push({ kind, ...delta(a0, a1) });
+        if (PAT) patWin.push({ i, kind, renders: c1 && c0 ? { recruit: (c1['recruit renders'] || 0) - (c0['recruit renders'] || 0), card: (c1['card renders'] || 0) - (c0['card renders'] || 0) } : null });
+      }
+      if (PAT) {
+        const done = new Promise((r) => c.on('Tracing.tracingComplete', r));
+        await c.send('Tracing.end'); await Promise.race([done, sleep(60000)]); patEvents.done = true;
       }
       const med = (v) => { const x = [...v].sort((a, b) => a - b); return x.length ? x[x.length >> 1] : 0; };
       const base = { task: med(idleRows.map((r) => r.task)), script: med(idleRows.map((r) => r.script)), style: med(idleRows.map((r) => r.style)), layout: med(idleRows.map((r) => r.layout)) };
@@ -531,9 +556,16 @@ async function oneRun(port, runIdx, dist) {
         const rs = rows.filter((r) => r.kind === kind);
         perAction.byKind[kind] = { n: rs.length, task: r1(med(rs.map((r) => r.task)) - base.task), script: r1(med(rs.map((r) => r.script)) - base.script), style: r1(med(rs.map((r) => r.style)) - base.style), layout: r1(med(rs.map((r) => r.layout)) - base.layout) };
       }
+      if (PAT) { perAction.trace = perActionTrace(patEvents, patWin); patEvents.length = 0; }
       await sleep(3000);
     }
 
+    // --trace-out <file>: the raw trace (renderer + GPU slices, user-timing marks 'apm:idle' / 'apm:burst' / 'apm:tail' /
+    // 'apm:end'), started BEFORE the idle baseline so a frame at rest can be compared with a frame in the burst.
+    if (arg('trace-out', '')) {
+      c.on('Tracing.dataCollected', (p) => { for (const e of p.value) traceEvents.push(e); });
+      await c.send('Tracing.start', { transferMode: 'ReportEvents', traceConfig: { includedCategories: ['devtools.timeline', 'disabled-by-default-devtools.timeline', 'cc', 'gpu', 'viz', 'blink', 'blink.user_timing', 'toplevel', '__metadata', ...arg('trace-cats', '').split(',').filter(Boolean)] } });
+    }
     // ---- idle baseline ----
     await ev(`window.__apm.startSampler(${flag('census')})`);
     await ev(`window.__apm.mark('idle')`);
@@ -578,6 +610,16 @@ async function oneRun(port, runIdx, dist) {
     const m2 = await metrics();
     let cpuProfile = null;
     if (flag('profile')) cpuProfile = (await c.send('Profiler.stop')).profile;
+    if (arg('trace-out', '')) {
+      await sleep(TAIL * 1000); await ev(`window.__apm.mark('end')`);
+      const done = new Promise((r) => c.on('Tracing.tracingComplete', r)); await c.send('Tracing.end'); await Promise.race([done, sleep(60000)]);
+      fs.mkdirSync(path.dirname(path.resolve(arg('trace-out'))), { recursive: true });
+      const out = fs.createWriteStream(path.resolve(arg('trace-out'))); out.write('[\n');
+      for (let i = 0; i < traceEvents.length; i++) out.write((i ? ',\n' : '') + JSON.stringify(traceEvents[i]));
+      out.write('\n]\n'); await new Promise((r) => out.end(r));
+      log(`   trace: ${traceEvents.length} events -> ${arg('trace-out')}`);
+      traceEvents.length = 0;
+    }
     if (flag('trace') || flag('trace-style')) { const done = new Promise((r) => c.on('Tracing.tracingComplete', r)); await c.send('Tracing.end'); await Promise.race([done, sleep(60000)]); }
     if (arg('shots', '')) { for (const [i, ms] of [[0, 150], [1, 600], [2, 1500]]) { await sleep(ms - (i ? [150, 600][i - 1] : 0)); const s = await c.send('Page.captureScreenshot', { format: 'png' }); fs.writeFileSync(path.join(arg('shots'), `tail-${LABEL || 'run'}-${runIdx}-${ms}ms.png`), Buffer.from(s.data, 'base64')); } }
     await sleep(TAIL * 1000);
@@ -585,6 +627,8 @@ async function oneRun(port, runIdx, dist) {
     const m3 = await metrics();
     await ev(`window.__apm.stopSampler()`);
     const final = await ev(`(() => { const r = ${g}.run; return { board: r.board.map((b) => [b.cardId, b.attack, b.health]) }; })()`);
+    // --eval-end <js>: an expression evaluated in the page after the tail; its JSON goes to the log (ad-hoc probes).
+    if (arg('eval-end', '')) { try { log('   eval-end: ' + JSON.stringify(await ev(arg('eval-end')), null, 1)); } catch (e) { log('   eval-end failed: ' + e.message); } }
     const dump = await ev(`window.__apm.dump()`);
     return { gpu, built, dump, dist, hungInputs, machineBusyPct, priority, perAction, metrics: { idle: [m0, m1], burst: [m1, m2], tail: [m2, m3] }, attempted, profile: cpuProfile, traceEvents, final };
   } catch (e) {
@@ -699,6 +743,73 @@ function analyse(run) {
 }
 /** Top self time, named through the bench build's hidden source maps, plus WHO CALLED the native layout / lookup
  *  functions (getBoundingClientRect, getComputedStyle, ...): the first app frame above each sample. */
+/**
+ * --per-action-trace: each action's main thread by category (SELF time of the renderer main thread's timeline slices
+ * inside the action's window, less the median idle window), the elements its style recalculations touched, and the
+ * renders it cost. Categories: style (UpdateLayoutTree), layout (Layout), paint (PrePaint, Paint, Layerize, the
+ * compositing update and the commit to the compositor), script (every JS slice, GC included), other (the rest).
+ */
+function perActionTrace(events, wins) {
+  const names = new Map();
+  for (const e of events) if (e.ph === 'M' && e.name === 'thread_name') names.set(`${e.pid}:${e.tid}`, e.args?.name);
+  const byThread = new Map();
+  for (const e of events) if (e.ph === 'X' && names.get(`${e.pid}:${e.tid}`) === 'CrRendererMain') { const k = `${e.pid}:${e.tid}`; if (!byThread.has(k)) byThread.set(k, []); byThread.get(k).push(e); }
+  const main = [...byThread.values()].sort((a, b) => b.length - a.length)[0] || [];
+  const marks = new Map();
+  for (const e of events) if (typeof e.name === 'string' && e.name.startsWith('apmw:') && (e.ph === 'R' || e.ph === 'I' || e.ph === 'n' || e.ph === 'b' || e.ph === 'i')) if (!marks.has(e.name)) marks.set(e.name, e.ts);
+  const cat = (n) => {
+    if (n === 'UpdateLayoutTree' || n === 'RecalculateStyles' || n === 'ParseAuthorStyleSheet') return 'style';
+    if (n === 'Layout' || n === 'UpdateLayout') return 'layout';
+    if (/^(PrePaint|Paint|PaintImage|Layerize|UpdateLayer|UpdateLayerTree|CompositeLayers|Commit|PaintArtifactCompositor|ScrollLayer|Decode)/.test(n)) return 'paint';
+    if (/^(FunctionCall|EvaluateScript|TimerFire|FireAnimationFrame|EventDispatch|RunMicrotasks|V8\.|v8\.|MinorGC|MajorGC|GCEvent|BlinkGC|FireIdleCallback|XHR|v8)/.test(n)) return 'script';
+    return 'other';
+  };
+  main.sort((a, b) => a.ts - b.ts || b.dur - a.dur);
+  // Self time per slice: its duration less its direct children's.
+  const self = new Float64Array(main.length); const stack = [];
+  for (let i = 0; i < main.length; i++) {
+    const e = main[i]; self[i] = e.dur || 0;
+    while (stack.length && main[stack[stack.length - 1]].ts + (main[stack[stack.length - 1]].dur || 0) <= e.ts) stack.pop();
+    if (stack.length) self[stack[stack.length - 1]] -= e.dur || 0;
+    stack.push(i);
+  }
+  const sum = (t0, t1) => {
+    const o = { script: 0, style: 0, layout: 0, paint: 0, other: 0, restyled: 0, recalcs: 0, names: {} };
+    for (let i = 0; i < main.length; i++) {
+      const e = main[i]; if (e.ts < t0 || e.ts >= t1) continue;
+      if (e.name === 'RunTask' || e.name === 'ThreadControllerImpl::RunTask') continue; // the task wrapper: its self time is scheduling
+      o[cat(e.name)] += Math.max(0, self[i]) / 1000;
+      o.names[e.name] = (o.names[e.name] || 0) + Math.max(0, self[i]) / 1000;
+      if (e.name === 'UpdateLayoutTree') { o.restyled += e.args?.elementCount || 0; o.recalcs++; }
+    }
+    return o;
+  };
+  const med = (v) => { const x = [...v].sort((a, b) => a - b); return x.length ? x[x.length >> 1] : 0; };
+  const idle = []; const acts = [];
+  for (const w of wins) {
+    const i0 = marks.get(`apmw:idle:${w.i}`), i1 = marks.get(`apmw:idleend:${w.i}`), a0 = marks.get(`apmw:act:${w.i}`), a1 = marks.get(`apmw:actend:${w.i}`);
+    if (i0 != null && i1 != null) idle.push(sum(i0, i1));
+    if (w.kind && a0 != null && a1 != null) acts.push({ kind: w.kind, renders: w.renders, ...sum(a0, a1) });
+  }
+  const keys = ['script', 'style', 'layout', 'paint', 'other', 'restyled', 'recalcs'];
+  const base = Object.fromEntries(keys.map((k) => [k, med(idle.map((r) => r[k]))]));
+  const byKind = {};
+  for (const kind of [...new Set(acts.map((a) => a.kind))]) {
+    const rs = acts.filter((a) => a.kind === kind);
+    const row = { n: rs.length };
+    for (const k of keys) row[k] = r1(med(rs.map((r) => r[k])) - base[k]);
+    row.main = r1(row.script + row.style + row.layout + row.paint + row.other);
+    row.recruitRenders = med(rs.map((r) => r.renders?.recruit ?? 0));
+    row.cardRenders = med(rs.map((r) => r.renders?.card ?? 0));
+    byKind[kind] = row;
+  }
+  // Which slices the actions add, all kinds together (mean per action less the mean idle window).
+  const nm = (rs) => { const t = {}; for (const r of rs) for (const [k, v] of Object.entries(r.names)) t[k] = (t[k] || 0) + v / rs.length; return t; };
+  const an = nm(acts), inn = nm(idle);
+  const topNames = Object.keys(an).map((k) => [k, r1(an[k] - (inn[k] || 0)), cat(k)]).sort((a, b) => b[1] - a[1]).slice(0, 16);
+  return { topNames, idle: Object.fromEntries(keys.map((k) => [k, r1(base[k])])), byKind, mainSlices: main.length, marks: marks.size };
+}
+
 function topSelf(profile, n, dist) {
   const require_ = createRequire(import.meta.url);
   const maps = new Map();
@@ -853,6 +964,15 @@ function report(results) {
     lines.push('| action | n | all tasks | script | style | layout |'); lines.push('|---|---|---|---|---|---|');
     for (const [k, v] of Object.entries(a0.perActionCost.byKind)) lines.push(`| ${k} | ${v.n} | ${v.task} | ${v.script} | ${v.style} | ${v.layout} |`);
     lines.push(`(idle ${a0.perActionCost.windowMs} ms: ${r1(a0.perActionCost.idle.task)} ms of tasks, ${r1(a0.perActionCost.idle.style)} style)`);
+    const tr = a0.perActionCost.trace;
+    if (tr) {
+      lines.push(''); lines.push(`### The same actions under a trace (run 1, --per-action-trace: main-thread self ms by category less an idle window, elements restyled, renders)`);
+      lines.push('| action | n | main ms | script | style | layout | paint | other | elements restyled | style recalcs | Recruit renders | card renders |');
+      lines.push('|---|---|---|---|---|---|---|---|---|---|---|---|');
+      for (const [k, v] of Object.entries(tr.byKind)) lines.push(`| ${k} | ${v.n} | ${v.main} | ${v.script} | ${v.style} | ${v.layout} | ${v.paint} | ${v.other} | ${v.restyled} | ${v.recalcs} | ${v.recruitRenders} | ${v.cardRenders} |`);
+      lines.push(`Slices the actions add (mean per action less idle): ${tr.topNames.map(([n, ms, c]) => `${n} [${c}] ${ms}`).join(', ')}`);
+      lines.push(`(idle window: script ${tr.idle.script}, style ${tr.idle.style}, layout ${tr.idle.layout}, paint ${tr.idle.paint}, ${tr.idle.restyled} elements restyled; ${tr.mainSlices} main-thread slices, ${tr.marks} marks)`);
+    }
   }
   if (a0.spans) { lines.push(''); lines.push('### In-game monitor spans (run 1, self ms per second of burst)'); lines.push('| label | calls | self ms/s | total ms/s | worst ms |'); lines.push('|---|---|---|---|---|'); for (const s of a0.spans) lines.push(`| ${s.label} | ${s.n} | ${s.selfMsPerSec} | ${s.totalMsPerSec} | ${s.max} |`); lines.push(''); lines.push(`Inside dropped frames: ${a0.longAttrib.map((x) => `${x.label} ${x.ms} ms / ${x.frames} frames`).join('; ')}`); lines.push(`Peak FX counters: ${JSON.stringify(a0.fxCounts)}`); }
   if (a0.profileTop) { lines.push(''); lines.push('### CPU profile, top self time (run 1)'); for (const p of a0.profileTop.top) lines.push(`- ${p.ms} ms (${p.pct}%) ${p.fn}`); lines.push(''); lines.push('### Who called the layout / lookup natives (run 1, self ms)'); for (const p of a0.profileTop.nativeCallers) lines.push(`- ${p.ms} ms (${p.pct}%) ${p.fn}`); }

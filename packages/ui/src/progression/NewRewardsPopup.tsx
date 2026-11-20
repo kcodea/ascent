@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { achievementOf, crateLabel, isMasterTitle, titleName } from '@game/progression';
+import { achievementOf, crateLabel, titleName } from '@game/progression';
 import { TitleBadge } from '../titles/TitleBadge';
+import { hasTitlePlate } from '../titles/titleStyle';
 import { useGame } from '../store';
 import { sfx } from '../sfx';
 import { Icon } from '../Icon';
@@ -101,7 +102,7 @@ export function NewRewardsPopup({ sealedIds, onOpenCrates }: {
         {titles.length > 0 && (
           <div className="nrw-sec">
             <div className="nrw-kicker">{titles.length === 1 ? 'Title unlocked' : 'Titles unlocked'}</div>
-            <div className="nrw-titles">{titles.map((t) => (isMasterTitle(t)
+            <div className="nrw-titles">{titles.map((t) => (hasTitlePlate(t)
               ? <TitleBadge key={t} id={t} className="nrw-titleplate" />
               : <span key={t} className="nrw-titlechip">{titleName(t)}</span>))}</div>
             <div className="nrw-note">Wear it from the Titles tab.</div>

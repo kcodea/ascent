@@ -14303,6 +14303,67 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .titlebadge.tb-master.tb-md { padding: 0.3em 1.2em 0.28em 1em; }
 /* The Career name header: the master title at the rarity chip's size. */
 .titlebadge.cv2-titleplate { --tb-fs: 15px; flex: none; transform: translateY(-4px); }
+/* ── THEMED TITLES (owner ask 2026-11-20: "make the new titles more exciting/fun looking based on their tribes or
+   whatever unlocks them"). A title with a `look` (`CosmeticDef.look`, every secret title) paints one of twelve themes
+   instead of its rarity: a tribe (that tribe's `--t-*` hue and its painted medallion) or a feat family (coin, steel,
+   royal, jester). Every theme carries the SHARED SECRET SEAL so it reads as secret, never as a rarity or the master
+   look: a crimson inner rim (static) and a small crimson diamond after the name. Colour, gradient, type, border and a
+   STATIC glow only, no drawn props. The one shared loop is a slow light sweep (::after, TRANSFORM only, the shared
+   `tbshimmer`); Celestial adds a star dust layer whose OPACITY breathes (::before over a static gradient, the kwglow
+   rule). Both stop under reduced motion. Each theme only sets tokens below; the shape is shared. */
+.titlebadge.tb-look {
+  gap: 0.42em; padding: 0.2em 0.7em 0.2em 0.6em; font-family: var(--lk-font, var(--font-ui)); font-style: var(--lk-style, normal);
+  letter-spacing: var(--lk-ls, 0.12em); color: var(--lk-solid, #fff);
+  background: var(--lk-bg, rgba(10, 8, 6, 0.85)); border: 1px solid var(--lk-rim, #ff4a4a);
+  box-shadow: 0 0 0.75em -0.12em var(--lk-glow, rgba(255, 74, 74, 0.5)), inset 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 0 0 2px rgba(255, 74, 74, 0.38), inset 0 1px 0 2px rgba(255, 255, 255, 0.06);
+}
+.titlebadge.tb-look > span { position: relative; z-index: 1; }
+.titlebadge.tb-look .tb-text { background: var(--lk-text); -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.7)); }
+.titlebadge.tb-look .tb-medal { flex: none; display: inline-flex; margin: -0.2em 0 -0.2em -0.15em; }
+.titlebadge.tb-look .tb-medal .tribemedal { height: 1.45em; width: auto; object-fit: contain; }
+.titlebadge.tb-look .tb-seal { flex: none; display: inline-flex; font-size: 0.6em; line-height: 1; margin-left: 0.05em; color: #ff5a5a; text-shadow: 0 0 0.45em rgba(255, 50, 50, 0.85); }
+.titlebadge.tb-look .tb-seal::after { content: '\25C6'; content: '\25C6' / ''; }
+.titlebadge.tb-look::after { content: ''; position: absolute; inset: 0; z-index: 2; pointer-events: none; border-radius: inherit;
+  background: linear-gradient(100deg, transparent 34%, rgba(255, 255, 255, 0.22) 50%, transparent 66%);
+  transform: translateX(-120%); animation: tbshimmer 6.4s ease-in-out infinite; will-change: transform; }
+.titlebadge.tb-look.tb-md { padding: 0.28em 1em 0.26em 0.85em; }
+/* The tribes. */
+.titlebadge.tb-look-dwarf { --lk-font: var(--font-cardname); --lk-ls: 0.08em; --lk-rim: var(--t-dwarf); --lk-glow: rgba(240, 195, 60, 0.55);
+  --lk-text: linear-gradient(180deg, #fff4c8 0%, #f6cf52 50%, #d08e1e 100%); --lk-bg: linear-gradient(180deg, #3d2711, #1a0f06); }
+.titlebadge.tb-look-demon { --lk-rim: var(--t-demon); --lk-glow: rgba(255, 82, 112, 0.55);
+  --lk-text: linear-gradient(100deg, #ffc08a 0%, #ff6a7e 48%, #cf8cff 100%); --lk-bg: linear-gradient(180deg, #2e0c24, #12040f); }
+.titlebadge.tb-look-spirit { --lk-rim: #86c46e; --lk-glow: rgba(120, 205, 110, 0.6);
+  --lk-text: linear-gradient(100deg, #fff0dc 0%, #ffc28e 50%, var(--t-spirit) 100%); --lk-bg: linear-gradient(180deg, #13281b, #07120b); }
+.titlebadge.tb-look-dragon { --lk-rim: #ffc94a; --lk-glow: rgba(255, 70, 60, 0.55);
+  --lk-text: linear-gradient(100deg, #fff3bf 0%, #ffcc4d 52%, #ff7a5a 100%); --lk-bg: linear-gradient(180deg, #3c0b12, #160306); }
+.titlebadge.tb-look-beast { --lk-rim: var(--t-beast); --lk-glow: rgba(78, 168, 59, 0.5);
+  --lk-text: linear-gradient(100deg, #fae6be 0%, #e7ad62 60%, #c98a45 100%); --lk-bg: linear-gradient(180deg, #2c1e10, #120c06); }
+.titlebadge.tb-look-undead { --lk-rim: var(--t-undead); --lk-glow: rgba(34, 184, 168, 0.6);
+  --lk-text: linear-gradient(100deg, #f6f1e4 0%, #ddd5c0 45%, #86f6e6 100%); --lk-bg: linear-gradient(180deg, #0c2120, #050d0d); }
+.titlebadge.tb-look-kobold { --lk-rim: var(--t-kobold); --lk-glow: rgba(232, 60, 70, 0.6);
+  --lk-text: linear-gradient(115deg, #ffd3c8 0%, #ff7262 38%, #ff3d55 62%, #ffb3a6 100%); --lk-bg: linear-gradient(180deg, #2c070d, #120205); }
+.titlebadge.tb-look-celestial { --lk-rim: var(--t-celestial); --lk-glow: rgba(150, 165, 255, 0.6);
+  --lk-text: linear-gradient(100deg, #ffffff 0%, #d4dbff 50%, #a9b3dc 100%); --lk-bg: linear-gradient(180deg, #161c44, #070a1c); }
+.titlebadge.tb-look-celestial::before { content: ''; position: absolute; inset: 0; z-index: 0; pointer-events: none; border-radius: inherit;
+  /* Star dust along the rim only (top and bottom edges), never over the letters. */
+  background: radial-gradient(circle at 22% 9%, rgba(255, 255, 255, 0.9) 0 0.8px, transparent 1.4px), radial-gradient(circle at 44% 91%, rgba(200, 215, 255, 0.85) 0 0.8px, transparent 1.4px),
+    radial-gradient(circle at 63% 8%, rgba(255, 255, 255, 0.8) 0 0.8px, transparent 1.4px), radial-gradient(circle at 81% 92%, rgba(190, 205, 255, 0.85) 0 0.8px, transparent 1.4px),
+    radial-gradient(circle at 93% 12%, rgba(255, 255, 255, 0.75) 0 0.8px, transparent 1.4px);
+  animation: kwglow 3.6s ease-in-out infinite; will-change: opacity; }
+/* The feat families. */
+.titlebadge.tb-look-coin { --lk-rim: #ffd34d; --lk-glow: rgba(255, 211, 77, 0.5);
+  --lk-text: linear-gradient(180deg, #fffbe0 0%, #ffe066 45%, #e0a21f 100%); --lk-bg: linear-gradient(180deg, #2d2408, #110d03); }
+.titlebadge.tb-look-steel { --lk-rim: #b8c3d0; --lk-glow: rgba(210, 24, 44, 0.6);
+  --lk-text: linear-gradient(180deg, #ffffff 0%, #d3dbe4 55%, #929fae 100%); --lk-bg: linear-gradient(180deg, #2a0d12 0%, #15181e 45%, #0a0c10 100%); }
+.titlebadge.tb-look-royal { --lk-font: var(--font-cardname); --lk-ls: 0.08em; --lk-rim: #f2c14e; --lk-glow: rgba(150, 90, 255, 0.6);
+  --lk-text: linear-gradient(180deg, #fff4c4 0%, #f5c955 60%, #dca233 100%); --lk-bg: linear-gradient(180deg, #2c1554, #120726); }
+.titlebadge.tb-look-jester { --lk-style: italic; --lk-rim: #ff7ad9; --lk-glow: rgba(125, 205, 255, 0.5);
+  --lk-text: linear-gradient(100deg, #8dffbe 0%, #ffe46e 34%, #ff8ade 68%, #8fd0ff 100%); --lk-bg: linear-gradient(180deg, #21163a, #0c0816); }
+@media (prefers-reduced-motion: reduce) {
+  .titlebadge.tb-look::after { animation: none; opacity: 0; }
+  .titlebadge.tb-look-celestial::before { animation: none; opacity: 0.8; }
+}
 
 .crate { display: flex; flex-direction: column; align-items: center; gap: 8px; width: 100%; font-family: var(--font-ui); }
 .crate-stage { position: relative; width: 100%; height: 150px; display: grid; place-items: center; }

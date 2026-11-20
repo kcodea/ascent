@@ -153,7 +153,21 @@ export interface CosmeticDef {
    * catalog sync; a player who already completed it keeps it.
    */
   collection?: string;
+  /**
+   * A TITLE's themed look (owner ask 2026-11-20: "make the new titles more exciting/fun looking based on their tribes or
+   * whatever unlocks them"). Presentation only: the client paints `TitleBadge` in this theme. It never reaches the server
+   * (`catalogSyncPayload` names its fields), so adding or changing one needs no deploy.
+   */
+  look?: TitleLookKey;
 }
+
+/** The themed title looks (`CosmeticDef.look`). Tribe looks name their tribe; the rest name what the feat is about. */
+export type TitleLookKey =
+  | 'dwarf' | 'demon' | 'spirit' | 'dragon' | 'beast' | 'undead' | 'kobold' | 'celestial'
+  | 'coin' | 'steel' | 'royal' | 'jester';
+export const TITLE_LOOK_KEYS: readonly TitleLookKey[] = Object.freeze([
+  'dwarf', 'demon', 'spirit', 'dragon', 'beast', 'undead', 'kobold', 'celestial', 'coin', 'steel', 'royal', 'jester',
+] as const);
 
 /** Owner 2026-09-27: the MVP's Level 2 title. A level milestone, so it is never in the crate pool. */
 export const ALPHA_TESTER_TITLE_ID = 'alpha_tester';
@@ -287,12 +301,35 @@ export const SECRET_TITLE_NAMES: ReadonlyArray<readonly [key: string, title: str
   ['committed_to_the_bit', 'Committed to the Bit'], ['tier_one_hero', 'Tier One Hero'], ['empty_handed', 'Empty Handed'], ['pacifist', 'Pacifist'],
   ['spellbound', 'Spellbound'], ['hoarder', 'Hoarder'],
 ] as const);
+/**
+ * Each secret title's themed look (owner ask 2026-11-20), grouped by theme: the tribe for a tribe feat (Chef Raag is a
+ * Demon, Rubies are the Kobold engine, Gilding and Gold are coin), else what the feat is about: Gold and the Shop
+ * (coin), a combat feat (steel), the lobby and placement (royal), a silly or self-imposed challenge (jester).
+ */
+export const SECRET_TITLE_LOOKS: Readonly<Record<string, TitleLookKey>> = Object.freeze({
+  kings_jester: 'dwarf', imp_kings_favourite: 'demon', sous_chef: 'demon', moss_gardener: 'spirit',
+  keeper_of_the_hoard: 'dragon', dragons_bed: 'dragon', oonas_packmate: 'beast', wicks_apprentice: 'undead',
+  gramps_favourite: 'kobold', ruby_rich: 'kobold', starstruck: 'celestial', spellbound: 'celestial',
+  window_shopper: 'coin', never_rolled: 'coin', big_spender: 'coin', buyers_remorse: 'coin', frugal_to_a_fault: 'coin',
+  rush_job: 'coin', late_bloomer: 'coin', pocket_lint: 'coin', discount_bin: 'coin', midas_accountant: 'coin', triple_threat: 'coin',
+  last_one_standing: 'steel', the_comeback: 'steel', overkill: 'steel', glass_cannon: 'steel', wall_of_wards: 'steel',
+  echo_chamber: 'steel', rally_the_troops: 'steel', unkillable: 'steel', shouting_match: 'steel', titan_tamer: 'steel', buff_collector: 'steel',
+  mixed_company: 'royal', cockroach: 'royal', untouched: 'royal', flawless_ascent: 'royal', kingslayer: 'royal', executioner: 'royal',
+  fashionably_late: 'royal', photo_finish: 'royal',
+  stalemate_survivor: 'jester', committed_to_the_bit: 'jester', tier_one_hero: 'jester', empty_handed: 'jester', pacifist: 'jester', hoarder: 'jester',
+});
 /** A secret title's catalog id, and the hidden achievement that grants it. Permanent. */
 export const secretTitleId = (key: string): string => `title_secret_${key}`;
 export const secretAchievementId = (key: string): string => `secret.${key}`;
 export const SECRET_TITLE_COSMETICS: readonly CosmeticDef[] = Object.freeze(SECRET_TITLE_NAMES.map(([key, name]): CosmeticDef => (
-  { id: secretTitleId(key), category: 'title', name, rarity: SECRET_RARITY, acquisition: { type: 'achievement', id: secretAchievementId(key) }, assets: {}, active: true }
+  { id: secretTitleId(key), category: 'title', name, rarity: SECRET_RARITY, acquisition: { type: 'achievement', id: secretAchievementId(key) }, assets: {}, active: true, ...(SECRET_TITLE_LOOKS[key] ? { look: SECRET_TITLE_LOOKS[key] } : {}) }
 )));
+
+/** A title's themed look key, or null (an unknown id, a non-title, or a title with no theme). */
+export const titleLookKeyOf = (id: string | null | undefined): TitleLookKey | null => {
+  const c = cosmeticOf(id);
+  return c?.category === 'title' ? c.look ?? null : null;
+};
 
 /**
  * THE PLUSHIE BEAST COLLECTION (owner 2026-10-27: "i want this to be a secrete unlock that the players are given once

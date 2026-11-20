@@ -10,7 +10,8 @@
  *
  * Pure (no store, no React), so the resolver is cheap to test and to call from any render.
  */
-import { isMasterTitle, titleOf, type CosmeticRarity, type RunCosmeticSnapshot } from '@game/progression';
+import type { Tribe } from '@game/core';
+import { isMasterTitle, titleLookKeyOf, titleOf, type CosmeticRarity, type RunCosmeticSnapshot, type TitleLookKey } from '@game/progression';
 
 /** A title's custom look. `gradient` is any CSS gradient, painted into the text. `effect: 'shimmer'` adds a light
  *  sweep that animates TRANSFORM only (compositor-only, docs/performance.md), and stops under reduced motion. */
@@ -31,7 +32,19 @@ export interface TitleLook {
   /** A hero title's MASTER version (10 Ranked 1sts with the hero, owner 2026-09-29): painted in the master look (the
    *  glowing gradient pill, owner pick 2026-10-28), whatever `custom` says. */
   master: boolean;
+  /** A THEMED title (the secret titles, owner ask 2026-11-20): `CosmeticDef.look`, painted by `.tb-look-<key>` in
+   *  styles.css. Null for a plain rarity title. The master look still wins over it. */
+  look: TitleLookKey | null;
 }
+
+/** The themed looks that are a tribe's, and so lead with that tribe's painted medallion (`public/menu/tribe-<id>.webp`). */
+export const TITLE_LOOK_TRIBE: Readonly<Partial<Record<TitleLookKey, Tribe>>> = Object.freeze({
+  dwarf: 'dwarf', demon: 'demon', spirit: 'spirit', dragon: 'dragon', beast: 'beast', undead: 'undead', kobold: 'kobold', celestial: 'celestial',
+});
+
+/** True when a surface that otherwise prints a title as plain text should render the `TitleBadge` instead: a master
+ *  title, or a themed one. */
+export const hasTitlePlate = (id: string | null | undefined): boolean => isMasterTitle(id ?? null) || titleLookKeyOf(id) !== null;
 
 /**
  * The look of the title a snapshot names, or null to show nothing. Null for an unknown, retired or non-title id
@@ -40,7 +53,7 @@ export interface TitleLook {
 export function titleLookOf(snapshot: RunCosmeticSnapshot | null | undefined, styles: Readonly<Record<string, TitleCustomStyle>> = TITLE_STYLES): TitleLook | null {
   const def = titleOf(snapshot);
   if (!def) return null;
-  return { id: def.id, name: def.name, rarity: def.rarity, custom: styles[def.id] ?? null, master: isMasterTitle(def.id) };
+  return { id: def.id, name: def.name, rarity: def.rarity, custom: styles[def.id] ?? null, master: isMasterTitle(def.id), look: def.look ?? null };
 }
 
 /** The same, from a bare title id (a profile row, a leaderboard row). */

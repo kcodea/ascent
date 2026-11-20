@@ -14,6 +14,19 @@ unlocking them grants xp too and it's easier to track in game".
 - No SQL: `settle_progression` already reads any run-metric key, grants `title_id` in the same transaction, and the
   category column has no check. The parity suite and the PGlite evaluator comparison cover the new defs.
 
+## Themed looks (owner follow-up, same day)
+
+"Make the new titles more exciting/fun looking based on their tribes or whatever unlocks them." Each secret title
+carries `CosmeticDef.look` (`SECRET_TITLE_LOOKS` in cosmetics.ts), one of 12 themes: the 8 tribes (Dwarf, Demon, Spirit,
+Dragon, Beast, Undead, Kobold, Celestial) plus coin (Gold and the Shop), steel (combat), royal (lobby and placement) and
+jester (silly challenges). `TitleBadge` paints `.tb-look-<key>` (styles.css: tokens only, shared shape), with the
+tribe's painted medallion for a tribe look and a shared secret seal (crimson inner rim, small crimson diamond). Loops:
+one slow transform sweep for all, plus Celestial's opacity star dust. `look` is client-only (the catalog sync payload
+names its fields), so no deploy. Surfaces that printed non-master titles as plain text (Career header, Collection,
+new-rewards popup) now render the badge for any title with a look (`hasTitlePlate`). The lobby rail stays title-free
+(owner ruling 2026-09-28, pinned in titles.test.tsx). Spirit uses its own lantern copper text with a moss green rim
+and glow, since the Spirit token is copper, not green.
+
 ## Left out (no reliable signal)
 
 - **Avenger** (15 Avenges in one combat): each Avenge factory decides its own threshold; no event or counter records a

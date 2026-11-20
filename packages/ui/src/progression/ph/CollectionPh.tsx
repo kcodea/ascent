@@ -19,8 +19,7 @@
  */
 import { memo, useCallback, useEffect, useRef, useState, useSyncExternalStore, type RefObject } from 'react';
 import {
-  ALL_COSMETIC_RARITIES, COSMETIC_CATEGORY_DEFS, RARITY_LABELS, crateLabel, isMasterTitle,
-  type CosmeticCategory, type CosmeticDef, type CosmeticRarity, type levelProgress,
+  ALL_COSMETIC_RARITIES, COSMETIC_CATEGORY_DEFS, RARITY_LABELS, crateLabel, type CosmeticCategory, type CosmeticDef, type CosmeticRarity, type levelProgress,
 } from '@game/progression';
 import { PhButton, PhChip, PhEmpty, PhMeter, PhPage, PhRow, PhSection, PhTabs, PhToggleChip } from '../../partyHome/kit';
 import { takeCollectionIntent, usePhShell } from '../../partyHome/shell/shellStore';
@@ -30,6 +29,7 @@ import { HeroPortraitRing } from '../../portraitFrame/HeroPortraitRing';
 import { frameSrc } from '../../portraitFrame/portraitFrameConfig';
 import { HeroAttackPreview } from '../../heroBlast/HeroAttackPreview';
 import { TitleBadge } from '../../titles/TitleBadge';
+import { hasTitlePlate } from '../../titles/titleStyle';
 import { emoteSrc } from '../../emotes/emoteArt';
 import { defaultArtOf, skinArtOf } from '../../skins/skinArt';
 import { previewAnnouncerPack, stopAnnouncerPreview } from '../../announcer';
@@ -226,7 +226,7 @@ export function CollectionPh({ view: v }: { view: CollectionPhView }): JSX.Eleme
                         <Tile
                           id={c.id} name={c.name} rarity={c.rarity} art={tileArt(c)} contain={c.category === 'emote'} artTop={c.category === 'card_plate' || c.category === 'portrait_frame'}
                           target={skinTargetName(c) ?? undefined} owned={v.owned.has(c.id)} equipped={v.worn(c)} fresh={v.fresh(c)} selected={v.selectedId === c.id}
-                          master={isMasterTitle(c.id)} onPick={pick} onDropEmote={c.category === 'emote' && v.owned.has(c.id) ? dropEmote : undefined}
+                          master={hasTitlePlate(c.id)} onPick={pick} onDropEmote={c.category === 'emote' && v.owned.has(c.id) ? dropEmote : undefined}
                           onHover={c.target?.type === 'card' ? v.onHover : undefined}
                         />
                       </li>
@@ -462,7 +462,7 @@ function Detail({ v, item }: { v: CollectionPhView; item: CosmeticDef }): JSX.El
           <div className="phc-stage-title">
             <span className="phc-stage-lbl">Preview</span>
             <span className="phc-stage-name">{v.playerName}</span>
-            <span className="phc-stage-sub">{isMasterTitle(item.id) ? <TitleBadge id={item.id} className="colls-titleplate" /> : item.name}</span>
+            <span className="phc-stage-sub">{hasTitlePlate(item.id) ? <TitleBadge id={item.id} className="colls-titleplate" /> : item.name}</span>
           </div>
         )}
         {voice && (
@@ -478,7 +478,7 @@ function Detail({ v, item }: { v: CollectionPhView; item: CosmeticDef }): JSX.El
         <span className="phc-kindrow">
           <span className="phc-kind">{kindOf(item)}</span>
         </span>
-        <h2>{isMasterTitle(item.id) ? <TitleBadge id={item.id} className="colls-titleplate colls-titleplate-lg" /> : item.name}</h2>
+        <h2>{hasTitlePlate(item.id) ? <TitleBadge id={item.id} className="colls-titleplate colls-titleplate-lg" /> : item.name}</h2>
         <span className={`phc-rarity r-${item.rarity}`}><span className="phc-gem" aria-hidden />{RARITY_LABELS[item.rarity]}</span>
       </div>
 

@@ -117,6 +117,19 @@ medal + division — see *Ranked ladder* below).
     instead (#1928); the owner reverted it on 2026-10-06 (*"matchmaking algorithm -> backtrack to the weighted
     version"*) after a live-pool audit showed it barely tracked how strong a run's boards were in rounds 3-7. Numbers
     frozen in match history keep the value they were frozen with.
+  - **Relevant Strength and Run Strength** (owner 2026-11-20: *"lets call it Relevant Strength and Run Strength"*,
+    R-RESULTS-STRENGTH-WINDOW-01; `docs/superpowers/specs/2026-11-20-strength-while-you-faced-them-design.md`). A game's
+    recap shows TWO named numbers per seat. **Relevant Strength** (`MatchSeat.windowStrength`, 1-100) is how strong that
+    seat's board was across only the rounds YOU played it, the round-weighted mean of its per-round board percentiles
+    (`roundStrength`, frozen into the match record for every seat, not only yours). It is the headline: shown first and
+    larger. **Run Strength** (`MatchSeat.strength`, the number this section called "Game strength" above) is the seat's
+    whole-run percentile among runs, shown second and smaller. Format: `Relevant Strength 90 · Run Strength 40`, on the
+    lobby tiles (hover), the scoreboard rows and the game page header. Clicking any seat shows its strip, "Relevant
+    Strength by round". A record built by the new code carries `strengthWindow: 1`; in it a seat with no Relevant Strength
+    shows none (Run Strength is never put in its place). An older record has no marker: it shows Run Strength alone, and
+    its own-seat strip keeps the old "Game strength by round" wording. The two are on different scales (an average of
+    board ranks sits nearer the middle; a run percentile spreads to the ends); the hover tips say what each one is.
+    Career and Recent Games list rows still read "Game strength" (the run number).
   - **Early and late ratings** (owner 2026-10-06, R-LOBBY-13: *"perhaps we have multiple ratings like the weighted
     system / and we lean into those different ratings depending on the rank / ... early is 1-9 / late is 10+"*). Each
     run also has an **EARLY** rating (the plain mean of its board percentiles in rounds **1-9**) and a **LATE** rating

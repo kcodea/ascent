@@ -11,7 +11,7 @@ import { StoredTeam } from './StoredTeam';
 import { bandOf, GameCard, placeText } from './GameCard';
 import { TrendsBody } from './careerTrends';
 import { avatarSrc, heroThumb } from './art';
-import { GAME_STRENGTH_LABEL, GAME_STRENGTH_TIP, NO_DETAILS_TEXT } from './matchDetails/matchDetailsText';
+import { GAME_STRENGTH_LABEL, GAME_STRENGTH_TIP, NO_DETAILS_TEXT, headerStrengthFacts } from './matchDetails/matchDetailsText';
 import { RuneEmblem } from './RuneEmblem';
 import { heroPortrait, opponentSkins } from './skins/skins';
 import type { RunCosmeticSnapshot } from '@game/progression';
@@ -732,7 +732,7 @@ export function Career() {
         { label: 'Gold spent', value: run.goldSpent === null ? '-' : run.goldSpent },
         ...(run.ratingDelta != null && run.ratingDelta !== 0 ? [{ label: 'Rating', value: run.ratingDelta > 0 ? `+${run.ratingDelta}` : `${run.ratingDelta}` }] : []),
         ...(SHOW_LOBBY_STRENGTH && run.lobbyStrength ? [{ label: 'Lobby', value: strengthText(run.lobbyStrength) }] : []),
-        ...(run.boardStrength != null ? [{ label: GAME_STRENGTH_LABEL, value: run.boardStrength, tip: GAME_STRENGTH_TIP }] : []),
+        ...headerStrengthFacts(run.match, run.boardStrength),
       ];
       const watchable = run.replayRowId !== null;
       return {

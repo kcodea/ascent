@@ -13,7 +13,10 @@ import { sfx } from '../sfx';
 import { stageHost } from '../stage';
 import { TitleBadge } from '../titles/TitleBadge';
 import { useHallKeys } from './hallKeys';
-import { boardCaption, defaultSeatId, placeLabel, statusText, strengthLabel, summaryText, GAME_STRENGTH_LABEL, GAME_STRENGTH_TIP } from './matchDetailsText';
+import {
+  boardCaption, defaultSeatId, placeLabel, statusText, strengthLabel, seatStrengthParts, summaryText, GAME_STRENGTH_LABEL, GAME_STRENGTH_TIP,
+  RELEVANT_STRENGTH_LABEL, RELEVANT_STRENGTH_TIP, RUN_STRENGTH_LABEL, RUN_STRENGTH_TIP,
+} from './matchDetailsText';
 import { usePhLayer } from '../partyHome/shell/usePhLayer';
 import './matchDetails.css';
 import { useShowOpponentCosmetics } from '../cosmetics/opponentCosmetics';
@@ -72,6 +75,8 @@ export function SeatPortrait({ heroId, skins, self }: { heroId: string; skins: R
 
 interface SeatRowProps {
   seat: MatchSeat;
+  /** The record the seat belongs to: its `strengthWindow` marker says whether Relevant Strength can exist. */
+  record: MatchDetails;
   place: string;
   status: string;
   selected: boolean;
@@ -86,11 +91,12 @@ interface SeatRowProps {
 }
 
 /** One seat. Memoised: its props are primitives plus the seat (a stable reference into the recorded details). */
-const SeatRow = memo(function SeatRow({ seat, place, status, selected, killer, hall, skins, title, onSelect, onKey }: SeatRowProps) {
+const SeatRow = memo(function SeatRow({ seat, record, place, status, selected, killer, hall, skins, title, onSelect, onKey }: SeatRowProps) {
   const heroName = seat.heroId ? getHero(seat.heroId).name : '';
   const standing = seat.eliminatedRound === undefined && !(seat.self && status.startsWith('Out'));
   const winner = status === 'Winner';
-  const strength = strengthLabel(seat);
+  const strength = strengthLabel(seat, record, ', ');
+  const parts = seatStrengthParts(seat, record);
   const label = `${place ? `${place}. ` : ''}${seat.name}${seat.self ? ' (you)' : ''}, ${heroName}. ${status}.${killer ? ' Knocked you out.' : ''}${hall ? ' On the Hall of Champions.' : ''}${strength ? ` ${strength}.` : ''}`;
   return (
     <button
@@ -122,7 +128,13 @@ const SeatRow = memo(function SeatRow({ seat, place, status, selected, killer, h
       {/* COMPACT ROW (2026-10-16 polish): strength and status are their own small columns, not two more lines. The
           strength keeps its label for assistive tech and the tip; on screen the number reads under a small caption. */}
       <span className="mds-strcol">
-        {strength && <span className="mds-strength gtip" data-tip={GAME_STRENGTH_TIP}><span className="mds-strength-l">{strength.replace(/\s*\d+$/, '')}</span> <span className="mds-strength-v">{seat.strength}</span></span>}
+        {strength && (
+          <span className="mds-strength">
+            {parts.relevant !== null && <span className="mds-str-part rel gtip" data-tip={RELEVANT_STRENGTH_TIP}><span className="mds-strength-l">{RELEVANT_STRENGTH_LABEL}</span> <span className="mds-strength-v">{parts.relevant}</span></span>}
+            {parts.relevant !== null && parts.run !== null && ' '}
+            {parts.run !== null && <span className="mds-str-part run gtip" data-tip={RUN_STRENGTH_TIP}><span className="mds-strength-l">{RUN_STRENGTH_LABEL}</span> <span className="mds-strength-v">{parts.run}</span></span>}
+          </span>
+        )}
       </span>
       {/* Health folds INTO the status tag ("Winner ♥25"), so a standing seat's row never squeezes its name (owner
           2026-10-16: "fix cut off name"). */}
@@ -154,21 +166,21 @@ export function SeatRunes({ runes, live }: { runes: readonly string[] | undefine
   );
 }
 
-/** BOARD STRENGTH (R-LOBBY-09): the selected seat's run strength, and for your own seat each round's board. Renders
- *  nothing for a seat that was not scored (no placeholder). */
-function SeatStrength({ seat }: { seat: MatchSeat }) {
-  // The seat's overall strength is on its row already (2026-10-16 polish: no duplicate line); here only your own
-  // per-round chips, labelled.
-  const rounds = seat.self ? seat.roundStrength ?? [] : [];
+/** The selected seat's strength strip: its board strength each round, for ANY seat that recorded one. A new record
+ *  (`strengthWindow`) labels it "Relevant Strength by round"; an older record keeps its old "Game strength by round"
+ *  wording. Renders nothing for a seat with no rounds (no placeholder). */
+function SeatStrength({ seat, record }: { seat: MatchSeat; record: MatchDetails }) {
+  // The seat's overall numbers are on its row already (2026-10-16 polish: no duplicate line); here only the chips.
+  const rounds = seat.roundStrength ?? [];
   if (rounds.length === 0) return null;
+  const fresh = !!record.strengthWindow;
+  const label = fresh ? `${RELEVANT_STRENGTH_LABEL} by round` : `${GAME_STRENGTH_LABEL} by round`;
   return (
     <div className="mds-strength-panel">
-      <span className="cv2-row-label gtip" data-tip={GAME_STRENGTH_TIP}>{GAME_STRENGTH_LABEL} by round</span>
-      {rounds.length > 0 && (
-        <div className="mds-strength-rounds" aria-label="Your board strength by round">
-          {rounds.map((r) => <span className="mds-strength-round" key={r.round}><span className="mds-strength-r">R{r.round}</span>{r.value}</span>)}
-        </div>
-      )}
+      <span className="cv2-row-label gtip" data-tip={fresh ? RELEVANT_STRENGTH_TIP : GAME_STRENGTH_TIP}>{label}</span>
+      <div className="mds-strength-rounds" aria-label={`${seat.self ? 'Your' : `${seat.name}'s`} board strength by round`}>
+        {rounds.map((r) => <span className="mds-strength-round" key={r.round}><span className="mds-strength-r">R{r.round}</span>{r.value}</span>)}
+      </div>
     </div>
   );
 }
@@ -227,6 +239,7 @@ export function MatchScoreboard({ details, own }: { details: MatchDetails; own: 
           <SeatRow
             key={r.seat.id}
             seat={r.seat}
+            record={details}
             place={r.place}
             status={r.status}
             selected={r.seat === selected}
@@ -255,7 +268,7 @@ export function MatchScoreboard({ details, own }: { details: MatchDetails; own: 
               ? <StoredTeam minions={selected.board.minions} skins={selSkins} label={`${selected.name}'s board`} compact />
               : <div className="mds-empty">{selected.board ? 'This board was empty.' : 'No board was recorded for this player.'}</div>}
           </div>
-          <SeatStrength seat={selected} />
+          <SeatStrength seat={selected} record={details} />
         </section>
       )}
     </div>

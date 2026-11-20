@@ -15249,7 +15249,12 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .lp-tile-strength { position: absolute; inset: 0; z-index: 1; display: grid; place-items: center; border-radius: inherit; pointer-events: none;
   background: rgba(4, 8, 16, 0.74); opacity: 0; transition: opacity 0.12s ease;
   font-family: var(--font-ui); font-weight: 800; font-size: 15px; letter-spacing: 0.04em; color: #f4eee2; text-shadow: 0 1px 3px #000; white-space: nowrap; }
+.lp-tile-strength { grid-auto-flow: column; align-content: center; justify-content: center; align-items: baseline; gap: 0 6px; }
 .lp-tile-strength b { margin-left: 6px; font-weight: 900; font-size: 22px; color: var(--ui-title); }
+/* Two named numbers (2026-11-20): Relevant Strength is the headline, Run Strength the smaller second. */
+.lp-tile-strength .lp-ts-run { font-size: 0.8em; font-weight: 700; color: rgba(244, 238, 226, 0.8); }
+.lp-tile-strength .lp-ts-run b { font-size: 16px; color: rgba(255, 214, 107, 0.85); }
+.lp-tile-strength .lp-ts-dot { opacity: 0.6; }
 .lp-tile:hover .lp-tile-strength, .lp-tile.tt-on .lp-tile-strength { opacity: 1; }
 .lp-tile .lp-ko { z-index: 2; }
 /* The hovered tile's board blurs under its Game strength (owner 2026-11-06: "can you blur the content behind the game strength

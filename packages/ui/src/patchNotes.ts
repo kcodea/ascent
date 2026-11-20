@@ -106,6 +106,15 @@ export const PATCH_NOTES: PatchNote[] = [
           'Any Gold you gain for next turn during a fight shows up in that forecast the moment it happens.',
         ],
       },
+      {
+        category: 'Systems',
+        text: "Game results now show each opponent's Relevant Strength: how strong they were during the rounds you played them, next to their Run Strength.",
+        details: [
+          'Relevant Strength comes first and is larger. Run Strength, how strong their whole run was, sits beside it.',
+          'Click any player in the results to see their Relevant Strength round by round, not only yours.',
+          'Games finished before this update show Run Strength only, under that name.',
+        ],
+      },
     ],
   },
   {

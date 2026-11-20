@@ -29,7 +29,7 @@ import { Icon } from '../../Icon';
 import { rankLabel } from '../../rank/types';
 import type { HeroCount } from '../../heroFilter';
 import { bandOf, placeText } from '../../GameCard';
-import { GAME_STRENGTH_LABEL, GAME_STRENGTH_TIP } from '../../matchDetails/matchDetailsText';
+import { headerStrengthFacts } from '../../matchDetails/matchDetailsText';
 import { SHOW_LOBBY_STRENGTH } from '../../lobbyStrengthDisplay';
 import { fetchRecentMatch, peekRecentMatch } from '../../remoteBoards';
 import { partialText, playedAtText, recordText, runLengthText } from '../../leaderboardData';
@@ -272,7 +272,7 @@ const FeedDetail = memo(function FeedDetail({ row, practice, busy, unplayable, o
     ...(r.wave !== null ? [{ label: 'Rounds', value: r.wave }] : []),
     ...(cfg ? [{ label: 'Opponents', value: practiceOpponentsText(cfg) }, { label: 'Health', value: cfg.health === 'normal' ? 'Normal' : 'Unlimited' }] : []),
     ...(SHOW_LOBBY_STRENGTH && r.lobbyStrength ? [{ label: 'Lobby', value: strengthText(r.lobbyStrength) }] : []),
-    ...(r.boardStrength != null ? [{ label: GAME_STRENGTH_LABEL, value: r.boardStrength, tip: GAME_STRENGTH_TIP }] : []),
+    ...headerStrengthFacts('match' in r ? r.match : fetched, r.boardStrength),
   ];
   return (
     <GameDetail

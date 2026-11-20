@@ -2194,6 +2194,10 @@ export interface QuestCombatMods {
   /** ANCIENT OF FORTUNE × Lord of the Risen: count every friendly Rise this fight (`CombatCarryBacks.rises`), the
    *  moment it happens; the run banks Gold for next turn per Rise. Either side; rides a snapshot (`questMods`). */
   ancientCountRises?: boolean;
+  /** R-COMBAT-GOLD-EVENT-01: Fortune's Gold per friendly Ward break / per friendly Rise, so the fight can LOG each payout
+   *  (`bonusGold`) the moment it happens. Report only: settle still pays from `wardBreaks` / `rises`. */
+  ancientWardBreakGold?: number;
+  ancientRiseGold?: number;
   /** ANCIENT OF GENESIS × Lord of the Risen: every friendly summon in combat summons `extra` more copies of the
    *  body it summoned (a Rise and a Rebirth included: the copy comes without the returning keyword). A copy never
    *  makes copies. On a full board the copy is a real overflow. Either side; rides a snapshot (`questMods`). */
@@ -3607,6 +3611,11 @@ export type CombatEvent = (
   | { type: 'shout'; source: string; target: string; /** R-ROOMWORKS-02: this fire is `target`'s END OF TURN, not its Shout. Same counted moment, so its consequences get their own beat; only the words and the flourish differ. */ eot?: true } // a combat Shout RE-FIRE — one per FIRE, so Drakko's repeats are countable at the signal: `source` = the re-triggering unit (Dawnclaw / Ryme / Thunderous Sovereign / Chorus Drake / Embercrest…), `target` = the Shout's owner. Mirrors `rally` (2026-09-01: three Drakko-repeated fires read as one on screen because they were narration).
   | { type: 'rally'; source: string; target: string } // Deathsayer's Rally fires `target`'s Deathrattle
   | { type: 'maxGold'; target: string; side: Side; amount: number } // Soulsman's Avenge raises your max Gold
+  // R-COMBAT-GOLD-EVENT-01 (owner 2026-11-20): Gold banked for the side's NEXT turn, logged the moment the fight banks it
+  // (every `grantBonusGold`, plus the per-proc Gold the run pays at settle: Fortune x Warden per Ward break, Fortune x
+  // Risen per Rise, Rune of Ashen Payroll per Imp). REPORT ONLY: settle keeps computing the authoritative amount from the
+  // carry-backs; the sum of a side's events equals what settle banks. `source` = the body it came from, when one did.
+  | { type: 'bonusGold'; side: Side; amount: number; source?: string }
   | { type: 'toHand'; cardId: string; side: Side; source?: string;
       /** A MINION recorded as a hand grant that fits the hand joins the side's combat hand pool under this uid
        *  (`handGrantUid`), so a summon-from-hand later this fight can pick it and the replay can grey it
@@ -4718,7 +4727,7 @@ export interface CombatContext {
    *  back via `CombatResult.playerMaxGoldGain`, applied to maxEmbers in settleCombat. */
   grantMaxGold(amount: number, side: Side): void;
   /** Bounty Bot: grant one-time Gold into the next shop; carried back via `CombatResult.playerBonusGold`. */
-  grantBonusGold(amount: number, side: Side): void;
+  grantBonusGold(amount: number, side: Side, source?: string): void;
   /** ANCIENT TRIGGER PROC (R-FX-ANCIENT-PROC-01): an Ancient-granted effect fired for `side` (Midas × Death's grafted
    *  Echo). Presentation marker only. */
   ancientProc?(side: Side): void;

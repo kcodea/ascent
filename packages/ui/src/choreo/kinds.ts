@@ -68,6 +68,7 @@ export function momentKind(primary: CombatEvent): MomentKind {
     case 'hpGrant': return 'hpGrant';
     case 'spellProgress': return 'spellProgress'; // Archmagus Guel's on-board spell tally tick
     case 'teamSend': return 'spellProgress'; // DUOS real-time gift marker (R-DUOS-RUNES-02): silent, zero hold
+    case 'bonusGold': return 'spellProgress'; // Gold banked for next turn (R-COMBAT-GOLD-EVENT-01): ticks the Gold forecast, silent, zero hold
     case 'shopSpellTally': return 'spellProgress'; // Cinderchef's live Shop-spell count (2026-11-15): silent, zero hold
     case 'runeSequence': return 'spellProgress'; // Rune of Sequencing's live meter (2026-11-14): silent, zero hold
     case 'reveal': return 'reveal';

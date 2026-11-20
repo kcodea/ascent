@@ -476,7 +476,7 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
       ctx.grantMaxGold(amount, self.side);
       ctx.log({ type: 'maxGold', target: self.uid, side: self.side, amount }); // either side, side-tagged (R-SYMMETRY-01)
     },
-    grantGoldNextTurn: (amount) => { ctx.grantBonusGold(amount, self.side); },
+    grantGoldNextTurn: (amount) => { ctx.grantBonusGold(amount, self.side, self.uid); },
     isCelestial: (t) => !!ctx.getCard(t.cardId)?.celestial,
     isImp: (t) => !!ctx.getCard(t.cardId)?.imp,
     isFodder: (t) => !!ctx.getCard(t.cardId)?.keywords.includes('FD'),
@@ -934,7 +934,7 @@ const COMBAT_END_OF_TURN: Readonly<Record<string, (ctx: CombatContext, self: Min
       if (d && !d.spell && !d.ruby) ctx.grantToHand(d.id, self.side, self.uid);
     }
   },
-  endOfTurnBonusGold: (ctx, self, params) => { ctx.grantBonusGold(num(params.amount, 1) * mul(self), self.side); },
+  endOfTurnBonusGold: (ctx, self, params) => { ctx.grantBonusGold(num(params.amount, 1) * mul(self), self.side, self.uid); },
   addTavernFodder: (ctx, self, params) => { ctx.grantTavernFodder(num(params.count, 1) * mul(self), self.side); },
   endOfTurnBuffWeakestDragon: (ctx, self, params) => {
     const arena = combatArena(ctx, self);
@@ -1319,7 +1319,7 @@ function resolveCombatSpellCastInner(ctx: CombatContext, self: Minion, def: Card
       }
       // ── economy + power ──
       case 'spellGainSpellPower': ctx.grantSpellPower(a, h, side, self.uid); did = true; break;
-      case 'gainEmbers': ctx.grantBonusGold(num(eff.params?.amount, 1), side); did = true; break;
+      case 'gainEmbers': ctx.grantBonusGold(num(eff.params?.amount, 1), side, self.uid); did = true; break;
       case 'grantFreeRolls': ctx.grantFreeRolls(num(eff.params?.count, 1), side); did = true; break;
       // A refresh-shaped special cannot re-stock a shop that does not exist mid-fight — bank a free roll, so
       // the cast still pays its refresh forward rather than silently vanishing.
@@ -1715,7 +1715,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  Carried back via `CombatResult.playerBonusGold` → next turn's starting Gold. Attacker-guarded. */
   onKillGrantGold: (ctx, self, params, payload) => {
     if ((payload as { attacker?: Minion }).attacker !== self) return;
-    ctx.grantBonusGold(num(params.gold, 2) * mul(self), self.side);
+    ctx.grantBonusGold(num(params.gold, 2) * mul(self), self.side, self.uid);
   },
 
   /** Tromboneer (set 3) — Echo: `amount` one-time Gold into the next shop (golden doubles), through the same
@@ -1723,7 +1723,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  2026-09-09: uncapped). Own-death guarded; every Echo multiplier re-fires it like any other Deathrattle. */
   deathrattleGoldNextTurn: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
-    ctx.grantBonusGold(num(params.amount, 3) * mul(self), self.side);
+    ctx.grantBonusGold(num(params.amount, 3) * mul(self), self.side, self.uid);
   },
 
   /** Kneel / Tankerchief (set 3) — "when a Dwarf gains Attack, this gains +a/+h", combat half. `ctx.buff` emits
@@ -2327,12 +2327,12 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   },
   battlecryGainGoldNextTurn: (ctx, self, params) => {
     const n = num(params.amount, 1) * mul(self);
-    ctx.grantBonusGold(n, self.side);
+    ctx.grantBonusGold(n, self.side, self.uid);
     ctx.log({ type: 'sc', source: self.uid, text: `${self.name}: +${n} Gold next turn`, side: self.side });
   },
   battlecryBonusGoldNextTurn: (ctx, self, params) => {
     const n = num(params.gold, 1) * mul(self);
-    ctx.grantBonusGold(n, self.side);
+    ctx.grantBonusGold(n, self.side, self.uid);
     ctx.log({ type: 'sc', source: self.uid, text: `${self.name}: +${n} Gold next turn`, side: self.side });
   },
   battlecryBuffFodder: (ctx, self, params) => {
@@ -3971,7 +3971,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const x = Math.max(1, num(params.count, 4));
     const seen = avengeCountFor(self, count); // a risen body counts from its rebirth
     if (seen <= 0 || seen % x !== 0) return;
-    ctx.grantBonusGold(num(params.amount, 2) * mul(self), self.side);
+    ctx.grantBonusGold(num(params.amount, 2) * mul(self), self.side, self.uid);
   },
 
   /** Deathrattle (Bone Taxer): permanently raise your max Gold by `amount` (golden doubles). Player-side

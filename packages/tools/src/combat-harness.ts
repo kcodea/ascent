@@ -92,6 +92,8 @@ function describe(ev: CombatEvent, names: Map<string, string>): string {
       return `   ✦ ${n(ev.target)} aura +${ev.amount}/+${ev.amount}`;
     case 'maxGold':
       return `   ◉ ${n(ev.target)}'s Avenge raises max Gold +${ev.amount}`;
+    case 'bonusGold':
+      return `   ◉ ${ev.side} banks +${ev.amount} Gold for next turn${ev.source ? ` (${n(ev.source)})` : ''}`;
     case 'rally':
       return `   ☠ ${n(ev.source)}'s Rally fires ${n(ev.target)}'s Deathrattle`;
     case 'epicFire':

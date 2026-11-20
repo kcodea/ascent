@@ -213,6 +213,7 @@ export function combatEventLines(result: CombatResult): CombatEventLine[] {
       case 'keywordLost': text = `${n(e.target)} loses ${e.keyword}${e.source ? ` to ${n(e.source)}` : ''}`; break;
       case 'rally': text = `${n(e.source)} fires ${n(e.target)}'s Echo`; break;
       case 'maxGold': text = `${n(e.target)} raises max Gold by ${e.amount} (${e.side})`; break;
+      case 'bonusGold': text = `banks ${e.amount} Gold for next turn (${e.side})${e.source ? ` from ${n(e.source)}` : ''}`; break;
       case 'toHand': text = `${e.cardId} to hand (${e.side})${e.source ? ` from ${n(e.source)}` : ''}`; break;
       case 'handBuff': text = `${e.cardId} in hand +${e.attack}/+${e.health} (${e.side})${e.source ? ` from ${n(e.source)}` : ''}`; break;
       case 'ascend': text = `${n(e.target)} transforms into ${e.into}`; break;

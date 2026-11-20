@@ -82,7 +82,7 @@ export const PATCH_NOTES: PatchNote[] = [
         details: [
           'The tier stone shows your tier but cannot be pressed in combat.',
           'The Gold pill shows the Gold you had left. Hover it to see your Gold for the next two turns.',
-          'Max Gold you gain mid-fight shows up in that forecast the moment it happens.',
+          'Any Gold you gain for next turn during a fight shows up in that forecast the moment it happens.',
         ],
       },
     ],

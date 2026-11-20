@@ -339,7 +339,8 @@ import { WatchersBadge } from './versus/WatchersBadge';
 import { mateTripleIds } from './versus/mateTriples';
 import { useMateTripleKey } from './versus/useMateTriples';
 import { onPressCue } from './pressCue';
-import { goldForecastOf, liveCombatMaxGold } from './goldForecast';
+import { COMBAT_GOLD_FOLD, goldForecastOf, liveCombatGold } from './goldForecast';
+import { makePrefixFold } from './choreo/prefixFold';
 import { TierGoldControls } from './TierGoldControls';
 
 /** GOD MODE panel (owner 2026-10-08) — its own chunk, fetched only when a God Mode run reaches the shop. */
@@ -3556,9 +3557,15 @@ export function Recruit() {
   useEffect(() => {
     setCombatBuffs(inCombat && !run.combatSettled ? combatBuffsNow : null);
   }, [inCombat, run.combatSettled, combatBuffsNow, setCombatBuffs]);
-  // The Gold pill's forecast (R-COMBAT-TIER-GOLD-01): the same replayed max-Gold reading ticks the "Next turn" rows
-  // the moment each `maxGold` event plays, and drops to 0 at settle, when `maxGoldBonus` holds the gain itself.
-  const goldForecast = goldForecastOf(run, liveCombatMaxGold(run.phase, run.combatSettled, combatBuffsNow.gold));
+  // The Gold pill's forecast (R-COMBAT-TIER-GOLD-01): the fight's `maxGold` / `bonusGold` events tick the "Next turn"
+  // rows the moment each one plays (player side, own Duos board only), and the live part drops to 0 at settle, when the
+  // run holds the gains itself. A continued prefix fold: each beat pays only for the events past the last one.
+  const [foldCombatGold] = useState(() => makePrefixFold(COMBAT_GOLD_FOLD));
+  const replayedGold = useMemo(
+    () => foldCombatGold(replay.replayEvents, replay.processedEnd, replay.ownHand),
+    [foldCombatGold, replay.replayEvents, replay.processedEnd, replay.ownHand],
+  );
+  const goldForecast = goldForecastOf(run, liveCombatGold(run.phase, run.combatSettled, replayedGold));
   // …and the same fold drives every printed SPELL number (owner report 2026-09-22: "front to backs text /
   // maybe all spells? not updating in real time from buffs in combat"). `simulate` keeps its own spell power
   // live inside the fight, but the run's `spellBonus` is written only at settle — so a Chorus Drake pumping

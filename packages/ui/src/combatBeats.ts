@@ -41,6 +41,7 @@ export const RESULT_TYPES = new Set<CombatEvent['type']>([
 const WINDUP_ABSORB = new Set<CombatEvent['type']>([
   'buff', 'rally', 'summon', 'reveal', 'improve', 'spellcast', 'questTrigger', 'toHand', 'handBuff', 'keyword', 'keywordLost',
   'teamSend', // DUOS (R-DUOS-RUNES-02): a team gift a Rally sent (Toot Toot) is a consequence of the swing, like a toHand
+  'bonusGold', // R-COMBAT-GOLD-EVENT-01: Gold banked for next turn is a consequence of the swing (a Bounty Bot kill)
   'runeSequence', // Rune of Sequencing's meter tick: a silent marker beside the cast that moved it
   'shopSpellTally', // Cinderchef's live Shop-spell count: a silent marker beside the cast that moved it
 ]);

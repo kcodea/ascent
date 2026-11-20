@@ -107,6 +107,7 @@ export const COMBAT_TRACE_COVERAGE: Record<CombatEvent['type'], CombatTraceCover
   epicFire: { source: 'always', target: 'never', amount: 'never', note: 'an epic multiplier minion added fires (or scaled a Ruby): presentation-only pulse marker' },
   shout: { source: 'always', target: 'always', amount: 'never', note: 'a combat Shout re-fire: the re-triggering unit and the owner of the Shout; one event per fire (Drakko x gild)' },
   maxGold: { source: 'never', target: 'always', amount: 'always', note: 'the Avenge payoff target + amount; the granter only via key/srcCard stamps' },
+  bonusGold: { source: 'sometimes', target: 'never', amount: 'always', note: 'Gold banked for next turn (R-COMBAT-GOLD-EVENT-01); `source` = the body it came from when one did (a rune bank has none)' },
   toHand: { source: 'sometimes', target: 'always', amount: 'never', note: 'target = the granted card (cardId, no uid — hand cards get uids at settle); granter uid when stamped' },
   handBuff: { source: 'sometimes', target: 'always', amount: 'never', note: 'target = the HAND card (its run uid + cardId); the +atk/+hp ride detail; granter uid when stamped (R-HAND-02)' },
   hpGrant: { source: 'never', target: 'always', amount: 'always', note: 'live text tick on the target itself' },
@@ -184,6 +185,8 @@ function project(e: CombatEvent): Pick<CombatSemanticEvent, 'source' | 'target' 
       return { source: { uid: e.source }, target: { uid: e.target } };
     case 'maxGold':
       return { target: { uid: e.target, side: e.side }, amount: e.amount, detail: { side: e.side } };
+    case 'bonusGold':
+      return defined({ ...(e.source ? { source: { uid: e.source } } : {}), amount: e.amount, detail: { side: e.side } });
     case 'toHand':
       return defined({ ...(e.source ? { source: { uid: e.source } } : {}), target: { cardId: e.cardId, side: e.side }, detail: { side: e.side } });
     case 'handBuff':

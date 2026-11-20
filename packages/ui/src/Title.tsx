@@ -580,7 +580,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
             the MMR small after it. The equipped title and XP bar live on the Career page. */}
         {rank && (
           <div className="titlerank" aria-label={`Rank ${rankLabel(rank)}, ${scalarCaption(rank)} MMR`}>
-            <RankCrest divisionIndex={rank.divisionIndex} size="mini" hideDivision />
+            <RankCrest divisionIndex={rank.divisionIndex} size="mini" />
             <span className="titlerank-label">{rankLabel(rank)}</span>
             <span className="titlerank-mmr">{scalarCaption(rank)} MMR</span>
           </div>

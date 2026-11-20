@@ -53,7 +53,7 @@ export function PlayerStrip() {
       </span>
       {rank && (
         <span className="pstrip-rank">
-          <RankCrest divisionIndex={rank.divisionIndex} size="mini" hideDivision />
+          <RankCrest divisionIndex={rank.divisionIndex} size="mini" />
           <span className="pstrip-rank-txt">
             <span className="pstrip-rank-name">{rankLabel(rank)}</span>
             <span className="pstrip-rank-mmr">{scalarCaption(rank)} MMR</span>

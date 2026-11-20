@@ -3,7 +3,7 @@ import { rankArt } from '../art';
 import { Icon } from '../Icon';
 import { FadeImg } from '../FadeImg';
 import { barFraction, pointsText, rankLabel, standingGateText } from './rankFormat';
-import { divisionNumeralOf, isPromotionReady, medalOf, type RankPosition } from './types';
+import { isPromotionReady, medalOf, type RankPosition } from './types';
 
 /**
  * THE SHARED RANK PRESENTATION (blueprint §8: one component so the end screen, the Title's Play card, the
@@ -25,14 +25,12 @@ export type RankSize = 'mini' | 'row' | 'big' | 'xl';
  *  under it (the Career card, owner 2026-09-20); `screen` = the end screen's column (crest → label → bar). */
 export type RankLayout = 'row' | 'stack' | 'screen';
 
-export function RankCrest({ divisionIndex, size = 'row', className = '', style, crestRef, hideDivision = false }: {
+export function RankCrest({ divisionIndex, size = 'row', className = '', style, crestRef }: {
   divisionIndex: number;
   size?: RankSize;
   className?: string;
   style?: CSSProperties;
   crestRef?: RefObject<HTMLDivElement>;
-  /** The Title's mini crest carries the numeral in its label instead. */
-  hideDivision?: boolean;
 }): JSX.Element {
   const medal = medalOf(divisionIndex);
   const art = rankArt(medal);
@@ -44,7 +42,6 @@ export function RankCrest({ divisionIndex, size = 'row', className = '', style, 
           {art ? <FadeImg className="heroimg" src={art} alt="" draggable={false} /> : <Icon name="crown" />}
         </div>
       </div>
-      {!hideDivision && <span className="rankcrest-plate">{divisionNumeralOf(divisionIndex)}</span>}
     </div>
   );
 }

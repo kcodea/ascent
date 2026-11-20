@@ -9,7 +9,7 @@ export function GameRank({ divisionIndex, compact = false }: { divisionIndex: nu
   const full = rankLabel(divisionIndex);
   return (
     <span className={`gamerank${compact ? ' compact' : ''}`} aria-label={`Played at ${full}`}>
-      <RankCrest divisionIndex={divisionIndex} size="mini" hideDivision />
+      <RankCrest divisionIndex={divisionIndex} size="mini" />
       <span className="gamerank-l" aria-hidden="true">{compact ? shortRankLabel(divisionIndex) : full}</span>
     </span>
   );

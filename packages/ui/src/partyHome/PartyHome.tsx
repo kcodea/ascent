@@ -258,7 +258,7 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
   const myMedal = (
     <span className="ph-rank">
       {members[0]!.rank
-        ? <><RankCrest divisionIndex={members[0]!.rank.divisionIndex} size="mini" hideDivision /><span>{members[0]!.rank.label}</span></>
+        ? <><RankCrest divisionIndex={members[0]!.rank.divisionIndex} size="mini" /><span>{members[0]!.rank.label}</span></>
         : <span className="ph-muted">Unranked</span>}
     </span>
   );
@@ -840,7 +840,7 @@ function BannerCard({ m, i, phone, leader, showState, rival, menuOpen, onToggleM
             <span className="ph-sub">{m.titleId ? <TitleBadge id={m.titleId} className="ph-titlebadge" /> : m.level != null ? `Level ${m.level}` : '\u00a0'}</span>
             <span className="ph-rank">
               {m.rank
-                ? <><RankCrest divisionIndex={m.rank.divisionIndex} size="mini" hideDivision /><span>{m.rank.label}</span></>
+                ? <><RankCrest divisionIndex={m.rank.divisionIndex} size="mini" /><span>{m.rank.label}</span></>
                 : <span className="ph-muted">{m.self ? 'Unranked' : 'Medal not shown'}</span>}
             </span>
             {showState === 'show' && <PhBannerState tone={m.state}>{m.state === 'in_game' ? 'In game' : 'Ready'}</PhBannerState>}

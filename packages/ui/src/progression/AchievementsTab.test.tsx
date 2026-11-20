@@ -52,12 +52,12 @@ describe('the view model', () => {
   it('the secret titles (owner 2026-11-20): one Secrets category, every tile concealed (no bar) until earned, then shown with its title', () => {
     const secrets = (v: ReturnType<typeof achievementView>) => v.categories.find((c) => c.id === 'secret')!;
     const hidden = secrets(achievementView({ ...base, progress: { 'secret.window_shopper': 20 } }));
-    expect(hidden.total).toBe(88);
+    expect(hidden.total).toBe(91);
     expect(hidden.groups.flatMap((g) => g.tiles).every((t) => t.concealed && t.progress === null)).toBe(true);
     const earned = secrets(achievementView({ ...base, completions: [...base.completions, { id: 'secret.window_shopper', completedAt: '2026-11-20T10:00:00Z' }] }));
     const tile = earned.groups.flatMap((g) => g.tiles).find((t) => t.def.id === 'secret.window_shopper')!;
     expect(tile).toMatchObject({ concealed: false, completed: true });
-    expect(tile.def).toMatchObject({ name: 'Window Shopper', requirement: 'Refresh the Shop 25 times in one turn.', rewards: { xp: 300, titleId: 'title_secret_window_shopper' } });
+    expect(tile.def).toMatchObject({ name: 'Window Shopper', requirement: 'Refresh the Shop 40 times in one turn.', rewards: { xp: 400, titleId: 'title_secret_window_shopper' } });
     expect(earned.done).toBe(1);
   });
 

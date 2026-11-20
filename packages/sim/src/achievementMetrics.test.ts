@@ -426,15 +426,21 @@ describe('the secret-title metrics (2026-11-20)', () => {
 describe('the secret-title tribe batch metrics (2026-11-20, "add 5 more titles per tribe")', () => {
   const pick = (tribe: string): string => Object.values(CARD_INDEX).find((c) => c.tribe === tribe && !c.tribe2 && !c.token && !c.spell && !c.ruby && !c.universalTribe)!.id;
 
-  it('per tribe on the board: Gilded count and the strongest Attack; 7 Undead; Kobebes; Dwarf payroll at 5; Celestial spells at 3', () => {
+  it('per tribe on the board: Gilded count and the strongest Attack; 7 Undead in distinct rounds; Kobebes; Dwarf payroll at 5; Celestial spells at 3', () => {
     const t = emptyAchTally();
     const dwarves = Array.from({ length: 5 }, (_, i) => card(`d${i}`, pick('dwarf'), { tribe: 'dwarf', golden: i < 4, attack: i === 0 ? 120 : 5 }));
     const r = set2Run({ board: dwarves, goldSpentThisTurn: 31 });
     observeAchAction(t, r, { type: 'roll' }, { ...r }, 0);
-    expect(t.m).toMatchObject({ dwarfGildedMax: 4, dwarfAttackMax: 120, dwarfHallSpendTurnMax: 31 });
-    const undead = Array.from({ length: 7 }, (_, i) => card(`u${i}`, pick('undead'), { tribe: 'undead' }));
+    expect(t.m).toMatchObject({ dwarfGildedMax: 4, dwarfHallSpendTurnMax: 31 });
+    // 7 Undead at once: one count per ROUND, however many actions see it
+    const undead = Array.from({ length: 7 }, (_, i) => card(`u${i}`, pick('undead'), { tribe: 'undead', attack: i === 0 ? 1_000 : 2 }));
     observeAchAction(t, r, { type: 'roll' }, { ...r, board: undead }, 0);
-    expect(t.m.undeadBoardMax).toBe(7);
+    observeAchAction(t, r, { type: 'roll' }, { ...r, board: undead }, 0);
+    expect(t.m).toMatchObject({ undeadFullRounds: 1, undeadAttackMax: 1_000 });
+    observeAchAction(t, r, { type: 'roll' }, { ...r, wave: r.wave + 1, board: undead }, 0);
+    expect(t.m.undeadFullRounds).toBe(2);
+    observeAchAction(t, r, { type: 'roll' }, { ...r, wave: r.wave + 2, board: undead.slice(1) }, 0);
+    expect(t.m.undeadFullRounds).toBe(2);
     const kobs = Array.from({ length: 3 }, (_, i) => card(`k${i}`, 'k_kobabyboldies', { tribe: 'kobold' }));
     observeAchAction(t, r, { type: 'roll' }, { ...r, board: kobs }, 0);
     expect(t.m.kobebesMax).toBe(3);
@@ -475,5 +481,51 @@ describe('the secret-title tribe batch metrics (2026-11-20, "add 5 more titles p
     // per combat: a quieter fight does not lower the best
     observeAchCombat(t, combat([{ type: 'bonusGold', side: 'player', amount: 2 }] as CombatEvent[], { initial } as Partial<CombatResult>), 8);
     expect(t.m.combatGoldMax).toBe(11);
+  });
+});
+
+describe('the secret titles v2 metrics (2026-11-20: Dwarven, Hocus Pocus, Yazzus Himself)', () => {
+  const pick = (tribe: string): string => Object.values(CARD_INDEX).find((c) => c.tribe === tribe && !c.tribe2 && !c.token && !c.spell && !c.ruby && !c.universalTribe)!.id;
+
+  it('Dwarf damage to enemy minions adds up across the game; other sources and the enemy side do not count', () => {
+    const dwarf = pick('dwarf');
+    const t = emptyAchTally();
+    const initial = { player: [snap('p1', dwarf, 50, 50), snap('p2', pick('beast'), 9, 9)], enemy: [snap('e1', dwarf, 500, 500)] };
+    const fight = combat([
+      { type: 'dmg', target: 'e1', amount: 200, remainingHp: 300, source: 'p1' },
+      { type: 'dmg', target: 'e1', amount: 40, remainingHp: 260, source: 'p2' },
+      { type: 'dmg', target: 'p1', amount: 30, remainingHp: 20, source: 'e1' },
+    ] as CombatEvent[], { initial } as Partial<CombatResult>);
+    observeAchCombat(t, fight, 5);
+    observeAchCombat(t, fight, 6);
+    expect(t.m.dwarfDamage).toBe(400);
+  });
+
+  it('spell buffs: combat buffs carrying a spell on your minions, plus the Shop spell-buff records; an Ancient grant and a preview do not count', () => {
+    const t = emptyAchTally();
+    observeAchCombat(t, combat([
+      { type: 'buff', target: 'p1', attack: 3, health: 3, source: 'x', spellId: 'sp_dragonflame' },
+      { type: 'buff', target: 'p2', attack: 3, health: 3, source: 'x', spellId: 'sp_dragonflame' },
+      { type: 'buff', target: 'e1', attack: 3, health: 3, source: 'x', spellId: 'sp_dragonflame' }, // the enemy's
+      { type: 'buff', target: 'p1', attack: 2, health: 2, source: 'x' }, // not a spell
+    ] as CombatEvent[]), 5);
+    expect(t.m.spellBuffs).toBe(2);
+    const r = set2Run();
+    const fx = (over: object) => ({ targetUid: 'b1', attack: 2, health: 2, sourceCardId: '', sourceTribe: 'neutral', kind: 'spell', ...over });
+    const after = { ...r, recruitBuffFx: [fx({}), fx({ targetUid: 'b2' }), fx({ kind: 'minion', spellId: 'sp_growth' }), fx({ kind: 'minion' }), fx({ fromHeroPower: true })] } as unknown as RunState;
+    observeAchAction(t, { ...r, recruitBuffFx: [] }, { type: 'play', uid: 'x' }, after, 0);
+    expect(t.m.spellBuffs).toBe(5);
+    // a combat preview keeps the prior action's records (the same array): nothing new
+    observeAchAction(t, after, { type: 'combatEscalationPreview', attack: 1, health: 1 } as unknown as Action, { ...after }, 0);
+    expect(t.m.spellBuffs).toBe(5);
+  });
+
+  it('Front to Back: the lower of its two halves, the best ever reached', () => {
+    const t = emptyAchTally();
+    const r = set2Run();
+    observeAchAction(t, r, { type: 'roll' }, { ...r, frontToBackBonus: 520, frontToBackBonusH: 480 }, 0);
+    expect(t.m.frontToBackMin).toBe(480);
+    observeAchAction(t, r, { type: 'roll' }, { ...r, frontToBackBonus: 0, frontToBackBonusH: 0 }, 0);
+    expect(t.m.frontToBackMin).toBe(480);
   });
 });

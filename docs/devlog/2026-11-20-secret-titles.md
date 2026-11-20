@@ -1,4 +1,4 @@
-# 2026-11-20 Secret titles (48 hidden achievements)
+# 2026-11-20 Secret titles (91 hidden achievements)
 
 Owner ask: "50 new SECRET titles, each earned by an in-game feat ... they should all be tied to hidden achievements, so
 unlocking them grants xp too and it's easier to track in game".
@@ -13,6 +13,33 @@ unlocking them grants xp too and it's easier to track in game".
   the run's own state and combat log. New tally fields are optional, so an old save reads them as empty.
 - No SQL: `settle_progression` already reads any run-metric key, grants `title_id` in the same transaction, and the
   category column has no check. The parity suite and the PGlite evaluator comparison cover the new defs.
+
+## v2: the owner's names and bars, and a Spell trio (owner pass, same day)
+
+The owner re-did the list (`.claude/secret-titles-v2.md`): new names for most titles, much higher bars, and three new
+feats in a new **Spell** group. 91 secret titles now, 45,950 XP in all (250 to 800 each; XP kept where a bar moved
+little and raised 100 where it went up by half or more). Every key (so every id) is now the title's name in snake case
+(`title_secret_<key>`, `secret.<key>`): nothing was deployed, so the v1 ids were dropped rather than kept as aliases.
+Display order is the theme order (8 tribes, Spell, Coin, Steel, Royal, Jester), held in one table in cosmetics.ts
+(`SECRET_TITLE_TABLE`: key, name, look) that `SECRET_TITLE_NAMES` and `SECRET_TITLE_LOOKS` derive from.
+
+- **Spell Slinger** (200 spells in one game, `spellsCast`), **Hocus Pocus** (300 spell stat buffs landing on your
+  minions in one game) and **Yazzus Himself** (Front to Back at +500/+500). They wear the Celestial look (the spell
+  tribe); no new theme.
+- 4 new run metrics: `dwarfDamage` (Dwarven: damage friendly Dwarves deal to enemy minions, summed over the game),
+  `undeadFullRounds` (Graveyard Shift: different rounds with 7 Undead at once, the Ghost Town read), `spellBuffs`
+  (Hocus Pocus) and `frontToBackMin` (the lower of `frontToBackBonus` and `frontToBackBonusH`, read after every action,
+  so a combat settle's escalation gain counts). `dwarfAttackMax` and `undeadBoardMax` went (no feat reads them).
+- `spellBuffs` counts one per minion a spell's stat buff lands on: in the Shop, the per-action buff-FX ledger
+  (`recruitBuffFx`, a `spell` capture or a minion capture that cast a spell, an Ancient's hero-power grant skipped); in
+  combat, every friendly `buff` event that carries a `spellId`. A combat preview action spreads the old state without
+  clearing that ledger, so the observer skips an `after.recruitBuffFx` that is the same array as `before`'s.
+- Eight names changed from the owner's list, for tested catalog rules: five lose a ranked medal word (Gold Horns ->
+  Gilded Horns, Golden Ghost -> Gilded Ghost, Golden Scales -> Gilded Scales, Golden Hour -> Gilded Hour, Gold Digger
+  -> Gilt Digger), and three were already taken (Bargain Hunter and Speedrunner are hero titles, Untouchable a Combat
+  achievement): Deal Hunter, Fast Track, The Untouchable.
+
+The other sections describe v1 and the tribe batch as built; their names, bars, keys and XP are superseded by v2.
 
 ## The tribe batch: 5 more per tribe (owner follow-up, same day)
 
@@ -83,8 +110,10 @@ already completed Warlord get nothing automatically: they need the one-off backf
 
 ## To go live
 
-1. Deploy `progression-inventory` and send it one request (the cosmetic catalog sync adds the 48 titles).
-2. Then deploy `submit-progression` (the achievement catalog sync adds the 48 defs; its sanitizer learns the metrics).
+1. Deploy `progression-inventory` and send it one request (the cosmetic catalog sync adds the 91 secret titles and
+   Ascenteerianologist).
+2. Then deploy `submit-progression` (the achievement catalog sync adds the 91 hidden defs and Warlord's title; its
+   sanitizer learns the metrics).
 3. Ship the client. Order matters: a completion that lands before the title row exists records no title.
 4. After steps 1 and 2, grant Ascenteerianologist to every account that ALREADY completed Warlord (`career.firsts.100`)
    before it carried a title. Idempotent (keyed on the ownership row); pays no XP:

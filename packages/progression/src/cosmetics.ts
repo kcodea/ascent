@@ -272,131 +272,72 @@ export const HERO_TITLE_COSMETICS: readonly CosmeticDef[] = Object.freeze(HERO_T
 ]));
 
 /**
- * SECRET TITLES (owner 2026-11-20: "50 new SECRET titles, each earned by an in-game feat"). One Secret-rarity title per
- * hidden achievement in achievements.ts (`SECRET_ACHIEVEMENTS`): never in a crate, and hidden in the Collection until
- * owned (every Secret item is). Keys are permanent (the owner's names): the title id is `title_secret_<key>` and the
- * achievement that grants it `secret.<key>`. Names are the owner's, except four shortened to the 20-character title rule
- * (Moss's Gardener, Wick's Apprentice, Gramps' Grandkid, Raag's Sous Chef) and five renamed because an existing
- * achievement already uses the name (Big Spender, Last One Standing, Untouched, Kingslayer, Executioner): names are
- * unique across achievements and the catalog. This file stays the dependency-free leaf, so the names live here.
+ * SECRET TITLES (owner 2026-11-20: "50 new SECRET titles, each earned by an in-game feat"; the v2 names and bars came the
+ * same day). One Secret-rarity title per hidden achievement in achievements.ts (`SECRET_ACHIEVEMENTS`): never in a crate,
+ * and hidden in the Collection until owned (every Secret item is). The key is the title's name in snake case: the title
+ * id is `title_secret_<key>` and the achievement that grants it `secret.<key>`, both permanent once deployed. Names are
+ * the owner's v2 list, except five that swap Gold or Golden for Gilded or Gilt (the catalog bans ranked medal words):
+ * Gilded Horns, Gilded Ghost, Gilded Scales, Gilded Hour, Gilt Digger; and three that another name already holds (names
+ * are unique across achievements and the catalog): Bargain Hunter -> Deal Hunter and Speedrunner -> Fast Track (hero
+ * titles), Untouchable -> The Untouchable (a Combat achievement). Grouped by theme, which is also the title's look
+ * (`CosmeticDef.look`): the tribe for a tribe feat (Hungry Hippo eats like a Demon, Rubies are the Kobold engine, Nest
+ * Egg is a Dragon's hoard), Celestial for the Spell trio (the spell tribe), else what the feat is about: Gold and the
+ * Shop (coin), a combat feat (steel), the lobby and placement (royal), a silly or self-imposed challenge (jester). This
+ * file stays the dependency-free leaf, so the names live here.
  */
-export const SECRET_TITLE_NAMES: ReadonlyArray<readonly [key: string, title: string]> = Object.freeze([
-  ['kings_jester', "King Brill's Jester"], ['imp_kings_favourite', "Imp King's Favourite"], ['moss_gardener', "Moss's Gardener"],
-  ['keeper_of_the_hoard', 'Keeper of the Hoard'], ['oonas_packmate', "Oona's Packmate"], ['wicks_apprentice', "Wick's Apprentice"],
-  ['gramps_favourite', "Gramps' Grandkid"], ['starstruck', 'Starstruck'], ['sous_chef', "Raag's Sous Chef"],
-  ['mixed_company', 'Mixed Company'],
-  ['window_shopper', 'Window Shopper'], ['never_rolled', 'Never Rolled'], ['dragons_bed', "Dragon's Bed"], ['big_spender', 'Money to Burn'],
-  ['buyers_remorse', "Buyer's Remorse"], ['frugal_to_a_fault', 'Frugal to a Fault'], ['rush_job', 'Rush Job'], ['late_bloomer', 'Late Bloomer'],
-  ['pocket_lint', 'Pocket Lint'], ['discount_bin', 'Discount Bin'],
-  ['last_one_standing', 'By a Hair'], ['the_comeback', 'The Comeback'], ['overkill', 'Overkill'], ['glass_cannon', 'Glass Cannon'],
-  ['wall_of_wards', 'Wall of Wards'], ['echo_chamber', 'Echo Chamber'], ['rally_the_troops', 'Rally the Troops'], ['unkillable', 'Unkillable'],
-  ['shouting_match', 'Shouting Match'],
-  ['cockroach', 'Cockroach'], ['untouched', 'Never Bested'], ['flawless_ascent', 'Flawless Ascent'], ['kingslayer', 'Regicide'],
-  ['executioner', 'Headsman'], ['fashionably_late', 'Fashionably Late'], ['photo_finish', 'Photo Finish'], ['stalemate_survivor', 'Stalemate Survivor'],
-  ['midas_accountant', "Midas' Accountant"], ['triple_threat', 'Triple Threat'], ['titan_tamer', 'Titan Tamer'], ['ruby_rich', 'Ruby Rich'],
-  ['buff_collector', 'Buff Collector'],
-  ['committed_to_the_bit', 'Committed to the Bit'], ['tier_one_hero', 'Tier One Hero'], ['empty_handed', 'Empty Handed'], ['pacifist', 'Pacifist'],
-  ['spellbound', 'Spellbound'], ['hoarder', 'Hoarder'],
-  // The tribe batch (owner 2026-11-20: "add 5 more titles per tribe").
-  ['golden_beards', 'Gilded Beards'],
-  ['keghands_regular', "Keg-hands' Regular"],
-  ['mountain_wages', 'Mountain Wages'],
-  ['pimms_ledger', "Pimm's Ledger"],
-  ['brakkas_edge', "Brakka's Edge"],
-  ['gilded_hellspawn', 'Gilded Hellspawn'],
-  ['behemoths_belly', "Behemoth's Belly"],
-  ['grevlins_clearance', "Grevlin's Clearance"],
-  ['matrons_favourite', "Matron's Favourite"],
-  ['rad_rachels_rage', "Rad Rachel's Rage"],
-  ['gilded_lanterns', 'Gilded Lanterns'],
-  ['revelers_parade', "Revelers' Parade"],
-  ['seedlings_bloom', "Seedling's Bloom"],
-  ['old_timbers_grove', "Old Timber's Grove"],
-  ['flamebanner_bearer', 'Flamebanner Bearer'],
-  ['golden_clutch', 'Gilded Clutch'],
-  ['shriekers_encore', "Shrieker's Encore"],
-  ['grimoire_keeper', 'Grimoire Keeper'],
-  ['karwinds_inferno', "Karwind's Inferno"],
-  ['flamus_flagship', "Flamus' Flagship"],
-  ['golden_pride', 'Gilded Pride'],
-  ['oonas_coronation', "Oona's Coronation"],
-  ['echohorns_chorus', "Echohorn's Chorus"],
-  ['kennelmasters_pride', "Kennelmaster's Pride"],
-  ['torts_toxin', "Tort's Toxin"],
-  ['gilded_ossuary', 'Gilded Ossuary'],
-  ['mumis_encore', "Mumi's Encore"],
-  ['skeleton_crew', 'Skeleton Crew'],
-  ['revenants_wrath', "Revenant's Wrath"],
-  ['wicks_congregation', "Wick's Congregation"],
-  ['gilded_tunnelers', 'Gilded Tunnelers'],
-  ['riks_mother_lode', "Rik's Mother Lode"],
-  ['kobebes_daycare', 'Kobebes Daycare'],
-  ['delveys_masterpiece', "Delvey's Masterpiece"],
-  ['boulderdash_bully', 'Boulderdash Bully'],
-  ['gilded_constellation', 'Gilded Constellation'],
-  ['zeniths_supernova', "Zenith's Supernova"],
-  ['star_seed_sower', 'Star Seed Sower'],
-  ['lodestars_light', "Lodestar's Light"],
-  ['astral_spellweaver', 'Astral Spellweaver'],
+const SECRET_TITLE_TABLE: ReadonlyArray<readonly [key: string, title: string, look: TitleLookKey]> = Object.freeze([
+  // Dwarf
+  ['king_brills_jester', "King Brill's Jester", 'dwarf'], ['bling_beard', 'Bling Beard', 'dwarf'], ['drunken_hero', 'Drunken Hero', 'dwarf'],
+  ['effin_rich', 'Effin Rich', 'dwarf'], ['the_paymaster', 'The Paymaster', 'dwarf'], ['dwarven', 'Dwarven', 'dwarf'],
+  // Demon
+  ['imp_lord', 'Imp Lord', 'demon'], ['hungry_hippo', 'Hungry Hippo', 'demon'], ['gilded_horns', 'Gilded Horns', 'demon'],
+  ['big_red', 'Big Red', 'demon'], ['all_you_can_eat', 'All You Can Eat', 'demon'], ['swarm_season', 'Swarm Season', 'demon'],
+  ['hellfire', 'Hellfire', 'demon'],
+  // Spirit
+  ['ghost_town', 'Ghost Town', 'spirit'], ['gilded_ghost', 'Gilded Ghost', 'spirit'], ['party_animal', 'Party Animal', 'spirit'],
+  ['hand_me_downs', 'Hand Me Downs', 'spirit'], ['spirit_guide', 'Spirit Guide', 'spirit'], ['poltergeist', 'Poltergeist', 'spirit'],
+  // Dragon
+  ['dragon_rider', 'Dragon Rider', 'dragon'], ['nest_egg', 'Nest Egg', 'dragon'], ['gilded_scales', 'Gilded Scales', 'dragon'],
+  ['loudmouth', 'Loudmouth', 'dragon'], ['big_brain', 'Big Brain', 'dragon'], ['flamethrower', 'Flamethrower', 'dragon'],
+  ['big_lizard', 'Big Lizard', 'dragon'],
+  // Beast
+  ['zookeeper', 'Zookeeper', 'beast'], ['fat_cats', 'Fat Cats', 'beast'], ['king_of_the_jungle', 'King of the Jungle', 'beast'],
+  ['call_of_the_wild', 'Call of the Wild', 'beast'], ['let_the_dogs_out', 'Let the Dogs Out', 'beast'], ['apex_predator', 'Apex Predator', 'beast'],
+  // Undead
+  ['back_again', 'Back Again', 'undead'], ['bling_bones', 'Bling Bones', 'undead'], ['wont_stay_dead', "Won't Stay Dead", 'undead'],
+  ['skeleton_crew', 'Skeleton Crew', 'undead'], ['grim_reaper', 'Grim Reaper', 'undead'], ['graveyard_shift', 'Graveyard Shift', 'undead'],
+  // Kobold
+  ['tunnel_rat', 'Tunnel Rat', 'kobold'], ['ruby_rich', 'Ruby Rich', 'kobold'], ['gilt_digger', 'Gilt Digger', 'kobold'],
+  ['mother_lode', 'Mother Lode', 'kobold'], ['babysitter', 'Babysitter', 'kobold'], ['crown_jewels', 'Crown Jewels', 'kobold'],
+  ['small_but_mighty', 'Small but Mighty', 'kobold'],
+  // Celestial
+  ['starstruck', 'Starstruck', 'celestial'], ['spellbound', 'Spellbound', 'celestial'], ['gilded_hour', 'Gilded Hour', 'celestial'],
+  ['supernova', 'Supernova', 'celestial'], ['space_cadet', 'Space Cadet', 'celestial'], ['superstar', 'Superstar', 'celestial'],
+  ['stargazer', 'Stargazer', 'celestial'],
+  // Spell (owner v2: a new group). Celestial is the spell tribe, so the trio wears its look.
+  ['spell_slinger', 'Spell Slinger', 'celestial'], ['hocus_pocus', 'Hocus Pocus', 'celestial'], ['yazzus_himself', 'Yazzus Himself', 'celestial'],
+  // Coin (Gold, the Shop, Gilding)
+  ['window_shopper', 'Window Shopper', 'coin'], ['no_rerolls', 'No Rerolls', 'coin'], ['money_to_burn', 'Money to Burn', 'coin'],
+  ['buyers_remorse', "Buyer's Remorse", 'coin'], ['cheapskate', 'Cheapskate', 'coin'], ['fast_track', 'Fast Track', 'coin'],
+  ['late_bloomer', 'Late Bloomer', 'coin'], ['flat_broke', 'Flat Broke', 'coin'], ['deal_hunter', 'Deal Hunter', 'coin'],
+  ['midas_touch', 'Midas Touch', 'coin'], ['triple_threat', 'Triple Threat', 'coin'],
+  // Steel (combat)
+  ['by_a_hair', 'By a Hair', 'steel'], ['comeback_kid', 'Comeback Kid', 'steel'], ['overkill', 'Overkill', 'steel'],
+  ['glass_cannon', 'Glass Cannon', 'steel'], ['brick_wall', 'Brick Wall', 'steel'], ['echo_chamber', 'Echo Chamber', 'steel'],
+  ['hype_man', 'Hype Man', 'steel'], ['unkillable', 'Unkillable', 'steel'], ['shouting_match', 'Shouting Match', 'steel'],
+  ['absolute_unit', 'Absolute Unit', 'steel'], ['gym_rat', 'Gym Rat', 'steel'],
+  // Royal (lobby and placement)
+  ['mixed_company', 'Mixed Company', 'royal'], ['cockroach', 'Cockroach', 'royal'], ['never_bested', 'Never Bested', 'royal'],
+  ['the_untouchable', 'The Untouchable', 'royal'], ['regicide', 'Regicide', 'royal'], ['headsman', 'Headsman', 'royal'],
+  ['fashionably_late', 'Fashionably Late', 'royal'], ['photo_finish', 'Photo Finish', 'royal'],
+  // Jester (silly)
+  ['agree_to_disagree', 'Agree to Disagree', 'jester'], ['committed_to_the_bit', 'Committed to the Bit', 'jester'], ['tier_one_hero', 'Tier One Hero', 'jester'],
+  ['empty_handed', 'Empty Handed', 'jester'], ['pacifist', 'Pacifist', 'jester'], ['hoarder', 'Hoarder', 'jester'],
 ] as const);
-/**
- * Each secret title's themed look (owner ask 2026-11-20), grouped by theme: the tribe for a tribe feat (Chef Raag is a
- * Demon, Rubies are the Kobold engine, Gilding and Gold are coin), else what the feat is about: Gold and the Shop
- * (coin), a combat feat (steel), the lobby and placement (royal), a silly or self-imposed challenge (jester).
- */
-export const SECRET_TITLE_LOOKS: Readonly<Record<string, TitleLookKey>> = Object.freeze({
-  kings_jester: 'dwarf', imp_kings_favourite: 'demon', sous_chef: 'demon', moss_gardener: 'spirit',
-  keeper_of_the_hoard: 'dragon', dragons_bed: 'dragon', oonas_packmate: 'beast', wicks_apprentice: 'undead',
-  gramps_favourite: 'kobold', ruby_rich: 'kobold', starstruck: 'celestial', spellbound: 'celestial',
-  window_shopper: 'coin', never_rolled: 'coin', big_spender: 'coin', buyers_remorse: 'coin', frugal_to_a_fault: 'coin',
-  rush_job: 'coin', late_bloomer: 'coin', pocket_lint: 'coin', discount_bin: 'coin', midas_accountant: 'coin', triple_threat: 'coin',
-  last_one_standing: 'steel', the_comeback: 'steel', overkill: 'steel', glass_cannon: 'steel', wall_of_wards: 'steel',
-  echo_chamber: 'steel', rally_the_troops: 'steel', unkillable: 'steel', shouting_match: 'steel', titan_tamer: 'steel', buff_collector: 'steel',
-  mixed_company: 'royal', cockroach: 'royal', untouched: 'royal', flawless_ascent: 'royal', kingslayer: 'royal', executioner: 'royal',
-  fashionably_late: 'royal', photo_finish: 'royal',
-  stalemate_survivor: 'jester', committed_to_the_bit: 'jester', tier_one_hero: 'jester', empty_handed: 'jester', pacifist: 'jester', hoarder: 'jester',
-  // The tribe batch: each wears its tribe.
-  golden_beards: 'dwarf',
-  keghands_regular: 'dwarf',
-  mountain_wages: 'dwarf',
-  pimms_ledger: 'dwarf',
-  brakkas_edge: 'dwarf',
-  gilded_hellspawn: 'demon',
-  behemoths_belly: 'demon',
-  grevlins_clearance: 'demon',
-  matrons_favourite: 'demon',
-  rad_rachels_rage: 'demon',
-  gilded_lanterns: 'spirit',
-  revelers_parade: 'spirit',
-  seedlings_bloom: 'spirit',
-  old_timbers_grove: 'spirit',
-  flamebanner_bearer: 'spirit',
-  golden_clutch: 'dragon',
-  shriekers_encore: 'dragon',
-  grimoire_keeper: 'dragon',
-  karwinds_inferno: 'dragon',
-  flamus_flagship: 'dragon',
-  golden_pride: 'beast',
-  oonas_coronation: 'beast',
-  echohorns_chorus: 'beast',
-  kennelmasters_pride: 'beast',
-  torts_toxin: 'beast',
-  gilded_ossuary: 'undead',
-  mumis_encore: 'undead',
-  skeleton_crew: 'undead',
-  revenants_wrath: 'undead',
-  wicks_congregation: 'undead',
-  gilded_tunnelers: 'kobold',
-  riks_mother_lode: 'kobold',
-  kobebes_daycare: 'kobold',
-  delveys_masterpiece: 'kobold',
-  boulderdash_bully: 'kobold',
-  gilded_constellation: 'celestial',
-  zeniths_supernova: 'celestial',
-  star_seed_sower: 'celestial',
-  lodestars_light: 'celestial',
-  astral_spellweaver: 'celestial',
-});
+/** Each secret title's key and name, in display order. */
+export const SECRET_TITLE_NAMES: ReadonlyArray<readonly [key: string, title: string]> = Object.freeze(SECRET_TITLE_TABLE.map(([k, n]) => [k, n] as const));
+/** Each secret title's themed look (owner ask 2026-11-20), by key. */
+export const SECRET_TITLE_LOOKS: Readonly<Record<string, TitleLookKey>> = Object.freeze(Object.fromEntries(SECRET_TITLE_TABLE.map(([k, , l]) => [k, l])));
 /**
  * THE 100 WINS TITLE (owner 2026-11-20: "add a title for 100 wins called Ascenteerianologist"). The reward for the visible
  * `career.firsts.100` achievement (Warlord, finish 1st in 100 Ranked games). Not a secret: Ancient, the highest crate

@@ -84,7 +84,7 @@ export const PATCH_NOTES: PatchNote[] = [
         details: [
           'Each one is a hidden achievement in the new Secrets section of your Achievements.',
           'Unlocking one grants XP and a Secret title.',
-          'Every tribe has its own secrets.',
+          'Every tribe has its own secrets, and so do big spell builds.',
           'Each Secret title has its own colours and a little motion, themed on the tribe or feat that earns it.',
         ],
       },

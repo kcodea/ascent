@@ -17,15 +17,15 @@ const count = (cat: string): number => ACHIEVEMENTS.filter((a) => a.category ===
 const xpOf = (cat: string): number => ACHIEVEMENTS.filter((a) => a.category === cat).reduce((s, a) => s + a.rewards.xp, 0);
 
 describe('the batch 1 registry', () => {
-  it('ships 483 achievements: counts and XP per category (the Plushie Collector 2026-10-27: +1, 0 XP; hero titles 2026-09-29 added 33 Titled tiers, 4,950 XP; Runesmith + Guardian back 2026-10-01: +10; the 2026-10-03 150: +61,375 XP; the owner-approved long-term re-tune: +7,000 XP; Pete, Foreman Flint, Emissary, Underdweller, Membrance + Gorun back 2026-10-15: +36, +5,700 XP; the secret titles 2026-11-20: +48 hidden, +20,550 XP; the tribe batch: +40, +17,400 XP)', () => {
-    expect(ACHIEVEMENTS).toHaveLength(571);
+  it('ships 483 achievements: counts and XP per category (the Plushie Collector 2026-10-27: +1, 0 XP; hero titles 2026-09-29 added 33 Titled tiers, 4,950 XP; Runesmith + Guardian back 2026-10-01: +10; the 2026-10-03 150: +61,375 XP; the owner-approved long-term re-tune: +7,000 XP; Pete, Foreman Flint, Emissary, Underdweller, Membrance + Gorun back 2026-10-15: +36, +5,700 XP; the secret titles 2026-11-20: +48 hidden, +20,550 XP; the tribe batch: +40; the v2 pass: +3 Spell feats and new bars, 91 hidden, 45,950 XP in all)', () => {
+    expect(ACHIEVEMENTS).toHaveLength(574);
     expect(Object.fromEntries(ACHIEVEMENT_CATEGORIES.map((c) => [c, count(c)]))).toEqual({
-      career: 17, ranked: 28, heroes: 258, economy: 15, mechanics: 7, runes: 5, set2: 82, combat: 36, milestones: 34, collection: 1, secret: 88,
+      career: 17, ranked: 28, heroes: 258, economy: 15, mechanics: 7, runes: 5, set2: 82, combat: 36, milestones: 34, collection: 1, secret: 91,
     });
     expect(Object.fromEntries(ACHIEVEMENT_CATEGORIES.map((c) => [c, xpOf(c)]))).toEqual({
-      career: 3050, ranked: 4300, heroes: 42850, economy: 1925, mechanics: 1125, runes: 675, set2: 22450, combat: 13175, milestones: 22100, collection: 0, secret: 37950,
+      career: 3050, ranked: 4300, heroes: 42850, economy: 1925, mechanics: 1125, runes: 675, set2: 22450, combat: 13175, milestones: 22100, collection: 0, secret: 45950,
     });
-    expect(ACHIEVEMENTS.reduce((s, a) => s + a.rewards.xp, 0)).toBe(149_600);
+    expect(ACHIEVEMENTS.reduce((s, a) => s + a.rewards.xp, 0)).toBe(157_600);
     // owner 2026-10-03 ("yes apply these achievement changes"): the batch 1 long-term tiers on the new curve
     expect(Object.fromEntries(['career.games.100', 'career.top_four.50', 'career.firsts.25', 'career.comebacks.10', 'career.heroes_played.15', 'career.hero_wins.15', 'career.achievements.25', 's2.kobold.rubies_life_500', 'hero.warden.mastery']
       .map((id) => [id, ACHIEVEMENT_INDEX[id]!.rewards.xp]))).toEqual({
@@ -303,13 +303,13 @@ describe('the secret titles (owner 2026-11-20: "50 new SECRET titles ... tied to
   const base: AchievementSettlement = { mode: 'ranked', eligibleRun: true, setId: 'set2', heroId: 'warden', placement: 3, metrics: {} };
   const one = (id: string): AchievementDef[] => [ACHIEVEMENT_INDEX[id]!];
 
-  it('88 built (48, Avenger and Indecisive left out, plus 5 per tribe theme), each hidden, paying 250 to 750 XP and its own Secret title granted by it', () => {
-    expect(SECRET_ACHIEVEMENTS).toHaveLength(88);
-    expect(SECRET_TITLE_NAMES).toHaveLength(88);
+  it('91 built (48, Avenger and Indecisive left out, plus 5 per tribe theme, plus the v2 Spell trio), each hidden, paying 250 to 800 XP and its own Secret title granted by it', () => {
+    expect(SECRET_ACHIEVEMENTS).toHaveLength(91);
+    expect(SECRET_TITLE_NAMES).toHaveLength(91);
     for (const a of SECRET_ACHIEVEMENTS) {
       expect(a.hidden, a.id).toBe(true);
       expect(a.rewards.xp, a.id).toBeGreaterThanOrEqual(250);
-      expect(a.rewards.xp, a.id).toBeLessThanOrEqual(750);
+      expect(a.rewards.xp, a.id).toBeLessThanOrEqual(800);
       const t = cosmeticOf(a.rewards.titleId)!;
       expect(t, a.id).toMatchObject({ category: 'title', rarity: 'secret', acquisition: { type: 'achievement', id: a.id }, active: true, name: a.name });
       expect(RUN_METRIC_KEYS, a.id).toContain(a.metric);
@@ -318,23 +318,26 @@ describe('the secret titles (owner 2026-11-20: "50 new SECRET titles ... tied to
   });
 
   it('the evaluator: a one-game feat completes at its target and pays its XP; below it nothing moves for a flag', () => {
-    expect(evaluateAchievements(one('secret.window_shopper'), { ...base, metrics: { refreshesTurnMax: 24 } }, {})).toEqual({ progress: { 'secret.window_shopper': 24 }, completed: [], xp: 0 });
-    expect(evaluateAchievements(one('secret.window_shopper'), { ...base, metrics: { refreshesTurnMax: 25 } }, {})).toEqual({ progress: { 'secret.window_shopper': 25 }, completed: ['secret.window_shopper'], xp: 300 });
+    expect(evaluateAchievements(one('secret.window_shopper'), { ...base, metrics: { refreshesTurnMax: 39 } }, {})).toEqual({ progress: { 'secret.window_shopper': 39 }, completed: [], xp: 0 });
+    expect(evaluateAchievements(one('secret.window_shopper'), { ...base, metrics: { refreshesTurnMax: 40 } }, {})).toEqual({ progress: { 'secret.window_shopper': 40 }, completed: ['secret.window_shopper'], xp: 400 });
     // every def is 'max': the best game counts, games never add up
-    expect(evaluateAchievements(one('secret.kings_jester'), { ...base, metrics: { dwarfPlays: 30 } }, { 'secret.kings_jester': { progress: 40, completed: false } }).completed).toEqual([]);
+    expect(evaluateAchievements(one('secret.king_brills_jester'), { ...base, metrics: { dwarfPlays: 50 } }, { 'secret.king_brills_jester': { progress: 50, completed: false } }).completed).toEqual([]);
+    // the v2 Spell trio: Yazzus Himself reads the LOWER half of Front to Back
+    expect(evaluateAchievements(one('secret.yazzus_himself'), { ...base, metrics: { frontToBackMin: 500 } }, {})).toMatchObject({ completed: ['secret.yazzus_himself'], xp: 800 });
+    expect(evaluateAchievements(one('secret.hocus_pocus'), { ...base, metrics: { spellBuffs: 299 } }, {}).completed).toEqual([]);
     expect(SECRET_ACHIEVEMENTS.every((a) => a.agg === 'max')).toBe(true);
   });
 
   it('the gates: a "win the game" feat needs 1st in Ranked; a Top 4 feat counts a standard Practice too; a run-only feat counts any eligible game', () => {
-    const win = one('secret.never_rolled');
+    const win = one('secret.no_rerolls');
     expect(evaluateAchievements(win, { ...base, metrics: { noRefreshGame: 1 } }, {}).completed).toEqual([]);
-    expect(evaluateAchievements(win, { ...base, placement: 1, metrics: { noRefreshGame: 1 } }, {}).completed).toEqual(['secret.never_rolled']);
+    expect(evaluateAchievements(win, { ...base, placement: 1, metrics: { noRefreshGame: 1 } }, {}).completed).toEqual(['secret.no_rerolls']);
     expect(evaluateAchievements(win, { ...base, mode: 'practice', placement: 1, metrics: { noRefreshGame: 1 } }, {}).completed).toEqual([]);
     const roach = one('secret.cockroach');
     expect(evaluateAchievements(roach, { ...base, mode: 'practice', placement: 4, metrics: { oneHealthRounds: 5 } }, {}).completed).toEqual(['secret.cockroach']);
     expect(evaluateAchievements(roach, { ...base, placement: 5, metrics: { oneHealthRounds: 9 } }, {}).completed).toEqual([]);
-    expect(evaluateAchievements(one('secret.overkill'), { ...base, mode: 'practice', placement: null, metrics: { hitDamageMax: 140 } }, {}).completed).toEqual(['secret.overkill']);
-    expect(evaluateAchievements(one('secret.overkill'), { ...base, eligibleRun: false, metrics: { hitDamageMax: 140 } }, {}).completed).toEqual([]);
+    expect(evaluateAchievements(one('secret.overkill'), { ...base, mode: 'practice', placement: null, metrics: { hitDamageMax: 1_400 } }, {}).completed).toEqual(['secret.overkill']);
+    expect(evaluateAchievements(one('secret.overkill'), { ...base, eligibleRun: false, metrics: { hitDamageMax: 1_400 } }, {}).completed).toEqual([]);
   });
 
   it('each secret feat is stricter than, or different from, the visible achievement on the same metric', () => {
@@ -348,6 +351,6 @@ describe('the secret titles (owner 2026-11-20: "50 new SECRET titles ... tied to
 
   it('the catalog payload carries the hidden flag and the title for the database', () => {
     const row = achievementCatalogPayload().items.find((i) => i.achievementId === 'secret.starstruck')!;
-    expect(row).toMatchObject({ hidden: true, titleId: 'title_secret_starstruck', metric: 'starformAttackMax', target: 50, xp: 350, category: 'secret', active: true });
+    expect(row).toMatchObject({ hidden: true, titleId: 'title_secret_starstruck', metric: 'starformAttackMax', target: 150, xp: 450, category: 'secret', active: true });
   });
 });

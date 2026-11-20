@@ -65,6 +65,8 @@ export interface AchTally {
   lastFightExact?: boolean;
   /** Combats won this game. */
   combatsWon?: number;
+  /** Rounds with 7 Undead on the board at once (distinct; secret titles v2). */
+  undeadWaves?: number[];
 }
 
 export const emptyAchTally = (): AchTally => ({
@@ -187,7 +189,7 @@ const TRIBE_GILDED_METRIC: Readonly<Record<string, RunMetric>> = {
   beast: 'beastGildedMax', undead: 'undeadGildedMax', kobold: 'koboldGildedMax', celestial: 'celestialGildedMax',
 };
 const TRIBE_ATTACK_METRIC: Readonly<Record<string, RunMetric>> = {
-  dwarf: 'dwarfAttackMax', demon: 'demonAttackMax', spirit: 'spiritAttackMax', dragon: 'dragonAttackMax',
+  demon: 'demonAttackMax', spirit: 'spiritAttackMax', dragon: 'dragonAttackMax',
   undead: 'undeadAttackMax', kobold: 'koboldAttackMax', celestial: 'celestialAttackMax',
 };
 const REVELER_IDS: ReadonlySet<string> = new Set(['sp3_flamereveler', 'sp3_tidereveler', 'sp3_grovereveler']);
@@ -252,6 +254,19 @@ function observeSecretAction(t: AchTally, before: RunState, action: Action, afte
     const waves = (t.spiritWaves ??= []);
     if (!waves.includes(after.wave)) { waves.push(after.wave); bump(t, 'spiritFullRounds', waves.length); }
   }
+  if (after.board.length >= 7 && countTribe(after.board, 'undead') >= 7) {
+    const waves = (t.undeadWaves ??= []);
+    if (!waves.includes(after.wave)) { waves.push(after.wave); bump(t, 'undeadFullRounds', waves.length); }
+  }
+  // Secret titles v2: Front to Back's escalation (both halves), and every spell stat buff that landed on a board minion
+  // this action. The buff-FX records are the Shop's one per-target buff ledger (cleared at the top of every `reduce`, so
+  // `after` holds exactly this action's): a `spell` capture, or a minion's capture that cast a spell. An Ancient's
+  // hero-power grant rides a `spell` record too but is not a spell, so it is skipped. A combat PREVIEW action spreads the
+  // prior state without resetting the scratch (`reduceCombatPreview`), so the SAME array means no new captures.
+  bump(t, 'frontToBackMin', Math.min(after.frontToBackBonus ?? 0, after.frontToBackBonusH ?? after.frontToBackBonus ?? 0));
+  let spellBuffs = 0;
+  if (after.recruitBuffFx !== before.recruitBuffFx) for (const r of after.recruitBuffFx ?? []) if ((r.kind === 'spell' || r.spellId) && !r.fromHeroPower && (r.attack > 0 || r.health > 0)) spellBuffs++;
+  add(t, 'spellBuffs', spellBuffs);
   for (const c of after.board) {
     bump(t, 'minionStatsMinMax', Math.min(c.attack, c.health));
     bump(t, 'buffsOnOneMax', buffCountOf(c));
@@ -268,7 +283,6 @@ function observeSecretAction(t: AchTally, before: RunState, action: Action, afte
     bump(t, TRIBE_GILDED_METRIC[tr], gilded);
     const am = TRIBE_ATTACK_METRIC[tr];
     if (am) bump(t, am, attack);
-    if (tr === 'undead') bump(t, 'undeadBoardMax', n);
     if (tr === 'dwarf' && n >= 5) bump(t, 'dwarfHallSpendTurnMax', after.goldSpentThisTurn ?? 0);
     if (tr === 'celestial' && n >= 3) bump(t, 'celestialSpellsTurnMax', after.spellsThisTurn ?? 0);
   }
@@ -430,8 +444,9 @@ function observeSecretCombat(t: AchTally, lc: CombatResult, player: ReadonlySet<
   const hitsTaken = new Map<string, number>();
   let pendingHit: string | null = null; // the friendly body the last attack landed on, until it is known to have lived
   // The tribe batch (2026-11-20).
-  let bankedGold = 0; let demonDamage = 0; let undeadRises = 0; let skeletons = 0; let fromHand = 0;
+  let bankedGold = 0; let demonDamage = 0; let dwarfDamage = 0; let spellBuffs = 0; let undeadRises = 0; let skeletons = 0; let fromHand = 0;
   const isDemon = (uid: string): boolean => defIsTribe(CARD_INDEX[cardOf.get(uid) ?? ''], 'demon');
+  const isDwarf = (uid: string): boolean => defIsTribe(CARD_INDEX[cardOf.get(uid) ?? ''], 'dwarf');
   const settleHit = (): void => {
     if (pendingHit === null) return;
     const n = (hitsTaken.get(pendingHit) ?? 0) + 1;
@@ -451,9 +466,14 @@ function observeSecretCombat(t: AchTally, lc: CombatResult, player: ReadonlySet<
         else if (e.source && player.has(e.source)) {
           bump(t, 'hitDamageMax', e.amount);
           if (isDemon(e.source)) demonDamage += Math.max(0, e.amount);
+          if (isDwarf(e.source)) dwarfDamage += Math.max(0, e.amount);
         }
         break;
-      case 'buff': if (player.has(e.target) && hp.has(e.target)) hp.set(e.target, hp.get(e.target)! + e.health); break;
+      case 'buff':
+        if (!player.has(e.target)) break;
+        if (e.spellId && (e.attack > 0 || e.health > 0)) spellBuffs++; // a spell's stat buff landing (secret titles v2)
+        if (hp.has(e.target)) hp.set(e.target, hp.get(e.target)! + e.health);
+        break;
       case 'sc': if (e.setHealth !== undefined && player.has(e.source)) hp.set(e.source, e.setHealth); break;
       case 'tribeAura': if (e.side === 'player' && (e.health ?? 0) !== 0) hpKnown = false; break;
       case 'hpGrant': if (player.has(e.target)) hpKnown = false; break;
@@ -482,6 +502,8 @@ function observeSecretCombat(t: AchTally, lc: CombatResult, player: ReadonlySet<
   settleHit();
   bump(t, 'combatGoldMax', bankedGold);
   bump(t, 'demonDamageCombatMax', demonDamage);
+  add(t, 'dwarfDamage', dwarfDamage);
+  add(t, 'spellBuffs', spellBuffs);
   bump(t, 'undeadRisesCombatMax', undeadRises);
   bump(t, 'skeletonSummonsCombatMax', skeletons);
   bump(t, 'handSummonsCombatMax', fromHand);

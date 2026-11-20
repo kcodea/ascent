@@ -131,14 +131,14 @@ describe('themed secret titles (owner ask 2026-11-20: "more exciting/fun looking
     expect(SECRET_TITLE_COSMETICS.every((c) => c.look && TITLE_LOOK_KEYS.includes(c.look))).toBe(true);
     expect(new Set(SECRET_TITLE_COSMETICS.map((c) => c.look))).toEqual(new Set(TITLE_LOOK_KEYS));
     expect(COSMETICS.filter((c) => c.look).every((c) => c.id.startsWith('title_secret_'))).toBe(true);
-    expect(hasTitlePlate('title_secret_kings_jester')).toBe(true);
+    expect(hasTitlePlate('title_secret_king_brills_jester')).toBe(true);
     expect(hasTitlePlate('title_hero_warden_master')).toBe(true);
     expect(hasTitlePlate('title_wanderer')).toBe(false);
     expect(hasTitlePlate(null)).toBe(false);
   });
 
   it('paints its theme in colour only (no icon, owner 2026-11-20) with the secret seal, the name as the only text, live on screen', () => {
-    m.render(<TitleBadge id="title_secret_kings_jester" />);
+    m.render(<TitleBadge id="title_secret_king_brills_jester" />);
     const dwarf = badge()!;
     expect(dwarf.classList.contains('tb-look-dwarf')).toBe(true);
     expect([...dwarf.classList].some((c) => c.startsWith('r-'))).toBe(false); // no rarity rule paints over it

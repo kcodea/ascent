@@ -72,6 +72,16 @@ export interface HeroSelectWatch {
 /** How long a re-roll's swap plays (the old portrait's dissolve, then the new one's coalesce); matches styles.css. */
 const REROLL_SWAP_MS = 700;
 
+/** Opens the Compendium over Hero Select: the store's own `toggleBook`, as the corner button and the C key do (and, like C,
+ *  a Settings page open at the time gives way to the book). */
+function openCompendium(): void {
+  const st = useGame.getState();
+  if (st.showBook) return;
+  sfx.pulse();
+  if (st.settingsOpen) st.closeSettings();
+  st.toggleBook();
+}
+
 /**
  * Pre-run hero picker. Shows whenever the store has `heroChoices` (first load + after a
  * game over). Picking one starts a fresh run as that hero. This is the first slice of the
@@ -313,6 +323,15 @@ export function HeroSelect({ watch }: { watch?: HeroSelectWatch } = {}) {
     const done = window.setTimeout(() => { setAnimatedReroll(swapping); setArmedSlot(null); }, REROLL_SWAP_MS);
     return () => window.clearTimeout(done);
   }, [swapping]);
+
+  // THE COMPENDIUM FROM HERO SELECT (owner ask 2026-11-20): a pick's ceremony takes the screen, so a book still open when
+  // one starts (the Versus clock's own pick) closes, and the launch never plays under it.
+  const ceremonyUp = ceremonyActive(ceremony);
+  useEffect(() => {
+    if (!ceremonyUp || watch) return;
+    const st = useGame.getState();
+    if (st.showBook) st.closeBook();
+  }, [ceremonyUp, watch]);
 
   if (!choices) return null;
 
@@ -582,6 +601,12 @@ export function HeroSelect({ watch }: { watch?: HeroSelectWatch } = {}) {
             }
           })}
         </div>}
+        {/* VIEW COMPENDIUM (owner ask 2026-11-20): a small button under the heroes opens the same book the corner button
+            and Tab open elsewhere (`toggleBook`), over this screen. Closing it lands back here with the pick untouched.
+            Not on a watched screen, and gone once a pick's ceremony runs. */}
+        {!watch && !active && (
+          <button type="button" className="hsbook" onClick={openCompendium} aria-label="View Compendium">View Compendium</button>
+        )}
       </div>
       {openNow !== null && (
         <Suspense fallback={null}>

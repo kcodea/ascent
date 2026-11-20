@@ -243,9 +243,9 @@ useSpectate.subscribe((s, prev) => {
  * Esc comes back; Tab held peeks (press = open, release = back). Mounted for a seated Duos player.
  *
  * TAB IS THE PEEK AND NOTHING ELSE WHILE THESE KEYS ARE ON (R-DUOS-TAB-PEEK-01): the press stops here (this listener is on
- * the capture phase), so the Compendium's own Tab listener (compendiumHotkey.ts, the bubble phase) never sees it. Before,
- * one press both peeked AND opened the Compendium over the teammate's board, and a held Tab's key repeats toggled the
- * book again and again. One exception: with the Compendium already open, Tab is left alone so it closes the book.
+ * the capture phase). Before, one press both peeked AND opened the Compendium over the teammate's board (the book's key
+ * was Tab then; it is C since 2026-11-20, compendiumHotkey.ts). One exception: with the Compendium already open, Tab is
+ * left alone (no peek behind the book).
  */
 export function useTeammateViewKeys(enabled: boolean): void {
   useEffect(() => {
@@ -256,7 +256,7 @@ export function useTeammateViewKeys(enabled: boolean): void {
       const viewing = (): boolean => !!useSpectate.getState().teammate || !!useSpectate.getState().teammateHero;
       if (e.key === 'Escape' && viewing()) { e.preventDefault(); e.stopPropagation(); exitTeammateView(); return; }
       if (e.key === 'Tab') {
-        if (useGame.getState().showBook) return; // the open book takes it: Tab closes the Compendium
+        if (useGame.getState().showBook) return; // no peek behind an open book (C or Esc closes it)
         e.preventDefault();
         e.stopPropagation();
         if (e.repeat) return; // a held key: still the peek's, never anyone else's

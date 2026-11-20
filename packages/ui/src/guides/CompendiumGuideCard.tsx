@@ -34,9 +34,9 @@ const noReport = (): ReportDraft => ({ reason: null, note: '' });
  * The row wraps (`.gtool-note`). The text box is the editor's (`.gedit-input`, guideEditor.css, which the host loads
  * with the editor, as it does `.gbtn`): full width, so it takes a row of its own inside the card.
  *
- * KEYS. The game listens on the window: Tab opens and closes the Compendium, and Escape closes it (Game.tsx). This is
- * a form that is typed in, so while a key is pressed inside it those two never get that far: Tab (and Shift+Tab) is
- * stopped on its way up and nothing else is done to it, so it moves focus as usual; Escape is Cancel (the form closes,
+ * KEYS. The game listens on the window: C opens and closes the Compendium (Tab until 2026-11-20), and Escape closes it
+ * (Game.tsx). This is a form that is typed in, so while a key is pressed inside it those never get that far: Tab (and
+ * Shift+Tab) and C are stopped on their way up and nothing else is done to them, so Tab moves focus and C types as usual; Escape is Cancel (the form closes,
  * what was typed is forgotten, focus goes back to Report), and the Compendium stays open. Every other key goes on to
  * the game as before. (The editor does the same for itself, with a listener of its own: GuideEditor.tsx.)
  */
@@ -53,7 +53,7 @@ function ReportForm({ kept, writable, firstRef, sendRef, onSend, onCancel }: {
   const change = (next: ReportDraft): void => { kept.current = next; setDraft(next); };
   const { reason, note } = draft;
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>): void => {
-    if (e.key === 'Tab') e.stopPropagation();
+    if (e.key === 'Tab' || e.key.toLowerCase() === 'c') e.stopPropagation();
     else if (e.key === 'Escape') { e.stopPropagation(); onCancel(); }
   };
   return (

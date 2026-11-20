@@ -15098,19 +15098,23 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-COMPENDIUM-TAB-01',
-    title: 'Tab opens and closes the Compendium on the menus and in a game',
+    title: 'C opens and closes the Compendium on the menus, in a game and on your own Hero Select',
     statement:
-      'Pressing Tab opens the Compendium and pressing it again closes it, one press at a time, on every menu screen (the party home and its pages) '
-      + 'and in a game, in the desktop app as in the browser. It does nothing during hero select, and a text field that is being typed in keeps Tab for itself.',
+      'Pressing C opens the Compendium and pressing it again closes it, one press at a time, on every menu screen (the party home and its pages), '
+      + 'in a game and on your own Hero Select (the same Compendium its View Compendium button opens; Esc or Back returns to the same offer), in the desktop app as in the browser. '
+      + 'It does not open the book on the Hero Select of someone else (the stands, the choices of a Duos teammate) or once your pick is playing. A letter typed into a text field, a search box or chat stays text, '
+      + 'Ctrl+C keeps copying, and a held key does not flicker the book. (The key was Tab until 2026-11-20.)',
     domain: 'foundation',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Mike, Claude Code session 2026-11-09', quote: 'when i press tab in the exe verison of the game, the compendium doesnt come up, at least while on the main menu screen' },
       { kind: 'fix-pr', ref: 'fix/tab-compendium-menus: packages/ui/src/compendiumHotkey.ts (onCompendiumTab), Game.tsx, partyHome/pages/PhCompendium.tsx' },
+      { kind: 'owner-handoff', ref: 'Owner follow-up on PR #2810, relayed by the coordinator 2026-11-20', quote: 'change the DEFAULT keybinding for opening the Compendium from Tab to "c"' },
+      { kind: 'fix-pr', ref: 'feat/hero-select-compendium: packages/ui/src/compendiumHotkey.ts (onCompendiumKey), HeroSelect.tsx' },
     ],
-    currentBehaviour: 'Conforms from 2026-11-09 (fix/tab-compendium-menus). Before, the Tab listener stood down whenever the party home shell was up, so once the shell became the production UI Tab did nothing on any menu of the desktop app.',
-    example: 'On the party home, press Tab: the Compendium opens. Press Tab again: it closes and the party home is back.',
-    enforcement: { kind: 'scenario', refs: ['packages/ui/src/compendiumHotkey.test.ts'], lastVerifiedAt: '2026-11-09' },
+    currentBehaviour: 'Conforms from 2026-11-20 (feat/hero-select-compendium). Before, the key was Tab and it did nothing during hero select; before 2026-11-09 it also stood down whenever the party home shell was up.',
+    example: 'On the party home, press C: the Compendium opens. Press C again: it closes and the party home is back. On Hero Select, press C: the book opens over it; Esc lands on the same three heroes.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/compendiumHotkey.test.ts', 'packages/ui/src/hero-select/heroSelectCompendium.test.tsx'], lastVerifiedAt: '2026-11-20' },
   },
   {
     id: 'R-DUOS-BACK-TAP-01',
@@ -15450,7 +15454,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     title: 'In a Duos game, Tab peeks at your teammate and does not open the Compendium',
     statement:
       'For a seated Duos player, holding Tab shows the board of your teammate and letting go comes back. That press does nothing else: the Compendium does not open, and holding the key does not flicker it open and shut. '
-      + 'One exception: if the Compendium is already open, Tab closes it and does not peek. Outside a Duos seat, Tab opens and closes the Compendium as on every other screen (R-COMPENDIUM-TAB-01).',
+      + 'One exception: if the Compendium is already open, Tab does not peek behind it. The key of the Compendium is C (R-COMPENDIUM-TAB-01), which works in a Duos seat as everywhere else.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -15460,7 +15464,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms from 2026-11-10 (fix/duos-perf-wins). Before, the teammate view listened for Tab on the capture phase and prevented the default but let the press travel on, so the Compendium listener on the window also fired: one press peeked and opened the Compendium over the board of the teammate, and each key repeat of a held Tab toggled the book again.',
     example: 'In a Duos shop you hold Tab: the board of your teammate fades in and nothing else opens. You let go: your own board is back.',
-    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/teammateTabPeek.test.tsx'], lastVerifiedAt: '2026-11-10' },
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/teammateTabPeek.test.tsx'], lastVerifiedAt: '2026-11-20' },
   },
   {
     id: 'R-DUOS-VIEW-YOU-01',

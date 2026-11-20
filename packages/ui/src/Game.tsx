@@ -624,7 +624,7 @@ export function Game() {
   // universal subject behind `:hover` restyles every hovered card in a game (R-PERF-HOVER-SUBJECT-01, pointedBoard.ts).
   useEffect(() => installPointedBoards(), []);
 
-  // Tab toggles the Compendium, on the menus and in a run (R-COMPENDIUM-TAB-01).
+  // C toggles the Compendium, on the menus, in a run and on my own Hero Select (R-COMPENDIUM-TAB-01).
   useEffect(() => installCompendiumHotkey(), []);
 
   return (
@@ -687,15 +687,15 @@ export function Game() {
       {!preRun && <CastPreviewLayer />}
       {showBook && (PhGuard && shellMenus ? <PhGuard onBack={() => useGame.getState().closeBook()}><MinionBook /></PhGuard> : <MinionBook />)}
       {/* THE PARTY HOME PROTOTYPE (DEV): on the menus the Compendium is a page under the shell's top nav. */}
-      {showBook && preRun && PhBookNav && PhGuard && <PhGuard onBack={() => useGame.getState().closeBook()}><PhBookNav /></PhGuard>}
+      {showBook && preRun && !heroPicking && PhBookNav && PhGuard && <PhGuard onBack={() => useGame.getState().closeBook()}><PhBookNav /></PhGuard>}
       <Inspect />
       {/* A Runeforge offer's tap-to-inspect view (touch only, R-TOUCH-TAPINSPECT-01): renders nothing until a finger opens it. */}
       <RuneInspect />
       </OwnSkins>
       {/* THE CORNER BUTTONS, bottom right: ONLY the Compendium and Settings (owner 2026-10-31, R-CORNER-SPLIT-01: "have the
-          bottom right only show the compendium and settings"). The golden book (the mouse twin of the Tab key) beside the
+          bottom right only show the compendium and settings"). The golden book (the mouse twin of the C key) beside the
           gear; the old golden question mark is gone, its Rules page is the Compendium's own Rules tab. Friends and the dev
-          squares live bottom left (FriendsDock, bottomLeft.ts). Hidden during hero select, like Tab; shown on the home
+          squares live bottom left (FriendsDock, bottomLeft.ts). Hidden during hero select, which has its own View Compendium button (the C key works there too); shown on the home
           screen too (styles.css). Hover names each one. */}
       {!heroPicking && (
         <button className="bookbtn gtip" data-tip="Compendium" onClick={toggleBook} aria-label="Compendium">

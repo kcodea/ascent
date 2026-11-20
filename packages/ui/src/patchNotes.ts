@@ -113,6 +113,10 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'An Ancient that awakens from a fight just before a rune turn is now revealed before you choose your rune.',
+      },
+      {
+        category: 'Systems',
         text: 'A new awakening. When an Ancient awakens, all six Ancients now slam onto the screen before three are offered.',
         details: [
           'Your hero power explodes and the Shop darkens.',

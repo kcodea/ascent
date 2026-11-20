@@ -3669,6 +3669,18 @@ export function ancientOfferOpen(state: RunState): boolean {
 }
 
 /**
+ * THE AWAKENING LEADS THE RUNEFORGE (owner 2026-11-19, R-ANCIENT-ORDER-01): a meter filled by the fight that opens a
+ * rune turn awakens BEFORE the rune select. True while that offer is unanswered and the forge is the only other
+ * decision up (a quest, a hero-power pick or a Discover still goes first). The reducer lets the pick through the
+ * open forge on it, and the UI holds the forge behind the awakening on it.
+ */
+export function ancientLeadsRuneforge(state: RunState): boolean {
+  const a = live(state);
+  if (!a?.offer?.length || a.lastGain?.why !== 'combat' || !state.runeforgeOffer) return false;
+  return !(state.discover || state.chooseOne || state.pendingTarget || state.questOffer || state.powerOffer || state.scoutedNextOpponent?.length);
+}
+
+/**
  * The hero id whose pairing is in play: the hero whose POWER sits in slot 0 right now (owner ruling 2026-11-01,
  * R-HERO-POWER-REPLACED-02: pairings follow the held power). Native heroes read their own id, as before. A Gildmaster
  * who Power Shifts Gildcrafter away loses Gildmaster × War; a hero who gains Gildcrafter in slot 0 has it.

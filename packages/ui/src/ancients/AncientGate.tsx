@@ -13,6 +13,7 @@ import { pickTimeline, warmPickBurst } from './ancientPickSlam';
 import { ancientEruptionBlast, ancientLandDust } from './ancientsSmoke';
 import { heroMotePalette, resolveAncientHeroTheme } from './ancientHeroThemes';
 import { stageHost, toStage } from '../stage';
+import { awakeningWaits } from './awakeningLeadsForge';
 
 /**
  * THE AWAKENING (owner 2026-09-25: "ominous exciting when the hero power erupts. it should be a moment that the player
@@ -80,7 +81,7 @@ export const AncientGate = memo(function AncientGate({ run }: { run: RunState })
   const stage = useAwakenStage();
   const wipeIdle = useGame((s) => s.wipeIdle);
   const combatStaged = useGame((s) => s.combatStaged);
-  const otherModal = !!(run.discover || run.questOffer || run.powerOffer || run.runeforgeOffer || run.pendingTarget || run.chooseOne || run.scoutedNextOpponent?.length);
+  const otherModal = awakeningWaits(run); // a forge this awakening leads does not hold it (R-ANCIENT-ORDER-01)
   const blocked = run.phase !== 'recruit' || !wipeIdle || combatStaged || otherModal;
 
   // The screen's colours are live tuner values (✦ Ancients › Screen colours), fed to the CSS as custom properties.

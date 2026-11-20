@@ -3,6 +3,7 @@ import { parseCosmeticSnapshot, type RunCosmeticSnapshot } from '@game/progressi
 import type { BoardSnapshot } from '../snapshot';
 import { driverFor, type LobbySeatState, type RunLobby } from './runLobby';
 import type { PreparedBoard } from './types';
+import { boardPctAtRound, windowStrengthOf, type StrengthHistogram } from './boardStrength';
 import { ANCIENT_IDS, type AncientId } from '../ancients';
 import { parseRuneLiveState, runeLiveStateOfSnapshot, type RuneLiveState } from '../runeLiveState';
 
@@ -123,8 +124,13 @@ export interface MatchSeat {
    *  An opponent seat carries its run's pool strength; your own seat the average of your rounds. Absent = not
    *  scored (generated seats, older records, a score that was not ready): the UI then shows nothing. */
   strength?: number;
-  /** Your own seat only: the strength of each round's board, in round order. */
+  /** The strength of each round's board, in round order: your own seat's rounds, and a recorded opponent's rounds
+   *  1..the round it was shown at (R-RESULTS-STRENGTH-WINDOW-01). Absent for generated seats and unscored boards. */
   roundStrength?: MatchRoundStrength[];
+  /** RELEVANT STRENGTH (R-RESULTS-STRENGTH-WINDOW-01, owner 2026-11-20): the weighted mean of `roundStrength` over only
+   *  the rounds this seat shared with you (1..the round it was shown at), weighted for that length, 1-100. `strength`
+   *  stays the whole recorded run (Run Strength). Absent = fewer than half those rounds were scored. */
+  windowStrength?: number;
   /** The seat's picked ANCIENT (R-ANCIENTS-RELEASE-04): its id, the hero whose pairing it was, and the wave it was
    *  picked. Your own seat reads your run; another seat reads the board it fielded (`BoardSnapshot.ancient`). Absent =
    *  none picked, or a record from before 2026-11-16. */
@@ -149,6 +155,8 @@ export interface MatchDetails {
   knockedOutBy?: string;
   /** Every seat, already in scoreboard order. */
   seats: MatchSeat[];
+  /** Present (1) on a record built with Relevant Strength; absent on an older record, whose seats never carry it. */
+  strengthWindow?: 1;
 }
 
 export interface MatchDetailsInput {
@@ -164,6 +172,9 @@ export interface MatchDetailsInput {
   selfRunKey?: string | null;
   /** Your board strength, when it was scored by the time the record is built (see `MatchSeat.strength`). */
   selfStrength?: { value: number | null; rounds: readonly MatchRoundStrength[] } | null;
+  /** The reference histogram recorded opponents' boards are ranked in, for their per-round strength. Without it
+   *  (or on a ref mismatch) an opponent carries Run Strength only. */
+  strengthHistogram?: StrengthHistogram | null;
   /** Your picked Ancient (`ancientSnapshotOf(run)`); falls back to `selfBoard.ancient`. */
   selfAncient?: MatchAncient | null;
 }
@@ -244,6 +255,22 @@ function fieldedBoard(lobby: RunLobby, seat: LobbySeatState, round: number): Pre
 }
 
 /**
+ * A recorded opponent's board strength for each round it shared with you (1..`round`), ranked in `hist`. Only a seat
+ * driven by a real recording is read (a generated seat has no scored boards, and rebuilding its driver per round is
+ * costly); a round with no scored board is simply absent. Read-only: `prepare` on a recording is a pure lookup.
+ */
+function opponentRoundStrength(lobby: RunLobby, seat: LobbySeatState, round: number, hist: StrengthHistogram): MatchRoundStrength[] {
+  if (seat.kind !== 'snapshot' || !driverFor(seat, lobby.setId)?.realPlayer) return [];
+  const out: MatchRoundStrength[] = [];
+  for (let r = 1; r <= round; r++) {
+    const snap = fieldedBoard(lobby, seat, r)?.snapshot;
+    const pct = snap ? pctOf(boardPctAtRound(snap, r, hist)) : undefined;
+    if (pct !== undefined) out.push({ round: r, value: pct });
+  }
+  return out;
+}
+
+/**
  * Scoreboard order: placed seats by placement; seats still standing at the recorded moment by health. When YOU
  * were knocked out, everyone still standing finished above you, so they come first. When you won (or Practice
  * ended the game with you standing) you come first, then anyone else still standing, then the placed seats.
@@ -309,6 +336,8 @@ export function buildMatchDetails(lobby: RunLobby, input: MatchDetailsInput): Ma
         if (st !== undefined) out.strength = st;
         const rs = roundsOf(input.selfStrength?.rounds);
         if (rs.length) out.roundStrength = rs;
+        const ws = windowStrengthOf(rs, endRound);
+        if (ws !== null) out.windowStrength = ws;
         const anc = parseMatchAncient(input.selfAncient ?? input.selfBoard?.ancient);
         if (anc) out.ancient = anc;
       } else {
@@ -320,13 +349,17 @@ export function buildMatchDetails(lobby: RunLobby, input: MatchDetailsInput): Ma
         // The run's pool strength, frozen here (a recorded seat's boards all carry it, stamped at pool load).
         const st = seat.kind === 'snapshot' ? pctOf(b?.snapshot?.runStrength) : undefined;
         if (st !== undefined) out.strength = st;
+        const rs = input.strengthHistogram ? opponentRoundStrength(lobby, seat, round, input.strengthHistogram) : [];
+        if (rs.length) out.roundStrength = rs;
+        const ws = windowStrengthOf(rs, round);
+        if (ws !== null) out.windowStrength = ws;
         const anc = parseMatchAncient(b?.snapshot?.ancient);
         if (anc) out.ancient = anc;
       }
       return out;
     });
     return {
-      v: 1, endRound, placement: input.placement, eliminated,
+      v: 1, endRound, placement: input.placement, eliminated, strengthWindow: 1,
       ...(knockedOutBy ? { knockedOutBy } : {}),
       seats: orderMatchSeats(seats, me.id, eliminated),
     };
@@ -432,6 +465,8 @@ function parseSeat(v: unknown): MatchSeat | null {
   if (st !== undefined) s.strength = st;
   const rs = roundsOf(o.roundStrength);
   if (rs.length) s.roundStrength = rs;
+  const ws = pctOf(o.windowStrength);
+  if (ws !== undefined) s.windowStrength = ws;
   const anc = parseMatchAncient(o.ancient);
   if (anc) s.ancient = anc;
   return s;
@@ -449,5 +484,6 @@ export function parseMatchDetails(v: unknown): MatchDetails | null {
   const out: MatchDetails = { v: 1, endRound, placement, eliminated: o.eliminated === true, seats };
   const k = str(o.knockedOutBy);
   if (k) out.knockedOutBy = k;
+  if (o.strengthWindow === 1) out.strengthWindow = 1;
   return out;
 }

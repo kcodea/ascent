@@ -16850,4 +16850,22 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'A Bounty Bot kills mid-fight: a bonusGold of 2 is logged on that kill, and the Gold pill\x27s Next turn row goes up by 2 right then. At settle the run banks the same 2.',
     enforcement: { kind: 'scenario', refs: ['packages/core/src/combat/combatGoldEvents.test.ts', 'packages/ui/src/combatTierGoldHud.test.tsx'], lastVerifiedAt: '2026-11-20' },
   },
+  {
+    id: 'R-RESULTS-STRENGTH-WINDOW-01',
+    domain: 'foundation',
+    title: "A results seat's Relevant Strength counts only the rounds it shared with you, weighted for the game's length",
+    statement:
+      "On a game's results, each seat's Relevant Strength counts only the rounds that seat shared with you, weighted for "
+      + "that game's length; Run Strength is the whole recorded run. The window is 1..your end round for your seat and "
+      + "1..the round it was shown at for an opponent that fell earlier. It is frozen into the match record when the "
+      + 'game ends (`MatchSeat.windowStrength` and `roundStrength`, `MatchDetails.strengthWindow`), only for recorded '
+      + 'seats whose boards were scored; generated seats and unscored boards show Run Strength alone.',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Mike, 2026-11-20', quote: "if a game ends on turn 8, i want the playler to go to their overview page, and see all of the board's strengths calculated as if 8 rounds was the full length of the game" },
+      { kind: 'code', ref: 'packages/sim/src/lobby/matchDetails.ts buildMatchDetails, opponentRoundStrength; packages/sim/src/lobby/boardStrength.ts boardPctAtRound, windowStrengthOf' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-20 on records built by this code (`strengthWindow: 1`). An older record has no Relevant Strength; the UI shows Run Strength only.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/lobby/matchDetails.test.ts', 'packages/sim/src/lobby/relevantStrength.test.ts'], lastVerifiedAt: '2026-11-20' },
+  },
 ];

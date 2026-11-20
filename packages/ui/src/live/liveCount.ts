@@ -15,8 +15,16 @@ const live = menuCount(() => liveRemote.count());
 
 /** The number of ranked games being played right now (0 when unknown). */
 export function useLiveCount(): number {
-  return live.use();
+  const n = live.use();
+  return FAKE_LIVE ?? n;
 }
+
+// DEV only: `?fakeLive=3` in the URL forces the count, so the Live Games glow + count pill can be eyeballed with no game live.
+const FAKE_LIVE: number | null = (() => {
+  if (!import.meta.env.DEV || typeof location === 'undefined') return null;
+  const v = new URLSearchParams(location.search).get('fakeLive');
+  return v === null ? null : Math.max(0, Number(v) || 0);
+})();
 
 // Whether the window has focus: the glow's breathing pauses while it does not (no animation work in a background tab).
 let focused = typeof document === 'undefined' ? true : document.hasFocus();

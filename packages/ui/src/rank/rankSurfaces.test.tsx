@@ -20,19 +20,19 @@ let ui: Mounted | null = null;
 afterEach(() => { ui?.unmount(); ui = null; });
 
 describe('RankCrest', () => {
-  it('is the medal disc seated in the game\'s portrait ring (.portring > .hero > .f > img.heroimg) with a composited division plate', () => {
+  it('is the medal disc seated in the game\'s portrait ring (.portring > .hero > .f > img.heroimg), with no division pill (owner 2026-11-20)', () => {
     ui = mount(<RankCrest divisionIndex={7} size="big" />);
     const crest = ui.container.querySelector('.rankcrest')!;
     expect(crest.className).toContain('portring');
     expect(crest.className).toContain('rankcrest-big');
     expect(crest.className).toContain('rankcrest-gold');
     expect(crest.querySelector('.hero > .f > img.heroimg')).not.toBeNull();
-    expect(crest.querySelector('.rankcrest-plate')?.textContent).toBe('2');
+    expect(crest.querySelector('.rankcrest-plate')).toBeNull();
     expect(crest.getAttribute('aria-hidden')).toBe('true');
   });
-  it('1 / 2 / 3 plates (digits on the crest, owner 2026-09-22), and one art file per medal', () => {
+  it('one art file per medal, and no division digits on the crest (owner 2026-11-20 retired the 2026-09-22 plates)', () => {
     ui = mount(<><RankCrest divisionIndex={0} /><RankCrest divisionIndex={1} /><RankCrest divisionIndex={2} /><RankCrest divisionIndex={17} /></>);
-    expect([...ui.container.querySelectorAll('.rankcrest-plate')].map((p) => p.textContent)).toEqual(['1', '2', '3', '3']);
+    expect(ui.container.querySelectorAll('.rankcrest-plate')).toHaveLength(0);
     const srcs = [...ui.container.querySelectorAll<HTMLImageElement>('img.heroimg')].map((i) => i.getAttribute('src') ?? '');
     expect(srcs[0]).toMatch(/bronze/);
     expect(srcs[3]).toMatch(/ascendant/);

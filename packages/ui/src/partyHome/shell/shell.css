@@ -579,3 +579,32 @@ html:not([data-ph-compact]) .ph-navgrp > .ph-navtab { width: auto; padding: 0 ca
   padding: 0 calc(5 * var(--phu)); border-radius: 999px; display: grid; place-items: center; pointer-events: none;
   font-family: var(--ph-body); font-size: calc(12 * var(--phu)); font-weight: 900; line-height: 1; letter-spacing: 0; color: #fff;
   background: linear-gradient(180deg, #4ade80, #16a34a); box-shadow: 0 0 0 calc(2 * var(--phu)) rgba(4, 8, 20, 0.9), 0 calc(2 * var(--phu)) calc(6 * var(--phu)) rgba(0, 0, 0, 0.5); }
+
+/* ── LIVE GAMES GLOWS GREEN (owner 2026-11-20: "can we also have this glow green when someone is playing a game? and can we
+   have a number value reflecting how many are playing currently?", with the count as an 'N PLAYING' pill on the icon's top-right). `.ph-live` while the shared menu poll
+   (liveCount.ts) counts any ranked game in play. The glow is a STATIC green radial on `.ph-livefx` (the party home allows no
+   looping animation, partyHome.test.ts). */
+.ph-navtab.ph-live { color: var(--ph-ink); }
+.ph-livefx { position: absolute; inset: 0 calc(-10 * var(--phu)); pointer-events: none; z-index: 0;
+  background: radial-gradient(ellipse 50% 60% at 50% 50%, rgba(80, 245, 130, 0.36), rgba(60, 220, 110, 0.12) 60%, transparent 100%); }
+.ph-navtab.ph-live > :is(.ph-liveic, .ph-navlbl) { position: relative; z-index: 1; }
+.ph-navtab.ph-live .ph-navlbl { text-shadow: var(--ph-shadow), 0 0 calc(8 * var(--phu)) rgba(80, 240, 130, 0.7); }
+.ph-navtab.ph-live .ph-navicon { filter: drop-shadow(0 0 calc(5 * var(--phu)) rgba(80, 240, 130, 0.85)); }
+.ph-liveic { position: relative; display: inline-flex; flex: none; }
+/* The count: "N PLAYING" in green on a navy pill with a green rim, off the icon's top-right shoulder and growing rightward
+   above the word, so it never covers the label (owner 2026-11-20). */
+.ph-livecount { position: absolute; top: calc(2 * var(--phu)); left: 135%;
+  height: calc(16 * var(--phu)); padding: 0 calc(6 * var(--phu)); box-sizing: border-box; white-space: nowrap;
+  display: grid; place-items: center; border-radius: 999px;
+  font-family: var(--ph-name-font); font-style: normal; font-weight: 900; font-size: calc(10 * var(--phu)); line-height: 1; letter-spacing: 0.06em;
+  color: #6be592; background: var(--ph-navy); border: calc(1.5 * var(--phu)) solid #4fd27a;
+  box-shadow: 0 calc(1 * var(--phu)) calc(3 * var(--phu)) rgba(0, 0, 0, 0.6); font-variant-numeric: tabular-nums; }
+html[data-ph-compact] .ph-livecount { top: calc(1 * var(--phu)); left: 110%; height: calc(20 * var(--phu)); font-size: calc(13 * var(--phu)); }
+/* The top nav's hover/press bounce reaches the icon inside its count wrapper too. */
+.ph-top .ph-navtab:not(.ph-play) > .ph-liveic { transform-origin: center; transition: transform 0.16s ease-out; }
+.ph-top .ph-navtab:not(.ph-play):hover > .ph-liveic { transform: scale(1.1); transition: transform 0.32s cubic-bezier(0.34, 1.9, 0.5, 1); }
+.ph-top .ph-navtab:not(.ph-play):active > .ph-liveic { transform: scale(0.9); transition: transform 0.08s ease-out; }
+@media (prefers-reduced-motion: reduce) {
+  .ph-top .ph-navtab > .ph-liveic { transition: none; }
+  .ph-top .ph-navtab:not(.ph-play):is(:hover, :active) > .ph-liveic { transform: none; }
+}

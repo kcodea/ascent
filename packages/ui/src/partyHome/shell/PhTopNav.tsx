@@ -24,6 +24,7 @@ import { phRememberPage } from './phHistory';
 import { openSceneBuilderPanel } from '../../sceneBuilderPanel';
 import { getTitleText } from '../../titleTextConfig';
 import { warmPhPages } from './phWarm';
+import { useLiveCount } from '../../live/liveCount';
 import { clearDevToolsSlot, setDevToolsSlot } from './devToolsSlot';
 import { leaveCrates, openCrates, setFriendsOpen, toggleFriends, usePhShell, pulseFriends } from './shellStore';
 import { unreadLabel, useFriendsBadge } from './friendsBadge';
@@ -55,6 +56,8 @@ export function PhTopNav({ current: given, friendsDocked = false, ownDrawer = fa
   const collectionOn = useProgression(cratesVisible) || import.meta.env.DEV;
   const friendsBadge = useFriendsBadge();
   const newRewards = useHasNewRewards();
+  // LIVE GAMES (owner 2026-11-20): the tab glows green while anyone is playing, with the count on its icon's foot.
+  const liveCount = useLiveCount();
   const friendsOpen = usePhShell((s) => s.friendsOpen);
   const drawerIsMode = usePhShell((s) => s.drawerIsMode);
   const lv = progressionOn && mirror ? levelProgress(mirror.accountXp) : null;
@@ -70,7 +73,7 @@ export function PhTopNav({ current: given, friendsDocked = false, ownDrawer = fa
   const medal = (n: MenuMedalName): ReactNode => <MenuMedal name={n} className="menumedal ph-navicon" />;
   // The bar's order, left to right around Play (owner 2026-11-05): Shop, Collection, Patch Notes, Compendium | PLAY | Career,
   // Leaderboard, Recent Games, Live Games.
-  const tabs: { dest: PageDest | 'crates' | 'compendium'; label: string; icon: ReactNode; dot?: boolean }[] = [
+  const tabs: { dest: PageDest | 'crates' | 'compendium'; label: string; icon: ReactNode; dot?: boolean; live?: number }[] = [
     // SHOP: the Collection's crate shop (its prices are Aether, so it wears the Aether crystal).
     ...(collectionOn ? [{ dest: 'crates' as const, label: 'Shop', icon: <AetherIcon className="ph-navicon" /> }] : []),
     ...(collectionOn ? [{ dest: 'collection' as const, label: 'Collection', icon: medal('collection'), dot: newRewards }] : []),
@@ -79,7 +82,7 @@ export function PhTopNav({ current: given, friendsDocked = false, ownDrawer = fa
     { dest: 'career', label: txt.career, icon: medal('career') },
     { dest: 'rankings', label: txt.leaderboard, icon: medal('leaderboard') },
     { dest: 'recent', label: 'Recent Games', icon: medal('recent') },
-    { dest: 'live', label: 'Live Games', icon: medal('live') },
+    { dest: 'live', label: 'Live Games', icon: medal('live'), live: liveCount },
   ];
   // A press changes the page in the click itself, never waiting on a frame (no view transition: its update waits for a
   // rendering opportunity, and it cost frames: 2026-11-04).
@@ -131,13 +134,19 @@ export function PhTopNav({ current: given, friendsDocked = false, ownDrawer = fa
   }, []);
   // Everything before Career goes left of Play; Career and after go right.
   const splitAt = tabs.findIndex((t) => t.dest === 'career');
-  const tab = (t: (typeof tabs)[number]): ReactNode => (
-    <button key={t.dest} type="button" role="tab" aria-selected={current === t.dest} className={`ph-navtab${current === t.dest ? ' on' : ''}`} aria-current={current === t.dest ? 'page' : undefined}
-      aria-label={t.label} onClick={() => { if (t.dest === 'compendium') onBook(); else hop(t.dest); }}>
-      {t.icon}<span className="ph-navlbl" data-text={t.label}>{t.label}</span>
-      {t.dot && <i className="ph-dot" aria-hidden="true" />}
-    </button>
-  );
+  const tab = (t: (typeof tabs)[number]): ReactNode => {
+    const live = t.live ?? 0;
+    return (
+      <button key={t.dest} type="button" role="tab" aria-selected={current === t.dest}
+        className={`ph-navtab${current === t.dest ? ' on' : ''}${live > 0 ? ' ph-live' : ''}`} aria-current={current === t.dest ? 'page' : undefined}
+        aria-label={live > 0 ? `${t.label}, ${live} playing now` : t.label} onClick={() => { if (t.dest === 'compendium') onBook(); else hop(t.dest); }}>
+        {live > 0 && <i className="ph-livefx" aria-hidden="true" />}
+        {live > 0 ? <span className="ph-liveic">{t.icon}<b className="ph-livecount" aria-hidden="true">{live > 99 ? '99+' : live} PLAYING</b></span> : t.icon}
+        <span className="ph-navlbl" data-text={t.label}>{t.label}</span>
+        {t.dot && <i className="ph-dot" aria-hidden="true" />}
+      </button>
+    );
+  };
 
   return (
     <>

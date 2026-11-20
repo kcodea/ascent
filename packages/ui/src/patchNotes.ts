@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-11-20',
     changes: [
+      { category: 'Systems', text: 'An End of Turn Shop refresh (Gorr with the Ancient of Time) now clears the old Shop before the new cards arrive, instead of adding them beside it and spilling past the edges.' },
       { category: 'Systems', text: 'Disco Dan can now Freeze the Shop on turn 1. His other turn-1 Shop actions stay locked.' },
       { category: 'Systems', text: 'Hovering the Runeforge Re-roll button no longer pops up a stray gold block.' },
       { category: 'Systems', text: 'Hero power Discovers (Power Shifter, Mimic, Void) now show each power as your Ancient changes it, and results, scouting and the foe power tip show the power a player held at the time, not their starting one.' },

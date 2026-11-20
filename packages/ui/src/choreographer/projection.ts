@@ -144,7 +144,8 @@ function foldUndelivered(base: PresentationProjection, c: ConsequenceEvent): Pre
     case 'shopChanged': {
       const uid = c.target.uid;
       if (!uid) return base;
-      if (c.change === 'consumed' || c.change === 'destroyed') {
+      // `replaced`: a Refresh rolled the offer away (R-EOT-SHOP-REFRESH-01). It leaves the row like an eaten one.
+      if (c.change === 'consumed' || c.change === 'destroyed' || c.change === 'replaced') {
         const gone = new Set(base.destroyedUids);
         gone.add(uid);
         return { ...base, destroyedUids: gone };

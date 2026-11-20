@@ -1,0 +1,190 @@
+/* THE AT-A-GLANCE BALANCE REPORT (owner ask 2026-11-19). The party-home navy + gold look: navy plates, gold hairlines,
+   one green and one red for the two directions. No looping animation; no cursor rules (the global gauntlet paints it). */
+.balpage, .bov {
+  --bov-gold: #c8953f; --bov-gold-hi: #ffe9b0; --bov-hair: rgba(200, 149, 63, 0.42); --bov-navy: #0d1a36; --bov-navy2: #13244a;
+  --bov-text: #fff6ea; --bov-muted: #aebddb; --bov-pos: #5fd38a; --bov-neg: #ff7a86; --bov-warn: #ffc86b;
+}
+.bov { width: min(1480px, 100%); display: flex; flex-direction: column; gap: 14px; color: var(--bov-text); font-family: var(--font-ui), sans-serif; }
+.bov .pos { color: var(--bov-pos); }
+.bov .neg { color: var(--bov-neg); }
+.bov .warn { color: var(--bov-warn); }
+.bov .mute { color: var(--bov-muted); }
+.bov-bar { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; justify-content: space-between; }
+.bov-chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.bov-chip { font-family: var(--font-ui), sans-serif; font-weight: 800; font-size: 13px; color: var(--bov-muted); background: linear-gradient(180deg, var(--bov-navy2), var(--bov-navy));
+  border: 1px solid var(--bov-hair); border-radius: 8px; padding: 6px 11px; display: inline-flex; gap: 6px; align-items: baseline; }
+.bov-chip small { font-size: 11px; opacity: 0.7; font-variant-numeric: tabular-nums; }
+.bov-chip.on { color: #1a1206; background: linear-gradient(180deg, #fff1b8 0%, #f6cf5a 38%, #d9a12c 100%); border-color: var(--bov-gold-hi); }
+.bov-search { font-family: var(--font-ui), sans-serif; font-size: 13px; font-weight: 700; color: var(--bov-text); background: rgba(0, 0, 0, 0.35); border: 1px solid var(--bov-hair);
+  border-radius: 8px; padding: 6px 10px; width: 170px; }
+.bov-lede { margin: 0; color: var(--bov-muted); font-size: 13px; line-height: 1.5; max-width: 1100px; }
+.bov-loading { color: var(--bov-warn); font-size: 13px; font-weight: 700; }
+.bov-none { color: var(--bov-muted); font-size: 13px; padding: 10px 12px; }
+.bov-none.big { font-size: 15px; text-align: center; padding: 40px; }
+
+.bov-cat { background: linear-gradient(180deg, rgba(28, 47, 88, 0.55), rgba(9, 18, 38, 0.7)); border: 1px solid var(--bov-hair); border-radius: 12px; padding: 12px 14px 14px; }
+.bov-cat > header { display: flex; align-items: baseline; gap: 14px; margin-bottom: 8px; }
+.bov-cat h3 { margin: 0; font-family: var(--font-title, 'Outfit'), sans-serif; font-weight: 800; font-size: 19px; letter-spacing: 0.02em; color: var(--bov-gold-hi); }
+.bov-sum { color: var(--bov-muted); font-size: 12px; font-weight: 700; }
+.bov-more { margin-left: auto; font-family: var(--font-ui), sans-serif; font-weight: 800; font-size: 12px; color: var(--bov-gold-hi); background: transparent; border: 1px solid var(--bov-hair); border-radius: 7px; padding: 4px 10px; }
+.bov h4 { margin: 12px 0 6px; font-size: 12px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; }
+.bov h4 small { font-size: 11px; opacity: 0.7; letter-spacing: 0; }
+.bov-split { display: grid; grid-template-columns: repeat(auto-fit, minmax(600px, 1fr)); gap: 14px; }
+.bov-thinwrap { margin-top: 10px; opacity: 0.85; }
+
+/* The table: a grid of rows; the header sticks to the top of the panel's scroller. */
+.bov-table { border-radius: 9px; overflow: clip; background: rgba(0, 0, 0, 0.22); }
+.bov-head, .bov-rowbtn { display: grid; grid-template-columns: minmax(170px, 1fr) 66px 66px 92px 116px 128px 136px 80px 88px; align-items: center; gap: 8px; padding: 0 10px; }
+/* The rate table: name, shown, taken, a wider rate bar with the peer tick, vs peers, 95% range. */
+.bov-head.bov-raterow, .bov-rowbtn.bov-raterow { grid-template-columns: minmax(200px, 1fr) 70px 90px 220px 180px 100px; }
+.bov-head { position: sticky; top: 0; z-index: 2; height: 30px; background: linear-gradient(180deg, #1c2f58, #0f1d3c); box-shadow: inset 0 -1px 0 var(--bov-hair);
+  font-size: 10.5px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--bov-muted); }
+.bov-row { border-top: 1px solid rgba(255, 255, 255, 0.05); }
+.bov-row:first-of-type { border-top: 0; }
+.bov-rowbtn { width: 100%; min-height: 44px; background: transparent; border: 0; color: inherit; font: inherit; text-align: left; padding-top: 4px; padding-bottom: 4px; }
+.bov-rowbtn:hover, .bov-row.open .bov-rowbtn { background: rgba(255, 233, 176, 0.06); }
+.bov-row.thin .bov-c-name, .bov-row.thin .bov-c-gain { opacity: 0.62; }
+.bov-c-name { display: flex; align-items: center; gap: 9px; min-width: 0; }
+.bov-nm { display: flex; flex-direction: column; min-width: 0; line-height: 1.15; }
+.bov-nm b { font-size: 14px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bov-nm small { font-size: 11px; color: var(--bov-muted); font-weight: 700; }
+.bov-c-gain { font-size: 16px; font-weight: 900; font-variant-numeric: tabular-nums; text-align: right; }
+.bov-c-n { font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--bov-muted); text-align: right; }
+.bov-c-n i { opacity: 0.5; font-style: normal; margin: 0 2px; }
+.bov-c-ev { text-align: right; }
+.bov-head .bov-c-gain, .bov-head .bov-c-n, .bov-head .bov-c-ev { text-align: right; }
+.bov-head > span, .bov-head > .bov-sort { font-size: 10.5px; font-weight: 800; color: var(--bov-muted); line-height: 1.1; letter-spacing: 0.08em; text-transform: uppercase; }
+.bov-sort { background: transparent; border: 0; padding: 0; font-family: var(--font-ui), sans-serif; text-align: inherit; }
+.bov-sort.on { color: var(--bov-gold-hi) !important; }
+.bov-head .bov-c-num, .bov-c-num { text-align: right; }
+.bov-c-num { font-size: 13px; font-weight: 800; font-variant-numeric: tabular-nums; display: flex; flex-direction: column; align-items: flex-end; line-height: 1.1; }
+.bov-c-num small { font-size: 10px; color: var(--bov-muted); font-weight: 700; }
+.bov-axislbl { display: flex; justify-content: space-between; padding: 0 4px; }
+.bov-axislbl span:first-child { color: var(--bov-neg); } .bov-axislbl span:last-child { color: var(--bov-pos); }
+.bov-fin { display: flex; flex-direction: column; line-height: 1.1; }
+.bov-fin b { font-size: 15px; font-weight: 900; font-variant-numeric: tabular-nums; }
+.bov-fin small { font-size: 10px; color: var(--bov-muted); font-weight: 700; }
+.bov-fin.unclear b { font-size: 11.5px; color: var(--bov-muted); font-weight: 800; }
+.bov-fin.none b { color: var(--bov-muted); }
+.bov-c-vs { font-size: 12px; font-weight: 700; color: var(--bov-muted); display: flex; flex-direction: column; line-height: 1.15; }
+.bov-c-vs b { font-size: 15px; font-weight: 900; color: var(--bov-text); }
+.bov-c-vs.more b { color: #4ef08a; } .bov-c-vs.less b { color: #ff5a6a; }
+.bov-c-vs small { font-size: 10.5px; }
+.bov-ratebar { position: relative; }
+.bov-ratebar i { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; background: var(--bov-gold-hi); border-radius: 1px; }
+.bov-c-rate.wide .bov-ratebar { height: 7px; }
+.bov-plot.unclear .bov-ci, .bov-plot.unclear .bov-dot, .bov-plot.unclear .bov-bar { stroke: #8b97b3; fill: #8b97b3; }
+.balpage .balunclear { color: rgba(255, 255, 255, 0.42); font-weight: 700; }
+
+/* The colour scale on the gain: three steps each way, ranked rows only. */
+.bov .hp3 { color: #4ef08a; } .bov .hp2 { color: #7fe0a2; } .bov .hp1 { color: #b5e8c6; } .bov .hp0 { color: #d9e6dd; }
+.bov .hn3 { color: #ff5a6a; } .bov .hn2 { color: #ff8b95; } .bov .hn1 { color: #ffb9bf; } .bov .hn0 { color: #eddcde; }
+.bov .h0 { color: var(--bov-muted); }
+
+.bov-thumb { position: relative; flex: none; width: 34px; height: 34px; border-radius: 7px; overflow: hidden; background: var(--bov-navy); box-shadow: inset 0 0 0 1px var(--bov-hair); display: grid; place-items: center; }
+.bov-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.bov-thumb.k-hero, .bov-thumb.k-pairing { border-radius: 50%; }
+.bov-thumb.k-hero img, .bov-thumb.k-pairing img { object-position: 50% 22%; }
+.bov-initial { font-weight: 900; color: var(--bov-gold-hi); font-size: 15px; }
+.bov-anc { position: absolute; right: -1px; bottom: -1px; width: 16px; height: 16px; border-radius: 50%; display: grid; place-items: center; font-size: 10px; color: #fff; box-shadow: 0 0 0 1.5px var(--bov-navy); }
+
+.bov svg.bov-plot { display: block; overflow: visible; width: 132px !important; height: 20px !important; max-width: none; } /* a global button-svg rule would shrink it */
+.bov-axis { stroke: rgba(255, 255, 255, 0.16); stroke-width: 1; }
+.bov-zero { stroke: rgba(255, 233, 176, 0.5); stroke-width: 1; }
+.bov-tick { stroke: rgba(255, 255, 255, 0.2); stroke-width: 1; }
+.bov-ci { stroke-width: 2; stroke-linecap: round; opacity: 0.55; }
+.bov-bar { opacity: 0.35; }
+.bov-plot.pos .bov-ci, .bov-plot.pos .bov-dot, .bov-plot.pos .bov-bar { stroke: var(--bov-pos); fill: var(--bov-pos); }
+.bov-plot.neg .bov-ci, .bov-plot.neg .bov-dot, .bov-plot.neg .bov-bar { stroke: var(--bov-neg); fill: var(--bov-neg); }
+.bov-plot.zero .bov-dot { fill: var(--bov-muted); }
+.bov-dot { stroke-width: 0; }
+.bov-plot.ev-candidate .bov-dot { fill-opacity: 0.6; }
+.bov-plot.ev-insufficient { opacity: 0.4; }
+
+.bov-rate { display: flex; align-items: center; gap: 6px; }
+.bov-rate b { font-size: 12.5px; font-weight: 800; font-variant-numeric: tabular-nums; min-width: 34px; text-align: right; }
+.bov-ratebar { flex: 1; height: 5px; border-radius: 3px; background: rgba(255, 255, 255, 0.1); }
+.bov-ratebar > span { border-radius: 3px; }
+.bov-ratebar span { display: block; height: 100%; background: var(--bov-gold); transform-origin: left; }
+
+.bov-ev { display: inline-block; font-size: 10.5px; font-weight: 900; letter-spacing: 0.06em; text-transform: uppercase; padding: 3px 7px; border-radius: 5px; }
+.bov-ev.ev-supported { color: #1a1206; background: linear-gradient(180deg, #fff1b8, #d9a12c); }
+.bov-ev.ev-candidate { color: var(--bov-gold-hi); box-shadow: inset 0 0 0 1px var(--bov-gold); }
+.bov-ev.ev-insufficient { color: var(--bov-muted); box-shadow: inset 0 0 0 1px rgba(174, 189, 219, 0.35); }
+
+.bov-detail { padding: 4px 14px 12px 53px; }
+.bov-detail p { margin: 0 0 8px; font-size: 13.5px; line-height: 1.5; color: var(--bov-text); max-width: 900px; }
+.bov-detail dl { margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 4px 16px; }
+.bov-detail dl div.wide { grid-column: 1 / -1; }
+.bov-detail dl div { display: flex; justify-content: space-between; gap: 8px; border-bottom: 1px dotted rgba(255, 255, 255, 0.1); padding: 2px 0; }
+.bov-detail dt { color: var(--bov-muted); font-size: 11.5px; font-weight: 700; }
+.bov-detail dd { margin: 0; font-size: 12px; font-weight: 800; text-align: right; }
+
+/* Never picked: three columns of compact lists. */
+.bov-gapgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 14px; }
+.bov-gap ul { list-style: none; margin: 0; padding: 0; max-height: 420px; overflow-y: auto; border-radius: 9px; background: rgba(0, 0, 0, 0.22); }
+.bov-gap li { border-top: 1px solid rgba(255, 255, 255, 0.05); }
+.bov-gap li:first-child { border-top: 0; }
+.bov-gap li .bov-detail { padding-left: 14px; }
+.bov-gapbtn { width: 100%; display: flex; align-items: center; gap: 9px; padding: 5px 10px; background: transparent; border: 0; color: inherit; font: inherit; text-align: left; }
+.bov-gapbtn:not(.static):hover { background: rgba(255, 233, 176, 0.06); }
+.bov-missing .bov-thumb { opacity: 0.7; }
+.bov-foot { font-size: 11.5px; color: var(--bov-muted); margin-top: 6px; }
+
+/* Ancients: the funnel, and the hero x Ancient matrix. */
+.bov-funnel { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; background: linear-gradient(180deg, rgba(28, 47, 88, 0.55), rgba(9, 18, 38, 0.7));
+  border: 1px solid var(--bov-hair); border-radius: 12px; padding: 12px 16px; }
+.bov-funnel > div { display: flex; flex-direction: column; }
+.bov-funnel b { font-size: 24px; font-weight: 900; color: var(--bov-gold-hi); font-variant-numeric: tabular-nums; line-height: 1.1; }
+.bov-funnel span { font-size: 12px; color: var(--bov-muted); font-weight: 700; }
+.bov-funnel > i { font-style: normal; color: var(--bov-gold); font-size: 18px; }
+.bov-funnel-sep { width: 1px; align-self: stretch; background: var(--bov-hair); }
+.bov-waves { flex-direction: row !important; align-items: flex-end; gap: 3px; height: 44px; margin-left: auto; }
+.bov-wave { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 14px; height: 100%; justify-content: flex-end; }
+.bov-wave > span { display: block; width: 10px; height: 30px; background: var(--bov-gold); border-radius: 2px 2px 0 0; transform-origin: bottom; }
+.bov-wave small { font-size: 9px; color: var(--bov-muted); }
+.bov-matrix { display: flex; flex-direction: column; gap: 3px; } /* no overflow box: the head row must stick to the panel scroller */
+.bov-mrow { display: grid; grid-template-columns: 200px repeat(var(--bov-cols), minmax(56px, 1fr)); gap: 3px; align-items: center; }
+.bov-mhead { position: sticky; top: 0; z-index: 2; background: #0f1d3c; padding: 4px 0; }
+.bov-mhero { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.bov-mhero b { font-size: 13px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bov-mcol { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 11px; font-weight: 800; }
+.bov-mcol .bov-thumb { width: 30px; height: 30px; }
+.bov-cell { height: 38px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.06); background: rgba(0, 0, 0, 0.25); color: inherit; font: inherit;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.05; }
+.bov-cell b { font-size: 13px; font-weight: 900; font-variant-numeric: tabular-nums; }
+.bov-cell small { font-size: 9.5px; color: var(--bov-muted); font-weight: 700; }
+.bov-cell.hp3 { background: rgba(78, 240, 138, 0.34); } .bov-cell.hp2 { background: rgba(78, 240, 138, 0.22); } .bov-cell.hp1 { background: rgba(78, 240, 138, 0.12); }
+.bov-cell.hn3 { background: rgba(255, 90, 106, 0.36); } .bov-cell.hn2 { background: rgba(255, 90, 106, 0.24); } .bov-cell.hn1 { background: rgba(255, 90, 106, 0.13); }
+.bov-cell.hp3, .bov-cell.hp2, .bov-cell.hp1, .bov-cell.hn3, .bov-cell.hn2, .bov-cell.hn1 { color: var(--bov-text); }
+.bov-cell.never { box-shadow: inset 0 0 0 1.5px var(--bov-neg); }
+.bov-cell.never b { color: var(--bov-neg); }
+.bov-cell.empty { opacity: 0.35; }
+.bov-cell.on { box-shadow: inset 0 0 0 2px var(--bov-gold-hi); }
+.bov-cellread { margin-top: 10px; background: rgba(0, 0, 0, 0.25); border-radius: 9px; padding: 10px 0 0 14px; }
+.bov-cellread > b { color: var(--bov-gold-hi); font-size: 14px; }
+.bov-cellread .bov-detail { padding-left: 0; }
+
+/* The panel paints OVER the party-home shell (its nav host is z 490) on an opaque navy, like a full page (2026-11-19). */
+html .balpage { z-index: 495; background: radial-gradient(120% 60% at 50% 0%, rgba(255, 206, 128, 0.07), rgba(255, 206, 128, 0) 60%), linear-gradient(180deg, #0d1a36, #060b16); }
+
+/* The scope row wraps instead of running off both edges (the tab strip made the top row wider). */
+.balpage .balscope { flex-wrap: wrap; justify-content: center; max-width: calc(var(--lvw, 1920px) - 360px); row-gap: 6px; }
+.balpage .balscope .balpick { max-width: 360px; }
+
+/* The panel's new tab strip (BalancePanel). */
+.bov-tabs { display: flex; gap: 4px; align-items: center; }
+.bov-tab { font-family: var(--font-title, 'Outfit'), sans-serif; font-weight: 800; font-size: 14px; letter-spacing: 0.03em; color: #aebddb; background: linear-gradient(180deg, #13244a, #0d1a36);
+  border: 1px solid rgba(200, 149, 63, 0.42); border-radius: 9px; padding: 7px 14px; }
+.bov-tab.on { color: #1a1206; background: linear-gradient(180deg, #fff1b8 0%, #f6cf5a 38%, #d9a12c 100%); border-color: #ffe9b0; }
+
+/* THE DATE RANGE BAR (2026-11-19): presets, Since a patch, custom From / To, then the active range and its run count. */
+.balrange { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px; max-width: calc(var(--lvw, 1920px) - 360px); }
+.balrange .balpick { color-scheme: dark; }
+.balrange .balsince { max-width: 340px; }
+.balrange .balsince.on, .balcustom.on .baldate { border-color: var(--bov-gold-hi); color: var(--bov-gold-hi); }
+.balcustom { display: inline-flex; gap: 6px; align-items: center; padding: 2px 6px; border-radius: 9px; }
+.balcustom.on { box-shadow: inset 0 0 0 1px var(--bov-gold); }
+.balrange-now { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px 12px; font-size: 13px; color: var(--bov-muted); font-weight: 700; }
+.balrange-now b { color: var(--bov-gold-hi); font-size: 15px; font-weight: 900; }
+.balrange-now span:nth-of-type(1) { color: var(--bov-text); }

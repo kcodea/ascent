@@ -65,6 +65,8 @@ export interface RunTelemetryRow extends RunTelemetry {
   derived: DerivedRun | null;
   /** The live final wave, read as a scalar from `derived` by the flat fetch (2026-10-03); absent on older rungs. */
   finalWave?: number | null;
+  /** The run seed, a scalar from `derived` (2026-11-19): rebuilds a pre-capture Ancient offer. */
+  seed?: number | null;
   /** Filled by `applyReportFilters` (`withBestSources`): where each corrected field came from, and the regime. */
   sources?: RowSources;
   regimeInfo?: ResolvedRegime;
@@ -147,7 +149,9 @@ export function applyReportFilters<T extends RunTelemetryRow>(rows: T[], setId: 
 export function scopeReport<T extends RunTelemetryRow>(filtered: FilteredReport<T>, scope: ReportScope): FilteredReport<T> {
   const rows = filtered.rows.filter((r) => inScope(r, scope));
   const epochWords = scope.epoch === ALL_EPOCHS ? 'every content revision (the historical read, chosen explicitly)' : `content revision ${scope.epoch} only`;
-  const windowWords = scope.from || scope.to ? `runs dated ${scope.from ?? 'the oldest'} to ${scope.to ?? 'the newest'}` : 'no date window';
+  const windowWords = scope.fromIso || scope.toIso
+    ? `runs created from ${scope.fromIso ?? 'the oldest'} (inclusive) to ${scope.toIso ?? 'now'} (exclusive), UTC instants`
+    : scope.from || scope.to ? `runs dated ${scope.from ?? 'the oldest'} to ${scope.to ?? 'the newest'}` : 'no date window';
   const regimeWords = scope.regime ? `matchmaking regime: ${scope.regime} only (stamped or inferred, see runs[].regime.basis)` : 'every matchmaking regime';
   const buildWords = scope.build ? `client build ${scope.build} only` : 'every client build';
   return {

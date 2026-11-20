@@ -3494,14 +3494,21 @@ function live(state: RunState): AncientsState | undefined {
 /** Salt for the offer's own seeded stream (distinct from the TAG table in state.ts). */
 const ANCIENT_SALT = 0x41;
 
-/** Open the awakening offer: 3 distinct Ancients, seeded off the run seed + wave (never the run cursor). */
-function awaken(state: RunState, a: AncientsState): void {
-  if (a.picked || a.offer) return;
-  const rng = makeRng(mixSeed(state.seed, ANCIENT_SALT, state.wave));
+/** The awakening offer a run with `seed` is shown when its meter fills on `wave`: 3 distinct Ancients from their own
+ *  seeded stream (never the run cursor). Pure, so the Balance Report can rebuild the offer of a telemetry row that
+ *  predates offer capture from its seed + pick wave (R-TELEMETRY-ANCIENT-01). */
+export function ancientOfferFor(seed: number, wave: number): AncientId[] {
+  const rng = makeRng(mixSeed(seed, ANCIENT_SALT, wave));
   const pool = [...ANCIENT_IDS];
   const offer: AncientId[] = [];
   while (offer.length < 3 && pool.length > 0) offer.push(pool.splice(rng.int(pool.length), 1)[0]!);
-  a.offer = offer;
+  return offer;
+}
+
+/** Open the awakening offer: 3 distinct Ancients, seeded off the run seed + wave (never the run cursor). */
+function awaken(state: RunState, a: AncientsState): void {
+  if (a.picked || a.offer) return;
+  a.offer = ancientOfferFor(state.seed, state.wave);
   a.awakenedWave = state.wave;
   a.offerSeq = (a.offerSeq ?? 0) + 1;
 }

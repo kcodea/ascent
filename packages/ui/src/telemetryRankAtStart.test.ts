@@ -95,7 +95,7 @@ describe('the upload stamps it with the regime on every rated row', () => {
 
   it('the lobby telemetry upload puts rankAtStart into derived beside regime', () => {
     expect(src).toContain('const rankAtStart = rankAtStartForTelemetry(next);');
-    expect(src).toMatch(/const derived = \{[^\n]*regime, \.\.\.\(rankAtStart \? \{ rankAtStart \} : \{\}\)(, \.\.\.ancientTelemetryOf\(next\))? \};/); // + the Ancients stamp (R-ANCIENTS-RELEASE-04)
+    expect(src).toMatch(/const derived = \{[^\n]*regime, \.\.\.\(rankAtStart \? \{ rankAtStart \} : \{\}\)(, \.\.\.ancientTelemetryOf\(next(, telemetryLog)?\))?(, \.\.\.offerTelemetryOf\(next, telemetryLog\))? \};/); // + the Ancients stamp (R-ANCIENTS-RELEASE-04)
     expect(src).toMatch(/const telemetry = \{[^\n]*regime, \.\.\.\(rankAtStart \? \{ rankAtStart \} : \{\}\) \};/);
   });
 });

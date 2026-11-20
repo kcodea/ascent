@@ -491,6 +491,8 @@ html[data-ph-shell]:not([data-ph-compact]) .devmenu { left: calc(150 * var(--phu
 html:not([data-ph-compact]) .ph-devtools .ph-devrow { flex-direction: column; }
 html[data-ph-shell] .ph-dock .ph-scenebtn { width: calc(48 * var(--phu)); height: calc(48 * var(--phu)); padding: 0; justify-content: center; font-size: calc(11 * var(--phu)); }
 html[data-ph-shell] .ph-devslot .cornerdev { width: calc(48 * var(--phu)); height: calc(48 * var(--phu)); }
+/* The Balance Report sits above Scene in the same column (owner 2026-11-19); its longer word takes a hair less size. */
+html[data-ph-shell] .ph-dock .ph-balbtn { font-size: calc(10 * var(--phu)); letter-spacing: 0; }
 html[data-ph-shell]:not([data-ph-compact]) .devmenu { left: calc(100 * var(--phu)); }
 
 /* The friends drawer's exit (owner 2026-11-06: "when clicking it again, it should slide away"): the same slide as its entrance,

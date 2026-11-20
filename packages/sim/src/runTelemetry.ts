@@ -15,6 +15,7 @@ import { createRun, type RunState, type Action } from './state';
 import { HEROES } from './heroes';
 import { reduce } from './reducer';
 import { ancientSnapshotOf, type Replay, type BoardSnapshot } from './snapshot';
+import { ancientOfferFor } from './ancients';
 import type { LobbyPoolTelemetry } from './lobby/runLobby';
 import { RUN_STRENGTH_FORMULA, type StrengthFormula } from './lobby/boardStrength';
 import { STRENGTH_BANDS_VERSION } from './lobby/strengthBands';
@@ -113,13 +114,52 @@ export interface RunTelemetry {
    *  Balance Report can split results by Ancient. Absent = Ancients off (every row before 2026-11-16). */
   ancients?: boolean;
   ancient?: NonNullable<BoardSnapshot['ancient']>;
+  /** THE ANCIENT OFFER (R-TELEMETRY-ANCIENT-01, owner ask 2026-11-19): the three Ancient ids the awakening offer
+   *  showed, in offer order, and the wave it opened. Present = the run REACHED the pick (picked or not); absent on a
+   *  run with Ancients on = it never filled the meter. Six short ids and a number inside `derived` (jsonb, no SQL).
+   *  Absent on every row before 2026-11-19: the report then rebuilds the offer from the seed + pick wave
+   *  (`ancientOfferFor`, the offer is seeded) and labels it reconstructed, and a row with neither reads "no data". */
+  ancientOffer?: string[];
+  ancientOfferWave?: number;
+  /** TIMES SHOWN (R-TELEMETRY-OFFERS-01, owner ask 2026-11-19): how many distinct Runeforge / quest offers showed each
+   *  rune / quest this run (a re-roll is a new offer). `offeredRunes` / `offeredQuests` are deduplicated per run, so
+   *  this is the only per-offer count for them. Inside `derived`; absent on older rows (read as "not recorded"). */
+  offerTimes?: { rune?: Record<string, number>; quest?: Record<string, number> };
+  /** The hero the pre-run picker showed and the player RE-ROLLED away (R-TELEMETRY-OFFERS-01). `heroOffer` is the trio
+   *  after the re-roll, so without this a re-rolled-away hero was never counted as shown. Inside `derived`. */
+  heroRerolled?: string;
+  /** Every card SOLD this run (R-TELEMETRY-OFFERS-01, owner 2026-11-19: "cycling cards is common"): one entry per sale
+   *  with its wave, so "bought 40, sold 31" is visible. Inside `derived`; absent on older rows. */
+  sellEvents?: { id: string; wave: number }[];
 }
 
-/** The Ancients stamp a telemetry row / derived payload carries (see `RunTelemetry.ancient`): empty when off. */
-export function ancientTelemetryOf(run: RunState): Pick<RunTelemetry, 'ancients' | 'ancient'> {
+/** The offer counts a row carries (`offerTimes`, `heroRerolled`): empty when nothing was recorded. */
+export function offerTelemetryOf(run: Pick<RunState, 'heroReroll'>, log?: Pick<TelemetryLog, 'runeOfferTimes' | 'questOfferTimes' | 'sellEvents'>): Pick<RunTelemetry, 'offerTimes' | 'heroRerolled' | 'sellEvents'> {
+  const rune = log?.runeOfferTimes && Object.keys(log.runeOfferTimes).length ? { ...log.runeOfferTimes } : undefined;
+  const quest = log?.questOfferTimes && Object.keys(log.questOfferTimes).length ? { ...log.questOfferTimes } : undefined;
+  return {
+    ...(rune || quest ? { offerTimes: { ...(rune ? { rune } : {}), ...(quest ? { quest } : {}) } } : {}),
+    ...(run.heroReroll?.from ? { heroRerolled: run.heroReroll.from } : {}),
+    ...(log?.sellEvents?.length ? { sellEvents: log.sellEvents.filter((e) => CARD_INDEX[e.id]).map((e) => ({ ...e })) } : {}),
+  };
+}
+
+/** The Ancients stamp a telemetry row / derived payload carries (see `RunTelemetry.ancient`): empty when off. The
+ *  offer comes from the live log when it saw one, else from the final state's seeded offer (an open offer, or the
+ *  rebuilt offer of the pick), so a resumed run whose log predates offer capture still reports it. */
+export function ancientTelemetryOf(run: RunState, log?: Pick<TelemetryLog, 'ancientOffer' | 'ancientOfferWave'>): Pick<RunTelemetry, 'ancients' | 'ancient' | 'ancientOffer' | 'ancientOfferWave'> {
   if (!run.ancientsEnabled) return {};
   const ancient = ancientSnapshotOf(run);
-  return { ancients: true, ...(ancient ? { ancient } : {}) };
+  const a = run.ancients;
+  const wave = log?.ancientOffer?.length ? log.ancientOfferWave : a?.awakenedWave;
+  const offer = log?.ancientOffer?.length ? log.ancientOffer
+    : a?.offer?.length ? [...a.offer]
+      : a?.picked && a.awakenedWave ? ancientOfferFor(run.seed, a.awakenedWave)
+        : undefined;
+  return {
+    ancients: true, ...(ancient ? { ancient } : {}),
+    ...(offer ? { ancientOffer: [...offer], ...(wave ? { ancientOfferWave: wave } : {}) } : {}),
+  };
 }
 
 /** See `RunTelemetry.capture`. */
@@ -627,6 +667,18 @@ export interface TelemetryLog {
   questStart?: Record<string, number>;
   offeredRunes?: string[];
   pickedRunes?: string[];
+  /** THE ANCIENT OFFER (R-TELEMETRY-ANCIENT-01): the first awakening offer seen and the wave it opened. Optional, so
+   *  an older save loads; `ancientTelemetryOf` falls back to the run's seeded offer when it is missing. */
+  ancientOffer?: string[];
+  ancientOfferWave?: number;
+  /** Per-offer counts (R-TELEMETRY-OFFERS-01): each distinct Runeforge / quest offer (by its id list) counts every id
+   *  in it once; `lastRuneOffer` / `lastQuestOffer` are the joined ids of the offer last counted. Optional (old saves). */
+  runeOfferTimes?: Record<string, number>;
+  questOfferTimes?: Record<string, number>;
+  lastRuneOffer?: string;
+  lastQuestOffer?: string;
+  /** Every sale, with its wave (R-TELEMETRY-OFFERS-01). Optional (old saves). */
+  sellEvents?: { id: string; wave: number }[];
 }
 
 /** Per-log Set index over `seenShopUids` — see the note in `recordTelemetryAction`. WeakMap-keyed on the
@@ -692,6 +744,23 @@ export function recordTelemetryAction(log: TelemetryLog, before: RunState, actio
   if (tiers[before.wave] == null) { tiers[before.wave] = before.tier; noteQuests(log, before); }
   if (before.questOffer) for (const id of before.questOffer) addOnce(log.offeredQuests ??= [], id);
   if (before.runeforgeOffer) for (const id of before.runeforgeOffer) addOnce(log.offeredRunes ??= [], id);
+  // TIMES SHOWN (R-TELEMETRY-OFFERS-01): a new offer (a different id list) counts each id once; an offer that stays open
+  // across actions counts once. Cleared when the offer closes, so the next forge visit counts even if identical.
+  const runeKey = before.runeforgeOffer?.length ? before.runeforgeOffer.join(',') : undefined;
+  if (runeKey !== log.lastRuneOffer) {
+    if (runeKey) { const t = (log.runeOfferTimes ??= {}); for (const id of before.runeforgeOffer!) t[id] = (t[id] ?? 0) + 1; }
+    log.lastRuneOffer = runeKey;
+  }
+  const questKey = before.questOffer?.length ? before.questOffer.join(',') : undefined;
+  if (questKey !== log.lastQuestOffer) {
+    if (questKey) { const t = (log.questOfferTimes ??= {}); for (const id of before.questOffer!) t[id] = (t[id] ?? 0) + 1; }
+    log.lastQuestOffer = questKey;
+  }
+  // THE ANCIENT OFFER (R-TELEMETRY-ANCIENT-01): opens once per run, so the first one seen is the one.
+  if (!log.ancientOffer && after.ancientsEnabled) {
+    const a = after.ancients?.offer?.length ? after.ancients : before.ancients?.offer?.length ? before.ancients : undefined;
+    if (a?.offer) { log.ancientOffer = [...a.offer]; log.ancientOfferWave = a.awakenedWave ?? before.wave; }
+  }
 
   if (after === before) return log; // rejected action — nothing was acquired
   tiers[after.wave] = after.tier; // tier only rises, so the last write of a wave is the tier the wave ended on
@@ -702,6 +771,10 @@ export function recordTelemetryAction(log: TelemetryLog, before: RunState, actio
   } else if (action.type === 'buyRune' && before.runeforgeOffer) {
     const picked = before.runeforgeOffer[action.index];
     if (picked) addOnce(log.pickedRunes ??= [], picked);
+  }
+  if (action.type === 'sell') {
+    const sold = before.board.find((c) => c.uid === action.uid);
+    if (sold?.cardId) (log.sellEvents ??= []).push({ id: sold.cardId, wave: before.wave });
   }
   if (action.type === 'buy') {
     // A buy resolves from the shop row OR the right-hand spell slot.
@@ -780,6 +853,7 @@ export function lobbyRunTelemetry(
     heroOffer,
     wins: liveRoundWins(final),
     capture: { v: 1, tierByWave: complete, choices: complete },
-    ...ancientTelemetryOf(final),
+    ...ancientTelemetryOf(final, log),
+    ...offerTelemetryOf(final, log),
   };
 }

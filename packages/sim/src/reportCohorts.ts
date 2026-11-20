@@ -53,6 +53,9 @@ export type CohortRow = RunTelemetry & {
   /** The live final wave, read from the derived payload as a scalar by the flat fetch (2026-10-03), so a row whose
    *  payload is not loaded can still clamp its tier series. */
   finalWave?: number | null;
+  /** The run seed, read from the derived payload as a scalar by the flat fetch (2026-11-19), so a row that predates
+   *  live Ancient offer capture can have its seeded offer rebuilt (`ancientFactsOf`). */
+  seed?: number | null;
   /** Filled by `withBestSources` (`applyReportFilters` runs it on every row): where each corrected field came
    *  from, and the row's regime with its basis. */
   sources?: RowSources;
@@ -295,6 +298,12 @@ export interface ReportScope {
   /** ISO date bounds on `createdAt` (inclusive by calendar day), or null for open. */
   from: string | null;
   to: string | null;
+  /** EXACT instant bounds on `createdAt` (2026-11-19, the report's date-range filter): ISO timestamps, `fromIso`
+   *  inclusive and `toIso` EXCLUSIVE, built from the viewer's local days by the panel (`rangeBounds`). The same bounds
+   *  filter the server fetch, so a fetched row is in range by construction; this check keeps the screen, the export and
+   *  any cached rows honest. Null / absent = open. */
+  fromIso?: string | null;
+  toIso?: string | null;
   /** The matchmaking regime (`regimeKeyOf`: band table + strength formula), or null / absent for every regime
    *  (2026-10-03). A row's regime is stamped, or inferred and labelled so (`reportSources.ts`). */
   regime?: string | null;
@@ -337,6 +346,13 @@ export const inScope = (row: CohortRow, scope: ReportScope): boolean => {
   const day = (row.createdAt ?? '').slice(0, 10);
   if (scope.from && day && day < scope.from) return false;
   if (scope.to && day && day > scope.to) return false;
+  // Instant bounds compare as times, not strings: a stored "+00:00" and a client "Z" both parse.
+  if (scope.fromIso || scope.toIso) {
+    const t = row.createdAt ? Date.parse(row.createdAt) : NaN;
+    if (Number.isNaN(t)) return false; // an undated row cannot be placed inside a range
+    if (scope.fromIso && t < Date.parse(scope.fromIso)) return false;
+    if (scope.toIso && t >= Date.parse(scope.toIso)) return false;
+  }
   return true;
 };
 

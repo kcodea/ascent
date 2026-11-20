@@ -19,7 +19,8 @@ import { join } from 'node:path';
  */
 const UI = __dirname;
 // SceneBuilderHeroPicker.tsx: the DEV Scene Builder's hero grid, deliberately lazy like the AvatarPicker (59 portraits).
-const SKIP = new Set(['AvatarPicker.tsx', 'EditorOverlay.tsx', 'SceneBuilderHeroPicker.tsx']);
+// BalanceOverview.tsx: the DEV-only Balance Report's long thumbnail lists decode lazily + async so scrolling them stays smooth.
+const SKIP = new Set(['AvatarPicker.tsx', 'EditorOverlay.tsx', 'SceneBuilderHeroPicker.tsx', 'BalanceOverview.tsx']);
 
 function tsxFiles(dir: string): string[] {
   const out: string[] = [];

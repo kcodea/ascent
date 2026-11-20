@@ -184,11 +184,16 @@ export function PhTopNav({ current: given, friendsDocked = false, ownDrawer = fa
           )}
           {/* Settings + Friends dock bottom-left, stacked in a small navy box (owner 2026-11-05). On a phone it stays in the bar. */}
           <div className="ph-dock">
-            {/* DEV TOOLS (owner 2026-11-06): the Scene Builder and the Dev tuner (DevMenu renders its button into the slot). */}
+            {/* DEV TOOLS (owner 2026-11-06): the Balance Report, the Scene Builder and the Dev tuner (DevMenu renders its button into the slot). */}
             {import.meta.env.DEV && (
               <div className="ph-devtools" role="group" aria-label="Dev Tools">
                 <span className="ph-docklbl" aria-hidden="true">Dev Tools</span>
                 <div className="ph-devrow">
+                  {/* THE BALANCE REPORT (owner 2026-11-19: "put it above the scene builder button"): the DEV panel paints over
+                      the shell (`.balpage`, fixed) and its Back closes it, leaving the page you were on. */}
+                  <button type="button" className="ph-iconbtn ph-scenebtn ph-balbtn" aria-label="Balance Report" onClick={() => {
+                    sfx.pulse(); setFriendsOpen(false); useGame.getState().openBalance();
+                  }}>Balance</button>
                   <button type="button" className="ph-iconbtn ph-scenebtn" aria-label="Scene Builder" onClick={() => {
                     // The DEV menu's own route; the page you are on comes back when the game ends.
                     sfx.pulse(); phRememberPage(useGame.getState().savedRun); setFriendsOpen(false); if (showBook) closeBook(); leaveCrates();

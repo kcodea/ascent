@@ -11,6 +11,8 @@ import { activeSet, contentRevision } from '@game/content';
 import { sfx } from './sfx';
 import { useGame } from './store';
 import { fetchRunDerived, fetchRunTelemetry, remoteEnabled, BALANCE_FLAT_CAP, BALANCE_FLAT_PAGE } from './remoteBoards';
+import { BalanceOverview, type OverviewView } from './balance/BalanceOverview';
+import { ALL_TIME, PRESETS, loadRange, patchMarkers, rangeBounds, rangeLabel, saveRange, shortDay, type DateRange } from './balance/dateRange';
 
 /**
  * Balance Report (owner request 2026-07-13) — the REAL-PLAYER balance report, opened from the home screen. It
@@ -56,7 +58,10 @@ import { fetchRunDerived, fetchRunTelemetry, remoteEnabled, BALANCE_FLAT_CAP, BA
 
 const fmtNum = (n: number | null): string => (n === null ? '–' : String(n));
 const pctOrDash = (n: number | null): string => (n === null ? '–' : `${n}%`);
-const signed = (n: number | null, dp = 2): string => (n === null ? '–' : `${n > 0 ? '+' : ''}${n.toFixed(dp)}`);
+/** A placement delta (group average minus comparison average, so NEGATIVE = a better finish) in WORDS: "1.10 better"
+ *  / "0.60 worse" / "even" (places). A bare signed placement number is never shown (owner question on #2809: "is a
+ *  placement of +1 good or bad?"): in placement a bigger number is a worse finish, so a sign misleads. */
+const placeWords = (n: number | null, dp = 2): string => (n === null ? '–' : n < 0 ? `${Math.abs(n).toFixed(dp)} better` : n > 0 ? `${n.toFixed(dp)} worse` : 'even');
 const cap = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
 const day = (iso: string | null | undefined): string => (iso ? iso.slice(0, 10) : '?');
 
@@ -86,7 +91,13 @@ const EVIDENCE_TEXT: Record<EvidenceLabel, string> = { insufficient: 'Insufficie
 const EVIDENCE_LONG: Record<EvidenceLabel, string> = { insufficient: 'Insufficient evidence', candidate: 'Candidate for review', supported: 'Supported association' };
 const EVIDENCE_RANK: Record<EvidenceLabel, number> = { supported: 0, candidate: 1, insufficient: 2 };
 const evidenceTip = `${EVIDENCE_LONG.insufficient}: under ${EVIDENCE_GATES.candidate.side} runs on a side or under ${EVIDENCE_GATES.candidate.players} players. ${EVIDENCE_LONG.candidate}: ${EVIDENCE_GATES.candidate.side} a side and ${EVIDENCE_GATES.candidate.players} players. ${EVIDENCE_LONG.supported}: ${EVIDENCE_GATES.supported.side} a side and ${EVIDENCE_GATES.supported.players} players. Players are counted by the server-side player key (a hash of the account id); the banner says when a backend without it makes the count a display-name proxy. None of the three means confirmed overpowered or underpowered.`;
-const ciText = (ci: Interval | null): string => (ci ? `${signed(ci.lo, 1)} to ${signed(ci.hi, 1)}` : '–');
+const ciText = (ci: Interval | null): string => (ci ? `${placeWords(ci.lo, 1)} to ${placeWords(ci.hi, 1)}` : '–');
+/** The heat of a delta that HAS a 95% range: green / red only when the range clears zero; grey ("no clear
+ *  difference") when it crosses zero or is not shown for size. */
+const clearHeat = (d: number | null, ci: Interval | null | undefined): string =>
+  (d === null ? '' : ci && (ci.lo > 0 || ci.hi < 0) ? ` balwin${deltaHeat(d)}` : ' balunclear');
+/** The words every placement-delta tooltip ends with. */
+const DIR_TIP = ' Shown in places: better = a higher finish (closer to 1st), worse = a lower one. Green or red only when the 95% range clears zero; grey means no clear difference (the range crosses zero, or is not shown for size). Sorting puts the best finish first.';
 
 // ── The generic sortable table ─────────────────────────────────────────────────────────────────────────────
 
@@ -191,10 +202,10 @@ function placementCols<R extends PlacementStats>(group: string, baseline: string
     top4Ci: { key: 'top4Ci', label: 'Top 4 95%', tip: 'The 95% range the true top-four rate is likely to sit in (Wilson). Sorts by the bottom of the range.', value: (r) => (r.top4Ci ? r.top4Ci.lo : null), cell: (r) => ({ text: r.top4Ci ? `${r.top4Ci.lo}% to ${r.top4Ci.hi}%` : '–', cls: 'balnum baldim' }) },
     lastPct: { key: 'lastPct', label: '8th %', tip: `Percent of ${group} that finished 8th.`, value: (r) => r.lastRate, cell: (r) => ({ text: pctOrDash(r.lastRate), cls: 'balnum' }) },
     baseline: { key: 'baseline', label: 'Control Avg', tip: `Average placement of ${baseline}: the other side of the raw association, with their count.`, value: (r) => r.baselineAvgPlace, firstDir: 1, cell: (r) => ({ text: r.baselineAvgPlace === null ? '–' : `${r.baselineAvgPlace} (${r.baselineN})`, cls: 'balnum baldim' }) },
-    delta: { key: 'delta', label: rawLabel, tip: `Average placement of ${group} minus ${baseline}. Negative means ${group} finished better among the runs observed. It is an association, not a guaranteed benefit: it rewards surviving long enough to make the choice.`, value: (r) => r.delta, firstDir: 1, cell: (r) => ({ text: signed(r.delta), cls: `balnum${r.delta === null ? '' : ` balwin${deltaHeat(r.delta)}`}` }) },
-    deltaRanked: { key: 'deltaRanked', label: rawLabel, tip: `Average placement of ${group} minus ${baseline}. Negative means ${group} finished better among the runs that had the choice. Sorts rows with candidate or supported evidence first; insufficient rows sit below, alphabetical, never ranked as worst.`, value: (r) => ((r as unknown as { evidence?: EvidenceLabel }).evidence === 'insufficient' ? null : r.delta), firstDir: 1, cell: (r) => ({ text: signed(r.delta), cls: `balnum${r.delta === null ? '' : ` balwin${deltaHeat(r.delta)}`}` }) },
+    delta: { key: 'delta', label: rawLabel, tip: `Average placement of ${group} minus ${baseline}. Better means ${group} finished better among the runs observed. It is an association, not a guaranteed benefit: it rewards surviving long enough to make the choice.` + DIR_TIP, value: (r) => r.delta, firstDir: 1, cell: (r) => ({ text: placeWords(r.delta), cls: `balnum${clearHeat(r.delta, r.deltaWelch)}` }) },
+    deltaRanked: { key: 'deltaRanked', label: rawLabel, tip: `Average placement of ${group} minus ${baseline}. Better means ${group} finished better among the runs that had the choice. Sorts rows with candidate or supported evidence first; insufficient rows sit below, alphabetical, never ranked as worst.` + DIR_TIP, value: (r) => ((r as unknown as { evidence?: EvidenceLabel }).evidence === 'insufficient' ? null : r.delta), firstDir: 1, cell: (r) => ({ text: placeWords(r.delta), cls: `balnum${(r as unknown as { evidence?: EvidenceLabel }).evidence === 'insufficient' ? ' balunclear' : clearHeat(r.delta, r.deltaWelch)}` }) },
     deltaCi: { key: 'deltaCi', label: 'Raw 95%', tip: `Welch 95% range of the raw association (unequal variances). Shown only with ${WELCH_MIN_N} or more runs on each side; a range that crosses zero is not a finding. Sorts by the top of the range.`, value: (r) => (r.deltaWelch ? r.deltaWelch.hi : null), firstDir: 1, cell: (r) => ({ text: ciText(r.deltaWelch), cls: 'balnum baldim' }) },
-    impact: { key: 'impact', label: 'Sample-weighted association', tip: `The raw association shrunk toward zero for a small sample: raw times n / (n + ${SAMPLE_GATES.preliminary}) over placed ${group}. A heuristic weighting, not a correction for who got to make the choice.`, value: (r) => r.impact, firstDir: 1, cell: (r) => ({ text: signed(r.impact), cls: `balnum${r.impact === null ? '' : ` balwin${deltaHeat(r.impact)}`}` }) },
+    impact: { key: 'impact', label: 'Sample-weighted association', tip: `The raw association shrunk toward zero for a small sample: raw times n / (n + ${SAMPLE_GATES.preliminary}) over placed ${group}. A heuristic weighting, not a correction for who got to make the choice.` + DIR_TIP, value: (r) => r.impact, firstDir: 1, cell: (r) => ({ text: placeWords(r.impact), cls: `balnum${r.impact === null ? '' : ` balwin${deltaHeat(r.impact)}`}` }) },
   };
 }
 
@@ -202,19 +213,19 @@ const pick = <R,>(cols: Record<string, ColDef<R>>, keys: string[]): ColDef<R>[] 
 const dimBelow = (r: { gate: SampleGate }): boolean => r.gate === 'below';
 const better = (d: number | null): string => ((d ?? 0) <= 0 ? 'better' : 'worse');
 const abs2 = (d: number | null): string => Math.abs(d ?? 0).toFixed(2);
-const ciWords = (ci: Interval | null): string => (ci ? ` (95% ${signed(ci.lo, 1)} to ${signed(ci.hi, 1)})` : '');
+const ciWords = (ci: Interval | null): string => (ci ? ` (95% ${placeWords(ci.lo, 1)} to ${placeWords(ci.hi, 1)})` : '');
 const evidenceCol = <R extends { evidence: EvidenceLabel }>(): ColDef<R> => ({
   key: 'evidence', label: 'Evidence', tip: evidenceTip, value: (r) => EVIDENCE_RANK[r.evidence], firstDir: 1,
   cell: (r) => ({ text: EVIDENCE_TEXT[r.evidence], cls: `balnum balev balev-${r.evidence}` }),
 });
-const adjustedText = (a: AdjustedStats): string => (a.association === null ? 'insufficient' : signed(a.association));
-const adjustedCls = (a: AdjustedStats): string => (a.association === null ? 'balnum baldim' : `balnum balwin${deltaHeat(a.association)}`);
+const adjustedText = (a: AdjustedStats): string => (a.association === null ? 'insufficient' : placeWords(a.association));
+const adjustedCls = (a: AdjustedStats): string => (a.association === null ? 'balnum baldim' : `balnum${clearHeat(a.association, a.ci)}`);
 /** The card Performance cell: the adjusted association, or, when a row clears the candidate gate on the exposed
  *  diagnostic alone, THAT number marked "exposed", because it is what ranks the row under this header. A cell
  *  never prints "insufficient" while a hidden number sorts it. */
 const cardAdjustedCell = (r: CardImpactRow): { text: string; cls: string } => {
   if (r.adjusted.association === null && r.evidence !== 'insufficient' && r.evidenceBasis === 'exposed' && r.exposed.delta !== null) {
-    return { text: `exposed ${signed(r.exposed.delta)}`, cls: `balnum baldim balwin${deltaHeat(r.exposed.delta)}` };
+    return { text: `exposed ${placeWords(r.exposed.delta)}`, cls: `balnum baldim${clearHeat(r.exposed.delta, r.exposed.ci)}` };
   }
   return { text: adjustedText(r.adjusted), cls: adjustedCls(r.adjusted) };
 };
@@ -243,18 +254,18 @@ const CARD_COLS: Record<string, ColDef<CardImpactRow>> = {
   discpct: { key: 'discpct', label: 'Disc %', tip: 'Discover picks as a percent of Discover offers.', value: (r) => r.discRate, cell: (r) => ({ text: pctOrDash(r.discRate), cls: 'balnum' }) },
   episodes: { key: 'episodes', label: 'Affordable offers', tip: 'Runs with a primary shop decision for the card: the first wave it was on offer and affordable, before any prior copy. One per run, however many copies or rerolls.', value: (r) => r.episodes, cell: (r) => ({ text: String(r.episodes), cls: 'balnum' }) },
   episodePct: { key: 'episodePct', label: 'Decision buy %', tip: 'Of those affordable first offers, the percent bought in that wave.', value: (r) => (r.episodes > 0 ? Math.round((100 * r.episodeBuyers) / r.episodes) : null), cell: (r) => ({ text: r.episodes > 0 ? `${Math.round((100 * r.episodeBuyers) / r.episodes)}%` : '–', cls: 'balnum' }) },
-  vsTier: { key: 'vsTier', label: 'Relative raw association within tier', tip: 'The raw buyer association minus the buyer-weighted average of the card\'s tier (minions against minions, spells against spells). A secondary read of who stands out within a tier. Not a survival correction: the whole tier still carries the survival bias.', value: (r) => r.tierDelta, firstDir: 1, cell: (r) => ({ text: signed(r.tierDelta), cls: `balnum${r.tierDelta === null ? '' : ` balwin${deltaHeat(r.tierDelta)}`}` }) },
+  vsTier: { key: 'vsTier', label: 'Relative raw association within tier', tip: 'The raw buyer association minus the buyer-weighted average of the card\'s tier (minions against minions, spells against spells). A secondary read of who stands out within a tier. Not a survival correction: the whole tier still carries the survival bias.' + DIR_TIP, value: (r) => r.tierDelta, firstDir: 1, cell: (r) => ({ text: placeWords(r.tierDelta), cls: `balnum${r.tierDelta === null ? '' : ` balwin${deltaHeat(r.tierDelta)}`}` }) },
   buyWave: { key: 'buyWave', label: 'Buy Wave', tip: 'Average wave the card was acquired on.', value: (r) => r.avgBuyWave, firstDir: 1, cell: (r) => ({ text: fmtNum(r.avgBuyWave), cls: 'balnum baldim' }) },
   missing: { key: 'missing', label: 'Missing placement', tip: 'Buyer runs with no placement. They count toward demand only and never toward a placement finding.', value: (r) => r.missingPlacement, cell: (r) => ({ text: String(r.missingPlacement), cls: 'balnum baldim' }) },
   buyerPlayers: { key: 'buyerPlayers', label: 'Buyer players', tip: 'Distinct players among the placed buyer runs, by the player key the banner names.', value: (r) => r.buyerPlayers, cell: (r) => ({ text: r.buyerPlayers === null ? 'n/a' : String(r.buyerPlayers), cls: 'balnum baldim' }) },
   controlPlayers: { key: 'controlPlayers', label: 'Control players', tip: 'Distinct players among the placed control runs (every other placed run).', value: (r) => r.controlPlayers, cell: (r) => ({ text: r.controlPlayers === null ? 'n/a' : String(r.controlPlayers), cls: 'balnum baldim' }) },
   expBuyers: { key: 'expBuyers', label: 'Exposed buyers', tip: 'Placed runs whose own shop offers included the card and that acquired it (shop or Discover) in that run.', value: (r) => r.exposed.buyers, cell: (r) => ({ text: String(r.exposed.buyers), cls: 'balnum' }) },
   expSkippers: { key: 'expSkippers', label: 'Exposed skippers', tip: 'Placed runs whose own shop offers included the card and that never acquired it.', value: (r) => r.exposed.skippers, cell: (r) => ({ text: String(r.exposed.skippers), cls: 'balnum' }) },
-  exposed: { key: 'exposed', label: 'Exposed diagnostic', tip: 'Average placement of exposed buyers minus exposed skippers: both sides saw the card. Negative means buyers finished better than the runs that saw it and passed. A diagnostic only: a sighting at any time is not a comparable decision.', value: (r) => r.exposed.delta, firstDir: 1, cell: (r) => ({ text: r.exposed.delta === null ? '–' : signed(r.exposed.delta), cls: `balnum${r.exposed.delta === null ? '' : ` balwin${deltaHeat(r.exposed.delta)}`}` }) },
+  exposed: { key: 'exposed', label: 'Exposed diagnostic', tip: 'Average placement of exposed buyers minus exposed skippers: both sides saw the card. Better means buyers finished better than the runs that saw it and passed. A diagnostic only: a sighting at any time is not a comparable decision.' + DIR_TIP, value: (r) => r.exposed.delta, firstDir: 1, cell: (r) => ({ text: r.exposed.delta === null ? '–' : placeWords(r.exposed.delta), cls: `balnum${clearHeat(r.exposed.delta, r.exposed.ci)}` }) },
   exposedCi: { key: 'exposedCi', label: 'Exposed 95%', tip: `Welch 95% range of the exposed diagnostic. Shown only with ${WELCH_MIN_N} or more runs on each side.`, value: (r) => (r.exposed.ci ? r.exposed.ci.hi : null), firstDir: 1, cell: (r) => ({ text: ciText(r.exposed.ci), cls: 'balnum baldim' }) },
   notExposed: { key: 'notExposed', label: 'Buyers unseen', tip: 'Placed buyer runs with no recorded shop sighting of the card (a Discover pick, or a sighting the streams missed). A coverage mismatch, reported rather than repaired.', value: (r) => r.exposed.notExposedBuyers, cell: (r) => ({ text: String(r.exposed.notExposedBuyers), cls: 'balnum baldim' }) },
   adjN: { key: 'adjN', label: 'Comparable buy / pass', tip: 'Placed runs in the supported strata (round band by shop tier, each holding both a buyer and a passer): the runs the adjusted association actually compares. Sorts by the smaller side.', value: (r) => Math.min(r.adjusted.buyersInSupport, r.adjusted.skippersInSupport), cell: (r) => ({ text: `${r.adjusted.buyersInSupport} / ${r.adjusted.skippersInSupport}`, cls: 'balnum' }) },
-  adjusted: { key: 'adjusted', label: 'Adjusted association', tip: 'Buy against pass inside the first affordable shop offer, among runs in the same round band and shop tier, weighted by where buyers were. Negative means buying went with a better finish in those situations. "insufficient" means no stratum holds both a buyer and a passer: a valid answer, not zero. The default order: rows with candidate or supported evidence first by this number, then rows whose evidence rests on the exposed diagnostic alone (their cell prints that number, marked exposed); insufficient rows below, never ranked as worst.', value: performanceSortValue, firstDir: 1, cell: cardAdjustedCell },
+  adjusted: { key: 'adjusted', label: 'Adjusted association', tip: 'Buy against pass inside the first affordable shop offer, among runs in the same round band and shop tier, weighted by where buyers were. Better means buying went with a better finish in those situations. "insufficient" means no stratum holds both a buyer and a passer: a valid answer, not zero. The default order: rows with candidate or supported evidence first by this number, then rows whose evidence rests on the exposed diagnostic alone (their cell prints that number, marked exposed); insufficient rows below, never ranked as worst.' + DIR_TIP, value: performanceSortValue, firstDir: 1, cell: cardAdjustedCell },
   adjustedCi: { key: 'adjustedCi', label: 'Adjusted 95%', tip: `A stratified Welch-type 95% range of the adjusted association. Shown only with ${WELCH_MIN_N} or more comparable runs on each side and two or more on each side of every supported stratum.`, value: (r) => (r.adjusted.ci ? r.adjusted.ci.hi : null), firstDir: 1, cell: (r) => ({ text: ciText(r.adjusted.ci), cls: 'balnum baldim' }) },
   outside: { key: 'outside', label: 'Buyers outside support %', tip: 'Percent of placed buyer decisions in a stratum with no passer to compare with. High means the adjusted number speaks for few of the buyers.', value: (r) => r.adjusted.outsideSupportPct, cell: (r) => ({ text: pctOrDash(r.adjusted.outsideSupportPct), cls: 'balnum baldim' }) },
   strata: { key: 'strata', label: 'Strata (used / seen)', tip: 'Round band by shop tier strata holding both sides, over strata seen at all.', value: (r) => r.adjusted.supportedStrata, cell: (r) => ({ text: `${r.adjusted.supportedStrata} / ${r.adjusted.strata}`, cls: 'balnum baldim' }) },
@@ -295,7 +306,7 @@ const HERO_COLS: Record<string, ColDef<HeroImpactRow>> = {
   pick: { key: 'pick', label: 'Pick %', tip: 'Percent of offers that were taken. Do players want it when they see it.', value: (r) => r.pickRate, cell: (r) => ({ text: pctOrDash(r.pickRate), cls: 'balnum' }) },
   avgWins: { key: 'avgWins', label: 'Round Wins', tip: 'Average combat rounds won per run with it, every round counted (from the best source per run: live, derived or replay).', value: (r) => r.avgWins, cell: (r) => ({ text: fmtNum(r.avgWins), cls: 'balnum' }) },
   offSkip: { key: 'offSkip', label: 'Offered, chose other', tip: 'Placed runs whose recorded trio offered the hero and that picked another one: the comparison group of the offered association. Runs with no recorded trio cannot be here.', value: (r) => r.offeredSkippers, cell: (r) => ({ text: String(r.offeredSkippers), cls: 'balnum' }) },
-  offDelta: { key: 'offDelta', label: 'Offered association', tip: 'Average placement of runs with the hero minus runs that were offered it and chose another. Negative means choosing it went with a better finish among runs that had the choice. Picking a hero is selected behaviour, not a random treatment. Sorts rows with candidate or supported evidence first; insufficient rows sit below, alphabetical, never ranked as worst.', value: (r) => (r.evidence === 'insufficient' ? null : r.offeredDelta), firstDir: 1, cell: (r) => ({ text: signed(r.offeredDelta), cls: `balnum${r.offeredDelta === null ? '' : ` balwin${deltaHeat(r.offeredDelta)}`}` }) },
+  offDelta: { key: 'offDelta', label: 'Offered association', tip: 'Average placement of runs with the hero minus runs that were offered it and chose another. Better means choosing it went with a better finish among runs that had the choice. Picking a hero is selected behaviour, not a random treatment. Sorts rows with candidate or supported evidence first; insufficient rows sit below, alphabetical, never ranked as worst.' + DIR_TIP, value: (r) => (r.evidence === 'insufficient' ? null : r.offeredDelta), firstDir: 1, cell: (r) => ({ text: placeWords(r.offeredDelta), cls: `balnum${r.evidence === 'insufficient' ? ' balunclear' : clearHeat(r.offeredDelta, r.offeredCi)}` }) },
   offCi: { key: 'offCi', label: 'Offered 95%', tip: `Welch 95% range of the offered association. Shown only with ${WELCH_MIN_N} or more runs on each side.`, value: (r) => (r.offeredCi ? r.offeredCi.hi : null), firstDir: 1, cell: (r) => ({ text: ciText(r.offeredCi), cls: 'balnum baldim' }) },
   players: { key: 'players', label: 'Players', tip: 'Distinct players among the placed runs with the hero, and among the offered runs that chose another.', value: (r) => r.players, cell: (r) => ({ text: `${r.players === null ? 'n/a' : r.players} / ${r.skipperPlayers === null ? 'n/a' : r.skipperPlayers}`, cls: 'balnum baldim' }) },
   evidence: evidenceCol<HeroImpactRow>(),
@@ -317,7 +328,7 @@ const RUNE_COLS: Record<string, ColDef<RuneImpactRow>> = {
   offered: { key: 'offered', label: 'Offered', tip: 'Runs the Runeforge offered it to, counted once per run. Replay-derived: the offers come from re-running the action log, which is not guaranteed faithful for a lobby run.', value: (r) => r.offered, cell: (r) => ({ text: String(r.offered), cls: 'balnum' }) },
   n: { key: 'n', label: 'Takers', tip: `Runs that took the rune, counted once per run. ${THIN_TIP}`, value: (r) => r.picked, cell: (r) => ({ text: String(r.picked), cls: 'balnum' }) },
   pick: { key: 'pick', label: 'Pick %', tip: 'Percent of runs offered it that took it.', value: (r) => r.pickRate, cell: (r) => ({ text: pctOrDash(r.pickRate), cls: 'balnum' }) },
-  vsField: { key: 'vsField', label: 'Raw association vs field', tip: 'The uncontrolled read: average placement of taker runs minus every other run in the report, including runs eliminated before any forge. Reads green for most runes, because only a run that survived to turn 6 or 9 is offered one.', value: (r) => r.fieldDelta, firstDir: 1, cell: (r) => ({ text: signed(r.fieldDelta), cls: `balnum${r.fieldDelta === null ? '' : ` balwin${deltaHeat(r.fieldDelta)}`}` }) },
+  vsField: { key: 'vsField', label: 'Raw association vs field', tip: 'The uncontrolled read: average placement of taker runs minus every other run in the report, including runs eliminated before any forge. Reads green for most runes, because only a run that survived to turn 6 or 9 is offered one.' + DIR_TIP, value: (r) => r.fieldDelta, firstDir: 1, cell: (r) => ({ text: placeWords(r.fieldDelta), cls: `balnum${clearHeat(r.fieldDelta, r.fieldDeltaCi)}` }) },
   players: { key: 'players', label: 'Players', tip: 'Distinct players among the placed takers, and among the offered runs that skipped.', value: (r) => r.players, cell: (r) => ({ text: `${r.players === null ? 'n/a' : r.players} / ${r.skipperPlayers === null ? 'n/a' : r.skipperPlayers}`, cls: 'balnum baldim' }) },
   evidence: evidenceCol<RuneImpactRow>(),
 };
@@ -337,7 +348,7 @@ const TIER_COLS: Record<string, ColDef<TierImpactRow>> = {
   avgWave: { key: 'avgWave', label: 'Avg Wave', tip: 'The average wave a run first reached this tier, over the runs that did.', value: (r) => r.avgWaveReached, firstDir: 1, cell: (r) => ({ text: fmtNum(r.avgWaveReached), cls: 'balnum' }) },
   reachedPlaced: { key: 'reachedPlaced', label: 'Reached Placed', tip: 'Runs that reached the tier and carry a placement.', value: (r) => r.reachedPlacedN, cell: (r) => ({ text: String(r.reachedPlacedN), cls: 'balnum baldim' }) },
   reachedAvg: { key: 'reachedAvg', label: 'Reached Avg', tip: 'Average final placement of every run that reached this tier, early or late.', value: (r) => r.reachedAvgPlace, firstDir: 1, cell: (r) => ({ text: fmtNum(r.reachedAvgPlace), cls: `balnum${r.reachedAvgPlace === null ? '' : ` balwin${placeHeat(r.reachedAvgPlace)}`}` }) },
-  vsNever: { key: 'vsNever', label: 'Reached vs never', tip: 'Average placement of runs that reached the tier minus runs that never did. A survival statistic: the runs that never got there are the early eliminations.', value: (r) => r.reachedDelta, firstDir: 1, cell: (r) => ({ text: signed(r.reachedDelta), cls: `balnum${r.reachedDelta === null ? '' : ` balwin${deltaHeat(r.reachedDelta)}`}` }) },
+  vsNever: { key: 'vsNever', label: 'Reached vs never', tip: 'Average placement of runs that reached the tier minus runs that never did. A survival statistic: the runs that never got there are the early eliminations.' + DIR_TIP, value: (r) => r.reachedDelta, firstDir: 1, cell: (r) => ({ text: placeWords(r.reachedDelta), cls: `balnum${r.reachedDelta === null ? '' : ` balwin${deltaHeat(r.reachedDelta)}`}` }) },
   cut: { key: 'cut', label: 'By Wave', tip: 'The cut that defines early: the average wave rounded. Early runs reached the tier on or before this wave.', value: (r) => r.cutWave, firstDir: 1, cell: (r) => ({ text: r.cutWave === null ? '–' : `wave ${r.cutWave}`, cls: 'balnum baldim' }) },
   early: { key: 'early', label: 'Early Runs', tip: `Runs that reached the tier by the cut wave: the sample behind the placement columns. ${THIN_TIP}`, value: (r) => r.earlyRuns, cell: (r) => ({ text: String(r.earlyRuns), cls: 'balnum' }) },
 };
@@ -359,7 +370,7 @@ const TIERDEC_COLS: ColDef<TierDecisionRow>[] = [
   { key: 'avgWave', label: 'Avg Wave', tip: 'Mean wave of the primary decision.', value: (r) => r.avgWave, firstDir: 1, cell: (r) => ({ text: fmtNum(r.avgWave), cls: 'balnum baldim' }) },
   { key: 'tookAvg', label: 'Took Avg', tip: 'Average placement of the placed runs that took it, with their count in Decisions.', value: (r) => r.tookAvg, firstDir: 1, cell: (r) => ({ text: r.tookAvg === null ? '–' : `${r.tookAvg} (${r.tookPlaced})`, cls: 'balnum' }) },
   { key: 'declinedAvg', label: 'Declined Avg', tip: 'Average placement of the placed runs that declined.', value: (r) => r.declinedAvg, firstDir: 1, cell: (r) => ({ text: r.declinedAvg === null ? '–' : `${r.declinedAvg} (${r.declinedPlaced})`, cls: 'balnum' }) },
-  { key: 'rawDelta', label: 'Raw association', tip: 'Took average minus declined average, among runs that had the decision. Negative means taking went with a better finish.', value: (r) => r.rawDelta, firstDir: 1, cell: (r) => ({ text: signed(r.rawDelta), cls: `balnum${r.rawDelta === null ? '' : ` balwin${deltaHeat(r.rawDelta)}`}` }) },
+  { key: 'rawDelta', label: 'Raw association', tip: 'Took average minus declined average, among runs that had the decision. Better means taking went with a better finish.' + DIR_TIP, value: (r) => r.rawDelta, firstDir: 1, cell: (r) => ({ text: placeWords(r.rawDelta), cls: `balnum${clearHeat(r.rawDelta, r.rawCi)}` }) },
   { key: 'rawCi', label: 'Raw 95%', tip: `Welch 95% range of the raw association. Shown only with ${WELCH_MIN_N} or more runs on each side.`, value: (r) => (r.rawCi ? r.rawCi.hi : null), firstDir: 1, cell: (r) => ({ text: ciText(r.rawCi), cls: 'balnum baldim' }) },
   { key: 'adjN', label: 'Comparable took / declined', tip: 'Placed runs in strata (round band by spare Gold after paying) that hold both a taker and a decliner.', value: (r) => Math.min(r.adjusted.buyersInSupport, r.adjusted.skippersInSupport), cell: (r) => ({ text: `${r.adjusted.buyersInSupport} / ${r.adjusted.skippersInSupport}`, cls: 'balnum' }) },
   { key: 'adjusted', label: 'Adjusted association', tip: 'Took against declined among runs alive at the same round band with similar spare Gold, taker weighted. "insufficient" means no stratum holds both.', value: (r) => r.adjusted.association, firstDir: 1, cell: (r) => ({ text: adjustedText(r.adjusted), cls: adjustedCls(r.adjusted) }) },
@@ -400,7 +411,7 @@ function GroupStrip({ what, groups, active, onPick, noun, sample, baseline }: { 
         >
           <span className="balgchip-l">{g.label}</span>
           <span className="balgchip-n">{g.runsBought}</span>
-          <span className={`balgchip-d balwin${deltaHeat(g.delta)}`}>{signed(g.delta)}</span>
+          <span className={`balgchip-d balwin${deltaHeat(g.delta)}`}>{placeWords(g.delta)}</span>
         </button>
       ))}
     </div>
@@ -446,7 +457,7 @@ function ImpactChart<R extends BarRow>({ rows, keyOf, nOf, tipOf, noun, group, b
     <div className="balimp">
       <div className="balnote">
         Each bar is the row's <b>{metric}</b>: the average placement of {group} minus {baseline}.
-        A bar to the <b>left</b> means they finished better among the runs observed, to the <b>right</b> worse. This is the raw read, not the
+        A bar to the <b>left</b> means they finished better (closer to 1st) among the runs observed, to the <b>right</b> worse. This is the raw read, not the
         adjusted one: it rewards surviving long enough to make the choice. Bars fade with a thin sample and are solid at {SAMPLE_GATES.actionable} {group}. Hover a bar for its numbers.
       </div>
       {thinToggle}
@@ -465,7 +476,7 @@ function ImpactChart<R extends BarRow>({ rows, keyOf, nOf, tipOf, noun, group, b
               style={{ width: `${(Math.abs(r.delta!) / maxAbs) * 50}%`, opacity: opacityOf(r) }}
             />
           </div>
-          <span className={`balimp-val balwin${deltaHeat(r.delta)}`}>{signed(r.delta)}</span>
+          <span className={`balimp-val balwin${deltaHeat(r.delta)}`}>{placeWords(r.delta)}</span>
         </div>
       )))}
       {showAll && ranked.length > EDGE * 2 && (
@@ -578,10 +589,13 @@ function EvidenceBanner({ setName, runs, sliced, quality, coverage, scope, epoch
   fetch: FetchState; derivedCap: number; derivedLoading: boolean; prolific: { key: string; runs: number } | null; oldest: string | null; newest: string | null;
 }) {
   const epochLabel = scope.epoch === ALL_EPOCHS ? `all ${epochs.length} content revisions (historical)` : `content revision ${scope.epoch} (1 of ${epochs.length} in the set)`;
-  const windowLabel = scope.from || scope.to ? `window ${scope.from ?? 'oldest'} to ${scope.to ?? 'newest'}` : 'no date window';
+  const windowLabel = scope.fromIso || scope.toIso ? `window ${scope.fromIso ? new Date(scope.fromIso).toLocaleString() : 'oldest'} to ${scope.toIso ? new Date(scope.toIso).toLocaleString() : 'now'}` : 'no date window';
   const proxy = fetch.playerKeyBasis === 'displayName';
   const players = coverage.uniquePlayers === null ? 'n/a players' : `${coverage.uniquePlayers} ${proxy ? 'display names' : 'players'}`;
   const derivedDropped = fetch.derivedRequested - fetch.derivedFetched;
+  // The coverage + caveat rows fold behind one toggle (2026-11-19) so the at-a-glance views lead; truncation and the
+  // prolific-player exclusion stay on the always-visible row.
+  const [more, setMore] = useState(false);
   return (
     <div className="balbanner" role="note" aria-label="Evidence summary">
       <div className="balbanner-row">
@@ -592,7 +606,10 @@ function EvidenceBanner({ setName, runs, sliced, quality, coverage, scope, epoch
         <span data-tip="The balance epoch is the content revision the runs were played under. It is a filter, never a stratum.">{epochLabel}</span>
         <span>{windowLabel}</span>
         {prolific && <span className="balwarn" data-tip="The sensitivity toggle is on: every table below leaves this player's runs out">excluding {prolific.runs} runs of the most prolific player</span>}
+        {fetch.flatTruncated && <span className="balwarn">flat rows TRUNCATED at {BALANCE_FLAT_CAP}</span>}
+        <button type="button" className="balchip balmore" aria-expanded={more} onClick={() => { sfx.tick(); setMore((v) => !v); }}>{more ? 'Hide data details' : 'Data details'}</button>
       </div>
+      {more && <>
       <div className="balbanner-row balbanner-dim">
         <span data-tip={`Flat rows are paged from the database, ${BALANCE_FLAT_PAGE} a page, up to ${BALANCE_FLAT_CAP}. Truncated means the cap stopped the walk and the report is a bounded preview.`}>flat rows {fetch.flatFetched} fetched, cap {BALANCE_FLAT_CAP}, {fetch.flatTruncated ? 'TRUNCATED' : 'complete'}</span>
         <span data-tip={`Derived payloads are fetched by id for the newest ${derivedCap} in-set rows. Dropped = asked for and not returned. The exposed and adjusted reads need them.`}>derived {derivedLoading ? 'loading' : `${fetch.derivedFetched} of ${fetch.derivedRequested} requested`}, cap {derivedCap}{derivedDropped > 0 && !derivedLoading ? `, ${derivedDropped} dropped` : ''}</span>
@@ -608,13 +625,18 @@ function EvidenceBanner({ setName, runs, sliced, quality, coverage, scope, epoch
         <span>Every number below is an association among the runs observed, not a measured effect: comparing buyers with all other runs rewards survival and card access, the exposed and adjusted reads narrow the comparison to runs that had the chance, and no label here means confirmed overpowered or underpowered.</span>
         <span data-tip="Stage C of the analytics correction (a player-cluster bootstrap that recomputes the whole estimate, and false-discovery screening across every card) is deferred on purpose. Both need many independent players; over a handful they would manufacture confidence. The Welch ranges and the evidence labels are the whole uncertainty read for now.">No bootstrap or multiple-comparison screening is run: over {players} it would manufacture confidence, so each 95% range stands alone and is not a screened discovery.</span>
       </div>
+      </>}
     </div>
   );
 }
 
 // ── The panel ──────────────────────────────────────────────────────────────────────────────────────────────
 
-type SectionKey = 'minions' | 'spells' | 'heroes' | 'runes' | 'shopcurve' | 'economy' | 'upgrades';
+type DetailKey = 'minions' | 'spells' | 'heroes' | 'runes' | 'shopcurve' | 'economy' | 'upgrades';
+/** The at-a-glance views (2026-11-19) lead; the detailed tables stay one pick away. */
+type SectionKey = OverviewView | DetailKey;
+const OVERVIEW_TABS: { key: OverviewView; label: string }[] = [{ key: 'outliers', label: 'Outliers' }, { key: 'rates', label: 'Pick rates' }, { key: 'gaps', label: 'Never picked' }, { key: 'ancients', label: 'Ancients' }];
+const isOverview = (k: SectionKey): k is OverviewView => k === 'outliers' || k === 'rates' || k === 'gaps' || k === 'ancients';
 
 /** How many of the newest in-set rows get their derived payload fetched (~100 KB each today). Stated on the
  *  banner and in the export meta; a slice past it is bounded, never silently short. */
@@ -637,7 +659,8 @@ export function BalancePanel() {
   const [rows, setRows] = useState<RunTelemetryRow[]>([]); // every fetched row; the filters run below
   const [fetchState, setFetchState] = useState<FetchState>({ flatFetched: 0, flatTruncated: false, derivedRequested: 0, derivedFetched: 0, playerKeyBasis: 'playerKey' });
   const [loading, setLoading] = useState(false);
-  const [sectionKey, setSectionKey] = useState<SectionKey>('minions');
+  const [sectionKey, setSectionKey] = useState<SectionKey>('outliers');
+  const [lastDetail, setLastDetail] = useState<DetailKey>('minions');
   // HERO FILTER (owner ask 2026-08-02: "what minions does Robin buy vs Guardian"). Re-AGGREGATES from the raw
   // rows rather than filtering the finished tables, so the denominators are that hero's too. A VIEW filter:
   // the export always carries every hero.
@@ -647,8 +670,16 @@ export function BalancePanel() {
   // THE SCOPE (A4): the balance epoch (null = the default, decided from the data), the date window, the thin-
   // epoch override, and the sensitivity toggle. Data filters: the export follows them.
   const [epochPick, setEpochPick] = useState<string | null>(null);
-  const [from, setFrom] = useState<string>('');
-  const [to, setTo] = useState<string>('');
+  // THE DATE RANGE (owner ask 2026-11-19): one value, remembered per browser, filtering the server fetch, every view,
+  // the detailed tables and the export identically. Rolling presets are pinned to `rangeNow`, the moment of the load,
+  // so the screen and the export agree until the next Refresh.
+  const [range, setRangeState] = useState<DateRange>(() => loadRange());
+  const [rangeNow, setRangeNow] = useState(() => Date.now());
+  const bounds = useMemo(() => rangeBounds(range, new Date(rangeNow)), [range, rangeNow]);
+  const [customFrom, setCustomFrom] = useState(() => (range.kind === 'custom' ? range.from : ''));
+  const [customTo, setCustomTo] = useState(() => (range.kind === 'custom' ? range.to : ''));
+  const markers = useMemo(() => patchMarkers(), []);
+  const setRange = (r: DateRange): void => { sfx.tick(); setRangeState(r); saveRange(r); setRangeNow(Date.now()); };
   const [showThin, setShowThin] = useState(false);
   // THE REGIME + BUILD FILTERS (2026-10-03): '' = every regime / build.
   const [regimePick, setRegimePick] = useState<string>('');
@@ -664,7 +695,7 @@ export function BalancePanel() {
     setLoading(true);
     setDerivedLoading(false);
     void (async () => {
-      const flat = await fetchRunTelemetry();
+      const flat = await fetchRunTelemetry({ fromIso: bounds.fromIso, toIso: bounds.toIso });
       if (seq !== loadSeq.current) return;
       setRows(flat.rows);
       setFetchState({ flatFetched: flat.fetched, flatTruncated: flat.truncated, derivedRequested: 0, derivedFetched: 0, playerKeyBasis: flat.playerKeyBasis });
@@ -682,7 +713,8 @@ export function BalancePanel() {
       setDerivedLoading(false);
     })();
   };
-  useEffect(() => { if (show) load(); }, [show]);
+  // A new range refetches (the server does the filtering); so does reopening.
+  useEffect(() => { if (show) load(); }, [show, bounds.fromIso, bounds.toIso]);
 
   // THE DATA FILTERS: ladder rows only, the active set only (a row with no set stamp is set 1, never the
   // live set), then the epoch and window scope. Pure functions in @game/sim, shared with the export.
@@ -690,11 +722,14 @@ export function BalancePanel() {
   const buildRev = contentRevision();
   const filtered = useMemo(() => applyReportFilters(rows, set.id), [rows, set.id]);
   const epochs = useMemo(() => epochsOf(filtered.rows), [filtered]);
-  const epoch = epochPick ?? defaultEpoch(epochs, buildRev);
-  const scope = useMemo((): ReportScope => ({ epoch, from: from || null, to: to || null, regime: regimePick || null, build: buildPick || null }), [epoch, from, to, regimePick, buildPick]);
+  // A date range reads every content revision inside it unless an epoch was picked by hand: "last 7 days" means the
+  // runs of the last 7 days, not the slice of them played on this build's revision.
+  const ranged = range.kind !== 'preset' || range.preset !== 'all';
+  const epoch = epochPick ?? (ranged ? ALL_EPOCHS : defaultEpoch(epochs, buildRev));
+  const scope = useMemo((): ReportScope => ({ epoch, from: null, to: null, fromIso: bounds.fromIso, toIso: bounds.toIso, regime: regimePick || null, build: buildPick || null }), [epoch, bounds, regimePick, buildPick]);
   // The picker options read the epoch + window slice WITHOUT the regime / build filters, so a choice never hides
   // the others.
-  const pickerRows = useMemo(() => scopeReport(filtered, { epoch, from: from || null, to: to || null }).rows, [filtered, epoch, from, to]);
+  const pickerRows = useMemo(() => scopeReport(filtered, { epoch, from: null, to: null, fromIso: bounds.fromIso, toIso: bounds.toIso }).rows, [filtered, epoch, bounds]);
   const regimes = useMemo(() => regimesOf(pickerRows), [pickerRows]);
   const builds = useMemo(() => buildsOf(pickerRows), [pickerRows]);
   const scoped = useMemo(() => scopeReport(filtered, scope), [filtered, scope]);
@@ -764,7 +799,7 @@ export function BalancePanel() {
 
   const back = (): void => { sfx.pulse(); close(); };
   const refresh = (): void => { sfx.pulse(); load(); };
-  const pickSection = (k: SectionKey): void => { sfx.pulse(); setSectionKey(k); };
+  const pickSection = (k: SectionKey): void => { sfx.pulse(); setSectionKey(k); if (!isOverview(k)) setLastDetail(k); };
   const pickEpoch = (v: string): void => { sfx.pulse(); setEpochPick(v); setShowThin(false); };
   const counts = scoped.counts;
   const isDerived = sectionKey === 'economy' || sectionKey === 'upgrades';
@@ -781,11 +816,17 @@ export function BalancePanel() {
         {/* Section picker + the filters + the buttons, centred at the top. */}
         <div className="balhead-c">
           <div className="balcontrols">
+            <div className="bov-tabs" role="tablist" aria-label="Report view">
+              {OVERVIEW_TABS.map((t) => (
+                <button key={t.key} type="button" role="tab" aria-selected={sectionKey === t.key} className={`bov-tab${sectionKey === t.key ? ' on' : ''}`} onClick={() => pickSection(t.key)}>{t.label}</button>
+              ))}
+              <button type="button" role="tab" aria-selected={!isOverview(sectionKey)} className={`bov-tab${!isOverview(sectionKey) ? ' on' : ''}`} onClick={() => pickSection(lastDetail)}>Detailed tables</button>
+            </div>
             <select
               className="balpick"
-              value={sectionKey}
+              value={isOverview(sectionKey) ? lastDetail : sectionKey}
               onChange={(e) => pickSection(e.target.value as SectionKey)}
-              aria-label="Choose report"
+              aria-label="Choose detailed table"
             >
               <option value="minions">Minions ({impact.minions.length})</option>
               <option value="spells">Spells ({impact.spells.length})</option>
@@ -835,12 +876,32 @@ export function BalancePanel() {
               <option value="">All builds ({builds.length})</option>
               {builds.map((b) => <option key={b.build} value={b.build}>{b.build} ({b.runs} {b.runs === 1 ? 'run' : 'runs'}, {day(b.newest)})</option>)}
             </select>
-            <label className="ballabel">from <input className="balpick baldate" type="date" value={from} onChange={(e) => setFrom(e.target.value)} aria-label="Window start" /></label>
-            <label className="ballabel">to <input className="balpick baldate" type="date" value={to} onChange={(e) => setTo(e.target.value)} aria-label="Window end" /></label>
             <button className={`balchip${excludeProlific ? ' on' : ''}`} disabled={!prolific} onClick={() => { sfx.tick(); setExcludeProlific((v) => !v); }}
               data-tip={prolific ? `Sensitivity view: leave out the ${prolific.runs} runs of the most prolific player${fetchState.playerKeyBasis === 'displayName' ? ' (by display name, a proxy on this backend)' : ''}. If a conclusion reverses, it rested on one player.` : 'No player to exclude yet'}>
               {excludeProlific ? 'Prolific player excluded' : 'Exclude most prolific player'}
             </button>
+          </div>
+          {/* THE DATE RANGE (2026-11-19): presets, Since a patch, custom From / To, the active range with its run count. */}
+          <div className="balrange" role="group" aria-label="Date range">
+            {PRESETS.map((pr) => (
+              <button key={pr.preset} type="button" className={`bov-chip${range.kind === 'preset' && range.preset === pr.preset ? ' on' : ''}`} onClick={() => setRange({ kind: 'preset', preset: pr.preset })}>{pr.label}</button>
+            ))}
+            <select className={`balpick balsince${range.kind === 'since' ? ' on' : ''}`} aria-label="Since a patch" value={range.kind === 'since' ? range.day : ''}
+              onChange={(e) => { const m = markers.find((x) => x.day === e.target.value); if (m) setRange({ kind: 'since', day: m.day, label: m.label }); }}>
+              <option value="">Since a patch…</option>
+              {markers.map((m) => <option key={m.day} value={m.day}>{shortDay(new Date(`${m.day}T00:00:00`))}: {m.label}</option>)}
+            </select>
+            <span className={`balcustom${range.kind === 'custom' ? ' on' : ''}`}>
+              <label className="ballabel">From <input className="balpick baldate" type="date" value={customFrom} onChange={(e) => { setCustomFrom(e.target.value); if (e.target.value || customTo) setRange({ kind: 'custom', from: e.target.value, to: customTo }); }} aria-label="From day (inclusive, local time)" /></label>
+              <label className="ballabel">To <input className="balpick baldate" type="date" value={customTo} onChange={(e) => { setCustomTo(e.target.value); if (e.target.value || customFrom) setRange({ kind: 'custom', from: customFrom, to: e.target.value }); }} aria-label="To day (inclusive, local time)" /></label>
+            </span>
+          </div>
+          <div className="balrange-now" role="status">
+            <b>{rangeLabel(range)}</b>
+            <span>{loading ? 'loading…' : `${scoped.rows.length.toLocaleString()} runs${dates.oldest ? ` from ${shortDay(new Date(dates.oldest))} to ${shortDay(new Date(dates.newest!))}` : ''}`}</span>
+            {ranged && epochPick == null && <span className="baldim">every content revision in the range</span>}
+            {fetchState.flatTruncated && <span className="balwarn">This range hit the {BALANCE_FLAT_CAP.toLocaleString()}-row cap: only the newest {fetchState.flatFetched.toLocaleString()} runs are read. Narrow the range to read all of it.</span>}
+            {ranged && <button type="button" className="balchip" onClick={() => { setCustomFrom(''); setCustomTo(''); setRange(ALL_TIME); }}>Reset to all time</button>}
           </div>
           {counts.unstamped > 0 && set.id !== LEGACY_SET && (
             <div className="balsub balwarn">
@@ -862,7 +923,7 @@ export function BalancePanel() {
           </div>
         ) : insufficient ? (
           <div className="balempty">
-            <b>Insufficient current data.</b> {scoped.rows.length} of {filtered.rows.length} {set.name} runs were played on {scope.epoch === buildRev ? 'this build\'s content revision' : 'content revision'} {scope.epoch}{scope.from || scope.to ? ' inside the window' : ''}; a revision needs {EPOCH_MIN_RUNS} to be read on its own.
+            <b>Insufficient current data.</b> {scoped.rows.length} of {filtered.rows.length} {set.name} runs were played on {scope.epoch === buildRev ? 'this build\'s content revision' : 'content revision'} {scope.epoch}{scope.fromIso || scope.toIso ? ' inside the date range' : ''}; a revision needs {EPOCH_MIN_RUNS} to be read on its own.
             Older revisions are not pooled in on their own: choose it.
             <div className="balseg-row">
               <button className="balrun" onClick={() => { sfx.pulse(); setEpochPick(ALL_EPOCHS); }} data-tip={`Read every revision together (${filtered.rows.length} runs across ${epochs.length}). Cards, heroes and runes may have changed between them; the tables then show mixed versions under current names and tiers.`}>Include historical ({filtered.rows.length} runs)</button>
@@ -876,7 +937,10 @@ export function BalancePanel() {
             <EvidenceBanner setName={set.name} runs={heroRows.length} sliced={heroFilter ? getHero(heroFilter).name : null} quality={tableQuality} coverage={impactRes.coverage} scope={scope} epochs={epochs}
               fetch={fetchState} derivedCap={DERIVED_CAP} derivedLoading={derivedLoading} prolific={excludeProlific ? prolific : null} oldest={dates.oldest} newest={dates.newest} />
             {heroFilter && sectionKey !== 'heroes' && <div className="balsub">{getHero(heroFilter).name} only ({heroRows.length} runs)</div>}
-            {sectionKey === 'minions' || sectionKey === 'spells' ? (
+            {isOverview(sectionKey) ? (
+              <BalanceOverview view={sectionKey} setId={set.id} setName={set.name} cards={impactRes.rows} heroes={heroes} runes={runes}
+                rows={heroRows} keyOf={keyOf} derivedLoading={derivedLoading} />
+            ) : sectionKey === 'minions' || sectionKey === 'spells' ? (
               <ImpactSection
                 key={sectionKey}
                 rows={sectionKey === 'minions' ? impact.minions : impact.spells}

@@ -10,7 +10,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-interface Query { table: string; select?: string; nots: [string, string, unknown][]; ins: [string, readonly unknown[]][]; limit?: number; range?: [number, number] }
+interface Query { table: string; select?: string; nots: [string, string, unknown][]; ins: [string, readonly unknown[]][]; limit?: number; range?: [number, number]; gte?: [string, unknown]; lt?: [string, unknown] }
 
 const queries: Query[] = [];
 let respond: (q: Query) => { data: unknown[] | null; error: unknown } = () => ({ data: [], error: null });
@@ -31,6 +31,8 @@ vi.mock('@supabase/supabase-js', () => ({
         order: () => chain,
         limit: (n: number) => { q.limit = n; return chain; },
         range: (from: number, to: number) => { q.range = [from, to]; return chain; },
+        gte: (col: string, v: unknown) => { q.gte = [col, v]; return chain; },
+        lt: (col: string, v: unknown) => { q.lt = [col, v]; return chain; },
         then: (res: (v: unknown) => unknown, rej?: (e: unknown) => unknown) => Promise.resolve(respond(q)).then(res, rej),
       };
       return chain;
@@ -117,6 +119,35 @@ describe('fetchRunTelemetry — the select ladder', () => {
     expect(res.rows[0]!.rankAtStart).toEqual(rank);
     expect(res.rows[1]!.rankAtStart, 'an old row has no rank: unknown').toBeUndefined();
     expect(res.rows[2]!.rankAtStart, 'a malformed rank is dropped, never guessed').toBeUndefined();
+  });
+
+  it('filters the date range ON THE SERVER: created_at >= from and < to (exclusive), on every page', async () => {
+    respond = () => ({ data: FLAT, error: null });
+    await (await load()).fetchRunTelemetry({ cap: 500, fromIso: '2026-11-12T05:00:00.000Z', toIso: '2026-11-20T05:00:00.000Z' });
+    expect(queries[0]!.gte).toEqual(['created_at', '2026-11-12T05:00:00.000Z']);
+    expect(queries[0]!.lt).toEqual(['created_at', '2026-11-20T05:00:00.000Z']);
+    queries.length = 0;
+    await (await load()).fetchRunTelemetry({ cap: 500 });
+    expect(queries[0]!.gte, 'All time: no bound sent').toBeUndefined();
+  });
+
+  it('reads the Ancient stamps as JSON paths (R-TELEMETRY-ANCIENT-01); an old or malformed row reads as no Ancient data', async () => {
+    respond = () => ({ data: [
+      { ...FLAT[0], derived_ancients: true, derived_ancient: { id: 'war', heroId: 'indy', wave: 6 }, derived_ancient_offer: ['war', 'time', 'bonds'], derived_ancient_offer_wave: 6, derived_seed: 42 },
+      { ...FLAT[1], derived_ancients: null, derived_ancient: null, derived_ancient_offer: null, derived_ancient_offer_wave: null, derived_seed: null },
+      { ...FLAT[1], id: 98, derived_ancients: true, derived_ancient: { id: 7 }, derived_ancient_offer: ['war', 3], derived_seed: 'x' },
+    ], error: null });
+    const res = await (await load()).fetchRunTelemetry({ cap: 500 });
+    for (const path of ['derived_ancients:derived->ancients', 'derived_ancient:derived->ancient', 'derived_ancient_offer:derived->ancientOffer', 'derived_ancient_offer_wave:derived->ancientOfferWave', 'derived_seed:derived->seed']) {
+      expect(queries[0]!.select).toContain(path);
+    }
+    expect(res.rows[0]).toMatchObject({ ancients: true, ancient: { id: 'war', heroId: 'indy', wave: 6 }, ancientOffer: ['war', 'time', 'bonds'], ancientOfferWave: 6, seed: 42 });
+    expect(res.rows[1]!.ancients, 'an old row: no data').toBeUndefined();
+    expect(res.rows[1]!.ancient).toBeUndefined();
+    expect(res.rows[2]!.ancients).toBe(true);
+    expect(res.rows[2]!.ancient, 'a malformed pick is dropped').toBeUndefined();
+    expect(res.rows[2]!.ancientOffer, 'a malformed offer is dropped').toBeUndefined();
+    expect(res.rows[2]!.seed).toBeUndefined();
   });
 
   it('a backend WITHOUT the 2026-09-22 columns errors the first rung and answers from the second, where a stamp written inside derived still reads', async () => {

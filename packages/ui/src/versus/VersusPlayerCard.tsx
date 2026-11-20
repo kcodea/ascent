@@ -18,12 +18,13 @@ import { useLiveLoadout } from '../skins/skins';
 import { useGame } from '../store';
 import { PLAYER_CARD_ID, playerCardView, seatCardSource, type SeatServerData } from './versusSeatCard';
 import type { VersusMember } from './versusRemote';
+import { useShowOpponentCosmetics } from '../cosmetics/opponentCosmetics';
 
 const swallow = (e: SyntheticEvent): void => { e.preventDefault(); e.stopPropagation(); };
 
 export const VersusPlayerCard = memo(function VersusPlayerCard({ m, server, host = false }: { m: Pick<VersusMember, 'userId' | 'displayName' | 'profile'>; server: SeatServerData | undefined; host?: boolean }) {
   const own = m.userId === currentUserId();
-  const showOpp = useGame((s) => s.showOpponentSkins);
+  const showOpp = useShowOpponentCosmetics();
   const myAvatar = useGame((s) => s.playerAvatar);
   const myTitle = useProgression((s) => mirrorFor(currentUserId(), s.mirror)?.equippedTitleId ?? null);
   const myLoadout = useLiveLoadout();

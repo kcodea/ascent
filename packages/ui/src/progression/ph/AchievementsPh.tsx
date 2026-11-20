@@ -189,7 +189,7 @@ function AchDetail({ tile, category, own }: { tile: AchievementTile; category: A
   const pct = progress === null ? null : Math.min(1, progress / def.target);
   const facts: [string, React.ReactNode][] = [];
   if (def.rewards.xp > 0) facts.push(['Reward', <span key="xp" className="pha-xpval">{rewardText(def)}</span>]);
-  if (def.rewards.titleId) facts.push(['Title', <TitleBadge key="t" id={def.rewards.titleId} className="ach-titlebadge" />]);
+  if (def.rewards.titleId) facts.push(['Title', <TitleBadge item key="t" id={def.rewards.titleId} className="ach-titlebadge" />]);
   if (def.rewards.cosmeticId) facts.push(['Unique reward', <span key="c" className="pha-secret">{UNIQUE_PLATE_REWARD_TEXT}</span>]);
   if (legacy) facts.push(['Legacy', 'From an earlier set. No longer earnable.']);
 

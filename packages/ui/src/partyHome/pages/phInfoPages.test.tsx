@@ -180,12 +180,13 @@ describe('Settings in the shell', () => {
     ui = mount(<PhSettings />);
     const shell = controls(ui.container, true);
     expect(old.length).toBeGreaterThan(8);
-    expect(shell).toEqual(old);
+    // Every old control is here; the shell has more (Cosmetics, Hover sounds: shell only since 2026-11-20).
+    expect(shell).toEqual(expect.arrayContaining(old));
   });
 
   it('a switch (the kit PhSwitch: On / Off on it) writes the same store as before; its note is outside it', () => {
     act(() => { useGame.setState({ showOpponentSkins: true } as never); });
-    ui = mount(<PhSettings initialTab="social" />);
+    ui = mount(<PhSettings initialTab="cosmetics" />);
     const sw = [...ui.container.querySelectorAll<HTMLButtonElement>('button[role="switch"]')].find((b) => b.getAttribute('aria-label') === 'Show opponent cosmetics')!;
     expect(sw.getAttribute('aria-checked')).toBe('true');
     expect(sw.textContent, 'the word on the switch').toBe('On');
@@ -279,7 +280,7 @@ describe('the Compendium in the shell', () => {
 
 describe('the UI rules', () => {
   it('no native tooltips, no own cursor, no looping animation, no em dashes, never Oath or climb', () => {
-    const tsx = ['./PhPatchNotes.tsx', './PhSettings.tsx', './PhCompendium.tsx'].map(here).join('\n');
+    const tsx = ['./PhPatchNotes.tsx', './PhSettings.tsx', './PhSettingsKeybinds.tsx', './phSettingsParts.tsx', './PhCompendium.tsx'].map(here).join('\n');
     const css = ['./phPatchNotes.css', './phSettings.css', './phCompendium.css'].map(here).join('\n');
     expect(tsx).not.toMatch(/<[a-z][a-z0-9]*\s[^>]*\stitle=/);
     // Only the gauntlet URL form (CLAUDE.md): a bare keyword cursor swaps the game cursor for the OS arrow.

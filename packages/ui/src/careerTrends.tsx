@@ -27,9 +27,9 @@ import { createPortal } from 'react-dom';
 import { StoredTeam } from './StoredTeam';
 import { rectToStage, stageHost, stageViewport } from './stage';
 import { opponentSkins } from './skins/skins';
-import { useGame } from './store';
 import { apmOf, isMatchWin, ordinalOf, playedOnText, type CareerRun, type TrendWindow } from './careerData';
 import { medalOf, POINTS_PER_DIVISION } from './rank/types';
+import { useShowOpponentCosmetics } from './cosmetics/opponentCosmetics';
 
 const ROLL = 10;
 const DAY = 86_400_000;
@@ -334,7 +334,7 @@ function gamesGeo(pts: readonly RunPoint[], window_: TrendWindow, nowMs: number)
 
 /** The big chart: a memoised static SVG + cached anchors; the crosshair snaps to the nearest anchor by x. */
 function BigChart({ geo, own, kind }: { geo: BigGeo | null; own: boolean; kind: ChartKind }) {
-  const showOpp = useGame((s) => s.showOpponentSkins);
+  const showOpp = useShowOpponentCosmetics();
   const wrap = useRef<HTMLDivElement>(null);
   const rect = useRef<{ left: number; width: number } | null>(null);
   // The chart's rect in STAGE px, read once per hover (never per move): where the floating tip is seated from.

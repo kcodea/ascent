@@ -3,6 +3,7 @@ import { catchPulse, isPassArrival, mateDoor, noteCastRelease, playDrop } from '
 import { duosPassRefusal, notePassRefused, overMateFrame, passariaAimHoldsHand, passOnRelease } from './versus/duosPassUi';
 import { useDuosCombat, useDuosCombatSync } from './versus/duosCombat';
 import { duosMateRunNow } from './versus/duosMateRun';
+import { useShowOpponentCosmetics } from './cosmetics/opponentCosmetics';
 
 /** No mid-fight hand previews (a stable empty list: the hand row is memoized). */
 const NO_HAND_PREVIEWS: CardView[] = [];
@@ -2661,7 +2662,7 @@ export function Recruit() {
   // measurement that aimed its bloom, and its hidden glow ring and bar. The states `chargeIn` / `primeOut` remain as a
   // zero-length step (chargeMs 0) so the machine and its tests are unchanged.
   // SKINS: "Show opponent skins" (the NOW FACING portrait honours it; your own portrait never does).
-  const showOppSkins = useGame((s) => s.showOpponentSkins);
+  const showOppSkins = useShowOpponentCosmetics();
   // The portrait-frames tuner's opponent ring for the NOW FACING face (null = today's gold CSS border).
   const foeFrame = usePortraitFrame('opp');
   const [wipe, setWipe] = useSwapState<WipeState>(() => (run.phase === 'combat' ? 'combat' : 'idle'), swapped);

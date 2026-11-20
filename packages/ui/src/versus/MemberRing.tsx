@@ -9,7 +9,7 @@ import { parseCosmeticSnapshot } from '@game/progression';
 import { avatarSrc } from '../art';
 import { PortraitFrame, frameIdOf, pfClass, usePortraitFrame } from '../portraitFrame/PortraitFrame';
 import { heroPortrait, opponentSkins } from '../skins/skins';
-import { useGame } from '../store';
+import { useShowOpponentCosmetics } from '../cosmetics/opponentCosmetics';
 
 export function MemberRing({ name, profile, heroId, className = '', self = false }: {
   name: string;
@@ -21,7 +21,7 @@ export function MemberRing({ name, profile, heroId, className = '', self = false
   /** It is MY face (a spectator's own chip): my live frame, never hidden by "Show opponent cosmetics". */
   self?: boolean;
 }): JSX.Element {
-  const showOpp = useGame((s) => s.showOpponentSkins);
+  const showOpp = useShowOpponentCosmetics();
   const parsed = parseCosmeticSnapshot(profile?.cosmetics) ?? null;
   const cos: RunCosmeticSnapshot | null = self ? parsed : opponentSkins(showOpp, parsed);
   const frame = usePortraitFrame(self ? 'self' : 'opp', self ? undefined : frameIdOf(cos));

@@ -2,6 +2,7 @@ import { memo, useMemo, useSyncExternalStore } from 'react';
 import { portraitFrameOf, type RunCosmeticSnapshot } from '@game/progression';
 import { mirrorFor, useProgression } from '../progression/progressionStore';
 import { currentUserId } from '../identity';
+import { cosmeticShown, useCosmeticVisEpoch } from '../cosmetics/cosmeticVisibility';
 import {
   getPortraitFrameVersion,
   resolvePortraitFrame,
@@ -30,7 +31,9 @@ import {
 export function usePortraitFrame(side: PortraitSide, frameId?: string | null, surface: FrameSurface = 'default'): ResolvedFrame | null {
   const v = useSyncExternalStore(subscribePortraitFrames, getPortraitFrameVersion, getPortraitFrameVersion);
   const own = useOwnPortraitFrameId();
-  const id = frameId !== undefined ? frameId : side === 'self' ? own : null;
+  // The Settings "Portrait frames" switch (R-SETTINGS-COSMETICS-01): off = no cosmetic frame (the default ring) for anyone.
+  const shown = useCosmeticVisEpoch() >= 0 && cosmeticShown('portrait_frame');
+  const id = !shown ? null : frameId !== undefined ? frameId : side === 'self' ? own : null;
   // `v` is the cache key: the resolver's own cache is cleared on every tuner write.
   return useMemo(() => resolvePortraitFrame(side, id, surface), [v, side, id, surface]);
 }

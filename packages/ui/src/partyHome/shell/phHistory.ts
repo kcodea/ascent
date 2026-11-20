@@ -7,6 +7,7 @@
  * Back take the top layer first, one at a time, and in a game with nothing open Back stays in the game.
  * No dependencies: the Escape handler reads this eagerly.
  */
+import { keyCaptureActive } from '../../keybinds/keybinds';
 type Apply = (page: string) => void;
 /** One layer above the page: a page over a game, the game menu, a pop-up, a list, a sheet. `close` null: closed out of order, its entry still to step past. */
 type Layer = { close: (() => void) | null };
@@ -84,6 +85,7 @@ function escPreview(): boolean {
 /** Esc, ahead of every other listener: what is on top goes first, and only that. */
 function onKey(e: KeyboardEvent): void {
   if (e.key !== 'Escape' || !enabled) return;
+  if (keyCaptureActive()) return; // Esc cancels a rebind in Settings > Keybindings, nothing else
   if (escField() || escPreview()) { /* claimed */ } else if (layers.length) history.back(); else return;
   e.preventDefault();
   e.stopImmediatePropagation();

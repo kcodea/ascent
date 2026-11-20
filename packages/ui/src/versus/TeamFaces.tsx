@@ -22,6 +22,7 @@ import { currentUserId } from '../identity';
 import { useVersus, type DuosResultMember } from './versusStore';
 import { groupSeatOf, isDuosRaw } from './versusGroupView';
 import { isRankedDuosRaw } from './rankedDuosView';
+import { useShowOpponentCosmetics } from '../cosmetics/opponentCosmetics';
 
 export type TeamMood = 'won' | 'placed' | 'out';
 
@@ -29,7 +30,7 @@ export type TeamMood = 'won' | 'placed' | 'out';
 export const teamMoodOf = (placement: number): TeamMood => (placement === 1 ? 'won' : placement <= 2 ? 'placed' : 'out');
 
 export function TeamFaces({ team, mood, label = 'Your team' }: { team: readonly DuosResultMember[]; mood: TeamMood; label?: string }): JSX.Element | null {
-  const showOpp = useGame((s) => s.showOpponentSkins);
+  const showOpp = useShowOpponentCosmetics();
   if (team.length === 0) return null;
   return (
     <div className={`vsteam vsduosresult-faces ${mood}${team.length === 1 ? ' solo' : ''}`} aria-label={label}>

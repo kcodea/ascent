@@ -21,6 +21,7 @@ import {
 import { lobbyReveal, lobbyRevealEnabled, useLobbyRevealActive, useLobbyRevealSeq, type RevealPlay } from './lobbyRevealStore';
 import { beginLobbyRevealFor } from './beginLobbyReveal';
 import './lobbyReveal.css';
+import { useShowOpponentCosmetics } from '../cosmetics/opponentCosmetics';
 
 /**
  * THE LOBBY REVEAL — the overlay (owner ask 2026-10-31: "after the player locks in a hero and hits start game ... all
@@ -97,7 +98,7 @@ export function LobbyReveal(): JSX.Element | null {
   const seq = useLobbyRevealSeq();
   const showTitle = useGame((s) => s.showTitle);
   const runSkins = useRunSkins();
-  const showOppSkins = useGame((s) => s.showOpponentSkins);
+  const showOppSkins = useShowOpponentCosmetics();
 
   const rootRef = useRef<HTMLDivElement | null>(null);
   const dimRef = useRef<HTMLDivElement | null>(null);

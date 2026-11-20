@@ -1,5 +1,5 @@
 /**
- * C TOGGLES THE COMPENDIUM (R-COMPENDIUM-TAB-01; the key was Tab until the owner moved it to C on 2026-11-20): on the
+ * C TOGGLES THE COMPENDIUM (the default key; rebindable in Settings, R-SETTINGS-KEYBINDS-01) (R-COMPENDIUM-TAB-01; the key was Tab until the owner moved it to C on 2026-11-20): on the
  * menus (browse the whole set), in a match (scoped to it) and on my own Hero Select (the same overlay its View Compendium
  * button opens), and the same key closes it again. This is the ONE key listener for the book: the in-match Compendium page
  * has none of its own, so a press can never open and close it at once.
@@ -18,9 +18,10 @@
 import { useGame } from './store';
 import { useSpectate } from './versus/spectate';
 import { useOwnHeroPick } from './hero-select/ownHeroPick';
+import { KEY_ACTION_INDEX, matchesAction } from './keybinds/keybinds';
 
-/** The default key for the Compendium (there is no rebinding yet; this is the one place it is named). */
-export const COMPENDIUM_KEY = 'c';
+/** The DEFAULT key for the Compendium. The live binding is the key registry's (`keybinds.ts`, rebindable in Settings). */
+export const COMPENDIUM_KEY = KEY_ACTION_INDEX.compendium.defaults[0]!;
 
 const TEXT_INPUTS = new Set(['button', 'checkbox', 'radio', 'range', 'submit', 'reset', 'color', 'file', 'image']);
 
@@ -39,7 +40,7 @@ function watchingHeroSelect(): boolean {
 }
 
 export function onCompendiumKey(e: KeyboardEvent): void {
-  if (e.key.toLowerCase() !== COMPENDIUM_KEY || e.ctrlKey || e.metaKey || e.altKey) return;
+  if (!matchesAction('compendium', e)) return;
   if (typingTarget(e.target) || typingTarget(typeof document !== 'undefined' ? document.activeElement : null)) return;
   const st = useGame.getState();
   if (!st.showBook) {

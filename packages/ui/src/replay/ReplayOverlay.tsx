@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useGame } from '../store';
+import { matchesAction } from '../keybinds/keybinds';
 import {
   pauseReplay, resumeReplay, setReplaySpeed, seekReplayIndex, endReplay,
   replayEffectiveTimes, replayFrameTimes, replayRoundSpan, setReplayCursor, setReplaySounds,
@@ -123,12 +124,13 @@ export function ReplayOverlay(): JSX.Element | null {
       const t = e.target as HTMLElement | null;
       if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
       const total = replayEffectiveTimes().length;
-      if (e.key === ' ') { e.preventDefault(); if (playing) pauseReplay(); else resumeReplay(); return; }
-      if (e.key === 'ArrowLeft') { e.preventDefault(); seekReplayIndex(Math.max(0, index - 1)); return; }
-      if (e.key === 'ArrowRight') { e.preventDefault(); seekReplayIndex(Math.min(total - 1, index + 1)); return; }
-      // Home / End land on the edges of THIS ROUND, matching what the bar now spans.
-      if (e.key === 'Home') { e.preventDefault(); seekReplayIndex(replayRoundSpan(index).from); return; }
-      if (e.key === 'End') { e.preventDefault(); seekReplayIndex(replayRoundSpan(index).to); return; }
+      // The keys are the registry's (Space, Left, Right, Home, End by default; rebindable in Settings).
+      if (matchesAction('replayPlayPause', e)) { e.preventDefault(); if (playing) pauseReplay(); else resumeReplay(); return; }
+      if (matchesAction('replayStepBack', e)) { e.preventDefault(); seekReplayIndex(Math.max(0, index - 1)); return; }
+      if (matchesAction('replayStepForward', e)) { e.preventDefault(); seekReplayIndex(Math.min(total - 1, index + 1)); return; }
+      // Start / End of round land on the edges of THIS ROUND, matching what the bar now spans.
+      if (matchesAction('replayRoundStart', e)) { e.preventDefault(); seekReplayIndex(replayRoundSpan(index).from); return; }
+      if (matchesAction('replayRoundEnd', e)) { e.preventDefault(); seekReplayIndex(replayRoundSpan(index).to); return; }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);

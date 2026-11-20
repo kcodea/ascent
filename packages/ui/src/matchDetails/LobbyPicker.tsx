@@ -18,13 +18,13 @@ import type { RunCosmeticSnapshot } from '@game/progression';
 import { RUNE_INDEX } from '@game/content';
 import { Icon } from '../Icon';
 import { artFor } from '../art';
-import { useGame } from '../store';
 import { StoredTeam } from '../StoredTeam';
 import { RuneEmblem } from '../RuneEmblem';
 import { opponentSkins } from '../skins/skins';
 import { SeatPortrait } from './MatchScoreboard';
 import { SeatAncientBadge } from './SeatPower';
 import { GAME_STRENGTH_LABEL, ordinalOf } from './matchDetailsText';
+import { useShowOpponentCosmetics } from '../cosmetics/opponentCosmetics';
 
 /** The seat's place as a real place: "1st" ... "8th", or "Still in" for a seat standing when your game ended whose
  *  final place is not known. Your own seat reads your finish. */
@@ -85,7 +85,7 @@ export function useLobbySeat(details: MatchDetails | null | undefined): { seat: 
 
 /** The picked seat's board in the card's big board slot (full cards, the badge slot rules of the board CSS). */
 export function SeatBoard({ seat, own, noReveal }: { seat: MatchSeat; own: boolean; noReveal?: boolean }) {
-  const showOpp = useGame((s) => s.showOpponentSkins);
+  const showOpp = useShowOpponentCosmetics();
   const skins = useMemo(() => seatSkinsOf(seat, own, showOpp), [seat, own, showOpp]);
   return seat.board && seat.board.minions.length > 0
     ? <StoredTeam minions={seat.board.minions} skins={skins} label={`${seat.name}'s board`} noReveal={noReveal} />
@@ -147,7 +147,7 @@ export const MiniBoard = memo(function MiniBoard({ minions, className = '' }: { 
 
 /** The lobby: a 4 x 2 table of seat tiles with mini boards. */
 export const LobbyTiles = memo(function LobbyTiles({ details, selectedId, onPick, own }: PickerProps) {
-  const showOpp = useGame((s) => s.showOpponentSkins);
+  const showOpp = useShowOpponentCosmetics();
   return (
     <div className="lp-tiles" role="group" aria-label="Players in this lobby. Pick one to see their board">
       {details.seats.map((seat) => {

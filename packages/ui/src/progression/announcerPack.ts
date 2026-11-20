@@ -10,6 +10,7 @@
 import { announcerOf, type CosmeticDef } from '@game/progression';
 import { currentUserId } from '../identity';
 import { mirrorFor, useProgression } from './progressionStore';
+import { cosmeticShown } from '../cosmetics/cosmeticVisibility';
 
 /** The clip folder of an announcer item, or null (not an announcer, or one with no pack). */
 export function announcerPackOf(item: CosmeticDef | null | undefined): string | null {
@@ -19,5 +20,6 @@ export function announcerPackOf(item: CosmeticDef | null | undefined): string | 
 /** The pack of the announcer the signed-in player wears, or null for the default voice (nothing equipped, signed out,
  *  or the item is retired / unknown: `announcerOf` only returns a LIVE announcer). */
 export function equippedAnnouncerPack(): string | null {
+  if (!cosmeticShown('announcer')) return null; // the Settings "Announcer pack" switch (R-SETTINGS-COSMETICS-01)
   return announcerPackOf(announcerOf(mirrorFor(currentUserId(), useProgression.getState().mirror)?.loadout));
 }

@@ -22,8 +22,25 @@ import { copyName, duosFirstAt, foeIn, groupPairingAt, isDuosRaw } from './versu
 import { isRankedDuosRaw } from './rankedDuosView';
 import { groupPlateVitals } from './spectatorPlates';
 import { TeamFaces, useMyTeam } from './TeamFaces';
+import { SPECTATE_SEAT_ACTIONS, matchesAction } from '../keybinds/keybinds';
 
 const SEATS: readonly VersusSeat[] = ['p1', 'p2'];
+
+/**
+ * THE SPECTATOR'S SEAT KEYS (R-SETTINGS-KEYBINDS-01): which seat a key press watches. `pickable` is the bar's order of
+ * the players still in. The seat keys pick by position; Next / Previous step from the watched seat and wrap. Returns
+ * undefined when the key is none of these (left alone), null when it is one but names no seat (still consumed).
+ */
+export function spectateKeyTarget<S extends string>(e: Pick<KeyboardEvent, 'key' | 'ctrlKey' | 'metaKey' | 'altKey'>, pickable: readonly S[], watched: string | null): S | null | undefined {
+  const direct = SPECTATE_SEAT_ACTIONS.findIndex((id) => matchesAction(id, e));
+  if (direct >= 0) return pickable[direct] ?? null;
+  const step = matchesAction('spectateNext', e) ? 1 : matchesAction('spectatePrev', e) ? -1 : 0;
+  if (!step) return undefined;
+  if (pickable.length === 0) return null;
+  const at = pickable.indexOf(watched as S);
+  const from = at < 0 ? (step > 0 ? -1 : 0) : at;
+  return pickable[(from + step + pickable.length) % pickable.length] ?? null;
+}
 
 export function SpectatorBar(): JSX.Element | null {
   const active = useSpectate((s) => s.active);
@@ -43,18 +60,16 @@ export function SpectatorBar(): JSX.Element | null {
     if (!active) return undefined;
     const onKey = (e: KeyboardEvent): void => {
       if (e.ctrlKey || e.metaKey || e.altKey || (e.target instanceof HTMLElement && e.target.closest('input, textarea'))) return;
-      // VERSUS GROUP: 1-4 pick among the players still in, in the bar's order (R-VERSUS-GROUP-04).
-      const pickable = groupOrderRef.current;
-      if (pickable.length > 0 && /^[1-4]$/.test(e.key)) {
-        const s = pickable[Number(e.key) - 1];
-        if (s) { e.preventDefault(); sfx.tick(); watchSeat(s); }
-        return;
-      }
-      if (e.key === '1' || e.key === '2') {
-        e.preventDefault();
-        sfx.tick();
-        watchSeat(e.key === '1' ? 'p1' : 'p2');
-      }
+      // The keys are the registry's (keybinds.ts; 1-4, E next and Q previous by default; rebindable in Settings).
+      // VERSUS GROUP: the seat keys pick among the players still in, in the bar's order (R-VERSUS-GROUP-04).
+      const group = groupOrderRef.current;
+      const pickable: readonly VersusSeat[] | readonly VersusGroupSeat[] = group.length > 0 ? group : SEATS;
+      const n = spectateKeyTarget(e, pickable, useSpectate.getState().seat);
+      if (n === undefined) return;
+      e.preventDefault();
+      if (e.repeat || !n || n === useSpectate.getState().seat) return;
+      sfx.tick();
+      watchSeat(n);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);

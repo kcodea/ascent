@@ -20,6 +20,7 @@ import { heroPortrait, opponentSkins, useLiveLoadout } from './skins/skins';
 import { DuosLeaderboard, DUOS_ROWS } from './versus/DuosBoards';
 import { versusEnabled } from './versus/versusFlag';
 import { usePartyHome } from './partyHome/partyHomeFlag';
+import { useShowOpponentCosmetics } from './cosmetics/opponentCosmetics';
 /** The Leaderboard on the party home's app shell (DEV switch; lazy and null in production, so the shipped bundle never carries it). */
 const PhLeaderboard = lazy(() => import('./partyHome/pages/leaderboard/PhLeaderboard').then((m) => ({ default: m.PhLeaderboard })));
 
@@ -89,7 +90,7 @@ export function Rankings() {
   const myDisc = useGame((s) => s.account.discriminator);
   const myRank = useCurrentRank();
   const myAvatar = useGame((s) => s.playerAvatar);
-  const showOppCosmetics = useGame((s) => s.showOpponentSkins); // other players' titles ride the same switch
+  const showOppCosmetics = useShowOpponentCosmetics(); // other players' titles ride the same switch
   const openCareer = useGame((s) => s.openCareer);
   // Cached across opens (socialCache.ts): a revisit paints the last ladder at once and refreshes behind it.
   const rows = useSocial<RankedRow[]>(show ? RANKINGS_KEY : null, loadRankings) ?? null;

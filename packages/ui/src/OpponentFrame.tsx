@@ -10,6 +10,7 @@ import { Icon } from './Icon';
 import { mdBold } from './Card';
 import { questRewardText } from './questText';
 import { useGame } from './store';
+import { useShowOpponentCosmetics } from './cosmetics/opponentCosmetics';
 
 /** Tribe → emblem glyph fallback when a quest has no art yet (mirrors QuestBadges). */
 const TRIBE_ICON: Record<string, string> = { beast: 'paw', dragon: 'flame', mech: 'gear', undead: 'skull', demon: 'eye', neutral: 'star', kobold: 'crown' };
@@ -31,7 +32,7 @@ const tribeLabel = (tribe: string, count: number): string =>
  */
 export function OpponentFrame() {
   const run = useGame((s) => s.run);
-  const showOppSkins = useGame((s) => s.showOpponentSkins);
+  const showOppSkins = useShowOpponentCosmetics();
   const live = run.phase === 'recruit' || run.phase === 'combat';
   const snap = live ? nextOpponent(run) : null;
   // The foe's recorded portrait frame (through "Show opponent cosmetics"), else the portrait-frames tuner's opponent

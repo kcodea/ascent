@@ -1,5 +1,6 @@
 import { Fragment, lazy, memo, Suspense, useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent, ReactNode } from 'react';
+import { keyLabelOf } from './keybinds/keybinds';
 import { inRunTribes, type CardDef, type Tribe } from '@game/core';
 import { CARD_INDEX, DUOS_WHISPERS, EPIC_RUNES, GIFTS, QUEST_DEFS, RUNES, SETS, activeSet, duosPoolFor, poolFor, type SetId } from '@game/content';
 import { questRewardCardsFor, runeRewardCardsFor } from './compendiumRewards';
@@ -1198,7 +1199,7 @@ function BookView({ frame }: { frame?: (parts: CompendiumParts) => ReactNode }) 
   if (frame) return <>{frame({ subtitle, controls, body, view, pickView, codex })}</>;
 
   return (
-    <div className="book-ov" role="dialog" aria-label="Compendium. Press Esc or C to close."
+    <div className="book-ov" role="dialog" aria-label={`Compendium. Press Esc${keyLabelOf('compendium') ? ` or ${keyLabelOf('compendium')}` : ''} to close.`}
       onMouseDown={(e) => { pressBeganOnSurround.current = e.target === e.currentTarget; }}
       onClick={(e) => { if (pressBeganOnSurround.current && e.target === e.currentTarget) closeBook(); }}>
       <div className="book" onClick={(e) => e.stopPropagation()}>

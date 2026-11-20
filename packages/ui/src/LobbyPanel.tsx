@@ -42,6 +42,7 @@ import { railKey } from './pings/pingKeys';
 import { railHeroName } from './railHeroName';
 import { RailScoutShowcase } from './RailScoutShowcase';
 import './lobbyRailDocked.css'; // the Docked rail (owner 2026-10-31): slices set into the board's right side
+import { useShowOpponentCosmetics } from './cosmetics/opponentCosmetics';
 // Lobby Rail Tuner 2 (DEV only): applies its saved values before the panel is ever opened. Production never loads it and
 // renders the shipped defaults (the sheet's fallbacks + DOCK_DEFAULTS).
 if (import.meta.env.DEV) void import('./lobbyRailTuner2Config');
@@ -234,7 +235,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
   // SKINS: your seat wears your run's recorded skin; every other seat its owner's (default art when "Show
   // opponent skins" is off).
   const runSkins = useRunSkins();
-  const showOppSkins = useGame((st) => st.showOpponentSkins);
+  const showOppSkins = useShowOpponentCosmetics();
   // THE DOCKED RAIL (owner 2026-10-31): its dials (Lobby Rail Tuner 2 in DEV; DOCK_DEFAULTS in production).
   const dockCfg = useDockCfg();
   // What each docked slice's label says (Tuner 2 "Slice label"; production: the player's name).
@@ -1150,7 +1151,7 @@ function ScoutCard({ lobby, seat, intel, at, pinned, hp, compact, run, teams }: 
     teams ? duosTeamResults(lobby, seat.id, 3) : seatResults(lobby, seat.id, 3);
   // SKINS: a fight-log face is that foe's seat; when the foe was YOU, it is your run's skin.
   const runSkins = useRunSkins();
-  const showOppSkins = useGame((st) => st.showOpponentSkins);
+  const showOppSkins = useShowOpponentCosmetics();
   // Every foe's face in a row: the team's two in a Duos fight, else the one foe.
   const facesOf = (r: { foeId: string; foeHeroId: string; foes?: DuosFightFoe[] }): { id: string; heroId: string }[] =>
     (r.foes?.length ? r.foes : r.foeHeroId ? [{ id: r.foeId, heroId: r.foeHeroId }] : []);

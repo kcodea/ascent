@@ -102,7 +102,7 @@ export function NewRewardsPopup({ sealedIds, onOpenCrates }: {
           <div className="nrw-sec">
             <div className="nrw-kicker">{titles.length === 1 ? 'Title unlocked' : 'Titles unlocked'}</div>
             <div className="nrw-titles">{titles.map((t) => (isMasterTitle(t)
-              ? <TitleBadge key={t} id={t} className="nrw-titleplate" />
+              ? <TitleBadge item key={t} id={t} className="nrw-titleplate" />
               : <span key={t} className="nrw-titlechip">{titleName(t)}</span>))}</div>
             <div className="nrw-note">Wear it from the Titles tab.</div>
           </div>

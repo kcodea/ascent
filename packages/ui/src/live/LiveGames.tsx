@@ -31,6 +31,7 @@ import { liveGameStatusOf, liveModeLabel, liveNameOf, liveWatchTargetOf } from '
 import { FriendGame } from '../friends/friendBits';
 import { usePartyHome } from '../partyHome/partyHomeFlag';
 import './live.css';
+import { useShowOpponentCosmetics } from '../cosmetics/opponentCosmetics';
 
 /** THE PARTY HOME's version of this page (DEV switch "Party home (prototype)", owner 2026-11-02): the same reads and Watch
  *  path, drawn with the shell kit under the top nav. Lazy and null in production, so the shipped bundle never carries it. */
@@ -41,7 +42,7 @@ const REFRESH_MS = 10_000;
 export function LiveGames(): JSX.Element | null {
   const show = useGame((s) => s.showLiveGames);
   const goTo = useGame((s) => s.goTo);
-  const showOpp = useGame((s) => s.showOpponentSkins);
+  const showOpp = useShowOpponentCosmetics();
   const error = useLiveWatch((s) => s.error);
   const shell = usePartyHome();
   const [page, setPage] = useState(0);

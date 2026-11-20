@@ -26,6 +26,7 @@ import { sampleFriends } from '../sample';
 import { usePartyDemo, usePartyRoom } from '../partyHomeFlag';
 import { setFriendsOpen, usePhShell } from './shellStore';
 import { usePhLayer } from './usePhLayer';
+import { useShowOpponentCosmetics } from '../../cosmetics/opponentCosmetics';
 
 export function PhFriends({ docked, picker = false, embedded = false }: { docked: boolean; picker?: boolean; embedded?: boolean }): JSX.Element {
   const sampleRoomOn = usePartyRoom();
@@ -41,7 +42,7 @@ export function PhFriends({ docked, picker = false, embedded = false }: { docked
   const peers = useDm((s) => s.peers);
   const sent = useFriends((s) => s.list?.sent ?? null);
   const room = useVersus((s) => s.room);
-  const showOpp = useGame((s) => s.showOpponentSkins);
+  const showOpp = useShowOpponentCosmetics();
   const openAccountPanel = useGame((s) => s.openAccountPanel);
   const invite = usePhShell((s) => s.invite);
   const pulse = usePhShell((s) => s.friendsPulse);

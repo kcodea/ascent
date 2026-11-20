@@ -212,7 +212,7 @@ const AchTile = memo(function AchTile({ tile, shell }: { tile: AchievementTile; 
       </div>
       <div className="ach-tile-req">{def.requirement}</div>
       {/* A title reward (the hero Titled and Mastery tiers, owner 2026-09-29), shown as it will be worn. */}
-      {def.rewards.titleId && <div className="ach-tile-title"><span>Title</span><TitleBadge id={def.rewards.titleId} className="ach-titlebadge" /></div>}
+      {def.rewards.titleId && <div className="ach-tile-title"><span>Title</span><TitleBadge item id={def.rewards.titleId} className="ach-titlebadge" /></div>}
       {/* A cosmetic reward (the Secret Plushie Plate, owner 2026-10-27): named only by its reward line, never shown. */}
       {def.rewards.cosmeticId && <div className="ach-tile-title ach-tile-secret"><span>Reward</span><span className="ach-secret-reward">{shell ? 'Unique card plate' : UNIQUE_PLATE_REWARD_TEXT}</span></div>}
       {pct !== null && (

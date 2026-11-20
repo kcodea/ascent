@@ -4,7 +4,8 @@
  * while the "Party home (prototype)" switch is on and the player is on the menus; off, or in a game, Settings is exactly as
  * before (`SettingsPanel`).
  *
- * THE LAYOUT (Valorant's settings): the page header carries the CATEGORY TABS (Game, Audio, Video, Social, Account), so a
+ * THE LAYOUT (Valorant's settings): the page header carries the CATEGORY TABS (Game, Audio, Video, Cosmetics, Social,
+ * Keybindings, Account), so a
  * tab always fits one screen. Each tab is a column of sections; each setting is ONE ROW: its name and a short note on the
  * left, its control on the right (a switch, a slider with its number, a dropdown, a button). The last tab is remembered on
  * this device (a convenience, localStorage).
@@ -13,9 +14,11 @@
  * phSettings.test.tsx, fails when one is added there and not here):
  *   Game     combat speed, auto-ramp, lobby reveal, Save and Quit Match (in a game), Quit game (desktop)
  *   Audio    Master, Game sounds, Music, Announcer: each a slider and a mute (all four shown: the tab has room, so the old
- *            "Advanced Controls" fold is not needed here)
- *   Video    board backdrop, max frame rate, fullscreen (desktop), touch UI size (touch), phone diagnostics (phones)
- *   Social   opponent cosmetics, spectator emotes, lobby chat, friends activity, the message filter
+ *            "Advanced Controls" fold is not needed here); Hover sounds (shell only, 2026-11-20)
+ *   Video    board backdrop, max frame rate, FPS counter (shell only, 2026-11-20), fullscreen (desktop), touch UI size (touch), phone diagnostics (phones)
+ *   Cosmetics opponent cosmetics, then one switch per cosmetic category (shell only, R-SETTINGS-COSMETICS-01)
+ *   Social   spectator emotes, lobby chat, friends activity, the message filter
+ *   Keys     every rebindable key (shell only, R-SETTINGS-KEYBINDS-01; keybinds.ts), the fixed keys listed
  *   Account  sign in / sign out
  *
  * Static paint. The switch knob slides on `transform` only. No `cursor` here (the gauntlet rule paints it).
@@ -42,14 +45,21 @@ import { isTouchDevice, touchText } from '../../touchInput';
 import { TOUCH_UI_LABEL, TOUCH_UI_SIZES, setTouchUiSize, touchUi, type TouchUiSize } from '../../touchUi';
 import { PHONE_DIAG_FLAGS, PHONE_GPU, activeDiagLabel, saveDiagFlags, storedDiagFlags, type PhoneDiagFlags } from '../../phoneDiag';
 import { PhButton, PhPage, PhSelect, PhSlider, PhSwitch, PhTabs } from '../kit';
+import { COSMETIC_TOGGLE_ROWS, setCosmeticShown, showAllCosmetics, useCosmeticVisibility } from '../../cosmetics/cosmeticVisibility';
+import { hoverSoundsOn, setHoverSoundsOn } from '../../audio/hoverSounds';
+import { setFpsCounterOn, useFpsCounterOn } from '../../FpsCounter';
+import { KeybindsTab } from './PhSettingsKeybinds';
+import { InfoRow, Row, Section } from './phSettingsParts';
 import './phSettings.css';
 
-export type SettingsTab = 'game' | 'audio' | 'video' | 'social' | 'account';
+export type SettingsTab = 'game' | 'audio' | 'video' | 'cosmetics' | 'social' | 'keys' | 'account';
 export const SETTINGS_TABS: readonly { id: SettingsTab; label: string }[] = [
   { id: 'game', label: 'Game' },
   { id: 'audio', label: 'Audio' },
   { id: 'video', label: 'Video' },
+  { id: 'cosmetics', label: 'Cosmetics' },
   { id: 'social', label: 'Social' },
+  { id: 'keys', label: 'Keybindings' },
   { id: 'account', label: 'Account' },
 ];
 export const SETTINGS_TAB_KEY = 'ascent.settings.tab';
@@ -69,7 +79,9 @@ export function PhSettings({ initialTab }: { initialTab?: SettingsTab } = {}) {
         {tab === 'game' && <GameTab />}
         {tab === 'audio' && <AudioTab />}
         {tab === 'video' && <VideoTab />}
+        {tab === 'cosmetics' && <CosmeticsTab />}
         {tab === 'social' && <SocialTab />}
+        {tab === 'keys' && <KeybindsTab />}
         {tab === 'account' && <AccountTab />}
       </div>
     </PhPage>
@@ -148,7 +160,9 @@ function AudioTab() {
   const [musicMuted, setMusicMuted] = useState(isMusicMuted());
   const [announcerVol, setAnnouncerVol] = useState(getAnnouncerVolume());
   const [announcerMuted, setAnnouncerMuted] = useState(isAnnouncerMuted());
+  const [hover, setHover] = useState(hoverSoundsOn);
   return (
+    <>
     <Section title="Volume">
       <AudioRow label="Master" note="Every sound in the game." volume={masterVol} muted={masterMuted}
         onVolume={(v) => { setMasterVol(v); setMasterVolume(v); }} onRelease={() => sfx.buy()}
@@ -163,6 +177,11 @@ function AudioTab() {
         onVolume={(v) => { setAnnouncerVol(v); setAnnouncerVolume(v); }}
         onToggleMute={() => { setAnnouncerMuted(toggleAnnouncerMute()); sfx.pulse(); }} />
     </Section>
+    <Section title="Interface">
+      <ToggleRow label="Hover sounds" note="The soft tick when the mouse moves onto a button. Clicks keep their sound." on={hover}
+        onToggle={() => { const v = !hover; setHover(v); setHoverSoundsOn(v); sfx.pulse(); }} />
+    </Section>
+    </>
   );
 }
 
@@ -173,6 +192,7 @@ function VideoTab() {
   const touchDevice = isTouchDevice();
   const [touchSize, setTouchSize] = useState<TouchUiSize>(() => touchUi().size);
   const [backdrop, setBackdropPick] = useState<BackdropId>(getBackdrop);
+  const fpsOn = useFpsCounterOn();
   return (
     <>
       <Section title="Board">
@@ -194,6 +214,8 @@ function VideoTab() {
             return { value: cap, label: fpsCapLabel(cap, displayHz), ...(above ? { dim: true, reason: touchText("Above your display's refresh", "Above your screen's refresh") } : {}) };
           })}
           onChange={(cap) => { if (fpsCap !== cap) { setFpsCap(cap); sfx.pulse(); } }} />
+        <ToggleRow label="Show FPS counter" note="A small frame rate readout in the top right corner." on={fpsOn}
+          onToggle={() => { setFpsCounterOn(!fpsOn); sfx.pulse(); }} />
       </Section>
       {(isDesktop() || touchDevice) && (
         <Section title="Display">
@@ -213,9 +235,31 @@ function VideoTab() {
   );
 }
 
-function SocialTab() {
+/** COSMETICS (R-SETTINGS-COSMETICS-01): the opponent switch, then one switch per category (cosmeticVisibility.ts). */
+function CosmeticsTab() {
   const showOpponentSkins = useGame((s) => s.showOpponentSkins);
   const setShowOpponentSkins = useGame((s) => s.setShowOpponentSkins);
+  const hidden = useCosmeticVisibility((s) => s.hidden);
+  const anyHidden = Object.keys(hidden).length > 0;
+  return (
+    <>
+      <Section title="Other players">
+        <ToggleRow label="Show opponent cosmetics" note="Off shows other players in their default art and hero attack. Your own cosmetics always show."
+          on={showOpponentSkins} onToggle={() => { setShowOpponentSkins(!showOpponentSkins); sfx.pulse(); }} />
+      </Section>
+      <Section title="Show cosmetics" note="Each switch applies to everyone, you included: your games, the lobby, replays and spectating. Off shows the default look. Nothing is unequipped.">
+        {COSMETIC_TOGGLE_ROWS.map((r) => (
+          <ToggleRow key={r.id} label={r.label} note={r.note} on={hidden[r.id] !== true}
+            onToggle={() => { setCosmeticShown(r.id, hidden[r.id] === true); sfx.pulse(); }} />
+        ))}
+        {anyHidden && <ButtonRow label="Show everything" note="Turns every switch above back on."
+          button={<PhButton size="s" onClick={() => { showAllCosmetics(); sfx.pulse(); }}>Show all</PhButton>} />}
+      </Section>
+    </>
+  );
+}
+
+function SocialTab() {
   const spectatorEmotesOn = useSpectatorEmotePrefs((s) => s.on);
   const lobbyChatOn = useLobbyChat((s) => s.enabled);
   const showActivity = useFriendsPrefs((s) => s.showActivity);
@@ -223,8 +267,6 @@ function SocialTab() {
   return (
     <>
       <Section title="In a game">
-        <ToggleRow label="Show opponent cosmetics" note="Off shows other players in their default art and hero attack. Your own cosmetics always show."
-          on={showOpponentSkins} onToggle={() => { setShowOpponentSkins(!showOpponentSkins); sfx.pulse(); }} />
         <ToggleRow label="Spectator emotes"
           note={`Off hides the emotes of people watching your game. ${touchText('Right-click', 'Tap and hold')} a spectator in the top left to mute just them.`}
           on={spectatorEmotesOn} onToggle={() => { setSpectatorEmotesOn(!spectatorEmotesOn); sfx.pulse(); }} />
@@ -313,27 +355,6 @@ function PhoneDiagnostics() {
 
 /* ── The building blocks: a section, and one row per setting (name + note left, control right) ── */
 
-function Section({ title, note, children }: { title: string; note?: string; children: ReactNode }) {
-  return (
-    <section className="phs-sec">
-      <header className="phs-sechead"><h2>{title}</h2>{note && <p>{note}</p>}</header>
-      <div className="phs-rows">{children}</div>
-    </section>
-  );
-}
-
-function Row({ label, note, labelId, noteId, children }: { label: string; note?: string; labelId: string; noteId: string; children: ReactNode }) {
-  return (
-    <div className="phs-row">
-      <div className="phs-what">
-        <span className="phs-name" id={labelId}>{label}</span>
-        {note && <span className="phs-note" id={noteId}>{note}</span>}
-      </div>
-      <div className="phs-ctl">{children}</div>
-    </div>
-  );
-}
-
 /** An on/off setting: the kit's switch (the owner's 2026-10-08 rule: off = knob left on red, on = knob right on green,
  *  with the word On or Off on it), its name and note on the left. */
 function ToggleRow({ label, note, on, onToggle }: { label: string; note?: string; on: boolean; onToggle: () => void }) {
@@ -387,7 +408,3 @@ function ButtonRow({ label, note, button }: { label: string; note?: string; butt
   return <Row label={label} note={note} labelId={`${id}l`} noteId={`${id}n`}>{button}</Row>;
 }
 
-function InfoRow({ label, note }: { label: string; note?: string }) {
-  const id = useId();
-  return <Row label={label} note={note} labelId={`${id}l`} noteId={`${id}n`}>{null}</Row>;
-}

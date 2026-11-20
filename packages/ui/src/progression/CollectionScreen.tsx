@@ -621,7 +621,7 @@ const ItemTile = memo(function ItemTile({ id, name, rarity, owned, equipped, fre
           <span className="colls-gem" aria-hidden />
           <span className="colls-tile-rar" data-wkt={art ? RARITY_LABELS[rarity] : undefined}>{RARITY_LABELS[rarity]}</span>
         </span>
-        <span className="colls-tile-name" data-wkt={art && owned && !master ? name : undefined}>{master ? <TitleBadge id={id} className="colls-titleplate" /> : name}</span>
+        <span className="colls-tile-name" data-wkt={art && owned && !master ? name : undefined}>{master ? <TitleBadge item id={id} className="colls-titleplate" /> : name}</span>
         {how && <span className="colls-tile-how">{how}</span>}
       </span>
       {!owned && <span className="colls-tile-lock" aria-hidden><LockGlyph /></span>}
@@ -704,7 +704,7 @@ function DetailPanel({ item, owned, equipped, busy, error, playerName, reducedMo
       )}
       <div className="colls-plate">
         <span className="colls-gem colls-gem-lg" aria-hidden />
-        <div className="colls-plate-name">{isMasterTitle(item.id) ? <TitleBadge id={item.id} className="colls-titleplate colls-titleplate-lg" /> : item.name}</div>
+        <div className="colls-plate-name">{isMasterTitle(item.id) ? <TitleBadge item id={item.id} className="colls-titleplate colls-titleplate-lg" /> : item.name}</div>
         <div className="colls-plate-rar">{RARITY_LABELS[item.rarity]}</div>
       </div>
       <div className="colls-facts">
@@ -727,7 +727,7 @@ function DetailPanel({ item, owned, equipped, busy, error, playerName, reducedMo
         <div className="colls-preview" aria-label="Preview">
           <div className="colls-preview-lbl">Preview</div>
           <div className="colls-preview-name">{playerName}</div>
-          <div className="colls-preview-title">{isMasterTitle(item.id) ? <TitleBadge id={item.id} className="colls-titleplate" /> : item.name}</div>
+          <div className="colls-preview-title">{isMasterTitle(item.id) ? <TitleBadge item id={item.id} className="colls-titleplate" /> : item.name}</div>
         </div>
       )}
       {/* An announcer plays a sample line in place (owned or not, so you can hear what a crate might give). Each

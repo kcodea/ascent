@@ -383,7 +383,7 @@ const Tile = memo(function Tile({ id, name, rarity, owned, equipped, fresh, sele
       {art && <span className="phc-tile-art"><img src={art} alt="" draggable={false} decoding="sync" /></span>}
       <span className="phc-tile-text">
         {target && <span className="phc-tile-for">{target}</span>}
-        <span className="phc-tile-name">{master ? <TitleBadge id={id} className="colls-titleplate" /> : name}</span>
+        <span className="phc-tile-name">{master ? <TitleBadge item id={id} className="colls-titleplate" /> : name}</span>
         <span className="phc-tile-rar"><span className="phc-gem" aria-hidden />{RARITY_LABELS[rarity]}</span>
       </span>
       {!owned && <span className="phc-tile-lock" aria-hidden><LockGlyph /></span>}
@@ -462,7 +462,7 @@ function Detail({ v, item }: { v: CollectionPhView; item: CosmeticDef }): JSX.El
           <div className="phc-stage-title">
             <span className="phc-stage-lbl">Preview</span>
             <span className="phc-stage-name">{v.playerName}</span>
-            <span className="phc-stage-sub">{isMasterTitle(item.id) ? <TitleBadge id={item.id} className="colls-titleplate" /> : item.name}</span>
+            <span className="phc-stage-sub">{isMasterTitle(item.id) ? <TitleBadge item id={item.id} className="colls-titleplate" /> : item.name}</span>
           </div>
         )}
         {voice && (
@@ -478,7 +478,7 @@ function Detail({ v, item }: { v: CollectionPhView; item: CosmeticDef }): JSX.El
         <span className="phc-kindrow">
           <span className="phc-kind">{kindOf(item)}</span>
         </span>
-        <h2>{isMasterTitle(item.id) ? <TitleBadge id={item.id} className="colls-titleplate colls-titleplate-lg" /> : item.name}</h2>
+        <h2>{isMasterTitle(item.id) ? <TitleBadge item id={item.id} className="colls-titleplate colls-titleplate-lg" /> : item.name}</h2>
         <span className={`phc-rarity r-${item.rarity}`}><span className="phc-gem" aria-hidden />{RARITY_LABELS[item.rarity]}</span>
       </div>
 

@@ -17,6 +17,7 @@
  * that attribute only while it is open. Nothing about the game underneath can show, and it comes off on close.
  */
 import { useEffect, useLayoutEffect, useMemo } from 'react';
+import { keyLabelOf } from '../../keybinds/keybinds';
 import { MinionBook, type CompendiumView } from '../../MinionBook';
 import { isPhone } from '../../deviceClass';
 import { sfx } from '../../sfx';
@@ -82,7 +83,7 @@ export function PhCompendiumOverlay() {
     };
   }, []);
   return (
-    <div className="ph-bookpage phb-ov" role="dialog" aria-label="Compendium. Press Esc or C to close.">
+    <div className="ph-bookpage phb-ov" role="dialog" aria-label={`Compendium. Press Esc${keyLabelOf('compendium') ? ` or ${keyLabelOf('compendium')}` : ''} to close.`}>
       <div className="ph-pagebd" aria-hidden="true"><PhBackdrop /></div>
       <PhBackContext.Provider value={back}><PhCompendium /></PhBackContext.Provider>
     </div>

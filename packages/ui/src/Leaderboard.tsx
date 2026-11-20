@@ -12,6 +12,7 @@ import { TitleBadge } from './titles/TitleBadge';
 import { opponentSkins } from './skins/skins';
 import { frameIdOf } from './portraitFrame/PortraitFrame';
 import { hallHistoryFor, hallRowsOf, parseRunKey, playedOnText, recordText, winRateText, type HallOwnRecord, type HallSort } from './leaderboardData';
+import { useShowOpponentCosmetics } from './cosmetics/opponentCosmetics';
 
 /**
  * Leaderboard — the "Hall of Champions" PAGE (not a modal): the warbands with the best record against everyone
@@ -72,7 +73,7 @@ export async function loadHall(): Promise<HallData> {
 
 export function Leaderboard() {
   const show = useGame((s) => s.showLeaderboard);
-  const showOppCosmetics = useGame((s) => s.showOpponentSkins); // recorded titles ride the opponent cosmetics switch
+  const showOppCosmetics = useShowOpponentCosmetics(); // recorded titles ride the opponent cosmetics switch
   // Cached across opens (socialCache.ts): a revisit paints the last Hall at once and refreshes behind it.
   const hall = useSocial<HallData>(show ? HALL_KEY : null, loadHall);
   const records = hall?.records ?? null;

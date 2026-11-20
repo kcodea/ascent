@@ -11,6 +11,7 @@ import { combatGainItems, oddsRecap, type GainItem } from './fightRecapData';
 import { TRIBE_ICON } from './gauntlet/tribeIcon';
 import { foePortrait } from './gauntlet/foePortrait';
 import { useWatchedName } from './versus/spectate';
+import { useShowOpponentCosmetics } from './cosmetics/opponentCosmetics';
 
 /**
  * FIGHT RECAP (owner ask 2026-09-24): the redesigned post-combat summary, opened only from the Summary pill.
@@ -91,7 +92,7 @@ function OddsDmg({ kind, value }: { kind: 'win' | 'lose'; value: number | null }
 export const FightRecap = memo(function FightRecap({ result, combatOdds, lastCombat, lobby, board, wave, mode, gauntletStage, procs, fullLog, onWatchReplay, onClose }: FightRecapProps) {
   const [details, setDetails] = useState(false);
   const [detailTab, setDetailTab] = useState<'procs' | 'log'>('procs');
-  const showOppSkins = useGame((s) => s.showOpponentSkins);
+  const showOppSkins = useShowOpponentCosmetics();
   const ownSkinArt = useMinionSkinMap();
 
   // The foe + the damage both ways. The summary only exists during the combat phase, BEFORE the lobby round

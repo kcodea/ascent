@@ -6,6 +6,7 @@ import type { RunState } from '@game/sim';
 import { guideMissingIds, type Guide } from './guides';
 import { guideErrorMessage } from './guideMessages';
 import { GuideEmblem, GuideText, GuideTribes, GuideUnits, guideAccent, guideCardIds, guideChips, useGuideViews } from './GuideParts';
+import { matchesAction } from '../keybinds/keybinds';
 
 /** A question a card asks on itself. */
 type Ask = 'publish' | 'delete' | 'report' | 'hide';
@@ -53,7 +54,7 @@ function ReportForm({ kept, writable, firstRef, sendRef, onSend, onCancel }: {
   const change = (next: ReportDraft): void => { kept.current = next; setDraft(next); };
   const { reason, note } = draft;
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>): void => {
-    if (e.key === 'Tab' || e.key.toLowerCase() === 'c') e.stopPropagation();
+    if (e.key === 'Tab' || matchesAction('compendium', e.nativeEvent) || matchesAction('duosPeek', e.nativeEvent)) e.stopPropagation();
     else if (e.key === 'Escape') { e.stopPropagation(); onCancel(); }
   };
   return (

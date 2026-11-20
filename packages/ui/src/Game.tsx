@@ -1,6 +1,9 @@
 import './styles.css';
 // The shared tooltip look (owner 2026-10-02) + its DEV size dials. After styles.css so the skin owns the paint.
 import './uiTheme.css'; // the shared colour tokens (--ui-*) for tooltips + HUD pills
+import { keyCaptureActive, useKeyLabel } from './keybinds/keybinds';
+import { hoverSoundsOn } from './audio/hoverSounds';
+import { FpsCounter } from './FpsCounter';
 import './tooltips.css';
 import './touchUi.css'; // THE TOUCH UI: every rule keyed off html[data-touch-ui] (touch devices only, R-TOUCH-UISCALE-01)
 import './phoneMenus.css'; // THE PHONE MENUS: each menu page laid out for a phone (html[data-touch-small][data-page-scale], R-PHONE-MENUS-03)
@@ -206,6 +209,7 @@ export function Game() {
   const bugScenarioLoaded = useGame((s) => s.bugScenario !== null);
   const showBook = useGame((s) => s.showBook);
   const toggleBook = useGame((s) => s.toggleBook);
+  const bookKey = useKeyLabel('compendium'); // the hover tip names the bound key (Settings > Keybindings)
   // Recruit stays mounted across phases (combat plays out in place), so its closures/refs live for the whole
   // run. Starting a NEW run (pickHero / newRun → a fresh seed+hero) must give it a clean slate — otherwise a
   // callback captured under the previous run lingers (e.g. Disco Dan's locked-hand check false-locking a
@@ -449,6 +453,7 @@ export function Game() {
       const now = performance.now();
       if (now - lastTickAt < 45) return;
       lastTickAt = now;
+      if (!hoverSoundsOn()) return; // Settings > Audio > Hover sounds
       sfx.uiHover();
     };
     window.addEventListener('pointerover', onOver, { passive: true });
@@ -599,6 +604,7 @@ export function Game() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
+      if (keyCaptureActive()) return; // Esc cancels a rebind in Settings > Keybindings, nothing else
       handleEscape();
     };
     window.addEventListener('keydown', onKey);
@@ -698,7 +704,7 @@ export function Game() {
           squares live bottom left (FriendsDock, bottomLeft.ts). Hidden during hero select, which has its own View Compendium button (the C key works there too); shown on the home
           screen too (styles.css). Hover names each one. */}
       {!heroPicking && (
-        <button className="bookbtn gtip" data-tip="Compendium" onClick={toggleBook} aria-label="Compendium">
+        <button className="bookbtn gtip" data-tip={bookKey ? `Compendium (${bookKey})` : 'Compendium'} onClick={toggleBook} aria-label="Compendium">
           <img decoding="sync" src={compendiumBookArt} alt="" draggable={false} />
         </button>
       )}
@@ -724,6 +730,7 @@ export function Game() {
       {/* Frame-health HUD. Ships in production but stays dormant unless opted into (?perf=1 /
           localStorage / the dev menu) — a slowness report is only trustworthy against the prod build. */}
       {perfOn && <PerfHud onClose={() => { setPerfFlag(false); setPerfOn(false); }} />}
+      <FpsCounter />{/* Settings > Video > Show FPS counter: nothing while off */}
       {/* DEV-ONLY (owner 2026-08-24): the Balance Report reads dev/session telemetry and must not ship in the
           exe or itch repacks, which are production `build:web` bundles where `import.meta.env.DEV` is false. */}
       {BalancePanel && <Suspense fallback={null}><BalancePanel /></Suspense>}

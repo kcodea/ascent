@@ -10,6 +10,8 @@ import { mirrorFor, useProgression } from '../progression/progressionStore';
 import { currentUserId } from '../identity';
 import { MinionSkinContext, internSnapshot, minionSkinMap } from './skinArt';
 import { CardPlateContext, cardPlateLookOf } from '../cardPlate/cardPlateLook';
+import { useShowOpponentCosmetics } from '../cosmetics/opponentCosmetics';
+import { useCosmeticVisEpoch } from '../cosmetics/cosmeticVisibility';
 
 export { heroPortrait, internSnapshot, minionSkinMap, skinArtOf, useMinionSkinMap, type MinionSkinMap } from './skinArt';
 
@@ -24,8 +26,9 @@ export function MinionSkins({ snapshot, children }: { snapshot: RunCosmeticSnaps
   );
 }
 
-/** Subscribe to the server kill switch, so a retire/restore re-renders every skin surface. */
-export const useSkinEpoch = (): number => useProgression((s) => s.catalogEpoch);
+/** Subscribe to the server kill switch AND the Settings cosmetic switches, so a retire/restore or a flip re-renders
+ *  every skin surface. */
+export const useSkinEpoch = (): number => useProgression((s) => s.catalogEpoch) + useCosmeticVisEpoch() * 0x10000;
 
 /** Your LIVE loadout (hero select, the title's Minion Book, the Collection). Null when signed out / unknown. */
 export function useLiveLoadout(): RunCosmeticSnapshot | null {
@@ -43,7 +46,7 @@ export function useRunSkins(): RunCosmeticSnapshot | null {
 /** An opponent's recorded skins, or null when the player has switched opponent skins off. Never used for your own. */
 export function useOpponentSkins(snapshot: RunCosmeticSnapshot | null | undefined): RunCosmeticSnapshot | null {
   useSkinEpoch();
-  const show = useGame((s) => s.showOpponentSkins);
+  const show = useShowOpponentCosmetics();
   return show && snapshot ? internSnapshot(snapshot) : null;
 }
 

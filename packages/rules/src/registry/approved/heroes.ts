@@ -2094,7 +2094,7 @@ export const HEROES_RULES: GameRule[] = [
     id: "R-DISCO-01",
     title: "Disco Dan has 0 Gold on turn 1",
     statement:
-      "Disco Dan can take no Shop action on turn 1, so he has 0 Gold on that turn. Only that turn's Gold is removed: from turn 2 on he is paid the same Gold as every other hero.",
+      "Disco Dan can spend no Gold on turn 1 (no buy, roll, level up or hero power; Freeze is free and stays open, R-DISCO-02), so he has 0 Gold on that turn. Only that turn's Gold is removed: from turn 2 on he is paid the same Gold as every other hero.",
     domain: 'heroes',
     status: 'approved',
     evidence: [
@@ -4965,5 +4965,22 @@ export const HEROES_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms from 2026-11-19. Dev-only (the Ancients flag).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsCassen.test.ts'], lastVerifiedAt: '2026-11-19' },
+  },
+  {
+    id: 'R-DISCO-02',
+    title: 'Disco Dan can Freeze the Shop on turn 1',
+    statement:
+      "Disco Dan's turn 1 is a Setlist: the three locked Discovers, then End Turn. Buying, selling, rolling, leveling up, "
+      + 'playing a card and the hero power are refused on that turn, but Freeze is not: once the Discovers are resolved he can '
+      + 'freeze (and unfreeze) the turn-1 Shop to keep it for turn 2, exactly as any hero can. While a Discover is open, '
+      + 'Freeze waits for the pick, as it does for every hero. The tier locks on his Setlist cards are unchanged.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Player report via the owner, 2026-11-20', quote: "disco dan's first actions are all locked but freeze shouldnt be" },
+      { kind: 'code', ref: "packages/sim/src/reducer.ts reduce (the Disco Dan wave-1 gate no longer lists 'freeze')" },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-20. Before, the wave-1 gate refused freeze too, so the Freeze button did nothing on his turn 1.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/docbot/heroPowerStagers.test.ts'], lastVerifiedAt: '2026-11-20' },
   },
 ];

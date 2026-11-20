@@ -139,6 +139,13 @@ describe('start-of-run stagers', () => {
     // Turn 1 is a PURE Setlist — every shop action is blocked outright (owner design), even an unlocked play.
     const turn1: RunState = { ...s, embers: 20, board: [], tier: 6, hand: [m('h1', 'pup')] };
     expect(reduce(turn1, { type: 'play', uid: 'h1', toIndex: 0 } as Act), 'turn 1 refuses every play').toBe(turn1);
+    // ...but FREEZE stays open (R-DISCO-02, player report 2026-11-20): it keeps the turn-1 Shop for turn 2.
+    const frozen = reduce(s, { type: 'freeze' } as Act);
+    expect(frozen.frozen, 'Disco Dan can freeze the turn-1 Shop once the Setlist is resolved').toBe(true);
+    expect(reduce(frozen, { type: 'freeze' } as Act).frozen, 'and unfreeze it again').toBe(false);
+    for (const act of [{ type: 'roll' }, { type: 'upgrade' }] as Act[]) {
+      expect(reduce(turn1, act), `turn 1 still refuses ${act.type}`).toBe(turn1);
+    }
     // The tier lock GUARD from turn 2 on, on a fizzle-proof body carrying the same stamp (an arbitrary Tier-6
     // pick may be a targeted Shout that fizzles an empty board): unplayable at tier 1, playable at tier 6.
     const held: RunState = { ...s, wave: 2, embers: 20, board: [], tier: 1, hand: [m('h1', 'pup', { lockedUntilTier: 6 } as never)] };

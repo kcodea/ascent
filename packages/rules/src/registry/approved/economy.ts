@@ -325,32 +325,4 @@ export const ECONOMY_RULES: GameRule[] = [
     currentBehaviour: 'Conforms (2026-11-10).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/scrollDrake.test.ts', 'packages/ui/src/scrollzText.test.ts'], lastVerifiedAt: '2026-11-10' },
   },
-  {
-    id: 'R-EOT-SHOP-REFRESH-01',
-    title: 'An End-of-Turn Shop refresh replaces the row on screen: the old offers leave, the new ones arrive in their slots',
-    statement:
-      'A Refresh that happens at End of Turn (Gorr with the Ancient of Time, or any other effect that re-rolls the Shop '
-      + 'while End of Turn plays) looks like a normal Refresh. The unfrozen offers it rolls away leave the row on that '
-      + 'beat, and each new offer then appears in the slot the old one held. Kept offers stay. The Shop row never shows '
-      + 'more cards than it has slots, at any playback speed, and the row at the end of the beats is the committed Shop. '
-      + 'The End-of-Turn batch carries each rolled-away offer as `shopChanged: replaced` (any offer that left the row '
-      + 'without being eaten or lassoed) and each new one as `shopChanged: refilled` (with `replaces`, on the '
-      + '`consume.refill` marker), and the projection treats `replaced` as a departure. Presentation only: the resolved '
-      + 'state is identical.',
-    domain: 'economy',
-    status: 'approved',
-    evidence: [
-      {
-        kind: 'owner-chat',
-        ref: 'Player report relayed by the owner, 2026-11-20',
-        quote: 'Visual bug for Gorr with Ancient of Time - When the end of turn happens to refresh the shop with my tribe type it doesnt clear the shop it adds to it and it spills over on the sides of the shop.',
-      },
-      { kind: 'code', ref: 'packages/sim/src/recruit.ts withRecruitTrigger shop diff (shopChanged replaced / refilled); packages/ui/src/choreographer/projection.ts; packages/ui/src/choreographer/consequencePresenters.ts shopChanged' },
-    ],
-    contentIds: [],
-    currentBehaviour:
-      'Conforms as of 2026-11-20. Before it the batch announced only the new offers, so the row kept the old ones and '
-      + 'folded the new ones in beside them (ten cards in a five-slot Shop) until the commit.',
-    enforcement: { kind: 'scenario', refs: ['packages/ui/src/choreographer/eotShopRefresh.test.ts'], lastVerifiedAt: '2026-11-20' },
-  },
 ];

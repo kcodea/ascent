@@ -1,5 +1,6 @@
 import { playerOpponent, type RunState } from '@game/sim';
 import { seatCosmetics } from '../skins/skins';
+import { cosmeticShown } from '../cosmetics/cosmeticVisibility';
 
 /**
  * The `hero_attack` cosmetic id the STRIKING hero wore, as recorded (owner 2026-09-28: Blast is a cosmetic, and the
@@ -14,6 +15,7 @@ import { seatCosmetics } from '../skins/skins';
  * cosmetics" switch the teammate's portrait uses, so both teammates' screens play the same attack.
  */
 export function attackerCosmeticOf(run: Pick<RunState, 'cosmetics' | 'lobby'>, side: 'player' | 'opp', showOpponent: boolean, liveSeatId?: string | null): string | null {
+  if (!cosmeticShown('hero_attack')) return null; // the Settings "Hero attacks" switch: Classic for everyone
   if (liveSeatId && run.lobby) {
     const seat = run.lobby.seats.find((x) => x.id === liveSeatId);
     if (seat) return showOpponent ? seatCosmetics(seat)?.heroAttack ?? null : null;

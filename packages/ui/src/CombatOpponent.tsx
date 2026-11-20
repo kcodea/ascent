@@ -23,6 +23,7 @@ import { publicArt } from './phoneArt';
 import { FoeAncientLine, heldPowerHeroId } from './ancients/FoeAncientLine';
 import { AncientSplitStatic } from './ancients/AncientMeter';
 import { ancientTextColor } from './ancients/ancientsConfig';
+import { useShowOpponentCosmetics } from './cosmetics/opponentCosmetics';
 
 /** A tier worth printing: a whole number from 1 up. Anything else (missing, NaN, 0) hides the pill. */
 export const tierKnown = (tier: number | null | undefined): tier is number =>
@@ -67,7 +68,7 @@ export const CombatOpponent = memo(function CombatOpponent(): JSX.Element | null
   const inCombat = useGame((s) => s.run.phase === 'combat');
   const preview = useGame((s) => s.duelPreview);
   const dmgDealt = useGame((s) => s.oppDmgDealt);
-  const showOppSkins = useGame((s) => s.showOpponentSkins);
+  const showOppSkins = useShowOpponentCosmetics();
   // GAUNTLET: the foe is an authored stage opponent with no hero (its seat's heroId is only a stand-in), so it wears
   // its stage's TRIBE EMBLEM instead of a hero portrait and shows no hero power. A primitive (null outside the
   // Gauntlet), so the selector never re-renders on an unrelated run change.

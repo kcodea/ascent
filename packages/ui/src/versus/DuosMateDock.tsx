@@ -54,6 +54,7 @@ import { useOwnHeroPick } from '../hero-select/ownHeroPick';
 import { avatarSrc } from '../art';
 import './duosMateSignals.css';
 import { mateWorking, useDuosMateSignals } from './duosMateSignals';
+import { useShowOpponentCosmetics } from '../cosmetics/opponentCosmetics';
 
 /** The tier-up burst over the teammate disc, as a share of the player's own (`shop-tier-up` is authored for the Tier
  *  stone; the disc is about the same size, the burst a touch smaller so it reads as theirs, not mine). */
@@ -296,7 +297,7 @@ export const DuosMateDock = memo(function DuosMateDock({ watching, inCombat = fa
     const row = g.raw.seats.find((x) => x.seat === mateSeat);
     return !!row?.auto || (!!g.raw.paused_at && g.raw.paused_seat === mateSeat);
   });
-  const showOppSkins = useGame((s) => s.showOpponentSkins);
+  const showOppSkins = useShowOpponentCosmetics();
   const passOver = useDragSlice((st) => (watching || inCombat || heroSelect || stands ? null : st.passOver), Object.is);
   const passReason = useDragSlice((st) => (watching || inCombat || heroSelect || stands ? null : st.passReason), Object.is);
   const note = useDuosPassNote((st) => (watching || heroSelect || stands || !st.text ? null : `${st.n}|${st.text}`));

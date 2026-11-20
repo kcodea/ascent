@@ -26,6 +26,7 @@ import { FELLOWS_SHOWN, SpectatorSlice, StandsPlates } from './WatchersBadge';
 import { myWatcherIdentity, othersInStands, useWatchers } from './watchers';
 import { useMentors } from '../pings/pingRuntime';
 import { useChatSpeech } from '../lobbyChat/chatSpeech';
+import { SPECTATE_SEAT_ACTIONS, keyLabel, useKeybinds } from '../keybinds/keybinds';
 import './versus.css';
 
 /** The top-left plate's anchor key when I have no account id yet (a test, or signed out). */
@@ -90,14 +91,16 @@ export interface WatchSeat {
  * already on screen.
  */
 export function WatchedPanel({ seats }: { seats: readonly WatchSeat[] }): JSX.Element | null {
+  // The seat keys as bound (1-4 by default; Settings > Keybindings).
+  const seatKeys = useKeybinds((k) => SPECTATE_SEAT_ACTIONS.map((id) => keyLabel(k.binds[id][0])).join('\n')).split('\n');
   if (seats.length < 2) return null;
   return (
     <div className="vsspec vswatchbar" role="group" aria-label="Choose who to watch">
       {seats.map((s, i) => (
         <button key={s.key} type="button" className={`vswatchchip${s.on ? ' on' : ''}${s.out ? ' out' : ''}`} aria-pressed={s.on} disabled={s.out}
-          aria-label={`Watch ${s.name}, Health ${s.health}${s.armor > 0 ? `, Armor ${s.armor}` : ''}${s.vs ? `, ${s.vs}` : ''} (${i + 1})`} onClick={() => { if (!s.on && !s.out) { sfx.tick(); s.pick(); } }}>
+          aria-label={`Watch ${s.name}, Health ${s.health}${s.armor > 0 ? `, Armor ${s.armor}` : ''}${s.vs ? `, ${s.vs}` : ''}${seatKeys[i] ? ` (${seatKeys[i]})` : ''}`} onClick={() => { if (!s.on && !s.out) { sfx.tick(); s.pick(); } }}>
           <MemberRing name={s.name} heroId={s.heroId} profile={s.profile} className="vswatchchip-ring" />
-          <kbd className="vswatchchip-key" aria-hidden="true">{i + 1}</kbd>
+          {seatKeys[i] && <kbd className="vswatchchip-key" aria-hidden="true">{seatKeys[i]}</kbd>}
           <span className="vswatchchip-info">
             <span className="vswatchchip-name">{s.name}</span>
             <span className="vswatchchip-stats">

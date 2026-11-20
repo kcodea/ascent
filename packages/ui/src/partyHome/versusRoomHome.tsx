@@ -52,6 +52,7 @@ import { openSeatText, ROOM_STATUS, roomJoin, roomModeOf, roomModeShort, roomSta
 import { usePartyRoom } from './partyHomeFlag';
 import { homeLeave, homeMe, homeRoomNow, homeSetOptions, homeStart, homeTakeSeat, sampleJoin, sampleRooms, sampleToggleView, useSampleRoom } from './sampleRoom';
 import './pages/versusHome.css';
+import { useShowOpponentCosmetics } from '../cosmetics/opponentCosmetics';
 
 function useCountdown(iso: string | null | undefined): number | null {
   const [s, setS] = useState<number | null>(() => (iso ? displaySeconds(versusRemainingMs(iso)) : null));
@@ -70,7 +71,7 @@ function useCountdown(iso: string | null | undefined): number | null {
 interface Face { name: string; art: string | undefined; titleId: string | null; record: { wins: number; losses: number } | null }
 function useFace(m: Pick<VersusMember, 'userId' | 'displayName' | 'profile'>, server: SeatServerData | undefined, thumb: boolean): Face {
   const own = m.userId === homeMe();
-  const showOpp = useGame((s) => s.showOpponentSkins);
+  const showOpp = useShowOpponentCosmetics();
   const myAvatar = useGame((s) => s.playerAvatar);
   const myTitle = useProgression((s) => mirrorFor(currentUserId(), s.mirror)?.equippedTitleId ?? null);
   const myLoadout = useLiveLoadout();
@@ -603,7 +604,7 @@ export function OpenRoomsPanel({ mode }: { mode: VersusRoomMode }) {
 
 function OpenRoomRow({ r, mine, blocked }: { r: VersusRoomSummary; mine: boolean; blocked: boolean }) {
   const sampleOn = usePartyRoom();
-  const showOpp = useGame((s) => s.showOpponentSkins);
+  const showOpp = useShowOpponentCosmetics();
   const join = roomJoin(r);
   const cap = seatCap(r);
   const mode = roomModeOf(r.options);

@@ -28,6 +28,8 @@ import { phoneLayoutOn, screenScale, stageHost, stageViewport, toStage } from '.
 import { useGame } from '../store';
 import { EMOTE_ASPECT, emoteSrc } from './emoteArt';
 import { PLAYER_SEAT } from './emoteRuntime';
+import { cosmeticShown } from '../cosmetics/cosmeticVisibility';
+import { useSpectate } from '../versus/spectate';
 
 const POP_MS = 220;
 const HOLD_MS = 2600;
@@ -260,6 +262,9 @@ const now = (): number => Date.now();
  */
 export function showEmoteBubble(seat: string, emoteId: string): boolean {
   if (typeof document === 'undefined' || !emoteOf(emoteId)) return false;
+  // The Settings "Player emotes" switch (R-SETTINGS-COSMETICS-01): off hides every player's bubble but my own. While I
+  // spectate, the screen's own seat is the watched player, so it hides too. Spectators' emotes have their own switch.
+  if (!isWatcher(seat) && !cosmeticShown('emote') && (seat !== PLAYER_SEAT || useSpectate.getState().active)) return false;
   const src = emoteSrc(emoteId);
   const at = src ? placementFor(seat) : null;
   if (!src || !at) return false;

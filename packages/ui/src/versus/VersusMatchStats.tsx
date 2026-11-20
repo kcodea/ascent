@@ -23,6 +23,7 @@ import { blockInspect } from './VersusHud';
 import { versusSnapshotView } from './versusInspectView';
 import { usePhLayer } from '../partyHome/shell/usePhLayer';
 import '../matchDetails/matchDetails.css';
+import { useShowOpponentCosmetics } from '../cosmetics/opponentCosmetics';
 
 const RESULT_WORD = { win: 'Won', lose: 'Lost', draw: 'Draw' } as const;
 
@@ -44,7 +45,7 @@ export function VersusMatchStats({ record, onClose }: { record: VersusMatchRecor
     return () => window.removeEventListener('keydown', onKeyDown, true);
   }, [onClose]);
   useSkinEpoch();
-  const showOpponents = useGame((st) => st.showOpponentSkins);
+  const showOpponents = useShowOpponentCosmetics();
   const mySkins = internSnapshot(record.myCosmetics);
   const foeSkins = internSnapshot(opponentSkins(showOpponents, record.foeCosmetics));
   const shown = record.rounds.find((r) => r.round === round) ?? null;

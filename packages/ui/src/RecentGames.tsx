@@ -29,6 +29,7 @@ import { heroFilterCounts } from './heroFilter';
 import { DuosGameCard } from './duosHistory/DuosGameCard';
 import { DUOS_ROWS, duosBand, duosGameView, duosModeLabel, fetchMyDuosGames, teamPlaceText, type DuosGameRow } from './duosHistory/duosHistoryData';
 import { usePartyHome } from './partyHome/partyHomeFlag';
+import { useShowOpponentCosmetics } from './cosmetics/opponentCosmetics';
 
 /** THE PARTY HOME's version of this page (DEV switch "Party home (prototype)", owner 2026-11-02): the same data and handlers,
  *  drawn with the shell kit under the top nav. Lazy and null in production, so the shipped bundle never carries it. */
@@ -250,7 +251,7 @@ export function RecentGames(): JSX.Element | null {
   const show = useGame((s) => s.showRecentGames);
   const openCareer = useGame((s) => s.openCareer);
   const myId = useGame((s) => s.account.userId);
-  const showOppCosmetics = useGame((s) => s.showOpponentSkins);
+  const showOppCosmetics = useShowOpponentCosmetics();
   const shell = usePartyHome();
   const [tab, setTab] = useState<RecentGamesTab>('ranked');
   // Each tab's list is cached across opens (socialCache.ts): it reads the first time the tab is shown, a revisit paints

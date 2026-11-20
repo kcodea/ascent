@@ -58,7 +58,25 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-11-20',
     changes: [
-      { category: 'Systems', text: 'An End of Turn Shop refresh (Gorr with the Ancient of Time) now clears the old Shop before the new cards arrive, instead of adding them beside it and spilling past the edges.' },
+      {
+        category: 'Systems',
+        text: 'Settings has a new Cosmetics tab: turn each kind of cosmetic on or off, in your games, replays and while spectating.',
+        details: [
+          'Switches for minion skins, card plates, hero skins, portrait frames, hero attacks, titles, player emotes and the announcer pack.',
+          'Off shows the default look for everyone. Nothing is unequipped.',
+          'Show opponent cosmetics moved here from the Social tab.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Settings has a new Keybindings tab: change any game key, like the Compendium, the Duos teammate peek and lobby chat.',
+        details: [
+          'Click a key, then press the new one. A key already in use is swapped. Reset puts one key or all of them back.',
+          'Spectating: E watches the next player and Q the previous one, as well as 1 to 4.',
+          'Replay keys can be changed too. Esc always stays Esc.',
+        ],
+      },
+      { category: 'Systems', text: 'New settings: Hover sounds (Audio) turns off the tick when the mouse moves onto a button, and Show FPS counter (Video) shows your frame rate.' },
       { category: 'Systems', text: 'Disco Dan can now Freeze the Shop on turn 1. His other turn-1 Shop actions stay locked.' },
       { category: 'Systems', text: 'Hovering the Runeforge Re-roll button no longer pops up a stray gold block.' },
       { category: 'Systems', text: 'Hero power Discovers (Power Shifter, Mimic, Void) now show each power as your Ancient changes it, and results, scouting and the foe power tip show the power a player held at the time, not their starting one.' },

@@ -1,6 +1,7 @@
 import { memo, type CSSProperties } from 'react';
 import type { RunCosmeticSnapshot } from '@game/progression';
 import { useProgression } from '../progression/progressionStore';
+import { cosmeticShown, useCosmeticVisEpoch } from '../cosmetics/cosmeticVisibility';
 import { TITLE_STYLES, titleLookOf, titleLookOfId, type TitleCustomStyle } from './titleStyle';
 
 /**
@@ -29,12 +30,16 @@ export interface TitleBadgeProps {
   /** `sm` for rows and plates, `md` for splashes. Sized in em, so the host's font sets the scale. */
   size?: 'sm' | 'md';
   className?: string;
+  /** A CATALOG item (the Collection, a reward), not a title someone wears: the Settings "Titles" switch never hides it. */
+  item?: boolean;
   /** Test seam: custom styles by title id (defaults to the shipped table). */
   styles?: Readonly<Record<string, TitleCustomStyle>>;
 }
 
-export const TitleBadge = memo(function TitleBadge({ snapshot, id, size = 'sm', className, styles = TITLE_STYLES }: TitleBadgeProps): JSX.Element | null {
+export const TitleBadge = memo(function TitleBadge({ snapshot, id, size = 'sm', className, item = false, styles = TITLE_STYLES }: TitleBadgeProps): JSX.Element | null {
   useProgression((s) => s.catalogEpoch); // re-resolve on a server retire / restore
+  useCosmeticVisEpoch(); // and on the Settings "Titles" switch (R-SETTINGS-COSMETICS-01)
+  if (!item && !cosmeticShown('title')) return null;
   const look = snapshot !== undefined ? titleLookOf(snapshot, styles) : titleLookOfId(id, styles);
   if (!look) return null;
   // A MASTER hero title always paints the master look (owner pick 2026-10-28), on every surface.

@@ -41,6 +41,7 @@ import '../friends/dm/dm.css';
 import './lobbyChat.css';
 import './chatView.css';
 import { publicArt } from '../phoneArt';
+import { matchesAction } from '../keybinds/keybinds';
 
 const low = (s: string): string => s.toLowerCase();
 /** The chat medallion art (base-URL relative: a root path 404s on itch). */
@@ -58,8 +59,8 @@ const LOBBY_CHAT_EMOTES = false;
  */
 export function isChatKey(e: KeyboardEvent): boolean {
   if (e.defaultPrevented || e.repeat || e.isComposing || e.ctrlKey || e.metaKey || e.altKey) return false;
+  if (!matchesAction('lobbyChat', e)) return false; // Enter and Y by default (rebindable in Settings)
   const enter = e.key === 'Enter';
-  if (!enter && e.key !== 'y' && e.key !== 'Y') return false;
   const t = e.target instanceof Element ? e.target : null;
   if (t?.closest('input, textarea, select, [contenteditable=""], [contenteditable="true"]')) return false;
   if (enter && t?.closest('button, a, [role="button"], [tabindex]') && t.matches(':focus-visible')) return false;

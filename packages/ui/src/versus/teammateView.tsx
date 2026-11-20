@@ -28,6 +28,7 @@ import { flushSpectateRender, leaveTeammate, leaveTeammateHero, useSpectate, wat
 import { useVersus } from './versusStore';
 import { localMate } from './localMate';
 import { setDuosViewing } from '../duosViewing';
+import { isActionKey, matchesAction } from '../keybinds/keybinds';
 
 /**
  * THE SWAP: A CROSS-FADE (owner 2026-10-25: "The teammate view swap animation is really ugly" and "The flip to teammate
@@ -240,7 +241,7 @@ useSpectate.subscribe((s, prev) => {
 });
 
 /**
- * Esc comes back; Tab held peeks (press = open, release = back). Mounted for a seated Duos player.
+ * Esc comes back; Tab (the default; the `duosPeek` binding, rebindable in Settings) held peeks (press = open, release = back). Mounted for a seated Duos player.
  *
  * TAB IS THE PEEK AND NOTHING ELSE WHILE THESE KEYS ARE ON (R-DUOS-TAB-PEEK-01): the press stops here (this listener is on
  * the capture phase). Before, one press both peeked AND opened the Compendium over the teammate's board (the book's key
@@ -255,7 +256,7 @@ export function useTeammateViewKeys(enabled: boolean): void {
       if (e.ctrlKey || e.metaKey || e.altKey || (e.target instanceof HTMLElement && e.target.closest('input, textarea'))) return;
       const viewing = (): boolean => !!useSpectate.getState().teammate || !!useSpectate.getState().teammateHero;
       if (e.key === 'Escape' && viewing()) { e.preventDefault(); e.stopPropagation(); exitTeammateView(); return; }
-      if (e.key === 'Tab') {
+      if (matchesAction('duosPeek', e)) {
         if (useGame.getState().showBook) return; // no peek behind an open book (C or Esc closes it)
         e.preventDefault();
         e.stopPropagation();
@@ -266,7 +267,7 @@ export function useTeammateViewKeys(enabled: boolean): void {
       }
     };
     const onUp = (e: KeyboardEvent): void => {
-      if (e.key === 'Tab' && peeking) { peeking = false; exitTeammateView(); }
+      if (peeking && isActionKey('duosPeek', e)) { peeking = false; exitTeammateView(); }
     };
     window.addEventListener('keydown', onDown, true);
     window.addEventListener('keyup', onUp, true);

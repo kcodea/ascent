@@ -11,12 +11,13 @@ import { avatarSrc } from '../art';
 import { sfx } from '../sfx';
 import { frameIdOf } from '../portraitFrame/PortraitFrame';
 import { heroPortrait, opponentSkins } from '../skins/skins';
-import { displayHandle, useGame } from '../store';
+import { displayHandle } from '../store';
 import type { RunCosmeticSnapshot } from '@game/progression';
 import { lastSeenText, modeText } from './friendsStore';
 import type { Friend, FriendCard } from './friendsRemote';
 import { activityText, gameStatusDetail, ORD, stepText, type FriendActivity, type FriendGameStatus } from './gameStatus';
 import './friends.css';
+import { useShowOpponentCosmetics } from '../cosmetics/opponentCosmetics';
 
 /** A card's recorded cosmetics (frame + favourite-hero skin) as a snapshot the portrait helpers read. */
 export function cardSkins(c: Pick<FriendCard, 'favoriteHero' | 'frame' | 'skin'>): RunCosmeticSnapshot | null {
@@ -30,7 +31,7 @@ export function cardSkins(c: Pick<FriendCard, 'favoriteHero' | 'frame' | 'skin'>
 /** A friend's portrait in their frame: their chosen picture (through "Show opponent cosmetics", like the Leaderboard),
  *  else their favourite hero in its skin. */
 export const FriendPortrait = memo(function FriendPortrait({ card }: { card: FriendCard }) {
-  const showOpp = useGame((s) => s.showOpponentSkins);
+  const showOpp = useShowOpponentCosmetics();
   const skins = opponentSkins(showOpp, cardSkins(card));
   const art = (showOpp ? avatarSrc(card.avatar) : undefined) ?? heroPortrait(card.favoriteHero, skins);
   return <LbHeroFrame heroId={card.favoriteHero} art={art} frameId={frameIdOf(skins)} />;

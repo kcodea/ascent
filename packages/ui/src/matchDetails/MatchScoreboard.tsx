@@ -9,7 +9,6 @@ import { StoredTeam } from '../StoredTeam';
 import { RuneEmblem } from '../RuneEmblem';
 import { RUNE_INDEX } from '@game/content';
 import { heroPortrait, internSnapshot, opponentSkins, useSkinEpoch } from '../skins/skins';
-import { useGame } from '../store';
 import { sfx } from '../sfx';
 import { stageHost } from '../stage';
 import { TitleBadge } from '../titles/TitleBadge';
@@ -17,6 +16,7 @@ import { useHallKeys } from './hallKeys';
 import { boardCaption, defaultSeatId, placeLabel, statusText, strengthLabel, summaryText, GAME_STRENGTH_LABEL, GAME_STRENGTH_TIP } from './matchDetailsText';
 import { usePhLayer } from '../partyHome/shell/usePhLayer';
 import './matchDetails.css';
+import { useShowOpponentCosmetics } from '../cosmetics/opponentCosmetics';
 
 /**
  * MATCH DETAILS SCOREBOARD (owner ask 2026-09-28): every seat of a finished lobby in placement order, and the board
@@ -186,7 +186,7 @@ function HallCrown() {
 /** The scoreboard itself: rows + the selected seat's board. `own` decides the skin rule (see above). */
 export function MatchScoreboard({ details, own }: { details: MatchDetails; own: boolean }) {
   useSkinEpoch();
-  const showOpponents = useGame((s) => s.showOpponentSkins);
+  const showOpponents = useShowOpponentCosmetics();
   const [selectedId, setSelected] = useState(() => defaultSeatId(details));
   const listRef = useRef<HTMLDivElement>(null);
   const seats = details.seats;

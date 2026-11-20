@@ -13,6 +13,7 @@ import {
   EMPTY_START_HAND, oppHandBackSrc, oppHandFan, oppHandSignature, oppStartHand, opponentHandCards,
   type OppHandCard, type OppStartHand,
 } from './oppHandModel';
+import { useShowOpponentCosmetics } from './cosmetics/opponentCosmetics';
 
 /**
  * THE OPPONENT'S HAND, face down (owner ask 2026-10-23, R-OPP-HAND-01): "add an opponent's hand area to the left of
@@ -102,7 +103,7 @@ export const OpponentHand = memo(function OpponentHand({ events, through, summon
   const staged = useGame((s) => s.combatStaged);
   const inCombat = useGame((s) => s.run.phase === 'combat');
   const preview = useGame((s) => s.duelPreview);
-  const showOppSkins = useGame((s) => s.showOpponentSkins);
+  const showOppSkins = useShowOpponentCosmetics();
   const gauntlet = useGame((s) => s.run.mode === 'gauntlet');
   const active = !!lobby && (staged || preview) && !gauntlet;
 

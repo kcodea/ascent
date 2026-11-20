@@ -34,6 +34,7 @@ import type { RunHistoryRowLike } from './careerData';
 import { usePartyHome } from './partyHome/partyHomeFlag';
 import type { PhCareerTab, PhState } from './partyHome/pages/career/PhCareer';
 import type { GameDetailProps, GameFact, GameSplitView } from './partyHome/pages/gameView';
+import { useShowOpponentCosmetics } from './cosmetics/opponentCosmetics';
 /** The Career on the party home's app shell (DEV switch; lazy and null in production, so the shipped bundle never carries it). */
 const PhCareer = lazy(() => import('./partyHome/pages/career/PhCareer').then((m) => ({ default: m.PhCareer })));
 import { careerFresh, careerKeyUser, carryTelemetry, loadCareer } from './careerLoad';
@@ -127,7 +128,7 @@ const CAREER_STALL_MS = 3000;
 const CareerSkinContext = createContext<{ own: boolean; loadout: RunCosmeticSnapshot | null }>({ own: true, loadout: null });
 function useCareerSkins(snapshot: RunCosmeticSnapshot | null | undefined): RunCosmeticSnapshot | null {
   const { own } = useContext(CareerSkinContext);
-  const show = useGame((s) => s.showOpponentSkins);
+  const show = useShowOpponentCosmetics();
   return own ? snapshot ?? null : opponentSkins(show, snapshot);
 }
 
@@ -149,7 +150,7 @@ function HeroFrame({ heroId, small, skins }: { heroId: string; small?: boolean; 
  *  chosen picture (or before the profiles.avatar migration) the favourite hero stands in, as before. */
 function ProfilePortrait({ avatar, heroId, loadout }: { avatar: string | null | undefined; heroId: string; loadout: RunCosmeticSnapshot | null | undefined }) {
   const { own } = useContext(CareerSkinContext);
-  const showOpp = useGame((s) => s.showOpponentSkins);
+  const showOpp = useShowOpponentCosmetics();
   const shown = useCareerSkins(loadout);
   const pic = avatar && (own || showOpp) ? avatarSrc(avatar) : undefined;
   if (!pic) return <HeroFrame heroId={heroId} skins={loadout} />;
@@ -405,7 +406,7 @@ export function Career() {
   const closeCareer = useGame((s) => s.closeCareer);
   const cache = useGame((s) => s.careerCache);
   const accountAnonymous = useGame((s) => s.account.anonymous);
-  const showOppSkins = useGame((s) => s.showOpponentSkins); // the shell layout's portraits (the same rule as useCareerSkins)
+  const showOppSkins = useShowOpponentCosmetics(); // the shell layout's portraits (the same rule as useCareerSkins)
 
   const viewing = careerOf;
   const userId = viewing?.userId ?? myId;

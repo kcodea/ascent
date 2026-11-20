@@ -22,6 +22,7 @@
 import { createContext, useContext } from 'react';
 import { heroSkinOf, minionSkinOf, catalogStateEpoch, type CosmeticDef, type RunCosmeticSnapshot } from '@game/progression';
 import { artFor, heroArt, skinArt } from '../art';
+import { cosmeticShown } from '../cosmetics/cosmeticVisibility';
 
 /** A skin's art url, or undefined when its file is missing (the caller falls back to default art). */
 export const skinArtOf = (def: CosmeticDef | null | undefined): string | undefined => (def ? skinArt(def.assets.art) : undefined);
@@ -37,6 +38,8 @@ export const defaultArtOf = (def: CosmeticDef | null | undefined): string | unde
 /** A hero's portrait under a snapshot: the live skin's art, else the hero's own art. */
 export function heroPortrait(heroId: string | null | undefined, snapshot: RunCosmeticSnapshot | null | undefined): string | undefined {
   if (!heroId) return undefined;
+  // The Settings "Hero skins" switch (R-SETTINGS-COSMETICS-01): off = the hero's own art, for everyone.
+  if (!cosmeticShown('hero_skin')) return heroArt(heroId);
   return skinArtOf(heroSkinOf(snapshot, heroId)) ?? heroArt(heroId);
 }
 
@@ -80,6 +83,7 @@ export function internSnapshot(snapshot: RunCosmeticSnapshot | null | undefined)
 export function minionSkinMap(snapshot: RunCosmeticSnapshot | null | undefined): MinionSkinMap {
   const byCard = snapshot?.minionSkinByCardId;
   if (!snapshot || !byCard || typeof byCard !== 'object') return EMPTY;
+  if (!cosmeticShown('minion_skin')) return EMPTY; // the Settings "Minion skins" switch (R-SETTINGS-COSMETICS-01)
   const epoch = catalogStateEpoch();
   const k = JSON.stringify(byCard);
   const hit = mapCache.get(k);

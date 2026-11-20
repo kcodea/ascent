@@ -73,6 +73,7 @@ import { usePhLayer } from './shell/usePhLayer';
 import { ChangeNameDialog, selfCardMenu, type CardMenuItem } from './ChangeName';
 import { UpdateReadyNotice } from '../UpdateReadyNotice';
 import './partyHome.css';
+import { useShowOpponentCosmetics } from '../cosmetics/opponentCosmetics';
 
 /** One banner card's contents. */
 interface Member {
@@ -142,7 +143,7 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
   const openAvatarPicker = useGame((s) => s.openAvatarPicker);
   const playerName = useGame((s) => s.playerName);
   const playerAvatar = useGame((s) => s.playerAvatar);
-  const showOpp = useGame((s) => s.showOpponentSkins);
+  const showOpp = useShowOpponentCosmetics();
   const userId = useGame((s) => s.account.userId);
   const guest = useGame((s) => s.account.anonymous);
   const pageOpen = useGame(anyPageOpen);

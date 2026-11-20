@@ -221,9 +221,7 @@ export const CONSEQUENCE_PRESENTERS: Record<ConsequenceEvent['type'], Consequenc
   },
   shopChanged: ({ consequence: c, ctx }) => {
     if (c.type !== 'shopChanged' || !c.target.uid) return;
-    // `replaced` (R-EOT-SHOP-REFRESH-01): an End-of-Turn Refresh rolled the offer away. Just the departure, like a
-    // normal Refresh; its replacement arrives on its own `refilled` delivery, in the slot this one held.
-    if (c.change === 'consumed' || c.change === 'destroyed' || c.change === 'replaced') { ctx.cardDestroyed(c.target.uid, 'shop'); return; }
+    if (c.change === 'consumed' || c.change === 'destroyed') { ctx.cardDestroyed(c.target.uid, 'shop'); return; }
     // A Shop Madness refill is an ARRIVAL, not a buff: the projection (`shopRefills`) puts the card in its slot on
     // this delivery, and the row's own entrance plays it in. No climb, no gust.
     if (c.change === 'refilled') return;

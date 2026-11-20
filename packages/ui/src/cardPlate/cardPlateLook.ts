@@ -17,6 +17,7 @@
  */
 import { createContext, useContext, useSyncExternalStore } from 'react';
 import { cardPlateOf, type RunCosmeticSnapshot } from '@game/progression';
+import { cosmeticShown } from '../cosmetics/cosmeticVisibility';
 import type { BoxBlend } from '../cardTextConfig';
 import plateTuning from './plate-tuning.json';
 
@@ -330,6 +331,7 @@ export const plateLookUrls = (look: CardPlateLook): string[] =>
 
 /** The plate this snapshot's owner wears, or null for the standard plates (none equipped, retired, unknown, no art). */
 export function cardPlateLookOf(snapshot: RunCosmeticSnapshot | null | undefined): CardPlateLook | null {
+  if (!cosmeticShown('card_plate')) return null; // the Settings "Card plates" switch (R-SETTINGS-COSMETICS-01)
   const def = cardPlateOf(snapshot);
   const key = def?.assets.art;
   return key ? CARD_PLATE_LOOKS[key] ?? null : null;

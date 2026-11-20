@@ -2887,6 +2887,31 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/progression/CollectionPreviews.test.tsx', 'packages/ui/src/progression/CollectionSkins.test.tsx'], lastVerifiedAt: '2026-09-30' },
   },
   {
+    id: 'R-ACH-TOAST-01',
+    title: 'An achievement completed mid-game ducks in from the left the moment it happens; the rest duck in when the game settles; each once',
+    statement:
+      'While you play a game that can earn achievements (Ranked, or a Practice with Normal Health and a turn timer), an '
+      + 'achievement whose requirement this game has already met shows at once: a small navy and gold panel slides in from '
+      + 'the left edge reading "Achievement unlocked", its name (a hidden one shows its name now), its XP and any title or '
+      + 'cosmetic it grants, holds about 3 seconds and slides back out. Several wait their turn. Mid-game it covers every '
+      + 'achievement a game in progress can already know: one-game feats (best turn, best combat, this game\x27s counts) and '
+      + 'lifetime totals (your stored progress plus this game). Only the finished game knows the rest (placements, the final '
+      + 'board, server facts like games played, rank, streaks and hero counts), so those slide in when the game settles, '
+      + 'from the server\x27s answer. Each achievement shows once per game, never one you already had, never one the server '
+      + 'switched off. Nothing shows for a sandbox, God Mode, Duos, the tutorial, a replay, a watched game or another seat. '
+      + 'It is a forecast: the server still grants every achievement at settlement, as before. The panel never takes a '
+      + 'click or a drag.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-20', quote: 'it should just like duck in from the left side and say the achievement you got' },
+      { kind: 'code', ref: 'packages/progression/src/midRunAchievements.ts (midRunUnlockedAchievements, END_STATE_RUN_METRICS); packages/ui/src/progression/achievementToasts.ts; packages/ui/src/progression/AchievementToast.tsx' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-20 (feat/achievement-unlock-toast). Before, an achievement was only announced after the game, as a NEW reward in the Collection.',
+    example: 'Spend 20 Gold in one Ranked turn: "Achievement unlocked, Big Turn, +50 XP" slides in from the left right away. Finish 1st: "First Among Eight" slides in when the game settles.',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/midRunAchievements.test.ts', 'packages/ui/src/progression/achievementToasts.test.tsx'], lastVerifiedAt: '2026-11-20' },
+  },
+  {
     id: 'R-ACH-01',
     title: 'Achievements batch 1 pay XP only: 248 achievements, no titles yet, nothing hidden yet; the reward slot can take a title later',
     statement:

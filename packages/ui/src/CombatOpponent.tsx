@@ -20,7 +20,7 @@ import { gatherSnapshotBuffs } from './runBuffs';
 import { stageHost } from './stage';
 import { foePortrait } from './gauntlet/foePortrait';
 import { publicArt } from './phoneArt';
-import { FoeAncientLine } from './ancients/FoeAncientLine';
+import { FoeAncientLine, heldPowerHeroId } from './ancients/FoeAncientLine';
 import { AncientSplitStatic } from './ancients/AncientMeter';
 import { ancientTextColor } from './ancients/ancientsConfig';
 
@@ -147,6 +147,8 @@ export const CombatOpponent = memo(function CombatOpponent(): JSX.Element | null
   // The foe's picked Ancient (`BoardSnapshot.ancient`); unknown ids (an archived Ancient on an old capture) show nothing.
   const foeAncientRaw = next.board.snapshot?.ancient;
   const foeAncient = foeAncientRaw && ANCIENTS[foeAncientRaw.id] ? foeAncientRaw : undefined;
+  // The power the foe HOLDS (an adopted Power Shifter power), the one its Ancient line describes, not its hero's own.
+  const foePowerId = heldPowerHeroId(seat.heroId, foeAncient);
   // The tier of the board this foe is fielding (`PreparedBoard.tier`, the same number that feeds face damage).
   const oppTier = next.board.tier;
   const hasBuffs = buffRows.length > 0;
@@ -260,10 +262,10 @@ export const CombatOpponent = memo(function CombatOpponent(): JSX.Element | null
         drift, but display-only: no cost coin, no name pill, no interactions (pointer-events: none in CSS —
         which also keeps the player-button hover glow rules from firing on it). A SIBLING of .combatopp, not
         a child: the wrapper's transform would hijack this element's fixed positioning. */}
-    {!gauntlet && heroPowerArt(seat.heroId) && (
+    {!gauntlet && heroPowerArt(foePowerId) && (
       <>
       <div className="heropowerbtn opp-power passive">
-        <span className="hpb-artwrap" aria-hidden="true"><img decoding="sync" className="hpb-art" src={heroPowerArt(seat.heroId)} alt="" draggable={false} /></span>
+        <span className="hpb-artwrap" aria-hidden="true"><img decoding="sync" className="hpb-art" src={heroPowerArt(foePowerId)} alt="" draggable={false} /></span>
         {/* The foe's picked ANCIENT cracks its power open exactly as the player's own button does once picked
             (R-COMBAT-FOE-ANCIENT-ICON-01): the same settled split face (`AncientSplitStatic`, what the live button
             settles on), so the two can never drift. No reveal beat, no sound: it is already picked. */}
@@ -275,7 +277,7 @@ export const CombatOpponent = memo(function CombatOpponent(): JSX.Element | null
           a child could never out-stack the portrait from inside the icon's own stacking context. The sibling
           floats at z101 and is positioned/shown off the same --hd-power-* vars + the :hover + combinator. */}
       {(() => {
-        const power = getHero(seat.heroId)?.power;
+        const power = getHero(foePowerId)?.power;
         return power ? (
           <div className="herotip opp-power-tip" role="tooltip">
             {/* The player's own power tip head: the name, the Ancient tag in its colour, the passive tag. */}

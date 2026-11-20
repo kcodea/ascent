@@ -4,7 +4,7 @@ import { heroPowerArt } from '../art';
 import { mdBold } from '../Card';
 import { AncientFace } from '../ancients/AncientFace';
 import { AncientSplitStatic } from '../ancients/AncientMeter';
-import { FoeAncientLine } from '../ancients/FoeAncientLine';
+import { FoeAncientLine, heldPowerHeroId } from '../ancients/FoeAncientLine';
 import { ancientTextColor, ancientVars } from '../ancients/ancientsConfig';
 
 /**
@@ -22,9 +22,11 @@ import { ancientTextColor, ancientVars } from '../ancients/ancientsConfig';
  */
 export const SeatPower = memo(function SeatPower({ heroId, ancient, who }: { heroId: string | undefined; ancient?: MatchAncient | null; who: string }) {
   if (!heroId) return null;
-  const power = getHero(heroId)?.power;
+  // The power the seat HELD at the end (a Power Shifter's adopted power), the one its Ancient line describes.
+  const powerId = heldPowerHeroId(heroId, ancient);
+  const power = getHero(powerId)?.power;
   if (!power) return null;
-  const art = heroPowerArt(heroId);
+  const art = heroPowerArt(powerId);
   const def = ancient ? ANCIENTS[ancient.id] : undefined;
   const anc = def ? ancient! : undefined;
   const label = `${who}'s hero power: ${power.name}${def ? `, with the ${def.name}` : ''}`;

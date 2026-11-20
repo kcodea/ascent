@@ -31,6 +31,13 @@ import { hitReactionStart } from './choreo/hitReactions';
  *  scans per event, like `rallyFx`), so the clash stays one moment and the retaliation lands where it did.
  *  (An `onDamaged` reactor's non-result event — Hearth Whisperer's `handBuff` — emitted before the meter can
  *  still split the run; the trigger then leads a `pummelTrigger` moment, which the same per-event scan plays.) */
+/** SILENT RIDERS (R-COMBAT-GOLD-EVENT-01): report-only markers that never form or split a beat. One joins the beat it
+ *  sits in (inside a clash run, a buff run or a wind-up) or, standing alone, the beat right before it. `bonusGold` is
+ *  Gold banked for next turn: it ticks the Gold pill's forecast and nothing else, so the fight's beats are exactly
+ *  what they were before the event existed. `compileMoments` and `deferClashBuffs` apply the same rule. */
+export const RIDER_TYPES = new Set<CombatEvent['type']>(['bonusGold']);
+export const isRider = (e: CombatEvent): boolean => e.wave === undefined && RIDER_TYPES.has(e.type);
+
 export const RESULT_TYPES = new Set<CombatEvent['type']>([
   'dmg', 'shield', 'wardDowngrade', 'shieldUp', 'poison', 'venomLost', 'death', 'keyword', 'pummelTrigger',
 ]);
@@ -111,6 +118,9 @@ export function buildBeats(events: CombatEvent[]): Beat[] {
     const start = i;
     const t = events[i]!.type;
     const w = events[i]!.wave;
+    // A rider standing alone joins the beat before it (see RIDER_TYPES).
+    const prevBeat = beats[beats.length - 1];
+    if (isRider(events[i]!) && prevBeat && prevBeat.end === i) { prevBeat.end = ++i; continue; }
     if (w !== undefined) {
       // A presentation WAVE (multi-pass AoE echo — Fel Spikes): every event of one pass carries the SAME wave id
       // regardless of type — its volley of damage, the reactor buffs those hits fire, and any deaths — so the
@@ -126,10 +136,10 @@ export function buildBeats(events: CombatEvent[]): Beat[] {
         continue;
       }
     } else if (RESULT_TYPES.has(t)) {
-      while (i < events.length && events[i]!.wave === undefined && RESULT_TYPES.has(events[i]!.type)
-        && !(i > start && opensSwing[i])) i++; // group the impact
+      while (i < events.length && events[i]!.wave === undefined && (RESULT_TYPES.has(events[i]!.type) || isRider(events[i]!))
+        && !(i > start && opensSwing[i])) i++; // group the impact (a rider rides along)
     } else if (t === 'buff') {
-      while (i < events.length && events[i]!.wave === undefined && events[i]!.type === 'buff') i++; // a multi-target buff lands at once
+      while (i < events.length && events[i]!.wave === undefined && (events[i]!.type === 'buff' || isRider(events[i]!))) i++; // a multi-target buff lands at once
     } else if (t === 'attack') {
       i++; // the attack (the wind-up itself) …
       // … then absorb the on-attack flashes that precede the damage, so they play during the lunge and the

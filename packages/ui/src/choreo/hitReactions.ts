@@ -45,6 +45,7 @@ export function hitReactionStart(events: readonly CombatEvent[], start: number, 
 const HIT_SIDE = new Set<CombatEvent['type']>([
   'dmg', 'shield', 'wardDowngrade', 'shieldUp', 'poison', 'venomLost', 'death', 'keyword', 'pummelTrigger',
   'summon', 'reborn', 'attack', 'rally', 'shout', 'sc',
+  'bonusGold', // a silent rider (R-COMBAT-GOLD-EVENT-01): the Gold a hit banked stays with the hit, never leads the reactions
 ]);
 
 /** Does `e` belong to a pass's REACTION tail (as opposed to the volley itself)? See `HIT_SIDE`. */

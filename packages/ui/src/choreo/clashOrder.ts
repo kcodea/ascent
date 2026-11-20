@@ -1,5 +1,5 @@
 import type { CombatEvent } from '@game/core';
-import { RESULT_TYPES } from '../combatBeats';
+import { RESULT_TYPES, isRider } from '../combatBeats';
 import { isReactionTailEvent } from './hitReactions';
 
 /**
@@ -134,7 +134,8 @@ export function deferClashBuffs(events: CombatEvent[]): CombatEvent[] {
       // that wave's tail, which is harmless — the whole wave folds into one frame regardless.
       const w0 = events[i]!.wave;
       const runStart = i;
-      while (i < events.length && events[i]!.wave === w0 && (RESULT_TYPES.has(events[i]!.type) || events[i]!.type === 'buff')) {
+      // A SILENT RIDER (R-COMBAT-GOLD-EVENT-01) stays in the run, in order with the results, so it never splits a clash.
+      while (i < events.length && events[i]!.wave === w0 && (RESULT_TYPES.has(events[i]!.type) || events[i]!.type === 'buff' || isRider(events[i]!))) {
         if (events[i]!.type === 'buff') { buffs.push(events[i]!); seenBuff = true; }
         else { nonBuff.push(events[i]!); if (seenBuff) changed = true; } // a result after a buff → order moved
         i++;

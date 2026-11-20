@@ -17322,6 +17322,7 @@ function withRecruitTrigger(
     const cardIdBefore = new Map(state.board.map((c) => [c.uid, c.cardId]));
     const shopBefore = new Map(state.shop.map((o) => [o.uid, offerBuyStats(state, o)]));
     const shopRowBefore = state.shop.map((o) => o.uid); // the row ORDER, so a refill can name the slot it took
+    const shopCardIdBefore = new Map(state.shop.map((o) => [o.uid, o.cardId])); // a rolled-away offer's card (R-EOT-SHOP-REFRESH-01)
     const attachBefore = new Map(state.board.map((c) => [c.uid, c.attachments ?? 0]));
     const spBefore = { a: spellAttackBonus(state), h: spellHealthBonus(state) };
     const impBefore = { a: state.impBuff?.attack ?? 0, h: state.impBuff?.health ?? 0 };
@@ -17488,6 +17489,21 @@ function withRecruitTrigger(
         // was invisible until the End-of-Turn commit, so a Hydraskus feast emptied the row on screen and the later
         // Demons ate cards nobody had seen. Each one names the slot it took (`replaces`, paired by the row diff
         // below), and rides its own `consume.refill` marker so it lands after the eat has played.
+        // A REFRESH, ON ITS BEAT (player report 2026-11-20, R-EOT-SHOP-REFRESH-01: Gorr × Time's End-of-Turn refresh
+        // "doesnt clear the shop it adds to it and it spills over on the sides"). An offer that LEFT the row without
+        // being eaten (above) or lassoed (its own hand-grant beam) was rolled away by a Refresh: Gorr × Time, Grand
+        // Larceny, Sigil of Kinship, any effect that re-rolls the row. Nothing announced it, so the Shop kept drawing
+        // it AND folded its replacement in beside it. `replaced` is its departure; it lands at the beat's start, the
+        // refills below on `consume.refill`, so the old cards leave before the new ones arrive in their slots.
+        const shopGone = new Set([
+          ...(state.shopEaten ?? []).slice(shopEatenBefore).map((e) => e.uid),
+          ...(state.lassoFx ?? []).map((l) => l.offer.uid),
+        ]);
+        const shopNow = new Set(state.shop.map((o) => o.uid));
+        for (const uid of shopRowBefore) {
+          if (shopNow.has(uid) || shopGone.has(uid)) continue;
+          collector.emit({ type: 'shopChanged', change: 'replaced', target: { zone: 'shop', uid, cardId: shopCardIdBefore.get(uid) ?? '', side: 'player' } });
+        }
         for (const r of shopArrivals(shopRowBefore, state.shop)) {
           const o = state.shop[r.index]!;
           const st = offerBuyStats(state, o);

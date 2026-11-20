@@ -175,7 +175,8 @@ export interface ShopChangedConsequence extends ConsequenceBase {
   type: 'shopChanged';
   change: 'buffed' | 'consumed' | 'destroyed' | 'refilled' | 'replaced';
   target: ZoneTargetRef;
-  /** `buffed`: the stat DELTA. `refilled`: the new offer's full Shop stats (what its card shows). */
+  /** `replaced`: the offer left the row without being eaten or lassoed (a Refresh rolled it away, R-EOT-SHOP-REFRESH-01).
+   *  `buffed`: the stat DELTA. `refilled`: the new offer's full Shop stats (what its card shows). */
   attack?: number;
   health?: number;
   /** `refilled` only: the new offer's slot in the Shop row right after this trigger (Shop Madness). */

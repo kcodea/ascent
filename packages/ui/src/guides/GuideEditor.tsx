@@ -28,8 +28,9 @@ import './guideEditor.css';
  * worked out for them at save (guideDrafts.ts). The server decides whether the save is allowed; a refusal keeps the
  * editor open with the text intact and a plain sentence.
  *
- * KEYS. The game closes the Compendium on Esc and toggles it on Tab (window listeners in Game.tsx). While this is
- * mounted a CAPTURE listener stops both first: Tab moves focus as usual; Esc closes the card inspect overlay if one is
+ * KEYS. The game closes the Compendium on Esc and toggles it on C (Tab until 2026-11-20; window listeners in Game.tsx).
+ * While this is mounted a CAPTURE listener stops them first: Tab moves focus and C types as usual (a C pressed on one of
+ * the editor's buttons never closes the book under it); Esc closes the card inspect overlay if one is
  * open above the editor, else the card picker if it is open, else takes away the question that is showing (discard,
  * delete or conflict) and does nothing more, else asks to leave the editor (or leaves, with nothing unsaved). While
  * the bug reporter is open the editor stands aside entirely (its own listener owns the keys). Nothing else is touched.
@@ -273,7 +274,7 @@ export const GuideEditor = memo(function GuideEditor({ initial, setId, tribes, r
     const onKey = (e: KeyboardEvent): void => {
       const g = useGame.getState();
       if (g.bugReportOpen) return; // the bug reporter's own listener owns the keys
-      if (e.key === 'Tab') { e.stopPropagation(); return; }
+      if (e.key === 'Tab' || e.key.toLowerCase() === 'c') { e.stopPropagation(); return; }
       if (e.key !== 'Escape') return;
       e.stopPropagation();
       e.preventDefault();

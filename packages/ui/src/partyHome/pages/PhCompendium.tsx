@@ -62,7 +62,7 @@ export function PhCompendium() {
   );
 }
 
-/** The page over a match. Esc and Tab close it through the game's own listeners (Tab: compendiumHotkey.ts). */
+/** The page over a match (and over Hero Select). Esc and C close it through the game's own listeners (C: compendiumHotkey.ts). */
 export function PhCompendiumOverlay() {
   const closeBook = useGame((s) => s.closeBook);
   usePhLayer(true, closeBook);
@@ -82,7 +82,7 @@ export function PhCompendiumOverlay() {
     };
   }, []);
   return (
-    <div className="ph-bookpage phb-ov" role="dialog" aria-label="Compendium. Press Esc or Tab to close.">
+    <div className="ph-bookpage phb-ov" role="dialog" aria-label="Compendium. Press Esc or C to close.">
       <div className="ph-pagebd" aria-hidden="true"><PhBackdrop /></div>
       <PhBackContext.Provider value={back}><PhCompendium /></PhBackContext.Provider>
     </div>

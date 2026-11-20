@@ -82,21 +82,23 @@ describe('R-DUOS-TAB-PEEK-01: Tab peeks at the teammate and does not open the Co
     expect(leave).not.toHaveBeenCalled(); // still peeking
   });
 
-  it('without the teammate-view keys (not a seated Duos player) Tab is the Compendium, as everywhere else', () => {
+  it('without the teammate-view keys (not a seated Duos player) Tab is not the Compendium any more: C is', () => {
     ui = mount(<Keys on={false} />);
     key('keydown');
-    expect(useGame.getState().showBook).toBe(true);
-    expect(watch).not.toHaveBeenCalled();
-    key('keydown');
     expect(useGame.getState().showBook).toBe(false);
+    expect(watch).not.toHaveBeenCalled();
+    key('keydown', { key: 'c' });
+    expect(useGame.getState().showBook).toBe(true);
   });
 
-  it('with the Compendium already open, Tab closes it and does not peek behind it', () => {
+  it('a seated Duos player: C opens the Compendium, and with it open Tab does not peek behind it; C closes it', () => {
     ui = mount(<Keys on />);
-    useGame.setState({ showBook: true });
+    key('keydown', { key: 'c' });
+    expect(useGame.getState().showBook).toBe(true);
     key('keydown');
-    expect(useGame.getState().showBook).toBe(false);
     expect(watch).not.toHaveBeenCalled();
+    key('keydown', { key: 'c' });
+    expect(useGame.getState().showBook).toBe(false);
   });
 
   it('typing in a text field keeps Tab for the field', () => {

@@ -60,7 +60,8 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       { category: 'Systems', text: 'The Live Games tab now glows green while ranked games are being played, and shows how many are playing.' },
       { category: 'Balance', text: 'Rank crests no longer carry a separate division number pill; the division still shows in the rank name.' },
-      { category: 'Systems', text: 'You can now open the Compendium from hero select. Press View Compendium under the heroes.' },
+      { category: 'Systems', text: 'You can now open the Compendium from hero select. Press C or use the View Compendium button under the heroes.' },
+      { category: 'Systems', text: 'The Compendium key is now C (it was Tab). Tab no longer opens it.' },
     ],
   },
   {

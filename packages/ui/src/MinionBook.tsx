@@ -400,7 +400,7 @@ export interface CompendiumParts {
 }
 
 /**
- * The Compendium (Tab) — a filterable codex of minions + spells: the whole card set when opened from the
+ * The Compendium (C) — a filterable codex of minions + spells: the whole card set when opened from the
  * title (pre-run), or scoped to the active run's tribes once a run is underway. A blurred
  * full-screen overlay styled like an open tome: tier filters (1–6) across the top, tribe + Spells categories
  * down the left (multi-select, both axes), and a single scrolling gallery of cards. Right-click a card
@@ -1198,7 +1198,7 @@ function BookView({ frame }: { frame?: (parts: CompendiumParts) => ReactNode }) 
   if (frame) return <>{frame({ subtitle, controls, body, view, pickView, codex })}</>;
 
   return (
-    <div className="book-ov" role="dialog" aria-label="Compendium. Press Esc or Tab to close."
+    <div className="book-ov" role="dialog" aria-label="Compendium. Press Esc or C to close."
       onMouseDown={(e) => { pressBeganOnSurround.current = e.target === e.currentTarget; }}
       onClick={(e) => { if (pressBeganOnSurround.current && e.target === e.currentTarget) closeBook(); }}>
       <div className="book" onClick={(e) => e.stopPropagation()}>

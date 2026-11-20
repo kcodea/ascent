@@ -485,6 +485,7 @@ export function PhSelect<T extends string | number>({ value, options, onChange, 
       if (e.key === 'End') { e.preventDefault(); setHi(step(options.length, -1)); return; }
       if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(hiRef.current); return; }
       if (e.key.length === 1 && /\S/.test(e.key)) {
+        e.stopPropagation(); // the letter is the list's typeahead, never a game hotkey (C opens the Compendium)
         const now = Date.now();
         typed.current = { s: (now - typed.current.at < 700 ? typed.current.s : '') + e.key.toLowerCase(), at: now };
         const i = options.findIndex((o, k) => pickable(k) && textOf(o).startsWith(typed.current.s));

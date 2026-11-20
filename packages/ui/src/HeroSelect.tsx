@@ -72,7 +72,7 @@ export interface HeroSelectWatch {
 /** How long a re-roll's swap plays (the old portrait's dissolve, then the new one's coalesce); matches styles.css. */
 const REROLL_SWAP_MS = 700;
 
-/** Opens the Compendium over Hero Select: the store's own `toggleBook`, as the corner button and Tab do (and, like Tab,
+/** Opens the Compendium over Hero Select: the store's own `toggleBook`, as the corner button and the C key do (and, like C,
  *  a Settings page open at the time gives way to the book). */
 function openCompendium(): void {
   const st = useGame.getState();

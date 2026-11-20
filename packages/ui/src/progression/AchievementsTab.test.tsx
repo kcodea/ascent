@@ -36,7 +36,7 @@ describe('the view model', () => {
   it('every achievement shows (with its reward); categories and Set 2 tribe groups in order', () => {
     const v = achievementView(base);
     expect(v.total).toBe(ACHIEVEMENTS.length);
-    expect(v.categories.map((c) => c.label)).toEqual(['Career', 'Ranked', 'Heroes', 'Economy and Build', 'Mechanics', 'Runes', 'Set 2', 'Combat', 'Milestones', 'Collection']);
+    expect(v.categories.map((c) => c.label)).toEqual(['Career', 'Ranked', 'Heroes', 'Economy and Build', 'Mechanics', 'Runes', 'Set 2', 'Combat', 'Milestones', 'Collection', 'Secrets']);
     expect(v.categories.find((c) => c.id === 'set2')!.groups.map((g) => g.label)).toEqual(['Kobolds', 'Dwarves', 'Dragons', 'Beasts', 'Demons', 'Cross-tribe', 'Runes']);
     // 42 heroes (six tiers each since 2026-10-03; 36 until the 2026-10-15 re-enables) after the account-wide "All heroes" group
     const heroes = v.categories.find((c) => c.id === 'heroes')!.groups;
@@ -47,6 +47,18 @@ describe('the view model', () => {
     expect(v.categories.find((c) => c.id === 'milestones')!.total).toBe(34);
     expect(v.done).toBe(1);
     expect(v.xpEarned).toBe(25);
+  });
+
+  it('the secret titles (owner 2026-11-20): one Secrets category, every tile concealed (no bar) until earned, then shown with its title', () => {
+    const secrets = (v: ReturnType<typeof achievementView>) => v.categories.find((c) => c.id === 'secret')!;
+    const hidden = secrets(achievementView({ ...base, progress: { 'secret.window_shopper': 20 } }));
+    expect(hidden.total).toBe(48);
+    expect(hidden.groups.flatMap((g) => g.tiles).every((t) => t.concealed && t.progress === null)).toBe(true);
+    const earned = secrets(achievementView({ ...base, completions: [...base.completions, { id: 'secret.window_shopper', completedAt: '2026-11-20T10:00:00Z' }] }));
+    const tile = earned.groups.flatMap((g) => g.tiles).find((t) => t.def.id === 'secret.window_shopper')!;
+    expect(tile).toMatchObject({ concealed: false, completed: true });
+    expect(tile.def).toMatchObject({ name: 'Window Shopper', requirement: 'Refresh the Shop 25 times in one turn.', rewards: { xp: 300, titleId: 'title_secret_window_shopper' } });
+    expect(earned.done).toBe(1);
   });
 
   it('progress only on the owner page, only for counting achievements, clamped to the target', () => {
@@ -99,7 +111,7 @@ describe('the rendered tab', () => {
   it('own page: the Career category first, name + requirement + reward on every tile, the date on a completed one, a progress bar', async () => {
     ui = mount(<AchievementsTab userId="me" own ownerName="Kev" />);
     await flush();
-    expect(all('.ach-cat-name')).toEqual(['Career', 'Ranked', 'Heroes', 'Economy and Build', 'Mechanics', 'Runes', 'Set 2', 'Combat', 'Milestones', 'Collection']);
+    expect(all('.ach-cat-name')).toEqual(['Career', 'Ranked', 'Heroes', 'Economy and Build', 'Mechanics', 'Runes', 'Set 2', 'Combat', 'Milestones', 'Collection', 'Secrets']);
     expect(all('.ach-cat-count')[0]).toBe('1 / 17');
     const first = ui.container.querySelector('.ach-tile.done')!;
     expect(first.querySelector('.ach-tile-name')!.textContent).toBe('First Steps');
@@ -159,7 +171,7 @@ describe('the rendered tab', () => {
     await flush();
     await flush();
     expect(ui.container.querySelector('.pha.phc-body')).not.toBeNull();
-    expect(all('.phc-cat .phk-rowtitle')).toEqual(['Career', 'Ranked', 'Heroes', 'Economy and Build', 'Mechanics', 'Runes', 'Set 2', 'Combat', 'Milestones', 'Collection']);
+    expect(all('.phc-cat .phk-rowtitle')).toEqual(['Career', 'Ranked', 'Heroes', 'Economy and Build', 'Mechanics', 'Runes', 'Set 2', 'Combat', 'Milestones', 'Collection', 'Secrets']);
     expect(all('.pha-titlerow .phk-tab')[0]).toMatch(/^All 17$/);
     // The first tile is picked by default; picking First Steps (completed) shows its date.
     expect(ui.container.querySelector('.phc-side .phc-name h2')!.textContent).toBe(all('.pha-tile .phc-tile-name')[0]);

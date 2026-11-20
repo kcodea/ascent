@@ -261,6 +261,40 @@ export const HERO_TITLE_COSMETICS: readonly CosmeticDef[] = Object.freeze(HERO_T
 ]));
 
 /**
+ * SECRET TITLES (owner 2026-11-20: "50 new SECRET titles, each earned by an in-game feat"). One Secret-rarity title per
+ * hidden achievement in achievements.ts (`SECRET_ACHIEVEMENTS`): never in a crate, and hidden in the Collection until
+ * owned (every Secret item is). Keys are permanent (the owner's names): the title id is `title_secret_<key>` and the
+ * achievement that grants it `secret.<key>`. Names are the owner's, except four shortened to the 20-character title rule
+ * (Moss's Gardener, Wick's Apprentice, Gramps' Grandkid, Raag's Sous Chef) and five renamed because an existing
+ * achievement already uses the name (Big Spender, Last One Standing, Untouched, Kingslayer, Executioner): names are
+ * unique across achievements and the catalog. This file stays the dependency-free leaf, so the names live here.
+ */
+export const SECRET_TITLE_NAMES: ReadonlyArray<readonly [key: string, title: string]> = Object.freeze([
+  ['kings_jester', "King Brill's Jester"], ['imp_kings_favourite', "Imp King's Favourite"], ['moss_gardener', "Moss's Gardener"],
+  ['keeper_of_the_hoard', 'Keeper of the Hoard'], ['oonas_packmate', "Oona's Packmate"], ['wicks_apprentice', "Wick's Apprentice"],
+  ['gramps_favourite', "Gramps' Grandkid"], ['starstruck', 'Starstruck'], ['sous_chef', "Raag's Sous Chef"],
+  ['mixed_company', 'Mixed Company'],
+  ['window_shopper', 'Window Shopper'], ['never_rolled', 'Never Rolled'], ['dragons_bed', "Dragon's Bed"], ['big_spender', 'Money to Burn'],
+  ['buyers_remorse', "Buyer's Remorse"], ['frugal_to_a_fault', 'Frugal to a Fault'], ['rush_job', 'Rush Job'], ['late_bloomer', 'Late Bloomer'],
+  ['pocket_lint', 'Pocket Lint'], ['discount_bin', 'Discount Bin'],
+  ['last_one_standing', 'By a Hair'], ['the_comeback', 'The Comeback'], ['overkill', 'Overkill'], ['glass_cannon', 'Glass Cannon'],
+  ['wall_of_wards', 'Wall of Wards'], ['echo_chamber', 'Echo Chamber'], ['rally_the_troops', 'Rally the Troops'], ['unkillable', 'Unkillable'],
+  ['shouting_match', 'Shouting Match'],
+  ['cockroach', 'Cockroach'], ['untouched', 'Never Bested'], ['flawless_ascent', 'Flawless Ascent'], ['kingslayer', 'Regicide'],
+  ['executioner', 'Headsman'], ['fashionably_late', 'Fashionably Late'], ['photo_finish', 'Photo Finish'], ['stalemate_survivor', 'Stalemate Survivor'],
+  ['midas_accountant', "Midas' Accountant"], ['triple_threat', 'Triple Threat'], ['titan_tamer', 'Titan Tamer'], ['ruby_rich', 'Ruby Rich'],
+  ['buff_collector', 'Buff Collector'],
+  ['committed_to_the_bit', 'Committed to the Bit'], ['tier_one_hero', 'Tier One Hero'], ['empty_handed', 'Empty Handed'], ['pacifist', 'Pacifist'],
+  ['spellbound', 'Spellbound'], ['hoarder', 'Hoarder'],
+] as const);
+/** A secret title's catalog id, and the hidden achievement that grants it. Permanent. */
+export const secretTitleId = (key: string): string => `title_secret_${key}`;
+export const secretAchievementId = (key: string): string => `secret.${key}`;
+export const SECRET_TITLE_COSMETICS: readonly CosmeticDef[] = Object.freeze(SECRET_TITLE_NAMES.map(([key, name]): CosmeticDef => (
+  { id: secretTitleId(key), category: 'title', name, rarity: SECRET_RARITY, acquisition: { type: 'achievement', id: secretAchievementId(key) }, assets: {}, active: true }
+)));
+
+/**
  * THE PLUSHIE BEAST COLLECTION (owner 2026-10-27: "i want this to be a secrete unlock that the players are given once
  * they unlock every Plushie Beast cosmetic"). Every Plushie skin of a Beast. Owning them all completes the
  * `collection.plushie_beasts` achievement, which grants the Secret Plushie Plate. A new Plushie Beast skin goes in
@@ -1141,6 +1175,8 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze(withCollections([
   { ...cardPlate(PLUSHIE_PLATE_ID, 'Plushie', 'secret', 'Plushie Plate.png'), acquisition: { type: 'achievement', id: PLUSHIE_BEASTS_COLLECTION_ID } },
   // HERO TITLES (owner 2026-09-29), 33 heroes x (title + golden master). Achievement rewards, never in a crate.
   ...HERO_TITLE_COSMETICS,
+  // SECRET TITLES (owner 2026-11-20), one per hidden achievement. Never in a crate; hidden in the Collection until owned.
+  ...SECRET_TITLE_COSMETICS,
 ]));
 
 /** The ACTIVE members of a collection, in catalog order (the achievement's target is their count). */

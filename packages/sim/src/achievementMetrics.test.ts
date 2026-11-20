@@ -270,3 +270,155 @@ describe('the 2026-10-03 combat and hero metrics (achievements 150)', () => {
     expect(m).toMatchObject({ knockouts: 2, heroDamageDealt: 23, heroDamageCombatMax: 12 });
   });
 });
+
+describe('the secret-title metrics (2026-11-20)', () => {
+  const find = (pred: (c: (typeof CARD_INDEX)[string]) => boolean): string => Object.values(CARD_INDEX).find(pred)!.id;
+  const minionOf = (tribe: string): string => find((c) => c.tribe === tribe && !c.tribe2 && !c.token && !c.spell && !c.ruby && !c.universalTribe);
+  const spellId = find((c) => !!c.spell);
+  const seat = (id: string, resolve: number, armor = 0, alive = true, eliminatedRound?: number) =>
+    ({ id, resolve, armor, alive, ...(eliminatedRound ? { eliminatedRound } : {}) });
+  const lobbyOf = (seats: ReturnType<typeof seat>[], encounters: unknown[] = []) =>
+    ({ version: 1, seed: 1, round: 1, rules: { startingResolve: 30 }, seats, encounters }) as unknown as RunState['lobby'];
+
+  it('tribe plays read every card the RunState recorded as played (minions only, by printed tribe)', () => {
+    const t = emptyAchTally();
+    const before = set2Run({ playedThisTurn: [minionOf('dwarf')] });
+    const after = { ...before, playedThisTurn: [minionOf('dwarf'), minionOf('dwarf'), minionOf('dragon'), minionOf('kobold'), spellId] };
+    observeAchAction(t, before, { type: 'play', uid: 'x' }, after, 0);
+    expect(t.m).toMatchObject({ dwarfPlays: 1, dragonPlays: 1, koboldPlays: 1 });
+    // a turn flip never counts the new turn's list as plays of this one
+    observeAchAction(t, after, { type: 'settleCombat' } as Action, { ...after, wave: after.wave + 1, playedThisTurn: [minionOf('dwarf')] }, 0);
+    expect(t.m.dwarfPlays).toBe(1);
+  });
+
+  it('refreshes over the game, discount buys, tiers, the Gold a turn opens with', () => {
+    const t = emptyAchTally();
+    const base = set2Run({ wave: 3, embers: 10 });
+    observeAchAction(t, base, { type: 'roll' }, { ...base }, 0);
+    expect(t.rollsTotal).toBe(1);
+    const shop = [{ uid: 'cheap', cardId: minionOf('beast'), cost: 1 }, { uid: 'full', cardId: minionOf('beast') }] as RunState['shop'];
+    const withShop = { ...base, shop };
+    observeAchAction(t, withShop, { type: 'buy', uid: 'cheap' }, { ...withShop, embers: 9 }, 1);
+    observeAchAction(t, withShop, { type: 'buy', uid: 'full' }, { ...withShop, embers: 7 }, 2);
+    expect(t.m.discountBuys).toBe(1);
+    observeAchAction(t, base, { type: 'upgrade' }, { ...base, wave: 6, tier: 6 }, 0);
+    expect(t.m.tierSixByRound6).toBe(1);
+    expect(t.tierSixWave).toBe(6);
+    observeAchAction(t, base, { type: 'resolveCombat' } as Action, { ...base, wave: 4, phase: 'recruit', embers: 31 }, 0);
+    expect(t.m.goldTurnStartMax).toBe(31);
+    const late = emptyAchTally();
+    observeAchAction(late, base, { type: 'upgrade' }, { ...base, wave: 13, tier: 6 }, 0);
+    expect(late.m.tierSixByRound6).toBeUndefined();
+    expect(finalAchMetrics(late, set2Run({ tier: 6 })).lateTierSix).toBe(1);
+  });
+
+  it('the end of a turn: the 0 Gold streak and the full hand from round 5', () => {
+    const t = emptyAchTally();
+    const hand = Array.from({ length: 10 }, (_, i) => card(`h${i}`, 'stray'));
+    for (let w = 5; w <= 10; w++) {
+      const before = set2Run({ wave: w, phase: 'recruit', hand });
+      observeAchAction(t, before, { type: 'faceOmen' } as Action, { ...before, phase: 'combat', embers: 0 }, 0);
+    }
+    expect(t.m.zeroGoldStreakMax).toBe(6);
+    expect(finalAchMetrics({ ...t, combatsFought: 10 }, set2Run()).fullHandFrom5).toBe(1);
+    const before = set2Run({ wave: 11, phase: 'recruit', hand: hand.slice(1) });
+    observeAchAction(t, before, { type: 'faceOmen' } as Action, { ...before, phase: 'combat', embers: 2 }, 0);
+    expect(t.zeroGoldStreak).toBe(0);
+    expect(finalAchMetrics(t, set2Run()).fullHandFrom5).toBeUndefined();
+  });
+
+  it('the board: 7 Spirits in distinct rounds, the biggest minion, the most-buffed one', () => {
+    const t = emptyAchTally();
+    const spirits = Array.from({ length: 7 }, (_, i) => card(`s${i}`, minionOf('spirit'), { tribe: 'spirit' }));
+    const r = set2Run({ board: spirits, wave: 4 });
+    observeAchAction(t, r, { type: 'roll' }, r, 0);
+    observeAchAction(t, r, { type: 'roll' }, { ...r }, 0);
+    expect(t.m.spiritFullRounds).toBe(1);
+    observeAchAction(t, r, { type: 'roll' }, { ...r, wave: 5 }, 0);
+    expect(t.m.spiritFullRounds).toBe(2);
+    const big = card('big', 'stray', { attack: 250, health: 210, buffs: [{ source: 'A', attack: 1, health: 1, count: 60 }, { source: 'B', attack: 1, health: 1, count: 45 }] });
+    observeAchAction(t, r, { type: 'roll' }, { ...r, board: [big] }, 0);
+    expect(t.m.minionStatsMinMax).toBe(210);
+    expect(t.m.buffsOnOneMax).toBe(105);
+  });
+
+  it('the lobby: the leader knocked out, knockouts in a row, exactly lethal, rounds on 1 Health, last after round 10', () => {
+    const t = emptyAchTally();
+    type Enc = { a: string; b: string; damageToA: number; damageToB: number };
+    const settle = (round: number, before: ReturnType<typeof seat>[], after: ReturnType<typeof seat>[], enc: Enc): void => {
+      const s0 = set2Run({ lobby: lobbyOf(before) });
+      const s1 = set2Run({ lobby: lobbyOf(after, [{ round, fought: true, outcome: 'win', ...enc }]) });
+      observeAchAction(t, s0, { type: 'resolveCombat' } as Action, s1, 0);
+    };
+    // round 9: s1 leads the table on 12 and you hit it for exactly 12
+    settle(9, [seat('s0', 10), seat('s1', 12), seat('s2', 5)], [seat('s0', 1), seat('s1', 0, 0, false, 9), seat('s2', 5)], { a: 's0', b: 's1', damageToA: 0, damageToB: 12 });
+    expect(t.m.leaderKnockout).toBe(1);
+    expect(t.lastFightExact).toBe(true);
+    expect(t.m.oneHealthRounds).toBe(1);
+    // round 10: s2 is not the leader, you overkill it; you sit last on 1 Health
+    settle(10, [seat('s0', 1), seat('s2', 5), seat('s3', 3)], [seat('s0', 1), seat('s2', 0, 0, false, 10), seat('s3', 3)], { a: 's2', b: 's0', damageToA: 9, damageToB: 0 });
+    expect(t.m.knockoutStreakMax).toBe(2);
+    expect(t.lastFightExact).toBe(false);
+    expect(t.m.oneHealthRounds).toBe(2);
+    expect(t.m.lastAtRound10).toBe(1);
+    const m = finalAchMetrics(t, set2Run());
+    expect(m.exactLethalFinish).toBeUndefined();
+    expect(m.leaderKnockout).toBe(1);
+  });
+
+  it('the combat log: draws, Echo and Rally triggers, Imps, empty-board and 1-Health wins, the biggest hit, attacks lived through, Undead Rises', () => {
+    const undead = minionOf('undead');
+    const t = emptyAchTally();
+    const initial = { player: [snap('p1', undead, 1, 1), snap('p2', 'stray', 1, 1), snap('p3', 'stray', 1, 1), snap('p4', 'stray', 1, 1)], enemy: [snap('e1', 'stray', 200, 200)] };
+    observeAchCombat(t, combat([
+      { type: 'attack', attacker: 'e1', defender: 'p2', swing: 1 }, { type: 'shield', target: 'p2' },
+      { type: 'attack', attacker: 'e1', defender: 'p2', swing: 2 }, { type: 'dmg', target: 'p2', amount: 0, remainingHp: 1 },
+      { type: 'attack', attacker: 'e1', defender: 'p1', swing: 3 }, { type: 'death', target: 'p1', side: 'player', rise: true },
+      { type: 'reborn', target: 'p1', hp: 1, attack: 1, keywords: [] },
+      { type: 'attack', attacker: 'p3', defender: 'e1', swing: 4 }, { type: 'dmg', target: 'e1', amount: 120, remainingHp: 80, source: 'p3' },
+    ] as CombatEvent[], { initial, playerDeathrattles: 52, playerRallies: 31, playerQuestEvents: [{ step: 1, kind: 'summonImp', tribes: [] }] } as Partial<CombatResult>), 6);
+    expect(t.m).toMatchObject({ echoTriggersCombatMax: 52, ralliesCombatMax: 31, impSummons: 1, hitDamageMax: 120, attacksSurvivedMax: 2, undeadRises: 1, glassCannonWin: 1 });
+    expect(t.m.pacifistWin).toBeUndefined(); // p3 attacked
+    observeAchCombat(t, combat([], { result: 'draw' }), 7);
+    observeAchCombat(t, combat([{ type: 'summon', side: 'player', index: 0, minion: snap('s1', 'stray') }] as CombatEvent[], { initial: { player: [], enemy: [snap('e1', 'stray')] } } as Partial<CombatResult>), 8);
+    expect(t.m).toMatchObject({ combatDraws: 1, emptyBoardWin: 1 });
+  });
+
+  it('a comeback from 1 against 7, a win with no friendly attack, and a last survivor on exactly 1 Health', () => {
+    const t = emptyAchTally();
+    const enemy = Array.from({ length: 7 }, (_, i) => snap(`e${i}`, 'stray', 1, 1));
+    const deaths = enemy.map((m) => ({ type: 'death', target: m.uid, side: 'enemy' }) as CombatEvent);
+    const lone = { enemyDamageBreakdown: { oppTier: 3, survivorTiers: [1] } };
+    observeAchCombat(t, combat([
+      { type: 'death', target: 'p2', side: 'player' }, { type: 'dmg', target: 'p1', amount: 4, remainingHp: 1, source: 'e0' }, ...deaths,
+    ] as CombatEvent[], { initial: { player: [snap('p1', 'stray', 5, 5), snap('p2', 'stray', 1, 1)], enemy }, ...lone } as Partial<CombatResult>), 9);
+    expect(t.m).toMatchObject({ comebackOneVsSeven: 1, pacifistWin: 1, lastStandOneHp: 1 });
+    // a buff after the hit lifts it off 1 Health: no longer the feat
+    const u = emptyAchTally();
+    observeAchCombat(u, combat([
+      { type: 'dmg', target: 'p1', amount: 4, remainingHp: 1, source: 'e0' }, { type: 'buff', target: 'p1', attack: 1, health: 2, source: 'x' }, ...deaths,
+    ] as CombatEvent[], { initial: { player: [snap('p1', 'stray', 5, 5)], enemy }, ...lone } as Partial<CombatResult>), 9);
+    expect(u.m.lastStandOneHp).toBeUndefined();
+  });
+
+  it('the final board and whole-game flags', () => {
+    const beasts = Object.values(CARD_INDEX).filter((c) => c.tribe === 'beast' && !c.tribe2 && !c.token && !c.spell && !c.universalTribe).slice(0, 7).map((c, i) => card(`b${i}`, c.id, { tribe: 'beast' }));
+    const t = { ...emptyAchTally(), combatsFought: 6, combatsWon: 6, rollsTotal: 0, maxTier: 3 };
+    const lobby = lobbyOf([seat('s0', 30, 0), seat('s1', 0, 0, false, 5)]);
+    const m = finalAchMetrics(t, set2Run({ board: beasts, tier: 3, lobby }));
+    expect(m).toMatchObject({ finalBeastPack: 7, finalSameCardMax: 1, noRefreshGame: 1, lowTierGame: 1, perfectRecord: 1, fullHealthFinish: 1 });
+    expect(m.finalTribesSpread).toBeUndefined(); // 7 Beasts is one tribe 7 times
+    const copies = Array.from({ length: 7 }, (_, i) => card(`c${i}`, minionOf('beast'), { tribe: 'beast' }));
+    const m2 = finalAchMetrics(emptyAchTally(), set2Run({ board: copies }));
+    expect(m2.finalSameCardMax).toBe(7);
+    expect(m2.finalBeastPack).toBe(1);
+    const spread = ['kobold', 'kobold', 'dwarf', 'dwarf', 'dragon', 'beast', 'demon'].map((tr, i) => card(`x${i}`, minionOf(tr), { tribe: tr as BoardCard['tribe'] }));
+    expect(finalAchMetrics(emptyAchTally(), set2Run({ board: spread })).finalTribesSpread).toBe(5);
+    const hurt = finalAchMetrics({ ...t, rollsTotal: 3, combatsWon: 5 }, set2Run({ tier: 4, lobby: lobbyOf([seat('s0', 29, 5)]) }));
+    expect([hurt.noRefreshGame, hurt.perfectRecord, hurt.fullHealthFinish, hurt.lowTierGame]).toEqual([undefined, undefined, undefined, undefined]);
+    const t1 = Object.values(CARD_INDEX).filter((c) => c.tier === 1 && !c.token && !c.spell && !c.ruby).slice(0, 7).map((c, i) => card(`t${i}`, c.id));
+    expect(finalAchMetrics(emptyAchTally(), set2Run({ board: t1 })).finalTierOneOnly).toBe(7);
+    // every value is one the server accepts
+    expect(sanitizeRunMetrics(m)).toEqual(m);
+  });
+});

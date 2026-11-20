@@ -36,6 +36,15 @@ describe('the queue', () => {
     expect(u.crates).toEqual([{ crateId: 'c-1', earnedLevel: 2 }, { crateId: 'c-2', earnedLevel: 3 }]);
   });
 
+  it('a secret feat (2026-11-20) queues its achievement with its XP and announces its Secret title by name', async () => {
+    queueNewRewards('u-1', result({ achievements: ['secret.overkill'], unlockedTitles: ['title_secret_overkill'], crateIds: [] }));
+    const u = useNewRewards.getState().unseen;
+    expect(u.achievements).toEqual([{ id: 'secret.overkill', xp: 300 }]);
+    expect(u.titles).toEqual(['title_secret_overkill']);
+    const { titleName } = await import('@game/progression');
+    expect(titleName('title_secret_overkill')).toBe('Overkill'); // the pop-up lists titles that resolve to a name
+  });
+
   it('a Gauntlet crate (2026-09-29) is queued as given, with no inferred level, once, and survives a reload', () => {
     const g = { crateId: 'g-3', earnedLevel: null, source: 'gauntlet:3' };
     queueNewCrate('u-1', g);

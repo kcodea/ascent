@@ -3,6 +3,7 @@ import { bodyIsTribe, defIsTribe } from '../combat/tribe';
 import { ARENA_EFFECTS, improvingGrant, rubyCastGainOf, pickAutoTarget, runVaultPulse, withWound, woundActive, type ArenaBody, type EffectArena } from './arena';
 import { ALE_IDS, alignAllows, aleGrantCount, boardShoutContributors, extraTriggerContributors, extraTriggerFires } from '../types';
 import { combatTierCeiling, isLegalRandomCard, isLegalRandomMinion } from '../randomPool'; // R-RANDOM-POOL-01
+import { isEchoEffect } from './echo'; // R-ECHO-WATCHER-01
 
 /** Re-entrancy guard for Hunter's onGainAttack aura (its +Attack grant would re-fire onGainAttack). Keyed by the
  *  minion object + always cleared in `finally`, so it never pollutes a shared card across combats/turns. */
@@ -550,7 +551,7 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
       }
     },
     stampKarwindFlash: () => {}, // combat FX ride the buff events
-    stripEchoes: (t) => { const m = t as Minion; m.effects = m.effects.filter((e) => e.on !== 'onDeath'); },
+    stripEchoes: (t) => { const m = t as Minion; m.effects = m.effects.filter((e) => !isEchoEffect(e)); },
     nameOf: (t) => (t as Minion).name,
     narrate: (text, cast) => ctx.log({ type: 'sc', source: self.uid, text, ...(cast ? { cast: true } : {}) }),
     activeTribes: () => ctx.activeTribesFor(self.side),
@@ -648,7 +649,7 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
       const reps = drakkoRepeats(ctx, self.side);
       for (let r = 0; r < reps; r++) fireShout(ctx, self, m);
     },
-    hasEcho: (t, strict) => (t as Minion).effects.some((e) => e.on === 'onDeath' && (!strict || e.do.startsWith('deathrattle'))),
+    hasEcho: (t, strict) => (t as Minion).effects.some((e) => isEchoEffect(e) && (!strict || e.do.startsWith('deathrattle'))),
     triggerEchoOn: (t, strict) => {
       const target = t as Minion;
       if (!strict) { triggerEcho(ctx, self, target); return; }
@@ -730,7 +731,7 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
       });
     },
     echoEffectsOf: (t) => (t as Minion).effects
-      .filter((e) => e.on === 'onDeath')
+      .filter(isEchoEffect)
       .map((e) => ({ ...e, ...(e.params ? { params: { ...e.params } } : {}) })),
 
     // SET 4 SELF-DAMAGE (R-WOUND-01, owner 2026-10-13 ordering): BEAT 1 every hit (`damageDeferred` — dmg events, a
@@ -1119,7 +1120,7 @@ export function triggerEcho(ctx: CombatContext, self: Minion, target: Minion, so
       const fire = (): void => {
         ctx.countDeathrattle?.(target.side);
         for (const effect of target.effects) {
-          if (effect.on !== 'onDeath') continue;
+          if (!isEchoEffect(effect)) continue;
           FACTORIES[effect.do]?.(ctx, target, effect.params ?? {}, { minion: target, side: target.side });
         }
       };
@@ -2209,7 +2210,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  "trigger it" (a hand card has no body in this fight). Golden: two. */
   getEchoAndTrigger: (ctx, self) => {
     const tier = ctx.tierFor(self.side);
-    const pool = ctx.poolCards(self.side).filter((c) => !c.spell && !c.token && c.tier <= tier && c.effects.some((e) => e.on === 'onDeath'));
+    const pool = ctx.poolCards(self.side).filter((c) => !c.spell && !c.token && c.tier <= tier && c.effects.some(isEchoEffect));
     if (pool.length === 0) return;
     for (let i = 0; i < mul(self); i++) ctx.grantToHandThenEcho(ctx.rng.pick(pool).id, self.side, self.uid);
   },
@@ -2266,10 +2267,10 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  next shop" holds for a combat re-fire too. */
   battlecryCopyEcho: (ctx, self) => {
     if (self.dead) return;
-    const target = pickAutoTarget(ctx.rng, otherFriends(ctx, self, (m) => (ctx.getCard(m.cardId)?.effects ?? []).some((e) => e.on === 'onDeath'))); // R-TARGET-07
+    const target = pickAutoTarget(ctx.rng, otherFriends(ctx, self, (m) => (ctx.getCard(m.cardId)?.effects ?? []).some(isEchoEffect))); // R-TARGET-07
     if (!target) return;
     const def = ctx.getCard(target.cardId)!;
-    const copy = (): EffectDef[] => def.effects.filter((e) => e.on === 'onDeath').map((e) => ({ ...e, ...(e.params ? { params: { ...e.params } } : {}) }));
+    const copy = (): EffectDef[] => def.effects.filter(isEchoEffect).map((e) => ({ ...e, ...(e.params ? { params: { ...e.params } } : {}) }));
     ctx.grantDeathrattle(self, copy());
     ctx.grantCopiedEcho?.(self, copy(), def.name);
     ctx.log({ type: 'sc', source: self.uid, text: `${self.name} copies ${def.name}'s Echo`, side: self.side });
@@ -4108,18 +4109,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     for (const m of ctx.living(self.side)) ctx.buff(m, attack, health, self.uid);
   },
 
-  // --- Demons (combat-resolved: Brood Matron breeds, the Sovereign destroys) ---
-
-  /** Brood Matron — each time another friend dies, summon one Imp beside self, capped at `max` per combat
-   *  (golden doubles the cap). The `bredCount` tracks how many it has bred this fight. */
-  onFriendDeathSummon: (ctx, self, params, payload) => {
-    const { minion } = payload as MinionPayload;
-    if (self.dead || minion === self || minion.side !== self.side) return;
-    const cap = num(params.max, 3); // golden does NOT raise the cap — it doubles the Avenge buff instead
-    if ((self.bredCount ?? 0) >= cap) return;
-    ctx.summon(self.side, ctx.getCard(str(params.tokenId)), self.uid);
-    self.bredCount = (self.bredCount ?? 0) + 1;
-  },
+  // --- Demons (combat-resolved: the Sovereign destroys) ---
 
   /** Abyssal Sovereign — Start of Combat: destroy the enemy with the highest Attack. */
   scDestroyHighestAttack: (ctx, self, params) => {
@@ -4564,14 +4554,17 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   },
 
 
-  /** Brood Matron — Avenge (X): every X friendly deaths, buff your Imps +atk/+hp (permanent, carried back).
-   *  Golden doubles the stat gain (the summon cap stays at 3). */
+  /** Brood Matron — Avenge (X): every X friendly deaths, summon `summon` `tokenId` Imp(s) (default none), THEN
+   *  buff your Imps +atk/+hp (permanent, carried back) — summon first so the new Imp takes the buff too (owner
+   *  rework 2026-11-20). Golden doubles both the summon count and the stat gain. */
   avengeBuffImps: (ctx, self, params, payload) => {
     const { side, count } = payload as { side: Side; count: number };
     if (self.dead || side !== self.side) return;
     const every = Math.max(1, num(params.count, 3));
     const seen = avengeCountFor(self, count); // a risen body counts from its rebirth
     if (seen <= 0 || seen % every !== 0) return;
+    const token = str(params.tokenId) ? ctx.getCard(str(params.tokenId)) : undefined;
+    if (token) for (let i = 0; i < num(params.summon, 0) * mul(self); i++) ctx.summon(self.side, token, self.uid);
     const a = num(params.attack, 3) * mul(self);
     const h = num(params.health, 2) * mul(self);
     for (const m of ctx.living(self.side)) if (ctx.getCard(m.cardId)?.imp) ctx.buff(m, a, h, self.uid);
@@ -5450,7 +5443,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  Grave Body's graft (`ctx.grantDeathrattle`) on a death watcher instead of a Start of Combat: the dying
    *  friend's `onDeath` effects are DEEP-copied onto the Mimic and registered, so they fire on the Mimic's own
    *  death, once, later. It subscribes to the same `onDeath` bus event a Deathrattle does and simply guards the
-   *  other way round (`minion !== self`) — the shape `onFriendDeathSummon` already uses.
+   *  other way round (`minion !== self`) — the friend-death watcher shape (R-ECHO-WATCHER-01).
    *
    *  Copying can't chain: every Deathrattle factory guards `payload.minion === self`, so a grafted Echo lies
    *  dormant on the Mimic instead of re-firing on the NEXT friendly death — and a second Mimic's own effect
@@ -5461,7 +5454,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const { minion } = payload as MinionPayload;
     if (self.dead || self.health <= 0) return;
     if (!minion || minion === self || minion.side !== self.side) return;
-    const echoes = minion.effects.filter((e) => e.on === 'onDeath');
+    const echoes = minion.effects.filter(isEchoEffect);
     if (echoes.length === 0) return;
     for (let r = 0; r < mul(self); r++) {
       ctx.grantDeathrattle(self, echoes.map((e) => ({ ...e, ...(e.params ? { params: { ...e.params } } : {}) })));

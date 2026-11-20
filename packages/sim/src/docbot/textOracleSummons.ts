@@ -348,8 +348,8 @@ export function runSummonShoutLane(def: CardDef, printed: PrintedSummon, golden:
  *  once per death. `why` must say what the arm stages and why the default fixture fails without it. */
 export const SUMMON_ARM: Readonly<Record<string, { fodder?: boolean; survive?: boolean; repeatable?: boolean; why: string }>> = {
   brood: {
-    fodder: true, survive: true, repeatable: true,
-    why: 'Brood Matron rides onDeath but is a FRIEND-death watcher (onFriendDeathSummon, max 3/combat) — she must OUTLIVE the fodder that feeds her, and summons once per death, so the default die-fast/no-fodder onDeath fixture reads silent',
+    repeatable: true,
+    why: 'Brood Matron (reworked 2026-11-20) summons on Avenge (2): the four fodder Pups fire it twice and the Imps it summons die and feed it again, so the per-proc count repeats across one fight',
   },
 };
 

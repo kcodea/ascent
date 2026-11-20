@@ -309,7 +309,7 @@ export interface EffectArena {
    *  already counts the Shout and procs the same watchers. */
   replayShout(t: ArenaBody): void;
   /** Does this body have an Echo? `strict` keeps Deathsayer's narrower reading (only `deathrattle*` ids —
-   *  a friend-death watcher is not an Echo), the wider reading counts ANY `onDeath` effect. */
+   *  a friend-death watcher is not an Echo), the wider reading counts ANY own-death `onDeath` effect (`isEchoEffect`, never a friend-death watcher — R-ECHO-WATCHER-01). */
   hasEcho(t: ArenaBody, strict?: boolean): boolean;
   /** Fire a body's Echo WITHOUT it dying, whole-ritual per phase: combat runs `triggerEcho` (every Echo
    *  multiplier the side has, × this minion's gild, each proc through the echo chokepoint, logging the
@@ -1737,7 +1737,7 @@ export const ARENA_EFFECTS = {
     arena.grantRubyPower(v.attack * g, v.health * g);
   },
 
-  /** Echohorn Stag — Rally: trigger your LEFT-MOST OTHER friendly Echo (it stays alive). ANY `onDeath` effect
+  /** Echohorn Stag — Rally: trigger your LEFT-MOST OTHER friendly Echo (it stays alive). ANY Echo effect (`isEchoEffect`: an own-death `onDeath`, never a friend-death watcher)
    *  is an Echo, not just ids that start with "deathrattle" (owner report 2026-07-31). Golden triggers twice —
    *  folded into the shared `triggerEchoOn` ritual with every other Echo multiplier the side has. */
   rallyProcLeftmostEcho(arena: EffectArena, _params?: Record<string, unknown>): void {

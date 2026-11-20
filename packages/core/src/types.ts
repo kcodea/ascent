@@ -691,7 +691,6 @@ export type EffectFactoryId =
   | 'onShieldBreakBuffAll'
   | 'onLoseWardOnceBuffSelfRegain' // Set 3 Dwarves — Foamguard: the first time THIS loses Ward each combat, gain +a/+h and Ward
   // Demons — Consume / destroy (combat-resolved half)
-  | 'onFriendDeathSummon'
   | 'scDestroyHighestAttack'
   | 'scGrantEnemyTaunt' // Arena Heckler: Start of Combat — give the enemy's rightmost minion Taunt; golden the two rightmost
   | 'scSummonCopy' // Mirrorhide Rhino: Start of Combat — summon a copy of this minion's current body; golden two

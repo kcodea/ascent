@@ -1,3 +1,4 @@
+import { isEchoEffect } from '@game/core'; // what counts as an Echo (R-ECHO-WATCHER-01)
 /**
  * Opponent board source (M3 step 4 — "serve realistic boards"). The enemy board for a wave can be drawn
  * from a pool of real `BoardSnapshot`s (captured player boards / authored boards) instead of the
@@ -180,7 +181,7 @@ export function opponentBoard(snap: BoardSnapshot): BoardMinion[] {
   if (snap.heroId === 'soren' && !snap.marksCarried) {
     let best = -1, bestScore = -1;
     for (let i = 0; i < board.length; i++) {
-      if (!CARD_INDEX[board[i]!.cardId]?.effects.some((e) => e.on === 'onDeath')) continue;
+      if (!CARD_INDEX[board[i]!.cardId]?.effects.some(isEchoEffect)) continue;
       const score = board[i]!.attack + board[i]!.health;
       if (score > bestScore) { bestScore = score; best = i; }
     }

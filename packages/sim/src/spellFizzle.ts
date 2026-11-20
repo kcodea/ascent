@@ -1,3 +1,4 @@
+import { isEchoEffect } from '@game/core'; // what counts as an Echo (R-ECHO-WATCHER-01)
 import { CARD_INDEX } from '@game/content';
 import type { CardDef, Tribe } from '@game/core';
 import { poolOf } from './cardPool';
@@ -99,7 +100,7 @@ const NO_OP: Record<string, (s: RunState, def: CardDef, params: Record<string, u
   spellTriggerEcho: (_s, _d, _p, target) => {
     if (!target) return false;
     const def = CARD_INDEX[target.cardId];
-    const own = def?.effects.some((e) => e.on === 'onDeath') ?? false;
+    const own = def?.effects.some(isEchoEffect) ?? false;
     return !own && !(target.copiedEcho?.length); // a Gravetwin's COPIED Echo counts
   },
   // Tribes Choice fetches "a minion of the target's type" — a NEUTRAL body has no type to fetch.

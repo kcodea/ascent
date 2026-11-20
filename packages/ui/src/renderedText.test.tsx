@@ -73,14 +73,14 @@ const structuralSubject = (id: string): boolean => {
 
 /** Does this effect actually reach a cardText.ts branch? Mirrors the guards the helpers themselves apply, so
  *  a card whose factory is referenced only under a param guard it does not meet is not a false subject:
- *   - `deathrattleSummon` / `onFriendDeathSummon` count only for the Imp token (`cardSummonsImp`'s gate);
+ *   - `deathrattleSummon` / `avengeBuffImps` count only for the Imp token (`cardSummonsImp`'s gate);
  *   - `buffShopPermanent` counts only with an `improve` param (`shopBuffImproveText`'s gate);
  *   - `castSpell` counts only with a `perGold` param (`castSpellPerGoldText`'s gate) — Soul Defiler's flat
  *     "cast Staff of Guel" (2026-09-23) names the spell and carries no on-card scaler;
  *   - `grantRandomAle` counts only with a `bonusAtTier` param (`aleTierText`'s gate, Doubletap Brewer 2026-10-10). */
 const effectReachesHelper = (e: { do: string; params?: Record<string, unknown> }): boolean => {
   if (!FACTORY_REFS.has(e.do)) return false;
-  if (e.do === 'deathrattleSummon' || e.do === 'onFriendDeathSummon') return e.params?.tokenId === 'impscrap';
+  if (e.do === 'deathrattleSummon' || e.do === 'avengeBuffImps') return e.params?.tokenId === 'impscrap';
   if (e.do === 'buffShopPermanent') return !!e.params?.improve;
   if (e.do === 'castSpell') return !!e.params?.perGold;
   if (e.do === 'grantRandomAle') return typeof e.params?.bonusAtTier === 'number'; // `aleTierText`'s gate (Doubletap Brewer, 2026-10-10)

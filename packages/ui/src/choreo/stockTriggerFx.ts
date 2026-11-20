@@ -1,4 +1,5 @@
 import { CARD_INDEX } from '@game/content';
+import { isEchoEffect } from '@game/core'; // R-ECHO-WATCHER-01
 import { getDef } from '../fx/fxDefs';
 import { bindingAt, bindingFor, type BindingKind, type FxBinding } from './bindings';
 
@@ -34,7 +35,7 @@ const isStockKind = (kind: BindingKind): kind is StockTriggerKind => kind in STO
 
 /** Does this card carry an Echo of its own (an `onDeath` effect)? The gate on the `echo` slot. */
 export function cardHasEcho(cardId: string | null | undefined): boolean {
-  return !!cardId && !!CARD_INDEX[cardId]?.effects.some((e) => e.on === 'onDeath');
+  return !!cardId && !!CARD_INDEX[cardId]?.effects.some(isEchoEffect);
 }
 
 /** The stock Rally belongs to a card that RALLIES. `ownRallyBindingFor` is asked about every attacker, so without

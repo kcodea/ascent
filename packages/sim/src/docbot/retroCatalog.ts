@@ -123,7 +123,7 @@ export const RETRO_CATALOG: readonly RetroCatalogEntry[] = [
     fixCommits: ['#941'],
     reportDate: '2026-08-09',
     patch: [{ file: SIM,
-      find: "const ownEcho = effect.on === 'onDeath' && (payload as { minion?: Minion } | undefined)?.minion === minion;",
+      find: "const ownEcho = isEchoEffect(effect) && (payload as { minion?: Minion } | undefined)?.minion === minion;",
       replace: "const ownEcho = effect.on === 'onDeath'; // REINJECT: every watcher wraps as an Echo trigger" }],
     lanes: ['packages/sim/src/docbot/combatModLane.test.ts', 'packages/sim/src/docbot/interactionFamilyMatrix.test.ts'],
     scope: generic,

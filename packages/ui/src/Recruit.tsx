@@ -31,6 +31,7 @@ import type { BeatPolicyOverrides, BeatTimingOverrides } from './beatLab/beatTim
 import type { CompiledBeat } from './choreographer/timelineTypes';
 import type { ConsequenceEvent, Keyword, PresentationBatch, Tribe } from '@game/core';
 import { ALE_IDS } from '@game/core';
+import { isEchoEffect } from '@game/core'; // R-ECHO-WATCHER-01
 import { ALE_WATCHER_ID, aleWatcherUids } from './choreo/aleWatcher';
 
 /** Consequence types whose cosmetic cue a QUIET paced repeat tick skips (its stats still land). R-REPEAT-04. */
@@ -7945,7 +7946,7 @@ export function Recruit() {
         // A rising body dies IN FULL (owner 2026-09-09) — its return is the `rise` shop cue (the reborn re-form
         // on the new body), so `rise` no longer short-circuits to a bloom in place.
         void rise;
-        const hasEcho = !!cardId && !!CARD_INDEX[cardId]?.effects?.some((e) => e.on === 'onDeath');
+        const hasEcho = !!cardId && !!CARD_INDEX[cardId]?.effects?.some(isEchoEffect);
         if (hasEcho) { pixiFx.deathrattle(r.left + r.width / 2, r.top + r.height / 2, r.width); return; }
         if (!canPlayDefs()) return;
         const a = anchorsForUnits(null, uid); // no source: the anchors fold onto the dying unit
@@ -8437,7 +8438,7 @@ export function Recruit() {
         const targetUid = b.eotEffect === 'triggerLeftmostShout'
           ? run.board.find((c) => { const d = CARD_INDEX[c.cardId]; return !!d && d.effects.some((e) => e.on === 'onPlay'); })?.uid
           : b.eotEffect === 'triggerLeftmostEcho'
-            ? run.board.find((c) => CARD_INDEX[c.cardId]?.effects.some((e) => e.on === 'onDeath'))?.uid
+            ? run.board.find((c) => CARD_INDEX[c.cardId]?.effects.some(isEchoEffect))?.uid
             : undefined;
         const nodeEl = document.querySelector(`.questbadges [data-eot-effect="${b.eotEffect}"]`)
           ?? document.querySelector(`.statusbar .heropowerbtn[data-eot-effect="${b.eotEffect}"]`); // the hero-slot rune (R-RUNESLOT-01)

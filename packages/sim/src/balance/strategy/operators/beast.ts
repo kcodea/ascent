@@ -1,3 +1,4 @@
+import { isEchoEffect } from '@game/core'; // what counts as an Echo (R-ECHO-WATCHER-01)
 /**
  * B9 — THE BEAST SUMMON / ECHO OPERATOR (set 2), written off the recorded Beast runs that reached the end-game
  * (bram | beast to wave 16: Echohorn, Hawkus, Spots, Fel Spikes, Impossible Todd, Sylus; jenkins | beast to wave 18:
@@ -80,7 +81,7 @@ const ROLES: Record<string, CardRole> = {
 /** How good an Echo is to sit LEFT-MOST (fired by Echohorn / Hawkus / Spots). 0 = not an Echo. */
 function echoRank(c: BotCardView): number {
   const d = CARD_INDEX[c.cardId];
-  if (!d?.effects.some((e) => e.on === 'onDeath')) return 0;
+  if (!d?.effects.some(isEchoEffect)) return 0;
   const table: Record<string, number> = { b2_mammoth: 9, b2_bullseye: 8, dm_felspikes: 7, b2_armadiyo: 6, b2_dawnclaw: 5, n2_lastlight: 5, b2_trex: 4, b2_voidmother: 4, dm_velvet: 3, b2_wolvie: 3 };
   return (table[c.cardId] ?? 2) + (c.golden ? 1 : 0);
 }

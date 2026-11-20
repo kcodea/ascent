@@ -1,3 +1,4 @@
+import { isEchoEffect } from '@game/core'; // what counts as an Echo (R-ECHO-WATCHER-01)
 import { ALE_IDS, SPECIAL_RUBY_IDS, type CombatResult, type Tribe } from '@game/core';
 import { CARD_INDEX, EPIC_RUNES, RUNE_INDEX } from '@game/content';
 import type { RunMetric } from '@game/progression';
@@ -204,7 +205,7 @@ export function observeAchCombat(t: AchTally, lc: CombatResult, wave: number): v
         if (e.side !== 'player' && !player.has(e.target)) enemyKills++;
         if (player.has(e.target)) {
           const def = CARD_INDEX[cardOf.get(e.target) ?? ''];
-          if (def?.effects.some((x) => x.on === 'onDeath')) { echoes++; if (isBeast(def.id)) beastEchoes++; }
+          if (def?.effects.some(isEchoEffect)) { echoes++; if (isBeast(def.id)) beastEchoes++; }
         } else if (poisoned.has(e.target)) { executeKills++; poisoned.delete(e.target); }
         break;
       }

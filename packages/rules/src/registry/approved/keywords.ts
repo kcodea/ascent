@@ -425,8 +425,8 @@ export const KEYWORDS_RULES: GameRule[] = [
       'Every once-per-combat or N-per-combat limit that belongs to one minion is spent per BODY. When that minion dies and '
       + 'comes back through Rise or Rebirth, the returned body starts all of those limits fresh, then spends them until '
       + 'the next removal and return; each removal and return resets them again. Covered: every Pummel cap (Tauntbreaker, '
-      + 'Impossible Todd, Kobe, Han Gover, Goldvein, Maestro Lux), Evolving Abomination\'s Rally double, Brood Matron\'s Imp '
-      + 'cap, Whaloo\'s Runebind casts, Immune Iggy and Bounty Bot\'s immune swings (the immune shield shows again on the '
+      + 'Impossible Todd, Kobe, Han Gover, Goldvein, Maestro Lux), Evolving Abomination\'s Rally double, '
+      + 'Whaloo\'s Runebind casts, Immune Iggy and Bounty Bot\'s immune swings (the immune shield shows again on the '
       + 'fresh swings), Gryphon\'s free refreshes, Yeti\'s reflection and Foamguard (R-DWARF-1021-02). The Pummel damage '
       + 'tally itself is not a limit and keeps counting (R-PUMMEL-01). Unchanged: side-wide budgets (Deathtouched Apple, '
       + 'Dragonscale, Author\'s Hand, the hero Pummel latch), per-TURN limits (Candleback Bulwark, Tamby, Reflector) '
@@ -439,9 +439,10 @@ export const KEYWORDS_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Owner ruling 2026-10-21 on Foamguard (R-DWARF-1021-02)', quote: "no it should rise and gain ward, then reset when it's removed again" },
       { kind: 'code', ref: 'packages/core/src/combat/minion.ts resetPerCombatLimits / freshAttackImmune; packages/core/src/combat/simulate.ts killOrReborn (Rebirth and Rise branches); packages/ui/src/useCombatReplay.ts computeFrame (reborn branch)' },
     ],
-    contentIds: ['tauntbreaker', 'dm_todd', 'k_kobe', 'dw3_hangover', 'k3_goldvein', 'ce3_starcharter', 'n2_abomination', 'brood', 'd3_whaloo', 'd3_iggy', 'bountybot', 'gryphon', 'n3_yeti', 'dw3_foamguard'],
+    contentIds: ['tauntbreaker', 'dm_todd', 'k_kobe', 'dw3_hangover', 'k3_goldvein', 'ce3_starcharter', 'n2_abomination', 'd3_whaloo', 'd3_iggy', 'bountybot', 'gryphon', 'n3_yeti', 'dw3_foamguard'],
     currentBehaviour:
-      'Conforms (2026-10-21). Before, only Foamguard re-armed; every other per-body cap stayed spent after a Rise or Rebirth.',
+      'Conforms (2026-10-21). Before, only Foamguard re-armed; every other per-body cap stayed spent after a Rise or Rebirth. '
+      + 'Brood Matron left the list on 2026-11-20: her rework to an Avenge (2) card removed the Imp cap.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/riseResetLimits.test.ts', 'packages/ui/src/riseResetLiveText.test.ts'], lastVerifiedAt: '2026-10-21' },
   },
   {

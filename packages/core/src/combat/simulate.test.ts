@@ -1569,40 +1569,26 @@ describe('simulate (handoff A.3)', () => {
     expect(enemySide.playerHandGrants).toBeUndefined();
   });
 
-  it('Brood Matron breeds an Imp each time a friend dies', () => {
-    const a = run(
-      [
-        { cardId: 'brood', attack: 3, health: 30 },
-        { cardId: 'alley', attack: 1, health: 1 },
-      ],
-      [{ cardId: 'omen', attack: 2, health: 40, keywords: [] }],
-      4,
-    );
-    expect(a.events.some((e) => e.type === 'summon' && e.minion.cardId === 'impscrap')).toBe(true);
-  });
-
-  it('Brood Matron breeds 1 Imp per friend death, capped at 3 (golden keeps the cap)', () => {
-    // A tanky 0-Attack Brood survives while sacrificial bodies (and the bred Imps) die to a big attacker;
-    // breeding stops at the cap. Golden does NOT raise the summon cap (it doubles the Avenge buff instead).
+  it('Brood Matron (reworked 2026-11-20): Avenge (2) summons one Imp per two friendly deaths', () => {
+    // Two sacrificial bodies die → one Avenge (2) → one Imp (the Imp's own death is a third, not yet a fourth).
     const imps = (golden: boolean): number =>
       run(
         [
           { cardId: 'brood', attack: 0, health: 1000, golden },
           { cardId: 'sandbag', attack: 0, health: 1 },
           { cardId: 'sandbag', attack: 0, health: 1 },
-          { cardId: 'sandbag', attack: 0, health: 1 },
         ],
         [{ cardId: 'omen', attack: 100, health: 1000, keywords: [] }],
         1,
       ).events.filter((e) => e.type === 'summon' && e.minion.cardId === 'impscrap').length;
-    expect(imps(false)).toBe(3); // capped at 3
-    expect(imps(true)).toBe(3); // golden cap stays 3
+    expect(imps(false)).toBe(1);
+    expect(imps(true)).toBeGreaterThanOrEqual(2); // gilded: two per Avenge (and those two feed the next one)
   });
 
   it('the run-wide Imp buff applies to combat-summoned Imps', () => {
     // impAtkBonus/impHpBonus = 2/2 → a Brood-summoned Imp enters as a 3/3 (1/1 base + 2/2).
     const r = simulate(
-      [{ cardId: 'brood', attack: 0, health: 1000 }, { cardId: 'sandbag', attack: 0, health: 1 }],
+      [{ cardId: 'brood', attack: 0, health: 1000 }, { cardId: 'sandbag', attack: 0, health: 1 }, { cardId: 'sandbag', attack: 0, health: 1 }],
       [{ cardId: 'omen', attack: 100, health: 1000, keywords: [] }],
       makeRng(1), CARD_INDEX, combatSide({ impAtk: 2, impHp: 2 }),
     );
@@ -1643,11 +1629,11 @@ describe('simulate (handoff A.3)', () => {
   // GENERATED mid-fight (summon / Reborn) comes out correctly sized, even on the FIRST one (before any in-combat
   // buff). These previously hard-zeroed for the enemy (or leaked the player's value).
   it('enemy run-wide Imp Aura (from the snapshot) sizes an enemy-summoned Imp — was 1/1', () => {
-    // Enemy Brood Matron: a friend dies → it summons an Imp. With the enemy's captured Imp Aura (2/2) that Imp
+    // Enemy Brood Matron: two friends die → Avenge (2) summons an Imp. With the enemy's captured Imp Aura (2/2) that Imp
     // must arrive as a 3/3 (1/1 base + 2/2), just like the player's. `enemyScalers` is the 28th positional arg.
     const r = simulate(
       [{ cardId: 'omen', attack: 100, health: 1000, keywords: [] }],
-      [{ cardId: 'brood', attack: 0, health: 1000 }, { cardId: 'sandbag', attack: 0, health: 1 }],
+      [{ cardId: 'brood', attack: 0, health: 1000 }, { cardId: 'sandbag', attack: 0, health: 1 }, { cardId: 'sandbag', attack: 0, health: 1 }],
       makeRng(1), CARD_INDEX, combatSide(),
       combatSide({ impAtk: 2, impHp: 2 }),
     );

@@ -1,4 +1,5 @@
 import { type BoardMinion, type CardDef, type EffectDef, type Minion, type Side, type Tribe } from '../types';
+import { isEchoEffect } from '../effects/echo'; // R-ECHO-WATCHER-01
 
 export type CardIndex = Record<string, CardDef>;
 
@@ -114,7 +115,7 @@ export function instantiate(
   let effects = board.copiedEcho?.length || board.grantedEffects?.length || board.seedEchoes
     ? [...card.effects, ...(board.copiedEcho ?? []), ...(board.grantedEffects ?? []), ...seedEchoEffects(board.seedEchoes ?? 0)]
     : card.effects;
-  if (board.echoStripped) effects = effects.filter((e) => e.on !== 'onDeath');
+  if (board.echoStripped) effects = effects.filter((e) => !isEchoEffect(e));
   const keywords = board.keywords ? [...board.keywords] : [...card.keywords];
   // A RESILIENT Ward is always a Ward too ('RW' rides beside 'DS'): normalise a body that carries only 'RW'.
   if (keywords.includes('RW') && !keywords.includes('DS')) keywords.push('DS');

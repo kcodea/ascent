@@ -43,7 +43,7 @@ export const EXTRACTOR_ID = 'contracts-extract@1';
 
 /** Factories whose params carry a summoned token id + count with the standard gilded doubling. Mirrors the
  *  content index's TOKEN_REF_EFFECTS (kept in sync by refIntegrity — the ids must resolve either way). */
-const SUMMON_FACTORIES = new Set(['deathrattleSummon', 'battlecrySummon', 'onFriendDeathSummon', 'deathrattleSummonOverflowBuff']);
+const SUMMON_FACTORIES = new Set(['deathrattleSummon', 'battlecrySummon', 'avengeBuffImps', 'deathrattleSummonOverflowBuff']);
 
 const sortByContentId = (a: ContentContract, b: ContentContract): number => (a.contentId < b.contentId ? -1 : 1);
 

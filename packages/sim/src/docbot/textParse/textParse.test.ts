@@ -538,11 +538,11 @@ describe('grammar families (2026-09-11) — sabotage: each new comparator convic
   // (The Gem Gorger / Cavern Fiend `rubyCast` text case was retired 2026-10-10 with the card: archived, it holds no
   // active contract, and no active card says "you cast N spells" over `rubyCast` any more.)
 
-  it('the Brood draft-contract gap reproduces when its curated gild shape is doctored back to ×2', () => {
+  it('Brood Matron (reworked 2026-11-20): Avenge (2) reads clean, and a doctored threshold convicts', () => {
     const brood = one('brood');
-    expect(brood.gildedDelta?.kind).toBe('reshape');
+    expect(brood.gildedDelta?.kind).toBe('multiply');
     expect(taxonomiesOf(brood)).toEqual([]);
-    expect(taxonomiesOf({ ...brood, gildedDelta: { kind: 'multiply', factor: 2, description: 'DOCTORED — the extractor\'s old guess' } })).toContain('wrong-gilded-amount');
+    expect(taxonomiesOf({ ...brood, triggers: [{ event: 'avenge', phase: 'combat', threshold: 3 }] })).toContain('wrong-threshold');
   });
 });
 

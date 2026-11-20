@@ -1,3 +1,4 @@
+import { isEchoEffect } from '@game/core'; // what counts as an Echo (R-ECHO-WATCHER-01)
 /**
  * Synergy packages for the EXPLORER bot (owner ask 2026-07-21). A normal pilot converges on whatever wins;
  * the explorer instead COMMITS to one archetype for the whole run and builds toward it — so build-around
@@ -24,7 +25,7 @@ export interface BotPackage {
 const MECHANIC_BONUS: Record<string, (def: CardDef) => number> = {
   beast: () => 0, // Beast is simply go-wide — the tribe match carries it
   demon: (def) => (def.keywords.includes('CN') || def.keywords.includes('FD') ? 7 : 0), // Consume / Fodder
-  undead: (def) => (def.effects.some((e) => e.on === 'onDeath') ? 7 : 0),               // Deathrattle / Echo
+  undead: (def) => (def.effects.some(isEchoEffect) ? 7 : 0),               // Deathrattle / Echo
   mech: (def) => (def.keywords.includes('M') ? 7 : 0),                                   // Magnetic / Attachment
   dragon: (def) => (def.spell ? 6 : 0),                                                  // spell payoffs
 };

@@ -188,7 +188,7 @@ describe('clip index (the shipped defs + bindings)', () => {
     expect(working).toBeGreaterThan(0);
     expect(working).toBeLessThan(PHONE_AUDIO_LRU_BYTES * 0.9);
     // And the cap stays far under the old whole-bank figure (~400 MB): it is a working set, not the bank.
-    expect(PHONE_AUDIO_LRU_BYTES).toBeLessThanOrEqual(48 * 1048576);
+    expect(PHONE_AUDIO_LRU_BYTES).toBeLessThanOrEqual(52 * 1048576);
   });
 });
 

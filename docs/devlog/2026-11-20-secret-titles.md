@@ -52,6 +52,14 @@ new-rewards popup) now render the badge for any title with a look (`hasTitlePlat
 (owner ruling 2026-09-28, pinned in titles.test.tsx). Spirit uses its own lantern copper text with a moss green rim
 and glow, since the Spirit token is copper, not green.
 
+## The 100 wins title (owner follow-up, same day)
+
+"Add a title for 100 wins called Ascenteerianologist." Not a secret: the existing visible achievement Warlord
+(`career.firsts.100`, finish 1st in 100 Ranked games, 900 XP) now carries `rewards.titleId = title_ascenteerianologist`
+(id, name and XP unchanged). The title is Ancient rarity (the highest crate look), `acquisition: achievement`, so never in a
+crate. `settle_progression` grants a catalog title only in the settlement that COMPLETES the achievement, so accounts that
+already completed Warlord get nothing automatically: they need the one-off backfill below (step 4 of "To go live").
+
 ## Left out (no reliable signal)
 
 - **Avenger** (15 Avenges in one combat): each Avenge factory decides its own threshold; no event or counter records a
@@ -78,6 +86,17 @@ and glow, since the Spirit token is copper, not green.
 1. Deploy `progression-inventory` and send it one request (the cosmetic catalog sync adds the 48 titles).
 2. Then deploy `submit-progression` (the achievement catalog sync adds the 48 defs; its sanitizer learns the metrics).
 3. Ship the client. Order matters: a completion that lands before the title row exists records no title.
+4. After steps 1 and 2, grant Ascenteerianologist to every account that ALREADY completed Warlord (`career.firsts.100`)
+   before it carried a title. Idempotent (keyed on the ownership row); pays no XP:
+
+```sql
+insert into public.player_cosmetics (user_id, cosmetic_id, source, source_id)
+select ac.user_id, 'title_ascenteerianologist', 'achievement', 'career.firsts.100'
+  from public.achievement_completions ac
+  join public.cosmetic_catalog c on c.cosmetic_id = 'title_ascenteerianologist' and c.category = 'title'
+  where ac.achievement_id = 'career.firsts.100'
+on conflict (user_id, cosmetic_id) do nothing;
+```
 
 If step 2 ran first, this one-off grants any missed title (idempotent):
 

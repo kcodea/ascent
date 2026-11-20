@@ -400,6 +400,12 @@ export const SECRET_TITLE_LOOKS: Readonly<Record<string, TitleLookKey>> = Object
   lodestars_light: 'celestial',
   astral_spellweaver: 'celestial',
 });
+/**
+ * THE 100 WINS TITLE (owner 2026-11-20: "add a title for 100 wins called Ascenteerianologist"). The reward for the visible
+ * `career.firsts.100` achievement (Warlord, finish 1st in 100 Ranked games). Not a secret: Ancient, the highest crate
+ * rarity's look, but never in a crate (an achievement reward). Permanent id.
+ */
+export const FIRSTS_100_TITLE_ID = 'title_ascenteerianologist';
 /** A secret title's catalog id, and the hidden achievement that grants it. Permanent. */
 export const secretTitleId = (key: string): string => `title_secret_${key}`;
 export const secretAchievementId = (key: string): string => `secret.${key}`;
@@ -1295,6 +1301,8 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze(withCollections([
   // HERO TITLES (owner 2026-09-29), 33 heroes x (title + golden master). Achievement rewards, never in a crate.
   ...HERO_TITLE_COSMETICS,
   // SECRET TITLES (owner 2026-11-20), one per hidden achievement. Never in a crate; hidden in the Collection until owned.
+  // The 100 wins title (owner 2026-11-20): Warlord's reward, visible, never in a crate.
+  { id: FIRSTS_100_TITLE_ID, category: 'title', name: 'Ascenteerianologist', rarity: 'ancient', acquisition: { type: 'achievement', id: 'career.firsts.100' }, assets: {}, active: true },
   ...SECRET_TITLE_COSMETICS,
 ]));
 

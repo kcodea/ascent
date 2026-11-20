@@ -429,7 +429,7 @@ describe('the hero titles migration (2026-09-29): a title at 3 Ranked 1sts with 
     // naming exactly the achievement that grants it.
     const synced = new Map(catalogSyncPayload().items.map((i) => [i.cosmeticId, i]));
     for (const a of ACHIEVEMENTS.filter((x) => x.rewards.titleId)) {
-      if (a.category === 'secret') {
+      if (a.category === 'secret' || a.id === 'career.firsts.100') {
         const row = synced.get(a.rewards.titleId!);
         expect(row && { category: row.category, acquisitionSource: row.acquisitionSource, achievementId: row.achievementId }, a.id).toEqual({ category: 'title', acquisitionSource: 'achievement', achievementId: a.id });
         continue;

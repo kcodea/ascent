@@ -46,6 +46,7 @@ describe('the batch 1 registry', () => {
       expect(Object.keys(a.rewards).sort()).toEqual(['titleId', 'xp']);
       if (a.family === 'hero.titled') expect(a.rewards.titleId, a.id).toBe(heroTitleId(a.heroId!));
       else if (a.category === 'secret') expect(a.rewards.titleId, a.id).toBe(secretTitleId(a.id.slice('secret.'.length)));
+      else if (a.id === 'career.firsts.100') expect(a.rewards.titleId, a.id).toBe('title_ascenteerianologist'); // owner 2026-11-20
       else if (a.family === 'hero.mastery') expect(a.rewards.titleId, a.id).toBe(heroMasterTitleId(a.heroId!));
       else expect(a.rewards.titleId, a.id).toBeNull();
       if (a.rewards.titleId) {
@@ -138,13 +139,13 @@ describe('the batch 1 registry', () => {
 describe('the 2026-10-03 150 (owner: "add 150 more achievements"; themes Tribes & cards, Heroes deeper, Combat feats, Long-term grind)', () => {
   const theme = (a: AchievementDef): string => (a.category === 'set2' ? 'tribes' : a.category === 'heroes' ? 'heroes' : a.category);
   // 156 since 2026-10-15: each re-enabled hero (Pete, Foreman Flint, Emissary, Underdweller, Membrance, Gorun) adds its Devoted tier (+6, +1,200 XP)
-  it('150 new (156 with the 2026-10-15 heroes), by theme: 38 / 48 / 36 / 34, 62,575 XP, XP only, never hidden', () => {
+  it('150 new (156 with the 2026-10-15 heroes), by theme: 38 / 48 / 36 / 34, 62,575 XP, XP only (Warlord gained the 100 wins title 2026-11-20), never hidden', () => {
     expect(ACHIEVEMENTS_150).toHaveLength(156);
     const by = ACHIEVEMENTS_150.reduce<Record<string, number>>((m, a) => ({ ...m, [theme(a)]: (m[theme(a)] ?? 0) + 1 }), {});
     expect(by).toEqual({ tribes: 38, heroes: 48, combat: 36, milestones: 34 });
     expect(ACHIEVEMENTS_150.reduce((s, a) => s + a.rewards.xp, 0)).toBe(62_575);
     for (const a of ACHIEVEMENTS_150) {
-      expect(a.rewards.titleId, a.id).toBeNull();
+      expect(a.rewards.titleId, a.id).toBe(a.id === 'career.firsts.100' ? 'title_ascenteerianologist' : null); // owner 2026-11-20: the 100 wins title
       expect(a.hidden, a.id).toBe(false);
       expect(ACHIEVEMENTS, a.id).toContain(a);
     }

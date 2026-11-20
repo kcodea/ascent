@@ -37,7 +37,7 @@
  * supabase/functions/_shared/progressionAchievements.ts by `npm run progression:shared`.
  */
 import type { ProgressionMode } from './progressionRules.ts';
-import { PLUSHIE_BEASTS_COLLECTION_ID, PLUSHIE_PLATE_ID, SECRET_TITLE_NAMES, collectionMembers, heroMasterTitleId, heroTitleId, secretAchievementId, secretTitleId } from './progressionCosmetics.ts';
+import { FIRSTS_100_TITLE_ID, PLUSHIE_BEASTS_COLLECTION_ID, PLUSHIE_PLATE_ID, SECRET_TITLE_NAMES, collectionMembers, heroMasterTitleId, heroTitleId, secretAchievementId, secretTitleId } from './progressionCosmetics.ts';
 
 // ── Metrics ──────────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -679,6 +679,8 @@ const MILESTONES: AchievementDef[] = [
   })),
   ...([[50, 'Champion', 500], [100, 'Warlord', 900], [250, 'Undying Legend', 1500]] as const).map(([n, name, xp]) => ms({
     id: `career.firsts.${n}`, family: 'career.firsts', name, requirement: `Finish 1st in ${n0(n)} Ranked games.`, mode: 'ranked', metric: 'game', agg: 'sum', placementMax: 1, target: n, xp, trust: 'S',
+    // Owner 2026-11-20: "add a title for 100 wins called Ascenteerianologist". A visible title reward on Warlord.
+    ...(n === 100 ? { titleId: FIRSTS_100_TITLE_ID } : {}),
   })),
   ...([[5000, 'Big Spender', 200], [25000, 'Tycoon', 500], [100000, 'Golden Age', 1000]] as const).map(([n, name, xp]) => ms({
     id: `economy.spend_lifetime_${n}`, family: 'economy.spend_lifetime', name, requirement: `Spend ${n0(n)} Gold across all your games.`, mode: 'any', metric: 'goldSpent', agg: 'sum', target: n, xp,

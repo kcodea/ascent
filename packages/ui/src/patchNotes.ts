@@ -69,6 +69,7 @@ export const PATCH_NOTES: PatchNote[] = [
           'Each Secret title has its own colours and a little motion, themed on the tribe or feat that earns it.',
         ],
       },
+      { category: 'Systems', text: 'Finishing 1st in 100 Ranked games (the Warlord achievement) now also grants the Ascenteerianologist title. Players who already have it get the title too.' },
       { category: 'Systems', text: 'Hovering the Runeforge Re-roll button no longer pops up a stray gold block.' },
       { category: 'Systems', text: 'Hero power Discovers (Power Shifter, Mimic, Void) now show each power as your Ancient changes it, and results, scouting and the foe power tip show the power a player held at the time, not their starting one.' },
       { category: 'Systems', text: 'The Live Games tab now glows green while ranked games are being played, and shows how many are playing.' },

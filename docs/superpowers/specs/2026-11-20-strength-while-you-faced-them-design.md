@@ -120,6 +120,11 @@ Final number (Mike chose the first):
 - **Feature detection**, as the earlier strength SQL did: before the SQL is applied the rows carry no scores, the
   opponent's recap number is simply absent, and nothing else changes.
 
+**As planned (2026-11-20):** the scores ride INSIDE each board's JSON (`poolScore`, `poolCarried`), not as a new
+RPC column, so the RPC signatures and the Worker mirror (which holds boards as opaque text) need no code change. The
+run `rev` gets a salt so every client cache and the mirror re-fetch once. See the plan
+`docs/superpowers/plans/2026-11-20-relevant-strength.md`.
+
 ### 5.5 At game end
 
 - When the Match details record is built (`store.ts`, beside `runStrengthFromScores`), for each recorded opponent seat:

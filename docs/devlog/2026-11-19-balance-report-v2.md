@@ -46,3 +46,12 @@ thin for a long time; the Ancient-level rows fill much faster.
   every sale with its wave, per-offer counts for runes and quests, the hero re-rolled away. New **Pick rates** tab: each
   item's take rate per offer against its peer group (same tier / forge / quest tier / all heroes / all Ancients / the
   hero's pairings), pooled without the item, gated at 20 offers, with a Wilson range.
+- *"We need the ability to filter data by date ranges."* What existed: a UTC-calendar-day From / To filter applied
+  client-side after downloading every row (up to the 5,000 cap); every view already read the scoped rows. Now one
+  remembered `DateRange` (`packages/ui/src/balance/dateRange.ts`: Last 24 hours / 3 / 7 / 30 days, All time, Since a
+  patch built from `PATCH_NOTES` ship dates, custom From / To) maps local days to UTC instants (From = local midnight,
+  To = the NEXT local midnight, exclusive) and filters ON THE SERVER (`created_at >= from AND < to`), so a narrow window
+  downloads only its rows and the cap counts rows in range (the header says plainly when a range hits it). The same
+  bounds go into `ReportScope.fromIso` / `toIso`, so every view, the detailed tables and the export read identical rows.
+  A range reads every content revision inside it unless an epoch is picked by hand. The header shows "Last 7 days ·
+  145 runs from Nov 12 to Nov 15" with a reset.

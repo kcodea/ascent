@@ -1,10 +1,10 @@
 /* THE AT-A-GLANCE BALANCE REPORT (owner ask 2026-11-19). The party-home navy + gold look: navy plates, gold hairlines,
    one green and one red for the two directions. No looping animation; no cursor rules (the global gauntlet paints it). */
-.bov {
+.balpage, .bov {
   --bov-gold: #c8953f; --bov-gold-hi: #ffe9b0; --bov-hair: rgba(200, 149, 63, 0.42); --bov-navy: #0d1a36; --bov-navy2: #13244a;
   --bov-text: #fff6ea; --bov-muted: #aebddb; --bov-pos: #5fd38a; --bov-neg: #ff7a86; --bov-warn: #ffc86b;
-  width: min(1480px, 100%); display: flex; flex-direction: column; gap: 14px; color: var(--bov-text); font-family: var(--font-ui), sans-serif;
 }
+.bov { width: min(1480px, 100%); display: flex; flex-direction: column; gap: 14px; color: var(--bov-text); font-family: var(--font-ui), sans-serif; }
 .bov .pos { color: var(--bov-pos); }
 .bov .neg { color: var(--bov-neg); }
 .bov .warn { color: var(--bov-warn); }
@@ -177,3 +177,14 @@ html .balpage { z-index: 495; background: radial-gradient(120% 60% at 50% 0%, rg
 .bov-tab { font-family: var(--font-title, 'Outfit'), sans-serif; font-weight: 800; font-size: 14px; letter-spacing: 0.03em; color: #aebddb; background: linear-gradient(180deg, #13244a, #0d1a36);
   border: 1px solid rgba(200, 149, 63, 0.42); border-radius: 9px; padding: 7px 14px; }
 .bov-tab.on { color: #1a1206; background: linear-gradient(180deg, #fff1b8 0%, #f6cf5a 38%, #d9a12c 100%); border-color: #ffe9b0; }
+
+/* THE DATE RANGE BAR (2026-11-19): presets, Since a patch, custom From / To, then the active range and its run count. */
+.balrange { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px; max-width: calc(var(--lvw, 1920px) - 360px); }
+.balrange .balpick { color-scheme: dark; }
+.balrange .balsince { max-width: 340px; }
+.balrange .balsince.on, .balcustom.on .baldate { border-color: var(--bov-gold-hi); color: var(--bov-gold-hi); }
+.balcustom { display: inline-flex; gap: 6px; align-items: center; padding: 2px 6px; border-radius: 9px; }
+.balcustom.on { box-shadow: inset 0 0 0 1px var(--bov-gold); }
+.balrange-now { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px 12px; font-size: 13px; color: var(--bov-muted); font-weight: 700; }
+.balrange-now b { color: var(--bov-gold-hi); font-size: 15px; font-weight: 900; }
+.balrange-now span:nth-of-type(1) { color: var(--bov-text); }

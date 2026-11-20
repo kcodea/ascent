@@ -886,17 +886,25 @@ export const BALANCE_FLAT_PAGE = 1000;
  *  afterwards, by id, for the rows the report actually reads (`fetchRunDerived`). Best-effort + time-boxed;
  *  no rows on any failure / no backend / un-migrated table. The set / ladder filtering happens in `@game/sim`'s
  *  `applyReportFilters`, on the caller's side, so the export and the screen share one path. */
-export async function fetchRunTelemetry(opts: { cap?: number; pageSize?: number } = {}): Promise<RunTelemetryFetch> {
+export async function fetchRunTelemetry(opts: { cap?: number; pageSize?: number; fromIso?: string | null; toIso?: string | null } = {}): Promise<RunTelemetryFetch> {
   const cap = opts.cap ?? BALANCE_FLAT_CAP;
   const pageSize = Math.min(opts.pageSize ?? BALANCE_FLAT_PAGE, cap);
   const empty: RunTelemetryFetch = { rows: [], fetched: 0, truncated: false, cap, pageSize, playerKeyBasis: 'displayName' };
   const c = await sessionClient();
   if (!c) return empty;
   try {
-    const query = (select: string, from: number) => Promise.race([
-      Promise.resolve(c.from('run_telemetry').select(select).order('created_at', { ascending: false }).range(from, from + pageSize - 1)),
+    // THE DATE RANGE (2026-11-19) filters ON THE SERVER: `created_at >= fromIso` and `< toIso` (exclusive), so a narrow
+    // window downloads only its own rows (Free-plan egress) and the cap counts rows in range, not rows overall.
+    const query = (select: string, from: number) => {
+      // rows: paged by the .range(from, from + pageSize - 1) below, pageSize <= BALANCE_FLAT_PAGE (1000), until a short page or the cap.
+      let q = c.from('run_telemetry').select(select);
+      if (opts.fromIso) q = q.gte('created_at', opts.fromIso);
+      if (opts.toIso) q = q.lt('created_at', opts.toIso);
+      return Promise.race([
+      Promise.resolve(q.order('created_at', { ascending: false }).range(from, from + pageSize - 1)),
       balanceTimeout(BALANCE_FLAT_TIMEOUT_MS),
     ]);
+    };
     // Walk the ladder on the FIRST page: a query ERROR (an unknown column on this backend) tries the next,
     // plainer select; a timeout or a clean answer ends the walk. Later pages reuse the select that answered.
     let result: Awaited<ReturnType<typeof query>> = null;

@@ -12,6 +12,7 @@ import { sfx } from './sfx';
 import { useGame } from './store';
 import { fetchRunDerived, fetchRunTelemetry, remoteEnabled, BALANCE_FLAT_CAP, BALANCE_FLAT_PAGE } from './remoteBoards';
 import { BalanceOverview, type OverviewView } from './balance/BalanceOverview';
+import { ALL_TIME, PRESETS, loadRange, patchMarkers, rangeBounds, rangeLabel, saveRange, shortDay, type DateRange } from './balance/dateRange';
 
 /**
  * Balance Report (owner request 2026-07-13) — the REAL-PLAYER balance report, opened from the home screen. It
@@ -588,7 +589,7 @@ function EvidenceBanner({ setName, runs, sliced, quality, coverage, scope, epoch
   fetch: FetchState; derivedCap: number; derivedLoading: boolean; prolific: { key: string; runs: number } | null; oldest: string | null; newest: string | null;
 }) {
   const epochLabel = scope.epoch === ALL_EPOCHS ? `all ${epochs.length} content revisions (historical)` : `content revision ${scope.epoch} (1 of ${epochs.length} in the set)`;
-  const windowLabel = scope.from || scope.to ? `window ${scope.from ?? 'oldest'} to ${scope.to ?? 'newest'}` : 'no date window';
+  const windowLabel = scope.fromIso || scope.toIso ? `window ${scope.fromIso ? new Date(scope.fromIso).toLocaleString() : 'oldest'} to ${scope.toIso ? new Date(scope.toIso).toLocaleString() : 'now'}` : 'no date window';
   const proxy = fetch.playerKeyBasis === 'displayName';
   const players = coverage.uniquePlayers === null ? 'n/a players' : `${coverage.uniquePlayers} ${proxy ? 'display names' : 'players'}`;
   const derivedDropped = fetch.derivedRequested - fetch.derivedFetched;
@@ -669,8 +670,16 @@ export function BalancePanel() {
   // THE SCOPE (A4): the balance epoch (null = the default, decided from the data), the date window, the thin-
   // epoch override, and the sensitivity toggle. Data filters: the export follows them.
   const [epochPick, setEpochPick] = useState<string | null>(null);
-  const [from, setFrom] = useState<string>('');
-  const [to, setTo] = useState<string>('');
+  // THE DATE RANGE (owner ask 2026-11-19): one value, remembered per browser, filtering the server fetch, every view,
+  // the detailed tables and the export identically. Rolling presets are pinned to `rangeNow`, the moment of the load,
+  // so the screen and the export agree until the next Refresh.
+  const [range, setRangeState] = useState<DateRange>(() => loadRange());
+  const [rangeNow, setRangeNow] = useState(() => Date.now());
+  const bounds = useMemo(() => rangeBounds(range, new Date(rangeNow)), [range, rangeNow]);
+  const [customFrom, setCustomFrom] = useState(() => (range.kind === 'custom' ? range.from : ''));
+  const [customTo, setCustomTo] = useState(() => (range.kind === 'custom' ? range.to : ''));
+  const markers = useMemo(() => patchMarkers(), []);
+  const setRange = (r: DateRange): void => { sfx.tick(); setRangeState(r); saveRange(r); setRangeNow(Date.now()); };
   const [showThin, setShowThin] = useState(false);
   // THE REGIME + BUILD FILTERS (2026-10-03): '' = every regime / build.
   const [regimePick, setRegimePick] = useState<string>('');
@@ -686,7 +695,7 @@ export function BalancePanel() {
     setLoading(true);
     setDerivedLoading(false);
     void (async () => {
-      const flat = await fetchRunTelemetry();
+      const flat = await fetchRunTelemetry({ fromIso: bounds.fromIso, toIso: bounds.toIso });
       if (seq !== loadSeq.current) return;
       setRows(flat.rows);
       setFetchState({ flatFetched: flat.fetched, flatTruncated: flat.truncated, derivedRequested: 0, derivedFetched: 0, playerKeyBasis: flat.playerKeyBasis });
@@ -704,7 +713,8 @@ export function BalancePanel() {
       setDerivedLoading(false);
     })();
   };
-  useEffect(() => { if (show) load(); }, [show]);
+  // A new range refetches (the server does the filtering); so does reopening.
+  useEffect(() => { if (show) load(); }, [show, bounds.fromIso, bounds.toIso]);
 
   // THE DATA FILTERS: ladder rows only, the active set only (a row with no set stamp is set 1, never the
   // live set), then the epoch and window scope. Pure functions in @game/sim, shared with the export.
@@ -712,11 +722,14 @@ export function BalancePanel() {
   const buildRev = contentRevision();
   const filtered = useMemo(() => applyReportFilters(rows, set.id), [rows, set.id]);
   const epochs = useMemo(() => epochsOf(filtered.rows), [filtered]);
-  const epoch = epochPick ?? defaultEpoch(epochs, buildRev);
-  const scope = useMemo((): ReportScope => ({ epoch, from: from || null, to: to || null, regime: regimePick || null, build: buildPick || null }), [epoch, from, to, regimePick, buildPick]);
+  // A date range reads every content revision inside it unless an epoch was picked by hand: "last 7 days" means the
+  // runs of the last 7 days, not the slice of them played on this build's revision.
+  const ranged = range.kind !== 'preset' || range.preset !== 'all';
+  const epoch = epochPick ?? (ranged ? ALL_EPOCHS : defaultEpoch(epochs, buildRev));
+  const scope = useMemo((): ReportScope => ({ epoch, from: null, to: null, fromIso: bounds.fromIso, toIso: bounds.toIso, regime: regimePick || null, build: buildPick || null }), [epoch, bounds, regimePick, buildPick]);
   // The picker options read the epoch + window slice WITHOUT the regime / build filters, so a choice never hides
   // the others.
-  const pickerRows = useMemo(() => scopeReport(filtered, { epoch, from: from || null, to: to || null }).rows, [filtered, epoch, from, to]);
+  const pickerRows = useMemo(() => scopeReport(filtered, { epoch, from: null, to: null, fromIso: bounds.fromIso, toIso: bounds.toIso }).rows, [filtered, epoch, bounds]);
   const regimes = useMemo(() => regimesOf(pickerRows), [pickerRows]);
   const builds = useMemo(() => buildsOf(pickerRows), [pickerRows]);
   const scoped = useMemo(() => scopeReport(filtered, scope), [filtered, scope]);
@@ -863,12 +876,32 @@ export function BalancePanel() {
               <option value="">All builds ({builds.length})</option>
               {builds.map((b) => <option key={b.build} value={b.build}>{b.build} ({b.runs} {b.runs === 1 ? 'run' : 'runs'}, {day(b.newest)})</option>)}
             </select>
-            <label className="ballabel">from <input className="balpick baldate" type="date" value={from} onChange={(e) => setFrom(e.target.value)} aria-label="Window start" /></label>
-            <label className="ballabel">to <input className="balpick baldate" type="date" value={to} onChange={(e) => setTo(e.target.value)} aria-label="Window end" /></label>
             <button className={`balchip${excludeProlific ? ' on' : ''}`} disabled={!prolific} onClick={() => { sfx.tick(); setExcludeProlific((v) => !v); }}
               data-tip={prolific ? `Sensitivity view: leave out the ${prolific.runs} runs of the most prolific player${fetchState.playerKeyBasis === 'displayName' ? ' (by display name, a proxy on this backend)' : ''}. If a conclusion reverses, it rested on one player.` : 'No player to exclude yet'}>
               {excludeProlific ? 'Prolific player excluded' : 'Exclude most prolific player'}
             </button>
+          </div>
+          {/* THE DATE RANGE (2026-11-19): presets, Since a patch, custom From / To, the active range with its run count. */}
+          <div className="balrange" role="group" aria-label="Date range">
+            {PRESETS.map((pr) => (
+              <button key={pr.preset} type="button" className={`bov-chip${range.kind === 'preset' && range.preset === pr.preset ? ' on' : ''}`} onClick={() => setRange({ kind: 'preset', preset: pr.preset })}>{pr.label}</button>
+            ))}
+            <select className={`balpick balsince${range.kind === 'since' ? ' on' : ''}`} aria-label="Since a patch" value={range.kind === 'since' ? range.day : ''}
+              onChange={(e) => { const m = markers.find((x) => x.day === e.target.value); if (m) setRange({ kind: 'since', day: m.day, label: m.label }); }}>
+              <option value="">Since a patch…</option>
+              {markers.map((m) => <option key={m.day} value={m.day}>{shortDay(new Date(`${m.day}T00:00:00`))}: {m.label}</option>)}
+            </select>
+            <span className={`balcustom${range.kind === 'custom' ? ' on' : ''}`}>
+              <label className="ballabel">From <input className="balpick baldate" type="date" value={customFrom} onChange={(e) => { setCustomFrom(e.target.value); if (e.target.value || customTo) setRange({ kind: 'custom', from: e.target.value, to: customTo }); }} aria-label="From day (inclusive, local time)" /></label>
+              <label className="ballabel">To <input className="balpick baldate" type="date" value={customTo} onChange={(e) => { setCustomTo(e.target.value); if (e.target.value || customFrom) setRange({ kind: 'custom', from: customFrom, to: e.target.value }); }} aria-label="To day (inclusive, local time)" /></label>
+            </span>
+          </div>
+          <div className="balrange-now" role="status">
+            <b>{rangeLabel(range)}</b>
+            <span>{loading ? 'loading…' : `${scoped.rows.length.toLocaleString()} runs${dates.oldest ? ` from ${shortDay(new Date(dates.oldest))} to ${shortDay(new Date(dates.newest!))}` : ''}`}</span>
+            {ranged && epochPick == null && <span className="baldim">every content revision in the range</span>}
+            {fetchState.flatTruncated && <span className="balwarn">This range hit the {BALANCE_FLAT_CAP.toLocaleString()}-row cap: only the newest {fetchState.flatFetched.toLocaleString()} runs are read. Narrow the range to read all of it.</span>}
+            {ranged && <button type="button" className="balchip" onClick={() => { setCustomFrom(''); setCustomTo(''); setRange(ALL_TIME); }}>Reset to all time</button>}
           </div>
           {counts.unstamped > 0 && set.id !== LEGACY_SET && (
             <div className="balsub balwarn">
@@ -890,7 +923,7 @@ export function BalancePanel() {
           </div>
         ) : insufficient ? (
           <div className="balempty">
-            <b>Insufficient current data.</b> {scoped.rows.length} of {filtered.rows.length} {set.name} runs were played on {scope.epoch === buildRev ? 'this build\'s content revision' : 'content revision'} {scope.epoch}{scope.from || scope.to ? ' inside the window' : ''}; a revision needs {EPOCH_MIN_RUNS} to be read on its own.
+            <b>Insufficient current data.</b> {scoped.rows.length} of {filtered.rows.length} {set.name} runs were played on {scope.epoch === buildRev ? 'this build\'s content revision' : 'content revision'} {scope.epoch}{scope.fromIso || scope.toIso ? ' inside the date range' : ''}; a revision needs {EPOCH_MIN_RUNS} to be read on its own.
             Older revisions are not pooled in on their own: choose it.
             <div className="balseg-row">
               <button className="balrun" onClick={() => { sfx.pulse(); setEpochPick(ALL_EPOCHS); }} data-tip={`Read every revision together (${filtered.rows.length} runs across ${epochs.length}). Cards, heroes and runes may have changed between them; the tables then show mixed versions under current names and tiers.`}>Include historical ({filtered.rows.length} runs)</button>

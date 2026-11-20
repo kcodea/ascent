@@ -149,7 +149,9 @@ export function applyReportFilters<T extends RunTelemetryRow>(rows: T[], setId: 
 export function scopeReport<T extends RunTelemetryRow>(filtered: FilteredReport<T>, scope: ReportScope): FilteredReport<T> {
   const rows = filtered.rows.filter((r) => inScope(r, scope));
   const epochWords = scope.epoch === ALL_EPOCHS ? 'every content revision (the historical read, chosen explicitly)' : `content revision ${scope.epoch} only`;
-  const windowWords = scope.from || scope.to ? `runs dated ${scope.from ?? 'the oldest'} to ${scope.to ?? 'the newest'}` : 'no date window';
+  const windowWords = scope.fromIso || scope.toIso
+    ? `runs created from ${scope.fromIso ?? 'the oldest'} (inclusive) to ${scope.toIso ?? 'now'} (exclusive), UTC instants`
+    : scope.from || scope.to ? `runs dated ${scope.from ?? 'the oldest'} to ${scope.to ?? 'the newest'}` : 'no date window';
   const regimeWords = scope.regime ? `matchmaking regime: ${scope.regime} only (stamped or inferred, see runs[].regime.basis)` : 'every matchmaking regime';
   const buildWords = scope.build ? `client build ${scope.build} only` : 'every client build';
   return {

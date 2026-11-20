@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-11-20',
     changes: [
+      { category: 'Systems', text: 'Hovering the Runeforge Re-roll button no longer pops up a stray gold block.' },
       { category: 'Systems', text: 'The Live Games tab now glows green while ranked games are being played, and shows how many are playing.' },
       { category: 'Balance', text: 'Rank crests no longer carry a separate division number pill; the division still shows in the rank name.' },
     ],

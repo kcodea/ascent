@@ -40,7 +40,7 @@ import { skinArtOf } from '../skins/skins';
 import { MatchDetailsDialog, MatchScoreboard, seatTitle } from './MatchScoreboard';
 import { LobbyTiles } from './LobbyPicker';
 import { resetHallKeysForTests } from './hallKeys';
-import { RELEVANT_STRENGTH_TIP, RUN_STRENGTH_TIP, NO_DETAILS_TEXT, seatStrengthParts, boardCaption, defaultSeatId, placeLabel, statusText, summaryText, youWon } from './matchDetailsText';
+import { RELEVANT_STRENGTH_TIP, RUN_STRENGTH_TIP, NO_DETAILS_TEXT, seatStrengthParts, headerStrengthFacts, boardCaption, defaultSeatId, placeLabel, statusText, summaryText, youWon } from './matchDetailsText';
 
 const seat = (over: Partial<MatchSeat> & { id: string }): MatchSeat => ({
   name: over.id, heroId: 'warden', health: 0, armor: 0, board: { round: 11, tier: 4, minions: [{ cardId: 'pack', attack: 3, health: 3 }] }, ...over,
@@ -179,6 +179,13 @@ describe('Relevant Strength and Run Strength (R-RESULTS-STRENGTH-WINDOW-01)', ()
     expect(seatStrengthParts({ strength: 40, windowStrength: 90 }, {})).toEqual({ relevant: null, run: 40 });
   });
 
+  it('headerStrengthFacts: Relevant then Run on a new scored record, Run only when the self seat is unscored', () => {
+    expect(headerStrengthFacts(NEW, 40).map((f) => [f.label, f.value])).toEqual([['Relevant Strength', 61], ['Run Strength', 40]]);
+    const unscored: MatchDetails = { ...NEW, seats: NEW.seats.map((x) => (x.self ? { ...x, windowStrength: undefined } : x)) };
+    expect(headerStrengthFacts(unscored, 40).map((f) => [f.label, f.value])).toEqual([['Run Strength', 40]]);
+    expect(headerStrengthFacts(OLD, 40).map((f) => f.label)).toEqual(['Run Strength']);
+  });
+
   it('a seat shows both numbers, Relevant first (scoreboard row and tile hover text)', () => {
     ui = mount(<MatchScoreboard details={NEW} own />);
     const row = ui.container.querySelector('.mds-row[data-seat="s2"]')!;
@@ -188,7 +195,10 @@ describe('Relevant Strength and Run Strength (R-RESULTS-STRENGTH-WINDOW-01)', ()
     ui.unmount();
     ui = mount(<LobbyTiles details={NEW} selectedId={null} onPick={() => {}} own />);
     const tile = ui.container.querySelector('.lp-tile[data-seat="s2"]')!;
-    expect(tile.querySelector('.lp-tile-strength')?.textContent).toBe('Relevant Strength 90 · Run Strength 40');
+    // Two stacked line elements, Relevant first, so neither can spill over the neighbouring tile.
+    const lines = [...tile.querySelectorAll('.lp-tile-strength > span')];
+    expect(lines.map((l) => l.textContent)).toEqual(['Relevant Strength 90', 'Run Strength 40']);
+    expect(lines.map((l) => l.className)).toEqual(['lp-ts-rel', 'lp-ts-run']);
     expect(tile.getAttribute('aria-label')).toMatch(/Relevant Strength 90\. Run Strength 40\./);
   });
 

@@ -381,7 +381,8 @@ html[data-touch-small] .rgp-spark { padding-left: calc(56 * var(--phu)); }
 .rgp .runtrophy-tip { --atip-title-size: var(--ph-t1); --atip-body-size: var(--ph-t1); --atip-pill-size: var(--ph-t1); --atip-k: 1; }
 .rgp .rgp-scope { font-size: var(--ph-t2); color: var(--ph-muted); white-space: nowrap; text-shadow: var(--ph-shadow); }
 .rgp-duos .gc.gc-detail .gc-record, .rgp-duos .gc.gc-detail .gc-record > * { font-size: var(--ph-t2); }
-.rgp .lp-tile .lp-tile-strength b { font-size: var(--ph-t3); }
+.rgp .lp-tile .lp-tile-strength .lp-ts-rel b { font-size: min(var(--ph-t3), 9.7cqi); }
+.rgp .lp-tile .lp-tile-strength .lp-ts-run b { font-size: min(var(--ph-t2), 7.2cqi); }
 
 /* The page's arrival: invisible until its first frame is drawn, then one soft fade (compositor-only opacity). */
 /* THE GATE IS RECENT GAMES' OWN (`.phc-pg` is the Career, which shares `.rgp` for the list and detail and has its own arrival;

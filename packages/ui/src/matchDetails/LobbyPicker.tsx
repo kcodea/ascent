@@ -178,7 +178,7 @@ export const LobbyTiles = memo(function LobbyTiles({ details, selectedId, onPick
               {seat.id === details.knockedOutBy && <span className="lp-ko" aria-hidden="true"><Icon name="sword" /></span>}
             </span>
             <MiniBoard minions={minions} />
-            {/* Hover darkens the tile and prints "Relevant Strength 90 · Run Strength 40" over it (owner 2026-11-03: the tip
+            {/* Hover darkens the tile and prints Relevant Strength 90 over Run Strength 40 (two stacked lines) over it (owner 2026-11-03: the tip
                 bubble under the tile was unnecessary; two named numbers since 2026-11-20). Relevant is first and larger.
                 A part the seat lacks is omitted; a seat with neither shows nothing. */}
             {(() => {
@@ -187,7 +187,6 @@ export const LobbyTiles = memo(function LobbyTiles({ details, selectedId, onPick
               return (
                 <span className="lp-tile-strength" aria-hidden="true">
                   {p.relevant !== null && <span className="lp-ts-rel">{RELEVANT_STRENGTH_LABEL} <b>{p.relevant}</b></span>}
-                  {p.relevant !== null && p.run !== null && <span className="lp-ts-dot">{' · '}</span>}
                   {p.run !== null && <span className="lp-ts-run">{RUN_STRENGTH_LABEL} <b>{p.run}</b></span>}
                 </span>
               );

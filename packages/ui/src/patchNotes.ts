@@ -59,6 +59,7 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-11-20',
     changes: [
       { category: 'Systems', text: 'Hovering the Runeforge Re-roll button no longer pops up a stray gold block.' },
+      { category: 'Systems', text: 'Hero power Discovers (Power Shifter, Mimic, Void) now show each power as your Ancient changes it, and results, scouting and the foe power tip show the power a player held at the time, not their starting one.' },
       { category: 'Systems', text: 'The Live Games tab now glows green while ranked games are being played, and shows how many are playing.' },
       { category: 'Balance', text: 'Rank crests no longer carry a separate division number pill; the division still shows in the rank name.' },
       { category: 'Systems', text: 'You can now open the Compendium from hero select. Press C or use the View Compendium button under the heroes.' },

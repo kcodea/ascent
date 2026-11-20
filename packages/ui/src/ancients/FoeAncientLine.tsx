@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import { ANCIENTS, ancientOfferText, type BoardSnapshot } from '@game/sim';
+import { ANCIENTS, HERO_INDEX, ancientOfferText, type BoardSnapshot } from '@game/sim';
 import { mdBold } from '../Card';
 import { ancientTextColor, ancientVars } from './ancientsConfig';
 import './ancients.css';
@@ -11,6 +11,18 @@ import './ancients.css';
  * another player's run, so there is no live number to fold in. Renders nothing for a board with no Ancient (no pick yet,
  * or a capture from before the field existed).
  */
+/**
+ * THE POWER A SEAT HELD, not the hero it started as (owner report 2026-11-20: a Lucky Seat who Power Shifted into Aegis
+ * showed "Lucky Seat" beside an Ancient of Death line about Aegis). The captured Ancient names the hero whose pairing is
+ * in play, which is the slot-0 power the seat held at capture (`ancientPairingHeroId`): Warden for an adopted Aegis.
+ * So a seat with a picked Ancient shows THAT power, and its Ancient line always matches it. Without an Ancient the
+ * record carries only the starting hero, so the starting power is shown (an adopted power with no Ancient picked is
+ * not captured). An unknown id falls back to the starting hero.
+ */
+export function heldPowerHeroId(heroId: string, ancient: BoardSnapshot['ancient'] | null | undefined): string {
+  return ancient && ANCIENTS[ancient.id] && HERO_INDEX[ancient.heroId] ? ancient.heroId : heroId;
+}
+
 export function FoeAncientLine({ ancient, className }: { ancient: BoardSnapshot['ancient'] | undefined; className?: string }) {
   const def = ancient ? ANCIENTS[ancient.id] : undefined;
   if (!ancient || !def) return null;

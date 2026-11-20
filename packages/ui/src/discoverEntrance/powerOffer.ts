@@ -1,4 +1,4 @@
-import { activePowers, getHero, heroPowerCostOf, heroPowerLockTurns, heroPowerText, reduce, type HeroPower, type RunState } from '@game/sim';
+import { ANCIENTS, activeAncientPairing, activePowers, getHero, heroPowerCostOf, heroPowerLockTurns, heroPowerText, reduce, type AncientId, type HeroPower, type RunState } from '@game/sim';
 import { heroPowerArt } from '../art';
 import type { CardView } from '../Card';
 
@@ -23,6 +23,9 @@ export interface PowerPickPreview {
   cost: number;
   /** "Passive" / "Active · once per turn" / "Active · once per game" / "Active · already used" / … */
   usage: string;
+  /** The picked Ancient whose pairing rewrites this power once it lands (slot 0 only, the slot a pairing reads).
+   *  Absent = no Ancient yet, or none written for this power: the card stays the base power. */
+  ancient?: AncientId;
 }
 
 function usesPerGame(n: number): string {
@@ -64,11 +67,15 @@ export function previewPowerPick(run: RunState, index: number): PowerPickPreview
   const power = activePowers(next)[slot];
   if (!power) return undefined;
   const uses = (slot === 0 ? next.heroPowerUses : next.heroPowerUses2) ?? 0;
+  // ANCIENTS (owner ask 2026-11-20): the offer shows the power as the picked Ancient rewrites it. The text already
+  // comes Ancient-ified from `heroPowerText` on the picked run; this is the "(Death)" tag the hero panel adds.
+  const ancient = slot === 0 && activeAncientPairing(next) ? next.ancients?.picked : undefined;
   return {
     power,
     text: heroPowerText(next, slot),
     cost: heroPowerCostOf(power, next, uses),
     usage: powerUsage(power, next, slot),
+    ...(ancient ? { ancient } : {}),
   };
 }
 
@@ -83,8 +90,10 @@ export function previewPowerPick(run: RunState, index: number): PowerPickPreview
 export function powerCardView(heroId: string, preview?: PowerPickPreview): CardView {
   const h = getHero(heroId);
   const power = preview?.power ?? h.power;
+  // "Aegis (Death)": the same tag the hero panel prints beside a power the Ancient has rewritten.
+  const name = preview?.ancient ? `${power.name} (${ANCIENTS[preview.ancient].name.replace(/^Ancient of /, '')})` : power.name;
   return {
-    name: power.name, cardId: `heropower:${heroId}`, artUrl: heroPowerArt(heroId),
+    name, cardId: `heropower:${heroId}`, artUrl: heroPowerArt(heroId),
     tribe: 'neutral', attack: 0, health: 0, keywords: [],
     text: preview ? `**${preview.usage}.** ${preview.text}` : h.power.text,
     spell: true, heroPowerOf: h.name,

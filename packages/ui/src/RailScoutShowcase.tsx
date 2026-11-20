@@ -5,7 +5,7 @@ import { mdBold } from './Card';
 import { heroPowerFacts } from './HeroInspectCard';
 import { ArmorMedal, HealthMedal } from './menuIcons';
 import { AncientSplitStatic } from './ancients/AncientMeter';
-import { FoeAncientLine } from './ancients/FoeAncientLine';
+import { FoeAncientLine, heldPowerHeroId } from './ancients/FoeAncientLine';
 import { ancientVars } from './ancients/ancientsConfig';
 import './railScoutShowcase.css';
 
@@ -36,8 +36,10 @@ export const RailScoutShowcase = memo(function RailScoutShowcase({ name, heroId,
   children?: ReactNode;
 }): JSX.Element {
   const hero = getHero(heroId);
-  const power = hero?.power;
-  const pw = heroPowerArt(heroId);
+  // The power the seat holds now (an adopted Power Shifter power), the one its Ancient line describes.
+  const powerId = heldPowerHeroId(heroId, ancient);
+  const power = getHero(powerId)?.power;
+  const pw = heroPowerArt(powerId);
   const anc = ancient && ANCIENTS[ancient.id] ? ancient : undefined;
   const art = heroThumb(portrait);
   return (

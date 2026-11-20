@@ -21,6 +21,7 @@ language sql stable set search_path = public as $$
                              and jsonb_typeof(x.strength_carried -> 'rounds') = 'object'
                         then jsonb_build_object('ref', x.strength_carried ->> 'ref', 'rounds', x.strength_carried -> 'rounds') end))
 $$;
+revoke execute on function public.pool_board__json(public.boards) from public, anon;
 grant execute on function public.pool_board__json(public.boards) to authenticated, service_role;
 
 -- The ONE run-rev definition (2026-11-08-pool-runs-delta.sql; the change: the 'scores1|' salt). pool_runs_boards below

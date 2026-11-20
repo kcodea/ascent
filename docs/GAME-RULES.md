@@ -121,7 +121,7 @@ medal + division — see *Ranked ladder* below).
     R-RESULTS-STRENGTH-WINDOW-01; `docs/superpowers/specs/2026-11-20-strength-while-you-faced-them-design.md`). A game's
     recap shows TWO named numbers per seat. **Relevant Strength** (`MatchSeat.windowStrength`, 1-100) is how strong that
     seat's board was across only the rounds YOU played it, the round-weighted mean of its per-round board percentiles
-    (`roundStrength`, frozen into the match record for every seat, not only yours). It is the headline: shown first and
+    (`roundStrength`, frozen into the match record for your seat and for recorded opponents whose boards were scored; generated and bot seats carry no per-round numbers, so they show neither number, and usually no Run Strength either). It is the headline: shown first and
     larger. **Run Strength** (`MatchSeat.strength`, the number this section called "Game strength" above) is the seat's
     whole-run percentile among runs, shown second and smaller. Format: `Relevant Strength 90 · Run Strength 40`, on the
     lobby tiles (hover), the scoreboard rows and the game page header. Clicking any seat shows its strip, "Relevant

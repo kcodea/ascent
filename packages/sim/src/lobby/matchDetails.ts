@@ -305,6 +305,16 @@ export function buildMatchDetails(lobby: RunLobby, input: MatchDetailsInput): Ma
   const encounter = lobby.encounters.find((e) => e.round === endRound && e.fought && (e.a === me.id || e.b === me.id));
   const knockedOutBy = eliminated && encounter ? (encounter.a === me.id ? encounter.b : encounter.a) : undefined;
 
+  // Each recorded opponent's per-round strength, computed ONCE (the size ladder below rebuilds the record several times).
+  const oppStrength = new Map<string, { rs: MatchRoundStrength[]; ws: number | null }>();
+  if (input.strengthHistogram) {
+    for (const seat of lobby.seats.slice(0, SEAT_CAP)) {
+      if (seat.id === me.id) continue;
+      const rs = opponentRoundStrength(lobby, seat, seatBoardRound(seat, endRound), input.strengthHistogram);
+      if (rs.length) oppStrength.set(seat.id, { rs, ws: windowStrengthOf(rs, seatBoardRound(seat, endRound)) });
+    }
+  }
+
   // Which seats keep their buff breakdown: everyone, only you, or nobody (the size ladder below steps down).
   const build = (keepText: boolean, buffs: 'all' | 'self' | 'none'): MatchDetails => {
     const seats: MatchSeat[] = lobby.seats.slice(0, SEAT_CAP).map((seat) => {
@@ -349,10 +359,11 @@ export function buildMatchDetails(lobby: RunLobby, input: MatchDetailsInput): Ma
         // The run's pool strength, frozen here (a recorded seat's boards all carry it, stamped at pool load).
         const st = seat.kind === 'snapshot' ? pctOf(b?.snapshot?.runStrength) : undefined;
         if (st !== undefined) out.strength = st;
-        const rs = input.strengthHistogram ? opponentRoundStrength(lobby, seat, round, input.strengthHistogram) : [];
-        if (rs.length) out.roundStrength = rs;
-        const ws = windowStrengthOf(rs, round);
-        if (ws !== null) out.windowStrength = ws;
+        const os = oppStrength.get(seat.id);
+        if (os) {
+          out.roundStrength = os.rs;
+          if (os.ws !== null) out.windowStrength = os.ws;
+        }
         const anc = parseMatchAncient(b?.snapshot?.ancient);
         if (anc) out.ancient = anc;
       }
@@ -370,6 +381,14 @@ export function buildMatchDetails(lobby: RunLobby, input: MatchDetailsInput): Ma
   if (matchDetailsBytes(details) > MATCH_DETAILS_MAX_BYTES) details = build(true, 'self');
   if (matchDetailsBytes(details) > MATCH_DETAILS_MAX_BYTES) details = build(false, 'self');
   if (matchDetailsBytes(details) > MATCH_DETAILS_MAX_BYTES) details = build(false, 'none');
+  // Still over: other seats lose their per-round strength (their Relevant Strength headline and yours stay).
+  if (matchDetailsBytes(details) > MATCH_DETAILS_MAX_BYTES) {
+    details = { ...details, seats: details.seats.map((s) => {
+      if (s.self || !s.roundStrength) return s;
+      const { roundStrength: _drop, ...rest } = s;
+      return rest;
+    }) };
+  }
   // Last resort (never measured in practice): trim boards from the back of the table until it fits.
   for (let i = details.seats.length - 1; i >= 0 && matchDetailsBytes(details) > MATCH_DETAILS_MAX_BYTES; i--) {
     const s = details.seats[i]!;

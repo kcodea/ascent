@@ -126,6 +126,31 @@ describe('Relevant Strength, frozen into the record (R-RESULTS-STRENGTH-WINDOW-0
     });
   });
 
+  it('over the size budget, other seats shed their per-round strength first and keep Relevant Strength', () => {
+    const lobby = lobbyAt(12, {}, { round: 12, placement: 8 });
+    const ids = lobby.seats.filter((x) => x.id !== 's0').map((x) => x.id);
+    const fatBoard = (pad: number) => (round: number): BoardSnapshot => ({
+      ...scoredBoard(round), minions: Array.from({ length: 7 }, (_, i) => ({ cardId: 'pack' + String(i).repeat(pad), attack: 9, health: 9 })),
+    }) as BoardSnapshot;
+    const run = (pad: number, hist: boolean): MatchDetails => {
+      let d!: MatchDetails;
+      withBoards(lobby, ids, fatBoard(pad), () => { d = buildMatchDetails(lobby, hist ? { ...input(8), strengthHistogram: HIST } : input(8)); });
+      return d;
+    };
+    // Calibrate the padding so the record fits WITHOUT opponents' roundStrength but not WITH it.
+    const base = matchDetailsBytes(run(1, false));
+    const rsBytes = matchDetailsBytes(run(1, true)) - base;
+    expect(rsBytes).toBeGreaterThan(200);
+    const perPad = (matchDetailsBytes(run(11, false)) - base) / 10;
+    const pad = Math.floor(1 + (MATCH_DETAILS_MAX_BYTES - base - rsBytes / 2) / perPad);
+    const d = run(pad, true);
+    expect(matchDetailsBytes(d)).toBeLessThanOrEqual(MATCH_DETAILS_MAX_BYTES);
+    const rook = seatOf(d, 's1');
+    expect(rook.roundStrength).toBeUndefined();
+    expect(rook.windowStrength).toBeDefined();
+    expect(rook.board!.minions.length).toBe(7); // boards were not trimmed
+  });
+
   it('your seat uses your own rounds', () => {
     const lobby = lobbyAt(8, {}, { round: 8, placement: 8 });
     const rounds = Array.from({ length: 8 }, (_, i) => ({ round: i + 1, value: 20 + i * 10 }));

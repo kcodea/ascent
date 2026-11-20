@@ -383,6 +383,9 @@ html[data-touch-small] .rgp-spark { padding-left: calc(56 * var(--phu)); }
 .rgp-duos .gc.gc-detail .gc-record, .rgp-duos .gc.gc-detail .gc-record > * { font-size: var(--ph-t2); }
 .rgp .lp-tile .lp-tile-strength .lp-ts-rel b { font-size: min(var(--ph-t3), 9.7cqi); }
 .rgp .lp-tile .lp-tile-strength .lp-ts-run b { font-size: min(var(--ph-t2), 7.2cqi); }
+/* The overlay's label spans never drop under the type floor (styles.css sizes them in cqi, which can fall below it). */
+.rgp .lp-tile .lp-tile-strength .lp-ts-rel { font-size: max(var(--ph-t1), min(15px, 6.6cqi)); }
+.rgp .lp-tile .lp-tile-strength .lp-ts-run { font-size: max(var(--ph-t1), min(12px, 5.3cqi)); }
 
 /* The page's arrival: invisible until its first frame is drawn, then one soft fade (compositor-only opacity). */
 /* THE GATE IS RECENT GAMES' OWN (`.phc-pg` is the Career, which shares `.rgp` for the list and detail and has its own arrival;

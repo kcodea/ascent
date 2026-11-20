@@ -231,9 +231,11 @@ export function boardPctAtRound(board: BoardSnapshot, round: number, hist: Stren
     raw = board.poolScore.raw;
     bucket = board.poolScore.wave;
   } else if (board.wave < round) {
-    if (board.poolCarried?.ref !== ref) return null;
     bucket = Math.min(round, STRENGTH_REF_LAST_ROUND);
-    raw = board.poolCarried.rounds[String(bucket)];
+    if (board.poolCarried?.ref === ref) raw = board.poolCarried.rounds[String(bucket)];
+    // The server writes carried scores only for last_wave+1..15, so a final board at wave >= 15 has none: a round past
+    // the last reference round uses that round's score, which is the board's own poolScore at that wave (spec 5.1).
+    if ((typeof raw !== 'number' || !Number.isFinite(raw)) && board.poolScore?.ref === ref && board.poolScore.wave === bucket) raw = board.poolScore.raw;
   } else return null;
   if (typeof raw !== 'number' || !Number.isFinite(raw)) return null;
   const entries = hist[String(bucket)];

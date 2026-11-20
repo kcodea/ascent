@@ -33,6 +33,22 @@ describe('relevant strength', () => {
     expect(windowStrengthOf([{ round: 3, value: 80 }, { round: 4, value: 100 }], 4)).toBe(92);
   });
 
+  it('a final board at wave >= 15 (no poolCarried) ranks its own poolScore past the last reference round', () => {
+    const ps = (wave: number) => ({ ref: STRENGTH_REF_VERSION, raw: 12, wave });
+    expect(boardPctAtRound(board({ wave: 16, poolScore: ps(15) }), 18, hist)).toBe(percentileOf(12, hist['15'], true));
+    expect(boardPctAtRound(board({ wave: 15, poolScore: ps(15) }), 17, hist)).toBe(percentileOf(12, hist['15'], true));
+    // a score from another wave never stands in for the bucket
+    expect(boardPctAtRound(board({ wave: 16, poolScore: ps(14) }), 18, hist)).toBeNull();
+  });
+
+  it('the carried score still wins over poolScore when present', () => {
+    const b = board({
+      wave: 7, poolScore: { ref: STRENGTH_REF_VERSION, raw: 1, wave: 15 },
+      poolCarried: { ref: STRENGTH_REF_VERSION, rounds: { '15': 10 } },
+    });
+    expect(boardPctAtRound(b, 18, hist)).toBe(percentileOf(10, hist['15'], true));
+  });
+
   it('window strength needs half the rounds', () => {
     expect(windowStrengthOf([{ round: 4, value: 50 }, { round: 5, value: 50 }], 5)).toBeNull();
     expect(typeof windowStrengthOf([{ round: 3, value: 50 }, { round: 4, value: 50 }, { round: 5, value: 50 }], 5)).toBe('number');

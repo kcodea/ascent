@@ -193,16 +193,18 @@ export function RuneforgeDialog({ offer, epic, embers, discounts, rerollSpent, d
             unmounting. The overlay centres the panel vertically, so a footer that collapsed to zero height
             re-centred the whole panel and the rune tablets visibly dropped by half the button's height on
             the click (owner report 2026-09-22: "the runes move down when the player uses the free
-            re-roll"). Reserving the space keeps the row pinned; nothing else about the button changes. */}
+            re-roll"). Reserving the space keeps the row pinned; nothing else about the button changes.
+            NO `.gtip` hover bubble here: the bubble lives on `::after`, which this pill already spends on its right
+            diamond stud (runeforgeLook.css). Sharing it hid that stud and, on hover, popped it up as a loose gold
+            block above the button (owner report 2026-11-20: "a weird gold pop up block"). */}
         <div className="forge-actions">
           <button
-            className={`forge-reroll gtip${rerollSpent ? ' forge-reroll-spent' : ''}`}
+            className={`forge-reroll${rerollSpent ? ' forge-reroll-spent' : ''}`}
             onClick={onReroll}
             disabled={rerollSpent}
             aria-hidden={rerollSpent || undefined}
             tabIndex={rerollSpent ? -1 : undefined}
             aria-description={rerollSpent ? undefined : "Re-roll the offered Runes for free, once per game. Spending it here forfeits the other forge's re-roll."}
-            data-tip={rerollSpent ? undefined : "Re-roll the offered Runes for free, once per game. Spending it here forfeits the other forge's re-roll."}
           >
             <Icon name="refresh" /> Re-roll · <b className="forge-reroll-cost">Free</b>
           </button>

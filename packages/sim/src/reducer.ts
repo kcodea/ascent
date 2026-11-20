@@ -1974,10 +1974,12 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
   }
 
   // Disco Dan: turn 1 is a pure Setlist — resolve the three locked Discovers, then end the turn straight into
-  // combat. Every shop action (buy / sell / roll / freeze / upgrade / play / hero power) is blocked until turn
-  // 2; Discover, board reordering, and ending the turn (faceOmen) stay open.
+  // combat. Every shop action (buy / sell / roll / upgrade / play / hero power) is blocked until turn 2;
+  // Discover, board reordering, FREEZE, and ending the turn (faceOmen) stay open. Freeze is free and changes
+  // nothing this turn, it only keeps the turn-1 Shop for turn 2, so it was never meant to be locked
+  // (R-DISCO-02, player report 2026-11-20: "it wont let me freeze the turn 1 shop").
   if (state.heroId === 'discodan' && state.wave === 1
-    && (action.type === 'buy' || action.type === 'sell' || action.type === 'roll' || action.type === 'freeze'
+    && (action.type === 'buy' || action.type === 'sell' || action.type === 'roll'
       || action.type === 'upgrade' || action.type === 'play' || action.type === 'heroPower')) {
     return state;
   }

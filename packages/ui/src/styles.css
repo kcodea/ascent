@@ -14303,16 +14303,19 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .titlebadge.tb-master.tb-md { padding: 0.3em 1.2em 0.28em 1em; }
 /* The Career name header: the master title at the rarity chip's size. */
 .titlebadge.cv2-titleplate { --tb-fs: 15px; flex: none; transform: translateY(-4px); }
-/* ── THEMED TITLES (owner ask 2026-11-20: "make the new titles more exciting/fun looking based on their tribes or
-   whatever unlocks them"). A title with a `look` (`CosmeticDef.look`, every secret title) paints one of twelve themes
-   instead of its rarity: a tribe (that tribe's `--t-*` hue and its painted medallion) or a feat family (coin, steel,
-   royal, jester). Every theme carries the SHARED SECRET SEAL so it reads as secret, never as a rarity or the master
-   look: a crimson inner rim (static) and a small crimson diamond after the name. Colour, gradient, type, border and a
-   STATIC glow only, no drawn props. The one shared loop is a slow light sweep (::after, TRANSFORM only, the shared
-   `tbshimmer`); Celestial adds a star dust layer whose OPACITY breathes (::before over a static gradient, the kwglow
-   rule). Both stop under reduced motion. Each theme only sets tokens below; the shape is shared. */
+/* ── THEMED TITLES (owner asks 2026-11-20: "make the new titles more exciting/fun looking based on their tribes or
+   whatever unlocks them", then "remove the icons from them, just use the colors" and "can we have them animate a bit in
+   game as well?"). A title with a `look` (`CosmeticDef.look`, every secret title) paints one of twelve themes instead of
+   its rarity: a tribe (that tribe's `--t-*` hue) or a feat family (coin, steel, royal, jester). Every theme carries the
+   SHARED SECRET SEAL so it reads as secret, never as a rarity or the master look: a crimson inner rim (static) and a small
+   crimson diamond after the name. Colour, gradient, type, border and a STATIC glow only, no drawn props.
+   MOTION: two pseudo-elements over STATIC gradients, animating TRANSFORM and OPACITY only (compositor-only,
+   docs/performance.md; no looping box-shadow, filter or background). ::after is the shared slow light sweep; ::before
+   is the theme's own accent (an ember flicker, a lantern breath, a coin glint, star twinkle ...). Both stay PAUSED until
+   the badge is on screen (`tb-live`, toggled by one shared IntersectionObserver in TitleBadge.tsx), so a long list costs
+   nothing for the rows you cannot see, and both stop under reduced motion. Each theme only sets tokens and its accent. */
 .titlebadge.tb-look {
-  gap: 0.42em; padding: 0.2em 0.7em 0.2em 0.6em; font-family: var(--lk-font, var(--font-ui)); font-style: var(--lk-style, normal);
+  gap: 0.42em; padding: 0.2em 0.7em 0.2em 0.75em; font-family: var(--lk-font, var(--font-ui)); font-style: var(--lk-style, normal);
   letter-spacing: var(--lk-ls, 0.12em); color: var(--lk-solid, #fff);
   background: var(--lk-bg, rgba(10, 8, 6, 0.85)); border: 1px solid var(--lk-rim, #ff4a4a);
   box-shadow: 0 0 0.75em -0.12em var(--lk-glow, rgba(255, 74, 74, 0.5)), inset 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 0 0 2px rgba(255, 74, 74, 0.38), inset 0 1px 0 2px rgba(255, 255, 255, 0.06);
@@ -14320,49 +14323,83 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .titlebadge.tb-look > span { position: relative; z-index: 1; }
 .titlebadge.tb-look .tb-text { background: var(--lk-text); -webkit-background-clip: text; background-clip: text; color: transparent;
   filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.7)); }
-.titlebadge.tb-look .tb-medal { flex: none; display: inline-flex; margin: -0.2em 0 -0.2em -0.15em; }
-.titlebadge.tb-look .tb-medal .tribemedal { height: 1.45em; width: auto; object-fit: contain; }
 .titlebadge.tb-look .tb-seal { flex: none; display: inline-flex; font-size: 0.6em; line-height: 1; margin-left: 0.05em; color: #ff5a5a; text-shadow: 0 0 0.45em rgba(255, 50, 50, 0.85); }
 .titlebadge.tb-look .tb-seal::after { content: '\25C6'; content: '\25C6' / ''; }
 .titlebadge.tb-look::after { content: ''; position: absolute; inset: 0; z-index: 2; pointer-events: none; border-radius: inherit;
   background: linear-gradient(100deg, transparent 34%, rgba(255, 255, 255, 0.22) 50%, transparent 66%);
-  transform: translateX(-120%); animation: tbshimmer 6.4s ease-in-out infinite; will-change: transform; }
-.titlebadge.tb-look.tb-md { padding: 0.28em 1em 0.26em 0.85em; }
+  transform: translateX(-120%); animation: tbshimmer var(--lk-sweep, 6.4s) ease-in-out infinite paused; }
+.titlebadge.tb-look::before { content: ''; position: absolute; inset: 0; z-index: 0; pointer-events: none; border-radius: inherit; opacity: 0;
+  background: var(--lk-fx, none); animation: var(--lk-anim, none) paused; }
+.titlebadge.tb-look.tb-live::before, .titlebadge.tb-look.tb-live::after { animation-play-state: running; }
+.titlebadge.tb-look.tb-md { padding: 0.28em 1em 0.26em 1em; }
+/* The accents' keyframes: every one is TRANSFORM and OPACITY only. */
+@keyframes tblk-breathe { 0%, 100% { opacity: 0.2; } 50% { opacity: 0.8; } }
+@keyframes tblk-ember { 0%, 100% { opacity: 0.35; transform: translateY(6%); } 12% { opacity: 0.85; } 21% { opacity: 0.45; transform: translateY(0); } 37% { opacity: 0.95; } 52% { opacity: 0.4; transform: translateY(4%); } 68% { opacity: 0.9; } 83% { opacity: 0.5; transform: translateY(-2%); } }
+@keyframes tblk-lantern { 0%, 100% { opacity: 0.25; transform: scale(0.94); } 50% { opacity: 0.85; transform: scale(1.03); } }
+@keyframes tblk-heat { 0%, 100% { opacity: 0.3; transform: translateY(18%); } 50% { opacity: 0.85; transform: translateY(-8%); } }
+@keyframes tblk-heartbeat { 0%, 60%, 100% { opacity: 0.3; transform: scale(1); } 12% { opacity: 0.85; transform: scale(1.05); } 24% { opacity: 0.4; transform: scale(1); } 36% { opacity: 0.75; transform: scale(1.04); } }
+@keyframes tblk-drift { 0%, 100% { opacity: 0.2; transform: translateX(-28%); } 50% { opacity: 0.8; transform: translateX(28%); } }
+@keyframes tblk-twinkle { 0%, 100% { opacity: 0.2; transform: scale(0.97); } 30% { opacity: 1; transform: scale(1.02); } 55% { opacity: 0.45; } 75% { opacity: 0.95; transform: scale(1); } }
+@keyframes tblk-glint { 0%, 68%, 100% { opacity: 0; transform: scale(0.3) rotate(0deg); } 80% { opacity: 1; transform: scale(1.15) rotate(45deg); } 90% { opacity: 0; transform: scale(0.6) rotate(90deg); } }
+@keyframes tblk-gleam { 0%, 55% { opacity: 0; transform: translateX(-105%); } 62% { opacity: 1; } 78% { opacity: 1; transform: translateX(105%); } 80%, 100% { opacity: 0; transform: translateX(105%); } }
+@keyframes tblk-confetti { 0% { opacity: 0.6; transform: translateX(0); } 100% { opacity: 0.6; transform: translateX(2.648em); } }
 /* The tribes. */
 .titlebadge.tb-look-dwarf { --lk-font: var(--font-cardname); --lk-ls: 0.08em; --lk-rim: var(--t-dwarf); --lk-glow: rgba(240, 195, 60, 0.55);
-  --lk-text: linear-gradient(180deg, #fff4c8 0%, #f6cf52 50%, #d08e1e 100%); --lk-bg: linear-gradient(180deg, #3d2711, #1a0f06); }
+  --lk-text: linear-gradient(180deg, #fff4c8 0%, #f6cf52 50%, #d08e1e 100%); --lk-bg: linear-gradient(180deg, #3d2711, #1a0f06);
+  --lk-fx: radial-gradient(120% 140% at 50% 0%, rgba(255, 228, 140, 0.4), transparent 60%); --lk-anim: tblk-breathe 3s ease-in-out infinite; }
 .titlebadge.tb-look-demon { --lk-rim: var(--t-demon); --lk-glow: rgba(255, 82, 112, 0.55);
-  --lk-text: linear-gradient(100deg, #ffc08a 0%, #ff6a7e 48%, #cf8cff 100%); --lk-bg: linear-gradient(180deg, #2e0c24, #12040f); }
+  --lk-text: linear-gradient(100deg, #ffc08a 0%, #ff6a7e 48%, #cf8cff 100%); --lk-bg: linear-gradient(180deg, #2e0c24, #12040f);
+  --lk-fx: radial-gradient(90% 120% at 50% 110%, rgba(255, 96, 60, 0.6), rgba(170, 60, 240, 0.25) 55%, transparent 75%); --lk-anim: tblk-ember 1.7s linear infinite; }
 .titlebadge.tb-look-spirit { --lk-rim: #86c46e; --lk-glow: rgba(120, 205, 110, 0.6);
-  --lk-text: linear-gradient(100deg, #fff0dc 0%, #ffc28e 50%, var(--t-spirit) 100%); --lk-bg: linear-gradient(180deg, #13281b, #07120b); }
+  --lk-text: linear-gradient(100deg, #fff0dc 0%, #ffc28e 50%, var(--t-spirit) 100%); --lk-bg: linear-gradient(180deg, #13281b, #07120b);
+  --lk-fx: radial-gradient(70% 120% at 50% 50%, rgba(140, 230, 120, 0.4), transparent 70%); --lk-anim: tblk-lantern 3.8s ease-in-out infinite; }
 .titlebadge.tb-look-dragon { --lk-rim: #ffc94a; --lk-glow: rgba(255, 70, 60, 0.55);
-  --lk-text: linear-gradient(100deg, #fff3bf 0%, #ffcc4d 52%, #ff7a5a 100%); --lk-bg: linear-gradient(180deg, #3c0b12, #160306); }
+  --lk-text: linear-gradient(100deg, #fff3bf 0%, #ffcc4d 52%, #ff7a5a 100%); --lk-bg: linear-gradient(180deg, #3c0b12, #160306);
+  --lk-fx: linear-gradient(0deg, rgba(255, 120, 50, 0.5), rgba(255, 200, 80, 0.15) 45%, transparent 70%); --lk-anim: tblk-heat 2.4s ease-in-out infinite; }
 .titlebadge.tb-look-beast { --lk-rim: var(--t-beast); --lk-glow: rgba(78, 168, 59, 0.5);
-  --lk-text: linear-gradient(100deg, #fae6be 0%, #e7ad62 60%, #c98a45 100%); --lk-bg: linear-gradient(180deg, #2c1e10, #120c06); }
+  --lk-text: linear-gradient(100deg, #fae6be 0%, #e7ad62 60%, #c98a45 100%); --lk-bg: linear-gradient(180deg, #2c1e10, #120c06);
+  --lk-fx: radial-gradient(80% 130% at 50% 50%, rgba(231, 173, 98, 0.35), rgba(78, 168, 59, 0.15) 50%, transparent 72%); --lk-anim: tblk-heartbeat 2.2s ease-out infinite; }
 .titlebadge.tb-look-undead { --lk-rim: var(--t-undead); --lk-glow: rgba(34, 184, 168, 0.6);
-  --lk-text: linear-gradient(100deg, #f6f1e4 0%, #ddd5c0 45%, #86f6e6 100%); --lk-bg: linear-gradient(180deg, #0c2120, #050d0d); }
+  --lk-text: linear-gradient(100deg, #f6f1e4 0%, #ddd5c0 45%, #86f6e6 100%); --lk-bg: linear-gradient(180deg, #0c2120, #050d0d);
+  --lk-fx: radial-gradient(40% 90% at 50% 50%, rgba(110, 255, 230, 0.45), transparent 70%); --lk-anim: tblk-drift 5s ease-in-out infinite; }
 .titlebadge.tb-look-kobold { --lk-rim: var(--t-kobold); --lk-glow: rgba(232, 60, 70, 0.6);
-  --lk-text: linear-gradient(115deg, #ffd3c8 0%, #ff7262 38%, #ff3d55 62%, #ffb3a6 100%); --lk-bg: linear-gradient(180deg, #2c070d, #120205); }
+  --lk-text: linear-gradient(115deg, #ffd3c8 0%, #ff7262 38%, #ff3d55 62%, #ffb3a6 100%); --lk-bg: linear-gradient(180deg, #2c070d, #120205);
+  /* Gem glints at the rim (never over the letters). */
+  --lk-fx: radial-gradient(circle at 16% 12%, rgba(255, 255, 255, 0.95) 0 0.9px, transparent 1.6px), radial-gradient(circle at 52% 90%, rgba(255, 150, 150, 0.95) 0 0.9px, transparent 1.6px),
+    radial-gradient(circle at 86% 10%, rgba(255, 255, 255, 0.9) 0 0.9px, transparent 1.6px);
+  --lk-anim: tblk-twinkle 2.4s ease-in-out infinite; }
 .titlebadge.tb-look-celestial { --lk-rim: var(--t-celestial); --lk-glow: rgba(150, 165, 255, 0.6);
-  --lk-text: linear-gradient(100deg, #ffffff 0%, #d4dbff 50%, #a9b3dc 100%); --lk-bg: linear-gradient(180deg, #161c44, #070a1c); }
-.titlebadge.tb-look-celestial::before { content: ''; position: absolute; inset: 0; z-index: 0; pointer-events: none; border-radius: inherit;
+  --lk-text: linear-gradient(100deg, #ffffff 0%, #d4dbff 50%, #a9b3dc 100%); --lk-bg: linear-gradient(180deg, #161c44, #070a1c);
   /* Star dust along the rim only (top and bottom edges), never over the letters. */
-  background: radial-gradient(circle at 22% 9%, rgba(255, 255, 255, 0.9) 0 0.8px, transparent 1.4px), radial-gradient(circle at 44% 91%, rgba(200, 215, 255, 0.85) 0 0.8px, transparent 1.4px),
+  --lk-fx: radial-gradient(circle at 22% 9%, rgba(255, 255, 255, 0.9) 0 0.8px, transparent 1.4px), radial-gradient(circle at 44% 91%, rgba(200, 215, 255, 0.85) 0 0.8px, transparent 1.4px),
     radial-gradient(circle at 63% 8%, rgba(255, 255, 255, 0.8) 0 0.8px, transparent 1.4px), radial-gradient(circle at 81% 92%, rgba(190, 205, 255, 0.85) 0 0.8px, transparent 1.4px),
     radial-gradient(circle at 93% 12%, rgba(255, 255, 255, 0.75) 0 0.8px, transparent 1.4px);
-  animation: kwglow 3.6s ease-in-out infinite; will-change: opacity; }
+  --lk-anim: tblk-twinkle 3.2s ease-in-out infinite; }
 /* The feat families. */
 .titlebadge.tb-look-coin { --lk-rim: #ffd34d; --lk-glow: rgba(255, 211, 77, 0.5);
-  --lk-text: linear-gradient(180deg, #fffbe0 0%, #ffe066 45%, #e0a21f 100%); --lk-bg: linear-gradient(180deg, #2d2408, #110d03); }
-.titlebadge.tb-look-steel { --lk-rim: #b8c3d0; --lk-glow: rgba(210, 24, 44, 0.6);
-  --lk-text: linear-gradient(180deg, #ffffff 0%, #d3dbe4 55%, #929fae 100%); --lk-bg: linear-gradient(180deg, #2a0d12 0%, #15181e 45%, #0a0c10 100%); }
+  --lk-text: linear-gradient(180deg, #fffbe0 0%, #ffe066 45%, #e0a21f 100%); --lk-bg: linear-gradient(180deg, #2d2408, #110d03);
+  /* One coin glint near the top right: a four-point sparkle made of two thin static gradients, popped by scale. */
+  --lk-fx: radial-gradient(circle at 88% 22%, rgba(255, 255, 255, 0.95) 0 1px, rgba(255, 236, 160, 0.5) 1.5px, transparent 4px); --lk-anim: tblk-glint 3s ease-out infinite; }
+.titlebadge.tb-look-coin::before { transform-origin: 88% 22%; }
+.titlebadge.tb-look-steel { --lk-rim: #b8c3d0; --lk-glow: rgba(210, 24, 44, 0.6); --lk-sweep: 4.2s;
+  --lk-text: linear-gradient(180deg, #ffffff 0%, #d3dbe4 55%, #929fae 100%); --lk-bg: linear-gradient(180deg, #2a0d12 0%, #15181e 45%, #0a0c10 100%);
+  /* A sharp edge gleam along the top rim. */
+  --lk-fx: linear-gradient(90deg, transparent 30%, rgba(255, 255, 255, 0.95) 50%, transparent 70%) top / 100% 1.5px no-repeat,
+    linear-gradient(90deg, transparent 38%, rgba(255, 70, 90, 0.7) 50%, transparent 62%) bottom / 100% 1px no-repeat;
+  --lk-anim: tblk-gleam 3.4s ease-in-out infinite; }
 .titlebadge.tb-look-royal { --lk-font: var(--font-cardname); --lk-ls: 0.08em; --lk-rim: #f2c14e; --lk-glow: rgba(150, 90, 255, 0.6);
-  --lk-text: linear-gradient(180deg, #fff4c4 0%, #f5c955 60%, #dca233 100%); --lk-bg: linear-gradient(180deg, #2c1554, #120726); }
+  --lk-text: linear-gradient(180deg, #fff4c4 0%, #f5c955 60%, #dca233 100%); --lk-bg: linear-gradient(180deg, #2c1554, #120726);
+  --lk-fx: radial-gradient(110% 140% at 50% 100%, rgba(170, 110, 255, 0.45), rgba(242, 193, 78, 0.15) 50%, transparent 72%); --lk-anim: tblk-breathe 4.2s ease-in-out infinite; }
 .titlebadge.tb-look-jester { --lk-style: italic; --lk-rim: #ff7ad9; --lk-glow: rgba(125, 205, 255, 0.5);
-  --lk-text: linear-gradient(100deg, #8dffbe 0%, #ffe46e 34%, #ff8ade 68%, #8fd0ff 100%); --lk-bg: linear-gradient(180deg, #21163a, #0c0816); }
+  --lk-text: linear-gradient(100deg, #8dffbe 0%, #ffe46e 34%, #ff8ade 68%, #8fd0ff 100%); --lk-bg: linear-gradient(180deg, #21163a, #0c0816);
+  --lk-fx: repeating-linear-gradient(115deg, rgba(141, 255, 190, 0.18) 0 0.6em, rgba(255, 228, 110, 0.18) 0.6em 1.2em, rgba(255, 138, 222, 0.18) 1.2em 1.8em, rgba(143, 208, 255, 0.18) 1.8em 2.4em);
+  --lk-anim: tblk-confetti 3s linear infinite; }
+/* The confetti band starts one stripe period to the left (2.4em along 115deg = 2.648em across) and slides exactly one
+   period, so the loop is seamless. */
+.titlebadge.tb-look-jester::before { left: -2.648em; border-radius: 0; }
 @media (prefers-reduced-motion: reduce) {
   .titlebadge.tb-look::after { animation: none; opacity: 0; }
-  .titlebadge.tb-look-celestial::before { animation: none; opacity: 0.8; }
+  .titlebadge.tb-look::before { animation: none; opacity: 0.5; transform: none; }
 }
 
 .crate { display: flex; flex-direction: column; align-items: center; gap: 8px; width: 100%; font-family: var(--font-ui); }

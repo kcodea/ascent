@@ -422,3 +422,58 @@ describe('the secret-title metrics (2026-11-20)', () => {
     expect(sanitizeRunMetrics(m)).toEqual(m);
   });
 });
+
+describe('the secret-title tribe batch metrics (2026-11-20, "add 5 more titles per tribe")', () => {
+  const pick = (tribe: string): string => Object.values(CARD_INDEX).find((c) => c.tribe === tribe && !c.tribe2 && !c.token && !c.spell && !c.ruby && !c.universalTribe)!.id;
+
+  it('per tribe on the board: Gilded count and the strongest Attack; 7 Undead; Kobebes; Dwarf payroll at 5; Celestial spells at 3', () => {
+    const t = emptyAchTally();
+    const dwarves = Array.from({ length: 5 }, (_, i) => card(`d${i}`, pick('dwarf'), { tribe: 'dwarf', golden: i < 4, attack: i === 0 ? 120 : 5 }));
+    const r = set2Run({ board: dwarves, goldSpentThisTurn: 31 });
+    observeAchAction(t, r, { type: 'roll' }, { ...r }, 0);
+    expect(t.m).toMatchObject({ dwarfGildedMax: 4, dwarfAttackMax: 120, dwarfHallSpendTurnMax: 31 });
+    const undead = Array.from({ length: 7 }, (_, i) => card(`u${i}`, pick('undead'), { tribe: 'undead' }));
+    observeAchAction(t, r, { type: 'roll' }, { ...r, board: undead }, 0);
+    expect(t.m.undeadBoardMax).toBe(7);
+    const kobs = Array.from({ length: 3 }, (_, i) => card(`k${i}`, 'k_kobabyboldies', { tribe: 'kobold' }));
+    observeAchAction(t, r, { type: 'roll' }, { ...r, board: kobs }, 0);
+    expect(t.m.kobebesMax).toBe(3);
+    const cel = Array.from({ length: 3 }, (_, i) => card(`c${i}`, pick('celestial'), { tribe: 'celestial' }));
+    observeAchAction(t, r, { type: 'roll' }, { ...r, board: cel, spellsThisTurn: 16 }, 0);
+    expect(t.m.celestialSpellsTurnMax).toBe(16);
+    // 4 Dwarves are not a payroll of 5
+    const u = emptyAchTally();
+    observeAchAction(u, r, { type: 'roll' }, { ...r, board: dwarves.slice(1), goldSpentThisTurn: 40 }, 0);
+    expect(u.m.dwarfHallSpendTurnMax).toBeUndefined();
+  });
+
+  it('Spirit and Celestial plays, and Revelers sold', () => {
+    const t = emptyAchTally();
+    const before = set2Run({ playedThisTurn: [] });
+    observeAchAction(t, before, { type: 'play', uid: 'x' }, { ...before, playedThisTurn: [pick('spirit'), pick('celestial'), pick('celestial')] }, 0);
+    expect(t.m).toMatchObject({ spiritPlays: 1, celestialPlays: 2 });
+    const rev = set2Run({ board: [card('r1', 'sp3_flamereveler', { tribe: 'spirit' }), card('x1', pick('beast'))] });
+    observeAchAction(t, rev, { type: 'sell', uid: 'r1' }, { ...rev, board: [rev.board[1]!] }, 0);
+    observeAchAction(t, rev, { type: 'sell', uid: 'x1' }, { ...rev, board: [rev.board[0]!] }, 0);
+    expect(t.m.revelerSells).toBe(1);
+  });
+
+  it('the combat log: Gold banked, Demon damage, Undead Rises, Skeletons and summons from hand, per combat', () => {
+    const demon = pick('demon');
+    const undead = pick('undead');
+    const t = emptyAchTally();
+    const initial = { player: [snap('p1', demon, 50, 50), snap('p2', undead, 1, 1)], enemy: [snap('e1', 'stray', 500, 500)] };
+    observeAchCombat(t, combat([
+      { type: 'bonusGold', side: 'player', amount: 6 }, { type: 'bonusGold', side: 'enemy', amount: 9 }, { type: 'bonusGold', side: 'player', amount: 5 },
+      { type: 'dmg', target: 'e1', amount: 200, remainingHp: 300, source: 'p1' }, { type: 'dmg', target: 'e1', amount: 120, remainingHp: 180, source: 'p1' },
+      { type: 'death', target: 'p2', side: 'player', rise: true }, { type: 'reborn', target: 'p2', hp: 1, attack: 1, keywords: [] },
+      { type: 'summon', side: 'player', index: 0, minion: snap('s1', 'u3_skeleton') }, { type: 'summon', side: 'player', index: 0, minion: snap('s2', 'u3_skeleton') },
+      { type: 'summon', side: 'player', index: 0, minion: snap('h1', pick('spirit')), fromHandUid: 'hand1' },
+      { type: 'summon', side: 'enemy', index: 0, minion: snap('x1', 'u3_skeleton') },
+    ] as CombatEvent[], { initial } as Partial<CombatResult>), 7);
+    expect(t.m).toMatchObject({ combatGoldMax: 11, demonDamageCombatMax: 320, undeadRisesCombatMax: 1, skeletonSummonsCombatMax: 2, handSummonsCombatMax: 1 });
+    // per combat: a quieter fight does not lower the best
+    observeAchCombat(t, combat([{ type: 'bonusGold', side: 'player', amount: 2 }] as CombatEvent[], { initial } as Partial<CombatResult>), 8);
+    expect(t.m.combatGoldMax).toBe(11);
+  });
+});

@@ -17,15 +17,15 @@ const count = (cat: string): number => ACHIEVEMENTS.filter((a) => a.category ===
 const xpOf = (cat: string): number => ACHIEVEMENTS.filter((a) => a.category === cat).reduce((s, a) => s + a.rewards.xp, 0);
 
 describe('the batch 1 registry', () => {
-  it('ships 483 achievements: counts and XP per category (the Plushie Collector 2026-10-27: +1, 0 XP; hero titles 2026-09-29 added 33 Titled tiers, 4,950 XP; Runesmith + Guardian back 2026-10-01: +10; the 2026-10-03 150: +61,375 XP; the owner-approved long-term re-tune: +7,000 XP; Pete, Foreman Flint, Emissary, Underdweller, Membrance + Gorun back 2026-10-15: +36, +5,700 XP; the secret titles 2026-11-20: +48 hidden, +20,550 XP)', () => {
-    expect(ACHIEVEMENTS).toHaveLength(531);
+  it('ships 483 achievements: counts and XP per category (the Plushie Collector 2026-10-27: +1, 0 XP; hero titles 2026-09-29 added 33 Titled tiers, 4,950 XP; Runesmith + Guardian back 2026-10-01: +10; the 2026-10-03 150: +61,375 XP; the owner-approved long-term re-tune: +7,000 XP; Pete, Foreman Flint, Emissary, Underdweller, Membrance + Gorun back 2026-10-15: +36, +5,700 XP; the secret titles 2026-11-20: +48 hidden, +20,550 XP; the tribe batch: +40, +17,400 XP)', () => {
+    expect(ACHIEVEMENTS).toHaveLength(571);
     expect(Object.fromEntries(ACHIEVEMENT_CATEGORIES.map((c) => [c, count(c)]))).toEqual({
-      career: 17, ranked: 28, heroes: 258, economy: 15, mechanics: 7, runes: 5, set2: 82, combat: 36, milestones: 34, collection: 1, secret: 48,
+      career: 17, ranked: 28, heroes: 258, economy: 15, mechanics: 7, runes: 5, set2: 82, combat: 36, milestones: 34, collection: 1, secret: 88,
     });
     expect(Object.fromEntries(ACHIEVEMENT_CATEGORIES.map((c) => [c, xpOf(c)]))).toEqual({
-      career: 3050, ranked: 4300, heroes: 42850, economy: 1925, mechanics: 1125, runes: 675, set2: 22450, combat: 13175, milestones: 22100, collection: 0, secret: 20550,
+      career: 3050, ranked: 4300, heroes: 42850, economy: 1925, mechanics: 1125, runes: 675, set2: 22450, combat: 13175, milestones: 22100, collection: 0, secret: 37950,
     });
-    expect(ACHIEVEMENTS.reduce((s, a) => s + a.rewards.xp, 0)).toBe(132_200);
+    expect(ACHIEVEMENTS.reduce((s, a) => s + a.rewards.xp, 0)).toBe(149_600);
     // owner 2026-10-03 ("yes apply these achievement changes"): the batch 1 long-term tiers on the new curve
     expect(Object.fromEntries(['career.games.100', 'career.top_four.50', 'career.firsts.25', 'career.comebacks.10', 'career.heroes_played.15', 'career.hero_wins.15', 'career.achievements.25', 's2.kobold.rubies_life_500', 'hero.warden.mastery']
       .map((id) => [id, ACHIEVEMENT_INDEX[id]!.rewards.xp]))).toEqual({
@@ -302,9 +302,9 @@ describe('the secret titles (owner 2026-11-20: "50 new SECRET titles ... tied to
   const base: AchievementSettlement = { mode: 'ranked', eligibleRun: true, setId: 'set2', heroId: 'warden', placement: 3, metrics: {} };
   const one = (id: string): AchievementDef[] => [ACHIEVEMENT_INDEX[id]!];
 
-  it('48 built (Avenger and Indecisive left out), each hidden, paying 250 to 750 XP and its own Secret title granted by it', () => {
-    expect(SECRET_ACHIEVEMENTS).toHaveLength(48);
-    expect(SECRET_TITLE_NAMES).toHaveLength(48);
+  it('88 built (48, Avenger and Indecisive left out, plus 5 per tribe theme), each hidden, paying 250 to 750 XP and its own Secret title granted by it', () => {
+    expect(SECRET_ACHIEVEMENTS).toHaveLength(88);
+    expect(SECRET_TITLE_NAMES).toHaveLength(88);
     for (const a of SECRET_ACHIEVEMENTS) {
       expect(a.hidden, a.id).toBe(true);
       expect(a.rewards.xp, a.id).toBeGreaterThanOrEqual(250);

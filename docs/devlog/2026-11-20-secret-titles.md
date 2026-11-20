@@ -14,13 +14,38 @@ unlocking them grants xp too and it's easier to track in game".
 - No SQL: `settle_progression` already reads any run-metric key, grants `title_id` in the same transaction, and the
   category column has no check. The parity suite and the PGlite evaluator comparison cover the new defs.
 
+## The tribe batch: 5 more per tribe (owner follow-up, same day)
+
+"Add 5 more titles per tribe." 40 more hidden achievements (17,400 XP), 5 for each tribe theme (Dwarf, Demon, Spirit,
+Dragon, Beast, Undead, Kobold, Celestial), named for that tribe's real cards, each wearing its tribe's look. Mech is
+skipped: it has no title theme and its only set (Set 1) is not live. Every tribe gets a Gilded feat (4 Gilded of the
+tribe on the board at once); the rest reuse existing metrics at stricter targets or add new ones from the run's own
+state and combat log, including the `bonusGold` combat event from #2811 (Pimm's Ledger). 25 new run metrics, all
+optional on old saves. Three names avoid the word "Golden" (the catalog bans medal words): Gilded Beards, Gilded Clutch
+and Gilded Pride (their keys keep `golden_`).
+
+## Icons off, motion on (owner follow-up, same day)
+
+"Remove the icons from them, just use the colors" and "can we have them animate a bit in game as well?" The tribe
+medallion is gone; the look is colour, type and the secret seal only. Each theme now has its own accent loop on
+`::before` (Dwarf foam breath, Demon ember flicker, Spirit lantern breath, Dragon heat rise, Beast heartbeat, Undead
+spectral drift, Kobold gem glints, Celestial star twinkle, Coin glint, Steel edge gleam, Royal glow, Jester confetti
+slide) beside the shared slow sweep on `::after`. Only transform and opacity animate, over static gradients. Both loops
+stay PAUSED until the badge is on screen: one shared IntersectionObserver toggles `tb-live` on the element (no React
+state). Both stop under reduced motion.
+
+Measured (headless Chromium, software rendering, 50 badges at leaderboard size, 3 s after a warm-up): 60 fps steady
+(16.67 ms average, 16.8 ms worst frame), 100 running animations, about 50 ms of style work in 3 s (0.27 ms a frame),
+no extra layout. 50 of the already-shipped master badges measure the same. With the 50 badges scrolled off screen: 0
+running animations and a baseline-flat cost. On a GPU these loops run on the compositor.
+
 ## Themed looks (owner follow-up, same day)
 
 "Make the new titles more exciting/fun looking based on their tribes or whatever unlocks them." Each secret title
 carries `CosmeticDef.look` (`SECRET_TITLE_LOOKS` in cosmetics.ts), one of 12 themes: the 8 tribes (Dwarf, Demon, Spirit,
 Dragon, Beast, Undead, Kobold, Celestial) plus coin (Gold and the Shop), steel (combat), royal (lobby and placement) and
 jester (silly challenges). `TitleBadge` paints `.tb-look-<key>` (styles.css: tokens only, shared shape), with the
-tribe's painted medallion for a tribe look and a shared secret seal (crimson inner rim, small crimson diamond). Loops:
+tribe's painted medallion for a tribe look (since removed, see above) and a shared secret seal (crimson inner rim, small crimson diamond). Loops:
 one slow transform sweep for all, plus Celestial's opacity star dust. `look` is client-only (the catalog sync payload
 names its fields), so no deploy. Surfaces that printed non-master titles as plain text (Career header, Collection,
 new-rewards popup) now render the badge for any title with a look (`hasTitlePlate`). The lobby rail stays title-free

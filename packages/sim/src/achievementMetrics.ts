@@ -180,6 +180,18 @@ export function observeAchAction(t: AchTally, before: RunState, action: Action, 
   }
 }
 
+/** The tribe batch (2026-11-20): the tribes with a title theme, and their per-tribe metrics. Mech has no theme. */
+const SECRET_TRIBES: readonly Tribe[] = ['dwarf', 'demon', 'spirit', 'dragon', 'beast', 'undead', 'kobold', 'celestial'];
+const TRIBE_GILDED_METRIC: Readonly<Record<string, RunMetric>> = {
+  dwarf: 'dwarfGildedMax', demon: 'demonGildedMax', spirit: 'spiritGildedMax', dragon: 'dragonGildedMax',
+  beast: 'beastGildedMax', undead: 'undeadGildedMax', kobold: 'koboldGildedMax', celestial: 'celestialGildedMax',
+};
+const TRIBE_ATTACK_METRIC: Readonly<Record<string, RunMetric>> = {
+  dwarf: 'dwarfAttackMax', demon: 'demonAttackMax', spirit: 'spiritAttackMax', dragon: 'dragonAttackMax',
+  undead: 'undeadAttackMax', kobold: 'koboldAttackMax', celestial: 'celestialAttackMax',
+};
+const REVELER_IDS: ReadonlySet<string> = new Set(['sp3_flamereveler', 'sp3_tidereveler', 'sp3_grovereveler']);
+
 /** A Tier 1, non-token minion (Tier One Hero). */
 const isTierOneMinion = (cardId: string): boolean => { const d = CARD_INDEX[cardId]; return !!d && d.tier === 1 && !d.token && !d.spell && !d.ruby; };
 const isMinionDef = (cardId: string): boolean => { const d = CARD_INDEX[cardId]; return !!d && !d.spell && !d.ruby; };
@@ -200,9 +212,16 @@ function observeSecretAction(t: AchTally, before: RunState, action: Action, afte
       if (defIsTribe(d, 'dwarf', after)) add(t, 'dwarfPlays', 1);
       if (defIsTribe(d, 'dragon', after)) add(t, 'dragonPlays', 1);
       if (defIsTribe(d, 'kobold', after)) add(t, 'koboldPlays', 1);
+      if (defIsTribe(d, 'spirit', after)) add(t, 'spiritPlays', 1);
+      if (defIsTribe(d, 'celestial', after)) add(t, 'celestialPlays', 1);
     }
   }
   if (action.type === 'roll') t.rollsTotal = (t.rollsTotal ?? 0) + 1;
+  // A Reveler sold (Set 3 Spirits).
+  if (action.type === 'sell') {
+    const sold = before.board.find((c) => c.uid === action.uid) ?? before.hand.find((c) => c.uid === action.uid);
+    if (sold && REVELER_IDS.has(sold.cardId) && !after.board.some((c) => c.uid === action.uid)) add(t, 'revelerSells', 1);
+  }
 
   // A minion bought for less than the standard price (priced the way the buy path charges it, before the buy).
   if (action.type === 'buy') {
@@ -237,6 +256,23 @@ function observeSecretAction(t: AchTally, before: RunState, action: Action, afte
     bump(t, 'minionStatsMinMax', Math.min(c.attack, c.health));
     bump(t, 'buffsOnOneMax', buffCountOf(c));
   }
+  // The tribe batch (2026-11-20): per tribe, the Gilded count on the board and its strongest Attack; a few named reads.
+  for (const tr of SECRET_TRIBES) {
+    let gilded = 0; let attack = 0; let n = 0;
+    for (const c of after.board) {
+      if (!isTribe(c, tr)) continue;
+      n++;
+      if (c.golden) gilded++;
+      if (c.attack > attack) attack = c.attack;
+    }
+    bump(t, TRIBE_GILDED_METRIC[tr], gilded);
+    const am = TRIBE_ATTACK_METRIC[tr];
+    if (am) bump(t, am, attack);
+    if (tr === 'undead') bump(t, 'undeadBoardMax', n);
+    if (tr === 'dwarf' && n >= 5) bump(t, 'dwarfHallSpendTurnMax', after.goldSpentThisTurn ?? 0);
+    if (tr === 'celestial' && n >= 3) bump(t, 'celestialSpellsTurnMax', after.spellsThisTurn ?? 0);
+  }
+  bump(t, 'kobebesMax', after.board.reduce((k, c) => k + (c.cardId === 'k_kobabyboldies' ? 1 : 0), 0));
   for (const c of after.hand) bump(t, 'buffsOnOneMax', buffCountOf(c));
   for (const o of after.shop ?? []) if (o.starform) bump(t, 'starformAttackMax', offerBuyStats(after, o).attack);
 
@@ -393,6 +429,9 @@ function observeSecretCombat(t: AchTally, lc: CombatResult, player: ReadonlySet<
   let friendlyAttacked = false;
   const hitsTaken = new Map<string, number>();
   let pendingHit: string | null = null; // the friendly body the last attack landed on, until it is known to have lived
+  // The tribe batch (2026-11-20).
+  let bankedGold = 0; let demonDamage = 0; let undeadRises = 0; let skeletons = 0; let fromHand = 0;
+  const isDemon = (uid: string): boolean => defIsTribe(CARD_INDEX[cardOf.get(uid) ?? ''], 'demon');
   const settleHit = (): void => {
     if (pendingHit === null) return;
     const n = (hitsTaken.get(pendingHit) ?? 0) + 1;
@@ -409,19 +448,27 @@ function observeSecretCombat(t: AchTally, lc: CombatResult, player: ReadonlySet<
         break;
       case 'dmg':
         if (player.has(e.target)) hp.set(e.target, e.remainingHp);
-        else if (e.source && player.has(e.source)) bump(t, 'hitDamageMax', e.amount);
+        else if (e.source && player.has(e.source)) {
+          bump(t, 'hitDamageMax', e.amount);
+          if (isDemon(e.source)) demonDamage += Math.max(0, e.amount);
+        }
         break;
       case 'buff': if (player.has(e.target) && hp.has(e.target)) hp.set(e.target, hp.get(e.target)! + e.health); break;
       case 'sc': if (e.setHealth !== undefined && player.has(e.source)) hp.set(e.source, e.setHealth); break;
       case 'tribeAura': if (e.side === 'player' && (e.health ?? 0) !== 0) hpKnown = false; break;
       case 'hpGrant': if (player.has(e.target)) hpKnown = false; break;
       case 'summon':
-        if (e.side === 'player') { alivePlayer++; hp.set(e.minion.uid, e.minion.health); } else aliveEnemy++;
+        if (e.side === 'player') {
+          alivePlayer++; hp.set(e.minion.uid, e.minion.health);
+          if (e.minion.cardId === 'u3_skeleton') skeletons++;
+          if (e.fromHandUid) fromHand++;
+        } else aliveEnemy++;
         break;
+      case 'bonusGold': if (e.side === 'player') bankedGold += Math.max(0, e.amount); break;
       case 'reborn': {
         const friendly = player.has(e.target);
         if (friendly) { alivePlayer++; hp.set(e.target, e.hp); } else aliveEnemy++;
-        if (friendly && !e.rebirth && defIsTribe(CARD_INDEX[cardOf.get(e.target) ?? ''], 'undead')) add(t, 'undeadRises', 1);
+        if (friendly && !e.rebirth && defIsTribe(CARD_INDEX[cardOf.get(e.target) ?? ''], 'undead')) { add(t, 'undeadRises', 1); undeadRises++; }
         break;
       }
       case 'death':
@@ -433,6 +480,11 @@ function observeSecretCombat(t: AchTally, lc: CombatResult, player: ReadonlySet<
     if (alivePlayer === 1 && aliveEnemy === 7) wasDownOneVsSeven = true;
   }
   settleHit();
+  bump(t, 'combatGoldMax', bankedGold);
+  bump(t, 'demonDamageCombatMax', demonDamage);
+  bump(t, 'undeadRisesCombatMax', undeadRises);
+  bump(t, 'skeletonSummonsCombatMax', skeletons);
+  bump(t, 'handSummonsCombatMax', fromHand);
   if (!won || tagTeam) return;
   if (wasDownOneVsSeven) bump(t, 'comebackOneVsSeven', 1);
   if (theirs.length > 0 && mine.length > 0 && !friendlyAttacked) bump(t, 'pacifistWin', 1);

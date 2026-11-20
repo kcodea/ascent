@@ -52,7 +52,7 @@ describe('the view model', () => {
   it('the secret titles (owner 2026-11-20): one Secrets category, every tile concealed (no bar) until earned, then shown with its title', () => {
     const secrets = (v: ReturnType<typeof achievementView>) => v.categories.find((c) => c.id === 'secret')!;
     const hidden = secrets(achievementView({ ...base, progress: { 'secret.window_shopper': 20 } }));
-    expect(hidden.total).toBe(48);
+    expect(hidden.total).toBe(88);
     expect(hidden.groups.flatMap((g) => g.tiles).every((t) => t.concealed && t.progress === null)).toBe(true);
     const earned = secrets(achievementView({ ...base, completions: [...base.completions, { id: 'secret.window_shopper', completedAt: '2026-11-20T10:00:00Z' }] }));
     const tile = earned.groups.flatMap((g) => g.tiles).find((t) => t.def.id === 'secret.window_shopper')!;

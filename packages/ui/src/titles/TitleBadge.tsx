@@ -1,8 +1,7 @@
-import { memo, type CSSProperties } from 'react';
+import { memo, useEffect, useRef, type CSSProperties } from 'react';
 import type { RunCosmeticSnapshot } from '@game/progression';
 import { useProgression } from '../progression/progressionStore';
-import { TribeMedal } from '../menuIcons';
-import { TITLE_LOOK_TRIBE, TITLE_STYLES, titleLookOf, titleLookOfId, type TitleCustomStyle } from './titleStyle';
+import { TITLE_STYLES, titleLookOf, titleLookOfId, type TitleCustomStyle } from './titleStyle';
 
 /**
  * THE ONE TITLE BADGE (owner ask 2026-09-28). Every surface that shows a player's title renders this.
@@ -59,22 +58,48 @@ export const TitleBadge = memo(function TitleBadge({ snapshot, id, size = 'sm', 
     );
   }
   if (look.look) {
-    // A THEMED title (owner ask 2026-11-20): its theme's colours, type and static glow (`.tb-look-<key>`), the tribe's
-    // painted medallion for a tribe theme, and the shared secret seal (a crimson inner rim and a small diamond after the
-    // name, both styles.css). The seal's glyph is CSS content with empty alt text, so the text content stays the name.
-    const tribe = TITLE_LOOK_TRIBE[look.look];
     const lookCls = ['titlebadge', `tb-${size}`, 'tb-look', `tb-look-${look.look}`, className ?? ''].filter(Boolean).join(' ');
-    return (
-      <span className={lookCls} data-title-id={look.id} data-rarity={look.rarity} data-look={look.look}>
-        {tribe && <span className="tb-medal"><TribeMedal tribe={tribe} /></span>}
-        <span className="tb-text">{look.name}</span>
-        <span className="tb-seal" aria-hidden="true" />
-      </span>
-    );
+    return <ThemedBadge cls={lookCls} id={look.id} rarity={look.rarity} look={look.look} name={look.name} />;
   }
   return (
     <span className={cls} style={style} data-title-id={look.id} data-rarity={look.rarity}>
       <span className="tb-text">{look.name}</span>
+    </span>
+  );
+});
+
+/**
+ * ONE shared IntersectionObserver for every themed badge (owner ask 2026-11-20: "can we have them animate a bit in game as
+ * well?"). A themed badge's two accent loops (styles.css, transform and opacity only) stay PAUSED until the badge is on
+ * screen, so a long leaderboard costs nothing for the rows you cannot see. The observer flips a class directly (no React
+ * state, so no re-render). Without IntersectionObserver (tests, very old browsers) a badge is simply live.
+ */
+let liveObserver: IntersectionObserver | null | undefined;
+function observeLive(el: HTMLElement): () => void {
+  if (liveObserver === undefined) {
+    liveObserver = typeof IntersectionObserver === 'function'
+      ? new IntersectionObserver((entries) => { for (const e of entries) e.target.classList.toggle('tb-live', e.isIntersecting); })
+      : null;
+  }
+  if (!liveObserver) { el.classList.add('tb-live'); return () => {}; }
+  const o = liveObserver;
+  o.observe(el);
+  return () => o.unobserve(el);
+}
+
+/**
+ * A THEMED title (owner asks 2026-11-20): its theme's colours, type and static glow (`.tb-look-<key>`), the shared secret
+ * seal (a crimson inner rim and a small diamond after the name) and the theme's own accent motion, all in styles.css. The
+ * seal's glyph is CSS content with empty alt text, so the text content stays the name. Re-observed when the class string
+ * changes, because React then rewrites `className` and the observer's fresh first report restores `tb-live`.
+ */
+const ThemedBadge = memo(function ThemedBadge({ cls, id, rarity, look, name }: { cls: string; id: string; rarity: string; look: string; name: string }): JSX.Element {
+  const ref = useRef<HTMLSpanElement>(null);
+  useEffect(() => (ref.current ? observeLive(ref.current) : undefined), [cls]);
+  return (
+    <span ref={ref} className={cls} data-title-id={id} data-rarity={rarity} data-look={look}>
+      <span className="tb-text">{name}</span>
+      <span className="tb-seal" aria-hidden="true" />
     </span>
   );
 });

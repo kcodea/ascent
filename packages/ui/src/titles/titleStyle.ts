@@ -10,7 +10,6 @@
  *
  * Pure (no store, no React), so the resolver is cheap to test and to call from any render.
  */
-import type { Tribe } from '@game/core';
 import { isMasterTitle, titleLookKeyOf, titleOf, type CosmeticRarity, type RunCosmeticSnapshot, type TitleLookKey } from '@game/progression';
 
 /** A title's custom look. `gradient` is any CSS gradient, painted into the text. `effect: 'shimmer'` adds a light
@@ -36,11 +35,6 @@ export interface TitleLook {
    *  styles.css. Null for a plain rarity title. The master look still wins over it. */
   look: TitleLookKey | null;
 }
-
-/** The themed looks that are a tribe's, and so lead with that tribe's painted medallion (`public/menu/tribe-<id>.webp`). */
-export const TITLE_LOOK_TRIBE: Readonly<Partial<Record<TitleLookKey, Tribe>>> = Object.freeze({
-  dwarf: 'dwarf', demon: 'demon', spirit: 'spirit', dragon: 'dragon', beast: 'beast', undead: 'undead', kobold: 'kobold', celestial: 'celestial',
-});
 
 /** True when a surface that otherwise prints a title as plain text should render the `TitleBadge` instead: a master
  *  title, or a themed one. */

@@ -59,6 +59,16 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-11-20',
     changes: [
       { category: 'Systems', text: 'Disco Dan can now Freeze the Shop on turn 1. His other turn-1 Shop actions stay locked.' },
+      {
+        category: 'Systems',
+        text: 'Secret titles are hidden in the game. Find them by doing unusual things.',
+        details: [
+          'Each one is a hidden achievement in the new Secrets section of your Achievements.',
+          'Unlocking one grants XP and a Secret title.',
+          'Every tribe has its own secrets.',
+          'Each Secret title has its own colours and a little motion, themed on the tribe or feat that earns it.',
+        ],
+      },
       { category: 'Systems', text: 'Hovering the Runeforge Re-roll button no longer pops up a stray gold block.' },
       { category: 'Systems', text: 'Hero power Discovers (Power Shifter, Mimic, Void) now show each power as your Ancient changes it, and results, scouting and the foe power tip show the power a player held at the time, not their starting one.' },
       { category: 'Systems', text: 'The Live Games tab now glows green while ranked games are being played, and shows how many are playing.' },

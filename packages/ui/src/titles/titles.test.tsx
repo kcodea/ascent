@@ -29,7 +29,7 @@ import { LobbyPanel } from '../LobbyPanel';
 import { Rankings } from '../Rankings';
 import { CombatOpponent } from '../CombatOpponent';
 import { TitleBadge } from './TitleBadge';
-import { TITLE_LOOK_TRIBE, hasTitlePlate, titleLookOf } from './titleStyle';
+import { hasTitlePlate, titleLookOf } from './titleStyle';
 
 HTMLCanvasElement.prototype.getContext = (() => null) as unknown as HTMLCanvasElement['getContext'];
 Element.prototype.scrollIntoView = function scrollIntoView(): void { /* jsdom has none */ };
@@ -137,33 +137,49 @@ describe('themed secret titles (owner ask 2026-11-20: "more exciting/fun looking
     expect(hasTitlePlate(null)).toBe(false);
   });
 
-  it('paints its theme with the secret seal: the tribe medallion for a tribe look, the name as the only text', () => {
+  it('paints its theme in colour only (no icon, owner 2026-11-20) with the secret seal, the name as the only text, live on screen', () => {
     m.render(<TitleBadge id="title_secret_kings_jester" />);
     const dwarf = badge()!;
     expect(dwarf.classList.contains('tb-look-dwarf')).toBe(true);
     expect([...dwarf.classList].some((c) => c.startsWith('r-'))).toBe(false); // no rarity rule paints over it
-    expect(dwarf.querySelector('.tb-medal img')?.getAttribute('src')).toContain('menu/tribe-dwarf.webp');
+    expect(dwarf.querySelector('img')).toBeNull();
     expect(dwarf.querySelector('.tb-seal')).not.toBeNull();
+    expect(dwarf.classList.contains('tb-live')).toBe(true); // jsdom has no IntersectionObserver: always live
     expect(dwarf.textContent).toBe("King Brill's Jester");
     expect(dwarf.hasAttribute('title')).toBe(false);
     m.render(<TitleBadge id="title_secret_pacifist" />);
     expect(badge()!.classList.contains('tb-look-jester')).toBe(true);
-    expect(badge()!.querySelector('.tb-medal')).toBeNull();
     expect(badge()!.textContent).toBe('Pacifist');
-    expect(Object.keys(TITLE_LOOK_TRIBE).length).toBe(8);
   });
 
   it('every look has a rule, and its loops animate transform and opacity only, off under reduced motion', () => {
     const css = readFileSync(join(__dirname, '../styles.css'), 'utf8');
     for (const k of TITLE_LOOK_KEYS) expect(css, k).toContain(`.titlebadge.tb-look-${k} {`);
     const rules = [...css.matchAll(/([^{}]*\.tb-look[^{}]*)\{([^}]*)\}/g)];
-    const animated = rules.filter(([, , body]) => /animation:(?!\s*none)/.test(body!));
-    expect(animated.map(([, sel]) => sel!.trim()).sort()).toEqual(['.titlebadge.tb-look-celestial::before', '.titlebadge.tb-look::after']);
     for (const [, sel, body] of rules) expect(body, sel).not.toMatch(/transition/);
-    expect(css).toMatch(/@keyframes kwglow \{ 0%, 100% \{ opacity: 0; \} 50% \{ opacity: 1; \} \}/);
+    // The only animated layers are the two pseudo-elements, and both start PAUSED (running only with `tb-live`).
+    const animated = rules.filter(([, , body]) => /(?:^|[\s;])animation:(?!\s*none)/.test(body!));
+    expect(animated.map(([, sel]) => sel!.trim()).sort()).toEqual(['.titlebadge.tb-look::after', '.titlebadge.tb-look::before']);
+    for (const [, sel, body] of animated) expect(body, sel).toMatch(/paused;/);
+    expect(css).toMatch(/\.titlebadge\.tb-look\.tb-live::before, \.titlebadge\.tb-look\.tb-live::after \{ animation-play-state: running; \}/);
+    // Every theme names an accent, and every accent's keyframes set transform and opacity only.
+    const names = new Set<string>();
+    for (const k of TITLE_LOOK_KEYS) {
+      const body = css.match(new RegExp(`\\.titlebadge\\.tb-look-${k} \\{([^}]*)\\}`))![1]!;
+      const m = body.match(/--lk-anim: (tblk-[a-z]+) /);
+      expect(m, k).toBeTruthy();
+      names.add(m![1]!);
+    }
+    names.add('tbshimmer');
+    for (const name of names) {
+      const line = css.split('\n').find((l) => l.startsWith(`@keyframes ${name} `));
+      expect(line, name).toBeTruthy();
+      const props = [...line!.matchAll(/([a-z-]+)\s*:/g)].map((x) => x[1]);
+      for (const p of props) expect(['transform', 'opacity'], `${name}: ${p}`).toContain(p);
+    }
     const reduced = [...css.matchAll(/@media \(prefers-reduced-motion: reduce\) \{([\s\S]*?)\n\}/g)].map((x) => x[1]).join('\n');
     expect(reduced).toMatch(/\.titlebadge\.tb-look::after \{ animation: none/);
-    expect(reduced).toMatch(/\.titlebadge\.tb-look-celestial::before \{ animation: none/);
+    expect(reduced).toMatch(/\.titlebadge\.tb-look::before \{ animation: none/);
   });
 });
 

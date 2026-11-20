@@ -412,7 +412,9 @@ export interface CompendiumParts {
 export function MinionBook({ frame }: { frame?: (parts: CompendiumParts) => ReactNode } = {}) {
   // THE APP SHELL (party home prototype, DEV switch): on the menus the Compendium is a page under the top nav.
   const shell = usePartyHome();
-  const onMenus = useGame(isPreRun);
+  // HERO SELECT is pre-run but not a menu: the shell's top nav has no place there, so the book opened from it (its View
+  // Compendium button) is the in-game overlay over the picker.
+  const onMenus = useGame((s) => isPreRun(s) && s.heroChoices === null);
   // The shell's route (PhBookNav) mounts the page itself; loading PhCompendium registers it (setCompendiumPage).
   if (!frame && shell && onMenus && PhCompendiumMount) return <Suspense fallback={null}><PhCompendiumMount /></Suspense>;
   // In a game: one design, the same page, as an overlay over the match.
@@ -422,7 +424,9 @@ export function MinionBook({ frame }: { frame?: (parts: CompendiumParts) => Reac
 
 function BookView({ frame }: { frame?: (parts: CompendiumParts) => ReactNode }) {
   const run = useGame((s) => s.run);
-  const showTitle = useGame((s) => s.showTitle);
+  // Hero select browses like the title: no run is on yet (the store's `run` there is the dormant or finished one), and the
+  // run about to start pins the active set, so the book shows that whole set.
+  const showTitle = useGame((s) => s.showTitle || s.heroChoices !== null);
   const closeBook = useGame((s) => s.closeBook);
   // The dimmed surround closes the Compendium only for a press that BEGAN on it. A press that began inside the window
   // and ended on the surround (a text selection dragged out of a text box) still lands its click on the surround.

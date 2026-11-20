@@ -687,7 +687,7 @@ export function Game() {
       {!preRun && <CastPreviewLayer />}
       {showBook && (PhGuard && shellMenus ? <PhGuard onBack={() => useGame.getState().closeBook()}><MinionBook /></PhGuard> : <MinionBook />)}
       {/* THE PARTY HOME PROTOTYPE (DEV): on the menus the Compendium is a page under the shell's top nav. */}
-      {showBook && preRun && PhBookNav && PhGuard && <PhGuard onBack={() => useGame.getState().closeBook()}><PhBookNav /></PhGuard>}
+      {showBook && preRun && !heroPicking && PhBookNav && PhGuard && <PhGuard onBack={() => useGame.getState().closeBook()}><PhBookNav /></PhGuard>}
       <Inspect />
       {/* A Runeforge offer's tap-to-inspect view (touch only, R-TOUCH-TAPINSPECT-01): renders nothing until a finger opens it. */}
       <RuneInspect />

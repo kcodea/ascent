@@ -33,16 +33,18 @@
   radial-gradient(70% 70% at 50% 50%, transparent 0%, rgba(4, 8, 20, 0.55) 100%); }
 
 /* ── BACK: a glossy navy pill, top left (the ranked one arms in the foe's red) ── */
-.heroselect.phhs .hsback { height: 46px; padding: 0 22px 0 16px; gap: 8px; border: 0; border-radius: 999px;
+.heroselect.phhs :is(.hsback, .hsbook) { height: 46px; padding: 0 22px 0 16px; gap: 8px; border: 0; border-radius: 999px;
   background: var(--ph-gloss), var(--ph-plate), var(--ph-navy); box-shadow: var(--ph-gild-s), 0 6px 18px -6px rgba(0, 0, 0, 0.7);
   font-family: var(--ph-font); font-weight: 800; font-size: 18px; letter-spacing: 0.01em; color: var(--ph-text); text-shadow: var(--ph-shadow);
   transition: none; }
 /* Hover and press are lighting only: a lit layer fades in (opacity), nothing moves. */
-.heroselect.phhs :is(.hsback, .hcreroll)::after { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: 0; transition: opacity 0.16s ease;
+.heroselect.phhs :is(.hsback, .hcreroll, .hsbook)::after { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: 0; transition: opacity 0.16s ease;
   background: radial-gradient(90% 120% at 50% 0%, rgba(255, 224, 150, 0.3), rgba(255, 224, 150, 0.06) 70%); }
-.heroselect.phhs :is(.hsback, .hcreroll):hover::after { opacity: 1; }
-.heroselect.phhs :is(.hsback, .hcreroll):active::after { opacity: 0.55; transition-duration: 0.05s; }
-.heroselect.phhs .hsback:focus-visible { outline: none; box-shadow: var(--ph-gild-s), 0 0 0 2px rgba(255, 214, 110, 0.9), 0 0 16px rgba(255, 196, 70, 0.55); }
+.heroselect.phhs :is(.hsback, .hcreroll, .hsbook):hover::after { opacity: 1; }
+.heroselect.phhs :is(.hsback, .hcreroll, .hsbook):active::after { opacity: 0.55; transition-duration: 0.05s; }
+.heroselect.phhs :is(.hsback, .hsbook):focus-visible { outline: none; box-shadow: var(--ph-gild-s), 0 0 0 2px rgba(255, 214, 110, 0.9), 0 0 16px rgba(255, 196, 70, 0.55); }
+/* VIEW COMPENDIUM: the Back pill's navy gloss, smaller (owner ask 2026-11-20: "it doesnt need to be large"). */
+.heroselect.phhs .hsbook { position: relative; height: 36px; padding: 0 18px; font-size: 15px; }
 .hsback-arrow { font-size: 28px; line-height: 1; margin-top: -4px; }
 .heroselect.phhs .hsback.armed, .heroselect.phhs .hsback.armed:hover { padding: 0 22px; color: #ffe1e5;
   background: var(--ph-gloss), linear-gradient(180deg, #6e1a2a, #3c0b16); box-shadow: inset 0 0 0 1.5px var(--ph-foe), 0 0 18px rgba(255, 110, 130, 0.35); }
@@ -222,7 +224,7 @@ html[data-touch-ui][data-touch-small] .heroselect.phhs :is(.hsrow.browse, .hsc-c
 html[data-touch-ui][data-touch-small] .heroselect.phhs :is(.hsrow:not(.browse), .hsc-clone:not(:has(.hsc-browse))) .herocard.big :is(.hcframe-art, .hcframe-pow) { object-position: 50% 24%; }
 
 @media (prefers-reduced-motion: reduce) {
-  .heroselect.phhs :is(.herocard.big, .hsback, .hcreroll, .hsc-start) { transition: none; }
+  .heroselect.phhs :is(.herocard.big, .hsback, .hsbook, .hcreroll, .hsc-start) { transition: none; }
 }
 
 /* ── THE PLAY PAGE'S FLAG (owner 2026-11-06: "we need to make all the same adjustments on this page as we did on the play page for

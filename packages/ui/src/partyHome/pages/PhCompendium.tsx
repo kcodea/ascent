@@ -75,7 +75,9 @@ export function PhCompendiumOverlay() {
     html.toggleAttribute('data-ph-compact', isPhone() || h < 700);
     html.toggleAttribute('data-ph-laptop', h <= 900);
     return () => {
-      if (isPreRun(useGame.getState())) return; // back on the menus: the title owns these now
+      // Back on the menus: the title owns these now. Hero select is pre-run but wears no shell, so it gets them taken off.
+      const st = useGame.getState();
+      if (isPreRun(st) && st.heroChoices === null) return;
       html.removeAttribute('data-ph-shell'); html.removeAttribute('data-ph-compact'); html.removeAttribute('data-ph-laptop'); html.style.removeProperty('--ph-h');
     };
   }, []);

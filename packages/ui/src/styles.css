@@ -6776,10 +6776,21 @@ body:has(.heroselect) .statusbar { visibility: hidden; }
   transition: translate 0.1s ease;
   cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
 }
-.hsback:hover { color: #fff; translate: 0 -1px; background: var(--ui-sheen) padding-box, var(--ui-hover-plate) padding-box, var(--ui-hover-edge) border-box; }
-.hsback:active, .hsback:hover:active { translate: 0 1px; transition-duration: 0.05s; }
-.hsback:focus-visible { outline: 2px solid var(--ui-edge-hi); outline-offset: 2px; }
-@media (prefers-reduced-motion: reduce) { .hsback:is(:hover, :active) { translate: none; } }
+.hsback:hover, .hsbook:hover { color: #fff; translate: 0 -1px; background: var(--ui-sheen) padding-box, var(--ui-hover-plate) padding-box, var(--ui-hover-edge) border-box; }
+.hsback:active, .hsback:hover:active, .hsbook:active { translate: 0 1px; transition-duration: 0.05s; }
+.hsback:focus-visible, .hsbook:focus-visible { outline: 2px solid var(--ui-edge-hi); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { :is(.hsback, .hsbook):is(:hover, :active) { translate: none; } }
+/* VIEW COMPENDIUM (owner ask 2026-11-20): the Back button's paint on a smaller, in-flow pill centred under the heroes. It
+   shares every paint rule above; only its size and place are its own. Static, nothing loops. */
+.hsbook {
+  display: inline-flex; align-items: center; justify-content: center; flex: none; margin-top: 22px;
+  height: 36px; padding: 0 18px; border-radius: 10px; border: 2px solid transparent; white-space: nowrap;
+  background: var(--ui-sheen) padding-box, var(--ui-plate) padding-box, var(--ui-edge) border-box;
+  box-shadow: var(--ui-bevel), inset 0 0 0 1px rgba(0, 0, 0, 0.5), inset 0 0 0 2px color-mix(in srgb, var(--ui-ring) 90%, transparent), 0 3px 10px -3px rgba(0, 0, 0, 0.7);
+  color: var(--ui-text); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
+  font-family: var(--font-body), sans-serif; font-weight: 700; font-size: 15px; line-height: 1; letter-spacing: normal; text-transform: none;
+  transition: translate 0.1s ease;
+}
 /* Still live: the END SCREEN reuses `.hstitle` for its own headings ("Tutorial Complete", the result title).
    Hero select no longer does — it wears the brand lockup below. */
 .hstitle { font-family: var(--font-title); font-weight: 900; font-size: 68px; letter-spacing: 0.06em; color: #f6efe2; margin: 8px 0 22px; }

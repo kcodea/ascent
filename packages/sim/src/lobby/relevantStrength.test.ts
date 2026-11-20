@@ -53,4 +53,14 @@ describe('relevant strength', () => {
     const b = board({ poolScore: { ref: 'set2-v1', raw: 10, wave: 7 } });
     expect(boardPctAtRound(b, 7, hist)).toBeNull();
   });
+
+  it('an empty or missing bucket, a carried ref mismatch or a missing round value is null', () => {
+    const carried = (ref: string, rounds: Record<string, number>) =>
+      board({ poolCarried: { ref, rounds } });
+    expect(boardPctAtRound(carried(STRENGTH_REF_VERSION, { '9': 10 }), 9, hist)).toBeNull();
+    expect(boardPctAtRound(carried(STRENGTH_REF_VERSION, { '9': 10 }), 9, { ...hist, '9': [] })).toBeNull();
+    expect(boardPctAtRound(carried(STRENGTH_REF_VERSION, { '9': 10 }), 9, { ...hist, '9': [{ raw: 10, count: 0 }] })).toBeNull();
+    expect(boardPctAtRound(carried('set2-v1', { '8': 20 }), 8, hist)).toBeNull();
+    expect(boardPctAtRound(carried(STRENGTH_REF_VERSION, { '15': 10 }), 8, hist)).toBeNull();
+  });
 });

@@ -236,7 +236,9 @@ export function boardPctAtRound(board: BoardSnapshot, round: number, hist: Stren
     raw = board.poolCarried.rounds[String(bucket)];
   } else return null;
   if (typeof raw !== 'number' || !Number.isFinite(raw)) return null;
-  return percentileOf(raw, hist[String(bucket)], true);
+  const entries = hist[String(bucket)];
+  if (!entries?.some((e) => e.count > 0)) return null;
+  return percentileOf(raw, entries, true);
 }
 
 /** Weighted mean of per-round percentiles over rounds 1..n (`strengthWindowWeights`), missing rounds dropped and the

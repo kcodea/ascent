@@ -16806,4 +16806,48 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'out-stacked the overlay (z 1) and stayed sharp over it, and the portrait ring was 36px against the 39px Ancient disc.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/partyHome/pages/recentGamesPolish.test.ts'], lastVerifiedAt: '2026-11-19' },
   },
+  {
+    id: 'R-COMBAT-TIER-GOLD-01',
+    domain: 'foundation',
+    title: 'The Shop tier stone and the Gold pill stay through combat; the stone cannot be pressed and the Gold forecast is live',
+    statement:
+      'In combat the Shop tier stone and the Gold pill stay on screen in the same place and with the same look as in the Shop, '
+      + 'so nothing moves when the fight starts or ends. The stone shows the current tier but is inert: it cannot be pressed, '
+      + 'and it shows no upgrade cost, hover glow or sheen. The pill shows the Gold left over from the turn that just ended, and '
+      + 'its hover shows the usual Gold for the next two turns. Every Gold the fight adds for next turn (a max Gold gain or '
+      + 'Gold banked for next turn, R-COMBAT-GOLD-EVENT-01) raises the forecast rows the moment the replay plays it: max Gold '
+      + 'raises both rows, one-turn Gold the next row. Only the player side counts, and in a Duos fight only the player\x27s '
+      + 'own board. A Skip lands on the same numbers, and after the fight settles the rows read the real run state with '
+      + "nothing counted twice. A spectator sees the watched player's numbers.",
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-20', quote: "make it so that the player's shop tier and gold buttons stay in combat" },
+      { kind: 'code', ref: 'packages/ui/src/TierGoldControls.tsx; packages/ui/src/goldForecast.ts; packages/ui/src/GoldPill.tsx; packages/ui/src/Recruit.tsx ShopControls; styles.css .tvbwrap.combat' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-20 (feat/combat-tier-gold-hud). Before, both were hidden for the whole fight (owner ask 2026-08-29).',
+    example: 'You end the turn with 2 Gold on Tier 3. In combat the stone still reads Tier 3 and does nothing on a click; the pill reads 2. Soulsman avenges mid-fight and the hover rows go from 8 and 9 to 9 and 10 right then.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/combatTierGoldHud.test.tsx'], lastVerifiedAt: '2026-11-20' },
+  },
+  {
+    id: 'R-COMBAT-GOLD-EVENT-01',
+    domain: 'foundation',
+    title: 'Every Gold a fight adds for next turn is logged the moment it happens, and the log sums to what settle pays',
+    statement:
+      'A fight logs each Gold it adds to a side\x27s next turn at the moment it happens, for both sides. One-turn Gold is a '
+      + '`bonusGold` event (every bank: Bounty Bot, Goldvein, Tromboneer, Bone Taxer\x27s Avenge, Hoarder and Scrap Vendor '
+      + 're-fires, Ember Pouch, Rune of Warm Up, Trophy Hunter, Blood and Coin, Gorun x Fortune; and the Gold paid at settle '
+      + 'per proc: Fortune x Warden per friendly Ward break, Fortune x Risen per friendly Rise, Rune of Ashen Payroll per '
+      + 'Imp). Max Gold is a `maxGold` event (Soulsman, Bone Taxer\x27s Echo, Nadja x Death, Rune of Soul Taxes, and the '
+      + 'sender\x27s own half of Richmond\x27s team Shout). The events only report: settle still pays from the carry-backs, '
+      + 'so every result and every settled run is unchanged, and for each side the events sum exactly to what settle pays. '
+      + 'The events add no pause to the replay.',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-20', quote: 'make ALL combat Gold update live' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts grantBonusGold and the Ward-break / Rise / Imp / Soul Taxes / sendTeam emits; packages/core/src/types.ts CombatEvent bonusGold; packages/sim/src/ancients.ts ancientWardBreakGold / ancientRiseGold' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-20 (feat/combat-tier-gold-hud). Before, one-turn Gold had no event at all and Soul Taxes / Richmond max Gold had none, so they appeared only at settle.',
+    example: 'A Bounty Bot kills mid-fight: a bonusGold of 2 is logged on that kill, and the Gold pill\x27s Next turn row goes up by 2 right then. At settle the run banks the same 2.',
+    enforcement: { kind: 'scenario', refs: ['packages/core/src/combat/combatGoldEvents.test.ts', 'packages/ui/src/combatTierGoldHud.test.tsx'], lastVerifiedAt: '2026-11-20' },
+  },
 ];

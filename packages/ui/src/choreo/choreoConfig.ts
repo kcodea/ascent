@@ -75,6 +75,8 @@ export interface ChoreoConfig {
   flyIn: number;
   /** DUOS: a real-time team effect marker (`teamSend`, R-DUOS-RUNES-02). Zero: it is a network cue, never a pause. */
   teamSend: number;
+  /** Gold banked for next turn (`bonusGold`, R-COMBAT-GOLD-EVENT-01). Zero: it ticks the Gold pill's forecast, never a pause. */
+  bonusGold: number;
   // Overlay lifetimes (divide by combatSpeed only, not by `speed`).
   /** How long a combat damage/heal float lingers before it clears (ms; keep ≥ the floatup CSS anim). */
   floatMs: number;
@@ -108,6 +110,7 @@ const DEFAULTS: ChoreoConfig = {
   bankedCast: 620, // ×speed 1.5 ≈ 930ms: the cast preview fades in (150) and lingers before the effect behind it lands
   boardFallen: 260, // ×speed 1.5 = 390ms (was 380 / 570ms, a long stall after the last death; tightened 2026-11-12): the last death settles, THEN the fallen beat shows (its low hit, veil and dim: channels/duosHandoff.ts)
   teamSend: 0, // a network marker (the gift ships to the teammate), never a pause
+  bonusGold: 0, // the Gold pill's forecast ticks (R-COMBAT-GOLD-EVENT-01), never a pause
   // A hold is the wait BEFORE its beat shows. So this is how long the FALLEN board is read before the reserve starts
   // to fly in: 290 ×speed 1.5 = 435 ms, the fallen dim's own length. It was 640 (960 ms), sized for the fly-in, but a
   // lead-in cannot cover what comes after it: that 960 ms was dead air and the fly-in itself got only the next beat's

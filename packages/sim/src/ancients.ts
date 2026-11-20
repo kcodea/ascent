@@ -4090,6 +4090,7 @@ export function ancientCombatMods(state: RunState): Partial<QuestCombatMods> {
   if (bonds) out.ancientBonds = { attack: bonds.attack, label: WARDEN_TIME_COMBAT_LABEL, ...grantOriginMod(state) };
   if (effectOf(state, 'wardBreakGold') || effectOf(state, 'wardBreaksGetCopy')) out.ancientTrackWardBreaks = true;
   if (effectOf(state, 'wardBreakGold')) out.ancientProcOn = { ...out.ancientProcOn, wardBreak: true }; // the proc at the break (R-FX-ANCIENT-PROC-01)
+  { const wg = effectOf(state, 'wardBreakGold'); if (wg && wg.gold > 0) out.ancientWardBreakGold = wg.gold; } // logged per break (R-COMBAT-GOLD-EVENT-01)
   const copy = effectOf(state, 'wardBreaksGetCopy');
   if (copy) out.ancientWardCopy = { every: copy.every, window: [...(live(state)?.wardWindow ?? [])] };
   const wt = effectOf(state, 'spellsGiveWardAttack'); // WARDEN × TIME: every combat cast
@@ -4107,6 +4108,7 @@ export function ancientCombatMods(state: RunState): Partial<QuestCombatMods> {
     }
   }
   if (effectOf(state, 'riseGold')) { out.ancientCountRises = true; out.ancientProcOn = { ...out.ancientProcOn, rise: true }; } // the proc at each Rise (R-FX-ANCIENT-PROC-01)
+  { const rg = effectOf(state, 'riseGold'); if (rg && rg.gold > 0) out.ancientRiseGold = rg.gold; } // logged per Rise (R-COMBAT-GOLD-EVENT-01)
   const extra = effectOf(state, 'summonsSummonExtra');
   if (extra) {
     out.ancientSummonExtra = extra.extra;

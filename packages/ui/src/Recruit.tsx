@@ -74,7 +74,7 @@ import { carnivalCoinLive } from '@game/sim'; // Juggler × Ancients
 import { discoverOfferCard } from '@game/sim'; // the Discover pick preview (R-DISCOVER-PREVIEW-01)
 import { isAncientBuffLabel } from '@game/sim'; // Ancient trigger procs (R-FX-ANCIENT-PROC-01)
 import { playAncientProcBurst } from './ancientProcFx';
-import { type Action, aleHandMagnitude, shopArrivals, passariaTarget, battlecryTargetAllowed, ancientEnchantedSpellCut, grimToastFold, unityAuraFold, EQUIPMENT_FX_ANCHOR, ancientRiseTint, spiritsPlayedThisTurn, anySpellsCastThisTurn, unusedEquipmentCount, shopSpellsBoughtThisTurn, playerOpponent, alignmentsOf, boardHasCelestial, chooseBothActive, chooseBothStateOf, type ChooseBothState, chooseOneNeedsChoice, computeCombatOdds, type CombatOdds, rubyCastCount, giftCastCount, rubyStatBonus, CONFIG, riftDefFor, type RiftDef, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, defIsTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, endOfTurnTicksOf, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, chooseOneBranchText, spellAttackBonus, spellHealthBonus, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, squirlScoutBuffLive, conductorBuffLive, spellCasts, runeExtraCasts, spellCostReduction, implosionCasts, dragonflameCasts, minionCostOf, heldOfferPrice, heroOfferPrice, offerBuyPrice, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, nextRefreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot, gildCopiesNeeded, activePowers, ancientPairingHeroId, gateUses, runeStacksOf, starformSpellAimsToken, runLossCap, selectedEquipment, selectedEquipmentDef, runTallyFor } from '@game/sim';
+import { type Action, aleHandMagnitude, shopArrivals, passariaTarget, battlecryTargetAllowed, ancientEnchantedSpellCut, grimToastFold, unityAuraFold, EQUIPMENT_FX_ANCHOR, ancientRiseTint, spiritsPlayedThisTurn, anySpellsCastThisTurn, unusedEquipmentCount, shopSpellsBoughtThisTurn, playerOpponent, alignmentsOf, boardHasCelestial, chooseBothActive, chooseBothStateOf, type ChooseBothState, chooseOneNeedsChoice, computeCombatOdds, type CombatOdds, rubyCastCount, giftCastCount, rubyStatBonus, CONFIG, riftDefFor, type RiftDef, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, defIsTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, endOfTurnTicksOf, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, chooseOneBranchText, spellAttackBonus, spellHealthBonus, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, squirlScoutBuffLive, conductorBuffLive, spellCasts, runeExtraCasts, spellCostReduction, implosionCasts, dragonflameCasts, minionCostOf, heldOfferPrice, heroOfferPrice, offerBuyPrice, dominantBoardTribe, effectiveTargetTribe, upgradeCostOf, nextRefreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot, gildCopiesNeeded, activePowers, ancientPairingHeroId, gateUses, runeStacksOf, starformSpellAimsToken, runLossCap, selectedEquipment, selectedEquipmentDef, runTallyFor } from '@game/sim';
 import { createPortal } from 'react-dom';
 import { setCardId, setCardStats, toggleCardKeyword, setEnemyStats, setEnemyCardId, toggleEnemyKeyword, toggleEnemyGolden, removeEnemy, foeSnapshotOf } from './sandboxEdit';
 import { UnitEditor } from './UnitEditor';
@@ -198,8 +198,6 @@ import { RiftButton } from './RiftButton';
 import { RefreshButton } from './RefreshButton';
 import { CombatRoundLabel, combatRound } from './CombatRoundLabel';
 import { FreezeButton } from './FreezeButton';
-import { TavernUpButton } from './TavernUpButton';
-import { GoldPill } from './GoldPill';
 import { Icon } from './Icon';
 import { sfx, resumeAudio, beginSkipTurboAudio, stopTurnCharge, turnTickLevel } from './sfx';
 import { presentAction, setActionPresenter, type PresentedAction } from './actionPresenter';
@@ -341,6 +339,9 @@ import { WatchersBadge } from './versus/WatchersBadge';
 import { mateTripleIds } from './versus/mateTriples';
 import { useMateTripleKey } from './versus/useMateTriples';
 import { onPressCue } from './pressCue';
+import { COMBAT_GOLD_FOLD, goldForecastOf, liveCombatGold } from './goldForecast';
+import { makePrefixFold } from './choreo/prefixFold';
+import { TierGoldControls } from './TierGoldControls';
 
 /** GOD MODE panel (owner 2026-10-08) — its own chunk, fetched only when a God Mode run reaches the shop. */
 const GodModePanel = lazy(() => retryImport(() => import('./godMode/GodModePanel')).then((m) => ({ default: m.GodModePanel })));
@@ -1679,16 +1680,6 @@ export function Recruit() {
   const goldClockSeconds = goldClock?.seconds ?? null;
   const goldClockWaits = !!goldClock && goldClockState(goldClock, run.goldSpentThisTurn ?? 0) === 'waiting';
   const turnSeconds = goldClock ? GOLD_CLOCK_WAITING : infiniteClock ? 99999 : standardTurnSeconds(run.wave, practiceClockMult(run, practiceTimer));
-
-  // Projected STARTING Gold for the next two waves (the Gold-cell hover) — cap-aware, folding in board mana
-  // income (Money Bot) and the one-turn Hoarder/Robin bank (into Wave+1 only, since it's consumed then).
-  // Mirrors the reducer's turn-start `embers` formula (see reducer.ts ~1039).
-  const goldManaBonus = boardManaBonus(run);
-  const maxGoldBonus = run.maxGoldBonus ?? 0; // Shop License's permanent above-cap bonus
-  const nextTurnGold =
-    Math.max(run.maxEmbers, Math.min(CONFIG.embersCap, run.maxEmbers + CONFIG.embersPerWave)) + maxGoldBonus + goldManaBonus + (run.bonusEmbersNextTurn ?? 0);
-  const afterNextGold =
-    Math.max(run.maxEmbers, Math.min(CONFIG.embersCap, run.maxEmbers + 2 * CONFIG.embersPerWave)) + maxGoldBonus + goldManaBonus;
 
   // THE LIVE DRAG, its decision, the sell/buy zone geometry, the magnet slide, the snap-back and the hero-aim
   // target all live in `dragStore` (perf 2026-09-17) — an external store the rows, the drag overlay and the FLIP
@@ -3566,6 +3557,15 @@ export function Recruit() {
   useEffect(() => {
     setCombatBuffs(inCombat && !run.combatSettled ? combatBuffsNow : null);
   }, [inCombat, run.combatSettled, combatBuffsNow, setCombatBuffs]);
+  // The Gold pill's forecast (R-COMBAT-TIER-GOLD-01): the fight's `maxGold` / `bonusGold` events tick the "Next turn"
+  // rows the moment each one plays (player side, own Duos board only), and the live part drops to 0 at settle, when the
+  // run holds the gains itself. A continued prefix fold: each beat pays only for the events past the last one.
+  const [foldCombatGold] = useState(() => makePrefixFold(COMBAT_GOLD_FOLD));
+  const replayedGold = useMemo(
+    () => foldCombatGold(replay.replayEvents, replay.processedEnd, replay.ownHand),
+    [foldCombatGold, replay.replayEvents, replay.processedEnd, replay.ownHand],
+  );
+  const goldForecast = goldForecastOf(run, liveCombatGold(run.phase, run.combatSettled, replayedGold));
   // …and the same fold drives every printed SPELL number (owner report 2026-09-22: "front to backs text /
   // maybe all spells? not updating in real time from buffs in combat"). `simulate` keeps its own spell power
   // live inside the fight, but the run's `spellBonus` is written only at settle — so a Chorus Drake pumping
@@ -9274,7 +9274,7 @@ export function Recruit() {
         roundSettled={roundSettled} timeUp={timeUp} combatBgShown={combatBgShown} frozen={!!run.frozen} embers={run.embers}
         refreshCost={(eotRes?.freeRefresh ?? 0) > 0 ? 0 : nextRefreshCostOf(run)} freeRolls={run.freeRolls + (eotRes?.freeRefresh ?? 0)} tier={run.tier} maxTier={maxTierFor(run.rift)}
         upgradeCost={Math.max(0, upgradeCostOf(run) + (eotRes?.upgradeCost ?? 0))}
-        nextTurnGold={nextTurnGold + (eotRes?.nextTurnGold ?? 0)} afterNextGold={afterNextGold} wave={run.wave} rift={run.rift ? riftDefFor(run.rift, run.mode) : null}
+        nextTurnGold={goldForecast.next + (eotRes?.nextTurnGold ?? 0)} afterNextGold={goldForecast.afterNext} wave={run.wave} rift={run.rift ? riftDefFor(run.rift, run.mode) : null}
         combatRoundNo={combatRound(run.lobby, run.wave)}
         onSummary={openSummary} onEndTurn={endTurnStable} onEndCombat={endCombat} onFreeze={onFreeze} onRefresh={onRefresh} onUpgrade={onUpgrade} onSkip={skipCombat}
       />
@@ -9768,23 +9768,19 @@ const ShopControls = memo(function ShopControls({
         onRefresh={onRefresh}
       />
       )}
-      {/* Tavern stone + Gold — hidden during combat with the rest of the shop furniture (owner ask
-          2026-08-29, superseding the 2026-07-16 "passive tier indicator" and 2026-08-17 "gold in both
-          phases" rulings): with the curtain staging every entrance/exit, the combat scene keeps only the
-          fight's own controls. Both gate on the staged window so they swap under the blue. */}
-      {!combatBgShown && (
-      <TavernUpButton
+      {/* Tavern stone + Gold STAY through combat (R-COMBAT-TIER-GOLD-01, owner ask 2026-11-20, superseding the
+          2026-08-29 "hidden in combat" ruling): same pieces, same anchors, so nothing shifts at the swap. In the
+          fight the stone is an inert tier readout (`combat`: disabled, no cost coin, no glow, no sheen) and the pill
+          shows the Gold left over from the turn that ended, its forecast ticking live off the replay. */}
+      <TierGoldControls
         tier={tier}
         maxTier={maxTier} // Summit raises the ceiling to 7
-        cost={upgradeCost}
-        disabled={embers < upgradeCost || timeUp || eotAnimating || hasQuestOffer || hasPowerOffer || hasRuneforgeOffer}
-        combat={inCombat}
+        upgradeCost={upgradeCost}
+        upgradeDisabled={embers < upgradeCost || timeUp || eotAnimating || hasQuestOffer || hasPowerOffer || hasRuneforgeOffer}
+        combat={inCombat || combatBgShown}
         onUpgrade={onUpgrade}
+        gold={embers} nextTurnGold={nextTurnGold} afterNextGold={afterNextGold} wave={wave}
       />
-      )}
-      {!combatBgShown && (
-      <GoldPill gold={embers} nextTurnGold={nextTurnGold} afterNextGold={afterNextGold} wave={wave} />
-      )}
 
       {/* ROUND X — white, top-centre (owner ask 2026-09-25). Mounted for the WHOLE fight (replay + settled screen).
           Keeps the old Skip pill's stage anchor in CSS (Skip itself is on the diamond now, R-SKIP-DIAMOND-01).

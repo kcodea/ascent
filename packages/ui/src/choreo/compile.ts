@@ -1,5 +1,5 @@
 import type { CombatEvent } from '@game/core';
-import { RESULT_TYPES, type Beat } from '../combatBeats';
+import { RESULT_TYPES, isRider, type Beat } from '../combatBeats';
 import { momentKind, type MomentKind } from './kinds';
 import { chainTickCount, hitReactionStart } from './hitReactions';
 
@@ -58,6 +58,7 @@ export const DEFAULT_RULES: GroupingRules = {
     'buff', 'rally', 'summon', 'reveal', 'improve', 'tribeAura', 'spellcast', 'questTrigger',
     'toHand', 'handBuff', 'keyword', 'keywordLost',
     'teamSend', // DUOS (R-DUOS-RUNES-02): a Rally's team gift (Toot Toot) rides the swing like a `toHand`
+    'bonusGold', // R-COMBAT-GOLD-EVENT-01: Gold banked for next turn rides the moment that banked it
     'runeSequence', // Rune of Sequencing's meter tick rides the cast that moved it
     'shopSpellTally', // Cinderchef's live Shop-spell count rides the cast that moved it
   ]),
@@ -167,6 +168,15 @@ export function compileMoments(events: CombatEvent[], rules: GroupingRules = DEF
     const start = i;
     const t = events[i]!.type;
     const w = events[i]!.wave;
+    // A SILENT RIDER standing alone (Gold banked for next turn, R-COMBAT-GOLD-EVENT-01) joins the moment before it, so
+    // it never forms a beat of its own. MUST mirror `buildBeats` (see RIDER_TYPES there).
+    const prev = moments[moments.length - 1];
+    if (isRider(events[i]!) && prev && prev.end === i) {
+      prev.end = ++i;
+      prev.stepGroups = groupBySteps(events, prev.start, prev.end);
+      if (prev.kind === 'buffWave' && !prev.hitReaction) { const n = chainTickCount(events, prev.start, prev.end); if (n > 1) prev.ticks = n; }
+      continue;
+    }
     if (w !== undefined) {
       // A presentation WAVE (multi-pass AoE echo — Fel Spikes): the whole pass — its volley of damage, the
       // reactor buffs it fires, its deaths — shares one wave id and collapses into ONE moment regardless of
@@ -185,10 +195,10 @@ export function compileMoments(events: CombatEvent[], rules: GroupingRules = DEF
     } else if (rules.collapse.has(t)) {
       // `i > start` so a run always keeps its OWN opening damage — it is only a LATER swing's first damage
       // that starts a new moment.
-      while (i < events.length && events[i]!.wave === undefined && rules.collapse.has(events[i]!.type)
+      while (i < events.length && events[i]!.wave === undefined && (rules.collapse.has(events[i]!.type) || isRider(events[i]!))
         && !(i > start && opensSwing[i])) i++;
     } else if (rules.collapseRuns.has(t)) {
-      while (i < events.length && events[i]!.wave === undefined && events[i]!.type === t) i++;
+      while (i < events.length && events[i]!.wave === undefined && (events[i]!.type === t || isRider(events[i]!))) i++;
     } else if (t === 'attack') {
       i++;
       // Both guards: never absorb across a WAVE boundary (partC), and DO absorb a shop-buff flash (Demon Horse).

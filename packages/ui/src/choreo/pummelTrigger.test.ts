@@ -176,7 +176,8 @@ describe('a REAL fight — the crossing LEADS its moment (the one-channel rule)'
     const ordered = replayOrder(r.events);
     const beats = replayBeats(r.events);
     expect(beats.map((b) => ordered.slice(b.start, b.end).map((e) => e.type))).toEqual([
-      ['attack'], ['dmg', 'dmg'], ['handBuff'], ['pummelTrigger', 'death'],
+      // Goldvein's Gold (`bonusGold`, R-COMBAT-GOLD-EVENT-01) is a silent rider: it sits in the crossing's moment.
+      ['attack'], ['dmg', 'dmg'], ['handBuff'], ['pummelTrigger', 'bonusGold', 'death'],
     ]);
     const last = beats.at(-1)!;
     expect(last.kind).toBe('pummelTrigger');
@@ -215,7 +216,7 @@ describe('a REAL fight — the crossing on the killing blow', () => {
     const ordered = replayOrder(r.events);
     const beats = replayBeats(r.events);
     const last = beats.at(-1)!;
-    expect(ordered.slice(last.start, last.end).map((e) => e.type)).toEqual(['dmg', 'pummelTrigger', 'death']); // the killing blow's own beat
+    expect(ordered.slice(last.start, last.end).map((e) => e.type)).toEqual(['dmg', 'pummelTrigger', 'bonusGold', 'death']); // the killing blow's own beat (its Gold rides it)
     expect(last.kind).toBe('damage');
     runMomentCues(last, baseCtx(ordered, cardIdsOf(r)));
     expect(mockPlayDef).toHaveBeenCalledTimes(1);

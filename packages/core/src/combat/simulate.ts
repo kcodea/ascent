@@ -554,6 +554,9 @@ export function simulate(
   bus.on('onRise', (payload) => {
     const { minion, side } = payload as { minion: Minion; side: Side };
     if (modsFor(side).ancientCountRises) riseLog[side] += 1;
+    // R-COMBAT-GOLD-EVENT-01: Fortune x Risen's Gold for this Rise, logged now (report only; settle pays off `rises`).
+    const riseGold = modsFor(side).ancientCountRises ? (modsFor(side).ancientRiseGold ?? 0) : 0;
+    if (riseGold > 0) emit({ type: 'bonusGold', side, amount: riseGold, source: minion.uid });
     if (modsFor(side).ancientProcOn?.rise) ancientProc(side); // RISEN × FORTUNE fires (paid at settle, R-FX-ANCIENT-PROC-01)
     const bonds = modsFor(side).ancientRiseEcho;
     if (!bonds || minion.dead) return;
@@ -2186,8 +2189,10 @@ export function simulate(
       maxGoldGain[side] += amount;
     },
     ancientProc: (side) => ancientProc(side), // R-FX-ANCIENT-PROC-01 (Midas × Death's grafted Echo)
-    grantBonusGold: (amount, side) => {
+    grantBonusGold: (amount, side, source) => {
       bonusGoldGain[side] += amount;
+      // R-COMBAT-GOLD-EVENT-01: log the bank the moment it happens (report only; settle reads `bonusGold`).
+      if (amount > 0) emit({ type: 'bonusGold', side, amount, ...(source ? { source } : {}) });
     },
     // The echo-trigger chokepoint, exposed so the FORCED-trigger factories (Echohorn / Hawkus / Spots)
     // pay the same "an Echo fired" runes a real death does. Lazily referenced — `asEcho` is declared below
@@ -2302,6 +2307,10 @@ export function simulate(
       // REAL TIME (R-DUOS-RUNES-02): the teammate's half is announced at this moment, on the beat of the trigger that
       // caused it (no step of its own), so the sender's client ships it when the replay gets here.
       if (toMate) emit({ type: 'teamSend', side, member: activeMember[side], idx: list.length - 1, ...(srcUid ? { uid: srcUid } : {}) });
+      // R-COMBAT-GOLD-EVENT-01: this board's OWN half of a team max-Gold raise (Richmond) is logged now as a `maxGold` on the
+      // sender, so its forecast ticks live (report only: settle still lands it off `teamEffects`). The teammate's half
+      // reaches their run in real time through the pass channel above.
+      if (toSelf && effect.kind === 'maxGold' && effect.amount > 0 && srcUid) emit({ type: 'maxGold', target: srcUid, side, amount: effect.amount });
     },
     grantFodderBuff: (attack, health, side) => {
       fodderBuffGain[side].attack += attack;
@@ -3085,7 +3094,12 @@ export function simulate(
           ctx.gainTavernBuy(remains, remains, side, undefined, 'Remains');
         }
       }
-      if (cards[minion.cardId]?.imp) { impsSummoned[side] += 1; questEventsFor[side].push({ step: stepN, kind: 'summonImp', tribes: [] }); } // Imp Census / Implosion / Pit Without End
+      if (cards[minion.cardId]?.imp) {
+        impsSummoned[side] += 1; questEventsFor[side].push({ step: stepN, kind: 'summonImp', tribes: [] }); // Imp Census / Implosion / Pit Without End
+        // R-COMBAT-GOLD-EVENT-01: Rune of Ashen Payroll's 1 Gold next turn per Imp, logged now (report only; settle pays
+        // off `impsSummoned`).
+        if (modsFor(side).runeAshenPayroll) emit({ type: 'bonusGold', side, amount: 1, source: minion.uid });
+      }
     }
     pitchforksOnSummon(minion, side); // Set 2 rune Pitchforks: a summoned Imp deals 3 damage to 2 enemies
     // RUNE OF THE RETURNING PACK: every Nth BEAST you summon this combat hands over a random Beast next shop.
@@ -3777,7 +3791,7 @@ export function simulate(
       if (gold <= 0) return;
       for (let k = 0; k < pays; k++) {
         fired();
-        ctx.grantBonusGold(gold, dealer.side);
+        ctx.grantBonusGold(gold, dealer.side, dealer.uid);
       }
       return;
     }
@@ -4693,7 +4707,7 @@ export function simulate(
     const bacStep = modsFor(side).runeBloodAndCoin ?? 0;
     if (bacStep > 0 && deaths[side] % 4 === 0) { // balance 9/23: Avenge(4) (owner 2026-08-11 had it at 5)
       fireTrigger('runeBloodAndCoin', side);
-      bonusGoldGain[side] += bacStep;
+      ctx.grantBonusGold(bacStep, side, minion.uid); // the same bank as before, now logged (R-COMBAT-GOLD-EVENT-01)
     }
     // Rune of Finality: the Warded sibling of Pit Without End — same "your last minion died" trigger, but the
     // Imps arrive with Ward. Its own latch, so holding both runes pays both once rather than one eating the other.
@@ -4920,6 +4934,9 @@ export function simulate(
       emit({ type: 'shield', target: target.uid });
       // ANCIENT OF FORTUNE × Warden: the break banks Gold for next turn (paid at settle); the Ancient's proc plays NOW.
       if (modsFor(target.side).ancientProcOn?.wardBreak) ancientProc(target.side);
+      // R-COMBAT-GOLD-EVENT-01: that Gold, logged now (report only; settle pays off `wardBreaks`).
+      const wardGold = modsFor(target.side).ancientTrackWardBreaks ? (modsFor(target.side).ancientWardBreakGold ?? 0) : 0;
+      if (wardGold > 0) emit({ type: 'bonusGold', side: target.side, amount: wardGold, source: target.uid });
       // ANCIENT OF GENESIS × Warden (real-time): the break joins the window; the Nth pays a copy NOW, after the break.
       const wardCopy = modsFor(target.side).ancientWardCopy;
       if (wardCopy) {
@@ -5312,7 +5329,7 @@ export function simulate(
       if (ag) {
         ancientAttackCount[attacker.side] += 1;
         if ((ag.tick + ancientAttackCount[attacker.side]) % Math.max(1, ag.every) === 0) {
-          ctx.grantBonusGold(ag.gold, attacker.side);
+          ctx.grantBonusGold(ag.gold, attacker.side, attacker.uid);
           fireTrigger(ag.flag, attacker.side);
         }
       }
@@ -5846,7 +5863,7 @@ export function simulate(
     if (m.runeTrophyHunter && trophyHunterPaid[side] < SET2_TRIBAL_RUNES.trophyHunterPerCombat) {
       trophyHunterPaid[side] += 1;
       fireTrigger('runeTrophyHunter', side);
-      ctx.grantBonusGold(SET2_TRIBAL_RUNES.trophyHunterGold * flagCopiesOf(side, 'runeTrophyHunter'), side);
+      ctx.grantBonusGold(SET2_TRIBAL_RUNES.trophyHunterGold * flagCopiesOf(side, 'runeTrophyHunter'), side, killer.uid);
     }
   }
   /** FLAMEKEEPER: one Dragonflame repetition resolved on `side` (`castInCombat`'s per-cast hook, any caster): the side's
@@ -7301,10 +7318,10 @@ export function simulate(
   // `economy: true` marks a rune whose payoff is RUN state (spell power, Gold, a hand card, Fodder). Since
   // R-SYMMETRY-01 (2026-10-13) it fires identically for both sides — badge pulse included (side-tagged); the
   // enemy's payoff lands on `enemyCarry`. The flag is kept as documentation of where the payoff goes.
-  const runeAvenge = (everyN: number, flag: string, mask: (m: QuestCombatMods, side: Side) => boolean, fire: (side: Side) => void, economy = false): void => {
+  const runeAvenge = (everyN: number, flag: string, mask: (m: QuestCombatMods, side: Side) => boolean, fire: (side: Side, victim?: Minion) => void, economy = false): void => {
     void economy;
     bus.on('avenge', (payload) => {
-      const { side, count } = payload as { side: Side; count: number };
+      const { side, count, victim } = payload as { side: Side; count: number; victim?: Minion };
       if (count % everyN !== 0) return;
       const m = modsFor(side);
       if (!mask(m, side)) return;
@@ -7314,9 +7331,9 @@ export function simulate(
       // byte-identical, and Rune of Fury multiplies the whole thing exactly as it always did.
       const copies = Math.max(1, m.flagCopies?.[flag] ?? 1);
       for (let c = 0; c < copies; c++) {
-        fire(side);
+        fire(side, victim);
         // "your Avenge effects trigger twice" — per side, one extra fire per Fury copy held (owner 2026-08-27).
-        if (m.runeFury) for (let k = 0; k < flagCopiesOf(side, 'runeFury'); k++) fire(side);
+        if (m.runeFury) for (let k = 0; k < flagCopiesOf(side, 'runeFury'); k++) fire(side, victim);
       }
     });
   };
@@ -7740,7 +7757,11 @@ export function simulate(
     nextStep();
     ctx.buff(tail, tail.attack, tail.health, 'Procession');
   });
-  runeAvenge(4, 'runeSoulTaxes', (m) => !!m.runeSoulTaxes, (side) => ctx.grantMaxGold(1, side), true); // +1 max Gold
+  // +1 max Gold, logged as a `maxGold` on the death that paid it (R-COMBAT-GOLD-EVENT-01: the forecast ticks now).
+  runeAvenge(4, 'runeSoulTaxes', (m) => !!m.runeSoulTaxes, (side, victim) => {
+    ctx.grantMaxGold(1, side);
+    if (victim) emit({ type: 'maxGold', target: victim.uid, side, amount: 1 });
+  }, true);
   // Deep Hunger (Demon capstone, reworked 2026-07-21): Avenge (3) → add 2 Fodder to your next shop. Was "the
   // leftmost Demon gains Slaughter: add 3 Fodder".
   runeAvenge(3, 'deepHunger', (m) => !!m.deepHunger, (side) => { fodderGrants[side] += 2; }, true);

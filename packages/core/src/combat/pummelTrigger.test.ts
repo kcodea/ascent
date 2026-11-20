@@ -219,7 +219,7 @@ describe('pummelTrigger — Goldvein (Pummel (6): Gain 2 Gold next turn. (Once p
     const t = triggers(r.events);
     expect(t).toHaveLength(1);
     const i = r.events.indexOf(t[0]!);
-    expect(types(r.events).slice(i)).toEqual(['pummelTrigger', 'death']);
+    expect(types(r.events).slice(i)).toEqual(['pummelTrigger', 'bonusGold', 'death']); // its Gold is logged with the payout (R-COMBAT-GOLD-EVENT-01)
     expect(r.result).toBe('win');
   });
 

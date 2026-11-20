@@ -33,6 +33,7 @@ import { rollableWhisperIds } from '../whisperTier'; // R-WHISPER-TIER-01
 import { combatTierCeiling, isLegalRandomMinion } from '../randomPool'; // R-RANDOM-POOL-01
 import { FACTORIES, castWhisperInCombat, playRubyOn, castInCombat, combatCastable, resolveCombatSpellCast, replayCombatBattlecry, drakkoRepeats, fireShout, livingNeighbours, logEpicFire, triggerEcho, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth } from '../effects/factories';
 import { pickAutoTarget } from '../effects/arena'; // R-TARGET-07: the one un-aimed target pick
+import { isEchoEffect } from '../effects/echo'; // R-ECHO-WATCHER-01
 import { FERAL_RETURN_GAIN, HELLFIRE_DAMAGE, WILDFIRE_PER_COMBAT, GEM_RAIN_RUBIES } from '../types'; // Set 2 Epic tribal runes (2026-11-12)
 import type { AncientGrantOriginMod } from '../types'; // R-FX-ANCIENT-ORIGIN-01
 import { SEED_TOKEN_ID, addedSecondTribe, instantiate, resetPerCombatLimits, seedEchoCount, type CardIndex } from './minion';
@@ -556,7 +557,7 @@ export function simulate(
     if (modsFor(side).ancientProcOn?.rise) ancientProc(side); // RISEN × FORTUNE fires (paid at settle, R-FX-ANCIENT-PROC-01)
     const bonds = modsFor(side).ancientRiseEcho;
     if (!bonds || minion.dead) return;
-    const echoes = livingNeighbours(ctx, minion).filter((n) => n.effects.some((e) => e.on === 'onDeath'));
+    const echoes = livingNeighbours(ctx, minion).filter((n) => n.effects.some(isEchoEffect));
     if (echoes.length === 0) return;
     const target = echoes.length === 1 ? echoes[0]! : rng.pick(echoes);
     nextStep();
@@ -3442,7 +3443,7 @@ export function simulate(
       // An Echo counts as TRIGGERED only for the body whose Echo it is. The bus broadcasts `onDeath` to every
       // watcher, and a watcher reacting to someone else's death (Brood Matron, Endless Overseer) is not its
       // own Echo firing — wrapping those made Aftershocks pay once per rattle-body per death.
-      const ownEcho = effect.on === 'onDeath' && (payload as { minion?: Minion } | undefined)?.minion === minion;
+      const ownEcho = isEchoEffect(effect) && (payload as { minion?: Minion } | undefined)?.minion === minion;
       if (ownEcho) asEcho(minion.side, () => withEffect(minion, effect, () => fn(ctx, minion, params, payload)), minion);
       else withEffect(minion, effect, () => fn(ctx, minion, params, payload));
       // Rune of Fury: your Avenges trigger twice — re-run the avenge effect once more. Per side (a served enemy's
@@ -3645,14 +3646,14 @@ export function simulate(
   function fireOwnDeathrattles(minion: Minion, killer?: Minion): void {
     const fireOnce = (): void => {
       for (const effect of minion.effects) {
-        if (effect.on !== 'onDeath') continue;
+        if (!isEchoEffect(effect)) continue;
         asEcho(minion.side, () => withEffect(minion, effect, () => FACTORIES[effect.do]?.(ctx, minion, effect.params ?? {}, { minion, side: minion.side, killer })), minion);
       }
     };
     // Defer any Fel-Spikes-style board deaths across the base fire + all re-fires (see the withEchoDefer note).
     withEchoDefer(() => {
       fireOnce();
-      if (!minion.effects.some((e) => e.on === 'onDeath')) return; // no Echo → no extra fires / tally to spend
+      if (!minion.effects.some(isEchoEffect)) return; // no Echo → no extra fires / tally to spend
       const extra = playerEchoExtras(minion);
       for (let r = 0; r < extra; r++) fireOnce();
       // Doubler re-triggers count as extra Echo triggers (Reborn / Echoing Coop / Bone Throne). The caller
@@ -3998,7 +3999,7 @@ export function simulate(
     // are Rise-only by design.
     if (minion.keywords.includes('RB')) {
       minion.keywords = minion.keywords.filter((k) => k !== 'RB');
-      if (minion.effects.some((e) => e.on === 'onDeath')) bumpDeathrattles(1, minion.side);
+      if (minion.effects.some(isEchoEffect)) bumpDeathrattles(1, minion.side);
       const arr = boards[minion.side];
       const before = new Set(arr.map((m) => m.uid));
       const slot = arr.indexOf(minion);
@@ -4078,7 +4079,7 @@ export function simulate(
       riseSerial.set(minion.uid, risesOf(minion) + 1); // the Rise is spent (see `risesOf`)
       // It really died: proc the unit's own Deathrattle / on-death effects (each death procs them) BEFORE the
       // body returns — so the Whelp's spawn + the Eternal Knight's +3/+2 land per death, not just on the last.
-      if (minion.effects.some((e) => e.on === 'onDeath')) bumpDeathrattles(1, minion.side);
+      if (minion.effects.some(isEchoEffect)) bumpDeathrattles(1, minion.side);
       // Rise = die → Deathrattle → return to the RIGHT of what it summoned (owner ruling 2026-07-06). The body
       // genuinely LEAVES its slot FIRST — flag it dead + emit a `death` (marked `rise`) so the replay shows the
       // removal before the rattle, then the rattle's summons fill the vacated slot, then the Rise re-inserts to
@@ -4301,7 +4302,7 @@ export function simulate(
     if (minion.side === 'enemy') enemyDeaths++;
     noteKill(minion);
     // Count your Deathrattles as they trigger (before firing, so Grim's own death counts toward its buff).
-    const hasDeathrattle = minion.effects.some((e) => e.on === 'onDeath');
+    const hasDeathrattle = minion.effects.some(isEchoEffect);
     if (hasDeathrattle) bumpDeathrattles(1, minion.side);
     nextStep(); // Deathrattles + on-death watchers resolve as their own step
     firePartingCry(minion);
@@ -4357,7 +4358,7 @@ export function simulate(
         // One wrap around the whole re-trigger: a body with two Echo effects is still ONE Echo triggering.
         asEcho(minion.side, () => {
           for (const effect of minion.effects) {
-            if (effect.on !== 'onDeath') continue;
+            if (!isEchoEffect(effect)) continue;
             withEffect(minion, effect, () => FACTORIES[effect.do]?.(ctx, minion, effect.params ?? {}, { minion, side: minion.side }));
           }
         }, minion);
@@ -4494,7 +4495,7 @@ export function simulate(
     // the dying body actually HAVING an Echo, so a plain death can't spend the rune, and on a living Rally
     // body, since a free Rally on a corpse pays nothing.
     if (modsFor(minion.side).runeBackbeat && !backbeatUsed[minion.side]
-        && minion.effects.some((e) => e.on === 'onDeath')) {
+        && minion.effects.some(isEchoEffect)) {
       const lead = living(minion.side).find((m) => m.keywords.includes('RL') && m.effects.some((e) => e.on === 'onAttack'));
       if (lead) {
         backbeatUsed[minion.side] = true;
@@ -4673,7 +4674,7 @@ export function simulate(
     // paced by the death counter). Fires the leftmost minion that HAS a Deathrattle — its own doublers apply.
     const throneStep = modsFor(side).boneThroneStep ?? 0;
     if (throneStep > 0 && deaths[side] % throneStep === 0) {
-      const lead = boards[side].find((m) => !m.dead && m.health > 0 && m.effects.some((e) => e.on === 'onDeath'));
+      const lead = boards[side].find((m) => !m.dead && m.health > 0 && m.effects.some(isEchoEffect));
       if (lead) { nextStep(); fireTrigger('boneThroneStep', side); bumpDeathrattles(1, side); fireOwnDeathrattles(lead); }
     }
     // Assembly Line: every N friendly deaths (Avenge N), add a Money Bot to your hand. Either side (the
@@ -5326,7 +5327,7 @@ export function simulate(
       // Empty Graves: the Start-of-Combat-marked body triggers your LEFT-MOST living Echo each time it attacks.
       // Fired through `asEcho`, so it counts as a real Echo trigger (Rune of Aftershocks/Undertow see it too).
       if (attacker.emptyGravesRally && !attacker.dead && attacker.health > 0) {
-        const echo = boards[attacker.side].find((m) => !m.dead && m.health > 0 && m.effects.some((e) => e.on === 'onDeath'));
+        const echo = boards[attacker.side].find((m) => !m.dead && m.health > 0 && m.effects.some(isEchoEffect));
         if (echo) {
           nextStep();
           fireTrigger('emptyGraves', attacker.side);
@@ -5340,7 +5341,7 @@ export function simulate(
             for (let r = 0; r < procs; r++) {
               asEcho(attacker.side, () => {
                 for (const effect of echo.effects) {
-                  if (effect.on !== 'onDeath') continue;
+                  if (!isEchoEffect(effect)) continue;
                   withEffect(echo, effect, () => FACTORIES[effect.do]?.(ctx, echo, effect.params ?? {}, { minion: echo, side: attacker.side }));
                 }
               }, echo);
@@ -5739,7 +5740,7 @@ export function simulate(
     // loop below does the rest (a minion Reclaim itself already marked is simply Reclaimed once).
     for (const s of sides) {
       if (!modsFor(s).ancientAutoReclaim) continue;
-      const echo = boards[s].find((m) => !m.dead && m.health > 0 && m.effects.some((e) => e.on === 'onDeath'));
+      const echo = boards[s].find((m) => !m.dead && m.health > 0 && m.effects.some(isEchoEffect));
       if (echo) { echo.resummon = true; fireTrigger('ancientAutoReclaim', s); }
     }
     for (const minion of sides.flatMap((s) => [...boards[s]])) {
@@ -5893,13 +5894,13 @@ export function simulate(
       const m = modsFor(side);
       // LAST HOWL: the FIRST friendly Beast with an Echo to die this combat returns as its base card (gilded = doubled
       // base), its printed Echo plus any grafted one intact. One body per copy held (the Second Litter precedent).
-      if (m.runeLastHowl && !lastHowlUsed[side] && isTribeOf(victim, 'beast', cards) && victim.effects.some((e) => e.on === 'onDeath')) {
+      if (m.runeLastHowl && !lastHowlUsed[side] && isTribeOf(victim, 'beast', cards) && victim.effects.some(isEchoEffect)) {
         const def = cards[victim.cardId];
         if (def) {
           lastHowlUsed[side] = true;
           nextStep();
           fireTrigger('runeLastHowl', side);
-          lastHowlCarry = { cardId: def.id, effects: victim.effects.filter((e) => e.on === 'onDeath' && !def.effects.includes(e)) };
+          lastHowlCarry = { cardId: def.id, effects: victim.effects.filter((e) => isEchoEffect(e) && !def.effects.includes(e)) };
           try {
             for (let k = 0; k < flagCopiesOf(side, 'runeLastHowl'); k++) summonMinion(side, def, victim.uid, undefined, !!victim.golden);
           } finally { lastHowlCarry = null; }
@@ -6616,7 +6617,7 @@ export function simulate(
       // Rune of the Herald: trigger EVERY Echo on the side. "Any onDeath effect is an Echo" — the same rule
       // Echohorn's proc uses (a factory-id prefix filter was the bug there). The bodies do NOT die; each Echo
       // simply fires once, and every Echo multiplier the side has (Sylus, Uron, Elderhorn…) applies.
-      const echoes = boards[rside].filter((m) => !m.dead && m.health > 0 && m.effects.some((e) => e.on === 'onDeath'));
+      const echoes = boards[rside].filter((m) => !m.dead && m.health > 0 && m.effects.some(isEchoEffect));
       if (echoes.length > 0) {
         nextStep(); twilightPulse(rside, pass); fireTrigger('runeHerald', rside);
         // The whole pass runs once per copy held (boolean-flag family, owner 2026-08-27).
@@ -6630,7 +6631,7 @@ export function simulate(
             asEcho(rside, () => {
               ctx.countDeathrattle?.(target.side);
               for (const effect of target.effects) {
-                if (effect.on !== 'onDeath') continue;
+                if (!isEchoEffect(effect)) continue;
                 withEffect(target, effect, () => FACTORIES[effect.do]?.(ctx, target, effect.params ?? {}, { minion: target, side: target.side }));
               }
             }, target);
@@ -6783,7 +6784,7 @@ export function simulate(
     if (base && rmods.echoingCoop) { // a quest, base pass only
       let coopFired = false;
       for (const minion of [...boards[rside]]) {
-        if (minion.dead || minion.health <= 0 || !minion.effects.some((e) => e.on === 'onDeath')) continue;
+        if (minion.dead || minion.health <= 0 || !minion.effects.some(isEchoEffect)) continue;
         nextStep();
         if (!coopFired) { fireTrigger('echoingCoop', rside); coopFired = true; }
         emit({ type: 'sc', source: minion.uid, text: 'Echo' });
@@ -6999,7 +7000,7 @@ export function simulate(
       // R-ENGRAVE-05: booked under its own name, so it never goes home as a generic "Engraved" row.
       if (snap) { const rows = (snap.permaRows ??= []); const row = rows.find((r) => r.label === 'Second Wind'); if (row) { row.attack += n; row.health += n; } else rows.push({ label: 'Second Wind', attack: n, health: n }); }
     }
-    if (m.runeRestless && !minion.dead && minion.health > 0 && minion.effects.some((e) => e.on === 'onDeath')) {
+    if (m.runeRestless && !minion.dead && minion.health > 0 && minion.effects.some(isEchoEffect)) {
       nextStep();
       fireTrigger('runeRestless', side);
       for (let k = 0; k < flagCopiesOf(side, 'runeRestless'); k++) triggerEcho(ctx, minion, minion, 1);
@@ -7604,7 +7605,7 @@ export function simulate(
   bus.on('avenge', (payload) => {
     const { side, victim } = payload as { side: Side; count: number; victim?: Minion };
     if (!victim || emberInheritanceUsed[side] || !modsFor(side).runeEmberInheritance) return;
-    if (!isTribeOf(victim, 'dragon', cards) || !victim.effects.some((e) => e.on === 'onDeath')) return;
+    if (!isTribeOf(victim, 'dragon', cards) || !victim.effects.some(isEchoEffect)) return;
     emberInheritanceUsed[side] = true;
     const heir = living(side).find((m) => m !== victim && isTribeOf(m, 'dragon', cards));
     const atk = Math.max(0, victim.attack);

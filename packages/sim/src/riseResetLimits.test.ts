@@ -62,16 +62,6 @@ const FAMILIES: Family[] = [
     },
   },
   {
-    name: 'Brood Matron (Imp cap of 3)',
-    cap: 3,
-    build: (k, seed) => {
-      const friends = [1, 2, 3, 4, 5].map((i) => bm(`f${i}`, 'sandbag', { attack: 1, health: 1, keywords: ['R'] }));
-      const r = fight([...friends, bm('b', 'brood', { health: 150, keywords: k })], [wall(100)], seed);
-      const u = uidOf(r, 'brood');
-      return perLife(r.events, u, (e) => e.type === 'summon' && e.side === 'player' && e.minion.cardId === 'impscrap');
-    },
-  },
-  {
     name: 'Whaloo (3 Runebind casts per combat)',
     cap: 3,
     build: (k, seed) => {

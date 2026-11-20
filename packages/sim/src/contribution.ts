@@ -1,3 +1,4 @@
+import { isEchoEffect } from '@game/core'; // what counts as an Echo (R-ECHO-WATCHER-01)
 import { CARD_INDEX } from '@game/content';
 import type { CombatResult } from '@game/core';
 
@@ -55,7 +56,7 @@ export function tallyCombat(result: CombatResult): { damage: RunDamage; procs: R
       case 'death': {
         if (e.rise) break; // a Rise's death isn't a kill — the body returns (its Echo is credited on its real death)
         const o = owner.get(e.target);
-        if (o?.side === 'player' && CARD_INDEX[o.cardId]?.effects.some((x) => x.on === 'onDeath')) bump('Echo');
+        if (o?.side === 'player' && CARD_INDEX[o.cardId]?.effects.some(isEchoEffect)) bump('Echo');
         break;
       }
       default: break;

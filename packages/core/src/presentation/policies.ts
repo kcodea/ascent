@@ -303,7 +303,6 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:onBattlecryRearmGrimoire:battlecryTriggered': { policy: 'ownBeat', family: 'shoutPayoff', reason: 'triggers nested Shouts to reset; discrete payoff' },
   'factory:onDamagedGainAttack:onDamaged': { policy: 'foldedCue', family: 'react' },
   'factory:onDamagedGrantRefresh:onDamaged': { policy: 'foldedCue', family: 'react' },
-  'factory:onFriendDeathSummon:onDeath': { policy: 'ownBeat', family: 'echo' },
   'factory:onFriendlyAttackBuffTribe:onAttack': { policy: 'ownBeat', family: 'rally' },
   'factory:onFriendlyAttackPlayRubies:onAttack': { policy: 'ownBeat', family: 'rally' }, // Portsmith
   'factory:onGainAttackBuffImproving:onGainAttack': { policy: 'foldedCue', family: 'react' },
@@ -1308,7 +1307,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:endOfTurnCopyLeftmostHandCard:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },  // Stonehorn Archivist — cf. endOfTurnCopyNeighbour
   'factory:endOfTurnTransformLeftTierUp:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },   // Skybound Ascendant
   'factory:minionSoldDemonGainStats:minionSold': { policy: 'ownBeat', family: 'economy' }, // Arcane Behemoth — cf. minionSoldConsumeRightmost
-  'factory:onFriendDeathGainEcho:onDeath': { policy: 'ownBeat', family: 'echo' },                 // Echo Mimic — cf. onFriendDeathSummon
+  'factory:onFriendDeathGainEcho:onDeath': { policy: 'ownBeat', family: 'echo' },                 // Echo Mimic (a friend-death watcher)
   'factory:avengeSummonAttackImproving:avenge': { policy: 'ownBeat', family: 'avenge' },          // Muster General — cf. avengeSummonAttack
   'factory:rallyDoubleSelf:onAttack': { policy: 'ownBeat', family: 'rally' },                     // Evolving Abomination — cf. rallyBuffSelf
   // The WELDED rally payout (Better Bot's Mech Attack / Perfect Core's spell conjure) firing inside a SHOP

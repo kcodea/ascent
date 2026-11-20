@@ -165,6 +165,8 @@ export const SYNTHETIC_FIRE_SITES: Readonly<Record<string, FireSiteEntry>> = {
 };
 
 const TRIGGER_GATE = /\.on\s*(?:===|!==)\s*'(\w+)'/;
+/** The shared Echo predicate (`isEchoEffect`, core `effects/echo.ts`) gates on `onDeath` minus the friend-death watchers. */
+const ECHO_GATE = /\bisEchoEffect\(/;
 
 /** Scan core for every direct `FACTORIES[…]` dispatch — the synthetic-path candidates plus the bus handler. */
 export function scanFireSites(): FireSite[] {
@@ -185,6 +187,7 @@ export function scanFireSites(): FireSite[] {
         for (let j = i; j >= Math.max(0, i - 8); j--) {
           const g = TRIGGER_GATE.exec(lines[j]!);
           if (g) { trigger = g[1]!; break; }
+          if (ECHO_GATE.test(lines[j]!)) { trigger = 'onDeath'; break; } // `isEchoEffect` is an onDeath gate (R-ECHO-WATCHER-01)
         }
       }
       const enclosing = enclosingScope(lines, i);

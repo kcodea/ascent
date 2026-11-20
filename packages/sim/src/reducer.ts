@@ -1,3 +1,4 @@
+import { isEchoEffect } from '@game/core'; // what counts as an Echo (R-ECHO-WATCHER-01)
 import { type PresentationCollector, type ConsequenceDraft, beatIdentity, inRunTribes, socTwilightExtraFires, COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, ALE_IDS, combatSide, makeCollector, makeRng, simulate, handGrantUid, type BoardMinion, type CardDef, type CombatConfig, type CombatResult, type CombatSideState, type Keyword, type PendingCombatQuest, type PresentationBatch, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type RuneDef, type Tribe, TRIBES } from '@game/core';
 import { ROYAL_TREASURY_PER } from '@game/core'; // Set 2 Epic tribal runes (2026-11-12)
 import { ancientAvengeReset, ancientGorrFirstFree, ancientSecondHandEvery, ancientSecondHandSources, ancientSecondHandIsExact, ancientSecondHandExactCopy, ancientOnDiscoverAny, ancientOnBuy, ancientRobinBondsPrice, ancientSpendRobinBonds, ancientCopyChargeReady, ancientSpendCopyCharge, ancientOnCopyMachine, ancientXeroxBondTripled, ancientCombatMods, ancientAfterPowerGild, ancientOfferOpen, ancientPowerTargetsGilded, ancientReplacesPowerGild, ancientsCombatTick, ancientsRefreshTick, ancientsSetMeter, pickAncient, ancientPulseExtraThenDestroy, ancientPulseDiscovers, ancientPulsePassive, ancientAfterPulse, ancientAegisDestroys, ancientAegisRecipient, ancientAegisDestroyAndGive, ancientAegisResilient, ancientAfterCombat, ancientBondsReact, ancientStartOfTurn, ancientEmpowerPassive, ancientOnEmpowerPick, ancientOnSpellbook, ancientClearancePassive, ancientClearanceStacks, ancientSpendClearanceStack, ancientClearanceRefresh, ancientMarkClearanceOffer, ancientAfterClearance, ancientOnClearanceBuy, ancientTimePrice, ancientNoteMinionBuy, ancientAfterRefresh, ancientTradesBuy, ancientRallyGoldGraft, ancientUpgradeSurchargeOff, FRUGAL_UPGRADE_SURCHARGE, ancientReclaimInShop, ancientShopReclaim, ancientAfterReclaimMark, ancientTradesRefreshFree, ancientTradesSpendFreeRefresh } from './ancients';
@@ -6969,7 +6970,7 @@ function matchesFilter(c: CardDef, filter: 'shout' | 'endOfTurn' | 'echo' | 'ral
   switch (filter) {
     case 'shout': return hasBattlecry(c);
     case 'endOfTurn': return c.effects.some((e) => e.on === 'endOfTurn');
-    case 'echo': return c.effects.some((e) => e.on === 'onDeath');
+    case 'echo': return c.effects.some(isEchoEffect);
     case 'rally': return c.keywords.includes('RL');
     case 'attachment': return c.keywords.includes('M');
   }
@@ -7104,7 +7105,7 @@ export function boardSynergyTags(s: RunState, epic: boolean = !!s.runeforgeEpic)
     if (def.ruby) tags.add('ruby');
     for (const e of def.effects) {
       const doId = e.do.toLowerCase();
-      if (e.on === 'onDeath') tags.add('echo');
+      if (isEchoEffect(e)) tags.add('echo');
       if (e.on === 'onPlay') tags.add('shout');
       if (e.on === 'avenge') tags.add('avenge');
       if (e.on === 'onAttack') tags.add('rally');

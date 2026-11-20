@@ -60,6 +60,7 @@ import { createSettlingPoint, settledSlotCenter } from './fx/settledSlot';
 import { SOURCE_CASCADE_MS, sourceCascadeRanks, steppedRevealPlan, type RevealStep } from './choreo/sourceCascade';
 import { authoredBuffDefFor, bindingDefIds, bindingFor, heroPowerBuffLabelFor, labelBuffFxFor, sourceBuffDefFor, castFxReplacesTendril } from './choreo/bindings';
 import { ANCIENT_CAP_SPENT_FLAG } from '@game/core';
+import { isEchoEffect } from '@game/core'; // R-ECHO-WATCHER-01
 import { ANCIENT_CLEARANCE_STACK_FLAG, ANCIENT_DRAKKO_SHOUT_FLAG, ANCIENT_EW_AVENGE_FLAG, ANCIENT_GORUN_GIFT_FLAG, ANCIENT_RALLY_GOLD_FLAG, ANCIENT_REFRESH_AVENGE_FLAG, ANCIENT_SWAP_CHARGE_FLAG, isRuneBuffSource, playerOpponent, type RuneCombatProgress } from '@game/sim';
 import { anchorsForUnits, anchorsFromRectToUnit } from './fx/combatAnchors';
 import { startTravelledWards, launchWardsGiven } from './fx/wardGivenLaunch';
@@ -1327,7 +1328,7 @@ export function deathConsequenceLead(
     }
     // summon | buff — only a Deathrattle's OWN consequence waits on its skull/descend. A plain summon (a SoC
     // token) or an unrelated buff wave that merely follows a death doesn't.
-    if (!CARD_INDEX[cardIds.get(e.target) ?? '']?.effects?.some((f) => f.on === 'onDeath')) continue;
+    if (!CARD_INDEX[cardIds.get(e.target) ?? '']?.effects?.some(isEchoEffect)) continue;
     const table = summon ? DR_SUMMON_LEAD : DR_BUFF_LEAD;
     lead = Math.max(lead, e.target === attackerUid ? table.attacker : table.defender);
   }
@@ -1379,7 +1380,7 @@ function pulledHomeAttackerHold(
   for (let i = shown.start; i < shown.end; i++) {
     const e = events[i];
     if (e?.type === 'death' && e.target === attackerUid) {
-      const hasDR = !!CARD_INDEX[cardIds.get(attackerUid) ?? '']?.effects?.some((f) => f.on === 'onDeath');
+      const hasDR = !!CARD_INDEX[cardIds.get(attackerUid) ?? '']?.effects?.some(isEchoEffect);
       return hasDR ? PULL_HOME_HOLD_DR : PULL_HOME_HOLD_PLAIN;
     }
   }
@@ -3482,7 +3483,7 @@ export function useCombatReplay(
       // NOTE: a card's On-Death FX/sound binding (the By-card binder's `death` kind) is NOT played here — the
       // combat SCORE's `fxDef` channel already resolves `bindingFor(cardId, 'death')` for every death moment
       // (see `score.ts`), so firing it here too would double it. This block only owns the GENERIC death visual.
-      if (!CARD_INDEX[cardIds.get(e.target) ?? '']?.effects?.some((f) => f.on === 'onDeath')) {
+      if (!CARD_INDEX[cardIds.get(e.target) ?? '']?.effects?.some(isEchoEffect)) {
         // …and a PLAIN death (no Deathrattle) gets the authored `death-dissolve` def instead. It lives in the
         // `else` of the SKULL's own gate, in the skull's own loop, so the two can never both fire for one unit
         // — the reason this isn't an `fxDef` cue in the Score: a cue is chosen by moment KIND, and a kind is
@@ -3657,7 +3658,7 @@ export function useCombatReplay(
           // unit's own slot, not mid-flight. (A Rise DEFENDER never gets pulled → the cue effect bursts it in
           // place immediately; a non-attacking Deathrattle death fires its skull immediately in the cue effect.)
           const isRise = !!e.rise;
-          const hasDR = !!CARD_INDEX[cardIds.get(impactAtk) ?? '']?.effects?.some((f) => f.on === 'onDeath');
+          const hasDR = !!CARD_INDEX[cardIds.get(impactAtk) ?? '']?.effects?.some(isEchoEffect);
           // EVERY dying attacker is pulled home (not just Rise/Deathrattle ones): a plain death — e.g. a REBORN
           // unit's true death, which has shed its `R` and has no rattle — otherwise fades mid-lunge, which reads
           // jarring. The pull is universal; the on-land FX below stay gated (only Rise bursts / only DR skulls).
@@ -4379,7 +4380,7 @@ export function useCombatReplay(
             // plain soft fade (`rbburn`, styles.css).
             const burn = events.some((x, j) => j > i && x.type === 'reborn' && x.rebirth && x.target === uid) ? ' rbburn' : '';
             anims[uid] = (uid === impactAtk ? 'dying rising returning' : 'dying rising') + burn;
-          } else if (CARD_INDEX[cardIds.get(uid) ?? '']?.effects?.some((f) => f.on === 'onDeath')) {
+          } else if (CARD_INDEX[cardIds.get(uid) ?? '']?.effects?.some(isEchoEffect)) {
             // Deathrattle: fade the card IN PLACE (no bounce) under the skull burst. A Deathrattle ATTACKER
             // that died mid-lunge also gets `returning` — the fade DELAYS while GSAP pulls it home, so the
             // skull pops in its OWN slot (fired at `landed`), not mid-flight.

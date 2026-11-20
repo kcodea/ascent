@@ -2980,6 +2980,15 @@ Sunmane, Kurse's Gemheart Golem, Violet Whelp / Tamer's Whelps, Spear Warden, Ch
 - The strike **does not use or move the normal attack pointer**; the body then joins the rotation (appended at
   the right) and takes its regular turn as well.
 
+### A friend-death watcher is not an Echo (owner report 2026-11-20, R-ECHO-WATCHER-01)
+
+An Echo fires when its OWN minion dies. A minion that reacts to ANOTHER friendly minion dying (Ashen Heir, Echo
+Mimic) is a watcher, not an Echo, in every phase: "trigger your Echo" effects (Echohorn, Hawkus, Spots, Herald,
+Bone Throne, ...) skip it and take the next real Echo, its own death is not an Echo trigger, and Echo copying or
+stripping ignores it. A body with both (an Echo Mimic that gained an Echo) fires only the Echo when triggered. Any
+own-death effect is an Echo, not only `deathrattle*` ids. One predicate decides: `isEchoEffect` in
+`packages/core/src/effects/echo.ts`.
+
 ### Echo summons in a Rising attacker's slot attack first (owner ruling 2026-10-23, R-ORD-RISE-ECHO-01)
 
 *"in the dawnclaw case, yeah the dawnclaw would attack next, then the bullseye etc."* A minion with **Rise** or
@@ -3050,7 +3059,7 @@ a Rise-vs-Rebirth parity fixture whose flow of deaths, returns and Avenge payout
 - **Its Avenge progress restarts** on the return, as a Rise's does (*"1/3 should reset to 0/3"*) and as any
   body placed mid-combat: the deaths tally is side-level state, not part of the body it keeps.
 - **Its per-combat limits start fresh** on the return, as a Rise's do (owner 2026-10-21, R-RETURN-RESET-01): every
-  once-per-combat or N-per-combat limit that belongs to the body (Pummel caps, Evolving Abomination, Brood Matron,
+  once-per-combat or N-per-combat limit that belongs to the body (Pummel caps, Evolving Abomination,
   Whaloo, Immune Iggy / Bounty Bot's immune swings, Gryphon, Yeti, Foamguard) is available again, then spent until the
   next removal and return. Side-wide budgets and per-turn limits do not reset.
 - **A body that dies to retaliation on its own swing and returns is next to attack again** — the Rise rewind

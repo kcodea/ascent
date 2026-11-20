@@ -1,3 +1,4 @@
+import { isEchoEffect } from '@game/core'; // what counts as an Echo (R-ECHO-WATCHER-01)
 /**
  * ANCIENTS (proof of concept, owner rulings 2026-09-25) — a run-defining transformation of the HERO POWER.
  *
@@ -4499,7 +4500,7 @@ export function ancientOnShopRise(state: RunState, risen: BoardCard): void {
   if (!effectOf(state, 'riseTriggersAdjacentEcho')) return;
   const i = state.board.indexOf(risen);
   if (i < 0) return;
-  const near = [state.board[i - 1], state.board[i + 1]].filter((c): c is BoardCard => !!c && instanceEffects(c).some((e) => e.on === 'onDeath'));
+  const near = [state.board[i - 1], state.board[i + 1]].filter((c): c is BoardCard => !!c && instanceEffects(c).some(isEchoEffect));
   if (near.length === 0) return;
   let target = near[0]!;
   if (near.length > 1) {
@@ -4536,7 +4537,7 @@ function albusStartOfTurn(state: RunState): void {
 /** ALBUS × DEATH: does an Empowerment pick of `def` gain Rise (an Echo minion)? The one predicate for the pick
  *  (`ancientOnEmpowerPick`) and the Discover's preview of it (`discoverOfferCard`). */
 export function ancientEmpowerPickGainsRise(state: RunState, def: CardDef): boolean {
-  return !!live(state) && !!effectOf(state, 'empowerEchoGainsRise') && def.effects.some((e) => e.on === 'onDeath');
+  return !!live(state) && !!effectOf(state, 'empowerEchoGainsRise') && def.effects.some(isEchoEffect);
 }
 
 /**
@@ -5763,7 +5764,7 @@ export function ancientSwapBuyBackPrice(state: Pick<RunState, 'ancientsEnabled' 
  */
 export function ancientBeforeSwap(state: RunState, card: BoardCard): void {
   if (!live(state) || !effectOf(state, 'swapEchoFirst')) return;
-  if (!state.board.includes(card) || !instanceEffects(card).some((e) => e.on === 'onDeath')) return;
+  if (!state.board.includes(card) || !instanceEffects(card).some(isEchoEffect)) return;
   captureBuffFx(state, card, 'minion', () => fireShopEchoOf(state, card));
 }
 
@@ -7705,7 +7706,7 @@ export function ancientMarkSoulkeeperDiscover(state: RunState): void {
 function soulkeeperOnTaken(state: RunState, taken: BoardCard): void {
   const def = CARD_INDEX[taken.cardId];
   if (!def) return;
-  if (effectOf(state, 'soulkeeperEchoGainsRise') && def.effects.some((e) => e.on === 'onDeath') && !taken.keywords.includes('R')) taken.keywords.push('R');
+  if (effectOf(state, 'soulkeeperEchoGainsRise') && def.effects.some(isEchoEffect) && !taken.keywords.includes('R')) taken.keywords.push('R');
   if (!effectOf(state, 'soulkeeperKeepsStats')) return;
   const grave = state.lastCombat?.playerAncientGraves?.find((g) => g.cardId === taken.cardId);
   if (!grave) return;
@@ -7780,7 +7781,7 @@ export function ancientOnMemoryOffers(state: RunState, offers: ShopCard[], foe: 
     if (!def || def.spell || def.ruby || o.starform) return;
     o.memory = true;
     const kw = (k: Keyword): void => { if (!def.keywords.includes(k) && !(o.keywords ?? []).includes(k)) (o.keywords ??= []).push(k); };
-    if (rise && def.effects.some((e) => e.on === 'onDeath')) kw('R');
+    if (rise && def.effects.some(isEchoEffect)) kw('R');
     if (price) o.cost = price.price;
     if (!exact) return;
     o.cost = exact.price;
@@ -8147,7 +8148,7 @@ export function ancientOnPassMade(state: RunState): void {
   const def = CARD_INDEX[e.card.cardId];
   const minion = !!def && !def.spell && !def.ruby;
   // DEATH: the minion the teammate receives has Rise.
-  if (minion && effectOf(state, 'passEchoGainsRise') && instanceEffects(e.card).some((x) => x.on === 'onDeath') && !e.card.keywords.includes('R')) {
+  if (minion && effectOf(state, 'passEchoGainsRise') && instanceEffects(e.card).some(isEchoEffect) && !e.card.keywords.includes('R')) {
     e.card.keywords.push('R');
     e.ancRise = true;
     procAncient(state); // PRIESTESS × DEATH fires (R-FX-ANCIENT-PROC-01)
@@ -8222,7 +8223,7 @@ export function ancientOnHatFired(state: RunState, copy: BoardCard): number {
     if (minion) gildMinion(copy); // no run passed: the Gild is the teammate's card, not one of this run's gilds
     else copies = Math.max(1, Math.floor(g.spellCopies));
   }
-  if (minion && effectOf(state, 'hatEchoGainsRiseOrTaunt') && instanceEffects(copy).some((x) => x.on === 'onDeath')) {
+  if (minion && effectOf(state, 'hatEchoGainsRiseOrTaunt') && instanceEffects(copy).some(isEchoEffect)) {
     const lacks = (['R', 'T'] as Keyword[]).filter((k) => !copy.keywords.includes(k));
     const k = lacks.length === 2 ? pickId(state, lacks) : lacks[0];
     if (k) copy.keywords.push(k as Keyword);

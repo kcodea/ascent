@@ -57,7 +57,7 @@ const TRIBE_TAG: Partial<Record<Tribe, string>> = {
 
 const SPELL_POWER_DOS = ['onKillBuffSpellPower', 'deathrattleBuffSpellPower', 'battlecryBuffSpellPower'];
 const FODDER_DOS = ['addTavernFodder', 'buffFodderEverywhere', 'goldSpentBuffFodder', 'deathrattleBuffImps', 'onKillBuffFodderImps', 'scGainFodderStats', 'deathrattleAddFodder', 'avengeBuffImps'];
-const SUMMON_DOS = ['deathrattleSummon', 'onFriendDeathSummon', 'deathrattleSummonOverflowBuff'];
+const SUMMON_DOS = ['deathrattleSummon', 'avengeBuffImps', 'deathrattleSummonOverflowBuff'];
 
 const hasTrigger = (def: CardDef, on: GameEvent): boolean => def.effects.some((e) => e.on === on);
 const hasDo = (def: CardDef, dos: string[]): boolean => def.effects.some((e) => dos.includes(e.do));

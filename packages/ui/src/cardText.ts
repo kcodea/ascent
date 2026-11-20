@@ -3,7 +3,7 @@ import { CARD_INDEX } from '@game/content';
 import { chooseOneBranchText, hatcherTier, whisperSpellsToNext, whisperValue } from '@game/sim';
 
 /** Effect `do` names that summon a fresh Imp (the `impscrap` token) — the gate for the live "(X/Y)" Imp-stat
- *  annotation below. `deathrattleSummon` / `onFriendDeathSummon` are generic summoners, so they only count when
+ *  annotation below. `deathrattleSummon` / `avengeBuffImps` are generic summoners, so they only count when
  *  their `tokenId` is the Imp. */
 const IMP_SUMMON_DOS = new Set(['summonImps', 'rallySummonImpBuffImps', 'deathrattleImpsOverflowGrant', 'spellSummonImpsNextCombat']);
 
@@ -18,7 +18,7 @@ export function cardSummonsImp(id: string): boolean {
   if (!def) return false;
   return def.effects.some((e) =>
     IMP_SUMMON_DOS.has(e.do)
-    || ((e.do === 'deathrattleSummon' || e.do === 'onFriendDeathSummon') && (e.params as { tokenId?: string } | undefined)?.tokenId === 'impscrap'));
+    || ((e.do === 'deathrattleSummon' || e.do === 'avengeBuffImps') && (e.params as { tokenId?: string } | undefined)?.tokenId === 'impscrap'));
 }
 
 /**

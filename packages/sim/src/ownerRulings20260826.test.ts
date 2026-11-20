@@ -58,20 +58,15 @@ describe('shop-side Echo + death watchers (q-phase-*)', () => {
   });
 
   it('…and the bank pays out to the next Imp entering play (impInheritOnSummon)', () => {
-    const s = state([mk('h', 'ashen_heir', { impBank: { attack: 2, health: 5 } }), mk('b', 'brood')]);
-    // A friend dies near Brood Matron → she summons an Imp → the bank pays out to it on entry.
-    fireOnFriendDeath(s, mk('y', 'pup'));
+    // A Shop Echo summons an Imp → the bank pays out to it on entry. (Brood Matron bred it until her 2026-11-20
+    // rework made her an Avenge card; a grafted "Echo: summon an Imp" stands in.)
+    const echo = mk('y', 'pup', { grantedEffects: [{ on: 'onDeath', do: 'deathrattleSummon', params: { tokenId: 'impscrap', count: 1, fixed: true } }] });
+    const s = state([mk('h', 'ashen_heir', { impBank: { attack: 2, health: 5 } }), echo]);
+    fireRecruitDeathrattlesForTest(s, echo);
     const imp = s.board.find((c) => CARD_INDEX[c.cardId]?.imp);
-    expect(imp, 'Brood Matron bred an Imp for the death').toBeDefined();
+    expect(imp, 'the Echo summoned an Imp').toBeDefined();
     expect([imp!.attack, imp!.health], 'the newborn Imp collected the bank (1/1 + 2/5)').toEqual([3, 6]);
     expect(s.board.find((c) => c.uid === 'h')!.impBank, 'the bank is spent').toEqual({ attack: 0, health: 0 });
-  });
-
-  it('Brood Matron breeds on shop deaths, capped at 3 per turn (onFriendDeathSummon)', () => {
-    const s = state([mk('b', 'brood')]);
-    for (let i = 0; i < 5; i++) fireOnFriendDeath(s, mk(`d${i}`, 'pup'));
-    expect(s.board.filter((c) => c.cardId === 'impscrap').length, 'max 3 per turn').toBe(3);
-    expect(s.board.find((c) => c.uid === 'b')!.bredThisTurn).toBe(3);
   });
 
   it("Echo Mimic copies a shop-dead friend's Echo onto itself (onFriendDeathGainEcho)", () => {

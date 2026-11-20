@@ -71,12 +71,13 @@ export const DEMONS: CardDef[] = [
     attack: 3,
     health: 3,
     keywords: [],
+    // Owner rework 2026-11-20: the friend-death Imp watcher (max 3) is gone; one Avenge (2) summons an Imp, THEN
+    // buffs every Imp (so the new one takes it too). "This game" = the permanent Imp Aura (`grantImpBuff`).
     effects: [
-      { on: 'onDeath', do: 'onFriendDeathSummon', params: { tokenId: 'impscrap', max: 3 } },
-      { on: 'avenge', do: 'avengeBuffImps', params: { count: 3, attack: 1, health: 1 } },
+      { on: 'avenge', do: 'avengeBuffImps', params: { count: 2, summon: 1, tokenId: 'impscrap', attack: 1, health: 1 } },
     ],
-    text: 'Each time a friend dies, summon an **Imp** (max 3). **Avenge (3):** give your Imps **+1/+1** permanently.',
-    goldenText: 'Each time a friend dies, summon an **Imp** (max 3). **Avenge (3):** give your Imps **+2/+2** permanently.',
+    text: '**Avenge (2):** Summon an **Imp** and give your Imps **+1/+1** this game.',
+    goldenText: '**Avenge (2):** Summon **2** **Imps** and give your Imps **+2/+2** this game.',
   },
   {
     // Dual-type Demon/Mech. Magnetic — and because it's also a Mech it can weld onto a friendly

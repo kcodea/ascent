@@ -1,3 +1,4 @@
+import { DEATH_WATCHER_FACTORIES, isEchoEffect } from '@game/core'; // what counts as an Echo (R-ECHO-WATCHER-01)
 import { soulFurnaceHealth, rubyCastGainOf, ROSEYS_GARDEN_GAIN, isLegalRandomCard, ALE_IDS, aleGrantCount, RUBY_TYPE_IDS, SPECIAL_RUBY_IDS, TRIBES, runVaultPulse, improvingGrant, vaultPulseActive, inRunTribes, alignAllows, makeRng, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth, COMBAT_REPLAYABLE_BATTLECRIES, NO_COPY_SPELL_IDS, extraTriggerFires, extraTriggerContributors, boardShoutExtras, boardShoutContributors, RALLY_WATCHER_EFFECTS, foldEchoExtraFires, socTwilightExtraFires, BODY_COUNTING_DEATHS, ARENA_EFFECTS, pickAutoTarget, beatIdentity, seedEchoEffects, SEED_TOKEN_ID, rollableWhisperIds, whisperAllowedAtTier, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TeamEffect, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
 import { FERAL_RETURN_GAIN } from '@game/core'; // Set 2 Epic tribal runes (2026-11-12)
 import { ancientGorrShopDeath, ancientGorrEotCopyLive, ancientRunGorrEotCopy, ancientOnRobinSale, ancientOnShopSummon, ancientRobinMaxGoldLive, ancientRunRobinMaxGold, ancientRunXeroxPairs, ancientXeroxPairsLive, ancientRunTradesUpgrade, ancientTradesUpgradeLive, ancientTradesShopDeath, tradesUpgradeCost, ancientRallyGoldGraft, rallyGoldGraftEffect, noteTradesRallyGold, ancientXeroxBondValidate, ancientXeroxShopDeath, ancientOnSale, ancientOnShopDeath, ancientOnShopShout, ancientOnShopRise, ancientPowerText, ancientBondsReact, ancientOnPlay, ancientOnSpellCast, ANCIENTS, ancientClearanceSellValue } from './ancients';
@@ -513,7 +514,7 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
     hasEffect: (t, on, doId) => instanceEffects(t as BoardCard).some((e) => e.on === on && (!doId || e.do === doId)),
     replayShout: (t) => { replayBattlecry(state, t as BoardCard); },
     hasEcho: (t, strict) => instanceEffects(t as BoardCard)
-      .some((e) => e.on === 'onDeath' && (!strict || e.do.startsWith('deathrattle'))),
+      .some((e) => isEchoEffect(e) && (!strict || e.do.startsWith('deathrattle'))),
     triggerEchoOn: (t, strict) => {
       // `fireRecruitDeathrattles` is the shop's whole Echo ritual: it applies Sylus/Uron's extra fires and the
       // `deathrattlesTriggered` tally itself, so the body only says "fire it, once per gild".
@@ -574,7 +575,7 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
       }
     },
     echoEffectsOf: (t) => instanceEffects(t as BoardCard)
-      .filter((e) => e.on === 'onDeath')
+      .filter(isEchoEffect)
       .map((e) => ({ ...e, ...(e.params ? { params: { ...e.params } } : {}) })),
 
     // SET 4 SELF-DAMAGE, the Shop half (R-WOUND-01, owner 2026-10-13 ordering): the same beats as combat, as buff-FX
@@ -3618,7 +3619,7 @@ function fireRecruitDeathrattles(ctx: RecruitContext, minion: BoardCard, effects
   // …and every SEED stack (Gardener's Whisper, Set 3): `instanceEffects` folds them, one Echo per stack.
   const effects = effectsOverride ?? instanceEffects(minion);
   if (!effects.length) return;
-  const hasDR = effects.some((e) => e.on === 'onDeath');
+  const hasDR = effects.some(isEchoEffect);
   // THE ECHO CUE (owner ask 2026-08-28): "the echo animation ... should play ANYTIME an echo is triggered".
   // Stamped HERE because this is the single chokepoint every shop Echo passes through — a destroy, Ossuary
   // Rite, Deathsayer, Rune of the Reliquary, a Gravetwin's copied Echo, a borrowed body's departure. Putting
@@ -3633,7 +3634,7 @@ function fireRecruitDeathrattles(ctx: RecruitContext, minion: BoardCard, effects
   }
   const fireOnce = (): void => {
     for (const eff of effects) {
-      if (eff.on !== 'onDeath') continue;
+      if (!isEchoEffect(eff)) continue;
       captureBuffFx(ctx.state, minion, 'deathrattle', () => RECRUIT_FACTORIES[eff.do]?.(ctx, minion, eff.params ?? {}, { minion }));
     }
   };
@@ -4427,23 +4428,11 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     addBuff(born, nameOf(self), bank.attack, bank.health);
   },
 
-  /** BROOD MATRON — a friendly death in the shop breeds a token, up to the card's cap per turn (the combat
-   *  cap is per fight; the shop mirror resets at the rollover). Golden doubles the Avenge buff, not the cap. */
-  onFriendDeathSummon: (ctx, self, params, payload) => {
-    const dead = payload.minion;
-    if (!dead || dead.uid === self.uid) return;
-    if ((self.bredThisTurn ?? 0) >= num(params.max, 3)) return;
-    const tok = CARD_INDEX[str(params.tokenId)];
-    if (!tok) return;
-    ctx.summon(tok, self.uid);
-    self.bredThisTurn = (self.bredThisTurn ?? 0) + 1;
-  },
-
   /** ECHO MIMIC — copies the Echo of a friendly that died in the shop onto itself (granted, per instance). */
   onFriendDeathGainEcho: (ctx, self, _params, payload) => {
     const dead = payload.minion;
     if (!dead || dead.uid === self.uid) return;
-    const echoes = instanceEffects(dead).filter((e) => e.on === 'onDeath');
+    const echoes = instanceEffects(dead).filter(isEchoEffect);
     if (echoes.length === 0) return;
     for (let r = 0; r < gold(self); r++) {
       (self.grantedEffects ??= []).push(...echoes.map((e) => ({ ...e, ...(e.params ? { params: { ...e.params } } : {}) })));
@@ -8682,10 +8671,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     // A RE-FIRE carries no target: copy a RANDOM other friendly ECHO minion (owner ruling 2026-09-26, R-TARGET-06).
     // Only a body whose card has an Echo is a candidate: the text copies "a friendly Echo minion's" Deathrattle.
     const target = payload.target
-      ?? refireTarget(ctx.state, othersOnBoard(ctx.state, self, (c) => (CARD_INDEX[c.cardId]?.effects ?? []).some((e) => e.on === 'onDeath')));
+      ?? refireTarget(ctx.state, othersOnBoard(ctx.state, self, (c) => (CARD_INDEX[c.cardId]?.effects ?? []).some(isEchoEffect)));
     if (!target) return;
     const def = CARD_INDEX[target.cardId];
-    const drs = (def?.effects ?? []).filter((e) => e.on === 'onDeath');
+    const drs = (def?.effects ?? []).filter(isEchoEffect);
     if (drs.length === 0) return; // targeted a minion with no Echo → fizzles
     self.copiedEcho = drs.map((e) => ({ ...e, ...(e.params ? { params: { ...e.params } } : {}) }));
     self.copiedEchoName = def?.name;
@@ -8695,7 +8684,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  immediately trigger its Echo out of combat (fireRecruitDeathrattles: summons/buffs bake in, Sylus-doubled +
    *  tallied). Golden gets + triggers two. Fired by the play path's onPlay Battlecry loop. */
   getEchoAndTrigger: (ctx, self) => {
-    const pool = poolOf(ctx.state).buyable.filter((c) => c.tier <= ctx.state.tier && c.effects.some((e) => e.on === 'onDeath'));
+    const pool = poolOf(ctx.state).buyable.filter((c) => c.tier <= ctx.state.tier && c.effects.some(isEchoEffect));
     if (pool.length === 0) return;
     for (let i = 0; i < gold(self); i++) {
       if (ctx.state.hand.length >= handCap(ctx.state)) break;
@@ -12259,7 +12248,7 @@ function fire(
  * Echo, on Spear Warden's death). Combat has the same split, enforced per factory by its `minion !== self` guard;
  * the shop enforces it here, once, so a new Echo factory cannot forget.
  */
-const FRIEND_DEATH_WATCHERS: ReadonlySet<string> = new Set(['onFriendDeathSummon', 'onFriendDeathGainEcho', 'impInheritOnDeath']);
+const FRIEND_DEATH_WATCHERS: ReadonlySet<string> = DEATH_WATCHER_FACTORIES; // the one shared set (core `effects/echo.ts`, R-ECHO-WATCHER-01)
 
 /**
  * @param opts.returnsWhole the dying body is about to come back by REBIRTH, as the same body (R-DEATH-RETURN-01): a
@@ -15629,7 +15618,7 @@ export function socRuneReplaysOf(state: RunState): SocRuneReplay[] {
   if (f?.runeHerald) out.push({ id: 'rune_herald', kind: 'rune', label: 'Herald', fire: (st) => {
     const ctx = makeContext(st);
     for (const m of [...st.board]) {
-      if (instanceEffects(m).some((e) => e.on === 'onDeath')) fireRecruitDeathrattles(ctx, m);
+      if (instanceEffects(m).some(isEchoEffect)) fireRecruitDeathrattles(ctx, m);
     }
   } });
   // Rune of Dawnclaw: your Dawnclaws fire their adjacent-Shout Echo (they don't die) — an Echo TRIGGER,
@@ -15684,7 +15673,7 @@ export function socRuneReplaysOf(state: RunState): SocRuneReplay[] {
   if (f?.echoingCoop) out.push({ id: 'echoingCoop', kind: 'quest', label: 'Echoing Coop', fire: (st) => {
     const ctx = makeContext(st);
     for (const m of [...st.board]) {
-      if (instanceEffects(m).some((e) => e.on === 'onDeath')) fireRecruitDeathrattles(ctx, m);
+      if (instanceEffects(m).some(isEchoEffect)) fireRecruitDeathrattles(ctx, m);
     }
   } });
   // Rune of Rallying: trigger the LEFT-MOST Rally — a real shop Rally (tallies, Herding Horn, nested beats).
@@ -16507,7 +16496,7 @@ function runRecurringEndOfTurn(
     ));
     const shout = state.board.find((c) => { const d = CARD_INDEX[c.cardId]; return !!d && hasBattlecry(d); });
     if (shout) { procRuneId(state, 'rune_crucible_choir'); choirBeat(shout, () => { replayBattlecry(state, shout); }); }
-    const echo = state.board.find((c) => CARD_INDEX[c.cardId]?.effects.some((e) => e.on === 'onDeath'));
+    const echo = state.board.find((c) => CARD_INDEX[c.cardId]?.effects.some(isEchoEffect));
     if (echo) { procRuneId(state, 'rune_crucible_choir'); choirBeat(echo, () => fireRecruitDeathrattles(choirCtx, echo)); }
   } else if (effect === 'grantRandomAttachments') {
     conjureToHand(state, poolOf(state).buyable.filter((c) => c.tier <= state.tier && c.keywords.includes('M')), 2);
@@ -16596,7 +16585,7 @@ function runRecurringEndOfTurn(
     // same badge in the same commit (`runeTriggerFx`: `counted + seqFire`) — the owner saw exactly that as an
     // "extra trigger at the end". The ribbon from the badge to each Echo is drawn ON the beat by the
     // authoritative player (a minion-sourced beat whose identity is a rune's — see Recruit's `onBeatActivate`).
-    const echoes = state.board.filter((c) => CARD_INDEX[c.cardId]?.effects.some((e) => e.on === 'onDeath')).slice(0, 2);
+    const echoes = state.board.filter((c) => CARD_INDEX[c.cardId]?.effects.some(isEchoEffect)).slice(0, 2);
     const ctx = makeContext(state);
     for (const echo of echoes) {
       const def = CARD_INDEX[echo.cardId];
@@ -17604,7 +17593,7 @@ export function playCard(state: RunState, played: BoardCard): void {
   // per play), which is what "every 5th Echo minion" says; the fire itself is the shop-side Echo path
   // Gravetwin / the Reliquary use, so nothing about it is bespoke.
   const arrival = state.runeEchoedArrival;
-  if (arrival && CARD_INDEX[played.cardId]?.effects.some((e) => e.on === 'onDeath')) {
+  if (arrival && CARD_INDEX[played.cardId]?.effects.some(isEchoEffect)) {
     arrival.tick += 1;
     if (arrival.per > 0 && arrival.tick % arrival.per === 0) {
       procRuneId(state, 'rune_echoed_arrival');
@@ -17774,7 +17763,7 @@ function runeRiseRunesShop(state: RunState, risen: BoardCard): void {
     const n = runeStacksOf(state, 'rune_second_wind');
     captureBuffFx(state, risen, 'spell', () => addBuff(risen, 'Second Wind', SECOND_WIND_GRANT.attack * n, SECOND_WIND_GRANT.health * n));
   }
-  if (f?.runeRestless && state.board.includes(risen) && instanceEffects(risen).some((e) => e.on === 'onDeath')) {
+  if (f?.runeRestless && state.board.includes(risen) && instanceEffects(risen).some(isEchoEffect)) {
     procRuneId(state, 'rune_restless');
     for (let k = 0; k < runeStacksOf(state, 'rune_restless'); k++) fireRecruitDeathrattles(makeContext(state), risen);
   }

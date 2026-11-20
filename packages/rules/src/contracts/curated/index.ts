@@ -25,27 +25,23 @@ export const CURATED_CONTRACTS: readonly ContentContract[] = [
   // EXTRACTED contract incomplete (an engine flag or a golden-text diff the extractor cannot read). Curated so the
   // contract states what the card does; reviewStatus stays 'extracted' (no owner ruling — §4.2).
   {
+    // Reworked 2026-11-20 (owner): the friend-death Imp watcher is gone; one Avenge (2) summons an Imp, then buffs
+    // every Imp (the new one included) permanently. Kept curated so the rework's shape is stated, not guessed.
     contentId: 'brood',
     contentType: 'minion',
-    revision: 1,
+    revision: 2,
     reviewStatus: 'extracted',
     setIds: ['set1'],
     tier: 3,
     tribes: ['demon'],
     tags: ['tier:3'],
     triggers: [
-      { event: 'onDeath', phase: 'both', phaseBasis: 'authored', note: 'Each time a friend dies (onFriendDeathSummon)' },
-      { event: 'avenge', phase: 'combat', phaseBasis: 'authored', threshold: 3 },
+      { event: 'avenge', phase: 'combat', phaseBasis: 'authored', threshold: 2 },
     ],
     effects: [
-      { kind: 'onFriendDeathSummon', amount: { kind: 'const', plain: { max: 3 } }, refs: ['impscrap'] },
-      { kind: 'avengeBuffImps', amount: { kind: 'const', plain: { attack: 1, health: 1 }, gilded: { attack: 2, health: 2 } } },
+      { kind: 'avengeBuffImps', amount: { kind: 'const', plain: { attack: 1, health: 1 }, gilded: { attack: 2, health: 2 } }, summons: { cardId: 'impscrap', count: { plain: 1, gilded: 2 } }, refs: ['impscrap'], note: 'summon first, then buff, so the new Imp takes the +1/+1 too' },
     ],
-    gildedDelta: {
-      kind: 'reshape',
-      basis: 'authored',
-      description: 'the gild doubles ONLY the Avenge buff (+1/+1 → +2/+2); the per-death Imp summon stays 1 (max 3) in both bodies — the extractor read the golden-text diff as a whole-card ×2 (text-parse draft-contract gap, 2026-09-11)',
-    },
+    gildedDelta: { kind: 'multiply', factor: 2, basis: 'authored', description: 'the gild doubles both halves: 2 Imps and +2/+2 (owner rework 2026-11-20; gilded text is a reviewer assumption)' },
     textContract: { source: 'index' },
   },
   {

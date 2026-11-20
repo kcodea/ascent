@@ -13,6 +13,7 @@
  * so the memoized `Unit` / `Card` see no prop churn: perf-neutral.
  */
 import type { EffectDef, MinionSnapshot } from '@game/core';
+import { isEchoEffect } from '@game/core'; // R-ECHO-WATCHER-01
 
 /** One granted trigger: just what the medallion detectors read. */
 export interface GrantedTrigger { on: EffectDef['on']; do: EffectDef['do'] }
@@ -52,7 +53,7 @@ export function grantedTriggersOfBoard(inst: GrantCarrier): readonly GrantedTrig
   if (!inst.copiedEcho?.length && !inst.grantedEffects?.length && !inst.seedEchoes && !inst.seedEchoesTemp) return undefined;
   const out: GrantedTrigger[] = [];
   for (const e of [...(inst.copiedEcho ?? []), ...(inst.grantedEffects ?? [])]) {
-    if (inst.echoStripped && e.on === 'onDeath') continue; // an Echo-stripped copy fights without any Echo
+    if (inst.echoStripped && isEchoEffect(e)) continue; // an Echo-stripped copy fights without any Echo
     push(out, e.on, e.do);
   }
   if (!inst.echoStripped && ((inst.seedEchoes ?? 0) + (inst.seedEchoesTemp ?? 0)) > 0) push(out, SEED_ECHO.on, SEED_ECHO.do);

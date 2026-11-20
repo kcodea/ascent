@@ -1834,4 +1834,27 @@ export const TRIGGERS_RULES: GameRule[] = [
     currentBehaviour: 'Conforms from 2026-11-19. Before, `playCard` returned early for every aimed Shout, and with no legal target the reducer never opened the aim, so the Shout fired nothing: no Karwind, no tally, no counter.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/shoutNoTarget1119.test.ts'], lastVerifiedAt: '2026-11-19' },
   },
+  {
+    id: 'R-ECHO-WATCHER-01',
+    title: 'A friend-death watcher is not an Echo: "trigger an Echo" effects never pick, fire, count or copy it',
+    statement:
+      'An Echo is an effect that fires when ITS OWN minion dies. A minion that reacts to ANOTHER friendly minion dying '
+      + '(Ashen Heir, Echo Mimic) rides the same death trigger but is not an Echo and prints no "Echo:". Every Echo consumer '
+      + 'reads ONE shared predicate (`isEchoEffect`, `packages/core/src/effects/echo.ts`), in combat, the Shop and End of '
+      + 'Turn alike: Echohorn, Hawkus, Spots, Rune of the Herald, Empty Graves, Bone Throne, Echoing Coop and the other '
+      + '"trigger your Echo" effects skip a watcher and take the next real Echo (none means nothing happens); a watcher '
+      + 'dying is not an Echo trigger (no Echo tally, no "an Echo fired" rune); Echo Mimic, Gravetwin and Grave Body copy '
+      + 'only real Echoes; "without the Echo" strips only real Echoes. When a body carries both (an Echo Mimic that gained '
+      + 'an Echo, any graft), a triggered Echo fires only the Echo effects. The wide reading stands: any own-death effect '
+      + 'is an Echo, not only `deathrattle*` ids (Moss Colossus, Runesnout, Anvilshade, Brunni, Spencer, Antsy).',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner bug report 2026-11-20 (Echohorn + Brood Matron)', quote: 'an echohorn just triggered a brood matron - that shouldnt happen since it is not an echo' },
+      { kind: 'code', ref: 'packages/core/src/effects/echo.ts isEchoEffect + DEATH_WATCHER_FACTORIES; read by factories.ts hasEcho/triggerEcho, simulate.ts, recruit.ts hasEcho/fireRecruitDeathrattles/fireOnFriendDeath' },
+    ],
+    contentIds: ['b2_echohorn', 'ashen_heir', 'n2_echomimic', 'brood'],
+    currentBehaviour: 'Conforms from 2026-11-20. Before, every `onDeath` effect counted as an Echo, so Echohorn spent its trigger on a left-most Brood Matron (whose watcher then did nothing) instead of the real Echo to its right. Brood Matron was reworked the same day to an Avenge card and has no watcher left.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/echoExcludesDeathWatchers.test.ts'], lastVerifiedAt: '2026-11-20' },
+  },
 ];

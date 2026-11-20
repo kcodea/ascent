@@ -76,6 +76,15 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'Systems',
         text: "Echohorn and other 'trigger an Echo' effects no longer pick Ashen Heir, or an Echo Mimic that has not gained an Echo yet. They trigger your next real Echo instead.",
       },
+      {
+        category: 'Systems',
+        text: 'Your Shop tier and your Gold now stay on screen during combat.',
+        details: [
+          'The tier stone shows your tier but cannot be pressed in combat.',
+          'The Gold pill shows the Gold you had left. Hover it to see your Gold for the next two turns.',
+          'Max Gold you gain mid-fight shows up in that forecast the moment it happens.',
+        ],
+      },
     ],
   },
   {

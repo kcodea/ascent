@@ -1671,6 +1671,8 @@ body.tvb-glow-preview .tvbwrap:not(:disabled) .tvb-glow {
 }
 /* Fully upgraded (the broken "complete" gem) — a shattered gem doesn't catch a glare; kill the sweep. */
 .tvbwrap.maxed .tvb-sheen { display: none; }
+/* COMBAT (R-COMBAT-TIER-GOLD-01): the stone is an inert tier readout, so no ambient glare inviting a click. */
+.tvbwrap.combat .tvb-sheen { display: none; }
 .tvbwrap .tvb-sheen-bar {
   position: absolute; top: -25%; left: 0; width: 30%; height: 150%;
   background: linear-gradient(105deg, transparent 8%, rgba(255, 255, 255, 0.85) 50%, transparent 92%);

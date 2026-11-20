@@ -16806,4 +16806,27 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'out-stacked the overlay (z 1) and stayed sharp over it, and the portrait ring was 36px against the 39px Ancient disc.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/partyHome/pages/recentGamesPolish.test.ts'], lastVerifiedAt: '2026-11-19' },
   },
+  {
+    id: 'R-COMBAT-TIER-GOLD-01',
+    domain: 'foundation',
+    title: 'The Shop tier stone and the Gold pill stay through combat; the stone cannot be pressed and the Gold forecast is live',
+    statement:
+      'In combat the Shop tier stone and the Gold pill stay on screen in the same place and with the same look as in the Shop, '
+      + 'so nothing moves when the fight starts or ends. The stone shows the current tier but is inert: it cannot be pressed, '
+      + 'and it shows no upgrade cost, hover glow or sheen. The pill shows the Gold left over from the turn that just ended, and '
+      + 'its hover shows the usual Gold for the next two turns. A max Gold gain the fight makes (a `maxGold` event: Soulsman, '
+      + 'Bone Taxer, Nadja x Death) raises both forecast rows the moment the replay plays it, a Skip lands on the same numbers, '
+      + 'and after the fight settles the rows read the real run state with nothing counted twice. A spectator sees the watched '
+      + "player's numbers. Gold banked for next turn by a combat source with no event of its own (Bounty Bot, Goldvein, "
+      + 'Tromboneer, Warm Up, Trophy Hunter, Ancient of Fortune and others), and the max Gold from Rune of Soul Taxes, still appear '
+      + 'when the fight settles.',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-20', quote: "make it so that the player's shop tier and gold buttons stay in combat" },
+      { kind: 'code', ref: 'packages/ui/src/TierGoldControls.tsx; packages/ui/src/goldForecast.ts; packages/ui/src/GoldPill.tsx; packages/ui/src/Recruit.tsx ShopControls; styles.css .tvbwrap.combat' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-20 (feat/combat-tier-gold-hud). Before, both were hidden for the whole fight (owner ask 2026-08-29).',
+    example: 'You end the turn with 2 Gold on Tier 3. In combat the stone still reads Tier 3 and does nothing on a click; the pill reads 2. Soulsman avenges mid-fight and the hover rows go from 8 and 9 to 9 and 10 right then.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/combatTierGoldHud.test.tsx'], lastVerifiedAt: '2026-11-20' },
+  },
 ];

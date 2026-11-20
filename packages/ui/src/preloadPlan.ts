@@ -101,6 +101,9 @@ const EXTRA_ART: string[] = Object.values({
   ...(import.meta.glob('./art/emotes/*.webp', { eager: true, query: '?url', import: 'default' }) as Record<string, string>),
   ...(import.meta.glob(['./art/pings/*.webp', '!./art/pings/inspect.webp'], { eager: true, query: '?url', import: 'default' }) as Record<string, string>),
   ...(import.meta.glob('./art/versus/*.webp', { eager: true, query: '?url', import: 'default' }) as Record<string, string>),
+  // The Ancients awakening's layered panel paintings (back, figure, front per Ancient): first shown mid-sequence, where a
+  // cold load would pop in.
+  ...(import.meta.glob('./art/ancients/panels/*.webp', { eager: true, query: '?url', import: 'default' }) as Record<string, string>),
   // The party home's painted ornaments.
   ...(import.meta.glob('./partyHome/ornaments/*.webp', { eager: true, query: '?url', import: 'default' }) as Record<string, string>),
 });

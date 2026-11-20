@@ -96,7 +96,7 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   // from where it stood into the new gilded card — the poof, the arc and the landing are all this one def.
   // The Ancients PICK (2026-09-27, owner: "collapse it into the same pixi style effect we use for when the player gets
   // a triple"): the chosen Ancient collapses into this same trail, recoloured, flying into the hero power.
-  'gild-trail': ['ancients/ancientPickSlam.ts', 'gildTrail.ts'],
+  'gild-trail': ['ancients/AncientPanels.tsx', 'ancients/ancientPickSlam.ts', 'gildTrail.ts'],
   // A HAND card getting stronger — minion, spell, Ruby or token (owner-authored 2026-09-15, replacing the CSS
   // spell-buff grow/shrink + mote blast). Fired from the one `playHandBuffOn` every surface's fan-out lands on:
   // the shop's hand diff, the End-of-Turn presenters and the combat replay's `handBuff` beat scan.

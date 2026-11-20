@@ -2,9 +2,10 @@ import { ANCIENT_IDS, type AncientId } from '@game/sim';
 import { TunerPanel } from '../TunerPanel';
 import type { TunerControl, TunerSpec, TunerUnit } from '../tunerSchema';
 import { useGame } from '../store';
-import { REVEAL_STYLES, ANCIENTS_DEFAULTS, ANCIENTS_RANGES, getAncientsConfig, resetAncientsConfig, setAncientsValue, type AncientsFullConfig, type AncientsNumKey, ANCIENT_ART_IDS, ANCIENT_CUES, ART_FIELDS } from './ancientsConfig';
+import { REVEAL_STYLES, ANCIENTS_DEFAULTS, ANCIENTS_RANGES, getAncientsConfig, resetAncientsConfig, setAncientsValue, type AncientsFullConfig, type AncientsNumKey, ANCIENT_ART_IDS, ANCIENT_CUES, ART_FIELDS, type AncientCue } from './ancientsConfig';
 import { playAwakenDemo, playGateDemo } from './ancientsFx';
-import { ANCIENT_HERO_THEMES, BLOOM_STYLES, heroThemeKey, isThemedHero, STYLE_FAMILY, THEME_FIELDS, THEMED_HEROES, type ThemeField } from './ancientHeroThemes';
+import { auditionCue } from './ancientsSound';
+import { ANCIENT_HERO_THEMES, heroThemeKey, isThemedHero, THEME_FIELDS, THEMED_HEROES, type ThemeField } from './ancientHeroThemes';
 
 /**
  * DEV ✦ ANCIENTS tuner (proof of concept 2026-09-25). The METER group is balance: moving it re-stamps the live
@@ -16,10 +17,10 @@ type Key = keyof AncientsFullConfig;
 /** A hero's display name (the theme's label), or "Default" for every hero without its own theme. */
 const heroName = (h: string): string => (isThemedHero(h) ? ANCIENT_HERO_THEMES[h].label : 'Default (every other hero)');
 const THEME_LABELS: Record<ThemeField, [string, string]> = {
-  curtainInner: ['Curtain centre', 'The curtain’s colour at its centre (it blooms out of the hero power).'],
-  curtainOuter: ['Curtain edge', 'The curtain’s colour at its edge.'],
-  seamColor: ['Seam ring + medallion rim', 'The energy ring riding the curtain’s edge as it opens, and the rim round the hero power art.'],
-  titleGlow: ['Title glow', 'The glow around the title and the medallion.'],
+  curtainInner: ['Main colour', 'The hero’s main awakening colour: the glow around the hero power and the eruption’s flash.'],
+  curtainOuter: ['Dark colour', 'The dark companion of the main colour.'],
+  seamColor: ['Light colour', 'The glyphs around the hero power, and the eruption’s dust and blast.'],
+  titleGlow: ['Glow colour', 'The glow and embers around the hero power.'],
   backdropTint: ['Backdrop tint', 'The dark tint behind the cards once they are revealed.'],
 };
 function themeRows(hero: string, group: string): [Key, string, TunerUnit | undefined, string, string, 'color'][] {
@@ -27,8 +28,7 @@ function themeRows(hero: string, group: string): [Key, string, TunerUnit | undef
 }
 const HERO_GROUP = 'Hero theme';
 const HERO_OPTIONS = ['default', ...[...THEMED_HEROES].sort((a, b) => heroName(a).localeCompare(heroName(b)))];
-const STYLE_OPTIONS = ['auto', ...BLOOM_STYLES];
-/** The HERO THEME group (owner 2026-09-26): pick a hero (and optionally preview another bloom style on it), then its
+/** The HERO THEME group (owner 2026-09-26): pick a hero, then its
  *  five colours. Only the SELECTED hero's colours show, so the panel stays one group, not sixty. */
 function heroThemeControls(): TunerControl<Key>[] {
   const hero = String(getAncientsConfig().tunerHero);
@@ -36,12 +36,26 @@ function heroThemeControls(): TunerControl<Key>[] {
     ({ key, label, hint, group: HERO_GROUP, kind: 'select', min: 0, max: 0, step: 0, options, optionLabels });
   return [
     sel('tunerHero', 'Hero', 'The hero whose awakening colours are below, and who ▶ Play plays as.', HERO_OPTIONS,
-      Object.fromEntries(HERO_OPTIONS.map((h) => [h, isThemedHero(h) ? `${heroName(h)} (${STYLE_FAMILY[ANCIENT_HERO_THEMES[h].style].split(' ')[0]})` : heroName(h)]))),
-    sel('tunerStyle', 'Style preview', 'Play the hero with another bloom style (Auto = its own). A preview only: the hero keeps its own style in the game.', STYLE_OPTIONS,
-      { auto: 'Auto (the hero’s own)', ...STYLE_FAMILY }),
+      Object.fromEntries(HERO_OPTIONS.map((h) => [h, heroName(h)]))),
     ...themeRows(hero, HERO_GROUP).map(([key, label, , hint, group, kind]): TunerControl<Key> => ({ key, label, hint, group, kind, min: 0, max: 0, step: 0 })),
   ];
 }
+/** Each sound's plain name and the moment it plays at (the Sound group's labels and hints). */
+const CUE_NAMES: Record<AncientCue, [string, string]> = {
+  omenRumble: ['Opening rise', 'The woosh rising while the hero power glows, timed so its peak lands on the explosion. ▶ plays it from its start.'],
+  eruptionBoom: ['Explosion boom', 'The deep hit as the hero power explodes.'],
+  eruptionFlash: ['Explosion swoosh', 'The swoosh layered over the explosion.'],
+  panelBg: ['Background slides in', 'Each of the six backgrounds sliding in (pitched up a step per pair).'],
+  panelSlide: ['Ancient slides in', 'Each Ancient sliding up into place: six stone slides, one per Ancient (▶ steps through them).'],
+  panelSlam: ['Ancient slams in', 'Each of the six Ancients landing (pitched down a step per pair).'],
+  pickPulse: ['Three chosen', 'The three on offer rattling while their edges and outlines pulse.'],
+  revealSpark: ['Card spark', 'The point of light gathering before each card appears.'],
+  cardReveal: ['Card appears', 'Each card bursting out of its spark.'],
+  ambientHum: ['Select screen hum', 'The quiet hum under the select screen (it loops in the game; ▶ plays it once).'],
+  pickClick: ['Pick click', 'The click as you choose an Ancient.'],
+  pickWoosh: ['Pick woosh', 'The chosen card turning into a trail toward the hero power.'],
+  pickSeal: ['Pick impact', 'The trail hitting the hero power.'],
+};
 const ROWS: [Key, string, TunerUnit | undefined, string, string, ('color' | 'toggle' | 'text')?][] = [
   ['cost', 'Points to fill', undefined, 'The meter fills up to this and then awakens. Re-stamps the live sandbox run.', 'Meter (balance)'],
   ['refresh', 'Points per refresh', undefined, 'Points one Shop refresh adds (paid or free).', 'Meter (balance)'],
@@ -63,12 +77,23 @@ const ROWS: [Key, string, TunerUnit | undefined, string, string, ('color' | 'tog
   ['omenMs', 'Omen', 'ms', 'The world holds its breath: the duck, the rumble, the darkening edges, the glyphs and embers around the hero power.', 'Awakening beats'],
   ['omenDark', 'Omen edge darkness', 'opacity', 'How strongly the vignette creeps in from the edges during the omen.', 'Awakening beats'],
   ['omenTremor', 'Omen tremor', 'px', 'The board’s tremor at the peak of the omen. The hero power never moves. 0 turns it off.', 'Awakening beats'],
-  ['eruptionMs', 'Eruption bloom', 'ms', 'The curtain bursting out of the hero power.', 'Awakening beats'],
-  ['seamGlow', 'Seam ring', 'opacity', 'The energy ring and runes riding the curtain’s edge.', 'Awakening beats'],
-  ['titleHoldMs', 'Title hold', 'ms', 'How long "An Ancient Awakens" holds before the Ancients emerge.', 'Awakening beats'],
-  ['revealFadeMs', 'Curtain fade', 'ms', 'The curtain fading off into the reveal.', 'Awakening beats'],
+  ['panelStaggerMs', 'Pair stagger', 'ms', 'One pair of panels setting off after the pair outside it (outside to inside).', 'Awakening panels'],
+  ['panelPairGapMs', 'Pair gap', 'ms', 'Within a pair, the right panel setting off after the left. 0 = together.', 'Awakening panels'],
+  ['panelBgMs', 'Background slide', 'ms', 'One background sliding in from off screen.', 'Awakening panels'],
+  ['panelFollowMs', 'Ancient follows', 'ms', 'The Ancient setting off after its own background.', 'Awakening panels'],
+  ['panelSlideMs', 'Ancient slide', 'ms', 'One Ancient sliding in from off screen to its slam.', 'Awakening panels'],
+  ['panelHoldMs', 'Six hold', 'ms', 'How long all six stand before three are chosen.', 'Awakening panels'],
+  ['panelRattleMs', 'Three rattle', 'ms', 'The offered three shaking while their edges light and pulse; the other three fall only after it.', 'Awakening panels'],
+  ['panelFallMs', 'Backgrounds fall', 'ms', 'All six backgrounds, and the three Ancients not on offer, fading out and falling away.', 'Awakening panels'],
+  ['panelSpreadMs', 'Three spread out', 'ms', 'The three on offer sliding along the bottom to even spacing, before they move into their cards.', 'Awakening panels'],
+  ['panelShakePx', 'Slam shake', 'px', 'The shake on each slam, and the size of the rattle. 0 = none.', 'Awakening panels'],
+  ['panelSparks', 'Sparks', '×', 'The explosion, the grinding edges and the spray off each slam. 0 = none.', 'Awakening panels'],
+  ['panelSlant', 'Panel lean', undefined, 'How far each panel leans, % of the width of the screen. 0 = upright.', 'Awakening panels'],
+  ['panelDepth', 'Depth', '×', 'How far a layered portrait\'s background, Ancient and foreground move apart. 0 = they move as one.', 'Awakening panels'],
+  ['panelFigureScale', 'Figure size', '×', 'How big each Ancient stands in front of its panel. 1 = it fills the height of the screen; smaller shows more of the backgrounds.', 'Awakening panels'],
+  ...ANCIENT_ART_IDS.map((id): [Key, string, TunerUnit | undefined, string, string] =>
+    [`${id}PanelSize` as Key, `Size: ${id.charAt(0).toUpperCase() + id.slice(1)}`, '×', 'The size of this Ancient alone on its panel, on top of Figure size. Scaled from its bottom edge.', 'Awakening panels']),
   ['revealDelayMs', 'First Ancient delay', 'ms', 'The pause before the first Ancient emerges.', 'Awakening beats'],
-  ['handoffMs', 'Title handoff', 'ms', 'The banner is born where the curtain’s title stands and rises into place. 0 = a plain fade.', 'Reveal'],
   ['sparkMs', 'Spark gathers', 'ms', 'The point of light gathering (motes drawn in, a ring closing) before it bursts.', 'Reveal'],
   ['materialiseMs', 'Card appears', 'ms', 'The card appearing out of the burst.', 'Reveal'],
   ['overexposeMs', 'Light settles', 'ms', 'The art’s overexposure resolving back to normal.', 'Reveal'],
@@ -102,12 +127,15 @@ const ROWS: [Key, string, TunerUnit | undefined, string, string, ('color' | 'tog
   ['recoil', 'Hero power recoil', '×', 'The hero power squashing in on contact, holding through the hit-stop, then springing back. 0 = none.', 'Pick → slam'],
   ['duckAmount', 'Duck level', 'opacity', 'Music and other sounds dip to this during the awakening (1 = no duck).', 'Awakening sound'],
   ['duckRampMs', 'Duck ramp', 'ms', 'How quickly the duck goes in and comes back.', 'Awakening sound'],
-  ...ANCIENT_CUES.flatMap((cue): [Key, string, TunerUnit | undefined, string, string, ('text')?][] => [
-    [`${cue}Clip` as Key, `${cue}: clip`, undefined, `The clip id for ${cue} (e.g. fx/waking-rift). Swap in the owner’s SFX here.`, '✦ Ancients: Sound', 'text'],
-    [`${cue}Gain` as Key, `${cue}: gain`, undefined, `Volume of ${cue}. 0 mutes it.`, '✦ Ancients: Sound'],
-    [`${cue}Offset` as Key, `${cue}: offset`, 'ms', `Delay of ${cue} relative to its beat.`, '✦ Ancients: Sound'],
-    [`${cue}Rate` as Key, `${cue}: pitch`, '×', `Playback rate (pitch + speed) of ${cue}.`, '✦ Ancients: Sound'],
-  ]),
+  ...ANCIENT_CUES.flatMap((cue): [Key, string, TunerUnit | undefined, string, string, ('text')?][] => {
+    const [name, when] = CUE_NAMES[cue];
+    return [
+      [`${cue}Gain` as Key, `${name}: volume`, undefined, `${when} Press ▶ to hear it. 0 mutes it.`, '✦ Ancients: Sound'],
+      [`${cue}Clip` as Key, `${name}: clip`, undefined, `The clip id for this sound (e.g. fx/waking-rift). Swap a new sound in here.`, '✦ Ancients: Sound', 'text'],
+      [`${cue}Offset` as Key, `${name}: delay`, 'ms', 'How long after its moment this sound starts.', '✦ Ancients: Sound'],
+      [`${cue}Rate` as Key, `${name}: pitch`, '×', 'Playback rate: pitch and speed together.', '✦ Ancients: Sound'],
+    ];
+  }),
   ['pvInMs', 'Preview in', 'ms', 'The preview card’s slide and fade in on hover.', 'Preview'],
   ['pvOutMs', 'Preview out', 'ms', 'The quick slide and fade out when the pointer leaves.', 'Preview'],
   ['pvGraceMs', 'Hover grace', 'ms', 'How long the pointer has to cross from the ring into the card before it starts leaving.', 'Preview'],
@@ -135,12 +163,14 @@ const ROWS: [Key, string, TunerUnit | undefined, string, string, ('color' | 'tog
 ];
 void ART_FIELDS;
 
+/** Each sound's gain row carries a ▶ that plays it (its live clip, gain and pitch). */
+const CUE_OF_GAIN = new Map<Key, AncientCue>(ANCIENT_CUES.map((cue) => [`${cue}Gain` as Key, cue]));
 const BASE_CONTROLS: TunerControl<Key>[] = ROWS.map(([key, label, unit, hint, group, kind]) => {
   if (kind === 'color' || kind === 'text') return { key, label, hint, group, kind, min: 0, max: 0, step: 0 };
   const [min, max, step] = ANCIENTS_RANGES[key as AncientsNumKey];
   return kind === 'toggle'
     ? { key, label, hint, group, kind, min, max, step, onValue: 1, offValue: 0 }
-    : { key, label, unit, hint, group, min, max, step };
+    : { key, label, unit, hint, group, min, max, step, ...(CUE_OF_GAIN.has(key) ? { preview: () => auditionCue(CUE_OF_GAIN.get(key)!) } : {}) };
 });
 
 /** The hero-theme group goes where the theme groups always sat: after the Dust group. */
@@ -178,25 +208,24 @@ export const SPEC: TunerSpec<AncientsFullConfig> = {
   writeColor: (key, value) => setAncientsValue(key, value),
   reset: resetAncientsConfig,
   defaults: ANCIENTS_DEFAULTS,
+  // Play is always on screen, however far the dials are scrolled (owner 2026-11-19).
+  buttonsSticky: true,
   // Recomputed on every render: the colour rows follow the selected hero.
   get controls() { return controls(); },
   actions: [
     {
       label: '▶ Play full sequence',
-      hint: 'The whole awakening on the hero power: omen, eruption, title, the Ancients emerging, settled; closes after a moment. Needs a Set 3 sandbox with Ancients on. Run state is untouched.',
+      hint: 'The whole awakening on the hero power: omen, explosion, the six panels, the Ancients emerging, settled; closes after a moment. Needs a Set 3 sandbox with Ancients on. Run state is untouched.',
       run: () => playGateDemo('full'),
     },
     {
       label: '▶ Play selected hero',
-      hint: 'The full awakening as the hero picked in Hero theme (its colours, power art, bloom style and medallion entrance), with the Style preview if one is set, whoever the run’s hero is. Run state is untouched.',
-      run: () => {
-        const c = getAncientsConfig();
-        playGateDemo('full', String(c.tunerHero), c.tunerStyle === 'auto' ? undefined : String(c.tunerStyle));
-      },
+      hint: 'The full awakening in the colours of the hero picked in Hero theme, whoever the run’s hero is. Run state is untouched.',
+      run: () => playGateDemo('full', String(getAncientsConfig().tunerHero)),
     },
     {
       label: '▶ Play from reveal',
-      hint: 'Just the Ancients emerging (Death, Fortune, War) and the settled state. Run state is untouched.',
+      hint: 'Just the Ancients emerging (a random three) and the settled state. Run state is untouched.',
       run: () => playGateDemo('reveal'),
     },
     {

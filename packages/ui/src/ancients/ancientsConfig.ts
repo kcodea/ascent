@@ -55,14 +55,34 @@ export interface AncientsConfig {
   omenDark: number;
   /** Omen: the board's tremor at its peak (px). 0 = none. The hero power never moves. */
   omenTremor: number;
-  /** Eruption: the curtain bloom out of the hero power (ms). */
-  eruptionMs: number;
-  /** Eruption: the energy ring riding the curtain's seam (peak opacity). */
-  seamGlow: number;
-  /** Title: how long "An Ancient Awakens" holds before the reveal (ms). */
-  titleHoldMs: number;
-  /** Reveal: the curtain fading off (ms). */
-  revealFadeMs: number;
+  /** Panels: within an outside-to-inside pair, the right panel setting off after the left (ms). */
+  panelPairGapMs: number;
+  /** Panels: one background's slide in from off screen (ms). */
+  panelBgMs: number;
+  /** Panels: the Ancient setting off after its own background (ms). */
+  panelFollowMs: number;
+  /** Panels: one Ancient's slide from off screen to its slam (ms). */
+  panelSlideMs: number;
+  /** Panels: one pair setting off after the pair outside it (ms). */
+  panelStaggerMs: number;
+  /** Panels: how long the six stand before three are chosen (ms). */
+  panelHoldMs: number;
+  /** Panels: the offered three rattling while their edges light (ms). */
+  panelRattleMs: number;
+  /** Panels: the other three fading and falling away (ms). */
+  panelFallMs: number;
+  /** Panels: the chosen three sliding along the bottom to even spacing, after the backgrounds fall away (ms). */
+  panelSpreadMs: number;
+  /** Panels: the shake on each slam, and the rattle's size (design px). 0 = none. */
+  panelShakePx: number;
+  /** Panels: the sparks (grinding edges, each slam, the explosion) (×). 0 = none. */
+  panelSparks: number;
+  /** Panels: how far each panel leans (% of the screen's width). 0 = upright. */
+  panelSlant: number;
+  /** Panels: how far a layered portrait's sheets move apart (×). 0 = the layers move as one. */
+  panelDepth: number;
+  /** Panels: a layered figure's size (×), scaled about its bottom edge. 1 = it fills the screen's height. */
+  panelFigureScale: number;
   /** Reveal: the pause before the first Ancient emerges (ms). */
   revealDelayMs: number;
   /** THE SPARK REVEAL (owner 2026-09-27: "if they revealed out of the spark or something that may be cool? i think the
@@ -82,9 +102,6 @@ export interface AncientsConfig {
   overexposeMs: number;
   /** Spark reveal: the burst's ring size (×, the pick's own ring). 0 = none. */
   burstRing: number;
-  /** REVEAL PASS (owner 2026-09-27: "make the ancient reveal sequence better"). The title handoff: the banner is born
-   *  where the curtain's title stands and rises into place (ms). 0 = a plain fade. */
-  handoffMs: number;
   /** Each card's name and effect rising in after it lands (ms each). 0 = shown with the card. */
   textInMs: number;
   /** The overexposure: a flood of each Ancient's colour and white over its art as it appears (peak opacity). 0 = none. */
@@ -120,8 +137,6 @@ export interface AncientsConfig {
   /** Tuner only: the hero the Hero theme group edits and the Play button plays as (`default` = every hero without
    *  its own theme). Nothing in the game reads it. */
   tunerHero: string;
-  /** Tuner only: preview another bloom style on that hero (`auto` = the hero's own). Nothing in the game reads it. */
-  tunerStyle: string;
   /** THE PICK → SLAM (owner 2026-09-27: "i dont want the black circle to go back to the hero power, id rather the screen
    *  fade back and give more emphasis on the choice slamming the hero power"). See `ancientPickSlam.ts` and the
    *  research note docs/devlog/2026-09-27-ancient-pick-research.md for why these numbers.
@@ -182,33 +197,60 @@ export interface AncientsConfig {
 
 /** Per-Ancient art fit for the hero-power half: offset (design px), scale (x), rotation (deg), and a crack-position
  *  nudge (% of the button) when the default split cuts the art badly. Keys: `<ancient><X|Y|S|R|Crack>`. */
-export type AncientArtKey = `${'death' | 'fortune' | 'war' | 'genesis' | 'time' | 'bonds'}${'X' | 'Y' | 'S' | 'R' | 'Crack'}`;
+export type AncientArtKey = `${'death' | 'fortune' | 'war' | 'genesis' | 'time' | 'bonds'}${'X' | 'Y' | 'S' | 'R' | 'Crack' | 'PanelSize'}`;
 export const ANCIENT_ART_IDS = ['death', 'fortune', 'war', 'genesis', 'time', 'bonds'] as const;
-export const ART_FIELDS = ['X', 'Y', 'S', 'R', 'Crack'] as const;
+/** `PanelSize` is not hero-power art: it is the Ancient's own figure size on its awakening panel (×, on top of the
+ *  shared `panelFigureScale`; owner 2026-11-19: "dials for me to be able to change the size of each ancient figure"). */
+export const ART_FIELDS = ['X', 'Y', 'S', 'R', 'Crack', 'PanelSize'] as const;
 const ART_DEFAULTS = Object.fromEntries(
-  ANCIENT_ART_IDS.flatMap((id) => ART_FIELDS.map((f) => [`${id}${f}`, f === 'S' ? 1 : 0])),
+  ANCIENT_ART_IDS.flatMap((id) => ART_FIELDS.map((f) => [`${id}${f}`, f === 'S' || f === 'PanelSize' ? 1 : 0])),
 ) as Record<AncientArtKey, number>;
 export type AncientColorKey = `${'death' | 'fortune' | 'war' | 'genesis' | 'time' | 'bonds'}Color`;
 /** THE AWAKENING SOUND CUES (owner: "i can help source sounds if you set up a tuner with timing cues"). Each cue is a
  *  clip id (swap in the owner's SFX in the tuner), a gain, an offset (ms, relative to its beat) and a rate (pitch). */
-export const ANCIENT_CUES = ['omenRumble', 'eruptionBoom', 'eruptionFlash', 'titleSting', 'revealSpark', 'cardReveal', 'ambientHum', 'pickWoosh', 'pickSeal'] as const;
+export const ANCIENT_CUES = ['omenRumble', 'eruptionBoom', 'eruptionFlash', 'revealSpark', 'cardReveal', 'ambientHum', 'pickWoosh', 'pickSeal', 'panelBg', 'panelSlide', 'panelSlam', 'pickPulse', 'pickClick'] as const;
 export type AncientCue = (typeof ANCIENT_CUES)[number];
 export type AncientCueKey = `${AncientCue}${'Clip' | 'Gain' | 'Offset' | 'Rate'}`;
 /** The shipped picks (existing repo clips, pitched where it helps). Gains baked from the owner's tuner 2026-09-26. */
+/** LEVELS (2026-11-19; the owner then mixed them by ear in the tuner and those values are baked in below, owner: "make sure the volumes are adjusted to be in line with our other stuff"). Measured as
+ *  heard: each clip's loudest 100 ms and loudest second, plus the cue's gain in dB. The anchors are the sounds the owner
+ *  tuned on 2026-09-26: the old explosion (hit -11 dB), the title sting (-12) and the pick impact (-13). The new
+ *  explosion sits with those (hit -12; his export is 3 dB hotter and far denser than the old boom, hence 0.55), each
+ *  slam 5 dB under it (six land in a second and their tails add up), each stone slide 7 dB under its slam, and the
+ *  three-chosen sparkle at -22, well above the deliberately quiet card sounds (-39 to -42). */
 export const ANCIENT_CUE_DEFAULTS: Record<AncientCue, { clip: string; gain: number; offset: number; rate: number }> = {
-  omenRumble: { clip: 'turncharge', gain: 0.7, offset: 0, rate: 0.62 },
-  eruptionBoom: { clip: 'fx/universfield-ground-impact-352053', gain: 0.9, offset: 0, rate: 0.82 },
-  eruptionFlash: { clip: 'fx/universfield-cinematic-swoosh-impact-454392', gain: 0.6, offset: 40, rate: 0.9 },
-  titleSting: { clip: 'fx/waking-rift', gain: 0.75, offset: 60, rate: 1 },
+  // The opening (owner 2026-11-19): a woosh that rises for 2.4 s and peaks. It is played so that peak lands ON the
+  // explosion whatever the omen's length (`OMEN_RISE`, ancientsSound.ts). At its peak it hits -5 dB, the hottest clip
+  // here, and it peaks with the boom: 0.3 puts it at -16, under the boom's -12. (The old slot was the turn-charge clip
+  // slowed down, whose first half second is near silent: the opening had no audible sound.)
+  omenRumble: { clip: 'fx/ancient-opening-rise', gain: 0.3, offset: 0, rate: 1 },
+  // The explosion (owner 2026-11-19): his own two clips, made for this moment, so they play at their own pitch.
+  eruptionBoom: { clip: 'fx/ancient-hp-explosion', gain: 0.41, offset: 0, rate: 1 },
+  eruptionFlash: { clip: 'fx/ancient-explosion-swoosh', gain: 0.26, offset: 40, rate: 1 },
   // The reveal, re-scored as MAGIC not impact (owner 2026-09-27: "a bit less BOOMING"): the trigger glow rising as
   // each spark gathers, and the equipment sheen (the Good Luck shine's clip) as it blooms. Was `runeselectimplosion`.
-  revealSpark: { clip: 'triggerglow', gain: 0.22, offset: 0, rate: 1.15 },
-  cardReveal: { clip: 'equipmentsheen', gain: 0.3, offset: 0, rate: 1 },
+  revealSpark: { clip: 'triggerglow', gain: 0.37, offset: 0, rate: 1.15 },
+  cardReveal: { clip: 'equipmentsheen', gain: 0.24, offset: 0, rate: 1 },
   ambientHum: { clip: 'turncharge', gain: 0.18, offset: 0, rate: 0.45 },
   // The pick's trail: the triple's own woosh + impact clips (the gild-trail def's sound layers, muted there so these
   // play on the undiminished hero bus and land exactly on the collapse / contact frames).
   pickWoosh: { clip: 'fx/metal-woosh', gain: 0.32, offset: 0, rate: 0.8 },
-  pickSeal: { clip: 'fx/triple-impact', gain: 0.62, offset: 0, rate: 0.85 },
+  pickSeal: { clip: 'fx/triple-impact', gain: 0.46, offset: 0, rate: 0.85 },
+  // The panels (2026-11-18): placeholders from clips already in the repo, for the owner to swap. One whoosh per
+  // background (pitched up a step each pair), one slam per Ancient.
+  panelBg: { clip: 'triggerglow', gain: 0.58, offset: -20, rate: 1.5 },
+  // Each Ancient sliding in (owner 2026-11-19): six stone slides, one per Ancient (`PANEL_SLIDE_CLIPS`, ancientsSound.ts),
+  // each a take of "sliding stone 1" layered with a take of "sliding stone 2" and time-compressed to the slide's length.
+  // This slot's clip is the first of the six; while it is left as shipped, each Ancient plays its own.
+  panelSlide: { clip: 'fx/ancient-stone-slide-1', gain: 0.2, offset: 0, rate: 1 },
+  // Each Ancient slamming in (owner 2026-11-19): two cinematic booms layered into one clip.
+  panelSlam: { clip: 'fx/ancient-slam', gain: 0.4, offset: -90, rate: 1 },
+  // The three on offer rattling and pulsing (owner 2026-11-19): a shine on the first two pulses under a sparkle whoosh
+  // that rises through the rattle and peaks as the pulse ends. One sound for the three, not one each.
+  pickPulse: { clip: 'fx/ancient-pick-pulse', gain: 0.14, offset: 0, rate: 1 },
+  // The click on an Ancient's card (owner 2026-11-19): a click with a long reverb, on the frame of the click, before
+  // the woosh and the impact. A quiet clip (its hit is -20 dB), so the gain is high: heard at -22, like the pulse.
+  pickClick: { clip: 'fx/ancient-pick-click', gain: 0.8, offset: 0, rate: 1 },
 };
 const CUE_DEFAULTS = Object.fromEntries(ANCIENT_CUES.flatMap((c) => {
   const d = ANCIENT_CUE_DEFAULTS[c];
@@ -244,10 +286,20 @@ export const ANCIENTS_DEFAULTS: AncientsFullConfig = {
   omenMs: 850,
   omenDark: 1,
   omenTremor: 2.5,
-  eruptionMs: 520,
-  seamGlow: 0.9,
-  titleHoldMs: 1050, // was 1500: ~1 s of an unchanging title card (whole-sequence pass 2026-09-27)
-  revealFadeMs: 320, // was 480 (2026-09-27 whole-sequence pass: shorter + ease-in, no murky mid-fade)
+  panelPairGapMs: 70,
+  panelBgMs: 260,
+  panelFollowMs: 110,
+  panelSlideMs: 440,
+  panelStaggerMs: 260,
+  panelHoldMs: 400,
+  panelRattleMs: 820,
+  panelFallMs: 640,
+  panelSpreadMs: 460,
+  panelShakePx: 7,
+  panelSparks: 1,
+  panelSlant: 2.2,
+  panelDepth: 1,
+  panelFigureScale: 0.8, // owner 2026-11-19: "can you make the figures smaller?"
   revealDelayMs: 120, // the middle Ancient's spark lights as the title starts rising (spark reveal 2026-09-27)
   revealStyle: 'burst',
   sparkMs: 280,
@@ -256,7 +308,6 @@ export const ANCIENTS_DEFAULTS: AncientsFullConfig = {
   sideStaggerMs: 90,
   overexposeMs: 520,
   burstRing: 1.3,
-  handoffMs: 440,
   textInMs: 240,
   landFlash: 0.85,
   idleFloat: 3,
@@ -271,7 +322,6 @@ export const ANCIENTS_DEFAULTS: AncientsFullConfig = {
   // The DEFAULT hero theme (every hero without its own entry): the owner-baked screen colours, from the theme table.
   ...ANCIENT_HERO_THEMES.default,
   tunerHero: 'indy',
-  tunerStyle: 'auto',
   // The pick → collapse → triple trail → slam (owner 2026-09-27; numbers argued in
   // docs/devlog/2026-09-27-ancient-pick-research.md). See `pickTimeline` for the resulting clock.
   pickFadeMs: 380,
@@ -324,10 +374,20 @@ export const ANCIENTS_RANGES: Record<NumKey, [number, number, number]> = {
   omenMs: [0, 3000, 10],
   omenDark: [0, 1, 0.01],
   omenTremor: [0, 10, 0.1],
-  eruptionMs: [100, 2000, 10],
-  seamGlow: [0, 1, 0.01],
-  titleHoldMs: [0, 4000, 10],
-  revealFadeMs: [60, 2000, 10],
+  panelPairGapMs: [0, 300, 5],
+  panelBgMs: [60, 800, 10],
+  panelFollowMs: [0, 500, 5],
+  panelSlideMs: [150, 1500, 10],
+  panelStaggerMs: [0, 800, 5],
+  panelHoldMs: [0, 3000, 10],
+  panelRattleMs: [100, 2000, 10],
+  panelFallMs: [150, 2000, 10],
+  panelSpreadMs: [0, 1500, 10],
+  panelShakePx: [0, 24, 0.5],
+  panelSparks: [0, 3, 0.05],
+  panelSlant: [0, 6, 0.1],
+  panelDepth: [0, 3, 0.05],
+  panelFigureScale: [0.6, 1.3, 0.01],
   revealDelayMs: [0, 2000, 10],
   sparkMs: [80, 1000, 10],
   materialiseMs: [120, 1200, 10],
@@ -335,7 +395,6 @@ export const ANCIENTS_RANGES: Record<NumKey, [number, number, number]> = {
   sideStaggerMs: [0, 600, 10],
   overexposeMs: [0, 1500, 10],
   burstRing: [0, 3, 0.05],
-  handoffMs: [0, 1200, 10],
   textInMs: [0, 800, 10],
   landFlash: [0, 1, 0.01],
   idleFloat: [0, 12, 0.5],
@@ -377,15 +436,22 @@ export const ANCIENTS_RANGES: Record<NumKey, [number, number, number]> = {
   crackShadow: [0, 1, 0.01],
   crackOpenMs: [0, 1500, 10],
   ...(Object.fromEntries(ANCIENT_ART_IDS.flatMap((id) => [
-    [`${id}X`, [-80, 80, 0.5]], [`${id}Y`, [-80, 80, 0.5]], [`${id}S`, [0.3, 3, 0.01]], [`${id}R`, [-180, 180, 0.5]], [`${id}Crack`, [-30, 30, 0.5]],
+    [`${id}X`, [-80, 80, 0.5]], [`${id}Y`, [-80, 80, 0.5]], [`${id}S`, [0.3, 3, 0.01]], [`${id}R`, [-180, 180, 0.5]], [`${id}Crack`, [-30, 30, 0.5]], [`${id}PanelSize`, [0.5, 1.6, 0.01]],
   ])) as Record<AncientArtKey, [number, number, number]>),
 };
 
 const KEY = 'ascent.ancients';
 const REV_KEY = 'ascent.ancients.rev';
-const REV = 4;
-/** The defaults retuned at `REV` (see the loader). */
-const RETUNED = ['splitMs', 'shineMs', 'crackOpenMs', 'titleHoldMs', 'revealFadeMs', 'revealDelayMs', 'beatGapMs', 'hitStopMs', 'burstScale', 'trailTime', 'trailIntensity', 'revealStyle', 'landFlash', 'cardRevealClip', 'cardRevealGain', 'cardRevealRate', 'cardRevealOffset'];
+const REV = 8;
+/** The defaults retuned at each revision (see the loader): a save older than a revision takes that revision's keys
+ *  from the new defaults and keeps everything else. Rev 5 (2026-11-19): the owner's new explosion and slam clips; rev 6: their levels. */
+const RETUNED_AT: Record<number, readonly string[]> = {
+  4: ['splitMs', 'shineMs', 'crackOpenMs', 'revealDelayMs', 'beatGapMs', 'hitStopMs', 'burstScale', 'trailTime', 'trailIntensity', 'revealStyle', 'landFlash', 'cardRevealClip', 'cardRevealGain', 'cardRevealRate', 'cardRevealOffset'],
+  5: ['eruptionBoomClip', 'eruptionBoomRate', 'eruptionFlashClip', 'eruptionFlashRate', 'panelSlamClip', 'panelSlamGain', 'panelSlamRate'],
+  6: ['eruptionBoomGain', 'panelSlamGain', 'panelSlideGain', 'pickPulseGain'], // the level pass (see ANCIENT_CUE_DEFAULTS)
+  7: ['omenRumbleClip', 'omenRumbleGain', 'omenRumbleRate'], // the opening's own rise
+  8: ['eruptionBoomGain', 'eruptionFlashGain', 'revealSparkGain', 'cardRevealGain', 'pickSealGain', 'panelBgGain', 'panelBgOffset', 'panelSlideGain', 'panelSlamOffset', 'pickPulseGain'], // the owner's mix, by ear
+};
 let cfg: AncientsFullConfig = (() => {
   if (!import.meta.env.DEV) return { ...ANCIENTS_DEFAULTS };
   try {
@@ -397,8 +463,11 @@ let cfg: AncientsFullConfig = (() => {
     // reveal's magic re-score (a save stamped rev 3 before the re-score kept the old `runeselectimplosion` boom).
     let rev = 0;
     try { rev = Number(localStorage.getItem(REV_KEY) ?? 0); } catch { /* ignore */ }
-    if (rev < REV) { for (const k of RETUNED) delete s[k]; try { localStorage.setItem(REV_KEY, String(REV)); } catch { /* ignore */ } }
-    for (const k of ['closeMs', 'pickLiftMs', 'pickFlightMs', 'beat1Ms', 'beatGapMs', 'beat2Ms', 'slamStrength', 'slamDust', 'gatherMs', 'cardStaggerMs', 'cardRevealMs']) delete s[k]; // retired keys
+    if (rev < REV) {
+      for (const [at, keys] of Object.entries(RETUNED_AT)) if (rev < Number(at)) for (const k of keys) delete s[k];
+      try { localStorage.setItem(REV_KEY, String(REV)); } catch { /* ignore */ }
+    }
+    for (const k of ['closeMs', 'pickLiftMs', 'pickFlightMs', 'beat1Ms', 'beatGapMs', 'beat2Ms', 'slamStrength', 'slamDust', 'gatherMs', 'cardStaggerMs', 'cardRevealMs', 'eruptionMs', 'seamGlow', 'titleHoldMs', 'revealFadeMs', 'handoffMs', 'gateStyle', 'tunerStyle', 'panelToCardMs', 'titleStingClip', 'titleStingGain', 'titleStingOffset', 'titleStingRate']) delete s[k]; // retired keys (the curtain, deleted 2026-11-19; the title sting, removed 2026-11-19)
     if (typeof s.revealStyle !== 'string') delete s.revealStyle;
     return { ...ANCIENTS_DEFAULTS, ...(s as Partial<AncientsFullConfig>) };
   } catch {

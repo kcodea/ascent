@@ -177,6 +177,18 @@ const ANCIENT_ART = indexArt(
 export const ancientArt = (id: string): string | undefined => ANCIENT_ART[id];
 export const ancientPowerArt = (id: string): string | undefined => ANCIENT_ART[`${id}_power`];
 
+/** The awakening panels' LAYERED portraits (owner 2026-11-19): `art/ancients/panels/<id>_{back,figure,front}.webp`,
+ *  three sheets the panel moves by different amounts (the place, the Ancient cut out, loose magic in front). An
+ *  Ancient without all of back + figure keeps the flat painting. Masters: `C:\\Game Assets\\Ascent Art\\Ancients\\Parallax\\`. */
+const ANCIENT_PANEL_ART = indexArt(
+  import.meta.glob('./art/ancients/panels/*.{png,webp}', { eager: true, query: '?url', import: 'default' }) as ArtModules,
+);
+export interface AncientPanelLayers { back: string; figure: string; front?: string }
+export const ancientPanelLayers = (id: string): AncientPanelLayers | undefined => {
+  const back = ANCIENT_PANEL_ART[`${id}_back`], figure = ANCIENT_PANEL_ART[`${id}_figure`];
+  return back && figure ? { back, figure, front: ANCIENT_PANEL_ART[`${id}_front`] } : undefined;
+};
+
 /** Quest art — drop a PNG into `packages/ui/src/art/quests/<questId>.png` (e.g. `q_grave_toll.png`), keyed by
  *  the quest id like minion art is keyed by cardId. Absent = the quest card falls back to its textless look.
  *  (First file into a previously-empty folder needs one dev-server restart; see the minions README.) */

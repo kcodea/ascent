@@ -1,112 +1,27 @@
 /**
  * PER-HERO AWAKENING THEMES (owner 2026-09-26: "customize every hero's ancient trigger animation slightly … have their
- * color associated … use the same transition style as the recruit -> combat -> recruit circle setup with the hero
- * power art in the center of it"; then "build all 9 styles on a branch and tell me which heroes have each").
+ * color associated"). A theme is FIVE colours: they tint the omen around the hero power, the eruption's flash, dust and
+ * motes, and the backdrop behind the select screen. A hero without an entry wears `default`.
  *
- * The awakening's curtain blooms as a circle out of the hero power in the hero's colours, with the power's art as a
- * medallion in its middle. A theme is FIVE colours plus a SIGNATURE: one of the reusable bloom STYLES (a clean accent
- * round the medallion + the medallion's own entrance, see `ancientHeroBloom.ts`) and a couple of optional knobs. A
- * hero without an entry wears `default` (the look the owner baked on 2026-09-26: the generic entrance, no accent).
- *
- * Owner direction for the styles: "they do not all need to be crazy specific, can be generic if there isnt a fantastic
- * fit. id prefer clean animation than generic bubbly mobile looking iphone effects." So: thin lines, crisp sheens,
- * restrained rings, soft motion. No bounce, no confetti, no bubbles.
+ * The field names are from the earlier curtain (a bloom of colour with the hero power's art as a medallion, and one of
+ * nine "bloom styles" per hero). The owner deleted the curtain and its styles on 2026-11-19 ("delete the curtain and
+ * its dials") once the six panels replaced it; the names stay because saved tuner values are stored under them.
  *
  * Pure data + pure resolvers, DOM-free, so it can be unit-tested.
  */
 export interface AncientHeroTheme {
-  /** The curtain gradient's centre. */
+  /** The main colour: the omen's halo and the eruption's flash. */
   curtainInner: string;
-  /** The curtain gradient's edge. */
+  /** The dark companion of the main colour. */
   curtainOuter: string;
-  /** The energy ring riding the curtain's seam (and the medallion's rim). */
+  /** The light colour: the omen's glyphs, the eruption's dust and blast. */
   seamColor: string;
-  /** The title's glow. */
+  /** The glow colour: the omen's halo and embers. */
   titleGlow: string;
   /** The dark tint behind the cards once they are revealed. */
   backdropTint: string;
 }
 
-/** The nine reusable styles (A to I) and the three one-off accents. */
-export const BLOOM_STYLES = [
-  'coinStrike', //  A: a crisp diagonal sheen across the medallion, a thin rim flash, a few sharp glints (Indy's)
-  'cardFan', //     B: one to three thin card OUTLINES fan out behind the medallion and fade
-  'strikeRings', // C: thin shock rings pulse out (the Auctioneer's)
-  'spiritRise', //  D: thin rising wisps + a soft Rise halo (Lord of the Risen's)
-  'clockDial', //   E: a thin dial ring with tick marks turns one notch and clicks
-  'glassShell', //  F: a clear shell forms round the medallion and catches one shine (the Warden's)
-  'runeEtch', //    G: a thin ring of rune glyphs draws itself round the medallion
-  'echoCopy', //    H: a faint copy of the medallion slides out and merges back
-  'swapArcs', //    I: two thin arcs trade places round the medallion
-  'collapse', //    one-off (under C): a thin ring collapses inward onto the medallion
-  'vines', //       one-off (under G): thin vine lines draw themselves round the rim
-  'starGlint', //   one-off (under A): one clean four-point glint
-] as const;
-export type BloomStyle = (typeof BLOOM_STYLES)[number];
-/** The owner-facing letter / name of each style (the one-offs sit under the closest style). */
-export const STYLE_FAMILY: Record<BloomStyle, string> = {
-  coinStrike: 'A Coin strike', cardFan: 'B Card fan', strikeRings: 'C Strike rings', spiritRise: 'D Spirit rise',
-  clockDial: 'E Clock dial', glassShell: 'F Glass shell', runeEtch: 'G Rune etch', echoCopy: 'H Echo copy',
-  swapArcs: 'I Swap arcs', collapse: 'C+ Collapse (one-off)', vines: 'G+ Vines (one-off)', starGlint: 'A+ Star glint (one-off)',
-};
-export function isBloomStyle(s: unknown): s is BloomStyle {
-  return typeof s === 'string' && (BLOOM_STYLES as readonly string[]).includes(s);
-}
-
-/** The medallion's entrance. `settle` is the clean default (a fade and a soft scale settle); the other four are the
- *  approved bespoke entrances of Indy (`gild`), the Warden (`seal`), the Auctioneer (`thump`) and Risen (`rise`). */
-export type MedalEntrance = 'settle' | 'gild' | 'seal' | 'thump' | 'rise';
-
-/** A style's optional knobs. Every knob is optional; a style with none plays its plain form. */
-export interface BloomKnobs {
-  /** Keep the approved, hard-coded paint (Indy's gold, the Warden's ward glass, Risen's Rise aqua) instead of the
-   *  theme-tinted version every other hero on that style wears. */
-  baked?: boolean;
-  /** Override the style's medallion entrance (only the approved four do). */
-  medal?: MedalEntrance;
-  /** A: sheens (1 or 2). B: cards (1 to 3). C: rings (1 to 3). H: echoes (1 to 3). */
-  count?: 1 | 2 | 3;
-  /** A: `coinRise` a thin coin rising, `coinArcs` three coins arcing over, `gem` one gem glint, `tagSlash` a thin
-   *  price-tag slash. C: `anvil` a few straight sparks off the ring, `blade` a thin blade glint across. F: `crown` a
-   *  small crown settling on the shell. */
-  extra?: 'coinRise' | 'coinArcs' | 'gem' | 'tagSlash' | 'anvil' | 'blade' | 'crown';
-  /** Any style but A (which has its own): one crisp sheen crosses the medallion once it lands. */
-  sheen?: boolean;
-  /** B: the card is tall. */
-  tall?: boolean;
-  /** C: `shout` (the Auctioneer's three fading pulses), `drum` (even drumbeats), `blast` (one sharp blast). */
-  rhythm?: 'shout' | 'drum' | 'blast';
-  /** C: the rings are thin and jagged, like lightning. */
-  jagged?: boolean;
-  /** D: small warm points rise instead of wisps. */
-  embers?: boolean;
-  /** E: the dial lands on a pip (a single dot flashes). */
-  pip?: boolean;
-  /** F: mirror silver instead of tinted glass. */
-  mirror?: boolean;
-  /** G: a second, counter-turning ring. */
-  double?: boolean;
-  /** G: the glyphs flicker in. */
-  flicker?: boolean;
-  /** G: a line of script over the top of the rim instead of a full ring. */
-  script?: boolean;
-  /** H: a motion streak instead of a soft offset. */
-  streak?: boolean;
-  /** H: a hard, instant offset (a photocopy). */
-  crisp?: boolean;
-  /** H: quick echoes. */
-  quick?: boolean;
-  /** I: three points instead of two arcs. */
-  three?: boolean;
-  /** I: a thin tether between the arcs. */
-  tether?: boolean;
-}
-export interface AncientHeroSignature {
-  /** How the tuner names the hero (its display name). */
-  label: string;
-  style: BloomStyle;
-  knobs: BloomKnobs;
-}
 export const THEME_FIELDS = ['curtainInner', 'curtainOuter', 'seamColor', 'titleGlow', 'backdropTint'] as const;
 export type ThemeField = (typeof THEME_FIELDS)[number];
 
@@ -180,70 +95,67 @@ const COLOURS = {
 /** Heroes with their own theme (every hero in the game today). */
 export type ThemedHero = keyof typeof COLOURS;
 
-/** Every hero's signature: its display name, style and knobs (owner mapping 2026-09-26). */
-const SIGNATURES: Record<ThemedHero, AncientHeroSignature> = {
-  // The approved four (owner 2026-09-26: "auctioneer and lord are great", Indy redone, the Warden reworked). Their
-  // look is frozen: baked paint + their own medallion entrance.
-  indy: { label: 'Indy', style: 'coinStrike', knobs: { baked: true } },
-  warden: { label: 'Warden', style: 'glassShell', knobs: { baked: true, medal: 'seal' } },
-  myra: { label: 'Auctioneer', style: 'strikeRings', knobs: { medal: 'thump', rhythm: 'shout', count: 3 } },
-  risen: { label: 'Lord of the Risen', style: 'spiritRise', knobs: { baked: true } },
-  soren: { label: 'Soren', style: 'spiritRise', knobs: {} },
-  rohan: { label: 'Yirin', style: 'glassShell', knobs: { mirror: true } },
-  djinn: { label: 'Djinni', style: 'clockDial', knobs: {} },
-  nadja: { label: 'Nadja', style: 'coinStrike', knobs: { extra: 'coinRise' } },
-  cassen: { label: 'Cassen', style: 'clockDial', knobs: {} },
-  drakko: { label: 'Drakko', style: 'strikeRings', knobs: { rhythm: 'drum', count: 3 } },
-  chaos: { label: 'Chaos', style: 'runeEtch', knobs: { flicker: true } },
-  robin: { label: 'Robin', style: 'coinStrike', knobs: {} },
-  darah: { label: 'Darah', style: 'swapArcs', knobs: {} },
-  // "the medallion splits into a pair": two gold copies part left and right and merge back, then a sheen.
-  gildmaster: { label: 'Gildmaster', style: 'echoCopy', knobs: { count: 2, sheen: true } },
-  discodan: { label: 'Disco Dan', style: 'cardFan', knobs: { count: 3 } },
-  brackus: { label: 'Brackus', style: 'cardFan', knobs: { count: 1, tall: true } },
-  baggerben: { label: 'Rascal', style: 'coinStrike', knobs: {} },
-  hermithank: { label: 'Tradesman', style: 'coinStrike', knobs: {} },
-  fi: { label: 'Fi', style: 'cardFan', knobs: { count: 2 } },
-  chronoshero: { label: 'Chronos', style: 'clockDial', knobs: {} },
-  runesmith: { label: 'Runesmith', style: 'runeEtch', knobs: {} },
-  runeguard: { label: 'Guardian', style: 'runeEtch', knobs: { double: true } },
-  coran: { label: 'Coran', style: 'cardFan', knobs: { count: 2 } },
-  tiff: { label: 'Tiff', style: 'cardFan', knobs: { count: 3, sheen: true } },
-  jenkins: { label: 'Jensen', style: 'strikeRings', knobs: { rhythm: 'blast', count: 1 } },
-  repete: { label: 'Re-Pete', style: 'echoCopy', knobs: { count: 2 } },
-  gorr: { label: 'Gorr', style: 'echoCopy', knobs: { count: 3, quick: true } },
-  kindness: { label: 'Kindness', style: 'cardFan', knobs: { count: 1 } },
-  merrin: { label: 'Merrin', style: 'cardFan', knobs: { count: 3 } },
-  gambler: { label: 'Gambler', style: 'clockDial', knobs: { pip: true } },
-  xerox: { label: 'Xerox', style: 'echoCopy', knobs: { count: 1, crisp: true } },
-  frank: { label: 'Frantic Frank', style: 'coinStrike', knobs: { extra: 'tagSlash' } },
-  pete: { label: 'Pete', style: 'clockDial', knobs: {} },
-  flint: { label: 'Foreman Flint', style: 'strikeRings', knobs: { rhythm: 'blast', count: 1, extra: 'anvil' } },
-  vale: { label: 'Emissary', style: 'swapArcs', knobs: {} },
-  quillen: { label: 'Quillen', style: 'runeEtch', knobs: { script: true } },
-  hunch: { label: 'Hunch', style: 'echoCopy', knobs: { count: 1 } },
-  emeraldwarden: { label: 'Emerald Warden', style: 'glassShell', knobs: {} },
-  underdweller: { label: 'Underdweller', style: 'spiritRise', knobs: {} },
-  albus: { label: 'Albus', style: 'cardFan', knobs: { count: 3 } },
-  devourer: { label: 'Devourer', style: 'collapse', knobs: {} },
-  flash: { label: 'Flash', style: 'echoCopy', knobs: { count: 1, streak: true } },
-  midas: { label: 'Midas', style: 'coinStrike', knobs: { count: 2 } },
-  juggler: { label: 'Juggler', style: 'coinStrike', knobs: { extra: 'coinArcs' } },
-  membrance: { label: 'Membrance', style: 'echoCopy', knobs: { count: 1 } },
-  bram: { label: 'Braum', style: 'coinStrike', knobs: {} },
-  cia: { label: 'Ayse', style: 'cardFan', knobs: { count: 2 } },
-  odelle: { label: 'Odelle', style: 'swapArcs', knobs: { three: true } },
-  harlan: { label: 'Harlan', style: 'coinStrike', knobs: {} },
-  sable: { label: 'Sable', style: 'swapArcs', knobs: { tether: true } },
-  keshi: { label: 'Keshi the Protector', style: 'glassShell', knobs: { extra: 'crown' } },
-  rayse: { label: 'Rayse', style: 'vines', knobs: {} },
-  aevor: { label: 'Aevor', style: 'strikeRings', knobs: { rhythm: 'drum', count: 2, jagged: true } },
-  gorun: { label: 'Gorun', style: 'strikeRings', knobs: { rhythm: 'drum', count: 2, extra: 'blade' } },
-  cindara: { label: 'Cindara', style: 'spiritRise', knobs: { embers: true } },
-  fibbsy: { label: 'Fibbsy', style: 'coinStrike', knobs: { extra: 'gem' } },
-  mimic: { label: 'Mimic', style: 'echoCopy', knobs: { count: 2 } },
-  voidhero: { label: 'Void', style: 'collapse', knobs: {} },
-  aster: { label: 'Aster, the Guide', style: 'starGlint', knobs: {} },
+/** Every hero's display name (how the tuner names it). */
+const LABELS: Record<ThemedHero, string> = {
+  indy: 'Indy',
+  warden: 'Warden',
+  myra: 'Auctioneer',
+  risen: 'Lord of the Risen',
+  soren: 'Soren',
+  rohan: 'Yirin',
+  djinn: 'Djinni',
+  nadja: 'Nadja',
+  cassen: 'Cassen',
+  drakko: 'Drakko',
+  chaos: 'Chaos',
+  robin: 'Robin',
+  darah: 'Darah',
+  gildmaster: 'Gildmaster',
+  discodan: 'Disco Dan',
+  brackus: 'Brackus',
+  baggerben: 'Rascal',
+  hermithank: 'Tradesman',
+  fi: 'Fi',
+  chronoshero: 'Chronos',
+  runesmith: 'Runesmith',
+  runeguard: 'Guardian',
+  coran: 'Coran',
+  tiff: 'Tiff',
+  jenkins: 'Jensen',
+  repete: 'Re-Pete',
+  gorr: 'Gorr',
+  kindness: 'Kindness',
+  merrin: 'Merrin',
+  gambler: 'Gambler',
+  xerox: 'Xerox',
+  frank: 'Frantic Frank',
+  pete: 'Pete',
+  flint: 'Foreman Flint',
+  vale: 'Emissary',
+  quillen: 'Quillen',
+  hunch: 'Hunch',
+  emeraldwarden: 'Emerald Warden',
+  underdweller: 'Underdweller',
+  albus: 'Albus',
+  devourer: 'Devourer',
+  flash: 'Flash',
+  midas: 'Midas',
+  juggler: 'Juggler',
+  membrance: 'Membrance',
+  bram: 'Braum',
+  cia: 'Ayse',
+  odelle: 'Odelle',
+  harlan: 'Harlan',
+  sable: 'Sable',
+  keshi: 'Keshi the Protector',
+  rayse: 'Rayse',
+  aevor: 'Aevor',
+  gorun: 'Gorun',
+  cindara: 'Cindara',
+  fibbsy: 'Fibbsy',
+  mimic: 'Mimic',
+  voidhero: 'Void',
+  aster: 'Aster, the Guide',
 };
 
 export const THEMED_HEROES = Object.keys(COLOURS) as ThemedHero[];
@@ -253,20 +165,11 @@ export const DEFAULT_THEMED_HEROES: readonly string[] = ['priestess', 'magician'
 export const ANCIENT_HERO_THEMES = {
   // The owner-baked teal (2026-09-26): what any hero without an entry wears.
   default: DEFAULT_THEME,
-  ...Object.fromEntries(THEMED_HEROES.map((h) => [h, { ...COLOURS[h], ...SIGNATURES[h] }])),
-} as { default: AncientHeroTheme } & Record<ThemedHero, AncientHeroTheme & AncientHeroSignature>;
+  ...Object.fromEntries(THEMED_HEROES.map((h) => [h, { ...COLOURS[h], label: LABELS[h] }])),
+} as { default: AncientHeroTheme } & Record<ThemedHero, AncientHeroTheme & { label: string }>;
 
 export function isThemedHero(heroId: string | undefined): heroId is ThemedHero {
   return !!heroId && Object.prototype.hasOwnProperty.call(COLOURS, heroId);
-}
-
-/** A hero's awakening signature, or `null` for the default (the generic entrance, no accent). `style` previews another
- *  style on the hero (the tuner's override): the hero keeps its colours, and its own knobs only if the style matches. */
-export function resolveAncientHeroSignature(heroId: string | undefined, style?: BloomStyle): AncientHeroSignature | null {
-  if (!isThemedHero(heroId)) return style ? { label: 'Default', style, knobs: {} } : null;
-  const s = SIGNATURES[heroId];
-  if (style && style !== s.style) return { label: s.label, style, knobs: {} };
-  return { label: s.label, style: s.style, knobs: { ...s.knobs } };
 }
 
 /** The config key a themed hero's field is tuned under, e.g. `indyThemeCurtainInner`. The default theme lives under

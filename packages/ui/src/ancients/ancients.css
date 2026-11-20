@@ -277,227 +277,6 @@ body.ancclosing [data-zone="tavern"] { transition: opacity var(--anc-pick-fade, 
 /* The awakening layers like a Discover: `.app`'s stacking context dissolves so the offer (z 160) sorts above the gate (z 158). */
 body.ancgate .app { z-index: auto; }
 
-/* ── THE GATE CURTAIN: the go-to-combat wipe's language, in the Ancients' violet (above the backdrop, under the offer:
-   the offer mounts as the curtain fades off). The bloom is a one-shot ELLIPSE clip; the seam ring is the wipe's
-   1000px texture scaled on the compositor; the title settles once. ── */
-.anc-gate-curtain {
-  position: absolute; inset: 0; z-index: 1; will-change: clip-path, opacity;
-  background:
-    radial-gradient(ellipse 45% 40% at 50% 48%, rgba(255, 214, 140, 0.18) 0%, rgba(255, 214, 140, 0) 70%),
-    radial-gradient(ellipse 70% 70% at 50% 50%, var(--anc-cin, #247067) 0%, color-mix(in srgb, var(--anc-cin, #247067) 42%, var(--anc-cout, #0a0618)) 55%, var(--anc-cout, #0a0618) 100%);
-}
-.anc-gate-front {
-  position: absolute; left: var(--gx); top: var(--gy); z-index: 2;
-  width: 1000px; height: 1000px; margin: -500px 0 0 -500px; border-radius: 50%; pointer-events: none;
-  mix-blend-mode: screen; transform: scale(0.004); opacity: 0; will-change: transform, opacity;
-  background: radial-gradient(closest-side,
-    rgba(160, 120, 255, 0) 0%, rgba(160, 120, 255, 0) 84%,
-    var(--anc-front-in, rgba(190, 150, 255, 0.45)) 91%, color-mix(in srgb, var(--anc-seam, #fff1bd) 90%, transparent) 96.5%, var(--anc-front-out, rgba(127, 227, 208, 0.45)) 98%, rgba(127, 227, 208, 0) 100%);
-}
-/* The curtain's centre stack (owner 2026-09-26): the hero power's art as a round MEDALLION, the title under it. A child
-   of the curtain, so the curtain's clip blooms it in with the colour (the wipe's "Now Facing" portrait language). */
-.anc-gate-center {
-  position: absolute; left: 50%; top: 47%; transform: translate(-50%, -50%);
-  display: flex; flex-direction: column; align-items: center; gap: calc(26 * var(--u, 1px));
-  max-width: calc(94 * var(--vw, 1vw));
-}
-.anc-gate-medal {
-  --anc-md: min(calc(230 * var(--u, 1px)), calc(30 * var(--vh, 1vh)), calc(56 * var(--vw, 1vw)));
-  position: relative; width: var(--anc-md); height: var(--anc-md); flex: none; border-radius: 50%; overflow: hidden;
-  will-change: transform, opacity;
-  /* Static paint: a rim in the seam colour, a hairline, a soft glow in the title glow, a drop shadow. */
-  border: calc(4 * var(--u, 1px)) solid color-mix(in srgb, var(--anc-seam, #fff1bd) 80%, var(--anc-cin, #247067));
-  box-shadow: 0 0 0 calc(2 * var(--u, 1px)) color-mix(in srgb, var(--anc-cout, #0a0618) 85%, transparent),
-    0 0 calc(46 * var(--u, 1px)) calc(4 * var(--u, 1px)) color-mix(in srgb, var(--anc-tglow, #9effd5) 45%, transparent),
-    0 calc(14 * var(--u, 1px)) calc(40 * var(--u, 1px)) calc(-10 * var(--u, 1px)) rgba(0, 0, 0, 0.75);
-  background: var(--anc-cout, #0a0618);
-}
-.anc-gate-medal-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; -webkit-user-drag: none; transform: scale(1.03); }
-/* THE HERO SIGNATURES (owner 2026-09-26; motion in ancientHeroBloom.ts). Every layer is STATIC paint; only its
-   transform / opacity is animated, one shot. Every accent part is a box the size of the medallion with its mark drawn at
-   the centre, so the motion's translate(%) is a fraction of the medallion, with no layout read. */
-.anc-gate-medalwrap { --anc-md: min(calc(230 * var(--u, 1px)), calc(30 * var(--vh, 1vh)), calc(56 * var(--vw, 1vw))); position: relative; width: var(--anc-md); height: var(--anc-md); flex: none; }
-.anc-gate-medalwrap > .anc-gate-medal { z-index: 1; }
-.anc-medal-fx, .anc-acc-p { position: absolute; inset: 0; opacity: 0; pointer-events: none; will-change: transform, opacity; }
-.anc-acc { position: absolute; inset: 0; pointer-events: none; z-index: 2; }
-.anc-acc-rings, .anc-acc-wisps { z-index: 0; }
-.anc-acc-p::before { content: ''; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); }
-/* Indy, STRUCK GOLD: a crisp diagonal sheen clipped by the medallion, its thin gold rim (over the medallion's own rim)
-   that flashes, and a few sharp four-point glints on the rim. */
-.anc-medal-gild-in { inset: -40% auto -40% 35%; width: 30%; z-index: 2;
-  background: linear-gradient(90deg, rgba(255, 200, 90, 0) 0%, rgba(255, 212, 110, 0.5) 28%, rgba(255, 240, 190, 0.95) 44%, #ffffff 50%, rgba(255, 240, 190, 0.95) 56%, rgba(255, 212, 110, 0.5) 72%, rgba(255, 200, 90, 0) 100%); }
-.anc-medal-gild { z-index: 2; border-radius: 50%; border: calc(3 * var(--u, 1px)) solid #ffe39a;
-  box-shadow: 0 0 calc(10 * var(--u, 1px)) rgba(255, 236, 170, 0.95), 0 0 calc(30 * var(--u, 1px)) rgba(255, 184, 60, 0.8), inset 0 0 calc(12 * var(--u, 1px)) rgba(255, 220, 130, 0.8); }
-.anc-acc-glints .anc-acc-p::before { width: 34%; height: 34%;
-  background: radial-gradient(circle, #fffef6 0%, rgba(255, 238, 180, 0.9) 9%, rgba(255, 214, 120, 0) 26%),
-    linear-gradient(90deg, transparent 47%, rgba(255, 248, 220, 0.95) 50%, transparent 53%),
-    linear-gradient(0deg, transparent 47%, rgba(255, 248, 220, 0.95) 50%, transparent 53%); }
-.anc-acc-glints .anc-acc-p:nth-child(2n)::before { width: 24%; height: 24%; }
-/* The Warden: the in-game WARD GLASS (styles.css, the shell's shipped values) round the medallion: fill (clear core,
-   aqua-blue toward the rim), the broad upper-left sheen, the white-hot rim with its violet-blue inner glow, and the
-   honeycomb (::after, masked to densen at the rim). One crisp shine crosses it, clipped to the glass. */
-.anc-acc-shell .p0::before, .anc-acc-shell .p0::after { width: 132%; height: 132%; border-radius: 50%; }
-.anc-acc-shell .p0::before { box-sizing: border-box;
-  background: radial-gradient(ellipse 26% 34% at 33% 16%, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.42) 45%, rgba(255, 255, 255, 0) 74%),
-    radial-gradient(ellipse 50% 50% at 50% 47%, rgba(77, 163, 254, 0) 0%, rgba(77, 163, 254, 0) 70%, rgba(61, 223, 255, 0.82) 100%);
-  border: calc(2 * var(--u, 1px)) solid rgb(229, 241, 255);
-  box-shadow: inset 0 0 calc(34 * var(--u, 1px)) rgba(170, 159, 254, 0.8), 0 0 calc(5 * var(--u, 1px)) rgba(189, 242, 255, 0.97); }
-.anc-acc-shell .p0::after { content: ''; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
-  background: #e0f2ff; opacity: 0.55; mix-blend-mode: screen;
-  -webkit-mask-image: url("/fx/ward-hexsphere.svg?mask"), radial-gradient(ellipse 50% 50% at 50% 50%, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.3) 47%, #000 88%, #000 100%);
-          mask-image: url("/fx/ward-hexsphere.svg?mask"), radial-gradient(ellipse 50% 50% at 50% 50%, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.3) 47%, #000 88%, #000 100%);
-  -webkit-mask-size: 101% 102%, 100% 100%; mask-size: 101% 102%, 100% 100%;
-  -webkit-mask-position: 7% 50%, 50% 50%; mask-position: 7% 50%, 50% 50%;
-  -webkit-mask-repeat: no-repeat, no-repeat; mask-repeat: no-repeat, no-repeat;
-  -webkit-mask-composite: source-in; mask-composite: intersect; }
-.anc-acc-shell .p1 { inset: -16%; opacity: 1; border-radius: 50%; overflow: hidden; }
-.anc-acc-shell .p1::after { content: ''; position: absolute; left: 50%; top: 50%; width: 18%; height: 150%; opacity: 0;
-  transform: translate(-50%, -50%) translateX(-260%) rotate(28deg); will-change: transform, opacity;
-  background: linear-gradient(90deg, rgba(220, 244, 255, 0) 0%, rgba(230, 248, 255, 0.4) 32%, rgba(255, 255, 255, 0.95) 50%, rgba(230, 248, 255, 0.4) 68%, rgba(220, 244, 255, 0) 100%); }
-/* The Auctioneer: the strike ring off the rim + gavel-strike shock rings (gold on the royal purple). */
-.anc-medal-thump { border-radius: 50%; border: calc(6 * var(--u, 1px)) solid var(--anc-seam, #ffe6a3); box-shadow: 0 0 calc(24 * var(--u, 1px)) var(--anc-tglow, #ffc95c); }
-.anc-acc-rings .anc-acc-p::before { width: 100%; height: 100%; border-radius: 50%; box-sizing: border-box;
-  border: calc(5 * var(--u, 1px)) solid color-mix(in srgb, var(--anc-seam, #ffe6a3) 85%, transparent);
-  box-shadow: 0 0 calc(18 * var(--u, 1px)) color-mix(in srgb, var(--anc-tglow, #ffc95c) 70%, transparent), inset 0 0 calc(14 * var(--u, 1px)) color-mix(in srgb, var(--anc-cin, #7b2887) 80%, transparent); }
-/* Lord of the Risen: a soft aqua halo behind the art + spirit wisps rising past it. */
-/* Lord of the Risen: the in-game RISE aura (styles.css "Reborn": the ghost dome + thin rising wisps), wrapped round the
-   medallion as a one-shot. The dome is the card's `.reborn-dome` ring (aqua at 62%, fading out by the edge), sized so
-   the ring sits just outside the medallion's rim. The wisps are thin, soft, pre-blurred streaks in the Rise aqua,
-   rising round the rim behind the medallion (an aura, not blobs). Static paint; only transform / opacity move. */
-.anc-medal-rise { inset: -32%; border-radius: 50%; mix-blend-mode: screen;
-  background: radial-gradient(circle closest-side at 50% 50%, rgba(69, 232, 192, 0) 0%, rgba(23, 143, 134, 0) 57%, rgba(23, 143, 134, 0.85) 63%,
-    rgba(69, 232, 192, 0.6) 70%, color-mix(in srgb, var(--anc-tglow, #b9ffe2) 22%, transparent) 80%, rgba(69, 232, 192, 0) 96%); }
-.anc-acc-wisps .anc-acc-p::before { width: 4%; height: 32%; border-radius: 50%; mix-blend-mode: screen;
-  filter: blur(calc(1.5 * var(--u, 1px)));
-  background: linear-gradient(0deg, rgba(23, 143, 134, 0) 0%, rgba(69, 232, 192, 0.95) 28%, rgba(236, 255, 248, 1) 52%, rgba(69, 232, 192, 0.75) 76%, rgba(23, 143, 134, 0) 100%); }
-.anc-acc-wisps .anc-acc-p:nth-child(3n)::before { width: 2.2%; height: 22%; }
-/* THE BLOOM STYLES (owner 2026-09-26: "build all 9 styles"; motion in ancientHeroBloom.ts, markup in AncientBloom.tsx).
-   Clean: thin lines, crisp sheens, restrained rings. Every layer below is STATIC paint in the hero's colours (the gate's
-   --anc-seam / --anc-tglow / --anc-cin vars); only transform / opacity animate, one shot. `.tint` is every hero on a
-   style whose approved owner (Indy, the Warden, Risen) keeps the baked paint above. */
-.anc-acc-fan, .anc-acc-echo, .anc-acc-extra.k-coinrise, .anc-acc-sparks { z-index: 0; }
-.anc-acc-p svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; fill: none; stroke-linecap: round; stroke-linejoin: round; }
-/* The `sheen` knob, and A tinted: the gild's diagonal sheen in the hero's colours (s2: A's narrower second sheen). */
-.anc-medal-sheen-in, .tint .anc-medal-gild-in { inset: -40% auto -40% 35%; width: 30%; z-index: 2;
-  background: linear-gradient(90deg, transparent 0%, color-mix(in srgb, var(--anc-tglow) 45%, transparent) 28%, color-mix(in srgb, var(--anc-seam) 92%, transparent) 44%, #ffffff 50%,
-    color-mix(in srgb, var(--anc-seam) 92%, transparent) 56%, color-mix(in srgb, var(--anc-tglow) 45%, transparent) 72%, transparent 100%); }
-.anc-medal-gild-in.s2 { left: 44%; width: 14%; }
-/* A, tinted: the thin rim and the four-point glints in the hero's colours. */
-.tint .anc-medal-gild { border-color: var(--anc-seam);
-  box-shadow: 0 0 calc(10 * var(--u, 1px)) color-mix(in srgb, var(--anc-seam) 90%, transparent), 0 0 calc(30 * var(--u, 1px)) color-mix(in srgb, var(--anc-tglow) 75%, transparent),
-    inset 0 0 calc(12 * var(--u, 1px)) color-mix(in srgb, var(--anc-tglow) 70%, transparent); }
-.tint .anc-acc-glints .anc-acc-p::before {
-  background: radial-gradient(circle, #ffffff 0%, color-mix(in srgb, var(--anc-seam) 90%, transparent) 9%, transparent 26%),
-    linear-gradient(90deg, transparent 47%, color-mix(in srgb, var(--anc-seam) 95%, transparent) 50%, transparent 53%),
-    linear-gradient(0deg, transparent 47%, color-mix(in srgb, var(--anc-seam) 95%, transparent) 50%, transparent 53%); }
-/* A extras: a thin coin (rising, or three arcing over), a gem glint, a price-tag slash. C's blade glint shares the slash. */
-.k-coinrise .anc-acc-p::before, .k-coinarcs .anc-acc-p::before { width: 22%; height: 22%; border-radius: 50%; box-sizing: border-box;
-  border: calc(2 * var(--u, 1px)) solid var(--anc-seam); background: color-mix(in srgb, var(--anc-tglow) 30%, transparent);
-  box-shadow: 0 0 calc(8 * var(--u, 1px)) color-mix(in srgb, var(--anc-tglow) 70%, transparent),
-    inset 0 0 0 calc(5 * var(--u, 1px)) transparent, inset 0 0 0 calc(6 * var(--u, 1px)) color-mix(in srgb, var(--anc-seam) 55%, transparent); }
-.k-coinarcs .anc-acc-p::before { width: 13%; height: 13%; box-shadow: 0 0 calc(6 * var(--u, 1px)) color-mix(in srgb, var(--anc-tglow) 70%, transparent); }
-.k-gem .anc-acc-p::before { width: 12%; height: 12%; box-sizing: border-box; border: calc(1.5 * var(--u, 1px)) solid var(--anc-seam);
-  background: radial-gradient(circle, #ffffff 0%, color-mix(in srgb, var(--anc-tglow) 60%, transparent) 30%, transparent 70%);
-  box-shadow: 0 0 calc(12 * var(--u, 1px)) var(--anc-tglow); }
-.k-slash .anc-acc-p::before, .k-blade .anc-acc-p::before { width: 150%; height: calc(2 * var(--u, 1px));
-  background: linear-gradient(90deg, transparent 0%, color-mix(in srgb, var(--anc-tglow) 70%, transparent) 20%, #ffffff 50%, color-mix(in srgb, var(--anc-tglow) 70%, transparent) 80%, transparent 100%);
-  box-shadow: 0 0 calc(8 * var(--u, 1px)) var(--anc-tglow); }
-.k-blade .anc-acc-p::before { width: 130%; height: calc(1.5 * var(--u, 1px)); }
-/* A+ Star glint: one clean four-point star (two thin tapering rays and a small core). */
-.anc-acc-star .anc-acc-p::before { width: 92%; height: 92%;
-  background: radial-gradient(circle, #ffffff 0%, color-mix(in srgb, var(--anc-seam) 90%, transparent) 5%, color-mix(in srgb, var(--anc-tglow) 35%, transparent) 10%, transparent 18%),
-    linear-gradient(90deg, transparent 0%, color-mix(in srgb, var(--anc-tglow) 60%, transparent) 28%, #ffffff 50%, color-mix(in srgb, var(--anc-tglow) 60%, transparent) 72%, transparent 100%) center / 100% calc(2 * var(--u, 1px)) no-repeat,
-    linear-gradient(0deg, transparent 0%, color-mix(in srgb, var(--anc-tglow) 60%, transparent) 28%, #ffffff 50%, color-mix(in srgb, var(--anc-tglow) 60%, transparent) 72%, transparent 100%) center / calc(2 * var(--u, 1px)) 100% no-repeat; }
-/* B Card fan: thin card outlines, pivoting from the bottom behind the medallion. */
-.anc-acc-fan .anc-acc-p { transform-origin: 50% 86%; }
-.anc-acc-fan .anc-acc-p::before { width: 50%; height: 72%; border-radius: calc(10 * var(--u, 1px)); box-sizing: border-box;
-  border: calc(2 * var(--u, 1px)) solid color-mix(in srgb, var(--anc-seam) 90%, transparent);
-  box-shadow: 0 0 calc(12 * var(--u, 1px)) color-mix(in srgb, var(--anc-tglow) 55%, transparent), inset 0 0 0 calc(5 * var(--u, 1px)) transparent,
-    inset 0 0 0 calc(6 * var(--u, 1px)) color-mix(in srgb, var(--anc-seam) 30%, transparent); }
-.anc-acc-fan.k-tall .anc-acc-p::before { width: 46%; height: 96%; }
-/* C variants: lightning-thin jagged rings, and the anvil's short straight sparks. */
-.anc-acc-rings.k-jagged .anc-acc-p::before { display: none; }
-.anc-acc-rings.k-jagged svg polygon { stroke: var(--anc-seam); stroke-width: 0.9; }
-.anc-acc-rings.k-jagged svg polygon.glow { stroke: color-mix(in srgb, var(--anc-tglow) 45%, transparent); stroke-width: 2.6; }
-.anc-acc-sparks .anc-acc-p::before { width: calc(2 * var(--u, 1px)); height: 11%; border-radius: calc(2 * var(--u, 1px));
-  background: linear-gradient(0deg, transparent, var(--anc-tglow) 40%, #ffffff); box-shadow: 0 0 calc(6 * var(--u, 1px)) var(--anc-tglow); }
-/* C+ Collapse: thin rings that fall onto the rim, and the rim's one flash. */
-.anc-acc-collapse .anc-acc-p::before { width: 100%; height: 100%; border-radius: 50%; box-sizing: border-box;
-  border: calc(2 * var(--u, 1px)) solid color-mix(in srgb, var(--anc-seam) 90%, transparent); box-shadow: 0 0 calc(12 * var(--u, 1px)) color-mix(in srgb, var(--anc-tglow) 65%, transparent); }
-.anc-acc-collapse .p1::before { border-width: calc(1 * var(--u, 1px)); }
-.anc-acc-collapse .p2::before { border: calc(3 * var(--u, 1px)) solid var(--anc-seam);
-  box-shadow: 0 0 calc(10 * var(--u, 1px)) var(--anc-seam), 0 0 calc(30 * var(--u, 1px)) var(--anc-tglow), inset 0 0 calc(12 * var(--u, 1px)) color-mix(in srgb, var(--anc-tglow) 70%, transparent); }
-/* D, tinted: the Rise dome and the wisps in the hero's colours; embers are small warm points. */
-.tint .anc-medal-rise { background: radial-gradient(circle closest-side at 50% 50%, transparent 0%, transparent 57%, color-mix(in srgb, var(--anc-cin) 85%, transparent) 63%,
-    color-mix(in srgb, var(--anc-tglow) 60%, transparent) 70%, color-mix(in srgb, var(--anc-tglow) 22%, transparent) 80%, transparent 96%); }
-.tint .anc-acc-wisps .anc-acc-p::before { background: linear-gradient(0deg, transparent 0%, color-mix(in srgb, var(--anc-tglow) 95%, transparent) 28%, var(--anc-seam) 52%,
-    color-mix(in srgb, var(--anc-tglow) 75%, transparent) 76%, transparent 100%); }
-.tint .anc-acc-wisps.k-embers .anc-acc-p::before { width: 3.4%; height: 3.4%; filter: none;
-  background: radial-gradient(circle, #ffffff 0%, #fff3cc 30%, var(--anc-tglow) 60%, transparent 80%); box-shadow: 0 0 calc(8 * var(--u, 1px)) var(--anc-tglow); }
-.tint .anc-acc-wisps.k-embers .anc-acc-p:nth-child(3n)::before { width: 2.4%; height: 2.4%; }
-/* E Clock dial: a thin ring with ticks (and a brighter copy for the click), a pointer at twelve, an optional pip. */
-.anc-acc-dial .d-ring, .anc-acc-dial .d-hi { inset: -14%; }
-.anc-acc-dial svg circle { stroke: color-mix(in srgb, var(--anc-seam) 85%, transparent); stroke-width: 0.5; }
-.anc-acc-dial svg path { stroke: color-mix(in srgb, var(--anc-seam) 85%, transparent); stroke-width: 0.8; }
-.anc-acc-dial svg.bright circle, .anc-acc-dial svg.bright path { stroke: #ffffff; stroke-width: 1.1; }
-.anc-acc-dial .d-hi svg { filter: drop-shadow(0 0 calc(4 * var(--u, 1px)) var(--anc-tglow)); }
-.anc-acc-dial .d-ptr::before { top: -16%; width: 0; height: 0; border-left: calc(6 * var(--u, 1px)) solid transparent; border-right: calc(6 * var(--u, 1px)) solid transparent;
-  border-top: calc(10 * var(--u, 1px)) solid var(--anc-seam); }
-.anc-acc-dial .d-pip::before { top: -7%; width: 4.5%; height: 4.5%; border-radius: 50%; background: #ffffff;
-  box-shadow: 0 0 calc(8 * var(--u, 1px)) var(--anc-tglow), 0 0 calc(3 * var(--u, 1px)) var(--anc-seam); }
-/* F, tinted (and mirror silver): the glass in the hero's colours. */
-.tint .anc-acc-shell .p0::before {
-  background: radial-gradient(ellipse 26% 34% at 33% 16%, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.38) 45%, transparent 74%),
-    radial-gradient(ellipse 50% 50% at 50% 47%, transparent 0%, transparent 70%, color-mix(in srgb, var(--anc-tglow) 80%, transparent) 100%);
-  border-color: var(--anc-seam);
-  box-shadow: inset 0 0 calc(34 * var(--u, 1px)) color-mix(in srgb, var(--anc-cin) 80%, transparent), 0 0 calc(5 * var(--u, 1px)) color-mix(in srgb, var(--anc-seam) 95%, transparent); }
-.tint .anc-acc-shell .p0::after { background: var(--anc-seam); }
-.tint.k-mirror .anc-acc-shell .p0::before {
-  background: radial-gradient(ellipse 30% 38% at 32% 18%, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.4) 45%, transparent 74%),
-    radial-gradient(ellipse 50% 50% at 50% 47%, transparent 0%, transparent 66%, rgba(214, 224, 234, 0.55) 86%, rgba(250, 252, 255, 0.95) 100%);
-  border-color: #f4f8fc; box-shadow: inset 0 0 calc(30 * var(--u, 1px)) rgba(160, 172, 186, 0.7), 0 0 calc(6 * var(--u, 1px)) rgba(240, 246, 252, 0.95); }
-.tint.k-mirror .anc-acc-shell .p0::after { opacity: 0.25; background: #ffffff; }
-.k-crown .anc-acc-p svg { left: 35%; top: -30%; width: 30%; height: 18%; }
-.k-crown svg path { stroke: var(--anc-seam); stroke-width: 1.4; filter: drop-shadow(0 0 calc(4 * var(--u, 1px)) var(--anc-tglow)); }
-/* G Rune etch: small glyph parts round the rim, a pen of light, and a hairline ring. */
-.anc-acc-etch .g { inset: auto; width: 13%; height: 13%; margin: -6.5% 0 0 -6.5%; }
-.anc-acc-etch.k-outer .g { width: 10%; height: 10%; margin: -5% 0 0 -5%; }
-.anc-acc-etch .g svg path { stroke: var(--anc-seam); stroke-width: 1.8; }
-.anc-acc-etch .e-line { inset: -14%; border-radius: 50%; border: calc(1 * var(--u, 1px)) solid color-mix(in srgb, var(--anc-seam) 70%, transparent); }
-.anc-acc-etch.k-outer .e-line { inset: -28%; }
-.anc-acc-etch.k-script .e-line { border: 0; }
-.anc-acc-etch.k-script .e-line svg path { stroke: color-mix(in srgb, var(--anc-seam) 70%, transparent); stroke-width: 0.5; }
-.anc-acc-etch .e-pen::before { top: -14%; width: 4%; height: 4%; border-radius: 50%;
-  background: radial-gradient(circle, #ffffff 0%, var(--anc-seam) 35%, transparent 70%); box-shadow: 0 0 calc(10 * var(--u, 1px)) var(--anc-tglow); }
-.anc-acc-etch.k-outer .e-pen::before { top: -28%; }
-/* G+ Vines: thin vine segments round the rim. */
-.anc-acc-vines .anc-acc-p { inset: auto; width: 36%; height: 36%; margin: -18% 0 0 -18%; }
-.anc-acc-vines svg path { stroke: var(--anc-seam); stroke-width: 0.8; filter: drop-shadow(0 0 calc(3 * var(--u, 1px)) var(--anc-tglow)); }
-.anc-acc-vines svg path.leaf { fill: color-mix(in srgb, var(--anc-tglow) 35%, transparent); stroke-width: 0.6; }
-/* H Echo copy: a faint round copy of the art with a thin rim, behind the medallion (streak: a motion streak trails it). */
-.anc-acc-echo .anc-acc-p img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 50%; box-sizing: border-box;
-  border: calc(2 * var(--u, 1px)) solid color-mix(in srgb, var(--anc-seam) 75%, transparent); -webkit-user-drag: none; }
-.anc-acc-echo .anc-acc-p::after { content: ''; position: absolute; inset: 0; border-radius: 50%; background: color-mix(in srgb, var(--anc-tglow) 18%, transparent); }
-.anc-acc-echo.k-crisp .anc-acc-p::after { background: color-mix(in srgb, var(--anc-tglow) 50%, transparent); mix-blend-mode: color; }
-.anc-acc-echo.k-streak .anc-acc-p::before { left: auto; right: 55%; top: 50%; width: 90%; height: 64%; transform: translateY(-50%); border-radius: 50%;
-  background: linear-gradient(90deg, transparent 0%, color-mix(in srgb, var(--anc-tglow) 45%, transparent) 100%); }
-/* I Swap arcs: thin arcs (with a dot at each end) and an optional tether through the middle. */
-.anc-acc-swap .a { inset: -20%; }
-.anc-acc-swap svg path { stroke: var(--anc-seam); stroke-width: 0.7; filter: drop-shadow(0 0 calc(3 * var(--u, 1px)) var(--anc-tglow)); }
-.anc-acc-swap svg circle.dot { fill: #ffffff; }
-.anc-acc-swap .s-tether::before { width: calc(1.2 * var(--u, 1px)); height: 124%;
-  background: linear-gradient(0deg, transparent, color-mix(in srgb, var(--anc-seam) 80%, transparent) 20%, color-mix(in srgb, var(--anc-seam) 40%, transparent) 50%, color-mix(in srgb, var(--anc-seam) 80%, transparent) 80%, transparent); }
-.anc-gate-title { display: flex; flex-direction: column; align-items: center; opacity: 0; max-width: calc(94 * var(--vw, 1vw)); }
-.anc-gate-title.in { opacity: 1; animation: ancgatetitle 900ms cubic-bezier(0.16, 1, 0.3, 1) backwards; }
-@keyframes ancgatetitle { from { opacity: 0; transform: translateY(24%) scale(0.9); letter-spacing: 0.3em; } }
-.anc-gate-label {
-  font-family: var(--title-font, 'Cinzel Decorative'), 'Cinzel Decorative', serif; font-weight: var(--title-weight, 700);
-  font-size: min(calc(58 * var(--u, 1px)), calc(6.4 * var(--vw, 1vw))); letter-spacing: 0.06em; font-kerning: none; white-space: nowrap;
-  color: transparent; background: linear-gradient(180deg, #fff4cf 0%, #f6d77e 40%, #d9a441 65%, #a8701c 100%);
-  -webkit-background-clip: text; background-clip: text;
-  filter: drop-shadow(0 2px 0 rgba(40, 20, 60, 0.95)) drop-shadow(0 0 14px color-mix(in srgb, var(--anc-tglow, #9effd5) 55%, transparent)) drop-shadow(0 0 30px rgba(255, 190, 90, 0.3));
-}
-@media (prefers-reduced-motion: reduce) { .anc-gate-title.in { animation: none; } }
 /* The preview has no room above the card for the frame gem. */
 
 /* ── THE OMEN: edges darkening, glyphs flickering around the hero power, embers drifting up (one-shot WAAPI). ── */
@@ -518,11 +297,6 @@ body.ancgate .app { z-index: auto; }
   fill: none; stroke: var(--anc-seam, #fff0c2); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round;
   filter: drop-shadow(0 0 3px var(--anc-seam, #ffe6aa)) drop-shadow(0 0 9px var(--anc-tglow, #be96ff)) drop-shadow(0 0 18px color-mix(in srgb, var(--anc-tglow, #a06eff) 80%, transparent));
 }
-.anc-omen-cracks { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
-.anc-omen-crack {
-  fill: none; stroke: var(--anc-seam, #f5e6ff); stroke-width: 2.2; stroke-linejoin: bevel; stroke-linecap: round; opacity: 0;
-  filter: drop-shadow(0 0 4px var(--anc-tglow, #c8a0ff)) drop-shadow(0 0 10px color-mix(in srgb, var(--anc-tglow, #9664ff) 80%, transparent));
-}
 .anc-omen-ember {
   position: absolute; width: calc(7 * var(--u)); height: calc(7 * var(--u)); border-radius: 50%; opacity: 0;
   transform: translate(-50%, -50%);
@@ -539,13 +313,58 @@ body.ancgate .app { z-index: auto; }
     linear-gradient(90deg, rgba(181, 140, 255, 0) 0%, rgba(200, 170, 255, 0.55) 28%, rgba(255, 246, 220, 0.95) 50%, rgba(200, 170, 255, 0.55) 72%, rgba(181, 140, 255, 0) 100%);
   -webkit-mask-image: linear-gradient(0deg, #000 60%, rgba(0, 0, 0, 0) 100%); mask-image: linear-gradient(0deg, #000 60%, rgba(0, 0, 0, 0) 100%);
 }
-/* The runes riding the curtain's seam: a ring of marks on the wipe's scaled 1000px texture. */
-.anc-gate-runes {
-  position: absolute; left: var(--gx); top: var(--gy); z-index: 2; width: 1000px; height: 1000px; margin: -500px 0 0 -500px;
-  pointer-events: none; transform: scale(0.004); opacity: 0; will-change: transform, opacity;
+
+/* ── THE SIX PANELS (`AncientPanels`, owner 2026-11-18): the gate's centre beat. Six tall slanted strips, one Ancient
+   each. Sizes and the slanted clip are stage px written by the component (it knows the layout viewport); everything
+   here is static paint. Motion is one-shot WAAPI transform / opacity from the component, plus the three's one-shot
+   clip onto their cards. Above the backdrop, under the eruption's flash (z 3) and the offer (z 160). ── */
+.anc-pn-host { position: absolute; inset: 0; z-index: 2; overflow: hidden; will-change: transform; }
+.anc-pn { position: absolute; top: 0; height: 100%; opacity: 0; will-change: transform, opacity; }
+.anc-pn-clip { position: absolute; inset: 0; will-change: clip-path; }
+/* The second box of each panel, above all six strips: the uncut figure, the foreground magic, the edge glow, the name. */
+.anc-pn-over { position: absolute; top: 0; height: 100%; pointer-events: none; will-change: transform, opacity; }
+.anc-pn-fill { position: absolute; inset: 0; will-change: transform; background: linear-gradient(180deg, color-mix(in srgb, var(--anc-c) 82%, #000), color-mix(in srgb, var(--anc-c) 34%, #000)); }
+/* The Ancient: its painting as a square, soft at the edges so it sits on its colour (a stand-in for a cut-out figure). */
+.anc-pn-fig {
+  position: absolute; left: 50%; top: 50%; will-change: transform;
+  -webkit-mask-image: radial-gradient(ellipse 46% 56% at 50% 46%, #000 52%, transparent 96%); mask-image: radial-gradient(ellipse 46% 56% at 50% 46%, #000 52%, transparent 96%);
 }
-.anc-gate-runes svg { width: 100%; height: 100%; overflow: visible; }
-.anc-gate-runes circle { fill: none; stroke: var(--anc-seam, #fff1bd); stroke-width: 7; stroke-dasharray: 3 14 10 14 3 30; stroke-linecap: round; opacity: 0.9; }
+/* LAYERED portraits (owner 2026-11-19): the place rides the sliding fill, the cut-out figure needs no soft mask, and
+   loose magic sits low in front. Static images; the component moves them (one-shot transform / opacity). */
+.anc-pn-back { position: absolute; left: 50%; top: 0; height: 100%; width: auto; aspect-ratio: 2 / 3; will-change: transform; -webkit-user-drag: none; }
+.anc-pn-fig-cut { -webkit-mask-image: none; mask-image: none; }
+/* The chosen three's outline glow: the cut-out again, behind the figure, with a STATIC glow in its colour (the halo is
+   painted once; only this layer's opacity animates). */
+.anc-pn-rim {
+  position: absolute; height: auto; aspect-ratio: 2 / 3; opacity: 0; will-change: opacity, transform; -webkit-user-drag: none;
+  filter: brightness(1.7) drop-shadow(0 0 calc(7 * var(--u, 1px)) #fff) drop-shadow(0 0 calc(22 * var(--u, 1px)) var(--anc-c)) drop-shadow(0 0 calc(48 * var(--u, 1px)) var(--anc-c));
+}
+.anc-pn-cut { position: absolute; height: auto; aspect-ratio: 2 / 3; will-change: transform; -webkit-user-drag: none; }
+/* The foreground magic sits on the bottom edge, wider than its strip and uncut (like the figure it wraps); its height
+   follows each file's own shape. */
+.anc-pn-front { position: absolute; left: -25%; bottom: 0; width: 150%; pointer-events: none; will-change: transform, opacity; }
+.anc-pn-front-img { display: block; width: 100%; height: auto; transform-origin: 50% 100%; will-change: transform; -webkit-user-drag: none; }
+.anc-pn-face { display: block; width: 100%; height: 100%; object-fit: cover; -webkit-user-drag: none; }
+.anc-pn-edges { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.anc-pn-edges line { vector-effect: non-scaling-stroke; stroke-linecap: round; }
+.anc-pn-seam line { stroke: rgba(0, 0, 0, 0.62); stroke-width: calc(3 * var(--u, 1px)); }
+/* The lit edge: three static strokes (a wide soft one, a brighter one, a white core) faded in as one group. */
+.anc-pn-glow { opacity: 0; will-change: opacity; }
+.anc-pn-glow-w line { stroke: var(--anc-c); stroke-width: calc(40 * var(--u, 1px)); opacity: 0.38; }
+.anc-pn-glow-m line { stroke: color-mix(in srgb, var(--anc-c) 55%, #fff); stroke-width: calc(14 * var(--u, 1px)); opacity: 0.85; }
+.anc-pn-glow-c line { stroke: #fff; stroke-width: calc(4 * var(--u, 1px)); }
+/* The same light INSIDE the strip: its colour washing in from both edges over the painting (static paint;
+   only its opacity animates, on the chosen three's pulse). */
+.anc-pn-lit {
+  position: absolute; inset: 0; opacity: 0; pointer-events: none; will-change: opacity;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--anc-c) 70%, #fff) 0%, color-mix(in srgb, var(--anc-c) 55%, transparent) 14%, transparent 42%, transparent 58%, color-mix(in srgb, var(--anc-c) 55%, transparent) 86%, color-mix(in srgb, var(--anc-c) 70%, #fff) 100%);
+}
+.anc-pn-name {
+  position: absolute; left: 50%; top: 9%; transform: translateX(-50%); opacity: 0; white-space: nowrap;
+  font-family: var(--title-font, 'Cinzel Decorative'), 'Cinzel Decorative', serif; font-weight: var(--title-weight, 700);
+  font-size: calc(40 * var(--u, 1px)); letter-spacing: 0.14em; text-transform: uppercase; color: #fff;
+  text-shadow: 0 calc(2 * var(--u, 1px)) calc(5 * var(--u, 1px)) #000, 0 0 calc(14 * var(--u, 1px)) var(--anc-c);
+}
 
 .anc-slot { position: relative; }
 .anc-card:disabled { opacity: 1; }

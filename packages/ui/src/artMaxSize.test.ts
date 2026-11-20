@@ -14,12 +14,15 @@ import { join, relative } from 'node:path';
  * Limits mirror `scripts/optimize-art.mjs`: 512 px everywhere, 768 px for hero portrait frames (they paint
  * larger, see MAX_BY_DIR there). `modes/` is exempt: those are the full-width title-screen mode banners, not
  * card art, and are drawn far larger than a card. `versus/` holds the Versus room's full-stage painted backdrop
- * (2026-10-14): one image, capped at 2560 px wide (a 1440p stage shows it at its full height).
+ * (2026-10-14): one image, capped at 2560 px wide (a 1440p stage shows it at its full height). `ancients/panels/` holds
+ * the Ancients awakening's layered panel paintings (2026-11-19): each drawn up to the stage's full height, capped at 1536.
  */
 const ART = join(__dirname, 'art');
 const MAX = 512;
 const MAX_BY_DIR: Record<string, number> = { frames: 768, versus: 2560 };
 const EXEMPT = new Set(['modes']);
+/** A sub-folder whose art is drawn larger than its top folder's (path prefix under art/ -> limit). */
+const MAX_BY_PATH: Record<string, number> = { 'ancients/panels/': 1536 };
 
 /** Width and height from a WebP or PNG header (no image library needed). */
 function dims(path: string): [number, number] | null {
@@ -55,7 +58,9 @@ describe('in-repo art never ships larger than the size it is shown at', () => {
         const d = dims(p);
         expect(d, `could not read image size of ${relative(ART, p)}`).not.toBeNull();
         checked++;
-        if (d && Math.max(d[0], d[1]) > limit) over.push(`${relative(ART, p).replace(/\\/g, '/')} ${d[0]}x${d[1]} (limit ${limit})`);
+        const relPath = relative(ART, p).replace(/\\/g, '/');
+        const own = Object.entries(MAX_BY_PATH).find(([pre]) => relPath.startsWith(pre))?.[1] ?? limit;
+        if (d && Math.max(d[0], d[1]) > own) over.push(`${relPath} ${d[0]}x${d[1]} (limit ${own})`);
       }
     }
     expect(checked).toBeGreaterThan(1000);

@@ -293,6 +293,64 @@ class WipeFxController {
       }
     });
   }
+
+  /** One hot spark: a streak thrown at `(vx, vy)` px/s that falls under gravity, pointing along its travel. */
+  private streak(x: number, y: number, vx: number, vy: number, life: number, tint: number, scale: number): void {
+    const u = window.innerHeight / 1080, grav = 1500 * u;
+    let cvx = vx, cvy = vy;
+    const sp = this.spawn(this.sparkTex!, x, y, tint, life, (p, d) => {
+      const s = d / 1000;
+      cvy += grav * s; cvx *= 0.985;
+      p.sp.x += cvx * s; p.sp.y += cvy * s;
+      p.sp.rotation = Math.atan2(cvy, cvx);
+      p.sp.alpha = 1 - p.age / p.life;
+    });
+    sp.rotation = Math.atan2(vy, vx);
+    sp.scale.set(scale * u);
+  }
+
+  /**
+   * GRINDING SPARKS (the Ancients' panels, owner 2026-11-18: "almost grinding against eachother as their edges meet"):
+   * for `ms`, sparks spit from wherever `at(age)` says the two edges are meeting (screen px; `null` = nothing this
+   * frame), thrown sideways and back against the travel (`dirY`: -1 up, 1 down). `perSec` sets how many.
+   */
+  grind(at: (ageMs: number) => { x: number; y: number } | null, ms: number, perSec: number, dirY: number, palette: readonly number[] = PALETTE): void {
+    if (perSec <= 0 || ms <= 0) return;
+    const pick = (): number => palette[(Math.random() * palette.length) | 0]!;
+    this.run(() => {
+      const u = window.innerHeight / 1080;
+      const em: Emitter & { acc: number } = {
+        age: 0, dur: ms, acc: 0,
+        update: (e, dt) => {
+          const self = e as typeof em;
+          const pt = at(e.age);
+          if (!pt) return;
+          self.acc += dt * perSec / 1000;
+          while (self.acc >= 1) {
+            self.acc -= 1;
+            this.streak(pt.x, pt.y, (Math.random() * 2 - 1) * 320 * u, dirY * (100 + Math.random() * 600) * u, 180 + Math.random() * 240, pick(), 0.35 + Math.random() * 0.3);
+          }
+        },
+      };
+      this.emitters.push(em);
+    });
+  }
+
+  /**
+   * A SPRAY of sparks off a hit (the panels' thud on the far edge of the screen): `n` streaks from a `halfW`-wide line
+   * centred on `(x, y)`, thrown within `spread` radians either side of `angle` (screen px, radians; -PI/2 is up).
+   */
+  spray(x: number, y: number, halfW: number, angle: number, spread: number, n: number, palette: readonly number[] = PALETTE): void {
+    if (n <= 0) return;
+    const pick = (): number => palette[(Math.random() * palette.length) | 0]!;
+    this.run(() => {
+      const u = window.innerHeight / 1080;
+      for (let i = 0; i < n; i++) {
+        const a = angle + (Math.random() * 2 - 1) * spread, sp = (300 + Math.random() * 1000) * u;
+        this.streak(x + (Math.random() * 2 - 1) * halfW, y, Math.cos(a) * sp, Math.sin(a) * sp, 300 + Math.random() * 450, pick(), 0.45 + Math.random() * 0.5);
+      }
+    });
+  }
 }
 
 export const wipeFx = new WipeFxController();

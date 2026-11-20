@@ -3,11 +3,12 @@ import { ANCIENTS, ancientOfferText, ancientPairingHeroId, type Action, type Anc
 import { OfferBanner } from '../discoverEntrance/OfferBanner';
 import { DiscoverPeekToggle } from '../discoverEntrance/DiscoverPeekToggle';
 import { AncientCard } from './AncientCard';
-import { playAwakenDemo, prefersReducedMotion, setAwakenStage, useAwakenStage } from './ancientsFx';
+import { playAwakenDemo, prefersReducedMotion, setAwakenStage, useAwakenStage, useGateDemo } from './ancientsFx';
 import { pickTimeline, playPickSlam } from './ancientPickSlam';
 import { ancientColor, getAncientsConfig, revealStyleOf } from './ancientsConfig';
 import { playCue } from './ancientsSound';
 import { ancientRevealBurst, ancientRevealSpark } from './ancientsSmoke';
+import { panelTimeline } from './panelClock';
 import { toStage } from '../stage';
 import '../discoverEntrance/discoverEntrance.css';
 import './ancients.css';
@@ -17,7 +18,7 @@ import { ancientKey } from '../pings/pingKeys';
  * THE ANCIENTS' REVEAL: its own emergence, not the standard Discover entrance (owner 2026-09-25: "make the discover
  * animation unique to the ancients in timing, sound and appearance"). Mounted by the awakening (`AncientGate`) on its
  * `reveal` beat, over the Discover view's backdrop:
- *   · the curtain's title hands off to the banner (one title, rising into place);
+ *   · the banner ("An Ancient Awakens") pops in;
  *   · each Ancient REVEALS OUT OF A SPARK (owner 2026-09-27; the rise-and-slam was retired the same day): a point of its
  *     colour gathers, bursts, and the card appears out of the light, overexposed and settling. The middle first, then
  *     the sides left → right. Three styles (`revealStyle`, the ✦ tuner): burst / seam / bloom;
@@ -48,7 +49,8 @@ export const AncientOfferOverlay = memo(function AncientOfferOverlay({ held, run
   // hero power and the rest fade with the backdrop. The run's offer is already gone by then, so the last one shown
   // is kept for its seq.
   const shown = useRef<{ seq: number; offer: AncientId[] } | null>(null);
-  const live = demo ? DEMO_OFFER : realOffer;
+  const gateDemo = useGateDemo();
+  const live = demo ? (gateDemo?.offer.length ? gateDemo.offer : DEMO_OFFER) : realOffer;
   if (inReveal && live?.length) shown.current = { seq: stage.seq, offer: live };
   const closing = stage.stage === 'closing' && shown.current?.seq === stage.seq;
   const offer = closing ? shown.current!.offer : live;
@@ -57,7 +59,7 @@ export const AncientOfferOverlay = memo(function AncientOfferOverlay({ held, run
   useEffect(() => {
     if (!realOffer?.length) return;
     const c = getAncientsConfig();
-    const id = window.setTimeout(() => setTimedOut(offerSeq), 6000 + c.omenMs + c.eruptionMs + c.titleHoldMs);
+    const id = window.setTimeout(() => setTimedOut(offerSeq), 6000 + c.omenMs + panelTimeline(c).revealAt);
     return () => window.clearTimeout(id);
   }, [realOffer, offerSeq]);
   if (!offer?.length || held || run.phase !== 'recruit') return null;
@@ -73,6 +75,7 @@ export const AncientOfferOverlay = memo(function AncientOfferOverlay({ held, run
     onPick={(id, el) => {
       // The slam measures the card where it was clicked, before anything re-renders; the awakening then closes
       // (the backdrop fades) in the same render as the pick lands in the run.
+      playCue('pickClick');
       playPickSlam(el as HTMLElement, id);
       if (inReveal) setAwakenStage('closing', stage.seq);
       if (demo) playAwakenDemo(id, pickTimeline().end + 3000); // a demo's hero power splits too, run untouched
@@ -124,25 +127,18 @@ function Reveal({ gated, closing, offer, heroId, seq, onPick }: { gated: boolean
     const land = (i: number): void => setLanded((l) => l.map((v, k) => (k === i ? true : v)));
     const finish = (total: number): void => { at(total, () => { setSettled(true); setAwakenStage('settled', seq); }); };
 
-    // THE TITLE HANDS OFF: the curtain's centred "An Ancient Awakens" is not faded out while a second copy fades in at
-    // the top: the banner is BORN where the curtain's title stands (same centre, same size) and rises into its place as
-    // the curtain drops, so the eye rides the title up and lands on the first spark. One layout read of each, now.
+    // THE TITLE: "An Ancient Awakens" pops in with the select screen (owner 2026-11-18: "have it pop in once the ancient
+    // select moment occurs"). The panels carry no title of their own.
     const banner = root.querySelector<HTMLElement>('.disc-ornate');
     if (banner) {
-      const from = reduced ? null : document.querySelector('.anc-gate-title .anc-gate-label')?.getBoundingClientRect();
-      const bt = banner.querySelector('.disc-ornate-title')?.getBoundingClientRect();
-      const br = banner.getBoundingClientRect();
-      if (from && bt && from.width > 0 && bt.width > 0 && c.handoffMs > 0) {
-        const dx = toStage(from.left + from.width / 2 - (br.left + br.width / 2));
-        const dy = toStage(from.top + from.height / 2 - (bt.top + bt.height / 2));
-        const sc = Math.max(0.3, Math.min(3, from.width / bt.width));
-        anim(banner, [
-          { opacity: 0.4, transform: `translateX(-50%) translate(${dx.toFixed(1)}px, ${dy.toFixed(1)}px) scale(${sc.toFixed(3)})` },
-          { opacity: 1, offset: 0.12 },
-          { opacity: 1, transform: 'translateX(-50%)' },
-        ], { duration: c.handoffMs, easing: 'cubic-bezier(0.5, 0, 0.15, 1)', fill: 'backwards' });
-      } else {
+      if (reduced) {
         anim(banner, [{ opacity: 0, transform: 'translateX(-50%) translateY(10px)' }, { opacity: 1, transform: 'translateX(-50%)' }], { duration: 400, easing: 'ease-out', fill: 'backwards' });
+      } else {
+        anim(banner, [
+          { opacity: 0, transform: 'translateX(-50%) scale(0.6)' },
+          { opacity: 1, transform: 'translateX(-50%) scale(1.1)', offset: 0.6 },
+          { opacity: 1, transform: 'translateX(-50%)' },
+        ], { duration: 340, easing: 'cubic-bezier(0.2, 0.8, 0.3, 1)', fill: 'backwards' });
       }
     }
 

@@ -52,6 +52,7 @@ const UNIT_LESS: { file: string; id: string; why: string }[] = [
   { file: 'ancientsSmoke.ts', id: 'ancient-slam-sparks', why: 'the Ancients reveal burst sparks: fly out of an Ancient offer card as it appears, not a unit' },
   { file: 'ancientsSmoke.ts', id: 'runeforge-land-dust', why: 'the Ancients landing dust: under an Ancient offer card or the hero-power BUTTON (HUD chrome), not a unit' },
   { file: 'ancientPickSlam.ts', id: 'gild-trail', why: 'the Ancients pick: the chosen offer card collapses into the triple trail, which flies to the hero-power BUTTON (HUD chrome), no unit on either end' },
+  { file: 'AncientPanels.tsx', id: 'gild-trail', why: 'the Ancients awakening: an offered Ancient\'s panel figure pinches into a shooting star that flies to its offer card (overlay art to overlay card), no unit on either end' },
   { file: 'ancientsSmoke.ts', id: 'ancient-pick-impact', why: 'the Ancients pick impact: bursts on the hero-power BUTTON (HUD chrome), no unit' },
   { file: 'TavernUpButton.tsx', id: 'shop-tier-up', why: 'fires at the button' },
   { file: 'DuosMateDock.tsx', id: 'shop-tier-up', why: "the Duos teammate's tier-up (R-DUOS-MATE-SIGNALS-01): fires over the teammate PORTRAIT bottom right (HUD chrome); its subject is the teammate's shop, not a board unit" },

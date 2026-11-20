@@ -8,14 +8,13 @@ describe('the Ancients tuner defaults', () => {
   it('carry the owner-baked screen colours, cue gains and reveal style', () => {
     expect(ANCIENTS_DEFAULTS).toMatchObject({
       curtainInner: '#247067', curtainOuter: '#0a0618', seamColor: '#fff1bd', titleGlow: '#9effd5', backdropTint: '#060d0f',
-      pickSealGain: 0.62,
+      pickSealGain: 0.46, // the owner's mix by ear (2026-11-19)
       // the reveal's sound, a magic reveal not a slam (owner 2026-09-27)
-      revealSparkClip: 'triggerglow', revealSparkGain: 0.22, revealSparkRate: 1.15, cardRevealClip: 'equipmentsheen', cardRevealGain: 0.3, cardRevealRate: 1,
+      revealSparkClip: 'triggerglow', revealSparkGain: 0.37, revealSparkRate: 1.15, cardRevealClip: 'equipmentsheen', cardRevealGain: 0.24, cardRevealRate: 1,
       revealStyle: 'burst', // the spark reveal (owner 2026-09-27): burst | seam | bloom
       sparkMs: 280, materialiseMs: 380, sideDelayMs: 120, sideStaggerMs: 90, overexposeMs: 520, burstRing: 1.3,
       hpDustLife: 0.45, dustAmount: 1, dustSize: 1, dustLife: 1, dustOpacity: 0.85, slamSparks: 1,
-      revealDelayMs: 120, handoffMs: 440, textInMs: 240, landFlash: 0.85, idleFloat: 3, idleMs: 4800, hoverDim: 0.7, // the reveal passes
-      titleHoldMs: 1050, revealFadeMs: 320,
+      revealDelayMs: 120, textInMs: 240, landFlash: 0.85, idleFloat: 3, idleMs: 4800, hoverDim: 0.7, // the reveal passes
       bondsColor: '#9b5de5', // the sixth Ancient, purple (owner 2026-09-26)
     });
     expect(ANCIENT_ART_IDS).toHaveLength(6);
@@ -30,35 +29,35 @@ describe('the Ancients tuner defaults', () => {
     });
     // Retired: no circle collapse, no flying art square, no rise-and-slam, no gather column.
     for (const k of ['closeMs', 'pickLiftMs', 'pickFlightMs', 'beat1Ms', 'beatGapMs', 'beat2Ms', 'slamStrength', 'slamDust', 'gatherMs', 'cardStaggerMs', 'cardRevealMs']) expect(ANCIENTS_DEFAULTS).not.toHaveProperty(k);
-    expect(ANCIENTS_DEFAULTS).toMatchObject({ tunerHero: 'indy', tunerStyle: 'auto' }); // tuner-only pickers
+    expect(ANCIENTS_DEFAULTS).toMatchObject({ tunerHero: 'indy' }); // tuner-only picker
   });
   it('fit every Ancient’s hero-power art at the neutral offset (0) and scale (1)', () => {
     for (const id of ANCIENT_ART_IDS) {
-      for (const f of ART_FIELDS) expect(ANCIENTS_DEFAULTS[`${id}${f}`], `${id}${f}`).toBe(f === 'S' ? 1 : 0);
+      for (const f of ART_FIELDS) expect(ANCIENTS_DEFAULTS[`${id}${f}`], `${id}${f}`).toBe(f === 'S' || f === 'PanelSize' ? 1 : 0); // both scales are neutral at 1
     }
   });
   it('carry the baked hero themes: the default (today’s teal) and Indy’s gold (redone 2026-09-26)', () => {
     expect(ANCIENT_HERO_THEMES.default).toEqual({ curtainInner: '#247067', curtainOuter: '#0a0618', seamColor: '#fff1bd', titleGlow: '#9effd5', backdropTint: '#060d0f' });
     expect(ANCIENT_HERO_THEMES.indy).toEqual({
       curtainInner: '#a0620f', curtainOuter: '#0d0501', seamColor: '#fff3cf', titleGlow: '#ffcf66', backdropTint: '#0f0803',
-      label: 'Indy', style: 'coinStrike', knobs: { baked: true },
+      label: 'Indy',
     });
     expect(ANCIENTS_DEFAULTS).toMatchObject({
       indyThemeCurtainInner: '#a0620f', indyThemeCurtainOuter: '#0d0501', indyThemeSeamColor: '#fff3cf', indyThemeTitleGlow: '#ffcf66', indyThemeBackdropTint: '#0f0803',
     });
   });
-  it('carry the baked Warden, Auctioneer and Risen themes and their signatures (owner 2026-09-26)', () => {
+  it('carry the baked Warden, Auctioneer and Risen themes (owner 2026-09-26)', () => {
     expect(ANCIENT_HERO_THEMES.warden).toEqual({
       curtainInner: '#4a87bb', curtainOuter: '#050d1c', seamColor: '#eaf8ff', titleGlow: '#9fe0ff', backdropTint: '#050b14',
-      label: 'Warden', style: 'glassShell', knobs: { baked: true, medal: 'seal' },
+      label: 'Warden',
     });
     expect(ANCIENT_HERO_THEMES.myra).toEqual({
       curtainInner: '#7b2887', curtainOuter: '#12031a', seamColor: '#ffe6a3', titleGlow: '#ffc95c', backdropTint: '#0d0512',
-      label: 'Auctioneer', style: 'strikeRings', knobs: { medal: 'thump', rhythm: 'shout', count: 3 },
+      label: 'Auctioneer',
     });
     expect(ANCIENT_HERO_THEMES.risen).toEqual({
       curtainInner: '#5d8f7b', curtainOuter: '#030a08', seamColor: '#eafff5', titleGlow: '#b9ffe2', backdropTint: '#060c0a',
-      label: 'Lord of the Risen', style: 'spiritRise', knobs: { baked: true },
+      label: 'Lord of the Risen',
     });
     expect(ANCIENTS_DEFAULTS).toMatchObject({
       wardenThemeCurtainInner: '#4a87bb', wardenThemeCurtainOuter: '#050d1c', wardenThemeSeamColor: '#eaf8ff', wardenThemeTitleGlow: '#9fe0ff', wardenThemeBackdropTint: '#050b14',

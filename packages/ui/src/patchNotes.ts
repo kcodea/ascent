@@ -60,6 +60,17 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'A new awakening. When an Ancient awakens, all six Ancients now slam onto the screen before three are offered.',
+        details: [
+          'Your hero power explodes and the Shop darkens.',
+          'Six tall panels pop in from left to right, one colour for each Ancient.',
+          'Each Ancient slides in from off the screen and slams to a stop, with sparks and a shake.',
+          'The three you can choose from shake and their edges light up. The other three fall away.',
+          'The choice itself is unchanged.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'The portrait menu is rebuilt, and any hero or minion skin you own can now be your portrait.',
         details: [
           'Pick a portrait to preview it on your banner, then press Use portrait.',

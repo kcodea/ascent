@@ -12,6 +12,18 @@
  */
 export const CODE_FX_CLIPS: readonly string[] = [
   'fx/alexis_gaming_cam-woosh-long-cartoon-370386',
+  'fx/ancient-explosion-swoosh',
+  'fx/ancient-hp-explosion',
+  'fx/ancient-opening-rise',
+  'fx/ancient-pick-click',
+  'fx/ancient-pick-pulse',
+  'fx/ancient-slam',
+  'fx/ancient-stone-slide-1',
+  'fx/ancient-stone-slide-2',
+  'fx/ancient-stone-slide-3',
+  'fx/ancient-stone-slide-4',
+  'fx/ancient-stone-slide-5',
+  'fx/ancient-stone-slide-6',
   'fx/djartmusic-christmas-sparkle-whoosh-1-275404',
   'fx/duos-drop-whoosh',
   'fx/duos-land',
@@ -22,7 +34,6 @@ export const CODE_FX_CLIPS: readonly string[] = [
   'fx/triple-impact',
   'fx/universfield-cinematic-swoosh-impact-454392',
   'fx/universfield-ground-impact-352053',
-  'fx/waking-rift',
   'fx/whoosh-03',
 ];
 

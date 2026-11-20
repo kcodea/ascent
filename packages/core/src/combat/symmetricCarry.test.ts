@@ -84,11 +84,14 @@ describe('symmetric combat carry-backs — the enemy seat keeps what it earned',
     const withRune = simulate(wall(), earners(), makeRng(5), CARD_INDEX, side(),
       combatSide({ tier: 4, tribes: ['undead', 'dragon', 'celestial'], questMods: { runeSoulTaxes: true } }));
     const pulses = (r: CombatResult) => r.events.filter((e) => e.type === 'questTrigger' && e.flag === 'runeSoulTaxes');
+    // Its +1 max Gold is also logged on the death that paid it (R-COMBAT-GOLD-EVENT-01), side-tagged like the pulse.
+    const taxes = (r: CombatResult) => r.events.filter((e) => e.type === 'maxGold' && e.side === 'enemy');
     expect(pulses(bare)).toEqual([]);
     expect(pulses(withRune).length, 'the enemy rune pulses its badge').toBe(1);
     expect(pulses(withRune).every((e) => e.type === 'questTrigger' && e.side === 'enemy')).toBe(true);
+    expect(taxes(withRune).reduce((n, e) => n + (e.type === 'maxGold' ? e.amount : 0), 0), 'the payout is logged live').toBe(1);
     // The fight itself (every non-pulse event, every player field) is unchanged: the rune pays Gold, not stats.
-    const fight = (r: CombatResult): string => JSON.stringify(r.events.filter((e) => !(e.type === 'questTrigger' && e.flag === 'runeSoulTaxes')));
+    const fight = (r: CombatResult): string => JSON.stringify(r.events.filter((e) => !(e.type === 'questTrigger' && e.flag === 'runeSoulTaxes') && !(e.type === 'maxGold' && e.side === 'enemy')));
     expect(fight(withRune)).toBe(fight(bare));
     expect(bare.enemyCarry!.maxGoldGain).toBeUndefined();
     expect(withRune.enemyCarry!.maxGoldGain, 'the enemy Soul Taxes payout must land on enemyCarry').toBe(1);

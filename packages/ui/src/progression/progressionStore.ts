@@ -41,8 +41,8 @@ import {
   enqueuePendingProgression, flushPendingProgressions, installProgressionRetryTriggers, type PendingProgression,
 } from './progressionQueue';
 import {
-  buyCrateRemote, equipCosmeticRemote, equipTitleRemote, fetchAchievementsEnabled, fetchAetherEconomy, fetchAetherEnabled, fetchCratesEnabled, fetchOwnCrates, fetchProgressionConfig, fetchOwnProgression, fetchProgressionEnabled, fetchSeenCosmeticIds, fetchServerCatalogState, fetchUnseenGiftIds, markCosmeticsSeenRemote, openCrateRemote, progressionRequestFor,
-  type ProgressionSubmitOutcome,
+  ackAetherGiftRemote, buyCrateRemote, equipCosmeticRemote, equipTitleRemote, fetchAchievementsEnabled, fetchAetherEconomy, fetchAetherEnabled, fetchCratesEnabled, fetchOwnCrates, fetchProgressionConfig, fetchOwnProgression, fetchProgressionEnabled, fetchSeenCosmeticIds, fetchServerCatalogState, fetchUnseenAetherGifts, fetchUnseenGiftIds, markCosmeticsSeenRemote, openCrateRemote, progressionRequestFor,
+  type AetherGift, type ProgressionSubmitOutcome,
 } from './progressionRemote';
 
 export type ProgressionCapability = 'unknown' | 'on' | 'off';
@@ -86,6 +86,9 @@ interface ProgressionStore {
   /** GIFTS waiting to be announced (owner 2026-11-13): items handed to this account directly that it has not looked
    *  at yet. Read with the probe; `GiftNotice` shows them once and `dismissGifts` marks them seen on the account. */
   gifts: { userId: string; ids: readonly string[] } | null;
+  /** AETHER GIFTS waiting to be announced (owner 2026-11-20, R-PROG-GIFT-02), oldest first. `AetherGiftNotice` shows
+   *  the head, one pop-up per gift; `dismissAetherGift` drops it and marks it seen on the account. */
+  aetherGifts: { userId: string; gifts: readonly AetherGift[] } | null;
 }
 
 const MIRROR_KEY = 'ascent.progression';
@@ -135,6 +138,7 @@ export const useProgression = create<ProgressionStore>(() => ({
   economy: DEFAULT_AETHER_ECONOMY,
   seenKnown: null,
   gifts: null,
+  aetherGifts: null,
 }));
 
 // The last server kill-switch answer we saw, applied before anything renders (never un-retires on its own).
@@ -250,6 +254,22 @@ export function dismissGifts(): void {
   markCosmeticsSeen(g.userId, g.ids);
 }
 
+/** Read the Aether gifts this account has not seen yet. No answer changes nothing; an empty answer clears the queue. */
+export async function refreshAetherGifts(userId: string): Promise<void> {
+  const gifts = await fetchUnseenAetherGifts(userId);
+  if (gifts === undefined || currentUserId() !== userId) return;
+  useProgression.setState({ aetherGifts: gifts.length ? { userId, gifts } : null });
+}
+
+/** The head Aether gift's pop-up closed: drop it here at once and mark it seen on the account. */
+export function dismissAetherGift(giftId: string): void {
+  const q = useProgression.getState().aetherGifts;
+  if (!q) return;
+  const rest = q.gifts.filter((g) => g.id !== giftId);
+  useProgression.setState({ aetherGifts: rest.length ? { userId: q.userId, gifts: rest } : null });
+  void ackAetherGiftRemote(giftId);
+}
+
 let probing: Promise<void> | null = null;
 
 /**
@@ -288,6 +308,8 @@ export function probeProgression(): Promise<void> {
     await seenRead;
     // Gifts last: their dismissal writes through the seen list just read.
     await refreshGifts(userId);
+    // Aether gifts are their own table, read whether or not the Aether switch answered.
+    await refreshAetherGifts(userId);
   };
   const p = run().catch(() => { /* never throws */ }).finally(() => { if (probing === p) probing = null; });
   probing = p;
@@ -657,7 +679,7 @@ export function resetProgressionForTests(): void {
   try { localStorage.removeItem(PRESENTED_KEY); localStorage.removeItem(MIRROR_KEY); } catch { /* ignore */ }
   try { localStorage.removeItem(SERVER_CATALOG_KEY); localStorage.removeItem(SERVER_CATALOG_HASH_KEY); } catch { /* ignore */ }
   setServerCatalogState(null);
-  useProgression.setState({ capability: 'unknown', mirror: null, current: null, cratesCapability: 'unknown', crateList: null, catalogEpoch: 0, achievementsCapability: 'unknown', aetherCapability: 'unknown', economy: DEFAULT_AETHER_ECONOMY, seenKnown: null, gifts: null });
+  useProgression.setState({ capability: 'unknown', mirror: null, current: null, cratesCapability: 'unknown', crateList: null, catalogEpoch: 0, achievementsCapability: 'unknown', aetherCapability: 'unknown', economy: DEFAULT_AETHER_ECONOMY, seenKnown: null, gifts: null, aetherGifts: null });
   seenAccount = null;
   seenOnServer.clear();
 }

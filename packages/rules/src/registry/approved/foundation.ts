@@ -16915,4 +16915,23 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms from 2026-11-20 on records built by this code (`strengthWindow: 1`). An older record has no Relevant Strength; the UI shows Run Strength only. Generated and bot seats carry no per-round numbers, so they show neither number.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/lobby/matchDetails.test.ts', 'packages/sim/src/lobby/relevantStrength.test.ts'], lastVerifiedAt: '2026-11-20' },
   },
+  {
+    id: 'R-PROG-GIFT-02',
+    title: 'Aether the Ascent team gifts a player is announced once, with its amount and reason, the next time that player loads the game',
+    statement:
+      'The team gifts Aether through one admin tool that takes the player, the amount and a reason. It pays the amount once '
+      + 'to exactly one signed-in account, and refuses (paying nothing) a name that matches no account or several. '
+      + 'The next time that player is on the menus, the game shows one pop-up per unseen gift, oldest first: "You\x27ve been '
+      + 'gifted N Aether from the Ascent team for:" followed by the reason. Closing it any way marks that gift seen on the '
+      + 'account, so it never returns on this or any other device. Players cannot create, change or read another account\x27s gifts.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-20 (Aether gift to Arivas)', quote: 'i would like upon them logging in, to recieve a prompt. it should say, you\x27ve been gifted XXX Aether from the Ascent team for:' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-20 (several gifts)', quote: 'One popup each' },
+      { kind: 'code', ref: 'supabase/migrations/2026-11-22-aether-gifts.sql (aether_gift, ack_aether_gift); packages/ui/src/progression/AetherGiftNotice.tsx; progressionStore.ts (refreshAetherGifts, dismissAetherGift); .claude/skills/ascent-gift-aether' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-20 once 2026-11-22-aether-gifts.sql is applied and a client with the pop-up ships. Gifts paid before that (Arivas, 2026-11-20, through aether_apply directly) have no gift row and show no pop-up, by owner choice. Not yet seen in the running game by the owner.',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/aetherGift.db.test.ts', 'packages/ui/src/progression/AetherGiftNotice.test.tsx'], lastVerifiedAt: '2026-11-20' },
+  },
 ];

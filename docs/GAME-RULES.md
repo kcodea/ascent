@@ -2294,6 +2294,9 @@ playable hero, that placeholder was reachable in real games until this ruling.
   fought (as the next Shop opens); it awakens at 16 (`ANCIENT_METER_DEFAULTS`). At full, the Shop pauses behind an
   offer of three of the six Ancients (a seeded draw off the run seed + wave, never the run cursor). The pick locks in
   for the run; its effect is the PAIRING for the hero whose power sits in slot 0 (`ANCIENT_PAIRINGS`).
+- **The awakening leads the Runeforge** (R-ANCIENT-ORDER-01, owner 2026-11-19). When a fight's points fill the meter
+  and the next Shop opens a Runeforge, the Ancient reveal and pick come first and the rune select opens after
+  (`ancientLeadsRuneforge`). A quest offer, a hero-power pick or a Discover still goes before the awakening.
 - **THE SWITCH** is `ANCIENTS_LIVE` in `packages/sim/src/ancientsRelease.ts`. It ships `false`. Setting it to `true`
   turns Ancients on for every NEW run; the same PR must bump `VERSUS_CF_PROTOCOL` 4 to 5 (a tripwire test fails CI
   otherwise) and the Versus Worker must be deployed for that build.

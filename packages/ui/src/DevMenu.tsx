@@ -144,6 +144,7 @@ import { PlateCoalesceTuner } from './PlateCoalesceTuner';
 import { EndTurnTuner } from './EndTurnTuner';
 import { HeroPowerTuner } from './HeroPowerTuner';
 import { AncientsTuner } from './ancients/AncientsTuner';
+import { AncientTendrilTester } from './AncientTendrilTester';
 import { RebirthTuner } from './RebirthTuner';
 import { DiceRollTuner } from './DiceRollTuner';
 import { TavernUpTuner } from './TavernUpTuner';
@@ -290,6 +291,7 @@ const GROUPS: Group[] = [
       { key: 'heropowerbtn', icon: '💠', label: 'Hero Power', C: HeroPowerTuner, hint: 'The hero power diamond' },
       { key: 'rebirth', icon: '🔥', label: 'Rebirth', C: RebirthTuner, hint: 'The Rebirth keyword: the thin ember rim + rising embers on a card, and the flame burst when it rebirths. ▶ plays the flame', alt: 'rebirth phoenix keyword ember flame' },
       { key: 'ancients', icon: '✦', label: 'Ancients', C: AncientsTuner, hint: 'The Ancients proof of concept (Scene Builder, Set 3): the meter costs, the ring, the awakening beat. ▶ plays the pick beat', alt: 'ancient meter awaken split hero power' },
+      { key: 'ancienttendrils', icon: '〰️', label: 'Ancient Tendrils', C: AncientTendrilTester, hint: "Fire each Ancient's own tendril (ancient-tendril-<name>) on your board, from the hero power or from a minion", alt: 'ancient tendril genesis death fortune war time bonds buff trail test fire' },
       { key: 'diceroll', icon: '🎲', label: 'Dice', C: DiceRollTuner, hint: "The 3D die the Gambler's power and the Gamble spell roll — tumble time, hop, spins, settle", alt: 'gambler gamble roll die' },
       { key: 'tavernupbtn', icon: '🍺', label: 'Tavern Up', C: TavernUpTuner, hint: 'The tavern-upgrade stone button', alt: 'upgrade tier' },
       { key: 'combatctl', icon: '🎚️', label: 'Combat Controls', C: CombatCtlTuner, hint: 'Look of the Summary pill, End Combat pill and Skip button — shape, colours, outline, text size', alt: 'summary skip end combat pill replay hud' },

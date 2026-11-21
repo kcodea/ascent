@@ -72,12 +72,15 @@ export function ancientTendrilDef(id: AncientId | null | undefined): StoredFxDef
 /**
  * When the def's tendril ARRIVES, so the stat roll lands with it: the ribbon's `travelMs`, else the first
  * target-anchored layer's `at` (a def built around a landing burst), else `fallbackMs`.
+ *
+ * `index` is the recipient's place in its burst (`playDef`'s `index`): the layer that sets the landing time is delayed
+ * by its own workbench Stagger × `index`, so a staggered minion's stat rolls when ITS tendril lands, not the first one's.
  */
-export function ancientTendrilLandingMs(def: StoredFxDef, fallbackMs: number): number {
+export function ancientTendrilLandingMs(def: StoredFxDef, fallbackMs: number, index = 0): number {
   const ribbon = def.layers.find((l) => l.primitive === 'ribbon' && typeof l.travelMs === 'number');
-  if (ribbon?.travelMs !== undefined) return ribbon.travelMs;
+  if (ribbon?.travelMs !== undefined) return ribbon.travelMs + (ribbon.stagger ?? 0) * index;
   const landing = def.layers.find((l) => l.anchor === 'target' && typeof l.at === 'number');
-  return landing?.at ?? fallbackMs;
+  return landing ? landing.at + (landing.stagger ?? 0) * index : fallbackMs;
 }
 
 /** The run's picked Ancient (undefined outside an Ancients run or before the pick): settles a power-name label. */

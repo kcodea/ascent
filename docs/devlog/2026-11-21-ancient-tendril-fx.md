@@ -31,3 +31,17 @@ R-FX-ANCIENT-ORIGIN-01) drew the triggering minion's TRIBE tendril. Nothing down
 
 First def: `ancient-tendril-genesis` (owner-authored, a beam plus a source and a target emitter; no ribbon, so the roll
 lands on the target emitter's `at`, 120 ms). The other five Ancients play the gold trail until theirs are saved.
+
+## Stagger and hit-sound pitch jitter (same day)
+
+Owner: "is it possible to stagger the effect for certain ancients?" then "Yes, wire it". `fireBuffFx` numbers an
+Ancient's tendrils within 120 ms of each other as one burst (`ancientBurstIndex`, per Ancient) and passes `index` to
+`playDef`, so each layer's workbench **Stagger** finally applies; the stat roll adds the landing layer's Stagger x index.
+Stagger 0 everywhere = all at once, as before. War and Death bursts were given the beam's 120 ms so the cascade stays
+in step. Sound layers do not stagger and only the burst's first tendril sounds.
+
+Owner: "a very subtle semitone randomization for all 6 of the ancient hit sound effects". The hit sound layers carry
+`pitchVar: 0.06` (about +/-1 semitone, the workbench's Pitch jitter) on all six.
+
+All six defs are saved (Fortune, Time and Bonds last). Each has a launch sound at 0 on the source and a hit sound on the
+target at its landing layer's `at`; their bursts and shockwave were given the beams' 120 ms stagger, like War and Death.

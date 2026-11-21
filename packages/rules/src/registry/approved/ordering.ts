@@ -793,20 +793,27 @@ export const ORDERING_RULES: GameRule[] = [
       "Every stat grant an Ancient makes plays that Ancient's own tendril effect (one per Ancient: Death, Fortune, War, "
       + "Genesis, Time, Bonds), in the Shop, at Start of Turn, at End of Turn and in combat, wherever the pairing starts it "
       + "(the hero power button, or the minion that set it off). An Ancient with no tendril of its own yet plays the generic "
-      + "buff tendril, exactly as before. Where the tendril starts and when the stats land are unchanged.",
+      + "buff tendril, exactly as before. Where the tendril starts is unchanged. When one grant buffs several minions, each "
+      + "Ancient's tendril can cascade one minion after another (set per effect), and each minion's stats land when its own "
+      + "tendril arrives.",
     domain: 'ordering',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Owner, 2026-11-21', quote: "Let's start a project where I'm going to create bespoke tendril effects for each of the 6 ancients when they trigger a combat or shop effect." },
       { kind: 'owner-chat', ref: 'Owner, 2026-11-21 (question card)', quote: 'Minion-origin grants: "Yes, bespoke"; until authored: "Generic gold trail".' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-21', quote: 'is it possible to stagger the effect for certain ancients? ... Yes, wire it' },
       { kind: 'code', ref: 'feat/ancient-tendril-fx: packages/ui/src/fx/ancientTendrils.ts (ancient-tendril-<id> lookup, label to Ancient); packages/ui/src/buffFxRender.ts (fireBuffFx ancient); packages/sim/src/recruit.ts + ancients.ts (BuffFxEvent.ancient on hero-power and trigger-origin Shop records); packages/ui/src/choreo/channels/buffCast.ts (BuffCast.label)' },
     ],
-    currentBehaviour: "PARTIAL from 2026-11-21 (feat/ancient-tendril-fx): the routing is wired and Genesis has its own tendril "
-      + "(ancient-tendril-genesis); the other five still play the generic gold trail until theirs are saved. Covered: Shop hero-power and minion-origin records, Start and End of "
+    currentBehaviour: "From 2026-11-21 (feat/ancient-tendril-fx): the routing is wired and all six Ancients have their own "
+      + "tendril (ancient-tendril-<death|fortune|war|genesis|time|bonds>, each with a launch and a hit sound). Covered: Shop hero-power and minion-origin records, Start and End of "
       + "Turn hero beats labelled with an Ancient's name, and combat grants labelled with an Ancient's name or power name. "
       + "A power-name label ('Aegis' is Warden x Bonds and Warden x Time) resolves through the side's picked Ancient, known "
       + "for the player only: a foe's ambiguous 'Aegis' grant plays the generic trail. Self-buff pairings (Drakko x Bonds) "
-      + "draw no tendril. In combat a saved Ancient tendril outranks the triggering minion's own buff effect.",
+      + "draw no tendril. In combat a saved Ancient tendril outranks the triggering minion's own buff effect. Stagger: an "
+      + "Ancient's tendrils fired within 120 ms of each other are one burst (fireBuffFx's ancientBurstIndex, per Ancient); "
+      + "recipient k plays with playDef index k, so each layer's workbench Stagger delays it by Stagger x k, and the "
+      + "returned landing time adds the landing layer's Stagger x k. Sound layers do not stagger, and the no-stacking "
+      + "rule still lets only the first tendril of a burst sound.",
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/ancientTendrilDefs.test.ts', 'packages/ui/src/ancientTendrilReadiness.test.ts'], lastVerifiedAt: '2026-11-21' },
   },
 ];

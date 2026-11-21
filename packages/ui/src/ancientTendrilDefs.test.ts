@@ -15,7 +15,7 @@ import './fx/primitives';
 import { CARD_INDEX } from '@game/content';
 import type { CombatEvent } from '@game/core';
 import { ANCIENTS, ANCIENT_IDS, reduce } from '@game/sim';
-import { fireBuffFx, TENDRIL_TRAIL_TRAVEL_MS } from './buffFxRender';
+import { ancientBurstIndex, fireBuffFx, TENDRIL_TRAIL_TRAVEL_MS } from './buffFxRender';
 import { registerSavedDef } from './fx/fxDefs';
 import type { StoredFxDef } from './fx/defStore';
 import {
@@ -89,6 +89,33 @@ describe('R-FX-ANCIENT-TENDRIL-02: fireBuffFx', () => {
     expect(mockPlayDef).toHaveBeenCalledTimes(1);
     expect(mockPlayDef).toHaveBeenCalledWith('ancient-tendril-war', at, expect.objectContaining({ uids: { source: 's', target: 't' } }));
     expect(ms).toBe(444);
+  });
+  it('STAGGER: one burst numbers its tendrils per Ancient, and each roll waits for its own staggered landing', () => {
+    const staggered = {
+      version: 1, id: ancientTendrilDefId('bonds'), duration: 900,
+      layers: [{ primitive: 'burst', anchor: 'target', at: 140, stagger: 100, params: {} }],
+    } as unknown as StoredFxDef;
+    registerSavedDef(staggered);
+    const now = vi.spyOn(performance, 'now').mockReturnValue(1_000_000);
+    try {
+      // A board-wide grant: three tendrils in one frame are recipients 0, 1, 2.
+      const ms = [0, 1, 2].map(() => fireBuffFx({ ...at, cardId: '', tribe: 'neutral', sourceless: false, ancient: 'bonds' }));
+      expect(ms).toEqual([140, 240, 340]);
+      expect(mockPlayDef.mock.calls.map((c) => (c[2] as { index?: number }).index)).toEqual([undefined, 1, 2]);
+      // A later grant is a new burst: recipient 0 again.
+      now.mockReturnValue(1_005_000);
+      expect(fireBuffFx({ ...at, cardId: '', tribe: 'neutral', sourceless: false, ancient: 'bonds' })).toBe(140);
+    } finally {
+      now.mockRestore();
+    }
+  });
+  it('STAGGER: the burst window is per Ancient, and an unstaggered landing layer never moves', () => {
+    expect([ancientBurstIndex('time', 50), ancientBurstIndex('time', 50), ancientBurstIndex('death', 50)]).toEqual([0, 1, 0]);
+    expect(ancientBurstIndex('time', 160)).toBe(2); // chained: within the window of the LAST tendril
+    expect(ancientBurstIndex('time', 900)).toBe(0);
+    expect(ancientTendrilLandingMs(ribbonDef('x', 333), 1, 3)).toBe(333);
+    const ribbon = { ...ribbonDef('r', 300), layers: [{ primitive: 'ribbon', anchor: 'travel', at: 0, travelMs: 300, stagger: 50, params: {} }] } as unknown as StoredFxDef;
+    expect(ancientTendrilLandingMs(ribbon, 1, 2)).toBe(400);
   });
   it('a sourceless grant still draws nothing', () => {
     registerSavedDef(ribbonDef(ancientTendrilDefId('time'), 200));

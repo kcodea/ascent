@@ -7,7 +7,7 @@
       "primitive": "beam",
       "anchor": "travel",
       "at": 0,
-      "stagger": 120,
+      "stagger": 80,
       "params": {
         "travelMs": 180,
         "dwellMs": 80,
@@ -484,7 +484,7 @@
       "primitive": "burst",
       "anchor": "travel",
       "at": 0,
-      "stagger": 120,
+      "stagger": 80,
       "params": {
         "count": 72,
         "interval": 600,
@@ -1036,7 +1036,7 @@
       "primitive": "burst",
       "anchor": "target",
       "at": 170,
-      "stagger": 120,
+      "stagger": 80,
       "params": {
         "count": 141,
         "interval": 600,
@@ -1603,6 +1603,7 @@
       "params": {
         "clip": "fx/ancient-tendril-war-hit",
         "gain": 1,
+        "pitchVar": 0.06,
         "bus": "combat"
       }
     }

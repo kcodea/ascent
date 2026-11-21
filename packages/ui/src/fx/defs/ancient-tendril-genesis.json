@@ -1591,6 +1591,7 @@
       "params": {
         "clip": "fx/ancient-tendril-genesis-hit",
         "gain": 1,
+        "pitchVar": 0.06,
         "bus": "combat"
       }
     }

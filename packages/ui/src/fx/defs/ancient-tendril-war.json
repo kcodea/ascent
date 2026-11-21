@@ -1581,6 +1581,17 @@
           ]
         ]
       }
+    },
+    {
+      "primitive": "sound",
+      "name": "hit sound",
+      "anchor": "target",
+      "at": 170,
+      "params": {
+        "clip": "fx/ancient-tendril-war-hit",
+        "gain": 1,
+        "bus": "combat"
+      }
     }
   ]
 }

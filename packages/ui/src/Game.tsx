@@ -138,6 +138,7 @@ import { installTouchKeyboard } from './touchKeyboard';
 import { OwnSkins, RunSkins } from './skins/skins';
 import { CloudMovedModal } from './CloudMovedModal';
 import { GiftNotice } from './progression/GiftNotice';
+import { AetherGiftNotice } from './progression/AetherGiftNotice';
 import { installLivePublisher } from './live/livePublisher';
 import { installGameSession } from './session/gameSession';
 import { LiveGames } from './live/LiveGames';
@@ -828,6 +829,8 @@ export function Game() {
       <CloudMovedModal />
       {/* GIFTS (owner 2026-11-13): "you were given an item", once, on the menus only. Self-gates on unseen gifts. */}
       {preRun && <GiftNotice />}
+      {/* AETHER GIFTS (owner 2026-11-20): "you've been gifted N Aether from the Ascent team for: …", one per gift. */}
+      {preRun && <AetherGiftNotice />}
       {/* REPLAY VIEWER: the round rail (left) + the transport bar. Both self-gate on `replaySession`;
           the overlay mounts LAST so the transport controls float above everything (salvaged v1 order). */}
       {/* The drag ghost self-gates on `replayDragGhost` (only ever set mid-replay) and sits UNDER the

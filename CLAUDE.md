@@ -144,7 +144,7 @@ boundary leaked.
 
 ### Repo skills (`.claude/skills/ascent-*`)
 
-Four skills carry the depth this file deliberately leaves out — they load only when the work matches, so this
+Five skills carry the depth this file deliberately leaves out — they load only when the work matches, so this
 file stays short:
 
 - **`ascent-gameplay`** — effects, keywords, hero powers, reducer/simulator paths, and especially **effect
@@ -152,6 +152,8 @@ file stays short:
 - **`ascent-content`** — authoring cards/runes/quests/heroes, pool + set membership, art wiring.
 - **`ascent-lobby`** — the 8-seat lobby, pairing, placement/Rating, snapshots, and replay v2.
 - **`ascent-choreography`** — beats, the Choreographer, Pixi FX, and consequence timing.
+- **`ascent-gift-aether`** — gifting a player Aether: ask the owner what it is for, then write the one
+  `aether_gift(...)` line for the Supabase SQL Editor (the player sees the reason in a pop-up on next login).
 
 They are **source, tracked in git**, unlike installed skill packages (which `.gitignore` still excludes). When
 a rule in a skill stops being true, fix it in the same PR as the behaviour change.

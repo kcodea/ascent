@@ -330,6 +330,48 @@ export async function markCosmeticsSeenRemote(ids: readonly string[]): Promise<b
   }
 }
 
+/** An Aether gift from the Ascent team (owner 2026-11-20, R-PROG-GIFT-02): how much, and the reason in their words. */
+export interface AetherGift { id: string; amount: number; reason: string }
+
+/**
+ * AETHER GIFTS: this account's gifts it has not seen yet (`aether_gifts`, owner-read by RLS), oldest first.
+ * `undefined` = could not ask (offline, a server from before 2026-11-22-aether-gifts.sql): nothing is shown.
+ */
+export async function fetchUnseenAetherGifts(userId: string): Promise<AetherGift[] | undefined> {
+  try {
+    const c = supabaseClient();
+    if (!c) return undefined;
+    const res = await Promise.race([
+      Promise.resolve(c.from('aether_gifts').select('gift_id, amount, reason').eq('user_id', userId).is('seen_at', null)
+        .order('created_at', { ascending: true }).limit(20)),
+      timeout(READ_TIMEOUT_MS, null),
+    ]);
+    if (!res || res.error) return undefined;
+    const rows = (res.data as Array<{ gift_id?: unknown; amount?: unknown; reason?: unknown }> | null) ?? [];
+    return rows.flatMap((r) => typeof r.gift_id === 'string' && typeof r.amount === 'number' && Number.isInteger(r.amount) && r.amount > 0
+      && typeof r.reason === 'string' && r.reason.trim() ? [{ id: r.gift_id, amount: r.amount, reason: r.reason.trim() }] : []);
+  } catch {
+    return undefined;
+  }
+}
+
+/** Mark THIS account's Aether gift seen (`ack_aether_gift`: only the caller's own unseen gift changes). False = it did
+ *  not get through; the gift then shows again on the next load, which is the safe side. */
+export async function ackAetherGiftRemote(giftId: string): Promise<boolean> {
+  try {
+    const c = supabaseClient();
+    if (!c) return false;
+    const res = await Promise.race([
+      // rows: a write that answers one boolean, never a list
+      Promise.resolve(c.rpc('ack_aether_gift', { p_gift: giftId })),
+      timeout(READ_TIMEOUT_MS, null),
+    ]);
+    return !!res && !res.error;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * A player's equipped skins (`cosmetic_loadouts`, public read), as loadout rows. Retired items are INCLUDED here
  * (the table keeps them); every renderer drops them through `isCosmeticLive`. Null = could not ask (or the table

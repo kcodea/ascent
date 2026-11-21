@@ -81,6 +81,10 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'When the Ascent team gifts you Aether, a message tells you how much and why the next time you log in.',
+      },
+      {
+        category: 'Systems',
         text: 'Settings has a new Cosmetics tab: turn each kind of cosmetic on or off, in your games, replays and while spectating.',
         details: [
           'Switches for minion skins, card plates, hero skins, portrait frames, hero attacks, titles, player emotes and the announcer pack.',

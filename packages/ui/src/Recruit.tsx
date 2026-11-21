@@ -233,6 +233,7 @@ import { foldShopRefills, pendingRefillSlots } from './choreographer/shopRefillR
 import type { ProjectedShopRefill } from './choreographer/projection';
 import { useEquipBeamCascade, type EquipBeamAnchors } from './equipBeamCascade';
 import { AncientOfferOverlay } from './ancients/AncientOffer';
+import { awakeningWaits, useAwakeningHoldsForge } from './ancients/awakeningLeadsForge';
 import { playGildTrail } from './gildTrail';
 import { commitSlidePlan } from './rowSlides';
 import { resolveGildSources, snapshotGildCandidates, type GildSnap, type Pt } from './gildTrailSources';
@@ -2962,6 +2963,8 @@ export function Recruit() {
   const [forgeMin, setForgeMin] = useSwapState(false, swapped);
   // The Ancient awakening's pick, minimized (owner ask 2026-11-18, R-ANCIENT-PEEK-01): Peek like the others.
   const [ancientMin, setAncientMin] = useSwapState(false, swapped);
+  // THE AWAKENING LEADS THE RUNEFORGE (R-ANCIENT-ORDER-01): the forge waits behind an awakening the last fight filled.
+  const forgeHeld = useAwakeningHoldsForge(run);
 
   /**
    * RUNE LOCK-IN CEREMONY (owner ask 2026-08-29) — the short flourish after a rune is bought.
@@ -3468,7 +3471,7 @@ export function Recruit() {
   useEffect(() => {
     // A minimized Discover / Quest overlay leaves the board visible, so it doesn't count as covering.
     const ancOffer = (run.ancients?.offer?.length ?? 0) > 0;
-    const modalCovering = showLog || (!overlaysHeld && ((run.discover && !discoverMin && !discoverDeathHold) || (run.questOffer && !questMin) || (run.powerOffer && !powerMin) || (run.runeforgeOffer && !forgeMin) || run.chooseOne || (run.scoutedNextOpponent?.length ?? 0) > 0 || (ancOffer && !ancientMin)));
+    const modalCovering = showLog || (!overlaysHeld && ((run.discover && !discoverMin && !discoverDeathHold) || (run.questOffer && !questMin) || (run.powerOffer && !powerMin) || (run.runeforgeOffer && !forgeMin && !forgeHeld) || run.chooseOne || (run.scoutedNextOpponent?.length ?? 0) > 0 || (ancOffer && !ancientMin)));
     // The Fight Recap counts too (2026-09-24): without it the hand + hero panels painted OVER its scrim.
     // The hero portrait / pills / power diamond live OUTSIDE the overlay's backdrop root (their own fixed
     // stacking contexts), so the overlay's backdrop-filter can't blur them — mark the body and let CSS blur
@@ -3480,7 +3483,7 @@ export function Recruit() {
     // back, while the pick itself stays pending (the reducer still holds the Shop until it is made). See ancients.css.
     document.body.classList.toggle('ancpeek', !overlaysHeld && ancOffer && ancientMin);
     return () => { document.body.classList.remove('modalup'); document.body.classList.remove('ancoffer'); document.body.classList.remove('ancpeek'); };
-  }, [run.discover, run.chooseOne, discoverMin, run.questOffer, run.powerOffer, powerMin, questMin, run.runeforgeOffer, forgeMin, overlaysHeld, discoverDeathHold, showLog, run.ancients?.offer, ancientMin]);
+  }, [run.discover, run.chooseOne, discoverMin, run.questOffer, run.powerOffer, powerMin, questMin, run.runeforgeOffer, forgeMin, overlaysHeld, discoverDeathHold, showLog, run.ancients?.offer, ancientMin, forgeHeld]);
   // B2: each Discover opens expanded — reset the minimized flag whenever the pending Discover changes.
   useEffect(() => { setDiscoverMin(false); }, [run.discover]);
   // The hero-power Discover likewise: Void's second pick and the next turn's Mimicry each open expanded.
@@ -9516,13 +9519,13 @@ export function Recruit() {
 
       <PowerOverlay overlaysHeld={overlaysHeld} run={run} occasion={powerOccasion(run)} powerMin={powerMin} setPowerMin={setPowerMin} dispatch={dispatch} burstRef={discoverBurstRef} />
 
-      {/* ANCIENTS (proof of concept): the awakening Discover. It waits for every other decision overlay, and for
-          the curtain, so it never stacks on one. */}
-      <AncientOfferOverlay held={overlaysHeld || !!(run.discover || run.questOffer || run.powerOffer || run.runeforgeOffer || run.pendingTarget || run.chooseOne || run.scoutedNextOpponent?.length)} run={run} dispatch={dispatch}
+      {/* ANCIENTS: the awakening Discover. It waits for every other decision overlay, and for the curtain, so it never
+          stacks on one. The exception (R-ANCIENT-ORDER-01): a Runeforge it leads waits for IT (`forgeHeld`). */}
+      <AncientOfferOverlay held={overlaysHeld || awakeningWaits(run)} run={run} dispatch={dispatch}
         minimized={ancientMin} setMinimized={setAncientMin} />
 
       <RuneforgeOverlay
-        overlaysHeld={overlaysHeld} run={run} forgeMin={forgeMin} setForgeMin={setForgeMin} lockIn={lockIn} lockInSlow={lockInSlow} setLockIn={setLockIn}
+        overlaysHeld={overlaysHeld || forgeHeld} run={run} forgeMin={forgeMin} setForgeMin={setForgeMin} lockIn={lockIn} lockInSlow={lockInSlow} setLockIn={setLockIn}
         runeLockInCue={runeLockInCue} cueRuneArrival={cueRuneArrival} startRuneLockIn={startRuneLockIn} dispatch={dispatch}
       />
       </PerfProfiler>

@@ -2887,6 +2887,33 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/progression/CollectionPreviews.test.tsx', 'packages/ui/src/progression/CollectionSkins.test.tsx'], lastVerifiedAt: '2026-09-30' },
   },
   {
+    id: 'R-ACH-TOAST-01',
+    title: 'An achievement completed mid-game ducks in from the left the moment it happens; the rest duck in when the game settles; each once',
+    statement:
+      'While you play a game that can earn achievements (Ranked, or a Practice with Normal Health and a turn timer), an '
+      + 'achievement whose requirement this game has already met shows at once: a small navy and gold panel slides in from '
+      + 'the left edge reading "Achievement unlocked", its name (a hidden one shows its name now), its XP and any title or '
+      + 'cosmetic it grants, with a short golden chime on the sound effects channel, holds about 3 seconds and slides back out. Several wait their turn. Mid-game it covers every '
+      + 'achievement a game in progress can already know: one-game feats (best turn, best combat, this game\x27s counts) and '
+      + 'lifetime totals (your stored progress plus this game). Only the finished game knows the rest (placements, the final '
+      + 'board, server facts like games played, rank, streaks and hero counts), so those slide in when the game settles, '
+      + 'from the server\x27s answer. Each achievement shows once per game, never one you already had, never one the server '
+      + 'switched off. Nothing shows for a sandbox, God Mode, Duos, the tutorial, a replay, a watched game or another seat. '
+      + 'It is a forecast: the server still grants every achievement at settlement, as before. The panel never takes a '
+      + 'click or a drag. Settings, Game tab, "Achievement pop-ups" (on by default, saved on the device) turns every pop-up off, '
+      + 'mid-game and at the end.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-20', quote: 'it should just like duck in from the left side and say the achievement you got' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-20 (follow-up)', quote: 'add a Settings switch "Achievement pop-ups" (default on)' },
+      { kind: 'code', ref: 'packages/progression/src/midRunAchievements.ts (midRunUnlockedAchievements, END_STATE_RUN_METRICS); packages/ui/src/progression/achievementToasts.ts; packages/ui/src/progression/AchievementToast.tsx' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-20 (feat/achievement-unlock-toast). Before, an achievement was only announced after the game, as a NEW reward in the Collection.',
+    example: 'Spend 20 Gold in one Ranked turn: "Achievement unlocked, Big Turn, +50 XP" slides in from the left right away. Finish 1st: "First Among Eight" slides in when the game settles.',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/midRunAchievements.test.ts', 'packages/ui/src/progression/achievementToasts.test.tsx'], lastVerifiedAt: '2026-11-20' },
+  },
+  {
     id: 'R-ACH-01',
     title: 'Achievements batch 1 pay XP only: 248 achievements, no titles yet, nothing hidden yet; the reward slot can take a title later',
     statement:
@@ -16849,5 +16876,43 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms from 2026-11-20 (feat/combat-tier-gold-hud). Before, one-turn Gold had no event at all and Soul Taxes / Richmond max Gold had none, so they appeared only at settle.',
     example: 'A Bounty Bot kills mid-fight: a bonusGold of 2 is logged on that kill, and the Gold pill\x27s Next turn row goes up by 2 right then. At settle the run banks the same 2.',
     enforcement: { kind: 'scenario', refs: ['packages/core/src/combat/combatGoldEvents.test.ts', 'packages/ui/src/combatTierGoldHud.test.tsx'], lastVerifiedAt: '2026-11-20' },
+  },
+  {
+    id: 'R-ANCIENT-ORDER-01',
+    title: 'An Ancient awakened by the fight before a rune turn is revealed before the rune select',
+    statement:
+      'When the points from a fight fill the Ancient meter and the Shop that follows opens a Runeforge, the Ancient reveal and its pick come first; '
+      + 'the rune select opens only after the Ancient is picked and its pick animation has finished. '
+      + 'The Runeforge is not shown, and cannot be answered on screen, while it waits. '
+      + 'A quest offer, a hero-power pick or a Discover that is also open still goes before the awakening, as before. '
+      + 'An awakening from anything other than combat points keeps the old order (it waits for the forge). '
+      + 'The reducer still accepts the rune pick first, so a recording made before this rule replays unchanged.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Mike, 2026-11-19', quote: 'if a player awakens their ancient through combat points on the combat that leads to a rune phase (so combat after shop turn 5 and shop turn 8) then the ancient reveal should happen BEFORE the rune select' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts ancientLeadsRuneforge; packages/sim/src/reducer.ts (the modal gate lets pickAncient through); packages/ui/src/ancients/awakeningLeadsForge.ts (awakeningWaits, awakeningHoldsForge), read by AncientGate, AncientOfferOverlay and RuneforgeOverlay' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-19. Before, the awakening waited for every other decision, the Runeforge included. An older replay of such a turn plays the rune pick without showing the forge (it stays held until the recorded Ancient pick).',
+    example: 'The fight after Shop turn 5 gives the last 2 points. The next Shop opens, the meter fills, the Ancients reveal and the player picks Time; then the Runeforge opens.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientLeadsRuneforge.test.ts', 'packages/ui/src/ancients/awakeningLeadsForge.test.ts'], lastVerifiedAt: '2026-11-19' },
+  },
+  {
+    id: 'R-RESULTS-STRENGTH-WINDOW-01',
+    domain: 'foundation',
+    title: "A results seat's Relevant Strength counts only the rounds it shared with you, weighted for the game's length",
+    statement:
+      "On a game's results, each seat's Relevant Strength counts only the rounds that seat shared with you, weighted for "
+      + "that game's length; Run Strength is the whole recorded run. The window is 1..your end round for your seat and "
+      + "1..the round it was shown at for an opponent that fell earlier. It is frozen into the match record when the "
+      + 'game ends (`MatchSeat.windowStrength` and `roundStrength`, `MatchDetails.strengthWindow`), only for your seat and '
+      + 'recorded opponents whose boards were scored; generated and bot seats show neither number (and usually no Run Strength either).',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Mike, 2026-11-20', quote: "if a game ends on turn 8, i want the playler to go to their overview page, and see all of the board's strengths calculated as if 8 rounds was the full length of the game" },
+      { kind: 'code', ref: 'packages/sim/src/lobby/matchDetails.ts buildMatchDetails, opponentRoundStrength; packages/sim/src/lobby/boardStrength.ts boardPctAtRound, windowStrengthOf' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-20 on records built by this code (`strengthWindow: 1`). An older record has no Relevant Strength; the UI shows Run Strength only. Generated and bot seats carry no per-round numbers, so they show neither number.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/lobby/matchDetails.test.ts', 'packages/sim/src/lobby/relevantStrength.test.ts'], lastVerifiedAt: '2026-11-20' },
   },
 ];

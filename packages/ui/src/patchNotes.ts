@@ -71,6 +71,16 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'Achievements now pop in from the left side of the screen the moment you earn them, mid-game.',
+        details: [
+          'Shows the achievement name, its XP and any title it grants, with a short chime, then slides away after a few seconds.',
+          'Achievements that need the whole game, like placements and your final board, pop in when the game ends.',
+          'Counts in Ranked, and in Practice with Normal Health and a turn timer.',
+          'Turn them off in Settings, Game tab: Achievement pop-ups.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Settings has a new Cosmetics tab: turn each kind of cosmetic on or off, in your games, replays and while spectating.',
         details: [
           'Switches for minion skins, card plates, hero skins, portrait frames, hero attacks, titles, player emotes and the announcer pack.',
@@ -128,11 +138,24 @@ export const PATCH_NOTES: PatchNote[] = [
           'Any Gold you gain for next turn during a fight shows up in that forecast the moment it happens.',
         ],
       },
+      {
+        category: 'Systems',
+        text: "Game results now show each opponent's Relevant Strength: how strong they were during the rounds you played them, next to their Run Strength.",
+        details: [
+          'Relevant Strength comes first and is larger. Run Strength, how strong their whole run was, sits beside it.',
+          'Click any player in the results to see their Relevant Strength round by round, not only yours.',
+          'Games finished before this update show Run Strength only, under that name.',
+        ],
+      },
     ],
   },
   {
     date: '2026-11-19',
     changes: [
+      {
+        category: 'Systems',
+        text: 'An Ancient that awakens from a fight just before a rune turn is now revealed before you choose your rune.',
+      },
       {
         category: 'Systems',
         text: 'A new awakening. When an Ancient awakens, all six Ancients now slam onto the screen before three are offered.',

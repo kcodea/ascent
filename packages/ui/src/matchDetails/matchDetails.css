@@ -147,6 +147,9 @@ body:has(.mdd-scrim) .cv2-rune-tip { z-index: 580; }
 .mds-strength-l { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); } /* read by assistive tech and the tip; the column shows the number */
 .mds-strength-v { padding: 1px 8px; border-radius: 8px; background: rgba(255, 214, 107, 0.1); border: 1px solid rgba(255, 214, 107, 0.3); }
 .mds-strength-v { font-family: var(--font-ui); font-weight: 900; font-size: 16px; color: #ffd66b; font-variant-numeric: tabular-nums; }
+/* Two named numbers (2026-11-20): Relevant Strength first and larger, Run Strength smaller beside it. */
+.mds-strength { flex-direction: row; align-items: center; gap: 6px; }
+.mds-str-part.run .mds-strength-v { font-size: 12px; font-weight: 800; padding: 1px 6px; color: rgba(255, 214, 107, 0.75); background: transparent; border-color: rgba(255, 214, 107, 0.2); }
 .mds-status { padding: 3px 9px; border-radius: 999px; font-size: 12px; white-space: nowrap; background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(255, 255, 255, 0.12); }
 .mds-status.winner { border-color: rgba(255, 214, 107, 0.55); }
 .mds-status.in { border-color: rgba(127, 224, 168, 0.45); }

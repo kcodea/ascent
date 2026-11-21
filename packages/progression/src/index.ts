@@ -6,6 +6,7 @@
 export * from './rules';
 export * from './cosmetics';
 export * from './achievements';
+export * from './midRunAchievements';
 export * from './aether';
 export * from './crateShop';
 export { validateSubmitBody, handleSubmitProgression, settlementParity, syncAchievementCatalogOnce, resetAchievementSyncForTests, ACHIEVEMENT_SYNC_RETRY_MS, SQL_ERROR_STATUS, type SettleRequest, type RpcCall, type HandlerResponse } from './server';

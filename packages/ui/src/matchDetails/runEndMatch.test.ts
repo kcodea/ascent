@@ -8,7 +8,7 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CombatResult } from '@game/core';
-import { createLobbyRun, driverFor, parseMatchDetails, type BoardCard, type RunState } from '@game/sim';
+import { createLobbyRun, createRunLobby, driverFor, parseMatchDetails, registerOpponents, type BoardCard, type BoardSnapshot, type RunState, type StrengthHistogram } from '@game/sim';
 
 vi.mock('../remoteBoards', async (importOriginal) => {
   const mod = await importOriginal<typeof import('../remoteBoards')>();
@@ -24,11 +24,12 @@ vi.mock('../remoteBoards', async (importOriginal) => {
     fetchCareerTotals: vi.fn(async () => null),
     recordLobbyFights: vi.fn(async () => {}),
     refreshOpponentPoolAndRecords: vi.fn(),
+    strengthHistogram: vi.fn(() => null),
   };
 });
 
 import { useGame } from '../store';
-import { uploadPracticeGame, uploadRunHistory } from '../remoteBoards';
+import { strengthHistogram, uploadPracticeGame, uploadRunHistory } from '../remoteBoards';
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 const alley = (): BoardCard => ({ uid: 'e', cardId: 'alley', tribe: 'beast', attack: 3, health: 2, keywords: [], golden: false });
@@ -96,5 +97,39 @@ describe('run end records the match', () => {
     expect(match.endRound).toBe(5);
     expect(match.seats.filter((s) => s.bot)).toHaveLength(7); // Practice's bot table
     expect(useGame.getState().lastMatch?.details).toEqual(upload.replay?.match);
+  });
+});
+
+describe("run end freezes opponents' Relevant Strength", () => {
+  it('the store passes the v2 board histogram to the match record', async () => {
+    const HEROES = ['albus', 'warden', 'indy', 'myra', 'soren', 'nadja', 'cassen'];
+    const pool: BoardSnapshot[] = [];
+    for (let a = 0; a < 7; a++) for (let w = 1; w <= 20; w++) {
+      pool.push({
+        v: 1, wave: w, heroId: HEROES[a]!, resolve: 30, tier: 3, triples: 0, tribes: ['beast'], threat: 'glass', power: 4,
+        minions: [{ cardId: 'alley', attack: 3, health: 2, keywords: [], golden: false }],
+        seed: 7000 + a, origin: 'self', author: `P${a}`, setId: 'set1', poolScore: { ref: 'set2-v2', raw: w + 3, wave: w },
+      } as unknown as BoardSnapshot);
+    }
+    registerOpponents(pool);
+    const hist: StrengthHistogram = Object.fromEntries(
+      Array.from({ length: 15 }, (_, i) => [String(i + 1), Array.from({ length: 20 }, (_, k) => ({ raw: k + 1, count: 1 }))]),
+    );
+    const play = async (withHist: boolean) => {
+      vi.mocked(strengthHistogram).mockReturnValue(withHist ? hist : null);
+      const base = lobbyRun(21, 'lobby', 6);
+      const run = { ...base, lobby: { ...createRunLobby(4242, 'brackus'), round: 6 } }; // snapshot seats (the pool above)
+      run.lobby!.seats[0]!.resolve = 1; run.lobby!.seats[0]!.armor = 0; run.resolve = 1; run.armor = 0;
+      useGame.setState({ run: { ...run, lastCombat: combat('lose', 9, 0) }, showTitle: false, replaying: false, replayActions: [], capturedBoards: [], lastReplay: null, lastMatch: null });
+      useGame.getState().dispatch({ type: 'resolveCombat' });
+      await sleep(30);
+      return parseMatchDetails(useGame.getState().lastMatch!.details)!;
+    };
+    const without = await play(false);
+    expect(without.seats.every((s) => s.windowStrength === undefined || s.self)).toBe(true);
+    const match = await play(true);
+    expect(match.strengthWindow).toBe(1);
+    const scored = match.seats.filter((s) => !s.self && s.windowStrength !== undefined);
+    expect(scored.length).toBeGreaterThan(0);
   });
 });

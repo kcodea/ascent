@@ -211,6 +211,51 @@ export function pctFromCounts(below: number, equal: number, n: number): number |
 /** Round to a whole 1..100 (a percentile of 0 reads as "no score"; the weakest board is 1). */
 export const clampPct = (x: number): number => Math.min(100, Math.max(1, Math.round(x)));
 
+/** Game-length weights for the shared-rounds window: round r weighs max(1, r - 1), normalised (n = 1 -> [1],
+ *  n = 2 -> [.5, .5], n = 8 -> 3/3/7/10/14/17/21/24 %). Length n, sums to 1; [] for n < 1. */
+export function strengthWindowWeights(n: number): number[] {
+  if (!(n >= 1)) return [];
+  const raw = Array.from({ length: n }, (_, i) => Math.max(1, i));
+  const total = raw.reduce((a, b) => a + b, 0);
+  return raw.map((w) => w / total);
+}
+
+/** A board's percentile at a reference round, ranked in the matching histogram bucket: its own `poolScore` at its wave,
+ *  or its final board's `poolCarried` score at a later round (capped at the last reference round). Null when the
+ *  reference version differs, the score is missing, or the bucket is empty. */
+export function boardPctAtRound(board: BoardSnapshot, round: number, hist: StrengthHistogram, ref: string = STRENGTH_REF_VERSION): number | null {
+  let raw: number | undefined;
+  let bucket: number;
+  if (board.wave === round) {
+    if (board.poolScore?.ref !== ref) return null;
+    raw = board.poolScore.raw;
+    bucket = board.poolScore.wave;
+  } else if (board.wave < round) {
+    bucket = Math.min(round, STRENGTH_REF_LAST_ROUND);
+    if (board.poolCarried?.ref === ref) raw = board.poolCarried.rounds[String(bucket)];
+    // The server writes carried scores only for last_wave+1..15, so a final board at wave >= 15 has none: a round past
+    // the last reference round uses that round's score, which is the board's own poolScore at that wave (spec 5.1).
+    if ((typeof raw !== 'number' || !Number.isFinite(raw)) && board.poolScore?.ref === ref && board.poolScore.wave === bucket) raw = board.poolScore.raw;
+  } else return null;
+  if (typeof raw !== 'number' || !Number.isFinite(raw)) return null;
+  const entries = hist[String(bucket)];
+  if (!entries?.some((e) => e.count > 0)) return null;
+  return percentileOf(raw, entries, true);
+}
+
+/** Weighted mean of per-round percentiles over rounds 1..n (`strengthWindowWeights`), missing rounds dropped and the
+ *  rest renormalised. Null when fewer than half (rounded up) of the n rounds are present. */
+export function windowStrengthOf(rounds: readonly { round: number; value: number }[], n: number): number | null {
+  const w = strengthWindowWeights(n);
+  const byRound = new Map<number, number>();
+  for (const r of rounds) if (Number.isInteger(r.round) && r.round >= 1 && r.round <= n && Number.isFinite(r.value)) byRound.set(r.round, r.value);
+  if (byRound.size < Math.ceil(n / 2) || byRound.size === 0) return null;
+  let sum = 0;
+  let wt = 0;
+  for (const [round, value] of byRound) { sum += w[round - 1] * value; wt += w[round - 1]; }
+  return clampPct(sum / wt);
+}
+
 /** The PLAIN mean of a run's per-board percentiles, rounded (null with none). This was the run's average until the
  *  round weighting (2026-09-30); the run now uses `runWeightedAverageOf`. Kept for the measure tool's before/after. */
 export function runAverageOf(percentiles: readonly (number | null | undefined)[]): number | null {

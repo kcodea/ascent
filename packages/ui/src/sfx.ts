@@ -2278,6 +2278,12 @@ export const sfx = {
     lastChatPopSemi = semi;
     playSample('chatpop', 'chatpop', 0, (n) => { n.src.playbackRate.value = 2 ** (semi / 12); });
   },
+  // An ACHIEVEMENT toast ducks in (owner 2026-11-20, R-ACH-TOAST-01): a short golden chime (audio/achievement.mp3, made
+  // with ElevenLabs). A core clip, so it is decoded with the bank; a soft rising triad stands in until it is.
+  achievement: () => {
+    if (playSample('achievement', 'achievement')) return;
+    chord([784, 988, 1175, 1568], { dur: 0.22, type: 'triangle', vol: 0.08, category: 'achievement' }, 0.07);
+  },
   // Choosing a hero / pressing the hero-power button — the sourced "pulse" clip; synth ping fallback.
   pulse: () => {
     if (playSample('pulse', 'pulse')) return;
@@ -2621,7 +2627,7 @@ const SFX_PREVIEW: Record<string, () => void> = {
   buy: sfx.buy, sell: sfx.sell, smack: sfx.hit, crit: sfx.critHit, attack: sfx.attack, death: sfx.death, shield: sfx.shield, triple: sfx.triple, cast: sfx.cast, maxgold: sfx.maxGold, cardlanding: sfx.play, castspell: sfx.castSpell,
   discover: sfx.discover, discoverSelect: sfx.discoverSelect, taunt: sfx.taunt, reorder: sfx.reorder, deny: sfx.deny, freeze: sfx.freeze,
   unfreeze: sfx.unfreeze, pulse: sfx.pulse, triggerpulse: sfx.triggerPulse, triggerglow: sfx.triggerGlow, clickthock: sfx.clickThock, cardtouch: sfx.cardTouch, gemapply: sfx.gemApply, rubypower: sfx.rubyPower, divineshieldbreak: sfx.shieldBreak, rebornshatter: sfx.rebornShatter, rebornsummon: sfx.rebornSummon, skullburst: sfx.skullBurst, inspect: sfx.inspect, upgrade: sfx.upgrade, roll: sfx.roll,
-  uihover: sfx.uiHover, chatpop: sfx.chatPop,
+  uihover: sfx.uiHover, chatpop: sfx.chatPop, achievement: sfx.achievement,
   // Equipment — each preview plays the clip its fader actually governs.
   eqEquipClang: () => sfx.equipClang(),
   eqSelect: () => sfx.equipmentSelect(),

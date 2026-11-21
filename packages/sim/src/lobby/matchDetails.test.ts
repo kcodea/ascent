@@ -3,6 +3,7 @@ import type { BoardSnapshot } from '../snapshot';
 import { registerOpponents } from '../opponents';
 import { createRunLobby, driverFor, type RunLobby } from './runLobby';
 import { createPracticeBotLobby } from './practiceBots';
+import { STRENGTH_REF_VERSION, boardPctAtRound, windowStrengthOf, type StrengthHistogram } from './boardStrength';
 import {
   BUFF_ROW_CAP, MATCH_DETAILS_MAX_BYTES, MORE_BUFFS_SOURCE, buildMatchDetails, compactBuffs, matchDetailsBytes, matchEndRound, orderMatchSeats, parseMatchDetails, seatBoardRound,
   type MatchDetails, type MatchSeat,
@@ -67,6 +68,118 @@ describe('board strength, frozen into the record (R-LOBBY-09)', () => {
     const none = buildMatchDetails(lobby, input(8)).seats.find((s) => s.self)!;
     expect(none.strength).toBeUndefined();
     expect(none.roundStrength).toBeUndefined();
+  });
+});
+
+/** A histogram where round r's bucket holds raws 1..20, so a board's raw is (about) its percentile x 5. */
+const HIST: StrengthHistogram = Object.fromEntries(
+  Array.from({ length: 15 }, (_, i) => [String(i + 1), Array.from({ length: 20 }, (_, k) => ({ raw: k + 1, count: 1 }))]),
+);
+/** A scored board for `round`: raw = round + 3 (so each round ranks differently). */
+const scoredBoard = (round: number): BoardSnapshot => ({
+  ...board(3, round), poolScore: { ref: STRENGTH_REF_VERSION, raw: round + 3, wave: round },
+}) as BoardSnapshot;
+/** Serve `boardFor(round)` as the snapshot of every given seat's prepared boards, for the body of `fn`. */
+function withBoards(lobby: RunLobby, ids: string[], boardFor: (round: number) => BoardSnapshot | undefined, fn: () => void): void {
+  const restore: (() => void)[] = [];
+  for (const seat of lobby.seats.filter((s) => ids.includes(s.id))) {
+    const drv = driverFor(seat, lobby.setId)!;
+    const orig = drv.prepare;
+    drv.prepare = (r: number) => {
+      const snapshot = boardFor(r);
+      return snapshot ? { minions: snapshot.minions, tier: snapshot.tier, snapshot } as never : orig.call(drv, r);
+    };
+    restore.push(() => { drv.prepare = orig; });
+  }
+  try { fn(); } finally { for (const r of restore) r(); }
+}
+const expectedRounds = (n: number) => Array.from({ length: n }, (_, i) => ({ round: i + 1, value: boardPctAtRound(scoredBoard(i + 1), i + 1, HIST)! }));
+
+describe('Relevant Strength, frozen into the record (R-RESULTS-STRENGTH-WINDOW-01)', () => {
+  it("window stops at the opponent's elimination round", () => {
+    const lobby = lobbyAt(10, { s1: { round: 5, placement: 8 } }, { round: 10, placement: 5 });
+    withBoards(lobby, ['s1'], scoredBoard, () => {
+      const s1 = seatOf(buildMatchDetails(lobby, { ...input(5), strengthHistogram: HIST }), 's1');
+      expect(s1.roundStrength).toEqual(expectedRounds(5));
+      expect(s1.windowStrength).toBe(windowStrengthOf(expectedRounds(5), 5));
+    });
+  });
+
+  it('unscored seat shows run strength only', () => {
+    const lobby = lobbyAt(8, {}, { round: 8, placement: 8 });
+    const d = buildMatchDetails(lobby, { ...input(8), strengthHistogram: HIST });
+    const withRun = d.seats.find((s) => s.name === 'Rook')!;
+    for (const seat of d.seats.filter((x) => !x.self)) {
+      expect(seat.windowStrength, seat.name).toBeUndefined();
+      expect(seat.roundStrength, seat.name).toBeUndefined();
+    }
+    expect(withRun.strength).toBe(64); // Run Strength keeps its meaning
+  });
+
+  it('generated seats get none', () => {
+    const lobby = lobbyAt(8, {}, { round: 8, placement: 8 });
+    lobby.seats[2]!.kind = 'hybrid';
+    withBoards(lobby, ['s2'], scoredBoard, () => {
+      const s2 = seatOf(buildMatchDetails(lobby, { ...input(8), strengthHistogram: HIST }), 's2');
+      expect(s2.windowStrength).toBeUndefined();
+      expect(s2.roundStrength).toBeUndefined();
+    });
+  });
+
+  it('over the size budget, other seats shed their per-round strength first and keep Relevant Strength', () => {
+    const lobby = lobbyAt(12, {}, { round: 12, placement: 8 });
+    const ids = lobby.seats.filter((x) => x.id !== 's0').map((x) => x.id);
+    const fatBoard = (pad: number) => (round: number): BoardSnapshot => ({
+      ...scoredBoard(round), minions: Array.from({ length: 7 }, (_, i) => ({ cardId: 'pack' + String(i).repeat(pad), attack: 9, health: 9 })),
+    }) as BoardSnapshot;
+    const run = (pad: number, hist: boolean): MatchDetails => {
+      let d!: MatchDetails;
+      withBoards(lobby, ids, fatBoard(pad), () => { d = buildMatchDetails(lobby, hist ? { ...input(8), strengthHistogram: HIST } : input(8)); });
+      return d;
+    };
+    // Calibrate the padding so the record fits WITHOUT opponents' roundStrength but not WITH it.
+    const base = matchDetailsBytes(run(1, false));
+    const rsBytes = matchDetailsBytes(run(1, true)) - base;
+    expect(rsBytes).toBeGreaterThan(200);
+    const perPad = (matchDetailsBytes(run(11, false)) - base) / 10;
+    const pad = Math.floor(1 + (MATCH_DETAILS_MAX_BYTES - base - rsBytes / 2) / perPad);
+    const d = run(pad, true);
+    expect(matchDetailsBytes(d)).toBeLessThanOrEqual(MATCH_DETAILS_MAX_BYTES);
+    const rook = seatOf(d, 's1');
+    expect(rook.roundStrength).toBeUndefined();
+    expect(rook.windowStrength).toBeDefined();
+    expect(rook.board!.minions.length).toBe(7); // boards were not trimmed
+  });
+
+  it('your seat uses your own rounds', () => {
+    const lobby = lobbyAt(8, {}, { round: 8, placement: 8 });
+    const rounds = Array.from({ length: 8 }, (_, i) => ({ round: i + 1, value: 20 + i * 10 }));
+    const me = seatOf(buildMatchDetails(lobby, { ...input(8), selfStrength: { value: 57, rounds } }), 's0');
+    expect(me.windowStrength).toBe(windowStrengthOf(rounds, 8));
+    expect(me.strength).toBe(57);
+  });
+
+  it('the record round-trips', () => {
+    const lobby = lobbyAt(10, { s1: { round: 5, placement: 8 } }, { round: 10, placement: 5 });
+    withBoards(lobby, ['s1'], scoredBoard, () => {
+      const d = buildMatchDetails(lobby, { ...input(5), strengthHistogram: HIST });
+      expect(d.strengthWindow).toBe(1);
+      const back = parseMatchDetails(JSON.parse(JSON.stringify(d)))!;
+      expect(back).toEqual(d);
+      expect(seatOf(back, 's1').windowStrength).toBeDefined();
+      expect(seatOf(back, 's1').roundStrength).toHaveLength(5);
+    });
+    const old = parseMatchDetails({ v: 1, seats: [{ id: 's0', heroId: 'cia', strength: 60, board: null }] })!;
+    expect(old.strengthWindow).toBeUndefined();
+    expect(old.seats[0]!.windowStrength).toBeUndefined();
+    expect(old.seats[0]!.roundStrength).toBeUndefined();
+  });
+
+  it('fielded boards are read without side effects', () => {
+    const lobby = lobbyAt(10, { s1: { round: 5, placement: 8 } }, { round: 10, placement: 5 });
+    const a = buildMatchDetails(lobby, { ...input(5), strengthHistogram: HIST });
+    const b = buildMatchDetails(lobby, { ...input(5), strengthHistogram: HIST });
+    expect(b).toEqual(a);
   });
 });
 

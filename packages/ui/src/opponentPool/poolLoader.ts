@@ -76,7 +76,7 @@ export interface PoolFetch {
 
 /** Bump when the cached shape changes: a record of another version is ignored (so a pre-2026-09-29 per-wave
  *  cache, which could hold cut-down runs, is never read again). */
-export const POOL_CACHE_VERSION = 2;
+export const POOL_CACHE_VERSION = 3;
 
 /** The persisted last-good pool for ONE set: whole runs keyed by run key. */
 export interface CachedPool {

@@ -38,8 +38,9 @@ import { useGame } from '../store';
 import { heroArt } from '../art';
 import { skinArtOf } from '../skins/skins';
 import { MatchDetailsDialog, MatchScoreboard, seatTitle } from './MatchScoreboard';
+import { LobbyTiles } from './LobbyPicker';
 import { resetHallKeysForTests } from './hallKeys';
-import { GAME_STRENGTH_TIP, NO_DETAILS_TEXT, boardCaption, defaultSeatId, placeLabel, statusText, summaryText, youWon } from './matchDetailsText';
+import { RELEVANT_STRENGTH_TIP, RUN_STRENGTH_TIP, NO_DETAILS_TEXT, seatStrengthParts, headerStrengthFacts, boardCaption, defaultSeatId, placeLabel, statusText, summaryText, youWon } from './matchDetailsText';
 
 const seat = (over: Partial<MatchSeat> & { id: string }): MatchSeat => ({
   name: over.id, heroId: 'warden', health: 0, armor: 0, board: { round: 11, tier: 4, minions: [{ cardId: 'pack', attack: 3, health: 3 }] }, ...over,
@@ -132,16 +133,16 @@ describe('board strength in match details (R-LOBBY-09)', () => {
   it("prints each scored seat's strength and your rounds; an unscored seat shows nothing", () => {
     ui = mount(<MatchScoreboard details={STRONG} own />);
     const rows = [...ui.container.querySelectorAll('.mds-row')];
-    expect(rows.map((r) => r.querySelector('.mds-strength')?.textContent ?? null)).toEqual(['Game strength 81', 'Game strength 58', null]);
+    expect(rows.map((r) => r.querySelector('.mds-strength')?.textContent ?? null)).toEqual(['Run Strength 81', 'Run Strength 58', null]);
     // Opens on who knocked you out: their strength is on their row only (2026-10-16 polish: no duplicate line under the
     // board), and there are no rounds (those are yours only).
     expect(ui.container.querySelector('.mds-strength-panel')).toBeNull();
-    // The run's number is relabelled "Game strength" with the game's hover bubble (owner 2026-09-30), never title=.
-    expect(rows[0]!.querySelector('.mds-strength')?.getAttribute('data-tip')).toBe(GAME_STRENGTH_TIP);
+    // The run's number is "Run Strength" with the game's hover bubble, never title=.
+    expect(rows[0]!.querySelector('.mds-str-part.run')?.getAttribute('data-tip')).toBe(RUN_STRENGTH_TIP);
     expect(rows[0]!.querySelector('.mds-strength')?.getAttribute('title')).toBeNull();
     act(() => { (rows[1] as HTMLButtonElement).click(); });
     expect([...ui.container.querySelectorAll('.mds-strength-round')].map((e) => e.textContent)).toEqual(['R140', 'R276']);
-    expect(ui.container.querySelector('.mds-strength-panel .cv2-row-label')?.textContent).toBe('Game strength by round');
+    expect(ui.container.querySelector('.mds-strength-panel .cv2-row-label')?.textContent).toBe('Game strength by round'); // an older record (no strengthWindow) keeps its wording
     act(() => { (rows[2] as HTMLButtonElement).click(); });
     expect(ui.container.querySelector('.mds-strength-panel')).toBeNull();
     // No em dash anywhere in what it prints.
@@ -156,6 +157,81 @@ describe('board strength in match details (R-LOBBY-09)', () => {
     const bad = parseMatchDetails({ ...STRONG, seats: [{ ...STRONG.seats[0], strength: 400, roundStrength: [{ round: 'x', value: 5 }] }] })!;
     expect(bad.seats[0]!.strength).toBeUndefined();
     expect(bad.seats[0]!.roundStrength).toBeUndefined();
+  });
+});
+
+describe('Relevant Strength and Run Strength (R-RESULTS-STRENGTH-WINDOW-01)', () => {
+  let ui: Mounted | null = null;
+  afterEach(() => { ui?.unmount(); ui = null; });
+  const NEW: MatchDetails = {
+    v: 1, endRound: 6, placement: 3, eliminated: true, knockedOutBy: 's2', strengthWindow: 1,
+    seats: [
+      seat({ id: 's2', name: 'Orangez', strength: 40, windowStrength: 90, roundStrength: [{ round: 4, value: 88 }, { round: 5, value: 92 }] }),
+      seat({ id: 's0', name: 'Kev', self: true, placement: 3, eliminatedRound: 6, strength: 58, windowStrength: 61, roundStrength: [{ round: 1, value: 40 }] }),
+      seat({ id: 's5', name: 'Gen', placement: 8, eliminatedRound: 2, strength: 12 }),
+    ],
+  };
+  const OLD: MatchDetails = { ...NEW, strengthWindow: undefined, seats: NEW.seats.map((x) => ({ ...x, windowStrength: undefined })) };
+
+  it('the helper gives Relevant only on a new record with a scored seat', () => {
+    expect(seatStrengthParts(NEW.seats[0]!, NEW)).toEqual({ relevant: 90, run: 40 });
+    expect(seatStrengthParts(NEW.seats[2]!, NEW)).toEqual({ relevant: null, run: 12 });
+    expect(seatStrengthParts({ strength: 40, windowStrength: 90 }, {})).toEqual({ relevant: null, run: 40 });
+  });
+
+  it('headerStrengthFacts: Relevant then Run on a new scored record, Run only when the self seat is unscored', () => {
+    expect(headerStrengthFacts(NEW, 40).map((f) => [f.label, f.value])).toEqual([['Relevant Strength', 61], ['Run Strength', 40]]);
+    const unscored: MatchDetails = { ...NEW, seats: NEW.seats.map((x) => (x.self ? { ...x, windowStrength: undefined } : x)) };
+    expect(headerStrengthFacts(unscored, 40).map((f) => [f.label, f.value])).toEqual([['Run Strength', 40]]);
+    expect(headerStrengthFacts(OLD, 40).map((f) => f.label)).toEqual(['Run Strength']);
+  });
+
+  it('a seat shows both numbers, Relevant first (scoreboard row and tile hover text)', () => {
+    ui = mount(<MatchScoreboard details={NEW} own />);
+    const row = ui.container.querySelector('.mds-row[data-seat="s2"]')!;
+    expect(row.querySelector('.mds-strength')?.textContent).toMatch(/Relevant Strength 90\s+Run Strength 40/);
+    expect(row.querySelector('.mds-str-part.rel')?.getAttribute('data-tip')).toBe(RELEVANT_STRENGTH_TIP);
+    expect(row.getAttribute('aria-label')).toContain('Relevant Strength 90, Run Strength 40');
+    ui.unmount();
+    ui = mount(<LobbyTiles details={NEW} selectedId={null} onPick={() => {}} own />);
+    const tile = ui.container.querySelector('.lp-tile[data-seat="s2"]')!;
+    // Two stacked line elements, Relevant first, so neither can spill over the neighbouring tile.
+    const lines = [...tile.querySelectorAll('.lp-tile-strength > span')];
+    expect(lines.map((l) => l.textContent)).toEqual(['Relevant Strength 90', 'Run Strength 40']);
+    expect(lines.map((l) => l.className)).toEqual(['lp-ts-rel', 'lp-ts-run']);
+    expect(tile.getAttribute('aria-label')).toMatch(/Relevant Strength 90\. Run Strength 40\./);
+  });
+
+  it('an old record shows Run Strength only', () => {
+    ui = mount(<MatchScoreboard details={OLD} own />);
+    const row = ui.container.querySelector('.mds-row[data-seat="s2"]')!;
+    expect(row.querySelector('.mds-strength')?.textContent).toBe('Run Strength 40');
+    expect(ui.container.textContent).not.toContain('Relevant');
+    ui.unmount();
+    ui = mount(<LobbyTiles details={OLD} selectedId={null} onPick={() => {}} own />);
+    expect(ui.container.querySelector('.lp-tile[data-seat="s2"] .lp-tile-strength')?.textContent).toBe('Run Strength 40');
+  });
+
+  it('a new record, unscored seat shows Run Strength only', () => {
+    ui = mount(<MatchScoreboard details={NEW} own />);
+    const row = ui.container.querySelector('.mds-row[data-seat="s5"]')!;
+    expect(row.querySelector('.mds-strength')?.textContent).toBe('Run Strength 12');
+    expect(row.textContent).not.toContain('Relevant');
+  });
+
+  it("an opponent's strip renders, labelled Relevant Strength by round", () => {
+    ui = mount(<MatchScoreboard details={NEW} own />);
+    // Opens on s2, the seat that knocked you out: an opponent.
+    expect(ui.container.querySelector('.mds-strength-panel .cv2-row-label')?.textContent).toBe('Relevant Strength by round');
+    expect([...ui.container.querySelectorAll('.mds-strength-round')].map((e) => e.textContent)).toEqual(['R488', 'R592']);
+  });
+
+  it('no title attributes anywhere in the recap', () => {
+    ui = mount(<MatchScoreboard details={NEW} own />);
+    expect(ui.container.querySelectorAll('[title]')).toHaveLength(0);
+    ui.unmount();
+    ui = mount(<LobbyTiles details={NEW} selectedId={null} onPick={() => {}} own />);
+    expect(ui.container.querySelectorAll('[title]')).toHaveLength(0);
   });
 });
 
@@ -370,12 +446,12 @@ describe('the Career match card', () => {
     expect(ui!.container.querySelector('.lp-showing-v')?.textContent).toBe('Your board');
     // The seat that knocked you out wears the sword.
     expect(ui!.container.querySelector(`.lp-tile[data-seat="${LOSS.knockedOutBy}"] .lp-ko`)).not.toBeNull();
-    // R-LOBBY-TILE-STRENGTH-01: no tip bubble (and never a native title); a scored seat carries a "Game strength: X"
+    // R-LOBBY-TILE-STRENGTH-01: no tip bubble (and never a native title); a scored seat carries a "Run Strength X"
     // overlay that hover reveals over the darkened tile, an unscored seat carries none.
     expect(chips.every((c) => !c.getAttribute('data-tip') && !c.classList.contains('gtip') && !c.getAttribute('title'))).toBe(true);
     for (const seat of LOSS.seats) {
       const overlay = ui!.container.querySelector(`.gs-detail .lp-tile[data-seat="${seat.id}"] .lp-tile-strength`);
-      expect(overlay?.textContent ?? null).toBe(typeof seat.strength === 'number' ? `Game strength: ${seat.strength}` : null);
+      expect(overlay?.textContent ?? null).toBe(typeof seat.strength === 'number' ? `Run Strength ${seat.strength}` : null);
     }
     click(ui!.container.querySelector('.lp-tile[data-seat="s3"]'));
     expect(ui!.container.querySelector('.lp-tile[data-seat="s3"]')?.classList.contains('on')).toBe(true);

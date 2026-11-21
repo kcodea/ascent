@@ -7,7 +7,7 @@
  *  · `refs` on a grant-shaped kind (not a Cast / Transform / Steal / Destroy / Consume kind — those reference
  *    a card without granting it): the named card must arrive. Observed at `effects.<i>.refs` as the sorted
  *    distinct ids that arrived; a wrong card or none is a visible mismatch.
- *  · `count` with keys within {count, tier, tierOffset}: exactly `count` cards must arrive (of the ref when
+ *  · `count` with keys within {count, tier, tierOffset, maxTier}: exactly `count` cards must arrive (of the ref when
  *    one is named, else of anything). Observed at `effects.<i>.amount.plain.count`. When a branch states
  *    SEVERAL unnamed counts (Deep Chef: "a Tier 1, Tier 3 and Tier 5 minion" is three count-1 effects), the
  *    arrivals must equal their SUM and each effect is then observed at its own count.

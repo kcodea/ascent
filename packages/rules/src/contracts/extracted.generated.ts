@@ -22606,6 +22606,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
           "kind": "const",
           "plain": {
             "count": 1,
+            "maxTier": 6,
             "tierOffset": 1
           }
         }

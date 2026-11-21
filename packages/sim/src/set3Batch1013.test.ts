@@ -189,7 +189,7 @@ describe('runes tied to the cards that left set 3 (owner 2026-10-13: "archive th
   });
 });
 
-describe('Golden Monkey: Sell, Discover a minion from the Tier above yours (up to Tier 7)', () => {
+describe('Golden Monkey: Sell, Discover a minion from the Tier above yours (up to Tier 6)', () => {
   it('at Shop tier 3 it offers Tier 4 minions only', () => {
     const s = sell(run({ tier: 3, board: [body('g', 'n3_goldenmonkey')] }), 'g');
     expect(s.discover?.length).toBeGreaterThan(0);
@@ -197,11 +197,11 @@ describe('Golden Monkey: Sell, Discover a minion from the Tier above yours (up t
     expect(s.discoverGolden).toBeFalsy();
   });
 
-  it('at Shop tier 6 it offers Tier 7; at Tier 7 it stays at 7 (the cap)', () => {
-    for (const tier of [6, 7]) {
+  it('at Shop tier 5 it offers Tier 6; at Shop tier 6 it stays at 6, never Tier 7 (owner 2026-11-20, R-INDY-02)', () => {
+    for (const tier of [5, 6]) {
       const s = sell(run({ tier, board: [body('g', 'n3_goldenmonkey')] }), 'g');
       expect(s.discover?.length, `tier ${tier}`).toBeGreaterThan(0);
-      for (const id of s.discover!) expect(CARD_INDEX[id]!.tier, id).toBe(7);
+      for (const id of s.discover!) expect(CARD_INDEX[id]!.tier, id).toBe(6);
     }
   });
 
@@ -210,9 +210,10 @@ describe('Golden Monkey: Sell, Discover a minion from the Tier above yours (up t
     expect(s.discoverGolden).toBe(true);
   });
 
-  it('live text names the Tier it will offer right now, capped at 7', () => {
+  it('live text names the Tier it will offer right now, capped at 6', () => {
     expect(sellDiscoverTierText('n3_goldenmonkey', false, 3)).toBe('**Taunt. Sell:** Discover a minion from the Tier above yours {{(Tier 4)}}.');
-    expect(sellDiscoverTierText('n3_goldenmonkey', true, 7)).toContain('{{(Tier 7)}}');
+    expect(sellDiscoverTierText('n3_goldenmonkey', true, 6)).toBe('**Taunt. Sell:** Discover a **gilded** minion from the Tier above yours {{(Tier 6)}}.');
+    expect(CARD_INDEX.n3_goldenmonkey!.text).toContain('(up to Tier 6)');
     expect(sellDiscoverTierText('salvatore', false, 3), 'only the tier-offset Sell').toBeNull();
   });
 });

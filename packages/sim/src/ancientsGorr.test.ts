@@ -118,6 +118,14 @@ describe('Gorr × FORTUNE: "The first minion you buy each turn is free."', () =>
     s = reduce(fightNow({ ...s, hand: [] }, 0, 1), { type: 'resolveCombat' });
     expect(offerBuyPrice({ ...s, shop: [offer('o', N(2))] }, offer('o', N(2))).cost).toBe(0);
   });
+  it('picked MID-TURN after a minion buy: the next minion is still free (R-ANCFIX-11)', () => {
+    let s = enableAncients(base({ wave: 3 }));
+    s = buy(s, N(0));
+    s = { ...s, ancients: { ...s.ancients!, points: s.ancients!.cost, offer: ['fortune', ...ANCIENT_IDS.filter((a) => a !== 'fortune').slice(0, 2)] } };
+    s = reduce(s, { type: 'pickAncient', id: 'fortune' });
+    expect(heroPowerText(s)).toContain('Ready this turn.');
+    expect(offerBuyPrice({ ...s, shop: [offer('o', N(1))] }, offer('o', N(1))).cost).toBe(0);
+  });
   it('a spell bought first is not "a minion": the next minion is still free', () => {
     let s = picked('fortune', { wave: 3 });
     const gold = s.embers;
@@ -161,6 +169,25 @@ describe('Gorr × GENESIS: "get a second copy of the first minion you buy each t
     expect(heroPowerText(s)).toContain('Used this turn.');
     s = buy(s, N(1), 'o2');
     expect(count(s, N(1))).toBe(1);
+  });
+  it('picked MID-TURN after 2 minion buys: the next buy is "the first" (not already spent); Four Peat keeps its own count (R-ANCFIX-11)', () => {
+    // Owner 2026-11-20: "getting this ancient should start/trigger on the next buy if this happens mid round, and not already be spent."
+    let s = enableAncients(base({ wave: 3 }));
+    s = buyAll(s, [N(0), N(1)]); // bought BEFORE the Ancient exists
+    s = { ...s, ancients: { ...s.ancients!, points: s.ancients!.cost, offer: ['genesis', ...ANCIENT_IDS.filter((a) => a !== 'genesis').slice(0, 2)] } };
+    s = reduce(s, { type: 'pickAncient', id: 'genesis' });
+    expect(heroPowerText(s), 'the badge agrees with the engine').toContain('Ready this turn.');
+    s = { ...s, hand: [] };
+    s = buy(s, N(2), 'o2');
+    // N(2) twice from Genesis, plus Four Peat's 3rd-buy copy (one of N(0..2)): Gorr's own power counted the earlier buys.
+    expect(count(s, N(2)), 'Genesis copy on the first buy after the pick').toBeGreaterThanOrEqual(2);
+    expect(s.hand.length, 'the buy + the Genesis copy + the Four Peat copy').toBe(3);
+    expect(heroPowerText(s)).toContain('Used this turn.');
+    s = buy({ ...s, hand: [] }, N(3), 'o3');
+    expect(count(s, N(3)), 'only once a turn').toBe(1);
+    s = reduce(fightNow({ ...s, hand: [] }, 0, 1), { type: 'resolveCombat' });
+    s = buy({ ...s, hand: [] }, N(4), 'o4');
+    expect(count(s, N(4)), 'the next turn counts from its start as normal').toBe(2);
   });
   it('a spell first does not use it up', () => {
     let s = buy(picked('genesis', { wave: 3 }), SPELLS[0]!);

@@ -161,9 +161,9 @@ export const SET3_NEUTRAL: readonly CardDef[] = [
   },
   {
     // Owner Set 3 batch 2026-10-13. Indy's TOKEN: never drawn (`token: true`), only added to the Shop by Indy. Sell:
-    // Discover a minion from the tier ABOVE your current Shop tier, capped at Tier 7 (owner: "one above your current
-    // Shop tier, capped at 7"); a fixed-tier offer like Salvatore's (`onSellDiscover`, `tierOffset`). Gilded: the
-    // offered minions are gilded.
+    // Discover a minion from the tier ABOVE your current Shop tier, capped at Tier 6 (owner 2026-11-20: "golden monkey
+    // should not go up to t7 anymore, only t6"; was capped at 7), so at Shop Tier 6 it offers Tier 6. A fixed-tier
+    // offer like Salvatore's (`onSellDiscover`, `tierOffset`, `maxTier`). Gilded: the offered minions are gilded.
     id: 'n3_goldenmonkey',
     name: 'Golden Monkey',
     tribe: 'neutral',
@@ -172,9 +172,9 @@ export const SET3_NEUTRAL: readonly CardDef[] = [
     health: 6,
     keywords: ['T'],
     token: true,
-    effects: [{ on: 'onSell', do: 'onSellDiscover', params: { tierOffset: 1, count: 1 } }],
-    text: '**Taunt. Sell:** Discover a minion from the Tier above yours (up to Tier 7).',
-    goldenText: '**Taunt. Sell:** Discover a **gilded** minion from the Tier above yours (up to Tier 7).',
+    effects: [{ on: 'onSell', do: 'onSellDiscover', params: { tierOffset: 1, maxTier: 6, count: 1 } }],
+    text: '**Taunt. Sell:** Discover a minion from the Tier above yours (up to Tier 6).',
+    goldenText: '**Taunt. Sell:** Discover a **gilded** minion from the Tier above yours (up to Tier 6).',
   },
   {
     // Owner Set 3 batch 2026-10-13. A PASSIVE marker (never dispatched): while this is on your board, EVERY Equipment

@@ -1331,8 +1331,8 @@ export const TRIGGERS_RULES: GameRule[] = [
       + 'at the start of a turn and refreshes made by runes, spells or hero powers do not count. The tally runs from when '
       + 'that copy arrived and pays on every 5th roll: 5, 10, 15. Gilded adds 2. The Shop never grows: a short row takes the Monkey in a '
       + 'free slot, a full row swaps out its right-most minion (never the Starform, a spell or another Golden Monkey). '
-      + 'The Golden Monkey is a 6/6 Taunt token: "Sell: Discover a minion from the Tier above yours (up to Tier 7)." The '
-      + 'offer is exactly your Shop tier + 1, capped at 7; gilded offers gilded minions.',
+      + 'The Golden Monkey is a 6/6 Taunt token: "Sell: Discover a minion from the Tier above yours (up to Tier 6)." The '
+      + 'offer is exactly your Shop tier + 1, capped at 6 (R-INDY-02); gilded offers gilded minions.',
     domain: 'triggers',
     status: 'approved',
     evidence: [
@@ -1342,8 +1342,25 @@ export const TRIGGERS_RULES: GameRule[] = [
       { kind: 'code', ref: 'packages/sim/src/recruit.ts onShopRefreshAddToShop + addCardToShop + onSellDiscover (tierOffset); packages/content/src/cards/set3/neutral.ts n3_indy + n3_goldenmonkey; packages/ui/src/cardText.ts sellDiscoverTierText' },
     ],
     contentIds: ['n3_indy', 'n3_goldenmonkey'],
-    currentBehaviour: 'Conforms as of 2026-10-13. Only the reducer roll action carries playerRoll on the shopRefreshed dispatch. Lead call, not an owner ruling: free rerolls count (they are the player pressing Refresh). The tally is cumulative per copy, not per turn. The countdown rides the board badge (owner-approved), not the text. Golden Monkey offering Tier 7 at Shop tier 6 without Tier 7 access is approved for now.',
+    currentBehaviour: 'Conforms as of 2026-10-13. Only the reducer roll action carries playerRoll on the shopRefreshed dispatch. Lead call, not an owner ruling: free rerolls count (they are the player pressing Refresh). The tally is cumulative per copy, not per turn. The countdown rides the board badge (owner-approved), not the text. The Golden Monkey cap moved from 7 to 6 on 2026-11-20 (R-INDY-02).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3Batch1013.test.ts'], lastVerifiedAt: '2026-10-13' },
+  },
+  {
+    id: 'R-INDY-02',
+    title: 'The Golden Monkey Discovers from the Tier above yours, up to Tier 6 (never Tier 7)',
+    statement:
+      'Golden Monkey: "Sell: Discover a minion from the Tier above yours (up to Tier 6)." The offer is exactly your Shop tier + 1, '
+      + 'capped at Tier 6, so at Shop Tier 6 it offers Tier 6 minions. The cap is the card\'s own (`onSellDiscover` `maxTier: 6`); '
+      + 'other `onSellDiscover` cards are unchanged (the default cap stays 7). The live text names the tier it will offer, capped the same way.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ask 2026-11-20 (Golden Monkey)', quote: 'golden monkey should not go up to t7 anymore, only t6' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts onSellDiscover (maxTier); packages/content/src/cards/set3/neutral.ts n3_goldenmonkey; packages/ui/src/cardText.ts sellDiscoverTierText' },
+    ],
+    contentIds: ['n3_goldenmonkey'],
+    currentBehaviour: 'Conforms as of 2026-11-20. Supersedes the "capped at 7" part of R-INDY-01.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3Batch1013.test.ts'], lastVerifiedAt: '2026-11-20' },
   },
   {
     id: 'R-AGNUS-01',

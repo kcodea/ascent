@@ -2887,6 +2887,24 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/progression/CollectionPreviews.test.tsx', 'packages/ui/src/progression/CollectionSkins.test.tsx'], lastVerifiedAt: '2026-09-30' },
   },
   {
+    id: 'R-ACH-DISCOUNT-BUY-01',
+    title: 'A "discounted" buy is one below your OWN standard minion price, so a cheap-minion hero does not earn it by default',
+    statement:
+      'Deal Hunter (30 in one game) and Coupon Clipper (250 across games) count discounted minion buys. A buy counts only '
+      + 'when it costs less than your own standard price for that minion: the hero or run flat price (the Tradesman flat 2 Gold, '
+      + 'the Foreman Flint 2-Gold Dwarves, a Merchant Mark price), else 3 Gold. A real discount on top (a rune, a gift, '
+      + 'an Ancient pairing, a free buy) counts; the flat price alone never does.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin, 2026-11-20', quote: 'deal hunter needs to be discounted cards, or else tradesman will get it by default' },
+      { kind: 'code', ref: 'packages/sim/src/achievementMetrics.ts (discountBuys)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-20 (fix/deal-hunter-discounts). Before, any buy under 3 Gold counted, so every Tradesman buy did.',
+    example: 'Tradesman buys a minion for 2 Gold: no count. Tradesman buys one for 1 Gold with a discount: counts.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/achievementMetrics.test.ts'], lastVerifiedAt: '2026-11-20' },
+  },
+  {
     id: 'R-ACH-TOAST-01',
     title: 'An achievement completed mid-game ducks in from the left the moment it happens; the rest duck in when the game settles; each once',
     statement:

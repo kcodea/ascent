@@ -49,8 +49,9 @@ describe('the Secret rarity and the plate', () => {
     expect(atOrAbove('secret', 'common')).toBe(false);
   });
 
-  it('the plate is the only Secret item: a card plate, achievement-only, never in a crate', () => {
-    expect(COSMETICS.filter((c) => c.rarity === 'secret').map((c) => c.id)).toEqual([PLUSHIE_PLATE_ID]);
+  it('the plate is the only Secret item besides the secret titles (2026-11-20): a card plate, achievement-only, never in a crate', () => {
+    expect(COSMETICS.filter((c) => c.rarity === 'secret' && !c.id.startsWith('title_secret_')).map((c) => c.id)).toEqual([PLUSHIE_PLATE_ID]);
+    expect(COSMETICS.filter((c) => c.rarity === 'secret').every((c) => c.acquisition.type === 'achievement')).toBe(true);
     expect(cosmeticOf(PLUSHIE_PLATE_ID)).toMatchObject({
       category: 'card_plate', name: 'Plushie', acquisition: { type: 'achievement', id: PLUSHIE_BEASTS_COLLECTION_ID }, assets: { art: PLUSHIE_PLATE_ID, master: 'Plushie Plate.png' },
     });

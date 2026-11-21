@@ -12,7 +12,7 @@
  * So batch 1 ships ONLY achievements whose reward is XP: the set-agnostic Career / Ranked / Hero / Economy and Build
  * / Mechanics / Runes families and the Set 2 tribe feats. Titles are out for now (every def carries
  * `rewards.titleId: null`, the slot a title fills later with no migration). The framework supports `hidden: true`
- * (the Career tab blurs it as "Hidden") but no hidden entry ships yet.
+ * (the Career tab blurs it as "Hidden"). The first hidden ones are the SECRET TITLES (owner 2026-11-20, `SECRET_ACHIEVEMENTS`).
  *
  * THE MODEL. Every achievement reads ONE metric from the settlement and compares it with a target:
  *   - `agg: 'max'`: progress = max(progress, this game's value). A one-game feat ("8 Rubies in one turn") or an
@@ -37,7 +37,7 @@
  * supabase/functions/_shared/progressionAchievements.ts by `npm run progression:shared`.
  */
 import type { ProgressionMode } from './progressionRules.ts';
-import { PLUSHIE_BEASTS_COLLECTION_ID, PLUSHIE_PLATE_ID, collectionMembers, heroMasterTitleId, heroTitleId } from './progressionCosmetics.ts';
+import { FIRSTS_100_TITLE_ID, PLUSHIE_BEASTS_COLLECTION_ID, PLUSHIE_PLATE_ID, SECRET_TITLE_NAMES, collectionMembers, heroMasterTitleId, heroTitleId, secretAchievementId, secretTitleId } from './progressionCosmetics.ts';
 
 // ── Metrics ──────────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -134,6 +134,76 @@ export const RUN_METRICS = {
   enemyKillsCombatMax: { cap: 1_000, doc: 'Most enemy minions destroyed in one combat.' },
   enemyKills: { cap: 100_000, doc: 'Enemy minions destroyed this game.' },
   brink: { cap: 1, doc: '1 when your Health fell to 5 or less (and above 0) this game.' },
+  // SECRET TITLES (owner 2026-11-20): the run metrics behind the hidden feats (SECRET below). Same trust (O).
+  dwarfPlays: { cap: 10_000, doc: 'Dwarf minions played from hand this game.' },
+  dragonPlays: { cap: 10_000, doc: 'Dragon minions played from hand this game.' },
+  koboldPlays: { cap: 10_000, doc: 'Kobold minions played from hand this game.' },
+  impSummons: { cap: 100_000, doc: 'Imps summoned in combat this game.' },
+  spiritFullRounds: { cap: 100, doc: 'Different rounds with 7 Spirits on the board at once.' },
+  undeadRises: { cap: 100_000, doc: 'Friendly Undead Rises in combat this game.' },
+  starformAttackMax: { cap: 10_000_000, doc: 'Highest Attack a Starform reached in the Shop.' },
+  finalBeastPack: { cap: 7, doc: 'Different Beasts on the final board when every minion on it is a Beast (0 otherwise).' },
+  finalTribesSpread: { cap: 20, doc: 'Final-board tribes when no tribe has more than 2 minions (0 otherwise).' },
+  noRefreshGame: { cap: 1, doc: '1 when the game had 5+ combats and no Shop refresh.' },
+  goldTurnStartMax: { cap: 10_000, doc: 'Most Gold held at the start of a turn.' },
+  lowTierGame: { cap: 1, doc: '1 when the game had 5+ combats and Shop Tier never went past 3.' },
+  tierSixByRound6: { cap: 1, doc: '1 when Shop Tier 6 was reached by round 6.' },
+  lateTierSix: { cap: 1, doc: '1 when Shop Tier 6 was first reached on round 13 or later.' },
+  zeroGoldStreakMax: { cap: 100, doc: 'Most turns in a row ended with exactly 0 Gold.' },
+  discountBuys: { cap: 10_000, doc: 'Shop minions bought for less than the standard 3 Gold this game.' },
+  lastStandOneHp: { cap: 1, doc: '1 when a combat was won with 1 friendly minion left, on exactly 1 Health.' },
+  comebackOneVsSeven: { cap: 1, doc: '1 when a combat was won after being down to 1 minion against 7.' },
+  hitDamageMax: { cap: 10_000_000, doc: 'Most damage one friendly hit dealt to an enemy minion.' },
+  glassCannonWin: { cap: 1, doc: '1 when a combat was won that began with 4+ friendly minions, every one at 1 Health.' },
+  echoTriggersCombatMax: { cap: 100_000, doc: 'Most friendly Echo triggers in one combat (every Echo multiplier counted).' },
+  ralliesCombatMax: { cap: 100_000, doc: 'Most friendly Rally triggers in one combat (every Rally doubler counted).' },
+  attacksSurvivedMax: { cap: 10_000, doc: 'Most attacks one friendly minion was hit by and lived through in one combat.' },
+  oneHealthRounds: { cap: 100, doc: 'Lobby rounds you ended alive on exactly 1 Health and no Armor.' },
+  perfectRecord: { cap: 1, doc: '1 when the game had 5+ combats and every one was won.' },
+  fullHealthFinish: { cap: 1, doc: '1 when the game ended with your Health still at its starting value (Armor may be gone).' },
+  leaderKnockout: { cap: 1, doc: '1 when your fight knocked out the seat with the most Health plus Armor at the table.' },
+  knockoutStreakMax: { cap: 100, doc: 'Most lobby rounds in a row in which your fight knocked out a player.' },
+  lastAtRound10: { cap: 1, doc: '1 when you had the least Health plus Armor at the table after round 10.' },
+  exactLethalFinish: { cap: 1, doc: '1 when your last fight of the game knocked out its opponent with exactly lethal damage.' },
+  combatDraws: { cap: 100, doc: 'Combats tied this game.' },
+  minionStatsMinMax: { cap: 10_000_000, doc: 'Largest minion on the board (the lower of its Attack and Health).' },
+  buffsOnOneMax: { cap: 100_000, doc: 'Most separate permanent buffs one minion carried.' },
+  finalSameCardMax: { cap: 7, doc: 'Most copies of one minion on the final board.' },
+  finalTierOneOnly: { cap: 7, doc: 'Minions on the final board when every one is a Tier 1 minion (0 otherwise).' },
+  emptyBoardWin: { cap: 1, doc: '1 when a combat was won that began with no friendly minions.' },
+  pacifistWin: { cap: 1, doc: '1 when a combat against minions was won with no friendly minion attacking.' },
+  fullHandFrom5: { cap: 1, doc: '1 when every turn from round 5 to the end (5+ turns) ended with a full hand.' },
+  // SECRET TITLES, tribe batch (owner 2026-11-20: "add 5 more titles per tribe").
+  dwarfGildedMax: { cap: 7, doc: 'Most Gilded Dwarves on the board at once.' },
+  demonGildedMax: { cap: 7, doc: 'Most Gilded Demons on the board at once.' },
+  spiritGildedMax: { cap: 7, doc: 'Most Gilded Spirits on the board at once.' },
+  dragonGildedMax: { cap: 7, doc: 'Most Gilded Dragons on the board at once.' },
+  beastGildedMax: { cap: 7, doc: 'Most Gilded Beasts on the board at once.' },
+  undeadGildedMax: { cap: 7, doc: 'Most Gilded Undead on the board at once.' },
+  koboldGildedMax: { cap: 7, doc: 'Most Gilded Kobolds on the board at once.' },
+  celestialGildedMax: { cap: 7, doc: 'Most Gilded Celestials on the board at once.' },
+  demonAttackMax: { cap: 10_000_000, doc: 'Highest Attack of a Demon on the board.' },
+  koboldAttackMax: { cap: 10_000_000, doc: 'Highest Attack of a Kobold on the board.' },
+  dragonAttackMax: { cap: 10_000_000, doc: 'Highest Attack of a Dragon on the board.' },
+  undeadAttackMax: { cap: 10_000_000, doc: 'Highest Attack of an Undead on the board.' },
+  spiritAttackMax: { cap: 10_000_000, doc: 'Highest Attack of a Spirit on the board.' },
+  celestialAttackMax: { cap: 10_000_000, doc: 'Highest Attack of a Celestial on the board.' },
+  spiritPlays: { cap: 10_000, doc: 'Spirit minions played from hand this game.' },
+  celestialPlays: { cap: 10_000, doc: 'Celestial minions played from hand this game.' },
+  dwarfHallSpendTurnMax: { cap: 10_000, doc: 'Most Gold spent in one turn while 5+ Dwarves were on the board.' },
+  celestialSpellsTurnMax: { cap: 10_000, doc: 'Most Shop spells cast in one turn while 3+ Celestials were on the board.' },
+  kobebesMax: { cap: 7, doc: 'Most Kobebes on the board at once.' },
+  revelerSells: { cap: 10_000, doc: 'Revelers sold this game.' },
+  combatGoldMax: { cap: 10_000, doc: 'Most Gold banked for next turn during one combat (the bonusGold log).' },
+  demonDamageCombatMax: { cap: 10_000_000, doc: 'Most damage friendly Demons dealt to enemy minions in one combat.' },
+  undeadRisesCombatMax: { cap: 10_000, doc: 'Most friendly Undead Rises in one combat.' },
+  skeletonSummonsCombatMax: { cap: 10_000, doc: 'Most Skeletons summoned in one combat.' },
+  handSummonsCombatMax: { cap: 10_000, doc: 'Most minions summoned from your hand in one combat.' },
+  // SECRET TITLES v2 (owner 2026-11-20): the new bars that no metric covered.
+  dwarfDamage: { cap: 100_000_000, doc: 'Damage friendly Dwarves dealt to enemy minions in combat this game.' },
+  undeadFullRounds: { cap: 100, doc: 'Different rounds with 7 Undead on the board at once.' },
+  spellBuffs: { cap: 1_000_000, doc: 'Spell stat buffs that landed on your minions this game (Shop and combat; each minion a buff lands on counts 1).' },
+  frontToBackMin: { cap: 10_000_000, doc: 'Front to Back escalation reached (the lower of its Attack and Health bonus).' },
 } as const satisfies Record<string, { cap: number; doc: string }>;
 
 export type RunMetric = keyof typeof RUN_METRICS;
@@ -192,11 +262,11 @@ export function sanitizeRunMetrics(v: unknown): Partial<Record<RunMetric, number
 
 // ── Definitions ──────────────────────────────────────────────────────────────────────────────────────────────
 
-export const ACHIEVEMENT_CATEGORIES = ['career', 'ranked', 'heroes', 'economy', 'mechanics', 'runes', 'set2', 'combat', 'milestones', 'collection'] as const;
+export const ACHIEVEMENT_CATEGORIES = ['career', 'ranked', 'heroes', 'economy', 'mechanics', 'runes', 'set2', 'combat', 'milestones', 'collection', 'secret'] as const;
 export type AchievementCategory = typeof ACHIEVEMENT_CATEGORIES[number];
 export const ACHIEVEMENT_CATEGORY_LABELS: Readonly<Record<AchievementCategory, string>> = Object.freeze({
   career: 'Career', ranked: 'Ranked', heroes: 'Heroes', economy: 'Economy and Build', mechanics: 'Mechanics', runes: 'Runes', set2: 'Set 2',
-  combat: 'Combat', milestones: 'Milestones', collection: 'Collection',
+  combat: 'Combat', milestones: 'Milestones', collection: 'Collection', secret: 'Secrets',
 });
 
 /** Sub-groups (the Set 2 tribes; the others use one group). */
@@ -612,6 +682,8 @@ const MILESTONES: AchievementDef[] = [
   })),
   ...([[50, 'Champion', 500], [100, 'Warlord', 900], [250, 'Undying Legend', 1500]] as const).map(([n, name, xp]) => ms({
     id: `career.firsts.${n}`, family: 'career.firsts', name, requirement: `Finish 1st in ${n0(n)} Ranked games.`, mode: 'ranked', metric: 'game', agg: 'sum', placementMax: 1, target: n, xp, trust: 'S',
+    // Owner 2026-11-20: "add a title for 100 wins called Ascenteerianologist". A visible title reward on Warlord.
+    ...(n === 100 ? { titleId: FIRSTS_100_TITLE_ID } : {}),
   })),
   ...([[5000, 'Big Spender', 200], [25000, 'Tycoon', 500], [100000, 'Golden Age', 1000]] as const).map(([n, name, xp]) => ms({
     id: `economy.spend_lifetime_${n}`, family: 'economy.spend_lifetime', name, requirement: `Spend ${n0(n)} Gold across all your games.`, mode: 'any', metric: 'goldSpent', agg: 'sum', target: n, xp,
@@ -657,11 +729,138 @@ const COLLECTION: AchievementDef[] = [
   }),
 ];
 
+/**
+ * SECRET TITLES (owner 2026-11-20: "50 new SECRET titles, each earned by an in-game feat ... they should all be tied to
+ * hidden achievements, so unlocking them grants xp too and it's easier to track in game"; then "add 5 more titles per
+ * tribe"; then the v2 pass with new names, higher bars and a Spell trio). Each is ONE hidden achievement (the Secrets
+ * category, a blurred "Hidden" tile until earned) that pays XP and grants its own Secret-rarity title
+ * (`SECRET_TITLE_NAMES` in cosmetics.ts holds the names; the title id is `title_secret_<key>`, the achievement id
+ * `secret.<key>`, both permanent). Every one reads a RUN metric the observer counts (packages/sim achievementMetrics.ts).
+ * Two of the owner's first 50 are not built (no reliable signal yet): Avenger (Avenge triggers are not logged) and
+ * Indecisive (no Discover reroll action exists, and a hero select allows one reroll).
+ * Gates follow the existing feats: "win the game" = 1st in Ranked; a Top 4 / final 2 finish counts any eligible game.
+ * Display order is the theme order of `SECRET_TITLE_NAMES` (tribes, Spell, Coin, Steel, Royal, Jester).
+ */
+interface SecretFeat { key: string; requirement: string; metric: RunMetric; target: number; xp: number; mode?: AchievementMode; placementMax?: number }
+const SECRET_FEATS: readonly SecretFeat[] = [
+  // Dwarf
+  { key: 'king_brills_jester', requirement: 'Play 80 Dwarves in one game.', metric: 'dwarfPlays', target: 80, xp: 400 },
+  { key: 'bling_beard', requirement: 'Have 7 Gilded Dwarves on your board at once.', metric: 'dwarfGildedMax', target: 7, xp: 500 },
+  { key: 'drunken_hero', requirement: 'Cast 75 Dwarven Ales in one game.', metric: 'alesCast', target: 75, xp: 550 },
+  { key: 'effin_rich', requirement: 'Spend 150 Gold in one turn with 5 or more Dwarves on your board.', metric: 'dwarfHallSpendTurnMax', target: 150, xp: 500 },
+  { key: 'the_paymaster', requirement: 'Bank 25 Gold for next turn during one combat.', metric: 'combatGoldMax', target: 25, xp: 550 },
+  { key: 'dwarven', requirement: 'Have your Dwarves deal 10,000 damage in one game.', metric: 'dwarfDamage', target: 10_000, xp: 500 },
+  // Demon
+  { key: 'imp_lord', requirement: 'Summon 100 Imps in combat in one game.', metric: 'impSummons', target: 100, xp: 500 },
+  { key: 'hungry_hippo', requirement: 'Consume 80 Shop minions in one game.', metric: 'consumes', target: 80, xp: 500 },
+  { key: 'gilded_horns', requirement: 'Have 7 Gilded Demons on your board at once.', metric: 'demonGildedMax', target: 7, xp: 500 },
+  { key: 'big_red', requirement: 'Have a Demon with 1,000 Attack on your board.', metric: 'demonAttackMax', target: 1_000, xp: 500 },
+  { key: 'all_you_can_eat', requirement: 'Consume 12 Shop minions in one turn.', metric: 'consumesTurnMax', target: 12, xp: 550 },
+  { key: 'swarm_season', requirement: 'Summon 25 Imps in one combat.', metric: 'impSummonsCombatMax', target: 25, xp: 600 },
+  { key: 'hellfire', requirement: 'Have your Demons deal 5,000 damage to enemy minions in one combat.', metric: 'demonDamageCombatMax', target: 5_000, xp: 500 },
+  // Spirit
+  { key: 'ghost_town', requirement: 'Have 7 Spirits on your board at once in 5 different rounds of one game.', metric: 'spiritFullRounds', target: 5, xp: 450 },
+  { key: 'gilded_ghost', requirement: 'Have 7 Gilded Spirits on your board at once.', metric: 'spiritGildedMax', target: 7, xp: 500 },
+  { key: 'party_animal', requirement: 'Sell 25 Revelers in one game.', metric: 'revelerSells', target: 25, xp: 500 },
+  { key: 'hand_me_downs', requirement: 'Summon 15 minions from your hand in one combat.', metric: 'handSummonsCombatMax', target: 15, xp: 550 },
+  { key: 'spirit_guide', requirement: 'Play 60 Spirits in one game.', metric: 'spiritPlays', target: 60, xp: 450 },
+  { key: 'poltergeist', requirement: 'Have a Spirit with 1,000 Attack on your board.', metric: 'spiritAttackMax', target: 1_000, xp: 450 },
+  // Dragon
+  { key: 'dragon_rider', requirement: 'Play 75 Dragons in one game.', metric: 'dragonPlays', target: 75, xp: 500 },
+  { key: 'nest_egg', requirement: 'Start a turn with 50 Gold.', metric: 'goldTurnStartMax', target: 50, xp: 500 },
+  { key: 'gilded_scales', requirement: 'Have 7 Gilded Dragons on your board at once.', metric: 'dragonGildedMax', target: 7, xp: 500 },
+  { key: 'loudmouth', requirement: 'Trigger 30 Shouts in one turn with 3 or more Dragons on your board.', metric: 'dragonShoutsTurnMax', target: 30, xp: 550 },
+  { key: 'big_brain', requirement: 'Raise your spell power to +40 Attack or +40 Health.', metric: 'spellPower', target: 40, xp: 750 },
+  { key: 'flamethrower', requirement: 'In combat, have one Dragonflame give a minion +500/+500 or more.', metric: 'dragonflameMax', target: 500, xp: 700 },
+  { key: 'big_lizard', requirement: 'Have a Dragon with 1,000 Attack on your board.', metric: 'dragonAttackMax', target: 1_000, xp: 450 },
+  // Beast
+  { key: 'zookeeper', requirement: 'Finish 1st in Ranked with 7 different Beasts and nothing else on your final board.', metric: 'finalBeastPack', target: 7, xp: 600, mode: 'ranked', placementMax: 1 },
+  { key: 'fat_cats', requirement: 'Have 7 Gilded Beasts on your board at once.', metric: 'beastGildedMax', target: 7, xp: 500 },
+  { key: 'king_of_the_jungle', requirement: 'With King Oona on your board, summon a Beast with 2,000 or more total Attack and Health in combat.', metric: 'oonaBeastSummonMax', target: 2_000, xp: 700 },
+  { key: 'call_of_the_wild', requirement: 'Trigger 30 Beast Echoes in one combat.', metric: 'beastEchoesCombatMax', target: 30, xp: 600 },
+  { key: 'let_the_dogs_out', requirement: 'Summon 20 Beasts in one combat.', metric: 'beastSummonsCombatMax', target: 20, xp: 500 },
+  { key: 'apex_predator', requirement: 'Destroy 10 enemy minions with Execute in one combat.', metric: 'executeKillsCombatMax', target: 10, xp: 550 },
+  // Undead
+  { key: 'back_again', requirement: 'Have your Undead Rise 60 times in combat in one game.', metric: 'undeadRises', target: 60, xp: 500 },
+  { key: 'bling_bones', requirement: 'Have 7 Gilded Undead on your board at once.', metric: 'undeadGildedMax', target: 7, xp: 500 },
+  { key: 'wont_stay_dead', requirement: 'Have your Undead Rise 15 times in one combat.', metric: 'undeadRisesCombatMax', target: 15, xp: 550 },
+  { key: 'skeleton_crew', requirement: 'Summon 25 Skeletons in one combat.', metric: 'skeletonSummonsCombatMax', target: 25, xp: 500 },
+  { key: 'grim_reaper', requirement: 'Have an Undead with 1,000 Attack on your board.', metric: 'undeadAttackMax', target: 1_000, xp: 450 },
+  { key: 'graveyard_shift', requirement: 'Have 7 Undead on your board at once in 5 different rounds of one game.', metric: 'undeadFullRounds', target: 5, xp: 450 },
+  // Kobold
+  { key: 'tunnel_rat', requirement: 'Play 80 Kobolds in one game.', metric: 'koboldPlays', target: 80, xp: 400 },
+  { key: 'ruby_rich', requirement: 'Play 150 Rubies in one game.', metric: 'rubyPlays', target: 150, xp: 450 },
+  { key: 'gilt_digger', requirement: 'Have 7 Gilded Kobolds on your board at once.', metric: 'koboldGildedMax', target: 7, xp: 500 },
+  { key: 'mother_lode', requirement: 'Play 30 Rubies in one turn.', metric: 'rubyPlaysTurnMax', target: 30, xp: 550 },
+  { key: 'babysitter', requirement: 'Have 5 Kobebes on your board at once.', metric: 'kobebesMax', target: 5, xp: 450 },
+  { key: 'crown_jewels', requirement: 'Raise your Rubies to a +30/+30 bonus in one game.', metric: 'rubyStrength', target: 30, xp: 750 },
+  { key: 'small_but_mighty', requirement: 'Have a Kobold with 1,000 Attack on your board.', metric: 'koboldAttackMax', target: 1_000, xp: 450 },
+  // Celestial
+  { key: 'starstruck', requirement: 'Grow a Starform to 150 Attack in the Shop.', metric: 'starformAttackMax', target: 150, xp: 450 },
+  { key: 'spellbound', requirement: 'Cast 40 Shop spells in one turn.', metric: 'spellsTurnMax', target: 40, xp: 550 },
+  { key: 'gilded_hour', requirement: 'Have 7 Gilded Celestials on your board at once.', metric: 'celestialGildedMax', target: 7, xp: 500 },
+  { key: 'supernova', requirement: 'Grow a Starform to 500 Attack in the Shop.', metric: 'starformAttackMax', target: 500, xp: 700 },
+  { key: 'space_cadet', requirement: 'Play 60 Celestials in one game.', metric: 'celestialPlays', target: 60, xp: 450 },
+  { key: 'superstar', requirement: 'Have a Celestial with 1,000 Attack on your board.', metric: 'celestialAttackMax', target: 1_000, xp: 450 },
+  { key: 'stargazer', requirement: 'Cast 25 Shop spells in one turn with 3 or more Celestials on your board.', metric: 'celestialSpellsTurnMax', target: 25, xp: 550 },
+  // Spell (owner v2: a new group)
+  { key: 'spell_slinger', requirement: 'Cast 200 spells in one game.', metric: 'spellsCast', target: 200, xp: 500 },
+  { key: 'hocus_pocus', requirement: 'Buff minions with spells 300 times in one game. Each buff on each minion counts.', metric: 'spellBuffs', target: 300, xp: 500 },
+  { key: 'yazzus_himself', requirement: 'Raise Front to Back to +500/+500.', metric: 'frontToBackMin', target: 500, xp: 800 },
+  // Coin
+  { key: 'window_shopper', requirement: 'Refresh the Shop 40 times in one turn.', metric: 'refreshesTurnMax', target: 40, xp: 400 },
+  { key: 'no_rerolls', requirement: 'Finish 1st in Ranked without ever refreshing the Shop.', metric: 'noRefreshGame', target: 1, xp: 600, mode: 'ranked', placementMax: 1 },
+  { key: 'money_to_burn', requirement: 'Spend 75 Gold in one turn.', metric: 'goldSpentTurnMax', target: 75, xp: 450 },
+  { key: 'buyers_remorse', requirement: 'Sell 15 minions in one turn.', metric: 'sellsTurnMax', target: 15, xp: 350 },
+  { key: 'cheapskate', requirement: 'Finish in the final 2 without ever going past Shop Tier 3.', metric: 'lowTierGame', target: 1, xp: 500, placementMax: 2 },
+  { key: 'fast_track', requirement: 'Reach Shop Tier 6 by round 6.', metric: 'tierSixByRound6', target: 1, xp: 500 },
+  { key: 'late_bloomer', requirement: 'Finish 1st in Ranked after first reaching Shop Tier 6 on round 13 or later.', metric: 'lateTierSix', target: 1, xp: 350, mode: 'ranked', placementMax: 1 },
+  { key: 'flat_broke', requirement: 'End 8 turns in a row with exactly 0 Gold.', metric: 'zeroGoldStreakMax', target: 8, xp: 350 },
+  { key: 'deal_hunter', requirement: 'Buy 30 minions for less than 3 Gold in one game.', metric: 'discountBuys', target: 30, xp: 350 },
+  { key: 'midas_touch', requirement: 'Have 7 Gilded minions on your board at once.', metric: 'gildedOnBoardMax', target: 7, xp: 500 },
+  { key: 'triple_threat', requirement: 'Gild 20 minions in one game.', metric: 'gildsMade', target: 20, xp: 500 },
+  // Steel (combat)
+  { key: 'by_a_hair', requirement: 'Win a combat with 1 minion left, on exactly 1 Health.', metric: 'lastStandOneHp', target: 1, xp: 300 },
+  { key: 'comeback_kid', requirement: 'Win a combat after being down to 1 minion against 7.', metric: 'comebackOneVsSeven', target: 1, xp: 500 },
+  { key: 'overkill', requirement: 'Deal 1,000 or more damage to a minion in one hit.', metric: 'hitDamageMax', target: 1_000, xp: 400 },
+  { key: 'glass_cannon', requirement: 'Win a combat with 4 or more minions that all began it on 1 Health.', metric: 'glassCannonWin', target: 1, xp: 300 },
+  { key: 'brick_wall', requirement: 'Have your Wards block 30 hits in one combat.', metric: 'wardBlocksCombatMax', target: 30, xp: 500 },
+  { key: 'echo_chamber', requirement: 'Trigger 100 Echoes in one combat.', metric: 'echoTriggersCombatMax', target: 100, xp: 600 },
+  { key: 'hype_man', requirement: 'Trigger 50 Rallies in one combat.', metric: 'ralliesCombatMax', target: 50, xp: 500 },
+  { key: 'unkillable', requirement: 'Have one minion live through 15 attacks in one combat.', metric: 'attacksSurvivedMax', target: 15, xp: 450 },
+  { key: 'shouting_match', requirement: 'Trigger 75 Shouts in one turn.', metric: 'shoutsTurnMax', target: 75, xp: 500 },
+  { key: 'absolute_unit', requirement: 'Have a minion with 2,500 Attack and 2,500 Health on your board.', metric: 'minionStatsMinMax', target: 2_500, xp: 500 },
+  { key: 'gym_rat', requirement: 'Give one minion 250 separate permanent buffs.', metric: 'buffsOnOneMax', target: 250, xp: 500 },
+  // Royal (lobby and placement)
+  { key: 'mixed_company', requirement: 'Finish 1st in Ranked with 5 tribes on your final board and no tribe more than twice.', metric: 'finalTribesSpread', target: 5, xp: 400, mode: 'ranked', placementMax: 1 },
+  { key: 'cockroach', requirement: 'End 5 rounds alive on exactly 1 Health, and finish Top 4.', metric: 'oneHealthRounds', target: 5, xp: 600, placementMax: 4 },
+  { key: 'never_bested', requirement: 'Finish 1st in Ranked winning every single combat.', metric: 'perfectRecord', target: 1, xp: 750, mode: 'ranked', placementMax: 1 },
+  { key: 'the_untouchable', requirement: 'Finish 1st in Ranked without losing any Health. Armor may break.', metric: 'fullHealthFinish', target: 1, xp: 750, mode: 'ranked', placementMax: 1 },
+  { key: 'regicide', requirement: 'Knock out the player with the most Health at the table.', metric: 'leaderKnockout', target: 1, xp: 350 },
+  { key: 'headsman', requirement: 'Knock out a player in 4 rounds in a row.', metric: 'knockoutStreakMax', target: 4, xp: 600 },
+  { key: 'fashionably_late', requirement: 'Finish 1st in Ranked after having the least Health at the table after round 10.', metric: 'lastAtRound10', target: 1, xp: 600, mode: 'ranked', placementMax: 1 },
+  { key: 'photo_finish', requirement: 'Finish 1st in Ranked by knocking out your last opponent with exactly lethal damage.', metric: 'exactLethalFinish', target: 1, xp: 400, mode: 'ranked', placementMax: 1 },
+  // Jester (silly)
+  { key: 'agree_to_disagree', requirement: 'Tie 3 combats in one game.', metric: 'combatDraws', target: 3, xp: 250 },
+  { key: 'committed_to_the_bit', requirement: 'Finish 1st in Ranked with 7 copies of the same minion on your final board.', metric: 'finalSameCardMax', target: 7, xp: 600, mode: 'ranked', placementMax: 1 },
+  { key: 'tier_one_hero', requirement: 'Finish 1st in Ranked with 7 minions on your final board, all of them Tier 1.', metric: 'finalTierOneOnly', target: 7, xp: 750, mode: 'ranked', placementMax: 1 },
+  { key: 'empty_handed', requirement: 'Win a combat you began with an empty board.', metric: 'emptyBoardWin', target: 1, xp: 400 },
+  { key: 'pacifist', requirement: 'Win a combat without any of your minions attacking.', metric: 'pacifistWin', target: 1, xp: 350 },
+  { key: 'hoarder', requirement: 'End every turn from round 5 to the end of the game with a full hand.', metric: 'fullHandFrom5', target: 1, xp: 350 },
+];
+const SECRET_NAME_OF: ReadonlyMap<string, string> = new Map(SECRET_TITLE_NAMES);
+/** The secret feats, in display order (the Secrets category). Hidden until completed; each grants its own title. */
+export const SECRET_ACHIEVEMENTS: readonly AchievementDef[] = Object.freeze(SECRET_FEATS.map((f) => def({
+  id: secretAchievementId(f.key), name: SECRET_NAME_OF.get(f.key) ?? f.key, requirement: f.requirement, category: 'secret',
+  mode: f.mode ?? 'any', placementMax: f.placementMax ?? null, metric: f.metric, target: f.target, xp: f.xp,
+  titleId: secretTitleId(f.key), hidden: true, showProgress: false,
+})));
+
 /** The 150 added 2026-10-03, in display order. */
 export const ACHIEVEMENTS_150: readonly AchievementDef[] = Object.freeze([...SET2_MORE, ...HERO_DEVOTED, ...HEROES_ALL, ...COMBAT, ...MILESTONES]);
 
 /** Every achievement in the game (batch 1 plus the 2026-10-03 150). Order is display order within a category. */
-export const ACHIEVEMENTS: readonly AchievementDef[] = Object.freeze([...CAREER, ...RANKED, ...HERO_ACHIEVEMENTS, ...ECONOMY, ...MECHANICS, ...RUNES, ...SET2, ...ACHIEVEMENTS_150, ...COLLECTION]);
+export const ACHIEVEMENTS: readonly AchievementDef[] = Object.freeze([...CAREER, ...RANKED, ...HERO_ACHIEVEMENTS, ...ECONOMY, ...MECHANICS, ...RUNES, ...SET2, ...ACHIEVEMENTS_150, ...COLLECTION, ...SECRET_ACHIEVEMENTS]);
 
 export const ACHIEVEMENT_INDEX: Readonly<Record<string, AchievementDef>> = Object.freeze(Object.fromEntries(ACHIEVEMENTS.map((a) => [a.id, a])));
 export const achievementOf = (id: string | null | undefined): AchievementDef | null => (id && ACHIEVEMENT_INDEX[id] ? ACHIEVEMENT_INDEX[id]! : null);

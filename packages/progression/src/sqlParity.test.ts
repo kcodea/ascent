@@ -424,8 +424,18 @@ describe('the hero titles migration (2026-09-29): a title at 3 Ranked 1sts with 
     expect(sqlRows.every((r) => r.acquisitionSource === 'achievement')).toBe(true);
     const at = heroTitles.indexOf('insert into public.cosmetic_catalog (');
     expect(heroTitles.slice(heroTitles.indexOf('on conflict', at), heroTitles.indexOf(';', heroTitles.indexOf('on conflict', at)))).toMatch(/do nothing$/);
-    // every achievement that names a title names one of these rows
-    for (const a of ACHIEVEMENTS.filter((x) => x.rewards.titleId)) expect(hero.has(a.rewards.titleId!), a.id).toBe(true);
+    // every achievement that names a title names one of these rows, except the SECRET titles (2026-11-20), which reach
+    // the database through the catalog sync (like titles batch 2): each is a synced achievement-sourced title row
+    // naming exactly the achievement that grants it.
+    const synced = new Map(catalogSyncPayload().items.map((i) => [i.cosmeticId, i]));
+    for (const a of ACHIEVEMENTS.filter((x) => x.rewards.titleId)) {
+      if (a.category === 'secret' || a.id === 'career.firsts.100') {
+        const row = synced.get(a.rewards.titleId!);
+        expect(row && { category: row.category, acquisitionSource: row.acquisitionSource, achievementId: row.achievementId }, a.id).toEqual({ category: 'title', acquisitionSource: 'achievement', achievementId: a.id });
+        continue;
+      }
+      expect(hero.has(a.rewards.titleId!), a.id).toBe(true);
+    }
   });
 
   it('the id convention constants equal heroTitleId / heroMasterTitleId', () => {

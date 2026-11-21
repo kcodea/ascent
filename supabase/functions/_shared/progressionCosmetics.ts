@@ -153,7 +153,21 @@ export interface CosmeticDef {
    * catalog sync; a player who already completed it keeps it.
    */
   collection?: string;
+  /**
+   * A TITLE's themed look (owner ask 2026-11-20: "make the new titles more exciting/fun looking based on their tribes or
+   * whatever unlocks them"). Presentation only: the client paints `TitleBadge` in this theme. It never reaches the server
+   * (`catalogSyncPayload` names its fields), so adding or changing one needs no deploy.
+   */
+  look?: TitleLookKey;
 }
+
+/** The themed title looks (`CosmeticDef.look`). Tribe looks name their tribe; the rest name what the feat is about. */
+export type TitleLookKey =
+  | 'dwarf' | 'demon' | 'spirit' | 'dragon' | 'beast' | 'undead' | 'kobold' | 'celestial'
+  | 'coin' | 'steel' | 'royal' | 'jester';
+export const TITLE_LOOK_KEYS: readonly TitleLookKey[] = Object.freeze([
+  'dwarf', 'demon', 'spirit', 'dragon', 'beast', 'undead', 'kobold', 'celestial', 'coin', 'steel', 'royal', 'jester',
+] as const);
 
 /** Owner 2026-09-27: the MVP's Level 2 title. A level milestone, so it is never in the crate pool. */
 export const ALPHA_TESTER_TITLE_ID = 'alpha_tester';
@@ -259,6 +273,92 @@ export const HERO_TITLE_COSMETICS: readonly CosmeticDef[] = Object.freeze(HERO_T
   { id: heroTitleId(heroId), category: 'title', name, rarity: 'epic', acquisition: { type: 'achievement', id: `hero.${heroId}.titled` }, assets: {}, active: true },
   { id: heroMasterTitleId(heroId), category: 'title', name, rarity: 'legendary', acquisition: { type: 'achievement', id: `hero.${heroId}.mastery` }, assets: {}, active: true },
 ]));
+
+/**
+ * SECRET TITLES (owner 2026-11-20: "50 new SECRET titles, each earned by an in-game feat"; the v2 names and bars came the
+ * same day). One Secret-rarity title per hidden achievement in achievements.ts (`SECRET_ACHIEVEMENTS`): never in a crate,
+ * and hidden in the Collection until owned (every Secret item is). The key is the title's name in snake case: the title
+ * id is `title_secret_<key>` and the achievement that grants it `secret.<key>`, both permanent once deployed. Names are
+ * the owner's v2 list, except five that swap Gold or Golden for Gilded or Gilt (the catalog bans ranked medal words):
+ * Gilded Horns, Gilded Ghost, Gilded Scales, Gilded Hour, Gilt Digger; and three that another name already holds (names
+ * are unique across achievements and the catalog): Bargain Hunter -> Deal Hunter and Speedrunner -> Fast Track (hero
+ * titles), Untouchable -> The Untouchable (a Combat achievement). Grouped by theme, which is also the title's look
+ * (`CosmeticDef.look`): the tribe for a tribe feat (Hungry Hippo eats like a Demon, Rubies are the Kobold engine, Nest
+ * Egg is a Dragon's hoard), Celestial for the Spell trio (the spell tribe), else what the feat is about: Gold and the
+ * Shop (coin), a combat feat (steel), the lobby and placement (royal), a silly or self-imposed challenge (jester). This
+ * file stays the dependency-free leaf, so the names live here.
+ */
+const SECRET_TITLE_TABLE: ReadonlyArray<readonly [key: string, title: string, look: TitleLookKey]> = Object.freeze([
+  // Dwarf
+  ['king_brills_jester', "King Brill's Jester", 'dwarf'], ['bling_beard', 'Bling Beard', 'dwarf'], ['drunken_hero', 'Drunken Hero', 'dwarf'],
+  ['effin_rich', 'Effin Rich', 'dwarf'], ['the_paymaster', 'The Paymaster', 'dwarf'], ['dwarven', 'Dwarven', 'dwarf'],
+  // Demon
+  ['imp_lord', 'Imp Lord', 'demon'], ['hungry_hippo', 'Hungry Hippo', 'demon'], ['gilded_horns', 'Gilded Horns', 'demon'],
+  ['big_red', 'Big Red', 'demon'], ['all_you_can_eat', 'All You Can Eat', 'demon'], ['swarm_season', 'Swarm Season', 'demon'],
+  ['hellfire', 'Hellfire', 'demon'],
+  // Spirit
+  ['ghost_town', 'Ghost Town', 'spirit'], ['gilded_ghost', 'Gilded Ghost', 'spirit'], ['party_animal', 'Party Animal', 'spirit'],
+  ['hand_me_downs', 'Hand Me Downs', 'spirit'], ['spirit_guide', 'Spirit Guide', 'spirit'], ['poltergeist', 'Poltergeist', 'spirit'],
+  // Dragon
+  ['dragon_rider', 'Dragon Rider', 'dragon'], ['nest_egg', 'Nest Egg', 'dragon'], ['gilded_scales', 'Gilded Scales', 'dragon'],
+  ['loudmouth', 'Loudmouth', 'dragon'], ['big_brain', 'Big Brain', 'dragon'], ['flamethrower', 'Flamethrower', 'dragon'],
+  ['big_lizard', 'Big Lizard', 'dragon'],
+  // Beast
+  ['zookeeper', 'Zookeeper', 'beast'], ['fat_cats', 'Fat Cats', 'beast'], ['king_of_the_jungle', 'King of the Jungle', 'beast'],
+  ['call_of_the_wild', 'Call of the Wild', 'beast'], ['let_the_dogs_out', 'Let the Dogs Out', 'beast'], ['apex_predator', 'Apex Predator', 'beast'],
+  // Undead
+  ['back_again', 'Back Again', 'undead'], ['bling_bones', 'Bling Bones', 'undead'], ['wont_stay_dead', "Won't Stay Dead", 'undead'],
+  ['skeleton_crew', 'Skeleton Crew', 'undead'], ['grim_reaper', 'Grim Reaper', 'undead'], ['graveyard_shift', 'Graveyard Shift', 'undead'],
+  // Kobold
+  ['tunnel_rat', 'Tunnel Rat', 'kobold'], ['ruby_rich', 'Ruby Rich', 'kobold'], ['gilt_digger', 'Gilt Digger', 'kobold'],
+  ['mother_lode', 'Mother Lode', 'kobold'], ['babysitter', 'Babysitter', 'kobold'], ['crown_jewels', 'Crown Jewels', 'kobold'],
+  ['small_but_mighty', 'Small but Mighty', 'kobold'],
+  // Celestial
+  ['starstruck', 'Starstruck', 'celestial'], ['spellbound', 'Spellbound', 'celestial'], ['gilded_hour', 'Gilded Hour', 'celestial'],
+  ['supernova', 'Supernova', 'celestial'], ['space_cadet', 'Space Cadet', 'celestial'], ['superstar', 'Superstar', 'celestial'],
+  ['stargazer', 'Stargazer', 'celestial'],
+  // Spell (owner v2: a new group). Celestial is the spell tribe, so the trio wears its look.
+  ['spell_slinger', 'Spell Slinger', 'celestial'], ['hocus_pocus', 'Hocus Pocus', 'celestial'], ['yazzus_himself', 'Yazzus Himself', 'celestial'],
+  // Coin (Gold, the Shop, Gilding)
+  ['window_shopper', 'Window Shopper', 'coin'], ['no_rerolls', 'No Rerolls', 'coin'], ['money_to_burn', 'Money to Burn', 'coin'],
+  ['buyers_remorse', "Buyer's Remorse", 'coin'], ['cheapskate', 'Cheapskate', 'coin'], ['fast_track', 'Fast Track', 'coin'],
+  ['late_bloomer', 'Late Bloomer', 'coin'], ['flat_broke', 'Flat Broke', 'coin'], ['deal_hunter', 'Deal Hunter', 'coin'],
+  ['midas_touch', 'Midas Touch', 'coin'], ['triple_threat', 'Triple Threat', 'coin'],
+  // Steel (combat)
+  ['by_a_hair', 'By a Hair', 'steel'], ['comeback_kid', 'Comeback Kid', 'steel'], ['overkill', 'Overkill', 'steel'],
+  ['glass_cannon', 'Glass Cannon', 'steel'], ['brick_wall', 'Brick Wall', 'steel'], ['echo_chamber', 'Echo Chamber', 'steel'],
+  ['hype_man', 'Hype Man', 'steel'], ['unkillable', 'Unkillable', 'steel'], ['shouting_match', 'Shouting Match', 'steel'],
+  ['absolute_unit', 'Absolute Unit', 'steel'], ['gym_rat', 'Gym Rat', 'steel'],
+  // Royal (lobby and placement)
+  ['mixed_company', 'Mixed Company', 'royal'], ['cockroach', 'Cockroach', 'royal'], ['never_bested', 'Never Bested', 'royal'],
+  ['the_untouchable', 'The Untouchable', 'royal'], ['regicide', 'Regicide', 'royal'], ['headsman', 'Headsman', 'royal'],
+  ['fashionably_late', 'Fashionably Late', 'royal'], ['photo_finish', 'Photo Finish', 'royal'],
+  // Jester (silly)
+  ['agree_to_disagree', 'Agree to Disagree', 'jester'], ['committed_to_the_bit', 'Committed to the Bit', 'jester'], ['tier_one_hero', 'Tier One Hero', 'jester'],
+  ['empty_handed', 'Empty Handed', 'jester'], ['pacifist', 'Pacifist', 'jester'], ['hoarder', 'Hoarder', 'jester'],
+] as const);
+/** Each secret title's key and name, in display order. */
+export const SECRET_TITLE_NAMES: ReadonlyArray<readonly [key: string, title: string]> = Object.freeze(SECRET_TITLE_TABLE.map(([k, n]) => [k, n] as const));
+/** Each secret title's themed look (owner ask 2026-11-20), by key. */
+export const SECRET_TITLE_LOOKS: Readonly<Record<string, TitleLookKey>> = Object.freeze(Object.fromEntries(SECRET_TITLE_TABLE.map(([k, , l]) => [k, l])));
+/**
+ * THE 100 WINS TITLE (owner 2026-11-20: "add a title for 100 wins called Ascenteerianologist"). The reward for the visible
+ * `career.firsts.100` achievement (Warlord, finish 1st in 100 Ranked games). Not a secret: Ancient, the highest crate
+ * rarity's look, but never in a crate (an achievement reward). Permanent id.
+ */
+export const FIRSTS_100_TITLE_ID = 'title_ascenteerianologist';
+/** A secret title's catalog id, and the hidden achievement that grants it. Permanent. */
+export const secretTitleId = (key: string): string => `title_secret_${key}`;
+export const secretAchievementId = (key: string): string => `secret.${key}`;
+export const SECRET_TITLE_COSMETICS: readonly CosmeticDef[] = Object.freeze(SECRET_TITLE_NAMES.map(([key, name]): CosmeticDef => (
+  { id: secretTitleId(key), category: 'title', name, rarity: SECRET_RARITY, acquisition: { type: 'achievement', id: secretAchievementId(key) }, assets: {}, active: true, ...(SECRET_TITLE_LOOKS[key] ? { look: SECRET_TITLE_LOOKS[key] } : {}) }
+)));
+
+/** A title's themed look key, or null (an unknown id, a non-title, or a title with no theme). */
+export const titleLookKeyOf = (id: string | null | undefined): TitleLookKey | null => {
+  const c = cosmeticOf(id);
+  return c?.category === 'title' ? c.look ?? null : null;
+};
 
 /**
  * THE PLUSHIE BEAST COLLECTION (owner 2026-10-27: "i want this to be a secrete unlock that the players are given once
@@ -1141,6 +1241,10 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze(withCollections([
   { ...cardPlate(PLUSHIE_PLATE_ID, 'Plushie', 'secret', 'Plushie Plate.png'), acquisition: { type: 'achievement', id: PLUSHIE_BEASTS_COLLECTION_ID } },
   // HERO TITLES (owner 2026-09-29), 33 heroes x (title + golden master). Achievement rewards, never in a crate.
   ...HERO_TITLE_COSMETICS,
+  // SECRET TITLES (owner 2026-11-20), one per hidden achievement. Never in a crate; hidden in the Collection until owned.
+  // The 100 wins title (owner 2026-11-20): Warlord's reward, visible, never in a crate.
+  { id: FIRSTS_100_TITLE_ID, category: 'title', name: 'Ascenteerianologist', rarity: 'ancient', acquisition: { type: 'achievement', id: 'career.firsts.100' }, assets: {}, active: true },
+  ...SECRET_TITLE_COSMETICS,
 ]));
 
 /** The ACTIVE members of a collection, in catalog order (the achievement's target is their count). */

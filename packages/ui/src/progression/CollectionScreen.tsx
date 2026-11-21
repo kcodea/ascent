@@ -1,7 +1,7 @@
 import { Suspense, lazy, memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ALL_COSMETIC_RARITIES, COSMETIC_CATEGORY_DEFS, COSMETIC_RARITIES, CRATE_TIER_FLOOR, EMOTE_SLOT_COUNT, MILESTONE_CRATE_TIER, RARITY_LABELS, cosmeticOf, crateLabel, crateOddsLine,
-  isMasterTitle, levelProgress,
+  levelProgress,
   milestoneLevelOfSource, tierOddsPercent, withStarterCosmetics,
   type CosmeticCategory, type CosmeticDef, type CosmeticRarity, type CrateRarity, type CrateRow,
 } from '@game/progression';
@@ -34,6 +34,7 @@ import { CrateShop } from './CrateShop';
 import { ChestPicture } from './ChestPicture';
 import { AetherIcon } from './AetherIcon';
 import { TitleBadge } from '../titles/TitleBadge';
+import { hasTitlePlate } from '../titles/titleStyle';
 import { previewAnnouncerPack, stopAnnouncerPreview } from '../announcer';
 import { announcerPackOf } from './announcerPack';
 import { emoteSrc } from '../emotes/emoteArt';
@@ -525,7 +526,7 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
                       <li key={c.id}>
                         <ItemTile
                           id={c.id} name={c.name} rarity={c.rarity} art={c.category === 'portrait_frame' ? frameSrc(c.id) : c.category === 'emote' ? emoteSrc(c.id) : c.category === 'card_plate' ? plateLookOf(c)?.thumb : skinArtOf(c)} ring={c.category === 'portrait_frame' || c.category === 'card_plate'} emote={c.category === 'emote'} target={skinTargetName(c) ?? undefined}
-                          owned={owned.has(c.id)} equipped={worn(c)} fresh={fresh(c)} selected={selectedId === c.id} master={isMasterTitle(c.id)}
+                          owned={owned.has(c.id)} equipped={worn(c)} fresh={fresh(c)} selected={selectedId === c.id} master={hasTitlePlate(c.id)}
                           how={owned.has(c.id) ? undefined : acquisitionText(c)}
                           onPick={onPick} onHover={c.target?.type === 'card' || c.category === 'card_plate' ? onHover : undefined}
                         />
@@ -704,7 +705,7 @@ function DetailPanel({ item, owned, equipped, busy, error, playerName, reducedMo
       )}
       <div className="colls-plate">
         <span className="colls-gem colls-gem-lg" aria-hidden />
-        <div className="colls-plate-name">{isMasterTitle(item.id) ? <TitleBadge item id={item.id} className="colls-titleplate colls-titleplate-lg" /> : item.name}</div>
+        <div className="colls-plate-name">{hasTitlePlate(item.id) ? <TitleBadge item id={item.id} className="colls-titleplate colls-titleplate-lg" /> : item.name}</div>
         <div className="colls-plate-rar">{RARITY_LABELS[item.rarity]}</div>
       </div>
       <div className="colls-facts">
@@ -727,7 +728,7 @@ function DetailPanel({ item, owned, equipped, busy, error, playerName, reducedMo
         <div className="colls-preview" aria-label="Preview">
           <div className="colls-preview-lbl">Preview</div>
           <div className="colls-preview-name">{playerName}</div>
-          <div className="colls-preview-title">{isMasterTitle(item.id) ? <TitleBadge item id={item.id} className="colls-titleplate" /> : item.name}</div>
+          <div className="colls-preview-title">{hasTitlePlate(item.id) ? <TitleBadge item id={item.id} className="colls-titleplate" /> : item.name}</div>
         </div>
       )}
       {/* An announcer plays a sample line in place (owned or not, so you can hear what a crate might give). Each

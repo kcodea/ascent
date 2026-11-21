@@ -15,7 +15,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { COSMETICS } from '@game/progression';
+import { COSMETICS, SECRET_TITLE_COSMETICS, TITLE_LOOK_KEYS } from '@game/progression';
 import { createLobbyRun, type RunLobby } from '@game/sim';
 
 vi.mock('../identity', async (orig) => ({ ...(await orig<typeof import('../identity')>()), currentUserId: () => 'u-1' }));
@@ -29,7 +29,7 @@ import { LobbyPanel } from '../LobbyPanel';
 import { Rankings } from '../Rankings';
 import { CombatOpponent } from '../CombatOpponent';
 import { TitleBadge } from './TitleBadge';
-import { titleLookOf } from './titleStyle';
+import { hasTitlePlate, titleLookOf } from './titleStyle';
 
 HTMLCanvasElement.prototype.getContext = (() => null) as unknown as HTMLCanvasElement['getContext'];
 Element.prototype.scrollIntoView = function scrollIntoView(): void { /* jsdom has none */ };
@@ -123,6 +123,63 @@ describe('the master hero title (owner pick 2026-10-28: "they look gross with go
     const reduced = [...css.matchAll(/@media \(prefers-reduced-motion: reduce\) \{([\s\S]*?)\n\}/g)].map((x) => x[1]).join('\n');
     expect(reduced).toMatch(/\.titlebadge\.tb-master::after \{ animation: none/);
     expect(reduced).toMatch(/\.titlebadge\.tb-master::before \{ animation: none/);
+  });
+});
+
+describe('themed secret titles (owner ask 2026-11-20: "more exciting/fun looking based on their tribes or whatever unlocks them")', () => {
+  it('every secret title has a look, every look is used, and no other title has one', () => {
+    expect(SECRET_TITLE_COSMETICS.every((c) => c.look && TITLE_LOOK_KEYS.includes(c.look))).toBe(true);
+    expect(new Set(SECRET_TITLE_COSMETICS.map((c) => c.look))).toEqual(new Set(TITLE_LOOK_KEYS));
+    expect(COSMETICS.filter((c) => c.look).every((c) => c.id.startsWith('title_secret_'))).toBe(true);
+    expect(hasTitlePlate('title_secret_king_brills_jester')).toBe(true);
+    expect(hasTitlePlate('title_hero_warden_master')).toBe(true);
+    expect(hasTitlePlate('title_wanderer')).toBe(false);
+    expect(hasTitlePlate(null)).toBe(false);
+  });
+
+  it('paints its theme in colour only (no icon, owner 2026-11-20) with the secret seal, the name as the only text, live on screen', () => {
+    m.render(<TitleBadge id="title_secret_king_brills_jester" />);
+    const dwarf = badge()!;
+    expect(dwarf.classList.contains('tb-look-dwarf')).toBe(true);
+    expect([...dwarf.classList].some((c) => c.startsWith('r-'))).toBe(false); // no rarity rule paints over it
+    expect(dwarf.querySelector('img')).toBeNull();
+    expect(dwarf.querySelector('.tb-seal')).not.toBeNull();
+    expect(dwarf.classList.contains('tb-live')).toBe(true); // jsdom has no IntersectionObserver: always live
+    expect(dwarf.textContent).toBe("King Brill's Jester");
+    expect(dwarf.hasAttribute('title')).toBe(false);
+    m.render(<TitleBadge id="title_secret_pacifist" />);
+    expect(badge()!.classList.contains('tb-look-jester')).toBe(true);
+    expect(badge()!.textContent).toBe('Pacifist');
+  });
+
+  it('every look has a rule, and its loops animate transform and opacity only, off under reduced motion', () => {
+    const css = readFileSync(join(__dirname, '../styles.css'), 'utf8');
+    for (const k of TITLE_LOOK_KEYS) expect(css, k).toContain(`.titlebadge.tb-look-${k} {`);
+    const rules = [...css.matchAll(/([^{}]*\.tb-look[^{}]*)\{([^}]*)\}/g)];
+    for (const [, sel, body] of rules) expect(body, sel).not.toMatch(/transition/);
+    // The only animated layers are the two pseudo-elements, and both start PAUSED (running only with `tb-live`).
+    const animated = rules.filter(([, , body]) => /(?:^|[\s;])animation:(?!\s*none)/.test(body!));
+    expect(animated.map(([, sel]) => sel!.trim()).sort()).toEqual(['.titlebadge.tb-look::after', '.titlebadge.tb-look::before']);
+    for (const [, sel, body] of animated) expect(body, sel).toMatch(/paused;/);
+    expect(css).toMatch(/\.titlebadge\.tb-look\.tb-live::before, \.titlebadge\.tb-look\.tb-live::after \{ animation-play-state: running; \}/);
+    // Every theme names an accent, and every accent's keyframes set transform and opacity only.
+    const names = new Set<string>();
+    for (const k of TITLE_LOOK_KEYS) {
+      const body = css.match(new RegExp(`\\.titlebadge\\.tb-look-${k} \\{([^}]*)\\}`))![1]!;
+      const m = body.match(/--lk-anim: (tblk-[a-z]+) /);
+      expect(m, k).toBeTruthy();
+      names.add(m![1]!);
+    }
+    names.add('tbshimmer');
+    for (const name of names) {
+      const line = css.split('\n').find((l) => l.startsWith(`@keyframes ${name} `));
+      expect(line, name).toBeTruthy();
+      const props = [...line!.matchAll(/([a-z-]+)\s*:/g)].map((x) => x[1]);
+      for (const p of props) expect(['transform', 'opacity'], `${name}: ${p}`).toContain(p);
+    }
+    const reduced = [...css.matchAll(/@media \(prefers-reduced-motion: reduce\) \{([\s\S]*?)\n\}/g)].map((x) => x[1]).join('\n');
+    expect(reduced).toMatch(/\.titlebadge\.tb-look::after \{ animation: none/);
+    expect(reduced).toMatch(/\.titlebadge\.tb-look::before \{ animation: none/);
   });
 });
 

@@ -78,6 +78,17 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       { category: 'Systems', text: 'New settings: Hover sounds (Audio) turns off the tick when the mouse moves onto a button, and Show FPS counter (Video) shows your frame rate.' },
       { category: 'Systems', text: 'Disco Dan can now Freeze the Shop on turn 1. His other turn-1 Shop actions stay locked.' },
+      {
+        category: 'Systems',
+        text: 'Secret titles are hidden in the game. Find them by doing unusual things.',
+        details: [
+          'Each one is a hidden achievement in the new Secrets section of your Achievements.',
+          'Unlocking one grants XP and a Secret title.',
+          'Every tribe has its own secrets, and so do big spell builds.',
+          'Each Secret title has its own colours and a little motion, themed on the tribe or feat that earns it.',
+        ],
+      },
+      { category: 'Systems', text: 'Finishing 1st in 100 Ranked games (the Warlord achievement) now also grants the Ascenteerianologist title. Players who already have it get the title too.' },
       { category: 'Systems', text: 'Hovering the Runeforge Re-roll button no longer pops up a stray gold block.' },
       { category: 'Systems', text: 'Hero power Discovers (Power Shifter, Mimic, Void) now show each power as your Ancient changes it, and results, scouting and the foe power tip show the power a player held at the time, not their starting one.' },
       { category: 'Systems', text: 'The Live Games tab now glows green while ranked games are being played, and shows how many are playing.' },

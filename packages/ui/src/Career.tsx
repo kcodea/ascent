@@ -39,8 +39,9 @@ import { useShowOpponentCosmetics } from './cosmetics/opponentCosmetics';
 const PhCareer = lazy(() => import('./partyHome/pages/career/PhCareer').then((m) => ({ default: m.PhCareer })));
 import { careerFresh, careerKeyUser, carryTelemetry, loadCareer } from './careerLoad';
 import { RankCard } from './rank/RankCard';
-import { cosmeticOf, isMasterTitle, levelProgress, titleName } from '@game/progression';
+import { cosmeticOf, levelProgress, titleName } from '@game/progression';
 import { TitleBadge } from './titles/TitleBadge';
+import { hasTitlePlate } from './titles/titleStyle';
 import { AccountLevelCard, useCareerProgression } from './progression/AccountLevel';
 import { AchievementsTab, achievementsSeen, warmAchievements } from './progression/AchievementsTab';
 import { achievementsVisible, useProgression } from './progression/progressionStore';
@@ -598,8 +599,8 @@ export function Career() {
   // The equipped title for the name header, with its rarity for the colour.
   const headerTitle = titleName(accountProgression?.equippedTitleId ?? null);
   const headerTitleRarity = cosmeticOf(accountProgression?.equippedTitleId ?? null)?.rarity ?? null;
-  // A hero title's master version wears the master look (owner pick 2026-10-28).
-  const headerTitleMaster = isMasterTitle(accountProgression?.equippedTitleId ?? null);
+  // A hero title's master version wears the master look (owner pick 2026-10-28), a themed (secret) title its theme (2026-11-20).
+  const headerTitleMaster = hasTitlePlate(accountProgression?.equippedTitleId ?? null);
 
   // SKINS: whose page this is, and the page owner's CURRENT loadout (public, read with their progression). Memoised
   // (perf 2026-10-09) so the context value is stable and the memoised banners below skip unrelated re-renders.

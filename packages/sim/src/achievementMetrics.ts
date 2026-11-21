@@ -67,6 +67,8 @@ export interface AchTally {
   combatsWon?: number;
   /** Rounds with 7 Undead on the board at once (distinct; secret titles v2). */
   undeadWaves?: number[];
+  /** Tribes and mechanics (2026-11-20): the last round the Shop was frozen on (a freeze counts once per turn). */
+  freezeWave?: number;
 }
 
 export const emptyAchTally = (): AchTally => ({
@@ -146,6 +148,7 @@ export function observeAchAction(t: AchTally, before: RunState, action: Action, 
   if (spells >= 10 && ales >= 4 && dragons >= 1 && dwarves >= 1) bump(t, 'liquidCourage', 1);
 
   observeSecretAction(t, before, action, after, sameTurn);
+  observeMoreAction(t, before, action, after, sameTurn);
 
   // ── Run-wide strengths.
   if (after.tier >= 6 && after.wave <= 9) bump(t, 'tierSixByRound9', 1);
@@ -189,6 +192,7 @@ const TRIBE_GILDED_METRIC: Readonly<Record<string, RunMetric>> = {
   beast: 'beastGildedMax', undead: 'undeadGildedMax', kobold: 'koboldGildedMax', celestial: 'celestialGildedMax',
 };
 const TRIBE_ATTACK_METRIC: Readonly<Record<string, RunMetric>> = {
+  dwarf: 'dwarfAttackMax', beast: 'beastAttackMax', // tribes and mechanics (2026-11-20)
   demon: 'demonAttackMax', spirit: 'spiritAttackMax', dragon: 'dragonAttackMax',
   undead: 'undeadAttackMax', kobold: 'koboldAttackMax', celestial: 'celestialAttackMax',
 };
@@ -216,6 +220,9 @@ function observeSecretAction(t: AchTally, before: RunState, action: Action, afte
       if (defIsTribe(d, 'kobold', after)) add(t, 'koboldPlays', 1);
       if (defIsTribe(d, 'spirit', after)) add(t, 'spiritPlays', 1);
       if (defIsTribe(d, 'celestial', after)) add(t, 'celestialPlays', 1);
+      if (defIsTribe(d, 'demon', after)) add(t, 'demonPlays', 1);
+      if (defIsTribe(d, 'beast', after)) add(t, 'beastPlays', 1);
+      if (defIsTribe(d, 'undead', after)) add(t, 'undeadPlays', 1);
     }
   }
   if (action.type === 'roll') t.rollsTotal = (t.rollsTotal ?? 0) + 1;
@@ -323,6 +330,25 @@ function observeSecretAction(t: AchTally, before: RunState, action: Action, afte
   }
 }
 
+/**
+ * TRIBES AND MECHANICS (2026-11-20): the lifetime counters behind the 100 visible achievements. Each is summed per game
+ * from ONE authoritative read: an ACCEPTED action (the reducer returns the same state for a refused one), or the
+ * RunState's own per-turn tally growing within a turn. A combat preview spreads the prior state, so it is never counted.
+ */
+function observeMoreAction(t: AchTally, before: RunState, action: Action, after: RunState, sameTurn: boolean): void {
+  if (after === before || action.type.endsWith('Preview')) return;
+  if (action.type === 'roll') add(t, 'refreshes', 1);
+  if (action.type === 'discover' && before.discover) add(t, 'discovers', 1);
+  if (action.type === 'chooseOne' && before.chooseOne) add(t, 'chooseOnes', 1);
+  if (action.type === 'freeze' && after.frozen && !before.frozen && t.freezeWave !== after.wave) { t.freezeWave = after.wave; add(t, 'freezes', 1); }
+  // `lastEotFires` is zeroed at the top of every action, so after an accepted one it is exactly this action's fires.
+  add(t, 'eotFires', after.lastEotFires ?? 0);
+  if (sameTurn) {
+    add(t, 'shouts', (after.shoutFiresThisTurn ?? 0) - (before.shoutFiresThisTurn ?? 0));
+    add(t, 'sells', (after.soldThisTurn?.length ?? 0) - (before.soldThisTurn?.length ?? 0));
+  }
+}
+
 /** The hand card an action PLAYED (it left the hand), with its aim; null when the action played nothing. */
 function playedCard(before: RunState, action: Action, after: RunState): { cardId: string; targetUid?: string } | null {
   let uid: string | undefined;
@@ -414,6 +440,31 @@ export function observeAchCombat(t: AchTally, lc: CombatResult, wave: number): v
   if (won && lc.enemyDamageBreakdown?.survivorTiers.length === 1) add(t, 'lastStandWins', 1);
 
   observeSecretCombat(t, lc, player, cardOf);
+  add(t, 'beastSummons', beastSummons);
+  add(t, 'wardBlocks', wards);
+  add(t, 'executeKills', executeKills);
+  observeMoreCombat(t, lc, player);
+}
+
+/** TRIBES AND MECHANICS (2026-11-20): the combat-log reads. Pure; one pass over the log. */
+function observeMoreCombat(t: AchTally, lc: CombatResult, player: ReadonlySet<string>): void {
+  add(t, 'echoTriggers', lc.playerDeathrattles ?? 0);
+  add(t, 'rallies', lc.playerRallies ?? 0);
+  let pummels = 0; let fromHand = 0; let openingKills = 0; let attacked = false;
+  for (const e of lc.events) {
+    switch (e.type) {
+      case 'attack': attacked = true; break;
+      case 'pummelTrigger': if (e.side === 'player') pummels++; break;
+      case 'summon': if (e.side === 'player' && e.fromHandUid) fromHand++; break;
+      // An enemy destroyed before any minion has attacked: a Start of Combat kill (a Rise's first death is not a kill).
+      case 'death': if (!attacked && !e.rise && e.side !== 'player' && !player.has(e.target)) openingKills++; break;
+      default: break;
+    }
+  }
+  bump(t, 'pummelsCombatMax', pummels);
+  add(t, 'pummels', pummels);
+  add(t, 'handSummons', fromHand);
+  bump(t, 'openingKillsCombatMax', openingKills);
 }
 
 /**
@@ -544,6 +595,9 @@ export function finalAchMetrics(t: AchTally, final: RunState): Partial<Record<Ru
   set('finalDragons', countTribe(board, 'dragon'));
   set('finalBeasts', countTribe(board, 'beast'));
   set('finalDemons', countTribe(board, 'demon'));
+  set('finalSpirits', countTribe(board, 'spirit'));
+  set('finalUndead', countTribe(board, 'undead'));
+  set('finalCelestials', countTribe(board, 'celestial'));
   set('finalDemonStatsMax', board.filter((c) => isTribe(c, 'demon')).reduce((n, c) => Math.max(n, c.attack + c.health), 0));
   const procs = final.runeProcs ?? {};
   set('runeTriggers', Object.values(procs).reduce((n, v) => n + (Number.isFinite(v) ? v : 0), 0));

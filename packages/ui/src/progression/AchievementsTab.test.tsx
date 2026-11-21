@@ -36,14 +36,15 @@ describe('the view model', () => {
   it('every achievement shows (with its reward); categories and Set 2 tribe groups in order', () => {
     const v = achievementView(base);
     expect(v.total).toBe(ACHIEVEMENTS.length);
-    expect(v.categories.map((c) => c.label)).toEqual(['Career', 'Ranked', 'Heroes', 'Economy and Build', 'Mechanics', 'Runes', 'Set 2', 'Combat', 'Milestones', 'Collection', 'Secrets']);
+    expect(v.categories.map((c) => c.label)).toEqual(['Career', 'Ranked', 'Heroes', 'Economy and Build', 'Mechanics', 'Runes', 'Set 2', 'Tribes', 'Combat', 'Milestones', 'Collection', 'Secrets']);
     expect(v.categories.find((c) => c.id === 'set2')!.groups.map((g) => g.label)).toEqual(['Kobolds', 'Dwarves', 'Dragons', 'Beasts', 'Demons', 'Cross-tribe', 'Runes']);
     // 42 heroes (six tiers each since 2026-10-03; 36 until the 2026-10-15 re-enables) after the account-wide "All heroes" group
     const heroes = v.categories.find((c) => c.id === 'heroes')!.groups;
     expect(heroes).toHaveLength(43);
     expect(heroes[0]!.label).toBe('All heroes');
     expect(heroes.slice(1).every((g) => g.tiles.length === 6)).toBe(true);
-    expect(v.categories.find((c) => c.id === 'combat')!.total).toBe(36);
+    expect(v.categories.find((c) => c.id === 'combat')!.total).toBe(43);
+    expect(v.categories.find((c) => c.id === 'tribes')!.groups.map((g) => g.label)).toEqual(['Dwarves', 'Demons', 'Spirits', 'Dragons', 'Beasts', 'Undead', 'Kobolds', 'Celestials']);
     expect(v.categories.find((c) => c.id === 'milestones')!.total).toBe(34);
     expect(v.done).toBe(1);
     expect(v.xpEarned).toBe(25);
@@ -111,8 +112,8 @@ describe('the rendered tab', () => {
   it('own page: the Career category first, name + requirement + reward on every tile, the date on a completed one, a progress bar', async () => {
     ui = mount(<AchievementsTab userId="me" own ownerName="Kev" />);
     await flush();
-    expect(all('.ach-cat-name')).toEqual(['Career', 'Ranked', 'Heroes', 'Economy and Build', 'Mechanics', 'Runes', 'Set 2', 'Combat', 'Milestones', 'Collection', 'Secrets']);
-    expect(all('.ach-cat-count')[0]).toBe('1 / 17');
+    expect(all('.ach-cat-name')).toEqual(['Career', 'Ranked', 'Heroes', 'Economy and Build', 'Mechanics', 'Runes', 'Set 2', 'Tribes', 'Combat', 'Milestones', 'Collection', 'Secrets']);
+    expect(all('.ach-cat-count')[0]).toBe('1 / 19');
     const first = ui.container.querySelector('.ach-tile.done')!;
     expect(first.querySelector('.ach-tile-name')!.textContent).toBe('First Steps');
     expect(first.querySelector('.ach-tile-xp')!.textContent).toBe('+25 XP');
@@ -171,8 +172,8 @@ describe('the rendered tab', () => {
     await flush();
     await flush();
     expect(ui.container.querySelector('.pha.phc-body')).not.toBeNull();
-    expect(all('.phc-cat .phk-rowtitle')).toEqual(['Career', 'Ranked', 'Heroes', 'Economy and Build', 'Mechanics', 'Runes', 'Set 2', 'Combat', 'Milestones', 'Collection', 'Secrets']);
-    expect(all('.pha-titlerow .phk-tab')[0]).toMatch(/^All 17$/);
+    expect(all('.phc-cat .phk-rowtitle')).toEqual(['Career', 'Ranked', 'Heroes', 'Economy and Build', 'Mechanics', 'Runes', 'Set 2', 'Tribes', 'Combat', 'Milestones', 'Collection', 'Secrets']);
+    expect(all('.pha-titlerow .phk-tab')[0]).toMatch(/^All 19$/);
     // The first tile is picked by default; picking First Steps (completed) shows its date.
     expect(ui.container.querySelector('.phc-side .phc-name h2')!.textContent).toBe(all('.pha-tile .phc-tile-name')[0]);
     click([...ui.container.querySelectorAll('.pha-tile')].find((t) => t.querySelector('.phc-tile-name')?.textContent === 'First Steps'));

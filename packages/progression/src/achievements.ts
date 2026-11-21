@@ -201,6 +201,31 @@ export const RUN_METRICS = {
   undeadFullRounds: { cap: 100, doc: 'Different rounds with 7 Undead on the board at once.' },
   spellBuffs: { cap: 1_000_000, doc: 'Spell stat buffs that landed on your minions this game (Shop and combat; each minion a buff lands on counts 1).' },
   frontToBackMin: { cap: 10_000_000, doc: 'Front to Back escalation reached (the lower of its Attack and Health bonus).' },
+  // TRIBES AND MECHANICS (owner 2026-11-20: "another 100 achievements ... across tribes and mechanics"). Same trust (O).
+  demonPlays: { cap: 10_000, doc: 'Demon minions played from hand this game.' },
+  beastPlays: { cap: 10_000, doc: 'Beast minions played from hand this game.' },
+  undeadPlays: { cap: 10_000, doc: 'Undead minions played from hand this game.' },
+  dwarfAttackMax: { cap: 10_000_000, doc: 'Highest Attack of a Dwarf on the board.' },
+  beastAttackMax: { cap: 10_000_000, doc: 'Highest Attack of a Beast on the board.' },
+  finalSpirits: { cap: 7, doc: 'Spirits on the final board.' },
+  finalUndead: { cap: 7, doc: 'Undead on the final board.' },
+  finalCelestials: { cap: 7, doc: 'Celestials on the final board.' },
+  handSummons: { cap: 100_000, doc: 'Minions summoned from your hand in combat this game.' },
+  beastSummons: { cap: 100_000, doc: 'Friendly Beasts summoned in combat this game.' },
+  echoTriggers: { cap: 1_000_000, doc: 'Friendly Echo triggers in combat this game (every Echo multiplier counted).' },
+  rallies: { cap: 1_000_000, doc: 'Friendly Rally triggers in combat this game (every Rally doubler counted).' },
+  shouts: { cap: 1_000_000, doc: 'Shout triggers this game (the per-turn Shout tally, summed).' },
+  wardBlocks: { cap: 100_000, doc: 'Hits friendly Wards absorbed in combat this game.' },
+  executeKills: { cap: 10_000, doc: 'Enemy minions destroyed by Execute this game.' },
+  pummelsCombatMax: { cap: 10_000, doc: 'Most friendly Pummel payouts in one combat.' },
+  pummels: { cap: 100_000, doc: 'Friendly Pummel payouts in combat this game.' },
+  openingKillsCombatMax: { cap: 7, doc: 'Most enemy minions destroyed before the first attack of a combat.' },
+  eotFires: { cap: 1_000_000, doc: 'End of Turn triggers this game.' },
+  discovers: { cap: 10_000, doc: 'Discover picks made this game.' },
+  chooseOnes: { cap: 10_000, doc: 'Choose One picks made this game.' },
+  freezes: { cap: 100, doc: 'Different turns the Shop was frozen this game.' },
+  refreshes: { cap: 100_000, doc: 'Shop refreshes this game (accepted ones).' },
+  sells: { cap: 10_000, doc: 'Minions sold this game.' },
 } as const satisfies Record<string, { cap: number; doc: string }>;
 
 export type RunMetric = keyof typeof RUN_METRICS;
@@ -259,17 +284,21 @@ export function sanitizeRunMetrics(v: unknown): Partial<Record<RunMetric, number
 
 // ── Definitions ──────────────────────────────────────────────────────────────────────────────────────────────
 
-export const ACHIEVEMENT_CATEGORIES = ['career', 'ranked', 'heroes', 'economy', 'mechanics', 'runes', 'set2', 'combat', 'milestones', 'collection', 'secret'] as const;
+export const ACHIEVEMENT_CATEGORIES = ['career', 'ranked', 'heroes', 'economy', 'mechanics', 'runes', 'set2', 'tribes', 'combat', 'milestones', 'collection', 'secret'] as const;
 export type AchievementCategory = typeof ACHIEVEMENT_CATEGORIES[number];
 export const ACHIEVEMENT_CATEGORY_LABELS: Readonly<Record<AchievementCategory, string>> = Object.freeze({
   career: 'Career', ranked: 'Ranked', heroes: 'Heroes', economy: 'Economy and Build', mechanics: 'Mechanics', runes: 'Runes', set2: 'Set 2',
-  combat: 'Combat', milestones: 'Milestones', collection: 'Collection', secret: 'Secrets',
+  tribes: 'Tribes', combat: 'Combat', milestones: 'Milestones', collection: 'Collection', secret: 'Secrets',
 });
 
 /** Sub-groups (the Set 2 tribes; the others use one group). */
 export const SET2_GROUPS = ['kobold', 'dwarf', 'dragon', 'beast', 'demon', 'cross', 'rune'] as const;
+/** The Tribes category's groups (2026-11-20), in the secret titles' tribe order. Set-agnostic: a tribe's feats count
+ *  in whichever set the tribe is played (Spirits and Undead are Set 3, Celestials Set 4; neither set is live yet). */
+export const TRIBE_GROUPS = ['dwarf', 'demon', 'spirit', 'dragon', 'beast', 'undead', 'kobold', 'celestial'] as const;
 export const ACHIEVEMENT_GROUP_LABELS: Readonly<Record<string, string>> = Object.freeze({
   kobold: 'Kobolds', dwarf: 'Dwarves', dragon: 'Dragons', beast: 'Beasts', demon: 'Demons', cross: 'Cross-tribe', rune: 'Runes',
+  spirit: 'Spirits', undead: 'Undead', celestial: 'Celestials',
   all: 'All heroes',
 });
 /** The Heroes category's account-wide group (sorted before the per-hero groups). */
@@ -853,11 +882,151 @@ export const SECRET_ACHIEVEMENTS: readonly AchievementDef[] = Object.freeze(SECR
   titleId: secretTitleId(f.key), hidden: true, showProgress: false,
 })));
 
+/**
+ * TRIBES AND MECHANICS (owner 2026-11-20: "come up with another 100 achievements to add as well across tribes and
+ * mechanics"). 100 VISIBLE defs, XP only (no titles, no cosmetics): 50 in the new Tribes category (8 tribes, no Mech,
+ * set-agnostic so a tribe's feats count in whichever set it is played), 50 across the mechanic families, placed in the
+ * existing category they belong to. Every one reads a RUN metric the observer counts (achievementMetrics.ts) or the
+ * server's `game`; 24 run metrics are new (the TRIBES AND MECHANICS block in RUN_METRICS). None duplicates an existing
+ * achievement's predicate (metric, aggregation, target, mode, placement, set): pinned in achievements.test.ts.
+ * Spirit and Undead feats need Set 3, Celestial ones Set 4: neither set is live, so they wait, exactly like the
+ * Spirit, Undead and Celestial secret titles do.
+ */
+const tr = (group: (typeof TRIBE_GROUPS)[number], d: Omit<DefInput, 'category' | 'group' | 'mode'> & { mode?: AchievementMode }): AchievementDef =>
+  def({ mode: 'any', ...d, category: 'tribes', group });
+/** One of each per tribe: a lifetime play count and a 500 Attack minion. */
+const TRIBE_COMMON: ReadonlyArray<{ group: (typeof TRIBE_GROUPS)[number]; one: string; many: string; plays: RunMetric; attack: RunMetric; playsName: string; attackName: string }> = [
+  { group: 'dwarf', one: 'a Dwarf', many: 'Dwarves', plays: 'dwarfPlays', attack: 'dwarfAttackMax', playsName: 'Stout Company', attackName: 'Rock Hard' },
+  { group: 'demon', one: 'a Demon', many: 'Demons', plays: 'demonPlays', attack: 'demonAttackMax', playsName: "Hell's Kitchen", attackName: 'Horns Up' },
+  { group: 'spirit', one: 'a Spirit', many: 'Spirits', plays: 'spiritPlays', attack: 'spiritAttackMax', playsName: 'Seance', attackName: 'Big Boo' },
+  { group: 'dragon', one: 'a Dragon', many: 'Dragons', plays: 'dragonPlays', attack: 'dragonAttackMax', playsName: 'Wyrm Herder', attackName: 'Scaly Bruiser' },
+  { group: 'beast', one: 'a Beast', many: 'Beasts', plays: 'beastPlays', attack: 'beastAttackMax', playsName: 'Animal House', attackName: 'Top Dog' },
+  { group: 'undead', one: 'an Undead', many: 'Undead', plays: 'undeadPlays', attack: 'undeadAttackMax', playsName: 'Grave Digger', attackName: 'Bad to the Bone' },
+  { group: 'kobold', one: 'a Kobold', many: 'Kobolds', plays: 'koboldPlays', attack: 'koboldAttackMax', playsName: 'Tunnel Vision', attackName: 'Pocket Rocket' },
+  { group: 'celestial', one: 'a Celestial', many: 'Celestials', plays: 'celestialPlays', attack: 'celestialAttackMax', playsName: 'Star Power', attackName: 'Shooting Star' },
+];
+const TRIBE_SIGNATURE: AchievementDef[] = [
+  // Dwarves: Ales, Gold, damage
+  tr('dwarf', { id: 'tribe.dwarf.ales_game_40', name: 'Pub Crawl', requirement: 'Cast 40 Dwarven Ales in one game.', metric: 'alesCast', target: 40, xp: 300 }),
+  tr('dwarf', { id: 'tribe.dwarf.damage_life_50000', name: 'Rock and Stone', requirement: 'Have your Dwarves deal 50,000 damage across all your games.', metric: 'dwarfDamage', agg: 'sum', target: 50_000, xp: 400 }),
+  tr('dwarf', { id: 'tribe.dwarf.hall_spend_80', name: 'Running a Tab', requirement: 'Spend 80 Gold in one turn with 5 or more Dwarves on your board.', metric: 'dwarfHallSpendTurnMax', target: 80, xp: 350 }),
+  tr('dwarf', { id: 'tribe.dwarf.banked_10', name: 'Tip Jar', requirement: 'Bank 10 Gold for next turn during one combat.', metric: 'combatGoldMax', target: 10, xp: 250 }),
+  // Demons: Imps, consume
+  tr('demon', { id: 'tribe.demon.imps_life_1000', name: 'Imp Factory', requirement: 'Summon 1,000 Imps in combat across all your games.', metric: 'impSummons', agg: 'sum', target: 1_000, xp: 400 }),
+  tr('demon', { id: 'tribe.demon.consumes_game_50', name: 'Second Helping', requirement: 'Consume 50 Shop minions in one game.', metric: 'consumes', target: 50, xp: 350 }),
+  tr('demon', { id: 'tribe.demon.damage_combat_1500', name: "Devil's Due", requirement: 'Have your Demons deal 1,500 damage to enemy minions in one combat.', metric: 'demonDamageCombatMax', target: 1_500, xp: 300 }),
+  tr('demon', { id: 'tribe.demon.consumed_500', name: 'Eyes Bigger Than Stomach', requirement: 'Consume a Shop minion with 500 or more total Attack and Health.', metric: 'consumedStatsMax', target: 500, xp: 450 }),
+  // Spirits (Set 3): summons from hand, Revelers
+  tr('spirit', { id: 'tribe.spirit.hand_summons_8', name: 'Out of Thin Air', requirement: 'Summon 8 minions from your hand in one combat.', metric: 'handSummonsCombatMax', target: 8, xp: 300 }),
+  tr('spirit', { id: 'tribe.spirit.hand_summons_life_250', name: 'Sleight of Hand', requirement: 'Summon 250 minions from your hand in combat across all your games.', metric: 'handSummons', agg: 'sum', target: 250, xp: 400 }),
+  tr('spirit', { id: 'tribe.spirit.revelers_life_100', name: 'After Party', requirement: 'Sell 100 Revelers across all your games.', metric: 'revelerSells', agg: 'sum', target: 100, xp: 300 }),
+  tr('spirit', { id: 'tribe.spirit.win_banner', name: 'Haunted House', requirement: 'Finish 1st in Ranked with 5 Spirits on your final board.', mode: 'ranked', metric: 'finalSpirits', placementMax: 1, target: 5, xp: 150 }),
+  // Dragons: Shouts, spell power, Dragonflame
+  tr('dragon', { id: 'tribe.dragon.shouts_15', name: 'Hot Air', requirement: 'Trigger 15 Shouts in one turn with 3 or more Dragons on your board.', metric: 'dragonShoutsTurnMax', target: 15, xp: 300 }),
+  tr('dragon', { id: 'tribe.dragon.spell_power_20', name: 'Book Smart', requirement: 'Raise your spell power to +20 Attack or +20 Health.', metric: 'spellPower', target: 20, xp: 550 }),
+  tr('dragon', { id: 'tribe.dragon.dragonflame_150', name: 'Scorched Earth', requirement: 'In combat, have one Dragonflame give a minion +150/+150 or more.', metric: 'dragonflameMax', target: 150, xp: 450 }),
+  tr('dragon', { id: 'tribe.dragon.plays_game_40', name: 'Flight School', requirement: 'Play 40 Dragons in one game.', metric: 'dragonPlays', target: 40, xp: 300 }),
+  // Beasts: Echo, summons, King Oona
+  tr('beast', { id: 'tribe.beast.echoes_20', name: 'Howling Pack', requirement: 'Trigger 20 Beast Echoes in one combat.', metric: 'beastEchoesCombatMax', target: 20, xp: 450 }),
+  tr('beast', { id: 'tribe.beast.royal_500', name: 'Big Game', requirement: 'With King Oona on your board, summon a Beast with 500 or more total Attack and Health in combat.', metric: 'oonaBeastSummonMax', target: 500, xp: 450 }),
+  tr('beast', { id: 'tribe.beast.summons_life_1000', name: 'Breeding Season', requirement: 'Summon 1,000 Beasts in combat across all your games.', metric: 'beastSummons', agg: 'sum', target: 1_000, xp: 400 }),
+  tr('beast', { id: 'tribe.beast.gilded_4', name: 'Best in Show', requirement: 'Have 4 Gilded Beasts on your board at once.', metric: 'beastGildedMax', target: 4, xp: 250 }),
+  // Undead (Set 3): Rise, Skeletons
+  tr('undead', { id: 'tribe.undead.rises_game_25', name: 'Rise and Shine', requirement: 'Have your Undead Rise 25 times in combat in one game.', metric: 'undeadRises', target: 25, xp: 300 }),
+  tr('undead', { id: 'tribe.undead.rises_life_500', name: 'Restless Dead', requirement: 'Have your Undead Rise 500 times in combat across all your games.', metric: 'undeadRises', agg: 'sum', target: 500, xp: 400 }),
+  tr('undead', { id: 'tribe.undead.rises_combat_6', name: 'Second Wind', requirement: 'Have your Undead Rise 6 times in one combat.', metric: 'undeadRisesCombatMax', target: 6, xp: 250 }),
+  tr('undead', { id: 'tribe.undead.skeletons_10', name: 'Bag of Bones', requirement: 'Summon 10 Skeletons in one combat.', metric: 'skeletonSummonsCombatMax', target: 10, xp: 250 }),
+  tr('undead', { id: 'tribe.undead.win_banner', name: 'Crypt Keeper', requirement: 'Finish 1st in Ranked with 5 Undead on your final board.', mode: 'ranked', metric: 'finalUndead', placementMax: 1, target: 5, xp: 150 }),
+  // Kobolds: Rubies, the Golem, Kobebes
+  tr('kobold', { id: 'tribe.kobold.rubies_turn_20', name: 'Gem Rush', requirement: 'Play 20 Rubies in one turn.', metric: 'rubyPlaysTurnMax', target: 20, xp: 400 }),
+  tr('kobold', { id: 'tribe.kobold.ruby_strength_20', name: 'Rock Solid', requirement: 'Raise your Rubies to a +20/+20 bonus in one game.', metric: 'rubyStrength', target: 20, xp: 550 }),
+  tr('kobold', { id: 'tribe.kobold.golem_300', name: 'Gem Giant', requirement: 'Summon a Gemheart Golem with 300 or more total Attack and Health in combat.', metric: 'golemStatsCombatMax', target: 300, xp: 400 }),
+  tr('kobold', { id: 'tribe.kobold.rubies_landed_40', name: 'Gem Rain', requirement: 'Have 40 Rubies land on your minions in one combat.', metric: 'rubiesLandedCombatMax', target: 40, xp: 350 }),
+  tr('kobold', { id: 'tribe.kobold.kobebes_3', name: 'Daycare', requirement: 'Have 3 Kobebes on your board at once.', metric: 'kobebesMax', target: 3, xp: 200 }),
+  // Celestials (Set 4): Starform, Shop spells
+  tr('celestial', { id: 'tribe.celestial.starform_50', name: 'Stardust', requirement: 'Grow a Starform to 50 Attack in the Shop.', metric: 'starformAttackMax', target: 50, xp: 250 }),
+  tr('celestial', { id: 'tribe.celestial.spells_10', name: 'Star Chart', requirement: 'Cast 10 Shop spells in one turn with 3 or more Celestials on your board.', metric: 'celestialSpellsTurnMax', target: 10, xp: 300 }),
+  tr('celestial', { id: 'tribe.celestial.gilded_4', name: 'Star Studded', requirement: 'Have 4 Gilded Celestials on your board at once.', metric: 'celestialGildedMax', target: 4, xp: 250 }),
+  tr('celestial', { id: 'tribe.celestial.win_banner', name: 'Constellation', requirement: 'Finish 1st in Ranked with 5 Celestials on your final board.', mode: 'ranked', metric: 'finalCelestials', placementMax: 1, target: 5, xp: 150 }),
+];
+const TRIBES: AchievementDef[] = TRIBE_GROUPS.flatMap((g) => {
+  const c = TRIBE_COMMON.find((x) => x.group === g)!;
+  return [
+    tr(g, { id: `tribe.${g}.plays_1000`, family: 'tribe.plays', name: c.playsName, requirement: `Play 1,000 ${c.many} across all your games.`, metric: c.plays, agg: 'sum', target: 1_000, xp: 300 }),
+    tr(g, { id: `tribe.${g}.attack_500`, family: 'tribe.attack', name: c.attackName, requirement: `Have ${c.one} with 500 Attack on your board.`, metric: c.attack, target: 500, xp: 300 }),
+    ...TRIBE_SIGNATURE.filter((a) => a.group === g),
+  ];
+});
+
+const mech = (category: AchievementCategory, d: Omit<DefInput, 'category' | 'mode'> & { mode?: AchievementMode }): AchievementDef =>
+  def({ mode: 'any', ...d, category, ...(category === 'heroes' ? { group: HEROES_ALL_GROUP } : {}) });
+const MECHANIC_FAMILIES: AchievementDef[] = [
+  // Echo, Rally, Shout, Ward, Execute, Pummel, Start of Combat, End of Turn
+  mech('mechanics', { id: 'mechanic.echo_triggers_40', name: 'Encore', requirement: 'Trigger 40 Echoes in one combat.', metric: 'echoTriggersCombatMax', target: 40, xp: 350 }),
+  mech('mechanics', { id: 'mechanic.echo_triggers_life_2000', name: 'Broken Record', requirement: 'Trigger 2,000 Echoes across all your games.', metric: 'echoTriggers', agg: 'sum', target: 2_000, xp: 400 }),
+  mech('mechanics', { id: 'mechanic.rallies_20', name: 'Pep Rally', requirement: 'Trigger 20 Rallies in one combat.', metric: 'ralliesCombatMax', target: 20, xp: 300 }),
+  mech('mechanics', { id: 'mechanic.rallies_life_1000', name: 'Cheerleader', requirement: 'Trigger 1,000 Rallies across all your games.', metric: 'rallies', agg: 'sum', target: 1_000, xp: 400 }),
+  mech('mechanics', { id: 'mechanic.shouts_turn_25', name: 'Shout It Out', requirement: 'Trigger 25 Shouts in one turn.', metric: 'shoutsTurnMax', target: 25, xp: 300 }),
+  mech('mechanics', { id: 'mechanic.shouts_life_2500', name: 'Loud and Proud', requirement: 'Trigger 2,500 Shouts across all your games.', metric: 'shouts', agg: 'sum', target: 2_500, xp: 400 }),
+  mech('mechanics', { id: 'mechanic.ward_blocks_20', name: 'Bubble Wrap', requirement: 'Have your Wards block 20 hits in one combat.', metric: 'wardBlocksCombatMax', target: 20, xp: 400 }),
+  mech('mechanics', { id: 'mechanic.ward_blocks_life_500', name: 'Safety First', requirement: 'Have your Wards block 500 hits across all your games.', metric: 'wardBlocks', agg: 'sum', target: 500, xp: 300 }),
+  mech('mechanics', { id: 'mechanic.execute_7', name: 'Lethal Dose', requirement: 'Destroy 7 enemy minions with Execute in one combat.', metric: 'executeKillsCombatMax', target: 7, xp: 450 }),
+  mech('mechanics', { id: 'mechanic.execute_life_200', name: 'Toxic Waste', requirement: 'Destroy 200 enemy minions with Execute across all your games.', metric: 'executeKills', agg: 'sum', target: 200, xp: 400 }),
+  mech('mechanics', { id: 'mechanic.pummel_5', name: 'Pummeled', requirement: 'Have Pummel pay out 5 times in one combat.', metric: 'pummelsCombatMax', target: 5, xp: 300 }),
+  mech('mechanics', { id: 'mechanic.pummel_life_250', name: 'Punching Bag', requirement: 'Have Pummel pay out 250 times across all your games.', metric: 'pummels', agg: 'sum', target: 250, xp: 400 }),
+  mech('mechanics', { id: 'mechanic.opening_kills_3', name: 'Opening Salvo', requirement: 'Destroy 3 enemy minions before the first attack of a combat.', metric: 'openingKillsCombatMax', target: 3, xp: 350 }),
+  mech('mechanics', { id: 'mechanic.end_turn_20', name: 'Late Shift', requirement: 'Trigger 20 End of Turn effects in one turn.', metric: 'eotFiresMax', target: 20, xp: 350 }),
+  mech('mechanics', { id: 'mechanic.end_turn_life_1500', name: 'Clock Watcher', requirement: 'Trigger 1,500 End of Turn effects across all your games.', metric: 'eotFires', agg: 'sum', target: 1_500, xp: 400 }),
+  // Discover, Choose One
+  mech('mechanics', { id: 'mechanic.discovers_20', name: 'Spoiled for Choice', requirement: 'Discover 20 cards in one game.', metric: 'discovers', target: 20, xp: 300 }),
+  mech('mechanics', { id: 'mechanic.discovers_life_500', name: 'Treasure Hunter', requirement: 'Discover 500 cards across all your games.', metric: 'discovers', agg: 'sum', target: 500, xp: 400 }),
+  mech('mechanics', { id: 'mechanic.choose_one_15', name: 'Decisions, Decisions', requirement: 'Make 15 Choose One picks in one game.', metric: 'chooseOnes', target: 15, xp: 300 }),
+  mech('mechanics', { id: 'mechanic.choose_one_life_250', name: 'Fork in the Road', requirement: 'Make 250 Choose One picks across all your games.', metric: 'chooseOnes', agg: 'sum', target: 250, xp: 400 }),
+  // Spells
+  mech('mechanics', { id: 'mechanic.spells_game_100', name: 'Spell Check', requirement: 'Cast 100 Shop spells in one game. Rubies do not count.', metric: 'spellsCast', target: 100, xp: 400 }),
+  mech('mechanics', { id: 'mechanic.spells_turn_20', name: 'Spell Spam', requirement: 'Cast 20 Shop spells in one turn. Rubies do not count.', metric: 'spellsTurnMax', target: 20, xp: 400 }),
+  mech('mechanics', { id: 'mechanic.spell_buffs_life_5000', name: 'Abracadabra', requirement: 'Buff minions with spells 5,000 times across all your games. Each buff on each minion counts.', metric: 'spellBuffs', agg: 'sum', target: 5_000, xp: 400 }),
+  // Gilding, Freeze, Refresh, Selling, Gold, tiering
+  mech('economy', { id: 'economy.gilds_game_10', name: 'Triple Trouble', requirement: 'Gild 10 minions in one game.', metric: 'gildsMade', target: 10, xp: 350 }),
+  mech('economy', { id: 'economy.gilded_board_5', name: 'Shiny Things', requirement: 'Have 5 Gilded minions on your board at once.', metric: 'gildedOnBoardMax', target: 5, xp: 300 }),
+  mech('economy', { id: 'economy.frozen_buys_5', name: 'Deep Freeze', requirement: 'Buy 5 cards in one turn from a Shop you froze last turn.', metric: 'frozenBuysTurnMax', target: 5, xp: 250 }),
+  mech('economy', { id: 'economy.freezes_game_8', name: 'Cold Storage', requirement: 'Freeze the Shop on 8 different turns of one game.', metric: 'freezes', target: 8, xp: 250 }),
+  mech('economy', { id: 'economy.refresh_turn_20', name: 'Reroll Addict', requirement: 'Refresh the Shop 20 times in one turn.', metric: 'refreshesTurnMax', target: 20, xp: 250 }),
+  mech('economy', { id: 'economy.refreshes_life_2500', name: 'Slot Machine', requirement: 'Refresh the Shop 2,500 times across all your games.', metric: 'refreshes', agg: 'sum', target: 2_500, xp: 400 }),
+  mech('economy', { id: 'economy.sell_turn_12', name: 'Fire Sale', requirement: 'Sell 12 minions in one turn.', metric: 'sellsTurnMax', target: 12, xp: 250 }),
+  mech('economy', { id: 'economy.sells_life_1000', name: 'Pawn Shop', requirement: 'Sell 1,000 minions across all your games.', metric: 'sells', agg: 'sum', target: 1_000, xp: 300 }),
+  mech('economy', { id: 'economy.spend_turn_40', name: 'Splurge', requirement: 'Spend 40 Gold in one turn.', metric: 'goldSpentTurnMax', target: 40, xp: 200 }),
+  mech('economy', { id: 'economy.spend_game_300', name: 'Shopaholic', requirement: 'Spend 300 Gold in one game.', metric: 'goldSpent', target: 300, xp: 350 }),
+  mech('economy', { id: 'economy.turn_start_25', name: 'Rainy Day Fund', requirement: 'Start a turn with 25 Gold.', metric: 'goldTurnStartMax', target: 25, xp: 250 }),
+  mech('economy', { id: 'economy.discount_life_250', name: 'Coupon Clipper', requirement: 'Buy 250 minions for less than 3 Gold across all your games.', metric: 'discountBuys', agg: 'sum', target: 250, xp: 300 }),
+  mech('economy', { id: 'shop.low_tier_top_four', name: 'Bargain Bin', requirement: 'Finish Top 4 without ever going past Shop Tier 3.', metric: 'lowTierGame', placementMax: 4, target: 1, xp: 300 }),
+  mech('economy', { id: 'shop.tier_six_early_10', name: 'Express Lane', requirement: 'Reach Shop Tier 6 by round 9 in 10 different games.', metric: 'tierSixByRound9', agg: 'sum', target: 10, xp: 300 }),
+  // Runes and the Runeforge
+  mech('runes', { id: 'rune.triggers_100', family: 'rune.triggers', name: 'Rune Rush', requirement: 'Have your Runes trigger 100 times in one game.', metric: 'runeTriggers', target: 100, xp: 400 }),
+  mech('runes', { id: 'rune.five_engines', name: 'Engine Room', requirement: 'Have 5 different Runes each trigger 5 times in one game.', metric: 'runesFivePlus', target: 5, xp: 350 }),
+  mech('runes', { id: 'rune.tribal_pair_win', name: 'Matching Set', requirement: 'Finish 1st in Ranked holding a Basic and an Epic Rune of the same tribe.', mode: 'ranked', metric: 'tribalRunePair', placementMax: 1, target: 1, xp: 300 }),
+  mech('runes', { id: 'rune.epic_lifetime_100', name: 'Epic Saga', requirement: 'Forge 100 Epic Runes across all your games.', metric: 'epicRunesForged', agg: 'sum', target: 100, xp: 600 }),
+  // Hero powers
+  mech('heroes', { id: 'hero.power_uses_game_20', name: 'Button Masher', requirement: 'Use your hero power 20 times in one game.', metric: 'heroPowerUses', target: 20, xp: 250 }),
+  // Armor and Health, knockouts, big hits, lobby placement
+  mech('combat', { id: 'combat.full_health_top_four', name: 'Not a Scratch', requirement: 'Finish Top 4 without losing any Health. Armor may break.', metric: 'fullHealthFinish', placementMax: 4, target: 1, xp: 350 }),
+  mech('combat', { id: 'combat.brink_top_four_10', family: 'combat.brink', name: 'Nine Lives', requirement: 'Finish Top 4 after falling to 5 or less Health in 10 games.', metric: 'brink', agg: 'sum', placementMax: 4, target: 10, xp: 400 }),
+  mech('combat', { id: 'combat.one_health_rounds_10', name: 'Living on the Edge', requirement: 'End 10 rounds alive on exactly 1 Health and no Armor, across all your games.', metric: 'oneHealthRounds', agg: 'sum', target: 10, xp: 300 }),
+  mech('combat', { id: 'combat.knockout_streak_2', name: 'Double Tap', requirement: 'Knock out a player in 2 rounds in a row.', metric: 'knockoutStreakMax', target: 2, xp: 250 }),
+  mech('combat', { id: 'combat.kills_game_60', name: 'Body Count', requirement: 'Destroy 60 enemy minions in one game.', metric: 'enemyKills', target: 60, xp: 300 }),
+  mech('combat', { id: 'combat.hit_300', name: 'Haymaker', requirement: 'Deal 300 or more damage to a minion in one hit.', metric: 'hitDamageMax', target: 300, xp: 250 }),
+  mech('combat', { id: 'combat.minion_500', name: 'Built Different', requirement: 'Have a minion with 500 Attack and 500 Health on your board.', metric: 'minionStatsMinMax', target: 500, xp: 300 }),
+  mech('career', { id: 'career.final_two.10', family: 'career.final_two', name: 'Runner Up', requirement: 'Finish in the final 2 in 10 Ranked games.', mode: 'ranked', metric: 'game', agg: 'sum', placementMax: 2, target: 10, xp: 200, trust: 'S' }),
+  mech('career', { id: 'career.final_two.50', family: 'career.final_two', name: 'Heads Up', requirement: 'Finish in the final 2 in 50 Ranked games.', mode: 'ranked', metric: 'game', agg: 'sum', placementMax: 2, target: 50, xp: 500, trust: 'S' }),
+];
+/** The 100 added 2026-11-20 (tribes and mechanics), in display order. Visible, XP only. */
+export const ACHIEVEMENTS_TRIBES_MECHANICS: readonly AchievementDef[] = Object.freeze([...TRIBES, ...MECHANIC_FAMILIES]);
+
 /** The 150 added 2026-10-03, in display order. */
 export const ACHIEVEMENTS_150: readonly AchievementDef[] = Object.freeze([...SET2_MORE, ...HERO_DEVOTED, ...HEROES_ALL, ...COMBAT, ...MILESTONES]);
 
 /** Every achievement in the game (batch 1 plus the 2026-10-03 150). Order is display order within a category. */
-export const ACHIEVEMENTS: readonly AchievementDef[] = Object.freeze([...CAREER, ...RANKED, ...HERO_ACHIEVEMENTS, ...ECONOMY, ...MECHANICS, ...RUNES, ...SET2, ...ACHIEVEMENTS_150, ...COLLECTION, ...SECRET_ACHIEVEMENTS]);
+export const ACHIEVEMENTS: readonly AchievementDef[] = Object.freeze([...CAREER, ...RANKED, ...HERO_ACHIEVEMENTS, ...ECONOMY, ...MECHANICS, ...RUNES, ...SET2, ...ACHIEVEMENTS_150, ...ACHIEVEMENTS_TRIBES_MECHANICS, ...COLLECTION, ...SECRET_ACHIEVEMENTS]);
 
 export const ACHIEVEMENT_INDEX: Readonly<Record<string, AchievementDef>> = Object.freeze(Object.fromEntries(ACHIEVEMENTS.map((a) => [a.id, a])));
 export const achievementOf = (id: string | null | undefined): AchievementDef | null => (id && ACHIEVEMENT_INDEX[id] ? ACHIEVEMENT_INDEX[id]! : null);

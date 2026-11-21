@@ -529,3 +529,69 @@ describe('the secret titles v2 metrics (2026-11-20: Dwarven, Hocus Pocus, Yazzus
     expect(t.m.frontToBackMin).toBe(480);
   });
 });
+
+describe('the tribes and mechanics metrics (2026-11-20: "another 100 achievements ... across tribes and mechanics")', () => {
+  const pick = (tribe: string): string => Object.values(CARD_INDEX).find((c) => c.tribe === tribe && !c.tribe2 && !c.token && !c.spell && !c.ruby && !c.universalTribe)!.id;
+
+  it('Demon, Beast and Undead plays; the strongest Dwarf and Beast Attack; Spirits, Undead and Celestials on the final board', () => {
+    const t = emptyAchTally();
+    const before = set2Run({ playedThisTurn: [] });
+    observeAchAction(t, before, { type: 'play', uid: 'x' }, { ...before, playedThisTurn: [pick('demon'), pick('beast'), pick('beast'), pick('undead')] }, 0);
+    expect(t.m).toMatchObject({ demonPlays: 1, beastPlays: 2, undeadPlays: 1 });
+    const board = [card('d1', pick('dwarf'), { tribe: 'dwarf', attack: 640 }), card('b1', pick('beast'), { tribe: 'beast', attack: 510 })];
+    observeAchAction(t, before, { type: 'roll' }, { ...before, board }, 0);
+    expect(t.m).toMatchObject({ dwarfAttackMax: 640, beastAttackMax: 510 });
+    const final = set2Run({ board: [
+      ...Array.from({ length: 3 }, (_, i) => card(`s${i}`, pick('spirit'), { tribe: 'spirit' })),
+      ...Array.from({ length: 2 }, (_, i) => card(`u${i}`, pick('undead'), { tribe: 'undead' })),
+      card('c1', pick('celestial'), { tribe: 'celestial' }),
+    ] });
+    expect(finalAchMetrics(emptyAchTally(), final)).toMatchObject({ finalSpirits: 3, finalUndead: 2, finalCelestials: 1 });
+  });
+
+  it('accepted actions only: refreshes, Discover and Choose One picks, freezes once per turn, End of Turn fires, Shouts and sells summed', () => {
+    const t = emptyAchTally();
+    const r = set2Run({ wave: 4 });
+    observeAchAction(t, r, { type: 'roll' }, { ...r }, 0);
+    observeAchAction(t, r, { type: 'roll' }, r, 0); // refused (the same state): not a refresh
+    expect(t.m.refreshes).toBe(1);
+    const disc = { ...r, discover: {} } as unknown as RunState;
+    observeAchAction(t, disc, { type: 'discover', index: 0 }, { ...r }, 0);
+    observeAchAction(t, r, { type: 'discover', index: 0 }, { ...r }, 0); // nothing on offer
+    const co = { ...r, chooseOne: {} } as unknown as RunState;
+    observeAchAction(t, co, { type: 'chooseOne', index: 1 }, { ...r }, 0);
+    expect(t.m).toMatchObject({ discovers: 1, chooseOnes: 1 });
+    observeAchAction(t, r, { type: 'freeze' }, { ...r, frozen: true }, 0);
+    observeAchAction(t, { ...r, frozen: true }, { type: 'freeze' }, { ...r, frozen: false }, 0);
+    observeAchAction(t, r, { type: 'freeze' }, { ...r, frozen: true }, 0); // the same turn again
+    expect(t.m.freezes).toBe(1);
+    const next = { ...r, wave: 5 };
+    observeAchAction(t, next, { type: 'freeze' }, { ...next, frozen: true }, 0);
+    expect(t.m.freezes).toBe(2);
+    observeAchAction(t, r, { type: 'roll' }, { ...r, lastEotFires: 6, shoutFiresThisTurn: 4, soldThisTurn: ['a', 'b'] } as RunState, 0);
+    const mid = { ...r, lastEotFires: 6, shoutFiresThisTurn: 4, soldThisTurn: ['a', 'b'] } as RunState;
+    observeAchAction(t, mid, { type: 'sell', uid: 'c' }, { ...mid, lastEotFires: 0, shoutFiresThisTurn: 5, soldThisTurn: ['a', 'b', 'c'] } as RunState, 0);
+    expect(t.m).toMatchObject({ eotFires: 6, shouts: 5, sells: 3 });
+    // a combat preview spreads the prior state: nothing counts again
+    observeAchAction(t, mid, { type: 'combatEscalationPreview', attack: 1, health: 1 } as unknown as Action, { ...mid }, 0);
+    expect(t.m.eotFires).toBe(6);
+  });
+
+  it('the combat log: Echo and Rally triggers, Ward blocks, Execute kills, Beast and hand summons summed; Pummel payouts; kills before the first attack', () => {
+    const t = emptyAchTally();
+    const fight = combat([
+      { type: 'pummelTrigger', source: 'p1', side: 'player', marker: 'm' }, { type: 'pummelTrigger', source: 'p1', side: 'player', marker: 'm' },
+      { type: 'pummelTrigger', source: 'e1', side: 'enemy', marker: 'm' },
+      { type: 'death', target: 'e2', side: 'enemy' }, // before any attack: a Start of Combat kill
+      { type: 'summon', side: 'player', index: 0, minion: snap('h1', pick('beast')), fromHandUid: 'hand1' },
+      { type: 'shield', target: 'p1' },
+      { type: 'attack', attacker: 'p1', defender: 'e1' },
+      { type: 'poison', target: 'e1' }, { type: 'death', target: 'e1', side: 'enemy' }, // after the first attack: not an opening kill
+    ] as CombatEvent[], { playerDeathrattles: 7, playerRallies: 3 } as Partial<CombatResult>);
+    observeAchCombat(t, fight, 6);
+    observeAchCombat(t, fight, 7);
+    expect(t.m).toMatchObject({
+      echoTriggers: 14, rallies: 6, wardBlocks: 2, executeKills: 2, beastSummons: 2, handSummons: 2, pummels: 4, pummelsCombatMax: 2, openingKillsCombatMax: 1,
+    });
+  });
+});

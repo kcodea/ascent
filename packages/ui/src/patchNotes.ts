@@ -60,6 +60,17 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: '100 new achievements for tribes and mechanics, all paying XP.',
+        details: [
+          'A new Tribes section with 6 or 7 achievements for each tribe: Dwarves, Demons, Spirits, Dragons, Beasts, Undead, Kobolds and Celestials.',
+          'New feats for Echo, Rally, Shout, Ward, Execute, Pummel, End of Turn, Discover, Choose One and spells in Mechanics.',
+          'More for Gilding, Freezing, refreshing, selling, Gold and Shop Tiers in Economy and Build, plus new Runes, Combat and Career goals.',
+          'Some are one big game or turn. Others add up across all your games.',
+          'Spirit, Undead and Celestial feats unlock when those tribes are in play.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Achievements now pop in from the left side of the screen the moment you earn them, mid-game.',
         details: [
           'Shows the achievement name, its XP and any title it grants, with a short chime, then slides away after a few seconds.',

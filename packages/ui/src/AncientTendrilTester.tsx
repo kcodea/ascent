@@ -5,6 +5,7 @@ import { ancientTendrilDef, ancientTendrilDefId } from './fx/ancientTendrils';
 import { canPlayDefs, ensureDefsReady } from './fx/playDef';
 import { refreshDefs } from './fx/fxDefs';
 import { useGame } from './store';
+import { useDraggablePanel } from './useDraggablePanel';
 
 /**
  * DEV-only: fire each ANCIENT's own tendril (R-FX-ANCIENT-TENDRIL-02) on the cards on screen, through the REAL
@@ -48,7 +49,11 @@ function fire(ancient: AncientId, from: 'hero' | 'minion'): string | null {
 export function AncientTendrilTester(): JSX.Element {
   const [note, setNote] = useState<string | null>(null);
   const [, bump] = useState(0);
+  // The floating, draggable DEV panel frame every tuner uses (the key MUST match DevMenu's, so its ✕ closes it).
+  const { panelRef, headerPointerDown, panelStyle } = useDraggablePanel('ancienttendrils');
   return (
+    <div className="sfxmix tunerpanel" ref={panelRef} style={{ minWidth: 480, ...panelStyle }}>
+      <div className="sfxmix-h drag" onPointerDown={headerPointerDown}>Ancient Tendrils</div>
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 8, fontSize: 13 }}>
       <div style={{ opacity: 0.8 }}>
         Save a workbench effect as <b>ancient-tendril-&lt;name&gt;</b> and it plays here and in the game. Unsaved ones play
@@ -71,7 +76,8 @@ export function AncientTendrilTester(): JSX.Element {
       <button type="button" className="btn" onClick={() => { refreshDefs(); bump((n) => n + 1); setNote(null); }}>
         Re-check saved effects
       </button>
-      {note && <div style={{ color: '#ffb35c' }}>{note}</div>}
+      {note && <div style={{ fontWeight: 700 }}>{note}</div>}
+    </div>
     </div>
   );
 }

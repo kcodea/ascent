@@ -12,12 +12,12 @@
         "travelMs": 380,
         "dwellMs": 0,
         "releaseMs": 140,
-        "width": 56,
+        "width": 64,
         "coreWidth": 2.3,
         "segments": 34,
         "waver": 0.46,
         "waverFreq": 2.4,
-        "waverSpeed": 0,
+        "waverSpeed": 3.8,
         "endSoftness": 0.5,
         "midSoftness": 0.6,
         "arc": 0.24,
@@ -28,11 +28,11 @@
         "flowSpeed": 1.4,
         "flowFreq": 6,
         "flowDir": "target",
-        "glowStrength": 0.28,
-        "gain": 2.4,
-        "coreColor": 6750175,
-        "tipColor": 8585174,
-        "glowColor": 8191987,
+        "glowStrength": 0.52,
+        "gain": 1.2,
+        "coreColor": 6750157,
+        "tipColor": 8585160,
+        "glowColor": 7729577,
         "flicker": 0,
         "blendMode": "normal",
         "blur": 0,
@@ -88,8 +88,8 @@
         ],
         "glow_inner": 4,
         "glow_alpha": 0.51,
-        "glow_knockout": true,
-        "glow_color": 8518869,
+        "glow_knockout": false,
+        "glow_color": 1683841,
         "godrayOn": false,
         "godrayAmt": 0.5,
         "godrayCurve": [
@@ -296,7 +296,7 @@
             1
           ]
         ],
-        "outlineOn": true,
+        "outlineOn": false,
         "outlineAmt": 0,
         "outlineCurve": [
           [
@@ -310,7 +310,7 @@
         ],
         "outline_alpha": 1,
         "outline_knockout": false,
-        "outline_color": 5832659,
+        "outline_color": 2621382,
         "rgbSplitOn": false,
         "rgbSplitAmt": -10,
         "rgbSplitCurve": [
@@ -486,12 +486,12 @@
       "at": 0,
       "stagger": 100,
       "params": {
-        "count": 141,
+        "count": 215,
         "interval": 600,
         "spread": 1,
         "aimMode": "travel",
         "angle": -90,
-        "speed": 545,
+        "speed": 1065,
         "speedVar": 0.5,
         "reverse": false,
         "speedCurve": [
@@ -504,10 +504,10 @@
             1
           ]
         ],
-        "drag": 0.9,
-        "gravity": -1130,
+        "drag": 0.795,
+        "gravity": -740,
         "pointGravity": 0,
-        "life": 1560,
+        "life": 1420,
         "orientToVelocity": false,
         "spinMul": 2.8,
         "spinCurve": [
@@ -534,7 +534,7 @@
         "offsetY": 0,
         "inheritVel": 0,
         "shape": "shard",
-        "size": 27,
+        "size": 7,
         "sizeVar": 0.5,
         "stretchX": 1,
         "stretchY": 1,
@@ -1056,7 +1056,7 @@
             1
           ]
         ],
-        "drag": 0.9,
+        "drag": 0.885,
         "gravity": -1230,
         "pointGravity": 0,
         "life": 1770,
@@ -1086,7 +1086,7 @@
         "offsetY": 0,
         "inheritVel": 0,
         "shape": "shard",
-        "size": 22,
+        "size": 14,
         "sizeVar": 0.5,
         "stretchX": 1,
         "stretchY": 1,
@@ -1592,7 +1592,129 @@
       "params": {
         "clip": "fx/ancient-tendril-death-launch",
         "gain": 1,
-        "bus": "combat"
+        "gainCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "pitch": 1,
+        "reverse": false,
+        "loop": false,
+        "startOffset": 0,
+        "endOffset": 0,
+        "delay": 0,
+        "fadeIn": 0,
+        "fadeOut": 0,
+        "gainVar": 0,
+        "pitchVar": 0,
+        "bus": "combat",
+        "eqOn": false,
+        "eq_low": 0,
+        "eq_lowCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "eq_mid": 0,
+        "eq_midCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "eq_high": 0,
+        "eq_highCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "compOn": false,
+        "comp_threshold": -24,
+        "comp_thresholdCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "comp_ratio": 4,
+        "comp_attack": 3,
+        "comp_release": 250,
+        "distortOn": false,
+        "distort_drive": 0.3,
+        "distort_mix": 1,
+        "distort_mixCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "delayOn": false,
+        "delay_time": 250,
+        "delay_feedback": 0.35,
+        "delay_mix": 0.3,
+        "delay_mixCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "reverbOn": false,
+        "reverb_size": 1.8,
+        "reverb_damping": 0.35,
+        "reverb_mix": 0.3,
+        "reverb_mixCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "panOn": false,
+        "pan_pan": 0,
+        "pan_panCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ]
       }
     },
     {
@@ -1603,8 +1725,129 @@
       "params": {
         "clip": "fx/ancient-tendril-death-hit",
         "gain": 1,
+        "gainCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "pitch": 1,
+        "reverse": false,
+        "loop": false,
+        "startOffset": 0,
+        "endOffset": 0,
+        "delay": 0,
+        "fadeIn": 0,
+        "fadeOut": 0,
+        "gainVar": 0,
         "pitchVar": 0.06,
-        "bus": "combat"
+        "bus": "combat",
+        "eqOn": false,
+        "eq_low": 0,
+        "eq_lowCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "eq_mid": 0,
+        "eq_midCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "eq_high": 0,
+        "eq_highCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "compOn": false,
+        "comp_threshold": -24,
+        "comp_thresholdCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "comp_ratio": 4,
+        "comp_attack": 3,
+        "comp_release": 250,
+        "distortOn": false,
+        "distort_drive": 0.3,
+        "distort_mix": 1,
+        "distort_mixCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "delayOn": false,
+        "delay_time": 250,
+        "delay_feedback": 0.35,
+        "delay_mix": 0.3,
+        "delay_mixCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "reverbOn": false,
+        "reverb_size": 1.8,
+        "reverb_damping": 0.35,
+        "reverb_mix": 0.3,
+        "reverb_mixCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "panOn": false,
+        "pan_pan": 0,
+        "pan_panCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ]
       }
     }
   ]

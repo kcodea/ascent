@@ -32,7 +32,7 @@ import './achievementsPh.css';
 
 const CATEGORY_ICONS: Readonly<Record<AchievementCategory, string>> = {
   career: 'crown', ranked: 'shield', heroes: 'taunt', economy: 'ember', mechanics: 'gear', runes: 'anvil', set2: 'paw',
-  combat: 'sword', milestones: 'clock', collection: 'gift', secret: 'lock',
+  tribes: 'paw', combat: 'sword', milestones: 'clock', collection: 'gift', secret: 'lock',
 };
 /** The painted category medallions (owner 2026-11-01; Mechanics, Runes, Set 2 and Milestones 2026-11-06). A category
  *  without art keeps its flat glyph above. */

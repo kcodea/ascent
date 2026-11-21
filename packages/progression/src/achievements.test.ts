@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  ACHIEVEMENTS, ACHIEVEMENTS_150, ACHIEVEMENT_CATEGORIES, ACHIEVEMENT_HEROES, ACHIEVEMENT_INDEX, COLLECTION_METRIC, META_METRIC, RUN_METRICS, RUN_METRIC_KEYS, SERVER_METRICS,
+  ACHIEVEMENTS, ACHIEVEMENTS_150, ACHIEVEMENTS_TRIBES_MECHANICS, TRIBE_GROUPS, ACHIEVEMENT_CATEGORIES, ACHIEVEMENT_HEROES, ACHIEVEMENT_INDEX, COLLECTION_METRIC, META_METRIC, RUN_METRICS, RUN_METRIC_KEYS, SERVER_METRICS,
   SECRET_ACHIEVEMENTS, achievementCatalogHash, achievementCatalogPayload, achievementGatePasses, achievementXpOf, divisionName, evaluateAchievements, sanitizeRunMetrics,
   type AchievementDef, type AchievementSettlement,
 } from './achievements';
@@ -17,15 +17,15 @@ const count = (cat: string): number => ACHIEVEMENTS.filter((a) => a.category ===
 const xpOf = (cat: string): number => ACHIEVEMENTS.filter((a) => a.category === cat).reduce((s, a) => s + a.rewards.xp, 0);
 
 describe('the batch 1 registry', () => {
-  it('ships 483 achievements: counts and XP per category (the Plushie Collector 2026-10-27: +1, 0 XP; hero titles 2026-09-29 added 33 Titled tiers, 4,950 XP; Runesmith + Guardian back 2026-10-01: +10; the 2026-10-03 150: +61,375 XP; the owner-approved long-term re-tune: +7,000 XP; Pete, Foreman Flint, Emissary, Underdweller, Membrance + Gorun back 2026-10-15: +36, +5,700 XP; the secret titles 2026-11-20: +48 hidden, +20,550 XP; the tribe batch: +40; the v2 pass: +3 Spell feats and new bars, 91 hidden, 45,950 XP in all)', () => {
-    expect(ACHIEVEMENTS).toHaveLength(574);
+  it('ships 483 achievements: counts and XP per category (the Plushie Collector 2026-10-27: +1, 0 XP; hero titles 2026-09-29 added 33 Titled tiers, 4,950 XP; Runesmith + Guardian back 2026-10-01: +10; the 2026-10-03 150: +61,375 XP; the owner-approved long-term re-tune: +7,000 XP; Pete, Foreman Flint, Emissary, Underdweller, Membrance + Gorun back 2026-10-15: +36, +5,700 XP; the secret titles 2026-11-20: +48 hidden, +20,550 XP; the tribe batch: +40; the v2 pass: +3 Spell feats and new bars, 91 hidden, 45,950 XP in all; tribes and mechanics 2026-11-20: +100 visible, +33,000 XP)', () => {
+    expect(ACHIEVEMENTS).toHaveLength(674);
     expect(Object.fromEntries(ACHIEVEMENT_CATEGORIES.map((c) => [c, count(c)]))).toEqual({
-      career: 17, ranked: 28, heroes: 258, economy: 15, mechanics: 7, runes: 5, set2: 82, combat: 36, milestones: 34, collection: 1, secret: 91,
+      career: 19, ranked: 28, heroes: 259, economy: 29, mechanics: 29, runes: 9, set2: 82, tribes: 50, combat: 43, milestones: 34, collection: 1, secret: 91,
     });
     expect(Object.fromEntries(ACHIEVEMENT_CATEGORIES.map((c) => [c, xpOf(c)]))).toEqual({
-      career: 3050, ranked: 4300, heroes: 42850, economy: 1925, mechanics: 1125, runes: 675, set2: 22450, combat: 13175, milestones: 22100, collection: 0, secret: 45950,
+      career: 3750, ranked: 4300, heroes: 43100, economy: 5975, mechanics: 9225, runes: 2325, set2: 22450, tribes: 16100, combat: 15325, milestones: 22100, collection: 0, secret: 45950,
     });
-    expect(ACHIEVEMENTS.reduce((s, a) => s + a.rewards.xp, 0)).toBe(157_600);
+    expect(ACHIEVEMENTS.reduce((s, a) => s + a.rewards.xp, 0)).toBe(190_600);
     // owner 2026-10-03 ("yes apply these achievement changes"): the batch 1 long-term tiers on the new curve
     expect(Object.fromEntries(['career.games.100', 'career.top_four.50', 'career.firsts.25', 'career.comebacks.10', 'career.heroes_played.15', 'career.hero_wins.15', 'career.achievements.25', 's2.kobold.rubies_life_500', 'hero.warden.mastery']
       .map((id) => [id, ACHIEVEMENT_INDEX[id]!.rewards.xp]))).toEqual({
@@ -352,5 +352,66 @@ describe('the secret titles (owner 2026-11-20: "50 new SECRET titles ... tied to
   it('the catalog payload carries the hidden flag and the title for the database', () => {
     const row = achievementCatalogPayload().items.find((i) => i.achievementId === 'secret.starstruck')!;
     expect(row).toMatchObject({ hidden: true, titleId: 'title_secret_starstruck', metric: 'starformAttackMax', target: 150, xp: 450, category: 'secret', active: true });
+  });
+});
+
+describe('tribes and mechanics (owner 2026-11-20: "come up with another 100 achievements to add as well across tribes and mechanics")', () => {
+  const M = ACHIEVEMENTS_TRIBES_MECHANICS;
+  const base: AchievementSettlement = { mode: 'ranked', eligibleRun: true, setId: 'set2', heroId: 'warden', placement: 3, metrics: {} };
+
+  it('100 visible defs, XP only (100 to 600), 50 per side: the Tribes category holds 6 or 7 per tribe, no Mech', () => {
+    expect(M).toHaveLength(100);
+    expect(M.filter((a) => a.category === 'tribes')).toHaveLength(50);
+    const groups = M.filter((a) => a.category === 'tribes').reduce<Record<string, number>>((m, a) => ({ ...m, [a.group!]: (m[a.group!] ?? 0) + 1 }), {});
+    expect(groups).toEqual({ dwarf: 6, demon: 6, spirit: 6, dragon: 6, beast: 6, undead: 7, kobold: 7, celestial: 6 });
+    expect(Object.keys(groups)).toEqual([...TRIBE_GROUPS]);
+    expect(M.reduce((s, a) => s + a.rewards.xp, 0)).toBe(33_000);
+    for (const a of M) {
+      expect(a.hidden, a.id).toBe(false);
+      expect(a.rewards, a.id).toEqual({ xp: a.rewards.xp, titleId: null });
+      expect(a.rewards.xp, a.id).toBeGreaterThanOrEqual(100);
+      expect(a.rewards.xp, a.id).toBeLessThanOrEqual(600);
+      expect(a.setId, a.id).toBeNull();
+      expect(ACHIEVEMENTS, a.id).toContain(a);
+      expect(a.requirement, a.id).not.toMatch(/\boath\b|\bclimb/i);
+      expect(a.name, a.id).not.toMatch(/\b(bronze|silver|gold|golden|platinum|diamond|ascendant|champion)\b/i);
+    }
+    // a lifetime family shows its bar; a one-game feat does not
+    expect(ACHIEVEMENT_INDEX['tribe.dwarf.plays_1000']!.showProgress).toBe(true);
+    expect(ACHIEVEMENT_INDEX['tribe.dwarf.attack_500']!.showProgress).toBe(false);
+  });
+
+  it('no def in the whole catalog repeats the predicate of another (metric, aggregation, target, mode, placement, set, hero)', () => {
+    const key = (a: AchievementDef): string => [a.metric, a.agg, a.target, a.mode, a.placementMax, a.setId, a.heroId].join('|');
+    const seen = new Map<string, string>();
+    const dupes: string[] = [];
+    for (const a of ACHIEVEMENTS) {
+      const k = key(a);
+      if (seen.has(k) && (M.includes(a) || M.some((x) => x.id === seen.get(k)))) dupes.push(`${a.id} = ${seen.get(k)}`);
+      seen.set(k, a.id);
+    }
+    expect(dupes).toEqual([]);
+  });
+
+  it('names never reuse a cosmetic name (titles included)', () => {
+    const cosmetics = new Set(COSMETICS.map((c) => c.name.toLowerCase()));
+    expect(M.filter((a) => cosmetics.has(a.name.toLowerCase())).map((a) => a.name)).toEqual([]);
+  });
+
+  it('the evaluator: a lifetime def adds up across games, a one-game def keeps the best, the Ranked banner needs 1st', () => {
+    const plays = [ACHIEVEMENT_INDEX['tribe.demon.plays_1000']!];
+    const r1 = evaluateAchievements(plays, { ...base, metrics: { demonPlays: 600 } }, {});
+    expect(r1).toEqual({ progress: { 'tribe.demon.plays_1000': 600 }, completed: [], xp: 0 });
+    expect(evaluateAchievements(plays, { ...base, metrics: { demonPlays: 400 } }, { 'tribe.demon.plays_1000': { progress: 600, completed: false } }))
+      .toEqual({ progress: { 'tribe.demon.plays_1000': 1_000 }, completed: ['tribe.demon.plays_1000'], xp: 300 });
+    const pummel = [ACHIEVEMENT_INDEX['mechanic.pummel_5']!];
+    expect(evaluateAchievements(pummel, { ...base, metrics: { pummelsCombatMax: 4 } }, { 'mechanic.pummel_5': { progress: 4, completed: false } }).completed).toEqual([]);
+    expect(evaluateAchievements(pummel, { ...base, mode: 'practice', metrics: { pummelsCombatMax: 5 } }, {}).completed).toEqual(['mechanic.pummel_5']);
+    const banner = [ACHIEVEMENT_INDEX['tribe.undead.win_banner']!];
+    expect(evaluateAchievements(banner, { ...base, metrics: { finalUndead: 5 } }, {}).completed).toEqual([]);
+    expect(evaluateAchievements(banner, { ...base, placement: 1, metrics: { finalUndead: 5 } }, {}).completed).toEqual(['tribe.undead.win_banner']);
+    // the final-2 ladder is server-known (the settled placement), Ranked only
+    const two = ACHIEVEMENT_INDEX['career.final_two.10']!;
+    expect([two.trust, two.mode, two.placementMax, two.metric]).toEqual(['S', 'ranked', 2, 'game']);
   });
 });

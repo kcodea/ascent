@@ -1,5 +1,5 @@
 import {
-  ACHIEVEMENTS, ACHIEVEMENT_CATEGORIES, ACHIEVEMENT_CATEGORY_LABELS, ACHIEVEMENT_GROUP_LABELS, ACHIEVEMENT_HEROES, HEROES_ALL_GROUP, SET2_GROUPS,
+  ACHIEVEMENTS, ACHIEVEMENT_CATEGORIES, ACHIEVEMENT_CATEGORY_LABELS, ACHIEVEMENT_GROUP_LABELS, ACHIEVEMENT_HEROES, HEROES_ALL_GROUP, SET2_GROUPS, TRIBE_GROUPS,
   type AchievementCategory, type AchievementDef,
 } from '@game/progression';
 
@@ -90,7 +90,7 @@ export function achievementView(input: AchievementViewInput): AchievementView {
   }
   const categories = ACHIEVEMENT_CATEGORIES.map((id): AchievementCategoryView => {
     const mine = tiles.filter((t) => t.def.category === id);
-    const order = id === 'set2' ? [...SET2_GROUPS] : id === 'heroes' ? [HEROES_ALL_GROUP, ...ACHIEVEMENT_HEROES.map((h) => h.id)] : [];
+    const order = id === 'set2' ? [...SET2_GROUPS] : id === 'tribes' ? [...TRIBE_GROUPS] : id === 'heroes' ? [HEROES_ALL_GROUP, ...ACHIEVEMENT_HEROES.map((h) => h.id)] : [];
     const groups: AchievementGroup[] = [];
     for (const t of mine) {
       const gid = t.def.group ?? '';

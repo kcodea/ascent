@@ -1036,6 +1036,13 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   100 for one-game feats, up to 1,500 for the biggest milestones. A **knockout** is an opponent who fell in the round
   your own fight hit them. The new counters are run metrics (ordinary trust). No SQL: `submit-progression` syncs the
   catalog on its next cold start.
+- **Tribes and mechanics (2026-11-20).** Owner: "come up with another 100 achievements to add as well across tribes
+  and mechanics". 100 visible achievements, XP only (100 to 600, 33,000 XP). A new **Tribes** category (50: 6 or 7 for
+  each of Dwarf, Demon, Spirit, Dragon, Beast, Undead, Kobold, Celestial) that is NOT set-scoped: a tribe's feats count
+  in whichever set it is played, so the Spirit and Undead ones (Set 3) and the Celestial ones (Set 4) wait for their set.
+  50 mechanic feats join Mechanics, Economy and Build, Runes, Heroes, Combat and Career (a "final 2 in Ranked" ladder).
+  Lifetime ones add up across games; the rest keep the best turn, combat or game. A **Start of Combat kill** is an
+  enemy destroyed before the first attack of the fight.
 - **Guests.** An anonymous session is a real account id and the email upgrade keeps it, so guests earn XP from
   their first game. Reaching Level 2 as a guest shows a gentle "Save your progress" prompt (never a gate). With
   no session at all, a game earns nothing.

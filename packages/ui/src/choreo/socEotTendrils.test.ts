@@ -159,8 +159,9 @@ describe('END OF TURN — one ribbon per recipient, from the buffer', () => {
       heroId: 'aevor', tempestKills: 15,
     } as Partial<RunState>));
     expect(ctx.heroPowerGain).toHaveBeenCalledTimes(2);
-    expect(ctx.heroPowerGain).toHaveBeenCalledWith('l', 'aevor');
-    expect(ctx.heroPowerGain).toHaveBeenCalledWith('r', 'aevor');
+    // The third argument is the beat's label: an Ancient's name there picks its own tendril (R-FX-ANCIENT-TENDRIL-02).
+    expect(ctx.heroPowerGain).toHaveBeenCalledWith('l', 'aevor', 'Tempest');
+    expect(ctx.heroPowerGain).toHaveBeenCalledWith('r', 'aevor', 'Tempest');
     expect(ctx.statGain, 'a hero beat is not a minion beat').not.toHaveBeenCalled();
   });
 });

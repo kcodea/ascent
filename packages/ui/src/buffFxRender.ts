@@ -5,6 +5,8 @@ import tendrilTrailSpirit from './fx/defs/tendril-trail-spirit.json';
 import { DESCEND_PRESETS, descendPreset } from './descendPresets';
 import { getBuffFxConfig, tunedDescend } from './buffFxConfig';
 import { sfx } from './sfx';
+import type { AncientId } from '@game/sim';
+import { ancientTendrilDef, ancientTendrilLandingMs } from './fx/ancientTendrils';
 
 /**
  * The flight time of `rune-buff-trail`'s ribbon, read from the def itself rather than pinned here — the stat-badge
@@ -65,7 +67,19 @@ const SPIRIT_BURST_WINDOW_MS = 120;
 let spiritBurstAt = -Infinity;
 let spiritBurstIdx = 0;
 
-const TENDRIL_TRIBES = new Set<Tribe>(['beast', 'celestial', 'demon', 'dragon', 'dwarf', 'kobold', 'mech', 'undead', 'spirit']);
+/** An Ancient's tendrils fired within this many ms of each other count as ONE burst for its workbench Stagger, kept per
+ *  Ancient (the same window as the Spirit burst: a board-wide grant fires every tendril in one frame). */
+const ANCIENT_BURST_WINDOW_MS = 120;
+const ancientBurst = new Map<AncientId, { at: number; idx: number }>();
+/** The recipient index of this Ancient's next tendril: 0 for a new burst, else one more than the last. */
+export function ancientBurstIndex(ancient: AncientId, now: number = performance.now()): number {
+  const last = ancientBurst.get(ancient);
+  const idx = last && now - last.at <= ANCIENT_BURST_WINDOW_MS ? last.idx + 1 : 0;
+  ancientBurst.set(ancient, { at: now, idx });
+  return idx;
+}
+
+const TENDRIL_TRIBES =new Set<Tribe>(['beast', 'celestial', 'demon', 'dragon', 'dwarf', 'kobold', 'mech', 'undead', 'spirit']);
 
 /**
  * Fire ONE generic buff-other effect and return the strike/landing time (ms) so the caller can schedule the
@@ -93,9 +107,29 @@ export function fireBuffFx(o: {
   /** Particle QUANTITY scale (`playDef`'s `intensity`, 0..1): a per-fire chain thins its tendrils' bursts so a long
    *  chain keeps about the particle load one summed beat had (R-DEMON-DMG-BEATS-02). Omitted = as authored. */
   intensity?: number;
+  /** The ANCIENT whose grant this is (R-FX-ANCIENT-TENDRIL-02): its own `ancient-tendril-<id>` def plays in place of
+   *  the stock trail once one is saved (`fx/ancientTendrils.ts`). Unsaved, or absent, the stock path runs as before. */
+  ancient?: AncientId;
 }): number {
   if (o.sourceless || !o.source) {
     return tunedDescend(DESCEND_PRESETS[descendPreset(o.cardId, o.tribe)]!).dropMs;
+  }
+  // AN ANCIENT'S OWN TENDRIL, wherever it starts (the power button or the minion that set it off). Ahead of the tribe
+  // variants on purpose: a `trigger`-origin grant leaves a tribe minion but is still the Ancient's (owner 2026-11-21).
+  // Same no-stacking sound rule as the stock trail: a board-wide grant rings once.
+  // STAGGER (owner 2026-11-21): the k-th tendril of one burst is recipient `k`, so each layer's workbench Stagger delays
+  // it by Stagger × k, and its stat roll waits for its own landing. Stagger 0 on every layer = all at once, as before.
+  const ancientDef = ancientTendrilDef(o.ancient);
+  if (ancientDef && o.ancient) {
+    const sound = runeBuffTrailSoundAllowed();
+    const index = ancientBurstIndex(o.ancient);
+    playDef(ancientDef.id, { source: o.source, target: o.target }, {
+      uids: o.uids,
+      ...(index > 0 ? { index } : {}),
+      ...(o.intensity !== undefined && o.intensity < 1 ? { intensity: o.intensity } : {}),
+      ...(sound ? {} : { muteSound: true }),
+    });
+    return ancientTendrilLandingMs(ancientDef, TENDRIL_TRAIL_TRAVEL_MS, index);
   }
   // PER-TRIBE RIBBON: the BUFFER's tribe picks its variant (Warhorn Captain = dwarf → `tendril-trail-dwarf`).
   // Each variant is a palette-swap of the generic, so its ribbon travelMs is unchanged and the roll still lands

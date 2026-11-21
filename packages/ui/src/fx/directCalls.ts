@@ -272,7 +272,9 @@ export const DYNAMIC_CALL_SITES: Readonly<Record<string, number>> = {
   // TRIBE picks its ribbon variant, so the id is data-resolved (from the tribe) rather than a literal — the
   // same shape as a binding, keyed on the source's tribe instead of a `bindings.json` row. The generic
   // `rune-buff-trail` fallback in the sibling branch stays a literal and remains in `DIRECT_CALL_SITES`.
-  'buffFxRender.ts': 1,
+  // TWO since 2026-11-21: `playDef(ancientDef.id, …)`, each ANCIENT's own `ancient-tendril-<id>` once it is saved
+  // (R-FX-ANCIENT-TENDRIL-02, `fx/ancientTendrils.ts`), keyed on the grant's Ancient instead of the buffer's tribe.
+  'buffFxRender.ts': 2,
   // STAT MILESTONE (2026-09-14). One `playDef(binding.def, …)` in `fireStatMilestone`: which def plays for a
   // badge crossing a tier is resolved via `bindingFor(cardId, statMilestoneKind(tier))`, the same binding path
   // as score.ts/recruitCues.ts/runeTriggerFx.ts — a fourth resolver, keyed on the `statMilestoneN` family

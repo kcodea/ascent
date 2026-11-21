@@ -30,7 +30,8 @@ export interface PresenterContext {
   /** A stat gain a HERO POWER paid at End of Turn (Aevor's Tempest paying the end minions) — the generic buff
    *  tendril from the hero-power button to the recipient, one per recipient (owner ask 2026-09-15). A hero
    *  beat has no body to pulse and no rune rail to ribbon from, so without this the gain landed unannounced. */
-  heroPowerGain: (uid: string, heroId: string) => void;
+  /** `label` = the beat source's label: an Ancient's name picks that Ancient's own tendril (R-FX-ANCIENT-TENDRIL-02). */
+  heroPowerGain: (uid: string, heroId: string, label?: string) => void;
   /** Does `spellId` have its OWN cast effect (a card-level `spellCast` binding — Growth, Waking Rift)? When it
    *  does, a buff that spell produced for a casting minion draws NO tendril: the spell's effect replaces it
    *  (owner ruling 2026-09-24). Optional: a context without it keeps every tendril. */
@@ -157,7 +158,7 @@ export const CONSEQUENCE_PRESENTERS: Record<ConsequenceEvent['type'], Consequenc
     }
     // A HERO POWER paying a board minion (Tempest): the tendril from the power button, one per recipient.
     if (beat.source.kind === 'hero' && c.target.zone === 'board') {
-      ctx.heroPowerGain(c.target.uid, beat.source.id);
+      ctx.heroPowerGain(c.target.uid, beat.source.id, beat.source.label);
       return;
     }
     // (A CARD'S CAST of a spell with its own effect, a Mage-Pup's Growth at End of Turn, returned above: the

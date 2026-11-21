@@ -150,6 +150,7 @@ import { FriendMenu } from './friends/FriendMenu';
 import { startFriendsPresence } from './friends/friendsStore';
 import { startDirectMessages } from './friends/dm/dmStore';
 import { DmToast } from './friends/dm/DmToast';
+import { AchievementToast } from './progression/AchievementToast';
 import { installFriendInvites } from './friends/friendsGo';
 // The tuned look (R-PRESENT-TUNED-01): every config module that applies its defaults at load, so a production build
 // applies them too now that the DEV menu, their old importer, is DEV-only (the medallion circle came back).
@@ -803,6 +804,8 @@ export function Game() {
       <FriendsDock />
       {/* A direct message whose conversation is not open (R-DM-03): a small toast above the Friends button. */}
       <DmToast />
+      {/* An achievement just completed (R-ACH-TOAST-01): ducks in from the left edge, mid-game or when the game settles. */}
+      <AchievementToast />
       {/* The friend menu (R-FRIENDS-MENU-01): right-click / long press on a friend row in the dock. */}
       <FriendMenu />
       {page(<Career />)}

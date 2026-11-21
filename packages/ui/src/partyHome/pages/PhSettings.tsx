@@ -41,6 +41,7 @@ import { setSpectatorEmotesOn, useSpectatorEmotePrefs } from '../../versus/spect
 import { setFilterMessages, setShowActivity, useFriendsPrefs } from '../../friends/friendsPrefs';
 import { setLobbyChatEnabled, useLobbyChat } from '../../lobbyChat/lobbyChatStore';
 import { setLobbyRevealEnabled, useLobbyRevealEnabled } from '../../lobbyReveal/lobbyRevealStore';
+import { setAchievementPopupsOn, useAchievementPopupsOn } from '../../progression/achievementToastPrefs';
 import { isTouchDevice, touchText } from '../../touchInput';
 import { TOUCH_UI_LABEL, TOUCH_UI_SIZES, setTouchUiSize, touchUi, type TouchUiSize } from '../../touchUi';
 import { PHONE_DIAG_FLAGS, PHONE_GPU, activeDiagLabel, saveDiagFlags, storedDiagFlags, type PhoneDiagFlags } from '../../phoneDiag';
@@ -96,6 +97,7 @@ function GameTab() {
   const combatRampUp = useGame((s) => s.combatRampUp);
   const setCombatRampUp = useGame((s) => s.setCombatRampUp);
   const lobbyRevealOn = useLobbyRevealEnabled();
+  const achPopupsOn = useAchievementPopupsOn();
   const [confirmQuit, setConfirmQuit] = useState(false);
   // In a game Settings carries the way out of it, above Quit game (owner 2026-11-08, R-SETTINGS-SAVEQUIT-01).
   const inGame = useGame(inGameScreen);
@@ -110,6 +112,10 @@ function GameTab() {
       <Section title="Lobby">
         <ToggleRow label="Lobby reveal" note="Shows every player's hero at the start of a game, then builds the rail." on={lobbyRevealOn}
           onToggle={() => { setLobbyRevealEnabled(!lobbyRevealOn); sfx.pulse(); }} />
+      </Section>
+      <Section title="Achievements">
+        <ToggleRow label="Achievement pop-ups" note="Shows each achievement as you earn it, sliding in from the left." on={achPopupsOn}
+          onToggle={() => { setAchievementPopupsOn(!achPopupsOn); sfx.pulse(); }} />
       </Section>
       {/* Desktop app only (a browser tab cannot close itself); also shown in dev builds so it can be seen while working in the
           browser, where it does nothing (owner 2026-11-06: "where is this quit button"). */}

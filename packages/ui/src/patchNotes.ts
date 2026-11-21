@@ -60,6 +60,16 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Achievements now pop in from the left side of the screen the moment you earn them, mid-game.',
+        details: [
+          'Shows the achievement name, its XP and any title it grants, with a short chime, then slides away after a few seconds.',
+          'Achievements that need the whole game, like placements and your final board, pop in when the game ends.',
+          'Counts in Ranked, and in Practice with Normal Health and a turn timer.',
+          'Turn them off in Settings, Game tab: Achievement pop-ups.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Settings has a new Cosmetics tab: turn each kind of cosmetic on or off, in your games, replays and while spectating.',
         details: [
           'Switches for minion skins, card plates, hero skins, portrait frames, hero attacks, titles, player emotes and the announcer pack.',

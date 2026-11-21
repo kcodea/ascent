@@ -4693,7 +4693,7 @@ export const HEROES_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: "Ancient pairings audit 2026-11-16 (findings 1-3), fix list from the lead", quote: "Owner via the lead, 2026-11-16: a RETROACTIVE LOOK-BACK rule: when an Ancient is picked, it accounts for what already happened this turn/cycle. One shared rule at the pick: Xerox Genesis, Nadja Fortune, Rascal Bonds, Ayse Bonds, Quillen Genesis, and the same class elsewhere." },
       { kind: 'code', ref: "packages/sim/src/ancients.ts pickAncient / pickTurnPowerUse / ancientNotePowerUse; packages/sim/src/reducer.ts heroPower" },
     ],
-    currentBehaviour: "Conforms (fixed 2026-11-16). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    currentBehaviour: "Conforms (fixed 2026-11-16). NARROWED 2026-11-20 by R-ANCFIX-11: a one-shot \"first X each turn\" bonus (Gorr x Genesis / Fortune and the same class) counts from the pick, so it pays on the next X. Dev-only (Scene Builder, Set 3, the Ancients flag).",
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsXerox.test.ts"], lastVerifiedAt: '2026-11-16' },
   },
   {
@@ -4779,6 +4779,20 @@ export const HEROES_RULES: GameRule[] = [
     ],
     currentBehaviour: "PARTLY SUPERSEDED 2026-11-18 by R-AVENGE-PER-COMBAT-01 (an Avenge count is per phase: nothing carries from the Shop into a fight or from one fight to the next). Was: Conforms (fixed 2026-11-16). Dev-only (Scene Builder, Set 3, the Ancients flag).",
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsHunch.test.ts"], lastVerifiedAt: '2026-11-16' },
+  },
+  {
+    id: "R-ANCFIX-11",
+    title: "Ancients: a one-shot \"first X each turn\" bonus gained mid-turn pays on the NEXT X, never \"Used this turn\"",
+    statement:
+      "When a pairing is gained mid-turn (the pick, or a power gained later through `ancientSyncPower`), a ONE-SHOT \"the first X you buy each turn\" bonus counts from that moment: `syncPower` stamps the turn's counts (`AncientsState.pairedAt`: minions bought, Dwarves bought, Memory minions bought, Shop spells bought) and the bonus reads its count since then on that turn (`sincePairing`). So the next qualifying buy after the pick is \"the first\", and the power text says \"Ready this turn.\" until it pays. Covered: Gorr x Genesis (a plain copy of the first minion), Gorr x Fortune (the first minion is free), Gambler x Time (the first minion is cheaper while Dice is locked), Flint x Fortune (the first Dwarf is free), Membrance x Genesis (a copy of the first Memory minion), Emissary x Fortune (the first Shop spell is free). The next turn counts from its start as normal. The shared one-freebie-per-turn marker still applies to the free buys. Not covered (they keep R-ANCFIX-03's look-back): counts (Flint x Time's Dwarves bought this turn) and the multi-use \"first N\" limits (Frank x Time, Juggler x Time, Hunch x Bonds). Gorr's own Four Peat keeps its 3-buy count from the turn's start: it is the hero's power, not the Ancient's. Narrows R-ANCFIX-03 for the one-shot bonuses.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Owner report 2026-11-20 (Gorr x Genesis taken mid-round showed \"Used this turn\")", quote: "getting this ancient should start/trigger on the next buy if this happens mid round, and not already be spent." },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts syncPower (pairedAt) / sincePairing / gorrFirstOpen / ancientGorrFirstFree / ancientLockedFirstDiscount / ancientTribeFirstFree / ancientFirstSpellFree / batchCOnBuy" },
+    ],
+    currentBehaviour: "Conforms (fixed 2026-11-20). Before, the turn's counts ran from the turn's start whatever was picked, so a pairing picked after a buy was already spent. Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsGorr.test.ts"], lastVerifiedAt: '2026-11-20' },
   },
   {
     id: "R-ANCSYS-01",

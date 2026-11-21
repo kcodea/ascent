@@ -7137,11 +7137,11 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  (golden: the offered cards are GILDED). Only one Discover overlay can be open at a time, so the extras
    *  queue through the standard `pendingDiscovers` channel the same way multi-Discover heroes do. */
   //  `tierOffset` (Golden Monkey, owner Set 3 batch 2026-10-13): the tier ABOVE the current Shop tier instead of a
-  //  fixed one, capped at Tier 7 (owner: "one above your current Shop tier, capped at 7"). A fixed-tier offer, so
-  //  Tier 7 is honoured with no rift, exactly like Salvatore's and the Summit rune's.
+  //  fixed one, capped at `maxTier` (default 7; the Golden Monkey passes 6, owner 2026-11-20: "should not go up to t7
+  //  anymore, only t6", R-INDY-02). A fixed-tier offer, so a cap of 7 is honoured with no rift, like Salvatore's.
   onSellDiscover: (ctx, self, params) => {
     const offset = num(params.tierOffset, 0);
-    const tier = offset > 0 ? Math.min(7, ctx.state.tier + offset) : num(params.tier, 6);
+    const tier = offset > 0 ? Math.min(num(params.maxTier, 7), ctx.state.tier + offset) : num(params.tier, 6);
     const count = num(params.count, 2);
     const spec = { kind: 'minion' as const, tier, exactTier: tier, golden: !!self.golden };
     for (let i = 0; i < count; i++) queueDiscover(ctx.state, spec);

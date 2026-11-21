@@ -59,6 +59,18 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-11-20',
     changes: [
       {
+        category: 'Balance',
+        text: 'Golden Monkey now Discovers from the Tier above yours up to Tier 6. It no longer offers Tier 7 minions.',
+      },
+      {
+        category: 'Systems',
+        text: 'Ancients picked in the middle of a turn: a "first minion you buy each turn" bonus now pays on your next buy instead of showing as already used.',
+        details: [
+          'Gorr with the Ancient of Genesis or Fortune.',
+          'The same fix covers the other one-time "first buy each turn" Ancient bonuses (Gambler, Foreman Flint, Membrance and Emissary pairings).',
+        ],
+      },
+      {
         category: 'Systems',
         text: '100 new achievements for tribes and mechanics, all paying XP.',
         details: [

@@ -102,7 +102,7 @@ export function statGrantEffects(c: ContentContract): StatGrantClaim[] {
 
 // ── card grant / summon ──────────────────────────────────────────────────────────────────────────────────
 
-const COUNT_KEYS: ReadonlySet<string> = new Set(['count', 'tier', 'tierOffset']);
+const COUNT_KEYS: ReadonlySet<string> = new Set(['count', 'tier', 'tierOffset', 'maxTier']);
 /** Kinds that REFERENCE a card without handing it over. */
 const NON_GRANT_KIND = /cast|transform|steal|destroy|consume|devour|recast|replay|trigger|copy|buff|damage|mark|teach|taught|arm|rearm|inherit|scout|displace|sell|layaway|decoy|weaken|contain|gild|playrub|ward|keyword|taunt|reborn|magnetic|shield/i;
 const GRANT_KIND = /Grant|Get|Gain|Discover|Summon|Conjure|Add|Mint|Rubies|Ale|Reveler|Resummon|Fodder/;

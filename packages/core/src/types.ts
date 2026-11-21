@@ -2095,7 +2095,7 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   | 'runeReturnCustomers'
   // Set 2 rune batch, Basic neutral (owner 2026-11-12): hazardPay = after a lost combat, 4 Gold + 2 free Refreshes;
   // shieldWall = Start of Combat, Taunt minions +4/+6; shatterproof = a Ward loss gives that minion +5/+5 permanently;
-  // warmUp = a side-wide Pummel (150) banking 2 Gold next turn, once per combat; goldenHandshake = a Gild gives your
+  // warmUp = a side-wide Pummel (180) banking 2 Gold next turn, twice per combat; goldenHandshake = a Gild gives your
   // minions +2/+2; lateBloomer = a Shop upgrade gives 2 Gold and your minions +3/+3; loyalCustomer = every 4th minion
   // bought is free.
   | 'runeHazardPay' | 'runeShieldWall' | 'runeShatterproof' | 'runeWarmUp' | 'runeGoldenHandshake' | 'runeLateBloomer' | 'runeLoyalCustomer'
@@ -2983,7 +2983,7 @@ export interface QuestCombatMods {
   runeShieldWall?: boolean;
   /** Shatterproof: every time a friendly minion loses Ward, it gains +5/+5 PERMANENTLY (`permaGain`). No cap. */
   runeShatterproof?: boolean;
-  /** Warm-Up: a side-wide Pummel (150) over every friendly minion's landed damage; the first crossing each fight banks
+  /** Warm-Up: a side-wide Pummel (180) over every friendly minion's landed damage; the first crossing each fight banks
    *  2 Gold for next turn. */
   runeWarmUp?: boolean;
   /** Warm-Up's LIFETIME side-wide tally going into this fight (the Pummel carry-over rule); it comes home as

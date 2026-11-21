@@ -3476,6 +3476,12 @@ export interface AncientsState {
   /** CINDY × TIME: the wave whose Start of Turn pays the two Goldcrafters (set at the pick), and whether it has. */
   cindyTimeWave?: number;
   cindyTimeDone?: true;
+  /** FRESH START (owner 2026-11-20, R-ANCFIX-11): the per-turn counts as they stood the moment the held power's
+   *  pairing was gained, on `wave` (stamped by `syncPower`: the pick, or a power gained later). A ONE-SHOT "first X each
+   *  turn" bonus reads its count SINCE then on that wave (`sincePairing`), so a pairing gained mid-turn pays on the NEXT
+   *  X, never "Used this turn" off buys made before it existed. Counts and multi-use "first N" limits keep the look-back
+   *  (R-ANCFIX-03) and read the raw count. */
+  pairedAt?: { wave: number; minionBuys: number; dwarfBuys: number; memoryBuys: number; shopSpells: number };
 }
 
 /** Where an open Discover came from, for the Ancients that treat its pick specially. */
@@ -3490,6 +3496,13 @@ export function enableAncients(run: RunState, override?: Partial<AncientMeterTun
 /** The Ancient state when this run plays with Ancients, else undefined (the single gate every hook reads). */
 function live(state: RunState): AncientsState | undefined {
   return state.ancientsEnabled ? state.ancients : undefined;
+}
+
+/** FRESH START (R-ANCFIX-11): `raw` (a this-turn count) minus what it already was when the pairing was gained this
+ *  same turn. Read ONLY by the one-shot "first X each turn" bonuses: 0 means the next X is "the first". */
+function sincePairing(state: RunState, key: Exclude<keyof NonNullable<AncientsState['pairedAt']>, 'wave'>, raw: number): number {
+  const b = live(state)?.pairedAt;
+  return b && b.wave === state.wave ? Math.max(0, raw - b[key]) : raw;
 }
 
 /** Salt for the offer's own seeded stream (distinct from the TAG table in state.ts). */
@@ -3612,6 +3625,8 @@ function syncPower(state: RunState, a: AncientsState, force: boolean): void {
   // A save from before `pairedFor` existed already stamped the power it picked for.
   const done = a.pairedFor ?? [was];
   a.powerOverrideFor = forId; // the pairing belongs to the power held right now
+  // FRESH START (R-ANCFIX-11): a one-shot "first X each turn" bonus counts from here, not from the turn's start.
+  a.pairedAt = { wave: state.wave, minionBuys: gorrMinionBuysThisTurn(state), dwarfBuys: flintDwarfBuysThisTurn(state), memoryBuys: memoryBuysThisTurn(state), shopSpells: shopSpellsBoughtThisTurn(state) };
   const shape = activeAncientPairing(state)?.power;
   a.powerOverride = shape ? { ...shape } : undefined;
   if (!done.includes(forId)) {
@@ -3834,7 +3849,7 @@ export function ancientPowerText(state: RunState, base: string, combat: AncientP
   const gp = effectOf(state, 'pummelCopyWarband');
   const gpEvery = Math.max(1, gp?.every ?? 1);
   const gb = effectOf(state, 'buysBuffImproves');
-  const firstOpen = gorrMinionBuysThisTurn(state) === 0;
+  const firstOpen = gorrFirstOpen(state); // Fortune / Genesis: counted since the pairing was gained (R-ANCFIX-11)
   text = text.replace('{gDeathLeft}', String(ancientGorrAvengeLeft(state, combat.friendlyDeaths ?? 0) ?? 0))
     .replace('{gFreeNow}', firstOpen && !state.freeBuyUsedThisTurn ? ' Ready this turn.' : ' Used this turn.')
     .replace('{gFirstNow}', firstOpen ? ' Ready this turn.' : ' Used this turn.')
@@ -5355,6 +5370,12 @@ function gorrMinionBuysThisTurn(state: RunState): number {
   return m && m.wave === state.wave ? m.n : 0;
 }
 
+/** GORR × FORTUNE / GENESIS: is the next minion buy "the first this turn"? Counted since the pairing was gained, so a
+ *  mid-turn pick pays on the next buy (R-ANCFIX-11). */
+function gorrFirstOpen(state: RunState): boolean {
+  return sincePairing(state, 'minionBuys', gorrMinionBuysThisTurn(state)) === 0;
+}
+
 /** GORR: a plain copy of `cardId` to hand (the pool body with run-wide card buffs). Hand full, or not a minion: none. */
 function gorrCopyToHand(state: RunState, cardId: string): BoardCard | undefined {
   const def = CARD_INDEX[cardId];
@@ -5376,7 +5397,7 @@ function gorrOnBuy(state: RunState, a: AncientsState, cardId: string, starform: 
   const def = CARD_INDEX[cardId];
   const minion = !!def && !def.spell && !def.ruby;
   if (minion) {
-    const first = gorrMinionBuysThisTurn(state) === 0;
+    const first = gorrFirstOpen(state);
     a.gorrMinionBuys = { wave: state.wave, n: gorrMinionBuysThisTurn(state) + 1 };
     if (!starform) {
       const cur = gorrBuysOn(state, state.wave);
@@ -5403,7 +5424,7 @@ function gorrOnBuy(state: RunState, a: AncientsState, cardId: string, starform: 
 /** GORR × FORTUNE: is the next minion buy free (Fortune picked, no minion bought yet this turn)? `offerBuyPrice` folds it
  *  into its `freeBuy` (still subject to the shared one-freebie-per-turn marker). */
 export function ancientGorrFirstFree(state: RunState): boolean {
-  return !!live(state) && !!effectOf(state, 'firstMinionFree') && gorrMinionBuysThisTurn(state) === 0;
+  return !!live(state) && !!effectOf(state, 'firstMinionFree') && gorrFirstOpen(state);
 }
 
 /** GORR × DEATH: friendly deaths still needed for the next copy (the carried count plus `deaths` so far in the fight on
@@ -7075,7 +7096,7 @@ export function ancientUnitedFrontAtEot(state: RunState): boolean {
 export function ancientFirstSpellFree(state: RunState, cardId: string): boolean {
   const a = live(state);
   if (!a || !effectOf(state, 'firstShopSpellFree') || !isShopSpell(CARD_INDEX[cardId])) return false;
-  return shopSpellsBoughtThisTurn(state) === 0; // the run-wide count (`applySpellBought`): Scrollz reads the same one
+  return sincePairing(state, 'shopSpells', shopSpellsBoughtThisTurn(state)) === 0; // the run-wide count (`applySpellBought`): Scrollz reads the same one
 }
 
 // EMERALD WARDEN
@@ -7236,7 +7257,7 @@ function batchBPowerText(state: RunState, text: string, combat: AncientPowerLive
   const count = effectOf(state, 'spellsRechargePower') ?? effectOf(state, 'spellsGrantShopSpell');
   const every = Math.max(1, count?.every ?? 1);
   const spellsLeft = String(count ? every - (((a.batchBSpells ?? 0) + (state.fxSpellsCastPreview ?? 0)) % every) : 0);
-  const free = effectOf(state, 'firstShopSpellFree') ? (shopSpellsBoughtThisTurn(state) === 0 ? ' Ready this turn.' : ' Used this turn.') : '';
+  const free = effectOf(state, 'firstShopSpellFree') ? (sincePairing(state, 'shopSpells', shopSpellsBoughtThisTurn(state)) === 0 ? ' Ready this turn.' : ' Used this turn.') : '';
   const va = effectOf(state, 'vanguardActive');
   const top = va?.act === 'topTribeMinion' ? dominantBoardTribe(state) : null;
   return text.replace('{mrDeathLeft}', left).replace('{vDeathLeft}', left).replace('{ewDeathLeft}', left)
@@ -7457,7 +7478,7 @@ function gamblerTimeGrant(state: RunState, roll: number): void {
  *  yet this turn (the Starform is a minion bought); else 0. */
 export function ancientLockedFirstDiscount(state: RunState, offer: { cardId: string; starform?: true }): number {
   const e = live(state) ? effectOf(state, 'lockedFirstMinionDiscount') : undefined;
-  if (!e || state.wave >= (state.heroDiceLockUntil ?? 0) || gorrMinionBuysThisTurn(state) > 0) return 0;
+  if (!e || state.wave >= (state.heroDiceLockUntil ?? 0) || !gorrFirstOpen(state)) return 0;
   const def = CARD_INDEX[offer.cardId];
   return offer.starform || (def && !def.spell && !def.ruby) ? Math.max(0, e.gold) : 0;
 }
@@ -7525,7 +7546,7 @@ function flintDwarfBuysThisTurn(state: RunState): number {
 export function ancientTribeFirstFree(state: RunState, cardId: string): boolean {
   const e = live(state) ? effectOf(state, 'firstTribeBuyFree') : undefined;
   const def = e ? CARD_INDEX[cardId] : undefined;
-  return !!e && !!def && !def.spell && !def.ruby && defIsTribe(def, e.tribe, state) && flintDwarfBuysThisTurn(state) === 0;
+  return !!e && !!def && !def.spell && !def.ruby && defIsTribe(def, e.tribe, state) && sincePairing(state, 'dwarfBuys', flintDwarfBuysThisTurn(state)) === 0;
 }
 
 /** FLINT × GENESIS: run a player Refresh (`refresh` = the reducer's `refreshTavern`). The first one each turn draws only
@@ -7633,7 +7654,7 @@ function batchAPowerText(state: RunState, text: string, combat: AncientPowerLive
   const gw = effectOf(state, 'diceBuffPerPip');
   const pips = rolled ? rolled.reduce((n, d) => n + d, 0) : 0;
   const gt = effectOf(state, 'lockedFirstMinionDiscount');
-  const gtNow = !gt ? '' : state.wave >= (state.heroDiceLockUntil ?? 0) ? ' Not locked.' : gorrMinionBuysThisTurn(state) === 0 ? ' Ready this turn.' : ' Used this turn.';
+  const gtNow = !gt ? '' : state.wave >= (state.heroDiceLockUntil ?? 0) ? ' Not locked.' : gorrFirstOpen(state) ? ' Ready this turn.' : ' Used this turn.';
   // PETE
   const every = ancientContrabandEvery(state);
   // FLINT
@@ -7656,7 +7677,7 @@ function batchAPowerText(state: RunState, text: string, combat: AncientPowerLive
     .replace('{gaTimeNow}', gtNow)
     .replace('{peLeft}', String(every - ((state.refreshCount ?? 0) % every)))
     .replace('{peTribe}', effectOf(state, 'contrabandTopTribe') ? tribeName(dominantBoardTribe(state)) : '')
-    .replace('{flFreeNow}', !ff ? '' : dwarfBuys === 0 && !state.freeBuyUsedThisTurn ? ' Ready this turn.' : ' Used this turn.')
+    .replace('{flFreeNow}', !ff ? '' : sincePairing(state, 'dwarfBuys', dwarfBuys) === 0 && !state.freeBuyUsedThisTurn ? ' Ready this turn.' : ' Used this turn.')
     .replace('{flBought}', String(bought)).replace('{flWarA}', String((fw?.attack ?? 0) * bought)).replace('{flWarH}', String((fw?.health ?? 0) * bought))
     .replace('{flGenNow}', !fg ? '' : a.flintGenesisWave === state.wave ? ' Used this turn.' : ' Ready this turn.')
     .replace('{flTimeN}', String(dwarfBuys)).replace('{flTimeA}', String((ft?.attack ?? 0) * dwarfBuys * eotRepeatsOf(state))).replace('{flTimeH}', String((ft?.health ?? 0) * dwarfBuys * eotRepeatsOf(state)))
@@ -7814,7 +7835,7 @@ export function ancientOnMemoryOffers(state: RunState, offers: ShopCard[], foe: 
 function batchCOnBuy(state: RunState, a: AncientsState, cardId: string, from: AncientBuyFrom): void {
   if (!isMinionId(cardId)) return;
   if (from.memory) {
-    const first = memoryBuysThisTurn(state) === 0;
+    const first = sincePairing(state, 'memoryBuys', memoryBuysThisTurn(state)) === 0;
     a.memoryBuys = { wave: state.wave, n: memoryBuysThisTurn(state) + 1 };
     if (first && effectOf(state, 'memoryFirstBuyCopy')) { procAncient(state); gorrCopyToHand(state, cardId); } // MEMBRANCE × GENESIS fires (R-FX-ANCIENT-PROC-01)
   }
@@ -7936,7 +7957,7 @@ function batchCPowerText(state: RunState, text: string, base: string): string {
   const mg = effectOf(state, 'mimicryManual');
   const native = (wieldedPowerId(state, 0) ?? state.heroId) === state.heroId;
   return text.split('{uBonds}').join(String(ub ? a.underBondsGain ?? ub.amount : 0))
-    .replace('{mbFirst}', memoryBuysThisTurn(state) === 0 ? ' Ready this turn.' : ' Used this turn.')
+    .replace('{mbFirst}', sincePairing(state, 'memoryBuys', memoryBuysThisTurn(state)) === 0 ? ' Ready this turn.' : ' Used this turn.')
     .replace('{goLeft}', String(ancientGorunAttacksLeft(state, state.fxBladeAttacksPreview ?? 0) ?? 0))
     .replace('{mSpoilGold}', String(a.mimicSpoilGold?.wave === state.wave ? a.mimicSpoilGold.gold : 0))
     .split('{mSpells}').join(String(state.spellsCast ?? 0))

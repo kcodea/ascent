@@ -2893,18 +2893,20 @@ export const RUNES_RULES: GameRule[] = [
       'Shield Wall (Basic, 2) is a Start of Combat rune (Twilight repeats it, Combat Prowess replays it in the Shop): every '
       + 'living friendly Taunt minion +4/+6 for the fight. Shatterproof (Basic, 2) pays EVERY friendly Ward loss (no cap, owner '
       + 'ruling): that minion +5/+5 permanently, so a Ward that re-forms and breaks again pays again. Warm-Up (Basic, 2) is a '
-      + 'side-wide Pummel (150) over every friendly minion\'s landed damage, a lifetime tally carried across fights (Heavy Hand '
-      + 'doubles it); the first crossing each fight banks 2 Gold next turn per copy held, later crossings that fight are spent. '
+      + 'side-wide Pummel (180) over every friendly minion\'s landed damage, a lifetime tally carried across fights (Heavy Hand '
+      + 'doubles it); each crossing banks 2 Gold next turn per copy held, at most twice per fight (one hit crossing two '
+      + 'multiples pays both), later crossings that fight are spent (owner 2026-11-21: was Pummel (150), once per combat). '
       + 'All three run off the side\'s own mods, so a served opponent holding them gets the same behaviour.',
     domain: 'runes',
     status: 'approved',
     evidence: [
       { kind: 'owner-handoff', ref: 'Set 2 rune batch review 2026-11-12 (docs/design/2026-11-12-set2-rune-batch.md)', quote: 'Shatterproof: every Ward loss gives +5/+5 permanently. No per-combat limit. Intended.' },
       { kind: 'code', ref: 'packages/core/src/combat/simulate.ts runRuneStartOfCombat (Shield Wall), registerShatterproof, noteWarmUp' },
+      { kind: 'owner-chat', ref: 'Kevin, 2026-11-21', quote: 'make the pummel rune twice per combat max instead of once, but make it pummel (180)' },
     ],
     contentIds: ['rune_shield_wall', 'rune_shatterproof', 'rune_warm_up'],
-    currentBehaviour: 'Conforms as of 2026-11-13 (new content).',
-    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2RunesBasicNeutral.test.ts'], lastVerifiedAt: '2026-11-13' },
+    currentBehaviour: 'Conforms as of 2026-11-13 (new content). Warm-Up re-tuned 2026-11-21 to Pummel (180), twice per combat.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2RunesBasicNeutral.test.ts'], lastVerifiedAt: '2026-11-21' },
   },
   {
     id: 'R-SET2-RUNES-BN-05',

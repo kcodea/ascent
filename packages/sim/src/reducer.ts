@@ -9029,7 +9029,7 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     // ── Set 2 rune batch, Basic neutral (owner 2026-11-12) ──
     runeShieldWall: f?.runeShieldWall,               // SoC: Taunt minions +4/+6
     runeShatterproof: f?.runeShatterproof,           // a Ward loss: that minion +5/+5 permanently
-    runeWarmUp: f?.runeWarmUp,                       // side-wide Pummel (150): 2 Gold next turn, once per combat
+    runeWarmUp: f?.runeWarmUp,                       // side-wide Pummel (180): 2 Gold next turn, twice per combat
     runeWarmUpDealt: f?.runeWarmUp ? s.runeWarmUpDealt ?? 0 : undefined, // ...its lifetime tally (the Pummel carry-over)
     runeGoldenHandshake: f?.runeGoldenHandshake,     // a combat Gild: your minions +2/+2
     // ── Set 2 rune batch, Basic tribal (owner review 2026-11-12); copies ride `flagCopies` ──

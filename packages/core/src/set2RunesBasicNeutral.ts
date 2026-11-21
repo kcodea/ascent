@@ -14,8 +14,8 @@ export const SET2_BASIC_NEUTRAL = {
   shieldWall: { attack: 4, health: 6 },
   /** Shatterproof: a Ward loss gives that minion this, permanently. */
   shatterproof: { attack: 5, health: 5 },
-  /** Warm-Up: Pummel (150), 2 Gold next turn, once per combat. */
-  warmUp: { every: 150, gold: 2 },
+  /** Warm-Up: Pummel (180), 2 Gold next turn, twice per combat (owner 2026-11-21; was 150, once). */
+  warmUp: { every: 180, gold: 2, perCombat: 2 },
   /** Golden Handshake: a Gild gives your minions this. */
   goldenHandshake: { attack: 2, health: 2 },
   /** Late Bloomer: a Shop upgrade pays this Gold and gives your minions this. */

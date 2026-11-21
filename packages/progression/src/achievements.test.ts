@@ -17,15 +17,15 @@ const count = (cat: string): number => ACHIEVEMENTS.filter((a) => a.category ===
 const xpOf = (cat: string): number => ACHIEVEMENTS.filter((a) => a.category === cat).reduce((s, a) => s + a.rewards.xp, 0);
 
 describe('the batch 1 registry', () => {
-  it('ships 483 achievements: counts and XP per category (the Plushie Collector 2026-10-27: +1, 0 XP; hero titles 2026-09-29 added 33 Titled tiers, 4,950 XP; Runesmith + Guardian back 2026-10-01: +10; the 2026-10-03 150: +61,375 XP; the owner-approved long-term re-tune: +7,000 XP; Pete, Foreman Flint, Emissary, Underdweller, Membrance + Gorun back 2026-10-15: +36, +5,700 XP; the secret titles 2026-11-20: +48 hidden, +20,550 XP; the tribe batch: +40; the v2 pass: +3 Spell feats and new bars, 91 hidden, 45,950 XP in all; tribes and mechanics 2026-11-20: +100 visible, +33,000 XP)', () => {
+  it('ships 483 achievements: counts and XP per category (the Plushie Collector 2026-10-27: +1, 0 XP; hero titles 2026-09-29 added 33 Titled tiers, 4,950 XP; Runesmith + Guardian back 2026-10-01: +10; the 2026-10-03 150: +61,375 XP; the owner-approved long-term re-tune: +7,000 XP; Pete, Foreman Flint, Emissary, Underdweller, Membrance + Gorun back 2026-10-15: +36, +5,700 XP; the secret titles 2026-11-20: +48 hidden, +20,550 XP; the tribe batch: +40; the v2 pass: +3 Spell feats and new bars, 91 hidden, 45,950 XP in all; Regicide re-aimed at 41+ damage in one fight (350 -> 500 XP) 2026-11-20: 46,100; tribes and mechanics 2026-11-20: +100 visible, +33,000 XP)', () => {
     expect(ACHIEVEMENTS).toHaveLength(674);
     expect(Object.fromEntries(ACHIEVEMENT_CATEGORIES.map((c) => [c, count(c)]))).toEqual({
       career: 19, ranked: 28, heroes: 259, economy: 29, mechanics: 29, runes: 9, set2: 82, tribes: 50, combat: 43, milestones: 34, collection: 1, secret: 91,
     });
     expect(Object.fromEntries(ACHIEVEMENT_CATEGORIES.map((c) => [c, xpOf(c)]))).toEqual({
-      career: 3750, ranked: 4300, heroes: 43100, economy: 5975, mechanics: 9225, runes: 2325, set2: 22450, tribes: 16100, combat: 15325, milestones: 22100, collection: 0, secret: 45950,
+      career: 3750, ranked: 4300, heroes: 43100, economy: 5975, mechanics: 9225, runes: 2325, set2: 22450, tribes: 16100, combat: 15325, milestones: 22100, collection: 0, secret: 46100,
     });
-    expect(ACHIEVEMENTS.reduce((s, a) => s + a.rewards.xp, 0)).toBe(190_600);
+    expect(ACHIEVEMENTS.reduce((s, a) => s + a.rewards.xp, 0)).toBe(190_750);
     // owner 2026-10-03 ("yes apply these achievement changes"): the batch 1 long-term tiers on the new curve
     expect(Object.fromEntries(['career.games.100', 'career.top_four.50', 'career.firsts.25', 'career.comebacks.10', 'career.heroes_played.15', 'career.hero_wins.15', 'career.achievements.25', 's2.kobold.rubies_life_500', 'hero.warden.mastery']
       .map((id) => [id, ACHIEVEMENT_INDEX[id]!.rewards.xp]))).toEqual({

@@ -2255,6 +2255,9 @@ export interface RunState {
   runeLassoing?: boolean;
   /** Rune of the Crucible Choir: End of Turn, the left-most Shout then the left-most Echo. */
   runeCrucibleChoir?: boolean;
+  /** Elder's Voice (owner rework 2026-11-21): End of Turn, the first Shout played this turn fires twice. A run from
+   *  before the rework holds it as `questFlags.runeEldersVoice` instead (`eldersVoiceHeld` reads both). */
+  runeEldersVoice?: boolean;
   /** Rune of Full Measure: Baby Gastrid's grant also pays Attack, 1:1 with the Health. */
   runeFullMeasure?: boolean;
   /** Rune of Mountain Trade: a Mountainbond Ruby play also hands over a random Dwarven Ale. */
@@ -2724,7 +2727,7 @@ export interface RunState {
    *  than folded into it: every other recurrence is unbounded, and giving them all a counter would mean
    *  touching every read. Each entry ticks down at End of Turn and drops out at 0. */
   questRecurringLimited?: { effect: NonNullable<RunState['questRecurringEndOfTurn']>[number]; turnsLeft: number }[];
-  questRecurringEndOfTurn?: ('triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell' | 'grantAles' | 'grantAles3' | 'quickStudy' | 'copyFirstSpell' | 'grantRuby' | 'grantRuby2' | 'demonEatsRightmostShop' | 'grantFacetwright' | 'lassoing' | 'runeLapidary' | 'runeCrucibleChoir' | 'runeFiveBanners' | 'runeAncestralRoar' | 'ancientTimeWard' | 'ancientXeroxPairs' | 'ancientTradesUpgrade' | 'ancientRobinMaxGold' | 'ancientGorrEotCopy' | 'ancientAyseTime' | 'ancientDarahEotCopy' | 'ancientDrakkoEotShout' | 'ancientRayseEotRise' | 'ancientBatchBEot' | 'ancientPass2Eot' | 'runePiggyBank')[];
+  questRecurringEndOfTurn?: ('triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell' | 'grantAles' | 'grantAles3' | 'quickStudy' | 'copyFirstSpell' | 'grantRuby' | 'grantRuby2' | 'demonEatsRightmostShop' | 'grantFacetwright' | 'lassoing' | 'runeLapidary' | 'runeCrucibleChoir' | 'runeEldersVoice' | 'runeFiveBanners' | 'runeAncestralRoar' | 'ancientTimeWard' | 'ancientXeroxPairs' | 'ancientTradesUpgrade' | 'ancientRobinMaxGold' | 'ancientGorrEotCopy' | 'ancientAyseTime' | 'ancientDarahEotCopy' | 'ancientDrakkoEotShout' | 'ancientRayseEotRise' | 'ancientBatchBEot' | 'ancientPass2Eot' | 'runePiggyBank')[];
   /** Bane's Existence: when set, your Banes' after-Battlecry Fodder/Imp buff ALSO grants all your Demons this
    *  much run-wide (a persistent tribe aura). Absent = Bane only buffs Fodder/Imps as printed. */
   baneBuffsDemons?: { attack: number; health: number };
@@ -2889,10 +2892,14 @@ export interface RunState {
   royalTreasuryTick?: number;
   /** Royal Treasury: the max Gold the rune has given this run (its badge prints it). */
   royalTreasuryGold?: number;
-  /** Elder's Voice: the uid of the board body whose Shout fired FIRST this turn (cleared each turn). Its Shout fires
-   *  again at Start of Combat (`QuestCombatMods.eldersVoiceUid`). */
+  /** Elder's Voice (owner rework 2026-11-21): the first Shout CARD played from hand this turn, recorded whether or not
+   *  the rune is held (so a rune bought after the play still sees it) and cleared each turn. `body` is a snapshot of
+   *  the played body (card id, gild, per-instance improvements); End of Turn uses the live body when `uid` is still
+   *  on the board, else a stand-in built from the snapshot. */
+  eldersVoiceShout?: { cardId: string; golden?: boolean; uid: string; body: BoardCard };
+  /** LEGACY (Elder's Voice before 2026-11-21): the Start-of-Combat body uid + latch. No longer read; older saves may
+   *  still carry them. */
   eldersVoiceUid?: string;
-  /** Elder's Voice: this turn's first Shout has been seen (set even when that Shout came from a body that left). */
   eldersVoiceSeen?: boolean;
 }
 

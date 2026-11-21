@@ -1728,6 +1728,7 @@ export type QuestReward =
   | { kind: 'runeFiveBanners' } // End of Turn: one friendly minion of each type +5/+4 (owner 2026-09-23; was a Start-of-Combat flag)
   | { kind: 'runeLassoing' } // whenever Lasso is cast in the shop, your minions gain +2/+2 (owner 2026-09-23)
   | { kind: 'runeCrucibleChoir' } // End of Turn: the left-most Shout, then the left-most Echo
+  | { kind: 'runeEldersVoice' } // End of Turn: the first Shout played this turn fires twice (owner rework 2026-11-21)
   | { kind: 'runeFullMeasure' } // Baby Gastrid also grants Attack, 1:1 with the Health
   | { kind: 'runeMountainTrade' } // a Mountainbond Ruby play also hands over an Ale
   | { kind: 'runeOpenAppetite' } // Appetite Agent's aim loses its Demon restriction
@@ -2114,14 +2115,14 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   // minions gain Ward; wholesale = Shop minions cost 1 less; grudge = after a lost combat, Discover from the Tier above;
   // bastion = the first friendly Ward loss each combat regains Ward; mirrorSheen = a friendly Ward loss deals its Attack.
   | 'runeTopShelf' | 'runeDoubleBill' | 'runeBulwarkLine' | 'runeWholesale' | 'runeGrudge' | 'runeBastion' | 'runeMirrorSheen'
-  // Set 2 rune batch, Epic tribal (owner 2026-11-12): bigSpender / royalTreasury / eldersVoice (its Shop half) are Shop
+  // Set 2 rune batch, Epic tribal (owner 2026-11-12): bigSpender / royalTreasury are Shop
   // hooks; feralReturn = SoC Rise on the left-most Beast + a Rising Beast gains +5/+5; packTactics = an attacked Beast
   // fires its Rally; bloodFrenzy = a Beast's kill fires the left-most Rally; hellfire = a Demon attack/death: that Demon deals 1
   // to all enemies (Demon damage); wildfire = a friendly minion's kill deals the dead enemy's Attack to a random enemy
   // minion (3 per combat); gemRain = SoC
   // 2 permanent Rubies on every friendly minion.
   | 'runeBigSpender' | 'runeRoyalTreasury' | 'runeFeralReturn' | 'runePackTactics' | 'runeBloodFrenzy' | 'runeHellfire'
-  | 'runeWildfire' | 'runeEldersVoice' | 'runeGemRain'
+  | 'runeWildfire' | 'runeGemRain'
   // Set 2 rune batch, owner addition 2026-11-13: shopMadness = Shop minions +3/+3 (the run-wide Shop buff) and the Shop
   // always holds 6 minions (Shop-only; packages/sim/src/shop.ts refillShopMadness).
   | 'runeShopMadness'
@@ -3035,11 +3036,6 @@ export interface QuestCombatMods {
   /** Wildfire: an enemy minion killed by a friendly minion's hit deals its Attack to one random enemy minion (3 per
    *  combat per copy; owner rework 2026-11-13). Sourceless, so it cannot chain. */
   runeWildfire?: boolean;
-  /** Elder's Voice: the run-board uid (matched on `sourceUid`) of the body whose Shout fired first this turn; its Shout
-   *  fires again at Start of Combat (per copy). Absent = no Shout this turn, or the rune is not held. */
-  eldersVoiceUid?: string;
-  /** Elder's Voice is held (gates `eldersVoiceUid`; per-copy count rides `flagCopies`). */
-  runeEldersVoice?: boolean;
   /** Gem Rain: Start of Combat, 2 PERMANENT Rubies on every living friendly minion (per copy). */
   runeGemRain?: boolean;
 }

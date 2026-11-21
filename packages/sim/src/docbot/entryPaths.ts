@@ -275,7 +275,7 @@ const stable = (v: unknown): string => {
  *  whatever its effect did. The differential must see through all of it. */
 const CAST_NOISE = new Set([
   'rngCursor', 'uidCounter', 'uidSeq', 'presentation', 'fx', 'beats', 'log',
-  'shoutsThisTurn', 'firstShoutUid', 'auraFxSeq', 'auraFx', 'lastShoutFires', 'lastEchoFires', 'lastRallyFires', 'lastEotFires',
+  'shoutsThisTurn', 'firstShoutUid', 'eldersVoiceShout', 'auraFxSeq', 'auraFx', 'lastShoutFires', 'lastEchoFires', 'lastRallyFires', 'lastEotFires',
   'questTendrilFx', 'shoutLinkFx', 'shoutLinkFxSeq', 'epicFireFx', 'epicFireFxSeq', 'fodderEaten', 'shopEaten', 'gainCardFiredUids', 'gainAttackFiredUids', 'equipmentSpellCasts', 'recruitBuffFx',
   'aleGranted', 'veinstormStamped', 'weldFxBaseSeq', 'karwindFlash', 'shopDeathFx', 'equipFx',
   'spellsCast', 'spellsThisTurn', 'lastSpellCastId', 'firstSpellThisTurnId', 'lastSpellThisTurnId', 'spellsCastIds', 'alesCastThisTurn',

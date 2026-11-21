@@ -165,6 +165,12 @@ describe('Rune of Recollection names the spell you are getting (owner ask 2026-0
   it('names the first spell cast this turn', () => {
     expect(questRewardLiveText(reward, { firstSpellId: 'growth' })).toBe('Now: a copy of Growth');
   });
+  it("Elder's Voice names the Shout its End of Turn will repeat (live-text rule)", () => {
+    const voice = { kind: 'runeEldersVoice' } as const;
+    expect(questRewardLiveText(voice, {})).toBe('Now: no Shout played yet this turn');
+    expect(questRewardLiveText(voice, { eldersVoiceShout: { cardId: 'd2_broodfire' } })).toBe('Now: repeats Broodfire');
+    expect(questRewardLiveText(voice, { eldersVoiceShout: { cardId: 'd2_broodfire', golden: true } })).toBe('Now: repeats Gilded Broodfire');
+  });
 
   it('says so plainly before anything has been cast', () => {
     // The authored text ("a copy of the first spell you cast this turn") names no card, which is the whole

@@ -13129,12 +13129,9 @@ export function stampEpicFire(state: RunState, uids: readonly string[]): void {
   state.epicFireFxSeq = (state.epicFireFxSeq ?? 0) + 1;
 }
 
-function shoutFireCount(state: RunState, def: CardDef, uid?: string): number {
+function shoutFireCount(state: RunState, def: CardDef, _uid?: string): number {
   let n = drummerRepeats(state); // 1 + Drakko's extra
   const isShout = def.effects.some((e) => e.on === 'onPlay');
-  // ELDER'S VOICE (Set 2 Epic tribal rune, owner 2026-11-12): the body whose Shout fires FIRST this turn, played or
-  // triggered (every Shop Shout passes this fold), is remembered; its Shout fires again at Start of Combat.
-  if (isShout && state.questFlags?.runeEldersVoice && !state.eldersVoiceSeen) { state.eldersVoiceSeen = true; state.eldersVoiceUid = uid; }
   if (isShout) {
     // The Shout loops run this count right away: Drakko / Zyff and Orivax pulse as they add fires (R-FX-EPIC-FIRE-01).
     stampEpicFire(state, [
@@ -16343,6 +16340,79 @@ function stampQuestTendril(state: RunState, effect: string, uid: string): void {
   state.questTendrilSeq = (state.questTendrilSeq ?? 0) + 1;
 }
 
+/**
+ * ELDER'S VOICE (owner rework 2026-11-21: "End of Turn: repeat the first shout played this turn twice ... the card
+ * shouldnt need to be on board to repeat it"). `playCard` (the one played-from-hand chokepoint) records the FIRST
+ * Shout card played each turn: its id, gild and a snapshot of the body, so the repeat still resolves after the body
+ * was sold, consumed or moved. Recorded whether or not the rune is held (a rune forged later that turn still sees
+ * it); cleared at the next turn start. Triggered Shouts (a re-fire, a rune's repeat) are not plays and never record.
+ */
+export function noteEldersVoicePlay(state: RunState, played: BoardCard): void {
+  if (state.eldersVoiceShout) return;
+  const def = CARD_INDEX[played.cardId];
+  if (!def || !hasBattlecry(def)) return;
+  state.eldersVoiceShout = {
+    cardId: played.cardId,
+    ...(played.golden ? { golden: true } : {}),
+    uid: played.uid,
+    body: { ...played, keywords: [...played.keywords], ...(played.buffs ? { buffs: played.buffs.map((b) => ({ ...b })) } : {}) },
+  };
+}
+
+/** Elder's Voice is held: the rework's flag, or the pre-rework combat flag an older save carries. */
+export function eldersVoiceHeld(state: Pick<RunState, 'runeEldersVoice' | 'questFlags'>): boolean {
+  return !!(state.runeEldersVoice || state.questFlags?.runeEldersVoice);
+}
+
+/** How many times ONE Elder's Voice fire repeats the recorded Shout ("twice"). Each is its own End-of-Turn tick. */
+export const ELDERS_VOICE_REPEATS = 2;
+
+/** The card Elder's Voice will repeat at this End of Turn (undefined = no Shout played yet). Live-text read. */
+export function eldersVoiceShoutOf(state: Pick<RunState, 'eldersVoiceShout'>): { cardId: string; golden?: boolean } | undefined {
+  return state.eldersVoiceShout;
+}
+
+/** RECURSION GUARD: a repeated Shout that itself reaches an End of Turn (Roomworks) cannot re-enter Elder's Voice. */
+let eldersVoiceDepth = 0;
+
+/** One Elder's Voice tick: the recorded Shout fires once through `replayBattlecry`, the shared Shop Shout path, so
+ *  Drakko, the Choir family, the per-turn charges, Karwind and every Shout tally hear it exactly as a re-fire. The
+ *  body still on the board is the source; otherwise a stand-in rebuilt from the snapshot (a uid no board card holds),
+ *  so a "this minion" part buffs nothing and an adjacency part finds no neighbours: the self-part fizzles while
+ *  the rest of the Shout (buffs to others, grants, Gold, Discovers) resolves. A targeted Shout picks its random
+ *  legal target, as every un-aimed re-fire does (R-TARGET-06). */
+function fireEldersVoice(state: RunState): void {
+  const rec = state.eldersVoiceShout;
+  if (!rec || eldersVoiceDepth > 0) return;
+  const live = state.board.find((c) => c.uid === rec.uid && c.cardId === rec.cardId);
+  const body: BoardCard = live ?? {
+    ...rec.body,
+    uid: `${rec.uid}~voice`,
+    keywords: [...rec.body.keywords],
+    ...(rec.body.buffs ? { buffs: rec.body.buffs.map((b) => ({ ...b })) } : {}),
+  };
+  procRuneId(state, 'rune_elders_voice');
+  eldersVoiceDepth += 1;
+  try {
+    // The live body gets the Shout's own nested identity (`factory:<do>:onPlay`, sourced on it) under the rune's
+    // root beat, so its authored Shout FX and pulse bind; a stand-in has no card on screen to pulse, so it resolves
+    // bare under the rune beat.
+    if (!live) { replayBattlecry(state, body); return; }
+    const shout = CARD_INDEX[live.cardId]?.effects.find((e) => e.on === 'onPlay');
+    withRecruitTrigger(
+      makeContext(state),
+      {
+        phase: 'endOfTurn',
+        source: { kind: 'minion', id: live.cardId, uid: live.uid, side: 'player', label: CARD_INDEX[live.cardId]?.name },
+        trigger: 'onPlay',
+        ...beatIdentity(`factory:${shout?.do ?? 'battlecry'}:onPlay`),
+      },
+      () => { replayBattlecry(state, live); },
+      { discardIfEmpty: true },
+    );
+  } finally { eldersVoiceDepth -= 1; }
+}
+
 /** The recurring End-of-Turn effects active on this run: the quest/rune-granted list PLUS the flag-armed rune
  *  recurrences (Lapidary / Crucible Choir), which are stored as booleans for save compatibility but behave as
  *  recurring entries. THE single source for `applyEndOfTurn`, `projectEndOfTurnSteps` and `questEndOfTurnBeats`,
@@ -16353,11 +16423,14 @@ export function recurringEotEffects(state: RunState): NonNullable<RunState['ques
   const lapidary = state.runeLapidary ? runeStacksOf(state, 'rune_lapidary') : 0;
   const choir = state.runeCrucibleChoir ? runeStacksOf(state, 'rune_crucible_choir') : 0;
   const banners = state.runeFiveBanners ? runeStacksOf(state, 'rune_five_banners') : 0; // owner rework 2026-09-23
+  // Elder's Voice: one entry per copy, and only once a Shout was played this turn (no record = no beat).
+  const voice = eldersVoiceHeld(state) && state.eldersVoiceShout ? runeStacksOf(state, 'rune_elders_voice') : 0;
   return [
     ...(state.questRecurringEndOfTurn ?? []),
     ...Array.from({ length: lapidary }, () => 'runeLapidary' as const),
     ...Array.from({ length: choir }, () => 'runeCrucibleChoir' as const),
     ...Array.from({ length: banners }, () => 'runeFiveBanners' as const),
+    ...Array.from({ length: voice }, () => 'runeEldersVoice' as const),
     // ANCIENT OF FORTUNE × Xerox: "Gain 4g next turn for every pair you have on board", counted at End of Turn. A
     // virtual recurring entry like Warden's Time, so its End of Turn repeats and replays follow the one rule.
     ...(ancientXeroxPairsLive(state) ? ['ancientXeroxPairs' as const] : []),
@@ -16453,6 +16526,11 @@ function runRecurringEndOfTurn(
       procRuneId(state, 'rune_five_banners');
       step(() => { for (const m of recipients) addBuff(m, 'Five Banners', FIVE_BANNERS_GRANT.attack, FIVE_BANNERS_GRANT.health); });
     }
+  } else if (effect === 'runeEldersVoice') {
+    // ELDER'S VOICE: one tick = one repeat of the turn's first played Shout (`recurringTickCount` = 2, so each repeat
+    // is its own root beat). Drakko folds INSIDE the replay (`shoutFireCount`), Chronos repeats the End of Turn
+    // outside it: each multiplier applies at exactly one boundary.
+    step(() => fireEldersVoice(state));
   } else if (effect === 'runeLapidary') {
     procRuneId(state, 'rune_lapidary');
     // Rune of the Lapidary (owner rework 2026-08-11): play a Ruby on a random minion for EACH card played this
@@ -17029,6 +17107,7 @@ export const RUNE_ACTION_GRANT = { count: 3, attack: 2, health: 2 } as const;
  *  plus one per card played this turn. Every other recurrence fires once per trigger. */
 export function recurringTickCount(state: Pick<RunState, 'playedThisTurn'> & Partial<Pick<RunState, 'embers'>>, effect: string): number {
   if (effect === 'runePiggyBank') return 1 + Math.max(0, state.embers ?? 0); // Piggy Bank: base + one per unspent Gold
+  if (effect === 'runeEldersVoice') return ELDERS_VOICE_REPEATS; // Elder's Voice: "twice", one beat per repeat
   return effect === 'runeAction' ? 1 + (state.playedThisTurn?.length ?? 0) : 1;
 }
 
@@ -17041,6 +17120,7 @@ const RECURRING_EOT_LABEL: Record<string, string> = {
   attachClingDrones: 'Clinging On',
   runeLapidary: 'Lapidary',
   runeCrucibleChoir: 'Crucible Choir',
+  runeEldersVoice: "Elder's Voice",
   runeFiveBanners: 'Five Banners',
   ancientTimeWard: 'Ancient of Time',
   ancientXeroxPairs: 'Ancient of Fortune',
@@ -17557,6 +17637,7 @@ function withPlayTrigger(ctx: RecruitContext, played: BoardCard, effect: EffectD
 }
 
 export function playCard(state: RunState, played: BoardCard): void {
+  noteEldersVoicePlay(state, played); // Elder's Voice: the turn's first PLAYED Shout card is remembered
   syncRunTribes(state); // Rune of Drakko: the played body (and every other copy) carries the run's type overrides before any trigger reads tribes
   syncUnity(state); // Rune of Unity: the played body may complete the full house, before any of its triggers read tribes
   state.karwindFlash = []; // Karwind's battlecry-triggered buff repopulates this for the flame flash

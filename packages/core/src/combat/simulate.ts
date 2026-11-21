@@ -6955,17 +6955,6 @@ export function simulate(
         for (const m of all) playRubyOn(ctx, m, m, GEM_RAIN_RUBIES, true);
       }
     }
-    // ELDER'S VOICE: "Your first Shout each turn also triggers at Start of Combat." The body the Shop recorded
-    // (`eldersVoiceUid`, matched on `sourceUid`) fires its Shout once more through the shared combat Shout path,
-    // Drakko folded, once per copy held. Not a "Start of Combat:" rune: base pass only. Gone from the board: nothing.
-    if (base && rmods.runeEldersVoice && rmods.eldersVoiceUid) {
-      const voice = boards[rside].find((x) => !x.dead && x.health > 0 && x.sourceUid === rmods.eldersVoiceUid && x.effects.some((e) => e.on === 'onPlay'));
-      if (voice) {
-        nextStep(); fireTrigger('runeEldersVoice', rside);
-        const reps = drakkoRepeats(ctx, rside) * flagCopiesOf(rside, 'runeEldersVoice');
-        for (let r = 0; r < reps; r++) fireShout(ctx, voice, voice); // R-SHOUT-TRIGGER-01: the shared Shout path
-      }
-    }
   };
   const socRunes = (sides: readonly Side[]): void => {
     for (const rside of sides) {

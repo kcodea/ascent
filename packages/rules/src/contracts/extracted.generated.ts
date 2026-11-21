@@ -32489,10 +32489,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "reviewStatus": "extracted",
     "extraction": {
       "extractor": "contracts-extract@1",
-      "confidence": "low",
-      "unparsed": [
-        "reward:combatFlag.flag"
-      ]
+      "confidence": "low"
     },
     "setIds": [
       "set2"
@@ -32506,7 +32503,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "effects": [
       {
-        "kind": "reward:combatFlag"
+        "kind": "reward:runeEldersVoice"
       }
     ],
     "textContract": {

@@ -47,7 +47,7 @@ const stable = (v: unknown): string => {
  *  identically for every Shout card, hiding a dead one behind the watcher's response. */
 const NOISE = new Set([
   'rngCursor', 'uidCounter', 'presentation', 'fx', 'beats', 'log',
-  'shoutsThisTurn', 'firstShoutUid', 'auraFxSeq', 'auraFx', 'lastShoutFires', 'shoutFiresThisTurn', // + Rune of Ancestral Roar's per-turn Shout-fire count (balance 9/23)
+  'shoutsThisTurn', 'firstShoutUid', 'eldersVoiceShout', 'auraFxSeq', 'auraFx', 'lastShoutFires', 'shoutFiresThisTurn', // + Rune of Ancestral Roar's per-turn Shout-fire count (balance 9/23)
   'tribeUnionPlays', // the run-wide "Dragons or Dwarves played" tally (Vaultkeeper, 2026-10-20): ticks on the played card's TYPE, like `tribe: 'X'` below
 ]);
 const PLAYED = 'PLAYED_CARD';

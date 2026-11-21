@@ -9,7 +9,7 @@
  *   Hellfire        Demon  3  When a Demon attacks or dies, deal 1 damage to all enemies. This counts as Demon damage.
  *   Wildfire        Demon  4  When one of your minions kills an enemy, deal that enemy's Attack as damage to a random enemy
  *                             minion. (3 times per combat.)  (owner rework 2026-11-13; Hellfire became Demon damage the same day)
- *   Elder's Voice   Dragon 3  Your first Shout each turn also triggers at Start of Combat.
+ *   Elder's Voice   Dragon 3  End of Turn: Repeat the first Shout played this turn twice. (owner rework 2026-11-21)
  *   Vein Finder     Kobold 3  After every 3rd Refresh, cast a Ruby on all your minions.
  *   Gem Rain        Kobold 4  Start of Combat: cast 2 permanent Rubies on all your minions.
  *
@@ -19,8 +19,7 @@ import { describe, it, expect } from 'vitest';
 import { combatSide, makeRng, simulate, type BoardMinion, type CombatEvent } from '@game/core';
 import { CARD_INDEX, EPIC_RUNES, RUNES, RUNE_INDEX, SETS, poolFor } from '@game/content';
 import { CONFIG, createRun, reduce, type Action, type BoardCard, type RunState } from './index';
-import { questCombatMods } from './reducer';
-import { destroyMinionInShop, makeContext } from './recruit';
+import { applyEndOfTurn, destroyMinionInShop, makeContext, projectEndOfTurnSteps, questEndOfTurnBeats } from './recruit';
 import { snapshotBoard } from './snapshot';
 import { runeTally } from '../../ui/src/runeTally';
 
@@ -78,7 +77,7 @@ describe('the ten runes as content', () => {
       ['rune_blood_frenzy', 'Blood Frenzy', 4, 'beast', 'When a **Beast** kills a minion, trigger your left-most **Rally**.'],
       ['rune_hellfire', 'Hellfire', 3, 'demon', 'When a **Demon** attacks or dies, deal **1** damage to all enemies. This counts as **Demon** damage.'],
       ['rune_wildfire', 'Wildfire', 4, 'demon', "When one of your minions kills an enemy, deal that enemy's **Attack** as damage to a random enemy minion. (**3** times per combat.)"],
-      ['rune_elders_voice', "Elder's Voice", 3, 'dragon', 'Your first **Shout** each turn also triggers at **Start of Combat**.'],
+      ['rune_elders_voice', "Elder's Voice", 3, 'dragon', '**End of Turn:** Repeat the first **Shout** played this turn twice.'],
       ['rune_vein_finder', 'Vein Finder', 3, 'kobold', 'After every **3rd** Refresh, cast a **Ruby** on all your minions.'],
       ['rune_gem_rain', 'Gem Rain', 4, 'kobold', '**Start of Combat:** cast **2** permanent **Rubies** on all your minions.'],
     ];
@@ -411,29 +410,77 @@ describe('WILDFIRE: When one of your minions kills an enemy, deal that enemy\'s 
   });
 });
 
-describe("ELDER'S VOICE: Your first Shout each turn also triggers at Start of Combat", () => {
-  it('Shop: the first Shout body of the turn is recorded (a later Shout does not replace it) and rides into combat', () => {
-    let s = withRune(['rune_elders_voice'], { hand: [body('h1', 'd2_broodfire'), body('h2', 'd2_chronicler')] });
+describe("ELDER'S VOICE: End of Turn: Repeat the first Shout played this turn twice (owner rework 2026-11-21)", () => {
+  // Broodfire: "Shout: give your Dragons +3/+2" (self included). A plain Dragon beside it reads every fire.
+  const DRAGON = Object.values(CARD_INDEX).find((c) => c.tribe === 'dragon' && !c.tribe2 && !c.spell && !c.token && c.effects.length === 0 && !c.universalTribe)!.id;
+  const brood = (s: RunState) => sumFrom(s.board.find((c) => c.uid === 'd')!, 'Broodfire');
+  /** Play Broodfire (h1) beside the plain Dragon, then a second Shout, optionally strip Broodfire off the board, then
+   *  run the real End of Turn. Returns the Broodfire stats End of Turn added to the plain Dragon. */
+  function eot(runes: string[], opts: { golden?: boolean; board?: BoardCard[]; removeBody?: boolean } = {}): { attack: number; health: number; s: RunState } {
+    let s = withRune(runes, { hand: [body('h1', 'd2_broodfire', { golden: !!opts.golden }), body('h2', 'd2_chronicler')], board: [body('d', DRAGON), ...(opts.board ?? [])] });
     s = act(s, { type: 'play', uid: 'h1' });
-    const first = s.eldersVoiceUid;
-    expect(first).toBeTruthy();
-    expect(s.board.some((c) => c.uid === first && c.cardId === 'd2_broodfire')).toBe(true);
-    s = act(s, { type: 'play', uid: 'h2' });
-    expect(s.eldersVoiceUid).toBe(first);
-    expect(questCombatMods(s).eldersVoiceUid).toBe(first);
-    const without = act(withRune([], { hand: [body('h1', 'd2_broodfire')] }), { type: 'play', uid: 'h1' });
-    expect(questCombatMods(without).eldersVoiceUid).toBeUndefined();
+    s = act(s, { type: 'play', uid: 'h2' }); // a SECOND Shout this turn: never replaces the first
+    if (opts.removeBody) s = { ...s, board: s.board.filter((c) => c.cardId !== 'd2_broodfire') };
+    const before = brood(s);
+    applyEndOfTurn(s);
+    const after = brood(s);
+    return { attack: after.attack - before.attack, health: after.health - before.health, s };
+  }
+  const gain = (r: { attack: number; health: number }) => ({ attack: r.attack, health: r.health });
+
+  it('content: the new text, an End-of-Turn rune (no combat flag)', () => {
+    const r = EPIC_RUNES.find((x) => x.id === 'rune_elders_voice')!;
+    expect(r.text).toBe('**End of Turn:** Repeat the first **Shout** played this turn twice.');
+    expect(r.reward).toEqual({ kind: 'runeEldersVoice' });
   });
-  it('combat: that body Shouts once more at Start of Combat, once per copy; gone from the board, nothing', () => {
-    const shouts = (r: Fight, src: string) => r.events.filter((e) => e.type === 'shout' && (e as { source: string }).source === uidOf(r, src)).length;
-    const p = () => [bm('v', 'd2_broodfire', { health: 5000 }), bm('d', 'd2_humphry', { health: 5000 })];
-    const on = fight(p(), [wall(0)], { runeEldersVoice: true, eldersVoiceUid: 'v' });
-    expect(shouts(on, 'v')).toBe(1);
-    expect(triggers(on.events, 'runeEldersVoice')).toHaveLength(1);
-    expect(shouts(fight(p(), [wall(0)], { runeEldersVoice: true, eldersVoiceUid: 'v', flagCopies: { runeEldersVoice: 2 } }), 'v')).toBe(2);
-    expect(shouts(fight(p(), [wall(0)], { runeEldersVoice: true, eldersVoiceUid: 'v', runeTwilight: true }), 'v'), 'not a "Start of Combat:" rune: Twilight does not repeat it').toBe(1);
-    expect(triggers(fight(p(), [wall(0)], { runeEldersVoice: true, eldersVoiceUid: 'gone' }).events, 'runeEldersVoice')).toHaveLength(0);
-    expect(shouts(fight(p(), [wall(0)], {}), 'v')).toBe(0);
+  it('records the FIRST played Shout card (id, gild, body snapshot); a later Shout does not replace it', () => {
+    let s = withRune(['rune_elders_voice'], { hand: [body('h1', 'd2_broodfire', { golden: true }), body('h2', 'd2_chronicler')] });
+    s = act(s, { type: 'play', uid: 'h1' });
+    s = act(s, { type: 'play', uid: 'h2' });
+    expect(s.eldersVoiceShout?.cardId).toBe('d2_broodfire');
+    expect(s.eldersVoiceShout?.golden).toBe(true);
+    expect(s.eldersVoiceShout?.body.cardId).toBe('d2_broodfire');
+  });
+  it('fires the Shout twice at End of Turn, the body on board as the source (it buffs itself too)', () => {
+    const r = eot(['rune_elders_voice']);
+    expect(gain(r)).toEqual({ attack: 6, health: 4 });
+    expect(sumFrom(r.s.board.find((c) => c.cardId === 'd2_broodfire')!, 'Broodfire')).toEqual({ attack: 9, health: 6 }); // play + 2 repeats
+  });
+  it('the body does not need to be on board: gone, the Shout still repeats twice (its self-part fizzles)', () => {
+    expect(gain(eot(['rune_elders_voice'], { removeBody: true }))).toEqual({ attack: 6, health: 4 });
+  });
+  it('a Gilded Shout repeats Gilded', () => {
+    expect(gain(eot(['rune_elders_voice'], { golden: true, removeBody: true }))).toEqual({ attack: 12, health: 8 });
+  });
+  it('no Shout played this turn: nothing; without the rune: nothing', () => {
+    expect(gain(eot([]))).toEqual({ attack: 0, health: 0 });
+    const empty = withRune(['rune_elders_voice'], { board: [body('d', DRAGON)] });
+    const b = brood(empty);
+    applyEndOfTurn(empty);
+    expect(brood(empty)).toEqual(b);
+    expect(questEndOfTurnBeats(empty).some((x) => x.effect === 'runeEldersVoice')).toBe(false);
+  });
+  it('Drakko multiplies each repeat (inside the Shout fold): 2 x 2 = 4 fires', () => {
+    expect(gain(eot(['rune_elders_voice'], { board: [body('k', 'drummer')], removeBody: true }))).toEqual({ attack: 12, health: 8 });
+  });
+  it('Chronos repeats the End of Turn (outside it): 2 x 2 = 4 fires; Drakko + Chronos: 2 x 2 x 2 = 8', () => {
+    expect(gain(eot(['rune_elders_voice'], { board: [body('c', 'chronos')], removeBody: true }))).toEqual({ attack: 12, health: 8 });
+    expect(gain(eot(['rune_elders_voice'], { board: [body('c', 'chronos'), body('k', 'drummer')], removeBody: true }))).toEqual({ attack: 24, health: 16 });
+  });
+  it('two copies: twice each (4 fires); every repeat is its own End-of-Turn beat', () => {
+    expect(gain(eot(['rune_elders_voice', 'rune_elders_voice'], { removeBody: true }))).toEqual({ attack: 12, health: 8 });
+    let s = withRune(['rune_elders_voice'], { hand: [body('h1', 'd2_broodfire')], board: [body('d', DRAGON), body('c', 'chronos')] });
+    s = act(s, { type: 'play', uid: 'h1' });
+    expect(questEndOfTurnBeats(s).filter((x) => x.effect === 'runeEldersVoice')).toHaveLength(4); // 2 repeats x Chronos
+  });
+  it('the End-of-Turn projection lands what the commit lands (the beat climbs to the real number)', () => {
+    let s = withRune(['rune_elders_voice'], { hand: [body('h1', 'd2_broodfire')], board: [body('d', DRAGON)] });
+    s = act(s, { type: 'play', uid: 'h1' });
+    s = { ...s, board: s.board.filter((c) => c.cardId !== 'd2_broodfire') };
+    const proj = projectEndOfTurnSteps(s);
+    applyEndOfTurn(s);
+    const d = s.board.find((c) => c.uid === 'd')!;
+    expect(proj.steps[proj.steps.length - 1]!.d).toEqual({ attack: d.attack, health: d.health });
   });
 });
 

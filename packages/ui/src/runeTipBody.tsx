@@ -51,7 +51,7 @@ export function runeTipLines(runeId: string, src: RuneTipSource): RuneTipLines |
   const tally = src.tally !== undefined ? src.tally : runeLiveTally(runeId, live) ?? (run ? runeTally(run, runeId) : null);
   // A whole run always knows its first spell (none cast yet is an answer); a captured board only when it recorded it.
   const liveLine = run
-    ? questRewardLiveText(rune.reward, { firstSpellId: run.firstSpellThisTurnId })
+    ? questRewardLiveText(rune.reward, { firstSpellId: run.firstSpellThisTurnId, ...(run.eldersVoiceShout ? { eldersVoiceShout: run.eldersVoiceShout } : {}) })
     : src.firstSpellId ? questRewardLiveText(rune.reward, { firstSpellId: src.firstSpellId }) : null;
   return {
     name: rune.name,

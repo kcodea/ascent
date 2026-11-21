@@ -1366,7 +1366,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_blood_frenzy:combat': { policy: 'foldedCue', family: 'combatModifier' },    // a Beast's kill fires the left-most Rally
   'rune:rune_hellfire:combat': { policy: 'foldedCue', family: 'combatModifier' },        // a Demon attacks or dies: it deals 1 damage to all enemies (Demon damage)
   'rune:rune_wildfire:combat': { policy: 'foldedCue', family: 'combatModifier' },        // a friendly minion's kill: the dead enemy's Attack to a random enemy
-  'rune:rune_elders_voice:combat': { policy: 'foldedCue', family: 'combatModifier' },    // SoC: the turn's first Shout fires again
+  'rune:rune_elders_voice:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },       // EoT: the turn's first played Shout fires twice (owner rework 2026-11-21)
   'rune:rune_vein_finder:recruit': { policy: 'ownBeat', family: 'runeMechanic' },        // every 3rd Refresh: a Ruby on every minion
   'rune:rune_gem_rain:combat': { policy: 'foldedCue', family: 'combatModifier' },        // SoC: 2 permanent Rubies on every minion
   'rune:rune_golden_monkey:recruit': { policy: 'ownBeat', family: 'runeMechanic' }, // every 5 Refreshes: a Shop minion becomes a Golden Monkey (owner 2026-11-13)

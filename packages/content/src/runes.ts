@@ -4897,16 +4897,18 @@ export const EPIC_RUNES: RuneDef[] = [
     sets: ['set2'],
   },
   {
-    // Shop records the body whose Shout fires first each turn (`eldersVoiceUid`); combat fires that body's Shout once
-    // more at Start of Combat (per copy, Drakko folded), if it is still on the board. Not a "Start of Combat:" rune,
-    // so Twilight does not repeat it.
+    // Owner rework 2026-11-21 (was "Your first Shout each turn also triggers at Start of Combat"): the Shop records the
+    // first Shout CARD played from hand this turn (`eldersVoiceShout`: card id, gild, a snapshot of the body). At End
+    // of Turn that Shout fires twice through `replayBattlecry`, the body on board if it is still there, else a
+    // stand-in whose self-part fizzles. Two ticks per copy, each its own beat; Drakko folds inside the replay, Chronos
+    // repeats the End of Turn. Shop-only (no End of Turn runs in combat).
     id: 'rune_elders_voice',
     tribes: ['dragon'],
     name: "Elder's Voice",
     cost: 3,
     epic: true,
-    text: 'Your first **Shout** each turn also triggers at **Start of Combat**.',
-    reward: { kind: 'combatFlag', flag: 'runeEldersVoice' },
+    text: '**End of Turn:** Repeat the first **Shout** played this turn twice.',
+    reward: { kind: 'runeEldersVoice' },
     sets: ['set2'],
   },
   {

@@ -484,6 +484,8 @@ export interface QuestRewardLive {
    *  name the card you are actually about to be handed instead of describing the rule (owner ask
    *  2026-08-03). Absent until something is cast. */
   firstSpellId?: string;
+  /** Elder's Voice: the first Shout card PLAYED this turn (the one its End of Turn repeats). Absent until one is. */
+  eldersVoiceShout?: { cardId: string; golden?: boolean };
 }
 
 /** The reward's LIVE ongoing magnitude for the badge tooltip — the CURRENT value a scaling/stat reward is
@@ -504,6 +506,7 @@ export function questRewardLiveOf(run: {
   shopBuffOnRefresh?: { grown: number; tick: number };
   shopAuraGrow?: { grown: number; tick: number };
   firstSpellThisTurnId?: string;
+  eldersVoiceShout?: { cardId: string; golden?: boolean };
 }, r: QuestReward): QuestRewardLive {
   const scaling = r.kind === 'scalingTribeAura'
     ? (run.questScalingAuras ?? []).find((a) => a.tribe === r.tribe && a.event === r.event)
@@ -517,6 +520,7 @@ export function questRewardLiveOf(run: {
       ? { grown: run.shopBuffOnRefresh.grown, tick: run.shopBuffOnRefresh.tick }
       : run.shopAuraGrow ? { grown: run.shopAuraGrow.grown, tick: run.shopAuraGrow.tick } : undefined,
     firstSpellId: run.firstSpellThisTurnId,
+    ...(run.eldersVoiceShout ? { eldersVoiceShout: { cardId: run.eldersVoiceShout.cardId, ...(run.eldersVoiceShout.golden ? { golden: true } : {}) } } : {}),
   };
 }
 
@@ -532,6 +536,12 @@ export function questRewardLiveText(r: QuestReward, live: QuestRewardLive): stri
       if (r.effect !== 'copyFirstSpell') return null;
       const spell = live.firstSpellId ? CARD_INDEX[live.firstSpellId] : undefined;
       return spell ? `Now: a copy of ${spell.name}` : 'Now: nothing cast yet this turn';
+    }
+    case 'runeEldersVoice': {
+      // Elder's Voice names no card, so the badge resolves WHICH Shout its End of Turn will repeat (live-text rule).
+      const rec = live.eldersVoiceShout;
+      const card = rec ? CARD_INDEX[rec.cardId] : undefined;
+      return card ? `Now: repeats ${rec?.golden ? 'Gilded ' : ''}${card.name}` : 'Now: no Shout played yet this turn';
     }
     case 'shopAuraGrowing': {
       // Rune of the Wheel: the badge shows the aura's CURRENT total and the countdown to the next improve —

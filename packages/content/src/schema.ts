@@ -851,7 +851,7 @@ export const QuestCombatFlagSchema = z.enum(['bloodTrail', 'echoingCoop', 'lawOf
   'runeTopShelf', 'runeDoubleBill', 'runeBulwarkLine', 'runeWholesale', 'runeGrudge', 'runeBastion', 'runeMirrorSheen',
   // Set 2 rune batch, Epic tribal (owner 2026-11-12)
   'runeBigSpender', 'runeRoyalTreasury', 'runeFeralReturn', 'runePackTactics', 'runeBloodFrenzy', 'runeHellfire',
-  'runeWildfire', 'runeEldersVoice', 'runeGemRain',
+  'runeWildfire', 'runeGemRain',
   // Set 2 rune batch, owner addition 2026-11-13 (Shop-only)
   'runeShopMadness',
   // Set 2 rune, owner design 2026-11-13 (Shop-only)
@@ -960,6 +960,7 @@ z.object({ kind: z.literal('runeAftermarket') }).strict(),
   z.object({ kind: z.literal('runeFiveBanners') }).strict(),
   z.object({ kind: z.literal('runeLassoing') }).strict(),
   z.object({ kind: z.literal('runeCrucibleChoir') }).strict(),
+  z.object({ kind: z.literal('runeEldersVoice') }).strict(),
   z.object({ kind: z.literal('runeFullMeasure') }).strict(),
   z.object({ kind: z.literal('runeMountainTrade') }).strict(),
   z.object({ kind: z.literal('runeOpenAppetite') }).strict(),

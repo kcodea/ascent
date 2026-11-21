@@ -60,6 +60,16 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Balance',
+        text: "Elder's Voice reworked: at End of Turn it repeats the first Shout you played this turn, twice.",
+        details: [
+          'The minion does not need to still be on your board. If it is gone, any part of the Shout that targets the minion itself does nothing, and the rest still happens.',
+          'A Gilded Shout repeats Gilded. Shout repeaters like Drakko and End of Turn repeaters like Chronos repeat it more.',
+          'The rune tooltip names the Shout it will repeat this turn.',
+          'It no longer does anything at Start of Combat.',
+        ],
+      },
+      {
+        category: 'Balance',
         text: 'Warm-Up is now Pummel (180) and pays up to twice per combat (was Pummel (150), once per combat).',
       },
     ],

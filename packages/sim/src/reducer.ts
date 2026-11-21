@@ -6427,7 +6427,7 @@ function advanceCombat(s: RunState): void {
   }
   s.extraEotThisTurn = false; // Chrono Staff's one-shot End-of-Turn extra is per-turn
   s.shoutFirstUsedThisTurn = false; // Warm Embers' "first Shout each round triggers twice" freebie resets each turn
-  s.eldersVoiceUid = undefined; s.eldersVoiceSeen = undefined; // Elder's Voice: the new turn's first Shout is picked afresh
+  s.eldersVoiceShout = undefined; s.eldersVoiceUid = undefined; s.eldersVoiceSeen = undefined; // Elder's Voice: the new turn's first Shout is picked afresh
   // GIFTS — the turn-scoped channels (Demand an Encore, Arcane Clearance, Friends and Family) all expire here.
   s.shoutExtraTurn = 0;
   s.spellCostOffTurn = 0;
@@ -8309,6 +8309,7 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
     case 'runeFiveBanners': s.runeFiveBanners = true; break;
     case 'runeLassoing': s.runeLassoing = true; break;
     case 'runeCrucibleChoir': s.runeCrucibleChoir = true; break;
+    case 'runeEldersVoice': s.runeEldersVoice = true; break; // End of Turn: the first played Shout fires twice
     case 'runeFullMeasure': s.runeFullMeasure = true; break;
     case 'runeMountainTrade': s.runeMountainTrade = true; break;
     case 'runeOpenAppetite': s.runeOpenAppetite = true; break;
@@ -9053,8 +9054,6 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     runeBloodFrenzy: f?.runeBloodFrenzy,             // a Beast's kill fires the left-most Rally
     runeHellfire: f?.runeHellfire,                   // a Demon's attack or death: that Demon deals 1 to all enemies
     runeWildfire: f?.runeWildfire,                   // a friendly minion's kill: the dead enemy's Attack to a random enemy (3 per combat)
-    runeEldersVoice: f?.runeEldersVoice,             // Elder's Voice held (its per-turn body rides eldersVoiceUid)
-    eldersVoiceUid: f?.runeEldersVoice ? s.eldersVoiceUid : undefined, // the turn's first Shout fires again at SoC
     runeGemRain: f?.runeGemRain,                     // SoC: 2 permanent Rubies on every friendly minion
   };
 }

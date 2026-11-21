@@ -62,6 +62,10 @@ const ALLOWED_DANGLING: readonly { path: string; why: string }[] = [
   // the same way the bond broke. Allowed with that written down rather than quietly reclassified as a cue —
   // when the field is either deleted or given a real consumer, this entry must go with it.
   { path: 'firstShoutUid', why: 'DEAD FIELD (2026-08-29): written on the first Shout, read by nothing — Refrain uses the just-played card.uid instead. Latent Sable-shape trap if it ever gains a consumer; delete this allowance when the field is deleted or wired.' },
+  // Elder's Voice (owner rework 2026-11-21, R-SET2-EPIC-TRIBAL-1112-05): the record is DESIGNED to outlive its body
+  // ("the card shouldnt need to be on board to repeat it"). `uid` is only a lookup for the live body; when it no longer
+  // resolves (sold, consumed, tripled) the repeat runs on a stand-in rebuilt from `body`, so nothing dangles in use.
+  { path: 'eldersVoiceShout', why: "Elder's Voice: the turn's first played Shout, kept on purpose after its body leaves; a missing uid falls back to the snapshot stand-in (fireEldersVoice)" },
 ];
 
 const card = (uid: string, cardId: string, over: Partial<BoardCard> = {}): BoardCard =>

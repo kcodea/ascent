@@ -3147,17 +3147,17 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-SET2-EPIC-TRIBAL-1112-05',
-    title: 'Elder\'s Voice: the turn\'s first Shout fires again at Start of Combat',
-    statement: 'Elder\'s Voice (Epic Dragon, 3). The Shop remembers the body whose Shout fired first this turn, played or triggered. At Start of Combat that body, if it is still on the board, fires its Shout once more through the shared combat Shout path (Drakko folded), once per copy. It is not a "Start of Combat:" rune, so Twilight does not repeat it. The memory clears each turn and rides a served snapshot (matched by the body\'s source uid).',
+    title: 'Elder\'s Voice: End of Turn repeats the first Shout played this turn twice, body or no body',
+    statement: 'Elder\'s Voice (Epic Dragon, 3; owner rework 2026-11-21, was a Start-of-Combat refire). The Shop records the first Shout CARD played from hand each turn (playCard: card id, gild, a snapshot of the body; triggered Shouts never record) and clears it at the next turn start. At End of Turn, per copy held, that Shout fires twice through the shared Shop Shout path (replayBattlecry), each repeat its own End-of-Turn tick and beat under the rune. The source is the body if it is still on the board; otherwise a stand-in rebuilt from the snapshot, so a part aimed at the minion itself (a self-buff, an adjacency) does nothing while the rest resolves, and a targeted Shout picks a random legal target. Multipliers apply at one boundary each: Drakko and the Choir family inside the Shout fold, Chronos / Chrono Staff / Parliament as End-of-Turn repeats (1 rune + Drakko + Chronos = 2 x 2 x 2 = 8 fires). A repeat cannot re-enter Elder\'s Voice. No Shout played: nothing, no beat. Shop-only: nothing at Start of Combat.',
     domain: 'runes',
     status: 'approved',
     evidence: [
-      { kind: 'owner-handoff', ref: 'docs/design/2026-11-12-set2-rune-batch.md (owner review of 78 concepts, 2026-11-12)', quote: 'Your first Shout each turn also triggers at Start of Combat.' },
-      { kind: 'code', ref: 'packages/sim/src/recruit.ts shoutFireCount (eldersVoiceUid); packages/core/src/combat/simulate.ts runRuneStartOfCombat' },
+      { kind: 'owner-chat', ref: 'owner ask 2026-11-21 (via coordinator)', quote: "change it so it says 'End of Turn: repeat the first shout played this turn twice.' ... the card shouldnt need to be on board to repeat it" },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts noteEldersVoicePlay / fireEldersVoice / recurringEotEffects (runeEldersVoice)' },
     ],
     contentIds: ['rune_elders_voice'],
-    currentBehaviour: 'Conforms as of 2026-11-13 (new content).',
-    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2EpicTribalRunes1112.test.ts'], lastVerifiedAt: '2026-11-13' },
+    currentBehaviour: 'Conforms as of 2026-11-21 (reworked).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2EpicTribalRunes1112.test.ts'], lastVerifiedAt: '2026-11-21' },
   },
   {
     id: 'R-SET2-EPIC-TRIBAL-1112-06',

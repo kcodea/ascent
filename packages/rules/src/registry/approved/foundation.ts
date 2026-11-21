@@ -16851,6 +16851,26 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/core/src/combat/combatGoldEvents.test.ts', 'packages/ui/src/combatTierGoldHud.test.tsx'], lastVerifiedAt: '2026-11-20' },
   },
   {
+    id: 'R-ANCIENT-ORDER-01',
+    title: 'An Ancient awakened by the fight before a rune turn is revealed before the rune select',
+    statement:
+      'When the points from a fight fill the Ancient meter and the Shop that follows opens a Runeforge, the Ancient reveal and its pick come first; '
+      + 'the rune select opens only after the Ancient is picked and its pick animation has finished. '
+      + 'The Runeforge is not shown, and cannot be answered on screen, while it waits. '
+      + 'A quest offer, a hero-power pick or a Discover that is also open still goes before the awakening, as before. '
+      + 'An awakening from anything other than combat points keeps the old order (it waits for the forge). '
+      + 'The reducer still accepts the rune pick first, so a recording made before this rule replays unchanged.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Mike, 2026-11-19', quote: 'if a player awakens their ancient through combat points on the combat that leads to a rune phase (so combat after shop turn 5 and shop turn 8) then the ancient reveal should happen BEFORE the rune select' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts ancientLeadsRuneforge; packages/sim/src/reducer.ts (the modal gate lets pickAncient through); packages/ui/src/ancients/awakeningLeadsForge.ts (awakeningWaits, awakeningHoldsForge), read by AncientGate, AncientOfferOverlay and RuneforgeOverlay' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-19. Before, the awakening waited for every other decision, the Runeforge included. An older replay of such a turn plays the rune pick without showing the forge (it stays held until the recorded Ancient pick).',
+    example: 'The fight after Shop turn 5 gives the last 2 points. The next Shop opens, the meter fills, the Ancients reveal and the player picks Time; then the Runeforge opens.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientLeadsRuneforge.test.ts', 'packages/ui/src/ancients/awakeningLeadsForge.test.ts'], lastVerifiedAt: '2026-11-19' },
+  },
+  {
     id: 'R-RESULTS-STRENGTH-WINDOW-01',
     domain: 'foundation',
     title: "A results seat's Relevant Strength counts only the rounds it shared with you, weighted for the game's length",

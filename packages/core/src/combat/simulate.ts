@@ -941,9 +941,9 @@ export function simulate(
   const ancientPummelPays: Record<Side, number> = sideReset(() => ({ player: 0, enemy: 0 }));
   /** `ancientPummelCharge`'s own payout count this fight (its cap is `perCombat`, default 1). */
   const ancientPummelChargePaid: Record<Side, number> = sideReset(() => ({ player: 0, enemy: 0 }));
-  /** WARM-UP (Set 2 batch): the side-wide Pummel (150) tally (seeded LIFETIME from the run) and its once-per-combat latch. */
+  /** WARM-UP (Set 2 batch): the side-wide Pummel (180) tally (seeded LIFETIME from the run) and its payouts this fight (max 2). */
   const warmUpDealt: Record<Side, number> = sideReset(() => ({ player: modsFor('player').runeWarmUpDealt ?? 0, enemy: modsFor('enemy').runeWarmUpDealt ?? 0 }));
-  const warmUpPaid: Record<Side, boolean> = sideReset(() => ({ player: false, enemy: false }));
+  const warmUpPaid: Record<Side, number> = sideReset(() => ({ player: 0, enemy: 0 }));
 
   /** ANCIENT OF DEATH × Hunch: the spell improvement this fight's Avenges granted, per side (carried back). */
   const ancientSpellImproved: Record<Side, { attack: number; health: number }> = sideReset(() => ({ player: { attack: 0, health: 0 }, enemy: { attack: 0, health: 0 } }));
@@ -3869,11 +3869,11 @@ export function simulate(
    * fly to hand on the hit that crossed (`grantToHand`, a live `toHand`), mid-fight.
    */
   /**
-   * WARM-UP (Set 2 batch, owner 2026-11-12): "Pummel (150): gain 2 Gold next turn. Counts all your minions. Once per
-   * combat." A SIDE-WIDE Pummel over the same landed hits the keyword reads (called from `noteDamageDealt`), from every
+   * WARM-UP (Set 2 batch, owner 2026-11-12; re-tuned 2026-11-21): "Pummel (180): gain 2 Gold next turn. Counts all
+   * your minions. Twice per combat." A SIDE-WIDE Pummel over the same landed hits the keyword reads (called from `noteDamageDealt`), from every
    * friendly minion, into one LIFETIME tally (seeded from the run, carried home as `ShoutCarry.warmUpDealt`: the
-   * keyword's carry-over rule). Rune of the Heavy Hand's extra share applies. The first crossing of a multiple of 150
-   * each fight banks 2 Gold for next turn per copy held (`grantBonusGold`, live); later crossings that fight are spent.
+   * keyword's carry-over rule). Rune of the Heavy Hand's extra share applies. The first TWO crossings of a multiple of
+   * 180 each fight bank 2 Gold each for next turn per copy held (`grantBonusGold`, live); later crossings are spent.
    */
   function noteWarmUp(dealer: Minion, amount: number): void {
     const side = dealer.side;
@@ -3884,10 +3884,14 @@ export function simulate(
     warmUpDealt[side] = after;
     shoutCarry[side].warmUpDealt = after;
     const every = SET2_BASIC_NEUTRAL.warmUp.every;
-    if (warmUpPaid[side] || Math.floor(after / every) - Math.floor(before / every) <= 0) return;
-    warmUpPaid[side] = true;
-    fireTrigger('runeWarmUp', side);
-    ctx.grantBonusGold(SET2_BASIC_NEUTRAL.warmUp.gold * flagCopiesOf(side, 'runeWarmUp'), side);
+    const crossed = Math.floor(after / every) - Math.floor(before / every);
+    // Each crossing pays (one hit can cross two multiples), up to `perCombat` payouts a fight (R-SET2-RUNES-BN-04).
+    const pays = Math.min(crossed, SET2_BASIC_NEUTRAL.warmUp.perCombat - warmUpPaid[side]);
+    for (let i = 0; i < pays; i++) {
+      warmUpPaid[side]++;
+      fireTrigger('runeWarmUp', side);
+      ctx.grantBonusGold(SET2_BASIC_NEUTRAL.warmUp.gold * flagCopiesOf(side, 'runeWarmUp'), side);
+    }
   }
 
   /** GOLDEN HANDSHAKE, the combat half (Set 2 batch, owner 2026-11-12): a combat Gild (Auric Runemaster's Shout via

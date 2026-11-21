@@ -6,7 +6,7 @@
  *   Second Opinion    3  "Your Discovers offer 1 more option. Discover a minion."
  *   Shield Wall       2  "Start of Combat: give your Taunt minions +4/+6."
  *   Shatterproof      2  "When a minion of yours loses Ward, give it +5/+5 permanently."
- *   Warm-Up           2  "Pummel (150): gain 2 Gold next turn. Counts all your minions. Once per combat."
+ *   Warm-Up           2  "Pummel (180): gain 2 Gold next turn. Counts all your minions. Twice per combat."
  *   Golden Handshake  1  "When you Gild a minion, give your minions +2/+2."
  *   Late Bloomer      2  "When you upgrade your Shop, gain 2 Gold and give your minions +3/+3."
  *   Loyal Customer    3  "Every 4th minion you buy is free."
@@ -83,7 +83,7 @@ describe('the nine runes as content', () => {
       ['rune_second_opinion', 'Second Opinion', 3, 'Your **Discovers** offer **1** more option. **Discover** a minion.'],
       ['rune_shield_wall', 'Shield Wall', 2, '**Start of Combat:** give your **Taunt** minions **+4/+6**.'],
       ['rune_shatterproof', 'Shatterproof', 2, 'When a minion of yours loses **Ward**, give it **+5/+5** permanently.'],
-      ['rune_warm_up', 'Warm-Up', 2, '**Pummel (150):** gain **2 Gold** next turn. Counts all your minions. Once per combat.'],
+      ['rune_warm_up', 'Warm-Up', 2, '**Pummel (180):** gain **2 Gold** next turn. Counts all your minions. Twice per combat.'],
       ['rune_golden_handshake', 'Golden Handshake', 1, 'When you **Gild** a minion, give your minions **+2/+2**.'],
       ['rune_late_bloomer', 'Late Bloomer', 2, 'When you upgrade your Shop, gain **2 Gold** and give your minions **+3/+3**.'],
       ['rune_loyal_customer', 'Loyal Customer', 3, 'Every **4th** minion you buy is free.'],
@@ -244,33 +244,33 @@ describe('SHATTERPROOF: a Ward loss gives that minion +5/+5 permanently', () => 
   });
 });
 
-describe('WARM-UP: a side-wide Pummel (150), 2 Gold next turn, once per combat', () => {
-  it('the first crossing this fight banks 2 Gold; later crossings are spent; the lifetime tally rides home', () => {
-    const r = fight([wall(20, 'a', 5000), wall(15, 'b', 5000)], [wall(0, 'e', 50000)], { runeWarmUp: true, runeWarmUpDealt: 140 });
-    expect(r.playerBonusGold).toBe(2);
-    expect(triggers(r.events, 'runeWarmUp', 'player')).toHaveLength(1);
+describe('WARM-UP: a side-wide Pummel (180), 2 Gold next turn, twice per combat', () => {
+  it('the first two crossings this fight bank 2 Gold each; later crossings are spent; the lifetime tally rides home', () => {
+    const r = fight([wall(20, 'a', 5000), wall(15, 'b', 5000)], [wall(0, 'e', 50000)], { runeWarmUp: true, runeWarmUpDealt: 170 });
     const dealt = landed(r, 'player');
-    expect(dealt).toBeGreaterThan(300);
-    expect(r.playerShoutCarry?.warmUpDealt).toBe(140 + dealt);
+    expect(dealt).toBeGreaterThan(400); // 170 + dealt crosses 180, 360 and 540: only two pay
+    expect(r.playerBonusGold).toBe(4);
+    expect(triggers(r.events, 'runeWarmUp', 'player')).toHaveLength(2);
+    expect(r.playerShoutCarry?.warmUpDealt).toBe(170 + dealt);
   });
   it('below the next multiple: nothing; enemy side symmetric; copies double; Heavy Hand doubles the tally', () => {
     const short = fight([wall(5, 'a', 5000)], [wall(0, 'e', 9)], { runeWarmUp: true, runeWarmUpDealt: 0 });
     expect(short.playerBonusGold ?? 0).toBe(0);
     const en = fight([wall(0, 'p', 50000)], [wall(30, 'e', 5000)], {}, 4, { runeWarmUp: true });
-    expect(en.enemyCarry?.bonusGold).toBe(2);
-    expect(triggers(en.events, 'runeWarmUp', 'enemy')).toHaveLength(1);
+    expect(en.enemyCarry?.bonusGold).toBe(4);
+    expect(triggers(en.events, 'runeWarmUp', 'enemy')).toHaveLength(2);
     const two = fight([wall(20, 'a', 5000)], [wall(0, 'e', 50000)], { runeWarmUp: true, flagCopies: { runeWarmUp: 2 } });
-    expect(two.playerBonusGold).toBe(4);
+    expect(two.playerBonusGold).toBe(8);
     const heavy = fight([wall(10, 'a', 5000)], [wall(0, 'e', 25)], { runeWarmUp: true, runeHeavyHand: true });
     expect(heavy.playerShoutCarry?.warmUpDealt).toBe(2 * landed(heavy, 'player')); // every landed point counted double
   });
-  it('the run seeds the fight and settle writes the tally back; the badge reads N/150', () => {
+  it('the run seeds the fight and settle writes the tally back; the badge reads N/180', () => {
     let s = withRune(['rune_warm_up'], { runeWarmUpDealt: 77 });
     expect(questCombatMods(s).runeWarmUpDealt).toBe(77);
-    expect(runeTally(s, 'rune_warm_up')).toBe('77/150');
+    expect(runeTally(s, 'rune_warm_up')).toBe('77/180');
     s = act({ ...s, phase: 'combat', lastCombat: lostFight({ result: 'win', playerShoutCarry: { warmUpDealt: 222 } }), combatSettled: false }, { type: 'resolveCombat' });
     expect(s.runeWarmUpDealt).toBe(222);
-    expect(runeTally(s, 'rune_warm_up')).toBe('72/150');
+    expect(runeTally(s, 'rune_warm_up')).toBe('42/180');
   });
 });
 

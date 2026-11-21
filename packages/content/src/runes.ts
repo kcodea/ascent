@@ -2237,11 +2237,11 @@ export const RUNES: RuneDef[] = [
   },
   {
     // A SIDE-WIDE Pummel meter over every friendly minion's landed damage, a lifetime tally carried across fights (the
-    // keyword's carry-over rule); the first crossing each fight banks 2 Gold for next turn. Heavy Hand doubles the tally.
+    // keyword's carry-over rule); the first two crossings each fight bank 2 Gold each for next turn (owner 2026-11-21: 180, twice; was 150, once). Heavy Hand doubles the tally.
     id: 'rune_warm_up',
     name: 'Warm-Up',
     cost: 2,
-    text: '**Pummel (150):** gain **2 Gold** next turn. Counts all your minions. Once per combat.',
+    text: '**Pummel (180):** gain **2 Gold** next turn. Counts all your minions. Twice per combat.',
     reward: { kind: 'combatFlag', flag: 'runeWarmUp' },
     sets: ['set2'],
   },

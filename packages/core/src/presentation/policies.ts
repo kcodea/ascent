@@ -1330,7 +1330,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_second_opinion:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' }, // Discover a minion (with the extra option)
   'rune:rune_shield_wall:combat': { policy: 'foldedCue', family: 'combatModifier' }, // SoC: Taunt minions +4/+6
   'rune:rune_shatterproof:combat': { policy: 'foldedCue', family: 'combatModifier' }, // a Ward loss: +5/+5 permanently
-  'rune:rune_warm_up:combat': { policy: 'foldedCue', family: 'combatModifier' }, // side-wide Pummel (150): 2 Gold next turn, once per combat
+  'rune:rune_warm_up:combat': { policy: 'foldedCue', family: 'combatModifier' }, // side-wide Pummel (180): 2 Gold next turn, twice per combat
   'rune:rune_golden_handshake:combat': { policy: 'foldedCue', family: 'combatModifier' }, // a Gild: your minions +2/+2 (both phases)
   'rune:rune_late_bloomer:combat': { policy: 'foldedCue', family: 'combatModifier' }, // a Shop upgrade: 2 Gold + your minions +3/+3 (Shop)
   'rune:rune_loyal_customer:combat': { policy: 'foldedCue', family: 'combatModifier' }, // every 4th minion bought is free (Shop)

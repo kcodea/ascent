@@ -4907,7 +4907,7 @@ export const EPIC_RUNES: RuneDef[] = [
     name: "Elder's Voice",
     cost: 3,
     epic: true,
-    text: '**End of Turn:** Repeat the first **Shout** played this turn twice.',
+    text: '**End of Turn:** Repeat the first **Shout** played from hand this turn twice.',
     reward: { kind: 'runeEldersVoice' },
     sets: ['set2'],
   },

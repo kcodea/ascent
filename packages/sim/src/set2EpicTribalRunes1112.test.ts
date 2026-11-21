@@ -77,7 +77,7 @@ describe('the ten runes as content', () => {
       ['rune_blood_frenzy', 'Blood Frenzy', 4, 'beast', 'When a **Beast** kills a minion, trigger your left-most **Rally**.'],
       ['rune_hellfire', 'Hellfire', 3, 'demon', 'When a **Demon** attacks or dies, deal **1** damage to all enemies. This counts as **Demon** damage.'],
       ['rune_wildfire', 'Wildfire', 4, 'demon', "When one of your minions kills an enemy, deal that enemy's **Attack** as damage to a random enemy minion. (**3** times per combat.)"],
-      ['rune_elders_voice', "Elder's Voice", 3, 'dragon', '**End of Turn:** Repeat the first **Shout** played this turn twice.'],
+      ['rune_elders_voice', "Elder's Voice", 3, 'dragon', '**End of Turn:** Repeat the first **Shout** played from hand this turn twice.'],
       ['rune_vein_finder', 'Vein Finder', 3, 'kobold', 'After every **3rd** Refresh, cast a **Ruby** on all your minions.'],
       ['rune_gem_rain', 'Gem Rain', 4, 'kobold', '**Start of Combat:** cast **2** permanent **Rubies** on all your minions.'],
     ];
@@ -430,7 +430,7 @@ describe("ELDER'S VOICE: End of Turn: Repeat the first Shout played this turn tw
 
   it('content: the new text, an End-of-Turn rune (no combat flag)', () => {
     const r = EPIC_RUNES.find((x) => x.id === 'rune_elders_voice')!;
-    expect(r.text).toBe('**End of Turn:** Repeat the first **Shout** played this turn twice.');
+    expect(r.text).toBe('**End of Turn:** Repeat the first **Shout** played from hand this turn twice.');
     expect(r.reward).toEqual({ kind: 'runeEldersVoice' });
   });
   it('records the FIRST played Shout card (id, gild, body snapshot); a later Shout does not replace it', () => {

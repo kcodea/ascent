@@ -577,6 +577,9 @@ export interface BuffFxEvent {
   /** A HERO POWER's grant with no body to leave from (Ancient of Bonds × Hunch): the presentation streams the generic
    *  tendril from the hero-power button instead of descending sourceless. Absent for every other buff. */
   fromHeroPower?: true;
+  /** The ANCIENT whose grant this is (R-FX-ANCIENT-TENDRIL-02): set on its hero-power records and on a `trigger`-origin
+   *  grant's minion-sourced record, so the presentation plays that Ancient's own tendril. Display only. */
+  ancient?: AncientId;
   /** Set 4 — a HIT, not a buff: `damage` was dealt to the target by the source (a self-damaging Beast). The UI plays
    *  the owner's damage defs for it (a ribbon from the source when it hit another body, a burst on the source when it
    *  hit itself) instead of a tendril. `attack`/`health` are 0 on a hit record. Absent on every buff. */

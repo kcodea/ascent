@@ -268,6 +268,7 @@ import { chooseKey, questOfferKey } from './pings/pingKeys';
 import { captureRecruitSeqs, chooseOneMoment, endOfTurnMoment, minionPlayedMoment, recruitMomentsSince, recruitSeqsOf, selfBuffMoment, shieldGainMoment, shoutMoment, spellCastMoment } from './choreo/recruitMoments';
 import { runRecruitMomentCues } from './choreo/recruitCues';
 import { bindingDefIds, bindingFor, castFxReplacesTendril } from './choreo/bindings';
+import { ancientOfLabel, pickedAncientOf } from './fx/ancientTendrils';
 import { triggerFxFor } from './choreo/stockTriggerFx';
 import { QUICK_SALE_ID } from './sellMedallion';
 import { buffSourceDelayMs, buffSourceRanks, oneBitePerTarget, playBuffSourceWatcher } from './choreo/buffWatcher';
@@ -6180,7 +6181,7 @@ export function Recruit() {
           ?? document.querySelector<HTMLElement>('.statusbar .heropowerbtn');
         const br = btn?.getBoundingClientRect();
         if (br && (br.width > 0 || br.height > 0)) {
-          fireBuffFx({ source: { x: br.left + br.width / 2, y: br.top + br.height / 2 }, target, cardId: '', tribe: 'neutral', sourceless: false, uids: { source: null, target: ev.targetUid } });
+          fireBuffFx({ source: { x: br.left + br.width / 2, y: br.top + br.height / 2 }, target, cardId: '', tribe: 'neutral', sourceless: false, uids: { source: null, target: ev.targetUid }, ancient: ev.ancient });
           return;
         }
       }
@@ -6195,6 +6196,8 @@ export function Recruit() {
         cardId: ev.sourceCardId, tribe: ev.sourceTribe,
         sourceless: src.sourceless,
         uids: { source: ev.sourceUid, target: ev.targetUid },
+        // A `trigger`-origin Ancient grant: still leaves the minion, plays the Ancient's own tendril (R-FX-ANCIENT-TENDRIL-02).
+        ancient: ev.ancient,
       });
     };
     // THE BUFFER'S ON WATCHER EFFECT, from EVERY buffer to each minion it buffs (R-FX-BUFF-WATCHER-01). Played off the
@@ -6522,6 +6525,8 @@ export function Recruit() {
       fireBuffFx({
         source, target, cardId: srcCard?.id ?? '', tribe: srcCard?.tribe ?? 'neutral', sourceless: !source,
         uids: { source: cue.source.kind === 'minion' ? cue.source.uid : null, target: cue.uid },
+        // A Start of Turn Ancient beat (labelled with the Ancient's name) plays its own tendril (R-FX-ANCIENT-TENDRIL-02).
+        ancient: cue.source.kind === 'hero' ? ancientOfLabel(cue.source.label, pickedAncientOf(runRef.current)) : undefined,
       });
     };
     const plan = planSotBeats(beats);
@@ -7817,7 +7822,7 @@ export function Recruit() {
           ...(tickFxIntensity < 1 ? { intensity: tickFxIntensity } : {}),
         });
       },
-      heroPowerGain: (uid, heroId) => {
+      heroPowerGain: (uid, heroId, label) => {
         // A HERO POWER paying a minion at End of Turn (Aevor's Tempest — owner ask 2026-09-15): the generic
         // tendril from the hero-power button to the recipient, the shop twin of the combat replay's
         // `heroPowerBuffLabelFor` branch. The button is the only thing on screen the grant can leave from; with
@@ -7828,7 +7833,7 @@ export function Recruit() {
           ?? document.querySelector<HTMLElement>('.statusbar .heropowerbtn');
         const br = btn?.getBoundingClientRect();
         const source = br && (br.width > 0 || br.height > 0) ? { x: br.left + br.width / 2, y: br.top + br.height / 2 } : undefined;
-        fireBuffFx({ source, target, cardId: '', tribe: 'neutral', sourceless: !source, uids: { source: null, target: uid } });
+        fireBuffFx({ source, target, cardId: '', tribe: 'neutral', sourceless: !source, uids: { source: null, target: uid }, ancient: ancientOfLabel(label, pickedAncientOf(runRef.current)) });
         if (source) sfx.heroPower(heroId);
       },
       selfBuff: (uid) => {

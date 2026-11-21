@@ -4274,7 +4274,7 @@ function wardenOnSpellCast(state: RunState): void {
   procAncient(state); // WARDEN × TIME fires (R-FX-ANCIENT-PROC-01)
   const from = state.recruitBuffFx.length;
   captureBuffFx(state, undefined, 'spell', () => { for (const c of warded) addBuff(c, ANCIENTS.time.name, e.attack, 0); });
-  for (let i = from; i < state.recruitBuffFx.length; i++) state.recruitBuffFx[i]!.fromHeroPower = true;
+  markHeroPowerGrants(state, from);
 }
 
 /**
@@ -4642,7 +4642,7 @@ export function ancientOnSpellCast(state: RunState): void {
   // replay's `HERO_POWER_BUFF_LABELS` route: stamp the records this capture pushed.
   const from = state.recruitBuffFx.length;
   captureBuffFx(state, undefined, 'spell', () => { for (const c of ends) addBuff(c, ANCIENTS.bonds.name, e.attack, e.health); });
-  for (let i = from; i < state.recruitBuffFx.length; i++) state.recruitBuffFx[i]!.fromHeroPower = true;
+  markHeroPowerGrants(state, from);
 }
 
 /**
@@ -5601,7 +5601,7 @@ function bramOnPlay(state: RunState, played: BoardCard): void {
   const all = [...state.board];
   const from = state.recruitBuffFx.length;
   captureBuffFx(state, undefined, 'spell', () => { for (const c of all) addBuff(c, ANCIENTS.bonds.name, e.attack, e.health); });
-  for (let i = from; i < state.recruitBuffFx.length; i++) state.recruitBuffFx[i]!.fromHeroPower = true;
+  markHeroPowerGrants(state, from);
 }
 
 /** BRAUM: the combat halves (Death's running count, War's Start-of-Combat grant, frozen for the fight). */
@@ -6454,7 +6454,7 @@ function gildmasterOnPlay(state: RunState, played: BoardCard): void {
     if (gilded.length === 0) return;
     const from = state.recruitBuffFx.length;
     captureBuffFx(state, undefined, 'spell', () => { for (const c of gilded) addBuff(c, ANCIENTS.bonds.name, e.attack, e.health); });
-    for (let i = from; i < state.recruitBuffFx.length; i++) state.recruitBuffFx[i]!.fromHeroPower = true;
+    markHeroPowerGrants(state, from);
   }
 }
 
@@ -6974,11 +6974,22 @@ function tierMinionPool(state: RunState): CardDef[] {
   return poolOf(state).buyable.filter((c) => !c.spell && !c.ruby && c.tier === state.tier);
 }
 
+/** Mark the Shop buff records pushed since `from` as the picked Ancient's HERO-POWER grants: they leave the button
+ *  (R-FX-ANCIENT-TENDRIL-01) and play that Ancient's own tendril (`ancient`, R-FX-ANCIENT-TENDRIL-02). Display only. */
+function markHeroPowerGrants(state: RunState, from: number): void {
+  const ancient = state.ancients?.picked;
+  for (let i = from; i < state.recruitBuffFx.length; i++) {
+    const r = state.recruitBuffFx[i]!;
+    r.fromHeroPower = true;
+    if (ancient) r.ancient = ancient;
+  }
+}
+
 /** Run a Shop grant whose buff records leave the HERO-POWER button (Hunch × Bonds' route). */
 function fromHeroPower(state: RunState, run: () => void): void {
   const from = state.recruitBuffFx.length;
   captureBuffFx(state, undefined, 'spell', run);
-  for (let i = from; i < state.recruitBuffFx.length; i++) state.recruitBuffFx[i]!.fromHeroPower = true;
+  markHeroPowerGrants(state, from);
 }
 
 // KINDNESS
@@ -7285,7 +7296,7 @@ const tribeName = (t: Tribe | null | undefined): string => (t ? ` (**${t.charAt(
 function powerBuff(state: RunState, run: () => void): void {
   const from = state.recruitBuffFx.length;
   captureBuffFx(state, undefined, 'spell', run);
-  for (let i = from; i < state.recruitBuffFx.length; i++) state.recruitBuffFx[i]!.fromHeroPower = true;
+  markHeroPowerGrants(state, from);
 }
 
 /** The run's buyable `tribe` minions at your Shop tier or lower ("a random Dwarf": the Rune of Body Counting pick). */

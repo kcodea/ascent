@@ -19,6 +19,7 @@ import { procAncient as procAncientG2 } from './ancients'; // ancient trigger pr
 import { ancientUnitedFrontShape, ancientUnitedFrontAtEot, ancientBatchBEotLive, ancientRunBatchBEot } from './ancients'; // the 2026-11-10 batch B
 import { ancientNoteShopSpell, ancientPass2EotLabel, ancientPass2EotLive, ancientRunPass2Eot, ancientTargetedSpellMult, ancientTargetedCastMult } from './ancients'; // ancient pass 2
 import { ancientGrantOriginOf, isAncientBuffLabel } from './ancientBuffFx'; // R-FX-ANCIENT-TENDRIL-01 / R-FX-ANCIENT-ORIGIN-01
+import type { AncientId } from './ancients';
 import { runSpells } from './spellPool';
 import { duosDraft, queueTeamEffect, recordSpellPass, type DuosPassSource } from './duosPass';
 import { magicHatView } from './magicHat';
@@ -757,6 +758,9 @@ export function exactBoardCopy(state: RunState, card: BoardCard): BoardCard {
 /** R-FX-ANCIENT-ORIGIN-01: a `self`-origin Ancient grant's share, claimed from every capture open around it (display
  *  only). `CAPTURE_DEPTH` counts the open `captureBuffFx` calls; the list is emptied when the outermost one closes. */
 const SELF_SHARES: { uid: string; a: number; h: number }[] = [];
+/** R-FX-ANCIENT-TENDRIL-02: a `trigger`-origin Ancient grant made inside a capture, so the capture that records the
+ *  target stamps the Ancient on that record (it still leaves the minion; it plays the Ancient's tendril). Display only. */
+const TRIGGER_GRANTS: { uid: string; ancient: AncientId }[] = [];
 let CAPTURE_DEPTH = 0;
 
 export function addBuff(card: BoardCard, source: string, attack: number, health: number, count = 1): void {
@@ -770,11 +774,15 @@ export function addBuff(card: BoardCard, source: string, attack: number, health:
   // `self` records nothing AND claims its share from every enclosing capture, so the recipient's self-buff burst tells it.
   if ((attack > 0 || health > 0) && VAULT && isAncientBuffLabel(source) && VAULT.board.includes(card)) {
     const origin = ancientGrantOriginOf(VAULT);
+    const ancient = VAULT.ancients?.picked;
     if (origin === 'hero') {
       VAULT.recruitBuffFx.push({
         targetUid: card.uid, attack: Math.max(0, attack), health: Math.max(0, health),
         sourceCardId: '', sourceTribe: 'neutral', kind: 'spell', fromHeroPower: true,
+        ...(ancient ? { ancient } : {}),
       });
+    } else if (origin === 'trigger' && CAPTURE_DEPTH > 0 && ancient) {
+      TRIGGER_GRANTS.push({ uid: card.uid, ancient });
     } else if (origin === 'self' && CAPTURE_DEPTH > 0) {
       SELF_SHARES.push({ uid: card.uid, a: Math.max(0, attack), h: Math.max(0, health) });
     }
@@ -941,6 +949,7 @@ export function captureBuffFx(
   const fxStart = state.recruitBuffFx.length; // entries pushed DURING run() are nested (deeper) captures
   const castStart = (state.castFx ?? []).length;
   const selfStart = SELF_SHARES.length; // R-FX-ANCIENT-ORIGIN-01: `self` grants made inside are the recipient's own
+  const triggerStart = TRIGGER_GRANTS.length; // R-FX-ANCIENT-TENDRIL-02: `trigger` grants made inside name their Ancient
   CAPTURE_DEPTH += 1;
   try { run(); } finally { CAPTURE_DEPTH -= 1; }
   // A minion that CAST a spell in this capture (Mage-Pup's taught Growth, a shop Rally's "cast Growth"): its buffs
@@ -967,7 +976,9 @@ export function captureBuffFx(
     t.a += r.a; t.h += r.h;
     heroShare.set(r.uid, t);
   }
-  if (CAPTURE_DEPTH === 0) SELF_SHARES.length = 0;
+  const ancientOf = new Map<string, AncientId>();
+  for (let i = triggerStart; i < TRIGGER_GRANTS.length; i++) ancientOf.set(TRIGGER_GRANTS[i]!.uid, TRIGGER_GRANTS[i]!.ancient);
+  if (CAPTURE_DEPTH === 0) { SELF_SHARES.length = 0; TRIGGER_GRANTS.length = 0; }
   for (const c of state.board) {
     if (source && c.uid === source.uid) continue; // self-buffs use the pulse channel, not a tendril
     if (innerTargets.has(c.uid)) continue;        // a deeper capture already claimed this target
@@ -987,6 +998,7 @@ export function captureBuffFx(
       ...(castSpellId ? { spellId: castSpellId } : {}),
       ...(castSpellId && castRuneId && kind === 'spell' ? { sourceRuneId: castRuneId } : {}),
       ...(castSpellId && castByUid && kind === 'spell' ? { castByUid } : {}),
+      ...(ancientOf.has(c.uid) ? { ancient: ancientOf.get(c.uid)! } : {}),
     });
   }
 }

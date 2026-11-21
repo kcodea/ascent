@@ -43,6 +43,8 @@ import { hasRuneHit, runeHitsIn, type RuneHitGroup } from './choreo/channels/run
 import { passSettleMs, wavesAheadOf } from './choreo/channels/windupWaves';
 import { HIT_REACTION_LEAD_MS, chainEligible, chainTendrilPlan, chainTickCount, hitReactionStart, reactionChainMs, reactionTickStrideMs, reactionTicks, type ReactionTick } from './choreo/hitReactions';
 import { groupBuffCasts, type BuffCast } from './choreo/channels/buffCast';
+import { ancientOfLabel, ancientTendrilDef, pickedAncientOf } from './fx/ancientTendrils';
+import type { AncientId } from '@game/sim';
 import { groupSelfBuffs, type SelfBuff } from './choreo/channels/buffSelf';
 import { runAttackExchangeCues, runRiseReturn } from './choreo/engine';
 import { killLiveLunges, setTransition } from './choreo/channels/lunge';
@@ -2445,6 +2447,11 @@ export function useCombatReplay(
     // each successive beam gets the next `index`, so a def that staggers its layers fans out one-by-one instead
     // of all at once. Only the source-authored branch advances it; the generic tendril has no per-target stagger.
     let srcAuthoredIndex = 0;
+    // The granting side's picked Ancient, which settles a power-name label ("Aegis" is Warden × Bonds AND × Time). Known
+    // for the player's own run only; an opponent's ambiguous label falls back to the generic trail (R-FX-ANCIENT-TENDRIL-02).
+    const playerPicked = pickedAncientOf(useGame.getState().run);
+    const sidePicked = (uid: string): AncientId | undefined =>
+      frameRef.current?.player.some((u) => u.uid === uid) ? playerPicked : undefined;
     // ONE SOUND PER BUFFER PER STEP (owner 2026-11-09, Kennelmaster biting every Beast at Start of Combat): the first
     // def a buffer plays here rings; its later ones in the same step play their visuals only (R-FX-BUFF-WATCHER-01).
     const srcRang = new Set<string>();
@@ -2577,6 +2584,7 @@ export function useCombatReplay(
         const strikeMs = fireBuffFx({
           source: heroPowerFrom(), target: tc, cardId: '', tribe: 'neutral', sourceless: false,
           uids: { source: null, target: c.target },
+          ancient: ancientOfLabel(c.source, sidePicked(c.target)), // that Ancient's own tendril once saved (R-FX-ANCIENT-TENDRIL-02)
         });
         if (heroFx.heroId) sfx.heroPower(heroFx.heroId);
         if (!perTarget.has(c.target)) perTarget.set(c.target, strikeMs);
@@ -2588,7 +2596,11 @@ export function useCombatReplay(
       // the buffer's card — the same binding the un-absorbed wave reads — the def flies source→target IN PLACE
       // of the generic tendril (both are source→target travel effects; drawing both reads as one buff twice).
       const sc = src.center;
-      const srcAuthored = sourceless ? null : sourceBuffDefFor(cardId);
+      // An Ancient's `trigger`-origin grant (`label` names the Ancient, `source` is the minion that set it off) plays
+      // the Ancient's own tendril from that minion once one is saved, ahead of the minion's own buff def
+      // (R-FX-ANCIENT-TENDRIL-02). Unsaved, it keeps the minion's presentation exactly as before.
+      const ancient = ancientOfLabel(c.label, sidePicked(c.target));
+      const srcAuthored = sourceless || ancientTendrilDef(ancient) ? null : sourceBuffDefFor(cardId);
       if (srcAuthored && sc) {
         // LAND WHERE THE UNIT ENDS UP (owner 2026-09-24, King Oona's banana): a summoned target is still growing
         // into its slot, and a later summon in the same cascade keeps sliding it over, so its fire-time rect is
@@ -2632,6 +2644,7 @@ export function useCombatReplay(
         sourceless,
         uids: { source: c.source, target: c.target },
         ...(intensity < 1 ? { intensity } : {}),
+        ancient,
       });
       if (!perTarget.has(c.target)) perTarget.set(c.target, strikeMs);
     }

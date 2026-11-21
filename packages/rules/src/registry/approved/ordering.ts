@@ -786,4 +786,27 @@ export const ORDERING_RULES: GameRule[] = [
       + "resolver and the scan, not the absence of the CSS.",
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/choreo/stockTriggerFx.test.ts', 'packages/ui/src/choreo/channels/triggerPulse.test.ts'], lastVerifiedAt: '2026-11-19' },
   },
+  {
+    id: 'R-FX-ANCIENT-TENDRIL-02',
+    title: "Each Ancient's stat grant plays that Ancient's own tendril once one is authored",
+    statement:
+      "Every stat grant an Ancient makes plays that Ancient's own tendril effect (one per Ancient: Death, Fortune, War, "
+      + "Genesis, Time, Bonds), in the Shop, at Start of Turn, at End of Turn and in combat, wherever the pairing starts it "
+      + "(the hero power button, or the minion that set it off). An Ancient with no tendril of its own yet plays the generic "
+      + "buff tendril, exactly as before. Where the tendril starts and when the stats land are unchanged.",
+    domain: 'ordering',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-21', quote: "Let's start a project where I'm going to create bespoke tendril effects for each of the 6 ancients when they trigger a combat or shop effect." },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-21 (question card)', quote: 'Minion-origin grants: "Yes, bespoke"; until authored: "Generic gold trail".' },
+      { kind: 'code', ref: 'feat/ancient-tendril-fx: packages/ui/src/fx/ancientTendrils.ts (ancient-tendril-<id> lookup, label to Ancient); packages/ui/src/buffFxRender.ts (fireBuffFx ancient); packages/sim/src/recruit.ts + ancients.ts (BuffFxEvent.ancient on hero-power and trigger-origin Shop records); packages/ui/src/choreo/channels/buffCast.ts (BuffCast.label)' },
+    ],
+    currentBehaviour: "PARTIAL from 2026-11-21 (feat/ancient-tendril-fx): the routing is wired and Genesis has its own tendril "
+      + "(ancient-tendril-genesis); the other five still play the generic gold trail until theirs are saved. Covered: Shop hero-power and minion-origin records, Start and End of "
+      + "Turn hero beats labelled with an Ancient's name, and combat grants labelled with an Ancient's name or power name. "
+      + "A power-name label ('Aegis' is Warden x Bonds and Warden x Time) resolves through the side's picked Ancient, known "
+      + "for the player only: a foe's ambiguous 'Aegis' grant plays the generic trail. Self-buff pairings (Drakko x Bonds) "
+      + "draw no tendril. In combat a saved Ancient tendril outranks the triggering minion's own buff effect.",
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/ancientTendrilDefs.test.ts', 'packages/ui/src/ancientTendrilReadiness.test.ts'], lastVerifiedAt: '2026-11-21' },
+  },
 ];

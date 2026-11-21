@@ -3,8 +3,8 @@ import { ALE_IDS, SPECIAL_RUBY_IDS, type CombatResult, type Tribe } from '@game/
 import { CARD_INDEX, EPIC_RUNES, RUNE_INDEX } from '@game/content';
 import type { RunMetric } from '@game/progression';
 import { isShopDamageRow, type Action, type BoardCard, type RunState } from './state';
-import { defIsTribe, isTribe, offerBuyStats } from './recruit';
-import { offerBuyPrice } from './reducer';
+import { defIsTribe, heroOfferPrice, isTribe, offerBuyStats } from './recruit';
+import { minionCostOf, offerBuyPrice } from './reducer';
 import { CONFIG } from './config';
 
 /**
@@ -232,10 +232,16 @@ function observeSecretAction(t: AchTally, before: RunState, action: Action, afte
     if (sold && REVELER_IDS.has(sold.cardId) && !after.board.some((c) => c.uid === action.uid)) add(t, 'revelerSells', 1);
   }
 
-  // A minion bought for less than the standard price (priced the way the buy path charges it, before the buy).
+  // A DISCOUNTED minion: bought for less than THIS player's own standard price (priced the way the buy path charges
+  // it, before the buy). The baseline is the hero's / run's flat price source, so a hero whose minions simply cost
+  // less (Tradesman's flat 2, Foreman Flint's 2-Gold Dwarves, a Merchant's Mark price) does not count every buy;
+  // only a real discount on top does (R-ACH-DISCOUNT-BUY-01, owner 2026-11-20).
   if (action.type === 'buy') {
     const offer = (before.shop ?? []).find((o) => o.uid === action.uid);
-    if (offer && !offer.held && isMinionDef(offer.cardId) && offerBuyPrice(before, offer).cost < CONFIG.minionCost) add(t, 'discountBuys', 1);
+    if (offer && !offer.held && isMinionDef(offer.cardId)) {
+      const standard = heroOfferPrice(before, offer) ?? before.minionCostOverride ?? minionCostOf(before);
+      if (offerBuyPrice(before, offer).cost < standard) add(t, 'discountBuys', 1);
+    }
   }
 
   // Tiers.

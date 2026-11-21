@@ -301,6 +301,13 @@ describe('the secret-title metrics (2026-11-20)', () => {
     observeAchAction(t, withShop, { type: 'buy', uid: 'cheap' }, { ...withShop, embers: 9 }, 1);
     observeAchAction(t, withShop, { type: 'buy', uid: 'full' }, { ...withShop, embers: 7 }, 2);
     expect(t.m.discountBuys).toBe(1);
+    // R-ACH-DISCOUNT-BUY-01: Tradesman's flat 2 Gold is his standard price, not a discount; 1 Gold on top of it is.
+    const tm = emptyAchTally();
+    const trade = { ...withShop, heroId: 'hermithank', shop: [{ uid: 'flat', cardId: minionOf('beast') }, { uid: 'off', cardId: minionOf('beast'), cost: 1 }] as RunState['shop'] };
+    observeAchAction(tm, trade, { type: 'buy', uid: 'flat' }, { ...trade, embers: 8 }, 1);
+    expect(tm.m.discountBuys ?? 0).toBe(0);
+    observeAchAction(tm, trade, { type: 'buy', uid: 'off' }, { ...trade, embers: 7 }, 2);
+    expect(tm.m.discountBuys).toBe(1);
     observeAchAction(t, base, { type: 'upgrade' }, { ...base, wave: 6, tier: 6 }, 0);
     expect(t.m.tierSixByRound6).toBe(1);
     expect(t.tierSixWave).toBe(6);

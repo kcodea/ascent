@@ -1584,6 +1584,17 @@
     },
     {
       "primitive": "sound",
+      "name": "launch sound",
+      "anchor": "source",
+      "at": 0,
+      "params": {
+        "clip": "fx/ancient-tendril-war-launch",
+        "gain": 1,
+        "bus": "combat"
+      }
+    },
+    {
+      "primitive": "sound",
       "name": "hit sound",
       "anchor": "target",
       "at": 170,

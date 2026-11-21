@@ -484,6 +484,7 @@
       "primitive": "burst",
       "anchor": "travel",
       "at": 0,
+      "stagger": 120,
       "params": {
         "count": 72,
         "interval": 600,
@@ -1035,6 +1036,7 @@
       "primitive": "burst",
       "anchor": "target",
       "at": 170,
+      "stagger": 120,
       "params": {
         "count": 141,
         "interval": 600,

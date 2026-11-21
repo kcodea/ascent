@@ -24,5 +24,11 @@ holds ~3 s, slides out; a queue plays several in turn. Oracle: R-ACH-TOAST-01 (f
 - `AchievementToast.tsx` + `achievementToast.css`: one one-shot transform/opacity keyframe, `pointer-events: none`,
   z-index 488 (over the Friends dock, under the Settings veil).
 
-**Judgement calls.** No sound; no Settings toggle; Duos and Versus get only the end-of-game toasts; a toast is a
+**Follow-up (owner, same day).** Settings > Game > "Achievement pop-ups" (on by default, `achievementToastPrefs.ts`,
+localStorage `ascent.achievementPopups`; in both the shell PhSettings and the classic EscMenu page) turns off both feeds
+and empties the queue. A chime plays as each toast ducks in: `audio/achievement.mp3` (10.7 KB, 1.28 s, 44.1 kHz 64 kbps,
+ElevenLabs sound effects, candidate 2 of 3: no clipping, a ~0.6 s rising body then a clean decay to silence), on the `ui`
+bus as its own `achievement` fader (0.5), a core clip so it decodes with the bank; synth triad fallback.
+
+**Judgement calls.** Duos and Versus get only the end-of-game toasts; a toast is a
 forecast (the server can still refuse a run's facts, e.g. a metric over its cap is dropped on both sides).

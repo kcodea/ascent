@@ -3,6 +3,8 @@
  * it shows when you get achievements done mid game etc? this should prob span all achievements where possible. it
  * should just like duck in from the left side and say the achievement you got."
  *
+ * Settings > Game > "Achievement pop-ups" (achievementToastPrefs.ts, on by default) switches both off.
+ *
  * Two sources feed ONE queue (`useAchievementToasts`), each id announced once per game:
  *   1. MID-GAME. After each of the player's own actions (the store's `replayActions` grows), on idle time, the run
  *      observer's metrics so far go through `midRunUnlockedAchievements` (@game/progression) against what the account
@@ -26,6 +28,7 @@ import { useGame } from '../store';
 import { useSpectate } from '../versus/spectate';
 import { currentUserId } from '../identity';
 import { achievementsVisible, useProgression } from './progressionStore';
+import { achievementPopupsOn, onAchievementPopupsChange } from './achievementToastPrefs';
 import { fetchAchievementCompletions, fetchOwnAchievementProgress, fetchRetiredAchievementIds } from './progressionRemote';
 
 // ── The queue ────────────────────────────────────────────────────────────────────────────────────────────────
@@ -36,6 +39,7 @@ export const useAchievementToasts = create<ToastState>(() => ({ queue: [] }));
 let nextKey = 1;
 
 export function enqueueAchievementToasts(ids: readonly string[]): void {
+  if (!achievementPopupsOn()) return; // Settings > Game > Achievement pop-ups is off
   const known = ids.filter((id) => achievementOf(id)); // an id from a newer server has nothing to name: skipped
   if (known.length === 0) return;
   useAchievementToasts.setState((s) => ({ queue: [...s.queue, ...known.map((id) => ({ key: nextKey++, id }))] }));
@@ -123,6 +127,7 @@ function scheduleCheck(): void {
 
 /** Evaluate the player's game right now (exported for tests). */
 export function checkNow(): void {
+  if (!achievementPopupsOn()) return;
   const g = useGame.getState();
   if (g.replaySession || g.liveReplay) return;
   const sp = useSpectate.getState();
@@ -147,6 +152,7 @@ export function checkNow(): void {
 
 /** The settlement answered: announce what it granted that was not already shown for that game. */
 function onSettled(): void {
+  if (!achievementPopupsOn()) return;
   const cur = useProgression.getState().current;
   if (!cur || cur.state !== 'confirmed' || cur.deduped || !cur.result) return;
   const granted = cur.result.achievements;
@@ -175,7 +181,9 @@ export function installAchievementToasts(): () => void {
     current = s.current;
     onSettled();
   });
-  return () => { unGame(); unProg(); installed = false; };
+  // Switched off: whatever is waiting goes too.
+  const unPref = onAchievementPopupsChange(() => { if (!achievementPopupsOn()) useAchievementToasts.setState({ queue: [] }); });
+  return () => { unGame(); unProg(); unPref(); installed = false; };
 }
 
 /** Tests only. */

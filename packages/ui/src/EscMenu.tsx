@@ -32,6 +32,7 @@ import { setSpectatorEmotesOn, useSpectatorEmotePrefs } from './versus/spectator
 import { setFilterMessages, setShowActivity, useFriendsPrefs } from './friends/friendsPrefs';
 import { setLobbyChatEnabled, useLobbyChat } from './lobbyChat/lobbyChatStore';
 import { setLobbyRevealEnabled, useLobbyRevealEnabled } from './lobbyReveal/lobbyRevealStore';
+import { setAchievementPopupsOn, useAchievementPopupsOn } from './progression/achievementToastPrefs';
 import { isTouchDevice, touchText } from './touchInput';
 import { TOUCH_UI_LABEL, TOUCH_UI_SIZES, setTouchUiSize, touchUi, type TouchUiSize } from './touchUi';
 import { PHONE_DIAG_FLAGS, PHONE_GPU, activeDiagLabel, saveDiagFlags, storedDiagFlags, type PhoneDiagFlags } from './phoneDiag';
@@ -121,6 +122,7 @@ export function SettingsPanel() {
   const filterMessages = useFriendsPrefs((s) => s.filterMessages);
   const lobbyChatOn = useLobbyChat((s) => s.enabled);
   const lobbyRevealOn = useLobbyRevealEnabled();
+  const achPopupsOn = useAchievementPopupsOn();
   const setShowOpponentSkins = useGame((s) => s.setShowOpponentSkins);
   const fpsCap = useGame((s) => s.fpsCap);
   const setFpsCap = useGame((s) => s.setFpsCap);
@@ -264,6 +266,13 @@ export function SettingsPanel() {
           note="Shows every player's hero at the start of a game, then builds the rail."
           on={lobbyRevealOn}
           onToggle={() => { setLobbyRevealEnabled(!lobbyRevealOn); sfx.pulse(); }}
+        />
+        {/* ACHIEVEMENT POP-UPS (owner 2026-11-20, R-ACH-TOAST-01): the toast as each achievement is earned. Saved on this device. */}
+        <ToggleRow
+          label="Achievement pop-ups"
+          note="Shows each achievement as you earn it, sliding in from the left."
+          on={achPopupsOn}
+          onToggle={() => { setAchievementPopupsOn(!achPopupsOn); sfx.pulse(); }}
         />
         <div className="escsec">Performance</div>
         {/* EFFECTS FRAME CAP (owner ask 2026-09-04; a dropdown named "Max Frame Rate" since 2026-10-08). Caps the Pixi

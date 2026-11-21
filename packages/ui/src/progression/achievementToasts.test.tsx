@@ -1,11 +1,18 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+
+const chime = vi.hoisted(() => ({ n: 0 }));
+vi.mock('../sfx', async (importOriginal) => {
+  const m = await importOriginal<typeof import('../sfx')>();
+  return { ...m, sfx: new Proxy(m.sfx, { get: (t, k) => (k === 'achievement' ? () => { chime.n++; } : (t as Record<string | symbol, unknown>)[k]) }) };
+});
 import { act } from 'react';
 import { mount, type Mounted } from '../renderedText.mount';
 import type { RunState } from '@game/sim';
 import { achievementToastContextOf, enqueueAchievementToasts, installAchievementToasts, resetAchievementToastsForTests, shiftAchievementToast, useAchievementToasts } from './achievementToasts';
 import { AchievementToast } from './AchievementToast';
 import { useProgression } from './progressionStore';
+import { resetAchievementPopupsForTests, setAchievementPopupsOn } from './achievementToastPrefs';
 
 const human = { id: 's0', alive: true, source: 'player' } as const;
 const run = (o: Partial<RunState>): RunState => ({ mode: 'lobby', phase: 'recruit', heroId: 'warden', setId: 'set2', seed: 7, ...o } as unknown as RunState);
@@ -35,7 +42,7 @@ describe('achievementToastContextOf (R-ACH-TOAST-01)', () => {
 
 describe('the toast queue', () => {
   let m: Mounted | null = null;
-  afterEach(() => { m?.unmount(); m = null; resetAchievementToastsForTests(); useProgression.setState({ current: null, capability: 'unknown', achievementsCapability: 'unknown' }); });
+  afterEach(() => { m?.unmount(); m = null; resetAchievementToastsForTests(); setAchievementPopupsOn(true); resetAchievementPopupsForTests(); chime.n = 0; useProgression.setState({ current: null, capability: 'unknown', achievementsCapability: 'unknown' }); });
 
   it('shows one at a time, names the achievement and its XP, and skips ids it does not know', () => {
     enqueueAchievementToasts(['economy.spend_turn_20', 'nope.unknown', 'first.gild']);
@@ -46,8 +53,25 @@ describe('the toast queue', () => {
     expect(container.textContent).toContain('Achievement unlocked');
     expect(container.textContent).toContain('Big Turn');
     expect(container.textContent).toContain('+50 XP');
+    expect(chime.n).toBe(1); // the chime as it ducks in
     act(() => shiftAchievementToast(useAchievementToasts.getState().queue[0]!.key));
     expect(container.textContent).toContain('Worth Three');
+    expect(chime.n).toBe(2); // and again for the next one
+  });
+
+  it('Achievement pop-ups off (Settings > Game): nothing queues, mid-game or at the end, and what was waiting goes', () => {
+    const stop = installAchievementToasts();
+    useProgression.setState({ capability: 'on', achievementsCapability: 'on' });
+    enqueueAchievementToasts(['first.gild']);
+    expect(useAchievementToasts.getState().queue).toHaveLength(1);
+    setAchievementPopupsOn(false);
+    expect(useAchievementToasts.getState().queue).toEqual([]);
+    enqueueAchievementToasts(['economy.spend_turn_20']);
+    const result = { achievements: ['ranked.first_win'] } as never;
+    useProgression.setState({ current: { localKey: '9', mode: 'ranked', runId: 'r9', state: 'confirmed', result, deduped: false, error: null } });
+    expect(useAchievementToasts.getState().queue).toEqual([]);
+    expect(localStorage.getItem('ascent.achievementPopups')).toBe('off');
+    stop();
   });
 
   it('the settlement answer toasts what it granted, minus what this game already showed, and never a duplicate answer', () => {

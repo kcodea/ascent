@@ -362,6 +362,7 @@ export async function ackAetherGiftRemote(giftId: string): Promise<boolean> {
     const c = supabaseClient();
     if (!c) return false;
     const res = await Promise.race([
+      // rows: a write that answers one boolean, never a list
       Promise.resolve(c.rpc('ack_aether_gift', { p_gift: giftId })),
       timeout(READ_TIMEOUT_MS, null),
     ]);

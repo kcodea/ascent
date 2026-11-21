@@ -63,7 +63,7 @@ describe('Recent Games on the shell', () => {
     expect(q('.rgp-verdict')?.textContent).toBe('Victory');
     expect(q('.rgp-name')?.textContent).toBe('Player0');
     expect(q('.rgp-record')?.textContent).toMatch(/^9.3/);
-    expect(qa('.rgp-facts .phk-statlbl').map((n) => n.textContent)).toEqual(['Played', 'Length', 'Rounds', 'Game strength']);
+    expect(qa('.rgp-facts .phk-statlbl').map((n) => n.textContent)).toEqual(['Played', 'Length', 'Rounds', 'Run Strength']);
   });
   it('wires the tabs, the list, Replay and Career to the page handlers', () => {
     const p = props();

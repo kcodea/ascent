@@ -16870,4 +16870,22 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'The fight after Shop turn 5 gives the last 2 points. The next Shop opens, the meter fills, the Ancients reveal and the player picks Time; then the Runeforge opens.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientLeadsRuneforge.test.ts', 'packages/ui/src/ancients/awakeningLeadsForge.test.ts'], lastVerifiedAt: '2026-11-19' },
   },
+  {
+    id: 'R-RESULTS-STRENGTH-WINDOW-01',
+    domain: 'foundation',
+    title: "A results seat's Relevant Strength counts only the rounds it shared with you, weighted for the game's length",
+    statement:
+      "On a game's results, each seat's Relevant Strength counts only the rounds that seat shared with you, weighted for "
+      + "that game's length; Run Strength is the whole recorded run. The window is 1..your end round for your seat and "
+      + "1..the round it was shown at for an opponent that fell earlier. It is frozen into the match record when the "
+      + 'game ends (`MatchSeat.windowStrength` and `roundStrength`, `MatchDetails.strengthWindow`), only for your seat and '
+      + 'recorded opponents whose boards were scored; generated and bot seats show neither number (and usually no Run Strength either).',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Mike, 2026-11-20', quote: "if a game ends on turn 8, i want the playler to go to their overview page, and see all of the board's strengths calculated as if 8 rounds was the full length of the game" },
+      { kind: 'code', ref: 'packages/sim/src/lobby/matchDetails.ts buildMatchDetails, opponentRoundStrength; packages/sim/src/lobby/boardStrength.ts boardPctAtRound, windowStrengthOf' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-20 on records built by this code (`strengthWindow: 1`). An older record has no Relevant Strength; the UI shows Run Strength only. Generated and bot seats carry no per-round numbers, so they show neither number.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/lobby/matchDetails.test.ts', 'packages/sim/src/lobby/relevantStrength.test.ts'], lastVerifiedAt: '2026-11-20' },
+  },
 ];

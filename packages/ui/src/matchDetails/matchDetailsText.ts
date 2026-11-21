@@ -62,9 +62,45 @@ export const GAME_STRENGTH_LABEL = 'Game strength';
  *  2026-10-06 (R-LOBBY-12; the final board's from 2026-10-03 to 2026-10-06). */
 export const GAME_STRENGTH_TIP = "How strong your board was across the whole game, compared with everyone else's. Later rounds count more.";
 
-/** BOARD STRENGTH (R-LOBBY-09): "Game strength 72", or null when the seat was not scored (show nothing). */
-export function strengthLabel(seat: Pick<MatchSeat, 'strength'>): string | null {
-  return typeof seat.strength === 'number' ? `${GAME_STRENGTH_LABEL} ${seat.strength}` : null;
+/** RELEVANT STRENGTH (R-RESULTS-STRENGTH-WINDOW-01, owner 2026-11-20: "lets call it Relevant Strength and Run Strength"):
+ *  how strong a seat was across the rounds YOU played it. The headline number, shown first and larger. */
+export const RELEVANT_STRENGTH_LABEL = 'Relevant Strength';
+export const RELEVANT_STRENGTH_TIP = "How strong this board was across the rounds you played against it, compared with everyone else's. Later rounds count more.";
+/** RUN STRENGTH: the whole-run number (the old "Game strength"), shown second and smaller. */
+export const RUN_STRENGTH_LABEL = 'Run Strength';
+export const RUN_STRENGTH_TIP = "How strong this player's whole run was, compared with every other run.";
+
+/** The two numbers a seat shows. Relevant only when the record is a NEW one (`strengthWindow`) AND the seat has a
+ *  `windowStrength` (a new record's unscored seat shows none, never Run Strength in its place); Run is the seat's
+ *  whole-run `strength`. Either is null when absent. */
+export function seatStrengthParts(
+  seat: Pick<MatchSeat, 'strength' | 'windowStrength'>,
+  record: Pick<MatchDetails, 'strengthWindow'>,
+): { relevant: number | null; run: number | null } {
+  return {
+    relevant: record.strengthWindow && typeof seat.windowStrength === 'number' ? seat.windowStrength : null,
+    run: typeof seat.strength === 'number' ? seat.strength : null,
+  };
+}
+
+/** "Relevant Strength 90 · Run Strength 40" (either part dropped when null), or null when neither exists. */
+export function strengthLabel(seat: Pick<MatchSeat, 'strength' | 'windowStrength'>, record: Pick<MatchDetails, 'strengthWindow'>, sep = ' · '): string | null {
+  const { relevant, run } = seatStrengthParts(seat, record);
+  const bits = [relevant !== null ? `${RELEVANT_STRENGTH_LABEL} ${relevant}` : '', run !== null ? `${RUN_STRENGTH_LABEL} ${run}` : ''].filter(Boolean);
+  return bits.length ? bits.join(sep) : null;
+}
+
+/** The game page's header facts: the record's own seat's Relevant Strength, then the run's Run Strength. */
+export function headerStrengthFacts(
+  record: MatchDetails | null | undefined,
+  runStrength: number | null | undefined,
+): { label: string; value: number; tip: string }[] {
+  const self = record?.seats.find((s) => s.self);
+  const relevant = record && self ? seatStrengthParts(self, record).relevant : null;
+  return [
+    ...(relevant !== null ? [{ label: RELEVANT_STRENGTH_LABEL, value: relevant, tip: RELEVANT_STRENGTH_TIP }] : []),
+    ...(runStrength != null ? [{ label: RUN_STRENGTH_LABEL, value: runStrength, tip: RUN_STRENGTH_TIP }] : []),
+  ];
 }
 
 /** Shown where a stored match has no details (recorded before this feature, or never uploaded). */

@@ -15244,15 +15244,23 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .lp-tile.on .lp-tile-out { color: var(--ui-title); }
 .lp-tile .lp-chip-name { font-size: 14px; }
 .lp-tile .lp-chip-place { font-size: 13px; }
-/* Hover (or a tap: .tt-on) darkens the tile and prints "Game strength: X" over it, in place of a tip bubble
+/* Hover (or a tap: .tt-on) darkens the tile and prints "Relevant Strength X" over "Run Strength Y" over it, in place of a tip bubble
    (R-LOBBY-TILE-STRENGTH-01). The overlay's paint is static; only its opacity moves. The KO sword stays on top. */
 .lp-tile-strength { position: absolute; inset: 0; z-index: 1; display: grid; place-items: center; border-radius: inherit; pointer-events: none;
   background: rgba(4, 8, 16, 0.74); opacity: 0; transition: opacity 0.12s ease;
   font-family: var(--font-ui); font-weight: 800; font-size: 15px; letter-spacing: 0.04em; color: #f4eee2; text-shadow: 0 1px 3px #000; white-space: nowrap; }
+/* Two stacked centred lines (2026-11-20), each nowrap and scaled to the tile (container-type: inline-size, so cqi is the
+   tile's own width) so the longer Relevant line never spills over a neighbour, even in the 2-column touch layout. */
+.lp-tile-strength { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
+.lp-tile-strength .lp-ts-rel { font-size: min(15px, 6.6cqi); }
+.lp-tile-strength .lp-ts-rel b { font-size: min(22px, 9.7cqi); }
 .lp-tile-strength b { margin-left: 6px; font-weight: 900; font-size: 22px; color: var(--ui-title); }
+/* Two named numbers (2026-11-20): Relevant Strength is the headline, Run Strength the smaller second. */
+.lp-tile-strength .lp-ts-run { font-size: min(12px, 5.3cqi); font-weight: 700; color: rgba(244, 238, 226, 0.8); }
+.lp-tile-strength .lp-ts-run b { font-size: min(16px, 7.2cqi); color: rgba(255, 214, 107, 0.85); }
 .lp-tile:hover .lp-tile-strength, .lp-tile.tt-on .lp-tile-strength { opacity: 1; }
 .lp-tile .lp-ko { z-index: 2; }
-/* The hovered tile's board blurs under its Game strength (owner 2026-11-06: "can you blur the content behind the game strength
+/* The hovered tile's board blurs under its Relevant and Run Strength (owner 2026-11-06: "can you blur the content behind the strength numbers
    darkening background?"). The blur is set only while the overlay shows, so the eight resting tiles pay nothing for it. */
 .lp-tile:hover .lp-tile-strength, .lp-tile.tt-on .lp-tile-strength { -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); }
 @media (prefers-reduced-motion: reduce) { .gc-board-in { animation: none; } .lp-tile, .lp-tile:hover, .lp-tile:active { transform: none; transition: border-color 0.1s ease; } }

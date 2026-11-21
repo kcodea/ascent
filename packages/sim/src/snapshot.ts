@@ -159,6 +159,12 @@ export interface BoardSnapshot {
    *  `questMods`; this lets the foe's hero-power tooltip, scouting and the rail name it and print its pairing text.
    *  Absent = no Ancient picked (or a capture from before 2026-11-16). */
   ancient?: { id: AncientId; heroId: string; wave?: number };
+  /** The board's own score against the pool's reference (server-attached on pool boards): `raw` is the v2 score and
+   *  `wave` the reference bucket it ranks in. DISPLAY ONLY: never read in combat or matchmaking. */
+  poolScore?: { ref: string; raw: number; wave: number };
+  /** On a run's final board: raw scores of that board against LATER reference rounds, keyed by round. DISPLAY ONLY:
+   *  never read in combat or matchmaking. */
+  poolCarried?: { ref: string; rounds: Record<string, number> };
   /** The owner's FIRST spell of the capture turn (Comet Conductor's Rally copies it). R-SYMMETRY-01. */
   firstSpellThisTurnId?: string;
   /** Rune of Spellhide's Start-of-Combat re-casts ({spellId, uid}: `uid` is the owner's run-card uid, which the

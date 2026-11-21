@@ -23,7 +23,7 @@ import { RuneEmblem } from '../RuneEmblem';
 import { opponentSkins } from '../skins/skins';
 import { SeatPortrait } from './MatchScoreboard';
 import { SeatAncientBadge } from './SeatPower';
-import { GAME_STRENGTH_LABEL, ordinalOf } from './matchDetailsText';
+import { RELEVANT_STRENGTH_LABEL, RUN_STRENGTH_LABEL, ordinalOf, seatStrengthParts, strengthLabel } from './matchDetailsText';
 import { useShowOpponentCosmetics } from '../cosmetics/opponentCosmetics';
 
 /** The seat's place as a real place: "1st" ... "8th", or "Still in" for a seat standing when your game ended whose
@@ -62,7 +62,8 @@ export function seatFate(seat: MatchSeat, d: MatchDetails): string | null {
 /** The tile's screen-reader sentence: short plain sentences. */
 function seatTip(seat: MatchSeat, d: MatchDetails, own: boolean): string {
   const parts = [`${seatOut(seat, d)}.`];
-  if (typeof seat.strength === 'number') parts.push(`${GAME_STRENGTH_LABEL} ${seat.strength}.`);
+  const strength = strengthLabel(seat, d, '. ');
+  if (strength) parts.push(`${strength}.`);
   const anc = seat.ancient ? ANCIENTS[seat.ancient.id] : undefined;
   if (anc) parts.push(`${anc.name}.`);
   if (seat.health > 0) parts.push(`${seat.health} Health${seat.armor > 0 ? `, ${seat.armor} Armor` : ''}.`);
@@ -177,11 +178,19 @@ export const LobbyTiles = memo(function LobbyTiles({ details, selectedId, onPick
               {seat.id === details.knockedOutBy && <span className="lp-ko" aria-hidden="true"><Icon name="sword" /></span>}
             </span>
             <MiniBoard minions={minions} />
-            {/* Hover darkens the tile and prints its Game strength over it (owner 2026-11-03: the tip bubble under the
-                tile was unnecessary). An unscored seat shows nothing. */}
-            {typeof seat.strength === 'number' && (
-              <span className="lp-tile-strength" aria-hidden="true">{GAME_STRENGTH_LABEL}: <b>{seat.strength}</b></span>
-            )}
+            {/* Hover darkens the tile and prints Relevant Strength 90 over Run Strength 40 (two stacked lines) over it (owner 2026-11-03: the tip
+                bubble under the tile was unnecessary; two named numbers since 2026-11-20). Relevant is first and larger.
+                A part the seat lacks is omitted; a seat with neither shows nothing. */}
+            {(() => {
+              const p = seatStrengthParts(seat, details);
+              if (p.relevant === null && p.run === null) return null;
+              return (
+                <span className="lp-tile-strength" aria-hidden="true">
+                  {p.relevant !== null && <span className="lp-ts-rel">{RELEVANT_STRENGTH_LABEL} <b>{p.relevant}</b></span>}
+                  {p.run !== null && <span className="lp-ts-run">{RUN_STRENGTH_LABEL} <b>{p.run}</b></span>}
+                </span>
+              );
+            })()}
           </button>
         );
       })}

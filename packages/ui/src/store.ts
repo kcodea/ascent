@@ -1768,6 +1768,7 @@ function matchDetailsOf(
       name: author, placement, selfBoard: finalBoard, selfCosmetics: finalBoard?.cosmetics ?? run.cosmetics ?? null, titleId, selfRunKey,
       selfAncient: ancientSnapshotOf(run) ?? null, // R-ANCIENTS-RELEASE-04: the picked Ancient rides the match record
       ...(selfStrength ? { selfStrength } : {}),
+      strengthHistogram: strengthHistogram(), // Relevant Strength: the same v2 board histogram the run-end strength reads
     });
   } catch (e) {
     if (import.meta.env.DEV) console.warn('[run-end] match details could not be assembled', e);

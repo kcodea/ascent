@@ -277,10 +277,10 @@ export const SET2_DEMONS: CardDef[] = [
     attack: 4,
     health: 6,
     keywords: [],
-    // Owner balance 2026-10-10: +2/+1 -> +4/+5 (gilded +8/+10).
-    effects: [{ on: 'onConsume', do: 'onConsumeBuffShop', params: { attack: 4, health: 5 } }],
-    text: 'When you **consume** a minion, give minions in the **Shop +4/+5** permanently.',
-    goldenText: 'When you **consume** a minion, give minions in the **Shop +8/+10** permanently.',
+    // Owner balance 2026-10-10: +2/+1 -> +4/+5 (gilded +8/+10). Owner 2026-11-22: +4/+5 -> +3/+3 (gilded +6/+6).
+    effects: [{ on: 'onConsume', do: 'onConsumeBuffShop', params: { attack: 3, health: 3 } }],
+    text: 'When you **consume** a minion, give minions in the **Shop +3/+3** permanently.',
+    goldenText: 'When you **consume** a minion, give minions in the **Shop +6/+6** permanently.',
   },
   {
     // Set 2 — Leech (owner add 2026-08-18): a cheap demon-damage body that just grows Attack off your Demons'

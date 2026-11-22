@@ -8350,8 +8350,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "amount": {
           "kind": "const",
           "plain": {
-            "attack": 4,
-            "health": 5
+            "attack": 3,
+            "health": 3
           }
         }
       }

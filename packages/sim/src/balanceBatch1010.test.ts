@@ -205,7 +205,7 @@ describe('Dawnclaw: "Taunt. Echo: Trigger an adjacent minion\'s Shout." (owner b
 describe('Demon numbers', () => {
   it('Tormentor +8/+8, Enigma +4/+5, Butcher +2/+2, Hank +4/+3, Grobbus 1 Demon', () => {
     expect(CARD_INDEX['dm_tormentor']!.effects[0]!.params).toEqual({ attack: 8, health: 8 });
-    expect(CARD_INDEX['dm_jumbo']!.effects[0]!.params).toEqual({ attack: 4, health: 5 });
+    expect(CARD_INDEX['dm_jumbo']!.effects[0]!.params).toEqual({ attack: 3, health: 3 }); // 2026-11-22: +3/+3
     expect(CARD_INDEX['dm_butcher']!.effects[0]!.params).toEqual({ attack: 2, health: 2 });
     expect(CARD_INDEX['dm_hank']!.effects[0]!.params).toEqual({ attack: 4, health: 3 });
     expect(CARD_INDEX['dm_grobbus']!.effects[0]!.params).toMatchObject({ grant: 1 });

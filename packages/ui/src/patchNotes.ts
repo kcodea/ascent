@@ -60,6 +60,10 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Balance',
+        text: 'Enigma now gives minions in the Shop +3/+3 when you consume a minion (was +4/+5). Gilded: +6/+6 (was +8/+10).',
+      },
+      {
+        category: 'Balance',
         text: 'Rowdy Crowd now pays every 4 cards you play, even across turns, and gives your Dwarves +2/+3 (was once a turn, +2/+2).',
       },
       {

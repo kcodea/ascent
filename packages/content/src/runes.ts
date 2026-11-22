@@ -2286,12 +2286,14 @@ export const RUNES: RuneDef[] = [
   },
   {
     // "Your Dwarves" = the board's Dwarves (`tribeBoard`, the Gator's Bite ruling), permanent (a Shop buff).
+    // Owner 2026-11-22: a running count across turns that pays EVERY 4 cards (was once per turn, +2/+2); the
+    // badge's x/4 meter is the countdown, the Mountain Trade shape.
     id: 'rune_rowdy_crowd',
     tribes: ['dwarf'],
     name: 'Rowdy Crowd',
     cost: 2,
-    text: 'After you play **4** cards in a turn, give your **Dwarves +2/+2**.',
-    reward: { kind: 'runeThreshold', meter: 'cardsPlayed', per: 4, resetEachTurn: true, oncePerTurn: true, buff: { target: 'tribeBoard', tribe: 'dwarf', attack: 2, health: 2 } },
+    text: 'When you play **4** cards, give your **Dwarves +2/+3**.',
+    reward: { kind: 'runeThreshold', meter: 'cardsPlayed', per: 4, buff: { target: 'tribeBoard', tribe: 'dwarf', attack: 2, health: 3 } },
     sets: ['set2'],
   },
   {

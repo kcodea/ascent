@@ -38821,9 +38821,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "confidence": "medium",
       "unparsed": [
         "reward:runeThreshold.buff",
-        "reward:runeThreshold.meter",
-        "reward:runeThreshold.oncePerTurn",
-        "reward:runeThreshold.resetEachTurn"
+        "reward:runeThreshold.meter"
       ]
     },
     "setIds": [

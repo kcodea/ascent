@@ -59,6 +59,10 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-11-22',
     changes: [
       {
+        category: 'Balance',
+        text: 'Rowdy Crowd now pays every 4 cards you play, even across turns, and gives your Dwarves +2/+3 (was once a turn, +2/+2).',
+      },
+      {
         category: 'Systems',
         text: 'Emerald Warden with the Ancient of War: hovering Vanguard now shows the Waking Rift card it casts.',
       },

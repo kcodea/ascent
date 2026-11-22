@@ -14390,6 +14390,8 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
   --lk-fx: linear-gradient(90deg, transparent 30%, rgba(255, 255, 255, 0.95) 50%, transparent 70%) top / 100% 1.5px no-repeat,
     linear-gradient(90deg, transparent 38%, rgba(255, 70, 90, 0.7) 50%, transparent 62%) bottom / 100% 1px no-repeat;
   --lk-anim: tblk-gleam 3.4s ease-in-out infinite; }
+/* No secret seal on the steel look (owner 2026-11-22: "remove the red dot from absolute units style"). */
+.titlebadge.tb-look-steel .tb-seal { display: none; }
 .titlebadge.tb-look-royal { --lk-font: var(--font-cardname); --lk-ls: 0.08em; --lk-rim: #f2c14e; --lk-glow: rgba(150, 90, 255, 0.6);
   --lk-text: linear-gradient(180deg, #fff4c4 0%, #f5c955 60%, #dca233 100%); --lk-bg: linear-gradient(180deg, #2c1554, #120726);
   --lk-fx: radial-gradient(110% 140% at 50% 100%, rgba(170, 110, 255, 0.45), rgba(242, 193, 78, 0.15) 50%, transparent 72%); --lk-anim: tblk-breathe 4.2s ease-in-out infinite; }

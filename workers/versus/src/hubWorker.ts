@@ -44,7 +44,8 @@ import { SESSION_GAME_ID, SESSION_PROTOCOL, SESSION_ROUTES } from './sessionProt
 import { LIVE_GAME_HEADER, LIVE_USER_HEADER } from './liveHost';
 import { GUEST_HEADER } from './lobbyChat';
 import { HEALTH_CRON, HUB_CAP, OPS_ROUTES, type PoolDigest } from './health/healthProtocol';
-import { digestParams, HUB_CAPS, hubHealthDeps, runAndRecord, type HealthEnv, type PoolDigestSource } from './health/hubHealth';
+import { digestParams, HUB_CAPS, hubHealthDeps, runAndRecord, runWatchdog, type HealthEnv, type PoolDigestSource } from './health/hubHealth';
+import type { AlertStore } from './health/healthAlert';
 
 export { FriendHub, LiveDirectory, GameSession, PoolMirror };
 
@@ -76,6 +77,11 @@ const digestCache = new Map<string, { at: number; value: Promise<PoolDigest> }>(
 
 /** The one directory object. */
 const directoryOf = (env: LiveDirEnv): LiveDirectory => env.LIVE_DIR.get(env.LIVE_DIR.idFromName('global')) as unknown as LiveDirectory;
+/** The health alert's state (R-OPS-HEALTH-03): one small record in the directory object's storage. */
+const alertStoreOf = (env: LiveDirEnv): AlertStore => ({
+  get: () => directoryOf(env).alertState(),
+  put: (s) => directoryOf(env).setAlertState(s),
+});
 
 /**
  * THE DIRECTORY'S WRITER (R-LIVE-DIR-01): reachable only through a service binding (`[[services]] ... entrypoint =
@@ -218,12 +224,15 @@ export default {
    * The cron (`hub.wrangler.toml` [triggers]). One handler for every schedule, dispatched on `event.cron`: the daily
    * health check (R-OPS-HEALTH-01) at `HEALTH_CRON`, the pool mirror's sync on every other tick.
    */
-  async scheduled(event: { cron: string }, env: HubWorkerEnv, ctx: ExecutionContext): Promise<void> {
+  async scheduled(event: { cron: string; scheduledTime?: number }, env: HubWorkerEnv, ctx: ExecutionContext): Promise<void> {
     if (event.cron === HEALTH_CRON) {
       const deps = hubHealthDeps(env, FRIENDS_HUB_LIVE_URL, { activity: () => directoryOf(env).activity(), pool: poolDigestOf(env) });
-      ctx.waitUntil(runAndRecord(env, deps));
+      ctx.waitUntil(runAndRecord(env, deps, alertStoreOf(env)));
       return;
     }
+    // The cron_overdue watchdog (R-OPS-HEALTH-03): once an hour, on the first 5-minute tick of the hour.
+    const at = event.scheduledTime ?? Date.now();
+    if (new Date(at).getUTCMinutes() < 5) ctx.waitUntil(runWatchdog(env, alertStoreOf(env), at));
     ctx.waitUntil(poolOf(env).sync().then((r) => { if (!r.ok && r.error !== 'no_source') console.warn(JSON.stringify({ ev: 'pool_mirror_cron', ...r })); }));
   },
 };

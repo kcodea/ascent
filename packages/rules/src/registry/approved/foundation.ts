@@ -13546,6 +13546,28 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['workers/versus/test/opsHealthProbeCache.db.test.ts'], lastVerifiedAt: '2026-11-22' },
   },
   {
+    id: 'R-OPS-HEALTH-03',
+    title: 'A failing daily health check alerts a human on Discord: on the transition, at most once a day while it stays failing, and once on recovery',
+    statement:
+      'After each daily cron run (R-OPS-HEALTH-01) the hub posts a short message to the Discord webhook in its secret '
+      + '`ALERT_DISCORD_WEBHOOK`: when a check starts failing or a new check joins the failing set (at once), as a reminder '
+      + 'while the same checks keep failing (at most once per daily run: 23 hours since the last failing message), and once '
+      + 'when a run is all green again. Each message names the failing checks, their short error, the run time and how to look. '
+      + 'A run whose record Supabase refused counts as a failing `record` check. An hourly watchdog on the hub\x27s 5-minute '
+      + 'cron raises `cron_overdue` when no daily run has completed in 26 hours. Without the secret nothing is sent or stored. '
+      + 'The webhook URL is never committed or logged, and the messages mention nobody. An undelivered message leaves the '
+      + 'alert state unchanged, so the next evaluation retries.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-11-22', quote: 'when the daily ops health check fails, alert a human' },
+      { kind: 'code', ref: 'workers/versus/src/health/healthAlert.ts; workers/versus/src/health/hubHealth.ts; workers/versus/src/hubWorker.ts (scheduled); workers/versus/src/liveDirectory.ts (alertState)' },
+    ],
+    currentBehaviour: 'Built 2026-11-22 (feat/health-alerts). Off until the owner sets ALERT_DISCORD_WEBHOOK on ascent-hub and the hub is redeployed. A hub that is wholly down cannot alert (docs/ops/health-check.md).',
+    example: 'The lobby writes stop on Friday night. At 06:17 UTC Saturday the channel gets "ASCENT health check: 1 failing" naming writes.lobby. Sunday brings one "still 1 failing" reminder. Monday\x27s run is green and the channel gets "all green again".',
+    enforcement: { kind: 'scenario', refs: ['workers/versus/test/healthAlert.test.ts'], lastVerifiedAt: '2026-11-22' },
+  },
+  {
     id: 'R-PING-09',
     title: 'A quick right-click inspects; holding right-click for 170 ms pings',
     statement:

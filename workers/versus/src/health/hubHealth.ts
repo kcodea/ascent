@@ -11,6 +11,7 @@
  * below): this file never imports the mirror, so it ships before the mirror does.
  */
 import { VERSUS_CF_PROTOCOL } from '../protocol';
+import { alertAfterRun, alertWatchdog, type AlertIo, type AlertStore, type FetchLike } from './healthAlert';
 import { runHealth, formatSummary, type HealthDeps, type WriteProbe } from './healthCore';
 import { HUB_CAP, SITE_URL, type HealthResult, type HubActivity, type PoolDigest, type PoolParams } from './healthProtocol';
 
@@ -41,6 +42,18 @@ export interface HealthEnv {
   /** Overrides (tests, a staging hub): where the hub and the site answer. */
   HEALTH_HUB_URL?: string;
   HEALTH_SITE_URL?: string;
+  /** SECRET (R-OPS-HEALTH-03): the Discord webhook the health alerts post to. Absent = no alerts. Never logged. */
+  ALERT_DISCORD_WEBHOOK?: string;
+}
+
+/** The alert plumbing on the real `fetch` and a given store. */
+export function alertIo(env: HealthEnv, store: AlertStore, now = Date.now()): AlertIo {
+  return { webhook: env.ALERT_DISCORD_WEBHOOK, store, fetch: ((url, init) => fetch(url, init)) as FetchLike, now };
+}
+
+/** The hourly cron_overdue watchdog (R-OPS-HEALTH-03). Never throws. */
+export function runWatchdog(env: HealthEnv, store: AlertStore, now = Date.now()): Promise<unknown> {
+  return alertWatchdog(alertIo(env, store, now));
 }
 
 /** The mirror's digest, as the pool-mirror PR exposes it on its Durable Object (RPC). */
@@ -87,18 +100,22 @@ export function hubHealthDeps(env: HealthEnv, hubUrl: string, opts: { activity: 
   };
 }
 
-/** Run every check and record the rows. Never throws (a cron that throws only leaves a log line). */
-export async function runAndRecord(env: HealthEnv, deps: HealthDeps): Promise<{ results: HealthResult[]; recorded: boolean }> {
+/** Run every check, record the rows, then alert (R-OPS-HEALTH-03) when `alerts` is given. Never throws (a cron that
+ *  throws only leaves a log line). */
+export async function runAndRecord(env: HealthEnv, deps: HealthDeps, alerts?: AlertStore): Promise<{ results: HealthResult[]; recorded: boolean }> {
   const results = await runHealth(deps);
   let recorded = false;
+  let recordError: string | undefined;
   try {
     await supabaseRpc(env, 'ops_health_record', { p_source: deps.source, p_rows: results });
     recorded = true;
   } catch (e) {
-    console.warn(JSON.stringify({ ev: 'health_record_failed', error: String(e).slice(0, 300) }));
+    recordError = String(e).slice(0, 300);
+    console.warn(JSON.stringify({ ev: 'health_record_failed', error: recordError }));
   }
   const failing = results.filter((r) => r.status === 'fail').map((r) => r.check);
   console.log(JSON.stringify({ ev: 'health', failing, recorded }));
   if (failing.length) console.warn(formatSummary(results));
+  if (alerts) await alertAfterRun(alertIo(env, alerts), results, recorded, recordError);
   return { results, recorded };
 }

@@ -272,14 +272,17 @@ export async function runHealth(d: HealthDeps): Promise<HealthResult[]> {
   return out;
 }
 
+/** A check's short why (its problems, missing rows, reason or error), as one line. '' when the detail names none. */
+export function failReason(r: HealthResult): string {
+  const d = r.detail;
+  const why = d.problems ?? d.missing ?? d.reason ?? d.error ?? '';
+  return typeof why === 'string' ? why : JSON.stringify(why);
+}
+
 /** The run's one-line verdict and a row per check (the CLI prints it; the cron logs it). */
 export function formatSummary(results: HealthResult[]): string {
   const bad = results.filter((r) => r.status === 'fail');
   const mark = { ok: 'ok  ', fail: 'FAIL', 'n/a': 'n/a ' } as const;
-  const lines = results.map((r) => {
-    const d = r.detail;
-    const why = d.problems ?? d.missing ?? d.reason ?? d.error ?? '';
-    return `  ${mark[r.status]}  ${r.check.padEnd(14)} ${typeof why === 'string' ? why : JSON.stringify(why)}`;
-  });
+  const lines = results.map((r) => `  ${mark[r.status]}  ${r.check.padEnd(14)} ${failReason(r)}`);
   return [`health: ${bad.length ? `${bad.length} FAILING (${bad.map((r) => r.check).join(', ')})` : 'all good'}`, ...lines].join('\n');
 }

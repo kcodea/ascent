@@ -41,4 +41,9 @@ contextBridge.exposeInMainWorld('ascentDesktop', Object.freeze({
    * possibly before the game is listening, so the notice also asks on mount. Sends no page data to the main process.
    */
   getUpdateReady: () => ipcRenderer.invoke('ascent:get-update-ready').then((v) => (v ? String(v) : null), () => null),
+  /**
+   * The crash reports the shell recorded since the last session (crashReports.cjs), handed over once: the main process
+   * deletes its file as it answers. Sends no page data to the main process. The page checks every field it gets.
+   */
+  takeCrashReports: () => ipcRenderer.invoke('ascent:take-crash-reports').then((v) => (Array.isArray(v) ? v : []), () => []),
 }));

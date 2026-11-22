@@ -17016,4 +17016,31 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'Ann types "xXFagXx" as her name: Save keeps the window open with the refusal line. She types "Admin Ann": it saves, and the dashboard\x27s Names queue shows it with the matched word "admin".',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/nameFilter.test.ts', 'apps/dash/src/server/moderation.db.test.ts', 'apps/dash/src/server/moderation.test.ts', 'workers/versus/test/nameFlag.test.ts', 'packages/ui/src/partyHome/changeName.test.tsx'], lastVerifiedAt: '2026-11-22' },
   },
+  {
+    id: 'R-CRASH-REPORT-DESKTOP-01',
+    title: 'Errors and crashes on the desktop exe and the web reach us by themselves, small, redacted and capped',
+    statement:
+      'On every client (the desktop exe, a desktop browser, a phone) an uncaught error, an unhandled rejection and a '
+      + 'crash the game\'s error boundary catches are sent to the client_crash_reports table, tagged with the platform, '
+      + 'the kind and the build. On the desktop exe and a desktop browser a session that ended without leaving the page '
+      + 'is found on the next load and sent too (a phone keeps its own crash log for this, R-TOUCH-CRASH-REPORT-01). The '
+      + 'desktop shell records a renderer that crashed, ran out of memory or was killed, a GPU or helper process that '
+      + 'died, a window that stopped responding (once a launch) and its own uncaught errors to a small local file, and '
+      + 'the next session sends them through the same path; one renderer crash told by both the shell and the page is one '
+      + 'report. After a renderer crash the shell asks the player to Reload or Quit instead of leaving a blank window. '
+      + 'The same error is sent once a session; at most 5 errors a session and 20 reports a day per device; nothing is '
+      + 'sampled. Emails, tokens, keys, URL queries and the player\'s home folder never leave the device, the step trail '
+      + 'is the last 12 step names only, and a row stays under 16 KB. Nothing is sent before the game has mounted, and '
+      + 'then only a few seconds later on idle; nothing runs per frame and nothing throws into the game. Clients may '
+      + 'only insert their own rows, and the table refuses more than 100 a day from one player.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-22 (ahead of the Steam invite-only playtest on the desktop app)', quote: 'automatic crash/error reporting on DESKTOP (and web), not just phones' },
+      { kind: 'code', ref: 'packages/ui/src/errorReport.ts; ErrorBoundary.tsx (reportError); Game.tsx (setErrorReportTransport); apps/web/src/main.tsx (installErrorReporting); apps/desktop/crashReports.cjs + main.cjs + preload.cjs (takeCrashReports); supabase/migrations/2026-11-29-client-crash-reports-desktop.sql' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-22 (feat/desktop-crash-reports) for the client; the platform / kind / app_version columns and the server rate limit need 2026-11-29-client-crash-reports-desktop.sql applied (the client works with or without it). Before, a desktop load sent nothing at all, and a renderer crash in the exe left a white window.',
+    example: 'A playtester\'s exe runs out of memory mid-fight: the shell asks Reload or Quit; after Reload, about 6 s after the title shows, one row lands with platform desktop, kind renderer-gone, reason oom and the steps the page took before it died.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/errorReport.test.ts', 'packages/ui/src/errorReportInstall.test.ts', 'apps/desktop/crashReports.test.ts', 'packages/ui/src/crashReportsDesktop.db.test.ts'], lastVerifiedAt: '2026-11-22' },
+  },
 ];

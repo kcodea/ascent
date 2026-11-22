@@ -21,11 +21,13 @@
  * nothing and re-requested every evicted image/clip/chunk through a main-process round trip — the exe hitched
  * ("worse as the game went on") while the identical bundle was smooth in Chrome. See the handler.
  */
-const { Menu, app, BrowserWindow, ipcMain, protocol, net, shell } = require('electron');
+const { Menu, app, BrowserWindow, dialog, ipcMain, protocol, net, shell } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
+const os = require('node:os');
 const { isRemoteNetworkError } = require('./smokeClassify.cjs');
 const { startUpdater, getReadyUpdate, getUpdateStatus, restartToInstall } = require('./updater.cjs');
+const { installCrashRecording, promptReload } = require('./crashReports.cjs');
 
 // ── SMOKE MODE (scripts/release-desktop.mjs) ──────────────────────────────────────────────────────────────
 // `ASCENT_SMOKE=1` turns the shell into a self-check of the packaged bundle: a windowed (not fullscreen) boot
@@ -49,6 +51,12 @@ app.on('second-instance', () => {
   win.focus();
 });
 const smoke = { requests: 0, missing: [], consoleErrors: [], networkErrors: [] };
+
+// CRASH REPORTS (R-CRASH-REPORT-DESKTOP-01, crashReports.cjs): a renderer / GPU process gone, a hung window and this
+// process's own uncaught errors go to a small file the next game session sends. Not in smoke runs (a self-check must not
+// leave reports behind, and it has its own failure report).
+const crashes = SMOKE ? null : installCrashRecording({ app, ipcMain, fs, path, os, process });
+if (SMOKE) ipcMain.handle('ascent:take-crash-reports', () => []);
 
 /** The web build. Packaged: copied into resources/ by electron-builder. Dev: read straight from the repo. */
 const DIST = app.isPackaged
@@ -119,6 +127,9 @@ function createWindow() {
   });
 
   win.once('ready-to-show', () => win.show());
+  // The renderer crashed / ran out of memory / was killed: recorded (above), then the player chooses Reload or Quit
+  // instead of staring at a white window.
+  crashes?.watchWindow(win, { onGone: (details) => { void promptReload(win, details.reason, { dialog, app, createWindow }); } });
   // External links (itch, GitHub) open in the real browser rather than hijacking the game window.
   win.webContents.setWindowOpenHandler(({ url }) => {
     void shell.openExternal(url);

@@ -30,6 +30,9 @@ interface DesktopBridge {
   getUpdateStatus?: () => Promise<{ state: string; version: string | null; percent: number }>;
   /** Relaunch to install the downloaded update. Older shells lack it. */
   installUpdate?: () => void;
+  /** The crash reports the shell recorded (a renderer / GPU process gone, a main-process exception), handed over once
+   *  and then forgotten by the shell (R-CRASH-REPORT-DESKTOP-01). Older shells lack it. */
+  takeCrashReports?: () => Promise<unknown[]>;
 }
 
 const bridge = (): DesktopBridge | undefined =>
@@ -82,4 +85,14 @@ export function canInstallUpdate(): boolean {
 /** Restart the app to install the downloaded update. No-op in the browser and on an older shell. */
 export function installUpdate(): void {
   bridge()?.installUpdate?.();
+}
+
+/** The shell's recorded crash reports, handed over ONCE (the shell deletes its file as it answers): [] in the browser,
+ *  on an older shell, or on any failure. errorReport.ts validates every field before it sends one. */
+export function takeDesktopCrashReports(): Promise<unknown[]> {
+  const take = bridge()?.takeCrashReports;
+  if (!take) return Promise.resolve([]);
+  try {
+    return Promise.resolve(take()).then((v) => (Array.isArray(v) ? v.slice(0, 20) : []), () => []);
+  } catch { return Promise.resolve([]); }
 }

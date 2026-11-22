@@ -7,7 +7,8 @@
  * once, so a crash reaches us without the owner copying anything off the screen.
  *
  *  - WHEN: only while the crash log is recording this load (a phone, or `?crashlog=1`); a desktop load without the flag
- *    sends nothing. A few seconds after the game mounts, on idle: never on the boot path, never per frame.
+ *    sends nothing FROM HERE. (Desktop + web errors and crashed sessions go through errorReport.ts since 2026-11-22,
+ *    R-CRASH-REPORT-DESKTOP-01, to the same table.) A few seconds after the game mounts, on idle: never on the boot path, never per frame.
  *  - ONCE: a session is marked sent in localStorage only after the insert succeeded. Each session gets at most
  *    MAX_ATTEMPTS tries across loads (the try is counted BEFORE the request, so a page that dies mid-upload still uses
  *    one up), one request per session per load, no retry loop.
@@ -22,6 +23,7 @@
 import { crashedSessions, crashLogActive, lastStep, type CrashSession } from './crashLog';
 import { LITE_ART } from './phoneArt';
 import { activeDiagLabel } from './phoneDiag';
+import { appInfo, clientPlatform, type ClientPlatform } from './clientPlatform';
 
 export const CRASH_REPORTED_KEY = 'ascent.crashlog.reported.v1';
 export const CRASH_REPORT_TABLE = 'client_crash_reports';
@@ -56,6 +58,9 @@ export interface CrashReportEnv {
   buildDate: string;
   lite: boolean;
   diag: string;
+  /** R-CRASH-REPORT-DESKTOP-01: where it ran, and the build facts (the `platform` / `app_version` columns read these). */
+  platform?: ClientPlatform;
+  app?: { version: string; sha: string; date: string; dirty: boolean };
 }
 
 export type CrashInsert = (row: CrashReportRow) => PromiseLike<{ error: unknown }>;
@@ -88,6 +93,9 @@ export function buildReport(s: CrashSession, env: CrashReportEnv, crashCount: nu
   const duration = Math.max(last?.t ?? 0, s.alive?.t ?? 0);
   const make = (): Record<string, unknown> => ({
     v: 1,
+    kind: 'crash-session',
+    platform: env.platform ?? (env.lite ? 'phone' : 'web'),
+    ...(env.app ? { app: env.app } : {}),
     session: { id: s.id, at: new Date(s.at).toISOString(), durationMs: duration, crumbs, alive: s.alive ?? null },
     lastStep: last ?? null,
     crashesOnRecord: crashCount,
@@ -126,8 +134,8 @@ export interface UploadDeps {
   timeoutMs?: number;
 }
 
-/** One insert with a timeout; true when it succeeded. Never rejects. */
-async function tryInsert(insert: CrashInsert, row: CrashReportRow, timeoutMs: number): Promise<boolean> {
+/** One insert with a timeout; true when it succeeded. Never rejects. (Shared with errorReport.ts.) */
+export async function tryInsert(insert: CrashInsert, row: CrashReportRow, timeoutMs: number): Promise<boolean> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     const res = await Promise.race([
@@ -176,6 +184,8 @@ function readEnv(): CrashReportEnv {
     buildDate: __BUILD_DATE__,
     lite: LITE_ART,
     diag: activeDiagLabel(),
+    platform: clientPlatform(),
+    app: appInfo(),
   };
 }
 

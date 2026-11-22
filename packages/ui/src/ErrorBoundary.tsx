@@ -1,5 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { crumb } from './crashLog';
+import { reportError } from './errorReport';
 import { useGame } from './store';
 import { turnClock } from './turnClock';
 
@@ -70,6 +71,8 @@ export class ErrorBoundary extends Component<Props, State> {
   override componentDidCatch(error: Error, info: ErrorInfo): void {
     console.error('Game crashed during render:', error, info.componentStack);
     try { crumb('render error', { m: String(error?.message ?? error).slice(0, 160) }); } catch { /* the log is best-effort */ }
+    // R-CRASH-REPORT-DESKTOP-01: sent to client_crash_reports (deduped, capped, redacted; never throws).
+    reportError('render', error, info.componentStack ?? null);
     this.setState({ componentStack: info.componentStack ?? null });
     if (!this.state.retrying) return;
     lastRetryAt = Date.now();

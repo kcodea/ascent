@@ -60,6 +60,15 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'If the desktop game crashes, it now asks to reload instead of leaving a blank window.',
+        details: [
+          'Pick Reload to keep playing, or Quit to close the game.',
+          'Crashes and errors on desktop and in the browser now send us a short report automatically, so we can fix them faster.',
+          'Reports never include your email or your messages.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Titles on your home banner are bigger and easier to read.',
       },
       {

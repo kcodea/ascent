@@ -635,6 +635,11 @@ html:not([data-ph-compact]) .ph-cardwrap .ph-rank, html:not([data-ph-compact]) .
 /* The title and the rank medal sit a touch lower under the name (owner 2026-11-05: "move the ranking medallion and title down
    slightly"); the name stays put. */
 html:not([data-ph-compact]) .ph-cardwrap .ph-sub { margin-top: calc(6 * var(--phu)); }
+/* The title reads at a glance (owner 2026-11-22: "titles look a bit small/hard to read"): back up from 11 to 14 units, full
+   weight, a little less tracking so the caps do not smear, a roomier pill and a darker ground under the letters. */
+html:not([data-ph-compact]) .ph-cardwrap .ph-titlebadge { font-size: calc(14 * var(--phu)); font-weight: 900; letter-spacing: 0.08em;
+  padding: 0.24em 0.85em; }
+html:not([data-ph-compact]) .ph-cardwrap .ph-titlebadge:not(.tb-look) { background: rgba(6, 5, 4, 0.92); }
 
 /* ── THE SIDE PANEL'S TABS (owner 2026-11-05: "do the same overall treatment here, add separation, move the two options a bit more
    close together. create equal space. also add a horizontal separator between that top section and the mode section") ── The

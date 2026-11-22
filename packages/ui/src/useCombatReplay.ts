@@ -76,7 +76,8 @@ import { watcherPulseUids } from './choreo/channels/watcherPulse';
 import { triggerPulseScan } from './choreo/channels/triggerPulse';
 import { triggerFxFor } from './choreo/stockTriggerFx';
 import { combatBuffDeltas, combatDamageDeltas, driveRoll, driveRollSegment } from './fx/combatBuffRoll';
-import { HOLD_GRACE_MS, heldFor, holdStat, releaseStat, replaceHold } from './fx/statHold';
+import { HOLD_GRACE_MS, heldFor, holdStat, quietStats, releaseStat, replaceHold, settleAllStats } from './fx/statHold';
+import { onCombatHardStop } from './combatHardStop';
 import { fightBodies } from './fightRoster';
 import { useStableValue } from './combatRun';
 import { eventsOfType, makePrefixFold, type PrefixFoldSpec } from './choreo/prefixFold';
@@ -1984,6 +1985,8 @@ export function useCombatReplay(
   // for why the distinction is load-bearing), because from that point its delivery belongs to the roll
   // registry below, not to this beat's plain release-on-advance. See the install effect for the ordering.
   const combatHeldRef = useRef<string[]>([]);
+  /** The beat arrival whose holds the install effect last placed (see its ONCE PER ARRIVAL note). */
+  const installedRef = useRef<{ events: CombatEvent[]; seekNonce: number; beatIdx: number } | null>(null);
   // Task 6: every buff's strike-delay timer + the roll it hands off to, keyed by an incrementing id (not
   // uid — a target can be re-buffed before its first roll lands, so a second registration must not stomp
   // the first one's cancel). Lives for the WHOLE combat, unlike the per-beat `timers` arrays that
@@ -2164,6 +2167,36 @@ export function useCombatReplay(
     parkedCommitRef.uid = null; // a reset/re-seek drops the park, so it must drop its commit hold too
     parkedContactRef.current = null;
   }, []);
+
+  /**
+   * THE FIGHT IS OVER: SETTLE ITS NUMBERS (R-COMBAT-END-STATS-01, owner report 2026-11-21: "the number values of
+   * minions are bouncing and rolling after combat ends").
+   *
+   * Every pending strike timer and every roll in flight is cancelled, and every withheld number is delivered QUIETLY
+   * (`settleAllStats`: the true value at once, no roll, no badge pop, no safety-net timer left behind). Called from the
+   * three places a fight stops playing:
+   *  · its final hold ran out (`done`): a last-beat number whose effect never delivered it has no next beat to release
+   *    it, so it used to wait for the 2 s safety net and pop on the finished board;
+   *  · End Combat (`onCombatHardStop`, R-COMBAT-HARDSTOP-01): the hard stop cut the fight's sound and FX, and its
+   *    number rolls kept running under the return wipe;
+   *  · a Skip that JUMPS to the result (`skip`). The Skip button fast-forwards instead (R-SKIP-TURBO-01), which plays
+   *    out to `done` and settles there.
+   *
+   * `statsSettledRef` stays true until a new fight or a seek (`resetTo`): a beat that still advances after the settle
+   * (a lunge already in flight at the press) places no holds and prints its numbers quietly (the install effect).
+   */
+  const statsSettledRef = useRef(false);
+  const settleStats = useCallback((): void => {
+    statsSettledRef.current = true;
+    for (const entry of rollRegistryRef.current.values()) {
+      if (entry.strikeTimer !== null) window.clearTimeout(entry.strikeTimer);
+      entry.cancelRoll?.();
+    }
+    rollRegistryRef.current.clear();
+    combatHeldRef.current = [];
+    settleAllStats();
+  }, []);
+  useEffect(() => (active ? onCombatHardStop(settleStats) : undefined), [active, settleStats]);
 
   /**
    * Fix round 1 (adversarial review): damage is instant and AUTHORITATIVE, so it must interrupt a mid-reveal
@@ -2348,6 +2381,7 @@ export function useCombatReplay(
     // absolute one, so the absolute value wins.
     gsap.killTweensOf('[data-zone] .unit');
     cancelPendingRolls(); // see the registry's own note: this is its only teardown call site
+    statsSettledRef.current = false; // a new fight / a seek plays again: its numbers roll as normal (`settleStats`)
     setBeatIdx(index);
     setFloats([]);
     setDeathFloats([]);
@@ -2920,11 +2954,13 @@ export function useCombatReplay(
     const settle = (): void => {
       const left = consequenceLedgerRef.current.remainingMs(performance.now());
       if (left > 0) t = window.setTimeout(settle, left);
-      else setFinished(true);
+      // THE FIGHT IS OVER (R-COMBAT-END-STATS-01): whatever is still withheld lands now, quietly, in the same
+      // commit as `done`. Nothing is left to roll or pop on the finished board.
+      else { settleStats(); setFinished(true); }
     };
     t = window.setTimeout(settle, hold);
     return () => window.clearTimeout(t);
-  }, [active, replayComplete, combatSpeed, beats, events, cardIds, endNonce]);
+  }, [active, replayComplete, combatSpeed, beats, events, cardIds, endNonce, settleStats]);
 
   // Trigger-medallion pulse — when a unit's EFFECT fires this beat (Start-of-Combat, Deathrattle/summon,
   // buff/aura, Rally, Avenge, Sergeant's HP-grant, Reborn), its trigger icon releases a ring of energy.
@@ -4073,6 +4109,16 @@ export function useCombatReplay(
   // pre-buff floor, a number the minion never had. Releasing this beat's own uids unconditionally (not just
   // `combatHeldRef`'s) closes that gap: `holdStat` always sees a clean slate for a uid it's about to place.
   useLayoutEffect(() => perfMonitor.measure('choreo:step', () => {
+    // ONCE PER ARRIVAL AT A BEAT (R-COMBAT-END-STATS-01, owner report 2026-11-21: "the number values of minions are
+    // bouncing and rolling after combat ends"). `frame` is a dep because the passes below read it, but a new `frame`
+    // is not a new beat: when the replay reports `done` the board is rebuilt without the dead (`beatStart` moves), and
+    // this effect ran again for the beat that had ALREADY played. It withheld that beat's numbers a second time: the
+    // last hit's Health jumped back up and counted down again, and a last-beat buff dropped to its old value until
+    // the 2 s safety net returned it. A beat's holds are placed when the replay arrives at it (a new fight, a beat
+    // advance, a seek) and at no other time.
+    const was = installedRef.current;
+    if (active && was !== null && was.events === events && was.seekNonce === seekNonce && was.beatIdx === beatIdx) return;
+    installedRef.current = active && beatIdx !== 0 ? { events, seekNonce, beatIdx } : null;
     // Release last beat's leftover holds — see THE INVARIANT above. On every pass through this effect,
     // including the inactive/beat-0 early-out just below: skipping it would leave a stale hold live into the
     // next real beat, and `holdStat` ACCUMULATES same-origin deltas onto a live hold rather than replacing
@@ -4082,6 +4128,12 @@ export function useCombatReplay(
     if (!active || beatIdx === 0) return;
     const beat = beats[beatIdx - 1];
     if (!beat) return;
+    // A SETTLED FIGHT PLACES NO HOLDS (R-COMBAT-END-STATS-01, `settleStats`). A beat arriving after the fight was
+    // stopped or jumped to its result prints its numbers as they are, with no roll and no pop.
+    if (statsSettledRef.current) {
+      quietStats([...frame.player, ...frame.enemy].map((u) => u.uid));
+      return;
+    }
     // Computed once and reused for both the release pass and the place pass below, rather than calling
     // `combatBuffDeltas` twice for the same beat.
     const deltas = combatBuffDeltas(beat, events, frame);
@@ -4475,7 +4527,7 @@ export function useCombatReplay(
     watcherPulseUids: watcherPulse,
     framePulseUids: framePulse,
     done, beatIdx, result: combat ? combat.result : null, shaking, critShaking,
-    beatCount: beats.length, replayEvents: events, ownHand, processedEnd, enemyDeaths, combatBuffs, combatPreviews, questDelta, triggeredQuests, playerRuneProgress, enemyRuneProgress, completedQuests, skip: () => { setBeatIdx(beats.length); setEndNonce((n) => n + 1); },
+    beatCount: beats.length, replayEvents: events, ownHand, processedEnd, enemyDeaths, combatBuffs, combatPreviews, questDelta, triggeredQuests, playerRuneProgress, enemyRuneProgress, completedQuests, skip: () => { settleStats(); setBeatIdx(beats.length); setEndNonce((n) => n + 1); },
     turbo: (onLand?: () => void) => {
       if (turbo) return;
       if (beats.length === 0) { setBeatIdx(beats.length); setEndNonce((n) => n + 1); onLand?.(); return; }

@@ -16952,4 +16952,27 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms from 2026-11-20 once 2026-11-22-aether-gifts.sql is applied and a client with the pop-up ships. Gifts paid before that (Arivas, 2026-11-20, through aether_apply directly) have no gift row and show no pop-up, by owner choice. Not yet seen in the running game by the owner.',
     enforcement: { kind: 'scenario', refs: ['packages/progression/src/aetherGift.db.test.ts', 'packages/ui/src/progression/AetherGiftNotice.test.tsx'], lastVerifiedAt: '2026-11-20' },
   },
+  {
+    id: 'R-COMBAT-END-STATS-01',
+    title: 'Once a fight is over, its minions\' numbers do not move',
+    statement:
+      'From the moment a fight stops playing, no Attack or Health number on its board rolls, counts, pops or changes. '
+      + 'A fight stops playing when its last beat and that beat\'s consequences have finished (the replay reports done), '
+      + 'when the player presses End Combat / Return to Shop, or when a Skip jumps straight to the result. At that moment '
+      + 'every number still being withheld for an effect is set to its true value at once, with no roll and no badge pop, '
+      + 'and no timer is left that could move it later. A beat\'s numbers are withheld once, when the replay arrives at '
+      + 'that beat (a beat advance, a new fight, a seek), and never again because the board was redrawn. This holds for '
+      + 'every card, effect, source and mode, including ones added later. Watching the fight again plays its numbers '
+      + 'as normal.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Mike, 2026-11-21 (numbers after combat)', quote: 'I\'ve noticed instances where the number values of minions are bouncing and rolling after combat ends. This is something that we\'ve dealt with in the past, but it looks like it was never fully solved.' },
+      { kind: 'owner-chat', ref: 'Mike, 2026-11-21, on the proposed end-of-fight settle', quote: 'build the settle step for 1 and 2' },
+      { kind: 'code', ref: 'packages/ui/src/useCombatReplay.ts (the hold install effect\'s once-per-arrival guard, settleStats, the final-hold effect, onCombatHardStop registration); packages/ui/src/fx/statHold.ts (settleAllStats, quietStats, settledQuietly); packages/ui/src/Card.tsx useBadgePop' },
+    ],
+    currentBehaviour: 'Since 2026-11-21. Before, when the replay reported done it redrew the board without the dead, which re-ran the step that withholds a beat\'s numbers for the beat that had already played: the last hit\'s Health jumped back up and counted down again, and a last-beat buff dropped to its old value until a 2 second safety net returned it. A last-beat number whose effect never delivered it also waited for that safety net, and End Combat left number rolls running under the return transition. PARTIAL: this covers the combat board. A number that changes on the Shop board after the return (a Start of Turn gain rolls there on purpose) is not covered by this rule.',
+    example: 'Your 6/9 kills the last enemy and takes 4 damage: its Health counts down 9 to 5 once, on the hit. When the End Combat gem appears the 5 stays a 5.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/combatEndStatSettle.test.tsx', 'packages/ui/src/fx/statHold.test.ts'], lastVerifiedAt: '2026-11-21' },
+  },
 ];

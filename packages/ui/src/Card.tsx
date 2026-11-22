@@ -17,7 +17,7 @@ import {
 } from './cardArtConfig';
 import { CardArtEditor } from './CardArtEditor';
 import { perfMonitor } from './perfMonitor';
-import { heldFor, holdStat, subscribeStatHolds } from './fx/statHold';
+import { heldFor, holdStat, settledQuietly, subscribeStatHolds } from './fx/statHold';
 import { resolveMech } from './mechIcon';
 import type { GrantedTrigger } from './grantedTriggers';
 import { mechMedallionArtId, mechMedallionArtRotate, mechMedallionArtScale, mechMedallionArtTint, mechMedallionSrc } from './mechMedallion';
@@ -54,7 +54,7 @@ const BADGE_POP_MS = 180;
  * a swell that only gets partway before the next digit lands, so the badge rides slightly enlarged for the
  * length of the roll and then completes one full pop as it settles.
  */
-function useBadgePop(ref: RefObject<HTMLSpanElement>, value: number, screen: string): void {
+function useBadgePop(ref: RefObject<HTMLSpanElement>, value: number, screen: string, uid?: string): void {
   /** The value as of the last frame that actually reached the screen — see the rAF below. */
   const painted = useRef(value);
   const anim = useRef<Animation | null>(null);
@@ -84,6 +84,9 @@ function useBadgePop(ref: RefObject<HTMLSpanElement>, value: number, screen: str
     raf.current = requestAnimationFrame(() => {
       if (painted.current === value) return;   // the frame settled back to where it started
       painted.current = value;
+      // A QUIET SETTLE (R-COMBAT-END-STATS-01): the fight is over and this number was just set to its true value. It
+      // is adopted with no pop, so nothing bounces on a finished board (`settleAllStats`, fx/statHold.ts).
+      if (uid !== undefined && settledQuietly(uid)) return;
       const el = ref.current;
       if (el === null) return;
       // Cancel before re-launching. WAAPI animations under `composite: 'add'` ACCUMULATE, and a roll
@@ -116,7 +119,7 @@ function useBadgePop(ref: RefObject<HTMLSpanElement>, value: number, screen: str
       } catch { /* WAAPI composite unsupported: skip the pop rather than clobber the badge's transform */ }
     });
     return () => cancelAnimationFrame(raf.current);
-  }, [value, screen, ref]);
+  }, [value, screen, ref, uid]);
 }
 // Side-effect import: `cardPillsConfig` applies the pill layout vars (`--cpl-*-t`) to :root at module
 // load. Imported HERE rather than only from the dev tuner because the tuner is stripped from production —
@@ -530,7 +533,7 @@ const StatBadge = memo(function StatBadge({ stat, uid, value, base, floor, ms, s
   // font down so it stays inside the badge's disc instead of spilling over it (owner report 2026-10-16).
   const text = formatStat(shown);
   // Each badge pops independently, so a buff that only moves attack leaves the health badge alone.
-  useBadgePop(popRef, shown, screen);
+  useBadgePop(popRef, shown, screen, uid);
   const short = stat === 'attack' ? 'atk' : 'hp';
   return (
     <span ref={popRef} data-milestone={ms} className={`badge ${short}${statCls(shown, base, floor)}`}>

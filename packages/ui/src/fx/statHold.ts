@@ -342,12 +342,71 @@ export function deliverAllStats(): number {
   return n;
 }
 
+/**
+ * QUIET DELIVERY (R-COMBAT-END-STATS-01, owner report 2026-11-21: "the number values of minions are bouncing and
+ * rolling after combat ends").
+ *
+ * Every other way a withheld number lands pops its badge, because the badge pops on any change of its printed value
+ * (`useBadgePop`, Card.tsx). That is right while an effect is delivering the number and wrong once the fight is over:
+ * a number that snaps to its true value on a finished board must not bounce. The uids named here land with no pop.
+ *
+ * It lasts TWO animation frames and then clears itself, so it can never swallow a later, real change. The commit a
+ * settle causes is synchronous, and the badge compares its value on the frame after that commit: this tick was
+ * requested first, so it runs before the badge's check on that frame and must still be set there.
+ */
+const quiet = new Set<string>();
+let quietRaf = 0;
+let quietFrames = 0;
+
+/** Let these units' next printed-value change land without a badge pop (see QUIET DELIVERY above). */
+export function quietStats(uids: Iterable<string>): void {
+  if (typeof requestAnimationFrame === 'undefined') return; // no frames: nothing pops, so nothing to skip
+  let any = false;
+  for (const uid of uids) { quiet.add(uid); any = true; }
+  if (!any) return;
+  quietFrames = 2;
+  if (quietRaf !== 0) return;
+  const tick = (): void => {
+    quietFrames -= 1;
+    if (quietFrames > 0) { quietRaf = requestAnimationFrame(tick); return; }
+    quietRaf = 0;
+    quiet.clear();
+  };
+  quietRaf = requestAnimationFrame(tick);
+}
+
+/** Was this unit's number just delivered by a quiet settle? Read by the badge pop, which then stands down. */
+export function settledQuietly(uid: string): boolean {
+  return quiet.has(uid);
+}
+
+/**
+ * SETTLE: deliver every withheld number now, QUIETLY, in one notification. For the moment a fight is over (its final
+ * hold ran out, End Combat was pressed, a Skip jumped to the result): each badge prints its true value at once, with
+ * no roll and no pop, and no safety-net timer is left to move it later. Returns how many holds it delivered.
+ *
+ * `deliverAllStats` is the same delivery WITH the badge's pop (a number landing during rapid Shop input);
+ * `releaseAllStats` is for a scene change, where the units themselves are going away.
+ */
+export function settleAllStats(): number {
+  const n = holds.size;
+  if (n === 0) return 0;
+  quietStats(holds.keys());
+  for (const t of expiries.values()) clearTimeout(t);
+  expiries.clear();
+  holds.clear();
+  emit();
+  return n;
+}
+
 /** Drop every hold. For a scene change (combat ends, a run is abandoned) where the units are gone and any
  *  surviving hold would apply to whatever reuses the uid. */
 export function releaseAllStats(): void {
   for (const t of expiries.values()) clearTimeout(t);
   expiries.clear();
   if (raf !== 0) { cancelAnimationFrame(raf); raf = 0; }
+  if (quietRaf !== 0) { cancelAnimationFrame(quietRaf); quietRaf = 0; }
+  quiet.clear();
   if (holds.size === 0) return;
   holds.clear();
   emit();

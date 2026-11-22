@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   DEFAULT_ROLL_MS, HOLD_TTL_MS, anyStatHeld, claimStat, heldFor, holdOrigin, holdStat,
-  releaseAllStats, releaseStat, scheduleFor, statHoldKey, revealStat, stepHolds, subscribeStatHolds,
+  releaseAllStats, releaseStat, scheduleFor, settleAllStats, statHoldKey, revealStat, stepHolds, subscribeStatHolds,
 } from './statHold';
 
 afterEach(() => {
@@ -617,5 +617,44 @@ describe('the shared ticker', () => {
     stepHolds();
     expect(notified).toBe(1);
     stop();
+  });
+});
+
+/**
+ * R-COMBAT-END-STATS-01: the SETTLE a finished fight runs. Every withheld number is delivered at once, in one
+ * notification, and no safety-net timer is left to move a badge later. (The no-pop half needs a mounted badge and
+ * frames: `combatEndStatSettle.test.tsx`.)
+ */
+describe('settleAllStats, the end-of-fight settle', () => {
+  it('delivers every hold, whoever owns it, in ONE notification', () => {
+    holdStat('a', { attack: 4 }, { origin: 'effect' });
+    holdStat('b', { health: -3 }, { origin: 'cue', rollMs: 650 });
+    holdStat('c', { attack: 1, health: 1 }, { origin: 'intrinsic' });
+    let notified = 0;
+    const stop = subscribeStatHolds(() => { notified++; });
+    expect(settleAllStats()).toBe(3);
+    stop();
+    expect(notified).toBe(1);
+    expect(anyStatHeld()).toBe(false);
+    for (const uid of ['a', 'b', 'c']) expect(heldFor(uid)).toBeNull();
+  });
+
+  it('leaves no safety-net timer behind: nothing notifies later', () => {
+    vi.useFakeTimers();
+    holdStat('a', { attack: 4 }, { origin: 'effect', ttlMs: 2000 });
+    settleAllStats();
+    let notified = 0;
+    const stop = subscribeStatHolds(() => { notified++; });
+    vi.advanceTimersByTime(10_000);
+    stop();
+    expect(notified).toBe(0);
+  });
+
+  it('is a no-op with nothing held: no notification', () => {
+    let notified = 0;
+    const stop = subscribeStatHolds(() => { notified++; });
+    expect(settleAllStats()).toBe(0);
+    stop();
+    expect(notified).toBe(0);
   });
 });

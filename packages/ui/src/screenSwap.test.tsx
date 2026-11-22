@@ -143,7 +143,8 @@ describe('the wiring (source pins)', () => {
     expect(r).toContain('<ScreenContext.Provider value={screenId}>');
     const card = src('Card.tsx');
     expect(card).toMatch(/if \(prev\.uid !== uid \|\| prev\.screen !== screen \|\|/);
-    expect(card).toContain('useBadgePop(popRef, shown, screen)'); // the badge pop lives in `StatBadge` (R-PERF-STAT-ROLL-01)
+    // the badge pop lives in `StatBadge` (R-PERF-STAT-ROLL-01); `uid` lets a quiet settle skip it (R-COMBAT-END-STATS-01)
+    expect(card).toContain('useBadgePop(popRef, shown, screen, uid)');
   });
   it('the teammate portrait keeps one identity across the swap (its mount measures the hero disc: a forced layout)', () => {
     const hud = src('versus/VersusHud.tsx');

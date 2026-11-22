@@ -116,3 +116,10 @@ The pool mirror and the game session are on `main` (#2493), but the hub does not
    `session_cf_writes` and the `ops.events` `write_rejected` rows when they exist.
 3. **The cron.** Already shared: `crons = ["*/5 * * * *", "17 6 * * *"]`, and `hubWorker.ts` `scheduled` runs the health
    check at `HEALTH_CRON` and the mirror's sync on every other tick.
+
+## The retention cleanup
+
+A separate daily job, `ops-retention` (pg_cron, 03:37 UTC), deletes stale leftovers in small batches: old perf runs, the
+child rows of finished Versus matches, and idle empty anonymous users. Runbook: [`retention.md`](retention.md). Each run
+logs one `ops.events` row (`source = 'retention'`, kind `run`, `dry_run` or `error`), and `ops.retention_rules` holds the
+per-rule stats. Dry run any time with `select ops.retention_run(true);`.

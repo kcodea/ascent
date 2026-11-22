@@ -1351,4 +1351,24 @@ export const PERSISTENCE_RULES: GameRule[] = [
     currentBehaviour: 'Conforms from 2026-11-16 (feat/ancients-release-switch). Switch turned ON 2026-11-17 (owner: "okay turn on ancients"): every new player run in a supported set has Ancients. Before, only the Scene Builder and a DEV Duos seam could turn Ancients on.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsRelease.test.ts', 'packages/ui/src/versus/ancientsReleaseProtocol.test.ts'], lastVerifiedAt: '2026-11-16' },
   },
+  {
+    id: 'R-OPS-RETENTION-01',
+    title: 'A daily, batched retention cleanup deletes only stale leftovers, never a match row or a user who owns anything',
+    statement:
+      'pg_cron runs `ops.retention_run(false)` daily at 03:37 UTC (`ops-retention`). Each enabled `ops.retention_rules` row deletes at most its '
+      + '`batch_limit` rows per table: perf runs older than 60 days; the submissions and rounds of 1v1 Versus matches COMPLETE more than 30 days; '
+      + 'the submissions, fights and rounds of Group / Duos matches COMPLETE more than 30 days; and anonymous auth users idle 30 days whose id is '
+      + 'in no user-linked column. The match rows (versus_matches, versus_group_matches) and the Group seats are never deleted, nor any child row '
+      + 'of a live or recently ended match, nor any non-anonymous user. The user-linked columns are read from the catalog at every run (every uuid '
+      + 'or uuid[] column with a foreign key to auth.users, plus every uuid column named like a user reference), so a table added later is covered '
+      + 'without editing the function. `ops.retention_run(true)` (the default) is a dry run: counts only. Only service_role / postgres may call it.',
+    domain: 'persistence',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Lead brief 2026-11-22, relaying the owner approval (the brief words, not the owner words)', quote: 'owner approved building it 2026-11-22' },
+      { kind: 'code', ref: 'supabase/migrations/2026-11-27-ops-retention.sql; docs/ops/retention.md' },
+    ],
+    currentBehaviour: 'Conforms once the lead applies 2026-11-27-ops-retention.sql (not applied by this PR). Before, perf runs, finished Versus child rows and empty guests only grew.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/opsRetention.db.test.ts'], lastVerifiedAt: '2026-11-22' },
+  },
 ];

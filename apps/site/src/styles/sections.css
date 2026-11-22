@@ -41,6 +41,14 @@
   object-position: 50% 30%;
 }
 
+/* A navy wash over the sky and under the characters, so the sky is a dark backdrop and the characters carry the
+   colour (owner 2026-11-22: navy, about 90%). */
+.top__tint {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--showcase) 90%, transparent);
+}
+
 /* Phone: the teams meet in a band across the top, above the words. */
 .top__team {
   height: auto;

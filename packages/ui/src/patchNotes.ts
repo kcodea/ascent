@@ -60,6 +60,10 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Titles on your home banner are bigger and easier to read.',
+      },
+      {
+        category: 'Systems',
         text: 'Player names, Duos team names and Versus room names are now checked for slurs.',
         details: [
           'A name with a slur cannot be saved. You see "That name is not allowed. Please pick another one." and can pick another.',

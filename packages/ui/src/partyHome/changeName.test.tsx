@@ -89,6 +89,20 @@ describe('the Change name window', () => {
     expect(useGame.getState().playerName).toBe('GuestName');
   });
 
+  it('a blocked name is not saved: the window stays open with a plain line (R-NAME-FILTER-01)', () => {
+    const onClose = vi.fn();
+    ui = mount(<ChangeNameDialog onClose={onClose} />);
+    type('xXFagXx');
+    act(() => { button('Save').click(); });
+    expect(useGame.getState().playerName).toBe('IronFox87');
+    expect(onClose).not.toHaveBeenCalled();
+    expect(document.body.querySelector('[role="alert"]')?.textContent).toBe('That name is not allowed. Please pick another one.');
+    type('Fox King'); // typing again clears the line, and a clean name saves
+    expect(document.body.querySelector('[role="alert"]')).toBeNull();
+    act(() => { button('Save').click(); });
+    expect(useGame.getState().playerName).toBe('Fox King');
+  });
+
   it('no native tooltip, no bare cursor', () => {
     ui = mount(<ChangeNameDialog onClose={() => {}} />);
     expect(document.body.querySelector('[title]')).toBeNull();

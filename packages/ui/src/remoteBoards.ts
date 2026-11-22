@@ -16,7 +16,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { activeSet, type SetId } from '@game/content';
 import type { FightRow, LobbyStrength, MatchDetails, StrengthInput } from '@game/sim';
-import { STRENGTH_REF_VERSION, parseBoardStrength, type RunStrengthHistogramEntry, type StrengthBand, type StrengthHistogram, type StrengthScore } from '@game/sim';
+import { NAME_BLOCKED, STRENGTH_REF_VERSION, parseBoardStrength, type RunStrengthHistogramEntry, type StrengthBand, type StrengthHistogram, type StrengthScore } from '@game/sim';
 import { RANK_SEASON, initialRankedProfile, lobbyStrengthOf, excludeOwnFights, parseLobbyStrength, parseMatchDetails, parseRankResult, parseRankedProfile, parseRankAtStart, registerOpponentRuns, type BoardSnapshot, type DerivedRun, type PlayerKeyBasis, type RankedProfile, type ReplayV2, type RunTelemetry, type RunTelemetryRow, type TelemetrySource, type TelemetryCapture, type RunRegime, type LobbyPoolTelemetry, isRankPosition, type RankPosition } from '@game/sim';
 import { currentIdentity, currentUserId, identitySettled, setIdentity, type AuthProvider, type Identity } from './identity';
 import type { RankSubmitOutcome, RankSubmitRequest } from './rank/types';
@@ -1765,9 +1765,15 @@ export async function uploadPlayerProfile(p: {
     };
     // UPDATE the display columns; INSERT a rating-0 placeholder row only when none exists yet (an UPDATE
     // matching nothing is a 0-row success, not an error — that is how we tell the two apart).
-    const updated = await c.from('profiles').update(mutable).eq('user_id', userId).select('user_id');
+    let updated = await c.from('profiles').update(mutable).eq('user_id', userId).select('user_id');
+    // NAME FILTER (R-NAME-FILTER-01): the server refuses a blocked name (or one a moderator reset) as `name_blocked`.
+    // The rest of the row still syncs: the write goes again without the name, so games played never freezes on it.
+    const blocked = (e: { message?: string } | null): boolean => e?.message === NAME_BLOCKED;
+    const nameless = { ...mutable, author: undefined }; // an undefined field is left out of the request body
+    if (blocked(updated.error)) updated = await c.from('profiles').update(nameless).eq('user_id', userId).select('user_id');
     if (updated.error || !updated.data || updated.data.length === 0) {
-      await c.from('profiles').insert({ user_id: userId, rating: 0, ...mutable });
+      const ins = await c.from('profiles').insert({ user_id: userId, rating: 0, ...mutable });
+      if (blocked(ins.error)) await c.from('profiles').insert({ user_id: userId, rating: 0, ...nameless });
     }
   } catch {
     /* best-effort — profile sync must never disrupt the end screen */

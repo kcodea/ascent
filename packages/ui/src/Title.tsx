@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { AscentLogo } from './AscentLogo';
-import { LEARN_ANCIENTS, LEARN_ASCENT } from '@game/sim';
+import { LEARN_ANCIENTS, LEARN_ASCENT, NAME_BLOCKED_TEXT, isBlockedName } from '@game/sim';
 import { ancientArt, avatarSrc, modeArt } from './art';
 import { FadeImg } from './FadeImg';
 import { getTitleText, subscribeTitleText, titleContinueNote } from './titleTextConfig';
@@ -201,6 +201,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   const txt = getTitleText();
 
   const [editing, setEditing] = useState(false);
+  const [nameBlocked, setNameBlocked] = useState(false);
   const [draft, setDraft] = useState('');
   const [confirmClear, setConfirmClear] = useState(false); // two-step guard on the destructive Clear Run
   // A new player hitting Play is offered the tutorial first. Local: a transient nudge, and both of its buttons
@@ -334,7 +335,14 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   const unnamed = !playerName;
   const effectiveName = playerName || tempHandle(account.userId);
   const beginEdit = () => { setDraft(playerName); setEditing(true); };
-  const commit = () => { setPlayerName(draft); setEditing(false); };
+  // A name the filter blocks (R-NAME-FILTER-01) is not saved: the field stays open with a plain line under it (its state is
+  // declared with `editing`, above every early return).
+  const commit = () => {
+    if (isBlockedName(draft)) { setNameBlocked(true); return; }
+    setNameBlocked(false);
+    setPlayerName(draft);
+    setEditing(false);
+  };
 
   // The Play plaque. With a run saved it carries the same warning the sidebar's Play does, as a `data-tip`
   // bubble on a WRAPPER (`.tn-item`, positioned like the sidebar's `.msb-item`): the plaque's own ::after is
@@ -559,9 +567,10 @@ export function Title({ onSettings }: { onSettings: () => void }) {
               value={draft}
               placeholder="Your name"
               aria-label="Your name"
-              onChange={(e) => setDraft(e.target.value)}
+              aria-invalid={nameBlocked || undefined}
+              onChange={(e) => { setDraft(e.target.value); setNameBlocked(false); }}
               onBlur={commit}
-              onKeyDown={(e) => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') setEditing(false); }}
+              onKeyDown={(e) => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') { setNameBlocked(false); setEditing(false); } }}
             />
           ) : (
             <button
@@ -575,6 +584,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
               <span className="titlename-txt">{effectiveName}</span>
             </button>
           )}
+          {editing && nameBlocked ? <span className="titlename-err" role="alert">{NAME_BLOCKED_TEXT}</span> : null}
         </div>
         {/* ONE secondary line (owner 2026-10-16: "a lot of info in it, kinda small and jumbled"): the crest and division,
             the MMR small after it. The equipped title and XP bar live on the Career page. */}

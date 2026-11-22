@@ -30,7 +30,7 @@
  */
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { levelProgress } from '@game/progression';
-import { defaultTeamName, LEARN_ANCIENTS, LEARN_ASCENT, TEAM_NAME_MAX, teamNameProblem, type VersusModifierId, type VersusRoomOptions } from '@game/sim';
+import { defaultTeamName, isBlockedName, LEARN_ANCIENTS, LEARN_ASCENT, NAME_BLOCKED_TEXT, TEAM_NAME_MAX, teamNameProblem, type VersusModifierId, type VersusRoomOptions } from '@game/sim';
 import { heroThumb } from '../art';
 import { mechMedallionSrc } from '../mechMedallion';
 import { isPhone } from '../deviceClass';
@@ -295,6 +295,8 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
       if (vh.start) { startLabel = vh.start.label; startOk = vh.start.ok; note = vh.start.note ?? note; onStart = vh.start.run; break; }
       // No room yet: START opens one behind this screen, with the tab's mode and the picked rules. Nothing navigates.
       const vmode = mode.id === 'versus' ? 'duel' : mode.id === 'group' ? 'group' : 'duos';
+      // A room name the filter blocks never opens a room (R-NAME-FILTER-01; the room Worker refuses it too).
+      if (isBlockedName(roomName)) { startOk = false; note = NAME_BLOCKED_TEXT; break; }
       onStart = () => { if (sampleOn) sampleHost(vmode, modifier); else void hostVersus({ v: 1, mode: vmode, modifiers: modifier ? [modifier] : [] } as VersusRoomOptions, hostName()); };
       break;
     }

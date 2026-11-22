@@ -3,6 +3,8 @@ import { lines, miniBar, sparkline, stackedBars } from './charts';
 import { MODE_ART, MODE_LABEL, SERIES, bucketLabel, dateIn, esc, int, place, pct, seriesValues, shortDay, titleCase, topHalfLabel } from './format';
 import { LIVE_POLL_MS, customRange, isLive, parseHash, presetRange, rangePhrase, toHash, type Preset, type Range } from './range';
 import type { Breakdown, GameData, GameMode, HeroRow, Overview, TribeRow } from './types';
+import { showModeration, wireModeration } from './moderation';
+import { viewOfHash, withView, type View } from './modLogic';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const TZ = (() => {
@@ -327,7 +329,7 @@ const tabValue = (ev: Event): string | undefined => (ev.target as HTMLElement).c
 /** The range (and build) live in the URL hash, so a link opens the same view. */
 function setRange(range: Range): void {
   state.range = range;
-  history.replaceState(null, '', toHash(state.range, state.patch));
+  history.replaceState(null, '', hashNow());
   renderFilters(state.breakdown);
   void refresh();
 }
@@ -376,7 +378,34 @@ function wire(): void {
   wireTips();
 }
 
+// ── The two views (Analytics | Moderation), in the nav; the view rides the URL hash with the range ───────────────
+let view: View = viewOfHash(location.hash);
+const hashNow = (): string => withView(toHash(state.range, state.patch), view);
+function setView(v: View, push = true): void {
+  view = v;
+  $('view-analytics').hidden = v !== 'analytics';
+  $('view-moderation').hidden = v !== 'moderation';
+  document.body.dataset.view = v; // the range chips (Live, time zone, Updated) belong to Analytics only
+  for (const b of $('views').querySelectorAll<HTMLButtonElement>('button[data-view]')) b.setAttribute('aria-pressed', String(b.dataset.view === v));
+  document.title = v === 'moderation' ? 'ASCENT Moderation' : 'ASCENT Analytics';
+  if (push) history.replaceState(null, '', hashNow());
+  if (v === 'moderation') { if (push) showModeration(); }
+  else if (state.overview) { renderTiles(state.overview); renderSeries(state.overview); } // sized now that it shows
+}
+$('views').addEventListener('click', (ev) => {
+  const v = (ev.target as HTMLElement).closest<HTMLButtonElement>('button[data-view]')?.dataset.view;
+  if (v === 'analytics' || v === 'moderation') setView(v);
+});
+window.addEventListener('hashchange', () => { const v = viewOfHash(location.hash); if (v !== view) setView(v, false); });
+
 wire();
-history.replaceState(null, '', toHash(state.range, state.patch));
+wireModeration((n) => {
+  const el = $('mod-count');
+  el.textContent = n > 99 ? '99+' : String(n);
+  el.hidden = n === 0;
+  $('views').querySelector('[data-view="moderation"]')?.setAttribute('aria-label', n ? `Moderation, ${n} open` : 'Moderation');
+});
+setView(view, false);
+history.replaceState(null, '', hashNow());
 renderFilters(null);
 void loadGame().then(() => refresh());

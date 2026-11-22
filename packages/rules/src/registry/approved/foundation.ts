@@ -16975,4 +16975,27 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'Your 6/9 kills the last enemy and takes 4 damage: its Health counts down 9 to 5 once, on the hit. When the End Combat gem appears the 5 stays a 5.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/combatEndStatSettle.test.tsx', 'packages/ui/src/fx/statHold.test.ts'], lastVerifiedAt: '2026-11-21' },
   },
+  {
+    id: 'R-NAME-FILTER-01',
+    title: 'Every name a player chooses goes through one filter: a slur is refused, a rude name is flagged for review',
+    statement:
+      'An account display name, a Duos team name and a Versus room name are each checked by the one name filter '
+      + '(packages/sim/src/nameFilter.ts, mirrored verbatim in SQL as moderation.name_verdict). A name on the short slur list '
+      + 'is refused: the client says "That name is not allowed. Please pick another one." before saving and keeps the field '
+      + 'open, and the server refuses it too (`name_blocked`) wherever the name is written (the profiles and duos_teams '
+      + 'triggers, the Versus room Worker). A name on the broader list (swearing, sexual words, staff impersonation) is '
+      + 'allowed and lands in the private dashboard\x27s Moderation queue, where a moderator marks it Looks fine or resets it '
+      + '(an account to Player with its #tag kept unless taken, a team to its default name). A reset name cannot be taken '
+      + 'back by that account or team. Look-alike letters, spacing, stretched letters and camelCase are read through. Every '
+      + 'moderation action is logged with who, when and the name before and after.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-22', quote: 'build the reporting dash and account name and party name flags' },
+      { kind: 'code', ref: 'packages/sim/src/nameFilter.ts; supabase/migrations/2026-11-28-moderation.sql; workers/versus/src/core/roomCore.ts + nameFlag.ts; packages/ui/src/partyHome/ChangeName.tsx, Title.tsx, versusRoomHome.tsx; apps/dash (Moderation tab)' },
+    ],
+    currentBehaviour: 'Built 2026-11-22 (feat/dash-moderation). The client checks ship with the next game build; the server side needs 2026-11-28-moderation.sql applied and the Versus Worker deployed. A Versus room name lives only in the room, so the dashboard can clear its flag but not reset it. Names stored before the filter are flagged once by the migration (a stored slur as severity block), not changed.',
+    example: 'Ann types "xXFagXx" as her name: Save keeps the window open with the refusal line. She types "Admin Ann": it saves, and the dashboard\x27s Names queue shows it with the matched word "admin".',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/nameFilter.test.ts', 'apps/dash/src/server/moderation.db.test.ts', 'apps/dash/src/server/moderation.test.ts', 'workers/versus/test/nameFlag.test.ts', 'packages/ui/src/partyHome/changeName.test.tsx'], lastVerifiedAt: '2026-11-22' },
+  },
 ];

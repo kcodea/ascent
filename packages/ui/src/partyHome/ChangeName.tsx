@@ -5,8 +5,12 @@
  * field and saves through the store's `setPlayerName`: the SAME path the title screen's name chip uses (24 characters,
  * trimmed, the `#tag` kept by `claimHandle`, the display name synced). No new rename rules: a guest can rename here
  * exactly as on the title chip, and an empty name falls back to the temporary handle there too.
+ *
+ * A name the filter blocks (a slur, R-NAME-FILTER-01) is refused here with a plain line under the field and the window
+ * stays open; the server refuses it too.
  */
 import { useState } from 'react';
+import { NAME_BLOCKED_TEXT, isBlockedName } from '@game/sim';
 import { sfx } from '../sfx';
 import { useGame } from '../store';
 import { PhButton, PhDialog, PhField } from './kit';
@@ -30,7 +34,13 @@ export function ChangeNameDialog({ onClose }: { onClose: () => void }): JSX.Elem
   const playerName = useGame((s) => s.playerName);
   const setPlayerName = useGame((s) => s.setPlayerName);
   const [v, setV] = useState(playerName);
-  const save = (): void => { sfx.pulse(); setPlayerName(v); onClose(); };
+  const [blocked, setBlocked] = useState(false);
+  const save = (): void => {
+    sfx.pulse();
+    if (isBlockedName(v)) { setBlocked(true); return; }
+    setPlayerName(v);
+    onClose();
+  };
   return (
     <PhDialog label="Change name" title="Change name" onClose={onClose}
       actions={<>
@@ -39,7 +49,7 @@ export function ChangeNameDialog({ onClose }: { onClose: () => void }): JSX.Elem
       </>}>
       <form onSubmit={(e) => { e.preventDefault(); save(); }}>
         <PhField label="Name" value={v} placeholder="Your name" maxLength={PLAYER_NAME_MAX} showCount autoFocus
-          onChange={(e) => setV(e.target.value)} hint="Other players see this name on your banner and the leaderboards." />
+          onChange={(e) => { setV(e.target.value); setBlocked(false); }} error={blocked ? NAME_BLOCKED_TEXT : undefined} hint="Other players see this name on your banner and the leaderboards." />
       </form>
     </PhDialog>
   );

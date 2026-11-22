@@ -27,7 +27,10 @@
 /** Slurs matched anywhere in the name. */
 export const NAME_BLOCK_SUB: readonly string[] = ['nigger', 'nigga', 'faggot', 'tranny', 'wetback'];
 /** Slurs matched as a whole word (they occur inside innocent words: "spicy", "raccoon"). Endings: s, z. */
-export const NAME_BLOCK_WORDS: readonly string[] = ['fag', 'kike', 'spic', 'chink', 'gook', 'coon', 'dyke', 'retard', 'retarded'];
+// rape / rapist / nazi / hitler blocked too (owner 2026-11-22: "All should be blocked"); they stay in the flag list so other
+// forms ("raping", "nazis" past the block endings) are still flagged.
+export const NAME_BLOCK_WORDS: readonly string[] = ['fag', 'kike', 'spic', 'chink', 'gook', 'coon', 'dyke', 'retard', 'retarded',
+  'rape', 'rapist', 'nazi', 'hitler'];
 /** Flagged anywhere in the name. */
 export const NAME_FLAG_SUB: readonly string[] = [
   'fuck', 'fuk', 'fck', 'shit', 'cunt', 'bitch', 'pussy', 'whore', 'slut', 'asshole', 'arsehole', 'twat', 'wank', 'jizz',

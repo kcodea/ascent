@@ -19,13 +19,14 @@ describe('nameVerdict', () => {
   it.each([
     ['N1gg3r', 'nigger'], ['n i g g e r', 'nigger'], ['Niiiigger', 'nigger'], ['xXFagXx', 'fag'], ['Fag1', 'fag'],
     ['FagLord', 'fag'], ['spics', 'spic'], ['Retarded', 'retarded'], ['F4gg0t', 'faggot'], ['tr@nny', 'tranny'],
+    ['Grammar Nazi', 'nazi'], ['H1tler', 'hitler'], ['Rapist', 'rapist'], ['rape', 'rape'],
   ])('blocks %s (%s)', (name, term) => {
     expect(nameVerdict(name)).toEqual({ verdict: 'block', term });
     expect(isBlockedName(name)).toBe(true);
   });
 
   it.each([
-    ['FuckFace', 'fuck'], ['Sh!t', 'shit'], ['Scunthorpe', 'cunt'], ['Grammar Nazi', 'nazi'], ['Team Ascent', 'teamascent'],
+    ['FuckFace', 'fuck'], ['Sh!t', 'shit'], ['Scunthorpe', 'cunt'], ['Team Ascent', 'teamascent'],
     ['Admin', 'admin'], ['Ádmin', 'admin'], ['Moderat0r', 'moderator'], ['sexy', 'sex'], ['Moby Dick', 'dick'],
   ])('flags %s (%s)', (name, term) => {
     expect(nameVerdict(name)).toEqual({ verdict: 'flag', term });

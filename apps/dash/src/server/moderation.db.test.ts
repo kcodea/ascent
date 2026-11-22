@@ -60,7 +60,8 @@ afterAll(async () => { await db.close(); });
 
 describe('the SQL filter mirrors packages/sim/src/nameFilter.ts', () => {
   const sqlList = (name: string): string[] => {
-    const m = new RegExp(`${name} constant text\\[\\] := array\\[([\\s\\S]*?)\\];`).exec(SQL);
+    const all = [...SQL.matchAll(new RegExp(`${name} constant text\\[\\] := array\\[([\\s\\S]*?)\\];`, 'g'))];
+    const m = all[all.length - 1]; // the last definition wins (2026-11-29 redefines name_verdict)
     if (!m) throw new Error(`no ${name} in the migration`);
     return [...m[1]!.matchAll(/'([^']*)'/g)].map((x) => x[1]!);
   };
@@ -160,8 +161,8 @@ describe('the guard where a name is written', () => {
 
   it('refuses a slur and flags the rest for a Duos team name', async () => {
     await expect(as('postgres', `update public.duos_teams set name = 'Spic Squad' where id = '${TEAM}'`)).rejects.toThrow(/name_blocked/);
-    await as('postgres', `update public.duos_teams set name = 'Nazi Gold' where id = '${TEAM}'`);
-    expect((await flags()).filter((x) => x.target_id === TEAM)).toMatchObject([{ kind: 'team', name: 'Nazi Gold', term: 'nazi', owner_user: A, status: 'open' }]);
+    await as('postgres', `update public.duos_teams set name = 'Wtf Gold' where id = '${TEAM}'`);
+    expect((await flags()).filter((x) => x.target_id === TEAM)).toMatchObject([{ kind: 'team', name: 'Wtf Gold', term: 'wtf', owner_user: A, status: 'open' }]);
   });
 
   it('the room Worker flags a room name with its secret (the SQL re-reads the name; a clean one is not stored)', async () => {
@@ -211,7 +212,7 @@ describe('the dashboard', () => {
     const q = await svc("public.moderation_queue('open', 'open', 50)");
     expect(q.counts.names).toBe(q.names.length);
     const team = q.names.find((n: Json) => n.kind === 'team');
-    expect(team).toMatchObject({ name: 'Nazi Gold', canReset: true, owner: { id: A, name: 'Kevin' }, current: { exists: true, name: 'Nazi Gold' } });
+    expect(team).toMatchObject({ name: 'Wtf Gold', canReset: true, owner: { id: A, name: 'Kevin' }, current: { exists: true, name: 'Wtf Gold' } });
     expect(team.current.members.map((m: Json) => m.name)).toEqual(['Kevin', 'Mike']);
     expect(q.names.find((n: Json) => n.kind === 'room')).toMatchObject({ canReset: false });
     const times = q.names.map((n: Json) => n.createdAt);
@@ -223,8 +224,8 @@ describe('the dashboard', () => {
     expect(s1.accounts).toMatchObject([{ id: OLD_FLAG, name: 'ShitLord', openFlag: true, verdict: { verdict: 'flag' } }]);
     const s2 = await svc("public.moderation_search('kevin#1111')");
     expect(s2.accounts.map((a: Json) => a.id)).toEqual([A]);
-    const s3 = await svc("public.moderation_search('nazi')");
-    expect(s3.teams).toMatchObject([{ id: TEAM, name: 'Nazi Gold', openFlag: true }]);
+    const s3 = await svc("public.moderation_search('wtf')");
+    expect(s3.teams).toMatchObject([{ id: TEAM, name: 'Wtf Gold', openFlag: true }]);
     expect((await svc("public.moderation_search('%')")).accounts).toEqual([]); // LIKE wildcards are literal
   });
 
@@ -270,7 +271,7 @@ describe('the dashboard', () => {
 
   it('reset a team: the name is cleared (the default "A & B" shows again), the flag closed, logged', async () => {
     const out = await svc('public.moderation_reset_name($1, $2, $3, null)', [ACTOR, 'team', TEAM]);
-    expect(out).toMatchObject({ before: { name: 'Nazi Gold' }, after: { name: null } });
+    expect(out).toMatchObject({ before: { name: 'Wtf Gold' }, after: { name: null } });
     expect((await db.query<Json>(`select name from public.duos_teams where id = '${TEAM}'`)).rows[0]!.name).toBeNull();
     expect((await flags()).filter((x) => x.target_id === TEAM)).toMatchObject([{ status: 'reset' }]);
     await expect(as('postgres', `update public.duos_teams set name = 'NAZI GOLD' where id = '${TEAM}'`)).rejects.toThrow(/name_blocked/);

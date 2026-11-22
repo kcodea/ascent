@@ -201,6 +201,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   const txt = getTitleText();
 
   const [editing, setEditing] = useState(false);
+  const [nameBlocked, setNameBlocked] = useState(false);
   const [draft, setDraft] = useState('');
   const [confirmClear, setConfirmClear] = useState(false); // two-step guard on the destructive Clear Run
   // A new player hitting Play is offered the tutorial first. Local: a transient nudge, and both of its buttons
@@ -334,8 +335,8 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   const unnamed = !playerName;
   const effectiveName = playerName || tempHandle(account.userId);
   const beginEdit = () => { setDraft(playerName); setEditing(true); };
-  // A name the filter blocks (R-NAME-FILTER-01) is not saved: the field stays open with a plain line under it.
-  const [nameBlocked, setNameBlocked] = useState(false);
+  // A name the filter blocks (R-NAME-FILTER-01) is not saved: the field stays open with a plain line under it (its state is
+  // declared with `editing`, above every early return).
   const commit = () => {
     if (isBlockedName(draft)) { setNameBlocked(true); return; }
     setNameBlocked(false);

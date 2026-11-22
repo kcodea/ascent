@@ -2,7 +2,9 @@ import './styles.css';
 import { lines, miniBar, sparkline, stackedBars } from './charts';
 import { MODE_ART, MODE_LABEL, SERIES, bucketLabel, dateIn, esc, int, place, pct, seriesValues, shortDay, titleCase, topHalfLabel } from './format';
 import { LIVE_POLL_MS, customRange, isLive, parseHash, presetRange, rangePhrase, toHash, type Preset, type Range } from './range';
-import type { Breakdown, GameData, GameMode, HeroRow, Overview, TribeRow } from './types';
+import type { BalanceData, Breakdown, GameData, GameMode, GameNames, HealthData, HeroRow, Overview, PlayersData, ProgressionData, SocialData, TribeRow } from './types';
+import { DEFAULT_FILTER, renderBalance, type BalFilter, type BalView } from './balance';
+import { SECTIONS, SECTION_LABEL, SECTION_MEDALLION, renderHealth, renderPlayers, renderProgression, renderSocial, sectionOfHash, withSection, type Section } from './sections';
 import { showModeration, wireModeration } from './moderation';
 import { viewOfHash, withView, type View } from './modLogic';
 
@@ -30,6 +32,13 @@ const state = {
   sample: false,
   updatedAt: 0,
   seq: 0, // the newest request; an older answer that lands late is dropped
+  sec: sectionOfHash(location.hash) as Section,
+  names: null as GameNames | null,
+  part: {} as { players?: PlayersData; social?: SocialData; progression?: ProgressionData; health?: HealthData; balance?: BalanceData },
+  bal: { ...DEFAULT_FILTER } as BalFilter,
+  balMode: 'ranked',
+  balSet: null as string | null, // null = not chosen yet: the live set once the game data is in; '' = all sets
+  animate: true, // the next render that has data plays the one-shot entrance
 };
 
 // ── The game's names + art (public/game-data.json, from scripts/sync-game.mts) ──────────────────────────────
@@ -69,6 +78,16 @@ function showError(e: unknown): void {
   el.hidden = false;
 }
 
+/** The long name lists (runes, Ancients, achievements, cosmetics, titles): fetched the first time a round-two part opens. */
+async function loadNames(): Promise<void> {
+  if (state.names) return;
+  try {
+    state.names = await getJson<GameNames>('/game-names.json');
+  } catch {
+    state.names = null; // ids show instead of names
+  }
+}
+
 async function loadGame(): Promise<void> {
   try {
     state.game = await getJson<GameData>('/game-data.json');
@@ -91,11 +110,23 @@ async function refresh(): Promise<void> {
   const q = rangeQuery();
   const bq = rangeQuery();
   if (state.patch) bq.set('patch', state.patch);
+  const sec = state.sec;
   try {
-    const [o, b] = await Promise.all([getJson<Overview>(`/api/overview?${q}`), getJson<Breakdown>(`/api/breakdown?${bq}`)]);
-    if (seq !== state.seq) return;
-    state.overview = o;
-    state.breakdown = b;
+    if (sec === 'overview') {
+      const [o, b] = await Promise.all([getJson<Overview>(`/api/overview?${q}`), getJson<Breakdown>(`/api/breakdown?${bq}`)]);
+      if (seq !== state.seq) return;
+      state.overview = o;
+      state.breakdown = b;
+    } else {
+      if (sec === 'balance') {
+        if (state.balSet == null) state.balSet = state.game?.setId ?? '';
+        q.set('mode', state.balMode);
+        if (state.balSet) q.set('set', state.balSet);
+      }
+      const [d] = await Promise.all([getJson<unknown>(`/api/${sec}?${q}`), loadNames()]);
+      if (seq !== state.seq) return;
+      (state.part as Record<string, unknown>)[sec] = d;
+    }
     state.updatedAt = Date.now();
   } catch (e) {
     if (seq !== state.seq) return;
@@ -200,6 +231,20 @@ function wireTips(): void {
     });
     el.addEventListener('pointerleave', () => { tip.hidden = true; });
   }
+  // Any element with a `data-tip` (the heatmap's cells): its text in the same bubble, as plain text.
+  document.addEventListener('pointermove', (ev) => {
+    const t = ev.target instanceof Element ? ev.target.closest('[data-tip]') : null;
+    if (!t) {
+      if (tip.dataset.from === 'tip') { tip.hidden = true; tip.dataset.from = ''; }
+      return;
+    }
+    tip.textContent = t.getAttribute('data-tip') ?? '';
+    tip.dataset.from = 'tip';
+    tip.hidden = false;
+    const r = tip.getBoundingClientRect();
+    tip.style.left = `${Math.max(8, Math.min(window.innerWidth - r.width - 8, ev.clientX + 14))}px`;
+    tip.style.top = `${Math.max(8, ev.clientY - r.height - 12)}px`;
+  });
 }
 
 // ── Tabs (the kit's flat tabs: the current one white with the gold underline) ───────────────────────────────
@@ -313,14 +358,55 @@ function render(): void {
   $('tz').textContent = state.overview?.tz ?? TZ;
   if (state.game) $('setline').textContent = `Live set: ${state.game.setId.replace(/^set/, 'Set ')} · ${state.game.activeTribes.map(tribeName).join(', ')}`;
   renderFilters(state.breakdown);
-  if (state.overview) { renderTiles(state.overview); renderSeries(state.overview); }
-  if (state.breakdown) {
-    renderModes(state.breakdown);
-    renderHeroes(state.breakdown);
-    renderTribes(state.breakdown);
-    renderMedals(state.breakdown);
+  renderSubnav();
+  const part = $('sec-' + state.sec);
+  const has = state.sec === 'overview' ? !!state.overview : !!(state.part as Record<string, unknown>)[state.sec];
+  if (state.animate && has) {
+    state.animate = false;
+    part.classList.add('dk-anim');
+    window.setTimeout(() => part.classList.remove('dk-anim'), 900); // a live re-read later never replays it
   }
+  if (state.sec === 'overview') {
+    if (state.overview) { renderTiles(state.overview); renderSeries(state.overview); }
+    if (state.breakdown) {
+      renderModes(state.breakdown);
+      renderHeroes(state.breakdown);
+      renderTribes(state.breakdown);
+      renderMedals(state.breakdown);
+    }
+  } else renderPart();
   tickUpdated();
+}
+
+// ── The parts of Analytics (Overview | Players | Live & social | Progression | Health & balance) ─────────────────
+function renderSubnav(): void {
+  const med = state.game?.medallions ?? {};
+  $('subnav').innerHTML = SECTIONS.map((s) => {
+    const art = med[SECTION_MEDALLION[s]];
+    return `<button type="button" class="dk-subtab" data-sec="${s}" aria-pressed="${s === state.sec}">${art ? img(art, 'dk-medallion', 40, true) : ''}<span>${esc(SECTION_LABEL[s])}</span></button>`;
+  }).join('');
+  for (const s of SECTIONS) $(`sec-${s}`).hidden = s !== state.sec;
+  $('build-field').hidden = state.sec !== 'overview'; // a build stamp only exists on the overview's rows
+}
+
+function renderPart(): void {
+  const el = $(`sec-${state.sec}`);
+  const ctx = { game: state.game, names: state.names, heroCell, tribeCell, img, chartWidth: Math.max(280, el.clientWidth - 48) };
+  const p = state.part;
+  if (state.sec === 'players' && p.players) el.innerHTML = renderPlayers(p.players, ctx);
+  else if (state.sec === 'social' && p.social) el.innerHTML = renderSocial(p.social, ctx);
+  else if (state.sec === 'progression' && p.progression) el.innerHTML = renderProgression(p.progression, ctx);
+  else if (state.sec === 'health' && p.health) el.innerHTML = renderHealth(p.health, ctx);
+  else if (state.sec === 'balance' && p.balance) el.innerHTML = renderBalance(p.balance, ctx, state.bal, { set: state.balSet ?? '', liveSet: state.game?.setId ?? '' });
+}
+
+function setSection(sec: Section): void {
+  if (sec === state.sec) return;
+  state.sec = sec;
+  state.animate = true;
+  history.replaceState(null, '', hashNow());
+  render(); // show the part (and what it last held) at once, then read it fresh
+  void refresh();
 }
 
 // ── Wiring ───────────────────────────────────────────────────────────────────────────────────────────────
@@ -352,6 +438,7 @@ function wire(): void {
     const next = parseHash(location.hash, today());
     state.patch = next.build;
     state.range = next.range;
+    state.sec = sectionOfHash(location.hash);
     void refresh();
   });
   // Live: no polling while the tab is hidden; one read on return, then the timer resumes.
@@ -373,14 +460,41 @@ function wire(): void {
   let raf = 0;
   window.addEventListener('resize', () => {
     cancelAnimationFrame(raf);
-    raf = requestAnimationFrame(() => { if (state.overview) { renderTiles(state.overview); renderSeries(state.overview); } });
+    raf = requestAnimationFrame(() => {
+      if (state.sec !== 'overview') renderPart();
+      else if (state.overview) { renderTiles(state.overview); renderSeries(state.overview); }
+    });
   });
   wireTips();
+  $('subnav').addEventListener('click', (ev) => {
+    const s = (ev.target as HTMLElement).closest<HTMLButtonElement>('button[data-sec]')?.dataset.sec as Section | undefined;
+    if (s) setSection(s);
+  });
+  // The balance view: mode + set are server filters (a fresh read); view, tribe, tier, sample and sort are local.
+  $('sec-balance').addEventListener('click', (ev) => {
+    const t = ev.target as HTMLElement;
+    const mode = t.closest('#bal-mode button')?.getAttribute('data-v');
+    if (mode && mode !== state.balMode) { state.balMode = mode; void refresh(); return; }
+    const view = t.closest('#bal-view button')?.getAttribute('data-v') as BalView | null;
+    if (view && view !== state.bal.view) { state.bal = { ...state.bal, view, sort: 'taken', dir: -1 }; renderPart(); return; }
+    const sort = t.closest('button[data-bsort]')?.getAttribute('data-bsort');
+    if (sort) {
+      state.bal = { ...state.bal, sort, dir: state.bal.sort === sort ? -state.bal.dir : sort === 'name' || sort === 'takenAvg' || sort === 'tier' ? 1 : -1 };
+      renderPart();
+    }
+  });
+  $('sec-balance').addEventListener('change', (ev) => {
+    const t = ev.target as HTMLSelectElement;
+    if (t.id === 'bal-set') { state.balSet = t.value; void refresh(); }
+    else if (t.id === 'bal-tribe') { state.bal = { ...state.bal, tribe: t.value }; renderPart(); }
+    else if (t.id === 'bal-tier') { state.bal = { ...state.bal, tier: Number(t.value) || 0 }; renderPart(); }
+    else if (t.id === 'bal-min') { state.bal = { ...state.bal, min: Number(t.value) || 0 }; renderPart(); }
+  });
 }
 
 // ── The two views (Analytics | Moderation), in the nav; the view rides the URL hash with the range ───────────────
 let view: View = viewOfHash(location.hash);
-const hashNow = (): string => withView(toHash(state.range, state.patch), view);
+const hashNow = (): string => withSection(withView(toHash(state.range, state.patch), view), state.sec);
 function setView(v: View, push = true): void {
   view = v;
   $('view-analytics').hidden = v !== 'analytics';

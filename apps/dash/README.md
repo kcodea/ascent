@@ -93,6 +93,85 @@ The page has no runtime import of game code; it reads the generated `/game-data.
   rows, so that is far off. With the 60 s cache, a page left open on "All time" costs at most one such read a minute.
   If the tables ever grow past ~10x this, the next step is a nightly per-day rollup table, not a cap.
 
+## The other parts (round two, `supabase/migrations/2026-11-29-analytics-v2.sql`)
+
+Analytics has six parts, each a medallion tab (`#...&sec=players`): Overview, Players, Live & social, Progression,
+Health, Balance (owner 2026-11-22: "separate health and balance"; the old combined tab was `sec=health`, which still opens
+Health). Each part is one service-role-only RPC behind the same guard and 60 s cache, read only while it is open, so
+opening Health never pays for the balance scans.
+
+| Metric | Source (table.column) |
+|---|---|
+| New players, day-1 / 7 / 30 return, weekly cohorts | `analytics.first_game_at()` (the first finished game across run_history, practice_games, versus_matches, versus_group_seats, tutorial progression_results), then any later finished game. A return counts only after its whole window has passed. |
+| DAU / WAU / MAU, stickiness | distinct `user_id` of `analytics.player_games` over the 1 / 7 / 30 days ending at the range end; stickiness = average daily / monthly |
+| Games per player | `analytics.player_games` grouped by `user_id` |
+| Hours played | `run_history.entry->>'activeMs'` (lobby) + `practice_games.tp_active_ms` (practice). Versus records no play clock. |
+| When games finish | `analytics.player_games.at` by ISO weekday x hour, viewer time zone |
+| Online / in a game / by mode now | `player_presence.status`, `.mode`, `.updated_at` (last 5 minutes) |
+| Watching now | `spectate_presence.at` (last 3 minutes) |
+| Versus matches by mode | `versus_matches` (phase complete) + `versus_group_matches.options->>'mode'` (dev-forced skipped) |
+| Duos teams formed | `duos_teams.created_at` |
+| Friend requests / friends made / totals | `friendships.created_at`, `.accepted_at`, `.status` |
+| Game invites, accept rate | `friend_invites.kind`, `.status`, `.created_at` |
+| Messages sent | `count(direct_messages)` by `created_at` (never `body`; only the last ~24 h exist) |
+| Players per division now | `profiles.rank_division` where `rank_season` = the newest `rank_results.season` and the player has a result in it |
+| Points movement | `rank_results.applied_delta`, `.promoted`, `.demoted`, `.division_before`, `.created_at` |
+| Account levels | `profiles.account_level` where `account_xp > 0` |
+| Achievements per bucket, most / rarest | `achievement_completions.completed_at`, `.achievement_id` (+ `achievement_catalog` for the zeros); names from `@game/progression` ACHIEVEMENTS |
+| Most equipped cosmetics, worn titles | `cosmetic_loadouts.cosmetic_id` (+ `cosmetic_catalog.category`), `profiles.equipped_title_id`; names from COSMETICS / TITLES |
+| Crash reports | `client_crash_reports.created_at`, `.build`, `.last_step` |
+| Bug reports | `bug_reports.created_at`, `.status`, `.severity` |
+| Daily health check | `ops.health_status`, `ops.health_latest` (check_name, status, source, ts) |
+| Database size, biggest tables | `pg_database_size`, `pg_total_relation_size` vs the Free plan's 500 MB |
+| Retention cleanup | `ops.retention_rules` (last run, deleted, errors) + the last 7 `ops.events` where `source = 'retention'` |
+
+## The dev balance view (the Balance tab)
+
+Owner 2026-11-22: "add minion, spell, and rune balance data to the balance page ... this will become our new dev
+balance view". Views: Heroes, Tribes, Ancients, Minions, Spells, Runes. Filters: mode (ranked lobby default, unrated,
+all lobby) and set (live set default) are server filters; tribe, tier, minimum sample and the sort are on the page.
+
+**Method (the in-game Balance Report's, owner ruling 2026-09-22).** A "runs that had X vs everyone else" placement gap
+is a survival statistic, so cards and runes are compared at EQUAL ACCESS, and the page says "association, not causation":
+
+| View | Compared | Raw or adjusted | Source |
+|---|---|---|---|
+| Minions, spells | runs that took it (shop or Discover) vs runs whose shop or Discovers showed it and passed; one observation per run | **raw at equal access**: not stratified by round band or shop tier | `run_telemetry.offered_cards`, `bought_cards`, `discover_offered_cards`, `discover_bought_cards`, `placement`, `player_key`, `set_id`, `unrated` |
+| Runes | runs that picked it vs runs offered it at the forge that skipped it (equal forge access) | **raw at equal forge access**; the forge turn is not recorded | `run_telemetry.offered_runes`, `picked_runes` |
+| On final board (minions) | runs whose final board held it, their average place, how many golden | **raw, survival-biased** (labelled so) | `run_history.entry->'board'->'minions'[].cardId` / `.golden` |
+| Heroes, Ancients | every game with it vs the field average | **raw** | ranked `run_history.hero_id`, `entry->'board'->'ancient'->>'id'` |
+| Tribes | the final board's top tribe vs the field | **raw, survival-biased** | `run_history.entry->>'dominantTribe'` |
+| Field | every lobby run in the filter | n/a | `run_telemetry.placement` |
+| Names, art, tier, tribe, set | build time (`scripts/sync-game.mts` → `game-names.json`) | n/a | `ALL_CARDS`, `poolFor(set)`, `art/minions`, `art/spells`, `art/runes` |
+
+Per item: runs taken of runs seen, take / pick rate, unique players, average place taken vs passed, the difference in
+the report's v2 words ("1.1 better", "0.6 worse", "no clear difference", "insufficient comparable data") from a 95% Welch
+interval (only at 5+ a side), the report's evidence gates (Candidate = 10+ a side and 3+ players; Supported = 20+ and 5+;
+else Insufficient evidence, dimmed), and a sparkline of the takers' average place per week (per month past ~4 months).
+
+**Cost and the rollup.** Reading every run's card arrays live took ~70 s for All time at 50k runs, so cards and runes
+read `analytics.balance_daily`: one row per (UTC day, mode, set, card or rune, taken or passed) with additive sums
+(count, placement sum, sum of squares, top-4) and up to 10 distinct player keys. A pg_cron job (`analytics-balance-rollup`,
+03:47 UTC) rolls up each finished UTC day; the migration backfills once; today is always read live. Unique players are
+exact below 10 and shown as 10+ above (the gates need 3 and 5). Card / rune days are UTC days.
+
+**What the data cannot support here (so the page does not fake it):**
+- The ADJUSTED association (first affordable offer, round band × shop tier strata): it needs each run's per-offer wave and
+  gold in `run_telemetry.derived` (~100 kB a run). The in-game Balance Report computes it client-side; this view shows
+  the raw equal-access numbers and says so.
+- "Alive at the same round": not recorded per offer server-side (the in-game report does not do it either).
+- Spells CAST: only taken (bought) is in the flat columns; casts sit in `derived`.
+- The rune forge turn: not recorded, so runes are compared at forge access, not at the same round.
+- Stacked streams: the flat arrays can carry an earlier run from the same browser session (the in-game report reads
+  `derived` by its last wave segment instead); a known source of noise in these raw counts.
+
+Cost at ~50k games (bench, PGlite under load, so conservative): see the table in the PR / devlog; Health is ~30 ms at
+any range, the Balance tab ~0.15 s for 7 days and a few seconds for All time, cached 60 s.
+
+Not supported elsewhere: Gauntlet games (no per-game row); DMs beyond the last day (pruned hourly); Versus rooms (the room
+table is retired, so only finished matches count); a live Live Games count (the directory is in the Worker); play time
+for Versus.
+
 ## Run it locally (made-up data)
 
 - `npm run dash:dev` starts Vite at http://localhost:5190 with a FIXTURE `/api/*` (src/fixture.ts, every number

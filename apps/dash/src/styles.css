@@ -325,3 +325,152 @@ code { color: var(--ph-text); }
   th, td { padding: 5px 8px; }
   .portring { --ring: 40px; }
 }
+
+/* ══ ROUND TWO (owner 2026-11-22: "make it more visually appealing", Mike's site as the bar) ═══════════════════════
+   Borrowed from apps/site's composition (reference only, nothing copied): a title band on the game's own home scene
+   with the title crest, eyebrows flanked by fading gold rules, a gilded diamond on every section heading, quiet
+   one-shot entrances. Still the Docked rail plates and tokens above. Motion is transform / opacity only, one-shot,
+   and off under prefers-reduced-motion. */
+
+/* The title band: the title screen's home scene (art as drawn, darkened only by a veil laid over it). */
+.dk-heroband { position: relative; isolation: isolate; overflow: hidden; display: flex; align-items: flex-end; min-height: 232px; margin-top: 20px;
+  padding: 28px 36px; clip-path: var(--ph-clip); box-shadow: var(--ph-gild), 0 14px 36px rgba(0, 0, 0, 0.45); background: #0a1730; }
+.dk-heroart { position: absolute; inset: 0; z-index: -2; width: 100%; height: 100%; object-fit: cover; object-position: 50% 38%; }
+.dk-heroband::before { content: ''; position: absolute; inset: 0; z-index: -1;
+  background: linear-gradient(90deg, rgba(6, 12, 28, 0.94) 0%, rgba(6, 12, 28, 0.72) 34%, rgba(6, 12, 28, 0.16) 72%, rgba(6, 12, 28, 0.32) 100%),
+    linear-gradient(180deg, rgba(6, 12, 28, 0.15) 40%, rgba(6, 12, 28, 0.75) 100%); }
+.dk-herobody { display: flex; align-items: center; gap: 22px; min-width: 0; }
+.dk-herocrest { flex: none; width: 108px; height: 108px; filter: drop-shadow(0 6px 12px rgba(4, 8, 20, 0.8)) drop-shadow(0 0 22px rgba(230, 180, 90, 0.35)); }
+.dk-herotext { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.dk-herotext h1 { margin: 0; font-weight: 900; font-size: 46px; line-height: 1; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ph-ink);
+  text-shadow: 0 3px 0 rgba(4, 8, 20, 0.55), 0 0 32px rgba(47, 186, 255, 0.25), 0 6px 24px rgba(4, 8, 20, 0.85); }
+.dk-herotext .dk-pagesub { margin: 0; color: var(--ph-text); }
+.dk-eyebrow { display: inline-flex; align-items: center; gap: 0.8em; }
+.dk-eyebrow::after { content: ''; width: 3em; height: 1px; background: linear-gradient(90deg, var(--ph-gold), transparent); }
+
+/* Section headings wear a gilded diamond and trail a fading gold rule. */
+.dk-sechead h2 { display: inline-flex; align-items: center; gap: 10px; }
+.dk-sechead h2::before { content: ''; flex: none; width: 8px; height: 8px; transform: rotate(45deg);
+  background: linear-gradient(135deg, var(--ui-edge-hi), var(--ui-edge-main) 55%, var(--ui-edge-deep)); box-shadow: 0 0 0 2px rgba(6, 12, 28, 0.6); }
+.dk-h3 { margin: 4px 0 8px; font-weight: 800; font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ui-title); }
+
+/* The parts of Analytics: medallion tabs (the game's own medallion art). */
+.dk-subnav { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding: 2px 2px 4px; }
+.dk-subnav::-webkit-scrollbar { display: none; }
+.dk-subtab { flex: none; display: inline-flex; align-items: center; gap: 10px; min-height: 52px; padding: 6px 18px 6px 8px; margin: 0; border: 0; border-radius: 0;
+  background: var(--ph-plate); box-shadow: var(--ph-gild-s); clip-path: var(--ph-clip-s); font: inherit; font-weight: 800; font-size: 14px; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--ph-muted); text-shadow: var(--ph-shadow); transition: transform 0.14s cubic-bezier(0, 0, 0.2, 1), color 0.12s ease; }
+.dk-subtab:hover { color: var(--ph-ink); transform: translateY(-1px); }
+.dk-subtab[aria-pressed='true'] { color: var(--ph-ink); background: var(--ph-plate-hover); box-shadow: var(--ph-gild), inset 0 -3px 0 var(--pill-gold); }
+.dk-medallion { width: 38px; height: 38px; flex: none; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.6)); }
+.dk-subtab:not([aria-pressed='true']) .dk-medallion { opacity: 0.72; }
+.dk-part { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.dk-part[hidden] { display: none; }
+
+/* Grids */
+.dk-stats-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.dk-stats-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.dk-stat { transition: transform 0.16s cubic-bezier(0, 0, 0.2, 1); }
+.dk-stat:hover { transform: translateY(-2px); }
+.dk-statval { font-size: 40px; }
+.dk-split { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
+.dk-split.inner { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 12px; }
+
+/* Bar lists, ranked lists, mini numbers */
+.dk-bars { display: flex; flex-direction: column; gap: 2px; }
+.dk-bar { display: grid; grid-template-columns: minmax(0, 1fr) minmax(60px, 180px) minmax(64px, auto); align-items: center; gap: 12px; padding: 5px 0; box-shadow: inset 0 -1px 0 var(--grid); }
+.dk-bar svg { width: 100%; height: 8px; }
+.dk-barlbl { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; color: var(--ph-text); }
+.dk-barn { text-align: right; font-weight: 800; color: var(--ph-ink); font-variant-numeric: tabular-nums; }
+.dk-rank { margin: 0; padding: 0; list-style: none; counter-reset: rk; }
+.dk-rank li { counter-increment: rk; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 7px 4px; box-shadow: inset 0 -1px 0 var(--grid); }
+.dk-rank li::before { content: counter(rk); flex: none; width: 22px; font-weight: 900; color: var(--ui-title); }
+.dk-rankname { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; color: var(--ph-text); }
+.dk-mini { display: flex; flex-wrap: wrap; gap: 16px 32px; }
+.dk-mini > div { display: flex; flex-direction: column; gap: 2px; }
+.dk-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+
+/* Live now */
+.dk-now { display: flex; flex-direction: column; gap: 10px; }
+.dk-nowhead { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 0 4px; }
+.dk-nowhead .dk-live { display: inline-flex; align-items: center; gap: 8px; height: 28px; padding: 0 12px; background: var(--ph-well); clip-path: var(--ph-clip-s);
+  font-weight: 900; font-size: var(--ph-t1); letter-spacing: 0.14em; text-transform: uppercase; }
+.dk-stat .dk-chip { margin: 2px 4px 0 0; }
+
+/* The ladder: a rung per medal (its crest), three division bars each */
+.dk-ladder { display: flex; flex-direction: column; gap: 6px; }
+.dk-rung { display: grid; grid-template-columns: 220px minmax(0, 1fr); align-items: center; gap: 16px; padding: 6px 0; box-shadow: inset 0 -1px 0 var(--grid); }
+.dk-rungmedal { display: grid; grid-template-columns: 48px 1fr; grid-template-rows: auto auto; column-gap: 12px; align-items: center; }
+.dk-rungmedal .dk-crest { grid-row: 1 / 3; width: 48px; height: 48px; }
+.dk-rungdivs .dk-bar { padding: 2px 0; box-shadow: none; }
+.dk-crest.sm { width: 36px; height: 36px; }
+.dk-row.slim { min-height: 52px; }
+.dk-rownum.pos { color: var(--ph-teal); }
+.dk-rownum.neg { color: #ff9a9a; }
+.dk-icon { width: 36px; height: 36px; flex: none; object-fit: cover; border-radius: 8px; box-shadow: 0 0 0 1.5px var(--ui-edge-main), 0 1px 3px rgba(0, 0, 0, 0.6); }
+
+/* Health: status pills carry an icon dot AND a word (never colour alone) */
+.dk-pill { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px; clip-path: var(--ph-clip-s); background: var(--ph-well);
+  font-weight: 900; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; }
+.dk-pill i { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.dk-pill.ok { color: var(--ph-teal); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ph-teal) 45%, transparent); }
+.dk-pill.bad { color: var(--pill-red); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pill-red) 50%, transparent); }
+.dk-pill.na { color: var(--ph-muted); box-shadow: inset 0 0 0 1px var(--ph-hair); }
+.dk-healthhead { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; font-weight: 700; }
+.dk-checks { display: flex; flex-direction: column; }
+.dk-check { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto auto; column-gap: 12px; padding: 8px 0; box-shadow: inset 0 -1px 0 var(--grid); }
+.dk-check .dk-rowtitle { font-size: 15px; }
+.dk-check .dk-pill { grid-row: 1 / 3; grid-column: 2; align-self: center; }
+.dk-dbhead { display: flex; align-items: baseline; gap: 12px; }
+.dk-meterwrap svg { width: 100%; height: auto; display: block; margin: 6px 0 10px; }
+.meter .bg { fill: rgba(0, 0, 0, 0.45); }
+.meter.ok .fg { fill: var(--ph-teal); } .meter.warn .fg { fill: var(--pill-gold); } .meter.bad .fg { fill: var(--pill-red); }
+.trend .trend-mid { stroke: var(--grid); stroke-width: 1; stroke-dasharray: 3 3; }
+.hm { fill: var(--s1); }
+.hm:hover { stroke: var(--ui-edge-hi); stroke-width: 1.5; }
+.g1 stop { stop-color: var(--s1); } .g2 stop { stop-color: var(--s2); } .g3 stop { stop-color: var(--s3); }
+.g4 stop { stop-color: var(--s4); } .g5 stop { stop-color: var(--s5); } .g6 stop { stop-color: var(--s6); }
+.f5 { fill: var(--s5); } .l4 { stroke: var(--s4); } .l5 { stroke: var(--s5); } .l6 { stroke: var(--s6); }
+
+/* One-shot entrances (transform / opacity only), never on a live re-read: the part gets `dk-anim` when it is opened. */
+@keyframes dk-rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: no-preference) {
+  .dk-herobody { animation: dk-rise 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; }
+  .dk-part.dk-anim > * { animation: dk-rise 0.36s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; }
+  .dk-part.dk-anim > :nth-child(2) { animation-delay: 40ms; } .dk-part.dk-anim > :nth-child(3) { animation-delay: 80ms; }
+  .dk-part.dk-anim > :nth-child(4) { animation-delay: 120ms; } .dk-part.dk-anim > :nth-child(5) { animation-delay: 160ms; }
+  .dk-part.dk-anim > :nth-child(n + 6) { animation-delay: 200ms; }
+}
+@media (prefers-reduced-motion: reduce) { .dk-stat, .dk-subtab { transition: none; } }
+
+@media (max-width: 960px) {
+  .dk-stats-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dk-split, .dk-split.inner { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 760px) {
+  .dk-heroband { min-height: 170px; padding: 18px 18px; margin-top: 12px; }
+  .dk-herocrest { width: 64px; height: 64px; }
+  .dk-herotext h1 { font-size: 32px; }
+  .dk-stats-3 { grid-template-columns: minmax(0, 1fr); }
+  .dk-statval { font-size: 32px; }
+  .dk-subtab { min-height: 44px; padding: 4px 12px 4px 6px; font-size: 12px; }
+  .dk-medallion { width: 30px; height: 30px; }
+  .dk-rung { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .dk-bar { grid-template-columns: minmax(0, 1fr) minmax(50px, 110px) auto; gap: 8px; }
+}
+.dk-trendcell { display: inline-flex; align-items: center; gap: 10px; }
+.dk-drift { min-width: 56px; text-align: right; font-weight: 800; font-size: 12px; }
+.dk-drift.pos { color: var(--ph-teal); } .dk-drift.neg { color: #ff9a9a; }
+
+/* ── The dev balance view ── */
+.dk-note { padding: 12px 16px; background: var(--ph-well); box-shadow: inset 3px 0 0 var(--pill-gold), var(--ph-gild-s); clip-path: var(--ph-clip-s);
+  font-size: var(--ph-t1); line-height: 1.5; color: var(--ph-text); }
+.dk-note b { color: var(--ui-title); }
+.dk-balfilters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 16px; }
+.dk-balfilters select.dk-well { width: auto; min-width: 140px; }
+.dk-cardwho { display: flex; flex-direction: column; min-width: 0; }
+.dk-verdict { display: block; font-weight: 800; white-space: nowrap; }
+.dk-verdict.pos { color: var(--ph-teal); } .dk-verdict.neg { color: #ff9a9a; } .dk-verdict.flat { color: var(--ph-text); } .dk-verdict.na { color: var(--ph-muted); font-weight: 600; }
+.dk-ev { display: block; font-size: 11px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ph-muted); }
+.dk-ev.candidate { color: var(--pill-gold); } .dk-ev.supported { color: var(--ph-teal); }
+.dk-baltable td:nth-child(7) { text-align: left; }

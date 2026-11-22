@@ -60,6 +60,10 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Steel style titles, like Absolute Unit, no longer show a small red diamond after the name.',
+      },
+      {
+        category: 'Systems',
         text: 'If the desktop game crashes, it now asks to reload instead of leaving a blank window.',
         details: [
           'Pick Reload to keep playing, or Quit to close the game.',

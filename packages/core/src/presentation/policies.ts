@@ -1336,7 +1336,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_loyal_customer:combat': { policy: 'foldedCue', family: 'combatModifier' }, // every 4th minion bought is free (Shop)
   // ── Set 2 rune batch, Basic tribal (owner review 2026-11-12) ──
   'rune:rune_deep_pockets:recruit': { policy: 'ownBeat', family: 'runeMechanic' },    // first 8 Gold spent each turn: a random Dwarf
-  'rune:rune_rowdy_crowd:recruit': { policy: 'ownBeat', family: 'runeMechanic' },     // 4 cards played in a turn: your Dwarves +2/+2
+  'rune:rune_rowdy_crowd:recruit': { policy: 'ownBeat', family: 'runeMechanic' },     // every 4 cards played: your Dwarves +2/+3
   'rune:rune_bloodscent:combat': { policy: 'foldedCue', family: 'combatModifier' },   // a Beast's kill: it gains +4/+4 permanently
   'rune:rune_last_howl:combat': { policy: 'foldedCue', family: 'combatModifier' },    // the first Echo Beast to die each combat returns
   'rune:rune_trophy_hunter:combat': { policy: 'foldedCue', family: 'combatModifier' }, // a Beast's kill: 1 Gold next turn (3 per combat)

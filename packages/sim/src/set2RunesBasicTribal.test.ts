@@ -50,7 +50,7 @@ describe('the fourteen runes as content', () => {
   it('Basic, Set 2 only, tribe gate, doc texts verbatim, owner costs', () => {
     const rows: [string, string, number, string, string][] = [
       ['rune_deep_pockets', 'Deep Pockets', 3, 'dwarf', 'The first time you spend **8 Gold** each turn, get a random **Dwarf**.'],
-      ['rune_rowdy_crowd', 'Rowdy Crowd', 2, 'dwarf', 'After you play **4** cards in a turn, give your **Dwarves +2/+2**.'],
+      ['rune_rowdy_crowd', 'Rowdy Crowd', 2, 'dwarf', 'When you play **4** cards, give your **Dwarves +2/+3**.'],
       ['rune_bloodscent', 'Bloodscent', 1, 'beast', 'When a **Beast** kills a minion, it gains **+4/+4** permanently.'],
       ['rune_last_howl', 'Last Howl', 3, 'beast', 'Resummon the first **Beast** with an **Echo** that dies each combat.'],
       ['rune_trophy_hunter', 'Trophy Hunter', 2, 'beast', 'When a **Beast** kills a minion, gain **1 Gold** next turn. (3 per combat.)'],
@@ -94,16 +94,23 @@ describe('Deep Pockets (the gold meter, a per-turn window, once a turn)', () => 
 });
 
 describe('Rowdy Crowd', () => {
-  it('the 4th card played in a turn gives the board Dwarves +2/+2 (permanent), once a turn; not hand Dwarves, not others', () => {
+  it('every 4th card played gives the board Dwarves +2/+3 (permanent); not hand Dwarves, not others', () => {
     const s = withRunes(['rune_rowdy_crowd'], { board: [body('a', 'dw_orin'), body('b', 'b2_trex')], hand: [body('h', 'dw_brakka')] });
     advanceRuneThresholds(s, 'cardsPlayed', 3);
     expect(sumFrom(s.board[0], 'Rowdy Crowd')).toEqual([0, 0]);
     advanceRuneThresholds(s, 'cardsPlayed', 1);
-    expect(sumFrom(s.board[0], 'Rowdy Crowd')).toEqual([2, 2]);
+    expect(sumFrom(s.board[0], 'Rowdy Crowd')).toEqual([2, 3]);
     expect(sumFrom(s.board[1], 'Rowdy Crowd')).toEqual([0, 0]);
     expect(sumFrom(s.hand[0], 'Rowdy Crowd')).toEqual([0, 0]);
     advanceRuneThresholds(s, 'cardsPlayed', 4);
-    expect(sumFrom(s.board[0], 'Rowdy Crowd'), 'once per turn').toEqual([2, 2]);
+    expect(sumFrom(s.board[0], 'Rowdy Crowd'), 'pays again the same turn').toEqual([4, 6]);
+  });
+  it('the count carries across turns (R-SET2-TRIBAL-RUNES-06)', () => {
+    let s = withRunes(['rune_rowdy_crowd'], { board: [body('a', 'dw_orin')] });
+    advanceRuneThresholds(s, 'cardsPlayed', 3);
+    s = nextTurn(s);
+    advanceRuneThresholds(s, 'cardsPlayed', 1);
+    expect(sumFrom(s.board[0], 'Rowdy Crowd')).toEqual([2, 3]);
   });
 });
 

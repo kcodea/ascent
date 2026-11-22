@@ -2929,10 +2929,10 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-SET2-TRIBAL-RUNES-01',
-    title: 'Deep Pockets and Rowdy Crowd are per-turn windows that pay once a turn',
+    title: 'Deep Pockets is a per-turn window that pays once a turn',
     statement:
       'A threshold rune that counts "each turn" or "in a turn" (Deep Pockets: the first 8 Gold spent each turn gets a random '
-      + 'Dwarf; Rowdy Crowd: the 4th card played in a turn gives your board Dwarves +2/+2) starts every turn at 0, pays at most '
+      + 'Dwarf) starts every turn at 0, pays at most '
       + 'once that turn, and carries no remainder across the rollover. Its badge reads x/N and stays full once it has paid.',
     domain: 'runes',
     status: 'approved',
@@ -2940,10 +2940,28 @@ export const RUNES_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Owner review 2026-11-12 (docs/design/2026-11-12-set2-rune-batch.md, Basic tribal)', quote: 'The first time you spend 8 Gold each turn, get a random Dwarf.' },
       { kind: 'code', ref: 'packages/sim/src/reducer.ts the turn setup re-arm (resetEachTurn); packages/sim/src/recruit.ts advanceRuneThresholds' },
     ],
-    contentIds: ['rune_deep_pockets', 'rune_rowdy_crowd'],
-    currentBehaviour: 'Conforms as of 2026-11-13 (new runes). The `resetEachTurn` field existed on the threshold engine but was never read until now.',
+    contentIds: ['rune_deep_pockets'],
+    currentBehaviour: 'Conforms as of 2026-11-13 (new runes; Rowdy Crowd left this rule 2026-11-22, see R-SET2-TRIBAL-RUNES-06). The `resetEachTurn` field existed on the threshold engine but was never read until now.',
     example: 'Spend 5 Gold this turn and 3 next turn: no Dwarf. Spend 16 Gold in one turn: one Dwarf.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2RunesBasicTribal.test.ts'], lastVerifiedAt: '2026-11-13' },
+  },
+  {
+    id: 'R-SET2-TRIBAL-RUNES-06',
+    title: 'Rowdy Crowd pays every 4 cards played, counting across turns',
+    statement:
+      'Rowdy Crowd counts every card you play on one running meter that never resets at the turn rollover. Each time it '
+      + 'reaches 4 it gives your board Dwarves +2/+3 permanently and starts again, so it can pay more than once a turn. Its '
+      + 'badge reads x/4 as the countdown.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-22', quote: 'change this to "when you play 4 cards, give your dwarves +2/+3" ... every 4 cards is what i meant' },
+      { kind: 'code', ref: 'packages/content/src/runes.ts rune_rowdy_crowd; packages/sim/src/recruit.ts advanceRuneThresholds' },
+    ],
+    contentIds: ['rune_rowdy_crowd'],
+    currentBehaviour: 'Conforms as of 2026-11-22.',
+    example: 'Play 3 cards this turn and 1 next turn: Dwarves +2/+3. Play 8 cards in one turn: Dwarves +4/+6.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2RunesBasicTribal.test.ts'], lastVerifiedAt: '2026-11-22' },
   },
   {
     id: 'R-SET2-TRIBAL-RUNES-02',

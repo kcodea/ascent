@@ -59,7 +59,9 @@ class_name = "PoolMirror"
 
 [triggers]
 # Every 5 minutes: the pool mirror's sync. 06:17 UTC: THE DAILY HEALTH CHECK (R-OPS-HEALTH-01; `HEALTH_CRON` in
-# src/health/healthProtocol.ts must match it). hubWorker.ts `scheduled` dispatches on the cron string.
+# src/health/healthProtocol.ts must match it). hubWorker.ts `scheduled` dispatches on the cron string. With the alert
+# webhook secret set, the 5-minute ticks also run the crash-spike alert (quarter-hourly) and the 06:20 UTC daily crash
+# summary (R-OPS-HEALTH-04, src/health/crashAlert.ts; the optional var CRASH_DAILY_SUMMARY = "off" turns the summary off).
 crons = ["*/5 * * * *", "17 6 * * *"]
 
 [[migrations]]

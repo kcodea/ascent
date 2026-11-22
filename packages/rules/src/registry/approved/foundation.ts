@@ -13568,6 +13568,31 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['workers/versus/test/healthAlert.test.ts'], lastVerifiedAt: '2026-11-22' },
   },
   {
+    id: 'R-OPS-HEALTH-04',
+    title: 'A crash spike alerts on Discord once per platform, not once per crash, and the morning brings one crash summary',
+    statement:
+      'With the alert webhook set (R-OPS-HEALTH-03), the hub checks the crash reports every 15 minutes. A platform is in a '
+      + 'spike when its last hour has at least 5 reports and at least 3 times its normal hourly rate over the last 7 days, '
+      + 'or when an app version or a crash kind first seen in the last 24 hours has at least 3 reports from at least 2 '
+      + 'players in the hour (a bad build). The first spike posts one message at once naming the platform, the count against '
+      + 'normal, the kinds, the app versions, the players affected, the top 3 messages and where to look; while it lasts, at '
+      + 'most one more message per platform every 2 hours; after 30 quiet minutes, one "back to normal". Each day at 06:20 UTC '
+      + 'one message gives yesterday\x27s crash reports by platform and kind against the 7-day average, the top 3 messages and '
+      + 'that morning\x27s health check result; a day with no crash reports posts nothing. Performance logs never count as '
+      + 'crashes. Messages mention nobody and never carry an email, a user id, a user agent or a stack. Without the webhook '
+      + 'secret nothing is asked, sent or stored. Supabase answers with a key-gated digest of counts only, fast enough for '
+      + 'the anon role\x27s 3 s ceiling on a cold database.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-11-22', quote: 'Discord alerts for player CRASH SPIKES (not one message per crash)' },
+      { kind: 'code', ref: 'workers/versus/src/health/crashAlert.ts; workers/versus/src/health/hubHealth.ts (runCrashWatch); workers/versus/src/hubWorker.ts (scheduled); workers/versus/src/liveDirectory.ts (crashAlertState); supabase/migrations/2026-11-30-ops-crash-digest.sql' },
+    ],
+    currentBehaviour: 'Built 2026-11-22 (feat/crash-spike-alerts). Off until 2026-11-30-ops-crash-digest.sql is applied and the hub is redeployed with ALERT_DISCORD_WEBHOOK set. The summary turns off with the hub var CRASH_DAILY_SUMMARY=off.',
+    example: 'A phone build ships at 13:40 and starts crashing in combat. At 14:30 the channel gets "ASCENT crashes: phone crash spike": 14 reports from 9 players, normal 0.6 an hour, the new build 0.42.0, top message "combat start". Nothing more until 16:30 ("still high"). A hotfix lands at 17:00; at 17:45 the channel gets "phone back to normal". The next morning at 06:20 one message sums up yesterday with the health check line.',
+    enforcement: { kind: 'scenario', refs: ['workers/versus/test/crashAlert.test.ts', 'workers/versus/test/opsCrashDigest.db.test.ts'], lastVerifiedAt: '2026-11-22' },
+  },
+  {
     id: 'R-PING-09',
     title: 'A quick right-click inspects; holding right-click for 170 ms pings',
     statement:

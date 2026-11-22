@@ -22,6 +22,7 @@ import { LiveDirCore, cleanPut, type DirEntry, type DirReader } from './core/liv
 import { ACTIVITY_PREFIX, ActivityTally } from './core/liveActivity';
 import type { ActivityHour, HubActivity } from './health/healthProtocol';
 import { ALERT_STATE_KEY, type AlertState } from './health/healthAlert';
+import { CRASH_ALERT_STATE_KEY, type CrashAlertState } from './health/crashAlert';
 import { LIVE_DIR_META_TTL_MS, type LiveDirPut, type LiveDirRank, type LiveDirRow } from './liveDirProtocol';
 import type { HubStoreEnv } from './dmStore';
 
@@ -205,6 +206,13 @@ export class LiveDirectory extends DurableObject<LiveDirEnv> {
   }
   async setAlertState(s: AlertState): Promise<void> {
     await this.ctx.storage.put(ALERT_STATE_KEY, s);
+  }
+  /** The crash-spike alert's state (R-OPS-HEALTH-04, `health/crashAlert.ts`), beside the health alert's. */
+  async crashAlertState(): Promise<CrashAlertState | null> {
+    return (await this.ctx.storage.get<CrashAlertState>(CRASH_ALERT_STATE_KEY)) ?? null;
+  }
+  async setCrashAlertState(s: CrashAlertState): Promise<void> {
+    await this.ctx.storage.put(CRASH_ALERT_STATE_KEY, s);
   }
 
   /** The health check's activity read (`GET /ops/activity`, and the hub's cron in-process). Counts only. */

@@ -147,12 +147,23 @@ alert: the watchdog lives on the same Worker. Covering that needs something outs
 monitor on `https://ascent-hub.team-ascent.workers.dev/health`. Email is not wired: the stack has no email sender
 (Supabase sends only its own auth mails). Both are follow-ups.
 
+### Crash spikes and the morning summary (R-OPS-HEALTH-04)
+
+The same webhook also carries crash alerts (posted as "ASCENT crashes"). Every 15 minutes the hub asks Supabase for the
+crash digest (`public.ops_crash_digest`, key-gated like the probe) and posts when a platform spikes or a new build is
+crashing; at 06:20 UTC it posts yesterday's crash totals with one line for this morning's health check, so the morning
+message is the one place to look. The rule, the thresholds, the messages and the SQL are in
+[`crash-reports.md`](crash-reports.md#alerts-discord). It needs `2026-11-30-ops-crash-digest.sql` applied; until then
+the hub logs `crash_alert_failed` once per quarter hour and posts nothing. Its state is a second record,
+`ops:crash_alert`, beside `ops:health_alert`.
+
 ## How it is built
 
 - `workers/versus/src/health/healthProtocol.ts`: the shared vocabulary (capabilities, routes, the pool digest format).
 - `workers/versus/src/health/healthCore.ts`: the checks, pure (everything they read is handed in).
 - `workers/versus/src/health/hubHealth.ts`: the hub's plumbing and record write; `HUB_CAPS` (what `/health` advertises).
 - `workers/versus/src/health/healthAlert.ts`: the Discord alert (the rule, the message, the watchdog).
+- `workers/versus/src/health/crashAlert.ts`: the crash-spike alert and the daily crash summary (R-OPS-HEALTH-04).
 - `workers/versus/src/core/liveActivity.ts`: the directory's hourly tally.
 - `workers/versus/scripts/health.ts`: the CLI.
 - `supabase/migrations/2026-11-21-ops-health-checks.sql`: `ops.health_checks`, the views, `ops.health_probe`,

@@ -12,6 +12,7 @@
  */
 import { VERSUS_CF_PROTOCOL } from '../protocol';
 import { alertAfterRun, alertWatchdog, type AlertIo, type AlertStore, type FetchLike } from './healthAlert';
+import { crashTick, type CrashStore, type CrashTickResult } from './crashAlert';
 import { runHealth, formatSummary, type HealthDeps, type WriteProbe } from './healthCore';
 import { HUB_CAP, SITE_URL, type HealthResult, type HubActivity, type PoolDigest, type PoolParams } from './healthProtocol';
 
@@ -44,6 +45,8 @@ export interface HealthEnv {
   HEALTH_SITE_URL?: string;
   /** SECRET (R-OPS-HEALTH-03): the Discord webhook the health alerts post to. Absent = no alerts. Never logged. */
   ALERT_DISCORD_WEBHOOK?: string;
+  /** R-OPS-HEALTH-04: "off" turns the 06:20 UTC daily crash summary off (the spike alerts stay on). Default on. */
+  CRASH_DAILY_SUMMARY?: string;
 }
 
 /** The alert plumbing on the real `fetch` and a given store. */
@@ -54,6 +57,20 @@ export function alertIo(env: HealthEnv, store: AlertStore, now = Date.now()): Al
 /** The hourly cron_overdue watchdog (R-OPS-HEALTH-03). Never throws. */
 export function runWatchdog(env: HealthEnv, store: AlertStore, now = Date.now()): Promise<unknown> {
   return alertWatchdog(alertIo(env, store, now));
+}
+
+/** THE CRASH-SPIKE ALERT + DAILY SUMMARY (R-OPS-HEALTH-04) on one 5-minute tick: does nothing without the webhook
+ *  secret, evaluates on the quarter-hours, summarises at 06:20 UTC. Never throws. */
+export function runCrashWatch(env: HealthEnv, store: CrashStore, health: AlertStore, now = Date.now()): Promise<CrashTickResult> {
+  return crashTick({
+    webhook: env.ALERT_DISCORD_WEBHOOK,
+    store,
+    health,
+    digest: (mode) => supabaseRpc(env, 'ops_crash_digest', { p_mode: mode }),
+    fetch: ((url, init) => fetch(url, init)) as FetchLike,
+    now,
+    summary: env.CRASH_DAILY_SUMMARY !== 'off',
+  });
 }
 
 /** The mirror's digest, as the pool-mirror PR exposes it on its Durable Object (RPC). */

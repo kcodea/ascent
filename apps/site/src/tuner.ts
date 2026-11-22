@@ -17,7 +17,9 @@ interface Tune {
 type Layout = 'desktop' | 'phone';
 type Saved = Record<Layout, Record<string, Tune>>;
 
-const KEY = 'ascent-site-top-tune';
+/** Bumped each time tuned numbers are written into the stylesheet, so numbers saved against the old layout are dropped
+ *  instead of being applied a second time on top of it. */
+const KEY = 'ascent-site-top-tune-v3';
 const PIECES: ReadonlyArray<readonly [id: string, label: string, selector: string]> = [
   ['left-front', 'Drakko + Paragon', '.top__team--left-front'],
   ['left-back', 'Brian + Lastlight', '.top__team--left-back'],

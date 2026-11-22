@@ -155,14 +155,15 @@ function noWebhook(io: AlertIo): boolean {
   return true;
 }
 
-/** POST one message. Never throws, never logs the URL (it carries the webhook's token). */
-export async function postDiscord(io: AlertIo, content: string): Promise<boolean> {
+/** POST one message. Never throws, never logs the URL (it carries the webhook's token). `username` is the name the
+ *  message shows (the crash alert, R-OPS-HEALTH-04, posts as "ASCENT crashes" through the same webhook). */
+export async function postDiscord(io: Pick<AlertIo, 'webhook' | 'fetch' | 'log'>, content: string, username = 'ASCENT health'): Promise<boolean> {
   try {
     const res = await io.fetch(io.webhook as string, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       // allowed_mentions: an error text that happens to contain @everyone pings nobody.
-      body: JSON.stringify({ username: 'ASCENT health', content, allowed_mentions: { parse: [] } }),
+      body: JSON.stringify({ username, content, allowed_mentions: { parse: [] } }),
     });
     if (!res.ok) (io.log ?? console.warn)(JSON.stringify({ ev: 'health_alert_failed', status: res.status }));
     return res.ok;

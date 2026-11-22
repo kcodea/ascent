@@ -22,7 +22,9 @@
  *   GET /ops/pool-digest     the pool mirror's digest (`?p=<params json>`), 404 until the hub advertises `pool_mirror`
  *
  * The cron (`scheduled`) keeps the pool mirror in step with Supabase every 5 minutes, and once a day (`HEALTH_CRON`)
- * runs the health check (`health/hubHealth.ts`), which it records in Supabase (`ops.health_checks`).
+ * runs the health check (`health/hubHealth.ts`), which it records in Supabase (`ops.health_checks`). With the alert
+ * webhook set it also watches for crash spikes every 15 minutes and posts a daily crash summary at 06:20 UTC
+ * (`health/crashAlert.ts`).
  *
  * The directory's WRITES are not routes: the Versus Workers call the `LiveDirectoryWriter` entrypoint below through a
  * service binding (`LIVE_DIR` in `wrangler.toml`), which the public internet cannot reach.
@@ -44,8 +46,9 @@ import { SESSION_GAME_ID, SESSION_PROTOCOL, SESSION_ROUTES } from './sessionProt
 import { LIVE_GAME_HEADER, LIVE_USER_HEADER } from './liveHost';
 import { GUEST_HEADER } from './lobbyChat';
 import { HEALTH_CRON, HUB_CAP, OPS_ROUTES, type PoolDigest } from './health/healthProtocol';
-import { digestParams, HUB_CAPS, hubHealthDeps, runAndRecord, runWatchdog, type HealthEnv, type PoolDigestSource } from './health/hubHealth';
+import { digestParams, HUB_CAPS, hubHealthDeps, runAndRecord, runCrashWatch, runWatchdog, type HealthEnv, type PoolDigestSource } from './health/hubHealth';
 import type { AlertStore } from './health/healthAlert';
+import type { CrashStore } from './health/crashAlert';
 
 export { FriendHub, LiveDirectory, GameSession, PoolMirror };
 
@@ -81,6 +84,11 @@ const directoryOf = (env: LiveDirEnv): LiveDirectory => env.LIVE_DIR.get(env.LIV
 const alertStoreOf = (env: LiveDirEnv): AlertStore => ({
   get: () => directoryOf(env).alertState(),
   put: (s) => directoryOf(env).setAlertState(s),
+});
+/** The crash-spike alert's state (R-OPS-HEALTH-04), beside it. */
+const crashStoreOf = (env: LiveDirEnv): CrashStore => ({
+  get: () => directoryOf(env).crashAlertState(),
+  put: (s) => directoryOf(env).setCrashAlertState(s),
 });
 
 /**
@@ -233,6 +241,9 @@ export default {
     // The cron_overdue watchdog (R-OPS-HEALTH-03): once an hour, on the first 5-minute tick of the hour.
     const at = event.scheduledTime ?? Date.now();
     if (new Date(at).getUTCMinutes() < 5) ctx.waitUntil(runWatchdog(env, alertStoreOf(env), at));
+    // The crash-spike alert (R-OPS-HEALTH-04): quarter-hourly, plus the 06:20 UTC daily summary. Off without the
+    // webhook secret (it then never touches Supabase or storage).
+    if (env.ALERT_DISCORD_WEBHOOK) ctx.waitUntil(runCrashWatch(env, crashStoreOf(env), alertStoreOf(env), at));
     ctx.waitUntil(poolOf(env).sync().then((r) => { if (!r.ok && r.error !== 'no_source') console.warn(JSON.stringify({ ev: 'pool_mirror_cron', ...r })); }));
   },
 };

@@ -310,6 +310,7 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
           made.attack = opts.attack; made.health = opts.health;
         }
       }
+      if (opts?.attackFloor !== undefined && opts.attackFloor > made.attack) made.attack = opts.attackFloor; // Anvilshade
       return made;
     },
     playRubiesOn: (t, per) => {

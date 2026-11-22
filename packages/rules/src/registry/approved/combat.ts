@@ -295,4 +295,22 @@ export const COMBAT_RULES: GameRule[] = [
     currentBehaviour: 'Conforms as of 2026-11-17. Before, only the solo modes showed odds (every server-resolved Versus / Duos fight and the Scene Builder tag-team fight showed none), and a Practice bot fight\x27s typical loss ignored the bot damage multiplier. Solo odds were already exact with Ancients (every Ancient combat effect rides the side mods the input captures).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/oddsParity.test.ts'], lastVerifiedAt: '2026-11-17' },
   },
+  {
+    id: 'R-GENESIS-INHERIT-01',
+    title: 'An extra copy of a summon is a copy of what was summoned, inherited stats included',
+    statement:
+      'When an effect makes extra copies of a summon (Ancient of Genesis, Echo Warden), each copy arrives as the same '
+      + 'body the summon produced, including any stats the summoned body inherits from its summoner. Anvilshade\x27s '
+      + 'Charging Soldier takes Anvilshade\x27s Attack, so every extra copy of that Soldier takes it too, never the '
+      + 'printed 3/1 token.',
+    domain: 'combat',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner report 2026-11-21 (67-Attack Anvilshade died with Undying + Ancient of Genesis)', quote: 'the first unit was 67 attack (as it should be) but the other copies were only 3/1. they should have also been 67 attack' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts summonMinion `attackFloor` + placeSummon passing `inheritedAttack` to Echo Warden and summonGenesisExtras; packages/core/src/effects/arena.ts echoSummonInheritAttackAndCharge' },
+    ],
+    contentIds: ['dw_anvilshade', 'echowarden'],
+    currentBehaviour: 'Conforms as of 2026-11-21. Before, Anvilshade raised the Soldier\x27s Attack after the summon returned, so the extra copies (made inside the summon) landed at the printed 3/1.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsRisen.test.ts', 'packages/sim/src/set2Dwarves.test.ts'], lastVerifiedAt: '2026-11-21' },
+  },
 ];

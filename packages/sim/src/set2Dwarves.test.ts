@@ -248,6 +248,11 @@ describe('tranche B — combat-trigger Dwarves', () => {
     expect(s[0]!.attack).toBe(3);
   });
 
+  it('…and an Echo Warden extra copy of the Soldier inherits the same Attack (R-GENESIS-INHERIT-01)', () => {
+    const s = summonsOf(fight([mine('dw_anvilshade', 9, 1), mine('echowarden', 0, 50)], [foe(20, 20)]), 'dw_soldier');
+    expect(s.map((m) => m.attack)).toEqual([9, 9]);
+  });
+
   it('…and it swings exactly ONCE on arrival, not twice', () => {
     // The charge is now baked onto the `dw_soldier` token (`attackOnSummon`) so Chicken Brawl's plain
     // `deathrattleSummon` also gets it. Anvilshade reaches the same token through a factory that ALSO forces

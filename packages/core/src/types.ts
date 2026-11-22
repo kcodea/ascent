@@ -3314,6 +3314,9 @@ export interface Minion {
   rebornAvailable: boolean;
   /** Tripled minion — combat-time effects fire at doubled magnitude. */
   golden: boolean;
+  /** Anvilshade: the Attack floor this summoned body inherited from its summoner. Extra copies of the same summon
+   *  (Ancient of Genesis, Echo Warden) inherit it too (R-GENESIS-INHERIT-01). Combat-only. */
+  inheritedAttack?: number;
   /** Derived combat capability (Gnasher): attacks again after a kill. */
   reAttackOnKill: boolean;
   /** Commander Impala: Critical Strike — per-swing chance (0–1) to deal double damage. From the CardDef. */
@@ -4578,7 +4581,10 @@ export interface CombatContext {
    *  sees the correct keyword set from the first frame (Broodmother → Taunt on her Whelps).
    *  `golden` summons the token GILDED — doubled base stats + the golden flag (Manasaber's golden
    *  cubs are 0/4) — for summoners whose golden form upgrades the token instead of the count. */
-  summon(side: Side, card: CardDef, nearUid?: string, grantKeywords?: Keyword[], golden?: boolean, attackNow?: boolean, copyStats?: { attack: number; health: number; maxHealth: number; divineShield?: boolean; rebornAvailable?: boolean }): Minion;
+  summon(side: Side, card: CardDef, nearUid?: string, grantKeywords?: Keyword[], golden?: boolean, attackNow?: boolean, copyStats?: { attack: number; health: number; maxHealth: number; divineShield?: boolean; rebornAvailable?: boolean },
+    /** Anvilshade: the summoned body's Attack is at least this, and so is every extra copy of the summon
+     *  (Ancient of Genesis, Echo Warden): R-GENESIS-INHERIT-01. */
+    attackFloor?: number): Minion;
   /** Graft extra combat Deathrattle (`onDeath`) effects onto a minion mid-fight, registering them so they fire on
    *  its death (Grave Body copying your leftmost Echo). The effects fire with the grafted minion as `self`. */
   grantDeathrattle(target: Minion, effects: EffectDef[]): void;

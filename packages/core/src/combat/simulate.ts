@@ -1916,7 +1916,7 @@ export function simulate(
       bleeders.push({ minion, everyN, marked });
     },
     wave: withWave,
-    summon: (side, card, nearUid, grantKeywords, golden, attackNow, copyStats) => summonMinion(side, card, nearUid, grantKeywords, golden, attackNow, copyStats),
+    summon: (side, card, nearUid, grantKeywords, golden, attackNow, copyStats, attackFloor) => summonMinion(side, card, nearUid, grantKeywords, golden, attackNow, copyStats, false, attackFloor),
     grantDeathrattle: (target, effects) => {
       // Graft copied Echoes onto `target` and register them so they fire on its death (Grave Body). Effects were
       // already registered at combat start for their source; these are fresh copies bound to `target`.
@@ -2612,7 +2612,7 @@ export function simulate(
       divineShield: src.divineShield, rebornAvailable: src.rebornAvailable,
     });
   }
-  function summonMinion(side: Side, card: CardDef, nearUid: string | undefined, grantKeywords?: Keyword[], golden = false, attackNow = false, copyStats?: { attack: number; health: number; maxHealth: number; divineShield?: boolean; rebornAvailable?: boolean; stripReturn?: boolean; handFold?: boolean }, doubled = false): Minion {
+  function summonMinion(side: Side, card: CardDef, nearUid: string | undefined, grantKeywords?: Keyword[], golden = false, attackNow = false, copyStats?: { attack: number; health: number; maxHealth: number; divineShield?: boolean; rebornAvailable?: boolean; stripReturn?: boolean; handFold?: boolean }, doubled = false, attackFloor?: number): Minion {
     // A GILDED token (golden: true): doubled base stats + the golden flag, for summoners whose golden form
     // upgrades the token rather than the count (Manasaber's 0/4 cubs).
     // Rune of Drakko: a card the side's run re-typed (`cardTribes`) arrives with those types, like its board copies.
@@ -2687,6 +2687,15 @@ export function simulate(
         if (!minion.keywords.includes('DS')) minion.keywords.push('DS');
         if (wardTaunt && !minion.keywords.includes('T')) minion.keywords.push('T');
       }
+    }
+    // ANVILSHADE: the token inherits the summoner's Attack when higher. Applied here, after every summon grant and
+    // before the body lands (auras then stack on top at placement), and remembered on the body so `placeSummon`
+    // hands it to every extra copy of this summon: Ancient of Genesis / Echo Warden copy "what it summoned", which
+    // is a Soldier carrying the inherited Attack, never the printed 3/1 token (owner report 2026-11-21,
+    // R-GENESIS-INHERIT-01).
+    if (attackFloor !== undefined) {
+      minion.inheritedAttack = attackFloor;
+      if (attackFloor > minion.attack) minion.attack = attackFloor;
     }
     // Attack-on-summon tokens (Whelp; Steadfast Champion's Spear Warden via `attackNow`) DEFER their whole
     // summon: rather than land + announce here, they queue onto the immediate-attack queue and are placed at
@@ -2911,7 +2920,7 @@ export function simulate(
       }
       // ANCIENT OF GENESIS x Lord of the Risen (owner 2026-09-26: "make sure these count as overflows"): the extra
       // body is still summoned, so on a full board it is a REAL overflow of its own (every overflow watcher hears it).
-      summonGenesisExtras(side, card, nearUid, grantKeywords, golden, attackNow, copyStats, doubled);
+      summonGenesisExtras(side, card, nearUid, grantKeywords, golden, attackNow, copyStats, doubled, minion.inheritedAttack);
       return minion;
     }
     if (boards[side].length >= BODY_GUARD) {
@@ -3000,9 +3009,9 @@ export function simulate(
       const wardens: string[] = [];
       for (const m of boards[side]) if (m !== minion && !m.dead && m.health > 0 && m.cardId === 'echowarden') { extra += m.golden ? 2 : 1; wardens.push(m.uid); }
       if (extra > 0) logEpicFire({ log: emit }, wardens); // R-FX-EPIC-FIRE-01
-      for (let k = 0; k < extra; k++) summonMinion(side, card, minion.uid, grantKeywords, golden, attackNow, copyStats, true);
+      for (let k = 0; k < extra; k++) summonMinion(side, card, minion.uid, grantKeywords, golden, attackNow, copyStats, true, minion.inheritedAttack);
     }
-    summonGenesisExtras(side, card, minion.uid, grantKeywords, golden, attackNow, copyStats, doubled);
+    summonGenesisExtras(side, card, minion.uid, grantKeywords, golden, attackNow, copyStats, doubled, minion.inheritedAttack);
     return minion;
   }
 
@@ -3014,9 +3023,9 @@ export function simulate(
    * a full board is a real overflow. A copy carries `doubled`, so it never makes copies of its own (Echo Warden's
    * guard). Called from BOTH halves of `placeSummon` (landed or overflowed).
    */
-  function summonGenesisExtras(side: Side, card: CardDef, nearUid: string | undefined, grantKeywords: Keyword[] | undefined, golden: boolean, attackNow: boolean, copyStats: Parameters<typeof summonMinion>[6], doubled: boolean): void {
+  function summonGenesisExtras(side: Side, card: CardDef, nearUid: string | undefined, grantKeywords: Keyword[] | undefined, golden: boolean, attackNow: boolean, copyStats: Parameters<typeof summonMinion>[6], doubled: boolean, attackFloor?: number): void {
     const n = doubled ? 0 : summonExtraFor(side);
-    for (let k = 0; k < n; k++) summonMinion(side, card, nearUid, grantKeywords, golden, attackNow, copyStats, true);
+    for (let k = 0; k < n; k++) summonMinion(side, card, nearUid, grantKeywords, golden, attackNow, copyStats, true, attackFloor);
   }
 
   /** ANCIENT OF GENESIS: how many extra copies THIS summon makes (`ancientSummonExtra`), spending one from Rayse's

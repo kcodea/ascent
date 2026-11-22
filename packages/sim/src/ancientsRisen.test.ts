@@ -241,6 +241,16 @@ describe('Risen × GENESIS — every summon in combat summons an extra copy (a R
     expect(overflowsOf(s)).toBe(6);
   });
 
+  it("Anvilshade's Charging Soldier extra inherits Anvilshade's Attack too, not the token's printed 3 (R-GENESIS-INHERIT-01)", () => {
+    // Owner report 2026-11-21: a 67-Attack Anvilshade died with Genesis; the first Soldier was 67 Attack, the
+    // extra copy a printed 3/1. A copy of "what it summoned" is a Soldier carrying the inherited Attack.
+    let s = picked('genesis', { board: [card('n', 'dw_anvilshade', { attack: 67, health: 1 })] });
+    s = fightNow(s, 50, 400);
+    const soldiers = summonsOf(s, 'dw_soldier');
+    expect(soldiers).toHaveLength(2);
+    expect(soldiers.map((e) => e.minion.attack)).toEqual([67, 67]);
+  });
+
   it('a copy never makes copies (no runaway): one Echo, one extra each', () => {
     let s = picked('genesis', { board: [card('i', 'burialimp')] });
     s = fightNow(s, 50, 400);

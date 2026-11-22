@@ -89,7 +89,10 @@ export interface EffectArena {
      *  snapshot; the shop's printed Health IS its max, so the adapter ignores it. */
     maxHealth?: number;
     /** SC FAMILY: carry the live Ward/Rise FLAGS onto the copy (combat only — the shop reads keywords). */
-    divineShield?: boolean; rebornAvailable?: boolean }): ArenaBody | undefined;
+    divineShield?: boolean; rebornAvailable?: boolean;
+    /** Anvilshade: the token's Attack is at least this (it inherits the summoner's Attack when higher). Combat
+     *  threads it through the summon itself, so extra copies of the summon (Genesis, Echo Warden) carry it too. */
+    attackFloor?: number }): ArenaBody | undefined;
   /** Play `per` Rubies on a body — each phase's own ritual: combat routes through `playRubyOn` (rubyBonus +
    *  Deepdelve multiplier + the target's onRubyPlayed listeners); the shop applies `(1+rubyBonus)×per` as a
    *  'Ruby' buff and fires its watchers. */
@@ -1110,10 +1113,11 @@ export const ARENA_EFFECTS = {
     const id = typeof params.token === 'string' ? params.token : '';
     if (!id) return;
     const count = (typeof params.count === 'number' ? params.count : 1) * (arena.self.golden ? 2 : 1);
+    // The Attack rides the summon as a FLOOR (`attackFloor`), not a post-hoc write on the returned body, so every
+    // extra copy of this summon (Ancient of Genesis, Echo Warden) inherits it too (R-GENESIS-INHERIT-01).
     for (let i = 0; i < count; i++) {
-      const made = arena.summonToken(id, { charge: true });
+      const made = arena.summonToken(id, { charge: true, attackFloor: arena.self.attack });
       if (!made) break; // board full
-      if (arena.self.attack > made.attack) made.attack = arena.self.attack;
     }
   },
 

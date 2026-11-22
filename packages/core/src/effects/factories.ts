@@ -446,7 +446,7 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
           ...(opts.rebornAvailable !== undefined ? { rebornAvailable: opts.rebornAvailable } : {}),
         } : undefined;
       // arg6 is the immediate-attack ("charge") queue — the Smith's token swings the moment it lands.
-      return ctx.summon(self.side, ctx.getCard(id), self.uid, kw, opts?.golden ?? false, opts?.charge ?? false, ov);
+      return ctx.summon(self.side, ctx.getCard(id), self.uid, kw, opts?.golden ?? false, opts?.charge ?? false, ov, opts?.attackFloor);
     },
     grantNamedCard: (cardId, count) => { for (let i = 0; i < count; i++) ctx.grantToHand(cardId, self.side, self.uid); },
     // Hand bodies carry their def's tribes so the arena's `isTribe` (which reads `tribe` / `tribe2` / the

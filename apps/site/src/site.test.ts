@@ -93,11 +93,12 @@ describe('index.html', () => {
     }
   });
 
-  it('the crest is the small webp, sized to match the file', () => {
+  it('the logo is the owner\'s painted mark, sized to match the file, and silent beside the ASCENT heading', () => {
     const crest = document.querySelector<HTMLImageElement>('img.top__crest')!;
-    expect(crest.getAttribute('src')).toBe('/art/crest.webp');
-    expect(crest.getAttribute('width')).toBe('320');
-    expect(crest.getAttribute('height')).toBe('320');
+    expect(crest.getAttribute('src')).toBe('/hero/logo.webp');
+    expect(crest.getAttribute('width')).toBe('480');
+    expect(crest.getAttribute('height')).toBe('524');
+    expect(crest.alt).toBe('');
   });
 
   it('chest images declare their real pixel sizes', () => {

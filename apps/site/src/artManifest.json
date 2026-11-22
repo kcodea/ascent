@@ -1,10 +1,5 @@
 {
   "hero.webp": "apps/web/public/homescreen.webp",
-  "crest.webp": {
-    "src": "apps/web/public/frames/title-logo.png",
-    "width": 320,
-    "format": "webp"
-  },
   "icon-192.png": "apps/web/public/icon-192.png",
   "apple-touch-icon.png": "apps/web/public/apple-touch-icon.png",
   "cursors/gauntlet_default.svg": "apps/web/public/cursors/gauntlet_default.svg",

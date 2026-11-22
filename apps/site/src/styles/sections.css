@@ -101,8 +101,8 @@
   width: clamp(84px, 22vw, 120px);
   height: auto;
   margin-bottom: var(--s4);
-  filter: drop-shadow(0 8px 14px color-mix(in srgb, var(--night-deep) 80%, transparent))
-    drop-shadow(0 0 26px color-mix(in srgb, var(--gold-light) 45%, transparent));
+  /* The mark is painted with its own shadow; this only adds a soft gold glow round it. */
+  filter: drop-shadow(0 0 26px color-mix(in srgb, var(--gold-light) 40%, transparent));
 }
 
 .top__headline {

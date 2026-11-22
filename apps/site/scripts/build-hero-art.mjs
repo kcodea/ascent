@@ -1,5 +1,6 @@
 // Builds the top section's layered art (public/hero) from the painted masters: four transparent team cut-outs and the
-// sky behind them. Run by hand when a master changes:  node scripts/build-hero-art.mjs "<folder with the masters>"
+// sky behind them, plus the logo. Run by hand when a master changes:
+//   node scripts/build-hero-art.mjs "<folder with the masters>" ["<logo file>"]
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -25,3 +26,10 @@ for (const [name, file] of Object.entries(LAYERS)) {
 }
 const sky = await sharp(path.join(SRC, 'backdrop.png')).webp({ quality: 80, effort: 6 }).toFile(path.join(OUT, 'sky.webp'));
 console.log('sky', `${sky.width}x${sky.height}`, `${Math.round(sky.size / 1024)} KB`);
+
+// The logo (painted with its own shadow): trimmed, and at twice its largest drawn size.
+const LOGO = process.argv[3];
+if (LOGO) {
+  const logo = await sharp(LOGO).trim().resize({ width: 480 }).webp({ quality: 90, alphaQuality: 95, effort: 6 }).toFile(path.join(OUT, 'logo.webp'));
+  console.log('logo', `${logo.width}x${logo.height}`, `${Math.round(logo.size / 1024)} KB`);
+}

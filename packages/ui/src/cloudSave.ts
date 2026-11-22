@@ -167,6 +167,12 @@ export interface CloudSaveDeps {
   onMoved(current: CloudRowMeta | null): void;
   /** Retry scheduling (injectable for tests). */
   setTimeout?: (fn: () => void, ms: number) => unknown;
+  /**
+   * Is this run's save held by a GAME SESSION on the hub (R-SESSION-CF-01)? Such a save is answered with the row's
+   * revision as it stood (0 for a game the session never wrote), so a lease of 0 does NOT mean "no cloud row": the
+   * session may write it later. Its end must still send the clear (R-SESSION-CLEAR-02). Optional: absent = never.
+   */
+  heldBySession?(runKey: string): boolean;
 }
 
 export const RETRY_MS = [2000, 5000, 15000, 30000, 60000] as const;
@@ -290,7 +296,13 @@ export function createCloudSave(deps: CloudSaveDeps): CloudSave {
       const ended = runKey ?? loadLease()?.runKey;
       if (ended) noteRunEnded(ended);
       return run(async () => {
-        if (disabled || !uid || !lease || lease.revision === 0) return;
+        if (disabled || !uid || !lease) return;
+        // A lease of 0 off the session = never uploaded: there is no row to clear. A SESSION game's lease is 0 the whole
+        // game (the session holds the save and answers the row's revision, which it never bumps), yet the session can
+        // still write that save to Supabase when the player goes quiet. Skipping its clear left the session holding the
+        // last shop's save, and a minute after the game ended it wrote it: the ended game came back as Continue at its
+        // last round (R-SESSION-CLEAR-02, owner 2026-11-22). So a session game always sends its clear.
+        if (lease.revision === 0 && !deps.heldBySession?.(lease.runKey)) return;
         const res = await deps.api.clear({ runKey: lease.runKey, expected: lease.revision });
         if (res === 'absent') disabled = true;
       });

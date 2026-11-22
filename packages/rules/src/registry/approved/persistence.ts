@@ -1248,6 +1248,30 @@ export const PERSISTENCE_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/cloudSave.test.ts', 'workers/versus/test/it/session.it.ts'], lastVerifiedAt: '2026-11-02' },
   },
   {
+    id: 'R-SESSION-CLEAR-02',
+    title: 'A game session never writes the save of a game that ended, and every session game sends its end clear',
+    statement:
+      'When a ranked, casual or Practice game that runs on a game session ends, the client always sends the end\x27s save '
+      + 'clear to that session, even when it never learned a cloud revision (a session game\x27s save is held by the '
+      + 'session, which answers the row\x27s revision without bumping it, so the client\x27s lease is 0 all game). Once a '
+      + 'session game has ended (its clear or its rating arrived) the session never writes the save it holds to the '
+      + 'account\x27s cloud row. And a saved game is only ever offered as Continue while it is a live lobby game: one whose '
+      + 'own seat is out or placed, or whose table finished, is dropped like a finished one.',
+    domain: 'persistence',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin, 2026-11-22', quote: 'this bug is back (SAVED MATCH, Ranked, Round 14, CONTINUE, for a match that already ended)' },
+      { kind: 'code', ref: 'packages/ui/src/cloudSave.ts (endRun: heldBySession); packages/ui/src/store.ts (cloudSave heldBySession, isResumableRun); workers/versus/src/core/sessionCore.ts (rate, saveDue, settled, nextAt)' },
+    ],
+    currentBehaviour:
+      'Conforms from this PR (2026-11-22). Before it, a session game\x27s end skipped the clear because the lease was 0 '
+      + '("never synced"), so the session kept the last shop\x27s save. About a minute after the game ended (the player\x27s '
+      + 'live socket gone) it wrote that save to the cloud row, and any other device or browser profile adopted the ended '
+      + 'game as Continue at its last round. The device that played it was spared only by its list of ended games.',
+    example: 'Ann plays a ranked game on her desktop app and is knocked out in round 14. Later she opens the game in her browser. There is no saved match: the session was told the game ended, so it never wrote round 14\x27s save to her account.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/cloudSave.test.ts', 'workers/versus/test/sessionCore.test.ts', 'packages/ui/src/continueNoLegacyCourse.test.ts'], lastVerifiedAt: '2026-11-22' },
+  },
+  {
     id: 'R-RUBY-ENGRAVED-01',
     title: 'An Engraved Ruby carries home as a Ruby',
     statement:

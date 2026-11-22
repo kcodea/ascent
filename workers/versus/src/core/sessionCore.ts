@@ -214,6 +214,9 @@ export class SessionCore {
     const seed = typeof body.seed === 'number' && Number.isFinite(body.seed) && Number.isInteger(body.seed) ? body.seed : null;
     const seatKeys = m.seatKeys ?? cleanSeatKeys(body.seatKeys);
     m.finishedAt ??= now;
+    // The game is over: the save it holds is never written (R-SESSION-CLEAR-02). Written after the end, it came back as
+    // Continue of the ended game at its last shop's round.
+    if (m.save) m.save.dirty = false;
     if (allSeatsGenerated(seatKeys)) return { kind: 'answer', status: 200, body: { status: 'unrated', error: 'unrated_all_generated' } };
     return { kind: 'settle', args: { p_run_id: runId, p_placement: placement, p_season: RANK_SEASON, p_rules_version: RANK_RULES_VERSION, p_seed: seed, p_seat_keys: seatKeys } };
   }
@@ -224,6 +227,9 @@ export class SessionCore {
   saveDue(now: number, publisherHere: boolean, quietSince: number | null): boolean {
     const s = this.meta.save;
     if (!s || !s.dirty || this.meta.clear || this.meta.moved) return false;
+    // A game that ENDED never writes its held save (R-SESSION-CLEAR-02, owner 2026-11-22: an ended ranked game came back as
+    // "Saved match, Round 14"). The end is its clear or its rating; either one means there is nothing to Continue.
+    if (this.meta.finishedAt != null) return false;
     if (s.parked) return true;
     if (now - s.savedAt >= SESSION_STALE_SAVE_MS) return true;
     if (publisherHere) return false;
@@ -281,7 +287,7 @@ export class SessionCore {
   /** Nothing is owed to Supabase. */
   settled(): boolean {
     const m = this.meta;
-    return !m.writes.length && !m.clear && !(m.save?.dirty);
+    return !m.writes.length && !m.clear && !(m.save?.dirty && m.finishedAt == null); // an ended game's save is never owed
   }
 
   /** May the object forget itself? */
@@ -299,7 +305,7 @@ export class SessionCore {
       if (!m.flush.gaveUp) due.push(Math.max(settle, retry ?? 0));
     }
     const s = m.save;
-    if (s && s.dirty && !m.clear && !m.moved && !m.flush.gaveUp) {
+    if (s && s.dirty && !m.clear && !m.moved && m.finishedAt == null && !m.flush.gaveUp) {
       const at = s.parked ? now : publisherHere ? s.savedAt + SESSION_STALE_SAVE_MS : Math.max(s.savedAt, quietSince ?? 0) + SESSION_QUIET_MS;
       due.push(Math.max(at, retry ?? 0));
     }

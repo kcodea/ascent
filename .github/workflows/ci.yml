@@ -48,6 +48,8 @@ jobs:
       - run: npm run build:web   # vite build MUST succeed = the game compiles
       - run: npm run typecheck:site
       - run: npm run build:site
+      - run: npm run typecheck:dash
+      - run: npm run dash:build
 
   # vitest: determinism + golden + effect tests, split across parallel runners. vitest shards BY FILE, so the
   # floor is the slowest single file — the multi-minute balance self-play suites. So the groups are explicit

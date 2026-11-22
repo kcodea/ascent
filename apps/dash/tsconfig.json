@@ -3,8 +3,22 @@
   "compilerOptions": {
     "strict": true,
     "noEmit": true,
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "types": ["node"]
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "types": [
+      "node"
+    ]
   },
-  "include": ["src", "functions", "scripts", "vite.config.ts"]
+  "include": [
+    "src",
+    "functions",
+    "scripts",
+    "vite.config.ts"
+  ],
+  "exclude": [
+    "scripts/sync-game.mts"
+  ]
 }

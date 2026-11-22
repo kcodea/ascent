@@ -4,7 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "sync": "tsx scripts/sync-game.mts",
+    "predev": "npm run sync",
     "dev": "vite",
+    "prebuild": "npm run sync",
     "build": "vite build",
     "preview": "vite preview",
     "functions:build": "wrangler pages functions build --outdir .wrangler/functions-check"

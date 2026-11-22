@@ -17,6 +17,25 @@ Supabase: public.analytics_overview / public.analytics_breakdown (service_role o
 The service role key exists only as a Cloudflare secret, read by the Functions. It is never in the repo and never in
 the page's JavaScript.
 
+## The look and the art
+
+The page wears the game's own menu style: the Docked rail / party-home shell tokens (`packages/ui/src/partyHome/shell/shell.css`,
+`partyHome/kit/kit.css`, `uiTheme.css`), the Outfit face the menus use, and the gauntlet cursors. The art is the game's,
+copied in at build time by `scripts/sync-game.mts` (run by `predev` / `prebuild`, output gitignored), resized but never
+re-toned:
+
+| On the page | From |
+|---|---|
+| Hero portraits + real names | `packages/ui/src/art/heroes/<id>.webp` (128 px), `HEROES` in `@game/sim` |
+| Portrait ring | `packages/ui/src/hero-select/heroportrait.png` (the `.portring` recipe) |
+| Medal crests | `packages/ui/src/art/ranks/<medal>.webp` (128 px) |
+| Mode rows | `packages/ui/src/art/modes/{lobby,practice,versus,learn}.webp` (480 px) |
+| Tribe glyphs, names, colours | `Icon.tsx` via `gauntlet/tribeIcon.ts`, `TRIBE_LABEL` (careerData.ts), `--t-<tribe>` (styles.css) |
+| Backdrop, plate grain, brand mark | `apps/web/public/backdrops/citadel-blur.webp`, `partyHome/ornaments/vellum.webp`, `ascenticon.png` |
+| Live set (fixture ids, set line) | `activeSet()` in `@game/content`, `playableHeroes` in `@game/sim` |
+
+The page has no runtime import of game code; it reads the generated `/game-data.json` and `/game.css`.
+
 ## Run it locally (made-up data)
 
 - `npm run dash:dev` starts Vite at http://localhost:5190 with a FIXTURE `/api/*` (src/fixture.ts, every number

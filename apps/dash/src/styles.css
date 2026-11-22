@@ -1,153 +1,251 @@
-/* ASCENT Analytics. Loosely the game's Docked rail look: deep navy panels, a thin struck-gold edge, plain readable type.
-   Series colours are the dataviz reference dark steps, validated as a set against --panel (#141b2e). */
+/* ASCENT Analytics, in the game's own menu look: the Docked rail / party-home shell. Tokens are copied from
+   packages/ui/src/partyHome/shell/shell.css (--ph-*), packages/ui/src/uiTheme.css (--pill-*, --ui-*) and the kit
+   (partyHome/kit/kit.css: page head, sections, rows, tabs, chips, stats, buttons), so it reads as the same app. The
+   art (citadel backdrop, vellum grain, hero portraits in the portrait ring, medal crests, mode art, tribe glyphs and
+   colours) is copied in at build time by scripts/sync-game.mts, untouched but resized.
+   PERFORMANCE: static paint. Hover is a colour change; nothing loops. Series colours are the dataviz reference dark
+   steps, validated as a set against the navy plate. */
 :root {
+  --phu: 1px;
+  /* uiTheme.css (Gem Gold) + the pill tokens */
+  --ui-edge-hi: #ffe9b0;
+  --ui-edge-main: #c8953f;
+  --ui-edge-deep: #7a571f;
+  --ui-title: #ffd98a;
+  --pill-navy: #0d1a36;
+  --pill-navy-top: color-mix(in srgb, var(--pill-navy) 82%, #3a5a9a);
+  --pill-navy-bot: color-mix(in srgb, var(--pill-navy) 70%, #000);
+  --pill-plate-hover: linear-gradient(180deg, color-mix(in srgb, var(--pill-navy) 62%, #4a6cb0) 0%, color-mix(in srgb, var(--pill-navy) 82%, #3a5a9a) 55%, var(--pill-navy) 100%);
+  --pill-well: linear-gradient(180deg, color-mix(in srgb, var(--pill-navy) 72%, #000), color-mix(in srgb, var(--pill-navy) 88%, #000));
+  --pill-ns: 0.5;
+  --pill-text-shadow: 0 1px 0 rgba(0, 0, 0, 0.475), 0 0 2px rgba(0, 0, 0, 0.425), 0 0 4.5px rgba(0, 0, 0, 0.3);
+  --pill-num-shadow: 0 1px 0 rgba(0, 0, 0, 0.95), 0 0 4px rgba(0, 0, 0, 0.85);
+  --pill-gold: #f6cf5a;
+  --pill-red: #ff7a66;
+  /* shell.css */
+  --ph-navy: var(--pill-navy);
+  --ph-gold: var(--ui-edge-main);
+  --ph-ink: #fff;
+  --ph-text: #fff6ea;
+  --ph-muted: #aebddb;
+  --ph-teal: #9be07f;
+  --ph-hair: color-mix(in srgb, var(--ph-gold) 58%, transparent);
+  --ph-gild: inset 0 0 0 1.5px color-mix(in srgb, var(--ph-gold) 85%, transparent), inset 0 2.5px 0 -1px rgba(255, 233, 176, 0.45), inset 0 -2.5px 0 -1px rgba(60, 36, 8, 0.6);
+  --ph-gild-s: inset 0 0 0 1px color-mix(in srgb, var(--ph-gold) 70%, transparent), inset 0 1.5px 0 -0.5px rgba(255, 233, 176, 0.3);
+  --ph-shadow: var(--pill-text-shadow);
+  --ph-plate: radial-gradient(120% 70% at 50% 0%, rgba(255, 206, 128, 0.11), rgba(255, 206, 128, 0) 62%), linear-gradient(180deg, color-mix(in srgb, var(--pill-navy-top) 82%, transparent), color-mix(in srgb, var(--pill-navy-bot) 86%, transparent)), url('/art/vellum.webp') 0 0 / 256px repeat;
+  --ph-plate-hover: radial-gradient(120% 70% at 50% 0%, rgba(255, 214, 140, 0.18), rgba(255, 214, 140, 0) 62%), var(--pill-plate-hover);
+  --ph-well: linear-gradient(180deg, rgba(0, 0, 0, 0.18), rgba(255, 206, 128, 0.04)), var(--pill-well);
+  --ph-metal-gold: linear-gradient(180deg, #fff1b8 0%, #f6cf5a 38%, #d9a12c 70%, #a8741a 100%);
+  --ph-font: 'Outfit', sans-serif;
+  --ph-t1: 13px;
+  --ph-t2: 15px;
+  --ph-t3: 18px;
+  --ph-t4: 30px;
+  --ph-cut: 20px;
+  --ph-cut-s: 8px;
+  --ph-clip: polygon(0 0, calc(100% - var(--ph-cut)) 0, 100% var(--ph-cut), 100% 100%, var(--ph-cut) 100%, 0 calc(100% - var(--ph-cut)));
+  --ph-clip-s: polygon(0 0, calc(100% - var(--ph-cut-s)) 0, 100% var(--ph-cut-s), 100% 100%, var(--ph-cut-s) 100%, 0 calc(100% - var(--ph-cut-s)));
+  /* chart series (dataviz dark steps) */
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #9085e9;
+  --grid: color-mix(in srgb, var(--ph-gold) 18%, transparent);
   color-scheme: dark;
-  --night: #0d1220;
-  --night-deep: #080b15;
-  --panel: #141b2e;
-  --panel-hi: #1c2540;
-  --line: #2a3556;
-  --grid: #222c48;
-  --gold: #c8922e;
-  --gold-light: #e6b45a;
-  --text: #efe7db;
-  --text-2: #c9cfdc;
-  --muted: #8f9ab0;
-  --warn: #e6b45a;
-  --bad: #e66767;
-  --s1: #3987e5;
-  --s2: #d95926;
-  --s3: #199e70;
-  --s4: #c98500;
-  --s5: #d55181;
-  --s6: #9085e9;
-  --radius: 10px;
-  font-family: 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif;
-  font-size: 15px;
-  line-height: 1.45;
+  font-family: var(--ph-font);
+  font-size: var(--ph-t2);
+  line-height: 1.4;
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 html, body { margin: 0; }
-body { background: var(--night); color: var(--text); min-height: 100vh; }
+/* The game's gauntlet cursor (CLAUDE.md UI conventions): default everywhere, the open hand on anything pressable. */
+html { cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
+button, select, input, [role='button'], .dk-tab { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+body { min-height: 100vh; color: var(--ph-text); background: #0a1730; }
 
-.top {
-  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
-  padding: 14px 24px; background: var(--night-deep); border-bottom: 1px solid var(--gold);
-}
-.brand { display: flex; align-items: center; gap: 10px; }
-.brand-mark { width: 10px; height: 22px; background: var(--gold); clip-path: polygon(50% 0, 100% 20%, 100% 80%, 50% 100%, 0 80%, 0 20%); }
-h1 { margin: 0; font-size: 18px; letter-spacing: 0.12em; font-weight: 700; }
-h1 span { color: var(--gold-light); font-weight: 500; }
-.meta { display: flex; gap: 16px; color: var(--muted); font-size: 13px; }
+/* THE MENUS' STEADY BACKDROP (shell/PhBackdrop.tsx): the citadel, pre-blurred at build time, under the same veil. */
+.dk-bd { position: fixed; inset: 0; z-index: -1; overflow: hidden; background: #0a1730; pointer-events: none; }
+.dk-bd img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.dk-veil { position: absolute; inset: 0;
+  background: linear-gradient(180deg, rgba(6, 12, 28, 0.82) 0%, rgba(6, 12, 28, 0.58) 26%, rgba(6, 12, 28, 0.42) 60%, rgba(6, 12, 28, 0.88) 100%), radial-gradient(70% 70% at 45% 50%, transparent 0%, rgba(4, 8, 20, 0.5) 100%), rgba(6, 12, 28, 0.45); }
 
-main { max-width: 1180px; margin: 0 auto; padding: 20px 24px 48px; display: grid; gap: 16px; }
+/* ── Top nav (the shell's nav strip) ── */
+.dk-nav { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 16px; min-height: 64px; padding: 8px 32px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--pill-navy-top) 92%, transparent), color-mix(in srgb, var(--pill-navy-bot) 94%, transparent));
+  box-shadow: inset 0 -1.5px 0 color-mix(in srgb, var(--ph-gold) 85%, transparent), 0 8px 24px rgba(0, 0, 0, 0.35); }
+.dk-mark { width: 40px; height: 40px; flex: none; }
+.dk-brand { font-weight: 900; font-size: 22px; letter-spacing: 0.18em; color: var(--ph-ink); text-shadow: var(--ph-shadow); }
+.dk-navtab { position: relative; align-self: stretch; display: inline-flex; align-items: center; padding: 0 16px; font-weight: 800; font-size: var(--ph-t2); letter-spacing: 0.12em; text-transform: uppercase; color: var(--ph-ink); text-shadow: var(--ph-shadow); }
+.dk-navtab.on::after { content: ''; position: absolute; left: 16px; right: 16px; bottom: -8px; height: 3px; background: var(--ph-metal-gold); }
+.dk-navright { margin-left: auto; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
 
-.banner { padding: 12px 16px; border: 1px solid var(--bad); border-radius: var(--radius); background: #2a1620; color: var(--text); }
-.pill { font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; }
-.pill-warn { color: var(--night); background: var(--warn); font-weight: 700; }
+/* ── Page (kit: phk-page / pagehead / eyebrow) ── */
+.dk-page { max-width: 1280px; margin: 0 auto; padding: 4px 32px 48px; display: flex; flex-direction: column; gap: 24px; }
+.dk-pagehead { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 8px 24px; padding: 24px 0 16px; box-shadow: inset 0 -1px 0 var(--ph-hair); }
+.dk-pagetitle { display: flex; flex-direction: column; gap: 4px; }
+.dk-pagetitle h1 { margin: 0; font-weight: 900; font-size: var(--ph-t4); line-height: 1.05; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ph-ink); text-shadow: var(--ph-shadow); }
+.dk-eyebrow { font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.24em; text-transform: uppercase; color: var(--ui-title); text-shadow: var(--ph-shadow); }
+.dk-pagesub { margin: 0 0 0 auto; font-size: var(--ph-t2); color: var(--ph-muted); text-shadow: var(--ph-shadow); }
+.dk-banner { padding: 12px 16px; background: var(--ph-well); box-shadow: inset 0 0 0 1.5px var(--pill-red); clip-path: var(--ph-clip-s); color: var(--ph-text); font-weight: 600; }
 
-.panel, .tile {
-  background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
-  box-shadow: inset 0 1px 0 rgba(230, 180, 90, 0.12);
-}
-.panel { padding: 16px 18px; min-width: 0; }
-.panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px 16px; flex-wrap: wrap; }
-h2 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: 0.04em; color: var(--text); }
-.hint { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+/* ── Chips ── */
+.dk-chip { display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 10px; background: var(--ph-well); box-shadow: inset 0 0 0 1px var(--ph-hair); clip-path: var(--ph-clip-s);
+  font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; color: var(--ph-text); }
+.dk-chip:empty { display: none; }
+.dk-chip.t-gold { background: var(--ph-metal-gold); color: var(--ph-navy); box-shadow: none; }
 
-.tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
-.tile { padding: 16px 18px 12px; display: grid; gap: 2px; min-width: 0; }
-.tile .k { color: var(--text-2); font-size: 13px; letter-spacing: 0.04em; }
-.tile .v { font-size: 40px; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
-.tile .sub { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
-.tile .sub b { color: var(--text-2); font-weight: 600; }
-.tile svg { margin-top: 8px; width: 100%; height: 36px; display: block; }
+/* ── Sections (kit: phk-section, the rail plate with the gilded edge and the small cut) ── */
+.dk-section { position: relative; display: flex; flex-direction: column; min-width: 0; background: var(--ph-plate); box-shadow: var(--ph-gild), 0 8px 24px rgba(0, 0, 0, 0.3); clip-path: var(--ph-clip-s); }
+.dk-sechead { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 16px; padding: 16px 24px 8px; }
+.dk-sechead h2 { margin: 0; font-weight: 900; font-size: var(--ph-t3); letter-spacing: 0.14em; text-transform: uppercase; color: var(--ph-ink); text-shadow: var(--ph-shadow); }
+.dk-secaside { margin-left: auto; font-size: var(--ph-t1); color: var(--ph-muted); text-shadow: var(--ph-shadow); }
+.dk-secbody { display: flex; flex-direction: column; gap: 8px; padding: 8px 24px 24px; min-width: 0; }
+.dk-hint { margin: 0; font-size: var(--ph-t1); color: var(--ph-muted); }
 
-.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 10px 0 4px; font-size: 13px; color: var(--text-2); }
-.legend span { display: inline-flex; align-items: center; gap: 6px; }
-.legend i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
-.legend i.ln { height: 2px; width: 14px; border-radius: 1px; }
-.chart { position: relative; width: 100%; }
-.chart svg { display: block; width: 100%; height: auto; }
-.chart text { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
-.chart .gridline { stroke: var(--grid); stroke-width: 1; }
-.chart .hit { fill: transparent; }
-.chart .hit:hover { fill: rgba(255, 255, 255, 0.04); }
+/* ── Number tiles (kit: phk-stat) ── */
+.dk-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.dk-stat { display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: 16px 24px 14px; background: var(--ph-plate); box-shadow: var(--ph-gild), 0 8px 24px rgba(0, 0, 0, 0.3); clip-path: var(--ph-clip); }
+.dk-statlbl { font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.16em; text-transform: uppercase; color: var(--ui-title); text-shadow: var(--ph-shadow); }
+.dk-statval { font-weight: 900; font-size: 44px; line-height: 1; color: var(--ph-ink); text-shadow: var(--pill-num-shadow); font-variant-numeric: tabular-nums; }
+.dk-statsub { font-size: var(--ph-t1); color: var(--ph-muted); font-variant-numeric: tabular-nums; }
+.dk-statsub b { color: var(--ph-text); font-weight: 800; }
+.dk-stat svg { margin-top: 6px; width: 100%; height: 36px; display: block; }
 
-.filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 16px; }
-.filter { display: grid; gap: 4px; }
-.filter.grow { flex: 1 1 220px; }
-.label { color: var(--muted); font-size: 12px; letter-spacing: 0.04em; }
-.controls { display: flex; gap: 12px; flex-wrap: wrap; }
-.controls label { display: grid; gap: 2px; }
-input, select {
-  background: var(--night-deep); color: var(--text); border: 1px solid var(--line); border-radius: 6px;
-  padding: 6px 8px; font: inherit; font-size: 14px; min-width: 0; max-width: 100%;
-}
-select { width: 100%; }
-input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px solid var(--gold-light); outline-offset: 1px; }
-.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
-.seg button, .btn {
-  background: var(--night-deep); color: var(--text-2); border: 0; padding: 7px 12px; font: inherit; font-size: 14px;
-}
-.seg button + button { border-left: 1px solid var(--line); }
-.seg button[aria-pressed='true'] { background: var(--panel-hi); color: var(--gold-light); }
-.btn { border: 1px solid var(--gold); border-radius: 6px; color: var(--gold-light); }
-.btn:hover, .seg button:hover { background: var(--panel-hi); }
+/* ── Tabs (kit: phk-tabs, the current tab white with the gold underline) ── */
+.dk-tabs { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; max-width: 100%; }
+.dk-tabs::-webkit-scrollbar { display: none; }
+.dk-tabs:empty { display: none; }
+.dk-tab { position: relative; flex: none; display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 6px 14px 10px; margin: 0; border: 0; border-radius: 0; background: none;
+  font: inherit; font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.12em; text-transform: uppercase; white-space: nowrap; color: var(--ph-muted); text-shadow: var(--ph-shadow); transition: color 0.12s ease; }
+.dk-tab:hover, .dk-tab[aria-pressed='true'] { color: var(--ph-ink); }
+.dk-tab[aria-pressed='true']::after { content: ''; position: absolute; left: 14px; right: 14px; bottom: 0; height: 3px; background: var(--ph-metal-gold); }
+.dk-tab img { width: 26px; height: 26px; object-fit: contain; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.55)); }
+.dk-medaltabs .dk-tab { min-height: 40px; }
 
-.table-wrap { overflow-x: auto; margin-top: 10px; }
-table { width: 100%; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; }
-th, td { padding: 7px 10px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--grid); }
+/* ── Filters ── */
+.dk-filterrow { flex-direction: row; flex-wrap: wrap; align-items: flex-end; gap: 12px 16px; padding-top: 16px; }
+.dk-field { display: grid; gap: 4px; min-width: 0; }
+.dk-field.grow { flex: 1 1 240px; }
+.dk-label { font-weight: 800; font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ui-title); text-shadow: var(--ph-shadow); }
+.dk-well { height: 40px; padding: 0 10px; border: 0; border-radius: 0; background: var(--ph-well); box-shadow: inset 0 0 0 1px var(--ph-hair); clip-path: var(--ph-clip-s);
+  color: var(--ph-text); font: inherit; font-weight: 600; font-size: 14px; min-width: 0; max-width: 100%; }
+select.dk-well { width: 100%; }
+select.dk-well option { background: var(--pill-navy); color: var(--ph-text); }
+.dk-well:focus-visible, .dk-btn:focus-visible, .dk-tab:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--ui-edge-hi), 0 0 12px rgba(255, 196, 70, 0.45); }
+/* kit: phk-btn v-plate (the plate button; gold is kept for Play, which this page has none of) */
+.dk-btn { height: 40px; padding: 0 24px; margin: 0; border: 0; border-radius: 0; clip-path: var(--ph-clip-s); background: var(--ph-plate); box-shadow: var(--ph-gild);
+  font: inherit; font-weight: 900; font-size: var(--ph-t2); letter-spacing: 0.14em; text-transform: uppercase; color: var(--ph-text); text-shadow: var(--ph-shadow); transition: transform 0.12s cubic-bezier(0, 0, 0.2, 1); }
+.dk-btn:hover { background: var(--ph-plate-hover); color: var(--ph-ink); }
+.dk-btn:active { transform: scale(0.98); }
+
+/* ── Rows (kit: phk-row, a rail slice: art bleeds in from the right and fades into the navy) ── */
+.dk-rows { display: flex; flex-direction: column; gap: 8px; }
+.dk-row { position: relative; display: flex; align-items: center; min-height: 72px; overflow: hidden; background: var(--ph-plate); box-shadow: var(--ph-gild-s); clip-path: var(--ph-clip-s); }
+.dk-rowart { position: absolute; right: 0; top: 0; width: 46%; height: 100%; object-fit: cover; object-position: 50% 40%; pointer-events: none;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 70%); mask-image: linear-gradient(90deg, transparent 0%, #000 70%); }
+.dk-rowmain { position: relative; flex: 1; min-width: 0; display: flex; align-items: center; gap: 16px; padding: 10px 16px; }
+/* Text never runs under the art: a row with art keeps its text in the navy part. */
+.dk-row:has(.dk-rowart) .dk-rowmain { padding-right: 34%; }
+.dk-rowlead { flex: none; display: flex; align-items: center; }
+.dk-rowwho { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.dk-rowtitle { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 900; font-size: var(--ph-t3); color: var(--ph-ink); text-shadow: var(--ph-shadow); }
+.dk-rowsub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--ph-t1); color: var(--ph-muted); text-shadow: var(--ph-shadow); }
+.dk-rowright { position: relative; flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; padding-right: 20px; text-align: right; }
+/* The count leads the row (left, on the navy), so the mode art on the right is never under text. */
+.dk-rowcount { flex: none; width: 84px; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; padding-right: 16px; box-shadow: inset -1px 0 0 var(--ph-hair); }
+.dk-rownum { font-weight: 900; font-size: 26px; line-height: 1; color: var(--ph-ink); text-shadow: var(--pill-num-shadow); font-variant-numeric: tabular-nums; }
+.dk-rownumlbl { font-weight: 800; font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ui-title); text-shadow: var(--ph-shadow); }
+.dk-crest { width: 52px; height: 52px; object-fit: contain; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.55)); }
+
+/* ── Tables on the plate: deep wells, gold hairline separators ── */
+.dk-tablewrap { overflow-x: auto; }
+table { width: 100%; border-collapse: separate; border-spacing: 0 6px; font-size: 14px; font-variant-numeric: tabular-nums; }
+th { padding: 4px 10px; text-align: right; white-space: nowrap; font-weight: 800; font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ph-muted); text-shadow: var(--ph-shadow); }
 th:first-child, td:first-child { text-align: left; }
-th { color: var(--muted); font-weight: 600; font-size: 12px; letter-spacing: 0.04em; }
 th button { all: unset; }
-th button:hover { color: var(--text); }
-th[aria-sort] button { color: var(--gold-light); }
-th.group { text-align: center; color: var(--text-2); border-bottom: 1px solid var(--line); }
-tr.low td { color: var(--muted); }
-tr:hover td { background: rgba(255, 255, 255, 0.025); }
+th button:hover { color: var(--ph-ink); }
+th[aria-sort] { color: var(--ui-title); }
+th.group { text-align: center; color: var(--ui-title); box-shadow: inset 0 -1px 0 var(--ph-hair); }
+td { padding: 6px 10px; text-align: right; white-space: nowrap; background: var(--ph-well); font-weight: 600; color: var(--ph-text); }
+td:first-child { box-shadow: inset 1.5px 0 0 color-mix(in srgb, var(--ph-gold) 55%, transparent); }
+tr:hover td { background: var(--pill-plate-hover); }
+tr.low td { color: var(--ph-muted); font-weight: 500; }
+td.sep, th.sep { box-shadow: inset 1px 0 0 var(--ph-hair); }
+.dk-num { font-weight: 800; color: var(--ph-ink); }
+.dk-sub { color: var(--ph-muted); font-weight: 500; font-size: 12px; }
 .bar { display: inline-flex; align-items: center; gap: 8px; justify-content: flex-end; }
 .bar svg { display: block; }
-.empty { color: var(--muted); padding: 12px 0; }
+.dk-empty { margin: 0; padding: 12px 0; color: var(--ph-muted); }
 
-.tip {
-  position: fixed; z-index: 10; pointer-events: none; background: var(--night-deep); border: 1px solid var(--gold);
-  border-radius: 6px; padding: 8px 10px; font-size: 13px; color: var(--text); max-width: 260px;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45); font-variant-numeric: tabular-nums;
-}
-.tip .row { display: flex; justify-content: space-between; gap: 14px; }
-.tip .row span:first-child { display: inline-flex; align-items: center; gap: 6px; color: var(--text-2); }
-.tip i { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
-.tip .head { color: var(--gold-light); margin-bottom: 4px; }
+/* A hero: the game's portrait ring (styles.css `.portring`: the gold ring PNG over a dark disc), then the real name. */
+.dk-hero { display: inline-flex; align-items: center; gap: 12px; }
+.dk-heroname { font-weight: 900; font-size: var(--ph-t2); color: var(--ph-ink); text-shadow: var(--ph-shadow); }
+tr.low .dk-heroname { color: var(--ph-muted); }
+.portring { --ring: 48px; position: relative; display: block; flex: none; width: var(--ring); height: calc(var(--ring) * 1.0315); }
+.portring::after { content: ''; position: absolute; inset: 0; z-index: 2; pointer-events: none; background: url('/art/heroportrait.webp') center / 100% 100% no-repeat; }
+.portring > .hero { position: absolute; z-index: 1; width: calc(var(--ring) * 0.9); height: calc(var(--ring) * 0.9); left: calc(var(--ring) * 0.046); top: calc(var(--ring) * 0.054);
+  overflow: hidden; border-radius: 50%; background: #0b0f18; box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.6); }
+.portring > .hero img { display: block; width: 100%; height: 100%; object-fit: cover; }
 
-.notes { color: var(--muted); font-size: 13px; padding: 4px 2px; }
-.notes h2 { font-size: 13px; color: var(--text-2); }
-.notes ul { margin: 6px 0 0; padding-left: 18px; }
-code { color: var(--text-2); }
+/* A tribe: its glyph from the game's icon set on a navy medallion rimmed in the tribe's colour (--tc, from game.css). */
+.dk-tribe { display: inline-flex; align-items: center; gap: 10px; font-weight: 900; font-size: var(--ph-t2); color: var(--ph-ink); text-shadow: var(--ph-shadow); }
+.dk-tglyph { display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: var(--pill-well); box-shadow: inset 0 0 0 2px var(--tc, var(--ph-gold)), 0 1px 3px rgba(0, 0, 0, 0.6); color: var(--tc, var(--ph-text)); }
+.dk-tglyph svg { width: 20px; height: 20px; }
 
-/* Series identity as classes (the CSP forbids inline style attributes). */
+/* ── Charts ── */
+.dk-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-weight: 600; font-size: var(--ph-t1); color: var(--ph-text); }
+.dk-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.dk-legend i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+.dk-legend i.ln { height: 3px; width: 14px; border-radius: 1px; }
+.dk-chart { position: relative; width: 100%; min-width: 0; }
+.dk-chart svg { display: block; width: 100%; height: auto; }
+.dk-chart text { fill: var(--ph-muted); font-family: var(--ph-font); font-weight: 600; font-size: 11px; font-variant-numeric: tabular-nums; }
+.dk-chart .gridline { stroke: var(--grid); stroke-width: 1; }
+.dk-chart .hit { fill: transparent; }
+.dk-chart .hit:hover { fill: rgba(255, 233, 176, 0.06); }
 .c1 { background: var(--s1); } .c2 { background: var(--s2); } .c3 { background: var(--s3); }
 .c4 { background: var(--s4); } .c5 { background: var(--s5); } .c6 { background: var(--s6); }
 .f1 { fill: var(--s1); } .f2 { fill: var(--s2); } .f3 { fill: var(--s3); }
 .f4 { fill: var(--s4); } .f5 { fill: var(--s5); } .f6 { fill: var(--s6); }
 .l1 { stroke: var(--s1); } .l2 { stroke: var(--s2); } .l3 { stroke: var(--s3); }
-.seg-gap { stroke: var(--panel); stroke-width: 2; }
+.seg-gap { stroke: #0f1b36; stroke-width: 2; }
 .line { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
 .line.dash { stroke-dasharray: 4 4; }
-.dot { stroke: var(--panel); stroke-width: 2; }
-.spark { fill: none; stroke: var(--gold-light); stroke-width: 2; stroke-linejoin: round; }
-.spark-area { fill: rgba(230, 180, 90, 0.1); }
-.spark-dot { fill: var(--gold-light); }
-.minibar .bg { fill: var(--grid); }
-.minibar .fg { fill: var(--s1); }
-.cross { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 2 3; }
+.dot { stroke: #0f1b36; stroke-width: 2; }
+.spark { fill: none; stroke: var(--pill-gold); stroke-width: 2; stroke-linejoin: round; }
+.spark-area { fill: rgba(246, 207, 90, 0.12); }
+.spark-dot { fill: var(--pill-gold); }
+.minibar .bg { fill: rgba(0, 0, 0, 0.45); }
+.minibar .fg { fill: var(--pill-gold); }
+
+/* The tooltip: a small rail plate. */
+.dk-tip { position: fixed; z-index: 10; pointer-events: none; max-width: 260px; padding: 8px 12px; background: linear-gradient(180deg, var(--pill-navy-top), var(--pill-navy-bot));
+  box-shadow: var(--ph-gild-s), 0 6px 18px rgba(0, 0, 0, 0.5); clip-path: var(--ph-clip-s); font-size: var(--ph-t1); color: var(--ph-text); font-variant-numeric: tabular-nums; }
+.dk-tip .row { display: flex; justify-content: space-between; gap: 14px; }
+.dk-tip .row span:first-child { display: inline-flex; align-items: center; gap: 6px; color: var(--ph-muted); }
+.dk-tip i { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
+.dk-tip .head { margin-bottom: 4px; font-weight: 800; letter-spacing: 0.06em; color: var(--ui-title); }
+
+.dk-notes { padding: 4px 2px; font-size: var(--ph-t1); color: var(--ph-muted); text-shadow: var(--ph-shadow); }
+.dk-notes h2 { margin: 0; font-weight: 900; font-size: var(--ph-t1); letter-spacing: 0.16em; text-transform: uppercase; color: var(--ui-title); }
+.dk-notes ul { margin: 6px 0 0; padding-left: 18px; }
+code { color: var(--ph-text); }
 
 @media (max-width: 760px) {
-  .top { padding: 12px 16px; }
-  main { padding: 16px 16px 40px; gap: 12px; }
-  .tiles { grid-template-columns: minmax(0, 1fr); gap: 12px; }
-  .tile .v { font-size: 34px; }
-  .panel { padding: 14px; }
-  th, td { padding: 6px 8px; }
+  .dk-nav { gap: 10px; padding: 8px 16px; flex-wrap: wrap; }
+  .dk-brand { font-size: 18px; }
+  .dk-navtab { display: none; }
+  .dk-page { padding: 0 16px 40px; gap: 16px; }
+  .dk-pagesub { margin-left: 0; }
+  .dk-stats { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .dk-statval { font-size: 38px; }
+  .dk-sechead { padding: 14px 16px 6px; }
+  .dk-secaside { margin-left: 0; }
+  .dk-secbody { padding: 6px 16px 18px; }
+  .dk-rowart { width: 34%; }
+  .dk-row:has(.dk-rowart) .dk-rowmain { padding-right: 24%; }
+  .dk-rowsub { white-space: normal; }
+  .dk-rowcount { width: 64px; padding-right: 12px; }
+  th, td { padding: 5px 8px; }
+  .portring { --ring: 40px; }
 }

@@ -1,0 +1,6 @@
+dist/
+.wrangler/
+public/art/
+public/cursors/
+public/game-data.json
+public/game.css

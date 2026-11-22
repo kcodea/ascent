@@ -14,9 +14,14 @@ function rng(seed: number): () => number {
   };
 }
 
-const HEROES = ['warden', 'magician', 'coran', 'fi', 'disco_dan', 'yazzus', 'tamby', 'han_gover', 'enigma', 'runesmith', 'guardian', 'lifebinder'];
-const TRIBES = ['beast', 'mech', 'undead', 'dragon', 'kobold', 'spirit', 'dwarf', 'celestial', 'elemental'];
-const MEDALS = ['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond'];
+/** Ids the fixture uses. The dev server passes the ACTIVE set's real heroes and tribes (public/game-data.json, written
+ *  by scripts/sync-game.mts) so the preview looks like the real game; these are only the fallback. */
+export interface FixtureIds { heroes: string[]; tribes: string[] }
+const FALLBACK: FixtureIds = {
+  heroes: ['warden', 'indy', 'myra', 'soren', 'nadja', 'keshi', 'aster', 'bram', 'cassen', 'albus', 'aevor', 'brackus'],
+  tribes: ['kobold', 'dragon', 'beast', 'demon', 'dwarf'],
+};
+const MEDALS = ['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond', 'Ascendant'];
 const MODES: GameMode[] = ['ranked', 'unrated_lobby', 'practice', 'versus_duel', 'versus_group', 'versus_duos', 'ranked_duos', 'tutorial'];
 const SEATS: Record<GameMode, number> = { ranked: 8, unrated_lobby: 8, practice: 8, versus_duel: 2, versus_group: 4, versus_duos: 4, ranked_duos: 4, tutorial: 8, other: 8 };
 
@@ -72,7 +77,9 @@ function rates(r: () => number, seats: number, games: number) {
   };
 }
 
-export function fixtureBreakdown(params: { from?: string | null; to?: string | null; patch?: string | null } = {}): Breakdown {
+export function fixtureBreakdown(params: { from?: string | null; to?: string | null; patch?: string | null } = {}, ids: FixtureIds = FALLBACK): Breakdown {
+  const HEROES = ids.heroes.slice(0, 14);
+  const TRIBES = ids.tribes;
   const r = rng(11 + (params.patch ? params.patch.length : 0));
   const to = params.to ?? iso(new Date());
   const from = params.from ?? iso(new Date(Date.parse(to) - 6 * 86_400_000));
@@ -94,15 +101,16 @@ export function fixtureBreakdown(params: { from?: string | null; to?: string | n
   }
   for (const band of MEDALS) {
     const total = Math.round(20 + r() * 40);
-    for (const heroId of HEROES.slice(0, 9)) {
-      const games = Math.round((total / 9) * (0.3 + r() * 1.4));
+    for (const heroId of HEROES.slice(0, 10)) {
+      const games = Math.round((total / 10) * (0.3 + r() * 1.4));
       if (games <= 0) continue;
       heroes.push({ mode: 'ranked', band, heroId, games, pickRate: Math.round((games / total) * 10000) / 10000, ...rates(r, 8, games) });
     }
   }
-  const tribe = (mode: GameMode, scale: number, k: number): TribeRow[] =>
+  // In run: a run draws 5 tribes from the set, so a set with exactly 5 has every tribe in every run.
+  const tribe = (mode: GameMode, scale: number, k: number, inRun = false): TribeRow[] =>
     TRIBES.slice(0, k).map((t) => {
-      const games = Math.round(scale * (0.3 + r() * 0.7));
+      const games = inRun ? Math.round(scale * Math.min(1, 5 / TRIBES.length) * (TRIBES.length <= 5 ? 1 : 0.8 + r() * 0.4)) : Math.round(scale * (0.08 + r() * 0.3));
       const avg = 3 + r() * 3;
       return { mode, tribe: t, games, rate: Math.round((games / scale) * 10000) / 10000, avgPlacement: Math.round(avg * 100) / 100, top4Rate: Math.round((0.75 - (avg - 3) / 6) * 10000) / 10000, firstRate: Math.round(r() * 0.25 * 10000) / 10000 };
     }).sort((a, b) => b.games - a.games);
@@ -125,7 +133,7 @@ export function fixtureBreakdown(params: { from?: string | null; to?: string | n
       return { heroId, offered, picked, offerPickRate: Math.round((picked / offered) * 10000) / 10000 };
     }),
     medals: MEDALS.map((medal) => ({ medal, games: Math.round(15 + r() * 60), avgPlacement: Math.round((3.5 + r()) * 100) / 100 })),
-    tribesInRun: [...tribe('ranked', 180, 9), ...tribe('unrated_lobby', 12, 9), ...tribe('practice', 70, 9)],
-    tribesFinal: [...tribe('ranked', 120, 8), ...tribe('unrated_lobby', 8, 6)],
+    tribesInRun: [...tribe('ranked', 180, TRIBES.length, true), ...tribe('unrated_lobby', 12, TRIBES.length, true), ...tribe('practice', 70, TRIBES.length, true)],
+    tribesFinal: [...tribe('ranked', 120, TRIBES.length), ...tribe('unrated_lobby', 8, TRIBES.length)],
   };
 }

@@ -14,8 +14,13 @@ the service role key (a Cloudflare secret only) and cache answers for 60 s per i
 `run_history` row, a `practice_games` row, a completed Versus match (1v1 / group / Duos / Ranked Duos) or a tutorial
 settlement. Gauntlet has no per-game record, so it is not counted. Four time indexes were added (tiny at today's sizes).
 
+**Look (owner feedback, same day: "it needs to have that in game feel").** Restyled in the Docked rail / party-home
+shell look (its tokens, Outfit, gauntlet cursors, citadel backdrop) with the game's real art copied in at build time by
+`apps/dash/scripts/sync-game.mts`: hero portraits in the portrait ring with real names, medal crests, mode art, tribe
+glyphs and colours. Fonts come from Google Fonts like the game, so the CSP allows exactly those two hosts.
+
 **Not applied, not deployed.** The owner applies the SQL, creates the project, sets secrets and configures Access
 (apps/dash/README.md). Local work uses a made-up fixture behind `npm run dash:dev`.
 
 **Limits to remember.** "Build" is the per-merge `0.1.0+<sha>` stamp, not a balance patch; Versus rows carry no build;
-hero and tribe names are shown by id (the page imports no game content).
+names and art come from a build-time copy of the game data, so a hero added later shows once the dashboard is rebuilt.

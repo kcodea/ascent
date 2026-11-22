@@ -61,4 +61,14 @@ describe('the page', () => {
     expect(b.heroes.some((h) => h.band !== 'all')).toBe(true);
     expect(b.modes.length).toBeGreaterThan(0);
   });
+  it('the fixture draws its heroes and tribes from the ids it is given (the synced live set)', () => {
+    const b = fixtureBreakdown({}, { heroes: ['warden', 'indy'], tribes: ['kobold', 'dwarf'] });
+    expect(new Set(b.heroes.map((h) => h.heroId))).toEqual(new Set(['warden', 'indy']));
+    expect(new Set(b.tribesInRun.map((t) => t.tribe))).toEqual(new Set(['kobold', 'dwarf']));
+  });
+  it('art comes from the same origin, and the only outside host is the game\'s own Google Fonts', () => {
+    const html = readFileSync(join(root, 'index.html'), 'utf8');
+    for (const m of html.matchAll(/(?:src|href)="(https?:[^"]+)"/g)) expect(m[1]).toMatch(/^https:\/\/fonts\.(googleapis|gstatic)\.com/);
+    expect(readFileSync(join(root, 'public/_headers'), 'utf8')).toMatch(/img-src 'self' data:;/);
+  });
 });

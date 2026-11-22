@@ -55,6 +55,18 @@ export interface TribeRow {
   firstRate: number | null;
 }
 
+/** public/game-data.json, written at build time by scripts/sync-game.mts from the game's own data and art. */
+export interface GameData {
+  setId: string;
+  activeTribes: string[];
+  activeHeroes: string[];
+  heroes: Record<string, { name: string; art: string | null; archived: boolean }>;
+  tribes: Record<string, { name: string; color: string | null; icon: string }>;
+  medals: Record<string, string>;
+  modes: Record<string, string>;
+  chrome: Record<string, string>;
+}
+
 export interface Breakdown {
   from: string;
   to: string;

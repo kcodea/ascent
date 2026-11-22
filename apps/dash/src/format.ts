@@ -13,6 +13,18 @@ export const MODE_LABEL: Record<GameMode, string> = {
   other: 'Other (legacy)',
 };
 
+/** Which of the game's mode-picker art (packages/ui/src/art/modes) stands for a mode; none for legacy rows. */
+export const MODE_ART: Partial<Record<GameMode, string>> = {
+  ranked: 'lobby',
+  unrated_lobby: 'lobby',
+  practice: 'practice',
+  versus_duel: 'versus',
+  versus_group: 'versus',
+  versus_duos: 'versus',
+  ranked_duos: 'versus',
+  tutorial: 'learn',
+};
+
 /** The daily chart's six stacked series, in fixed colour order (slot n = class f<n>/c<n>). */
 export const SERIES: ReadonlyArray<{ key: string; label: string; modes: GameMode[]; slot: number }> = [
   { key: 'ranked', label: 'Ranked lobby', modes: ['ranked'], slot: 1 },

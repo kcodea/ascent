@@ -13544,6 +13544,9 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Fixed 2026-11-22: writer_key / writes.lobby / writes.versus / writes.duos failed on 2026-11-21 and 2026-11-22 with 57014 (statement timeout); the cold probe measured 3.25 s live, warm ~30 ms.',
     example: 'At 06:17 UTC the database is cold. Before: the probe runs past 3 s, is cancelled, and four checks read fail although writes are fine. After: the 06:10 job already computed it, the hub reads the cached row in milliseconds, and the checks read ok.',
     enforcement: { kind: 'scenario', refs: ['workers/versus/test/opsHealthProbeCache.db.test.ts'], lastVerifiedAt: '2026-11-22' },
+  },
+  {
+    id: 'R-OPS-HEALTH-03',
     title: 'A failing daily health check alerts a human on Discord: on the transition, at most once a day while it stays failing, and once on recovery',
     statement:
       'After each daily cron run (R-OPS-HEALTH-01) the hub posts a short message to the Discord webhook in its secret '

@@ -73,9 +73,9 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
-        text: 'Player names, Duos team names and Versus room names are now checked for slurs.',
+        text: 'Player names, Duos team names and Versus room names are now checked for slurs and hate terms.',
         details: [
-          'A name with a slur cannot be saved. You see "That name is not allowed. Please pick another one." and can pick another.',
+          'A name with a slur or a hate term (like nazi or hitler) cannot be saved. You see "That name is not allowed. Please pick another one." and can pick another.',
           'Other rude names may be looked at by the team, and may be reset to Player.',
         ],
       },

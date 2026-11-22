@@ -6,7 +6,10 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 export const MODERATION_MIGRATION = fileURLToPath(new URL('../../../../supabase/migrations/2026-11-28-moderation.sql', import.meta.url));
-export const readModerationMigration = (): string => readFileSync(MODERATION_MIGRATION, 'utf8');
+/** The name-filter follow-up (2026-11-22: rape / rapist / nazi / hitler blocked), applied after the moderation migration. */
+export const NAME_FILTER_MIGRATION = fileURLToPath(new URL('../../../../supabase/migrations/2026-11-29-name-filter-block-hate.sql', import.meta.url));
+/** Both files in apply order: the later one redefines moderation.name_verdict, so the last list in the text is the live one. */
+export const readModerationMigration = (): string => readFileSync(MODERATION_MIGRATION, 'utf8') + '\n' + readFileSync(NAME_FILTER_MIGRATION, 'utf8');
 
 export const MODERATION_STUB = `
   create role anon; create role authenticated; create role service_role;

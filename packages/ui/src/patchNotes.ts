@@ -79,6 +79,15 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'Balance',
         text: 'Warm-Up is now Pummel (180) and pays up to twice per combat (was Pummel (150), once per combat).',
       },
+      {
+        category: 'Systems',
+        text: 'Fixed minion numbers moving after a fight was over.',
+        details: [
+          'The Health of a minion that survived the last hit no longer jumps back up and counts down a second time.',
+          'A buff from the last hit no longer drops to its old number and returns a moment later.',
+          'Pressing End Combat sets every number to its final value at once.',
+        ],
+      },
     ],
   },
   {

@@ -141,8 +141,12 @@ function renderTiles(o: Overview): void {
     <span class="dk-statsub">Finished, every mode${versus(t.games, o.previous?.games, prevLbl)}</span>${sparkline(o.series.map((d) => d.games), w)}`;
   $('tile-accounts').innerHTML = `<span class="dk-statlbl">Accounts active · ${esc(phrase)}</span><span class="dk-statval">${int(t.accounts)}</span>
     <span class="dk-statsub">Distinct, finished a game${versus(t.accounts, o.previous?.accounts, prevLbl)}</span>${sparkline(o.series.map((d) => d.accounts), w)}`;
-  $('tile-new').innerHTML = `<span class="dk-statlbl">New accounts · ${esc(phrase)}</span><span class="dk-statval">${int(t.newEmail + t.newGuest)}</span>
-    <span class="dk-statsub"><b>${int(t.newEmail)}</b> email · <b>${int(t.newGuest)}</b> guest · <b>${int(t.firstGame)}</b> played a first game</span>${sparkline(o.series.map((d) => d.newEmail + d.newGuest), w)}`;
+  // NEW PLAYERS (owner 2026-11-22: "24 new accounts is not correct, we've only had 1"): the headline is accounts whose
+  // FIRST finished game falls in the range. Raw sign-ins are not players: the game creates an anonymous guest login for
+  // every fresh browser (dev servers, previews, test profiles), and nearly all of them never play. Email sign-ups stay
+  // in the small print; guest logins are named as uncounted.
+  $('tile-new').innerHTML = `<span class="dk-statlbl">New players · ${esc(phrase)}</span><span class="dk-statval">${int(t.firstGame)}</span>
+    <span class="dk-statsub">Finished their first game · <b>${int(t.newEmail)}</b> email sign-up${t.newEmail === 1 ? '' : 's'} · ${int(t.newGuest)} guest logins not counted</span>${sparkline(o.series.map((d) => d.firstGame), w)}`;
 }
 
 function renderSeries(o: Overview): void {

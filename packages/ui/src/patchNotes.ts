@@ -59,6 +59,10 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-11-22',
     changes: [
       {
+        category: 'Systems',
+        text: 'Recent Games now lists the last 200 games.',
+      },
+      {
         category: 'Balance',
         text: 'Enigma now gives minions in the Shop +3/+3 when you consume a minion (was +4/+5). Gilded: +6/+6 (was +8/+10).',
       },

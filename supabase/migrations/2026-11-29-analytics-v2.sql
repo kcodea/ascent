@@ -39,6 +39,10 @@
 --   drop function if exists public.analytics_health(date, date, text);
 --   drop function if exists public.analytics_balance(date, date, text, text, text);
 --   drop function if exists analytics.players(date, date, text);   (and social / progression / health / balance / range_of / buckets)
+--   select cron.unschedule('analytics-balance-rollup');
+--   drop function if exists analytics.balance_backfill_step(int); drop function if exists analytics.balance_rollup_catchup(int);
+--   drop function if exists analytics.balance_rollup_day(date); drop function if exists analytics.balance_obs(timestamptz, timestamptz);
+--   drop table if exists analytics.balance_daily; drop table if exists analytics.balance_rollup_state;
 
 create index if not exists friendships_created_at on public.friendships (created_at);
 create index if not exists friendships_accepted_at on public.friendships (accepted_at) where accepted_at is not null;
@@ -379,10 +383,18 @@ end $$;
 --
 -- COST: reading every run's card arrays live was ~70 s for "All time" at 50k runs (bench), so cards + runes come from a
 -- DAILY ROLLUP: `analytics.balance_daily`, one row per (UTC day, mode, set, card or rune, taken or passed) with additive
--- sums and up to 10 of that day's distinct player keys (enough for the report's 3 / 5-player gates; the page shows 10+). A nightly pg_cron job (`analytics-balance-rollup`, 03:47 UTC) rolls up every
--- finished UTC day not yet rolled up; this file backfills once. Today (UTC) is always read live. Size: one row per item
--- per side per day it was seen (a few hundred a day at today's traffic; ~100 bytes each plus the player keys).
--- Card / rune day edges are UTC days (the rest of the dashboard uses the viewer's time zone).
+-- sums and up to 10 of that day's distinct player keys (enough for the report's 3 / 5-player gates; the page shows 10+).
+-- Size: one row per item per side per day it was seen (a few hundred a day at today's traffic; ~100 bytes each plus the
+-- player keys). Card / rune day edges are UTC days (the rest of the dashboard uses the viewer's time zone).
+--
+-- FILLED ONE UTC DAY AT A TIME, NEVER IN ONE STATEMENT (fix 2026-11-22: the first apply's one-shot all-history backfill
+-- spilled its sort to disk and hit "No space left on device" on the Free plan, rolling the whole file back). This file
+-- writes NO rollup rows. `analytics.balance_rollup_catchup(n)` rolls up at most n finished days (oldest first, one
+-- day's runs per aggregate, kept in memory by its own work_mem) and records how far it got in
+-- `analytics.balance_rollup_state`; the nightly pg_cron job (`analytics-balance-rollup`, 03:47 UTC) runs it with n = 14,
+-- so history fills over a few nights. To fill it sooner, the lead runs `select analytics.balance_backfill_step(14);`
+-- repeatedly (each call is its own transaction; it returns how many days remain). Today (UTC) is always read live; days
+-- not rolled up yet are left out and the page says "rolled up from X through Y".
 
 create table if not exists analytics.balance_daily (
   day        date    not null,
@@ -398,13 +410,20 @@ create table if not exists analytics.balance_daily (
   players    text[]  not null, -- up to 10 distinct player keys that day (the unique-player count is exact up to 10, then '10+')
   primary key (day, mode, set_id, kind, item, taken)
 );
-revoke all on analytics.balance_daily from public;
+-- How far the rollup has got: every UTC day up to and including `through` is rolled up (one row, id = true).
+create table if not exists analytics.balance_rollup_state (
+  id       boolean primary key default true check (id),
+  through  date,
+  updated_at timestamptz not null default now()
+);
+revoke all on analytics.balance_daily, analytics.balance_rollup_state from public;
 do $$ begin
-  if exists (select 1 from pg_roles where rolname = 'anon') then execute 'revoke all on analytics.balance_daily from anon'; end if;
-  if exists (select 1 from pg_roles where rolname = 'authenticated') then execute 'revoke all on analytics.balance_daily from authenticated'; end if;
+  if exists (select 1 from pg_roles where rolname = 'anon') then execute 'revoke all on analytics.balance_daily, analytics.balance_rollup_state from anon'; end if;
+  if exists (select 1 from pg_roles where rolname = 'authenticated') then execute 'revoke all on analytics.balance_daily, analytics.balance_rollup_state from authenticated'; end if;
 end $$;
 
--- One observation per lobby run per card / rune it was offered or took: taken, or offered and passed.
+-- One observation per lobby run per card / rune it was offered or took: taken, or offered and passed. The per-run
+-- de-duplication happens inside each run (a few dozen ids), so there is no wide global sort.
 create or replace function analytics.balance_obs(p_from timestamptz, p_to timestamptz)
 returns table (day date, mode text, set_id text, kind text, item text, taken boolean, pk text, placement int)
 language sql stable set search_path = public, pg_temp as $$
@@ -418,41 +437,64 @@ language sql stable set search_path = public, pg_temp as $$
       and (t.source = 'ladder' or 'mode:lobby' = any (t.hero_offer))
       and (t.user_id is null or not exists (select 1 from analytics.excluded_users() e where e.user_id = t.user_id))
   )
-  select tr.day, tr.mode, tr.set_id, 'card', x.item, bool_or(x.took), tr.pk, tr.placement
-    from tr cross join lateral (select unnest(tr.off_c) as item, false as took union all select unnest(tr.took_c), true) x
-    group by tr.day, tr.mode, tr.set_id, tr.pk, tr.placement, tr.off_c, tr.took_c, x.item
+  select tr.day, tr.mode, tr.set_id, 'card'::text, x.item, x.taken, tr.pk, tr.placement
+    from tr cross join lateral (select u.item, bool_or(u.took) as taken
+      from (select unnest(tr.off_c) as item, false as took union all select unnest(tr.took_c), true) u group by u.item) x
   union all
-  select tr.day, tr.mode, tr.set_id, 'rune', x.item, bool_or(x.took), tr.pk, tr.placement
-    from tr cross join lateral (select unnest(tr.off_r) as item, false as took union all select unnest(tr.took_r), true) x
-    group by tr.day, tr.mode, tr.set_id, tr.pk, tr.placement, tr.off_r, tr.took_r, x.item
+  select tr.day, tr.mode, tr.set_id, 'rune', x.item, x.taken, tr.pk, tr.placement
+    from tr cross join lateral (select u.item, bool_or(u.took) as taken
+      from (select unnest(tr.off_r) as item, false as took union all select unnest(tr.took_r), true) u group by u.item) x
 $$;
 
--- Roll up whole UTC days [p_first, p_last] (replacing what is there). Returns the rows written.
-create or replace function analytics.balance_rollup(p_first date, p_last date)
-returns int language plpgsql volatile set search_path = public, pg_temp as $$
+-- Roll up ONE UTC day (replacing what is there). Returns the rows written. One day's runs only, so the aggregate stays in
+-- memory (bench: ~140 runs / ~16k observations a day at 50k runs a year, no temp files at 16 MB).
+drop function if exists analytics.balance_rollup(date, date);
+create or replace function analytics.balance_rollup_day(p_day date)
+returns int language plpgsql volatile set search_path = public, pg_temp set work_mem = '16MB' as $$
 declare v int;
 begin
-  delete from analytics.balance_daily where day between p_first and p_last;
+  delete from analytics.balance_daily where day = p_day;
   insert into analytics.balance_daily (day, mode, set_id, kind, item, taken, n, sum_place, sumsq, top4, players)
   select o.day, o.mode, o.set_id, o.kind, o.item, o.taken, count(*), sum(o.placement), sum(o.placement * o.placement),
     count(*) filter (where o.placement <= 4), (array_agg(distinct o.pk))[1:10]
-  from analytics.balance_obs(p_first::timestamp at time zone 'UTC', (p_last + 1)::timestamp at time zone 'UTC') o
+  from analytics.balance_obs(p_day::timestamp at time zone 'UTC', (p_day + 1)::timestamp at time zone 'UTC') o
   group by 1, 2, 3, 4, 5, 6;
   get diagnostics v = row_count;
   return v;
 end $$;
 
--- The nightly job: every finished UTC day after the last one rolled up (all history the first time), never today.
-create or replace function analytics.balance_rollup_catchup()
-returns int language plpgsql volatile set search_path = public, pg_temp as $$
+-- Roll up at most p_max_days finished UTC days after the last one done (oldest first; never today), one day at a time.
+-- Returns what it did and how many finished days are still to do.
+drop function if exists analytics.balance_rollup_catchup();
+create or replace function analytics.balance_rollup_catchup(p_max_days int default 14)
+returns jsonb language plpgsql volatile set search_path = public, pg_temp as $$
 declare
-  v_last date := (now() at time zone 'UTC')::date - 1;
-  v_first date := coalesce((select max(day) + 1 from analytics.balance_daily),
-                           (select (min(created_at) at time zone 'UTC')::date from public.run_telemetry), v_last + 1);
+  v_yesterday date := (now() at time zone 'UTC')::date - 1;
+  v_through date;
+  v_first date;
+  v_last date;
+  v_rows int := 0;
+  d date;
 begin
-  if v_first > v_last then return 0; end if;
-  return analytics.balance_rollup(v_first, v_last);
+  select through into v_through from analytics.balance_rollup_state where id;
+  v_first := coalesce(v_through + 1, (select (min(created_at) at time zone 'UTC')::date from public.run_telemetry), v_yesterday + 1);
+  v_last := least(v_yesterday, v_first + greatest(coalesce(p_max_days, 14), 0) - 1);
+  if v_first <= v_last then
+    d := v_first;
+    while d <= v_last loop
+      v_rows := v_rows + analytics.balance_rollup_day(d);
+      d := d + 1;
+    end loop;
+    insert into analytics.balance_rollup_state (id, through, updated_at) values (true, v_last, now())
+      on conflict (id) do update set through = excluded.through, updated_at = excluded.updated_at;
+  end if;
+  return jsonb_build_object('from', case when v_first <= v_last then v_first end, 'through', coalesce(greatest(v_last, v_through), v_through),
+    'days', greatest(v_last - v_first + 1, 0), 'rows', v_rows, 'remaining', greatest(v_yesterday - greatest(v_last, coalesce(v_through, v_first - 1)), 0));
 end $$;
+
+-- The lead's manual step (the same thing, by name): `select analytics.balance_backfill_step(14);` until remaining = 0.
+create or replace function analytics.balance_backfill_step(p_days int default 14)
+returns jsonb language sql volatile set search_path = public, pg_temp as $$ select analytics.balance_rollup_catchup(p_days) $$;
 
 drop function if exists public.analytics_balance(date, date, text);
 drop function if exists analytics.balance(date, date, text);
@@ -464,6 +506,7 @@ declare
   v_mode text := case when p_mode in ('ranked', 'unrated', 'all') then p_mode else 'ranked' end;
   v_set text := case when p_set ~ '^set[0-9]{1,3}$' then p_set else null end;
   v_today_utc date := (now() at time zone 'UTC')::date;
+  v_through date := (select through from analytics.balance_rollup_state where id);
   v_d0 date;
   v_d1 date;
   v_out jsonb;
@@ -474,9 +517,11 @@ begin
   v_d1 := ((r.to_ts - interval '1 microsecond') at time zone 'UTC')::date;
   with
   ex as (select user_id from analytics.excluded_users()),
-  -- Career rows (heroes, tribes, Ancients, final boards)
+  -- Career rows (heroes, tribes, Ancients): small scalars only, so the materialized rows stay small (a whole entry, or a
+  -- final board, per row is what spilled to disk on long ranges)
   lob as (
-    select h.id, date_trunc(v_trend, h.created_at at time zone r.tz) as b, h.placement, h.hero_id, h.entry
+    select h.id, date_trunc(v_trend, h.created_at at time zone r.tz) as b, h.placement, h.hero_id,
+      nullif(h.entry->>'dominantTribe', '') as dom, h.entry #>> '{board,ancient,id}' as anc
     from public.run_history h
     where h.created_at >= r.from_ts and h.created_at < r.to_ts and h.mode = 'lobby' and h.placement is not null
       and (v_mode = 'all' or (v_mode = 'ranked') = not (h.entry ? 'unrated'))
@@ -485,8 +530,8 @@ begin
   ),
   bal as (
     select 'hero'::text as kind, l.hero_id as item, l.b, l.placement from lob l where l.hero_id is not null
-    union all select 'tribe', nullif(l.entry->>'dominantTribe', ''), l.b, l.placement from lob l where nullif(l.entry->>'dominantTribe', '') is not null
-    union all select 'ancient', l.entry #>> '{board,ancient,id}', l.b, l.placement from lob l where (l.entry #>> '{board,ancient,id}') is not null
+    union all select 'tribe', l.dom, l.b, l.placement from lob l where l.dom is not null
+    union all select 'ancient', l.anc, l.b, l.placement from lob l where l.anc is not null
   ),
   per_b as (
     select kind, item, b, count(*) as n, round(avg(placement), 2) as avg, round(avg(case when placement <= 4 then 1.0 else 0.0 end), 4) as top4
@@ -498,39 +543,66 @@ begin
     from bal group by kind, item
   ),
   tops as (select * from per_i where rk <= case kind when 'ancient' then 8 else 12 end),
-  -- final boards: one row per run per card on it (survival-biased by construction)
+  -- final boards: one row per run per card on it (survival-biased by construction). The board is read straight from the
+  -- row and de-duplicated inside each run, so nothing wide is sorted or hashed across runs.
   fin as (
-    select m->>'cardId' as item, l.placement, bool_or(coalesce((m->>'golden')::boolean, false)) as golden
-    from lob l cross join lateral jsonb_array_elements(case when jsonb_typeof(l.entry #> '{board,minions}') = 'array' then l.entry #> '{board,minions}' else '[]'::jsonb end) as m
-    where m->>'cardId' is not null
-    group by l.id, l.placement, m->>'cardId'
+    select x.item, l.placement, x.golden
+    from lob l join public.run_history h on h.id = l.id
+    cross join lateral (
+      select m->>'cardId' as item, bool_or(coalesce((m->>'golden')::boolean, false)) as golden
+      from jsonb_array_elements(case when jsonb_typeof(h.entry #> '{board,minions}') = 'array' then h.entry #> '{board,minions}' else '[]'::jsonb end) as m
+      where m->>'cardId' is not null group by 1) x
   ),
   fin_i as (select item, count(*) as n, round(avg(placement), 2) as avg, count(*) filter (where golden) as golden from fin group by item),
-  -- cards + runes: rolled-up whole UTC days, plus today (and anything not rolled up yet) read live
+  -- cards + runes: rolled-up whole UTC days, plus today read live. Only small numeric columns travel through the sorts and
+  -- hashes (the player keys are read once, below, and only where they are needed), so long ranges stay in memory.
   rolled as (
-    select d.day, d.kind, d.item, d.taken, d.n, d.sum_place, d.sumsq, d.top4, d.players
+    select d.day, d.kind, d.item, d.taken, d.n, d.sum_place, d.sumsq, d.top4, cardinality(d.players) as np
     from analytics.balance_daily d
-    where d.day between v_d0 and least(v_d1, v_today_utc - 1)
+    where d.day between v_d0 and least(v_d1, v_today_utc - 1, v_through)
       and (v_mode = 'all' or d.mode = v_mode) and (v_set is null or d.set_id = v_set)
+  ),
+  live_obs as materialized (
+    select o.day, o.kind, o.item, o.taken, o.pk, o.placement
+    from analytics.balance_obs(greatest(r.from_ts, v_today_utc::timestamp at time zone 'UTC'), r.to_ts) o -- today only (bounded)
+    where (v_mode = 'all' or o.mode = v_mode) and (v_set is null or o.set_id = v_set)
   ),
   live as (
     select o.day, o.kind, o.item, o.taken, count(*)::int as n, sum(o.placement)::bigint as sum_place, sum(o.placement * o.placement)::bigint as sumsq,
-      (count(*) filter (where o.placement <= 4))::int as top4, (array_agg(distinct o.pk))[1:10] as players
-    from analytics.balance_obs(
-        greatest(r.from_ts, (coalesce((select max(day) + 1 from analytics.balance_daily), v_d0))::timestamp at time zone 'UTC'), r.to_ts) o
-    where (v_mode = 'all' or o.mode = v_mode) and (v_set is null or o.set_id = v_set)
-    group by 1, 2, 3, 4
+      (count(*) filter (where o.placement <= 4))::int as top4, count(distinct o.pk)::int as np
+    from live_obs o group by 1, 2, 3, 4
   ),
   days as (select * from rolled union all select * from live),
+  -- per item and side: the sums, and the most distinct players any one day held (10 = the rollup's cap, so already '10+')
+  side as (
+    select kind, item, taken, sum(n) as n, sum(sum_place) as s, sum(sumsq) as q, sum(top4) as t4, max(np) as max_day_players
+    from days group by kind, item, taken
+  ),
   agg as (
     select kind, item,
-      sum(n) filter (where taken) as t_n, sum(sum_place) filter (where taken) as t_s, sum(sumsq) filter (where taken) as t_q, sum(top4) filter (where taken) as t_4,
-      sum(n) filter (where not taken) as p_n, sum(sum_place) filter (where not taken) as p_s, sum(sumsq) filter (where not taken) as p_q
-    from days group by kind, item
+      sum(n) filter (where taken) as t_n, sum(s) filter (where taken) as t_s, sum(q) filter (where taken) as t_q, sum(t4) filter (where taken) as t_4,
+      sum(n) filter (where not taken) as p_n, sum(s) filter (where not taken) as p_s, sum(q) filter (where not taken) as p_q
+    from side group by kind, item
+  ),
+  -- unique players: only the sides that never reached 10 in a day need the union of their keys (a popular card is '10+'
+  -- outright), so the key unnest stays small however long the range
+  few as (select kind, item, taken from side where max_day_players < 10),
+  pl_small as (
+    select k.kind, k.item, k.taken, count(distinct k.p) as players from (
+      select d.kind, d.item, d.taken, unnest(d.players) as p
+        from analytics.balance_daily d join few f on f.kind = d.kind and f.item = d.item and f.taken = d.taken
+        where d.day between v_d0 and least(v_d1, v_today_utc - 1, v_through)
+          and (v_mode = 'all' or d.mode = v_mode) and (v_set is null or d.set_id = v_set)
+      union all
+      select o.kind, o.item, o.taken, o.pk from live_obs o join few f on f.kind = o.kind and f.item = o.item and f.taken = o.taken
+    ) k group by 1, 2, 3
   ),
   pl as (
-    select kind, item, count(distinct p) filter (where taken) as t_players, count(distinct p) filter (where not taken) as p_players
-    from days cross join lateral unnest(players) as p group by 1, 2
+    select x.kind, x.item,
+      max(case when x.taken then case when x.max_day_players >= 10 then 10 else coalesce(ps.players, 0) end end) as t_players,
+      max(case when not x.taken then case when x.max_day_players >= 10 then 10 else coalesce(ps.players, 0) end end) as p_players
+    from side x left join pl_small ps on ps.kind = x.kind and ps.item = x.item and ps.taken = x.taken
+    group by 1, 2
   ),
   ser as (
     select kind, item, date_trunc(v_trend, day::timestamp) as b, sum(n) as n, sum(sum_place)::numeric / sum(n) as avg
@@ -561,7 +633,8 @@ begin
     'tz', r.tz, 'from', r.first_day, 'to', r.last_day, 'trendBucket', v_trend, 'mode', v_mode, 'set', v_set,
     'games', (select count(*) from lob),
     'runs', (select n from field),
-    'rolledThrough', (select max(day) from analytics.balance_daily),
+    'rolledThrough', v_through,
+    'rolledFrom', (select min(day) from analytics.balance_daily),
     'field', (select jsonb_build_object('n', f.n, 'avg', round(f.avg, 3), 'var', round(f.var, 3), 'top4', round(f.top4, 4)) from field f),
     'trends', coalesce((select jsonb_object_agg(k.kind, k.items) from (
         select tp.kind, jsonb_agg(jsonb_build_object('id', tp.item, 'games', tp.n, 'avgPlacement', tp.avg, 'top4Rate', tp.top4,
@@ -581,16 +654,27 @@ begin
   return v_out;
 end $$;
 
--- Backfill the rollup once (every finished UTC day so far), then keep it current nightly.
-select analytics.balance_rollup_catchup();
+-- NO BACKFILL HERE (it is what ran the Free plan out of disk). The nightly job rolls up at most 14 days a run, oldest
+-- first; the lead can run `select analytics.balance_backfill_step(14);` to fill history sooner.
 do $$
 begin
   if exists (select 1 from pg_extension where extname = 'pg_cron') then
     perform cron.unschedule(jobid) from cron.job where jobname = 'analytics-balance-rollup';
     perform cron.schedule('analytics-balance-rollup', '47 3 * * *',
-      $job$set statement_timeout = '10min'; select analytics.balance_rollup_catchup()$job$);
+      $job$set statement_timeout = '5min'; select analytics.balance_rollup_catchup(14)$job$);
   end if;
 end $$;
+
+-- MEMORY, NOT DISK, for the long-range reads (fix 2026-11-22). The Free plan's session work_mem is 2 MB, so an "All time"
+-- read sorted / hashed through temp files (bench at ~50k games: 6-40 MB of temp per read; 295 MB for the old balance
+-- read). Each read sets its own work_mem (16 MB; hash nodes get 2x by hash_mem_multiplier) so its sorts stay in memory.
+-- These are dev-only reads for two people behind a 60 s cache, so the extra memory is never multiplied by traffic.
+alter function analytics.overview(date, date, text) set work_mem = '16MB';
+alter function analytics.breakdown(date, date, text, text) set work_mem = '16MB';
+alter function analytics.players(date, date, text) set work_mem = '16MB';
+alter function analytics.social(date, date, text) set work_mem = '16MB';
+alter function analytics.progression(date, date, text) set work_mem = '16MB';
+alter function analytics.balance(date, date, text, text, text) set work_mem = '32MB'; -- the widest read (Career + rollup)
 
 -- Nothing in the private schema is callable by anyone but its owner.
 do $$

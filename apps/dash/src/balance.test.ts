@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_FILTER, EVIDENCE_GATES, WELCH_MIN_N, evidenceOf, itemOf, renderBalance, rowsFor, verdictOf, welch, type CardMeta, type Item } from './balance';
+import { DEFAULT_FILTER, EVIDENCE_GATES, WELCH_MIN_N, evidenceOf, itemOf, renderBalance, rollupNote, rowsFor, verdictOf, welch, type CardMeta, type Item } from './balance';
 import { fixtureBalance } from './fixture2';
 import type { Ctx } from './sections';
 import type { BalanceData, BalanceRow } from './types';
@@ -85,5 +85,17 @@ describe('renderBalance', () => {
     expect(html).toContain('Raw association at equal access');
     expect(html).toContain('Insufficient evidence');
     expect(html).toContain('On final board');
+  });
+});
+
+describe('rollupNote (cards + runes come from the nightly, one-day-at-a-time rollup)', () => {
+  const v = { view: 'minions' as const };
+  it('says when nothing is rolled up yet, and when the history is still filling', () => {
+    expect(rollupNote({ rolledThrough: null, rolledFrom: null, to: '2026-11-22' }, v)).toContain('Only today shows');
+    expect(rollupNote({ rolledThrough: '2026-10-01', rolledFrom: '2026-09-18', to: '2026-11-22' }, v)).toContain('covers 2026-09-18 to 2026-10-01');
+  });
+  it('is silent once caught up, and on the Career views', () => {
+    expect(rollupNote({ rolledThrough: '2026-11-21', rolledFrom: '2026-01-01', to: '2026-11-22' }, v)).toBe('');
+    expect(rollupNote({ rolledThrough: null, rolledFrom: null, to: '2026-11-22' }, { view: 'heroes' })).toBe('');
   });
 });

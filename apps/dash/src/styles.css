@@ -474,3 +474,4 @@ code { color: var(--ph-text); }
 .dk-ev { display: block; font-size: 11px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ph-muted); }
 .dk-ev.candidate { color: var(--pill-gold); } .dk-ev.supported { color: var(--ph-teal); }
 .dk-baltable td:nth-child(7) { text-align: left; }
+.dk-note.dk-warn { box-shadow: inset 3px 0 0 var(--pill-red), var(--ph-gild-s); }

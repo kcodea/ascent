@@ -78,23 +78,59 @@ await db.exec(`
   insert into public.bug_reports (status, severity, created_at) select 'open', 'low', now() - random() * interval '365 days' from generate_series(1, 300) i;
   analyze;
 `);
-const tr0 = performance.now();
-const rolled = (await db.query<{ n: number }>('select analytics.balance_rollup_catchup() as n')).rows[0]!.n;
-console.log(`balance rollup backfill (the nightly job's first run): ${rolled} rows in ${Math.round(performance.now() - tr0)} ms`);
 const size = (await db.query<{ s: string }>("select pg_size_pretty(pg_total_relation_size('public.run_history')) as s")).rows[0]!.s;
 console.log(`seeded ~${N} games (${lobby} lobby, ${practice} practice, ${duels} duels, ${groups} group matches, ${tut} tutorial), ${USERS} accounts; run_history ${size}; ${Math.round(performance.now() - t0)} ms`);
+
+// Postgres temp files written so far (pg_stat_database): the disk a query spilled to. The Free plan's disk is the limit
+// that failed the first apply, so every number below is reported with the temp it wrote.
+// Stats are flushed lazily, so force the flush and drop the cached snapshot before each read (exact per-call numbers).
+const tempBytes = async (): Promise<number> => {
+  await db.query('select pg_stat_force_next_flush()');
+  await db.query('select 1');
+  await db.query('select pg_stat_clear_snapshot()');
+  return Number((await db.query<{ b: string }>('select temp_bytes::text as b from pg_stat_database where datname = current_database()')).rows[0]!.b);
+};
+const kb = (b: number) => `${(b / 1024).toFixed(0)} kB`;
+// Supabase Micro's session work_mem (the functions that need more set their own).
+await db.exec("set work_mem = '2MB'");
+
+// Re-applying the migration on a full database must be quick and write no temp (it rolls nothing up any more).
+{
+  const t = performance.now(), tb = await tempBytes();
+  await db.exec(readMigrationV2());
+  console.log(`migration re-apply on ~${N} games: ${Math.round(performance.now() - t)} ms, temp ${kb((await tempBytes()) - tb)}`);
+}
+// The rollup, the way the nightly job / the lead's step runs it: one UTC day at a time (here 1 day a call to see each day).
+{
+  let days = 0, rows = 0, maxMs = 0, maxTemp = 0, total = 0;
+  const t0r = performance.now();
+  for (;;) {
+    const t = performance.now(), tb = await tempBytes();
+    const j = (await db.query<{ j: { days: number; rows: number; remaining: number } }>('select analytics.balance_rollup_catchup(1) as j')).rows[0]!.j;
+    const ms = performance.now() - t, tmp = (await tempBytes()) - tb;
+    if (j.days === 0) break;
+    days += j.days; rows += j.rows; maxMs = Math.max(maxMs, ms); maxTemp = Math.max(maxTemp, tmp); total += tmp;
+  }
+  console.log(`balance rollup, one day a call: ${days} days, ${rows} rows, ${Math.round(performance.now() - t0r)} ms total, slowest day ${Math.round(maxMs)} ms, max temp per day ${kb(maxTemp)}, total temp ${kb(total)}`);
+  const day = await db.query<{ 'QUERY PLAN': string }>(`explain (analyze, buffers) select o.day, o.mode, o.set_id, o.kind, o.item, o.taken, count(*), (array_agg(distinct o.pk))[1:10]
+    from analytics.balance_obs((current_date - 30)::timestamp at time zone 'UTC', (current_date - 29)::timestamp at time zone 'UTC') o group by 1, 2, 3, 4, 5, 6`);
+  const temp = day.rows.map((r) => r['QUERY PLAN']).filter((l) => /temp|Disk|Memory|Execution/.test(l));
+  console.log(`one day's rollup aggregate (EXPLAIN ANALYZE BUFFERS, work_mem 2MB):\n${temp.map((l) => `  ${l.trim()}`).join('\n') || '  (no temp, no disk lines)'}`);
+}
 
 async function time(label: string, sql: string): Promise<void> {
   const runs: number[] = [];
   let bytes = 0;
+  let temp = 0;
   for (let i = 0; i < 3; i++) {
-    const t = performance.now();
+    const t = performance.now(), tb = await tempBytes();
     const r = await db.query<{ j: unknown }>(sql);
     runs.push(performance.now() - t);
+    temp = Math.max(temp, (await tempBytes()) - tb);
     bytes = JSON.stringify(r.rows[0]?.j ?? null).length;
   }
   runs.sort((a, b) => a - b);
-  console.log(`${label.padEnd(28)} median ${runs[1]!.toFixed(0).padStart(6)} ms   payload ${(bytes / 1024).toFixed(1)} kB`);
+  console.log(`${label.padEnd(28)} median ${runs[1]!.toFixed(0).padStart(6)} ms   payload ${(bytes / 1024).toFixed(1)} kB   temp ${kb(temp)}`);
 }
 
 for (const [label, from] of [['today', 'current_date'], ['7 days', 'current_date - 6'], ['30 days', 'current_date - 29'], ['90 days', 'current_date - 89'], ['365 days', 'current_date - 364'], ['all time', 'null']] as const) {

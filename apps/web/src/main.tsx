@@ -1,7 +1,11 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import gsap from 'gsap';
-import { Boot, Game, installEgressMeter, installStage, installWebKitText } from '@game/ui';
+import { Boot, Game, installEgressMeter, installErrorReporting, installStage, installWebKitText } from '@game/ui';
+
+// Error + crash reports on every client (packages/ui/src/errorReport.ts): the global error / rejection listeners and the
+// crashed-session sentinel go in first, so a boot error is caught too. Nothing is sent until the game has mounted.
+installErrorReporting();
 
 // DEV / measurement builds only (VITE_EGRESS_METER=1): count every byte the Supabase backend sends this tab, before
 // any client connects (`window.__egress`, packages/ui/src/net/egressMeter.ts). A no-op in a player build.

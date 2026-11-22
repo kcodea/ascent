@@ -220,8 +220,34 @@ function measure(s: string, x?: Record<string, string | number>, scan: 'full' | 
   return c;
 }
 
+// --- the recent steps, on every platform (R-CRASH-REPORT-DESKTOP-01) ---
+
+/** One recent step: its name and the ms since the page loaded. Never the step's details (they may carry text). */
+export interface RecentStep { s: string; t: number }
+const RECENT_MAX = 12;
+const recent: RecentStep[] = [];
+let recentListener: (() => void) | null = null;
+/** Remember a step's NAME on every load, desktop included (an array push: no DOM read, no storage write), so an error
+ *  report (errorReport.ts) says what the game was doing. `progress` replaces the newest entry when it is the same step. */
+function noteRecent(s: string, progress = false): void {
+  try {
+    const t = Math.round(typeof performance !== 'undefined' ? performance.now() : 0);
+    const top = recent[recent.length - 1];
+    if (progress && top && top.s === s) { top.t = t; } else {
+      recent.push({ s: s.slice(0, 80), t });
+      if (recent.length > RECENT_MAX) recent.shift();
+    }
+    recentListener?.();
+  } catch { /* best-effort */ }
+}
+/** The last RECENT_MAX step names, oldest first (a copy). */
+export function recentSteps(): RecentStep[] { return recent.map((r) => ({ ...r })); }
+/** One listener told after each step (errorReport.ts schedules its idle save from it). */
+export function onRecentStep(cb: (() => void) | null): void { recentListener = cb; }
+
 /** Record a step. A no-op unless the log is on (a phone, or `?crashlog=1`). */
 export function crumb(step: string, x?: Record<string, string | number>): void {
+  noteRecent(step);
   if (!store?.cur) return;
   pushCrumb(store.cur, measure(step, x));
   save();
@@ -232,6 +258,7 @@ export function crumb(step: string, x?: Record<string, string | number>): void {
  * ceremony, the launch curtain, the falling gate), where a full scan of a big screen could cost a frame.
  */
 export function crumbLight(step: string, x?: Record<string, string | number>): void {
+  noteRecent(step);
   if (!store?.cur) return;
   pushCrumb(store.cur, measure(step, x, 'anim'));
   save();
@@ -243,6 +270,7 @@ export function crumbLight(step: string, x?: Record<string, string | number>): v
  * round fires again: the falling gate's stages, its Pixi layer, the art stream.
  */
 export function crumbTick(step: string, x?: Record<string, string | number>): void {
+  noteRecent(step);
   if (!store?.cur) return;
   pushCrumb(store.cur, measure(step, x, 'count'));
   save();
@@ -250,13 +278,14 @@ export function crumbTick(step: string, x?: Record<string, string | number>): vo
 /** Record progress of a running step: overwrites its own previous breadcrumb while nothing else came between. A tick
  *  (no DOM scan): the art stream it notes keeps loading all game (R-PHONE-DIAG-COST-01). */
 export function crumbProgress(step: string, x?: Record<string, string | number>): void {
+  noteRecent(step, true);
   if (!store?.cur) return;
   pushCrumb(store.cur, measure(step, x, 'count'), true);
   save();
 }
 /** Record a step only the first time it happens this session (reverb built, a Pixi layer's first init). */
 export function crumbOnce(step: string, x?: Record<string, string | number>): void {
-  if (!store?.cur || onceSteps.has(step)) return;
+  if (onceSteps.has(step)) return;
   onceSteps.add(step);
   crumb(step, x);
 }
@@ -267,7 +296,7 @@ export function crumbOnce(step: string, x?: Record<string, string | number>): vo
  * unmount. A no-op (and a no-op cancel) unless the log is on.
  */
 export function crumbTrail(step: string, x?: Record<string, string | number>, light = false): () => void {
-  if (!store?.cur) return () => {};
+  if (!store?.cur) { noteRecent(step); return () => {}; }
   const rec = light ? crumbLight : crumb; // light: for a trail over an animation (crumbLight)
   rec(step, x);
   let raf = 0;

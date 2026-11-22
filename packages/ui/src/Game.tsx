@@ -50,6 +50,7 @@ import { PHONE_BENCH_ON } from './perfLogFlag';
 const PhoneBenchCard = lazy(() => import('./PhoneBenchCard'));
 import { installPerfLog } from './phonePerfLog';
 import { CRASH_REPORT_TABLE, scheduleCrashReportUpload } from './crashReport';
+import { setErrorReportTransport } from './errorReport';
 import { anonRestInsert, supabaseClient } from './remoteBoards';
 import { maybeStartLiveReplayFromUrl } from './liveReplay';
 import { PHONE_GPU } from './phoneDiag';
@@ -277,6 +278,12 @@ export function Game() {
   // PHONE CRASH REPORTS (R-TOUCH-CRASH-REPORT-01): a crash the crash log found on this load is sent to Supabase once, on
   // idle a few seconds after mount. A no-op on desktop (unless ?crashlog=1) and without a backend.
   useEffect(() => scheduleCrashReportUpload(() => {
+    const c = supabaseClient();
+    return c ? (row) => c.from(CRASH_REPORT_TABLE).insert([row]) : null;
+  }, () => anonRestInsert(CRASH_REPORT_TABLE)), []);
+  // ERROR + CRASH REPORTS ON EVERY CLIENT (R-CRASH-REPORT-DESKTOP-01): errors, rejections, ErrorBoundary catches, crashed
+  // sessions and the desktop shell's crash files, captured since main.tsx; sent from here on, on idle (errorReport.ts).
+  useEffect(() => setErrorReportTransport(() => {
     const c = supabaseClient();
     return c ? (row) => c.from(CRASH_REPORT_TABLE).insert([row]) : null;
   }, () => anonRestInsert(CRASH_REPORT_TABLE)), []);

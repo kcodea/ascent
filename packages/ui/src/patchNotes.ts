@@ -56,6 +56,15 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-11-22',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Emerald Warden with the Ancient of War: hovering Vanguard now shows the Waking Rift card it casts.',
+      },
+    ],
+  },
+  {
     date: '2026-11-21',
     changes: [
       {

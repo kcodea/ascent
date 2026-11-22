@@ -7133,6 +7133,13 @@ export function ancientSyncVanguard(state: RunState): void {
   a.powerOverride = on ? { passive: false, untargeted: true, cost: e.cost } : undefined;
 }
 
+/** EMERALD WARDEN × WAR: the spell Vanguard casts (Waking Rift), so the power's hover can preview it the way Hunch's
+ *  does (owner ask 2026-11-22). Undefined for any other pairing. */
+export function ancientVanguardSpellId(state: RunState): string | undefined {
+  const e = live(state) ? effectOf(state, 'vanguardActive') : undefined;
+  return e?.act === 'castSpell' ? e.spellId : undefined;
+}
+
 /**
  * EMERALD WARDEN × WAR / GENESIS / BONDS: Vanguard was pressed (the reducer's `vanguard` branch; the Gold and the turn's
  * charge are the shared block's). Returns false when it could do nothing, so the press is refused and costs nothing.

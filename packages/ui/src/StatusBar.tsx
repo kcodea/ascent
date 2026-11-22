@@ -16,7 +16,7 @@ import { countedGoldSpent } from '@game/sim';
 import { ancientArchiveNeed, passariaHasTarget, gratitudeView } from '@game/sim'; // Quillen × Ancients (Genesis: fills at 2)
 import { ancientContrabandEvery, ancientCoinNeed } from '@game/sim'; // Pete / Juggler × Ancients (the live cadence)
 import { ancientLuckySeatNeed, ancientCommissionSecond } from '@game/sim'; // Ayse × Bonds (needs 2), Cassen × Time (two slots)
-import { heroGrantOf, shopLocked, henchmanOffer, ancientAvengeCountdown, ancientDiceLockTurns, ancientCopyCharges, ancientCopyChargeReady, ancientClearanceStacks, ancientClearanceUsesBadge, ancientInvestmentTally, ancientSwapCharges, ancientSwapUsesBadge } from '@game/sim';
+import { ancientVanguardSpellId, heroGrantOf, shopLocked, henchmanOffer, ancientAvengeCountdown, ancientDiceLockTurns, ancientCopyCharges, ancientCopyChargeReady, ancientClearanceStacks, ancientClearanceUsesBadge, ancientInvestmentTally, ancientSwapCharges, ancientSwapUsesBadge } from '@game/sim';
 import { useEotAmplified } from './choreographer/equipmentFx';
 import { equipmentWillAmplify, equipmentCostOf, equipmentPool, equipmentState, equipmentText, equipmentUsesLeft, selectedEquipment, selectedEquipmentDef } from '@game/sim';
 import { CARD_INDEX, EQUIPMENT_INDEX } from '@game/content';
@@ -697,6 +697,8 @@ export function StatusBar() {
   // currently, say, a 3/3. Both render from the same live `instView` the shop uses, so the printed value is real.
   const previewCardId = power.kind === 'roundedSpellbook' ? run.lastSpellCastId
     : power.kind === 'rubyWealth' ? 'ruby'
+    // EMERALD WARDEN × WAR (owner ask 2026-11-22): Vanguard names Waking Rift, so its hover shows the spell.
+    : power.kind === 'vanguard' ? ancientVanguardSpellId(run)
     : undefined;
   // A Ruby is a MINION token, so — unlike Hunch's spell — its preview needs real instance stats: the def's
   // base plus the run's LIVE ruby bonus (`rubyStatBonus`, the same value the shop's Ruby offer shows). A spell

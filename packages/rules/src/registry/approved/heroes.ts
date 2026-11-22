@@ -4089,6 +4089,20 @@ export const HEROES_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsEmeraldWarden.test.ts"], lastVerifiedAt: '2026-11-10' },
   },
   {
+    id: "R-ANCEMERALD-08",
+    title: "Emerald Warden × Ancient of War: hovering Vanguard previews Waking Rift",
+    statement:
+      "With the Ancient of War, hovering the Vanguard power shows the Waking Rift card beside it (the same side preview Hunch and Fibbsy use), at every Shop tier, so the player can read the spell the power names.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-22", quote: "this needs to show a waking rift tooltip on mouseover" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts ancientVanguardSpellId; packages/ui/src/StatusBar.tsx previewCardId" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-22).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsEmeraldWarden.test.ts"], lastVerifiedAt: '2026-11-22' },
+  },
+  {
     id: "R-ANCEMERALD-05",
     title: "Emerald Warden × Ancient of Time: End of Turn: a random minion of your Tier",
     statement:

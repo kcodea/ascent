@@ -6,7 +6,7 @@
 import { describe, expect, it } from 'vitest';
 import { CARD_INDEX } from '@game/content';
 import {
-  ANCIENT_EW_AVENGE_FLAG, ANCIENT_IDS, activePowers, ancientAvengeCountdown, ancientCombatMods, ancientOfferText, createRun, enableAncients, heroPowerText, offerBuyPrice, reduce,
+  ANCIENT_EW_AVENGE_FLAG, ANCIENT_IDS, activePowers, ancientAvengeCountdown, ancientVanguardSpellId, ancientCombatMods, ancientOfferText, createRun, enableAncients, heroPowerText, offerBuyPrice, reduce,
   type AncientId, type BoardCard, type BoardSnapshot, type RunState,
 } from './index';
 import { destroyMinionInShop, makeContext } from './recruit';
@@ -143,6 +143,12 @@ describe('Emerald Warden × WAR: "At tier 6, Vanguard can be activated for 1g to
     const s = picked('death', { tier: 6, board: mechs() });
     expect(activePowers(s)[0]!.passive).toBe(true);
     expect(reduce(s, { type: 'heroPower' })).toBe(s);
+  });
+  it('R-ANCEMERALD-08: the hover previews Waking Rift at every tier, and only with this pairing', () => {
+    expect(ancientVanguardSpellId(picked('war', { tier: 2 }))).toBe('sparkplug');
+    expect(CARD_INDEX['sparkplug']!.name).toBe('Waking Rift');
+    expect(ancientVanguardSpellId(picked('genesis', { tier: 6 }))).toBeUndefined();
+    expect(ancientVanguardSpellId(picked('death', { tier: 6 }))).toBeUndefined();
   });
 });
 

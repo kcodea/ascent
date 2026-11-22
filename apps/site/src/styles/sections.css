@@ -98,9 +98,9 @@
 }
 
 .top__crest {
-  width: clamp(84px, 22vw, 120px);
+  width: clamp(72px, 19vw, 104px);
   height: auto;
-  margin-bottom: var(--s4);
+  margin-bottom: var(--s1);
   /* The mark is painted with its own shadow; this only adds a soft gold glow round it. */
   filter: drop-shadow(0 0 26px color-mix(in srgb, var(--gold-light) 40%, transparent));
 }
@@ -1221,9 +1221,9 @@ html:not(.is-other, .is-mobile) .top :is(.download__platform, .download__note) {
 
   /* Sizes and places below are the owner's, set in the ?tune panel (tuner.ts) on 2026-11-22. */
   .top__crest {
-    width: calc(16.6 * var(--u));
-    min-width: 120px;
-    margin-bottom: var(--s2);
+    width: calc(12.5 * var(--u));
+    min-width: 104px;
+    margin-bottom: 0;
   }
 
   .top__team--left-back {

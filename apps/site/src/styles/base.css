@@ -203,7 +203,7 @@ p {
   color: var(--muted);
 }
 
-/* THE GEM: the game's Gem plate rebuilt in CSS. A blue gem face lit from the top, a turned gold rim, a dark outer
+/* THE GEM: the game's Gem plate rebuilt in CSS. A deep navy face lit from the top, a turned gold rim, a dark outer
    rim, a lit top edge and a hard bottom edge so it reads as pressable. The look is shared with the copy-link button
    when the page is opened somewhere the installer can't run (.is-other / .is-mobile on <html>, set in Task 5). */
 .gem,
@@ -229,14 +229,14 @@ p {
   text-shadow: 0 2px 0 var(--gem-ink), 0 0 12px color-mix(in srgb, var(--gem-ink) 70%, transparent);
   background:
     linear-gradient(135deg, color-mix(in srgb, var(--white) 22%, transparent) 0 22%, transparent 22% 100%) padding-box,
-    radial-gradient(120% 90% at 50% 0%, var(--gem-hi) 0%, var(--gem) 38%, var(--gem-mid) 62%, var(--gem-deep) 82%, var(--gem-dark) 100%) padding-box,
+    radial-gradient(120% 90% at 50% 0%, var(--btn-hi) 0%, var(--btn) 34%, var(--btn-mid) 60%, var(--btn-deep) 82%, var(--btn-dark) 100%) padding-box,
     var(--edge) border-box;
   box-shadow:
     0 0 0 2px var(--gem-rim),
     inset 0 2px 0 color-mix(in srgb, var(--white) 70%, transparent),
     inset 0 -8px 14px -6px color-mix(in srgb, var(--gem-ink) 85%, transparent),
     0 5px 0 2px var(--gem-rim),
-    0 18px 30px -10px color-mix(in srgb, var(--gem-dark) 60%, transparent);
+    0 18px 30px -10px color-mix(in srgb, var(--btn-dark) 70%, transparent);
   cursor: url('/art/cursors/gauntlet_open.svg') 6 2, pointer;
   transition: transform 0.12s ease, filter 0.12s ease;
 }
@@ -252,7 +252,7 @@ p {
   pointer-events: none;
 }
 
-/* The glow: a static blue halo whose OPACITY breathes (see the reduced-motion block). */
+/* The glow: a static navy-blue halo whose OPACITY breathes (see the reduced-motion block). */
 .gem::after,
 :is(.is-other, .is-mobile) .download__copy::after {
   content: '';
@@ -262,7 +262,7 @@ p {
   inset: -2px -2px -7px;
   z-index: -1;
   border-radius: inherit;
-  box-shadow: 0 0 26px 8px color-mix(in srgb, var(--gem) 55%, transparent);
+  box-shadow: 0 0 26px 8px color-mix(in srgb, var(--btn-hi) 60%, transparent);
   opacity: 0.55;
   pointer-events: none;
 }
@@ -373,7 +373,7 @@ p {
 @supports not (background: color-mix(in srgb, currentColor 50%, transparent)) {
   .gem,
   :is(.is-other, .is-mobile) .download__copy {
-    background: var(--gem-mid);
+    background: var(--btn-mid);
   }
 
   .capture,

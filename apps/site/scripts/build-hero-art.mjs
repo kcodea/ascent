@@ -24,7 +24,8 @@ for (const [name, file] of Object.entries(LAYERS)) {
   const info = await sharp(path.join(SRC, file)).trim().webp({ quality: 86, alphaQuality: 90, effort: 6 }).toFile(out);
   console.log(name, `${info.width}x${info.height}`, `${Math.round(info.size / 1024)} KB`);
 }
-const sky = await sharp(path.join(SRC, 'backgrop 2.png')).webp({ quality: 80, effort: 6 }).toFile(path.join(OUT, 'sky.webp'));
+// Blurred and darkened here, once, so the page never pays for a filter: the characters and the words read first.
+const sky = await sharp(path.join(SRC, 'backgrop 2.png')).blur(4).modulate({ brightness: 0.7 }).webp({ quality: 80, effort: 6 }).toFile(path.join(OUT, 'sky.webp'));
 console.log('sky', `${sky.width}x${sky.height}`, `${Math.round(sky.size / 1024)} KB`);
 
 // The logo (painted with its own shadow): trimmed, and at twice its largest drawn size.

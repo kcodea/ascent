@@ -59,6 +59,13 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-11-21',
     changes: [
       {
+        category: 'Systems',
+        text: "Fixed: extra copies of Anvilshade's Charging Soldier now gain Anvilshade's Attack too, instead of arriving as a plain 3/1.",
+        details: [
+          'Applies to the extra copies from Ancient of Genesis and from Echo Warden.',
+        ],
+      },
+      {
         category: 'Balance',
         text: "Elder's Voice reworked: at End of Turn it repeats the first Shout you played from hand this turn, twice.",
         details: [

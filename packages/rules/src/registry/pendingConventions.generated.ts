@@ -2280,7 +2280,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "statement": "The 1 card here fires on one trigger: this minion Consumes something. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
     "currentBehaviour": "2 effect factories across 1 card dispatch on 'onConsume' (recruit) — re-clustered by TRIGGER out of the 'react' presentation family on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Enigma: \"When you consume a minion, give minions in the Shop +4/+5 permanently.\" · Members: Enigma",
+    "cardText": "Exemplar — Enigma: \"When you consume a minion, give minions in the Shop +3/+3 permanently.\" · Members: Enigma",
     "example": "Enigma fires when this minion Consumes something, like every other card here. its printed numbers double when the card is gilded.",
     "contentIds": [
       "dm_jumbo"

@@ -76,7 +76,15 @@ body { min-height: 100vh; color: var(--ph-text); background: #0a1730; }
 .dk-mark { width: 40px; height: 40px; flex: none; }
 .dk-brand { font-weight: 900; font-size: 22px; letter-spacing: 0.18em; color: var(--ph-ink); text-shadow: var(--ph-shadow); }
 .dk-navtab { position: relative; align-self: stretch; display: inline-flex; align-items: center; padding: 0 16px; font-weight: 800; font-size: var(--ph-t2); letter-spacing: 0.12em; text-transform: uppercase; color: var(--ph-ink); text-shadow: var(--ph-shadow); }
-.dk-navtab.on::after { content: ''; position: absolute; left: 16px; right: 16px; bottom: -8px; height: 3px; background: var(--ph-metal-gold); }
+.dk-navtab.on::after, .dk-navtab[aria-pressed='true']::after { content: ''; position: absolute; left: 16px; right: 16px; bottom: -8px; height: 3px; background: var(--ph-metal-gold); }
+/* The view switch (Analytics | Moderation): the nav's own tabs as buttons, the current one white with the gold bar. */
+.dk-views { align-self: stretch; display: flex; gap: 4px; }
+button.dk-navtab { gap: 8px; margin: 0; border: 0; background: none; font-family: inherit; color: var(--ph-muted); transition: color 0.12s ease; }
+button.dk-navtab:hover, button.dk-navtab[aria-pressed='true'] { color: var(--ph-ink); }
+button.dk-navtab:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--ui-edge-hi); }
+.dk-navcount { display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 11px; background: var(--ph-metal-gold);
+  color: var(--ph-navy); font-weight: 900; font-size: 12px; letter-spacing: 0; text-shadow: none; font-variant-numeric: tabular-nums; }
+body[data-view='moderation'] :is(#live, #tz, #updated) { display: none !important; }
 .dk-navright { margin-left: auto; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
 
 /* ── Page (kit: phk-page / pagehead / eyebrow) ── */
@@ -93,6 +101,8 @@ body { min-height: 100vh; color: var(--ph-text); background: #0a1730; }
   font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; color: var(--ph-text); }
 .dk-chip:empty { display: none; }
 .dk-chip.t-gold { background: var(--ph-metal-gold); color: var(--ph-navy); box-shadow: none; }
+.dk-chip.t-red { color: #ffd2c9; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pill-red) 75%, transparent); background: linear-gradient(180deg, rgba(120, 24, 14, 0.55), rgba(60, 10, 6, 0.65)); }
+.dk-chip.t-ok { color: var(--ph-teal); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ph-teal) 50%, transparent); }
 /* LIVE: the shell's ready green (--ph-teal). The dot breathes on OPACITY only (compositor; CLAUDE.md perf rule). */
 .dk-live { gap: 6px; color: var(--ph-teal); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ph-teal) 50%, transparent); }
 .dk-live i { width: 8px; height: 8px; border-radius: 50%; background: var(--ph-teal); animation: dk-live 2s ease-in-out infinite; }
@@ -237,10 +247,68 @@ tr.low .dk-heroname { color: var(--ph-muted); }
 .dk-notes ul { margin: 6px 0 0; padding-left: 18px; }
 code { color: var(--ph-text); }
 
+/* ── Moderation: cards on the plate (a report, a flagged name, a search hit) ── */
+.dk-visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.dk-cards { display: flex; flex-direction: column; gap: 10px; }
+.dk-card { position: relative; display: flex; flex-direction: column; gap: 10px; min-width: 0; padding: 14px 16px; background: var(--ph-well); box-shadow: var(--ph-gild-s); clip-path: var(--ph-clip-s); }
+.dk-card.is-done { opacity: 0.82; }
+.dk-cardhead { display: flex; align-items: flex-start; gap: 8px 16px; flex-wrap: wrap; }
+.dk-cardwho { flex: 1 1 260px; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.dk-cardwho .dk-rowsub { white-space: normal; }
+.dk-cardwho b { color: var(--ph-text); font-weight: 800; }
+.dk-who { color: var(--ph-text); font-weight: 700; }
+.dk-cardchips { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px; }
+.dk-flagname { white-space: normal; overflow-wrap: anywhere; font-size: 22px; }
+.dk-cardacts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+.dk-notefield { flex: 1 1 220px; min-width: 0; display: flex; }
+.dk-note { width: 100%; }
+.dk-reviewed { color: var(--ph-text); }
+/* The conversation around a reported message: the reporter's lines left, the reported player's right, the reported
+   one rimmed in gold. */
+.dk-convo { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.dk-convo li { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1px; max-width: min(560px, 92%); padding: 6px 12px; background: rgba(255, 255, 255, 0.04);
+  box-shadow: inset 2px 0 0 color-mix(in srgb, var(--ph-muted) 45%, transparent); clip-path: var(--ph-clip-s); }
+.dk-convo li.by-reported { align-self: flex-end; background: rgba(58, 90, 154, 0.22); box-shadow: inset -2px 0 0 color-mix(in srgb, var(--s1) 70%, transparent); text-align: right; }
+.dk-convo li.is-hit { background: linear-gradient(180deg, rgba(246, 207, 90, 0.16), rgba(246, 207, 90, 0.08)); box-shadow: inset 0 0 0 1.5px var(--pill-gold); }
+.dk-convowho { font-weight: 800; font-size: 12px; letter-spacing: 0.06em; color: var(--ui-title); }
+.dk-convobody { font-weight: 600; color: var(--ph-ink); overflow-wrap: anywhere; }
+.dk-convoat { font-size: 12px; color: var(--ph-muted); }
+/* The in-page confirm for Reset name (never window.confirm). */
+.dk-confirm { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; background: linear-gradient(180deg, rgba(120, 24, 14, 0.32), rgba(40, 8, 6, 0.4));
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--pill-red) 70%, transparent); clip-path: var(--ph-clip-s); }
+.dk-confirm p { margin: 0; font-weight: 600; color: var(--ph-ink); }
+.dk-confirmrow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+.dk-btn.v-ghost { background: transparent; box-shadow: inset 0 0 0 1px var(--ph-hair); font-size: var(--ph-t1); padding: 0 16px; }
+.dk-btn.v-ghost:hover { background: rgba(255, 233, 176, 0.08); }
+.dk-btn.t-danger { background: linear-gradient(180deg, #c8452f, #8a2414); box-shadow: inset 0 0 0 1.5px #ff9a85, inset 0 2px 0 -1px rgba(255, 220, 200, 0.5); color: #fff; }
+.dk-btn.t-danger:hover { background: linear-gradient(180deg, #db5640, #9c2d1a); }
+.dk-btn:disabled { opacity: 0.55; transform: none; }
+.dk-btn[aria-busy='true'] { opacity: 0.8; }
+.dk-cardacts .dk-btn, .dk-cardchips .dk-btn, .dk-confirmrow .dk-btn { height: 36px; font-size: var(--ph-t1); padding: 0 16px; }
+.dk-searchrow { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 12px; margin-bottom: 4px; }
+.dk-hit { padding: 10px 14px; }
+.dk-hit .dk-rowtitle { font-size: var(--ph-t2); }
+.dk-statsmall { font-size: 30px; line-height: 1.1; }
+.dk-logtable td { white-space: normal; text-align: left; }
+.dk-logtable th { text-align: left; }
+.dk-logtable td:first-child, .dk-logtable td:nth-child(2) { white-space: nowrap; }
+.dk-logwhat { color: var(--ph-ink); font-weight: 700; min-width: 220px; }
+.dk-lognote { color: var(--ph-muted); font-weight: 500; }
+.dk-filterrow + .dk-cards { margin-top: 4px; }
+
 @media (max-width: 760px) {
   .dk-nav { gap: 10px; padding: 8px 16px; flex-wrap: wrap; }
   .dk-brand { font-size: 18px; }
   .dk-navtab { display: none; }
+  /* The view switch keeps its place on a phone: its own full-width row under the brand. */
+  .dk-views { order: 3; flex: 1 0 100%; margin: 0 -16px -8px; padding: 0 8px; box-shadow: inset 0 1px 0 var(--ph-hair); }
+  button.dk-navtab { display: inline-flex; flex: 1; justify-content: center; min-height: 44px; padding: 0 8px; }
+  button.dk-navtab[aria-pressed='true']::after { bottom: 0; left: 12px; right: 12px; }
+  .dk-card { padding: 12px; }
+  .dk-cardchips { justify-content: flex-start; }
+  .dk-convo li { max-width: 100%; }
+  .dk-flagname { font-size: 19px; }
+  .dk-logwhat { min-width: 160px; }
   .dk-page { padding: 0 16px 40px; gap: 16px; }
   .dk-pagesub { margin-left: 0; }
   .dk-stats { grid-template-columns: minmax(0, 1fr); gap: 12px; }

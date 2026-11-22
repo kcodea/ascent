@@ -20,7 +20,7 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { parseCosmeticSnapshot } from '@game/progression';
-import { riftDefFor, VERSUS_MODIFIERS, VERSUS_SPECTATOR_CAP, type VersusGroupSeat, type VersusModifierId, type VersusRoomOptions } from '@game/sim';
+import { isBlockedName, NAME_BLOCKED_TEXT, riftDefFor, VERSUS_MODIFIERS, VERSUS_SPECTATOR_CAP, type VersusGroupSeat, type VersusModifierId, type VersusRoomOptions } from '@game/sim';
 import { heroThumb } from '../art';
 import { hideDragCursorVeil, showDragCursorVeil } from '../dragCursorVeil';
 import { getDragFeel } from '../dragFeel';
@@ -541,7 +541,8 @@ export function RoomRulesPanel({ room, me, modifier, onModifier, name, onName, p
   };
   return (
     <>
-      {!room && <PhField label="Room name" maxLength={40} placeholder={placeholder} value={name} onChange={(e) => onName(e.target.value)} />}
+      {!room && <PhField label="Room name" maxLength={40} placeholder={placeholder} value={name} onChange={(e) => onName(e.target.value)}
+        error={isBlockedName(name) ? NAME_BLOCKED_TEXT : undefined} />}
       <PhSegmented label="Modifier" value={value} options={MODIFIERS} disabled={!editable} max={4} onPick={pick}
         hint={value ? riftDefFor(value, 'versus').blurb : undefined} />
       <div className="pho-note">

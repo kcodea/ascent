@@ -44,6 +44,8 @@ export { handleRankedDuosSeat, handleRankedDuosFinalize };
 // UNIQUE HEROES PER LOBBY (R-VERSUS-UNIQUE-HEROES-01): the room deals disjoint offers and keeps picks unique.
 export { uniqueAutoHeroIndex, versusDisjointHeroOffers, versusRerollCandidatesFree };
 export type { RankedDuosSeatStore, RankedDuosFinalizeStore };
+// THE NAME FILTER (R-NAME-FILTER-01): the room refuses a blocked room name and reports a flagged one.
+export { isBlockedName, nameVerdict, NAME_BLOCKED } from '../nameFilter';
 
 /** The content identity this engine was built from (FNV over every card, rune and quest definition). */
 export function engineContentRevision(): string {

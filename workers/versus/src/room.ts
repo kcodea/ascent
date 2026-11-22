@@ -26,6 +26,7 @@ import { liveListingOf } from './core/liveListing';
 import { LIVE_STORAGE_KEY, liveSinkFor, LiveSlot } from './live';
 import type { LiveDirWriterEnv } from './liveDirSink';
 import { signInviteProof } from './invites';
+import { reportRoomName, roomNameNeedsFlag } from './nameFlag';
 import { relayAudience } from './relay';
 import { MAX_FRAME_CHARS, takeToken, type Bucket } from './rate';
 import { spectateSinkFor, WatchReporter, type SpectateSink } from './spectate';
@@ -226,6 +227,12 @@ export class VersusRoom extends DurableObject<RoomEnv> {
         await this.directory().upsert(this.core.summary() as never);
         this.liveSlot ??= this.makeLiveSlot(null);
         await this.rearm();
+        // A flagged room name goes to the moderation queue (R-NAME-FILTER-01). Best effort, never awaited by the room.
+        const name = state.room.name;
+        if (roomNameNeedsFlag(name)) {
+          void reportRoomName(this.env, { id: state.room.id, name, hostUserId: state.room.host_user_id })
+            .catch((e) => this.log({ ev: 'versus_cf_name_flag_failed', error: String(e) }));
+        }
         return { ok: true as const, room: this.core.roomJson() };
       } catch (e) {
         return { ok: false as const, error: e instanceof CoreError ? e.code : 'init_failed' };

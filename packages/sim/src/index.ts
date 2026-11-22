@@ -1,4 +1,5 @@
 export * from './config';
+export * from './nameFilter'; // the name filter: block a slur, flag the rest for review (R-NAME-FILTER-01)
 export * from './heroes';
 export { heroGrantOf } from './heroGrant';
 export * from './heroTips';

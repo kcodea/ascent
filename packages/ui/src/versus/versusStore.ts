@@ -19,6 +19,7 @@ import {
   buildVersusCandidate, catchUpVersusRun, progressionFactsOf, createVersusRun, deserialize, reduce, resetLobbyDrivers, serialize, versusAutoResolve, versusHeroOffer, versusHeroRerollCandidates, isHeroReroll,
   versusLobby, versusLobbyKey, versusScoutOf, versusTimeoutRng, VERSUS_LEASE_SECONDS, type Action, type RunState, type VersusLobbyInput, type VersusSeat,
   normalizeVersusOptions, versusModeIsDuos, versusGroupLobby, type VersusRoomOptions, versusGroupLobbyKey, type PreparedCombatSide, type VersusGroupLobbyInput, type VersusGroupSeat, type VersusSeatScout,
+  NAME_BLOCKED_TEXT,
 } from '@game/sim';
 import { parseCosmeticSnapshot, type RunCosmeticSnapshot } from '@game/progression';
 import type { CombatResult } from '@game/core';
@@ -221,6 +222,7 @@ const ERROR_TEXT: Record<string, string> = {
   hero_taken: 'Another player has that hero.', // every hero in a game is unique (R-VERSUS-UNIQUE-HEROES-01)
   room_not_sealed: 'The game is already starting.',
   team_in_game: 'Rename your team between games.',
+  name_blocked: NAME_BLOCKED_TEXT, // a room name the filter blocks (R-NAME-FILTER-01; the room Worker refuses it)
   party_slow: 'Your party did not open. Try again.',
   party_closed: 'Your party closed.',
 };

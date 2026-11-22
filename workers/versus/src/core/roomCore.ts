@@ -38,6 +38,8 @@ import {
   VERSUS_PROTOCOL,
   VERSUS_SPECTATOR_CAP,
   uniqueAutoHeroIndex,
+  isBlockedName,
+  NAME_BLOCKED,
   versusDisjointHeroOffers,
   versusRerollCandidatesFree,
   type VersusFinalizeStore,
@@ -344,6 +346,9 @@ export function newRoomState(input: CreateRoomInput, now: number): CoreState {
   if (input.protocol !== VERSUS_PROTOCOL) fail('version_mismatch');
   if (input.contentRevision !== engineContentRevision()) fail('version_mismatch');
   if (jsonBytes(input.profile) > PROFILE_BYTES) fail('profile_too_large');
+  // A room name the filter blocks (a slur) never opens a room (R-NAME-FILTER-01). A flagged one opens and is reported
+  // to the moderation queue by the room object (room.ts, `moderation_cf_flag`).
+  if (isBlockedName(clampName(input.name, 'Versus'))) fail(NAME_BLOCKED);
   return {
     v: 1,
     room: {

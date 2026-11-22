@@ -60,6 +60,14 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Player names, Duos team names and Versus room names are now checked for slurs.',
+        details: [
+          'A name with a slur cannot be saved. You see "That name is not allowed. Please pick another one." and can pick another.',
+          'Other rude names may be looked at by the team, and may be reset to Player.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Fixed a finished match sometimes showing up as a saved match you could continue.',
         details: [
           'After a match ended, the main menu on another device or browser could still offer it at its last round.',

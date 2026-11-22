@@ -10,7 +10,7 @@
  *    the room (`RankScreen` out of 4 teams, then Account XP), headed by both teammates; Continue returns to the party.
  */
 import { useEffect, useState } from 'react';
-import { defaultTeamName, teamNameProblem, TEAM_NAME_MAX } from '@game/sim';
+import { defaultTeamName, NAME_BLOCKED_TEXT, teamNameProblem, TEAM_NAME_MAX } from '@game/sim';
 import { sfx } from '../sfx';
 import { RankScreen } from '../rank/RankScreen';
 import { ProgressionPostgame } from '../progression/ProgressionPostgame';
@@ -23,7 +23,7 @@ import { versusRemote, type VersusRoom } from './versusRemote';
 const NAME_ERROR: Record<string, string> = {
   name_length: 'A team name is 2 to 16 characters.',
   name_chars: 'Use letters, numbers and single spaces only.',
-  name_blocked: 'That name is not allowed.',
+  name_blocked: NAME_BLOCKED_TEXT, // R-NAME-FILTER-01: the same words as every other name
   name_reserved: 'That name is reserved.',
   team_in_game: 'Rename your team between games.',
   bad_team: 'You need a teammate to name a team.',

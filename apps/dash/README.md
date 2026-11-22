@@ -17,6 +17,35 @@ Supabase: public.analytics_overview / public.analytics_breakdown (service_role o
 The service role key exists only as a Cloudflare secret, read by the Functions. It is never in the repo and never in
 the page's JavaScript.
 
+## Moderation (the second tab)
+
+`Analytics | Moderation` in the nav (`#view=moderation` in the URL; the tab shows the count of open items). Owner ask
+2026-11-22: "build the reporting dash and account name and party name flags" (R-NAME-FILTER-01).
+
+```
+GET  /api/moderation/queue   ?reports=open|reviewed|all&names=open|done|all[&fresh=1] -> moderation_queue
+GET  /api/moderation/search  ?q=<name, Name#1234 or an id>                          -> moderation_search
+POST /api/moderation/action  { action: review | clear | reset, ... }                -> moderation_review_report /
+                                                                                       moderation_clear_flag /
+                                                                                       moderation_reset_name
+```
+
+- Same guard as the analytics routes (secrets, Access JWT, ALLOWED_EMAILS; fail closed). A POST must also be same-origin
+  (`Origin`, and `Sec-Fetch-Site` when sent), `application/json`, and carry `x-dash-action: 1`. The actor written to the
+  log is always the verified Access email, never anything in the body.
+- Reads use the 60 s cache; every action drops the cached moderation reads and the page re-reads with `fresh=1`.
+- **DM reports**: newest first, with the reporter, the reported player, how often that player was reported, and the
+  messages around the reported one, copied at report time (messages are pruned after a day; reports keep 180 days).
+  Mark reviewed (optional note) or Reset sender name.
+- **Names**: the flags written by the name filter (`packages/sim/src/nameFilter.ts`, mirrored as
+  `moderation.name_verdict`): account names (`profiles.author`), Duos team names (`duos_teams.name`) and Versus room
+  names (reported by the room Worker). A search finds any account or team. Looks fine closes a flag; Reset name (with
+  a confirm step in the card) sets an account to `Player` (tag kept unless taken) or clears a team name, and the old
+  name cannot be taken back. A room cannot be reset (it lives only in the Cloudflare room).
+- **Log**: every action, who, when, before and after (`moderation.log`).
+- SQL: `supabase/migrations/2026-11-28-moderation.sql` (owner applies it, like the analytics one). Until it is applied
+  the Moderation tab answers "The database did not answer".
+
 ## The look and the art
 
 The page wears the game's own menu style: the Docked rail / party-home shell tokens (`packages/ui/src/partyHome/shell/shell.css`,

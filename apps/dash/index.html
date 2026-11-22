@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="robots" content="noindex, nofollow" />
     <meta name="theme-color" content="#0d1a36" />
-    <title>ASCENT Analytics</title>
+    <title>ASCENT Dev Dashboard</title>
     <link rel="icon" type="image/webp" href="/art/ascent-mark.webp" />
     <!-- The game's own type (apps/web/index.html loads the same family): Outfit, the menus' --font-title / --font-ui. -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -20,7 +20,10 @@
     <header class="dk-nav">
       <img class="dk-mark" src="/art/ascent-mark.webp" alt="" width="40" height="40" />
       <span class="dk-brand">ASCENT</span>
-      <span class="dk-navtab on">Analytics</span>
+      <nav class="dk-views" id="views" aria-label="Dashboard">
+        <button type="button" class="dk-navtab" data-view="analytics" aria-pressed="true">Analytics</button>
+        <button type="button" class="dk-navtab" data-view="moderation" aria-pressed="false">Moderation<span class="dk-navcount" id="mod-count" hidden></span></button>
+      </nav>
       <span class="dk-navright">
         <span id="sample" class="dk-chip t-gold" hidden>Sample data</span>
         <span id="live" class="dk-chip dk-live" hidden><i aria-hidden="true"></i>Live</span>
@@ -29,7 +32,7 @@
       </span>
     </header>
 
-    <main class="dk-page">
+    <main class="dk-page" id="view-analytics">
       <div class="dk-pagehead">
         <div class="dk-pagetitle">
           <span class="dk-eyebrow">Dev only</span>
@@ -118,6 +121,59 @@
           <li>Gauntlet stages leave no per-game record, so Gauntlet games are not counted.</li>
           <li>A build is the client's version stamp. Versus and tutorial rows carry none, so picking a build hides them.</li>
           <li>Test bots and the Claudebot test accounts are left out.</li>
+        </ul>
+      </footer>
+    </main>
+
+    <main class="dk-page" id="view-moderation" hidden>
+      <div class="dk-pagehead">
+        <div class="dk-pagetitle">
+          <span class="dk-eyebrow">Dev only</span>
+          <h1>Moderation</h1>
+        </div>
+        <p class="dk-pagesub">DM reports, flagged names and the action log</p>
+      </div>
+
+      <div id="mod-error" class="dk-banner" role="alert" hidden></div>
+
+      <section class="dk-stats" aria-label="Open items">
+        <article class="dk-stat" id="mod-tile-reports"></article>
+        <article class="dk-stat" id="mod-tile-names"></article>
+        <article class="dk-stat" id="mod-tile-log"></article>
+      </section>
+
+      <section class="dk-section" aria-labelledby="mod-reports-title">
+        <div class="dk-sechead"><h2 id="mod-reports-title">DM reports</h2><span class="dk-secaside">Newest first. A report keeps its own copy of the messages for 180 days.</span></div>
+        <div class="dk-secbody">
+          <div class="dk-tabs" id="mod-reports-filter" role="group" aria-label="Report status"></div>
+          <div id="mod-reports"></div>
+        </div>
+      </section>
+
+      <section class="dk-section" aria-labelledby="mod-names-title">
+        <div class="dk-sechead"><h2 id="mod-names-title">Names</h2><span class="dk-secaside">Account, Duos team and Versus room names the filter flagged</span></div>
+        <div class="dk-secbody">
+          <form class="dk-searchrow" id="mod-search-form" role="search">
+            <label class="dk-field grow"><span class="dk-label">Find any account or team</span><input class="dk-well" type="search" id="mod-q" maxlength="64" placeholder="Name, Name#1234 or an id" autocomplete="off" /></label>
+            <button type="submit" class="dk-btn">Search</button>
+          </form>
+          <div id="mod-search"></div>
+          <div class="dk-tabs" id="mod-names-filter" role="group" aria-label="Flag status"></div>
+          <div id="mod-names"></div>
+        </div>
+      </section>
+
+      <section class="dk-section" aria-labelledby="mod-log-title">
+        <div class="dk-sechead"><h2 id="mod-log-title">Moderation log</h2><span class="dk-secaside">Every action: who, when, before and after</span></div>
+        <div class="dk-secbody"><div class="dk-tablewrap" id="mod-log"></div></div>
+      </section>
+
+      <footer class="dk-notes">
+        <h2>How names are checked</h2>
+        <ul>
+          <li>Every account name, Duos team name and Versus room name goes through one filter. A slur is refused before it is saved. A broader list is allowed and lands here.</li>
+          <li>Looks fine closes the flag. Reset name sets an account to <code>Player</code> (the #tag kept unless taken) or clears a team name, and that name cannot be taken back.</li>
+          <li>A Versus room name lives only while the room is open, so it can be cleared here but not reset.</li>
         </ul>
       </footer>
     </main>

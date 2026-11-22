@@ -31,5 +31,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initAncients(document);
   initRunes(document);
   initChests(document, { reducedMotion });
+  // The scene tuner: only with ?tune on the address, and only then downloaded.
+  if (new URLSearchParams(window.location.search).has('tune')) void import('./tuner').then((m) => m.initTuner(document));
   initParallax(document, { reducedMotion, finePointer: window.matchMedia('(hover: hover) and (pointer: fine)').matches });
 });

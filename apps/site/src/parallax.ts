@@ -22,7 +22,7 @@ export function initParallax(doc: Document, opts: ParallaxOptions): void {
   if (opts.reducedMotion || !opts.finePointer) return;
   const stage = doc.querySelector<HTMLElement>('.top');
   if (!stage) return;
-  const layers = [...stage.querySelectorAll<HTMLElement>('[data-depth]')].map((el) => ({ el, depth: Number(el.dataset.depth) || 0 }));
+  const layers = [...stage.querySelectorAll<HTMLElement>('[data-depth]')];
   if (!layers.length) return;
 
   const win = doc.defaultView;
@@ -44,7 +44,11 @@ export function initParallax(doc: Document, opts: ParallaxOptions): void {
       x = tx;
       y = ty;
     }
-    for (const { el, depth } of layers) el.style.transform = `translate3d(${(-x * depth).toFixed(2)}px, ${(-y * depth).toFixed(2)}px, 0)`;
+    for (const el of layers) {
+      // Read each frame, not cached: the tuner (tuner.ts) changes a layer's depth live.
+      const depth = Number(el.dataset.depth) || 0;
+      el.style.transform = `translate3d(${(-x * depth).toFixed(2)}px, ${(-y * depth).toFixed(2)}px, 0)`;
+    }
     if (settled) running = false;
     else raf(frame);
   };

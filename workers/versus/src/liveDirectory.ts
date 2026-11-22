@@ -21,6 +21,7 @@ import { DurableObject } from 'cloudflare:workers';
 import { LiveDirCore, cleanPut, type DirEntry, type DirReader } from './core/liveDirCore';
 import { ACTIVITY_PREFIX, ActivityTally } from './core/liveActivity';
 import type { ActivityHour, HubActivity } from './health/healthProtocol';
+import { ALERT_STATE_KEY, type AlertState } from './health/healthAlert';
 import { LIVE_DIR_META_TTL_MS, type LiveDirPut, type LiveDirRank, type LiveDirRow } from './liveDirProtocol';
 import type { HubStoreEnv } from './dmStore';
 
@@ -195,6 +196,15 @@ export class LiveDirectory extends DurableObject<LiveDirEnv> {
     const now = Date.now();
     this.metrics.reads++;
     return this.core.game(gameId, await this.readerOf(userId, now), now);
+  }
+
+  /** The health alert's state (R-OPS-HEALTH-03, `health/healthAlert.ts`): kept here because this is the hub's one
+   *  always-there global object. Read by the hub's cron only; not loaded into memory with the listings. */
+  async alertState(): Promise<AlertState | null> {
+    return (await this.ctx.storage.get<AlertState>(ALERT_STATE_KEY)) ?? null;
+  }
+  async setAlertState(s: AlertState): Promise<void> {
+    await this.ctx.storage.put(ALERT_STATE_KEY, s);
   }
 
   /** The health check's activity read (`GET /ops/activity`, and the hub's cron in-process). Counts only. */

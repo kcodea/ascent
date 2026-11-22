@@ -81,11 +81,78 @@ no players, 48 hours; `GET /ops/activity`). A listing is counted once per game, 
 - **`writer_key` fails.** The hub's `HUB_WRITER_SECRET` no longer matches a `versus_cf_writer_keys` row. Re-set it with
   `node workers/versus/scripts/writer-secret.mjs ascent-hub` and insert the hash it prints.
 
+## Alerts (Discord)
+
+R-OPS-HEALTH-03 (owner 2026-11-22: the check failed two days running and nobody was told). After each daily cron run the
+hub posts to a Discord channel:
+
+- **the moment a check starts failing**, or a new check joins the failing set;
+- **a reminder at most once a day** while the same checks keep failing (23 h, not 24, so the daily run's few seconds of
+  jitter never skips a day);
+- **one "all green again" message** when the next run is all green.
+
+A run whose record Supabase refused counts as one more failing check, `record`. An hourly **watchdog** on the hub's
+5-minute cron alerts `cron_overdue` when no daily run has completed in 26 hours (the same window `ops.health_status`
+uses), and the next completed run clears it.
+
+What a message looks like:
+
+```
+**ASCENT health check: 2 failing** (run 2026-11-22 06:17 UTC)
+- `versus_worker`: fetch failed: https://...
+- `writes.lobby`: ["run_history","boards"]
+How to look: `select source, ts, check_name, status, detail from ops.health_latest;` (docs/ops/health-check.md).
+```
+
+```
+**ASCENT health check: still 2 failing** since 2026-11-22 06:17 UTC (run 2026-11-23 06:17 UTC)
+...
+```
+
+```
+**ASCENT health check: all green again** (run 2026-11-24 06:17 UTC)
+Was failing since 2026-11-22 06:17 UTC: `versus_worker`, `writes.lobby`
+```
+
+The messages mention nobody (`allowed_mentions` is empty). Set the channel's notification level if you want a push.
+
+### Turning alerts on
+
+1. In Discord: the channel's **Edit Channel > Integrations > Webhooks > New Webhook**, name it, **Copy Webhook URL**.
+   Treat the URL as a password: anyone holding it can post to the channel.
+2. Give it to the hub (from the repo root; wrangler reads the value from the prompt, so it never lands in your shell
+   history or the repo):
+
+   ```
+   cd workers/versus
+   npx wrangler secret put ALERT_DISCORD_WEBHOOK --name ascent-hub --config hub.wrangler.toml
+   ```
+
+   Setting a secret takes effect at once (no `hub:deploy` needed for the secret itself), but the alert CODE ships with
+   the next `npm run hub:deploy -- --persist`.
+3. Rotate: delete the webhook in Discord, make a new one, re-run step 2. Turn off: `npx wrangler secret delete
+   ALERT_DISCORD_WEBHOOK --name ascent-hub --config hub.wrangler.toml`.
+
+Without the secret the hub sends nothing and keeps no alert state; the Worker log says `health_alert_off` once per
+isolate. A Discord error is logged as `health_alert_failed` with the HTTP status only (never the URL), and the alert
+state is left as it was, so the next run retries.
+
+**State.** One record, `ops:health_alert`, in the Live Games directory object's storage (`LIVE_DIR`, `global`): the
+failing checks, when the streak began, when the last failing message went out, and when the daily run last completed
+(the watchdog's clock). Not in Supabase, so it needs no migration and the hourly watchdog costs no egress.
+
+**What the alerts do NOT cover.** If the whole hub is down, or both of its cron triggers are gone, nothing runs to
+alert: the watchdog lives on the same Worker. Covering that needs something outside the hub: a pg_cron job that reads
+`ops.health_status.cron_overdue` and posts through `pg_net` (the webhook URL kept in Supabase Vault), or a free uptime
+monitor on `https://ascent-hub.team-ascent.workers.dev/health`. Email is not wired: the stack has no email sender
+(Supabase sends only its own auth mails). Both are follow-ups.
+
 ## How it is built
 
 - `workers/versus/src/health/healthProtocol.ts`: the shared vocabulary (capabilities, routes, the pool digest format).
 - `workers/versus/src/health/healthCore.ts`: the checks, pure (everything they read is handed in).
 - `workers/versus/src/health/hubHealth.ts`: the hub's plumbing and record write; `HUB_CAPS` (what `/health` advertises).
+- `workers/versus/src/health/healthAlert.ts`: the Discord alert (the rule, the message, the watchdog).
 - `workers/versus/src/core/liveActivity.ts`: the directory's hourly tally.
 - `workers/versus/scripts/health.ts`: the CLI.
 - `supabase/migrations/2026-11-21-ops-health-checks.sql`: `ops.health_checks`, the views, `ops.health_probe`,

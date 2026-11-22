@@ -13,8 +13,11 @@ export type GameMode =
   | 'tutorial'
   | 'other';
 
-export interface OverviewDay {
-  day: string; // yyyy-mm-dd in the viewer's time zone
+export type Bucket = 'hour' | 'day' | 'week' | 'month';
+
+/** One bucket of the series. `t` is its start in the viewer's time zone, `yyyy-mm-ddTHH:MM`. */
+export interface SeriesPoint {
+  t: string;
   games: number;
   accounts: number;
   newEmail: number;
@@ -26,9 +29,12 @@ export interface OverviewDay {
 export interface Overview {
   tz: string;
   today: string;
-  days: number;
-  daily: OverviewDay[];
-  windows: Record<'d1' | 'd7' | 'd30', { games: number; accounts: number }>;
+  from: string; // the range actually used (all time starts at the first finished game)
+  to: string;
+  bucket: Bucket; // hour for one day, day up to 92 days, week up to two years, then month
+  series: SeriesPoint[];
+  totals: { games: number; accounts: number; newEmail: number; newGuest: number; firstGame: number };
+  previous: { games: number; accounts: number } | null; // the same length just before; null for all time
 }
 
 export interface PatchRow { patch: string; games: number; firstSeen: string; lastSeen: string }

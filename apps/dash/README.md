@@ -36,6 +36,34 @@ re-toned:
 
 The page has no runtime import of game code; it reads the generated `/game-data.json` and `/game.css`.
 
+## Ranges, live updates and what a range costs
+
+- **Any range.** Presets Today, Yesterday, 7 / 30 / 90 days, All time, or free From / To. Everything on the page (tiles,
+  both charts, the detail tables) follows it. The range and build sit in the URL hash (`#range=today`,
+  `#from=2026-11-01&to=2026-11-22&build=0.1.0+abc`), so a link opens the same view.
+- **Chart buckets** follow the span: one day by HOUR (in the viewer's time zone; today stops at the current hour), up
+  to 92 days by day, up to two years by week, longer by month. A chart never has more than ~120 bars.
+- **Live.** While the range reaches today the page re-reads every 60 s (the same as the server cache, never faster),
+  stops while the tab is hidden, and reads once when it comes back. The nav shows a Live chip and "Updated Xs ago".
+  Past-only ranges never poll. A live range is compared with the period before *up to the same point* (today so far vs
+  yesterday so far).
+- **No span cap (decision).** Every source is read by a time-index range scan (`run_history_created_at` etc.; the plan
+  is a Bitmap Index Scan, see the bench output) and only aggregates go back, so a long range costs rows scanned, not
+  payload. Measured with `npx tsx apps/dash/scripts/bench-analytics.mts 50000` (PGlite, single-threaded WASM, so an
+  upper bound; ~50k finished games over a year, Career rows carrying a ~3 KB entry, run_history 19 MB):
+
+  | Range | overview | breakdown | payload |
+  |---|---:|---:|---:|
+  | today | 32 ms | 20 ms | 3 + 15 kB |
+  | 7 days | 39 ms | 44 ms | 2 + 17 kB |
+  | 30 days | 56 ms | 134 ms | 6 + 17 kB |
+  | 365 days | 273 ms | 1.5 s | 11 + 17 kB |
+  | all time | 286 ms | 1.5 s | 11 + 17 kB |
+
+  The slow part of a year-long breakdown is reading every Career entry (tribes, medal); today's data is a few thousand
+  rows, so that is far off. With the 60 s cache, a page left open on "All time" costs at most one such read a minute.
+  If the tables ever grow past ~10x this, the next step is a nightly per-day rollup table, not a cap.
+
 ## Run it locally (made-up data)
 
 - `npm run dash:dev` starts Vite at http://localhost:5190 with a FIXTURE `/api/*` (src/fixture.ts, every number
@@ -58,7 +86,7 @@ The script runs wrangler from `apps/dash`, so `functions/` and `wrangler.toml` d
 1. **Apply the SQL.** Run `supabase/migrations/2026-11-27-analytics-dashboard.sql` (Supabase SQL editor, or
    `supabase db query --linked -f <file>`). It is additive and idempotent: a private `analytics` schema, two
    `public.analytics_*` functions executable by `service_role` only, and four small time indexes. Check it with
-   `select public.analytics_overview(30, 'UTC');` as the database admin.
+   `select public.analytics_overview(current_date - 6, null, 'UTC');` as the database admin.
 2. **Create the Pages project** with `main` as its production branch:
    `npx wrangler pages project create ascent-dash --production-branch main`.
 3. **Cloudflare Access** (Zero Trust dashboard):

@@ -187,9 +187,9 @@ describe('rpcArgs', () => {
     const u = new URL('https://x/api/breakdown?from=2026-1-1&to=2026-11-22&patch=%3Cscript%3E&tz=%27%3B drop');
     expect(rpcArgs('breakdown', u)).toEqual({ p_from: null, p_to: '2026-11-22', p_patch: null, p_tz: 'UTC' });
   });
-  it('clamps the overview window to 30..92 days', () => {
-    expect(rpcArgs('overview', new URL('https://x/?days=5'))).toMatchObject({ p_days: 30 });
-    expect(rpcArgs('overview', new URL('https://x/?days=400'))).toMatchObject({ p_days: 92 });
-    expect(rpcArgs('overview', new URL('https://x/?days=abc'))).toMatchObject({ p_days: 30 });
+  it('passes any range to the overview, and none at all means all time to today', () => {
+    expect(rpcArgs('overview', new URL('https://x/?from=2025-01-01&to=2026-11-22&tz=UTC'))).toEqual({ p_from: '2025-01-01', p_to: '2026-11-22', p_tz: 'UTC' });
+    expect(rpcArgs('overview', new URL('https://x/'))).toEqual({ p_from: null, p_to: null, p_tz: 'UTC' });
+    expect(rpcArgs('overview', new URL('https://x/?days=400&from=x'))).toEqual({ p_from: null, p_to: null, p_tz: 'UTC' });
   });
 });

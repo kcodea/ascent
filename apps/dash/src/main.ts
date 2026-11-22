@@ -1,6 +1,7 @@
 import './styles.css';
 import { lines, miniBar, sparkline, stackedBars } from './charts';
-import { MODE_ART, MODE_LABEL, SERIES, dateIn, esc, int, minusDays, pct, place, seriesValues, shortDay, titleCase, topHalfLabel } from './format';
+import { MODE_ART, MODE_LABEL, SERIES, bucketLabel, dateIn, esc, int, place, pct, seriesValues, shortDay, titleCase, topHalfLabel } from './format';
+import { LIVE_POLL_MS, customRange, isLive, parseHash, presetRange, rangePhrase, toHash, type Preset, type Range } from './range';
 import type { Breakdown, GameData, GameMode, HeroRow, Overview, TribeRow } from './types';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -11,19 +12,22 @@ const TZ = (() => {
     return 'UTC';
   }
 })();
+const today = (): string => dateIn(TZ);
 
+const initial = parseHash(location.hash, today());
 const state = {
   game: null as GameData | null,
   overview: null as Overview | null,
   breakdown: null as Breakdown | null,
-  from: minusDays(dateIn(TZ), 6),
-  to: dateIn(TZ),
-  patch: '',
+  range: initial.range as Range,
+  patch: initial.build,
   heroMode: 'ranked' as GameMode,
   heroBand: 'all',
   heroSort: { key: 'games' as keyof HeroRow | 'offer', dir: -1 },
   tribeMode: 'ranked' as GameMode,
   sample: false,
+  updatedAt: 0,
+  seq: 0, // the newest request; an older answer that lands late is dropped
 };
 
 // ── The game's names + art (public/game-data.json, from scripts/sync-game.mts) ──────────────────────────────
@@ -70,61 +74,104 @@ async function loadGame(): Promise<void> {
     state.game = null; // names fall back to the ids; the numbers still show
   }
 }
-async function loadOverview(): Promise<void> {
-  state.overview = await getJson<Overview>(`/api/overview?days=30&tz=${encodeURIComponent(TZ)}`);
-}
-async function loadBreakdown(): Promise<void> {
-  const q = new URLSearchParams({ from: state.from, to: state.to, tz: TZ });
-  if (state.patch) q.set('patch', state.patch);
-  state.breakdown = await getJson<Breakdown>(`/api/breakdown?${q.toString()}`);
+
+function rangeQuery(): URLSearchParams {
+  const q = new URLSearchParams({ to: state.range.to, tz: TZ });
+  if (state.range.from) q.set('from', state.range.from); // no from = all time
+  return q;
 }
 
-async function refresh(which: 'all' | 'breakdown' = 'all'): Promise<void> {
+/** Both reads follow the selected range. A live range re-reads every LIVE_POLL_MS (the server's cache length). */
+async function refresh(): Promise<void> {
+  const seq = ++state.seq;
+  clearTimeout(liveTimer);
   $('error').hidden = true;
+  const q = rangeQuery();
+  const bq = rangeQuery();
+  if (state.patch) bq.set('patch', state.patch);
   try {
-    await Promise.all([which === 'all' ? loadOverview() : Promise.resolve(), loadBreakdown()]);
+    const [o, b] = await Promise.all([getJson<Overview>(`/api/overview?${q}`), getJson<Breakdown>(`/api/breakdown?${bq}`)]);
+    if (seq !== state.seq) return;
+    state.overview = o;
+    state.breakdown = b;
+    state.updatedAt = Date.now();
   } catch (e) {
+    if (seq !== state.seq) return;
     showError(e);
   }
   render();
-  $('updated').textContent = `Updated ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+  scheduleLive();
 }
 
-// ── Headline tiles + daily charts ────────────────────────────────────────────────────────────────────────
+// ── Live (a range that reaches today) ──────────────────────────────────────────────────────────────────────
+let liveTimer = 0;
+const live = (): boolean => isLive(state.range, today());
+function scheduleLive(): void {
+  clearTimeout(liveTimer);
+  $('live').hidden = !live();
+  if (live() && !document.hidden) liveTimer = window.setTimeout(() => void refresh(), LIVE_POLL_MS);
+}
+function ago(ms: number): string {
+  const s = Math.max(0, Math.round(ms / 1000));
+  return s < 60 ? `${s}s ago` : `${Math.floor(s / 60)}m ago`;
+}
+function tickUpdated(): void {
+  $('updated').textContent = state.updatedAt ? `Updated ${ago(Date.now() - state.updatedAt)}` : '';
+}
+
+// ── Headline tiles + series charts (all follow the range) ───────────────────────────────────────────────────
+function versus(now: number, before: number | undefined, label: string): string {
+  if (before == null) return '';
+  const d = now - before;
+  return ` · <b>${d >= 0 ? '+' : ''}${int(d)}</b> vs ${esc(label)}`;
+}
+function previousLabel(r: Range, o: Overview): string {
+  if (r.preset === 'today') return 'yesterday so far';
+  if (r.preset === 'yesterday') return 'the day before';
+  const span = Math.round((Date.parse(o.to) - Date.parse(o.from)) / 86_400_000) + 1;
+  return span === 1 ? 'the day before' : `the ${span} days before`;
+}
+
 function renderTiles(o: Overview): void {
-  const today = o.daily[o.daily.length - 1];
-  const yesterday = o.daily[o.daily.length - 2];
-  const delta = (a: number, b: number | undefined) => (b == null ? '' : ` · ${a - b >= 0 ? '+' : ''}${a - b} vs yesterday`);
+  const phrase = rangePhrase(state.range, shortDay);
+  const prevLbl = previousLabel(state.range, o);
   const w = Math.max(120, Math.round($('tile-games').clientWidth - 48));
-  $('tile-games').innerHTML = `<span class="dk-statlbl">Games today</span><span class="dk-statval">${int(today?.games)}</span>
-    <span class="dk-statsub"><b>${int(o.windows.d7.games)}</b> in 7 days · <b>${int(o.windows.d30.games)}</b> in 30 days${esc(delta(today?.games ?? 0, yesterday?.games))}</span>${sparkline(o.daily.map((d) => d.games), w)}`;
-  $('tile-accounts').innerHTML = `<span class="dk-statlbl">Accounts active today</span><span class="dk-statval">${int(today?.accounts)}</span>
-    <span class="dk-statsub"><b>${int(o.windows.d7.accounts)}</b> in 7 days · <b>${int(o.windows.d30.accounts)}</b> in 30 days (distinct)</span>${sparkline(o.daily.map((d) => d.accounts), w)}`;
-  $('tile-new').innerHTML = `<span class="dk-statlbl">New accounts today</span><span class="dk-statval">${int((today?.newEmail ?? 0) + (today?.newGuest ?? 0))}</span>
-    <span class="dk-statsub"><b>${int(today?.newEmail)}</b> email · <b>${int(today?.newGuest)}</b> guest · <b>${int(today?.firstGame)}</b> played a first game</span>${sparkline(o.daily.map((d) => d.newEmail + d.newGuest), w)}`;
+  const t = o.totals;
+  $('tile-games').innerHTML = `<span class="dk-statlbl">Games · ${esc(phrase)}</span><span class="dk-statval">${int(t.games)}</span>
+    <span class="dk-statsub">Finished, every mode${versus(t.games, o.previous?.games, prevLbl)}</span>${sparkline(o.series.map((d) => d.games), w)}`;
+  $('tile-accounts').innerHTML = `<span class="dk-statlbl">Accounts active · ${esc(phrase)}</span><span class="dk-statval">${int(t.accounts)}</span>
+    <span class="dk-statsub">Distinct, finished a game${versus(t.accounts, o.previous?.accounts, prevLbl)}</span>${sparkline(o.series.map((d) => d.accounts), w)}`;
+  $('tile-new').innerHTML = `<span class="dk-statlbl">New accounts · ${esc(phrase)}</span><span class="dk-statval">${int(t.newEmail + t.newGuest)}</span>
+    <span class="dk-statsub"><b>${int(t.newEmail)}</b> email · <b>${int(t.newGuest)}</b> guest · <b>${int(t.firstGame)}</b> played a first game</span>${sparkline(o.series.map((d) => d.newEmail + d.newGuest), w)}`;
 }
 
-function renderDaily(o: Overview): void {
-  const days = o.daily.map((d) => d.day);
+function renderSeries(o: Overview): void {
+  const labels = o.series.map((p) => bucketLabel(p.t, o.bucket));
+  const per = o.bucket === 'hour' ? 'hour' : o.bucket;
+  $('games-title').textContent = `Games per ${per}`;
+  $('accounts-title').textContent = `Accounts per ${per}`;
+  $('games-aside').textContent = o.from === o.to ? `${shortDay(o.from)}, every mode` : `${shortDay(o.from)} to ${shortDay(o.to)}, every mode`;
   $('games-legend').innerHTML = SERIES.map((s) => `<span><i class="c${s.slot}"></i>${esc(s.label)}</span>`).join('');
-  $('chart-games').innerHTML = stackedBars(days, o.daily.map(seriesValues), SERIES.map((s) => s.slot), Math.max(280, $('chart-games').clientWidth));
+  $('chart-games').innerHTML = stackedBars(labels, o.series.map(seriesValues), SERIES.map((s) => s.slot), Math.max(280, $('chart-games').clientWidth));
   $('accounts-legend').innerHTML = '<span><i class="c1 ln"></i>Active accounts</span><span><i class="c3 ln"></i>First game ever</span>';
-  $('chart-accounts').innerHTML = lines(days, [
-    { label: 'Active accounts', values: o.daily.map((d) => d.accounts), slot: 1 },
-    { label: 'First game ever', values: o.daily.map((d) => d.firstGame), slot: 3, dashed: true },
+  $('chart-accounts').innerHTML = lines(labels, [
+    { label: 'Active accounts', values: o.series.map((d) => d.accounts), slot: 1 },
+    { label: 'First game ever', values: o.series.map((d) => d.firstGame), slot: 3, dashed: true },
   ], Math.max(280, $('chart-accounts').clientWidth));
 }
 
 // ── Tooltip ──────────────────────────────────────────────────────────────────────────────────────────────
 function tipHtml(chart: 'games' | 'accounts', i: number): string {
-  const d = state.overview?.daily[i];
-  if (!d) return '';
+  const o = state.overview;
+  const d = o?.series[i];
+  if (!o || !d) return '';
+  const when = esc(bucketLabel(d.t, o.bucket, true));
   if (chart === 'games') {
     const v = seriesValues(d);
     const rows = SERIES.map((s, k) => `<div class="row"><span><i class="c${s.slot}"></i>${esc(s.label)}</span><span>${v[k]}</span></div>`).join('');
-    return `<div class="head">${esc(shortDay(d.day))}: ${d.games} games</div>${rows}`;
+    return `<div class="head">${when}: ${d.games} games</div>${rows}`;
   }
-  return `<div class="head">${esc(shortDay(d.day))}</div>
+  return `<div class="head">${when}</div>
     <div class="row"><span><i class="c1"></i>Active accounts</span><span>${d.accounts}</span></div>
     <div class="row"><span><i class="c3"></i>First game ever</span><span>${d.firstGame}</span></div>
     <div class="row"><span>New email accounts</span><span>${d.newEmail}</span></div>
@@ -157,15 +204,15 @@ function tabs(el: HTMLElement, items: Array<{ value: string; label: string; art?
 }
 
 // ── Detail ───────────────────────────────────────────────────────────────────────────────────────────────
-function renderFilters(b: Breakdown): void {
-  ($('from') as HTMLInputElement).value = state.from;
-  ($('to') as HTMLInputElement).value = state.to;
-  const span = Math.round((Date.parse(state.to) - Date.parse(state.from)) / 86_400_000) + 1;
-  for (const btn of $('range-presets').querySelectorAll('button')) {
-    btn.setAttribute('aria-pressed', String(Number(btn.dataset.days) === span && state.to === dateIn(TZ)));
-  }
-  const items = [{ value: '', label: 'All builds' }, ...b.patches.map((p) => ({ value: p.patch, label: `${p.patch}  ·  ${shortDay(p.firstSeen.slice(0, 10))}  ·  ${p.games} games` }))];
-  if (state.patch && !b.patches.some((p) => p.patch === state.patch)) items.push({ value: state.patch, label: state.patch });
+function renderFilters(b: Breakdown | null): void {
+  ($('from') as HTMLInputElement).value = state.range.from ?? state.overview?.from ?? '';
+  ($('to') as HTMLInputElement).value = state.range.to;
+  ($('from') as HTMLInputElement).max = today();
+  ($('to') as HTMLInputElement).max = today();
+  for (const btn of $('range-presets').querySelectorAll('button')) btn.setAttribute('aria-pressed', String(btn.dataset.preset === state.range.preset));
+  const patches = b?.patches ?? [];
+  const items = [{ value: '', label: 'All builds' }, ...patches.map((p) => ({ value: p.patch, label: `${p.patch}  ·  ${shortDay(p.firstSeen.slice(0, 10))}  ·  ${p.games} games` }))];
+  if (state.patch && !patches.some((p) => p.patch === state.patch)) items.push({ value: state.patch, label: state.patch });
   ($('patch') as HTMLSelectElement).innerHTML = items.map((o) => `<option value="${esc(o.value)}"${o.value === state.patch ? ' selected' : ''}>${esc(o.label)}</option>`).join('');
 }
 
@@ -259,39 +306,55 @@ function render(): void {
   $('sample').hidden = !state.sample;
   $('tz').textContent = state.overview?.tz ?? TZ;
   if (state.game) $('setline').textContent = `Live set: ${state.game.setId.replace(/^set/, 'Set ')} · ${state.game.activeTribes.map(tribeName).join(', ')}`;
-  if (state.overview) { renderTiles(state.overview); renderDaily(state.overview); }
+  renderFilters(state.breakdown);
+  if (state.overview) { renderTiles(state.overview); renderSeries(state.overview); }
   if (state.breakdown) {
-    renderFilters(state.breakdown);
     renderModes(state.breakdown);
     renderHeroes(state.breakdown);
     renderTribes(state.breakdown);
     renderMedals(state.breakdown);
   }
+  tickUpdated();
 }
 
 // ── Wiring ───────────────────────────────────────────────────────────────────────────────────────────────
 const tabValue = (ev: Event): string | undefined => (ev.target as HTMLElement).closest('button')?.dataset.v;
 
+/** The range (and build) live in the URL hash, so a link opens the same view. */
+function setRange(range: Range): void {
+  state.range = range;
+  history.replaceState(null, '', toHash(state.range, state.patch));
+  renderFilters(state.breakdown);
+  void refresh();
+}
+
 function wire(): void {
   $('range-presets').addEventListener('click', (ev) => {
-    const days = Number((ev.target as HTMLElement).closest('button')?.dataset.days);
-    if (!days) return;
-    state.to = dateIn(TZ);
-    state.from = minusDays(state.to, days - 1);
-    void refresh('breakdown');
+    const p = (ev.target as HTMLElement).closest('button')?.dataset.preset as Preset | undefined;
+    if (p) setRange(presetRange(p, today()));
   });
   const dateChange = () => {
     const f = ($('from') as HTMLInputElement).value;
     const t = ($('to') as HTMLInputElement).value;
-    if (!f || !t) return;
-    state.from = f <= t ? f : t;
-    state.to = f <= t ? t : f;
-    void refresh('breakdown');
+    if (f && t) setRange(customRange(f, t, today()));
   };
   $('from').addEventListener('change', dateChange);
   $('to').addEventListener('change', dateChange);
-  $('patch').addEventListener('change', () => { state.patch = ($('patch') as HTMLSelectElement).value; void refresh('breakdown'); });
-  $('refresh').addEventListener('click', () => void refresh('all'));
+  $('patch').addEventListener('change', () => { state.patch = ($('patch') as HTMLSelectElement).value; setRange(state.range); });
+  $('refresh').addEventListener('click', () => void refresh());
+  window.addEventListener('hashchange', () => {
+    const next = parseHash(location.hash, today());
+    state.patch = next.build;
+    state.range = next.range;
+    void refresh();
+  });
+  // Live: no polling while the tab is hidden; one read on return, then the timer resumes.
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) { clearTimeout(liveTimer); return; }
+    if (live()) void refresh();
+    tickUpdated();
+  });
+  window.setInterval(() => { if (!document.hidden) tickUpdated(); }, 1000);
   $('hero-mode').addEventListener('click', (ev) => { const v = tabValue(ev); if (!v || !state.breakdown) return; state.heroMode = v as GameMode; state.heroBand = 'all'; renderHeroes(state.breakdown); });
   $('hero-band').addEventListener('click', (ev) => { const v = tabValue(ev); if (!v || !state.breakdown) return; state.heroBand = v; renderHeroes(state.breakdown); });
   $('heroes').addEventListener('click', (ev) => {
@@ -304,10 +367,12 @@ function wire(): void {
   let raf = 0;
   window.addEventListener('resize', () => {
     cancelAnimationFrame(raf);
-    raf = requestAnimationFrame(() => { if (state.overview) { renderTiles(state.overview); renderDaily(state.overview); } });
+    raf = requestAnimationFrame(() => { if (state.overview) { renderTiles(state.overview); renderSeries(state.overview); } });
   });
   wireTips();
 }
 
 wire();
-void loadGame().then(() => refresh('all'));
+history.replaceState(null, '', toHash(state.range, state.patch));
+renderFilters(null);
+void loadGame().then(() => refresh());

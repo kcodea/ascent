@@ -1,7 +1,7 @@
 // MADE-UP data for local work on the page (`npm run dev -w apps/dash` serves it at /api/*; see vite.config.ts). It
 // never ships: the production build has no /api route but the Pages Functions, which only ever read the database.
 // Every number here is invented; the shapes are the real contract (src/types.ts).
-import type { Breakdown, GameMode, HeroRow, Overview, OverviewDay, TribeRow } from './types';
+import type { Breakdown, Bucket, GameMode, HeroRow, Overview, SeriesPoint, TribeRow } from './types';
 
 function rng(seed: number): () => number {
   let a = seed >>> 0;
@@ -26,47 +26,101 @@ const MODES: GameMode[] = ['ranked', 'unrated_lobby', 'practice', 'versus_duel',
 const SEATS: Record<GameMode, number> = { ranked: 8, unrated_lobby: 8, practice: 8, versus_duel: 2, versus_group: 4, versus_duos: 4, ranked_duos: 4, tutorial: 8, other: 8 };
 
 const iso = (d: Date): string => d.toISOString().slice(0, 10);
+const addDays = (day: string, n: number): string => iso(new Date(Date.parse(`${day}T00:00:00Z`) + n * 86_400_000));
+const daysBetween = (a: string, b: string): number => Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86_400_000);
+const hash = (s: string): number => [...s].reduce((h, c) => Math.imul(h ^ c.charCodeAt(0), 16777619) >>> 0, 2166136261);
 
-export function fixtureOverview(today = new Date()): Overview {
-  const r = rng(7);
-  const daily: OverviewDay[] = [];
-  for (let i = 29; i >= 0; i--) {
-    const d = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() - i));
-    const growth = 1 + (29 - i) / 40;
-    const byMode: OverviewDay['byMode'] = {
-      ranked: Math.round((14 + r() * 10) * growth),
-      unrated_lobby: Math.round(r() * 3),
-      practice: Math.round((5 + r() * 6) * growth),
-      versus_duel: Math.round(r() * 4),
-      versus_group: Math.round(r() * 2),
-      versus_duos: Math.round(r() * 2),
-      ranked_duos: Math.round(r() * 3),
-      tutorial: Math.round(r() * 2),
-    };
-    const games = Object.values(byMode).reduce((a, b) => a + (b ?? 0), 0);
-    daily.push({
-      day: iso(d),
-      games,
-      accounts: Math.max(1, Math.round(games / (2.6 + r()))),
-      newEmail: Math.round(r() * 1.4),
-      newGuest: Math.round(2 + r() * 9),
-      firstGame: Math.round(r() * 4),
-      byMode,
-    });
+/** The fixture's pretend first game (so "All time" has a start). */
+const FIXTURE_DAYS_OF_HISTORY = 400;
+
+/** One made-up day, the same numbers every time it is asked for (so a day sums the same in every bucket size). */
+function fixtureDay(day: string, today: string): SeriesPoint {
+  const r = rng(hash(day));
+  const age = daysBetween(day, today);
+  const growth = 1 + Math.max(0, FIXTURE_DAYS_OF_HISTORY - age) / 160;
+  const byMode: SeriesPoint['byMode'] = {
+    ranked: Math.round((10 + r() * 10) * growth),
+    unrated_lobby: Math.round(r() * 3),
+    practice: Math.round((4 + r() * 6) * growth),
+    versus_duel: Math.round(r() * 4),
+    versus_group: Math.round(r() * 2),
+    versus_duos: Math.round(r() * 2),
+    ranked_duos: Math.round(r() * 3),
+    tutorial: Math.round(r() * 2),
+  };
+  const games = Object.values(byMode).reduce((a, b) => a + (b ?? 0), 0);
+  return { t: `${day}T00:00`, games, accounts: Math.max(1, Math.round(games / (2.6 + r()))), newEmail: Math.round(r() * 1.4), newGuest: Math.round(2 + r() * 9), firstGame: Math.round(r() * 4), byMode };
+}
+
+function addPoint(into: SeriesPoint, p: SeriesPoint, accountsShare = 1): void {
+  into.games += p.games;
+  into.accounts += Math.round(p.accounts * accountsShare);
+  into.newEmail += p.newEmail;
+  into.newGuest += p.newGuest;
+  into.firstGame += p.firstGame;
+  for (const [m, n] of Object.entries(p.byMode)) into.byMode[m as GameMode] = (into.byMode[m as GameMode] ?? 0) + (n ?? 0);
+}
+const emptyPoint = (t: string): SeriesPoint => ({ t, games: 0, accounts: 0, newEmail: 0, newGuest: 0, firstGame: 0, byMode: {} });
+
+const bucketFor = (days: number): Bucket => (days <= 1 ? 'hour' : days <= 92 ? 'day' : days <= 731 ? 'week' : 'month');
+function bucketStart(day: string, b: Bucket): string {
+  if (b === 'month') return `${day.slice(0, 8)}01`;
+  if (b === 'week') return addDays(day, -((new Date(`${day}T00:00:00Z`).getUTCDay() + 6) % 7)); // Monday, like Postgres
+  return day;
+}
+
+/** The overview for a range, shaped like `analytics_overview` (from null = all time, to null = today). */
+export function fixtureOverview(params: { from?: string | null; to?: string | null } = {}, now = new Date()): Overview {
+  const today = iso(now);
+  const to = params.to && params.to < today ? params.to : today;
+  let from = params.from ?? addDays(today, -FIXTURE_DAYS_OF_HISTORY);
+  if (from > to) from = to;
+  const span = daysBetween(from, to) + 1;
+  const bucket = bucketFor(span);
+  const sumRange = (a: string, b: string) => {
+    const s = emptyPoint('');
+    for (let d = a; d <= b; d = addDays(d, 1)) addPoint(s, fixtureDay(d, today), 0.45);
+    return s;
+  };
+  let series: SeriesPoint[] = [];
+  if (bucket === 'hour') {
+    const day = fixtureDay(from, today);
+    const lastHour = from === today ? now.getUTCHours() : 23;
+    const weights = Array.from({ length: 24 }, (_, h) => 0.4 + Math.sin(((h - 9) / 24) * Math.PI * 2) * 0.35 + (h >= 17 && h <= 22 ? 0.5 : 0));
+    const total = weights.reduce((a, b) => a + b, 0);
+    const r = rng(hash(`${from}h`));
+    for (let h = 0; h <= lastHour; h++) {
+      const k = weights[h]! / total;
+      const games = Math.round(day.games * k * (0.7 + r() * 0.6));
+      const byMode: SeriesPoint['byMode'] = {};
+      for (const [m, n] of Object.entries(day.byMode)) { const v = Math.round((n ?? 0) * k * (0.6 + r() * 0.8)); if (v > 0) byMode[m as GameMode] = v; }
+      const g = Object.values(byMode).reduce((a, b) => a + (b ?? 0), 0);
+      series.push({ t: `${from}T${String(h).padStart(2, '0')}:00`, games: g || games, accounts: Math.max(g ? 1 : 0, Math.round(g / 2.2)), newEmail: r() < 0.05 ? 1 : 0, newGuest: r() < 0.35 ? 1 : 0, firstGame: r() < 0.15 ? 1 : 0, byMode });
+    }
+  } else {
+    const map = new Map<string, SeriesPoint>();
+    for (let d = from; d <= to; d = addDays(d, 1)) {
+      const key = bucketStart(d, bucket);
+      if (!map.has(key)) map.set(key, emptyPoint(`${key}T00:00`));
+      addPoint(map.get(key)!, fixtureDay(d, today), bucket === 'day' ? 1 : 0.45);
+    }
+    series = [...map.values()];
   }
-  const sum = (n: number, k: 'games' | 'accounts') => daily.slice(-n).reduce((a, d) => a + d[k], 0);
+  const totals = series.reduce((s, p) => { addPoint(s, p); return s; }, emptyPoint(''));
+  const distinct = span <= 1 ? Math.round(totals.accounts * 0.8) : Math.round(sumRange(from, to).accounts / Math.max(1, Math.sqrt(span) * 0.6));
+  const prev = params.from ? sumRange(addDays(from, -span), addDays(from, -1)) : null;
   return {
     tz: 'UTC',
-    today: daily[daily.length - 1]!.day,
-    days: 30,
-    daily,
-    windows: {
-      d1: { games: sum(1, 'games'), accounts: sum(1, 'accounts') },
-      d7: { games: sum(7, 'games'), accounts: Math.round(sum(7, 'accounts') / 3.1) },
-      d30: { games: sum(30, 'games'), accounts: Math.round(sum(30, 'accounts') / 6.5) },
-    },
+    today,
+    from,
+    to,
+    bucket,
+    series,
+    totals: { games: totals.games, accounts: Math.max(1, distinct), newEmail: totals.newEmail, newGuest: totals.newGuest, firstGame: totals.firstGame },
+    previous: prev ? { games: span <= 1 && from === today ? Math.round(prev.games * (now.getUTCHours() + 1) / 24) : prev.games, accounts: Math.max(1, Math.round(prev.accounts / Math.max(1, Math.sqrt(span) * 0.6))) } : null,
   };
 }
+
 
 function rates(r: () => number, seats: number, games: number) {
   const avg = 1 + r() * (seats - 1);
@@ -82,7 +136,7 @@ export function fixtureBreakdown(params: { from?: string | null; to?: string | n
   const TRIBES = ids.tribes;
   const r = rng(11 + (params.patch ? params.patch.length : 0));
   const to = params.to ?? iso(new Date());
-  const from = params.from ?? iso(new Date(Date.parse(to) - 6 * 86_400_000));
+  const from = params.from ?? addDays(to, -FIXTURE_DAYS_OF_HISTORY); // null = all time
   const heroes: HeroRow[] = [];
   const modes = MODES.map((mode) => {
     const total = mode === 'ranked' ? 180 : mode === 'practice' ? 70 : Math.round(8 + r() * 20);

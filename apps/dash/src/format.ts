@@ -1,5 +1,5 @@
 // Pure formatting + grouping helpers for the page (no DOM), so they can be unit tested.
-import type { GameMode, OverviewDay } from './types';
+import type { Bucket, GameMode, SeriesPoint } from './types';
 
 export const MODE_LABEL: Record<GameMode, string> = {
   ranked: 'Ranked lobby',
@@ -35,7 +35,7 @@ export const SERIES: ReadonlyArray<{ key: string; label: string; modes: GameMode
   { key: 'other', label: 'Tutorial + other', modes: ['tutorial', 'other'], slot: 6 },
 ];
 
-export function seriesValues(day: OverviewDay): number[] {
+export function seriesValues(day: SeriesPoint): number[] {
   return SERIES.map((s) => s.modes.reduce((a, m) => a + (day.byMode[m] ?? 0), 0));
 }
 
@@ -55,6 +55,16 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 export function shortDay(day: string): string {
   const [, m, d] = day.split('-');
   return `${Number(d)} ${MONTHS[Number(m) - 1] ?? ''}`;
+}
+
+/** A bucket's axis label: `14:00`, `22 Nov`, `17 Nov` (a week's Monday), `Nov 2026`; `long` for the tooltip. */
+export function bucketLabel(t: string, bucket: Bucket, long = false): string {
+  const day = t.slice(0, 10);
+  if (bucket === 'hour') return long ? `${shortDay(day)}, ${t.slice(11, 16)}` : t.slice(11, 16);
+  if (bucket === 'day') return shortDay(day);
+  if (bucket === 'week') return long ? `Week of ${shortDay(day)}` : shortDay(day);
+  const [y, m] = day.split('-');
+  return `${MONTHS[Number(m) - 1] ?? ''} ${y}`;
 }
 
 /** The calendar date in a time zone, as yyyy-mm-dd. */

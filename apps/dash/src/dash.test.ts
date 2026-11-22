@@ -3,7 +3,9 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { deployPlan } from '../scripts/deployPlan.mjs';
 import { fixtureBreakdown, fixtureOverview } from './fixture';
-import { SERIES, esc, minusDays, niceScale, seriesValues, titleCase, topHalfLabel } from './format';
+import { SERIES, bucketLabel, esc, minusDays, niceScale, seriesValues, titleCase, topHalfLabel } from './format';
+import { LIVE_POLL_MS, customRange, isLive, parseHash, presetRange, toHash } from './range';
+import { CACHE_TTL_MS } from './server/handler';
 import type { GameMode } from './types';
 
 describe('deployPlan (dashboard)', () => {
@@ -26,7 +28,7 @@ describe('format', () => {
     expect(new Set(SERIES.map((s) => s.slot)).size).toBe(SERIES.length);
   });
   it('series values sum to the day total', () => {
-    for (const d of fixtureOverview(new Date('2026-11-22T12:00:00Z')).daily) {
+    for (const d of fixtureOverview({ from: '2026-11-01', to: '2026-11-22' }, new Date('2026-11-22T12:00:00Z')).series) {
       expect(seriesValues(d).reduce((a, b) => a + b, 0)).toBe(d.games);
     }
   });
@@ -38,6 +40,50 @@ describe('format', () => {
     expect(minusDays('2026-03-01', 1)).toBe('2026-02-28');
     expect(niceScale(37)).toEqual({ max: 40, step: 10 });
     expect(niceScale(0)).toEqual({ max: 4, step: 1 });
+  });
+});
+
+describe('range (presets, URL hash, live)', () => {
+  const T = '2026-11-22';
+  it('presets', () => {
+    expect(presetRange('today', T)).toEqual({ preset: 'today', from: T, to: T });
+    expect(presetRange('yesterday', T)).toEqual({ preset: 'yesterday', from: '2026-11-21', to: '2026-11-21' });
+    expect(presetRange('7d', T)).toMatchObject({ from: '2026-11-16', to: T });
+    expect(presetRange('90d', T)).toMatchObject({ from: '2026-08-25', to: T });
+    expect(presetRange('all', T)).toMatchObject({ from: null, to: T });
+  });
+  it('a custom range is ordered and never passes today, with no span cap', () => {
+    expect(customRange('2026-12-30', '2026-11-01', T)).toEqual({ preset: null, from: '2026-11-01', to: T });
+    expect(customRange('2020-01-01', '2026-11-22', T)).toEqual({ preset: null, from: '2020-01-01', to: T });
+  });
+  it('round-trips through the URL hash, and junk falls back to 7 days', () => {
+    for (const r of [presetRange('today', T), presetRange('all', T), customRange('2026-01-01', '2026-02-01', T)]) {
+      expect(parseHash(toHash(r, '0.1.0+abc'), T)).toEqual({ range: r, build: '0.1.0+abc' });
+    }
+    expect(toHash(presetRange('7d', T), '')).toBe('#range=7d');
+    expect(parseHash('#from=2026-13-40&to=nope', T).range).toEqual(presetRange('7d', T));
+    expect(parseHash('', T).range.preset).toBe('7d');
+  });
+  it('only a range that reaches today is live, and it never polls faster than the server cache', () => {
+    expect(isLive(presetRange('today', T), T)).toBe(true);
+    expect(isLive(presetRange('all', T), T)).toBe(true);
+    expect(isLive(presetRange('yesterday', T), T)).toBe(false);
+    expect(isLive(customRange('2026-01-01', '2026-02-01', T), T)).toBe(false);
+    expect(LIVE_POLL_MS).toBeGreaterThanOrEqual(CACHE_TTL_MS);
+  });
+  it('bucket labels', () => {
+    expect(bucketLabel('2026-11-22T14:00', 'hour')).toBe('14:00');
+    expect(bucketLabel('2026-11-22T14:00', 'hour', true)).toBe('22 Nov, 14:00');
+    expect(bucketLabel('2026-11-17T00:00', 'week', true)).toBe('Week of 17 Nov');
+    expect(bucketLabel('2026-11-01T00:00', 'month')).toBe('Nov 2026');
+  });
+  it('the fixture buckets like the SQL: one day by hour, long ranges by week or month', () => {
+    const now = new Date('2026-11-22T15:30:00Z');
+    const day = fixtureOverview({ from: T, to: T }, now);
+    expect(day.bucket).toBe('hour');
+    expect(day.series).toHaveLength(16); // 00:00 .. 15:00
+    expect(fixtureOverview({ from: '2026-01-01', to: T }, now).bucket).toBe('week');
+    expect(fixtureOverview({ from: null, to: null }, now).previous).toBeNull();
   });
 });
 

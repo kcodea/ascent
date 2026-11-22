@@ -47,19 +47,13 @@ export function rpcArgs(endpoint: Endpoint, url: URL): Record<string, string | n
   const q = url.searchParams;
   const tzRaw = q.get('tz') ?? '';
   const p_tz = TZ.test(tzRaw) ? tzRaw : 'UTC';
-  if (endpoint === 'overview') {
-    const days = Number.parseInt(q.get('days') ?? '30', 10);
-    return { p_days: Number.isFinite(days) ? Math.min(Math.max(days, 30), 92) : 30, p_tz };
-  }
+  // No `from` = all time, no `to` = today (the SQL's own defaults); any span (it buckets long ranges itself).
   const from = q.get('from') ?? '';
   const to = q.get('to') ?? '';
+  const range = { p_from: DATE.test(from) ? from : null, p_to: DATE.test(to) ? to : null };
+  if (endpoint === 'overview') return { ...range, p_tz };
   const patch = q.get('patch') ?? '';
-  return {
-    p_from: DATE.test(from) ? from : null,
-    p_to: DATE.test(to) ? to : null,
-    p_patch: PATCH.test(patch) ? patch : null,
-    p_tz,
-  };
+  return { ...range, p_patch: PATCH.test(patch) ? patch : null, p_tz };
 }
 
 export async function handleApi(

@@ -6,11 +6,11 @@
 -- Owner 2026-11-22: a private analytics page for Kevin and Mike (apps/dash, Cloudflare Pages behind Cloudflare
 -- Access). Its Pages Function verifies the Access login, then calls the two RPCs below with the service role key.
 --
---   - `public.analytics_overview(days, tz)`: the headline numbers. Per day for the last `days` (30..92) days, in the
---     viewer's time zone: games finished (by mode), accounts that finished at least one game, new auth accounts
---     (email vs guest), and accounts whose FIRST ever finished game was that day. Plus distinct-account windows for
---     today / 7 days / 30 days.
---   - `public.analytics_breakdown(from, to, patch, tz)`: the detail for a date range (at most 92 days) and an
+--   - `public.analytics_overview(from, to, tz)`: the headline numbers and the time series for ANY range (from null =
+--     all time, to null = today), in the viewer's time zone: games finished (by mode), accounts that finished at least
+--     one game, new auth accounts (email vs guest), accounts whose FIRST ever finished game fell in it, and the same
+--     length period before it. Bucketed by hour (one day), day (up to 92 days), week (up to two years) or month.
+--   - `public.analytics_breakdown(from, to, patch, tz)`: the detail for any date range (from null = all time) and an
 --     optional exact build (`patch` = the client's `0.1.0+<sha>` stamp): per mode, per hero (with ranked medal
 --     bands), per tribe (in the run's tribes / the final board's top tribe), hero offer pick rate, and the builds seen.
 --
@@ -34,14 +34,21 @@
 -- `run_telemetry (created_at)` exist; this file adds four. At 2026-10-28 sizes (run_history 323 rows, versus_matches 88,
 -- versus_group_matches 119, progression_results 468) each is well under 100 kB; they grow at ~40 bytes a row.
 --
+-- NO SPAN CAP (owner 2026-11-22: "any time frame"): every source is read by a time-index range scan and the outputs are
+-- aggregates (a chart is at most ~120 buckets), so a long range costs rows scanned, not payload. Measured with
+-- apps/dash/scripts/bench-analytics.mts; numbers and the decision in apps/dash/README.md.
+--
 -- ROLLBACK:
 --   drop function if exists public.analytics_breakdown(date, date, text, text);
---   drop function if exists public.analytics_overview(int, text);
+--   drop function if exists public.analytics_overview(date, date, text);
 --   drop schema if exists analytics cascade;
 --   drop index if exists public.run_history_created_at;
 --   drop index if exists public.progression_results_settled_at;
 --   drop index if exists public.versus_matches_completed_at;
 --   drop index if exists public.versus_group_matches_completed_at;
+
+-- An earlier draft of this file (never applied) had a days-based overview; drop it if it is there.
+drop function if exists public.analytics_overview(int, text);
 
 create schema if not exists analytics;
 revoke all on schema analytics from public;
@@ -133,67 +140,114 @@ language sql stable set search_path = public, pg_temp as $$
   group by f.uid
 $$;
 
--- ── 4. The headline numbers ────────────────────────────────────────────────────────────────────────────────
-create or replace function analytics.overview(p_days int, p_tz text)
+-- ── 4. The headline numbers + the time series, for ANY range ────────────────────────────────────────────────
+-- The first day anything finished, in the viewer's time zone (an "All time" range starts here). Each `min` is one probe
+-- of a time index.
+create or replace function analytics.first_day(p_tz text)
+returns date language sql stable set search_path = public, pg_temp as $$
+  select (least(
+    (select min(h.created_at) from public.run_history h),
+    (select min(p.created_at) from public.practice_games p),
+    (select min(m.completed_at) from public.versus_matches m where m.phase = 'complete'),
+    (select min(g.completed_at) from public.versus_group_matches g where g.phase = 'complete'),
+    (select min(r.settled_at) from public.progression_results r where r.mode = 'tutorial')
+  ) at time zone analytics.safe_tz(p_tz))::date
+$$;
+
+-- The bucket a range is charted in: one day by HOUR, up to 92 days by day, up to two years by week, longer by month.
+create or replace function analytics.bucket_for(p_days int)
+returns text language sql immutable set search_path = pg_catalog, pg_temp as $$
+  select case when p_days <= 1 then 'hour' when p_days <= 92 then 'day' when p_days <= 731 then 'week' else 'month' end
+$$;
+
+-- p_from null = all time (from the first finished game); p_to null = today. Both in the viewer's time zone, inclusive.
+-- No span cap: every source is read by a time-index range scan, and the output is at most ~120 buckets (see the
+-- measurements in apps/dash/README.md).
+create or replace function analytics.overview(p_from date, p_to date, p_tz text)
 returns jsonb language plpgsql stable set search_path = public, pg_temp as $$
 declare
-  v_tz    text := analytics.safe_tz(p_tz);
-  v_days  int  := least(greatest(coalesce(p_days, 30), 30), 92);
-  v_today date := (now() at time zone v_tz)::date;
-  v_start date := v_today - (v_days - 1);
-  v_from  timestamptz := v_start::timestamp at time zone v_tz;
-  v_to    timestamptz := (v_today + 1)::timestamp at time zone v_tz;
-  v_out   jsonb;
+  v_tz     text := analytics.safe_tz(p_tz);
+  v_today  date := (now() at time zone v_tz)::date;
+  v_last   date := least(coalesce(p_to, v_today), v_today);
+  v_first  date := coalesce(p_from, analytics.first_day(v_tz), v_last);
+  v_span   int;
+  v_bucket text;
+  v_from   timestamptz;
+  v_to     timestamptz;
+  v_pfrom  timestamptz;
+  v_pto    timestamptz;
+  v_s0     timestamp;
+  v_s1     timestamp;
+  v_out    jsonb;
 begin
+  if v_first > v_last then v_first := v_last; end if;
+  v_span   := v_last - v_first + 1;
+  v_bucket := analytics.bucket_for(v_span);
+  v_from   := v_first::timestamp at time zone v_tz;
+  v_to     := (v_last + 1)::timestamp at time zone v_tz;
+  v_pfrom  := (v_first - v_span)::timestamp at time zone v_tz;
+  -- A range that reaches today is compared with the period before UP TO THE SAME POINT (today so far vs yesterday so far).
+  v_pto    := case when v_last = v_today then now() - make_interval(days => v_span) else v_from end;
+  v_s0     := date_trunc(v_bucket, v_first::timestamp);
+  -- Today by hour stops at the current hour; every other range runs to its last bucket.
+  v_s1     := case when v_bucket = 'hour' and v_last = v_today then date_trunc('hour', now() at time zone v_tz)
+                   else date_trunc(v_bucket, v_last::timestamp + interval '1 day' - interval '1 second') end;
+
   with g as (
-    select x.*, (x.at at time zone v_tz)::date as day from analytics.player_games(v_from, v_to) x
+    select x.*, date_trunc(v_bucket, x.at at time zone v_tz) as b from analytics.player_games(v_from, v_to) x
   ),
-  days as (select d::date as day from generate_series(v_start, v_today, interval '1 day') d),
-  per_day as (
-    select g.day, count(distinct g.game_key) as games, count(distinct g.user_id) as accounts from g group by g.day
-  ),
+  buckets as (select s as b from generate_series(v_s0, v_s1, ('1 ' || v_bucket)::interval) s),
+  per_b as (select g.b, count(distinct g.game_key) as games, count(distinct g.user_id) as accounts from g group by g.b),
   per_mode as (
-    select m.day, jsonb_object_agg(m.mode, m.games) as by_mode
-    from (select g.day, g.mode, count(distinct g.game_key) as games from g group by g.day, g.mode) m group by m.day
+    select m.b, jsonb_object_agg(m.mode, m.games) as by_mode
+    from (select g.b, g.mode, count(distinct g.game_key) as games from g group by g.b, g.mode) m group by m.b
   ),
   joined as (
-    select (u.created_at at time zone v_tz)::date as day,
+    select date_trunc(v_bucket, u.created_at at time zone v_tz) as b,
            count(*) filter (where not coalesce(u.is_anonymous, false)) as email,
            count(*) filter (where coalesce(u.is_anonymous, false)) as guest
     from auth.users u where u.created_at >= v_from and u.created_at < v_to group by 1
   ),
   firsts as (
-    select (f.first_at at time zone v_tz)::date as day, count(*) as n
+    select date_trunc(v_bucket, f.first_at at time zone v_tz) as b, count(*) as n
     from analytics.first_game_at() f where f.first_at >= v_from and f.first_at < v_to group by 1
   ),
-  win as (
-    select w.name, w.since,
-      (select count(distinct g.game_key) from g where g.day >= w.since) as games,
-      (select count(distinct g.user_id) from g where g.day >= w.since) as accounts
-    from (values ('d1', v_today), ('d7', v_today - 6), ('d30', v_today - 29)) as w(name, since)
+  prev as (
+    select count(distinct x.game_key) as games, count(distinct x.user_id) as accounts
+    from analytics.player_games(v_pfrom, v_pto) x where p_from is not null
   )
   select jsonb_build_object(
     'tz', v_tz,
     'today', v_today,
-    'days', v_days,
-    'daily', coalesce((select jsonb_agg(jsonb_build_object(
-        'day', d.day,
-        'games', coalesce(pd.games, 0),
-        'accounts', coalesce(pd.accounts, 0),
+    'from', v_first,
+    'to', v_last,
+    'bucket', v_bucket,
+    'series', coalesce((select jsonb_agg(jsonb_build_object(
+        't', to_char(s.b, 'YYYY-MM-DD"T"HH24:MI'),
+        'games', coalesce(pb.games, 0),
+        'accounts', coalesce(pb.accounts, 0),
         'newEmail', coalesce(j.email, 0),
         'newGuest', coalesce(j.guest, 0),
         'firstGame', coalesce(f.n, 0),
         'byMode', coalesce(pm.by_mode, '{}'::jsonb)
-      ) order by d.day)
-      from days d
-      left join per_day pd on pd.day = d.day
-      left join per_mode pm on pm.day = d.day
-      left join joined j on j.day = d.day
-      left join firsts f on f.day = d.day), '[]'::jsonb),
-    'windows', (select jsonb_object_agg(w.name, jsonb_build_object('games', w.games, 'accounts', w.accounts)) from win w)
+      ) order by s.b)
+      from buckets s
+      left join per_b pb on pb.b = s.b
+      left join per_mode pm on pm.b = s.b
+      left join joined j on j.b = s.b
+      left join firsts f on f.b = s.b), '[]'::jsonb),
+    'totals', jsonb_build_object(
+      'games', (select count(distinct g.game_key) from g),
+      'accounts', (select count(distinct g.user_id) from g),
+      'newEmail', (select coalesce(sum(j.email), 0) from joined j),
+      'newGuest', (select coalesce(sum(j.guest), 0) from joined j),
+      'firstGame', (select coalesce(sum(f.n), 0) from firsts f)),
+    'previous', case when p_from is null then null
+      else (select jsonb_build_object('games', p.games, 'accounts', p.accounts) from prev p) end
   ) into v_out;
   return v_out;
 end $$;
+
 
 -- ── 5. The detail for a range ──────────────────────────────────────────────────────────────────────────────
 create or replace function analytics.breakdown(p_from date, p_to date, p_patch text, p_tz text)
@@ -202,14 +256,13 @@ declare
   v_tz    text := analytics.safe_tz(p_tz);
   v_today date := (now() at time zone v_tz)::date;
   v_last  date := least(coalesce(p_to, v_today), v_today);
-  v_first date := coalesce(p_from, v_last - 6);
+  v_first date := coalesce(p_from, analytics.first_day(v_tz), v_last); -- null = all time
   v_patch text := nullif(btrim(coalesce(p_patch, '')), '');
   v_from  timestamptz;
   v_to    timestamptz;
   v_out   jsonb;
 begin
   if v_first > v_last then v_first := v_last; end if;
-  if v_last - v_first > 91 then v_first := v_last - 91; end if; -- at most 92 days
   v_from := v_first::timestamp at time zone v_tz;
   v_to   := (v_last + 1)::timestamp at time zone v_tz;
 
@@ -337,9 +390,9 @@ begin
 end $$;
 
 -- ── 6. The two entry points (service role only) ────────────────────────────────────────────────────────────
-create or replace function public.analytics_overview(p_days int default 30, p_tz text default 'UTC')
+create or replace function public.analytics_overview(p_from date default null, p_to date default null, p_tz text default 'UTC')
 returns jsonb language sql stable security definer set search_path = public, pg_temp as $$
-  select analytics.overview(p_days, p_tz)
+  select analytics.overview(p_from, p_to, p_tz)
 $$;
 
 create or replace function public.analytics_breakdown(p_from date default null, p_to date default null, p_patch text default null, p_tz text default 'UTC')
@@ -347,19 +400,19 @@ returns jsonb language sql stable security definer set search_path = public, pg_
   select analytics.breakdown(p_from, p_to, p_patch, p_tz)
 $$;
 
-revoke all on function public.analytics_overview(int, text) from public;
+revoke all on function public.analytics_overview(date, date, text) from public;
 revoke all on function public.analytics_breakdown(date, date, text, text) from public;
 do $$ begin
   if exists (select 1 from pg_roles where rolname = 'anon') then
-    execute 'revoke all on function public.analytics_overview(int, text) from anon';
+    execute 'revoke all on function public.analytics_overview(date, date, text) from anon';
     execute 'revoke all on function public.analytics_breakdown(date, date, text, text) from anon';
   end if;
   if exists (select 1 from pg_roles where rolname = 'authenticated') then
-    execute 'revoke all on function public.analytics_overview(int, text) from authenticated';
+    execute 'revoke all on function public.analytics_overview(date, date, text) from authenticated';
     execute 'revoke all on function public.analytics_breakdown(date, date, text, text) from authenticated';
   end if;
   if exists (select 1 from pg_roles where rolname = 'service_role') then
-    execute 'grant execute on function public.analytics_overview(int, text) to service_role';
+    execute 'grant execute on function public.analytics_overview(date, date, text) to service_role';
     execute 'grant execute on function public.analytics_breakdown(date, date, text, text) to service_role';
   end if;
 end $$;

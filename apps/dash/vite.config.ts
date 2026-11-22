@@ -21,7 +21,7 @@ const fixtureApi = (): Plugin => {
     if (url.pathname !== '/api/overview' && url.pathname !== '/api/breakdown') return next();
     const body =
       url.pathname === '/api/overview'
-        ? fixtureOverview()
+        ? fixtureOverview({ from: url.searchParams.get('from'), to: url.searchParams.get('to') })
         : fixtureBreakdown({ from: url.searchParams.get('from'), to: url.searchParams.get('to'), patch: url.searchParams.get('patch') }, realIds());
     res.setHeader('content-type', 'application/json; charset=utf-8');
     res.setHeader('x-dash-fixture', '1');

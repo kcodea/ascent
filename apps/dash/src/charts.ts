@@ -1,7 +1,7 @@
-// Inline SVG charts as strings (no chart library). Every chart is drawn for its container's measured width, so text
+// Inline SVG charts as strings (no chart library). `labels` are the x-axis labels, already formatted (one per bucket). Every chart is drawn for its container's measured width, so text
 // is never stretched; the page redraws on resize. Hover targets are full-height columns carrying `data-i` (the day
 // index); the page's tooltip reads it.
-import { esc, niceScale, shortDay } from './format';
+import { esc, niceScale } from './format';
 
 const PAD = { top: 10, right: 12, bottom: 24, left: 34 };
 
@@ -16,11 +16,11 @@ function frame(width: number, height: number, max: number, labels: string[]) {
     grid += `<text x="${PAD.left - 6}" y="${y(v) + 4}" text-anchor="end">${v}</text>`;
   }
   const col = iw / Math.max(1, labels.length);
-  const every = col < 16 ? 7 : col < 48 ? 3 : 1; // a "22 Nov" label needs ~40px
+  const every = Math.max(1, Math.ceil(46 / col)); // a "22 Nov" or "14:00" label needs ~40px
   let xl = '';
   labels.forEach((d, i) => {
     if ((labels.length - 1 - i) % every !== 0) return;
-    xl += `<text x="${PAD.left + col * i + col / 2}" y="${height - 6}" text-anchor="middle">${esc(shortDay(d))}</text>`;
+    xl += `<text x="${PAD.left + col * i + col / 2}" y="${height - 6}" text-anchor="middle">${esc(d)}</text>`;
   });
   return { iw, ih, y, col, grid, xl };
 }
@@ -60,7 +60,7 @@ export function stackedBars(days: string[], values: number[][], slots: number[],
       if (acc > n) bars += `<line class="seg-gap" x1="${x}" x2="${x + bw}" y1="${f.y(acc - n)}" y2="${f.y(acc - n)}"/>`;
     });
   });
-  return `<svg viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" role="img" aria-label="Games finished per day, stacked by mode">${f.grid}${bars}${f.xl}${hits(days.length, f.col, height)}</svg>`;
+  return `<svg viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" role="img" aria-label="Games finished, stacked by mode">${f.grid}${bars}${f.xl}${hits(days.length, f.col, height)}</svg>`;
 }
 
 /** Lines on one shared axis. `series[k].values[i]`; `dashed` draws a secondary series. */
@@ -80,7 +80,7 @@ export function lines(
     const last = s.values.length - 1;
     if (last >= 0) paths += `<circle class="dot f${s.slot}" cx="${x(last)}" cy="${f.y(s.values[last]!)}" r="4"/>`;
   }
-  return `<svg viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" role="img" aria-label="${esc(series.map((s) => s.label).join(' and '))} per day">${f.grid}${paths}${f.xl}${hits(days.length, f.col, height)}</svg>`;
+  return `<svg viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" role="img" aria-label="${esc(series.map((s) => s.label).join(' and '))}">${f.grid}${paths}${f.xl}${hits(days.length, f.col, height)}</svg>`;
 }
 
 /** A tile sparkline (no axes; the tile's big number is the read). */

@@ -93,6 +93,12 @@ body { min-height: 100vh; color: var(--ph-text); background: #0a1730; }
   font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; color: var(--ph-text); }
 .dk-chip:empty { display: none; }
 .dk-chip.t-gold { background: var(--ph-metal-gold); color: var(--ph-navy); box-shadow: none; }
+/* LIVE: the shell's ready green (--ph-teal). The dot breathes on OPACITY only (compositor; CLAUDE.md perf rule). */
+.dk-live { gap: 6px; color: var(--ph-teal); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ph-teal) 50%, transparent); }
+.dk-live i { width: 8px; height: 8px; border-radius: 50%; background: var(--ph-teal); animation: dk-live 2s ease-in-out infinite; }
+@keyframes dk-live { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+@media (prefers-reduced-motion: reduce) { .dk-live i { animation: none; } }
+#updated { min-width: 132px; justify-content: center; font-variant-numeric: tabular-nums; }
 
 /* ── Sections (kit: phk-section, the rail plate with the gilded edge and the small cut) ── */
 .dk-section { position: relative; display: flex; flex-direction: column; min-width: 0; background: var(--ph-plate); box-shadow: var(--ph-gild), 0 8px 24px rgba(0, 0, 0, 0.3); clip-path: var(--ph-clip-s); }
@@ -245,6 +251,8 @@ code { color: var(--ph-text); }
   .dk-rowart { width: 34%; }
   .dk-row:has(.dk-rowart) .dk-rowmain { padding-right: 24%; }
   .dk-rowsub { white-space: normal; }
+  #range-presets { flex-wrap: wrap; }
+  #range-presets .dk-tab { min-height: 38px; padding: 4px 10px 8px; }
   .dk-rowcount { width: 64px; padding-right: 12px; }
   th, td { padding: 5px 8px; }
   .portring { --ring: 40px; }

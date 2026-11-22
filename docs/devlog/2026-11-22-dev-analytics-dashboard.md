@@ -19,6 +19,11 @@ shell look (its tokens, Outfit, gauntlet cursors, citadel backdrop) with the gam
 `apps/dash/scripts/sync-game.mts`: hero portraits in the portrait ring with real names, medal crests, mode art, tribe
 glyphs and colours. Fonts come from Google Fonts like the game, so the CSP allows exactly those two hosts.
 
+**Live + any range (owner, same day).** The overview RPC now takes from / to (null = all time) and buckets by hour /
+day / week / month; the page follows the range everywhere, keeps it in the URL hash, and polls every 60 s while the
+range reaches today (paused while hidden). The 92-day cap is gone; the cost at ~50k games is measured in
+apps/dash/README.md (bench script apps/dash/scripts/bench-analytics.mts).
+
 **Not applied, not deployed.** The owner applies the SQL, creates the project, sets secrets and configures Access
 (apps/dash/README.md). Local work uses a made-up fixture behind `npm run dash:dev`.
 

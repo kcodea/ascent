@@ -41,6 +41,10 @@ export const STUB_V2 = `
   alter table public.rank_results add column season int not null default 3, add column applied_delta int not null default 0,
     add column promoted boolean not null default false, add column demoted boolean not null default false;
   alter table public.practice_games add column tp_active_ms text;
+  alter table public.run_telemetry add column author text, add column placement int, add column unrated boolean not null default false,
+    add column set_id text, add column offered_cards text[], add column bought_cards text[], add column discover_offered_cards text[],
+    add column discover_bought_cards text[], add column offered_runes text[], add column picked_runes text[],
+    add column player_key text generated always as (md5(user_id::text)) stored;
   create table public.friendships (user_a uuid not null, user_b uuid not null, requester uuid, status text not null,
     created_at timestamptz not null default now(), accepted_at timestamptz, primary key (user_a, user_b));
   create table public.duos_teams (id uuid primary key default gen_random_uuid(), user_lo uuid not null, user_hi uuid not null, name text,

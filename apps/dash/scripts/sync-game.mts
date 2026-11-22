@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url';
 import * as React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import sharp from 'sharp';
-import { ARCHIVED_RUNES, EPIC_RUNES, RUNES, activeSet } from '@game/content';
+import { ALL_CARDS, ARCHIVED_RUNES, EPIC_RUNES, RUNES, SETS, activeSet, poolFor } from '@game/content';
 import { ANCIENTS, HEROES, RANK_MEDALS, isArchivedHero, playableHeroes } from '@game/sim';
 import { ACHIEVEMENTS, COSMETICS, TITLES, divisionName } from '@game/progression';
 import { TRIBE_ICON } from '../../../packages/ui/src/gauntlet/tribeIcon';
@@ -86,7 +86,7 @@ Object.assign(chrome, {
   crest: await put('apps/web/public/frames/title-logo.png', 'art/title-crest.webp', { width: 240 }),
 });
 const medallions: Record<string, string> = {};
-for (const m of ['startCombat', 'rebirth', 'mode-versus', 'mode-ranked', 'health', 'watcher', 'spend', 'mode-practice'])
+for (const m of ['startCombat', 'rebirth', 'mode-versus', 'mode-ranked', 'health', 'chooseOne', 'watcher', 'spend', 'mode-practice'])
   medallions[m] = await put(`apps/web/public/medallions/${m}.webp`, `art/medallions/${m}.webp`, { width: 64, height: 64 });
 
 const runeArtFile = (id: string): string | null => {
@@ -127,7 +127,26 @@ const data = {
   divisions,
 };
 // The long name lists (~100 kB) only the round-two sections print: a second file, fetched the first time one opens.
-const names = { runes, ancients, achievements, cosmetics, titles };
+// Cards for the balance view: name, tier, tribes, minion or spell, art (resized), and which sets draw them.
+const cardArtFile = (id: string, spell: boolean): string | null => {
+  for (const name of [id, `${id}1`]) for (const ext of ['webp', 'png']) {
+    const p = `packages/ui/src/art/${spell ? 'spells' : 'minions'}/${name}.${ext}`;
+    if (existsSync(resolve(REPO, p))) return p;
+  }
+  return null;
+};
+const cards: Record<string, { name: string; tier: number; tribe: string; tribe2?: string; spell: boolean; art: string | null }> = {};
+for (const c of ALL_CARDS) {
+  if (c.token || cards[c.id]) continue;
+  const spell = !!c.spell;
+  const src = cardArtFile(c.id, spell);
+  cards[c.id] = { name: c.name, tier: c.tier, tribe: c.tribe, ...(c.tribe2 ? { tribe2: c.tribe2 } : {}), spell, art: src ? await put(src, `art/cards/${c.id}.webp`, { width: 64, height: 64 }) : null };
+}
+const setCards: Record<string, string[]> = {};
+for (const id of Object.keys(SETS)) { const p = poolFor(id as keyof typeof SETS); setCards[id] = [...p.buyable, ...p.spells].map((c) => c.id); }
+const sets = Object.fromEntries(Object.entries(SETS).map(([id, d]) => [id, { name: (d as { name?: string }).name ?? id, enabled: !!d.enabled }]));
+
+const names = { runes, ancients, achievements, cosmetics, titles, cards, setCards, sets };
 mkdirSync(PUB, { recursive: true });
 writeFileSync(resolve(PUB, 'game-data.json'), `${JSON.stringify(data)}\n`);
 writeFileSync(resolve(PUB, 'game-names.json'), `${JSON.stringify(names)}\n`);

@@ -2,24 +2,28 @@
 // Progression, Health & balance. Each renders its whole part from one RPC answer (src/types.ts), as HTML strings in the
 // page's kit (dk-section / dk-stat / dk-row / tables) with the game's own art from the synced data. No inline style
 // attributes (the CSP forbids them). Pure helpers at the top are unit tested.
-import { heatmap, lines, meter, miniBar, stackedBars, trendSpark } from './charts';
-import { bucketLabel, esc, int, pct, place, shortDay, titleCase } from './format';
-import type { GameData, GameNames, HealthData, PlayersData, ProgressionData, SocialData, TrendItem } from './types';
+import { heatmap, lines, meter, miniBar, stackedBars } from './charts';
+import { bucketLabel, esc, int, pct, shortDay, titleCase } from './format';
+import type { GameData, GameNames, HealthData, PlayersData, ProgressionData, SocialData } from './types';
 
 // ── The parts and the URL ─────────────────────────────────────────────────────────────────────────────────────
-export const SECTIONS = ['overview', 'players', 'social', 'progression', 'health'] as const;
+export const SECTIONS = ['overview', 'players', 'social', 'progression', 'health', 'balance'] as const;
 export type Section = (typeof SECTIONS)[number];
 export const SECTION_LABEL: Record<Section, string> = {
-  overview: 'Overview', players: 'Players', social: 'Live & social', progression: 'Progression', health: 'Health & balance',
+  overview: 'Overview', players: 'Players', social: 'Live & social', progression: 'Progression', health: 'Health', balance: 'Balance',
 };
 /** The game medallion (apps/web/public/medallions) each part wears on its tab. */
 export const SECTION_MEDALLION: Record<Section, string> = {
-  overview: 'startCombat', players: 'rebirth', social: 'mode-versus', progression: 'mode-ranked', health: 'health',
+  overview: 'startCombat', players: 'rebirth', social: 'mode-versus', progression: 'mode-ranked', health: 'health', balance: 'chooseOne',
 };
+
+/** Old keys that still open a part: the combined Health & balance tab was `sec=health`, which stays Health. */
+const SECTION_ALIAS: Record<string, Section> = { healthbalance: 'health', 'health-balance': 'health' };
 
 /** `&sec=players` in the hash; anything else (or none) is the overview. */
 export function sectionOfHash(hash: string): Section {
-  const s = new URLSearchParams(hash.replace(/^#/, '')).get('sec');
+  const raw = new URLSearchParams(hash.replace(/^#/, '')).get('sec') ?? '';
+  const s = SECTION_ALIAS[raw] ?? raw;
   return (SECTIONS as readonly string[]).includes(s ?? '') ? (s as Section) : 'overview';
 }
 export function withSection(hash: string, sec: Section): string {
@@ -46,9 +50,9 @@ export interface Ctx {
   chartWidth: number;
 }
 
-const section = (title: string, aside: string, body: string, extra = ''): string =>
+export const section = (title: string, aside: string, body: string, extra = ''): string =>
   `<section class="dk-section dk-in ${extra}"><div class="dk-sechead"><h2>${esc(title)}</h2>${aside ? `<span class="dk-secaside">${aside}</span>` : ''}</div><div class="dk-secbody">${body}</div></section>`;
-const stat = (label: string, value: string, sub = '', cls = ''): string =>
+export const stat = (label: string, value: string, sub = '', cls = ''): string =>
   `<article class="dk-stat dk-in ${cls}"><span class="dk-statlbl">${esc(label)}</span><span class="dk-statval">${value}</span>${sub ? `<span class="dk-statsub">${sub}</span>` : ''}</article>`;
 const legend = (items: Array<[number, string]>): string => `<div class="dk-legend">${items.map(([s, l]) => `<span><i class="c${s}"></i>${esc(l)}</span>`).join('')}</div>`;
 const barList = (rows: Array<{ label: string; n: number; lead?: string }>, unit: string): string => {
@@ -188,11 +192,7 @@ export function renderProgression(p: ProgressionData, c: Ctx): string {
     </div>`;
 }
 
-// ── Health + balance trends ─────────────────────────────────────────────────────────────────────────────────
-export const TREND_KINDS = ['hero', 'tribe', 'rune', 'ancient'] as const;
-export type TrendKind = (typeof TREND_KINDS)[number];
-const TREND_LABEL: Record<TrendKind, string> = { hero: 'Heroes', tribe: 'Tribes', rune: 'Runes', ancient: 'Ancients' };
-
+// ── Health ──────────────────────────────────────────────────────────────────────────────────────────────────
 const mb = (b: number) => `${(b / 1048576).toFixed(b >= 104857600 ? 0 : 1)} MB`;
 const statusPill = (s: string) => {
   const k = s === 'ok' ? 'ok' : s === 'fail' ? 'bad' : 'na';
@@ -200,34 +200,13 @@ const statusPill = (s: string) => {
   return `<span class="dk-pill ${k}"><i aria-hidden="true"></i>${label}</span>`;
 };
 
-/** First to last bucket's average place: lower is better, so a fall reads as an improvement. */
-export function driftOf(series: Array<{ avgPlacement: number }>): number | null {
-  if (series.length < 2) return null;
-  return Math.round((series[series.length - 1]!.avgPlacement - series[0]!.avgPlacement) * 100) / 100;
-}
-const drift = (r: TrendItem): string => {
-  const d = driftOf(r.series);
-  if (d == null || d === 0) return '<span class="dk-sub">steady</span>';
-  return `<span class="dk-drift ${d < 0 ? 'pos' : 'neg'}">${d < 0 ? '▲' : '▼'} ${Math.abs(d).toFixed(2)}</span>`;
-};
-
-export function renderHealth(h: HealthData, c: Ctx, trend: TrendKind): string {
+export function renderHealth(h: HealthData, c: Ctx): string {
   const labels = h.crashes.series.map((x) => bucketLabel(x.t, h.bucket));
   const st = h.ops.status;
   const failing = st?.failing_checks?.length ?? 0;
   const ops = h.ops.latest.length === 0 ? '<p class="dk-empty">No health check has reported yet.</p>' : `<div class="dk-checks">${h.ops.latest.map((x) =>
     `<div class="dk-check"><span class="dk-rowtitle">${esc(x.check)}</span>${statusPill(x.status)}<span class="dk-sub">${esc(x.source)} · ${esc(new Date(x.ts).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }))}</span></div>`).join('')}</div>`;
   const db = h.database;
-  const items = h.trends[trend] ?? [];
-  const lead = (id: string): string => {
-    if (trend === 'hero') return c.heroCell(id);
-    if (trend === 'tribe') return c.tribeCell(id);
-    const n = trend === 'rune' ? c.names?.runes[id] : c.names?.ancients[id];
-    return `<span class="dk-hero">${n?.art ? c.img(n.art, 'dk-icon', 36) : ''}<span class="dk-heroname">${esc(n?.name ?? titleCase(id))}</span></span>`;
-  };
-  const trendRows = (rows: TrendItem[]) => rows.length === 0 ? `<p class="dk-empty">No ranked ${TREND_LABEL[trend].toLowerCase()} data in this range.</p>`
-    : `<div class="dk-tablewrap"><table><thead><tr><th>${TREND_LABEL[trend].replace(/s$/, '')}</th><th>Games</th><th>Avg place</th><th>Top 4</th><th>Avg place per ${h.trendBucket} <span class="dk-sub">(up is better)</span></th></tr></thead><tbody>${rows.map((r) =>
-      `<tr class="${r.games < LOW_SAMPLE ? 'low' : ''}"><td>${lead(r.id)}</td><td class="dk-num">${int(r.games)}</td><td>${place(r.avgPlacement)}</td><td>${pct(r.top4Rate)}</td><td><span class="dk-trendcell">${trendSpark(r.series, 140)}${drift(r)}</span></td></tr>`).join('')}</tbody></table></div>`;
   const rules = h.ops.retentionRules;
   const runs = h.ops.retentionRuns ?? [];
   return `
@@ -250,7 +229,5 @@ export function renderHealth(h: HealthData, c: Ctx, trend: TrendKind): string {
       </div>`)}
     ${section('Retention cleanup', rules ? 'The nightly delete run (ops.retention_rules)' : 'Not set up', rules ? `<div class="dk-tablewrap"><table><thead><tr><th>Rule</th><th>Keeps</th><th>Last run</th><th>Last deleted</th><th>Total deleted</th><th>Status</th></tr></thead><tbody>${rules.map((x) =>
       `<tr><td>${esc(x.rule)}</td><td>${x.keepDays} days</td><td>${x.lastCheckedAt ? esc(new Date(x.lastCheckedAt).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })) : 'never'}${x.lastDryRun ? ' <span class="dk-sub">dry run</span>' : ''}</td><td>${x.lastDeleted == null ? 'n/a' : int(x.lastDeleted)}</td><td class="dk-num">${int(x.totalDeleted)}</td><td>${x.lastError ? statusPill('fail') : x.enabled ? statusPill('ok') : statusPill('n/a')}</td></tr>`).join('')}</tbody></table></div>
-      ${runs.length ? `<p class="dk-hint">Recent runs: ${runs.map((r) => `${esc(new Date(r.at).toLocaleDateString([], { day: 'numeric', month: 'short' }))} ${r.kind === 'error' ? 'failed' : r.kind === 'dry_run' ? 'dry run' : `deleted ${int(Number(r.deleted ?? 0))}`}`).join(' · ')}</p>` : ''}` : '<p class="dk-empty">The retention migration is not applied.</p>')}
-    ${section('Balance trends', `Ranked lobby games · per ${h.trendBucket} · dim rows have fewer than ${LOW_SAMPLE} games`,
-      `<div class="dk-tabs" id="trend-kind" role="group" aria-label="Trend">${TREND_KINDS.map((k) => `<button type="button" class="dk-tab" data-v="${k}" aria-pressed="${k === trend}">${TREND_LABEL[k]}</button>`).join('')}</div>${trendRows(items)}`)}`;
+      ${runs.length ? `<p class="dk-hint">Recent runs: ${runs.map((r) => `${esc(new Date(r.at).toLocaleDateString([], { day: 'numeric', month: 'short' }))} ${r.kind === 'error' ? 'failed' : r.kind === 'dry_run' ? 'dry run' : `deleted ${int(Number(r.deleted ?? 0))}`}`).join(' · ')}</p>` : ''}` : '<p class="dk-empty">The retention migration is not applied.</p>')}`;
 }

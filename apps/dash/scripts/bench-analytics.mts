@@ -30,8 +30,17 @@ await db.exec(`
     from generate_series(1, ${lobby}) i;
   insert into public.rank_results (user_id, run_id, seed, division_before, created_at)
     select user_id, 'r' || (entry->>'seed'), (entry->>'seed')::bigint, (id % 18)::int, created_at from public.run_history where id % 4 <> 0;
-  insert into public.run_telemetry (user_id, patch, hero_id, hero_offer, source, created_at)
-    select user_id, patch, hero_id, array['mode:lobby', hero_id, 'indy', 'soren'], 'ladder', created_at from public.run_history;
+  -- a lobby run's telemetry: ~50 distinct cards seen in the shop, ~13 bought, 2 Discovers, 6 runes offered, 2 picked
+  insert into public.run_telemetry (user_id, patch, hero_id, hero_offer, source, created_at, placement, set_id, offered_cards, bought_cards,
+      discover_offered_cards, discover_bought_cards, offered_runes, picked_runes)
+    select user_id, patch, hero_id, array['mode:lobby', hero_id, 'indy', 'soren'], 'ladder', created_at, placement, 'set2',
+      array(select 'c' || ((h.id * 7 + k * 13) % 180) from generate_series(1, 50) k),
+      array(select 'c' || ((h.id * 7 + k * 13) % 180) from generate_series(1, 50, 4) k),
+      array(select 'c' || ((h.id * 3 + k * 29) % 180) from generate_series(1, 6) k),
+      array(select 'c' || ((h.id * 3 + k * 29) % 180) from generate_series(1, 2) k),
+      array(select 'rune' || ((h.id + k * 11) % 60) from generate_series(1, 6) k),
+      array(select 'rune' || ((h.id + k * 11) % 60) from generate_series(1, 2) k)
+    from public.run_history h;
   insert into public.practice_games (user_id, patch, hero_id, placement, final_board, created_at)
     select md5('u' || (1 + (i % ${USERS})))::uuid, '0.1.0+' || (i / 100), 'warden', 1 + i % 8,
       jsonb_build_object('tribes', jsonb_build_array('kobold','dragon','beast','demon','dwarf')), now() - random() * interval '365 days'
@@ -69,6 +78,9 @@ await db.exec(`
   insert into public.bug_reports (status, severity, created_at) select 'open', 'low', now() - random() * interval '365 days' from generate_series(1, 300) i;
   analyze;
 `);
+const tr0 = performance.now();
+const rolled = (await db.query<{ n: number }>('select analytics.balance_rollup_catchup() as n')).rows[0]!.n;
+console.log(`balance rollup backfill (the nightly job's first run): ${rolled} rows in ${Math.round(performance.now() - tr0)} ms`);
 const size = (await db.query<{ s: string }>("select pg_size_pretty(pg_total_relation_size('public.run_history')) as s")).rows[0]!.s;
 console.log(`seeded ~${N} games (${lobby} lobby, ${practice} practice, ${duels} duels, ${groups} group matches, ${tut} tutorial), ${USERS} accounts; run_history ${size}; ${Math.round(performance.now() - t0)} ms`);
 
@@ -91,10 +103,20 @@ for (const [label, from] of [['today', 'current_date'], ['7 days', 'current_date
 for (const [label, from] of [['today', 'current_date'], ['7 days', 'current_date - 6'], ['30 days', 'current_date - 29'], ['365 days', 'current_date - 364'], ['all time', 'null']] as const) {
   await time(`breakdown ${label}`, `select public.analytics_breakdown(${from}, null, null, 'UTC') as j`);
 }
-for (const fn of ['players', 'social', 'progression', 'health']) {
+for (const fn of ['players', 'social', 'progression', 'health', 'balance']) {
   for (const [label, from] of [['7 days', 'current_date - 6'], ['30 days', 'current_date - 29'], ['all time', 'null']] as const) {
     await time(`${fn.padEnd(11)} ${label}`, `select public.analytics_${fn}(${from}, null, 'UTC') as j`);
   }
+}
+if (process.env.BENCH_PROFILE) {
+  // the pieces of an all-time balance read, one at a time
+  const pieces: Array<[string, string]> = [
+    ['rollup sums', "select kind, item, sum(n), sum(sum_place) from analytics.balance_daily group by 1, 2"],
+    ['rollup unique players', 'select kind, item, taken, count(distinct p) from analytics.balance_daily cross join unnest(players) p group by 1, 2, 3'],
+    ['career final boards', "select m->>'cardId', count(*) from public.run_history h cross join lateral jsonb_array_elements(h.entry #> '{board,minions}') m group by 1"],
+    ['career heroes/tribes', "select hero_id, entry->>'dominantTribe', count(*) from public.run_history group by 1, 2"],
+  ];
+  for (const [label, sql] of pieces) await time(`  piece: ${label}`, `select count(*) as j from (${sql}) z`);
 }
 const plan = await db.query<{ 'QUERY PLAN': string }>("explain select count(*) from public.run_history where created_at >= now() - interval '7 days' and created_at < now()");
 console.log('\nplan of a 7-day run_history read:\n' + plan.rows.map((r) => `  ${r['QUERY PLAN']}`).join('\n'));

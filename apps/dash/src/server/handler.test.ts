@@ -195,7 +195,13 @@ describe('rpcArgs', () => {
       expect(rpcArgs(e, u)).toEqual({ p_from: '2026-11-01', p_to: '2026-11-22', p_tz: 'Europe/London' });
       expect(existsSync(join(__dirname, `../../functions/api/${e}.ts`)), e).toBe(true);
     }
-    expect(ENDPOINTS).toEqual(['overview', 'breakdown', 'players', 'social', 'progression', 'health']);
+    expect(ENDPOINTS).toEqual(['overview', 'breakdown', 'players', 'social', 'progression', 'health', 'balance']);
+  });
+
+  it('balance takes the range plus an allow-listed mode and set (its own call, apart from health)', () => {
+    expect(existsSync(join(__dirname, '../../functions/api/balance.ts'))).toBe(true);
+    expect(rpcArgs('balance', new URL('https://x/?from=2026-11-01&mode=unrated&set=set3'))).toEqual({ p_from: '2026-11-01', p_to: null, p_tz: 'UTC', p_mode: 'unrated', p_set: 'set3' });
+    expect(rpcArgs('balance', new URL('https://x/?mode=drop%20table&set=x;--'))).toEqual({ p_from: null, p_to: null, p_tz: 'UTC', p_mode: 'ranked', p_set: null });
   });
 
   it('a round-two section is guarded like the rest: no token, no database call', async () => {

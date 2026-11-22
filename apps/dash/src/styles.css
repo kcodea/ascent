@@ -461,3 +461,16 @@ code { color: var(--ph-text); }
 .dk-trendcell { display: inline-flex; align-items: center; gap: 10px; }
 .dk-drift { min-width: 56px; text-align: right; font-weight: 800; font-size: 12px; }
 .dk-drift.pos { color: var(--ph-teal); } .dk-drift.neg { color: #ff9a9a; }
+
+/* ── The dev balance view ── */
+.dk-note { padding: 12px 16px; background: var(--ph-well); box-shadow: inset 3px 0 0 var(--pill-gold), var(--ph-gild-s); clip-path: var(--ph-clip-s);
+  font-size: var(--ph-t1); line-height: 1.5; color: var(--ph-text); }
+.dk-note b { color: var(--ui-title); }
+.dk-balfilters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 16px; }
+.dk-balfilters select.dk-well { width: auto; min-width: 140px; }
+.dk-cardwho { display: flex; flex-direction: column; min-width: 0; }
+.dk-verdict { display: block; font-weight: 800; white-space: nowrap; }
+.dk-verdict.pos { color: var(--ph-teal); } .dk-verdict.neg { color: #ff9a9a; } .dk-verdict.flat { color: var(--ph-text); } .dk-verdict.na { color: var(--ph-muted); font-weight: 600; }
+.dk-ev { display: block; font-size: 11px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ph-muted); }
+.dk-ev.candidate { color: var(--pill-gold); } .dk-ev.supported { color: var(--ph-teal); }
+.dk-baltable td:nth-child(7) { text-align: left; }

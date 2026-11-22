@@ -2,8 +2,9 @@ import './styles.css';
 import { lines, miniBar, sparkline, stackedBars } from './charts';
 import { MODE_ART, MODE_LABEL, SERIES, bucketLabel, dateIn, esc, int, place, pct, seriesValues, shortDay, titleCase, topHalfLabel } from './format';
 import { LIVE_POLL_MS, customRange, isLive, parseHash, presetRange, rangePhrase, toHash, type Preset, type Range } from './range';
-import type { Breakdown, GameData, GameMode, GameNames, HealthData, HeroRow, Overview, PlayersData, ProgressionData, SocialData, TribeRow } from './types';
-import { SECTIONS, SECTION_LABEL, SECTION_MEDALLION, renderHealth, renderPlayers, renderProgression, renderSocial, sectionOfHash, withSection, type Section, type TrendKind } from './sections';
+import type { BalanceData, Breakdown, GameData, GameMode, GameNames, HealthData, HeroRow, Overview, PlayersData, ProgressionData, SocialData, TribeRow } from './types';
+import { DEFAULT_FILTER, renderBalance, type BalFilter, type BalView } from './balance';
+import { SECTIONS, SECTION_LABEL, SECTION_MEDALLION, renderHealth, renderPlayers, renderProgression, renderSocial, sectionOfHash, withSection, type Section } from './sections';
 import { showModeration, wireModeration } from './moderation';
 import { viewOfHash, withView, type View } from './modLogic';
 
@@ -33,8 +34,10 @@ const state = {
   seq: 0, // the newest request; an older answer that lands late is dropped
   sec: sectionOfHash(location.hash) as Section,
   names: null as GameNames | null,
-  part: {} as { players?: PlayersData; social?: SocialData; progression?: ProgressionData; health?: HealthData },
-  trend: 'hero' as TrendKind,
+  part: {} as { players?: PlayersData; social?: SocialData; progression?: ProgressionData; health?: HealthData; balance?: BalanceData },
+  bal: { ...DEFAULT_FILTER } as BalFilter,
+  balMode: 'ranked',
+  balSet: null as string | null, // null = not chosen yet: the live set once the game data is in; '' = all sets
   animate: true, // the next render that has data plays the one-shot entrance
 };
 
@@ -115,6 +118,11 @@ async function refresh(): Promise<void> {
       state.overview = o;
       state.breakdown = b;
     } else {
+      if (sec === 'balance') {
+        if (state.balSet == null) state.balSet = state.game?.setId ?? '';
+        q.set('mode', state.balMode);
+        if (state.balSet) q.set('set', state.balSet);
+      }
       const [d] = await Promise.all([getJson<unknown>(`/api/${sec}?${q}`), loadNames()]);
       if (seq !== state.seq) return;
       (state.part as Record<string, unknown>)[sec] = d;
@@ -388,7 +396,8 @@ function renderPart(): void {
   if (state.sec === 'players' && p.players) el.innerHTML = renderPlayers(p.players, ctx);
   else if (state.sec === 'social' && p.social) el.innerHTML = renderSocial(p.social, ctx);
   else if (state.sec === 'progression' && p.progression) el.innerHTML = renderProgression(p.progression, ctx);
-  else if (state.sec === 'health' && p.health) el.innerHTML = renderHealth(p.health, ctx, state.trend);
+  else if (state.sec === 'health' && p.health) el.innerHTML = renderHealth(p.health, ctx);
+  else if (state.sec === 'balance' && p.balance) el.innerHTML = renderBalance(p.balance, ctx, state.bal, { set: state.balSet ?? '', liveSet: state.game?.setId ?? '' });
 }
 
 function setSection(sec: Section): void {
@@ -461,9 +470,25 @@ function wire(): void {
     const s = (ev.target as HTMLElement).closest<HTMLButtonElement>('button[data-sec]')?.dataset.sec as Section | undefined;
     if (s) setSection(s);
   });
-  $('sec-health').addEventListener('click', (ev) => {
-    const v = (ev.target as HTMLElement).closest('#trend-kind button')?.getAttribute('data-v') as TrendKind | null;
-    if (v && v !== state.trend) { state.trend = v; renderPart(); }
+  // The balance view: mode + set are server filters (a fresh read); view, tribe, tier, sample and sort are local.
+  $('sec-balance').addEventListener('click', (ev) => {
+    const t = ev.target as HTMLElement;
+    const mode = t.closest('#bal-mode button')?.getAttribute('data-v');
+    if (mode && mode !== state.balMode) { state.balMode = mode; void refresh(); return; }
+    const view = t.closest('#bal-view button')?.getAttribute('data-v') as BalView | null;
+    if (view && view !== state.bal.view) { state.bal = { ...state.bal, view, sort: 'taken', dir: -1 }; renderPart(); return; }
+    const sort = t.closest('button[data-bsort]')?.getAttribute('data-bsort');
+    if (sort) {
+      state.bal = { ...state.bal, sort, dir: state.bal.sort === sort ? -state.bal.dir : sort === 'name' || sort === 'takenAvg' || sort === 'tier' ? 1 : -1 };
+      renderPart();
+    }
+  });
+  $('sec-balance').addEventListener('change', (ev) => {
+    const t = ev.target as HTMLSelectElement;
+    if (t.id === 'bal-set') { state.balSet = t.value; void refresh(); }
+    else if (t.id === 'bal-tribe') { state.bal = { ...state.bal, tribe: t.value }; renderPart(); }
+    else if (t.id === 'bal-tier') { state.bal = { ...state.bal, tier: Number(t.value) || 0 }; renderPart(); }
+    else if (t.id === 'bal-min') { state.bal = { ...state.bal, min: Number(t.value) || 0 }; renderPart(); }
   });
 }
 

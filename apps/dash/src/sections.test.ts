@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { heatmap, trendSpark } from './charts';
 import { fixtureHealth, fixturePlayers, fixtureProgression, fixtureSocial } from './fixture2';
-import { SECTIONS, driftOf, rate, renderHealth, renderPlayers, renderProgression, renderSocial, sectionOfHash, withSection, type Ctx } from './sections';
+import { SECTIONS, rate, renderHealth, renderPlayers, renderProgression, renderSocial, sectionOfHash, withSection, type Ctx } from './sections';
 
 const ctx: Ctx = {
   game: null,
@@ -23,13 +23,16 @@ describe('the parts of Analytics', () => {
     expect(sectionOfHash('#sec=nope')).toBe('overview');
     expect(withSection('#range=7d', 'health')).toBe('#range=7d&sec=health');
     expect(withSection('#range=7d&sec=health', 'overview')).toBe('#range=7d');
-    expect(SECTIONS).toEqual(['overview', 'players', 'social', 'progression', 'health']);
+    expect(SECTIONS).toEqual(['overview', 'players', 'social', 'progression', 'health', 'balance']);
   });
-  it('rates only with a denominator; drift reads lower-is-better', () => {
+  it('rates only with a denominator', () => {
     expect(rate(1, 0)).toBeNull();
     expect(rate(1, 4)).toBe(0.25);
-    expect(driftOf([{ avgPlacement: 5 }, { avgPlacement: 4.25 }])).toBe(-0.75);
-    expect(driftOf([{ avgPlacement: 5 }])).toBeNull();
+  });
+  it('Health and Balance are separate parts; the old combined key still opens Health', () => {
+    expect(sectionOfHash('#sec=balance')).toBe('balance');
+    expect(sectionOfHash('#sec=health')).toBe('health');
+    expect(sectionOfHash('#sec=healthbalance')).toBe('health');
   });
 });
 
@@ -38,7 +41,7 @@ describe('the round-two renderers', () => {
     players: renderPlayers(fixturePlayers(R, NOW), ctx),
     social: renderSocial(fixtureSocial(R, NOW), ctx),
     progression: renderProgression(fixtureProgression(R, NOW, { heroes: [], tribes: [], runes: [], ancients: [], achievements: ['a1', 'zz'], cosmetics: ['c1'], titles: ['t1'] }), ctx),
-    health: renderHealth(fixtureHealth(R, NOW, { heroes: ['warden'], tribes: ['kobold'], runes: ['r1'], ancients: ['death'], achievements: [], cosmetics: [], titles: [] }), ctx, 'rune'),
+    health: renderHealth(fixtureHealth(R, NOW), ctx),
   };
   it('render every part without inline style attributes (the CSP forbids them)', () => {
     for (const [k, html] of Object.entries(pages)) {
@@ -51,8 +54,6 @@ describe('the round-two renderers', () => {
     expect(pages.progression).toContain('Gold Frame');
     expect(pages.progression).toContain('Alpha Tester');
     expect(pages.progression).toContain('zz');
-    expect(pages.health).toContain('Rune One');
-    expect(pages.health).toContain('/art/runes/r1.webp');
   });
   it('say what "now" means, that DMs are counted only, and when retention is too early to tell', () => {
     expect(pages.social).toContain('last 5 minutes');

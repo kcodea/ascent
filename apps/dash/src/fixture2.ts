@@ -2,7 +2,7 @@
 // preview server answers /api/<section> with these (vite.config.ts). Every number is invented; the shapes are the real
 // contract (src/types.ts, supabase/migrations/2026-11-29-analytics-v2.sql). Ids come from the synced game data.
 import { fixtureOverview } from './fixture';
-import type { HealthData, PlayersData, ProgressionData, SocialData, TrendItem } from './types';
+import type { BalanceData, BalanceRow, HealthData, PlayersData, ProgressionData, SocialData, TrendItem } from './types';
 
 function rng(seed: number): () => number {
   let a = seed >>> 0;
@@ -94,24 +94,24 @@ export function fixtureProgression(p: Range = {}, now = new Date(), ids: Fixture
   };
 }
 
-export function fixtureHealth(p: Range = {}, now = new Date(), ids: Fixture2Ids = FALLBACK): HealthData {
-  const o = fixtureOverview(p, now);
-  const r = rng(61);
-  const span = Math.round((Date.parse(o.to) - Date.parse(o.from)) / 86_400_000) + 1;
+function trendPoints(from: string, to: string) {
+  const span = Math.round((Date.parse(to) - Date.parse(from)) / 86_400_000) + 1;
   const trendBucket = span > 120 ? 'month' : 'week';
   const points: string[] = [];
-  for (let d = new Date(`${o.from}T00:00:00Z`); d <= new Date(`${o.to}T00:00:00Z`); d.setUTCDate(d.getUTCDate() + 1)) {
+  for (let d = new Date(`${from}T00:00:00Z`); d <= new Date(`${to}T00:00:00Z`); d.setUTCDate(d.getUTCDate() + 1)) {
     const k = trendBucket === 'month' ? `${d.toISOString().slice(0, 8)}01` : (() => { const x = new Date(d); x.setUTCDate(x.getUTCDate() - ((x.getUTCDay() + 6) % 7)); return x.toISOString().slice(0, 10); })();
     if (!points.includes(k)) points.push(k);
   }
-  const trend = (list: string[], scale: number): TrendItem[] => list.map((id, i) => {
-    const base = 3.2 + r() * 2.4;
-    const series = points.map((t) => { const avg = round(Math.max(1, Math.min(8, base + (r() - 0.5) * 1.2)), 2); return { t, games: Math.round(scale * (0.4 + r())), avgPlacement: avg, top4Rate: round(Math.max(0, Math.min(1, 1 - (avg - 1) / 7 + (r() - 0.5) * 0.1))) }; });
-    return { id, games: series.reduce((a, s) => a + s.games, 0) + (list.length - i) * 3, avgPlacement: round(base, 2), top4Rate: round(1 - (base - 1) / 7), series };
-  }).sort((a, b) => b.games - a.games);
+  return { trendBucket: trendBucket as 'week' | 'month', points };
+}
+
+export function fixtureHealth(p: Range = {}, now = new Date()): HealthData {
+  const o = fixtureOverview(p, now);
+  const r = rng(61);
+
   const cs = o.series.map((s) => ({ t: s.t, crashes: r() < 0.3 ? Math.round(r() * 3) : 0, bugs: r() < 0.2 ? 1 : 0 }));
   return {
-    tz: 'UTC', from: o.from, to: o.to, bucket: o.bucket, trendBucket,
+    tz: 'UTC', from: o.from, to: o.to, bucket: o.bucket,
     crashes: { total: cs.reduce((a, c) => a + c.crashes, 0), series: cs, byBuild: [{ build: '0.1.0+98f2762', n: 4 }, { build: '0.1.0+25b9fa7', n: 2 }], byStep: [{ step: 'boot', n: 3 }, { step: 'combat', n: 2 }, { step: 'shop', n: 1 }] },
     bugs: { total: cs.reduce((a, c) => a + c.bugs, 0), byStatus: { open: 3, triaged: 2, fixed: 5 }, bySeverity: { high: 1, medium: 4, low: 5 } },
     ops: {
@@ -121,6 +121,37 @@ export function fixtureHealth(p: Range = {}, now = new Date(), ids: Fixture2Ids 
       retentionRuns: Array.from({ length: 5 }, (_, i) => ({ at: new Date(now.getTime() - (10 + 24 * i) * 3_600_000).toISOString(), kind: 'run', deleted: Math.round(40 + r() * 80), failed: 0 })),
     },
     database: { bytes: 171 * 1048576, limitBytes: 524288000, tables: [['public.run_telemetry', 61], ['public.boards', 21], ['public.practice_games', 14], ['public.lobby_fights', 9], ['public.run_history', 6], ['public.versus_group_fights', 4], ['auth.users', 3], ['public.achievement_progress', 2]].map(([table, mb]) => ({ table: table as string, bytes: (mb as number) * 1048576 })) },
-    trends: { hero: trend(ids.heroes.slice(0, 10), 6), tribe: trend(ids.tribes, 12), rune: trend(ids.runes.slice(0, 12), 2), ancient: trend(ids.ancients, 4) },
+  };
+}
+
+/** The balance view: Career trends for heroes / tribes / Ancients and equal-access rows for cards and runes. */
+export function fixtureBalance(p: Range & { mode?: string | null; set?: string | null } = {}, now = new Date(), ids: Fixture2Ids & { cards?: string[] } = FALLBACK): BalanceData {
+  const o = fixtureOverview(p, now);
+  const r = rng(71);
+  const { trendBucket, points } = trendPoints(o.from, o.to);
+  const trend = (list: string[], scale: number): TrendItem[] => list.map((id, i) => {
+    const base = 3.2 + r() * 2.4;
+    const series = points.map((t) => { const avg = round(Math.max(1, Math.min(8, base + (r() - 0.5) * 1.2)), 2); return { t, games: Math.round(scale * (0.4 + r())), avgPlacement: avg, top4Rate: round(Math.max(0, Math.min(1, 1 - (avg - 1) / 7 + (r() - 0.5) * 0.1))) }; });
+    return { id, games: series.reduce((a, s) => a + s.games, 0) + (list.length - i) * 3, avgPlacement: round(base, 2), top4Rate: round(1 - (base - 1) / 7), series };
+  }).sort((a, b) => b.games - a.games);
+  const runs = Math.max(40, Math.round(o.totals.games * 0.7));
+  const row = (id: string, k: number, pickBias: number): BalanceRow => {
+    const seen = Math.max(1, Math.round(runs * (0.05 + r() * 0.5) * k));
+    const taken = Math.round(seen * Math.min(0.95, Math.max(0.02, pickBias + (r() - 0.5) * 0.3)));
+    const passed = seen - taken;
+    const effect = (r() - 0.5) * 1.6;
+    const tAvg = round(4.5 - effect / 2 + (r() - 0.5) * 0.3, 3), pAvg = round(4.5 + effect / 2 + (r() - 0.5) * 0.3, 3);
+    const series = taken >= 10 ? points.map((t): [string, number, number] => [t, Math.max(1, Math.round(taken / points.length)), round(tAvg + (r() - 0.5) * 0.8, 2)]) : null;
+    const fin = Math.round(taken * (0.2 + r() * 0.4));
+    return [id, seen, taken, Math.max(1, Math.round(taken / 2.4)), tAvg, round(4.6 + r(), 3), round(1 - (tAvg - 1) / 7, 4), passed, Math.max(passed ? 1 : 0, Math.round(passed / 2.6)), passed ? pAvg : null, passed ? round(4.6 + r(), 3) : null, fin, fin ? round(tAvg - 0.8, 2) : null, Math.round(fin * 0.15), series];
+  };
+  const cards = (ids.cards ?? ['m1', 'm2', 's1']).map((id) => row(id, 1, 0.3)).sort((a, b) => b[2] - a[2]);
+  const runes = ids.runes.slice(0, 40).map((id) => row(id, 0.35, 0.33)).sort((a, b) => b[2] - a[2]);
+  const mode = p.mode === 'unrated' || p.mode === 'all' ? p.mode : 'ranked';
+  return {
+    tz: 'UTC', from: o.from, to: o.to, trendBucket, mode, set: p.set ?? null,
+    games: runs, runs, field: { n: runs, avg: 4.5, var: 5.25, top4: 0.5 },
+    trends: { hero: trend(ids.heroes.slice(0, 12), 6), tribe: trend(ids.tribes, 12), ancient: trend(ids.ancients, 4) },
+    items: { card: cards, rune: runes },
   };
 }

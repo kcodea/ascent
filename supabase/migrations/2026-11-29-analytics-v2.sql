@@ -14,9 +14,11 @@
 --                                               and accepts, game invites, DMs (counts only, never a body).
 --   public.analytics_progression(from, to, tz)  PROGRESSION + LADDER: players per division now, points movement, account
 --                                               levels, achievements per bucket + most / least common, most equipped.
---   public.analytics_health(from, to, tz)       HEALTH + BALANCE: crash + bug reports per bucket, the daily health check,
---                                               database size vs the Free plan and the biggest tables, the retention
---                                               cleanup's rules and recent runs, and hero / tribe / rune / Ancient trends.
+--   public.analytics_health(from, to, tz)       HEALTH: crash + bug reports per bucket, the daily health check, database
+--                                               size vs the Free plan and the biggest tables, the retention cleanup's runs.
+--   public.analytics_balance(from, to, tz)      BALANCE: hero / tribe / rune / Ancient trends (ranked lobby games). Its own
+--                                               call (owner 2026-11-22: "separate health and balance"), so Health never
+--                                               pays for this scan of every Career entry in the range.
 --
 -- Same contract as the first file: one small aggregated jsonb each, SECURITY DEFINER with a pinned search_path,
 -- EXECUTE for service_role ONLY. Test bots and the Claudebot test accounts are excluded wherever a row names a player.
@@ -35,7 +37,8 @@
 --   drop function if exists public.analytics_social(date, date, text);
 --   drop function if exists public.analytics_progression(date, date, text);
 --   drop function if exists public.analytics_health(date, date, text);
---   drop function if exists analytics.players(date, date, text);   (and social / progression / health / range_of)
+--   drop function if exists public.analytics_balance(date, date, text, text, text);
+--   drop function if exists analytics.players(date, date, text);   (and social / progression / health / balance / range_of / buckets)
 
 create index if not exists friendships_created_at on public.friendships (created_at);
 create index if not exists friendships_accepted_at on public.friendships (accepted_at) where accepted_at is not null;
@@ -297,12 +300,12 @@ begin
   return v_out;
 end $$;
 
--- ── 4. HEALTH + BALANCE TRENDS ────────────────────────────────────────────────────────────────────────────────
+-- ── 4. HEALTH (crashes, bugs, the daily check, database size, the retention cleanup) ─────────────────────────────
+-- Its own call so opening Health never pays for the balance scan below (owner 2026-11-22: "separate health and balance").
 create or replace function analytics.health(p_from date, p_to date, p_tz text)
 returns jsonb language plpgsql stable set search_path = public, pg_temp as $$
 declare
   r   record;
-  v_trend text;
   v_status jsonb;
   v_latest jsonb;
   v_rules jsonb;
@@ -310,8 +313,6 @@ declare
   v_out jsonb;
 begin
   select * into r from analytics.range_of(p_from, p_to, p_tz);
-  -- weekly trends up to ~4 months, monthly beyond (keeps every line short and the payload small)
-  v_trend := case when r.last_day - r.first_day + 1 > 120 then 'month' else 'week' end;
   -- The ops pieces are read only if they exist (each lives in its own migration).
   if to_regclass('ops.health_status') is not null then
     execute 'select to_jsonb(s) from ops.health_status s limit 1' into v_status;
@@ -331,35 +332,10 @@ begin
   end if;
 
   with
-  ex as (select user_id from analytics.excluded_users()),
   crashes as (select c.created_at, c.build, c.last_step from public.client_crash_reports c where c.created_at >= r.from_ts and c.created_at < r.to_ts),
-  bugs as (select b.created_at, b.status, b.severity from public.bug_reports b where b.created_at >= r.from_ts and b.created_at < r.to_ts),
-  -- balance: ranked lobby games only (unrated tables are not a fair read), each item's placement per trend bucket
-  lob as (
-    select date_trunc(v_trend, h.created_at at time zone r.tz) as b, h.placement, h.hero_id, h.entry
-    from public.run_history h
-    where h.created_at >= r.from_ts and h.created_at < r.to_ts and h.mode = 'lobby' and not (h.entry ? 'unrated') and h.placement is not null
-      and h.user_id not in (select user_id from ex)
-  ),
-  bal as (
-    select 'hero'::text as kind, l.hero_id as item, l.b, l.placement from lob l where l.hero_id is not null
-    union all select 'tribe', nullif(l.entry->>'dominantTribe', ''), l.b, l.placement from lob l where nullif(l.entry->>'dominantTribe', '') is not null
-    union all select 'rune', t.rune, l.b, l.placement from lob l
-      cross join lateral jsonb_array_elements_text(case when jsonb_typeof(l.entry #> '{board,runes}') = 'array' then l.entry #> '{board,runes}' else '[]'::jsonb end) as t(rune)
-    union all select 'ancient', l.entry #>> '{board,ancient,id}', l.b, l.placement from lob l where (l.entry #>> '{board,ancient,id}') is not null
-  ),
-  per_b as (
-    select kind, item, b, count(*) as n, round(avg(placement), 2) as avg, round(avg(case when placement <= 4 then 1.0 else 0.0 end), 4) as top4
-    from bal group by kind, item, b
-  ),
-  per_i as (
-    select kind, item, count(*) as n, round(avg(placement), 2) as avg, round(avg(case when placement <= 4 then 1.0 else 0.0 end), 4) as top4,
-      row_number() over (partition by kind order by count(*) desc, item) as rk
-    from bal group by kind, item
-  ),
-  tops as (select * from per_i where rk <= case kind when 'rune' then 12 when 'ancient' then 8 else 10 end)
+  bugs as (select b.created_at, b.status, b.severity from public.bug_reports b where b.created_at >= r.from_ts and b.created_at < r.to_ts)
   select jsonb_build_object(
-    'tz', r.tz, 'from', r.first_day, 'to', r.last_day, 'bucket', r.bucket, 'trendBucket', v_trend,
+    'tz', r.tz, 'from', r.first_day, 'to', r.last_day, 'bucket', r.bucket,
     'crashes', jsonb_build_object(
       'total', (select count(*) from crashes),
       'series', coalesce((select jsonb_agg(jsonb_build_object('t', to_char(s.b, 'YYYY-MM-DD"T"HH24:MI'), 'crashes', coalesce(c.n, 0), 'bugs', coalesce(bb.n, 0)) order by s.b)
@@ -382,14 +358,238 @@ begin
         from (select n.nspname || '.' || c.relname as name, pg_total_relation_size(c.oid) as bytes
               from pg_class c join pg_namespace n on n.oid = c.relnamespace
               where c.relkind in ('r', 'm') and n.nspname not in ('pg_catalog', 'information_schema', 'pg_toast')
-              order by pg_total_relation_size(c.oid) desc limit 10) t)),
+              order by pg_total_relation_size(c.oid) desc limit 10) t))
+  ) into v_out;
+  return v_out;
+end $$;
+
+-- ── 5. BALANCE: the dev balance view (heroes, tribes, Ancients, minions, spells, runes) ───────────────────────────
+-- Owner 2026-11-22: "separate health and balance", then "add minion, spell, and rune balance data ... this will become our
+-- new dev balance view". Its own call, so Health never pays for these scans.
+--
+-- METHOD (the in-game Balance Report's, owner ruling 2026-09-22; packages/sim/src/reportCohorts.ts, playerReport.ts):
+-- a "runs that had X vs everyone else" placement gap is a SURVIVAL statistic (a winner lives longer and touches more cards),
+-- so the comparison here is at EQUAL ACCESS:
+--   cards  taken (bought from the shop or a Discover) vs OFFERED AND PASSED in the same run's shop / Discovers;
+--   runes  picked vs offered at the forge and skipped (equal forge access).
+-- Both are RAW associations at equal access: not stratified by round band or shop tier (the per-offer wave and gold sit in
+-- `derived`, ~100 kB a run, too heavy to read per request), and never causal. Per item it returns the counts, the unique
+-- players (player_key) and the mean + sample variance of placement on each side, so the page shows a Welch interval and
+-- the report's evidence gates instead of a bare number. Final-board presence (Career entry) is labelled survival-biased.
+--
+-- COST: reading every run's card arrays live was ~70 s for "All time" at 50k runs (bench), so cards + runes come from a
+-- DAILY ROLLUP: `analytics.balance_daily`, one row per (UTC day, mode, set, card or rune, taken or passed) with additive
+-- sums and up to 10 of that day's distinct player keys (enough for the report's 3 / 5-player gates; the page shows 10+). A nightly pg_cron job (`analytics-balance-rollup`, 03:47 UTC) rolls up every
+-- finished UTC day not yet rolled up; this file backfills once. Today (UTC) is always read live. Size: one row per item
+-- per side per day it was seen (a few hundred a day at today's traffic; ~100 bytes each plus the player keys).
+-- Card / rune day edges are UTC days (the rest of the dashboard uses the viewer's time zone).
+
+create table if not exists analytics.balance_daily (
+  day        date    not null,
+  mode       text    not null check (mode in ('ranked', 'unrated')),
+  set_id     text    not null,
+  kind       text    not null check (kind in ('card', 'rune')),
+  item       text    not null,
+  taken      boolean not null,
+  n          int     not null,
+  sum_place  bigint  not null,
+  sumsq      bigint  not null,
+  top4       int     not null,
+  players    text[]  not null, -- up to 10 distinct player keys that day (the unique-player count is exact up to 10, then '10+')
+  primary key (day, mode, set_id, kind, item, taken)
+);
+revoke all on analytics.balance_daily from public;
+do $$ begin
+  if exists (select 1 from pg_roles where rolname = 'anon') then execute 'revoke all on analytics.balance_daily from anon'; end if;
+  if exists (select 1 from pg_roles where rolname = 'authenticated') then execute 'revoke all on analytics.balance_daily from authenticated'; end if;
+end $$;
+
+-- One observation per lobby run per card / rune it was offered or took: taken, or offered and passed.
+create or replace function analytics.balance_obs(p_from timestamptz, p_to timestamptz)
+returns table (day date, mode text, set_id text, kind text, item text, taken boolean, pk text, placement int)
+language sql stable set search_path = public, pg_temp as $$
+  with tr as (
+    select (t.created_at at time zone 'UTC')::date as day, case when coalesce(t.unrated, false) then 'unrated' else 'ranked' end as mode,
+      coalesce(t.set_id, 'set1') as set_id, coalesce(t.player_key, t.user_id::text, t.author, '') as pk, t.placement,
+      coalesce(t.offered_cards, '{}') || coalesce(t.discover_offered_cards, '{}') as off_c, coalesce(t.bought_cards, '{}') || coalesce(t.discover_bought_cards, '{}') as took_c,
+      coalesce(t.offered_runes, '{}') as off_r, coalesce(t.picked_runes, '{}') as took_r
+    from public.run_telemetry t
+    where t.created_at >= p_from and t.created_at < p_to and t.placement between 1 and 8
+      and (t.source = 'ladder' or 'mode:lobby' = any (t.hero_offer))
+      and (t.user_id is null or not exists (select 1 from analytics.excluded_users() e where e.user_id = t.user_id))
+  )
+  select tr.day, tr.mode, tr.set_id, 'card', x.item, bool_or(x.took), tr.pk, tr.placement
+    from tr cross join lateral (select unnest(tr.off_c) as item, false as took union all select unnest(tr.took_c), true) x
+    group by tr.day, tr.mode, tr.set_id, tr.pk, tr.placement, tr.off_c, tr.took_c, x.item
+  union all
+  select tr.day, tr.mode, tr.set_id, 'rune', x.item, bool_or(x.took), tr.pk, tr.placement
+    from tr cross join lateral (select unnest(tr.off_r) as item, false as took union all select unnest(tr.took_r), true) x
+    group by tr.day, tr.mode, tr.set_id, tr.pk, tr.placement, tr.off_r, tr.took_r, x.item
+$$;
+
+-- Roll up whole UTC days [p_first, p_last] (replacing what is there). Returns the rows written.
+create or replace function analytics.balance_rollup(p_first date, p_last date)
+returns int language plpgsql volatile set search_path = public, pg_temp as $$
+declare v int;
+begin
+  delete from analytics.balance_daily where day between p_first and p_last;
+  insert into analytics.balance_daily (day, mode, set_id, kind, item, taken, n, sum_place, sumsq, top4, players)
+  select o.day, o.mode, o.set_id, o.kind, o.item, o.taken, count(*), sum(o.placement), sum(o.placement * o.placement),
+    count(*) filter (where o.placement <= 4), (array_agg(distinct o.pk))[1:10]
+  from analytics.balance_obs(p_first::timestamp at time zone 'UTC', (p_last + 1)::timestamp at time zone 'UTC') o
+  group by 1, 2, 3, 4, 5, 6;
+  get diagnostics v = row_count;
+  return v;
+end $$;
+
+-- The nightly job: every finished UTC day after the last one rolled up (all history the first time), never today.
+create or replace function analytics.balance_rollup_catchup()
+returns int language plpgsql volatile set search_path = public, pg_temp as $$
+declare
+  v_last date := (now() at time zone 'UTC')::date - 1;
+  v_first date := coalesce((select max(day) + 1 from analytics.balance_daily),
+                           (select (min(created_at) at time zone 'UTC')::date from public.run_telemetry), v_last + 1);
+begin
+  if v_first > v_last then return 0; end if;
+  return analytics.balance_rollup(v_first, v_last);
+end $$;
+
+drop function if exists public.analytics_balance(date, date, text);
+drop function if exists analytics.balance(date, date, text);
+create or replace function analytics.balance(p_from date, p_to date, p_tz text, p_mode text, p_set text)
+returns jsonb language plpgsql stable set search_path = public, pg_temp as $$
+declare
+  r   record;
+  v_trend text;
+  v_mode text := case when p_mode in ('ranked', 'unrated', 'all') then p_mode else 'ranked' end;
+  v_set text := case when p_set ~ '^set[0-9]{1,3}$' then p_set else null end;
+  v_today_utc date := (now() at time zone 'UTC')::date;
+  v_d0 date;
+  v_d1 date;
+  v_out jsonb;
+begin
+  select * into r from analytics.range_of(p_from, p_to, p_tz);
+  v_trend := case when r.last_day - r.first_day + 1 > 120 then 'month' else 'week' end;
+  v_d0 := (r.from_ts at time zone 'UTC')::date;
+  v_d1 := ((r.to_ts - interval '1 microsecond') at time zone 'UTC')::date;
+  with
+  ex as (select user_id from analytics.excluded_users()),
+  -- Career rows (heroes, tribes, Ancients, final boards)
+  lob as (
+    select h.id, date_trunc(v_trend, h.created_at at time zone r.tz) as b, h.placement, h.hero_id, h.entry
+    from public.run_history h
+    where h.created_at >= r.from_ts and h.created_at < r.to_ts and h.mode = 'lobby' and h.placement is not null
+      and (v_mode = 'all' or (v_mode = 'ranked') = not (h.entry ? 'unrated'))
+      and (v_set is null or coalesce(h.entry #>> '{board,setId}', v_set) = v_set) -- a row without a set stamp is kept
+      and h.user_id not in (select user_id from ex)
+  ),
+  bal as (
+    select 'hero'::text as kind, l.hero_id as item, l.b, l.placement from lob l where l.hero_id is not null
+    union all select 'tribe', nullif(l.entry->>'dominantTribe', ''), l.b, l.placement from lob l where nullif(l.entry->>'dominantTribe', '') is not null
+    union all select 'ancient', l.entry #>> '{board,ancient,id}', l.b, l.placement from lob l where (l.entry #>> '{board,ancient,id}') is not null
+  ),
+  per_b as (
+    select kind, item, b, count(*) as n, round(avg(placement), 2) as avg, round(avg(case when placement <= 4 then 1.0 else 0.0 end), 4) as top4
+    from bal group by kind, item, b
+  ),
+  per_i as (
+    select kind, item, count(*) as n, round(avg(placement), 2) as avg, round(avg(case when placement <= 4 then 1.0 else 0.0 end), 4) as top4,
+      row_number() over (partition by kind order by count(*) desc, item) as rk
+    from bal group by kind, item
+  ),
+  tops as (select * from per_i where rk <= case kind when 'ancient' then 8 else 12 end),
+  -- final boards: one row per run per card on it (survival-biased by construction)
+  fin as (
+    select m->>'cardId' as item, l.placement, bool_or(coalesce((m->>'golden')::boolean, false)) as golden
+    from lob l cross join lateral jsonb_array_elements(case when jsonb_typeof(l.entry #> '{board,minions}') = 'array' then l.entry #> '{board,minions}' else '[]'::jsonb end) as m
+    where m->>'cardId' is not null
+    group by l.id, l.placement, m->>'cardId'
+  ),
+  fin_i as (select item, count(*) as n, round(avg(placement), 2) as avg, count(*) filter (where golden) as golden from fin group by item),
+  -- cards + runes: rolled-up whole UTC days, plus today (and anything not rolled up yet) read live
+  rolled as (
+    select d.day, d.kind, d.item, d.taken, d.n, d.sum_place, d.sumsq, d.top4, d.players
+    from analytics.balance_daily d
+    where d.day between v_d0 and least(v_d1, v_today_utc - 1)
+      and (v_mode = 'all' or d.mode = v_mode) and (v_set is null or d.set_id = v_set)
+  ),
+  live as (
+    select o.day, o.kind, o.item, o.taken, count(*)::int as n, sum(o.placement)::bigint as sum_place, sum(o.placement * o.placement)::bigint as sumsq,
+      (count(*) filter (where o.placement <= 4))::int as top4, (array_agg(distinct o.pk))[1:10] as players
+    from analytics.balance_obs(
+        greatest(r.from_ts, (coalesce((select max(day) + 1 from analytics.balance_daily), v_d0))::timestamp at time zone 'UTC'), r.to_ts) o
+    where (v_mode = 'all' or o.mode = v_mode) and (v_set is null or o.set_id = v_set)
+    group by 1, 2, 3, 4
+  ),
+  days as (select * from rolled union all select * from live),
+  agg as (
+    select kind, item,
+      sum(n) filter (where taken) as t_n, sum(sum_place) filter (where taken) as t_s, sum(sumsq) filter (where taken) as t_q, sum(top4) filter (where taken) as t_4,
+      sum(n) filter (where not taken) as p_n, sum(sum_place) filter (where not taken) as p_s, sum(sumsq) filter (where not taken) as p_q
+    from days group by kind, item
+  ),
+  pl as (
+    select kind, item, count(distinct p) filter (where taken) as t_players, count(distinct p) filter (where not taken) as p_players
+    from days cross join lateral unnest(players) as p group by 1, 2
+  ),
+  ser as (
+    select kind, item, date_trunc(v_trend, day::timestamp) as b, sum(n) as n, sum(sum_place)::numeric / sum(n) as avg
+    from days where taken group by 1, 2, 3
+  ),
+  ser_j as (
+    select kind, item, jsonb_agg(jsonb_build_array(to_char(b, 'YYYY-MM-DD'), n, round(avg, 2)) order by b) as s from ser group by 1, 2
+  ),
+  stats as (
+    select a.kind, a.item, coalesce(a.t_n, 0) as t_n, coalesce(a.p_n, 0) as p_n,
+      a.t_s::numeric / nullif(a.t_n, 0) as t_avg, (a.t_q - a.t_s::numeric * a.t_s / nullif(a.t_n, 0)) / nullif(a.t_n - 1, 0) as t_var,
+      a.t_4::numeric / nullif(a.t_n, 0) as t_top4,
+      a.p_s::numeric / nullif(a.p_n, 0) as p_avg, (a.p_q - a.p_s::numeric * a.p_s / nullif(a.p_n, 0)) / nullif(a.p_n - 1, 0) as p_var,
+      coalesce(pl.t_players, 0) as t_players, coalesce(pl.p_players, 0) as p_players
+    from agg a left join pl on pl.kind = a.kind and pl.item = a.item
+  ),
+  -- the field: every lobby run in the filter (telemetry), from the same observations' run-level view
+  field as (
+    select count(*) as n, avg(t.placement) as avg, var_samp(t.placement) as var, avg(case when t.placement <= 4 then 1.0 else 0.0 end) as top4
+    from public.run_telemetry t
+    where t.created_at >= r.from_ts and t.created_at < r.to_ts and t.placement between 1 and 8
+      and (t.source = 'ladder' or 'mode:lobby' = any (t.hero_offer))
+      and (v_mode = 'all' or (v_mode = 'ranked') = not coalesce(t.unrated, false))
+      and (v_set is null or coalesce(t.set_id, 'set1') = v_set)
+      and (t.user_id is null or t.user_id not in (select user_id from ex))
+  )
+  select jsonb_build_object(
+    'tz', r.tz, 'from', r.first_day, 'to', r.last_day, 'trendBucket', v_trend, 'mode', v_mode, 'set', v_set,
+    'games', (select count(*) from lob),
+    'runs', (select n from field),
+    'rolledThrough', (select max(day) from analytics.balance_daily),
+    'field', (select jsonb_build_object('n', f.n, 'avg', round(f.avg, 3), 'var', round(f.var, 3), 'top4', round(f.top4, 4)) from field f),
     'trends', coalesce((select jsonb_object_agg(k.kind, k.items) from (
         select tp.kind, jsonb_agg(jsonb_build_object('id', tp.item, 'games', tp.n, 'avgPlacement', tp.avg, 'top4Rate', tp.top4,
             'series', (select jsonb_agg(jsonb_build_object('t', to_char(pb.b, 'YYYY-MM-DD'), 'games', pb.n, 'avgPlacement', pb.avg, 'top4Rate', pb.top4) order by pb.b)
               from per_b pb where pb.kind = tp.kind and pb.item = tp.item)) order by tp.n desc) as items
-        from tops tp group by tp.kind) k), '{}'::jsonb)
+        from tops tp group by tp.kind) k), '{}'::jsonb),
+    -- compact rows: [id, seen, taken, takenPlayers, takenAvg, takenVar, takenTop4, passed, passedPlayers, passedAvg, passedVar,
+    --                finalN, finalAvg, finalGolden, series [[bucket start, n, avg]] for items taken in 10+ runs]
+    'items', coalesce((select jsonb_object_agg(z.kind, z.rows) from (
+        select s.kind, jsonb_agg(jsonb_build_array(s.item, s.t_n + s.p_n, s.t_n, s.t_players, round(s.t_avg, 3), round(s.t_var, 3), round(s.t_top4, 4),
+            s.p_n, s.p_players, round(s.p_avg, 3), round(s.p_var, 3),
+            coalesce(fi.n, 0), fi.avg, coalesce(fi.golden, 0),
+            case when s.t_n >= 10 then sj.s end) order by s.t_n desc, s.item) as rows
+        from stats s left join fin_i fi on s.kind = 'card' and fi.item = s.item left join ser_j sj on sj.kind = s.kind and sj.item = s.item
+        group by s.kind) z), '{}'::jsonb)
   ) into v_out;
   return v_out;
+end $$;
+
+-- Backfill the rollup once (every finished UTC day so far), then keep it current nightly.
+select analytics.balance_rollup_catchup();
+do $$
+begin
+  if exists (select 1 from pg_extension where extname = 'pg_cron') then
+    perform cron.unschedule(jobid) from cron.job where jobname = 'analytics-balance-rollup';
+    perform cron.schedule('analytics-balance-rollup', '47 3 * * *',
+      $job$set statement_timeout = '10min'; select analytics.balance_rollup_catchup()$job$);
+  end if;
 end $$;
 
 -- Nothing in the private schema is callable by anyone but its owner.
@@ -403,7 +603,7 @@ begin
   end loop;
 end $$;
 
--- ── The four entry points (service role only) ─────────────────────────────────────────────────────────────────
+-- ── The five entry points (service role only) ─────────────────────────────────────────────────────────────────
 create or replace function public.analytics_players(p_from date default null, p_to date default null, p_tz text default 'UTC')
 returns jsonb language sql stable security definer set search_path = public, pg_temp as $$ select analytics.players(p_from, p_to, p_tz) $$;
 create or replace function public.analytics_social(p_from date default null, p_to date default null, p_tz text default 'UTC')
@@ -412,6 +612,9 @@ create or replace function public.analytics_progression(p_from date default null
 returns jsonb language sql stable security definer set search_path = public, pg_temp as $$ select analytics.progression(p_from, p_to, p_tz) $$;
 create or replace function public.analytics_health(p_from date default null, p_to date default null, p_tz text default 'UTC')
 returns jsonb language sql stable security definer set search_path = public, pg_temp as $$ select analytics.health(p_from, p_to, p_tz) $$;
+create or replace function public.analytics_balance(p_from date default null, p_to date default null, p_tz text default 'UTC',
+  p_mode text default 'ranked', p_set text default null)
+returns jsonb language sql stable security definer set search_path = public, pg_temp as $$ select analytics.balance(p_from, p_to, p_tz, p_mode, p_set) $$;
 
 do $$
 declare fn text;
@@ -422,4 +625,11 @@ begin
     if exists (select 1 from pg_roles where rolname = 'authenticated') then execute format('revoke all on function public.%I(date, date, text) from authenticated', fn); end if;
     if exists (select 1 from pg_roles where rolname = 'service_role') then execute format('grant execute on function public.%I(date, date, text) to service_role', fn); end if;
   end loop;
+end $$;
+
+revoke all on function public.analytics_balance(date, date, text, text, text) from public;
+do $$ begin
+  if exists (select 1 from pg_roles where rolname = 'anon') then execute 'revoke all on function public.analytics_balance(date, date, text, text, text) from anon'; end if;
+  if exists (select 1 from pg_roles where rolname = 'authenticated') then execute 'revoke all on function public.analytics_balance(date, date, text, text, text) from authenticated'; end if;
+  if exists (select 1 from pg_roles where rolname = 'service_role') then execute 'grant execute on function public.analytics_balance(date, date, text, text, text) to service_role'; end if;
 end $$;

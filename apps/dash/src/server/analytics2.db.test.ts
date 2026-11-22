@@ -24,7 +24,7 @@ const SEED = `
 
   -- A: first game 10 days ago, back 9 days ago, again today. B: first game 3 days ago (practice), never back. C: first today.
   insert into public.run_history (user_id, patch, hero_id, placement, mode, entry, created_at) values
-    ('${A}', 'p', 'warden', 2, 'lobby', '{"seed": 1, "activeMs": 600000, "dominantTribe": "kobold", "board": {"runes": ["r1", "r2"], "ancient": {"id": "death"}}}', now() - interval '10 days'),
+    ('${A}', 'p', 'warden', 2, 'lobby', '{"seed": 1, "activeMs": 600000, "dominantTribe": "kobold", "board": {"runes": ["r1", "r2"], "ancient": {"id": "death"}, "minions": [{"cardId": "m1", "golden": true}, {"cardId": "m2"}]}}', now() - interval '10 days'),
     ('${A}', 'p', 'warden', 5, 'lobby', '{"seed": 2, "dominantTribe": "kobold", "board": {"runes": ["r1"]}}', now() - interval '9 days'),
     ('${A}', 'p', 'indy', 1, 'lobby', '{"seed": 3, "unrated": "all-generated", "board": {"runes": ["r9"]}}', now()),
     ('${CLAUDE}', 'p', 'warden', 8, 'lobby', '{"seed": 9, "activeMs": 999999999}', now());
@@ -54,6 +54,14 @@ const SEED = `
   insert into public.cosmetic_loadouts values ('${A}', 'skin', 'warden', 'skin1'), ('${B}', 'skin', 'warden', 'skin1'), ('${BOT}', 'skin', 'warden', 'skin1'),
     ('${A}', 'frame', '', 'frame1');
 
+  -- telemetry for the card + rune view: A ranked 2nd and 5th, B ranked 3rd, A unrated 1st, C ranked 7th on another set, the Claudebot
+  insert into public.run_telemetry (user_id, hero_id, hero_offer, source, placement, unrated, set_id, offered_cards, bought_cards, discover_offered_cards, discover_bought_cards, offered_runes, picked_runes, created_at) values
+    ('${A}', 'warden', '{mode:lobby}', 'ladder', 2, false, 'set2', '{m1,m2,s1}', '{m1}', '{}', '{}', '{r1,r2}', '{r1}', now() - interval '10 days'),
+    ('${A}', 'warden', '{mode:lobby}', 'ladder', 5, false, 'set2', '{m1,m2}', '{m2}', '{}', '{}', '{r1,r3}', '{r3}', now() - interval '9 days'),
+    ('${B}', 'indy', '{mode:lobby}', 'ladder', 3, false, 'set2', '{m1,m2}', '{m1}', '{s1}', '{s1}', '{r1}', '{r1}', now() - interval '3 days'),
+    ('${A}', 'indy', '{mode:lobby}', 'ladder', 1, true, 'set2', '{m1}', '{m1}', '{}', '{}', '{}', '{}', now()),
+    ('${C}', 'indy', '{mode:lobby}', 'ladder', 7, false, 'set3', '{m1}', '{m1}', '{}', '{}', '{}', '{}', now()),
+    ('${CLAUDE}', 'indy', '{mode:lobby}', 'ladder', 8, false, 'set2', '{m1}', '{m1}', '{}', '{}', '{r1}', '{r1}', now());
   insert into public.client_crash_reports (build, last_step) values ('b1', 'boot'), ('b1', 'shop');
   insert into public.bug_reports (status, severity) values ('open', 'high');
   insert into ops.health_checks (run_id, source, check_name, status, detail) values ('x', 'cron', 'pool', 'ok', '{}'), ('x', 'cron', 'writes', 'fail', '{"why": "none"}');
@@ -87,7 +95,7 @@ beforeAll(async () => {
 }, 60_000);
 afterAll(async () => { await db.close(); });
 
-const FNS = ['analytics_players', 'analytics_social', 'analytics_progression', 'analytics_health'];
+const FNS = ['analytics_players', 'analytics_social', 'analytics_progression', 'analytics_health', 'analytics_balance'];
 
 describe('round-two grants', () => {
   for (const role of ['anon', 'authenticated'] as const) {
@@ -101,7 +109,7 @@ describe('round-two grants', () => {
       where routine_name = any ($1) and privilege_type = 'EXECUTE'`, [FNS])).rows;
     expect(new Set(grants.map((g) => g.grantee))).toEqual(new Set(['service_role', 'postgres']));
     const procs = (await db.query<{ prosecdef: boolean; proconfig: string[] | null }>('select prosecdef, proconfig from pg_proc where proname = any ($1)', [FNS])).rows;
-    expect(procs).toHaveLength(4);
+    expect(procs).toHaveLength(5);
     for (const p of procs) { expect(p.prosecdef).toBe(true); expect(p.proconfig?.some((c) => c.startsWith('search_path='))).toBe(true); }
   });
 });
@@ -173,14 +181,58 @@ describe('analytics_health', () => {
     expect(h.database.limitBytes).toBe(524288000);
     expect(h.database.tables.length).toBeGreaterThan(0);
   });
-  it('balance trends from ranked lobby games only: hero, tribe, rune, Ancient', async () => {
+  it('carries no balance data (its own call)', async () => {
     const h = await call('analytics_health');
-    expect(h.trendBucket).toBe('week');
-    const warden = h.trends.hero.find((x: Json) => x.id === 'warden');
-    expect(warden).toMatchObject({ games: 2, avgPlacement: 3.5, top4Rate: 0.5 });
-    expect(h.trends.hero.find((x: Json) => x.id === 'indy')).toBeUndefined(); // that game was unrated
-    expect(h.trends.tribe[0]).toMatchObject({ id: 'kobold', games: 2 });
-    expect(h.trends.rune.find((x: Json) => x.id === 'r1')).toMatchObject({ games: 2 });
-    expect(h.trends.ancient).toEqual([expect.objectContaining({ id: 'death', games: 1, avgPlacement: 2 })]);
+    expect(h.trends).toBeUndefined();
+  });
+});
+
+const balance = async (from = 'current_date - 29', mode = 'ranked', set: string | null = null): Promise<Json> =>
+  (await as<{ j: Json }>('service_role', `select public.analytics_balance(${from}, null, 'UTC', '${mode}', ${set ? `'${set}'` : 'null'}) as j`))[0]!.j;
+const row = (b: Json, kind: string, id: string) => {
+  const r = (b.items[kind] ?? []).find((x: unknown[]) => x[0] === id);
+  return r && { seen: r[1], taken: r[2], takenPlayers: r[3], takenAvg: Number(r[4]), passed: r[7], passedAvg: r[9] == null ? null : Number(r[9]), finalN: r[11], finalGolden: r[13] };
+};
+
+describe('analytics_balance', () => {
+  it('heroes, tribes and Ancients from ranked Career rows', async () => {
+    const b = await balance();
+    expect(b.trendBucket).toBe('week');
+    expect(b.trends.hero.find((x: Json) => x.id === 'warden')).toMatchObject({ games: 2, avgPlacement: 3.5, top4Rate: 0.5 });
+    expect(b.trends.hero.find((x: Json) => x.id === 'indy')).toBeUndefined(); // that game was unrated
+    expect(b.trends.tribe[0]).toMatchObject({ id: 'kobold', games: 2 });
+    expect(b.trends.ancient).toEqual([expect.objectContaining({ id: 'death', games: 1, avgPlacement: 2 })]);
+  });
+  it('cards: taken vs offered-and-passed at equal access, one observation per run, never the bot or unrated', async () => {
+    const b = await balance();
+    expect(b.runs).toBe(4); // A 2nd, A 5th, B 3rd, C 7th (set3); not the unrated run, not the Claudebot
+    expect(row(b, 'card', 'm1')).toMatchObject({ seen: 4, taken: 3, takenPlayers: 3, takenAvg: 4, passed: 1, passedAvg: 5, finalN: 1, finalGolden: 1 });
+    expect(row(b, 'card', 'm2')).toMatchObject({ taken: 1, passed: 2, passedAvg: 2.5 });
+    expect(row(b, 'card', 's1')).toMatchObject({ taken: 1, takenAvg: 3, passed: 1, passedAvg: 2 }); // the spell: B took it, A passed it
+    expect(b.field).toMatchObject({ n: 4, avg: 4.25 });
+  });
+  it('runes: picked vs offered-and-skipped (equal forge access)', async () => {
+    const b = await balance();
+    expect(row(b, 'rune', 'r1')).toMatchObject({ taken: 2, takenAvg: 2.5, passed: 1, passedAvg: 5 });
+    expect(row(b, 'rune', 'r2')).toMatchObject({ taken: 0, passed: 1 });
+    expect(row(b, 'rune', 'r3')).toMatchObject({ taken: 1, passed: 0 });
+  });
+  it('cards + runes come from the daily rollup (finished UTC days) plus today live; the rollup is locked from clients', async () => {
+    const rows = (await db.query<{ n: number; today: number }>("select count(*)::int as n, count(*) filter (where day >= (now() at time zone 'UTC')::date)::int as today from analytics.balance_daily")).rows[0]!;
+    expect(rows.n).toBeGreaterThan(0);
+    expect(rows.today).toBe(0); // today is never rolled up; it is read live
+    await expect(as('authenticated', 'select * from analytics.balance_daily')).rejects.toThrow(/permission denied/);
+    await expect(as('anon', 'select analytics.balance_rollup_catchup()')).rejects.toThrow(/permission denied/);
+    // re-running the nightly job changes nothing
+    const before = JSON.stringify(await balance());
+    await db.query('select analytics.balance_rollup_catchup()');
+    expect(JSON.stringify(await balance())).toBe(before);
+  });
+
+  it('filters: set and mode', async () => {
+    expect(row(await balance(undefined, 'ranked', 'set2'), 'card', 'm1')).toMatchObject({ taken: 2, takenAvg: 2.5 });
+    expect(row(await balance(undefined, 'unrated'), 'card', 'm1')).toMatchObject({ taken: 1, takenAvg: 1 });
+    expect((await balance(undefined, 'all')).runs).toBe(5);
+    expect((await balance(undefined, 'junk')).mode).toBe('ranked');
   });
 });

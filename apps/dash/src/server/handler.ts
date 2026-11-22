@@ -12,7 +12,7 @@ export interface DashEnv {
 }
 
 /** Every analytics read: overview + breakdown (round one) and the four round-two sections. All take a range + tz. */
-export const ENDPOINTS = ['overview', 'breakdown', 'players', 'social', 'progression', 'health'] as const;
+export const ENDPOINTS = ['overview', 'breakdown', 'players', 'social', 'progression', 'health', 'balance'] as const;
 export type Endpoint = (typeof ENDPOINTS)[number];
 
 export const REQUIRED_ENV = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'ACCESS_AUD', 'ACCESS_TEAM_DOMAIN', 'ALLOWED_EMAILS'] as const;
@@ -53,6 +53,11 @@ export function rpcArgs(endpoint: Endpoint, url: URL): Record<string, string | n
   const from = q.get('from') ?? '';
   const to = q.get('to') ?? '';
   const range = { p_from: DATE.test(from) ? from : null, p_to: DATE.test(to) ? to : null };
+  if (endpoint === 'balance') {
+    const mode = q.get('mode') ?? '';
+    const set = q.get('set') ?? '';
+    return { ...range, p_tz, p_mode: ['ranked', 'unrated', 'all'].includes(mode) ? mode : 'ranked', p_set: /^set[0-9]{1,3}$/.test(set) ? set : null };
+  }
   if (endpoint !== 'breakdown') return { ...range, p_tz };
   const patch = q.get('patch') ?? '';
   return { ...range, p_patch: PATCH.test(patch) ? patch : null, p_tz };

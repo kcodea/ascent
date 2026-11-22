@@ -82,6 +82,9 @@ export interface GameNames {
   achievements: Record<string, string>;
   cosmetics: Record<string, { name: string; category: string }>;
   titles: Record<string, string>;
+  cards?: Record<string, { name: string; tier: number; tribe: string; tribe2?: string; spell: boolean; art: string | null }>;
+  setCards?: Record<string, string[]>;
+  sets?: Record<string, { name: string; enabled: boolean }>;
 }
 
 // ── Round two (supabase/migrations/2026-11-29-analytics-v2.sql) ─────────────────────────────────────────────
@@ -123,7 +126,7 @@ export interface ProgressionData {
 
 export interface TrendItem { id: string; games: number; avgPlacement: number; top4Rate: number; series: Array<{ t: string; games: number; avgPlacement: number; top4Rate: number }> }
 export interface HealthData {
-  tz: string; from: string; to: string; bucket: Bucket; trendBucket: 'week' | 'month';
+  tz: string; from: string; to: string; bucket: Bucket;
   crashes: { total: number; series: Array<{ t: string; crashes: number; bugs: number }>; byBuild: Array<{ build: string; n: number }>; byStep: Array<{ step: string; n: number }> };
   bugs: { total: number; byStatus: Record<string, number>; bySeverity: Record<string, number> };
   ops: {
@@ -133,7 +136,20 @@ export interface HealthData {
     retentionRuns: Array<{ at: string; kind: string; deleted: number | null; failed: number | null }> | null;
   };
   database: { bytes: number; limitBytes: number; tables: Array<{ table: string; bytes: number }> };
-  trends: Partial<Record<'hero' | 'tribe' | 'rune' | 'ancient', TrendItem[]>>;
+}
+
+/** One card or rune, compact (see analytics.balance): [id, seen, taken, takenPlayers, takenAvg, takenVar, takenTop4,
+ *  passed, passedPlayers, passedAvg, passedVar, finalN, finalAvg, finalGolden, series [[bucket, n, avg]] | null]. */
+export type BalanceRow = [string, number, number, number, number | null, number | null, number | null, number, number, number | null, number | null, number, number | null, number, Array<[string, number, number]> | null];
+
+/** analytics_balance: the dev balance view, its own call so Health never pays for these scans. */
+export interface BalanceData {
+  tz: string; from: string; to: string; trendBucket: 'week' | 'month'; mode: 'ranked' | 'unrated' | 'all'; set: string | null;
+  games: number; // Career rows (heroes, tribes, Ancients, final boards)
+  runs: number; // telemetry runs (cards, runes)
+  field: { n: number; avg: number | null; var: number | null; top4: number | null };
+  trends: Partial<Record<'hero' | 'tribe' | 'ancient', TrendItem[]>>;
+  items: Partial<Record<'card' | 'rune', BalanceRow[]>>;
 }
 
 export interface Breakdown {

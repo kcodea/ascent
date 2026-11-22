@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { beforeAll, describe, expect, it } from 'vitest';
@@ -7,6 +7,7 @@ import { INSTALLER_URL } from './download';
 
 // Resolve from the path, not `new URL(...)`: under jsdom the global URL is jsdom's, which node's fileURLToPath rejects.
 const INDEX = resolve(dirname(fileURLToPath(import.meta.url)), '../index.html');
+const PUBLIC_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '../public');
 
 beforeAll(() => {
   const parsed = new DOMParser().parseFromString(readFileSync(INDEX, 'utf8'), 'text/html');
@@ -69,6 +70,24 @@ describe('index.html', () => {
 
   it('the async points keep list semantics with their list styling removed', () => {
     expect(document.querySelector('ol.points')!.getAttribute('role')).toBe('list');
+  });
+
+  it('the top scene is a sky and four team layers, each with a depth for the mouse to slide it by, nearest last', () => {
+    const scene = document.querySelector('.top .top__scene[aria-hidden="true"]')!;
+    const layers = [...scene.querySelectorAll<HTMLImageElement>('img[data-depth]')];
+    expect(layers.map((l) => l.getAttribute('src'))).toEqual([
+      '/hero/sky.webp',
+      '/hero/left-back.webp',
+      '/hero/right-back.webp',
+      '/hero/left-front.webp',
+      '/hero/right-front.webp',
+    ]);
+    const depths = layers.map((l) => Number(l.dataset.depth));
+    expect(depths).toEqual([...depths].sort((a, b) => a - b));
+    for (const l of layers) {
+      expect(l.alt).toBe('');
+      expect(existsSync(resolve(PUBLIC_DIR, l.getAttribute('src')!.slice(1))), l.getAttribute('src')!).toBe(true);
+    }
   });
 
   it('the crest is the small webp, sized to match the file', () => {

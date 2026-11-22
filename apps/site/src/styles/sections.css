@@ -3,44 +3,90 @@
 
 /* -- #top: the title screen ----------------------------------------------------------------------------------- */
 
+/* --u is one hundredth of the widest 16:9 stage that fits the window, so the painted teams keep their size against
+   each other at any window shape. The scene is designed at 1920 x 1080. */
 .top {
+  --u: min(1vw, 1.7778vh);
   position: relative;
   isolation: isolate;
   display: grid;
   place-items: center;
   min-height: 100vh;
   min-height: 100svh;
-  padding: clamp(3.5rem, 9vh, 6.5rem) var(--gutter) clamp(5rem, 13vh, 8.5rem);
+  padding: 80vw var(--gutter) clamp(4rem, 10vh, 6rem);
   overflow: hidden;
   text-align: center;
 }
 
-.top__sky {
+/* The painted scene: a sky, then two teams charging in from the sides, each team a far pair and a near pair. Every
+   piece is its own layer so the mouse can slide the near ones further than the far (parallax.ts). */
+.top__scene {
   position: absolute;
   inset: 0;
   z-index: -2;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: 50% 38%;
 }
 
-/* Dim the bright sky behind the words, darken the top edge a touch, and fade the bottom into the night. */
+.top__scene > img {
+  position: absolute;
+  max-width: none;
+  will-change: transform;
+}
+
+/* Larger than the stage on every side, so a slide never shows its edge. */
+.top__sky {
+  inset: -4%;
+  width: 108%;
+  height: 108%;
+  object-fit: cover;
+  object-position: 50% 30%;
+}
+
+/* Phone: the teams meet in a band across the top, above the words. */
+.top__team {
+  height: auto;
+}
+
+.top__team--left-back {
+  top: 2vw;
+  left: -4vw;
+  width: 42vw;
+}
+
+.top__team--right-back {
+  top: 1vw;
+  right: -5vw;
+  width: 46vw;
+}
+
+/* The near pairs are painted running off the bottom of their canvas; on a phone that edge is in view, so it fades. */
+.top__team--left-front,
+.top__team--right-front {
+  -webkit-mask-image: linear-gradient(180deg, var(--black) 72%, transparent 98%);
+  mask-image: linear-gradient(180deg, var(--black) 72%, transparent 98%);
+}
+
+.top__team--left-front {
+  top: 30vw;
+  left: -10vw;
+  width: 54vw;
+}
+
+.top__team--right-front {
+  top: 24vw;
+  right: -9vw;
+  width: 52vw;
+}
+
+/* Dim the sky behind the words and fade the bottom into the night. Under the words, over the teams' feet. */
 .top::before {
   content: '';
   position: absolute;
   inset: 0;
   z-index: -1;
+  pointer-events: none;
   background:
-    radial-gradient(58% 52% at 50% 54%, color-mix(in srgb, var(--night) 74%, transparent), transparent 100%),
-    linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--night) 55%, transparent) 0%,
-      transparent 24%,
-      transparent 52%,
-      color-mix(in srgb, var(--night) 82%, transparent) 84%,
-      var(--night) 100%
-    );
+    radial-gradient(70% 34% at 50% 74%, color-mix(in srgb, var(--night) 82%, transparent), transparent 100%),
+    linear-gradient(180deg, transparent 0%, transparent 38%, color-mix(in srgb, var(--night) 86%, transparent) 66%, var(--night) 100%);
 }
 
 .top__inner {
@@ -52,7 +98,7 @@
 }
 
 .top__crest {
-  width: clamp(88px, 10vw, 148px);
+  width: clamp(84px, 22vw, 120px);
   height: auto;
   margin-bottom: var(--s4);
   filter: drop-shadow(0 8px 14px color-mix(in srgb, var(--night-deep) 80%, transparent))
@@ -1150,6 +1196,58 @@
 
   :is(.section--ancients, .section--earn) > :is(.eyebrow, h2, .lede) {
     grid-column: 2;
+  }
+}
+
+/* -- #top from tablet up: one full screen, the teams down the two sides and the words between them ----------- */
+
+@media (min-width: 760px) {
+  .top {
+    padding: clamp(3rem, 8vh, 6rem) var(--gutter) clamp(4.5rem, 12vh, 8rem);
+  }
+
+  .top__crest {
+    width: calc(11 * var(--u));
+    min-width: 96px;
+  }
+
+  .top__team--left-back {
+    top: calc(5 * var(--u));
+    left: calc(-1.5 * var(--u));
+    width: calc(22 * var(--u));
+  }
+
+  .top__team--right-back {
+    top: calc(4 * var(--u));
+    right: calc(-2.5 * var(--u));
+    width: calc(25 * var(--u));
+  }
+
+  .top__team--left-front,
+  .top__team--right-front {
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+
+  .top__team--left-front {
+    top: auto;
+    bottom: calc(-3 * var(--u));
+    left: calc(-3 * var(--u));
+    width: calc(32 * var(--u));
+  }
+
+  .top__team--right-front {
+    top: auto;
+    bottom: calc(-4 * var(--u));
+    right: calc(-3 * var(--u));
+    width: calc(31 * var(--u));
+  }
+
+  /* The words sit in the middle, so only the middle is dimmed; the teams keep their full colour. */
+  .top::before {
+    background:
+      radial-gradient(36% 46% at 50% 58%, color-mix(in srgb, var(--night) 78%, transparent), transparent 100%),
+      linear-gradient(180deg, transparent 0%, transparent 70%, color-mix(in srgb, var(--night) 80%, transparent) 90%, var(--night) 100%);
   }
 }
 

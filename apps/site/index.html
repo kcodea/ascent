@@ -40,7 +40,13 @@
   </head>
   <body>
     <header id="top" class="top">
-      <img class="top__sky" src="/art/hero.webp" alt="" width="1915" height="821" fetchpriority="high" />
+      <div class="top__scene" aria-hidden="true">
+        <img class="top__sky" data-depth="6" src="/hero/sky.webp" alt="" width="1536" height="1024" fetchpriority="high" />
+        <img class="top__team top__team--left-back" data-depth="14" src="/hero/left-back.webp" alt="" width="804" height="1043" />
+        <img class="top__team top__team--right-back" data-depth="14" src="/hero/right-back.webp" alt="" width="936" height="999" />
+        <img class="top__team top__team--left-front" data-depth="26" src="/hero/left-front.webp" alt="" width="1023" height="1025" />
+        <img class="top__team top__team--right-front" data-depth="26" src="/hero/right-front.webp" alt="" width="998" height="1185" />
+      </div>
       <div class="top__inner">
         <img class="top__crest" src="/art/crest.webp" alt="ASCENT" width="320" height="320" />
         <h1 class="top__headline">The auto-battler that waits for you.</h1>

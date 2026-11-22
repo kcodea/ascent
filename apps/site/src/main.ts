@@ -4,6 +4,7 @@ import './styles/sections.css';
 import { initAncients, initRunes } from './ancients';
 import { initCaptures } from './captures';
 import { initChests } from './chests';
+import { initParallax } from './parallax';
 import { applyPlatform, detectPlatform } from './platform';
 
 /** Calls onVisible once, the first time el is within 200px of the viewport (at once if there is no observer). */
@@ -30,4 +31,5 @@ document.addEventListener('DOMContentLoaded', () => {
   initAncients(document);
   initRunes(document);
   initChests(document, { reducedMotion });
+  initParallax(document, { reducedMotion, finePointer: window.matchMedia('(hover: hover) and (pointer: fine)').matches });
 });

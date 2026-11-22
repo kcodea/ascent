@@ -21,5 +21,5 @@ scrubbing, no-secret no-op, undelivered retry) and `workers/versus/test/opsCrash
 shapes, windows, nothing identifying, speed).
 
 **To turn on.** Apply `2026-11-30-ops-crash-digest.sql`, then `npm run hub:deploy -- --persist`. Neither done in this
-PR. There is no dashboard Health tab yet (`apps/dash` has no crash view), so the "how to look" hint points at the
-SQL in `docs/ops/crash-reports.md`.
+PR. The "how to look" hint points at the dashboard Health tab (#2845: crashes by build and last step) and the
+"Spikes" SQL in `docs/ops/crash-reports.md`.

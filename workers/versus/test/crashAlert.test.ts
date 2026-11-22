@@ -134,7 +134,7 @@ describe('the spike message', () => {
       'Top:',
       '- crash-session: combat start (8)',
       '- error: TypeError: x is undefined (2)',
-      'How to look: the "Spikes" query in docs/ops/crash-reports.md (last 2 hours by kind, version and message).',
+      'How to look: the dashboard Health tab (crashes by build and last step), or the "Spikes" query in docs/ops/crash-reports.md.',
     ].join('\n'));
   });
   it('a new build below the spike line says so in the header', () => {
@@ -179,7 +179,7 @@ describe('the daily summary', () => {
       '- desktop renderer-gone: oom (4)',
       '- phone crash-session: shop open (3)',
       'Health check 06:17 UTC: all green.',
-      'How to look: docs/ops/crash-reports.md',
+      'How to look: the dashboard Health tab, or docs/ops/crash-reports.md',
     ].join('\n'));
   });
   it('a day with zero crashes posts nothing', () => {

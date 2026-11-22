@@ -190,7 +190,7 @@ function clipMessage(lines: string[]): string {
   return out.join('\n');
 }
 
-const HOW_TO_LOOK = `How to look: the "Spikes" query in ${RUNBOOK} (last 2 hours by kind, version and message).`;
+const HOW_TO_LOOK = `How to look: the dashboard Health tab (crashes by build and last step), or the "Spikes" query in ${RUNBOOK}.`;
 
 export function formatSpike(kind: 'spike' | 'still', p: CrashPlatformHour, st: CrashPlatformState, why: string[], now: number): string {
   const spike = why.includes('spike');
@@ -256,7 +256,7 @@ export function formatDailySummary(d: CrashDayDigest, health: AlertState | null,
     for (const t of d.top.slice(0, 3)) lines.push(`- ${scrub(t.platform, 20)} ${scrub(t.kind, 32)}: ${scrub(t.msg) || '(no message)'} (${t.n})`);
   }
   lines.push(healthLine(health, now));
-  lines.push(`How to look: ${RUNBOOK}`);
+  lines.push(`How to look: the dashboard Health tab, or ${RUNBOOK}`);
   return clipMessage(lines);
 }
 

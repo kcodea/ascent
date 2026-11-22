@@ -113,6 +113,19 @@ describe('the run-end writes', () => {
     expect(s.meta.clear).toBeNull();
     expect(s.settled()).toBe(true);
   });
+
+  it('a game that was RATED never writes its held save, even with no clear (R-SESSION-CLEAR-02)', () => {
+    // Owner 2026-11-22: an ended ranked game came back as "Saved match, Round 14". The client sent no clear (its lease was
+    // 0), so the session still held round 14's save and wrote it once the player's socket had been gone a minute.
+    const s = game();
+    s.save(ME, 'run:abc', 0, 'dev1', T0); // round 14's shop
+    expect(s.rate(ME, rateReq(), T0 + 30_000)).toMatchObject({ kind: 'settle' }); // the game ended in round 14's fight
+    expect(s.saveDue(T0 + 30_000 + SESSION_QUIET_MS, false, T0 + 30_000)).toBe(false);
+    expect(s.saveDue(T0 + 10 * SESSION_STALE_SAVE_MS, true, null)).toBe(false);
+    expect(s.plan(T0 + 30_000 + SESSION_QUIET_MS, false, T0 + 30_000, true)?.save ?? false).toBe(false);
+    expect(s.settled()).toBe(true); // nothing owed: no alarm for the save, and the object may forget itself
+    expect(s.nextAt(T0 + 40_000, false, T0 + 30_000)).toBe(s.meta.activeAt + SESSION_FORGET_MS);
+  });
 });
 
 describe('the flush: retries and forgetting', () => {

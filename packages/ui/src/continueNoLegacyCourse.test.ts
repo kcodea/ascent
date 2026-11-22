@@ -120,6 +120,24 @@ describe('the retired course (wave) format is never resumed or created', () => {
     expect(isResumableRun(useGame.getState().run)).toBe(true);
   });
 
+  it('a lobby game whose own seat is out or placed, or whose table finished, is never resumable (R-SESSION-CLEAR-02)', async () => {
+    const { isResumableRun, useGame } = await bootStore();
+    useGame.getState().startLobby();
+    useGame.getState().pickHero('warden');
+    const run = useGame.getState().run;
+    const lobby = run.lobby!;
+    const withMe = (over: Record<string, unknown>) => ({ ...run, lobby: { ...lobby, seats: [{ ...lobby.seats[0]!, ...over }, ...lobby.seats.slice(1)] } });
+    expect(isResumableRun(run)).toBe(true);
+    expect(isResumableRun(withMe({ alive: false }))).toBe(false);
+    expect(isResumableRun(withMe({ placement: 3 }))).toBe(false);
+    expect(isResumableRun({ ...run, lobby: { ...lobby, finished: true } })).toBe(false);
+    // …and such a save in the slot is dropped at boot: no "Saved match" for it.
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ run: serialize(withMe({ alive: false, placement: 5 })), actions: [] }));
+    const reboot = await bootStore();
+    expect(reboot.useGame.getState().savedRun).toBeNull();
+    expect(localStorage.getItem(SAVE_KEY)).toBeNull();
+  });
+
   it('no store entry point builds a course run: a stale ascent/rift pendingMode still yields a lobby', async () => {
     const { useGame } = await bootStore();
     const store = useGame.getState() as unknown as Record<string, unknown>;

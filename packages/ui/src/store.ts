@@ -140,6 +140,7 @@ import { createAccountStartupGate } from './identityGate';
 import { createCloudSave, deviceId, noteLocalClear, noteLocalSave, runKeyOf, type CloudRow, type CloudRowMeta } from './cloudSave';
 import { supabaseCloudSaveApi } from './cloudSaveRemote';
 import { sessionCloudSaveApi } from './session/sessionCloudSave';
+import { sessionGameForRunKey } from './session/sessionRemote';
 import { setSessionSeatProvider } from './session/seatProvider';
 import { notifyTutorialActions } from './tutorial/actionBus';
 import { gateBlocks, notifyGateNudge } from './tutorial/gateBus';
@@ -1181,7 +1182,11 @@ const activeNow = (): number => (typeof performance !== 'undefined' ? performanc
  */
 export function isResumableRun(run: RunState): boolean {
   // VERSUS (2026-10-14) carries a display lobby (`versusLobby`) but never holds the slot: the match server owns recovery.
-  return !!run.lobby && !run.sandbox && run.mode !== 'versus' && run.phase !== 'gameover' && run.phase !== 'victory';
+  if (!run.lobby || run.sandbox || run.mode === 'versus' || run.phase === 'gameover' || run.phase === 'victory') return false;
+  // A game whose table is over, or whose own seat is out or placed, is over whatever its phase says (R-SESSION-CLEAR-02,
+  // owner 2026-11-22): `advanceCombat` ends such a run, so a save that holds one is never a live match to Continue.
+  const me = run.lobby.seats[0];
+  return !run.lobby.finished && me?.alive !== false && me?.placement == null;
 }
 interface SavedGame { run: RunState; actions: Action[]; boards: BoardSnapshot[]; telemetry?: TelemetryLog; derive?: DeriveState; turnRemaining?: number; announced?: AnnouncedSlice; /** Active play ms so far (R-MATCH-LENGTH-01); absent on saves from before the clock. */ activeMs?: number; }
 function loadSave(): SavedGame | null {
@@ -1206,7 +1211,7 @@ function parseSave(raw: string): SavedGame | null {
     // (a pre-fix phantom from quitting the hero picker, or a genuinely old run). Continue must never resume it,
     // so it is discarded here and no Continue is offered. Replays never read this slot, so they are untouched.
     if (!isResumableRun(run)) {
-      console.warn('[ascent] discarding a saved run in the retired course format (no lobby)');
+      console.warn('[ascent] discarding a saved run that is not a live lobby game (the retired course format, or a game that ended)');
       return null;
     }
     // A save can reference a card this build no longer has — a card deleted or renamed during content work, a
@@ -1341,6 +1346,7 @@ const cloudSave = createCloudSave({
   seatRuns: () => seatRunsFor(useGame.getState().savedRun),
   seatHybrids: () => seatRecordingsFor(useGame.getState().savedRun)?.hybrids,
   onMoved: (current) => onCloudMoved(current),
+  heldBySession: (runKey) => sessionGameForRunKey(runKey) !== null, // R-SESSION-CLEAR-02: its end always sends the clear
 });
 // THE GAME SESSION's table pin (R-SESSION-CF-01) sends the same bundle the save carries.
 setSessionSeatProvider((run) => { const r = seatRecordingsFor(run); return r ? { runs: r.runs, hybrids: r.hybrids } : undefined; });

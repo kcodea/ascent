@@ -260,6 +260,67 @@ describe('run end', () => {
     expect((await svc.checkAtTitle(null)).decision).toBe('adopt');
   });
 
+  it('a SESSION game that ends sends its clear at lease 0, so the session never writes its last save afterwards (R-SESSION-CLEAR-02)', async () => {
+    // Owner 2026-11-22: "SAVED MATCH Ranked, Round 14" for a ranked game that had ended. A session game's save is held by
+    // the hub's game session, which answers the row's revision without bumping it (0 for a game it never wrote), so the
+    // client's lease stays 0 all game. The end then skipped the clear ("never synced"), the session kept the round-14
+    // save dirty, and a minute after the game ended (the player's live socket gone) it wrote it to Supabase. Any other
+    // device (or browser profile) then adopted it as Continue.
+    const real = server.apiFor(() => user);
+    type PutArgs = Parameters<typeof real.put>[0];
+    let held: { runKey: string; payload: NonNullable<PutArgs['payload']> } | null = null;
+    let base = 0;
+    const session: typeof real = {
+      ...real,
+      // The session holds the save and answers its base revision (sessionCore.save).
+      put: async (a) => {
+        if (!a.payload) return real.put(a); // a claim goes to Supabase
+        held = { runKey: a.runKey, payload: a.payload };
+        base = Math.max(base, a.expected);
+        return { status: 'ok', revision: base };
+      },
+      // The end's clear: the held save is never written, and the row (if the session wrote one) goes.
+      clear: async (a) => {
+        held = null;
+        const row = server.rows.get(user!);
+        return row && row.runKey === a.runKey ? real.clear({ runKey: a.runKey, expected: Math.max(base, a.expected) }) : 'ok';
+      },
+    };
+    /** The session's quiet write: a held save still dirty is written to the row. */
+    const quietWrite = async (): Promise<void> => {
+      const h = held;
+      if (!h) return;
+      const r = await real.put({ runKey: h.runKey, expected: base, deviceId: 'session', payload: h.payload });
+      if (r.status === 'ok') base = r.revision;
+      held = null;
+    };
+    const svc = createCloudSave({
+      api: session, userId: () => user, readLocal: () => localStorage.getItem(SAVE_KEY), seatRuns: () => undefined,
+      onMoved: (m) => { moved.push(m); }, setTimeout: (fn) => { retries.push(fn); },
+      heldBySession: (k) => k === 'run:ranked',
+    });
+    saveLocally('run:ranked', 'R14');
+    await svc.requestUpload(); // round 14's shop save, held by the session
+    expect(loadLease()).toMatchObject({ runKey: 'run:ranked', revision: 0 });
+    await svc.endRun('run:ranked'); // the game ends in round 14's fight
+    noteLocalClear();
+    await quietWrite(); // a minute later the session writes whatever it still holds
+    expect(server.rows.size).toBe(0); // nothing: the clear reached the session
+    asDevice('B'); // another device or browser profile (no list of the runs that ended on A)
+    const b = createCloudSave({
+      api: real, userId: () => user, readLocal: () => localStorage.getItem(SAVE_KEY), seatRuns: () => undefined,
+      onMoved: (m) => { moved.push(m); }, setTimeout: (fn) => { retries.push(fn); },
+    });
+    expect((await b.checkAtTitle(null)).decision).toBe('none'); // no "Saved match" of the ended game
+  });
+
+  it('off the session, a run never uploaded (lease 0) still sends no clear', async () => {
+    const svc = service();
+    saveLocally('run:offline', 'X');
+    await svc.endRun('run:offline');
+    expect(server.calls.filter((c) => c.startsWith('clear'))).toEqual([]);
+  });
+
   it('the ended list survives the local clear and stays bounded', () => {
     for (let i = 0; i < 30; i++) noteRunEnded(`run:${i}`);
     noteLocalClear();

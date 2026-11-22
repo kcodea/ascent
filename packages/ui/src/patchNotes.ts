@@ -60,6 +60,14 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Fixed a finished match sometimes showing up as a saved match you could continue.',
+        details: [
+          'After a match ended, the main menu on another device or browser could still offer it at its last round.',
+          'A match that has ended is now never saved to your account, so it is gone from every device.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Recent Games now lists the last 200 games.',
       },
       {

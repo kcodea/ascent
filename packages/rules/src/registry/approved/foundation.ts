@@ -13528,6 +13528,24 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['workers/versus/test/healthCore.test.ts', 'workers/versus/test/liveActivity.test.ts', 'workers/versus/test/opsHealth.db.test.ts'], lastVerifiedAt: '2026-10-31' },
   },
   {
+    id: 'R-OPS-HEALTH-02',
+    title: 'The daily health probe is pre-computed before the hub asks, so the anon 3 s ceiling cannot fail it',
+    statement:
+      'The hub calls `public.ops_health_probe` with the anon key, and the anon role has `statement_timeout = 3s`. pg_cron '
+      + 'computes the same probe at 06:10 UTC as the database owner into `ops.health_probe_cache` (one row); the wrapper '
+      + 'answers from that row when it was computed in the last 30 minutes and its 24-hour window is within 2 hours of the '
+      + 'one asked for (the answer then carries `cached_at`), and computes live otherwise. Same fields, same key gate.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-22 (go-live list item 10)', quote: 'Do 8-12 now' },
+      { kind: 'code', ref: 'supabase/migrations/2026-11-28-health-probe-cache.sql' },
+    ],
+    currentBehaviour: 'Fixed 2026-11-22: writer_key / writes.lobby / writes.versus / writes.duos failed on 2026-11-21 and 2026-11-22 with 57014 (statement timeout); the cold probe measured 3.25 s live, warm ~30 ms.',
+    example: 'At 06:17 UTC the database is cold. Before: the probe runs past 3 s, is cancelled, and four checks read fail although writes are fine. After: the 06:10 job already computed it, the hub reads the cached row in milliseconds, and the checks read ok.',
+    enforcement: { kind: 'scenario', refs: ['workers/versus/test/opsHealthProbeCache.db.test.ts'], lastVerifiedAt: '2026-11-22' },
+  },
+  {
     id: 'R-PING-09',
     title: 'A quick right-click inspects; holding right-click for 170 ms pings',
     statement:

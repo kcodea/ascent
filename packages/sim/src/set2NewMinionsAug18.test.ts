@@ -182,19 +182,19 @@ describe('set 2 — the 2026-08-18 recruit mechanics (reducer)', () => {
     const s = recruit({ board: [recruitBody('dm_jumbo', 'jb')], hand: [], shop: [{ uid: 's0', cardId: 'sandbag' }] });
     expect([s.tavernBuyBonus.atk, s.tavernBuyBonus.hp]).toEqual([0, 0]);
     consumeShopMinion(s, s.board.find((c) => c.uid === 'jb')!, 0); // Enigma itself eats
-    expect([s.tavernBuyBonus.atk, s.tavernBuyBonus.hp], 'onConsume gave the Shop +4/+5 permanently (owner balance 2026-10-10)').toEqual([4, 5]);
+    expect([s.tavernBuyBonus.atk, s.tavernBuyBonus.hp], 'onConsume gave the Shop +3/+3 permanently (owner balance 2026-11-22)').toEqual([3, 3]);
   });
 
   it('Enigma fires on ANY friendly consume — another Demon eating, and Blart at End of Turn (owner 2026-09-10)', () => {
     // Another body eats: Enigma still pays (it was guarded to its own consume — "when THIS consumes" is Broodlord's text, not Enigma's).
     const s = recruit({ board: [recruitBody('dm_jumbo', 'jb'), recruitBody('godfodder', 'gf')], hand: [], shop: [{ uid: 's0', cardId: 'sandbag' }] });
     consumeShopMinion(s, s.board.find((c) => c.uid === 'gf')!, 0);
-    expect([s.tavernBuyBonus.atk, s.tavernBuyBonus.hp], 'a different eater still pays Enigma').toEqual([4, 5]);
+    expect([s.tavernBuyBonus.atk, s.tavernBuyBonus.hp], 'a different eater still pays Enigma').toEqual([3, 3]);
     // Blart's End-of-Turn bite fires it too, and the beat names Enigma as the source of the shop-wide buff.
     const t = recruit({ board: [recruitBody('dm_jumbo', 'jb'), recruitBody('dm_gourmand', 'bb')], hand: [], shop: [{ uid: 's0', cardId: 'sandbag' }, { uid: 's1', cardId: 'stray' }] });
     const { fx } = projectEndOfTurnSteps(t); // the presentation projection (a clone)
     applyEndOfTurn(t); // the real settle
-    expect([t.tavernBuyBonus.atk, t.tavernBuyBonus.hp], 'Blart ate, Enigma paid').toEqual([4, 5]);
+    expect([t.tavernBuyBonus.atk, t.tavernBuyBonus.hp], 'Blart ate, Enigma paid').toEqual([3, 3]);
     const beat = fx.map((f) => f.shopBuffAll).find((x) => !!x)!;
     expect(beat, 'the beat carries the shop-wide buff').toBeTruthy();
     expect(beat.sourceCardId, 'and names Enigma, so its shop-buff def can bind').toBe('dm_jumbo');

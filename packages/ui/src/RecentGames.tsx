@@ -62,9 +62,9 @@ const RecentGamesPh = lazy(() => import('./partyHome/pages/RecentGamesPh').then(
  * at and the points it moved) and the same detail card, with your board AND your teammate's and the lobby grouped by team
  * (`duosHistory/DuosGameCard.tsx`). No replay, no hero chips, no summary (a team placement is not a lobby placement).
  */
-/** How many games the feed lists (owner 2026-10-16: "allow up to 50 games", then "can recent games show last 100 games"). A plain
+/** How many games the feed lists (owner 2026-10-16: "allow up to 50 games", then "can recent games show last 100 games", then 200 on 2026-11-22). A plain
  *  PostgREST `.limit`, well under the 1000-row cap (R-NET-01); no RPC caps it. */
-const FEED_ROWS = 100;
+const FEED_ROWS = 200;
 
 export type RecentGamesTab = 'ranked' | 'practice' | 'duos';
 

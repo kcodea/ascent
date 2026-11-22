@@ -83,7 +83,10 @@ describe('index.html', () => {
       '/hero/right-front.webp',
     ]);
     const depths = layers.map((l) => Number(l.dataset.depth));
-    expect(depths).toEqual([...depths].sort((a, b) => a - b));
+    // The sky slides least, then the two far pairs, then the two near pairs.
+    const [sky, backA, backB, frontA, frontB] = depths;
+    expect(sky).toBeLessThan(Math.min(backA, backB));
+    expect(Math.max(backA, backB)).toBeLessThan(Math.min(frontA, frontB));
     for (const l of layers) {
       expect(l.alt).toBe('');
       expect(existsSync(resolve(PUBLIC_DIR, l.getAttribute('src')!.slice(1))), l.getAttribute('src')!).toBe(true);
@@ -196,7 +199,7 @@ describe('index.html', () => {
       expect(s.querySelector('.eyebrow'), s.id).not.toBeNull();
     }
     expect(document.querySelectorAll('h1')).toHaveLength(1);
-    expect(document.querySelector('h1')!.textContent).toBe('The auto-battler that waits for you.');
+    expect(document.querySelector('h1')!.textContent).toBe('ASCENT');
   });
 
   it('never makes a banned claim or uses a native tooltip', () => {

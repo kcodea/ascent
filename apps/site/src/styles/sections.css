@@ -106,11 +106,12 @@
 }
 
 .top__headline {
-  max-width: 15ch;
-  font-size: var(--fs-h1);
+  font-size: var(--fs-name);
   font-weight: 900;
-  line-height: 1.02;
-  letter-spacing: -0.012em;
+  line-height: 1;
+  letter-spacing: 0.14em;
+  /* Wide tracking adds a gap after the last letter; this pulls the word back to the true centre. */
+  margin-right: -0.14em;
   text-shadow:
     0 3px 0 color-mix(in srgb, var(--night-deep) 55%, transparent),
     0 0 40px color-mix(in srgb, var(--gem) 32%, transparent),
@@ -118,8 +119,8 @@
 }
 
 .top__pitch {
-  max-width: 38ch;
-  margin-top: var(--s4);
+  max-width: 52ch;
+  margin-top: var(--s3);
   font-size: var(--fs-lede);
   font-weight: 600;
   line-height: 1.55;
@@ -129,6 +130,18 @@
 
 .top .download {
   margin-top: var(--s5);
+}
+
+/* On a Windows computer the top keeps to the name, the pitch and the button: the platform line and the installer note
+   are still there for a screen reader (the button is described by the note) and are shown in full at the foot of the
+   page. A phone or another computer keeps them in view, because there they say why the button is not a download. */
+html:not(.is-other, .is-mobile) .top :is(.download__platform, .download__note) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .top .download__note {
@@ -1206,21 +1219,23 @@
     padding: clamp(3rem, 8vh, 6rem) var(--gutter) clamp(4.5rem, 12vh, 8rem);
   }
 
+  /* Sizes and places below are the owner's, set in the ?tune panel (tuner.ts) on 2026-11-22. */
   .top__crest {
-    width: calc(11 * var(--u));
-    min-width: 96px;
+    width: calc(16.6 * var(--u));
+    min-width: 120px;
+    margin-bottom: var(--s2);
   }
 
   .top__team--left-back {
-    top: calc(5 * var(--u));
-    left: calc(-1.5 * var(--u));
-    width: calc(22 * var(--u));
+    top: calc(-1 * var(--u));
+    left: calc(-3 * var(--u));
+    width: calc(25.5 * var(--u));
   }
 
   .top__team--right-back {
-    top: calc(4 * var(--u));
+    top: calc(0.5 * var(--u));
     right: calc(-2.5 * var(--u));
-    width: calc(25 * var(--u));
+    width: calc(24.5 * var(--u));
   }
 
   .top__team--left-front,
@@ -1231,16 +1246,16 @@
 
   .top__team--left-front {
     top: auto;
-    bottom: calc(-3 * var(--u));
-    left: calc(-3 * var(--u));
-    width: calc(32 * var(--u));
+    bottom: calc(-3.7 * var(--u));
+    left: calc(-5.7 * var(--u));
+    width: calc(39.4 * var(--u));
   }
 
   .top__team--right-front {
     top: auto;
-    bottom: calc(-4 * var(--u));
-    right: calc(-3 * var(--u));
-    width: calc(31 * var(--u));
+    bottom: calc(-0.4 * var(--u));
+    right: calc(-3.8 * var(--u));
+    width: calc(32.6 * var(--u));
   }
 
   /* The words sit in the middle, so only the middle is dimmed; the teams keep their full colour. */

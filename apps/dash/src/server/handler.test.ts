@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { resetJwksCache, verifyAccessJwt, type AccessConfig } from './accessJwt';
-import { handleApi, resetResponseCache, rpcArgs, type DashEnv } from './handler';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
+import { ENDPOINTS, handleApi, resetResponseCache, rpcArgs, type DashEnv } from './handler';
 
 /**
  * The dashboard's data endpoint fails closed (owner 2026-11-22): it answers ONLY a request carrying a Cloudflare
@@ -187,6 +189,24 @@ describe('rpcArgs', () => {
     const u = new URL('https://x/api/breakdown?from=2026-1-1&to=2026-11-22&patch=%3Cscript%3E&tz=%27%3B drop');
     expect(rpcArgs('breakdown', u)).toEqual({ p_from: null, p_to: '2026-11-22', p_patch: null, p_tz: 'UTC' });
   });
+  it('the four round-two sections take the same range + tz (no build), and each has a Pages Function', async () => {
+    const u = new URL('https://x/?from=2026-11-01&to=2026-11-22&tz=Europe/London&patch=0.1.0%2Bx');
+    for (const e of ['players', 'social', 'progression', 'health'] as const) {
+      expect(rpcArgs(e, u)).toEqual({ p_from: '2026-11-01', p_to: '2026-11-22', p_tz: 'Europe/London' });
+      expect(existsSync(join(__dirname, `../../functions/api/${e}.ts`)), e).toBe(true);
+    }
+    expect(ENDPOINTS).toEqual(['overview', 'breakdown', 'players', 'social', 'progression', 'health']);
+  });
+
+  it('a round-two section is guarded like the rest: no token, no database call', async () => {
+    const { f, calls } = certsFetch([good.jwk]);
+    const res = await handleApi(req('api/health'), ENV, 'health', { fetch: f, nowMs: NOW });
+    expect(res.status).toBe(401);
+    expect(calls.some((c) => c.includes('/rest/v1/'))).toBe(false);
+    const ok = await handleApi(req('api/health', await sign(good.privateKey, 'k1', claims())), ENV, 'health', { fetch: f, nowMs: NOW });
+    expect(((await ok.json()) as { rpc: string }).rpc).toBe('analytics_health');
+  });
+
   it('passes any range to the overview, and none at all means all time to today', () => {
     expect(rpcArgs('overview', new URL('https://x/?from=2025-01-01&to=2026-11-22&tz=UTC'))).toEqual({ p_from: '2025-01-01', p_to: '2026-11-22', p_tz: 'UTC' });
     expect(rpcArgs('overview', new URL('https://x/'))).toEqual({ p_from: null, p_to: null, p_tz: 'UTC' });

@@ -93,6 +93,45 @@ The page has no runtime import of game code; it reads the generated `/game-data.
   rows, so that is far off. With the 60 s cache, a page left open on "All time" costs at most one such read a minute.
   If the tables ever grow past ~10x this, the next step is a nightly per-day rollup table, not a cap.
 
+## The four more parts (round two, `supabase/migrations/2026-11-29-analytics-v2.sql`)
+
+Analytics has five parts, each a medallion tab (`#...&sec=players`): Overview, Players, Live & social, Progression,
+Health & balance. Each part is one service-role-only RPC behind the same guard and 60 s cache, read only while it is open.
+
+| Metric | Source (table.column) |
+|---|---|
+| New players, day-1 / 7 / 30 return, weekly cohorts | `analytics.first_game_at()` (the first finished game across run_history, practice_games, versus_matches, versus_group_seats, tutorial progression_results), then any later finished game. A return counts only after its whole window has passed. |
+| DAU / WAU / MAU, stickiness | distinct `user_id` of `analytics.player_games` over the 1 / 7 / 30 days ending at the range end; stickiness = average daily / monthly |
+| Games per player | `analytics.player_games` grouped by `user_id` |
+| Hours played | `run_history.entry->>'activeMs'` (lobby) + `practice_games.tp_active_ms` (practice). Versus records no play clock. |
+| When games finish | `analytics.player_games.at` by ISO weekday x hour, viewer time zone |
+| Online / in a game / by mode now | `player_presence.status`, `.mode`, `.updated_at` (last 5 minutes) |
+| Watching now | `spectate_presence.at` (last 3 minutes) |
+| Versus matches by mode | `versus_matches` (phase complete) + `versus_group_matches.options->>'mode'` (dev-forced skipped) |
+| Duos teams formed | `duos_teams.created_at` |
+| Friend requests / friends made / totals | `friendships.created_at`, `.accepted_at`, `.status` |
+| Game invites, accept rate | `friend_invites.kind`, `.status`, `.created_at` |
+| Messages sent | `count(direct_messages)` by `created_at` (never `body`; only the last ~24 h exist) |
+| Players per division now | `profiles.rank_division` where `rank_season` = the newest `rank_results.season` and the player has a result in it |
+| Points movement | `rank_results.applied_delta`, `.promoted`, `.demoted`, `.division_before`, `.created_at` |
+| Account levels | `profiles.account_level` where `account_xp > 0` |
+| Achievements per bucket, most / rarest | `achievement_completions.completed_at`, `.achievement_id` (+ `achievement_catalog` for the zeros); names from `@game/progression` ACHIEVEMENTS |
+| Most equipped cosmetics, worn titles | `cosmetic_loadouts.cosmetic_id` (+ `cosmetic_catalog.category`), `profiles.equipped_title_id`; names from COSMETICS / TITLES |
+| Crash reports | `client_crash_reports.created_at`, `.build`, `.last_step` |
+| Bug reports | `bug_reports.created_at`, `.status`, `.severity` |
+| Daily health check | `ops.health_status`, `ops.health_latest` (check_name, status, source, ts) |
+| Database size, biggest tables | `pg_database_size`, `pg_total_relation_size` vs the Free plan's 500 MB |
+| Retention cleanup | `ops.retention_rules` (last run, deleted, errors) + the last 7 `ops.events` where `source = 'retention'` |
+| Hero / tribe / rune / Ancient trends | ranked `run_history` rows: `hero_id`, `entry->>'dominantTribe'`, `entry->'board'->'runes'`, `entry->'board'->'ancient'->>'id'`; per week (per month past ~4 months) |
+
+Not supported by the data: Gauntlet games (no per-game row); DMs beyond the last day (pruned hourly); Versus rooms
+(the room table is retired, so only finished matches count); a live Live Games count (the directory is in the Worker);
+achievement / cosmetic names in SQL (they come from the build-time name file); play time for Versus.
+
+Cost at ~50k games (same bench, this machine under load, so conservative): players 0.2 s (7 days) / 1.4 s (all time),
+social 0.06 / 0.5 s, progression 0.2 / 0.56 s, health 0.1 / 2.8 s (the all-time balance trends read every Career entry).
+Payloads stay under 35 kB.
+
 ## Run it locally (made-up data)
 
 - `npm run dash:dev` starts Vite at http://localhost:5190 with a FIXTURE `/api/*` (src/fixture.ts, every number

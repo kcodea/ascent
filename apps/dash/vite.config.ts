@@ -2,6 +2,19 @@ import { defineConfig, type Connect, type Plugin } from 'vite';
 import { readFileSync } from 'node:fs';
 import { fixtureBreakdown, fixtureOverview, type FixtureIds } from './src/fixture';
 import { fixtureAction, fixtureQueue, fixtureSearch } from './src/modFixture';
+import { fixtureHealth, fixturePlayers, fixtureProgression, fixtureSocial, type Fixture2Ids } from './src/fixture2';
+
+/** Round two's ids: the live set's heroes / tribes plus every rune, Ancient, achievement, cosmetic and title name. */
+function realIds2(): Fixture2Ids | undefined {
+  try {
+    const d = JSON.parse(readFileSync(new URL('./public/game-data.json', import.meta.url), 'utf8')) as { activeHeroes: string[]; activeTribes: string[] };
+    const n = JSON.parse(readFileSync(new URL('./public/game-names.json', import.meta.url), 'utf8')) as Record<string, Record<string, unknown>>;
+    const keys = (k: string) => Object.keys(n[k] ?? {});
+    return { heroes: d.activeHeroes, tribes: d.activeTribes, runes: keys('runes').filter((_, i) => i % 7 === 0), ancients: keys('ancients'), achievements: keys('achievements').filter((_, i) => i % 5 === 0), cosmetics: keys('cosmetics').filter((_, i) => i % 11 === 0), titles: keys('titles') };
+  } catch {
+    return undefined;
+  }
+}
 import type { ModAction } from './src/modTypes';
 
 /** The active set's real hero + tribe ids, from the synced game data (falls back to the fixture's own list). */
@@ -42,6 +55,11 @@ const fixtureApi = (): Plugin => {
       });
       return;
     }
+    const range = { from: url.searchParams.get('from'), to: url.searchParams.get('to') };
+    if (url.pathname === '/api/players') return send(200, fixturePlayers(range));
+    if (url.pathname === '/api/social') return send(200, fixtureSocial(range));
+    if (url.pathname === '/api/progression') return send(200, fixtureProgression(range, new Date(), realIds2()));
+    if (url.pathname === '/api/health') return send(200, fixtureHealth(range, new Date(), realIds2()));
     if (url.pathname !== '/api/overview' && url.pathname !== '/api/breakdown') return next();
     const body =
       url.pathname === '/api/overview'

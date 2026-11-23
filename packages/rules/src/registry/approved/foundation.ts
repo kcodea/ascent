@@ -8979,7 +8979,9 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'and drawer tribe labels (and a spell kind), the spell / Ruby power floats and the Collection skin tile lines use '
       + 'the WebKit layering. Before, every one of them drew its outline but no glow or shadow on iPhone. Chromium (desktop, '
       + 'Android) renders pixel-identical to before: the variables carry the same values and the layering rules apply only '
-      + 'under html[data-webkit-text].',
+      + 'under html[data-webkit-text]. From 2026-11-22 the hero attack numbers no longer use the layering: their outline is a '
+      + 'ring of text-shadow copies with a drop-shadow filter (R-OUTLINE-ROUND-01), no stroke and a normal paint-order, '
+      + 'which WebKit draws natively.',
     example: 'iPhone, a 12-damage hero attack: the big 12 has its dark outline, its hard drop shadow and the attacking '
       + 'side gold glow, as on desktop. A Beast in the Shop reads BEAST on the plate gem with its outline and heavy shadow.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/webkitTextShadow.test.ts'], lastVerifiedAt: '2026-10-26' },
@@ -17089,5 +17091,39 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms from 2026-11-22 (feat/desktop-crash-reports) for the client; the platform / kind / app_version columns and the server rate limit need 2026-11-29-client-crash-reports-desktop.sql applied (the client works with or without it). Before, a desktop load sent nothing at all, and a renderer crash in the exe left a white window.',
     example: 'A playtester\'s exe runs out of memory mid-fight: the shell asks Reload or Quit; after Reload, about 6 s after the title shows, one row lands with platform desktop, kind renderer-gone, reason oom and the steps the page took before it died.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/errorReport.test.ts', 'packages/ui/src/errorReportInstall.test.ts', 'apps/desktop/crashReports.test.ts', 'packages/ui/src/crashReportsDesktop.db.test.ts'], lastVerifiedAt: '2026-11-22' },
+  },
+  {
+    id: 'R-OUTLINE-ROUND-01',
+    title: 'The outline on the hero attack numbers has round corners, never spikes',
+    statement:
+      'The dark outline around the hero attack numbers and their captions (a minion tier number, the minion total, the '
+      + 'hero number, the full blow, the "Damage capped" stamp and the hit number) is round at every letter corner. No '
+      + 'spike sticks out of it at a sharp corner such as on 1, 4, 7, N, M, A or W. The outline keeps the same colour '
+      + 'and thickness, and the numbers keep their drop shadow and their side glow, on desktop and on iPhone. A browser '
+      + 'draws a text stroke with pointed joins and nothing in CSS rounds them on HTML text, so these labels never use a '
+      + 'text stroke: the outline is built from copies of the letters set evenly on a circle.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Owner, 2026-11-22 (after the same fix on the marketing site wordmark)',
+        quote: 'the pointy edge that you fixed on N is the same issue that the numbers during all of the attack animation ceremony have',
+      },
+      { kind: 'fix-pr', ref: 'fix/hero-attack-round-outline' },
+      { kind: 'code', ref: 'packages/ui/src/heroAttack/damageFormation.css ("THE ROUND OUTLINE": --ol-ring, --ol-r, --ol-c, filter: drop-shadow); packages/ui/src/heroAttack/damageFormation.ts (plain textContent, no data-wkt)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-22 for the hero attack numbers only. Each label draws 16 unblurred text-shadow copies on a '
+      + 'circle whose radius is half the old stroke width (the half that showed outside the letter), and a number adds '
+      + 'its hard drop shadow and glow as a static drop-shadow filter. All of it is static paint; the labels still move '
+      + 'by transform and opacity only. With no stroke the paint-order is normal, so WebKit draws it natively and these '
+      + 'labels left the data-wkt layering of R-WEBKIT-SHADOW-01. Before, each used -webkit-text-stroke with paint-order: '
+      + 'stroke fill and showed spikes. PARTIAL across the game: other stroked HTML text (the combat damage floats, tribe '
+      + 'labels, hero-select names, the lobby rail, Collection tiles) still uses a text stroke and can show the same '
+      + 'spikes; extending the rule to them awaits an owner decision.',
+    example: 'A 1474 full blow: the outline bends smoothly round the top of each 4 and the foot of the 7. Under it, '
+      + 'DAMAGE has no points sticking out of the M or the A.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroAttack/roundOutline.test.ts'], lastVerifiedAt: '2026-11-22' },
   },
 ];

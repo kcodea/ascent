@@ -1,7 +1,7 @@
 /**
  * OUTLINED TEXT WITH A GLOW, ON iPHONE (R-WEBKIT-SHADOW-01; owner 2026-10-26: "build the iPhone-friendly versions").
  *
- * The game's big readable labels (damage numbers, tribe labels, spell / Ruby power floats, Collection skin tiles) draw
+ * The game's big readable labels (tribe labels, spell / Ruby power floats, Collection skin tiles) draw
  * a thick outline UNDER the fill (`-webkit-text-stroke` + `paint-order: stroke fill`) and a glow or drop shadow
  * (`text-shadow`). Chromium paints that as: the outline, then the shadows of the letters, then the letters. WebKit
  * (every iPhone browser, and Safari) draws NO text-shadow at all on text whose paint-order is not `normal`, so on an
@@ -15,6 +15,10 @@
  * The CSS lives in styles.css ("OUTLINED TEXT WITH A GLOW ON WEBKIT"). Every other browser never sees the attribute's
  * rules, so it renders exactly as before. Nothing animates: the layers are static paint inside the label, which keeps
  * its own transform / opacity animation.
+ *
+ * The hero attack numbers (heroAttack/damageFormation) no longer need this: their outline is a ring of text-shadow
+ * copies, not a stroke (R-OUTLINE-ROUND-01), so their paint-order is normal and WebKit draws them natively. They must
+ * NOT carry `data-wkt`: the layering forces `text-shadow: none` on the label, which would switch their outline off.
  */
 
 /** True for the WebKit engine: Safari, and every iPhone / iPad browser (all are WebKit, whatever their name). */

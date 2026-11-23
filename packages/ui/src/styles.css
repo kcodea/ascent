@@ -5789,8 +5789,8 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
 }
 .card.plated .plate-tribe .ctype-sep { opacity: 0.6; margin: 0 0.1em; }
 /* OUTLINED TEXT WITH A GLOW ON WEBKIT (R-WEBKIT-SHADOW-01; owner 2026-10-26: "build the iPhone-friendly versions").
-   An outline under the fill (`-webkit-text-stroke` + `paint-order: stroke fill`) plus a `text-shadow` is how the damage
-   numbers, the tribe labels, the spell / Ruby power floats and the Collection skin tiles read over anything. Chromium
+   An outline under the fill (`-webkit-text-stroke` + `paint-order: stroke fill`) plus a `text-shadow` is how the
+   tribe labels, the spell / Ruby power floats and the Collection skin tiles read over anything. Chromium
    paints it as outline, then the letters' shadows, then the letters. WebKit (every iPhone browser, Safari) paints NO
    text-shadow on text whose paint-order is not normal, so on iPhone the glow was simply gone. Here, on WebKit only
    (`html[data-webkit-text]`, webkitText.ts), each such label (`data-wkt`, a copy of its text) is rebuilt from the

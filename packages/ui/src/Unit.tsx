@@ -105,6 +105,9 @@ function UnitInner({ u, side, anim, framePulse, holdStep }: UnitProps) {
   // its whole Card on each preview publish (a friendly death, a spell cast). The two previews this text prints that
   // are not read above (Squirl Scout, Conductor) get their own primitive selectors.
   const run = useGame((s) => runSansPreviews(s.run));
+  // Spellmaiden: the banked Shop spell power she multiplies, live mid-fight (primitive selectors, hers only).
+  const bankPreviewA = useGame((s) => (!foe && u.cardId === 'n2_spellmaiden' ? s.run.fxSpellPowerPreview?.attack ?? 0 : 0));
+  const bankPreviewH = useGame((s) => (!foe && u.cardId === 'n2_spellmaiden' ? s.run.fxSpellPowerPreview?.health ?? 0 : 0));
   const scoutLive = useGame((s) => (foe ? 0 : squirlScoutBuffLive(s.run)));
   const conductorLive = useGame((s) => (foe ? (s.run.lastCombat?.enemyScalers?.conductorBuff ?? 0) + (s.run.fxConductorPreview?.enemy ?? 0) : conductorBuffLive(s.run)));
   const { text: liveText, goldenText: liveGoldenText } = def
@@ -193,7 +196,7 @@ function UnitInner({ u, side, anim, framePulse, holdStep }: UnitProps) {
         tier7Access: foe ? false : hasTier7Access(run),
         zooSummons: foe ? undefined : zooSummons, // Beardsley + Rune of the Zoo: the next summon's live grant
 
-        runeFlags: foe ? undefined : { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure, gambling: !!run.runeGambleBoth, vaultkeeper: !!run.runeVaultkeeper },
+        runeFlags: foe ? undefined : { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure, gambling: !!run.runeGambleBoth, vaultkeeper: !!run.runeVaultkeeper, deepBond: !!run.questFlags?.runeDeepBond, uninvitedGuests: !!run.questFlags?.runeUninvitedGuests, bankedSpellPower: { attack: (run.spellBonus?.attack ?? 0) + bankPreviewA, health: (run.spellBonus?.health ?? 0) + bankPreviewH } },
         // Set 3 Spirits: the shared Reveler value + Spirits played this turn, frozen for the fight (Kindled Sprite's
         // Rally, Nurturer, the Revelers, Luminary). Player-side only, like the other run-scoped scalers.
         revelerX: foe ? enemyScalers?.revelerX : run.revelerX, revelerExtra: foe ? undefined : run.revelerExtra /* Rune of the Traveling Festival (player side; a foe Reveler is never sold mid-fight) */, spiritsPlayed: foe ? enemyScalers?.spiritsPlayed : spiritsPlayedThisTurn(run),

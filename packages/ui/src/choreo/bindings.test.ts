@@ -372,6 +372,7 @@ const CARD_BINDINGS: Record<string, Record<string, { def: string; fanOut?: strin
   n2_fatecarver: { minionPlayed: { def: 'sfx-vo-n2-fatecarver', gain: 0.3 }, death: { def: 'sfx-vo-n2-fatecarver-death', gain: 0.3 } },
   n2_deepchef: { minionPlayed: { def: 'sfx-vo-n2-deepchef', gain: 0.3 }, death: { def: 'sfx-vo-n2-deepchef-death', gain: 0.3 } },
   n2_salesman: { sell: { def: 'sell' }, minionPlayed: { def: 'sfx-vo-n2-salesman', gain: 0.3 }, death: { def: 'sfx-vo-n2-salesman-death', gain: 0.3 } },
+  n2_spellmaiden: { sell: { def: 'sell' } }, // the Sell medallion's effect (R-FX-SELL-01, 2026-11-23)
   n2_ninefold: { minionPlayed: { def: 'sfx-vo-n2-ninefold', gain: 0.3 }, death: { def: 'sfx-vo-n2-ninefold-death', gain: 0.3 } },
   k_kobabyboldies: { minionPlayed: { def: 'sfx-vo-k-kobabyboldies', gain: 0.3 }, death: { def: 'sfx-vo-k-kobabyboldies-death', gain: 0.3 } },
   k_gemgorge: { minionPlayed: { def: 'sfx-vo-k-gemgorge', gain: 0.3 }, death: { def: 'sfx-vo-k-gemgorge-death', gain: 0.3 } },

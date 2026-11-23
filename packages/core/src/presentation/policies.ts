@@ -332,6 +332,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:rallyPlayRubiesSelf:onAttack': { policy: 'ownBeat', family: 'rally' }, // Boulderdash
   'factory:rallyPlayRubiesAll:onAttack': { policy: 'ownBeat', family: 'rally' }, // Blazer
   'factory:onSellGetRubies:onSell': { policy: 'ownBeat', family: 'economy' }, // Beggy
+  'factory:onSellMultiplySpellPower:onSell': { policy: 'ownBeat', family: 'economy' }, // Spellmaiden (2026-11-23): the Spell Power FX rides the delta
   'factory:goldSpentBuffRandomTribe:goldSpent': { policy: 'foldedCue', family: 'economyReact' }, // Billings
   'factory:onGainCardBuffTribe:onGainCard': { policy: 'foldedCue', family: 'economyReact' }, // Gangplank
   'factory:minionSoldConsumeRightmost:minionSold': { policy: 'ownBeat', family: 'economy' }, // Grevlin & Co.
@@ -1391,6 +1392,13 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_spell_appetite:recruit': { policy: 'ownBeat', family: 'runeMechanic' }, // every spell cast: a random Demon consumes a Shop minion (Gold for Grub's bite, owner 2026-11-14)
   'rune:rune_end_of_quarter:combat': { policy: 'foldedCue', family: 'combatModifier' }, // Shop-only flag: each card entering the Shop may cost 1 less (a price, no beat)
   'rune:rune_sequencing:combat': { policy: 'ownBeat', family: 'runeMechanic' }, // 3 different spells cast (any phase): the rune pulses and a copy of the first flies to hand (owner 2026-11-14)
+  // ── Set 2 Epic runes, owner design 2026-11-23 ──
+  'rune:rune_deep_bond:combat': { policy: 'foldedCue', family: 'combatModifier' }, // get a Mountainbond; Shop-only flag: Mountainbonds every 5 Gold (rides the Mountainbond's own spend beat)
+  'rune:rune_golden_bell:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' }, // get a Gilded Bellringer Voss (no Triple Reward)
+  'rune:rune_uninvited_guests:combat': { policy: 'foldedCue', family: 'combatModifier' }, // get a Party Crasher; its Avenge Rubies also on Beasts (rides its own Avenge beat)
+  'rune:rune_gilded_wings:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' }, // get a Gilded Transcendant (no Triple Reward)
+  'rune:rune_double_tap:combat': { policy: 'foldedCue', family: 'combatModifier' }, // Shop-only flag: the turn's first 3 targeted hand casts cast twice (the rune pulses per doubled cast)
+  'rune:rune_spellmaiden:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' }, // get a Spellmaiden
 };
 
 /** Look up a key; undefined = unclassified (the tripwire's failure condition). */

@@ -67,6 +67,9 @@ export function liveRuneText(runeId: string, text: string, st: RuneLiveState | n
     // 2026-11-23): once a use is spent this turn, the printed cap counts down (the Duos per-turn cap shape).
     case 'rune_haunted_hand':
       return st.hauntedHandLeft != null && st.hauntedHandLeft < HAUNTED_HAND_CAP ? text.replace(TURN_CAP, `**(${st.hauntedHandLeft} left this turn)**`) : text;
+    // "The first 3 targeted spells you cast each turn cast twice." (Set 2 Epic, 2026-11-23): the doubles left this turn.
+    case 'rune_double_tap':
+      return st.doubleTapLeft != null ? `${text} (${st.doubleTapLeft} left this turn.)` : text;
     default:
       return text;
   }

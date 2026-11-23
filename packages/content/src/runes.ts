@@ -5134,6 +5134,83 @@ export const EPIC_RUNES: RuneDef[] = [
     reward: { kind: 'combatFlag', flag: 'runeSequencing' },
     sets: ['set2', 'set3'], // + set3 2026-11-23 (owner Set 3 rune review board: approved carryover)
   },
+  // ── SET 2 EPIC RUNES, owner design 2026-11-23 (R-SET2-EPIC-1123-01..06). Set 2 only. Append only. ──
+  {
+    // A Mountainbond now, and a RUN-WIDE threshold: every Mountainbond you own (board, hand, found later) pays every 5
+    // Gold spent instead of 8 (`goldSpentEvery`, packages/sim/src/recruit.ts, read by `applyGoldSpent` and by both
+    // live-text chains). A second copy adds a second Mountainbond; the threshold stays 5.
+    id: 'rune_deep_bond',
+    tribes: ['dwarf', 'kobold'],
+    name: 'Deep Bond',
+    cost: 4,
+    epic: true,
+    text: 'Get a **Mountainbond**. Your **Mountainbonds** only need **5 Gold** spent to trigger.',
+    previewCards: ['dw_mountainbond'],
+    reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['dw_mountainbond'] }, { kind: 'combatFlag', flag: 'runeDeepBond' }] },
+    sets: ['set2'],
+  },
+  {
+    // A GILDED Bellringer Voss stamped `noTripleReward` on THAT copy (the BoardCard, never the CardDef): playing it skips
+    // `grantGildedPlayRewards` (the Triple Reward and everything that rides it: Midas' Pouch, Membrance x Bonds).
+    id: 'rune_golden_bell',
+    name: 'Golden Bell',
+    cost: 3,
+    epic: true,
+    text: 'Get a **Gilded Bellringer Voss**. It does not give a **Triple Reward** when played.',
+    previewCards: ['n2_bellringer', 'discoverspell'], // the Triple Reward its text names
+    reward: { kind: 'grant', grantGolden: ['n2_bellringer'], noTripleReward: true },
+    sets: ['set2'],
+  },
+  {
+    // A Party Crasher now, and a RUN-WIDE widen: every Party Crasher this side owns casts its Avenge Rubies on its
+    // Kobolds AND its Beasts (a Kobold Beast once). Combat (`avengePlayRubies` reads `uninvitedGuestsFor`); rides the
+    // snapshot's `questMods`, so an opponent's Party Crasher widens too.
+    id: 'rune_uninvited_guests',
+    tribes: ['kobold', 'beast'],
+    name: 'Uninvited Guests',
+    cost: 4,
+    epic: true,
+    text: 'Get a **Party Crasher**. **Party Crashers** also cast their **Rubies** on your **Beasts**.',
+    previewCards: ['k_gemstorm'],
+    reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['k_gemstorm'] }, { kind: 'combatFlag', flag: 'runeUninvitedGuests' }] },
+    sets: ['set2'],
+  },
+  {
+    // Golden Bell's shape on the Dragon side: a Gilded Transcendant with no Triple Reward on play.
+    id: 'rune_gilded_wings',
+    tribes: ['dragon'],
+    name: 'Gilded Wings',
+    cost: 3,
+    epic: true,
+    text: 'Get a **Gilded Transcendant**. It does not give a **Triple Reward** when played.',
+    previewCards: ['d2_transcendence', 'discoverspell'], // the Triple Reward its text names
+    reward: { kind: 'grant', grantGolden: ['d2_transcendence'], noTripleReward: true },
+    sets: ['set2'],
+  },
+  {
+    // Shop: the first 3 TARGETED spells cast from hand each turn (a Shop spell with a target, a Ruby, an aimed Clue /
+    // Tower Shield / Whisper: Yazzus' set) cast twice, one extra cast per copy held. The Hunch x Bonds shape
+    // (`doubleTapCastMult` / `noteDoubleTapCast`, packages/sim/src/recruit.ts). From hand only, like every cast
+    // multiplier (the from-hand gate, owner 2026-09-24), so it has no combat half.
+    id: 'rune_double_tap',
+    name: 'Double Tap',
+    cost: 4,
+    epic: true,
+    text: 'The first **3** targeted spells you cast each turn cast **twice**.',
+    reward: { kind: 'combatFlag', flag: 'runeDoubleTap' },
+    sets: ['set2'],
+  },
+  {
+    // A Spellmaiden token (`n2_spellmaiden`, cards/set2/neutral.ts): selling it multiplies the run's Shop spell power.
+    id: 'rune_spellmaiden',
+    name: 'Spellmaiden',
+    cost: 3,
+    epic: true,
+    text: 'Get a **Spellmaiden**.',
+    previewCards: ['n2_spellmaiden'],
+    reward: { kind: 'grant', cards: ['n2_spellmaiden'] },
+    sets: ['set2'],
+  },
 ];
 
 /**

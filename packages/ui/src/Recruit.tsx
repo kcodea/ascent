@@ -72,6 +72,7 @@ if (import.meta.env.DEV) {
 import { relatedCardIds, relatedPickOneIds } from './cardRefs';
 import { countedGoldSpent, countedGoldSpentThisTurn } from '@game/sim'; // Big Spender: the counted Gold every spend mechanic reads
 import { carnivalCoinLive } from '@game/sim'; // Juggler × Ancients
+import { bankedSpellPowerLive } from '@game/sim'; // Spellmaiden's live sale value (Set 2 Epic, 2026-11-23)
 import { discoverOfferCard } from '@game/sim'; // the Discover pick preview (R-DISCOVER-PREVIEW-01)
 import { isAncientBuffLabel } from '@game/sim'; // Ancient trigger procs (R-FX-ANCIENT-PROC-01)
 import { playAncientProcBurst } from './ancientProcFx';
@@ -1277,7 +1278,7 @@ export function discoverCardText(run: RunState, cardId: string, cardBuffsLive: R
 
 /** The runes that change a card's printed rule (`runeModifiedNote`), read off the run — one builder for every surface. */
 export function runeTextFlagsOf(run: RunState): NonNullable<LiveTextParams['runeFlags']> {
-  return { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure, gambling: !!run.runeGambleBoth, vaultkeeper: !!run.runeVaultkeeper };
+  return { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure, gambling: !!run.runeGambleBoth, vaultkeeper: !!run.runeVaultkeeper, deepBond: !!run.questFlags?.runeDeepBond, uninvitedGuests: !!run.questFlags?.runeUninvitedGuests, bankedSpellPower: bankedSpellPowerLive(run) };
 }
 
 /** Per-dispatch extras of the Shop row that are not run fields (memoised in the component). */
@@ -4569,7 +4570,7 @@ export function Recruit() {
     // (and the stale spell names) until some other dep happened to move (audit find, live-verified 2026-07-31).
     // `cardBuffsLive` is the value actually consumed (not raw `run.cardBuffs`) — listing it explicitly was an
     // audit find 2026-08-06: coverage was previously incidental via the board dep.
-    [run.whisperImprove, run.cardTribes, run.growthBonus, run.questFlags?.runeGrimToast, run.questFlags?.runeUnity, run.undeadAttackBonus, run.undeadHealthBonus, run.undeadBuyAtk, run.soulsmanGold, run.nextSpellBonus, cardBuffsLive, run.goldSpentThisTurn, run.goldSpent, run.goldSpentExtraThisTurn, run.goldSpentExtra, run.goldPouchValue, run.playedThisTurn, run.squirlScoutBuff, run.fxScoutPreview, run.conductorBuff, run.fxConductorPreview, run.alesCastThisTurn, run.shopSpellBuys, run.wave, run.lastSpellCastId, run.firstSpellThisTurnId, run.lastSpellThisTurnId, run.shopSpellsThisTurn, run.board, ftbBonusH, run.runeMastery, run.runeStacks, run.rubyBonus, run.grimoireMult, run.questFlags?.runeMammoth, run.runeMatriarch, run.runeBrokerage, run.questFlags?.runeLivingTreasure, run.runeFacetwright, run.runeUnbrokenVein, run.impBuff, sellState],
+    [run.whisperImprove, run.cardTribes, run.growthBonus, run.questFlags?.runeGrimToast, run.questFlags?.runeUnity, run.undeadAttackBonus, run.undeadHealthBonus, run.undeadBuyAtk, run.soulsmanGold, run.nextSpellBonus, cardBuffsLive, run.goldSpentThisTurn, run.goldSpent, run.goldSpentExtraThisTurn, run.goldSpentExtra, run.goldPouchValue, run.playedThisTurn, run.squirlScoutBuff, run.fxScoutPreview, run.conductorBuff, run.fxConductorPreview, run.alesCastThisTurn, run.shopSpellBuys, run.wave, run.lastSpellCastId, run.firstSpellThisTurnId, run.lastSpellThisTurnId, run.shopSpellsThisTurn, run.board, ftbBonusH, run.runeMastery, run.runeStacks, run.rubyBonus, run.grimoireMult, run.questFlags?.runeMammoth, run.runeMatriarch, run.runeBrokerage, run.questFlags?.runeLivingTreasure, run.questFlags?.runeDeepBond, run.questFlags?.runeUninvitedGuests, run.spellBonus, run.fxSpellPowerPreview, run.runeFacetwright, run.runeUnbrokenVein, run.impBuff, sellState],
   );
   // The board as RENDERED during End-of-Turn playback: the real board, plus any minion summoned this beat
   // (Moira re-firing a summoner) injected as a synthetic card, plus keywords granted this beat overlaid so the

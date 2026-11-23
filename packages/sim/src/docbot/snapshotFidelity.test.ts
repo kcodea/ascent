@@ -147,6 +147,7 @@ function boardCardExemplar(): Required<BoardCard> {
     goldTick: 5,
     buyTick: 2,
     playTick: 3,
+    noTripleReward: true, // Golden Bell / Gilded Wings (2026-11-23): a hand-only Gilded-play flag
     rubyRecvTick: 1,
     eotTick: 2,
     spellsOnThisTurn: 1,

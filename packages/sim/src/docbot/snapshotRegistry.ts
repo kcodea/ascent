@@ -134,6 +134,7 @@ export const SNAPSHOT_EXCUSED: Readonly<Record<string, SnapshotExcuse>> = {
   'capture:goldTick': { boundary: 'capture', kind: 'shop-only', why: 'gold-spend meter (Acid/Banksly) for recruit `goldSpent` effects — a served board spends no Gold' },
   'capture:buyTick': { boundary: 'capture', kind: 'shop-only', why: 'cards-bought meter (Korok/Banksly), the buy-count sibling of goldTick' },
   'capture:playTick': { boundary: 'capture', kind: 'shop-only', why: 'cards-played meter (Mountainbond), the played sibling of buyTick' },
+  'capture:noTripleReward': { boundary: 'capture', kind: 'shop-only', why: 'Golden Bell / Gilded Wings (2026-11-23): this Gilded copy pays no Triple Reward when PLAYED, a recruit-only event a served board never has' },
   'capture:rubyCastTick': { boundary: 'capture', kind: 'shop-only', why: 'Gemgorge Fiend cast meter — spell/Ruby casts are recruit events a served board never makes (a scouted Fiend shows its printed base text)' },
   'capture:shoutTick': { boundary: 'capture', kind: 'shop-only', why: 'Scalechanter Shout cadence; Shouts fire at recruit (a scouted Scalechanter shows its printed base text)' },
   'capture:orbitTick': { boundary: 'capture', kind: 'shop-only', why: 'Orbit cadence counter; Orbit is a shop mechanic (phaseRegistry: TRIGGER_PHASES.orbit = recruit)' },

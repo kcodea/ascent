@@ -350,5 +350,21 @@ export const SET2_NEUTRAL: CardDef[] = [
     // card that only mentioned spells. A Ruby is not a Shop Spell, so "Spells" never covered it.
     text: 'Spells and **Rubies** cast on this **also cast** on a random friendly minion. **(Once per turn)**',
     goldenText: 'Spells and **Rubies** cast on this **also cast twice** on a random friendly minion. **(Once per turn)**',
+  },  {
+    // SPELLMAIDEN (owner design 2026-11-23): the Spellmaiden rune's token, never in the Shop. Selling it MULTIPLIES the
+    // run's Shop spell power (`spellBonus`, the banked +A/+H every "your Shop spells have +1 Attack" card writes):
+    // x2 plain, x3 Gilded (`factor` + 1 per extra gild step). The hero's amplify and board auras are not banked, so
+    // they are not multiplied (`onSellMultiplySpellPower`, packages/sim/src/recruit.ts).
+    id: 'n2_spellmaiden',
+    name: 'Spellmaiden',
+    tribe: 'neutral',
+    tier: 4,
+    attack: 3,
+    health: 3,
+    keywords: [],
+    token: true, // forge-only: Source = Rune
+    effects: [{ on: 'onSell', do: 'onSellMultiplySpellPower', params: { factor: 2 } }],
+    text: 'When sold, **double** your **Shop spell power**.',
+    goldenText: 'When sold, **triple** your **Shop spell power**.',
   },
 ];

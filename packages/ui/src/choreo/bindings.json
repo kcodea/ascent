@@ -1405,6 +1405,11 @@
         "def": "sell"
       }
     },
+    "n2_spellmaiden": {
+      "sell": {
+        "def": "sell"
+      }
+    },
     "n2_ninefold": {
       "minionPlayed": {
         "def": "sfx-vo-n2-ninefold",

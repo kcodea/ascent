@@ -1260,7 +1260,13 @@ html:not(.is-other, .is-mobile) .top :is(.download__platform, .download__note) {
 
 @media (min-width: 760px) {
   .top {
-    padding: clamp(2rem, 5vh, 4rem) var(--gutter) clamp(7rem, 19vh, 13rem);
+    padding: clamp(2rem, 5vh, 4rem) var(--gutter) clamp(3.5rem, 10vh, 7rem);
+  }
+
+  /* The button and the pitch sit well below the name, as a second group. The room comes out of the space under the
+     block, so the logo and the name stay where they were. */
+  .top .download {
+    margin-top: calc(var(--s5) + 9vh);
   }
 
   /* Sizes and places below are the owner's, set in the ?tune panel (tuner.ts) on 2026-11-22. */

@@ -1266,7 +1266,13 @@ html:not(.is-other, .is-mobile) .top :is(.download__platform, .download__note) {
   /* The button and the pitch sit well below the name, as a second group. The room comes out of the space under the
      block, so the logo and the name stay where they were. */
   .top .download {
-    margin-top: calc(var(--s5) + 9vh);
+    margin-top: calc(var(--s5) + 6vh);
+  }
+
+  /* The logo and the name sit a little lower. The same amount comes off the gap above the button, so the button and
+     the pitch do not move. */
+  .top__inner {
+    padding-top: 3vh;
   }
 
   /* Sizes and places below are the owner's, set in the ?tune panel (tuner.ts) on 2026-11-22. */

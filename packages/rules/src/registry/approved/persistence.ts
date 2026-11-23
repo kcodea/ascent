@@ -1371,4 +1371,21 @@ export const PERSISTENCE_RULES: GameRule[] = [
     currentBehaviour: 'Conforms once the lead applies 2026-11-27-ops-retention.sql (not applied by this PR). Before, perf runs, finished Versus child rows and empty guests only grew.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/opsRetention.db.test.ts'], lastVerifiedAt: '2026-11-22' },
   },
+  {
+    id: 'R-OPS-ANALYTICS-EXCLUDE-01',
+    title: 'Dev analytics leave out test accounts: registered Versus bots, Claudebots, and anonymous accounts with no handle',
+    statement:
+      'analytics.excluded_users() is the single filter every dev-dashboard read goes through. It returns the registered Versus test bots, every '
+      + 'profile whose handle starts with "claudebot", and every anonymous auth user with no profile handle (the accounts our headless test runs '
+      + 'create). An anonymous guest who picks any handle is counted again. The dashboard health card counts failing checks by name whether '
+      + 'ops.health_status sends them as an array or as one comma-joined string.',
+    domain: 'persistence',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner report 2026-11-23 on New players 15', quote: 'we have only had 5 players play this game in the last 30 days' },
+      { kind: 'code', ref: 'supabase/migrations/2026-11-30-analytics-exclude-test-guests.sql; apps/dash/src/sections.ts' },
+    ],
+    currentBehaviour: 'Conforms once 2026-11-30-analytics-exclude-test-guests.sql is applied. Before, 44 nameless test guests showed as new and ranked players, and the health card read "52 checks failing" for 4.',
+    enforcement: { kind: 'scenario', refs: ['apps/dash/src/server/analytics.db.test.ts'], lastVerifiedAt: '2026-11-23' },
+  },
 ];

@@ -4,7 +4,9 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 export const MIGRATION_PATH = fileURLToPath(new URL('../../../../supabase/migrations/2026-11-27-analytics-dashboard.sql', import.meta.url));
-export const readMigration = (): string => readFileSync(MIGRATION_PATH, 'utf8');
+/** Nameless guest accounts (our headless test runs) leave the counts too (2026-11-23); it redefines analytics.excluded_users. */
+export const EXCLUDE_GUESTS_PATH = fileURLToPath(new URL('../../../../supabase/migrations/2026-11-30-analytics-exclude-test-guests.sql', import.meta.url));
+export const readMigration = (): string => readFileSync(MIGRATION_PATH, 'utf8') + '\n' + readFileSync(EXCLUDE_GUESTS_PATH, 'utf8');
 
 export const STUB = `
   create role anon; create role authenticated; create role service_role;

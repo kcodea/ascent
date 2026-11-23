@@ -229,3 +229,26 @@ describe('analytics_breakdown', () => {
     expect(JSON.stringify(await overview(null, null)).length).toBeLessThan(20_000);
   });
 });
+
+describe('nameless guest accounts (our headless test runs)', () => {
+  it('a game by an anonymous account with no handle is not counted; naming the guest counts it again', async () => {
+    const GHOST = '00000000-0000-0000-0000-0000000000dd';
+    const today = async (): Promise<Json> => {
+      await db.exec('set local role service_role');
+      const j = (await db.query<{ j: Json }>("select public.analytics_overview(current_date, current_date, 'UTC') as j")).rows[0]!.j;
+      await db.exec('reset role');
+      return j.totals; // a one-day range is bucketed by hour, so read the day's totals
+    };
+    await db.exec('begin');
+    try {
+      await db.exec(`insert into auth.users (id, created_at, is_anonymous) values ('${GHOST}', now(), true);
+        insert into public.run_history (user_id, patch, hero_id, placement, mode, entry, created_at)
+          values ('${GHOST}', 'p', 'warden', 4, 'lobby', '{"seed": 77}', now());`);
+      expect(await today()).toMatchObject({ games: 7, accounts: 3, firstGame: 1 });
+      await db.exec(`insert into public.profiles values ('${GHOST}', 'Named')`);
+      expect(await today()).toMatchObject({ games: 8, accounts: 4, firstGame: 2 });
+    } finally {
+      await db.exec('rollback');
+    }
+  });
+});

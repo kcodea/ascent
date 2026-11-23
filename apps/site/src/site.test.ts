@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { beforeAll, describe, expect, it } from 'vitest';
@@ -7,6 +7,7 @@ import { INSTALLER_URL } from './download';
 
 // Resolve from the path, not `new URL(...)`: under jsdom the global URL is jsdom's, which node's fileURLToPath rejects.
 const INDEX = resolve(dirname(fileURLToPath(import.meta.url)), '../index.html');
+const PUBLIC_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '../public');
 
 beforeAll(() => {
   const parsed = new DOMParser().parseFromString(readFileSync(INDEX, 'utf8'), 'text/html');
@@ -71,11 +72,33 @@ describe('index.html', () => {
     expect(document.querySelector('ol.points')!.getAttribute('role')).toBe('list');
   });
 
-  it('the crest is the small webp, sized to match the file', () => {
+  it('the top scene is a sky and four team layers, each with a depth for the mouse to slide it by, nearest last', () => {
+    const scene = document.querySelector('.top .top__scene[aria-hidden="true"]')!;
+    const layers = [...scene.querySelectorAll<HTMLImageElement>('img[data-depth]')];
+    expect(layers.map((l) => l.getAttribute('src'))).toEqual([
+      '/hero/sky.webp',
+      '/hero/left-back.webp',
+      '/hero/right-back.webp',
+      '/hero/left-front.webp',
+      '/hero/right-front.webp',
+    ]);
+    const depths = layers.map((l) => Number(l.dataset.depth));
+    // The sky slides least, then the two far pairs, then the two near pairs.
+    const [sky, backA, backB, frontA, frontB] = depths;
+    expect(sky).toBeLessThan(Math.min(backA, backB));
+    expect(Math.max(backA, backB)).toBeLessThan(Math.min(frontA, frontB));
+    for (const l of layers) {
+      expect(l.alt).toBe('');
+      expect(existsSync(resolve(PUBLIC_DIR, l.getAttribute('src')!.slice(1))), l.getAttribute('src')!).toBe(true);
+    }
+  });
+
+  it('the logo is the owner\'s painted mark, sized to match the file, and silent beside the ASCENT heading', () => {
     const crest = document.querySelector<HTMLImageElement>('img.top__crest')!;
-    expect(crest.getAttribute('src')).toBe('/art/crest.webp');
-    expect(crest.getAttribute('width')).toBe('320');
-    expect(crest.getAttribute('height')).toBe('320');
+    expect(crest.getAttribute('src')).toBe('/hero/logo.webp');
+    expect(crest.getAttribute('width')).toBe('480');
+    expect(crest.getAttribute('height')).toBe('524');
+    expect(crest.alt).toBe('');
   });
 
   it('chest images declare their real pixel sizes', () => {
@@ -177,7 +200,7 @@ describe('index.html', () => {
       expect(s.querySelector('.eyebrow'), s.id).not.toBeNull();
     }
     expect(document.querySelectorAll('h1')).toHaveLength(1);
-    expect(document.querySelector('h1')!.textContent).toBe('The auto-battler that waits for you.');
+    expect(document.querySelector('h1')!.textContent).toBe('ASCENT');
   });
 
   it('never makes a banned claim or uses a native tooltip', () => {

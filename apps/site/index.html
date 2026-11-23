@@ -40,11 +40,17 @@
   </head>
   <body>
     <header id="top" class="top">
-      <img class="top__sky" src="/art/hero.webp" alt="" width="1915" height="821" fetchpriority="high" />
+      <div class="top__scene" aria-hidden="true">
+        <img class="top__sky" data-depth="6" src="/hero/sky.webp" alt="" width="2304" height="1536" fetchpriority="high" />
+        <span class="top__tint"></span>
+        <img class="top__team top__team--left-back" data-depth="18" src="/hero/left-back.webp" alt="" width="1022" height="1169" />
+        <img class="top__team top__team--right-back" data-depth="18" src="/hero/right-back.webp" alt="" width="942" height="1005" />
+        <img class="top__team top__team--left-front" data-depth="36" src="/hero/left-front.webp" alt="" width="1023" height="1025" />
+        <img class="top__team top__team--right-front" data-depth="36" src="/hero/right-front.webp" alt="" width="998" height="1185" />
+      </div>
       <div class="top__inner">
-        <img class="top__crest" src="/art/crest.webp" alt="ASCENT" width="320" height="320" />
-        <h1 class="top__headline">The auto-battler that waits for you.</h1>
-        <p class="top__pitch">Build your board in a lobby of eight and fight other players' boards, on your own time.</p>
+        <img class="top__crest" src="/hero/logo.webp" alt="" width="480" height="524" />
+        <h1 class="top__headline"><svg class="top__name" viewBox="0 0 492 86" role="img" aria-label="ASCENT" focusable="false"><defs><linearGradient id="name-edge" x1="0" y1="0" x2="0" y2="1"><stop offset="0" /><stop offset="0.3" /><stop offset="0.56" /><stop offset="0.8" /><stop offset="1" /></linearGradient></defs><text x="6" y="78">ASCENT</text></svg></h1>
         <div class="download">
           <p class="download__platform">Windows, free to play</p>
           <a class="gem" data-download href="https://github.com/kcodea/ascent/releases/latest/download/ASCENT-Setup.exe" aria-describedby="download-note-top">Download free</a>
@@ -55,7 +61,12 @@
           <button class="download__copy" type="button" data-copy-link aria-live="polite" hidden>Copy link for your PC</button>
           <p data-copy-url class="download__url" hidden></p>
         </div>
+        <p class="top__pitch">
+          A card-based auto-battler that pits players against their opponents in a game of wit and fast-paced decision
+          making. Built with async technology in mind, every player can experience the game at the pace they enjoy most.
+        </p>
       </div>
+      <a class="top__more" href="#async" aria-label="See how it plays"><svg viewBox="0 0 24 32" width="24" height="32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5 5l7 7 7-7" /><path d="M5 13l7 7 7-7" /><path d="M5 21l7 7 7-7" /></svg></a>
     </header>
 
     <main>
@@ -457,7 +468,7 @@
             loading="lazy"
           />
         </figure>
-        <figure class="ranks">
+        <figure class="ranks" aria-label="The ranked ladder, Bronze to Ascendant">
           <ul class="ranks__list">
             <li class="rank">
               <img src="/art/ranks/bronze.webp" alt="" width="512" height="512" loading="lazy" />
@@ -484,7 +495,6 @@
               <span class="rank__name">Ascendant</span>
             </li>
           </ul>
-          <figcaption class="ranks__caption">The ranked ladder, Bronze to Ascendant</figcaption>
         </figure>
       </section>
 

@@ -26,6 +26,14 @@
   --gem-mid: #209bf3;
   --gem-deep: #1683f5;
   --gem-dark: #0c59ec;
+  /* The download button's face: the owner's gold, #b8751d, lit from the top (owner 2026-11-22). */
+  --btn-hi: #f0b55a;
+  --btn: #d48f2c;
+  --btn-mid: #b8751d;
+  --btn-deep: #8f5714;
+  --btn-dark: #5f390c;
+  /* The ASCENT title: white letters inside a fine gold edge (owner 2026-11-22). */
+  --title-face: #ffffff;
   --gem-rim: #3e1d16;
   --gem-ink: #062a6e;
 
@@ -86,6 +94,7 @@
   --fs-point: clamp(1.3125rem, 1.1rem + 0.9vw, 1.75rem);
   --fs-h2: clamp(1.9rem, 1.3rem + 2.4vw, 3.1rem);
   --fs-h2-sm: clamp(1.6rem, 1.25rem + 1.4vw, 2.25rem);
+  --fs-name: clamp(2rem, 1rem + 3.4vw, 3.75rem);
   --fs-h1: clamp(2.35rem, 1.2rem + 4.6vw, 4.9rem);
 
   /* Space */

@@ -16,8 +16,8 @@ describe('art manifest', () => {
   it('no manifest source matches a denied pattern', () => {
     for (const entry of Object.values(ART_MANIFEST)) for (const re of DENIED_ART) expect(artSource(entry)).not.toMatch(re);
   });
-  it('the crest is resized to a 320px webp, and the icons and no unused art ship', () => {
-    expect(ART_MANIFEST['crest.webp']).toEqual({ src: 'apps/web/public/frames/title-logo.png', width: 320, format: 'webp' });
+  it('the icons ship and no unused art does (the logo is the owner\'s own file, in public/hero)', () => {
+    expect(ART_MANIFEST).not.toHaveProperty('crest.webp');
     expect(ART_MANIFEST).not.toHaveProperty('crest.png');
     expect(ART_MANIFEST).not.toHaveProperty('end-button.webp');
     expect(ART_MANIFEST['icon-192.png']).toBe('apps/web/public/icon-192.png');

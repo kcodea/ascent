@@ -774,7 +774,6 @@ html:not(.is-other, .is-mobile) .top :is(.download__platform, .download__note) {
   color: var(--gold-lo);
 }
 
-.ranks__caption,
 .chests__caption {
   margin-top: var(--s4);
   font-size: var(--fs-small);

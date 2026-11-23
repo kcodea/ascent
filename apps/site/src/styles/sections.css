@@ -42,11 +42,11 @@
 }
 
 /* A navy wash over the sky and under the characters, so the sky is a dark backdrop and the characters carry the
-   colour (owner 2026-11-22: navy at 80%). */
+   colour (owner 2026-11-22). Light enough that the day and night halves of the sky still read as two sides. */
 .top__tint {
   position: absolute;
   inset: 0;
-  background: color-mix(in srgb, var(--showcase) 80%, transparent);
+  background: color-mix(in srgb, var(--showcase) 35%, transparent);
 }
 
 /* Phone: the teams meet in a band across the top, above the words. */

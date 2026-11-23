@@ -35,6 +35,8 @@ export type PackPhase = 'sealed' | 'tearing' | 'sleeve' | 'zooming' | 'waiting' 
 
 const FAIL_NOTE = 'Could not open the pack. Try again.';
 const CARD_COUNT = 5;
+/** Reveal all: how long the last face stays up before the summary. */
+const REVEAL_ALL_HOLD_MS = 600;
 /** Reveal all: how often to retry a flip the scene refused (one still in flight). */
 const REVEAL_ALL_RETRY_MS = 40;
 
@@ -69,10 +71,16 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, scen
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const item = queue[qi];
+  const itemRef = useRef(item);
+  itemRef.current = item;
 
   const go = useCallback((p: PackPhase): void => { phaseRef.current = p; setPhaseState(p); }, []);
   const sounds = useCallback((): PackSounds => (soundsRef.current ??= createPackSounds()), []);
-  const stopTimer = useCallback((): void => { if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; } }, []);
+  const holdRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const stopTimer = useCallback((): void => {
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+    if (holdRef.current) { clearTimeout(holdRef.current); holdRef.current = null; }
+  }, []);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -80,8 +88,6 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, scen
       mountedRef.current = false;
       reqRef.current++;
       stopTimer();
-      soundsRef.current?.dispose();
-      soundsRef.current = null;
     };
   }, [stopTimer]);
 
@@ -132,13 +138,19 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, scen
     open(packId).then(settle, () => settle({ status: 'error', reason: 'rejected' }));
   }, [fail, go, goSummary, onOpened, open, reduced]);
 
+  // Read through refs by the scene's handlers, so a parent's new `open` / `onOpened` is honoured.
+  const requestRef = useRef(request);
+  requestRef.current = request;
+  const soundsFn = useRef(sounds);
+  soundsFn.current = sounds;
+
   // The scene: one per pack, destroyed on unmount or when the next pack takes over.
   useEffect(() => {
     if (reduced || !item) return;
     const host = hostRef.current;
     if (!host) return;
-    const scene = sceneFactory(host, item.look, CARD_COUNT, sounds(), {
-      onPop: () => { go('tearing'); request(item.packId); },
+    const scene = sceneFactory(host, item.look, CARD_COUNT, soundsFn.current(), {
+      onPop: () => { go('tearing'); requestRef.current(itemRef.current!.packId); },
       onStripFree: () => { if (phaseRef.current === 'tearing') go('sleeve'); },
       onSleeveDropped: () => { if (phaseRef.current === 'tearing' || phaseRef.current === 'sleeve') go('zooming'); },
       onZoomed: () => {
@@ -153,7 +165,7 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, scen
         setFlipped(index + 1);
         setFace({ card, rect: rectToStage(rect) });
         setAnnounce(cardText(card));
-        if (card.duplicate) { sounds().stamp(); sounds().aether(); }
+        if (card.duplicate) { soundsFn.current().stamp(); soundsFn.current().aether(); }
         if (revealAllRef.current && flippedRef.current < r.cards.length) flipNextRef.current();
       },
     });
@@ -162,8 +174,11 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, scen
       scene.destroy();
       if (sceneRef.current === scene) sceneRef.current = null;
     };
-    // The scene is per pack; its callbacks read refs, so the deps are only the pack and the mode.
+    // The scene is per pack; its callbacks read refs updated every render, so the deps are only the pack and the mode.
   }, [reduced, qi]);
+
+  // Declared AFTER the scene effect so its cleanup runs after `scene.destroy()` on unmount.
+  useEffect(() => () => { soundsRef.current?.dispose(); soundsRef.current = null; }, []);
 
   /** Flip the next card (or go to the summary once every card is shown). Returns whether anything happened. */
   const flipNext = useCallback((): boolean => {
@@ -198,9 +213,16 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, scen
     flipNextRef.current();
     timerRef.current = setInterval(() => {
       if (!revealAllRef.current || phaseRef.current !== 'reveal') { stopTimer(); return; }
+      const r = resultRef.current;
+      if (r && flippedRef.current >= r.cards.length) {
+        // Hold the last face so the player sees it, then the summary.
+        stopTimer();
+        holdRef.current = setTimeout(() => { holdRef.current = null; if (phaseRef.current === 'reveal') goSummary(); }, REVEAL_ALL_HOLD_MS);
+        return;
+      }
       flipNextRef.current();
     }, REVEAL_ALL_RETRY_MS);
-  }, [stopTimer]);
+  }, [goSummary, stopTimer]);
 
   const quickOpen = useCallback((): void => {
     if (phaseRef.current !== 'sealed') return;
@@ -236,6 +258,9 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, scen
   useEffect(() => { dialogRef.current?.focus(); }, []);
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
+      const t = e.target as HTMLElement | null;
+      if (t && (/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || t.isContentEditable)) return;
+      if (e.repeat) return;
       if (e.key === 'Escape') { e.preventDefault(); requestClose(); return; }
       if (e.key !== 'Enter' && e.key !== ' ') return;
       if ((e.target as HTMLElement | null)?.tagName === 'BUTTON') return;
@@ -271,7 +296,7 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, scen
           {cards.map((c, i) => (
             <div key={i} className={`pkop-back r-${c.rarity}${i < flipped ? ' flipped' : ''}`} aria-hidden>
               <span className="pkop-back-mark">{c.guaranteed ? 'Guaranteed' : item.look.name}</span>
-              {i < flipped && <PackCardFace card={c} />}
+              <PackCardFace card={c} />
             </div>
           ))}
         </div>

@@ -158,6 +158,8 @@ describe('PackOpener', () => {
       edge(i);
     }
     await act(async () => { await new Promise((r) => setTimeout(r, 120)); });
+    expect(document.querySelectorAll('.pkop-summary')).toHaveLength(0);
+    await act(async () => { await new Promise((r) => setTimeout(r, 700)); });
     expect(document.querySelectorAll('.pkop-summary li')).toHaveLength(5);
     expect(text()).toContain('Duplicates: +10 Aether');
     expect(btn('Done')).toBeTruthy();
@@ -188,6 +190,8 @@ describe('PackOpener', () => {
     expect(opens).toEqual(['p1']);
     await settle(ok(mk(5, [2])));
     const row = document.querySelector('.pkop-row')!;
+    expect(document.querySelectorAll('[data-testid="pack-face"]')).toHaveLength(5);
+    expect(document.querySelectorAll('.pkop-back.flipped')).toHaveLength(0);
     for (let i = 0; i < 5; i++) {
       click(row);
       if (i === 2) expect(document.querySelector('.pkop-live')!.textContent).toBe('New reward, Common, duplicate, +5 Aether');
@@ -207,6 +211,39 @@ describe('PackOpener', () => {
     expect(dlg.parentElement).toBe(stageHost());
     expect(dlg.querySelectorAll('[title]')).toHaveLength(0);
     expect(dlg.querySelectorAll('title')).toHaveLength(0);
+  });
+
+  it('honours a new open passed before the pop', () => {
+    const first = vi.fn(() => new Promise<PackOpenOutcome>(() => undefined));
+    const second = vi.fn(() => new Promise<PackOpenOutcome>(() => undefined));
+    render({ open: first });
+    m!.render(<PackOpener queue={q} open={second} sceneFactory={sceneFactory} reducedMotion={false} />);
+    act(() => { fake().events.onPop(); });
+    expect(first).not.toHaveBeenCalled();
+    expect(second).toHaveBeenCalledWith('p1');
+  });
+
+  it('ignores key repeat and keys typed into an input', () => {
+    render();
+    const input = document.createElement('input');
+    document.body.appendChild(input);
+    act(() => { input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); });
+    act(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', repeat: true, bubbles: true })); });
+    input.remove();
+    expect(fake().calls).not.toContain('quickOpen');
+  });
+
+  it('disposes the sounds after the scene is destroyed', () => {
+    render();
+    soundCalls.length = 0;
+    const f = fake();
+    const orig = f.scene.destroy;
+    f.scene.destroy = () => { soundCalls.push('destroy'); orig(); };
+    toZoom();
+    soundCalls.length = 0;
+    m!.unmount(); m = null;
+    expect(soundCalls.indexOf('destroy')).toBeGreaterThanOrEqual(0);
+    expect(soundCalls.indexOf('dispose')).toBeGreaterThan(soundCalls.indexOf('destroy'));
   });
 
   it('survives StrictMode and destroys the scene on unmount', () => {

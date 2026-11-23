@@ -1,0 +1,937 @@
+/**
+ * PACK OPENING: the Pixi scene (spec §3, §6, §11). The pack, the tear strip, the sleeve, the 5-card stack, the card
+ * backs and the FIRST HALF of each flip (0 -> 90 degrees). A port of the owner-approved prototype
+ * (docs/superpowers/specs/2026-11-23-pack-opening-prototype.html); the tear + sleeve physics are `peelModel.ts`'s, the
+ * strip mesh is `stripMesh.ts`'s, the placeholder pictures `packTextures.ts`'s.
+ *
+ * Contract (the React shell, Task 7, owns everything else):
+ *  - Lifecycle like `crateFx/crateFxPixi.ts`: one `Application` per opening, async init, `destroy()` safe at any moment
+ *    (a late Application is destroyed on arrival). When Pixi is not allowed (`pixiAllowed()`), or init fails, every
+ *    method is a no-op and nothing is fired: the shell falls back to its reduced-motion path.
+ *  - Events in order: `onPop` (the seal gave: ask the server now), `onStripFree` (the sleeve is live), `onSleeveDropped`,
+ *    `onZoomed`, then `onFlipEdge` once per `flipTop`. Quick open fires the same events in the same order.
+ *  - The scene CALLS `PackSounds` (pop, tear, crackle, rip, sleeveFree, slide, drop, whoosh, flip, silence) but never
+ *    creates or disposes it. The DOM beats (stamp, aether, summary) are the shell's.
+ *  - Coordinates: the renderer is sized to the host in LAYOUT px (`resizeTo: host`, resolution x `stageScale()`); the
+ *    pack is simulated in its BASE units (`PACK_GEOM`, 300 x 476) and the whole pack is scaled to fit the host. Pointer
+ *    and `flipTop`'s point arrive in SCREEN px and `onFlipEdge` reports SCREEN px, converted through the canvas rect
+ *    cached at pointerenter / pointerdown / flip start (never read per frame).
+ *  - Clicks are not interpreted after the zoom: they bubble from the canvas to the host, where the shell decides to
+ *    call `flipTop`.
+ *  - The ticker stops once the stack has zoomed and nothing moves (no flip, crossfade, flecks, shake or Legendary /
+ *    Ancient pulse) and restarts on input, `flipTop`, `setBacks`, `quickOpen` and `resetSealed`.
+ *  - No allocation per frame in the tear / sleeve loops: pooled flecks, reused points and in-place geometry buffers.
+ */
+import { Application, type Texture, type Ticker } from 'pixi.js';
+import type { CrateRarity, PackLook } from '@game/progression';
+import { stageScale } from '../../stage';
+import { detachPixiDomEvents } from '../../pixiNoDomEvents';
+import { destroyPixiApp, guardAppRender, watchContextLoss } from '../../pixiAppSafety';
+import { PIXI_ANTIALIAS } from '../../phoneArt';
+import { phonePixiOptions, pixiAllowed } from '../../phoneDiag';
+import { followStage } from '../../pixiStageFollow';
+import {
+  FLIP_HALF_GUARANTEED_MS, FLIP_HALF_MS, FLIP_PERSPECTIVE_PER_WIDTH, flipAngle, flipPoseAt, projectTurnedRect, type FlipPose,
+} from './cardFlip';
+import { getPackFeel, PACK_BASE_SIZE, type PackFeel } from './packFxConfig';
+import type { PackSounds } from './packSounds';
+import { PACK_GEOM, TEX_RES, rarityTint } from './packTextures';
+import {
+  buildPackViews, CARDS_Y, RIBBON_DY, RIBBON_HH, RIBBON_HW, type SceneTextures, type Views,
+} from './packViews';
+import {
+  newSleeve, newTear, releaseTear, stepSleeve, stepTear, type SleeveState, type TearState, type Vec3,
+} from './peelModel';
+import { projInto, unprojInto, type Pt } from './stripMesh';
+
+// ---------------------------------------------------------------- public contract
+
+export interface PackSceneEvents {
+  /** The seal gave: the shell sends the request now. */
+  onPop(): void;
+  /** The sleeve is live this instant. */
+  onStripFree(): void;
+  onSleeveDropped(): void;
+  /** The stack is settled at the zoom. */
+  onZoomed(): void;
+  /**
+   * The flipping card is edge-on (90 degrees). `screenRect` is the card's UNROTATED rect at that instant (its centre,
+   * width and height as if facing the camera), in SCREEN px: the DOM face mounts there at rotateY(90deg).
+   */
+  onFlipEdge(index: number, screenRect: { left: number; top: number; width: number; height: number }): void;
+}
+
+export interface PackBack { rarity: CrateRarity; guaranteed: boolean }
+
+export interface PackScene {
+  /** The card backs, in flip order (null = plain pack-brand backs). Only the top card's back ever shows. */
+  setBacks(backs: readonly PackBack[] | null): void;
+  /**
+   * Flip the top card's first half toward `toScreen` (SCREEN px). False while a flip is in flight, before `onZoomed`,
+   * or when no card remains.
+   */
+  flipTop(toScreen: { x: number; y: number }): boolean;
+  /** Scripted tear + sleeve over `feel.quickOpenMs` (the same events and sounds as a hand-driven opening). */
+  quickOpen(): void;
+  /** A short fade back to a fresh sealed pack with plain backs and input enabled (the failure path). */
+  resetSealed(): void;
+  setInputEnabled(on: boolean): void;
+  /** Safe at any moment, including before the async init resolves. */
+  destroy(): void;
+}
+
+/**
+ * Scale the px-valued feel knobs (tuned at `PACK_BASE_SIZE.w`) to a pack drawn `packW` wide. Pure; never mutates.
+ * The scene itself simulates in the pack's BASE units and scales the drawn pack, so pointer travel is measured in base
+ * units and these knobs already scale with the pack (equivalent to this at packW = the drawn width). This is for a
+ * caller that works in rendered px (the Pack Lab's readouts, a future rendered-px simulation).
+ */
+export function scaleFeelPx(feel: PackFeel, packW: number): PackFeel {
+  const k = packW / PACK_BASE_SIZE.w;
+  return { ...feel, maxTearSpeed: feel.maxTearSpeed * k, sleeveGrip: feel.sleeveGrip * k, sleeveLetGo: feel.sleeveLetGo * k };
+}
+
+/** Only the current top card's back is visible: card `cardIndex` once `flipped` cards have gone. */
+export const topBackVisible = (cardIndex: number, flipped: number): boolean => cardIndex === flipped;
+
+export { FLIP_HALF_GUARANTEED_MS, FLIP_HALF_MS, FLIP_PERSPECTIVE_PER_WIDTH } from './cardFlip';
+
+// ---------------------------------------------------------------- constants (pack base units, dt = 60 Hz frames)
+
+const { W, H, BODY_H, CARD_W, CARD_H } = PACK_GEOM;
+const FRAME_MS = 1000 / 60;
+/** Pulled this far, the sleeve's rim is below the stack. */
+const SLEEVE_CLEAR = CARDS_Y + CARD_H / 2 - H + 14;
+/** Where the zoomed stack centres. */
+const ZOOM_CY = H + BODY_H / 2 - 10;
+/** Grab radius at the strip's corner, sealed / once started. */
+const GRAB_R_SEALED = 45, GRAB_R_STARTED = 55;
+const DIM_TINT = 0xb8bccc;
+/** Glow strength per rarity (Common none); Legendary and Ancient pulse on top of it. */
+const GLOW_BASE: Readonly<Record<CrateRarity, number>> = { common: 0, rare: 0.28, epic: 0.38, legendary: 0.5, ancient: 0.55 };
+const PULSES: ReadonlySet<CrateRarity> = new Set(['legendary', 'ancient']);
+/** resetSealed's fade, each way (dt units). */
+const RESET_FADE = 10;
+/** The backs crossfade (dt units). */
+const XFADE = 18;
+/** A cap on one frame's dt: a hitch never explodes a spring. */
+const MAX_DT = 3;
+
+const BASE = import.meta.env?.BASE_URL ?? '/';
+const CURSOR_GRAB = `url('${BASE}cursors/gauntlet_open.svg') 6 2, pointer`;
+const CURSOR_HELD = `url('${BASE}cursors/hand_closed.svg') 13 12, grabbing`;
+
+const clamp = (n: number, lo: number, hi: number): number => (n < lo ? lo : n > hi ? hi : n);
+
+type Phase = 'peel' | 'sleeve' | 'zoom' | 'end';
+
+class PackSceneImpl implements PackScene {
+  private app: Application | null = null;
+  private v: Views | null = null;
+  private tex: SceneTextures | null = null;
+  private textures: Texture[] = [];
+  private destroyed = false;
+  private resizeObs: ResizeObserver | null = null;
+  private readonly n: number;
+
+  // what the shell asked for (kept across init)
+  private backs: readonly PackBack[] | null = null;
+  private inputOn = true;
+  private pendingQuick = false;
+
+  // simulation
+  private phase: Phase = 'peel';
+  private tear: TearState = newTear();
+  private sleeve: SleeveState = newSleeve();
+  private time = 0;
+  private prevT = 0.5;
+  private shake = 0;
+  private popFired = false;
+  private flying = false;
+  private readonly fv = { x: 0, y: 0, r: 0 };
+  private sleeveRot = 0;
+  private rotDir = 1;
+  private zoom = 0;
+  private zoomV = 0;
+  private zoomed = false;
+  private glowReveal = 0;
+  /** Cards flipped away so far (the top card is `flipped`). */
+  private flipped = 0;
+
+  // input (pack base units)
+  private tearHeld = false;
+  private sleeveHeld = false;
+  private pointerId = -1;
+  private hasCursor = false;
+  private readonly cursor: Pt = { x: 0, y: 0 };
+  private readonly grabOff: Pt = { x: 0, y: 0 };
+  private readonly vel: Pt = { x: 0, y: 0 };
+  private lastX = 0;
+  private lastY = 0;
+  private lastStamp = 0;
+  private grabY = H + BODY_H * 0.55;
+  private curY = 0;
+  private readonly rect = { l: 0, t: 0, w: 0, h: 0, valid: false };
+
+  // scratch (no per-frame allocation)
+  private readonly pt: Pt = { x: 0, y: 0 };
+  private readonly pt2: Pt = { x: 0, y: 0 };
+  private readonly target: Vec3 = { x: 0, y: 0, z: 0 };
+  private readonly tearInput: { held: boolean; target: Vec3 | null } = { held: false, target: null };
+  private readonly sleeveInput = { held: false, want: 0, flickVy: 0 };
+
+  // the flip's first half
+  private readonly flip = {
+    active: false, idx: 0, t: 0, dur: 1, c0x: 0, c0y: 0, tx: 0, ty: 0, scale: 1, lift: 0, ribbon: false,
+  };
+  // the top card's back crossfade
+  private readonly xf = { active: false, t: 0 };
+  private glowFade = 1;
+  // quick open
+  private readonly quick = { active: false, t: 0, tearDur: 1, sleeveDur: 1, T0: 0.5, sleeveStart: 0, dy0: 0, want: 0 };
+  // resetSealed's fade
+  private readonly reset = { active: false, t: 0, swapped: false };
+
+  constructor(
+    private readonly host: HTMLElement,
+    private readonly look: PackLook,
+    cardCount: number,
+    private readonly sounds: PackSounds,
+    private readonly events: PackSceneEvents,
+  ) {
+    this.n = clamp(Math.round(cardCount) || 1, 1, 5);
+  }
+
+  // ---------------------------------------------------------------- lifecycle
+
+  async init(): Promise<void> {
+    if (this.destroyed || !pixiAllowed()) return; // no Pixi: every method stays a no-op
+    let app: Application | null = null;
+    try {
+      const res = Math.min(window.devicePixelRatio || 1, 2) * stageScale();
+      app = new Application();
+      await app.init(phonePixiOptions({
+        resizeTo: this.host,
+        backgroundAlpha: 0,
+        antialias: PIXI_ANTIALIAS,
+        autoDensity: true,
+        resolution: res,
+        preference: 'webgl',
+        powerPreference: 'high-performance',
+      }, stageScale())); // phone policy (phoneDiag.ts)
+      detachPixiDomEvents(app); // our own native pointer listeners below; no Pixi EventSystem
+      followStage(app);
+      guardAppRender(app, 'packScene');
+      watchContextLoss(app, 'packScene');
+      if (this.destroyed) { destroyPixiApp(app); return; }
+      this.app = app;
+      this.build(app);
+    } catch (e) {
+      console.error('[packScene] pixi init failed; the shell falls back to the reduced-motion opening:', e);
+      if (app && this.app !== app) { try { destroyPixiApp(app); } catch { /* half-built */ } }
+      this.teardown();
+    }
+  }
+
+  private build(app: Application): void {
+    const built = buildPackViews(this.look, this.n, (t) => { this.textures.push(t); });
+    this.tex = built.tex;
+    this.v = built.views;
+    app.stage.addChild(built.views.root);
+
+    const canvas = app.canvas;
+    canvas.style.position = 'absolute';
+    canvas.style.inset = '0';
+    canvas.style.display = 'block';
+    canvas.style.pointerEvents = 'auto';
+    canvas.style.touchAction = 'none'; // a finger drag tears, it never scrolls
+    canvas.addEventListener('pointerenter', this.onEnter);
+    canvas.addEventListener('pointerdown', this.onDown);
+    canvas.addEventListener('pointermove', this.onMove);
+    canvas.addEventListener('pointerup', this.onUp);
+    canvas.addEventListener('pointercancel', this.onUp);
+    canvas.addEventListener('lostpointercapture', this.onUp);
+    this.host.appendChild(canvas);
+
+    app.renderer.on('resize', this.layout);
+    if (typeof ResizeObserver !== 'undefined') {
+      this.resizeObs = new ResizeObserver(() => { this.app?.queueResize(); });
+      this.resizeObs.observe(this.host);
+    }
+    this.layout();
+    this.resetState();
+    app.ticker.add(this.tick);
+    if (this.pendingQuick) { this.pendingQuick = false; this.quickOpen(); }
+  }
+
+  destroy(): void {
+    if (this.destroyed) return;
+    this.destroyed = true;
+    this.teardown();
+  }
+
+  private teardown(): void {
+    this.destroyed = true;
+    this.resizeObs?.disconnect();
+    this.resizeObs = null;
+    const app = this.app;
+    this.app = null;
+    this.v = null;
+    this.tex = null;
+    if (!app) return; // pre-init: init()'s "still wanted?" check destroys the late Application
+    const canvas = app.canvas;
+    canvas.removeEventListener('pointerenter', this.onEnter);
+    canvas.removeEventListener('pointerdown', this.onDown);
+    canvas.removeEventListener('pointermove', this.onMove);
+    canvas.removeEventListener('pointerup', this.onUp);
+    canvas.removeEventListener('pointercancel', this.onUp);
+    canvas.removeEventListener('lostpointercapture', this.onUp);
+    app.renderer.off('resize', this.layout);
+    app.ticker.remove(this.tick);
+    app.ticker.stop();
+    for (const t of this.textures) t.destroy(true);
+    this.textures = [];
+    destroyPixiApp(app); // never releases Pixi's shared global pools (pixiAppSafety.ts)
+  }
+
+  private wake(): void {
+    const app = this.app;
+    if (app && !this.destroyed && !app.ticker.started) app.ticker.start();
+  }
+
+  private emit(name: string, fn: () => void): void {
+    try { fn(); } catch (e) { console.error(`[packScene] ${name} handler threw:`, e); }
+  }
+
+  /** Fit the pack (and the zoomed stack) to the host; centred. */
+  private readonly layout = (): void => {
+    const app = this.app, v = this.v;
+    if (!app || !v) return;
+    const w = app.screen.width, h = app.screen.height;
+    const k = Math.max(0.2, Math.min((h * 0.62) / PACK_BASE_SIZE.h, (w * 0.5) / PACK_BASE_SIZE.w));
+    v.root.scale.set(k);
+    v.root.x = Math.round(w / 2 - (W / 2) * k);
+    v.root.y = Math.round(h / 2 - (PACK_BASE_SIZE.h / 2) * k);
+    this.rect.valid = false;
+    if (!app.ticker.started) app.render();
+  };
+
+  // ---------------------------------------------------------------- the shell's calls
+
+  setBacks(backs: readonly PackBack[] | null): void {
+    this.backs = backs ? backs.slice() : null;
+    if (!this.v) return; // applied at build
+    // the top card is showing (the strip has started to come off): crossfade with a shimmer; otherwise swap
+    this.showTop(this.tear.started);
+  }
+
+  flipTop(toScreen: { x: number; y: number }): boolean {
+    const v = this.v, app = this.app;
+    if (!v || !app || !this.zoomed || this.flip.active || this.flipped >= this.n || this.reset.active) return false;
+    this.cacheRect();
+    if (!this.rect.valid) return false;
+    const idx = this.flipped;
+    const card = v.cards[idx]!;
+    const b = this.backs?.[idx];
+    const f = this.flip;
+    f.active = true;
+    f.idx = idx;
+    f.t = 0;
+    f.dur = (b?.guaranteed ? FLIP_HALF_GUARANTEED_MS : FLIP_HALF_MS) / FRAME_MS;
+    f.lift = b?.guaranteed ? 0.14 : 0.08;
+    f.scale = v.cardsC.scale.x;
+    f.c0x = v.pack.x + v.cardsC.x + card.x * f.scale;
+    f.c0y = v.pack.y + v.cardsC.y + card.y * f.scale;
+    const sx = app.screen.width / this.rect.w, sy = app.screen.height / this.rect.h;
+    f.tx = ((toScreen.x - this.rect.l) * sx - v.root.x) / v.root.scale.x;
+    f.ty = ((toScreen.y - this.rect.t) * sy - v.root.y) / v.root.scale.y;
+    f.ribbon = !!b?.guaranteed;
+    v.flipper.texture = this.xf.active ? v.fade.texture : card.texture; // mid-crossfade: the back it is becoming
+    v.flipper.visible = true;
+    v.flipRibbon.visible = f.ribbon;
+    card.visible = false;
+    this.xf.active = false;
+    v.fade.visible = false;
+    v.flash.visible = false;
+    this.setFlipCorners(0);
+    // the next card comes up under it (its back fades to its rarity)
+    this.flipped = idx + 1;
+    this.showTop(true);
+    this.sounds.flip(b?.rarity ?? 'common', !!b?.guaranteed);
+    this.wake();
+    return true;
+  }
+
+  quickOpen(): void {
+    if (this.destroyed) return;
+    if (!this.v) { this.pendingQuick = true; return; }
+    if (this.reset.active || this.quick.active || this.phase === 'zoom' || this.phase === 'end') return;
+    if (this.phase === 'sleeve' && this.sleeve.falling) return;
+    this.releaseHolds();
+    const total = Math.max(1, getPackFeel().quickOpenMs / FRAME_MS);
+    const q = this.quick;
+    q.active = true;
+    q.t = 0;
+    q.tearDur = total * 0.45;
+    q.sleeveDur = total * 0.35;
+    q.T0 = this.tear.T;
+    q.sleeveStart = 0;
+    q.dy0 = 0;
+    q.want = 0;
+    this.wake();
+  }
+
+  resetSealed(): void {
+    if (this.destroyed) return;
+    this.pendingQuick = false;
+    this.backs = null;
+    if (!this.v) return; // still sealed
+    this.releaseHolds();
+    this.quick.active = false;
+    this.sounds.silence();
+    const r = this.reset;
+    r.active = true;
+    r.t = 0;
+    r.swapped = false;
+    this.wake();
+  }
+
+  setInputEnabled(on: boolean): void {
+    this.inputOn = on;
+    if (!on) this.releaseHolds();
+  }
+
+  // ---------------------------------------------------------------- state
+
+  /** Back to a fresh sealed pack (init and resetSealed's swap). */
+  private resetState(): void {
+    const v = this.v;
+    if (!v) return;
+    this.phase = 'peel';
+    this.tear = newTear();
+    this.sleeve = newSleeve();
+    this.prevT = this.tear.T;
+    this.shake = 0;
+    this.popFired = false;
+    this.flying = false;
+    this.sleeveRot = 0;
+    this.zoom = 0;
+    this.zoomV = 0;
+    this.zoomed = false;
+    this.glowReveal = 0;
+    this.flipped = 0;
+    this.flip.active = false;
+    this.xf.active = false;
+    this.quick.active = false;
+    this.tearHeld = false;
+    this.sleeveHeld = false;
+    this.hasCursor = false;
+    const flap = v.strip.view;
+    flap.alpha = 1; flap.rotation = 0; flap.scale.set(1); flap.pivot.set(0, 0); flap.position.set(0, 0); flap.visible = true;
+    v.pack.position.set(0, 0);
+    v.sleeveFront.position.set(0, 0); v.sleeveFront.rotation = 0; v.sleeveFront.alpha = 1; v.sleeveFront.visible = true;
+    v.sleeveBack.position.set(0, 0); v.sleeveBack.rotation = 0; v.sleeveBack.alpha = 1; v.sleeveBack.visible = true;
+    v.lip.view.y = 0;
+    v.lip.update(0);
+    v.shadow.alpha = 0;
+    v.sheen.alpha = 0;
+    v.pinch.visible = true;
+    v.cardsC.position.set(W / 2, CARDS_Y);
+    v.cardsC.scale.set(1);
+    const pos = v.body.geometry.positions;
+    if (pos.length === v.bodyBase.length) { pos.set(v.bodyBase); v.body.geometry.getBuffer('aPosition').update(); }
+    v.flecks.clear();
+    v.flipper.visible = false;
+    v.flipRibbon.visible = false;
+    v.fade.visible = false;
+    v.flash.visible = false;
+    this.showTop(false);
+    const feel = getPackFeel();
+    v.strip.compute(this.tear.T, this.tear.hand, feel.peelAngle, feel.pinchTwist, feel.highlight, feel.perspective, this.time);
+  }
+
+  private backTex(i: number): Texture {
+    const t = this.tex!;
+    const b = this.backs?.[i];
+    return b ? t.rarity[b.rarity] : t.plain;
+  }
+
+  /**
+   * Dress the stack for the current top card: it shows its back (rarity colour, gems, the guaranteed ribbon, a glow),
+   * every card under it the dimmed plain back. `animated` crossfades the top back with a short shimmer.
+   */
+  private showTop(animated: boolean): void {
+    const v = this.v, tex = this.tex;
+    if (!v || !tex) return;
+    const top = this.flipped;
+    for (let i = 0; i < this.n; i++) {
+      const c = v.cards[i]!;
+      if (i < top) { c.visible = false; continue; }
+      c.visible = true;
+      if (!topBackVisible(i, top)) { c.texture = tex.plain; c.tint = DIM_TINT; }
+    }
+    const { glow, fade, flash, ribbon, cardsC } = v;
+    if (top >= this.n) {
+      glow.visible = false; ribbon.visible = false; fade.visible = false; flash.visible = false; this.xf.active = false;
+      return;
+    }
+    const card = v.cards[top]!;
+    card.tint = 0xffffff;
+    const target = this.backTex(top);
+    // the decorations sit around the top card in z order: glow under it, crossfade + shimmer + ribbon over it
+    cardsC.removeChild(glow, fade, flash, ribbon);
+    const at = cardsC.getChildIndex(card);
+    cardsC.addChildAt(glow, at);
+    cardsC.addChildAt(fade, at + 2);
+    cardsC.addChildAt(flash, at + 3);
+    cardsC.addChildAt(ribbon, at + 4);
+    glow.position.copyFrom(card.position);
+    fade.position.copyFrom(card.position);
+    flash.position.copyFrom(card.position);
+    ribbon.position.set(card.x, card.y + RIBBON_DY);
+    const b = this.backs?.[top];
+    glow.tint = b ? rarityTint(b.rarity) : 0xffffff;
+    glow.visible = !!b && GLOW_BASE[b.rarity] > 0;
+    ribbon.visible = !!b?.guaranteed;
+    if (animated && card.texture !== target) {
+      fade.texture = target;
+      fade.width = CARD_W; fade.height = CARD_H;
+      fade.alpha = 0; fade.visible = true;
+      flash.alpha = 0; flash.visible = true;
+      this.xf.active = true;
+      this.xf.t = 0;
+      this.glowFade = 0;
+      ribbon.alpha = 0;
+      this.wake();
+    } else {
+      card.texture = target;
+      fade.visible = false; flash.visible = false;
+      this.xf.active = false;
+      this.glowFade = 1;
+      ribbon.alpha = 1;
+    }
+  }
+
+  // ---------------------------------------------------------------- input
+
+  private cacheRect(): void {
+    const app = this.app;
+    if (!app) return;
+    const r = app.canvas.getBoundingClientRect();
+    this.rect.l = r.left; this.rect.t = r.top; this.rect.w = r.width; this.rect.h = r.height;
+    this.rect.valid = r.width > 0 && r.height > 0;
+  }
+
+  /** A pointer event's position in pack base units (written to `out`). False when there is no usable rect. */
+  private toPack(e: PointerEvent, out: Pt): boolean {
+    const app = this.app, v = this.v;
+    if (!app || !v) return false;
+    if (!this.rect.valid) this.cacheRect(); // only after a resize invalidated it, never per frame
+    if (!this.rect.valid) return false;
+    const sx = app.screen.width / this.rect.w, sy = app.screen.height / this.rect.h;
+    out.x = ((e.clientX - this.rect.l) * sx - v.root.x) / v.root.scale.x;
+    out.y = ((e.clientY - this.rect.t) * sy - v.root.y) / v.root.scale.y;
+    return true;
+  }
+
+  /** The held corner of the strip on the pack plane (written to `out`). */
+  private edgeScreen(out: Pt): Pt {
+    const h = this.tear.hand;
+    return projInto(out, h.x, h.y, h.z, getPackFeel().perspective);
+  }
+
+  private inSleeveGrab(p: Pt, pad: number): boolean {
+    const dy = this.sleeve.dy;
+    return !this.sleeve.falling && p.x > -pad && p.x < W + pad && p.y > H + dy + 24 && p.y < H + dy + BODY_H;
+  }
+
+  private setCursor(c: string): void {
+    const app = this.app;
+    if (app && app.canvas.style.cursor !== c) app.canvas.style.cursor = c;
+  }
+
+  private readonly onEnter = (): void => { this.cacheRect(); };
+
+  private readonly onDown = (e: PointerEvent): void => {
+    if (!this.v || !this.app || !this.inputOn || this.quick.active || this.reset.active) return;
+    if (this.tearHeld || this.sleeveHeld) return; // one hand at a time
+    this.cacheRect();
+    const p = this.pt;
+    if (!this.toPack(e, p)) return;
+    if (this.phase === 'sleeve') {
+      if (!this.inSleeveGrab(p, 10)) return;
+      this.sleeveHeld = true;
+      this.grabY = p.y - this.sleeve.dy;
+      this.curY = p.y;
+    } else if (this.phase === 'peel') {
+      if (this.tear.done || this.flying) return;
+      const c = this.edgeScreen(this.pt2);
+      if (Math.hypot(p.x - c.x, p.y - c.y) > (this.tear.started ? GRAB_R_STARTED : GRAB_R_SEALED)) return;
+      this.tearHeld = true;
+      this.grabOff.x = c.x - p.x; this.grabOff.y = c.y - p.y;
+      this.cursor.x = p.x; this.cursor.y = p.y;
+      this.hasCursor = true;
+    } else return;
+    this.pointerId = e.pointerId;
+    try { this.app.canvas.setPointerCapture(e.pointerId); } catch { /* synthetic pointer */ }
+    this.lastX = p.x; this.lastY = p.y; this.lastStamp = e.timeStamp;
+    this.vel.x = 0; this.vel.y = 0;
+    this.setCursor(CURSOR_HELD);
+    e.preventDefault();
+    this.wake();
+  };
+
+  private readonly onMove = (e: PointerEvent): void => {
+    if (!this.v || !this.app) return;
+    const held = this.tearHeld || this.sleeveHeld;
+    if (!held) {
+      if (!this.inputOn || this.quick.active || this.reset.active || e.pointerType === 'touch') return;
+      const p = this.pt;
+      if (!this.toPack(e, p)) return;
+      let grab = false;
+      if (this.phase === 'sleeve') grab = this.inSleeveGrab(p, 0);
+      else if (this.phase === 'peel' && !this.tear.done && !this.flying) {
+        const c = this.edgeScreen(this.pt2);
+        grab = Math.hypot(p.x - c.x, p.y - c.y) < GRAB_R_SEALED;
+      }
+      this.setCursor(grab ? CURSOR_GRAB : '');
+      return;
+    }
+    if (e.pointerId !== this.pointerId) return;
+    const p = this.pt;
+    if (!this.toPack(e, p)) return;
+    const dtf = Math.max(1, e.timeStamp - this.lastStamp) / 16.7;
+    this.vel.x = ((p.x - this.lastX) / dtf) * 0.5 + this.vel.x * 0.5;
+    this.vel.y = ((p.y - this.lastY) / dtf) * 0.5 + this.vel.y * 0.5;
+    this.lastX = p.x; this.lastY = p.y; this.lastStamp = e.timeStamp;
+    this.cursor.x = p.x; this.cursor.y = p.y;
+    this.curY = p.y;
+  };
+
+  private readonly onUp = (e: PointerEvent): void => {
+    if (e.pointerId !== this.pointerId) return;
+    this.releaseHolds();
+  };
+
+  /** Let go of whatever is held (the next tick's model step turns a sleeve release into a drop or a slide back). */
+  private releaseHolds(): void {
+    if (this.tearHeld) { this.tearHeld = false; releaseTear(this.tear); }
+    this.sleeveHeld = false;
+    this.pointerId = -1;
+    this.setCursor('');
+  }
+
+  // ---------------------------------------------------------------- the beats
+
+  private firePop(): void {
+    if (this.popFired) return;
+    this.popFired = true;
+    this.shake = 4;
+    this.sounds.pop();
+    this.emit('onPop', () => this.events.onPop());
+  }
+
+  /** The strip ripped free: it flies off with the hand's velocity and the sleeve is live this instant. */
+  private rip(): void {
+    const v = this.v!;
+    this.tear.done = true;
+    this.tearHeld = false;
+    this.flying = true;
+    const c = v.strip.centroid(this.pt2);
+    const flap = v.strip.view;
+    flap.pivot.set(c.x, c.y);
+    flap.position.set(c.x, c.y);
+    this.fv.x = clamp(this.vel.x * 0.9 + 6, 4, 22);
+    this.fv.y = Math.min(-6, this.vel.y * 0.9 - 9);
+    this.fv.r = 0.05 + Math.random() * 0.05;
+    this.shake = 7;
+    this.sounds.rip();
+    v.flecks.spawn(18, W - 4, H);
+    this.phase = 'sleeve';
+    this.setCursor('');
+    this.emit('onStripFree', () => this.events.onStripFree());
+  }
+
+  private onDrop(): void {
+    this.sleeveHeld = false;
+    this.rotDir = Math.random() < 0.5 ? -1 : 1;
+    this.shake = 3;
+    this.sounds.drop();
+    this.sounds.slide(0);
+    this.setCursor('');
+    this.emit('onSleeveDropped', () => this.events.onSleeveDropped());
+  }
+
+  // ---------------------------------------------------------------- the frame
+
+  private readonly tick = (tk: Ticker): void => {
+    const v = this.v, app = this.app;
+    if (!v || !app) return;
+    const dt = Math.min(MAX_DT, tk.deltaTime);
+    this.time += dt;
+    const feel = getPackFeel(); // read every frame: the Pack Lab tunes live
+
+    if (this.reset.active) {
+      const r = this.reset;
+      r.t += dt;
+      if (!r.swapped) {
+        v.root.alpha = Math.max(0, 1 - r.t / RESET_FADE);
+        if (r.t < RESET_FADE) return; // frozen while it fades out: nothing fires
+        this.resetState();
+        r.swapped = true;
+        r.t = 0;
+        this.inputOn = true;
+      } else {
+        v.root.alpha = Math.min(1, r.t / RESET_FADE);
+        if (r.t >= RESET_FADE) r.active = false;
+      }
+    }
+
+    if (this.quick.active) this.quickStep(dt, feel);
+    if (this.phase === 'peel' && !this.flying) this.peelStep(dt, feel);
+    else if (this.flying) this.flyStep(dt);
+    if (this.phase !== 'peel') this.sleeveStep(dt, feel);
+
+    this.cardsStep(dt);
+    if (this.flip.active) this.flipStep(dt);
+    v.flecks.step(dt);
+
+    if (this.shake > 0.05) {
+      v.pack.x = (Math.random() - 0.5) * this.shake;
+      v.pack.y = (Math.random() - 0.5) * this.shake;
+      this.shake *= Math.pow(0.82, dt);
+    } else { v.pack.x = 0; v.pack.y = 0; this.shake = 0; }
+
+    // idle once the stack has zoomed and nothing moves (the render of this frame still runs)
+    const top = this.backs?.[this.flipped];
+    const pulsing = !!top && this.flipped < this.n && PULSES.has(top.rarity);
+    if (this.phase === 'end' && !this.flip.active && !this.xf.active && v.flecks.count === 0 && this.shake === 0
+      && !pulsing && !this.reset.active && !this.flying && this.glowReveal === 1) {
+      app.ticker.stop();
+    }
+  };
+
+  /** The tear: the model step (or the quick open's script), sound, flecks, the strip mesh, the lip and the shadow. */
+  private peelStep(dt: number, feel: PackFeel): void {
+    const v = this.v!;
+    const tear = this.tear;
+    if (!this.quick.active) {
+      const holding = this.tearHeld && this.hasCursor;
+      if (holding) {
+        const u = unprojInto(this.pt2, this.cursor.x + this.grabOff.x, this.cursor.y + this.grabOff.y, tear.hand.z, feel.perspective);
+        this.target.x = u.x;
+        this.target.y = u.y;
+        this.target.z = feel.edgeTowardCamera * Math.min(1, tear.T / 50);
+      }
+      this.tearInput.held = this.tearHeld;
+      this.tearInput.target = holding ? this.target : null;
+      const r = stepTear(tear, this.tearInput, feel, W, dt, this.time);
+      if (r.popped) this.firePop();
+    }
+
+    // sound + flecks follow the tear speed
+    const speed = Math.max(0, (tear.T - this.prevT) / Math.max(dt, 0.001));
+    // (nothing sounds before the pop: the audio graph must not start before a user gesture)
+    if (tear.started) { this.sounds.tear(tear.done ? 0 : speed); this.sounds.crackle(speed, dt); }
+    if (tear.started && speed > 0.3) v.flecks.spawn(Math.min(4, Math.floor(speed * 0.25 + Math.random())), tear.T, H);
+    this.prevT = tear.T;
+
+    v.strip.compute(tear.T, tear.hand, feel.peelAngle, feel.pinchTwist, feel.highlight, feel.perspective, this.time);
+    const sh = v.strip.shadow;
+    v.shadow.alpha = sh.alpha;
+    if (sh.alpha > 0) { v.shadow.position.set(sh.x, sh.y); v.shadow.width = sh.w; v.shadow.height = sh.h; }
+    v.lip.update(tear.T);
+
+    // the sealed pack's idle shimmer and the pinch cue (opacity only); both go once the seal pops
+    const sealed = !tear.started;
+    v.sheen.alpha += ((sealed ? 0.3 + 0.2 * Math.sin(this.time * 0.035) : 0) - v.sheen.alpha) * Math.min(1, 0.2 * dt);
+    v.pinch.visible = sealed && this.inputOn && !this.quick.active;
+    if (v.pinch.visible) {
+      const c = this.edgeScreen(this.pt2);
+      v.pinch.position.set(c.x + 6, c.y + 6);
+      v.pinch.alpha = 0.45 + 0.4 * Math.sin(this.time * 0.09);
+    }
+
+    if (tear.done) this.rip();
+  }
+
+  /** The ripped strip flies off, spinning and fading. */
+  private flyStep(dt: number): void {
+    const v = this.v!;
+    const flap = v.strip.view;
+    flap.x += this.fv.x * dt; flap.y += this.fv.y * dt; this.fv.y += 0.55 * dt; flap.rotation += this.fv.r * dt;
+    flap.scale.set(flap.scale.x + 0.006 * dt);
+    flap.alpha = Math.max(0, flap.alpha - 0.012 * dt);
+    v.shadow.alpha = Math.max(0, v.shadow.alpha - 0.05 * dt);
+    v.sheen.alpha = Math.max(0, v.sheen.alpha - 0.05 * dt);
+    if (flap.alpha <= 0) { this.flying = false; flap.visible = false; }
+  }
+
+  /** The sleeve (model step + the body deform), its drop, and the stack's zoom spring. */
+  private sleeveStep(dt: number, feel: PackFeel): void {
+    const v = this.v!;
+    const sl = this.sleeve;
+    if (this.phase === 'sleeve') {
+      const inp = this.sleeveInput;
+      inp.held = this.sleeveHeld;
+      inp.want = this.quick.active ? this.quick.want : Math.max(0, this.curY - this.grabY);
+      inp.flickVy = this.vel.y;
+      const wasFalling = sl.falling;
+      const r = stepSleeve(sl, inp, feel, SLEEVE_CLEAR, dt);
+      if (r.brokeFree) { this.shake = 2.5; this.sounds.sleeveFree(); }
+      if (sl.falling && !wasFalling) this.onDrop();
+      if (sl.falling) {
+        this.sleeveRot += 0.0035 * sl.vy * dt * this.rotDir;
+        const a = Math.max(0, 1 - Math.max(0, sl.dy - SLEEVE_CLEAR) / 420);
+        v.sleeveFront.alpha = a; v.sleeveBack.alpha = a;
+        if (sl.dy > SLEEVE_CLEAR && this.zoom === 0 && this.zoomV === 0) { this.zoomV = 0.02; this.sounds.whoosh(); }
+        if (a <= 0) { this.phase = 'zoom'; v.sleeveFront.visible = false; v.sleeveBack.visible = false; }
+      } else this.sounds.slide(this.sleeveHeld && sl.freed ? Math.abs(r.speed) : 0);
+      this.deformBody();
+      v.sleeveFront.y = sl.dy; v.sleeveBack.y = sl.dy;
+      v.sleeveFront.rotation = this.sleeveRot; v.sleeveBack.rotation = this.sleeveRot;
+      v.cardsC.y = CARDS_Y + sl.card;
+    }
+    if (this.zoomV !== 0 || this.zoom !== 0) {
+      if (!this.zoomed) {
+        // the freed stack springs toward the camera
+        this.zoomV += (1 - this.zoom) * 0.11 * dt; this.zoomV *= Math.pow(0.8, dt); this.zoom += this.zoomV * dt;
+        if (this.phase === 'zoom' && Math.abs(1 - this.zoom) < 0.003 && Math.abs(this.zoomV) < 0.002) {
+          this.zoom = 1; this.zoomV = 0;
+          this.phase = 'end';
+          this.zoomed = true;
+          this.emit('onZoomed', () => this.events.onZoomed());
+        }
+      }
+      v.cardsC.scale.set(1 + feel.stackZoom * this.zoom);
+      v.cardsC.y = CARDS_Y + (ZOOM_CY - CARDS_Y) * Math.min(1.2, this.zoom);
+    }
+  }
+
+  /** The sleeve front: squeezed in at the fingers, its rim trailing as it rubs the cards. In place. */
+  private deformBody(): void {
+    const v = this.v!;
+    const pos = v.body.geometry.positions, base = v.bodyBase;
+    if (pos.length !== base.length) return;
+    const sl = this.sleeve;
+    const gy = (this.grabY - H) * TEX_RES;
+    const half = (W * TEX_RES) / 2;
+    for (let k = 0; k < pos.length; k += 2) {
+      const bx = base[k]!, by = base[k + 1]!;
+      const above = gy > 0 ? Math.max(0, 1 - by / gy) : 0; // 1 at the rim, 0 at the fingers
+      const q = (by - gy) / 170;
+      const pinch = sl.pinch * Math.exp(-(q * q));
+      pos[k] = half + (bx - half) * (1 - pinch); // squeezed in where you hold it
+      pos[k + 1] = by - sl.lag * 2 * above * above; // the rim trails, rubbing on the cards
+    }
+    v.body.geometry.getBuffer('aPosition').update();
+    v.lip.view.y = -sl.lag;
+  }
+
+  /** The quick open's scripted drag: the tear, then the sleeve. The drop and the zoom are the usual physics. */
+  private quickStep(dt: number, feel: PackFeel): void {
+    const q = this.quick, tear = this.tear;
+    q.t += dt;
+    if (this.phase === 'peel' && !this.flying) {
+      if (!tear.started) { tear.started = true; this.firePop(); }
+      const u = Math.min(1, q.t / q.tearDur), e = u * u * (3 - 2 * u);
+      tear.T = Math.max(tear.T, q.T0 + (W - q.T0) * e);
+      const h = tear.hand, T = tear.T;
+      h.x = T * 1.45; h.y = -T * 0.3; h.z = Math.min(T * 0.5, feel.edgeTowardCamera); // within reach: |h - (T,0,0)| < T
+      if (u >= 1) {
+        tear.done = true;
+        this.vel.x = 10; this.vel.y = -5; // the flap's throw
+        q.sleeveStart = q.t;
+      }
+    } else if (this.phase === 'sleeve' && !this.sleeve.falling) {
+      if (q.sleeveStart === 0) { q.sleeveStart = q.t; q.dy0 = this.sleeve.dy; } // the tear was done by hand
+      this.sleeveHeld = true;
+      this.grabY = H + BODY_H * 0.55;
+      this.vel.y = 12;
+      q.want = q.dy0 + ((q.t - q.sleeveStart) / q.sleeveDur) * SLEEVE_CLEAR * 1.4;
+    } else if (this.sleeve.falling || this.phase === 'zoom' || this.phase === 'end') {
+      q.active = false;
+    }
+  }
+
+  /** The top back's crossfade + shimmer, and its glow (revealed once the sleeve is off; Legendary/Ancient pulse). */
+  private cardsStep(dt: number): void {
+    const v = this.v!;
+    const xf = this.xf;
+    if (xf.active) {
+      xf.t += dt;
+      const p = Math.min(1, xf.t / XFADE);
+      v.fade.alpha = p;
+      v.flash.alpha = Math.sin(Math.PI * p) * 0.55;
+      this.glowFade = p;
+      v.ribbon.alpha = p;
+      if (p >= 1) {
+        xf.active = false;
+        const card = v.cards[this.flipped];
+        if (card) card.texture = v.fade.texture;
+        v.fade.visible = false;
+        v.flash.visible = false;
+      }
+    }
+    const reveal = this.phase === 'zoom' || this.phase === 'end' || this.sleeve.falling ? 1 : 0;
+    this.glowReveal += (reveal - this.glowReveal) * Math.min(1, 0.1 * dt);
+    if (Math.abs(reveal - this.glowReveal) < 0.002) this.glowReveal = reveal;
+    if (v.glow.visible) {
+      const b = this.backs?.[this.flipped];
+      const base = b ? GLOW_BASE[b.rarity] : 0;
+      const pulse = b && PULSES.has(b.rarity) ? 0.22 * Math.sin(this.time * 0.09) : 0;
+      v.glow.alpha = Math.max(0, base + pulse) * this.glowFade * this.glowReveal * (this.flip.active ? 0.5 : 1);
+    }
+  }
+
+  /** The flip's first half: 0 -> 90 degrees about the vertical axis with perspective, moving half way to its slot. */
+  private flipStep(dt: number): void {
+    const f = this.flip, v = this.v!, app = this.app!;
+    f.t += dt;
+    const p = Math.min(1, f.t / f.dur);
+    this.setFlipCorners(p);
+    if (p < 1) return;
+    f.active = false;
+    v.flipper.visible = false;
+    v.flipRibbon.visible = false;
+    const { cx, cy, s } = flipPoseAt(f, 1, this.pose);
+    const hw = (CARD_W / 2) * s, hh = (CARD_H / 2) * s;
+    const k = v.root.scale.x;
+    // the rect cached at flip start (a resize mid-flip only marks it stale)
+    const toScreen = this.rect.w > 0 ? this.rect.w / app.screen.width : 1;
+    const left = this.rect.l + (v.root.x + (cx - hw) * k) * toScreen;
+    const top = this.rect.t + (v.root.y + (cy - hh) * k) * toScreen;
+    const rect = { left, top, width: hw * 2 * k * toScreen, height: hh * 2 * k * toScreen };
+    const idx = f.idx;
+    this.emit('onFlipEdge', () => this.events.onFlipEdge(idx, rect));
+  }
+
+  private readonly pose: FlipPose = { cx: 0, cy: 0, s: 1 };
+  private readonly corners = new Float64Array(8);
+
+  /** Project the card (and its ribbon) at progress p onto the flip meshes' corners. */
+  private setFlipCorners(p: number): void {
+    const v = this.v!, f = this.flip, c = this.corners;
+    const { cx, cy, s } = flipPoseAt(f, p, this.pose);
+    const ang = flipAngle(p);
+    const D = FLIP_PERSPECTIVE_PER_WIDTH * CARD_W * s;
+    projectTurnedRect(c, cx, cy, s, ang, D, -CARD_W / 2, -CARD_H / 2, CARD_W / 2, CARD_H / 2);
+    v.flipper.setCorners(c[0], c[1], c[2], c[3], c[4], c[5], c[6], c[7]);
+    if (f.ribbon) {
+      projectTurnedRect(c, cx, cy, s, ang, D, -RIBBON_HW, RIBBON_DY - RIBBON_HH, RIBBON_HW, RIBBON_DY + RIBBON_HH);
+      v.flipRibbon.setCorners(c[0], c[1], c[2], c[3], c[4], c[5], c[6], c[7]);
+    }
+  }
+}
+
+/**
+ * Build the scene in `host` (an absolutely-positionable element the shell sizes). Returns at once; Pixi starts
+ * asynchronously, and calls made before it is up are kept (`setBacks`, `quickOpen`, `setInputEnabled`).
+ */
+export function createPackScene(
+  host: HTMLElement, look: PackLook, cardCount: number, sounds: PackSounds, events: PackSceneEvents,
+): PackScene {
+  const scene = new PackSceneImpl(host, look, cardCount, sounds, events);
+  void scene.init();
+  return scene;
+}

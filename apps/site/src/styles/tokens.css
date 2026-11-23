@@ -26,12 +26,14 @@
   --gem-mid: #209bf3;
   --gem-deep: #1683f5;
   --gem-dark: #0c59ec;
-  /* The download button's face: the deep navy of the showcase cards, lit from the top (owner 2026-11-22). */
-  --btn-hi: #3a5fae;
-  --btn: #1c3a7e;
-  --btn-mid: #132a5e;
-  --btn-deep: #0d1a36;
-  --btn-dark: #080f22;
+  /* The download button's face: the owner's gold, #b8751d, lit from the top (owner 2026-11-22). */
+  --btn-hi: #f0b55a;
+  --btn: #d48f2c;
+  --btn-mid: #b8751d;
+  --btn-deep: #8f5714;
+  --btn-dark: #5f390c;
+  /* The ASCENT title keeps the deep navy the button used to have. */
+  --title-face: #132a5e;
   --gem-rim: #3e1d16;
   --gem-ink: #062a6e;
 

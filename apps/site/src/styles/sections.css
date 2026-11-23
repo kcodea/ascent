@@ -118,20 +118,31 @@
   letter-spacing: 0.14em;
   /* Wide tracking adds a gap after the last letter; this pulls the word back to the true centre. */
   margin-right: -0.14em;
-  /* The letters are the download button in type: its deep navy face inside a gold edge. The edge is a ring of offset
-     shadows, not a text stroke: a stroke also draws the seams where this font's letter shapes overlap. */
-  color: var(--btn-mid);
-  text-shadow:
-    -2px 0px 0 var(--gold-light),
-    2px 0px 0 var(--gold-light),
-    0px -2px 0 var(--gold-light),
-    0px 2px 0 var(--gold-light),
-    -1.5px -1.5px 0 var(--gold-light),
-    1.5px -1.5px 0 var(--gold-light),
-    -1.5px 1.5px 0 var(--gold-light),
-    1.5px 1.5px 0 var(--gold-light),
-    0 5px 0 var(--gem-rim),
-    0 8px 10px color-mix(in srgb, var(--night-deep) 70%, transparent);
+  /* The letters are the download button in type: its deep navy face inside its metallic gold edge. */
+  position: relative;
+  isolation: isolate;
+  padding: 0.1em 0.12em;
+  color: var(--title-face);
+  filter: drop-shadow(0 4px 0 var(--gem-rim)) drop-shadow(0 8px 10px color-mix(in srgb, var(--night-deep) 70%, transparent));
+}
+
+/* The gold edge: the same word drawn again behind the navy one, a little fatter, and filled with the button rim's own
+   light-to-dark gold gradient. The fattening is a transparent stroke, which widens the area the gradient is clipped to
+   without drawing the seams where this font's letter shapes overlap. The empty alt keeps it from being read twice. */
+.top__headline::before {
+  content: attr(data-text) / '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  color: transparent;
+  background: var(--edge);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-stroke: 0.1em transparent;
+  /* Rounded corners on the edge: a sharp join spikes out at the points of the N. */
+  stroke-linejoin: round;
+  /* The same padding as the word it sits behind, so the two line up; the padding is room for the edge to be drawn in. */
+  padding: inherit;
 }
 
 .top__pitch {

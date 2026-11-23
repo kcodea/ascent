@@ -203,7 +203,7 @@ p {
   color: var(--muted);
 }
 
-/* THE GEM: the game's Gem plate rebuilt in CSS. A deep navy face lit from the top, a turned gold rim, a dark outer
+/* THE GEM: the game's Gem plate rebuilt in CSS. A gold face lit from the top, a turned gold rim, a dark outer
    rim, a lit top edge and a hard bottom edge so it reads as pressable. The look is shared with the copy-link button
    when the page is opened somewhere the installer can't run (.is-other / .is-mobile on <html>, set in Task 5). */
 .gem,
@@ -226,7 +226,7 @@ p {
   text-transform: uppercase;
   text-decoration: none;
   color: var(--white);
-  text-shadow: 0 2px 0 var(--gem-ink), 0 0 12px color-mix(in srgb, var(--gem-ink) 70%, transparent);
+  text-shadow: 0 2px 0 var(--btn-dark), 0 0 10px color-mix(in srgb, var(--btn-dark) 70%, transparent);
   background:
     linear-gradient(135deg, color-mix(in srgb, var(--white) 22%, transparent) 0 22%, transparent 22% 100%) padding-box,
     radial-gradient(120% 90% at 50% 0%, var(--btn-hi) 0%, var(--btn) 34%, var(--btn-mid) 60%, var(--btn-deep) 82%, var(--btn-dark) 100%) padding-box,
@@ -234,7 +234,7 @@ p {
   box-shadow:
     0 0 0 2px var(--gem-rim),
     inset 0 2px 0 color-mix(in srgb, var(--white) 70%, transparent),
-    inset 0 -8px 14px -6px color-mix(in srgb, var(--gem-ink) 85%, transparent),
+    inset 0 -8px 14px -6px color-mix(in srgb, var(--btn-dark) 85%, transparent),
     0 5px 0 2px var(--gem-rim),
     0 18px 30px -10px color-mix(in srgb, var(--btn-dark) 70%, transparent);
   cursor: url('/art/cursors/gauntlet_open.svg') 6 2, pointer;
@@ -252,7 +252,7 @@ p {
   pointer-events: none;
 }
 
-/* The glow: a static navy-blue halo whose OPACITY breathes (see the reduced-motion block). */
+/* The glow: a static warm gold halo whose OPACITY breathes (see the reduced-motion block). */
 .gem::after,
 :is(.is-other, .is-mobile) .download__copy::after {
   content: '';

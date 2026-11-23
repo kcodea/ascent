@@ -9,6 +9,7 @@ import { BODY_COUNTING_DEATHS, type Tribe } from '@game/core';
 import { CARD_INDEX, RUNE_INDEX, SETS } from '@game/content';
 import { runeforgePool } from './reducer';
 import { applyEndOfTurn } from './recruit';
+import { SET3_REVIEW_JOINED } from './set3ReviewJoined';
 import { createRun, reduce, type BoardSnapshot, type RunState } from './index';
 
 const card = (id: string, uid: string): RunState['board'][number] => {
@@ -38,7 +39,8 @@ describe('tranche 0: reprices, rename, wording (owner 2026-09-27)', () => {
 describe('tranche 0: cuts and restores', () => {
   const CUT = ['rune_rubywire', 'rune_living_magic', 'rune_recurrence', 'rune_astral_draft', 'rune_refrain', 'rune_hunting_bell', 'rune_sylus', 'rune_pair', 'rune_quick_release', 'rune_grave_refreshment'];
   it('the 10 cuts leave Set 3 only and are never archived; the Golden Splinter and the Deep Feast stay', () => {
-    for (const id of CUT) {
+    // Living Magic, Recurrence, Sylus and Pair (now Tempo) came BACK on 2026-11-23 (owner Set 3 rune review board).
+    for (const id of CUT.filter((x) => !SET3_REVIEW_JOINED.includes(x))) {
       const r = RUNE_INDEX[id]!;
       expect(r.sets, `${id} scoped`).toBeDefined();
       expect(r.sets!.includes('set3'), `${id} left Set 3`).toBe(false);

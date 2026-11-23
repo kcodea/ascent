@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { combatSide, makeRng, simulate } from '@game/core';
 import { CARD_INDEX, EPIC_RUNES, RUNES } from '@game/content';
+import { withSet3 } from './set3ReviewJoined';
 import { createRun, reduce, type BoardCard, type RunState } from './index';
 
 /** The 2026-08-07 owner batch: 16 Basic runes. Data-only ones are covered by validateRunes + the count
@@ -37,7 +38,7 @@ describe('the 15 remaining defs exist at sheet costs', () => {
       if (['rune_engraving', 'rune_flagship', 'rune_brew'].includes(id)) continue;
       // Vault / Altar / Thrift / Wheel / Underdog / Top Hat / Evolution / Treasure Map CUT FROM SET 3 2026-09-25 (owner's Set 3 rune list): set 1 + set 2.
       const cut0925 = ['rune_vault', 'rune_altar', 'rune_thrift', 'rune_wheel', 'rune_underdog', 'rune_top_hat', 'rune_evolution', 'rune_treasure_map'].includes(id);
-      expect(rune(id).sets, `${id} should be shared`).toEqual(cut0925 ? ['set1', 'set2'] : undefined);
+      expect(rune(id).sets, `${id} should be shared`).toEqual(withSet3(id, cut0925 ? ['set1', 'set2'] : undefined));
     }
   });
 });

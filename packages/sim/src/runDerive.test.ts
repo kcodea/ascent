@@ -88,7 +88,10 @@ describe('deriveRun over real bot play', () => {
       const boughtOffers = r.offers.filter((o) => o.bought).length;
       const shopAcq = r.acquisitions.filter((a) => a.source === 'shop');
       expect(shopAcq.length, 'every bought copy is an acquisition').toBe(boughtOffers);
-      for (const a of shopAcq) expect(a.goldPaid).toBeGreaterThan(0);
+      // A purchase can legitimately cost 0 (Thrift: Shop spells that give stats cost 2 less), so the Gold paid is never
+      // negative and most buys pay something. Seed 3 took Thrift once the 2026-11-23 rune review shifted its forge rolls.
+      for (const a of shopAcq) expect(a.goldPaid).toBeGreaterThanOrEqual(0);
+      expect(shopAcq.some((a) => a.goldPaid! > 0), 'some purchase paid Gold').toBe(true);
     }
   });
 

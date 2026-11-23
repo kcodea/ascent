@@ -21,6 +21,7 @@ import { CONFIG, createRun, reduce, type Action, type BoardCard, type RunState }
 import { offerBuyPrice, questCombatMods } from './reducer';
 import { gildMinion, offerSpellDiscover, queueDiscover, socRuneReplaysOf } from './recruit';
 import { discoverOptionCount } from './set2RunesBasicNeutral';
+import { withSet3 } from './set3ReviewJoined';
 import { runeTally } from '../../ui/src/runeTally';
 
 // ── Shop helpers ────────────────────────────────────────────────────────────────────────────────────────────────
@@ -90,7 +91,7 @@ describe('the nine runes as content', () => {
     ];
     for (const [id, name, cost, text] of rows) {
       const r = RUNE_INDEX[id]!;
-      expect([r.name, r.cost, r.text, r.sets, r.tribes]).toEqual([name, cost, text, ['set2'], undefined]);
+      expect([r.name, r.cost, r.text, r.sets, r.tribes]).toEqual([name, cost, text, withSet3(id, ['set2']), undefined]);
       expect(RUNES.some((x) => x.id === id), `${id} is Basic`).toBe(true);
       expect(EPIC_RUNES.some((x) => x.id === id)).toBe(false);
       expect(r.text).not.toMatch(/—|--|Oath|climb/);

@@ -70,6 +70,17 @@ export const PATCH_NOTES: PatchNote[] = [
           'Spellmaiden (3 Gold): Get a Spellmaiden, a Tier 4 3/3. When sold, double your Shop spell power.',
         ],
       },
+      {
+        category: 'Balance',
+        text: 'Rune changes.',
+        details: [
+          'Summit: now Discovers a Tier 7 minion on turns 9 and 11. It used to repeat every 2 turns.',
+          'Top Shelf: at your top Tier, your 2 right-most offers are always that Tier. It used to do nothing there.',
+          'Spellstone is now a Basic rune.',
+          'Pair is now called Tempo. It works the same.',
+          'Wildfire is no longer a Demon rune, so any warband can be offered it.',
+        ],
+      },
     ],
   },
   {

@@ -582,12 +582,14 @@ function upgradeRightmostOffer(s: RunState, done?: Set<string>): void {
 /** Rune of Top Shelf (Set 2 Epic, owner 2026-11-12): "Every Refresh offers 1 minion from the Tier above your Shop."
  *  The Open Enrollment shape (the Shop never grows): a short row fills a free slot, a full row REPLACES the right-most
  *  minion offer that is not already above your Tier (never a spell, Ruby or the Starform). The displaced offer goes
- *  back to the pool. At the top Tier there is no Tier above, so nothing happens (owner ruling 2026-11-12). The new
- *  offer carries the `contraband` flash, the UI's "an offer from the Tier above" marker. */
-function offerTopShelf(s: RunState): void {
+ *  back to the pool. The new offer carries the `contraband` flash, the UI's "an offer from the Tier above" marker.
+ *  At the TOP Tier (no Tier above) it GUARANTEES your top Tier instead: the two right-most minion offers are minions
+ *  of your Shop's Tier (owner 2026-11-23, Set 3 rune review: "at T6 it guarantees 2, both right-most"; was nothing).
+ *  `copy` is the 0-based copy held: each copy guarantees two more slots, right to left. */
+function offerTopShelf(s: RunState, copy = 0): void {
   const ceiling = hasTier7Access(s) ? 7 : maxTierFor(s.rift);
   const tgt = s.tier + 1;
-  if (tgt > ceiling) return;
+  if (tgt > ceiling) { guaranteeTopShelf(s, 2 * (copy + 1)); return; }
   const pool = poolOf(s).buyable.filter((c) => !c.spell && !c.ruby && c.tier === tgt && inRunTribes(c, s.tribes) && (s.pool[c.id] ?? 0) > 0);
   if (pool.length === 0) return;
   let idx = -1;
@@ -613,6 +615,50 @@ function offerTopShelf(s: RunState): void {
   takeFromPool(s, pick.id);
   s.shop[idx] = { uid: `s${s.uidSeq++}`, cardId: pick.id, contraband: true };
   stampNewShopOffers(s, [s.shop[idx]!], { onRefresh: true, cia: true, inPlace: true }); // keeps the replaced slot's enchant
+}
+
+/** Top Shelf at the top Tier: the `want` right-most minion offers (never a spell, Ruby or the Starform) become minions
+ *  of your Shop's Tier. An offer already of that Tier (or above) counts and stays; a lower one is swapped back into
+ *  the pool for a random one of the Tier; a short row fills its free slots first (they are the right-most). */
+function guaranteeTopShelf(s: RunState, want: number): void {
+  const tgt = s.tier;
+  const candidates = () => poolOf(s).buyable.filter((c) => !c.spell && !c.ruby && c.tier === tgt && inRunTribes(c, s.tribes) && (s.pool[c.id] ?? 0) > 0);
+  const isMinionOffer = (o: RunState['shop'][number]) => { const d = CARD_INDEX[o.cardId]; return !!d && !d.spell && !d.ruby && !o.starform; };
+  let covered = 0;
+  const swap: number[] = [];
+  for (let i = s.shop.length - 1; i >= 0 && covered < want; i--) {
+    if (!isMinionOffer(s.shop[i]!)) continue;
+    covered++;
+    if (CARD_INDEX[s.shop[i]!.cardId]!.tier < tgt) swap.push(i);
+  }
+  const free = Math.max(0, Math.min(want - covered, tierSlots(s.tier) - s.shop.length));
+  if (swap.length === 0 && free === 0) return;
+  let fired = false;
+  const draw = (): string | undefined => {
+    const pool = candidates();
+    if (pool.length === 0) return undefined;
+    const rng = makeRng(s.rngCursor);
+    const pick = pool[rng.int(pool.length)]!;
+    s.rngCursor = rng.state();
+    if (!fired) { procRuneId(s, 'rune_top_shelf'); fired = true; }
+    return pick.id;
+  };
+  for (let k = 0; k < free; k++) {
+    const id = draw();
+    if (!id) return;
+    takeFromPool(s, id);
+    const added = { uid: `s${s.uidSeq++}`, cardId: id, contraband: true as const };
+    s.shop.push(added);
+    stampNewShopOffers(s, [added], { onRefresh: true, cia: true });
+  }
+  for (const idx of swap) {
+    const id = draw();
+    if (!id) return;
+    returnToPool(s, s.shop[idx]!.cardId);
+    takeFromPool(s, id);
+    s.shop[idx] = { uid: `s${s.uidSeq++}`, cardId: id, contraband: true };
+    stampNewShopOffers(s, [s.shop[idx]!], { onRefresh: true, cia: true, inPlace: true });
+  }
 }
 
 /**
@@ -660,6 +706,8 @@ function fillBargainBin(s: RunState): void {
  * or null when the pool is empty (→ the procedural threat). Pure + deterministic — the opponent frame previews
  * it during recruit, and `faceOmen` resolves exactly this.
  */
+/** Rune of the Summit pays on these turns (owner 2026-11-23, Set 3 rune review). The engine and the UI badge read it. */
+export const SUMMIT_TURNS: readonly number[] = [9, 11];
 /** No-repeat window: the player never faces the same opponent within this many rounds (owner rule 2026-07-15). */
 const NO_REPEAT_ROUNDS = 4;
 
@@ -3309,7 +3357,7 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
       }
       // Rune of Top Shelf (Set 2 Epic, owner 2026-11-12): one offer from the Tier above per copy held. AFTER Pete, and it
       // never replaces an offer already above your Tier, so the two never undo each other.
-      if (s.questFlags?.runeTopShelf) for (let k = 0; k < Math.max(1, s.flagCopies?.runeTopShelf ?? 1); k++) offerTopShelf(s);
+      if (s.questFlags?.runeTopShelf) for (let k = 0; k < Math.max(1, s.flagCopies?.runeTopShelf ?? 1); k++) offerTopShelf(s, k);
       return s;
     }
 
@@ -6813,13 +6861,14 @@ function advanceCombat(s: RunState): void {
   // toward "Trigger N End of Turn effects" quests like real ones.
   // (Rune of the Conductor's old start-of-shop EoT re-trigger lived here; the 2026-07-31 rework moved it to
   // `endOfTurnExtra` — the rune now simply repeats your End of Turn twice more, like Parliament of Flame.)
-  // Rune of the Summit: every 2nd shop opens a Tier 7 Discover (balance 9/23; was every 3rd). `exactTier: 7` is a FIXED-tier offer, so it
+  // Rune of the Summit: turns 9 and 11 open a Tier 7 Discover. `exactTier: 7` is a FIXED-tier offer, so it
   // resolves with no rift active — which is the entire point (Tier 7 is otherwise unreachable outside one).
+  // Owner 2026-11-23 (Set 3 rune review): FIXED turns 9 and 11 (was every 2nd shop since purchase). Bought late, it pays
+  // only the turns still ahead. One Discover per copy held (recurring family, owner 2026-08-27); they queue in sequence.
+  // `runeSummitTick` still counts shops opened (old saves carry it); it no longer decides anything.
   if (s.runeSummit) {
     s.runeSummitTick = (s.runeSummitTick ?? 0) + 1;
-    // Only the 2nd shop pays; the one in between is the countdown, not the rune firing (balance 9/23: every 2nd,
-    // was every 3rd). Same cadence, one Discover per copy held (recurring family, owner 2026-08-27) — they queue in sequence.
-    if (s.runeSummitTick % 2 === 0) recordSotBeat(s, runeKindSource('runeSummit'), () => { procRune(s, 'runeSummit'); for (let k = 0; k < runeStacksOf(s, 'rune_summit'); k++) queueDiscover(s, { kind: 'minion', tier: 7, exactTier: 7 }); }); // every 2nd shop
+    if (SUMMIT_TURNS.includes(s.wave)) recordSotBeat(s, runeKindSource('runeSummit'), () => { procRune(s, 'runeSummit'); for (let k = 0; k < runeStacksOf(s, 'rune_summit'); k++) queueDiscover(s, { kind: 'minion', tier: 7, exactTier: 7 }); }); // turns 9 and 11
   }
   // Set 2 — the warband's own Start-of-Turn effects (Gemline Martyr), the symmetric twin of End of Turn. Fired
   // here as the shop opens, alongside the Start-of-Turn rune rewards below.
@@ -8510,8 +8559,7 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
       s.runeEndlessAppetite = true; // Rune of Endless Appetite: the first Consume each turn fans out to all other Demons
       break;
     case 'runeSummit':
-      // Rune of the Summit: every 2nd shop from here opens a Tier 7 Discover. Tick starts at 0, so the
-      // first payout lands on the SECOND shop after purchase — "in 2 turns", as written.
+      // Rune of the Summit: turns 9 and 11 open a Tier 7 Discover (owner 2026-11-23). The tick only counts shops.
       s.runeSummit = true;
       s.runeSummitTick = 0;
       break;

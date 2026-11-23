@@ -1797,7 +1797,7 @@ export const RUNES_RULES: GameRule[] = [
     domain: 'runes',
     status: 'approved',
     evidence: [
-      { kind: 'owner-chat', ref: "Owner votes on the Set 3 rune review board (2026-11-23), approved new runes brief", quote: "Gem Whispers (Basic, tribes kobold+dragon): Whispers you cast on a minion also cast a Ruby on it." },
+      { kind: 'owner-chat', ref: 'Set 3 Runes review board artifact, owner vote 2026-11-23 (voted Yes on the printed text, no note)' },
       { kind: 'code', ref: "packages/sim/src/recruit.ts castSpell -> gemWhispersShop; packages/core/src/combat/simulate.ts onWhisperCast -> gemWhispersCombat" },
     ],
     contentIds: ["rune_gem_whispers"],
@@ -1817,7 +1817,7 @@ export const RUNES_RULES: GameRule[] = [
     domain: 'runes',
     status: 'approved',
     evidence: [
-      { kind: 'owner-chat', ref: "Owner votes on the Set 3 rune review board (2026-11-23), approved new runes brief", quote: "Brewed Whispers (Basic, tribes dwarf+dragon): After you cast a Dwarven Ale, get a random Whisper." },
+      { kind: 'owner-chat', ref: 'Set 3 Runes review board artifact, owner vote 2026-11-23 (voted Yes on the printed text, no note)' },
       { kind: 'code', ref: "packages/sim/src/recruit.ts castSpell -> brewedWhispersShop (mintRandomWhispers); packages/core/src/combat/simulate.ts spellResolved -> brewedWhispersCombat (grantRandomWhispers)" },
     ],
     contentIds: ["rune_brewed_whispers"],
@@ -1837,7 +1837,7 @@ export const RUNES_RULES: GameRule[] = [
     domain: 'runes',
     status: 'approved',
     evidence: [
-      { kind: 'owner-chat', ref: "Owner votes on the Set 3 rune review board (2026-11-23), approved new runes brief", quote: "Haunted Hand (Epic, tribes undead+spirit): When a minion in your hand gains stats, give your Undead Aura +1 Attack. (5 times per turn.)" },
+      { kind: 'owner-chat', ref: 'Set 3 Runes review board artifact, owner vote 2026-11-23 (voted Yes on the printed text, no note)' },
       { kind: 'code', ref: "packages/sim/src/recruit.ts fireStatGainReactors -> hauntedHandShop; packages/core/src/combat/simulate.ts buffHand -> hauntedHandCombat; packages/ui/src/runeText.ts rune_haunted_hand" },
     ],
     contentIds: ["rune_haunted_hand"],

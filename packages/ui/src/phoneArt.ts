@@ -52,7 +52,7 @@ export function phonePublicCap(rel: string): number | null {
   if (rel === 'playingboard.webp' || rel === 'playingboard-combat.webp') return 1920;
   // The menu backdrop plates (1920 x 1080 masters, drawn behind every menu): about a phone screen's own width
   // (R-TOUCH-GPU-MEMORY-01). `hall-dim` is already 960 wide and a stylesheet names it.
-  if (rel === 'backdrops/hall-soft.webp' || rel === 'backdrops/hall.webp' || rel === 'backdrops/aeon-soft.webp') return 1280;
+  if (rel === 'backdrops/hall-soft.webp' || rel === 'backdrops/hall.webp' || rel === 'backdrops/world-soft.webp') return 1280;
   // The return trip's vista on a phone (owner 2026-10-24: "Phone-sized return-trip images: yea send em"): the one
   // flattened picture, a 2560 x 1440 master decoded on Shop mount and held for the run. About a phone screen's width;
   // a CSS custom property `applyPhoneCssArt` re-points. (The door's cut-out was a second one until 2026-10-25: it is a

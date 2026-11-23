@@ -60,7 +60,7 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
-        text: 'New main menu art: The World Below Aeon.',
+        text: 'New main menu art: a painted map of the world.',
       },
       {
         category: 'Systems',

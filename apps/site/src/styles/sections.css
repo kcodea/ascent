@@ -41,12 +41,11 @@
   object-position: 50% 30%;
 }
 
-/* One flat navy wash over the sky ONLY: it sits over the sky and UNDER the characters, the logo and the words, so
-   those keep their full colour (owner 2026-11-22: solid navy at 60%, on the background image alone). */
+/* The layer for a wash over the sky ONLY: over the sky and UNDER the characters, the logo and the words. Empty: the
+   current sky is painted dark enough to carry the words on its own (owner 2026-11-22: no overlay). */
 .top__tint {
   position: absolute;
   inset: 0;
-  background: color-mix(in srgb, var(--showcase) 60%, transparent);
 }
 
 /* Phone: the teams meet in a band across the top, above the words. */

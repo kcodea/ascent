@@ -26,7 +26,7 @@ for (const [name, file] of Object.entries(LAYERS)) {
 }
 // Softened here, once, so the page never pays for a filter: the characters and the words read first. The darkening
 // is the navy wash in the stylesheet (.top__tint).
-const sky = await sharp(path.join(SRC, 'background 3.png')).blur(2.5).webp({ quality: 80, effort: 6 }).toFile(path.join(OUT, 'sky.webp'));
+const sky = await sharp(path.join(SRC, 'bg4.png')).blur(2.5).webp({ quality: 80, effort: 6 }).toFile(path.join(OUT, 'sky.webp'));
 console.log('sky', `${sky.width}x${sky.height}`, `${Math.round(sky.size / 1024)} KB`);
 
 // The logo (painted with its own shadow): trimmed, and at twice its largest drawn size.

@@ -76,6 +76,41 @@ describe('Rune of the Kindred Rally', () => {
     const plain = fight([bm(RALLY.id), bm('sp3_dreamtide', { attack: 1, health: 1 })], [foe(3, 500)], { runeKindredRally: true }, []);
     expect(triggers(plain.events, 'runeKindredRally'), 'an empty hand summons nothing from it').toHaveLength(0);
   });
+  it('SEEDLING SPIRIT bound: a Rally that summons from the hand chains, and each hand card is summoned at most once', () => {
+    // Seedling is the left-most Rally: its own swing summons a Spirit from hand, which fires its Rally again, and so on.
+    // The chain must stop when the hand runs out (three cards = at most three hand-summons), with room to spare.
+    const three = (): Hand => ['h1', 'h2', 'h3'].map((u) => handMinion(u, 'sp3_slumbering', { attack: 1, health: 500 }));
+    const mine = () => [bm('sp3_seedling', { attack: 1, health: 500 })];
+    const uidsOf = (evs: CombatEvent[]) => fromHandSummons(evs).map((e) => (e as { fromHandUid?: string }).fromHandUid!);
+    const on = fight(mine(), [foe(1, 900)], { runeKindredRally: true }, three());
+    const uids = uidsOf(on.events);
+    expect([...uids].sort(), 'every hand card once').toEqual(['h1', 'h2', 'h3']);
+    expect(triggers(on.events, 'runeKindredRally')).toHaveLength(3);
+    // The chain is the rune's: all three land inside the Seedling's first swing (the fight's second attack). Without it
+    // one swing summons one card.
+    const before = (evs: CombatEvent[]) => { const at = evs.flatMap((e, i) => (e.type === 'attack' ? [i] : [])); return fromHandSummons(evs.slice(0, at[2])).length; };
+    expect(before(on.events)).toBe(3);
+    expect(before(fight(mine(), [foe(1, 900)], {}, three()).events)).toBe(1);
+    // Two copies and a full hand of ten still end: the board cap (7) and the once-per-card rule both hold.
+    const ten = (): Hand => Array.from({ length: 10 }, (_, i) => handMinion(`t${i}`, 'sp3_slumbering', { attack: 1, health: 500 }));
+    const big = fight(mine(), [foe(1, 900)], { runeKindredRally: true, flagCopies: { runeKindredRally: 2 } }, ten());
+    const bigUids = uidsOf(big.events);
+    expect(new Set(bigUids).size).toBe(bigUids.length);
+    expect(bigUids.length).toBeLessThanOrEqual(10);
+    expect(before(big.events), 'one swing fills the six free slots and stops').toBe(6);
+  });
+  it("Waking Reserve's copy is a hand-summon too, and its card stays summonable", () => {
+    const on = fight(board(), [foe(3, 500)], { runeKindredRally: true, runeWakingReserve: true }, hand());
+    expect(triggers(on.events, 'runeKindredRally')).toHaveLength(1 + fromHandSummons(on.events).length);
+    expect(triggers(fight(board(), [foe(3, 500)], { runeKindredRally: true }, hand()).events, 'runeKindredRally')).toHaveLength(2);
+  });
+  it('either side: the enemy holder fires its own left-most Rally', () => {
+    const r = simulate([foe(3, 500)], board(), makeRng(5), CARD_INDEX, combatSide({ tier: 6 }),
+      combatSide({ tier: 6, tribes: ['undead', 'spirit'], questMods: { runeKindredRally: true }, handMinions: hand() }));
+    const pulses = triggers(r.events, 'runeKindredRally');
+    expect(pulses).toHaveLength(2);
+    expect(pulses.every((e) => (e as { side?: string }).side === 'enemy')).toBe(true);
+  });
   it('is deterministic for a seed', () => {
     const a = fight(board(), [foe(3, 500)], { runeKindredRally: true }, hand(), 9);
     const b = fight(board(), [foe(3, 500)], { runeKindredRally: true }, hand(), 9);
@@ -87,7 +122,7 @@ describe('Rune of the Deep Slumber — combat half', () => {
   // Hearth Whisperer: "Whenever this takes damage, give a random minion in your hand +1/+2" (a combat `buffHand`).
   const whisperer = () => [bm('sp3_hearthwhisperer', { health: 60 })];
   const h = (): Hand => [handMinion('h1', 'u3_poochy', { attack: 1, health: 1, keywords: [] })];
-  it('every hand gain lands doubled, pulsing the rune; the carry-back matches', () => {
+  it('every hand gain lands doubled, pulsing the rune, and the carry-back is exactly what the events showed', () => {
     const off = fight(whisperer(), [foe(2, 500)], {}, h());
     const on = fight(whisperer(), [foe(2, 500)], { runeDeepSlumber: true }, h());
     const bo = handBuffs(off.events), bn = handBuffs(on.events);
@@ -97,6 +132,25 @@ describe('Rune of the Deep Slumber — combat half', () => {
     for (const e of bn) expect([e.attack, e.health]).toEqual([2, 4]);
     expect(triggers(on.events, 'runeDeepSlumber')).toHaveLength(bn.length);
     expect(triggers(off.events, 'runeDeepSlumber')).toHaveLength(0);
+    const carry = (r: typeof on) => (r.playerHandBuffs ?? []).map((b) => [b.uid, b.attack, b.health]);
+    expect(carry(on)).toEqual(bn.map((e) => [e.uid, e.attack, e.health]));
+    expect(carry(on)).toEqual(carry(off).map(([u, a, hp]) => [u, 2 * (a as number), 2 * (hp as number)]));
+  });
+  it('the pulse sits on the same beat as the gain it doubled, right before it', () => {
+    const on = fight(whisperer(), [foe(2, 500)], { runeDeepSlumber: true }, h());
+    for (const t of triggers(on.events, 'runeDeepSlumber')) {
+      const next = on.events[on.events.indexOf(t) + 1]!;
+      expect(next.type).toBe('handBuff');
+      expect((next as { step?: number }).step).toBe((t as { step?: number }).step);
+    }
+  });
+  it('a body summoned from the hand later in the same fight carries the doubled gain', () => {
+    const mine = () => [bm('sp3_hearthwhisperer', { attack: 0, health: 10 }), bm('sp3_dreamtide', { attack: 0, health: 1, keywords: [] })];
+    const last = (mods: object) => { const r = fight(mine(), [foe(2, 500)], mods, h()); const e = fromHandSummons(r.events)[0]!; const i = r.events.indexOf(e as CombatEvent); const g = handBuffs(r.events.slice(0, i)); return { body: [e.minion.attack, e.minion.health], gained: g.reduce((a, b) => [a[0]! + b.attack, a[1]! + b.health], [0, 0]) }; };
+    const off = last({}), on = last({ runeDeepSlumber: true });
+    expect(off.gained[0]).toBeGreaterThan(0);
+    expect(on.gained).toEqual([2 * off.gained[0]!, 2 * off.gained[1]!]);
+    expect(on.body).toEqual([1 + on.gained[0]!, 1 + on.gained[1]!]);
   });
   it('two copies triple it', () => {
     const on = fight(whisperer(), [foe(2, 500)], { runeDeepSlumber: true, flagCopies: { runeDeepSlumber: 2 } }, h());

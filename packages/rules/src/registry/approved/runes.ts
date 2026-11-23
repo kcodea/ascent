@@ -1535,7 +1535,7 @@ export const RUNES_RULES: GameRule[] = [
     domain: 'runes',
     status: 'approved',
     evidence: [
-      { kind: 'owner-chat', ref: 'Owner votes on the Set 3 rune review board, 2026-11-23 (new-concept runes, Spirits)', quote: 'After you Sell a Reveler, give your left-most Spirit +3/+3 permanently.' },
+      { kind: 'owner-handoff', ref: 'Set 3 Runes review board artifact, 2026-11-23: the owner voted Yes on this rune (no note). The vote approves the board card; the details in the statement that the card does not print are build calls.' },
       { kind: 'code', ref: 'packages/sim/src/recruit.ts fireOnMinionSold (runeLastDanceShop)' },
     ],
     contentIds: ['rune_last_dance'],
@@ -1550,7 +1550,7 @@ export const RUNES_RULES: GameRule[] = [
     domain: 'runes',
     status: 'approved',
     evidence: [
-      { kind: 'owner-chat', ref: 'Owner votes on the Set 3 rune review board, 2026-11-23 (new-concept runes, Spirits)', quote: 'Your first Spirit each turn costs 1 less.' },
+      { kind: 'owner-handoff', ref: 'Set 3 Runes review board artifact, 2026-11-23: the owner voted Yes on this rune (no note). The vote approves the board card; the details in the statement that the card does not print are build calls.' },
       { kind: 'code', ref: 'packages/sim/src/reducer.ts offerBuyPrice (welcomeOff) + buy + turn reset' },
     ],
     contentIds: ['rune_welcome_party'],
@@ -1565,7 +1565,7 @@ export const RUNES_RULES: GameRule[] = [
     domain: 'runes',
     status: 'approved',
     evidence: [
-      { kind: 'owner-chat', ref: 'Owner votes on the Set 3 rune review board, 2026-11-23 (new-concept runes, Spirits)', quote: 'Your Reveler bonuses also apply to the minions in your hand.' },
+      { kind: 'owner-handoff', ref: 'Set 3 Runes review board artifact, 2026-11-23: the owner voted Yes on this rune (no note). The vote approves the board card; the details in the statement that the card does not print are build calls.' },
       { kind: 'code', ref: 'packages/sim/src/recruit.ts revelerSell' },
     ],
     contentIds: ['rune_bonfire'],
@@ -1576,11 +1576,11 @@ export const RUNES_RULES: GameRule[] = [
   {
     id: 'R-SET3-NEW-SPIRIT-04',
     title: 'Kindred Rally: a minion summoned from your hand in combat fires your left-most Rally',
-    statement: "Kindred Rally (Epic Spirit, 4, Set 3). In combat, every minion that lands from your hand (a Spirit hand-summon, Rope Wrangler's Echo, the Waking Reserve's copy) fires the left-most living Rally on its side once per copy: a free Rally with every Rally multiplier folded, the Rally watchers and the tallies. The arrival itself answers when it is the left-most Rally body. Combat only, as printed. No Rally body, or no room for the summon: nothing. Bounded: each hand card summons once per combat.",
+    statement: "Kindred Rally (Epic Spirit, 4, Set 3). In combat, every minion that lands from your hand (a Spirit hand-summon, Rope Wrangler's Echo, the Waking Reserve's copy) fires the left-most living Rally on its side once per copy: a free Rally with every Rally multiplier folded, the Rally watchers and the tallies. The arrival itself answers when it is the left-most Rally body. Combat only, as printed. No Rally body, or no room for the summon: nothing. Bounded: each hand card summons once per combat, and it counts as summoned before its landing sets anything off, so a Rally that summons from the hand (Seedling Spirit) cannot pick the same card again. The Waking Reserve copy leaves its card unmarked, as before.",
     domain: 'runes',
     status: 'approved',
     evidence: [
-      { kind: 'owner-chat', ref: 'Owner votes on the Set 3 rune review board, 2026-11-23 (new-concept runes, Spirits)', quote: 'When you summon a minion from your hand in combat, trigger your left-most Rally.' },
+      { kind: 'owner-handoff', ref: 'Set 3 Runes review board artifact, 2026-11-23: the owner voted Yes on this rune (no note). The vote approves the board card; the details in the statement that the card does not print are build calls.' },
       { kind: 'code', ref: 'packages/core/src/combat/simulate.ts placeSummon (fromHand), fireFreeRally' },
     ],
     contentIds: ['rune_kindred_rally'],
@@ -1591,17 +1591,17 @@ export const RUNES_RULES: GameRule[] = [
   {
     id: 'R-SET3-NEW-SPIRIT-05',
     title: 'Deep Slumber: minions in your hand gain double stats from every source, bounded',
-    statement: "Deep Slumber (Epic Spirit, 4, Set 3). Every stat gain on a minion in your hand is paid once more per copy. Shop and End of Turn: after each action the reducer's per-action hand diff pays each hand minion its gain again, ONE pass after the onGainStats reactors (Handy Flame) and never re-diffed, so a Handy Flame or Dozer chain cannot loop; Dream Mirror and Waking Dreams then read the doubled gain. A card that turned golden this action is a new body, not a gain. Combat: the buffHand chokepoint multiplies each positive lane, and the carry-back records the doubled amount.",
+    statement: "Deep Slumber (Epic Spirit, 4, Set 3). Every stat gain on a minion in your hand is paid once more per copy held (x2 with one copy, x3 with two), exactly once, at the moment it lands. Outside combat that is `addBuff`, the one chokepoint run-side gains cross: Shop actions, End of Turn (so the fight that follows already reads the doubled hand), Start of Turn, a run-wide gain reaching held cards at settle, a mirrored gain. In combat it is `buffHand`; the carry-back records the doubled amount and settle does not double it again. Not a gain: a card's starting stats as it enters the hand, a Gild's doubled base, a spell that sets stats, a loss, the display-only Undead Aura, and anything on a spell or a Ruby. A temporary Whisper comes off whole. Bounded: the doubling fires no trigger of its own, and Handy Flame still reacts once per action. A run-wide gain made DURING a fight reaches the hand at settle, as it did before, so it is doubled there and a hand-summon in that same fight does not carry it.",
     domain: 'runes',
     status: 'approved',
     evidence: [
-      { kind: 'owner-chat', ref: 'Owner votes on the Set 3 rune review board, 2026-11-23 (new-concept runes, Spirits)', quote: 'Minions in your hand gain double stats from every source.' },
-      { kind: 'code', ref: 'packages/sim/src/recruit.ts fireStatGainReactors; packages/core/src/combat/simulate.ts ctx.buffHand' },
+      { kind: 'owner-handoff', ref: 'Set 3 Runes review board artifact, 2026-11-23: the owner voted Yes on this rune (no note). The vote approves the board card; the details in the statement that the card does not print are build calls.' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts addBuff (deepSlumberExtra, withoutDeepSlumber); packages/sim/src/reducer.ts settleCombat; packages/core/src/combat/simulate.ts ctx.buffHand' },
     ],
     contentIds: ['rune_deep_slumber'],
     cardText: 'Minions in your hand gain **double** stats from every source.',
     currentBehaviour: 'Conforms as of 2026-11-23 (new content).',
-    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3NewRunesSpirits.test.ts', 'packages/core/src/combat/set3NewRunesSpirits.test.ts'], lastVerifiedAt: '2026-11-23' },
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/deepSlumber.test.ts', 'packages/core/src/combat/set3NewRunesSpirits.test.ts'], lastVerifiedAt: '2026-11-23' },
   },
   {
     id: 'R-SET3RUNE-25',

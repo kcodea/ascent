@@ -4251,9 +4251,9 @@ export const EPIC_RUNES: RuneDef[] = [
     sets: ['set3'],
   },
   {
-    // Every stat gain on a minion in your hand is paid again (once more per copy). Shop + End of Turn: the reducer's
-    // per-action hand diff (`fireStatGainReactors`), ONE extra pass after the `onGainStats` reactors, never re-diffed,
-    // so a Handy Flame or Dozer chain cannot loop. Combat: the `buffHand` chokepoint.
+    // Every stat gain on a minion in your hand is paid again (once more per copy), as it lands: `addBuff` outside combat
+    // (Shop, End of Turn, Start of Turn, settle), `buffHand` in combat. It fires no trigger, so it cannot loop. Starting
+    // stats, a Gild and a SET are not gains (`withoutDeepSlumber`).
     id: 'rune_deep_slumber',
     tribes: ['spirit'],
     name: 'Deep Slumber',

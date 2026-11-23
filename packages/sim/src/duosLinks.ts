@@ -104,9 +104,11 @@ export function receiveLinkGain(s: RunState, id: string, attack: unknown, health
   const card = linkedHolders(s).find((c) => c.duosLink?.id === id);
   if (!card?.duosLink) return;
   const shown = s.board.includes(card) || s.hand.includes(card); // a card waiting for hand room is not on screen yet
+  const before = { a: card.attack, h: card.health };
   if (shown) captureBuffFx(s, undefined, 'spell', () => addBuff(card, LINKED_LABEL, a, h));
   else addBuff(card, LINKED_LABEL, a, h);
-  card.duosLink = { ...card.duosLink, a: card.duosLink.a + a, h: card.duosLink.h + h };
+  // What really landed (Deep Slumber doubles a held twin's gain), so nothing of it is ever sent back.
+  card.duosLink = { ...card.duosLink, a: card.duosLink.a + card.attack - before.a, h: card.duosLink.h + card.health - before.h };
 }
 
 /** THE TWIN'S RUN: my twin of link `id` left its run. The link is over: my card drops it, for good. */

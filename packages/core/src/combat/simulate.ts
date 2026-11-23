@@ -1967,14 +1967,18 @@ export function simulate(
       if (!def || def.spell) return undefined;
       const kws = [...h.keywords, ...(ward && !h.keywords.includes('DS') ? (['DS'] as Keyword[]) : [])];
       pendingHandSummon[side] = true; // Rune of Dreamed Graves reads this at placement
+      // Spent BEFORE it lands: a rune that reacts to the landing (Kindred Rally firing a Seedling Spirit) can summon from
+      // the hand again inside this call, and must not pick this same card (R-SET3-NEW-SPIRIT-04).
+      handCopiedUids.add(handKey(side, uid));
+      const logFrom = events.length;
       const copy = summonMinion(side, def, nearUid, kws, h.golden, false,
         { attack: h.attack, health: h.health, maxHealth: h.health, divineShield: !!ward || h.keywords.includes('DS'), handFold: true });
       // A FULL board: `placeSummon` overflowed (the overflow payoffs fired) and the copy never landed — so the
       // hand card is NOT spent. It is still summonable by the next summoner once there is room (owner report
       // 2026-09-10: a second Seedling Spirit found room and summoned nothing, because the first attempt had
-      // marked the card). "Once per combat" means once SUMMONED, not once attempted.
-      if (!boards[side].includes(copy)) return undefined;
-      handCopiedUids.add(handKey(side, uid)); // once per combat; the card itself stays in hand and keeps taking buffs
+      // marked the card). "Once per combat" means once SUMMONED, not once attempted: no summon event = not summoned.
+      if (!events.slice(logFrom).some((ev) => ev.type === 'summon' && ev.minion.uid === copy.uid)) { handCopiedUids.delete(handKey(side, uid)); return undefined; }
+      // Once per combat; the card itself stays in hand and keeps taking buffs.
       // Stamp the hand origin onto the summon event just emitted — the replay greys that hand card for the fight.
       // Found by uid, scanning back: a grant that lands ON the placed body (Rune of Dreamed Graves' Rebirth) emits
       // after the summon, so "the last event" is no longer guaranteed to be it.
@@ -1982,7 +1986,7 @@ export function simulate(
         const ev = events[i]!;
         if (ev.type === 'summon' && ev.minion.uid === copy.uid) { ev.fromHandUid = uid; break; }
       }
-      return copy;
+      return boards[side].includes(copy) ? copy : undefined; // landed, then died to what its own landing set off
     },
     buffHand: (uid, attack, health, side, sourceUid) => {
       // R-HAND-02 (owner 2026-09-09): "cards buffed in hand are always permanent". Either side (R-SYMMETRY-01):

@@ -2035,7 +2035,7 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   // lastDance = a Reveler sold: the left-most board Spirit +3/+3 (Shop-only); welcomeParty = the first Spirit bought
   // each turn costs 1 less (Shop-only); bonfire = the Reveler payout also lands on the hand (Shop-only);
   // kindredRally = a minion summoned from hand in combat fires the left-most Rally; deepSlumber = every hand stat gain
-  // is paid twice (Shop diff + combat `buffHand`).
+  // is paid twice (`addBuff` outside combat, `buffHand` in combat).
   | 'runeLastDance' | 'runeWelcomeParty' | 'runeBonfire' | 'runeKindredRally' | 'runeDeepSlumber'
   // ── Set 3 rune batch 3 (owner 2026-09-25) ──
   // echoingKobolds = your Kobolds carry "Echo: get a Ruby" (a graft, combat summons included); rubywire = a Shop

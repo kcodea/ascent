@@ -1,8 +1,7 @@
 /**
  * SET 3 NEW-CONCEPT RUNES, SPIRITS (owner review board 2026-11-23): the SHOP halves through the real reducer.
- * Last Dance, Welcome Party and Bonfire are Shop-only (selling and buying); Deep Slumber's Shop / End of Turn half
- * rides the reducer's per-action hand diff. Kindred Rally and Deep Slumber's combat half are
- * `packages/core/src/combat/set3NewRunesSpirits.test.ts`.
+ * Last Dance, Welcome Party and Bonfire are Shop-only (selling and buying). Deep Slumber has its own file
+ * (`deepSlumber.test.ts`); Kindred Rally is `packages/core/src/combat/set3NewRunesSpirits.test.ts`.
  */
 import { describe, expect, it } from 'vitest';
 import type { CardDef } from '@game/core';
@@ -104,6 +103,18 @@ describe('Rune of the Welcome Party', () => {
     expect(s.welcomePartyUsedThisTurn).toBeFalsy();
     expect(offerBuyPrice(shop(s), { cardId: SPIRIT.id }).cost).toBe(offerBuyPrice(shop({ ...s, questFlags: { ...s.questFlags, runeWelcomeParty: false } }), { cardId: SPIRIT.id }).cost - 1);
   });
+  it('a Spirit that is free anyway (Festival Wages) does not spend it: the next Spirit takes the discount', () => {
+    const base = offerBuyPrice(shop(run([], [])), { cardId: SPIRIT.id }).cost;
+    let s = shop({ ...run([], ['rune_welcome_party']), nextCardFree: 1 } as RunState);
+    const g0 = s.embers;
+    s = reduce(s, { type: 'buy', uid: 'o1' });
+    expect(s.hand.some((c) => c.cardId === SPIRIT.id)).toBe(true);
+    expect(s.embers, 'the Spirit was free').toBe(g0);
+    expect(s.welcomePartyUsedThisTurn).toBeFalsy();
+    s = reduce(s, { type: 'buy', uid: 'o2' });
+    expect(s.embers, 'the next Spirit is discounted').toBe(g0 - (base - 1));
+    expect(s.welcomePartyUsedThisTurn).toBe(true);
+  });
   it('two copies take 2 off', () => {
     const base = offerBuyPrice(shop(run([], [])), { cardId: SPIRIT.id }).cost;
     const s = shop(run([], ['rune_welcome_party', 'rune_welcome_party']));
@@ -134,31 +145,17 @@ describe('Rune of the Bonfire', () => {
   });
 });
 
-describe('Rune of the Deep Slumber — Shop half', () => {
-  it('a hand gain from a Spirit played (Chosen Vessel +2/+2) lands doubled', () => {
-    const go = (runes: string[]) => reduce(run([], ['rune_chosen_vessel', ...runes], [card(NEU.id, 'h'), card(SPIRIT.id, 'p')]), { type: 'play', uid: 'p', toIndex: 0 });
-    expect(stats(go([]), 'h')).toEqual([4, 4]);
-    const on = go(['rune_deep_slumber']);
-    expect(stats(on, 'h')).toEqual([6, 6]);
-    expect(on.runeProcs?.['rune_deep_slumber']).toBe(1);
+describe('Bonfire with Shared Revelry', () => {
+  it('the re-fire pays the hand too, at the grown value; the second sale of that type pays once', () => {
+    let s = run([card('sp3_flamereveler', 'f1'), card('sp3_flamereveler', 'f2')], ['rune_bonfire', 'rune_shared_revelry'], [card(SPIRIT.id, 'hs')]);
+    const x = s.revelerX ?? 1;
+    s = reduce(s, { type: 'sell', uid: 'f1' });
+    expect(stats(s, 'hs'), 'X, then X + 1').toEqual([2 + x + (x + 1), 2]);
+    s = reduce(s, { type: 'sell', uid: 'f2' });
+    expect(stats(s, 'hs'), 'then X + 2, once').toEqual([2 + x + (x + 1) + (x + 2), 2]);
   });
-  it('a board gain is never doubled', () => {
-    const go = (runes: string[]) => reduce(run([card(SPIRIT_B.id, 'b')], ['rune_deep_currents', ...runes], [card(SPIRIT.id, 'p')]), { type: 'play', uid: 'p', toIndex: 0 });
-    expect(stats(go(['rune_deep_slumber']), 'b')).toEqual(stats(go([]), 'b'));
-  });
-  it('the Handy Flame chain is bounded: one doubling pass after the reactors, never re-diffed', () => {
-    // Two Handy Flames in hand. Chosen Vessel grows the left-most (+2/+2); its reactor pays the other +6/+4; the
-    // second Flame's own gain does not re-fire this action. Deep Slumber then pays every hand gain once more.
-    const go = (runes: string[]) => reduce(run([], ['rune_chosen_vessel', ...runes], [card('sp3_handyflame', 'f1'), card('sp3_handyflame', 'f2'), card(SPIRIT.id, 'p')]), { type: 'play', uid: 'p', toIndex: 0 });
-    const off = go([]);
-    expect([stats(off, 'f1'), stats(off, 'f2')]).toEqual([[4, 15], [8, 17]]);
-    const on = go(['rune_deep_slumber']);
-    expect([stats(on, 'f1'), stats(on, 'f2')]).toEqual([[6, 17], [14, 21]]);
-  });
-  it('Dream Mirror reads the doubled gain', () => {
-    const go = (runes: string[]) => reduce(run([card(NEU.id, 'b')], ['rune_chosen_vessel', 'rune_dream_mirror', ...runes], [card(NEU.id, 'h'), card(SPIRIT.id, 'p')]), { type: 'play', uid: 'p', toIndex: 0 });
-    // The board holds the neutral and the played Spirit; the mirror lands on one of them (seeded). Sum the board.
-    const total = (s: RunState) => s.board.reduce((n, c) => n + c.attack + c.health, 0);
-    expect(total(go(['rune_deep_slumber'])) - total(go([]))).toBe(4); // +4/+4 mirrored instead of +2/+2
+  it('Last Dance pays once per SALE, not per re-fire', () => {
+    const s = reduce(run([card('sp3_tidereveler', 't'), card(SPIRIT.id, 'a')], ['rune_last_dance', 'rune_shared_revelry']), { type: 'sell', uid: 't' });
+    expect(s.runeProcs?.['rune_last_dance']).toBe(1);
   });
 });

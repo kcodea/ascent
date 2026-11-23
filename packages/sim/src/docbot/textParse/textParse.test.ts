@@ -228,8 +228,8 @@ const SWEEP = runTextSweep({ contracts: CONTRACTS });
 // is a distinct-id sequence the grammar does not read; pinned by packages/sim/src/runeSequencing.test.ts.
 // 2026-11-23 (Set 3 new-concept Spirit runes, owner review board): 223 -> 225, CONSCIOUSLY. Bonfire ("Your Reveler
 // bonuses also apply to the minions in your hand") widens another card's audience and Deep Slumber ("gain double stats
-// from every source") is a hand-gain multiplier; the grammar reads neither. Pinned by packages/sim/src/set3NewRunesSpirits.test.ts
-// and packages/core/src/combat/set3NewRunesSpirits.test.ts.
+// from every source") is a hand-gain multiplier; the grammar reads neither. Pinned by packages/sim/src/set3NewRunesSpirits.test.ts,
+// packages/sim/src/deepSlumber.test.ts and packages/core/src/combat/set3NewRunesSpirits.test.ts.
 const UNRESOLVED_CAP = 225;
 /** Collapse floor: the parser fully consuming fewer objects than this means a grammar regression. */
 const PARSED_FLOOR = 900;

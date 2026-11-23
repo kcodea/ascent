@@ -61,6 +61,7 @@ import { godRuneBlocked } from './godMode';
 import { buyStarform, fireStarformGainRemainder, starformFollowShopBuff, starformRefreshTick, starformSnapshot, starformSoulScriptBake, starformSpellAimsToken, starformStandIn, withStarformPinned, buffStarform, createStarform, hasStarform } from './starform';
 import { syncStarDestroyer, overchargeFree, consumeCalibration, equipmentPermanentlyAmplified, equipmentAmplifiedByAura, quickReleaseApplies, grantRuneEquipment, equipIsNews } from './equipment';
 import { fireOnBuyWatchers, tribesPlayedThisTurn, fireHandCardEcho, syncSoulFurnace, GEM_STAR_CAP, syncUnity, isTribeNatural, syncRunTribes, stampRunTribes } from './recruit';
+import { HAUNTED_HAND_CAP } from './runeLiveState'; // Set 3 new hybrid runes: Rune of the Haunted Hand's per-turn cap
 import { withWhisperMult, spendNextSpellCharge, spendLastCall } from './recruit';
 import { unusedEquipmentCount } from './equipment';
 import { borrowedFlameValue, clearVoicesOnHandCast, payRunicPrimer, runicPrimerTurnStart, SPELL_TEMPERING_PER } from './dragonRunesBasic';
@@ -6347,6 +6348,7 @@ function advanceCombat(s: RunState): void {
   s.openGraveUsedThisTurn = undefined;   // Rune of the Open Grave: the first Shop destroy of the new turn gains Rise
   s.encoreUsedThisTurn = undefined;      // Rune of the Encore: the first Reveler sale of the new turn pays the hand
   s.gemStarThisTurn = undefined;         // Rune of the Gem Star: the first 4 Rubies of the new turn feed the Starform
+  s.hauntedHandThisTurn = undefined;     // Rune of the Haunted Hand: the first 5 hand gains of the new turn raise the Aura
   s.clearVoicesIds = undefined;          // Rune of Clear Voices: the turn's distinct Whispers count afresh
   s.clearVoicesPaid = undefined;         // …and its "Once per turn" re-arms
   s.openTreasuryUsed = undefined;        // Rune of the Open Treasury: the first spell bought of the new turn is copied
@@ -8970,6 +8972,11 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     runeGemStar: f?.runeGemStar,                     // the first 4 Rubies cast each turn also feed the Starform
     gemStarLeft: f?.runeGemStar ? Math.max(0, GEM_STAR_CAP - (s.gemStarThisTurn ?? 0)) : undefined, // the turn's remaining Gem Star Rubies
     runeKeepsakeGem: f?.runeKeepsakeGem,             // every Ruby also lands on the left-most hand minion
+    // ── Set 3 new hybrid runes (owner review board 2026-11-23) ──
+    runeGemWhispers: f?.runeGemWhispers,             // a Whisper cast on a friendly minion also casts a Ruby on it
+    runeBrewedWhispers: f?.runeBrewedWhispers,       // a Dwarven Ale cast gets a random Whisper
+    runeHauntedHand: f?.runeHauntedHand,             // a hand minion gaining stats raises the Undead Aura +1 Attack
+    hauntedHandLeft: f?.runeHauntedHand ? Math.max(0, HAUNTED_HAND_CAP - (s.hauntedHandThisTurn ?? 0)) : undefined, // the turn's remaining pays
     // ── tranche 5 ──
     runeHeavyHand: f?.runeHeavyHand,                 // friendly damage counts double toward Pummel
     runeUnity: f?.runeUnity,                         // all 5 types controlled → every minion counts as every type

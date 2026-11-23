@@ -100,11 +100,14 @@ const OWNER_LIST: Record<string, { basic: Record<string, string>; epic: Record<s
   hybrid: {
     // Design pass tranche 4 (owner 2026-09-27). No Tavern Tab: its Dwarf + Spirit slot is the owner's pick, the Last
     // Call, shipped as "Rune of Closing Time" (the Set 2 Dwarf rune `rune_last_call` already owns "Rune of Last Call").
-    basic: { 'minted gems': 'rune_minted_gems', 'gem crypt': 'rune_gem_crypt', pallbearer: 'rune_pallbearer', /* 'star tap': PARKED 2026-10-14 */ 'closing time': 'rune_closing_time' },
+    basic: { 'minted gems': 'rune_minted_gems', 'gem crypt': 'rune_gem_crypt', pallbearer: 'rune_pallbearer', /* 'star tap': PARKED 2026-10-14 */ 'closing time': 'rune_closing_time',
+      // Set 3 new hybrid runes (owner review board 2026-11-23).
+      'gem whispers': 'rune_gem_whispers', 'brewed whispers': 'rune_brewed_whispers' },
     epic: { /* 'festival circuit' + 'gem star': PARKED 2026-10-14 (Celestial swap) */ 'grim toast': 'rune_grim_toast', 'keepsake gem': 'rune_keepsake_gem',
       // Owner add 2026-10-03: Rune of Drakko (Set 2 + Set 3, Epic), "categorize it as a dragon and/or spirit rune". Both
       // of its tribes are Set 3 tribes since the 2026-10-14 swap brought the Dragons in.
-      drakko: 'rune_drakko' },
+      drakko: 'rune_drakko',
+      'haunted hand': 'rune_haunted_hand' /* Set 3 new hybrid runes (owner review board 2026-11-23) */ },
   },
   // MENAGERIE (2026-09-27 design pass, tranche 5): the Set 3 Menagerie (gated to all five tribes, MENAGERIE_TRIBES) and
   // Unity (untagged, as the Stoked Menagerie). Five Banners, Strange Caravan and the Stoked Menagerie stay listed as
@@ -176,13 +179,15 @@ const HYBRID_TRIBES: Record<string, readonly Tribe[]> = {
   rune_closing_time: ['dwarf', 'spirit'], rune_grim_toast: ['dwarf', 'undead'],
   rune_keepsake_gem: ['kobold', 'spirit'],
   rune_drakko: ['dragon', 'spirit'], // owner 2026-10-03 (both halves are Set 3 tribes since the 2026-10-14 swap)
+  // Set 3 new hybrid runes (owner review board 2026-11-23)
+  rune_gem_whispers: ['kobold', 'dragon'], rune_brewed_whispers: ['dwarf', 'dragon'], rune_haunted_hand: ['undead', 'spirit'],
 };
 
 describe("the owner's Set 3 rune list (2026-09-25)", () => {
   it('names 203 distinct runes, every one a live (non-archived) rune def', () => {
     // 163 + 11 from Set 3 rune batch 3 (2026-09-25) = 174; the 2026-09-27 design pass: tranche 0 cut 10, restored 5 (169);
     // tranche 1 added 8 Undead (177); tranche 2 added 8 Celestial (185); tranche 3 added 4 Spirit + 3 Dwarf (192); tranche 4 added 8 hybrids (200); tranche 5 added the Set 3 Menagerie, Unity and the Heavy Hand (203); Rune of Drakko 2026-10-03 (204); Profit Sharing archived everywhere 2026-10-07 (203).
-    expect(LISTED).toHaveLength(204); // 202 → 204 on 2026-10-23 (Set 3 Dwarf runes: + 1 Basic, + 1 Epic); 197 → 202 on 2026-10-22 (Set 3 Kobold runes: + 3 Basic, + 2 Epic); 193 → 197 on 2026-10-21 (Set 3 Dragon runes, Epic B: + 4); 186 → 193 on 2026-10-21 (Set 3 Dragon runes, Epic A: + 7); 175 → 186 on 2026-10-21 (Set 3 Dragon runes, Basic: + 11); 176 → 175 on 2026-10-21 (Rune of the High King left set 3: Brill is buyable there); 200 → 176 on 2026-10-14 (owner swap: 20 Celestial runes to Set 4, 4 Celestial hybrids parked); 203 → 200 on 2026-10-13 (owner Set 3 batch: Red Storm + Storming Veins archived, Living Geode left set 3)
+    expect(LISTED).toHaveLength(207); // 204 → 207 on 2026-11-23 (Set 3 new hybrid runes: + 2 Basic, + 1 Epic); 202 → 204 on 2026-10-23 (Set 3 Dwarf runes: + 1 Basic, + 1 Epic); 197 → 202 on 2026-10-22 (Set 3 Kobold runes: + 3 Basic, + 2 Epic); 193 → 197 on 2026-10-21 (Set 3 Dragon runes, Epic B: + 4); 186 → 193 on 2026-10-21 (Set 3 Dragon runes, Epic A: + 7); 175 → 186 on 2026-10-21 (Set 3 Dragon runes, Basic: + 11); 176 → 175 on 2026-10-21 (Rune of the High King left set 3: Brill is buyable there); 200 → 176 on 2026-10-14 (owner swap: 20 Celestial runes to Set 4, 4 Celestial hybrids parked); 203 → 200 on 2026-10-13 (owner Set 3 batch: Red Storm + Storming Veins archived, Living Geode left set 3)
     expect(new Set(LISTED).size, 'no rune named twice').toBe(LISTED.length);
     for (const id of LISTED) {
       expect(LIVE.some((r) => r.id === id), `${id} is a live rune`).toBe(true);
@@ -207,8 +212,8 @@ describe("the owner's Set 3 rune list (2026-09-25)", () => {
   });
 
   it('counts: 109 Basic / 94 Epic, after Profit Sharing left 2026-10-07 (91 / 83 on 2026-09-25; 2026-09-27 tranche 0: 87 / 82; tranche 1: + 5 / + 3 Undead; tranche 2: + 5 / + 3 Celestial; tranche 3: + 5 / + 2 Spirit + Dwarf; tranche 4: + 5 / + 3 hybrids; tranche 5: + 2 / + 1 Menagerie + Heavy Hand)', () => {
-    expect(LISTED.filter((id) => RUNES.some((r) => r.id === id))).toHaveLength(110); // 109 → 110 on 2026-10-23 (Set 3 Dwarf rune, Basic: Last Call); 106 → 109 on 2026-10-22 (Set 3 Kobold runes, Basic); 95 → 106 on 2026-10-21 (Set 3 Dragon runes, Basic); 107 → 95 on 2026-10-14 (Celestial swap); 109 → 107 on 2026-10-13 (Red Storm archived, Living Geode left set 3)
-    expect(LISTED.filter((id) => EPIC_RUNES.some((r) => r.id === id))).toHaveLength(94); // 93 → 94 on 2026-10-23 (Set 3 Dwarf rune, Epic: Return Customers); 91 → 93 on 2026-10-22 (Set 3 Kobold runes, Epic); 87 → 91 on 2026-10-21 (Set 3 Dragon runes, Epic B); 80 → 87 on 2026-10-21 (Set 3 Dragon runes, Epic A); 81 → 80 on 2026-10-21 (Rune of the High King left set 3); 93 → 81 on 2026-10-14 (Celestial swap); 94 → 93 on 2026-10-13 (Storming Veins archived) // 95 → 94 on 2026-10-07 (Profit Sharing archived); 94 → 95 on 2026-10-03 (Rune of Drakko)
+    expect(LISTED.filter((id) => RUNES.some((r) => r.id === id))).toHaveLength(112); // 110 → 112 on 2026-11-23 (Set 3 new hybrid runes, Basic: Gem Whispers, Brewed Whispers); 109 → 110 on 2026-10-23 (Set 3 Dwarf rune, Basic: Last Call); 106 → 109 on 2026-10-22 (Set 3 Kobold runes, Basic); 95 → 106 on 2026-10-21 (Set 3 Dragon runes, Basic); 107 → 95 on 2026-10-14 (Celestial swap); 109 → 107 on 2026-10-13 (Red Storm archived, Living Geode left set 3)
+    expect(LISTED.filter((id) => EPIC_RUNES.some((r) => r.id === id))).toHaveLength(95); // 94 → 95 on 2026-11-23 (Set 3 new hybrid runes, Epic: Haunted Hand); 93 → 94 on 2026-10-23 (Set 3 Dwarf rune, Epic: Return Customers); 91 → 93 on 2026-10-22 (Set 3 Kobold runes, Epic); 87 → 91 on 2026-10-21 (Set 3 Dragon runes, Epic B); 80 → 87 on 2026-10-21 (Set 3 Dragon runes, Epic A); 81 → 80 on 2026-10-21 (Rune of the High King left set 3); 93 → 81 on 2026-10-14 (Celestial swap); 94 → 93 on 2026-10-13 (Storming Veins archived) // 95 → 94 on 2026-10-07 (Profit Sharing archived); 94 → 95 on 2026-10-03 (Rune of Drakko)
   });
 
   it('every rune NOT named is out of Set 3, still resolves, and keeps its other sets (never archived)', () => {

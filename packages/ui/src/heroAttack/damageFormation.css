@@ -15,8 +15,8 @@
    circle of radius `--ol-r` (half the old stroke width: the half that showed outside the letter) in colour `--ol-c`.
    Copies on a circle have round corners by construction. A number's drop shadow and glow are a static
    `filter: drop-shadow`, which shadows the outlined shape exactly as the old text-shadow did. No stroke means no
-   `paint-order`, so WebKit (iPhone) draws all of it natively and these labels carry no `data-wkt` (webkitText.ts).
-   All static paint: nothing here animates, the labels still move by transform / opacity only. */
+   `paint-order`, so WebKit (iPhone) draws all of it natively and it needs no layered copies. The same outline is on
+   every outlined label in the game (styles.css, "ROUND OUTLINES"). All static paint: nothing here animates, the labels still move by transform / opacity only. */
 .dform-chip b, .dform-merge b, .dform-hero b, .dform-merge i, .dform-hero i, .hblast-total-n, .hblast-total-l, .dform-stamp, .hblast-hit {
   --ol-c: #1b0f06;
   --ol-ring:

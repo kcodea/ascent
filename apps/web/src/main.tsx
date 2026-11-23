@@ -1,7 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import gsap from 'gsap';
-import { Boot, Game, installEgressMeter, installErrorReporting, installStage, installWebKitText } from '@game/ui';
+import { Boot, Game, installEgressMeter, installErrorReporting, installStage } from '@game/ui';
 
 // Error + crash reports on every client (packages/ui/src/errorReport.ts): the global error / rejection listeners and the
 // crashed-session sentinel go in first, so a boot error is caught too. Nothing is sent until the game has mounted.
@@ -27,8 +27,6 @@ if (!root) throw new Error('Missing #root');
 // render, so a phone never paints a frame of the unscaled layout.
 installStage();
 
-// iPhone / Safari (WebKit): outlined labels get their glow from layered copies (packages/ui/src/webkitText.ts).
-installWebKitText();
 
 // Disable the browser context menu — right-click does nothing in-game.
 window.addEventListener('contextmenu', (e) => e.preventDefault());

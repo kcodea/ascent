@@ -63,9 +63,10 @@ describe('R-DUOS-RAIL-PLATE-01: the Duos team plate takes the slices\x27 shape',
     const body = rule('html:root .lobbyrail.lrv-docked .lrv-teamname');
     expect(body).toMatch(/text-align:\s*right/);
     expect(body).toMatch(/padding-right:\s*calc\(2[1-9]px/); // the 30px chip reaches 21px in from the corner
-    expect(body).toMatch(/--wk-stroke:\s*calc\(4px[^;]*#000/); // under the fill: a 2px outline
-    expect(body).toMatch(/-webkit-text-stroke:\s*var\(--wk-stroke\)/);
-    expect(body).toMatch(/paint-order:\s*stroke fill/);
+    // A 2px outline, a ROUND one: a ring of text-shadow copies, never a text stroke (R-OUTLINE-ROUND-01).
+    expect(body).toMatch(/--ol-r:\s*calc\(2px[^;]*\);\s*--ol-c:\s*#000/);
+    expect(body).toMatch(/text-shadow:\s*var\(--ol-ring\)/);
+    expect(body).not.toMatch(/text-stroke|paint-order/);
   });
 });
 

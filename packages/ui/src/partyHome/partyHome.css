@@ -625,7 +625,8 @@ html:not([data-ph-compact]) .ph-cardwrap .ph-foot > .ph-state { top: auto; botto
 /* The player's name sits a touch higher and wears a 2px black stroke (owner 2026-11-05: "raise the player name just a bit and put a
    2px stroke around the letters. black"). The stroke is painted under the fill, so the letters keep their full weight. */
 html:not([data-ph-compact]) .ph-cardwrap .ph-name { translate: 0 calc(-4 * var(--phu)); padding: 0 calc(2 * var(--phu)); }
-.ph-cardwrap .ph-name { -webkit-text-stroke: calc(2 * var(--phu)) #000; paint-order: stroke fill; }
+/* (A ROUND outline, R-OUTLINE-ROUND-01 in styles.css: a ring of text-shadow copies, then `.ph-name`'s own shadows.) */
+.ph-cardwrap .ph-name { --ol-r: calc(1 * var(--phu)); --ol-c: #000; --ol-ring: var(--ol-r) 0 0 var(--ol-c), calc(var(--ol-r) * 0.9239) calc(var(--ol-r) * 0.3827) 0 var(--ol-c), calc(var(--ol-r) * 0.7071) calc(var(--ol-r) * 0.7071) 0 var(--ol-c), calc(var(--ol-r) * 0.3827) calc(var(--ol-r) * 0.9239) 0 var(--ol-c), 0 var(--ol-r) 0 var(--ol-c), calc(var(--ol-r) * -0.3827) calc(var(--ol-r) * 0.9239) 0 var(--ol-c), calc(var(--ol-r) * -0.7071) calc(var(--ol-r) * 0.7071) 0 var(--ol-c), calc(var(--ol-r) * -0.9239) calc(var(--ol-r) * 0.3827) 0 var(--ol-c), calc(var(--ol-r) * -1) 0 0 var(--ol-c), calc(var(--ol-r) * -0.9239) calc(var(--ol-r) * -0.3827) 0 var(--ol-c), calc(var(--ol-r) * -0.7071) calc(var(--ol-r) * -0.7071) 0 var(--ol-c), calc(var(--ol-r) * -0.3827) calc(var(--ol-r) * -0.9239) 0 var(--ol-c), 0 calc(var(--ol-r) * -1) 0 var(--ol-c), calc(var(--ol-r) * 0.3827) calc(var(--ol-r) * -0.9239) 0 var(--ol-c), calc(var(--ol-r) * 0.7071) calc(var(--ol-r) * -0.7071) 0 var(--ol-c), calc(var(--ol-r) * 0.9239) calc(var(--ol-r) * -0.3827) 0 var(--ol-c); text-shadow: var(--ol-ring), var(--ph-shadow), 0 calc(2 * var(--phu)) calc(8 * var(--phu)) rgba(0, 0, 0, 0.7); }
 
 /* Up, clear of the point (owner 2026-11-05: "the name needs to move up considerably still. move up the rank section as well. lower
    the size of the title"): the rows start at 57% of the card, the title drops to 11 units, and the medal sits closer under it. */
@@ -663,7 +664,7 @@ html:not([data-ph-compact]) .ph-cardwrap .ph-foot, html:not([data-ph-compact]) .
 /* The rank medal 15% smaller (60 to 51 units), and the name's black stroke 3 units (owner 2026-11-05: "reduce the medallion size
    by 15% and increase the stroke around the player name by 1px"). */
 html:not([data-ph-compact]) .ph-cardwrap .ph-rank .rankcrest { --ring: min(calc(51 * var(--phu)), 17.85cqi); }
-.ph-cardwrap .ph-name { -webkit-text-stroke-width: calc(5 * var(--phu)); }
+.ph-cardwrap .ph-name { --ol-r: calc(2.5 * var(--phu)); }
 /* The medal and rank a little lower under the title (owner 2026-11-05: "now lower the medallion and rank just a little bit"). */
 html:not([data-ph-compact]) .ph-cardwrap .ph-rank, html:not([data-ph-compact]) .ph-cardwrap .ph-rank:has(.ph-muted) { margin-top: calc(20 * var(--phu)); }
 /* The whole block the slightest bit lower again (owner 2026-11-05), and a bit lower still (owner 2026-11-06). */

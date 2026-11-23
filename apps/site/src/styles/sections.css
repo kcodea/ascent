@@ -128,7 +128,7 @@
 
 .top__pitch {
   max-width: 52ch;
-  margin-top: var(--s3);
+  margin-top: var(--s5);
   font-size: var(--fs-lede);
   font-weight: 600;
   line-height: 1.55;
@@ -1224,7 +1224,7 @@ html:not(.is-other, .is-mobile) .top :is(.download__platform, .download__note) {
 
 @media (min-width: 760px) {
   .top {
-    padding: clamp(3rem, 8vh, 6rem) var(--gutter) clamp(4.5rem, 12vh, 8rem);
+    padding: clamp(2rem, 5vh, 4rem) var(--gutter) clamp(7rem, 19vh, 13rem);
   }
 
   /* Sizes and places below are the owner's, set in the ?tune panel (tuner.ts) on 2026-11-22. */

@@ -238,7 +238,10 @@ const SWEEP = runTextSweep({ contracts: CONTRACTS });
 // bonuses also apply to the minions in your hand") widens another card's audience and Deep Slumber ("gain double stats
 // from every source") is a hand-gain multiplier; the grammar reads neither. Pinned by packages/sim/src/set3NewRunesSpirits.test.ts,
 // packages/sim/src/deepSlumber.test.ts and packages/core/src/combat/set3NewRunesSpirits.test.ts.
-const UNRESOLVED_CAP = 233;
+// 2026-11-23 (six Set 2 Epic runes + the Spellmaiden token): 224 -> 229, CONSCIOUSLY. Their rules (a Gold threshold
+// changed on another card, "no Triple Reward when played", a widened Ruby target, the first 3 targeted spells casting
+// twice, spell power multiplied on sale) are engine hooks or modifiers the clause grammar does not read.
+const UNRESOLVED_CAP = 238;
 /** Collapse floor: the parser fully consuming fewer objects than this means a grammar regression. */
 const PARSED_FLOOR = 900;
 /** The HARD ceiling (2026-09-11): the unresolved share of active objects may never reach this fraction again. A

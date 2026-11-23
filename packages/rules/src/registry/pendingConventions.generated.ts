@@ -936,7 +936,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "title": "Gilding default: ×2",
     "statement": "A gilded card doubles its printed numbers. Outliers instead gild the summoned token, reshape the effect, or add a proc; spells never gild. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "gilding",
-    "currentBehaviour": "422 cards carry authored goldenText; every other card inherits the ×2 number-doubler. The outlier shapes are the owner's 2026-08-28 rulings, now carried per card as the contract's gildedDelta kind (R-GILD-01); spells and Rubies are not-applicable (R-GILD-02).",
+    "currentBehaviour": "423 cards carry authored goldenText; every other card inherits the ×2 number-doubler. The outlier shapes are the owner's 2026-08-28 rulings, now carried per card as the contract's gildedDelta kind (R-GILD-01); spells and Rubies are not-applicable (R-GILD-02).",
     "cardText": "Exemplar — Wolves Den: \"Deathrattle: Summon 3 Crypt Wolves.\" → gilded: \"Deathrattle: Summon 6 Crypt Wolves.\"",
     "example": "Wolves Den's gilded text just writes the ×2 out in full — while gilded Dunkey instead summons ONE gilded Armadiyo."
   },
@@ -2485,11 +2485,11 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-trigger-sell",
-    "title": "Trigger: you sell a card · 24 cards",
-    "statement": "All 24 of these fire on one trigger: you sell a card. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
+    "title": "Trigger: you sell a card · 25 cards",
+    "statement": "All 25 of these fire on one trigger: you sell a card. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "20 effect factories across 24 cards dispatch on 'minionSold', 'onSell' (recruit) — re-clustered by TRIGGER out of the 'economy' + 'economyReact' presentation families on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Solburn: \"Sell: Collapse your Starform.\" · Members: Solburn · Riverback · Voicekeeper · Arcane Behemoth · Grevlin & Co. · Hank Pepe · Keg Runner · Leeds · Mariet · Sailsey · Shift Broker · Valyou · … and 12 more",
+    "currentBehaviour": "21 effect factories across 25 cards dispatch on 'minionSold', 'onSell' (recruit) — re-clustered by TRIGGER out of the 'economy' + 'economyReact' presentation families on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
+    "cardText": "Exemplar — Solburn: \"Sell: Collapse your Starform.\" · Members: Solburn · Riverback · Voicekeeper · Arcane Behemoth · Grevlin & Co. · Hank Pepe · Keg Runner · Leeds · Mariet · Sailsey · Shift Broker · Valyou · … and 13 more",
     "example": "Solburn fires when you sell a card, like every other card here. its printed numbers double when the card is gilded.",
     "contentIds": [
       "ce3_coronadevotee",
@@ -2509,6 +2509,7 @@ export const CONVENTION_PENDING: GameRule[] = [
       "k_beggy",
       "k_pouchpincher",
       "n2_salesman",
+      "n2_spellmaiden",
       "n3_goldenmonkey",
       "salvatore",
       "sp3_flamereveler",

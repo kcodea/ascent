@@ -2075,6 +2075,41 @@ export function stampYazzusCasts(state: RunState, def: CardDef, casts: number): 
   stampEpicFire(state, state.board.filter((c) => c.cardId === 'yazzus').map((c) => c.uid));
 }
 
+/** DOUBLE TAP (Set 2 Epic, owner 2026-11-23): "The first 3 targeted spells you cast each turn cast twice." */
+export const DOUBLE_TAP_PER_TURN = 3;
+export const DOUBLE_TAP_ID = 'rune_double_tap';
+/** Double Tap: targeted spells cast from hand THIS wave. A new wave reads 0. */
+export function doubleTapUsedThisTurn(state: Pick<RunState, 'doubleTapUsed' | 'wave'>): number {
+  const u = state.doubleTapUsed;
+  return u && u.wave === state.wave ? u.n : 0;
+}
+/** Double Tap: doubles left this turn (its live text), or undefined without the rune. */
+export function doubleTapLeft(state: Pick<RunState, 'doubleTapUsed' | 'wave' | 'questFlags'>): number | undefined {
+  if (!state.questFlags?.runeDoubleTap) return undefined;
+  return Math.max(0, DOUBLE_TAP_PER_TURN - doubleTapUsedThisTurn(state));
+}
+/**
+ * DOUBLE TAP's multiplier on a cast from hand: x(1 + copies held) while `targeted` and the turn's 3 are not spent, else
+ * 1. READ-ONLY (the hand badge previews it), the Hunch x Bonds shape: folded into the same three counts Yazzus reaches
+ * (`spellCasts` for a Shop spell, `rubyCastCount`, `giftCastCount` for an aimed Clue / Tower Shield / Whisper), and spent
+ * at the same from-hand cast sites (`noteDoubleTapCast`). From hand only (the from-hand gate, owner 2026-09-24).
+ */
+export function doubleTapCastMult(state: Pick<RunState, 'doubleTapUsed' | 'wave' | 'questFlags' | 'flagCopies'>, targeted: boolean): number {
+  if (!targeted || !state.questFlags?.runeDoubleTap || doubleTapUsedThisTurn(state) >= DOUBLE_TAP_PER_TURN) return 1;
+  return 1 + Math.max(1, state.flagCopies?.runeDoubleTap ?? 1);
+}
+/** Double Tap: a targeted spell was cast from hand: count it, and pulse the rune when it took the double (its beat).
+ *  Counted whether or not the rune is held, so "the first 3 each turn" means the turn's first 3 even when the rune is
+ *  bought after some of them (the look-back every turn-scoped pick takes: Elder's Voice, Hunch x Bonds). */
+export function noteDoubleTapCast(state: RunState): void {
+  if (doubleTapCastMult(state, true) > 1) procRune(state, 'runeDoubleTap');
+  state.doubleTapUsed = { wave: state.wave, n: doubleTapUsedThisTurn(state) + 1 };
+}
+/** `noteDoubleTapCast` for a Shop spell's from-hand cast: only a TARGETED one spends (a `singleCast` never multiplies). */
+export function noteDoubleTapHandSpellCast(state: RunState, def: CardDef): void {
+  if (def.target && !def.singleCast) noteDoubleTapCast(state);
+}
+
 export function yazzusExtraCasts(state: RunState): number {
   const y = state.board.filter((c) => c.cardId === 'yazzus');
   if (y.some((c) => c.golden)) return 2;
@@ -2132,7 +2167,7 @@ export function rubyCastCount(state: RunState): number {
   // Ruby cast site the same way the Shop-spell sites spend it.
   // Ancient of Bonds × Hunch: a Ruby is a targeted spell (as for Yazzus), so it takes one of the turn's doubles
   // (R-ANCFIX-04; read-only, the Ruby cast site spends it).
-  return (1 + extra) * grimoireMultActive(state) * ancientTargetedCastMult(state, true) + nextSpellExtra(state);
+  return (1 + extra) * grimoireMultActive(state) * ancientTargetedCastMult(state, true) * doubleTapCastMult(state, true) + nextSpellExtra(state);
 }
 
 /** How many times a GIFT-class hand spell resolves. A Gift resolves exactly once (owner design 2026-08-26) — except a
@@ -2142,7 +2177,7 @@ export function rubyCastCount(state: RunState): number {
 export function giftCastCount(state: Pick<RunState, 'board' | 'nextSpellExtraCasts' | 'edictCharges' | 'edictExtra'>, def: Pick<CardDef, 'giftMulticast'>, aimed: boolean): number {
   if (!def.giftMulticast || !aimed) return 1;
   // Ancient of Bonds × Hunch: an aimed Clue / Tower Shield is a targeted spell too (R-ANCFIX-04; spent at the cast site).
-  return (1 + yazzusExtraCasts(state as RunState)) * ancientTargetedCastMult(state as RunState, true) + nextSpellExtra(state);
+  return (1 + yazzusExtraCasts(state as RunState)) * ancientTargetedCastMult(state as RunState, true) * doubleTapCastMult(state as RunState, true) + nextSpellExtra(state);
 }
 
 /** The "next spell cast from hand" extras on the NEXT hand cast: Comet / Nimbus' banked charge (`nextSpellExtraCasts`)
@@ -2231,6 +2266,8 @@ export function runeExtraCasts(state: RunState, def: CardDef, card?: Pick<BoardC
   }
   if ((card?.extraCasts ?? 0) > 0 && (state.ownedRunes ?? []).includes('rune_astral_draft')) runes.push('rune_astral_draft');
   if (def.id === 'veinstorm' && (state.runeStormingVeins ?? 0) > 0) runes.push('rune_storming_veins');
+  // Double Tap's extra cast is the RUNE's cast (its node on the rail, the rune flourish), like the repeat runes above.
+  if (doubleTapCastMult(state, !!def.target) > 1) runes.push(DOUBLE_TAP_ID);
   if (runes.length === 0) return [];
   const off = new Set(runes);
   let prev = spellCastsWithout(state, def, card, off);
@@ -2273,6 +2310,8 @@ function spellCastsWithout(state: RunState, def: CardDef, card: Pick<BoardCard, 
   // Ancient of Bonds × Hunch (ancient pass 2): the first 3 TARGETED spells each turn cast twice. Read-only, like Spell
   // Thesis: the from-hand cast sites spend it (`ancientNoteHandSpellCast`).
   mult *= ancientTargetedSpellMult(state, def);
+  // Double Tap (Set 2 Epic, 2026-11-23): the first 3 TARGETED spells each turn cast twice. Read-only, the same shape.
+  if (!off.has(DOUBLE_TAP_ID)) mult *= doubleTapCastMult(state, !!def.target);
   // Rune of Hoardflame / Rune of Dragon Breath: THIS spell id casts an extra time. Card-scoped (the Edward
   // Keg-hands shape below, by id rather than by Ale list) and read-only, so the UI's x N badge previews the
   // real count — which is what makes the multicast modifier show while the rune is armed.
@@ -7207,6 +7246,16 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     gainGold(ctx.state, num(params.amount, 6) * gold(self));
   },
 
+  /** Set 2 — Spellmaiden (Sell, owner 2026-11-23): MULTIPLY the run's Shop spell power. "Shop spell power" is the
+   *  banked `spellBonus` (the +A/+H every "your Shop spells have +1 Attack" card and quest writes), multiplied by
+   *  `factor` (x2), one more per Gild step (x3 Gilded). The hero's amplify, the Crown and board spell auras are not
+   *  banked, so they are not multiplied. 0 stays 0. The Spell Power FX rides the before/after delta (`spellPowerFxSeq`). */
+  onSellMultiplySpellPower: (ctx, self, params) => {
+    const factor = Math.max(1, num(params.factor, 2)) + (gold(self) - 1);
+    const sb = ctx.state.spellBonus ?? { attack: 0, health: 0 };
+    ctx.state.spellBonus = { attack: sb.attack * factor, health: sb.health * factor };
+  },
+
   /** Set 2 — Beggy (Sell): mint `count` Rubies to hand when this is sold (golden doubles). Fired by the sell
    *  case via `fireOnSell`. `mintRubies` bakes the run's live Ruby strength in, like every other Ruby gain. */
   onSellGetRubies: (ctx, self, params) => {
@@ -11128,6 +11177,19 @@ export function goldSpentScalerValue(cardId: string, goldSpent: number, golden =
  * next spend). A single big spend can cross the threshold several times. Called by the reducer at every Gold
  * spend point (buy / roll / tier up / buy a spell).
  */
+/** DEEP BOND (Set 2 Epic, owner 2026-11-23): "Your Mountainbonds only need 5 Gold spent to trigger." */
+export const DEEP_BOND_EVERY = 5;
+export const MOUNTAINBOND_ID = 'dw_mountainbond';
+/**
+ * The Gold a `goldSpent` card needs per payout: its printed `every`, or Deep Bond's 5 for a Mountainbond while the rune
+ * is held. RUN-WIDE, so it covers every Mountainbond the run owns (board, hand, found later), read at the moment of
+ * the spend. THE ONE RULE: `applyGoldSpent` pays on it and both live-text chains print it (`stepProgress`, the card
+ * text), so the badge, the text and the payout cannot drift.
+ */
+export function goldSpentEvery(cardId: string, printed: number, deepBond: boolean): number {
+  return deepBond && cardId === MOUNTAINBOND_ID ? Math.min(printed, DEEP_BOND_EVERY) : printed;
+}
+
 export function applyGoldSpent(state: RunState, amount: number): void {
   if (amount <= 0) return;
   advanceRuneThresholds(state, 'gold', amount);
@@ -11149,12 +11211,13 @@ export function applyGoldSpent(state: RunState, amount: number): void {
     if (!effect) continue;
     const fn = RECRUIT_FACTORIES[effect.do];
     if (!fn) continue;
-    const every = Math.max(1, num(effect.params?.every, 7));
+    const every = goldSpentEvery(card.cardId, Math.max(1, num(effect.params?.every, 7)), !!state.questFlags?.runeDeepBond);
     card.goldTick = (card.goldTick ?? 0) + amount;
     // ANCIENT OF GENESIS × Rascal (owner 2026-11-16: "your Spend minions trigger twice"): each threshold fires `reps` times.
     const reps = ancientSpendRepeats(state);
     while (card.goldTick >= every) {
       card.goldTick -= every;
+      if (card.cardId === MOUNTAINBOND_ID && state.questFlags?.runeDeepBond) procRune(state, 'runeDeepBond'); // Deep Bond's pulse, per payout
       // Captured (2026-09-16): a Gold-spent grant to OTHER minions (Billings, Coinfire Forewoman) used to land
       // with no cue at all — the only shop path that had no capture around it. Display metadata only.
       for (let r = 0; r < reps; r++) captureBuffFx(state, card, 'minion', () => fn(ctx, card, effect.params ?? {}, { minion: card }));
@@ -11719,6 +11782,15 @@ export function spellHealthBonus(state: RunState): number {
 /** `spellAttackBonus` plus the combat replay's display-only spell-power preview. Display only. */
 export function spellAttackBonusLive(state: RunState): number {
   return spellAttackBonus(state) + (state.fxSpellPowerPreview?.attack ?? 0);
+}
+
+/** The run's BANKED Shop spell power (`spellBonus`, what a Spellmaiden sale multiplies) plus the replay's display-only
+ *  gain, so her text ticks mid-fight like every spell's (R-REALTIME-01). Display only. */
+export function bankedSpellPowerLive(state: RunState): { attack: number; health: number } {
+  return {
+    attack: (state.spellBonus?.attack ?? 0) + (state.fxSpellPowerPreview?.attack ?? 0),
+    health: (state.spellBonus?.health ?? 0) + (state.fxSpellPowerPreview?.health ?? 0),
+  };
 }
 
 /** `spellHealthBonus` plus the combat replay's display-only spell-power preview. Display only. */

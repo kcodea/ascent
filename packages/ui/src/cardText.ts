@@ -1,6 +1,6 @@
 import { aleGrantCount, damageMeterOf, damageMeterReading, improvingGrant, rubyCastGainOf, shopSpellGrowth, type Keyword, type Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
-import { chooseOneBranchText, hatcherTier, whisperSpellsToNext, whisperValue } from '@game/sim';
+import { chooseOneBranchText, hatcherTier, whisperSpellsToNext, whisperValue, goldSpentEvery, MOUNTAINBOND_ID } from '@game/sim';
 
 /** Effect `do` names that summon a fresh Imp (the `impscrap` token) — the gate for the live "(X/Y)" Imp-stat
  *  annotation below. `deathrattleSummon` / `avengeBuffImps` are generic summoners, so they only count when
@@ -407,7 +407,11 @@ export function asymSummonBuffText(cardId: string, summonBonus: number, golden =
  * over whatever live text the chain resolved, so it composes with every value-injecting helper. Green-marked,
  * like every live value.
  */
-export interface RuneTextFlags { matriarch?: boolean; brokerage?: boolean; livingTreasure?: boolean; /** Rune of Gambling: Gamble prints "minion AND spell". */ gambling?: boolean; /** Rune of the Vaultkeeper: each Vaultkeeper gain also lands on an adjacent Dragon. */ vaultkeeper?: boolean }
+export interface RuneTextFlags { matriarch?: boolean; brokerage?: boolean; livingTreasure?: boolean; /** Rune of Gambling: Gamble prints "minion AND spell". */ gambling?: boolean; /** Rune of the Vaultkeeper: each Vaultkeeper gain also lands on an adjacent Dragon. */ vaultkeeper?: boolean;
+  /** Deep Bond (Set 2 Epic, 2026-11-23): Mountainbond prints its live 5 Gold threshold (`runeRewrittenText`). */ deepBond?: boolean;
+  /** Uninvited Guests (Set 2 Epic, 2026-11-23): Party Crasher prints "your Kobolds and Beasts" (`runeRewrittenText`). */ uninvitedGuests?: boolean;
+  /** Spellmaiden (Set 2, 2026-11-23): the run's banked Shop spell power, so the card prints what its sale gives NOW.
+   *  Rides this channel because every surface (shop, board, hand, combat) already threads it. */ bankedSpellPower?: { attack: number; health: number } }
 export function runeModifiedNote(cardId: string, flags: RuneTextFlags | undefined): string | null {
   if (!flags) return null;
   if (flags.vaultkeeper && cardId === 'd2_herzog') return '{{Also gives its gains to an adjacent Dragon (Vaultkeeper).}}';
@@ -418,6 +422,31 @@ export function runeModifiedNote(cardId: string, flags: RuneTextFlags | undefine
   // which every "does both branches" source shares — a card that does both must READ as doing both, not carry
   // a footnote under a "Choose One:" label that is no longer true.)
   return null;
+}
+
+/**
+ * RUNE REWRITES (Set 2 Epic runes, owner 2026-11-23): a rune that changes a NUMBER or a TARGET in a card's own rule
+ * rewrites that part of the printed text in place (green), on both variants, instead of a footnote, so the card says
+ * what it does right now (the live-text rule). Applied by `liveCardText`'s post-pass on every surface:
+ *  · Deep Bond: Mountainbond's "Every **8 Gold**" reads "Every 5 Gold" (`goldSpentEvery`, the threshold the sim pays on).
+ *  · Uninvited Guests: Party Crasher's "your **Kobolds**" reads "your Kobolds and Beasts".
+ *  · Spellmaiden: its sale's gain at the run's banked spell power right now.
+ */
+export function runeRewrittenText(cardId: string, text: string, flags: RuneTextFlags | undefined, golden = false): string {
+  if (!flags) return text;
+  if (cardId === MOUNTAINBOND_ID && flags.deepBond) {
+    const printed = Number((CARD_INDEX[cardId]?.effects.find((e) => e.on === 'goldSpent')?.params as { every?: number } | undefined)?.every ?? 8);
+    const every = goldSpentEvery(cardId, printed, true);
+    return text.replace(/\*\*\d+ Gold\*\* spent/, `{{${every} Gold}} spent`);
+  }
+  if (cardId === 'k_gemstorm' && flags.uninvitedGuests) return text.replace('your **Kobolds**', 'your {{Kobolds and Beasts}}');
+  if (cardId === 'n2_spellmaiden' && flags.bankedSpellPower) {
+    const sp = flags.bankedSpellPower;
+    const k = golden ? 2 : 1; // the gain: x2 adds the current amount once, x3 (Gilded) twice
+    if (sp.attack <= 0 && sp.health <= 0) return text;
+    return `${text} {{(Gain +${sp.attack * k}/+${sp.health * k} now.)}}`;
+  }
+  return text;
 }
 
 /**
@@ -1368,7 +1397,7 @@ export interface StepProgress {
  */
 export function stepProgress(
   cardId: string,
-  p: { spellProgress?: number; spiritTally?: number; summonBonus?: number; ascendProgress?: number; eotTick?: number; attackSeen?: number; avengeSeen?: number; bleedAttacks?: number; goldTick?: number; buyTick?: number; playTick?: number; shoutTick?: number; soldProgress?: number; grimoireCharged?: boolean; orbitTick?: number; rubyCastTick?: number; damageDealt?: number; goldSpentTurn?: number },
+  p: { spellProgress?: number; spiritTally?: number; summonBonus?: number; ascendProgress?: number; eotTick?: number; attackSeen?: number; avengeSeen?: number; bleedAttacks?: number; goldTick?: number; buyTick?: number; playTick?: number; shoutTick?: number; soldProgress?: number; grimoireCharged?: boolean; orbitTick?: number; rubyCastTick?: number; damageDealt?: number; goldSpentTurn?: number; /** Deep Bond held: a Mountainbond's meter counts to 5 (`goldSpentEvery`). */ deepBond?: boolean },
 ): StepProgress | null {
   const def = CARD_INDEX[cardId];
   if (!def) return null;
@@ -1455,7 +1484,7 @@ export function stepProgress(
   // Gold-meter payoffs re-fire every N Gold SPENT while on the board (the `goldTick` meter). SHOP-phase —
   // `goldTick` is a recruit accrual (undefined in combat, where no Gold is spent), so it shows on the shop board.
   const goldSpent = def.effects.find((e) => e.on === 'goldSpent' && (e.params as { every?: number } | undefined)?.every !== undefined);
-  if (goldSpent) return p.goldTick === undefined ? null : cyc(p.goldTick, Math.max(1, n((goldSpent.params as { every?: number })?.every, 7)));
+  if (goldSpent) return p.goldTick === undefined ? null : cyc(p.goldTick, goldSpentEvery(cardId, Math.max(1, n((goldSpent.params as { every?: number })?.every, 7)), !!p.deepBond));
   // Rope Wrangler (any End-of-Turn `castSpell` with a `perGold` repeat): "Repeat for every 10 Gold spent this turn".
   // The readout under the minion is the turn's Gold spent toward the NEXT repeat, N/10, cyclic like the gold
   // meter above (owner ask 2026-10-13: "needs a gold spent counter under him in recruit phase"). Read off the run's

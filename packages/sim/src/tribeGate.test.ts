@@ -72,6 +72,9 @@ const OWNER_TRIBE_RULINGS: Readonly<Record<string, Tribe>> = {
   rune_big_spender: 'dwarf',
   // …and Elder's Voice under Dragon: Shouts are the Set 2 Dragon line.
   rune_elders_voice: 'dragon',
+  // Deep Bond (owner design 2026-11-23) is tagged Dwarf + Kobold: its Mountainbond is both (`tribe2` kobold), which the
+  // grant matcher (first tribe only) cannot read.
+  rune_deep_bond: 'kobold',
 };
 
 /** The tribes of the bodies a reward GRANTS (Rune of Lazarus → Lazarus is Undead) — the 2026-09-10 ruling's

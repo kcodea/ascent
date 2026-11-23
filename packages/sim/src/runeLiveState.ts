@@ -3,6 +3,7 @@ import { RUNE_INDEX } from '@game/content';
 import { PACKCRAFT_STEP, type RunState } from './state';
 import type { BoardSnapshot } from './snapshot';
 import { DRUNK_SHOPKEEPER_SOURCE } from './set2RunesBasicTribal';
+import { doubleTapLeft } from './recruit';
 
 /**
  * THE LIVE VALUE OF A SELF-IMPROVING RUNE (owner report 2026-10-16, R-RUNE-LIVE-TEXT-01).
@@ -48,6 +49,9 @@ export interface RuneLiveState {
   sequence?: string[];
   /** Rune of the Haunted Hand (Set 3 hybrid, 2026-11-23): how many of the turn's 5 hand gains can still raise the Aura. */
   hauntedHandLeft?: number;
+  /** Double Tap (Set 2 Epic, 2026-11-23): the doubled targeted casts left this turn (of 3). A Shop value: a snapshot
+   *  never carries it (the turn is over), so an opponent's rune prints its base text. */
+  doubleTapLeft?: number;
 }
 
 /** Rune of the Haunted Hand's per-turn cap: the first N hand gains each turn pay (Shop through that turn's combat). */
@@ -113,6 +117,8 @@ export function runeLiveStateOfRun(run: RunState): RuneLiveState {
   }
   if (f?.runeSequencing) out.sequence = [...(run.runeSequence ?? [])];
   if (f?.runeHauntedHand) out.hauntedHandLeft = Math.max(0, HAUNTED_HAND_CAP - (run.hauntedHandThisTurn ?? 0));
+  const dt = doubleTapLeft(run);
+  if (dt !== undefined) out.doubleTapLeft = dt;
   return out;
 }
 
@@ -206,6 +212,7 @@ export function parseRuneLiveState(v: unknown): RuneLiveState | undefined {
   const ds = pairIn(o.drunkShopkeeper); if (ds) out.drunkShopkeeper = ds;
   const sq = idsIn(o.sequence); if (sq) out.sequence = sq;
   const hhl = intIn(o.hauntedHandLeft); if (hhl !== undefined) out.hauntedHandLeft = Math.min(HAUNTED_HAND_CAP, hhl);
+  const dt = intIn(o.doubleTapLeft); if (dt !== undefined) out.doubleTapLeft = dt;
   return Object.keys(out).length ? out : undefined;
 }
 

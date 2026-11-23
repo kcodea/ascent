@@ -41,11 +41,12 @@
   object-position: 50% 30%;
 }
 
-/* The layer for anything that darkens the sky: over the sky and UNDER the characters, so the characters keep their
-   full colour. Empty for now (owner 2026-11-22: "remove all dimming"); a wash or a patch behind the words goes here. */
+/* One flat navy wash over the sky ONLY: it sits over the sky and UNDER the characters, the logo and the words, so
+   those keep their full colour (owner 2026-11-22: solid navy at 60%, on the background image alone). */
 .top__tint {
   position: absolute;
   inset: 0;
+  background: color-mix(in srgb, var(--showcase) 60%, transparent);
 }
 
 /* Phone: the teams meet in a band across the top, above the words. */
@@ -118,10 +119,10 @@
   letter-spacing: 0.14em;
   /* Wide tracking adds a gap after the last letter; this pulls the word back to the true centre. */
   margin-right: -0.14em;
+  /* A tight shadow that hugs the letters: no wide glow or haze round the word. */
   text-shadow:
-    0 3px 0 color-mix(in srgb, var(--night-deep) 55%, transparent),
-    0 0 40px color-mix(in srgb, var(--gem) 32%, transparent),
-    0 6px 28px color-mix(in srgb, var(--night-deep) 85%, transparent);
+    0 2px 0 color-mix(in srgb, var(--night-deep) 60%, transparent),
+    0 2px 5px color-mix(in srgb, var(--night-deep) 70%, transparent);
 }
 
 .top__pitch {
@@ -131,7 +132,7 @@
   font-weight: 600;
   line-height: 1.55;
   color: var(--text);
-  text-shadow: 0 2px 14px var(--night);
+  text-shadow: 0 1px 3px color-mix(in srgb, var(--night-deep) 85%, transparent);
 }
 
 .top .download {

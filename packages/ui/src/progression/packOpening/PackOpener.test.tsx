@@ -145,7 +145,32 @@ describe('PackOpener', () => {
     click(fx());
     expect(fake().calls.filter((c) => c === 'flipTop')).toHaveLength(2);
     edge(1);
-    expect(document.querySelectorAll('[data-testid="pack-face"]')).toHaveLength(1);
+    // One featured face at a time; the earlier one has tucked into the tray.
+    expect(document.querySelectorAll('[data-testid="pack-face"][data-phase="handoff"]')).toHaveLength(1);
+    expect(document.querySelectorAll('[data-testid="pack-face"][data-phase="tray"]')).toHaveLength(1);
+  });
+
+  it('Open next keeps focus in the dialog', async () => {
+    render({ queue: [{ packId: 'p1', look: LOOK }, { packId: 'p2', look: LOOK }] });
+    act(() => { fake().events.onPop(); });
+    await settle(ok(mk(5)));
+    click(btn('Close'));
+    const next = btn('Open next')!;
+    act(() => { next.focus(); });
+    click(next);
+    expect(btn('Open next')).toBeUndefined();
+    expect(document.activeElement).toBe(document.querySelector('[role="dialog"]'));
+  });
+
+  it('the summary lines every face up in one row', async () => {
+    render();
+    toZoom();
+    await settle(ok(mk(5)));
+    click(fx()); edge(0);
+    click(btn('Close'));
+    const faces = document.querySelectorAll('[data-testid="pack-face"]');
+    expect(faces).toHaveLength(5);
+    for (const f of faces) expect(f.getAttribute('data-phase')).toBe('summary');
   });
 
   it('Reveal all flips the rest and shows the summary with the duplicate Aether total', async () => {

@@ -6,7 +6,7 @@ import { prefersReducedMotion } from '../CrateOpener';
 import { rewardPreview } from '../rewardPreview';
 import { createPackScene, type PackScene } from './packScene';
 import { createPackSounds, type PackSounds } from './packSounds';
-import { PackCardFace } from './PackCardFace';
+import { PackFace, slotBox, warmFaceArt } from './packFaces';
 import './packOpening.css';
 
 /**
@@ -15,7 +15,7 @@ import './packOpening.css';
  * now: nothing outside the DevMenu mounts it.
  *
  * Ownership: the scene owns the tear, the sleeve, the stack and the first half of each flip; this shell owns the
- * request, the DOM card face (a placeholder until Task 8), the sounds on the DOM side (stamp, aether, summary) and the
+ * request, the DOM card faces (`packFaces.tsx`: the handoff, the tray, the summary row), the sounds on the DOM side (stamp, aether, summary) and the
  * single `PackSounds` for the theatre. Clicks after the zoom bubble from the canvas to `.pkop-fx`, where `flipNext`
  * decides. Reduced motion: no scene; a sealed pack and an Open button, then the backs in a row with a crossfade.
  */
@@ -53,7 +53,10 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, scen
   const [note, setNote] = useState<string | null>(null);
   const [result, setResult] = useState<PackOpenResult | null>(null);
   const [flipped, setFlipped] = useState(0);
-  const [face, setFace] = useState<{ card: PackCard; rect: StageRect } | null>(null);
+  /** Each revealed card's flat rect at its edge-on handoff (stage px, converted AT the edge event). */
+  const [froms, setFroms] = useState<readonly (StageRect | undefined)[]>([]);
+  /** The revealed card in the featured slot (null while the next one flips: the previous one has tucked away). */
+  const [featured, setFeatured] = useState<number | null>(null);
   const [announce, setAnnounce] = useState('');
 
   const phaseRef = useRef<PackPhase>('sealed');
@@ -70,6 +73,8 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, scen
   const slotRef = useRef<HTMLDivElement | null>(null);
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  /** The result's warmed face art, held until the next pack so the decode is not dropped. */
+  const artRef = useRef<HTMLImageElement[]>([]);
   const item = queue[qi];
   const itemRef = useRef(item);
   itemRef.current = item;
@@ -95,7 +100,7 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, scen
     stopTimer();
     revealAllRef.current = false;
     sceneRef.current?.setInputEnabled(false);
-    setFace(null);
+    setFeatured(null);
     go('summary');
     sounds().summary();
   }, [go, sounds, stopTimer]);
@@ -113,7 +118,9 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, scen
     flippedRef.current = 0;
     setResult(null);
     setFlipped(0);
-    setFace(null);
+    setFroms([]);
+    setFeatured(null);
+    artRef.current = [];
     setAnnounce('');
     setNote(FAIL_NOTE);
     go('sealed');
@@ -130,6 +137,7 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, scen
       if (out.status !== 'ok') { fail(); return; }
       resultRef.current = out.result;
       setResult(out.result);
+      artRef.current = warmFaceArt(out.result.cards);
       sceneRef.current?.setBacks(out.result.cards.map((c) => ({ rarity: c.rarity, guaranteed: c.guaranteed })));
       onOpened?.(out.result);
       if (closeWantedRef.current) { goSummary(); return; }
@@ -163,7 +171,10 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, scen
         if (!r || !card) return;
         flippedRef.current = index + 1;
         setFlipped(index + 1);
-        setFace({ card, rect: rectToStage(rect) });
+        // Measured NOW (the edge event), so a resize since mount is honoured.
+        const from = rectToStage(rect);
+        setFroms((prev) => { const next = prev.slice(); next[index] = from; return next; });
+        setFeatured(index);
         setAnnounce(cardText(card));
         if (card.duplicate) { soundsFn.current().stamp(); soundsFn.current().aether(); }
         if (revealAllRef.current && flippedRef.current < r.cards.length) flipNextRef.current();
@@ -200,7 +211,8 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, scen
     const slot = slotRef.current?.getBoundingClientRect();
     const to = slot ? { x: slot.left + slot.width / 2, y: slot.top + slot.height / 2 } : { x: 0, y: 0 };
     const started = scene.flipTop(to);
-    if (started) setFace(null);
+    // The featured face tucks into the tray while the next card flips in.
+    if (started) setFeatured(null);
     return started;
   }, [goSummary, reduced, sounds]);
   const flipNextRef = useRef(flipNext);
@@ -248,11 +260,15 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, scen
     reqRef.current++;
     setResult(null);
     setFlipped(0);
-    setFace(null);
+    setFroms([]);
+    setFeatured(null);
+    artRef.current = [];
     setAnnounce('');
     setNote(null);
     go('sealed');
     setQi((n) => n + 1);
+    // "Open next" is about to unmount: keep keyboard focus in the dialog.
+    dialogRef.current?.focus();
   }, [go, stopTimer]);
 
   useEffect(() => { dialogRef.current?.focus(); }, []);
@@ -289,19 +305,27 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, scen
           onClick={() => { if (phaseRef.current === 'reveal') flipNext(); }}
         />
       )}
-      <div className="pkop-slot" ref={slotRef} aria-hidden />
+      <div className="pkop-slot" ref={slotRef} style={slotBox()} aria-hidden />
       {reduced && !result && phase !== 'summary' && <div className="pkop-pack" aria-hidden>{item.look.name}</div>}
       {showBacks && (
         <div className="pkop-row" onClick={() => flipNext()}>
           {cards.map((c, i) => (
             <div key={i} className={`pkop-back r-${c.rarity}${i < flipped ? ' flipped' : ''}`} aria-hidden>
               <span className="pkop-back-mark">{c.guaranteed ? 'Guaranteed' : item.look.name}</span>
-              <PackCardFace card={c} />
+              <PackFace card={c} phase="tray" />
             </div>
           ))}
         </div>
       )}
-      {!reduced && face && phase === 'reveal' && <PackCardFace card={face.card} rect={face.rect} />}
+      {(phase === 'summary' || (!reduced && phase === 'reveal')) && cards.length > 0 && (
+        <div className="pkop-faces" aria-hidden>
+          {cards.map((c, i) => {
+            if (phase !== 'summary' && i >= flipped) return null;
+            const facePhase = phase === 'summary' ? 'summary' : i === featured ? 'handoff' : 'tray';
+            return <PackFace key={i} card={c} phase={facePhase} from={froms[i]} slot={{ index: i, count: cards.length }} />;
+          })}
+        </div>
+      )}
 
       {phase === 'waiting' && <div className="pkop-note" role="status">Still opening</div>}
       {note && phase === 'sealed' && <div className="pkop-note" role="status">{note}</div>}

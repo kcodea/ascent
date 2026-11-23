@@ -83,7 +83,8 @@ describe('Deep Slumber: every path a held minion gains stats on', () => {
     // The rune's pulse belongs to that source's own Start of Turn beat (the recorder lists board gains only, so a hand
     // gain has no row of its own there).
     const beat = (on.sotBeatFx ?? []).find((b) => b.procs?.[DS]);
-    expect([beat?.source.uid, beat?.procs?.[DS]]).toEqual(['m', 1]);
+    expect(beat?.source).toMatchObject({ kind: 'minion', uid: 'm' });
+    expect(beat?.procs?.[DS]).toBe(1);
   });
   it('COMBAT then SETTLE: the fight doubles the hand gain, the carry-back reports it, and settle does not double again', () => {
     const go = (runes: string[]) => faceOmen(run([card('sp3_hearthwhisperer', 'w', { attack: 0, health: 60 })], runes, [card(SPIRIT.id, 'h')]), 2, 900);

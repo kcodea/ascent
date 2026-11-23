@@ -3550,6 +3550,35 @@ Two runes, Set 3 only, offered when Dwarf is one of the run's tribes.
   its printed stats. One copy per rune copy held. A full hand gets nothing (the sale still uses its slot). Resets each
   turn; the rune shows a plain N/2 counter counting up.
 
+### Set 3 Undead new-concept runes (owner review 2026-11-23; R-SET3-UNDEAD-1123-01..09)
+
+Nine runes, Set 3 only, offered when Undead is one of the run's tribes. Each copy held pays its own share.
+
+- **Shallow Graves** (Basic, 3): "The first Undead you buy each turn gains Rise." Buying only (Shop). A non-Undead buy,
+  or an Undead that already has Rise, does not use the charge. The rune shows 1/1 while ready and 0/1 once spent.
+- **Grave Tithe** (Basic, 2): "After 3 friendly minions Rise in a combat, gain 2 Gold next turn. (Once per combat.)"
+  Combat only: the 3rd friendly Rise of a fight banks the Gold; more Rises pay nothing more.
+- **Dead Weight** (Basic, 3): "Overflow: give your Undead Aura +2 Attack." Every friendly Overflow, in the Shop and in
+  combat (the Lantern channel: permanent from either phase).
+- **Rank and File** (Basic, 2): "Footmen and Spear Wardens you summon have Taunt." Every friendly Footman and Spear
+  Warden has Taunt: board, hand, later arrivals, combat summons, and a Rise or Rebirth return.
+- **Bone Pile** (Basic, 3): "Start of Combat: summon a Skeleton for every 2 Undead you control." Your living Undead
+  are counted once when it fires (rounded down by 2). Plain summons: a full board overflows them. Twilight repeats it;
+  the Shop's Start of Combat replays (Combat Prowess) summon real Skeletons.
+- **Second Burial** (Epic, 4): "When a friendly minion that already Rose dies, summon a Skeleton with its Attack." The
+  death it Rose from does not count. In combat "already Rose" means this fight; in the Shop, a body that came back by
+  a Shop Rise. The Skeleton's Attack is raised to the minion's Attack (Auras on top).
+- **Night Watch** (Epic, 3): "Start of Combat: summon a Spear Warden. It gets double its bonus." The Warden's death-count
+  bonus counts twice: at its summon, and for every Spear Warden death that fight. Twilight repeats it; the Shop replays
+  summon a real Warden with the doubled bonus.
+- **Requiem** (Epic, 4): "Whenever your Undead Aura improves, give your Undead +1/+1 permanently. (5 times per turn.)"
+  Any Aura rise (Attack or Health, any source, any phase) gives your board Undead +1/+1 permanently. The cap is **5 per
+  turn, the Shop and that turn's combat together**; the rune shows what is left (5/5 down to 0/5). The cap is a
+  builder call awaiting the owner. Its own grant never raises the Aura, so it cannot loop.
+- **Undying Legion** (Epic, 4): "Avenge (5): get a random Undead minion and summon it from hand." Combat only
+  (Avenge); Fury repeats it. The random Undead comes from your pool at or below your tier; then a copy is summoned from
+  your hand the Spirit way (the card stays in hand). A full hand or full board: you keep the card, nothing is summoned.
+
 ### Set 4 Beasts: self-damage that never kills (owner 2026-10-13, R-WOUND-01)
 
 The Set 4 Beasts hurt your own Beasts, in the Shop and in combat alike. **That self-damage never kills a Beast**:

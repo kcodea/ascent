@@ -1020,6 +1020,16 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_soul_furnace:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_restless:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_open_grave:combat': { policy: 'foldedCue', family: 'combatModifier' },
+  // ── Set 3 new-concept runes, Undead (owner review 2026-11-23) ──
+  'rune:rune_shallow_graves:combat': { policy: 'foldedCue', family: 'combatModifier' },
+  'rune:rune_grave_tithe:combat': { policy: 'foldedCue', family: 'combatModifier' },
+  'rune:rune_dead_weight:combat': { policy: 'foldedCue', family: 'combatModifier' },
+  'rune:rune_rank_and_file:combat': { policy: 'foldedCue', family: 'combatModifier' },
+  'rune:rune_bone_pile:combat': { policy: 'foldedCue', family: 'combatModifier' },
+  'rune:rune_second_burial:combat': { policy: 'foldedCue', family: 'combatModifier' },
+  'rune:rune_night_watch:combat': { policy: 'foldedCue', family: 'combatModifier' },
+  'rune:rune_requiem:combat': { policy: 'foldedCue', family: 'combatModifier' },
+  'rune:rune_undying_legion:combat': { policy: 'foldedCue', family: 'combatModifier' },
   // ── Set 3 Dragon runes, Epic B (owner 2026-10-21): Shop-only Whisper hooks; the flag name keys them like the Open Grave ──
   'rune:rune_lasting_words:combat': { policy: 'foldedCue', family: 'combatModifier' },        // a from-hand Whisper on a Dragon kept (folded into the cast)
   'rune:rune_twin_tongues:combat': { policy: 'foldedCue', family: 'combatModifier' },         // the copy is a cast with its own spell cue

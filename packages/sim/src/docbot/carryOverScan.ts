@@ -227,6 +227,8 @@ export const CARRY_OVER_EXCUSED: Readonly<Record<string, CarryOverExcuse>> = {
   gemStarThisTurn: { kind: 'no-combat-meaning', why: 'Gem Star (Set 3 design pass): the SHOP count; combat reads what is left through `gemStarLeft`, threaded from this field' },
   hauntedHandThisTurn: { kind: 'no-combat-meaning', why: 'Haunted Hand (Set 3 hybrid, 2026-11-23): the SHOP count; combat reads what is left through `hauntedHandLeft`, threaded from this field' },
   encoreUsedThisTurn: { kind: 'no-combat-meaning', why: 'Encore (Set 3 design pass): the per-turn charge for a Reveler SALE; combat never sells' },
+  shallowGravesUsedThisTurn: { kind: 'no-combat-meaning', why: 'Rune of Shallow Graves (Set 3 Undead, 2026-11-23): the per-turn first-Undead-BUY charge; buying is a Shop action' },
+  requiemUsedThisTurn: { kind: 'combat-covered', why: 'Rune of Requiem (Set 3 Undead, 2026-11-23): the Shop half of the 5-a-turn budget; the fight reads what is left through questCombatMods.requiemLeft (only with the rune held, which the fixture lacks)' },
   welcomePartyUsedThisTurn: { kind: 'no-combat-meaning', why: 'Welcome Party (Set 3, 2026-11-23): the per-turn first-Spirit discount on a Shop BUY; combat never buys' },
   openGraveUsedThisTurn: { kind: 'no-combat-meaning', why: 'Open Grave (Set 3 design pass): the per-turn charge for a SHOP destroy; combat never destroys in the Shop' },
   processionPlayedThisTurn: { kind: 'no-combat-meaning', why: 'Grand Procession: Revelers PLAYED this turn toward its cap; playing is a shop action' },

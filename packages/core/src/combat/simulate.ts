@@ -40,6 +40,7 @@ import { SEED_TOKEN_ID, addedSecondTribe, instantiate, resetPerCombatLimits, see
 import { defIsTribe } from './tribe';
 import { EMPTY_SIDE } from './side';
 import { DRAGONFLAME_ID, SET2_TRIBAL_RUNES } from '../set2TribalRunes'; // Set 2 rune batch, Basic tribal (2026-11-13)
+import { SET3_UNDEAD_RUNES, SKELETON_TOKEN_ID, SPEAR_WARDEN_ID, rankAndFileTaunts } from '../set3UndeadRunes'; // Set 3 Undead runes (2026-11-23)
 import { advanceSequence } from '../runeSequencing'; // Set 2 Epic Dragon rune Sequencing (2026-11-14)
 import { applyBankedOpeners, openingEvents, BANKED_CAST_KEY, BANKED_SPELL_OF } from './bankedOpeners';
 
@@ -811,6 +812,16 @@ export function simulate(
    *  two hand-summon ctx paths, consumed by `placeSummon` — success or overflow — so it can never leak onto an
    *  unrelated summon. */
   const pendingHandSummon: Record<Side, boolean> = sideReset(() => ({ player: false, enemy: false }));
+  // SET 3 UNDEAD RUNES (owner review 2026-11-23): their per-fight state, declared this early because the ctx Aura
+  // verbs (Requiem) and the Spear Warden death count (Night Watch) read it. The handlers live under "SET 3 UNDEAD RUNES".
+  /** Requiem: Aura rises it has paid on this fight, per side (bounded by the side's `requiemLeft`). */
+  const requiemPaid: Record<Side, number> = sideReset(() => ({ player: 0, enemy: 0 }));
+  /** Grave Tithe: friendly Rises this fight, per side (the 3rd one pays). */
+  const graveTitheRises: Record<Side, number> = sideReset(() => ({ player: 0, enemy: 0 }));
+  /** Second Burial: uids of the bodies that have Risen this fight (either side; a uid is unique to its side). */
+  const secondBurialRose = new Set<string>();
+  /** Night Watch: the Spear Wardens it summoned, whose death-count bonus counts twice. */
+  const nightWatchUids = new Set<string>();
   /** REBIRTH's Ward restore: uids whose Ward BROKE this combat. A Warded body that dies has, in practice, lost
    *  its Ward first — and the owner's example ("a Warded 50/50 dies and comes back a Warded 50/50") wants it
    *  back, so the return restores a Ward the body carried at any point this fight. */
@@ -2353,6 +2364,7 @@ export function simulate(
       undeadBuyAtkGain[side] += amount; // carry-back delta
       grimToastLive(side, amount, 0); // the Grim Toast's Dwarves feel the Aura rise too
       resyncSoulFurnace(side); // the Aura's Attack rose: the Soul Furnace's Health term follows, live
+      if (amount > 0) requiemCombat(side); // Set 3 Undead rune Requiem hears every Aura rise
     },
     grantUndeadAura: (attack, health, side) => {
       // Watcher casting Lantern of Souls: bump the granting side's run-wide Undead aura (+Attack/+Health to its
@@ -2363,6 +2375,7 @@ export function simulate(
       undeadAuraGain[side].attack += attack; undeadAuraGain[side].health += health;
       grimToastLive(side, attack, health); // the Grim Toast's Dwarves feel the Aura rise too
       resyncSoulFurnace(side); // the Aura's Attack rose: the Soul Furnace's Health term follows, live
+      if (attack > 0 || health > 0) requiemCombat(side); // Set 3 Undead rune Requiem hears every Aura rise
     },
     castSpell: (side) => {
       spellTotals[side] += 1; // count the cast first (the triggering spell is included, like recruit-phase Guel)
@@ -2694,6 +2707,7 @@ export function simulate(
     // (`grantedEffects`, folded in at instantiate); a hand-summoned body may too, so each is added only when absent.
     // Grafted here, before `placeSummon` registers the effects, so the summoned body's Echo / Rally is live at once.
     graftBatch3Runes(minion, card, side);
+    rankAndFileTaunt(minion); // Set 3 Undead rune Rank and File: a summoned Footman / Spear Warden has Taunt
     // Aug-11 minion-grant runes — Ward/Taunt on a specific summoner's token. `nearUid` is the summoner's uid
     // (combatArena.summonToken passes self.uid), so these scope to "summoned by your Imp Wranglers / Geode
     // Guardians" rather than every Imp / Golem. Granted before the summon snapshot so the keyword shows frame 1.
@@ -2879,6 +2893,7 @@ export function simulate(
     }
     applySolidGround(minion, minion.side);
     applyContainment(minion, minion.side);
+    rankAndFileTaunt(minion); // Set 3 Undead rune Rank and File: a return is a summon (its printed keywords came back)
     return { attackNow: g.attackNow };
   }
 
@@ -3740,6 +3755,7 @@ export function simulate(
     const h = typeof p.health === 'number' ? p.health : 1;
     if (a === 0 && h === 0) return;
     for (const m of living(minion.side)) if (m.cardId === cardId) ctx.buff(m, a, h, minion.uid);
+    for (const m of living(minion.side)) if (m.cardId === cardId && nightWatchUids.has(m.uid)) ctx.buff(m, a, h, 'Night Watch'); // Set 3 Undead rune Night Watch: double its bonus
     ctx.grantCardBuff(cardId, a, h, minion.side);
     // TEAM-WIDE (Salandaman, owner 2026-11-01: "this means it counts both sides game wide"; R-DUOS-SALANDAMAN-TEAM-01):
     // the teammate's run counts this death too. Sent in real time (the `teamSend` beat), and banked for this side's
@@ -5855,6 +5871,71 @@ export function simulate(
     }
     flushSpaceQueue(); // non-full board → the original rejoins immediately; full board → it waits
   };
+  // ── SET 3 UNDEAD RUNES (owner review 2026-11-23) — the combat halves ─────────────────────────────────────────────────
+  // Declared BEFORE the first Start of Combat pass, so a Start-of-Combat Rise, death or Overflow already hears them.
+  // Every handler reads the side's OWN mods (R-SYMMETRY-01) and scales by its copy count (`flagCopiesOf`). Their state
+  // is declared up top (beside `pendingHandSummon`); the Shop halves live in packages/sim/src/set3UndeadRunes.ts, the
+  // numbers in core/src/set3UndeadRunes.ts. Bone Pile / Night Watch run in `runRuneStartOfCombat`; Undying Legion is an
+  // Avenge rune beside Goleming.
+  /** RANK AND FILE: a friendly Footman / Spear Warden arriving (a summon, a Rise / Rebirth return) has Taunt. */
+  function rankAndFileTaunt(minion: Minion): void {
+    if (!modsFor(minion.side).runeRankAndFile || !rankAndFileTaunts(minion.cardId) || minion.keywords.includes('T')) return;
+    minion.keywords.push('T');
+  }
+  /** REQUIEM: the side's Undead Aura just rose (either Aura verb). While the turn's budget lasts (`requiemLeft`, what
+   *  the Shop left of the cap), the living friendly Undead gain +1/+1 per copy, PERMANENTLY (`permaGain`, carried back
+   *  at settle like Rosey's Garden). On its own beat. A plain buff, never an Aura rise, so it cannot re-trigger. */
+  function requiemCombat(side: Side): void {
+    const m = modsFor(side);
+    if (!m.runeRequiem || requiemPaid[side] >= (m.requiemLeft ?? SET3_UNDEAD_RUNES.requiemPerTurn)) return;
+    requiemPaid[side] += 1;
+    const n = flagCopiesOf(side, 'runeRequiem');
+    const a = SET3_UNDEAD_RUNES.requiem.attack * n;
+    const h = SET3_UNDEAD_RUNES.requiem.health * n;
+    nextStep();
+    fireTrigger('runeRequiem', side);
+    for (const u of living(side)) {
+      if (!isUndeadMinion(u)) continue;
+      const keptBy = ctx.buff(u, a, h, 'Requiem').kept; // true = an Engrave already kept it (R-ENGRAVE-05)
+      if (!keptBy) u.permaGain = { attack: (u.permaGain?.attack ?? 0) + a, health: (u.permaGain?.health ?? 0) + h };
+    }
+  }
+  bus.on('onRise', (payload) => {
+    const { minion, side } = payload as { minion: Minion; side: Side };
+    // SECOND BURIAL: this body has now Risen, so its next death (any death) is the one the rune hears.
+    secondBurialRose.add(minion.uid);
+    // GRAVE TITHE: the side's 3rd Rise this fight banks 2 Gold next turn, per copy, once per combat (`===`). Shown on
+    // the Rise that paid it (`grantBonusGold` logs the replay's Gold beat).
+    graveTitheRises[side] += 1;
+    if (modsFor(side).runeGraveTithe && graveTitheRises[side] === SET3_UNDEAD_RUNES.graveTitheRises) {
+      nextStep();
+      fireTrigger('runeGraveTithe', side);
+      ctx.grantBonusGold(SET3_UNDEAD_RUNES.graveTitheGold * flagCopiesOf(side, 'runeGraveTithe'), side, minion.uid);
+    }
+  });
+  bus.on('avenge', (payload) => {
+    // SECOND BURIAL: a friendly body that already Rose this fight dies (a true death or another Rise death): a Skeleton
+    // with its Attack (the Anvilshade `attackFloor`: the token's Attack is raised to the body's, Auras on top), beside
+    // it, per copy held. A plain summon: a full board overflows it.
+    const { side, victim } = payload as { side: Side; victim?: Minion };
+    if (!victim || !modsFor(side).runeSecondBurial || !secondBurialRose.has(victim.uid)) return;
+    const skel = cards[SKELETON_TOKEN_ID];
+    if (!skel) return;
+    nextStep();
+    fireTrigger('runeSecondBurial', side);
+    for (let k = 0; k < flagCopiesOf(side, 'runeSecondBurial'); k++) {
+      summonMinion(side, skel, victim.uid, undefined, false, false, undefined, false, victim.attack);
+    }
+  });
+  bus.on('summonOverflow', (payload) => {
+    // DEAD WEIGHT: every friendly Overflow raises the side's Undead Aura +2 Attack per copy (the Lantern channel: the
+    // living Undead feel it now and it carries home, R-AURA-02). Raising the Aura is not a summon: it cannot loop.
+    const { side } = payload as { side: Side };
+    if (!modsFor(side).runeDeadWeight) return;
+    nextStep();
+    fireTrigger('runeDeadWeight', side);
+    raiseUndeadAura(side, SET3_UNDEAD_RUNES.deadWeightAttack * flagCopiesOf(side, 'runeDeadWeight'), 'Dead Weight');
+  });
   // ── SET 2 RUNES, BASIC TRIBAL (owner review 2026-11-12) — the combat halves ─────────────────────────────────────────
   // Declared BEFORE the first Start of Combat pass (socReclaim below) so a Start-of-Combat summon, kill or death already
   // hears them. Every handler reads the side's OWN mods (R-SYMMETRY-01) and scales by its copy count (`flagCopiesOf`).
@@ -6625,6 +6706,36 @@ export function simulate(
         if (kobolds.length === 0) break;
         nextStep(); twilightPulse(rside, pass); fireTrigger('runeRedStart', rside);
         for (const kb of kobolds) playRubyOn(ctx, kb, kb, 1, true);
+      }
+    }
+    // BONE PILE (Set 3 Undead rune, owner 2026-11-23): "Start of Combat: summon a Skeleton for every 2 Undead you
+    // control." The living friendly Undead are counted ONCE when it fires (so its own Skeletons do not feed the same
+    // fire), then floor(count / 2) Skeletons per copy held, each a plain summon (a full board overflows it). A Start of
+    // Combat rune, so Twilight repeats it (and that pass re-counts).
+    if (rmods.runeBonePile) {
+      const skel = cards[SKELETON_TOKEN_ID];
+      const n = Math.floor(living(rside).filter(isUndeadMinion).length / SET3_UNDEAD_RUNES.bonePilePer) * flagCopiesOf(rside, 'runeBonePile');
+      if (skel && n > 0) {
+        nextStep(); twilightPulse(rside, pass); fireTrigger('runeBonePile', rside);
+        for (let i = 0; i < n; i++) { if (i > 0) nextStep(); summonMinion(rside, skel, undefined); }
+      }
+    }
+    // NIGHT WATCH (Set 3 Undead rune, owner 2026-11-23): "Start of Combat: summon a Spear Warden. It gets double its
+    // bonus." A plain Warden summon per copy held; its summon carries the Warden enchant once (`applyAuras`: the run's
+    // `cardBuffs` plus this fight's gains), the rune adds it once more, and every Warden death this fight pays it twice
+    // (`nightWatchUids` in `noteCardDeath`). Combat-only like any combat summon. Twilight repeats it.
+    if (rmods.runeNightWatch) {
+      const knit = cards[SPEAR_WARDEN_ID];
+      for (let k = 0; knit && k < flagCopiesOf(rside, 'runeNightWatch'); k++) {
+        nextStep(); twilightPulse(rside, pass); fireTrigger('runeNightWatch', rside);
+        const w = summonMinion(rside, knit, undefined);
+        if (!boards[rside].includes(w)) continue; // overflowed
+        nightWatchUids.add(w.uid);
+        const run = stateOf(rside).cardBuffs?.[SPEAR_WARDEN_ID];
+        const live = cardBuffGains[rside].find((g) => g.cardId === SPEAR_WARDEN_ID);
+        const ba = (run?.attack ?? 0) + (live?.attack ?? 0);
+        const bh = (run?.health ?? 0) + (live?.health ?? 0);
+        if (ba > 0 || bh > 0) ctx.buff(w, ba, bh, 'Night Watch');
       }
     }
     if (base && rmods.unitedFront && rmods.unitedFront > 0) {
@@ -7702,6 +7813,18 @@ export function simulate(
   // it. The 6 plain Rubies go through `playRubyOn` (the Golem casts them on itself), so the side's Ruby strength, the
   // Paragon, Rosey / Rosey's Garden and every Ruby watcher see real casts. A Golem whose landing is deferred (it attacks
   // immediately) gets them as it lands (`rubiesOnLanding`). Combat-only: the Golem and its Rubies last the fight.
+  // UNDYING LEGION (Set 3 Undead rune, owner rework 2026-11-23): "Avenge (5): get a random Undead minion and summon it
+  // from hand." The Body Counting grant (`grantRandomMinion`: a random Undead from the side's pool at or below its tier,
+  // through the hand carry-back), then the Spirit hand-summon path (`summonCopyFromHand`): a copy lands at the card's
+  // hand stats and the card stays in hand. A full hand (the grant does not enter the combat hand) or a full board: the
+  // card is still granted, nothing is summoned. A `runeAvenge`, so Rune of Fury repeats it.
+  runeAvenge(SET3_UNDEAD_RUNES.undyingLegionAvenge, 'runeUndyingLegion', (m) => !!m.runeUndyingLegion, (side, victim) => {
+    const before = grantedHand[side].length;
+    nextStep();
+    ctx.grantRandomMinion(1, 'undead', side, undefined, victim?.uid);
+    const entry = grantedHand[side].length > before ? grantedHand[side][grantedHand[side].length - 1] : undefined;
+    if (entry) { nextStep(); ctx.summonCopyFromHand(side, entry.uid, undefined); }
+  });
   runeAvenge(GOLEMING_AVENGE, 'runeGoleming', (m) => !!m.runeGoleming, (side) => {
     const golemDef = cards['gemheart-shard'];
     if (!golemDef) return;

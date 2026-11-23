@@ -226,16 +226,19 @@ const SWEEP = runTextSweep({ contracts: CONTRACTS });
 // pinned by packages/sim/src/set2ShopRunesGrubQuarterDrunk.test.ts.
 // 2026-11-14 (owner design Sequencing, Set 2 Epic): 222 -> 223, CONSCIOUSLY. "3 different spells, a copy of the first"
 // is a distinct-id sequence the grammar does not read; pinned by packages/sim/src/runeSequencing.test.ts.
+// 2026-11-23 (Set 3 Undead new-concept runes): 223 -> 229, CONSCIOUSLY. Shallow Graves (a first-buy-per-turn keyword grant),
+// Grave Tithe (a per-combat Rise count paying Gold), Rank and File (a named-card keyword graft), Second Burial ("already Rose"),
+// Night Watch ("double its bonus") and Requiem (an Aura-rise trigger with a per-turn cap) have no grammar shape yet.
 // 2026-11-23 (Set 3 new hybrid runes Gem Whispers, Brewed Whispers, Haunted Hand): 223 -> 224, CONSCIOUSLY. One of the three
 // new texts is not fully read by the grammar; the behaviour is pinned by packages/sim/src/set3HybridRunes1123.test.ts and
 // packages/core/src/combat/set3HybridRunes1123.test.ts.
 // 2026-11-23 (owner Set 3 rune review): 223 -> 224, CONSCIOUSLY. Top Shelf's new top-Tier clause ("At your top Tier, your 2
 // right-most offers are always that Tier") or Summit's fixed turns is a clause the grammar does not read yet.
-// 2026-11-23 (Set 3 new-concept Spirit runes, owner review board): 225 -> 227, CONSCIOUSLY. Bonfire ("Your Reveler
+// 2026-11-23 (Set 3 new-concept Spirit runes, owner review board): 231 -> 233, CONSCIOUSLY. Bonfire ("Your Reveler
 // bonuses also apply to the minions in your hand") widens another card's audience and Deep Slumber ("gain double stats
 // from every source") is a hand-gain multiplier; the grammar reads neither. Pinned by packages/sim/src/set3NewRunesSpirits.test.ts,
 // packages/sim/src/deepSlumber.test.ts and packages/core/src/combat/set3NewRunesSpirits.test.ts.
-const UNRESOLVED_CAP = 227;
+const UNRESOLVED_CAP = 233;
 /** Collapse floor: the parser fully consuming fewer objects than this means a grammar regression. */
 const PARSED_FLOOR = 900;
 /** The HARD ceiling (2026-09-11): the unresolved share of active objects may never reach this fraction again. A

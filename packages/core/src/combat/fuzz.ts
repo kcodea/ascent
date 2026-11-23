@@ -45,6 +45,7 @@ const BOOL_FLAGS = (
   + 'runeSpellFedScales runeDeepBreaths runeDefiantWings runeFinalUtterance runeEmberInheritance ' // Set 3 Dragon runes, Basic + Epic A
   + 'runeGoleming runeRedStart runeRoseysGarden ' // Set 3 Kobold runes (2026-10-22)
   + 'runeGemWhispers runeBrewedWhispers ' // Set 3 new hybrid runes (2026-11-23)
+  + 'runeGraveTithe runeDeadWeight runeRankAndFile runeBonePile runeSecondBurial runeNightWatch runeUndyingLegion ' // Set 3 Undead runes (2026-11-23)
   + 'runeBloodscent runeLastHowl runeTrophyHunter runePitchforks runeImpLegion runeFlamekeeper runeRubyDust runeRoughCut ' // Set 2 runes, Basic tribal (2026-11-13)
   + 'runeDoubleBill runeBulwarkLine runeBastion runeMirrorSheen ' // Set 2 rune batch, Epic neutral (2026-11-12)
   + 'runeFeralReturn runePackTactics runeBloodFrenzy runeHellfire runeWildfire runeGemRain ' // Set 2 Epic tribal runes (2026-11-12)
@@ -145,6 +146,7 @@ const VALUE_MODS: ((r: Rng, ids: { A: string[]; pool: string[] }) => Partial<Que
   () => ({ runeShiftingFacets: 'attack' as const }),
   () => ({ runeCombatativeRubies: true, runeCombatativeTick: 1 }),
   () => ({ runeBodyCounting: true, runeBodyCountTick: 2 }),
+  () => ({ runeRequiem: true, requiemLeft: 3 }), // Set 3 Undead rune Requiem (2026-11-23): the turn's leftover budget
   () => ({ runeBorrowedFlame: 3 }), // Set 3 Dragon runes, Basic
   () => ({ runeSpellTempering: true, runeSpellTemperingTick: 3 }),
   () => ({ runeGemStar: true, gemStarLeft: 2 }),

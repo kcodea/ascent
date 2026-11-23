@@ -822,6 +822,8 @@ export const QuestCombatFlagSchema = z.enum(['bloodTrail', 'echoingCoop', 'lawOf
   'runeEchoingKobolds', 'runeRubywire', 'runeCombatativeRubies', 'runeBodyCounting', 'runeAggressiveGolems', 'runeRupturedRubies',
   // Set 3 rune design pass (2026-09-27), tranche 1: Undead
   'runeWake', 'runeSecondWind', 'runeSoulToll', 'runeGravedigger', 'runeSoulFurnace', 'runeRestless', 'runeOpenGrave',
+  // Set 3 new-concept runes, Undead (owner review 2026-11-23)
+  'runeShallowGraves', 'runeGraveTithe', 'runeDeadWeight', 'runeRankAndFile', 'runeBonePile', 'runeSecondBurial', 'runeNightWatch', 'runeRequiem', 'runeUndyingLegion',
   // tranche 2: Celestial
   'runeHeraldingStar', 'runeStellarEchoes', 'runeScatteredLight', 'runeAfterglow', 'runeStarsong', 'runeGuidingStar', 'runeGravity', 'runeMeteorStorm',
   // tranche 3: Spirit + Dwarf

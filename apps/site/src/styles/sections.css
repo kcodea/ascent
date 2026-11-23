@@ -1235,9 +1235,9 @@ html:not(.is-other, .is-mobile) .top :is(.download__platform, .download__note) {
   }
 
   .top__team--left-back {
-    top: calc(-3.35 * var(--u));
+    top: calc(0.5 * var(--u));
     left: calc(-2.7 * var(--u));
-    width: calc(27.9 * var(--u));
+    width: calc(29 * var(--u));
   }
 
   .top__team--right-back {

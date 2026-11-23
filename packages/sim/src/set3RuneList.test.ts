@@ -20,6 +20,7 @@ import { describe, expect, it } from 'vitest';
 import { ARCHIVED_RUNES, EPIC_RUNES, RUNES, RUNE_INDEX, SETS } from '@game/content';
 import type { Tribe } from '@game/core';
 import { runeforgePool } from './reducer';
+import { SET3_REVIEW_JOINED } from './set3ReviewJoined';
 import { createRun, type RunState } from './index';
 
 const OWNER_LIST: Record<string, { basic: Record<string, string>; epic: Record<string, string> }> = {
@@ -152,7 +153,8 @@ const CELESTIAL_TO_SET4: readonly string[] = [
 /** Celestial hybrids whose other tribe stayed in Set 3: parked (`sets: []`) by the same swap, pending an owner call. */
 const PARKED_BY_SWAP: readonly string[] = ['rune_soul_script', 'rune_star_tap', 'rune_gem_star', 'rune_festival_circuit'];
 
-const LISTED: string[] = Object.values(OWNER_LIST).flatMap((g) => [...Object.values(g.basic), ...Object.values(g.epic)]);
+// + the 68 Set 2 runes the owner's Set 3 rune review board added on 2026-11-23 (pinned in set3RuneReview.test.ts).
+const LISTED: string[] = [...Object.values(OWNER_LIST).flatMap((g) => [...Object.values(g.basic), ...Object.values(g.epic)]), ...SET3_REVIEW_JOINED];
 const LIVE = [...RUNES, ...EPIC_RUNES];
 const inSet3 = (r: { sets?: readonly string[]; duos?: boolean }): boolean => !r.duos && (!r.sets || r.sets.includes('set3')); // Duos-only runes: a Duos forge's only
 
@@ -187,7 +189,7 @@ describe("the owner's Set 3 rune list (2026-09-25)", () => {
   it('names 203 distinct runes, every one a live (non-archived) rune def', () => {
     // 163 + 11 from Set 3 rune batch 3 (2026-09-25) = 174; the 2026-09-27 design pass: tranche 0 cut 10, restored 5 (169);
     // tranche 1 added 8 Undead (177); tranche 2 added 8 Celestial (185); tranche 3 added 4 Spirit + 3 Dwarf (192); tranche 4 added 8 hybrids (200); tranche 5 added the Set 3 Menagerie, Unity and the Heavy Hand (203); Rune of Drakko 2026-10-03 (204); Profit Sharing archived everywhere 2026-10-07 (203).
-    expect(LISTED).toHaveLength(207); // 204 → 207 on 2026-11-23 (Set 3 new hybrid runes: + 2 Basic, + 1 Epic); 202 → 204 on 2026-10-23 (Set 3 Dwarf runes: + 1 Basic, + 1 Epic); 197 → 202 on 2026-10-22 (Set 3 Kobold runes: + 3 Basic, + 2 Epic); 193 → 197 on 2026-10-21 (Set 3 Dragon runes, Epic B: + 4); 186 → 193 on 2026-10-21 (Set 3 Dragon runes, Epic A: + 7); 175 → 186 on 2026-10-21 (Set 3 Dragon runes, Basic: + 11); 176 → 175 on 2026-10-21 (Rune of the High King left set 3: Brill is buyable there); 200 → 176 on 2026-10-14 (owner swap: 20 Celestial runes to Set 4, 4 Celestial hybrids parked); 203 → 200 on 2026-10-13 (owner Set 3 batch: Red Storm + Storming Veins archived, Living Geode left set 3)
+    expect(LISTED).toHaveLength(275); // 204 → 207 on 2026-11-23 (Set 3 new hybrid runes: + 2 Basic, + 1 Epic); + the owner Set 3 rune review board 2026-11-23: +68 (204 → 272); 202 → 204 on 2026-10-23 (Set 3 Dwarf runes: + 1 Basic, + 1 Epic); 197 → 202 on 2026-10-22 (Set 3 Kobold runes: + 3 Basic, + 2 Epic); 193 → 197 on 2026-10-21 (Set 3 Dragon runes, Epic B: + 4); 186 → 193 on 2026-10-21 (Set 3 Dragon runes, Epic A: + 7); 175 → 186 on 2026-10-21 (Set 3 Dragon runes, Basic: + 11); 176 → 175 on 2026-10-21 (Rune of the High King left set 3: Brill is buyable there); 200 → 176 on 2026-10-14 (owner swap: 20 Celestial runes to Set 4, 4 Celestial hybrids parked); 203 → 200 on 2026-10-13 (owner Set 3 batch: Red Storm + Storming Veins archived, Living Geode left set 3)
     expect(new Set(LISTED).size, 'no rune named twice').toBe(LISTED.length);
     for (const id of LISTED) {
       expect(LIVE.some((r) => r.id === id), `${id} is a live rune`).toBe(true);
@@ -212,8 +214,8 @@ describe("the owner's Set 3 rune list (2026-09-25)", () => {
   });
 
   it('counts: 109 Basic / 94 Epic, after Profit Sharing left 2026-10-07 (91 / 83 on 2026-09-25; 2026-09-27 tranche 0: 87 / 82; tranche 1: + 5 / + 3 Undead; tranche 2: + 5 / + 3 Celestial; tranche 3: + 5 / + 2 Spirit + Dwarf; tranche 4: + 5 / + 3 hybrids; tranche 5: + 2 / + 1 Menagerie + Heavy Hand)', () => {
-    expect(LISTED.filter((id) => RUNES.some((r) => r.id === id))).toHaveLength(112); // 110 → 112 on 2026-11-23 (Set 3 new hybrid runes, Basic: Gem Whispers, Brewed Whispers); 109 → 110 on 2026-10-23 (Set 3 Dwarf rune, Basic: Last Call); 106 → 109 on 2026-10-22 (Set 3 Kobold runes, Basic); 95 → 106 on 2026-10-21 (Set 3 Dragon runes, Basic); 107 → 95 on 2026-10-14 (Celestial swap); 109 → 107 on 2026-10-13 (Red Storm archived, Living Geode left set 3)
-    expect(LISTED.filter((id) => EPIC_RUNES.some((r) => r.id === id))).toHaveLength(95); // 94 → 95 on 2026-11-23 (Set 3 new hybrid runes, Epic: Haunted Hand); 93 → 94 on 2026-10-23 (Set 3 Dwarf rune, Epic: Return Customers); 91 → 93 on 2026-10-22 (Set 3 Kobold runes, Epic); 87 → 91 on 2026-10-21 (Set 3 Dragon runes, Epic B); 80 → 87 on 2026-10-21 (Set 3 Dragon runes, Epic A); 81 → 80 on 2026-10-21 (Rune of the High King left set 3); 93 → 81 on 2026-10-14 (Celestial swap); 94 → 93 on 2026-10-13 (Storming Veins archived) // 95 → 94 on 2026-10-07 (Profit Sharing archived); 94 → 95 on 2026-10-03 (Rune of Drakko)
+    expect(LISTED.filter((id) => RUNES.some((r) => r.id === id))).toHaveLength(148); // 110 → 112 on 2026-11-23 (Set 3 new hybrid runes, Basic: Gem Whispers, Brewed Whispers); + the owner Set 3 rune review board 2026-11-23: 110 → 146; 109 → 110 on 2026-10-23 (Set 3 Dwarf rune, Basic: Last Call); 106 → 109 on 2026-10-22 (Set 3 Kobold runes, Basic); 95 → 106 on 2026-10-21 (Set 3 Dragon runes, Basic); 107 → 95 on 2026-10-14 (Celestial swap); 109 → 107 on 2026-10-13 (Red Storm archived, Living Geode left set 3)
+    expect(LISTED.filter((id) => EPIC_RUNES.some((r) => r.id === id))).toHaveLength(127); // 94 → 95 on 2026-11-23 (Set 3 new hybrid runes, Epic: Haunted Hand); + the owner Set 3 rune review board 2026-11-23: 94 → 126; 93 → 94 on 2026-10-23 (Set 3 Dwarf rune, Epic: Return Customers); 91 → 93 on 2026-10-22 (Set 3 Kobold runes, Epic); 87 → 91 on 2026-10-21 (Set 3 Dragon runes, Epic B); 80 → 87 on 2026-10-21 (Set 3 Dragon runes, Epic A); 81 → 80 on 2026-10-21 (Rune of the High King left set 3); 93 → 81 on 2026-10-14 (Celestial swap); 94 → 93 on 2026-10-13 (Storming Veins archived) // 95 → 94 on 2026-10-07 (Profit Sharing archived); 94 → 95 on 2026-10-03 (Rune of Drakko)
   });
 
   it('every rune NOT named is out of Set 3, still resolves, and keeps its other sets (never archived)', () => {

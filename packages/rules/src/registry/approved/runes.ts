@@ -3112,7 +3112,7 @@ export const RUNES_RULES: GameRule[] = [
     statement:
       'Top Shelf: after every Refresh you press, one minion offer is from the Tier above your Shop (per copy held). The Shop '
       + 'never grows: a short row fills a free slot, a full row replaces the right-most minion offer that is not already '
-      + 'above your Tier. At the top Tier it does nothing. Wholesale: every Shop minion offer costs 1 less per copy held, '
+      + 'above your Tier. At the top Tier (owner 2026-11-23, was nothing) it guarantees that Tier instead: the two right-most minion offers are minions of your Shop Tier, two more per copy held. Wholesale: every Shop minion offer costs 1 less per copy held, '
       + 'floored at 0; spells and Rubies are untouched. Grudge: after a lost combat (a draw is not a loss) the next Shop '
       + 'opens a minion Discover from your Shop Tier + 1, capped at Tier 7, on its own Start of Turn beat, one per copy held. '
       + 'Grudge costs 0 and gives 10 Armor when taken (owner balance 2026-11-15, R-RUNE-PICK-ARMOR-01).',
@@ -3123,9 +3123,9 @@ export const RUNES_RULES: GameRule[] = [
       { kind: 'code', ref: 'packages/sim/src/reducer.ts offerTopShelf (roll branch) / offerBuyPrice wholesaleOff / advanceCombat Grudge recordSotBeat' },
     ],
     contentIds: ['rune_top_shelf', 'rune_wholesale', 'rune_grudge'],
-    currentBehaviour: 'Conforms as of 2026-11-13 (new runes).',
+    currentBehaviour: 'Conforms as of 2026-11-23 (top-Tier guarantee). Before 2026-11-23, Top Shelf did nothing at the top Tier.',
     example: 'Tier 3 Shop with Top Shelf: every Refresh shows one Tier 4 minion. Lose a fight at Tier 6 with Grudge: the next Shop opens a Tier 7 Discover.',
-    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2RunesEpicNeutral.test.ts'], lastVerifiedAt: '2026-11-13' },
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2RunesEpicNeutral.test.ts'], lastVerifiedAt: '2026-11-23' },
   },
   {
     id: 'R-SET2RUNE-EN-02',
@@ -3454,5 +3454,25 @@ export const RUNES_RULES: GameRule[] = [
     currentBehaviour: 'Conforms from 2026-11-17. Before, the rune pulsed on every Gold spend.',
     example: 'Kev holds Big Spender and Refreshes four times in one turn: the rune pulses once.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/bigSpenderAllSpendCounts.test.ts'], lastVerifiedAt: '2026-11-17' },
+  },
+  {
+    id: 'R-SET3-RUNE-REVIEW-01',
+    title: 'Set 3 rune review board: 68 Set 2 runes join Set 3; Summit, Top Shelf, Spellstone, Tempo and Wildfire change everywhere',
+    statement:
+      'The owner review board (2026-11-23) adds 68 Set 2 runes to the Set 3 pool (their sets gain set3, they keep their '
+      + 'other sets); the runes voted No stay out of Set 3. Edits apply in every set: Summit Discovers a Tier 7 minion on '
+      + 'turns 9 and 11 only (bought later, it pays only the turns ahead); Top Shelf guarantees your top Tier at the top '
+      + 'Tier (R-SET2RUNE-EN-01); Spellstone is a Basic rune (it lives in RUNES); Pair is renamed Tempo (id rune_pair kept); '
+      + 'Wildfire has no Demon tag, so it is offered to any warband.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Set 3 Runes review board artifact, owner votes + notes 2026-11-23; follow-up rulings in the Claude Code session', quote: 'At tier 6 it guarantees a t6 unit. With this change it guarantees 2. (Both right most)' },
+      { kind: 'code', ref: 'packages/content/src/runes.ts (sets, Spellstone in RUNES, Tempo, Wildfire); packages/sim/src/reducer.ts SUMMIT_TURNS / guaranteeTopShelf' },
+    ],
+    contentIds: ['rune_summit', 'rune_top_shelf', 'rune_spellstone', 'rune_pair', 'rune_wildfire'],
+    currentBehaviour: 'Conforms from 2026-11-23. Before: Summit paid every 2nd shop, Spellstone was Epic, Pair kept its name, Wildfire was Demon-gated, and none of the 68 were in Set 3.',
+    example: 'Buy Summit on turn 6: Tier 7 Discovers open on turns 9 and 11, and nothing after.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3RuneReview.test.ts', 'packages/sim/src/runes.test.ts', 'packages/sim/src/set2RunesEpicNeutral.test.ts'], lastVerifiedAt: '2026-11-23' },
   },
 ];

@@ -28730,7 +28730,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "setIds": [
       "set1",
-      "set2"
+      "set2",
+      "set3"
     ],
     "tags": [
       "runeforge:basic",
@@ -28787,7 +28788,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "setIds": [
       "set1",
-      "set2"
+      "set2",
+      "set3"
     ],
     "tags": [
       "runeforge:basic",
@@ -28974,7 +28976,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "setIds": [
       "set1",
-      "set2"
+      "set2",
+      "set3"
     ],
     "tags": [
       "runeforge:epic",
@@ -29235,7 +29238,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "confidence": "high"
     },
     "setIds": [
-      "set2"
+      "set2",
+      "set3"
     ],
     "tribes": [
       "dwarf"
@@ -29351,7 +29355,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "setIds": [
       "set1",
-      "set2"
+      "set2",
+      "set3"
     ],
     "tags": [
       "runeforge:epic",
@@ -29534,7 +29539,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       ]
     },
     "setIds": [
-      "set2"
+      "set2",
+      "set3"
     ],
     "tribes": [
       "dragon"
@@ -29721,7 +29727,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       ]
     },
     "setIds": [
-      "set2"
+      "set2",
+      "set3"
     ],
     "tags": [
       "runeforge:epic",
@@ -29811,7 +29818,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       ]
     },
     "setIds": [
-      "set2"
+      "set2",
+      "set3"
     ],
     "tribes": [
       "dwarf"
@@ -29877,7 +29885,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "setIds": [
       "set1",
-      "set2"
+      "set2",
+      "set3"
     ],
     "tags": [
       "runeforge:basic",
@@ -30061,7 +30070,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "confidence": "high"
     },
     "setIds": [
-      "set2"
+      "set2",
+      "set3"
     ],
     "tribes": [
       "dwarf"
@@ -30188,7 +30198,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "confidence": "high"
     },
     "setIds": [
-      "set2"
+      "set2",
+      "set3"
     ],
     "tribes": [
       "dwarf"
@@ -31115,7 +31126,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "confidence": "low"
     },
     "setIds": [
-      "set2"
+      "set2",
+      "set3"
     ],
     "tribes": [
       "kobold"
@@ -31356,7 +31368,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "setIds": [
       "set1",
-      "set2"
+      "set2",
+      "set3"
     ],
     "tags": [
       "runeforge:epic",
@@ -31647,7 +31660,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       ]
     },
     "setIds": [
-      "set2"
+      "set2",
+      "set3"
     ],
     "tribes": [
       "dwarf"
@@ -31684,7 +31698,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       ]
     },
     "setIds": [
-      "set2"
+      "set2",
+      "set3"
     ],
     "tribes": [
       "kobold"
@@ -31897,7 +31912,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       ]
     },
     "setIds": [
-      "set2"
+      "set2",
+      "set3"
     ],
     "tags": [
       "runeforge:epic",
@@ -31961,7 +31977,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "setIds": [
       "set1",
-      "set2"
+      "set2",
+      "set3"
     ],
     "tribes": [
       "dragon"
@@ -32066,7 +32083,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       ]
     },
     "setIds": [
-      "set2"
+      "set2",
+      "set3"
     ],
     "tribes": [
       "dragon"
@@ -32138,7 +32156,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "setIds": [
       "set1",
-      "set2"
+      "set2",
+      "set3"
     ],
     "tribes": [
       "dragon"
@@ -32727,7 +32746,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       ]
     },
     "setIds": [
-      "set2"
+      "set2",
+      "set3"
     ],
     "tags": [
       "runeforge:basic",
@@ -32986,7 +33006,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       ]
     },
     "setIds": [
-      "set2"
+      "set2",
+      "set3"
     ],
     "tribes": [
       "dragon"
@@ -33230,7 +33251,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "setIds": [
       "set1",
-      "set2"
+      "set2",
+      "set3"
     ],
     "tags": [
       "runeforge:basic",
@@ -33295,7 +33317,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       ]
     },
     "setIds": [
-      "set2"
+      "set2",
+      "set3"
     ],
     "tribes": [
       "kobold"
@@ -34117,7 +34140,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       ]
     },
     "setIds": [
-      "set2"
+      "set2",
+      "set3"
     ],
     "tribes": [
       "kobold"
@@ -34270,7 +34294,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       ]
     },
     "setIds": [
-      "set2"
+      "set2",
+      "set3"
     ],
     "tribes": [
       "kobold"
@@ -34879,7 +34904,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       ]
     },
     "setIds": [
-      "set2"
+      "set2",
+      "set3"
     ],
     "tags": [
       "runeforge:epic",
@@ -35089,7 +35115,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "setIds": [
       "set1",
-      "set2"
+      "set2",
+      "set3"
     ],
     "tags": [
       "runeforge:basic",
@@ -35180,7 +35207,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       ]
     },
     "setIds": [
-      "set2"
+      "set2",
+      "set3"
     ],
     "tags": [
       "runeforge:basic",
@@ -35710,7 +35738,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "setIds": [
       "set1",
-      "set2"
+      "set2",
+      "set3"
     ],
     "tags": [
       "runeforge:epic",
@@ -36229,7 +36258,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       ]
     },
     "setIds": [
-      "set2"
+      "set2",
+      "set3"
     ],
     "tags": [
       "runeforge:basic",
@@ -36381,7 +36411,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "setIds": [
       "set1",
-      "set2"
+      "set2",
+      "set3"
     ],
     "tags": [
       "runeforge:basic",
@@ -36529,7 +36560,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       ]
     },
     "setIds": [
-      "set2"
+      "set2",
+      "set3"
     ],
     "tags": [
       "runeforge:basic",
@@ -37019,7 +37051,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "setIds": [
       "set1",
-      "set2"
+      "set2",
+      "set3"
     ],
     "tags": [
       "runeforge:epic",
@@ -37111,7 +37144,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       ]
     },
     "setIds": [
-      "set2"
+      "set2",
+      "set3"
     ],
     "tribes": [
       "kobold"
@@ -37743,7 +37777,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "setIds": [
       "set1",
-      "set2"
+      "set2",
+      "set3"
     ],
     "tags": [
       "runeforge:basic",
@@ -37843,7 +37878,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "setIds": [
       "set1",
-      "set2"
+      "set2",
+      "set3"
     ],
     "tags": [
       "runeforge:basic",
@@ -37930,7 +37966,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       ]
     },
     "setIds": [
-      "set2"
+      "set2",
+      "set3"
     ],
     "tags": [
       "runeforge:basic",
@@ -37956,7 +37993,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "setIds": [
       "set1",
-      "set2"
+      "set2",
+      "set3"
     ],
     "tribes": [
       "undead"
@@ -38204,7 +38242,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "setIds": [
       "set1",
-      "set2"
+      "set2",
+      "set3"
     ],
     "tags": [
       "runeforge:basic",
@@ -38293,7 +38332,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "setIds": [
       "set1",
-      "set2"
+      "set2",
+      "set3"
     ],
     "tags": [
       "runeforge:epic",
@@ -38538,7 +38578,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "setIds": [
       "set1",
-      "set2"
+      "set2",
+      "set3"
     ],
     "tags": [
       "runeforge:epic",
@@ -38889,7 +38930,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       ]
     },
     "setIds": [
-      "set2"
+      "set2",
+      "set3"
     ],
     "tribes": [
       "kobold"
@@ -38958,7 +39000,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       ]
     },
     "setIds": [
-      "set2"
+      "set2",
+      "set3"
     ],
     "tribes": [
       "dwarf"
@@ -38989,7 +39032,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       ]
     },
     "setIds": [
-      "set2"
+      "set2",
+      "set3"
     ],
     "tribes": [
       "kobold"
@@ -39216,7 +39260,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "setIds": [
       "set1",
-      "set2"
+      "set2",
+      "set3"
     ],
     "tribes": [
       "dragon"
@@ -39618,7 +39663,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "confidence": "low"
     },
     "setIds": [
-      "set2"
+      "set2",
+      "set3"
     ],
     "tags": [
       "runeforge:basic",
@@ -39762,7 +39808,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       ]
     },
     "setIds": [
-      "set2"
+      "set2",
+      "set3"
     ],
     "tribes": [
       "dragon"
@@ -39790,7 +39837,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "confidence": "low"
     },
     "setIds": [
-      "set2"
+      "set2",
+      "set3"
     ],
     "tribes": [
       "dwarf"
@@ -40004,7 +40052,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       ]
     },
     "setIds": [
-      "set2"
+      "set2",
+      "set3"
     ],
     "tags": [
       "runeforge:basic",
@@ -40176,7 +40225,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "setIds": [
       "set1",
-      "set2"
+      "set2",
+      "set3"
     ],
     "tags": [
       "runeforge:basic",
@@ -40297,7 +40347,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "setIds": [
       "set1",
-      "set2"
+      "set2",
+      "set3"
     ],
     "tribes": [
       "undead"
@@ -40618,13 +40669,14 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "confidence": "low"
     },
     "setIds": [
-      "set2"
+      "set2",
+      "set3"
     ],
     "tribes": [
       "kobold"
     ],
     "tags": [
-      "runeforge:epic",
+      "runeforge:basic",
       "cost:1"
     ],
     "effects": [
@@ -41010,7 +41062,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "setIds": [
       "set1",
-      "set2"
+      "set2",
+      "set3"
     ],
     "tags": [
       "runeforge:basic",
@@ -41127,7 +41180,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "setIds": [
       "set1",
-      "set2"
+      "set2",
+      "set3"
     ],
     "tags": [
       "runeforge:epic",
@@ -41193,7 +41247,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "setIds": [
       "set1",
-      "set2"
+      "set2",
+      "set3"
     ],
     "tags": [
       "runeforge:epic",
@@ -41313,7 +41368,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "setIds": [
       "set1",
-      "set2"
+      "set2",
+      "set3"
     ],
     "tags": [
       "runeforge:basic",
@@ -41368,7 +41424,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       ]
     },
     "setIds": [
-      "set2"
+      "set2",
+      "set3"
     ],
     "tags": [
       "runeforge:epic",
@@ -41520,7 +41577,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "setIds": [
       "set1",
-      "set2"
+      "set2",
+      "set3"
     ],
     "tags": [
       "runeforge:basic",
@@ -41556,7 +41614,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "setIds": [
       "set1",
-      "set2"
+      "set2",
+      "set3"
     ],
     "tags": [
       "runeforge:basic",
@@ -41771,7 +41830,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "setIds": [
       "set1",
-      "set2"
+      "set2",
+      "set3"
     ],
     "tags": [
       "runeforge:basic",
@@ -41800,7 +41860,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "setIds": [
       "set1",
-      "set2"
+      "set2",
+      "set3"
     ],
     "tags": [
       "runeforge:epic",
@@ -41863,7 +41924,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "setIds": [
       "set1",
-      "set2"
+      "set2",
+      "set3"
     ],
     "tags": [
       "runeforge:epic",
@@ -41889,7 +41951,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "setIds": [
       "set1",
-      "set2"
+      "set2",
+      "set3"
     ],
     "tags": [
       "runeforge:basic",
@@ -41918,7 +41981,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       ]
     },
     "setIds": [
-      "set2"
+      "set2",
+      "set3"
     ],
     "tribes": [
       "kobold"
@@ -42275,7 +42339,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       ]
     },
     "setIds": [
-      "set2"
+      "set2",
+      "set3"
     ],
     "tags": [
       "runeforge:basic",
@@ -42409,7 +42474,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       ]
     },
     "setIds": [
-      "set2"
+      "set2",
+      "set3"
     ],
     "tags": [
       "runeforge:epic",
@@ -42475,10 +42541,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       ]
     },
     "setIds": [
-      "set2"
-    ],
-    "tribes": [
-      "demon"
+      "set2",
+      "set3"
     ],
     "tags": [
       "runeforge:epic",
@@ -42504,7 +42568,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "setIds": [
       "set1",
-      "set2"
+      "set2",
+      "set3"
     ],
     "tags": [
       "runeforge:basic",

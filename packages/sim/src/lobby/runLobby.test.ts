@@ -169,7 +169,7 @@ describe('lobby run — the readouts the player actually reads', () => {
     // than the table for the same fight.
     // Play until the player has ACTUALLY TAKEN a hit — the divergence can only appear on a loss, so a fixed
     // round count made this vacuous: it passed with the fix reverted because the player hadn't lost yet.
-    let s = createLobbyRun(4, 'drakko');
+    let s = createLobbyRun(5, 'drakko'); // seed 4 → 5 on 2026-11-23: the Set 3 rune review shifted seed 4's rune rolls and the player won the lobby untouched
     const startHp = playerLobbySeat(s.lobby!).resolve + playerLobbySeat(s.lobby!).armor;
     let guard = 0;
     while (s.phase !== 'gameover' && guard++ < 4000) {

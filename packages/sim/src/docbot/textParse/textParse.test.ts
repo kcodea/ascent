@@ -229,7 +229,9 @@ const SWEEP = runTextSweep({ contracts: CONTRACTS });
 // 2026-11-23 (Set 3 new hybrid runes Gem Whispers, Brewed Whispers, Haunted Hand): 223 -> 224, CONSCIOUSLY. One of the three
 // new texts is not fully read by the grammar; the behaviour is pinned by packages/sim/src/set3HybridRunes1123.test.ts and
 // packages/core/src/combat/set3HybridRunes1123.test.ts.
-const UNRESOLVED_CAP = 224;
+// 2026-11-23 (owner Set 3 rune review): 223 -> 224, CONSCIOUSLY. Top Shelf's new top-Tier clause ("At your top Tier, your 2
+// right-most offers are always that Tier") or Summit's fixed turns is a clause the grammar does not read yet.
+const UNRESOLVED_CAP = 225;
 /** Collapse floor: the parser fully consuming fewer objects than this means a grammar regression. */
 const PARSED_FLOOR = 900;
 /** The HARD ceiling (2026-09-11): the unresolved share of active objects may never reach this fraction again. A

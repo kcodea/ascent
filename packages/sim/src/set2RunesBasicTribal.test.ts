@@ -9,6 +9,7 @@ import { CARD_INDEX, RUNES, EPIC_RUNES, RUNE_INDEX, SETS, poolFor } from '@game/
 import { CONFIG, createRun, reduce, type Action, type BoardCard, type RunState } from './index';
 import { questCombatMods, offerBuyPrice } from './reducer';
 import { advanceRuneThresholds, applyRuneGrafts, castSpell, mintRubies } from './recruit';
+import { withSet3 } from './set3ReviewJoined';
 import { runeTally, runeCombatTally } from '../../ui/src/runeTally';
 
 const IDS = ['rune_deep_pockets', 'rune_rowdy_crowd', 'rune_bloodscent', 'rune_last_howl', 'rune_trophy_hunter', 'rune_pitchforks',
@@ -66,7 +67,7 @@ describe('the fourteen runes as content', () => {
     ];
     for (const [id, name, cost, tribe, text] of rows) {
       const r = RUNE_INDEX[id]!;
-      expect([r.name, r.cost, r.text, r.sets, r.tribes, !!r.epic], id).toEqual([name, cost, text, ['set2'], [tribe], false]);
+      expect([r.name, r.cost, r.text, r.sets, r.tribes, !!r.epic], id).toEqual([name, cost, text, withSet3(id, ['set2']), [tribe], false]);
       expect(RUNES.includes(r) && !EPIC_RUNES.includes(r), `${id} is Basic`).toBe(true);
       expect(/—|--|Oath|climb/.test(r.text), `${id} player text style`).toBe(false);
     }

@@ -53,7 +53,7 @@ describe('Sequencing as content', () => {
   it('an Epic Dragon rune, Set 2 only, cost 3, the owner text, plain player style', () => {
     const r = RUNE_INDEX['rune_sequencing']!;
     expect([r.name, r.cost, r.text, r.sets, r.tribes, !!r.epic]).toEqual(
-      ['Sequencing', 3, 'When you cast **3** different spells, get a **copy** of the first one.', ['set2'], ['dragon'], true]);
+      ['Sequencing', 3, 'When you cast **3** different spells, get a **copy** of the first one.', ['set2', 'set3'], ['dragon'], true]);
     expect(EPIC_RUNES.includes(r)).toBe(true);
     expect(/—|--|Oath|climb/.test(r.text)).toBe(false);
     expect(SPELLS.length).toBe(3);

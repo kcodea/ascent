@@ -18,16 +18,18 @@ const node = (extra: Record<string, unknown> = {}): Record<string, unknown> => {
   const n: Record<string, unknown> = { connect: (t: unknown) => t, disconnect: () => undefined, start: () => undefined, stop: () => undefined, ...extra };
   return n;
 };
-function fakeCtx(): { ctx: unknown; gains: Array<{ gain: FakeParam }> } {
+function fakeCtx(): { ctx: unknown; gains: Array<{ gain: FakeParam }>; counts: { sources: number } } {
   const gains: Array<{ gain: FakeParam }> = [];
+  const counts = { sources: 0 };
   const ctx = {
     currentTime: 0, sampleRate: 8000,
     createBuffer: (_c: number, len: number) => ({ getChannelData: () => new Float32Array(len) }),
     createGain: () => { const g = node({ gain: param(1) }) as { gain: FakeParam }; gains.push(g); return g; },
     createBiquadFilter: () => node({ frequency: param(), Q: param(), type: '' }),
-    createBufferSource: () => node({ buffer: null, loop: false, playbackRate: param(1) }),
+    createBufferSource: () => { counts.sources++; return node({ buffer: null, loop: false, playbackRate: param(1) }); },
+    createOscillator: () => { counts.sources++; return node({ frequency: param() }); },
   };
-  return { ctx, gains };
+  return { ctx, gains, counts };
 }
 
 const callAll = (s: ReturnType<typeof createPackSounds>): void => {
@@ -56,6 +58,16 @@ describe('packSounds', () => {
     const loopGains = f.gains.slice(1).filter((g) => g.gain.targets.length > 0); // gains[0] is the master
     expect(loopGains.length).toBeGreaterThanOrEqual(2);
     for (const g of loopGains) expect(g.gain.targets[g.gain.targets.length - 1]).toBe(0);
+  });
+
+  it('tear/slide after the first call create no nodes', () => {
+    const f = fakeCtx();
+    h.ctx = f.ctx;
+    const s = createPackSounds();
+    s.tear(4);
+    const n = f.counts.sources;
+    for (let i = 0; i < 20; i++) { s.tear(i); s.slide(i); }
+    expect(f.counts.sources).toBe(n);
   });
 
   it('dispose() is idempotent', () => {

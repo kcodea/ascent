@@ -1,7 +1,7 @@
 import { COSMETIC_RARITIES, type CrateRarity } from '@game/progression';
 import { audioContext, fxBusTarget, playTailedClip } from '../../sfx';
 import { CRATE_CUE_CATEGORY, crateCue, getCrateFxConfig, type CrateCue } from '../crateFx/crateFxConfig';
-import { getPackFeel } from './packFxConfig';
+import { DEFAULT_PACK_FEEL, getPackFeel } from './packFxConfig';
 
 /**
  * The pack opening's sound cues. Each cue is one slot in `PACK_CUES`: v1 synthesises the tactile ones (the
@@ -104,7 +104,10 @@ export function createPackSounds(): PackSounds {
       slideBp = s.bp; slideGain = s.gain;
       return ctx;
     } catch {
-      a = null; master = null;
+      // Stop any loop already started so a retry does not stack duplicate loops.
+      for (const src of sources) { try { src.stop(); } catch { /* not started */ } try { src.disconnect(); } catch { /* gone */ } }
+      sources.length = 0;
+      a = null; master = null; noise = null; tearBp = null; tearGain = null; slideBp = null; slideGain = null;
       return null;
     }
   };
@@ -137,9 +140,9 @@ export function createPackSounds(): PackSounds {
     }
     if (disposed || !audioContext()) return;
     const s = crateCue(getCrateFxConfig(), slot.cue);
-    // The chest clips ride the game's own bus; scale them with the pack volume knob (0.45 is its default).
+    // The chest clips ride the game's own bus; scale them with the pack volume knob (the default volume plays them at chest level).
     playTailedClip(s.clip, CRATE_CUE_CATEGORY[slot.cue], {
-      gain: s.gain * (o.gain ?? 1) * (getPackFeel().volume / 0.45),
+      gain: s.gain * (o.gain ?? 1) * (getPackFeel().volume / DEFAULT_PACK_FEEL.volume),
       startMs: s.startMs, lenMs: s.lenMs, tail: s.tail, rate: o.rate ?? 1,
     });
   };

@@ -46,7 +46,7 @@
 .top__tint {
   position: absolute;
   inset: 0;
-  background: color-mix(in srgb, var(--showcase) 35%, transparent);
+  background: color-mix(in srgb, var(--showcase) 0%, transparent);
 }
 
 /* Phone: the teams meet in a band across the top, above the words. */

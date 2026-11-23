@@ -333,4 +333,28 @@ export const SUMMONING_RULES: GameRule[] = [
       + 'Avenge (4): Improve this." (R-AURA-03).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/kennelmasterSummon1114.test.ts'], lastVerifiedAt: '2026-11-14' },
   },
+  {
+    id: 'R-BROOD-01',
+    title: 'Brood Matron summons at most 3 Imps per combat',
+    statement:
+      'One Brood Matron summons at most 3 Imps per combat from its Avenge (a gilded one: 6). Only the summon is capped: '
+      + 'every Avenge still gives your Imps their +1/+1 this game (gilded +2/+2), with or without an Imp. The count '
+      + 'belongs to the body: each Brood Matron has its own, it is fresh every fight, and a body that returns through Rise '
+      + 'or Rebirth starts it again (R-RETURN-RESET-01). It counts each Imp the Avenge summons, including one lost to a '
+      + 'full board. The card prints the cap, and in combat prints the Imps it has left.',
+    domain: 'summoning',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Mike, 2026-11-22 (Brood Matron)', quote: 'lets fix brood matron to be max of 3 summons per round' },
+      { kind: 'code', ref: 'packages/core/src/effects/factories.ts avengeBuffImps (the max param on bredCount); packages/content/src/cards/set1/demons.ts brood; packages/core/src/combat/minion.ts resetPerCombatLimits; packages/ui/src/cardText.ts avengeSummonCapText' },
+    ],
+    contentIds: ['brood'],
+    currentBehaviour:
+      'Since 2026-11-22. Before (the 2026-11-20 rework), Avenge (2) summoned an Imp with no limit, and each Imp that died '
+      + 'fed the next Avenge. Reviewer readings the owner has not ruled on: "per round" is read as per combat (a minion '
+      + 'Avenge only fires in combat); the gilded cap is 6 Imps (3 Avenges of 2); the +1/+1 keeps paying after the cap; '
+      + 'an Imp lost to a full board still spends one of the 3.',
+    example: 'Eight friends die next to your Brood Matron: it summons an Imp on deaths 2, 4 and 6 and gives your Imps +1/+1 each time. On death 8 it summons nothing and still gives your Imps +1/+1.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/broodMatronSummonCap.test.ts', 'packages/ui/src/broodMatronCapText.test.ts'], lastVerifiedAt: '2026-11-22' },
+  },
 ];

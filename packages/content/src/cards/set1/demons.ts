@@ -73,11 +73,13 @@ export const DEMONS: CardDef[] = [
     keywords: [],
     // Owner rework 2026-11-20: the friend-death Imp watcher (max 3) is gone; one Avenge (2) summons an Imp, THEN
     // buffs every Imp (so the new one takes it too). "This game" = the permanent Imp Aura (`grantImpBuff`).
+    // Owner 2026-11-22: "max of 3 summons per round" = `max` Imps per combat per body (gilded 6); only the SUMMON
+    // is capped, the Imp buff keeps paying on every Avenge (R-BROOD-01).
     effects: [
-      { on: 'avenge', do: 'avengeBuffImps', params: { count: 2, summon: 1, tokenId: 'impscrap', attack: 1, health: 1 } },
+      { on: 'avenge', do: 'avengeBuffImps', params: { count: 2, summon: 1, max: 3, tokenId: 'impscrap', attack: 1, health: 1 } },
     ],
-    text: '**Avenge (2):** Summon an **Imp** and give your Imps **+1/+1** this game.',
-    goldenText: '**Avenge (2):** Summon **2** **Imps** and give your Imps **+2/+2** this game.',
+    text: '**Avenge (2):** Summon an **Imp** and give your Imps **+1/+1** this game. (Max 3 Imps per combat.)',
+    goldenText: '**Avenge (2):** Summon **2** **Imps** and give your Imps **+2/+2** this game. (Max 6 Imps per combat.)',
   },
   {
     // Dual-type Demon/Mech. Magnetic — and because it's also a Mech it can weld onto a friendly

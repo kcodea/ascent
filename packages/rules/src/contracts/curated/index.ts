@@ -27,9 +27,10 @@ export const CURATED_CONTRACTS: readonly ContentContract[] = [
   {
     // Reworked 2026-11-20 (owner): the friend-death Imp watcher is gone; one Avenge (2) summons an Imp, then buffs
     // every Imp (the new one included) permanently. Kept curated so the rework's shape is stated, not guessed.
+    // Owner 2026-11-22 (R-BROOD-01): at most 3 Imps per combat per body (gilded 6); the buff is not capped.
     contentId: 'brood',
     contentType: 'minion',
-    revision: 2,
+    revision: 3,
     reviewStatus: 'extracted',
     setIds: ['set1'],
     tier: 3,
@@ -39,7 +40,7 @@ export const CURATED_CONTRACTS: readonly ContentContract[] = [
       { event: 'avenge', phase: 'combat', phaseBasis: 'authored', threshold: 2 },
     ],
     effects: [
-      { kind: 'avengeBuffImps', amount: { kind: 'const', plain: { attack: 1, health: 1 }, gilded: { attack: 2, health: 2 } }, summons: { cardId: 'impscrap', count: { plain: 1, gilded: 2 } }, refs: ['impscrap'], note: 'summon first, then buff, so the new Imp takes the +1/+1 too' },
+      { kind: 'avengeBuffImps', amount: { kind: 'const', plain: { attack: 1, health: 1 }, gilded: { attack: 2, health: 2 } }, summons: { cardId: 'impscrap', count: { plain: 1, gilded: 2 } }, refs: ['impscrap'], note: 'summon first, then buff, so the new Imp takes the +1/+1 too; at most 3 Imps per combat per body (gilded 6), the buff is not capped (R-BROOD-01)' },
     ],
     gildedDelta: { kind: 'multiply', factor: 2, basis: 'authored', description: 'the gild doubles both halves: 2 Imps and +2/+2 (owner rework 2026-11-20; gilded text is a reviewer assumption)' },
     textContract: { source: 'index' },

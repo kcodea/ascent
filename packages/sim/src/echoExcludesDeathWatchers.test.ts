@@ -151,11 +151,16 @@ describe('Brood Matron rework (owner 2026-11-20): Avenge (2) summons an Imp, the
   });
 
   it('gilded: two Imps and +2/+2 per Avenge', () => {
-    // Gilded is self-feeding (two Imps per two deaths), so count PER FIRE: every fire is 2 Imps and +2/+2.
+    // Gilded is self-feeding (two Imps per two deaths) until its 6 Imps are spent (R-BROOD-01, owner 2026-11-22);
+    // every fire is 2 Imps while it has them, and +2/+2 whether it has them or not.
     const r = run(true);
     const imps = impSummons(r).length;
     expect(imps).toBeGreaterThanOrEqual(2);
+    expect(imps).toBeLessThanOrEqual(6);
     expect(imps % 2).toBe(0);
-    expect(r.playerImpBuffGain).toEqual({ attack: imps, health: imps });
+    const gain = r.playerImpBuffGain!;
+    expect(gain.attack).toBe(gain.health);
+    expect(gain.attack % 2).toBe(0);
+    expect(gain.attack).toBeGreaterThanOrEqual(imps);
   });
 });

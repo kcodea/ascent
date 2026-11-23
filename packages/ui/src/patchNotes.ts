@@ -59,6 +59,15 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-11-22',
     changes: [
       {
+        category: 'Balance',
+        text: 'Brood Matron now summons at most 3 Imps per combat.',
+        details: [
+          'Its Avenge (2) still gives your Imps +1/+1 this game every time, even after the 3 Imps are spent.',
+          'A Gilded Brood Matron summons at most 6.',
+          'Each Brood Matron counts its own Imps, and in combat the card shows how many it has left.',
+        ],
+      },
+      {
         category: 'Systems',
         text: 'Steel style titles, like Absolute Unit, no longer show a small red diamond after the name.',
       },

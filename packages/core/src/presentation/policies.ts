@@ -1015,6 +1015,16 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_soul_furnace:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_restless:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_open_grave:combat': { policy: 'foldedCue', family: 'combatModifier' },
+  // ── Set 3 new-concept runes, Undead (owner review 2026-11-23) ──
+  'rune:rune_shallow_graves:combat': { policy: 'foldedCue', family: 'combatModifier' },
+  'rune:rune_grave_tithe:combat': { policy: 'foldedCue', family: 'combatModifier' },
+  'rune:rune_dead_weight:combat': { policy: 'foldedCue', family: 'combatModifier' },
+  'rune:rune_rank_and_file:combat': { policy: 'foldedCue', family: 'combatModifier' },
+  'rune:rune_bone_pile:combat': { policy: 'foldedCue', family: 'combatModifier' },
+  'rune:rune_second_burial:combat': { policy: 'foldedCue', family: 'combatModifier' },
+  'rune:rune_night_watch:combat': { policy: 'foldedCue', family: 'combatModifier' },
+  'rune:rune_requiem:combat': { policy: 'foldedCue', family: 'combatModifier' },
+  'rune:rune_undying_legion:combat': { policy: 'foldedCue', family: 'combatModifier' },
   // ── Set 3 Dragon runes, Epic B (owner 2026-10-21): Shop-only Whisper hooks; the flag name keys them like the Open Grave ──
   'rune:rune_lasting_words:combat': { policy: 'foldedCue', family: 'combatModifier' },        // a from-hand Whisper on a Dragon kept (folded into the cast)
   'rune:rune_twin_tongues:combat': { policy: 'foldedCue', family: 'combatModifier' },         // the copy is a cast with its own spell cue
@@ -1046,6 +1056,10 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_grim_toast:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_gem_star:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_keepsake_gem:combat': { policy: 'foldedCue', family: 'combatModifier' },
+  // Set 3 new hybrid runes (owner review board 2026-11-23)
+  'rune:rune_gem_whispers:combat': { policy: 'foldedCue', family: 'combatModifier' }, // a Whisper on a minion also casts a Ruby on it
+  'rune:rune_brewed_whispers:combat': { policy: 'foldedCue', family: 'combatModifier' }, // an Ale cast: a random Whisper
+  'rune:rune_haunted_hand:combat': { policy: 'foldedCue', family: 'combatModifier' }, // a hand gain: the Undead Aura +1 Attack (5 a turn)
   // ── tranche 5 ──
   'rune:rune_menagerie_set3:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' },
   'rune:rune_heavy_hand:combat': { policy: 'foldedCue', family: 'combatModifier' },

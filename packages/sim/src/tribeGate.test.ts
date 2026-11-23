@@ -50,6 +50,7 @@ const OWNER_TRIBE_RULINGS: Readonly<Record<string, Tribe>> = {
   rune_living_treasure: 'kobold', rune_rising_echoes: 'undead', rune_crowded_crypt: 'undead', rune_overflow: 'undead', rune_dreamed_graves: 'spirit',
   // Design pass tranche 1 (owner-approved Undead runes, 2026-09-27): Rise is the Undead keyword.
   rune_second_wind: 'undead', rune_restless: 'undead', rune_open_grave: 'undead',
+  rune_grave_tithe: 'undead', rune_second_burial: 'undead', rune_rank_and_file: 'undead', rune_night_watch: 'undead', // Set 3 Undead runes (2026-11-23): Rise / Footmen / Spear Wardens are Undead
   // Design pass tranche 4 (owner 2026-09-27: "When you spend 8 Gold, get a random Ruby."): a Kobold + Dwarf hybrid, and
   // Gold spent is the Dwarf line (Mountainbond's seam), which the name-matcher cannot read.
   rune_minted_gems: 'dwarf',
@@ -57,6 +58,8 @@ const OWNER_TRIBE_RULINGS: Readonly<Record<string, Tribe>> = {
   rune_gem_crypt: 'undead',
   // …and the Pallbearer + the Keepsake Gem: "the left-most minion in your hand" is the Spirit hand line.
   rune_pallbearer: 'spirit', rune_keepsake_gem: 'spirit',
+  // …and the Haunted Hand (Set 3 new hybrid runes, owner review board 2026-11-23): its Spirit half is the same hand line.
+  rune_haunted_hand: 'spirit',
   // The owner's Set 3 Dragon rune list (2026-10-21) puts Rune of the Open Treasury under Dragon; its text names no tribe word.
   rune_open_treasury: 'dragon',
   // Sequencing (owner design 2026-11-14): handed over as an Epic DRAGON rune; spell casts are the Dragon line.

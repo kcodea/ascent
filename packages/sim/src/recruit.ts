@@ -37,11 +37,13 @@ import { CONFIG, hasTier7Access, maxTierFor, SHIFTER_OPTIONS } from './config';
 import { type HeroPower, spellAmplifyBonus, hasPower, activePowers, primaryPower, powerDiscoverPool, swapPowerLatch } from './heroes';
 import { handCap, runeGrantOverflow, recordBounceFx, recordCastFx, reservedHandSlots, mixSeed, TAG, type AuraFxTribe, type BoardCard, type BuffFxEvent, type CardBuff, type CiaSuit, type CommissionKind, type DiscoverSpec, type EquipFx, type RunState, type ShopCard, type ShopDeathFx, type CastFxSource, gateUses, procRune, procRuneId, runeBuffMagnitude, recordShopDamage, isShopDamageRow } from './state';
 export { ALE_IDS };
+import { HAUNTED_HAND_CAP } from './runeLiveState'; // Set 3 new hybrid runes: Rune of the Haunted Hand's per-turn cap
 import { returnToPool, rollShop, rollSpellShop, takeFromPool, refillShopFiltered, elevateShop, tierSlots, stampNewShopOffers, landRightmostSlotBuff, landLeftmostSlotBuff, rollCiaEnchants, SCROLL_DRAKE_ID, refillShopMadness } from './shop';
 import { runeStacksOf } from './runeDup';
 import { defiantWingsShop, openTreasuryOnBuy, spellFedScalesOnCast, whisperCastShop } from './dragonRunesBasic';
 import { discoverOptionCount, goldenHandshakeOnGild, piggyBankTick, shieldWallShop } from './set2RunesBasicNeutral';
 import { collectionsOnSale, drunkShopkeeperOnCast, flamekeeperOnCast, impLegionGraft, roughCutShop } from './set2RunesBasicTribal'; // Set 2 rune batch, Basic tribal
+import { deadWeightOnOverflow, rankAndFileGraft, requiemOnAuraRise, secondBurialNoteRise, secondBurialOnShopDeath, set3UndeadSocReplays, shallowGravesOnBuy } from './set3UndeadRunes'; // Set 3 Undead runes (2026-11-23)
 import { sequencingOnCast } from './runeSequencing'; // Set 2 Epic Dragon rune Sequencing (2026-11-14)
 
 /**
@@ -502,6 +504,7 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
       // already, so raising it IS the whole grant — a board loop on top would double-apply it.
       state.undeadAttackBonus += a;
       state.undeadHealthBonus += h;
+      if (a > 0 || h > 0) requiemOnAuraRise(state); // Set 3 Undead rune Requiem hears every Aura rise
     },
     grantRubies: (count) => { mintRubies(state, count); },
     grantRandomRubies: (count) => { mintRandomRubies(state, count); },
@@ -1163,6 +1166,7 @@ export function buffUndeadAttackEverywhere(state: RunState, amount: number, sour
     if (isTribeNatural(card, 'undead')) addBuff(card, source, amount, 0); // a Unity body folds it instead (foldedAuraOf)
   }
   state.undeadBuyAtk = (state.undeadBuyAtk ?? 0) + amount;
+  requiemOnAuraRise(state); // Set 3 Undead rune Requiem hears every Aura rise
   // Rune of Soul Script: the Starform counts as Undead, so the Aura reaches the token too (a gain — rule 8).
   if (state.runeSoulScript && hasStarform(state)) buffStarform(state, amount, 0, source);
 }
@@ -3998,6 +4002,7 @@ export function afterShopDestroy(state: RunState, destroyed: BoardCard): void {
   noteShopCardDeath(state, destroyed);
   ancientOnShopDeath(state, destroyed); // ANCIENT OF WAR, Shop half (a no-op unless the run has it)
   runeGravediggerShop(state, destroyed); // RUNE OF THE GRAVEDIGGER (Set 3 design pass)
+  secondBurialOnShopDeath(state, destroyed); // Set 3 Undead rune Second Burial: a body that already Rose
   if (!state.runeLastRites || state.lastRitesUsedThisTurn || !isTribe(destroyed, 'undead')) return;
   const def = CARD_INDEX[destroyed.cardId];
   if (!def) return;
@@ -4092,6 +4097,7 @@ function riseReturn(state: RunState, target: BoardCard, slot: number, summonedFr
   const grew = state.board.length - summonedFrom;
   const at = Math.min(state.board.length, slot + Math.max(0, grew));
   state.board.splice(at, 0, risen);
+  secondBurialNoteRise(state, risen); // Set 3 Undead rune Second Burial: this body has now Risen
   // Set 3 batch 2: the risen body is built fresh, so the rune grafts are re-stamped BEFORE `fireOnRise` runs —
   // Rune of the Endless March's "when THIS Rises" lives on the riser itself.
   applyRuneGrafts(state, risen);
@@ -4141,6 +4147,7 @@ export function fireSummonOverflow(state: RunState): void {
       for (const c of state.board) addBuff(c, 'Crowded Crypt', cc.attack * reps, cc.health * reps);
     });
   }
+  deadWeightOnOverflow(state, raiseUndeadAuraShop); // Set 3 Undead rune Dead Weight: the Undead Aura +2 Attack
   const ctx = makeContext(state);
   for (const c of [...state.board]) {
     const def = CARD_INDEX[c.cardId];
@@ -10045,6 +10052,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     if (str(params.tribe) === 'undead') {
       ctx.state.undeadAttackBonus += num(params.amount, 1) + spellAttackBonus(ctx.state);
       ctx.state.undeadHealthBonus += spellHealthBonus(ctx.state);
+      requiemOnAuraRise(ctx.state); // Set 3 Undead rune Requiem hears every Aura rise
     }
   },
 
@@ -13949,6 +13957,7 @@ export const ENDLESS_MARCH_TOKEN = 'knit';
 export function applyRuneGrafts(state: RunState, card: BoardCard): void {
   const rallyGold = ancientRallyGoldGraft(state); // ANCIENT OF WAR × Tradesman
   const gildedEcho = ancientGildedEchoGraft(state); // ANCIENT OF DEATH × Midas
+  rankAndFileGraft(state, card); // Set 3 Undead rune Rank and File: Footmen and Spear Wardens carry Taunt
   if (!state.runeEndlessMarch && !state.runeLastTool && !state.questFlags?.runeEchoingKobolds && !state.questFlags?.runeAggressiveGolems && !state.questFlags?.runeStellarEchoes && !rallyGold && !gildedEcho && !state.questFlags?.runeImpLegion) return;
   const def = CARD_INDEX[card.cardId];
   if (!def || def.spell || def.ruby) return;
@@ -14038,6 +14047,7 @@ export function effectiveTargetTribe(state: RunState, def: CardDef | undefined):
 export function applyOnBuy(state: RunState, bought: BoardCard): void {
   applySecondLife(state, bought); // Rune of the Second Life: a Scavver arrives already carrying Taunt + Rise
   applyRuneGrafts(state, bought); // Set 3 batch 2: the Endless March / Last Tool grafts ride the bought body
+  if (state.questFlags?.runeShallowGraves) shallowGravesOnBuy(state, bought); // Set 3 Undead rune Shallow Graves: the turn's first Undead bought gains Rise
   const ctx = makeContext(state);
   // RUNE OF THE BANQUET HALL (owner rework 2026-09-23): the turn's FIRST buy — any minion, Shop-buffed or not —
   // hands its CURRENT stats (what the body is after the buy baked in the offer's buffs) to 2 random OTHER
@@ -14836,6 +14846,7 @@ export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard
   // SET 3 DRAGON RUNES (Rune of Borrowed Flame, Rune of Spell Tempering): every Whisper cast, before the target's reactors and Whisp's
   // echo (each echo is its own cast and reaches here itself).
   if (spellDef.whisper) whisperCastShop(state, spellDef, target && state.board.includes(target) ? target : undefined);
+  if (spellDef.whisper && target) gemWhispersShop(state, target); // Set 3 new hybrid runes: Rune of Gem Whispers
   if (target && state.board.includes(target)) fireOnSpellCastOnThis(state, target, spellDef);
   // SET 4 — WHISP: a Whisper cast on a Dragon is also cast on every Whisp (a full cast each, never re-echoing).
   if (spellDef.whisper && target && state.board.includes(target)) whisperEchoOnDragons(state, spellDef, target);
@@ -14862,6 +14873,7 @@ export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard
   if (spellDef.id === 'starcrash' && state.questFlags?.runeMeteorStorm && !METEOR_ECHOING) runeMeteorStormShop(state, spellDef, target);
   // RUNE OF THE STAR TAP (Set 3 design pass): every Dwarven Ale cast feeds the Starform +3/+3 per copy.
   if (ALE_IDS.includes(spellDef.id) && state.questFlags?.runeStarTap) runeStarTapShop(state);
+  brewedWhispersShop(state, spellDef); // Set 3 new hybrid runes: Rune of Brewed Whispers
   drunkShopkeeperOnCast(state, spellDef); // Set 2 rune Drunk Shopkeeper: an Ale cast adds +2/+2 to the permanent Shop buff
   flamekeeperOnCast(state, spellDef); // Set 2 rune Flamekeeper: a Dragonflame cast gives your Dragons +2/+2
 }
@@ -15816,6 +15828,7 @@ export function socRuneReplaysOf(state: RunState): SocRuneReplay[] {
       for (const c of ends) if (st.board.includes(c)) replayBattlecry(st, c);
     }
   } });
+  out.push(...set3UndeadSocReplays(state)); // Set 3 Undead runes Bone Pile / Night Watch (2026-11-23)
   return out;
 }
 
@@ -16333,6 +16346,8 @@ export function fireStatGainReactors(state: RunState, before: Map<string, { atta
       }
     }
   }
+  // SET 3 NEW HYBRID RUNES: Rune of the Haunted Hand, over the same hand MINION gainers (step 1's included).
+  if (state.questFlags?.runeHauntedHand) hauntedHandShop(state, state.hand.filter((c) => !CARD_INDEX[c.cardId]?.spell && gained(c)).length);
   // 2. The hand-gain runes.
   if (!state.runeDreamMirror && !state.runeWakingDreams) return;
   const handGainers = state.hand.filter((c) => !CARD_INDEX[c.cardId]?.spell).map((c) => ({ card: c, d: gained(c) })).filter((g): g is { card: BoardCard; d: { attack: number; health: number } } => !!g.d);
@@ -17888,6 +17903,7 @@ export function raiseUndeadAuraShop(state: RunState, attack: number): void {
   if (attack <= 0) return;
   state.undeadAttackBonus = (state.undeadAttackBonus ?? 0) + attack;
   syncSoulFurnace(state);
+  requiemOnAuraRise(state); // Set 3 Undead rune Requiem hears every Aura rise
 }
 
 /** RUNE OF THE WAKE, Shop half: `triggers` Undead Echo triggers each raise the Undead Aura +1 Attack per copy. */
@@ -18129,6 +18145,39 @@ function runeRubyCastShop(state: RunState, card: BoardCard, a: number, h: number
     const n = runeStacksOf(state, 'rune_gem_star');
     if (buffStarform(state, a * n, h * n, 'Gem Star')) procRuneId(state, 'rune_gem_star');
   }
+}
+
+// ── SET 3 NEW HYBRID RUNES (owner review board 2026-11-23): the Shop halves. Combat halves: simulate.ts. ───────────
+
+/** RUNE OF GEM WHISPERS: a Whisper cast (`castSpell`, every cast: from hand, a Yazzus repeat, Whisp's echo, Twin Tongues'
+ *  copy, End of Turn) landed on `target`. A friendly BOARD minion gets one plain Ruby per copy through `playRubiesOn`, the
+ *  Shop's one Ruby chokepoint (live Ruby strength, the Ruby-landed watchers), the target its own source. */
+export function gemWhispersShop(state: RunState, target: BoardCard): void {
+  if (!state.questFlags?.runeGemWhispers || !state.board.includes(target)) return;
+  procRuneId(state, 'rune_gem_whispers');
+  for (let k = 0; k < runeStacksOf(state, 'rune_gem_whispers'); k++) {
+    if (state.board.includes(target)) shopArena(state, target).playRubiesOn(target, 1);
+  }
+}
+
+/** RUNE OF BREWED WHISPERS: a Dwarven Ale cast (every cast through `castSpell`: hand, End of Turn, a rune or minion, each
+ *  repeat its own) gets one random Whisper per copy from the gated pool (R-WHISPER-TIER-01). */
+export function brewedWhispersShop(state: RunState, spellDef: CardDef): void {
+  if (!ALE_IDS.includes(spellDef.id) || !state.questFlags?.runeBrewedWhispers) return;
+  procRuneId(state, 'rune_brewed_whispers');
+  mintRandomWhispers(state, runeStacksOf(state, 'rune_brewed_whispers'));
+}
+
+/** RUNE OF THE HAUNTED HAND: `gainers` hand minions gained stats this action. Each, up to the turn's remaining cap
+ *  (`HAUNTED_HAND_CAP`, shared with that turn's combat through `hauntedHandLeft`), raises the Undead Aura +1 Attack per
+ *  copy (the Lantern channel, folded at display, so the raise never grows a hand card and cannot re-enter). */
+export function hauntedHandShop(state: RunState, gainers: number): void {
+  const used = state.hauntedHandThisTurn ?? 0;
+  const k = Math.min(gainers, HAUNTED_HAND_CAP - used);
+  if (k <= 0) return;
+  state.hauntedHandThisTurn = used + k;
+  procRuneId(state, 'rune_haunted_hand', k);
+  raiseUndeadAuraShop(state, k * runeStacksOf(state, 'rune_haunted_hand'));
 }
 
 // ── SET 3 RUNE DESIGN PASS (owner 2026-09-27), tranche 5: Rune of Unity, Shop half ─────────────────────────────────

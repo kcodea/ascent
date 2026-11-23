@@ -1305,6 +1305,151 @@ export const RUNES_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-27',
     },
   },
+  // ── Set 3 new-concept runes, Undead (owner review board 2026-11-23) ──
+  {
+    id: 'R-SET3-UNDEAD-1123-01',
+    title: 'Shallow Graves: the first Undead you buy each turn gains Rise',
+    statement:
+      'The first Undead minion you buy each turn gains Rise. A bought card that already has Rise, or a non-Undead buy, does not use up the turn\'s charge. The charge comes back at the start of each turn. Buying is a Shop action, so the rune has no combat half.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Set 3 Runes review board artifact, owner vote 2026-11-23 (with a note)', quote: 'First undead per turn' },
+      { kind: 'code', ref: 'packages/sim/src/set3UndeadRunes.ts shallowGravesOnBuy (applyOnBuy); resetSet3UndeadRunesTurn at turn setup' },
+    ],
+    contentIds: ['rune_shallow_graves'],
+    currentBehaviour: 'Conforms (built with the rune, 2026-11-23).',
+    example: 'Buy a Spear Warden, then a Footman Captain, in one turn: only the Spear Warden gains Rise.',
+    enforcement: { kind: 'scenario', refs: ['packages/core/src/combat/set3UndeadRunes.test.ts', 'packages/sim/src/set3UndeadRunes.test.ts'], lastVerifiedAt: '2026-11-23' },
+  },
+  {
+    id: 'R-SET3-UNDEAD-1123-02',
+    title: 'Grave Tithe: the 3rd friendly Rise of a combat banks 2 Gold for next turn, once per combat',
+    statement:
+      'Each combat counts your minions that Rise. When the third one Rises, you gain 2 Gold next turn, per copy held. It pays at most once per combat, however many more Rise. Only combat Rises count (the owner note reads "in a combat").',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Set 3 Runes review board artifact, owner vote 2026-11-23 (with a note)', quote: 'When 3 minions rise gain 2g next turn' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts the onRise listener under SET 3 UNDEAD RUNES (grantBonusGold)' },
+    ],
+    contentIds: ['rune_grave_tithe'],
+    currentBehaviour: 'Conforms (built with the rune, 2026-11-23).',
+    example: 'Five friendly minions Rise in one fight: you gain 2 Gold next turn, not 4.',
+    enforcement: { kind: 'scenario', refs: ['packages/core/src/combat/set3UndeadRunes.test.ts', 'packages/sim/src/set3UndeadRunes.test.ts'], lastVerifiedAt: '2026-11-23' },
+  },
+  {
+    id: 'R-SET3-UNDEAD-1123-03',
+    title: 'Dead Weight: every Overflow raises the Undead Aura +2 Attack, in every phase',
+    statement:
+      'Every time a friendly summon does not fit (an Overflow), your Undead Aura gains +2 Attack, per copy held. It works in the Shop and in combat. A combat gain is felt by your living Undead at once and is kept after the fight.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Set 3 Runes review board artifact, owner vote 2026-11-23 (voted Yes on the printed text, no note)' },
+      { kind: 'code', ref: 'packages/sim/src/set3UndeadRunes.ts deadWeightOnOverflow (fireSummonOverflow); simulate.ts the summonOverflow listener (raiseUndeadAura)' },
+    ],
+    contentIds: ['rune_dead_weight'],
+    currentBehaviour: 'Conforms (built with the rune, 2026-11-23).',
+    example: 'A Footman Captain dies on a full board and its Footman does not fit: your Undead Aura gains +2 Attack.',
+    enforcement: { kind: 'scenario', refs: ['packages/core/src/combat/set3UndeadRunes.test.ts', 'packages/sim/src/set3UndeadRunes.test.ts'], lastVerifiedAt: '2026-11-23' },
+  },
+  {
+    id: 'R-SET3-UNDEAD-1123-04',
+    title: 'Rank and File: friendly Footmen and Spear Wardens have Taunt',
+    statement:
+      'Every friendly Footman and Spear Warden has Taunt: on the board, in hand, every later arrival, every combat summon, and a Rise or Rebirth return (a return is a summon). Other minions are unaffected.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Set 3 Runes review board artifact, owner vote 2026-11-23 (voted Yes on the printed text, no note)' },
+      { kind: 'code', ref: 'packages/sim/src/set3UndeadRunes.ts rankAndFileGraft (applyRuneGrafts); simulate.ts rankAndFileTaunt (summonMinion + returnSummonGrants)' },
+    ],
+    contentIds: ['rune_rank_and_file'],
+    currentBehaviour: 'Conforms (built with the rune, 2026-11-23).',
+    example: 'A Footman Captain dies in combat: its Footman lands with Taunt, and when the Footman Rises it still has Taunt.',
+    enforcement: { kind: 'scenario', refs: ['packages/core/src/combat/set3UndeadRunes.test.ts', 'packages/sim/src/set3UndeadRunes.test.ts'], lastVerifiedAt: '2026-11-23' },
+  },
+  {
+    id: 'R-SET3-UNDEAD-1123-05',
+    title: 'Bone Pile: Start of Combat, a Skeleton for every 2 Undead you control',
+    statement:
+      'At Start of Combat, count your living Undead once, then summon one Skeleton for every 2 of them (rounded down), per copy held. A full board overflows the extra Skeletons. It is a Start of Combat rune, so Rune of Twilight repeats it, and the Shop\'s Start of Combat replays (Combat Prowess) summon real Skeletons.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Set 3 Runes review board artifact, owner vote 2026-11-23 (voted Yes on the printed text, no note)' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts runRuneStartOfCombat (BONE PILE); packages/sim/src/set3UndeadRunes.ts set3UndeadSocReplays' },
+    ],
+    contentIds: ['rune_bone_pile'],
+    currentBehaviour: 'Conforms (built with the rune, 2026-11-23).',
+    example: 'Five Undead at Start of Combat: two Skeletons.',
+    enforcement: { kind: 'scenario', refs: ['packages/core/src/combat/set3UndeadRunes.test.ts', 'packages/sim/src/set3UndeadRunes.test.ts'], lastVerifiedAt: '2026-11-23' },
+  },
+  {
+    id: 'R-SET3-UNDEAD-1123-06',
+    title: 'Second Burial: a friendly minion that already Rose dies, a Skeleton with its Attack',
+    statement:
+      'When a friendly minion that has already Risen dies, summon a Skeleton beside it whose Attack is raised to that minion\'s Attack, per copy held. The first death (the one it Rose from) does not count. In combat "already Rose" means it Rose this fight; in the Shop it means the body came back by a Shop Rise.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Set 3 Runes review board artifact, owner vote 2026-11-23 (voted Yes on the printed text, no note)' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts the avenge listener under SET 3 UNDEAD RUNES (attackFloor); packages/sim/src/set3UndeadRunes.ts secondBurialNoteRise / secondBurialOnShopDeath' },
+    ],
+    contentIds: ['rune_second_burial'],
+    currentBehaviour: 'Conforms (built with the rune, 2026-11-23).',
+    example: 'A 2/2 with Rise dies, Rises, grows to 6 Attack and dies again: a Skeleton with 6 Attack.',
+    enforcement: { kind: 'scenario', refs: ['packages/core/src/combat/set3UndeadRunes.test.ts', 'packages/sim/src/set3UndeadRunes.test.ts'], lastVerifiedAt: '2026-11-23' },
+  },
+  {
+    id: 'R-SET3-UNDEAD-1123-07',
+    title: 'Night Watch: Start of Combat, a Spear Warden with double its bonus',
+    statement:
+      'At Start of Combat, summon a Spear Warden per copy held. Its Spear Warden bonus (the +4/+2 for every Spear Warden that died this game) counts twice: once from its summon and once more from the rune, and every Spear Warden death in that fight pays it twice. Rune of Twilight repeats it; the Shop\'s Start of Combat replays summon a real Warden with the doubled bonus.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Set 3 Runes review board artifact, owner vote 2026-11-23 (voted Yes on the printed text, no note)' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts runRuneStartOfCombat (NIGHT WATCH) + noteCardDeath (nightWatchUids)' },
+    ],
+    contentIds: ['rune_night_watch'],
+    currentBehaviour: 'Conforms (built with the rune, 2026-11-23).',
+    example: 'Two Spear Wardens died this game (+8/+4): the Night Watch Warden lands as a 4/2 with +16/+8.',
+    enforcement: { kind: 'scenario', refs: ['packages/core/src/combat/set3UndeadRunes.test.ts', 'packages/sim/src/set3UndeadRunes.test.ts'], lastVerifiedAt: '2026-11-23' },
+  },
+  {
+    id: 'R-SET3-UNDEAD-1123-08',
+    title: 'Requiem: every Undead Aura rise gives your Undead +1/+1 permanently, 5 times per turn',
+    statement:
+      'Every time your Undead Aura improves (any source, Attack or Health, in the Shop or in combat), your Undead on the board gain +1/+1 permanently, per copy held. It pays at most 5 times per turn, the Shop and that turn\'s combat together; the budget comes back at the start of each turn. Its own grant is a plain buff and never raises the Aura, so it cannot loop.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Set 3 Runes review board artifact, owner vote 2026-11-23 (voted Yes on the printed text, no note)' },
+      { kind: 'code', ref: 'packages/sim/src/set3UndeadRunes.ts requiemOnAuraRise (every Shop Aura writer); simulate.ts requiemCombat (grantUndeadAura / grantUndeadBuyAtk); reducer questCombatMods requiemLeft' },
+    ],
+    contentIds: ['rune_requiem'],
+    currentBehaviour: 'Conforms (built with the rune, 2026-11-23).',
+    example: 'Two Lanterns of Souls in the Shop, then four Aura rises in combat: 2 in the Shop and 3 in combat pay, the fourth combat one does not.',
+    enforcement: { kind: 'scenario', refs: ['packages/core/src/combat/set3UndeadRunes.test.ts', 'packages/sim/src/set3UndeadRunes.test.ts'], lastVerifiedAt: '2026-11-23' },
+  },
+  {
+    id: 'R-SET3-UNDEAD-1123-09',
+    title: 'Undying Legion: Avenge (5), get a random Undead and summon it from hand',
+    statement:
+      'Every 5th friendly death in combat, get a random Undead minion (from your pool, at or below your tier), then summon a copy of it from your hand the way Spirits do: the card stays in your hand. With a full hand or a full board you still get the card, but nothing is summoned. It is an Avenge rune, so Rune of Fury repeats it.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Set 3 Runes review board artifact, owner vote 2026-11-23 (with a note)', quote: 'Avenge (5): get a random undead minion and summon it from hand.' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts runeAvenge(undyingLegionAvenge) (grantRandomMinion + summonCopyFromHand)' },
+    ],
+    contentIds: ['rune_undying_legion'],
+    currentBehaviour: 'Conforms (built with the rune, 2026-11-23).',
+    example: 'Five of your minions die in a fight: a random Undead reaches your hand and a copy of it joins the fight.',
+    enforcement: { kind: 'scenario', refs: ['packages/core/src/combat/set3UndeadRunes.test.ts', 'packages/sim/src/set3UndeadRunes.test.ts'], lastVerifiedAt: '2026-11-23' },
+  },
   // ── Set 3 rune design pass (owner 2026-09-27), tranche 2: Celestial (the Event Horizon slot is left empty) ──
   {
     id: 'R-SET3RUNE-14',
@@ -1786,6 +1931,67 @@ export const RUNES_RULES: GameRule[] = [
       kind: 'scenario',
       refs: ["packages/sim/src/set3RuneDesignT4.test.ts", "packages/core/src/combat/set3RuneDesignT4.test.ts"],
       lastVerifiedAt: '2026-09-27',
+    },
+  },
+  // ── Set 3 new hybrid runes (owner review board 2026-11-23) ──
+  {
+    id: 'R-SET3HYBRID-01',
+    title: "Gem Whispers: a Whisper you cast on a minion also casts a Ruby on it",
+    statement:
+      "Every Whisper cast that lands on a friendly minion (any Whisper, any target minion, any caster, both phases: a cast from hand, a Yazzus repeat, Whisp's echo, Twin Tongues' copy, Whaloo in combat) also casts one plain Ruby on that minion per copy held, through the one Ruby chokepoint of each phase (Shop `playRubiesOn`, combat `playRubyOn`), so the live Ruby strength and every Ruby watcher apply. The Ruby is permanent in the Shop and combat-only in combat (R-BUFF-PERM). A Ruby is not a Whisper, so it can never re-trigger the rune.",
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Set 3 Runes review board artifact, owner vote 2026-11-23 (voted Yes on the printed text, no note)' },
+      { kind: 'code', ref: "packages/sim/src/recruit.ts castSpell -> gemWhispersShop; packages/core/src/combat/simulate.ts onWhisperCast -> gemWhispersCombat" },
+    ],
+    contentIds: ["rune_gem_whispers"],
+    cardText: "**Whispers** you cast on a minion also cast a **Ruby** on it.",
+    currentBehaviour: 'Conforms (built with the rune, 2026-11-23).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ["packages/sim/src/set3HybridRunes1123.test.ts", "packages/core/src/combat/set3HybridRunes1123.test.ts"],
+      lastVerifiedAt: '2026-11-23',
+    },
+  },
+  {
+    id: 'R-SET3HYBRID-02',
+    title: "Brewed Whispers: every Dwarven Ale you cast gets a random Whisper",
+    statement:
+      "Every Dwarven Ale cast (Shop, End of Turn and combat; any caster; each cast of a multicast is its own) gets one random Whisper per copy held, from the tier-gated Whisper pool (R-WHISPER-TIER-01: your tier and below, owners in the run's set). A combat grant reaches the hand like every combat hand grant.",
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Set 3 Runes review board artifact, owner vote 2026-11-23 (voted Yes on the printed text, no note)' },
+      { kind: 'code', ref: "packages/sim/src/recruit.ts castSpell -> brewedWhispersShop (mintRandomWhispers); packages/core/src/combat/simulate.ts spellResolved -> brewedWhispersCombat (grantRandomWhispers)" },
+    ],
+    contentIds: ["rune_brewed_whispers"],
+    cardText: "After you cast a **Dwarven Ale**, get a random **Whisper**.",
+    currentBehaviour: 'Conforms (built with the rune, 2026-11-23).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ["packages/sim/src/set3HybridRunes1123.test.ts", "packages/core/src/combat/set3HybridRunes1123.test.ts"],
+      lastVerifiedAt: '2026-11-23',
+    },
+  },
+  {
+    id: 'R-SET3HYBRID-03',
+    title: "Haunted Hand: a hand minion gaining stats gives your Undead Aura +1 Attack, 5 times per turn",
+    statement:
+      "Each minion in your hand that gains stats (Shop and End of Turn: the reducer's per-action hand stat diff, the Dream Mirror boundary, one count per gainer per action; combat: every `buffHand` on a hand minion) raises the Undead Aura +1 Attack per copy held, through the Lantern channel (permanent, R-AURA-02; live mid-fight). Only the first 5 gains each turn pay; the cap is shared by the Shop and that turn's combat (combat reads what the Shop left through `hauntedHandLeft`) and re-arms at the next turn. Spells in hand never count. The printed cap counts down once a use is spent.",
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Set 3 Runes review board artifact, owner vote 2026-11-23 (voted Yes on the printed text, no note)' },
+      { kind: 'code', ref: "packages/sim/src/recruit.ts fireStatGainReactors -> hauntedHandShop; packages/core/src/combat/simulate.ts buffHand -> hauntedHandCombat; packages/ui/src/runeText.ts rune_haunted_hand" },
+    ],
+    contentIds: ["rune_haunted_hand"],
+    cardText: "When a minion in your hand gains stats, give your **Undead Aura +1 Attack**. **(5 times per turn)**",
+    currentBehaviour: 'Conforms (built with the rune, 2026-11-23).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ["packages/sim/src/set3HybridRunes1123.test.ts", "packages/core/src/combat/set3HybridRunes1123.test.ts"],
+      lastVerifiedAt: '2026-11-23',
     },
   },
   // ── Set 3 rune design pass (owner 2026-09-27), tranche 5: Menagerie + neutral ──
@@ -3401,7 +3607,7 @@ export const RUNES_RULES: GameRule[] = [
     domain: 'runes',
     status: 'approved',
     evidence: [
-      { kind: 'owner-handoff', ref: 'owner-approved design 2026-11-23, relayed to the builder by the lead agent', quote: 'Get a Mountainbond. Your Mountainbonds only need 5 Gold spent to trigger.' },
+      { kind: 'owner-handoff', ref: 'Owner screenshot, Claude Code session 2026-11-23 (six Epic runes for Set 2)', quote: 'Get a Mountainbond. Your mountainbonds only need 5 gold spent to trigger.' },
       { kind: 'code', ref: 'packages/sim/src/recruit.ts goldSpentEvery / applyGoldSpent; packages/ui/src/cardText.ts runeRewrittenText / stepProgress' },
     ],
     contentIds: ['rune_deep_bond', 'dw_mountainbond'],
@@ -3415,7 +3621,7 @@ export const RUNES_RULES: GameRule[] = [
     domain: 'runes',
     status: 'approved',
     evidence: [
-      { kind: 'owner-handoff', ref: 'owner-approved design 2026-11-23, relayed to the builder by the lead agent', quote: 'Get a golden Bellringer Voss. It does not give a triple reward when played.' },
+      { kind: 'owner-handoff', ref: 'Owner screenshot, Claude Code session 2026-11-23 (six Epic runes for Set 2)', quote: 'Get a golden Voss. It does not provide a triple reward when played.' },
       { kind: 'code', ref: 'packages/sim/src/reducer.ts grantGildedPlayRewards + the grant reward\'s noTripleReward; packages/sim/src/state.ts BoardCard.noTripleReward' },
     ],
     contentIds: ['rune_golden_bell', 'n2_bellringer'],
@@ -3429,7 +3635,7 @@ export const RUNES_RULES: GameRule[] = [
     domain: 'runes',
     status: 'approved',
     evidence: [
-      { kind: 'owner-handoff', ref: 'owner-approved design 2026-11-23, relayed to the builder by the lead agent', quote: 'Get a Party Crasher. Party Crashers also cast their Rubies on your Beasts.' },
+      { kind: 'owner-handoff', ref: 'Owner screenshot, Claude Code session 2026-11-23 (six Epic runes for Set 2)', quote: 'Get a Party Crasher. Their effect applies to beasts as well' },
       { kind: 'code', ref: 'packages/core/src/effects/factories.ts avengePlayRubies; packages/core/src/combat/simulate.ts uninvitedGuestsFor; packages/sim/src/reducer.ts questCombatMods' },
     ],
     contentIds: ['rune_uninvited_guests', 'k_gemstorm'],
@@ -3443,7 +3649,7 @@ export const RUNES_RULES: GameRule[] = [
     domain: 'runes',
     status: 'approved',
     evidence: [
-      { kind: 'owner-handoff', ref: 'owner-approved design 2026-11-23, relayed to the builder by the lead agent', quote: 'Get a gilded Transcendant. It does not give a triple reward when played.' },
+      { kind: 'owner-handoff', ref: 'Owner screenshot, Claude Code session 2026-11-23 (six Epic runes for Set 2)', quote: 'Get a gilded Transcendant. It does not provide a triple reward when played.' },
       { kind: 'code', ref: 'packages/sim/src/reducer.ts grantGildedPlayRewards + the grant reward\'s noTripleReward' },
     ],
     contentIds: ['rune_gilded_wings', 'd2_transcendence'],
@@ -3457,7 +3663,7 @@ export const RUNES_RULES: GameRule[] = [
     domain: 'runes',
     status: 'approved',
     evidence: [
-      { kind: 'owner-handoff', ref: 'owner-approved design 2026-11-23, relayed to the builder by the lead agent', quote: 'The first 3 targeted spells you cast each turn cast twice.' },
+      { kind: 'owner-handoff', ref: 'Owner screenshot, Claude Code session 2026-11-23 (six Epic runes for Set 2)', quote: 'The first three targeted spells cast twice each turn.' },
       { kind: 'code', ref: 'packages/sim/src/recruit.ts doubleTapCastMult / noteDoubleTapCast / runeExtraCasts (rubyCastCount, giftCastCount, spellCastsWithout)' },
     ],
     contentIds: ['rune_double_tap'],
@@ -3471,7 +3677,7 @@ export const RUNES_RULES: GameRule[] = [
     domain: 'runes',
     status: 'approved',
     evidence: [
-      { kind: 'owner-handoff', ref: 'owner-approved design 2026-11-23, relayed to the builder by the lead agent', quote: 'When sold, double your Shop spell power.' },
+      { kind: 'owner-handoff', ref: 'Owner screenshot, Claude Code session 2026-11-23 (six Epic runes for Set 2)', quote: 'Get a Spellmaiden. Spellmaiden: When sold, your current shop spell power is doubled. (Tripled when gilded)' },
       { kind: 'code', ref: 'packages/sim/src/recruit.ts onSellMultiplySpellPower; packages/content/src/cards/set2/neutral.ts n2_spellmaiden' },
     ],
     contentIds: ['rune_spellmaiden', 'n2_spellmaiden'],

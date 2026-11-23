@@ -1728,6 +1728,66 @@ export const RUNES: RuneDef[] = [
     reward: { kind: 'combatFlag', flag: 'runeGravedigger' },
     sets: ['set3'],
   },
+  // ── SET 3 NEW-CONCEPT RUNES, UNDEAD BASICS (owner review 2026-11-23). All Set-3-only, Undead-gated. The Shop halves
+  //    live in packages/sim/src/set3UndeadRunes.ts, the combat halves in simulate.ts ("SET 3 UNDEAD RUNES"), the numbers
+  //    in packages/core/src/set3UndeadRunes.ts. ──
+  {
+    // OWNER NOTE: only the FIRST Undead bought each turn (the buy chokepoint, `fireOnBuyWatchers`). A card that already
+    // has Rise does not spend the turn's charge (the Open Grave rule). The latch resets at turn setup.
+    id: 'rune_shallow_graves',
+    tribes: ['undead'],
+    name: 'Shallow Graves',
+    cost: 3,
+    text: 'The first **Undead** you buy each turn gains **Rise**.',
+    reward: { kind: 'combatFlag', flag: 'runeShallowGraves' },
+    sets: ['set3'],
+  },
+  {
+    // OWNER NOTE ("When 3 minions rise gain 2g next turn"): the 3rd friendly Rise of a fight banks 2 Gold for the next
+    // turn (`grantBonusGold`, so the replay shows it on that Rise), once per combat, per copy held. Combat only.
+    id: 'rune_grave_tithe',
+    tribes: ['undead'],
+    name: 'Grave Tithe',
+    cost: 2,
+    text: 'After **3** friendly minions **Rise** in a combat, gain **2 Gold** next turn. (Once per combat.)',
+    reward: { kind: 'combatFlag', flag: 'runeGraveTithe' },
+    sets: ['set3'],
+  },
+  {
+    // Every friendly Overflow, both phases (the shared `summonOverflow` moment): the Lantern channel +2 Attack per copy,
+    // permanent from either phase (R-AURA-02). The Ending's shape, on Attack.
+    id: 'rune_dead_weight',
+    tribes: ['undead'],
+    name: 'Dead Weight',
+    cost: 3,
+    text: '**Overflow:** give your **Undead Aura +2 Attack**.',
+    reward: { kind: 'combatFlag', flag: 'runeDeadWeight' },
+    sets: ['set3'],
+  },
+  {
+    // A keyword graft: every friendly Footman and Spear Warden (board and hand, every later arrival, every combat
+    // summon and Rise return) carries Taunt.
+    id: 'rune_rank_and_file',
+    tribes: ['undead'],
+    name: 'Rank and File',
+    cost: 2,
+    text: '**Footmen** and **Spear Wardens** you summon have **Taunt**.',
+    previewCards: ['footman', 'knit'],
+    reward: { kind: 'combatFlag', flag: 'runeRankAndFile' },
+    sets: ['set3'],
+  },
+  {
+    // A Start of Combat rune (Twilight repeats it): floor(living friendly Undead / 2) Skeletons, counted once when it
+    // fires, per copy held. Plain summons (a full board overflows them). Shop twin: the Start of Combat replays.
+    id: 'rune_bone_pile',
+    tribes: ['undead'],
+    name: 'Bone Pile',
+    cost: 3,
+    text: '**Start of Combat:** summon a **Skeleton** for every **2 Undead** you control.',
+    previewCards: ['u3_skeleton'],
+    reward: { kind: 'combatFlag', flag: 'runeBonePile' },
+    sets: ['set3'],
+  },
   // ── SET 3 RUNE DESIGN PASS (owner 2026-09-27), tranche 2: Celestial Basics. All Set-3-only, Celestial-gated. ──
   {
     // Every friendly Celestial Shout FIRE (Shop: the Shout-triggered notify; combat: the `battlecryTriggered` bus) gives
@@ -1907,6 +1967,32 @@ export const RUNES: RuneDef[] = [
     text: 'When you **Sell** a **Reveler**, get a **Dwarven Ale**.',
     previewCards: ['sp3_flamereveler', 'sp3_tidereveler', 'sp3_grovereveler'],
     reward: { kind: 'combatFlag', flag: 'runeClosingTime' },
+    sets: ['set3'],
+  },
+  // ── SET 3 NEW HYBRID RUNES (owner review board 2026-11-23): Basic. Set-3-only, gated to both tribes. Shop halves in
+  //    packages/sim/src/recruit.ts ("SET 3 NEW HYBRID RUNES"), combat halves in simulate.ts under the same heading. ──
+  {
+    // Kobold + Dragon: every Whisper CAST that lands on a friendly minion (any caster, both phases: a hand cast, a Yazzus
+    // repeat, Whisp's echo, Twin Tongues' copy, Whaloo in combat) also casts one plain Ruby on that minion per copy, through
+    // the one Ruby chokepoint of each phase (live Ruby strength, Ruby watchers). The Ruby is not a Whisper: no loop.
+    id: 'rune_gem_whispers',
+    tribes: ['kobold', 'dragon'],
+    name: 'Gem Whispers',
+    cost: 2,
+    text: '**Whispers** you cast on a minion also cast a **Ruby** on it.',
+    previewCards: ['ruby'],
+    reward: { kind: 'combatFlag', flag: 'runeGemWhispers' },
+    sets: ['set3'],
+  },
+  {
+    // Dwarf + Dragon: every Dwarven Ale CAST (Shop, End of Turn, combat; each cast of a multicast its own) gets one random
+    // Whisper per copy from the gated pool (R-WHISPER-TIER-01: your tier and below, owners in the run's set).
+    id: 'rune_brewed_whispers',
+    tribes: ['dwarf', 'dragon'],
+    name: 'Brewed Whispers',
+    cost: 2,
+    text: 'After you cast a **Dwarven Ale**, get a random **Whisper**.',
+    reward: { kind: 'combatFlag', flag: 'runeBrewedWhispers' },
     sets: ['set3'],
   },
   // ── SET 3 RUNE DESIGN PASS (owner 2026-09-27), tranche 5: the Neutral Pummel rune. ──
@@ -4333,6 +4419,60 @@ export const EPIC_RUNES: RuneDef[] = [
     reward: { kind: 'combatFlag', flag: 'runeOpenGrave' },
     sets: ['set3'],
   },
+  // ── SET 3 NEW-CONCEPT RUNES, UNDEAD EPICS (owner review 2026-11-23). All Set-3-only, Undead-gated. ──
+  {
+    // A body that already Rose (combat: this fight's Rise returns; Shop: a Rise return this run) dies, any death: a
+    // Skeleton with the body's Attack at death (the Anvilshade `attackFloor`, Auras on top), beside it, per copy held.
+    id: 'rune_second_burial',
+    tribes: ['undead'], // owner-ruled (Rise is the Undead keyword), see tribeGate.test.ts
+    name: 'Second Burial',
+    cost: 4,
+    epic: true,
+    text: 'When a friendly minion that already **Rose** dies, summon a **Skeleton** with its **Attack**.',
+    previewCards: ['u3_skeleton'],
+    reward: { kind: 'combatFlag', flag: 'runeSecondBurial' },
+    sets: ['set3'],
+  },
+  {
+    // A Start of Combat rune (Twilight repeats it): a plain Spear Warden summon whose death-count bonus counts twice
+    // (the run's Warden enchant at summon, and every Warden death this fight). Shop twin: the Start of Combat replays.
+    id: 'rune_night_watch',
+    tribes: ['undead'],
+    name: 'Night Watch',
+    cost: 3,
+    epic: true,
+    text: '**Start of Combat:** summon a **Spear Warden**. It gets double its bonus.',
+    previewCards: ['knit'],
+    reward: { kind: 'combatFlag', flag: 'runeNightWatch' },
+    sets: ['set3'],
+  },
+  {
+    // Every Undead Aura rise, both phases (each writer of the Aura's Attack or Health, never the Soul Furnace's derived
+    // term): the friendly Undead gain +1/+1 permanently per copy. CAP (builder call, flagged to the owner): 5 times per
+    // turn, the Shop and that turn's combat together. A plain buff, never an Aura rise, so it cannot loop.
+    id: 'rune_requiem',
+    tribes: ['undead'],
+    name: 'Requiem',
+    cost: 4,
+    epic: true,
+    text: 'Whenever your **Undead Aura** improves, give your **Undead +1/+1** permanently. (5 times per turn.)',
+    reward: { kind: 'combatFlag', flag: 'runeRequiem' },
+    sets: ['set3'],
+  },
+  {
+    // OWNER REWORK: a combat Avenge (5) rune (`runeAvenge`, so Rune of Fury repeats it). A random Undead from the run's
+    // pool at or below your tier reaches the combat hand (the Body Counting grant), then a copy is summoned from hand
+    // through the Spirit hand-summon path (`summonCopyFromHand`); the card stays in hand. A full hand or board: the
+    // card is still granted (hand cap at settle), nothing is summoned.
+    id: 'rune_undying_legion',
+    tribes: ['undead'],
+    name: 'Undying Legion',
+    cost: 4,
+    epic: true,
+    text: '**Avenge (5):** get a random **Undead** minion and summon it from hand.',
+    reward: { kind: 'combatFlag', flag: 'runeUndyingLegion' },
+    sets: ['set3'],
+  },
   // ── SET 3 RUNE DESIGN PASS (owner 2026-09-27), tranche 2: Celestial Epics. No Event Horizon (owner); its slot is
   //    filled by the Meteor Storm (owner pick, same day). ──
   {
@@ -4440,6 +4580,20 @@ export const EPIC_RUNES: RuneDef[] = [
     text: 'Your **Rubies** also cast on the left-most minion in your hand.',
     previewCards: ['ruby'],
     reward: { kind: 'combatFlag', flag: 'runeKeepsakeGem' },
+    sets: ['set3'],
+  },
+  // ── SET 3 NEW HYBRID RUNES (owner review board 2026-11-23): Epic. ──
+  {
+    // Undead + Spirit: each minion in your hand that gains stats (Shop: the reducer's per-action hand diff, the Dream Mirror
+    // boundary; combat: `buffHand`) raises the Undead Aura +1 Attack per copy (the Lantern channel, permanent, R-AURA-02).
+    // The first 5 gains each turn pay (Shop through that turn's combat; combat reads what is left, the Gem Star shape).
+    id: 'rune_haunted_hand',
+    tribes: ['undead', 'spirit'],
+    name: 'Haunted Hand',
+    cost: 3,
+    epic: true,
+    text: 'When a minion in your hand gains stats, give your **Undead Aura +1 Attack**. **(5 times per turn)**',
+    reward: { kind: 'combatFlag', flag: 'runeHauntedHand' },
     sets: ['set3'],
   },
   // ── SET 3 RUNE DESIGN PASS (owner 2026-09-27), tranche 5: the Menagerie capstone. ──

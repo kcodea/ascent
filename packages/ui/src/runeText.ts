@@ -1,4 +1,4 @@
-import type { RuneLiveState } from '@game/sim';
+import { HAUNTED_HAND_CAP, type RuneLiveState } from '@game/sim';
 import { CARD_INDEX } from '@game/content';
 import { SEQUENCING_DISTINCT } from '@game/core';
 
@@ -25,6 +25,7 @@ export function sequencingReadout(seq: readonly string[]): string {
  */
 const PAIR = /\+\d+\/\+\d+/;
 const ATTACK = /\*\*\+\d+ Attack\*\*/;
+const TURN_CAP = /\*\*\(\d+ times per turn\)\*\*/;
 
 const pair = (text: string, a: number, h: number): string => text.replace(PAIR, `+${a}/+${h}`);
 
@@ -62,6 +63,10 @@ export function liveRuneText(runeId: string, text: string, st: RuneLiveState | n
     // "When you cast 3 different spells, get a copy of the first one." (Set 2 Epic, 2026-11-14): the sequence so far.
     case 'rune_sequencing':
       return st.sequence ? `${text} ${sequencingReadout(st.sequence)}` : text;
+    // "When a minion in your hand gains stats, give your Undead Aura +1 Attack. (5 times per turn)" (Set 3 hybrid,
+    // 2026-11-23): once a use is spent this turn, the printed cap counts down (the Duos per-turn cap shape).
+    case 'rune_haunted_hand':
+      return st.hauntedHandLeft != null && st.hauntedHandLeft < HAUNTED_HAND_CAP ? text.replace(TURN_CAP, `**(${st.hauntedHandLeft} left this turn)**`) : text;
     // "The first 3 targeted spells you cast each turn cast twice." (Set 2 Epic, 2026-11-23): the doubles left this turn.
     case 'rune_double_tap':
       return st.doubleTapLeft != null ? `${text} (${st.doubleTapLeft} left this turn.)` : text;

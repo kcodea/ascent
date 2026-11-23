@@ -47,10 +47,15 @@ export interface RuneLiveState {
   drunkShopkeeper?: { attack: number; health: number };
   /** Rune of Sequencing (Set 2 Epic, 2026-11-14): the different spells in the current sequence, in cast order. */
   sequence?: string[];
+  /** Rune of the Haunted Hand (Set 3 hybrid, 2026-11-23): how many of the turn's 5 hand gains can still raise the Aura. */
+  hauntedHandLeft?: number;
   /** Double Tap (Set 2 Epic, 2026-11-23): the doubled targeted casts left this turn (of 3). A Shop value: a snapshot
    *  never carries it (the turn is over), so an opponent's rune prints its base text. */
   doubleTapLeft?: number;
 }
+
+/** Rune of the Haunted Hand's per-turn cap: the first N hand gains each turn pay (Shop through that turn's combat). */
+export const HAUNTED_HAND_CAP = 5;
 
 /** A stored sequence of spell ids (untrusted): strings only, at most the 2 a live sequence can hold before it pays. */
 const idsIn = (v: unknown): string[] | undefined =>
@@ -111,6 +116,7 @@ export function runeLiveStateOfRun(run: RunState): RuneLiveState {
     out.drunkShopkeeper = { attack: v?.atk ?? 0, health: v?.hp ?? 0 };
   }
   if (f?.runeSequencing) out.sequence = [...(run.runeSequence ?? [])];
+  if (f?.runeHauntedHand) out.hauntedHandLeft = Math.max(0, HAUNTED_HAND_CAP - (run.hauntedHandThisTurn ?? 0));
   const dt = doubleTapLeft(run);
   if (dt !== undefined) out.doubleTapLeft = dt;
   return out;
@@ -138,6 +144,8 @@ export function runeLiveStateOfSnapshot(snap: object | null | undefined): RuneLi
   const bf = intIn(m?.runeBorrowedFlame); // the captured per-copy value (the mod IS the value)
   if (bf) out.borrowedFlame = bf;
   if (m?.runeSequencing) out.sequence = idsIn(m.runeSequence) ?? [];
+  const hh = intIn(m?.hauntedHandLeft); // what the fight had left of the turn's cap
+  if (m?.runeHauntedHand && hh !== undefined) out.hauntedHandLeft = Math.min(HAUNTED_HAND_CAP, hh);
   return out;
 }
 
@@ -178,6 +186,9 @@ export function runeLiveStateInCombat(base: RuneLiveState, prog: RuneCombatProgr
   if (bf > 0 && base.borrowedFlame != null) out.borrowedFlame = base.borrowedFlame + bf;
   // Rune of Sequencing: the replay's latest sequence REPLACES the pre-fight one (each event carries the whole list).
   if (prog.sequence) out.sequence = [...prog.sequence];
+  // Rune of the Haunted Hand: every fire (one paying hand gain) spends one of the turn's remaining uses.
+  const hh = prog.triggers['runeHauntedHand'] ?? 0;
+  if (hh > 0 && base.hauntedHandLeft != null) out.hauntedHandLeft = Math.max(0, base.hauntedHandLeft - hh);
   return out;
 }
 
@@ -200,6 +211,7 @@ export function parseRuneLiveState(v: unknown): RuneLiveState | undefined {
   const bfl = intIn(o.borrowedFlame); if (bfl) out.borrowedFlame = bfl;
   const ds = pairIn(o.drunkShopkeeper); if (ds) out.drunkShopkeeper = ds;
   const sq = idsIn(o.sequence); if (sq) out.sequence = sq;
+  const hhl = intIn(o.hauntedHandLeft); if (hhl !== undefined) out.hauntedHandLeft = Math.min(HAUNTED_HAND_CAP, hhl);
   const dt = intIn(o.doubleTapLeft); if (dt !== undefined) out.doubleTapLeft = dt;
   return Object.keys(out).length ? out : undefined;
 }

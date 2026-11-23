@@ -61,10 +61,12 @@ import { godRuneBlocked } from './godMode';
 import { buyStarform, fireStarformGainRemainder, starformFollowShopBuff, starformRefreshTick, starformSnapshot, starformSoulScriptBake, starformSpellAimsToken, starformStandIn, withStarformPinned, buffStarform, createStarform, hasStarform } from './starform';
 import { syncStarDestroyer, overchargeFree, consumeCalibration, equipmentPermanentlyAmplified, equipmentAmplifiedByAura, quickReleaseApplies, grantRuneEquipment, equipIsNews } from './equipment';
 import { fireOnBuyWatchers, tribesPlayedThisTurn, fireHandCardEcho, syncSoulFurnace, GEM_STAR_CAP, syncUnity, isTribeNatural, syncRunTribes, stampRunTribes } from './recruit';
+import { HAUNTED_HAND_CAP } from './runeLiveState'; // Set 3 new hybrid runes: Rune of the Haunted Hand's per-turn cap
 import { withWhisperMult, spendNextSpellCharge, spendLastCall } from './recruit';
 import { unusedEquipmentCount } from './equipment';
 import { borrowedFlameValue, clearVoicesOnHandCast, payRunicPrimer, runicPrimerTurnStart, SPELL_TEMPERING_PER } from './dragonRunesBasic';
 import { hatchlingRoostPrice } from './set2RunesBasicTribal'; // Set 2 rune Hatchling Roost: the Shout Dragon set price
+import { requiemLeftThisTurn } from './set3UndeadRunes'; // Set 3 Undead runes (2026-11-23)
 import { HUM_PER_TURN, castWhisperFromHand, expireWhisperBuffs, grantWhispersOnPlay, mergeWhisperBuffs, seedEchoMerge, vanishWhispers, whisperTargetLegal } from './whisper';
 import { MATCHMAKING } from './matchmaking';
 import { captureHeroGrantRune, releaseHeroGrant } from './heroGrant';
@@ -6400,8 +6402,11 @@ function advanceCombat(s: RunState): void {
   for (const c of s.board) if (c.bredThisTurn) c.bredThisTurn = 0; // Brood Matron's shop breed cap resets per turn (owner ruling 2026-08-26)
   s.runeWarDrumUsedThisTurn = undefined; // Rune of the War Drum: its one charge comes back each turn
   s.openGraveUsedThisTurn = undefined;   // Rune of the Open Grave: the first Shop destroy of the new turn gains Rise
+  s.shallowGravesUsedThisTurn = undefined; // Rune of Shallow Graves: the new turn's first Undead bought gains Rise
+  s.requiemUsedThisTurn = undefined;      // Rune of Requiem: its 5 Aura rises a turn come back
   s.encoreUsedThisTurn = undefined;      // Rune of the Encore: the first Reveler sale of the new turn pays the hand
   s.gemStarThisTurn = undefined;         // Rune of the Gem Star: the first 4 Rubies of the new turn feed the Starform
+  s.hauntedHandThisTurn = undefined;     // Rune of the Haunted Hand: the first 5 hand gains of the new turn raise the Aura
   s.clearVoicesIds = undefined;          // Rune of Clear Voices: the turn's distinct Whispers count afresh
   s.clearVoicesPaid = undefined;         // …and its "Once per turn" re-arms
   s.openTreasuryUsed = undefined;        // Rune of the Open Treasury: the first spell bought of the new turn is copied
@@ -9016,6 +9021,16 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     runeSoulToll: f?.runeSoulToll,                   // Avenge (4): the Undead Aura +1 Attack
     runeSoulFurnace: f?.runeSoulFurnace,             // the Undead Aura's Health term re-derives live mid-fight
     runeRestless: f?.runeRestless,                   // a risen body's Echo triggers
+    // ── Set 3 new-concept runes, Undead (owner review 2026-11-23) ──
+    runeGraveTithe: f?.runeGraveTithe,               // the 3rd friendly Rise of the fight banks 2 Gold next turn
+    runeDeadWeight: f?.runeDeadWeight,               // an Overflow raises the Undead Aura +2 Attack
+    runeRankAndFile: f?.runeRankAndFile,             // summoned Footmen / Spear Wardens have Taunt
+    runeBonePile: f?.runeBonePile,                   // Start of Combat: a Skeleton per 2 Undead
+    runeSecondBurial: f?.runeSecondBurial,           // a body that already Rose dies: a Skeleton with its Attack
+    runeNightWatch: f?.runeNightWatch,               // Start of Combat: a Spear Warden with double its bonus
+    runeRequiem: f?.runeRequiem,                     // an Undead Aura rise: your Undead +1/+1 permanently…
+    requiemLeft: f?.runeRequiem ? requiemLeftThisTurn(s) : undefined, // …up to the turn's cap, the Shop's uses spent
+    runeUndyingLegion: f?.runeUndyingLegion,         // Avenge (5): a random Undead, summoned from hand
     // ── tranche 2: Celestial ──
     runeHeraldingStar: f?.runeHeraldingStar,         // a Celestial Shout banks +3/+3 for the Starform
     runeStellarEchoes: f?.runeStellarEchoes,         // combat-summoned Celestials get the Starform Echo graft
@@ -9034,6 +9049,11 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     runeGemStar: f?.runeGemStar,                     // the first 4 Rubies cast each turn also feed the Starform
     gemStarLeft: f?.runeGemStar ? Math.max(0, GEM_STAR_CAP - (s.gemStarThisTurn ?? 0)) : undefined, // the turn's remaining Gem Star Rubies
     runeKeepsakeGem: f?.runeKeepsakeGem,             // every Ruby also lands on the left-most hand minion
+    // ── Set 3 new hybrid runes (owner review board 2026-11-23) ──
+    runeGemWhispers: f?.runeGemWhispers,             // a Whisper cast on a friendly minion also casts a Ruby on it
+    runeBrewedWhispers: f?.runeBrewedWhispers,       // a Dwarven Ale cast gets a random Whisper
+    runeHauntedHand: f?.runeHauntedHand,             // a hand minion gaining stats raises the Undead Aura +1 Attack
+    hauntedHandLeft: f?.runeHauntedHand ? Math.max(0, HAUNTED_HAND_CAP - (s.hauntedHandThisTurn ?? 0)) : undefined, // the turn's remaining pays
     // ── tranche 5 ──
     runeHeavyHand: f?.runeHeavyHand,                 // friendly damage counts double toward Pummel
     runeUnity: f?.runeUnity,                         // all 5 types controlled → every minion counts as every type

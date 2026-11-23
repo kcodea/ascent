@@ -9,7 +9,7 @@
  *   Spellmaiden       no tribe        3  Get a Spellmaiden.
  *
  * Every block drives the real engine: the Runeforge `buyRune`, the reducer's `play` / `sell`, `applyGoldSpent`, and
- * `simulate()` with the mods a run really sends to combat (`buildCombatBoards`' `questMods`).
+ * `simulate()`. The live-text half is packages/ui/src/set2EpicRunes1123Text.test.tsx.
  */
 import { describe, it, expect } from 'vitest';
 import { combatSide, makeRng, simulate, type BoardMinion, type QuestCombatMods } from '@game/core';
@@ -19,7 +19,6 @@ import { applyGoldSpent, doubleTapLeft, giftCastCount, goldSpentEvery, rubyCastC
 import { runeLiveStateOfRun } from './runeLiveState';
 import { snapshotBoard } from './snapshot';
 import { sideFromSnapshot } from './boardSide';
-import { liveBoardView } from '../../ui/src/instView';
 import { liveRuneText } from '../../ui/src/runeText';
 
 const body = (uid: string, cardId: string, over: Partial<BoardCard> = {}): BoardCard => {
@@ -43,7 +42,6 @@ const at = (s: RunState, uid: string): BoardCard => s.board.find((c) => c.uid ==
 const tripleRewards = (s: RunState): number => s.hand.filter((c) => c.cardId === 'discoverspell').length;
 const NONE = { attack: 0, health: 0 };
 const rubyOn = (c: BoardCard) => (c.buffs ?? []).filter((b) => b.source === 'Ruby').reduce((t, b) => ({ attack: t.attack + b.attack, health: t.health + b.health }), NONE);
-const boardText = (s: RunState, c: BoardCard): string => { const v = liveBoardView(c, s); return (c.golden ? v.goldenText : undefined) ?? v.text ?? ''; };
 
 describe('the six runes as content', () => {
   it('names, costs, the Epic pool, the tribe gate, Set 2 only, the texts', () => {
@@ -115,13 +113,6 @@ describe('DEEP BOND: "Get a Mountainbond. Your Mountainbonds only need 5 Gold sp
     expect(goldSpentEvery('dw_billings', bill.every, true)).toBe(bill.every);
     expect(goldSpentEvery('dw_mountainbond', 8, true)).toBe(5);
     expect(goldSpentEvery('dw_mountainbond', 8, false)).toBe(8);
-  });
-  it('the card prints the live 5, plain and Gilded; without the rune it prints 8 (hand + combat chains: the UI test)', () => {
-    const s = withRune(['rune_deep_bond'], { board: [body('m', 'dw_mountainbond', { goldTick: 3 }), body('g', 'dw_mountainbond', { golden: true })] });
-    expect(boardText(s, at(s, 'm'))).toContain('Every {{5 Gold}} spent');
-    expect(boardText(s, at(s, 'g'))).toContain('Every {{5 Gold}} spent');
-    const none = withRune([], { board: [body('m', 'dw_mountainbond')] });
-    expect(boardText(none, at(none, 'm'))).toContain('Every **8 Gold** spent');
   });
 });
 
@@ -214,12 +205,6 @@ describe('UNINVITED GUESTS: "Party Crashers also cast their Rubies on your Beast
     const snap = snapshotBoard(s);
     expect(snap.questMods?.runeUninvitedGuests).toBe(true);
     expect(sideFromSnapshot(snap, 6, []).questMods?.runeUninvitedGuests).toBe(true);
-  });
-  it('Party Crasher prints "Kobolds and Beasts" while the rune is held, plain and Gilded', () => {
-    const s = withRune(['rune_uninvited_guests'], { board: [body('p', 'k_gemstorm'), body('g', 'k_gemstorm', { golden: true })], hand: [body('h', 'k_gemstorm')] });
-    for (const t of [boardText(s, at(s, 'p')), boardText(s, at(s, 'g'))]) expect(t).toContain('on your {{Kobolds and Beasts}}');
-    const none = withRune([], { board: [body('p', 'k_gemstorm')] });
-    expect(boardText(none, at(none, 'p'))).toContain('on your **Kobolds**');
   });
 });
 
@@ -319,13 +304,6 @@ describe('SPELLMAIDEN: "When sold, double your Shop spell power."', () => {
     expect(sold(power(0, 0)).spellBonus).toEqual({ attack: 0, health: 0 });
     // The mutation check: another sale does not double.
     expect(act({ ...base(power(3, 2)), board: [body('z', 'sandbag')] } as RunState, { type: 'sell', uid: 'z' }).spellBonus).toEqual({ attack: 3, health: 2 });
-  });
-  it('the card prints what its sale gives right now, plain and Gilded', () => {
-    const s = { ...base(power(3, 2)), board: [body('h', 'n2_spellmaiden'), body('b', 'n2_spellmaiden', { golden: true })] } as RunState;
-    expect(boardText(s, s.board[0]!)).toContain('{{(Gain +3/+2 now.)}}');
-    expect(boardText(s, s.board[1]!)).toContain('{{(Gain +6/+4 now.)}}');
-    const zero = { ...base(power(0, 0)), board: [body('h', 'n2_spellmaiden')] } as RunState;
-    expect(boardText(zero, zero.board[0]!)).toBe('When sold, **double** your **Shop spell power**.');
   });
   it('the Spell Power flourish is stamped on the sale (the beat)', () => {
     const s = sold(power(3, 2));

@@ -203,7 +203,10 @@ const statusPill = (s: string) => {
 export function renderHealth(h: HealthData, c: Ctx): string {
   const labels = h.crashes.series.map((x) => bucketLabel(x.t, h.bucket));
   const st = h.ops.status;
-  const failing = st?.failing_checks?.length ?? 0;
+  // Live ops.health_status sends the failing checks as ONE comma-joined string ("writer_key, writes.duos"), not an
+  // array; counting .length of that string showed "52 checks failing" for four (2026-11-23). Count names either way.
+  const fc: unknown = st?.failing_checks;
+  const failing = Array.isArray(fc) ? fc.length : typeof fc === 'string' ? fc.split(',').map((x) => x.trim()).filter(Boolean).length : 0;
   const ops = h.ops.latest.length === 0 ? '<p class="dk-empty">No health check has reported yet.</p>' : `<div class="dk-checks">${h.ops.latest.map((x) =>
     `<div class="dk-check"><span class="dk-rowtitle">${esc(x.check)}</span>${statusPill(x.status)}<span class="dk-sub">${esc(x.source)} · ${esc(new Date(x.ts).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }))}</span></div>`).join('')}</div>`;
   const db = h.database;

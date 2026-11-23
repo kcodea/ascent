@@ -130,7 +130,7 @@ export interface HealthData {
   crashes: { total: number; series: Array<{ t: string; crashes: number; bugs: number }>; byBuild: Array<{ build: string; n: number }>; byStep: Array<{ step: string; n: number }> };
   bugs: { total: number; byStatus: Record<string, number>; bySeverity: Record<string, number> };
   ops: {
-    status: { last_cron_at?: string | null; cron_overdue?: boolean; cron_failing?: boolean; failing_checks?: string[] | null; last_cli_at?: string | null } | null;
+    status: { last_cron_at?: string | null; cron_overdue?: boolean; cron_failing?: boolean; failing_checks?: string[] | string | null; last_cli_at?: string | null } | null;
     latest: Array<{ check: string; status: string; source: string; ts: string; detail: string }>;
     retentionRules: Array<{ rule: string; enabled: boolean; keepDays: number; lastCheckedAt: string | null; lastDryRun: boolean | null; lastCandidates: number | null; lastDeleted: number | null; lastError: string | null; totalDeleted: number }> | null;
     retentionRuns: Array<{ at: string; kind: string; deleted: number | null; failed: number | null }> | null;

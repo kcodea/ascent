@@ -118,26 +118,20 @@
   letter-spacing: 0.14em;
   /* Wide tracking adds a gap after the last letter; this pulls the word back to the true centre. */
   margin-right: -0.14em;
-  /* The letters are the download button in type: its deep navy face, lit from the top, inside its gold edge. The face
-     is a background clipped to the letters; the edge is a stroke round them. The shadow is a filter, because a
-     text-shadow would be painted over the navy inside each letter. */
-  color: transparent;
-  background: linear-gradient(180deg, var(--btn-hi) 0%, var(--btn) 34%, var(--btn-mid) 60%, var(--btn-deep) 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-stroke: 0.05em var(--gold-light);
-  paint-order: stroke fill;
-  filter: drop-shadow(0 2px 0 color-mix(in srgb, var(--night-deep) 70%, transparent))
-    drop-shadow(0 3px 6px color-mix(in srgb, var(--night-deep) 60%, transparent));
-}
-
-/* Where a background cannot be clipped to text, the letters are plain gold. */
-@supports not ((-webkit-background-clip: text) or (background-clip: text)) {
-  .top__headline {
-    color: var(--gold-light);
-    background: none;
-    -webkit-text-stroke: 0;
-  }
+  /* The letters are the download button in type: its deep navy face inside a gold edge. The edge is a ring of offset
+     shadows, not a text stroke: a stroke also draws the seams where this font's letter shapes overlap. */
+  color: var(--btn-mid);
+  text-shadow:
+    -2px 0px 0 var(--gold-light),
+    2px 0px 0 var(--gold-light),
+    0px -2px 0 var(--gold-light),
+    0px 2px 0 var(--gold-light),
+    -1.5px -1.5px 0 var(--gold-light),
+    1.5px -1.5px 0 var(--gold-light),
+    -1.5px 1.5px 0 var(--gold-light),
+    1.5px 1.5px 0 var(--gold-light),
+    0 5px 0 var(--gem-rim),
+    0 8px 10px color-mix(in srgb, var(--night-deep) 70%, transparent);
 }
 
 .top__pitch {

@@ -5,7 +5,7 @@
    tokens in styles.css (`--rc`, `--rc-a`, Ancient's `--rc-grad`). Colours below are literals only where no token exists. */
 /* z-index 700: the crate theatre's layer (crateTheatre.css); there is no z-index token. */
 .pkop { position: fixed; inset: 0; z-index: 700; outline: none; --pk-rim: color-mix(in srgb, var(--gold) 70%, transparent);
-  --pk-text: #f6ecd0; --pk-panel: #1a2033; }
+  --pk-slow: 1; --pk-text: #f6ecd0; --pk-panel: #1a2033; }
 .pkop-scrim { position: absolute; inset: 0; background: rgba(6, 8, 16, 0.86); }
 .pkop-fx { position: absolute; inset: 0; }
 .pkop-fx.pkop-hidden { visibility: hidden; pointer-events: none; }
@@ -23,9 +23,9 @@
 .pkop-pack { width: 220px; height: 320px; position: absolute; left: 50%; top: 24%; margin-left: -110px; }
 /* Reduced motion: each back holds its face (laid out at the featured size, scaled to the back), crossfaded on flip. */
 .pkop-back .pkf { position: absolute; left: 0; top: 0; width: 220px; height: 320px; transform: scale(0.682); transform-origin: 0 0;
-  opacity: 0; transition: opacity 0.25s ease-out; }
+  opacity: 0; transition: opacity calc(0.25s * var(--pk-slow, 1)) ease-out; }
 .pkop-back.flipped .pkf { opacity: 1; }
-.pkop-back .pkop-back-mark { transition: opacity 0.25s ease-out; }
+.pkop-back .pkop-back-mark { transition: opacity calc(0.25s * var(--pk-slow, 1)) ease-out; }
 .pkop-back.flipped .pkop-back-mark { opacity: 0; }
 .pkop-faces { position: absolute; inset: 0; pointer-events: none; }
 .pkop-summary { position: absolute; left: 50%; top: 58%; transform: translateX(-50%); min-width: 420px; padding: 16px 28px;
@@ -37,7 +37,7 @@
    One layout for every face. `.pkf` is the placed box (moved by transform); `.pkf-card` is the card (turned by transform,
    with the scene's perspective inline). */
 .pkf { position: absolute; width: 220px; height: 320px; transform-origin: 50% 50%; will-change: transform;
-  transition: transform 0.36s cubic-bezier(0.2, 0.8, 0.3, 1); }
+  transition: transform calc(0.36s * var(--pk-slow, 1)) cubic-bezier(0.2, 0.8, 0.3, 1); }
 .pkf-handoff, .pkf-featured { z-index: 2; }
 .pkf-card { position: relative; width: 100%; height: 100%; box-sizing: border-box; padding: 14px 14px 16px; border-radius: 16px;
   display: flex; flex-direction: column; align-items: center; gap: 6px; color: var(--pk-text, #f6ecd0); font-family: var(--font-ui);
@@ -70,7 +70,7 @@
 /* The stamp lands once, after the turn (one-shot, transform/opacity only). */
 .pkf-stamp { padding: 4px 14px; border: 3px solid var(--threat); border-radius: 6px; color: var(--threat); background: rgba(10, 8, 14, 0.75);
   font-size: 18px; font-weight: 900; letter-spacing: 0.18em; text-transform: uppercase; transform: rotate(-12deg);
-  animation: pkf-stamp 0.32s cubic-bezier(0.3, 1.5, 0.5, 1) 0.3s both; }
-.pkf-aether { font-size: 15px; font-weight: 800; color: var(--watcher-pulse-color); text-shadow: 0 1px 3px #000; animation: pkf-fade 0.3s ease-out 0.5s both; }
+  animation: pkf-stamp calc(0.32s * var(--pk-slow, 1)) cubic-bezier(0.3, 1.5, 0.5, 1) calc(0.3s * var(--pk-slow, 1)) both; }
+.pkf-aether { font-size: 15px; font-weight: 800; color: var(--watcher-pulse-color); text-shadow: 0 1px 3px #000; animation: pkf-fade calc(0.3s * var(--pk-slow, 1)) ease-out calc(0.5s * var(--pk-slow, 1)) both; }
 @keyframes pkf-stamp { from { opacity: 0; transform: rotate(-12deg) scale(1.8); } to { opacity: 1; transform: rotate(-12deg) scale(1); } }
 @keyframes pkf-fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }

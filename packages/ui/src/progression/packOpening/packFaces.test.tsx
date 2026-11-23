@@ -108,7 +108,7 @@ describe('the handoff', () => {
   const sceneFactory: NonNullable<PackOpenerProps['sceneFactory']> = (_h, _l, _n, _s, ev) => {
     events = ev;
     return { setBacks: () => undefined, flipTop: () => true, quickOpen: () => undefined, resetSealed: () => undefined,
-      setInputEnabled: () => undefined, destroy: () => undefined };
+      setInputEnabled: () => undefined, setSpeed: () => undefined, destroy: () => undefined };
   };
   beforeEach(() => { events = null; });
 

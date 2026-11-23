@@ -76,6 +76,8 @@ export interface PackScene {
   /** A short fade back to a fresh sealed pack with plain backs and input enabled (the failure path). */
   resetSealed(): void;
   setInputEnabled(on: boolean): void;
+  /** Scale the scene's clock (1 = real time, 0.25 = slow-mo). Dev-only (the Pack Lab); a no-op until Pixi is up. */
+  setSpeed(mult: number): void;
   /** Safe at any moment, including before the async init resolves. */
   destroy(): void;
 }
@@ -138,6 +140,7 @@ class PackSceneImpl implements PackScene {
   private backs: readonly PackBack[] | null = null;
   private inputOn = true;
   private pendingQuick = false;
+  private speed = 1;
 
   // simulation
   private phase: Phase = 'peel';
@@ -262,6 +265,10 @@ class PackSceneImpl implements PackScene {
     this.resetState();
     app.ticker.add(this.tick);
     if (this.pendingQuick) { this.pendingQuick = false; this.quickOpen(); }
+  }
+
+  setSpeed(mult: number): void {
+    this.speed = Number.isFinite(mult) ? clamp(mult, 0.05, 4) : 1;
   }
 
   destroy(): void {
@@ -667,7 +674,7 @@ class PackSceneImpl implements PackScene {
   private readonly tick = (tk: Ticker): void => {
     const v = this.v, app = this.app;
     if (!v || !app) return;
-    const dt = Math.min(MAX_DT, tk.deltaTime);
+    const dt = Math.min(MAX_DT, tk.deltaTime) * this.speed;
     this.time += dt;
     const feel = getPackFeel(); // read every frame: the Pack Lab tunes live
 

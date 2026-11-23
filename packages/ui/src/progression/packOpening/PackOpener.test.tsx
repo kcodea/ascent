@@ -44,6 +44,7 @@ const sceneFactory: NonNullable<PackOpenerProps['sceneFactory']> = (_host, _look
     quickOpen: () => { f.calls.push('quickOpen'); },
     resetSealed: () => { f.calls.push('resetSealed'); },
     setInputEnabled: (on) => { f.calls.push('input:' + on); },
+    setSpeed: (m) => { f.calls.push('speed:' + m); },
     destroy: () => { f.calls.push('destroy'); },
   };
   fakes.push(f);
@@ -74,6 +75,12 @@ beforeEach(() => { fakes = []; opens = []; resolveOpen = null; soundCalls.length
 afterEach(() => { m?.unmount(); m = null; });
 
 describe('PackOpener', () => {
+  it('applies the dev speed on scene creation and slows the DOM transitions with --pk-slow', () => {
+    render({ speed: 0.25 });
+    expect(fake().calls).toContain('speed:0.25');
+    expect((document.querySelector('.pkop') as HTMLElement).style.getPropertyValue('--pk-slow')).toBe('4');
+  });
+
   it('does not request on press, requests once on pop', () => {
     render();
     expect(opens).toEqual([]);

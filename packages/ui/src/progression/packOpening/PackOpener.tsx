@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import { RARITY_LABELS, packDuplicateAether, type PackCard, type PackLook, type PackOpenResult } from '@game/progression';
 import { rectToStage, stageHost, type StageRect } from '../../stage';
@@ -28,6 +28,8 @@ export interface PackOpenerProps {
   onOpened?: (r: PackOpenResult) => void;
   onClose?: () => void;
   reducedMotion?: boolean;
+  /** Dev-only clock multiplier (the Pack Lab's slow-mo): scales the scene and the DOM handoff transitions. Default 1. */
+  speed?: number;
   /** Tests inject a fake. */
   sceneFactory?: typeof createPackScene;
 }
@@ -46,7 +48,7 @@ const cardText = (c: PackCard): string => {
   return c.duplicate ? `${name}, ${rarity}, duplicate, +${c.duplicate.aether} Aether` : `${name}, ${rarity}, new`;
 };
 
-export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, sceneFactory = createPackScene }: PackOpenerProps) {
+export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, speed = 1, sceneFactory = createPackScene }: PackOpenerProps) {
   const reduced = reducedMotion ?? prefersReducedMotion();
   const [qi, setQi] = useState(0);
   const [phase, setPhaseState] = useState<PackPhase>('sealed');
@@ -76,6 +78,8 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, scen
   /** The result's warmed face art, held until the next pack so the decode is not dropped. */
   const artRef = useRef<HTMLImageElement[]>([]);
   const item = queue[qi];
+  const speedRef = useRef(speed);
+  speedRef.current = speed;
   const itemRef = useRef(item);
   itemRef.current = item;
 
@@ -180,6 +184,7 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, scen
         if (revealAllRef.current && flippedRef.current < r.cards.length) flipNextRef.current();
       },
     });
+    scene.setSpeed(speedRef.current);
     sceneRef.current = scene;
     return () => {
       scene.destroy();
@@ -187,6 +192,8 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, scen
     };
     // The scene is per pack; its callbacks read refs updated every render, so the deps are only the pack and the mode.
   }, [reduced, qi]);
+
+  useEffect(() => { speedRef.current = speed; sceneRef.current?.setSpeed(speed); }, [speed]);
 
   // Declared AFTER the scene effect so its cleanup runs after `scene.destroy()` on unmount.
   useEffect(() => () => { soundsRef.current?.dispose(); soundsRef.current = null; }, []);
@@ -295,7 +302,8 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, scen
   const showBacks = reduced && result !== null && phase !== 'summary';
 
   const theatre = (
-    <div className="pkop" role="dialog" aria-modal="true" aria-label="Opening a pack" ref={dialogRef} tabIndex={-1}>
+    <div className="pkop" role="dialog" aria-modal="true" aria-label="Opening a pack" ref={dialogRef} tabIndex={-1}
+         style={speed === 1 ? undefined : ({ '--pk-slow': 1 / speed } as CSSProperties)}>
       <div className="pkop-scrim" aria-hidden />
       {!reduced && (
         <div

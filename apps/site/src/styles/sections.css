@@ -41,16 +41,11 @@
   object-position: 50% 30%;
 }
 
-/* Everything that darkens the sky sits here, over the sky and UNDER the characters, so the characters keep their full
-   colour (owner 2026-11-22): a dim patch behind the words, a fade toward the night at the bottom, and a navy wash
-   over the whole sky. */
+/* The layer for anything that darkens the sky: over the sky and UNDER the characters, so the characters keep their
+   full colour. Empty for now (owner 2026-11-22: "remove all dimming"); a wash or a patch behind the words goes here. */
 .top__tint {
   position: absolute;
   inset: 0;
-  background:
-    radial-gradient(70% 34% at 50% 74%, color-mix(in srgb, var(--night) 82%, transparent), transparent 100%),
-    linear-gradient(180deg, transparent 0%, transparent 38%, color-mix(in srgb, var(--night) 86%, transparent) 66%, var(--night) 100%),
-    color-mix(in srgb, var(--showcase) 60%, transparent);
 }
 
 /* Phone: the teams meet in a band across the top, above the words. */
@@ -1267,14 +1262,6 @@ html:not(.is-other, .is-mobile) .top :is(.download__platform, .download__note) {
     bottom: calc(-1.5 * var(--u));
     right: calc(-3.2 * var(--u));
     width: calc(34.4 * var(--u));
-  }
-
-  /* The words sit in the middle, so only the middle of the sky is dimmed. */
-  .top__tint {
-    background:
-      radial-gradient(36% 46% at 50% 58%, color-mix(in srgb, var(--night) 78%, transparent), transparent 100%),
-      linear-gradient(180deg, transparent 0%, transparent 70%, color-mix(in srgb, var(--night) 80%, transparent) 90%, var(--night) 100%),
-      color-mix(in srgb, var(--showcase) 60%, transparent);
   }
 
   .top::before {

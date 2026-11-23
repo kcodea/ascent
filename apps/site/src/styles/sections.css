@@ -194,6 +194,49 @@ html:not(.is-other, .is-mobile) .top :is(.download__platform, .download__note) {
   text-shadow: 0 1px 8px var(--night);
 }
 
+/* A quiet cue that the page carries on below: a small chevron at the foot of the top section, which also jumps to the
+   next section. Faint until hovered. */
+.top__more {
+  position: absolute;
+  bottom: clamp(1rem, 3vh, 2.25rem);
+  left: 50%;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin-left: -22px;
+  color: var(--white);
+  opacity: 0.5;
+  transition: opacity 0.15s ease;
+}
+
+.top__more:hover,
+.top__more:focus-visible {
+  opacity: 0.95;
+}
+
+.top__more:focus-visible {
+  outline: 2px solid var(--gold-hi);
+  outline-offset: 2px;
+  border-radius: var(--r-card);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .top__more svg {
+    animation: more-bob 2.4s ease-in-out infinite;
+  }
+
+  @keyframes more-bob {
+    0%,
+    100% {
+      transform: translateY(-2px);
+    }
+    50% {
+      transform: translateY(3px);
+    }
+  }
+}
+
 /* -- Section backgrounds: night, with alternate sections lifted a step and each lit from where its art sits ---- */
 
 .section--async {

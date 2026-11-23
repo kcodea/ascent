@@ -40,7 +40,7 @@ import {
   equipmentChargesOf, equipmentCostOf, expireEquipmentTurn, rebuildEquipment, spendEquipmentCharge,
   selectEquipment, selectedEquipment, amplifyAllHeld, amplifyUnactivated, consumeAmplified, EQUIPMENT_AMPLIFIED_COUNTER, equipmentAmplifiedOf,
 } from './equipment';
-import { noteHandCastPlay, applyChooseOnePlayed, spendChooseBothCharge, noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, heroPowerCostOf, commissionOffer, COMMISSION_HOUSE_GOLD, COMMISSION_CASTLE_DISCOUNT, COMMISSION_MAX_GOLD, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, stampXeroxBond, stampVaultkeeper, battlecryTargetAllowed, hasShoutAimTarget, fireShoutWithoutTarget, exactBoardCopy, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, withGemSagesHeld, roseyHearsRubies, applyRubyRiderAction, mintRandomRubies, recordRubyRiderFx, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, fireDemonPlayRunes, foldOfferBuffs, creditShopBuffSource, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, applyShopSpellHalf, replayEndOfTurn, restoreHeldOffer, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, giftCastCount, rubyStatBonus, yazzusExtraCasts, stampYazzusCasts, consumeGrimoireCharge, countRubyAsShopSpell, fireSpellCastWatchersForRuby, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, resolveRefreshMultipliers, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, equipmentFxMark, buffedFxTargets, fireEquipmentTriggers, fireEquipmentActivated, buyHealthAura, undeadBuyBonus, weldMagnetic, defIsTribe, handCardLocked, fireStatGainReactors, fireEquipmentFree, applyRuneGrafts, noteSpellForCountRunes, settleMinionSale, distillationEdges, fireRunicHoard, applyLorekeeping, runeExtraCasts, castWithRuneRepeats, noteDoubleTapCast, noteDoubleTapHandSpellCast, DEEP_BOND_EVERY, MOUNTAINBOND_ID, withCastActor, withHandCast, fireSoldChoice, noteGilded, destroyMinionInShop, refireTarget, flushGrubBites, GOLD_SCALED_ACCRUAL_CARDS } from './recruit';
+import { noteHandCastPlay, applyChooseOnePlayed, spendChooseBothCharge, noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, heroPowerCostOf, commissionOffer, COMMISSION_HOUSE_GOLD, COMMISSION_CASTLE_DISCOUNT, COMMISSION_MAX_GOLD, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, stampXeroxBond, stampVaultkeeper, battlecryTargetAllowed, hasShoutAimTarget, fireShoutWithoutTarget, exactBoardCopy, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, withGemSagesHeld, roseyHearsRubies, applyRubyRiderAction, mintRandomRubies, recordRubyRiderFx, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, fireDemonPlayRunes, foldOfferBuffs, creditShopBuffSource, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, applyShopSpellHalf, replayEndOfTurn, restoreHeldOffer, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, giftCastCount, rubyStatBonus, yazzusExtraCasts, stampYazzusCasts, consumeGrimoireCharge, countRubyAsShopSpell, fireSpellCastWatchersForRuby, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, resolveRefreshMultipliers, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, equipmentFxMark, buffedFxTargets, fireEquipmentTriggers, fireEquipmentActivated, buyHealthAura, undeadBuyBonus, weldMagnetic, defIsTribe, handCardLocked, fireStatGainReactors, fireEquipmentFree, applyRuneGrafts, noteSpellForCountRunes, settleMinionSale, distillationEdges, fireRunicHoard, applyLorekeeping, runeExtraCasts, castWithRuneRepeats, noteDoubleTapCast, noteDoubleTapHandSpellCast, DEEP_BOND_EVERY, MOUNTAINBOND_ID, withCastActor, withHandCast, fireSoldChoice, noteGilded, destroyMinionInShop, refireTarget, flushGrubBites, GOLD_SCALED_ACCRUAL_CARDS, withoutDeepSlumber, stampDeepSlumber } from './recruit';
 import { createRun, handCap, withRuneAcquisition, runeGrantOverflow, recordBounceFx, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, type DeferredFight, type PreparedCombatSide, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx, type SotBeatSource, gateUses, procRune, procRuneId, runeBuffMagnitude, PACKCRAFT_STEP, REINVESTMENT_PER_SUMMON, SLAYING_KILLS, EQUIPMENT_FX_ANCHOR } from './state';
 import { alignmentsOf } from './alignment';
 import { blockedByShopClock } from './shopClock';
@@ -350,6 +350,8 @@ export interface OfferBuyPrice {
   cadenceOff: number;
   tradeInOff: number;
   spiritOff: number;
+  /** Rune of the Welcome Party: the first Spirit bought this turn's discount (0 once spent). */
+  welcomeOff: number;
   giftMinionOff: number;
   /** Loyal Customer made this buy free (the 4th, 8th, ... minion). */
   loyalFree: boolean;
@@ -376,6 +378,9 @@ export function offerBuyPrice(s: RunState, offer: { cardId: string; cost?: numbe
   const giftMinionOff = noDiscount ? 0 : (s.minionCostOffTurn ?? 0);
   // Set 3 Spirits — Festival Treasurer: the next SPIRIT this turn costs less (stacked per Reveler sold, capped).
   const spiritOff = !noDiscount && defIsTribe(CARD_INDEX[offer.cardId], 'spirit', s) ? (s.spiritDiscount ?? 0) : 0;
+  // RUNE OF THE WELCOME PARTY (Set 3, owner 2026-11-23): "Your first Spirit each turn costs 1 less." 1 per copy held,
+  // until a Spirit buy it discounted spends it (a buy already free leaves it for the next Spirit).
+  const welcomeOff = !noDiscount && s.questFlags?.runeWelcomeParty && !s.welcomePartyUsedThisTurn && defIsTribe(CARD_INDEX[offer.cardId], 'spirit', s) ? runeStacksOf(s, 'rune_welcome_party') : 0;
   // Rune of Trade-In: an armed per-type discount (from this turn's first sale) knocks 1 off a matching minion
   // (All-types matches any armed tribe; −1 per copy held — owner 2026-08-27).
   const tiDef = s.tradeInTribe ? CARD_INDEX[offer.cardId] : undefined;
@@ -400,8 +405,8 @@ export function offerBuyPrice(s: RunState, offer: { cardId: string; cost?: numbe
   const wholesaleOff = !noDiscount && s.questFlags?.runeWholesale && !wsDef?.spell && !wsDef?.ruby ? Math.max(1, s.flagCopies?.runeWholesale ?? 1) : 0;
   // END OF QUARTER (Set 2 Basic, owner 2026-11-13): this card's own rolled cut (1 per copy that hit), stacked, floored at 0.
   const quarterOff = noDiscount ? 0 : quarterCutOf(offer);
-  const cost = noDiscount ? 0 : Math.max(0, capped - cadenceOff - tradeInOff - spiritOff - giftMinionOff - shoutOff - wholesaleOff - quarterOff);
-  return { cost, freeBuy, cadenceOff, tradeInOff, spiritOff, giftMinionOff, loyalFree };
+  const cost = noDiscount ? 0 : Math.max(0, capped - cadenceOff - tradeInOff - spiritOff - welcomeOff - giftMinionOff - shoutOff - wholesaleOff - quarterOff);
+  return { cost, freeBuy, cadenceOff, tradeInOff, spiritOff, welcomeOff, giftMinionOff, loyalFree };
 }
 
 /** Rune of Festival Wages: a buy that was free because a free-card charge was armed spends ONE charge. A buy that
@@ -1294,7 +1299,7 @@ function settleAction(state: RunState, action: Action, next: RunState): RunState
   // card is a card added to the hand like any other; a landed copy can complete a triple in the Shop.
   if (next.duos?.waiting?.length) {
     const landed = landWaitingPasses(next);
-    if (landed !== next) { next = landed; if (next.phase === 'recruit') checkTriples(next); }
+    if (landed !== next) { next = landed; stampDeepSlumber(next); /* a fresh draft: the addBuff hook reads THIS run */ if (next.phase === 'recruit') checkTriples(next); }
   }
   // THE POST-BUFF PHASE (owner 2026-10-18): a refresh's stat MULTIPLIERS (Rune of the Embers) resolve here, after
   // EVERYTHING the action did — so they double the final value, never a value an additive buff then tops up. Ahead
@@ -2229,7 +2234,7 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
       }
       // THE price — `offerBuyPrice` is the single source for every price source and discount, shared with the
       // UI's cost coin so the shown price IS the charged price (Doc Bot holds the pair equal).
-      const { cost: buyCost, freeBuy, cadenceOff, tradeInOff, spiritOff, loyalFree } = offerBuyPrice(s, offer);
+      const { cost: buyCost, freeBuy, cadenceOff, tradeInOff, spiritOff, welcomeOff, loyalFree } = offerBuyPrice(s, offer);
       if (s.embers < buyCost || s.hand.length >= handCap(s)) return state;
       s.shop.splice(i, 1);
       // ANCIENTS × Frantic Frank (no-ops unless the run has them): DEATH's free buy is spent (the rest of the set goes
@@ -2242,6 +2247,7 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
       spendGold(s, buyCost);
       spendFreeCard(s, freeBuy); // Rune of Festival Wages: an armed free card is spent by this buy
       if (spiritOff > 0) s.spiritDiscount = 0; // the Treasurer's discount is spent by the Spirit it applied to
+      if (welcomeOff > 0) { s.welcomePartyUsedThisTurn = true; procRuneId(s, 'rune_welcome_party'); } // Welcome Party: spent by its Spirit
       if (cadenceOff) procRuneId(s, 'rune_cadence');
       if (cadenceOff) s.cadenceMinionOff = undefined; // spent
       if (tradeInOff) procRuneId(s, 'rune_trade_in');
@@ -5558,6 +5564,13 @@ function settleLobbyRound(s: RunState, result: CombatResult): void {
 
 /** Apply a resolved combat's outcome and advance to the next wave — or end the run. */
 function settleCombat(s: RunState, result: CombatResult): void {
+  // DEEP SLUMBER: a run-wide gain this settle lands on a card it just granted is part of that card's arrival, not a gain
+  // of a held minion; only the cards held when the fight ended are doubled.
+  const heldAtSettle = new Set(s.hand.map((c) => c.uid));
+  const settleGain = (c: BoardCard, source: string, a: number, h: number): void => {
+    if (heldAtSettle.has(c.uid)) addBuff(c, source, a, h);
+    else withoutDeepSlumber(() => addBuff(c, source, a, h));
+  };
   // Record this wave's result for the end-screen W-L-W summary (every combat, win or lose).
   s.history.push(result.result);
   // Loss-streak tracking (matchmaking softener): a loss extends the streak; a WIN breaks it and re-arms the
@@ -5797,7 +5810,7 @@ function settleCombat(s: RunState, result: CombatResult): void {
       if (!card) continue;
       // A hand card that grew ITSELF (Goldilox: source = its own uid) names itself (R-PROV-01).
       const srcId = b.source ? (b.source === b.uid ? card.cardId : result.initial.player.find((m) => m.uid === b.source)?.cardId) : undefined;
-      addBuff(card, (srcId && CARD_INDEX[srcId]?.name) || 'Combat', b.attack, b.health);
+      withoutDeepSlumber(() => addBuff(card, (srcId && CARD_INDEX[srcId]?.name) || 'Combat', b.attack, b.health)); // the fight already doubled it (`buffHand`)
     }
   }
   // Rune of the Trophy: the first friendly minion to Slaughter this combat arrives as a plain base-stat
@@ -5897,7 +5910,7 @@ function settleCombat(s: RunState, result: CombatResult): void {
   // hand as well as board — a body you were about to play earned it too.
   if (result.playerBoardBuffGain) {
     const g = result.playerBoardBuffGain;
-    for (const c of [...s.board, ...s.hand]) addBuff(c, 'Overflow', g.attack, g.health);
+    for (const c of [...s.board, ...s.hand]) settleGain(c, 'Overflow', g.attack, g.health);
   }
   if (result.playerImpBuffGain) {
     // REPLACED, not mutated — same reason as `buffImpsRunWide`: the UI's live-text memos key on `impBuff` by
@@ -5912,7 +5925,7 @@ function settleCombat(s: RunState, result: CombatResult): void {
     // "they receive the buff everywhere"). Their combat-time copy of the buff never carried back, so this is the
     // one and only time a held Imp is paid.
     const { attack, health } = result.playerImpBuffGain;
-    for (const c of [...s.board, ...s.hand]) if (CARD_INDEX[c.cardId]?.imp) addBuff(c, 'Imp Aura', attack, health);
+    for (const c of [...s.board, ...s.hand]) if (CARD_INDEX[c.cardId]?.imp) settleGain(c, 'Imp Aura', attack, health);
   }
   // Right Hand Hank's Echo: grow the run's right-most Shop-slot accumulator (the same total Market Tormentor
   // feeds). The next shop roll's applyShopRefreshed re-lands it on the right-most offer.
@@ -5934,7 +5947,7 @@ function settleCombat(s: RunState, result: CombatResult): void {
   if (result.playerMagneticBuffGain) {
     const { attack, health } = result.playerMagneticBuffGain;
     for (const card of [...s.board, ...s.hand]) {
-      if (card.keywords.includes('M')) addBuff(card, 'Chorus Engine', attack, health);
+      if (card.keywords.includes('M')) settleGain(card, 'Chorus Engine', attack, health);
     }
     s.magneticBuyAtk = (s.magneticBuyAtk ?? 0) + attack;
     s.magneticBuyHp = (s.magneticBuyHp ?? 0) + health;
@@ -6405,6 +6418,7 @@ function advanceCombat(s: RunState): void {
   s.shallowGravesUsedThisTurn = undefined; // Rune of Shallow Graves: the new turn's first Undead bought gains Rise
   s.requiemUsedThisTurn = undefined;      // Rune of Requiem: its 5 Aura rises a turn come back
   s.encoreUsedThisTurn = undefined;      // Rune of the Encore: the first Reveler sale of the new turn pays the hand
+  s.welcomePartyUsedThisTurn = undefined; // Rune of the Welcome Party: the new turn's first Spirit is discounted again
   s.gemStarThisTurn = undefined;         // Rune of the Gem Star: the first 4 Rubies of the new turn feed the Starform
   s.hauntedHandThisTurn = undefined;     // Rune of the Haunted Hand: the first 5 hand gains of the new turn raise the Aura
   s.clearVoicesIds = undefined;          // Rune of Clear Voices: the turn's distinct Whispers count afresh
@@ -9005,6 +9019,8 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     runeDreamedGraves: f?.runeDreamedGraves,   // Rune of Dreamed Graves: the first hand-summon gains Rebirth
     // ── Set 3 batch 2 (2026-09-16), tranche D ──
     runeOpenHand: f?.runeOpenHand,             // Rune of the Open Hand: every hand-summon gives its stats to another friendly minion
+    runeKindredRally: f?.runeKindredRally,     // Kindred Rally (2026-11-23): every hand-summon fires the left-most Rally
+    runeDeepSlumber: f?.runeDeepSlumber,       // Deep Slumber (2026-11-23): a hand stat gain is paid twice
     runeWakingReserve: f?.runeWakingReserve,   // Rune of the Waking Reserve: SoC — a copy of the highest-stat hand minion (card not marked)
     // ── Set 3 rune batch 3 (owner 2026-09-25) ──
     runeEchoingKobolds: f?.runeEchoingKobolds,       // combat-summoned Kobolds get the "Echo: get a Ruby" graft

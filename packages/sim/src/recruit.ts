@@ -767,9 +767,15 @@ const SELF_SHARES: { uid: string; a: number; h: number }[] = [];
 const TRIGGER_GRANTS: { uid: string; ancient: AncientId }[] = [];
 let CAPTURE_DEPTH = 0;
 
-export function addBuff(card: BoardCard, source: string, attack: number, health: number, count = 1): void {
+export function addBuff(card: BoardCard, source: string, attack: number, health: number, count = 1): { attack: number; health: number } {
   card.attack = Math.max(0, card.attack + attack); // Attack never drops below 0
   card.health += health;
+  // DEEP SLUMBER (R-SET3-NEW-SPIRIT-05): a held minion's gain is paid again HERE, the one chokepoint every run-side stat
+  // gain crosses, so End of Turn gains are doubled before the fight is prepared and Start of Turn gains as they land.
+  // Its own ledger row keeps the source's row exact (a Ruby tally, a resized enchant, a refund all read that row).
+  const slumber = deepSlumberExtra(card, attack, health);
+  card.attack += slumber.attack;
+  card.health += slumber.health;
   // AN ANCIENT'S GRANT LEAVES THE HERO-POWER BUTTON (owner 2026-11-16, R-FX-ANCIENT-TENDRIL-01): the one Shop tag. A
   // board minion gaining stats from an Ancient's name gets its own `fromHeroPower` record, the moment it lands, whatever
   // capture (or none) the grant was made inside; `captureBuffFx` leaves that share to it (see there). Display only.
@@ -809,7 +815,10 @@ export function addBuff(card: BoardCard, source: string, attack: number, health:
     if (partner && partner !== card) {
       procAncientG1(st); // XEROX × BONDS fires (R-FX-ANCIENT-PROC-01)
       XEROX_MIRRORING = true;
-      try { addBuff(partner, ANCIENTS.bonds.name, Math.max(0, attack), Math.max(0, health), count); } finally { XEROX_MIRRORING = false; }
+      // The partner gains what this card REALLY gained (Deep Slumber's share included); a share already doubled is
+      // never doubled again on a held partner.
+      const mirror = (): void => { addBuff(partner, ANCIENTS.bonds.name, Math.max(0, attack) + slumber.attack, Math.max(0, health) + slumber.health, count); };
+      try { if (slumber.attack > 0 || slumber.health > 0) withoutDeepSlumber(mirror); else mirror(); } finally { XEROX_MIRRORING = false; }
     }
   }
   // Rune of Shared Spoils: the LEFT-most Dwarf's gain is copied onto the RIGHT-most Dwarf. Same one-hop shape
@@ -831,14 +840,48 @@ export function addBuff(card: BoardCard, source: string, attack: number, health:
     const eff = CARD_INDEX[card.cardId]?.effects.find((e) => e.do === 'onGainAttackImproveHpGrant');
     if (eff) card.hpGrantBonus = (card.hpGrantBonus ?? 0) + num(eff.params?.improve, 2) * gold(card) * IMPROVE_REPS; // ×2 under Rune of Mastery
   }
-  if (attack === 0 && health === 0) return;
+  if (attack === 0 && health === 0) return slumber;
   card.buffs ??= [];
   const e = card.buffs.find((b) => b.source === source);
   if (e) { e.attack += attack; e.health += health; e.count += count; }
   else card.buffs.push({ source, attack, health, count });
+  if (slumber.attack > 0 || slumber.health > 0) {
+    const ds = card.buffs.find((b) => b.source === DEEP_SLUMBER_LABEL);
+    if (ds) { ds.attack += slumber.attack; ds.health += slumber.health; ds.count += 1; }
+    else card.buffs.push({ source: DEEP_SLUMBER_LABEL, attack: slumber.attack, health: slumber.health, count: 1 });
+  }
   // VAULTKEEPER (owner 2026-10-10): EVERY separate Attack gain is a gain — this buff is one instance, so it fires here,
   // at the one chokepoint every Shop stat gain crosses, rather than once per action off the reducer's board diff.
   if (attack > 0) vaultkeeperShopPulse(card);
+  return slumber;
+}
+
+/** Deep Slumber's line in a card's buff breakdown. */
+export const DEEP_SLUMBER_LABEL = 'Deep Slumber';
+let SLUMBER_OFF = 0;
+/** The live run Deep Slumber reads, stamped with `VAULT`, plus by the two Duos paths that write a fresh draft outside the
+ *  reducer's own (a landed pass, a teammate's effect): the hook matches a hand card by identity. */
+let SLUMBER_RUN: RunState | null = null;
+export function stampDeepSlumber(state: RunState): void {
+  SLUMBER_RUN = state;
+}
+/** Run `fn` with Deep Slumber's run-side doubling off. For a write that is not a new stat gain: a Gild's doubled base, a
+ *  spell that SETS stats, the settle carry-back of a combat hand gain (combat already doubled it). */
+export function withoutDeepSlumber<T>(fn: () => T): T {
+  SLUMBER_OFF += 1;
+  try { return fn(); } finally { SLUMBER_OFF -= 1; }
+}
+/** The extra stats Deep Slumber gives `card` for this gain: the positive part again, once per copy held, while the card is
+ *  a MINION in the live run's hand (a Ruby or a spell is not one). A card not in hand yet (a body being built, its
+ *  starting stats) has none. */
+function deepSlumberExtra(card: BoardCard, attack: number, health: number): { attack: number; health: number } {
+  const run = SLUMBER_RUN;
+  if (SLUMBER_OFF > 0 || !run?.questFlags?.runeDeepSlumber || (attack <= 0 && health <= 0) || !run.hand.includes(card)) return { attack: 0, health: 0 };
+  const def = CARD_INDEX[card.cardId];
+  if (!def || def.spell || def.ruby) return { attack: 0, health: 0 };
+  const copies = runeStacksOf(run, 'rune_deep_slumber');
+  procRuneId(run, 'rune_deep_slumber');
+  return { attack: Math.max(0, attack) * copies, health: Math.max(0, health) * copies };
 }
 
 /**
@@ -849,10 +892,12 @@ let VAULT: RunState | null = null;
 export function stampVaultkeeper(state: RunState): RunState | null {
   const prev = VAULT;
   VAULT = state;
+  SLUMBER_RUN = state;
   return prev;
 }
 export function restoreVaultkeeper(prev: RunState | null): void {
   VAULT = prev;
+  SLUMBER_RUN = prev;
 }
 
 /**
@@ -1725,7 +1770,7 @@ export function gildMinion(card: BoardCard, state?: RunState): void {
   if (card.golden) return;
   noteGilded(state);
   const def = CARD_INDEX[card.cardId];
-  addBuff(card, 'Gild', def?.attack ?? 0, def?.health ?? 0);
+  withoutDeepSlumber(() => addBuff(card, 'Gild', def?.attack ?? 0, def?.health ?? 0)); // a Gild's base is not a stat gain
   if (GOLD_SCALED_ACCRUAL_CARDS.has(card.cardId) && (card.summonBonus ?? 0) > 0) {
     card.summonBonus = card.summonBonus! / 2;
   }
@@ -1970,7 +2015,7 @@ export function displayedStatsOf(state: RunState, card: BoardCard): { attack: nu
  */
 function writeStatResult(state: RunState, card: BoardCard, source: string, resultAtk: number, resultHp: number): void {
   const baked = bakedAuraOf(state, card);
-  addBuff(card, source, (resultAtk + baked.attack) - card.attack, (resultHp + baked.health) - card.health);
+  withoutDeepSlumber(() => addBuff(card, source, (resultAtk + baked.attack) - card.attack, (resultHp + baked.health) - card.health)); // a SET, not a gain
 }
 
 /**
@@ -3515,10 +3560,16 @@ export function runicTranspositionAttack(state: RunState, target: BoardCard, hea
 export function applyWhisperBuff(target: BoardCard, source: string, attack: number, health: number): void {
   if (attack === 0 && health === 0) return;
   const before = { a: target.attack, h: target.health };
-  addBuff(target, source, attack, health);
-  // What actually landed (Attack never drops below 0), so the strip takes off exactly what was given.
-  const da = target.attack - before.a, dh = target.health - before.h;
+  const slumber = addBuff(target, source, attack, health);
+  // What actually landed (Attack never drops below 0), so the strip takes off exactly what was given. Deep Slumber's
+  // share (a held target) is its own ledger row, so it is its own temporary row too.
+  const da = target.attack - before.a - slumber.attack, dh = target.health - before.h - slumber.health;
   const list = (target.whisperBuffs ??= []);
+  if (slumber.attack > 0 || slumber.health > 0) {
+    const ds = list.find((b) => b.source === DEEP_SLUMBER_LABEL);
+    if (ds) { ds.attack += slumber.attack; ds.health += slumber.health; ds.count += 1; }
+    else list.push({ source: DEEP_SLUMBER_LABEL, attack: slumber.attack, health: slumber.health, count: 1 });
+  }
   const row = list.find((b) => b.source === source);
   if (row) { row.attack += da; row.health += dh; row.count += 1; } else list.push({ source, attack: da, health: dh, count: 1 });
 }
@@ -5280,6 +5331,17 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     for (const c of ctx.state.board) {
       if (!all && !isTribe(c, 'spirit') && !(circuit && isTribe(c, 'celestial'))) continue;
       addBuff(c, nameOf(self), a, h);
+    }
+    // RUNE OF THE BONFIRE (Set 3 new-concept Epic, owner 2026-11-23): "Your Reveler bonuses also apply to the minions in
+    // your hand." The SAME payout and the SAME audience rule, on the hand's minions (spells never): Flame / Tide pay
+    // the Spirits in hand, Grove every minion in hand. A hand buff is permanent (R-HAND-02). One payout however many
+    // copies are held (it widens the audience; a second copy has nothing more to widen).
+    if (ctx.state.questFlags?.runeBonfire) {
+      const held = ctx.state.hand.filter((c) => !CARD_INDEX[c.cardId]?.spell && (all || isTribe(c, 'spirit') || (circuit && isTribe(c, 'celestial'))));
+      if (held.length > 0 && (a > 0 || h > 0)) {
+        procRuneId(ctx.state, 'rune_bonfire');
+        for (const c of held) addBuff(c, nameOf(self), a, h);
+      }
     }
     ctx.state.lastRevelerPay = { uid: self.uid, attack: a, health: h }; // Rune of the Encore reads it at the sale
     ctx.state.revelerX = revelerValue(ctx.state) + 1;
@@ -12867,6 +12929,7 @@ export function fireOnMinionSold(state: RunState, sold: BoardCard): void {
   if (REVELER_IDS.includes(sold.cardId)) {
     const sold3 = state.revelersSoldThisTurn = (state.revelersSoldThisTurn ?? 0) + 1;
     runeEncoreShop(state, sold); // RUNE OF THE ENCORE (Set 3 design pass): the turn's first Reveler sale pays the hand too
+    runeLastDanceShop(state); // RUNE OF THE LAST DANCE (2026-11-23): every Reveler sold, the left-most Spirit +3/+3
     // RUNE OF CLOSING TIME (Set 3 design pass): every Reveler sold gets a random Dwarven Ale per copy.
     if (state.questFlags?.runeClosingTime) {
       const ales = runSpells(state).filter((c) => ALE_IDS.includes(c.id));
@@ -18048,6 +18111,21 @@ function runeCallAndAnswerShop(state: RunState): void {
   addBuff(left, 'Call and Answer', CALL_AND_ANSWER_GRANT.attack * n, CALL_AND_ANSWER_GRANT.health * n);
 }
 
+/** Last Dance's grant per copy held: "give your left-most Spirit +3/+3 permanently" (owner review board 2026-11-23). */
+export const LAST_DANCE_GRANT = { attack: 3, health: 3 } as const;
+
+/** RUNE OF THE LAST DANCE (Set 3 new-concept Basic, owner 2026-11-23): every Reveler SOLD gives the left-most Spirit on
+ *  your board +3/+3 per copy held. Heard after the sold body has left, so the Reveler
+ *  never pays itself. A Shop buff, so permanent. No Spirit on the board: nothing (no proc). */
+function runeLastDanceShop(state: RunState): void {
+  if (!state.questFlags?.runeLastDance) return;
+  const left = state.board.find((c) => isTribe(c, 'spirit'));
+  if (!left) return;
+  procRuneId(state, 'rune_last_dance');
+  const n = runeStacksOf(state, 'rune_last_dance');
+  captureBuffFx(state, undefined, 'spell', () => addBuff(left, 'Last Dance', LAST_DANCE_GRANT.attack * n, LAST_DANCE_GRANT.health * n));
+}
+
 /** RUNE OF THE ENCORE: the turn's first Reveler SALE also pays what that Reveler just gave the board to the left-most
  *  minion in hand, per copy. `lastRevelerPay` is set by the sold body's own `revelerSell` a moment earlier. */
 function runeEncoreShop(state: RunState, sold: BoardCard): void {
@@ -18556,6 +18634,7 @@ export function receiveTeamEffect(state: RunState, from: string, seq: number, ef
   const key = `${from}:${seq}`;
   if (state.duos.received.includes(key) || state.duos.refused.includes(key)) return state;
   const s = duosDraft(state);
+  stampDeepSlumber(s); // the addBuff hook reads THIS draft
   const d = s.duos!;
   const amt = (v: unknown): number => Math.min(10, Math.max(0, Math.floor(typeof v === 'number' ? v : 0)));
   if (effect.kind === 'gift') {

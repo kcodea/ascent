@@ -50,6 +50,7 @@ const BOOL_FLAGS = (
   + 'runeDoubleBill runeBulwarkLine runeBastion runeMirrorSheen ' // Set 2 rune batch, Epic neutral (2026-11-12)
   + 'runeFeralReturn runePackTactics runeBloodFrenzy runeHellfire runeWildfire runeGemRain ' // Set 2 Epic tribal runes (2026-11-12)
   + 'runeUninvitedGuests ' // Set 2 Epic rune (2026-11-23)
+  + 'runeKindredRally runeDeepSlumber ' // Set 3 new-concept Spirit runes (2026-11-23)
   + 'runeSequencing' // Set 2 Epic Dragon rune Sequencing (2026-11-14)
 ).split(' ');
 

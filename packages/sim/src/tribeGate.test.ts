@@ -60,6 +60,8 @@ const OWNER_TRIBE_RULINGS: Readonly<Record<string, Tribe>> = {
   rune_pallbearer: 'spirit', rune_keepsake_gem: 'spirit',
   // …and the Haunted Hand (Set 3 new hybrid runes, owner review board 2026-11-23): its Spirit half is the same hand line.
   rune_haunted_hand: 'spirit',
+  // …and Kindred Rally (owner review board 2026-11-23, a Spirit Epic): a minion summoned from your hand is the Spirit line.
+  rune_kindred_rally: 'spirit', rune_deep_slumber: 'spirit', // …and Deep Slumber: hand stat gains are the Spirit hand line
   // The owner's Set 3 Dragon rune list (2026-10-21) puts Rune of the Open Treasury under Dragon; its text names no tribe word.
   rune_open_treasury: 'dragon',
   // Sequencing (owner design 2026-11-14): handed over as an Epic DRAGON rune; spell casts are the Dragon line.

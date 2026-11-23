@@ -2032,6 +2032,12 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   // openHand = when you summon a minion from your hand, another friendly minion gains its stats;
   // wakingReserve = Start of Combat: summon a copy of your highest-stat hand minion (the card is NOT marked).
   | 'runeOpenHand' | 'runeWakingReserve'
+  // ── Set 3 new-concept runes, Spirits (owner review board 2026-11-23) ──
+  // lastDance = a Reveler sold: the left-most board Spirit +3/+3 (Shop-only); welcomeParty = the first Spirit bought
+  // each turn costs 1 less (Shop-only); bonfire = the Reveler payout also lands on the hand (Shop-only);
+  // kindredRally = a minion summoned from hand in combat fires the left-most Rally; deepSlumber = every hand stat gain
+  // is paid twice (`addBuff` outside combat, `buffHand` in combat).
+  | 'runeLastDance' | 'runeWelcomeParty' | 'runeBonfire' | 'runeKindredRally' | 'runeDeepSlumber'
   // ── Set 3 rune batch 3 (owner 2026-09-25) ──
   // echoingKobolds = your Kobolds carry "Echo: get a Ruby" (a graft, combat summons included); rubywire = a Shop
   // spell cast casts a Ruby on 2 friendly Kobolds; combatativeRubies = every 3rd friendly attack (a running meter)
@@ -2664,6 +2670,13 @@ export interface QuestCombatMods {
   /** Rune of the Waking Reserve: Start of Combat — summon a COPY of the highest-stat (Attack + Health) minion in
    *  hand when the board has room. The hand card is NOT marked as summoned. One copy per rune copy held. */
   runeWakingReserve?: boolean;
+  // ── Set 3 new-concept runes, Spirits (owner review board 2026-11-23): the two with a combat half ──
+  /** Kindred Rally: a minion summoned FROM THE HAND (the `pendingHandSummon` moment) fires the left-most Rally, a free
+   *  Rally, once per copy held. */
+  runeKindredRally?: boolean;
+  /** Deep Slumber: a minion in your hand gains double stats from every source (each `buffHand` gain is paid once more
+   *  per copy held). */
+  runeDeepSlumber?: boolean;
   // ── Set 3 rune batch 3 (owner 2026-09-25) ──
   /** Rune of Echoing Kobolds: every Kobold SUMMONED this fight is grafted "Echo: get a Ruby" (bodies that started
    *  the fight carry the Shop graft already, via `grantedEffects`). One Ruby per copy held. */

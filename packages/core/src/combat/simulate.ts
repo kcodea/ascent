@@ -1980,14 +1980,18 @@ export function simulate(
       if (!def || def.spell) return undefined;
       const kws = [...h.keywords, ...(ward && !h.keywords.includes('DS') ? (['DS'] as Keyword[]) : [])];
       pendingHandSummon[side] = true; // Rune of Dreamed Graves reads this at placement
+      // Spent BEFORE it lands: a rune that reacts to the landing (Kindred Rally firing a Seedling Spirit) can summon from
+      // the hand again inside this call, and must not pick this same card (R-SET3-NEW-SPIRIT-04).
+      handCopiedUids.add(handKey(side, uid));
+      const logFrom = events.length;
       const copy = summonMinion(side, def, nearUid, kws, h.golden, false,
         { attack: h.attack, health: h.health, maxHealth: h.health, divineShield: !!ward || h.keywords.includes('DS'), handFold: true });
       // A FULL board: `placeSummon` overflowed (the overflow payoffs fired) and the copy never landed — so the
       // hand card is NOT spent. It is still summonable by the next summoner once there is room (owner report
       // 2026-09-10: a second Seedling Spirit found room and summoned nothing, because the first attempt had
-      // marked the card). "Once per combat" means once SUMMONED, not once attempted.
-      if (!boards[side].includes(copy)) return undefined;
-      handCopiedUids.add(handKey(side, uid)); // once per combat; the card itself stays in hand and keeps taking buffs
+      // marked the card). "Once per combat" means once SUMMONED, not once attempted: no summon event = not summoned.
+      if (!events.slice(logFrom).some((ev) => ev.type === 'summon' && ev.minion.uid === copy.uid)) { handCopiedUids.delete(handKey(side, uid)); return undefined; }
+      // Once per combat; the card itself stays in hand and keeps taking buffs.
       // Stamp the hand origin onto the summon event just emitted — the replay greys that hand card for the fight.
       // Found by uid, scanning back: a grant that lands ON the placed body (Rune of Dreamed Graves' Rebirth) emits
       // after the summon, so "the last event" is no longer guaranteed to be it.
@@ -1995,7 +1999,7 @@ export function simulate(
         const ev = events[i]!;
         if (ev.type === 'summon' && ev.minion.uid === copy.uid) { ev.fromHandUid = uid; break; }
       }
-      return copy;
+      return boards[side].includes(copy) ? copy : undefined; // landed, then died to what its own landing set off
     },
     buffHand: (uid, attack, health, side, sourceUid) => {
       // R-HAND-02 (owner 2026-09-09): "cards buffed in hand are always permanent". Either side (R-SYMMETRY-01):
@@ -2005,6 +2009,16 @@ export function simulate(
       if (attack === 0 && health === 0) return;
       const card = handPool(side).find((h) => h.uid === uid);
       if (!card || handSummonedUids.has(handKey(side, uid))) return;
+      // RUNE OF THE DEEP SLUMBER (Set 3 new-concept Epic, owner 2026-11-23): "Minions in your hand gain double stats from
+      // every source." Every combat hand gain passes HERE, so the gain is paid once more per copy held, folded into this
+      // one grant (its own pulse, same beat). A gain only: a 0 / negative lane is never multiplied. Bounded: nothing is
+      // re-dispatched from the extra. The carry-back below records the doubled amount, so the run hand matches.
+      if (modsFor(side).runeDeepSlumber) {
+        const mult = 1 + flagCopiesOf(side, 'runeDeepSlumber');
+        if (attack > 0) attack *= mult;
+        if (health > 0) health *= mult;
+        fireTrigger('runeDeepSlumber', side);
+      }
       handBuffs[side].push({ uid, attack, health, ...(sourceUid ? { source: sourceUid } : {}) });
       card.attack += attack;
       card.health += health;
@@ -3013,6 +3027,18 @@ export function simulate(
         const t = others[ctx.rng.int(others.length)]!;
         nextStep(); fireTrigger('runeOpenHand', side);
         ctx.buff(t, minion.attack, minion.health, 'Open Hand');
+      }
+    }
+    // RUNE OF THE KINDRED RALLY (Set 3 new-concept Epic, owner 2026-11-23): "When you summon a minion from your hand in
+    // combat, trigger your left-most Rally." The same landed-from-hand moment as the Open Hand, after it: the left-most
+    // living Rally body (the arrival itself when it is the left-most) fires a free Rally once per copy held, every Rally
+    // multiplier folded (`fireFreeRally`). Bounded: a hand card summons once per combat, so a Rally that summons from
+    // the hand (Seedling Spirit) chains at most once per hand card. No Rally body: nothing (no pulse).
+    if (fromHand && modsFor(side).runeKindredRally) {
+      const lead = boards[side].find((m) => canRally(m));
+      if (lead) {
+        nextStep(); fireTrigger('runeKindredRally', side);
+        for (let k = 0; k < flagCopiesOf(side, 'runeKindredRally'); k++) { if (canRally(lead)) fireFreeRally(lead, side); }
       }
     }
     summonEntryEffects(minion, side);

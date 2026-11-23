@@ -234,10 +234,14 @@ const SWEEP = runTextSweep({ contracts: CONTRACTS });
 // packages/core/src/combat/set3HybridRunes1123.test.ts.
 // 2026-11-23 (owner Set 3 rune review): 223 -> 224, CONSCIOUSLY. Top Shelf's new top-Tier clause ("At your top Tier, your 2
 // right-most offers are always that Tier") or Summit's fixed turns is a clause the grammar does not read yet.
+// 2026-11-23 (Set 3 new-concept Spirit runes, owner review board): 231 -> 233, CONSCIOUSLY. Bonfire ("Your Reveler
+// bonuses also apply to the minions in your hand") widens another card's audience and Deep Slumber ("gain double stats
+// from every source") is a hand-gain multiplier; the grammar reads neither. Pinned by packages/sim/src/set3NewRunesSpirits.test.ts,
+// packages/sim/src/deepSlumber.test.ts and packages/core/src/combat/set3NewRunesSpirits.test.ts.
 // 2026-11-23 (six Set 2 Epic runes + the Spellmaiden token): 224 -> 229, CONSCIOUSLY. Their rules (a Gold threshold
 // changed on another card, "no Triple Reward when played", a widened Ruby target, the first 3 targeted spells casting
 // twice, spell power multiplied on sale) are engine hooks or modifiers the clause grammar does not read.
-const UNRESOLVED_CAP = 236;
+const UNRESOLVED_CAP = 238;
 /** Collapse floor: the parser fully consuming fewer objects than this means a grammar regression. */
 const PARSED_FLOOR = 900;
 /** The HARD ceiling (2026-09-11): the unresolved share of active objects may never reach this fraction again. A

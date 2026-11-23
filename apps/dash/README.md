@@ -151,9 +151,17 @@ else Insufficient evidence, dimmed), and a sparkline of the takers' average plac
 
 **Cost and the rollup.** Reading every run's card arrays live took ~70 s for All time at 50k runs, so cards and runes
 read `analytics.balance_daily`: one row per (UTC day, mode, set, card or rune, taken or passed) with additive sums
-(count, placement sum, sum of squares, top-4) and up to 10 distinct player keys. A pg_cron job (`analytics-balance-rollup`,
-03:47 UTC) rolls up each finished UTC day; the migration backfills once; today is always read live. Unique players are
-exact below 10 and shown as 10+ above (the gates need 3 and 5). Card / rune days are UTC days.
+(count, placement sum, sum of squares, top-4) and up to 10 distinct player keys. Unique players are exact below 10 and
+shown as 10+ above (the gates need 3 and 5). Card / rune days are UTC days; today is always read live.
+
+**Filled one UTC day at a time (fix 2026-11-22).** The first live apply ran a one-shot all-history backfill whose sort
+spilled to disk and hit "No space left on device" on the Free plan. Now the migration rolls up NOTHING (bench: re-apply
+on ~50k games in ~15 ms, 0 temp). `analytics.balance_rollup_catchup(n)` rolls up at most n finished days, oldest
+first, one day per aggregate (bench: slowest day 55 ms, 0 temp at work_mem 2 MB), and records its progress in
+`analytics.balance_rollup_state`. The pg_cron job `analytics-balance-rollup` (03:47 UTC) runs it with n = 14; to
+fill history sooner run `select analytics.balance_backfill_step(14);` until it reports `remaining: 0` (each call
+is its own transaction). Until then the page says which days the card and rune numbers cover. Every long-range read sets
+its own work_mem (16 MB; 32 MB for Balance) so All time sorts in memory: 0 temp for every tab at ~50k games.
 
 **What the data cannot support here (so the page does not fake it):**
 - The ADJUSTED association (first affordable offer, round band × shop tier strata): it needs each run's per-offer wave and

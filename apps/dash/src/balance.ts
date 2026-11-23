@@ -5,7 +5,7 @@
 // with the runs offered it at the forge that skipped it. These are RAW associations at equal access, not causal and not
 // round-band adjusted; the page says so. The evidence gates and the Welch interval are the report's own numbers.
 import { miniBar, trendSpark } from './charts';
-import { esc, int, pct, place, titleCase } from './format';
+import { esc, int, minusDays, pct, place, titleCase } from './format';
 import { LOW_SAMPLE, section, stat, type Ctx } from './sections';
 import type { BalanceData, BalanceRow, TrendItem } from './types';
 
@@ -136,6 +136,16 @@ function itemTable(view: BalView, items: Item[], f: BalFilter, c: Ctx, cards: Re
   }).join('')}</tbody></table></div>`;
 }
 
+/** Cards and runes come from the nightly rollup (one UTC day at a time) plus today live: say which days that covers when
+ *  the history is still filling (null = nothing rolled up yet), so a thin read is never mistaken for a quiet game. */
+export function rollupNote(b: Pick<BalanceData, 'rolledThrough' | 'rolledFrom' | 'to'>, f: Pick<BalFilter, 'view'>): string {
+  if (f.view !== 'minions' && f.view !== 'spells' && f.view !== 'runes') return '';
+  if (!b.rolledThrough) return '<div class="dk-note dk-warn"><b>Card and rune history is still being rolled up.</b> Only today shows for now; the nightly job adds up to 14 past days a night.</div>';
+  // behind = the last rolled-up day is before the day before the range end (the nightly run fills yesterday at 03:47 UTC)
+  if (b.rolledThrough < minusDays(b.to, 1)) return `<div class="dk-note dk-warn"><b>Card and rune history covers ${esc(b.rolledFrom ?? '?')} to ${esc(b.rolledThrough)} (UTC) plus today</b>; the days after that fill in nightly (up to 14 a night).</div>`;
+  return '';
+}
+
 export function renderBalance(b: BalanceData, c: Ctx, f: BalFilter, opts: { set: string; liveSet: string }): string {
   const cards = c.names?.cards;
   const setCards = opts.set ? c.names?.setCards?.[opts.set] ?? null : null;
@@ -152,6 +162,7 @@ export function renderBalance(b: BalanceData, c: Ctx, f: BalFilter, opts: { set:
     : isCard ? 'Runs that took the card (shop or Discover) against runs whose shop or Discovers showed it and passed (equal access). One observation per run.'
       : f.view === 'tribes' ? 'Every ranked game by the final board\'s top tribe, against the field.' : 'Every game with it, against the field.';
   return `
+    ${rollupNote(b, f)}
     <div class="dk-note dk-in"><b>Association, not causation.</b> ${esc(method)} These are raw associations: not adjusted for the round the card was offered or the shop tier
       (the in-game Balance Report does that from each run's replay). Read a difference only when the evidence is Candidate or Supported and the interval clears zero.
       Lower place is better; "better" means the takers finished higher.</div>

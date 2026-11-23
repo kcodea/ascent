@@ -146,6 +146,8 @@ export type BalanceRow = [string, number, number, number, number | null, number 
 export interface BalanceData {
   tz: string; from: string; to: string; trendBucket: 'week' | 'month'; mode: 'ranked' | 'unrated' | 'all'; set: string | null;
   games: number; // Career rows (heroes, tribes, Ancients, final boards)
+  rolledThrough?: string | null; // cards + runes: the last UTC day rolled up (null = none yet; today is always live)
+  rolledFrom?: string | null; // the first UTC day rolled up
   runs: number; // telemetry runs (cards, runes)
   field: { n: number; avg: number | null; var: number | null; top4: number | null };
   trends: Partial<Record<'hero' | 'tribe' | 'ancient', TrendItem[]>>;

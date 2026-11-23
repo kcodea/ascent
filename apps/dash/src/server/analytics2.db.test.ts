@@ -195,6 +195,31 @@ const row = (b: Json, kind: string, id: string) => {
 };
 
 describe('analytics_balance', () => {
+  it('the migration rolls up nothing; the catch-up fills one day at a time, at most n days a call, oldest first', async () => {
+    const q = async <T>(sql: string) => (await db.query<T>(sql)).rows[0]!;
+    expect((await q<{ n: number }>('select count(*)::int as n from analytics.balance_daily')).n).toBe(0);
+    // before any catch-up only today is read live: the unrated + set3 + Claudebot runs are today, so ranked sees just C (set3)
+    const before = await balance();
+    expect(before.rolledThrough).toBeNull();
+    expect(row(before, 'card', 'm1')).toMatchObject({ taken: 1, takenAvg: 7 });
+    // the oldest telemetry is 10 days ago (UTC): 3 days a call
+    const s1 = await q<{ j: Json }>('select analytics.balance_backfill_step(3) as j');
+    const tenAgo = (await q<{ d: string }>("select ((now() at time zone 'UTC')::date - 10)::text as d")).d;
+    expect(s1.j).toMatchObject({ from: tenAgo, days: 3, remaining: 7 });
+    expect(s1.j.rows).toBeGreaterThan(0);
+    const s2 = await q<{ j: Json }>('select analytics.balance_rollup_catchup(5) as j');
+    expect(s2.j).toMatchObject({ days: 5, remaining: 2 });
+    const s3 = await q<{ j: Json }>('select analytics.balance_rollup_catchup(14) as j');
+    expect(s3.j).toMatchObject({ days: 2, remaining: 0 });
+    const s4 = await q<{ j: Json }>('select analytics.balance_rollup_catchup(14) as j');
+    expect(s4.j).toMatchObject({ days: 0, remaining: 0 }); // nothing left: a no-op
+    // a day rolled again gives the same rows (idempotent)
+    const sig = "select string_agg(day || kind || item || taken || n || sum_place || sumsq || top4 || array_to_string(players, ','), '|' order by day, kind, item, taken) as s from analytics.balance_daily";
+    const a = (await q<{ s: string }>(sig)).s;
+    await db.query("select analytics.balance_rollup_day((now() at time zone 'UTC')::date - 10)");
+    expect((await q<{ s: string }>(sig)).s).toBe(a);
+  });
+
   it('heroes, tribes and Ancients from ranked Career rows', async () => {
     const b = await balance();
     expect(b.trendBucket).toBe('week');

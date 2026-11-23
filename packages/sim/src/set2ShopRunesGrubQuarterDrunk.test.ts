@@ -58,7 +58,7 @@ describe('the three runes as content', () => {
   it('End of Quarter: Basic, neutral, 3 Gold, Set 2 only, the owner text', () => {
     const r = RUNE_INDEX['rune_end_of_quarter']!;
     expect(RUNES.includes(r)).toBe(true);
-    expect([r.name, r.cost, !!r.epic, r.tribes, r.sets]).toEqual(['End of Quarter', 3, false, undefined, ['set2']]);
+    expect([r.name, r.cost, !!r.epic, r.tribes, r.sets]).toEqual(['End of Quarter', 3, false, undefined, ['set2', 'set3']]); // + set3 2026-11-23 (owner Set 3 rune review board)
     expect(r.text).toBe('Every card in your Shop has a **30%** chance to cost **1** less.');
     expect(r.reward).toEqual({ kind: 'combatFlag', flag: 'runeEndOfQuarter' });
   });

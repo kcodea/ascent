@@ -173,7 +173,7 @@ describe('no mutation leak — captured frames are deep-cloned (the v1-class bug
 });
 
 describe('a full captured bot run — result golden, frame structure, rollups, size', () => {
-  const { final, frames, fullFrames, truth, totalHealthLost } = captureBotRun(4, 'drakko');
+  const { final, frames, fullFrames, truth, totalHealthLost } = captureBotRun(5, 'drakko'); // seed 4 → 5 on 2026-11-23: seed 4 now wins the lobby untouched (Set 3 rune review shifted its rune rolls), so resolveLost had nothing to sum
 
   it('delta round-trip: expandFrames reconstructs the exact full-view timeline (JSON-identical)', () => {
     const expanded = expandFrames(frames);

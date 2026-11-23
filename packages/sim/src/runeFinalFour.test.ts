@@ -120,7 +120,7 @@ describe('Rune of the White Wolf', () => {
 });
 
 describe('the last four runes ship as specced', () => {
-  it('exist at the sheet costs, all epic', () => {
+  it('exist at the sheet costs, all epic but Spellstone (Basic since the owner Set 3 rune review 2026-11-23)', () => {
     const want: [string, number][] = [
       ['Counterpoint', 4], ['Overflow', 3], ['Spellstone', 1], ['White Wolf', 3], // owner 2026-10-23 reprice: Counterpoint 5 → 4, Overflow 4 → 3, White Wolf 4 → 3. Earlier: Counterpoint 7 → 5, Spellstone 3 → 1 (balance 9/23; Spellstone 6 → 3 owner balance 2026-08-18)
     ];
@@ -129,7 +129,7 @@ describe('the last four runes ship as specced', () => {
       const r = byName(name) ?? Object.values(RUNE_INDEX).find((x) => x.name === name);
       expect(r, `${name} is missing`).toBeDefined();
       expect(r!.cost, `${name} cost`).toBe(cost);
-      expect(!!r!.epic).toBe(true);
+      expect(!!r!.epic, name).toBe(name !== 'Spellstone');
     }
   });
 });

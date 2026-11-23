@@ -3,6 +3,7 @@ import { combatSide, makeRng, simulate, type BoardMinion, type QuestCombatMods }
 import { CARD_INDEX, EPIC_RUNES, EQUIPMENT_INDEX, RUNES, RUNE_INDEX, runeSynergies } from '@game/content';
 import { CONFIG, createRun, reduce, equipmentState, equipmentChargesOf, type Action, type BoardCard, type RunState } from './index';
 import { isStatGrantingSpell } from './recruit';
+import { withSet3 } from './set3ReviewJoined';
 import { runeTally } from '../../ui/src/runeTally';
 
 /**
@@ -61,7 +62,7 @@ describe('the 2026-10-07 roster', () => {
     for (const [id, cost, epic, tribes] of want) {
       const r = RUNE_INDEX[id]!;
       expect((epic ? EPIC_RUNES : RUNES).some((x) => x.id === id), `${id} lives in the right forge`).toBe(true);
-      expect([r.cost, !!r.epic, r.tribes, r.sets], id).toEqual([cost, epic, tribes, ['set2']]);
+      expect([r.cost, !!r.epic, r.tribes, r.sets], id).toEqual([cost, epic, tribes, withSet3(id, ['set2'])]);
       expect(r.text, `${id}: no em dash in player text`).not.toMatch(/—|--/);
     }
     expect(runeSynergies(RUNE_INDEX['rune_flaming_dragon']!)).toEqual(['dragon', 'shout', 'spells']);

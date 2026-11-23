@@ -570,16 +570,16 @@ html:root .lobbyrail.lrv-docked .lrv-team.dead { opacity: 0.6; }
 html:root .lobbyrail.lrv-docked .lrv-team.dead::after { background: color-mix(in srgb, var(--ui-edge-deep) 80%, #000); }
 /* The name sits right-aligned (owner 2026-11-02: "i want the team name to be right aligned, but with some padding from the
    right so it isnt covered by the YOU or now facing corner icon. i want to put a black 2px stroke around the font"): its
-   box spans the slice's clear top edge, its right padding clears the 30px corner chip (which reaches 21px in), and a 4px
-   stroke painted under the fill shows as a 2px black outline. */
+   box spans the slice's clear top edge, its right padding clears the 30px corner chip (which reaches 21px in), and a 2px
+   black outline, a ROUND one (R-OUTLINE-ROUND-01, styles.css: a ring of text-shadow copies, never a text stroke). */
 html:root .lobbyrail.lrv-docked .lrv-teamname {
   position: absolute; z-index: 5; translate: 0 -50%; pointer-events: none; box-sizing: border-box;
   padding-right: calc(27px * var(--dk-s, 1)); text-align: right;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  --wk-stroke: calc(4px * var(--dk-s, 1)) #000; -webkit-text-stroke: var(--wk-stroke); paint-order: stroke fill;
+  --ol-r: calc(2px * var(--dk-s, 1)); --ol-c: #000; --ol-ring: var(--ol-r) 0 0 var(--ol-c), calc(var(--ol-r) * 0.7071) calc(var(--ol-r) * 0.7071) 0 var(--ol-c), 0 var(--ol-r) 0 var(--ol-c), calc(var(--ol-r) * -0.7071) calc(var(--ol-r) * 0.7071) 0 var(--ol-c), calc(var(--ol-r) * -1) 0 0 var(--ol-c), calc(var(--ol-r) * -0.7071) calc(var(--ol-r) * -0.7071) 0 var(--ol-c), 0 calc(var(--ol-r) * -1) 0 var(--ol-c), calc(var(--ol-r) * 0.7071) calc(var(--ol-r) * -0.7071) 0 var(--ol-c);
   font-family: var(--font-title), sans-serif; font-weight: 800; font-size: calc(10.5px * var(--dk-s, 1)); line-height: 1.1;
   letter-spacing: 0.08em; text-transform: uppercase; color: color-mix(in srgb, var(--ui-text) 82%, transparent);
-  --wk-ts: 0 1px 0 rgba(0, 0, 0, 0.95), 0 0 calc(4px * var(--dk-s, 1)) rgba(0, 0, 0, 0.9); text-shadow: var(--wk-ts);
+  text-shadow: var(--ol-ring), 0 0 calc(6px * var(--dk-s, 1)) rgba(0, 0, 0, 0.9);
 }
 html:root .lobbyrail.lrv-docked .lrv-teamname.you { color: var(--ui-title); }
 html:root .lobbyrail.lrv-docked .lrv-teamname.dead { color: var(--ui-muted); }

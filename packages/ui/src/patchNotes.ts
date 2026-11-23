@@ -64,7 +64,11 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
-        text: 'The big numbers in a hero attack now have smooth, round outlines, with no small spikes at the letter corners.',
+        text: 'Outlined text now has smooth, round outlines, with no small spikes at the letter corners.',
+        details: [
+          'The big numbers in a hero attack, damage numbers in combat, tribe labels on cards, hero and player names, and the Now Facing announcement.',
+          'On iPhone, player names on the home screen and hero names in hero select now show their shadow too.',
+        ],
       },
       {
         category: 'Systems',

@@ -48,9 +48,11 @@ describe('R-TEXT-SPELL-BUFF-BLUE-01: spell buff numbers wear the Shop Spell blue
   it('paints every other bold word on a spell #0B7AEE, no glow, with a 1.5px black outline behind the fill', () => {
     const rule = /\.card\.compact\.showtext\.spellcard \.drawer \.desc b:not\(\.buffnum\) \{([^}]*)\}/.exec(CSS)?.[1] ?? '';
     expect(rule).toMatch(/color:\s*#0b7aee/i);
-    expect(rule).toMatch(/text-shadow:\s*none/);
-    expect(rule).toMatch(/-webkit-text-stroke:\s*1\.5px #000/);
-    expect(rule).toMatch(/paint-order:\s*stroke fill/);
+    // The outline is a ring of text-shadow copies and nothing else (no glow): R-OUTLINE-ROUND-01. Its radius is half
+    // the old 1.5px stroke, the half that showed outside the letter.
+    expect(rule).toMatch(/--ol-r:\s*0\.75px;\s*--ol-c:\s*#000/);
+    expect(rule).toMatch(/text-shadow:\s*var\(--ol-ring\);/);
+    expect(rule).not.toMatch(/text-stroke|paint-order/);
   });
 
   it('the buffs carry no outline, just the glow', () => {

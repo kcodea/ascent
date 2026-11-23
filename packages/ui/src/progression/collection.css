@@ -310,8 +310,7 @@ img.colls-caticon { object-fit: contain; filter: drop-shadow(0 1px 2px rgba(0, 0
   margin: 0 -14px; padding: 4px 14px 6px;
   background: linear-gradient(90deg, rgba(4, 8, 18, 0) 8%, rgba(4, 8, 18, 0.6) 28%, rgba(4, 8, 18, 0.6) 72%, rgba(4, 8, 18, 0) 92%); }
 .colls-tile.skin .colls-tile-for, .colls-tile.skin .colls-tile-rar, .colls-tile.skin.owned .colls-tile-name {
-  --wk-stroke: 2px #000; -webkit-text-stroke: var(--wk-stroke); paint-order: stroke fill;
-  --wk-ts: 0 2px 2px #000, 0 3px 6px #000, 0 5px 14px #000, 0 0 18px rgba(0, 0, 0, 0.9); text-shadow: var(--wk-ts); }
+  --ol-r: 1px; --ol-c: #000; --ol-ring: var(--ol-r) 0 0 var(--ol-c), calc(var(--ol-r) * 0.7071) calc(var(--ol-r) * 0.7071) 0 var(--ol-c), 0 var(--ol-r) 0 var(--ol-c), calc(var(--ol-r) * -0.7071) calc(var(--ol-r) * 0.7071) 0 var(--ol-c), calc(var(--ol-r) * -1) 0 0 var(--ol-c), calc(var(--ol-r) * -0.7071) calc(var(--ol-r) * -0.7071) 0 var(--ol-c), 0 calc(var(--ol-r) * -1) 0 var(--ol-c), calc(var(--ol-r) * 0.7071) calc(var(--ol-r) * -0.7071) 0 var(--ol-c); text-shadow: var(--ol-ring), 0 2px 3px #000, 0 3px 7px #000, 0 5px 15px #000, 0 0 19px rgba(0, 0, 0, 0.9); }
 .colls-tile.skin.missing .colls-tile-art { filter: saturate(0) brightness(0.3) contrast(1.2); }
 .colls-tile.skin.missing .colls-tile-for { color: rgba(255, 246, 228, 0.55); }
 /* A PORTRAIT FRAME's tile (2026-10-01): the ring shown whole, centred above the name (static). */

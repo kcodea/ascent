@@ -118,7 +118,7 @@ describe('round 6', () => {
     expect(css).toMatch(/\.hcpw-fbody \{ display: block; max-width: 82%;/); // owner 2026-11-07: "reduce the width ... by 25%", then "widen it 7%"
     expect(css).not.toMatch(/\.hcpw-titlecost::before/); // the hover face has no divider (owner 2026-11-07: "remove this divider")
     // The power's name is blue, its cost gold (owner 2026-11-07).
-    expect(css).toContain('.heroselect.phhs .herocard.big .hcpw-head b { color: #7cc4ff; -webkit-text-stroke: 1.5px #000; paint-order: stroke fill; }');
+    expect(css).toContain('.heroselect.phhs .herocard.big .hcpw-head b { color: #7cc4ff; --ol-r: 0.75px; --ol-c: #000;'); // + its round outline (R-OUTLINE-ROUND-01)
     expect(css).toContain(':is(.hcpw-head .hccost, .hcpw-titlecost) { color: var(--ui-title, #ffd98a); }');
     expect(css).toMatch(/\.hcpw-focus \{[^}]*opacity: 0;/);
     expect(css).toMatch(/\.herocard\.big:is\(:hover, :focus-visible, \.tt-on\) \.hcpw-focus \{ opacity: 1; \}/);

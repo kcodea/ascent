@@ -1,5 +1,4 @@
 import { stageHost, toScreen, toStage } from './stage';
-import { setGlowText } from './webkitText';
 import { playDef } from './fx/playDef';
 import { sfx } from './sfx';
 /**
@@ -278,7 +277,7 @@ function floatOneRubyNumber(stageX: number, stageY: number, label: string): void
   const c = cfg;
   const el = document.createElement('div');
   el.className = 'rubypower-float';
-  setGlowText(el, label); // (+ its iPhone glow copy, webkitText.ts)
+  el.textContent = label;
   el.style.left = `${stageX}px`;
   el.style.top = `${stageY}px`;
   el.style.fontSize = `${c.numSize}px`;

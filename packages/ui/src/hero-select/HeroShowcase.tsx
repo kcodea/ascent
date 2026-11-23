@@ -115,7 +115,7 @@ export function HeroTile({ id, loadout, pressed, taken = false, swapFrom = null,
         {swapFrom && <span className="rfb-shine hcswap-shine" aria-hidden="true" />}
       </span>
       {taken && <span className="hss-taken">Your teammate's pick</span>}
-      <span className="hss-name" data-wkt={h.name}>{h.name}</span>
+      <span className="hss-name">{h.name}</span>
       <span className="hss-vitals">
         <span className="hss-hp" aria-label={`${h.resolve} Health`}><HealthMedal />{h.resolve}</span>
         {h.armor > 0 && <span className="hss-arm" aria-label={`${h.armor} Armor`}><ArmorMedal /><span className="hp-armplus">+</span>{h.armor}</span>}

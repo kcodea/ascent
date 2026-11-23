@@ -1314,7 +1314,7 @@ export const RUNES_RULES: GameRule[] = [
     domain: 'runes',
     status: 'approved',
     evidence: [
-      { kind: 'owner-chat', ref: 'Owner Set 3 rune review board, 2026-11-23 (new-concept runes, Undead)', quote: '"Undead you buy gain Rise." OWNER NOTE: only the FIRST Undead you buy each turn.' },
+      { kind: 'owner-chat', ref: 'Set 3 Runes review board artifact, owner vote 2026-11-23 (with a note)', quote: 'First undead per turn' },
       { kind: 'code', ref: 'packages/sim/src/set3UndeadRunes.ts shallowGravesOnBuy (applyOnBuy); resetSet3UndeadRunesTurn at turn setup' },
     ],
     contentIds: ['rune_shallow_graves'],
@@ -1330,7 +1330,7 @@ export const RUNES_RULES: GameRule[] = [
     domain: 'runes',
     status: 'approved',
     evidence: [
-      { kind: 'owner-chat', ref: 'Owner Set 3 rune review board, 2026-11-23 (new-concept runes, Undead)', quote: '"When 3 minions rise gain 2g next turn"' },
+      { kind: 'owner-chat', ref: 'Set 3 Runes review board artifact, owner vote 2026-11-23 (with a note)', quote: 'When 3 minions rise gain 2g next turn' },
       { kind: 'code', ref: 'packages/core/src/combat/simulate.ts the onRise listener under SET 3 UNDEAD RUNES (grantBonusGold)' },
     ],
     contentIds: ['rune_grave_tithe'],
@@ -1346,7 +1346,7 @@ export const RUNES_RULES: GameRule[] = [
     domain: 'runes',
     status: 'approved',
     evidence: [
-      { kind: 'owner-chat', ref: 'Owner Set 3 rune review board, 2026-11-23 (new-concept runes, Undead)', quote: '"Overflow: give your Undead Aura +2 Attack."' },
+      { kind: 'owner-chat', ref: 'Set 3 Runes review board artifact, owner vote 2026-11-23 (voted Yes on the printed text, no note)' },
       { kind: 'code', ref: 'packages/sim/src/set3UndeadRunes.ts deadWeightOnOverflow (fireSummonOverflow); simulate.ts the summonOverflow listener (raiseUndeadAura)' },
     ],
     contentIds: ['rune_dead_weight'],
@@ -1362,7 +1362,7 @@ export const RUNES_RULES: GameRule[] = [
     domain: 'runes',
     status: 'approved',
     evidence: [
-      { kind: 'owner-chat', ref: 'Owner Set 3 rune review board, 2026-11-23 (new-concept runes, Undead)', quote: '"Footmen and Spear Wardens you summon have Taunt."' },
+      { kind: 'owner-chat', ref: 'Set 3 Runes review board artifact, owner vote 2026-11-23 (voted Yes on the printed text, no note)' },
       { kind: 'code', ref: 'packages/sim/src/set3UndeadRunes.ts rankAndFileGraft (applyRuneGrafts); simulate.ts rankAndFileTaunt (summonMinion + returnSummonGrants)' },
     ],
     contentIds: ['rune_rank_and_file'],
@@ -1378,7 +1378,7 @@ export const RUNES_RULES: GameRule[] = [
     domain: 'runes',
     status: 'approved',
     evidence: [
-      { kind: 'owner-chat', ref: 'Owner Set 3 rune review board, 2026-11-23 (new-concept runes, Undead)', quote: '"Start of Combat: summon a Skeleton for every 2 Undead you control."' },
+      { kind: 'owner-chat', ref: 'Set 3 Runes review board artifact, owner vote 2026-11-23 (voted Yes on the printed text, no note)' },
       { kind: 'code', ref: 'packages/core/src/combat/simulate.ts runRuneStartOfCombat (BONE PILE); packages/sim/src/set3UndeadRunes.ts set3UndeadSocReplays' },
     ],
     contentIds: ['rune_bone_pile'],
@@ -1394,7 +1394,7 @@ export const RUNES_RULES: GameRule[] = [
     domain: 'runes',
     status: 'approved',
     evidence: [
-      { kind: 'owner-chat', ref: 'Owner Set 3 rune review board, 2026-11-23 (new-concept runes, Undead)', quote: '"When a friendly minion that already Rose dies, summon a Skeleton with its Attack."' },
+      { kind: 'owner-chat', ref: 'Set 3 Runes review board artifact, owner vote 2026-11-23 (voted Yes on the printed text, no note)' },
       { kind: 'code', ref: 'packages/core/src/combat/simulate.ts the avenge listener under SET 3 UNDEAD RUNES (attackFloor); packages/sim/src/set3UndeadRunes.ts secondBurialNoteRise / secondBurialOnShopDeath' },
     ],
     contentIds: ['rune_second_burial'],
@@ -1410,7 +1410,7 @@ export const RUNES_RULES: GameRule[] = [
     domain: 'runes',
     status: 'approved',
     evidence: [
-      { kind: 'owner-chat', ref: 'Owner Set 3 rune review board, 2026-11-23 (new-concept runes, Undead)', quote: '"Start of Combat: summon a Spear Warden. It gets double its bonus."' },
+      { kind: 'owner-chat', ref: 'Set 3 Runes review board artifact, owner vote 2026-11-23 (voted Yes on the printed text, no note)' },
       { kind: 'code', ref: 'packages/core/src/combat/simulate.ts runRuneStartOfCombat (NIGHT WATCH) + noteCardDeath (nightWatchUids)' },
     ],
     contentIds: ['rune_night_watch'],
@@ -1426,7 +1426,7 @@ export const RUNES_RULES: GameRule[] = [
     domain: 'runes',
     status: 'approved',
     evidence: [
-      { kind: 'owner-chat', ref: 'Owner Set 3 rune review board, 2026-11-23 (new-concept runes, Undead)', quote: '"Whenever your Undead Aura improves, give your Undead +1/+1 permanently." (design note: needs a cap check)' },
+      { kind: 'owner-chat', ref: 'Set 3 Runes review board artifact, owner vote 2026-11-23 (voted Yes on the printed text, no note)' },
       { kind: 'code', ref: 'packages/sim/src/set3UndeadRunes.ts requiemOnAuraRise (every Shop Aura writer); simulate.ts requiemCombat (grantUndeadAura / grantUndeadBuyAtk); reducer questCombatMods requiemLeft' },
     ],
     contentIds: ['rune_requiem'],
@@ -1442,7 +1442,7 @@ export const RUNES_RULES: GameRule[] = [
     domain: 'runes',
     status: 'approved',
     evidence: [
-      { kind: 'owner-chat', ref: 'Owner Set 3 rune review board, 2026-11-23 (new-concept runes, Undead)', quote: 'OWNER NOTE: "Avenge (5): get a random Undead minion and summon it from hand."' },
+      { kind: 'owner-chat', ref: 'Set 3 Runes review board artifact, owner vote 2026-11-23 (with a note)', quote: 'Avenge (5): get a random undead minion and summon it from hand.' },
       { kind: 'code', ref: 'packages/core/src/combat/simulate.ts runeAvenge(undyingLegionAvenge) (grantRandomMinion + summonCopyFromHand)' },
     ],
     contentIds: ['rune_undying_legion'],

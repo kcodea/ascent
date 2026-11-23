@@ -1788,6 +1788,67 @@ export const RUNES_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-27',
     },
   },
+  // ── Set 3 new hybrid runes (owner review board 2026-11-23) ──
+  {
+    id: 'R-SET3HYBRID-01',
+    title: "Gem Whispers: a Whisper you cast on a minion also casts a Ruby on it",
+    statement:
+      "Every Whisper cast that lands on a friendly minion (any Whisper, any target minion, any caster, both phases: a cast from hand, a Yazzus repeat, Whisp's echo, Twin Tongues' copy, Whaloo in combat) also casts one plain Ruby on that minion per copy held, through the one Ruby chokepoint of each phase (Shop `playRubiesOn`, combat `playRubyOn`), so the live Ruby strength and every Ruby watcher apply. The Ruby is permanent in the Shop and combat-only in combat (R-BUFF-PERM). A Ruby is not a Whisper, so it can never re-trigger the rune.",
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Set 3 Runes review board artifact, owner vote 2026-11-23 (voted Yes on the printed text, no note)' },
+      { kind: 'code', ref: "packages/sim/src/recruit.ts castSpell -> gemWhispersShop; packages/core/src/combat/simulate.ts onWhisperCast -> gemWhispersCombat" },
+    ],
+    contentIds: ["rune_gem_whispers"],
+    cardText: "**Whispers** you cast on a minion also cast a **Ruby** on it.",
+    currentBehaviour: 'Conforms (built with the rune, 2026-11-23).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ["packages/sim/src/set3HybridRunes1123.test.ts", "packages/core/src/combat/set3HybridRunes1123.test.ts"],
+      lastVerifiedAt: '2026-11-23',
+    },
+  },
+  {
+    id: 'R-SET3HYBRID-02',
+    title: "Brewed Whispers: every Dwarven Ale you cast gets a random Whisper",
+    statement:
+      "Every Dwarven Ale cast (Shop, End of Turn and combat; any caster; each cast of a multicast is its own) gets one random Whisper per copy held, from the tier-gated Whisper pool (R-WHISPER-TIER-01: your tier and below, owners in the run's set). A combat grant reaches the hand like every combat hand grant.",
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Set 3 Runes review board artifact, owner vote 2026-11-23 (voted Yes on the printed text, no note)' },
+      { kind: 'code', ref: "packages/sim/src/recruit.ts castSpell -> brewedWhispersShop (mintRandomWhispers); packages/core/src/combat/simulate.ts spellResolved -> brewedWhispersCombat (grantRandomWhispers)" },
+    ],
+    contentIds: ["rune_brewed_whispers"],
+    cardText: "After you cast a **Dwarven Ale**, get a random **Whisper**.",
+    currentBehaviour: 'Conforms (built with the rune, 2026-11-23).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ["packages/sim/src/set3HybridRunes1123.test.ts", "packages/core/src/combat/set3HybridRunes1123.test.ts"],
+      lastVerifiedAt: '2026-11-23',
+    },
+  },
+  {
+    id: 'R-SET3HYBRID-03',
+    title: "Haunted Hand: a hand minion gaining stats gives your Undead Aura +1 Attack, 5 times per turn",
+    statement:
+      "Each minion in your hand that gains stats (Shop and End of Turn: the reducer's per-action hand stat diff, the Dream Mirror boundary, one count per gainer per action; combat: every `buffHand` on a hand minion) raises the Undead Aura +1 Attack per copy held, through the Lantern channel (permanent, R-AURA-02; live mid-fight). Only the first 5 gains each turn pay; the cap is shared by the Shop and that turn's combat (combat reads what the Shop left through `hauntedHandLeft`) and re-arms at the next turn. Spells in hand never count. The printed cap counts down once a use is spent.",
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Set 3 Runes review board artifact, owner vote 2026-11-23 (voted Yes on the printed text, no note)' },
+      { kind: 'code', ref: "packages/sim/src/recruit.ts fireStatGainReactors -> hauntedHandShop; packages/core/src/combat/simulate.ts buffHand -> hauntedHandCombat; packages/ui/src/runeText.ts rune_haunted_hand" },
+    ],
+    contentIds: ["rune_haunted_hand"],
+    cardText: "When a minion in your hand gains stats, give your **Undead Aura +1 Attack**. **(5 times per turn)**",
+    currentBehaviour: 'Conforms (built with the rune, 2026-11-23).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ["packages/sim/src/set3HybridRunes1123.test.ts", "packages/core/src/combat/set3HybridRunes1123.test.ts"],
+      lastVerifiedAt: '2026-11-23',
+    },
+  },
   // ── Set 3 rune design pass (owner 2026-09-27), tranche 5: Menagerie + neutral ──
   {
     id: 'R-SET3RUNE-38',

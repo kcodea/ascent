@@ -1909,6 +1909,32 @@ export const RUNES: RuneDef[] = [
     reward: { kind: 'combatFlag', flag: 'runeClosingTime' },
     sets: ['set3'],
   },
+  // ── SET 3 NEW HYBRID RUNES (owner review board 2026-11-23): Basic. Set-3-only, gated to both tribes. Shop halves in
+  //    packages/sim/src/recruit.ts ("SET 3 NEW HYBRID RUNES"), combat halves in simulate.ts under the same heading. ──
+  {
+    // Kobold + Dragon: every Whisper CAST that lands on a friendly minion (any caster, both phases: a hand cast, a Yazzus
+    // repeat, Whisp's echo, Twin Tongues' copy, Whaloo in combat) also casts one plain Ruby on that minion per copy, through
+    // the one Ruby chokepoint of each phase (live Ruby strength, Ruby watchers). The Ruby is not a Whisper: no loop.
+    id: 'rune_gem_whispers',
+    tribes: ['kobold', 'dragon'],
+    name: 'Gem Whispers',
+    cost: 2,
+    text: '**Whispers** you cast on a minion also cast a **Ruby** on it.',
+    previewCards: ['ruby'],
+    reward: { kind: 'combatFlag', flag: 'runeGemWhispers' },
+    sets: ['set3'],
+  },
+  {
+    // Dwarf + Dragon: every Dwarven Ale CAST (Shop, End of Turn, combat; each cast of a multicast its own) gets one random
+    // Whisper per copy from the gated pool (R-WHISPER-TIER-01: your tier and below, owners in the run's set).
+    id: 'rune_brewed_whispers',
+    tribes: ['dwarf', 'dragon'],
+    name: 'Brewed Whispers',
+    cost: 2,
+    text: 'After you cast a **Dwarven Ale**, get a random **Whisper**.',
+    reward: { kind: 'combatFlag', flag: 'runeBrewedWhispers' },
+    sets: ['set3'],
+  },
   // ── SET 3 RUNE DESIGN PASS (owner 2026-09-27), tranche 5: the Neutral Pummel rune. ──
   {
     // Pummel (Goldvein, Kobe, Han Gover, Maestro Lux) had no rune. Every landed hit a friendly minion deals advances its
@@ -4440,6 +4466,20 @@ export const EPIC_RUNES: RuneDef[] = [
     text: 'Your **Rubies** also cast on the left-most minion in your hand.',
     previewCards: ['ruby'],
     reward: { kind: 'combatFlag', flag: 'runeKeepsakeGem' },
+    sets: ['set3'],
+  },
+  // ── SET 3 NEW HYBRID RUNES (owner review board 2026-11-23): Epic. ──
+  {
+    // Undead + Spirit: each minion in your hand that gains stats (Shop: the reducer's per-action hand diff, the Dream Mirror
+    // boundary; combat: `buffHand`) raises the Undead Aura +1 Attack per copy (the Lantern channel, permanent, R-AURA-02).
+    // The first 5 gains each turn pay (Shop through that turn's combat; combat reads what is left, the Gem Star shape).
+    id: 'rune_haunted_hand',
+    tribes: ['undead', 'spirit'],
+    name: 'Haunted Hand',
+    cost: 3,
+    epic: true,
+    text: 'When a minion in your hand gains stats, give your **Undead Aura +1 Attack**. **(5 times per turn)**',
+    reward: { kind: 'combatFlag', flag: 'runeHauntedHand' },
     sets: ['set3'],
   },
   // ── SET 3 RUNE DESIGN PASS (owner 2026-09-27), tranche 5: the Menagerie capstone. ──

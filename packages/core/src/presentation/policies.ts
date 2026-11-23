@@ -1045,6 +1045,10 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_grim_toast:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_gem_star:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_keepsake_gem:combat': { policy: 'foldedCue', family: 'combatModifier' },
+  // Set 3 new hybrid runes (owner review board 2026-11-23)
+  'rune:rune_gem_whispers:combat': { policy: 'foldedCue', family: 'combatModifier' }, // a Whisper on a minion also casts a Ruby on it
+  'rune:rune_brewed_whispers:combat': { policy: 'foldedCue', family: 'combatModifier' }, // an Ale cast: a random Whisper
+  'rune:rune_haunted_hand:combat': { policy: 'foldedCue', family: 'combatModifier' }, // a hand gain: the Undead Aura +1 Attack (5 a turn)
   // ── tranche 5 ──
   'rune:rune_menagerie_set3:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' },
   'rune:rune_heavy_hand:combat': { policy: 'foldedCue', family: 'combatModifier' },

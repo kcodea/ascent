@@ -826,6 +826,8 @@ export const QuestCombatFlagSchema = z.enum(['bloodTrail', 'echoingCoop', 'lawOf
   'runeCallAndAnswer', 'runeEncore', 'runeKindredHand', 'runeWhetstone', 'runeAnvil', 'runeSatchel',
   // tranche 4: hybrids
   'runeGemCrypt', 'runePallbearer', 'runeStarTap', 'runeClosingTime', 'runeGrimToast', 'runeGemStar', 'runeKeepsakeGem',
+  // Set 3 new hybrid runes (owner review board 2026-11-23)
+  'runeGemWhispers', 'runeBrewedWhispers', 'runeHauntedHand',
   // tranche 5: Menagerie + neutral
   'runeHeavyHand', 'runeUnity',
   // owner batch 2026-10-07: the Beast runes

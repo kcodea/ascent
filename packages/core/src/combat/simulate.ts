@@ -1027,6 +1027,8 @@ export function simulate(
   // line ran and threw (a temporal-dead-zone crash the mirror test found, 2026-10-13).
   /** Rune of the Gem Star: Rubies already credited this fight, per side (see `runeRubyCastCombat`). */
   const gemStarUsed: Record<Side, number> = sideReset(() => ({ player: 0, enemy: 0 }));
+  /** Rune of the Haunted Hand (Set 3 hybrid, 2026-11-23): hand gains already paid this fight, per side (see `hauntedHandCombat`). */
+  const hauntedHandUsed: Record<Side, number> = sideReset(() => ({ player: 0, enemy: 0 }));
   /** Rune of the Meteor Storm's re-entrancy latch (see `runeMeteorStorm`). */
   let meteorEchoing = false;
 
@@ -1996,6 +1998,7 @@ export function simulate(
       card.attack += attack;
       card.health += health;
       emit({ type: 'handBuff', uid, cardId: card.cardId, side, attack, health, ...(sourceUid ? { source: sourceUid } : {}) });
+      if (attack > 0 || health > 0) hauntedHandCombat(side, card.cardId); // Set 3 new hybrid runes: a hand minion gained stats
     },
     grantSpellPower: (attack, health, side, sourceUid) => {
       // Either side (R-SYMMETRY-01): accumulate the carry-back delta AND keep the side's spell power LIVE, so a
@@ -2149,7 +2152,10 @@ export function simulate(
       map[whisperId] = (map[whisperId] ?? 0) + n;
       return map[whisperId]!;
     },
-    onWhisperCast: (side, whisperId, target, casterUid) => dragonRunesWhisperCast(side, whisperId, target, casterUid), // Set 3 Dragon runes
+    onWhisperCast: (side, whisperId, target, casterUid) => {
+      dragonRunesWhisperCast(side, whisperId, target, casterUid); // Set 3 Dragon runes
+      gemWhispersCombat(side, target); // Set 3 new hybrid runes: Rune of Gem Whispers
+    },
     grantWhisperToHand: (whisperId, side, mult, sourceUid) => {
       // UNGATED on purpose (R-WHISPER-TIER-01): its callers are Tamby's copy (exempt: "tamby should always copy a whisper
       // cast on it, even above tier") and `grantRandomWhispers`, whose pool is already tier-gated. A NEW gated combat
@@ -2415,6 +2421,7 @@ export function simulate(
         const n = 3 * flagCopiesOf(side, 'runeStarTap');
         ctx.gainStarform(n, n, side, 'Star Tap');
       }
+      brewedWhispersCombat(side, spellId); // Set 3 new hybrid runes: Rune of Brewed Whispers
       // CHAMPION INU (owner 2026-10-21): "After you cast a Dwarven Ale, give your Dwarves +2/+2." The Ale watchers
       // (`spellCastBuffAll` with `aleOnly`) need the spell's identity, which only this per-repetition hook carries;
       // the factory ignores the bare `spellCast` bus emit. A combat buff (R-BUFF-PERM).
@@ -7217,6 +7224,33 @@ export function simulate(
         ctx.grantSpellPower(n, n, side, casterUid);
       }
     }
+  }
+  // ── SET 3 NEW HYBRID RUNES (owner review board 2026-11-23): the combat halves. Shop halves: sim/recruit.ts. ──
+  /** RUNE OF GEM WHISPERS: a resolved combat Whisper cast on a living friendly minion also casts one plain Ruby on it per
+   *  copy, through `playRubyOn` (the one combat Ruby primitive; the target is its own source, the Gemstorm convention). A
+   *  combat Ruby (R-BUFF-PERM). The Ruby is not a Whisper, so it never re-enters this. */
+  function gemWhispersCombat(side: Side, target: Minion): void {
+    if (!modsFor(side).runeGemWhispers || target.dead || target.health <= 0 || target.side !== side) return;
+    fireTrigger('runeGemWhispers', side);
+    for (let k = 0; k < flagCopiesOf(side, 'runeGemWhispers') && !target.dead; k++) playRubyOn(ctx, target, target, 1, false);
+  }
+  /** RUNE OF BREWED WHISPERS: every Dwarven Ale cast in combat (each repetition its own) gets one random Whisper per copy,
+   *  through `grantRandomWhispers` (the tier-gated pool, R-WHISPER-TIER-01). */
+  function brewedWhispersCombat(side: Side, spellId: string): void {
+    if (!ALE_IDS.includes(spellId) || !modsFor(side).runeBrewedWhispers) return;
+    fireTrigger('runeBrewedWhispers', side);
+    ctx.grantRandomWhispers?.(flagCopiesOf(side, 'runeBrewedWhispers'), side, 1, undefined);
+  }
+  /** RUNE OF THE HAUNTED HAND: a hand MINION that gained stats (`buffHand`, the one combat hand-gain chokepoint) raises the
+   *  side's Undead Aura +1 Attack per copy, live and carried home (R-AURA-02), while the turn's cap has uses left
+   *  (`hauntedHandLeft`, what the Shop left of the 5). Bounded by that cap, so an Aura rise that grows a hand card cannot loop. */
+  function hauntedHandCombat(side: Side, cardId: string): void {
+    const m = modsFor(side);
+    if (!m.runeHauntedHand || cards[cardId]?.spell) return;
+    if (hauntedHandUsed[side] >= (m.hauntedHandLeft ?? 0)) return;
+    hauntedHandUsed[side] += 1;
+    fireTrigger('runeHauntedHand', side);
+    raiseUndeadAura(side, flagCopiesOf(side, 'runeHauntedHand'), 'Haunted Hand');
   }
   /** RUNE OF THE GUIDING STAR: one rune cast of Star Crash from a Celestial Echo, aimed at a random living friendly
    *  Celestial (none = no cast). The rune is the caster: an ungilded stand-in for the Echo body, so a Gilded Celestial

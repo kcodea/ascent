@@ -100,3 +100,24 @@ export const PACK_LAB_SAMPLES: readonly PackLabSample[] = [
   make('failed', 'Failed (server error at the pop)', rare, [card('title_wanderer', 'rare', undefined, true)], { fail: true }),
 ];
 
+
+/** The timers a Lab run has pending; `cancelLabTimers` clears them so none fires after the opener closes or the panel unmounts. */
+export type LabTimers = Set<ReturnType<typeof setTimeout>>;
+export const cancelLabTimers = (timers: LabTimers): void => { for (const t of timers) clearTimeout(t); timers.clear(); };
+
+/**
+ * The `open` the Lab hands PackOpener for one run: waits the sample's `delayMs` (on a cancellable timer), then answers
+ * with the result dressed in the RUN's look, or an error for `fail`. A cancelled wait never settles.
+ */
+export function makeLabOpen(
+  sample: PackLabSample, look: PackLook, timers: LabTimers,
+): () => Promise<{ status: 'ok'; result: PackOpenResult } | { status: 'error'; reason: string }> {
+  return () => new Promise((resolve) => {
+    const answer = (): void => {
+      resolve(sample.fail ? { status: 'error', reason: 'lab: simulated failure' } : { status: 'ok', result: withLook(sample.result, look) });
+    };
+    if (!sample.delayMs) { answer(); return; }
+    const t = setTimeout(() => { timers.delete(t); answer(); }, sample.delayMs);
+    timers.add(t);
+  });
+}

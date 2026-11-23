@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { COSMETIC_CATEGORIES, parsePackOpenResult } from '@game/progression';
-import { PACK_LAB_SAMPLES, PACK_LAB_LOOKS, sampleCategoryOf, withLook } from './packLabSamples';
+import { PACK_LAB_SAMPLES, PACK_LAB_LOOKS, cancelLabTimers, makeLabOpen, sampleCategoryOf, withLook } from './packLabSamples';
 
 const byId = (id: string) => PACK_LAB_SAMPLES.find((s) => s.id === id)!;
 
@@ -42,5 +42,35 @@ describe('Pack Lab samples', () => {
 
   it('offers rarity, category and themed looks', () => {
     for (const k of ['rarity', 'category', 'themed']) expect(PACK_LAB_LOOKS.some((l) => l.kind === k), k).toBe(true);
+  });
+});
+
+describe('makeLabOpen', () => {
+  it('a cancelled slow sample leaves no timer and never settles', async () => {
+    vi.useFakeTimers();
+    try {
+      const timers = new Set<ReturnType<typeof setTimeout>>();
+      let settled = false;
+      void makeLabOpen(byId('slow'), PACK_LAB_LOOKS[0]!, timers)().then(() => { settled = true; });
+      expect(timers.size).toBe(1);
+      cancelLabTimers(timers);
+      expect(timers.size).toBe(0);
+      await vi.advanceTimersByTimeAsync(6000);
+      expect(settled).toBe(false);
+      expect(vi.getTimerCount()).toBe(0);
+    } finally { vi.useRealTimers(); }
+  });
+
+  it('answers with the run look after the delay', async () => {
+    vi.useFakeTimers();
+    try {
+      const timers = new Set<ReturnType<typeof setTimeout>>();
+      const look = PACK_LAB_LOOKS.find((l) => l.id === 'rarity-ancient')!;
+      const p = makeLabOpen(byId('slow'), look, timers)();
+      await vi.advanceTimersByTimeAsync(5000);
+      const out = await p;
+      expect(out.status === 'ok' && out.result.pack.id).toBe('rarity-ancient');
+      expect(timers.size).toBe(0);
+    } finally { vi.useRealTimers(); }
   });
 });

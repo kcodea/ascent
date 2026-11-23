@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { useDraggablePanel } from '../../useDraggablePanel';
-import { PackOpener, type PackOpenOutcome, type PackQueueItem } from './PackOpener';
+import { PackOpener, type PackQueueItem } from './PackOpener';
 import { PACK_FEEL_KNOBS, getPackFeel, resetPackFeel, setPackFeel, subscribePackFeel } from './packFxConfig';
-import { PACK_LAB_LOOKS, PACK_LAB_SAMPLES, withLook } from './packLabSamples';
+import type { PackLook } from '@game/progression';
+import { PACK_LAB_LOOKS, PACK_LAB_SAMPLES, cancelLabTimers, makeLabOpen, type LabTimers, type PackLabSample } from './packLabSamples';
 
 /**
  * THE PACK LAB (dev only; the only place the new pack opening is visible for now). Pick a sample pack and a look, press
@@ -12,7 +13,6 @@ import { PACK_LAB_LOOKS, PACK_LAB_SAMPLES, withLook } from './packLabSamples';
  */
 
 const SLOW = 0.25;
-const SLEEP = (ms: number): Promise<void> => new Promise((r) => { setTimeout(r, ms); });
 const fillPct = (v: number, lo: number, hi: number): number => (hi > lo ? Math.min(100, Math.max(0, ((v - lo) / (hi - lo)) * 100)) : 0);
 
 export function PackLabTuner(): JSX.Element {
@@ -22,7 +22,10 @@ export function PackLabTuner(): JSX.Element {
   const [sampleId, setSampleId] = useState(PACK_LAB_SAMPLES[0]!.id);
   const [lookId, setLookId] = useState(PACK_LAB_LOOKS[0]!.id);
   const [slow, setSlow] = useState(false);
-  const [run, setRun] = useState<{ n: number; queue: readonly PackQueueItem[]; sampleId: string } | null>(null);
+  const [run, setRun] = useState<{ n: number; queue: readonly PackQueueItem[]; sample: PackLabSample; look: PackLook } | null>(null);
+  // Pending sample-delay timers: cleared on unmount, on close and before a new run, so none fires into a gone opener.
+  const timersRef = useRef<LabTimers>(new Set());
+  useEffect(() => { const t = timersRef.current; return () => cancelLabTimers(t); }, []);
 
   useEffect(() => subscribePackFeel(() => setFeel(getPackFeel())), []);
 
@@ -30,16 +33,10 @@ export function PackLabTuner(): JSX.Element {
   const look = PACK_LAB_LOOKS.find((l) => l.id === lookId) ?? PACK_LAB_LOOKS[0]!;
 
   const openPack = (): void => {
-    setRun((prev) => ({ n: (prev?.n ?? 0) + 1, sampleId: sample.id, queue: [{ packId: sample.result.packId, look }] }));
+    cancelLabTimers(timersRef.current);
+    setRun((prev) => ({ n: (prev?.n ?? 0) + 1, sample, look, queue: [{ packId: sample.result.packId, look }] }));
   };
-
-  const open = useCallback(async (): Promise<PackOpenOutcome> => {
-    const s = PACK_LAB_SAMPLES.find((x) => x.id === run?.sampleId);
-    if (!s) return { status: 'error', reason: 'no sample' };
-    if (s.delayMs) await SLEEP(s.delayMs);
-    if (s.fail) return { status: 'error', reason: 'lab: simulated failure' };
-    return { status: 'ok', result: withLook(s.result, look) };
-  }, [run?.sampleId, look]);
+  const closeRun = (): void => { cancelLabTimers(timersRef.current); setRun(null); };
 
   return (
     <div className="sfxmix tunerpanel" ref={panelRef} style={{ minWidth: 420, ...panelStyle }}>
@@ -91,9 +88,9 @@ export function PackLabTuner(): JSX.Element {
         <PackOpener
           key={run.n}
           queue={run.queue}
-          open={open}
+          open={makeLabOpen(run.sample, run.look, timersRef.current)}
           speed={slow ? SLOW : 1}
-          onClose={() => setRun(null)}
+          onClose={closeRun}
         />
       )}
     </div>

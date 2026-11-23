@@ -1,7 +1,7 @@
 /* ASCENT Analytics, in the game's own menu look: the Docked rail / party-home shell. Tokens are copied from
    packages/ui/src/partyHome/shell/shell.css (--ph-*), packages/ui/src/uiTheme.css (--pill-*, --ui-*) and the kit
    (partyHome/kit/kit.css: page head, sections, rows, tabs, chips, stats, buttons), so it reads as the same app. The
-   art (citadel backdrop, vellum grain, hero portraits in the portrait ring, medal crests, mode art, tribe glyphs and
+   art (menu backdrop, vellum grain, hero portraits in the portrait ring, medal crests, mode art, tribe glyphs and
    colours) is copied in at build time by scripts/sync-game.mts, untouched but resized.
    PERFORMANCE: static paint. Hover is a colour change; nothing loops. Series colours are the dataviz reference dark
    steps, validated as a set against the navy plate. */
@@ -63,7 +63,7 @@ html { cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
 button, select, input, [role='button'], .dk-tab { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
 body { min-height: 100vh; color: var(--ph-text); background: #0a1730; }
 
-/* THE MENUS' STEADY BACKDROP (shell/PhBackdrop.tsx): the citadel, pre-blurred at build time, under the same veil. */
+/* THE MENUS' STEADY BACKDROP (shell/PhBackdrop.tsx): the world map, lightly blurred at build time, under the same veil. */
 .dk-bd { position: fixed; inset: 0; z-index: -1; overflow: hidden; background: #0a1730; pointer-events: none; }
 .dk-bd img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .dk-veil { position: absolute; inset: 0;

@@ -136,7 +136,7 @@
   letter-spacing: 0.14em;
   fill: var(--title-face);
   stroke: url('#name-edge');
-  stroke-width: 5;
+  stroke-width: 2.5;
   stroke-linejoin: round;
   paint-order: stroke fill;
 }

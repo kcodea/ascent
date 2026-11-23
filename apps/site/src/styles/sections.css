@@ -169,7 +169,7 @@
   font-size: var(--fs-lede);
   font-weight: 600;
   line-height: 1.55;
-  color: var(--text);
+  color: var(--white);
   text-shadow: 0 1px 3px color-mix(in srgb, var(--night-deep) 85%, transparent);
 }
 

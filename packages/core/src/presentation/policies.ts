@@ -995,6 +995,12 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_dream_mirror:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_waking_dreams:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_waking_reserve:combat': { policy: 'foldedCue', family: 'combatModifier' },
+  // ── Set 3 new-concept runes, Spirits (owner review board 2026-11-23) ──
+  'rune:rune_last_dance:combat': { policy: 'foldedCue', family: 'combatModifier' },     // Shop-only flag: a Reveler sold, the left-most Spirit +3/+3 (rides the sale)
+  'rune:rune_welcome_party:combat': { policy: 'foldedCue', family: 'combatModifier' },  // Shop-only flag: the first Spirit each turn costs 1 less (a price, no beat)
+  'rune:rune_bonfire:combat': { policy: 'foldedCue', family: 'combatModifier' },        // Shop-only flag: the Reveler payout also lands on the hand (rides the sale)
+  'rune:rune_kindred_rally:combat': { policy: 'foldedCue', family: 'combatModifier' },  // a hand-summon fires the left-most Rally
+  'rune:rune_deep_slumber:combat': { policy: 'foldedCue', family: 'combatModifier' },   // a hand stat gain is paid twice (folded into the handBuff)
   // ── Set 3 rune batch 3 (owner 2026-09-25) ──
   'rune:rune_gemmed_decisions:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_echoing_kobolds:combat': { policy: 'foldedCue', family: 'combatModifier' },

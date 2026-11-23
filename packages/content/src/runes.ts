@@ -1837,6 +1837,30 @@ export const RUNES: RuneDef[] = [
     reward: { kind: 'combatFlag', flag: 'runeKindredHand' },
     sets: ['set3'],
   },
+  // ── SET 3 NEW-CONCEPT RUNES, Spirits (owner review board 2026-11-23): two Basics. Set-3-only, Spirit-gated. ──
+  {
+    // Every Reveler SOLD (`fireOnMinionSold`, after the body has left) gives the left-most Spirit on your BOARD
+    // +3/+3 per copy held. A Shop buff, so permanent. No Spirit on the board: nothing.
+    id: 'rune_last_dance',
+    tribes: ['spirit'],
+    name: 'Last Dance',
+    cost: 2,
+    text: 'After you **Sell** a **Reveler**, give your left-most Spirit **+3/+3** permanently.',
+    previewCards: ['sp3_flamereveler', 'sp3_tidereveler', 'sp3_grovereveler'],
+    reward: { kind: 'combatFlag', flag: 'runeLastDance' },
+    sets: ['set3'],
+  },
+  {
+    // The first Spirit BOUGHT each turn costs 1 Gold less per copy (`offerBuyPrice`, so the cost coin shows it). A
+    // buy that was free anyway (Festival Wages, Freedom) does not spend it.
+    id: 'rune_welcome_party',
+    tribes: ['spirit'],
+    name: 'Welcome Party',
+    cost: 2,
+    text: 'Your first Spirit each turn costs **1** less.',
+    reward: { kind: 'combatFlag', flag: 'runeWelcomeParty' },
+    sets: ['set3'],
+  },
   {
     // Every Dwarf PLAYED gives your OTHER board Dwarves +1 Attack per copy: "gains Attack" events for Kneel,
     // Tankerchief and the Anvil.
@@ -4199,6 +4223,46 @@ export const EPIC_RUNES: RuneDef[] = [
     reward: { kind: 'combatFlag', flag: 'runeWakingReserve' },
     sets: ['set3'],
   },
+  // ── SET 3 NEW-CONCEPT RUNES, Spirits (owner review board 2026-11-23): three Epics. Set-3-only, Spirit-gated. ──
+  {
+    // The Reveler payout (`revelerSell`) also lands on the minions in your hand, with the SAME audience rule: Flame /
+    // Tide pay the Spirits in hand, Grove every minion in hand. A hand buff is permanent (R-HAND-02).
+    id: 'rune_bonfire',
+    tribes: ['spirit'],
+    name: 'Bonfire',
+    cost: 4,
+    epic: true,
+    text: 'Your **Reveler** bonuses also apply to the minions in your hand.',
+    previewCards: ['sp3_flamereveler', 'sp3_tidereveler', 'sp3_grovereveler'],
+    reward: { kind: 'combatFlag', flag: 'runeBonfire' },
+    sets: ['set3'],
+  },
+  {
+    // Combat only (the text says so): every minion that LANDS from your hand (the `pendingHandSummon` moment the Open
+    // Hand reads) fires your left-most Rally once per copy, a free Rally with every Rally multiplier folded. Bounded:
+    // a hand card summons once per combat.
+    id: 'rune_kindred_rally',
+    tribes: ['spirit'],
+    name: 'Kindred Rally',
+    cost: 4,
+    epic: true,
+    text: 'When you summon a minion from your hand in combat, trigger your left-most **Rally**.',
+    reward: { kind: 'combatFlag', flag: 'runeKindredRally' },
+    sets: ['set3'],
+  },
+  {
+    // Every stat gain on a minion in your hand is paid again (once more per copy). Shop + End of Turn: the reducer's
+    // per-action hand diff (`fireStatGainReactors`), ONE extra pass after the `onGainStats` reactors, never re-diffed,
+    // so a Handy Flame or Dozer chain cannot loop. Combat: the `buffHand` chokepoint.
+    id: 'rune_deep_slumber',
+    tribes: ['spirit'],
+    name: 'Deep Slumber',
+    cost: 4,
+    epic: true,
+    text: 'Minions in your hand gain **double** stats from every source.',
+    reward: { kind: 'combatFlag', flag: 'runeDeepSlumber' },
+    sets: ['set3'],
+  },
   {
     // Moved Basic -> EPIC (owner Ruby batch 2026-09-24; Epic because it lives in EPIC_RUNES, `epic: true` is the
     // kicker). "When you sell 4 minions, get 2 random Rubies and improve your Rubies by +1/+1." — the payout draws
@@ -5580,6 +5644,8 @@ export const RUNE_DUP_SWEETENER: ReadonlySet<string> = new Set([
   'rune_loyal_customer',
   // …and Bulwark Line (Set 2 Epic neutral, 2026-11-12): a Taunt minion either has Ward or not.
   'rune_bulwark_line',
+  // …and the Bonfire (Set 3 new-concept Spirit Epic, 2026-11-23): the Reveler payout either reaches the hand or not.
+  'rune_bonfire',
 ]);
 
 /** Duplicates that do NOTHING — owner ruled unique ("rune of the ornate clock should do nothing if

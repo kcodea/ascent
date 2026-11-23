@@ -816,6 +816,8 @@ export const QuestCombatFlagSchema = z.enum(['bloodTrail', 'echoingCoop', 'lawOf
   'runeFinalGate', 'runeDreamedGraves',
   // Set 3 batch 2 (2026-09-16), tranche D
   'runeOpenHand', 'runeWakingReserve',
+  // Set 3 new-concept runes, Spirits (owner review board 2026-11-23)
+  'runeLastDance', 'runeWelcomeParty', 'runeBonfire', 'runeKindredRally', 'runeDeepSlumber',
   // Set 3 rune batch 3 (2026-09-25)
   'runeEchoingKobolds', 'runeRubywire', 'runeCombatativeRubies', 'runeBodyCounting', 'runeAggressiveGolems', 'runeRupturedRubies',
   // Set 3 rune design pass (2026-09-27), tranche 1: Undead

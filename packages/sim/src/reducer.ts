@@ -348,6 +348,8 @@ export interface OfferBuyPrice {
   cadenceOff: number;
   tradeInOff: number;
   spiritOff: number;
+  /** Rune of the Welcome Party: the first Spirit bought this turn's discount (0 once spent). */
+  welcomeOff: number;
   giftMinionOff: number;
   /** Loyal Customer made this buy free (the 4th, 8th, ... minion). */
   loyalFree: boolean;
@@ -374,6 +376,9 @@ export function offerBuyPrice(s: RunState, offer: { cardId: string; cost?: numbe
   const giftMinionOff = noDiscount ? 0 : (s.minionCostOffTurn ?? 0);
   // Set 3 Spirits — Festival Treasurer: the next SPIRIT this turn costs less (stacked per Reveler sold, capped).
   const spiritOff = !noDiscount && defIsTribe(CARD_INDEX[offer.cardId], 'spirit', s) ? (s.spiritDiscount ?? 0) : 0;
+  // RUNE OF THE WELCOME PARTY (Set 3, owner 2026-11-23): "Your first Spirit each turn costs 1 less." 1 per copy held,
+  // until a Spirit buy it discounted spends it (a buy already free leaves it for the next Spirit).
+  const welcomeOff = !noDiscount && s.questFlags?.runeWelcomeParty && !s.welcomePartyUsedThisTurn && defIsTribe(CARD_INDEX[offer.cardId], 'spirit', s) ? runeStacksOf(s, 'rune_welcome_party') : 0;
   // Rune of Trade-In: an armed per-type discount (from this turn's first sale) knocks 1 off a matching minion
   // (All-types matches any armed tribe; −1 per copy held — owner 2026-08-27).
   const tiDef = s.tradeInTribe ? CARD_INDEX[offer.cardId] : undefined;
@@ -398,8 +403,8 @@ export function offerBuyPrice(s: RunState, offer: { cardId: string; cost?: numbe
   const wholesaleOff = !noDiscount && s.questFlags?.runeWholesale && !wsDef?.spell && !wsDef?.ruby ? Math.max(1, s.flagCopies?.runeWholesale ?? 1) : 0;
   // END OF QUARTER (Set 2 Basic, owner 2026-11-13): this card's own rolled cut (1 per copy that hit), stacked, floored at 0.
   const quarterOff = noDiscount ? 0 : quarterCutOf(offer);
-  const cost = noDiscount ? 0 : Math.max(0, capped - cadenceOff - tradeInOff - spiritOff - giftMinionOff - shoutOff - wholesaleOff - quarterOff);
-  return { cost, freeBuy, cadenceOff, tradeInOff, spiritOff, giftMinionOff, loyalFree };
+  const cost = noDiscount ? 0 : Math.max(0, capped - cadenceOff - tradeInOff - spiritOff - welcomeOff - giftMinionOff - shoutOff - wholesaleOff - quarterOff);
+  return { cost, freeBuy, cadenceOff, tradeInOff, spiritOff, welcomeOff, giftMinionOff, loyalFree };
 }
 
 /** Rune of Festival Wages: a buy that was free because a free-card charge was armed spends ONE charge. A buy that
@@ -2179,7 +2184,7 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
       }
       // THE price — `offerBuyPrice` is the single source for every price source and discount, shared with the
       // UI's cost coin so the shown price IS the charged price (Doc Bot holds the pair equal).
-      const { cost: buyCost, freeBuy, cadenceOff, tradeInOff, spiritOff, loyalFree } = offerBuyPrice(s, offer);
+      const { cost: buyCost, freeBuy, cadenceOff, tradeInOff, spiritOff, welcomeOff, loyalFree } = offerBuyPrice(s, offer);
       if (s.embers < buyCost || s.hand.length >= handCap(s)) return state;
       s.shop.splice(i, 1);
       // ANCIENTS × Frantic Frank (no-ops unless the run has them): DEATH's free buy is spent (the rest of the set goes
@@ -2192,6 +2197,7 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
       spendGold(s, buyCost);
       spendFreeCard(s, freeBuy); // Rune of Festival Wages: an armed free card is spent by this buy
       if (spiritOff > 0) s.spiritDiscount = 0; // the Treasurer's discount is spent by the Spirit it applied to
+      if (welcomeOff > 0) { s.welcomePartyUsedThisTurn = true; procRuneId(s, 'rune_welcome_party'); } // Welcome Party: spent by its Spirit
       if (cadenceOff) procRuneId(s, 'rune_cadence');
       if (cadenceOff) s.cadenceMinionOff = undefined; // spent
       if (tradeInOff) procRuneId(s, 'rune_trade_in');
@@ -6346,6 +6352,7 @@ function advanceCombat(s: RunState): void {
   s.runeWarDrumUsedThisTurn = undefined; // Rune of the War Drum: its one charge comes back each turn
   s.openGraveUsedThisTurn = undefined;   // Rune of the Open Grave: the first Shop destroy of the new turn gains Rise
   s.encoreUsedThisTurn = undefined;      // Rune of the Encore: the first Reveler sale of the new turn pays the hand
+  s.welcomePartyUsedThisTurn = undefined; // Rune of the Welcome Party: the new turn's first Spirit is discounted again
   s.gemStarThisTurn = undefined;         // Rune of the Gem Star: the first 4 Rubies of the new turn feed the Starform
   s.clearVoicesIds = undefined;          // Rune of Clear Voices: the turn's distinct Whispers count afresh
   s.clearVoicesPaid = undefined;         // …and its "Once per turn" re-arms
@@ -8936,6 +8943,8 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     runeDreamedGraves: f?.runeDreamedGraves,   // Rune of Dreamed Graves: the first hand-summon gains Rebirth
     // ── Set 3 batch 2 (2026-09-16), tranche D ──
     runeOpenHand: f?.runeOpenHand,             // Rune of the Open Hand: every hand-summon gives its stats to another friendly minion
+    runeKindredRally: f?.runeKindredRally,     // Kindred Rally (2026-11-23): every hand-summon fires the left-most Rally
+    runeDeepSlumber: f?.runeDeepSlumber,       // Deep Slumber (2026-11-23): a hand stat gain is paid twice
     runeWakingReserve: f?.runeWakingReserve,   // Rune of the Waking Reserve: SoC — a copy of the highest-stat hand minion (card not marked)
     // ── Set 3 rune batch 3 (owner 2026-09-25) ──
     runeEchoingKobolds: f?.runeEchoingKobolds,       // combat-summoned Kobolds get the "Echo: get a Ruby" graft

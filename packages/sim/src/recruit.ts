@@ -5235,6 +5235,17 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       if (!all && !isTribe(c, 'spirit') && !(circuit && isTribe(c, 'celestial'))) continue;
       addBuff(c, nameOf(self), a, h);
     }
+    // RUNE OF THE BONFIRE (Set 3 new-concept Epic, owner 2026-11-23): "Your Reveler bonuses also apply to the minions in
+    // your hand." The SAME payout and the SAME audience rule, on the hand's minions (spells never): Flame / Tide pay
+    // the Spirits in hand, Grove every minion in hand. A hand buff is permanent (R-HAND-02). One payout however many
+    // copies are held (it widens the audience; a second copy has nothing more to widen).
+    if (ctx.state.questFlags?.runeBonfire) {
+      const held = ctx.state.hand.filter((c) => !CARD_INDEX[c.cardId]?.spell && (all || isTribe(c, 'spirit') || (circuit && isTribe(c, 'celestial'))));
+      if (held.length > 0 && (a > 0 || h > 0)) {
+        procRuneId(ctx.state, 'rune_bonfire');
+        for (const c of held) addBuff(c, nameOf(self), a, h);
+      }
+    }
     ctx.state.lastRevelerPay = { uid: self.uid, attack: a, health: h }; // Rune of the Encore reads it at the sale
     ctx.state.revelerX = revelerValue(ctx.state) + 1;
   },
@@ -12787,6 +12798,7 @@ export function fireOnMinionSold(state: RunState, sold: BoardCard): void {
   if (REVELER_IDS.includes(sold.cardId)) {
     const sold3 = state.revelersSoldThisTurn = (state.revelersSoldThisTurn ?? 0) + 1;
     runeEncoreShop(state, sold); // RUNE OF THE ENCORE (Set 3 design pass): the turn's first Reveler sale pays the hand too
+    runeLastDanceShop(state); // RUNE OF THE LAST DANCE (2026-11-23): every Reveler sold, the left-most Spirit +3/+3
     // RUNE OF CLOSING TIME (Set 3 design pass): every Reveler sold gets a random Dwarven Ale per copy.
     if (state.questFlags?.runeClosingTime) {
       const ales = runSpells(state).filter((c) => ALE_IDS.includes(c.id));
@@ -16241,7 +16253,7 @@ export function fireSpiritPlayRunes(state: RunState, played: BoardCard): void {
  *      turn's first hand gain, mirrored onto a random board minion) and Waking Dreams (board +A/+H per gainer).
  * Anything step 2 grows on the BOARD is not re-diffed, so the chain is bounded by construction.
  */
-export function fireStatGainReactors(state: RunState, before: Map<string, { attack: number; health: number }>): void {
+export function fireStatGainReactors(state: RunState, before: Map<string, { attack: number; health: number; golden?: boolean }>): void {
   const gained = (c: BoardCard): { attack: number; health: number } | null => {
     const p = before.get(c.uid);
     if (!p) return null;
@@ -16259,6 +16271,23 @@ export function fireStatGainReactors(state: RunState, before: Map<string, { atta
         const fn = RECRUIT_FACTORIES[eff.do];
         if (fn) captureBuffFx(state, c, 'minion', () => fn(ctx, c, eff.params ?? {}, { minion: c }));
       }
+    }
+  }
+  // 1b. RUNE OF THE DEEP SLUMBER (Set 3 new-concept Epic, owner 2026-11-23): "Minions in your hand gain double stats
+  //     from every source." Every hand minion that gained this action (the reactors' payouts above included) gains its
+  //     gain ONCE MORE per copy held. ONE pass, after the reactors and never re-diffed, so the Handy Flame / Dozer chains
+  //     cannot loop (a Handy Flame's doubled gain does not fire it again; the reactors have already run this action).
+  //     A card that turned golden this action (a gild / triple in hand) is a new body, not a gain: not doubled.
+  //     The hand-gain runes below then read the doubled gain.
+  if (state.questFlags?.runeDeepSlumber) {
+    const sleepers = state.hand.filter((c) => !CARD_INDEX[c.cardId]?.spell && !!before.get(c.uid)?.golden === !!c.golden)
+      .map((c) => ({ card: c, d: gained(c) })).filter((g): g is { card: BoardCard; d: { attack: number; health: number } } => !!g.d);
+    if (sleepers.length > 0) {
+      const copies = runeStacksOf(state, 'rune_deep_slumber');
+      procRuneId(state, 'rune_deep_slumber');
+      captureBuffFx(state, undefined, 'spell', () => {
+        for (const g of sleepers) addBuff(g.card, 'Deep Slumber', g.d.attack * copies, g.d.health * copies);
+      });
     }
   }
   // 2. The hand-gain runes.
@@ -17958,6 +17987,21 @@ function runeCallAndAnswerShop(state: RunState): void {
   procRuneId(state, 'rune_call_and_answer');
   const n = runeStacksOf(state, 'rune_call_and_answer');
   addBuff(left, 'Call and Answer', CALL_AND_ANSWER_GRANT.attack * n, CALL_AND_ANSWER_GRANT.health * n);
+}
+
+/** Last Dance's grant per copy held: "give your left-most Spirit +3/+3 permanently" (owner review board 2026-11-23). */
+export const LAST_DANCE_GRANT = { attack: 3, health: 3 } as const;
+
+/** RUNE OF THE LAST DANCE (Set 3 new-concept Basic, owner 2026-11-23): every Reveler SOLD gives the left-most Spirit on
+ *  your BOARD (R-YOU-CONTROL-01: board only) +3/+3 per copy held. Heard after the sold body has left, so the Reveler
+ *  never pays itself. A Shop buff, so permanent. No Spirit on the board: nothing (no proc). */
+function runeLastDanceShop(state: RunState): void {
+  if (!state.questFlags?.runeLastDance) return;
+  const left = state.board.find((c) => isTribe(c, 'spirit'));
+  if (!left) return;
+  procRuneId(state, 'rune_last_dance');
+  const n = runeStacksOf(state, 'rune_last_dance');
+  captureBuffFx(state, undefined, 'spell', () => addBuff(left, 'Last Dance', LAST_DANCE_GRANT.attack * n, LAST_DANCE_GRANT.health * n));
 }
 
 /** RUNE OF THE ENCORE: the turn's first Reveler SALE also pays what that Reveler just gave the board to the left-most

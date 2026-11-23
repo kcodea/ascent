@@ -1992,6 +1992,16 @@ export function simulate(
       if (attack === 0 && health === 0) return;
       const card = handPool(side).find((h) => h.uid === uid);
       if (!card || handSummonedUids.has(handKey(side, uid))) return;
+      // RUNE OF THE DEEP SLUMBER (Set 3 new-concept Epic, owner 2026-11-23): "Minions in your hand gain double stats from
+      // every source." Every combat hand gain passes HERE, so the gain is paid once more per copy held, folded into this
+      // one grant (its own pulse, same beat). A gain only: a 0 / negative lane is never multiplied. Bounded: nothing is
+      // re-dispatched from the extra. The carry-back below records the doubled amount, so the run hand matches.
+      if (modsFor(side).runeDeepSlumber) {
+        const mult = 1 + flagCopiesOf(side, 'runeDeepSlumber');
+        if (attack > 0) attack *= mult;
+        if (health > 0) health *= mult;
+        fireTrigger('runeDeepSlumber', side);
+      }
       handBuffs[side].push({ uid, attack, health, ...(sourceUid ? { source: sourceUid } : {}) });
       card.attack += attack;
       card.health += health;
@@ -2990,6 +3000,18 @@ export function simulate(
         const t = others[ctx.rng.int(others.length)]!;
         nextStep(); fireTrigger('runeOpenHand', side);
         ctx.buff(t, minion.attack, minion.health, 'Open Hand');
+      }
+    }
+    // RUNE OF THE KINDRED RALLY (Set 3 new-concept Epic, owner 2026-11-23): "When you summon a minion from your hand in
+    // combat, trigger your left-most Rally." The same landed-from-hand moment as the Open Hand, after it: the left-most
+    // living Rally body (the arrival itself when it is the left-most) fires a free Rally once per copy held, every Rally
+    // multiplier folded (`fireFreeRally`). Bounded: a hand card summons once per combat, so a Rally that summons from
+    // the hand (Seedling Spirit) chains at most once per hand card. No Rally body: nothing (no pulse).
+    if (fromHand && modsFor(side).runeKindredRally) {
+      const lead = boards[side].find((m) => canRally(m));
+      if (lead) {
+        nextStep(); fireTrigger('runeKindredRally', side);
+        for (let k = 0; k < flagCopiesOf(side, 'runeKindredRally'); k++) { if (canRally(lead)) fireFreeRally(lead, side); }
       }
     }
     summonEntryEffects(minion, side);

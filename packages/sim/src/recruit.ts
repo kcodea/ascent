@@ -37,6 +37,7 @@ import { CONFIG, hasTier7Access, maxTierFor, SHIFTER_OPTIONS } from './config';
 import { type HeroPower, spellAmplifyBonus, hasPower, activePowers, primaryPower, powerDiscoverPool, swapPowerLatch } from './heroes';
 import { handCap, runeGrantOverflow, recordBounceFx, recordCastFx, reservedHandSlots, mixSeed, TAG, type AuraFxTribe, type BoardCard, type BuffFxEvent, type CardBuff, type CiaSuit, type CommissionKind, type DiscoverSpec, type EquipFx, type RunState, type ShopCard, type ShopDeathFx, type CastFxSource, gateUses, procRune, procRuneId, runeBuffMagnitude, recordShopDamage, isShopDamageRow } from './state';
 export { ALE_IDS };
+import { HAUNTED_HAND_CAP } from './runeLiveState'; // Set 3 new hybrid runes: Rune of the Haunted Hand's per-turn cap
 import { returnToPool, rollShop, rollSpellShop, takeFromPool, refillShopFiltered, elevateShop, tierSlots, stampNewShopOffers, landRightmostSlotBuff, landLeftmostSlotBuff, rollCiaEnchants, SCROLL_DRAKE_ID, refillShopMadness } from './shop';
 import { runeStacksOf } from './runeDup';
 import { defiantWingsShop, openTreasuryOnBuy, spellFedScalesOnCast, whisperCastShop } from './dragonRunesBasic';
@@ -14827,6 +14828,7 @@ export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard
   // SET 3 DRAGON RUNES (Rune of Borrowed Flame, Rune of Spell Tempering): every Whisper cast, before the target's reactors and Whisp's
   // echo (each echo is its own cast and reaches here itself).
   if (spellDef.whisper) whisperCastShop(state, spellDef, target && state.board.includes(target) ? target : undefined);
+  if (spellDef.whisper && target) gemWhispersShop(state, target); // Set 3 new hybrid runes: Rune of Gem Whispers
   if (target && state.board.includes(target)) fireOnSpellCastOnThis(state, target, spellDef);
   // SET 4 — WHISP: a Whisper cast on a Dragon is also cast on every Whisp (a full cast each, never re-echoing).
   if (spellDef.whisper && target && state.board.includes(target)) whisperEchoOnDragons(state, spellDef, target);
@@ -14853,6 +14855,7 @@ export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard
   if (spellDef.id === 'starcrash' && state.questFlags?.runeMeteorStorm && !METEOR_ECHOING) runeMeteorStormShop(state, spellDef, target);
   // RUNE OF THE STAR TAP (Set 3 design pass): every Dwarven Ale cast feeds the Starform +3/+3 per copy.
   if (ALE_IDS.includes(spellDef.id) && state.questFlags?.runeStarTap) runeStarTapShop(state);
+  brewedWhispersShop(state, spellDef); // Set 3 new hybrid runes: Rune of Brewed Whispers
   drunkShopkeeperOnCast(state, spellDef); // Set 2 rune Drunk Shopkeeper: an Ale cast adds +2/+2 to the permanent Shop buff
   flamekeeperOnCast(state, spellDef); // Set 2 rune Flamekeeper: a Dragonflame cast gives your Dragons +2/+2
 }
@@ -16324,6 +16327,8 @@ export function fireStatGainReactors(state: RunState, before: Map<string, { atta
       }
     }
   }
+  // SET 3 NEW HYBRID RUNES: Rune of the Haunted Hand, over the same hand MINION gainers (step 1's included).
+  if (state.questFlags?.runeHauntedHand) hauntedHandShop(state, state.hand.filter((c) => !CARD_INDEX[c.cardId]?.spell && gained(c)).length);
   // 2. The hand-gain runes.
   if (!state.runeDreamMirror && !state.runeWakingDreams) return;
   const handGainers = state.hand.filter((c) => !CARD_INDEX[c.cardId]?.spell).map((c) => ({ card: c, d: gained(c) })).filter((g): g is { card: BoardCard; d: { attack: number; health: number } } => !!g.d);
@@ -18135,6 +18140,39 @@ function runeRubyCastShop(state: RunState, card: BoardCard, a: number, h: number
     const n = runeStacksOf(state, 'rune_gem_star');
     if (buffStarform(state, a * n, h * n, 'Gem Star')) procRuneId(state, 'rune_gem_star');
   }
+}
+
+// ── SET 3 NEW HYBRID RUNES (owner review board 2026-11-23): the Shop halves. Combat halves: simulate.ts. ───────────
+
+/** RUNE OF GEM WHISPERS: a Whisper cast (`castSpell`, every cast: from hand, a Yazzus repeat, Whisp's echo, Twin Tongues'
+ *  copy, End of Turn) landed on `target`. A friendly BOARD minion gets one plain Ruby per copy through `playRubiesOn`, the
+ *  Shop's one Ruby chokepoint (live Ruby strength, the Ruby-landed watchers), the target its own source. */
+export function gemWhispersShop(state: RunState, target: BoardCard): void {
+  if (!state.questFlags?.runeGemWhispers || !state.board.includes(target)) return;
+  procRuneId(state, 'rune_gem_whispers');
+  for (let k = 0; k < runeStacksOf(state, 'rune_gem_whispers'); k++) {
+    if (state.board.includes(target)) shopArena(state, target).playRubiesOn(target, 1);
+  }
+}
+
+/** RUNE OF BREWED WHISPERS: a Dwarven Ale cast (every cast through `castSpell`: hand, End of Turn, a rune or minion, each
+ *  repeat its own) gets one random Whisper per copy from the gated pool (R-WHISPER-TIER-01). */
+export function brewedWhispersShop(state: RunState, spellDef: CardDef): void {
+  if (!ALE_IDS.includes(spellDef.id) || !state.questFlags?.runeBrewedWhispers) return;
+  procRuneId(state, 'rune_brewed_whispers');
+  mintRandomWhispers(state, runeStacksOf(state, 'rune_brewed_whispers'));
+}
+
+/** RUNE OF THE HAUNTED HAND: `gainers` hand minions gained stats this action. Each, up to the turn's remaining cap
+ *  (`HAUNTED_HAND_CAP`, shared with that turn's combat through `hauntedHandLeft`), raises the Undead Aura +1 Attack per
+ *  copy (the Lantern channel, folded at display, so the raise never grows a hand card and cannot re-enter). */
+export function hauntedHandShop(state: RunState, gainers: number): void {
+  const used = state.hauntedHandThisTurn ?? 0;
+  const k = Math.min(gainers, HAUNTED_HAND_CAP - used);
+  if (k <= 0) return;
+  state.hauntedHandThisTurn = used + k;
+  procRuneId(state, 'rune_haunted_hand', k);
+  raiseUndeadAuraShop(state, k * runeStacksOf(state, 'rune_haunted_hand'));
 }
 
 // ── SET 3 RUNE DESIGN PASS (owner 2026-09-27), tranche 5: Rune of Unity, Shop half ─────────────────────────────────

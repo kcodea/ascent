@@ -164,6 +164,17 @@ describe('Deep Slumber: what is NOT a gain', () => {
     addBuff(s.hand[0]!, 'X', 1, 2);
     expect(stats(s, 'h')).toEqual([6, 8]);
   });
+  it('an Imp granted by the fight takes a run-wide Imp gain as part of its arrival; an Imp already held doubles it', () => {
+    const imp = Object.values(CARD_INDEX).find((c) => c!.imp && !c!.spell)!;
+    const go = (runes: string[]): RunState => {
+      const s = { ...run([], runes, [card(imp.id, 'held')]), phase: 'combat', lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] }, playerHandGrants: [imp.id], playerImpBuffGain: { attack: 3, health: 2 } } } as unknown as RunState;
+      return reduce(s, { type: 'settleCombat' });
+    };
+    const off = go([]), on = go([DS]);
+    const granted = (s: RunState) => { const c = s.hand.find((x) => x.uid !== 'held' && x.cardId === imp.id)!; return [c.attack, c.health]; };
+    expect(granted(on)).toEqual(granted(off));
+    expect(stats(on, 'held')).toEqual([at(off, 'held').attack + 3, at(off, 'held').health + 2]);
+  });
   it('a loss, a spell and a Ruby in hand are never doubled', () => {
     const ruby = Object.values(CARD_INDEX).find((c) => c!.ruby)!;
     const s = run([], [DS], [card(SPIRIT.id, 'h'), card('crescendo', 'sp'), card(ruby.id, 'r')]);

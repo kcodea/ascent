@@ -96,7 +96,7 @@ describe('the two runes ship as specced', () => {
   });
 
   it("only Facetwright is set-2 scoped — its spell is a set-2 card", () => {
-    expect(byName('Facetwright')!.sets).toEqual(['set2']); // CUT FROM SET 3 2026-09-24 (owner)
+    expect(byName('Facetwright')!.sets).toEqual(['set2', 'set3']); // + set3 2026-11-23 (owner Set 3 rune review board); // CUT FROM SET 3 2026-09-24 (owner)
     expect(byName('Duplication')!.sets).toBeUndefined();
   });
 });

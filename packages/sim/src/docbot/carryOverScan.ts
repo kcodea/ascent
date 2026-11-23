@@ -225,6 +225,7 @@ export const CARRY_OVER_EXCUSED: Readonly<Record<string, CarryOverExcuse>> = {
   spellIdsThisTurn: { kind: 'no-combat-meaning', why: 'the turn\'s spell cast list, every kind (Charted Skies / Astral Refrain); shop casts only, and the runes pay in the shop' },
   revelryDoubledThisTurn: { kind: 'no-combat-meaning', why: 'Shared Revelry: which Reveler types already fired twice this turn — a per-turn sell latch' },
   gemStarThisTurn: { kind: 'no-combat-meaning', why: 'Gem Star (Set 3 design pass): the SHOP count; combat reads what is left through `gemStarLeft`, threaded from this field' },
+  hauntedHandThisTurn: { kind: 'no-combat-meaning', why: 'Haunted Hand (Set 3 hybrid, 2026-11-23): the SHOP count; combat reads what is left through `hauntedHandLeft`, threaded from this field' },
   encoreUsedThisTurn: { kind: 'no-combat-meaning', why: 'Encore (Set 3 design pass): the per-turn charge for a Reveler SALE; combat never sells' },
   welcomePartyUsedThisTurn: { kind: 'no-combat-meaning', why: 'Welcome Party (Set 3, 2026-11-23): the per-turn first-Spirit discount on a Shop BUY; combat never buys' },
   openGraveUsedThisTurn: { kind: 'no-combat-meaning', why: 'Open Grave (Set 3 design pass): the per-turn charge for a SHOP destroy; combat never destroys in the Shop' },

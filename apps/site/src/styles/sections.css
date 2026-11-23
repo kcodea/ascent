@@ -111,7 +111,7 @@
   filter: drop-shadow(0 0 26px color-mix(in srgb, var(--gold-light) 40%, transparent));
 }
 
-/* The game's name, drawn as the download button in type: a deep navy face inside the button rim's metallic gold edge.
+/* The game's name: white letters inside the download button rim's metallic gold edge.
    It is an SVG word, not styled HTML text, because only SVG can round the corners of a letter's outline: an HTML text
    stroke spikes out at sharp points such as the N's. The h1 sets the size; the word is drawn at 100 units and scaled. */
 .top__headline {

@@ -1933,6 +1933,67 @@ export const RUNES_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-27',
     },
   },
+  // ── Set 3 new hybrid runes (owner review board 2026-11-23) ──
+  {
+    id: 'R-SET3HYBRID-01',
+    title: "Gem Whispers: a Whisper you cast on a minion also casts a Ruby on it",
+    statement:
+      "Every Whisper cast that lands on a friendly minion (any Whisper, any target minion, any caster, both phases: a cast from hand, a Yazzus repeat, Whisp's echo, Twin Tongues' copy, Whaloo in combat) also casts one plain Ruby on that minion per copy held, through the one Ruby chokepoint of each phase (Shop `playRubiesOn`, combat `playRubyOn`), so the live Ruby strength and every Ruby watcher apply. The Ruby is permanent in the Shop and combat-only in combat (R-BUFF-PERM). A Ruby is not a Whisper, so it can never re-trigger the rune.",
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Set 3 Runes review board artifact, owner vote 2026-11-23 (voted Yes on the printed text, no note)' },
+      { kind: 'code', ref: "packages/sim/src/recruit.ts castSpell -> gemWhispersShop; packages/core/src/combat/simulate.ts onWhisperCast -> gemWhispersCombat" },
+    ],
+    contentIds: ["rune_gem_whispers"],
+    cardText: "**Whispers** you cast on a minion also cast a **Ruby** on it.",
+    currentBehaviour: 'Conforms (built with the rune, 2026-11-23).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ["packages/sim/src/set3HybridRunes1123.test.ts", "packages/core/src/combat/set3HybridRunes1123.test.ts"],
+      lastVerifiedAt: '2026-11-23',
+    },
+  },
+  {
+    id: 'R-SET3HYBRID-02',
+    title: "Brewed Whispers: every Dwarven Ale you cast gets a random Whisper",
+    statement:
+      "Every Dwarven Ale cast (Shop, End of Turn and combat; any caster; each cast of a multicast is its own) gets one random Whisper per copy held, from the tier-gated Whisper pool (R-WHISPER-TIER-01: your tier and below, owners in the run's set). A combat grant reaches the hand like every combat hand grant.",
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Set 3 Runes review board artifact, owner vote 2026-11-23 (voted Yes on the printed text, no note)' },
+      { kind: 'code', ref: "packages/sim/src/recruit.ts castSpell -> brewedWhispersShop (mintRandomWhispers); packages/core/src/combat/simulate.ts spellResolved -> brewedWhispersCombat (grantRandomWhispers)" },
+    ],
+    contentIds: ["rune_brewed_whispers"],
+    cardText: "After you cast a **Dwarven Ale**, get a random **Whisper**.",
+    currentBehaviour: 'Conforms (built with the rune, 2026-11-23).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ["packages/sim/src/set3HybridRunes1123.test.ts", "packages/core/src/combat/set3HybridRunes1123.test.ts"],
+      lastVerifiedAt: '2026-11-23',
+    },
+  },
+  {
+    id: 'R-SET3HYBRID-03',
+    title: "Haunted Hand: a hand minion gaining stats gives your Undead Aura +1 Attack, 5 times per turn",
+    statement:
+      "Each minion in your hand that gains stats (Shop and End of Turn: the reducer's per-action hand stat diff, the Dream Mirror boundary, one count per gainer per action; combat: every `buffHand` on a hand minion) raises the Undead Aura +1 Attack per copy held, through the Lantern channel (permanent, R-AURA-02; live mid-fight). Only the first 5 gains each turn pay; the cap is shared by the Shop and that turn's combat (combat reads what the Shop left through `hauntedHandLeft`) and re-arms at the next turn. Spells in hand never count. The printed cap counts down once a use is spent.",
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Set 3 Runes review board artifact, owner vote 2026-11-23 (voted Yes on the printed text, no note)' },
+      { kind: 'code', ref: "packages/sim/src/recruit.ts fireStatGainReactors -> hauntedHandShop; packages/core/src/combat/simulate.ts buffHand -> hauntedHandCombat; packages/ui/src/runeText.ts rune_haunted_hand" },
+    ],
+    contentIds: ["rune_haunted_hand"],
+    cardText: "When a minion in your hand gains stats, give your **Undead Aura +1 Attack**. **(5 times per turn)**",
+    currentBehaviour: 'Conforms (built with the rune, 2026-11-23).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ["packages/sim/src/set3HybridRunes1123.test.ts", "packages/core/src/combat/set3HybridRunes1123.test.ts"],
+      lastVerifiedAt: '2026-11-23',
+    },
+  },
   // ── Set 3 rune design pass (owner 2026-09-27), tranche 5: Menagerie + neutral ──
   {
     id: 'R-SET3RUNE-38',
@@ -3196,7 +3257,7 @@ export const RUNES_RULES: GameRule[] = [
     statement:
       'Top Shelf: after every Refresh you press, one minion offer is from the Tier above your Shop (per copy held). The Shop '
       + 'never grows: a short row fills a free slot, a full row replaces the right-most minion offer that is not already '
-      + 'above your Tier. At the top Tier it does nothing. Wholesale: every Shop minion offer costs 1 less per copy held, '
+      + 'above your Tier. At the top Tier (owner 2026-11-23, was nothing) it guarantees that Tier instead: the two right-most minion offers are minions of your Shop Tier, two more per copy held. Wholesale: every Shop minion offer costs 1 less per copy held, '
       + 'floored at 0; spells and Rubies are untouched. Grudge: after a lost combat (a draw is not a loss) the next Shop '
       + 'opens a minion Discover from your Shop Tier + 1, capped at Tier 7, on its own Start of Turn beat, one per copy held. '
       + 'Grudge costs 0 and gives 10 Armor when taken (owner balance 2026-11-15, R-RUNE-PICK-ARMOR-01).',
@@ -3207,9 +3268,9 @@ export const RUNES_RULES: GameRule[] = [
       { kind: 'code', ref: 'packages/sim/src/reducer.ts offerTopShelf (roll branch) / offerBuyPrice wholesaleOff / advanceCombat Grudge recordSotBeat' },
     ],
     contentIds: ['rune_top_shelf', 'rune_wholesale', 'rune_grudge'],
-    currentBehaviour: 'Conforms as of 2026-11-13 (new runes).',
+    currentBehaviour: 'Conforms as of 2026-11-23 (top-Tier guarantee). Before 2026-11-23, Top Shelf did nothing at the top Tier.',
     example: 'Tier 3 Shop with Top Shelf: every Refresh shows one Tier 4 minion. Lose a fight at Tier 6 with Grudge: the next Shop opens a Tier 7 Discover.',
-    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2RunesEpicNeutral.test.ts'], lastVerifiedAt: '2026-11-13' },
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2RunesEpicNeutral.test.ts'], lastVerifiedAt: '2026-11-23' },
   },
   {
     id: 'R-SET2RUNE-EN-02',
@@ -3538,5 +3599,25 @@ export const RUNES_RULES: GameRule[] = [
     currentBehaviour: 'Conforms from 2026-11-17. Before, the rune pulsed on every Gold spend.',
     example: 'Kev holds Big Spender and Refreshes four times in one turn: the rune pulses once.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/bigSpenderAllSpendCounts.test.ts'], lastVerifiedAt: '2026-11-17' },
+  },
+  {
+    id: 'R-SET3-RUNE-REVIEW-01',
+    title: 'Set 3 rune review board: 68 Set 2 runes join Set 3; Summit, Top Shelf, Spellstone, Tempo and Wildfire change everywhere',
+    statement:
+      'The owner review board (2026-11-23) adds 68 Set 2 runes to the Set 3 pool (their sets gain set3, they keep their '
+      + 'other sets); the runes voted No stay out of Set 3. Edits apply in every set: Summit Discovers a Tier 7 minion on '
+      + 'turns 9 and 11 only (bought later, it pays only the turns ahead); Top Shelf guarantees your top Tier at the top '
+      + 'Tier (R-SET2RUNE-EN-01); Spellstone is a Basic rune (it lives in RUNES); Pair is renamed Tempo (id rune_pair kept); '
+      + 'Wildfire has no Demon tag, so it is offered to any warband.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Set 3 Runes review board artifact, owner votes + notes 2026-11-23; follow-up rulings in the Claude Code session', quote: 'At tier 6 it guarantees a t6 unit. With this change it guarantees 2. (Both right most)' },
+      { kind: 'code', ref: 'packages/content/src/runes.ts (sets, Spellstone in RUNES, Tempo, Wildfire); packages/sim/src/reducer.ts SUMMIT_TURNS / guaranteeTopShelf' },
+    ],
+    contentIds: ['rune_summit', 'rune_top_shelf', 'rune_spellstone', 'rune_pair', 'rune_wildfire'],
+    currentBehaviour: 'Conforms from 2026-11-23. Before: Summit paid every 2nd shop, Spellstone was Epic, Pair kept its name, Wildfire was Demon-gated, and none of the 68 were in Set 3.',
+    example: 'Buy Summit on turn 6: Tier 7 Discovers open on turns 9 and 11, and nothing after.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3RuneReview.test.ts', 'packages/sim/src/runes.test.ts', 'packages/sim/src/set2RunesEpicNeutral.test.ts'], lastVerifiedAt: '2026-11-23' },
   },
 ];

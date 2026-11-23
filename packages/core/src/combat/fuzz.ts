@@ -44,6 +44,7 @@ const BOOL_FLAGS = (
   + 'runeTrophy oldPack runeWarCouncil runeGrowingInferno runeRuneboundBrood runeUnbrokenScales runeRunicTransposition '
   + 'runeSpellFedScales runeDeepBreaths runeDefiantWings runeFinalUtterance runeEmberInheritance ' // Set 3 Dragon runes, Basic + Epic A
   + 'runeGoleming runeRedStart runeRoseysGarden ' // Set 3 Kobold runes (2026-10-22)
+  + 'runeGemWhispers runeBrewedWhispers ' // Set 3 new hybrid runes (2026-11-23)
   + 'runeGraveTithe runeDeadWeight runeRankAndFile runeBonePile runeSecondBurial runeNightWatch runeUndyingLegion ' // Set 3 Undead runes (2026-11-23)
   + 'runeBloodscent runeLastHowl runeTrophyHunter runePitchforks runeImpLegion runeFlamekeeper runeRubyDust runeRoughCut ' // Set 2 runes, Basic tribal (2026-11-13)
   + 'runeDoubleBill runeBulwarkLine runeBastion runeMirrorSheen ' // Set 2 rune batch, Epic neutral (2026-11-12)
@@ -148,6 +149,7 @@ const VALUE_MODS: ((r: Rng, ids: { A: string[]; pool: string[] }) => Partial<Que
   () => ({ runeBorrowedFlame: 3 }), // Set 3 Dragon runes, Basic
   () => ({ runeSpellTempering: true, runeSpellTemperingTick: 3 }),
   () => ({ runeGemStar: true, gemStarLeft: 2 }),
+  () => ({ runeHauntedHand: true, hauntedHandLeft: 3 }), // Set 3 new hybrid runes (2026-11-23)
   () => ({ starCrashBonus: { attack: 1, health: 1 } }),
   () => ({ warDrumExtra: 1 }),
   () => ({ shoutDoubleCharges: 2 }),

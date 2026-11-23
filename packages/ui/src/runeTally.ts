@@ -1,4 +1,4 @@
-import { RETURN_CUSTOMERS_PER_TURN, CLEAR_VOICES_DISTINCT, SPELL_TEMPERING_PER, kindredHandValue, grimToastFold, GEM_STAR_CAP, unityTypeCount, runeStacksOf, PACKCRAFT_STEP, REINVESTMENT_PER_SUMMON, REVELER_METER, SLAYING_KILLS, INVESTMENT_SELLS, ANCESTRAL_ROAR_STEP, recurringTickCount, duosRuneTally, type RunState, type RuneLiveState } from '@game/sim';
+import { RETURN_CUSTOMERS_PER_TURN, CLEAR_VOICES_DISTINCT, SPELL_TEMPERING_PER, kindredHandValue, grimToastFold, GEM_STAR_CAP, unityTypeCount, runeStacksOf, PACKCRAFT_STEP, REINVESTMENT_PER_SUMMON, REVELER_METER, SLAYING_KILLS, INVESTMENT_SELLS, ANCESTRAL_ROAR_STEP, recurringTickCount, duosRuneTally, SUMMIT_TURNS, type RunState, type RuneLiveState } from '@game/sim';
 import { countedGoldSpentThisTurn } from '@game/sim';
 import { requiemLeftThisTurn } from '@game/sim';
 import { CARD_INDEX } from '@game/content';
@@ -143,10 +143,10 @@ export function runeTally(run: RunState, runeId: string): string | null {
   if (runeId === 'rune_spellslinging' && run.spellDripPer) {
     return `${Math.min(run.spellDripTick ?? 0, run.spellDripPer)}/${run.spellDripPer}g`;
   }
-  // Rune of the Summit counts SHOPS OPENED, and fires every SECOND one (balance 9/23, was every third; audit fix 2026-08-06: the badge
-  // counted x/2 against a fires-every-3rd implementation, so it read 1/2 on the turn it actually fired).
-  if (runeId === 'rune_summit' && run.runeSummitTick != null) {
-    return `${run.runeSummitTick % 2}/2`;
+  // Owner 2026-11-23: it pays on FIXED turns (9 and 11), so the badge counts the turn toward the next payout.
+  if (runeId === 'rune_summit' && run.runeSummit) {
+    const next = SUMMIT_TURNS.find((w) => w >= run.wave);
+    return next == null ? null : `${run.wave}/${next}`;
   }
   // Rune of the Deep (owner 2026-10-07: "Repeat every 2 turns"): turn setups since the last Tier 7 minion, of the
   // cadence. A run that bought it before the cadence existed pays every turn and shows no countdown.

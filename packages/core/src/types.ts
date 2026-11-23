@@ -2072,6 +2072,10 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   // grimToast = your Dwarves also get the Undead Aura; gemStar = the first 4 Rubies cast each turn also give the
   // Starform their stats; keepsakeGem = every Ruby also casts on the left-most hand minion.
   | 'runeGemCrypt' | 'runePallbearer' | 'runeStarTap' | 'runeClosingTime' | 'runeGrimToast' | 'runeGemStar' | 'runeKeepsakeGem'
+  // Set 3 new hybrid runes (owner review board 2026-11-23): gemWhispers = a Whisper cast on a minion also casts a Ruby on
+  // it; brewedWhispers = a Dwarven Ale cast gets a random Whisper; hauntedHand = a hand minion gaining stats raises the
+  // Undead Aura +1 Attack (5 times per turn).
+  | 'runeGemWhispers' | 'runeBrewedWhispers' | 'runeHauntedHand'
   // Tranche 5: heavyHand = friendly damage counts double toward Pummel; unity = all 5 types controlled → every type.
   | 'runeHeavyHand' | 'runeUnity'
   // Owner batch 2026-10-07: sunpony = when a Beast attacks, your Beasts +1 Attack and Sunmane's spreading Rally.
@@ -2740,6 +2744,15 @@ export interface QuestCombatMods {
   gemStarLeft?: number;
   /** Rune of the Keepsake Gem: every Ruby cast also lands its stats on the left-most hand minion (a hand buff). */
   runeKeepsakeGem?: boolean;
+  // ── Set 3 new hybrid runes (owner review board 2026-11-23). Copies ride `flagCopies`. ──
+  /** Rune of Gem Whispers: every Whisper this side casts on a living friendly minion also casts a plain Ruby on it (per copy). */
+  runeGemWhispers?: boolean;
+  /** Rune of Brewed Whispers: every Dwarven Ale this side casts gets a random (tier-gated) Whisper to hand (per copy). */
+  runeBrewedWhispers?: boolean;
+  /** Rune of the Haunted Hand: a hand minion gaining stats raises this side's Undead Aura +1 Attack (per copy). */
+  runeHauntedHand?: boolean;
+  /** Rune of the Haunted Hand: how many more hand gains may still pay this turn (5 minus the Shop's). */
+  hauntedHandLeft?: number;
   // ── tranche 5 ──
   /** Rune of the Heavy Hand: this side's damage counts double toward Pummel (one extra share per copy). */
   runeHeavyHand?: boolean;

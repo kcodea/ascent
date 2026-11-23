@@ -23,7 +23,7 @@ describe('Baal', () => {
     expect(rune).toBeDefined();
     expect(rune.cost).toBe(5); // owner 2026-10-23: was 6
     expect(rune.epic).toBe(true);
-    expect(rune.sets).toEqual(['set2']); // + set3 2026-09-14 (rune roster carryover); // CUT FROM SET 3 2026-09-24 (owner)
+    expect(rune.sets).toEqual(['set2', 'set3']); // + set3 2026-11-23 (owner Set 3 rune review board); // + set3 2026-09-14 (rune roster carryover); // CUT FROM SET 3 2026-09-24 (owner)
     expect(rune.reward).toMatchObject({ kind: 'grant', cards: ['dw_baal'] });
   });
 

@@ -63,7 +63,7 @@ describe('the roster', () => {
       expect(RUNES.includes(r)).toBe(false);
       expect(r.epic).toBe(true);
       expect([r.name, r.cost]).toEqual(want[id]);
-      expect(r.sets).toEqual(['set2']);
+      expect(r.sets).toContain('set2'); // several joined Set 3 too (owner Set 3 rune review board 2026-11-23)
       expect(r.tribes).toBeUndefined();
       expect(/—|--|Oath|climb/i.test(r.text), r.text).toBe(false);
     }
@@ -108,11 +108,25 @@ describe('R-SET2RUNE-EN-01: Top Shelf', () => {
     expect(above(s)).toHaveLength(2);
   });
 
-  it('at the top Tier it does nothing (owner ruling 2026-11-12)', () => {
-    const s0 = withRune('rune_top_shelf', { tier: 6 });
-    const s = act(s0, { type: 'roll' });
-    expect(s.shop.some((o) => CARD_INDEX[o.cardId]!.tier > 6)).toBe(false);
-    expect(s.runeProcs?.['rune_top_shelf'] ?? 0).toBe(0);
+  // Owner 2026-11-23 (Set 3 rune review): at the top Tier it GUARANTEES 2 of that Tier, both right-most (was nothing).
+  const rightMostMinions = (s: RunState, n: number) => s.shop.filter((o) => { const d = CARD_INDEX[o.cardId]!; return !d.spell && !d.ruby && !o.starform; }).slice(-n);
+  it('at the top Tier the two right-most minion offers are always of that Tier, never above it', () => {
+    let s = withRune('rune_top_shelf', { tier: 6 });
+    for (let i = 0; i < 6; i++) {
+      s = act({ ...s, embers: 40 }, { type: 'roll' });
+      expect(s.shop.some((o) => CARD_INDEX[o.cardId]!.tier > 6)).toBe(false);
+      expect(rightMostMinions(s, 2).map((o) => CARD_INDEX[o.cardId]!.tier), `refresh ${i}`).toEqual([6, 6]);
+    }
+  });
+  it('without the rune a top-Tier Refresh does not force them (the guarantee is the rune)', () => {
+    let s = withRune(null, { tier: 6 });
+    let forced = 0;
+    for (let i = 0; i < 6; i++) { s = act({ ...s, embers: 40 }, { type: 'roll' }); if (rightMostMinions(s, 2).every((o) => CARD_INDEX[o.cardId]!.tier === 6)) forced++; }
+    expect(forced).toBeLessThan(6);
+  });
+  it('two copies at the top Tier guarantee four right-most offers', () => {
+    const s = act(withRune('rune_top_shelf', { tier: 6 }, 2), { type: 'roll' });
+    expect(rightMostMinions(s, 4).map((o) => CARD_INDEX[o.cardId]!.tier)).toEqual([6, 6, 6, 6]);
   });
 
   it('deterministic: the same seed draws the same offer', () => {

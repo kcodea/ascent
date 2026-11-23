@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { combatSide, makeRng, simulate, type BoardMinion, type CombatSideState } from '@game/core';
 import { CARD_INDEX, EPIC_RUNES, RUNES } from '@game/content';
+import { withSet3 } from './set3ReviewJoined';
 import { createRun, reduce, type BoardCard, type RunState } from './index';
 
 /** The 2026-08-07 owner Epic batch: 14 runes. Data-only shape is covered by validateRunes + the count and
@@ -39,7 +40,7 @@ describe('the 14 defs ship as specced', () => {
       const cutTribal = ['rune_dragonscale', 'rune_savagery', 'rune_foundry'].includes(id);
       // CUT FROM SET 3 2026-09-25 (owner's Set 3 rune list): every rune of this batch the list does not name.
       const cut0925 = ['rune_crown', 'rune_tempered_time'].includes(id);
-      expect(rune(id).sets, id).toEqual(id === 'rune_lapidary' ? ['set2'] : scoped ? ['set2', 'set3'] : cutTribal || cut0925 ? ['set1', 'set2'] : undefined);
+      expect(rune(id).sets, id).toEqual(withSet3(id, id === 'rune_lapidary' ? ['set2'] : scoped ? ['set2', 'set3'] : cutTribal || cut0925 ? ['set1', 'set2'] : undefined));
     }
   });
 });

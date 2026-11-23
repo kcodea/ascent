@@ -100,7 +100,7 @@ describe('Runeforge — framework', () => {
     // (Set 2 rune batch 2026-07-29). The epic list grew by 6 in the same batch — see the sibling assertion.
     // A hardcoded total is a tripwire, not a spec: it fires whenever runes are added so the addition gets a
     // deliberate look. Bump it with the count. +10 (2026-07-30): Recollection, the First Round, six threshold runes, the Stampede, the Hatchery, Resonance, Investment, Last Call, Hunger, Blood and Coin, the Remains, Reinvestment the Hunting Bell, the Brood + the War Chorus. (Epics are counted separately.)
-    expect(RUNES.length).toBe(240); // 235 -> 240 on 2026-11-23 (Set 3 Undead new-concept runes, Basic: Shallow Graves, Grave Tithe, Dead Weight, Rank and File, Bone Pile); // 232 -> 235 on 2026-11-13 (owner designs: Gold for Grub, End of Quarter, Drunk Shopkeeper); // COMBINED 2026-11-13 (all four Set 2 rune slices + the owner's Shop Madness and Golden Monkey): 207 + 9 Basic neutral + 14 Basic tribal + 2 = 232; 207 → 221 on 2026-11-13 (Set 2 rune batch, Basic tribal: fourteen runes); 203 → 207 on 2026-11-01 (Duos batch 2 Basics: Hand-Me-Downs, Buddy System, Gild Pact, Pep Talk); 198 → 203 on 2026-10-30 (five Duos-only Basics); 197 → 198 on 2026-10-23 (Set 3 Dwarf rune, Basic: Last Call); 194 → 197 on 2026-10-22 (Set 3 Kobold runes, Basic: Refreshing Rubies, Ruby Sales, Goleming); 183 → 194 on 2026-10-21: Set 3 Dragon runes, Basic (11); 184 → 183 on 2026-10-13: Rune of the Red Storm archived (owner Set 3 batch); 183 → 184 on 2026-10-10: Rune of the Ruinous (owner add, Set 2 Demon grant rune); merged 2026-10-07: 181 (main) + 2 (Beast batch: Rune of Actioned Beasts, Rune of the Sunpony) = 183; merged 2026-10-07: 188 (main, + Rune of the Echoing Shouts) − 7 archived = 181; 187 → 180 on 2026-10-07: seven Basics archived (owner balance batch: Ruby Resonance, Contraband, Gemcutting, Shifting Facets, Gem Dividend, Last Call, Last Word); 185 → 187 on 2026-09-27: Set 3 design pass tranche 5 (the Set 3 Menagerie, the Heavy Hand); 180 → 185 on 2026-09-27: Set 3 design pass tranche 4 (5 hybrid Basics); 175 → 180 on 2026-09-27: Set 3 design pass tranche 3 (4 Spirit + 1 Dwarf Basics); 170 → 175 on 2026-09-27: Set 3 design pass tranche 2 (5 Celestial Basics); 165 → 170 on 2026-09-27: Set 3 design pass tranche 1 (5 Undead Basics); 158 → 165 on 2026-09-25: Set 3 rune batch 3 (7 Basics: Gemmed Decisions, Echoing Kobolds, Red Storm, Rubywire, Choices, Combatative Rubies, Body Counting); 157 → 158 on 2026-09-25: Rune of Engraving Gems moved Epic → Basic (owner Set 3 rune list); 158 → 157 on 2026-09-24: Rune of the Full Hand archived (owner rulings, in no set after the Set 3 cut); 159 → 158 on 2026-09-24: Rune of Investment moved Basic → Epic (owner Ruby batch); 141 → 142 on 2026-08-26: Happy Birthday; 142 → 163 on 2026-09-16: Set 3 batch 2 (A 11 + B 8 + C 2 Basic); 163 → 164 on 2026-09-17: Rune of Gambling (all sets); 164 → 159 on 2026-09-23: five Basics archived (Emberline, Centerline, Cindergem, Second Litter, Spare Chair — ARCHIVED_RUNES)
+    expect(RUNES.length).toBe(243); // 235 -> 240 on 2026-11-23 (Set 3 Undead new-concept runes, Basic: Shallow Graves, Grave Tithe, Dead Weight, Rank and File, Bone Pile); 235 -> 237 on 2026-11-23 (Set 3 new hybrid runes, Basic: Gem Whispers, Brewed Whispers); 235 -> 236 on 2026-11-23 (Spellstone moved Epic -> Basic, owner Set 3 rune review); // 232 -> 235 on 2026-11-13 (owner designs: Gold for Grub, End of Quarter, Drunk Shopkeeper); // COMBINED 2026-11-13 (all four Set 2 rune slices + the owner's Shop Madness and Golden Monkey): 207 + 9 Basic neutral + 14 Basic tribal + 2 = 232; 207 → 221 on 2026-11-13 (Set 2 rune batch, Basic tribal: fourteen runes); 203 → 207 on 2026-11-01 (Duos batch 2 Basics: Hand-Me-Downs, Buddy System, Gild Pact, Pep Talk); 198 → 203 on 2026-10-30 (five Duos-only Basics); 197 → 198 on 2026-10-23 (Set 3 Dwarf rune, Basic: Last Call); 194 → 197 on 2026-10-22 (Set 3 Kobold runes, Basic: Refreshing Rubies, Ruby Sales, Goleming); 183 → 194 on 2026-10-21: Set 3 Dragon runes, Basic (11); 184 → 183 on 2026-10-13: Rune of the Red Storm archived (owner Set 3 batch); 183 → 184 on 2026-10-10: Rune of the Ruinous (owner add, Set 2 Demon grant rune); merged 2026-10-07: 181 (main) + 2 (Beast batch: Rune of Actioned Beasts, Rune of the Sunpony) = 183; merged 2026-10-07: 188 (main, + Rune of the Echoing Shouts) − 7 archived = 181; 187 → 180 on 2026-10-07: seven Basics archived (owner balance batch: Ruby Resonance, Contraband, Gemcutting, Shifting Facets, Gem Dividend, Last Call, Last Word); 185 → 187 on 2026-09-27: Set 3 design pass tranche 5 (the Set 3 Menagerie, the Heavy Hand); 180 → 185 on 2026-09-27: Set 3 design pass tranche 4 (5 hybrid Basics); 175 → 180 on 2026-09-27: Set 3 design pass tranche 3 (4 Spirit + 1 Dwarf Basics); 170 → 175 on 2026-09-27: Set 3 design pass tranche 2 (5 Celestial Basics); 165 → 170 on 2026-09-27: Set 3 design pass tranche 1 (5 Undead Basics); 158 → 165 on 2026-09-25: Set 3 rune batch 3 (7 Basics: Gemmed Decisions, Echoing Kobolds, Red Storm, Rubywire, Choices, Combatative Rubies, Body Counting); 157 → 158 on 2026-09-25: Rune of Engraving Gems moved Epic → Basic (owner Set 3 rune list); 158 → 157 on 2026-09-24: Rune of the Full Hand archived (owner rulings, in no set after the Set 3 cut); 159 → 158 on 2026-09-24: Rune of Investment moved Basic → Epic (owner Ruby batch); 141 → 142 on 2026-08-26: Happy Birthday; 142 → 163 on 2026-09-16: Set 3 batch 2 (A 11 + B 8 + C 2 Basic); 163 → 164 on 2026-09-17: Rune of Gambling (all sets); 164 → 159 on 2026-09-23: five Basics archived (Emberline, Centerline, Cindergem, Second Litter, Spare Chair — ARCHIVED_RUNES)
     for (const r of RUNES) expect(r.id.startsWith('rune_')).toBe(true);
   });
 
@@ -1329,18 +1329,21 @@ describe('Rune of the Summit (every 2nd shop → a Tier 7 Discover)', () => {
     return (s.discoverQueue ?? []).some((q) => q.kind === 'minion' && q.exactTier === 7);
   };
 
-  it('fires on the SECOND shop, then repeats every 2nd (balance 9/23; the owner sheet 2026-07-31 had every 3rd)', () => {
+  // Owner 2026-11-23 (Set 3 rune review): FIXED turns 9 and 11 (was every 2nd shop since purchase).
+  it('fires on turns 9 and 11 only, whenever it was bought', () => {
     let s: RunState = { ...buyRune('rune_summit'), wave: 3, hand: [], board: [] };
-    s = openShop(s); // shop 1 — nothing yet
-    expect(s.runeSummitTick).toBe(1);
-    expect(raisedT7(s)).toBe(false);
-    s = openShop(s); // shop 2 — fires
-    expect(s.runeSummitTick).toBe(2);
-    expect(raisedT7(s)).toBe(true);
-    s = openShop(s); // shop 3 — quiet
-    expect(raisedT7(s)).toBe(false);
-    s = openShop(s); // shop 4 — fires again
-    expect(raisedT7(s)).toBe(true);
+    const fired: number[] = [];
+    for (let i = 0; i < 12; i++) { s = openShop(s); if (raisedT7(s)) fired.push(s.wave); }
+    expect(fired).toEqual([9, 11]);
+  });
+
+  it('bought after turn 9, it pays only turn 11; after 11, never', () => {
+    let s: RunState = { ...buyRune('rune_summit'), wave: 9, hand: [], board: [] };
+    const fired: number[] = [];
+    for (let i = 0; i < 4; i++) { s = openShop(s); if (raisedT7(s)) fired.push(s.wave); }
+    expect(fired).toEqual([11]);
+    let late: RunState = { ...buyRune('rune_summit'), wave: 11, hand: [], board: [] };
+    for (let i = 0; i < 4; i++) { late = openShop(late); expect(raisedT7(late)).toBe(false); }
   });
 
   it('does nothing without the rune', () => {

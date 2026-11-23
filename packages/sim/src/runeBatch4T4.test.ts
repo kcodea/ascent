@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { combatSide, makeRng, simulate, type BoardMinion } from '@game/core';
 import { ARCHIVED_RUNES, CARD_INDEX, EPIC_RUNES, RUNES } from '@game/content';
+import { withSet3 } from './set3ReviewJoined';
 import { createRun, reduce, type BoardCard, type RunState } from './index';
 
 /** Owner batch 4, tranche 4 (2026-08-07) — the five hard Epic runes. */
@@ -33,7 +34,7 @@ describe('the five defs ship as specced', () => {
     expect(rune('rune_ruby_shrapnel').sets).toEqual([]); // ARCHIVED everywhere 2026-10-07 (was ['set2'])
     for (const id of ['rune_ancestral_roar', 'rune_shared_scripture', 'rune_banquet_hall', 'rune_crucible_choir']) {
       // Ancestral Roar (Dragon) CUT FROM SET 3 2026-09-24 (owner): scoped to set 1 + set 2.
-      expect(rune(id).sets, `${id} is scoped to set 1 + set 2`).toEqual(['set1', 'set2']); // Shared Scripture / Banquet Hall / Crucible Choir CUT FROM SET 3 2026-09-25 (owner's Set 3 rune list)
+      expect(rune(id).sets, `${id} is scoped to set 1 + set 2`).toEqual(withSet3(id, ['set1', 'set2'])); // Shared Scripture / Banquet Hall / Crucible Choir CUT FROM SET 3 2026-09-25 (owner's Set 3 rune list)
     }
   });
 });

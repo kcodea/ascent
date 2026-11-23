@@ -142,3 +142,4 @@ export {
 } from './balance/identity';
 export * from './set2RunesBasicNeutral'; // Set 2 rune batch, Basic neutral (owner 2026-11-12)
 export { hatchlingRoostPrice } from './set2RunesBasicTribal'; // Set 2 rune batch, Basic tribal (2026-11-13)
+export { requiemLeftThisTurn } from './set3UndeadRunes'; // Set 3 Undead runes (2026-11-23): Requiem's live budget

@@ -1305,6 +1305,151 @@ export const RUNES_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-27',
     },
   },
+  // ── Set 3 new-concept runes, Undead (owner review board 2026-11-23) ──
+  {
+    id: 'R-SET3-UNDEAD-1123-01',
+    title: 'Shallow Graves: the first Undead you buy each turn gains Rise',
+    statement:
+      'The first Undead minion you buy each turn gains Rise. A bought card that already has Rise, or a non-Undead buy, does not use up the turn\'s charge. The charge comes back at the start of each turn. Buying is a Shop action, so the rune has no combat half.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner Set 3 rune review board, 2026-11-23 (new-concept runes, Undead)', quote: '"Undead you buy gain Rise." OWNER NOTE: only the FIRST Undead you buy each turn.' },
+      { kind: 'code', ref: 'packages/sim/src/set3UndeadRunes.ts shallowGravesOnBuy (applyOnBuy); resetSet3UndeadRunesTurn at turn setup' },
+    ],
+    contentIds: ['rune_shallow_graves'],
+    currentBehaviour: 'Conforms (built with the rune, 2026-11-23).',
+    example: 'Buy a Spear Warden, then a Footman Captain, in one turn: only the Spear Warden gains Rise.',
+    enforcement: { kind: 'scenario', refs: ['packages/core/src/combat/set3UndeadRunes.test.ts', 'packages/sim/src/set3UndeadRunes.test.ts'], lastVerifiedAt: '2026-11-23' },
+  },
+  {
+    id: 'R-SET3-UNDEAD-1123-02',
+    title: 'Grave Tithe: the 3rd friendly Rise of a combat banks 2 Gold for next turn, once per combat',
+    statement:
+      'Each combat counts your minions that Rise. When the third one Rises, you gain 2 Gold next turn, per copy held. It pays at most once per combat, however many more Rise. Only combat Rises count (the owner note reads "in a combat").',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner Set 3 rune review board, 2026-11-23 (new-concept runes, Undead)', quote: '"When 3 minions rise gain 2g next turn"' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts the onRise listener under SET 3 UNDEAD RUNES (grantBonusGold)' },
+    ],
+    contentIds: ['rune_grave_tithe'],
+    currentBehaviour: 'Conforms (built with the rune, 2026-11-23).',
+    example: 'Five friendly minions Rise in one fight: you gain 2 Gold next turn, not 4.',
+    enforcement: { kind: 'scenario', refs: ['packages/core/src/combat/set3UndeadRunes.test.ts', 'packages/sim/src/set3UndeadRunes.test.ts'], lastVerifiedAt: '2026-11-23' },
+  },
+  {
+    id: 'R-SET3-UNDEAD-1123-03',
+    title: 'Dead Weight: every Overflow raises the Undead Aura +2 Attack, in every phase',
+    statement:
+      'Every time a friendly summon does not fit (an Overflow), your Undead Aura gains +2 Attack, per copy held. It works in the Shop and in combat. A combat gain is felt by your living Undead at once and is kept after the fight.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner Set 3 rune review board, 2026-11-23 (new-concept runes, Undead)', quote: '"Overflow: give your Undead Aura +2 Attack."' },
+      { kind: 'code', ref: 'packages/sim/src/set3UndeadRunes.ts deadWeightOnOverflow (fireSummonOverflow); simulate.ts the summonOverflow listener (raiseUndeadAura)' },
+    ],
+    contentIds: ['rune_dead_weight'],
+    currentBehaviour: 'Conforms (built with the rune, 2026-11-23).',
+    example: 'A Footman Captain dies on a full board and its Footman does not fit: your Undead Aura gains +2 Attack.',
+    enforcement: { kind: 'scenario', refs: ['packages/core/src/combat/set3UndeadRunes.test.ts', 'packages/sim/src/set3UndeadRunes.test.ts'], lastVerifiedAt: '2026-11-23' },
+  },
+  {
+    id: 'R-SET3-UNDEAD-1123-04',
+    title: 'Rank and File: friendly Footmen and Spear Wardens have Taunt',
+    statement:
+      'Every friendly Footman and Spear Warden has Taunt: on the board, in hand, every later arrival, every combat summon, and a Rise or Rebirth return (a return is a summon). Other minions are unaffected.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner Set 3 rune review board, 2026-11-23 (new-concept runes, Undead)', quote: '"Footmen and Spear Wardens you summon have Taunt."' },
+      { kind: 'code', ref: 'packages/sim/src/set3UndeadRunes.ts rankAndFileGraft (applyRuneGrafts); simulate.ts rankAndFileTaunt (summonMinion + returnSummonGrants)' },
+    ],
+    contentIds: ['rune_rank_and_file'],
+    currentBehaviour: 'Conforms (built with the rune, 2026-11-23).',
+    example: 'A Footman Captain dies in combat: its Footman lands with Taunt, and when the Footman Rises it still has Taunt.',
+    enforcement: { kind: 'scenario', refs: ['packages/core/src/combat/set3UndeadRunes.test.ts', 'packages/sim/src/set3UndeadRunes.test.ts'], lastVerifiedAt: '2026-11-23' },
+  },
+  {
+    id: 'R-SET3-UNDEAD-1123-05',
+    title: 'Bone Pile: Start of Combat, a Skeleton for every 2 Undead you control',
+    statement:
+      'At Start of Combat, count your living Undead once, then summon one Skeleton for every 2 of them (rounded down), per copy held. A full board overflows the extra Skeletons. It is a Start of Combat rune, so Rune of Twilight repeats it, and the Shop\'s Start of Combat replays (Combat Prowess) summon real Skeletons.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner Set 3 rune review board, 2026-11-23 (new-concept runes, Undead)', quote: '"Start of Combat: summon a Skeleton for every 2 Undead you control."' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts runRuneStartOfCombat (BONE PILE); packages/sim/src/set3UndeadRunes.ts set3UndeadSocReplays' },
+    ],
+    contentIds: ['rune_bone_pile'],
+    currentBehaviour: 'Conforms (built with the rune, 2026-11-23).',
+    example: 'Five Undead at Start of Combat: two Skeletons.',
+    enforcement: { kind: 'scenario', refs: ['packages/core/src/combat/set3UndeadRunes.test.ts', 'packages/sim/src/set3UndeadRunes.test.ts'], lastVerifiedAt: '2026-11-23' },
+  },
+  {
+    id: 'R-SET3-UNDEAD-1123-06',
+    title: 'Second Burial: a friendly minion that already Rose dies, a Skeleton with its Attack',
+    statement:
+      'When a friendly minion that has already Risen dies, summon a Skeleton beside it whose Attack is raised to that minion\'s Attack, per copy held. The first death (the one it Rose from) does not count. In combat "already Rose" means it Rose this fight; in the Shop it means the body came back by a Shop Rise.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner Set 3 rune review board, 2026-11-23 (new-concept runes, Undead)', quote: '"When a friendly minion that already Rose dies, summon a Skeleton with its Attack."' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts the avenge listener under SET 3 UNDEAD RUNES (attackFloor); packages/sim/src/set3UndeadRunes.ts secondBurialNoteRise / secondBurialOnShopDeath' },
+    ],
+    contentIds: ['rune_second_burial'],
+    currentBehaviour: 'Conforms (built with the rune, 2026-11-23).',
+    example: 'A 2/2 with Rise dies, Rises, grows to 6 Attack and dies again: a Skeleton with 6 Attack.',
+    enforcement: { kind: 'scenario', refs: ['packages/core/src/combat/set3UndeadRunes.test.ts', 'packages/sim/src/set3UndeadRunes.test.ts'], lastVerifiedAt: '2026-11-23' },
+  },
+  {
+    id: 'R-SET3-UNDEAD-1123-07',
+    title: 'Night Watch: Start of Combat, a Spear Warden with double its bonus',
+    statement:
+      'At Start of Combat, summon a Spear Warden per copy held. Its Spear Warden bonus (the +4/+2 for every Spear Warden that died this game) counts twice: once from its summon and once more from the rune, and every Spear Warden death in that fight pays it twice. Rune of Twilight repeats it; the Shop\'s Start of Combat replays summon a real Warden with the doubled bonus.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner Set 3 rune review board, 2026-11-23 (new-concept runes, Undead)', quote: '"Start of Combat: summon a Spear Warden. It gets double its bonus."' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts runRuneStartOfCombat (NIGHT WATCH) + noteCardDeath (nightWatchUids)' },
+    ],
+    contentIds: ['rune_night_watch'],
+    currentBehaviour: 'Conforms (built with the rune, 2026-11-23).',
+    example: 'Two Spear Wardens died this game (+8/+4): the Night Watch Warden lands as a 4/2 with +16/+8.',
+    enforcement: { kind: 'scenario', refs: ['packages/core/src/combat/set3UndeadRunes.test.ts', 'packages/sim/src/set3UndeadRunes.test.ts'], lastVerifiedAt: '2026-11-23' },
+  },
+  {
+    id: 'R-SET3-UNDEAD-1123-08',
+    title: 'Requiem: every Undead Aura rise gives your Undead +1/+1 permanently, 5 times per turn',
+    statement:
+      'Every time your Undead Aura improves (any source, Attack or Health, in the Shop or in combat), your Undead on the board gain +1/+1 permanently, per copy held. It pays at most 5 times per turn, the Shop and that turn\'s combat together; the budget comes back at the start of each turn. Its own grant is a plain buff and never raises the Aura, so it cannot loop.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner Set 3 rune review board, 2026-11-23 (new-concept runes, Undead)', quote: '"Whenever your Undead Aura improves, give your Undead +1/+1 permanently." (design note: needs a cap check)' },
+      { kind: 'code', ref: 'packages/sim/src/set3UndeadRunes.ts requiemOnAuraRise (every Shop Aura writer); simulate.ts requiemCombat (grantUndeadAura / grantUndeadBuyAtk); reducer questCombatMods requiemLeft' },
+    ],
+    contentIds: ['rune_requiem'],
+    currentBehaviour: 'Conforms (built with the rune, 2026-11-23).',
+    example: 'Two Lanterns of Souls in the Shop, then four Aura rises in combat: 2 in the Shop and 3 in combat pay, the fourth combat one does not.',
+    enforcement: { kind: 'scenario', refs: ['packages/core/src/combat/set3UndeadRunes.test.ts', 'packages/sim/src/set3UndeadRunes.test.ts'], lastVerifiedAt: '2026-11-23' },
+  },
+  {
+    id: 'R-SET3-UNDEAD-1123-09',
+    title: 'Undying Legion: Avenge (5), get a random Undead and summon it from hand',
+    statement:
+      'Every 5th friendly death in combat, get a random Undead minion (from your pool, at or below your tier), then summon a copy of it from your hand the way Spirits do: the card stays in your hand. With a full hand or a full board you still get the card, but nothing is summoned. It is an Avenge rune, so Rune of Fury repeats it.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner Set 3 rune review board, 2026-11-23 (new-concept runes, Undead)', quote: 'OWNER NOTE: "Avenge (5): get a random Undead minion and summon it from hand."' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts runeAvenge(undyingLegionAvenge) (grantRandomMinion + summonCopyFromHand)' },
+    ],
+    contentIds: ['rune_undying_legion'],
+    currentBehaviour: 'Conforms (built with the rune, 2026-11-23).',
+    example: 'Five of your minions die in a fight: a random Undead reaches your hand and a copy of it joins the fight.',
+    enforcement: { kind: 'scenario', refs: ['packages/core/src/combat/set3UndeadRunes.test.ts', 'packages/sim/src/set3UndeadRunes.test.ts'], lastVerifiedAt: '2026-11-23' },
+  },
   // ── Set 3 rune design pass (owner 2026-09-27), tranche 2: Celestial (the Event Horizon slot is left empty) ──
   {
     id: 'R-SET3RUNE-14',

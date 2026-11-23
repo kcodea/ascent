@@ -2044,6 +2044,14 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   // gives Health = ceil(Attack / 2); restless = a risen body's Echo triggers; openGrave = the first Shop destroy each
   // turn gains Rise first (Shop only).
   | 'runeWake' | 'runeSecondWind' | 'runeSoulToll' | 'runeGravedigger' | 'runeSoulFurnace' | 'runeRestless' | 'runeOpenGrave'
+  // Set 3 new-concept runes, Undead (owner review 2026-11-23): shallowGraves = the first Undead bought each turn gains
+  // Rise (Shop); graveTithe = the 3rd friendly Rise of a combat banks 2 Gold; deadWeight = an Overflow raises the Undead
+  // Aura +2 Attack; rankAndFile = Footmen and Spear Wardens have Taunt; bonePile = Start of Combat, a Skeleton per 2
+  // Undead; secondBurial = a body that already Rose dies -> a Skeleton with its Attack; nightWatch = Start of Combat, a
+  // Spear Warden with double its bonus; requiem = an Undead Aura rise gives your Undead +1/+1 permanently (5 a turn);
+  // undyingLegion = Avenge (5), get a random Undead and summon it from hand.
+  | 'runeShallowGraves' | 'runeGraveTithe' | 'runeDeadWeight' | 'runeRankAndFile' | 'runeBonePile' | 'runeSecondBurial'
+  | 'runeNightWatch' | 'runeRequiem' | 'runeUndyingLegion'
   // Tranche 2 (Celestial): heraldingStar = a Celestial Shout gives your Starform +3/+3; stellarEchoes = Celestials carry
   // "Echo: give your Starform +2/+2"; scatteredLight = buying the Starform Collapses it instead (Shop only);
   // afterglow = the Starform leaving the Shop gets a Star Crash (Shop only); starsong = a Celestial Shout gives your
@@ -2678,6 +2686,25 @@ export interface QuestCombatMods {
   runeSoulFurnace?: boolean;
   /** Rune of the Restless: every friendly Rise triggers the risen body's Echo (the shared forced-Echo path). */
   runeRestless?: boolean;
+  // ── Set 3 new-concept runes, Undead (owner review 2026-11-23). Copies ride `flagCopies`; numbers in SET3_UNDEAD_RUNES. ──
+  /** Grave Tithe: the 3rd friendly Rise of the fight banks 2 Gold next turn (`grantBonusGold`), once per combat. */
+  runeGraveTithe?: boolean;
+  /** Dead Weight: every friendly Overflow raises the Undead Aura +2 Attack (the Lantern channel, carried back). */
+  runeDeadWeight?: boolean;
+  /** Rank and File: every friendly Footman and Spear Warden summoned this fight has Taunt. */
+  runeRankAndFile?: boolean;
+  /** Bone Pile: Start of Combat, summon a Skeleton for every 2 living friendly Undead. */
+  runeBonePile?: boolean;
+  /** Second Burial: a friendly body that already Rose this fight dies -> summon a Skeleton with its Attack. */
+  runeSecondBurial?: boolean;
+  /** Night Watch: Start of Combat, summon a Spear Warden that gets double its death-count bonus. */
+  runeNightWatch?: boolean;
+  /** Requiem: every Undead Aura rise gives the living friendly Undead +1/+1 permanently, `requiemLeft` more times
+   *  this turn (the Shop's uses already spent; the cap is SET3_UNDEAD_RUNES.requiemPerTurn). */
+  runeRequiem?: boolean;
+  requiemLeft?: number;
+  /** Undying Legion: Avenge (5), get a random Undead minion and summon a copy of it from hand (the Spirit path). */
+  runeUndyingLegion?: boolean;
   // ── Set 3 rune design pass (owner 2026-09-27), tranche 2: Celestial ──
   /** Rune of the Heralding Star: a friendly Celestial's Shout fire banks +3/+3 for your Starform (`starformGain`). */
   runeHeraldingStar?: boolean;

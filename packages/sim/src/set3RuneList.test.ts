@@ -61,10 +61,14 @@ const OWNER_LIST: Record<string, { basic: Record<string, string>; epic: Record<s
     basic: { 'basic undead': 'rune_basic_undead', 'last rites': 'rune_last_rites', 'spear warden': 'rune_warden', /* 'soul script': PARKED 2026-10-14 (Celestial swap) */ 'body counting': 'rune_body_counting' /* batch 3, 2026-09-25 */,
       'crowded crypt': 'rune_crowded_crypt' /* re-tagged Neutral -> Undead, 2026-09-27 design pass */,
       // Design pass tranche 1 (owner 2026-09-27): Soul Toll replaces the doc's Unquiet.
-      'lantern keeper': 'rune_lantern_keeper', wake: 'rune_wake', 'second wind': 'rune_second_wind', 'soul toll': 'rune_soul_toll', gravedigger: 'rune_gravedigger' },
+      'lantern keeper': 'rune_lantern_keeper', wake: 'rune_wake', 'second wind': 'rune_second_wind', 'soul toll': 'rune_soul_toll', gravedigger: 'rune_gravedigger',
+      // Set 3 Undead new-concept runes (owner review 2026-11-23): five Basics JOIN the list.
+      'shallow graves': 'rune_shallow_graves', 'grave tithe': 'rune_grave_tithe', 'dead weight': 'rune_dead_weight', 'rank and file': 'rune_rank_and_file', 'bone pile': 'rune_bone_pile' },
     epic: { 'epic undead': 'rune_epic_undead', 'death touched apple': 'rune_deathtouched_apple', 'endless march': 'rune_endless_march', 'final gate': 'rune_final_gate', spearline: 'rune_spearline',
       overflow: 'rune_overflow', 'rising echoes': 'rune_rising_echoes' /* re-tagged Neutral -> Undead, 2026-09-27 design pass */,
-      'soul furnace': 'rune_soul_furnace', restless: 'rune_restless', 'open grave': 'rune_open_grave' /* design pass tranche 1 */ },
+      'soul furnace': 'rune_soul_furnace', restless: 'rune_restless', 'open grave': 'rune_open_grave' /* design pass tranche 1 */,
+      // Set 3 Undead new-concept runes (owner review 2026-11-23): four Epics JOIN the list.
+      'second burial': 'rune_second_burial', 'night watch': 'rune_night_watch', requiem: 'rune_requiem', 'undying legion': 'rune_undying_legion' },
   },
   spirit: {
     basic: {
@@ -182,7 +186,7 @@ describe("the owner's Set 3 rune list (2026-09-25)", () => {
   it('names 203 distinct runes, every one a live (non-archived) rune def', () => {
     // 163 + 11 from Set 3 rune batch 3 (2026-09-25) = 174; the 2026-09-27 design pass: tranche 0 cut 10, restored 5 (169);
     // tranche 1 added 8 Undead (177); tranche 2 added 8 Celestial (185); tranche 3 added 4 Spirit + 3 Dwarf (192); tranche 4 added 8 hybrids (200); tranche 5 added the Set 3 Menagerie, Unity and the Heavy Hand (203); Rune of Drakko 2026-10-03 (204); Profit Sharing archived everywhere 2026-10-07 (203).
-    expect(LISTED).toHaveLength(204); // 202 → 204 on 2026-10-23 (Set 3 Dwarf runes: + 1 Basic, + 1 Epic); 197 → 202 on 2026-10-22 (Set 3 Kobold runes: + 3 Basic, + 2 Epic); 193 → 197 on 2026-10-21 (Set 3 Dragon runes, Epic B: + 4); 186 → 193 on 2026-10-21 (Set 3 Dragon runes, Epic A: + 7); 175 → 186 on 2026-10-21 (Set 3 Dragon runes, Basic: + 11); 176 → 175 on 2026-10-21 (Rune of the High King left set 3: Brill is buyable there); 200 → 176 on 2026-10-14 (owner swap: 20 Celestial runes to Set 4, 4 Celestial hybrids parked); 203 → 200 on 2026-10-13 (owner Set 3 batch: Red Storm + Storming Veins archived, Living Geode left set 3)
+    expect(LISTED).toHaveLength(213); // 204 → 213 on 2026-11-23 (Set 3 Undead new-concept runes: + 5 Basic, + 4 Epic); 202 → 204 on 2026-10-23 (Set 3 Dwarf runes: + 1 Basic, + 1 Epic); 197 → 202 on 2026-10-22 (Set 3 Kobold runes: + 3 Basic, + 2 Epic); 193 → 197 on 2026-10-21 (Set 3 Dragon runes, Epic B: + 4); 186 → 193 on 2026-10-21 (Set 3 Dragon runes, Epic A: + 7); 175 → 186 on 2026-10-21 (Set 3 Dragon runes, Basic: + 11); 176 → 175 on 2026-10-21 (Rune of the High King left set 3: Brill is buyable there); 200 → 176 on 2026-10-14 (owner swap: 20 Celestial runes to Set 4, 4 Celestial hybrids parked); 203 → 200 on 2026-10-13 (owner Set 3 batch: Red Storm + Storming Veins archived, Living Geode left set 3)
     expect(new Set(LISTED).size, 'no rune named twice').toBe(LISTED.length);
     for (const id of LISTED) {
       expect(LIVE.some((r) => r.id === id), `${id} is a live rune`).toBe(true);
@@ -207,8 +211,8 @@ describe("the owner's Set 3 rune list (2026-09-25)", () => {
   });
 
   it('counts: 109 Basic / 94 Epic, after Profit Sharing left 2026-10-07 (91 / 83 on 2026-09-25; 2026-09-27 tranche 0: 87 / 82; tranche 1: + 5 / + 3 Undead; tranche 2: + 5 / + 3 Celestial; tranche 3: + 5 / + 2 Spirit + Dwarf; tranche 4: + 5 / + 3 hybrids; tranche 5: + 2 / + 1 Menagerie + Heavy Hand)', () => {
-    expect(LISTED.filter((id) => RUNES.some((r) => r.id === id))).toHaveLength(110); // 109 → 110 on 2026-10-23 (Set 3 Dwarf rune, Basic: Last Call); 106 → 109 on 2026-10-22 (Set 3 Kobold runes, Basic); 95 → 106 on 2026-10-21 (Set 3 Dragon runes, Basic); 107 → 95 on 2026-10-14 (Celestial swap); 109 → 107 on 2026-10-13 (Red Storm archived, Living Geode left set 3)
-    expect(LISTED.filter((id) => EPIC_RUNES.some((r) => r.id === id))).toHaveLength(94); // 93 → 94 on 2026-10-23 (Set 3 Dwarf rune, Epic: Return Customers); 91 → 93 on 2026-10-22 (Set 3 Kobold runes, Epic); 87 → 91 on 2026-10-21 (Set 3 Dragon runes, Epic B); 80 → 87 on 2026-10-21 (Set 3 Dragon runes, Epic A); 81 → 80 on 2026-10-21 (Rune of the High King left set 3); 93 → 81 on 2026-10-14 (Celestial swap); 94 → 93 on 2026-10-13 (Storming Veins archived) // 95 → 94 on 2026-10-07 (Profit Sharing archived); 94 → 95 on 2026-10-03 (Rune of Drakko)
+    expect(LISTED.filter((id) => RUNES.some((r) => r.id === id))).toHaveLength(115); // 110 → 115 on 2026-11-23 (Set 3 Undead new-concept runes, Basic); 109 → 110 on 2026-10-23 (Set 3 Dwarf rune, Basic: Last Call); 106 → 109 on 2026-10-22 (Set 3 Kobold runes, Basic); 95 → 106 on 2026-10-21 (Set 3 Dragon runes, Basic); 107 → 95 on 2026-10-14 (Celestial swap); 109 → 107 on 2026-10-13 (Red Storm archived, Living Geode left set 3)
+    expect(LISTED.filter((id) => EPIC_RUNES.some((r) => r.id === id))).toHaveLength(98); // 94 → 98 on 2026-11-23 (Set 3 Undead new-concept runes, Epic); 93 → 94 on 2026-10-23 (Set 3 Dwarf rune, Epic: Return Customers); 91 → 93 on 2026-10-22 (Set 3 Kobold runes, Epic); 87 → 91 on 2026-10-21 (Set 3 Dragon runes, Epic B); 80 → 87 on 2026-10-21 (Set 3 Dragon runes, Epic A); 81 → 80 on 2026-10-21 (Rune of the High King left set 3); 93 → 81 on 2026-10-14 (Celestial swap); 94 → 93 on 2026-10-13 (Storming Veins archived) // 95 → 94 on 2026-10-07 (Profit Sharing archived); 94 → 95 on 2026-10-03 (Rune of Drakko)
   });
 
   it('every rune NOT named is out of Set 3, still resolves, and keeps its other sets (never archived)', () => {

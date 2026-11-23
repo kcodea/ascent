@@ -42,6 +42,7 @@ import { runeStacksOf } from './runeDup';
 import { defiantWingsShop, openTreasuryOnBuy, spellFedScalesOnCast, whisperCastShop } from './dragonRunesBasic';
 import { discoverOptionCount, goldenHandshakeOnGild, piggyBankTick, shieldWallShop } from './set2RunesBasicNeutral';
 import { collectionsOnSale, drunkShopkeeperOnCast, flamekeeperOnCast, impLegionGraft, roughCutShop } from './set2RunesBasicTribal'; // Set 2 rune batch, Basic tribal
+import { deadWeightOnOverflow, rankAndFileGraft, requiemOnAuraRise, secondBurialNoteRise, secondBurialOnShopDeath, set3UndeadSocReplays, shallowGravesOnBuy } from './set3UndeadRunes'; // Set 3 Undead runes (2026-11-23)
 import { sequencingOnCast } from './runeSequencing'; // Set 2 Epic Dragon rune Sequencing (2026-11-14)
 
 /**
@@ -502,6 +503,7 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
       // already, so raising it IS the whole grant — a board loop on top would double-apply it.
       state.undeadAttackBonus += a;
       state.undeadHealthBonus += h;
+      if (a > 0 || h > 0) requiemOnAuraRise(state); // Set 3 Undead rune Requiem hears every Aura rise
     },
     grantRubies: (count) => { mintRubies(state, count); },
     grantRandomRubies: (count) => { mintRandomRubies(state, count); },
@@ -1163,6 +1165,7 @@ export function buffUndeadAttackEverywhere(state: RunState, amount: number, sour
     if (isTribeNatural(card, 'undead')) addBuff(card, source, amount, 0); // a Unity body folds it instead (foldedAuraOf)
   }
   state.undeadBuyAtk = (state.undeadBuyAtk ?? 0) + amount;
+  requiemOnAuraRise(state); // Set 3 Undead rune Requiem hears every Aura rise
   // Rune of Soul Script: the Starform counts as Undead, so the Aura reaches the token too (a gain — rule 8).
   if (state.runeSoulScript && hasStarform(state)) buffStarform(state, amount, 0, source);
 }
@@ -3959,6 +3962,7 @@ export function afterShopDestroy(state: RunState, destroyed: BoardCard): void {
   noteShopCardDeath(state, destroyed);
   ancientOnShopDeath(state, destroyed); // ANCIENT OF WAR, Shop half (a no-op unless the run has it)
   runeGravediggerShop(state, destroyed); // RUNE OF THE GRAVEDIGGER (Set 3 design pass)
+  secondBurialOnShopDeath(state, destroyed); // Set 3 Undead rune Second Burial: a body that already Rose
   if (!state.runeLastRites || state.lastRitesUsedThisTurn || !isTribe(destroyed, 'undead')) return;
   const def = CARD_INDEX[destroyed.cardId];
   if (!def) return;
@@ -4053,6 +4057,7 @@ function riseReturn(state: RunState, target: BoardCard, slot: number, summonedFr
   const grew = state.board.length - summonedFrom;
   const at = Math.min(state.board.length, slot + Math.max(0, grew));
   state.board.splice(at, 0, risen);
+  secondBurialNoteRise(state, risen); // Set 3 Undead rune Second Burial: this body has now Risen
   // Set 3 batch 2: the risen body is built fresh, so the rune grafts are re-stamped BEFORE `fireOnRise` runs —
   // Rune of the Endless March's "when THIS Rises" lives on the riser itself.
   applyRuneGrafts(state, risen);
@@ -4102,6 +4107,7 @@ export function fireSummonOverflow(state: RunState): void {
       for (const c of state.board) addBuff(c, 'Crowded Crypt', cc.attack * reps, cc.health * reps);
     });
   }
+  deadWeightOnOverflow(state, raiseUndeadAuraShop); // Set 3 Undead rune Dead Weight: the Undead Aura +2 Attack
   const ctx = makeContext(state);
   for (const c of [...state.board]) {
     const def = CARD_INDEX[c.cardId];
@@ -9996,6 +10002,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     if (str(params.tribe) === 'undead') {
       ctx.state.undeadAttackBonus += num(params.amount, 1) + spellAttackBonus(ctx.state);
       ctx.state.undeadHealthBonus += spellHealthBonus(ctx.state);
+      requiemOnAuraRise(ctx.state); // Set 3 Undead rune Requiem hears every Aura rise
     }
   },
 
@@ -13877,6 +13884,7 @@ export const ENDLESS_MARCH_TOKEN = 'knit';
 export function applyRuneGrafts(state: RunState, card: BoardCard): void {
   const rallyGold = ancientRallyGoldGraft(state); // ANCIENT OF WAR × Tradesman
   const gildedEcho = ancientGildedEchoGraft(state); // ANCIENT OF DEATH × Midas
+  rankAndFileGraft(state, card); // Set 3 Undead rune Rank and File: Footmen and Spear Wardens carry Taunt
   if (!state.runeEndlessMarch && !state.runeLastTool && !state.questFlags?.runeEchoingKobolds && !state.questFlags?.runeAggressiveGolems && !state.questFlags?.runeStellarEchoes && !rallyGold && !gildedEcho && !state.questFlags?.runeImpLegion) return;
   const def = CARD_INDEX[card.cardId];
   if (!def || def.spell || def.ruby) return;
@@ -13966,6 +13974,7 @@ export function effectiveTargetTribe(state: RunState, def: CardDef | undefined):
 export function applyOnBuy(state: RunState, bought: BoardCard): void {
   applySecondLife(state, bought); // Rune of the Second Life: a Scavver arrives already carrying Taunt + Rise
   applyRuneGrafts(state, bought); // Set 3 batch 2: the Endless March / Last Tool grafts ride the bought body
+  if (state.questFlags?.runeShallowGraves) shallowGravesOnBuy(state, bought); // Set 3 Undead rune Shallow Graves: the turn's first Undead bought gains Rise
   const ctx = makeContext(state);
   // RUNE OF THE BANQUET HALL (owner rework 2026-09-23): the turn's FIRST buy — any minion, Shop-buffed or not —
   // hands its CURRENT stats (what the body is after the buy baked in the offer's buffs) to 2 random OTHER
@@ -15744,6 +15753,7 @@ export function socRuneReplaysOf(state: RunState): SocRuneReplay[] {
       for (const c of ends) if (st.board.includes(c)) replayBattlecry(st, c);
     }
   } });
+  out.push(...set3UndeadSocReplays(state)); // Set 3 Undead runes Bone Pile / Night Watch (2026-11-23)
   return out;
 }
 
@@ -17816,6 +17826,7 @@ export function raiseUndeadAuraShop(state: RunState, attack: number): void {
   if (attack <= 0) return;
   state.undeadAttackBonus = (state.undeadAttackBonus ?? 0) + attack;
   syncSoulFurnace(state);
+  requiemOnAuraRise(state); // Set 3 Undead rune Requiem hears every Aura rise
 }
 
 /** RUNE OF THE WAKE, Shop half: `triggers` Undead Echo triggers each raise the Undead Aura +1 Attack per copy. */

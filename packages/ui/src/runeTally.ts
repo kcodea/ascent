@@ -1,7 +1,8 @@
 import { RETURN_CUSTOMERS_PER_TURN, CLEAR_VOICES_DISTINCT, SPELL_TEMPERING_PER, kindredHandValue, grimToastFold, GEM_STAR_CAP, unityTypeCount, runeStacksOf, PACKCRAFT_STEP, REINVESTMENT_PER_SUMMON, REVELER_METER, SLAYING_KILLS, INVESTMENT_SELLS, ANCESTRAL_ROAR_STEP, recurringTickCount, duosRuneTally, type RunState, type RuneLiveState } from '@game/sim';
 import { countedGoldSpentThisTurn } from '@game/sim';
+import { requiemLeftThisTurn } from '@game/sim';
 import { CARD_INDEX } from '@game/content';
-import { COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, DRAGON_RUNES_BASIC, GOLEMING_AVENGE, SET2_BASIC_NEUTRAL, SET2_TRIBAL_RUNES, ROYAL_TREASURY_PER, SEQUENCING_DISTINCT } from '@game/core';
+import { COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, DRAGON_RUNES_BASIC, GOLEMING_AVENGE, SET2_BASIC_NEUTRAL, SET2_TRIBAL_RUNES, ROYAL_TREASURY_PER, SEQUENCING_DISTINCT, SET3_UNDEAD_RUNES } from '@game/core';
 
 /**
  * LIVE RUNE TALLIES (owner ask 2026-08-03: "make sure our runes/quests all have tally trackers like the
@@ -75,6 +76,10 @@ export function runeTally(run: RunState, runeId: string): string | null {
   if (runeId === 'rune_gem_star' && run.questFlags?.runeGemStar) return `${Math.min(GEM_STAR_CAP, run.gemStarThisTurn ?? 0)}/${GEM_STAR_CAP}`;
   // RUNE OF THE OPEN GRAVE: its one charge a turn, as the War Drum shows it (1 ready, 0 spent).
   if (runeId === 'rune_open_grave' && run.questFlags?.runeOpenGrave) return run.openGraveUsedThisTurn ? '0/1' : '1/1';
+  // SET 3 UNDEAD RUNES (2026-11-23). Shallow Graves: its one charge a turn (1 ready, 0 spent). Requiem: what is left of
+  // its 5 a turn (the live-value rule: the cap is part of the printed text).
+  if (runeId === 'rune_shallow_graves' && run.questFlags?.runeShallowGraves) return run.shallowGravesUsedThisTurn ? '0/1' : '1/1';
+  if (runeId === 'rune_requiem' && run.questFlags?.runeRequiem) return `${requiemLeftThisTurn(run)}/${SET3_UNDEAD_RUNES.requiemPerTurn}`;
   // ── Set 3 Dragon runes, Basic (owner 2026-10-21): the N/X integer counter convention. ──
   // Rune of Clear Voices: distinct Whispers cast from hand this turn, toward the 3 that pay (full once paid this turn).
   if (runeId === 'rune_clear_voices' && run.questFlags?.runeClearVoices) {
@@ -346,6 +351,7 @@ const RUNE_DEATHS_PER: Record<string, number> = {
   rune_soul_toll: 4, // Set 3 design pass (2026-09-27): Avenge (4) raises the Undead Aura
   rune_final_utterance: DRAGON_RUNES_BASIC.finalUtteranceAvenge, // Set 3 Dragon runes (2026-10-21): Avenge (4), a Whisper and a Shop Spell
   rune_goleming: GOLEMING_AVENGE, // Set 3 Kobold runes (2026-10-22): Avenge (5), a Gemheart Golem with 6 Rubies cast on it
+  rune_undying_legion: SET3_UNDEAD_RUNES.undyingLegionAvenge, // Set 3 Undead runes (2026-11-23): Avenge (5), a random Undead summoned from hand
 };
 const RUNE_SUMMONS_PER: Record<string, number> = { rune_remains: 5 };
 
@@ -361,7 +367,12 @@ export function runeLiveTally(runeId: string, live: RuneLiveState | null | undef
   return null;
 }
 
-export function runeCombatTally(runeId: string, deaths: number, summons: number, reinvestCopies = 1, fires = 0): string | null {
+export function runeCombatTally(runeId: string, deaths: number, summons: number, reinvestCopies = 1, fires = 0, run?: RunState): string | null {
+  // REQUIEM (Set 3 Undead rune, 2026-11-23): what is left of its 5 a turn, live: the Shop's leftover budget less this
+  // fight's fires (each fire is one paid Aura rise).
+  if (runeId === 'rune_requiem' && run?.questFlags?.runeRequiem) return `${Math.max(0, requiemLeftThisTurn(run) - fires)}/${SET3_UNDEAD_RUNES.requiemPerTurn}`;
+  // GRAVE TITHE: its once-per-combat payout, spent (1/1) once the fight's 3rd Rise paid it.
+  if (runeId === 'rune_grave_tithe') return `${Math.min(fires, 1)}/1`;
   // TROPHY HUNTER (Set 2 rune batch, 2026-11-13): "(3 per combat.)" Its paid kills this fight out of the 3 (the replay's
   // own trigger count for the badge, `fires`), so the cap is visible as it fills.
   if (runeId === 'rune_trophy_hunter') return `${Math.min(fires, SET2_TRIBAL_RUNES.trophyHunterPerCombat)}/${SET2_TRIBAL_RUNES.trophyHunterPerCombat}`;

@@ -50,6 +50,7 @@ const OWNER_TRIBE_RULINGS: Readonly<Record<string, Tribe>> = {
   rune_living_treasure: 'kobold', rune_rising_echoes: 'undead', rune_crowded_crypt: 'undead', rune_overflow: 'undead', rune_dreamed_graves: 'spirit',
   // Design pass tranche 1 (owner-approved Undead runes, 2026-09-27): Rise is the Undead keyword.
   rune_second_wind: 'undead', rune_restless: 'undead', rune_open_grave: 'undead',
+  rune_grave_tithe: 'undead', rune_second_burial: 'undead', rune_rank_and_file: 'undead', rune_night_watch: 'undead', // Set 3 Undead runes (2026-11-23): Rise / Footmen / Spear Wardens are Undead
   // Design pass tranche 4 (owner 2026-09-27: "When you spend 8 Gold, get a random Ruby."): a Kobold + Dwarf hybrid, and
   // Gold spent is the Dwarf line (Mountainbond's seam), which the name-matcher cannot read.
   rune_minted_gems: 'dwarf',

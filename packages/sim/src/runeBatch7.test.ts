@@ -132,7 +132,7 @@ describe("the three runes ship as specced", () => {
 
   it("only Living Treasure is set-2 scoped — Gemheart Golems are a set-2 token", () => {
     expect(byName('Living Treasure')!.sets).toEqual(['set2', 'set3']); // + set3 2026-09-14 (rune roster carryover)
-    expect(byName('Blood and Coin')!.sets).toEqual(['set1', 'set2']); // CUT FROM SET 3 2026-09-25 (owner's Set 3 rune list)
+    expect(byName('Blood and Coin')!.sets).toEqual(['set1', 'set2', 'set3']); // + set3 2026-11-23 (owner Set 3 rune review board); // CUT FROM SET 3 2026-09-25 (owner's Set 3 rune list)
     expect(byName('Wild Hunt')!.sets).toEqual(['set1', 'set2']); // CUT FROM SET 3 2026-09-24 (owner) (Beast rune)
   });
 });

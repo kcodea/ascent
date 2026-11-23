@@ -21,6 +21,7 @@ import { CARD_INDEX, EPIC_RUNES, RUNES, RUNE_INDEX, SETS, poolFor } from '@game/
 import { CONFIG, createRun, reduce, type Action, type BoardCard, type RunState } from './index';
 import { applyEndOfTurn, destroyMinionInShop, makeContext, projectEndOfTurnSteps, questEndOfTurnBeats } from './recruit';
 import { snapshotBoard } from './snapshot';
+import { withSet3 } from './set3ReviewJoined';
 import { runeTally } from '../../ui/src/runeTally';
 
 // ── Shop helpers ────────────────────────────────────────────────────────────────────────────────────────────────
@@ -83,7 +84,7 @@ describe('the ten runes as content', () => {
     ];
     for (const [id, name, cost, tribe, text] of rows) {
       const r = RUNE_INDEX[id]!;
-      expect([r.name, r.cost, r.text, r.sets, r.tribes, r.epic]).toEqual([name, cost, text, ['set2'], [tribe], true]);
+      expect([r.name, r.cost, r.text, r.sets, r.tribes, r.epic]).toEqual([name, cost, text, withSet3(id, ['set2']), id === 'rune_wildfire' ? undefined : [tribe], true]); // Wildfire lost its Demon tag 2026-11-23 (owner Set 3 rune review)
       expect(EPIC_RUNES.some((x) => x.id === id), `${id} is an Epic rune`).toBe(true);
       expect(RUNES.some((x) => x.id === id)).toBe(false);
       expect(r.text).not.toMatch(/—|--|Oath|climb/);

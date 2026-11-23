@@ -139,6 +139,8 @@ describe('Doc Bot — the Shop never overflows its capacity', () => {
       + 'card" — the player is deliberately stocking the row. A roll clears the printed cards back to slot size',
     'reducer.ts offerTopShelf': 'pushes only when `s.shop.length < tierSlots(s.tier)`, otherwise REPLACES the right-most '
       + 'minion offer not above your Tier (Rune of Top Shelf, Set 2 Epic, 2026-11-13; the Open Enrollment shape)',
+    'reducer.ts guaranteeTopShelf': 'pushes at most `tierSlots(s.tier) - s.shop.length` new offers (the free slots), otherwise '
+      + 'REPLACES the right-most minion offers in place (Top Shelf at the top Tier, owner 2026-11-23)',
   };
 
   it('every `shop.push` site is declared with its bound', () => {

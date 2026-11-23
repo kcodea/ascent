@@ -11,6 +11,7 @@ import { describe, expect, it } from 'vitest';
 import { EPIC_RUNES, RUNES, RUNE_INDEX, SETS, type SetId } from '@game/content';
 import type { Tribe } from '@game/core';
 import { runeforgePool } from './reducer';
+import { SET3_REVIEW_JOINED, withSet3 } from './set3ReviewJoined';
 import { createRun, type RunState } from './index';
 
 /** The owner's named cuts → the sets each is still offered in afterwards. Grave Orbit and Full Hand were
@@ -70,7 +71,8 @@ describe('Set 3 rune cuts (owner 2026-09-24)', () => {
     // Every tribe in the game, not just Set 3's: the `sets` scope must hold on its own, not only via the tribe gate.
     const everyTribe: Tribe[] = ['beast', 'dragon', 'undead', 'mech', 'demon', 'kobold', 'dwarf', 'spirit', 'celestial'];
     const s3 = offerable('set3', everyTribe);
-    for (const id of CUT) {
+    // The owner's Set 3 rune review board (2026-11-23) brought some cuts BACK; they are pinned in set3RuneReview.test.ts.
+    for (const id of CUT.filter((x) => !SET3_REVIEW_JOINED.includes(x))) {
       expect(RUNE_INDEX[id]!.sets, `${id} is scoped`).toBeDefined();
       expect(RUNE_INDEX[id]!.sets!.includes('set3'), `${id} left set 3`).toBe(false);
       expect(s3.has(id), `${id} offered in a Set 3 run`).toBe(false);
@@ -80,7 +82,7 @@ describe('Set 3 rune cuts (owner 2026-09-24)', () => {
   it('the named cuts are still offered in every other set they belonged to', () => {
     const pools = { set1: offerable('set1'), set2: offerable('set2') };
     for (const [id, sets] of Object.entries(NAMED)) {
-      expect([...(RUNE_INDEX[id]!.sets ?? [])].sort(), id).toEqual([...sets].sort());
+      expect([...(RUNE_INDEX[id]!.sets ?? [])].sort(), id).toEqual([...withSet3(id, sets)!].sort());
       // The tribe gate still applies: Pillaging and Soul Taxes keep their set 2 scope, but set 2 fields no Undead.
       const tribes = RUNE_INDEX[id]!.tribes;
       for (const set of sets) {
@@ -93,7 +95,7 @@ describe('Set 3 rune cuts (owner 2026-09-24)', () => {
   it('the tribal cuts stay offered in set 1 and set 2 when their tribe is rolled', () => {
     const pools = { set1: offerable('set1'), set2: offerable('set2') };
     for (const id of TRIBAL) {
-      expect([...RUNE_INDEX[id]!.sets!].sort(), id).toEqual(['set1', 'set2']);
+      expect([...RUNE_INDEX[id]!.sets!].sort(), id).toEqual(withSet3(id, ['set1', 'set2']));
       const tribes = RUNE_INDEX[id]!.tribes!;
       // Pinned to Set 3's tribes AT THE CUT (2026-09-24). Dragon joined Set 3 on 2026-10-14 (owner swap), so the cut
       // Dragon runes now name a Set 3 tribe; whether any of them RETURN to Set 3 is an open owner call (they stay cut).
@@ -114,8 +116,8 @@ describe('Set 3 rune cuts (owner 2026-09-24)', () => {
 
   it('the Set 3 static pool counts: 91 Basic / 83 Epic (owner Set 3 rune list 2026-09-25: 84 / 79 after Engraving Gems moved Epic → Basic, then rune batch 3 +7 / +4; was 119 / 108)', () => {
     const inS3 = (arr: typeof RUNES) => arr.filter((r) => !r.duos && (!r.sets || r.sets.includes('set3'))); // Duos-only runes are a Duos forge's, not the static pool
-    expect(inS3(RUNES)).toHaveLength(110); // 109 → 110 on 2026-10-23 (Set 3 Dwarf rune, Basic: Last Call); 106 → 109 on 2026-10-22 (Set 3 Kobold runes, Basic); 95 → 106 on 2026-10-21 (Set 3 Dragon runes, Basic); 107 → 95 on 2026-10-14 (owner swap: 10 Celestial Basics moved to Set 4, Soul Script + Star Tap parked);  109 → 107 on 2026-10-13 (owner Set 3 batch: Red Storm archived, Living Geode left set 3); 107 → 109 on 2026-09-27 (design pass tranche 5); 102 → 107 on 2026-09-27 (design pass tranche 4); 97 → 102 on 2026-09-27 (design pass tranche 3); 92 → 97 on 2026-09-27 (design pass tranche 2); 87 → 92 on 2026-09-27 (design pass tranche 1); 91 → 87 on 2026-09-27 (design pass tranche 0: −7 cut, +3 restored); 84 → 91 on 2026-09-25 (Set 3 rune batch 3); 83 → 84 on 2026-09-25: Engraving Gems moved Epic → Basic (owner); 119 → 83 on 2026-09-25 (set3RuneList.test.ts pins the exact ids)
-    expect(inS3(EPIC_RUNES)).toHaveLength(94); // 93 → 94 on 2026-10-23 (Set 3 Dwarf rune, Epic: Return Customers); 91 → 93 on 2026-10-22 (Set 3 Kobold runes, Epic); 87 → 91 on 2026-10-21 (Set 3 Dragon runes, Epic B: four Whisper Epics); 80 → 87 on 2026-10-21 (Set 3 Dragon runes, Epic A); 81 → 80 on 2026-10-21 (Rune of the High King left set 3: Brill is buyable there); 93 → 81 on 2026-10-14 (owner swap: 10 Celestial Epics moved to Set 4, Gem Star + Festival Circuit parked); 94 → 93 on 2026-10-13 (Storming Veins archived, owner Set 3 batch); 95 → 94 on 2026-10-07 (Profit Sharing archived everywhere); 94 → 95 on 2026-10-03 (Rune of Drakko); 93 → 94 on 2026-09-27 (design pass tranche 5); 90 → 93 on 2026-09-27 (design pass tranche 4); 88 → 90 on 2026-09-27 (design pass tranche 3); 85 → 88 on 2026-09-27 (design pass tranche 2); 82 → 85 on 2026-09-27 (design pass tranche 1); 83 → 82 on 2026-09-27 (design pass tranche 0: −3 cut, +2 restored); 79 → 83 on 2026-09-25 (Set 3 rune batch 3); 80 → 79 on 2026-09-25: Engraving Gems moved Epic → Basic (owner); 108 → 80 on 2026-09-25
+    expect(inS3(RUNES)).toHaveLength(146); // + the owner Set 3 rune review board 2026-11-23: +36 Basic (110 → 146); 109 → 110 on 2026-10-23 (Set 3 Dwarf rune, Basic: Last Call); 106 → 109 on 2026-10-22 (Set 3 Kobold runes, Basic); 95 → 106 on 2026-10-21 (Set 3 Dragon runes, Basic); 107 → 95 on 2026-10-14 (owner swap: 10 Celestial Basics moved to Set 4, Soul Script + Star Tap parked);  109 → 107 on 2026-10-13 (owner Set 3 batch: Red Storm archived, Living Geode left set 3); 107 → 109 on 2026-09-27 (design pass tranche 5); 102 → 107 on 2026-09-27 (design pass tranche 4); 97 → 102 on 2026-09-27 (design pass tranche 3); 92 → 97 on 2026-09-27 (design pass tranche 2); 87 → 92 on 2026-09-27 (design pass tranche 1); 91 → 87 on 2026-09-27 (design pass tranche 0: −7 cut, +3 restored); 84 → 91 on 2026-09-25 (Set 3 rune batch 3); 83 → 84 on 2026-09-25: Engraving Gems moved Epic → Basic (owner); 119 → 83 on 2026-09-25 (set3RuneList.test.ts pins the exact ids)
+    expect(inS3(EPIC_RUNES)).toHaveLength(126); // + the owner Set 3 rune review board 2026-11-23: +32 Epic (94 → 126); 93 → 94 on 2026-10-23 (Set 3 Dwarf rune, Epic: Return Customers); 91 → 93 on 2026-10-22 (Set 3 Kobold runes, Epic); 87 → 91 on 2026-10-21 (Set 3 Dragon runes, Epic B: four Whisper Epics); 80 → 87 on 2026-10-21 (Set 3 Dragon runes, Epic A); 81 → 80 on 2026-10-21 (Rune of the High King left set 3: Brill is buyable there); 93 → 81 on 2026-10-14 (owner swap: 10 Celestial Epics moved to Set 4, Gem Star + Festival Circuit parked); 94 → 93 on 2026-10-13 (Storming Veins archived, owner Set 3 batch); 95 → 94 on 2026-10-07 (Profit Sharing archived everywhere); 94 → 95 on 2026-10-03 (Rune of Drakko); 93 → 94 on 2026-09-27 (design pass tranche 5); 90 → 93 on 2026-09-27 (design pass tranche 4); 88 → 90 on 2026-09-27 (design pass tranche 3); 85 → 88 on 2026-09-27 (design pass tranche 2); 82 → 85 on 2026-09-27 (design pass tranche 1); 83 → 82 on 2026-09-27 (design pass tranche 0: −3 cut, +2 restored); 79 → 83 on 2026-09-25 (Set 3 rune batch 3); 80 → 79 on 2026-09-25: Engraving Gems moved Epic → Basic (owner); 108 → 80 on 2026-09-25
     // 26/28 → 25/27 on 2026-09-24: Full Hand (Basic) and Grave Orbit (Epic) left the cut list for the archive
     // 25/27 → 20/23 on 2026-10-07: eight cut runes archived everywhere (5 Basic, 3 Epic) and Ascension (Epic) made neutral
     expect(CUT.filter((id) => !isEpic(id))).toHaveLength(20);

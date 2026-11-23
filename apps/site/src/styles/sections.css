@@ -194,8 +194,8 @@ html:not(.is-other, .is-mobile) .top :is(.download__platform, .download__note) {
   text-shadow: 0 1px 8px var(--night);
 }
 
-/* A quiet cue that the page carries on below: a small chevron at the foot of the top section, which also jumps to the
-   next section. Faint until hovered. */
+/* A quiet cue that the page carries on below: three stacked chevrons in faded gold at the foot of the top section,
+   each a little stronger than the one above it, which also jump to the next section. Faint until hovered. */
 .top__more {
   position: absolute;
   bottom: clamp(1rem, 3vh, 2.25rem);
@@ -203,16 +203,24 @@ html:not(.is-other, .is-mobile) .top :is(.download__platform, .download__note) {
   display: grid;
   place-items: center;
   width: 44px;
-  height: 44px;
+  height: 48px;
   margin-left: -22px;
-  color: var(--white);
-  opacity: 0.5;
+  color: var(--gold-light);
+  opacity: 0.6;
   transition: opacity 0.15s ease;
 }
 
 .top__more:hover,
 .top__more:focus-visible {
   opacity: 0.95;
+}
+
+.top__more path:nth-child(1) {
+  opacity: 0.35;
+}
+
+.top__more path:nth-child(2) {
+  opacity: 0.65;
 }
 
 .top__more:focus-visible {

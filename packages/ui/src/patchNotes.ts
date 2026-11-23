@@ -60,6 +60,10 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'The big numbers in a hero attack now have smooth, round outlines, with no small spikes at the letter corners.',
+      },
+      {
+        category: 'Systems',
         text: 'Steel style titles, like Absolute Unit, no longer show a small red diamond after the name.',
       },
       {

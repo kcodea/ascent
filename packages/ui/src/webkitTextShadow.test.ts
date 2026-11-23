@@ -58,7 +58,9 @@ describe('WebKit drops text-shadow under a non-normal paint-order (R-WEBKIT-SHAD
         }
       }
     }
-    expect(paired).toBeGreaterThanOrEqual(9); // the damage numbers, tribe labels, power floats, skin tiles
+    // (The hero attack numbers left this list 2026-11-22: their outline is a text-shadow ring, not a stroke, so they
+    // need no layering at all: R-OUTLINE-ROUND-01, heroAttack/roundOutline.test.ts.)
+    expect(paired).toBeGreaterThanOrEqual(6); // the tribe labels, power floats, skin tiles, hero names
     expect(bad).toEqual([]);
   });
 

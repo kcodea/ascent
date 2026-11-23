@@ -1,6 +1,6 @@
 /**
  * THE SHELL's ONE STEADY BACKDROP (owner 2026-11-04: "it'll flash the old background and it's very jarring and gross", then
- * "i think i like the citadel backdrop more"; 2026-11-22: replaced by the world map painting, a light 3px blur baked in at build
+ * "i think i like the citadel backdrop more"; 2026-11-22: replaced by the world map painting, a 5px blur baked in at build
  * time, no runtime filter). `Game` mounts it ONCE, under everything, for as long as the menus are up: pages and the party home are transparent
  * over it and never bring their own, so moving between them cannot swap or unmount it, and a page that is still loading (or
  * never loads) shows this and nothing else. Eager and styled inline: it must paint before any lazy chunk or its stylesheet.

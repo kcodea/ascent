@@ -117,8 +117,8 @@
 .top__headline {
   font-size: var(--fs-name);
   line-height: 1;
-  filter: drop-shadow(0 2px 0 color-mix(in srgb, var(--gem-rim) 40%, transparent))
-    drop-shadow(0 6px 10px color-mix(in srgb, var(--night-deep) 28%, transparent));
+  filter: drop-shadow(0 2px 0 color-mix(in srgb, var(--gem-rim) 60%, transparent))
+    drop-shadow(0 3px 4px color-mix(in srgb, var(--night-deep) 42%, transparent));
 }
 
 .top__name {

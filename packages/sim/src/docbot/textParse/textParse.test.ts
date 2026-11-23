@@ -226,7 +226,10 @@ const SWEEP = runTextSweep({ contracts: CONTRACTS });
 // pinned by packages/sim/src/set2ShopRunesGrubQuarterDrunk.test.ts.
 // 2026-11-14 (owner design Sequencing, Set 2 Epic): 222 -> 223, CONSCIOUSLY. "3 different spells, a copy of the first"
 // is a distinct-id sequence the grammar does not read; pinned by packages/sim/src/runeSequencing.test.ts.
-const UNRESOLVED_CAP = 223;
+// 2026-11-23 (six Set 2 Epic runes + the Spellmaiden token): 223 -> 228, CONSCIOUSLY. Their rules (a Gold threshold
+// changed on another card, "no Triple Reward when played", a widened Ruby target, the first 3 targeted spells casting
+// twice, spell power multiplied on sale) are engine hooks or modifiers the clause grammar does not read.
+const UNRESOLVED_CAP = 228;
 /** Collapse floor: the parser fully consuming fewer objects than this means a grammar regression. */
 const PARSED_FLOOR = 900;
 /** The HARD ceiling (2026-09-11): the unresolved share of active objects may never reach this fraction again. A

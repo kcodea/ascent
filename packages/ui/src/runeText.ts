@@ -62,6 +62,9 @@ export function liveRuneText(runeId: string, text: string, st: RuneLiveState | n
     // "When you cast 3 different spells, get a copy of the first one." (Set 2 Epic, 2026-11-14): the sequence so far.
     case 'rune_sequencing':
       return st.sequence ? `${text} ${sequencingReadout(st.sequence)}` : text;
+    // "The first 3 targeted spells you cast each turn cast twice." (Set 2 Epic, 2026-11-23): the doubles left this turn.
+    case 'rune_double_tap':
+      return st.doubleTapLeft != null ? `${text} (${st.doubleTapLeft} left this turn.)` : text;
     default:
       return text;
   }

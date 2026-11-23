@@ -383,6 +383,9 @@ function applyRubyStats(ctx: CombatContext, self: Minion, target: Minion, a: num
     target.permaRuby = { attack: (target.permaRuby?.attack ?? 0) + la, health: (target.permaRuby?.health ?? 0) + lh };
   }
 }
+/** Party Crasher (`k_gemstorm`): the card Uninvited Guests widens to Beasts. */
+const PARTY_CRASHER_ID = 'k_gemstorm';
+
 function playRubies(ctx: CombatContext, self: Minion, per: number, tribe: string, permanent = false): void {
   if (per <= 0) return;
   for (const m of ctx.living(self.side)) {
@@ -3514,7 +3517,20 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const x = Math.max(1, num(params.count, 2));
     const seen = avengeCountFor(self, count); // a risen body counts from its rebirth
     if (seen <= 0 || seen % x !== 0) return;
-    playRubies(ctx, self, num(params.rubies, 1) * mul(self), str(params.tribe), params.permanent === true);
+    const per = num(params.rubies, 1) * mul(self);
+    // UNINVITED GUESTS (Set 2 Epic rune, owner 2026-11-23): "Party Crashers also cast their Rubies on your Beasts." The
+    // recipients widen to the side's Kobolds AND Beasts, each living friend once (a Kobold Beast is not hit twice).
+    if (self.cardId === PARTY_CRASHER_ID && ctx.uninvitedGuestsFor?.(self.side)) {
+      if (per <= 0) return;
+      const own = str(params.tribe) || 'kobold';
+      const is = (m: Minion, t: string): boolean => bodyIsTribe(m, t, ctx.getCard(m.cardId)); // R-ALL-TYPES-EVERYWHERE-01
+      const hit = ctx.living(self.side).filter((m) => is(m, own) || is(m, 'beast'));
+      // The rune's pulse, before its Rubies, only when it really widened the cast (a Beast the card alone would miss).
+      if (hit.some((m) => !is(m, own))) ctx.log({ type: 'questTrigger', flag: 'runeUninvitedGuests', side: self.side });
+      for (const m of hit) playRubyOn(ctx, self, m, per, params.permanent === true);
+      return;
+    }
+    playRubies(ctx, self, per, str(params.tribe), params.permanent === true);
   },
 
   /** Set 2 — Rally (Tunnelcharger Rikk): when THIS minion attacks, get `count` Rubies (× golden). Minted into

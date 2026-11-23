@@ -56,6 +56,23 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-11-23',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'Six new Epic runes in Set 2, and a new minion that comes only from a rune.',
+        details: [
+          'Deep Bond (4 Gold, Dwarf or Kobold): Get a Mountainbond. Your Mountainbonds only need 5 Gold spent to trigger.',
+          'Golden Bell (3 Gold): Get a Gilded Bellringer Voss. It does not give a Triple Reward when played.',
+          'Uninvited Guests (4 Gold, Kobold or Beast): Get a Party Crasher. Party Crashers also cast their Rubies on your Beasts.',
+          'Gilded Wings (3 Gold, Dragon): Get a Gilded Transcendant. It does not give a Triple Reward when played.',
+          'Double Tap (4 Gold): The first 3 targeted spells you cast each turn cast twice.',
+          'Spellmaiden (3 Gold): Get a Spellmaiden, a Tier 4 3/3. When sold, double your Shop spell power.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-11-22',
     changes: [
       {

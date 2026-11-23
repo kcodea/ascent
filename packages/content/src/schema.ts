@@ -270,6 +270,7 @@ export const EffectFactoryIdSchema = z.enum([
   'rallyPlayRubiesSelf',
   'rallyPlayRubiesAll',
   'onSellGetRubies',
+  'onSellMultiplySpellPower', // Spellmaiden (Set 2 token, 2026-11-23)
   'startOfTurnGetSpellImproveRubies',
   'goldSpentBuffRandomTribe',
   'onGainCardBuffTribe',
@@ -855,7 +856,9 @@ export const QuestCombatFlagSchema = z.enum(['bloodTrail', 'echoingCoop', 'lawOf
   // Set 2 rune batch, owner addition 2026-11-13 (Shop-only)
   'runeShopMadness',
   // Set 2 rune, owner design 2026-11-13 (Shop-only)
-  'runeEndOfQuarter', 'runeDrunkShopkeeper']);
+  'runeEndOfQuarter', 'runeDrunkShopkeeper',
+  // Set 2 Epic runes, owner design 2026-11-23 (Deep Bond + Double Tap Shop-only; Uninvited Guests combat)
+  'runeDeepBond', 'runeUninvitedGuests', 'runeDoubleTap']);
 
 // The reward palette — a discriminated union kept in lockstep with the `QuestReward` type in @game/core.
 export const QuestRewardSchema: z.ZodType = z.lazy(() => z.discriminatedUnion('kind', [
@@ -873,6 +876,7 @@ export const QuestRewardSchema: z.ZodType = z.lazy(() => z.discriminatedUnion('k
     randomTier: z.number().int().min(1).max(6).optional(),
     cards: z.array(z.string().min(1)).optional(),
     grantGolden: z.array(z.string().min(1)).optional(),
+    noTripleReward: z.boolean().optional(),
     grantKeywords: z.array(KeywordSchema).optional(),
     repeatInTurns: z.number().int().positive().optional(),
   }).strict(),

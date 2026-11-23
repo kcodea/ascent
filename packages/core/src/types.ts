@@ -629,6 +629,7 @@ export type EffectFactoryId =
   | 'rallyPlayRubiesSelf' // Set 2 — Boulderdash (Rally): play N permanent Rubies on itself
   | 'rallyPlayRubiesAll' // Set 2 — Blazer (Rally): play a permanent Ruby on all your minions
   | 'onSellGetRubies' // Set 2 — Beggy (onSell): get N Rubies when this is sold
+  | 'onSellMultiplySpellPower' // Set 2 — Spellmaiden (onSell, 2026-11-23): multiply the run's Shop spell power (`spellBonus`)
   | 'startOfTurnGetSpellImproveRubies' // Set 2 — Gemline Martyr (Start of Turn): get a Veinstorm + improve your Rubies
   | 'goldSpentBuffRandomTribe' // Set 2 — Billings (goldSpent): give N random friendly tribe minions +atk/+hp
   | 'onGainCardBuffTribe' // Set 2 — Gangplank (onGainCard): a card added to hand buffs a friendly tribe minion
@@ -1439,7 +1440,7 @@ export type QuestReward =
   // the Pair ("2 random Tier 4 minions").
   // `grantGolden` conjures each id as a GILDED (golden) copy — Rune of Stormcalling's "Gilded Karwind", Frontline
   // Glory's "Gilded Yazzus".
-  | { kind: 'grant'; randomTribe?: Tribe; randomCount?: number; randomSpell?: number; /** Set 2 — N random Dwarven Ales (owner 2026-07-29: random, not a fixed trio). */ randomAle?: number; /** Set 2 — N Rubies, minted at the run's live `rubyBonus` like any other Ruby you're handed. */ randomRuby?: number; randomFilter?: 'shout' | 'endOfTurn' | 'echo' | 'rally' | 'attachment'; randomFilterCount?: number; randomFilterExactTier?: boolean; randomTier?: number; cards?: string[]; grantGolden?: string[]; grantKeywords?: Keyword[]; repeatInTurns?: number }
+  | { kind: 'grant'; randomTribe?: Tribe; randomCount?: number; randomSpell?: number; /** Set 2 — N random Dwarven Ales (owner 2026-07-29: random, not a fixed trio). */ randomAle?: number; /** Set 2 — N Rubies, minted at the run's live `rubyBonus` like any other Ruby you're handed. */ randomRuby?: number; randomFilter?: 'shout' | 'endOfTurn' | 'echo' | 'rally' | 'attachment'; randomFilterCount?: number; randomFilterExactTier?: boolean; randomTier?: number; cards?: string[]; grantGolden?: string[]; /** The `grantGolden` copies give no Triple Reward when played (Golden Bell, Gilded Wings, 2026-11-23). */ noTripleReward?: boolean; grantKeywords?: Keyword[]; repeatInTurns?: number }
   | { kind: 'shoutDouble'; count: number }
   // A persistent "your <tribe> have +A/+H wherever they are" run aura (Den Marker) — folds into the tribe's
   // buy-time aura channel so current AND future minions of the tribe carry it (like Squirl Scout's board buff).
@@ -2130,7 +2131,11 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   // (Shop-only; packages/sim/src/shop.ts rollEndOfQuarter).
   | 'runeEndOfQuarter'
   // drunkShopkeeper = every Ale cast adds +2/+2 to the permanent run-wide Shop buff (Shop-only; set2RunesBasicTribal.ts).
-  | 'runeDrunkShopkeeper';
+  | 'runeDrunkShopkeeper'
+  // Set 2 Epic runes, owner design 2026-11-23: deepBond = your Mountainbonds trigger every 5 Gold spent (Shop-only;
+  // sim `goldSpentEvery`); uninvitedGuests = Party Crasher's Avenge Rubies also land on your Beasts (combat);
+  // doubleTap = the first 3 targeted spells cast from hand each turn cast twice (Shop-only; sim `doubleTapCastMult`).
+  | 'runeDeepBond' | 'runeUninvitedGuests' | 'runeDoubleTap';
 /** Quest-armed combat modifiers threaded into `simulate()` (one trailing options arg). Beast quest capstones +
  *  greaters live here so the pure combat engine can honor them without new positional params per flag. */
 export interface QuestCombatMods {
@@ -3038,6 +3043,9 @@ export interface QuestCombatMods {
   runeWildfire?: boolean;
   /** Gem Rain: Start of Combat, 2 PERMANENT Rubies on every living friendly minion (per copy). */
   runeGemRain?: boolean;
+  /** Uninvited Guests (Set 2 Epic, owner 2026-11-23): this side's Party Crashers also cast their Avenge Rubies on its
+   *  Beasts (a Kobold Beast counted once). Either side; rides a snapshot (`questMods`). */
+  runeUninvitedGuests?: boolean;
 }
 /** Immutable quest definition (data, never mutated). Offered in the quest shop on waves 4/8/12, "bought" for
  *  0 Gold; its objective ticks during play and, when met, applies its reward. `tribe: 'neutral'` is the
@@ -4776,6 +4784,8 @@ export interface CombatContext {
   broodmasterSelfFor?(side: Side): boolean;
   /** Rune of the Flooded Vault — does Water Dragon's Avenge also cast the left-most hand spell? */
   floodedVaultFor?(side: Side): boolean;
+  /** Uninvited Guests — do this side's Party Crashers also cast their Rubies on its Beasts? */
+  uninvitedGuestsFor?(side: Side): boolean;
   /** Rune of Battle Refraction — extra combat-Ruby repeats this side's living Prismcasters grant. */
   battleRefractionRepsFor?(side: Side): number;
   /** Rune of Engraving Gems: this side's combat Rubies carry back to the run board (see `playRubyOn`). */

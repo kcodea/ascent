@@ -1,13 +1,13 @@
 import { damageMeterOf, foldTribes, type Keyword, type Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { ancientClearanceSellValue, sellValueOf, spiritsPlayedThisTurn, playedThisTurnFor, anySpellsCastThisTurn, CONFIG, chooseBothActive, dominantBoardTribe, hasTier7Access, rubyStatBonus, runeStacksOf, spellAttackBonus, spellDisplayText, spellHealthBonus, type BoardCard, type RunState, grimToastFold, unityAuraFold, defIsTribe, runTallyFor, conductorBuffLive } from '@game/sim';
-import { countedGoldSpent, countedGoldSpentThisTurn } from '@game/sim';
+import { bankedSpellPowerLive, countedGoldSpent, countedGoldSpentThisTurn } from '@game/sim';
 import type { CardView } from './Card';
 import { grantedTriggersOfBoard } from './grantedTriggers';
 import {
   abhorrentHorrorText, ascendProgressText, asymSummonBuffText, cadenceProgressText, cardTypeTallyText, chefRaagText, clingProgressText,
   cryptDrakeText, drunkenOafText, aleTierText, sellDiscoverTierText, shredderText, firstShopSpellDiscountText, karthusText, engraveTallyText, escalatingCastText, guelProgressText, herzogText, hunterText, vaultkeeperText, improvingRubyGrantText, monkProgressText, overflowPerPlayedText, packLeaderText, runescaleText, scTribeBuffPerPlayedText,
-  archivistText, ashenHeirText, chooseBothText, attackGrantImproveText, castSpellPerGoldText, copyCastSpellText, runeModifiedNote, type RuneTextFlags, improvingSummonText, perCardPlayedText, rougeRogueText, perGoldSpentText, rallySpreadText, shopBuffImproveText, spellThresholdText, ritualistText, sergeantText, soulsmanText, squirlScoutText, conductorText, perPlayedTargetText, stepProgress, sporebatText, stewardText, thundeerText, summonBuffText, summonEscalatingText, summonFlatZooText, summonImproveText, sellImproveText, rubyCastGainText, summitTierText, summonScalingText, shootingStarText, shopSpellRallyText, echoTallyText,
+  archivistText, ashenHeirText, chooseBothText, attackGrantImproveText, castSpellPerGoldText, copyCastSpellText, runeModifiedNote, runeRewrittenText, type RuneTextFlags, improvingSummonText, perCardPlayedText, rougeRogueText, perGoldSpentText, rallySpreadText, shopBuffImproveText, spellThresholdText, ritualistText, sergeantText, soulsmanText, squirlScoutText, conductorText, perPlayedTargetText, stepProgress, sporebatText, stewardText, thundeerText, summonBuffText, summonEscalatingText, summonFlatZooText, summonImproveText, sellImproveText, rubyCastGainText, summitTierText, summonScalingText, shootingStarText, shopSpellRallyText, echoTallyText,
   ancientWandererText, musterTrooperText, shopSpellGrowthText,
   taughtSpellText, trailForagerText, transformProgressText, watcherText, withGrantedKeywords, withImpStats, spiritText, whisperGranterText, whisperCasterText, attackImmuneText, humKeepText, duosTurnCapText, seedEchoNote } from './cardText';
 
@@ -134,6 +134,8 @@ export interface LiveTextParams {
   /** FRANK × ANCIENT OF FORTUNE: this Clearance minion's CURRENT sell value (owner 2026-09-30: "just add sells for 2g if
    *  it is a fortune frank purchase"). Printed as a blue note; absent = no line. */
   clearanceSellGold?: number;
+  /** Golden Bell / Gilded Wings (2026-11-23): this Gilded copy gives no Triple Reward when played (a note in hand). */
+  noTripleReward?: boolean;
   /** Mage-Pup: the spell Moonhowl Mentor taught THIS token, so its Shout line can print that spell's actual
    *  rule instead of "the spell this was taught". Absent on every other card. */
   taughtSpellId?: string;
@@ -182,6 +184,8 @@ export function rubyLiveText(printed: string, grant: string): string {
  */
 /** The blue note a Pulsed minion wears under Ancients × the Auctioneer (War). */
 export const GRANTED_RALLY_SHOUT_NOTE = "[[Rally: trigger this minion's Shout.]]";
+/** Golden Bell / Gilded Wings: the blue note their granted Gilded copy wears in hand. */
+export const NO_TRIPLE_REWARD_NOTE = '[[No Triple Reward when played.]]';
 /** Frank × Ancient of Fortune: the Clearance minion's sale line, at the value it sells for right now. */
 export const clearanceSellNote = (gold: number): string => `[[Sells for ${gold} Gold.]]`;
 /** CINDY × ANCIENT OF BONDS (R-ANCCINDY-06): the gold status tag a Linked card wears (the `desctemp` gold marker, the one
@@ -326,9 +330,14 @@ function liveCardTextCore(cardId: string, p: LiveTextParams): { text: string; go
   const saleNote = p.clearanceSellGold !== undefined ? clearanceSellNote(p.clearanceSellGold) : '';
   // …and every SEED stack it carries (Gardener's Whisper): "Echo: Summon a 3/3 Drake Pup with Taunt (xN)".
   const seedNote = seedEchoNote(p.seedEchoes);
-  const runeNote = [runeModifiedNote(c.id, p.runeFlags), grantNote, saleNote, seedNote].filter(Boolean).join(' ');
-  const noted = runeNote ? `${text} ${runeNote}` : text;
-  const notedGolden = goldenBase !== undefined && runeNote ? `${goldenBase} ${runeNote}` : goldenBase;
+  // …and Golden Bell / Gilded Wings' copy, while it waits in hand: it will not pay a Triple Reward when played.
+  const tripleNote = p.noTripleReward && p.inHand ? NO_TRIPLE_REWARD_NOTE : '';
+  const runeNote = [runeModifiedNote(c.id, p.runeFlags), grantNote, saleNote, seedNote, tripleNote].filter(Boolean).join(' ');
+  // RUNE REWRITES (Deep Bond, Uninvited Guests, Spellmaiden): the rune changes a number / target IN the rule itself.
+  const textR = runeRewrittenText(c.id, text, p.runeFlags, false);
+  const goldenR = goldenBase !== undefined ? runeRewrittenText(c.id, goldenBase, p.runeFlags, true) : undefined;
+  const noted = runeNote ? `${textR} ${runeNote}` : textR;
+  const notedGolden = goldenR !== undefined && runeNote ? `${goldenR} ${runeNote}` : goldenR;
   // Live Imp-stat annotation (owner 2026-08-11): fold the summoned Imp's current X/Y into the "summon … Imp"
   // phrase, ON TOP of whatever the scaling chain produced. A no-op for non-summoners. Both variants carry it.
   const impText = withImpStats(cardId, noted, p.impAura);
@@ -423,6 +432,7 @@ export function instView(
     duosUsesThisTurn: inst.duosUses ? Object.values(inst.duosUses).reduce((a, b) => a + b, 0) : undefined, // Duos: uses left this turn
     whisperTick: inst.whisperTick, // Hatcher: its Whisper's current tier
     clearanceSellGold: clearanceSellGoldOf(inst, live?.sellState), // Frank × Fortune: "Sells for 2 Gold."
+    noTripleReward: inst.noTripleReward, // Golden Bell / Gilded Wings: no Triple Reward when played
     keywords: shownKeywords, // a granted Rise leads the text (owner 2026-09-26)
     whisperImprove: live?.whisperImprove, whisperMult: inst.whisperMult, // Set 4: a Whisper's / a granter's live value
   });
@@ -498,6 +508,7 @@ export function instView(
             damageDealt: inst.damageDealt,
             // ROPE WRANGLER: the turn's Gold spent toward its next Lasso repeat (owner ask 2026-10-13).
             goldSpentTurn: live?.goldSpent ?? 0,
+            deepBond: live?.runeFlags?.deepBond, // Deep Bond: a Mountainbond's meter counts to 5
           });
           // Normally a fresh 0/N is hidden as noise (owner ruling). Two deliberate exceptions: the Living
           // Grimoire — 0/3 is the whole point there, it's how you see the card is SPENT and how far the recharge
@@ -537,7 +548,7 @@ export function liveBoardView(m: BoardCard, run: RunState): CardView {
       lastSpellThisTurnName: run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined,
       topTribe: dominantBoardTribe(run), rubyBonus: rubyStatBonus(run), clueBonus: run.clueBonus, starCrashBonus: run.starCrashBonus, revelerX: run.revelerX, revelerExtra: run.revelerExtra, spiritDiscount: run.spiritDiscount, spiritsPlayed: spiritsPlayedThisTurn(run), anySpellsThisTurn: anySpellsCastThisTurn(run), shopSpellsThisTurn: run.shopSpellsThisTurn ?? 0, tier7Access: hasTier7Access(run),
       runeMammoth: !!run.questFlags?.runeMammoth,
-      runeFlags: { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure, gambling: !!run.runeGambleBoth, vaultkeeper: !!run.runeVaultkeeper },
+      runeFlags: { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure, gambling: !!run.runeGambleBoth, vaultkeeper: !!run.runeVaultkeeper, deepBond: !!run.questFlags?.runeDeepBond, uninvitedGuests: !!run.questFlags?.runeUninvitedGuests, bankedSpellPower: bankedSpellPowerLive(run) },
       chooseBothState: { runeFacetwright: run.runeFacetwright, runeUnbrokenVein: run.runeUnbrokenVein },
       whisperImprove: run.whisperImprove, // Set 4: Tolan's live Runebind value on the final warband
     },

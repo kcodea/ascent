@@ -120,7 +120,7 @@ const richBag = (id: string): LiveTextParams => ({
   lastSpellName: 'Spirit Fire', rememberedSpellNames: ['Spirit Fire', 'Growth'],
   impBank: { attack: 2, health: 3 }, firstSpellThisTurnName: 'Growth', lastSpellThisTurnName: 'Spirit Fire',
   keeperFirstSpellName: 'Growth',
-  runeFlags: { matriarch: true, brokerage: true, livingTreasure: true },
+  runeFlags: { matriarch: true, brokerage: true, livingTreasure: true, deepBond: true, uninvitedGuests: true, bankedSpellPower: { attack: 2, health: 3 } },
   whisperImprove: { w4_runebind: 4 }, /* Set 4: Tolan's Runebind improved twice (2026-10-13) */
   whisperCastsUsed: 1, /* Whaloo's per-combat cap counting down (Set 3, 2026-10-14) */
   whisperKeptThisTurn: 1, /* Hum's keeps left this turn (Set 3, 2026-10-15) */

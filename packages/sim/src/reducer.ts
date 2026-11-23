@@ -40,7 +40,7 @@ import {
   equipmentChargesOf, equipmentCostOf, expireEquipmentTurn, rebuildEquipment, spendEquipmentCharge,
   selectEquipment, selectedEquipment, amplifyAllHeld, amplifyUnactivated, consumeAmplified, EQUIPMENT_AMPLIFIED_COUNTER, equipmentAmplifiedOf,
 } from './equipment';
-import { noteHandCastPlay, applyChooseOnePlayed, spendChooseBothCharge, noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, heroPowerCostOf, commissionOffer, COMMISSION_HOUSE_GOLD, COMMISSION_CASTLE_DISCOUNT, COMMISSION_MAX_GOLD, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, stampXeroxBond, stampVaultkeeper, battlecryTargetAllowed, hasShoutAimTarget, fireShoutWithoutTarget, exactBoardCopy, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, withGemSagesHeld, roseyHearsRubies, applyRubyRiderAction, mintRandomRubies, recordRubyRiderFx, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, fireDemonPlayRunes, foldOfferBuffs, creditShopBuffSource, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, applyShopSpellHalf, replayEndOfTurn, restoreHeldOffer, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, giftCastCount, rubyStatBonus, yazzusExtraCasts, stampYazzusCasts, consumeGrimoireCharge, countRubyAsShopSpell, fireSpellCastWatchersForRuby, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, resolveRefreshMultipliers, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, equipmentFxMark, buffedFxTargets, fireEquipmentTriggers, fireEquipmentActivated, buyHealthAura, undeadBuyBonus, weldMagnetic, defIsTribe, handCardLocked, fireStatGainReactors, fireEquipmentFree, applyRuneGrafts, noteSpellForCountRunes, settleMinionSale, distillationEdges, fireRunicHoard, applyLorekeeping, runeExtraCasts, castWithRuneRepeats, withCastActor, withHandCast, fireSoldChoice, noteGilded, destroyMinionInShop, refireTarget, flushGrubBites, GOLD_SCALED_ACCRUAL_CARDS } from './recruit';
+import { noteHandCastPlay, applyChooseOnePlayed, spendChooseBothCharge, noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, heroPowerCostOf, commissionOffer, COMMISSION_HOUSE_GOLD, COMMISSION_CASTLE_DISCOUNT, COMMISSION_MAX_GOLD, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, stampXeroxBond, stampVaultkeeper, battlecryTargetAllowed, hasShoutAimTarget, fireShoutWithoutTarget, exactBoardCopy, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, withGemSagesHeld, roseyHearsRubies, applyRubyRiderAction, mintRandomRubies, recordRubyRiderFx, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, fireDemonPlayRunes, foldOfferBuffs, creditShopBuffSource, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, applyShopSpellHalf, replayEndOfTurn, restoreHeldOffer, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, giftCastCount, rubyStatBonus, yazzusExtraCasts, stampYazzusCasts, consumeGrimoireCharge, countRubyAsShopSpell, fireSpellCastWatchersForRuby, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, resolveRefreshMultipliers, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, equipmentFxMark, buffedFxTargets, fireEquipmentTriggers, fireEquipmentActivated, buyHealthAura, undeadBuyBonus, weldMagnetic, defIsTribe, handCardLocked, fireStatGainReactors, fireEquipmentFree, applyRuneGrafts, noteSpellForCountRunes, settleMinionSale, distillationEdges, fireRunicHoard, applyLorekeeping, runeExtraCasts, castWithRuneRepeats, noteDoubleTapCast, noteDoubleTapHandSpellCast, DEEP_BOND_EVERY, MOUNTAINBOND_ID, withCastActor, withHandCast, fireSoldChoice, noteGilded, destroyMinionInShop, refireTarget, flushGrubBites, GOLD_SCALED_ACCRUAL_CARDS } from './recruit';
 import { createRun, handCap, withRuneAcquisition, runeGrantOverflow, recordBounceFx, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, type DeferredFight, type PreparedCombatSide, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx, type SotBeatSource, gateUses, procRune, procRuneId, runeBuffMagnitude, PACKCRAFT_STEP, REINVESTMENT_PER_SUMMON, SLAYING_KILLS, EQUIPMENT_FX_ANCHOR } from './state';
 import { alignmentsOf } from './alignment';
 import { blockedByShopClock } from './shopClock';
@@ -2483,6 +2483,7 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
         const casts = rubyCastCount(s);
         spendNextSpellCharge(s); // Comet / Nimbus "next spell" charge spent on this Ruby (folded into `casts`, owner 2026-09-18)
         ancientNoteTargetedCast(s); // ANCIENT OF BONDS × Hunch: a Ruby is a targeted spell, it spends one of the turn's doubles
+        noteDoubleTapCast(s); // Double Tap: a Ruby is a targeted spell, it spends one of the turn's 3 (folded into `casts`)
         // Warding Ruby: its keyword rider (Ward = DS) rides EVERY landing through `fireOnRubyPlayed` — the direct
         // target, the Redirection tail, and every bounce off it — granted only to a KOBOLD (owner spec 2026-07-31:
         // "give it Ward if it is a Kobold"; the stat half lands on anyone). It used to be a trailing grant on the
@@ -2680,7 +2681,7 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
               castWhisperFromHand(s, def, whisperTarget);
             }
           }, card.grantedTier); // Hatcher's Whisper: the tier its copy was stamped with
-          if (def.giftMulticast && whisperTarget) { spendNextSpellCharge(s); ancientNoteTargetedCast(s); } // Comet / Nimbus charge + Hunch × Bonds' double spent (folded into the count)
+          if (def.giftMulticast && whisperTarget) { spendNextSpellCharge(s); ancientNoteTargetedCast(s); noteDoubleTapCast(s); } // Comet / Nimbus charge + Hunch × Bonds' double spent (folded into the count)
           clearVoicesOnHandCast(s, def); // Rune of Clear Voices (Set 3 Dragon runes): a distinct Whisper cast from hand
           noteHandCastPlay(s, def); // Rune of the Secret Exchange: one Whisper cast from hand (a Yazzus repeat is not another)
           checkTriples(s);
@@ -2707,7 +2708,7 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
               applyLorekeeping(s, giftAdjacent);
             }
           }
-          if (def.giftMulticast && giftTarget) { spendNextSpellCharge(s); ancientNoteTargetedCast(s); } // Comet / Nimbus charge + Hunch × Bonds' double spent (folded into `giftCasts`)
+          if (def.giftMulticast && giftTarget) { spendNextSpellCharge(s); ancientNoteTargetedCast(s); noteDoubleTapCast(s); } // Comet / Nimbus charge + Hunch × Bonds' double spent (folded into `giftCasts`)
           s.hand.splice(i, 1);
           s.playedThisTurn = [...(s.playedThisTurn ?? []), card.cardId];
           withHandCast(def.id, () => noteSpellCast(s, def)); // counts as a spell CAST from hand (but never as a Shop spell — see the flag's doc)
@@ -2793,6 +2794,7 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
         if (!def.gift) s.nextSpellBonus = undefined; // Starpath Vendor's next-Shop-spell bonus spent
         if (!def.singleCast && s.spellFirstDoubleEachTurn) s.spellFirstUsedThisTurn = true; // Spell Thesis freebie spent
         ancientNoteHandSpellCast(s, def); // ANCIENT OF BONDS × Hunch: a targeted cast spends one of the turn's doubles
+        noteDoubleTapHandSpellCast(s, def); // Double Tap: a targeted cast spends one of the turn's 3
         if (!def.singleCast && s.runeSharedPour && ALE_IDS.includes(def.id) && !s.sharedPourUsedThisTurn) procRuneId(s, 'rune_shared_pour');
         if (!def.singleCast && s.runeSharedPour && ALE_IDS.includes(def.id)) s.sharedPourUsedThisTurn = true; // Shared Pour freebie spent
         spendLastCall(s, def); // Last Call: the armed Ale repeat spent (already folded into the cast count)
@@ -2890,7 +2892,7 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
             }
           }
           // A golden Magnetic still "plays" the triple when welded in — grant its Discover.
-          if (card.golden) grantGildedPlayRewards(s);
+          if (card.golden) grantGildedPlayRewards(s, card);
           return s;
         }
       }
@@ -3031,7 +3033,7 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
         if (s.runeRefrain && aimedDef && hasBattlecry(aimedDef)) rollRefrainReturn(s, card);
       }
       checkTriples(s);
-      if (card.golden) grantGildedPlayRewards(s);
+      if (card.golden) grantGildedPlayRewards(s, card);
       return s;
     }
 
@@ -3183,7 +3185,7 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
       // Same gate as the play-time roll (a real Shout minion — never a Mage-Pup's taught spell).
       if (!opt && s.runeRefrain && ptDef && hasBattlecry(ptDef)) rollRefrainReturn(s, card);
       checkTriples(s);
-      if (card.golden) grantGildedPlayRewards(s);
+      if (card.golden) grantGildedPlayRewards(s, card);
       openNextStartOfTurnModal(s); // this modal owned the screen — open whatever queued behind it
       return s;
     }
@@ -4692,6 +4694,7 @@ function resolveChooseOneSpell(
   if (!def.gift) s.nextSpellBonus = undefined; // Starpath Vendor's next-Shop-spell bonus spent
   if (!def.singleCast && s.spellFirstDoubleEachTurn) s.spellFirstUsedThisTurn = true; // Spell Thesis freebie spent
   ancientNoteHandSpellCast(s, def); // ANCIENT OF BONDS × Hunch: a targeted cast spends one of the turn's doubles
+  noteDoubleTapHandSpellCast(s, def); // Double Tap: a targeted cast spends one of the turn's 3
   if (!def.singleCast && s.runeSharedPour && ALE_IDS.includes(def.id) && !s.sharedPourUsedThisTurn) procRuneId(s, 'rune_shared_pour');
   if (!def.singleCast && s.runeSharedPour && ALE_IDS.includes(def.id)) s.sharedPourUsedThisTurn = true; // Shared Pour freebie spent
   spendLastCall(s, def); // Last Call: the armed Ale repeat spent (already folded into the cast count)
@@ -4709,7 +4712,11 @@ function resolveChooseOneSpell(
 let tripleRewardRepeating = false;
 /** A Gilded minion was PLAYED: its Triple Reward, plus Membrance × Bonds' extra ones (ancient pass 2, owner 2026-11-16:
  *  "Playing a Gilded minion gives you 2 Triple Rewards"; 0 extra on every other run). */
-function grantGildedPlayRewards(s: RunState): void {
+function grantGildedPlayRewards(s: RunState, card: Pick<BoardCard, 'noTripleReward'>): void {
+  // GOLDEN BELL / GILDED WINGS (Set 2 Epic runes, 2026-11-23): "It does not give a Triple Reward when played." The
+  // granted copy carries `noTripleReward`, so it skips the whole play reward here (the Triple Reward and everything
+  // that rides it), at the one chokepoint every Gilded play walks.
+  if (card.noTripleReward) return;
   grantGoldenDiscover(s);
   const extra = ancientGildedPlayExtraRewards(s, true); // `true`: Membrance × Bonds' proc (R-FX-ANCIENT-PROC-01)
   for (let k = 0; k < extra; k++) grantGoldenDiscover(s);
@@ -7617,7 +7624,9 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
       // since Yazzus was unified 2026-09-16, kept for the next set that needs one).
       for (const raw of r.grantGolden ?? []) { // Leader of the Pack / Stormcalling — a GILDED copy (board-overflow safe)
         const id = forkedCardId(setIdOf(s), raw);
-        if (CARD_INDEX[id]) grantMinionToHandOrBoard(s, CARD_INDEX[id]!, true, ov);
+        if (!CARD_INDEX[id]) continue;
+        const card = grantMinionToHandOrBoard(s, CARD_INDEX[id]!, true, ov);
+        if (r.noTripleReward) card.noTripleReward = true; // Golden Bell / Gilded Wings: THIS copy gives no Triple Reward
       }
       for (const raw of r.cards ?? []) {
         const id = forkedCardId(setIdOf(s), raw);
@@ -7837,6 +7846,13 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
       if (r.flag === 'runeEchoingKobolds' || r.flag === 'runeAggressiveGolems' || r.flag === 'runeStellarEchoes' || r.flag === 'runeImpLegion') for (const c of [...s.board, ...s.hand]) applyRuneGrafts(s, c);
       // SHOP MADNESS (Set 2 Basic, owner 2026-11-13): "Minions in your Shop have +3/+3" is the permanent run-wide Shop
       // buff (every offer now and every one that enters later, per copy taken); "always 6 minions" fills the row now.
+      // DEEP BOND: a Mountainbond already past the new 5 (it was counting to 8) keeps its progress just short of a payout,
+      // so taking the rune never pays by itself and the meter under it reads true.
+      if (r.flag === 'runeDeepBond') {
+        for (const c of [...s.board, ...s.hand]) {
+          if (c.cardId === MOUNTAINBOND_ID && (c.goldTick ?? 0) >= DEEP_BOND_EVERY) c.goldTick = DEEP_BOND_EVERY - 1;
+        }
+      }
       if (r.flag === 'runeShopMadness') {
         applyRunShopBuff(s, SHOP_MADNESS_BUFF.attack, SHOP_MADNESS_BUFF.health, 'Shop Madness');
         refillShopMadness(s);
@@ -9055,6 +9071,8 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     runeHellfire: f?.runeHellfire,                   // a Demon's attack or death: that Demon deals 1 to all enemies
     runeWildfire: f?.runeWildfire,                   // a friendly minion's kill: the dead enemy's Attack to a random enemy (3 per combat)
     runeGemRain: f?.runeGemRain,                     // SoC: 2 permanent Rubies on every friendly minion
+    // ── Set 2 Epic runes, owner design 2026-11-23 ──
+    runeUninvitedGuests: f?.runeUninvitedGuests,     // Party Crasher's Avenge Rubies also land on your Beasts
   };
 }
 

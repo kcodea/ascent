@@ -2487,6 +2487,7 @@ export function simulate(
     groveweaverSelfFor: (side) => !!modsFor(side).runeGroveweaver,
     broodmasterSelfFor: (side) => !!modsFor(side).runeBroodmaster,
     floodedVaultFor: (side) => !!modsFor(side).runeFloodedVault,
+    uninvitedGuestsFor: (side) => !!modsFor(side).runeUninvitedGuests, // Set 2 Epic (2026-11-23): Party Crasher also hits Beasts
     // Rune of Ruptured Rubies (owner 2026-09-25): each combat Ruby hops this many times after landing (see `playRubyOn`).
     rubyRuptureBouncesFor: (side) => (modsFor(side).runeRupturedRubies ? RUPTURED_RUBY_BOUNCES * flagCopiesOf(side, 'runeRupturedRubies') : 0),
     rubyConduitBouncesFor: (side) => Math.max(0, modsFor(side).runeConduit ?? 0), // Rune of the Conduit (copy count)

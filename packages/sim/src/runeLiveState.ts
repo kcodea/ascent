@@ -3,6 +3,7 @@ import { RUNE_INDEX } from '@game/content';
 import { PACKCRAFT_STEP, type RunState } from './state';
 import type { BoardSnapshot } from './snapshot';
 import { DRUNK_SHOPKEEPER_SOURCE } from './set2RunesBasicTribal';
+import { doubleTapLeft } from './recruit';
 
 /**
  * THE LIVE VALUE OF A SELF-IMPROVING RUNE (owner report 2026-10-16, R-RUNE-LIVE-TEXT-01).
@@ -46,6 +47,9 @@ export interface RuneLiveState {
   drunkShopkeeper?: { attack: number; health: number };
   /** Rune of Sequencing (Set 2 Epic, 2026-11-14): the different spells in the current sequence, in cast order. */
   sequence?: string[];
+  /** Double Tap (Set 2 Epic, 2026-11-23): the doubled targeted casts left this turn (of 3). A Shop value: a snapshot
+   *  never carries it (the turn is over), so an opponent's rune prints its base text. */
+  doubleTapLeft?: number;
 }
 
 /** A stored sequence of spell ids (untrusted): strings only, at most the 2 a live sequence can hold before it pays. */
@@ -107,6 +111,8 @@ export function runeLiveStateOfRun(run: RunState): RuneLiveState {
     out.drunkShopkeeper = { attack: v?.atk ?? 0, health: v?.hp ?? 0 };
   }
   if (f?.runeSequencing) out.sequence = [...(run.runeSequence ?? [])];
+  const dt = doubleTapLeft(run);
+  if (dt !== undefined) out.doubleTapLeft = dt;
   return out;
 }
 
@@ -194,6 +200,7 @@ export function parseRuneLiveState(v: unknown): RuneLiveState | undefined {
   const bfl = intIn(o.borrowedFlame); if (bfl) out.borrowedFlame = bfl;
   const ds = pairIn(o.drunkShopkeeper); if (ds) out.drunkShopkeeper = ds;
   const sq = idsIn(o.sequence); if (sq) out.sequence = sq;
+  const dt = intIn(o.doubleTapLeft); if (dt !== undefined) out.doubleTapLeft = dt;
   return Object.keys(out).length ? out : undefined;
 }
 

@@ -1,12 +1,9 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
-import { COSMETIC_CATEGORY_DEFS, RARITY_LABELS, cosmeticOf, crateLabel, type OpenCrateResult } from '@game/progression';
+import { crateLabel, type OpenCrateResult } from '@game/progression';
 import { playTailedClip, sfx, type SfxHandle } from '../sfx';
 import { stageHost } from '../stage';
-import { skinArtOf } from '../skins/skinArt';
-import { emoteSrc } from '../emotes/emoteArt';
-import { frameSrc } from '../portraitFrame/portraitFrameConfig';
-import { CARD_PLATE_LOOKS } from '../cardPlate/cardPlateLook';
+import { rewardLabel, rewardPreview } from './rewardPreview';
 import { openCrate, type CrateOpenOutcome } from './progressionStore';
 import {
   CRATE_CUE_CATEGORY, chestTierPresetFor, chestTuningOf, crateBeats, crateCue, crateFxSpeed, getCrateFxConfig, presetFor,
@@ -80,17 +77,7 @@ export function prefersReducedMotion(): boolean {
   try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; }
 }
 
-/** The reward's player-facing name; a newer server's item on an older client still reads sensibly. */
-export function rewardLabel(rewardId: string | null): { name: string; kind: string; rarity: string | null; rarityLabel: string | null } {
-  const def = cosmeticOf(rewardId);
-  if (!def) return { name: 'New reward', kind: 'Update the game to see it', rarity: null, rarityLabel: null };
-  // Skins name themselves as skins ("New hero skin"), not "New hero" (the Collection tab is called Heroes).
-  const kind = def.category === 'title' ? 'New title'
-    : def.category === 'hero_skin' ? 'New hero skin'
-    : def.category === 'minion_skin' ? 'New minion skin'
-    : `New ${COSMETIC_CATEGORY_DEFS[def.category].label.replace(/s$/, '').toLowerCase()}`;
-  return { name: def.name, kind, rarity: def.rarity, rarityLabel: RARITY_LABELS[def.rarity] };
-}
+export { rewardLabel };
 
 export interface CrateOpenerProps {
   /** Sealed crates to open, in order. Items opened here are skipped as the list updates. */
@@ -436,18 +423,11 @@ export function CrateOpener({ queue, autoOpen = false, openAll = false, reducedM
   if (!shown) return null;
   const reward = result && result.rewardId ? rewardLabel(result.rewardId) : null;
   const revealed = (phase === 'reveal' || phase === 'settled') && !!reward;
-  // A skin shows its art beside the plate (owner 2026-09-29); a title needs no preview, the plate IS the title.
-  const rewardDef = result?.rewardId ? cosmeticOf(result.rewardId) : undefined;
-  // An emote (2026-10-15, now a crate drop) shows its bubble in the same spot. A card plate and a portrait frame show
-  // the art their Collection tile shows (owner 2026-11-02: "there should be a thumbnail that shows the card plate when
-  // receiving rewards"; yes for frames too, no for attack animations, announcers and titles).
-  const cat = rewardDef?.category;
-  const skinKind = cat === 'hero_skin' ? 'hero' : cat === 'minion_skin' ? 'minion' : cat === 'emote' ? 'emote'
-    : cat === 'card_plate' ? 'plate' : cat === 'portrait_frame' ? 'frame' : null;
-  const skinUrl = skinKind === 'emote' ? emoteSrc(rewardDef?.id)
-    : skinKind === 'plate' ? (typeof rewardDef?.assets.art === 'string' ? CARD_PLATE_LOOKS[rewardDef.assets.art]?.thumb : undefined)
-    : skinKind === 'frame' ? (rewardDef ? frameSrc(rewardDef.id) : undefined)
-    : skinKind ? skinArtOf(rewardDef) : undefined;
+  // A skin, emote, card plate or portrait frame shows its art beside the plate; a title needs no preview, the plate IS
+  // the title (shared with the pack opener, see rewardPreview.ts).
+  const skinArt = rewardPreview(result?.rewardId ?? null).art;
+  const skinKind = skinArt?.kind;
+  const skinUrl = skinArt?.url;
   const next = phase === 'settled' ? pending[0] ?? null : null;
   const c = getCrateFxConfig();
   const k = 1 / crateFxSpeed();

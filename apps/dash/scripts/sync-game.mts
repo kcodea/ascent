@@ -3,7 +3,7 @@
 //   public/game-data.json   hero names + art paths, the active set's heroes and tribes, tribe names / colours / glyphs,
 //                           medal crests, mode art
 //   public/art/**           hero portraits, medal crests, mode art (resized only; never re-toned), the portrait ring,
-//                           the menus' citadel backdrop, the plates' vellum grain
+//                           the menus' backdrop (the world map), the plates' vellum grain
 //   public/cursors/*.svg    the game's gauntlet cursors
 // Run: `npm run sync -w apps/dash` (predev / prebuild run it).
 import { copyFileSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
@@ -74,7 +74,7 @@ const modes: Record<string, string> = {};
 for (const m of ['lobby', 'practice', 'versus', 'gauntlet', 'learn']) modes[m] = await put(`packages/ui/src/art/modes/${m}.webp`, `art/modes/${m}.webp`, { width: 480 });
 
 const chrome: Record<string, string> = {
-  backdrop: await put('apps/web/public/backdrops/citadel-blur.webp', 'art/citadel-blur.webp'),
+  backdrop: await put('apps/web/public/backdrops/world-soft.webp', 'art/world-soft.webp'),
   vellum: await put('packages/ui/src/partyHome/ornaments/vellum.webp', 'art/vellum.webp'),
   ring: await put('packages/ui/src/hero-select/heroportrait.png', 'art/heroportrait.webp', { width: 192 }),
   logo: await put('apps/web/public/ascenticon.png', 'art/ascent-mark.webp', { width: 96, height: 96 }),

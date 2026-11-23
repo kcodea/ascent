@@ -60,6 +60,10 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'New main menu art: a painted map of the world.',
+      },
+      {
+        category: 'Systems',
         text: 'The big numbers in a hero attack now have smooth, round outlines, with no small spikes at the letter corners.',
       },
       {

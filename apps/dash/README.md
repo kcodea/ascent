@@ -60,7 +60,7 @@ re-toned:
 | Medal crests | `packages/ui/src/art/ranks/<medal>.webp` (128 px) |
 | Mode rows | `packages/ui/src/art/modes/{lobby,practice,versus,learn}.webp` (480 px) |
 | Tribe glyphs, names, colours | `Icon.tsx` via `gauntlet/tribeIcon.ts`, `TRIBE_LABEL` (careerData.ts), `--t-<tribe>` (styles.css) |
-| Backdrop, plate grain, brand mark | `apps/web/public/backdrops/citadel-blur.webp`, `partyHome/ornaments/vellum.webp`, `ascenticon.png` |
+| Backdrop, plate grain, brand mark | `apps/web/public/backdrops/world-soft.webp`, `partyHome/ornaments/vellum.webp`, `ascenticon.png` |
 | Live set (fixture ids, set line) | `activeSet()` in `@game/content`, `playableHeroes` in `@game/sim` |
 
 The page has no runtime import of game code; it reads the generated `/game-data.json` and `/game.css`.

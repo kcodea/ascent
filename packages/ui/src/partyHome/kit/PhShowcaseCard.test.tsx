@@ -4,7 +4,10 @@
  * (name, title, crest, rank label, points, bar), that mirroring flips only the art, that a long name stays one line, that
  * nothing carries a native tooltip, and that an open seat (the ghost) shows its own content under its label.
  */
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { act } from 'react';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { mount, type Mounted } from '../../renderedText.mount';
 
 // TitleBadge reads the progression store; guard the pixi import chain's canvas probe as rankSurfaces.test.tsx does.
@@ -83,6 +86,50 @@ describe('PhShowcaseCard', () => {
       mine badge={<span>Leader</span>} band={<span>Ready</span>} youLabel onClick={() => {}} haspopup />);
     expect(root().querySelector('[title]')).toBeNull();
     expect(root().querySelector('svg title')).toBeNull();
+  });
+});
+
+// PRESS ZONES (owner 2026-11-24): the art, the title and the rank box each run their own action; anywhere else is the card's.
+describe('press zones', () => {
+  const press = (sel: string): void => { act(() => { (root().querySelector(sel) as HTMLElement).click(); }); };
+  it('the art, the title and the rank box run their own action; the rest of the card runs onClick', () => {
+    const onClick = vi.fn(); const onArt = vi.fn(); const onTitle = vi.fn(); const onRank = vi.fn();
+    ui = mount(<PhShowcaseCard size="full" label="Mike. Options" name="Mike" art="/a.webp" titleId="title_ironbeard" rank={{ divisionIndex: 7, points: 40 }}
+      onClick={onClick} onArt={onArt} onTitle={onTitle} onRank={onRank} haspopup />);
+    press('.phs-art img'); expect(onArt).toHaveBeenCalledTimes(1);
+    press('.phs-title .titlebadge'); expect(onTitle).toHaveBeenCalledTimes(1);
+    press('.phs-rank .phs-rk b'); expect(onRank).toHaveBeenCalledTimes(1);
+    expect(onClick).not.toHaveBeenCalled();
+    press('.phs-pname'); expect(onClick).toHaveBeenCalledTimes(1);
+    press('button.phs-press'); expect(onClick).toHaveBeenCalledTimes(2); // the bare card (and a keyboard press) is the card's own
+    expect([onArt, onTitle, onRank].map((f) => f.mock.calls.length)).toEqual([1, 1, 1]);
+    expect(root().className).toContain('phs-artgo');
+    expect(root().className).toContain('phs-titlego');
+  });
+  // The art and the title badge take no presses by default (`.phs-art` here, `.titlebadge` in styles.css), so a zoned card
+  // must turn them back on or the press lands on the card behind them. jsdom has no CSS, so the rules are pinned as text.
+  it('a zoned card lets its art and its title badge take the press', () => {
+    const read = (rel: string): string => readFileSync(fileURLToPath(new URL(rel, import.meta.url)), 'utf8');
+    expect(read('../../styles.css')).toMatch(/\.titlebadge \{[^}]*pointer-events: none;/);
+    const css = read('./phShowcase.css');
+    expect(css).toMatch(/\.phs-art \{[^}]*pointer-events: none;/);
+    expect(css).toContain('.phs-artgo .phs-art { pointer-events: auto; }');
+    expect(css).toContain('.phs-titlego .phs-title .titlebadge { pointer-events: auto; }');
+  });
+  it('a card with no zones sends every press to onClick', () => {
+    const onClick = vi.fn();
+    ui = mount(<PhShowcaseCard size="full" label="Rook. Options" name="Rook" art="/a.webp" titleId="title_ironbeard" rank={{ divisionIndex: 7, points: 40 }} onClick={onClick} haspopup />);
+    press('.phs-art img'); press('.phs-title .titlebadge'); press('.phs-rank .phs-rk b');
+    expect(onClick).toHaveBeenCalledTimes(3);
+    expect(root().className).not.toContain('phs-artgo');
+    expect(root().className).not.toContain('phs-titlego');
+  });
+  it('an empty title line is not a zone', () => {
+    const onClick = vi.fn(); const onTitle = vi.fn();
+    ui = mount(<PhShowcaseCard size="full" label="Mike. Options" name="Mike" rank={null} onClick={onClick} onTitle={onTitle} haspopup />);
+    press('.phs-title');
+    expect(onTitle).not.toHaveBeenCalled();
+    expect(onClick).toHaveBeenCalledTimes(1);
   });
 });
 

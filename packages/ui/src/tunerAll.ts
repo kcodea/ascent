@@ -32,6 +32,7 @@ import { SPEC as CardPlateEditorSpec } from './CardPlateEditorTuner';
 import { SPEC as BackgroundSpec } from './BackgroundTuner';
 import { SPEC as CardTextSpec } from './CardTextTuner';
 import { SPEC as CrystalFuseSpec } from './CrystalFuseTuner';
+import { SPEC as GateEnterSpec } from './rankedGate/gateEnterConfig';
 import { SPEC as HeroCeremonySpec } from './HeroCeremonyTuner';
 import { SPEC as CleaveFxSpec } from './CleaveFxTuner';
 import { SPEC as ConsumeFxSpec } from './ConsumeFxTuner';
@@ -147,6 +148,7 @@ export const ALL_TUNER_SPECS: TunerSpec<never>[] = [
   BackgroundSpec,
   CardTextSpec,
   CrystalFuseSpec,
+  GateEnterSpec,
   HeroCeremonySpec,
   CleaveFxSpec,
   ConsumeFxSpec,

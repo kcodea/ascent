@@ -17331,4 +17331,23 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Built 2026-11-24. The owner liked the second version ("This looks incredible"); the energy lettering came after.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/goodLuck/luckStar.test.ts', 'packages/ui/src/goodLuck/GoodLuckIntro.test.tsx', 'packages/ui/src/goodLuck/goodLuckIntro.test.ts'], lastVerifiedAt: '2026-11-24' },
   },
+  {
+    id: 'R-SFX-STOPPED-PRESS-01',
+    title: 'A control that stops its press still makes the click sound',
+    statement:
+      'A menu control that keeps its press to itself (so nothing around it reacts, like a seat that would start a drag) still plays the same press sound '
+      + 'as every other menu button, on the same terms: a click plays it, a touch does not.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-24, on the four tabs under your player card', quote: 'make sure the thoccy click sound happens when they are clicked' },
+      { kind: 'code', ref: 'packages/ui/src/partyHome/kit/PhCardTabs.tsx (press: stops the pointerdown, then sfx.clickThock())' },
+      { kind: 'code', ref: 'packages/ui/src/Game.tsx (the delegated press sound listens on window, so a stopped press never reaches it)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-24 for the tabs under your player card (Avatar, Frame, Title, Card plate), the one control that stops its press today. '
+      + 'From 2026-11-24 (PR 2870) until this fix the tabs were silent on press: they stop the pointerdown so the Versus room never drags from them, '
+      + 'and that hid the press from the app-wide sound. PARTIAL: nothing checks other controls that stop a press; a new one must play the sound itself.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/partyHome/kit/PhCardTabs.test.tsx'], lastVerifiedAt: '2026-11-24' },
+  },
 ];

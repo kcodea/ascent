@@ -8,6 +8,8 @@
  *    re-renders often (every poll, every drag
  *    zone change), so a seat re-render with unchanged seat data (new pools object, new menu items, new callbacks, a new
  *    but equal rank) never re-renders its card; a real change (Health moved, the menu opened) does.
+ *  - PRESS ZONES (owner 2026-11-24): a seat given `onZone` (your own) sends a press on its art and its rank box there in
+ *    place of the menu; the art is a zone only for a signed-in account; a fresh `onZone` closure never re-renders the card.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, memo } from 'react';
@@ -25,6 +27,7 @@ vi.mock('./kit/PhShowcaseCard', async (orig) => {
 
 const { mount } = await import('../renderedText.mount');
 const { recordEyebrow, roomMenuRight, roomMirrored, SeatBanner } = await import('./versusRoomHome');
+const { useGame } = await import('../store');
 
 describe('roomMirrored: by position, facing the VS mark', () => {
   it('a 1v1 mirrors the far seat (p2) only', () => {
@@ -70,6 +73,7 @@ describe("a seat's card keeps its memo across room re-renders", () => {
     pools: { health: over.health ?? 30, armor: 5 }, sealed: false, draggable: false, onPointerDown: () => undefined,
     items: [{ label: 'Add friend', run: () => undefined }], menuOpen: over.menuOpen ?? false,
     onToggleMenu: () => { toggles.push(over.tag ?? 'x'); }, onPick: (run: () => void) => run(),
+    onZone: () => undefined, // a fresh closure every render, as the room hands it
   });
   afterEach(() => { renders.n = 0; toggles.length = 0; });
 
@@ -118,6 +122,51 @@ describe('the left-column mark rides the card itself, inside the drag handle', (
     try {
       const card = ui.container.querySelector('.vsr-dragwrap > .phs-card')!;
       expect(card.classList.contains('ph-menuright')).toBe(true);
+    } finally { ui.unmount(); }
+  });
+});
+
+describe('press zones on a room seat (your own card)', () => {
+  const member = { userId: 'me', displayName: 'Mike', profile: {}, role: 'p1' as const, lastSeenAt: '' };
+  const base = { side: 'p1' as const, i: 0, size: 'half' as const, mirrored: false, m: member, rival: false, server: { rank: { divisionIndex: 4, points: 20 } },
+    thumb: false, host: false, over: '', hidden: false, pools: null, sealed: false, draggable: false, onPointerDown: () => undefined,
+    items: [{ label: 'Move to spectators', run: () => undefined }], menuOpen: false, onPick: () => undefined };
+  const press = (ui: { container: HTMLElement }, sel: string): void => { act(() => { (ui.container.querySelector(sel) as HTMLElement).click(); }); };
+  const signIn = (anonymous: boolean): void => { act(() => { useGame.setState({ account: { ...useGame.getState().account, anonymous } }); }); };
+  afterEach(() => signIn(true));
+
+  it('signed in: the art and the rank box go to their zone; the rest of the card opens the menu', () => {
+    signIn(false);
+    const zones: string[] = []; const toggle = vi.fn();
+    const ui = mount(<SeatBanner {...base} onToggleMenu={toggle} onZone={(z) => { zones.push(z); }} />);
+    try {
+      expect(ui.container.querySelector('.phs-card')!.classList.contains('phs-artgo')).toBe(true);
+      press(ui, '.phs-art'); press(ui, '.phs-rank .phs-rk b');
+      expect(zones).toEqual(['avatar', 'career']);
+      expect(toggle).not.toHaveBeenCalled();
+      press(ui, '.phs-pname');
+      expect(toggle).toHaveBeenCalledTimes(1);
+    } finally { ui.unmount(); }
+  });
+  it('a guest: the rank box still goes to Career, the art opens the menu', () => {
+    const zones: string[] = []; const toggle = vi.fn();
+    const ui = mount(<SeatBanner {...base} onToggleMenu={toggle} onZone={(z) => { zones.push(z); }} />);
+    try {
+      expect(ui.container.querySelector('.phs-card')!.classList.contains('phs-artgo')).toBe(false);
+      press(ui, '.phs-rank .phs-rk b');
+      expect(zones).toEqual(['career']);
+      press(ui, '.phs-pname');
+      expect(toggle).toHaveBeenCalledTimes(1);
+    } finally { ui.unmount(); }
+  });
+  it('a seat with no onZone (anyone else) sends every press to its menu', () => {
+    signIn(false);
+    const toggle = vi.fn();
+    const ui = mount(<SeatBanner {...base} onToggleMenu={toggle} />);
+    try {
+      press(ui, '.phs-rank .phs-rk b'); press(ui, '.phs-pname');
+      expect(toggle).toHaveBeenCalledTimes(2);
+      expect(ui.container.querySelector('.phs-card')!.classList.contains('phs-artgo')).toBe(false);
     } finally { ui.unmount(); }
   });
 });

@@ -51,6 +51,7 @@ import {
 import { CATEGORY_BUS, CATEGORY_GAINS, CATEGORY_LABEL } from '../audio/config';
 import { familyOf } from '../audio/clipFamily';
 import { LOCATIONS } from '../locationReveal/locations';
+import { GATE_ENTER_BASE_W, GATE_ENTER_DEFAULTS } from './gateEnterConfig';
 
 let ui: Mounted | null = null;
 const phaseOf = (): string | null => {
@@ -60,6 +61,7 @@ const phaseOf = (): string | null => {
 const advance = (ms: number): void => { act(() => { vi.advanceTimersByTime(ms); }); };
 const cues = (): string[] => snd.gate.mock.calls.map((c) => c[0] as string);
 const crystalEl = (): HTMLButtonElement | null => document.querySelector<HTMLButtonElement>('.rgate-crystal');
+const enterEl = (): HTMLElement | null => document.querySelector<HTMLElement>('.rgate-enter');
 const pressCrystal = (button = 0): void => { act(() => { crystalEl()!.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, button })); }); };
 const reducedMotion = (on: boolean): void => {
   window.matchMedia = ((q: string) => ({ matches: on && q.includes('reduce'), media: q, addEventListener() {}, removeEventListener() {} })) as unknown as typeof window.matchMedia;
@@ -258,6 +260,9 @@ describe('the gate plays', () => {
     expect(gem.querySelectorAll('.rgate-crystal-hot > .rgate-crystal-ply'), 'white-hot while it forms: three plies').toHaveLength(3);
     expect(gem.querySelector('.rgate-crystal-heat'), 'and its bloom, in its own shape').not.toBeNull();
     expect(gem.querySelector('.rgate-crystal-glint .rgate-crystal-twinkle'), 'the glint and its star').not.toBeNull();
+    // THE WORD is already in the tree, unseen, so that arming it is a fade and not a pop.
+    expect(enterEl(), 'the word, waiting').not.toBeNull();
+    expect(enterEl()!.classList.contains('is-on'), 'not shown while the crystal cannot be pressed').toBe(false);
     // A press while it is still forming does nothing.
     pressCrystal();
     expect(phaseOf()).toBe('forming');
@@ -278,6 +283,12 @@ describe('the gate plays', () => {
     expect(el.hasAttribute('data-nohoversfx')).toBe(true);
     expect(readFileSync(join(__dirname, '..', 'Game.tsx'), 'utf8'), 'the opt-out both menu-sound listeners honour').toMatch(/const MENU_SFX_SKIP = '\[data-nohoversfx\]/);
     expect(document.activeElement, 'it takes focus, so the keyboard can open the gate').toBe(el);
+    // THE WORD (owner 2026-11-24): "when the crystal is formed and able to be clicked, can we have the word ENTER appear".
+    const word = enterEl()!;
+    expect(word.classList.contains('is-on')).toBe(true);
+    expect(word.querySelector('img.rgate-enter-word')!.getAttribute('src'), 'his own painted word').toContain('frames/ranked-gate-enter.webp');
+    expect(word.getAttribute('aria-hidden'), 'the button already has its own label').toBe('true');
+    expect(el.contains(word), 'it is a label beside the crystal, never part of the button').toBe(false);
     // Ten minutes later nothing has moved on by itself.
     advance(600_000);
     expect(phaseOf()).toBe('armed');
@@ -331,6 +342,7 @@ describe('the gate plays', () => {
     expect(fx.shatter.mock.calls[0]![0]).toEqual(CRYSTAL);
     expect(fx.shudder).toHaveBeenCalledTimes(1);
     expect(crystalEl(), 'its burst is still playing').not.toBeNull();
+    expect(enterEl()!.classList.contains('is-on'), 'the word goes on the press').toBe(false);
     // The release that follows the press (a click) is not a second one, nor is a second press.
     act(() => { crystalEl()!.click(); });
     pressCrystal();
@@ -341,6 +353,7 @@ describe('the gate plays', () => {
     advance(open.openAt - open.openSoundAt);
     expect(phaseOf()).toBe('opening');
     expect(crystalEl(), 'nothing of the crystal rides the opening doors').toBeNull();
+    expect(enterEl(), 'nor the word').toBeNull();
     advance(open.endAt - open.openAt - 1);
     expect(phaseOf()).toBe('opening');
     advance(1);
@@ -413,6 +426,7 @@ describe('VERSUS: the entry gate with a held press (owner 2026-10-14)', () => {
     pressCrystal();
     expect(onPress).toHaveBeenCalledTimes(1);
     expect(phaseOf(), 'held: the crystal stays up').toBe('armed');
+    expect(enterEl()!.classList.contains('is-on'), 'but the word is gone: there is nothing left to press').toBe(false);
     pressCrystal();
     expect(onPress, 'a held crystal is not pressable again').toHaveBeenCalledTimes(1);
     advance(10_000);
@@ -559,6 +573,49 @@ describe('what ships', () => {
     expect(noComments).not.toMatch(/(?<!is-armed )\.rgate-crystal:hover/);
   });
 
+  it('the word ENTER: the owner\'s painted lettering, a far soft shadow on the door, a light bob, a fade', () => {
+    // Owner 2026-11-24: "have it have a far drop shadow like its cast against the door and have it lightly bobbing
+    // up and down"; then, of the lettering itself, after a few tries in the title face: "lets try using this" (his
+    // own painted word, glow and all); and of the shadow: "increase the blur on the drop shadow".
+    const box = /\.rgate-enter \{([^}]*)\}/.exec(noComments)![1]!;
+    const word = /\.rgate-enter-word \{([^}]*)\}/.exec(noComments)![1]!;
+    const num = (re: RegExp, src: string): number => Number(re.exec(src)![1]);
+    // Placed in art pixels by the doors' own cover scale, under the crystal, and never in the pointer's way.
+    expect(box).toContain('--rg-u: max(calc(50cqw / var(--rg-art-hw, 836)), calc(100cqh / var(--rg-art-h, 941)))');
+    // (Where exactly, how big and what colour are the dev tuner's: gateEnterConfig.ts and its own test.)
+    expect(box).toContain(`top: calc(50% + var(--rg-enter-dy, ${GATE_ENTER_DEFAULTS.y}) * var(--rg-u))`);
+    const crystalBottom = RANKED_GATE_ART.crystalCy - RANKED_GATE_ART.h / 2 + RANKED_GATE_ART.crystalSize / 2;
+    expect(GATE_ENTER_DEFAULTS.y, 'below the crystal').toBeGreaterThan(crystalBottom);
+    expect(box).toContain('pointer-events: none');
+    // The fade: unseen until it is on, in slowly, out fast.
+    expect(box).toMatch(/opacity: 0;/);
+    const fadeOut = num(/transition: opacity ([\d.]+)s/, box);
+    const fadeIn = num(/\.rgate-enter\.is-on \{ opacity: 1; transition: opacity ([\d.]+)s/, noComments);
+    expect(fadeIn).toBeGreaterThan(fadeOut * 3);
+    // The painted word is committed, and sized in art pixels at its own shape (so it holds its box before it decodes).
+    expect(existsSync(pub('frames', 'ranked-gate-enter.webp'))).toBe(true);
+    expect(word).toContain(`width: calc(${GATE_ENTER_BASE_W} * var(--rg-enter-scale, ${GATE_ENTER_DEFAULTS.scale}) * var(--rg-u))`);
+    expect(word).toMatch(/aspect-ratio: \d+ \/ \d+;/);
+    // Its light is painted in. The stylesheet's own mark on it is a black copy thrown well away, down the door, and
+    // soft: the LAST step of the filter, after the tuner's colour and glow steps.
+    expect(word, 'no lettering left to style').not.toMatch(/font-|text-shadow|color:/);
+    const cast = /drop-shadow\((calc\(\d[^;]*)\);/.exec(word)![1]!;
+    expect(cast).toMatch(/rgba\(0, 0, 0, 0\.\d+\)$/);
+    const [, drop, blur] = /^calc\(\d+ \* var\(--rg-u\)\) calc\((\d+) \* var\(--rg-u\)\) calc\((\d+) \* var\(--rg-u\)\)/.exec(cast)!.map(Number) as [number, number, number];
+    const [, artW, artH] = /aspect-ratio: (\d+) \/ (\d+);/.exec(word)!.map(Number) as [number, number, number];
+    const height = GATE_ENTER_BASE_W * GATE_ENTER_DEFAULTS.scale * artH / artW;
+    expect(drop / height, 'far: a good part of the word\'s own height away').toBeGreaterThan(0.25);
+    expect(blur, 'soft: a filter blur is a deviation, so this is twice as wide as the same text-shadow number').toBeGreaterThanOrEqual(9);
+    // The bob: light, the image's transform only, and only while the crystal is up.
+    expect(noComments).toMatch(/\.rgate:is\(\.is-armed, \.is-shatter\) \.rgate-enter-word \{ animation: rg-enter-bob [\d.]+s ease-in-out infinite; \}/);
+    const bob = /@keyframes rg-enter-bob \{([\s\S]*?)\n\}/.exec(css)![1]!;
+    const travel = [...bob.matchAll(/translateY\(calc\((-?[\d.]+) \* var\(--rg-u\)\)\)/g)].map((m) => Number(m[1]));
+    expect(travel).toHaveLength(2);
+    expect(Math.max(...travel) - Math.min(...travel), 'a few art pixels, no more').toBeLessThanOrEqual(8);
+    expect(Math.max(...travel) - Math.min(...travel)).toBeGreaterThan(0);
+    expect(noComments, 'the box that fades never moves').not.toMatch(/\.rgate-enter(\.is-on)? \{[^}]*animation/);
+  });
+
   it('it forms by growing from a point, white-hot, and cools to blue at the end', () => {
     // Owner 2026-10-13: "have the gem almost coalesce from sparks that suck into the middle? have it glowing hot
     // white as its forming. growing from the center".
@@ -646,7 +703,7 @@ describe('what ships', () => {
     expect(blocks.map((b) => b[0]).sort()).toEqual([
       'rg-close-l', 'rg-close-r', 'rg-cry-body-in', 'rg-cry-break', 'rg-cry-cool', 'rg-cry-glint', 'rg-cry-glow-in', 'rg-cry-glow-out',
       'rg-cry-glow-pulse', 'rg-cry-grow', 'rg-cry-heat', 'rg-cry-lit-pulse', 'rg-cry-shatter', 'rg-cry-twinkle', 'rg-cry-warp-a', 'rg-cry-warp-b',
-      'rg-cry-warp-c', 'rg-cry-warp-d', 'rg-flash', 'rg-grind', 'rg-impact', 'rg-open-l', 'rg-open-r', 'rg-shudder',
+      'rg-cry-warp-c', 'rg-cry-warp-d', 'rg-enter-bob', 'rg-flash', 'rg-grind', 'rg-impact', 'rg-open-l', 'rg-open-r', 'rg-shudder',
     ]);
     for (const [name, body] of blocks) {
       const props = [...body.matchAll(/([a-z-]+)\s*:/g)].map((m) => m[1]).filter((p) => p !== 'animation-timing-function');

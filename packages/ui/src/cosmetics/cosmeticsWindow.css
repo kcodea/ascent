@@ -6,6 +6,11 @@
 .cw .avp-side { width: calc(360 * var(--phu)); }
 .cw-tabs { display: flex; flex: none; min-width: 0; }
 .cw-tabs .phk-tabs { flex: 1 1 auto; min-width: 0; }
+/* Each section tab wears its painted medallion before its name. */
+.cw-tabs .phk-tablbl { display: inline-flex; align-items: center; }
+/* The section names are white whether or not their tab is the open one; the counts stay small and muted (owner 2026-11-24). */
+.cw-tabs .cw-tabname { color: var(--ph-ink); }
+.cw-tabmedal { flex: none; width: calc(32 * var(--phu)); height: calc(32 * var(--phu)); margin-right: calc(8 * var(--phu)); object-fit: contain; pointer-events: none; }
 
 /* THE GRID: Frame and Card plate tiles are portrait-ish squares; Title tiles are wide pills. */
 .cw-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: calc(20 * var(--phu)); padding: calc(4 * var(--phu)); }
@@ -39,7 +44,9 @@
 
 /* THE SIDE: the selection's name, the preview, then the buttons (and an error line above them). */
 .cw-side { display: flex; flex-direction: column; align-items: center; gap: calc(8 * var(--phu)); flex: 1 1 auto; width: 100%; min-height: 0; }
-.cw-picked { display: flex; flex-direction: column; align-items: center; gap: calc(4 * var(--phu)); max-width: 100%; margin-top: calc(12 * var(--phu)); }
+/* The name and rarity sit up beside the section tabs (the space above the side column is empty there), which leaves the
+   preview more room (owner 2026-11-24: "move up the name and rarity and make the plate larger"). */
+.cw-picked { display: flex; flex-direction: column; align-items: center; gap: calc(4 * var(--phu)); max-width: 100%; margin-top: calc(-52 * var(--phu)); }
 .cw-name { max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-family: var(--ph-font); font-weight: 900; font-size: calc(22 * var(--phu)); line-height: 1.15; color: var(--ph-ink); text-shadow: var(--ph-shadow); }
 .cw-rarname { font-weight: 800; color: var(--rc); }
 .cw-sub { display: flex; align-items: center; justify-content: center; gap: calc(8 * var(--phu)); min-height: calc(20 * var(--phu)); font-size: var(--ph-t2); color: var(--ph-muted); }
@@ -48,7 +55,11 @@
 .cw-cardwrap .phs-card { --phs-w: 100%; animation: none; }
 .cw-ringbig { width: calc(220 * var(--phu)); aspect-ratio: 1; }
 .cw-ringbig img { display: block; width: 100%; height: 100%; object-fit: contain; }
-.cw-platecard { display: grid; place-items: center; transform: scale(0.8); }
+/* The sample card on the Card plate tab. Its drawn size is far larger than its layout box (the text box and tribe label hang
+   below it, the tier crest above: 536 x 327 px drawn around a 218 px box, the drawn centre 91 px under the box centre), so it
+   is scaled to fit the preview area (about 410 px tall) and lifted by that offset, which centres what is DRAWN and keeps it
+   clear of the name above and the Use button below, with room for a plate that overhangs the card. Static. */
+.cw-platecard { display: grid; place-items: center; transform: translateY(-62px) scale(0.68); }
 .cw-actions { display: flex; flex-direction: column; align-items: center; gap: calc(4 * var(--phu)); flex: none; width: 100%; }
 .cw-use.phk-btn { width: 100%; padding: 0 calc(16 * var(--phu)); }
 .cw-use.phk-btn:disabled, .cw-reset.phk-btn:disabled { opacity: 0.45; }
@@ -56,5 +67,6 @@
 
 /* A short or phone-sized window: drop the preview, narrow the side column. */
 html[data-ph-compact] .cw-preview { display: none; }
+html[data-ph-compact] .cw-picked { margin-top: 0; }
 html[data-ph-compact] .cw .avp-side { width: calc(240 * var(--phu)); }
 @media (prefers-reduced-motion: reduce) { .cw-tile { transition: none; } }

@@ -32,7 +32,7 @@ export function LocationPosters({ location, tribes, inert, duos }: { location: L
             onClick={() => open(t)}
           >
             <span className="hs-poster-hang">
-              <img decoding="async" src={locationArt(location.id, `sheet-${t}`)} alt="" draggable={false} />
+              <img decoding="sync" src={locationArt(location.id, `sheet-${t}`)} alt="" draggable={false} />
               <span className="hs-poster-name">{name}</span>
             </span>
           </button>

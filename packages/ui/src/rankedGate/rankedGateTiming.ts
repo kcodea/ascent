@@ -92,9 +92,10 @@ export const RANKED_GATE_TIMING: RankedGateTiming = {
  * The gate's visible states, in order. The root wears `is-<phase>`.
  * `armed` is the only one with no clock: it lasts until the crystal is pressed.
  * The entry gate runs closing, shut, forming, armed, shatter, opening; the end-game gate runs closing, shut,
- * shudder, opening.
+ * shudder, opening. With a LOCATION REVEAL the entry gate runs closing, shut, forming, armed, reveal: the reveal draws the
+ * break and the opening doors itself (locationReveal/revealPlayer.ts).
  */
-export type RankedGatePhase = 'closing' | 'shut' | 'forming' | 'armed' | 'shatter' | 'shudder' | 'opening';
+export type RankedGatePhase = 'closing' | 'shut' | 'forming' | 'armed' | 'shatter' | 'shudder' | 'opening' | 'reveal';
 
 /** Which gate plays: `entry` is the start of a ranked match (the crystal, the player's press); `end` is the fight
  *  that ends a game (no crystal, one clock). */

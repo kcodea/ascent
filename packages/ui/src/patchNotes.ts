@@ -56,6 +56,20 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-11-24',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Every Ranked and Practice game now opens at its location. Shatter the crystal and its magic carries you to The Outskirts, with the tribes in your game waiting for you.',
+        details: [
+          'The announcer greets you as the name appears, then a parchment drops open for each tribe in that game.',
+          'Hero select stands over the same place.',
+          'Practice now starts through the gate too.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-11-23',
     changes: [
       {

@@ -32,6 +32,10 @@ const fx = vi.hoisted(() => ({
   clear: vi.fn(), release: vi.fn(),
 }));
 vi.mock('./gateFx', () => ({ gateFx: fx }));
+const rev = vi.hoisted(() => ({
+  warm: vi.fn(), drop: vi.fn(), ready: vi.fn<() => Promise<unknown>>(), full: vi.fn(), light: vi.fn(),
+}));
+vi.mock('../locationReveal/revealPlayer', () => ({ warmLocationReveal: rev.warm, dropLocationReveal: rev.drop, readyReveal: rev.ready, playFullReveal: rev.full, playLightReveal: rev.light }));
 const snd = vi.hoisted(() => ({ gate: vi.fn(), warmGate: vi.fn(), gateHum: vi.fn() }));
 vi.mock('../sfx', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../sfx')>();
@@ -46,6 +50,7 @@ import {
 } from './rankedGateTiming';
 import { CATEGORY_BUS, CATEGORY_GAINS, CATEGORY_LABEL } from '../audio/config';
 import { familyOf } from '../audio/clipFamily';
+import { LOCATIONS } from '../locationReveal/locations';
 
 let ui: Mounted | null = null;
 const phaseOf = (): string | null => {
@@ -62,7 +67,7 @@ const reducedMotion = (on: boolean): void => {
 
 beforeEach(() => {
   resetRankedGateForTests();
-  for (const f of [...Object.values(fx), snd.gate, snd.warmGate, snd.gateHum]) f.mockClear();
+  for (const f of [...Object.values(fx), ...Object.values(rev), snd.gate, snd.warmGate, snd.gateHum]) f.mockClear();
   reducedMotion(false);
 });
 afterEach(() => { ui?.unmount(); ui = null; vi.useRealTimers(); vi.restoreAllMocks(); });
@@ -654,5 +659,91 @@ describe('what ships', () => {
     // The doors close fully and open fully.
     expect(css).toMatch(/rg-close-l \{[\s\S]*?100% \{ transform: translateX\(0\); \}/);
     expect(css).toMatch(/rg-open-r \{[\s\S]*?100% \{ transform: translateX\(102%\); \}/);
+  });
+});
+
+/** THE LOCATION REVEAL (owner 2026-11-24, R-LOCATION-02): the press breaks the crystal into the game's location. */
+describe('the location reveal through the gate', () => {
+  const request = { location: LOCATIONS.underbelly, tribes: ['undead', 'spirit'] as const };
+  const reveal = { location: () => LOCATIONS.underbelly, request: () => request };
+  const flush = async (): Promise<void> => { await act(async () => { await Promise.resolve(); await Promise.resolve(); await Promise.resolve(); await Promise.resolve(); }); };
+  const toArmed = (opts: Parameters<typeof requestRankedGate>[2], onShut = vi.fn()) => {
+    vi.useFakeTimers();
+    ui = mount(<RankedGate />);
+    const done = vi.fn();
+    act(() => { void requestRankedGate(onShut, 'entry', opts).then(done); });
+    advance(rankedGateCloseTimeline().armedAt + 5);
+    expect(phaseOf()).toBe('armed');
+    return { done, onShut };
+  };
+
+  it('is made ready once the doors are shut and the screen behind is swapped, never before', () => {
+    vi.useFakeTimers();
+    ui = mount(<RankedGate />);
+    const onShut = vi.fn();
+    act(() => { void requestRankedGate(onShut, 'entry', { reveal }); });
+    advance(rankedGateCloseTimeline().handoffAt - 5);
+    expect(rev.warm).not.toHaveBeenCalled();
+    advance(10);
+    expect(onShut).toHaveBeenCalledTimes(1);
+    expect(rev.warm).toHaveBeenCalledWith(LOCATIONS.underbelly);
+  });
+
+  it('full: the reveal draws the break itself, the gate hides its doors under it and ends with it', async () => {
+    let end!: () => void;
+    let covered!: () => void;
+    rev.ready.mockResolvedValue({});
+    rev.full.mockImplementation((_h: unknown, _r: unknown, _g: unknown, onCovered: () => void) => { covered = onCovered; return new Promise<void>((r) => { end = r; }); });
+    const { done } = toArmed({ reveal });
+    pressCrystal();
+    await flush();
+    expect(rev.full).toHaveBeenCalledTimes(1);
+    expect(rev.full.mock.calls[0]![1]).toBe(request);
+    expect(cues()).toContain('shatter');
+    act(() => covered());
+    expect(phaseOf()).toBe('reveal');
+    advance(60_000);
+    expect(phaseOf(), 'it waits for the reveal, however long').toBe('reveal');
+    await act(async () => { end(); await Promise.resolve(); await Promise.resolve(); await Promise.resolve(); });
+    await flush();
+    expect(phaseOf()).toBeNull();
+    expect(done).toHaveBeenCalledTimes(1);
+  });
+
+  it('light: the doors open as always, over it, and the gate stays until it is done', async () => {
+    let end!: () => void;
+    rev.ready.mockResolvedValue(null);
+    rev.light.mockImplementation(() => new Promise<void>((r) => { end = r; }));
+    toArmed({ reveal });
+    pressCrystal();
+    await flush();
+    expect(phaseOf()).toBe('shatter');
+    advance(rankedGateOpenTimeline().endAt + 10);
+    expect(phaseOf()).toBe('opening');
+    end();
+    await flush();
+    expect(phaseOf()).toBeNull();
+  });
+
+  it('a reveal that fails, or cannot start, never keeps the player at the gate', async () => {
+    rev.ready.mockResolvedValue({});
+    rev.full.mockRejectedValue(new Error('boom'));
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const { done } = toArmed({ reveal });
+    pressCrystal();
+    await flush();
+    await flush();
+    expect(phaseOf()).toBeNull();
+    expect(done).toHaveBeenCalledTimes(1);
+  });
+
+  it('no location: the doors open exactly as before', async () => {
+    toArmed({ reveal: { location: () => null, request: () => null } });
+    pressCrystal();
+    await flush();
+    expect(rev.ready).not.toHaveBeenCalled();
+    expect(phaseOf()).toBe('shatter');
+    advance(rankedGateOpenTimeline().endAt + 10);
+    expect(phaseOf()).toBeNull();
   });
 });

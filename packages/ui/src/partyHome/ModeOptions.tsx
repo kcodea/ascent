@@ -2,14 +2,14 @@
  * THE PARTY HOME's IN-PLACE MODE OPTIONS (prototype, owner 2026-11-02: "build this screen into the new ui flow as well, it
  * all needs to flow beautifully and seamlessly"). A mode with options shows them in ONE panel beside the party's cards,
  * never on a separate page; START reads them. Every option and rule of the old screens is kept:
- *  - PRACTICE (PracticeOptions.tsx): Sandbox | God Mode, then Set (DEV), Heroes, Health, Time (the hint reads the run's
+ *  - PRACTICE (PracticeOptions.tsx): Sandbox | God Mode, then Locations (DEV), Heroes, Health, Time (the hint reads the run's
  *    real Gold Fuse threshold, `fuseGoldOf`), Opponent Rank (greyed, with the reason, for a dev set), Tribes. God Mode
  *    greys the Sandbox rows and lists what it gives you. Writes the same store draft (`setPracticeDraft`, persisted).
  *  - GAUNTLET (gauntlet/StageSelect.tsx): the ten stages with their state; pick one, START opens its hero picker.
  *  - VERSUS 1v1 / GROUP / DUOS: `RoomRulesPanel` in versusRoomHome.tsx.
  * Built from the shell kit only. Static paint.
  */
-import { useMemo, useSyncExternalStore, type ReactNode } from 'react';
+import { useEffect, useMemo, useSyncExternalStore, type ReactNode } from 'react';
 import { gauntletStage, type SetId } from '@game/content';
 import {
   normalizePracticeRank, normalizePracticeTribes, PRACTICE_RANKS, practiceSetOf, practiceSetOptions, practiceTribeOptions,
@@ -18,6 +18,7 @@ import {
 import { sfx } from '../sfx';
 import { useGame } from '../store';
 import { fuseGoldOf } from '../goldClock';
+import { warmRankedGate } from '../rankedGate/RankedGate';
 import { foePortrait } from '../gauntlet/foePortrait';
 import { clearedStages, GAUNTLET_STAGE_COUNT, gauntletAccountMode, gauntletProgressVersion, stageSlotState, subscribeGauntletProgress, type StageSlotState } from '../gauntlet/gauntletProgress';
 import { PhChip, PhRow, PhSelect, PhTabs, phNum, useSlideMarker } from './kit';
@@ -58,7 +59,8 @@ export function PracticePanel() {
   const god = cfg.godMode === true;
   const setId = practiceSetOf(import.meta.env.DEV ? cfg : undefined);
   const devSet = import.meta.env.DEV && setId !== practiceSetOptions().find((o) => o.live)?.id;
-  const setOptions = useMemo(() => (import.meta.env.DEV ? practiceSetOptions().map((o) => ({ value: o.id as SetId, label: phNum(o.live ? `${o.name} (live)` : o.name) })) : []), []);
+  const setOptions = useMemo(() => (import.meta.env.DEV ? practiceSetOptions().map((o) => ({ value: o.id as SetId, label: o.name })) : []), []);
+  useEffect(() => { warmRankedGate({ fx: false }); }, []); // START closes the gate: its art and cues are ready first
   const tribes: { value: PracticeTribe | null; label: string }[] = [
     { value: null, label: 'Normal' },
     ...practiceTribeOptions(setId).map((t) => ({ value: t, label: t.charAt(0).toUpperCase() + t.slice(1) })),
@@ -80,8 +82,8 @@ export function PracticePanel() {
       ) : (
         <div className="pho-rows">
           {import.meta.env.DEV && (
-            <OptRow label="Set" value={setId} options={setOptions}
-              hint={devSet ? 'Dev builds only. Your opponents are bots playing this set.' : 'Dev builds only. The set this game is played with.'}
+            <OptRow label="Locations" value={setId} options={setOptions}
+              hint={devSet ? 'Dev builds only. Your opponents are bots playing here.' : 'Dev builds only. Where this game is played.'}
               onPick={(v) => { sfx.tick(); setDraft({ setId: v, tribes: normalizePracticeTribes(cfg.tribes, v) }); }} />
           )}
           <OptRow label="Heroes" value={cfg.heroes ?? 'beginner'} options={HERO_MODES} onPick={pick('heroes')}
@@ -94,7 +96,7 @@ export function PracticePanel() {
           <div className={devSet ? 'pho-opt off' : 'pho-opt'} role="group" aria-label="Opponent rank">
             <span className="pho-optlbl">Opponent rank</span>
             <PhSelect className="pho-select" label="Opponent rank" value={rank} options={RANKS} onChange={pick('rank')} disabled={devSet} />
-            <span className="pho-hint">{devSet ? 'Not used. Bots play this set.' : rank === 'all' ? 'Recorded players of every rank.' : `The recorded players a ${RANK_LABEL[rank]} player meets in ranked games.`}</span>
+            <span className="pho-hint">{devSet ? 'Not used. Bots play here.' : rank === 'all' ? 'Recorded players of every rank.' : `The recorded players a ${RANK_LABEL[rank]} player meets in ranked games.`}</span>
           </div>
           <OptRow label="Tribes" multi isOn={(v) => (v === null ? cfg.tribes.length === 0 : cfg.tribes.includes(v))} options={tribes}
             onPick={(v) => { sfx.tick(); setDraft({ tribes: togglePracticeTribe(cfg.tribes, v, setId) }); }}

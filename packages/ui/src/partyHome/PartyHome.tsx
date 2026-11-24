@@ -72,6 +72,7 @@ import { usePhLayer } from './shell/usePhLayer';
 import { ChangeNameDialog, selfCardMenu, type CardMenuItem } from './ChangeName';
 import { OWN_CARD_TABS, useOwnCardTabbed } from './OwnCardTabs';
 import { UpdateReadyNotice } from '../UpdateReadyNotice';
+import { startPracticeThroughGate } from '../locationReveal/startPractice';
 import './partyHome.css';
 import { useShowOpponentCosmetics } from '../cosmetics/opponentCosmetics';
 
@@ -134,7 +135,6 @@ function slideModesIn(bar: HTMLElement | null): void {
 }
 
 export default function PartyHome({ onRankedStart }: PartyHomeProps) {
-  const confirmPracticeSetup = useGame((s) => s.confirmPracticeSetup);
   const startGauntlet = useGame((s) => s.startGauntlet);
   const startTutorial = useGame((s) => s.startTutorial);
   const goTo = useGame((s) => s.goTo);
@@ -146,7 +146,6 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
   const pageOpen = useGame(anyPageOpen);
   const savedRun = useGame((s) => s.savedRun);
   const continueRun = useGame((s) => s.continueRun);
-  const setPracticeDraft = useGame((s) => s.setPracticeDraft);
   const me = currentUserId();
   const rank = useCurrentRank();
   const progressionOn = useProgression((s) => s.capability === 'on');
@@ -292,12 +291,8 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
     }
     case 'practice':
       // The options are set in place: straight to the hero picker with them (the title hides as the picker opens).
-      onStart = () => {
-        // The Heroes row reads Beginner when the draft has never been set: make that explicit before the offer is rolled.
-        if (!useGame.getState().practiceDraft.heroes) setPracticeDraft({ heroes: 'beginner' });
-        useGame.setState({ showTitle: false, avatarPickerOpen: false });
-        confirmPracticeSetup();
-      };
+      // Through the gate (owner 2026-11-24): the doors close over this screen, and it opens behind them.
+      onStart = startPracticeThroughGate;
       break;
     case 'gauntlet':
       if (stage === null) { startOk = false; note = 'No stage is open yet.'; break; }

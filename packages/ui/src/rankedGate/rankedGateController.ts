@@ -14,6 +14,8 @@
  */
 
 import type { RankedGateVariant } from './rankedGateTiming';
+import type { LocationDef } from '../locationReveal/locations';
+import type { LocationRevealRequest } from '../locationReveal/revealPlayer';
 
 /**
  * VERSUS (owner 2026-10-14: "the normal lobby gate close with the crystal") — optional, entry gate only. Absent, the
@@ -23,6 +25,12 @@ import type { RankedGateVariant } from './rankedGateTiming';
  */
 export interface RankedGateOptions {
   onPress?: () => Promise<boolean>;
+  /**
+   * THE LOCATION REVEAL (owner 2026-11-24): the shattered crystal carries the player to the game's location before hero
+   * select. `location` is asked once the doors are shut (so it can be made ready), `request` on the break. Either may
+   * answer null: the doors then open as they always have.
+   */
+  reveal?: { location: () => LocationDef | null; request: () => LocationRevealRequest | null };
 }
 
 /** Plays the gate. Must call `onShut` once the doors are shut, and resolve when the sequence has ended. */

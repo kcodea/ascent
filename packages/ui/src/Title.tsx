@@ -16,6 +16,7 @@ import { DUOS_CONFIRM_TEXT, DUOS_CONFIRM_TITLE, RANKED_CONFIRM_EXIT_MS, RANKED_C
 import { MenuSidebar, SidebarHost } from './MenuSidebar';
 import { warmRankedGate } from './rankedGate/RankedGate';
 import { cancelRankedGate, requestRankedGate } from './rankedGate/rankedGateController';
+import { revealForPending } from './locationReveal/startPractice';
 import { IconHelm, MenuMedal } from './menuIcons';
 import { cratesVisible, useProgression } from './progression/progressionStore';
 import { startReplay } from './replay/replayPlayer';
@@ -307,7 +308,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
     void requestRankedGate(() => {
       dealt = startLobby();
       void dealt.then((ok) => { if (!ok) cancelRankedGate(); });
-    }, 'entry', { onPress: () => dealt });
+    }, 'entry', { onPress: () => dealt, reveal: revealForPending });
   };
   // "No, go back." (or a press on the dimmed picker around the card): play the exit, then unmount.
   const closeRankedConfirm = (): void => {

@@ -1,8 +1,11 @@
+import { useEffect } from 'react';
 import { useGame } from './store';
 import { modeArt } from './art';
 import { FadeImg } from './FadeImg';
 import { sfx } from './sfx';
 import { phoneLayoutOn } from './stage';
+import { warmRankedGate } from './rankedGate/RankedGate';
+import { startPracticeThroughGate } from './locationReveal/startPractice';
 import { PRACTICE_RANKS, normalizePracticeRank, normalizePracticeTribes, practiceSetOf, practiceSetOptions, practiceTribeOptions, togglePracticeTribe, type PracticeConfig, type PracticeRank, type PracticeTribe } from '@game/sim';
 import type { SetId } from '@game/content';
 
@@ -83,10 +86,10 @@ const tribeOptionsFor = (setId: SetId): { value: PracticeTribe | null; label: st
   ...practiceTribeOptions(setId).map((t) => ({ value: t, label: t.charAt(0).toUpperCase() + t.slice(1) })),
 ];
 
-/** DEV ONLY (owner 2026-10-26): the Set row's choices, every defined set by its display name. Never built in a player
+/** DEV ONLY (owner 2026-10-26; Locations 2026-11-24): the Location row's choices, every set with a location by its name. Never built in a player
  *  build: the row below renders only under `import.meta.env.DEV`. */
 const SET_OPTIONS: { value: SetId; label: string }[] = import.meta.env.DEV
-  ? practiceSetOptions().map((o) => ({ value: o.id, label: o.live ? `${o.name} (live)` : o.name }))
+  ? practiceSetOptions().map((o) => ({ value: o.id, label: o.name }))
   : [];
 
 /** One of the Practice screen's two modes as a SELECTABLE TILE (UI refinement 2026-10-16; owner sketch 2026-10-08 for
@@ -127,7 +130,9 @@ const GOD_FEATURES: { title: string; text: string }[] = [
 export function PracticeOptions() {
   const cfg = useGame((s) => s.practiceDraft);
   const setDraft = useGame((s) => s.setPracticeDraft);
-  const confirm = useGame((s) => s.confirmPracticeSetup);
+  // Through the gate (owner 2026-11-24): the doors close over this screen, and the hero picker opens behind them.
+  const confirm = startPracticeThroughGate;
+  useEffect(() => { warmRankedGate({ fx: false }); }, []); // its art and cues are ready before Start
   const goTo = useGame((s) => s.goTo);
   // GOD MODE (owner sketch 2026-10-08): God Mode ignores the Sandbox options (it always plays every hero, Unlimited
   // health, every tribe, no timer), so they are greyed out and inert until Sandbox Mode is selected.
@@ -170,8 +175,8 @@ export function PracticeOptions() {
         <div className={`posandbox${god ? ' off' : ''}`} aria-disabled={god}>
           {import.meta.env.DEV && (
             <Segmented
-              label="Set"
-              hint={devSet ? 'Dev only. Your opponents are bots playing this set.' : 'Dev only. The set this game is played with.'}
+              label="Locations"
+              hint={devSet ? 'Dev only. Your opponents are bots playing here.' : 'Dev only. Where this game is played.'}
               value={setId}
               options={SET_OPTIONS}
               onPick={(v) => setDraft({ setId: v, tribes: normalizePracticeTribes(cfg.tribes, v) })}
@@ -204,7 +209,7 @@ export function PracticeOptions() {
           />
           <Segmented
             label="Opponent Rank"
-            hint={devSet ? 'Not used. Bots play this set.' : rankHint(normalizePracticeRank(cfg.rank))}
+            hint={devSet ? 'Not used. Bots play here.' : rankHint(normalizePracticeRank(cfg.rank))}
             value={normalizePracticeRank(cfg.rank)}
             options={RANKS}
             onPick={(v) => setDraft({ rank: v })}

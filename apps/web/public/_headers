@@ -25,6 +25,8 @@
 # left open past the mark goes back to popping. A replaced frame reaches a returning player within a day.
 /frames/*
   Cache-Control: public, max-age=86400
+/locations/*
+  Cache-Control: public, max-age=86400
 /medallions/*
   Cache-Control: public, max-age=86400
 /cursors/*

@@ -8,7 +8,7 @@ import {
 } from './rankedGateTiming';
 import './rankedGate.css';
 import { PHONE_GPU } from '../phoneDiag';
-import { dropLocationReveal, playFullReveal, playLightReveal, readyReveal, warmLocationReveal, type LocationRevealRequest } from '../locationReveal/revealPlayer';
+import { dropLocationReveal, playFullReveal, playLightReveal, readyReveal, stopLocationReveal, warmLocationReveal, type LocationRevealRequest } from '../locationReveal/revealPlayer';
 
 // BASE_URL-relative, NOT root-absolute: itch serves the game from a CDN sub-path, where '/frames/...' 404s
 // (publicAssetPaths.test.ts). The stylesheet's own `url('/frames/...')` is rewritten by Vite at build time.
@@ -132,6 +132,7 @@ export function RankedGate(): JSX.Element | null {
       sfx.gateHum(false, 60);
       void readyReveal(req.location).catch(() => null).then((gl) => {
         if (!cur || live.current !== cur) { dropLocationReveal(); return; }
+        if (cur.cancelled) { openQuiet(); return; } // the match ended while it was being made ready
         const over = overRef.current;
         const under = underRef.current;
         if (gl && over) {
@@ -236,6 +237,7 @@ export function RankedGate(): JSX.Element | null {
       if (!cur) return;
       cur.cancelled = true;
       if (pressRef.current || cur.held) openQuiet();
+      else stopLocationReveal();
     });
 
     return () => {

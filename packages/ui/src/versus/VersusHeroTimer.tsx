@@ -4,7 +4,8 @@
  * `turnClock` the shop uses. Mounted only on a Versus Hero Select, where no shop clock runs.
  *
  * Its sounds are the shop clock's (R-VERSUS-TIMER-FX-01): the warm-up on 10..6 and the FIVE..ONE ticks, played off
- * the server deadline by `driveVersusClock`, frozen through a pause. There is no 0:00 explosion here (that is the
+ * the server deadline by `driveVersusClock`, frozen through a pause and, at its full 20, while the location reveal's own
+ * seconds run (R-LOCATION-03). There is no 0:00 explosion here (that is the
  * shop locking) and no charge glyph (Hero Select covers the board it is etched on).
  */
 import { useEffect } from 'react';
@@ -12,6 +13,7 @@ import { ShopTimer } from '../Recruit';
 import { turnClock } from '../turnClock';
 import { driveVersusClock, nextObserveMs } from './versusClockFx';
 import { useVersus, versusRemainingMs } from './versusStore';
+import { versusHeroClock } from '../locationReveal/versusReveal';
 
 /** `drive: false` (a Duos player looking at their teammate's Hero Select over their own): the face only. Their own
  *  screen underneath already drives the one clock and its sounds, so a second driver would tick twice. */
@@ -26,8 +28,9 @@ export function VersusHeroTimer({ drive = true }: { drive?: boolean } = {}) {
     let id = 0;
     const tick = (): void => {
       const remaining = pausedAt ? end - Date.parse(pausedAt) : (versusRemainingMs(deadline) ?? 0);
-      driveVersusClock({ key, remainingMs: remaining, moving: !pausedAt, explode: false, announceWave: null });
-      if (!pausedAt && remaining > 0) id = window.setTimeout(tick, nextObserveMs(remaining));
+      const { shownMs, holdMs } = versusHeroClock(remaining);
+      driveVersusClock({ key, remainingMs: shownMs, moving: !pausedAt && holdMs === 0, explode: false, announceWave: null });
+      if (!pausedAt && remaining > 0) id = window.setTimeout(tick, holdMs > 0 ? holdMs : nextObserveMs(remaining));
     };
     tick();
     return () => { window.clearTimeout(id); turnClock.hold(performance.now()); };

@@ -49,7 +49,8 @@ export function registerRankedGate(fn: RankedGateFn | null, cancel: (() => void)
 }
 
 /** VERSUS: the gate window closed (the room went back to Open) while the doors were shut: open them quietly on the
- *  screen behind, whether or not the crystal was pressed. A no-op with no gate playing. */
+ *  screen behind, whether or not the crystal was pressed. A location reveal that is playing is cut short. A no-op with no
+ *  gate playing. */
 export function cancelRankedGate(): void {
   canceller?.();
 }
@@ -81,6 +82,11 @@ export function requestRankedGate(onShut: () => void, variant: RankedGateVariant
   inFlight = run
     .catch((err) => { console.warn('[rankedGate] the gate failed; continuing without it', err); })
     .finally(() => { inFlight = null; once(); });
+  return inFlight;
+}
+
+/** The gate playing right now, if any: resolves when it is over. */
+export function rankedGateInFlight(): Promise<void> | null {
   return inFlight;
 }
 

@@ -342,7 +342,7 @@ export class RevealGl {
   pictures(): { name: string; url: string }[] {
     return [
       { name: 'gate-left', url: publicArt('frames/ranked-gate-left.webp') }, { name: 'gate-right', url: publicArt('frames/ranked-gate-right.webp') }, { name: 'gem', url: publicArt('frames/ranked-gate-crystal.webp') },
-      ...['flat', 'data', 'layer0', 'layer1', 'layer2', 'layer3', ...this.loc.posters.map((t) => `poster-${t}`)].map((n) => ({ name: n, url: locationArt(this.loc.id, n) })),
+      ...['flat', 'data', 'water', 'layer0', 'layer1', 'layer2', 'layer3', ...this.loc.posters.map((t) => `poster-${t}`)].map((n) => ({ name: n, url: locationArt(this.loc.id, n) })),
     ];
   }
 
@@ -498,7 +498,7 @@ export class RevealGl {
     // The place itself.
     if (s > L - 1.1) {
       this.pass('scene', this.scene, { s, push, pan, dof: Math.max(0, Math.log2(ART_ROWS / H)) + 0.9 * inOut(posters) + 3 * outro, after: landed ? after : -9, drain: 0, near_: 2 * Math.exp(-Math.max(0, after) * 2.4) },
-        { DT: tex.get('data'), L0: tex.get('layer0'), L1: tex.get('layer1'), L2: tex.get('layer2'), L3: tex.get('layer3') });
+        { DT: tex.get('data'), WT: tex.get('water'), L0: tex.get('layer0'), L1: tex.get('layer1'), L2: tex.get('layer2'), L3: tex.get('layer3') });
     }
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.ms);
     gl.viewport(0, 0, W, H);
@@ -570,7 +570,7 @@ export class RevealGl {
       this.mode('add');
       this.use('light', { s, after, push, pan, px, dof: 0.9 * inOut(posters) });
       this.points('light');
-      this.use('ember', { R: [W, H], pan, push, s, warmth: loc.warmth, ember: 0.95 * seg(after, 0.1, 0.7) * (1 - seg(s, end - 0.4, end)) });
+      this.use('ember', { R: [W, H], pan, push, s, warmth: loc.warmth, ember: 0.95 * seg(after, 0.1, 0.7) });
       this.tris('full');
       if (after < 2.4) { this.use('gust', { s, L, px }); this.points('gust'); }
       if (after < 1.2) {

@@ -6,10 +6,10 @@
  * revision). Imports only core + content + pure siblings, so the Deno bundle never drags in the reducer, the
  * shop or any UI code.
  */
-import { contentRevision } from '@game/content';
+import { contentRevision, SETS, type SetId } from '@game/content';
 import { canonicalDigest, canonicalJson, digestOf } from './canonical';
 import { emptyVersusSide, preparedSideError, resolveVersusFight, versusChair, versusCombatSeed, versusSideOrEmpty, type VersusFightInput, type VersusFightResult } from './combat';
-import { VERSUS_COMBAT_VIEW_CAP_SECONDS, VERSUS_GATE_SECONDS, VERSUS_HERO_SELECT_SECONDS, VERSUS_INTRO_CAP_SECONDS, VERSUS_LIMITS, VERSUS_MISSED_ROUNDS_FORFEIT, VERSUS_PAUSE_GRACE_SECONDS, VERSUS_PROTOCOL, VERSUS_SPECTATOR_CAP, versusTurnSeconds } from './constants';
+import { VERSUS_COMBAT_VIEW_CAP_SECONDS, VERSUS_GATE_SECONDS, VERSUS_HERO_SELECT_SECONDS, VERSUS_INTRO_CAP_SECONDS, VERSUS_LIMITS, VERSUS_MISSED_ROUNDS_FORFEIT, VERSUS_PAUSE_GRACE_SECONDS, VERSUS_PROTOCOL, VERSUS_REVEAL_SECONDS, VERSUS_SPECTATOR_CAP, versusTurnSeconds } from './constants';
 import { handleVersusFinalize, versusFightDigest, versusFightPayload, type VersusFinalizeStore } from './finalize';
 import { reportedVitals, versusArmorFloorMax, versusFreshSide, versusStartingVitals } from './vitals';
 import { resolveVersusGroupRound, versusGroupPairings, type VersusGroupRoundInput, type VersusGroupRoundResult } from './group';
@@ -29,7 +29,12 @@ export { versusFreshSide };
 // fresh report the way `versus__raise_reported_armor` does in SQL, so it needs the same three reads. Export-only: the
 // Edge Function's behaviour is unchanged.
 export { reportedVitals, versusArmorFloorMax, versusStartingVitals };
-export { VERSUS_COMBAT_VIEW_CAP_SECONDS, VERSUS_GATE_SECONDS, VERSUS_HERO_SELECT_SECONDS, VERSUS_INTRO_CAP_SECONDS, VERSUS_MISSED_ROUNDS_FORFEIT, VERSUS_PAUSE_GRACE_SECONDS, VERSUS_SPECTATOR_CAP };
+export { VERSUS_COMBAT_VIEW_CAP_SECONDS, VERSUS_GATE_SECONDS, VERSUS_HERO_SELECT_SECONDS, VERSUS_INTRO_CAP_SECONDS, VERSUS_MISSED_ROUNDS_FORFEIT, VERSUS_PAUSE_GRACE_SECONDS, VERSUS_REVEAL_SECONDS, VERSUS_SPECTATOR_CAP };
+/** THE LOCATION REVEAL (R-LOCATION-03): how long Hero Select is open on the server, the reveal's own seconds included when
+ *  the match's set is a location. */
+export function versusHeroSelectMs(setId: string): number {
+  return (VERSUS_HERO_SELECT_SECONDS + (SETS[setId as SetId]?.location ? VERSUS_REVEAL_SECONDS : 0)) * 1000;
+}
 // MORE TIME IN VERSUS (owner 2026-10-30): the per-mode shop clock the Worker's deadlines read.
 export { versusTurnSeconds };
 export type { VersusFightInput, VersusFightResult, VersusFinalizeStore };

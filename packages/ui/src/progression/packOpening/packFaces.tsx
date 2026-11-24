@@ -4,7 +4,7 @@ import {
 import type { PackCard } from '@game/progression';
 import { stageViewport, type StageRect } from '../../stage';
 import { rewardPreview, type RewardEmblem } from '../rewardPreview';
-import { CARD_PLATE_SRC, cardPlateSrc, packRarityLabel, rarityIconSrc } from './packRarity';
+import { CARD_PLATE_SRC, CARD_WINDOW_MASK_SRC, cardPlateSrc, packRarityLabel, rarityIconSrc } from './packRarity';
 import {
   FLIP_HALF_GUARANTEED_MS, FLIP_HALF_MS, FLIP_LIFT, FLIP_LIFT_GUARANTEED, FLIP_PERSPECTIVE_PER_WIDTH, PILE_MAX_H, REVEAL_FACE_X,
   REVEAL_Y, REVEALED_SCALE,
@@ -140,6 +140,9 @@ function categoryLabel(kind: string, known: boolean): string {
   const s = kind.replace(/^New /, '');
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
+
+/** The foil's cut-out: the plate's window, its real outline (packRarity.ts CARD_WINDOW_MASK_SRC), read by `.pkf-holo`. */
+const HOLO_MASK = `url("${CARD_WINDOW_MASK_SRC}")`;
 
 const STROKE = { fill: 'none', stroke: 'currentColor', strokeWidth: 3.5, strokeLinecap: 'round', strokeLinejoin: 'round' } as const;
 
@@ -319,7 +322,7 @@ export function PackFace({ card, phase, from, slot, slow = 1, still = false }: P
         <img src={cardPlateSrc(card.rarity)} alt="" decoding="sync" draggable={false} className="pkf-plate" />
         {/* the foil is the card's BACKGROUND: over the plate's window, under the item, the text and the rarity */}
         {holo > 0 && (
-          <div className="pkf-holo" data-testid="pkf-holo" style={{ opacity: Math.min(1, holo) }}>
+          <div className="pkf-holo" data-testid="pkf-holo" style={{ opacity: Math.min(1, holo), '--pkf-window': HOLO_MASK } as CSSProperties}>
             <div className="pkf-holo-move" ref={follow.layer}>
               {/* a distinct class (and animation name) per landing, so the top face sweeps again when it joins the row */}
               <div className={`pkf-holo-sheet${lands && !still ? (phase === 'summary' ? ' pkf-holo-sweep-row' : ' pkf-holo-sweep') : ''}`} />
@@ -367,7 +370,7 @@ export function warmFaceArt(cards: readonly PackCard[]): HTMLImageElement[] {
   const seen = new Set<string>();
   const held: HTMLImageElement[] = [];
   for (const c of cards) {
-    for (const url of [cardPlateSrc(c.rarity), rewardPreview(c.rewardId).art?.url, rarityIconSrc(c.rarity)]) {
+    for (const url of [cardPlateSrc(c.rarity), CARD_WINDOW_MASK_SRC, rewardPreview(c.rewardId).art?.url, rarityIconSrc(c.rarity)]) {
       if (!url || seen.has(url)) continue;
       seen.add(url);
       const img = new Image();

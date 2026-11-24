@@ -102,14 +102,15 @@
 .pkf-handoff .pkf-aura-gentle::before, .pkf-handoff .pkf-aura-strong::before { will-change: opacity; }
 @keyframes pkf-aura-gentle { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .pkf-aura::before { animation: none; } }
-/* THE HOLO (packHolo.ts; packFaces.tsx): Epic and up. `.pkf-holo` is the clip (the plate's navy window, `.pkf-win`'s box: the
+/* THE HOLO (packHolo.ts; packFaces.tsx): Epic and up. `.pkf-holo` is the cut-out (the card's box, masked by the plate's
+   window traced from the plates, `--pkf-window` inline: the notch and the stepped corners, no gap to the frame; the
    foil is the card's BACKGROUND, under the item, the text and the rarity) and the blend, at a STATIC opacity (inline: the tier x the holo knob); `.pkf-holo-move` leans with the pointer
    (`--hx` / `--hy`, 0..1, written once per rAF on hover); `.pkf-holo-sheet` is the static gradient, twice the card's
    size, and plays the one-shot sweep. Transform only, no looping animation; under the card's own stacking context, so
    it blends with the plate and the window, not the theatre behind. Epic / Legendary: a pearl on the rarity hue;
    Ancient: a full pastel rainbow. */
-.pkf-holo { position: absolute; left: 6.4%; right: 6.4%; top: 7%; bottom: 5.3%; border-radius: 14% / 9.5%; overflow: hidden;
-  pointer-events: none; mix-blend-mode: color-dodge; }
+.pkf-holo { position: absolute; inset: 0; overflow: hidden; pointer-events: none; mix-blend-mode: color-dodge;
+  -webkit-mask: var(--pkf-window) center / 100% 100% no-repeat; mask: var(--pkf-window) center / 100% 100% no-repeat; }
 .pkf-holo-move { position: absolute; inset: -50%;
   transform: translate(calc((var(--hx, 0.5) - 0.5) * -18%), calc((var(--hy, 0.5) - 0.5) * -14%));
   transition: transform calc(0.22s * var(--pk-slow, 1)) ease-out; }

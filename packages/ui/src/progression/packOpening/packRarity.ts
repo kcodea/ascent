@@ -22,5 +22,14 @@ export const CARD_PLATE_SRC = `${import.meta.env.BASE_URL}packs/cosmetic-card-pl
  */
 export const cardPlateSrc = (r: CrateRarity): string => `${import.meta.env.BASE_URL}packs/card-plate-${r}.webp`;
 
+/**
+ * THE PLATE'S WINDOW, as an alpha mask (512 x 768 webp, the card's full box): the navy window every rarity plate shares,
+ * traced from the plates themselves (a flood from the centre over the navy, the six plates' union, grown a hair to sit
+ * under the frame's inner lip), so it has the window's real outline: the raised notch at the top and the stepped
+ * corners. The face's foil is cut to it (owner 2026-11-24: "theres a gap. i need it exactly the shape of the card
+ * frame"); a rounded box left the notch and the corners bare. Re-trace it if the plates' geometry ever changes.
+ */
+export const CARD_WINDOW_MASK_SRC = `${import.meta.env.BASE_URL}packs/card-plate-window.webp`;
+
 /** What the pack opening calls a rarity: every ribbon, back, summary line and announcement goes through here. */
 export const packRarityLabel = (r: CrateRarity): string => RARITY_LABELS[r];

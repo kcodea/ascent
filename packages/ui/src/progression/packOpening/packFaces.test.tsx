@@ -192,6 +192,17 @@ describe('the face holo', () => {
     expect(layer.querySelector('.pkf-name, .pkf-ribbon, .pkf-art')).toBeNull();
   });
 
+  it('is cut to the plate window traced from the plates, not a rounded box (owner 2026-11-24: "theres a gap")', () => {
+    m?.unmount();
+    m = mount(<PackFace card={card('skin_albus_1', { rarity: 'ancient' })} phase="featured" />);
+    expect(holo()!.style.getPropertyValue('--pkf-window')).toMatch(/packs\/card-plate-window\.webp/);
+    const css = readFileSync(join(__dirname, 'packOpening.css'), 'utf8');
+    const rule = /\.pkf-holo \{[^}]*\}/.exec(css)?.[0] ?? '';
+    expect(rule).toMatch(/inset: 0/);
+    expect(rule).toMatch(/mask: var\(--pkf-window\)/);
+    expect(rule).not.toMatch(/border-radius/);
+  });
+
   const SWEEP = '.pkf-holo-sweep, .pkf-holo-sweep-row';
 
   it('sweeps once on the pile top and the summary row, never on a face under the top one or under reduced motion', () => {
@@ -429,9 +440,9 @@ describe('warmFaceArt', () => {
     HTMLImageElement.prototype.decode = function (this: HTMLImageElement) { decoded.push(this.src); return Promise.resolve(); };
     try {
       const held = warmFaceArt([card('skin_albus_1'), card('alpha_tester'), card('emote_hi'), card('no_such_reward')]);
-      // the rare plate (once) + two art faces + the one shared rarity medallion (all four cards are rare)
-      expect(held).toHaveLength(4);
-      expect(decoded).toHaveLength(4);
+      // the rare plate (once) + the window mask (once) + two art faces + the one shared rarity medallion (all four are rare)
+      expect(held).toHaveLength(5);
+      expect(decoded).toHaveLength(5);
       expect(held.filter((img) => img.src.includes('packs/card-plate-rare.webp'))).toHaveLength(1);
       for (const img of held) expect(img.decoding).toBe('sync');
     } finally {

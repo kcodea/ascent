@@ -23,7 +23,7 @@ export function waveOrigin(): { x: number; y: number } {
   return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
 }
 
-const PIECES = '.hs-eyebrow, .hsprompt, .hsline, .hsback, .hss-slot, .hss-card, .phi-nav, .hsbook, .hsb-panel';
+const PIECES = '.hs-eyebrow, .hsprompt, .hsline, .hsback, .hss-slot, .hss-card, .phi-nav, .hsbook, .hsb-panel, .hs-poster';
 
 /** Each piece of hero select leans away as the wave's front comes to it; the wave then covers it. Compositor only. */
 export function shoveAside(root: HTMLElement, from: { x: number; y: number }, vp: { w: number; h: number }, sink: Animation[]): void {

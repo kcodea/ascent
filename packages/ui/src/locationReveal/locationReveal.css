@@ -35,3 +35,25 @@
 .hs-location { position: fixed; inset: 0; z-index: -1; pointer-events: none; background: #06101f 52% 45% / cover no-repeat; }
 .hs-atmo { position: absolute; inset: 0; width: 100%; height: 100%; }
 .hs-location::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(6, 12, 28, 0.58) 0%, rgba(6, 12, 28, 0.24) 24%, rgba(6, 12, 28, 0.24) 62%, rgba(6, 12, 28, 0.74) 100%); }
+
+/* THE TRIBES, STILL HANGING AT HERO SELECT (R-LOCATION-08, LocationPosters.tsx). One column down the right side, sized so all of
+   them fit between the heading and the foot; in Duos it stops above the teammate's portrait. Compositor only. */
+.hs-posters { position: fixed; z-index: 3; right: calc(26 * var(--phu, 1px) + var(--safe-r, 0px)); top: 51%; translate: 0 -50%;
+  display: flex; flex-direction: column; gap: calc(6 * var(--phu, 1px)); pointer-events: none; }
+.hs-poster { pointer-events: auto; display: block; margin: 0; padding: 0; border: 0; background: none; width: calc(132 * var(--phu, 1px)); height: calc(164 * var(--phu, 1px)); color: inherit; }
+.hs-posters.duos { top: calc(128 * var(--phu, 1px)); translate: none; gap: calc(4 * var(--phu, 1px)); }
+.hs-posters.duos .hs-poster { width: calc(94 * var(--phu, 1px)); height: calc(120 * var(--phu, 1px)); }
+/* It hangs from its top edge: a slow sway of its own, and a livelier one under the pointer. */
+.hs-poster-hang { position: relative; display: block; width: 100%; height: 100%; transform-origin: 50% 4%; animation: hs-poster-sway calc(5.6s + var(--i) * 0.7s) ease-in-out calc(var(--i) * -1.3s) infinite; will-change: transform; }
+@keyframes hs-poster-sway { 0%, 100% { transform: rotate(-1.5deg); } 50% { transform: rotate(1.5deg); } }
+.hs-poster-hang > img { position: absolute; left: -14%; top: -10%; width: 128%; height: 120%; object-fit: contain; -webkit-user-drag: none; transition: transform 0.28s cubic-bezier(0.2, 0.9, 0.3, 1.3); transform-origin: 50% 8%; }
+.hs-poster:is(:hover, :focus-visible):not(:disabled) img { transform: translateY(2%) scale(1.09) rotate(-1.6deg); }
+.hs-poster:active:not(:disabled) img { transform: scale(0.98); transition-duration: 0.06s; }
+.hs-poster:focus-visible { outline: 2px solid var(--ui-edge-hi, #ffd98a); outline-offset: 2px; border-radius: 6px; }
+.hs-poster-name { position: absolute; left: 50%; bottom: -4%; translate: -50% 0; white-space: nowrap; color: var(--c); font: 900 calc(21 * var(--phu, 1px)) / 1 var(--ph-font, sans-serif); letter-spacing: 0.01em;
+  --ol: 0.075em; text-shadow: calc(var(--ol) * 1.0000) calc(var(--ol) * 0.0000) 0 #1a1008, calc(var(--ol) * 0.9239) calc(var(--ol) * 0.3827) 0 #1a1008, calc(var(--ol) * 0.7071) calc(var(--ol) * 0.7071) 0 #1a1008, calc(var(--ol) * 0.3827) calc(var(--ol) * 0.9239) 0 #1a1008, calc(var(--ol) * 0.0000) calc(var(--ol) * 1.0000) 0 #1a1008, calc(var(--ol) * -0.3827) calc(var(--ol) * 0.9239) 0 #1a1008, calc(var(--ol) * -0.7071) calc(var(--ol) * 0.7071) 0 #1a1008, calc(var(--ol) * -0.9239) calc(var(--ol) * 0.3827) 0 #1a1008, calc(var(--ol) * -1.0000) calc(var(--ol) * 0.0000) 0 #1a1008, calc(var(--ol) * -0.9239) calc(var(--ol) * -0.3827) 0 #1a1008, calc(var(--ol) * -0.7071) calc(var(--ol) * -0.7071) 0 #1a1008, calc(var(--ol) * -0.3827) calc(var(--ol) * -0.9239) 0 #1a1008, calc(var(--ol) * -0.0000) calc(var(--ol) * -1.0000) 0 #1a1008, calc(var(--ol) * 0.3827) calc(var(--ol) * -0.9239) 0 #1a1008, calc(var(--ol) * 0.7071) calc(var(--ol) * -0.7071) 0 #1a1008, calc(var(--ol) * 0.9239) calc(var(--ol) * -0.3827) 0 #1a1008, 0 0.127em 0.36em rgba(0, 0, 0, 0.75); }
+.hs-posters.duos .hs-poster-name { font-size: calc(16 * var(--phu, 1px)); }
+/* The older ceremony takes the screen: they leave with hero select. (The ripple washes them away itself.) */
+.heroselect.hsc-active .hs-posters { opacity: 0; transition: opacity 0.25s ease; }
+.heroselect[data-hsc-ripple='wave'] .hs-posters { opacity: 1 !important; transition: none !important; }
+@media (prefers-reduced-motion: reduce) { .hs-poster-hang { animation: none; } .hs-poster-hang > img { transition: none; } }

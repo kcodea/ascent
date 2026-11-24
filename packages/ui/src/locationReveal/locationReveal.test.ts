@@ -36,7 +36,7 @@ describe('the locations', () => {
   it('each hangs exactly its own tribes, and ships every picture and sound it names', () => {
     for (const l of Object.values(LOCATIONS)) {
       expect([...l.posters].sort()).toEqual([...SETS[l.setId].tribes].sort());
-      for (const f of ['flat', 'blur', 'data', 'water', 'layer0', 'layer1', 'layer2', 'layer3', ...l.posters.map((t) => `poster-${t}`)]) {
+      for (const f of ['flat', 'blur', 'data', 'water', 'layer0', 'layer1', 'layer2', 'layer3', ...l.posters.flatMap((t) => [`poster-${t}`, `sheet-${t}`])]) {
         expect(existsSync(join(PUBLIC, l.id, `${f}.webp`)), `${l.id}/${f}`).toBe(true);
       }
       for (const t of l.posters) expect(POSTER_NAME[t]).toBeTruthy();

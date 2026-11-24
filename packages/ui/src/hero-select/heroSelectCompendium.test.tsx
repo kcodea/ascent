@@ -10,6 +10,7 @@ import { HeroSelect } from '../HeroSelect';
 import { useGame } from '../store';
 import { setPartyHome } from '../partyHome/partyHomeFlag';
 import { setHeroShowcase } from './heroShowcaseFlag';
+import { POSTER_NAME } from '../locationReveal/locations';
 
 let ui: Mounted | null = null;
 afterEach(() => {
@@ -58,6 +59,24 @@ describe('View Compendium on hero select', () => {
     expect(useGame.getState().showBook).toBe(true);
     act(() => { button(el)!.click(); });
     expect(useGame.getState().showBook).toBe(true);
+  });
+
+  it('where the parchments hang they are the way in: one a tribe, each opening the book on that tribe of that set (R-LOCATION-08)', () => {
+    act(() => { useGame.setState({ pendingSeed: 11 }); });
+    const el = open({ ph: true, showcase: true, mode: 'lobby' });
+    const sheets = [...el.querySelectorAll<HTMLButtonElement>('.hs-poster')];
+    expect(sheets.length).toBeGreaterThan(0);
+    expect(button(el)).toBeNull();
+    for (const s of sheets) expect(s.getAttribute('title')).toBeNull();
+    act(() => { sheets[0]!.click(); });
+    const st = useGame.getState();
+    expect(st.showBook).toBe(true);
+    expect(st.bookTribe?.setId).toBe('set2');
+    expect(sheets[0]!.textContent).toBe(POSTER_NAME[st.bookTribe!.tribe]);
+    act(() => { useGame.getState().closeBook(); });
+    expect(useGame.getState().bookTribe).toBeNull();
+    expect(useGame.getState().heroChoices).toEqual(OFFER);
+    act(() => { useGame.setState({ pendingSeed: undefined } as never); });
   });
 
   it('a watched Hero Select has no button', () => {

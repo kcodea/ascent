@@ -444,7 +444,9 @@ function BookView({ frame }: { frame?: (parts: CompendiumParts) => ReactNode }) 
   const showSetPicker = compendiumSetPickerEnabled();
   const liveSetId = activeSet().id;
   const runSetId: SetId = run.setId ?? 'set1';
-  const [setId, setSetId] = useState<SetId>(() => (showTitle ? liveSetId : runSetId));
+  // A PARCHMENT at hero select (R-LOCATION-08) opens it on one tribe of the set that game is played with.
+  const [asked] = useState(() => useGame.getState().bookTribe);
+  const [setId, setSetId] = useState<SetId>(() => asked?.setId ?? (showTitle ? liveSetId : runSetId));
   // "Findable this run" scoping (the run's active tribes, its Choose One (Both) text) applies ONLY while the
   // book shows the run's own set. Browsing any other set, or browsing from the title, shows that WHOLE set.
   const browsingRun = !showTitle && setId === runSetId;
@@ -464,7 +466,7 @@ function BookView({ frame }: { frame?: (parts: CompendiumParts) => ReactNode }) 
   const QUEST_REWARD_IDS = useMemo(() => new Set(QUEST_REWARD_CARDS.map((x) => x.card.id)), [QUEST_REWARD_CARDS]);
 
   const [tiers, setTiers] = useState<Set<number>>(() => new Set());
-  const [cats, setCats] = useState<Set<Category>>(() => (frame ? readBookCats() : new Set()));
+  const [cats, setCats] = useState<Set<Category>>(() => (asked ? new Set<Category>([asked.tribe]) : frame ? readBookCats() : new Set()));
   const [heroPop, setHeroPop] = useState<(typeof HEROES)[number] | null>(null);
   const [search, setSearch] = useState(''); // free-text search over card/quest/rune name + text ("Imp", "Ward", …)
   // The filters read a DEFERRED copy (perf 2026-10-09): the box updates on the keystroke, the gallery a beat later at
@@ -810,6 +812,7 @@ function BookView({ frame }: { frame?: (parts: CompendiumParts) => ReactNode }) 
   useEffect(() => {
     if (!frame) return;
     if ([...cats].some((c) => !categories.includes(c))) { setCats(new Set()); return; }
+    if (asked) return; // a parchment's visit is not the player's own choice of where the book opens
     try { localStorage.setItem(BOOK_CATS_KEY, JSON.stringify([...cats])); } catch { /* a convenience only */ }
   }, [frame, cats, categories]);
 

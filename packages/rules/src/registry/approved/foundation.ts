@@ -17270,4 +17270,21 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/locationReveal/locationReveal.test.ts'], lastVerifiedAt: '2026-11-24' },
   },
+  {
+    id: 'R-LOCATION-08',
+    title: 'At hero select the parchments of the game hang down the right side; each opens the Compendium on that tribe',
+    statement:
+      'Where a game has a location, hero select shows its torn parchments in one column down the right side, one for each tribe '
+      + 'of that game, in the order the reveal hung them. Pressing one opens the Compendium on the minions of that tribe, of the '
+      + 'set that game is played with; closing it lands back on the same offer, and where the book opens next time is not '
+      + 'changed. The View Compendium button is not shown there (it stays where there are no parchments: a touch screen, a mode '
+      + 'with no location). They leave with the pick, and a watched hero select has none.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-24, with a sketch', quote: 'Can you put the tribe parchments along the right side during hero select as well? And have clicking them open the compendium to that tribes list. Remove the compendium button at the bottom' },
+      { kind: 'code', ref: 'packages/ui/src/locationReveal/LocationPosters.tsx; packages/ui/src/HeroSelect.tsx; packages/ui/src/store.ts (openBookTribe)' },
+    ],
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/hero-select/heroSelectCompendium.test.tsx'], lastVerifiedAt: '2026-11-24' },
+  },
 ];

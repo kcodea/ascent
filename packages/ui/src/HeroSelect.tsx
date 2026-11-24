@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useReducer, useRef, useState, type CSSProperties, type MouseEvent } from 'react';
 import { getHero, activeRift, heroTip, heroRerollCandidates, SHOW_HERO_TIPS, type HeroReroll } from '@game/sim';
+import type { Tribe } from '@game/core';
 import { RiftPill } from './RiftPill';
 import { heroPowerArt } from './art';
 import { SharpImg } from './SharpImg';
@@ -30,7 +31,10 @@ import { heroShowcaseOn, useHeroShowcase } from './hero-select/heroShowcaseFlag'
 import { heroSelectEyebrow } from './hero-select/heroSelectEyebrow';
 import { HeroPowerLine } from './hero-select/HeroPowerLine';
 import { LocationGround } from './locationReveal/LocationGround';
-import { pendingLocation } from './locationReveal/pendingLocation';
+import { LocationPosters } from './locationReveal/LocationPosters';
+import { postersFor } from './locationReveal/locations';
+import { runTribesForSeed, versusModeIsDuos, normalizeVersusOptions } from '@game/sim';
+import { pendingLocation, pendingTribes } from './locationReveal/pendingLocation';
 import { versusLocation } from './locationReveal/versusReveal';
 import ringArt from './hero-select/heroportrait.png';
 import { ringRelativeToDefault } from './portraitFrame/portraitFrameConfig';
@@ -115,6 +119,15 @@ export function HeroSelect({ watch }: { watch?: HeroSelectWatch } = {}) {
   const ownLocation = useGame((s) => (watch || s.heroChoices === null ? null : pendingLocation(s)));
   const matchSet = useVersus((s) => s.match?.set_id ?? null);
   const location = mode === 'versus' ? versusLocation(matchSet) : ownLocation;
+  // Its tribes, still hanging (R-LOCATION-08): a live match's are this player's own run's. One string, so nothing re-renders for it.
+  const ownTribes = useGame((s) => (watch || s.heroChoices === null || s.pendingMode === 'versus' ? '' : pendingTribes(s).join(' ')));
+  const matchSeed = useVersus((s) => (s.match && s.priv?.match_id === s.match.id ? Number(s.priv.run_seed) : null));
+  const duosMatch = useVersus((s) => !!s.match?.options && versusModeIsDuos(normalizeVersusOptions(s.match.options).mode));
+  const posters = useMemo(() => {
+    if (!location || watch) return [];
+    const ts = mode === 'versus' ? (matchSeed === null ? [] : runTribesForSeed(matchSeed, location.setId)) : (ownTribes ? ownTribes.split(' ') as Tribe[] : []);
+    return postersFor(location, ts);
+  }, [location, watch, mode, matchSeed, ownTribes]);
   const profile = useGame((s) => s.profile);
   // THE PARTY HOME LOOK (DEV switch, off by default): the same screen and behaviour in the shell's language.
   const ph = usePartyHome() && !!HeroSelectPhSkin;
@@ -619,11 +632,13 @@ export function HeroSelect({ watch }: { watch?: HeroSelectWatch } = {}) {
         </div>}
         {/* VIEW COMPENDIUM (owner ask 2026-11-20): a small button under the heroes opens the same book the corner button
             and Tab open elsewhere (`toggleBook`), over this screen. Closing it lands back here with the pick untouched.
-            Not on a watched screen, and gone once a pick's ceremony runs. */}
-        {!watch && !active && (
+            Not on a watched screen, and gone once a pick's ceremony runs. Where the parchments hang they are the way in
+            (owner 2026-11-24), and this is not shown. */}
+        {!watch && !active && !(posters.length > 0 && (showcase || browseShowcase)) && (
           <button type="button" className="hsbook" onClick={openCompendium} aria-label="View Compendium">View Compendium</button>
         )}
       </div>
+      {posters.length > 0 && (showcase || browseShowcase) && location && <LocationPosters location={location} tribes={posters} inert={active} duos={mode === 'versus' && duosMatch} />}
       {openNow !== null && (
         <Suspense fallback={null}>
           <HeroBrowseWindow

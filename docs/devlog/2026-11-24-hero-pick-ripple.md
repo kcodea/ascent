@@ -28,3 +28,10 @@ Owner and Mike, the day the reveal shipped. Rules R-LOCATION-05 to R-LOCATION-07
 Pick: median 4.2 ms; the first pick of a
 fresh browser profile has one 40 to 58 ms frame (Skia compiling the name plate's paint on the GPU process, as the old ceremony did); the
 second run's worst is 12.5 ms.
+
+## The parchments at hero select (R-LOCATION-08)
+
+`LocationPosters.tsx`: the reveal's torn sheets, baked once from its own shader at rest (`sheet-<tribe>.webp`, ten files, about 48 KB
+each; only the game's five are fetched), down the right side. A press opens the Compendium on that tribe (`openBookTribe`), in the set
+that game is played with, without touching where the book opens next. In Duos the column is smaller and stops above the teammate's
+portrait. The View Compendium button stays only where there are none.

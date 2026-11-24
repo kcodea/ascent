@@ -9,7 +9,7 @@ import { describe, expect, it } from 'vitest';
 // The PartyHome module graph reaches the pixi chain's canvas probe; guard it as rankSurfaces.test.tsx does.
 HTMLCanvasElement.prototype.getContext = (() => null) as unknown as HTMLCanvasElement['getContext'];
 
-import { cardSizeFor, mirroredAt } from './PartyHome';
+import { cardSizeFor, menuRightAt, mirroredAt } from './PartyHome';
 
 describe('cardSizeFor', () => {
   it('one seat is full, two are half, three or four are compact', () => {
@@ -33,5 +33,18 @@ describe('mirroredAt', () => {
   it('never mirrors a mode with no VS mark', () => {
     expect(mirroredAt('group', 3)).toBe(false);
     expect(mirroredAt('duos', 1)).toBe(false);
+  });
+});
+
+// A card's menu opens toward the stage, never the screen edge: the left column's cards open to their right.
+describe('menuRightAt (the left column, by position)', () => {
+  it('one-row lineups: only the first card', () => {
+    expect([0, 1].map((i) => menuRightAt('versus', i))).toEqual([true, false]);
+    expect([0, 1].map((i) => menuRightAt('duos', i))).toEqual([true, false]);
+    expect(menuRightAt('ranked', 0)).toBe(true);
+  });
+  it('Group 2 x 2: cards 0 and 2; Versus Duos: the left team column (0, 1)', () => {
+    expect([0, 1, 2, 3].map((i) => menuRightAt('group', i))).toEqual([true, false, true, false]);
+    expect([0, 1, 2, 3].map((i) => menuRightAt('vduos', i))).toEqual([true, true, false, false]);
   });
 });

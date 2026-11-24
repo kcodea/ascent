@@ -98,6 +98,13 @@ export function roomMirrored(mode: VersusRoomMode, side: VersusGroupSeat): boole
   return mode === 'duel' ? side === 'p2' : mode === 'duos' ? side === 'p3' || side === 'p4' : false;
 }
 
+/** The seat card's menu opens to its RIGHT in the row's left column (the screen edge is on its left): a 1v1's p1, Group's p1 and
+ *  p3 (the 2 x 2's left column), Duos' p1 and p2 (team 1). Marked by a class from the seat (`ph-menuright`, partyHome.css),
+ *  since the drag-handle wrapper around every seat defeats structural selectors. */
+export function roomMenuRight(mode: VersusRoomMode, side: VersusGroupSeat): boolean {
+  return mode === 'group' ? side === 'p1' || side === 'p3' : mode === 'duos' ? side === 'p1' || side === 'p2' : side === 'p1';
+}
+
 /** A seat card's eyebrow: the Versus record ("3W 1L"); none reads empty. */
 export function recordEyebrow(r: VersusRecord | null): string {
   return r ? `${r.wins}W ${r.losses}L` : '';
@@ -365,7 +372,7 @@ export function useVersusRoomHome(root: RefObject<HTMLElement>, phone: boolean, 
       ? open ? [...openSeats.map((s) => ({ label: `Move to seat ${s.slice(1)}`, run: () => { sfx.play(); void homeTakeSeat(s); } })), { label: 'Move to spectators', run: () => { sfx.sell(); void homeTakeSeat('spectator'); } }] : []
       : canFriend ? [{ label: 'Add friend', run: () => { sfx.pulse(); void addFriend(m.userId); } }] : [];
     return (
-      <SeatBanner key={m.userId} side={side} i={i} size={size} mirrored={roomMirrored(mode, side)} m={m} rival={!mineCard && !!role && role !== 'spectator' && (mode !== 'duos' || teamOf(side) !== teamOf(role as VersusGroupSeat))} rank={mineCard ? myRank : undefined} server={seatData.get(m.userId)} thumb={phone} host={m.userId === room.host_user_id} over={over} hidden={drag?.userId === m.userId}
+      <SeatBanner key={m.userId} side={side} i={i} size={size} mirrored={roomMirrored(mode, side)} menuRight={roomMenuRight(mode, side)} m={m} rival={!mineCard && !!role && role !== 'spectator' && (mode !== 'duos' || teamOf(side) !== teamOf(role as VersusGroupSeat))} rank={mineCard ? myRank : undefined} server={seatData.get(m.userId)} thumb={phone} host={m.userId === room.host_user_id} over={over} hidden={drag?.userId === m.userId}
         pools={running ? seatPools(match, side) : null} sealed={room.status === 'sealed'} draggable={mineCard && myDraggable} onPointerDown={(e) => begin(e, m.userId)}
         items={items} menuOpen={menuFor === m.userId} onToggleMenu={() => { if (!clicked()) return; sfx.pulse(); setMenuFor((k) => (k === m.userId ? null : m.userId)); }}
         onPick={(run) => { setMenuFor(null); run(); }} />
@@ -441,8 +448,8 @@ export function useVersusRoomHome(root: RefObject<HTMLElement>, phone: boolean, 
  * primitive, a hoisted constant, or memoised on the values it shows, so `PhShowcaseCard`'s memo holds until something on
  * the card really changes. The press and the menu buttons call the LATEST handlers through a ref.
  */
-export function SeatBanner({ side, i, size, mirrored, m, rival, rank, server, thumb, host, over, hidden, pools, sealed, draggable, onPointerDown, items, menuOpen, onToggleMenu, onPick }: {
-  side: VersusGroupSeat; i: number; size: PhCardSize; mirrored: boolean; m: VersusMember; rival: boolean;
+export function SeatBanner({ side, i, size, mirrored, menuRight = false, m, rival, rank, server, thumb, host, over, hidden, pools, sealed, draggable, onPointerDown, items, menuOpen, onToggleMenu, onPick }: {
+  side: VersusGroupSeat; i: number; size: PhCardSize; mirrored: boolean; menuRight?: boolean; m: VersusMember; rival: boolean;
   /** Your own live rank (null: Unranked); undefined reads the seat's server rank. */
   rank?: RankPosition | null;
   server: SeatServerData | undefined; thumb: boolean; host: boolean; over: string; hidden: boolean;
@@ -483,7 +490,7 @@ export function SeatBanner({ side, i, size, mirrored, m, rival, rank, server, th
     <PhShowcaseCard size={size} index={i} mirrored={mirrored} mine={own} rival={rival} youLabel={own}
       art={face.art} name={face.name} eyebrow={recordEyebrow(face.record) || '\u00a0'} titleId={face.titleId} rank={stableRank}
       badge={host ? HOST_BADGE : undefined} band={band}
-      className={`vsr-seat vsr-s-${side}${draggable ? ' vsr-mineseat' : ''}${over}${hidden ? ' vsr-src' : ''}`}
+      className={`vsr-seat vsr-s-${side}${menuRight ? ' ph-menuright' : ''}${draggable ? ' vsr-mineseat' : ''}${over}${hidden ? ' vsr-src' : ''}`}
       label={draggable ? `You, seat ${side.slice(1)}. Drag to another seat, or up to spectate. Options` : `${face.name}${host ? ', host' : ''}, seat ${side.slice(1)}`}
       onClick={items.length > 0 ? toggle : undefined} haspopup={items.length > 0} expanded={menuOpen} overlay={overlay} />
   );

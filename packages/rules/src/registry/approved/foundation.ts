@@ -14775,8 +14775,10 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour:
       'Conforms from 2026-11-07 (feat/ph-change-name). Before, the banner menu had only Change portrait and View Career, and the party home had no way to rename. '
-      + 'The PartyHome wiring is pinned by a source check (no test mounts PartyHome); the window and the menu order are pinned by render tests.',
-    enforcement: { kind: 'scenario', refs: ['packages/ui/src/partyHome/changeName.test.tsx'], lastVerifiedAt: '2026-11-07' },
+      + 'The PartyHome wiring is pinned by a source check; the window and the menu order are pinned by render tests. '
+      + 'BROKEN from the showcase card (#2866, 2026-11-23) until fix round 1 of feat/showcase-card-versus-room: the outside-press close looked only for the old banner\x27s open class, so pressing Change name on the showcase card closed the menu on pointerdown and the click did nothing. '
+      + 'partyCardMenu.test.tsx now mounts the real PartyHome, opens your card menu and presses Change name (pointerdown then click) to open the window.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/partyHome/changeName.test.tsx', 'packages/ui/src/partyHome/partyCardMenu.test.tsx'], lastVerifiedAt: '2026-11-23' },
   },
   {
     id: 'R-PH-SIGNIN-NAV-01',

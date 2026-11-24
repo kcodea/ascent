@@ -23,7 +23,7 @@ vi.mock('./kit/PhShowcaseCard', async (orig) => {
 });
 
 const { mount } = await import('../renderedText.mount');
-const { recordEyebrow, roomMirrored, SeatBanner } = await import('./versusRoomHome');
+const { recordEyebrow, roomMenuRight, roomMirrored, SeatBanner } = await import('./versusRoomHome');
 
 describe('roomMirrored: by position, facing the VS mark', () => {
   it('a 1v1 mirrors the far seat (p2) only', () => {
@@ -38,6 +38,15 @@ describe('roomMirrored: by position, facing the VS mark', () => {
   });
   it('Group has no VS mark and never mirrors', () => {
     for (const s of ['p1', 'p2', 'p3', 'p4'] as const) expect(roomMirrored('group', s)).toBe(false);
+  });
+});
+
+describe('roomMenuRight: the left column opens its menu toward the stage', () => {
+  it('a 1v1: p1; Group 2 x 2: p1 and p3; Duos: team 1 (p1, p2)', () => {
+    const seats = ['p1', 'p2', 'p3', 'p4'] as const;
+    expect(seats.slice(0, 2).map((s) => roomMenuRight('duel', s))).toEqual([true, false]);
+    expect(seats.map((s) => roomMenuRight('group', s))).toEqual([true, false, true, false]);
+    expect(seats.map((s) => roomMenuRight('duos', s))).toEqual([true, true, false, false]);
   });
 });
 
@@ -72,6 +81,7 @@ describe("a seat's card keeps its memo across room re-renders", () => {
       expect(card.classList.contains('vsr-s-p2')).toBe(true);
       expect(card.classList.contains('phs-mirrored')).toBe(true);
       expect(card.classList.contains('phs-rival')).toBe(true);
+      expect(card.classList.contains('ph-menuright')).toBe(false);
       expect(ui.container.querySelector('.phs-eyebrow')?.textContent).toBe('3W 1L');
       expect(ui.container.querySelector('.phs-band.t-pools .vsr-hp')?.getAttribute('aria-label')).toBe('Health 30, Armor 5');
       expect(ui.container.querySelector('.phs-badge')?.textContent).toBe('Host');
@@ -94,6 +104,19 @@ describe("a seat's card keeps its memo across room re-renders", () => {
       expect(ui.container.querySelector('.ph-cardmenu')?.textContent).toBe('Add friend');
       ui.render(<SeatBanner {...props({ health: 29, menuOpen: true })} />);
       expect(renders.n).toBe(3);
+    } finally { ui.unmount(); }
+  });
+});
+
+describe('the left-column mark rides the card itself, inside the drag handle', () => {
+  it('a menuRight seat carries ph-menuright on its card (the drag wrapper defeats structural selectors)', () => {
+    const member = { userId: 'them', displayName: 'Orangez', profile: {}, role: 'p1' as const, lastSeenAt: '' };
+    const ui = mount(<SeatBanner side="p1" i={0} size="half" mirrored={false} menuRight m={member} rival={false} server={undefined} thumb={false} host={false}
+      over="" hidden={false} pools={null} sealed={false} draggable={false} onPointerDown={() => undefined} items={[]} menuOpen={false}
+      onToggleMenu={() => undefined} onPick={() => undefined} />);
+    try {
+      const card = ui.container.querySelector('.vsr-dragwrap > .phs-card')!;
+      expect(card.classList.contains('ph-menuright')).toBe(true);
     } finally { ui.unmount(); }
   });
 });

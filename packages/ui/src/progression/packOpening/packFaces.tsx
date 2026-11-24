@@ -378,7 +378,7 @@ export function PackFace({ card, phase, from, slot, slow = 1, still = false }: P
               )
               : <div className="pkf-new">New</div>}
           </div>
-          {!isTitle && <div className="pkf-name">{p.label.name}</div>}
+          {!isTitle && <div className="pkf-name"><span>{p.label.name}</span></div>}
           {p.category === null && <div className="pkf-note">{p.label.kind}</div>}
           {/* what kind of cosmetic it is, just above its rarity and in the rarity's colour (owner 2026-11-24) */}
           <div className="pkf-cat">{cat}</div>

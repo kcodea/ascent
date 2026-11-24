@@ -83,6 +83,15 @@ describe('PackFace', () => {
     expect(face().querySelectorAll('.pkf-cat')).toHaveLength(1);
   });
 
+  it('the name sits in a thin navy frame like the preview window (owner 2026-11-24)', () => {
+    m = mount(<PackFace card={card('skin_albus_1')} phase="featured" />);
+    expect(face().querySelector('.pkf-name > span')!.textContent).toBeTruthy();
+    const rule = /.pkf-name {[^}]*}/.exec(readFileSync(join(__dirname, 'packOpening.css'), 'utf8'))![0];
+    expect(rule).toMatch(/background: #091226/);
+    expect(rule).toMatch(/border-radius/);
+    expect(rule).toContain("box-shadow: 0 0 0 2px var(--gold)");
+  });
+
   it('an announcer shows the painted Announcers medallion in the window, not a drawn icon', () => {
     m = mount(<PackFace card={card('announcer_lemon')} phase="featured" />);
     const art = face().querySelector('.pkf-art')!;

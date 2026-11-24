@@ -165,8 +165,12 @@
 .pkf-title.titlebadge { --tb-fs: 23px; max-width: 100%; }
 /* A hero skin in the portrait ring it wears in a game; an attack animation's sandbox fills the window. */
 .pkf-art .pkf-heroring { --ring: 286px; }
-.pkf-name { margin-top: 6px; font-family: var(--font-cardname); font-size: 38px; font-weight: 800; line-height: 1.1; text-align: center;
-  max-width: 100%; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+/* The name sits in its own thin frame: the preview window's navy, rounded corners and gold line (owner 2026-11-24), so
+   the foil never runs behind the words. The span clamps to two lines inside the frame's padding. */
+.pkf-name { margin-top: 6px; width: 100%; box-sizing: border-box; padding: 10px 14px 12px; border-radius: 14px; background: #091226;
+  box-shadow: 0 0 0 2px var(--gold), 0 0 0 5px color-mix(in srgb, var(--gold) 22%, transparent);
+  font-family: var(--font-cardname); font-size: 38px; font-weight: 800; line-height: 1.1; text-align: center; }
+.pkf-name > span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
   text-shadow: 0 3px 6px rgba(0, 0, 0, 0.7); }
 .pkf-note { font-size: 19px; opacity: 0.75; text-align: center; }
 /* THE RARITY (owner 2026-11-24): its name in the rarity's colour with a drop shadow, no pill, centred at the bottom of the

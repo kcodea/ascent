@@ -378,7 +378,13 @@ export function useVersusRoomHome(root: RefObject<HTMLElement>, phone: boolean, 
       <SeatBanner key={m.userId} side={side} i={i} size={size} mirrored={roomMirrored(mode, side)} menuRight={roomMenuRight(mode, side)} m={m} rival={!mineCard && !!role && role !== 'spectator' && (mode !== 'duos' || teamOf(side) !== teamOf(role as VersusGroupSeat))} rank={mineCard ? myRank : undefined} server={seatData.get(m.userId)} thumb={phone} host={m.userId === room.host_user_id} over={over} hidden={drag?.userId === m.userId}
         pools={running ? seatPools(match, side) : null} sealed={room.status === 'sealed'} draggable={mineCard && myDraggable} onPointerDown={(e) => begin(e, m.userId)}
         items={items} menuOpen={menuFor === m.userId} onToggleMenu={() => { if (!clicked()) return; sfx.pulse(); setMenuFor((k) => (k === m.userId ? null : m.userId)); }}
-        onPick={(run) => { setMenuFor(null); run(); }} />
+        onPick={(run) => { setMenuFor(null); run(); }}
+        onZone={mineCard ? (zone) => {
+          if (!clicked()) return; // the release of a drag is not a press
+          sfx.pulse();
+          setMenuFor(null);
+          if (zone === 'career') useGame.getState().goTo('career'); else useGame.getState().openCosmetics(zone);
+        } : undefined} />
     );
   };
 
@@ -452,20 +458,33 @@ export function useVersusRoomHome(root: RefObject<HTMLElement>, phone: boolean, 
  * and hands this seat fresh objects each time (pools, items, callbacks, an equal rank). Every prop the card gets is a
  * primitive, a hoisted constant, or memoised on the values it shows, so `PhShowcaseCard`'s memo holds until something on
  * the card really changes. The press and the menu buttons call the LATEST handlers through a ref.
+ *
+ * PRESS ZONES (owner 2026-11-24: "add the same press areas to the versus room cards"): a seat given `onZone` (your own)
+ * sends a press on its art, its title and its rank box there in place of the menu: the Avatar picker, the Title picker
+ * and the Career page, as on the Play lineup. The art and the title are zones only for a signed-in account (a guest has
+ * no cosmetics window). The zone callbacks are stable, so the card's memo still holds.
  */
-export function SeatBanner({ side, i, size, mirrored, menuRight = false, m, rival, rank, server, thumb, host, over, hidden, pools, sealed, draggable, onPointerDown, items, menuOpen, onToggleMenu, onPick }: {
+export type SeatPressZone = 'avatar' | 'title' | 'career';
+export function SeatBanner({ side, i, size, mirrored, menuRight = false, m, rival, rank, server, thumb, host, over, hidden, pools, sealed, draggable, onPointerDown, items, menuOpen, onToggleMenu, onPick, onZone }: {
   side: VersusGroupSeat; i: number; size: PhCardSize; mirrored: boolean; menuRight?: boolean; m: VersusMember; rival: boolean;
   /** Your own live rank (null: Unranked); undefined reads the seat's server rank. */
   rank?: RankPosition | null;
   server: SeatServerData | undefined; thumb: boolean; host: boolean; over: string; hidden: boolean;
   pools: { health: number; armor: number } | null; sealed: boolean; draggable: boolean; onPointerDown: (e: ReactPointerEvent<HTMLElement>) => void;
   items: { label: string; run: () => void }[]; menuOpen: boolean; onToggleMenu: () => void; onPick: (run: () => void) => void;
+  /** A press on the art, the title or the rank box (your own seat only). */
+  onZone?: (zone: SeatPressZone) => void;
 }) {
   const face = useFace(m, server, thumb);
+  const tabbed = useOwnCardTabbed();
   const own = m.userId === homeMe();
-  const latest = useRef({ items, onToggleMenu, onPick });
-  latest.current = { items, onToggleMenu, onPick };
+  const latest = useRef({ items, onToggleMenu, onPick, onZone });
+  latest.current = { items, onToggleMenu, onPick, onZone };
   const toggle = useCallback(() => latest.current.onToggleMenu(), []);
+  const zoneAvatar = useCallback(() => latest.current.onZone?.('avatar'), []);
+  const zoneTitle = useCallback(() => latest.current.onZone?.('title'), []);
+  const zoneCareer = useCallback(() => latest.current.onZone?.('career'), []);
+  const zoned = !!onZone;
   const shown = rank === undefined ? face.rank : rank;
   const rk = shown?.divisionIndex;
   const pts = shown?.points;
@@ -499,6 +518,7 @@ export function SeatBanner({ side, i, size, mirrored, menuRight = false, m, riva
       className={`vsr-seat vsr-s-${side}${menuRight ? ' ph-menuright' : ''}${draggable ? ' vsr-mineseat' : ''}${over}${hidden ? ' vsr-src' : ''}`}
       label={draggable ? `You, seat ${side.slice(1)}. Drag to another seat, or up to spectate. Options` : `${face.name}${host ? ', host' : ''}, seat ${side.slice(1)}`}
       onClick={items.length > 0 ? toggle : undefined} haspopup={items.length > 0} expanded={menuOpen && items.length > 0} overlay={overlay}
+      onArt={zoned && tabbed ? zoneAvatar : undefined} onTitle={zoned && tabbed ? zoneTitle : undefined} onRank={zoned ? zoneCareer : undefined}
       under={own ? OWN_CARD_TABS : undefined} />
   );
   // My own card starts the drag (a wrapper that takes no box, so the card stays a direct item of the row). Its tabs (under)

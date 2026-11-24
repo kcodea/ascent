@@ -64,6 +64,7 @@ export const PATCH_NOTES: PatchNote[] = [
         details: [
           'The card now matches the hero cards: a thin gold edge, a soft fade from the art, and a deep navy plate.',
           'The four tabs under your card sit behind it, glow when you point at them, and click like every other button.',
+          'The same presses work on your own card in a Versus room.',
           'In the customize window each section shows its medallion, and the sample card on the Card plate tab now fits.',
         ],
       },

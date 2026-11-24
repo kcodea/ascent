@@ -41,7 +41,7 @@ The owner pointed at the hero select showcase card (`.phi`, phCompendium.css / h
 
 Art opens the customize window on Avatar, the title badge on Title, the rank box goes to Career. Anything else, and a
 keyboard press, still opens the card menu. Other players' cards get only the rank zone, where their menu has View Career.
-Versus room cards are unchanged.
+Your own seat card in the Versus room has the same three zones (`onZone` on `SeatBanner`); a drag release is not a press.
 
 ## Customize window
 

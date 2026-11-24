@@ -26,6 +26,10 @@ let play: RevealPlay | null = null;
 /** Set by a skip (click, Esc, a key): the visuals ended early. Kept for tests and telemetry; nothing else changes. */
 let skipped = false;
 let safety: ReturnType<typeof setTimeout> | null = null;
+/** THE FRAME OPENS (R-LOCATION-06): while held, the reveal is up (the shop waits behind it) but its dim and its line-up wait
+ *  for the board to be the player's. */
+let held = false;
+let onRelease: (() => void)[] = [];
 const listeners = new Set<() => void>();
 const emit = (): void => listeners.forEach((l) => l());
 
@@ -55,6 +59,18 @@ export const lobbyReveal = {
     skipped = opts.skip === true;
     emit();
   },
+  hold: (): void => { held = true; },
+  isHeld: (): boolean => held,
+  /** Let a held reveal go on (a no-op when it is not held). */
+  release: (): void => {
+    if (!held) return;
+    held = false;
+    const go = onRelease;
+    onRelease = [];
+    go.forEach((f) => f());
+  },
+  /** Calls back once it is not held (at once when it is not). */
+  whenReleased: (f: () => void): void => { if (held) onRelease.push(f); else f(); },
   subscribe: (l: () => void): (() => void) => {
     listeners.add(l);
     return () => listeners.delete(l);
@@ -76,6 +92,8 @@ export function resetLobbyRevealForTests(): void {
   safety = null;
   active = false;
   skipped = false;
+  held = false;
+  onRelease = [];
   play = null;
   seq = 0;
   listeners.clear();

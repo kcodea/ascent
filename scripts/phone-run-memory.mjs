@@ -357,7 +357,8 @@ try {
   await snap('ceremony');
   // The ceremony ends on Start Game.
   let started = false;
-  for (let i = 0; i < 20 && !started; i++) { started = await tap(c, '.hsc-start'); if (!started) await sleep(500); }
+  // NO START BUTTON (R-LOCATION-07): the game goes on its own once the hero has said their line.
+  for (let i = 0; i < 24 && !started; i++) { started = !(await evaluate(c, `!!document.querySelector('.heroselect')`)); if (!started) await sleep(500); }
   for (const [t, label] of [[700, 'start +0.7s'], [1800, 'start +2.5s']]) { await sleep(t); await sample(label, started); }
   // The shop: wait for it (a hero with a turn-1 Discover shows that first; the sample says which screen it is on).
   // Every request off 127.0.0.1 is blocked, so the opponent pool cannot load: take "Play anyway" (bot seats) when the

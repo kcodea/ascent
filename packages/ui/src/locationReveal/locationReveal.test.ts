@@ -11,9 +11,14 @@ import { versusHeroSelectMs } from '@game/sim/versus/server';
 import { LOCATIONS, locationName, locationOfSet, POSTER_NAME, postersFor } from './locations';
 import { pendingLocation, pendingReveal, practiceLocation } from './pendingLocation';
 import { LEAN, leanAt, mountAtmosphere } from './atmosphereGl';
+import { openAt, OPEN_FREE, OPEN_S, primeRipple, readyRipple, rippleFar, rippleR, rippleReach, RIPPLE_S, STILL_S } from './heroRipple';
+import { sparkPath } from '../hero-select/launchCharge';
+import { goAfterLine, LEAD_MS, LEAST_MS, MOST_MS, NO_LINE_MS } from '../hero-select/heroLine';
+import { RIPPLE_TIMING } from '../hero-select/heroRippleTiming';
+import { ceremonyAdvanceSchedule, HERO_CEREMONY_TIMING } from '../hero-select/heroCeremonyTiming';
 import { versusHeroClock, versusLocation, versusReveal } from './versusReveal';
 import { showOf, slideFor, stageHeight } from './revealGl';
-import { revealCues } from './revealSound';
+import { lightCues, revealCues } from './revealSound';
 import { A, fitOf, HOLD, L, NAME, outroAt, POST, posterName, posterPose, posterRest, postDone, realOf, revealSeconds, simEnd, simOf, START, T0, washAt, washR, washReach } from './revealTimeline';
 
 const PUBLIC = join(__dirname, '../../../../apps/web/public/locations');
@@ -31,7 +36,7 @@ describe('the locations', () => {
   it('each hangs exactly its own tribes, and ships every picture and sound it names', () => {
     for (const l of Object.values(LOCATIONS)) {
       expect([...l.posters].sort()).toEqual([...SETS[l.setId].tribes].sort());
-      for (const f of ['flat', 'blur', 'data', 'water', 'layer0', 'layer1', 'layer2', 'layer3', ...l.posters.map((t) => `poster-${t}`)]) {
+      for (const f of ['flat', 'blur', 'data', 'water', 'layer0', 'layer1', 'layer2', 'layer3', ...l.posters.flatMap((t) => [`poster-${t}`, `sheet-${t}`])]) {
         expect(existsSync(join(PUBLIC, l.id, `${f}.webp`)), `${l.id}/${f}`).toBe(true);
       }
       for (const t of l.posters) expect(POSTER_NAME[t]).toBeTruthy();
@@ -77,6 +82,75 @@ describe('hero select living ground (owner 2026-11-24, R-LOCATION-04)', () => {
   it('a machine that cannot draw it keeps the still picture', () => {
     const host = { appendChild: () => { throw new Error('nothing is added'); } } as unknown as HTMLElement;
     expect(() => mountAtmosphere(host, LOCATIONS.outskirts)()).not.toThrow();
+  });
+});
+
+describe('the light version (phones)', () => {
+  it('decodes only the short clips it plays: no long beds, none of the break', () => {
+    for (const id of ['outskirts', 'underbelly'] as const) {
+      const clips = new Set(lightCues(id, 5, { name: 1, posters: 2, step: 0.2, leave: 6 }).map((c) => c.clip));
+      expect([...clips].sort()).toEqual(['poster', 'title', `vo-${id}`, 'wave']);
+      for (const c of clips) expect(existsSync(join(PUBLIC, 'sfx', `${c}.mp3`)), c).toBe(true);
+    }
+  });
+});
+
+describe('the ripple through hero select (owner + Mike 2026-11-24, R-LOCATION-05)', () => {
+  it('spreads from the button past every corner, and never back', () => {
+    for (const [w, h] of [[1920, 1080], [2560, 1080], [1280, 960]] as const) {
+      const far = rippleFar(w / 2, h * 0.88, w, h);
+      expect(rippleR(0, far)).toBe(-1);
+      let was = -1;
+      for (let t = 0.01; t <= RIPPLE_S; t += 0.01) { const r = rippleR(t, far); expect(r).toBeGreaterThanOrEqual(was); was = r; }
+      expect(rippleR(RIPPLE_S, far)).toBeGreaterThan(far + 0.2);
+      for (const r of [0.1, 0.5, far]) expect(rippleR(rippleReach(r, far), far)).toBeCloseTo(r, 2);
+    }
+  });
+
+  it('keeps the ceremony’s phases in order, and is quicker to Start Game than the journey it replaces', () => {
+    const s = ceremonyAdvanceSchedule({ ...HERO_CEREMONY_TIMING, ...RIPPLE_TIMING });
+    expect([s.dismissAt, s.focusAt, s.voicePhaseAt, s.materializeAt, s.readyAt]).toEqual([...[s.dismissAt, s.focusAt, s.voicePhaseAt, s.materializeAt, s.readyAt]].sort((a, b) => a - b));
+    expect(s.materializeAt).toBeLessThan(60);
+    expect(s.readyAt).toBeLessThan(ceremonyAdvanceSchedule(HERO_CEREMONY_TIMING).readyAt);
+    expect(STILL_S).toBeLessThan(0.2);
+  });
+
+  it('Start Game: the hero fades first, then the ring only ever opens, past every corner, and quickly', () => {
+    const K = 5;
+    expect(openAt(0, K)).toEqual({ k: 1, hero: 1 });
+    expect(openAt(1, K).k).toBeCloseTo(K, 5);
+    expect(openAt(0.5, K).hero).toBe(0);
+    expect(openAt(0.4, K).k).toBeLessThan(1.6);
+    let was = 0;
+    for (let x = 0.22; x <= 1; x += 0.01) { const { k } = openAt(x, K); expect(k).toBeGreaterThanOrEqual(was); was = k; }
+    expect(OPEN_S).toBeLessThan(0.9);
+    expect(OPEN_FREE).toBeLessThan(1);
+  });
+
+  it('no Start button: the game goes as the hero finishes their line', () => {
+    expect(goAfterLine(2.4)).toBe(2400 - LEAD_MS);
+    expect(goAfterLine(0.4)).toBe(LEAST_MS);
+    expect(goAfterLine(null)).toBe(NO_LINE_MS);
+    expect(goAfterLine(0)).toBe(NO_LINE_MS);
+    expect(goAfterLine(60)).toBe(MOST_MS);
+    const src = readFileSync(join(__dirname, '../hero-select/HeroSelectCeremony.tsx'), 'utf8');
+    expect(src).not.toMatch(/<button/);
+  });
+
+  it('the charge: every spark starts where it was struck and ends on the frame', () => {
+    for (let i = 0; i < 60; i++) {
+      const p = sparkPath({ x: 960, y: 850 }, { x: 960, y: 470 }, 290, i);
+      expect(p[0]!.x).toBeCloseTo(960, 4);
+      expect(p[0]!.y).toBeCloseTo(850, 4);
+      const e = p[p.length - 1]!;
+      expect(Math.hypot(e.x - 960, e.y - 470)).toBeCloseTo(290, 4);
+    }
+  });
+
+  it('with nothing ready (no WebGL, a phone) there is no ripple: the ceremony and the curtain play as before', () => {
+    expect(() => primeRipple(['a.webp', 'b.png'])).not.toThrow();
+    expect(readyRipple('a.webp', 'b.png')).toBeNull();
+    expect(readyRipple(undefined, 'b.png')).toBeNull();
   });
 });
 

@@ -87,10 +87,11 @@ describe('setLaunchCovered', () => {
   });
   it('the curtain clears it before every reveal and on unmount', () => {
     const s = src('hero-select/HeroLaunchCurtain.tsx');
-    const reveals = s.match(/await fade\(el, 1, 0, t\.launchRevealMs\)/g)?.length ?? 0;
-    const cleared = s.match(/setLaunchCovered\(false\);\s*\n\s*await fade\(el, 1, 0, t\.launchRevealMs\)/g)?.length ?? 0;
-    expect(reveals).toBeGreaterThan(0);
-    expect(cleared).toBe(reveals);
+    // Every way the board is shown (the curtain's fade, the frame opening): the last word before it is "not covered".
+    const reveals = [...s.matchAll(/await (?:uncover\(el\)|place\.open\()/g)].map((m) => s.lastIndexOf('setLaunchCovered(', m.index));
+    expect(reveals).toHaveLength(3);
+    for (const at of reveals) expect(s.slice(at)).toMatch(/^setLaunchCovered\(false\)/);
+    expect(s.match(/await fade\(el, 1, 0, t\.launchRevealMs\)/g)).toHaveLength(1); // only inside `uncover`
     expect(s).toMatch(/return \(\) => \{ dead = true; setLaunchCovered\(false\);/);
   });
 });

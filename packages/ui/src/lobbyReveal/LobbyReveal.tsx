@@ -373,14 +373,17 @@ export function LobbyReveal(): JSX.Element | null {
     // shows a blank disc) AND it stands in rail order. At most ~500 ms; the cards sit invisible meanwhile.
     const urls = play.entries.map((e) => portraitOf(e)).filter((u): u is string => !!u);
     const t0 = performance.now();
-    let waits = 2;
+    // THE FRAME OPENS (R-LOCATION-06): held, the board is lit and clear as the ring opens on it; the dim and the line-up follow.
+    const held = lobbyReveal.isHeld();
+    if (held && dimRef.current) dimRef.current.style.opacity = '0';
+    let waits = held ? 3 : 2;
     let started = false;
     const ready = (): void => {
       if (started || dead || --waits > 0) return;
       started = true;
       begin(Math.min(t.enterAt[0]!, performance.now() - t0));
     };
-    const giveUp = (): void => { if (started || dead) return; waits = 1; ready(); };
+    const giveUp = (): void => { if (started || dead || lobbyReveal.isHeld()) return; waits = 1; ready(); };
     if (urls.every((u) => artReady(u))) ready();
     else {
       for (const u of urls) requestArt(u, 'now');
@@ -398,6 +401,15 @@ export function LobbyReveal(): JSX.Element | null {
       requestAnimationFrame(retry);
     }
     at(500, giveUp);
+    if (held) {
+      lobbyReveal.whenReleased(() => {
+        if (dead) return;
+        if (dimRef.current) dimRef.current.style.opacity = '';
+        push(anim(dimRef.current, [{ opacity: 0 }, { opacity: 1 }], { duration: 260, easing: 'ease-out' }));
+        at(500, giveUp);
+        ready();
+      });
+    }
 
     return () => {
       dead = true;

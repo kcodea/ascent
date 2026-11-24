@@ -934,6 +934,9 @@ interface GameStore {
   /** Which panel the Compendium opens on: the card gallery (Tab) or the Rules wiki (the title's Rules button). */
   bookOpensTo: 'cards' | 'rules';
   toggleBook: () => void;
+  /** The tribe whose minions the Compendium opens on, and the set it shows (a parchment at hero select), or null. */
+  bookTribe: { tribe: Tribe; setId: SetId } | null;
+  openBookTribe: (tribe: Tribe, setId: SetId) => void;
   closeBook: () => void;
   /** Open the Compendium straight onto its Rules page (the title menu's Rules plaque). */
   openRules: () => void;
@@ -3259,8 +3262,10 @@ export const useGame = create<GameStore>((rawSet, get) => {
   setCareerCache: (key, runs) => set({ careerCache: { key, runs } }),
   showBook: false,
   bookOpensTo: 'cards',
-  toggleBook: () => set((s) => ({ showBook: !s.showBook, bookOpensTo: 'cards' })),
-  closeBook: () => set({ showBook: false, bookOpensTo: 'cards' }),
+  bookTribe: null,
+  openBookTribe: (tribe, setId) => set({ showBook: true, bookOpensTo: 'cards', bookTribe: { tribe, setId } }),
+  toggleBook: () => set((s) => ({ showBook: !s.showBook, bookOpensTo: 'cards', bookTribe: null })),
+  closeBook: () => set({ showBook: false, bookOpensTo: 'cards', bookTribe: null }),
   openRules: () => set({ showBook: true, bookOpensTo: 'rules' }),
   showBalance: false,
   openBalance: () => set({ showBalance: true }),

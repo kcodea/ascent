@@ -11,10 +11,19 @@
  * no Zustand, no React context, nothing to persist.
  */
 
+import type { HeroRipple, RippleScene } from '../locationReveal/heroRipple';
+import type { LaunchCharge } from './launchCharge';
+
 export interface HeroLaunchRequest {
   heroId: string;
   /** CSS color (var() allowed) for the curtain's center glow — a dark cover with a hero-accent heart, §7. */
   accent: string;
+  /** THE FRAME OPENS (R-LOCATION-06): the picture as it stands on screen, and the canvas that holds it while the run is built.
+   *  Absent = the curtain's own fade. */
+  scene?: RippleScene;
+  /** The charge, made ready while the hero spoke (launchCharge.ts). */
+  charge?: LaunchCharge;
+  place?: HeroRipple;
 }
 
 export type HeroLaunchFn = (req: HeroLaunchRequest) => Promise<void>;

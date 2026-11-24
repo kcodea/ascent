@@ -13,7 +13,7 @@ import type { Tribe } from '@game/core';
 import { PHONE_GPU } from '../phoneDiag';
 import { locationArt, locationName, POSTER_NAME, type LocationDef } from './locations';
 import { prepareReveal, stageHeight, type PreparedReveal, type RevealGl } from './revealGl';
-import { loadRevealSound, type RevealSound } from './revealSound';
+import { lightCues, loadRevealSound, type RevealSound } from './revealSound';
 import { dropAtmosphere, setAtmosphereCovered, syncAtmosphere, warmAtmosphere } from './atmosphereGl';
 import { arriveHeroSelect, type ArriveFrom } from './heroArrive';
 import { A, fitOf, HOLD, NAME, outCubic, outroAt, POST, POST_GAP, posterName, posterRest, POSTER_H, POSTER_W, realOf, seg, simEnd, simOf, smoother, START, washAt, washReach } from './revealTimeline';
@@ -30,6 +30,8 @@ export interface LocationRevealRequest {
 interface Warm { id: LocationDef['id']; gl: PreparedReveal | null; sound: RevealSound; art: HTMLImageElement[] }
 let warm: Warm | null = null;
 
+const loadLight = (id: LocationDef['id']): RevealSound => loadRevealSound(id, (n) => lightCues(id, n, { name: LIGHT.name, posters: LIGHT.posters, step: LIGHT.step, leave: lightSeconds(n) - LIGHT.fade }));
+
 /** Get a reveal ready (idempotent). Called as the gate's doors meet, so it is whole before the crystal can be pressed. */
 export function warmLocationReveal(loc: LocationDef): void {
   if (typeof window === 'undefined') return;
@@ -39,7 +41,7 @@ export function warmLocationReveal(loc: LocationDef): void {
   // The light version's pictures; the full one needs only the blur hero select shows.
   const files = light ? ['flat', 'blur', ...loc.posters.map((t) => `poster-${t}`)] : ['blur'];
   const art = files.map((f) => { const i = new Image(); i.decoding = 'async'; i.src = locationArt(loc.id, f); return i; });
-  const w: Warm = { id: loc.id, gl: light ? null : prepareReveal(loc), sound: loadRevealSound(loc.id), art };
+  const w: Warm = { id: loc.id, gl: light ? null : prepareReveal(loc), sound: light ? loadLight(loc.id) : loadRevealSound(loc.id), art };
   warm = w;
   // Hero select's living ground, once the reveal itself is whole (not for a gate that has gone meanwhile).
   void w.gl?.ready.then(() => { if (warm === w) warmAtmosphere(loc); });
@@ -280,6 +282,7 @@ export function playLightReveal(under: HTMLElement, r: LocationRevealRequest, pa
       });
     });
     const timers: number[] = [];
+    if (w && !w.gl) w.sound.play(n, partAt / 1000); // a machine that turned out too slow has the full version's clips: it stays quiet
     const later = (sec: number, fn: () => void): void => { timers.push(window.setTimeout(fn, partAt + sec * 1000)); };
     later(LIGHT.name, () => { words.title.classList.add('on'); });
     posters.forEach((e, i) => later(LIGHT.posters + i * LIGHT.step, () => { e.classList.add('on'); words.names[i]!.classList.add('on'); }));

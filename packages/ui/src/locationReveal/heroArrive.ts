@@ -12,7 +12,7 @@ export interface ArriveFrom {
 }
 
 /** The pieces, as hero select's three bodies draw them (showcase, the roster grid, the banners) and its own chrome. */
-const PIECES = '.hs-eyebrow, .hsprompt, .hsline, .hsback, .hss-slot, .hss-card, .herocard, .hsbook';
+const PIECES = '.hs-eyebrow, .hsprompt, .hsline, .hsback, .hss-slot, .hss-card, .herocard, .hsbook, .hs-poster';
 
 export function arriveHeroSelect(from: ArriveFrom, root: ParentNode = document): number {
   const host = root.querySelector<HTMLElement>('.heroselect:not(.hswatch)');

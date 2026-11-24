@@ -11,6 +11,13 @@ import { launchVersusHero, useVersusAwaitingPick } from '../versus/versusStore';
 import { PHONE_GPU } from '../phoneDiag';
 import { usePartyHome } from '../partyHome/partyHomeFlag';
 import { crumbLight, crumbTrail } from '../crashLog';
+import { claimRipple, OPEN_S, PUSH, releaseRipple } from '../locationReveal/heroRipple';
+import { boardArrives, LaunchCharge } from './launchCharge';
+import { stageHost, toScreen } from '../stage';
+import { quietFrames } from './launchQuiet';
+import { REVEAL_FLIGHT_WHOOSH, REVEAL_LOCK_SHIMMER } from '../lobbyReveal/lobbyRevealConfig';
+import { playTailedClip } from '../sfx';
+import { lobbyReveal } from '../lobbyReveal/lobbyRevealStore';
 
 /**
  * HERO SELECT CEREMONY — the launch curtain (hero-select-ceremony-blueprint.md §7).
@@ -80,7 +87,19 @@ export function HeroLaunchCurtain() {
     if (!req) return;
     let dead = false; // Game itself unmounted mid-launch (dev hot reload) — stop touching the DOM
     const t = ceremonyTiming();
+    // THE FRAME OPENS (R-LOCATION-06): the same picture holds the screen, pushing in on the hero from the press; the run is
+    // built under it; then the hero's ring opens onto the board. Nothing here waits before it moves.
+    const place = req.place && req.scene && !req.place.dead ? req.place : null;
+    if (place) claimRipple(place); // hero select unmounts under it
+    const uncover = async (el: HTMLElement | null): Promise<void> => {
+      if (place && !place.dead) await place.fadeOff(t.launchRevealMs);
+      else await fade(el, 1, 0, t.launchRevealMs);
+    };
+    let charge: LaunchCharge | null = req.charge ?? null;
     const finish = () => {
+      charge?.destroy();
+      if (place) releaseRipple(place);
+      lobbyReveal.release();
       resolveRef.current?.();
       resolveRef.current = null;
       setVersusWait(false);
@@ -90,7 +109,18 @@ export function HeroLaunchCurtain() {
       const el = elRef.current;
       // Crash-log trail (phones; R-TOUCH-CRASH-REPORT-02): light steps, the curtain is animating.
       crumbLight('launch cover');
-      await fade(el, 0, 1, t.launchCoverMs);
+      if (place && req.scene && el) {
+        playTailedClip(REVEAL_LOCK_SHIMMER.clip, 'ceremony', { gain: 0.2, rate: 0.9 });
+        place.show(el, req.scene, { x: 0, y: 0 });
+        el.style.opacity = '1';
+        if (useGame.getState().pendingMode !== 'versus') place.still();
+        const held = place.hold();
+        charge ??= new LaunchCharge(stageHost(), req.scene, place.loc);
+        charge.start({ ...PUSH, origin: place.heart() });
+        await held;
+      } else {
+        await fade(el, 0, 1, t.launchCoverMs);
+      }
       if (dead) return;
       setLaunchCovered(true);
       crumbLight('launch covered');
@@ -113,7 +143,8 @@ export function HeroLaunchCurtain() {
           await twoFrames();
           if (dead) return;
           setLaunchCovered(false);
-          await fade(el, 1, 0, t.launchRevealMs);
+          charge?.release();
+          await uncover(el);
           if (!dead) finish();
           return;
         }
@@ -140,6 +171,7 @@ export function HeroLaunchCurtain() {
         const replaying = st.replaySession != null;
         // THE LOBBY REVEAL (owner 2026-10-31): every hero of the game shown, then flown to the rail, BEFORE the Good
         // Luck words and the clock. Begun first, so the intro's first render already waits behind it.
+        if (started && place) lobbyReveal.hold(); // its dim and line-up wait for the ring to open
         if (started) beginLobbyRevealFor(st.run, { replaying });
         if (started && shouldPlayGoodLuckIntro(st.run, { replaying })) goodLuckIntro.begin();
       } catch (err) {
@@ -152,13 +184,25 @@ export function HeroLaunchCurtain() {
       if (dead) return;
       crumbLight('launch reveal');
       setLaunchCovered(false);
-      await fade(el, 1, 0, t.launchRevealMs);
+      if (place && !place.dead && !useGame.getState().showTitle) {
+        await quietFrames();
+        if (dead) return;
+        playTailedClip(REVEAL_FLIGHT_WHOOSH.clip, 'ceremony', { gain: 0.6, tail: { fadeOutMs: 200, reverbMix: 0, reverbSec: 0.5 } });
+        charge?.release();
+        if (req.scene) boardArrives({ x: toScreen(req.scene.clip.x), y: toScreen(req.scene.clip.y) }, OPEN_S * 1000);
+        await place.open(() => {
+          if (el) el.style.pointerEvents = 'none'; // the motes drift on over a board that is already the player's
+          lobbyReveal.release();
+        });
+      } else {
+        await uncover(el);
+      }
       if (dead) return;
       finish();
       // Not cancelled with this effect (finish() unmounts it at once): a few store-only timers, phones only.
       crumbTrail('first shop', undefined, true);
     })();
-    return () => { dead = true; setLaunchCovered(false); lobbyPoolGate.cancel(); };
+    return () => { dead = true; setLaunchCovered(false); lobbyPoolGate.cancel(); charge?.destroy(); if (place) releaseRipple(place); lobbyReveal.release(); };
   }, [req]);
 
   if (!req) return null;
@@ -168,7 +212,7 @@ export function HeroLaunchCurtain() {
     <>
       <div
         ref={elRef}
-        className={`hsc-curtain${ph ? ' ph' : ''}`}
+        className={`hsc-curtain${req.place && req.scene ? ' rip' : ph ? ' ph' : ''}`}
         style={{ '--hsc-accent': req.accent } as CSSProperties}
         aria-hidden="true"
       />

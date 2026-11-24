@@ -290,8 +290,9 @@
 .rgate-enter-tint { position: absolute; width: 0; height: 0; pointer-events: none; }
 .rgate-enter-tint-flood { flood-color: var(--rg-enter-tint-col, #009dff); flood-opacity: var(--rg-enter-tint-amt, 0.7); }
 /* DEV: the word's tuner must stay usable over the shut gate, which covers the screen and takes every pointer event.
-   Dev panels set their stacking order inline, hence the override. */
-.sfxmix[data-devpanel="gateenter"] { z-index: 9000 !important; }
+   Dev panels set their stacking order inline, hence the override. Just over the gate (700) and its FX canvas (701),
+   and well under the screen curtain (3000), which nothing in a stylesheet may reach (R-PRESENT-17). */
+.sfxmix[data-devpanel="gateenter"] { z-index: 800 !important; }
 
 .rgate:is(.is-armed, .is-shatter) .rgate-enter-word { animation: rg-enter-bob 3.4s ease-in-out infinite; }
 @keyframes rg-enter-bob {

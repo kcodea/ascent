@@ -285,7 +285,7 @@ describe('the gate plays', () => {
     // THE WORD (owner 2026-11-24): "when the crystal is formed and able to be clicked, can we have the word ENTER appear".
     const word = enterEl()!;
     expect(word.classList.contains('is-on')).toBe(true);
-    expect(word.textContent).toBe('ENTER');
+    expect(word.textContent).toBe('Enter');
     expect(word.getAttribute('aria-hidden'), 'the button already has its own label').toBe('true');
     expect(el.contains(word), 'it is a label beside the crystal, never part of the button').toBe(false);
     // Ten minutes later nothing has moved on by itself.

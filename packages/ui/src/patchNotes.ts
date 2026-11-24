@@ -69,7 +69,7 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
-        text: 'The gate now tells you when it is ready: the word ENTER fades in under the crystal once it can be shattered.',
+        text: 'The gate now tells you when it is ready: the word Enter fades in under the crystal once it can be shattered.',
       },
     ],
   },

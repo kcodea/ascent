@@ -341,7 +341,7 @@ export function RankedGate(): JSX.Element | null {
             screen readers, which already have the button's own label. */}
         {(phase === 'forming' || armed || phase === 'shatter') && (
           <div className={`rgate-enter${armed && !pressed ? ' is-on' : ''}`} aria-hidden="true">
-            <span className="rgate-enter-word">ENTER</span>
+            <span className="rgate-enter-word">Enter</span>
           </div>
         )}
       </div>

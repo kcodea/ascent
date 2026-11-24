@@ -202,6 +202,16 @@ function useHoloFollow(enabled: boolean) {
   const layer = useRef<HTMLDivElement | null>(null);
   const st = useRef({ l: 0, t: 0, w: 1, h: 1, x: 0.5, y: 0.5, raf: 0 });
   useEffect(() => () => { if (st.current.raf && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(st.current.raf); }, []);
+  // Follow turned off (the face went under the top one, or reduced motion): drop a queued frame and recentre the layer.
+  useEffect(() => {
+    if (enabled) return;
+    const s = st.current;
+    if (s.raf && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(s.raf);
+    s.raf = 0;
+    s.x = 0.5; s.y = 0.5;
+    const el = layer.current;
+    if (el) { el.style.setProperty('--hx', '0.5'); el.style.setProperty('--hy', '0.5'); }
+  }, [enabled]);
   const flush = (): void => {
     const s = st.current;
     if (s.raf || typeof requestAnimationFrame !== 'function') return;
@@ -335,7 +345,8 @@ export function PackFace({ card, phase, from, slot, slow = 1, still = false }: P
         {holo > 0 && (
           <div className="pkf-holo" data-testid="pkf-holo" style={{ opacity: Math.min(1, holo) }}>
             <div className="pkf-holo-move" ref={follow.layer}>
-              <div className={`pkf-holo-sheet${lands && !still ? ' pkf-holo-sweep' : ''}`} />
+              {/* a distinct class (and animation name) per landing, so the top face sweeps again when it joins the row */}
+              <div className={`pkf-holo-sheet${lands && !still ? (phase === 'summary' ? ' pkf-holo-sweep-row' : ' pkf-holo-sweep') : ''}`} />
             </div>
           </div>
         )}

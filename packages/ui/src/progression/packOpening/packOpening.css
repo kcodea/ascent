@@ -120,8 +120,11 @@
   background: repeating-linear-gradient(115deg, #ff9fd8 0%, #ffe7a3 5%, #b0ffc2 10%, #9fdcff 15%, #d6b0ff 20%, #ff9fd8 25%); }
 .pkf-holo-sweep { animation: pkf-holo-sweep calc(0.9s * var(--pk-slow, 1)) cubic-bezier(0.25, 0.6, 0.3, 1) both; }
 @keyframes pkf-holo-sweep { from { transform: translate(-22%, -12%); } to { transform: none; } }
+/* the summary row's sweep: its own name, so a face that swept on the pile sweeps again as it joins the row */
+.pkf-holo-sweep-row { animation: pkf-holo-sweep-row calc(0.9s * var(--pk-slow, 1)) cubic-bezier(0.25, 0.6, 0.3, 1) both; }
+@keyframes pkf-holo-sweep-row { from { transform: translate(-22%, -12%); } to { transform: none; } }
 .pkf-hover { pointer-events: auto; }
-@media (prefers-reduced-motion: reduce) { .pkf-holo-sweep { animation: none; } .pkf-holo-move { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .pkf-holo-sweep, .pkf-holo-sweep-row { animation: none; } .pkf-holo-move { transition: none; } }
 /* The category sits under the plate's notch, between two short gold rules. */
 .pkf-cat { display: flex; align-items: center; gap: 13px; font-size: 19px; font-weight: 800; letter-spacing: 0.24em; text-transform: uppercase;
   color: var(--gold-lt); }

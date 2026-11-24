@@ -118,7 +118,7 @@ export class StripMesh {
   /**
    * Lay the holo over the printed front: a mesh SHARING the front's position array (so back-facing triangles collapse
    * with it) whose uvs map the strip onto the shine mask's top band (the art above the tear line). Over the front, under
-   * the shade and the spec. Returns the mesh (hidden until the scene shows it).
+   * the lining back (a curl's back covers it), the shade and the spec. Returns the mesh (hidden until the scene shows it).
    */
   attachHolo(material: HoloMaterial): HoloMesh {
     const fu = this.frontG.uvs;
@@ -127,7 +127,7 @@ export class StripMesh {
     for (let i = 0; i < fu.length; i += 2) { uv[i] = fu[i]!; uv[i + 1] = fu[i + 1]! * k; }
     const mesh = makeHoloMesh(material, this.frontG.positions, uv, Uint32Array.from(this.frontG.indices));
     this.holoG = mesh.geometry;
-    this.view.addChildAt(mesh, 2);
+    this.view.addChildAt(mesh, 1); // over the front, under the back, the shade and the spec (a curl's back covers it)
     return mesh;
   }
 

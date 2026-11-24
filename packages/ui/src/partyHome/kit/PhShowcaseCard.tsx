@@ -20,6 +20,7 @@ import { memo, type CSSProperties, type ReactNode } from 'react';
 import type { RankPosition } from '@game/sim';
 import { RankCrest } from '../../rank/RankBar';
 import { barFraction, pointsText, rankLabel } from '../../rank/rankFormat';
+import { medalKey } from '../../rank/types';
 import { TitleBadge } from '../../titles/TitleBadge';
 import '../shell/shell.css';
 import './phShowcase.css';
@@ -134,7 +135,7 @@ function RankWell({ rank, size }: { rank: RankPosition | null; size: PhCardSize 
       <RankCrest divisionIndex={rank.divisionIndex} size="row" className="phs-crest" />
       <span className="phs-rk">
         <b style={{ '--phs-rf': `${rankLabelCqw(rankLabel(rank.divisionIndex), size)}cqw` } as CSSProperties}>{rankLabel(rank.divisionIndex)}</b>
-        <span className="phs-bar" aria-hidden="true"><i style={{ width: `${barFraction(rank) * 100}%` }} /></span>
+        <span className={`phs-bar rankbar-${medalKey(rank.divisionIndex)}`} aria-hidden="true"><i style={{ width: `${barFraction(rank) * 100}%` }} /></span>
         <small>{pointsText(rank)}</small>
       </span>
     </span>

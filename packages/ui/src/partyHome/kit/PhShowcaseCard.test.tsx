@@ -12,6 +12,7 @@ HTMLCanvasElement.prototype.getContext = (() => null) as unknown as HTMLCanvasEl
 
 import { nameEm, nameFontCqw, PHS_NAME_FLOOR_CQW, PHS_NAME_MAX_CQW, PHS_RANK_MAX_CQW, PhShowcaseCard, PhShowcaseGhost, rankLabelCqw } from './PhShowcaseCard';
 import { pointsText, rankLabel } from '../../rank/rankFormat';
+import { medalKey } from '../../rank/types';
 
 let ui: Mounted | null = null;
 afterEach(() => { ui?.unmount(); ui = null; });
@@ -31,6 +32,14 @@ describe('PhShowcaseCard', () => {
     expect(el.textContent).toContain(pointsText({ divisionIndex: 7, points: 40 }));
     expect((el.querySelector('.phs-bar > i') as HTMLElement).style.width).toBe('40%');
     expect(el.querySelector('button.phs-press')).not.toBeNull();
+  });
+
+  it('the bar wears the medal tint class Career uses (owner 2026-11-23: "Match Career")', () => {
+    for (const divisionIndex of [0, 3, 7, 10, 13, 16]) {
+      ui?.unmount();
+      ui = mount(<PhShowcaseCard size="full" label="Mike" name="Mike" rank={{ divisionIndex, points: 10 }} />);
+      expect(root().querySelector('.phs-bar')?.classList.contains(`rankbar-${medalKey(divisionIndex)}`)).toBe(true);
+    }
   });
 
   it('null rank reads Unranked with no bar', () => {

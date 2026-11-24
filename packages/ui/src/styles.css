@@ -13988,13 +13988,14 @@ html[data-phone-gpu] .opphand-card.spent > img { filter: grayscale(0.72) brightn
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(196, 160, 92, 0.4); }
 .rankbar-fill { position: absolute; inset: 0; transform-origin: left center; border-radius: inherit; will-change: transform;
   background: linear-gradient(90deg, #c9973f, #ffe08a); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35); }
-/* Medal tints for the fill (identity still reads by crest silhouette + label — colour is a garnish). */
-.rankbar-bronze .rankbar-fill { background: linear-gradient(90deg, #a8672f, #f0b98a); }
-.rankbar-silver .rankbar-fill { background: linear-gradient(90deg, #8a95a3, #eef2f6); }
-.rankbar-gold .rankbar-fill { background: linear-gradient(90deg, #c9973f, #ffe08a); }
-.rankbar-platinum .rankbar-fill { background: linear-gradient(90deg, #4fb3b0, #d6fbf7); }
-.rankbar-diamond .rankbar-fill { background: linear-gradient(90deg, #3b7ee0, #bfe0ff); }
-.rankbar-ascendant .rankbar-fill { background: linear-gradient(90deg, #7c3fd6, #ffd76a); }
+/* Medal tints for the fill (identity still reads by crest silhouette + label — colour is a garnish). The
+   showcase card's bar (.phs-bar, partyHome/kit) shares them so its colour matches Career (owner 2026-11-23). */
+:is(.rankbar-bronze .rankbar-fill, .phs-bar.rankbar-bronze > i) { background: linear-gradient(90deg, #a8672f, #f0b98a); }
+:is(.rankbar-silver .rankbar-fill, .phs-bar.rankbar-silver > i) { background: linear-gradient(90deg, #8a95a3, #eef2f6); }
+:is(.rankbar-gold .rankbar-fill, .phs-bar.rankbar-gold > i) { background: linear-gradient(90deg, #c9973f, #ffe08a); }
+:is(.rankbar-platinum .rankbar-fill, .phs-bar.rankbar-platinum > i) { background: linear-gradient(90deg, #4fb3b0, #d6fbf7); }
+:is(.rankbar-diamond .rankbar-fill, .phs-bar.rankbar-diamond > i) { background: linear-gradient(90deg, #3b7ee0, #bfe0ff); }
+:is(.rankbar-ascendant .rankbar-fill, .phs-bar.rankbar-ascendant > i) { background: linear-gradient(90deg, #7c3fd6, #ffd76a); }
 /* The endpoint glow that lights when the gate unlocks (opacity + scale only; static radial fill). */
 .rankbar-tip { position: absolute; right: -8px; top: 50%; width: 26px; height: 26px; margin-top: -13px; border-radius: 50%; opacity: 0; pointer-events: none;
   background: radial-gradient(circle, rgba(255, 244, 200, 0.95), rgba(255, 220, 120, 0) 70%); }

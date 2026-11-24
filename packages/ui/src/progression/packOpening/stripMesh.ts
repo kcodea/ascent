@@ -17,8 +17,9 @@ import { Container, Mesh, MeshGeometry, Texture } from 'pixi.js';
 import type { Vec3 } from './peelModel';
 import { PACK_GEOM } from './packTextures';
 import { glossD, glossSpecAlpha, glossStripU, tiltInto, type GlossBand, type TiltPose } from './packTilt';
+import { makeHoloMesh, type HoloMaterial, type HoloMesh } from './packHoloMesh';
 
-const { W, H } = PACK_GEOM;
+const { W, H, BODY_H } = PACK_GEOM;
 /** Grid columns / rows. */
 const NX = 60, NY = 8;
 const GW = NX + 1, G = GW * (NY + 1);
@@ -67,6 +68,8 @@ export class StripMesh {
   private readonly shadeG: MeshGeometry;
   private readonly specG: MeshGeometry;
   private readonly specM: Mesh;
+  /** The holo over the printed front (packHoloMesh.ts), when the pack has one: it shares the front's positions. */
+  private holoG: MeshGeometry | null = null;
   private readonly gx = new Float32Array(G);
   private readonly gy = new Float32Array(G);
   private readonly gz = new Float32Array(G);
@@ -110,6 +113,22 @@ export class StripMesh {
     this.specM = new Mesh({ geometry: this.specG, texture: tex.spec });
     this.specM.blendMode = 'add';
     this.view.addChild(frontM, backM, shadeM, this.specM);
+  }
+
+  /**
+   * Lay the holo over the printed front: a mesh SHARING the front's position array (so back-facing triangles collapse
+   * with it) whose uvs map the strip onto the shine mask's top band (the art above the tear line). Over the front, under
+   * the shade and the spec. Returns the mesh (hidden until the scene shows it).
+   */
+  attachHolo(material: HoloMaterial): HoloMesh {
+    const fu = this.frontG.uvs;
+    const uv = new Float32Array(fu.length);
+    const k = H / (H + BODY_H);
+    for (let i = 0; i < fu.length; i += 2) { uv[i] = fu[i]!; uv[i + 1] = fu[i + 1]! * k; }
+    const mesh = makeHoloMesh(material, this.frontG.positions, uv, Uint32Array.from(this.frontG.indices));
+    this.holoG = mesh.geometry;
+    this.view.addChildAt(mesh, 2);
+    return mesh;
   }
 
   /**
@@ -205,6 +224,7 @@ export class StripMesh {
       }
     }
     this.frontG.getBuffer('aPosition').update();
+    this.holoG?.getBuffer('aPosition').update(); // the same array as the front's
     this.backG.getBuffer('aPosition').update();
     this.shadeG.getBuffer('aPosition').update();
     this.shadeG.getBuffer('aUV').update();

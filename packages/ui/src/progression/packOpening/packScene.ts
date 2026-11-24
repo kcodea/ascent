@@ -41,6 +41,7 @@ import { CARD_GLOW_TIERS, PACK_GLOW_TIERS, glowAlphaAt, packGlowRarity, type Glo
 import type { PackSounds } from './packSounds';
 import { ANCIENT_GLOW_STOPS, BURST_TEX, PACK_GEOM, TEX_RES, rarityTint } from './packTextures';
 import { BURST, bigPullTier, burstPoseAt, type BigPullTier, type BurstPose } from './bigPull';
+import { holoShiftInto, packHoloStrength } from './packHolo';
 import {
   buildPackViews, CARDS_Y, RIBBON_DY, RIBBON_HH, RIBBON_HW, type SceneTextures, type Views,
 } from './packViews';
@@ -243,6 +244,8 @@ class PackSceneImpl implements PackScene {
   private readonly bodyKey = { rx: NaN, ry: NaN, D: NaN };
   private readonly glossKey = { centre: NaN, halfWidth: NaN, slope: NaN };
   private readonly glowCorners = new Float64Array(8);
+  /** The holo gradient's sample offset this frame (packHolo.ts `holoShiftInto`). */
+  private readonly holoShift = { x: 0, y: 0 };
 
   constructor(
     private readonly host: HTMLElement,
@@ -823,6 +826,7 @@ class PackSceneImpl implements PackScene {
 
     this.cardsStep(dt, feel);
     this.packGlowStep(dt, feel);
+    this.holoStep(feel);
     if (this.flip.active) this.flipStep(dt);
     if (this.burst.active) this.burstStep(dt, feel);
     v.flecks.step(dt);
@@ -996,6 +1000,8 @@ class PackSceneImpl implements PackScene {
     const sp = v.sheen.geometry.positions, gp = v.gloss.geometry.positions;
     if (sp.length === pos.length) { sp.set(pos); v.sheen.geometry.getBuffer('aPosition').update(); }
     if (gp.length === pos.length) { gp.set(pos); v.gloss.geometry.getBuffer('aPosition').update(); }
+    const hg = v.holo?.body.geometry;
+    if (hg && hg.positions.length === pos.length) { hg.positions.set(pos); hg.getBuffer('aPosition').update(); }
     if (deform) v.lip.view.y = -sl.lag;
     this.bodyKey.rx = this.tilt.rx; this.bodyKey.ry = this.tilt.ry; this.bodyKey.D = pose.D;
   }
@@ -1082,6 +1088,26 @@ class PackSceneImpl implements PackScene {
       if (c[i * 2] !== p.x || c[i * 2 + 1] !== p.y) { c[i * 2] = p.x; c[i * 2 + 1] = p.y; changed = true; }
     }
     if (changed) g.setCorners(c[0]!, c[1]!, c[2]!, c[3]!, c[4]!, c[5]!, c[6]!, c[7]!);
+  }
+
+  /**
+   * The pack's holo (packHoloMesh.ts): its strength (tier x the `holo` knob x the aura's fade, so it goes with the aura
+   * as the sleeve drops) and its gradient offset (the eased aim, the tilt, the tear, the sleeve). Uniforms only; hidden
+   * until the shine mask loads and once faded (the idle condition already waits for the aura's fade).
+   */
+  private holoStep(feel: PackFeel): void {
+    const h = this.v!.holo;
+    if (!h) return;
+    const s = h.ready ? packHoloStrength(this.look, feel.holo) * this.packGlowFade : 0;
+    const on = s > 0.001;
+    if (h.body.visible !== on) { h.body.visible = on; h.strip.visible = on; }
+    if (!on) return;
+    const t = this.tilt, o = this.holoShift;
+    holoShiftInto(o, t.ax, t.ay, t.rx, t.ry, this.tear.T / W, this.phase === 'peel' ? 0 : this.sleeve.dy);
+    const u = h.uniforms;
+    u.uStrength = s;
+    u.uShift[0] = o.x;
+    u.uShift[1] = o.y;
   }
 
   /** The top back's crossfade + shimmer, and its glow (revealed once the sleeve is off; Epic and up breathe). */

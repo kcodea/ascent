@@ -409,11 +409,13 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, spee
           />
         )}
         {(phase === 'summary' || (!reduced && phase === 'reveal')) && cards.length > 0 && (
-          <div className="pkop-faces" aria-hidden>
+          // a click on a hovered face (the holo's pointer follow gives the top face and the summary faces the pointer) does
+          // what a click on the theatre does
+          <div className="pkop-faces" aria-hidden onClick={() => { if (phaseRef.current === 'reveal') flipNext(); }}>
             {cards.map((c, i) => {
               if (phase !== 'summary' && i >= flipped) return null;
               const facePhase = phase === 'summary' ? 'summary' : revealPhase(i, flipped, turning, flipping);
-              return <PackFace key={i} card={c} phase={facePhase} from={froms[i]} slot={{ index: i, count: cards.length }} slow={1 / speed} />;
+              return <PackFace key={i} card={c} phase={facePhase} from={froms[i]} slot={{ index: i, count: cards.length }} slow={1 / speed} still={reduced} />;
             })}
           </div>
         )}
@@ -425,7 +427,7 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, spee
           {cards.map((c, i) => (
             <div key={i} className={`pkop-back r-${c.rarity}${i < flipped ? ' flipped' : ''}`} aria-hidden>
               <span className="pkop-back-mark">{c.guaranteed ? 'Guaranteed' : item.look.name}</span>
-              <PackFace card={c} phase="tray" />
+              <PackFace card={c} phase="tray" still />
             </div>
           ))}
         </div>

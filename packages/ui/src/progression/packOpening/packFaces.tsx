@@ -1,4 +1,6 @@
-import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactElement } from 'react';
+import {
+  useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactElement,
+} from 'react';
 import type { PackCard } from '@game/progression';
 import { stageViewport, type StageRect } from '../../stage';
 import { rewardPreview, type RewardEmblem } from '../rewardPreview';
@@ -9,6 +11,7 @@ import {
 } from './cardFlip';
 import { getPackFeel } from './packFxConfig';
 import { CARD_GLOW_TIERS, faceGlowOpacity } from './packGlow';
+import { cardHoloStrength } from './packHolo';
 
 export { CARD_PLATE_SRC };
 
@@ -44,6 +47,8 @@ export interface PackFaceProps {
   slot?: PackFaceSlot;
   /** The Pack Lab's slow-mo factor (the shell's `--pk-slow`, 1 / speed): scales the handoff's own transitions. Default 1. */
   slow?: number;
+  /** Reduced motion: the holo is static (no sweep, no pointer follow). */
+  still?: boolean;
 }
 
 /**
@@ -185,7 +190,52 @@ const EMBLEMS: Readonly<Record<RewardEmblem, ReactElement>> = {
   ),
 };
 
-export function PackFace({ card, phase, from, slot, slow = 1 }: PackFaceProps) {
+/**
+ * THE FACE HOLO (packHolo.ts; owner 2026-11-23, "a holographic or pearlescent sheen"): Epic and up wear a static
+ * pearl / rainbow gradient over the whole card, clipped to the plate's rounded box and blended (`.pkf-holo`, at the tier
+ * x the `holo` knob). It only ever moves by `transform`: a one-shot sweep when the face lands on the pile (`featured`)
+ * and when the summary row appears, and, while hovered, it leans with the pointer (pointermove -> one rAF -> a CSS var
+ * on the moving layer; the face's rect is read once at pointerenter, never per move). No looping animation. Reduced
+ * motion (`still`): static, no sweep, no pointer follow.
+ */
+function useHoloFollow(enabled: boolean) {
+  const layer = useRef<HTMLDivElement | null>(null);
+  const st = useRef({ l: 0, t: 0, w: 1, h: 1, x: 0.5, y: 0.5, raf: 0 });
+  useEffect(() => () => { if (st.current.raf && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(st.current.raf); }, []);
+  const flush = (): void => {
+    const s = st.current;
+    if (s.raf || typeof requestAnimationFrame !== 'function') return;
+    s.raf = requestAnimationFrame(() => {
+      s.raf = 0;
+      const el = layer.current;
+      if (!el) return;
+      el.style.setProperty('--hx', s.x.toFixed(3));
+      el.style.setProperty('--hy', s.y.toFixed(3));
+    });
+  };
+  if (!enabled) return { layer, handlers: undefined };
+  const handlers = {
+    onPointerEnter: (e: ReactPointerEvent<HTMLDivElement>) => {
+      const r = e.currentTarget.getBoundingClientRect(); // once per hover, screen px (only ratios are used)
+      const s = st.current;
+      s.l = r.left; s.t = r.top; s.w = Math.max(1, r.width); s.h = Math.max(1, r.height);
+    },
+    onPointerMove: (e: ReactPointerEvent<HTMLDivElement>) => {
+      const s = st.current;
+      s.x = Math.min(1, Math.max(0, (e.clientX - s.l) / s.w));
+      s.y = Math.min(1, Math.max(0, (e.clientY - s.t) / s.h));
+      flush();
+    },
+    onPointerLeave: () => {
+      const s = st.current;
+      s.x = 0.5; s.y = 0.5;
+      flush();
+    },
+  };
+  return { layer, handlers };
+}
+
+export function PackFace({ card, phase, from, slot, slow = 1, still = false }: PackFaceProps) {
   const p = rewardPreview(card.rewardId);
   const placed = from !== undefined || slot !== undefined;
   const handoff = phase === 'handoff' && from !== undefined;
@@ -212,6 +262,12 @@ export function PackFace({ card, phase, from, slot, slow = 1 }: PackFaceProps) {
   const pulse = CARD_GLOW_TIERS[card.rarity].pulse;
   const glow = aura && pulse === 'strong';
 
+  // The holo (Epic and up, at the tier x the knob): it sweeps once as the face lands on the pile and as the summary row
+  // appears, and follows the pointer on the top pile face and the summary faces; never under reduced motion.
+  const holo = cardHoloStrength(card.rarity, getPackFeel().holo);
+  const lands = phase === 'featured' || phase === 'summary';
+  const follow = useHoloFollow(holo > 0 && lands && !still);
+
   const vp = placed ? stageViewport() : null; // the theatre's size, read once per render (never per frame)
   const outer: CSSProperties | undefined = placed
     ? {
@@ -229,7 +285,7 @@ export function PackFace({ card, phase, from, slot, slow = 1 }: PackFaceProps) {
     }
     : undefined;
 
-  const cls = `pkf r-${card.rarity} pkf-${phase}${placed ? ' pkf-placed' : ''}${glow ? ' pkf-glow' : ''}`;
+  const cls = `pkf r-${card.rarity} pkf-${phase}${placed ? ' pkf-placed' : ''}${glow ? ' pkf-glow' : ''}${follow.handlers ? ' pkf-hover' : ''}`;
   return (
     <div
       ref={ref}
@@ -239,6 +295,7 @@ export function PackFace({ card, phase, from, slot, slow = 1 }: PackFaceProps) {
       data-phase={phase}
       data-from={from ? `${from.left},${from.top},${from.width},${from.height}` : undefined}
       aria-hidden
+      {...follow.handlers}
     >
       <div className="pkf-card" style={inner}>
         {aura && (
@@ -275,6 +332,13 @@ export function PackFace({ card, phase, from, slot, slow = 1 }: PackFaceProps) {
             <span>{packRarityLabel(card.rarity)}</span>
           </div>
         </div>
+        {holo > 0 && (
+          <div className="pkf-holo" data-testid="pkf-holo" style={{ opacity: Math.min(1, holo) }}>
+            <div className="pkf-holo-move" ref={follow.layer}>
+              <div className={`pkf-holo-sheet${lands && !still ? ' pkf-holo-sweep' : ''}`} />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -45,8 +45,23 @@ describe('packArtFor', () => {
     expect(webpSize(secret)).toEqual({ w: PACK_GEOM.W * 2, h: (PACK_GEOM.H + PACK_GEOM.BODY_H) * 2 });
   });
 
-  it('has no shine mask yet (the hook returns null)', () => {
-    for (const look of PACK_LAB_LOOKS) expect(packShineFor(look)).toBeNull();
+  it('every wrapper look has its shine mask (half the wrapper, 300 x 450, on disk); the rest none', () => {
+    const ids = [...COSMETIC_RARITIES, 'secret'];
+    let masked = 0;
+    for (const look of PACK_LAB_LOOKS) {
+      const art = packArtFor(look);
+      const shine = packShineFor(look);
+      if (!art) { expect(shine, look.id).toBeNull(); continue; }
+      masked++;
+      expect(shine, look.id).toMatch(/packs\/[a-z]+-pack-shine\.webp$/);
+      expect(ids.some((id) => shine!.endsWith(`packs/${id}-pack-shine.webp`)), look.id).toBe(true);
+    }
+    expect(masked).toBe(ids.length);
+    for (const id of ids) {
+      const file = join(PUBLIC, 'packs', `${id}-pack-shine.webp`);
+      expect(existsSync(file), id).toBe(true);
+      expect(webpSize(file), id).toEqual({ w: PACK_GEOM.W, h: PACK_GEOM.H + PACK_GEOM.BODY_H });
+    }
   });
 });
 

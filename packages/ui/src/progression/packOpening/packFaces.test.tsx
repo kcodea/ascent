@@ -161,6 +161,69 @@ describe('PackFace', () => {
   });
 });
 
+describe('the face holo', () => {
+  const holo = (): HTMLElement | null => face().querySelector('[data-testid="pkf-holo"]');
+
+  it('Epic and up wear the holo at their tier (x the holo knob); Common / Rare do not', () => {
+    for (const [r, want] of [['epic', 0.3], ['legendary', 0.5], ['ancient', 0.8]] as const) {
+      m?.unmount();
+      m = mount(<PackFace card={card('skin_albus_1', { rarity: r })} phase="featured" />);
+      expect(holo(), r).toBeTruthy();
+      expect(Number(holo()!.style.opacity), r).toBeCloseTo(want);
+      expect(holo()!.querySelector('.pkf-holo-sheet'), r).toBeTruthy();
+    }
+    for (const r of ['common', 'rare'] as const) {
+      m?.unmount();
+      m = mount(<PackFace card={card('skin_albus_1', { rarity: r })} phase="featured" />);
+      expect(holo(), r).toBeNull();
+    }
+  });
+
+  it('sweeps once on the pile top and the summary row, never on a face under the top one or under reduced motion', () => {
+    const ancient = card('skin_albus_1', { rarity: 'ancient' });
+    for (const phase of ['featured', 'summary'] as const) {
+      m?.unmount();
+      m = mount(<PackFace card={ancient} phase={phase} slot={{ index: 0, count: 3 }} />);
+      expect(holo()!.querySelector('.pkf-holo-sweep'), phase).toBeTruthy();
+      expect(face().classList.contains('pkf-hover'), phase).toBe(true); // it follows the pointer
+      m.unmount();
+      m = mount(<PackFace card={ancient} phase={phase} slot={{ index: 0, count: 3 }} still />);
+      expect(holo(), phase).toBeTruthy(); // still there, static
+      expect(holo()!.querySelector('.pkf-holo-sweep'), phase).toBeNull();
+      expect(face().classList.contains('pkf-hover'), phase).toBe(false);
+    }
+    m?.unmount();
+    m = mount(<PackFace card={ancient} phase="tray" slot={{ index: 0, count: 3 }} />);
+    expect(holo()!.querySelector('.pkf-holo-sweep')).toBeNull();
+    expect(face().classList.contains('pkf-hover')).toBe(false);
+  });
+
+  it('follows the pointer with a CSS var on its moving layer (the rect read once, at pointerenter)', () => {
+    const raf: FrameRequestCallback[] = [];
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => { raf.push(cb); return raf.length; });
+    try {
+      m = mount(<PackFace card={card('skin_albus_1', { rarity: 'legendary' })} phase="featured" />);
+      const root = face();
+      const rect = vi.spyOn(root, 'getBoundingClientRect').mockReturnValue({ left: 100, top: 50, width: 200, height: 300 } as DOMRect);
+      act(() => {
+        // jsdom has no PointerEvent; React reads the type and the coordinates (enter is synthesised from pointerover)
+        root.dispatchEvent(new MouseEvent('pointerover', { bubbles: true, clientX: 100, clientY: 50, relatedTarget: null }));
+      });
+      for (const [x, y] of [[150, 125], [250, 275]]) {
+        act(() => { root.dispatchEvent(new MouseEvent('pointermove', { bubbles: true, clientX: x, clientY: y })); });
+      }
+      expect(rect).toHaveBeenCalledTimes(1); // at pointerenter only, never per move
+      expect(raf.length).toBe(1); // throttled: one frame for both moves
+      act(() => { raf.shift()!(0); });
+      const layer = holo()!.querySelector<HTMLElement>('.pkf-holo-move')!;
+      expect(layer.style.getPropertyValue('--hx')).toBe('0.750');
+      expect(layer.style.getPropertyValue('--hy')).toBe('0.750');
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});
+
 describe('the face poses', () => {
   const vp = { w: 1920, h: 1080 };
   const at = (cx: number, cy: number, w: number) => {

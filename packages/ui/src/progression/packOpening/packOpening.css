@@ -102,6 +102,26 @@
 .pkf-handoff .pkf-aura-gentle::before, .pkf-handoff .pkf-aura-strong::before { will-change: opacity; }
 @keyframes pkf-aura-gentle { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .pkf-aura::before { animation: none; } }
+/* THE HOLO (packHolo.ts; packFaces.tsx): Epic and up. `.pkf-holo` is the clip (the plate's outer rounded box, the aura's
+   shape) and the blend, at a STATIC opacity (inline: the tier x the holo knob); `.pkf-holo-move` leans with the pointer
+   (`--hx` / `--hy`, 0..1, written once per rAF on hover); `.pkf-holo-sheet` is the static gradient, twice the card's
+   size, and plays the one-shot sweep. Transform only, no looping animation; under the card's own stacking context, so
+   it blends with the plate and the window, not the theatre behind. Epic / Legendary: a pearl on the rarity hue;
+   Ancient: a full pastel rainbow. */
+.pkf-holo { position: absolute; left: 3.2%; right: 3.2%; top: 4.3%; bottom: 3.2%; border-radius: 9% / 6%; overflow: hidden;
+  pointer-events: none; mix-blend-mode: color-dodge; }
+.pkf-holo-move { position: absolute; inset: -50%;
+  transform: translate(calc((var(--hx, 0.5) - 0.5) * -18%), calc((var(--hy, 0.5) - 0.5) * -14%));
+  transition: transform calc(0.22s * var(--pk-slow, 1)) ease-out; }
+.pkf-holo-sheet { position: absolute; inset: 0;
+  background: repeating-linear-gradient(115deg, transparent 0%, color-mix(in srgb, var(--rc) 55%, #fff) 7%, #fff6fb 10%,
+    color-mix(in srgb, var(--rc) 45%, #c4f1ff) 13%, transparent 21%, transparent 26%); }
+.r-ancient .pkf-holo-sheet {
+  background: repeating-linear-gradient(115deg, #ff9fd8 0%, #ffe7a3 5%, #b0ffc2 10%, #9fdcff 15%, #d6b0ff 20%, #ff9fd8 25%); }
+.pkf-holo-sweep { animation: pkf-holo-sweep calc(0.9s * var(--pk-slow, 1)) cubic-bezier(0.25, 0.6, 0.3, 1) both; }
+@keyframes pkf-holo-sweep { from { transform: translate(-22%, -12%); } to { transform: none; } }
+.pkf-hover { pointer-events: auto; }
+@media (prefers-reduced-motion: reduce) { .pkf-holo-sweep { animation: none; } .pkf-holo-move { transition: none; } }
 /* The category sits under the plate's notch, between two short gold rules. */
 .pkf-cat { display: flex; align-items: center; gap: 13px; font-size: 19px; font-weight: 800; letter-spacing: 0.24em; text-transform: uppercase;
   color: var(--gold-lt); }

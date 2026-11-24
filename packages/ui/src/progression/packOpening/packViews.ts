@@ -7,9 +7,9 @@
  *       packGlow        the sealed pack's rarity aura (fades out as the sleeve drops; a PerspectiveMesh so it tilts)
  *       sleeveBack      the pack's back wall
  *       cardsC          the stack: cards (bottom first), the top card's glow / crossfade / shimmer / ribbon
- *       sleeveFront     the body MeshPlane, the idle sheen and the gloss (meshes on the body's grid), the torn lip,
- *                       the contact shadow
- *       strip.view      the tear strip (stripMesh.ts)
+ *       sleeveFront     the body MeshPlane, the holo, the idle sheen and the gloss (meshes on the body's grid), the
+ *                       torn lip, the contact shadow
+ *       strip.view      the tear strip (stripMesh.ts), with the holo over its printed front
  *       particles       the fleck pool
  *       pinch           the "pinch here" cue
  *     flipLayer         the flip's first half: the card and its ribbon as PerspectiveMeshes
@@ -25,8 +25,10 @@ import {
   paintSheen, paintSpec, paintStrip, paintStripBack, rarityTint, paintBurstBloom, paintBurstRays,
 } from './packTextures';
 import { BURST } from './bigPull';
-import { packArtFor } from './packArt';
+import { packArtFor, packShineFor } from './packArt';
 import { packGlowRarity } from './packGlow';
+import { packHoloHue, packHoloStrength } from './packHolo';
+import { makeHoloMaterial, makeHoloMesh, type HoloMesh, type HoloUniformValues } from './packHoloMesh';
 import { CARD_PLATE_SRC, rarityIconSrc } from './packRarity';
 import { StripMesh, TornLip } from './stripMesh';
 
@@ -90,6 +92,17 @@ export interface Views {
   burstRays: Sprite;
   /** Ancient's second ray ring (its other tone, spinning the other way). */
   burstRays2: Sprite;
+  /** The holo sheen (packHoloMesh.ts), or null (Common / Rare packs, packs without wrapper art). */
+  holo: HoloViews | null;
+}
+
+/** The pack's holo: one mesh on the body's grid, one over the strip's front, sharing one material. */
+export interface HoloViews {
+  body: HoloMesh;
+  strip: HoloMesh;
+  uniforms: HoloUniformValues;
+  /** The shine mask has loaded (until then the holo never shows). */
+  ready: boolean;
 }
 
 const fromCanvas = (c: HTMLCanvasElement): Texture => new Texture({ source: new CanvasSource({ resource: c }) });
@@ -206,9 +219,7 @@ export function buildPackViews(look: PackLook, n: number, own: (t: Texture) => v
   const bodyBase = Float32Array.from(body.geometry.positions);
   const sheen = bodyGridMesh(body, bodyBase, Float32Array.from(body.geometry.uvs), keep(paintSheen()));
   sheen.blendMode = 'add';
-  // THE GLOSS: one pre-drawn band, placed by its uvs each frame it moves (no filter, no redraw). MASK HOOK (owner ask,
-  // not built): a wrapper's greyscale shine mask (packArt.ts `packShineFor`) becomes a second mesh on this same grid
-  // with that texture, set as `gloss.mask` and fed the same positions, so the gloss shows only where the mask is light.
+  // THE GLOSS: one pre-drawn band, placed by its uvs each frame it moves (no filter, no redraw).
   const uv0 = new Float32Array(bodyBase.length);
   for (let k = 0; k < uv0.length; k += 2) { uv0[k] = -1; uv0[k + 1] = 0.5; } // off the band until placed
   const gloss = bodyGridMesh(body, bodyBase, uv0, keep(paintGlossBand()));
@@ -240,6 +251,7 @@ export function buildPackViews(look: PackLook, n: number, own: (t: Texture) => v
       } catch { /* keep the placeholder */ }
     });
   }
+  const holo = buildHolo(look, body, bodyBase, strip, sleeveFront, keep);
   const particles = new Container();
   const flecks = new FleckPool(particles, keep(paintFleck()));
   const pinch = new Sprite(keep(paintPinchRing()));
@@ -272,9 +284,51 @@ export function buildPackViews(look: PackLook, n: number, own: (t: Texture) => v
   const views: Views = {
     root, pack, packGlow, packGlowHalf, sleeveBack, cardsC, cards, glow, fade, flash, ribbon, sleeveFront, body, bodyBase, sheen,
     gloss, lip, shadow,
-    strip, particles, flecks, pinch, flipLayer, flipper, flipRibbon, burst, burstBloom, burstRays, burstRays2,
+    strip, particles, flecks, pinch, flipLayer, flipper, flipRibbon, burst, burstBloom, burstRays, burstRays2, holo,
   };
   return { views, tex };
+}
+
+/**
+ * THE HOLO (packHolo.ts, packHoloMesh.ts): for a pack whose tier carries one and whose wrapper has a shine mask. The
+ * mask paints into a canvas texture when it loads (black, so no holo, until then); `ready` flips then. One mesh on the
+ * body's grid (just over the body, under the sheen and the gloss; its uvs map the body onto the mask below the tear
+ * line), one over the strip's front. A load after teardown touches nothing.
+ */
+function buildHolo(
+  look: PackLook, body: MeshPlane, bodyBase: Float32Array, strip: StripMesh, sleeveFront: Container,
+  keep: (c: HTMLCanvasElement) => Texture,
+): HoloViews | null {
+  const src = packShineFor(look);
+  const tier = packHoloStrength(look, 1);
+  if (!src || !(tier > 0) || typeof document === 'undefined') return null;
+  const canvas = document.createElement('canvas');
+  canvas.width = W; canvas.height = H + BODY_H; // the mask's own size (half the wrapper)
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  const maskTex = keep(canvas);
+  const material = makeHoloMaterial(maskTex, packHoloHue(look));
+  const bu = body.geometry.uvs;
+  const uv = new Float32Array(bu.length);
+  const top = H / (H + BODY_H), span = BODY_H / (H + BODY_H);
+  for (let k = 0; k < bu.length; k += 2) { uv[k] = bu[k]!; uv[k + 1] = top + bu[k + 1]! * span; }
+  const bodyHolo = makeHoloMesh(material, Float32Array.from(bodyBase), uv, Uint32Array.from(body.geometry.indices));
+  bodyHolo.scale.set(1 / TEX_RES);
+  bodyHolo.y = H;
+  sleeveFront.addChildAt(bodyHolo, 1);
+  const stripHolo = strip.attachHolo(material);
+  const views: HoloViews = { body: bodyHolo, strip: stripHolo, uniforms: material.uniforms, ready: false };
+  loadImage(src, (img) => {
+    if (maskTex.destroyed) return;
+    try {
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      maskTex.source.update();
+      views.ready = true;
+    } catch { /* no holo */ }
+  });
+  return views;
 }
 
 /** The torn foil's flecks: a fixed pool of sprites (no allocation when the tear sheds them). */

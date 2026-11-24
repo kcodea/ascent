@@ -18,7 +18,7 @@ describe('packFxConfig', () => {
       fibreCatch: 0.7, pinchTwist: 0.65, tearsStraightUp: 0.15, highlight: 0.65, perspective: 1780, volume: 0.45,
       sleeveGrip: 80, sleeveFollows: 0.36, sleeveRimDrag: 1, sleeveFingerPinch: 0.08, sleeveLetGo: 295,
       stackZoom: 0.3, quickOpenMs: 1000, packGlow: 1, cardGlow: 1, gloss: 0.6, glossSharpness: 0.5, packTilt: 0.6,
-      bigPull: 1, bigPullShake: 6, bigPullHoldMs: 450,
+      bigPull: 1, bigPullShake: 6, bigPullHoldMs: 450, holo: 1,
     });
     expect(m.getPackFeel()).toEqual(m.DEFAULT_PACK_FEEL);
     // 300 wide; the height is the wrapper art's own aspect (packGeom.ts): it was 476 before the art arrived, 547 for the first Common wrapper
@@ -65,6 +65,19 @@ describe('packFxConfig', () => {
     localStorage.setItem(KEY, JSON.stringify({ bigPull: 'x', bigPullShake: 12, bigPullHoldMs: 3000 }));
     const again = await load();
     expect(again.getPackFeel()).toMatchObject({ bigPull: 1, bigPullShake: 12, bigPullHoldMs: 1500 });
+  });
+
+  it('the holo knob defaults to 1 and clamps to 0..2 (0 = off)', async () => {
+    const m = await load();
+    const k = m.PACK_FEEL_KNOBS.find((x) => x.key === 'holo')!;
+    expect([k.min, k.max]).toEqual([0, 2]);
+    expect(m.getPackFeel().holo).toBe(1);
+    m.setPackFeel({ holo: 9 });
+    expect(m.getPackFeel().holo).toBe(2);
+    m.setPackFeel({ holo: -1 });
+    expect(m.getPackFeel().holo).toBe(0);
+    localStorage.setItem(KEY, JSON.stringify({ holo: 'junk' }));
+    expect((await load()).getPackFeel().holo).toBe(1);
   });
 
   it('resetPackFeel clears the override', async () => {

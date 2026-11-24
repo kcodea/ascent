@@ -8,8 +8,7 @@ import { packGlowRarity } from './packGlow';
  * keeps the placeholder painting (packTextures.ts). The owner's Secret wrapper ships as a THEMED look
  * (`SECRET_PACK_LOOK_ID`): Secret is not a rarity yet (its role is undecided), so it hangs off the look's id.
  *
- * Mask-ready (owner ask, not built yet): a greyscale SHINE MASK per wrapper will limit where the gloss shows. Its URL
- * comes from `packShineFor` below; `packViews.ts` marks where the gloss takes it (the MASK HOOK beside the gloss mesh).
+ * Each wrapper has a greyscale SHINE MASK (`packShineFor` below) limiting where the holo sheen shows (packHoloMesh.ts).
  */
 const BASE = import.meta.env.BASE_URL;
 
@@ -34,9 +33,12 @@ export function packArtFor(look: PackLook): string | null {
 }
 
 /**
- * THE SHINE-MASK HOOK: a wrapper's greyscale shine mask (light = glossy, dark = matte), or null. None exists yet, so it
- * is always null; when one ships, return its URL here and build the mask mesh at the gloss in `packViews.ts`.
+ * A wrapper's greyscale SHINE MASK (light = the holo shows, dark = matte), or null: `packs/<id>-pack-shine.webp`, 300 x
+ * 450 (half the wrapper, aligned 1:1 with it), for every look that wears wrapper art. A first pass is generated from the
+ * art by `scripts/pack-shine-masks.cjs`; a hand-painted mask may replace any of them. The holo mesh (packHoloMesh.ts)
+ * multiplies its gradient by it.
  */
-export function packShineFor(_look: PackLook): string | null {
-  return null;
+export function packShineFor(look: PackLook): string | null {
+  const art = packArtFor(look);
+  return art ? art.replace(/\.webp$/, '-shine.webp') : null;
 }

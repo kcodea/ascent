@@ -373,8 +373,7 @@ export function LobbyReveal(): JSX.Element | null {
     // shows a blank disc) AND it stands in rail order. At most ~500 ms; the cards sit invisible meanwhile.
     const urls = play.entries.map((e) => portraitOf(e)).filter((u): u is string => !!u);
     const t0 = performance.now();
-    // THE HERO TAKES THEIR SEAT (R-LOCATION-06): held, the board is lit and clear while they fly in; the dim and the line-up
-    // start as they land.
+    // THE FRAME OPENS (R-LOCATION-06): held, the board is lit and clear as the ring opens on it; the dim and the line-up follow.
     const held = lobbyReveal.isHeld();
     if (held && dimRef.current) dimRef.current.style.opacity = '0';
     let waits = held ? 3 : 2;

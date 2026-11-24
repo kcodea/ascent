@@ -26,8 +26,8 @@ let play: RevealPlay | null = null;
 /** Set by a skip (click, Esc, a key): the visuals ended early. Kept for tests and telemetry; nothing else changes. */
 let skipped = false;
 let safety: ReturnType<typeof setTimeout> | null = null;
-/** THE HERO TAKES THEIR SEAT (R-LOCATION-06): while held, the reveal is up (the shop waits behind it) but its dim and its
- *  line-up wait for the hero to land. */
+/** THE FRAME OPENS (R-LOCATION-06): while held, the reveal is up (the shop waits behind it) but its dim and its line-up wait
+ *  for the board to be the player's. */
 let held = false;
 let onRelease: (() => void)[] = [];
 const listeners = new Set<() => void>();

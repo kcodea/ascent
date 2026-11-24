@@ -17,9 +17,9 @@ export interface HeroLaunchRequest {
   heroId: string;
   /** CSS color (var() allowed) for the curtain's center glow — a dark cover with a hero-accent heart, §7. */
   accent: string;
-  /** THE HERO TAKES THEIR SEAT (R-LOCATION-06): the hero and ring as they stand on screen. Absent = the curtain's own fade. */
+  /** THE FRAME OPENS (R-LOCATION-06): the picture as it stands on screen, and the canvas that holds it while the run is built.
+   *  Absent = the curtain's own fade. */
   scene?: RippleScene;
-  /** The living place, to hold while the run is built (absent = the curtain's own ground). */
   place?: HeroRipple;
 }
 

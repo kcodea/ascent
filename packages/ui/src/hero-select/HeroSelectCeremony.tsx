@@ -23,7 +23,6 @@ import { useVersusHeroesRevealed } from '../versus/versusStore';
 import { usePartyHome } from '../partyHome/partyHomeFlag';
 import { HeroPowerLine } from './HeroPowerLine';
 import { readyRipple, rippleFar, rippleReach, RIPPLE_S, type RippleScene } from '../locationReveal/heroRipple';
-import { canFly } from './heroSeat';
 import { RIPPLE_TIMING, shoveAside, waveOrigin } from './heroRippleTiming';
 import { crumbLight, crumbTrail } from '../crashLog';
 
@@ -467,7 +466,7 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch, splash }: 
     fxRef.current?.stopAmbient();
     if (!rip) void fxRef.current?.playLaunch();
     const sc = sceneRef.current;
-    void requestLaunch({ heroId, accent: 'var(--acc)', ...(sc && canFly() ? { scene: sc, ...(rip && !rip.dead ? { place: rip } : {}) } : {}) });
+    void requestLaunch({ heroId, accent: 'var(--acc)', ...(sc && rip && !rip.dead ? { scene: sc, place: rip } : {}) });
   };
 
   /* ---- VERSUS (owner 2026-10-14: "let the full hero select animation play out"): once both heroes are locked on the
@@ -617,7 +616,7 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch, splash }: 
           ? { left: pcx - hw * cover, top: pcy - hh * cover, width: pb.width * cover, height: pb.height * cover }
           : pb;
         circleRef.current = { cx, cy, r: clipR };
-        if (art && flashed) {
+        if (rip && art) {
           const vp = stageViewport();
           const gr = Math.max(dest.width, dest.height) * 0.9;
           const sc: RippleScene = {

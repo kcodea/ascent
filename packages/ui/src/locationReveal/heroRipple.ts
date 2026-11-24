@@ -6,8 +6,8 @@
  *  - IN, from Select Hero: what the wave has passed IS the finished picture (the living place, the hero in their ring), bent
  *    by the water as it settles; what it has not reached yet is hero select, untouched. When it is over, the ceremony's own
  *    DOM (the same picture) takes over underneath.
- *  - AT START GAME the same canvas holds the place alone, on the same clock, while the run is built, and falls away from the
- *    board as the hero flies to their seat on it (hero-select/heroSeat.ts).
+ *  - AT START GAME (R-LOCATION-06, owner's pick: "Frame opens") the same picture holds the screen while the run is built, the
+ *    camera pushing in on the hero; then they fade to the board behind them and their ring opens past the edges of the screen.
  *
  * One WebGL 2 canvas: the place drawn small into a picture (`Place`, on hero select's own clock), then one pass that bends
  * it, the hero's art and the ring together. Made ready while the player is choosing; with nothing ready (a phone, reduced
@@ -41,6 +41,18 @@ const ECHO_S = 0.16;
 /** At Start Game the place falls still this fast: building the run stops every frame for a moment, and a picture that is already
  *  still shows nothing of it (s). */
 export const STILL_S = 0.16;
+/** The ring's opening (s), and how far into it the board is the player's (the lobby reveal goes on). */
+export const OPEN_S = 0.68;
+export const OPEN_FREE = 0.86;
+/** The opening's curve at `x` (0..1): how many times its size the ring is, and how much of the hero is left in it. `K` is past every corner. */
+export function openAt(x: number, K: number): { k: number; hero: number } {
+  const dip = x < 0.2 ? 0.045 * Math.sin((Math.PI * x) / 0.2) : 0;
+  const u = clamp((x - 0.12) / 0.88);
+  const f = clamp((x - 0.05) / 0.34);
+  return { k: 1 - dip + (K - 1) * u ** 2.7, hero: 1 - f * f * (3 - 2 * f) };
+}
+/** The push-in while the run is built: the browser runs it on its own, straight through the work that stops every frame. */
+export const PUSH = { scale: 1.05, ms: 1800 } as const;
 const FADE_MS = 130;
 const PLACE_ROWS = 720;
 
@@ -62,7 +74,7 @@ const VS = `${SH.common}
 in vec2 a; void main(){ gl_Position = vec4(a, 0., 1.); }`;
 
 const FS = `${SH.common}
-out vec4 o; uniform vec2 R, S, C; uniform float rad, str, rad2, str2, mode, hero, artA, settle; uniform vec3 G, CC; uniform vec4 BX, RG; uniform sampler2D SC, ART, RING;
+out vec4 o; uniform vec2 R, S, C; uniform float rad, str, rad2, str2, mode, hero, artA, settle, openK, openH, openX; uniform vec3 G, CC; uniform vec4 BX, RG; uniform sampler2D SC, ART, RING;
 vec2 ring(vec2 p, float r, float R0, float S0, out float crest, out float trough){ float x = r - R0; float body = x > 0. ? exp(-pow(x * 11., 2.)) : exp(-pow(x * 6.2, 2.)); float rip = x < 0. ? sin(x * 38.) * exp(x * 6.) * .13 : 0.; crest = exp(-pow(x * 24., 2.)) + .30 * exp(-pow(x * 8., 2.)); trough = x < 0. ? exp(-pow((x + .13) * 10., 2.)) : 0.; return p / r * (body + rip) * S0; }
 // the ceremony's own DOM, layer for layer: the ground and its veil, the scrim, the glow, the art in its circle, the ring
 vec3 scene(vec2 v){
@@ -77,8 +89,22 @@ vec3 scene(vec2 v){
   vec2 rq = (q - RG.xy) / RG.zw; if (all(greaterThan(rq, vec2(0.))) && all(lessThan(rq, vec2(1.)))) { vec4 g = texture(RING, rq); c = c * (1. - g.a) + g.rgb; }
   return c;
 }
+// START GAME: the ring opens; the board is behind the canvas, so what it shows is simply not drawn
+vec4 opening(vec2 u){
+  vec2 px = u * S, rel = px - CC.xy; float d = length(rel), Rk = CC.z * openK, fw = S.y / R.y;
+  vec3 c = vec3(0.); float z = 1. - .16 * openX * openX, b = .10 * openX; for (int i = 0; i < 7; i++) { float w = z - b * float(i) / 7.; c += scene((CC.xy + rel * w) / S); } c /= 7.;
+  vec3 sea = mix(mg(vec3(.45, .90, 1.)), mg(vec3(1., .86, .60)), .55); float lit = smoothstep(0., .25, openX) * (1. - smoothstep(.7, 1., openX));
+  c += sea * exp(-max(d - Rk, 0.) / (Rk * .16)) * .55 * lit;
+  float inside = clamp(.5 - (d - Rk) / (fw * 1.5), 0., 1.);
+  vec2 q = CC.xy + rel / openK, w = (q - BX.xy) / BX.zw; float ba = BX.z / BX.w; vec2 k = artA > ba ? vec2(ba / artA, 1.) : vec2(1., artA / ba); vec4 art = texture(ART, .5 + (w - .5) * k);
+  float rim = exp(-max(Rk - d, 0.) / (Rk * .055)) * .9 + exp(-max(Rk - d, 0.) / (Rk * .25)) * .22;
+  vec4 into = art * openH; into.rgb += sea * rim * lit * .8; into.a = clamp(into.a + rim * lit * .45, 0., 1.);
+  vec4 o4 = mix(vec4(c, 1.), into, inside);
+  vec2 rq = (q - RG.xy) / RG.zw; if (all(greaterThan(rq, vec2(0.))) && all(lessThan(rq, vec2(1.)))) { vec4 g = textureLod(RING, rq, 0.); g.rgb *= 1. + .5 * lit; o4 = o4 * (1. - g.a) + g; }
+  return vec4(min(o4.rgb, 1.), o4.a);
+}
 void main(){
-  vec2 u = gl_FragCoord.xy / R; u.y = 1. - u.y; vec2 asp = vec2(S.x / S.y, 1.); vec2 p = (u - C) * asp; float r = length(p) + 1e-4, c1 = 0., t1 = 0., c2 = 0., t2 = 0.;
+  vec2 u = gl_FragCoord.xy / R; u.y = 1. - u.y; if (mode > 1.5) { o = opening(u); return; } vec2 asp = vec2(S.x / S.y, 1.); vec2 p = (u - C) * asp; float r = length(p) + 1e-4, c1 = 0., t1 = 0., c2 = 0., t2 = 0.;
   vec2 ds = vec2(0.); if (str > .0004) ds += ring(p, r, rad, str, c1, t1); if (str2 > .0004) ds += ring(p, r, rad2, str2, c2, t2);
   vec2 v = C + (p - ds) / asp, ca = ds * .035 / asp;
   vec3 c = dot(ds, ds) > 1e-7 ? vec3(scene(v - ca).r, scene(v).g, scene(v + ca).b) : scene(v);
@@ -103,7 +129,7 @@ const FD = `${SH.common}
 in vec3 tint; in float al; out vec4 o; void main(){ float r = length(gl_PointCoord - .5) * 2.; o = vec4((tint * exp(-r * r * 6.) + exp(-r * r * 26.) * .6) * al, 0.); }`;
 const SPRAY = 520;
 
-type Mode = 'in' | 'hold';
+type Mode = 'in' | 'hold' | 'open';
 
 export class HeroRipple {
   readonly canvas = document.createElement('canvas');
@@ -123,10 +149,10 @@ export class HeroRipple {
   private mode: Mode = 'hold';
   private raf = 0;
   private t0 = 0;
-  private hero = true;
   /** When (wall, ms) it was told to fall still, and its clock then. */
   private stillAt: { wall: number; s: number } | null = null;
   private onEnd: (() => void) | null = null;
+  private onFree: (() => void) | null = null;
   private warmed = false;
   built = false;
   /** Taken by the launch: hero select's own unmount leaves it alone. */
@@ -190,7 +216,7 @@ export class HeroRipple {
     const h = window.innerHeight;
     const box = { left: 0, top: 0, width: 400, height: 400 };
     this.setScene({ stage: { w, h }, art, ring, box, clip: { x: 200, y: 200, r: 190 }, ringBox: box, glow: { x: 200, y: 200, r: 400 } });
-    for (const m of ['hold', 'in'] as const) { this.mode = m; this.draw(0.4); }
+    for (const m of ['hold', 'in', 'open'] as const) { this.mode = m; this.draw(0.4); }
     this.mode = 'hold';
   }
   has(url: string): boolean { return !!this.pics.get(url); }
@@ -227,7 +253,6 @@ export class HeroRipple {
 
   /** The wave, from the point given to `show`. Resolves when it is over (or this is destroyed). */
   wave(): Promise<void> {
-    this.hero = true;
     this.mode = 'in';
     this.t0 = 0;
     this.sound('wave', { gain: 0.36, rate: 1.08, lowpass: 5200 });
@@ -238,19 +263,25 @@ export class HeroRipple {
     });
   }
 
-  /** Start Game: take the screen with the place alone (the hero is in the air over it). Resolves when it covers. */
+  /** Start Game: take the screen with the same picture, and push in on the hero. Resolves when it covers. */
   hold(): Promise<void> {
     this.mode = 'hold';
-    this.hero = false;
-    this.canvas.animate?.([{ opacity: 0 }, { opacity: 1 }], { duration: FADE_MS, easing: 'ease-out' });
     this.run();
+    const sc = this.scene;
+    if (sc) this.canvas.style.transformOrigin = `${((sc.clip.x / sc.stage.w) * 100).toFixed(2)}% ${((sc.clip.y / sc.stage.h) * 100).toFixed(2)}%`;
+    this.canvas.animate?.([{ opacity: 0 }, { opacity: 1 }], { duration: FADE_MS, easing: 'ease-out' });
+    this.canvas.animate?.([{ transform: 'scale(1)' }, { transform: `scale(${PUSH.scale})` }], { duration: PUSH.ms, easing: 'cubic-bezier(0.16, 0.7, 0.3, 1)', fill: 'forwards' });
     return new Promise((r) => { window.setTimeout(r, FADE_MS); });
   }
-  /** The place falls away from what is under it: it comes past the player and thins to nothing. */
-  fall(ms: number): Promise<void> {
-    const a = this.canvas.animate?.([{ opacity: 1, transform: 'scale(1)' }, { opacity: 0, transform: 'scale(1.22)' }], { duration: ms, easing: 'cubic-bezier(0.45, 0, 0.75, 0.6)', fill: 'forwards' });
-    const end = (): void => { this.rest(); a?.cancel(); };
-    return a ? a.finished.then(end, end) : Promise.resolve(end());
+  /** The ring opens onto what is under the canvas. `onFree` when the board is the player's. Resolves when it is past the screen. */
+  open(onFree: () => void): Promise<void> {
+    this.mode = 'open';
+    this.t0 = 0;
+    this.onFree = onFree;
+    return new Promise((resolve) => {
+      this.onEnd = resolve;
+      this.run();
+    });
   }
 
   /** Let the place fall still (see STILL_S). */
@@ -290,7 +321,9 @@ export class HeroRipple {
       if (!this.t0) this.t0 = now;
       const t = (now - this.t0) / 1000;
       this.draw(t);
-      if (this.mode !== 'hold' && t >= RIPPLE_S + ECHO_S) {
+      if (this.mode === 'open' && t >= OPEN_S * OPEN_FREE) { const free = this.onFree; this.onFree = null; free?.(); }
+      if (this.mode !== 'hold' && t >= (this.mode === 'open' ? OPEN_S : RIPPLE_S + ECHO_S)) {
+        if (this.mode === 'open') { this.rest(); return; }
         const end = this.onEnd;
         this.onEnd = null;
         end?.();
@@ -313,7 +346,7 @@ export class HeroRipple {
     gl.disable(gl.BLEND);
     const C: Point = { x: this.origin.x / sw, y: this.origin.y / sh };
     const far = rippleFar(this.origin.x, this.origin.y, sw, sh);
-    const moving = this.mode !== 'hold';
+    const moving = this.mode === 'in';
     const x = clamp(t / RIPPLE_S);
     const x2 = clamp((t - ECHO_S) / RIPPLE_S);
     const swell = (v: number): number => Math.sin(Math.PI * Math.min(1, v * 1.02)) ** 0.6 || 0;
@@ -322,8 +355,15 @@ export class HeroRipple {
     gl.uniform2f(u('R'), W, H);
     gl.uniform2f(u('S'), sw, sh);
     gl.uniform2f(u('C'), C.x, C.y);
-    gl.uniform1f(u('mode'), moving ? 1 : 0);
-    gl.uniform1f(u('hero'), this.hero ? 1 : 0);
+    gl.uniform1f(u('mode'), moving ? 1 : this.mode === 'open' ? 2 : 0);
+    gl.uniform1f(u('hero'), this.mode === 'open' ? 0 : 1);
+    if (this.mode === 'open') {
+      const xo = clamp(t / OPEN_S);
+      const ow = openAt(xo, (rippleFar(sc.clip.x, sc.clip.y, sw, sh) * sh * 1.16) / sc.clip.r);
+      gl.uniform1f(u('openK'), ow.k);
+      gl.uniform1f(u('openH'), ow.hero);
+      gl.uniform1f(u('openX'), xo);
+    }
     gl.uniform1f(u('rad'), moving ? rippleR(t, far) : -1);
     gl.uniform1f(u('str'), moving && x > 0 && x < 1 ? 0.062 * swell(x) : 0);
     gl.uniform1f(u('rad2'), rippleR(t - ECHO_S, far));

@@ -8,18 +8,17 @@ Owner and Mike, the day the reveal shipped. Rules R-LOCATION-05 and R-LOCATION-0
   this picture matches the DOM layer for layer, so the hand-over is invisible.
 - **The ceremony** keeps its machine, phases and tuner; with the ripple it lays its DOM out finished from commit (no clone, exits,
   bursts or flash), hides it, and shows it when the wave is done. Decided once, at commit, by `readyRipple`.
-- **Start Game** was first the same wave outward. The owner: it hung, and it was one wash too many. So the hero takes their seat
-  (`hero-select/heroSeat.ts`): plain DOM layers, every motion WAAPI transform / opacity, so the browser runs them on its own and they
-  keep moving while building the run blocks the page (about 0.5 s in all). Lift on the press; the place alone holds the screen on
-  the ripple's canvas, stilled before the block; then the flight, once three frames in a row have come on time. The seat's face is
-  hidden but its ring stays: the board art has a dark socket under it.
+- **Start Game** took three goes. The same wave outward: it hung, and was one wash too many. The hero flying down to their seat:
+  refused outright. Then the owner's pick of four, the frame opens: the ripple's canvas holds the same picture, pushing in on the
+  hero (WAAPI on the canvas element, so it runs straight through the 0.5 s of work that stops every frame); the hero fades to the
+  board behind the canvas, and their ring opens past the screen (`open`, `openAt`) once three frames in a row have come on time.
 - **The lobby reveal waits** (`lobbyReveal.hold / release`): it is up from the start (the shop and its clock wait behind it), but its
-  dim and line-up begin as the hero lands.
+  dim and line-up begin once the ring is most of the way out.
 - **Ready before the press:** hero select makes the ripple ready in the background and uploads the hero being looked at and the
   player's ring; one unseen draw. Nothing ready = exactly the older ceremony and curtain.
 - **Phone reveal sound:** the light reveal decoded the full version's clips (85 MB of decoded audio at peak, over the 80 MB
   budget) and played none. It now decodes only the four short kinds it uses, and plays them.
 
-Prod bench, 1080p: Start Game leaves at about 0.8 s, the board is in view by 1.0 s, seated at 1.35 s. Pick: median 4.2 ms; the first pick of a
+Pick: median 4.2 ms; the first pick of a
 fresh browser profile has one 40 to 58 ms frame (Skia compiling the name plate's paint on the GPU process, as the old ceremony did); the
 second run's worst is 12.5 ms.

@@ -17238,18 +17238,18 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-LOCATION-06',
-    title: 'Start Game: the hero lifts on the press, then flies down into their seat on the board',
+    title: 'Start Game: the hero fades to the board behind them and their ring opens past the edges of the screen',
     statement:
-      'Pressing Start Game moves the hero at once: they lift toward the player in their frame, and hang there while the game is '
-      + 'built. Then the location falls away from the board and they fly down into their own portrait on it, which waited as an '
-      + 'empty ring, and land. The lobby reveal and its dim wait for the landing. It comes out of the hero, never the button, '
-      + 'and it is not another ripple. With reduced motion, or no hero circle on screen, the older fade plays.',
+      'Pressing Start Game moves at once: the place pushes in on the hero while the game is built. Then the hero fades to the '
+      + 'board seen through their ring, and the ring opens toward the player and out past every edge of the screen. It comes out '
+      + 'of the hero, never the button, and it is not another ripple. The lobby reveal and its dim wait for it. Where the ripple '
+      + 'cannot play (R-LOCATION-05) the older fade plays.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Owner, 2026-11-24', quote: 'maybe the start game into the board should be different from the wipe/ripple and/or it should come out of the hero instead of start game button for that?' },
-      { kind: 'owner-chat', ref: 'Owner, 2026-11-24, of the hero taking their seat', quote: 'build 1 let\'s see it' },
-      { kind: 'code', ref: 'packages/ui/src/hero-select/heroSeat.ts; packages/ui/src/hero-select/HeroLaunchCurtain.tsx; packages/ui/src/lobbyReveal/lobbyRevealStore.ts (hold / release)' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-24, choosing from four offered (the hero flying to their seat was built first and refused: "i dont like that animation at all for the hero slotting in")', quote: 'Frame opens' },
+      { kind: 'code', ref: 'packages/ui/src/locationReveal/heroRipple.ts (hold, open); packages/ui/src/hero-select/HeroLaunchCurtain.tsx; packages/ui/src/lobbyReveal/lobbyRevealStore.ts (hold / release)' },
     ],
     currentBehaviour: 'Built 2026-11-24 for the owner to see; its feel is not approved yet.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/locationReveal/locationReveal.test.ts'], lastVerifiedAt: '2026-11-24' },

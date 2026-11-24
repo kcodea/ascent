@@ -11,8 +11,7 @@ import { versusHeroSelectMs } from '@game/sim/versus/server';
 import { LOCATIONS, locationName, locationOfSet, POSTER_NAME, postersFor } from './locations';
 import { pendingLocation, pendingReveal, practiceLocation } from './pendingLocation';
 import { LEAN, leanAt, mountAtmosphere } from './atmosphereGl';
-import { primeRipple, readyRipple, rippleFar, rippleR, rippleReach, RIPPLE_S, STILL_S } from './heroRipple';
-import { FALL_MS, flightFrames, FLY_MS, LIFT_MS } from '../hero-select/heroSeat';
+import { openAt, OPEN_FREE, OPEN_S, primeRipple, readyRipple, rippleFar, rippleR, rippleReach, RIPPLE_S, STILL_S } from './heroRipple';
 import { RIPPLE_TIMING } from '../hero-select/heroRippleTiming';
 import { ceremonyAdvanceSchedule, HERO_CEREMONY_TIMING } from '../hero-select/heroCeremonyTiming';
 import { versusHeroClock, versusLocation, versusReveal } from './versusReveal';
@@ -114,20 +113,16 @@ describe('the ripple through hero select (owner + Mike 2026-11-24, R-LOCATION-05
     expect(STILL_S).toBeLessThan(0.2);
   });
 
-  it('Start Game: the hero flies from where they hang to exactly their seat, and nothing waits before they move', () => {
-    const from = { x: 960, y: 470, w: 660 };
-    const to = { x: 175, y: 845, w: 297 };
-    const f = flightFrames(from, to, 1.1, -14);
-    const at = (k: Keyframe) => (k.transform as string).match(/-?[\d.]+/g)!.map(Number);
-    expect(at(f[0]!).slice(0, 2)).toEqual([0, -14]);
-    expect(at(f[0]!)[3]).toBeCloseTo(1.1, 3);
-    const end = at(f[f.length - 1]!);
-    expect(end[0]).toBeCloseTo(to.x - from.x, 1);
-    expect(end[1]).toBeCloseTo(to.y - from.y, 1);
-    expect(end[2]).toBeCloseTo(0, 1);
-    expect(end[3]).toBeCloseTo(297 / 660, 3);
-    expect(FALL_MS).toBeLessThan(FLY_MS);
-    expect(LIFT_MS + FLY_MS).toBeLessThan(1100);
+  it('Start Game: the hero fades first, then the ring only ever opens, past every corner, and quickly', () => {
+    const K = 5;
+    expect(openAt(0, K)).toEqual({ k: 1, hero: 1 });
+    expect(openAt(1, K).k).toBeCloseTo(K, 5);
+    expect(openAt(0.45, K).hero).toBe(0);
+    expect(openAt(0.4, K).k).toBeLessThan(1.6);
+    let was = 0;
+    for (let x = 0.2; x <= 1; x += 0.01) { const { k } = openAt(x, K); expect(k).toBeGreaterThanOrEqual(was); was = k; }
+    expect(OPEN_S).toBeLessThan(0.8);
+    expect(OPEN_FREE).toBeLessThan(1);
   });
 
   it('with nothing ready (no WebGL, a phone) there is no ripple: the ceremony and the curtain play as before', () => {

@@ -15,7 +15,9 @@
 
 .avp-bar { display: flex; align-items: center; justify-content: space-between; gap: calc(16 * var(--phu)); flex: none; min-width: 0; }
 .avp-bar .phk-tabs { min-width: 0; }
-.avp-n { margin-left: calc(8 * var(--phu)); font-weight: 700; letter-spacing: 0; color: var(--ph-muted); font-variant-numeric: tabular-nums; }
+/* A tab's name is white whether or not it is the open one; its count is small and muted (owner 2026-11-24), in both tab rows of the customize window. */
+.avp-tabname { color: var(--ph-ink); }
+.avp-n { margin-left: calc(8 * var(--phu)); font-weight: 700; font-size: 0.7em; letter-spacing: 0; color: var(--ph-muted); font-variant-numeric: tabular-nums; }
 .avp-capdef { font-weight: 600; color: var(--ph-muted); }
 .avp-capname:not(:empty) + .avp-capdef { display: none; }
 .avp-bar .phk-tabs { flex: 1 1 auto; }

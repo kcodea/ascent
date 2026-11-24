@@ -17,7 +17,7 @@
  * Static paint: no loops, the hover lift is a one-shot transform. No native tooltip (aria-label only), no own cursor (the
  * gauntlet rule paints it). The medallion is not a control; the whole card is one press target.
  */
-import { memo, type CSSProperties, type ReactNode } from 'react';
+import { memo, type CSSProperties, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react';
 import type { RankPosition } from '@game/sim';
 import { RankCrest } from '../../rank/RankBar';
 import { barFraction, pointsText, rankLabel } from '../../rank/rankFormat';
@@ -37,7 +37,7 @@ const cx = (...c: (string | false | null | undefined)[]): string => c.filter(Boo
 
 /** The card's press target: one button covering the whole card, labelled for screen readers. */
 function Press({ label, onClick, haspopup, expanded, children }: {
-  label: string; onClick?: () => void; haspopup?: boolean; expanded?: boolean; children: ReactNode;
+  label: string; onClick?: (e: ReactMouseEvent) => void; haspopup?: boolean; expanded?: boolean; children: ReactNode;
 }) {
   return (
     <button type="button" className="phs-press" onClick={onClick} aria-label={label}
@@ -55,6 +55,10 @@ export interface PhShowcaseCardProps {
   rank: RankPosition | null; mine?: boolean; rival?: boolean; mirrored?: boolean;
   badge?: ReactNode; band?: ReactNode; youLabel?: boolean;
   onClick?: () => void; haspopup?: boolean; expanded?: boolean;
+  /** PRESS ZONES (owner 2026-11-24): a press on the art, on the title, or on the rank box runs its own action in place of
+   *  `onClick` (on your card: the Avatar picker, the Title picker, the Career page). A press anywhere else, and a keyboard
+   *  press, still runs `onClick`; each zone's action is also reachable there or from the tabs. */
+  onArt?: () => void; onTitle?: () => void; onRank?: () => void;
   overlay?: ReactNode; under?: ReactNode;
   /** The entrance stagger position. */
   index?: number; className?: string;
@@ -100,15 +104,24 @@ export function rankLabelCqw(label: string, size: PhCardSize): number {
 
 export const PhShowcaseCard = memo(function PhShowcaseCard({
   size, label, name, art, eyebrow, titleId, fallbackLine, rank, mine, rival, mirrored, badge, band, youLabel,
-  onClick, haspopup, expanded, overlay, under, index = 0, className,
+  onClick, onArt, onTitle, onRank, haspopup, expanded, overlay, under, index = 0, className,
 }: PhShowcaseCardProps): JSX.Element {
+  const zoned = !!(onArt || onTitle || onRank);
+  const press = !zoned ? onClick : (e: ReactMouseEvent): void => {
+    const t = e.target as Element;
+    if (onRank && t.closest('.phs-rank')) onRank();
+    else if (onTitle && t.closest('.phs-title > *')) onTitle();
+    else if (onArt && t.closest('.phs-art')) onArt();
+    else onClick?.();
+  };
   return (
-    <div className={cx('phs-card', `phs-${size}`, mine && 'phs-mine', rival && 'phs-rival', mirrored && 'phs-mirrored', expanded && 'phs-menu', className)}
+    <div className={cx('phs-card', `phs-${size}`, mine && 'phs-mine', rival && 'phs-rival', mirrored && 'phs-mirrored', expanded && 'phs-menu', onArt && 'phs-artgo', onTitle && 'phs-titlego', className)}
       style={{ '--i': index } as CSSProperties}>
-      <Press label={label} onClick={onClick} haspopup={haspopup} expanded={expanded}>
+      <Press label={label} onClick={press} haspopup={haspopup} expanded={expanded}>
         <span className="phs-art" aria-hidden="true">
           {art && <img src={art} alt="" draggable={false} decoding="sync" />}
         </span>
+        {art && <img className="phs-wash" src={art} alt="" aria-hidden="true" draggable={false} decoding="sync" />}
         {badge && <span className="phs-badge">{badge}</span>}
         {band}
         {youLabel && <span className="phs-you">You</span>}

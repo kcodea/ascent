@@ -17,10 +17,11 @@ describe('packFxConfig', () => {
       peelAngle: 0.4, edgeTowardCamera: 139, slackBeforeTear: 0.92, edgeFollowsHand: 0.1, maxTearSpeed: 18,
       fibreCatch: 0.7, pinchTwist: 0.65, tearsStraightUp: 0.15, highlight: 0.65, perspective: 1780, volume: 0.45,
       sleeveGrip: 80, sleeveFollows: 0.36, sleeveRimDrag: 1, sleeveFingerPinch: 0.08, sleeveLetGo: 295,
-      stackZoom: 0.3, quickOpenMs: 1000, packGlow: 1, cardGlow: 1,
+      stackZoom: 0.3, quickOpenMs: 1000, packGlow: 1, cardGlow: 1, gloss: 0.6, glossSharpness: 0.5, packTilt: 0.6,
     });
     expect(m.getPackFeel()).toEqual(m.DEFAULT_PACK_FEEL);
-    expect(m.PACK_BASE_SIZE).toEqual({ w: 300, h: 476 });
+    // 300 wide; the height is the wrapper art's own aspect (packGeom.ts): it was 476 before the art arrived
+    expect(m.PACK_BASE_SIZE).toEqual({ w: 300, h: 547 });
   });
 
   it('setPackFeel persists and getPackFeel reads it back', async () => {

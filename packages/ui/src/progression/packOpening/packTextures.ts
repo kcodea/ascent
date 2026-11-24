@@ -6,23 +6,11 @@
  * Math.random is fine here (presentation only), but a tiny seeded PRNG keeps the grain identical between openings.
  */
 import { COSMETIC_RARITIES, type CrateRarity, type PackLook } from '@game/progression';
+import { PACK_GEOM } from './packGeom';
 import { packRarityLabel } from './packRarity';
 
-/**
- * The pack's geometry in BASE units (the prototype's px; `PACK_BASE_SIZE` = W x (H + BODY_H) = 300 x 476). The scene
- * simulates in these units and scales the whole pack to its on-stage size.
- */
-export const PACK_GEOM = {
-  /** Pack width. */
-  W: 300,
-  /** The tear strip's height. */
-  H: 56,
-  /** The sleeve body's height below the strip. */
-  BODY_H: 420,
-  /** A card in the stack: 2:3, the same shape as the face's card plate (the DOM face lands at the back's size). */
-  CARD_W: 260,
-  CARD_H: 390,
-} as const;
+/** The pack's geometry in BASE units, derived from the wrapper art template (packGeom.ts). */
+export { PACK_GEOM };
 
 /** Canvas px per base unit. */
 export const TEX_RES = 2;
@@ -536,5 +524,42 @@ export function paintCardFlash(): HTMLCanvasElement {
   g.fillStyle = gr;
   rr(g, OUTER.x, OUTER.y, OUTER.w, OUTER.h, OUTER.r);
   g.fill();
+  return c;
+}
+
+// ---------------------------------------------------------------- the wrapper art and the gloss
+
+/**
+ * Paint one horizontal slice of the pack's wrapper art into `into` (a strip or body canvas, W x hUnits at TEX_RES),
+ * replacing the placeholder in place. The art is the whole pack (strip + body, the `packGeom.ts` template), so the
+ * slice from `y0` (base units) down `hUnits` is mapped by the image's own height. The caller re-uploads the texture.
+ */
+export function paintArtSlice(img: CanvasImageSource & { width: number; height: number }, into: HTMLCanvasElement, y0: number, hUnits: number): void {
+  const g = into.getContext('2d');
+  if (!g) return;
+  const total = PACK_GEOM.H + PACK_GEOM.BODY_H;
+  const sy = img.height / total;
+  g.clearRect(0, 0, into.width, into.height);
+  g.drawImage(img, 0, y0 * sy, img.width, hUnits * sy, 0, 0, into.width, into.height);
+}
+
+/**
+ * The gloss band (a glossy clear-coat's soft specular streak): a 1-D lookup across the band, u = 0.5 at its centre,
+ * fully transparent at both ends (the mesh's u runs past them, so clamp-to-edge shows nothing). Its profile
+ * `1 - 3.125 d^2` is what the strip's spec lookup produces under the same band (`glossStripU`, packTilt.ts), so the two
+ * line up across the tear. Warm white, like the strip's glint. Painted once; moved and alpha-set only.
+ */
+export function paintGlossBand(): HTMLCanvasElement {
+  const { c, g } = canvas(256, 2);
+  const img = g.createImageData(256, 2);
+  for (let x = 0; x < 256; x++) {
+    const d = (x + 0.5) / 128 - 1;
+    const a = Math.max(0, 1 - 3.125 * d * d);
+    for (let y = 0; y < 2; y++) {
+      const o = (y * 256 + x) * 4;
+      img.data[o] = 255; img.data[o + 1] = 244; img.data[o + 2] = 214; img.data[o + 3] = Math.round(a * 255);
+    }
+  }
+  g.putImageData(img, 0, 0);
   return c;
 }

@@ -5,8 +5,9 @@
  * The peeled foil hangs as a cubic curve from the tear front (leaving the pack at the peel-off angle) to the held corner.
  * The strip is a 60 x 8 grid with PER-TRIANGLE (unshared) vertices, so a triangle can be "hidden" by collapsing it:
  * each frame every triangle is projected, and its projected winding decides whether it shows the printed FRONT or the
- * lining BACK (the other mesh gets it collapsed to a point). A shade mesh (multiply) and a spec mesh (add) SHARE one
- * geometry whose u = the surface angle, so the light rolls over the bend. Plus the torn lip along the pack and the
+ * lining BACK (the other mesh gets it collapsed to a point). A shade mesh (multiply) and a spec mesh (add) cover the
+ * whole strip with u = the surface angle, so the light rolls over the bend; the spec has its own uvs because the
+ * surface gloss (packTilt.ts) bumps its u only. Plus the torn lip along the pack and the
  * contact shadow's numbers.
  *
  * Everything is in the pack's base units (`PACK_GEOM`). No allocation per frame: every buffer is created once and
@@ -15,6 +16,7 @@
 import { Container, Mesh, MeshGeometry, Texture } from 'pixi.js';
 import type { Vec3 } from './peelModel';
 import { PACK_GEOM } from './packTextures';
+import { glossD, glossSpecAlpha, glossStripU, tiltInto, type GlossBand, type TiltPose } from './packTilt';
 
 const { W, H } = PACK_GEOM;
 /** Grid columns / rows. */
@@ -48,6 +50,12 @@ export interface ShadowPose { x: number; y: number; w: number; h: number; alpha:
 /** The strip's textures: the printed front, the lining, the shade and spec lookups. */
 export interface StripTextures { front: Texture; back: Texture; shade: Texture; spec: Texture }
 
+/**
+ * The pack's surface this frame (optional; without it the strip is exactly the prototype's): the sealed pack's mouse
+ * tilt, applied to every vertex after the strip's own projection, and the gloss band, which rides the spec lookup.
+ */
+export interface StripSurface { tilt: TiltPose; band: GlossBand; gloss: number }
+
 export class StripMesh {
   /** The flap: the four meshes. The scene flies this off at the rip. */
   readonly view = new Container();
@@ -57,11 +65,13 @@ export class StripMesh {
   private readonly frontG: MeshGeometry;
   private readonly backG: MeshGeometry;
   private readonly shadeG: MeshGeometry;
+  private readonly specG: MeshGeometry;
   private readonly specM: Mesh;
   private readonly gx = new Float32Array(G);
   private readonly gy = new Float32Array(G);
   private readonly gz = new Float32Array(G);
   private readonly gth = new Float32Array(G);
+  private readonly gd = new Float32Array(G);
   private readonly cX = new Float32Array(M + 1);
   private readonly cY = new Float32Array(M + 1);
   private readonly cZ = new Float32Array(M + 1);
@@ -92,11 +102,12 @@ export class StripMesh {
     this.frontG = makeGeom();
     this.backG = makeGeom();
     this.shadeG = makeGeom();
+    this.specG = makeGeom();
     const frontM = new Mesh({ geometry: this.frontG, texture: tex.front });
     const backM = new Mesh({ geometry: this.backG, texture: tex.back });
     const shadeM = new Mesh({ geometry: this.shadeG, texture: tex.shade });
     shadeM.blendMode = 'multiply';
-    this.specM = new Mesh({ geometry: this.shadeG, texture: tex.spec });
+    this.specM = new Mesh({ geometry: this.specG, texture: tex.spec });
     this.specM.blendMode = 'add';
     this.view.addChild(frontM, backM, shadeM, this.specM);
   }
@@ -140,8 +151,14 @@ export class StripMesh {
    * Rebuild the strip for tear front `T` and held corner `hand`, in place. `time` (dt units) drives the foil's idle
    * flutter. Also updates `shadow`.
    */
-  compute(T: number, hand: Vec3, peelAngle: number, pinchTwist: number, highlight: number, D: number, time: number): void {
-    const { gx, gy, gz, gth, cX, cY, cZ, cL, p } = this;
+  compute(
+    T: number, hand: Vec3, peelAngle: number, pinchTwist: number, highlight: number, D: number, time: number,
+    surface?: StripSurface,
+  ): void {
+    const { gx, gy, gz, gth, gd, cX, cY, cZ, cL, p } = this;
+    const tilt = surface && !surface.tilt.flat ? surface.tilt : null;
+    const band = surface && surface.band.stripAmp > 0 ? surface.band : null;
+    const amp = band ? band.stripAmp : 0;
     const curveK = this.solveK(T, 0, 0, hand.x, hand.y, hand.z, T, peelAngle);
     const up = Math.min(1.2, Math.max(0, -hand.y / 80)), phi = -pinchTwist * up * 0.6;
     const ex = Math.sin(phi), ey = Math.cos(phi);
@@ -165,11 +182,14 @@ export class StripMesh {
           x += Math.sin(time * 0.11 + v * 2) * 0.5 * (d / W);
         }
         projInto(p, x, y, z, D);
+        gd[g] = band ? glossD(band, p.x, p.y) : 0; // the gloss band is fixed to the pack plane, before the tilt
+        if (tilt) tiltInto(p, p.x, p.y, z, tilt);
         gx[g] = p.x; gy[g] = p.y; gz[g] = z; gth[g] = th;
       }
     }
     const tris = this.tris;
     const fp = this.frontG.positions, bp = this.backG.positions, sp = this.shadeG.positions, su = this.shadeG.uvs;
+    const xp = this.specG.positions, xu = this.specG.uvs;
     for (let t = 0; t < tris.length; t += 3) {
       const a = tris[t], b = tris[t + 1], c = tris[t + 2];
       const front = (gx[b] - gx[a]) * (gy[c] - gy[a]) - (gy[b] - gy[a]) * (gx[c] - gx[a]) >= 0;
@@ -177,6 +197,8 @@ export class StripMesh {
         const g = tris[t + k], o = (t + k) * 2, X = gx[g], Y = gy[g];
         sp[o] = X; sp[o + 1] = Y;
         su[o] = Math.min(0.999, gth[g] / Math.PI); su[o + 1] = 0.5;
+        xp[o] = X; xp[o + 1] = Y;
+        xu[o] = glossStripU(gth[g], gd[g], amp); xu[o + 1] = 0.5;
         if (front) { fp[o] = X; fp[o + 1] = Y; bp[o] = gx[a]; bp[o + 1] = gy[a]; }
         else { bp[o] = X; bp[o + 1] = Y; fp[o] = gx[a]; fp[o + 1] = gy[a]; }
       }
@@ -185,7 +207,9 @@ export class StripMesh {
     this.backG.getBuffer('aPosition').update();
     this.shadeG.getBuffer('aPosition').update();
     this.shadeG.getBuffer('aUV').update();
-    this.specM.alpha = highlight;
+    this.specG.getBuffer('aPosition').update();
+    this.specG.getBuffer('aUV').update();
+    this.specM.alpha = surface ? glossSpecAlpha(highlight, surface.gloss) : highlight;
 
     // contact shadow under the lifted foil
     let minX = 1e9, maxX = -1e9, zMax = 0;

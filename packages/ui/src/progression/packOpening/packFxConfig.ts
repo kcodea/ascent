@@ -5,6 +5,8 @@
  * Read `getPackFeel()` when an opening STARTS (the object is replaced, never mutated, on every change).
  */
 
+import { PACK_GEOM } from './packGeom';
+
 export interface PackFeel {
   /** Peel-off angle at the tear (radians). */
   peelAngle: number;
@@ -46,6 +48,12 @@ export interface PackFeel {
   packGlow: number;
   /** The cards' rarity glow (backs and revealed faces): a master multiplier on its per-tier strength (packGlow.ts). */
   cardGlow: number;
+  /** The clear-coat gloss over the strip and the sleeve: its strength (0 = none; packTilt.ts `glossBand`). */
+  gloss: number;
+  /** The gloss's finish: 0 = satin (a wide soft sheen), 1 = glassy (a narrow bright streak). */
+  glossSharpness: number;
+  /** The sealed pack's mouse tilt: a multiplier on the drag dive's `tiltMax` (dragFeel.ts); 0 = none. */
+  packTilt: number;
 }
 
 export const DEFAULT_PACK_FEEL: PackFeel = {
@@ -69,10 +77,13 @@ export const DEFAULT_PACK_FEEL: PackFeel = {
   quickOpenMs: 1000,
   packGlow: 1,
   cardGlow: 1,
+  gloss: 0.6,
+  glossSharpness: 0.5,
+  packTilt: 0.6,
 };
 
 /** The pack size the px values are tuned at; scale them by (rendered width / w). */
-export const PACK_BASE_SIZE = { w: 300, h: 476 } as const;
+export const PACK_BASE_SIZE = { w: PACK_GEOM.W, h: PACK_GEOM.H + PACK_GEOM.BODY_H } as const;
 
 export interface PackFeelKnob { key: keyof PackFeel; label: string; min: number; max: number; step: number }
 
@@ -97,6 +108,9 @@ export const PACK_FEEL_KNOBS: readonly PackFeelKnob[] = [
   { key: 'quickOpenMs', label: 'Quick open duration (ms)', min: 300, max: 3000, step: 50 },
   { key: 'packGlow', label: 'GLOW: pack rarity glow', min: 0, max: 2, step: 0.05 },
   { key: 'cardGlow', label: 'GLOW: card rarity glow', min: 0, max: 2, step: 0.05 },
+  { key: 'gloss', label: 'GLOSS: strength', min: 0, max: 1.5, step: 0.05 },
+  { key: 'glossSharpness', label: 'GLOSS: satin to glassy', min: 0, max: 1, step: 0.05 },
+  { key: 'packTilt', label: 'TILT: sealed pack mouse tilt (x drag dive)', min: 0, max: 1.5, step: 0.05 },
 ];
 
 const STORAGE_KEY = 'ascent.packFeel.v1';

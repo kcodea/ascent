@@ -13,7 +13,7 @@
  *  - The scene CALLS `PackSounds` (pop, tear, crackle, rip, sleeveFree, slide, drop, whoosh, flip, silence) but never
  *    creates or disposes it. The DOM beats (stamp, aether, summary) are the shell's.
  *  - Coordinates: the renderer is sized to the host in LAYOUT px (`resizeTo: host`, resolution x `stageScale()`); the
- *    pack is simulated in its BASE units (`PACK_GEOM`, 300 x 476) and the whole pack is scaled to fit the host. Pointer
+ *    pack is simulated in its BASE units (`PACK_GEOM`, 300 x 547) and the whole pack is scaled to fit the host. Pointer
  *    and `flipTop`'s point arrive in SCREEN px and `onFlipEdge` reports SCREEN px, converted through the canvas rect
  *    cached at pointerenter / pointerdown / flip start (never read per frame).
  *  - Clicks are not interpreted after the zoom: they bubble from the canvas to the host, where the shell decides to
@@ -30,6 +30,7 @@ import { destroyPixiApp, guardAppRender, watchContextLoss } from '../../pixiAppS
 import { PIXI_ANTIALIAS } from '../../phoneArt';
 import { phonePixiOptions, pixiAllowed } from '../../phoneDiag';
 import { followStage } from '../../pixiStageFollow';
+import { getDragFeel } from '../../dragFeel';
 import {
   FLIP_HALF_GUARANTEED_MS, FLIP_HALF_MS, FLIP_LIFT, FLIP_LIFT_GUARANTEED, FLIP_PERSPECTIVE_PER_WIDTH, PILE_MAX_H, REVEAL_FACE_X,
   REVEAL_STACK_X, REVEAL_Y, REVEALED_SCALE, flipAngle, flipPoseAt, projectTurnedRect, type FlipPose,
@@ -44,7 +45,11 @@ import {
 import {
   newSleeve, newTear, releaseTear, stepSleeve, stepTear, type SleeveState, type TearState, type Vec3,
 } from './peelModel';
-import { projInto, unprojInto, type Pt } from './stripMesh';
+import { projInto, unprojInto, type Pt, type StripSurface } from './stripMesh';
+import {
+  aimInto, glossBandInto, glossD, newGlossBand, newTilt, newTiltPose, setTiltPose, stepTilt, tiltEaseK, tiltInto,
+  tiltTargetInto,
+} from './packTilt';
 
 // ---------------------------------------------------------------- public contract
 
@@ -188,6 +193,7 @@ class PackSceneImpl implements PackScene {
   // scratch (no per-frame allocation)
   private readonly pt: Pt = { x: 0, y: 0 };
   private readonly pt2: Pt = { x: 0, y: 0 };
+  private readonly pt3: Pt = { x: 0, y: 0 };
   private readonly target: Vec3 = { x: 0, y: 0, z: 0 };
   private readonly tearInput: { held: boolean; target: Vec3 | null } = { held: false, target: null };
   private readonly sleeveInput = { held: false, want: 0, flickVy: 0 };
@@ -206,6 +212,22 @@ class PackSceneImpl implements PackScene {
   private readonly quick = { active: false, t: 0, tearDur: 1, sleeveDur: 1, T0: 0.5, sleeveStart: 0, dy0: 0, want: 0 };
   // resetSealed's fade
   private readonly reset = { active: false, t: 0, swapped: false };
+
+  // the sealed pack's mouse tilt (the drag dive's, packTilt.ts) and the gloss band
+  private readonly tilt = newTilt();
+  /** Latched by the first grab of the tear (or quick open): the pack stays flat until resetSealed. */
+  private tiltLocked = false;
+  private hoverOn = false;
+  private readonly hoverAim: Pt = { x: 0, y: 0 };
+  private readonly hoverPt: Pt = { x: 0, y: 0 };
+  private readonly tiltTgt = { rx: 0, ry: 0 };
+  private readonly tiltPose = newTiltPose();
+  private readonly band = newGlossBand();
+  private readonly surface: StripSurface = { tilt: this.tiltPose, band: this.band, gloss: 0 };
+  /** What the body meshes were last written with (rewrite only when one changes: the tilt idles once settled). */
+  private readonly bodyKey = { rx: NaN, ry: NaN, D: NaN };
+  private readonly glossKey = { centre: NaN, halfWidth: NaN, slope: NaN };
+  private readonly glowCorners = new Float64Array(8);
 
   constructor(
     private readonly host: HTMLElement,
@@ -262,6 +284,7 @@ class PackSceneImpl implements PackScene {
     canvas.style.pointerEvents = 'auto';
     canvas.style.touchAction = 'none'; // a finger drag tears, it never scrolls
     canvas.addEventListener('pointerenter', this.onEnter);
+    canvas.addEventListener('pointerleave', this.onLeave);
     canvas.addEventListener('pointerdown', this.onDown);
     canvas.addEventListener('pointermove', this.onMove);
     canvas.addEventListener('pointerup', this.onUp);
@@ -301,6 +324,7 @@ class PackSceneImpl implements PackScene {
     if (!app) return; // pre-init: init()'s "still wanted?" check destroys the late Application
     const canvas = app.canvas;
     canvas.removeEventListener('pointerenter', this.onEnter);
+    canvas.removeEventListener('pointerleave', this.onLeave);
     canvas.removeEventListener('pointerdown', this.onDown);
     canvas.removeEventListener('pointermove', this.onMove);
     canvas.removeEventListener('pointerup', this.onUp);
@@ -407,6 +431,7 @@ class PackSceneImpl implements PackScene {
     if (this.reset.active || this.quick.active || this.phase === 'zoom' || this.phase === 'end') return;
     if (this.phase === 'sleeve' && this.sleeve.falling) return;
     this.releaseHolds();
+    this.tiltLocked = true; // opening: the tilt eases flat and stays flat
     const total = Math.max(1, getPackFeel().quickOpenMs / FRAME_MS);
     const q = this.quick;
     q.active = true;
@@ -467,6 +492,8 @@ class PackSceneImpl implements PackScene {
     this.tearHeld = false;
     this.sleeveHeld = false;
     this.hasCursor = false;
+    this.tiltLocked = false; // sealed again: the tilt comes back
+    v.cardsC.visible = true;
     const flap = v.strip.view;
     flap.alpha = 1; flap.rotation = 0; flap.scale.set(1); flap.pivot.set(0, 0); flap.position.set(0, 0); flap.visible = true;
     v.pack.position.set(0, 0);
@@ -479,8 +506,8 @@ class PackSceneImpl implements PackScene {
     v.pinch.visible = true;
     v.cardsC.position.set(W / 2, CARDS_Y);
     v.cardsC.scale.set(1);
-    const pos = v.body.geometry.positions;
-    if (pos.length === v.bodyBase.length) { pos.set(v.bodyBase); v.body.geometry.getBuffer('aPosition').update(); }
+    this.bodyKey.rx = NaN; // the body meshes are rewritten (with the current tilt) on the next frame
+    this.writeBody(false);
     v.flecks.clear();
     v.flipper.visible = false;
     v.flipRibbon.visible = false;
@@ -488,7 +515,7 @@ class PackSceneImpl implements PackScene {
     v.flash.visible = false;
     this.showTop(false);
     const feel = getPackFeel();
-    v.strip.compute(this.tear.T, this.tear.hand, feel.peelAngle, feel.pinchTwist, feel.highlight, feel.perspective, this.time);
+    v.strip.compute(this.tear.T, this.tear.hand, feel.peelAngle, feel.pinchTwist, feel.highlight, feel.perspective, this.time, this.surface);
   }
 
   private backTex(i: number): Texture {
@@ -599,6 +626,17 @@ class PackSceneImpl implements PackScene {
 
   private readonly onEnter = (): void => { this.cacheRect(); };
 
+  /** The pointer left the stage: the tilt and the gloss ease back to rest. */
+  private readonly onLeave = (): void => { this.hoverOn = false; };
+
+  /** A mouse / pen position over the stage, for the sealed tilt and the gloss (touch has no hover). */
+  private trackHover(e: PointerEvent): void {
+    if (e.pointerType === 'touch' || !this.toPack(e, this.hoverPt)) return;
+    aimInto(this.hoverAim, this.hoverPt.x, this.hoverPt.y, W, H + BODY_H);
+    this.hoverOn = true;
+    if (this.phase === 'peel') this.wake(); // (the ticker runs throughout the peel today; this keeps the tilt live if that changes)
+  }
+
   private readonly onDown = (e: PointerEvent): void => {
     if (!this.v || !this.app || !this.inputOn || this.quick.active || this.reset.active) return;
     if (this.tearHeld || this.sleeveHeld) return; // one hand at a time
@@ -615,6 +653,7 @@ class PackSceneImpl implements PackScene {
       const c = this.edgeScreen(this.pt2);
       if (Math.hypot(p.x - c.x, p.y - c.y) > (this.tear.started ? GRAB_R_STARTED : GRAB_R_SEALED)) return;
       this.tearHeld = true;
+      this.tiltLocked = true; // the opening has begun: the tilt eases flat and stays flat
       this.grabOff.x = c.x - p.x; this.grabOff.y = c.y - p.y;
       this.cursor.x = p.x; this.cursor.y = p.y;
       this.hasCursor = true;
@@ -630,6 +669,7 @@ class PackSceneImpl implements PackScene {
 
   private readonly onMove = (e: PointerEvent): void => {
     if (!this.v || !this.app) return;
+    this.trackHover(e);
     const held = this.tearHeld || this.sleeveHeld;
     if (!held) {
       if (!this.inputOn || this.quick.active || this.reset.active || e.pointerType === 'touch') return;
@@ -695,6 +735,7 @@ class PackSceneImpl implements PackScene {
     this.sounds.rip();
     v.flecks.spawn(18, W - 4, H);
     this.phase = 'sleeve';
+    v.cardsC.visible = true; v.sleeveBack.visible = true; // never left hidden by the tilt (see tick)
     this.setCursor('');
     this.emit('onStripFree', () => this.events.onStripFree());
   }
@@ -734,6 +775,7 @@ class PackSceneImpl implements PackScene {
       }
     }
 
+    this.tiltStep(dt, feel);
     if (this.quick.active) this.quickStep(dt, feel);
     if (this.phase === 'peel' && !this.flying) this.peelStep(dt, feel);
     else if (this.flying) this.flyStep(dt);
@@ -784,7 +826,13 @@ class PackSceneImpl implements PackScene {
     if (tear.started && speed > 0.3) v.flecks.spawn(Math.min(4, Math.floor(speed * 0.25 + Math.random())), tear.T, H);
     this.prevT = tear.T;
 
-    v.strip.compute(tear.T, tear.hand, feel.peelAngle, feel.pinchTwist, feel.highlight, feel.perspective, this.time);
+    v.strip.compute(tear.T, tear.hand, feel.peelAngle, feel.pinchTwist, feel.highlight, feel.perspective, this.time, this.surface);
+    this.syncBody(false);
+    // the tilt warps the pack's front only: the back wall and the stack, hidden behind it while sealed, would peek past a
+    // receding edge, so they sit out while it tilts (the sealed pack covers them anyway)
+    const behind = this.tiltPose.flat || tear.started;
+    if (v.sleeveBack.visible !== behind) v.sleeveBack.visible = behind;
+    if (v.cardsC.visible !== behind) v.cardsC.visible = behind;
     const sh = v.strip.shadow;
     v.shadow.alpha = sh.alpha;
     if (sh.alpha > 0) { v.shadow.position.set(sh.x, sh.y); v.shadow.width = sh.w; v.shadow.height = sh.h; }
@@ -796,7 +844,9 @@ class PackSceneImpl implements PackScene {
     v.pinch.visible = sealed && this.inputOn && !this.quick.active;
     if (v.pinch.visible) {
       const c = this.edgeScreen(this.pt2);
-      v.pinch.position.set(c.x + 6, c.y + 6);
+      c.x += 6; c.y += 6;
+      if (!this.tiltPose.flat) tiltInto(c, c.x, c.y, 0, this.tiltPose);
+      v.pinch.position.set(c.x, c.y);
       v.pinch.alpha = 0.45 + 0.4 * Math.sin(this.time * 0.09);
     }
 
@@ -835,7 +885,7 @@ class PackSceneImpl implements PackScene {
         if (sl.dy > SLEEVE_CLEAR && this.zoom === 0 && this.zoomV === 0) { this.zoomV = 0.02; this.sounds.whoosh(); }
         if (a <= 0) { this.phase = 'zoom'; v.sleeveFront.visible = false; v.sleeveBack.visible = false; }
       } else this.sounds.slide(this.sleeveHeld && sl.freed ? Math.abs(r.speed) : 0);
-      this.deformBody();
+      this.writeBody(true);
       v.sleeveFront.y = sl.dy; v.sleeveBack.y = sl.dy;
       v.sleeveFront.rotation = this.sleeveRot; v.sleeveBack.rotation = this.sleeveRot;
       v.cardsC.y = CARDS_Y + sl.card;
@@ -856,24 +906,82 @@ class PackSceneImpl implements PackScene {
     }
   }
 
-  /** The sleeve front: squeezed in at the fingers, its rim trailing as it rubs the cards. In place. */
-  private deformBody(): void {
+  /** While sealed: rewrite the body meshes only when the tilt (or its depth) has changed since the last write. */
+  private syncBody(deform: boolean): void {
+    const k = this.bodyKey, t = this.tilt, D = this.tiltPose.D;
+    if (k.rx === t.rx && k.ry === t.ry && k.D === D) return; // settled: nothing to write, the tilt idles
+    this.writeBody(deform);
+  }
+
+  /**
+   * The sleeve front, in place: squeezed in at the fingers and its rim trailing as it rubs the cards (`deform`, the
+   * sleeve phase), then the sealed tilt (packTilt.ts) when it is not flat. The sheen and the gloss share the result, so
+   * they stretch and tilt with it.
+   */
+  private writeBody(deform: boolean): void {
     const v = this.v!;
     const pos = v.body.geometry.positions, base = v.bodyBase;
     if (pos.length !== base.length) return;
-    const sl = this.sleeve;
+    const sl = this.sleeve, pose = this.tiltPose, p = this.pt3;
     const gy = (this.grabY - H) * TEX_RES;
     const half = (W * TEX_RES) / 2;
     for (let k = 0; k < pos.length; k += 2) {
       const bx = base[k]!, by = base[k + 1]!;
-      const above = gy > 0 ? Math.max(0, 1 - by / gy) : 0; // 1 at the rim, 0 at the fingers
-      const q = (by - gy) / 170;
-      const pinch = sl.pinch * Math.exp(-(q * q));
-      pos[k] = half + (bx - half) * (1 - pinch); // squeezed in where you hold it
-      pos[k + 1] = by - sl.lag * 2 * above * above; // the rim trails, rubbing on the cards
+      let x = bx, y = by;
+      if (deform) {
+        const above = gy > 0 ? Math.max(0, 1 - by / gy) : 0; // 1 at the rim, 0 at the fingers
+        const q = (by - gy) / 170;
+        const pinch = sl.pinch * Math.exp(-(q * q));
+        x = half + (bx - half) * (1 - pinch); // squeezed in where you hold it
+        y = by - sl.lag * 2 * above * above; // the rim trails, rubbing on the cards
+      }
+      if (!pose.flat) {
+        tiltInto(p, x / TEX_RES, H + y / TEX_RES, 0, pose);
+        x = p.x * TEX_RES;
+        y = (p.y - H) * TEX_RES;
+      }
+      pos[k] = x;
+      pos[k + 1] = y;
     }
     v.body.geometry.getBuffer('aPosition').update();
-    v.lip.view.y = -sl.lag;
+    const sp = v.sheen.geometry.positions, gp = v.gloss.geometry.positions;
+    if (sp.length === pos.length) { sp.set(pos); v.sheen.geometry.getBuffer('aPosition').update(); }
+    if (gp.length === pos.length) { gp.set(pos); v.gloss.geometry.getBuffer('aPosition').update(); }
+    if (deform) v.lip.view.y = -sl.lag;
+    this.bodyKey.rx = this.tilt.rx; this.bodyKey.ry = this.tilt.ry; this.bodyKey.D = pose.D;
+  }
+
+  /**
+   * The sealed pack's mouse tilt (the drag dive's numbers, read live from dragFeel.ts) and the gloss band. The tilt's
+   * target is flat once the opening has begun; the band follows the eased aim always. The gloss uvs are rewritten only
+   * when the band moved.
+   */
+  private tiltStep(dt: number, feel: PackFeel): void {
+    const v = this.v!;
+    const df = getDragFeel();
+    const sealed = this.phase === 'peel' && !this.tiltLocked;
+    const ax = this.hoverOn ? this.hoverAim.x : 0, ay = this.hoverOn ? this.hoverAim.y : 0;
+    tiltTargetInto(this.tiltTgt, ax, ay, df.tiltMax, feel.packTilt, sealed);
+    stepTilt(this.tilt, ax, ay, this.tiltTgt.rx, this.tiltTgt.ry, tiltEaseK(df.tiltEase, dt * FRAME_MS));
+    // the drag dive's CSS perspective (stage px) in pack base units: the pack is drawn at root.scale px per unit
+    const D = df.perspective / Math.max(0.05, v.root.scale.x);
+    setTiltPose(this.tiltPose, this.tilt.rx, this.tilt.ry, W / 2, (H + BODY_H) / 2, D);
+    const t = this.tilt;
+    glossBandInto(this.band, feel.gloss, feel.glossSharpness, t.ax, t.ay, t.rx, t.ry, df.tiltMax, W, H + BODY_H);
+    this.surface.gloss = feel.gloss;
+    v.gloss.alpha = this.band.alpha;
+    const gk = this.glossKey, b = this.band;
+    if (gk.centre !== b.centre || gk.halfWidth !== b.halfWidth || gk.slope !== b.slope) {
+      const base = v.bodyBase, uv = v.gloss.geometry.uvs;
+      if (uv.length === base.length) {
+        for (let k = 0; k < base.length; k += 2) {
+          uv[k] = 0.5 + 0.5 * glossD(b, base[k]! / TEX_RES, H + base[k + 1]! / TEX_RES); // fixed to the wrapper: stretches with it
+          uv[k + 1] = 0.5;
+        }
+        v.gloss.geometry.getBuffer('aUV').update();
+      }
+      gk.centre = b.centre; gk.halfWidth = b.halfWidth; gk.slope = b.slope;
+    }
   }
 
   /** The quick open's scripted drag: the tear, then the sleeve. The drop and the zoom are the usual physics. */
@@ -914,9 +1022,17 @@ class PackSceneImpl implements PackScene {
     if (!live) this.packGlowFade = Math.max(0, this.packGlowFade - PACK_GLOW_FADE * dt);
     if (this.packGlowFade === 0) { g.visible = false; g.alpha = 0; return; }
     g.alpha = glowAlphaAt(this.packTier, this.time, feel.packGlow) * this.packGlowFade;
-    const s = this.packTier.size / TEX_RES;
-    if (g.scale.x !== s) g.scale.set(s);
-    g.y = (H + BODY_H) / 2 + (this.phase === 'peel' ? 0 : this.sleeve.dy);
+    // its corners: the tier's size about the pack's centre (riding the sleeve), through the sealed tilt
+    const s = this.packTier.size, hw = v.packGlowHalf.w * s, hh = v.packGlowHalf.h * s;
+    const cx = W / 2, cy = (H + BODY_H) / 2 + (this.phase === 'peel' ? 0 : this.sleeve.dy);
+    const c = this.glowCorners, p = this.pt3;
+    let changed = false;
+    for (let i = 0; i < 4; i++) {
+      const x = cx + (i === 1 || i === 2 ? hw : -hw), y = cy + (i >= 2 ? hh : -hh);
+      if (this.tiltPose.flat) { p.x = x; p.y = y; } else tiltInto(p, x, y, 0, this.tiltPose);
+      if (c[i * 2] !== p.x || c[i * 2 + 1] !== p.y) { c[i * 2] = p.x; c[i * 2 + 1] = p.y; changed = true; }
+    }
+    if (changed) g.setCorners(c[0]!, c[1]!, c[2]!, c[3]!, c[4]!, c[5]!, c[6]!, c[7]!);
   }
 
   /** The top back's crossfade + shimmer, and its glow (revealed once the sleeve is off; Epic and up breathe). */

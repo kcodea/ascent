@@ -4,22 +4,24 @@
  *
  *   root (fits the host)
  *     pack (shakes)
- *       packGlow        the sealed pack's rarity aura (fades out as the sleeve drops)
+ *       packGlow        the sealed pack's rarity aura (fades out as the sleeve drops; a PerspectiveMesh so it tilts)
  *       sleeveBack      the pack's back wall
  *       cardsC          the stack: cards (bottom first), the top card's glow / crossfade / shimmer / ribbon
- *       sleeveFront     the body MeshPlane, the idle sheen, the torn lip, the contact shadow
+ *       sleeveFront     the body MeshPlane, the idle sheen and the gloss (meshes on the body's grid), the torn lip,
+ *                       the contact shadow
  *       strip.view      the tear strip (stripMesh.ts)
  *       particles       the fleck pool
  *       pinch           the "pinch here" cue
  *     flipLayer         the flip's first half: the card and its ribbon as PerspectiveMeshes
  */
-import { CanvasSource, Container, Graphics, MeshPlane, PerspectiveMesh, Sprite, Texture } from 'pixi.js';
+import { CanvasSource, Container, Graphics, Mesh, MeshGeometry, MeshPlane, PerspectiveMesh, Sprite, Texture } from 'pixi.js';
 import { COSMETIC_RARITIES, type CrateRarity, type PackLook } from '@game/progression';
 import {
-  ANCIENT_GLOW_STOPS, PACK_GEOM, TEX_RES, type BackArt, paintBlob, paintBody, paintCardFlash, paintCardGlow, paintFleck,
-  paintPackGlow, paintPinchRing, paintPlainBack, paintRarityBack, paintRibbon, paintShade, paintSheen, paintSpec, paintStrip,
-  paintStripBack, rarityTint,
+  ANCIENT_GLOW_STOPS, PACK_GEOM, TEX_RES, type BackArt, paintArtSlice, paintBlob, paintBody, paintCardFlash, paintCardGlow,
+  paintFleck, paintGlossBand, paintPackGlow, paintPinchRing, paintPlainBack, paintRarityBack, paintRibbon, paintShade,
+  paintSheen, paintSpec, paintStrip, paintStripBack, rarityTint,
 } from './packTextures';
+import { packArtFor } from './packArt';
 import { packGlowRarity } from './packGlow';
 import { CARD_PLATE_SRC, rarityIconSrc } from './packRarity';
 import { StripMesh, TornLip } from './stripMesh';
@@ -32,6 +34,8 @@ export const CARDS_Y = H * 0.42 + CARD_H / 2;
 export const RIBBON_DY = Math.round(CARD_H * (108 / 370));
 /** The ribbon's half size on the card (base units). */
 export const RIBBON_HW = (CARD_W * 0.92) / 2, RIBBON_HH = 19;
+/** The back wall's inset from the pack's sides and bottom (base units). */
+const BACK_INSET = 6;
 /** Pooled foil flecks. */
 const FLECKS = 48;
 
@@ -48,7 +52,9 @@ export interface Views {
   root: Container;
   pack: Container;
   /** The sealed pack's aura (tinted, or Ancient's aurora); the scene breathes its alpha only. */
-  packGlow: Sprite;
+  packGlow: PerspectiveMesh;
+  /** The aura's half size in base units at tier size 1 (its painted halo included). */
+  packGlowHalf: { w: number; h: number };
   sleeveBack: Graphics;
   cardsC: Container;
   cards: Sprite[];
@@ -59,7 +65,10 @@ export interface Views {
   sleeveFront: Container;
   body: MeshPlane;
   bodyBase: Float32Array;
-  sheen: Sprite;
+  /** The idle sheen: a mesh on the body's grid (it follows the deform and the tilt). */
+  sheen: Mesh;
+  /** The clear-coat gloss: the band texture on the body's grid; its uvs place the band (packTilt.ts). */
+  gloss: Mesh;
   lip: TornLip;
   shadow: Sprite;
   strip: StripMesh;
@@ -72,6 +81,17 @@ export interface Views {
 }
 
 const fromCanvas = (c: HTMLCanvasElement): Texture => new Texture({ source: new CanvasSource({ resource: c }) });
+
+/** A mesh on the body's grid (the same vertices and triangles) with its own uvs and texture. */
+function bodyGridMesh(body: MeshPlane, base: Float32Array, uvs: Float32Array, texture: Texture): Mesh {
+  const geometry = new MeshGeometry({
+    positions: Float32Array.from(base), uvs, indices: Uint32Array.from(body.geometry.indices),
+  });
+  const m = new Mesh({ geometry, texture });
+  m.scale.set(1 / TEX_RES);
+  m.y = PACK_GEOM.H;
+  return m;
+}
 
 /**
  * The back art that arrives after the scene is up (never blocks init): the card plate (every back's frame) and each
@@ -132,11 +152,17 @@ export function buildPackViews(look: PackLook, n: number, own: (t: Texture) => v
   // THE SLEEVE: its back wall and its front (body mesh + torn lip) slide together; the stack sits between them.
   // THE PACK'S AURA: one texture painted for this pack's rarity (white + tint, or Ancient's aurora), centred on the pack.
   const packRarity = packGlowRarity(look);
-  const packGlow = new Sprite(keep(paintPackGlow(packRarity === 'ancient' ? ANCIENT_GLOW_STOPS : undefined)));
-  packGlow.anchor.set(0.5); packGlow.scale.set(1 / TEX_RES); packGlow.position.set(W / 2, (H + BODY_H) / 2);
+  const packGlowTex = keep(paintPackGlow(packRarity === 'ancient' ? ANCIENT_GLOW_STOPS : undefined));
+  const packGlow = new PerspectiveMesh({ texture: packGlowTex, verticesX: 8, verticesY: 8 });
+  const packGlowHalf = { w: packGlowTex.width / TEX_RES / 2, h: packGlowTex.height / TEX_RES / 2 };
+  {
+    const cx = W / 2, cy = (H + BODY_H) / 2, hw = packGlowHalf.w, hh = packGlowHalf.h;
+    packGlow.setCorners(cx - hw, cy - hh, cx + hw, cy - hh, cx + hw, cy + hh, cx - hw, cy + hh);
+  }
   packGlow.tint = packRarity === 'ancient' ? 0xffffff : rarityTint(packRarity);
   packGlow.alpha = 0;
-  const sleeveBack = new Graphics().rect(0, H * 0.3, W, BODY_H + H * 0.7).fill('#0c0a12');
+  // inset a little: the wrapper art's crimped edges are see-through, and the back wall must not show through them
+  const sleeveBack = new Graphics().rect(BACK_INSET, H * 0.3, W - BACK_INSET * 2, BODY_H + H * 0.7 - BACK_INSET).fill('#0c0a12');
   const cardsC = new Container();
   cardsC.position.set(W / 2, CARDS_Y);
   const cards: Sprite[] = [];
@@ -159,21 +185,48 @@ export function buildPackViews(look: PackLook, n: number, own: (t: Texture) => v
   ribbon.anchor.set(0.5); ribbon.scale.set(1 / TEX_RES); ribbon.visible = false;
   cardsC.addChild(glow, fade, flash, ribbon);
 
-  const body = new MeshPlane({ texture: keep(paintBody(look, n)), verticesX: 12, verticesY: 20 });
+  const bodyCanvas = paintBody(look, n);
+  const bodyTex = keep(bodyCanvas);
+  const body = new MeshPlane({ texture: bodyTex, verticesX: 12, verticesY: 20 });
   body.scale.set(1 / TEX_RES);
   body.y = H;
   const bodyBase = Float32Array.from(body.geometry.positions);
-  const sheen = new Sprite(keep(paintSheen()));
-  sheen.scale.set(1 / TEX_RES); sheen.y = H; sheen.blendMode = 'add';
+  const sheen = bodyGridMesh(body, bodyBase, Float32Array.from(body.geometry.uvs), keep(paintSheen()));
+  sheen.blendMode = 'add';
+  // THE GLOSS: one pre-drawn band, placed by its uvs each frame it moves (no filter, no redraw). MASK HOOK (owner ask,
+  // not built): a wrapper's greyscale shine mask (packArt.ts `packShineFor`) becomes a second mesh on this same grid
+  // with that texture, set as `gloss.mask` and fed the same positions, so the gloss shows only where the mask is light.
+  const uv0 = new Float32Array(bodyBase.length);
+  for (let k = 0; k < uv0.length; k += 2) { uv0[k] = -1; uv0[k + 1] = 0.5; } // off the band until placed
+  const gloss = bodyGridMesh(body, bodyBase, uv0, keep(paintGlossBand()));
+  gloss.blendMode = 'add';
+  gloss.alpha = 0;
   const lip = new TornLip();
   const shadow = new Sprite(keep(paintBlob()));
   shadow.anchor.set(0.5); shadow.alpha = 0;
   const sleeveFront = new Container();
-  sleeveFront.addChild(body, sheen, lip.view, shadow);
+  sleeveFront.addChild(body, sheen, gloss, lip.view, shadow);
 
+  const stripCanvas = paintStrip(look);
+  const stripTex = keep(stripCanvas);
   const strip = new StripMesh({
-    front: keep(paintStrip(look)), back: keep(paintStripBack()), shade: keep(paintShade()), spec: keep(paintSpec()),
+    front: stripTex, back: keep(paintStripBack()), shade: keep(paintShade()), spec: keep(paintSpec()),
   });
+  // THE WRAPPER ART (packArt.ts): the placeholder shows first, then the art repaints both canvases in place, the strip
+  // from the art above its tear line, the body the rest. Never blocks init; a load after teardown touches nothing. The
+  // geometry is the same either way, so a swap mid-tear moves nothing.
+  const artSrc = packArtFor(look);
+  if (artSrc) {
+    loadImage(artSrc, (img) => {
+      if (stripTex.destroyed || bodyTex.destroyed) return;
+      try {
+        paintArtSlice(img, stripCanvas, 0, H);
+        paintArtSlice(img, bodyCanvas, H, BODY_H);
+        stripTex.source.update();
+        bodyTex.source.update();
+      } catch { /* keep the placeholder */ }
+    });
+  }
   const particles = new Container();
   const flecks = new FleckPool(particles, keep(paintFleck()));
   const pinch = new Sprite(keep(paintPinchRing()));
@@ -189,7 +242,8 @@ export function buildPackViews(look: PackLook, n: number, own: (t: Texture) => v
   root.addChild(flipLayer);
 
   const views: Views = {
-    root, pack, packGlow, sleeveBack, cardsC, cards, glow, fade, flash, ribbon, sleeveFront, body, bodyBase, sheen, lip, shadow,
+    root, pack, packGlow, packGlowHalf, sleeveBack, cardsC, cards, glow, fade, flash, ribbon, sleeveFront, body, bodyBase, sheen,
+    gloss, lip, shadow,
     strip, particles, flecks, pinch, flipLayer, flipper, flipRibbon,
   };
   return { views, tex };

@@ -128,6 +128,20 @@ describe('the cosmetics window', () => {
     expect(($('.cw-use') as HTMLButtonElement).disabled).toBe(false);
   });
 
+  it('a live loadout change while open is not a pending change; Use saves only the slot you picked', async () => {
+    open('frame');
+    // The mirror refreshes under the open window: a title and a plate equipped elsewhere.
+    act(() => useProgression.setState({ mirror: { userId: 'u-1', ...base, equippedTitleId: 'title_wanderer', loadout: { cardPlate: 'plate_bamboo' } } }));
+    expect(($('.cw-use') as HTMLButtonElement).disabled).toBe(true);
+    act(() => tile('frame_honey').click());
+    act(() => $('.cw-use')!.click());
+    await flush();
+    expect(saves.cosmetic).toHaveBeenCalledTimes(1);
+    expect(saves.cosmetic).toHaveBeenCalledWith('portrait_frame', '', 'frame_honey');
+    expect(saves.title).not.toHaveBeenCalled();
+    expect(useGame.getState().avatarPickerOpen).toBe(false);
+  });
+
   it('renders nothing for a guest', () => {
     useGame.setState({ account: { userId: 'u-1', email: null, anonymous: true, discriminator: null } });
     open('frame');

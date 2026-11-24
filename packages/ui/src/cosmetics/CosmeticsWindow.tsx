@@ -109,9 +109,12 @@ function CosmeticsDialog() {
   const albums = useOwnedAlbums();
   const { all: portraits, byId } = usePortraitEntries();
 
-  const [pending, setPending] = useState<Loadout4>(now);
-  const pendingRef = useRef(pending);
-  pendingRef.current = pending;
+  // ONLY THE SLOTS YOU PICKED are pending; every other slot follows the live loadout, so a mirror refresh (or an equip
+  // from another device) while the window is open never counts as your change, and "Use" never pushes an old value back.
+  const [picks, setPicks] = useState<Partial<Loadout4>>({});
+  const picksRef = useRef(picks);
+  picksRef.current = picks;
+  const pending = useMemo<Loadout4>(() => ({ ...now, ...picks }), [now, picks]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -136,14 +139,14 @@ function CosmeticsDialog() {
   }, [now, close]);
 
   /** Select `id` for `key` (one press). */
-  const select = useCallback((key: keyof Loadout4, id: string | null): void => setPending((p) => ({ ...p, [key]: id })), []);
+  const select = useCallback((key: keyof Loadout4, id: string | null): void => setPicks((p) => ({ ...p, [key]: id })), []);
   /** Select and apply at once (a double press). */
   const selectApply = useCallback((key: keyof Loadout4, id: string | null): void => {
-    const next = { ...pendingRef.current, [key]: id };
-    pendingRef.current = next;
-    setPending(next);
-    void apply(next);
-  }, [apply]);
+    const nextPicks = { ...picksRef.current, [key]: id };
+    picksRef.current = nextPicks;
+    setPicks(nextPicks);
+    void apply({ ...now, ...nextPicks });
+  }, [apply, now]);
 
   const pickAvatar = useCallback((id: string) => select('avatar', id), [select]);
   const applyAvatar = useCallback((id: string) => selectApply('avatar', id), [selectApply]);

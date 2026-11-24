@@ -26,6 +26,7 @@ import { CompendiumRules } from './CompendiumRules';
 import { LazyCell, LazyRootProvider, eagerCellCount } from './bookLazy';
 import rulesQuestionArt from './rules-question.png';
 import { usePartyHome } from './partyHome/partyHomeFlag';
+import { touchUi } from './touchUi';
 import { lastTouchWasTap } from './touchInput';
 import { openRuneInspect } from './runeInspectStore';
 import { usePhLayer } from './partyHome/shell/usePhLayer';
@@ -37,6 +38,8 @@ import './compendium.css';
 /** The app shell's Compendium page (party home prototype, DEV only; lazy and null in production, like the top nav). Loading
  *  the module registers the page with the shell's route; the mount itself renders nothing. */
 const PhCompendiumMount = lazy(() => import('./partyHome/pages/PhCompendium').then((m) => ({ default: m.PhCompendiumMount })));
+/** In a game and at hero select the book is the QUICK one (R-COMPENDIUM-QUICK-01); the full page is the menus', and one press away. */
+const QuickBook = lazy(() => import('./quickBook/QuickBook').then((m) => ({ default: m.QuickBook })));
 /** The same page as an overlay over a match (switch on, in a game). */
 const PhCompendiumOverlay = lazy(() => import('./partyHome/pages/PhCompendium').then((m) => ({ default: m.PhCompendiumOverlay })));
 
@@ -101,7 +104,7 @@ export function rubyCardsFor(all: readonly CardDef[]): CardDef[] {
  *  `spells` is the Spells gallery's membership: the set's tavern spells plus its Rubies. */
 type PoolIds = { minions: Set<string>; spells: Set<string>; evolutions: CardDef[]; rubies: CardDef[] };
 const poolIdsBySet = new Map<string, PoolIds>();
-function poolIds(setId: Parameters<typeof poolFor>[0], duos = false): PoolIds {
+export function poolIds(setId: Parameters<typeof poolFor>[0], duos = false): PoolIds {
   const key = `${setId}:${duos ? 'duos' : 'reg'}`;
   const hit = poolIdsBySet.get(key);
   if (hit) return hit;
@@ -122,7 +125,7 @@ function poolIds(setId: Parameters<typeof poolFor>[0], duos = false): PoolIds {
  *  or the "quests" bucket (the quest DEFINITIONS themselves — objective + art, rendered as QuestCards). */
 type Category = Tribe | 'spells' | 'gifts' | 'rewards' | 'quests' | 'runes' | 'runeRewards' | 'heroes';
 
-const CAT_META: Record<Category, { label: string; icon: string }> = {
+export const CAT_META: Record<Category, { label: string; icon: string }> = {
   beast: { label: 'Beasts', icon: 'paw' },
   celestial: { label: 'Celestials', icon: 'clock' },
   spirit: { label: 'Spirits', icon: 'clock' }, // set 3 (owner 2026-09-09); placeholder glyph
@@ -162,7 +165,7 @@ type GlossItem = { icon: string; mechId?: string; term: string; def: string; mat
  *  - **Quoted** (`"Imp"`) → WHOLE-WORD match, so it hits "Imp" / "Imp King" but NOT "Improve" / "Imps" / "Impala".
  *  - **Unquoted** (`Imp`) → case-insensitive substring (the loose default).
  *  Empty / quotes-only → matches everything. Callers OR it across a card's name + text fields. */
-function makeSearchMatcher(raw: string): (text: string) => boolean {
+export function makeSearchMatcher(raw: string): (text: string) => boolean {
   const trimmed = raw.trim();
   if (!trimmed) return () => true;
   const quoted = trimmed.length >= 2 && trimmed.startsWith('"') && trimmed.endsWith('"');
@@ -273,7 +276,7 @@ function refViewsFor(id: string, liveRun?: RunState): CardView[] | undefined {
  *  a tier toggle re-renders only the cells that appear or go, never the whole wall; and lazy (bookLazy.tsx), so a card
  *  mounts only when it nears the viewport. Its view and its hover previews are built here, once, for this card only
  *  (they used to be rebuilt for every in-scope card on every open). */
-const BookCardCell = memo(function BookCardCell({ card, gilded, liveRun, eager, press }: { card: CardDef; gilded: boolean; liveRun?: RunState; eager: boolean; press?: boolean }) {
+export const BookCardCell = memo(function BookCardCell({ card, gilded, liveRun, eager, press }: { card: CardDef; gilded: boolean; liveRun?: RunState; eager: boolean; press?: boolean }) {
   const view = useMemo(() => toView(card, gilded, liveRun), [card, gilded, liveRun]);
   const refs = useMemo(() => refViewsFor(card.id, liveRun), [card.id, liveRun]);
   const duosTag = isDuosOnly(card);
@@ -416,8 +419,12 @@ export function MinionBook({ frame }: { frame?: (parts: CompendiumParts) => Reac
   // HERO SELECT is pre-run but not a menu: the shell's top nav has no place there, so the book opened from it (its View
   // Compendium button) is the in-game overlay over the picker.
   const onMenus = useGame((s) => isPreRun(s) && s.heroChoices === null);
+  const full = useGame((s) => s.bookFull || s.bookOpensTo !== 'cards');
   // The shell's route (PhBookNav) mounts the page itself; loading PhCompendium registers it (setCompendiumPage).
   if (!frame && shell && onMenus && PhCompendiumMount) return <Suspense fallback={null}><PhCompendiumMount /></Suspense>;
+  // In a game and at hero select: the quick one, unless the player asked for the full book (or for a view only it has), or is on
+  // touch, where the full page's layout is the tuned one.
+  if (!frame && shell && !onMenus && !full && !touchUi().on && useGuides.getState().pendingEdit === null) return <Suspense key="quick" fallback={null}><QuickBook /></Suspense>;
   // In a game: one design, the same page, as an overlay over the match.
   if (!frame && shell && !onMenus && PhCompendiumOverlay) return <Suspense fallback={null}><PhCompendiumOverlay /></Suspense>;
   return <BookView frame={frame} />;

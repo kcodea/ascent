@@ -4,6 +4,18 @@ import { sfx } from '../sfx';
 import { useGame } from '../store';
 import { locationArt, POSTER_NAME, type LocationDef } from './locations';
 
+/** One parchment, hanging, pressable: hero select's and the quick Compendium's (QuickBook.tsx) are the same thing. */
+export function PosterSheet({ location, tribe, index, label, onPress, disabled, on }: { location: LocationDef; tribe: Tribe; index: number; label: string; onPress: () => void; disabled?: boolean; on?: boolean }): JSX.Element {
+  return (
+    <button type="button" className={`hs-poster${on ? ' on' : ''}`} style={{ '--i': index, '--c': `var(--t-${tribe})` } as CSSProperties} aria-label={label} {...(on !== undefined ? { 'aria-pressed': on } : {})} disabled={disabled} onClick={onPress}>
+      <span className="hs-poster-hang">
+        <img decoding="sync" src={locationArt(location.id, `sheet-${tribe}`)} alt="" draggable={false} />
+        <span className="hs-poster-name">{POSTER_NAME[tribe] ?? tribe}</span>
+      </span>
+    </button>
+  );
+}
+
 /**
  * THE TRIBES, STILL HANGING AT HERO SELECT (owner 2026-11-24: "put the tribe parchments along the right side during hero select
  * as well ... clicking them open the compendium to that tribes list"; R-LOCATION-08). The reveal's own torn sheets (baked from
@@ -19,25 +31,9 @@ export function LocationPosters({ location, tribes, inert, duos }: { location: L
   };
   return (
     <div className={`hs-posters${duos ? ' duos' : ''}`} style={{ '--n': tribes.length } as CSSProperties}>
-      {tribes.map((t, i) => {
-        const name = POSTER_NAME[t] ?? t;
-        return (
-          <button
-            key={t}
-            type="button"
-            className="hs-poster"
-            style={{ '--i': i, '--c': `var(--t-${t})` } as CSSProperties}
-            aria-label={`${name}. Open the Compendium on them.`}
-            disabled={inert}
-            onClick={() => open(t)}
-          >
-            <span className="hs-poster-hang">
-              <img decoding="sync" src={locationArt(location.id, `sheet-${t}`)} alt="" draggable={false} />
-              <span className="hs-poster-name">{name}</span>
-            </span>
-          </button>
-        );
-      })}
+      {tribes.map((t, i) => (
+        <PosterSheet key={t} location={location} tribe={t} index={i} disabled={inert} label={`${POSTER_NAME[t] ?? t}. Open the Compendium on them.`} onPress={() => open(t)} />
+      ))}
     </div>
   );
 }

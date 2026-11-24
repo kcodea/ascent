@@ -1,0 +1,60 @@
+/* THE QUICK COMPENDIUM (R-COMPENDIUM-QUICK-01, QuickBook.tsx): the parchments down the right edge, one navy panel beside them, the
+   game still there. Entrances are one-shot transform / opacity; nothing loops but the parchments' own sway. */
+.qb { position: fixed; inset: 0; z-index: 480; pointer-events: auto; color: var(--ph-text, #dfe8ff); font-family: var(--ph-font, sans-serif); }
+html[data-qb] .cardref { z-index: 490; }
+.qb-dim { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(4, 8, 20, 0.35) 0%, rgba(4, 8, 20, 0.72) 42%, rgba(4, 8, 20, 0.86) 100%); animation: qb-in 0.16s ease both; }
+@keyframes qb-in { from { opacity: 0; } }
+
+.qb-panel { position: absolute; top: calc(40 * var(--phu)); bottom: calc(40 * var(--phu)); right: calc(192 * var(--phu) + var(--safe-r, 0px)); width: min(calc(1150 * var(--phu)), calc(100% - 260 * var(--phu)));
+  box-sizing: border-box; display: flex; flex-direction: column; border-radius: var(--ph-r-l, 18px); overflow: hidden;
+  background: linear-gradient(180deg, rgb(13, 26, 62), rgb(7, 14, 36)); box-shadow: var(--ph-gild, inset 0 0 0 1.5px #b98d45), 0 calc(24 * var(--phu)) calc(60 * var(--phu)) calc(-12 * var(--phu)) rgba(0, 0, 0, 0.85);
+  animation: qb-slide 0.26s cubic-bezier(0.2, 0.85, 0.25, 1.06) both; transform-origin: 100% 40%; }
+@keyframes qb-slide { from { opacity: 0; transform: translateX(calc(56 * var(--phu))) scale(0.985); } }
+/* The tribe's own light along the edge its scroll hangs on. */
+.qb-panel::after { content: ''; position: absolute; top: 0; bottom: 0; right: 0; width: calc(5 * var(--phu)); background: linear-gradient(180deg, transparent, var(--c) 18% 82%, transparent); pointer-events: none; }
+
+.qb-head { flex: none; display: flex; align-items: center; gap: calc(16 * var(--phu)); padding: calc(20 * var(--phu)) calc(26 * var(--phu)) calc(12 * var(--phu)); }
+.qb-title { display: flex; align-items: baseline; gap: calc(12 * var(--phu)); margin-right: auto; min-width: 0; }
+.qb-title h2 { margin: 0; font-weight: 900; font-size: calc(38 * var(--phu)); line-height: 1; color: var(--c); text-shadow: var(--ph-shadow); white-space: nowrap; }
+.qb-count { font-weight: 800; font-size: calc(18 * var(--phu)); color: var(--ph-text-dim, #93a4cc); }
+.qb :is(.qb-search, .qb-full, .qb-x, .qb-tier, .qb-pill, .qb-tab) { box-sizing: border-box; margin: 0; border: 0; font-family: inherit; color: var(--ph-text, #dfe8ff); background: var(--ph-plate, none), rgba(10, 20, 50, 0.9); box-shadow: var(--ph-gild-s, inset 0 0 0 1px #8d6c34); }
+.qb-search { height: calc(42 * var(--phu)); width: calc(250 * var(--phu)); padding: 0 calc(16 * var(--phu)); border-radius: 999px; font-weight: 600; font-size: calc(16 * var(--phu)); outline: none; }
+.qb-search:focus { box-shadow: var(--ph-gild-s, none), 0 0 0 2px rgba(255, 214, 110, 0.85); }
+.qb-full { height: calc(42 * var(--phu)); padding: 0 calc(18 * var(--phu)); border-radius: 999px; font-weight: 800; font-size: calc(15 * var(--phu)); white-space: nowrap; }
+.qb-x { width: calc(42 * var(--phu)); height: calc(42 * var(--phu)); border-radius: 50%; font-weight: 800; font-size: calc(17 * var(--phu)); }
+.qb :is(.qb-full, .qb-x, .qb-tier, .qb-pill, .qb-tab) { transition: filter 0.14s ease; }
+.qb :is(.qb-full, .qb-x, .qb-tier, .qb-pill, .qb-tab):hover { filter: brightness(1.28); }
+.qb :is(.qb-full, .qb-x, .qb-tier, .qb-pill, .qb-tab):focus-visible { outline: 2px solid var(--ui-edge-hi, #ffd98a); outline-offset: 2px; }
+
+.qb-filters { flex: none; display: flex; align-items: center; gap: calc(8 * var(--phu)); padding: 0 calc(26 * var(--phu)) calc(14 * var(--phu)); }
+.qb-tier { width: calc(40 * var(--phu)); height: calc(36 * var(--phu)); border-radius: 999px; font-weight: 900; font-size: calc(17 * var(--phu)); }
+.qb-pill { height: calc(36 * var(--phu)); padding: 0 calc(16 * var(--phu)); border-radius: 999px; font-weight: 800; font-size: calc(15 * var(--phu)); }
+.qb :is(.qb-tier, .qb-pill).on { color: #1c1004; background: linear-gradient(180deg, #ffe39a, #e0a63c); }
+
+.qb-gap { width: calc(10 * var(--phu)); }
+.qb .qb-tribe { color: var(--tc); }
+.qb .qb-tribe.on { color: #1c1004; background: var(--tc); }
+
+/* The cards: the full book's own cells, smaller, lowest tier first. `.book` carries the tokens the cards read; everything else of
+   that window is undone. */
+.qb .qb-scroll.book { flex: 1; min-height: 0; width: auto; height: auto; display: block; padding: 0 calc(20 * var(--phu)) calc(30 * var(--phu)); overflow-y: auto; overflow-x: hidden; scrollbar-gutter: stable; animation: qb-in 0.16s ease both; isolation: isolate; }
+.qb .qb-scroll.book::before, .qb .qb-scroll.book::after { content: none; }
+.qb .qb-grid { --book-zoom: 0.72; flex: none; overflow: visible; contain: none; background: none; margin: 0; padding: calc(38 * var(--phu)) 0 calc(20 * var(--phu)); row-gap: calc(26 * var(--phu)); column-gap: 0; box-shadow: none; }
+.qb .qb-grid.qb-runes { grid-template-columns: repeat(auto-fill, minmax(calc(200 * var(--phu)), 1fr)); gap: calc(44 * var(--phu)) calc(8 * var(--phu)); padding-top: calc(40 * var(--phu)); }
+.qb-empty { padding: calc(80 * var(--phu)) 0; text-align: center; font-weight: 700; font-size: calc(20 * var(--phu)); color: var(--ph-text-dim, #93a4cc); }
+
+/* The tabs: the parchments, where hero select hangs them (its own column steps aside), then the small ones. */
+html[data-qb] .hs-posters { visibility: hidden; }
+.qb-rail { position: absolute; right: calc(26 * var(--phu) + var(--safe-r, 0px)); top: 50%; translate: 0 -50%; display: flex; flex-direction: column; align-items: center; gap: calc(6 * var(--phu)); pointer-events: none; }
+.qb-rail > * { pointer-events: auto; }
+.qb-rail .hs-poster { width: calc(126 * var(--phu)); height: calc(156 * var(--phu)); }
+.qb-rail .hs-poster + .qb-tab { margin-top: calc(16 * var(--phu)); }
+.qb-tab { position: relative; width: calc(122 * var(--phu)); height: calc(40 * var(--phu)); border-radius: 999px; font-weight: 800; font-size: calc(16 * var(--phu)); }
+.qb-tab.on { color: #1c1004; background: linear-gradient(180deg, #ffe39a, #e0a63c); }
+/* The one being read leans out of the column toward its page, lit. */
+.hs-poster.on { translate: calc(-22 * var(--phu, 1px)) 0; z-index: 2; }
+.hs-poster { transition: translate 0.24s cubic-bezier(0.2, 0.9, 0.3, 1.2); }
+.hs-poster::before { content: ''; position: absolute; inset: -6%; border-radius: 12px; opacity: 0; transition: opacity 0.2s ease; background: radial-gradient(closest-side, color-mix(in srgb, var(--c) 70%, transparent), transparent 100%); pointer-events: none; }
+.hs-poster.on::before { opacity: 0.95; }
+.qb-rail .hs-poster:not(.on) img { filter: brightness(0.82); }
+@media (prefers-reduced-motion: reduce) { .qb-panel, .qb-dim, .qb-scroll.book { animation: none; } .hs-poster { transition: none; } }

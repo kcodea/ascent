@@ -40,8 +40,8 @@ for it (`versusHeroSelectMs`), so **a Worker deploy is part of shipping a change
    vanishing point or brightest focus). `focus` = what a 16:9 window is centred on. `deep` / `second` = the travel's dark and its second hue;
    `cool` / `warm` = the hues all blue and gold light is turned to (leave them out for ice blue and gold). `lights` = every lantern,
    crystal and fall in the painting, each `[x, y, size, depth, r, g, b]`: the wave wakes them one by one, so trace them all.
-   `posters` = the order the parchments hang in. The whole sequence takes its colours from here, Good Luck included: no other file
-   should name a location.
+   `posters` = the order the parchments hang in. The sequence takes its colours from here (except Good Luck, which is
+   the crystal's blue everywhere): no other file should name a location.
 3. `layers.py <id>`: add a function for the place (outlines as polygons read off zoomed crops, depths, wind, sky) and run it. It writes
    `layer0..3`, `flat`, `blur`, `data` into `apps/web/public/locations/<id>/`. Look at every `move-*` proof it writes: no rims, no
    smears, nothing sliding at its feet.
@@ -60,7 +60,7 @@ reduced motion; `phone-budgets` in CI (300 MB, 6 GL contexts, 80 MB decoded audi
 
 - **One language.** Water and light: a wave that bends the picture, ribbons of the place's magic, fine dust, thin flares, cut Cinzel lettering. A new
   moment is made from these before anything new is invented.
-- **Energy, not metal or stickers.** Lettering is white at its heart, the place's hue at its edge, a tight glow and no stroke.
+- **Energy, not metal or stickers.** Good Luck is white at its heart, the crystal's blue at its edge in every location, a tight glow and no stroke.
 - **Nothing bounces, squashes, tilts or lunges.** "Cutesy" was refused for Good Luck; parchments leaning out were refused for the
   Compendium. What is chosen is LIT; what is not sits back.
 - **Nothing freezes.** "Stop and go" was refused: time may lean for an instant on a hit and never stops.

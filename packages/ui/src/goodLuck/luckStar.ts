@@ -1,5 +1,5 @@
 /**
- * THE LUCKY STAR (R-GOODLUCK-STAR-01, GoodLuckIntro.tsx): a comet of the location's own magic that leaves the player's hero in one
+ * THE LUCKY STAR (R-GOODLUCK-STAR-01, GoodLuckIntro.tsx): a comet of the crystal's own blue (in every location) that leaves the player's hero in one
  * long arc, crosses the board and sets "Good Luck" alight letter by letter, then turns under the words and draws a line of light
  * there. At the end the words come apart into dust, and the dust streams into the End Turn crystal, where the shop clock starts.
  *
@@ -8,7 +8,7 @@
  * motion) the words do it all by themselves.
  */
 import { canRun } from '../locationReveal/rippleSupport';
-import type { LocationDef, Rgb } from '../locationReveal/locations';
+import type { Rgb } from '../locationReveal/locations';
 import { stageHost } from '../stage';
 import { beginProgram, compiled, finishProgram, type Prog } from '../locationReveal/placeGl';
 
@@ -155,14 +155,14 @@ export class LuckStar {
   flying = false;
   /** Is it there to be seen this play? */
   get ok(): boolean { return this.flare !== null && !this.dead; }
-  private constructor(private loc: LocationDef | null, private canvas: HTMLCanvasElement, gl: WebGL2RenderingContext) { this.gl = gl; }
+  private constructor(private canvas: HTMLCanvasElement, gl: WebGL2RenderingContext) { this.gl = gl; }
 
-  static make(loc: LocationDef | null): LuckStar | null {
+  static make(): LuckStar | null {
     if (!canRun()) return null;
     const canvas = document.createElement('canvas');
     const gl = canvas.getContext('webgl2', { alpha: true, premultipliedAlpha: true, antialias: false, depth: false, stencil: false });
     if (!gl) return null;
-    const s = new LuckStar(loc, canvas, gl);
+    const s = new LuckStar(canvas, gl);
     void s.ready();
     return s;
   }
@@ -219,9 +219,9 @@ export class LuckStar {
       gl.uniform2f(pr.u('X'), start.x, end.x);
       gl.uniform1fv(pr.u('T[0]'), times);
       const col = (n: string, c: Rgb): void => gl.uniform3f(pr.u(n), ...c);
-      col('COOL', this.loc?.cool ?? [0.5, 0.88, 1]);
-      col('WARM', this.loc?.warm ?? [1, 0.78, 0.4]);
-      col('SECOND', this.loc?.second ?? [0.1, 0.95, 0.85]);
+      col('COOL', [0.5, 0.88, 1]);
+      col('WARM', [1, 0.78, 0.4]);
+      col('SECOND', [0.1, 0.95, 0.85]);
     }
     gl.useProgram(this.dust.p);
     gl.uniform1f(this.dust.u('grown'), s.grown);

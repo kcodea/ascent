@@ -2,7 +2,6 @@ import { useEffect, useLayoutEffect, useRef, type CSSProperties } from 'react';
 import { useGame } from '../store';
 import { canPlayDefs, playDef } from '../fx/playDef';
 import { playTailedClip, sfx, type SfxHandle } from '../sfx';
-import { locationOfSet } from '../locationReveal/locations';
 import { REVEAL_FLIGHT_WHOOSH, REVEAL_LOCK_SHIMMER } from '../lobbyReveal/lobbyRevealConfig';
 import { goodLuckIntro, useGoodLuckIntroActive, useGoodLuckIntroSeq } from './goodLuckIntroStore';
 import { useLobbyRevealActive } from '../lobbyReveal/lobbyRevealStore';
@@ -16,7 +15,7 @@ import './goodLuckIntro.css';
  * Mounted once in Game, just under the launch curtain. It renders nothing until `goodLuckIntro.begin()` (the curtain calls it right
  * after `pickHero` builds a lobby / Practice run), waits behind the lobby reveal, then plays ONE pass:
  *
- *   a comet of the location's magic leaves the player's hero in one arc  ->  crosses the board, setting "Good Luck" alight letter by
+ *   a comet of the crystal's blue leaves the player's hero in one arc  ->  crosses the board, setting "Good Luck" alight letter by
  *   letter  ->  turns under the words and draws a line of light there; they hold  ->  they come apart into dust that streams into
  *   the End Turn crystal: end.
  *
@@ -76,7 +75,6 @@ export function GoodLuckIntro(): JSX.Element | null {
   const active = useGoodLuckIntroActive();
   const seq = useGoodLuckIntroSeq();
   const showTitle = useGame((s) => s.showTitle);
-  const place = locationOfSet(useGame((s) => s.run?.setId) ?? 'set1');
   // THE LOBBY REVEAL (owner 2026-10-31: "the start game text should happen after the animation is complete"): while the
   // heroes are shown and fly to the rail, the words wait (and the shop clock with them: this store stays active). They
   // then play over a board the reveal has already brought back to light, so their dim fades IN instead of standing.
@@ -97,7 +95,7 @@ export function GoodLuckIntro(): JSX.Element | null {
   const starRef = useRef<{ seq: number; star: LuckStar | null } | null>(null);
   useEffect(() => {
     if (!active) return;
-    const star = LuckStar.make(locationOfSet(useGame.getState().run?.setId ?? 'set1'));
+    const star = LuckStar.make();
     starRef.current = { seq, star };
     return () => { if (!star?.flying) star?.destroy(); if (starRef.current?.star === star) starRef.current = null; };
   }, [active, seq]);
@@ -232,7 +230,6 @@ export function GoodLuckIntro(): JSX.Element | null {
   const c = getGoodLuckIntroConfig();
   const vars = {
     '--gli-dim': String(c.dimOpacity),
-    ...(place?.cool ? { '--en': `rgb(${place.cool.map((v) => Math.round(v * 255)).join(' ')})` } : {}),
     '--gli-size': String(c.textSize || GLI_DEFAULTS.textSize),
   } as CSSProperties;
 

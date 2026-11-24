@@ -17313,8 +17313,8 @@ export const FOUNDATION_RULES: GameRule[] = [
     id: 'R-GOODLUCK-STAR-01',
     title: 'Good Luck is lit by a comet off the hero of the player and goes into the End Turn crystal as dust; the clock starts as it lands',
     statement:
-      'After the lobby reveal a comet in the colours of the location leaves the portrait of the player in one arc and crosses the '
-      + 'board: each letter of "Good Luck" lights white hot as it passes and settles into energy: the cool hue of the location, white at its heart, '
+      'After the lobby reveal a comet in the blue of the crystal leaves the portrait of the player in one arc and crosses the '
+      + 'board: each letter of "Good Luck" lights white hot as it passes and settles into energy: the blue of the crystal in every location, white at its heart, '
       + 'with a tight glow on its edge and no stroke, and light running along that edge while the words stand (no bounce, no tilt). It turns under the '
       + 'words and draws a line of light there. At the end the letters come apart into dust, the side nearest the crystal first, and '
       + 'the dust streams into the End Turn crystal; the overlay ends and the shop clock starts as it lands. The board is dimmed only '
@@ -17326,6 +17326,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Owner, 2026-11-24', quote: 'can you make the good luck a bit more exciting and whimsical? it feels out of place and behind the rest of the animation now' },
       { kind: 'owner-chat', ref: 'Owner, 2026-11-24, on the first version (a star and bouncing letters)', quote: "it's a BIT too like cutesty/bubbly, can you make it look a bit higher quality feeling" },
       { kind: 'owner-chat', ref: 'Mike, relayed by the owner 2026-11-24 (Discord image)', quote: 'id probably not make it gold and instead make the gold gradient blue and remove the stroke and instead add a tight glow on othe edges almost like its energy forming the word' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-24, on it taking the hue of the location (violet in The Underbelly)', quote: 'The good luck text is purple but should be blue to match the crystal' },
       { kind: 'code', ref: 'packages/ui/src/goodLuck/GoodLuckIntro.tsx; packages/ui/src/goodLuck/luckStar.ts; packages/ui/src/goodLuck/goodLuckIntroConfig.ts' },
     ],
     currentBehaviour: 'Built 2026-11-24. The owner liked the second version ("This looks incredible"); the energy lettering came after.',

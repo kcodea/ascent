@@ -54,8 +54,8 @@ Measured: median 4.2 ms; worst 25 ms, as the words mount, before anything moves.
 0.1 s: the lobby rail's first merged paint compiling on the GPU process (there with Good Luck removed; gone on the second run). Not
 fixed here.
 
-Then the lettering became energy (Mike's note: blue, no stroke, a tight glow, "almost like its energy forming the word"): the location's cool
-hue, and about 1,000 motes on the letters' own edges with light running along them while the words stand.
+Then the lettering became energy (Mike's note: blue, no stroke, a tight glow, "almost like its energy forming the word"): the crystal's blue
+in every location (it took the location's hue for a moment; the owner wanted it to match the crystal), and about 1,000 motes on the letters' own edges with light running along them while the words stand.
 
 ## The quick Compendium, again
 

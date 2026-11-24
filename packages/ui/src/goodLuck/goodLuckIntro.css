@@ -26,8 +26,8 @@
   font-size: calc(var(--gli-size, 136) * var(--u, 1px)); line-height: 1.1;
 }
 /* A letter is energy (owner + Mike 2026-11-24: "make the gold gradient blue and remove the stroke and instead add a tight glow on the
-   edges, almost like its energy forming the word"): the location's magic, white at its heart, its light tight on the edge; under it only
-   a soft dark, so it reads on a bright board. `--en` is the location's own cool hue. */
+   edges, almost like its energy forming the word"): the crystal's blue in every location, white at its heart, its light tight on the edge; under it only
+   a soft dark, so it reads on a bright board. */
 .gli-g { position: relative; display: block; opacity: 0; margin: 0 0.035em; transform-origin: 50% 60%; will-change: transform, opacity; color: var(--en, #4cb0ff);
   text-shadow: 0 0 0.018em color-mix(in srgb, var(--en, #4cb0ff) 25%, #fff), 0 0 0.05em color-mix(in srgb, var(--en, #4cb0ff) 75%, #fff), 0 0 0.11em var(--en, #4cb0ff), 0 0 0.26em color-mix(in srgb, var(--en, #4cb0ff) 65%, transparent), 0 0.05em 0.34em rgba(2, 8, 34, 0.85); }
 .gli-g.gap { margin-left: 0.42em; }

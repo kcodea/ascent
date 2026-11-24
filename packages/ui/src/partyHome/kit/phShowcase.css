@@ -92,9 +92,14 @@ button.phs-press:hover, .phs-menu > button.phs-press { transform: translateY(cal
 /* ── THE LINEUP ROW: sizes its cards in its own container units (width-bound, else height-bound) ──
    Proportions follow the mockup's 16:9 stage (full 46, half 40, compact 33 of the stage width), re-expressed against the
    row, which spans the stage centre minus its padding. `.phs-row.grid` and `.phs-row.teams` share one compact width, so
-   the two four-seat layouts are exactly the same height (the team labels float above their columns in reserved space). */
-.phs-row { --phs-gap: 2.4cqw; --phs-rgap: 1.8cqw; --phs-lbl: calc(80 * var(--phu, 1px)); container-type: size; box-sizing: border-box;
-  flex: 1 1 0; align-self: stretch; width: 100%; height: 100%; min-width: 0; min-height: 0;
+   the two four-seat layouts are exactly the same height (the team labels float above their columns in reserved space).
+   CONSUMERS: the row is a SIZE container (cards read its cqh), so it needs a DEFINITE height from its parent: a flex child
+   with room to grow (`flex: 1` in a column, or `height: 100%` of a sized box). Without one it falls back to its
+   `min-height` (240 stage units), never to zero, so the cards shrink but never vanish.
+   The row's own gaps are in stage units (`--phu`), never cq units: a container's own cq units resolve against its
+   ancestor, not itself. (32 / 24 units match the mockup's 2.2 / 1.6 % of the stage at 1920 wide.) */
+.phs-row { --phs-gap: calc(32 * var(--phu, 1px)); --phs-rgap: calc(24 * var(--phu, 1px)); --phs-lbl: calc(80 * var(--phu, 1px)); container-type: size; box-sizing: border-box;
+  flex: 1 1 0; align-self: stretch; width: 100%; height: 100%; min-width: 0; min-height: calc(240 * var(--phu, 1px));
   display: flex; align-items: center; justify-content: center; gap: var(--phs-gap); }
 .phs-row > .phs-full { --phs-w: min(49cqw, 160cqh, calc(760 * var(--phu, 1px))); }
 .phs-row .phs-half { --phs-w: min(42.5cqw, 160cqh, calc(680 * var(--phu, 1px))); }

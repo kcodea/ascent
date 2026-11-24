@@ -41,6 +41,11 @@ describe('PhShowcaseCard', () => {
     expect(el.querySelector('.phs-bar')).toBeNull();
   });
 
+  it('no title and no fallback keeps the title line with a non-breaking-space spacer', () => {
+    ui = mount(<PhShowcaseCard size="half" label="Rook" name="Rook" rank={null} />);
+    expect(root().querySelector('.phs-title')?.textContent).toBe('\u00A0');
+  });
+
   it('mirrored only flips the art', () => {
     ui = mount(<PhShowcaseCard size="half" label="Rook" name="Rook" art="/rook.webp" rank={null} rival mirrored />);
     const el = root();

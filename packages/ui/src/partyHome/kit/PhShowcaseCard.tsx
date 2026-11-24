@@ -71,7 +71,7 @@ export const PhShowcaseCard = memo(function PhShowcaseCard({
           {eyebrow != null && <span className="phs-eyebrow">{eyebrow}</span>}
           <span className="phs-name">{name}</span>
           <span className="phs-title">
-            {titleId ? <TitleBadge id={titleId} /> : fallbackLine ? <span className="phs-fallback">{fallbackLine}</span> : ' '}
+            {titleId ? <TitleBadge id={titleId} /> : fallbackLine ? <span className="phs-fallback">{fallbackLine}</span> : '\u00A0'}
           </span>
           <RankWell rank={rank} />
         </span>

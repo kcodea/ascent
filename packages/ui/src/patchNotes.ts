@@ -73,6 +73,18 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-11-23',
     changes: [
       {
+        category: 'Balance',
+        text: 'New Set 2 Beast: Derenor, Tier 6 9/9. When you buy 4 minions, get a random Beast.',
+      },
+      {
+        category: 'Balance',
+        text: 'Enigma now gives minions in the Shop +6/+7 for this turn when you consume a minion (was +3/+3 permanently). Gilded: +12/+14.',
+      },
+      {
+        category: 'Balance',
+        text: 'Soul Taxes is no longer offered in Set 2.',
+      },
+      {
         category: 'Systems',
         text: 'Change your avatar, portrait frame, title and card plate right from your player card: four tabs under it open one window.',
       },

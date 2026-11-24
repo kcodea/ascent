@@ -268,8 +268,8 @@ export const SET2_DEMONS: CardDef[] = [
     goldenText: 'When you **Sell 3 minions**, a **Demon** consumes the **2 right-most** minions in the **Shop**.',
   },
   {
-    // Set 2 — Enigma (owner add 2026-08-18): every meal fattens the whole Shop. Guarded to THIS body's consume,
-    // like Ashen Broodlord. Golden doubles the permanent Shop buff.
+    // Set 2 — Enigma (owner add 2026-08-18): every meal fattens the whole Shop (any friendly consume), for THIS TURN
+    // only since 2026-11-23 (R-ENIGMA-TURN-01; it was permanent). Golden doubles the buff.
     id: 'dm_jumbo',
     name: 'Enigma',
     tribe: 'demon',
@@ -278,9 +278,10 @@ export const SET2_DEMONS: CardDef[] = [
     health: 6,
     keywords: [],
     // Owner balance 2026-10-10: +2/+1 -> +4/+5 (gilded +8/+10). Owner 2026-11-22: +4/+5 -> +3/+3 (gilded +6/+6).
-    effects: [{ on: 'onConsume', do: 'onConsumeBuffShop', params: { attack: 3, health: 3 } }],
-    text: 'When you **consume** a minion, give minions in the **Shop +3/+3** permanently.',
-    goldenText: 'When you **consume** a minion, give minions in the **Shop +6/+6** permanently.',
+    // Owner 2026-11-23: +3/+3 permanently -> +6/+7 for this turn (gilded +12/+14).
+    effects: [{ on: 'onConsume', do: 'onConsumeBuffShop', params: { attack: 6, health: 7 } }],
+    text: 'When you **consume** a minion, give minions in the **Shop +6/+7** for this turn.',
+    goldenText: 'When you **consume** a minion, give minions in the **Shop +12/+14** for this turn.',
   },
   {
     // Set 2 — Leech (owner add 2026-08-18): a cheap demon-damage body that just grows Attack off your Demons'

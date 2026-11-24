@@ -2774,7 +2774,7 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: '**Avenge (4):** gain **+1 max Gold**. Get **Souls Man**.',
     reward: { kind: 'multi', rewards: [{ kind: 'combatFlag', flag: 'runeSoulTaxes' }, { kind: 'grant', cards: ['soulsman'] }] },
-    sets: ['set1', 'set2', 'set3'], // + set3 2026-11-23 (owner Set 3 rune review board: approved carryover) | was: CUT FROM SET 3 (owner 2026-09-24: named in the Set 3 rune cut list)
+    sets: ['set1', 'set3'], // OUT OF SET 2 (owner 2026-11-23: "remove soul taxes from set 2's offerings"); + set3 the same day (owner Set 3 rune review board)
   },
   // ── Batch 5: recruit-phase runes ──
   {

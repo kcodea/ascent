@@ -67,7 +67,7 @@ describe('2026-10-10 set membership: Striker, Drunk Daniel and Hydraskus appende
     // Later adds (Gasket, 2026-10-10) append AFTER these three, so pin their run, not the tail.
     const at = own.indexOf('dw3_striker');
     expect(own.slice(at, at + 3)).toEqual(['dw3_striker', 'dw_drunkdaniel', 'dm_hydraskus']);
-    expect(own.slice(-3)).toEqual(['dm_ruinouslord', 'dm_gasket', 'dm_radrachel']); // then the rune-only Ruinous Lord, then Gasket + Rad Rachel
+    expect(own.slice(-4)).toEqual(['dm_ruinouslord', 'dm_gasket', 'dm_radrachel', 'b2_derenor']); // then the rune-only Ruinous Lord, then Gasket + Rad Rachel
     const buyable = poolFor('set2').buyable.map((c) => c.id);
     for (const id of ['dw3_striker', 'dw_drunkdaniel', 'dm_hydraskus']) expect(buyable, id).toContain(id);
   });
@@ -205,7 +205,7 @@ describe('Dawnclaw: "Taunt. Echo: Trigger an adjacent minion\'s Shout." (owner b
 describe('Demon numbers', () => {
   it('Tormentor +8/+8, Enigma +4/+5, Butcher +2/+2, Hank +4/+3, Grobbus 1 Demon', () => {
     expect(CARD_INDEX['dm_tormentor']!.effects[0]!.params).toEqual({ attack: 8, health: 8 });
-    expect(CARD_INDEX['dm_jumbo']!.effects[0]!.params).toEqual({ attack: 3, health: 3 }); // 2026-11-22: +3/+3
+    expect(CARD_INDEX['dm_jumbo']!.effects[0]!.params).toEqual({ attack: 6, health: 7 }); // 2026-11-23: +6/+7 for this turn (2026-11-22: +3/+3)
     expect(CARD_INDEX['dm_butcher']!.effects[0]!.params).toEqual({ attack: 2, health: 2 });
     expect(CARD_INDEX['dm_hank']!.effects[0]!.params).toEqual({ attack: 4, health: 3 });
     expect(CARD_INDEX['dm_grobbus']!.effects[0]!.params).toMatchObject({ grant: 1 });

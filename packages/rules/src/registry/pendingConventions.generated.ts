@@ -938,7 +938,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "title": "Gilding default: ×2",
     "statement": "A gilded card doubles its printed numbers. Outliers instead gild the summoned token, reshape the effect, or add a proc; spells never gild. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "gilding",
-    "currentBehaviour": "426 cards carry authored goldenText; every other card inherits the ×2 number-doubler. The outlier shapes are the owner's 2026-08-28 rulings, now carried per card as the contract's gildedDelta kind (R-GILD-01); spells and Rubies are not-applicable (R-GILD-02).",
+    "currentBehaviour": "427 cards carry authored goldenText; every other card inherits the ×2 number-doubler. The outlier shapes are the owner's 2026-08-28 rulings, now carried per card as the contract's gildedDelta kind (R-GILD-01); spells and Rubies are not-applicable (R-GILD-02).",
     "cardText": "Exemplar — Wolves Den: \"Deathrattle: Summon 3 Crypt Wolves.\" → gilded: \"Deathrattle: Summon 6 Crypt Wolves.\"",
     "example": "Wolves Den's gilded text just writes the ×2 out in full — while gilded Dunkey instead summons ONE gilded Armadiyo."
   },
@@ -2247,14 +2247,15 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-trigger-buy",
-    "title": "Trigger: you buy a card · 6 cards",
-    "statement": "All 6 of these fire on one trigger: you buy a card. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
+    "title": "Trigger: you buy a card · 7 cards",
+    "statement": "All 7 of these fire on one trigger: you buy a card. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "8 effect factories across 6 cards dispatch on 'cardsBought', 'onBuy', 'spellBought' (recruit) — re-clustered by TRIGGER out of the 'economy' + 'economyReact' presentation families on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Korok, the Hungerer: \"When you buy 4 cards, give your Fodder +1/+1 and add 1 Fodder to your next tavern.\" · Members: Korok, the Hungerer · Banksly · Brightwing Broker · Night Market Horror · Monstrocity · Ninefold Broker",
+    "currentBehaviour": "9 effect factories across 7 cards dispatch on 'cardsBought', 'onBuy', 'spellBought' (recruit) — re-clustered by TRIGGER out of the 'economy' + 'economyReact' presentation families on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
+    "cardText": "Exemplar — Korok, the Hungerer: \"When you buy 4 cards, give your Fodder +1/+1 and add 1 Fodder to your next tavern.\" · Members: Korok, the Hungerer · Derenor · Banksly · Brightwing Broker · Night Market Horror · Monstrocity · Ninefold Broker",
     "example": "Korok, the Hungerer fires when you buy a card, like every other card here. its printed numbers double when the card is gilded.",
     "contentIds": [
       "acid",
+      "b2_derenor",
       "banksly",
       "broker",
       "dm_nightmarket",
@@ -2282,7 +2283,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "statement": "The 1 card here fires on one trigger: this minion Consumes something. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
     "currentBehaviour": "2 effect factories across 1 card dispatch on 'onConsume' (recruit) — re-clustered by TRIGGER out of the 'react' presentation family on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Enigma: \"When you consume a minion, give minions in the Shop +3/+3 permanently.\" · Members: Enigma",
+    "cardText": "Exemplar — Enigma: \"When you consume a minion, give minions in the Shop +6/+7 for this turn.\" · Members: Enigma",
     "example": "Enigma fires when this minion Consumes something, like every other card here. its printed numbers double when the card is gilded.",
     "contentIds": [
       "dm_jumbo"

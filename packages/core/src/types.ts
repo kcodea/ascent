@@ -634,7 +634,7 @@ export type EffectFactoryId =
   | 'goldSpentBuffRandomTribe' // Set 2 — Billings (goldSpent): give N random friendly tribe minions +atk/+hp
   | 'onGainCardBuffTribe' // Set 2 — Gangplank (onGainCard): a card added to hand buffs a friendly tribe minion
   | 'minionSoldConsumeRightmost' // Set 2 — Grevlin & Co. (minionSold): every N sells, a Demon consumes the right-most Shop minion
-  | 'onConsumeBuffShop' // Set 2 — Enigma (onConsume): when this consumes a minion, buff Shop minions permanently
+  | 'onConsumeBuffShop' // Set 2 — Enigma (onConsume): when you consume a minion, buff Shop minions for this turn
   | 'deathrattleDamageAllExceptTribe' // Set 2 — Fel Spikes (Echo): deal N to all minions except FRIENDLY <tribe>
   | 'rallyDamageAllExceptTribe' // Set 2 — Gasket (Rally): deal N to all minions except FRIENDLY <tribe> (Fel Spikes' spray)
   | 'deathrattleGrantWardRandom' // Set 2 — Lastlight: Echo — give N friendly minions Ward

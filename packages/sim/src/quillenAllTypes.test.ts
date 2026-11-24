@@ -69,7 +69,8 @@ describe('Rune of Pillaging + Rune of Soul Taxes are drawable again (owner 2026-
   it('neither is set-gated any more, so a set-2 run can offer them', () => {
     for (const id of ['rune_pillaging', 'rune_soul_taxes']) {
       // CUT FROM SET 3 2026-09-24 (owner): scoped to set 1 + set 2 (every set but set 3), so a set-2 run still can.
-      expect(find(id).sets, `${id} must not be gated to a disabled set alone`).toEqual(withSet3(id, ['set1', 'set2']));
+      // Soul Taxes LEFT SET 2 on 2026-11-23 (owner); Set 1 + Set 3 keep it.
+      expect(find(id).sets, `${id} must not be gated to a disabled set alone`).toEqual(id === 'rune_soul_taxes' ? ['set1', 'set3'] : withSet3(id, ['set1', 'set2']));
     }
   });
 

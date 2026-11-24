@@ -443,6 +443,12 @@ offsets in `styles.css`).
 
 ## Next
 
+- **Pack economy (packs replace chests).** The pack opening experience is built and dev-only (see
+  `docs/devlog/2026-11-23-pack-opening-experience.md`). Next is the economy behind it, scoped in
+  `docs/superpowers/specs/2026-11-23-pack-opening-design.md` section 12: server rolls in the `PackOpenResult` shape,
+  `packs.ts` into `SHARED_ARTIFACTS`, pricing, Secret as a sixth rarity, a game-wide Ascendant rename, gating packFeel
+  persistence, and the owner's pack and card art.
+
 - **Live information on Cloudflare: retire the Supabase halves** (R-LIVE-DIR-01, R-FRIENDS-HUB-LIVE-01 built
   2026-10-30 on feat/cf-live-directory). Apply `2026-11-19-retire-supabase-live-list.sql` about 24 h after the pack, then
   a follow-up PR deletes the Workers' Supabase listing writers (`SupabaseRowSink`, `TeeLiveSink`) and drops

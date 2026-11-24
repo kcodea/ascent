@@ -139,7 +139,7 @@
 @media (prefers-reduced-motion: reduce) { .pkf-holo-sweep, .pkf-holo-sweep-row { animation: none; } .pkf-holo-move { transition: none; } }
 /* The category sits at the very bottom, under the rarity: white, between two short rules in the rarity's colour. Its
    bottom margin clears the medallion's top half. */
-.pkf-cat { margin-top: -5px; margin-bottom: 22px; display: flex; align-items: center; gap: 13px; white-space: nowrap; font-size: 19px; font-weight: 800; letter-spacing: 0.24em; text-transform: uppercase;
+.pkf-cat { margin-top: -5px; margin-bottom: 22px; display: flex; align-items: center; gap: 13px; white-space: nowrap; font-size: 18px; font-weight: 600; letter-spacing: 0.24em; text-transform: uppercase;
   color: #fff; text-shadow: 0 2px 3px rgba(0, 0, 0, 0.8); }
 /* The rules beside it are POINTED (owner 2026-11-24, as the website's dividers): each tapers to a point away from the word
    and fades as it goes. Static paint. */

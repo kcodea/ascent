@@ -181,6 +181,15 @@ describe('the face holo', () => {
     }
   });
 
+  it('is the card background: over the plate, under the item, the text and the rarity (owner 2026-11-24)', () => {
+    m?.unmount();
+    m = mount(<PackFace card={card('skin_albus_1', { rarity: 'legendary' })} phase="featured" />);
+    const layer = holo()!;
+    expect(layer.previousElementSibling?.classList.contains('pkf-plate')).toBe(true);
+    expect(layer.nextElementSibling?.classList.contains('pkf-win')).toBe(true);
+    expect(layer.querySelector('.pkf-name, .pkf-ribbon, .pkf-art')).toBeNull();
+  });
+
   const SWEEP = '.pkf-holo-sweep, .pkf-holo-sweep-row';
 
   it('sweeps once on the pile top and the summary row, never on a face under the top one or under reduced motion', () => {

@@ -192,7 +192,8 @@ const EMBLEMS: Readonly<Record<RewardEmblem, ReactElement>> = {
 
 /**
  * THE FACE HOLO (packHolo.ts; owner 2026-11-23, "a holographic or pearlescent sheen"): Epic and up wear a static
- * pearl / rainbow gradient over the whole card, clipped to the plate's rounded box and blended (`.pkf-holo`, at the tier
+ * pearl / rainbow gradient on the card's BACKGROUND only (owner 2026-11-24: "the item, text and rarity should be in
+ * front of it"): over the plate's navy window, clipped to it, under the window's content, and blended (`.pkf-holo`, at the tier
  * x the `holo` knob). It only ever moves by `transform`: a one-shot sweep when the face lands on the pile (`featured`)
  * and when the summary row appears, and, while hovered, it leans with the pointer (pointermove -> one rAF -> a CSS var
  * on the moving layer; the face's rect is read once at pointerenter, never per move). No looping animation. Reduced
@@ -316,6 +317,15 @@ export function PackFace({ card, phase, from, slot, slow = 1, still = false }: P
           />
         )}
         <img src={CARD_PLATE_SRC} alt="" decoding="sync" draggable={false} className="pkf-plate" />
+        {/* the foil is the card's BACKGROUND: over the plate's window, under the item, the text and the rarity */}
+        {holo > 0 && (
+          <div className="pkf-holo" data-testid="pkf-holo" style={{ opacity: Math.min(1, holo) }}>
+            <div className="pkf-holo-move" ref={follow.layer}>
+              {/* a distinct class (and animation name) per landing, so the top face sweeps again when it joins the row */}
+              <div className={`pkf-holo-sheet${lands && !still ? (phase === 'summary' ? ' pkf-holo-sweep-row' : ' pkf-holo-sweep') : ''}`} />
+            </div>
+          </div>
+        )}
         <div className="pkf-win">
           <div className="pkf-cat">{categoryLabel(p.label.kind, p.category !== null)}</div>
           <div className="pkf-art">
@@ -342,14 +352,6 @@ export function PackFace({ card, phase, from, slot, slow = 1, still = false }: P
             <span>{packRarityLabel(card.rarity)}</span>
           </div>
         </div>
-        {holo > 0 && (
-          <div className="pkf-holo" data-testid="pkf-holo" style={{ opacity: Math.min(1, holo) }}>
-            <div className="pkf-holo-move" ref={follow.layer}>
-              {/* a distinct class (and animation name) per landing, so the top face sweeps again when it joins the row */}
-              <div className={`pkf-holo-sheet${lands && !still ? (phase === 'summary' ? ' pkf-holo-sweep-row' : ' pkf-holo-sweep') : ''}`} />
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

@@ -2311,7 +2311,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (guest sign-in button)', quote: 'add a "sign in!" button that slow flashes/blinks in the top right to the left of the player icon/name. don\x27t let non-signed in players change the portrait either, they need to sign in for that.' },
-      { kind: 'code', ref: 'packages/ui/src/GuestSignIn.tsx (GuestSignInButton, PortraitSignInGate, accountsAvailable); packages/ui/src/Title.tsx (the account corner); packages/ui/src/AvatarPicker.tsx (the guest guard); styles.css .guestsignin / guestsigninblink' },
+      { kind: 'code', ref: 'packages/ui/src/GuestSignIn.tsx (GuestSignInButton, PortraitSignInGate, accountsAvailable); packages/ui/src/Title.tsx (the account corner); packages/ui/src/cosmetics/CosmeticsWindow.tsx (the guest guard in CosmeticsWindow); styles.css .guestsignin / guestsigninblink' },
     ],
     currentBehaviour:
       'Conforms, built 2026-09-29. The title account corner is the only place the player identity and the portrait picker '
@@ -14761,7 +14761,7 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-PH-CHANGE-NAME-01',
-    title: 'Your own banner on the home screen offers Change name, and it renames you the same way the title name chip does',
+    title: 'Your own card on the home screen offers Change name, and it renames you the same way the title name chip does',
     statement:
       'The menu that opens from your own card on the home screen lists Change name and View Career. Your portrait, frame, title and card plate are changed through the four tabs under your card, not from this menu. '
       + 'Change name opens a small window with your current name; Save or Enter renames you, Cancel leaves the name alone. '

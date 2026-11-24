@@ -53,6 +53,33 @@ export interface PhShowcaseCardProps {
   index?: number; className?: string;
 }
 
+/** THE NAME FITS ON ONE LINE (R8, 2026-11-23): its size steps down with how wide the name is, measured as em of the name
+ *  font (Outfit 900, uppercase, 0.02em tracking; widths measured in the dev server). A short name keeps the full 8.4cqw; a
+ *  longer one shrinks so it fills the info column (at least 43cqw wide at every size; 42 leaves a hair of margin). The floor
+ *  is the size that still fits the widest legal name (PLAYER_NAME_MAX 24 x "W"); the CSS ellipsis is only a safety net
+ *  below it. Pure (no layout read), so a lineup never measures text. */
+export const PHS_NAME_MAX_CQW = 8.4;
+const PHS_NAME_BUDGET_CQW = 42;
+export const PHS_NAME_FLOOR_CQW = 1.7;
+const WIDE: Record<string, number> = { W: 1.02, M: 0.9, O: 0.86, Q: 0.86, G: 0.84, D: 0.8, N: 0.79, H: 0.78 };
+const NARROW: Record<string, number> = { I: 0.35, '1': 0.43, ' ': 0.2, '.': 0.34, ',': 0.34, "'": 0.3, '!': 0.36, '-': 0.49, J: 0.56, '7': 0.55 };
+
+/** The name's width in em of the name font: wide and narrow letters by their measured width, every other Latin letter or
+ *  digit at 0.76 em (the widest of the rest, A and K, are 0.74), anything else (accents, other scripts) at 1 em. */
+export function nameEm(name: string): number {
+  let em = 0;
+  for (const ch of name.toUpperCase()) {
+    em += WIDE[ch] ?? NARROW[ch] ?? (/[A-Z0-9_]/.test(ch) ? 0.76 : 1);
+  }
+  return em;
+}
+
+/** The name's font size in the card's cqw: full size when it fits, else fitted to the column, never under the floor. */
+export function nameFontCqw(name: string): number {
+  const fit = PHS_NAME_BUDGET_CQW / Math.max(nameEm(name), 1);
+  return Math.round(Math.max(PHS_NAME_FLOOR_CQW, Math.min(PHS_NAME_MAX_CQW, fit)) * 100) / 100;
+}
+
 export const PhShowcaseCard = memo(function PhShowcaseCard({
   size, label, name, art, eyebrow, titleId, fallbackLine, rank, mine, rival, mirrored, badge, band, youLabel,
   onClick, haspopup, expanded, overlay, under, index = 0, className,
@@ -69,7 +96,7 @@ export const PhShowcaseCard = memo(function PhShowcaseCard({
         {youLabel && <span className="phs-you">You</span>}
         <span className="phs-info">
           {eyebrow != null && <span className="phs-eyebrow">{eyebrow}</span>}
-          <span className="phs-pname">{name}</span>
+          <span className="phs-pname" style={{ '--phs-nf': `${nameFontCqw(name)}cqw` } as CSSProperties}>{name}</span>
           <span className="phs-title">
             {titleId ? <TitleBadge id={titleId} /> : fallbackLine ? <span className="phs-fallback">{fallbackLine}</span> : '\u00A0'}
           </span>

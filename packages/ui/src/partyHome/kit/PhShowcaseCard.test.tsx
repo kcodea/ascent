@@ -10,7 +10,7 @@ import { mount, type Mounted } from '../../renderedText.mount';
 // TitleBadge reads the progression store; guard the pixi import chain's canvas probe as rankSurfaces.test.tsx does.
 HTMLCanvasElement.prototype.getContext = (() => null) as unknown as HTMLCanvasElement['getContext'];
 
-import { PhShowcaseCard, PhShowcaseGhost } from './PhShowcaseCard';
+import { nameEm, nameFontCqw, PHS_NAME_FLOOR_CQW, PHS_NAME_MAX_CQW, PhShowcaseCard, PhShowcaseGhost } from './PhShowcaseCard';
 import { pointsText, rankLabel } from '../../rank/rankFormat';
 
 let ui: Mounted | null = null;
@@ -84,5 +84,33 @@ describe('PhShowcaseGhost', () => {
     expect(el.className).toContain('phs-ghost');
     expect(el.querySelector('.probe')?.textContent).toBe('Invite');
     expect(el.querySelector('[aria-label]')?.getAttribute('aria-label')).toBe('Open seat. Invite a friend');
+  });
+});
+
+// R8 (2026-11-23): a name up to PLAYER_NAME_MAX (24, ChangeName.tsx) sits on one line at every card size. The info column
+// is at least 43cqw wide (full / half; compact is 45), so a fitted name's width (em x size) must stay within it.
+describe('the name fits one line', () => {
+  const COLUMN_CQW = 43;
+  const widthCqw = (name: string): number => nameEm(name) * nameFontCqw(name);
+  it('keeps a short name at the full size', () => {
+    expect(nameFontCqw('Mike')).toBe(PHS_NAME_MAX_CQW);
+    expect(nameFontCqw('Kevin')).toBe(PHS_NAME_MAX_CQW);
+  });
+  it('steps a longer name down, wider letters further', () => {
+    const eleven = nameFontCqw('EMBERMOTH42');
+    expect(eleven).toBeLessThan(PHS_NAME_MAX_CQW);
+    expect(eleven).toBeGreaterThan(4.5);
+    expect(nameFontCqw('WWWWWWWWWWW')).toBeLessThan(nameFontCqw('IIIIIIIIIII'));
+    expect(nameFontCqw('A'.repeat(16))).toBeLessThan(nameFontCqw('A'.repeat(12)));
+  });
+  it('fits every 24-letter name, even all W, without going under the floor', () => {
+    for (const n of ['W'.repeat(24), 'M'.repeat(24), 'WMWMWMWMWMWMWMWMWMWMWMWM', 'A'.repeat(24), 'EMBERMOTH42EMBERMOTH4242']) {
+      expect(nameFontCqw(n), n).toBeGreaterThanOrEqual(PHS_NAME_FLOOR_CQW);
+      expect(widthCqw(n), n).toBeLessThanOrEqual(COLUMN_CQW);
+    }
+  });
+  it('pins the mapping', () => {
+    expect([4, 8, 11, 16, 24].map((len) => nameFontCqw('A'.repeat(len)))).toEqual([8.4, 6.91, 5.02, 3.45, 2.3]);
+    expect(nameFontCqw('W'.repeat(24))).toBe(1.72);
   });
 });

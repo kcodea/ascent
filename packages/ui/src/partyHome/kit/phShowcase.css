@@ -33,8 +33,10 @@ button.phs-press:hover, .phs-menu > button.phs-press { transform: translateY(cal
 .phs-info { position: absolute; inset: 7% 5% 8% 52%; display: flex; flex-direction: column; justify-content: center; align-items: stretch; gap: 3cqw; min-width: 0; }
 .phs-compact .phs-info { inset: 6% 4% 6% 51%; gap: 2.2cqw; }
 .phs-eyebrow { font-weight: 800; font-size: 2.6cqw; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ph-gold); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.phs-pname { display: block; min-width: 0; font-family: var(--ph-name-font); font-weight: 900; font-size: 8.4cqw; line-height: 0.95; letter-spacing: 0.02em; text-transform: uppercase;
+.phs-pname { display: block; min-width: 0; font-family: var(--ph-name-font); font-weight: 900; font-size: var(--phs-nf, 8.4cqw); line-height: 0.95; letter-spacing: 0.02em; text-transform: uppercase;
   text-shadow: 0 0.5cqw 0 rgba(0, 0, 0, 0.4); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* The name size (--phs-nf) is set per name by nameFontCqw (PhShowcaseCard.tsx) so a name up to 24 letters fits on one line;
+   the ellipsis above is only a safety net. */
 /* The title line keeps one height whether it holds a badge, the fallback line or the spacer. */
 .phs-title { display: flex; align-items: center; min-height: 1.6em; min-width: 0; font-size: 3.4cqw; line-height: 1.2; }
 .phs-title .titlebadge { flex: 0 1 auto; }

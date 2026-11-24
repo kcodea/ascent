@@ -33,4 +33,5 @@
 
 /* HERO SELECT's ground: the same painting, blurred (owner 2026-11-24). */
 .hs-location { position: fixed; inset: 0; z-index: -1; pointer-events: none; background: #06101f 52% 45% / cover no-repeat; }
+.hs-atmo { position: absolute; inset: 0; width: 100%; height: 100%; }
 .hs-location::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(6, 12, 28, 0.58) 0%, rgba(6, 12, 28, 0.24) 24%, rgba(6, 12, 28, 0.24) 62%, rgba(6, 12, 28, 0.74) 100%); }

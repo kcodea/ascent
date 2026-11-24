@@ -9,7 +9,7 @@
  * dealt hero) is dropped and seated after Hero Select, around the picks, as before.
  */
 import { describe, expect, it } from 'vitest';
-import { engineContentRevision, VERSUS_HERO_SELECT_SECONDS, VERSUS_PROTOCOL } from '@game/sim/versus/server';
+import { engineContentRevision, versusHeroSelectMs, VERSUS_PROTOCOL } from '@game/sim/versus/server';
 import { newRoomState, RoomCore, type CoreDeps } from '../src/core/roomCore';
 import { RANKED_DEAL_FALLBACK_MS, type RankedService } from '../src/core/rankedMatch';
 import { LocalRankedService } from '../src/rankedService';
@@ -66,7 +66,7 @@ describe('Ranked Duos deals the party\'s heroes after its table (R-RANKED-OPPONE
       expect(all).toHaveLength(6);
       expect(new Set(all).size).toBe(6);
       for (const hero of all) expect(served.includes(hero), hero).toBe(false);
-      expect(h.r.m.hero_deadline).toBe(h.now + VERSUS_HERO_SELECT_SECONDS * 1000);
+      expect(h.r.m.hero_deadline).toBe(h.now + versusHeroSelectMs(h.r.m.set_id));
       await h.op(U1, 'pick_hero', { matchId: h.id, index: 1 });
       await h.op(U2, 'pick_hero', { matchId: h.id, index: 2 });
       expect(h.r.m.phase).toBe('shop');

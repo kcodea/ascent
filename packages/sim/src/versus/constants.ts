@@ -9,6 +9,10 @@ import type { VersusMode } from './options';
  *  R-VERSUS-HEALTH-01, `vitals.ts`. Old matches keep their `*_hearts` columns for the record.) */
 /** Hero Select length in seconds. An unchosen seat gets a deterministic random pick from its three (ruling 2). */
 export const VERSUS_HERO_SELECT_SECONDS = 20;
+/** THE LOCATION REVEAL in the live modes (owner 2026-11-24, R-LOCATION-03): seconds the server adds in front of the Hero
+ *  Select clock when the match's set is a location, so the reveal never eats the pick time. The clock face holds at the
+ *  full 20 until they are over. Longer than the reveal plus what it may wait to be ready (locationReveal.test.ts pins it). */
+export const VERSUS_REVEAL_SECONDS = 12;
 /** Heroes offered to each seat. Offers are hidden and may repeat across seats (ruling 3). */
 export const VERSUS_HERO_OFFER_SIZE = 3;
 /** Sealed-gate window in seconds: both gate gems must be pressed in time or the room returns to Open (ruling 5). */

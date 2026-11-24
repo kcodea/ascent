@@ -24,6 +24,17 @@ vec2 arm(float th0, float q, float tight){ float st = TAU / 6., k = floor(th0 / 
 vec3 current(float q, float th0, float tight, float wide, float s, float t0, float L){ vec3 head = comet(s, t0, L), was = comet(s - q * .42, t0, L); float rad = mix(.012, .50 + .62 * wide, pow(q, 1.2)); return vec3(mix(head.xy, was.xy, .9) * (1. - .7 * q * q) + arm(th0, q, tight) * rad, mix(head.z, -1.04, pow(q, .9))); }
 float waveAt(float r){ return -log(max(1. - r / WR, .02)) / WK; }`;
 
+/** THE WATER (water.webp: r = falling, g = a flat surface, b = across the stream), in the painting's own space. A fall's streaks
+ *  run down between its two edges; a surface ripples in perspective, finer and closer together the farther it is. */
+export const water = String.raw`uniform sampler2D WT;
+vec2 surf(vec2 q){ float y = max(q.y - .60, 0.) + .06; return vec2((q.x - .6) * A / y, log(y)); }
+vec2 ripple(vec2 q, float g, float t){ if (g < .01) return vec2(0.); vec2 p = surf(q); return g * max(q.y - .56, .03) * vec2((n2(p * vec2(4., 20.) + vec2(t * .5, t * .9)) - .5) * .0075, (n2(p * vec2(5., 26.) + vec2(9. - t * .4, t * .7)) - .5) * .0040); }
+vec3 wet(vec3 c, vec2 q, vec3 w, float t, float k){
+  if (w.r > .01) { float run = n2(vec2(w.b * 4.2 + 3., q.y * 15. - t * 5.2)) * .5 + n2(vec2(w.b * 9. + 17., q.y * 34. - t * 12.5)) * .5; c += (c * (run - .47) * 1.15 + vec3(.80, .94, 1.) * smoothstep(.66, .92, run) * .16) * w.r * k; }
+  if (w.g > .01) { vec2 p = surf(q); float a = n2(p * vec2(4., 22.) + vec2(t * .55, t * 1.0)), b = n2(p * vec2(7., 38.) + vec2(-t * .7 + 5., t * 1.3)); float m = a * .55 + b * .45; c += c * ((m - .48) * .55 + smoothstep(.60, .80, m) * .55) * w.g * k; }
+  return c; }`;
+
+
 export const vsFull = String.raw`in vec2 a; void main(){ gl_Position = vec4(a, 0.9999, 1.); }`;
 
 export const fsGround = String.raw`out vec4 o;
@@ -50,18 +61,18 @@ void main(){
 
 export const fsScene = String.raw`out vec4 o;
 uniform vec2 R, pan; uniform float s, push, dof, after, drain; uniform sampler2D DT, L0, L1, L2, L3;
+${water}
 uniform float near_; const vec4 DEP = vec4(.0, .075, .130, .250);
 vec2 at(vec2 rel, float dep, float k){ return VP - OFS + (rel * .962 - pan * dep) / (1. + dep * k); }
 vec2 wind(vec2 q, float amt, float gust, vec2 dir){ float n = texture(DT, q).g * amt; return q + n * (vec2(sin(q.y * 15. + s * 2.6 + q.x * 7.), .45 * cos(q.x * 13. + s * 2.1)) * .0022 * (gust * 1.4 + .22) - dir * .0034 * gust); }
 vec4 lay(sampler2D t, vec2 q, float f){ return textureLod(t, q, dof + f); }
 vec3 haze(vec3 c, vec2 uv, float dep, float k, float amt){ vec2 q = at(uv - VP, dep, k); float f = fb(q * vec2(3.2, 5.) + vec2(s * .05 + dep * 30., -s * .015)); float low = smoothstep(.25, 1., uv.y); return c + mg(vec3(.62, .80, 1.)) * smoothstep(.42, .85, f) * amt * .6 * (.35 + .65 * low); }
-vec3 flow(vec3 c, vec2 q){ float f = texture(DT, q).b; float run = n2(vec2(q.x * 190., q.y * 30. - s * 8.)) * .6 + n2(vec2(q.x * 420., q.y * 52. - s * 13.)) * .4; return c + c * f * (run - .48) * .95 * (1. - smoothstep(0., 1.6, dof) * .7); }
 void main(){
   vec2 uv = gl_FragCoord.xy / R; vec2 rel = uv - VP; float rr = length(rel * vec2(A, 1.)), lt = after - waveAt(rr) + (fb(uv * 7.) - .5) * .05;
   float hv = lt > 0. ? exp(-lt * 5.) * sin(min(lt * 9., 3.14159)) : 0., gust = lt > 0. ? exp(-lt * 1.3) : 0.; float k = push + hv * .9; vec2 dir = normalize(rel + 1e-5);
-  vec2 q = at(rel, DEP.w * texture(DT, uv - OFS).r, k); q = at(rel, DEP.w * texture(DT, q).r, k); q = at(rel, DEP.w * texture(DT, q).r, k); vec3 c = flow(textureLod(L0, q, dof).rgb, q);
-  q = wind(at(rel, DEP.y, k), .8, gust, dir); vec4 t = lay(L1, q, 0.); c = haze(c, uv, .04, k, .16); c = mix(c, flow(t.rgb, q), t.a);
-  q = wind(at(rel, DEP.z, k), 1., gust, dir); t = lay(L2, q, near_ * .55); c = haze(c, uv, .11, k, .11); c = mix(c, t.rgb, t.a);
+  vec2 q = at(rel, DEP.w * texture(DT, uv - OFS).r, k); q = at(rel, DEP.w * texture(DT, q).r, k); q = at(rel, DEP.w * texture(DT, q).r, k); float wk = 1. - smoothstep(0., 1.6, dof) * .6; vec3 wm = texture(WT, q).rgb; vec3 c = wet(textureLod(L0, q + ripple(q, wm.g, s), dof).rgb, q, wm, s, wk);
+  q = wind(at(rel, DEP.y, k), .8, gust, dir); vec4 t = lay(L1, q, 0.); c = haze(c, uv, .04, k, .16); c = mix(c, wet(t.rgb, q, texture(WT, q).rgb, s, wk), t.a);
+  q = wind(at(rel, DEP.z, k), 1., gust, dir); t = lay(L2, q, near_ * .55); c = haze(c, uv, .11, k, .11); c = mix(c, wet(t.rgb, q, texture(WT, q).rgb, s, wk), t.a);
   q = wind(at(rel, DEP.w, k), 1.2, gust, dir); t = lay(L3, q, near_); c = haze(c, uv, .20, k, .07); c = mix(c, t.rgb, t.a);
   c *= 1. - .16 * smoothstep(0., 3., dof);
   float wash = lt > 0. ? smoothstep(0., .15, lt) : 0., rich = lt > 0. ? exp(-lt * 1.9) : 0., g = dot(c, vec3(.30, .59, .11));

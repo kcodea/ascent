@@ -6,7 +6,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { playableHeroes, runTribesForSeed } from '@game/sim';
-import { engineContentRevision, versusDisjointHeroOffers, VERSUS_PROTOCOL } from '@game/sim/versus/server';
+import { engineContentRevision, versusDisjointHeroOffers, versusHeroSelectMs, VERSUS_PROTOCOL } from '@game/sim/versus/server';
 import { newRoomState, RoomCore, type CoreDeps } from '../src/core/roomCore';
 import type { GSeat } from '../src/core/groupMatch';
 
@@ -111,7 +111,7 @@ describe('unique heroes per lobby: the room deals disjoint offers (R-VERSUS-UNIQ
         expect(new Set(manual.seats().map((s) => manual.hero(s))).size).toBe(n);
         const clock = new H(mode, seed * 104729, n);
         await clock.toHeroSelect();
-        clock.now += 21_000;
+        clock.now += versusHeroSelectMs('set2') + 1000;
         await clock.core.tick(clock.now);
         expect(clock.phase).toBe('shop');
         expect(new Set(clock.seats().map((s) => clock.hero(s))).size).toBe(n);
@@ -137,7 +137,7 @@ describe('unique heroes per lobby: the server refuses a held hero (an offer regi
       await expect(h.op(U[1], 'pick_hero', { matchId: h.matchId, index: 1 })).rejects.toThrow('hero_taken');
       await h.op(U[1], 'pick_hero', { matchId: h.matchId, index: 2 });
       // Every remaining seat is left to the clock: each takes a hero nobody holds (3 heroes cover up to 3 seats).
-      h.now += 21_000;
+      h.now += versusHeroSelectMs('set2') + 1000;
       await h.core.tick(h.now);
       expect(h.phase).toBe('shop');
       const heroes = h.seats().map((s) => h.hero(s));

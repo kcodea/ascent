@@ -14,6 +14,7 @@ import { PHONE_GPU } from '../phoneDiag';
 import { locationArt, locationName, POSTER_NAME, type LocationDef } from './locations';
 import { prepareReveal, stageHeight, type PreparedReveal, type RevealGl } from './revealGl';
 import { loadRevealSound, type RevealSound } from './revealSound';
+import { dropAtmosphere, setAtmosphereCovered, syncAtmosphere, warmAtmosphere } from './atmosphereGl';
 import { arriveHeroSelect, type ArriveFrom } from './heroArrive';
 import { A, fitOf, HOLD, NAME, outCubic, outroAt, POST, POST_GAP, posterName, posterRest, POSTER_H, POSTER_W, realOf, seg, simEnd, simOf, smoother, START, washAt, washReach } from './revealTimeline';
 import './locationReveal.css';
@@ -38,13 +39,25 @@ export function warmLocationReveal(loc: LocationDef): void {
   // The light version's pictures; the full one needs only the blur hero select shows.
   const files = light ? ['flat', 'blur', ...loc.posters.map((t) => `poster-${t}`)] : ['blur'];
   const art = files.map((f) => { const i = new Image(); i.decoding = 'async'; i.src = locationArt(loc.id, f); return i; });
-  warm = { id: loc.id, gl: light ? null : prepareReveal(loc), sound: loadRevealSound(loc.id), art };
+  const w: Warm = { id: loc.id, gl: light ? null : prepareReveal(loc), sound: loadRevealSound(loc.id), art };
+  warm = w;
+  // Hero select's living ground, once the reveal itself is whole (not for a gate that has gone meanwhile).
+  void w.gl?.ready.then(() => { if (warm === w) warmAtmosphere(loc); });
+}
+
+/** Ends the reveal on screen, if there is one. */
+let endNow: (() => void) | null = null;
+
+/** Cut the reveal on screen short: it fades off what is behind it (a live match that ended under it). */
+export function stopLocationReveal(): void {
+  endNow?.();
 }
 
 /** Let go of a reveal that was made ready and will not play (the gate opened quietly). */
 export function dropLocationReveal(): void {
   const w = warm;
   warm = null;
+  dropAtmosphere();
   if (!w) return;
   w.gl?.drop();
   w.sound.stop();
@@ -170,6 +183,8 @@ export function playFullReveal(host: HTMLElement, r: LocationRevealRequest, gl: 
     const finish = (): void => {
       if (over) return;
       over = true;
+      endNow = null;
+      setAtmosphereCovered(false);
       cancelAnimationFrame(raf);
       window.clearTimeout(guard);
       unwatch();
@@ -195,14 +210,24 @@ export function playFullReveal(host: HTMLElement, r: LocationRevealRequest, gl: 
       // It fades up over the gate's own doors, which it matches, then they can go.
       root.style.opacity = real < 0.1 ? String(real / 0.1) : '1';
       // The wave that washes the world away brings hero select in behind it.
-      if (!arrived && s >= washAt(n)) { arrived = true; arriveHeroSelect(waveFrom(root, gl, stagePx, n)); }
-      if (!covered && real > 0.14) { covered = true; onCovered(); }
+      if (!arrived && s >= washAt(n)) { arrived = true; setAtmosphereCovered(false); syncAtmosphere(s); arriveHeroSelect(waveFrom(root, gl, stagePx, n)); }
+      if (!covered && real > 0.14) { covered = true; setAtmosphereCovered(!arrived); onCovered(); }
       raf = requestAnimationFrame(tick);
     };
     root.style.opacity = '0';
+    endNow = () => {
+      endNow = null;
+      setAtmosphereCovered(false);
+      window.setTimeout(finish, STOP_MS);
+      w?.sound.stop();
+      root.animate?.([{ opacity: 1 }, { opacity: 0 }], { duration: STOP_MS, fill: 'forwards' });
+    };
     raf = requestAnimationFrame(tick);
   });
 }
+
+/** How long a reveal that is cut short takes to fade. */
+const STOP_MS = 260;
 
 /** Where the leaving wave starts on screen, and when it reaches a point. */
 function waveFrom(root: HTMLElement, gl: RevealGl, stagePx: number, n: number): ArriveFrom {
@@ -259,11 +284,13 @@ export function playLightReveal(under: HTMLElement, r: LocationRevealRequest, pa
     later(LIGHT.name, () => { words.title.classList.add('on'); });
     posters.forEach((e, i) => later(LIGHT.posters + i * LIGHT.step, () => { e.classList.add('on'); words.names[i]!.classList.add('on'); }));
     const total = lightSeconds(n);
+    const finish = (): void => { endNow = null; timers.forEach((t) => window.clearTimeout(t)); unwatch(); w?.sound.stop(); root.remove(); resolve(); };
+    endNow = () => { endNow = null; timers.forEach((t) => window.clearTimeout(t)); root.classList.add('off'); timers.push(window.setTimeout(finish, LIGHT.fade * 1000)); };
     later(total - LIGHT.fade, () => {
       root.classList.add('off');
       const box = root.getBoundingClientRect();
       arriveHeroSelect({ x: box.left + box.width / 2, y: box.top + box.height / 2, delayMs: (px) => 120 + (px / Math.max(1, box.height)) * 380 });
     });
-    later(total, () => { timers.forEach((t) => window.clearTimeout(t)); unwatch(); w?.sound.stop(); root.remove(); resolve(); });
+    later(total, finish);
   });
 }

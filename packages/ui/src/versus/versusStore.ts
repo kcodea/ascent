@@ -55,7 +55,8 @@ import { othersInStands, setWatchers, type Watcher } from './watchers';
 import { combatBeatFor, hasPendingActs, setSpectatorCursor, setSpectatorTap, SPECTATE_CURSOR_EVENT, tapAct, takeActs, takeOdds, takeOverlay } from './spectateTap';
 import { dropVersusLink, useVersusLink } from './versusConnection';
 import { createCandidateDedupe } from './candidateDedupe';
-import { cancelRankedGate, requestRankedGate } from '../rankedGate/rankedGateController';
+import { cancelRankedGate, rankedGateInFlight, requestRankedGate } from '../rankedGate/rankedGateController';
+import { versusLocation, versusReveal } from '../locationReveal/versusReveal';
 import { pixiFx } from '../pixiFx';
 import { goodLuckIntro } from '../goodLuck/goodLuckIntroStore';
 import { resumeAudio, stopAllAudio } from '../sfx';
@@ -2387,6 +2388,16 @@ function driveGates(st: VersusState): void {
           if (ok) showVersusHeroSelect(); // behind the shut doors
           return ok;
         },
+        // THE LOCATION REVEAL (R-LOCATION-03): the crystals all break as the match is made, so it plays for everyone at once.
+        reveal: {
+          location: () => versusLocation(get().room?.set_id),
+          request: () => {
+            const m = get().match;
+            const priv = get().priv;
+            if (!m || !priv || priv.match_id !== m.id) return null;
+            return versusReveal({ setId: m.set_id, runSeed: Number(priv.run_seed), phase: m.phase, paused: !!m.paused_at, remainingMs: versusRemainingMs(m.hero_deadline) });
+          },
+        },
       }).finally(() => { if (entryGate === gate) entryGate = null; });
     }
   } else if (entryGate && room.status === 'open') {
@@ -2460,6 +2471,14 @@ function playVersusEndGate(matchId: string): void {
   if (endGated.has(matchId)) return;
   endGated.add(matchId);
   closeInspect();
+  // The match ended under its own entry gate (a player left during the location reveal): the gate lets go first. A gate
+  // asked for while another plays joins it and its swap is dropped, which would leave this player on Hero Select.
+  const entry = rankedGateInFlight();
+  if (entry) {
+    cancelRankedGate();
+    void entry.then(() => { endGated.delete(matchId); if (session && get().match?.id === matchId) playVersusEndGate(matchId); });
+    return;
+  }
   // A fight may be playing (a concede lands mid-combat): its effects fade out as the doors close, never over them.
   pixiFx.setVisible(false, 180);
   void requestRankedGate(() => {

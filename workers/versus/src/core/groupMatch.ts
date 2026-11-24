@@ -20,7 +20,7 @@ import {
   versusArmorFloorMax,
   versusFreshSide,
   VERSUS_COMBAT_VIEW_CAP_SECONDS,
-  VERSUS_HERO_SELECT_SECONDS,
+  versusHeroSelectMs,
   VERSUS_INTRO_CAP_SECONDS,
   VERSUS_LIMITS,
   VERSUS_MISSED_ROUNDS_FORFEIT,
@@ -282,7 +282,7 @@ export function newGroupState(host: GroupHost, room: { id: string; set_id: strin
   const match: GMatch = {
     id, room_id: room.id, seed: host.random31(), set_id: room.set_id, content_revision: room.content_revision, protocol: room.protocol,
     options: normalizeVersusOptions(room.options) as unknown as Record<string, unknown>, phase: 'hero_select', revision: 1, round: 0,
-    seat_count: seats.length, heroes_revealed: false, hero_deadline: opts.deferOffers ? null : now + VERSUS_HERO_SELECT_SECONDS * 1000, shop_starts_at: null,
+    seat_count: seats.length, heroes_revealed: false, hero_deadline: opts.deferOffers ? null : now + versusHeroSelectMs(room.set_id), shop_starts_at: null,
     shop_deadline: null, intro_deadline: null, combat_deadline: null, paused_seat: null, paused_at: null, pause_grace_until: null,
     resume_at: null, winner_seat: null, end_reason: null, created_at: now, updated_at: now, completed_at: null,
     seats: seats.map((s) => ({

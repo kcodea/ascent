@@ -4,7 +4,8 @@
  *  - MIRRORING IS BY POSITION: the seat right of the VS mark in a 1v1 (p2) and the right-hand Duos column (p3, p4) face
  *    the VS mark; Group has no VS mark and never mirrors.
  *  - THE EYEBROW is the Versus record ("3W 1L"); no record reads empty.
- *  - THE CARD'S MEMO HOLDS (R-VERSUS-ROOM-MOUNTED-01's perf contract): the room re-renders often (every poll, every drag
+ *  - THE CARD'S MEMO HOLDS (CLAUDE.md "Performance is the north star": memoised list items, stable props): the room
+ *    re-renders often (every poll, every drag
  *    zone change), so a seat re-render with unchanged seat data (new pools object, new menu items, new callbacks, a new
  *    but equal rank) never re-renders its card; a real change (Health moved, the menu opened) does.
  */
@@ -117,6 +118,22 @@ describe('the left-column mark rides the card itself, inside the drag handle', (
     try {
       const card = ui.container.querySelector('.vsr-dragwrap > .phs-card')!;
       expect(card.classList.contains('ph-menuright')).toBe(true);
+    } finally { ui.unmount(); }
+  });
+});
+
+describe('an open menu whose items run out shows no menu', () => {
+  it('menu open with no items (the room sealed under it): no menu, no empty item, the card not marked open', () => {
+    const member = { userId: 'them', displayName: 'Orangez', profile: {}, role: 'p2' as const, lastSeenAt: '' };
+    const base = { side: 'p2' as const, i: 1, size: 'half' as const, mirrored: true, m: member, rival: true, server: undefined, thumb: false, host: false,
+      over: '', hidden: false, pools: null, sealed: true, draggable: false, onPointerDown: () => undefined, onToggleMenu: () => undefined, onPick: () => undefined };
+    const ui = mount(<SeatBanner {...base} menuOpen items={[{ label: 'Add friend', run: () => undefined }]} />);
+    try {
+      expect(ui.container.querySelectorAll('.ph-menuitem')).toHaveLength(1);
+      ui.render(<SeatBanner {...base} menuOpen items={[]} />);
+      expect(ui.container.querySelector('.ph-cardmenu')).toBeNull();
+      expect(ui.container.querySelectorAll('[role="menuitem"]')).toHaveLength(0);
+      expect(ui.container.querySelector('.phs-card')!.classList.contains('phs-menu')).toBe(false);
     } finally { ui.unmount(); }
   });
 });

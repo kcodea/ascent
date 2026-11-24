@@ -60,7 +60,7 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
-        text: 'Versus rooms use the new player cards: every seat shows its rank, and the far side faces you across the VS mark.',
+        text: 'Versus rooms use the new player cards: every seat shows its rank, and the two sides face each other across the VS mark.',
       },
       {
         category: 'Systems',

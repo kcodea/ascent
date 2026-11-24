@@ -14771,12 +14771,13 @@ export const FOUNDATION_RULES: GameRule[] = [
     evidence: [
       { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-07, party home banner menu', quote: 'we need a change name option' },
       { kind: 'fix-pr', ref: 'feat/ph-change-name' },
+      { kind: 'fix-pr', ref: 'feat/showcase-card-versus-room' },
       { kind: 'code', ref: 'packages/ui/src/partyHome/ChangeName.tsx (selfCardMenu, ChangeNameDialog through setPlayerName); packages/ui/src/partyHome/PartyHome.tsx (cardMenu)' },
     ],
     currentBehaviour:
       'Conforms from 2026-11-07 (feat/ph-change-name). Before, the banner menu had only Change portrait and View Career, and the party home had no way to rename. '
       + 'The PartyHome wiring is pinned by a source check; the window and the menu order are pinned by render tests. '
-      + 'BROKEN from the showcase card (#2866, 2026-11-23) until fix round 1 of feat/showcase-card-versus-room: the outside-press close looked only for the old banner\x27s open class, so pressing Change name on the showcase card closed the menu on pointerdown and the click did nothing. '
+      + 'BROKEN from the showcase card (#2866, 2026-11-23) until fix round 1 of feat/showcase-card-versus-room: the outside-press close looked only for the old banner\'s open class, so pressing any item in a showcase card\'s menu (Change name, Change portrait and View Career on yours; Message and View Career on a teammate\'s) closed the menu on pointerdown and the click did nothing. The same selector fix (OPEN_CARD_SELECTOR) repairs them all. '
       + 'partyCardMenu.test.tsx now mounts the real PartyHome, opens your card menu and presses Change name (pointerdown then click) to open the window.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/partyHome/changeName.test.tsx', 'packages/ui/src/partyHome/partyCardMenu.test.tsx'], lastVerifiedAt: '2026-11-23' },
   },

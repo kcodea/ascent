@@ -59,7 +59,7 @@ import { OpenRoomsPanel, RoomRulesPanel, useVersusRoomHome } from './versusRoomH
 import { defaultRoomName, roomModeOf, roomTitleOf } from './pages/versusPh';
 import { PhFriends } from './shell/PhFriends';
 import { addSampleInvite, clearSampleInvites, removeSampleInvite, setDrawerIsMode, setFriendsOpen, setPhInvite, usePhShell } from './shell/shellStore';
-import { PhButton, PhDialog, PhField, PhLeaderBadge, PhPlate, PhShowcaseBand, PhShowcaseCard, PhShowcaseGhost, PhShowcaseInvite, PhSegmented, PhTabs, phNum } from './kit';
+import { OPEN_CARD_SELECTOR, PhButton, PhDialog, PhField, PhLeaderBadge, PhPlate, PhShowcaseBand, PhShowcaseCard, PhShowcaseGhost, PhShowcaseInvite, PhSegmented, PhTabs, phNum } from './kit';
 import type { PhCardSize } from './kit';
 import { GauntletPanel, PracticePanel, stagePlayable, useGauntletStages } from './ModeOptions';
 import { familyOf, modeHasSettings, partyFamilies, partyModeOf, partyModes, readFamilySub, rememberPartyMode, type ModeFamily, type ModeFamilyId, type PartyMode, type PartyModeId } from './partyModes';
@@ -711,7 +711,7 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
           </div>
         )}
         </div>
-        {/* A Versus room still draws its own seat row (versusRoomHome.tsx); the Play lineup is the showcase row. */}
+        {/* Both rows are showcase lineups: a held Versus room's seats (versusRoomHome.tsx, in seat order), else the Play lineup. */}
         {vh.row
           ? <div className={vh.rowClass} key={mode.id}>{vh.row}</div>
           : <div className={rowClass} key={mode.id}>{row}</div>}
@@ -814,8 +814,8 @@ function InvitePicker({ onClose }: { onClose: () => void }): JSX.Element {
   );
 }
 
-/** The open card whose menu a press may land in without closing it (the outside-press close skips it). */
-export const OPEN_CARD_SELECTOR = '.phs-card.phs-menu, .ph-cardwrap.menu';
+/** The open card whose menu a press may land in without closing it (the outside-press close skips it; kit/PhShowcaseCard.tsx). */
+export { OPEN_CARD_SELECTOR };
 
 /** The card's menu opens to its RIGHT for the lineup's left column (the screen edge is on its left); every other card's opens
  *  to its left. Marked by a class from the card's POSITION (`ph-menuright`), not by structural selectors, so a wrapper (the

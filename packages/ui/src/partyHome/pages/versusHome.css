@@ -88,8 +88,6 @@ html[data-ph-compact] .vsr-open .phs-gsub { display: none; }
 /* The buttons beside START: equal pills with a clear gap, and clear of the plaque. */
 .ph-actions > .ph-side:not(.ph-side-r) { gap: calc(12 * var(--phu)); padding-right: calc(16 * var(--phu)); align-items: center; }
 html[data-ph-compact] .ph-actions > .ph-side:not(.ph-side-r) { gap: calc(8 * var(--phu)); padding-right: calc(8 * var(--phu)); }
-/* The ghost is the card: the banner's rod reads the row's gap. */
-.vsr-ghost { --gap: calc(44 * var(--phu)); }
 /* The one spectate target: the band over the seats; its chip centred on the party stage (left is set from the drag). */
 .vsr-sellband > span { position: absolute; bottom: calc(16 * var(--phu)); translate: -50% 0; padding: calc(6 * var(--phu)) calc(24 * var(--phu)); background: var(--ph-plate); box-shadow: var(--ph-gild); border-radius: 999px;
   font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t2); letter-spacing: 0.04em; color: var(--ph-gold-hi); }

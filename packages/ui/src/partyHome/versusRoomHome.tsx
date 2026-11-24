@@ -48,7 +48,7 @@ import type { VersusMember, VersusRole, VersusRoom, VersusRoomSummary } from '..
 import { seatPools } from '../versus/VersusRoom';
 import { MAX_RECORD_IDS, playerCardArt, seatCardSource, useSeatData, type SeatServerData, type VersusRecord } from '../versus/versusSeatCard';
 import { clearVersusError, isDuosParty, joinRoom, refreshRooms, setVersusStatsOpen, useVersus, versusRemainingMs } from '../versus/versusStore';
-import { PhButton, PhChip, PhEmpty, PhField, PhRow, PhSegmented, PhShowcaseBand, PhShowcaseCard, PhShowcaseGhost, PhShowcaseInvite } from './kit';
+import { PhButton, PhChip, PhEmpty, PhField, PhRow, PhSegmented, PhShowcaseBand, PhShowcaseCard, PhShowcaseGhost, PhShowcaseInvite, OPEN_CARD_SELECTOR } from './kit';
 import type { PhCardSize } from './kit';
 import { openSeatText, ROOM_STATUS, roomJoin, roomModeOf, roomModeShort, roomStartOf, roomTitleOf, seatCap, seatTeams, seatText, VERSUS_OFFLINE_TEXT, visibleRooms, type VersusRoomMode } from './pages/versusPh';
 import { usePartyRoom } from './partyHomeFlag';
@@ -321,7 +321,8 @@ export function useVersusRoomHome(root: RefObject<HTMLElement>, phone: boolean, 
   useEffect(() => { setMenuFor(null); }, [room?.members.find((m) => m.userId === me)?.role, !!drag]);
   useEffect(() => {
     if (!menuFor) return undefined;
-    const close = (e: PointerEvent): void => { if (!(e.target as Element | null)?.closest?.('.ph-cardmenu')) setMenuFor(null); };
+    // A press in the menu, or on the open card itself (its own press toggles it), is not outside (as the Play lineup).
+    const close = (e: PointerEvent): void => { if (!(e.target as Element | null)?.closest?.(`.ph-cardmenu, ${OPEN_CARD_SELECTOR}`)) setMenuFor(null); };
     window.addEventListener('pointerdown', close, true);
     return () => window.removeEventListener('pointerdown', close, true);
   }, [menuFor]);
@@ -443,7 +444,8 @@ export function useVersusRoomHome(root: RefObject<HTMLElement>, phone: boolean, 
 
 /**
  * A seated member's showcase card. Mine drags; a tap opens its small menu.
- * MEMO STABILITY (R-VERSUS-ROOM-MOUNTED-01's perf contract): the room re-renders on every poll and every drag zone change,
+ * MEMO STABILITY (CLAUDE.md "Performance is the north star": memoise list items and keep their props referentially
+ * stable): the room re-renders on every poll and every drag zone change,
  * and hands this seat fresh objects each time (pools, items, callbacks, an equal rank). Every prop the card gets is a
  * primitive, a hoisted constant, or memoised on the values it shows, so `PhShowcaseCard`'s memo holds until something on
  * the card really changes. The press and the menu buttons call the LATEST handlers through a ref.
@@ -478,7 +480,8 @@ export function SeatBanner({ side, i, size, mirrored, menuRight = false, m, riva
     )
     : sealed ? <PhShowcaseBand tone="in_game">Getting ready</PhShowcaseBand> : undefined), [health, armor, sealed]);
   const itemKey = items.map((it) => it.label).join('\n');
-  const overlay = useMemo(() => (menuOpen ? (
+  // No items (the room sealed or started while the menu was open): no menu at all, never an empty item.
+  const overlay = useMemo(() => (menuOpen && itemKey ? (
     <div className="ph-cardmenu" role="menu" aria-label={`${face.name} options`}>
       {itemKey.split('\n').map((label) => (
         <button key={label} type="button" role="menuitem" className="ph-menuitem"
@@ -492,7 +495,7 @@ export function SeatBanner({ side, i, size, mirrored, menuRight = false, m, riva
       badge={host ? HOST_BADGE : undefined} band={band}
       className={`vsr-seat vsr-s-${side}${menuRight ? ' ph-menuright' : ''}${draggable ? ' vsr-mineseat' : ''}${over}${hidden ? ' vsr-src' : ''}`}
       label={draggable ? `You, seat ${side.slice(1)}. Drag to another seat, or up to spectate. Options` : `${face.name}${host ? ', host' : ''}, seat ${side.slice(1)}`}
-      onClick={items.length > 0 ? toggle : undefined} haspopup={items.length > 0} expanded={menuOpen} overlay={overlay} />
+      onClick={items.length > 0 ? toggle : undefined} haspopup={items.length > 0} expanded={menuOpen && items.length > 0} overlay={overlay} />
   );
   // My own card starts the drag (a wrapper that takes no box, so the card stays a direct item of the row).
   // Always there, so the card never remounts (and replays its entrance) when the room starts.

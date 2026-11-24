@@ -124,6 +124,9 @@ const REVEAL_FIT = 0.9;
 /** Grab radius at the strip's corner, sealed / once started. */
 const GRAB_R_SEALED = 45, GRAB_R_STARTED = 55;
 const DIM_TINT = 0xb8bccc;
+/** The zoomed stack's slide aside on the first flip: the share of the way left covered per dt frame. */
+const SIDE_EASE = 0.12;
+
 /** The pack aura's fade-out per dt frame once the sleeve drops (linear, so it reaches 0 and the ticker can idle). */
 const PACK_GLOW_FADE = 0.06;
 /** resetSealed's fade, each way (dt units). */
@@ -173,6 +176,11 @@ class PackSceneImpl implements PackScene {
   private zoomed = false;
   /** The zoomed stack's centre (pack base units): `REVEAL_STACK_X`, `REVEAL_Y` of the host. Set by `layout`. */
   private zoomTx = W / 2;
+  /** The host's dead centre (pack base units): where the stack zooms to before the first reveal. Set by `layout`. */
+  private zoomCx = W / 2;
+  /** 0 = the zoomed stack sits dead centre, 1 = it has slid aside to `REVEAL_STACK_X`. Starts on the first flip. */
+  private side = 0;
+  private sideOn = false;
   private zoomTy = CARDS_Y;
   private glowReveal = 0;
   /** Cards flipped away so far (the top card is `flipped`). */
@@ -378,18 +386,23 @@ class PackSceneImpl implements PackScene {
     v.root.x = Math.round(w / 2 - (W / 2) * k);
     v.root.y = Math.round(h / 2 - (PACK_BASE_SIZE.h / 2) * k);
     this.zoomTx = (REVEAL_STACK_X * w - v.root.x) / k;
+    this.zoomCx = (0.5 * w - v.root.x) / k;
     this.zoomTy = (REVEAL_Y * h - v.root.y) / k;
     if (this.zoom !== 0 || this.zoomV !== 0) this.placeZoomedStack();
     this.rect.valid = false;
     if (!app.ticker.started) app.render();
   };
 
-  /** The stack along its zoom: from its rest in the sleeve to the reveal spot (left of centre), with the spring's overshoot. */
+  /**
+   * The stack along its zoom: from its rest in the sleeve to dead centre, with the spring's overshoot; then, from the
+   * first flip, aside to the reveal spot (`REVEAL_STACK_X`) so the revealed pile has room on the right.
+   */
   private placeZoomedStack(): void {
     const v = this.v;
     if (!v) return;
     const e = Math.min(1.2, this.zoom);
-    v.cardsC.x = W / 2 + (this.zoomTx - W / 2) * e;
+    const tx = this.zoomCx + (this.zoomTx - this.zoomCx) * this.side;
+    v.cardsC.x = W / 2 + (tx - W / 2) * e;
     v.cardsC.y = CARDS_Y + (this.zoomTy - CARDS_Y) * e;
   }
 
@@ -409,6 +422,7 @@ class PackSceneImpl implements PackScene {
     if (!this.rect.valid) return false;
     const idx = this.flipped;
     const card = v.cards[idx]!;
+    this.sideOn = true; // the first reveal: the stack slides aside as the card flips out to the right
     const b = this.backs?.[idx];
     const f = this.flip;
     f.active = true;
@@ -496,6 +510,8 @@ class PackSceneImpl implements PackScene {
     this.zoom = 0;
     this.zoomV = 0;
     this.zoomed = false;
+    this.side = 0;
+    this.sideOn = false;
     this.glowReveal = 0;
     this.packGlowFade = 1;
     v.packGlow.visible = true;
@@ -814,7 +830,7 @@ class PackSceneImpl implements PackScene {
     const top = this.backs?.[this.flipped];
     const pulsing = !!top && this.flipped < this.n && CARD_GLOW_TIERS[top.rarity].pulse !== 'none';
     if (this.phase === 'end' && !this.flip.active && !this.xf.active && v.flecks.count === 0 && this.shake === 0
-      && !pulsing && !this.reset.active && !this.flying && this.glowReveal === 1 && this.packGlowFade === 0) {
+      && !pulsing && (!this.sideOn || this.side === 1) && !this.reset.active && !this.flying && this.glowReveal === 1 && this.packGlowFade === 0) {
       app.ticker.stop();
     }
   };
@@ -922,7 +938,12 @@ class PackSceneImpl implements PackScene {
         }
       }
       v.cardsC.scale.set(1 + feel.stackZoom * this.zoom);
-      this.placeZoomedStack(); // eases left toward REVEAL_STACK_X as it zooms
+      if (this.sideOn && this.side < 1) {
+        // ease aside over about the first flip (smooth out, no overshoot)
+        this.side += (1 - this.side) * (1 - Math.pow(1 - SIDE_EASE, dt));
+        if (1 - this.side < 0.002) this.side = 1;
+      }
+      this.placeZoomedStack(); // zooms to dead centre, then slides aside from the first flip
     }
   }
 

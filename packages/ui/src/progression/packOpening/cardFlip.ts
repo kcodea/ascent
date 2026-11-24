@@ -11,7 +11,7 @@ export const FLIP_PERSPECTIVE_PER_WIDTH = 4;
 /**
  * THE REVEAL LAYOUT (owner 2026-11-23: "have the pack slide to the left slightly and have the card flip over and land on
  * the right side"). Tuning values, as fractions of the theatre (the scene's host, the same box as the stage viewport):
- * - `REVEAL_STACK_X`: where the zoomed stack's centre settles (it eases left from the middle as it zooms).
+ * - `REVEAL_STACK_X`: where the zoomed stack's centre settles once the first card flips (it zooms to dead centre first).
  * - `REVEAL_FACE_X`: where the featured face's centre lands (the flip travels right from the stack to here).
  * - `REVEAL_Y`: the shared vertical centre of both, so the face lands level with the stack it left.
  */

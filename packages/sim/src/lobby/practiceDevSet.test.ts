@@ -20,8 +20,8 @@ import { lobbySeatRecordings, restoreLobbySeatRecordings } from './savedSeats';
  */
 
 const LIVE: SetId = activeSet().id;
-/** A defined set that is not the live one (the dev pick under test). */
-const DEV: SetId = (Object.keys(SETS) as SetId[]).find((id) => id !== LIVE && poolFor(id).buyable.length > 0)!;
+/** A location that is not the live one (the dev pick under test). */
+const DEV: SetId = practiceSetOptions().find((o) => !o.live)!.id;
 const cfg = (setId?: SetId): PracticeConfig => ({ ...DEFAULT_PRACTICE_CONFIG, health: 'normal', ...(setId ? { setId } : {}) });
 const HERO = 'warden';
 const SEED = 4242;
@@ -29,9 +29,9 @@ const SEED = 4242;
 const inSet = (setId: SetId, id: string): boolean => poolFor(setId).all.some((c) => c.id === id) || !!CARD_INDEX[id]?.token;
 
 describe("Practice's dev set picker", { timeout: 120_000 }, () => {
-  it('offers every defined set by name, the live one marked, and reads an unknown pick as the live set', () => {
-    expect(practiceSetOptions().map((o) => o.id)).toEqual(Object.keys(SETS));
-    expect(practiceSetOptions().map((o) => o.name)).toEqual(Object.values(SETS).map((s) => s.name));
+  it('offers the LOCATIONS (owner 2026-11-24: only the Outskirts and the Underbelly), the live one marked, and reads any other pick as the live set', () => {
+    expect(practiceSetOptions().map((o) => [o.id, o.name])).toEqual([['set2', 'The Outskirts'], ['set3', 'The Underbelly']]);
+    for (const id of ['set1', 'set4'] as SetId[]) expect(practiceSetOf({ setId: id }), `${id} is not a place to play`).toBe(LIVE);
     expect(practiceSetOptions().filter((o) => o.live).map((o) => o.id)).toEqual([LIVE]);
     expect(practiceSetOf(undefined)).toBe(LIVE);
     expect(practiceSetOf({ setId: 'nope' as SetId })).toBe(LIVE);

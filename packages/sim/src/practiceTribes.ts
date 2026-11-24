@@ -51,20 +51,23 @@ export function practiceRunTribes(seed: number, config: Pick<PracticeConfig, 'tr
  * PRACTICE'S DEV SET PICKER (owner 2026-10-26: "can you add a dev only practice option in sandbox to select the set to
  * practice with? this would then just use the bot runs for that sandbox test environment.").
  *
- * The set a Practice game is created on: the config's `setId` when it names a defined set, else the live one (the same
+ * LOCATIONS (owner 2026-11-24: "change 'set x' in the practice settings to Locations. remove set 1 and set 4 from the
+ * list"): the picks are the sets that have a location, by its name. A draft still holding another set reads as the live one.
+ *
+ * The set a Practice game is created on: the config's `setId` when it names a set with a location, else the live one (the same
  * `activeSet()` `createRun` defaults to). A NEW-RUN question only, like `practiceTribeOptions`: a run already created
  * reads its pinned set through `poolOf(state)`.
  */
 export function practiceSetOf(config: Pick<PracticeConfig, 'setId'> | undefined): SetId {
   const id = config?.setId;
-  return id && Object.prototype.hasOwnProperty.call(SETS, id) ? id : activeSet().id;
+  return id && Object.prototype.hasOwnProperty.call(SETS, id) && SETS[id].location ? id : activeSet().id;
 }
 
-/** Every defined set for the dev-only Set row, in registry order, labelled by its display name; `live` marks the one
- *  new runs use today. */
+/** Every set with a location, for the dev-only Location row, in registry order, by the location's name; `live` marks the
+ *  one new runs use today. */
 export function practiceSetOptions(): { id: SetId; name: string; live: boolean }[] {
   const live = activeSet().id;
-  return Object.values(SETS).map((s) => ({ id: s.id, name: s.name, live: s.id === live }));
+  return Object.values(SETS).flatMap((s) => (s.location ? [{ id: s.id, name: s.location, live: s.id === live }] : []));
 }
 
 /** Was this run created as a DEV-SET Practice game (a set other than the live one)? `createLobbyRun` keeps

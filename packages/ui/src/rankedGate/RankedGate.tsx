@@ -8,6 +8,7 @@ import {
 } from './rankedGateTiming';
 import './rankedGate.css';
 import { PHONE_GPU } from '../phoneDiag';
+import { dropLocationReveal, playFullReveal, playLightReveal, readyReveal, warmLocationReveal, type LocationRevealRequest } from '../locationReveal/revealPlayer';
 
 // BASE_URL-relative, NOT root-absolute: itch serves the game from a CDN sub-path, where '/frames/...' 404s
 // (publicAssetPaths.test.ts). The stylesheet's own `url('/frames/...')` is rewritten by Vite at build time.
@@ -42,6 +43,9 @@ export function RankedGate(): JSX.Element | null {
   const [phase, setPhase] = useState<RankedGatePhase | null>(null);
   const doorsRef = useRef<HTMLDivElement | null>(null);
   const crystalRef = useRef<HTMLButtonElement | null>(null);
+  /** THE LOCATION REVEAL's places: over the doors (the full one) and behind them (the light one). */
+  const overRef = useRef<HTMLDivElement | null>(null);
+  const underRef = useRef<HTMLDivElement | null>(null);
   const timers = useRef<number[]>([]);
   /** The sequence in flight: its `onShut` (until it has run) and the promise's resolver. */
   const live = useRef<{ onShut: (() => void) | null; done: () => void; opts?: RankedGateOptions; held?: boolean; cancelled?: boolean } | null>(null);
@@ -81,6 +85,7 @@ export function RankedGate(): JSX.Element | null {
       const cur = live.current;
       live.current = null;
       setPhase(null);
+      if (cur?.opts?.reveal) dropLocationReveal(); // one that was made ready and never played
       gateFx.release(); // whatever is still drifting fades out, then the layer frees its WebGL context
       cur?.done();
     };
@@ -114,13 +119,37 @@ export function RankedGate(): JSX.Element | null {
         void onPress().catch(() => false).then((ok) => {
           if (live.current !== cur || !cur.held) return;
           cur.held = false;
-          if (ok) breakOpen(); else openQuiet();
+          if (ok) breakThrough(); else openQuiet();
         });
         return;
       }
-      breakOpen();
+      breakThrough();
     };
-    const breakOpen = (): void => {
+    /** THE LOCATION REVEAL takes over the break: the crystal holds (it is already whole and lit) for the moment it takes to
+     *  know which version plays, then the full one draws everything from here, or the light one waits behind the doors. */
+    const breakIntoReveal = (req: LocationRevealRequest): void => {
+      const cur = live.current;
+      sfx.gateHum(false, 60);
+      void readyReveal(req.location).catch(() => null).then((gl) => {
+        if (!cur || live.current !== cur) { dropLocationReveal(); return; }
+        const over = overRef.current;
+        const under = underRef.current;
+        if (gl && over) {
+          gateFx.stopAmbient();
+          sfx.gate('shatter', 150);
+          sfx.gate('open', 160);
+          sfx.gate('intro', 300); // the cinematic hit, as the crystal breaks (owner 2026-10-13)
+          void playFullReveal(over, req, gl, () => { if (live.current === cur) setPhase('reveal'); })
+            .catch((err) => { console.warn('[rankedGate] the reveal failed; opening', err); })
+            .then(() => { if (live.current === cur) finish(); });
+          return;
+        }
+        if (!under) { breakOpen(); return; }
+        const done = playLightReveal(under, req, rankedGateOpenTimeline(t).openAt).catch((err) => { console.warn('[rankedGate] the reveal failed; opening', err); });
+        breakOpen(() => { void done.then(() => { if (live.current === cur) finish(); }); });
+      });
+    };
+    const breakOpen = (onOpen: () => void = finish): void => {
       const at = rankedGateOpenTimeline(t);
       setPhase('shatter');
       sfx.gateHum(false, 60); // the hum is gone under the break
@@ -136,7 +165,13 @@ export function RankedGate(): JSX.Element | null {
       if (s) gateFx.shudder(s, t.shudderMs);
       later(at.openSoundAt, () => sfx.gate('open'));
       later(at.openAt, () => setPhase('opening'));
-      later(at.endAt, finish);
+      later(at.endAt, onOpen);
+    };
+    /** The press was accepted: into the location reveal when this gate has one, else the doors simply open. */
+    const breakThrough = (): void => {
+      let req: LocationRevealRequest | null = null;
+      try { req = live.current?.opts?.reveal?.request() ?? null; } catch (err) { console.warn('[rankedGate] no reveal', err); }
+      if (req) breakIntoReveal(req); else breakOpen();
     };
 
     registerRankedGate((onShut, variant, opts) => new Promise<void>((resolve) => {
@@ -177,7 +212,10 @@ export function RankedGate(): JSX.Element | null {
       // THE FIRST CLOCK: from the press of "Yes" to the crystal being ready.
       const at = rankedGateCloseTimeline(t);
       later(at.slamAt, slam);
-      later(at.handoffAt, shut);
+      later(at.handoffAt, () => {
+        shut();
+        try { const l = live.current?.opts?.reveal?.location(); if (l) warmLocationReveal(l); } catch (err) { console.warn('[rankedGate] no reveal', err); }
+      });
       later(at.formAt, () => {
         setPhase('forming');
         sfx.gate('form', 0, { atMs: t.formSoundFadeAtMs, overMs: t.formSoundFadeMs }); // it eases off as the gem cools
@@ -242,6 +280,7 @@ export function RankedGate(): JSX.Element | null {
   const press = (): void => { pressRef.current?.(); };
   return (
     <div className={`rgate is-${phase}`} style={rankedGateCssVars() as CSSProperties}>
+      <div className="rgate-under" ref={underRef} />
       <div className="rgate-doors" ref={doorsRef}>
         <div className="rgate-door rgate-door-l" aria-hidden="true"><div className="rgate-face" /></div>
         <div className="rgate-door rgate-door-r" aria-hidden="true"><div className="rgate-face" /></div>
@@ -290,6 +329,7 @@ export function RankedGate(): JSX.Element | null {
           </button>
         )}
       </div>
+      <div className="rgate-over" ref={overRef} />
     </div>
   );
 }

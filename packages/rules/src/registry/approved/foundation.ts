@@ -17138,4 +17138,47 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'DAMAGE has no points sticking out of the M or the A.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroAttack/roundOutline.test.ts', 'packages/ui/src/webkitTextShadow.test.ts'], lastVerifiedAt: '2026-11-22' },
   },
+  {
+    id: 'R-LOCATION-01',
+    title: 'A location is a set: Set 2 is The Outskirts and Set 3 is The Underbelly; Practice offers only those two',
+    statement:
+      'A location IS a set. Set 2 is The Outskirts and Set 3 is The Underbelly. Practice\'s dev-only picker is called '
+      + 'Locations and lists those two by name, never a set number; Sets 1 and 4 are not offered while they are rebuilt, '
+      + 'and a saved pick of one plays the live location. Ranked is always The Outskirts for now.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-24', quote: 'change "set x" in the practice settings to Locations. remove set 1 and set 4 from the list as we\'ll be rebuilding/changing them entirely. only show the outskirts and the underbelly' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-24', quote: 'ranked stays outskirts only for now' },
+      { kind: 'code', ref: 'packages/content/src/sets.ts (SetDef.location); packages/sim/src/practiceTribes.ts (practiceSetOptions, practiceSetOf); packages/ui/src/locationReveal/pendingLocation.ts' },
+    ],
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/lobby/practiceDevSet.test.ts', 'packages/ui/src/PracticeOptionsSet.test.tsx', 'packages/ui/src/locationReveal/locationReveal.test.ts'], lastVerifiedAt: '2026-11-24' },
+  },
+  {
+    id: 'R-LOCATION-02',
+    title: 'The gate\'s crystal carries you to the game\'s location before hero select, in Ranked and in Practice',
+    statement:
+      'Starting Ranked or Practice closes the gate, and pressing its crystal reveals the location that game is played at: '
+      + 'the crystal shatters, its magic carries you there, the name appears as the announcer says it ("Welcome to the '
+      + 'Outskirts." / "The Underbelly awaits."), and the parchments of the tribes in that game drop open. It then washes '
+      + 'into hero select, which stands over the same painting, blurred. The parchments\' names never move. It fits 16:9 '
+      + 'and 21:9. A phone, or a machine that cannot draw it, gets a simpler version with the same words. With reduced '
+      + 'motion there is no gate and no reveal. Nothing that goes wrong in it may keep the player at the gate.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-24', quote: 'make it so that the gates close and this all plays for practice mode as well' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-24', quote: 'the effect that then plays from the gem burst is based on the location selected for practice' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-24', quote: 'in the full build dont have the tribe names move cause it looks janky' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-24', quote: 'it\'s super zoomed in on 21:9 - make sure we build this so it fits 21:9 too' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-24', quote: 'Add announcer lines when the name of the location shows up. "Welcome to the Outskirts." "The underbelly awaits" make sure they aren\'t rushed' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-24', quote: 'improve the transition into hero select while we\'re here. make it fit the vibe and style in how it animates out/in' },
+      { kind: 'code', ref: 'packages/ui/src/locationReveal (revealTimeline.ts, revealGl.ts, revealPlayer.ts, revealSound.ts, heroArrive.ts); packages/ui/src/rankedGate/RankedGate.tsx (breakThrough)' },
+    ],
+    currentBehaviour:
+      'Built 2026-11-24 from the owner-approved prototype. Not yet in Versus, Duos or the party modes: those gates and hero '
+      + 'selects are unchanged until the owner asks. The parallax layers are cut from the owner\'s widescreen paintings and '
+      + 'await his own layer art.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/locationReveal/locationReveal.test.ts', 'packages/ui/src/rankedGate/rankedGate.test.tsx'], lastVerifiedAt: '2026-11-24' },
+  },
 ];

@@ -341,6 +341,9 @@ export interface SetDef {
   id: SetId;
   /** Display name — shown wherever the active set is surfaced. */
   name: string;
+  /** The LOCATION this set is played at, as players read it (owner 2026-11-24: "instead of Set 2 it would now be The
+   *  Outskirts"). Absent = it has none yet, so nothing offers it as a place to play. */
+  location?: string;
   /** One-line blurb for banners / tooltips. */
   blurb: string;
   /** The on/off switch. `false` retires the set for NEW runs; in-flight runs keep their pinned copy. */
@@ -387,6 +390,7 @@ export const SETS: Record<SetId, SetDef> = {
   set2: {
     id: 'set2',
     name: 'Set 2',
+    location: 'The Outskirts',
     blurb: 'In development.',
     enabled: true, // LIVE 2026-07-31
     tribes: ['kobold', 'dragon', 'beast', 'demon', 'dwarf'], // Kobolds (Ruby) + Dragons (spell recursion) + Beasts + Demons + Dwarves (Gold/Ale)
@@ -399,6 +403,7 @@ export const SETS: Record<SetId, SetDef> = {
   set3: {
     id: 'set3',
     name: 'Set 3',
+    location: 'The Underbelly',
     blurb: 'In development.',
     // NEVER flip this on while `own` is empty: `activeSet()` is first-enabled-wins in declaration order, so
     // enabling an empty set ahead of a real one would put every NEW run on an empty pool. Play it in the

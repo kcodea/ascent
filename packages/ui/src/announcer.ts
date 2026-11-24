@@ -876,6 +876,12 @@ export function announcerDecodedMB(): number {
  *  follows the level). */
 const liveElements = new Map<HTMLAudioElement, number>();
 
+/** The announcer channel's own input (its Settings slider and mute, then the master), for a line that is laid on the audio
+ *  clock by someone else (the location reveal's). Null without Web Audio. */
+export function announcerOutput(): AudioNode | null {
+  const ctx = ctxProvider();
+  return ctx ? ensureGraph(ctx) : null;
+}
 function ensureGraph(ctx: AudioContext): GainNode {
   if (graph && graph.ctx === ctx) return graph.level;
   const lvl = ctx.createGain();

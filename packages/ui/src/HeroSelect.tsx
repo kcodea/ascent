@@ -29,6 +29,9 @@ import { partyHomeOn, usePartyHome } from './partyHome/partyHomeFlag';
 import { heroShowcaseOn, useHeroShowcase } from './hero-select/heroShowcaseFlag';
 import { heroSelectEyebrow } from './hero-select/heroSelectEyebrow';
 import { HeroPowerLine } from './hero-select/HeroPowerLine';
+import { locationArt } from './locationReveal/locations';
+import { pendingLocation } from './locationReveal/pendingLocation';
+import './locationReveal/locationReveal.css';
 import { ArmorMedal, HealthMedal } from './menuIcons';
 import { mdBold } from './Card';
 
@@ -98,6 +101,7 @@ export function HeroSelect({ watch }: { watch?: HeroSelectWatch } = {}) {
   const watchOfferKey = watch ? watch.frame.offer.join('|') : null;
   const watchOffer = useMemo(() => (watch ? [...watch.frame.offer] : null), [watchOfferKey]);
   const choices = watch ? watchOffer : ownChoices;
+  const location = useGame((s) => (watch || s.heroChoices === null ? null : pendingLocation(s)));
   // SKINS: the heroes you can pick wear the skins you have equipped for them.
   const loadout = useLiveLoadout();
   // The portrait-frames tuner's ring (null = today's rounded gold card frame). With one on, the card goes round.
@@ -415,6 +419,8 @@ export function HeroSelect({ watch }: { watch?: HeroSelectWatch } = {}) {
   return (
     <div className={`heroselect${active ? ' hsc-active' : ''}${watch ? ' hswatch' : ''}${ph ? ' phhs ph-tokens' : ''}${showcase ? ` hss${snapJump ? ' hss-snap' : ''}` : ''}${browseShowcase ? ` hsb${openNow !== null ? ' hsb-open' : ''}` : ''}`} style={rootStyle} {...(watch ? { 'aria-label': 'Watching Hero Select' } : {})}>
       {ph && HeroSelectPhSkin && <Suspense fallback={null}><HeroSelectPhSkin /></Suspense>}
+      {/* WHERE THE GAME IS PLAYED (owner 2026-11-24): the location's painting, blurred, behind the picker. */}
+      {location && <div className="hs-location" aria-hidden="true" style={{ backgroundImage: `url(${locationArt(location.id, 'blur')})` }} />}
       {/* Return to the main menu (owner ask 2026-09-01) — the same `.hsback` chrome the Title's mode-pick
           wears, top-left. Hidden once a pick's ceremony is running: the launch is committing, and yanking
           the screen out from under the machine mid-choreography is not a state it handles. */}

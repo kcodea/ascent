@@ -6,14 +6,14 @@
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
-import { SETS, activeSet, type SetId } from '@game/content';
-import { practiceTribeOptions, type PracticeConfig } from '@game/sim';
+import { activeSet, type SetId } from '@game/content';
+import { practiceSetOptions, practiceTribeOptions, type PracticeConfig } from '@game/sim';
 import { mount, type Mounted } from './renderedText.mount';
 import { useGame } from './store';
 import { PracticeOptions } from './PracticeOptions';
 
 const LIVE: SetId = activeSet().id;
-const DEV: SetId = (Object.keys(SETS) as SetId[]).find((id) => id !== LIVE)!;
+const DEV: SetId = practiceSetOptions().find((o) => !o.live)!.id;
 
 let ui: Mounted | null = null;
 afterEach(() => {
@@ -32,26 +32,27 @@ const buttons = (el: HTMLElement, label: string) => [...(row(el, label)?.querySe
 const lit = (el: HTMLElement, label: string) => buttons(el, label).filter((b) => b.getAttribute('aria-pressed') === 'true').map((b) => b.textContent);
 const press = (b: HTMLElement): void => { act(() => { b.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true })); }); };
 
-describe('the Practice screen: dev-only Set row', { timeout: 120_000 }, () => {
-  it('offers every defined set by its display name, the live set lit by default', () => {
+describe('the Practice screen: dev-only Locations row', { timeout: 120_000 }, () => {
+  it('offers the locations by name (owner 2026-11-24), the live one lit by default', () => {
     const el = open();
-    expect(buttons(el, 'Set').map((b) => b.textContent)).toEqual(Object.values(SETS).map((s) => (s.id === LIVE ? `${s.name} (live)` : s.name)));
-    expect(lit(el, 'Set')).toEqual([`${SETS[LIVE].name} (live)`]);
+    expect(buttons(el, 'Locations').map((b) => b.textContent)).toEqual(['The Outskirts', 'The Underbelly']);
+    expect(lit(el, 'Locations')).toEqual(['The Outskirts']);
+    expect(el.textContent).not.toMatch(/Set \d/);
   });
 
   it("picking another set writes it to the setup, swaps the Tribes row to that set's tribes and benches Opponent Rank", () => {
     const el = open();
-    press(buttons(el, 'Set').find((b) => b.textContent === SETS[DEV].name)!);
+    press(buttons(el, 'Locations').find((b) => b.textContent === 'The Underbelly')!);
     expect(useGame.getState().practiceDraft.setId).toBe(DEV);
     expect(buttons(el, 'Tribes').slice(1).map((b) => b.textContent?.toLowerCase())).toEqual(practiceTribeOptions(DEV));
     expect(buttons(el, 'Opponent Rank').every((b) => b.disabled)).toBe(true);
-    expect(row(el, 'Set')!.textContent).toContain('bots playing this set');
+    expect(row(el, 'Locations')!.textContent).toContain('bots playing here');
   });
 
   it('is not rendered in a player build', () => {
     vi.stubEnv('DEV', false);
     const el = open({ setId: DEV });
-    expect(row(el, 'Set')).toBeUndefined();
+    expect(row(el, 'Locations')).toBeUndefined();
     // …and a stored pick has no say there: the rank row is live and the tribes are the live set's.
     expect(buttons(el, 'Opponent Rank').some((b) => b.disabled)).toBe(false);
     expect(buttons(el, 'Tribes').slice(1).map((b) => b.textContent?.toLowerCase())).toEqual(practiceTribeOptions(LIVE));
@@ -59,8 +60,8 @@ describe('the Practice screen: dev-only Set row', { timeout: 120_000 }, () => {
 
   it('carries no native tooltip and no em dash', () => {
     const el = open({ setId: DEV });
-    expect(row(el, 'Set')!.querySelector('[title]')).toBeNull();
-    expect(row(el, 'Set')!.textContent).not.toMatch(/—|--/);
+    expect(row(el, 'Locations')!.querySelector('[title]')).toBeNull();
+    expect(row(el, 'Locations')!.textContent).not.toMatch(/—|--/);
   });
 });
 

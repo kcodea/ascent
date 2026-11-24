@@ -24,10 +24,18 @@ export const REVEAL_Y = 0.47;
  * the handoff size while it turns, so nothing pops.
  */
 export const REVEALED_SCALE = 1.12;
+/**
+ * The tallest a revealed face may be, as a share of the theatre's height: keeps the pile clear of the live line and the
+ * buttons whatever the stack zoom (the scene's fit uses the same cap, so the edge rect never exceeds it either).
+ */
+export const PILE_MAX_H = 0.76;
 
-/** How much the card lifts (grows) by edge-on: an ordinary card, and the guaranteed card (the biggest flip). */
+/**
+ * How much the card lifts (grows) by edge-on: an ordinary card, and the guaranteed card (the biggest flip). Both stay at
+ * or under `REVEALED_SCALE - 1`, so a face never shrinks while it lands in the pile.
+ */
 export const FLIP_LIFT = 0.08;
-export const FLIP_LIFT_GUARANTEED = 0.14;
+export const FLIP_LIFT_GUARANTEED = 0.12;
 
 /** The flip's first half (ms): an ordinary card, and the guaranteed card (the biggest flip). */
 export const FLIP_HALF_MS = 260;

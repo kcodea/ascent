@@ -27,7 +27,7 @@ vi.mock('./packSounds', () => ({
   createPackSounds: () => new Proxy({}, { get: () => () => undefined }),
 }));
 
-import { FLIP_LIFT, FLIP_LIFT_GUARANTEED, REVEAL_STACK_X, REVEALED_SCALE } from './cardFlip';
+import { FLIP_LIFT, FLIP_LIFT_GUARANTEED, PILE_MAX_H, REVEAL_STACK_X, REVEALED_SCALE } from './cardFlip';
 import { CARD_PLATE_SRC, FACE_H, FACE_W, PackFace, SLOT_X, SLOT_Y, edgePose, facePose, warmFaceArt } from './packFaces';
 import { PackOpener, type PackOpenerProps, type PackOpenOutcome } from './PackOpener';
 import type { PackSceneEvents } from './packScene';
@@ -168,6 +168,26 @@ describe('the face poses', () => {
     expect(edge.x).toBeLessThan(0);
   });
 
+  it('no card ever shrinks while it lands: for every lift in use the pile scale is at least the edge scale', () => {
+    const from = at(700, 500, 400);
+    const edge = edgePose(from, vp);
+    for (const [guaranteed, lift] of [[false, FLIP_LIFT], [true, FLIP_LIFT_GUARANTEED]] as const) {
+      expect(1 + lift).toBeLessThanOrEqual(REVEALED_SCALE);
+      const p = facePose('featured', { index: 0, count: 5 }, from, vp, guaranteed);
+      expect(p.sx).toBeGreaterThanOrEqual(edge.sx - 1e-9);
+      expect(p.sy).toBeGreaterThanOrEqual(edge.sy - 1e-9);
+    }
+  });
+
+  it('the pile face is capped at PILE_MAX_H of the theatre height', () => {
+    const from = at(700, 500, 700); // a back far taller than the theatre allows
+    for (const phase of ['featured', 'tray'] as const) {
+      const p = facePose(phase, { index: 1, count: 5 }, from, vp);
+      expect(p.sy * FACE_H).toBeLessThanOrEqual(PILE_MAX_H * vp.h + 1e-6);
+      expect(p.sx / p.sy).toBeCloseTo((from.width / FACE_W) / (from.height / FACE_H)); // the shape is kept
+    }
+  });
+
   it('earlier faces stack in the revealed pile at the top face size, nudged a few px and a degree or two', () => {
     const from = at(700, 500, 520);
     const top = facePose('featured', { index: 4, count: 5 }, from, vp);
@@ -190,10 +210,10 @@ describe('the face poses', () => {
   });
 
   it('a handed-off face renders at the pile pose once it arrives', async () => {
-    const from = at(700, 500, 520);
+    const from = at(400, 300, 300); // small enough to stay under the height cap in jsdom's viewport
     m = mount(<PackFace card={card('alpha_tester')} phase="handoff" from={from} slot={{ index: 0, count: 5 }} />);
     await act(async () => { await Promise.resolve(); });
-    const k = (520 / FACE_W / (1 + FLIP_LIFT)) * REVEALED_SCALE;
+    const k = (300 / FACE_W / (1 + FLIP_LIFT)) * REVEALED_SCALE;
     const t = face().style.transform;
     expect(t).toContain('translate(0px, 0px) rotate(0deg)');
     const [sx, sy] = /scale\(([\d.]+), ([\d.]+)\)/.exec(t)!.slice(1).map(Number);

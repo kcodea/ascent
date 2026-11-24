@@ -31,8 +31,8 @@ import { PIXI_ANTIALIAS } from '../../phoneArt';
 import { phonePixiOptions, pixiAllowed } from '../../phoneDiag';
 import { followStage } from '../../pixiStageFollow';
 import {
-  FLIP_HALF_GUARANTEED_MS, FLIP_HALF_MS, FLIP_LIFT, FLIP_LIFT_GUARANTEED, FLIP_PERSPECTIVE_PER_WIDTH, REVEAL_FACE_X, REVEAL_STACK_X,
-  REVEAL_Y, REVEALED_SCALE, flipAngle, flipPoseAt, projectTurnedRect, type FlipPose,
+  FLIP_HALF_GUARANTEED_MS, FLIP_HALF_MS, FLIP_LIFT, FLIP_LIFT_GUARANTEED, FLIP_PERSPECTIVE_PER_WIDTH, PILE_MAX_H, REVEAL_FACE_X,
+  REVEAL_STACK_X, REVEAL_Y, REVEALED_SCALE, flipAngle, flipPoseAt, projectTurnedRect, type FlipPose,
 } from './cardFlip';
 import { getPackFeel, PACK_BASE_SIZE, type PackFeel } from './packFxConfig';
 import type { PackSounds } from './packSounds';
@@ -327,9 +327,11 @@ class PackSceneImpl implements PackScene {
     const app = this.app, v = this.v;
     if (!app || !v) return;
     const w = app.screen.width, h = app.screen.height;
-    const zoomedW = CARD_W * (1 + getPackFeel().stackZoom);
-    const kFit = ((REVEAL_FACE_X - REVEAL_STACK_X) * w * REVEAL_FIT) / (zoomedW * (1 + REVEALED_SCALE) / 2);
-    const k = Math.max(0.2, Math.min((h * 0.62) / PACK_BASE_SIZE.h, (w * 0.5) / PACK_BASE_SIZE.w, kFit));
+    const zf = 1 + getPackFeel().stackZoom;
+    const kFit = ((REVEAL_FACE_X - REVEAL_STACK_X) * w * REVEAL_FIT) / (CARD_W * zf * (1 + REVEALED_SCALE) / 2);
+    // the revealed face (REVEALED_SCALE x the zoomed back) is never taller than PILE_MAX_H of the host
+    const kHigh = (PILE_MAX_H * h) / (CARD_H * zf * REVEALED_SCALE);
+    const k = Math.max(0.2, Math.min((h * 0.62) / PACK_BASE_SIZE.h, (w * 0.5) / PACK_BASE_SIZE.w, kFit, kHigh));
     v.root.scale.set(k);
     v.root.x = Math.round(w / 2 - (W / 2) * k);
     v.root.y = Math.round(h / 2 - (PACK_BASE_SIZE.h / 2) * k);

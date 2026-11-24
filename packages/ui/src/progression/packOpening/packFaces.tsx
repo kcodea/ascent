@@ -4,8 +4,8 @@ import { stageViewport, type StageRect } from '../../stage';
 import { rewardPreview, type RewardEmblem } from '../rewardPreview';
 import { CARD_PLATE_SRC, packRarityLabel, rarityIconSrc } from './packRarity';
 import {
-  FLIP_HALF_GUARANTEED_MS, FLIP_HALF_MS, FLIP_LIFT, FLIP_LIFT_GUARANTEED, FLIP_PERSPECTIVE_PER_WIDTH, REVEAL_FACE_X, REVEAL_Y,
-  REVEALED_SCALE,
+  FLIP_HALF_GUARANTEED_MS, FLIP_HALF_MS, FLIP_LIFT, FLIP_LIFT_GUARANTEED, FLIP_PERSPECTIVE_PER_WIDTH, PILE_MAX_H, REVEAL_FACE_X,
+  REVEAL_Y, REVEALED_SCALE,
 } from './cardFlip';
 
 export { CARD_PLATE_SRC };
@@ -39,17 +39,18 @@ export interface PackFaceProps { card: PackCard; phase: PackFacePhase; from?: St
 
 /**
  * The face's LAYOUT size (stage px; 2:3, the plate's and the scene card's shape) and its slot's centre as a fraction of
- * the theatre. A handed-off face is drawn at the back's on-screen size by its transform, so this only sets the type
- * scale it is rasterised from (near the zoomed back's size, so it is never blown up far).
+ * the theatre. A face is drawn at the pile's on-screen size by its transform, so this sets the size it is laid out and
+ * rasterised at: near the pile's on-screen size at 1920 x 1080 (about 530 x 800), so the transform scale stays near 1
+ * and the text stays sharp.
  */
-export const FACE_W = 300;
-export const FACE_H = 450;
+export const FACE_W = 480;
+export const FACE_H = 720;
 export const SLOT_X = REVEAL_FACE_X;
 export const SLOT_Y = REVEAL_Y;
 /** The revealed pile's per-card nudge under the top face: [dx px, dy px, deg], by reveal index (cycles). */
 const PILE_JITTER: readonly (readonly [number, number, number])[] = [[-6, 4, -2], [5, -3, 1.5], [-3, -6, -1], [7, 3, 2.2], [-5, 6, -1.6]];
 /** The summary row: centred in the theatre; scale, step between faces, and its centre's offset from the slot centre. */
-const SUMMARY_SCALE = 0.53;
+const SUMMARY_SCALE = 0.33;
 const SUMMARY_STEP = 184;
 const SUMMARY_DY = -90;
 /** The face turns with the scene's perspective: the same multiple of the card's width (the face's own, pre-scale). */
@@ -67,10 +68,13 @@ export const slotBox = (): CSSProperties => ({
 export interface FacePose { x: number; y: number; r: number; sx: number; sy: number }
 
 /** The pile's scale for a face handed off at `from`: `REVEALED_SCALE` x the back's resting size (the lift taken out). */
-function pileScale(from: StageRect | undefined, guaranteed: boolean): { sx: number; sy: number } {
+/** Capped at `PILE_MAX_H` of the theatre's height. */
+function pileScale(from: StageRect | undefined, guaranteed: boolean, vp: { w: number; h: number }): { sx: number; sy: number } {
   if (!from) return { sx: 1, sy: 1 };
   const k = REVEALED_SCALE / (1 + (guaranteed ? FLIP_LIFT_GUARANTEED : FLIP_LIFT));
-  return { sx: (from.width / FACE_W) * k, sy: (from.height / FACE_H) * k };
+  const sx = (from.width / FACE_W) * k, sy = (from.height / FACE_H) * k;
+  const cap = Math.min(1, (PILE_MAX_H * vp.h) / FACE_H / sy);
+  return { sx: sx * cap, sy: sy * cap };
 }
 
 const rowOffset = (slot: PackFaceSlot | undefined, step: number): number => (slot ? (slot.index - (slot.count - 1) / 2) * step : 0);
@@ -86,7 +90,7 @@ export function facePose(
   if (phase === 'summary') {
     return { x: (0.5 - SLOT_X) * vp.w + rowOffset(slot, SUMMARY_STEP), y: SUMMARY_DY, r: 0, sx: SUMMARY_SCALE, sy: SUMMARY_SCALE };
   }
-  const { sx, sy } = pileScale(from, guaranteed);
+  const { sx, sy } = pileScale(from, guaranteed, vp);
   if (phase === 'tray') {
     const [x, y, r] = PILE_JITTER[(slot?.index ?? 0) % PILE_JITTER.length]!;
     return { x, y, r, sx, sy };

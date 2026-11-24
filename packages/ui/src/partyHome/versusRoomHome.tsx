@@ -20,7 +20,7 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { parseCosmeticSnapshot } from '@game/progression';
-import { isBlockedName, NAME_BLOCKED_TEXT, riftDefFor, VERSUS_MODIFIERS, VERSUS_SPECTATOR_CAP, type VersusGroupSeat, type VersusModifierId, type VersusRoomOptions } from '@game/sim';
+import { isBlockedName, NAME_BLOCKED_TEXT, riftDefFor, VERSUS_MODIFIERS, VERSUS_SPECTATOR_CAP, type RankPosition, type VersusGroupSeat, type VersusModifierId, type VersusRoomOptions } from '@game/sim';
 import { heroThumb } from '../art';
 import { hideDragCursorVeil, showDragCursorVeil } from '../dragCursorVeil';
 import { getDragFeel } from '../dragFeel';
@@ -29,6 +29,8 @@ import { Icon } from '../Icon';
 import { currentUserId } from '../identity';
 import { pageHidden } from '../net/backoff';
 import { mirrorFor, useProgression } from '../progression/progressionStore';
+import { RankCrest } from '../rank/RankBar';
+import { rankLabel } from '../rank/rankFormat';
 import { sfx } from '../sfx';
 import { opponentSkins, useLiveLoadout } from '../skins/skins';
 import { stageHost, toStage } from '../stage';
@@ -286,7 +288,15 @@ export interface VersusRoomHome {
   dragging: boolean;
 }
 
-export function useVersusRoomHome(root: RefObject<HTMLElement>, phone: boolean, onInvite: () => void, myMedal: ReactNode): VersusRoomHome {
+export function useVersusRoomHome(root: RefObject<HTMLElement>, phone: boolean, onInvite: () => void, myRank: RankPosition | null): VersusRoomHome {
+  // My banner keeps its medal line in a room, so the name never jumps when a room opens behind the screen.
+  const myMedal: ReactNode = (
+    <span className="ph-rank">
+      {myRank
+        ? <><RankCrest divisionIndex={myRank.divisionIndex} size="mini" /><span>{rankLabel(myRank)}</span></>
+        : <span className="ph-muted">Unranked</span>}
+    </span>
+  );
   const sampleOn = usePartyRoom();
   const sample = useSampleRoom((s) => s.room);
   const sampleView = useSampleRoom((s) => s.view);

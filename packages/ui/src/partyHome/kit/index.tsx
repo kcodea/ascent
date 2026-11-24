@@ -619,6 +619,7 @@ export function phNum(text: string): ReactNode {
 }
 
 export { PhBanner, PhBannerInvite, PhBannerName, PhBannerState, PhLeaderBadge } from './PhBanner';
+export { PhShowcaseBand, PhShowcaseCard, PhShowcaseGhost, PhShowcaseInvite, type PhCardSize, type PhShowcaseCardProps } from './PhShowcaseCard';
 
 /** A labelled text field: a small label over a pill input (a room name, a team name), an optional hint or error under it. */
 export function PhField({ label, hint, error, className, id, showCount, ...rest }: InputHTMLAttributes<HTMLInputElement> & { label: ReactNode; hint?: ReactNode; error?: ReactNode;

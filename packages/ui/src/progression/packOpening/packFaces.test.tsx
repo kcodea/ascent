@@ -86,6 +86,39 @@ describe('PackFace', () => {
     expect(face().classList.contains('pkf-glow')).toBe(false);
   });
 
+  it('the rarity aura sits on the top pile face and every summary face, never on a face under the top one', () => {
+    const slot = { index: 1, count: 5 };
+    const aura = (): HTMLElement | null => face().querySelector('.pkf-card > .pkf-aura');
+    for (const phase of ['featured', 'handoff', 'summary'] as const) {
+      m?.unmount();
+      m = mount(<PackFace card={card('alpha_tester', { rarity: 'rare' })} phase={phase} slot={slot} />);
+      expect(aura(), phase).toBeTruthy();
+      // its colour is the rarity's own token: the face wears r-<rarity>, which the aura's shadow reads (--rc / --rc-a)
+      expect(face().classList.contains('r-rare')).toBe(true);
+    }
+    m?.unmount();
+    m = mount(<PackFace card={card('alpha_tester', { rarity: 'legendary' })} phase="tray" slot={slot} />);
+    expect(aura()).toBeNull();
+  });
+
+  it('the aura breathes by tier: Common / Rare static, Epic gentle, Legendary / Ancient strong (pkf-glow)', () => {
+    const want = { common: 'none', rare: 'none', epic: 'gentle', legendary: 'strong', ancient: 'strong' } as const;
+    for (const [rarity, pulse] of Object.entries(want) as [keyof typeof want, string][]) {
+      for (const phase of ['featured', 'summary'] as const) {
+        m?.unmount();
+        m = mount(<PackFace card={card('alpha_tester', { rarity })} phase={phase} slot={{ index: 0, count: 5 }} />);
+        const el = face().querySelector('.pkf-aura') as HTMLElement;
+        expect(el.getAttribute('data-glow'), `${rarity} ${phase}`).toBe(pulse);
+        expect(el.classList.contains(`pkf-aura-${pulse}`)).toBe(true);
+        expect(face().classList.contains(`r-${rarity}`)).toBe(true);
+        expect(face().classList.contains('pkf-glow')).toBe(pulse === 'strong');
+        const o = Number(el.style.opacity);
+        expect(o).toBeGreaterThan(0);
+        expect(o).toBeLessThanOrEqual(1);
+      }
+    }
+  });
+
   it('the ribbon carries the rarity medallion (decorative, decoding="sync") and Ancient reads Ancient', () => {
     m = mount(<PackFace card={card('alpha_tester', { rarity: 'ancient' })} phase="featured" />);
     const icon = face().querySelector('.pkf-ribbon img')!;

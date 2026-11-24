@@ -1,6 +1,6 @@
 /* PACK OPENING: the dev theatre around the Pixi pack scene (Task 7) and the DOM card faces (Task 8, packFaces.tsx).
    Layout px inside #stage; no viewport units. Animations are opacity/transform only: the faces move by `transform`, the
-   Legendary / Ancient glow is the opacity of a ::before with a STATIC shadow (the kwglow rule). Buttons reuse the crate
+   rarity aura (every rarity; Epic and up breathe) is the opacity of a ::before with a STATIC shadow (the kwglow rule). Buttons reuse the crate
    buttons and take the global gauntlet cursor (no cursor rules here). Rarity colour comes from the shared `.r-<rarity>`
    tokens in styles.css (`--rc`, `--rc-a`, Ancient's `--rc-grad`). Colours below are literals only where no token exists. */
 /* z-index 700: the crate theatre's layer (crateTheatre.css); there is no z-index token. */
@@ -54,13 +54,25 @@
 .pkf-win { position: absolute; left: 6.4%; right: 6.4%; top: 7%; bottom: 5.3%; border-radius: 14% / 9.5%; overflow: hidden;
   box-sizing: border-box; padding: 22px 26px 26px; display: flex; flex-direction: column; align-items: center; gap: 13px;
   background: radial-gradient(ellipse 85% 55% at 50% 34%, color-mix(in srgb, var(--rc) 26%, transparent), transparent 72%); }
-/* Legendary / Ancient featured: a breathing glow behind the plate's outer edge, opacity only on a STATIC shadow (kwglow,
-   styles.css). */
-.pkf-glow .pkf-card::before { content: ''; position: absolute; left: 3.2%; right: 3.2%; top: 4.3%; bottom: 3.2%; border-radius: 9% / 6%;
-  pointer-events: none; z-index: -1;
-  /* sized for a face at scale ~1: the halo reaches ~50px, clear of the live line and the buttons */
-  box-shadow: 0 0 22px 6px var(--rc-a), 0 0 40px 10px color-mix(in srgb, var(--rc) 30%, transparent);
-  animation: kwglow 2.2s ease-in-out infinite; will-change: opacity; }
+/* THE RARITY AURA (packGlow.ts): behind the plate's outer edge, on the top face of the revealed pile and on every summary
+   face. `.pkf-aura` holds the tier's STATIC opacity (inline: the tier x the cardGlow knob); its ::before carries a STATIC
+   shadow in the rarity colour, and only that ::before's opacity breathes (the kwglow rule): Common / Rare none, Epic
+   gently, Legendary / Ancient strongly. The halo is sized for a face at scale ~1 (it reaches ~50px at the strongest, clear
+   of the live line and the buttons). will-change only on the face in flight. */
+.pkf-aura { position: absolute; left: 3.2%; right: 3.2%; top: 4.3%; bottom: 3.2%; border-radius: 9% / 6%; pointer-events: none; z-index: -1; }
+.pkf-aura::before { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  box-shadow: 0 0 18px 4px var(--rc-a), 0 0 30px 6px color-mix(in srgb, var(--rc) 22%, transparent); }
+.r-common .pkf-aura::before { box-shadow: 0 0 12px 2px var(--rc-a); }
+.r-epic .pkf-aura::before, .r-legendary .pkf-aura::before {
+  box-shadow: 0 0 22px 6px var(--rc-a), 0 0 40px 10px color-mix(in srgb, var(--rc) 30%, transparent); }
+/* Ancient: its cyan close in, its pink (--rc2) further out: the aurora's two tones. */
+.r-ancient .pkf-aura::before {
+  box-shadow: 0 0 22px 6px var(--rc-a), 0 0 44px 12px color-mix(in srgb, var(--rc2) 40%, transparent); }
+.pkf-aura-gentle::before { animation: pkf-aura-gentle 3s ease-in-out infinite; }
+.pkf-aura-strong::before { animation: kwglow 2.2s ease-in-out infinite; }
+.pkf-handoff .pkf-aura-gentle::before, .pkf-handoff .pkf-aura-strong::before { will-change: opacity; }
+@keyframes pkf-aura-gentle { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .pkf-aura::before { animation: none; } }
 /* The category sits under the plate's notch, between two short gold rules. */
 .pkf-cat { display: flex; align-items: center; gap: 13px; font-size: 19px; font-weight: 800; letter-spacing: 0.24em; text-transform: uppercase;
   color: var(--gold-lt); }

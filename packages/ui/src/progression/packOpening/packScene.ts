@@ -18,8 +18,8 @@
  *    cached at pointerenter / pointerdown / flip start (never read per frame).
  *  - Clicks are not interpreted after the zoom: they bubble from the canvas to the host, where the shell decides to
  *    call `flipTop`.
- *  - The ticker stops once the stack has zoomed and nothing moves (no flip, crossfade, flecks, shake or Legendary /
- *    Ancient pulse) and restarts on input, `flipTop`, `setBacks`, `quickOpen` and `resetSealed`.
+ *  - The ticker stops once the stack has zoomed and nothing moves (no flip, crossfade, flecks, shake, breathing glow
+ *    (Epic and up; Common / Rare glows are static) or pack aura still fading) and restarts on input, `flipTop`, `setBacks`, `quickOpen` and `resetSealed`.
  *  - No allocation per frame in the tear / sleeve loops: pooled flecks, reused points and in-place geometry buffers.
  */
 import { Application, type Texture, type Ticker } from 'pixi.js';
@@ -35,6 +35,7 @@ import {
   REVEAL_STACK_X, REVEAL_Y, REVEALED_SCALE, flipAngle, flipPoseAt, projectTurnedRect, type FlipPose,
 } from './cardFlip';
 import { getPackFeel, PACK_BASE_SIZE, type PackFeel } from './packFxConfig';
+import { CARD_GLOW_TIERS, PACK_GLOW_TIERS, glowAlphaAt, packGlowRarity, type GlowTier } from './packGlow';
 import type { PackSounds } from './packSounds';
 import { PACK_GEOM, TEX_RES, rarityTint } from './packTextures';
 import {
@@ -115,9 +116,8 @@ const REVEAL_FIT = 0.9;
 /** Grab radius at the strip's corner, sealed / once started. */
 const GRAB_R_SEALED = 45, GRAB_R_STARTED = 55;
 const DIM_TINT = 0xb8bccc;
-/** Glow strength per rarity (Common none); Legendary and Ancient pulse on top of it. */
-const GLOW_BASE: Readonly<Record<CrateRarity, number>> = { common: 0, rare: 0.28, epic: 0.38, legendary: 0.5, ancient: 0.55 };
-const PULSES: ReadonlySet<CrateRarity> = new Set(['legendary', 'ancient']);
+/** The pack aura's fade-out per dt frame once the sleeve drops (linear, so it reaches 0 and the ticker can idle). */
+const PACK_GLOW_FADE = 0.06;
 /** resetSealed's fade, each way (dt units). */
 const RESET_FADE = 10;
 /** The backs crossfade (dt units). */
@@ -199,6 +199,9 @@ class PackSceneImpl implements PackScene {
   // the top card's back crossfade
   private readonly xf = { active: false, t: 0 };
   private glowFade = 1;
+  /** The sealed pack's aura: its tier (packGlow.ts) and its fade (1 until the sleeve drops, then to 0). */
+  private readonly packTier: GlowTier;
+  private packGlowFade = 1;
   // quick open
   private readonly quick = { active: false, t: 0, tearDur: 1, sleeveDur: 1, T0: 0.5, sleeveStart: 0, dy0: 0, want: 0 };
   // resetSealed's fade
@@ -212,6 +215,7 @@ class PackSceneImpl implements PackScene {
     private readonly events: PackSceneEvents,
   ) {
     this.n = clamp(Math.round(cardCount) || 1, 1, 5);
+    this.packTier = PACK_GLOW_TIERS[packGlowRarity(look)];
   }
 
   // ---------------------------------------------------------------- lifecycle
@@ -454,6 +458,8 @@ class PackSceneImpl implements PackScene {
     this.zoomV = 0;
     this.zoomed = false;
     this.glowReveal = 0;
+    this.packGlowFade = 1;
+    v.packGlow.visible = true;
     this.flipped = 0;
     this.flip.active = false;
     this.xf.active = false;
@@ -525,8 +531,14 @@ class PackSceneImpl implements PackScene {
     flash.position.copyFrom(card.position);
     ribbon.position.set(card.x, card.y + RIBBON_DY);
     const b = this.backs?.[top];
-    glow.tint = b ? rarityTint(b.rarity) : 0xffffff;
-    glow.visible = !!b && GLOW_BASE[b.rarity] > 0;
+    // every rarity glows once the result is known (plain backs none): one white texture tinted, Ancient its aurora
+    if (b) {
+      const ancient = b.rarity === 'ancient';
+      glow.texture = ancient ? tex.glowAncient : tex.glowWhite;
+      glow.tint = ancient ? 0xffffff : rarityTint(b.rarity);
+      glow.scale.set(CARD_GLOW_TIERS[b.rarity].size / TEX_RES);
+    }
+    glow.visible = !!b;
     ribbon.visible = !!b?.guaranteed;
     if (animated && card.texture !== target) {
       fade.texture = target;
@@ -727,7 +739,8 @@ class PackSceneImpl implements PackScene {
     else if (this.flying) this.flyStep(dt);
     if (this.phase !== 'peel') this.sleeveStep(dt, feel);
 
-    this.cardsStep(dt);
+    this.cardsStep(dt, feel);
+    this.packGlowStep(dt, feel);
     if (this.flip.active) this.flipStep(dt);
     v.flecks.step(dt);
 
@@ -739,9 +752,9 @@ class PackSceneImpl implements PackScene {
 
     // idle once the stack has zoomed and nothing moves (the render of this frame still runs)
     const top = this.backs?.[this.flipped];
-    const pulsing = !!top && this.flipped < this.n && PULSES.has(top.rarity);
+    const pulsing = !!top && this.flipped < this.n && CARD_GLOW_TIERS[top.rarity].pulse !== 'none';
     if (this.phase === 'end' && !this.flip.active && !this.xf.active && v.flecks.count === 0 && this.shake === 0
-      && !pulsing && !this.reset.active && !this.flying && this.glowReveal === 1) {
+      && !pulsing && !this.reset.active && !this.flying && this.glowReveal === 1 && this.packGlowFade === 0) {
       app.ticker.stop();
     }
   };
@@ -889,8 +902,25 @@ class PackSceneImpl implements PackScene {
     }
   }
 
-  /** The top back's crossfade + shimmer, and its glow (revealed once the sleeve is off; Legendary/Ancient pulse). */
-  private cardsStep(dt: number): void {
+  /**
+   * The sealed pack's aura: its tier's alpha (Epic and up breathe) x the `packGlow` knob, riding the sleeve, and fading
+   * out once the sleeve drops so it never fights the stack. Hidden (and no longer touched) once faded.
+   */
+  private packGlowStep(dt: number, feel: PackFeel): void {
+    const v = this.v!;
+    const g = v.packGlow;
+    if (!g.visible) return;
+    const live = this.phase === 'peel' || (this.phase === 'sleeve' && !this.sleeve.falling);
+    if (!live) this.packGlowFade = Math.max(0, this.packGlowFade - PACK_GLOW_FADE * dt);
+    if (this.packGlowFade === 0) { g.visible = false; g.alpha = 0; return; }
+    g.alpha = glowAlphaAt(this.packTier, this.time, feel.packGlow) * this.packGlowFade;
+    const s = this.packTier.size / TEX_RES;
+    if (g.scale.x !== s) g.scale.set(s);
+    g.y = (H + BODY_H) / 2 + (this.phase === 'peel' ? 0 : this.sleeve.dy);
+  }
+
+  /** The top back's crossfade + shimmer, and its glow (revealed once the sleeve is off; Epic and up breathe). */
+  private cardsStep(dt: number, feel: PackFeel): void {
     const v = this.v!;
     const xf = this.xf;
     if (xf.active) {
@@ -913,9 +943,8 @@ class PackSceneImpl implements PackScene {
     if (Math.abs(reveal - this.glowReveal) < 0.002) this.glowReveal = reveal;
     if (v.glow.visible) {
       const b = this.backs?.[this.flipped];
-      const base = b ? GLOW_BASE[b.rarity] : 0;
-      const pulse = b && PULSES.has(b.rarity) ? 0.22 * Math.sin(this.time * 0.09) : 0;
-      v.glow.alpha = Math.max(0, base + pulse) * this.glowFade * this.glowReveal * (this.flip.active ? 0.5 : 1);
+      const a = b ? glowAlphaAt(CARD_GLOW_TIERS[b.rarity], this.time, feel.cardGlow) : 0;
+      v.glow.alpha = a * this.glowFade * this.glowReveal * (this.flip.active ? 0.5 : 1);
     }
   }
 

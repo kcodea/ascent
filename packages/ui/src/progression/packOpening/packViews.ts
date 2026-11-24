@@ -4,6 +4,7 @@
  *
  *   root (fits the host)
  *     pack (shakes)
+ *       packGlow        the sealed pack's rarity aura (fades out as the sleeve drops)
  *       sleeveBack      the pack's back wall
  *       cardsC          the stack: cards (bottom first), the top card's glow / crossfade / shimmer / ribbon
  *       sleeveFront     the body MeshPlane, the idle sheen, the torn lip, the contact shadow
@@ -15,9 +16,11 @@
 import { CanvasSource, Container, Graphics, MeshPlane, PerspectiveMesh, Sprite, Texture } from 'pixi.js';
 import { COSMETIC_RARITIES, type CrateRarity, type PackLook } from '@game/progression';
 import {
-  PACK_GEOM, TEX_RES, type BackArt, paintBlob, paintBody, paintCardFlash, paintCardGlow, paintFleck, paintPinchRing,
-  paintPlainBack, paintRarityBack, paintRibbon, paintShade, paintSheen, paintSpec, paintStrip, paintStripBack,
+  ANCIENT_GLOW_STOPS, PACK_GEOM, TEX_RES, type BackArt, paintBlob, paintBody, paintCardFlash, paintCardGlow, paintFleck,
+  paintPackGlow, paintPinchRing, paintPlainBack, paintRarityBack, paintRibbon, paintShade, paintSheen, paintSpec, paintStrip,
+  paintStripBack, rarityTint,
 } from './packTextures';
+import { packGlowRarity } from './packGlow';
 import { CARD_PLATE_SRC, rarityIconSrc } from './packRarity';
 import { StripMesh, TornLip } from './stripMesh';
 
@@ -35,12 +38,17 @@ const FLECKS = 48;
 export interface SceneTextures {
   plain: Texture;
   rarity: Record<CrateRarity, Texture>;
+  /** The card glow: white (tinted per rarity) and Ancient's pre-coloured aurora. */
+  glowWhite: Texture;
+  glowAncient: Texture;
 }
 
 /** Every display object, built once at init. */
 export interface Views {
   root: Container;
   pack: Container;
+  /** The sealed pack's aura (tinted, or Ancient's aurora); the scene breathes its alpha only. */
+  packGlow: Sprite;
   sleeveBack: Graphics;
   cardsC: Container;
   cards: Sprite[];
@@ -113,13 +121,21 @@ export function buildPackViews(look: PackLook, n: number, own: (t: Texture) => v
   }
   const plain = back((art, into) => { paintPlainBack(look, art, into); });
   loadImage(CARD_PLATE_SRC, (img) => { for (const b of backs) { b.art.plate = img; repaint(b); } });
-  const tex: SceneTextures = { plain: plain.tex, rarity };
+  const glowWhite = keep(paintCardGlow());
+  const glowAncient = keep(paintCardGlow(ANCIENT_GLOW_STOPS));
+  const tex: SceneTextures = { plain: plain.tex, rarity, glowWhite, glowAncient };
 
   const root = new Container();
   const pack = new Container();
   root.addChild(pack);
 
   // THE SLEEVE: its back wall and its front (body mesh + torn lip) slide together; the stack sits between them.
+  // THE PACK'S AURA: one texture painted for this pack's rarity (white + tint, or Ancient's aurora), centred on the pack.
+  const packRarity = packGlowRarity(look);
+  const packGlow = new Sprite(keep(paintPackGlow(packRarity === 'ancient' ? ANCIENT_GLOW_STOPS : undefined)));
+  packGlow.anchor.set(0.5); packGlow.scale.set(1 / TEX_RES); packGlow.position.set(W / 2, (H + BODY_H) / 2);
+  packGlow.tint = packRarity === 'ancient' ? 0xffffff : rarityTint(packRarity);
+  packGlow.alpha = 0;
   const sleeveBack = new Graphics().rect(0, H * 0.3, W, BODY_H + H * 0.7).fill('#0c0a12');
   const cardsC = new Container();
   cardsC.position.set(W / 2, CARDS_Y);
@@ -132,7 +148,7 @@ export function buildPackViews(look: PackLook, n: number, own: (t: Texture) => v
     cards.push(s);
   }
   for (let i = n - 1; i >= 0; i--) cardsC.addChild(cards[i]!);
-  const glow = new Sprite(keep(paintCardGlow()));
+  const glow = new Sprite(glowWhite);
   glow.anchor.set(0.5); glow.scale.set(1 / TEX_RES); glow.visible = false;
   const fade = new Sprite(tex.plain);
   fade.anchor.set(0.5); fade.width = CARD_W; fade.height = CARD_H; fade.visible = false;
@@ -162,7 +178,7 @@ export function buildPackViews(look: PackLook, n: number, own: (t: Texture) => v
   const flecks = new FleckPool(particles, keep(paintFleck()));
   const pinch = new Sprite(keep(paintPinchRing()));
   pinch.anchor.set(0.5); pinch.scale.set(0.55); pinch.blendMode = 'add';
-  pack.addChild(sleeveBack, cardsC, sleeveFront, strip.view, particles, pinch);
+  pack.addChild(packGlow, sleeveBack, cardsC, sleeveFront, strip.view, particles, pinch);
 
   const flipLayer = new Container();
   const flipper = new PerspectiveMesh({ texture: tex.plain, verticesX: 12, verticesY: 12 });
@@ -173,7 +189,7 @@ export function buildPackViews(look: PackLook, n: number, own: (t: Texture) => v
   root.addChild(flipLayer);
 
   const views: Views = {
-    root, pack, sleeveBack, cardsC, cards, glow, fade, flash, ribbon, sleeveFront, body, bodyBase, sheen, lip, shadow,
+    root, pack, packGlow, sleeveBack, cardsC, cards, glow, fade, flash, ribbon, sleeveFront, body, bodyBase, sheen, lip, shadow,
     strip, particles, flecks, pinch, flipLayer, flipper, flipRibbon,
   };
   return { views, tex };

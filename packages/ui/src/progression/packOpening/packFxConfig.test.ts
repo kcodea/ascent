@@ -17,7 +17,7 @@ describe('packFxConfig', () => {
       peelAngle: 0.4, edgeTowardCamera: 139, slackBeforeTear: 0.92, edgeFollowsHand: 0.1, maxTearSpeed: 18,
       fibreCatch: 0.7, pinchTwist: 0.65, tearsStraightUp: 0.15, highlight: 0.65, perspective: 1780, volume: 0.45,
       sleeveGrip: 80, sleeveFollows: 0.36, sleeveRimDrag: 1, sleeveFingerPinch: 0.08, sleeveLetGo: 295,
-      stackZoom: 0.3, quickOpenMs: 1000,
+      stackZoom: 0.3, quickOpenMs: 1000, packGlow: 1, cardGlow: 1,
     });
     expect(m.getPackFeel()).toEqual(m.DEFAULT_PACK_FEEL);
     expect(m.PACK_BASE_SIZE).toEqual({ w: 300, h: 476 });

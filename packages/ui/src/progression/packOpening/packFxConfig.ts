@@ -42,6 +42,10 @@ export interface PackFeel {
   stackZoom: number;
   /** Quick open: the whole auto-open's duration. */
   quickOpenMs: number;
+  /** The sealed pack's rarity glow: a master multiplier on its per-tier strength (packGlow.ts). */
+  packGlow: number;
+  /** The cards' rarity glow (backs and revealed faces): a master multiplier on its per-tier strength (packGlow.ts). */
+  cardGlow: number;
 }
 
 export const DEFAULT_PACK_FEEL: PackFeel = {
@@ -63,6 +67,8 @@ export const DEFAULT_PACK_FEEL: PackFeel = {
   sleeveLetGo: 295,
   stackZoom: 0.3,
   quickOpenMs: 1000,
+  packGlow: 1,
+  cardGlow: 1,
 };
 
 /** The pack size the px values are tuned at; scale them by (rendered width / w). */
@@ -89,6 +95,8 @@ export const PACK_FEEL_KNOBS: readonly PackFeelKnob[] = [
   { key: 'sleeveLetGo', label: 'SLEEVE: pull to let go (px)', min: 60, max: 340, step: 5 },
   { key: 'stackZoom', label: 'Stack zoom', min: 0, max: 0.6, step: 0.02 },
   { key: 'quickOpenMs', label: 'Quick open duration (ms)', min: 300, max: 3000, step: 50 },
+  { key: 'packGlow', label: 'GLOW: pack rarity glow', min: 0, max: 2, step: 0.05 },
+  { key: 'cardGlow', label: 'GLOW: card rarity glow', min: 0, max: 2, step: 0.05 },
 ];
 
 const STORAGE_KEY = 'ascent.packFeel.v1';

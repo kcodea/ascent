@@ -62,10 +62,16 @@ function rr(g: Ctx, x: number, y: number, w: number, h: number, r: number): void
 
 // ---------------------------------------------------------------- colours
 
-/** A rarity's colour (card backs, glow, gems). Matches the chest tiers' colours where they exist. */
+/**
+ * A rarity's colour (card backs, glow, gems): the game's rarity palette, the `.r-<rarity>` `--rc` tokens in styles.css,
+ * so the Pixi backs and glows match the DOM faces. Ancient is its cyan; its glow carries the aurora (`ANCIENT_GLOW_STOPS`).
+ */
 export const PACK_RARITY_COLORS: Readonly<Record<CrateRarity, string>> = {
-  common: '#a9b2c4', rare: '#5aa8ff', epic: '#c07bff', legendary: '#ffb938', ancient: '#f4eeff',
+  common: '#cfd8e3', rare: '#6fb0ff', epic: '#c98bff', legendary: '#ffbe5c', ancient: '#8af5ff',
 };
+
+/** Ancient's aurora (styles.css `.r-ancient --rc-grad`): cyan to lilac to pink, painted into its glow texture. */
+export const ANCIENT_GLOW_STOPS = ['#8af5ff', '#c9b8ff', '#ff7ae0'] as const;
 
 /** A rarity's colour as a Pixi tint number. */
 export const rarityTint = (r: CrateRarity): number => parseInt(PACK_RARITY_COLORS[r].slice(1), 16);
@@ -461,9 +467,28 @@ export function paintRibbon(floor: CrateRarity): HTMLCanvasElement {
   return c;
 }
 
-/** A soft white plate-shaped glow (tinted by rarity; Legendary/Ancient pulse its alpha). Covers the card + a margin. */
+/**
+ * Recolour a painted white glow with a diagonal gradient, keeping its alpha (source-in): Ancient's two-tone aurora.
+ * Painted once; the sprite then wears it untinted.
+ */
+function recolour(g: Ctx, w: number, h: number, stops: readonly string[] | undefined): void {
+  if (!stops || stops.length === 0) return;
+  g.save();
+  g.globalCompositeOperation = 'source-in';
+  const gr = g.createLinearGradient(0, 0, w, h);
+  stops.forEach((s, i) => gr.addColorStop(stops.length === 1 ? 0 : i / (stops.length - 1), s));
+  g.fillStyle = gr;
+  g.fillRect(0, 0, w, h);
+  g.restore();
+}
+
+/**
+ * A soft plate-shaped glow at the card plate's outer edge, covering the card + a margin. White by default (tinted per
+ * rarity, so one texture serves every rarity), or recoloured with `stops` (Ancient's aurora). The scene breathes only
+ * its alpha (packGlow.ts tiers).
+ */
 export const CARD_GLOW_PAD = 40;
-export function paintCardGlow(): HTMLCanvasElement {
+export function paintCardGlow(stops?: readonly string[]): HTMLCanvasElement {
   const pad = CARD_GLOW_PAD * TEX_RES;
   const { c, g } = canvas(CW + pad * 2, CH + pad * 2);
   g.shadowColor = 'rgba(255,255,255,1)';
@@ -471,6 +496,33 @@ export function paintCardGlow(): HTMLCanvasElement {
   g.fillStyle = 'rgba(255,255,255,.9)';
   rr(g, pad + OUTER.x, pad + OUTER.y, OUTER.w, OUTER.h, OUTER.r);
   g.fill();
+  recolour(g, c.width, c.height, stops);
+  return c;
+}
+
+/**
+ * The sealed pack's aura: a soft glow around the whole pack (strip + body, W x (H + BODY_H)), painted ONCE. White
+ * (tinted by the pack's rarity) or recoloured with `stops` (Ancient). Drawn at scale 1 / TEX_RES, anchored at its centre.
+ */
+export const PACK_GLOW_PAD = 56;
+export function paintPackGlow(stops?: readonly string[]): HTMLCanvasElement {
+  const pad = PACK_GLOW_PAD * TEX_RES;
+  const pw = PACK_GEOM.W * TEX_RES, ph = (PACK_GEOM.H + PACK_GEOM.BODY_H) * TEX_RES;
+  const { c, g } = canvas(pw + pad * 2, ph + pad * 2);
+  g.shadowColor = 'rgba(255,255,255,1)';
+  g.shadowBlur = pad * 0.85;
+  g.fillStyle = 'rgba(255,255,255,.9)';
+  rr(g, pad, pad, pw, ph, 14);
+  g.fill();
+  // a halo only: the pack's own box is cleared, so nothing shows through where the torn strip was
+  g.shadowColor = 'transparent';
+  g.shadowBlur = 0;
+  g.globalCompositeOperation = 'destination-out';
+  g.fillStyle = '#000';
+  rr(g, pad, pad, pw, ph, 14);
+  g.fill();
+  g.globalCompositeOperation = 'source-over';
+  recolour(g, c.width, c.height, stops);
   return c;
 }
 

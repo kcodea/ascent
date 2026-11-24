@@ -7,6 +7,8 @@ import {
   FLIP_HALF_GUARANTEED_MS, FLIP_HALF_MS, FLIP_LIFT, FLIP_LIFT_GUARANTEED, FLIP_PERSPECTIVE_PER_WIDTH, PILE_MAX_H, REVEAL_FACE_X,
   REVEAL_Y, REVEALED_SCALE,
 } from './cardFlip';
+import { getPackFeel } from './packFxConfig';
+import { CARD_GLOW_TIERS, faceGlowOpacity } from './packGlow';
 
 export { CARD_PLATE_SRC };
 
@@ -184,8 +186,12 @@ export function PackFace({ card, phase, from, slot }: PackFaceProps) {
 
   const atEdge = handoff && !arrived;
   const flipMs = card.guaranteed ? FLIP_HALF_GUARANTEED_MS : FLIP_HALF_MS;
-  const featured = phase === 'handoff' || phase === 'featured';
-  const glow = featured && (card.rarity === 'legendary' || card.rarity === 'ancient');
+  // The rarity aura (packGlow.ts): on the TOP face of the revealed pile and on every summary face, never on the faces
+  // under the top one (five glows would blend into a blob). Common / Rare static, Epic breathes gently, Legendary /
+  // Ancient strongly (`pkf-glow` marks the strong tier).
+  const aura = phase === 'handoff' || phase === 'featured' || phase === 'summary';
+  const pulse = CARD_GLOW_TIERS[card.rarity].pulse;
+  const glow = aura && pulse === 'strong';
 
   const vp = placed ? stageViewport() : null; // the theatre's size, read once per render (never per frame)
   const outer: CSSProperties | undefined = placed
@@ -214,6 +220,13 @@ export function PackFace({ card, phase, from, slot }: PackFaceProps) {
       aria-hidden
     >
       <div className="pkf-card" style={inner}>
+        {aura && (
+          <div
+            className={`pkf-aura pkf-aura-${pulse}`}
+            data-glow={pulse}
+            style={{ opacity: faceGlowOpacity(card.rarity, getPackFeel().cardGlow) }}
+          />
+        )}
         <img src={CARD_PLATE_SRC} alt="" decoding="sync" draggable={false} className="pkf-plate" />
         <div className="pkf-win">
           <div className="pkf-cat">{categoryLabel(p.label.kind, p.category !== null)}</div>

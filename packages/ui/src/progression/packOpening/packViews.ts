@@ -42,6 +42,8 @@ export const RIBBON_DY = Math.round(CARD_H * (108 / 370));
 export const RIBBON_HW = (CARD_W * 0.92) / 2, RIBBON_HH = 19;
 /** The back wall's inset from the pack's sides and bottom (base units). */
 const BACK_INSET = 6;
+/** Where the back wall's lining starts, as a fraction of the strip's height (clear of the top crimp's see-through teeth). */
+const LINING_TOP = 0.14;
 /** Pooled foil flecks. */
 const FLECKS = 48;
 
@@ -63,7 +65,8 @@ export interface Views {
   packGlow: PerspectiveMesh;
   /** The aura's half size in base units at tier size 1 (its painted halo included). */
   packGlowHalf: { w: number; h: number };
-  sleeveBack: Graphics;
+  /** The back wall: the silver inner lining across the strip's band, the dark wall below it. */
+  sleeveBack: Container;
   cardsC: Container;
   cards: Sprite[];
   glow: Sprite;
@@ -188,7 +191,18 @@ export function buildPackViews(look: PackLook, n: number, own: (t: Texture) => v
   packGlow.tint = packRarity === 'ancient' ? 0xffffff : rarityTint(packRarity);
   packGlow.alpha = 0;
   // inset a little: the wrapper art's crimped edges are see-through, and the back wall must not show through them
-  const sleeveBack = new Graphics().rect(BACK_INSET, H * 0.3, W - BACK_INSET * 2, BODY_H + H * 0.7 - BACK_INSET).fill('#0c0a12');
+  // the wall's top is the wrapper's silver inner lining (owner 2026-11-24: the peeled strip must never leave a see-through
+  // hole): it fills the strip's band behind the stack, a touch darker than the strip's own underside (it is inside the pack)
+  const liningTex = keep(paintStripBack());
+  const sleeveBack = new Container();
+  const lining = new Sprite(liningTex);
+  lining.position.set(BACK_INSET, H * LINING_TOP);
+  lining.width = W - BACK_INSET * 2; lining.height = H * (1 - LINING_TOP) + 12;
+  lining.tint = 0xa3a9b6;
+  sleeveBack.addChild(
+    lining,
+    new Graphics().rect(BACK_INSET, H + 12, W - BACK_INSET * 2, BODY_H - 12 - BACK_INSET).fill('#0c0a12'),
+  );
   const cardsC = new Container();
   cardsC.position.set(W / 2, CARDS_Y);
   const cards: Sprite[] = [];
@@ -234,7 +248,7 @@ export function buildPackViews(look: PackLook, n: number, own: (t: Texture) => v
   const stripCanvas = paintStrip(look);
   const stripTex = keep(stripCanvas);
   const strip = new StripMesh({
-    front: stripTex, back: keep(paintStripBack()), shade: keep(paintShade()), spec: keep(paintSpec()),
+    front: stripTex, back: liningTex, shade: keep(paintShade()), spec: keep(paintSpec()),
   });
   // THE WRAPPER ART (packArt.ts): the placeholder shows first, then the art repaints both canvases in place, the strip
   // from the art above its tear line, the body the rest. Never blocks init; a load after teardown touches nothing. The

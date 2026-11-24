@@ -17161,7 +17161,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       'Starting Ranked or Practice closes the gate, and pressing its crystal reveals the location that game is played at: '
       + 'the crystal shatters, its magic carries you there, the name appears as the announcer says it ("Welcome to the '
       + 'Outskirts." / "The Underbelly awaits."), and the parchments of the tribes in that game drop open. It then washes '
-      + 'into hero select, which stands over the same painting, blurred. The parchments\' names never move. It fits 16:9 '
+      + 'into hero select, which stands over the same painting, blurred. The parchments\' names never move, and the picture never follows the mouse. It fits 16:9 '
       + 'and 21:9. A phone, or a machine that cannot draw it, gets a simpler version with the same words. With reduced '
       + 'motion there is no gate and no reveal. Nothing that goes wrong in it may keep the player at the gate.',
     domain: 'foundation',
@@ -17170,6 +17170,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Owner, 2026-11-24', quote: 'make it so that the gates close and this all plays for practice mode as well' },
       { kind: 'owner-chat', ref: 'Owner, 2026-11-24', quote: 'the effect that then plays from the gem burst is based on the location selected for practice' },
       { kind: 'owner-chat', ref: 'Owner, 2026-11-24', quote: 'in the full build dont have the tribe names move cause it looks janky' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-24', quote: 'remove the mouse movement of the parallax on these' },
       { kind: 'owner-chat', ref: 'Owner, 2026-11-24', quote: 'it\'s super zoomed in on 21:9 - make sure we build this so it fits 21:9 too' },
       { kind: 'owner-chat', ref: 'Owner, 2026-11-24', quote: 'Add announcer lines when the name of the location shows up. "Welcome to the Outskirts." "The underbelly awaits" make sure they aren\'t rushed' },
       { kind: 'owner-chat', ref: 'Owner, 2026-11-24', quote: 'improve the transition into hero select while we\'re here. make it fit the vibe and style in how it animates out/in' },
@@ -17177,8 +17178,8 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour:
       'Built 2026-11-24 from the owner-approved prototype. Not yet in Versus, Duos or the party modes: those gates and hero '
-      + 'selects are unchanged until the owner asks. The parallax layers are cut from the owner\'s widescreen paintings and '
-      + 'await his own layer art.',
+      + 'selects are unchanged until the owner asks. The parallax pieces are cut from the owner\'s paintings, '
+      + 'over his own full backgrounds.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/locationReveal/locationReveal.test.ts', 'packages/ui/src/rankedGate/rankedGate.test.tsx'], lastVerifiedAt: '2026-11-24' },
   },
 ];

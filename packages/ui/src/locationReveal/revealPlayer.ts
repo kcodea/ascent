@@ -165,14 +165,6 @@ export function playFullReveal(host: HTMLElement, r: LocationRevealRequest, gl: 
       gl.canvas.style.height = `${stageH}px`;
       words.layout(stageH, f);
     });
-    // The pointer leans the camera a little (eased): the parallax answers the hand, gently.
-    const lean: [number, number] = [0, 0];
-    const want: [number, number] = [0, 0];
-    const onMove = (e: PointerEvent): void => {
-      want[0] = -(e.clientX / Math.max(1, window.innerWidth) - 0.5) * 2;
-      want[1] = -(e.clientY / Math.max(1, window.innerHeight) - 0.5) * 2;
-    };
-    window.addEventListener('pointermove', onMove, { passive: true });
     let raf = 0;
     let over = false;
     const finish = (): void => {
@@ -180,7 +172,6 @@ export function playFullReveal(host: HTMLElement, r: LocationRevealRequest, gl: 
       over = true;
       cancelAnimationFrame(raf);
       window.clearTimeout(guard);
-      window.removeEventListener('pointermove', onMove);
       unwatch();
       w?.sound.stop();
       gl.destroy();
@@ -194,19 +185,13 @@ export function playFullReveal(host: HTMLElement, r: LocationRevealRequest, gl: 
     let t0 = 0;
     let covered = false;
     let arrived = false;
-    let prev = 0;
     const tick = (now: number): void => {
       if (over) return;
       if (!t0) { t0 = now; w?.sound.play(n); }
       const real = (now - t0) / 1000;
-      const dt = prev ? Math.min(0.1, (now - prev) / 1000) : 0;
-      prev = now;
       if (gl.lost || real >= total) { finish(); return; }
       const s = simOf(from + real);
-      const k = 1 - Math.exp(-dt * 8.5);
-      lean[0] += (want[0] - lean[0]) * k;
-      lean[1] += (want[1] - lean[1]) * k;
-      try { gl.draw(s, { fit, lean }); write(s); } catch (err) { console.warn('[locationReveal] stopped', err); finish(); return; }
+      try { gl.draw(s, fit); write(s); } catch (err) { console.warn('[locationReveal] stopped', err); finish(); return; }
       // It fades up over the gate's own doors, which it matches, then they can go.
       root.style.opacity = real < 0.1 ? String(real / 0.1) : '1';
       // The wave that washes the world away brings hero select in behind it.

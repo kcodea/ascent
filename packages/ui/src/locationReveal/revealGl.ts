@@ -45,9 +45,6 @@ const TRAIL_N = 1600;
 const GLOW: Partial<Record<Tribe, string>> = { dragon: '#b48cff' };
 const rgb = (hex: string): number[] => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
 
-/** One frame's free choices: the parchments, how small they are drawn (`fitOf`), and where the pointer leans. */
-export interface RevealView { fit: number; lean: readonly [number, number] }
-
 export class RevealGl {
   readonly canvas: HTMLCanvasElement;
   private readonly gl: WebGL2RenderingContext;
@@ -365,26 +362,24 @@ export class RevealGl {
 
   /** Draw each stage once, unseen (one per call); the last measures a heavy frame. Returns its ms, or null. */
   warmSteps(): (() => number | null)[] {
-    const view: RevealView = { fit: 1, lean: [0, 0] };
     const at = [START, T0 + 0.05, T0 + 0.4, T0 + 1, L - 0.4, L - 0.05, L + 0.05, L + 0.25, NAME + 0.1, POST + 0.3];
     return [
-      ...at.map((s) => (): null => { this.draw(s, view); return null; }),
+      ...at.map((s) => (): null => { this.draw(s); return null; }),
       () => this.measure(),
     ];
   }
 
   /** How long a heavy frame takes here, start to finished on the card (ms). Leaves the gate's own picture on the canvas. */
   measure(): number {
-    const view: RevealView = { fit: 1, lean: [0, 0] };
     const px = new Uint8Array(4);
     const gl = this.gl;
     const read = (): void => { gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.readPixels(this.W >> 1, this.H >> 1, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px); };
-    this.draw(L + 0.12, view); read();
+    this.draw(L + 0.12); read();
     const t = performance.now();
-    for (const s of [L + 0.1, L + 0.13, L + 0.16]) this.draw(s, view);
+    for (const s of [L + 0.1, L + 0.13, L + 0.16]) this.draw(s);
     read();
     const ms = (performance.now() - t) / 3;
-    this.draw(START, view);
+    this.draw(START);
     return ms;
   }
 
@@ -473,8 +468,8 @@ export class RevealGl {
     gl.scissor((W - w) >> 1, (H - h) >> 1, w, h);
   }
 
-  /** The reveal at sim second `s`. */
-  draw(s: number, view: RevealView): void {
+  /** The reveal at sim second `s`; `fit`: how small the parchments are drawn (`fitOf`). */
+  draw(s: number, fit = 1): void {
     if (this.lost) return;
     const { gl, loc, tex } = this;
     const { W, H } = this;
@@ -493,11 +488,10 @@ export class RevealGl {
     const outro = smoother(seg(s, outroAt(n) + 0.1, washAt(n) + WASH * 0.7)); // it softens and you step in
     const hp = heartAt(s, this.vcx, this.vcy, GEM_Y * this.gate);
     const hk = tt <= 0 || landed ? 0 : (0.55 + 0.45 * seg(tt, 0.1, 0.8) + 0.5 * inh) * seg(tt, 0.02, 0.2);
-    // The camera pushes in, slides across and rises as it arrives, then drifts; the pointer leans it a little.
-    const settled = landed ? seg(after, 0.5, 1.2) : 0;
+    // The camera pushes in, slides across and rises as it arrives, then drifts. It never follows the mouse (owner 2026-11-24).
     const push = -0.56 + 0.64 / (1 + Math.exp(-(s - L - 0.06) * 4.4)) + 0.12 * smoother(seg(s, L + 0.2, end + 0.9)) + 0.34 * outro;
     const tr = outCubic(seg(s, L - 0.4, L + 2.6));
-    const pan = [mix(-0.46, 0.04, tr) + 0.22 * smoother(seg(s, L + 0.8, end + 0.6)) + view.lean[0] * 0.15 * settled, mix(-0.26, 0.04, tr) + view.lean[1] * 0.08 * settled];
+    const pan = [mix(-0.46, 0.04, tr) + 0.22 * smoother(seg(s, L + 0.8, end + 0.6)), mix(-0.26, 0.04, tr)];
     const fw = 1.2 / (1.2 + hp[2]);
     const foc: [number, number] = landed ? [this.vp[0], this.vp[1]] : tt < 0 ? [0.5, 0.5 + GEM_Y * this.gate] : [0.5 + (hp[0] * fw) / A, 0.5 + hp[1] * fw];
 
@@ -595,7 +589,7 @@ export class RevealGl {
         const p = posterPose(i, n, s);
         if (p.enter <= 0) continue;
         const t = this.tribes[i]!;
-        const f = view.fit;
+        const f = fit;
         this.use('poster', {
           c: [p.x * f, p.y * f], sz: [POSTER_W * f, POSTER_H * f], ang: p.angle, sc: p.scale, rev: p.open, sway: p.sway, curl: p.curl, s, seed: i + 1.3,
           fade: (1 - p.out) * p.enter, tc: rgb(GLOW[t] ?? TRIBE_COLOR_DEFAULTS[t]),

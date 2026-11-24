@@ -91,6 +91,10 @@ describe('the clock', () => {
     expect(src.slice(src.indexOf('function makeWordsWriter'), src.indexOf('function watchSize'))).not.toMatch(/names[^;]*transform/);
   });
 
+  it('never follows the mouse (owner 2026-11-24)', () => {
+    for (const f of ['revealPlayer.ts', 'revealGl.ts']) expect(readFileSync(join(__dirname, f), 'utf8')).not.toMatch(/pointermove|mousemove|clientX/);
+  });
+
   it('the leaving wave spreads without ever going back and is past every corner when it is over', () => {
     const far = 1.1;
     let prev = -1;

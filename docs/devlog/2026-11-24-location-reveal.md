@@ -32,7 +32,8 @@ around `focus` (`slideFor`, never past an edge). The gate's doors keep their own
 ## Art
 
 `apps/web/public/locations/<id>/`. Both the paintings and the full backgrounds behind them (`Outskirts4kBG.jpg`,
-`Underbelly4kBG.jpg`) are the owner's, 21:9. `layer0` is his background untouched; `layer1` to `layer3` are cut from the painting
-(`.claude/location-reveal-prototype/layers12.py` in the primary checkout, untracked): closed-form matted edges, each piece's
+`Underbelly4kBG.jpg`) are the owner's, 21:9. `layer0` is the painting itself wherever nothing
+covers it and his background only behind the pieces, so nothing can go missing at rest; `layer1` to `layer3` are cut from the
+painting (`.claude/location-reveal-prototype/layers13.py` in the primary checkout, untracked): closed-form matted edges, each piece's
 colour carried out under its edge, and the ground under a piece's feet given that piece's depth so nothing slides. Sounds:
 ElevenLabs, except the gate's own cues.

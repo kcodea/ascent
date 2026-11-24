@@ -67,6 +67,10 @@ export const PATCH_NOTES: PatchNote[] = [
           'Practice now starts through the gate too.',
         ],
       },
+      {
+        category: 'Systems',
+        text: 'The gate now tells you when it is ready: the word ENTER fades in under the crystal once it can be shattered.',
+      },
     ],
   },
   {

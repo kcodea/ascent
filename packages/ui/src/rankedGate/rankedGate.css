@@ -252,6 +252,41 @@
   87%, 100% { opacity: 0; transform: scale(0.3) rotate(45deg); }
 }
 
+/* THE WORD (owner 2026-11-24: "when the crystal is formed and able to be clicked, can we have the word ENTER appear
+   with a fade in? Have it in the Ascent Title font, and in a light blue with a blue glow, have it have a far drop
+   shadow like its cast against the door and have it lightly bobbing up and down"). It sits under the crystal, placed
+   and sized in art pixels like the crystal is (`--rg-enter-dy` below the art's centre row, `--rg-enter-size` tall),
+   in the title wordmark's own face (`--title-font`). It never takes the pointer: the crystal is the button.
+   The box carries the place and the FADE (in slowly as the crystal arms, out fast on the press). The word inside
+   carries the BOB, and its light and shadow: a tight pale halo, two wider blues, and one dark copy thrown well down
+   and to the right, the way the door's own rivets are lit, so it reads as floating off the door.
+   PERF: the glow and the shadow are a STATIC text-shadow, rasterised once; the loop moves the word's transform only,
+   and the box only ever changes opacity. */
+.rgate-enter {
+  --rg-u: max(calc(50cqw / var(--rg-art-hw, 836)), calc(100cqh / var(--rg-art-h, 941)));
+  --rg-enter-dy: 178; --rg-enter-size: 62;
+  position: absolute; left: 50%; top: calc(50% + var(--rg-enter-dy) * var(--rg-u));
+  transform: translate(-50%, -50%); opacity: 0; pointer-events: none; will-change: opacity;
+  transition: opacity 0.16s ease-out;
+}
+.rgate-enter.is-on { opacity: 1; transition: opacity 0.9s ease-out 0.12s; }
+.rgate-enter-word {
+  display: block; white-space: nowrap; line-height: 1; will-change: transform;
+  font-family: var(--title-font, 'Cinzel Decorative'), 'Cinzel Decorative', serif; font-weight: var(--title-weight, 700);
+  font-size: calc(var(--rg-enter-size) * var(--rg-u)); letter-spacing: 0.14em; padding-left: 0.14em;
+  color: #c6e6ff;
+  text-shadow:
+    0 0 calc(4 * var(--rg-u)) rgba(170, 222, 255, 0.95),
+    0 0 calc(14 * var(--rg-u)) rgba(64, 150, 255, 0.9),
+    0 0 calc(32 * var(--rg-u)) rgba(40, 110, 255, 0.6),
+    calc(7 * var(--rg-u)) calc(24 * var(--rg-u)) calc(9 * var(--rg-u)) rgba(0, 0, 0, 0.66);
+}
+.rgate:is(.is-armed, .is-shatter) .rgate-enter-word { animation: rg-enter-bob 3.4s ease-in-out infinite; }
+@keyframes rg-enter-bob {
+  0%, 100% { transform: translateY(calc(-3 * var(--rg-u))); }
+  50% { transform: translateY(calc(3 * var(--rg-u))); }
+}
+
 /* SHATTER: the body is gone in a blink (the shards are the FX layer's), the light lets go. */
 .rgate.is-shatter .rgate-crystal-body { opacity: 1; }
 .rgate.is-shatter .rgate-crystal-gem { animation: rg-cry-break 130ms ease-out both; }

@@ -36,11 +36,18 @@ const CRYSTAL_SRC = `${import.meta.env.BASE_URL}frames/ranked-gate-crystal.webp`
  *
  * It renders nothing between gates. While it plays it covers the screen and takes every pointer event, so the
  * only thing that can be pressed is the crystal, and only once it is armed. The crystal is a real button: it takes
- * focus when it arms, so Enter or Space opens the gate too. Reduced motion skips the gate entirely: the swap
+ * focus when it arms, so Enter or Space opens the gate too.
+ *
+ * THE WORD (owner 2026-11-24): "ENTER" fades in under the crystal once it can be pressed, floating off the door, and
+ * goes the moment the press is taken. It is a label only: the crystal is still the one thing that can be pressed.
+ *
+ * Reduced motion skips the gate entirely: the swap
  * happens at once, with no crystal to press.
  */
 export function RankedGate(): JSX.Element | null {
   const [phase, setPhase] = useState<RankedGatePhase | null>(null);
+  /** The armed crystal has taken its press. The word under it goes at once, even while the crystal itself holds. */
+  const [pressed, setPressed] = useState(false);
   const doorsRef = useRef<HTMLDivElement | null>(null);
   const crystalRef = useRef<HTMLButtonElement | null>(null);
   /** THE LOCATION REVEAL's places: over the doors (the full one) and behind them (the light one). */
@@ -85,6 +92,7 @@ export function RankedGate(): JSX.Element | null {
       const cur = live.current;
       live.current = null;
       setPhase(null);
+      setPressed(false);
       if (cur?.opts?.reveal) dropLocationReveal(); // one that was made ready and never played
       gateFx.release(); // whatever is still drifting fades out, then the layer frees its WebGL context
       cur?.done();
@@ -110,6 +118,7 @@ export function RankedGate(): JSX.Element | null {
     const open = (): void => {
       if (!pressRef.current) return;
       pressRef.current = null;
+      setPressed(true);
       // VERSUS: the press is the player's "ready". The crystal holds (armed, no longer pressable) until the match
       // answers, then shatters onto what was swapped in, or the doors part quietly if the window closed.
       const onPress = live.current?.opts?.onPress;
@@ -327,6 +336,13 @@ export function RankedGate(): JSX.Element | null {
             </span>
             <span className="rgate-crystal-burst" aria-hidden="true" />
           </button>
+        )}
+        {/* THE WORD: in the tree from the forming on (unseen), so that arming it is a fade and not a pop. Hidden from
+            screen readers, which already have the button's own label. */}
+        {(phase === 'forming' || armed || phase === 'shatter') && (
+          <div className={`rgate-enter${armed && !pressed ? ' is-on' : ''}`} aria-hidden="true">
+            <span className="rgate-enter-word">ENTER</span>
+          </div>
         )}
       </div>
       <div className="rgate-over" ref={overRef} />

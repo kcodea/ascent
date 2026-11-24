@@ -1,96 +1,43 @@
-/* THE "GOOD LUCK" INTRO (owner ask 2026-09-24) — see GoodLuckIntro.tsx.
-   Perf contract: nothing here animates. Every motion is a WAAPI transform/opacity animation scheduled once by
-   the component; the glow (filter) and the shine's soft edge (mask) are STATIC, rasterized once per play.
-   Stacking: above the board, its HUD and the main FX overlay (.pixifx z110); BELOW the above-modal FX canvas
-   (.pixifx-above z200) so the sparks burst over the words; below the launch curtain (z480), which lifts off it. */
+/* THE "GOOD LUCK" INTRO: see GoodLuckIntro.tsx.
+   Perf contract: nothing here animates. Every motion is a WAAPI transform/opacity animation scheduled once by the component; the
+   letters' outline and glow are STATIC text shadows, rasterized once a play. The star is a canvas (luckStar.ts).
+   Stacking: above the board, its HUD and the main FX overlay (.pixifx z110); the star over the words; below the launch curtain. */
 
 .gli {
   position: fixed; inset: 0; z-index: 190;
   display: flex; align-items: center; justify-content: center;
-  pointer-events: auto; /* a click anywhere skips — and the board under it is not clickable mid-intro */
+  pointer-events: auto; /* the board under it is not clickable mid-intro */
 }
+.gli-star { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 191; pointer-events: none; }
 
-/* The dim's STRENGTH is --gli-dim on the ::after; its fade-OUT is an opacity animation on this wrapper, so the
-   tuned strength and the fade never fight over one property. Static gradient, never animated. */
-.gli-dim {
-  position: absolute; inset: 0;
-  will-change: opacity;
-}
+/* The dim's STRENGTH is --gli-dim on the ::after; its fades are an opacity animation on this wrapper. A pool of the night around the
+   words, gone before the edges: the board stays the board. Static gradient, never animated. */
+.gli-dim { position: absolute; inset: 0; will-change: opacity; }
 .gli-dim::after {
   content: ''; position: absolute; inset: 0;
-  background: radial-gradient(ellipse 70% 55% at 50% 48%, rgba(14, 9, 3, 0.82), #060402 80%);
-  opacity: var(--gli-dim, 0.72);
+  background: radial-gradient(ellipse 62% 58% at 50% 47%, rgba(5, 9, 26, 1) 0%, rgba(5, 9, 26, 0.82) 38%, rgba(5, 9, 26, 0.28) 78%, rgba(5, 9, 26, 0.12) 100%);
+  opacity: var(--gli-dim, 0.5);
 }
 
-.gli-stage {
-  position: relative;
-  opacity: 0; /* the fade-in's `fill: both` owns it from the first frame; this is the no-WAAPI resting state */
-  will-change: transform, opacity;
+.gli-stage { position: relative; will-change: transform; }
+.gli-word {
+  position: relative; display: flex; white-space: nowrap;
+  font-family: 'Cinzel', var(--title-font, 'Cinzel Decorative'), serif; font-weight: 900;
+  font-size: calc(var(--gli-size, 136) * var(--u, 1px)); line-height: 1.1;
 }
+/* A letter is energy (owner + Mike 2026-11-24: "make the gold gradient blue and remove the stroke and instead add a tight glow on the
+   edges, almost like its energy forming the word"): the crystal's blue in every location, white at its heart, its light tight on the edge; under it only
+   a soft dark, so it reads on a bright board. */
+.gli-g { position: relative; display: block; opacity: 0; margin: 0 0.035em; transform-origin: 50% 60%; will-change: transform, opacity; color: var(--en, #4cb0ff);
+  text-shadow: 0 0 0.018em color-mix(in srgb, var(--en, #4cb0ff) 25%, #fff), 0 0 0.05em color-mix(in srgb, var(--en, #4cb0ff) 75%, #fff), 0 0 0.11em var(--en, #4cb0ff), 0 0 0.26em color-mix(in srgb, var(--en, #4cb0ff) 65%, transparent), 0 0.05em 0.34em rgba(2, 8, 34, 0.85); }
+.gli-g.gap { margin-left: 0.42em; }
+.gli-core { position: absolute; left: 0; top: 0; color: transparent; text-shadow: none;
+  background: linear-gradient(180deg, #fff 14%, color-mix(in srgb, var(--en, #4cb0ff) 38%, #fff) 34%, var(--en, #4cb0ff) 56%, color-mix(in srgb, var(--en, #4cb0ff) 62%, #0a2bd0) 84%); -webkit-background-clip: text; background-clip: text; }
+.gli-hot { position: absolute; left: 0; top: 0; opacity: 0; will-change: opacity; color: #fff; pointer-events: none;
+  text-shadow: 0 0 0.04em #fff, 0 0 0.16em color-mix(in srgb, var(--en, #4cb0ff) 40%, #fff), 0 0 0.5em var(--en, #4cb0ff); }
 
-.gli-row {
-  display: flex; align-items: center;
-  gap: calc(18 * var(--u, 1px));
-}
-
-.gli-word { position: relative; white-space: nowrap; }
-
-.gli-text,
-.gli-shine-text {
-  font-family: var(--title-font, 'Cinzel Decorative'), 'Cinzel Decorative', 'Outfit', serif;
-  font-weight: var(--title-weight, 700);
-  font-size: calc(var(--gli-size, 112) * var(--u, 1px));
-  line-height: 1.1;
-  letter-spacing: 0.04em;
-  white-space: nowrap;
-}
-
-.gli-text {
-  display: block;
-  color: transparent;
-  background: linear-gradient(180deg, #fff4cf 0%, #f6d77e 38%, #d9a441 62%, #a8701c 100%);
-  -webkit-background-clip: text; background-clip: text;
-  /* STATIC glow — a warm halo + a dark lift off the board. Never animated (one rasterization per play). */
-  filter:
-    drop-shadow(0 calc(3 * var(--u, 1px)) 0 rgba(60, 34, 6, 0.95))
-    drop-shadow(0 0 calc(14 * var(--u, 1px)) rgba(255, 196, 84, 0.7))
-    drop-shadow(0 0 calc(40 * var(--u, 1px)) rgba(255, 150, 40, 0.4));
-}
-
-/* The shine: a soft-edged WINDOW that slides right over the words, holding a bright copy of them that slides
-   left by exactly as much, so the copy stays pinned to the glyphs. Both are transforms. */
-.gli-shine {
-  position: absolute; left: 0; top: 0; bottom: 0;
-  width: 1.1em; font-size: calc(var(--gli-size, 112) * var(--u, 1px));
-  overflow: hidden;
-  -webkit-mask-image: linear-gradient(100deg, transparent 0%, #000 42%, #000 58%, transparent 100%);
-  mask-image: linear-gradient(100deg, transparent 0%, #000 42%, #000 58%, transparent 100%);
-  transform: translateX(-200%); /* parked off the words until the sweep's `fill: both` takes over */
-  will-change: transform;
-  pointer-events: none;
-}
-.gli-shine-text {
-  position: absolute; left: 0; top: 0;
-  color: #fffbea;
-  text-shadow: 0 0 calc(10 * var(--u, 1px)) rgba(255, 255, 240, 0.9);
-  will-change: transform;
-}
-
-.gli-flour {
-  width: calc(260 * var(--u, 1px) * var(--gli-size, 112) / 112);
-  height: calc(48 * var(--u, 1px) * var(--gli-size, 112) / 112);
-  flex: none;
-}
-.gli-flour-r { transform: scaleX(-1); } /* the same art, mirrored — the draw-in animates the INNER wrapper */
-.gli-flour-in {
-  width: 100%; height: 100%;
-  transform-origin: 100% 50%; /* the end nearest the words: the arm draws outward from them */
-  will-change: transform, opacity;
-}
-.gli-flour-svg {
-  display: block; width: 100%; height: 100%; overflow: visible;
-  filter: drop-shadow(0 0 calc(6 * var(--u, 1px)) rgba(255, 190, 80, 0.65));
-}
+/* The ornamental arm (`Flourish`): worn by the Discover / Choose One title banner. */
+.gli-flour-svg { display: block; width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 0 calc(6 * var(--u, 1px)) rgba(255, 190, 80, 0.65)); }
 .gli-flour-line { fill: none; stroke: #e9c46a; stroke-width: 2.6; stroke-linecap: round; }
 .gli-flour-line.thin { stroke-width: 1.4; opacity: 0.75; }
 .gli-flour-fill { fill: #f3d484; }

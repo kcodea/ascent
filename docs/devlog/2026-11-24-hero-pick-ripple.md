@@ -35,3 +35,35 @@ second run's worst is 12.5 ms.
 each; only the game's five are fetched), down the right side. A press opens the Compendium on that tribe (`openBookTribe`), in the set
 that game is played with, without touching where the book opens next. In Duos the column is smaller and stops above the teammate's
 portrait. The View Compendium button stays only where there are none.
+
+## The quick Compendium (R-COMPENDIUM-QUICK-01)
+
+Two Compendiums: the full page on the menus, and in a game and at hero select an overlay (`quickBook/`) whose tabs are the parchments.
+It reuses the full book's card cells, pools, lazy mounting and search, so card text is the same live text. One grid with no tier headings
+(the cards print their stars). First build grouped by tier: two or three cards a row and a lot of empty panel.
+`MinionBook` decides which one mounts; `expandBook` is per opening. Touch keeps the full page, whose layout is the tuned one there.
+
+## Good Luck (R-GOODLUCK-STAR-01)
+
+First version: a star that hopped along the letters, which bounced, squashed and were swallowed. Owner: too cutesy. Second: no bounce at
+all. A comet (three braided ribbons, fine dust, a thin anamorphic flare) lights cut-gold letters, draws a line under them, and the
+letters leave as about 1,700 motes sampled from a drawing of the glyphs (`glyphPoints`), drawn into the crystal. One canvas
+(`luckStar.ts`), positions from the time alone; made while the lobby reveal plays. Each letter is ONE animation for its whole life.
+
+Measured: median 4.2 ms; worst 25 ms, as the words mount, before anything moves. On a fresh browser profile there is one 330 ms frame at about
+0.1 s: the lobby rail's first merged paint compiling on the GPU process (there with Good Luck removed; gone on the second run). Not
+fixed here.
+
+Then the lettering became energy (Mike's note: blue, no stroke, a tight glow, "almost like its energy forming the word"): the crystal's blue
+in every location (it took the location's hue for a moment; the owner wanted it to match the crystal), and about 1,000 motes on the letters' own edges with light running along them while the words stand.
+
+## The quick Compendium, again
+
+Refused as a box with parchments that jumped (its column was another size in another place) and lunged. Now the column is hero select's
+own, same size, same place, same clock for the sway (`PosterSheet` sets `startTime = 0`), lit by one halo that slides. The panel is the place
+gone dark, masked off at its left. The cards mount two frames after the place and a tab's page is a deferred value, so the light answers
+the press at once. Closing leaves a fading still (`fadeAway`), because the book is unmounted at once whatever closed it. Production:
+switching 25 to 33 ms worst, the first open 75 ms, median 4.2.
+
+The whole way of making a location is now written down: `docs/locations.md`, the `ascent-locations` skill, and the preparation scripts in
+`scripts/locations/` (they only existed on one machine).

@@ -40,7 +40,7 @@
    them fit between the heading and the foot; in Duos it stops above the teammate's portrait. Compositor only. */
 .hs-posters { position: fixed; z-index: 3; right: calc(26 * var(--phu, 1px) + var(--safe-r, 0px)); top: 51%; translate: 0 -50%;
   display: flex; flex-direction: column; gap: calc(6 * var(--phu, 1px)); pointer-events: none; }
-.hs-poster { pointer-events: auto; display: block; margin: 0; padding: 0; border: 0; background: none; width: calc(132 * var(--phu, 1px)); height: calc(164 * var(--phu, 1px)); color: inherit; }
+.hs-poster { position: relative; pointer-events: auto; display: block; margin: 0; padding: 0; border: 0; background: none; width: calc(132 * var(--phu, 1px)); height: calc(164 * var(--phu, 1px)); color: inherit; }
 .hs-posters.duos { top: calc(128 * var(--phu, 1px)); translate: none; gap: calc(4 * var(--phu, 1px)); }
 .hs-posters.duos .hs-poster { width: calc(94 * var(--phu, 1px)); height: calc(120 * var(--phu, 1px)); }
 /* It hangs from its top edge: a slow sway of its own, and a livelier one under the pointer. */

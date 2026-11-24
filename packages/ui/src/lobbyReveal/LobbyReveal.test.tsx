@@ -106,7 +106,7 @@ describe('the lobby reveal', () => {
     expect(turnClockMayTick({ ...shopTurn, introPlaying: goodLuckIntro.isActive() })).toBe(false);
     act(() => { vi.advanceTimersByTime(revealTimeline(LHR_DEFAULTS, 4, false).endAt + 20); });
     expect(lobbyReveal.isActive()).toBe(false);
-    expect(m.container.querySelector('.gli-text')?.textContent).toBe('Good Luck');
+    expect(m.container.querySelector('.gli-word')?.getAttribute('aria-label')).toBe('Good Luck');
     expect(goodLuckIntro.isActive()).toBe(true); // the words are up; the clock starts when they go
   });
 
@@ -139,7 +139,7 @@ describe('the lobby reveal', () => {
     act(gameStart);
     expect(lobbyReveal.isActive()).toBe(false);
     expect(m.container.querySelector('.lhr')).toBeNull();
-    expect(m.container.querySelector('.gli-text')).not.toBeNull();
+    expect(m.container.querySelector('.gli-word')).not.toBeNull();
   });
 
   it('never strands anything: with no overlay mounted the safety timer ends it', () => {

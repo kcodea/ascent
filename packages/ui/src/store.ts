@@ -937,6 +937,9 @@ interface GameStore {
   /** The tribe whose minions the Compendium opens on, and the set it shows (a parchment at hero select), or null. */
   bookTribe: { tribe: Tribe; setId: SetId } | null;
   openBookTribe: (tribe: Tribe, setId: SetId) => void;
+  /** The full Compendium was asked for from the quick one (R-COMPENDIUM-QUICK-01). */
+  bookFull: boolean;
+  expandBook: () => void;
   closeBook: () => void;
   /** Open the Compendium straight onto its Rules page (the title menu's Rules plaque). */
   openRules: () => void;
@@ -3263,9 +3266,11 @@ export const useGame = create<GameStore>((rawSet, get) => {
   showBook: false,
   bookOpensTo: 'cards',
   bookTribe: null,
-  openBookTribe: (tribe, setId) => set({ showBook: true, bookOpensTo: 'cards', bookTribe: { tribe, setId } }),
-  toggleBook: () => set((s) => ({ showBook: !s.showBook, bookOpensTo: 'cards', bookTribe: null })),
-  closeBook: () => set({ showBook: false, bookOpensTo: 'cards', bookTribe: null }),
+  bookFull: false,
+  expandBook: () => set({ bookFull: true }),
+  openBookTribe: (tribe, setId) => set({ showBook: true, bookOpensTo: 'cards', bookTribe: { tribe, setId }, bookFull: false }),
+  toggleBook: () => set((s) => ({ showBook: !s.showBook, bookOpensTo: 'cards', bookTribe: null, bookFull: false })),
+  closeBook: () => set({ showBook: false, bookOpensTo: 'cards', bookTribe: null, bookFull: false }),
   openRules: () => set({ showBook: true, bookOpensTo: 'rules' }),
   showBalance: false,
   openBalance: () => set({ showBalance: true }),

@@ -15223,7 +15223,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     title: 'C opens and closes the Compendium on the menus, in a game and on your own Hero Select',
     statement:
       'Pressing C opens the Compendium and pressing it again closes it, one press at a time, on every menu screen (the party home and its pages), '
-      + 'in a game and on your own Hero Select (the same Compendium its View Compendium button opens; Esc or Back returns to the same offer), in the desktop app as in the browser. '
+      + 'in a game and on your own Hero Select (Esc returns to the same offer; which of the two Compendiums it is: R-COMPENDIUM-QUICK-01), in the desktop app as in the browser. '
       + 'It does not open the book on the Hero Select of someone else (the stands, the choices of a Duos teammate) or once your pick is playing. A letter typed into a text field, a search box or chat stays text, '
       + 'Ctrl+C keeps copying, and a held key does not flicker the book. (The key was Tab until 2026-11-20.)',
     domain: 'foundation',
@@ -17275,7 +17275,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     title: 'At hero select the parchments of the game hang down the right side; each opens the Compendium on that tribe',
     statement:
       'Where a game has a location, hero select shows its torn parchments in one column down the right side, one for each tribe '
-      + 'of that game, in the order the reveal hung them. Pressing one opens the Compendium on the minions of that tribe, of the '
+      + 'of that game, in the order the reveal hung them. Pressing one opens the quick Compendium (R-COMPENDIUM-QUICK-01) on the minions of that tribe, of the '
       + 'set that game is played with; closing it lands back on the same offer, and where the book opens next time is not '
       + 'changed. The View Compendium button is not shown there (it stays where there are no parchments: a touch screen, a mode '
       + 'with no location). They leave with the pick, and a watched hero select has none.',
@@ -17286,6 +17286,51 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'code', ref: 'packages/ui/src/locationReveal/LocationPosters.tsx; packages/ui/src/HeroSelect.tsx; packages/ui/src/store.ts (openBookTribe)' },
     ],
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/hero-select/heroSelectCompendium.test.tsx'], lastVerifiedAt: '2026-11-24' },
+  },
+  {
+    id: 'R-COMPENDIUM-QUICK-01',
+    title: 'In a game and at hero select the Compendium is a quick overlay; the full page is the menus, one press away',
+    statement:
+      'There are two Compendiums. On the menus it is the full page. In a game and at hero select (by its key, its corner button or a '
+      + 'tribe parchment) it is the place itself opened along the right side, dark and dissolving into the game at its left (no box): the parchments of the location '
+      + 'hang there exactly where hero select hangs them and are its tabs, with Neutral, Spells and Runes in its head, and beside them are the '
+      + 'cards of the open one that this game can have, lowest tier first. The parchments do not move: one light lies behind the open one and '
+      + 'slides to the next, and its colour washes once over the page. Another '
+      + 'parchment switches; the open one, a press outside, Esc or the key closes. It has tier filters, Gilded, and one search that '
+      + 'looks through every card and rune of the game. Runes are split Basic and Epic, with a tribe filter. Full Compendium opens the '
+      + 'full page over the game, for that opening only. A touch screen, and a view only the full page has (a guide being edited), get the full page.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-24', quote: 'can we make it so that there are 2 versions of the compendium? one from the main menu view and another that is like an overlay that is more minimal and easier to navigate while in game etc? this is the version that should launch from the scrolls as well' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-24, on the first look (a box, parchments leaning out)', quote: "the side compendium and how the parchments move when you click on one of the tribes etc. it doesn't fit the vibe and isn't particularly clean either" },
+      { kind: 'code', ref: 'packages/ui/src/quickBook/QuickBook.tsx; packages/ui/src/quickBook/quickBookModel.ts; packages/ui/src/MinionBook.tsx; packages/ui/src/store.ts (bookFull, expandBook)' },
+    ],
+    currentBehaviour: 'Built 2026-11-24; its look and motion were remade the same day. The owner has not approved the new look yet.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/quickBook/quickBook.test.tsx', 'packages/ui/src/partyHome/pages/phInfoPages.test.tsx'], lastVerifiedAt: '2026-11-24' },
+  },
+  {
+    id: 'R-GOODLUCK-STAR-01',
+    title: 'Good Luck is lit by a comet off the hero of the player and goes into the End Turn crystal as dust; the clock starts as it lands',
+    statement:
+      'After the lobby reveal a comet in the blue of the crystal leaves the portrait of the player in one arc and crosses the '
+      + 'board: each letter of "Good Luck" lights white hot as it passes and settles into energy: the blue of the crystal in every location, white at its heart, '
+      + 'with a tight glow on its edge and no stroke, and light running along that edge while the words stand (no bounce, no tilt). It turns under the '
+      + 'words and draws a line of light there. At the end the letters come apart into dust, the side nearest the crystal first, and '
+      + 'the dust streams into the End Turn crystal; the overlay ends and the shop clock starts as it lands. The board is dimmed only '
+      + 'around the words. It stays short (2.7 s) and unskippable. Where the comet cannot be drawn (a phone, no WebGL 2) the letters '
+      + 'light on the same beats by themselves; with reduced motion the words fade in and out.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-24', quote: 'can you make the good luck a bit more exciting and whimsical? it feels out of place and behind the rest of the animation now' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-24, on the first version (a star and bouncing letters)', quote: "it's a BIT too like cutesty/bubbly, can you make it look a bit higher quality feeling" },
+      { kind: 'owner-chat', ref: 'Mike, relayed by the owner 2026-11-24 (Discord image)', quote: 'id probably not make it gold and instead make the gold gradient blue and remove the stroke and instead add a tight glow on othe edges almost like its energy forming the word' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-24, on it taking the hue of the location (violet in The Underbelly)', quote: 'The good luck text is purple but should be blue to match the crystal' },
+      { kind: 'code', ref: 'packages/ui/src/goodLuck/GoodLuckIntro.tsx; packages/ui/src/goodLuck/luckStar.ts; packages/ui/src/goodLuck/goodLuckIntroConfig.ts' },
+    ],
+    currentBehaviour: 'Built 2026-11-24. The owner liked the second version ("This looks incredible"); the energy lettering came after.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/goodLuck/luckStar.test.ts', 'packages/ui/src/goodLuck/GoodLuckIntro.test.tsx', 'packages/ui/src/goodLuck/goodLuckIntro.test.ts'], lastVerifiedAt: '2026-11-24' },
   },
   {
     id: 'R-SFX-STOPPED-PRESS-01',

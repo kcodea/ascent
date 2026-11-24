@@ -1,34 +1,42 @@
 import { useEffect, useLayoutEffect, useRef, type CSSProperties } from 'react';
 import { useGame } from '../store';
 import { canPlayDefs, playDef } from '../fx/playDef';
-import { sfx, type SfxHandle } from '../sfx';
+import { playTailedClip, sfx, type SfxHandle } from '../sfx';
+import { REVEAL_FLIGHT_WHOOSH, REVEAL_LOCK_SHIMMER } from '../lobbyReveal/lobbyRevealConfig';
 import { goodLuckIntro, useGoodLuckIntroActive, useGoodLuckIntroSeq } from './goodLuckIntroStore';
 import { useLobbyRevealActive } from '../lobbyReveal/lobbyRevealStore';
-import { GLI_DEFAULTS, GLI_REPLAY_EVENT, getGoodLuckIntroConfig, goodLuckTail, goodLuckTimeline } from './goodLuckIntroConfig';
+import { GLI_DEFAULTS, GLI_FADE_MS, GLI_REPLAY_EVENT, getGoodLuckIntroConfig, goodLuckTail, goodLuckTimeline } from './goodLuckIntroConfig';
+import { glyphPoints, LuckStar, passAt, type LuckScene, type LuckTimes, type Pt } from './luckStar';
 import './goodLuckIntro.css';
 
 /**
- * THE "GOOD LUCK" INTRO — the overlay (owner ask 2026-09-24).
+ * THE "GOOD LUCK" INTRO: the overlay (owner ask 2026-09-24; remade 2026-11-24, R-GOODLUCK-STAR-01).
  *
- * Mounted once in Game, just under the launch curtain. It renders nothing until `goodLuckIntro.begin()` (the
- * curtain calls it right after `pickHero` builds a lobby / Practice run), then plays ONE pass:
+ * Mounted once in Game, just under the launch curtain. It renders nothing until `goodLuckIntro.begin()` (the curtain calls it right
+ * after `pickHero` builds a lobby / Practice run), waits behind the lobby reveal, then plays ONE pass:
  *
- *   dim the live first shop  →  "Good Luck" fades and grows in, the flourishes draw outward, gold sparks burst
- *   →  a single shine sweeps the words left to right  →  hold  →  words + dim fade to the live board  →  end.
+ *   a comet of the crystal's blue leaves the player's hero in one arc  ->  crosses the board, setting "Good Luck" alight letter by
+ *   letter  ->  turns under the words and draws a line of light there; they hold  ->  they come apart into dust that streams into
+ *   the End Turn crystal: end.
  *
- * `end()` releases the shop clock (Recruit's countdown gate reads the same store), so the turn starts at full
- * time on the first frame of the live board. UNSKIPPABLE (owner 2026-10-31: "make the start game text unskippable"):
- * a click or Esc does nothing while it plays (Esc is swallowed so the menu does not open under it). It is short.
+ * `end()` releases the shop clock (Recruit's countdown gate reads the same store), so the turn starts at full time as the light
+ * reaches the crystal that counts it. UNSKIPPABLE (owner 2026-10-31: "make the start game text unskippable"): a click or Esc does nothing
+ * while it plays (Esc is swallowed so the menu does not open under it). It is short.
  *
- * Perf contract: every animation is transform / opacity on a composited layer, scheduled up front through WAAPI
- * with delays, so there is no per-frame JS at all. The glow is a STATIC filter on the words, rasterized once.
- * The shine is two counter-moving transforms (a soft-edged window sliding right over a bright copy of the words
- * sliding left by the same amount), so the bright copy stays pinned to the glyphs with no paint property
- * animated. Layout is read exactly once per play (the words' box, for the shine distance and the spark anchor).
+ * Perf contract: every DOM animation is transform / opacity on a composited layer, ONE a letter, scheduled up front through WAAPI, so
+ * there is no per-frame JS for the words; the comet's canvas is drawn from the time alone (luckStar.ts). Layout is
+ * read exactly once per play.
  */
 
 /** The committed `good-luck-intro` def's authored spark count; the tuner's count becomes an `intensity` multiplier on it. */
 const DEF_SPARKS = 70;
+const WORDS = 'Good Luck';
+const LETTERS = [...WORDS].map((ch, i) => ({ ch, gap: WORDS[i - 1] === ' ' })).filter((l) => l.ch !== ' ');
+/** How much the words have grown by the time they go (a slow push in), and how many motes of dust they are made of. */
+const GROWN = 1.03;
+const MOTES = 2200;
+/** Of those, the ones on the letters' edges, which live there while the words stand. */
+const EDGES = 1000;
 
 function prefersReducedMotion(): boolean {
   try { return typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; }
@@ -39,10 +47,15 @@ function anim(el: Element | null, frames: Keyframe[], opts: KeyframeAnimationOpt
   if (!el || typeof (el as HTMLElement).animate !== 'function') return;
   (el as HTMLElement).animate(frames, opts);
 }
+/** Offsets in order, whatever the tuner does to the beats (out of order they throw). */
+function inOrder(frames: Keyframe[]): Keyframe[] {
+  let last = 0;
+  return frames.map((f) => { last = Math.min(1, Math.max(last, f.offset ?? last)); return { ...f, offset: last }; });
+}
 
 /** One ornamental arm: a filigree line with a scroll curl at its outer end and a double chevron pointing in
- *  at the words. Drawn for the LEFT side; the right arm is the same art mirrored by its wrapper. Also worn, at
- *  heading size, by the Discover / Choose One title banner (`discoverEntrance/OfferBanner.tsx`). */
+ *  at the words. Drawn for the LEFT side; the right arm is the same art mirrored by its wrapper. Worn by the Discover /
+ *  Choose One title banner (`discoverEntrance/OfferBanner.tsx`). */
 export function Flourish(): JSX.Element {
   return (
     <svg className="gli-flour-svg" viewBox="0 0 260 48" aria-hidden="true">
@@ -75,10 +88,17 @@ export function GoodLuckIntro(): JSX.Element | null {
   const dimRef = useRef<HTMLDivElement | null>(null);
   const stageRef = useRef<HTMLDivElement | null>(null);
   const wordRef = useRef<HTMLDivElement | null>(null);
-  const shineRef = useRef<HTMLSpanElement | null>(null);
-  const shineTextRef = useRef<HTMLSpanElement | null>(null);
-  const flourLRef = useRef<HTMLDivElement | null>(null);
-  const flourRRef = useRef<HTMLDivElement | null>(null);
+  const letterRefs = useRef<(HTMLSpanElement | null)[]>([]);
+  const hotRefs = useRef<(HTMLSpanElement | null)[]>([]);
+
+  // The comet, made as soon as there is an intro to play (behind the lobby reveal), so it is ready when the words are.
+  const starRef = useRef<{ seq: number; star: LuckStar | null } | null>(null);
+  useEffect(() => {
+    if (!active) return;
+    const star = LuckStar.make();
+    starRef.current = { seq, star };
+    return () => { if (!star?.flying) star?.destroy(); if (starRef.current?.star === star) starRef.current = null; };
+  }, [active, seq]);
 
   // DEV ▶ replay from the tuner: replay over whatever board is up. Never from the title (nothing to dim).
   useEffect(() => {
@@ -116,67 +136,93 @@ export function GoodLuckIntro(): JSX.Element | null {
     const reduced = prefersReducedMotion();
     const t = goodLuckTimeline(c, reduced);
     const timers: number[] = [];
-    // The sounds are queued up front on the AUDIO clock (like the WAAPI animations), so they cannot drift from
-    // the sweep. Each ends on its own soft tail (a fade over its last few hundred ms plus a light reverb; see
-    // audio/tailFade). A skip (Esc / click / replay / leaving) fades whatever is still sounding in ~120 ms; the
-    // natural end does not touch them, so the tails ring out over the live board.
+    // The sounds are queued up front on the AUDIO clock (like the WAAPI animations), so they cannot drift from the picture. Each ends
+    // on its own soft tail. An early end (replay / leaving) fades whatever is still sounding; the natural end lets them ring out.
     const sounds: (SfxHandle | null)[] = [];
     let endedNaturally = false;
+    let star: LuckStar | null = null;
 
-    // The shine sound plays under reduced motion too: it is audio, and the words still arrive. Only the sweep's
-    // motion is dropped there, so it lands as the words finish fading in, exactly where the sweep would start.
     sounds.push(sfx.goodLuckShine(c.shineSoundGain, t.shineSoundAt, goodLuckTail(c, 'shine')));
+    if (afterReveal.current) anim(dimRef.current, [{ opacity: 0 }, { opacity: 1 }], { duration: GLI_FADE_MS, delay: t.inAt, easing: 'ease-out', fill: 'backwards' });
+    anim(dimRef.current, [{ opacity: 1 }, { opacity: 0 }], { duration: t.endAt - t.outAt, delay: t.outAt, easing: 'ease-in', fill: 'forwards' });
 
-    // The dim is already at full strength (static CSS), so the curtain lifts onto a dimmed board. It only fades OUT.
-    // After a lobby reveal the board is already lit: the dim fades in with the words instead.
-    if (afterReveal.current) anim(dimRef.current, [{ opacity: 0 }, { opacity: 1 }], { duration: c.fadeInMs, delay: t.inAt, easing: 'ease-out', fill: 'backwards' });
-    anim(dimRef.current, [{ opacity: 1 }, { opacity: 0 }], { duration: c.fadeOutMs, delay: t.outAt, easing: 'ease-in', fill: 'forwards' });
-
-    const stage = stageRef.current;
     if (reduced) {
-      anim(stage, [{ opacity: 0 }, { opacity: 1 }], { duration: c.fadeInMs, delay: t.inAt, easing: 'ease-out', fill: 'both' });
-      anim(stage, [{ opacity: 1 }, { opacity: 0 }], { duration: c.fadeOutMs, delay: t.outAt, easing: 'ease-in', fill: 'forwards' });
+      for (const el of letterRefs.current) if (el) el.style.opacity = '1';
+      anim(stageRef.current, [{ opacity: 0, easing: 'ease-out' }, { opacity: 1, offset: GLI_FADE_MS / (t.endAt - t.inAt) }, { opacity: 1, offset: 1 - GLI_FADE_MS / (t.endAt - t.inAt), easing: 'ease-in' }, { opacity: 0 }],
+        { duration: t.endAt - t.inAt, delay: t.inAt, fill: 'both' });
     } else {
-      anim(stage, [{ opacity: 0, transform: 'scale(0.9)' }, { opacity: 1, transform: 'scale(1)' }],
-        { duration: c.fadeInMs, delay: t.inAt, easing: 'cubic-bezier(0.2, 0.9, 0.3, 1.05)', fill: 'both' });
-      anim(stage, [{ opacity: 1, transform: 'scale(1)' }, { opacity: 0, transform: 'scale(1.04)' }],
-        { duration: c.fadeOutMs, delay: t.outAt, easing: 'ease-in', fill: 'forwards' });
+      const s = (ms: number): number => (ms - t.inAt) / 1000;
+      const times: LuckTimes = { write: s(t.writeAt), burst: s(t.shineAt), gather: s(t.outAt), dive: s(t.diveAt), land: s(t.endAt) };
+      const centre = (el: Element | null): Pt | null => { const r = el?.getBoundingClientRect(); return r && r.width > 0 ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : null; };
+      // The one layout read: the letters' places, the hero, the crystal.
+      const n = LETTERS.length;
+      const spots = letterRefs.current.slice(0, n).map((el) => centre(el) ?? { x: innerWidth / 2, y: innerHeight / 2 });
+      const mid = { x: innerWidth / 2, y: (spots[0]?.y ?? innerHeight / 2) };
+      const size = wordRef.current?.getBoundingClientRect().height || 130;
+      const from = centre(document.querySelector('.statusrow .hero .heroimg')) ?? { x: innerWidth * 0.1, y: innerHeight * 0.8 };
+      const to = centre(document.querySelector('.etbwrap .etb-gembox') ?? document.querySelector('.etbwrap')) ?? { x: innerWidth * 0.9, y: innerHeight * 0.5 };
+      const scene: LuckScene = {
+        from, to, letters: spots, burst: { x: mid.x, y: mid.y + size * 0.62 }, times, grown: GROWN,
+        glyphs: glyphPoints(letterRefs.current.slice(0, n).filter((el): el is HTMLSpanElement => el !== null), MOTES, EDGES), edges: EDGES,
+      };
+      anim(stageRef.current, [{ transform: 'scale(1)' }, { transform: `scale(${GROWN})` }], { duration: t.outAt - t.writeAt, delay: t.writeAt, easing: 'linear', fill: 'both' });
 
-      // The flourishes draw OUTWARD from the words (transform-origin sits on their inner end — see the CSS).
-      const drawIn = { duration: Math.round(c.fadeInMs * 1.1), delay: t.inAt + Math.round(c.fadeInMs * 0.25), easing: 'cubic-bezier(0.22, 1, 0.36, 1)', fill: 'both' as const };
-      const drawFrames = [{ opacity: 0, transform: 'scaleX(0)' }, { opacity: 1, transform: 'scaleX(1)' }];
-      anim(flourLRef.current, drawFrames, drawIn);
-      anim(flourRRef.current, drawFrames, drawIn);
-
-      // The shine: ONE layout read, for how far the window has to travel.
-      const word = wordRef.current;
-      const band = shineRef.current;
-      if (word && band) {
-        // offsetWidth, not the rect: the stage is mid-scale here, and the sweep runs at full size.
-        const w = word.offsetWidth;
-        const bw = band.offsetWidth || w * 0.3;
-        const shineOpts = { duration: c.shineMs, delay: t.shineAt, easing: 'cubic-bezier(0.45, 0, 0.3, 1)', fill: 'both' as const };
-        anim(band, [{ transform: `translateX(${-bw}px)` }, { transform: `translateX(${w}px)` }], shineOpts);
-        anim(shineTextRef.current, [{ transform: `translateX(${bw}px)` }, { transform: `translateX(${-w}px)` }], shineOpts);
+      // Each letter's whole life is ONE animation (two on one property are run by the page): alight as the comet passes, settling; and
+      // gone to dust, the side nearest the crystal first.
+      for (let i = 0; i < n; i++) {
+        const at = t.inAt + passAt(scene, spots[i]!.x) * 1000 - 30;
+        const go = t.outAt + 40 + (n - 1 - i) * 20;
+        const span = go + 190 - at;
+        const o = (ms: number): number => Math.min(1, Math.max(0, (ms - at) / span));
+        anim(letterRefs.current[i] ?? null, inOrder([
+          { opacity: 0, transform: 'translate(0, 0) scale(1.26)', offset: 0, easing: 'ease-out' },
+          { opacity: 1, transform: 'translate(0, 0) scale(1.15)', offset: o(at + 90), easing: 'cubic-bezier(0.16, 1, 0.3, 1)' },
+          { opacity: 1, transform: 'translate(0, 0) scale(1)', offset: o(at + 620) },
+          { opacity: 1, transform: 'translate(0, 0) scale(1)', offset: o(go) },
+          { opacity: 0, transform: 'translate(0.05em, -0.02em) scale(1.02)', offset: 1 },
+        ]), { duration: span, delay: at, fill: 'both' });
+        // Its light: white hot, settling; a breath of it as the line is drawn under the words; and again as it goes.
+        anim(hotRefs.current[i] ?? null, inOrder([
+          { opacity: 1, offset: 0 },
+          { opacity: 1, offset: o(at + 90), easing: 'ease-out' },
+          { opacity: 0, offset: o(Math.min(at + 620, t.shineAt)) },
+          { opacity: 0, offset: o(Math.max(at + 621, t.shineAt - 60)), easing: 'ease-out' },
+          { opacity: 0.45, offset: o(Math.max(at + 640, t.shineAt + 60)), easing: 'ease-in-out' },
+          { opacity: 0, offset: o(Math.max(at + 900, t.shineAt + 420)) },
+          { opacity: 0, offset: o(go - 60), easing: 'ease-in' },
+          { opacity: 1, offset: 1 },
+        ]), { duration: span, delay: at, fill: 'both' });
       }
+      const clip = (l: { clip: string }, gain: number, delayMs: number, rate: number, fadeOutMs: number, reverbMix: number): void => { sounds.push(playTailedClip(l.clip, 'ceremony', { gain, delayMs: Math.max(0, delayMs), rate, tail: { fadeOutMs, reverbMix, reverbSec: 0.9 } })); };
+      clip(REVEAL_FLIGHT_WHOOSH, c.whooshSoundGain, t.inAt, 0.9, 260, 0.1);
+      clip(REVEAL_FLIGHT_WHOOSH, c.whooshSoundGain, t.diveAt - 120, 1, 200, 0.1);
+      clip(REVEAL_LOCK_SHIMMER, c.landSoundGain, t.endAt, 1, 400, 0.25);
+      sounds.push(sfx.goodLuckSpark(c.sparkSoundGain, t.sparkAt, goodLuckTail(c, 'spark')));
 
-      // The sparks, off the words' centre, a beat into the fade-in so they burst as the words bloom.
+      const t0 = performance.now() + t.inAt;
+      timers.push(window.setTimeout(() => {
+        const made = starRef.current?.seq === seq ? starRef.current.star : null;
+        if (made?.ok) { star = made; made.play(scene, t0); } else made?.destroy();
+      }, Math.max(0, t.inAt - 40)));
+      // Where the star cannot be drawn the burst still throws the authored sparks.
       if (c.sparkCount > 0) {
-        sounds.push(sfx.goodLuckSpark(c.sparkSoundGain, t.sparkAt, goodLuckTail(c, 'spark')));
         timers.push(window.setTimeout(() => {
-          const el = wordRef.current;
-          if (!el || !canPlayDefs()) return;
-          const r = el.getBoundingClientRect();
-          const p = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
-          playDef('good-luck-intro', { source: p, target: p, cursor: p }, { intensity: c.sparkCount / DEF_SPARKS });
-        }, t.sparkAt));
+          if (star || !canPlayDefs()) return;
+          playDef('good-luck-intro', { source: mid, target: mid, cursor: mid }, { intensity: c.sparkCount / DEF_SPARKS });
+        }, t.shineAt));
       }
+      // The crystal takes it: a nudge of the whole button as it lands (the light is the canvas's).
+      timers.push(window.setTimeout(() => {
+        anim(document.querySelector('.etbwrap .etb-gembox'), [{ transform: 'scale(1)' }, { transform: 'scale(1.1)', offset: 0.3 }, { transform: 'scale(1)' }], { duration: 460, easing: 'ease-out', composite: 'add' });
+      }, t.endAt - 10));
     }
 
     timers.push(window.setTimeout(() => { endedNaturally = true; goodLuckIntro.end(); }, t.endAt));
     return () => {
+      if (endedNaturally) return; // what is left (the landing's light, the crystal's nudge, the tails) plays out over the live board
       for (const id of timers) window.clearTimeout(id);
-      if (!endedNaturally) for (const h of sounds) h?.stop();
+      for (const h of sounds) h?.stop();
+      star?.destroy();
     };
   }, [active, seq, waiting]);
 
@@ -193,15 +239,14 @@ export function GoodLuckIntro(): JSX.Element | null {
     <div className="gli" style={vars} role="presentation" key={seq}>
       <div className="gli-dim" ref={dimRef} />
       <div className="gli-stage" ref={stageRef}>
-        <div className="gli-row">
-          <div className="gli-flour gli-flour-l"><div className="gli-flour-in" ref={flourLRef}><Flourish /></div></div>
-          <div className="gli-word" ref={wordRef}>
-            <span className="gli-text">Good Luck</span>
-            <span className="gli-shine" ref={shineRef} aria-hidden="true">
-              <span className="gli-shine-text" ref={shineTextRef}>Good Luck</span>
+        <div className="gli-word" ref={wordRef} aria-label={WORDS}>
+          {LETTERS.map(({ ch, gap }, i) => (
+            <span key={i} className={`gli-g${gap ? ' gap' : ''}`} ref={(el) => { letterRefs.current[i] = el; }} aria-hidden="true">
+              {ch}
+              <span className="gli-core">{ch}</span>
+              <span className="gli-hot" ref={(el) => { hotRefs.current[i] = el; }}>{ch}</span>
             </span>
-          </div>
-          <div className="gli-flour gli-flour-r"><div className="gli-flour-in" ref={flourRRef}><Flourish /></div></div>
+          ))}
         </div>
       </div>
     </div>

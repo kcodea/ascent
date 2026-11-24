@@ -1746,6 +1746,28 @@ export function whisperGranterText(cardId: string, golden: boolean, run: { spell
 }
 
 /**
+ * BROOD MATRON (owner 2026-11-22, R-BROOD-01): "Avenge (2): Summon an Imp ... (Max 3 Imps per combat.)". In combat the
+ * cap counts DOWN live, "(2 Imps left this combat)", green, once this body's Avenge has summoned. The engine's count
+ * (`avengeBuffImps` on `bredCount`) is a pure function of this body's Avenge count: every `count` friendly deaths
+ * it summons `summon` Imps (x2 gilded) until `max` (x2 gilded) are spent, and both restart on a Rise / Rebirth
+ * return. `avengeSeen` is that count from the replay; undefined / too few deaths = the printed text (the Shop, or
+ * before its first Avenge). Null for a card with no capped Avenge summon.
+ */
+export function avengeSummonCapText(cardId: string, golden: boolean, avengeSeen: number | undefined): string | null {
+  const def = CARD_INDEX[cardId];
+  const eff = def?.effects.find((e) => e.do === 'avengeBuffImps' && Number(e.params?.max ?? 0) > 0);
+  if (!def || !eff) return null;
+  const g = golden ? 2 : 1;
+  const every = Math.max(1, Number(eff.params?.count ?? 3));
+  const cap = Number(eff.params?.max) * g;
+  const used = Math.min(cap, Math.floor((avengeSeen ?? 0) / every) * Number(eff.params?.summon ?? 0) * g);
+  if (used <= 0) return null;
+  const src = golden ? (def.goldenText ?? def.text) : def.text;
+  const left = cap - used;
+  return src.replace(`(Max ${cap} Imps per combat.)`, `{{(${left} ${left === 1 ? 'Imp' : 'Imps'} left this combat)}}`);
+}
+
+/**
  * IMMUNE IGGY (Set 3, 2026-10-15): "Immune while attacking. (Twice per combat)" — in combat its cap counts down LIVE,
  * one per swing (the sim spends one immune swing per attack, Bounty Bot's counter). `attacks` = this body's swings so
  * far this fight (the replay's count); undefined / 0 = the printed text (the Shop, or before its first swing).

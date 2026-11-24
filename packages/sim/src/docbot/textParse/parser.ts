@@ -799,7 +799,8 @@ function recNote(s: string): Rec | null {
 /** Whole-sentence limits: "Once per combat." / "3 times per combat." / "Usable twice per turn." / "(Twice per combat)". */
 function recLimitSentence(s: string): Rec | null {
   // "(Max 2 per hit)" — a payout cap per event (Han Gover, 2026-09-19): the same limit note, unit `per-hit`.
-  const cap = /^\(Max (\d+) per (hit|turn|combat)\.?\)\.?$/.exec(s.trim()); // "(Max 5 per combat.)" (Han Gover 2026-09-24)
+  // "(Max 5 per combat.)" (Han Gover 2026-09-24); "(Max 3 Imps per combat.)" names what is capped (Brood Matron 2026-11-22).
+  const cap = /^\(Max (\d+)(?: [A-Z][a-z]+)? per (hit|turn|combat)\.?\)\.?$/.exec(s.trim());
   if (cap) return { effect: { kind: 'note', action: 'limit', amount: { value: Number(cap[1]), unit: `per-${cap[2]}` } }, len: s.length };
   // `\.?\)?\.?` — "(Once per turn.)" keeps its full stop inside the parenthesis (Rune of the Gem Dividend, balance 9/23).
   const m = /^\(?(?:Usable )?(Once|Twice|once|twice|\d+ times|\d+ uses)(?: per (turn|combat|game|run))?\.?\)?\.?$/.exec(s.trim());

@@ -134,6 +134,7 @@ function UnitInner({ u, side, anim, framePulse, holdStep }: UnitProps) {
           : (foe ? enemyScalers?.whisperImprove : run.whisperImprove),
         whisperCastsUsed: u.whisperCastsUsed, // Whaloo: "(3 times per combat)" counts down live
         attacksMade: u.attacksMade, // Immune Iggy: "(Twice per combat)" counts down live
+        avengeSeen: u.avengeSeen, // Brood Matron: "(Max 3 Imps per combat.)" counts down live
         seedEchoes: u.seedEchoes, // Seed (Set 3): the granted Drake Pup Echo stacks
         whisperTick: u.whisperTick, // Hatcher: its Whisper's current tier
         clingEnchant: foe ? enemyScalers?.cardBuffs.cling : run.cardBuffs?.cling,

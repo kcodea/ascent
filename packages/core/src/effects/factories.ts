@@ -4572,7 +4572,14 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
 
   /** Brood Matron — Avenge (X): every X friendly deaths, summon `summon` `tokenId` Imp(s) (default none), THEN
    *  buff your Imps +atk/+hp (permanent, carried back) — summon first so the new Imp takes the buff too (owner
-   *  rework 2026-11-20). Golden doubles both the summon count and the stat gain. */
+   *  rework 2026-11-20). Golden doubles both the summon count and the stat gain.
+   *
+   *  `max` (owner 2026-11-22, R-BROOD-01: "max of 3 summons per round") caps the Imps ONE BODY summons per combat
+   *  (gilded: twice as many). Only the summon is capped: the buff below still pays on every Avenge. The count rides
+   *  `bredCount`, the per-body combat counter, so it is fresh each fight and after a Rise / Rebirth return
+   *  (`resetPerCombatLimits`, R-RETURN-RESET-01). It counts each Imp this Avenge summons, landed or lost to a full
+   *  board (an overflowed summon is still a summon), which keeps it a pure function of the Avenge count: the combat
+   *  card's "(N Imps left this combat)" reads the same arithmetic (`avengeSummonCapText`). 0 / absent = no cap. */
   avengeBuffImps: (ctx, self, params, payload) => {
     const { side, count } = payload as { side: Side; count: number };
     if (self.dead || side !== self.side) return;
@@ -4580,7 +4587,15 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const seen = avengeCountFor(self, count); // a risen body counts from its rebirth
     if (seen <= 0 || seen % every !== 0) return;
     const token = str(params.tokenId) ? ctx.getCard(str(params.tokenId)) : undefined;
-    if (token) for (let i = 0; i < num(params.summon, 0) * mul(self); i++) ctx.summon(self.side, token, self.uid);
+    if (token) {
+      let n = num(params.summon, 0) * mul(self);
+      const cap = num(params.max, 0) * mul(self);
+      if (cap > 0) {
+        n = Math.min(n, Math.max(0, cap - (self.bredCount ?? 0)));
+        self.bredCount = (self.bredCount ?? 0) + n;
+      }
+      for (let i = 0; i < n; i++) ctx.summon(self.side, token, self.uid);
+    }
     const a = num(params.attack, 3) * mul(self);
     const h = num(params.health, 2) * mul(self);
     for (const m of ctx.living(self.side)) if (ctx.getCard(m.cardId)?.imp) ctx.buff(m, a, h, self.uid);

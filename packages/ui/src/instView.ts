@@ -9,7 +9,7 @@ import {
   cryptDrakeText, drunkenOafText, aleTierText, sellDiscoverTierText, shredderText, firstShopSpellDiscountText, karthusText, engraveTallyText, escalatingCastText, guelProgressText, herzogText, hunterText, vaultkeeperText, improvingRubyGrantText, monkProgressText, overflowPerPlayedText, packLeaderText, runescaleText, scTribeBuffPerPlayedText,
   archivistText, ashenHeirText, chooseBothText, attackGrantImproveText, castSpellPerGoldText, copyCastSpellText, runeModifiedNote, runeRewrittenText, type RuneTextFlags, improvingSummonText, perCardPlayedText, rougeRogueText, perGoldSpentText, rallySpreadText, shopBuffImproveText, spellThresholdText, ritualistText, sergeantText, soulsmanText, squirlScoutText, conductorText, perPlayedTargetText, stepProgress, sporebatText, stewardText, thundeerText, summonBuffText, summonEscalatingText, summonFlatZooText, summonImproveText, sellImproveText, rubyCastGainText, summitTierText, summonScalingText, shootingStarText, shopSpellRallyText, echoTallyText,
   ancientWandererText, musterTrooperText, shopSpellGrowthText,
-  taughtSpellText, trailForagerText, transformProgressText, watcherText, withGrantedKeywords, withImpStats, spiritText, whisperGranterText, whisperCasterText, attackImmuneText, humKeepText, duosTurnCapText, seedEchoNote } from './cardText';
+  taughtSpellText, trailForagerText, transformProgressText, watcherText, withGrantedKeywords, withImpStats, spiritText, whisperGranterText, whisperCasterText, avengeSummonCapText, attackImmuneText, humKeepText, duosTurnCapText, seedEchoNote } from './cardText';
 
 /** Run-wide state + optional per-instance accruals for the live-text chain. Per-instance fields are absent
  *  (0) for a not-yet-owned shop / Discover preview — those helpers then fall back to the printed text. */
@@ -169,6 +169,9 @@ export interface LiveTextParams {
   whisperMult?: number;
   /** Whaloo (combat): Whispers this body has cast so far this fight, for its live "(N left this combat)". */
   whisperCastsUsed?: number;
+  /** Brood Matron (combat): friendly deaths this body has counted this fight (the replay's Avenge count), for its live
+   *  "(N Imps left this combat)". Undefined outside a fight. */
+  avengeSeen?: number;
 }
 
 /** A Ruby's printed sentence with its "+A/+H" grant swapped for `grant` (already `{{…}}`-wrapped when it is above
@@ -245,6 +248,7 @@ function liveCardTextCore(cardId: string, p: LiveTextParams): { text: string; go
         : whisperGranterText(c.id, p.golden, { spellsCast: p.spellsCast, rubyCasts: p.rubyCasts, whisperImprove: p.whisperImprove, whisperTick: p.whisperTick }) ?? // Set 4: Galas / Tolan print their Whisper's live value
             whisperCasterText(c.id, p.golden, p.whisperCastsUsed) ?? // Whaloo: its per-combat cap counts down live in combat
             attackImmuneText(c.id, p.golden, p.attacksMade) ?? // Immune Iggy: its immune swings count down live in combat
+            avengeSummonCapText(c.id, p.golden, p.avengeSeen) ?? // Brood Matron: its Imps left this combat
             humKeepText(c.id, p.golden, p.whisperKeptThisTurn) ?? // Hum: the keeps left this turn
             duosTurnCapText(c.id, p.golden, p.duosUsesThisTurn) ?? // Duos: Galfagan / Hippie Hulk / Bratworst uses left this turn
             transformProgressText(c.id, p.spellProgress ?? 0) ??

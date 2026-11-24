@@ -18,6 +18,7 @@ import {
   PACK_GEOM, TEX_RES, paintBlob, paintBody, paintCardFlash, paintCardGlow, paintFleck, paintPinchRing,
   paintPlainBack, paintRarityBack, paintRibbon, paintShade, paintSheen, paintSpec, paintStrip, paintStripBack,
 } from './packTextures';
+import { rarityIconSrc } from './packRarity';
 import { StripMesh, TornLip } from './stripMesh';
 
 const { W, H, BODY_H, CARD_W, CARD_H } = PACK_GEOM;
@@ -65,13 +66,36 @@ export interface Views {
 const fromCanvas = (c: HTMLCanvasElement): Texture => new Texture({ source: new CanvasSource({ resource: c }) });
 
 /**
+ * The rarity medallion arrives after the scene is up (never blocks init): the back shows the gems until it decodes, then
+ * the canvas is repainted once and the texture re-uploaded. Fires once per rarity per scene; a texture destroyed in the
+ * meantime (teardown) is left alone. No image, no decode support or a failed load keeps the gems.
+ */
+function loadBackIcon(r: CrateRarity, canvas: HTMLCanvasElement, t: Texture): void {
+  if (typeof Image === 'undefined') return;
+  const img = new Image();
+  img.onload = () => {
+    if (t.destroyed) return;
+    try {
+      paintRarityBack(r, img, canvas);
+      t.source.update();
+    } catch { /* keep the gems */ }
+  };
+  img.src = rarityIconSrc(r);
+}
+
+/**
  * Paint every texture and build the tree for a pack of `n` cards. `own` receives every texture made (the caller
  * destroys them on teardown). Not yet added to a stage.
  */
 export function buildPackViews(look: PackLook, n: number, own: (t: Texture) => void): { views: Views; tex: SceneTextures } {
   const keep = (c: HTMLCanvasElement): Texture => { const t = fromCanvas(c); own(t); return t; };
   const rarity = {} as Record<CrateRarity, Texture>;
-  for (const r of COSMETIC_RARITIES) rarity[r] = keep(paintRarityBack(r));
+  for (const r of COSMETIC_RARITIES) {
+    const canvas = paintRarityBack(r);
+    const t = keep(canvas);
+    rarity[r] = t;
+    loadBackIcon(r, canvas, t);
+  }
   const tex: SceneTextures = { plain: keep(paintPlainBack(look)), rarity };
 
   const root = new Container();

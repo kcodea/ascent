@@ -5,7 +5,8 @@
  * slot). Sizes are in canvas px at 2x the pack's base units (`PACK_GEOM`), so the scene draws them at scale 0.5.
  * Math.random is fine here (presentation only), but a tiny seeded PRNG keeps the grain identical between openings.
  */
-import { COSMETIC_RARITIES, RARITY_LABELS, type CrateRarity, type PackLook } from '@game/progression';
+import { COSMETIC_RARITIES, type CrateRarity, type PackLook } from '@game/progression';
+import { packRarityLabel } from './packRarity';
 
 /**
  * The pack's geometry in BASE units (the prototype's px; `PACK_BASE_SIZE` = W x (H + BODY_H) = 300 x 476). The scene
@@ -207,7 +208,7 @@ export function paintBody(look: PackLook, cardCount: number): HTMLCanvasElement 
   g.font = `bold ${lines.some((l) => l.length > 9) ? 46 : 60}px ${SERIF}`;
   lines.forEach((l, i) => g.fillText(l, w / 2, 500 + i * 72, w - 60));
   g.font = `22px ${SANS}`;
-  const floor = RARITY_LABELS[look.guaranteedFloor].toUpperCase();
+  const floor = packRarityLabel(look.guaranteedFloor).toUpperCase();
   g.fillText(`${cardCount} CARD${cardCount === 1 ? '' : 'S'} · 1 GUARANTEED ${floor}+`, w / 2, 680, w - 50);
   return c;
 }
@@ -330,10 +331,18 @@ export function paintPlainBack(look: PackLook): HTMLCanvasElement {
   return c;
 }
 
-/** A rarity's back: its colour, its gem count (1-5) and the ASCENT star. */
-export function paintRarityBack(rarity: CrateRarity): HTMLCanvasElement {
+/** The medallion's width on a back, as a fraction of the card width. */
+export const BACK_ICON_FRAC = 0.55;
+
+/**
+ * A rarity's back: its colour and its gem count (1-5) under the ASCENT star, or, once `icon` (the rarity medallion) has
+ * loaded, the medallion centred over the tint instead of the star and gems. `into` repaints an existing canvas in place
+ * (the scene swaps the icon in when the image arrives, then re-uploads the texture).
+ */
+export function paintRarityBack(rarity: CrateRarity, icon?: CanvasImageSource, into?: HTMLCanvasElement): HTMLCanvasElement {
   const col = PACK_RARITY_COLORS[rarity];
-  const { c, g } = canvas(CW, CH);
+  const { c, g } = into ? { c: into, g: into.getContext('2d')! } : canvas(CW, CH);
+  g.clearRect(0, 0, CW, CH);
   rr(g, 0, 0, CW, CH, CARD_R);
   const gr = g.createLinearGradient(0, 0, CW, CH);
   gr.addColorStop(0, '#1a1f3a');
@@ -361,11 +370,16 @@ export function paintRarityBack(rarity: CrateRarity): HTMLCanvasElement {
   g.strokeStyle = 'rgba(255,255,255,.35)';
   rr(g, 30, 30, CW - 60, CH - 60, 14);
   g.stroke();
-  g.fillStyle = col;
-  star(g, CW / 2, CH / 2 - 40, 110, 28);
-  g.fill();
-  // gems: one per rarity step, in a row under the star
-  const n = rarityGems(rarity), gap = 54, y = CH / 2 + 150;
+  const n = icon ? 0 : rarityGems(rarity), gap = 54, y = CH / 2 + 150;
+  if (icon) {
+    const w = CW * BACK_ICON_FRAC;
+    g.drawImage(icon, (CW - w) / 2, (CH - w) / 2 - 20, w, w);
+  } else {
+    g.fillStyle = col;
+    star(g, CW / 2, CH / 2 - 40, 110, 28);
+    g.fill();
+  }
+  // gems: one per rarity step, in a row under the star (the placeholder until the medallion loads)
   for (let k = 0; k < n; k++) {
     const x = CW / 2 + (k - (n - 1) / 2) * gap;
     g.beginPath();
@@ -381,7 +395,7 @@ export function paintRarityBack(rarity: CrateRarity): HTMLCanvasElement {
   g.textBaseline = 'alphabetic';
   g.fillStyle = col;
   g.font = `bold 40px ${SERIF}`;
-  g.fillText(RARITY_LABELS[rarity].toUpperCase(), CW / 2, CH - 70);
+  g.fillText(packRarityLabel(rarity).toUpperCase(), CW / 2, CH - 70);
   return c;
 }
 
@@ -405,7 +419,7 @@ export function paintRibbon(floor: CrateRarity): HTMLCanvasElement {
   g.textBaseline = 'middle';
   g.fillStyle = col;
   g.font = `bold 30px ${SERIF}`;
-  g.fillText(`GUARANTEED ${RARITY_LABELS[floor].toUpperCase()}+`, w / 2, h / 2 + 2, w - 70);
+  g.fillText(`GUARANTEED ${packRarityLabel(floor).toUpperCase()}+`, w / 2, h / 2 + 2, w - 70);
   return c;
 }
 

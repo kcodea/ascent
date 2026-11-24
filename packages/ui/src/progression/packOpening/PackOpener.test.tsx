@@ -215,6 +215,17 @@ describe('PackOpener', () => {
     expect(opens).toEqual([]);
   });
 
+  it('announces an ancient card as Ascendant (the internal id stays ancient)', async () => {
+    render({ reducedMotion: true });
+    click(btn('Open'));
+    const r = mk(5);
+    await settle(ok({ ...r, cards: r.cards.map((c, i) => (i === 0 ? { ...c, rarity: 'ancient' as const } : c)) }));
+    click(document.querySelector('.pkop-row')!);
+    const live = document.querySelector('.pkop-live')!.textContent;
+    expect(live).toBe('New reward, Ascendant, new');
+    expect(live).not.toContain('Ancient');
+  });
+
   it('reduced motion: Open, five flips, summary, duplicates announced, no scene created', async () => {
     render({ reducedMotion: true });
     expect(fakes).toHaveLength(0);

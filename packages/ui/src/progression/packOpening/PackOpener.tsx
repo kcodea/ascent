@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
-import { RARITY_LABELS, packDuplicateAether, type PackCard, type PackLook, type PackOpenResult } from '@game/progression';
+import { packDuplicateAether, type PackCard, type PackLook, type PackOpenResult } from '@game/progression';
 import { rectToStage, stageHost, type StageRect } from '../../stage';
 import { prefersReducedMotion } from '../CrateOpener';
 import { rewardPreview } from '../rewardPreview';
 import { createPackScene, type PackScene } from './packScene';
 import { createPackSounds, type PackSounds } from './packSounds';
+import { packRarityLabel } from './packRarity';
 import { PackFace, slotBox, warmFaceArt } from './packFaces';
 import './packOpening.css';
 
@@ -44,7 +45,7 @@ const REVEAL_ALL_RETRY_MS = 40;
 
 const cardText = (c: PackCard): string => {
   const name = rewardPreview(c.rewardId).label.name;
-  const rarity = RARITY_LABELS[c.rarity];
+  const rarity = packRarityLabel(c.rarity);
   return c.duplicate ? `${name}, ${rarity}, duplicate, +${c.duplicate.aether} Aether` : `${name}, ${rarity}, new`;
 };
 

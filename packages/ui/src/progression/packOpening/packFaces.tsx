@@ -1,7 +1,8 @@
 import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactElement } from 'react';
-import { RARITY_LABELS, type PackCard } from '@game/progression';
+import type { PackCard } from '@game/progression';
 import { stageViewport, type StageRect } from '../../stage';
 import { rewardPreview, type RewardEmblem } from '../rewardPreview';
+import { packRarityLabel, rarityIconSrc } from './packRarity';
 import { FLIP_HALF_GUARANTEED_MS, FLIP_HALF_MS, FLIP_PERSPECTIVE_PER_WIDTH } from './cardFlip';
 
 /**
@@ -179,7 +180,10 @@ export function PackFace({ card, phase, from, slot }: PackFaceProps) {
         </div>
         <div className="pkf-name">{p.label.name}</div>
         {p.category === null && <div className="pkf-note">{p.label.kind}</div>}
-        <div className="pkf-ribbon"><span>{RARITY_LABELS[card.rarity]}</span></div>
+        <div className="pkf-ribbon">
+          <img src={rarityIconSrc(card.rarity)} alt="" decoding="sync" draggable={false} className="pkf-rarity-icon" />
+          <span>{packRarityLabel(card.rarity)}</span>
+        </div>
         {card.duplicate
           ? (
             <div className="pkf-dup">
@@ -202,14 +206,15 @@ export function warmFaceArt(cards: readonly PackCard[]): HTMLImageElement[] {
   const seen = new Set<string>();
   const held: HTMLImageElement[] = [];
   for (const c of cards) {
-    const url = rewardPreview(c.rewardId).art?.url;
-    if (!url || seen.has(url)) continue;
-    seen.add(url);
-    const img = new Image();
-    img.decoding = 'sync';
-    img.src = url;
-    if (typeof img.decode === 'function') img.decode().catch(() => undefined);
-    held.push(img);
+    for (const url of [rewardPreview(c.rewardId).art?.url, rarityIconSrc(c.rarity)]) {
+      if (!url || seen.has(url)) continue;
+      seen.add(url);
+      const img = new Image();
+      img.decoding = 'sync';
+      img.src = url;
+      if (typeof img.decode === 'function') img.decode().catch(() => undefined);
+      held.push(img);
+    }
   }
   return held;
 }

@@ -59,8 +59,10 @@
 .pkf-name { font-family: var(--font-cardname); font-size: 21px; font-weight: 800; line-height: 1.1; text-align: center; max-width: 100%;
   overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .pkf-note { font-size: 12px; opacity: 0.75; text-align: center; }
-.pkf-ribbon { margin-top: auto; }
-.pkf-ribbon > span { display: block; padding: 4px 18px; border-radius: 4px; font-size: 12px; font-weight: 900; letter-spacing: 0.26em; text-transform: uppercase;
+.pkf-ribbon { margin-top: auto; display: flex; align-items: center; gap: 6px; }
+/* The medallion is 32px in a ribbon about 24px tall: the negative margin keeps the row's height, the icon overhangs. */
+.pkf-rarity-icon { flex: none; width: 32px; height: 32px; margin: -4px 0; object-fit: contain; pointer-events: none; }
+.pkf-ribbon > span { display: block; flex: 1; text-align: center; padding: 4px 18px; border-radius: 4px; font-size: 12px; font-weight: 900; letter-spacing: 0.26em; text-transform: uppercase;
   color: #fff; background: linear-gradient(180deg, color-mix(in srgb, var(--rc) 70%, #fff) 0%, var(--rc) 45%, color-mix(in srgb, var(--rc) 60%, #000) 100%);
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6); }
 .r-ancient .pkf-ribbon > span { background: var(--rc-grad); }

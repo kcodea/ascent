@@ -50,7 +50,7 @@ describe('PackFace', () => {
 
   it('an emblem category renders its emblem and no img', () => {
     m = mount(<PackFace card={card('alpha_tester')} phase="featured" />);
-    expect(face().querySelector('img')).toBeNull();
+    expect(face().querySelector('.pkf-art img')).toBeNull();
     const svg = face().querySelector('.pkf-emblem svg')!;
     expect(svg).toBeTruthy();
     expect(face().querySelector('.pkf-emblem')!.getAttribute('data-emblem')).toBe('title');
@@ -59,7 +59,7 @@ describe('PackFace', () => {
 
   it('an unknown reward renders the update-the-game face', () => {
     m = mount(<PackFace card={card('no_such_reward')} phase="featured" />);
-    expect(face().querySelector('img')).toBeNull();
+    expect(face().querySelector('.pkf-art img')).toBeNull();
     expect(face().querySelector('.pkf-emblem')!.getAttribute('data-emblem')).toBe('unknown');
     expect(face().querySelector('.pkf-name')!.textContent).toBe('New reward');
     expect(face().textContent).toContain('Update the game to see it');
@@ -83,6 +83,16 @@ describe('PackFace', () => {
     expect(face().classList.contains('pkf-glow')).toBe(false);
     m.render(<PackFace card={card('alpha_tester', { rarity: 'epic' })} phase="featured" />);
     expect(face().classList.contains('pkf-glow')).toBe(false);
+  });
+
+  it('the ribbon carries the rarity medallion (decorative, decoding="sync") and Ancient reads Ascendant', () => {
+    m = mount(<PackFace card={card('alpha_tester', { rarity: 'ancient' })} phase="featured" />);
+    const icon = face().querySelector('.pkf-ribbon img')!;
+    expect(icon.getAttribute('decoding')).toBe('sync');
+    expect(icon.getAttribute('alt')).toBe('');
+    expect(icon.getAttribute('src')).toContain('medallions/ascent_rarity_ancient.webp');
+    expect(face().querySelector('.pkf-ribbon')!.textContent).toBe('Ascendant');
+    expect(face().textContent).not.toContain('Ancient');
   });
 
   it('no title attribute and no inline cursor style', () => {
@@ -136,8 +146,9 @@ describe('warmFaceArt', () => {
     HTMLImageElement.prototype.decode = function (this: HTMLImageElement) { decoded.push(this.src); return Promise.resolve(); };
     try {
       const held = warmFaceArt([card('skin_albus_1'), card('alpha_tester'), card('emote_hi'), card('no_such_reward')]);
-      expect(held).toHaveLength(2);
-      expect(decoded).toHaveLength(2);
+      // two art faces + the one shared rarity medallion (all four cards are rare)
+      expect(held).toHaveLength(3);
+      expect(decoded).toHaveLength(3);
       for (const img of held) expect(img.decoding).toBe('sync');
     } finally {
       HTMLImageElement.prototype.decode = orig;

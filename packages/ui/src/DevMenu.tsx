@@ -127,6 +127,7 @@ import { TooltipTuner } from './TooltipTuner';
 import { ScreenWipeTuner } from './ScreenWipeTuner';
 import { PhonePopTuner } from './PhonePopTuner';
 import { CrystalFuseTuner } from './CrystalFuseTuner';
+import { GateEnterTuner } from './GateEnterTuner';
 import { RuneforgeLookTuner } from './RuneforgeLookTuner';
 import { OpponentsBackplateTuner } from './OpponentsBackplateTuner';
 import { RuneSheenTuner } from './RuneSheenTuner';
@@ -237,6 +238,7 @@ const GROUPS: Group[] = [
       { key: 'cratefx', icon: '🎁', label: 'Chest opening', C: CrateFxTuner, hint: 'The crate opening in the Collection: anticipation, charge, burst, reveal and settle per rarity, particle counts, shake, flash, rays, colours and the sound cues. Has ▶ Play buttons per rarity (practice crates, never the server), Replay, Slow server, Failure, Open all and 1x / 0.5x / 0.25x speed. Also the Unlock everything (dev) switch: own every Collection item on this client only, off = your real account', alt: 'crate open chest loot reward reveal collection rarity common rare epic legendary burst charge rays sound unlock everything all owned store skins titles dev override' },
       { key: 'runesheen', icon: '💠', label: 'Rune Nodes', C: RuneSheenTuner, hint: 'The owned-rune node row — size/position + per-node nudges — and the glossy sheen over them', alt: 'rune sheen quest node badge row' },
       { key: 'titlelogo', icon: '🏔️', label: 'Title Logo', C: TitleLogoTuner, hint: 'The main-menu peak mark + ASCENT wordmark — size, spacing, and position', alt: 'main menu title wordmark' },
+      { key: 'gateenter', icon: '🚪', label: 'Gate: ENTER word', C: GateEnterTuner, hint: 'The word under the crystal of the ranked gate: its place on the door, size, added glow (amount, blur, colour) and the colour and tint of the word itself. "Show gate" shuts the gate so you can see it', alt: 'ranked gate door crystal enter label text' },
       { key: 'titleveil', icon: '🌒', label: 'Title Veil', C: TitleVeilTuner, hint: 'The dark navy gradient behind the main menu — colour, intensity and the bowed clear zone over the floating city', alt: 'main menu background darken vignette overlay' },
       { key: 'portraitframes', icon: '⭕', label: 'Portrait frames', C: PortraitFrameTuner, hint: 'The ring every hero portrait wears: hero select, your shop and combat portrait, the opponent in combat and Now Facing, the lobby rail, the end screen, Career, the Hall, Rankings, Recent Games and match details. Pick Your frame and a frame for opponents (or Same for everyone), then fit it: frame scale, portrait scale and x/y offset, globally or per frame. Live preview at three sizes and Copy JSON', alt: 'portrait frame ring hero avatar border bronze silver gold platinum diamond ascendant rank ranked reward cosmetic' },
       { key: 'tooltips', icon: '💬', label: 'Tooltips', C: TooltipTuner, hint: 'The one shared tooltip look: title, body, pill and one-line text sizes, line height, max width and padding, live on every tooltip in the game. Pinned samples and Copy values', alt: 'tooltip tip hover text size font readable bubble popover' },

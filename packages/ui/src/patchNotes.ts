@@ -68,6 +68,10 @@ export const PATCH_NOTES: PatchNote[] = [
           'In Versus and Duos it plays for everyone at once, and the hero clock waits until it is over.',
         ],
       },
+      {
+        category: 'Systems',
+        text: 'The gate now tells you when it is ready: the word ENTER fades in under the crystal once it can be shattered.',
+      },
     ],
   },
   {

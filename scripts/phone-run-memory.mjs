@@ -348,6 +348,8 @@ try {
   await sleep(4000);
   await sample('heroselect');
   await snap('heroselect');
+  // THE LOCATION REVEAL (2026-11-24) plays over hero select: nothing there can be tapped until the gate is gone.
+  for (let i = 0; i < 60 && await evaluate(c, `!!document.querySelector('.rgate')`); i++) await sleep(500);
   const picked = await tap(c, '.herocard.big');
   // A finer trail right after the pick (2026-10-23: the iPhone died 'after selecting a hero, when the animation should
   // play'). Each sample itself takes a moment, so the labels are the wait before it, not exact wall-clock marks.

@@ -33,9 +33,9 @@ const fx = vi.hoisted(() => ({
 }));
 vi.mock('./gateFx', () => ({ gateFx: fx }));
 const rev = vi.hoisted(() => ({
-  warm: vi.fn(), drop: vi.fn(), ready: vi.fn<() => Promise<unknown>>(), full: vi.fn(), light: vi.fn(),
+  warm: vi.fn(), drop: vi.fn(), ready: vi.fn<() => Promise<unknown>>(), full: vi.fn(), light: vi.fn(), stop: vi.fn(),
 }));
-vi.mock('../locationReveal/revealPlayer', () => ({ warmLocationReveal: rev.warm, dropLocationReveal: rev.drop, readyReveal: rev.ready, playFullReveal: rev.full, playLightReveal: rev.light }));
+vi.mock('../locationReveal/revealPlayer', () => ({ warmLocationReveal: rev.warm, dropLocationReveal: rev.drop, readyReveal: rev.ready, playFullReveal: rev.full, playLightReveal: rev.light, stopLocationReveal: rev.stop }));
 const snd = vi.hoisted(() => ({ gate: vi.fn(), warmGate: vi.fn(), gateHum: vi.fn() }));
 vi.mock('../sfx', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../sfx')>();
@@ -43,7 +43,7 @@ vi.mock('../sfx', async (importOriginal) => {
 });
 
 import { RankedGate, warmRankedGate } from './RankedGate';
-import { cancelRankedGate, registerRankedGate, requestRankedGate, resetRankedGateForTests } from './rankedGateController';
+import { cancelRankedGate, rankedGateInFlight, registerRankedGate, requestRankedGate, resetRankedGateForTests } from './rankedGateController';
 import {
   RANKED_GATE_ART, RANKED_GATE_CRYSTAL_BODY, RANKED_GATE_CRYSTAL_GROW, RANKED_GATE_TIMING, rankedGateCloseTimeline, rankedGateCrystalAt,
   rankedGateCrystalGrowth, rankedGateCssVars, rankedGateOpenTimeline,
@@ -735,6 +735,43 @@ describe('the location reveal through the gate', () => {
     await flush();
     expect(phaseOf()).toBeNull();
     expect(done).toHaveBeenCalledTimes(1);
+  });
+
+  it('a live match that ends under it cuts it short, and the next gate waits its turn', async () => {
+    let end!: () => void;
+    rev.ready.mockResolvedValue({});
+    rev.full.mockImplementation((_h: unknown, _r: unknown, _g: unknown, onCovered: () => void) => { onCovered(); return new Promise<void>((r) => { end = r; }); });
+    rev.stop.mockImplementation(() => end());
+    toArmed({ reveal });
+    pressCrystal();
+    await flush();
+    expect(phaseOf()).toBe('reveal');
+    const gate = rankedGateInFlight();
+    expect(gate).not.toBeNull();
+    const after = vi.fn();
+    void gate!.then(after);
+    act(() => cancelRankedGate());
+    expect(rev.stop).toHaveBeenCalledTimes(1);
+    await flush();
+    await flush();
+    expect(phaseOf()).toBeNull();
+    expect(after).toHaveBeenCalledTimes(1);
+    expect(rankedGateInFlight()).toBeNull();
+  });
+
+  it('a live match that ends while it is being made ready opens the doors quietly, with no reveal', async () => {
+    let ready!: (v: unknown) => void;
+    rev.ready.mockImplementation(() => new Promise((r) => { ready = r; }));
+    toArmed({ reveal });
+    pressCrystal();
+    await flush();
+    act(() => cancelRankedGate());
+    ready({});
+    await flush();
+    expect(rev.full).not.toHaveBeenCalled();
+    expect(phaseOf()).toBe('opening');
+    advance(rankedGateOpenTimeline().endAt + 10);
+    expect(phaseOf()).toBeNull();
   });
 
   it('no location: the doors open exactly as before', async () => {

@@ -41,6 +41,14 @@ export function warmLocationReveal(loc: LocationDef): void {
   warm = { id: loc.id, gl: light ? null : prepareReveal(loc), sound: loadRevealSound(loc.id), art };
 }
 
+/** Ends the reveal on screen, if there is one. */
+let endNow: (() => void) | null = null;
+
+/** Cut the reveal on screen short: it fades off what is behind it (a live match that ended under it). */
+export function stopLocationReveal(): void {
+  endNow?.();
+}
+
 /** Let go of a reveal that was made ready and will not play (the gate opened quietly). */
 export function dropLocationReveal(): void {
   const w = warm;
@@ -170,6 +178,7 @@ export function playFullReveal(host: HTMLElement, r: LocationRevealRequest, gl: 
     const finish = (): void => {
       if (over) return;
       over = true;
+      endNow = null;
       cancelAnimationFrame(raf);
       window.clearTimeout(guard);
       unwatch();
@@ -200,9 +209,18 @@ export function playFullReveal(host: HTMLElement, r: LocationRevealRequest, gl: 
       raf = requestAnimationFrame(tick);
     };
     root.style.opacity = '0';
+    endNow = () => {
+      endNow = null;
+      window.setTimeout(finish, STOP_MS);
+      w?.sound.stop();
+      root.animate?.([{ opacity: 1 }, { opacity: 0 }], { duration: STOP_MS, fill: 'forwards' });
+    };
     raf = requestAnimationFrame(tick);
   });
 }
+
+/** How long a reveal that is cut short takes to fade. */
+const STOP_MS = 260;
 
 /** Where the leaving wave starts on screen, and when it reaches a point. */
 function waveFrom(root: HTMLElement, gl: RevealGl, stagePx: number, n: number): ArriveFrom {
@@ -259,11 +277,13 @@ export function playLightReveal(under: HTMLElement, r: LocationRevealRequest, pa
     later(LIGHT.name, () => { words.title.classList.add('on'); });
     posters.forEach((e, i) => later(LIGHT.posters + i * LIGHT.step, () => { e.classList.add('on'); words.names[i]!.classList.add('on'); }));
     const total = lightSeconds(n);
+    const finish = (): void => { endNow = null; timers.forEach((t) => window.clearTimeout(t)); unwatch(); w?.sound.stop(); root.remove(); resolve(); };
+    endNow = () => { endNow = null; timers.forEach((t) => window.clearTimeout(t)); root.classList.add('off'); timers.push(window.setTimeout(finish, LIGHT.fade * 1000)); };
     later(total - LIGHT.fade, () => {
       root.classList.add('off');
       const box = root.getBoundingClientRect();
       arriveHeroSelect({ x: box.left + box.width / 2, y: box.top + box.height / 2, delayMs: (px) => 120 + (px / Math.max(1, box.height)) * 380 });
     });
-    later(total, () => { timers.forEach((t) => window.clearTimeout(t)); unwatch(); w?.sound.stop(); root.remove(); resolve(); });
+    later(total, finish);
   });
 }

@@ -6,9 +6,11 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { SETS } from '@game/content';
-import { DEFAULT_PRACTICE_CONFIG, type PracticeConfig } from '@game/sim';
+import { DEFAULT_PRACTICE_CONFIG, runTribesForSeed, VERSUS_HERO_SELECT_SECONDS, VERSUS_REVEAL_SECONDS, type PracticeConfig } from '@game/sim';
+import { versusHeroSelectMs } from '@game/sim/versus/server';
 import { LOCATIONS, locationName, locationOfSet, POSTER_NAME, postersFor } from './locations';
 import { pendingLocation, pendingReveal, practiceLocation } from './pendingLocation';
+import { versusHeroClock, versusLocation, versusReveal } from './versusReveal';
 import { showOf, slideFor, stageHeight } from './revealGl';
 import { revealCues } from './revealSound';
 import { A, fitOf, HOLD, L, NAME, outroAt, POST, posterName, posterPose, posterRest, postDone, realOf, revealSeconds, simEnd, simOf, START, T0, washAt, washR, washReach } from './revealTimeline';
@@ -52,6 +54,40 @@ describe('the locations', () => {
     expect(r?.location.id).toBe('underbelly');
     expect(r?.tribes).toEqual(['undead', 'spirit']);
     expect(pendingReveal({ pendingMode: 'practice', pendingSeed: undefined, practiceDraft: cfg() })).toBeNull();
+  });
+});
+
+describe('the live modes (owner 2026-11-24, R-LOCATION-03)', () => {
+  const full = versusHeroSelectMs('set2');
+  const at = (over: Partial<Parameters<typeof versusReveal>[0]> = {}) => versusReveal({ setId: 'set2', runSeed: 5, phase: 'hero_select', paused: false, remainingMs: full, ...over });
+
+  it('the match is played at the location of its set, with the tribes of that player', () => {
+    expect(versusLocation('set2')?.id).toBe('outskirts');
+    expect(versusLocation('set3')?.id).toBe('underbelly');
+    for (const s of ['set1', 'nonsense', null, undefined]) expect(versusLocation(s)).toBeNull();
+    expect(at()?.location.id).toBe('outskirts');
+    expect(at()?.tribes).toEqual(postersFor(LOCATIONS.outskirts, runTribesForSeed(5, 'set2')));
+  });
+
+  it('the server\'s own seconds for it cover the longest reveal and what it may wait for, so the pick keeps its 20', () => {
+    for (const l of Object.values(LOCATIONS)) {
+      expect(revealSeconds(l.posters.length) + 0.9).toBeLessThanOrEqual(VERSUS_REVEAL_SECONDS);
+      expect(versusHeroSelectMs(l.setId)).toBe((VERSUS_HERO_SELECT_SECONDS + VERSUS_REVEAL_SECONDS) * 1000);
+    }
+    expect(versusHeroSelectMs('set1')).toBe(VERSUS_HERO_SELECT_SECONDS * 1000);
+  });
+
+  it('it never eats the pick clock: a server without the extra seconds, a late arrival, a pause or a later phase skip it', () => {
+    expect(at({ remainingMs: VERSUS_HERO_SELECT_SECONDS * 1000 })).toBeNull();
+    expect(at({ remainingMs: full - 6000 })).toBeNull();
+    expect(at({ remainingMs: full - 1500 })).not.toBeNull();
+    for (const o of [{ remainingMs: null }, { paused: true }, { phase: 'shop' }, { setId: 'set1' }]) expect(at(o)).toBeNull();
+  });
+
+  it('the clock face waits at 20 through it', () => {
+    expect(versusHeroClock(full)).toEqual({ shownMs: 20_000, holdMs: full - 20_000 });
+    expect(versusHeroClock(20_000)).toEqual({ shownMs: 20_000, holdMs: 0 });
+    expect(versusHeroClock(7000)).toEqual({ shownMs: 7000, holdMs: 0 });
   });
 });
 

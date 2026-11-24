@@ -31,6 +31,7 @@ import { heroSelectEyebrow } from './hero-select/heroSelectEyebrow';
 import { HeroPowerLine } from './hero-select/HeroPowerLine';
 import { locationArt } from './locationReveal/locations';
 import { pendingLocation } from './locationReveal/pendingLocation';
+import { versusLocation } from './locationReveal/versusReveal';
 import './locationReveal/locationReveal.css';
 import { ArmorMedal, HealthMedal } from './menuIcons';
 import { mdBold } from './Card';
@@ -101,7 +102,6 @@ export function HeroSelect({ watch }: { watch?: HeroSelectWatch } = {}) {
   const watchOfferKey = watch ? watch.frame.offer.join('|') : null;
   const watchOffer = useMemo(() => (watch ? [...watch.frame.offer] : null), [watchOfferKey]);
   const choices = watch ? watchOffer : ownChoices;
-  const location = useGame((s) => (watch || s.heroChoices === null ? null : pendingLocation(s)));
   // SKINS: the heroes you can pick wear the skins you have equipped for them.
   const loadout = useLiveLoadout();
   // The portrait-frames tuner's ring (null = today's rounded gold card frame). With one on, the card goes round.
@@ -109,6 +109,10 @@ export function HeroSelect({ watch }: { watch?: HeroSelectWatch } = {}) {
   const openTitle = useGame((s) => s.openTitle);
   const ownMode = useGame((s) => s.pendingMode);
   const mode = watch ? watch.frame.mode : ownMode;
+  // WHERE THE GAME IS PLAYED: a live match's location is its set's (a watched screen's too), any other game's its own.
+  const ownLocation = useGame((s) => (watch || s.heroChoices === null ? null : pendingLocation(s)));
+  const matchSet = useVersus((s) => s.match?.set_id ?? null);
+  const location = mode === 'versus' ? versusLocation(matchSet) : ownLocation;
   const profile = useGame((s) => s.profile);
   // THE PARTY HOME LOOK (DEV switch, off by default): the same screen and behaviour in the shell's language.
   const ph = usePartyHome() && !!HeroSelectPhSkin;

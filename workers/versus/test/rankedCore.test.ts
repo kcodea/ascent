@@ -7,7 +7,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { HEROES, type PreparedCombatSide } from '@game/sim';
-import { engineContentRevision, VERSUS_HERO_SELECT_SECONDS, VERSUS_PROTOCOL } from '@game/sim/versus/server';
+import { engineContentRevision, versusHeroSelectMs, VERSUS_PROTOCOL } from '@game/sim/versus/server';
 import { parseDuosHistory } from '@game/sim/versus/duosHistory';
 import { DISCONNECT_GRACE_MS, newRoomState, RoomCore, turnSeconds, type CoreDeps, type CoreEffects, type CoreState } from '../src/core/roomCore';
 import { memberBoard, RANKED_AWAY_GRACE_MS, RANKED_DEAL_FALLBACK_MS, type RankedService } from '../src/core/rankedMatch';
@@ -276,7 +276,7 @@ describe('Ranked Duos room (Cloudflare) — absence, leaving, the end', () => {
     await h.advance(RANKED_DEAL_FALLBACK_MS);
     expect(h.r.r.dealt).toBe('fallback');
     expect(h.r.g.priv.p1!.hero_offer).toHaveLength(3);
-    expect(h.g.hero_deadline).toBe(h.now + VERSUS_HERO_SELECT_SECONDS * 1000);
+    expect(h.g.hero_deadline).toBe(h.now + versusHeroSelectMs(h.g.set_id));
     for (const u of [U1, U2]) await h.op(u, 'pick_hero', { matchId: h.id, index: 0 });
     for (const u of [U1, U2]) await h.op(u, 'intro_done', { matchId: h.id });
     await lock(h, U1, MID);

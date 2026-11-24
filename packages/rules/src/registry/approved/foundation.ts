@@ -17181,9 +17181,26 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'code', ref: 'packages/ui/src/locationReveal (revealTimeline.ts, revealGl.ts, revealPlayer.ts, revealSound.ts, heroArrive.ts); packages/ui/src/rankedGate/RankedGate.tsx (breakThrough)' },
     ],
     currentBehaviour:
-      'Built 2026-11-24 from the owner-approved prototype. Not yet in Versus, Duos or the party modes: those gates and hero '
-      + 'selects are unchanged until the owner asks. The parallax pieces are cut from the owner\'s paintings, '
+      'Built 2026-11-24 from the owner-approved prototype. The live modes are R-LOCATION-03. The parallax pieces are cut from the owner\'s paintings, '
       + 'over his own full backgrounds.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/locationReveal/locationReveal.test.ts', 'packages/ui/src/rankedGate/rankedGate.test.tsx'], lastVerifiedAt: '2026-11-24' },
+  },
+  {
+    id: 'R-LOCATION-03',
+    title: 'Versus, Versus Group, Versus Duos and Ranked Duos open at their location too, without costing pick time',
+    statement:
+      'The entry gate of every live mode (Versus 1v1, Group, Duos and Ranked Duos) plays the same location reveal, for the '
+      + 'set the match is played with and that player\'s own tribes. Every player\'s crystal breaks as the match is made, so '
+      + 'it plays for all of them together. The server adds the reveal\'s own seconds in front of the 20 second Hero Select '
+      + 'clock, whose face waits at 20 until they are over. A player who would lose pick time to it (an older server, a late '
+      + 'arrival, a pause) does not get it. If the match ends under it, it is cut short and the player goes back to the room. '
+      + 'Hero select, a teammate\'s and a watched one included, stands over the same blurred painting.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-24, of "Versus, Duos and party modes don\'t have the reveal."', quote: 'can we add this to these modes too?' },
+      { kind: 'code', ref: 'packages/ui/src/locationReveal/versusReveal.ts; packages/ui/src/versus/versusStore.ts (driveGates, playVersusEndGate); packages/sim/src/versus/server.ts (versusHeroSelectMs); workers/versus/src/core' },
+    ],
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/locationReveal/locationReveal.test.ts', 'packages/ui/src/rankedGate/rankedGate.test.tsx', 'workers/versus/test/rankedCore.test.ts'], lastVerifiedAt: '2026-11-24' },
   },
 ];

@@ -22,7 +22,7 @@ import {
   type RankedDuosSeatStore,
 } from '@game/sim/versus/server';
 import { buildDuosHistory, duosBoardOfSide, duosBoardOfSnapshot, type DuosHistoryRecord } from '@game/sim/versus/duosHistory';
-import { VERSUS_HERO_SELECT_SECONDS } from '@game/sim/versus/server';
+import { versusHeroSelectMs } from '@game/sim/versus/server';
 import { dealGroupOffers, GroupEngine, GSEATS, type GOutReason, type GroupHost, type GroupState, type GSeat, type GSeatRow } from './groupMatch';
 
 const SHOP_GRACE_MS = 250;
@@ -248,7 +248,7 @@ export class RankedEngine extends GroupEngine {
     for (const s of this.m.seats) this.rh.touchPriv(s.seat);
     this.r.deal_by = null;
     this.r.dealt = how;
-    this.m.hero_deadline = this.rh.now() + VERSUS_HERO_SELECT_SECONDS * 1000;
+    this.m.hero_deadline = this.rh.now() + versusHeroSelectMs(this.m.set_id);
     this.rh.event('dealt', { how });
     this.touch();
   }

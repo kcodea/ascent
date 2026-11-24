@@ -67,6 +67,22 @@ describe('PackFace', () => {
     expect(face().querySelector('.pkf-cat')!.textContent).toBe('Title');
   });
 
+  it('the cosmetic type sits just above the rarity in its colour, and a card plate is cropped from its top like the Collection tile (owner 2026-11-24)', () => {
+    m = mount(<PackFace card={card('plate_blossom')} phase="featured" />);
+    expect(face().querySelector('.pkf-ribbon')!.previousElementSibling!.classList.contains('pkf-cat')).toBe(true);
+    expect(/\.pkf-cat \{[^}]*\}/.exec(readFileSync(join(__dirname, 'packOpening.css'), 'utf8'))![0]).toMatch(/color: var\(--rc\)/);
+    expect(face().querySelector('.pkf-art')!.previousElementSibling).toBeNull(); // the window opens with the art
+    expect(face().querySelector('.pkf-art img.pkf-img-plate')).toBeTruthy();
+    const css = readFileSync(join(__dirname, 'packOpening.css'), 'utf8');
+    const rule = /\.pkf-img-plate \{[^}]*\}/.exec(css)![0];
+    expect(rule).toMatch(/object-fit: cover/);
+    expect(rule).toMatch(/object-position: 50% 0/);
+    m.unmount();
+    m = mount(<PackFace card={card('alpha_tester')} phase="featured" />); // a title: the same place
+    expect(face().querySelector('.pkf-ribbon')!.previousElementSibling!.classList.contains('pkf-cat')).toBe(true);
+    expect(face().querySelectorAll('.pkf-cat')).toHaveLength(1);
+  });
+
   it('an announcer shows the painted Announcers medallion in the window, not a drawn icon', () => {
     m = mount(<PackFace card={card('announcer_lemon')} phase="featured" />);
     const art = face().querySelector('.pkf-art')!;

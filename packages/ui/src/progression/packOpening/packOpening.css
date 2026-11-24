@@ -137,21 +137,30 @@
 @keyframes pkf-holo-sweep-row { from { transform: translate(-22%, -12%); } to { transform: none; } }
 .pkf-hover { pointer-events: auto; }
 @media (prefers-reduced-motion: reduce) { .pkf-holo-sweep, .pkf-holo-sweep-row { animation: none; } .pkf-holo-move { transition: none; } }
-/* The category sits under the plate's notch, between two short gold rules. */
-.pkf-cat { display: flex; align-items: center; gap: 13px; white-space: nowrap; font-size: 19px; font-weight: 800; letter-spacing: 0.24em; text-transform: uppercase;
-  color: var(--gold-lt); }
-.pkf-cat::before, .pkf-cat::after { content: ''; width: 29px; height: 2px; background: var(--gold); opacity: 0.8; }
+/* The category sits at the bottom, just above the rarity, in the rarity's colour, between two short rules of it. It takes
+   the free space above (margin-top: auto), so the pair hugs the bottom. */
+.pkf-cat { margin-top: auto; display: flex; align-items: center; gap: 13px; white-space: nowrap; font-size: 19px; font-weight: 800; letter-spacing: 0.24em; text-transform: uppercase;
+  color: var(--rc); text-shadow: 0 2px 3px rgba(0, 0, 0, 0.8); }
+/* The rules beside it are POINTED (owner 2026-11-24, as the website's dividers): each tapers to a point away from the word
+   and fades as it goes. Static paint. */
+.pkf-cat::before, .pkf-cat::after { content: ''; width: 62px; height: 4px; }
+.pkf-cat::before { background: linear-gradient(90deg, transparent, var(--rc)); clip-path: polygon(0 50%, 100% 0, 100% 100%); }
+.pkf-cat::after { background: linear-gradient(90deg, var(--rc), transparent); clip-path: polygon(0 0, 100% 50%, 0 100%); }
 /* The art window: framed in the plate's gold. The NEW chip and the DUPLICATE stamp sit on it. */
 .pkf-art { position: relative; flex: none; width: 100%; height: 330px; display: flex; align-items: center; justify-content: center;
   border-radius: 16px; overflow: hidden; background: #091226; /* the plate's own navy, SOLID: the foil never shows through the preview (owner 2026-11-24) */
   box-shadow: 0 0 0 2px var(--gold), 0 0 0 5px color-mix(in srgb, var(--gold) 22%, transparent), inset 0 0 35px rgba(0, 0, 0, 0.7); }
 .pkf-img { max-width: 100%; max-height: 100%; object-fit: contain; pointer-events: none; }
 .pkf-img-hero, .pkf-img-minion { width: 100%; height: 100%; object-fit: cover; }
+/* A card plate fills the window's width from its top, so about half of it shows, fading out at the bottom: the Collection
+   tile's crop (collectionPh.css `.phc-tile.arttop`; owner 2026-11-24: "so only half of it is showing"). */
+.pkf-img-plate { width: 100%; height: 100%; max-width: none; max-height: none; object-fit: cover; object-position: 50% 0;
+  -webkit-mask-image: linear-gradient(180deg, #000 62%, transparent 98%); mask-image: linear-gradient(180deg, #000 62%, transparent 98%); }
 .pkf-emblem { width: 176px; height: 176px; color: var(--rc); }
 .pkf-emblem svg { display: block; width: 100%; height: 100%; }
 .pkf-medal { display: block; width: 100%; height: 100%; object-fit: contain; pointer-events: none; user-select: none; }
 /* A TITLE: no window. Its medallion over its own badge (TitleBadge, sized by this font-size), filling down to the rarity. */
-.pkf-art-bare { flex: 1 1 auto; height: auto; flex-direction: column; gap: 26px; overflow: visible; background: none; box-shadow: none; }
+.pkf-art-bare { flex: 1 1 auto; height: auto; flex-direction: column; gap: 22px; overflow: visible; background: none; box-shadow: none; }
 .pkf-art-bare .pkf-emblem { width: 150px; height: 150px; }
 .pkf-title.titlebadge { --tb-fs: 23px; max-width: 100%; }
 /* A hero skin in the portrait ring it wears in a game; an attack animation's sandbox fills the window. */
@@ -163,10 +172,10 @@
 /* THE RARITY (owner 2026-11-24): its name in the rarity's colour with a drop shadow, no pill, centred at the bottom of the
    window; its medallion sits ON the card's bottom edge, centred (a child of the card, outside the window's clip). The
    label's bottom margin clears the medallion's top half. */
-.pkf-ribbon { margin-top: auto; margin-bottom: 14px; width: 100%; display: flex; justify-content: center; }
+.pkf-ribbon { margin-top: -5px; margin-bottom: 22px; width: 100%; display: flex; justify-content: center; }
 .pkf-ribbon > span { display: block; text-align: center; font-size: 24px; line-height: 1.1; font-weight: 900; letter-spacing: 0.26em; text-indent: 0.26em; text-transform: uppercase;
   color: var(--rc); text-shadow: 0 3px 4px rgba(0, 0, 0, 0.85), 0 0 2px rgba(0, 0, 0, 0.9); }
-.pkf-rarity-icon { position: absolute; left: 50%; bottom: -4px; width: 72px; height: 72px; margin-left: -36px; object-fit: contain; pointer-events: none;
+.pkf-rarity-icon { position: absolute; left: 50%; bottom: -11px; width: 86px; height: 86px; margin-left: -43px; object-fit: contain; pointer-events: none;
   filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.6)); }
 .pkf-new { position: absolute; top: 13px; right: 13px; padding: 3px 14px; border-radius: 999px; font-size: 18px; font-weight: 900; letter-spacing: 0.14em;
   text-transform: uppercase; color: #12160c; background: var(--gold-lt); box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6); }

@@ -335,6 +335,7 @@ export function PackFace({ card, phase, from, slot, slow = 1, still = false }: P
 
   // A title wears its own badge in place of the art window and the name line.
   const isTitle = p.emblem === 'title';
+  const cat = categoryLabel(p.label.kind, p.category !== null);
   const cls = `pkf r-${card.rarity} pkf-${phase}${placed ? ' pkf-placed' : ''}${glow ? ' pkf-glow' : ''}${follow.handlers ? ' pkf-hover' : ''}`;
   return (
     <div
@@ -366,7 +367,6 @@ export function PackFace({ card, phase, from, slot, slow = 1, still = false }: P
           </div>
         )}
         <div className="pkf-win">
-          <div className="pkf-cat">{categoryLabel(p.label.kind, p.category !== null)}</div>
           <div className={`pkf-art${isTitle ? ' pkf-art-bare' : ''}`}>
             <FaceArt card={card} p={p} lands={lands} phase={phase} still={still} />
             {card.duplicate
@@ -380,6 +380,8 @@ export function PackFace({ card, phase, from, slot, slow = 1, still = false }: P
           </div>
           {!isTitle && <div className="pkf-name">{p.label.name}</div>}
           {p.category === null && <div className="pkf-note">{p.label.kind}</div>}
+          {/* what kind of cosmetic it is, just above its rarity and in the rarity's colour (owner 2026-11-24) */}
+          <div className="pkf-cat">{cat}</div>
           {/* the rarity, in its colour, centred at the bottom; its medallion sits on the card's bottom edge (below) */}
           <div className="pkf-ribbon"><span>{packRarityLabel(card.rarity)}</span></div>
         </div>

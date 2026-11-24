@@ -4,7 +4,7 @@ import {
 import type { PackCard } from '@game/progression';
 import { stageViewport, type StageRect } from '../../stage';
 import { rewardPreview, type RewardEmblem } from '../rewardPreview';
-import { CARD_PLATE_SRC, packRarityLabel, rarityIconSrc } from './packRarity';
+import { CARD_PLATE_SRC, cardPlateSrc, packRarityLabel, rarityIconSrc } from './packRarity';
 import {
   FLIP_HALF_GUARANTEED_MS, FLIP_HALF_MS, FLIP_LIFT, FLIP_LIFT_GUARANTEED, FLIP_PERSPECTIVE_PER_WIDTH, PILE_MAX_H, REVEAL_FACE_X,
   REVEAL_Y, REVEALED_SCALE,
@@ -316,7 +316,7 @@ export function PackFace({ card, phase, from, slot, slow = 1, still = false }: P
             style={{ opacity: faceGlowOpacity(card.rarity, getPackFeel().cardGlow) }}
           />
         )}
-        <img src={CARD_PLATE_SRC} alt="" decoding="sync" draggable={false} className="pkf-plate" />
+        <img src={cardPlateSrc(card.rarity)} alt="" decoding="sync" draggable={false} className="pkf-plate" />
         {/* the foil is the card's BACKGROUND: over the plate's window, under the item, the text and the rarity */}
         {holo > 0 && (
           <div className="pkf-holo" data-testid="pkf-holo" style={{ opacity: Math.min(1, holo) }}>
@@ -367,7 +367,7 @@ export function warmFaceArt(cards: readonly PackCard[]): HTMLImageElement[] {
   const seen = new Set<string>();
   const held: HTMLImageElement[] = [];
   for (const c of cards) {
-    for (const url of [CARD_PLATE_SRC, rewardPreview(c.rewardId).art?.url, rarityIconSrc(c.rarity)]) {
+    for (const url of [cardPlateSrc(c.rarity), rewardPreview(c.rewardId).art?.url, rarityIconSrc(c.rarity)]) {
       if (!url || seen.has(url)) continue;
       seen.add(url);
       const img = new Image();

@@ -29,7 +29,7 @@ import { packArtFor, packShineFor } from './packArt';
 import { packGlowRarity } from './packGlow';
 import { packHoloHue, packHoloStrength } from './packHolo';
 import { makeHoloMaterial, makeHoloMesh, type HoloMesh, type HoloUniformValues } from './packHoloMesh';
-import { CARD_PLATE_SRC, rarityIconSrc } from './packRarity';
+import { CARD_PLATE_SRC, cardPlateSrc, rarityIconSrc } from './packRarity';
 import { StripMesh, TornLip } from './stripMesh';
 
 const { W, H, BODY_H, CARD_W, CARD_H } = PACK_GEOM;
@@ -122,8 +122,8 @@ function bodyGridMesh(body: MeshPlane, base: Float32Array, uvs: Float32Array, te
 }
 
 /**
- * The back art that arrives after the scene is up (never blocks init): the card plate (every back's frame) and each
- * rarity's medallion. Each back paints a fallback first (a gold frame, the gems); when an image decodes, every back that
+ * The back art that arrives after the scene is up (never blocks init): the gold card plate (the plain back's frame), each
+ * rarity's own plate and medallion. Each back paints a fallback first (a gold frame, the gems); when an image decodes, every back that
  * uses it is repainted in place once and its texture re-uploaded. A texture destroyed in the meantime (teardown) is left
  * alone. No image support or a failed load keeps the fallback.
  */
@@ -166,9 +166,11 @@ export function buildPackViews(look: PackLook, n: number, own: (t: Texture) => v
     const slot = back((art, into) => { paintRarityBack(r, art, into); });
     rarity[r] = slot.tex;
     loadImage(rarityIconSrc(r), (img) => { slot.art.icon = img; repaint(slot); });
+    // each rarity's own plate (packRarity.ts cardPlateSrc): the same plate its face wears, so the flip matches
+    loadImage(cardPlateSrc(r), (img) => { slot.art.plate = img; repaint(slot); });
   }
   const plain = back((art, into) => { paintPlainBack(look, art, into); });
-  loadImage(CARD_PLATE_SRC, (img) => { for (const b of backs) { b.art.plate = img; repaint(b); } });
+  loadImage(CARD_PLATE_SRC, (img) => { plain.art.plate = img; repaint(plain); });
   const glowWhite = keep(paintCardGlow());
   const glowAncient = keep(paintCardGlow(ANCIENT_GLOW_STOPS));
   const burstRaysTex = { legendary: keep(paintBurstRays(BURST.legendary.rays)), ancient: keep(paintBurstRays(BURST.ancient.rays)) };

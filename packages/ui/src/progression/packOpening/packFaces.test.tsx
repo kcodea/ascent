@@ -30,7 +30,8 @@ vi.mock('./packSounds', () => ({
 }));
 
 import { FLIP_LIFT, FLIP_LIFT_GUARANTEED, PILE_MAX_H, REVEAL_STACK_X, REVEALED_SCALE } from './cardFlip';
-import { CARD_PLATE_SRC, FACE_H, FACE_W, PackFace, SLOT_X, SLOT_Y, edgePose, facePose, warmFaceArt } from './packFaces';
+import { cardPlateSrc } from './packRarity';
+import { FACE_H, FACE_W, PackFace, SLOT_X, SLOT_Y, edgePose, facePose, warmFaceArt } from './packFaces';
 import { PackOpener, type PackOpenerProps, type PackOpenOutcome } from './PackOpener';
 import type { PackSceneEvents } from './packScene';
 
@@ -137,8 +138,9 @@ describe('PackFace', () => {
       m = mount(<PackFace card={card(id)} phase="featured" />);
       const plate = face().querySelector('img.pkf-plate')!;
       expect(plate, id).toBeTruthy();
-      expect(plate.getAttribute('src')).toBe(CARD_PLATE_SRC);
-      expect(plate.getAttribute('src')).toContain('packs/cosmetic-card-plate.webp');
+      // the face wears its rarity's own plate, the same one its Pixi back wore (owner 2026-11-24: "it should serve as both")
+      expect(plate.getAttribute('src')).toBe(cardPlateSrc('rare'));
+      expect(plate.getAttribute('src')).toContain('packs/card-plate-rare.webp');
       expect(plate.getAttribute('decoding')).toBe('sync');
       expect(plate.getAttribute('alt')).toBe('');
       const win = face().querySelector('.pkf-win')!;
@@ -427,10 +429,10 @@ describe('warmFaceArt', () => {
     HTMLImageElement.prototype.decode = function (this: HTMLImageElement) { decoded.push(this.src); return Promise.resolve(); };
     try {
       const held = warmFaceArt([card('skin_albus_1'), card('alpha_tester'), card('emote_hi'), card('no_such_reward')]);
-      // the card plate (once) + two art faces + the one shared rarity medallion (all four cards are rare)
+      // the rare plate (once) + two art faces + the one shared rarity medallion (all four cards are rare)
       expect(held).toHaveLength(4);
       expect(decoded).toHaveLength(4);
-      expect(held.filter((img) => img.src.includes('packs/cosmetic-card-plate.webp'))).toHaveLength(1);
+      expect(held.filter((img) => img.src.includes('packs/card-plate-rare.webp'))).toHaveLength(1);
       for (const img of held) expect(img.decoding).toBe('sync');
     } finally {
       HTMLImageElement.prototype.decode = orig;

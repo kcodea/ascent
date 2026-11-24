@@ -13,5 +13,14 @@ export const rarityIconSrc = (r: CrateRarity): string => `${import.meta.env.BASE
  */
 export const CARD_PLATE_SRC = `${import.meta.env.BASE_URL}packs/cosmetic-card-plate.webp`;
 
+/**
+ * The owner's rarity card plates (owner 2026-11-24, `Reference Art/Card - <Rarity> Rarity.png`, 1024 x 1536 webp): the
+ * card plate recoloured per rarity, the same geometry exactly (window and outer edge), "it should serve as both": a
+ * card's rarity back in Pixi (`packTextures.ts paintRarityBack`) and its face's frame (`packFaces.tsx`), so the flip
+ * turns one plate over. The plain back, worn before the result arrives, keeps the gold `CARD_PLATE_SRC`.
+ * `card-plate-secret.webp` ships beside them: a Secret plate supplied for later, unused (no Secret rarity yet).
+ */
+export const cardPlateSrc = (r: CrateRarity): string => `${import.meta.env.BASE_URL}packs/card-plate-${r}.webp`;
+
 /** What the pack opening calls a rarity: every ribbon, back, summary line and announcement goes through here. */
 export const packRarityLabel = (r: CrateRarity): string => RARITY_LABELS[r];

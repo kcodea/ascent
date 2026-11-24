@@ -20,7 +20,7 @@
  *    always show. Your own card always shows your own everything.
  */
 import { useEffect, useState } from 'react';
-import { DEFAULT_HERO_ID } from '@game/sim';
+import { DEFAULT_HERO_ID, RANK_SEASON, initialRankedProfile, isRankPosition, type RankPosition } from '@game/sim';
 import { parseCosmeticSnapshot, titleName, type RunCosmeticSnapshot } from '@game/progression';
 import type { CardView } from '../Card';
 import { avatarSrc } from '../art';
@@ -39,6 +39,8 @@ export interface SeatServerData {
   favoriteHero?: string;
   /** `profiles.equipped_title_id` (live). */
   titleId?: string;
+  /** The seat's Seasonal Ranked standing (`profiles.rank_*`, readable by every client); absent = unknown / never ranked. */
+  rank?: RankPosition;
 }
 
 /** Everything one seat card shows, already through the opponent-cosmetics switch. */
@@ -52,6 +54,8 @@ export interface PlayerCardSource {
   /** The cosmetic snapshot the card wears (skins + plate), null = default art and the standard plate. */
   cosmetics: RunCosmeticSnapshot | null;
   record: VersusRecord | null;
+  /** Their Seasonal Ranked standing, null = unknown or never ranked. */
+  rank: RankPosition | null;
 }
 
 /** The id a player card carries. Not a card in any set, so no def, art or tuner entry is ever found for it. */
@@ -89,22 +93,24 @@ export function seatCardSource(args: {
   showOpp: boolean;
   server: SeatServerData | undefined;
   /** Your live values (read only when `own`). */
-  self?: { avatar: string | null; titleId: string | null; cosmetics: RunCosmeticSnapshot | null };
+  self?: { avatar: string | null; titleId: string | null; cosmetics: RunCosmeticSnapshot | null; rank?: RankPosition | null };
 }): PlayerCardSource {
   const { member, own, showOpp, server, self } = args;
   const profile = member.profile ?? {};
   const roomAvatar = typeof profile.avatar === 'string' && profile.avatar ? profile.avatar : null;
   const roomCos = parseCosmeticSnapshot(profile.cosmetics) ?? null;
   const base = { userId: member.userId, name: member.displayName, favoriteHero: server?.favoriteHero ?? null, record: server?.record ?? null };
+  const serverRank = server?.rank ?? null;
   if (own) {
     return {
       ...base,
+      rank: self && 'rank' in self ? self.rank ?? null : serverRank,
       avatar: self?.avatar ?? server?.avatar ?? roomAvatar,
       titleId: self ? self.titleId : server?.titleId ?? roomCos?.title ?? null,
       cosmetics: self ? self.cosmetics : roomCos,
     };
   }
-  return { ...base, avatar: server?.avatar ?? roomAvatar, titleId: server?.titleId ?? roomCos?.title ?? null, cosmetics: showOpp ? roomCos : null };
+  return { ...base, rank: serverRank, avatar: server?.avatar ?? roomAvatar, titleId: server?.titleId ?? roomCos?.title ?? null, cosmetics: showOpp ? roomCos : null };
 }
 
 // ── the reads ────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -138,6 +144,18 @@ async function fetchRecords(ids: readonly string[]): Promise<Map<string, VersusR
   return rpc && !rpc.error ? parseVersusRecords(rpc.data) : new Map();
 }
 
+/** One `profiles` row's rank columns as a position. Never ranked (no division) = null; a row from another season reads
+ *  as the fresh-season start (the rule `rankedProfileOfRow` in remoteBoards applies). */
+export function seatRankOfRow(r: Record<string, unknown>): RankPosition | null {
+  if (typeof r.rank_division !== 'number' && r.rank_season !== RANK_SEASON) return null;
+  if (r.rank_season !== RANK_SEASON) {
+    const p = initialRankedProfile().position;
+    return { divisionIndex: p.divisionIndex, points: p.points };
+  }
+  const pos = { divisionIndex: r.rank_division, points: r.rank_points };
+  return isRankPosition(pos) ? { divisionIndex: pos.divisionIndex, points: pos.points } : null;
+}
+
 /** Live avatar, title and favourite hero from `profiles` (a server without a column reads without it). */
 async function fetchProfiles(ids: readonly string[]): Promise<Map<string, Omit<SeatServerData, 'record'>>> {
   const out = new Map<string, Omit<SeatServerData, 'record'>>();
@@ -148,17 +166,26 @@ async function fetchProfiles(ids: readonly string[]): Promise<Map<string, Omit<S
     timeout(READ_TIMEOUT_MS, null),
   ]);
   try {
-    // `avatar` only while this client may read it (column grants: `canReadProfileAvatar`); a refusal settles it.
-    let res = canReadProfileAvatar() ? await read('user_id, favorite_hero, equipped_title_id, avatar') : null;
-    noteProfileAvatarRead(res?.error);
-    if (!res || res.error) res = await read('user_id, favorite_hero, equipped_title_id');
+    // `avatar` only while this client may read it (column grants: `canReadProfileAvatar`); a refusal settles it. The
+    // rank columns ride the first reads; a server that refuses them falls back to the avatar/title reads below. A
+    // refusal on the avatar+rank read is only blamed on the avatar once the rank-only read proves the rank is fine.
+    const RANK = 'rank_season, rank_division, rank_points';
+    const BASE = 'user_id, favorite_hero, equipped_title_id';
+    const first = canReadProfileAvatar() ? await read(`${BASE}, avatar, ${RANK}`) : null;
+    let res = first && !first.error ? first : await read(`${BASE}, ${RANK}`);
+    if (first?.error && res && !res.error) noteProfileAvatarRead(first.error);
+    if (!res || res.error) {
+      res = canReadProfileAvatar() ? await read(`${BASE}, avatar`) : null;
+      noteProfileAvatarRead(res?.error);
+    }
+    if (!res || res.error) res = await read(BASE);
     if (!res || res.error) res = await read('user_id, favorite_hero');
     if (!res || res.error || !Array.isArray(res.data)) return out;
     for (const r of res.data as unknown as Array<Record<string, unknown>>) {
       if (typeof r.user_id !== 'string') continue;
       const s = (v: unknown): string | undefined => (typeof v === 'string' && v ? v : undefined);
-      const fav = s(r.favorite_hero), title = s(r.equipped_title_id), avatar = s(r.avatar);
-      out.set(r.user_id, { ...(fav ? { favoriteHero: fav } : {}), ...(title ? { titleId: title } : {}), ...(avatar ? { avatar } : {}) });
+      const fav = s(r.favorite_hero), title = s(r.equipped_title_id), avatar = s(r.avatar), rank = seatRankOfRow(r);
+      out.set(r.user_id, { ...(fav ? { favoriteHero: fav } : {}), ...(title ? { titleId: title } : {}), ...(avatar ? { avatar } : {}), ...(rank ? { rank } : {}) });
     }
   } catch { /* default art, no title */ }
   return out;
@@ -166,7 +193,8 @@ async function fetchProfiles(ids: readonly string[]): Promise<Map<string, Omit<S
 
 const sameSeatData = (a: SeatServerData, b: SeatServerData): boolean =>
   a.avatar === b.avatar && a.favoriteHero === b.favoriteHero && a.titleId === b.titleId
-  && a.record?.wins === b.record?.wins && a.record?.losses === b.record?.losses;
+  && a.record?.wins === b.record?.wins && a.record?.losses === b.record?.losses
+  && a.rank?.divisionIndex === b.rank?.divisionIndex && a.rank?.points === b.rank?.points;
 
 /** The last answer per player, so a refresh never flashes the numbers back to 0. */
 const seatCache = new Map<string, SeatServerData>();

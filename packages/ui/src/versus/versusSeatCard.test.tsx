@@ -20,13 +20,16 @@ const backend = vi.hoisted(() => ({
   profiles: [] as unknown[],
   rpcCalls: 0,
   lastArgs: null as unknown,
+  refuseRank: false,
+  selects: [] as string[],
 }));
 vi.mock('../remoteBoards', async (orig) => {
   const real = await orig<typeof import('../remoteBoards')>();
   const query = () => {
     const q = {
-      select: () => q, in: () => q, eq: () => q, or: () => q,
-      limit: () => Promise.resolve({ data: backend.profiles, error: null }),
+      select: (cols?: string) => { q.cols = cols ?? ''; backend.selects.push(q.cols); return q; }, in: () => q, eq: () => q, or: () => q,
+      cols: '',
+      limit: () => Promise.resolve(backend.refuseRank && q.cols.includes('rank_division') ? { data: null, error: { code: '42703', message: 'no column' } } : { data: backend.profiles, error: null }),
     };
     return q;
   };
@@ -44,9 +47,9 @@ const { AVATAR_ART, avatarSrc } = await import('../art');
 const { heroArt } = await import('../art');
 const { useGame } = await import('../store');
 const { setIdentity } = await import('../identity');
-const { DEFAULT_HERO_ID } = await import('@game/sim');
+const { DEFAULT_HERO_ID, RANK_SEASON, initialRankedProfile } = await import('@game/sim');
 const { VersusPlayerCard } = await import('./VersusPlayerCard');
-const { fetchSeatData, parseVersusRecords, playerCardArt, playerCardView, resetSeatCacheForTests, seatCardSource, useSeatData } = await import('./versusSeatCard');
+const { fetchSeatData, parseVersusRecords, playerCardArt, playerCardView, resetSeatCacheForTests, seatCardSource, seatRankOfRow, useSeatData } = await import('./versusSeatCard');
 
 const TITLE_ID = Object.keys(TITLES)[0]!;
 const TITLE = TITLES[TITLE_ID]!.name;
@@ -54,11 +57,11 @@ const AVATAR = AVATAR_ART[0]!.id;
 const PLATE = { cardPlate: 'plate_aquarium_rocks', title: TITLE_ID };
 const member = (profile: Record<string, unknown> = {}) => ({ userId: 'them', displayName: 'Orangez', profile, role: 'p2' as const, lastSeenAt: '' });
 
-afterEach(() => { setIdentity(null); useGame.setState({ showOpponentSkins: true }); resetSeatCacheForTests(); backend.records = []; backend.rpcError = null; backend.profiles = []; backend.rpcCalls = 0; });
+afterEach(() => { setIdentity(null); useGame.setState({ showOpponentSkins: true }); resetSeatCacheForTests(); backend.records = []; backend.rpcError = null; backend.profiles = []; backend.rpcCalls = 0; backend.refuseRank = false; backend.selects = []; });
 
 describe('a player card says who they are and how they do in Versus', () => {
   it('wins are the Attack, losses the Health, the title the text, the name the name line', () => {
-    const v = playerCardView({ userId: 'u', name: 'LEMON', avatar: null, favoriteHero: null, titleId: TITLE_ID, cosmetics: null, record: { wins: 12, losses: 7 } });
+    const v = playerCardView({ userId: 'u', name: 'LEMON', avatar: null, favoriteHero: null, titleId: TITLE_ID, cosmetics: null, record: { wins: 12, losses: 7 }, rank: null });
     expect(v.attack).toBe(12);
     expect(v.health).toBe(7);
     expect(v.text).toBe(TITLE);
@@ -68,15 +71,15 @@ describe('a player card says who they are and how they do in Versus', () => {
   });
 
   it('fallbacks: no record reads 0 / 0, no title prints no text, an unknown title prints none', () => {
-    expect(playerCardView({ userId: 'u', name: 'x', avatar: null, favoriteHero: null, titleId: null, cosmetics: null, record: null })).toMatchObject({ attack: 0, health: 0, text: '' });
-    expect(playerCardView({ userId: 'u', name: 'x', avatar: null, favoriteHero: null, titleId: 'title_from_the_future', cosmetics: null, record: null }).text).toBe('');
+    expect(playerCardView({ userId: 'u', name: 'x', avatar: null, favoriteHero: null, titleId: null, cosmetics: null, record: null, rank: null })).toMatchObject({ attack: 0, health: 0, text: '' });
+    expect(playerCardView({ userId: 'u', name: 'x', avatar: null, favoriteHero: null, titleId: 'title_from_the_future', cosmetics: null, record: null, rank: null }).text).toBe('');
   });
 
   it('the art: the chosen profile picture, else the favourite hero (the Leaderboard fallback), else the default hero', () => {
     expect(playerCardArt({ avatar: AVATAR, favoriteHero: 'indy', cosmetics: null })).toBe(avatarSrc(AVATAR));
     expect(playerCardArt({ avatar: null, favoriteHero: 'indy', cosmetics: null })).toBe(heroArt('indy'));
     expect(playerCardArt({ avatar: 'minion:not_a_card', favoriteHero: null, cosmetics: null })).toBe(heroArt(DEFAULT_HERO_ID));
-    expect(playerCardView({ userId: 'u', name: 'x', avatar: null, favoriteHero: null, titleId: null, cosmetics: null, record: null }).artUrl).toBe(heroArt(DEFAULT_HERO_ID));
+    expect(playerCardView({ userId: 'u', name: 'x', avatar: null, favoriteHero: null, titleId: null, cosmetics: null, record: null, rank: null }).artUrl).toBe(heroArt(DEFAULT_HERO_ID));
   });
 
   it("an opponent's skins and plate show only through Show opponent cosmetics (their avatar and title always); yours always", () => {
@@ -239,5 +242,40 @@ describe('the stands: spectators as a hand of player cards (owner 2026-10-16)', 
     for (const m of css.matchAll(/\.vsbcard:hover \.vsbcard-(?:hit|hitup|band)\s*\{([^}]*)\}/g)) expect(m[1]).not.toMatch(/top|left|width|height|background|filter|shadow/);
     const room = css.slice(css.indexOf('.vsvignette'), css.indexOf('/* Controls on the game'));
     expect(room).not.toMatch(/animation\s*:/);
+  });
+});
+
+describe('every seat carries its rank (the showcase card)', () => {
+  it('seatRankOfRow: the live season reads as it is', () => {
+    expect(seatRankOfRow({ rank_season: RANK_SEASON, rank_division: 7, rank_points: 40 })).toEqual({ divisionIndex: 7, points: 40 });
+  });
+  it('seatRankOfRow: an older season reads as the fresh-season start', () => {
+    const p = initialRankedProfile().position;
+    expect(seatRankOfRow({ rank_season: 'old-season', rank_division: 12, rank_points: 80 })).toEqual({ divisionIndex: p.divisionIndex, points: p.points });
+  });
+  it('seatRankOfRow: never ranked (no division) is null', () => {
+    expect(seatRankOfRow({ rank_season: null, rank_division: null })).toBeNull();
+  });
+
+  it('seatCardSource carries the server rank for anyone, and `self.rank` for you', () => {
+    const rank = { divisionIndex: 3, points: 10 };
+    expect(seatCardSource({ member: member(), own: false, showOpp: true, server: { rank } }).rank).toEqual(rank);
+    expect(seatCardSource({ member: member(), own: false, showOpp: true, server: undefined }).rank).toBeNull();
+    expect(seatCardSource({ member: member(), own: true, showOpp: true, server: { rank }, self: { avatar: null, titleId: null, cosmetics: null, rank: null } }).rank).toBeNull();
+    expect(seatCardSource({ member: member(), own: true, showOpp: true, server: { rank }, self: { avatar: null, titleId: null, cosmetics: null, rank: { divisionIndex: 5, points: 2 } } }).rank).toEqual({ divisionIndex: 5, points: 2 });
+    // A caller that does not pass `self.rank` falls back to what the server says.
+    expect(seatCardSource({ member: member(), own: true, showOpp: true, server: { rank }, self: { avatar: null, titleId: null, cosmetics: null } }).rank).toEqual(rank);
+  });
+
+  it('fetchSeatData reads the rank, and keeps avatar + title when the rank columns are refused', async () => {
+    backend.profiles = [{ user_id: 'a', favorite_hero: 'indy', equipped_title_id: TITLE_ID, rank_season: RANK_SEASON, rank_division: 4, rank_points: 20 }];
+    expect((await fetchSeatData(['a'])).get('a')?.rank).toEqual({ divisionIndex: 4, points: 20 });
+    resetSeatCacheForTests();
+    backend.refuseRank = true;
+    backend.profiles = [{ user_id: 'a', favorite_hero: 'indy', equipped_title_id: TITLE_ID }];
+    const got = (await fetchSeatData(['a'])).get('a');
+    expect(got?.titleId).toBe(TITLE_ID);
+    expect(got?.rank).toBeUndefined();
+    expect(backend.selects.some((c) => c.includes('rank_division'))).toBe(true);
   });
 });

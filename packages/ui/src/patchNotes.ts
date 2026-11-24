@@ -72,6 +72,10 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Balance',
+        text: 'Those six runes have their art, and the Sylus rune has new art.',
+      },
+      {
+        category: 'Balance',
         text: 'Rune changes.',
         details: [
           'Summit: now Discovers a Tier 7 minion on turns 9 and 11. It used to repeat every 2 turns.',

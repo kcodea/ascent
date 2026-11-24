@@ -30,6 +30,17 @@ prototype: `docs/superpowers/specs/2026-11-23-pack-opening-prototype.html`.
   scaled by a Pack tilt slider. The pack settles flat and stays still once you start opening it. Grabbing works on
   the corner as drawn, and the hand stays under the finger while the tilt settles.
 
+- **The big-pull moment** (`bigPull.ts`): when a Legendary or Ancient card flips, a light burst (additive bloom plus
+  slowly turning god rays, behind the landing face), a short one-shot shake of the theatre, the chest's tier-burst
+  sound, and a hold before the next flip (clicks during it are ignored, Reveal all waits it out). Ancient is bigger and
+  longer. Pack Lab sliders: Big pull burst, shake and hold. Reduced motion keeps the sound and the hold only.
+- **Holographic / pearlescent sheen**: Epic and up. On the pack, a small custom Pixi shader over the strip and body
+  (shares their geometry, so it peels and tilts with them) samples a pastel rainbow whose offset follows the tilt,
+  cursor and peel, multiplied by a per-wrapper greyscale shine mask (`packs/<id>-pack-shine.webp`, generated from the
+  art by `scripts/pack-shine-masks.cjs`; a hand-painted mask can replace any of them). On the card faces, a blended
+  rainbow layer that sweeps once when a face lands and again in the summary row, and follows the pointer on hover
+  (transform only, no looping animation). Strength by tier, scaled by the Pack Lab's Holo slider.
+
 ## Dev-only
 
 Nothing outside the DevMenu mounts the opener, and the DevMenu itself is dev-only, so a prod build cannot reach it.

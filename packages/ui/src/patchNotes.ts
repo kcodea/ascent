@@ -60,6 +60,10 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Change your avatar, portrait frame, title and card plate right from your player card: four tabs under it open one window.',
+      },
+      {
+        category: 'Systems',
         text: 'Versus rooms use the new player cards: every seat shows its rank, and the two sides face each other across the VS mark.',
       },
       {

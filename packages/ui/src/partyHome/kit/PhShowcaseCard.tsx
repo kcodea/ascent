@@ -1,7 +1,8 @@
 /**
  * THE SHOWCASE CARD (kit, owner-approved look 2026-11-23): the party home's landscape player card. Splash art on one side
  * fading into the navy plate, the player on the other: eyebrow, name, title (or a fallback line), and a rank well with the
- * medal crest, the division, a progress bar and the points. It replaces the tall `PhBanner` everywhere a lineup shows.
+ * medal crest, the division, a progress bar and the points. Every lineup draws its players with it (it replaced the old flag
+ * banner, retired 2026-11-24).
  *
  *   <div className="phs-lineup">              a lineup sizes its cards: `phs-lineup` (1 or 2 side by side), `phs-lineup duel` (VS between),
  *     <PhShowcaseCard size="full" ... />   `phs-lineup grid` (2 x 2), `phs-lineup teams` (two `phs-team` columns + VS); see phShowcase.css
@@ -11,7 +12,7 @@
  * so one design serves every seat count. `mirrored` puts the art on the right (the far side of a VS faces inward): only the
  * art image flips, text never does. `mine` / `rival` colour the edge. `badge` (Leader, Host) sits on the art's top corner,
  * `band` (a `PhShowcaseBand`) across the art's foot, `youLabel` marks your own card when several seats show.
- * `overlay` renders after the press target inside the card (a menu); `under` renders below the card (its tabs).
+ * `overlay` renders after the press target inside the card (a menu); `under` renders below the card (its tabs, PhCardTabs).
  *
  * Static paint: no loops, the hover lift is a one-shot transform. No native tooltip (aria-label only), no own cursor (the
  * gauntlet rule paints it). The medallion is not a control; the whole card is one press target.
@@ -22,18 +23,19 @@ import { RankCrest } from '../../rank/RankBar';
 import { barFraction, pointsText, rankLabel } from '../../rank/rankFormat';
 import { medalKey } from '../../rank/types';
 import { TitleBadge } from '../../titles/TitleBadge';
+import { Icon } from '../../Icon';
 import '../shell/shell.css';
 import './phShowcase.css';
 
 export type PhCardSize = 'full' | 'half' | 'compact';
 
-/** An open card (its menu showing): the showcase card's `.phs-card.phs-menu`, and PhBanner's `.ph-cardwrap.menu` while it
- *  still exists. A lineup's outside-press close skips a press inside it, so a menu item's press lands. */
-export const OPEN_CARD_SELECTOR = '.phs-card.phs-menu, .ph-cardwrap.menu';
+/** An open card (its menu showing): the showcase card's `.phs-card.phs-menu`. A lineup's outside-press close skips a press
+ *  inside it, so a menu item's press lands. */
+export const OPEN_CARD_SELECTOR = '.phs-card.phs-menu';
 
 const cx = (...c: (string | false | null | undefined)[]): string => c.filter(Boolean).join(' ');
 
-/** The card's press target: one button covering the whole card (as PhBanner), labelled for screen readers. */
+/** The card's press target: one button covering the whole card, labelled for screen readers. */
 function Press({ label, onClick, haspopup, expanded, children }: {
   label: string; onClick?: () => void; haspopup?: boolean; expanded?: boolean; children: ReactNode;
 }) {
@@ -173,4 +175,9 @@ export function PhShowcaseInvite({ label = 'Invite', sub, pill }: { label?: Reac
       {pill && <span className="phs-gpill">{pill}</span>}
     </>
   );
+}
+
+/** The Leader badge (crown + word) for `badge`. */
+export function PhLeaderBadge() {
+  return <><Icon name="crown" /><span>Leader</span></>;
 }

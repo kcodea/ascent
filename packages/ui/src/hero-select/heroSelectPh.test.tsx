@@ -230,9 +230,12 @@ describe('rules', () => {
 
 describe('the flag matches the play flag', () => {
   it('R-HS-FADE-01: the portrait fade is the play screen flag\'s fade, exactly', () => {
-    // The same eased foot fade (the play flag's live mask is its --foot alone) ...
+    // The same eased foot fade the play flag had (its live mask was its --foot alone). The play flag retired with the
+    // showcase card (2026-11-24), so its --foot is pinned here as the literal it was in partyHome.css (`.ph-cardwrap .ph-art`),
+    // copied before that rule was deleted ...
     const foot = (css: string, sel: RegExp): string => sel.exec(css.replace(/\/\*[\s\S]*?\*\//g, ''))![1]!.replace(/\s+/g, ' ').trim();
-    const play = foot(here('../partyHome/partyHome.css'), /html:not\(\[data-ph-compact\]\) \.ph-cardwrap \.ph-art \{[^}]*--foot: ([^;]*);/);
+    const play = 'linear-gradient(180deg, #000 46%, rgb(0 0 0 / 0.96) 51%, rgb(0 0 0 / 0.85) 57%, rgb(0 0 0 / 0.66) 64%, rgb(0 0 0 / 0.42) 72%, '
+      + 'rgb(0 0 0 / 0.2) 80%, rgb(0 0 0 / 0.06) 88%, transparent 96%)';
     const hsCss = here('./heroSelectPh.css');
     const hs = foot(hsCss, /\.herocard\.big :is\(\.hcframe-art, \.hcframe-pow\) \{ inset: 0; width: 100%;[^}]*--foot: ([^;]*);/);
     expect(hs).toBe(play);

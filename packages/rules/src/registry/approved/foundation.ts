@@ -14763,7 +14763,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     id: 'R-PH-CHANGE-NAME-01',
     title: 'Your own banner on the home screen offers Change name, and it renames you the same way the title name chip does',
     statement:
-      'The menu that opens from your own banner on the home screen lists Change name, Change portrait and View Career. '
+      'The menu that opens from your own card on the home screen lists Change name and View Career. Your portrait, frame, title and card plate are changed through the four tabs under your card, not from this menu. '
       + 'Change name opens a small window with your current name; Save or Enter renames you, Cancel leaves the name alone. '
       + 'It uses the same rename as the title screen name chip, with the same rules: up to 24 characters, trimmed, your #tag kept, and a guest can rename too.',
     domain: 'foundation',
@@ -14773,13 +14773,16 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'fix-pr', ref: 'feat/ph-change-name' },
       { kind: 'fix-pr', ref: 'feat/showcase-card-versus-room' },
       { kind: 'code', ref: 'packages/ui/src/partyHome/ChangeName.tsx (selfCardMenu, ChangeNameDialog through setPlayerName); packages/ui/src/partyHome/PartyHome.tsx (cardMenu)' },
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-23, approving the showcase player card spec (docs/superpowers/specs/2026-11-23-showcase-player-card-design.md: "Only the tabs open the window")', quote: 'Approved' },
+      { kind: 'fix-pr', ref: 'feat/cosmetics-window: packages/ui/src/partyHome/ChangeName.tsx (selfCardMenu drops Change portrait); packages/ui/src/partyHome/OwnCardTabs.tsx + kit/PhCardTabs.tsx (the four tabs)' },
     ],
     currentBehaviour:
       'Conforms from 2026-11-07 (feat/ph-change-name). Before, the banner menu had only Change portrait and View Career, and the party home had no way to rename. '
       + 'The PartyHome wiring is pinned by a source check; the window and the menu order are pinned by render tests. '
       + 'BROKEN from the showcase card (#2866, 2026-11-23) until fix round 1 of feat/showcase-card-versus-room: the outside-press close looked only for the old banner\'s open class, so pressing any item in a showcase card\'s menu (Change name, Change portrait and View Career on yours; Message and View Career on a teammate\'s) closed the menu on pointerdown and the click did nothing. The same selector fix (OPEN_CARD_SELECTOR) repairs them all. '
-      + 'partyCardMenu.test.tsx now mounts the real PartyHome, opens your card menu and presses Change name (pointerdown then click) to open the window.',
-    enforcement: { kind: 'scenario', refs: ['packages/ui/src/partyHome/changeName.test.tsx', 'packages/ui/src/partyHome/partyCardMenu.test.tsx'], lastVerifiedAt: '2026-11-23' },
+      + 'partyCardMenu.test.tsx now mounts the real PartyHome, opens your card menu and presses Change name (pointerdown then click) to open the window. '
+      + 'From feat/cosmetics-window (2026-11-24) the menu is Change name and View Career: Change portrait left it, since only the four tabs under your card (Avatar, Frame, Title, Card plate) open the cosmetics window. changeName.test.tsx pins the two items; partyCardMenu.test.tsx pins the rendered menu and the tabs.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/partyHome/changeName.test.tsx', 'packages/ui/src/partyHome/partyCardMenu.test.tsx'], lastVerifiedAt: '2026-11-24' },
   },
   {
     id: 'R-PH-SIGNIN-NAV-01',
@@ -14910,8 +14913,9 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-07, on hero select', quote: 'the fade on the main play screen flag is different from the hero select fade. can we mimic the navy fade exactly' },
       { kind: 'fix-pr', ref: 'fix/hero-select-row-centre: packages/ui/src/hero-select/heroSelectPh.css (.hcframe-art mask = partyHome.css .ph-cardwrap .ph-art mask)' },
     ],
-    currentBehaviour: 'Conforms from 2026-11-07 (fix/hero-select-row-centre). Before, hero select used the same fade gradient over a shorter portrait box (about 50% of the flag\x27s height against the play flag\x27s 64%), so its fade ended higher up the flag.',
-    enforcement: { kind: 'scenario', refs: ['packages/ui/src/hero-select/heroSelectPh.test.tsx'], lastVerifiedAt: '2026-11-07' },
+    currentBehaviour: 'Conforms from 2026-11-07 (fix/hero-select-row-centre). Before, hero select used the same fade gradient over a shorter portrait box (about 50% of the flag\x27s height against the play flag\x27s 64%), so its fade ended higher up the flag. '
+      + 'The play-screen flag retired with the showcase card (feat/cosmetics-window, 2026-11-24); hero select keeps the fade the play flag had, and heroSelectPh.test.tsx pins its --foot to that exact literal (copied from partyHome.css before the flag rules were deleted).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/hero-select/heroSelectPh.test.tsx'], lastVerifiedAt: '2026-11-24' },
   },
   {
     id: 'R-HS-HIT-01',

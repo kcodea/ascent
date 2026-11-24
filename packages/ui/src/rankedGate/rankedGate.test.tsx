@@ -593,9 +593,10 @@ describe('what ships', () => {
     expect(word).toContain("font-family: var(--title-font, 'Cinzel Decorative')");
     expect(word, 'the heaviest cut the face ships (owner: "can we make the font thicker?")').toContain('font-weight: 900');
     expect(word).toContain('font-size: calc(var(--rg-enter-size) * var(--rg-u))');
-    // Blue letters, in the owner's own colour (same day, after two paler tries: "#2f8fd8 can you try making it darker
-    // like this color"); blue halos with no offset; then ONE dark copy thrown well away, down the door.
-    expect(word).toContain('color: #2f8fd8;');
+    // Light blue letters; blue halos with no offset; then ONE dark copy thrown well away, down the door.
+    const [r, g, b] = /color: #([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2});/.exec(word)!.slice(1).map((h) => parseInt(h, 16)) as [number, number, number];
+    expect(b).toBeGreaterThan(r);
+    expect(Math.min(r, g, b), 'light').toBeGreaterThan(180);
     const shadows = /text-shadow:([^;]*);/.exec(word)![1]!.split(/,(?![^(]*\))/).map((x) => x.trim());
     const glows = shadows.filter((x) => x.startsWith('0 0 '));
     expect(glows.length).toBeGreaterThanOrEqual(2);

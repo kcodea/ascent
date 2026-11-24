@@ -18,9 +18,11 @@ export const smoother = (u: number): number => u * u * u * (u * (u * 6 - 15) + 1
 /** A shove: nothing, a smooth peak of 1 at 1/k seconds, and away. */
 export const kick = (x: number, k: number): number => (x <= 0 ? 0 : x * k * Math.exp(1 - x * k));
 
-/** The stage's aspect (scene units: its height is 1). */
-export const A = 16 / 9;
-/** Where the gate holds its crystal (row 434 of 941, rankedGateTiming) and its size, in stage heights. */
+/** The stage's aspect: one whole painting, 21:9 (scene units: its height is 1). A narrower window shows its middle. */
+export const A = 99 / 42;
+/** The width the words and parchments are laid out for (stage heights). */
+export const TEXT_W = 16 / 9;
+/** Where the gate holds its crystal (row 434 of 941, rankedGateTiming) and its size, in GATE heights. */
 export const GEM_Y = (434 - 470.5) / 941;
 export const GEM_SIZE = 236 / 941;
 
@@ -117,7 +119,7 @@ export function distAt(s: number): number {
 
 export type Vec3 = [number, number, number];
 /** The comet: the crystal's heart, from the gate to where it lands (scene units; mirrored in the shaders' `comet`). */
-export function heartAt(s: number, vcx: number, vcy: number): Vec3 {
+export function heartAt(s: number, vcx: number, vcy: number, gemY: number): Vec3 {
   const u = clamp((s - T0) / (L - T0));
   const e = u - (0.07 * Math.sin(Math.PI * 2 * u)) / Math.PI;
   const v = 1 - e;
@@ -127,7 +129,7 @@ export function heartAt(s: number, vcx: number, vcy: number): Vec3 {
   const d = e * e * e;
   return [
     b * -0.46 + c * (vcx * 0.55 - 0.05) + d * vcx,
-    a * GEM_Y + b * 0.24 + c * (vcy * 0.55 - 0.34) + d * vcy,
+    a * gemY + b * 0.24 + c * (vcy * 0.55 - 0.34) + d * vcy,
     -0.02 + Math.max(0, Math.sin(Math.PI * u)) ** 0.9,
   ];
 }
@@ -191,6 +193,6 @@ export function posterName(i: number, n: number, s: number): number {
   return smoother(seg(s, at + POST_IN * 0.8, at + POST_IN + 0.34)) * (1 - smoother(seg(s, leave - 0.08, leave + 0.12)));
 }
 
-/** How much the words and parchments shrink so all of them fit a window showing only `w` x `h` stage heights (1 at 16:9;
- *  a wide window crops the stage's top and bottom, a narrow one its sides). */
-export const fitOf = (w: number, h: number): number => Math.min(1, w / A, h);
+/** How much the words and parchments shrink so all of them fit a window showing only `w` x `h` stage heights (1 at 16:9
+ *  and at 21:9). */
+export const fitOf = (w: number, h: number): number => Math.min(1, w / TEXT_W, h);

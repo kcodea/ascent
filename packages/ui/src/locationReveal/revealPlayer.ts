@@ -127,13 +127,13 @@ function makeWordsWriter(w: ReturnType<typeof buildWords>, n: number): (s: numbe
 }
 
 /** The sizes of the layer the reveal is drawn in (layout px, read on mount and on a resize, never per frame). */
-function watchSize(root: HTMLElement, apply: (stageH: number, fit: number) => void): () => void {
+function watchSize(root: HTMLElement, apply: (stageH: number, fit: number, w: number, h: number) => void): () => void {
   const measure = (): void => {
     const w = root.clientWidth;
     const h = root.clientHeight;
     if (!w || !h) return;
     const stageH = stageHeight(w, h);
-    apply(stageH, fitOf(w / stageH, h / stageH));
+    apply(stageH, fitOf(w / stageH, h / stageH), w, h);
   };
   measure();
   window.addEventListener('resize', measure);
@@ -157,10 +157,11 @@ export function playFullReveal(host: HTMLElement, r: LocationRevealRequest, gl: 
     const write = makeWordsWriter(words, n);
     let fit = 1;
     let stagePx = 0;
-    const unwatch = watchSize(root, (stageH, f) => {
+    const unwatch = watchSize(root, (stageH, f, w, h) => {
+      gl.resize(w, h);
       fit = f;
       stagePx = stageH;
-      gl.canvas.style.width = `${(stageH * 16) / 9}px`;
+      gl.canvas.style.width = `${stageH * A}px`;
       gl.canvas.style.height = `${stageH}px`;
       words.layout(stageH, f);
     });

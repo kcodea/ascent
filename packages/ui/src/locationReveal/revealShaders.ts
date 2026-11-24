@@ -11,15 +11,16 @@ vec2 h22(vec2 p){ return vec2(h21(p), h21(p + 37.7)); }
 float n2(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3. - 2. * f); return mix(mix(h21(i), h21(i + vec2(1,0)), f.x), mix(h21(i + vec2(0,1)), h21(i + vec2(1,1)), f.x), f.y); }
 float fb(vec2 p){ float a = .5, r = 0.; for (int i = 0; i < 4; i++) { r += a * n2(p); p = p * 2.03 + 7.1; a *= .5; } return r; }
 float smoother(float u){ u = clamp(u, 0., 1.); return u * u * u * (u * (u * 6. - 15.) + 10.); }
-const float A = 16. / 9., FOC = 1.2;
-const vec2 GEM = vec2(0., -.0388);   // where the gate holds its crystal (rankedGateTiming: art row 434 of 941)
+const float A = 99. / 42., FOC = 1.2;   // the paintings are 21:9 and the stage is one whole painting
+uniform vec2 GEM;   // where the gate holds its crystal
+uniform float VA;    // how wide the window shows the stage (stage heights)
 uniform vec2 VP, OFS; /* where it lands on the stage; how far the painting is slid to fit a wide window */  uniform float MGK; uniform vec3 DEEP, SECOND, COOL, WARMC;
 vec3 mg(vec3 c){ if (MGK < .5) return c; float M = max(c.r, max(c.g, c.b)) + 1e-5, m = min(c.r, min(c.g, c.b)); vec3 t = mix(COOL, WARMC, smoothstep(-.15, .15, (c.r - c.b) / M)); return M * mix(vec3(1.), t, min((M - m) / M * 1.25, 1.)); }
 // the wave: leaves the point of impact fast and eases toward the edges. waveAt = when it reaches a distance.
 const float WR = 2.90, WK = 1.45;
 vec3 comet(float t, float t0, float L){ float u = clamp((t - t0) / (L - t0), 0., 1.), e = u - .07 * sin(TAU * u) / 3.14159, v = 1. - e; vec2 vp = (VP - .5) * vec2(A, 1.); vec2 p = v * v * v * GEM + 3. * v * v * e * vec2(-.46, .24) + 3. * v * e * e * (vp * .55 + vec2(-.05, -.34)) + e * e * e * vp; return vec3(p, -.02 + pow(max(sin(3.14159 * u), 0.), .9)); }
 // a place in the current: q is 0 at the comet and 1 as it passes you; th0 is the side it belongs to
-vec2 arm(float th0, float q, float tight){ float st = TAU / 6., k = floor(th0 / st + .5) * st; float th = k + (th0 - k) * tight + .62 * (1. - q) * (1. - q) - .30; return vec2(cos(th) * 1.25, sin(th) * .88); }
+vec2 arm(float th0, float q, float tight){ float st = TAU / 6., k = floor(th0 / st + .5) * st; float th = k + (th0 - k) * tight + .62 * (1. - q) * (1. - q) - .30; return vec2(cos(th) * .703 * VA, sin(th) * .88); }
 vec3 current(float q, float th0, float tight, float wide, float s, float t0, float L){ vec3 head = comet(s, t0, L), was = comet(s - q * .42, t0, L); float rad = mix(.012, .50 + .62 * wide, pow(q, 1.2)); return vec3(mix(head.xy, was.xy, .9) * (1. - .7 * q * q) + arm(th0, q, tight) * rad, mix(head.z, -1.04, pow(q, .9))); }
 float waveAt(float r){ return -log(max(1. - r / WR, .02)) / WK; }`;
 
@@ -53,7 +54,7 @@ uniform float near_; const vec4 DEP = vec4(.0, .075, .150, .250);
 vec2 at(vec2 rel, float dep, float k){ return VP - OFS + (rel * .962 - pan * dep) / (1. + dep * k); }
 vec2 wind(vec2 q, float amt, float gust, vec2 dir){ float n = texture(DT, q).g * amt; return q + n * (vec2(sin(q.y * 15. + s * 2.6 + q.x * 7.), .45 * cos(q.x * 13. + s * 2.1)) * .0022 * (gust * 1.4 + .22) - dir * .0034 * gust); }
 vec4 lay(sampler2D t, vec2 q, float f){ return textureLod(t, q, dof + f); }
-vec3 haze(vec3 c, vec2 uv, float dep, float k, float amt){ vec2 q = at(uv - VP, dep, k); float f = fb(q * vec2(3.2, 5.) + vec2(s * .05 + dep * 30., -s * .015)); float low = smoothstep(.25, 1., uv.y); return c + mg(vec3(.62, .80, 1.)) * smoothstep(.42, .85, f) * amt * (.35 + .65 * low); }
+vec3 haze(vec3 c, vec2 uv, float dep, float k, float amt){ vec2 q = at(uv - VP, dep, k); float f = fb(q * vec2(3.2, 5.) + vec2(s * .05 + dep * 30., -s * .015)); float low = smoothstep(.25, 1., uv.y); return c + mg(vec3(.62, .80, 1.)) * smoothstep(.42, .85, f) * amt * .6 * (.35 + .65 * low); }
 vec3 flow(vec3 c, vec2 q){ float f = texture(DT, q).b; float run = n2(vec2(q.x * 190., q.y * 30. - s * 8.)) * .6 + n2(vec2(q.x * 420., q.y * 52. - s * 13.)) * .4; return c + c * f * (run - .48) * .95 * (1. - smoothstep(0., 1.6, dof) * .7); }
 void main(){
   vec2 uv = gl_FragCoord.xy / R; vec2 rel = uv - VP; float rr = length(rel * vec2(A, 1.)), lt = after - waveAt(rr) + (fb(uv * 7.) - .5) * .05;
@@ -80,7 +81,7 @@ void main(){ vec2 uv = gl_FragCoord.xy / R; uv.y = 1. - uv.y; vec3 c = vec3(0.);
 export const vsQuad = String.raw`in vec2 a; uniform vec4 box; uniform float z; out vec2 uv; void main(){ uv = a; vec2 p = box.xy + (a - .5) * box.zw; float w = (FOC + z) / FOC; gl_Position = vec4(p.x * 2. / A, -p.y * 2., ((z + FOC) / 10. * 2. - 1.) * w, w); }`;
 
 export const fsDoor = String.raw`in vec2 uv; out vec4 o; uniform sampler2D T; uniform float left, lit, dark, ring, ringS;
-void main(){ float e = left > .5 ? 1. - uv.x : uv.x; vec2 q = vec2(e * A * .5, (uv.y - .4612)); float rr = length(q); vec2 dir = normalize(vec2((left > .5 ? -1. : 1.) * q.x, q.y) + 1e-5); float w = exp(-pow((rr - ring) * 11., 2.)) * ringS;
+void main(){ float e = left > .5 ? 1. - uv.x : uv.x; vec2 q = vec2(e * .889, (uv.y - .4612)); float rr = length(q); vec2 dir = normalize(vec2((left > .5 ? -1. : 1.) * q.x, q.y) + 1e-5); float w = exp(-pow((rr - ring) * 11., 2.)) * ringS;
   vec3 c = texture(T, uv - dir * w * .030).rgb * (1. - dark); float rim = exp(-e * 5.); c += c * vec3(.55, .9, 1.25) * lit * (rim * 1.1 + .10) + vec3(.35, .78, 1.1) * (exp(-e * 60.) * 1.3 + exp(-e * 14.) * .22) * lit; c += c * vec3(.6, .95, 1.2) * w * 1.6; o = vec4(c, 1.); }`;
 
 export const fsCry = String.raw`in vec2 uv; out vec4 o; uniform sampler2D T; uniform float crack;

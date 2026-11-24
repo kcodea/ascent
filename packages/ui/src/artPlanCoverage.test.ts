@@ -41,6 +41,7 @@ const EXEMPT_BUNDLED: Record<string, string> = {
 /** Public images no source names. They ship but nothing can mount them; a new one here means art went dead or the
  *  source builds its name in a way `publicArt.ts` cannot see, and the second case is a pop-in. */
 const EXEMPT_PUBLIC: readonly [RegExp, string][] = [
+  [/^locations\//, 'the location reveal: fetched for the one location being played, while its gate is shut (locationReveal/revealGl.ts)'],
   [/^(?:apple-touch-icon\.png|ascenticon\.png|icon-\d+\.png)$/, 'the browser and the home screen fetch these, the game never draws them'],
   [/^(?:ascentboardnostuff|augustboardcombat|augustfullboard|board1|board169|board219|board2b|newboardaugust)\.webp$|^board\.jpg$/, 'old boards nothing mounts'],
   [/^backdrop-[a-z-]+-sm\.webp$/, 'a touch device\'s small backdrop (backdropSmallUrl): desktop never loads it, a phone streams it'],

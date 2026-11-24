@@ -9,9 +9,9 @@ import { SETS } from '@game/content';
 import { DEFAULT_PRACTICE_CONFIG, type PracticeConfig } from '@game/sim';
 import { LOCATIONS, locationName, locationOfSet, POSTER_NAME, postersFor } from './locations';
 import { pendingLocation, pendingReveal, practiceLocation } from './pendingLocation';
-import { slideFor, stageHeight } from './revealGl';
+import { showOf, slideFor, stageHeight } from './revealGl';
 import { revealCues } from './revealSound';
-import { fitOf, HOLD, L, NAME, outroAt, POST, posterName, posterPose, posterRest, postDone, realOf, revealSeconds, simEnd, simOf, START, T0, washAt, washR, washReach } from './revealTimeline';
+import { A, fitOf, HOLD, L, NAME, outroAt, POST, posterName, posterPose, posterRest, postDone, realOf, revealSeconds, simEnd, simOf, START, T0, washAt, washR, washReach } from './revealTimeline';
 
 const PUBLIC = join(__dirname, '../../../../apps/web/public/locations');
 const cfg = (over: Partial<PracticeConfig> = {}): PracticeConfig => ({ ...DEFAULT_PRACTICE_CONFIG, ...over });
@@ -116,17 +116,17 @@ describe('the sound', () => {
 });
 
 describe('the fit (owner 2026-11-24: "make sure we build this so it fits 21:9 too")', () => {
-  it('a 21:9 window shows the painting\'s full width, framed on its focus, and never past its top edge', () => {
-    const [w, h] = [3440 + 32, 1440 + 32];
-    const H = stageHeight(w, h);
-    expect((H * 16) / 9).toBeGreaterThanOrEqual(w - 4);
-    expect((H * 16) / 9, 'full width, no extra zoom').toBeLessThan(w * 1.01);
-    const cropped = (1 - h / H) / 2;
+  it('a 21:9 window shows the whole painting, a 16:9 one its full height around its focus, never past its edges', () => {
+    expect((stageHeight(3440, 1440) * A) / 3440).toBeLessThan(1.02);
+    expect(stageHeight(3440, 1440) / 1440).toBeLessThan(1.02);
+    expect(stageHeight(1600, 900)).toBe(900);
     for (const l of Object.values(LOCATIONS)) {
-      const s = slideFor(l, w, h);
-      expect(s).toBeGreaterThan(0);
-      expect(s).toBeLessThanOrEqual(cropped + 1e-9);
-      expect(slideFor(l, 1600, 900)).toBeLessThan(0.01);
+      for (const [w, h] of [[3440, 1440], [1600, 900], [1280, 1024], [3840, 1080]] as const) {
+        const [x, y] = slideFor(l, w, h);
+        const [sx, sy] = showOf(w, h);
+        expect(Math.abs(x)).toBeLessThanOrEqual((1 - sx) / 2 + 1e-9);
+        expect(Math.abs(y)).toBeLessThanOrEqual((1 - sy) / 2 + 1e-9);
+      }
     }
   });
 

@@ -17,9 +17,11 @@ import {
   smoother, START, T0, vel, WASH, washAt, washR, waveAt, waveR,
 } from './revealTimeline';
 
-/** The canvas's own pixel rows (16:9): the paintings' own size, or a step up on a big screen. */
-export const REVEAL_ROWS = 900;
-export const REVEAL_ROWS_BIG = 1080;
+/** The canvas's pixel rows, most to fewest: the window's own, up to the paintings' (1440). A machine that cannot draw a
+ *  heavy frame in `REVEAL_STEP_MS` steps down until it can. */
+export const REVEAL_ROWS = [1440, 1260, 1080, 900] as const;
+export const REVEAL_STEP_MS = 9;
+const ART_ROWS = 1440;
 /** A machine that takes longer than this for one heavy frame gets the light version instead (ms). */
 export const REVEAL_SLOW_MS = 26;
 
@@ -58,6 +60,7 @@ export class RevealGl {
   private main!: Target;
   private scene!: Target;
   private ms!: WebGLFramebuffer;
+  private msBufs: WebGLRenderbuffer[] = [];
   private bloom: [Target, Target][] = [];
   private trailBuf: WebGLBuffer[] = [];
   private readonly trailA = new Float32Array(TRAIL_N * 4);
@@ -66,26 +69,29 @@ export class RevealGl {
   private readonly vcy: number;
   /** The distance from the landing to the stage's furthest corner. */
   readonly far: number;
-  private readonly W: number;
-  private readonly H: number;
+  private W = 0;
+  private H = 0;
   /** Where it lands on the stage, and how far the painting is slid down to frame it in a wide window. */
   readonly vp: readonly [number, number];
   private readonly ofs: readonly [number, number];
+  /** A gate height in stage heights, and the part of the stage the window shows (fractions of it). */
+  private readonly gate: number;
+  private show: readonly [number, number];
   private seed = 11;
   /** The context was lost: nothing more is drawn. */
   lost = false;
 
-  constructor(canvas: HTMLCanvasElement, loc: LocationDef, slide = 0) {
+  constructor(canvas: HTMLCanvasElement, loc: LocationDef, w: number, h: number) {
     const gl = canvas.getContext('webgl2', { antialias: false, alpha: true, powerPreference: 'high-performance' });
     if (!gl) throw new Error('no WebGL 2');
     this.canvas = canvas;
     this.gl = gl;
     this.loc = loc;
     this.tribes = loc.posters;
-    this.W = canvas.width;
-    this.H = canvas.height;
-    this.ofs = [0, slide];
-    const vp = this.vp = [loc.vp[0], loc.vp[1] + slide] as const;
+    this.ofs = slideFor(loc, w, h);
+    this.gate = gateHeight(w, h) / stageHeight(w, h);
+    this.show = showOf(w, h);
+    const vp = this.vp = [loc.vp[0] + this.ofs[0], loc.vp[1] + this.ofs[1]] as const;
     this.vcx = (vp[0] - 0.5) * A;
     this.vcy = vp[1] - 0.5;
     this.far = Math.max(...[[0, 0], [1, 0], [0, 1], [1, 1]].map(([x, y]) => Math.hypot((x! - vp[0]) * A, y! - vp[1])));
@@ -99,7 +105,7 @@ export class RevealGl {
 
   // ── building, one step at a time ──────────────────────────────────────────────────────────────────────────────────
   /** The build as a list of small steps, in order. Each is run in its own frame by `prepareReveal`. */
-  steps(): (() => void)[] {
+  steps(rows: number): (() => void)[] {
     const names = Object.keys(PROGRAMS) as ProgramName[];
     const linked: Partial<Record<ProgramName, WebGLProgram>> = {};
     return [
@@ -107,7 +113,7 @@ export class RevealGl {
       () => { for (const n of names) linked[n] = this.startProgram(n); },
       () => this.buildMeshes(),
       () => this.buildShards(),
-      () => this.buildTargets(),
+      () => this.setRows(rows),
       // ...and each is collected later, in its own step.
       ...names.map((n) => () => { this.P[n] = this.finishProgram(n, linked[n]!); }),
     ];
@@ -213,8 +219,8 @@ export class RevealGl {
   /** The painting broken like struck glass: small pieces around the point of impact, larger toward the edges. */
   private buildShards(): void {
     const { vcx, vcy, rnd } = this;
-    const RAD = [0.03, 0.072, 0.125, 0.195, 0.285, 0.395, 0.525, 0.675, 0.85, 1.06, 1.36];
-    const CNT = [7, 7, 14, 14, 28, 28, 28, 56, 56, 56, 56];
+    const RAD = [0.03, 0.072, 0.125, 0.195, 0.285, 0.395, 0.525, 0.675, 0.85, 1.06, 1.32, 1.72];
+    const CNT = [7, 7, 14, 14, 28, 28, 28, 56, 56, 56, 112, 112];
     type Pt = readonly [number, number];
     const rings: Pt[][] = RAD.map((r, i) => {
       const n = CNT[i]!;
@@ -306,8 +312,16 @@ export class RevealGl {
     return { fb, tex, w, h };
   }
 
-  private buildTargets(): void {
+  /** Size the canvas and every buffer (again). */
+  setRows(rows: number): void {
     const gl = this.gl;
+    if (this.H) {
+      for (const t of [this.main, this.scene, ...this.bloom.flat()]) { gl.deleteFramebuffer(t.fb); gl.deleteTexture(t.tex); }
+      gl.deleteFramebuffer(this.ms);
+      for (const b of this.msBufs) gl.deleteRenderbuffer(b);
+    }
+    this.H = this.canvas.height = rows;
+    this.W = this.canvas.width = Math.round(rows * A);
     const half = !!gl.getExtension('EXT_color_buffer_float') || !!gl.getExtension('EXT_color_buffer_half_float');
     const { W, H } = this;
     this.main = this.target(W, H, half);
@@ -315,9 +329,11 @@ export class RevealGl {
     this.bloom = [2, 4, 8].map((k) => [this.target((W / k) | 0, (H / k) | 0, half), this.target((W / k) | 0, (H / k) | 0, half)]);
     this.ms = gl.createFramebuffer()!;
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.ms);
-    const samples = Math.min(4, gl.getParameter(gl.MAX_SAMPLES) as number);
+    const samples = Math.min(rows > 1080 ? 2 : 4, gl.getParameter(gl.MAX_SAMPLES) as number); // finer rows need fewer samples
+    this.msBufs = [];
     for (const [fmt, at] of [[half ? gl.RGBA16F : gl.RGBA8, gl.COLOR_ATTACHMENT0], [gl.DEPTH_COMPONENT24, gl.DEPTH_ATTACHMENT]] as const) {
-      const rb = gl.createRenderbuffer();
+      const rb = gl.createRenderbuffer()!;
+      this.msBufs.push(rb);
       gl.bindRenderbuffer(gl.RENDERBUFFER, rb);
       gl.renderbufferStorageMultisample(gl.RENDERBUFFER, samples, fmt, W, H);
       gl.framebufferRenderbuffer(gl.FRAMEBUFFER, at, gl.RENDERBUFFER, rb);
@@ -353,18 +369,23 @@ export class RevealGl {
     const at = [START, T0 + 0.05, T0 + 0.4, T0 + 1, L - 0.4, L - 0.05, L + 0.05, L + 0.25, NAME + 0.1, POST + 0.3];
     return [
       ...at.map((s) => (): null => { this.draw(s, view); return null; }),
-      () => {
-        const px = new Uint8Array(4);
-        const gl = this.gl;
-        const read = (): void => { gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px); };
-        this.draw(L + 0.12, view); read();
-        const t = performance.now();
-        this.draw(L + 0.13, view); read();
-        const ms = performance.now() - t;
-        this.draw(START, view); // leave the gate's own picture on the canvas
-        return ms;
-      },
+      () => this.measure(),
     ];
+  }
+
+  /** How long a heavy frame takes here, start to finished on the card (ms). Leaves the gate's own picture on the canvas. */
+  measure(): number {
+    const view: RevealView = { fit: 1, lean: [0, 0] };
+    const px = new Uint8Array(4);
+    const gl = this.gl;
+    const read = (): void => { gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.readPixels(this.W >> 1, this.H >> 1, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px); };
+    this.draw(L + 0.12, view); read();
+    const t = performance.now();
+    for (const s of [L + 0.1, L + 0.13, L + 0.16]) this.draw(s, view);
+    read();
+    const ms = (performance.now() - t) / 3;
+    this.draw(START, view);
+    return ms;
   }
 
   destroy(): void {
@@ -391,6 +412,8 @@ export class RevealGl {
     }
     if (u.VP) gl.uniform2f(u.VP, this.vp[0], this.vp[1]);
     if (u.OFS) gl.uniform2f(u.OFS, this.ofs[0], this.ofs[1]);
+    if (u.GEM) gl.uniform2f(u.GEM, 0, GEM_Y * this.gate);
+    if (u.VA) gl.uniform1f(u.VA, Math.max(16 / 9, A * this.show[0]));
     if (u.MGK) gl.uniform1f(u.MGK, loc.cool ? 1 : 0);
     if (u.COOL) gl.uniform3fv(u.COOL, loc.cool ?? [1, 1, 1]);
     if (u.WARMC) gl.uniform3fv(u.WARMC, loc.warm ?? [1, 1, 1]);
@@ -430,10 +453,24 @@ export class RevealGl {
     const w = dst ? dst.w : this.W;
     const h = dst ? dst.h : this.H;
     gl.viewport(0, 0, w, h);
+    this.clip(w === this.W);
     gl.disable(gl.DEPTH_TEST);
     gl.disable(gl.BLEND);
     this.use(name, { ...vals, R: [w, h] }, binds);
     this.tris('full');
+  }
+
+  /** The window's size changed: which part of the stage it shows. */
+  resize(w: number, h: number): void { this.show = showOf(w, h); }
+  /** Draw only the part of the stage the window shows (with a margin the lens can bend in), in a full-size buffer. */
+  private clip(on: boolean): void {
+    const { gl, W, H } = this;
+    const [x, y] = this.show;
+    if (!on || (x > 0.97 && y > 0.97)) { gl.disable(gl.SCISSOR_TEST); return; }
+    const w = Math.min(W, Math.ceil(W * (x + 0.06)));
+    const h = Math.min(H, Math.ceil(H * (y + 0.06)));
+    gl.enable(gl.SCISSOR_TEST);
+    gl.scissor((W - w) >> 1, (H - h) >> 1, w, h);
   }
 
   /** The reveal at sim second `s`. */
@@ -454,7 +491,7 @@ export class RevealGl {
     const posters = seg(s, POST - 0.15, POST + 0.55);
     const whole = after > waveAt(this.far) + 0.2;
     const outro = smoother(seg(s, outroAt(n) + 0.1, washAt(n) + WASH * 0.7)); // it softens and you step in
-    const hp = heartAt(s, this.vcx, this.vcy);
+    const hp = heartAt(s, this.vcx, this.vcy, GEM_Y * this.gate);
     const hk = tt <= 0 || landed ? 0 : (0.55 + 0.45 * seg(tt, 0.1, 0.8) + 0.5 * inh) * seg(tt, 0.02, 0.2);
     // The camera pushes in, slides across and rises as it arrives, then drifts; the pointer leans it a little.
     const settled = landed ? seg(after, 0.5, 1.2) : 0;
@@ -462,15 +499,16 @@ export class RevealGl {
     const tr = outCubic(seg(s, L - 0.4, L + 2.6));
     const pan = [mix(-0.46, 0.04, tr) + 0.22 * smoother(seg(s, L + 0.8, end + 0.6)) + view.lean[0] * 0.15 * settled, mix(-0.26, 0.04, tr) + view.lean[1] * 0.08 * settled];
     const fw = 1.2 / (1.2 + hp[2]);
-    const foc: [number, number] = landed ? [this.vp[0], this.vp[1]] : tt < 0 ? [0.5, 0.5 + GEM_Y] : [0.5 + (hp[0] * fw) / A, 0.5 + hp[1] * fw];
+    const foc: [number, number] = landed ? [this.vp[0], this.vp[1]] : tt < 0 ? [0.5, 0.5 + GEM_Y * this.gate] : [0.5 + (hp[0] * fw) / A, 0.5 + hp[1] * fw];
 
     // The place itself.
     if (s > L - 1.1) {
-      this.pass('scene', this.scene, { s, push, pan, dof: 1.6 * inOut(posters) + 2.6 * outro, after: landed ? after : -9, drain: 0, near_: 2.6 * Math.exp(-Math.max(0, after) * 2.4) + 0.25 },
+      this.pass('scene', this.scene, { s, push, pan, dof: Math.max(0, Math.log2(ART_ROWS / H)) + 0.9 * inOut(posters) + 3 * outro, after: landed ? after : -9, drain: 0, near_: 2 * Math.exp(-Math.max(0, after) * 2.4) },
         { DT: tex.get('data'), L0: tex.get('layer0'), L1: tex.get('layer1'), L2: tex.get('layer2'), L3: tex.get('layer3') });
     }
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.ms);
     gl.viewport(0, 0, W, H);
+    this.clip(true);
     gl.depthMask(true);
     gl.clearColor(0, 0, 0, 1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -491,7 +529,7 @@ export class RevealGl {
       const lit = strain * 0.55 + (tt > 0 ? 0.85 * Math.exp(-Math.max(0, tt - 0.05) * 2.6) : 0);
       for (const [name, side] of [['gate-left', -1], ['gate-right', 1]] as const) {
         this.use('door', {
-          box: [side * (A / 4 + open * A * 0.515), 0, A / 2 + 0.002, 1.002], z: -0.62 * thru, left: side < 0 ? 1 : 0, lit,
+          box: [side * (GATE_A / 4 + open * GATE_A * 0.515) * this.gate, 0, (GATE_A / 2 + 0.002) * this.gate, 1.002 * this.gate], z: -0.62 * thru, left: side < 0 ? 1 : 0, lit,
           dark: 0.38 * strain * (tt < 0 ? 1 : Math.exp(-tt * 14)), ring: tt > 0 ? 1.5 * (1 - Math.exp(-tt * 4.5)) : 0, ringS: tt > 0 ? Math.exp(-tt * 3.2) : 0, s,
         }, { T: tex.get(name) });
         this.tris('quad');
@@ -500,8 +538,8 @@ export class RevealGl {
     if (tt < 0) {
       const c = smoother(strain);
       const sq = seg(s, T0 - 0.13, T0);
-      const q = GEM_SIZE * (1 + 0.05 * c + 0.05 * smoother(c) - 0.05 * sq * sq);
-      this.use('gem', { box: [0, GEM_Y, q, q], z: 0, crack: c }, { T: tex.get('gem') });
+      const q = GEM_SIZE * this.gate * (1 + 0.05 * c + 0.05 * smoother(c) - 0.05 * sq * sq);
+      this.use('gem', { box: [0, GEM_Y * this.gate, q, q], z: 0, crack: c }, { T: tex.get('gem') });
       this.tris('quad');
       this.mode('add');
       this.use('suck', { s, t0: T0, px });
@@ -536,7 +574,7 @@ export class RevealGl {
       this.use('weld', { R: [W, H], s, after: whole ? 9 : after }, { SC: this.scene.tex });
       this.tris('full');
       this.mode('add');
-      this.use('light', { s, after, push, pan, px, dof: 1.6 * inOut(posters) });
+      this.use('light', { s, after, push, pan, px, dof: 0.9 * inOut(posters) });
       this.points('light');
       this.use('ember', { R: [W, H], pan, push, s, warmth: loc.warmth, ember: 0.95 * seg(after, 0.1, 0.7) * (1 - seg(s, end - 0.4, end)) });
       this.tris('full');
@@ -587,7 +625,7 @@ export class RevealGl {
       const age = (i + 1) / TRAIL_N;
       const at = s - age * 0.8;
       if (at > T0 + 0.05) {
-        const p = heartAt(at, this.vcx, this.vcy);
+        const p = heartAt(at, this.vcx, this.vcy, GEM_Y * this.gate);
         a[o] = p[0]; a[o + 1] = p[1]; a[o + 2] = p[2] - (d - distAt(at)) * 0.52;
       } else { a[o] = 9; a[o + 1] = 9; a[o + 2] = 9; }
       a[o + 3] = age;
@@ -632,20 +670,34 @@ export class RevealGl {
   }
 }
 
-/** The stage's height on screen (px): the gate art's `cover` fit, so the doors and crystal land exactly on the gate's. */
-export function stageHeight(w: number, h: number): number {
+/** The gate art's own 16:9. */
+const GATE_A = 16 / 9;
+/** The gate's height on screen (px): its art's `cover` fit, so the doors and crystal are drawn exactly where the gate's are. */
+export function gateHeight(w: number, h: number): number {
   return Math.max(w / 2 / RANKED_GATE_ART.halfW, (h + 8) / RANKED_GATE_ART.h) * RANKED_GATE_ART.h; // + 8: the door's face overhangs its box by 4 a side (rankedGate.css)
 }
-/** How far (stage heights) the painting slides down so a wide window frames `focusY` instead of its middle: never past
- *  what that window crops, so its top edge never shows. 0 at 16:9 and taller. */
-export function slideFor(loc: Pick<LocationDef, 'focusY'>, w: number, h: number): number {
-  const cropped = Math.max(0, 1 - h / stageHeight(w, h)) / 2;
-  return clamp(0.5 - loc.focusY, 0, cropped);
+/** The stage's height on screen (px): the whole 21:9 painting, covering the window. At 21:9 all of it shows. */
+export const stageHeight = (w: number, h: number): number => Math.max(w / A, h);
+/** The part of the stage a window shows (fractions of its width and height). */
+export function showOf(w: number, h: number): readonly [number, number] {
+  const H = stageHeight(w, h);
+  return [Math.min(1, w / (H * A)), Math.min(1, h / H)];
 }
-/** The gate's layer, in layout px (the game's stage may be scaled, so this is not the window's own size). */
-function stageWindow(): { width: number; height: number } {
+/** How far the painting slides on the stage so a window that crops it frames its focus, never past what is cropped. */
+export function slideFor(loc: Pick<LocationDef, 'focus'>, w: number, h: number): readonly [number, number] {
+  const [x, y] = showOf(w, h);
+  const cx = (1 - x) / 2;
+  const cy = (1 - y) / 2;
+  return [clamp(0.5 - loc.focus[0], -cx, cx), clamp(0.5 - loc.focus[1], -cy, cy)];
+}
+/** The gate's layer, in layout px (the game's stage may be scaled, so this is not the window's own size), and how many real
+ *  pixels one of them is. */
+function stageWindow(): { width: number; height: number; px: number } {
   const g = document.querySelector<HTMLElement>('.rgate');
-  return { width: (g?.clientWidth || window.innerWidth) + 32, height: (g?.clientHeight || window.innerHeight) + 32 };
+  const width = (g?.clientWidth || window.innerWidth) + 32;
+  const height = (g?.clientHeight || window.innerHeight) + 32;
+  const scale = g && g.clientWidth ? g.getBoundingClientRect().width / g.clientWidth : 1;
+  return { width, height, px: scale * (window.devicePixelRatio || 1) };
 }
 
 /** A reveal being made ready. `ready` never rejects: null = this machine gets the light version. */
@@ -667,11 +719,11 @@ export function prepareReveal(loc: LocationDef): PreparedReveal {
   });
   const build = async (): Promise<RevealGl | null> => {
     const canvas = document.createElement('canvas');
-    const { width: w, height: h } = stageWindow();
-    const rows = stageHeight(w, h) * (window.devicePixelRatio || 1) > REVEAL_ROWS_BIG ? REVEAL_ROWS_BIG : REVEAL_ROWS;
-    canvas.width = Math.round((rows * 16) / 9);
-    canvas.height = rows;
-    const r = new RevealGl(canvas, loc, slideFor(loc, w, h));
+    const { width: w, height: h, px } = stageWindow();
+    // The fewest rows that still cover the window's own pixels.
+    const need = Math.min(REVEAL_ROWS[0], stageHeight(w, h) * px * 0.95);
+    let step = REVEAL_ROWS.filter((n) => n >= need).length - 1;
+    const r = new RevealGl(canvas, loc, w, h);
     made = r;
     const pics = r.pictures().map(async (p) => {
       const res = await fetch(p.url);
@@ -679,7 +731,7 @@ export function prepareReveal(loc: LocationDef): PreparedReveal {
       return { name: p.name, image: await createImageBitmap(await res.blob(), { premultiplyAlpha: 'none', colorSpaceConversion: 'none' }) };
     });
     pics.forEach((p) => p.catch(() => undefined)); // awaited below, in order
-    for (const step of r.steps()) { await frame(); if (dropped) return null; step(); }
+    for (const run of r.steps(REVEAL_ROWS[step]!)) { await frame(); if (dropped) return null; run(); }
     for (const p of pics) {
       const { name, image } = await p;
       await frame();
@@ -688,7 +740,17 @@ export function prepareReveal(loc: LocationDef): PreparedReveal {
       image.close();
     }
     let ms: number | null = null;
-    for (const step of r.warmSteps()) { await frame(); if (dropped) return null; ms = step() ?? ms; }
+    for (const run of r.warmSteps()) { await frame(); if (dropped) return null; ms = run() ?? ms; }
+    while (ms !== null && ms > REVEAL_STEP_MS && step < REVEAL_ROWS.length - 1) {
+      step++;
+      await frame();
+      if (dropped) return null;
+      r.setRows(REVEAL_ROWS[step]!);
+      await frame();
+      if (dropped) return null;
+      ms = r.measure();
+    }
+    console.info(`[locationReveal] ${REVEAL_ROWS[step]} rows, a heavy frame ${ms?.toFixed(1)} ms`);
     if (ms !== null && ms > REVEAL_SLOW_MS) { console.info(`[locationReveal] light version: a heavy frame took ${clamp(ms, 0, 9999).toFixed(0)} ms`); return null; }
     return r.lost ? null : r;
   };

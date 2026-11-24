@@ -599,7 +599,8 @@ describe('what ships', () => {
     const cast = /filter: drop-shadow\(([^;]*)\);/.exec(word)![1]!;
     expect(cast).toMatch(/rgba\(0, 0, 0, 0\.\d+\)$/);
     const [, drop, blur] = /^calc\(\d+ \* var\(--rg-u\)\) calc\((\d+) \* var\(--rg-u\)\) calc\((\d+) \* var\(--rg-u\)\)/.exec(cast)!.map(Number) as [number, number, number];
-    const height = num(/--rg-enter-w: (\d+);/, box) * 245 / 1024;
+    const [, artW, artH] = /aspect-ratio: (\d+) \/ (\d+);/.exec(word)!.map(Number) as [number, number, number];
+    const height = num(/--rg-enter-w: (\d+);/, box) * artH / artW;
     expect(drop / height, 'far: a good part of the word\'s own height away').toBeGreaterThan(0.25);
     expect(blur, 'soft: a filter blur is a deviation, so this is twice as wide as the same text-shadow number').toBeGreaterThanOrEqual(9);
     // The bob: light, the image's transform only, and only while the crystal is up.

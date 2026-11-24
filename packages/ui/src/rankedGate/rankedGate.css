@@ -255,7 +255,8 @@
 /* THE WORD (owner 2026-11-24: "when the crystal is formed and able to be clicked, can we have the word ENTER appear
    with a fade in? ... in a light blue with a blue glow, have it have a far drop shadow like its cast against the
    door and have it lightly bobbing up and down"). It began as lettering in the title face; after a few tries at it
-   the owner painted it instead ("lets try using this"): `/frames/ranked-gate-enter.webp`, ice-blue letters with
+   the owner painted it instead ("lets try using this", then a second, chunkier cut: "use this one instead"):
+   `/frames/ranked-gate-enter.webp`, ice-blue letters with
    their own glow baked in. It sits under the crystal, placed and sized in art pixels like the crystal is
    (`--rg-enter-dy` below the art's centre row, `--rg-enter-w` wide). It never takes the pointer: the crystal is
    the button.
@@ -273,7 +274,7 @@
 }
 .rgate-enter.is-on { opacity: 1; transition: opacity 0.9s ease-out 0.12s; }
 .rgate-enter-word {
-  display: block; width: calc(var(--rg-enter-w) * var(--rg-u)); aspect-ratio: 1024 / 245; will-change: transform;
+  display: block; width: calc(var(--rg-enter-w) * var(--rg-u)); aspect-ratio: 1024 / 200; will-change: transform;
   filter: drop-shadow(calc(7 * var(--rg-u)) calc(24 * var(--rg-u)) calc(9 * var(--rg-u)) rgba(0, 0, 0, 0.7));
 }
 .rgate:is(.is-armed, .is-shatter) .rgate-enter-word { animation: rg-enter-bob 3.4s ease-in-out infinite; }

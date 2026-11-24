@@ -280,7 +280,7 @@
     0 0 calc(4 * var(--rg-u)) rgba(170, 222, 255, 0.95),
     0 0 calc(14 * var(--rg-u)) rgba(64, 150, 255, 0.9),
     0 0 calc(32 * var(--rg-u)) rgba(40, 110, 255, 0.6),
-    calc(7 * var(--rg-u)) calc(24 * var(--rg-u)) calc(9 * var(--rg-u)) rgba(0, 0, 0, 0.66);
+    calc(7 * var(--rg-u)) calc(24 * var(--rg-u)) calc(18 * var(--rg-u)) rgba(0, 0, 0, 0.7);
 }
 .rgate:is(.is-armed, .is-shatter) .rgate-enter-word { animation: rg-enter-bob 3.4s ease-in-out infinite; }
 @keyframes rg-enter-bob {

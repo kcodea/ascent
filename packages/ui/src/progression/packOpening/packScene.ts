@@ -14,7 +14,7 @@
  *  - The scene CALLS `PackSounds` (pop, tear, crackle, rip, sleeveFree, slide, drop, whoosh, flip, silence) but never
  *    creates or disposes it. The DOM beats (stamp, aether, summary) are the shell's.
  *  - Coordinates: the renderer is sized to the host in LAYOUT px (`resizeTo: host`, resolution x `stageScale()`); the
- *    pack is simulated in its BASE units (`PACK_GEOM`, 300 x 547) and the whole pack is scaled to fit the host. Pointer
+ *    pack is simulated in its BASE units (`PACK_GEOM`, 300 x 450) and the whole pack is scaled to fit the host. Pointer
  *    and `flipTop`'s point arrive in SCREEN px and `onFlipEdge` reports SCREEN px, converted through the canvas rect
  *    cached at pointerenter / pointerdown / flip start (never read per frame).
  *  - Clicks are not interpreted after the zoom: they bubble from the canvas to the host, where the shell decides to

@@ -20,8 +20,8 @@ describe('packFxConfig', () => {
       stackZoom: 0.3, quickOpenMs: 1000, packGlow: 1, cardGlow: 1, gloss: 0.6, glossSharpness: 0.5, packTilt: 0.6,
     });
     expect(m.getPackFeel()).toEqual(m.DEFAULT_PACK_FEEL);
-    // 300 wide; the height is the wrapper art's own aspect (packGeom.ts): it was 476 before the art arrived
-    expect(m.PACK_BASE_SIZE).toEqual({ w: 300, h: 547 });
+    // 300 wide; the height is the wrapper art's own aspect (packGeom.ts): it was 476 before the art arrived, 547 for the first Common wrapper
+    expect(m.PACK_BASE_SIZE).toEqual({ w: 300, h: 450 });
   });
 
   it('setPackFeel persists and getPackFeel reads it back', async () => {

@@ -4,7 +4,7 @@ import {
   tiltEaseK, tiltInto, tiltTargetInto, tiltedCornerHit, untiltInto,
 } from './packTilt';
 
-const W = 300, PH = 547;
+const W = 300, PH = 450;
 const DIVE = { tiltMax: 16, tiltEase: 0.4, perspective: 600 }; // the owner's drag dive (dragFeel.ts)
 
 describe('the sealed tilt: pointer position to angles', () => {

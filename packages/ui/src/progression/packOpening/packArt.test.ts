@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { COMMON_PACK_SRC, packArtFor, packShineFor } from './packArt';
+import { COSMETIC_RARITIES } from '@game/progression';
+import { RARITY_PACK_ART, packArtFor, packShineFor } from './packArt';
 import { PACK_LAB_LOOKS } from './packLabSamples';
 import { PACK_ART_TEMPLATE, PACK_GEOM, derivePackHeights } from './packGeom';
 
@@ -18,20 +19,24 @@ function webpSize(file: string): { w: number; h: number } {
 }
 
 describe('packArtFor', () => {
-  it('the Common rarity pack wears the wrapper art; every other look keeps the placeholder', () => {
-    const common = PACK_LAB_LOOKS.find((l) => l.id === 'rarity-common')!;
-    expect(packArtFor(common)).toBe(COMMON_PACK_SRC);
-    expect(packArtFor({ kind: 'rarity', id: 'common', name: 'Common Pack', guaranteedFloor: 'common' })).toBe(COMMON_PACK_SRC);
-    for (const look of PACK_LAB_LOOKS.filter((l) => l !== common)) expect(packArtFor(look), look.id).toBeNull();
-    // a category or themed pack with a Common floor is not the Common pack
+  it('every rarity pack wears its own rarity wrapper; category and themed packs keep the placeholder', () => {
+    for (const r of COSMETIC_RARITIES) {
+      const look = PACK_LAB_LOOKS.find((l) => l.id === `rarity-${r}`);
+      expect(look, r).toBeDefined();
+      expect(packArtFor(look!)).toBe(RARITY_PACK_ART[r]);
+    }
+    for (const look of PACK_LAB_LOOKS.filter((l) => l.kind !== 'rarity')) expect(packArtFor(look), look.id).toBeNull();
+    // a category pack with a Common floor is not the Common pack
     expect(packArtFor({ kind: 'category', id: 'category-emote', name: 'Emote Pack', guaranteedFloor: 'common' })).toBeNull();
   });
 
-  it('ships the art where it points, at 2x the pack on the packGeom template', () => {
-    expect(COMMON_PACK_SRC).toMatch(/packs\/common-pack\.webp$/);
-    const file = join(PUBLIC, 'packs', 'common-pack.webp');
-    expect(existsSync(file)).toBe(true);
-    expect(webpSize(file)).toEqual({ w: PACK_GEOM.W * 2, h: (PACK_GEOM.H + PACK_GEOM.BODY_H) * 2 });
+  it('ships every wrapper where it points, at 2x the pack on the packGeom template', () => {
+    for (const r of COSMETIC_RARITIES) {
+      expect(RARITY_PACK_ART[r].endsWith(`packs/${r}-pack.webp`), r).toBe(true);
+      const file = join(PUBLIC, 'packs', `${r}-pack.webp`);
+      expect(existsSync(file), r).toBe(true);
+      expect(webpSize(file), r).toEqual({ w: PACK_GEOM.W * 2, h: (PACK_GEOM.H + PACK_GEOM.BODY_H) * 2 });
+    }
   });
 
   it('has no shine mask yet (the hook returns null)', () => {
@@ -42,8 +47,8 @@ describe('packArtFor', () => {
 describe('packGeom', () => {
   it('derives the strip from the art: the strip / pack ratio is the tear line\'s share of the wrapper', () => {
     const { H, total } = derivePackHeights(300, PACK_ART_TEMPLATE);
-    expect(H).toBe(61);
-    expect(total).toBe(547);
+    expect(H).toBe(50);
+    expect(total).toBe(450);
     expect(PACK_GEOM.H).toBe(H);
     expect(PACK_GEOM.H + PACK_GEOM.BODY_H).toBe(total);
     const frac = PACK_ART_TEMPLATE.tearY / PACK_ART_TEMPLATE.h;
@@ -53,8 +58,8 @@ describe('packGeom', () => {
   });
 
   it('scales with the width', () => {
-    expect(derivePackHeights(834, PACK_ART_TEMPLATE)).toEqual({ H: 170, total: 1520 });
-    expect(derivePackHeights(600, PACK_ART_TEMPLATE)).toEqual({ H: 122, total: 1094 });
+    expect(derivePackHeights(150, PACK_ART_TEMPLATE)).toEqual({ H: 25, total: 225 });
+    expect(derivePackHeights(600, PACK_ART_TEMPLATE)).toEqual({ H: 100, total: 900 });
   });
 
   it('the stack still fits inside the sleeve', () => {

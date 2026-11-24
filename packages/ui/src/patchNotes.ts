@@ -59,6 +59,10 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-11-23',
     changes: [
       {
+        category: 'Systems',
+        text: "The Play page shows each player as a new showcase card with their portrait, title and rank — including your teammate's rank.",
+      },
+      {
         category: 'Balance',
         text: 'Four new runes in Set 2, and three new minions that come only from runes.',
         details: [

@@ -927,3 +927,19 @@ html[data-ph-shell] .ph-settings .phk-fieldinput { height: calc(36 * var(--phu))
 html[data-ph-shell] .ph-settings .pho-note { padding-inline: 0; padding-bottom: 0; background: none; clip-path: none;
   font-size: calc(13 * var(--phu)); font-style: italic; color: #d8c8a2; opacity: 0.7; }
 html[data-ph-shell] .ph-settings > .pho-note:first-child { box-shadow: none; padding-top: 0; }
+
+/* ── THE SHOWCASE LINEUP (2026-11-23, PhShowcaseCard + phShowcase.css) ── The Play lineup is a `.phs-lineup` (renamed from `.phs-row`,
+   which Settings already owns) straight in the stage column: `flex: 1 1 0` there gives it a DEFINITE height that never depends on its cards, so START
+   holds still in every mode (Group's 2 x 2 and Versus Duos' two columns also share one card width, so one block height).
+   It keeps the old row's breathing room, its lift with START, and the phone's room under the floating head plate. */
+.ph-stage > .phs-lineup { padding: 0 calc(32 * var(--phu)); }
+html:not([data-ph-compact]) .ph-stage > .phs-lineup { translate: 0 calc(-40 * var(--phu)); }
+html[data-ph-compact] .ph-stage > .phs-lineup { padding: calc(90 * var(--phu)) calc(16 * var(--phu)) 0; }
+/* A card's menu docks beside the card, top level with the art: the first column's cards open to their right (the screen edge
+   is on their left), every other card to its left (the side panel is on its right). It may reach over a neighbour; the card
+   with its menu open rises above it (.phs-menu). */
+html:not([data-ph-compact]) .phs-lineup .phs-card > .ph-cardmenu { top: 8%; bottom: auto; left: auto; right: calc(100% + 12 * var(--phu)); translate: none; z-index: 6; }
+html:not([data-ph-compact]) :is(.phs-lineup:not(.grid, .teams) > .phs-card:first-child, .phs-lineup.grid > .phs-card:nth-child(odd), .phs-lineup.teams > .phs-team:first-child > .phs-card) > .ph-cardmenu {
+  right: auto; left: calc(100% + 12 * var(--phu)); }
+/* An invited friend's seat: Cancel sits under the ghost's centred lines. */
+.phs-lineup .phs-ghost > .ph-cancelinv { bottom: 8%; }

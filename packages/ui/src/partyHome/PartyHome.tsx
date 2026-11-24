@@ -30,21 +30,19 @@
  */
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { levelProgress } from '@game/progression';
-import { defaultTeamName, isBlockedName, LEARN_ANCIENTS, LEARN_ASCENT, NAME_BLOCKED_TEXT, TEAM_NAME_MAX, teamNameProblem, type VersusModifierId, type VersusRoomOptions } from '@game/sim';
+import { defaultTeamName, isBlockedName, LEARN_ANCIENTS, LEARN_ASCENT, NAME_BLOCKED_TEXT, TEAM_NAME_MAX, teamNameProblem, type RankPosition, type VersusModifierId, type VersusRoomOptions } from '@game/sim';
 import { heroThumb } from '../art';
 import { mechMedallionSrc } from '../mechMedallion';
 import { isPhone } from '../deviceClass';
 import { Icon } from '../Icon';
 import { currentUserId } from '../identity';
 import { mirrorFor, useProgression } from '../progression/progressionStore';
-import { RankBar, RankCrest } from '../rank/RankBar';
+import { RankBar } from '../rank/RankBar';
 import { useCurrentRank } from '../rank/rankSource';
-import { rankLabel } from '../rank/rankFormat';
 import { remoteEnabled } from '../remoteBoards';
 import { heroPortrait } from '../skins/skins';
 import { sfx } from '../sfx';
 import { anyPageOpen, tempHandle, useGame } from '../store';
-import { TitleBadge } from '../titles/TitleBadge';
 import { friendsAccount, inviteFriend } from '../friends/friendsStore';
 import type { Friend } from '../friends/friendsRemote';
 import { openDm } from '../friends/dock/dockStore';
@@ -61,7 +59,8 @@ import { OpenRoomsPanel, RoomRulesPanel, useVersusRoomHome } from './versusRoomH
 import { defaultRoomName, roomModeOf, roomTitleOf } from './pages/versusPh';
 import { PhFriends } from './shell/PhFriends';
 import { addSampleInvite, clearSampleInvites, removeSampleInvite, setDrawerIsMode, setFriendsOpen, setPhInvite, usePhShell } from './shell/shellStore';
-import { PhBanner, PhBannerInvite, PhBannerName, PhBannerState, PhButton, PhDialog, PhField, PhLeaderBadge, PhPlate, PhSegmented, PhTabs, phNum } from './kit';
+import { PhButton, PhDialog, PhField, PhLeaderBadge, PhPlate, PhShowcaseBand, PhShowcaseCard, PhShowcaseGhost, PhShowcaseInvite, PhSegmented, PhTabs, phNum } from './kit';
+import type { PhCardSize } from './kit';
 import { GauntletPanel, PracticePanel, stagePlayable, useGauntletStages } from './ModeOptions';
 import { familyOf, modeHasSettings, partyFamilies, partyModeOf, partyModes, readFamilySub, rememberPartyMode, type ModeFamily, type ModeFamilyId, type PartyMode, type PartyModeId } from './partyModes';
 import { setPartyDemo, usePartyDemo, usePartyRoom } from './partyHomeFlag';
@@ -83,8 +82,8 @@ interface Member {
   name: string;
   art: string | undefined;
   titleId: string | null;
-  /** The medal line: crest + label. Null: not known (a teammate's medal is not read yet). */
-  rank: { divisionIndex: number; label: string } | null;
+  /** Their Seasonal Ranked standing (yours from the profile, a teammate's from the seat read). Null: Unranked. */
+  rank: RankPosition | null;
   level: number | null;
   state: 'ready' | 'in_game';
   leader: boolean;
@@ -177,19 +176,19 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
   const inGame = duosRoom?.status === 'in_game';
   const members: Member[] = [{
     key: 'self', userId: me, self: true, name: playerName || tempHandle(userId), art: playerCardArt({ avatar: playerAvatar ?? null, favoriteHero: null, cosmetics: null }),
-    titleId: mirror?.equippedTitleId ?? null, rank: rank ? { divisionIndex: rank.divisionIndex, label: rankLabel(rank) } : null,
+    titleId: mirror?.equippedTitleId ?? null, rank,
     level: lv?.level ?? null, state: inGame ? 'in_game' : 'ready', leader: host,
   }];
   if (duosRoom) {
     for (const m of seated) {
       if (m.userId === me) continue;
       const src = seatCardSource({ member: m, own: false, showOpp, server: seatData.get(m.userId) });
-      members.push({ key: m.userId, userId: m.userId, self: false, name: src.name, art: playerCardArt(src), titleId: src.titleId, rank: null, level: null,
+      members.push({ key: m.userId, userId: m.userId, self: false, name: src.name, art: playerCardArt(src), titleId: src.titleId, rank: src.rank, level: null,
         state: inGame ? 'in_game' : 'ready', leader: duosRoom.host_user_id === m.userId });
     }
   } else if (demo) {
     members.push({ key: 'sample-mate', userId: SAMPLE_MATE_ID, self: false, name: 'Mike', art: heroPortrait(sampleHeroes()[0], null), titleId: null,
-      rank: { divisionIndex: 7, label: rankLabel(7) }, level: null, state: 'ready', leader: false });
+      rank: { divisionIndex: 7, points: 40 }, level: null, state: 'ready', leader: false });
   }
   // The sample party's sent invites wait in the next open seat (DEV, no backend).
   const sampleInvites = usePhShell((s) => s.sampleInvites);
@@ -255,15 +254,8 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
   const [modifier, setModifier] = useState<VersusModifierId | null>(null);
   const [roomName, setRoomName] = useState('');
   const rootRef = useRef<HTMLDivElement>(null);
-  // My banner keeps its medal line in a room, so the name never jumps when a room opens behind the screen.
-  const myMedal = (
-    <span className="ph-rank">
-      {members[0]!.rank
-        ? <><RankCrest divisionIndex={members[0]!.rank.divisionIndex} size="mini" /><span>{members[0]!.rank.label}</span></>
-        : <span className="ph-muted">Unranked</span>}
-    </span>
-  );
-  const vh = useVersusRoomHome(rootRef, phone, () => setPickerOpen(true), myMedal);
+  // My card keeps its rank in a room, so nothing jumps when a room opens behind the screen.
+  const vh = useVersusRoomHome(rootRef, phone, () => setPickerOpen(true), members[0]!.rank);
   // The tab stays on the room's mode after leaving it, and a returning member lands back in their room (the store's rejoin).
   useEffect(() => { if (roomTab) { setPicked(roomTab); rememberPartyMode(roomTab); } }, [roomTab]);
   // Joining from Open rooms: the list has done its job, so the panel shows the room's rules.
@@ -515,11 +507,13 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
         ...(m.userId ? [{ label: 'View Career', run: () => goTo('career') }] : []),
       ].filter((it) => !!it.run));
 
-  // The state strip: on the others' cards (yours only when in a game). Your card always keeps the empty strip: ONE foot
-  // layout, so the name and medal never move when someone joins.
-  const stateOf = (m: Member): 'show' | 'space' => (!m.self || m.state === 'in_game' ? 'show' : 'space');
+  // The state band: on the others' cards (yours only when in a game).
+  const stateOf = (m: Member): boolean => !m.self || m.state === 'in_game';
+  // THE SHOWCASE LINEUP (2026-11-23): one card size for the seat count (full / half / compact); the eyebrow names the mode.
+  const size = cardSizeFor(slots);
   const cards: JSX.Element[] = members.map((m, i) => (
-    <BannerCard key={m.key} m={m} i={i} phone={phone} leader={showLeader && m.leader} showState={stateOf(m)} rival={mode.party === 'rivals' && !m.self && (mode.id !== 'vduos' || i >= 2)}
+    <LineupCard key={m.key} m={m} i={i} size={size} eyebrow={mode.label} phone={phone} leader={showLeader && m.leader} showState={stateOf(m)} youLabel={m.self && slots > 1}
+      rival={mode.party === 'rivals' && !m.self && (mode.id !== 'vduos' || i >= 2)} mirrored={mirroredAt(mode.id, i)}
       menuOpen={menuFor === m.key} onToggleMenu={() => { sfx.pulse(); setMenuFor((k) => (k === m.key ? null : m.key)); }}
       menu={cardMenu(m)} onPick={(run) => { sfx.pulse(); setMenuFor(null); run(); }} />
   ));
@@ -527,23 +521,21 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
   for (let i = 0; i < open; i++) {
     const p = pending[i];
     cards.push(p
-      ? <PhBanner key={`open-${i}`} index={members.length + i} className="pending" art={heroThumb(heroPortrait(p.favoriteHero, null))} label={`${p.author ?? 'Friend'}, invited`}
+      ? <PhShowcaseGhost key={`open-${i}`} size={size} index={members.length + i} className="pending" label={`${p.author ?? 'Friend'}, invited`}
           overlay={<button type="button" className="ph-cancelinv" onClick={() => { sfx.pulse(); removeSampleInvite(p.userId); }}>Cancel</button>}>
-          <PhBannerName>{p.author ?? 'Friend'}</PhBannerName>
-          <span className="ph-sub">{'\u00a0'}</span>
-          <span className="ph-rank"><span className="ph-muted">Invited</span></span>
-          <PhBannerState tone="space" />
-        </PhBanner>
-      : <OpenSeat key={`open-${i}`} i={members.length + i} onOpen={onOpenSeat} pending={null} optional={mode.id === 'group' && members.length + i === 3} />);
+          <PhShowcaseInvite label="Invited" sub={p.author ?? 'Friend'} />
+        </PhShowcaseGhost>
+      : <OpenSeat key={`open-${i}`} i={members.length + i} size={size} onOpen={onOpenSeat} optional={mode.id === 'group' && members.length + i === 3} />);
   }
-  // VERSUS DUOS: two pairs (your team, the rivals), split by the VS mark.
+  // THE ROW: Versus 1v1 is a duel (VS between), Group a 2 x 2 grid, Versus Duos two team columns split by the VS mark.
+  const rowClass = mode.id === 'versus' ? 'phs-lineup duel' : mode.id === 'group' ? 'phs-lineup grid' : mode.id === 'vduos' ? 'phs-lineup teams' : 'phs-lineup';
   const row: JSX.Element[] = mode.id === 'versus' && cards.length === 2
-    ? [cards[0]!, <span key="vs" className="ph-vs" aria-hidden="true">VS</span>, cards[1]!]
+    ? [cards[0]!, <span key="vs" className="phs-vs" aria-hidden="true">VS</span>, cards[1]!]
     : mode.id === 'vduos' && cards.length === 4
     ? [
-        <div key="a" className="ph-pair"><div className="ph-pairrow"><span className="ph-pairlbl mine">Your team</span>{cards.slice(0, 2)}</div></div>,
-        <span key="vs" className="ph-vs" aria-hidden="true">VS</span>,
-        <div key="b" className="ph-pair"><div className="ph-pairrow"><span className="ph-pairlbl rival">Rivals</span>{cards.slice(2)}</div></div>,
+        <div key="a" className="phs-team"><span className="ph-pairlbl mine">Your team</span>{cards.slice(0, 2)}</div>,
+        <span key="vs" className="phs-vs" aria-hidden="true">VS</span>,
+        <div key="b" className="phs-team"><span className="ph-pairlbl rival">Rivals</span>{cards.slice(2)}</div>,
       ]
     : cards;
 
@@ -718,7 +710,10 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
           </div>
         )}
         </div>
-        <div className={`ph-cards n${slots}${mode.id === 'vduos' ? ' vs' : ''}`} key={mode.id}>{vh.row ?? row}</div>
+        {/* A Versus room still draws its own seat row (versusRoomHome.tsx); the Play lineup is the showcase row. */}
+        {vh.row
+          ? <div className={`ph-cards n${slots}${mode.id === 'vduos' ? ' vs' : ''}`} key={mode.id}>{vh.row}</div>
+          : <div className={rowClass} key={mode.id}>{row}</div>}
         {actions}
       </main>
 
@@ -818,11 +813,22 @@ function InvitePicker({ onClose }: { onClose: () => void }): JSX.Element {
   );
 }
 
-/** A member's tall banner card: the portrait fading into navy, then name, medal, title or level, and (others) the state.
- *  Pressing it opens its small menu. */
-function BannerCard({ m, i, phone, leader, showState, rival, menuOpen, onToggleMenu, menu, onPick }: {
-  m: Member; i: number; phone: boolean; leader: boolean; showState: 'show' | 'space'; rival?: boolean; menuOpen: boolean; onToggleMenu: () => void;
-  menu: { label: string; run?: () => void; soon?: boolean }[]; onPick: (run: () => void) => void;
+/** The card size for a lineup of `seats` (filled and open): one seat full, two half, three or four compact. */
+export function cardSizeFor(seats: number): PhCardSize {
+  return seats <= 1 ? 'full' : seats === 2 ? 'half' : 'compact';
+}
+
+/** Mirroring is by POSITION (spec "Layouts per mode"): the card right of the VS mark in Versus 1v1 and the right-hand column in
+ *  Versus Duos face the VS mark. A mode with no VS mark never mirrors. */
+export function mirroredAt(modeId: string, i: number): boolean {
+  return modeId === 'versus' ? i === 1 : modeId === 'vduos' ? i >= 2 : false;
+}
+
+/** A member's showcase card: the portrait, then the mode, name, title (or level) and rank; Ready / In game on the others'
+ *  cards. Pressing it opens its small menu. */
+function LineupCard({ m, i, size, eyebrow, phone, leader, showState, youLabel, rival, mirrored, menuOpen, onToggleMenu, menu, onPick }: {
+  m: Member; i: number; size: PhCardSize; eyebrow: string; phone: boolean; leader: boolean; showState: boolean; youLabel: boolean; rival?: boolean; mirrored: boolean;
+  menuOpen: boolean; onToggleMenu: () => void; menu: { label: string; run?: () => void; soon?: boolean }[]; onPick: (run: () => void) => void;
 }): JSX.Element {
   const art = phone ? heroThumb(m.art) : m.art;
   const overlay = menuOpen ? (
@@ -836,27 +842,19 @@ function BannerCard({ m, i, phone, leader, showState, rival, menuOpen, onToggleM
     </div>
   ) : null;
   return (
-    <PhBanner art={art} index={i} className={rival ? 'rival' : undefined} badge={leader ? <PhLeaderBadge /> : undefined} onClick={onToggleMenu} label={`${m.self ? 'You' : m.name}. Options`}
-      haspopup expanded={menuOpen} overlay={overlay}>
-            {/* Name, then the title right under it, then the rank medal on its own row with the rank under it (owner 2026-11-05). */}
-            <PhBannerName>{m.name}</PhBannerName>
-            <span className="ph-sub">{m.titleId ? <TitleBadge id={m.titleId} className="ph-titlebadge" /> : m.level != null ? `Level ${m.level}` : '\u00a0'}</span>
-            <span className="ph-rank">
-              {m.rank
-                ? <><RankCrest divisionIndex={m.rank.divisionIndex} size="mini" /><span>{m.rank.label}</span></>
-                : <span className="ph-muted">{m.self ? 'Unranked' : 'Medal not shown'}</span>}
-            </span>
-            {showState === 'show' && <PhBannerState tone={m.state}>{m.state === 'in_game' ? 'In game' : 'Ready'}</PhBannerState>}
-            {showState === 'space' && <PhBannerState tone="space" />}
-    </PhBanner>
+    <PhShowcaseCard size={size} index={i} label={`${m.self ? 'You' : m.name}. Options`} name={m.name} art={art} eyebrow={eyebrow}
+      titleId={m.titleId} fallbackLine={m.level != null ? `Level ${m.level}` : null} rank={m.rank} mine={m.self} rival={rival} mirrored={mirrored}
+      badge={leader ? <PhLeaderBadge /> : undefined} youLabel={youLabel}
+      band={showState ? <PhShowcaseBand tone={m.state}>{m.state === 'in_game' ? 'In game' : 'Ready'}</PhShowcaseBand> : undefined}
+      onClick={onToggleMenu} haspopup expanded={menuOpen} overlay={overlay} />
   );
 }
 
 /** An open seat: points at the friends list (invite from there). */
-function OpenSeat({ i, onOpen, pending, optional }: { i: number; onOpen: () => void; pending: string | null; optional?: boolean }): JSX.Element {
+function OpenSeat({ i, size, onOpen, optional }: { i: number; size: PhCardSize; onOpen: () => void; optional?: boolean }): JSX.Element {
   return (
-    <PhBanner ghost index={i} onClick={onOpen} label="Open seat. Invite a friend from your friends list">
-      <PhBannerInvite pending={pending} note={optional ? 'Optional seat' : undefined} />
-    </PhBanner>
+    <PhShowcaseGhost size={size} index={i} onClick={onOpen} label="Open seat. Invite a friend from your friends list">
+      <PhShowcaseInvite sub={optional ? 'Optional seat' : undefined} />
+    </PhShowcaseGhost>
   );
 }

@@ -16,7 +16,7 @@ describe('party home prototype', () => {
         expect(kit, `${f} imports ${name}`).toHaveProperty(name);
       }
     }
-  });
+  }, 60_000); // the kit's showcase card pulls the rank + title chain: a cold import takes ~20 s in the node environment
   it('lists every mode, hiding Versus and dev-only modes when their flags are off', () => {
     expect(partyModes({ versus: true, dev: true }).map((m) => m.id)).toEqual(PARTY_MODES.map((m) => m.id));
     const prod = partyModes({ versus: false, dev: false }).map((m) => m.id);

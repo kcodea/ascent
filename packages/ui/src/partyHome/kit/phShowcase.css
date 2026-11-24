@@ -1,7 +1,7 @@
 /* ── THE SHOWCASE CARD (PhShowcaseCard.tsx; owner-approved look 2026-11-23, mockup v11) ─────────────────────────────────
    A landscape player card: splash art on one side (56%) fading into the navy plate, the player on the other. Every inner
    size is in the CARD's own container units (cqw of `.phs-card`), so one design serves full / half / compact. A lineup
-   row (`.phs-row`, below) sets each card's width in the ROW's container units, so the cards fit the space they get.
+   row (`.phs-lineup`, below) sets each card's width in the ROW's container units, so the cards fit the space they get.
    PERFORMANCE: static paint. Motion: a one-shot rise on entrance, a one-shot transform lift on hover (none under reduced
    motion). No loops, no live filters. No `cursor` here (the gauntlet rule paints it). Colours are the `--ph-*` tokens;
    the literals left are the art fade's two navies and the band tints, which have no token. */
@@ -33,7 +33,7 @@ button.phs-press:hover, .phs-menu > button.phs-press { transform: translateY(cal
 .phs-info { position: absolute; inset: 7% 5% 8% 52%; display: flex; flex-direction: column; justify-content: center; align-items: stretch; gap: 3cqw; min-width: 0; }
 .phs-compact .phs-info { inset: 6% 4% 6% 51%; gap: 2.2cqw; }
 .phs-eyebrow { font-weight: 800; font-size: 2.6cqw; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ph-gold); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.phs-name { display: block; min-width: 0; font-family: var(--ph-name-font); font-weight: 900; font-size: 8.4cqw; line-height: 0.95; letter-spacing: 0.02em; text-transform: uppercase;
+.phs-pname { display: block; min-width: 0; font-family: var(--ph-name-font); font-weight: 900; font-size: 8.4cqw; line-height: 0.95; letter-spacing: 0.02em; text-transform: uppercase;
   text-shadow: 0 0.5cqw 0 rgba(0, 0, 0, 0.4); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* The title line keeps one height whether it holds a badge, the fallback line or the spacer. */
 .phs-title { display: flex; align-items: center; min-height: 1.6em; min-width: 0; font-size: 3.4cqw; line-height: 1.2; }
@@ -89,29 +89,31 @@ button.phs-press:hover, .phs-menu > button.phs-press { transform: translateY(cal
 .phs-gsub { font-weight: 700; font-size: 2.6cqw; color: var(--ph-muted); }
 .phs-gpill { padding: 0.5em 1.4em; border-radius: 999px; background: var(--ph-well); box-shadow: inset 0 0 0 1px var(--ph-hair); font-weight: 800; font-size: 2.4cqw; letter-spacing: 0.12em; text-transform: uppercase; }
 
-/* ── THE LINEUP ROW: sizes its cards in its own container units (width-bound, else height-bound) ──
+/* NAMES: `phs-` is shared with the Settings page (phSettings.css owns `.phs-row` and `.phs-name`), so the row is `.phs-lineup` and
+   the card name `.phs-pname`. Check phSettings.css before adding a new `phs-` class here.
+   ── THE LINEUP ROW: sizes its cards in its own container units (width-bound, else height-bound) ──
    Proportions follow the mockup's 16:9 stage (full 46, half 40, compact 33 of the stage width), re-expressed against the
-   row, which spans the stage centre minus its padding. `.phs-row.grid` and `.phs-row.teams` share one compact width, so
+   row, which spans the stage centre minus its padding. `.phs-lineup.grid` and `.phs-lineup.teams` share one compact width, so
    the two four-seat layouts are exactly the same height (the team labels float above their columns in reserved space).
    CONSUMERS: the row is a SIZE container (cards read its cqh), so it needs a DEFINITE height from its parent: a flex child
    with room to grow (`flex: 1` in a column, or `height: 100%` of a sized box). Without one it falls back to its
    `min-height` (240 stage units), never to zero, so the cards shrink but never vanish.
    The row's own gaps are in stage units (`--phu`), never cq units: a container's own cq units resolve against its
    ancestor, not itself. (32 / 24 units match the mockup's 2.2 / 1.6 % of the stage at 1920 wide.) */
-.phs-row { --phs-gap: calc(32 * var(--phu, 1px)); --phs-rgap: calc(24 * var(--phu, 1px)); --phs-lbl: calc(80 * var(--phu, 1px)); container-type: size; box-sizing: border-box;
+.phs-lineup { --phs-gap: calc(32 * var(--phu, 1px)); --phs-rgap: calc(24 * var(--phu, 1px)); --phs-lbl: calc(80 * var(--phu, 1px)); container-type: size; box-sizing: border-box;
   flex: 1 1 0; align-self: stretch; width: 100%; height: 100%; min-width: 0; min-height: calc(240 * var(--phu, 1px));
   display: flex; align-items: center; justify-content: center; gap: var(--phs-gap); }
-.phs-row > .phs-full { --phs-w: min(49cqw, 160cqh, calc(760 * var(--phu, 1px))); }
-.phs-row .phs-half { --phs-w: min(42.5cqw, 160cqh, calc(680 * var(--phu, 1px))); }
-.phs-row .phs-compact { --phs-w: min(35cqw, 200cqh, calc(560 * var(--phu, 1px))); }
-.phs-row.grid .phs-compact, .phs-row.teams .phs-compact { --phs-w: min(35cqw, calc(100cqh - var(--phs-rgap) - var(--phs-lbl)), calc(560 * var(--phu, 1px))); }
+.phs-lineup > .phs-full { --phs-w: min(49cqw, 160cqh, calc(760 * var(--phu, 1px))); }
+.phs-lineup .phs-half { --phs-w: min(42.5cqw, 160cqh, calc(680 * var(--phu, 1px))); }
+.phs-lineup .phs-compact { --phs-w: min(35cqw, 200cqh, calc(560 * var(--phu, 1px))); }
+.phs-lineup.grid .phs-compact, .phs-lineup.teams .phs-compact { --phs-w: min(35cqw, calc(100cqh - var(--phs-rgap) - var(--phs-lbl)), calc(560 * var(--phu, 1px))); }
 /* DUEL: two cards with the VS mark between them. */
 .phs-vs { flex: none; padding: 0 0.6cqw; font-family: var(--ph-font); font-weight: 900; font-style: italic; font-size: 3.4cqw; letter-spacing: 0.06em; line-height: 1;
   color: transparent; background: var(--ph-metal-gold); -webkit-background-clip: text; background-clip: text; filter: drop-shadow(0 0.3cqw 0.4cqw rgba(0, 0, 0, 0.6)); }
 /* GRID: two by two. */
-.phs-row.grid { display: grid; grid-template-columns: repeat(2, auto); place-content: center; gap: var(--phs-rgap) var(--phs-gap); }
+.phs-lineup.grid { display: grid; grid-template-columns: repeat(2, auto); place-content: center; gap: var(--phs-rgap) var(--phs-gap); }
 /* TEAMS: two columns of two (each a `.phs-team`), the VS mark between; each column's `.ph-pairlbl` floats above it. */
-.phs-row.teams { gap: calc(var(--phs-gap) * 1.2); }
+.phs-lineup.teams { gap: calc(var(--phs-gap) * 1.2); }
 .phs-team { position: relative; flex: none; display: flex; flex-direction: column; gap: var(--phs-rgap); }
 .phs-team > .ph-pairlbl { position: absolute; left: 0; right: 0; bottom: calc(100% + 12 * var(--phu, 1px)); margin: 0 auto; }
 

@@ -24,7 +24,7 @@ describe('PhShowcaseCard', () => {
     const el = root();
     expect(el.className).toContain('phs-card');
     expect(el.className).toContain('phs-full');
-    expect(el.querySelector('.phs-name')?.textContent).toBe('Mike');
+    expect(el.querySelector('.phs-pname')?.textContent).toBe('Mike');
     expect(el.querySelector('.titlebadge')).not.toBeNull();
     expect(el.querySelector('.rankcrest')).not.toBeNull();
     expect(el.textContent).toContain(rankLabel(7));
@@ -51,7 +51,7 @@ describe('PhShowcaseCard', () => {
     const el = root();
     expect(el.className).toContain('phs-mirrored');
     expect(el.className).toContain('phs-rival');
-    const name = el.querySelector('.phs-name') as HTMLElement;
+    const name = el.querySelector('.phs-pname') as HTMLElement;
     expect(name).not.toBeNull();
     expect(name.style.transform).toBe('');
     const img = el.querySelector('.phs-art img') as HTMLImageElement;
@@ -64,7 +64,7 @@ describe('PhShowcaseCard', () => {
     ui = mount(<PhShowcaseCard size="compact" label={long} name={long} rank={{ divisionIndex: 2, points: 10 }} />);
     const el = root();
     expect(el.className).toContain('phs-compact');
-    const name = el.querySelector('.phs-name');
+    const name = el.querySelector('.phs-pname');
     expect(name).not.toBeNull();
     expect(name!.textContent).toBe(long);
   });

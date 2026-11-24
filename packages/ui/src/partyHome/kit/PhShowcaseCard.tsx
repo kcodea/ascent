@@ -3,8 +3,8 @@
  * fading into the navy plate, the player on the other: eyebrow, name, title (or a fallback line), and a rank well with the
  * medal crest, the division, a progress bar and the points. It replaces the tall `PhBanner` everywhere a lineup shows.
  *
- *   <div className="phs-row">              a lineup sizes its cards: `phs-row` (1 or 2 side by side), `phs-row duel` (VS between),
- *     <PhShowcaseCard size="full" ... />   `phs-row grid` (2 x 2), `phs-row teams` (two `phs-team` columns + VS); see phShowcase.css
+ *   <div className="phs-lineup">              a lineup sizes its cards: `phs-lineup` (1 or 2 side by side), `phs-lineup duel` (VS between),
+ *     <PhShowcaseCard size="full" ... />   `phs-lineup grid` (2 x 2), `phs-lineup teams` (two `phs-team` columns + VS); see phShowcase.css
  *   </div>
  *
  * `size` is full (one seat), half (two) or compact (three or four); every inner size is in the card's own container units,
@@ -69,7 +69,7 @@ export const PhShowcaseCard = memo(function PhShowcaseCard({
         {youLabel && <span className="phs-you">You</span>}
         <span className="phs-info">
           {eyebrow != null && <span className="phs-eyebrow">{eyebrow}</span>}
-          <span className="phs-name">{name}</span>
+          <span className="phs-pname">{name}</span>
           <span className="phs-title">
             {titleId ? <TitleBadge id={titleId} /> : fallbackLine ? <span className="phs-fallback">{fallbackLine}</span> : '\u00A0'}
           </span>

@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { CARD_INDEX } from '@game/content';
 import { TRIBES, type Tribe } from '@game/core';
 import { TRIBE_LABEL } from './careerData';
@@ -117,22 +117,31 @@ export function AvatarPicker() {
   return <PortraitWindow />;
 }
 
-function PortraitWindow() {
-  const close = useGame((s) => s.closeAvatarPicker);
-  const current = useGame((s) => s.playerAvatar);
-  const setAvatar = useGame((s) => s.setPlayerAvatar);
-  const openCollection = useGame((s) => s.openCollection);
-  const playerName = useGame((s) => s.playerName);
+/** The portrait lists shared by the window and its body: owned skins plus the bundled portraits, and an id lookup. */
+function usePortraitEntries() {
   const userId = useGame((s) => s.account.userId);
   const mirror = useProgression((s) => s.mirror);
   const catalogEpoch = useProgression((s) => s.catalogEpoch);
   const me = mirrorFor(userId, mirror);
-
   const skins = useMemo(() => ownedSkinEntries(new Set(withStarterCosmetics(me ? ownedIds(me) : EMPTY))), [me, catalogEpoch]);
   const all = useMemo<Record<TabId, Entry[]>>(() => ({ skins, ...baseEntries() }), [skins]);
   const byId = useMemo(() => new Map(Object.values(all).flat().map((e) => [e.id, e] as const)), [all]);
+  return { skins, all, byId };
+}
 
-  const [sel, setSel] = useState<string | null>(current);
+/**
+ * THE AVATAR TAB BODY: the tabs (My Skins / Heroes / Minions / Hero Powers), the grid, and the search + filter column.
+ * No dialog chrome, buttons or banner preview. `side` renders under the filter in the side column (the window puts the
+ * selection and its buttons there).
+ */
+export function AvatarTabBody({ selected, onSelect, onApply, side }: {
+  selected: string | null; onSelect: (id: string) => void; onApply: (id: string) => void; side?: ReactNode;
+}) {
+  const close = useGame((s) => s.closeAvatarPicker);
+  const current = useGame((s) => s.playerAvatar);
+  const openCollection = useGame((s) => s.openCollection);
+  const { skins, all } = usePortraitEntries();
+
   const [tab, setTab] = useState<TabId>(() => {
     const home = (Object.keys(all) as TabId[]).find((t) => all[t].some((e) => e.id === current));
     return home ?? (skins.length ? 'skins' : 'hero');
@@ -144,6 +153,81 @@ function PortraitWindow() {
     const f = (rows: Entry[]): Entry[] => rows.filter((e) => e.find.includes(q));
     return { skins: f(all.skins), hero: f(all.hero), minion: f(all.minion), power: f(all.power) };
   }, [all, q]);
+
+  // Open with the portrait in use in view.
+  const scrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => { scrollRef.current?.querySelector<HTMLElement>('.avp-tile.on')?.scrollIntoView?.({ block: 'center' }); }, []);
+
+  // The hovered tile's name, written straight to the caption line: a hover never re-renders the grid.
+  const capRef = useRef<HTMLSpanElement>(null);
+  const caption = (text: string): void => { if (capRef.current) capRef.current.textContent = text; };
+
+  // THE FILTER: one dropdown per tab, remembered per tab while the window is open. It narrows the grid only; the tab
+  // counts keep following the search.
+  const [filters, setFilters] = useState<Partial<Record<TabId, string>>>({});
+  const options = useMemo(() => filterOptions(tab, all[tab]), [tab, all]);
+  const filter = options.some((o) => o.value === filters[tab]) ? filters[tab]! : 'all';
+  const rows = useMemo(() => (filter === 'all' ? shown[tab] : shown[tab].filter((e) => e.tags?.includes(filter))), [shown, tab, filter]);
+  const groups = [...new Set(rows.map((e) => e.group ?? ''))];
+
+  return (
+    <>
+      <div className="avp-left">
+        <div className="avp-bar">
+          <PhTabs<TabId> label="Portrait kind" value={tab} onChange={setTab} tabs={[
+            { id: 'skins', label: tabLabel('My Skins', shown.skins.length) },
+            { id: 'hero', label: tabLabel('Heroes', shown.hero.length) },
+            { id: 'minion', label: tabLabel('Minions', shown.minion.length) },
+            { id: 'power', label: tabLabel('Hero Powers', shown.power.length) },
+          ]} />
+        </div>
+        <div className="avp-main">
+          <div ref={scrollRef} className="avp-scroll"
+            onPointerOver={(e) => { const t = (e.target as HTMLElement).closest<HTMLElement>('.avp-tile'); if (t) caption(t.dataset.name ?? ''); }}
+            onPointerLeave={() => caption('')}>
+            {rows.length === 0 && (all[tab].length > 0
+              ? <PhEmpty title="No matches" sub="Try another name or filter, or look in another tab." />
+              : <PhEmpty title="No skins yet" sub="Open chests to unlock hero and minion skins. Any skin you own can be your portrait."
+                  action={<PhButton onClick={() => { close(); openCollection(); }}>Go to Collection</PhButton>} />)}
+            {rows.length > 0 && groups.map((g) => (
+              <div key={g} className="avp-group">
+                {g && <div className="avp-grouplbl">{g}</div>}
+                <div className="avp-grid">
+                  {rows.filter((e) => (e.group ?? '') === g).map((e) => (
+                    <Tile key={e.id} e={e} on={selected === e.id} used={current === e.id} onPick={onSelect} onApply={onApply} />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="avp-caption" aria-hidden="true">
+            <span ref={capRef} className="avp-capname" />
+            <span className="avp-capdef">{rows.length === 1 ? '1 portrait' : `${rows.length} portraits`}</span>
+          </div>
+        </div>
+      </div>
+      {/* THE SIDE COLUMN: the search, the tab's filter right under it, then the selection on your banner (owner
+          2026-11-19: "remove the portrait frame preview and put the dropdown right under the search bar"). */}
+      <aside className="avp-side">
+        <PhSearch className="avp-search" placeholder="Search by name" aria-label="Search portraits by name" value={query} onChange={(e) => setQuery(e.target.value)} />
+        {options.length > 0 && (
+          <PhSelect<string> className="avp-filter" label="Filter portraits" value={filter} options={options}
+            onChange={(v) => setFilters((f) => ({ ...f, [tab]: v }))} />
+        )}
+        {side}
+      </aside>
+    </>
+  );
+}
+
+function PortraitWindow() {
+  const close = useGame((s) => s.closeAvatarPicker);
+  const current = useGame((s) => s.playerAvatar);
+  const setAvatar = useGame((s) => s.setPlayerAvatar);
+  const playerName = useGame((s) => s.playerName);
+  const { byId } = usePortraitEntries();
+
+  const [sel, setSel] = useState<string | null>(current);
 
   // Esc closes the window (and nothing under it); on the shell it is also the top layer of the one Back path.
   usePhLayer(true, close);
@@ -157,27 +241,12 @@ function PortraitWindow() {
     return () => window.removeEventListener('keydown', onKey, true);
   }, [close]);
 
-  // Open with the portrait in use in view.
-  const scrollRef = useRef<HTMLDivElement>(null);
-  useEffect(() => { scrollRef.current?.querySelector<HTMLElement>('.avp-tile.on')?.scrollIntoView?.({ block: 'center' }); }, []);
-
   const apply = useCallback((id: string | null): void => { setAvatar(id); close(); }, [setAvatar, close]);
   const pick = useCallback((id: string): void => setSel(id), []);
 
-  // The hovered tile's name, written straight to the caption line: a hover never re-renders the grid.
-  const capRef = useRef<HTMLSpanElement>(null);
-  const caption = (text: string): void => { if (capRef.current) capRef.current.textContent = text; };
-
-  // THE FILTER: one dropdown per tab, remembered per tab while the window is open. It narrows the grid only; the tab
-  // counts keep following the search.
-  const [filters, setFilters] = useState<Partial<Record<TabId, string>>>({});
-  const options = useMemo(() => filterOptions(tab, all[tab]), [tab, all]);
-  const filter = options.some((o) => o.value === filters[tab]) ? filters[tab]! : 'all';
-  const rows = useMemo(() => (filter === 'all' ? shown[tab] : shown[tab].filter((e) => e.tags?.includes(filter))), [shown, tab, filter]);
   const chosen = sel ? byId.get(sel) : undefined;
   const chosenSrc = chosen?.src ?? avatarSrc(sel);
   const unchanged = sel === current;
-  const groups = [...new Set(rows.map((e) => e.group ?? ''))];
 
   return (
     <div className="phk-dialog ph-tokens avatarpick avp" role="dialog" aria-modal="true" aria-label="Choose your portrait">
@@ -195,48 +264,7 @@ function PortraitWindow() {
           <PhButton variant="ghost" size="s" className="avp-close" aria-label="Close" onClick={close}>✕</PhButton>
         </header>
         <div className="avp-body">
-          <div className="avp-left">
-          <div className="avp-bar">
-            <PhTabs<TabId> label="Portrait kind" value={tab} onChange={setTab} tabs={[
-              { id: 'skins', label: tabLabel('My Skins', shown.skins.length) },
-              { id: 'hero', label: tabLabel('Heroes', shown.hero.length) },
-              { id: 'minion', label: tabLabel('Minions', shown.minion.length) },
-              { id: 'power', label: tabLabel('Hero Powers', shown.power.length) },
-            ]} />
-          </div>
-          <div className="avp-main">
-            <div ref={scrollRef} className="avp-scroll"
-              onPointerOver={(e) => { const t = (e.target as HTMLElement).closest<HTMLElement>('.avp-tile'); if (t) caption(t.dataset.name ?? ''); }}
-              onPointerLeave={() => caption('')}>
-              {rows.length === 0 && (all[tab].length > 0
-                ? <PhEmpty title="No matches" sub="Try another name or filter, or look in another tab." />
-                : <PhEmpty title="No skins yet" sub="Open chests to unlock hero and minion skins. Any skin you own can be your portrait."
-                    action={<PhButton onClick={() => { close(); openCollection(); }}>Go to Collection</PhButton>} />)}
-              {rows.length > 0 && groups.map((g) => (
-                <div key={g} className="avp-group">
-                  {g && <div className="avp-grouplbl">{g}</div>}
-                  <div className="avp-grid">
-                    {rows.filter((e) => (e.group ?? '') === g).map((e) => (
-                      <Tile key={e.id} e={e} on={sel === e.id} used={current === e.id} onPick={pick} onApply={apply} />
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="avp-caption" aria-hidden="true">
-              <span ref={capRef} className="avp-capname" />
-              <span className="avp-capdef">{rows.length === 1 ? '1 portrait' : `${rows.length} portraits`}</span>
-            </div>
-          </div>
-          </div>
-          {/* THE SIDE COLUMN: the search, the tab's filter right under it, then the selection on your banner (owner
-              2026-11-19: "remove the portrait frame preview and put the dropdown right under the search bar"). */}
-          <aside className="avp-side">
-            <PhSearch className="avp-search" placeholder="Search by name" aria-label="Search portraits by name" value={query} onChange={(e) => setQuery(e.target.value)} />
-            {options.length > 0 && (
-              <PhSelect<string> className="avp-filter" label="Filter portraits" value={filter} options={options}
-                onChange={(v) => setFilters((f) => ({ ...f, [tab]: v }))} />
-            )}
+          <AvatarTabBody selected={sel} onSelect={pick} onApply={apply} side={<>
             <div className="avp-picked" aria-live="polite">
               <div className="avp-name">{chosen?.name ?? (sel ? 'Portrait' : 'Default')}</div>
               <div className={`avp-sub${chosen?.rarity ? ` r-${chosen.rarity}` : ''}`}>
@@ -251,7 +279,7 @@ function PortraitWindow() {
               <PhButton variant="primary" size="l" className="avp-use" disabled={unchanged} onClick={() => apply(sel)}>{unchanged ? 'In use' : 'Use portrait'}</PhButton>
               <PhButton variant="ghost" size="s" className="avp-reset" disabled={sel === null} onClick={() => setSel(null)}>Reset to default</PhButton>
             </div>
-          </aside>
+          </>} />
         </div>
       </div>
     </div>

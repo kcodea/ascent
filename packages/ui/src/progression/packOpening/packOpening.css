@@ -10,9 +10,9 @@
 /* THE BIG-PULL SHAKE (bigPull.ts): the scene and the faces shake as one, once, when a Legendary / Ancient lands. A
    one-shot transform keyframe (BIG_PULL_SHAKE_MS = 260ms, slow-mo scaled), decaying; `--pk-quake` is the amplitude (px,
    set inline). Two identical names (-a / -b) so consecutive big pulls restart it. Never under reduced motion. */
-.pkop-quake { position: absolute; inset: 0; --pk-quake: 0px; }
-.pkop-quake-a { animation: pkop-quake-a calc(0.26s * var(--pk-slow, 1)) linear both; }
-.pkop-quake-b { animation: pkop-quake-b calc(0.26s * var(--pk-slow, 1)) linear both; }
+.pkop-quake { position: absolute; inset: 0; isolation: isolate; --pk-quake: 0px; }
+.pkop-quake-a { animation: pkop-quake-a calc(0.26s * var(--pk-slow, 1)) linear; }
+.pkop-quake-b { animation: pkop-quake-b calc(0.26s * var(--pk-slow, 1)) linear; }
 @keyframes pkop-quake-a {
   0%, 100% { transform: translate(0, 0); }
   10% { transform: translate(calc(var(--pk-quake) * 1), calc(var(--pk-quake) * -0.6)); }

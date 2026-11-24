@@ -138,6 +138,7 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
   const startGauntlet = useGame((s) => s.startGauntlet);
   const startTutorial = useGame((s) => s.startTutorial);
   const goTo = useGame((s) => s.goTo);
+  const openCosmetics = useGame((s) => s.openCosmetics);
   const playerName = useGame((s) => s.playerName);
   const playerAvatar = useGame((s) => s.playerAvatar);
   const showOpp = useShowOpponentCosmetics();
@@ -501,6 +502,12 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
         ...(m.userId ? [{ label: 'View Career', run: () => goTo('career') }] : []),
       ].filter((it) => !!it.run));
 
+  // PRESS ZONES on a card (owner 2026-11-24): on YOUR card (signed in), the art opens the Avatar picker and the title the Title
+  // picker, the same window the tabs under it open; the rank box opens Career on every card whose menu offers View Career.
+  const zone = (run: () => void) => (): void => { sfx.pulse(); setMenuFor(null); run(); };
+  const ownZone = (m: Member, tab: 'avatar' | 'title'): (() => void) | undefined => (m.self && tabbed ? zone(() => openCosmetics(tab)) : undefined);
+  const careerZone = (m: Member): (() => void) | undefined => (m.self || m.userId ? zone(() => goTo('career')) : undefined);
+
   // The state band: on the others' cards (yours only when in a game).
   const stateOf = (m: Member): boolean => !m.self || m.state === 'in_game';
   // THE SHOWCASE LINEUP (2026-11-23): one card size for the seat count (full / half / compact); the eyebrow names the mode.
@@ -509,7 +516,8 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
     <LineupCard key={m.key} m={m} i={i} size={size} eyebrow={mode.label} phone={phone} leader={showLeader && m.leader} showState={stateOf(m)} youLabel={m.self && slots > 1}
       rival={mode.party === 'rivals' && !m.self && (mode.id !== 'vduos' || i >= 2)} mirrored={mirroredAt(mode.id, i)} menuRight={menuRightAt(mode.id, i)}
       menuOpen={menuFor === m.key} onToggleMenu={() => { sfx.pulse(); setMenuFor((k) => (k === m.key ? null : m.key)); }}
-      menu={cardMenu(m)} onPick={(run) => { sfx.pulse(); setMenuFor(null); run(); }} />
+      menu={cardMenu(m)} onPick={(run) => { sfx.pulse(); setMenuFor(null); run(); }}
+      onArt={ownZone(m, 'avatar')} onTitle={ownZone(m, 'title')} onRank={careerZone(m)} />
   ));
   const pending = demo ? sampleInvites.map((id) => sampleFriends().find((f) => f.userId === id)).filter((f): f is Friend => !!f) : [];
   for (let i = 0; i < open; i++) {
@@ -833,9 +841,11 @@ export function mirroredAt(modeId: string, i: number): boolean {
 
 /** A member's showcase card: the portrait, then the mode, name, title (or level) and rank; Ready / In game on the others'
  *  cards. Pressing it opens its small menu. Your own card carries its cosmetics tabs underneath (OWN_CARD_TABS). */
-function LineupCard({ m, i, size, eyebrow, phone, leader, showState, youLabel, rival, mirrored, menuRight, menuOpen, onToggleMenu, menu, onPick }: {
+function LineupCard({ m, i, size, eyebrow, phone, leader, showState, youLabel, rival, mirrored, menuRight, menuOpen, onToggleMenu, menu, onPick, onArt, onTitle, onRank }: {
   m: Member; i: number; size: PhCardSize; eyebrow: string; phone: boolean; leader: boolean; showState: boolean; youLabel: boolean; rival?: boolean; mirrored: boolean; menuRight: boolean;
   menuOpen: boolean; onToggleMenu: () => void; menu: { label: string; run?: () => void; soon?: boolean }[]; onPick: (run: () => void) => void;
+  /** Press zones (kit PhShowcaseCard): the art, the title and the rank box each run their own action. */
+  onArt?: () => void; onTitle?: () => void; onRank?: () => void;
 }): JSX.Element {
   const art = phone ? heroThumb(m.art) : m.art;
   const overlay = menuOpen ? (
@@ -853,7 +863,7 @@ function LineupCard({ m, i, size, eyebrow, phone, leader, showState, youLabel, r
       titleId={m.titleId} fallbackLine={m.level != null ? `Level ${m.level}` : null} rank={m.rank} mine={m.self} rival={rival} mirrored={mirrored}
       badge={leader ? <PhLeaderBadge /> : undefined} youLabel={youLabel}
       band={showState ? <PhShowcaseBand tone={m.state}>{m.state === 'in_game' ? 'In game' : 'Ready'}</PhShowcaseBand> : undefined}
-      onClick={onToggleMenu} haspopup expanded={menuOpen} overlay={overlay} under={m.self ? OWN_CARD_TABS : undefined}
+      onClick={onToggleMenu} onArt={onArt} onTitle={onTitle} onRank={onRank} haspopup expanded={menuOpen} overlay={overlay} under={m.self ? OWN_CARD_TABS : undefined}
       className={menuRight ? 'ph-menuright' : undefined} />
   );
 }

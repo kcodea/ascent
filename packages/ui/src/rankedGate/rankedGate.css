@@ -252,6 +252,54 @@
   87%, 100% { opacity: 0; transform: scale(0.3) rotate(45deg); }
 }
 
+/* THE WORD (owner 2026-11-24: "when the crystal is formed and able to be clicked, can we have the word ENTER appear
+   with a fade in? ... in a light blue with a blue glow, have it have a far drop shadow like its cast against the
+   door and have it lightly bobbing up and down"). It began as lettering in the title face; after a few tries at it
+   the owner painted it instead ("lets try using this", then a second, chunkier cut: "use this one instead"):
+   `/frames/ranked-gate-enter.webp`, ice-blue letters with their own glow baked in. It sits under the crystal, placed
+   and sized in art pixels like the crystal is; its place, size and look are tuned (see THE TUNED LOOK below). It
+   never takes the pointer: the crystal is the button.
+   The box carries the place and the FADE (in slowly as the crystal arms, out fast on the press). The image inside
+   carries the BOB and the cast SHADOW: one soft dark copy thrown well down and to the right, the way the door's own
+   rivets are lit, so it reads as floating off the door.
+   PERF: the shadow is a STATIC filter on the image, rasterised once; the loop moves the image's transform only, and
+   the box only ever changes opacity. */
+.rgate-enter {
+  --rg-u: max(calc(50cqw / var(--rg-art-hw, 836)), calc(100cqh / var(--rg-art-h, 941)));
+  position: absolute; left: calc(50% + var(--rg-enter-x, 0) * var(--rg-u)); top: calc(50% + var(--rg-enter-dy, 109) * var(--rg-u));
+  transform: translate(-50%, -50%); opacity: 0; pointer-events: none; will-change: opacity;
+  transition: opacity 0.16s ease-out;
+}
+.rgate-enter.is-on { opacity: 1; transition: opacity 0.9s ease-out 0.12s; }
+/* THE TUNED LOOK (gateEnterConfig.ts, the "Gate: ENTER word" dev tuner): every `--rg-enter-*` is written on :root from
+   that module, and each fallback here is its shipped default, so the two agree before it loads (all but the tint's
+   link, which only that module writes). The filter runs in
+   this order: the tint (an SVG filter, linked only while it is on), the colour of the painted word, the added glow
+   (two layers, so the amount can go past one layer's full strength), and last the cast shadow, which must stay
+   black and so comes after every colour step. All of it is static. */
+.rgate-enter-word {
+  display: block; width: calc(330 * var(--rg-enter-scale, 0.68) * var(--rg-u)); aspect-ratio: 1024 / 200; will-change: transform;
+  filter:
+    var(--rg-enter-tint, )
+    hue-rotate(var(--rg-enter-hue, 11deg)) saturate(var(--rg-enter-sat, 86%)) brightness(var(--rg-enter-bri, 111%))
+    drop-shadow(0 0 calc(var(--rg-enter-glow-blur, 5.5) * var(--rg-u)) var(--rg-enter-glow-a, rgb(60 150 255 / 1)))
+    drop-shadow(0 0 calc(var(--rg-enter-glow-blur, 5.5) * var(--rg-u)) var(--rg-enter-glow-b, rgb(60 150 255 / 0.14)))
+    drop-shadow(calc(7 * var(--rg-u)) calc(24 * var(--rg-u)) calc(9 * var(--rg-u)) rgba(0, 0, 0, 0.7));
+}
+/* The tint's flood: the colour and how much of it, read live from the tuner's values. */
+.rgate-enter-tint { position: absolute; width: 0; height: 0; pointer-events: none; }
+.rgate-enter-tint-flood { flood-color: var(--rg-enter-tint-col, #009dff); flood-opacity: var(--rg-enter-tint-amt, 0.7); }
+/* DEV: the word's tuner must stay usable over the shut gate, which covers the screen and takes every pointer event.
+   Dev panels set their stacking order inline, hence the override. Just over the gate (700) and its FX canvas (701),
+   and well under the screen curtain (3000), which nothing in a stylesheet may reach (R-PRESENT-17). */
+.sfxmix[data-devpanel="gateenter"] { z-index: 800 !important; }
+
+.rgate:is(.is-armed, .is-shatter) .rgate-enter-word { animation: rg-enter-bob 3.4s ease-in-out infinite; }
+@keyframes rg-enter-bob {
+  0%, 100% { transform: translateY(calc(-3 * var(--rg-u))); }
+  50% { transform: translateY(calc(3 * var(--rg-u))); }
+}
+
 /* SHATTER: the body is gone in a blink (the shards are the FX layer's), the light lets go. */
 .rgate.is-shatter .rgate-crystal-body { opacity: 1; }
 .rgate.is-shatter .rgate-crystal-gem { animation: rg-cry-break 130ms ease-out both; }

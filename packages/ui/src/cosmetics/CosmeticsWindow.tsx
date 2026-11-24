@@ -5,6 +5,7 @@ import { tempHandle, useGame } from '../store';
 import { stageHost } from '../stage';
 import { avatarSrc } from '../art';
 import { PhButton, PhTabs } from '../partyHome/kit';
+import { MenuMedal, type MenuMedalName } from '../menuIcons';
 import { PhShowcaseCard } from '../partyHome/kit/PhShowcaseCard';
 import { usePhLayer } from '../partyHome/shell/usePhLayer';
 import { AvatarTabBody, usePortraitEntries } from '../AvatarPicker';
@@ -39,8 +40,11 @@ import './cosmeticsWindow.css';
  * gate stays the only path). Static paint; the only motion is one-shot transforms.
  */
 
-const TABS: readonly { id: CosmeticsTab; name: string }[] = [
-  { id: 'avatar', name: 'Avatar' }, { id: 'frame', name: 'Frame' }, { id: 'title', name: 'Title' }, { id: 'plate', name: 'Card plate' },
+/** Each section's painted medallion, the Collection's own; Avatar wears the Heroes one (owner 2026-11-24: "put their
+ *  medallions next to each main section up top", "use the heroes medallion for avatar"). */
+const TABS: readonly { id: CosmeticsTab; name: string; medal: MenuMedalName }[] = [
+  { id: 'avatar', name: 'Avatar', medal: 'heroes' }, { id: 'frame', name: 'Frame', medal: 'frames' },
+  { id: 'title', name: 'Title', medal: 'titles' }, { id: 'plate', name: 'Card plate', medal: 'plates' },
 ];
 
 const CATEGORY: Record<Exclude<CosmeticsTab, 'avatar'>, CosmeticCategory> = { frame: 'portrait_frame', title: 'title', plate: 'card_plate' };
@@ -65,7 +69,9 @@ const SAVERS: Loadout4Savers = {
 
 const EMPTY: readonly string[] = [];
 
-const tabLabel = (name: string, n: number): JSX.Element => <><span className="cw-tabname">{name}</span><span className="avp-n">{n}</span></>;
+const tabLabel = (name: string, n: number, medal: MenuMedalName): JSX.Element => (
+  <><MenuMedal name={medal} className="cw-tabmedal" /><span className="cw-tabname">{name}</span><span className="avp-n">{n}</span></>
+);
 
 export function CosmeticsWindow() {
   const open = useGame((s) => s.avatarPickerOpen);
@@ -202,7 +208,7 @@ function CosmeticsDialog() {
         </header>
         <div className="cw-tabs">
           <PhTabs<CosmeticsTab> label="Cosmetic" value={tab} onChange={(t) => openCosmetics(t)}
-            tabs={TABS.map((t) => ({ id: t.id, label: tabLabel(t.name, counts[t.id]) }))} />
+            tabs={TABS.map((t) => ({ id: t.id, label: tabLabel(t.name, counts[t.id], t.medal) }))} />
         </div>
         <div className="avp-body cw-body">
           {tab === 'avatar'

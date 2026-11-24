@@ -2,36 +2,53 @@
    A landscape player card: splash art on one side (56%) fading into the navy plate, the player on the other. Every inner
    size is in the CARD's own container units (cqw of `.phs-card`), so one design serves full / half / compact. A lineup
    row (`.phs-lineup`, below) sets each card's width in the ROW's container units, so the cards fit the space they get.
-   PERFORMANCE: static paint. Motion: a one-shot rise on entrance, a one-shot transform lift on hover (none under reduced
+   PERFORMANCE: static paint. Motion: a one-shot rise on entrance, a one-shot transform lift while its menu is open (none under reduced
    motion). No loops, no live filters. No `cursor` here (the gauntlet rule paints it). Colours are the `--ph-*` tokens;
-   the literals left are the art fade's two navies and the band tints, which have no token. */
+   the literals left are the art fade's mask stops and the band tints, which have no token. */
 
-.phs-card { --phs-r: 3.4cqw; position: relative; flex: none; display: flex; flex-direction: column; container-type: inline-size;
+.phs-card { --phs-r: var(--ph-r-l, calc(22 * var(--phu, 1px))); position: relative; flex: none; display: flex; flex-direction: column; container-type: inline-size;
   width: var(--phs-w, calc(560 * var(--phu, 1px))); min-width: 0; font-family: var(--ph-font); color: var(--ph-ink);
   animation: phs-rise 0.32s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; animation-delay: calc(var(--i, 0) * 50ms); }
 .phs-card.phs-menu { z-index: 7; }
 @keyframes phs-rise { from { opacity: 0; transform: translateY(calc(24 * var(--phu, 1px))); } to { opacity: 1; transform: none; } }
 
 /* THE CARD FACE: the press target is the whole card (a button when it does something). */
-.phs-press { position: relative; display: block; box-sizing: border-box; width: 100%; aspect-ratio: 16 / 10; margin: 0; padding: 0; border: 0;
-  border-radius: var(--phs-r); background: var(--ph-plate); color: inherit; font: inherit; text-align: left;
-  box-shadow: inset 0 0 0 calc(2 * var(--phu, 1px)) color-mix(in srgb, var(--ph-gold) 85%, transparent), inset 0 calc(3 * var(--phu, 1px)) 0 calc(-1 * var(--phu, 1px)) rgba(255, 233, 176, 0.45), 0 1.6cqw 3.4cqw rgba(0, 0, 0, 0.55); }
+.phs-press { position: relative; z-index: 1; display: block; box-sizing: border-box; width: 100%; aspect-ratio: 16 / 10; margin: 0; padding: 0; border: 0;
+  border-radius: var(--phs-r); overflow: hidden; background: var(--ph-navy); color: inherit; font: inherit; text-align: left;
+  box-shadow: 0 calc(3 * var(--phu, 1px)) calc(8 * var(--phu, 1px)) rgba(0, 0, 0, 0.45); } /* the hero card's corner (--ph-r-l) and navy; a tight contact shadow onto the tabs */
+/* THE DROP SHADOW (the hero card's) on its own layer UNDER the tabs: cast by the face itself it fell across the tabs below
+   the card and dimmed their white labels (owner 2026-11-24: "make the text of the four tabs brighter white"). Static. */
+.phs-card::before { content: ''; position: absolute; z-index: 0; inset: 0; border-radius: var(--phs-r); pointer-events: none;
+  box-shadow: 0 calc(24 * var(--phu, 1px)) calc(72 * var(--phu, 1px)) rgba(0, 0, 0, 0.6); }
+.phs-ghost::before { content: none; }
+/* THE GOLD EDGE, OVER THE ART (the hero select showcase card's: phCompendium.css `.phi::after`). The art runs to the card's
+   corners under it, so the edge is never covered. */
+.phs-press::after { content: ''; position: absolute; z-index: 4; inset: 0; border-radius: inherit; box-shadow: var(--ph-gild); pointer-events: none; }
 .phs-compact > .phs-press { aspect-ratio: 16 / 8; }
 button.phs-press { transition: transform 0.16s cubic-bezier(0, 0, 0.2, 1); }
-button.phs-press:hover, .phs-menu > button.phs-press { transform: translateY(calc(-6 * var(--phu, 1px))); }
+/* The card does not react to hover (owner 2026-11-24: "lets not make the main card react when hovered"); it lifts only while its menu is open. */
+.phs-menu > button.phs-press { transform: translateY(calc(-6 * var(--phu, 1px))); }
 .phs-press:focus-visible { outline: calc(2 * var(--phu, 1px)) solid var(--ph-gold-hi); outline-offset: calc(3 * var(--phu, 1px)); }
-.phs-mine > .phs-press { box-shadow: inset 0 0 0 calc(2 * var(--phu, 1px)) color-mix(in srgb, var(--ph-gold) 85%, transparent), inset 0 calc(3 * var(--phu, 1px)) 0 calc(-1 * var(--phu, 1px)) rgba(255, 233, 176, 0.45), 0 0 0 0.7cqw color-mix(in srgb, var(--ph-gold-hi) 18%, transparent), 0 1.6cqw 3.4cqw rgba(0, 0, 0, 0.55); }
-.phs-rival > .phs-press { box-shadow: inset 0 0 0 calc(2 * var(--phu, 1px)) color-mix(in srgb, var(--ph-foe) 70%, transparent), 0 1.6cqw 3.4cqw rgba(0, 0, 0, 0.55); }
+.phs-rival > .phs-press::after { box-shadow: inset 0 0 0 calc(2 * var(--phu, 1px)) color-mix(in srgb, var(--ph-foe) 70%, transparent); }
 
-/* THE ART: the left 56%, fading into the plate on its inner edge and its foot (a static gradient). */
-.phs-art { position: absolute; inset: 0 44% 0 0; overflow: hidden; border-radius: var(--phs-r) 0 0 var(--phs-r); pointer-events: none; }
-.phs-art img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: 50% 22%; }
-.phs-art::after { content: ''; position: absolute; inset: 0; pointer-events: none;
-  background: linear-gradient(90deg, transparent 45%, #12224a 100%), linear-gradient(0deg, color-mix(in srgb, var(--pill-navy-bot, #091226) 70%, transparent), transparent 35%); }
+/* THE ART (the hero select showcase card's treatment: heroShowcase.css `.hss-card .phi-art`): the portrait on one
+   side (56%, so its fade ends where the name column starts and never sits under the text), 6% larger about a point near the top so heads stay in frame, melting into the navy by an eased mask on its
+   BOX (solid to 72%, gone at 100%), so the fade stays put under the larger image. Static. */
+.phs-art { position: absolute; left: 0; top: 0; width: 56%; height: 100%; overflow: hidden; pointer-events: none;
+  -webkit-mask-image: linear-gradient(90deg, #000 72%, rgb(0 0 0 / 0.96) 76%, rgb(0 0 0 / 0.85) 80%, rgb(0 0 0 / 0.66) 84%, rgb(0 0 0 / 0.42) 88%, rgb(0 0 0 / 0.2) 92%, rgb(0 0 0 / 0.03) 96%, transparent 100%); mask-image: linear-gradient(90deg, #000 72%, rgb(0 0 0 / 0.96) 76%, rgb(0 0 0 / 0.85) 80%, rgb(0 0 0 / 0.66) 84%, rgb(0 0 0 / 0.42) 88%, rgb(0 0 0 / 0.2) 92%, rgb(0 0 0 / 0.03) 96%, transparent 100%); }
+.phs-art img { display: block; width: 100%; height: 100%; object-fit: cover; scale: 1.06; transform-origin: 50% 20%; }
+/* THE COLOUR WASH behind the player's side: a soft blur of the same art (the hero card's `.phi-wash`, 40 units at 16%).
+   Static; off on the phone GPU path, as the Compendium's is. */
+.phs-wash { position: absolute; left: 34%; top: -25%; width: 76%; height: 150%; object-fit: cover; opacity: 0.16; filter: blur(3.4cqw) saturate(1.4); pointer-events: none; }
+html[data-phone-gpu] .phs-wash { display: none; }
+/* A card whose art is a press zone (PhShowcaseCard `onArt`): the art takes the press so the card can tell where it landed. */
+.phs-artgo .phs-art { pointer-events: auto; }
+/* The same for the title (`onTitle`): the title badge takes no presses anywhere else (styles.css `.titlebadge`). */
+.phs-titlego .phs-title .titlebadge { pointer-events: auto; }
 
 /* THE INFO COLUMN: eyebrow, name, title, rank well. */
-.phs-info { position: absolute; inset: 7% 5% 8% 52%; display: flex; flex-direction: column; justify-content: center; align-items: stretch; gap: 3cqw; min-width: 0; }
-.phs-compact .phs-info { inset: 6% 4% 6% 51%; gap: 2.2cqw; }
+.phs-info { position: absolute; inset: 7% 3% 8% 54%; display: flex; flex-direction: column; justify-content: center; align-items: stretch; gap: 3cqw; min-width: 0; }
+.phs-compact .phs-info { inset: 6% 2% 6% 53%; gap: 2.2cqw; }
 .phs-eyebrow { font-weight: 800; font-size: 2.6cqw; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ph-gold); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .phs-pname { display: block; min-width: 0; font-family: var(--ph-name-font); font-weight: 900; font-size: var(--phs-nf, 8.4cqw); line-height: 0.95; letter-spacing: 0.02em; text-transform: uppercase;
   text-shadow: 0 0.5cqw 0 rgba(0, 0, 0, 0.4); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -71,11 +88,11 @@ button.phs-press:hover, .phs-menu > button.phs-press { transform: translateY(cal
 .phs-you { position: absolute; z-index: 3; right: 4cqw; top: 3cqw; font-weight: 800; font-size: 2cqw; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ph-gold-hi); }
 
 /* MIRRORED: the far side of a VS faces inward (art on the right). Only the art image flips; text never does. */
-.phs-mirrored .phs-art { inset: 0 0 0 44%; border-radius: 0 var(--phs-r) var(--phs-r) 0; }
-.phs-mirrored .phs-art::after { background: linear-gradient(270deg, transparent 45%, #12224a 100%), linear-gradient(0deg, color-mix(in srgb, var(--pill-navy-bot, #091226) 70%, transparent), transparent 35%); }
-.phs-mirrored .phs-art img { transform: scaleX(-1); }
-.phs-mirrored .phs-info { inset: 7% 52% 8% 5%; align-items: flex-end; text-align: right; }
-.phs-mirrored.phs-compact .phs-info { inset: 6% 51% 6% 4%; }
+.phs-mirrored .phs-art { left: auto; right: 0; -webkit-mask-image: linear-gradient(270deg, #000 72%, rgb(0 0 0 / 0.96) 76%, rgb(0 0 0 / 0.85) 80%, rgb(0 0 0 / 0.66) 84%, rgb(0 0 0 / 0.42) 88%, rgb(0 0 0 / 0.2) 92%, rgb(0 0 0 / 0.03) 96%, transparent 100%); mask-image: linear-gradient(270deg, #000 72%, rgb(0 0 0 / 0.96) 76%, rgb(0 0 0 / 0.85) 80%, rgb(0 0 0 / 0.66) 84%, rgb(0 0 0 / 0.42) 88%, rgb(0 0 0 / 0.2) 92%, rgb(0 0 0 / 0.03) 96%, transparent 100%); }
+.phs-mirrored .phs-art img { scale: -1.06 1.06; }
+.phs-mirrored .phs-wash { left: auto; right: 37%; }
+.phs-mirrored .phs-info { inset: 7% 54% 8% 3%; align-items: flex-end; text-align: right; }
+.phs-mirrored.phs-compact .phs-info { inset: 6% 53% 6% 2%; }
 .phs-mirrored .phs-info > * { max-width: 100%; }
 .phs-mirrored .phs-title { justify-content: flex-end; }
 .phs-mirrored .phs-rank { flex-direction: row-reverse; align-self: stretch; }
@@ -85,7 +102,8 @@ button.phs-press:hover, .phs-menu > button.phs-press { transform: translateY(cal
 
 /* AN OPEN SEAT: the card's footprint, a faint gold edge and a dashed inner line, its content centred. */
 .phs-ghost > .phs-press { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2.4cqw; text-align: center;
-  background: color-mix(in srgb, var(--pill-navy-bot, #091226) 45%, transparent); box-shadow: inset 0 0 0 calc(2 * var(--phu, 1px)) color-mix(in srgb, var(--ph-gold) 45%, transparent); }
+  background: color-mix(in srgb, var(--pill-navy-bot, #091226) 45%, transparent); box-shadow: none; }
+.phs-ghost > .phs-press::after { box-shadow: inset 0 0 0 calc(2 * var(--phu, 1px)) color-mix(in srgb, var(--ph-gold) 45%, transparent); }
 .phs-ghost > .phs-press::before { content: ''; position: absolute; inset: 2.4cqw; border-radius: 2.4cqw; border: 0.4cqw dashed color-mix(in srgb, var(--ph-gold) 40%, transparent); pointer-events: none; }
 .phs-gmed { display: grid; place-items: center; width: 14cqw; aspect-ratio: 1; border-radius: 50%; background: var(--ph-metal-gold); color: var(--ph-navy);
   font-weight: 900; font-size: 9cqw; line-height: 1; box-shadow: 0 0.6cqw 1.4cqw rgba(0, 0, 0, 0.5); }
@@ -124,30 +142,49 @@ button.phs-press:hover, .phs-menu > button.phs-press { transform: translateY(cal
 .phs-team > .ph-pairlbl { position: absolute; left: 0; right: 0; bottom: calc(100% + 12 * var(--phu, 1px)); margin: 0 auto; }
 
 /* ── THE TABS UNDER YOUR CARD (PhCardTabs.tsx): Avatar · Frame · Title · Card plate, centred along your card's bottom edge and
-   hanging below it like folder tabs (flat top against the card, rounded foot). They sit outside the card's box (absolute), so
+   hanging below it like folder tabs (navy, on the layer under the card: their tops tuck behind its foot; owner 2026-11-24). They sit outside the card's box (absolute), so
    the card keeps its size and the Versus room's seat rects never change; the ROW reserves their height instead: a row
    holding them is `.phs-lineup.phs-tabbed`, which pads its foot by one tab height (cards read the padded box's cqh, so they
    shrink to fit) and, in the two-row layouts, widens the row gap by the same, so a tab never covers the card below. Tab
    sizes are stage units (`--phu`), so the row can reserve exactly what they take. Static paint; a one-shot transform on hover. */
 .phs-lineup.phs-tabbed { --phs-tabh: calc(46 * var(--phu, 1px)); padding-bottom: var(--phs-tabh); }
 .phs-lineup.phs-tabbed:is(.grid, .teams) { --phs-rgap: calc(24 * var(--phu, 1px) + var(--phs-tabh)); }
-.phs-tabs { position: absolute; z-index: 2; top: 100%; left: 50%; translate: -50% 0; display: flex; align-items: flex-start;
-  gap: calc(6 * var(--phu, 1px)); height: var(--phs-tabh, calc(46 * var(--phu, 1px))); }
-.phs-tab { display: inline-flex; align-items: center; gap: calc(8 * var(--phu, 1px)); box-sizing: border-box; height: calc(100% - 6 * var(--phu, 1px));
-  margin: 0; padding: 0 calc(14 * var(--phu, 1px)) 0 calc(8 * var(--phu, 1px)); border: 0; border-radius: 0 0 calc(12 * var(--phu, 1px)) calc(12 * var(--phu, 1px));
-  background: linear-gradient(180deg, var(--ph-well), var(--ph-plate)); color: var(--ph-ink); font: inherit; font-family: var(--ph-font);
+.phs-tabs { --phs-tuck: calc(10 * var(--phu, 1px)); position: absolute; z-index: 0; top: calc(100% - var(--phs-tuck)); left: 50%; translate: -50% 0;
+  /* ONE WIDTH for all four, the widest one's (Card plate): equal `1fr` columns of a shrink-to-fit grid (owner 2026-11-24:
+     "make all of the tabs the same width ... the width of the current card plate tab"). Never wider than the card. */
+  display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); grid-template-rows: 100%; align-items: start; width: max-content; max-width: 100cqw;
+  gap: calc(6 * var(--phu, 1px)); height: calc(var(--phs-tabh, calc(46 * var(--phu, 1px))) + var(--phs-tuck)); }
+.phs-tablbl { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* The Card plate tab alone is a little wider than the other three (owner 2026-11-24: "make the card plate tab slightly
+   wider"): it grows into room the row reserves on its right, so the row stays centred under the card. */
+.phs-tabs { --phs-platex: calc(16 * var(--phu, 1px)); box-sizing: border-box; padding-right: var(--phs-platex); }
+.phs-tab.phs-tab-plate { width: calc(100% + var(--phs-platex)); } /* its column plus the reserve; the columns keep the shared width */
+/* THE FOUR-SEAT (COMPACT) CARD: smaller tabs, sized in the card's own units, so the row fits inside the narrower card with
+   no label cut off (owner 2026-11-24: "reduce the text size to make these tabs fit better ... just for the four player
+   menus"). Their height stays in stage units (the row reserves it). Phones keep their own floored label size (below). */
+.phs-compact .phs-tabs { --phs-platex: 2cqw; gap: 1cqw; }
+.phs-compact .phs-tab { gap: 1.1cqw; padding: var(--phs-tuck) 1.8cqw 0 1.2cqw; font-size: 2cqw; }
+.phs-compact .phs-tthumb { width: 3.6cqw; height: 3.6cqw; }
+.phs-tab { position: relative; display: flex; align-items: center; justify-content: center; min-width: 0; gap: calc(8 * var(--phu, 1px)); box-sizing: border-box; height: calc(100% - 6 * var(--phu, 1px));
+  margin: 0; padding: var(--phs-tuck) calc(14 * var(--phu, 1px)) 0 calc(8 * var(--phu, 1px)); border: 0; border-radius: 0 0 calc(12 * var(--phu, 1px)) calc(12 * var(--phu, 1px));
+  background: var(--ph-navy); color: #fff; font: inherit; font-family: var(--ph-font);
   font-weight: 800; font-size: calc(14 * var(--phu, 1px)); letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap;
   box-shadow: inset 0 0 0 1px var(--ph-hair), inset 0 calc(-2 * var(--phu, 1px)) 0 color-mix(in srgb, var(--ph-gold) 55%, transparent), 0 calc(6 * var(--phu, 1px)) calc(12 * var(--phu, 1px)) rgba(0, 0, 0, 0.45);
   transition: transform 0.16s cubic-bezier(0, 0, 0.2, 1); }
 .phs-tab:hover { transform: translateY(calc(3 * var(--phu, 1px))); }
+/* A SOFT GOLD GLOW BEHIND A HOVERED TAB (owner 2026-11-24: "glow softly behind them when they are hovered"). The shadow is
+   static on a layer behind the tab; only its opacity fades (a short one-shot, never a loop). */
+.phs-tab::before { content: ''; position: absolute; z-index: -1; inset: 0; border-radius: inherit; pointer-events: none; opacity: 0; transition: opacity 0.2s ease;
+  box-shadow: 0 0 calc(22 * var(--phu, 1px)) calc(3 * var(--phu, 1px)) color-mix(in srgb, var(--ph-gold-hi) 50%, transparent); }
+.phs-tab:hover::before { opacity: 1; }
 .phs-tab:focus-visible { outline: calc(2 * var(--phu, 1px)) solid var(--ph-gold-hi); outline-offset: calc(2 * var(--phu, 1px)); }
 .phs-tthumb { display: grid; place-items: center; flex: none; width: calc(26 * var(--phu, 1px)); height: calc(26 * var(--phu, 1px)); }
 .phs-tthumb img { display: block; width: 100%; height: 100%; }
 .phs-tavatar { overflow: hidden; border-radius: 50%; background: var(--ph-well); box-shadow: 0 0 0 calc(1.5 * var(--phu, 1px)) color-mix(in srgb, var(--ph-gold) 80%, transparent); }
 .phs-tavatar img { object-fit: cover; object-position: 50% 22%; }
 .phs-tframe img { object-fit: contain; }
-.phs-tdot { display: block; width: calc(13 * var(--phu, 1px)); height: calc(13 * var(--phu, 1px)); border-radius: 50%;
-  background: var(--rc, var(--ph-muted)); box-shadow: 0 0 0 calc(2 * var(--phu, 1px)) rgba(0, 0, 0, 0.4); }
+/* The Title tab's painted medallion: a touch larger than its slot so it reads (the art has its own margin). */
+.phs-ttitle img { object-fit: contain; scale: 1.2; }
 .phs-tplate { overflow: hidden; border-radius: calc(4 * var(--phu, 1px)); box-shadow: inset 0 0 0 1px var(--ph-hair); }
 .phs-tplate img { object-fit: cover; }
 .phs-tplain { display: block; width: 100%; height: 100%; background: var(--ph-plate); }

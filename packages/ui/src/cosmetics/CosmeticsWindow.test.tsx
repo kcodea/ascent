@@ -57,6 +57,9 @@ describe('the cosmetics window', () => {
   it('opens on the tab passed to openCosmetics', () => {
     open('frame');
     expect($('.cw-tabs [role="tab"][aria-selected="true"] .cw-tabname')!.textContent).toBe('Frame');
+    // Each section tab wears its painted medallion; Avatar wears the Heroes one (owner 2026-11-24).
+    expect([...document.querySelectorAll('.cw-tabs [role="tab"] .cw-tabmedal')].map((m) => m.getAttribute('src')!.replace(/^.*menu\//, '')))
+      .toEqual(['heroes.webp', 'frames.webp', 'titles.webp', 'plates.webp']);
     expect(useGame.getState().cosmeticsTab).toBe('frame');
   });
 

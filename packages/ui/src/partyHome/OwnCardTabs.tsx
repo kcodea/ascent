@@ -1,6 +1,6 @@
 /**
  * YOUR CARD'S TABS, wired (showcase player card spec "The four tabs on your card"): the kit's `PhCardTabs` fed with what you
- * wear now (avatar, frame, title, card plate) and opening the cosmetics window on the tab pressed. Used on your own card on
+ * wear now (avatar, frame, card plate) and opening the cosmetics window on the tab pressed. Used on your own card on
  * the Play lineup and in the Versus room (`under={OWN_CARD_TABS}`).
  *
  * GUESTS get no tabs (they can't change their portrait or own cosmetics; spec "Calls I made"): this renders nothing for a
@@ -31,11 +31,10 @@ function OwnCardTabs(): JSX.Element | null {
   const avatar = useGame((s) => s.playerAvatar);
   const openCosmetics = useGame((s) => s.openCosmetics);
   const frameId = useOwnPortraitFrameId();
-  const titleId = useProgression((s) => mirrorFor(userId, s.mirror)?.equippedTitleId ?? null);
   const plateThumb = useProgression((s) => (s.catalogEpoch >= 0 ? plateLookOf(cardPlateOf(mirrorFor(userId, s.mirror)?.loadout))?.thumb : undefined));
   const onOpen = useCallback((tab: CosmeticsTab) => { sfx.pulse(); openCosmetics(tab); }, [openCosmetics]);
   if (!tabbed) return null;
-  return <PhCardTabs avatarSrc={avatarSrc(avatar)} frameId={frameId} titleId={titleId} plateThumb={plateThumb} onOpen={onOpen} />;
+  return <PhCardTabs avatarSrc={avatarSrc(avatar)} frameId={frameId} plateThumb={plateThumb} onOpen={onOpen} />;
 }
 
 /** The tabs as one stable element, for a memoised card's `under`. */

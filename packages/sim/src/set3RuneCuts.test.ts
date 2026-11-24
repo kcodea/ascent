@@ -26,7 +26,7 @@ const NAMED: Record<string, readonly SetId[]> = {
   rune_shared_pour: ['set2'], rune_baal: ['set2'],
   rune_brisbane: ['set2'], rune_runic_exchange: ['set2'],
   // Undead
-  rune_pillaging: ['set1', 'set2'], rune_rising_graves: ['set1'], rune_soul_taxes: ['set1', 'set2'],
+  rune_pillaging: ['set1', 'set2'], rune_rising_graves: ['set1'], rune_soul_taxes: ['set1'], /* left set 2 on 2026-11-23 (owner) */
   // Other
   rune_aftershocks: ['set1', 'set2'],
 };

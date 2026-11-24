@@ -391,3 +391,23 @@ export const SET2_BEASTS: CardDef[] = [
     goldenText: 'When you cast a spell, give **2** other random **Beasts +6/+6**.',
   },
 ];
+
+/** Set 2 Beasts added after the roster was laid out. A list of its own, APPENDED in `sets.ts`, so no existing set-2
+ *  position moves (the `SET2_DEMONS_LATE` shape). */
+export const SET2_BEASTS_LATE: CardDef[] = [
+  {
+    // DERENOR (owner design 2026-11-23, R-DERENOR-01): the buy meter (`buyTick`, kept on the body, carried across turns)
+    // counting MINIONS only: a Shop spell does not count. Its own purchase never counts (it is not on the board yet). The payout is
+    // King Brill's: a random buyable Beast at or below your Shop Tier, to hand. Gilded gets 2.
+    id: 'b2_derenor',
+    name: 'Derenor',
+    tribe: 'beast',
+    tier: 6,
+    attack: 9,
+    health: 9,
+    keywords: [],
+    effects: [{ on: 'cardsBought', do: 'goldSpentGrantTribeMinion', params: { every: 4, minionsOnly: true, tribe: 'beast', count: 1 } }],
+    text: 'When you buy **4 minions**, get a random **Beast**.',
+    goldenText: 'When you buy **4 minions**, get **2** random **Beasts**.',
+  },
+];

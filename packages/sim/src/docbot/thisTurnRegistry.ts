@@ -80,6 +80,7 @@ export const THIS_TURN_CLASSIFIED: Readonly<Record<string, ThisTurnClassificatio
   quicksale: { kind: 'no-combat-meaning', why: '"the next minion you sell this turn": selling exists only in the shop half' },
   funeralonloan: { kind: 'no-combat-meaning', why: '"if you play it this turn": playing from hand exists only in the shop half; the borrowed flag is run bookkeeping cleared at the rollover' },
   spiritworgen: { kind: 'no-combat-meaning', why: 'the improve clause reads spells cast this turn at TRIGGER time, and its trigger (you play a Beast/Dragon) exists only in the shop half' },
+  dm_jumbo: { kind: 'no-combat-meaning', why: 'Enigma: shop-OFFER enchant for this turn (tavernBuyBonusTurn); same shape as dm_nightmarket' },
   dm_nightmarket: { kind: 'no-combat-meaning', why: 'shop-OFFER enchant for this turn; a bought minion\'s stats bake permanently, the un-bought enchant enchants offers combat never sees' },
   rune_merchants_chorus: { kind: 'no-combat-meaning', why: 'shop-OFFER enchant for this turn (tavernBuyBonusTurn); same shape as dm_nightmarket' },
 

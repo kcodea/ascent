@@ -325,4 +325,43 @@ export const ECONOMY_RULES: GameRule[] = [
     currentBehaviour: 'Conforms (2026-11-10).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/scrollDrake.test.ts', 'packages/ui/src/scrollzText.test.ts'], lastVerifiedAt: '2026-11-10' },
   },
+  {
+    id: 'R-DERENOR-01',
+    title: 'Derenor: every 4 minions bought get a random Beast',
+    statement:
+      'Derenor (Set 2 Beast, Tier 6, 9/9, in the Shop pool): while it is on the board, every 4 minions you buy get a random '
+      + 'buyable Beast at or below your Shop Tier, to hand (Gilded: 2). Only minions count, never a Shop spell. The count is kept on the '
+      + 'body, crosses turns, and repeats. Its own purchase never counts for it. Each copy keeps its own count. A full hand '
+      + 'gets nothing.',
+    domain: 'economy',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-23', quote: 'Derenor - T6 Beast 9/9 - When you buy 4 minions, get a random Beast.' },
+      { kind: 'code', ref: 'packages/content/src/cards/set2/beasts.ts b2_derenor; packages/sim/src/recruit.ts applyCardsBought (minionsOnly)' },
+    ],
+    contentIds: ['b2_derenor'],
+    currentBehaviour: 'Conforms as of 2026-11-23 (new card). The Shop Tier ceiling, the count crossing turns and the Gilded payout follow King Brill and the other buy meters; the owner text does not say.',
+    example: 'Derenor on the board, buy three minions and a spell: nothing. Buy a fourth minion: a random Beast.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/derenor.test.ts'], lastVerifiedAt: '2026-11-23' },
+  },
+  {
+    id: 'R-ENIGMA-TURN-01',
+    title: 'Enigma buffs the Shop +6/+7 for the turn, not permanently',
+    statement:
+      'Enigma (Set 2 Demon, Tier 5): whenever you consume a minion (any friendly consume), minions in the Shop get +6/+7 for this turn '
+      + '(Gilded +12/+14), each Enigma paying once per consume, stacking within the turn. Refreshes keep it, a minion bought that turn '
+      + 'keeps the stats, and the turn rollover clears it. Nothing reaches the permanent Shop buff. The Shop-wide effect still plays, '
+      + 'named to Enigma.',
+    domain: 'economy',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-23', quote: "actually make enigma's buff +6/+7, but it buffs the shop that round not permanently." },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-23', quote: 'When you consume a minion, give minions in the shop +6/+7 for this turn.' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts onConsumeBuffShop / addTurnShopBuff / shopWideDelta' },
+    ],
+    contentIds: ['dm_jumbo'],
+    currentBehaviour: 'Conforms as of 2026-11-23. Before: +3/+3 permanently (2026-11-22), +4/+5 permanently before that.',
+    example: 'Enigma on the board, a Demon eats a Shop minion: every Shop minion this turn is +6/+7, after a Refresh too. Next turn: back to normal.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2NewMinionsAug18.test.ts'], lastVerifiedAt: '2026-11-23' },
+  },
 ];

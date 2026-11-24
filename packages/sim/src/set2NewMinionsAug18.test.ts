@@ -178,26 +178,52 @@ describe('set 2 — the 2026-08-18 recruit mechanics (reducer)', () => {
     expect(s.board.find((c) => c.uid === 'grv')!.attack, 'Grevlin grew on the eaten minion').toBeGreaterThan(atkBefore);
   });
 
-  it('Enigma: consuming a minion permanently buffs the Shop', () => {
+  it('Enigma: consuming a minion gives the Shop +6/+7 for this turn, never permanently (R-ENIGMA-TURN-01)', () => {
     const s = recruit({ board: [recruitBody('dm_jumbo', 'jb')], hand: [], shop: [{ uid: 's0', cardId: 'sandbag' }] });
     expect([s.tavernBuyBonus.atk, s.tavernBuyBonus.hp]).toEqual([0, 0]);
     consumeShopMinion(s, s.board.find((c) => c.uid === 'jb')!, 0); // Enigma itself eats
-    expect([s.tavernBuyBonus.atk, s.tavernBuyBonus.hp], 'onConsume gave the Shop +3/+3 permanently (owner balance 2026-11-22)').toEqual([3, 3]);
+    expect(s.tavernBuyBonusTurn).toEqual({ atk: 6, hp: 7 });
+    expect([s.tavernBuyBonus.atk, s.tavernBuyBonus.hp], 'nothing permanent').toEqual([0, 0]);
+    // Two Enigmas each pay once per consume; the Gilded one pays double.
+    const two = recruit({ board: [recruitBody('dm_jumbo', 'a'), { ...recruitBody('dm_jumbo', 'g'), golden: true }], hand: [], shop: [{ uid: 's0', cardId: 'sandbag' }] });
+    consumeShopMinion(two, two.board[0]!, 0);
+    expect(two.tavernBuyBonusTurn).toEqual({ atk: 18, hp: 21 });
   });
 
   it('Enigma fires on ANY friendly consume — another Demon eating, and Blart at End of Turn (owner 2026-09-10)', () => {
     // Another body eats: Enigma still pays (it was guarded to its own consume — "when THIS consumes" is Broodlord's text, not Enigma's).
     const s = recruit({ board: [recruitBody('dm_jumbo', 'jb'), recruitBody('godfodder', 'gf')], hand: [], shop: [{ uid: 's0', cardId: 'sandbag' }] });
     consumeShopMinion(s, s.board.find((c) => c.uid === 'gf')!, 0);
-    expect([s.tavernBuyBonus.atk, s.tavernBuyBonus.hp], 'a different eater still pays Enigma').toEqual([3, 3]);
+    expect(s.tavernBuyBonusTurn, 'a different eater still pays Enigma').toEqual({ atk: 6, hp: 7 });
     // Blart's End-of-Turn bite fires it too, and the beat names Enigma as the source of the shop-wide buff.
     const t = recruit({ board: [recruitBody('dm_jumbo', 'jb'), recruitBody('dm_gourmand', 'bb')], hand: [], shop: [{ uid: 's0', cardId: 'sandbag' }, { uid: 's1', cardId: 'stray' }] });
     const { fx } = projectEndOfTurnSteps(t); // the presentation projection (a clone)
     applyEndOfTurn(t); // the real settle
-    expect([t.tavernBuyBonus.atk, t.tavernBuyBonus.hp], 'Blart ate, Enigma paid').toEqual([3, 3]);
+    expect(t.tavernBuyBonusTurn, 'Blart ate, Enigma paid').toEqual({ atk: 6, hp: 7 });
     const beat = fx.map((f) => f.shopBuffAll).find((x) => !!x)!;
     expect(beat, 'the beat carries the shop-wide buff').toBeTruthy();
     expect(beat.sourceCardId, 'and names Enigma, so its shop-buff def can bind').toBe('dm_jumbo');
+    expect([beat.attack, beat.health]).toEqual([6, 7]);
+  });
+
+  it('Enigma: a Refresh keeps the buff, a bought minion keeps it, and the next turn clears it (R-ENIGMA-TURN-01)', () => {
+    const s0 = recruit({ board: [recruitBody('dm_jumbo', 'jb')], hand: [], embers: 20, shop: [{ uid: 's0', cardId: 'sandbag' }] });
+    consumeShopMinion(s0, s0.board[0]!, 0);
+    const rolled = reduce(s0, { type: 'roll' });
+    expect(rolled.tavernBuyBonusTurn).toEqual({ atk: 6, hp: 7 });
+    const bought = reduce({ ...rolled, shop: [{ uid: 'x', cardId: 'sandbag' }], embers: 20 } as typeof rolled, { type: 'buy', uid: 'x' });
+    const body = bought.hand.find((c) => c.cardId === 'sandbag')!;
+    expect([body.attack, body.health]).toEqual([CARD_INDEX['sandbag']!.attack + 6, CARD_INDEX['sandbag']!.health + 7]);
+    const win = { events: [], result: 'win' as const, playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] } };
+    const next = reduce({ ...bought, phase: 'combat', lastCombat: win } as typeof bought, { type: 'resolveCombat' });
+    expect(next.tavernBuyBonusTurn).toBeUndefined();
+    expect([next.tavernBuyBonus.atk, next.tavernBuyBonus.hp]).toEqual([0, 0]);
+  });
+
+  it('Enigma: a Shop action still stamps the shop-wide effect, named to it', () => {
+    let s = recruit({ board: [recruitBody('dm_jumbo', 'jb'), recruitBody('dm_grevlin', 'grv'), recruitBody('sandbag', 'f1'), recruitBody('sandbag', 'f2'), recruitBody('sandbag', 'f3')], hand: [], embers: 20, shop: [{ uid: 's0', cardId: 'sandbag' }, { uid: 's1', cardId: 'stray' }] });
+    for (const uid of ['f1', 'f2', 'f3']) s = reduce(s, { type: 'sell', uid });
+    expect(s.shopBuffAllFx).toMatchObject({ attack: 6, health: 7, sourceCardId: 'dm_jumbo' });
   });
 
   it('Billings: every 10 Gold spent buffs exactly 3 random Dwarves +6/+6 (owner balance 2026-11-06)', () => {

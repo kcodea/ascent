@@ -31,7 +31,8 @@ describe('the Set 3 rune review board (owner 2026-11-23)', () => {
       const r = RUNE_INDEX[id];
       expect(r, id).toBeDefined();
       expect(r!.sets, id).toContain('set3');
-      expect(r!.sets, id).toContain('set2');
+      if (id === 'rune_soul_taxes') expect(r!.sets, 'left Set 2 on 2026-11-23 (owner)').not.toContain('set2');
+      else expect(r!.sets, id).toContain('set2');
     }
   });
   it('every approved rune can reach a Set 3 forge (Basic or Epic, by its array)', () => {

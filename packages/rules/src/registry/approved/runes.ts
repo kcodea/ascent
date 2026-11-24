@@ -3839,4 +3839,19 @@ export const RUNES_RULES: GameRule[] = [
     currentBehaviour: 'Conforms as of 2026-11-23 (new content). The Shop\'s damageAll verb (a Shop-fired Blaster Echo) did not announce the bodies it killed to ANY death watcher before this change; now it does, like the Shop spray. Confirmed by the owner 2026-11-23: rune-only, enemy deaths and Rise deaths count, a sale does not, Gilded doubles. Not deaths in the engine, so they pay nothing (open for an owner ruling): a Shop minion Consumed, Devour Soul, the Devour hero power, a transform, a triple, a return to hand, a Funeral on Loan expiry. Builder reading the owner has not confirmed yet: in Duos a Huntsman hears every death in its own team\'s fight while its board is the one fighting, and nothing while it waits in reserve.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/wizenedRunes1123.test.ts', 'packages/ui/src/wizenedRunes1123Text.test.tsx'], lastVerifiedAt: '2026-11-23' },
   },
+  {
+    id: 'R-SOULTAXES-SET2-01',
+    title: 'Soul Taxes is not offered in Set 2',
+    statement: 'Rune of Soul Taxes is not in Set 2. It stays in Set 1 and Set 3, and a run that already holds it keeps it.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-23', quote: "remove soul taxes from set 2's offerings" },
+      { kind: 'code', ref: 'packages/content/src/runes.ts rune_soul_taxes sets' },
+    ],
+    contentIds: ['rune_soul_taxes'],
+    currentBehaviour: 'Conforms as of 2026-11-23. Before, it listed Set 2, gated to runs with Undead.',
+    example: 'A Set 2 Epic forge, even one with Undead rolled, never shows Soul Taxes.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/derenor.test.ts', 'packages/sim/src/set3RuneReview.test.ts'], lastVerifiedAt: '2026-11-23' },
+  },
 ];

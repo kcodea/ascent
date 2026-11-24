@@ -44,7 +44,8 @@
 .pkop-back, .pkop-pack { position: relative; width: 150px; height: 225px; box-sizing: border-box; border-radius: 12px; overflow: hidden;
   border: 2px solid var(--pk-rim); background: var(--pk-panel); color: var(--gold-lt); display: flex; align-items: center; justify-content: center;
   font-family: var(--font-ui); font-size: 18px; font-weight: 700; text-align: center; padding: 10px; }
-.pkop-back { border-color: var(--rc, var(--pk-rim)); }
+/* A back never tells its rarity (owner 2026-11-24): the rarity's edge colour comes only once it is turned. */
+.pkop-back.flipped { border-color: var(--rc, var(--pk-rim)); }
 .pkop-pack { width: 220px; height: 320px; position: absolute; left: 50%; top: 24%; margin-left: -110px; }
 /* Reduced motion: each back holds its face (laid out at the face's layout size, 480 x 720, scaled to the 150 px back),
    crossfaded on flip. */

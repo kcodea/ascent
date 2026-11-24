@@ -390,8 +390,9 @@ const ctxOf = (into: HTMLCanvasElement | undefined): { c: HTMLCanvasElement; g: 
   (into ? { c: into, g: into.getContext('2d')! } : canvas(CW, CH));
 
 /**
- * The plain pack-brand back: every card wears it until the result arrives. The card plate's gold frame, and inside its
- * window the pack's lattice and star. `into` repaints an existing canvas in place (the plate arrives after init).
+ * THE CARD BACK: every card wears it, before and after the result arrives (owner 2026-11-24: the back never tells the
+ * rarity; the tease and then the face do). The neutral reveal frame (`art.plate`), and inside its window the pack's
+ * lattice and star. `into` repaints an existing canvas in place (the plate arrives after init).
  */
 export function paintPlainBack(look: PackLook, art: BackArt = {}, into?: HTMLCanvasElement): HTMLCanvasElement {
   const p = packPalette(look);
@@ -400,72 +401,12 @@ export function paintPlainBack(look: PackLook, art: BackArt = {}, into?: HTMLCan
   openWindow(g, '#1d2448', '#0c0f22');
   lattice(g, CW, CH, 0.07);
   g.lineWidth = 4;
-  g.strokeStyle = 'rgba(201,168,90,.55)';
+  g.strokeStyle = 'rgba(140,170,225,.4)'; // the reveal frame's own steel blue
   rr(g, WIN.x + 14, WIN.y + 14, WIN.w - 28, WIN.h - 28, WIN.r - 10);
   g.stroke();
   g.fillStyle = p.accent;
   star(g, CW / 2, WIN.y + WIN.h / 2, 120, 30);
   g.fill();
-  g.restore();
-  return c;
-}
-
-/** The medallion's width on a back, as a fraction of the card width. */
-export const BACK_ICON_FRAC = 0.55;
-
-/**
- * A rarity's back, inside the card plate's window: its colour and its gem count (1-5) under the ASCENT star, or, once
- * `art.icon` (the rarity medallion) has loaded, the medallion centred over the tint instead of the star and gems. The
- * frame is the card plate once `art.plate` has loaded (a gold fallback until then). `into` repaints an existing canvas
- * in place (the scene swaps the art in when an image arrives, then re-uploads the texture).
- */
-export function paintRarityBack(rarity: CrateRarity, art: BackArt = {}, into?: HTMLCanvasElement): HTMLCanvasElement {
-  const col = PACK_RARITY_COLORS[rarity];
-  const { c, g } = ctxOf(into);
-  const icon = art.icon;
-  paintPlate(g, art.plate);
-  openWindow(g, '#1a1f3a', '#090b18');
-  const cy = WIN.y + WIN.h / 2;
-  // the rarity's wash from the middle
-  const wash = g.createRadialGradient(CW / 2, cy, 20, CW / 2, cy, CH * 0.6);
-  wash.addColorStop(0, col);
-  wash.addColorStop(1, 'rgba(0,0,0,0)');
-  g.globalAlpha = 0.42;
-  g.fillStyle = wash;
-  g.fillRect(0, 0, CW, CH);
-  g.globalAlpha = 1;
-  lattice(g, CW, CH, 0.06);
-  // the rarity's own line inside the gold frame
-  g.lineWidth = 6;
-  g.strokeStyle = col;
-  rr(g, WIN.x + 14, WIN.y + 14, WIN.w - 28, WIN.h - 28, WIN.r - 10);
-  g.stroke();
-  const n = icon ? 0 : rarityGems(rarity), gap = 54, y = cy + 150;
-  if (icon) {
-    const w = CW * BACK_ICON_FRAC;
-    g.drawImage(icon, (CW - w) / 2, cy - w / 2 - 20, w, w);
-  } else {
-    g.fillStyle = col;
-    star(g, CW / 2, cy - 40, 110, 28);
-    g.fill();
-  }
-  // gems: one per rarity step, in a row under the star (the placeholder until the medallion loads)
-  for (let k = 0; k < n; k++) {
-    const x = CW / 2 + (k - (n - 1) / 2) * gap;
-    g.beginPath();
-    g.moveTo(x, y - 20); g.lineTo(x + 15, y); g.lineTo(x, y + 20); g.lineTo(x - 15, y);
-    g.closePath();
-    g.fillStyle = col;
-    g.fill();
-    g.lineWidth = 3;
-    g.strokeStyle = 'rgba(255,255,255,.7)';
-    g.stroke();
-  }
-  g.textAlign = 'center';
-  g.textBaseline = 'alphabetic';
-  g.fillStyle = col;
-  g.font = `bold 40px ${SERIF}`;
-  g.fillText(packRarityLabel(rarity).toUpperCase(), CW / 2, WIN.y + WIN.h - 56);
   g.restore();
   return c;
 }

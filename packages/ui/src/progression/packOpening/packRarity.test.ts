@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { COSMETIC_RARITIES } from '@game/progression';
-import { CARD_PLATE_SRC, CARD_WINDOW_MASK_SRC, cardPlateSrc, packRarityLabel, rarityIconSrc } from './packRarity';
+import { CARD_BACK_PLATE_SRC, CARD_PLATE_SRC, CARD_WINDOW_MASK_SRC, cardPlateSrc, packRarityLabel, rarityIconSrc } from './packRarity';
 
 describe('packRarity', () => {
   it('has an icon for every code rarity, and the file ships', () => {
@@ -34,6 +34,12 @@ describe('packRarity', () => {
       expect(existsSync(join(pub, `card-plate-${r}.webp`)), r).toBe(true);
     }
     expect(existsSync(join(pub, 'card-plate-secret.webp'))).toBe(true); // a Secret plate supplied for later, unused
+  });
+
+  it('the neutral reveal frame ships: every card back wears it, so the edge never gives the rarity away', () => {
+    expect(CARD_BACK_PLATE_SRC).toMatch(/packs\/card-plate-reveal\.webp$/);
+    expect(existsSync(join(__dirname, '../../../../../apps/web/public/packs/card-plate-reveal.webp'))).toBe(true);
+    for (const r of COSMETIC_RARITIES) expect(CARD_BACK_PLATE_SRC).not.toBe(cardPlateSrc(r));
   });
 
   it("the plate window's mask ships (the foil is cut to it)", () => {

@@ -39,6 +39,7 @@ import {
 import { getPackFeel, PACK_BASE_SIZE, type PackFeel } from './packFxConfig';
 import { CARD_GLOW_TIERS, PACK_GLOW_TIERS, glowAlphaAt, packGlowRarity, type GlowTier } from './packGlow';
 import type { PackSounds } from './packSounds';
+import { teaseAt, teaseFrames, teaseGlowAlpha, teasePop, teaseRarityAt, teaseWobble, type TeaseAt } from './packTease';
 import { ANCIENT_GLOW_STOPS, BURST_TEX, PACK_GEOM, TEX_RES, rarityTint } from './packTextures';
 import { BURST, bigPullTier, burstPoseAt, type BigPullTier, type BurstPose } from './bigPull';
 import { holoShiftInto, packHoloStrength } from './packHolo';
@@ -220,6 +221,9 @@ class PackSceneImpl implements PackScene {
   private readonly flip = {
     active: false, idx: 0, t: 0, dur: 1, c0x: 0, c0y: 0, tx: 0, ty: 0, scale: 1, lift: 0, ribbon: false,
   };
+  // the rarity tease before the turn (packTease.ts): the click starts it, its end starts the flip
+  private readonly tease = { active: false, t: 0, dur: 0, idx: 0, stage: -1, sx: 1, sy: 1 };
+  private readonly teaseOut: TeaseAt = { stage: 0, k: 0 };
   // the top card's back crossfade
   private readonly xf = { active: false, t: 0 };
   private glowFade = 1;
@@ -429,7 +433,7 @@ class PackSceneImpl implements PackScene {
 
   flipTop(toScreen: { x: number; y: number }): boolean {
     const v = this.v, app = this.app;
-    if (!v || !app || !this.zoomed || this.flip.active || this.flipped >= this.n || this.reset.active) return false;
+    if (!v || !app || !this.zoomed || this.flip.active || this.tease.active || this.flipped >= this.n || this.reset.active) return false;
     this.cacheRect();
     if (!this.rect.valid) return false;
     const idx = this.flipped;
@@ -437,7 +441,6 @@ class PackSceneImpl implements PackScene {
     this.sideOn = true; // the first reveal: the stack slides aside as the card flips out to the right
     const b = this.backs?.[idx];
     const f = this.flip;
-    f.active = true;
     f.idx = idx;
     f.t = 0;
     f.dur = (b?.guaranteed ? FLIP_HALF_GUARANTEED_MS : FLIP_HALF_MS) / FRAME_MS;
@@ -449,6 +452,28 @@ class PackSceneImpl implements PackScene {
     f.tx = ((toScreen.x - this.rect.l) * sx - v.root.x) / v.root.scale.x;
     f.ty = ((toScreen.y - this.rect.t) * sy - v.root.y) / v.root.scale.y;
     f.ribbon = !!b?.guaranteed;
+    // THE TEASE: the card stays put while its glow climbs the rarity ladder to its own colour, then it turns
+    const dur = b ? teaseFrames(b.rarity, getPackFeel().tease) : 0;
+    if (dur > 0) {
+      const ts = this.tease;
+      ts.active = true; ts.t = 0; ts.dur = dur; ts.idx = idx; ts.stage = -1;
+      ts.sx = card.scale.x; ts.sy = card.scale.y;
+      this.wake();
+      return true;
+    }
+    this.beginFlip();
+    return true;
+  }
+
+  /** The turn itself (the flip's first half): the card leaves the stack as the flipper, and the next card comes up. */
+  private beginFlip(): void {
+    const v = this.v;
+    if (!v) return;
+    const f = this.flip, idx = f.idx;
+    const card = v.cards[idx]!;
+    const b = this.backs?.[idx];
+    f.active = true;
+    f.t = 0;
     v.flipper.texture = this.xf.active ? v.fade.texture : card.texture; // mid-crossfade: the back it is becoming
     v.flipper.visible = true;
     v.flipRibbon.visible = f.ribbon;
@@ -457,12 +482,44 @@ class PackSceneImpl implements PackScene {
     v.fade.visible = false;
     v.flash.visible = false;
     this.setFlipCorners(0);
-    // the next card comes up under it (its back fades to its rarity)
+    // the next card comes up under it
     this.flipped = idx + 1;
     this.showTop(true);
     this.sounds.flip(b?.rarity ?? 'common', !!b?.guaranteed);
     this.wake();
-    return true;
+  }
+
+  /**
+   * One frame of the tease: the glow behind the top card shows the current step's rarity colour and swells, the card
+   * pops as each step lands and wobbles a little more each step. Only tint / texture change at a step; alpha, scale and
+   * rotation per frame. Its end restores the card and starts the turn.
+   */
+  private teaseStep(dt: number, feel: PackFeel): void {
+    const v = this.v, tex = this.tex;
+    const ts = this.tease;
+    if (!v || !tex) { ts.active = false; return; }
+    const card = v.cards[ts.idx], b = this.backs?.[ts.idx];
+    ts.t += dt;
+    if (!card || !b || ts.t >= ts.dur) {
+      if (card) { card.scale.set(ts.sx, ts.sy); card.rotation = 0; }
+      v.glow.visible = false;
+      ts.active = false;
+      this.beginFlip();
+      return;
+    }
+    const at = teaseAt(b.rarity, ts.t, feel.tease, this.teaseOut);
+    if (at.stage !== ts.stage) {
+      ts.stage = at.stage;
+      const r = teaseRarityAt(at.stage), ancient = r === 'ancient';
+      v.glow.texture = ancient ? tex.glowAncient : tex.glowWhite;
+      v.glow.tint = ancient ? 0xffffff : rarityTint(r);
+      v.glow.scale.set(CARD_GLOW_TIERS[r].size / TEX_RES);
+      v.glow.visible = true;
+    }
+    v.glow.alpha = teaseGlowAlpha(at.stage, at.k) * Math.min(1, feel.cardGlow);
+    const pop = 1 + teasePop(at.stage, at.k);
+    card.scale.set(ts.sx * pop, ts.sy * pop);
+    card.rotation = Math.sin(this.time * 0.9) * teaseWobble(at.stage);
   }
 
   quickOpen(): void {
@@ -529,6 +586,7 @@ class PackSceneImpl implements PackScene {
     v.packGlow.visible = true;
     this.flipped = 0;
     this.flip.active = false;
+    this.tease.active = false;
     this.xf.active = false;
     this.quick.active = false;
     this.burst.active = false;
@@ -563,15 +621,14 @@ class PackSceneImpl implements PackScene {
     v.strip.compute(this.tear.T, this.tear.hand, feel.peelAngle, feel.pinchTwist, feel.highlight, feel.perspective, this.time, this.surface);
   }
 
-  private backTex(i: number): Texture {
-    const t = this.tex!;
-    const b = this.backs?.[i];
-    return b ? t.rarity[b.rarity] : t.plain;
+  /** Every card wears the one neutral back (owner 2026-11-24): a back never tells its rarity. */
+  private backTex(): Texture {
+    return this.tex!.plain;
   }
 
   /**
-   * Dress the stack for the current top card: it shows its back (rarity colour, gems, the guaranteed ribbon, a glow),
-   * every card under it the dimmed plain back. `animated` crossfades the top back with a short shimmer.
+   * Dress the stack for the current top card: it shows the neutral back at full brightness (and the guaranteed ribbon),
+   * every card under it the dimmed back. No glow at rest: the rarity glow belongs to the tease (`teaseStep`). `animated` crossfades the top back with a short shimmer.
    */
   private showTop(animated: boolean): void {
     const v = this.v, tex = this.tex;
@@ -590,7 +647,7 @@ class PackSceneImpl implements PackScene {
     }
     const card = v.cards[top]!;
     card.tint = 0xffffff;
-    const target = this.backTex(top);
+    const target = this.backTex();
     // the decorations sit around the top card in z order: glow under it, crossfade + shimmer + ribbon over it
     cardsC.removeChild(glow, fade, flash, ribbon);
     const at = cardsC.getChildIndex(card);
@@ -603,14 +660,7 @@ class PackSceneImpl implements PackScene {
     flash.position.copyFrom(card.position);
     ribbon.position.set(card.x, card.y + RIBBON_DY);
     const b = this.backs?.[top];
-    // every rarity glows once the result is known (plain backs none): one white texture tinted, Ancient its aurora
-    if (b) {
-      const ancient = b.rarity === 'ancient';
-      glow.texture = ancient ? tex.glowAncient : tex.glowWhite;
-      glow.tint = ancient ? 0xffffff : rarityTint(b.rarity);
-      glow.scale.set(CARD_GLOW_TIERS[b.rarity].size / TEX_RES);
-    }
-    glow.visible = !!b;
+    glow.visible = false; // at rest a back gives nothing away; the tease lights it
     ribbon.visible = !!b?.guaranteed;
     if (animated && card.texture !== target) {
       fade.texture = target;
@@ -830,9 +880,10 @@ class PackSceneImpl implements PackScene {
     else if (this.flying) this.flyStep(dt);
     if (this.phase !== 'peel') this.sleeveStep(dt, feel);
 
-    this.cardsStep(dt, feel);
+    this.cardsStep(dt);
     this.packGlowStep(dt, feel);
     this.holoStep(feel);
+    if (this.tease.active) this.teaseStep(dt, feel);
     if (this.flip.active) this.flipStep(dt);
     if (this.burst.active) this.burstStep(dt, feel);
     v.flecks.step(dt);
@@ -844,10 +895,8 @@ class PackSceneImpl implements PackScene {
     } else { v.pack.x = 0; v.pack.y = 0; this.shake = 0; }
 
     // idle once the stack has zoomed and nothing moves (the render of this frame still runs)
-    const top = this.backs?.[this.flipped];
-    const pulsing = !!top && this.flipped < this.n && CARD_GLOW_TIERS[top.rarity].pulse !== 'none';
-    if (this.phase === 'end' && !this.flip.active && !this.xf.active && v.flecks.count === 0 && this.shake === 0
-      && !pulsing && (!this.sideOn || this.side === 1) && !this.reset.active && !this.flying && this.glowReveal === 1 && this.packGlowFade === 0
+    if (this.phase === 'end' && !this.flip.active && !this.tease.active && !this.xf.active && v.flecks.count === 0 && this.shake === 0
+      && (!this.sideOn || this.side === 1) && !this.reset.active && !this.flying && this.glowReveal === 1 && this.packGlowFade === 0
       && !this.burst.active) {
       app.ticker.stop();
     }
@@ -1130,8 +1179,8 @@ class PackSceneImpl implements PackScene {
     u.uShift[1] = o.y;
   }
 
-  /** The top back's crossfade + shimmer, and its glow (revealed once the sleeve is off; Epic and up breathe). */
-  private cardsStep(dt: number, feel: PackFeel): void {
+  /** The top back's crossfade + shimmer (the rarity glow belongs to the tease, `teaseStep`). */
+  private cardsStep(dt: number): void {
     const v = this.v!;
     const xf = this.xf;
     if (xf.active) {
@@ -1152,11 +1201,6 @@ class PackSceneImpl implements PackScene {
     const reveal = this.phase === 'zoom' || this.phase === 'end' || this.sleeve.falling ? 1 : 0;
     this.glowReveal += (reveal - this.glowReveal) * Math.min(1, 0.1 * dt);
     if (Math.abs(reveal - this.glowReveal) < 0.002) this.glowReveal = reveal;
-    if (v.glow.visible) {
-      const b = this.backs?.[this.flipped];
-      const a = b ? glowAlphaAt(CARD_GLOW_TIERS[b.rarity], this.time, feel.cardGlow) : 0;
-      v.glow.alpha = a * this.glowFade * this.glowReveal * (this.flip.active ? 0.5 : 1);
-    }
   }
 
   /** The flip's first half: 0 -> 90 degrees about the vertical axis with perspective, moving half way to its slot. */

@@ -16,11 +16,18 @@ export const CARD_PLATE_SRC = `${import.meta.env.BASE_URL}packs/cosmetic-card-pl
 /**
  * The owner's rarity card plates (owner 2026-11-24, `Reference Art/Card - <Rarity> Rarity.png`, 1024 x 1536 webp): the
  * card plate recoloured per rarity, the same geometry exactly (window and outer edge), "it should serve as both": a
- * card's rarity back in Pixi (`packTextures.ts paintRarityBack`) and its face's frame (`packFaces.tsx`), so the flip
- * turns one plate over. The plain back, worn before the result arrives, keeps the gold `CARD_PLATE_SRC`.
+ * card's face's frame (`packFaces.tsx`). Its back is the neutral reveal frame (`CARD_BACK_PLATE_SRC`, since
+ * 2026-11-24), so the rarity plate is first seen as the card turns. The plain back, worn before the result arrives, keeps the gold `CARD_PLATE_SRC`.
  * `card-plate-secret.webp` ships beside them: a Secret plate supplied for later, unused (no Secret rarity yet).
  */
 export const cardPlateSrc = (r: CrateRarity): string => `${import.meta.env.BASE_URL}packs/card-plate-${r}.webp`;
+
+/**
+ * THE CARD BACK'S PLATE (owner 2026-11-24, `Reference Art/Card - Reveal Frame.png`: "so the player doesnt know what
+ * rarity it is from the edge"): the same plate shape in plain navy, worn by EVERY card back, before and after the result
+ * arrives. A card's rarity is first hinted by the tease (packTease.ts) and first shown by its face.
+ */
+export const CARD_BACK_PLATE_SRC = `${import.meta.env.BASE_URL}packs/card-plate-reveal.webp`;
 
 /**
  * THE PLATE'S WINDOW, as an alpha mask (512 x 768 webp, the card's full box): the navy window every rarity plate shares,

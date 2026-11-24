@@ -18,10 +18,10 @@
  *                     two god-ray rings, placed at the landing face's centre; only alpha / scale / rotation change
  */
 import { CanvasSource, Container, Mesh, MeshGeometry, MeshPlane, PerspectiveMesh, Sprite, Texture } from 'pixi.js';
-import { COSMETIC_RARITIES, type CrateRarity, type PackLook } from '@game/progression';
+import type { PackLook } from '@game/progression';
 import {
   ANCIENT_GLOW_STOPS, PACK_GEOM, TEX_RES, type BackArt, paintArtSlice, paintBlob, paintBody, paintCardFlash, paintCardGlow,
-  paintFleck, paintGlossBand, paintPackGlow, paintPinchRing, paintPlainBack, paintRarityBack, paintRibbon, paintShade,
+  paintFleck, paintGlossBand, paintPackGlow, paintPinchRing, paintPlainBack, paintRibbon, paintShade,
   paintSheen, paintSpec, paintStrip, paintStripBack, paintStripInside, rarityTint, paintBurstBloom, paintBurstRays,
 } from './packTextures';
 import { BURST } from './bigPull';
@@ -29,7 +29,7 @@ import { packArtFor, packShineFor } from './packArt';
 import { packGlowRarity } from './packGlow';
 import { packHoloHue, packHoloStrength } from './packHolo';
 import { makeHoloMaterial, makeHoloMesh, type HoloMesh, type HoloUniformValues } from './packHoloMesh';
-import { CARD_PLATE_SRC, cardPlateSrc, rarityIconSrc } from './packRarity';
+import { CARD_BACK_PLATE_SRC } from './packRarity';
 import { StripMesh, TornLip } from './stripMesh';
 
 const { W, H, BODY_H, CARD_W, CARD_H } = PACK_GEOM;
@@ -46,8 +46,8 @@ const BACK_INSET = 6;
 const FLECKS = 48;
 
 export interface SceneTextures {
+  /** The one card back (the neutral reveal frame): every card wears it. */
   plain: Texture;
-  rarity: Record<CrateRarity, Texture>;
   /** The card glow: white (tinted per rarity) and Ancient's pre-coloured aurora. */
   glowWhite: Texture;
   glowAncient: Texture;
@@ -178,20 +178,13 @@ export function buildPackViews(look: PackLook, n: number, own: (t: Texture) => v
     backs.push(slot);
     return slot;
   };
-  const rarity = {} as Record<CrateRarity, Texture>;
-  for (const r of COSMETIC_RARITIES) {
-    const slot = back((art, into) => { paintRarityBack(r, art, into); });
-    rarity[r] = slot.tex;
-    loadImage(rarityIconSrc(r), (img) => { slot.art.icon = img; repaint(slot); });
-    // each rarity's own plate (packRarity.ts cardPlateSrc): the same plate its face wears, so the flip matches
-    loadImage(cardPlateSrc(r), (img) => { slot.art.plate = img; repaint(slot); });
-  }
+  // one back for every card: the neutral reveal frame, so no edge ever tells a rarity (packRarity.ts CARD_BACK_PLATE_SRC)
   const plain = back((art, into) => { paintPlainBack(look, art, into); });
-  loadImage(CARD_PLATE_SRC, (img) => { plain.art.plate = img; repaint(plain); });
+  loadImage(CARD_BACK_PLATE_SRC, (img) => { plain.art.plate = img; repaint(plain); });
   const glowWhite = keep(paintCardGlow());
   const glowAncient = keep(paintCardGlow(ANCIENT_GLOW_STOPS));
   const burstRaysTex = { legendary: keep(paintBurstRays(BURST.legendary.rays)), ancient: keep(paintBurstRays(BURST.ancient.rays)) };
-  const tex: SceneTextures = { plain: plain.tex, rarity, glowWhite, glowAncient, burstRays: burstRaysTex };
+  const tex: SceneTextures = { plain: plain.tex, glowWhite, glowAncient, burstRays: burstRaysTex };
 
   const root = new Container();
   const pack = new Container();

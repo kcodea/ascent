@@ -1,0 +1,116 @@
+/* ── THE SHOWCASE CARD (PhShowcaseCard.tsx; owner-approved look 2026-11-23, mockup v11) ─────────────────────────────────
+   A landscape player card: splash art on one side (56%) fading into the navy plate, the player on the other. Every inner
+   size is in the CARD's own container units (cqw of `.phs-card`), so one design serves full / half / compact. A lineup
+   row (`.phs-row`, below) sets each card's width in the ROW's container units, so the cards fit the space they get.
+   PERFORMANCE: static paint. Motion: a one-shot rise on entrance, a one-shot transform lift on hover (none under reduced
+   motion). No loops, no live filters. No `cursor` here (the gauntlet rule paints it). Colours are the `--ph-*` tokens;
+   the literals left are the art fade's two navies and the band tints, which have no token. */
+
+.phs-card { --phs-r: 3.4cqw; position: relative; flex: none; display: flex; flex-direction: column; container-type: inline-size;
+  width: var(--phs-w, calc(560 * var(--phu, 1px))); min-width: 0; font-family: var(--ph-font); color: var(--ph-ink);
+  animation: phs-rise 0.32s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; animation-delay: calc(var(--i, 0) * 50ms); }
+.phs-card.phs-menu { z-index: 7; }
+@keyframes phs-rise { from { opacity: 0; transform: translateY(calc(24 * var(--phu, 1px))); } to { opacity: 1; transform: none; } }
+
+/* THE CARD FACE: the press target is the whole card (a button when it does something). */
+.phs-press { position: relative; display: block; box-sizing: border-box; width: 100%; aspect-ratio: 16 / 10; margin: 0; padding: 0; border: 0;
+  border-radius: var(--phs-r); background: var(--ph-plate); color: inherit; font: inherit; text-align: left;
+  box-shadow: inset 0 0 0 calc(2 * var(--phu, 1px)) color-mix(in srgb, var(--ph-gold) 85%, transparent), inset 0 calc(3 * var(--phu, 1px)) 0 calc(-1 * var(--phu, 1px)) rgba(255, 233, 176, 0.45), 0 1.6cqw 3.4cqw rgba(0, 0, 0, 0.55); }
+.phs-compact > .phs-press { aspect-ratio: 16 / 8; }
+button.phs-press { transition: transform 0.16s cubic-bezier(0, 0, 0.2, 1); }
+button.phs-press:hover, .phs-menu > button.phs-press { transform: translateY(calc(-6 * var(--phu, 1px))); }
+.phs-press:focus-visible { outline: calc(2 * var(--phu, 1px)) solid var(--ph-gold-hi); outline-offset: calc(3 * var(--phu, 1px)); }
+.phs-mine > .phs-press { box-shadow: inset 0 0 0 calc(2 * var(--phu, 1px)) color-mix(in srgb, var(--ph-gold) 85%, transparent), inset 0 calc(3 * var(--phu, 1px)) 0 calc(-1 * var(--phu, 1px)) rgba(255, 233, 176, 0.45), 0 0 0 0.7cqw color-mix(in srgb, var(--ph-gold-hi) 18%, transparent), 0 1.6cqw 3.4cqw rgba(0, 0, 0, 0.55); }
+.phs-rival > .phs-press { box-shadow: inset 0 0 0 calc(2 * var(--phu, 1px)) color-mix(in srgb, var(--ph-foe) 70%, transparent), 0 1.6cqw 3.4cqw rgba(0, 0, 0, 0.55); }
+
+/* THE ART: the left 56%, fading into the plate on its inner edge and its foot (a static gradient). */
+.phs-art { position: absolute; inset: 0 44% 0 0; overflow: hidden; border-radius: var(--phs-r) 0 0 var(--phs-r); pointer-events: none; }
+.phs-art img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: 50% 22%; }
+.phs-art::after { content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(90deg, transparent 45%, #12224a 100%), linear-gradient(0deg, rgba(9, 18, 38, 0.7), transparent 35%); }
+
+/* THE INFO COLUMN: eyebrow, name, title, rank well. */
+.phs-info { position: absolute; inset: 7% 5% 8% 52%; display: flex; flex-direction: column; justify-content: center; align-items: stretch; gap: 3cqw; min-width: 0; }
+.phs-compact .phs-info { inset: 6% 4% 6% 51%; gap: 2.2cqw; }
+.phs-eyebrow { font-weight: 800; font-size: 2.6cqw; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ph-gold); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.phs-name { display: block; min-width: 0; font-family: var(--ph-name-font); font-weight: 900; font-size: 8.4cqw; line-height: 0.95; letter-spacing: 0.02em; text-transform: uppercase;
+  text-shadow: 0 0.5cqw 0 rgba(0, 0, 0, 0.4); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* The title line keeps one height whether it holds a badge, the fallback line or the spacer. */
+.phs-title { display: flex; align-items: center; min-height: 1.6em; min-width: 0; font-size: 3.4cqw; line-height: 1.2; }
+.phs-title .titlebadge { flex: 0 1 auto; }
+.phs-fallback { font-weight: 700; font-size: 0.8em; color: var(--ph-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* THE RANK WELL: the medal crest (not a control), the division, a static bar, the points. */
+.phs-rank { display: flex; align-items: center; gap: 3cqw; min-width: 0; padding: 2.4cqw 3cqw; border-radius: 2.2cqw; background: var(--ph-well); box-shadow: inset 0 0 0 1px var(--ph-hair); }
+.phs-compact .phs-rank { padding: 1.6cqw 2.4cqw; }
+.phs-rank .rankcrest { --ring: 13cqw; flex: none; pointer-events: none; }
+.phs-compact .phs-rank .rankcrest { --ring: 10.5cqw; }
+.phs-rank.unranked { min-height: 13cqw; box-sizing: border-box; }
+.phs-compact .phs-rank.unranked { min-height: 10.5cqw; }
+.phs-rk { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.8cqw; }
+.phs-rk b { font-weight: 900; font-size: 3.4cqw; letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.phs-rank.unranked .phs-rk b { color: var(--ph-muted); }
+.phs-rk small { font-weight: 700; font-size: 2.3cqw; color: var(--ph-muted); white-space: nowrap; }
+.phs-bar { display: block; height: 1cqw; min-height: 3px; border-radius: 99px; background: rgba(0, 0, 0, 0.45); overflow: hidden; }
+.phs-bar > i { display: block; height: 100%; background: linear-gradient(90deg, #8f6bff, #ffbe5c); }
+
+/* BADGE (Leader, Host) on the art's top corner; BAND (Ready, In game, pools) across the art's foot; YOU on the info side. */
+.phs-badge { position: absolute; z-index: 3; left: 3cqw; top: 3cqw; display: inline-flex; align-items: center; gap: 0.6em; padding: 0.35em 0.9em; border-radius: 999px;
+  background: var(--ph-metal-gold); color: var(--ph-navy); font-weight: 900; font-size: 2.2cqw; letter-spacing: 0.1em; text-transform: uppercase; white-space: nowrap; }
+.phs-badge svg { width: 1.2em; height: 1.2em; }
+.phs-band { position: absolute; z-index: 3; left: 0; right: 44%; bottom: 0; display: flex; align-items: center; justify-content: center; gap: 0.6em; padding: 1.3cqw 0;
+  border-radius: 0 0 0 var(--phs-r); font-weight: 900; font-size: 2.4cqw; letter-spacing: 0.2em; text-transform: uppercase; text-align: center; color: var(--ph-ink); }
+.phs-band.t-ready { background: linear-gradient(0deg, rgba(40, 120, 70, 0.95), rgba(40, 120, 70, 0.6)); }
+.phs-band.t-in_game { background: linear-gradient(0deg, rgba(150, 90, 20, 0.95), rgba(150, 90, 20, 0.6)); }
+.phs-band.t-pools { letter-spacing: 0.06em; background: linear-gradient(0deg, color-mix(in srgb, var(--ph-navy) 95%, transparent), color-mix(in srgb, var(--ph-navy) 60%, transparent)); }
+.phs-you { position: absolute; z-index: 3; right: 4cqw; top: 3cqw; font-weight: 800; font-size: 2cqw; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ph-gold-hi); }
+
+/* MIRRORED: the far side of a VS faces inward (art on the right). Only the art image flips; text never does. */
+.phs-mirrored .phs-art { inset: 0 0 0 44%; border-radius: 0 var(--phs-r) var(--phs-r) 0; }
+.phs-mirrored .phs-art::after { background: linear-gradient(270deg, transparent 45%, #12224a 100%), linear-gradient(0deg, rgba(9, 18, 38, 0.7), transparent 35%); }
+.phs-mirrored .phs-art img { transform: scaleX(-1); }
+.phs-mirrored .phs-info { inset: 7% 52% 8% 5%; align-items: flex-end; text-align: right; }
+.phs-mirrored.phs-compact .phs-info { inset: 6% 51% 6% 4%; }
+.phs-mirrored .phs-info > * { max-width: 100%; }
+.phs-mirrored .phs-title { justify-content: flex-end; }
+.phs-mirrored .phs-rank { flex-direction: row-reverse; align-self: stretch; }
+.phs-mirrored .phs-badge { left: auto; right: 3cqw; }
+.phs-mirrored .phs-band { left: 44%; right: 0; border-radius: 0 0 var(--phs-r) 0; }
+.phs-mirrored .phs-you { right: auto; left: 4cqw; }
+
+/* AN OPEN SEAT: the card's footprint, a faint gold edge and a dashed inner line, its content centred. */
+.phs-ghost > .phs-press { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2.4cqw; text-align: center;
+  background: rgba(9, 18, 38, 0.45); box-shadow: inset 0 0 0 calc(2 * var(--phu, 1px)) color-mix(in srgb, var(--ph-gold) 45%, transparent); }
+.phs-ghost > .phs-press::before { content: ''; position: absolute; inset: 2.4cqw; border-radius: 2.4cqw; border: 0.4cqw dashed color-mix(in srgb, var(--ph-gold) 40%, transparent); pointer-events: none; }
+.phs-gmed { display: grid; place-items: center; width: 14cqw; aspect-ratio: 1; border-radius: 50%; background: var(--ph-metal-gold); color: var(--ph-navy);
+  font-weight: 900; font-size: 9cqw; line-height: 1; box-shadow: 0 0.6cqw 1.4cqw rgba(0, 0, 0, 0.5); }
+.phs-compact .phs-gmed { width: 11cqw; font-size: 7cqw; }
+.phs-glbl { font-weight: 900; font-size: 4.6cqw; letter-spacing: 0.14em; text-transform: uppercase; }
+.phs-gsub { font-weight: 700; font-size: 2.6cqw; color: var(--ph-muted); }
+.phs-gpill { padding: 0.5em 1.4em; border-radius: 999px; background: var(--ph-well); box-shadow: inset 0 0 0 1px var(--ph-hair); font-weight: 800; font-size: 2.4cqw; letter-spacing: 0.12em; text-transform: uppercase; }
+
+/* ── THE LINEUP ROW: sizes its cards in its own container units (width-bound, else height-bound) ──
+   Proportions follow the mockup's 16:9 stage (full 46, half 40, compact 33 of the stage width), re-expressed against the
+   row, which spans the stage centre minus its padding. `.phs-row.grid` and `.phs-row.teams` share one compact width, so
+   the two four-seat layouts are exactly the same height (the team labels float above their columns in reserved space). */
+.phs-row { --phs-gap: 2.4cqw; --phs-rgap: 1.8cqw; --phs-lbl: calc(80 * var(--phu, 1px)); container-type: size; box-sizing: border-box;
+  flex: 1 1 0; align-self: stretch; width: 100%; height: 100%; min-width: 0; min-height: 0;
+  display: flex; align-items: center; justify-content: center; gap: var(--phs-gap); }
+.phs-row > .phs-full { --phs-w: min(49cqw, 160cqh, calc(760 * var(--phu, 1px))); }
+.phs-row .phs-half { --phs-w: min(42.5cqw, 160cqh, calc(680 * var(--phu, 1px))); }
+.phs-row .phs-compact { --phs-w: min(35cqw, 200cqh, calc(560 * var(--phu, 1px))); }
+.phs-row.grid .phs-compact, .phs-row.teams .phs-compact { --phs-w: min(35cqw, calc(100cqh - var(--phs-rgap) - var(--phs-lbl)), calc(560 * var(--phu, 1px))); }
+/* DUEL: two cards with the VS mark between them. */
+.phs-vs { flex: none; padding: 0 0.6cqw; font-family: var(--ph-font); font-weight: 900; font-style: italic; font-size: 3.4cqw; letter-spacing: 0.06em; line-height: 1;
+  color: transparent; background: var(--ph-metal-gold); -webkit-background-clip: text; background-clip: text; filter: drop-shadow(0 0.3cqw 0.4cqw rgba(0, 0, 0, 0.6)); }
+/* GRID: two by two. */
+.phs-row.grid { display: grid; grid-template-columns: repeat(2, auto); place-content: center; gap: var(--phs-rgap) var(--phs-gap); }
+/* TEAMS: two columns of two (each a `.phs-team`), the VS mark between; each column's `.ph-pairlbl` floats above it. */
+.phs-row.teams { gap: calc(var(--phs-gap) * 1.2); }
+.phs-team { position: relative; flex: none; display: flex; flex-direction: column; gap: var(--phs-rgap); }
+.phs-team > .ph-pairlbl { position: absolute; left: 0; right: 0; bottom: calc(100% + 12 * var(--phu, 1px)); margin: 0 auto; }
+
+@media (prefers-reduced-motion: reduce) {
+  .phs-card { animation: none; }
+  button.phs-press { transition: none; }
+}

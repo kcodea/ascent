@@ -7,7 +7,8 @@ import { rewardPreview } from '../rewardPreview';
 import { createPackScene, type PackScene } from './packScene';
 import { createPackSounds, type PackSounds } from './packSounds';
 import { packRarityLabel } from './packRarity';
-import { PackFace, slotBox, warmFaceArt } from './packFaces';
+import { PackFace, slotBox, warmFaceArt, type PackFacePhase } from './packFaces';
+import { FLIP_HALF_GUARANTEED_MS, FLIP_HALF_MS } from './cardFlip';
 import './packOpening.css';
 
 /**
@@ -18,7 +19,12 @@ import './packOpening.css';
  * Ownership: the scene owns the tear, the sleeve, the stack and the first half of each flip; this shell owns the
  * request, the DOM card faces (`packFaces.tsx`: the handoff, the revealed pile, the summary row), the sounds on the DOM side (stamp, aether, summary) and the
  * single `PackSounds` for the theatre. Clicks after the zoom bubble from the canvas to `.pkop-fx`, where `flipNext`
- * decides. Reduced motion: no scene; a sealed pack and an Open button, then the backs in a row with a crossfade.
+ * decides. Reduced motion: no scene; a sealed pack and an Open button, then the backs in a row with a crossfade. The
+ * same path is taken when the scene reports `onUnavailable` (Pixi not allowed, or its init failed).
+ *
+ * Face phases are tracked PER CARD (`revealPhase`): a face is `handoff` from its edge event until its own DOM turn has
+ * had its time (`turning`), whatever else happens meanwhile (Reveal all chaining the next flip in the same task, a
+ * fast click); only then does it settle as the pile's top (`featured`) or tuck under it (`tray`).
  */
 
 export type PackOpenOutcome = { status: 'ok'; result: PackOpenResult } | { status: 'error'; reason: string };
@@ -49,8 +55,16 @@ const cardText = (c: PackCard): string => {
   return c.duplicate ? `${name}, ${rarity}, duplicate, +${c.duplicate.aether} Aether` : `${name}, ${rarity}, new`;
 };
 
+/** A revealed face's phase: its own turn first, then the pile's top while no newer card is flipping, else under it. */
+export function revealPhase(index: number, flipped: number, turning: ReadonlySet<number>, flipping: boolean): PackFacePhase {
+  if (turning.has(index)) return 'handoff';
+  return index === flipped - 1 && !flipping ? 'featured' : 'tray';
+}
+
 export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, speed = 1, sceneFactory = createPackScene }: PackOpenerProps) {
-  const reduced = reducedMotion ?? prefersReducedMotion();
+  /** The scene said Pixi is unavailable (not allowed, or init failed): the reduced-motion path from then on. */
+  const [pixiFailed, setPixiFailed] = useState(false);
+  const reduced = (reducedMotion ?? prefersReducedMotion()) || pixiFailed;
   const [qi, setQi] = useState(0);
   const [phase, setPhaseState] = useState<PackPhase>('sealed');
   const [note, setNote] = useState<string | null>(null);
@@ -58,8 +72,11 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, spee
   const [flipped, setFlipped] = useState(0);
   /** Each revealed card's flat rect at its edge-on handoff (stage px, converted AT the edge event). */
   const [froms, setFroms] = useState<readonly (StageRect | undefined)[]>([]);
-  /** The revealed card in the featured slot (null while the next one flips: the previous one has tucked away). */
-  const [featured, setFeatured] = useState<number | null>(null);
+  /** The faces still in their own DOM turn (each from its edge event for its flip-half time, slow-mo scaled). */
+  const [turning, setTurning] = useState<ReadonlySet<number>>(() => new Set());
+  /** A scene flip is in flight: the previous top face has tucked into the pile while the next card flips in. */
+  const [flipping, setFlipping] = useState(false);
+  const turnTimersRef = useRef(new Set<ReturnType<typeof setTimeout>>());
   const [announce, setAnnounce] = useState('');
 
   const phaseRef = useRef<PackPhase>('sealed');
@@ -91,6 +108,12 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, spee
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
     if (holdRef.current) { clearTimeout(holdRef.current); holdRef.current = null; }
   }, []);
+  /** Forget every face's turn (a reset, the summary, the next pack, unmount). */
+  const clearTurns = useCallback((): void => {
+    for (const t of turnTimersRef.current) clearTimeout(t);
+    turnTimersRef.current.clear();
+    if (mountedRef.current) { setTurning(new Set()); setFlipping(false); }
+  }, []);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -98,17 +121,18 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, spee
       mountedRef.current = false;
       reqRef.current++;
       stopTimer();
+      clearTurns();
     };
-  }, [stopTimer]);
+  }, [clearTurns, stopTimer]);
 
   const goSummary = useCallback((): void => {
     stopTimer();
     revealAllRef.current = false;
     sceneRef.current?.setInputEnabled(false);
-    setFeatured(null);
+    clearTurns();
     go('summary');
     sounds().summary();
-  }, [go, sounds, stopTimer]);
+  }, [clearTurns, go, sounds, stopTimer]);
 
   /** A failed or malformed answer: back to a fresh sealed pack, nothing consumed. */
   const fail = useCallback((): void => {
@@ -124,12 +148,12 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, spee
     setResult(null);
     setFlipped(0);
     setFroms([]);
-    setFeatured(null);
+    clearTurns();
     artRef.current = [];
     setAnnounce('');
     setNote(FAIL_NOTE);
     go('sealed');
-  }, [go, stopTimer]);
+  }, [clearTurns, go, stopTimer]);
 
   /** The server request: only ever started by a pop. */
   const request = useCallback((packId: string): void => {
@@ -162,7 +186,11 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, spee
     if (reduced || !item) return;
     const host = hostRef.current;
     if (!host) return;
+    let live = true;
     const scene = sceneFactory(host, item.look, CARD_COUNT, soundsFn.current(), {
+      // No Pixi (not allowed, or init failed): may fire during `sceneFactory` itself. Nothing has popped yet, so the
+      // reduced-motion path takes over from the sealed pack (this effect's cleanup destroys the dead scene).
+      onUnavailable: () => { if (live && mountedRef.current) setPixiFailed(true); },
       onPop: () => { go('tearing'); requestRef.current(itemRef.current!.packId); },
       onStripFree: () => { if (phaseRef.current === 'tearing') go('sleeve'); },
       onSleeveDropped: () => { if (phaseRef.current === 'tearing' || phaseRef.current === 'sleeve') go('zooming'); },
@@ -179,7 +207,16 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, spee
         // Measured NOW (the edge event), so a resize since mount is honoured.
         const from = rectToStage(rect);
         setFroms((prev) => { const next = prev.slice(); next[index] = from; return next; });
-        setFeatured(index);
+        // This face turns in for its own flip-half time, whatever happens next (Reveal all chains the next flip in
+        // this same task; a click may start one mid-turn): it leaves `handoff` only when its turn is done.
+        setFlipping(false);
+        setTurning((prev) => new Set(prev).add(index));
+        const turnMs = (card.guaranteed ? FLIP_HALF_GUARANTEED_MS : FLIP_HALF_MS) / (speedRef.current > 0 ? speedRef.current : 1);
+        const t = setTimeout(() => {
+          turnTimersRef.current.delete(t);
+          setTurning((prev) => { const next = new Set(prev); next.delete(index); return next; });
+        }, turnMs);
+        turnTimersRef.current.add(t);
         setAnnounce(cardText(card));
         if (card.duplicate) { soundsFn.current().stamp(); soundsFn.current().aether(); }
         if (revealAllRef.current && flippedRef.current < r.cards.length) flipNextRef.current();
@@ -188,6 +225,7 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, spee
     scene.setSpeed(speedRef.current);
     sceneRef.current = scene;
     return () => {
+      live = false;
       scene.destroy();
       if (sceneRef.current === scene) sceneRef.current = null;
     };
@@ -219,8 +257,9 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, spee
     const slot = slotRef.current?.getBoundingClientRect();
     const to = slot ? { x: slot.left + slot.width / 2, y: slot.top + slot.height / 2 } : { x: 0, y: 0 };
     const started = scene.flipTop(to);
-    // The featured face settles into the revealed pile while the next card flips in on top of it.
-    if (started) setFeatured(null);
+    // The top face settles into the revealed pile while the next card flips in on top of it (a face still turning
+    // finishes its turn first: `revealPhase`).
+    if (started) setFlipping(true);
     return started;
   }, [goSummary, reduced, sounds]);
   const flipNextRef = useRef(flipNext);
@@ -269,7 +308,7 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, spee
     setResult(null);
     setFlipped(0);
     setFroms([]);
-    setFeatured(null);
+    clearTurns();
     artRef.current = [];
     setAnnounce('');
     setNote(null);
@@ -277,7 +316,7 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, spee
     setQi((n) => n + 1);
     // "Open next" is about to unmount: keep keyboard focus in the dialog.
     dialogRef.current?.focus();
-  }, [go, stopTimer]);
+  }, [clearTurns, go, stopTimer]);
 
   useEffect(() => { dialogRef.current?.focus(); }, []);
   useEffect(() => {
@@ -330,8 +369,8 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, spee
         <div className="pkop-faces" aria-hidden>
           {cards.map((c, i) => {
             if (phase !== 'summary' && i >= flipped) return null;
-            const facePhase = phase === 'summary' ? 'summary' : i === featured ? 'handoff' : 'tray';
-            return <PackFace key={i} card={c} phase={facePhase} from={froms[i]} slot={{ index: i, count: cards.length }} />;
+            const facePhase = phase === 'summary' ? 'summary' : revealPhase(i, flipped, turning, flipping);
+            return <PackFace key={i} card={c} phase={facePhase} from={froms[i]} slot={{ index: i, count: cards.length }} slow={1 / speed} />;
           })}
         </div>
       )}

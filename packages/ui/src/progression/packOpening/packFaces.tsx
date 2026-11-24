@@ -37,7 +37,14 @@ export { CARD_PLATE_SRC };
 
 export type PackFacePhase = 'handoff' | 'featured' | 'tray' | 'summary';
 export interface PackFaceSlot { index: number; count: number }
-export interface PackFaceProps { card: PackCard; phase: PackFacePhase; from?: StageRect; slot?: PackFaceSlot }
+export interface PackFaceProps {
+  card: PackCard;
+  phase: PackFacePhase;
+  from?: StageRect;
+  slot?: PackFaceSlot;
+  /** The Pack Lab's slow-mo factor (the shell's `--pk-slow`, 1 / speed): scales the handoff's own transitions. Default 1. */
+  slow?: number;
+}
 
 /**
  * The face's LAYOUT size (stage px; 2:3, the plate's and the scene card's shape) and its slot's centre as a fraction of
@@ -169,11 +176,13 @@ const EMBLEMS: Readonly<Record<RewardEmblem, ReactElement>> = {
   ),
 };
 
-export function PackFace({ card, phase, from, slot }: PackFaceProps) {
+export function PackFace({ card, phase, from, slot, slow = 1 }: PackFaceProps) {
   const p = rewardPreview(card.rewardId);
   const placed = from !== undefined || slot !== undefined;
   const handoff = phase === 'handoff' && from !== undefined;
-  const [arrived, setArrived] = useState(!handoff);
+  // Any face handed a `from` mounts edge-on on the scene's card and turns in, whatever phase it mounts in: the shell
+  // mounts it in `handoff`, but a face that mounts straight into the pile still turns rather than popping there.
+  const [arrived, setArrived] = useState(!(from !== undefined && phase !== 'summary'));
   const ref = useRef<HTMLDivElement | null>(null);
 
   // Mounted on the scene's card: flush that pose once (one style/layout read per flip, never per frame), then let the
@@ -184,8 +193,9 @@ export function PackFace({ card, phase, from, slot }: PackFaceProps) {
     setArrived(true);
   }, [arrived]);
 
-  const atEdge = handoff && !arrived;
-  const flipMs = card.guaranteed ? FLIP_HALF_GUARANTEED_MS : FLIP_HALF_MS;
+  const atEdge = !arrived;
+  // The DOM half of the flip, at the same clock as the scene's half and every class transition (slow-mo included).
+  const turnMs = (card.guaranteed ? FLIP_HALF_GUARANTEED_MS : FLIP_HALF_MS) * (Number.isFinite(slow) && slow > 0 ? slow : 1);
   // The rarity aura (packGlow.ts): on the TOP face of the revealed pile and on every summary face, never on the faces
   // under the top one (five glows would blend into a blob). Common / Rare static, Epic breathes gently, Legendary /
   // Ancient strongly (`pkf-glow` marks the strong tier).
@@ -198,13 +208,15 @@ export function PackFace({ card, phase, from, slot }: PackFaceProps) {
     ? {
       ...slotBox(),
       transform: css(atEdge ? edgePose(from!, vp!) : facePose(phase, slot, from, vp!, card.guaranteed)),
-      transition: atEdge ? 'none' : handoff ? `transform ${flipMs}ms ${MOVE_EASE}` : undefined,
+      transition: atEdge ? 'none' : handoff ? `transform ${turnMs}ms ${MOVE_EASE}` : undefined,
     }
     : undefined;
   const inner: CSSProperties | undefined = placed
     ? {
       transform: `perspective(${PERSPECTIVE}px) rotateY(${atEdge ? -90 : 0}deg)`,
-      transition: atEdge ? 'none' : handoff ? `transform ${flipMs}ms ${TURN_EASE}` : undefined,
+      // The turn's transition stays on in EVERY placed phase: a face that leaves `handoff` mid-turn finishes its turn
+      // instead of snapping flat (removing the transition would cancel the running one).
+      transition: atEdge ? 'none' : `transform ${turnMs}ms ${TURN_EASE}`,
     }
     : undefined;
 

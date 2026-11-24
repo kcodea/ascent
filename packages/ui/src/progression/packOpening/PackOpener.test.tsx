@@ -70,6 +70,27 @@ const btn = (label: string): HTMLButtonElement | undefined => [...document.query
 const click = (el: Element | null | undefined): void => { act(() => { el!.dispatchEvent(new MouseEvent('click', { bubbles: true })); }); };
 const key = (k: string): void => { act(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true })); }); };
 const fx = (): Element => document.querySelector('.pkop-fx')!;
+const faceAt = (i: number): HTMLElement => document.querySelectorAll<HTMLElement>('[data-testid="pack-face"]')[i]!;
+const inner = (i: number): HTMLElement => faceAt(i).querySelector<HTMLElement>('.pkf-card')!;
+const wait = async (ms: number): Promise<void> => { await act(async () => { await new Promise((r) => setTimeout(r, ms)); }); };
+/**
+ * Every face that mounts edge-on flushes that pose with ONE layout read (`offsetWidth`) before it turns in: record what
+ * each face looked like at that read (its phase and its turn), so a face that skipped the edge pose is caught.
+ */
+const watchEdgeFlushes = (): { flushes: { phase: string | null; turn: string }[]; restore: () => void } => {
+  const flushes: { phase: string | null; turn: string }[] = [];
+  const desc = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetWidth')!;
+  Object.defineProperty(HTMLElement.prototype, 'offsetWidth', {
+    configurable: true,
+    get(this: HTMLElement) {
+      if (this.dataset.testid === 'pack-face') {
+        flushes.push({ phase: this.getAttribute('data-phase'), turn: (this.firstElementChild as HTMLElement).style.transform });
+      }
+      return desc.get!.call(this) as number;
+    },
+  });
+  return { flushes, restore: () => { Object.defineProperty(HTMLElement.prototype, 'offsetWidth', desc); } };
+};
 
 beforeEach(() => { fakes = []; opens = []; resolveOpen = null; soundCalls.length = 0; });
 afterEach(() => { m?.unmount(); m = null; });
@@ -152,9 +173,95 @@ describe('PackOpener', () => {
     click(fx());
     expect(fake().calls.filter((c) => c === 'flipTop')).toHaveLength(2);
     edge(1);
-    // One featured face at a time; the earlier one has tucked into the tray.
-    expect(document.querySelectorAll('[data-testid="pack-face"][data-phase="handoff"]')).toHaveLength(1);
+    // Once both turns are done: one top face, the earlier one tucked under it.
+    await wait(300);
+    expect(document.querySelectorAll('[data-testid="pack-face"][data-phase="featured"]')).toHaveLength(1);
     expect(document.querySelectorAll('[data-testid="pack-face"][data-phase="tray"]')).toHaveLength(1);
+    expect(faceAt(1).getAttribute('data-phase')).toBe('featured');
+  });
+
+  it('a click mid-turn lets the turning face finish its turn before it tucks into the pile (no snap)', async () => {
+    render();
+    toZoom();
+    await settle(ok(mk(5)));
+    click(fx()); edge(0);
+    expect(faceAt(0).getAttribute('data-phase')).toBe('handoff');
+    // The next flip starts while face 0 is still turning: it keeps its phase and its turn's transition.
+    click(fx());
+    expect(fake().calls.filter((c) => c === 'flipTop')).toHaveLength(2);
+    expect(faceAt(0).getAttribute('data-phase')).toBe('handoff');
+    expect(inner(0).style.transition).toContain('transform 260ms');
+    expect(inner(0).style.transform).toContain('rotateY(0deg)');
+    // Its turn done, it tucks under while the next card is still flipping in; the turn's transition stays on.
+    await wait(300);
+    expect(faceAt(0).getAttribute('data-phase')).toBe('tray');
+    expect(inner(0).style.transition).toContain('transform 260ms');
+  });
+
+  it('Reveal all: every face mounts edge-on in handoff and turns in, though the next flip chains in the same task', async () => {
+    const w = watchEdgeFlushes();
+    try {
+      render();
+      toZoom();
+      await settle(ok(mk(5)));
+      click(btn('Reveal all'));
+      for (let i = 0; i < 5; i++) {
+        edge(i); // the shell chains the next flipTop from inside this event (the real scene allows it)
+        if (i < 4) expect(fake().calls.filter((c) => c === 'flipTop')).toHaveLength(i + 2);
+        expect(faceAt(i).getAttribute('data-phase'), `face ${i}`).toBe('handoff');
+        expect(faceAt(i).classList.contains('pkf-handoff')).toBe(true);
+        // It was flushed at the scene's edge-on pose (turned -90 deg), in handoff, then let go to turn flat.
+        expect(w.flushes[i], `face ${i} flush`).toEqual({ phase: 'handoff', turn: expect.stringContaining('rotateY(-90deg)') as unknown as string });
+        expect(inner(i).style.transform).toContain('rotateY(0deg)');
+        expect(inner(i).style.transition).toContain(i === 4 ? 'transform 380ms' : 'transform 260ms');
+      }
+      expect(w.flushes).toHaveLength(5);
+    } finally {
+      w.restore();
+    }
+  });
+
+  it('slow-mo slows the DOM half of the flip too (the face turn and move, and how long it stays handed off)', async () => {
+    render({ speed: 0.25 });
+    toZoom();
+    await settle(ok(mk(5)));
+    click(fx()); edge(0);
+    expect(faceAt(0).style.transition).toContain('transform 1040ms');
+    expect(inner(0).style.transition).toContain('transform 1040ms');
+    await wait(400);
+    expect(faceAt(0).getAttribute('data-phase')).toBe('handoff');
+  });
+
+  it('when the scene reports Pixi unavailable (synchronously), the opener falls back to the reduced-motion path', async () => {
+    const factory: NonNullable<PackOpenerProps['sceneFactory']> = (...args) => {
+      const sc = sceneFactory(...args);
+      args[4].onUnavailable();
+      return sc;
+    };
+    render({ sceneFactory: factory });
+    expect(fake().calls).toContain('destroy');
+    expect(document.querySelector('.pkop-fx')).toBeNull();
+    expect(btn('Quick open')).toBeUndefined();
+    click(btn('Open'));
+    expect(opens).toEqual(['p1']);
+    await settle(ok(mk(5)));
+    const row = document.querySelector('.pkop-row')!;
+    for (let i = 0; i < 5; i++) click(row);
+    expect(document.querySelectorAll('.pkop-back.flipped')).toHaveLength(5);
+    key('Enter');
+    expect(document.querySelectorAll('.pkop-summary li')).toHaveLength(5);
+    expect(fakes).toHaveLength(1); // no second scene
+  });
+
+  it('when Pixi init fails later (asynchronously), the sealed pack switches to the reduced-motion Open', () => {
+    render();
+    expect(btn('Quick open')).toBeTruthy();
+    const f = fake();
+    act(() => { f.events.onUnavailable(); });
+    expect(f.calls).toContain('destroy');
+    expect(btn('Open')).toBeTruthy();
+    click(btn('Open'));
+    expect(opens).toEqual(['p1']);
   });
 
   it('Open next keeps focus in the dialog', async () => {

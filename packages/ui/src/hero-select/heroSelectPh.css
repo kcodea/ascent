@@ -228,7 +228,8 @@ html[data-touch-ui][data-touch-small] .heroselect.phhs :is(.hsrow:not(.browse), 
 }
 
 /* ── THE PLAY PAGE'S FLAG (owner 2026-11-06: "we need to make all the same adjustments on this page as we did on the play page for
-   the flag") ── Each hero banner is the party banner's painted flag (partyHome.css "THE PAINTED FLAG"): `.hcfoot` paints the
+   the flag") ── Each hero banner is the old party banner's painted flag (the play screen's flag, retired with the showcase card
+   on 2026-11-24; the art stays in partyHome/ornaments): `.hcfoot` paints the
    whole frame (rod, gem, gold trim, navy cloth, point, tassel; ornaments/player-flag.webp, 784x1321) behind the card, and `.hcrod`
    paints the same art with its cloth keyed out (player-flag-trim.webp) OVER it, so the gold always overlaps the portrait. The
    card keeps the flag's ratio as its least height (a longer power stretches it a little). The portrait and the text sit inside the
@@ -248,9 +249,10 @@ html[data-touch-ui][data-touch-small] .heroselect.phhs :is(.hsrow:not(.browse), 
 .heroselect.phhs .herocard.big .hcframe::before, .heroselect.phhs .herocard.big .hcframe::after { content: none; }
 .heroselect.phhs .herocard.big .hcbelow { background: none; padding: 10px 18px calc(100cqi * 150 / 784); }
 /* THE PLAY FLAG'S PORTRAIT, exactly (owner 2026-11-07: "the fade on the main play screen flag is different from the hero select
-   fade. can we mimic the navy fade exactly"; R-HS-FADE-01). Same eased foot fade as partyHome.css `.ph-cardwrap .ph-art` (no
-   side fade), AND the same box: the play portrait runs from the cloth's top (y 96) for 844 of the flag's 1321 units, so it is
-   667 wide by 844 tall in the flag's own units, framed at 50% 14%. A shorter box ended the fade higher up the flag. */
+   fade. can we mimic the navy fade exactly"; R-HS-FADE-01). Same eased foot fade the play flag's portrait had (no side fade).
+   The play flag retired with the showcase card (2026-11-24), so heroSelectPh.test.tsx pins this --foot as the literal it was
+   in partyHome.css. AND the same box: the play portrait ran from the cloth's top (y 96) for 844 of the flag's 1321 units, so
+   it is 667 wide by 844 tall in the flag's own units, framed at 50% 14%. A shorter box ended the fade higher up the flag. */
 .heroselect.phhs .herocard.big > .hcframe { aspect-ratio: 667 / 844; }
 .heroselect.phhs .herocard.big :is(.hcframe-art, .hcframe-pow) { inset: 0; width: 100%; object-position: 50% 14%;
   --foot: linear-gradient(180deg, #000 46%, rgb(0 0 0 / 0.96) 51%, rgb(0 0 0 / 0.85) 57%, rgb(0 0 0 / 0.66) 64%, rgb(0 0 0 / 0.42) 72%,

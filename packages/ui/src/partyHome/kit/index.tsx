@@ -618,8 +618,7 @@ export function phNum(text: string): ReactNode {
   return parts.length === 1 ? text : parts.map((p, i) => (/^\d+$/.test(p) ? <span key={i} className="phk-num">{p}</span> : p));
 }
 
-export { PhBanner, PhBannerInvite, PhBannerName, PhBannerState, PhLeaderBadge } from './PhBanner';
-export { OPEN_CARD_SELECTOR, PhShowcaseBand, PhShowcaseCard, PhShowcaseGhost, PhShowcaseInvite, type PhCardSize, type PhShowcaseCardProps } from './PhShowcaseCard';
+export { OPEN_CARD_SELECTOR, PhLeaderBadge, PhShowcaseBand, PhShowcaseCard, PhShowcaseGhost, PhShowcaseInvite, type PhCardSize, type PhShowcaseCardProps } from './PhShowcaseCard';
 
 /** A labelled text field: a small label over a pill input (a room name, a team name), an optional hint or error under it. */
 export function PhField({ label, hint, error, className, id, showCount, ...rest }: InputHTMLAttributes<HTMLInputElement> & { label: ReactNode; hint?: ReactNode; error?: ReactNode;

@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 /**
- * CHANGE NAME ON YOUR OWN BANNER (R-PH-CHANGE-NAME-01, owner 2026-11-07: "we need a change name option").
+ * CHANGE NAME ON YOUR OWN CARD (R-PH-CHANGE-NAME-01, owner 2026-11-07: "we need a change name option").
  * Pins:
- *  - your banner's menu reads Change name, Change portrait, View Career, and each item runs its own action;
+ *  - your card's menu reads Change name, View Career (no Change portrait: the tabs under your card open the cosmetics
+ *    window), and each item runs its own action;
  *  - PartyHome builds your menu from `selfCardMenu` and mounts the Change name window;
  *  - the window saves through the store's `setPlayerName` (the title chip's own path: 24 characters, trimmed), Enter
  *    saves, Cancel leaves the name alone; a guest can rename here too (no sign-in gate, same as the title chip);
@@ -39,13 +40,13 @@ const type = (v: string): void => {
 const button = (label: string): HTMLButtonElement =>
   [...document.body.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent?.trim() === label)!;
 
-describe('your banner menu', () => {
-  it('reads Change name, Change portrait, View Career, each running its own action', () => {
+describe('your card menu', () => {
+  it('reads Change name, View Career, each running its own action', () => {
     const calls: string[] = [];
-    const menu = selfCardMenu({ changeName: () => calls.push('name'), changePortrait: () => calls.push('portrait'), viewCareer: () => calls.push('career') });
-    expect(menu.map((m) => m.label)).toEqual(['Change name', 'Change portrait', 'View Career']);
+    const menu = selfCardMenu({ changeName: () => calls.push('name'), viewCareer: () => calls.push('career') });
+    expect(menu.map((m) => m.label)).toEqual(['Change name', 'View Career']);
     menu.forEach((m) => m.run!());
-    expect(calls).toEqual(['name', 'portrait', 'career']);
+    expect(calls).toEqual(['name', 'career']);
   });
 
   it('PartyHome builds your menu from selfCardMenu and mounts the Change name window', () => {

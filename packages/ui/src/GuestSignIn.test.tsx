@@ -5,8 +5,8 @@
  * that."). Rendered on the real Title screen under jsdom with the account backend's presence mocked:
  *  - the "Sign in!" button: guests only, left of the portrait, opens the account panel, gone the moment the account
  *    is real (no reload), hidden with no backend;
- *  - the portrait lock: a guest's portrait click opens the portrait sign-in gate, never the avatar picker; a
- *    signed-in player's opens the picker; no backend says accounts are unavailable;
+ *  - the portrait lock: a guest's portrait click opens the portrait sign-in gate, never the picker (the cosmetics window,
+ *    on its Avatar tab, since 2026-11-24); a signed-in player's opens it; no backend says accounts are unavailable;
  *  - the perf + cursor tripwires on the blink's CSS (opacity-only loop, reduced motion, no plain cursor).
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -20,7 +20,7 @@ const backend = vi.hoisted(() => ({ on: true }));
 vi.mock('./remoteBoards', async (orig) => ({ ...(await orig<typeof import('./remoteBoards')>()), remoteEnabled: () => backend.on }));
 
 import { Title } from './Title';
-import { AvatarPicker } from './AvatarPicker';
+import { CosmeticsWindow } from './cosmetics/CosmeticsWindow';
 import { useGame } from './store';
 
 let ui: Mounted | null = null;
@@ -38,7 +38,7 @@ beforeEach(() => {
 const $ = (sel: string): HTMLElement | null => document.querySelector<HTMLElement>(sel);
 const button = (label: string): HTMLButtonElement | undefined =>
   [...document.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent === label);
-const render = (): void => { ui = mount(<><Title onSettings={() => {}} /><AvatarPicker /></>); };
+const render = (): void => { ui = mount(<><Title onSettings={() => {}} /><CosmeticsWindow /></>); };
 
 describe('the guest "Sign in!" button (owner 2026-09-29)', () => {
   it('a guest sees it, seated in the account corner BEFORE (left of) the portrait', () => {
@@ -88,7 +88,7 @@ describe('the portrait lock: guests sign in to change their portrait (owner 2026
     expect(portrait.getAttribute('aria-label')).toBe('Sign in to change your portrait');
     act(() => portrait.click());
     expect(useGame.getState().avatarPickerOpen).toBe(false);
-    expect($('.avatarpick')).toBeNull();
+    expect($('.cw')).toBeNull();
     expect($('#pfgate-title')!.textContent).toBe('Sign in to change your portrait');
     expect($('.pfgate-lead')!.textContent).toBe('Picking a portrait is part of your free account.');
     act(() => button('Not now')!.click());
@@ -115,28 +115,28 @@ describe('the portrait lock: guests sign in to change their portrait (owner 2026
     expect($('.pfgate-panel')).toBeNull();
     act(() => $('.titleportrait')!.click());
     expect(useGame.getState().avatarPickerOpen).toBe(true);
-    expect($('.avatarpick')).not.toBeNull();
+    expect($('.cw')).not.toBeNull();
   });
 
-  it('a signed-in player changes their portrait as normal', () => {
+  it('a signed-in player changes their portrait as normal', async () => {
     signedIn();
     render();
     expect($('.titleportrait')!.getAttribute('aria-label')).toBe('Change your avatar');
     act(() => $('.titleportrait')!.click());
     expect($('.pfgate-panel')).toBeNull();
-    expect($('.avatarpick')).not.toBeNull();
+    expect($('.cw')).not.toBeNull();
     const before = useGame.getState().playerAvatar;
-    // The rebuilt window (2026-11-19): a press selects, "Use portrait" saves.
+    // The cosmetics window (2026-11-24; the portrait window before it): a press selects, "Use" saves.
     act(() => [...document.querySelectorAll<HTMLElement>('[role="tab"]')].find((t) => t.textContent!.startsWith('Heroes'))!.click());
     act(() => document.querySelector<HTMLButtonElement>('.avp-tile')!.click());
-    act(() => document.querySelector<HTMLButtonElement>('.avp-use')!.click());
+    await act(async () => { document.querySelector<HTMLButtonElement>('.cw-use')!.click(); await new Promise((r) => setTimeout(r, 0)); });
     expect(useGame.getState().playerAvatar).not.toBe(before);
   });
 
   it('the picker refuses to render for a guest even if something opens it directly', () => {
     render();
     act(() => useGame.getState().openAvatarPicker());
-    expect($('.avatarpick')).toBeNull();
+    expect($('.cw')).toBeNull();
   });
 
   it('no account backend: the gate says accounts are unavailable', () => {
@@ -148,7 +148,7 @@ describe('the portrait lock: guests sign in to change their portrait (owner 2026
     act(() => button('OK')!.click());
     expect($('.pfgate-panel')).toBeNull();
     expect(useGame.getState().accountPanelOpen).toBe(false);
-    expect($('.avatarpick')).toBeNull();
+    expect($('.cw')).toBeNull();
   });
 });
 

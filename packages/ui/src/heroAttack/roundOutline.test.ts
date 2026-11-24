@@ -159,8 +159,9 @@ describe('no text in the UI is outlined with a text stroke (R-OUTLINE-ROUND-01)'
       }
     }
     // The formation (1, shared), the announcement, spell bold words, 2 tribe labels, damage floats, power floats,
-    // 2 hero-select names, the showcase name, the lobby rail, the party home name, the Collection tiles.
-    expect(rings).toBeGreaterThanOrEqual(13);
+    // 2 hero-select names, the showcase name, the lobby rail, the Collection tiles. (The party home flag's name ring retired
+    // with the flag banner, 2026-11-24.)
+    expect(rings).toBeGreaterThanOrEqual(12);
   });
 
   it('nothing still writes the old WebKit copy: no data-wkt in any component', () => {

@@ -40,7 +40,7 @@ import { CollectionScreen } from './progression/CollectionScreen';
 import { CratePreview } from './progression/crateFx/CratePreview';
 import { Career } from './Career';
 import { PerfScreen } from './PerfScreen';
-import { AvatarPicker } from './AvatarPicker';
+import { CosmeticsWindow } from './cosmetics/CosmeticsWindow';
 import { TutorialController } from './tutorial/TutorialController';
 import { CourseOutroHost } from './tutorial/CourseOutro';
 import { CrashLogReadout } from './CrashLogReadout';
@@ -830,7 +830,7 @@ export function Game() {
       {(import.meta.env.DEV || import.meta.env.VITE_CRATE_PREVIEW === '1') && <CratePreview />}
       {/* Perf analytics — self-gates on `showPerf`, renders nothing until opened from the dev menu. */}
       <PerfScreen />
-      <AvatarPicker />
+      <CosmeticsWindow />
       <AccountPanel />
       {/* CROSS-DEVICE SAVES: "your game moved to another device" — self-gates on `cloudMoved`, blocks the stale run. */}
       <CloudMovedModal />

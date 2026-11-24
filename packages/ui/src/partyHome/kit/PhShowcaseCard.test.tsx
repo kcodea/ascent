@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * THE SHOWCASE CARD (party home kit): the landscape player card that replaces the tall banner. Pins what the card prints
+ * THE SHOWCASE CARD (party home kit): the landscape player card that replaced the tall flag banner. Pins what the card prints
  * (name, title, crest, rank label, points, bar), that mirroring flips only the art, that a long name stays one line, that
  * nothing carries a native tooltip, and that an open seat (the ghost) shows its own content under its label.
  */

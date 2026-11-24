@@ -1,5 +1,5 @@
-/* THE PORTRAIT WINDOW (AvatarPicker.tsx): a party home dialog. The root is `.phk-dialog.ph-tokens` (the veil and the
-   tokens come from the kit); everything here is the box. Static paint: the only motion is one-shot transforms.
+/* THE PORTRAIT PICKER (AvatarPicker.tsx's AvatarTabBody, the cosmetics window's Avatar tab): a party home dialog. The root
+   is `.phk-dialog.ph-tokens` (the veil and the tokens come from the kit); everything here is the box. Static paint: the only motion is one-shot transforms.
    Only `.avp-scroll` scrolls; the header, tabs, caption and the preview column always stay in view. */
 .avp-box { position: relative; display: flex; flex-direction: column; gap: calc(16 * var(--phu)); box-sizing: border-box;
   width: min(calc(1080 * var(--phu)), calc(var(--lvw, 100vw) * 0.94)); height: min(calc(720 * var(--phu)), calc(var(--ph-h, var(--lvh, 100vh)) - 32 * var(--phu)));
@@ -83,18 +83,10 @@
 .avp-used { position: absolute; left: 50%; bottom: calc(-6 * var(--phu)); z-index: 1; translate: -50% 0; padding: calc(5 * var(--phu)) calc(14 * var(--phu)); border-radius: 999px; white-space: nowrap; pointer-events: none;
   background: var(--ph-metal-gold); color: var(--ph-navy); font-family: var(--ph-font); font-weight: 900; font-size: calc(14 * var(--phu)); letter-spacing: 0.08em; text-transform: uppercase; box-shadow: 0 calc(2 * var(--phu)) calc(6 * var(--phu)) rgba(0, 0, 0, 0.5); }
 
-/* THE SIDE COLUMN: search, the filter under it, then the selection (its name, your banner wearing it) and the actions. */
+/* THE SIDE COLUMN: search, the filter under it, then what the window puts there (the cosmetics window's selection,
+   preview and actions, cosmeticsWindow.css). */
 .avp-side { display: flex; flex-direction: column; align-items: center; gap: calc(8 * var(--phu)); flex: none; width: calc(280 * var(--phu)); min-height: 0; text-align: center; }
-.avp-picked { display: flex; flex-direction: column; align-items: center; gap: calc(4 * var(--phu)); max-width: 100%; margin-top: calc(12 * var(--phu)); }
-.avp-name { max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-family: var(--ph-font); font-weight: 900; font-size: calc(22 * var(--phu)); line-height: 1.15; color: var(--ph-ink); text-shadow: var(--ph-shadow); }
-.avp-rarname { font-weight: 800; color: var(--rc); }
-.avp-sub { display: flex; align-items: center; justify-content: center; gap: calc(8 * var(--phu)); min-height: calc(20 * var(--phu)); font-size: var(--ph-t2); color: var(--ph-muted); }
-.avp-banner { display: flex; flex-direction: column; align-items: center; gap: calc(8 * var(--phu)); flex: 1 1 auto; min-height: 0; justify-content: center; pointer-events: none; }
-.avp-actions { display: flex; flex-direction: column; align-items: center; gap: calc(4 * var(--phu)); flex: none; width: 100%; }
-.avp-use.phk-btn { width: 100%; padding: 0 calc(16 * var(--phu)); }
-.avp-use.phk-btn:disabled, .avp-reset.phk-btn:disabled { opacity: 0.45; }
 
-/* A short or phone-sized window: drop the banner preview, narrow the preview column. */
-html[data-ph-compact] .avp-banner { display: none; }
+/* A short or phone-sized window: narrow the side column. */
 html[data-ph-compact] .avp-side { width: calc(220 * var(--phu)); justify-content: center; }
 html[data-ph-compact] .avp-box { padding: calc(16 * var(--phu)) calc(20 * var(--phu)); gap: calc(10 * var(--phu)); height: calc(var(--ph-h, var(--lvh, 100vh)) - 16 * var(--phu)); }

@@ -32,5 +32,5 @@ around `focus` (`slideFor`, never past an edge). The gate's doors keep their own
 ## Art
 
 `apps/web/public/locations/<id>/`. The paintings are the owner's upscaled 21:9 ones. The four parallax layers are cut from them
-(`.claude/location-reveal-prototype/layers9.py` in the primary checkout, untracked) and wait for the owner's own layers.
+(`.claude/location-reveal-prototype/layers11.py` in the primary checkout, untracked) and wait for the owner's own layers.
 Sounds: ElevenLabs, except the gate's own cues.

@@ -50,7 +50,7 @@ void main(){
 
 export const fsScene = String.raw`out vec4 o;
 uniform vec2 R, pan; uniform float s, push, dof, after, drain; uniform sampler2D DT, L0, L1, L2, L3;
-uniform float near_; const vec4 DEP = vec4(.0, .075, .150, .250);
+uniform float near_; const vec4 DEP = vec4(.0, .075, .130, .250);
 vec2 at(vec2 rel, float dep, float k){ return VP - OFS + (rel * .962 - pan * dep) / (1. + dep * k); }
 vec2 wind(vec2 q, float amt, float gust, vec2 dir){ float n = texture(DT, q).g * amt; return q + n * (vec2(sin(q.y * 15. + s * 2.6 + q.x * 7.), .45 * cos(q.x * 13. + s * 2.1)) * .0022 * (gust * 1.4 + .22) - dir * .0034 * gust); }
 vec4 lay(sampler2D t, vec2 q, float f){ return textureLod(t, q, dof + f); }

@@ -60,6 +60,15 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Your player card has a cleaner look and more ways in: press its art to change your avatar, its title to change your title, and its rank to open your Career.',
+        details: [
+          'The card now matches the hero cards: a thin gold edge, a soft fade from the art, and a deep navy plate.',
+          'The four tabs under your card sit behind it, glow when you point at them, and click like every other button.',
+          'In the customize window each section shows its medallion, and the sample card on the Card plate tab now fits.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Every Ranked, Ranked Duos, Versus and Practice game now opens at its location. Shatter the crystal and its magic carries you to The Outskirts, with the tribes in your game waiting for you.',
         details: [
           'The announcer greets you as the name appears, then a parchment drops open for each tribe in that game.',

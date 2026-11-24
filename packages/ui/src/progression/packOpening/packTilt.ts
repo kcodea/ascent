@@ -33,17 +33,31 @@ export function aimInto(out: { x: number; y: number }, px: number, py: number, w
 
 /**
  * The tilt's target angles (degrees) for a normalised aim: `tiltMax x packTilt` at the edge, clamped there, and flat
- * unless `sealed`. Signs are the drag dive's (screen y is down): aim right -> rotY > 0 (the right edge recedes), aim
+ * unless `sealed`, scaled by `calm` (`cornerCalm`, 1 = full). Signs are the drag dive's (screen y is down): aim right -> rotY > 0 (the right edge recedes), aim
  * down -> rotX < 0 (the bottom edge recedes), so the pack leans toward the cursor.
  */
 export function tiltTargetInto(
-  out: { rx: number; ry: number }, nx: number, ny: number, tiltMax: number, packTilt: number, sealed: boolean,
+  out: { rx: number; ry: number }, nx: number, ny: number, tiltMax: number, packTilt: number, sealed: boolean, calm = 1,
 ): { rx: number; ry: number } {
-  const max = Math.max(0, tiltMax) * Math.max(0, packTilt);
+  const max = Math.max(0, tiltMax) * Math.max(0, packTilt) * clamp(calm, 0, 1);
   if (!sealed || !(max > 0)) { out.rx = 0; out.ry = 0; return out; }
   out.ry = clamp(nx * max, -max, max);
   out.rx = clamp(-ny * max, -max, max);
   return out;
+}
+
+/**
+ * THE CALM ZONE around the tear corner (owner 2026-11-24: "when the hand moves toward the ripping corner, i want to make
+ * sure the card moves back to centered. its odd that its bending away"): the tilt's scale (0..1, `tiltTargetInto`'s
+ * `calm`) for a pointer at (px, py) with the corner at (cx, cy), all pack base units. Flat (0) within `near` of the
+ * corner, the full tilt (1) from `far` out, a smoothstep between, so reaching for the corner settles the pack square
+ * under the hand.
+ */
+export function cornerCalm(px: number, py: number, cx: number, cy: number, near: number, far: number): number {
+  const d = Math.hypot(px - cx, py - cy);
+  if (!(far > near)) return d <= near ? 0 : 1;
+  const t = clamp((d - near) / (far - near), 0, 1);
+  return t * t * (3 - 2 * t);
 }
 
 /** The drag dive's ease per step: `tiltEase` per 60 Hz frame, frame-rate independent (Recruit.tsx). 1 = instant. */

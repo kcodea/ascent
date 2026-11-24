@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  aimInto, glossBandInto, glossD, glossSpecAlpha, glossStripU, newGlossBand, newTilt, newTiltPose, setTiltPose, stepTilt,
+  aimInto, cornerCalm, glossBandInto, glossD, glossSpecAlpha, glossStripU, newGlossBand, newTilt, newTiltPose, setTiltPose, stepTilt,
   tiltEaseK, tiltInto, tiltTargetInto, tiltedCornerHit, untiltInto,
 } from './packTilt';
 
@@ -34,6 +34,24 @@ describe('the sealed tilt: pointer position to angles', () => {
     const t = { rx: 3, ry: 3 };
     tiltTargetInto(t, 1, 1, DIVE.tiltMax, 1.5, false);
     expect([t.rx, t.ry]).toEqual([0, 0]);
+  });
+});
+
+describe('the calm zone round the tear corner', () => {
+  it('is flat at the corner, full tilt far away, and eases between', () => {
+    expect(cornerCalm(0, 50, 0, 50, 60, 170)).toBe(0);
+    expect(cornerCalm(40, 70, 0, 50, 60, 170)).toBe(0); // inside the grab ring's margin
+    expect(cornerCalm(300, 450, 0, 50, 60, 170)).toBe(1);
+    const mid = cornerCalm(115, 50, 0, 50, 60, 170);
+    expect(mid).toBeGreaterThan(0.4); expect(mid).toBeLessThan(0.6);
+  });
+
+  it('scales the tilt target, so reaching for the corner settles the pack square', () => {
+    const t = { rx: 0, ry: 0 };
+    tiltTargetInto(t, -1, -1, DIVE.tiltMax, 0.6, true, 0);
+    expect([t.rx, t.ry]).toEqual([0, 0]);
+    tiltTargetInto(t, 1, 0, DIVE.tiltMax, 0.6, true, 0.5);
+    expect(t.ry).toBeCloseTo(4.8);
   });
 });
 

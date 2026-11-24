@@ -51,7 +51,7 @@ import {
 import { projInto, unprojInto, type Pt, type StripSurface } from './stripMesh';
 import {
   aimInto, glossBandInto, glossD, newGlossBand, newTilt, newTiltPose, setTiltPose, stepTilt, tiltEaseK, tiltInto,
-  tiltTargetInto, tiltedCornerHit, untiltInto,
+  cornerCalm, tiltTargetInto, tiltedCornerHit, untiltInto,
 } from './packTilt';
 
 // ---------------------------------------------------------------- public contract
@@ -125,6 +125,8 @@ const SLEEVE_CLEAR = CARDS_Y + CARD_H / 2 - H + 14;
 const REVEAL_FIT = 0.9;
 /** Grab radius at the strip's corner, sealed / once started. */
 const GRAB_R_SEALED = 45, GRAB_R_STARTED = 55;
+/** The calm zone round the tear corner (base units): flat within NEAR (the grab ring and a margin), full tilt from FAR. */
+const CALM_NEAR = 60, CALM_FAR = 170;
 const DIM_TINT = 0xb8bccc;
 /** The zoomed stack's slide aside on the first flip: the share of the way left covered per dt frame. */
 const SIDE_EASE = 0.12;
@@ -207,6 +209,7 @@ class PackSceneImpl implements PackScene {
   private readonly pt: Pt = { x: 0, y: 0 };
   private readonly pt2: Pt = { x: 0, y: 0 };
   private readonly pt3: Pt = { x: 0, y: 0 };
+  private readonly pt4: Pt = { x: 0, y: 0 }; // the tilt step's corner (never shared with the pointer handlers)
   private readonly target: Vec3 = { x: 0, y: 0, z: 0 };
   private readonly tearInput: { held: boolean; target: Vec3 | null } = { held: false, target: null };
   private readonly sleeveInput = { held: false, want: 0, flickVy: 0 };
@@ -1016,7 +1019,13 @@ class PackSceneImpl implements PackScene {
     const df = getDragFeel();
     const sealed = this.phase === 'peel' && !this.tiltLocked;
     const ax = this.hoverOn ? this.hoverAim.x : 0, ay = this.hoverOn ? this.hoverAim.y : 0;
-    tiltTargetInto(this.tiltTgt, ax, ay, df.tiltMax, feel.packTilt, sealed);
+    // reaching for the tear corner settles the pack flat under the hand (packTilt.ts cornerCalm)
+    let calm = 1;
+    if (sealed && this.hoverOn) {
+      const c = this.edgeScreen(this.pt4);
+      calm = cornerCalm(this.hoverPt.x, this.hoverPt.y, c.x, c.y, CALM_NEAR, CALM_FAR);
+    }
+    tiltTargetInto(this.tiltTgt, ax, ay, df.tiltMax, feel.packTilt, sealed, calm);
     stepTilt(this.tilt, ax, ay, this.tiltTgt.rx, this.tiltTgt.ry, tiltEaseK(df.tiltEase, dt * FRAME_MS));
     // the drag dive's CSS perspective (stage px) in pack base units: the pack is drawn at root.scale px per unit
     const D = df.perspective / Math.max(0.05, v.root.scale.x);

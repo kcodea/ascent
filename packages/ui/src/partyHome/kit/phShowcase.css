@@ -54,7 +54,8 @@ button.phs-press:hover, .phs-menu > button.phs-press { transform: translateY(cal
 .phs-rank.unranked .phs-rk b { color: var(--ph-muted); }
 .phs-rk small { font-weight: 700; font-size: 2.3cqw; color: var(--ph-muted); white-space: nowrap; }
 .phs-bar { display: block; height: 1cqw; min-height: 3px; border-radius: 99px; background: rgba(0, 0, 0, 0.45); overflow: hidden; }
-.phs-bar > i { display: block; height: 100%; background: linear-gradient(90deg, #8f6bff, #ffbe5c); }
+/* Fill colour: the medal tint from styles.css (.phs-bar.rankbar-<medal> > i), same as Career. */
+.phs-bar > i { display: block; height: 100%; }
 
 /* BADGE (Leader, Host) on the art's top corner; BAND (Ready, In game, pools) across the art's foot; YOU on the info side. */
 .phs-badge { position: absolute; z-index: 3; left: 3cqw; top: 3cqw; display: inline-flex; align-items: center; gap: 0.6em; padding: 0.35em 0.9em; border-radius: 999px;

@@ -35,7 +35,9 @@ const WORDS = 'Good Luck';
 const LETTERS = [...WORDS].map((ch, i) => ({ ch, gap: WORDS[i - 1] === ' ' })).filter((l) => l.ch !== ' ');
 /** How much the words have grown by the time they go (a slow push in), and how many motes of dust they are made of. */
 const GROWN = 1.03;
-const MOTES = 1700;
+const MOTES = 2200;
+/** Of those, the ones on the letters' edges, which live there while the words stand. */
+const EDGES = 1000;
 
 function prefersReducedMotion(): boolean {
   try { return typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; }
@@ -74,6 +76,7 @@ export function GoodLuckIntro(): JSX.Element | null {
   const active = useGoodLuckIntroActive();
   const seq = useGoodLuckIntroSeq();
   const showTitle = useGame((s) => s.showTitle);
+  const place = locationOfSet(useGame((s) => s.run?.setId) ?? 'set1');
   // THE LOBBY REVEAL (owner 2026-10-31: "the start game text should happen after the animation is complete"): while the
   // heroes are shown and fly to the rail, the words wait (and the shop clock with them: this store stays active). They
   // then play over a board the reveal has already brought back to light, so their dim fades IN instead of standing.
@@ -157,12 +160,12 @@ export function GoodLuckIntro(): JSX.Element | null {
       const n = LETTERS.length;
       const spots = letterRefs.current.slice(0, n).map((el) => centre(el) ?? { x: innerWidth / 2, y: innerHeight / 2 });
       const mid = { x: innerWidth / 2, y: (spots[0]?.y ?? innerHeight / 2) };
-      const size = wordRef.current?.offsetHeight ?? 130;
+      const size = wordRef.current?.getBoundingClientRect().height || 130;
       const from = centre(document.querySelector('.statusrow .hero .heroimg')) ?? { x: innerWidth * 0.1, y: innerHeight * 0.8 };
       const to = centre(document.querySelector('.etbwrap .etb-gembox') ?? document.querySelector('.etbwrap')) ?? { x: innerWidth * 0.9, y: innerHeight * 0.5 };
       const scene: LuckScene = {
         from, to, letters: spots, burst: { x: mid.x, y: mid.y + size * 0.62 }, times, grown: GROWN,
-        glyphs: starRef.current?.seq === seq || !afterReveal.current ? glyphPoints(letterRefs.current.slice(0, n).filter((el): el is HTMLSpanElement => el !== null), MOTES) : new Float32Array(0),
+        glyphs: glyphPoints(letterRefs.current.slice(0, n).filter((el): el is HTMLSpanElement => el !== null), MOTES, EDGES), edges: EDGES,
       };
       anim(stageRef.current, [{ transform: 'scale(1)' }, { transform: `scale(${GROWN})` }], { duration: t.outAt - t.writeAt, delay: t.writeAt, easing: 'linear', fill: 'both' });
 
@@ -180,7 +183,7 @@ export function GoodLuckIntro(): JSX.Element | null {
           { opacity: 1, transform: 'translate(0, 0) scale(1)', offset: o(go) },
           { opacity: 0, transform: 'translate(0.05em, -0.02em) scale(1.02)', offset: 1 },
         ]), { duration: span, delay: at, fill: 'both' });
-        // Its light: white hot, cooling to the gold; a breath of it as the line is drawn under the words; and again as it goes.
+        // Its light: white hot, settling; a breath of it as the line is drawn under the words; and again as it goes.
         anim(hotRefs.current[i] ?? null, inOrder([
           { opacity: 1, offset: 0 },
           { opacity: 1, offset: o(at + 90), easing: 'ease-out' },
@@ -229,6 +232,7 @@ export function GoodLuckIntro(): JSX.Element | null {
   const c = getGoodLuckIntroConfig();
   const vars = {
     '--gli-dim': String(c.dimOpacity),
+    ...(place?.cool ? { '--en': `rgb(${place.cool.map((v) => Math.round(v * 255)).join(' ')})` } : {}),
     '--gli-size': String(c.textSize || GLI_DEFAULTS.textSize),
   } as CSSProperties;
 
@@ -242,7 +246,7 @@ export function GoodLuckIntro(): JSX.Element | null {
           {LETTERS.map(({ ch, gap }, i) => (
             <span key={i} className={`gli-g${gap ? ' gap' : ''}`} ref={(el) => { letterRefs.current[i] = el; }} aria-hidden="true">
               {ch}
-              <span className="gli-gold">{ch}</span>
+              <span className="gli-core">{ch}</span>
               <span className="gli-hot" ref={(el) => { hotRefs.current[i] = el; }}>{ch}</span>
             </span>
           ))}

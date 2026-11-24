@@ -25,15 +25,16 @@
   font-family: 'Cinzel', var(--title-font, 'Cinzel Decorative'), serif; font-weight: 900;
   font-size: calc(var(--gli-size, 136) * var(--u, 1px)); line-height: 1.1;
 }
-/* A letter: the cut of it (a dark edge, the thickness of the metal, its shadow), the gold over it, and its light over that. */
-.gli-g { position: relative; display: block; opacity: 0; margin: 0 0.035em; transform-origin: 50% 60%; will-change: transform, opacity; color: #2a1708;
-  text-shadow: 0.018em 0 0 #120a18, -0.018em 0 0 #120a18, 0 0.018em 0 #120a18, 0 -0.018em 0 #120a18, 0.013em 0.013em 0 #120a18, -0.013em 0.013em 0 #120a18, 0.013em -0.013em 0 #120a18, -0.013em -0.013em 0 #120a18,
-    0 0.03em 0 #6e4315, 0 0.048em 0 #3a210a, 0 0.1em 0.16em rgba(0, 0, 0, 0.8), 0 0 0.5em rgba(255, 176, 70, 0.3); }
+/* A letter is energy (owner + Mike 2026-11-24: "make the gold gradient blue and remove the stroke and instead add a tight glow on the
+   edges, almost like its energy forming the word"): the location's magic, white at its heart, its light tight on the edge; under it only
+   a soft dark, so it reads on a bright board. `--en` is the location's own cool hue. */
+.gli-g { position: relative; display: block; opacity: 0; margin: 0 0.035em; transform-origin: 50% 60%; will-change: transform, opacity; color: var(--en, #4cb0ff);
+  text-shadow: 0 0 0.018em color-mix(in srgb, var(--en, #4cb0ff) 25%, #fff), 0 0 0.05em color-mix(in srgb, var(--en, #4cb0ff) 75%, #fff), 0 0 0.11em var(--en, #4cb0ff), 0 0 0.26em color-mix(in srgb, var(--en, #4cb0ff) 65%, transparent), 0 0.05em 0.34em rgba(2, 8, 34, 0.85); }
 .gli-g.gap { margin-left: 0.42em; }
-.gli-gold { position: absolute; left: 0; top: 0; color: transparent; text-shadow: none;
-  background: linear-gradient(180deg, #fffdf0 14%, #ffeeb6 34%, #f3c963 50%, #b97a2b 57%, #dba447 68%, #ffe3a0 86%); -webkit-background-clip: text; background-clip: text; }
+.gli-core { position: absolute; left: 0; top: 0; color: transparent; text-shadow: none;
+  background: linear-gradient(180deg, #fff 14%, color-mix(in srgb, var(--en, #4cb0ff) 38%, #fff) 34%, var(--en, #4cb0ff) 56%, color-mix(in srgb, var(--en, #4cb0ff) 62%, #0a2bd0) 84%); -webkit-background-clip: text; background-clip: text; }
 .gli-hot { position: absolute; left: 0; top: 0; opacity: 0; will-change: opacity; color: #fff; pointer-events: none;
-  text-shadow: 0 0 0.06em rgba(255, 255, 255, 0.95), 0 0 0.22em rgba(190, 238, 255, 0.85), 0 0 0.6em rgba(120, 206, 255, 0.6); }
+  text-shadow: 0 0 0.04em #fff, 0 0 0.16em color-mix(in srgb, var(--en, #4cb0ff) 40%, #fff), 0 0 0.5em var(--en, #4cb0ff); }
 
 /* The ornamental arm (`Flourish`): worn by the Discover / Choose One title banner. */
 .gli-flour-svg { display: block; width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 0 calc(6 * var(--u, 1px)) rgba(255, 190, 80, 0.65)); }

@@ -9,6 +9,7 @@
  */
 import { canRun } from '../locationReveal/rippleSupport';
 import type { LocationDef, Rgb } from '../locationReveal/locations';
+import { stageHost } from '../stage';
 import { beginProgram, compiled, finishProgram, type Prog } from '../locationReveal/placeGl';
 
 export interface Pt { x: number; y: number }
@@ -24,6 +25,8 @@ export interface LuckScene {
   times: LuckTimes;
   /** Points on the letters (x, y pairs), which the dust falls to and leaves from; and how much the words have grown by the end. */
   glyphs: Float32Array;
+  /** How many of them, from the first, are on the letters' edges. */
+  edges: number;
   grown: number;
 }
 
@@ -96,13 +99,13 @@ void main(){ float seg = float(gl_VertexID / 2) / ${RIB - 1}., side = float(gl_V
   float w = (st < .5 ? .0060 : .0032) * S.y * pow(1. - seg, .8) * smoothstep(0., .05, seg + .012); gl_Position = place(p + n * side * w * 2.6);
   float live = d ? step(T[2], t) * smoothstep(T[4] + .22, T[4], t) : smoothstep(T[1] + .34, T[1], t) * step(0., t); al = live * pow(1. - seg, 1.5) * step(lo + .0005, b) * (st < .5 ? 1. : .62); ac = side; along = seg; }`;
 const FR = `precision highp float; in float al; in float ac; in float along; uniform vec3 COOL, WARM, SECOND; out vec4 o;
-void main(){ float g = exp(-ac * ac * 7.) , c = exp(-ac * ac * 60.); vec3 k = mix(COOL, SECOND, smoothstep(.25, 1., along)); k = mix(mix(WARM, vec3(1.), .4), k, smoothstep(0., .22, along)); o = vec4((k * g * .75 + c * (1. - along) * .9) * al, (g * .30 + c * .45 * (1. - along)) * al); }`;
+void main(){ float g = exp(-ac * ac * 7.) , c = exp(-ac * ac * 60.); vec3 k = mix(COOL, SECOND, smoothstep(.25, 1., along)); k = mix(mix(COOL, vec3(1.), .6), k, smoothstep(0., .22, along)); o = vec4((k * g * .75 + c * (1. - along) * .9) * al, (g * .30 + c * .45 * (1. - along)) * al); }`;
 // THE DUST
 const VD = `${HEAD}
 layout(location = 0) in vec2 gp; uniform int mode; uniform float grown;
 out vec3 tint; out float al; flat out float kind;
 vec2 bz(vec2 a, vec2 b, vec2 c, vec2 d, float u){ float v = 1. - u; return v * v * v * a + 3. * v * v * u * b + 3. * v * u * u * c + u * u * u * d; }
-void main(){ float id = float(gl_VertexID), q = S.y / 1080., age, life, size; vec2 p; al = 0.; kind = 0.; float r1 = h11(id + .7), r2 = h11(id + 3.1), r3 = h11(id + 5.5), r4 = h11(id + 9.3); tint = r2 < .35 ? COOL : r2 < .9 ? WARM : SECOND;
+void main(){ float id = float(gl_VertexID), q = S.y / 1080., age, life, size; vec2 p; al = 0.; kind = 0.; float r1 = h11(id + .7), r2 = h11(id + 3.1), r3 = h11(id + 5.5), r4 = h11(id + 9.3); tint = r2 < .62 ? COOL : r2 < .8 ? mix(COOL, vec3(1.), .6) : r2 < .9 ? SECOND : WARM;
   if (mode == 0) { // falls off the comet as it passes, and settles on its letter
     float tb = T[0] + (gp.x - X.x) / (X.y - X.x) * ((T[1] - T[0]) * .6) + (r1 - .35) * .09; age = t - tb; float u = clamp(age / (.22 + .2 * r3), 0., 1.), e = 1. - pow(1. - u, 3.); vec2 from = pathA(tb) + vec2(-20. - 70. * r2, (r3 - .5) * 90.) * q;
     p = mix(from, gp, e) + vec2(0., sin(u * 3.14159) * (r4 - .5) * 34.) * q; size = 1.6 + 3.4 * pow(r4, 3.); al = step(0., age) * smoothstep(0., .04, age) * smoothstep(.62 + .3 * r2, .25, age); }
@@ -110,9 +113,12 @@ void main(){ float id = float(gl_VertexID), q = S.y / 1080., age, life, size; ve
     vec2 g = vec2((gp.x - (X.x + X.y) * .5) * grown + (X.x + X.y) * .5, gp.y); float nx = clamp((gp.x - X.x) / (X.y - X.x), 0., 1.); float tb = T[2] + (1. - nx) * .20 + r1 * .10, te = T[4] - .05 + r2 * .12; age = t - tb; float u = clamp(age / (te - tb), 0., 1.), e = u * u * (2.2 - 1.2 * u);
     vec2 up = g + vec2((r3 - .2) * 130., -60. - 190. * r4) * q, near = TO + vec2(-90. - 160. * r3, -120. - 190. * r2) * q; p = bz(g, up, near, TO, e) + vec2(sin(age * 9. + id), cos(age * 8. + id * 1.3)) * 5. * q * (1. - u);
     size = (1.7 + 3.8 * pow(r4, 3.)) * mix(1., .75, u); al = step(0., age) * smoothstep(0., .06, age) * smoothstep(1., .90, u); if (t < tb) al = 0.; }
+  else if (mode == 3) { // while the words stand: energy running along their edges
+    float tb = T[0] + (gp.x - X.x) / (X.y - X.x) * ((T[1] - T[0]) * .6) + .10; age = t - tb; float ph = t * (1.6 + 2.4 * r1) + r2 * 6.283; vec2 g = vec2((gp.x - (X.x + X.y) * .5) * mix(1., grown, clamp((t - T[0]) / (T[2] - T[0]), 0., 1.)) + (X.x + X.y) * .5, gp.y); float arc = fract(t * (.55 + .5 * r3) + r4); p = g + vec2(sin(ph + gp.y * .05), cos(ph * 1.2 + gp.x * .04)) * (1.6 + 3.4 * r3) * q + vec2(0., -arc * arc * 22. * step(.8, r1)) * q;
+    float run = pow(.5 + .5 * sin(gp.x * .021 - t * 7. + gp.y * .03), 3.); size = 1.5 + 2.1 * r4 + 1.6 * run; tint = mix(COOL, vec3(1.), .35 + .4 * run); al = smoothstep(0., .15, age) * smoothstep(T[2] + .16, T[2] - .02, t) * (.22 + .78 * run) * (.55 + .45 * sin(ph * 5.)) * (1. - arc * step(.8, r1)); }
   else { float E1 = ${TAIL}., E2 = E1 + ${EMBERS}.;
     if (id < E1) { float b = id / E1 * T[1]; age = t - b; life = .30 + .75 * r4 * r4; float v = (5. + 30. * r3) * q, th = r1 * 6.283; p = pathA(b) + vec2(cos(th), sin(th)) * v * (1. - exp(-age * 3.)) + vec2(sin(age * 3. + id) * 4., age * age * 46.) * q; size = 1.5 + 4. * pow(r2, 4.); kind = step(.94, r3); if (kind > .5) size = 9. + 6. * r2; al = step(0., age) * smoothstep(0., .04, age) * smoothstep(life, life * .2, age) * (.6 + .4 * sin(t * (7. + 7. * r1) + id)); }
-    else if (id < E2) { age = t - T[1] - r1 * .25; life = .7 + .7 * r4; float w = (X.y - X.x) * .5; p = vec2((X.x + X.y) * .5 + (r2 * 2. - 1.) * w, BC.y - 8. * q) + vec2(sin(age * 2. + id) * 10., -(26. + 90. * r3) * age) * q; size = 1.5 + 3.6 * pow(r4, 2.); kind = step(.9, r3); if (kind > .5) size = 9. + 5. * r2; tint = mix(WARM, vec3(1.), .25); al = step(0., age) * smoothstep(0., .12, age) * smoothstep(life, life * .3, age) * (.55 + .45 * sin(t * 8. + id)); }
+    else if (id < E2) { age = t - T[1] - r1 * .25; life = .7 + .7 * r4; float w = (X.y - X.x) * .5; p = vec2((X.x + X.y) * .5 + (r2 * 2. - 1.) * w, BC.y - 8. * q) + vec2(sin(age * 2. + id) * 10., -(26. + 90. * r3) * age) * q; size = 1.5 + 3.6 * pow(r4, 2.); kind = step(.9, r3); if (kind > .5) size = 9. + 5. * r2; tint = mix(COOL, vec3(1.), .4); al = step(0., age) * smoothstep(0., .12, age) * smoothstep(life, life * .3, age) * (.55 + .45 * sin(t * 8. + id)); }
     else { age = t - T[4] + .02; life = .28 + .4 * r4; float th = r1 * 6.283, r = (24. + 120. * r3) * q; p = TO + vec2(cos(th), sin(th)) * r * (1. - exp(-max(age, 0.) * 5.)) + vec2(0., age * age * 90.) * q; size = 1.6 + 4. * pow(r2, 3.); al = step(0., age) * smoothstep(life, life * .25, age); } }
   gl_Position = al <= .003 ? vec4(9.) : place(p); gl_PointSize = max(px * size * q * 2.6, 1.5); }`;
 const FD = `precision highp float; in vec3 tint; in float al; flat in float kind; out vec4 o;
@@ -123,9 +129,9 @@ out vec2 uv; out vec3 tint; out float al; flat out float kind;
 void main(){ int q = gl_VertexID / 6, v = gl_VertexID % 6; vec2 c = vec2(v == 1 || v == 2 || v == 4 ? 1. : -1., v == 2 || v == 4 || v == 5 ? 1. : -1.); uv = c; float k = S.y / 1080.; vec2 p, e; tint = COOL; kind = 0.; al = 0.;
   bool a = t < T[1] + .12, d = t > T[2] && t < T[4]; vec2 hp = t < T[2] ? pathA(t) : pathB(t); float grow = t < T[2] ? smoothstep(0., .14, t) * smoothstep(T[1] + .12, T[1] - .05, t) : smoothstep(T[2], T[2] + .16, t); float on = a || d ? grow : 0.;
   if (q == 0) { p = hp; e = vec2(86.) * k; tint = mix(COOL, vec3(1.), .25); al = on * .85; }
-  else if (q == 1) { p = hp; e = vec2(210., 7.) * k; kind = 1.; tint = mix(WARM, vec3(1.), .5); al = on * (.8 + .2 * sin(t * 40.)); }
-  else if (q == 2) { float s = t - T[1] + .10; float o = smoothstep(0., .34, s); p = BC; e = vec2((X.y - X.x) * (.10 + .62 * (1. - pow(1. - o, 3.))), 9. * k); kind = 1.; tint = mix(WARM, vec3(1.), .35); al = step(0., s) * smoothstep(0., .08, s) * mix(1., .55, smoothstep(.1, .5, s)) * smoothstep(T[2] + .26, T[2] - .04, t); }
-  else if (q == 3) { float s = t - T[1] + .06; p = BC; e = vec2((X.y - X.x) * .52, 120. * k); tint = WARM; kind = 3.; al = step(0., s) * smoothstep(0., .1, s) * exp(-s * 3.2) * .8; }
+  else if (q == 1) { p = hp; e = vec2(210., 7.) * k; kind = 1.; tint = mix(COOL, vec3(1.), .5); al = on * (.8 + .2 * sin(t * 40.)); }
+  else if (q == 2) { float s = t - T[1] + .10; float o = smoothstep(0., .34, s); p = BC; e = vec2((X.y - X.x) * (.10 + .62 * (1. - pow(1. - o, 3.))), 9. * k); kind = 1.; tint = mix(COOL, vec3(1.), .35); al = step(0., s) * smoothstep(0., .08, s) * mix(1., .55, smoothstep(.1, .5, s)) * smoothstep(T[2] + .26, T[2] - .04, t); }
+  else if (q == 3) { float s = t - T[1] + .06; p = BC; e = vec2((X.y - X.x) * .52, 120. * k); tint = COOL; kind = 3.; al = step(0., s) * smoothstep(0., .1, s) * exp(-s * 3.2) * .8; }
   else if (q == 4) { float s = t - T[4] + .03; p = TO; e = vec2(150.) * k * (.6 + .5 * smoothstep(0., .3, s)); tint = mix(COOL, vec3(1.), .2); al = step(0., s) * smoothstep(0., .05, s) * exp(-s * 6.); }
   else if (q == 5) { float s = t - T[4] + .03; p = TO; e = vec2(330., 8.) * k * vec2(.4 + .6 * smoothstep(0., .2, s), 1.); kind = 1.; tint = mix(COOL, vec3(1.), .4); al = step(0., s) * smoothstep(0., .05, s) * exp(-s * 5.); }
   else { float s = t - T[4] + .02, u = clamp(s / .5, 0., 1.); p = TO; e = vec2(40. + 130. * (1. - pow(1. - u, 3.))) * k; kind = 2.; tint = COOL; al = step(0., s) * (1. - u) * .75; }
@@ -193,7 +199,7 @@ export class LuckStar {
     const h = innerHeight;
     this.size();
     this.canvas.className = 'gli-star';
-    document.body.appendChild(this.canvas);
+    stageHost().appendChild(this.canvas); // drawn in screen px; its box is the stage's, which is the window
     const a = new Float32Array(N_A * 2);
     for (let i = 0; i < N_A; i++) { const p = luckPath(s, (s.times.burst * i) / (N_A - 1), h); a[i * 2] = p.x; a[i * 2 + 1] = p.y; }
     const b = new Float32Array(N_B * 2);
@@ -244,6 +250,7 @@ export class LuckStar {
       gl.drawArrays(gl.POINTS, 0, TAIL + EMBERS + LAND);
       gl.bindVertexArray(vao);
       if (t > write - 0.2 && t < burst + 0.6) { gl.uniform1i(mode, 0); gl.drawArrays(gl.POINTS, 0, n); }
+      if (t > write && t < gather + 0.2) { gl.uniform1i(mode, 3); gl.drawArrays(gl.POINTS, 0, Math.min(n, s.edges)); }
       if (t > gather) { gl.uniform1i(mode, 1); gl.drawArrays(gl.POINTS, 0, n); }
       gl.bindVertexArray(this.empty);
       gl.useProgram(this.flare!.p);
@@ -263,8 +270,9 @@ export class LuckStar {
   }
 }
 
-/** About `count` points on the letters as they stand on screen (x, y pairs). Empty where a picture of them cannot be read. */
-export function glyphPoints(els: readonly HTMLElement[], count: number): Float32Array {
+/** About `count` points on the letters as they stand on screen (x, y pairs), the first `edges` of them on their edges. Empty where a
+ *  picture of them cannot be read. */
+export function glyphPoints(els: readonly HTMLElement[], count: number, edges: number): Float32Array {
   if (els.length === 0) return new Float32Array(0);
   const boxes = els.map((e) => e.getBoundingClientRect());
   const x0 = Math.min(...boxes.map((b) => b.left)) - 8;
@@ -290,11 +298,18 @@ export function glyphPoints(els: readonly HTMLElement[], count: number): Float32
     data = c.getImageData(0, 0, cv.width, cv.height).data;
   } catch { return new Float32Array(0); }
   const on: number[] = [];
-  for (let i = 3, p = 0; i < data.length; i += 4, p++) if (data[i]! > 120) on.push(p);
-  const n = Math.min(count, on.length);
+  const rim: number[] = [];
+  const row = cv.width * 4;
+  for (let i = 3, p = 0; i < data.length; i += 4, p++) {
+    if (data[i]! <= 120) continue;
+    on.push(p);
+    if ((data[i - 4] ?? 0) <= 120 || (data[i + 4] ?? 0) <= 120 || (data[i - row] ?? 0) <= 120 || (data[i + row] ?? 0) <= 120) rim.push(p);
+  }
+  const n = on.length === 0 ? 0 : count;
   const out = new Float32Array(n * 2);
   for (let i = 0; i < n; i++) {
-    const p = on[Math.floor((((i * 0.618034) % 1) * on.length))]!; // spread evenly through them, the same every time
+    const from = i < edges && rim.length > 0 ? rim : on;
+    const p = from[Math.floor(((i * 0.618034) % 1) * from.length)]!; // spread evenly through them, the same every time
     out[i * 2] = x0 + (p % cv.width) * 2 + ((i * 7) % 3) * 0.6;
     out[i * 2 + 1] = y0 + Math.floor(p / cv.width) * 2 + ((i * 5) % 3) * 0.6;
   }

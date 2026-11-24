@@ -144,13 +144,15 @@ boundary leaked.
 
 ### Repo skills (`.claude/skills/ascent-*`)
 
-Five skills carry the depth this file deliberately leaves out — they load only when the work matches, so this
+Six skills carry the depth this file deliberately leaves out — they load only when the work matches, so this
 file stays short:
 
 - **`ascent-gameplay`** — effects, keywords, hero powers, reducer/simulator paths, and especially **effect
   wiring** (one ability fired through another's trigger), with the interaction matrix.
 - **`ascent-content`** — authoring cards/runes/quests/heroes, pool + set membership, art wiring.
 - **`ascent-lobby`** — the 8-seat lobby, pairing, placement/Rating, snapshots, and replay v2.
+- **`ascent-locations`** — the gate reveal, living hero select, hero ripple, parchments, quick Compendium and Good Luck;
+  how to add a location ([`docs/locations.md`](docs/locations.md)).
 - **`ascent-choreography`** — beats, the Choreographer, Pixi FX, and consequence timing.
 - **`ascent-gift-aether`** — gifting a player Aether: ask the owner what it is for, then write the one
   `aether_gift(...)` line for the Supabase SQL Editor (the player sees the reason in a pop-up on next login).

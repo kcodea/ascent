@@ -17292,8 +17292,10 @@ export const FOUNDATION_RULES: GameRule[] = [
     title: 'In a game and at hero select the Compendium is a quick overlay; the full page is the menus, one press away',
     statement:
       'There are two Compendiums. On the menus it is the full page. In a game and at hero select (by its key, its corner button or a '
-      + 'tribe parchment) it is an overlay over the game: the parchments of the location down the right edge are its tabs, with Neutral, '
-      + 'Spells and Runes under them, and one panel shows the cards of the open one that this game can have, lowest tier first. Another '
+      + 'tribe parchment) it is the place itself opened along the right side, dark and dissolving into the game at its left (no box): the parchments of the location '
+      + 'hang there exactly where hero select hangs them and are its tabs, with Neutral, Spells and Runes in its head, and beside them are the '
+      + 'cards of the open one that this game can have, lowest tier first. The parchments do not move: one light lies behind the open one and '
+      + 'slides to the next, and its colour washes once over the page. Another '
       + 'parchment switches; the open one, a press outside, Esc or the key closes. It has tier filters, Gilded, and one search that '
       + 'looks through every card and rune of the game. Runes are split Basic and Epic, with a tribe filter. Full Compendium opens the '
       + 'full page over the game, for that opening only. A touch screen, and a view only the full page has (a guide being edited), get the full page.',
@@ -17301,9 +17303,10 @@ export const FOUNDATION_RULES: GameRule[] = [
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Owner, 2026-11-24', quote: 'can we make it so that there are 2 versions of the compendium? one from the main menu view and another that is like an overlay that is more minimal and easier to navigate while in game etc? this is the version that should launch from the scrolls as well' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-24, on the first look (a box, parchments leaning out)', quote: "the side compendium and how the parchments move when you click on one of the tribes etc. it doesn't fit the vibe and isn't particularly clean either" },
       { kind: 'code', ref: 'packages/ui/src/quickBook/QuickBook.tsx; packages/ui/src/quickBook/quickBookModel.ts; packages/ui/src/MinionBook.tsx; packages/ui/src/store.ts (bookFull, expandBook)' },
     ],
-    currentBehaviour: 'Built 2026-11-24. The owner has not approved its look yet.',
+    currentBehaviour: 'Built 2026-11-24; its look and motion were remade the same day. The owner has not approved the new look yet.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/quickBook/quickBook.test.tsx', 'packages/ui/src/partyHome/pages/phInfoPages.test.tsx'], lastVerifiedAt: '2026-11-24' },
   },
   {
@@ -17311,7 +17314,8 @@ export const FOUNDATION_RULES: GameRule[] = [
     title: 'Good Luck is lit by a comet off the hero of the player and goes into the End Turn crystal as dust; the clock starts as it lands',
     statement:
       'After the lobby reveal a comet in the colours of the location leaves the portrait of the player in one arc and crosses the '
-      + 'board: each letter of "Good Luck" lights white hot as it passes and cools to gold (no bounce, no tilt). It turns under the '
+      + 'board: each letter of "Good Luck" lights white hot as it passes and settles into energy: the cool hue of the location, white at its heart, '
+      + 'with a tight glow on its edge and no stroke, and light running along that edge while the words stand (no bounce, no tilt). It turns under the '
       + 'words and draws a line of light there. At the end the letters come apart into dust, the side nearest the crystal first, and '
       + 'the dust streams into the End Turn crystal; the overlay ends and the shop clock starts as it lands. The board is dimmed only '
       + 'around the words. It stays short (2.7 s) and unskippable. Where the comet cannot be drawn (a phone, no WebGL 2) the letters '
@@ -17321,9 +17325,10 @@ export const FOUNDATION_RULES: GameRule[] = [
     evidence: [
       { kind: 'owner-chat', ref: 'Owner, 2026-11-24', quote: 'can you make the good luck a bit more exciting and whimsical? it feels out of place and behind the rest of the animation now' },
       { kind: 'owner-chat', ref: 'Owner, 2026-11-24, on the first version (a star and bouncing letters)', quote: "it's a BIT too like cutesty/bubbly, can you make it look a bit higher quality feeling" },
+      { kind: 'owner-chat', ref: 'Mike, relayed by the owner 2026-11-24 (Discord image)', quote: 'id probably not make it gold and instead make the gold gradient blue and remove the stroke and instead add a tight glow on othe edges almost like its energy forming the word' },
       { kind: 'code', ref: 'packages/ui/src/goodLuck/GoodLuckIntro.tsx; packages/ui/src/goodLuck/luckStar.ts; packages/ui/src/goodLuck/goodLuckIntroConfig.ts' },
     ],
-    currentBehaviour: 'Built 2026-11-24. The owner has not approved the second look yet.',
+    currentBehaviour: 'Built 2026-11-24. The owner liked the second version ("This looks incredible"); the energy lettering came after.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/goodLuck/luckStar.test.ts', 'packages/ui/src/goodLuck/GoodLuckIntro.test.tsx', 'packages/ui/src/goodLuck/goodLuckIntro.test.ts'], lastVerifiedAt: '2026-11-24' },
   },
 ];

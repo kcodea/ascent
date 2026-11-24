@@ -53,3 +53,17 @@ letters leave as about 1,700 motes sampled from a drawing of the glyphs (`glyphP
 Measured: median 4.2 ms; worst 25 ms, as the words mount, before anything moves. On a fresh browser profile there is one 330 ms frame at about
 0.1 s: the lobby rail's first merged paint compiling on the GPU process (there with Good Luck removed; gone on the second run). Not
 fixed here.
+
+Then the lettering became energy (Mike's note: blue, no stroke, a tight glow, "almost like its energy forming the word"): the location's cool
+hue, and about 1,000 motes on the letters' own edges with light running along them while the words stand.
+
+## The quick Compendium, again
+
+Refused as a box with parchments that jumped (its column was another size in another place) and lunged. Now the column is hero select's
+own, same size, same place, same clock for the sway (`PosterSheet` sets `startTime = 0`), lit by one halo that slides. The panel is the place
+gone dark, masked off at its left. The cards mount two frames after the place and a tab's page is a deferred value, so the light answers
+the press at once. Closing leaves a fading still (`fadeAway`), because the book is unmounted at once whatever closed it. Production:
+switching 25 to 33 ms worst, the first open 75 ms, median 4.2.
+
+The whole way of making a location is now written down: `docs/locations.md`, the `ascent-locations` skill, and the preparation scripts in
+`scripts/locations/` (they only existed on one machine).

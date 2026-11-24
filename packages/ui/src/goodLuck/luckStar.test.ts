@@ -4,7 +4,7 @@ import { divePath, luckPath, luckSpan, passAt, writeEnd, type LuckScene } from '
 /** THE LUCKY STAR's path (R-GOODLUCK-STAR-01): off the hero, past every letter as it lights, under them, and into the crystal. */
 const times = { write: 0.46, burst: 1.32, gather: 1.88, dive: 2.2, land: 2.56 };
 const letters = Array.from({ length: 8 }, (_, i) => ({ x: 600 + i * 100, y: 500 }));
-const s: LuckScene = { from: { x: 175, y: 840 }, to: { x: 1700, y: 470 }, letters, burst: { x: 950, y: 590 }, times, grown: 1.03, glyphs: new Float32Array(0) };
+const s: LuckScene = { from: { x: 175, y: 840 }, to: { x: 1700, y: 470 }, letters, burst: { x: 950, y: 590 }, times, grown: 1.03, glyphs: new Float32Array(0), edges: 0 };
 const H = 1080;
 
 describe('the lucky star', () => {

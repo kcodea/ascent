@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react';
+import { useEffect, useLayoutEffect, useRef, type CSSProperties } from 'react';
 import type { Tribe } from '@game/core';
 import { sfx } from '../sfx';
 import { useGame } from '../store';
@@ -6,9 +6,12 @@ import { locationArt, POSTER_NAME, type LocationDef } from './locations';
 
 /** One parchment, hanging, pressable: hero select's and the quick Compendium's (QuickBook.tsx) are the same thing. */
 export function PosterSheet({ location, tribe, index, label, onPress, disabled, on }: { location: LocationDef; tribe: Tribe; index: number; label: string; onPress: () => void; disabled?: boolean; on?: boolean }): JSX.Element {
+  // One clock for every column of them: the quick Compendium's takes over from hero select's in mid sway, and nothing jumps.
+  const hang = useRef<HTMLSpanElement | null>(null);
+  useLayoutEffect(() => { for (const a of hang.current?.getAnimations?.() ?? []) a.startTime = 0; }, []);
   return (
     <button type="button" className={`hs-poster${on ? ' on' : ''}`} style={{ '--i': index, '--c': `var(--t-${tribe})` } as CSSProperties} aria-label={label} {...(on !== undefined ? { 'aria-pressed': on } : {})} disabled={disabled} onClick={onPress}>
-      <span className="hs-poster-hang">
+      <span className="hs-poster-hang" ref={hang}>
         <img decoding="sync" src={locationArt(location.id, `sheet-${tribe}`)} alt="" draggable={false} />
         <span className="hs-poster-name">{POSTER_NAME[tribe] ?? tribe}</span>
       </span>
@@ -22,6 +25,14 @@ export function PosterSheet({ location, tribe, index, label, onPress, disabled, 
  * its shader at rest: `sheet-<tribe>.webp`), one for each tribe of this game, in its order. Static pictures; only transforms move.
  */
 export function LocationPosters({ location, tribes, inert, duos }: { location: LocationDef; tribes: readonly Tribe[]; inert: boolean; duos: boolean }): JSX.Element {
+  // The page they open, fetched before it is asked for.
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      void import('../quickBook/QuickBook');
+      void document.fonts?.load?.("900 54px 'Cinzel'"); // its title's
+    }, 1200);
+    return () => window.clearTimeout(id);
+  }, []);
   const open = (t: Tribe): void => {
     const st = useGame.getState();
     if (st.showBook) return;

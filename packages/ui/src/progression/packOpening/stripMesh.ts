@@ -183,7 +183,8 @@ export class StripMesh {
         }
         projInto(p, x, y, z, D);
         gd[g] = band ? glossD(band, p.x, p.y) : 0; // the gloss band is fixed to the pack plane, before the tilt
-        if (tilt) tiltInto(p, p.x, p.y, z, tilt);
+        // z is already in the strip projection above; the tilt maps the projected point on the plane (z once, not twice)
+        if (tilt) tiltInto(p, p.x, p.y, 0, tilt);
         gx[g] = p.x; gy[g] = p.y; gz[g] = z; gth[g] = th;
       }
     }

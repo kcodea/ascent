@@ -48,7 +48,7 @@ import {
 import { projInto, unprojInto, type Pt, type StripSurface } from './stripMesh';
 import {
   aimInto, glossBandInto, glossD, newGlossBand, newTilt, newTiltPose, setTiltPose, stepTilt, tiltEaseK, tiltInto,
-  tiltTargetInto,
+  tiltTargetInto, tiltedCornerHit, untiltInto,
 } from './packTilt';
 
 // ---------------------------------------------------------------- public contract
@@ -651,11 +651,15 @@ class PackSceneImpl implements PackScene {
     } else if (this.phase === 'peel') {
       if (this.tear.done || this.flying) return;
       const c = this.edgeScreen(this.pt2);
-      if (Math.hypot(p.x - c.x, p.y - c.y) > (this.tear.started ? GRAB_R_STARTED : GRAB_R_SEALED)) return;
+      // hit-test the corner where the tilt DRAWS it (the pinch ring), not where the flat pack has it
+      if (!tiltedCornerHit(p.x, p.y, c.x, c.y, this.tiltPose, this.tear.started ? GRAB_R_STARTED : GRAB_R_SEALED, this.pt3)) return;
       this.tearHeld = true;
       this.tiltLocked = true; // the opening has begun: the tilt eases flat and stays flat
-      this.grabOff.x = c.x - p.x; this.grabOff.y = c.y - p.y;
-      this.cursor.x = p.x; this.cursor.y = p.y;
+      // the hand lives in FLAT pack space: the pointer goes through the inverse tilt, so the corner stays under the
+      // finger while the tilt eases flat (and exactly once it has)
+      const f = untiltInto(this.pt3, p.x, p.y, this.tiltPose);
+      this.grabOff.x = c.x - f.x; this.grabOff.y = c.y - f.y;
+      this.cursor.x = p.x; this.cursor.y = p.y; // raw: the tear un-tilts it every frame at the CURRENT pose
       this.hasCursor = true;
     } else return;
     this.pointerId = e.pointerId;
@@ -679,7 +683,7 @@ class PackSceneImpl implements PackScene {
       if (this.phase === 'sleeve') grab = this.inSleeveGrab(p, 0);
       else if (this.phase === 'peel' && !this.tear.done && !this.flying) {
         const c = this.edgeScreen(this.pt2);
-        grab = Math.hypot(p.x - c.x, p.y - c.y) < GRAB_R_SEALED;
+        grab = tiltedCornerHit(p.x, p.y, c.x, c.y, this.tiltPose, GRAB_R_SEALED, this.pt3);
       }
       this.setCursor(grab ? CURSOR_GRAB : '');
       return;
@@ -808,7 +812,9 @@ class PackSceneImpl implements PackScene {
     if (!this.quick.active) {
       const holding = this.tearHeld && this.hasCursor;
       if (holding) {
-        const u = unprojInto(this.pt2, this.cursor.x + this.grabOff.x, this.cursor.y + this.grabOff.y, tear.hand.z, feel.perspective);
+        // the finger in flat pack space at this frame's tilt (identity once settled), plus the grab offset
+        const f = untiltInto(this.pt3, this.cursor.x, this.cursor.y, this.tiltPose);
+        const u = unprojInto(this.pt2, f.x + this.grabOff.x, f.y + this.grabOff.y, tear.hand.z, feel.perspective);
         this.target.x = u.x;
         this.target.y = u.y;
         this.target.z = feel.edgeTowardCamera * Math.min(1, tear.T / 50);

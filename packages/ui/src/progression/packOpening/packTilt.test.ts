@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   aimInto, glossBandInto, glossD, glossSpecAlpha, glossStripU, newGlossBand, newTilt, newTiltPose, setTiltPose, stepTilt,
-  tiltEaseK, tiltInto, tiltTargetInto,
+  tiltEaseK, tiltInto, tiltTargetInto, tiltedCornerHit, untiltInto,
 } from './packTilt';
 
 const W = 300, PH = 547;
@@ -125,5 +125,49 @@ describe('the gloss band', () => {
     expect(glossSpecAlpha(0.65, 0)).toBe(0.65);
     expect(glossSpecAlpha(0.65, 0.6)).toBeGreaterThan(0.65);
     expect(glossSpecAlpha(1, 1.5)).toBe(1);
+  });
+});
+
+describe('grabbing the tilted pack (fix round 1)', () => {
+  const GRAB_R = 45; // packScene GRAB_R_SEALED
+  const D = 490; // the dive's 600 px at the pack's usual on-stage scale
+  const corner = { x: 4, y: 2 }; // the sealed strip's held corner, near the pack's top-left
+  const worst = (packTilt: number) => {
+    const max = 16 * packTilt;
+    return setTiltPose(newTiltPose(), max, -max, W / 2, PH / 2, D); // cursor at the top-left: that corner dips furthest
+  };
+
+  it('the inverse tilt undoes the tilt on the pack plane', () => {
+    const p = worst(1.5), o = { x: 0, y: 0 }, back = { x: 0, y: 0 };
+    for (const [x, y] of [[0, 0], [W, 0], [W, PH], [37, 410], [W / 2, PH / 2]] as const) {
+      tiltInto(o, x, y, 0, p);
+      untiltInto(back, o.x, o.y, p);
+      expect(back.x).toBeCloseTo(x, 6);
+      expect(back.y).toBeCloseTo(y, 6);
+    }
+  });
+
+  it.each([0.6, 1.5])('a click on the drawn pinch ring grabs at packTilt %s', (packTilt) => {
+    const pose = worst(packTilt), s = { x: 0, y: 0 };
+    const ring = tiltInto({ x: 0, y: 0 }, corner.x + 6, corner.y + 6, 0, pose); // where packScene draws the ring
+    expect(tiltedCornerHit(ring.x, ring.y, corner.x, corner.y, pose, GRAB_R, s)).toBe(true);
+    // and the untilted test the bug used would have missed at 1.5
+    if (packTilt === 1.5) expect(Math.hypot(ring.x - corner.x, ring.y - corner.y)).toBeGreaterThan(GRAB_R);
+  });
+
+  it('the hand ends under the finger once the tilt has settled flat', () => {
+    const pose = worst(1.5), flat = setTiltPose(newTiltPose(), 0, 0, W / 2, PH / 2, D);
+    const finger = tiltInto({ x: 0, y: 0 }, corner.x + 6, corner.y + 6, 0, pose); // grabbed on the ring
+    const f = untiltInto({ x: 0, y: 0 }, finger.x, finger.y, pose);
+    const off = { x: corner.x - f.x, y: corner.y - f.y }; // packScene's grabOff
+    expect(Math.hypot(off.x, off.y)).toBeLessThan(10); // the ring's own 6,6 nudge, not the tilt's ~90
+    // settled: the finger has not moved; the hand target is the un-tilted finger plus the offset, drawn flat
+    const g = untiltInto({ x: 0, y: 0 }, finger.x, finger.y, flat);
+    const hand = { x: g.x + off.x, y: g.y + off.y };
+    expect(Math.hypot(hand.x - finger.x, hand.y - finger.y)).toBeLessThan(10);
+    // a grab exactly on the drawn corner leaves no offset at all
+    const exact = tiltInto({ x: 0, y: 0 }, corner.x, corner.y, 0, pose);
+    const e = untiltInto({ x: 0, y: 0 }, exact.x, exact.y, pose);
+    expect(Math.hypot(corner.x - e.x, corner.y - e.y)).toBeLessThan(1e-6);
   });
 });

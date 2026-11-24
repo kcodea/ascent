@@ -149,3 +149,30 @@ export const glossStripU = (th: number, d: number, amp: number): number =>
 
 /** The strip spec mesh's alpha: the Highlight knob, brightened by the gloss. */
 export const glossSpecAlpha = (highlight: number, gloss: number): number => Math.min(1, Math.max(0, highlight) + 0.35 * Math.max(0, gloss));
+
+/**
+ * The inverse of `tiltInto` for a point ON the pack plane (z = 0): the flat pack-plane point that the tilt draws at
+ * screen (X, Y). The pointer goes through this so a grab lands on what is drawn. Writes `out`.
+ */
+export function untiltInto(out: { x: number; y: number }, X: number, Y: number, p: TiltPose): { x: number; y: number } {
+  if (p.flat) { out.x = X; out.y = Y; return out; }
+  const sx = X - p.cx, sy = Y - p.cy, D = p.D;
+  // sx (D - z2) = D x1 and sy (D - z2) = D y2, with x1, y2, z2 linear in the flat offset (u, v): solve the 2 x 2
+  const a11 = D * p.cosY - sx * p.sinY * p.cosX, a12 = sx * p.sinX;
+  const a21 = D * p.sinY * p.sinX - sy * p.sinY * p.cosX, a22 = D * p.cosX + sy * p.sinX;
+  const det = a11 * a22 - a12 * a21;
+  if (Math.abs(det) < 1e-9) { out.x = X; out.y = Y; return out; }
+  const bx = sx * D, by = sy * D;
+  out.x = p.cx + (bx * a22 - a12 * by) / det;
+  out.y = p.cy + (a11 * by - bx * a21) / det;
+  return out;
+}
+
+/** Whether a pointer at screen (px, py) is within `r` of the strip corner (cx, cy) as the tilt DRAWS it. */
+export function tiltedCornerHit(
+  px: number, py: number, cx: number, cy: number, pose: TiltPose, r: number, scratch: { x: number; y: number },
+): boolean {
+  scratch.x = cx; scratch.y = cy;
+  if (!pose.flat) tiltInto(scratch, cx, cy, 0, pose);
+  return Math.hypot(px - scratch.x, py - scratch.y) <= r;
+}

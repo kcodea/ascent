@@ -54,6 +54,12 @@ export interface PackFeel {
   glossSharpness: number;
   /** The sealed pack's mouse tilt: a multiplier on the drag dive's `tiltMax` (dragFeel.ts); 0 = none. */
   packTilt: number;
+  /** The big-pull light burst's strength (Legendary / Ancient flips, bigPull.ts); 0 = off. */
+  bigPull: number;
+  /** The big-pull theatre shake (px) for a Legendary; Ancient shakes 1.5x. 0 = none. */
+  bigPullShake: number;
+  /** After a big pull lands, the next flip waits this long (ms; Reveal all too). */
+  bigPullHoldMs: number;
 }
 
 export const DEFAULT_PACK_FEEL: PackFeel = {
@@ -80,6 +86,9 @@ export const DEFAULT_PACK_FEEL: PackFeel = {
   gloss: 0.6,
   glossSharpness: 0.5,
   packTilt: 0.6,
+  bigPull: 1,
+  bigPullShake: 6,
+  bigPullHoldMs: 450,
 };
 
 /** The pack size the px values are tuned at; scale them by (rendered width / w). */
@@ -111,6 +120,9 @@ export const PACK_FEEL_KNOBS: readonly PackFeelKnob[] = [
   { key: 'gloss', label: 'GLOSS: strength', min: 0, max: 1.5, step: 0.05 },
   { key: 'glossSharpness', label: 'GLOSS: satin to glassy', min: 0, max: 1, step: 0.05 },
   { key: 'packTilt', label: 'TILT: sealed pack mouse tilt (x drag dive)', min: 0, max: 1.5, step: 0.05 },
+  { key: 'bigPull', label: 'BIG PULL: light burst strength', min: 0, max: 2, step: 0.05 },
+  { key: 'bigPullShake', label: 'BIG PULL: shake (px, Ancient x1.5)', min: 0, max: 20, step: 1 },
+  { key: 'bigPullHoldMs', label: 'BIG PULL: hold before the next flip (ms)', min: 0, max: 1500, step: 25 },
 ];
 
 const STORAGE_KEY = 'ascent.packFeel.v1';

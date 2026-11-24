@@ -18,6 +18,7 @@ describe('packFxConfig', () => {
       fibreCatch: 0.7, pinchTwist: 0.65, tearsStraightUp: 0.15, highlight: 0.65, perspective: 1780, volume: 0.45,
       sleeveGrip: 80, sleeveFollows: 0.36, sleeveRimDrag: 1, sleeveFingerPinch: 0.08, sleeveLetGo: 295,
       stackZoom: 0.3, quickOpenMs: 1000, packGlow: 1, cardGlow: 1, gloss: 0.6, glossSharpness: 0.5, packTilt: 0.6,
+      bigPull: 1, bigPullShake: 6, bigPullHoldMs: 450,
     });
     expect(m.getPackFeel()).toEqual(m.DEFAULT_PACK_FEEL);
     // 300 wide; the height is the wrapper art's own aspect (packGeom.ts): it was 476 before the art arrived, 547 for the first Common wrapper
@@ -49,6 +50,21 @@ describe('packFxConfig', () => {
     expect(m.getPackFeel().peelAngle).toBe(m.DEFAULT_PACK_FEEL.peelAngle);
     expect(m.getPackFeel().volume).toBe(1);
     expect('bogus' in m.getPackFeel()).toBe(false);
+  });
+
+  it('the big-pull knobs clamp to their ranges (burst 0..2, shake 0..20 px, hold 0..1500 ms)', async () => {
+    const m = await load();
+    const k = (key: string) => m.PACK_FEEL_KNOBS.find((x) => x.key === key)!;
+    expect([k('bigPull').min, k('bigPull').max]).toEqual([0, 2]);
+    expect([k('bigPullShake').min, k('bigPullShake').max]).toEqual([0, 20]);
+    expect([k('bigPullHoldMs').min, k('bigPullHoldMs').max]).toEqual([0, 1500]);
+    m.setPackFeel({ bigPull: 5, bigPullShake: -3, bigPullHoldMs: 99999 });
+    expect(m.getPackFeel()).toMatchObject({ bigPull: 2, bigPullShake: 0, bigPullHoldMs: 1500 });
+    m.setPackFeel({ bigPull: -1, bigPullShake: 40, bigPullHoldMs: -5 });
+    expect(m.getPackFeel()).toMatchObject({ bigPull: 0, bigPullShake: 20, bigPullHoldMs: 0 });
+    localStorage.setItem(KEY, JSON.stringify({ bigPull: 'x', bigPullShake: 12, bigPullHoldMs: 3000 }));
+    const again = await load();
+    expect(again.getPackFeel()).toMatchObject({ bigPull: 1, bigPullShake: 12, bigPullHoldMs: 1500 });
   });
 
   it('resetPackFeel clears the override', async () => {

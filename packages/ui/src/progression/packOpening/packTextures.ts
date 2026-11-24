@@ -563,3 +563,50 @@ export function paintGlossBand(): HTMLCanvasElement {
   g.putImageData(img, 0, 0);
   return c;
 }
+
+// ---------------------------------------------------------------- the big-pull burst (bigPull.ts)
+
+/** The burst textures' side (canvas px); the scene scales the sprites to the tier's size. */
+export const BURST_TEX = 512;
+
+/** The big-pull burst's soft bloom: a white radial falloff (tinted per rarity), painted once. */
+export function paintBurstBloom(): HTMLCanvasElement {
+  const { c, g } = canvas(BURST_TEX, BURST_TEX);
+  const r = BURST_TEX / 2;
+  const gr = g.createRadialGradient(r, r, 0, r, r, r);
+  gr.addColorStop(0, 'rgba(255,255,255,1)');
+  gr.addColorStop(0.18, 'rgba(255,255,255,.75)');
+  gr.addColorStop(0.45, 'rgba(255,255,255,.28)');
+  gr.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = gr;
+  g.fillRect(0, 0, BURST_TEX, BURST_TEX);
+  return c;
+}
+
+/**
+ * The big-pull burst's ring of god rays: `n` thin white wedges from the centre, evenly spaced with a fixed alternating
+ * length (deterministic, no randomness), faded toward the tips and clear at the very centre (the bloom fills it).
+ */
+export function paintBurstRays(n: number): HTMLCanvasElement {
+  const { c, g } = canvas(BURST_TEX, BURST_TEX);
+  const r = BURST_TEX / 2;
+  const rays = Math.max(1, Math.round(n));
+  const half = (Math.PI / rays) * 0.28;
+  g.translate(r, r);
+  for (let i = 0; i < rays; i++) {
+    const a = (i / rays) * Math.PI * 2;
+    const len = r * (i % 2 ? 0.78 : 1);
+    g.beginPath();
+    g.moveTo(0, 0);
+    g.arc(0, 0, len, a - half, a + half);
+    g.closePath();
+    const gr = g.createRadialGradient(0, 0, 0, 0, 0, len);
+    gr.addColorStop(0, 'rgba(255,255,255,0)');
+    gr.addColorStop(0.12, 'rgba(255,255,255,.9)');
+    gr.addColorStop(0.5, 'rgba(255,255,255,.4)');
+    gr.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = gr;
+    g.fill();
+  }
+  return c;
+}

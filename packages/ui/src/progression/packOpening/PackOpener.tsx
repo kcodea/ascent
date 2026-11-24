@@ -9,6 +9,8 @@ import { createPackSounds, type PackSounds } from './packSounds';
 import { packRarityLabel } from './packRarity';
 import { PackFace, slotBox, warmFaceArt, type PackFacePhase } from './packFaces';
 import { FLIP_HALF_GUARANTEED_MS, FLIP_HALF_MS } from './cardFlip';
+import { bigPullShakePx, bigPullTier } from './bigPull';
+import { getPackFeel } from './packFxConfig';
 import './packOpening.css';
 
 /**
@@ -25,6 +27,11 @@ import './packOpening.css';
  * Face phases are tracked PER CARD (`revealPhase`): a face is `handoff` from its edge event until its own DOM turn has
  * had its time (`turning`), whatever else happens meanwhile (Reveal all chaining the next flip in the same task, a
  * fast click); only then does it settle as the pile's top (`featured`) or tuck under it (`tray`).
+ *
+ * THE BIG PULL (bigPull.ts): a Legendary / Ancient card's edge event plays the chest's tier burst, shakes the theatre
+ * content once (`.pkop-quake`, a one-shot CSS transform; never on the reduced-motion path) and HOLDS the next flip until
+ * its face has turned in plus `bigPullHoldMs` (slow-mo scaled): a click or key in the hold does nothing (it is not
+ * queued) and Reveal all waits it out. The scene plays the light burst itself.
  */
 
 export type PackOpenOutcome = { status: 'ok'; result: PackOpenResult } | { status: 'error'; reason: string };
@@ -77,6 +84,10 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, spee
   /** A scene flip is in flight: the previous top face has tucked into the pile while the next card flips in. */
   const [flipping, setFlipping] = useState(false);
   const turnTimersRef = useRef(new Set<ReturnType<typeof setTimeout>>());
+  /** The big-pull hold: set while the next flip must wait (bigPull.ts). */
+  const bigHoldRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** The big-pull shake: a fresh `n` restarts the one-shot keyframe (it alternates two identical names); `px` its amplitude. */
+  const [quake, setQuake] = useState<{ n: number; px: number } | null>(null);
   const [announce, setAnnounce] = useState('');
 
   const phaseRef = useRef<PackPhase>('sealed');
@@ -108,6 +119,15 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, spee
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
     if (holdRef.current) { clearTimeout(holdRef.current); holdRef.current = null; }
   }, []);
+  const clearBigHold = useCallback((): void => {
+    if (bigHoldRef.current) { clearTimeout(bigHoldRef.current); bigHoldRef.current = null; }
+  }, []);
+  /** Hold the next flip for `ms` (none when 0). */
+  const startBigHold = useCallback((ms: number): void => {
+    clearBigHold();
+    if (!(ms > 0)) return;
+    bigHoldRef.current = setTimeout(() => { bigHoldRef.current = null; }, ms);
+  }, [clearBigHold]);
   /** Forget every face's turn (a reset, the summary, the next pack, unmount). */
   const clearTurns = useCallback((): void => {
     for (const t of turnTimersRef.current) clearTimeout(t);
@@ -121,18 +141,20 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, spee
       mountedRef.current = false;
       reqRef.current++;
       stopTimer();
+      clearBigHold();
       clearTurns();
     };
-  }, [clearTurns, stopTimer]);
+  }, [clearBigHold, clearTurns, stopTimer]);
 
   const goSummary = useCallback((): void => {
     stopTimer();
     revealAllRef.current = false;
     sceneRef.current?.setInputEnabled(false);
+    clearBigHold();
     clearTurns();
     go('summary');
     sounds().summary();
-  }, [clearTurns, go, sounds, stopTimer]);
+  }, [clearBigHold, clearTurns, go, sounds, stopTimer]);
 
   /** A failed or malformed answer: back to a fresh sealed pack, nothing consumed. */
   const fail = useCallback((): void => {
@@ -148,12 +170,14 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, spee
     setResult(null);
     setFlipped(0);
     setFroms([]);
+    clearBigHold();
+    setQuake(null);
     clearTurns();
     artRef.current = [];
     setAnnounce('');
     setNote(FAIL_NOTE);
     go('sealed');
-  }, [clearTurns, go, stopTimer]);
+  }, [clearBigHold, clearTurns, go, stopTimer]);
 
   /** The server request: only ever started by a pop. */
   const request = useCallback((packId: string): void => {
@@ -219,6 +243,8 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, spee
         turnTimersRef.current.add(t);
         setAnnounce(cardText(card));
         if (card.duplicate) { soundsFn.current().stamp(); soundsFn.current().aether(); }
+        // A big pull: its sound, one shake, and the hold (set BEFORE Reveal all chains, so the chain waits it out).
+        bigPullRef.current(card, turnMs, true);
         if (revealAllRef.current && flippedRef.current < r.cards.length) flipNextRef.current();
       },
     });
@@ -234,6 +260,24 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, spee
 
   useEffect(() => { speedRef.current = speed; sceneRef.current?.setSpeed(speed); }, [speed]);
 
+  /**
+   * A revealed card's big-pull beat (none for Common..Epic): the tier burst sound, the theatre shake (`shake`: the scene
+   * path only, never reduced motion) and the hold: the face's own turn (`turnMs`, already slow-mo scaled) plus
+   * `bigPullHoldMs`, scaled by the same slow-mo.
+   */
+  const bigPull = useCallback((card: PackCard, turnMs: number, shake: boolean): void => {
+    const tier = bigPullTier(card.rarity);
+    if (tier === 'none') return;
+    const feel = getPackFeel();
+    const slow = speedRef.current > 0 ? 1 / speedRef.current : 1;
+    soundsFn.current().bigPull(tier);
+    const px = shake ? bigPullShakePx(tier, feel.bigPullShake) : 0;
+    if (px > 0) setQuake((q) => ({ n: (q?.n ?? 0) + 1, px }));
+    startBigHold(turnMs + feel.bigPullHoldMs * slow);
+  }, [startBigHold]);
+  const bigPullRef = useRef(bigPull);
+  bigPullRef.current = bigPull;
+
   // Declared AFTER the scene effect so its cleanup runs after `scene.destroy()` on unmount.
   useEffect(() => () => { soundsRef.current?.dispose(); soundsRef.current = null; }, []);
 
@@ -241,6 +285,8 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, spee
   const flipNext = useCallback((): boolean => {
     const r = resultRef.current;
     if (phaseRef.current !== 'reveal' || !r) return false;
+    // A big pull's hold: ignored, not queued (Reveal all retries until it ends).
+    if (bigHoldRef.current) return false;
     if (flippedRef.current >= r.cards.length) { goSummary(); return true; }
     if (reduced) {
       const index = flippedRef.current;
@@ -249,6 +295,7 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, spee
       setFlipped(index + 1);
       setAnnounce(cardText(card));
       if (card.duplicate) { sounds().stamp(); sounds().aether(); }
+      bigPull(card, 0, false); // reduced motion: the sound and the hold (a pacing beat), never the shake
       return true;
     }
     const scene = sceneRef.current;
@@ -261,7 +308,7 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, spee
     // finishes its turn first: `revealPhase`).
     if (started) setFlipping(true);
     return started;
-  }, [goSummary, reduced, sounds]);
+  }, [bigPull, goSummary, reduced, sounds]);
   const flipNextRef = useRef(flipNext);
   flipNextRef.current = flipNext;
 
@@ -274,6 +321,7 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, spee
       if (!revealAllRef.current || phaseRef.current !== 'reveal') { stopTimer(); return; }
       const r = resultRef.current;
       if (r && flippedRef.current >= r.cards.length) {
+        if (bigHoldRef.current) return; // a big pull last: wait its hold out first
         // Hold the last face so the player sees it, then the summary.
         stopTimer();
         holdRef.current = setTimeout(() => { holdRef.current = null; if (phaseRef.current === 'reveal') goSummary(); }, REVEAL_ALL_HOLD_MS);
@@ -308,6 +356,8 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, spee
     setResult(null);
     setFlipped(0);
     setFroms([]);
+    clearBigHold();
+    setQuake(null);
     clearTurns();
     artRef.current = [];
     setAnnounce('');
@@ -316,7 +366,7 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, spee
     setQi((n) => n + 1);
     // "Open next" is about to unmount: keep keyboard focus in the dialog.
     dialogRef.current?.focus();
-  }, [clearTurns, go, stopTimer]);
+  }, [clearBigHold, clearTurns, go, stopTimer]);
 
   useEffect(() => { dialogRef.current?.focus(); }, []);
   useEffect(() => {
@@ -345,14 +395,29 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, spee
     <div className="pkop" role="dialog" aria-modal="true" aria-label="Opening a pack" ref={dialogRef} tabIndex={-1}
          style={speed === 1 ? undefined : ({ '--pk-slow': 1 / speed } as CSSProperties)}>
       <div className="pkop-scrim" aria-hidden />
-      {!reduced && (
-        <div
-          className={`pkop-fx${phase === 'summary' ? ' pkop-hidden' : ''}`}
-          ref={hostRef}
-          aria-hidden
-          onClick={() => { if (phaseRef.current === 'reveal') flipNext(); }}
-        />
-      )}
+      {/* The theatre content (the scene + the faces) shakes as one on a big pull; the slot, notes and buttons stay put. */}
+      <div
+        className={`pkop-quake${quake && !reduced ? (quake.n % 2 ? ' pkop-quake-a' : ' pkop-quake-b') : ''}`}
+        style={quake && !reduced ? ({ '--pk-quake': `${quake.px}px` } as CSSProperties) : undefined}
+      >
+        {!reduced && (
+          <div
+            className={`pkop-fx${phase === 'summary' ? ' pkop-hidden' : ''}`}
+            ref={hostRef}
+            aria-hidden
+            onClick={() => { if (phaseRef.current === 'reveal') flipNext(); }}
+          />
+        )}
+        {(phase === 'summary' || (!reduced && phase === 'reveal')) && cards.length > 0 && (
+          <div className="pkop-faces" aria-hidden>
+            {cards.map((c, i) => {
+              if (phase !== 'summary' && i >= flipped) return null;
+              const facePhase = phase === 'summary' ? 'summary' : revealPhase(i, flipped, turning, flipping);
+              return <PackFace key={i} card={c} phase={facePhase} from={froms[i]} slot={{ index: i, count: cards.length }} slow={1 / speed} />;
+            })}
+          </div>
+        )}
+      </div>
       <div className="pkop-slot" ref={slotRef} style={slotBox()} aria-hidden />
       {reduced && !result && phase !== 'summary' && <div className="pkop-pack" aria-hidden>{item.look.name}</div>}
       {showBacks && (
@@ -363,15 +428,6 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, spee
               <PackFace card={c} phase="tray" />
             </div>
           ))}
-        </div>
-      )}
-      {(phase === 'summary' || (!reduced && phase === 'reveal')) && cards.length > 0 && (
-        <div className="pkop-faces" aria-hidden>
-          {cards.map((c, i) => {
-            if (phase !== 'summary' && i >= flipped) return null;
-            const facePhase = phase === 'summary' ? 'summary' : revealPhase(i, flipped, turning, flipping);
-            return <PackFace key={i} card={c} phase={facePhase} from={froms[i]} slot={{ index: i, count: cards.length }} slow={1 / speed} />;
-          })}
         </div>
       )}
 

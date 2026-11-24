@@ -17,15 +17,21 @@ vi.mock('./packSounds', () => ({
     const rec = (n: string) => () => { soundCalls.push(n); };
     return { pop: rec('pop'), tear: rec('tear'), crackle: rec('crackle'), rip: rec('rip'), sleeveFree: rec('sleeveFree'), slide: rec('slide'),
       drop: rec('drop'), whoosh: rec('whoosh'), flip: rec('flip'), stamp: rec('stamp'), aether: rec('aether'), summary: rec('summary'),
-      silence: rec('silence'), dispose: rec('dispose') };
+      silence: rec('silence'), dispose: rec('dispose'), bigPull: (t: string) => { soundCalls.push('bigPull:' + t); } };
   },
 }));
 
 import { PackOpener, type PackOpenerProps, type PackOpenOutcome } from './PackOpener';
 import type { PackScene, PackSceneEvents } from './packScene';
 import { stageHost } from '../../stage';
+import { resetPackFeel, setPackFeel } from './packFxConfig';
 
 const LOOK = { kind: 'rarity', id: 'rare', name: 'Rare Pack', guaranteedFloor: 'rare' } as const;
+/** A 5-card result with the given rarities at the given indexes (the rest as `mk`). */
+const withRarity = (at: Record<number, 'legendary' | 'ancient' | 'epic'>): PackOpenResult => {
+  const r = mk(5);
+  return { ...r, cards: r.cards.map((c, i) => (at[i] ? { ...c, rarity: at[i] } : c)) };
+};
 const mk = (n: number, dupAt: number[] = []): PackOpenResult => ({
   packId: 'p1', pack: LOOK, aether: 10,
   cards: Array.from({ length: n }, (_, i) => ({
@@ -93,7 +99,7 @@ const watchEdgeFlushes = (): { flushes: { phase: string | null; turn: string }[]
 };
 
 beforeEach(() => { fakes = []; opens = []; resolveOpen = null; soundCalls.length = 0; });
-afterEach(() => { m?.unmount(); m = null; });
+afterEach(() => { m?.unmount(); m = null; vi.useRealTimers(); resetPackFeel(); });
 
 describe('PackOpener', () => {
   it('applies the dev speed on scene creation and slows the DOM transitions with --pk-slow', () => {
@@ -394,6 +400,107 @@ describe('PackOpener', () => {
     m!.unmount(); m = null;
     expect(soundCalls.indexOf('destroy')).toBeGreaterThanOrEqual(0);
     expect(soundCalls.indexOf('dispose')).toBeGreaterThan(soundCalls.indexOf('destroy'));
+  });
+
+  describe('the big pull (Legendary / Ancient)', () => {
+    const flips = (): number => fake().calls.filter((c) => c === 'flipTop').length;
+    const tick = (ms: number): void => { act(() => { vi.advanceTimersByTime(ms); }); };
+    const quakeEl = (): HTMLElement => document.querySelector<HTMLElement>('.pkop-quake')!;
+    const shaking = (): boolean => /pkop-quake-[ab]/.test(quakeEl().className);
+
+    it('a Legendary plays its sound, shakes once, and holds the next flip for its turn plus bigPullHoldMs (clicks ignored, not queued)', async () => {
+      render();
+      toZoom();
+      await settle(ok(withRarity({ 0: 'legendary' })));
+      vi.useFakeTimers();
+      click(fx()); edge(0);
+      expect(soundCalls).toContain('bigPull:legendary');
+      expect(shaking()).toBe(true);
+      expect(quakeEl().style.getPropertyValue('--pk-quake')).toBe('6px');
+      // The hold: the face's 260ms turn + the default 450ms.
+      click(fx()); key('Enter');
+      tick(690);
+      click(fx());
+      expect(flips()).toBe(1);
+      tick(30);
+      expect(flips()).toBe(1); // nothing was queued
+      click(fx());
+      expect(flips()).toBe(2);
+    });
+
+    it('a non-big-pull card has no hold, no shake and no big-pull sound', async () => {
+      render();
+      toZoom();
+      await settle(ok(withRarity({ 0: 'epic' })));
+      click(fx()); edge(0);
+      click(fx());
+      expect(flips()).toBe(2);
+      expect(shaking()).toBe(false);
+      expect(soundCalls.some((c) => c.startsWith('bigPull'))).toBe(false);
+    });
+
+    it('Reveal all waits out the hold before it flips on; an Ancient shakes 1.5x', async () => {
+      render();
+      toZoom();
+      await settle(ok(withRarity({ 1: 'ancient' })));
+      vi.useFakeTimers();
+      click(btn('Reveal all'));
+      expect(flips()).toBe(1);
+      edge(0); // a common: the chain flips the next at once
+      expect(flips()).toBe(2);
+      edge(1); // the Ancient: the chain is held
+      expect(soundCalls).toContain('bigPull:ancient');
+      expect(quakeEl().style.getPropertyValue('--pk-quake')).toBe('9px');
+      expect(flips()).toBe(2);
+      tick(680);
+      expect(flips()).toBe(2);
+      tick(80);
+      expect(flips()).toBe(3);
+    });
+
+    it('slow-mo stretches the hold the same way it stretches the flip', async () => {
+      render({ speed: 0.5 });
+      toZoom();
+      await settle(ok(withRarity({ 0: 'legendary' })));
+      vi.useFakeTimers();
+      click(fx()); edge(0);
+      tick(1400); // (260 + 450) x 2 = 1420
+      click(fx());
+      expect(flips()).toBe(1);
+      tick(30);
+      click(fx());
+      expect(flips()).toBe(2);
+    });
+
+    it('a 0 shake knob shakes nothing; the hold still applies', async () => {
+      setPackFeel({ bigPullShake: 0 });
+      render();
+      toZoom();
+      await settle(ok(withRarity({ 0: 'ancient' })));
+      vi.useFakeTimers();
+      click(fx()); edge(0);
+      expect(shaking()).toBe(false);
+      click(fx());
+      expect(flips()).toBe(1);
+    });
+
+    it('reduced motion: the sound and the hold, but no shake class or transform', async () => {
+      render({ reducedMotion: true });
+      click(btn('Open'));
+      await settle(ok(withRarity({ 0: 'ancient' })));
+      vi.useFakeTimers();
+      const row = document.querySelector('.pkop-row')!;
+      click(row);
+      expect(soundCalls).toContain('bigPull:ancient');
+      expect(shaking()).toBe(false);
+      expect(quakeEl().getAttribute('style')).toBeNull();
+      expect(document.querySelectorAll('.pkop-quake-a, .pkop-quake-b')).toHaveLength(0);
+      click(row);
+      expect(document.querySelectorAll('.pkop-back.flipped')).toHaveLength(1);
+      tick(460);
+      click(row);
+      expect(document.querySelectorAll('.pkop-back.flipped')).toHaveLength(2);
+    });
   });
 
   it('survives StrictMode and destroys the scene on unmount', () => {

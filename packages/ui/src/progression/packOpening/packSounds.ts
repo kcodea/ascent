@@ -2,6 +2,7 @@ import { COSMETIC_RARITIES, type CrateRarity } from '@game/progression';
 import { audioContext, fxBusTarget, playTailedClip } from '../../sfx';
 import { CRATE_CUE_CATEGORY, crateCue, getCrateFxConfig, type CrateCue } from '../crateFx/crateFxConfig';
 import { DEFAULT_PACK_FEEL, getPackFeel } from './packFxConfig';
+import type { BigPullTier } from './bigPull';
 
 /**
  * The pack opening's sound cues. Each cue is one slot in `PACK_CUES`: v1 synthesises the tactile ones (the
@@ -22,6 +23,8 @@ export interface PackSounds {
   drop(): void;
   whoosh(): void;
   flip(rarity: CrateRarity, guaranteed: boolean): void;
+  /** A Legendary / Ancient card landed (bigPull.ts): the chest's tier burst; Ancient a touch louder and brighter. */
+  bigPull(tier: BigPullTier): void;
   stamp(): void;
   aether(): void;
   summary(): void;
@@ -45,6 +48,7 @@ export const PACK_CUES = {
   stamp: { kind: 'chest', cue: 'stamp' },
   aether: { kind: 'chest', cue: 'coin' },
   summary: { kind: 'chest', cue: 'sting' },
+  bigPull: { kind: 'chest', cue: 'tierBurst' },
 } as const satisfies Record<string, CueSlot>;
 
 /** Seedless PRNG for the noise bed and crackle picks (one helper so it is swappable). */
@@ -183,6 +187,10 @@ export function createPackSounds(): PackSounds {
     flip(rarity, guaranteed) {
       const i = Math.max(0, COSMETIC_RARITIES.indexOf(rarity));
       play(PACK_CUES.flip, { rate: 0.9 + i * 0.06, gain: guaranteed ? 1.2 : 1 });
+    },
+    bigPull(tier) {
+      if (tier === 'none') return;
+      play(PACK_CUES.bigPull, tier === 'ancient' ? { rate: 1.08, gain: 1.25 } : {});
     },
     stamp: () => play(PACK_CUES.stamp),
     aether: () => play(PACK_CUES.aether),

@@ -20,7 +20,7 @@
  *  - Clicks are not interpreted after the zoom: they bubble from the canvas to the host, where the shell decides to
  *    call `flipTop`.
  *  - The ticker stops once the stack has zoomed and nothing moves (no flip, crossfade, flecks, shake, breathing glow
- *    (Epic and up; Common / Rare glows are static) or pack aura still fading) and restarts on input, `flipTop`, `setBacks`, `quickOpen` and `resetSealed`.
+ *    (Epic and up; Common / Rare glows are static), big-pull burst or pack aura still fading) and restarts on input, `flipTop`, `setBacks`, `quickOpen` and `resetSealed`.
  *  - No allocation per frame in the tear / sleeve loops: pooled flecks, reused points and in-place geometry buffers.
  */
 import { Application, type Texture, type Ticker } from 'pixi.js';
@@ -39,7 +39,8 @@ import {
 import { getPackFeel, PACK_BASE_SIZE, type PackFeel } from './packFxConfig';
 import { CARD_GLOW_TIERS, PACK_GLOW_TIERS, glowAlphaAt, packGlowRarity, type GlowTier } from './packGlow';
 import type { PackSounds } from './packSounds';
-import { PACK_GEOM, TEX_RES, rarityTint } from './packTextures';
+import { ANCIENT_GLOW_STOPS, BURST_TEX, PACK_GEOM, TEX_RES, rarityTint } from './packTextures';
+import { BURST, bigPullTier, burstPoseAt, type BigPullTier, type BurstPose } from './bigPull';
 import {
   buildPackViews, CARDS_Y, RIBBON_DY, RIBBON_HH, RIBBON_HW, type SceneTextures, type Views,
 } from './packViews';
@@ -223,6 +224,9 @@ class PackSceneImpl implements PackScene {
   private readonly quick = { active: false, t: 0, tearDur: 1, sleeveDur: 1, T0: 0.5, sleeveStart: 0, dy0: 0, want: 0 };
   // resetSealed's fade
   private readonly reset = { active: false, t: 0, swapped: false };
+  /** The big-pull light burst (bigPull.ts): its tier and its clock (ms, slow-mo scaled). */
+  private readonly burst = { active: false, ms: 0, tier: 'legendary' as Exclude<BigPullTier, 'none'> };
+  private readonly burstPose: BurstPose = { alpha: 0, scale: 1, rotation: 0, live: false };
 
   // the sealed pack's mouse tilt (the drag dive's, packTilt.ts) and the gloss band
   private readonly tilt = newTilt();
@@ -519,6 +523,8 @@ class PackSceneImpl implements PackScene {
     this.flip.active = false;
     this.xf.active = false;
     this.quick.active = false;
+    this.burst.active = false;
+    v.burst.visible = false;
     this.tearHeld = false;
     this.sleeveHeld = false;
     this.hasCursor = false;
@@ -818,6 +824,7 @@ class PackSceneImpl implements PackScene {
     this.cardsStep(dt, feel);
     this.packGlowStep(dt, feel);
     if (this.flip.active) this.flipStep(dt);
+    if (this.burst.active) this.burstStep(dt, feel);
     v.flecks.step(dt);
 
     if (this.shake > 0.05) {
@@ -830,7 +837,8 @@ class PackSceneImpl implements PackScene {
     const top = this.backs?.[this.flipped];
     const pulsing = !!top && this.flipped < this.n && CARD_GLOW_TIERS[top.rarity].pulse !== 'none';
     if (this.phase === 'end' && !this.flip.active && !this.xf.active && v.flecks.count === 0 && this.shake === 0
-      && !pulsing && (!this.sideOn || this.side === 1) && !this.reset.active && !this.flying && this.glowReveal === 1 && this.packGlowFade === 0) {
+      && !pulsing && (!this.sideOn || this.side === 1) && !this.reset.active && !this.flying && this.glowReveal === 1 && this.packGlowFade === 0
+      && !this.burst.active) {
       app.ticker.stop();
     }
   };
@@ -1124,7 +1132,53 @@ class PackSceneImpl implements PackScene {
     const top = this.rect.t + (v.root.y + (cy - hh) * k) * toScreen;
     const rect = { left, top, width: hw * 2 * k * toScreen, height: hh * 2 * k * toScreen };
     const idx = f.idx;
+    // a big pull: the light burst blooms behind where the face lands (the slot the flip was heading for)
+    const b = this.backs?.[idx];
+    const tier = b ? bigPullTier(b.rarity) : 'none';
+    if (tier !== 'none') this.startBurst(tier, f.tx, f.ty);
     this.emit('onFlipEdge', () => this.events.onFlipEdge(idx, rect));
+  }
+
+  /** Start the big-pull burst at (x, y) in root units; dressed once here, only alpha / scale / rotation per frame. */
+  private startBurst(tier: Exclude<BigPullTier, 'none'>, x: number, y: number): void {
+    const v = this.v, tex = this.tex;
+    if (!v || !tex || !(getPackFeel().bigPull > 0)) return;
+    const bu = this.burst;
+    bu.active = true;
+    bu.ms = 0;
+    bu.tier = tier;
+    const ancient = tier === 'ancient';
+    v.burst.position.set(x, y);
+    v.burstBloom.tint = rarityTint(tier);
+    v.burstRays.texture = tex.burstRays[tier];
+    // Ancient's two tones: a pink ring over a cyan bloom, and a smaller cyan ring turning the other way
+    v.burstRays.tint = ancient ? parseInt(ANCIENT_GLOW_STOPS[2].slice(1), 16) : rarityTint(tier);
+    v.burstRays2.visible = ancient;
+    v.burstRays2.texture = tex.burstRays.legendary;
+    v.burstRays2.tint = rarityTint('ancient');
+    v.burst.visible = true;
+    this.burstStep(0, getPackFeel());
+  }
+
+  /** One frame of the burst (dt in 60 Hz frames, already slow-mo scaled). */
+  private burstStep(dt: number, feel: PackFeel): void {
+    const v = this.v!, bu = this.burst;
+    bu.ms += dt * FRAME_MS;
+    const spec = BURST[bu.tier];
+    const p = burstPoseAt(spec, bu.ms, feel.bigPull, this.burstPose);
+    if (!p.live) { bu.active = false; v.burst.visible = false; return; }
+    const bloomK = (spec.bloomSize * CARD_H * p.scale) / BURST_TEX;
+    const rayK = (spec.raySize * CARD_H * p.scale) / BURST_TEX;
+    v.burstBloom.alpha = p.alpha;
+    v.burstBloom.scale.set(bloomK);
+    v.burstRays.alpha = p.alpha * 0.8;
+    v.burstRays.scale.set(rayK);
+    v.burstRays.rotation = p.rotation;
+    if (v.burstRays2.visible) {
+      v.burstRays2.alpha = p.alpha * 0.6;
+      v.burstRays2.scale.set(rayK * 0.72);
+      v.burstRays2.rotation = -p.rotation * 1.4;
+    }
   }
 
   private readonly pose: FlipPose = { cx: 0, cy: 0, s: 1 };

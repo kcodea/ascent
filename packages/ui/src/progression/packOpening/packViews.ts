@@ -13,14 +13,18 @@
  *       particles       the fleck pool
  *       pinch           the "pinch here" cue
  *     flipLayer         the flip's first half: the card and its ribbon as PerspectiveMeshes
+ *
+ *   burst (root's FIRST child, so under everything) the big-pull light burst (bigPull.ts): an additive bloom and one or
+ *                     two god-ray rings, placed at the landing face's centre; only alpha / scale / rotation change
  */
 import { CanvasSource, Container, Graphics, Mesh, MeshGeometry, MeshPlane, PerspectiveMesh, Sprite, Texture } from 'pixi.js';
 import { COSMETIC_RARITIES, type CrateRarity, type PackLook } from '@game/progression';
 import {
   ANCIENT_GLOW_STOPS, PACK_GEOM, TEX_RES, type BackArt, paintArtSlice, paintBlob, paintBody, paintCardFlash, paintCardGlow,
   paintFleck, paintGlossBand, paintPackGlow, paintPinchRing, paintPlainBack, paintRarityBack, paintRibbon, paintShade,
-  paintSheen, paintSpec, paintStrip, paintStripBack, rarityTint,
+  paintSheen, paintSpec, paintStrip, paintStripBack, rarityTint, paintBurstBloom, paintBurstRays,
 } from './packTextures';
+import { BURST } from './bigPull';
 import { packArtFor } from './packArt';
 import { packGlowRarity } from './packGlow';
 import { CARD_PLATE_SRC, rarityIconSrc } from './packRarity';
@@ -45,6 +49,8 @@ export interface SceneTextures {
   /** The card glow: white (tinted per rarity) and Ancient's pre-coloured aurora. */
   glowWhite: Texture;
   glowAncient: Texture;
+  /** The big-pull god-ray rings, one painted per tier's ray count (white; tinted at the burst). */
+  burstRays: { legendary: Texture; ancient: Texture };
 }
 
 /** Every display object, built once at init. */
@@ -78,6 +84,12 @@ export interface Views {
   flipLayer: Container;
   flipper: PerspectiveMesh;
   flipRibbon: PerspectiveMesh;
+  /** The big-pull burst (hidden until a Legendary / Ancient flip hands off). */
+  burst: Container;
+  burstBloom: Sprite;
+  burstRays: Sprite;
+  /** Ancient's second ray ring (its other tone, spinning the other way). */
+  burstRays2: Sprite;
 }
 
 const fromCanvas = (c: HTMLCanvasElement): Texture => new Texture({ source: new CanvasSource({ resource: c }) });
@@ -143,7 +155,8 @@ export function buildPackViews(look: PackLook, n: number, own: (t: Texture) => v
   loadImage(CARD_PLATE_SRC, (img) => { for (const b of backs) { b.art.plate = img; repaint(b); } });
   const glowWhite = keep(paintCardGlow());
   const glowAncient = keep(paintCardGlow(ANCIENT_GLOW_STOPS));
-  const tex: SceneTextures = { plain: plain.tex, rarity, glowWhite, glowAncient };
+  const burstRaysTex = { legendary: keep(paintBurstRays(BURST.legendary.rays)), ancient: keep(paintBurstRays(BURST.ancient.rays)) };
+  const tex: SceneTextures = { plain: plain.tex, rarity, glowWhite, glowAncient, burstRays: burstRaysTex };
 
   const root = new Container();
   const pack = new Container();
@@ -241,10 +254,25 @@ export function buildPackViews(look: PackLook, n: number, own: (t: Texture) => v
   flipLayer.addChild(flipper, flipRibbon);
   root.addChild(flipLayer);
 
+  // THE BIG-PULL BURST: under everything (the DOM face lands over the canvas, so it reads as behind the card).
+  const burst = new Container();
+  burst.visible = false;
+  const addSprite = (t: Texture): Sprite => {
+    const s = new Sprite(t);
+    s.anchor.set(0.5);
+    s.blendMode = 'add';
+    return s;
+  };
+  const burstBloom = addSprite(keep(paintBurstBloom()));
+  const burstRays = addSprite(burstRaysTex.legendary);
+  const burstRays2 = addSprite(burstRaysTex.legendary);
+  burst.addChild(burstBloom, burstRays, burstRays2);
+  root.addChildAt(burst, 0);
+
   const views: Views = {
     root, pack, packGlow, packGlowHalf, sleeveBack, cardsC, cards, glow, fade, flash, ribbon, sleeveFront, body, bodyBase, sheen,
     gloss, lip, shadow,
-    strip, particles, flecks, pinch, flipLayer, flipper, flipRibbon,
+    strip, particles, flecks, pinch, flipLayer, flipper, flipRibbon, burst, burstBloom, burstRays, burstRays2,
   };
   return { views, tex };
 }

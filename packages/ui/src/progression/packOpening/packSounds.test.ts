@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const h = vi.hoisted(() => ({ ctx: null as unknown }));
+const h = vi.hoisted(() => ({ ctx: null as unknown, clips: [] as { category: string; gain: number; rate: number }[] }));
 vi.mock('../../sfx', () => ({
   audioContext: () => h.ctx,
   fxBusTarget: () => ({ connect: () => undefined }),
-  playTailedClip: () => null,
+  playTailedClip: (_clip: string, category: string, o: { gain: number; rate: number }) => { h.clips.push({ category, gain: o.gain, rate: o.rate }); return null; },
 }));
 
 import { createPackSounds } from './packSounds';
@@ -34,11 +34,11 @@ function fakeCtx(): { ctx: unknown; gains: Array<{ gain: FakeParam }>; counts: {
 
 const callAll = (s: ReturnType<typeof createPackSounds>): void => {
   s.pop(); s.tear(5); s.crackle(5, 1); s.rip(); s.sleeveFree(); s.slide(5); s.drop(); s.whoosh();
-  s.flip('epic', true); s.stamp(); s.aether(); s.summary(); s.silence(); s.dispose();
+  s.flip('epic', true); s.bigPull('legendary'); s.bigPull('ancient'); s.bigPull('none'); s.stamp(); s.aether(); s.summary(); s.silence(); s.dispose();
 };
 
 describe('packSounds', () => {
-  beforeEach(() => { h.ctx = null; });
+  beforeEach(() => { h.ctx = null; h.clips.length = 0; });
 
   it('every cue is a no-op when there is no AudioContext', () => {
     expect(() => callAll(createPackSounds())).not.toThrow();
@@ -68,6 +68,21 @@ describe('packSounds', () => {
     const n = f.counts.sources;
     for (let i = 0; i < 20; i++) { s.tear(i); s.slide(i); }
     expect(f.counts.sources).toBe(n);
+  });
+
+  it("bigPull plays the chest's tierBurst cue on a big pull (Ancient louder and brighter), never on a common card", () => {
+    h.ctx = fakeCtx().ctx;
+    const s = createPackSounds();
+    s.bigPull('none');
+    s.flip('common', false);
+    expect(h.clips.map((c) => c.category)).toEqual(['crateReveal']);
+    h.clips.length = 0;
+    s.bigPull('legendary');
+    s.bigPull('ancient');
+    expect(h.clips.map((c) => c.category)).toEqual(['crateTierBurst', 'crateTierBurst']);
+    const [leg, anc] = h.clips;
+    expect(anc!.gain).toBeGreaterThan(leg!.gain);
+    expect(anc!.rate).toBeGreaterThan(leg!.rate);
   });
 
   it('dispose() is idempotent', () => {

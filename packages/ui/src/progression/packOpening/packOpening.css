@@ -7,6 +7,31 @@
 .pkop { position: fixed; inset: 0; z-index: 700; outline: none; --pk-rim: color-mix(in srgb, var(--gold) 70%, transparent);
   --pk-slow: 1; --pk-text: #f6ecd0; --pk-panel: #1a2033; }
 .pkop-scrim { position: absolute; inset: 0; background: rgba(6, 8, 16, 0.86); }
+/* THE BIG-PULL SHAKE (bigPull.ts): the scene and the faces shake as one, once, when a Legendary / Ancient lands. A
+   one-shot transform keyframe (BIG_PULL_SHAKE_MS = 260ms, slow-mo scaled), decaying; `--pk-quake` is the amplitude (px,
+   set inline). Two identical names (-a / -b) so consecutive big pulls restart it. Never under reduced motion. */
+.pkop-quake { position: absolute; inset: 0; --pk-quake: 0px; }
+.pkop-quake-a { animation: pkop-quake-a calc(0.26s * var(--pk-slow, 1)) linear both; }
+.pkop-quake-b { animation: pkop-quake-b calc(0.26s * var(--pk-slow, 1)) linear both; }
+@keyframes pkop-quake-a {
+  0%, 100% { transform: translate(0, 0); }
+  10% { transform: translate(calc(var(--pk-quake) * 1), calc(var(--pk-quake) * -0.6)); }
+  24% { transform: translate(calc(var(--pk-quake) * -0.85), calc(var(--pk-quake) * 0.5)); }
+  40% { transform: translate(calc(var(--pk-quake) * 0.6), calc(var(--pk-quake) * -0.35)); }
+  56% { transform: translate(calc(var(--pk-quake) * -0.38), calc(var(--pk-quake) * 0.24)); }
+  72% { transform: translate(calc(var(--pk-quake) * 0.2), calc(var(--pk-quake) * -0.12)); }
+  87% { transform: translate(calc(var(--pk-quake) * -0.07), calc(var(--pk-quake) * 0.04)); }
+}
+@keyframes pkop-quake-b {
+  0%, 100% { transform: translate(0, 0); }
+  10% { transform: translate(calc(var(--pk-quake) * 1), calc(var(--pk-quake) * -0.6)); }
+  24% { transform: translate(calc(var(--pk-quake) * -0.85), calc(var(--pk-quake) * 0.5)); }
+  40% { transform: translate(calc(var(--pk-quake) * 0.6), calc(var(--pk-quake) * -0.35)); }
+  56% { transform: translate(calc(var(--pk-quake) * -0.38), calc(var(--pk-quake) * 0.24)); }
+  72% { transform: translate(calc(var(--pk-quake) * 0.2), calc(var(--pk-quake) * -0.12)); }
+  87% { transform: translate(calc(var(--pk-quake) * -0.07), calc(var(--pk-quake) * 0.04)); }
+}
+@media (prefers-reduced-motion: reduce) { .pkop-quake-a, .pkop-quake-b { animation: none; } }
 .pkop-fx { position: absolute; inset: 0; }
 .pkop-fx.pkop-hidden { visibility: hidden; pointer-events: none; }
 /* The featured slot's box is set inline from packFaces.tsx (`slotBox`), shared with the faces. */

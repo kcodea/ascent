@@ -16,13 +16,14 @@
 .pkop-btns { position: absolute; left: 0; right: 0; bottom: 36px; display: flex; justify-content: center; gap: 16px; }
 .pkop-corner { position: absolute; top: 24px; right: 28px; }
 .pkop-row { position: absolute; left: 0; right: 0; top: 26%; display: flex; justify-content: center; gap: 18px; }
-.pkop-back, .pkop-pack { position: relative; width: 150px; height: 220px; box-sizing: border-box; border-radius: 12px; overflow: hidden;
+.pkop-back, .pkop-pack { position: relative; width: 150px; height: 225px; box-sizing: border-box; border-radius: 12px; overflow: hidden;
   border: 2px solid var(--pk-rim); background: var(--pk-panel); color: var(--gold-lt); display: flex; align-items: center; justify-content: center;
   font-family: var(--font-ui); font-size: 18px; font-weight: 700; text-align: center; padding: 10px; }
 .pkop-back { border-color: var(--rc, var(--pk-rim)); }
 .pkop-pack { width: 220px; height: 320px; position: absolute; left: 50%; top: 24%; margin-left: -110px; }
-/* Reduced motion: each back holds its face (laid out at the featured size, scaled to the back), crossfaded on flip. */
-.pkop-back .pkf { position: absolute; left: 0; top: 0; width: 220px; height: 320px; transform: scale(0.682); transform-origin: 0 0;
+/* Reduced motion: each back holds its face (laid out at the face's layout size, 300 x 450, scaled to the 150 px back),
+   crossfaded on flip. */
+.pkop-back .pkf { position: absolute; left: 0; top: 0; width: 300px; height: 450px; transform: scale(0.5); transform-origin: 0 0;
   opacity: 0; transition: opacity calc(0.25s * var(--pk-slow, 1)) ease-out; }
 .pkop-back.flipped .pkf { opacity: 1; }
 .pkop-back .pkop-back-mark { transition: opacity calc(0.25s * var(--pk-slow, 1)) ease-out; }
@@ -34,41 +35,54 @@
 .pkop-summary-total { font-size: 18px; color: var(--gold-lt); }
 
 /* ── THE FACE ─────────────────────────────────────────────────────────────────────────────────────────────────────────
-   One layout for every face. `.pkf` is the placed box (moved by transform); `.pkf-card` is the card (turned by transform,
-   with the scene's perspective inline). */
-.pkf { position: absolute; width: 220px; height: 320px; transform-origin: 50% 50%; will-change: transform;
+   Every face is the owner's cosmetic card plate (packs/cosmetic-card-plate.webp, 2:3: a gold frame, a raised notch at
+   the top centre, and a navy window). `.pkf` is the placed box (moved by transform, laid out at FACE_W x FACE_H =
+   300 x 450); `.pkf-card` is the card (turned by transform, with the scene's perspective inline); `.pkf-plate` is the
+   plate image filling it; `.pkf-win` is the content, inset to the plate's navy window.
+   The window, measured on the 2048 x 3072 source: x 130..1918 (6.35% each side), y 201..2910 at the shoulders (the
+   notch lifts the centre to y 132), so 6.4% / 7% / 5.3% insets; its corners round at about 14% of the width. The
+   plate's outer edge (the glow's shape): x 64..1980, y 131..2975 at the shoulders. */
+.pkf { position: absolute; width: 300px; height: 450px; transform-origin: 50% 50%; will-change: transform;
   transition: transform calc(0.36s * var(--pk-slow, 1)) cubic-bezier(0.2, 0.8, 0.3, 1); }
 .pkf-handoff, .pkf-featured { z-index: 2; }
-.pkf-card { position: relative; width: 100%; height: 100%; box-sizing: border-box; padding: 14px 14px 16px; border-radius: 16px;
-  display: flex; flex-direction: column; align-items: center; gap: 6px; color: var(--pk-text, #f6ecd0); font-family: var(--font-ui);
-  background: radial-gradient(ellipse 90% 60% at 50% 30%, color-mix(in srgb, var(--rc) 22%, transparent), transparent 70%), var(--pk-panel, #1a2033);
-  border: 3px solid var(--rc); box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.35), 0 14px 30px -12px #000;
+.pkf-card { position: relative; width: 100%; height: 100%; color: var(--pk-text, var(--gold-lt)); font-family: var(--font-ui);
   backface-visibility: hidden; transform-origin: 50% 50%; }
-.r-ancient .pkf-card { border-image: var(--rc-grad) 1; border-radius: 0; }
-/* Legendary / Ancient featured: a breathing glow, opacity only on a STATIC shadow (kwglow, styles.css). */
-.pkf-glow .pkf-card::before { content: ''; position: absolute; inset: -3px; border-radius: inherit; pointer-events: none; z-index: -1;
+.pkf-plate { position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; user-select: none; }
+.pkf-win { position: absolute; left: 6.4%; right: 6.4%; top: 7%; bottom: 5.3%; border-radius: 14% / 9.5%; overflow: hidden;
+  box-sizing: border-box; padding: 14px 16px 16px; display: flex; flex-direction: column; align-items: center; gap: 8px;
+  background: radial-gradient(ellipse 85% 55% at 50% 34%, color-mix(in srgb, var(--rc) 26%, transparent), transparent 72%); }
+/* Legendary / Ancient featured: a breathing glow behind the plate's outer edge, opacity only on a STATIC shadow (kwglow,
+   styles.css). */
+.pkf-glow .pkf-card::before { content: ''; position: absolute; left: 3.2%; right: 3.2%; top: 4.3%; bottom: 3.2%; border-radius: 9% / 6%;
+  pointer-events: none; z-index: -1;
   box-shadow: 0 0 36px 10px var(--rc-a), 0 0 80px 24px color-mix(in srgb, var(--rc) 30%, transparent);
   animation: kwglow 2.2s ease-in-out infinite; will-change: opacity; }
-.pkf-cat { font-size: 12px; font-weight: 800; letter-spacing: 0.22em; text-transform: uppercase; color: var(--rc); }
-.pkf-art { flex: none; width: 168px; height: 150px; display: flex; align-items: center; justify-content: center; border-radius: 12px;
-  background: rgba(0, 0, 0, 0.32); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--rc) 40%, transparent); overflow: hidden; }
+/* The category sits under the plate's notch, between two short gold rules. */
+.pkf-cat { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 800; letter-spacing: 0.24em; text-transform: uppercase;
+  color: var(--gold-lt); }
+.pkf-cat::before, .pkf-cat::after { content: ''; width: 18px; height: 1px; background: var(--gold); opacity: 0.8; }
+/* The art window: framed in the plate's gold. The NEW chip and the DUPLICATE stamp sit on it. */
+.pkf-art { position: relative; flex: none; width: 100%; height: 206px; display: flex; align-items: center; justify-content: center;
+  border-radius: 10px; overflow: hidden; background: rgba(0, 0, 0, 0.34);
+  box-shadow: 0 0 0 1px var(--gold), 0 0 0 3px color-mix(in srgb, var(--gold) 22%, transparent), inset 0 0 22px rgba(0, 0, 0, 0.7); }
 .pkf-img { max-width: 100%; max-height: 100%; object-fit: contain; pointer-events: none; }
 .pkf-img-hero, .pkf-img-minion { width: 100%; height: 100%; object-fit: cover; }
-.pkf-emblem { width: 96px; height: 96px; color: var(--rc); }
+.pkf-emblem { width: 110px; height: 110px; color: var(--rc); }
 .pkf-emblem svg { display: block; width: 100%; height: 100%; }
-.pkf-name { font-family: var(--font-cardname); font-size: 21px; font-weight: 800; line-height: 1.1; text-align: center; max-width: 100%;
-  overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.pkf-name { margin-top: 4px; font-family: var(--font-cardname); font-size: 24px; font-weight: 800; line-height: 1.1; text-align: center;
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.7); }
 .pkf-note { font-size: 12px; opacity: 0.75; text-align: center; }
-.pkf-ribbon { margin-top: auto; display: flex; align-items: center; gap: 6px; }
-/* The medallion is 32px in a ribbon about 24px tall: the negative margin keeps the row's height, the icon overhangs. */
-.pkf-rarity-icon { flex: none; width: 32px; height: 32px; margin: -4px 0; object-fit: contain; pointer-events: none; }
-.pkf-ribbon > span { display: block; flex: 1; text-align: center; padding: 4px 18px; border-radius: 4px; font-size: 12px; font-weight: 900; letter-spacing: 0.26em; text-transform: uppercase;
+.pkf-ribbon { margin-top: auto; width: 100%; display: flex; align-items: center; gap: 6px; }
+/* The medallion is 40px in a ribbon about 24px tall: the negative margin keeps the row's height, the icon overhangs. */
+.pkf-rarity-icon { flex: none; width: 40px; height: 40px; margin: -8px 0; object-fit: contain; pointer-events: none; }
+.pkf-ribbon > span { display: block; flex: 1; text-align: center; padding: 4px 12px; border-radius: 3px; font-size: 12px; font-weight: 900; letter-spacing: 0.26em; text-transform: uppercase;
   color: #fff; background: linear-gradient(180deg, color-mix(in srgb, var(--rc) 70%, #fff) 0%, var(--rc) 45%, color-mix(in srgb, var(--rc) 60%, #000) 100%);
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6); }
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--gold) 60%, transparent); text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6); }
 .r-ancient .pkf-ribbon > span { background: var(--rc-grad); }
-.pkf-new { position: absolute; top: 10px; right: 10px; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 900; letter-spacing: 0.14em;
-  text-transform: uppercase; color: #12160c; background: var(--gold-lt); }
-.pkf-dup { position: absolute; left: 0; right: 0; top: 112px; display: flex; flex-direction: column; align-items: center; gap: 4px; pointer-events: none; }
+.pkf-new { position: absolute; top: 8px; right: 8px; padding: 2px 9px; border-radius: 999px; font-size: 11px; font-weight: 900; letter-spacing: 0.14em;
+  text-transform: uppercase; color: #12160c; background: var(--gold-lt); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.6); }
+.pkf-dup { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; pointer-events: none; }
 /* The stamp lands once, after the turn (one-shot, transform/opacity only). */
 .pkf-stamp { padding: 4px 14px; border: 3px solid var(--threat); border-radius: 6px; color: var(--threat); background: rgba(10, 8, 14, 0.75);
   font-size: 18px; font-weight: 900; letter-spacing: 0.18em; text-transform: uppercase; transform: rotate(-12deg);

@@ -16,7 +16,7 @@ import './packOpening.css';
  * now: nothing outside the DevMenu mounts it.
  *
  * Ownership: the scene owns the tear, the sleeve, the stack and the first half of each flip; this shell owns the
- * request, the DOM card faces (`packFaces.tsx`: the handoff, the tray, the summary row), the sounds on the DOM side (stamp, aether, summary) and the
+ * request, the DOM card faces (`packFaces.tsx`: the handoff, the revealed pile, the summary row), the sounds on the DOM side (stamp, aether, summary) and the
  * single `PackSounds` for the theatre. Clicks after the zoom bubble from the canvas to `.pkop-fx`, where `flipNext`
  * decides. Reduced motion: no scene; a sealed pack and an Open button, then the backs in a row with a crossfade.
  */
@@ -219,7 +219,7 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, spee
     const slot = slotRef.current?.getBoundingClientRect();
     const to = slot ? { x: slot.left + slot.width / 2, y: slot.top + slot.height / 2 } : { x: 0, y: 0 };
     const started = scene.flipTop(to);
-    // The featured face tucks into the tray while the next card flips in.
+    // The featured face settles into the revealed pile while the next card flips in on top of it.
     if (started) setFeatured(null);
     return started;
   }, [goSummary, reduced, sounds]);

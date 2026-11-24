@@ -8,6 +8,27 @@
 
 /** The flip's perspective distance as a multiple of the card's on-screen width (the DOM half uses the same). */
 export const FLIP_PERSPECTIVE_PER_WIDTH = 4;
+/**
+ * THE REVEAL LAYOUT (owner 2026-11-23: "have the pack slide to the left slightly and have the card flip over and land on
+ * the right side"). Tuning values, as fractions of the theatre (the scene's host, the same box as the stage viewport):
+ * - `REVEAL_STACK_X`: where the zoomed stack's centre settles (it eases left from the middle as it zooms).
+ * - `REVEAL_FACE_X`: where the featured face's centre lands (the flip travels right from the stack to here).
+ * - `REVEAL_Y`: the shared vertical centre of both, so the face lands level with the stack it left.
+ */
+export const REVEAL_STACK_X = 0.34;
+export const REVEAL_FACE_X = 0.66;
+export const REVEAL_Y = 0.47;
+/**
+ * The revealed pile's size over the draw pile's (owner 2026-11-23: "the revealed pile should be slightly larger than the
+ * draw pile"): a face in the pile is this many times the zoomed back's RESTING on-screen size. The face grows to it from
+ * the handoff size while it turns, so nothing pops.
+ */
+export const REVEALED_SCALE = 1.12;
+
+/** How much the card lifts (grows) by edge-on: an ordinary card, and the guaranteed card (the biggest flip). */
+export const FLIP_LIFT = 0.08;
+export const FLIP_LIFT_GUARANTEED = 0.14;
+
 /** The flip's first half (ms): an ordinary card, and the guaranteed card (the biggest flip). */
 export const FLIP_HALF_MS = 260;
 export const FLIP_HALF_GUARANTEED_MS = 380;

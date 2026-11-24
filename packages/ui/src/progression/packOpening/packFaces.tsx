@@ -2,22 +2,34 @@ import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactElemen
 import type { PackCard } from '@game/progression';
 import { stageViewport, type StageRect } from '../../stage';
 import { rewardPreview, type RewardEmblem } from '../rewardPreview';
-import { packRarityLabel, rarityIconSrc } from './packRarity';
-import { FLIP_HALF_GUARANTEED_MS, FLIP_HALF_MS, FLIP_PERSPECTIVE_PER_WIDTH } from './cardFlip';
+import { CARD_PLATE_SRC, packRarityLabel, rarityIconSrc } from './packRarity';
+import {
+  FLIP_HALF_GUARANTEED_MS, FLIP_HALF_MS, FLIP_LIFT, FLIP_LIFT_GUARANTEED, FLIP_PERSPECTIVE_PER_WIDTH, REVEAL_FACE_X, REVEAL_Y,
+  REVEALED_SCALE,
+} from './cardFlip';
+
+export { CARD_PLATE_SRC };
 
 /**
- * THE PACK CARD FACES (spec sections 6 and 11). One layout for every face: category label, art area (the reward's art,
- * or an emblem drawn below), name, rarity ribbon, and NEW or a DUPLICATE stamp with "+N Aether".
+ * THE PACK CARD FACES (spec sections 6 and 11). Every face is the owner's cosmetic card plate (2:3, a gold frame around a
+ * navy window) with one layout inside the window: category label, art area (the reward's art, or an emblem drawn
+ * below), name, rarity ribbon with its medallion, and NEW or a DUPLICATE stamp with "+N Aether".
  *
  * Placement is transform-only. A placed face (the theatre passes `from` and / or `slot`) is laid out ONCE at the
  * featured slot (`SLOT_*`, `FACE_*`, never animated) and every move is a `transform` on the outer element:
  * - `handoff`: mounts on the scene's card at edge-on (`from`, the card's FLAT rect in stage px, converted with
  *   `rectToStage` at the edge event by the shell) turned to -90 deg with the scene's perspective, then transitions to
- *   the featured slot and 0 deg. The turn sits on an inner element so it can take its own easing (it continues the
- *   scene's accelerating first half, decelerating), while the move eases in and out.
- * - `featured`: at the slot. `tray`: small, in a row below (slot index of `count`). `summary`: one row of all faces.
- * The scene turns the card's BACK from 0 to +90 deg (its left edge toward the camera); the FACE is the back turned a
- * further 180 deg, so it continues from -90 deg to 0 (edge-on either way; the sign keeps the motion continuous).
+ *   the featured slot and 0 deg at the REVEALED PILE's size (owner 2026-11-23: "the preview is so much smaller than the
+ *   card back", then "the revealed pile should be slightly larger than the draw pile"): `REVEALED_SCALE` x the back's
+ *   resting size (the handoff rect over the flip's lift), so it grows a little while it turns, never shrinks. The turn
+ *   sits on an inner element so it can take its own easing (it continues the scene's accelerating first half,
+ *   decelerating), while the move eases in and out.
+ * - `featured`: on top of the revealed pile (right of the stack, `REVEAL_FACE_X`).
+ *   `tray`: an earlier face, in the pile under the featured one: the same size, nudged a few px and a degree or two
+ *   (`PILE_JITTER`) so it reads as a real pile. `summary`: one centred row of all faces.
+ * The scene turns the card's BACK from 0 to +90 deg (its left edge toward the camera) while it travels right; the FACE
+ * is the back turned a further 180 deg, so it continues from -90 deg to 0 (edge-on either way; the sign keeps the motion
+ * continuous) over the rest of the way right.
  * An unplaced face (the reduced-motion row) has no inline pose; its parent places it.
  */
 
@@ -25,17 +37,19 @@ export type PackFacePhase = 'handoff' | 'featured' | 'tray' | 'summary';
 export interface PackFaceSlot { index: number; count: number }
 export interface PackFaceProps { card: PackCard; phase: PackFacePhase; from?: StageRect; slot?: PackFaceSlot }
 
-/** The featured face's layout size (stage px) and its slot's centre as a fraction of the theatre. */
-export const FACE_W = 220;
-export const FACE_H = 320;
-export const SLOT_X = 0.5;
-export const SLOT_Y = 0.46;
-/** The tray below the featured slot: scale, step between faces, and its centre's drop from the slot centre. */
-const TRAY_SCALE = 0.36;
-const TRAY_STEP = 92;
-const TRAY_DY = 380;
-/** The summary row: scale, step between faces, and its centre's offset from the slot centre. */
-const SUMMARY_SCALE = 0.72;
+/**
+ * The face's LAYOUT size (stage px; 2:3, the plate's and the scene card's shape) and its slot's centre as a fraction of
+ * the theatre. A handed-off face is drawn at the back's on-screen size by its transform, so this only sets the type
+ * scale it is rasterised from (near the zoomed back's size, so it is never blown up far).
+ */
+export const FACE_W = 300;
+export const FACE_H = 450;
+export const SLOT_X = REVEAL_FACE_X;
+export const SLOT_Y = REVEAL_Y;
+/** The revealed pile's per-card nudge under the top face: [dx px, dy px, deg], by reveal index (cycles). */
+const PILE_JITTER: readonly (readonly [number, number, number])[] = [[-6, 4, -2], [5, -3, 1.5], [-3, -6, -1], [7, 3, 2.2], [-5, 6, -1.6]];
+/** The summary row: centred in the theatre; scale, step between faces, and its centre's offset from the slot centre. */
+const SUMMARY_SCALE = 0.53;
 const SUMMARY_STEP = 184;
 const SUMMARY_DY = -90;
 /** The face turns with the scene's perspective: the same multiple of the card's width (the face's own, pre-scale). */
@@ -49,22 +63,49 @@ export const slotBox = (): CSSProperties => ({
   left: `${SLOT_X * 100}%`, top: `${SLOT_Y * 100}%`, width: FACE_W, height: FACE_H, marginLeft: -FACE_W / 2, marginTop: -FACE_H / 2,
 });
 
-const pose = (x: number, y: number, sx: number, sy: number): string => `translate(${x}px, ${y}px) scale(${sx}, ${sy})`;
-const rowX = (slot: PackFaceSlot | undefined, step: number): number => (slot ? (slot.index - (slot.count - 1) / 2) * step : 0);
+/** A face's pose relative to the slot: a translation (stage px), a rotation (deg), then a scale about its centre. */
+export interface FacePose { x: number; y: number; r: number; sx: number; sy: number }
 
-function placedPose(phase: PackFacePhase, slot: PackFaceSlot | undefined): string {
-  if (phase === 'tray') return pose(rowX(slot, TRAY_STEP), TRAY_DY, TRAY_SCALE, TRAY_SCALE);
-  if (phase === 'summary') return pose(rowX(slot, SUMMARY_STEP), SUMMARY_DY, SUMMARY_SCALE, SUMMARY_SCALE);
-  return pose(0, 0, 1, 1);
+/** The pile's scale for a face handed off at `from`: `REVEALED_SCALE` x the back's resting size (the lift taken out). */
+function pileScale(from: StageRect | undefined, guaranteed: boolean): { sx: number; sy: number } {
+  if (!from) return { sx: 1, sy: 1 };
+  const k = REVEALED_SCALE / (1 + (guaranteed ? FLIP_LIFT_GUARANTEED : FLIP_LIFT));
+  return { sx: (from.width / FACE_W) * k, sy: (from.height / FACE_H) * k };
+}
+
+const rowOffset = (slot: PackFaceSlot | undefined, step: number): number => (slot ? (slot.index - (slot.count - 1) / 2) * step : 0);
+
+/**
+ * Where a placed face rests in `phase` (pure; `vp` is the theatre's size in stage px). The featured / handoff pose is the
+ * top of the revealed pile: `REVEALED_SCALE` x the back it flipped from (`from` with the flip's lift taken out). An
+ * earlier face (`tray`) sits in the pile beneath it at the same size, nudged by `PILE_JITTER`.
+ */
+export function facePose(
+  phase: PackFacePhase, slot: PackFaceSlot | undefined, from: StageRect | undefined, vp: { w: number; h: number }, guaranteed = false,
+): FacePose {
+  if (phase === 'summary') {
+    return { x: (0.5 - SLOT_X) * vp.w + rowOffset(slot, SUMMARY_STEP), y: SUMMARY_DY, r: 0, sx: SUMMARY_SCALE, sy: SUMMARY_SCALE };
+  }
+  const { sx, sy } = pileScale(from, guaranteed);
+  if (phase === 'tray') {
+    const [x, y, r] = PILE_JITTER[(slot?.index ?? 0) % PILE_JITTER.length]!;
+    return { x, y, r, sx, sy };
+  }
+  return { x: 0, y: 0, r: 0, sx, sy };
 }
 
 /** The pose that puts the slot-laid face exactly on `from` (stage px). Uses the theatre's size, never a DOM read. */
-function fromPose(from: StageRect): string {
-  const vp = stageViewport();
-  const dx = from.left + from.width / 2 - vp.w * SLOT_X;
-  const dy = from.top + from.height / 2 - vp.h * SLOT_Y;
-  return pose(dx, dy, from.width / FACE_W, from.height / FACE_H);
+export function edgePose(from: StageRect, vp: { w: number; h: number }): FacePose {
+  return {
+    x: from.left + from.width / 2 - vp.w * SLOT_X,
+    y: from.top + from.height / 2 - vp.h * SLOT_Y,
+    r: 0,
+    sx: from.width / FACE_W,
+    sy: from.height / FACE_H,
+  };
 }
+
+const css = (p: FacePose): string => `translate(${p.x}px, ${p.y}px) rotate(${p.r}deg) scale(${p.sx}, ${p.sy})`;
 
 /** The face's category, singular ("Hero skin", "Title"); an unknown reward is just a "Reward". */
 function categoryLabel(kind: string, known: boolean): string {
@@ -142,10 +183,11 @@ export function PackFace({ card, phase, from, slot }: PackFaceProps) {
   const featured = phase === 'handoff' || phase === 'featured';
   const glow = featured && (card.rarity === 'legendary' || card.rarity === 'ancient');
 
+  const vp = placed ? stageViewport() : null; // the theatre's size, read once per render (never per frame)
   const outer: CSSProperties | undefined = placed
     ? {
       ...slotBox(),
-      transform: atEdge ? fromPose(from!) : placedPose(phase, slot),
+      transform: css(atEdge ? edgePose(from!, vp!) : facePose(phase, slot, from, vp!, card.guaranteed)),
       transition: atEdge ? 'none' : handoff ? `transform ${flipMs}ms ${MOVE_EASE}` : undefined,
     }
     : undefined;
@@ -168,37 +210,41 @@ export function PackFace({ card, phase, from, slot }: PackFaceProps) {
       aria-hidden
     >
       <div className="pkf-card" style={inner}>
-        <div className="pkf-cat">{categoryLabel(p.label.kind, p.category !== null)}</div>
-        <div className="pkf-art">
-          {p.art
-            ? <img src={p.art.url} alt="" decoding="sync" draggable={false} className={`pkf-img pkf-img-${p.art.kind}`} />
-            : (
-              <div className="pkf-emblem" data-emblem={p.emblem ?? 'unknown'}>
-                <svg viewBox="0 0 64 64" aria-hidden focusable="false">{EMBLEMS[p.emblem ?? 'unknown']}</svg>
-              </div>
-            )}
+        <img src={CARD_PLATE_SRC} alt="" decoding="sync" draggable={false} className="pkf-plate" />
+        <div className="pkf-win">
+          <div className="pkf-cat">{categoryLabel(p.label.kind, p.category !== null)}</div>
+          <div className="pkf-art">
+            {p.art
+              ? <img src={p.art.url} alt="" decoding="sync" draggable={false} className={`pkf-img pkf-img-${p.art.kind}`} />
+              : (
+                <div className="pkf-emblem" data-emblem={p.emblem ?? 'unknown'}>
+                  <svg viewBox="0 0 64 64" aria-hidden focusable="false">{EMBLEMS[p.emblem ?? 'unknown']}</svg>
+                </div>
+              )}
+            {card.duplicate
+              ? (
+                <div className="pkf-dup">
+                  <span className="pkf-stamp">Duplicate</span>
+                  <span className="pkf-aether">{`+${card.duplicate.aether} Aether`}</span>
+                </div>
+              )
+              : <div className="pkf-new">New</div>}
+          </div>
+          <div className="pkf-name">{p.label.name}</div>
+          {p.category === null && <div className="pkf-note">{p.label.kind}</div>}
+          <div className="pkf-ribbon">
+            <img src={rarityIconSrc(card.rarity)} alt="" decoding="sync" draggable={false} className="pkf-rarity-icon" />
+            <span>{packRarityLabel(card.rarity)}</span>
+          </div>
         </div>
-        <div className="pkf-name">{p.label.name}</div>
-        {p.category === null && <div className="pkf-note">{p.label.kind}</div>}
-        <div className="pkf-ribbon">
-          <img src={rarityIconSrc(card.rarity)} alt="" decoding="sync" draggable={false} className="pkf-rarity-icon" />
-          <span>{packRarityLabel(card.rarity)}</span>
-        </div>
-        {card.duplicate
-          ? (
-            <div className="pkf-dup">
-              <span className="pkf-stamp">Duplicate</span>
-              <span className="pkf-aether">{`+${card.duplicate.aether} Aether`}</span>
-            </div>
-          )
-          : <div className="pkf-new">New</div>}
       </div>
     </div>
   );
 }
 
 /**
- * Warm every face's art the moment a result arrives (spec section 11), so the handoff never shows a blank face. Called
+ * Warm every face's art (the card plate, each reward's art, each rarity medallion) the moment a result arrives (spec
+ * section 11), so the handoff never shows a blank face. Called
  * once per result, never per render. Returns the images so the caller can hold them until the next pack.
  */
 export function warmFaceArt(cards: readonly PackCard[]): HTMLImageElement[] {
@@ -206,7 +252,7 @@ export function warmFaceArt(cards: readonly PackCard[]): HTMLImageElement[] {
   const seen = new Set<string>();
   const held: HTMLImageElement[] = [];
   for (const c of cards) {
-    for (const url of [rewardPreview(c.rewardId).art?.url, rarityIconSrc(c.rarity)]) {
+    for (const url of [CARD_PLATE_SRC, rewardPreview(c.rewardId).art?.url, rarityIconSrc(c.rarity)]) {
       if (!url || seen.has(url)) continue;
       seen.add(url);
       const img = new Image();

@@ -15,18 +15,18 @@
 import { CanvasSource, Container, Graphics, MeshPlane, PerspectiveMesh, Sprite, Texture } from 'pixi.js';
 import { COSMETIC_RARITIES, type CrateRarity, type PackLook } from '@game/progression';
 import {
-  PACK_GEOM, TEX_RES, paintBlob, paintBody, paintCardFlash, paintCardGlow, paintFleck, paintPinchRing,
+  PACK_GEOM, TEX_RES, type BackArt, paintBlob, paintBody, paintCardFlash, paintCardGlow, paintFleck, paintPinchRing,
   paintPlainBack, paintRarityBack, paintRibbon, paintShade, paintSheen, paintSpec, paintStrip, paintStripBack,
 } from './packTextures';
-import { rarityIconSrc } from './packRarity';
+import { CARD_PLATE_SRC, rarityIconSrc } from './packRarity';
 import { StripMesh, TornLip } from './stripMesh';
 
 const { W, H, BODY_H, CARD_W, CARD_H } = PACK_GEOM;
 
 /** The stack's resting centre (inside the sleeve, its top showing at the opening). */
 export const CARDS_Y = H * 0.42 + CARD_H / 2;
-/** The guaranteed ribbon's centre below the card's centre. */
-export const RIBBON_DY = 108;
+/** The guaranteed ribbon's centre below the card's centre (the same fraction of the card's height at any CARD_H). */
+export const RIBBON_DY = Math.round(CARD_H * (108 / 370));
 /** The ribbon's half size on the card (base units). */
 export const RIBBON_HW = (CARD_W * 0.92) / 2, RIBBON_HH = 19;
 /** Pooled foil flecks. */
@@ -66,21 +66,26 @@ export interface Views {
 const fromCanvas = (c: HTMLCanvasElement): Texture => new Texture({ source: new CanvasSource({ resource: c }) });
 
 /**
- * The rarity medallion arrives after the scene is up (never blocks init): the back shows the gems until it decodes, then
- * the canvas is repainted once and the texture re-uploaded. Fires once per rarity per scene; a texture destroyed in the
- * meantime (teardown) is left alone. No image, no decode support or a failed load keeps the gems.
+ * The back art that arrives after the scene is up (never blocks init): the card plate (every back's frame) and each
+ * rarity's medallion. Each back paints a fallback first (a gold frame, the gems); when an image decodes, every back that
+ * uses it is repainted in place once and its texture re-uploaded. A texture destroyed in the meantime (teardown) is left
+ * alone. No image support or a failed load keeps the fallback.
  */
-function loadBackIcon(r: CrateRarity, canvas: HTMLCanvasElement, t: Texture): void {
+interface BackSlot { canvas: HTMLCanvasElement; tex: Texture; art: BackArt; paint: (art: BackArt, into: HTMLCanvasElement) => void }
+
+function loadImage(src: string, onLoad: (img: HTMLImageElement) => void): void {
   if (typeof Image === 'undefined') return;
   const img = new Image();
-  img.onload = () => {
-    if (t.destroyed) return;
-    try {
-      paintRarityBack(r, img, canvas);
-      t.source.update();
-    } catch { /* keep the gems */ }
-  };
-  img.src = rarityIconSrc(r);
+  img.onload = () => onLoad(img);
+  img.src = src;
+}
+
+function repaint(b: BackSlot): void {
+  if (b.tex.destroyed) return;
+  try {
+    b.paint(b.art, b.canvas);
+    b.tex.source.update();
+  } catch { /* keep what is painted */ }
 }
 
 /**
@@ -89,14 +94,26 @@ function loadBackIcon(r: CrateRarity, canvas: HTMLCanvasElement, t: Texture): vo
  */
 export function buildPackViews(look: PackLook, n: number, own: (t: Texture) => void): { views: Views; tex: SceneTextures } {
   const keep = (c: HTMLCanvasElement): Texture => { const t = fromCanvas(c); own(t); return t; };
+  const backs: BackSlot[] = [];
+  const back = (paint: BackSlot['paint']): BackSlot => {
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(PACK_GEOM.CARD_W * TEX_RES);
+    canvas.height = Math.round(PACK_GEOM.CARD_H * TEX_RES);
+    const art: BackArt = {};
+    paint(art, canvas);
+    const slot: BackSlot = { canvas, tex: keep(canvas), art, paint };
+    backs.push(slot);
+    return slot;
+  };
   const rarity = {} as Record<CrateRarity, Texture>;
   for (const r of COSMETIC_RARITIES) {
-    const canvas = paintRarityBack(r);
-    const t = keep(canvas);
-    rarity[r] = t;
-    loadBackIcon(r, canvas, t);
+    const slot = back((art, into) => { paintRarityBack(r, art, into); });
+    rarity[r] = slot.tex;
+    loadImage(rarityIconSrc(r), (img) => { slot.art.icon = img; repaint(slot); });
   }
-  const tex: SceneTextures = { plain: keep(paintPlainBack(look)), rarity };
+  const plain = back((art, into) => { paintPlainBack(look, art, into); });
+  loadImage(CARD_PLATE_SRC, (img) => { for (const b of backs) { b.art.plate = img; repaint(b); } });
+  const tex: SceneTextures = { plain: plain.tex, rarity };
 
   const root = new Container();
   const pack = new Container();

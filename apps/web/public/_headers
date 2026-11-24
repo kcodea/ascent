@@ -27,6 +27,8 @@
   Cache-Control: public, max-age=86400
 /medallions/*
   Cache-Control: public, max-age=86400
+/packs/*
+  Cache-Control: public, max-age=86400
 /cursors/*
   Cache-Control: public, max-age=86400
 /kwfx/*

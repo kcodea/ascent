@@ -11,8 +11,11 @@ prototype: `docs/superpowers/specs/2026-11-23-pack-opening-prototype.html`.
   the whole thing, and Reveal all flips the rest.
 - **Pack Lab**: a DevMenu panel with sample packs (including `mixed-dupes`) and live sliders for every feel number. It
   cancels its sample timers and keeps the run's look between samples.
-- **Rarity medallions** on the card backs and faces. **Ancient reads "Ascendant" inside the pack UI only**; the rest of
-  the game, the catalog and the data still say Ancient.
+- **Rarity medallions** on the card backs and faces (`ascent_rarity_ancient.webp` is the Ancient rarity's icon).
+  `ascent_rarity_secret.webp` also ships, unused: a Secret medallion supplied for later.
+- **The owner's card plate** (`packs/cosmetic-card-plate.webp`) frames every pack card, the Pixi backs and the DOM
+  faces alike. The face lands at the back's size, a little larger in the revealed pile on the right; the draw pile
+  slides left as it zooms.
 
 ## Dev-only
 
@@ -46,8 +49,6 @@ hand-dragged tear was not measured by script; the owner's feel check covers it.
 - The server rolls packs and answers in the `PackOpenResult` shape.
 - Add `packs.ts` to `SHARED_ARTIFACTS`.
 - Pricing.
-- Secret as a sixth rarity.
-- A game-wide Ascendant rename (today it is the pack UI only).
+- What the Secret medallion is for.
 - Decide whether to gate `packFeel` persistence out of player builds.
-- The owner's pack and card art: pack PNG 900x1428 with the tear strip in the top 56 of 476; card frame and back
-  780x1110.
+- The owner's pack art: pack PNG 900x1428 with the tear strip in the top 56 of 476 (the card plate has landed).

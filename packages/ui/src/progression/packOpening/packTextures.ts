@@ -19,9 +19,9 @@ export const PACK_GEOM = {
   H: 56,
   /** The sleeve body's height below the strip. */
   BODY_H: 420,
-  /** A card in the stack. */
+  /** A card in the stack: 2:3, the same shape as the face's card plate (the DOM face lands at the back's size). */
   CARD_W: 260,
-  CARD_H: 370,
+  CARD_H: 390,
 } as const;
 
 /** Canvas px per base unit. */
@@ -280,7 +280,23 @@ export function paintPinchRing(): HTMLCanvasElement {
 // ---------------------------------------------------------------- card backs
 
 const CW = PACK_GEOM.CARD_W * TEX_RES, CH = PACK_GEOM.CARD_H * TEX_RES;
-const CARD_R = 28;
+
+/**
+ * THE CARD PLATE's geometry (owner 2026-11-23: "the card back and front should use that same gold frame"), as fractions
+ * of the plate, measured on the 2048 x 3072 source (`packFaces.tsx` / `packOpening.css` use the same numbers):
+ * - `PLATE_WINDOW`: the navy window the back's content (and the face's) sits in: x 130..1918, y 201..2910 at the
+ *   shoulders (the notch lifts the centre to y 132); its corners round at about 14% of the plate's width.
+ * - `PLATE_OUTER`: the plate's outer edge (x 64..1980, y 131..2975 at the shoulders): the glow and the shimmer's shape.
+ */
+export const PLATE_WINDOW = { l: 0.064, r: 0.064, t: 0.07, b: 0.053, radius: 0.13 } as const;
+export const PLATE_OUTER = { l: 0.031, r: 0.033, t: 0.043, b: 0.032, radius: 0.09 } as const;
+
+interface Box { x: number; y: number; w: number; h: number; r: number }
+const box = (k: { l: number; r: number; t: number; b: number; radius: number }, w: number, h: number): Box => ({
+  x: w * k.l, y: h * k.t, w: w * (1 - k.l - k.r), h: h * (1 - k.t - k.b), r: w * k.radius,
+});
+const WIN = box(PLATE_WINDOW, CW, CH);
+const OUTER = box(PLATE_OUTER, CW, CH);
 
 /** Diamond lattice over a back. */
 function lattice(g: Ctx, w: number, h: number, alpha: number): void {
@@ -306,28 +322,58 @@ function star(g: Ctx, cx: number, cy: number, r: number, inner: number): void {
   g.closePath();
 }
 
-/** The plain pack-brand back: every card wears it until the result arrives. */
-export function paintPlainBack(look: PackLook): HTMLCanvasElement {
-  const p = packPalette(look);
-  const { c, g } = canvas(CW, CH);
-  rr(g, 0, 0, CW, CH, CARD_R);
+/**
+ * The plate behind a back: the owner's card plate once it has loaded (`plate`), or until then a plain gold frame in its
+ * outer shape (the fallback, so a back is never blank). The caller then paints its content clipped to the window.
+ */
+function paintPlate(g: Ctx, plate: CanvasImageSource | undefined): void {
+  g.clearRect(0, 0, CW, CH);
+  if (plate) { g.drawImage(plate, 0, 0, CW, CH); return; }
+  rr(g, OUTER.x, OUTER.y, OUTER.w, OUTER.h, OUTER.r);
   const gr = g.createLinearGradient(0, 0, CW, CH);
-  gr.addColorStop(0, '#1d2448');
-  gr.addColorStop(1, '#0c0f22');
+  gr.addColorStop(0, '#e6b45a');
+  gr.addColorStop(0.5, '#8a5a18');
+  gr.addColorStop(1, '#e6b45a');
   g.fillStyle = gr;
   g.fill();
+}
+
+/** Clip to the plate's window and fill it with a dark gradient (the back's ground). Pair with `g.restore()`. */
+function openWindow(g: Ctx, from: string, to: string): void {
   g.save();
-  rr(g, 0, 0, CW, CH, CARD_R);
+  rr(g, WIN.x, WIN.y, WIN.w, WIN.h, WIN.r);
   g.clip();
+  const gr = g.createLinearGradient(WIN.x, WIN.y, WIN.x + WIN.w, WIN.y + WIN.h);
+  gr.addColorStop(0, from);
+  gr.addColorStop(1, to);
+  g.fillStyle = gr;
+  g.fillRect(WIN.x, WIN.y, WIN.w, WIN.h);
+}
+
+/** The art a back is painted with once it loads (both optional: the fallback paints without them). */
+export interface BackArt { plate?: CanvasImageSource; icon?: CanvasImageSource }
+
+const ctxOf = (into: HTMLCanvasElement | undefined): { c: HTMLCanvasElement; g: Ctx } =>
+  (into ? { c: into, g: into.getContext('2d')! } : canvas(CW, CH));
+
+/**
+ * The plain pack-brand back: every card wears it until the result arrives. The card plate's gold frame, and inside its
+ * window the pack's lattice and star. `into` repaints an existing canvas in place (the plate arrives after init).
+ */
+export function paintPlainBack(look: PackLook, art: BackArt = {}, into?: HTMLCanvasElement): HTMLCanvasElement {
+  const p = packPalette(look);
+  const { c, g } = ctxOf(into);
+  paintPlate(g, art.plate);
+  openWindow(g, '#1d2448', '#0c0f22');
   lattice(g, CW, CH, 0.07);
-  g.restore();
-  g.lineWidth = 10;
-  g.strokeStyle = '#c9a85a';
-  rr(g, 16, 16, CW - 32, CH - 32, 20);
+  g.lineWidth = 4;
+  g.strokeStyle = 'rgba(201,168,90,.55)';
+  rr(g, WIN.x + 14, WIN.y + 14, WIN.w - 28, WIN.h - 28, WIN.r - 10);
   g.stroke();
   g.fillStyle = p.accent;
-  star(g, CW / 2, CH / 2, 120, 30);
+  star(g, CW / 2, WIN.y + WIN.h / 2, 120, 30);
   g.fill();
+  g.restore();
   return c;
 }
 
@@ -335,25 +381,20 @@ export function paintPlainBack(look: PackLook): HTMLCanvasElement {
 export const BACK_ICON_FRAC = 0.55;
 
 /**
- * A rarity's back: its colour and its gem count (1-5) under the ASCENT star, or, once `icon` (the rarity medallion) has
- * loaded, the medallion centred over the tint instead of the star and gems. `into` repaints an existing canvas in place
- * (the scene swaps the icon in when the image arrives, then re-uploads the texture).
+ * A rarity's back, inside the card plate's window: its colour and its gem count (1-5) under the ASCENT star, or, once
+ * `art.icon` (the rarity medallion) has loaded, the medallion centred over the tint instead of the star and gems. The
+ * frame is the card plate once `art.plate` has loaded (a gold fallback until then). `into` repaints an existing canvas
+ * in place (the scene swaps the art in when an image arrives, then re-uploads the texture).
  */
-export function paintRarityBack(rarity: CrateRarity, icon?: CanvasImageSource, into?: HTMLCanvasElement): HTMLCanvasElement {
+export function paintRarityBack(rarity: CrateRarity, art: BackArt = {}, into?: HTMLCanvasElement): HTMLCanvasElement {
   const col = PACK_RARITY_COLORS[rarity];
-  const { c, g } = into ? { c: into, g: into.getContext('2d')! } : canvas(CW, CH);
-  g.clearRect(0, 0, CW, CH);
-  rr(g, 0, 0, CW, CH, CARD_R);
-  const gr = g.createLinearGradient(0, 0, CW, CH);
-  gr.addColorStop(0, '#1a1f3a');
-  gr.addColorStop(1, '#090b18');
-  g.fillStyle = gr;
-  g.fill();
-  g.save();
-  rr(g, 0, 0, CW, CH, CARD_R);
-  g.clip();
+  const { c, g } = ctxOf(into);
+  const icon = art.icon;
+  paintPlate(g, art.plate);
+  openWindow(g, '#1a1f3a', '#090b18');
+  const cy = WIN.y + WIN.h / 2;
   // the rarity's wash from the middle
-  const wash = g.createRadialGradient(CW / 2, CH / 2, 20, CW / 2, CH / 2, CH * 0.62);
+  const wash = g.createRadialGradient(CW / 2, cy, 20, CW / 2, cy, CH * 0.6);
   wash.addColorStop(0, col);
   wash.addColorStop(1, 'rgba(0,0,0,0)');
   g.globalAlpha = 0.42;
@@ -361,22 +402,18 @@ export function paintRarityBack(rarity: CrateRarity, icon?: CanvasImageSource, i
   g.fillRect(0, 0, CW, CH);
   g.globalAlpha = 1;
   lattice(g, CW, CH, 0.06);
-  g.restore();
-  g.lineWidth = 12;
+  // the rarity's own line inside the gold frame
+  g.lineWidth = 6;
   g.strokeStyle = col;
-  rr(g, 16, 16, CW - 32, CH - 32, 20);
+  rr(g, WIN.x + 14, WIN.y + 14, WIN.w - 28, WIN.h - 28, WIN.r - 10);
   g.stroke();
-  g.lineWidth = 3;
-  g.strokeStyle = 'rgba(255,255,255,.35)';
-  rr(g, 30, 30, CW - 60, CH - 60, 14);
-  g.stroke();
-  const n = icon ? 0 : rarityGems(rarity), gap = 54, y = CH / 2 + 150;
+  const n = icon ? 0 : rarityGems(rarity), gap = 54, y = cy + 150;
   if (icon) {
     const w = CW * BACK_ICON_FRAC;
-    g.drawImage(icon, (CW - w) / 2, (CH - w) / 2 - 20, w, w);
+    g.drawImage(icon, (CW - w) / 2, cy - w / 2 - 20, w, w);
   } else {
     g.fillStyle = col;
-    star(g, CW / 2, CH / 2 - 40, 110, 28);
+    star(g, CW / 2, cy - 40, 110, 28);
     g.fill();
   }
   // gems: one per rarity step, in a row under the star (the placeholder until the medallion loads)
@@ -395,7 +432,8 @@ export function paintRarityBack(rarity: CrateRarity, icon?: CanvasImageSource, i
   g.textBaseline = 'alphabetic';
   g.fillStyle = col;
   g.font = `bold 40px ${SERIF}`;
-  g.fillText(packRarityLabel(rarity).toUpperCase(), CW / 2, CH - 70);
+  g.fillText(packRarityLabel(rarity).toUpperCase(), CW / 2, WIN.y + WIN.h - 56);
+  g.restore();
   return c;
 }
 
@@ -423,7 +461,7 @@ export function paintRibbon(floor: CrateRarity): HTMLCanvasElement {
   return c;
 }
 
-/** A soft white card-shaped glow (tinted by rarity; Legendary/Ancient pulse its alpha). Covers the card + a margin. */
+/** A soft white plate-shaped glow (tinted by rarity; Legendary/Ancient pulse its alpha). Covers the card + a margin. */
 export const CARD_GLOW_PAD = 40;
 export function paintCardGlow(): HTMLCanvasElement {
   const pad = CARD_GLOW_PAD * TEX_RES;
@@ -431,12 +469,12 @@ export function paintCardGlow(): HTMLCanvasElement {
   g.shadowColor = 'rgba(255,255,255,1)';
   g.shadowBlur = pad * 0.9;
   g.fillStyle = 'rgba(255,255,255,.9)';
-  rr(g, pad, pad, CW, CH, CARD_R);
+  rr(g, pad + OUTER.x, pad + OUTER.y, OUTER.w, OUTER.h, OUTER.r);
   g.fill();
   return c;
 }
 
-/** A flat white card silhouette (the crossfade shimmer, added over the top card). */
+/** A flat white plate silhouette (the crossfade shimmer, added over the top card). */
 export function paintCardFlash(): HTMLCanvasElement {
   const { c, g } = canvas(CW, CH);
   const gr = g.createLinearGradient(0, 0, CW, CH);
@@ -444,7 +482,7 @@ export function paintCardFlash(): HTMLCanvasElement {
   gr.addColorStop(0.5, 'rgba(255,255,255,.9)');
   gr.addColorStop(1, 'rgba(255,255,255,.15)');
   g.fillStyle = gr;
-  rr(g, 0, 0, CW, CH, CARD_R);
+  rr(g, OUTER.x, OUTER.y, OUTER.w, OUTER.h, OUTER.r);
   g.fill();
   return c;
 }

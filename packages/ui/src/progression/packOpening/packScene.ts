@@ -31,7 +31,8 @@ import { PIXI_ANTIALIAS } from '../../phoneArt';
 import { phonePixiOptions, pixiAllowed } from '../../phoneDiag';
 import { followStage } from '../../pixiStageFollow';
 import {
-  FLIP_HALF_GUARANTEED_MS, FLIP_HALF_MS, FLIP_PERSPECTIVE_PER_WIDTH, flipAngle, flipPoseAt, projectTurnedRect, type FlipPose,
+  FLIP_HALF_GUARANTEED_MS, FLIP_HALF_MS, FLIP_LIFT, FLIP_LIFT_GUARANTEED, FLIP_PERSPECTIVE_PER_WIDTH, REVEAL_FACE_X, REVEAL_STACK_X,
+  REVEAL_Y, REVEALED_SCALE, flipAngle, flipPoseAt, projectTurnedRect, type FlipPose,
 } from './cardFlip';
 import { getPackFeel, PACK_BASE_SIZE, type PackFeel } from './packFxConfig';
 import type { PackSounds } from './packSounds';
@@ -67,7 +68,8 @@ export interface PackScene {
   /** The card backs, in flip order (null = plain pack-brand backs). Only the top card's back ever shows. */
   setBacks(backs: readonly PackBack[] | null): void;
   /**
-   * Flip the top card's first half toward `toScreen` (SCREEN px). False while a flip is in flight, before `onZoomed`,
+   * Flip the top card's first half toward `toScreen` (SCREEN px): the featured slot's centre, right of the stack
+   * (`REVEAL_FACE_X`), so the card turns over as it travels right. False while a flip is in flight, before `onZoomed`,
    * or when no card remains.
    */
   flipTop(toScreen: { x: number; y: number }): boolean;
@@ -104,8 +106,12 @@ const { W, H, BODY_H, CARD_W, CARD_H } = PACK_GEOM;
 const FRAME_MS = 1000 / 60;
 /** Pulled this far, the sleeve's rim is below the stack. */
 const SLEEVE_CLEAR = CARDS_Y + CARD_H / 2 - H + 14;
-/** Where the zoomed stack centres. */
-const ZOOM_CY = H + BODY_H / 2 - 10;
+/**
+ * Half the zoomed back plus half the revealed face (`REVEALED_SCALE` x the back) fill at most this share of the gap
+ * between their centres (`REVEAL_FACE_X - REVEAL_STACK_X`), so on a narrow theatre the piles never overlap; at 16:9 it
+ * never binds.
+ */
+const REVEAL_FIT = 0.9;
 /** Grab radius at the strip's corner, sealed / once started. */
 const GRAB_R_SEALED = 45, GRAB_R_STARTED = 55;
 const DIM_TINT = 0xb8bccc;
@@ -157,6 +163,9 @@ class PackSceneImpl implements PackScene {
   private zoom = 0;
   private zoomV = 0;
   private zoomed = false;
+  /** The zoomed stack's centre (pack base units): `REVEAL_STACK_X`, `REVEAL_Y` of the host. Set by `layout`. */
+  private zoomTx = W / 2;
+  private zoomTy = CARDS_Y;
   private glowReveal = 0;
   /** Cards flipped away so far (the top card is `flipped`). */
   private flipped = 0;
@@ -310,18 +319,35 @@ class PackSceneImpl implements PackScene {
     try { fn(); } catch (e) { console.error(`[packScene] ${name} handler threw:`, e); }
   }
 
-  /** Fit the pack (and the zoomed stack) to the host; centred. */
+  /**
+   * Fit the pack (and the zoomed stack) to the host; the pack centred, the zoomed stack at `REVEAL_STACK_X` so the face
+   * can land at `REVEAL_FACE_X` beside it. Runs on every renderer resize, so the stack follows the host.
+   */
   private readonly layout = (): void => {
     const app = this.app, v = this.v;
     if (!app || !v) return;
     const w = app.screen.width, h = app.screen.height;
-    const k = Math.max(0.2, Math.min((h * 0.62) / PACK_BASE_SIZE.h, (w * 0.5) / PACK_BASE_SIZE.w));
+    const zoomedW = CARD_W * (1 + getPackFeel().stackZoom);
+    const kFit = ((REVEAL_FACE_X - REVEAL_STACK_X) * w * REVEAL_FIT) / (zoomedW * (1 + REVEALED_SCALE) / 2);
+    const k = Math.max(0.2, Math.min((h * 0.62) / PACK_BASE_SIZE.h, (w * 0.5) / PACK_BASE_SIZE.w, kFit));
     v.root.scale.set(k);
     v.root.x = Math.round(w / 2 - (W / 2) * k);
     v.root.y = Math.round(h / 2 - (PACK_BASE_SIZE.h / 2) * k);
+    this.zoomTx = (REVEAL_STACK_X * w - v.root.x) / k;
+    this.zoomTy = (REVEAL_Y * h - v.root.y) / k;
+    if (this.zoom !== 0 || this.zoomV !== 0) this.placeZoomedStack();
     this.rect.valid = false;
     if (!app.ticker.started) app.render();
   };
+
+  /** The stack along its zoom: from its rest in the sleeve to the reveal spot (left of centre), with the spring's overshoot. */
+  private placeZoomedStack(): void {
+    const v = this.v;
+    if (!v) return;
+    const e = Math.min(1.2, this.zoom);
+    v.cardsC.x = W / 2 + (this.zoomTx - W / 2) * e;
+    v.cardsC.y = CARDS_Y + (this.zoomTy - CARDS_Y) * e;
+  }
 
   // ---------------------------------------------------------------- the shell's calls
 
@@ -345,7 +371,7 @@ class PackSceneImpl implements PackScene {
     f.idx = idx;
     f.t = 0;
     f.dur = (b?.guaranteed ? FLIP_HALF_GUARANTEED_MS : FLIP_HALF_MS) / FRAME_MS;
-    f.lift = b?.guaranteed ? 0.14 : 0.08;
+    f.lift = b?.guaranteed ? FLIP_LIFT_GUARANTEED : FLIP_LIFT;
     f.scale = v.cardsC.scale.x;
     f.c0x = v.pack.x + v.cardsC.x + card.x * f.scale;
     f.c0y = v.pack.y + v.cardsC.y + card.y * f.scale;
@@ -811,7 +837,7 @@ class PackSceneImpl implements PackScene {
         }
       }
       v.cardsC.scale.set(1 + feel.stackZoom * this.zoom);
-      v.cardsC.y = CARDS_Y + (ZOOM_CY - CARDS_Y) * Math.min(1.2, this.zoom);
+      this.placeZoomedStack(); // eases left toward REVEAL_STACK_X as it zooms
     }
   }
 

@@ -1343,6 +1343,21 @@ export function shopSpellGrowthText(cardId: string, golden: boolean, inHand: boo
   return `When you cast a **Shop spell**, gain **{{+${g.attack}/+${g.health}}}** (${hm}x while in hand).`;
 }
 
+/**
+ * Huntsman (rune-only token, owner 2026-11-23): "When any minion dies, gain +6/+6 permanently. Gains double in the Shop."
+ * The live value is the PHASE: on the Shop's board a death pays the doubled gain, so it prints that number
+ * beside the rule ({{+12/+12 now}}, gilded {{+24/+24 now}}). In combat the printed +6/+6 is exact (null).
+ */
+export function deathGainText(cardId: string, golden: boolean, inShop: boolean | undefined): string | null {
+  if (!inShop) return null;
+  const def = CARD_INDEX[cardId];
+  const eff = def?.effects.find((e) => e.do === 'onAnyDeathGainSelf');
+  if (!def || !eff) return null;
+  const n = Number(eff.params?.shopTimes ?? 1) * (golden ? 2 : 1);
+  const base = golden ? def.goldenText ?? def.text : def.text;
+  return base.replace(/ in the Shop\.$/, ` in the Shop {{(+${Number(eff.params?.attack ?? 0) * n}/+${Number(eff.params?.health ?? 0) * n} now)}}.`);
+}
+
 export function perGoldSpentText(cardId: string, goldSpentThisTurn: number, golden = false): string | null {
   const def = CARD_INDEX[cardId];
   const eff = def?.effects.find((e) => e.do === 'battlecryBuffTargetPerGoldSpent');

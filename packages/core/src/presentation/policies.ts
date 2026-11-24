@@ -1328,6 +1328,8 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:endOfTurnCopyLeftmostHandCard:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },  // Stonehorn Archivist — cf. endOfTurnCopyNeighbour
   'factory:endOfTurnTransformLeftTierUp:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },   // Skybound Ascendant
   'factory:minionSoldDemonGainStats:minionSold': { policy: 'ownBeat', family: 'economy' }, // Arcane Behemoth — cf. minionSoldConsumeRightmost
+  'factory:onAnyDeathGainSelf:onDeath': { policy: 'ownBeat', family: 'echo' },                    // Huntsman (any death, one gain per death)
+  'factory:onRubyPlayedRubyEachType:onRubyPlayed': { policy: 'ownBeat', family: 'economy' },      // Furlboggen (one fan of Rubies per Ruby cast on it)
   'factory:onFriendDeathGainEcho:onDeath': { policy: 'ownBeat', family: 'echo' },                 // Echo Mimic (a friend-death watcher)
   'factory:avengeSummonAttackImproving:avenge': { policy: 'ownBeat', family: 'avenge' },          // Muster General — cf. avengeSummonAttack
   'factory:rallyDoubleSelf:onAttack': { policy: 'ownBeat', family: 'rally' },                     // Evolving Abomination — cf. rallyBuffSelf
@@ -1405,6 +1407,11 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_gilded_wings:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' }, // get a Gilded Transcendant (no Triple Reward)
   'rune:rune_double_tap:combat': { policy: 'foldedCue', family: 'combatModifier' }, // Shop-only flag: the turn's first 3 targeted hand casts cast twice (the rune pulses per doubled cast)
   'rune:rune_spellmaiden:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' }, // get a Spellmaiden
+  // ── Wizened Gems, Petah, Furlboggen, Huntsman, owner design 2026-11-23 ──
+  'rune:rune_wizened_gems:combat': { policy: 'ownBeat', family: 'runeMechanic' }, // every 3 Shop spells, any phase: the rune pulses, Rubies improve, a Ruby flies to hand
+  'rune:rune_petah:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' }, // get a Petah
+  'rune:rune_furlboggen:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' }, // get a Furlboggen
+  'rune:rune_huntsman:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' }, // get a Huntsman
 };
 
 /** Look up a key; undefined = unclassified (the tripwire's failure condition). */

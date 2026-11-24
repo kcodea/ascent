@@ -33,7 +33,7 @@ const echohornTargets = (r: ReturnType<typeof simulate>): string[] => {
 
 describe('R-ECHO-WATCHER-01 — the shared Echo predicate', () => {
   it('friend-death watchers are not Echoes; every other onDeath effect is (the wide reading)', () => {
-    expect([...DEATH_WATCHER_FACTORIES].sort()).toEqual(['impInheritOnDeath', 'onFriendDeathGainEcho']);
+    expect([...DEATH_WATCHER_FACTORIES].sort()).toEqual(['impInheritOnDeath', 'onAnyDeathGainSelf', 'onFriendDeathGainEcho']); // + Huntsman (2026-11-23)
     for (const w of DEATH_WATCHER_FACTORIES) expect(isEchoEffect({ on: 'onDeath', do: w })).toBe(false);
     // The 2026-07-31 wide-reading Echoes (ids that do not start with `deathrattle`) still count.
     for (const id of ['mossmemory_colossus', 'runesnout_archivist', 'dw_anvilshade', 'dw_brunni', 'dw3_beergutbud', 'duo_spencer', 'duo_antsy']) {

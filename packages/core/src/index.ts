@@ -21,4 +21,5 @@ export * from './set2RunesBasicNeutral'; // Set 2 rune batch, Basic neutral (own
 export * from './set2TribalRunes'; // Set 2 rune batch, Basic tribal (2026-11-13)
 export * from './set3UndeadRunes'; // Set 3 new-concept runes, Undead (2026-11-23)
 export * from './runeSequencing'; // Set 2 Epic Dragon rune Sequencing (2026-11-14)
+export * from './runeWizenedGems'; // Set 2 + 3 Basic Kobold rune Wizened Gems (2026-11-23)
 export * from './effects/echo'; // what counts as an Echo (R-ECHO-WATCHER-01)

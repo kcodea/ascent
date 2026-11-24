@@ -2613,6 +2613,32 @@ export const RUNES: RuneDef[] = [
     reward: { kind: 'runeSpellstone' },
     sets: ['set2', 'set3'], // + set3 2026-11-23 (owner Set 3 rune review board: approved carryover) | was: CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
+  // ── WIZENED GEMS + PETAH, owner design 2026-11-23 (R-WIZENED-1123-01 / -02). Append only. ──
+  {
+    // A RUNNING meter (`runeWizenedGemsTick`), one count across turns and phases: 3 Shop spells cast (R-SHOPSPELL-01, any
+    // caster, each repeat; a Ruby too while the Spellstone is held) improve your Rubies +1/+1 for the run and mint one,
+    // both once per copy held. Shop / End of Turn: `wizenedGemsOnCast` (packages/sim/src/wizenedGems.ts); combat:
+    // `wizenedGemsCombat` (simulate.ts), paid mid-fight, the count carried home.
+    id: 'rune_wizened_gems',
+    tribes: ['kobold'], // TRIBE GATE (the standing Ruby ruling, owner 2026-09-18): a Ruby rune is Kobold-related
+    name: 'Wizened Gems',
+    cost: 3,
+    text: 'When you cast **3 Shop spells**, improve your **Rubies** by **+1/+1** and get a **Ruby**.',
+    previewCards: ['ruby'], // text names it: the forge hover shows the card
+    reward: { kind: 'combatFlag', flag: 'runeWizenedGems' },
+    sets: ['set2', 'set3'],
+  },
+  {
+    // A Petah token (`b2_petah`, cards/set2/beasts.ts). Set 2 only, Beast runs (owner ruling 2026-11-23).
+    id: 'rune_petah',
+    tribes: ['beast'],
+    name: 'Petah',
+    cost: 3,
+    text: 'Get a **Petah**.',
+    previewCards: ['b2_petah'],
+    reward: { kind: 'grant', cards: ['b2_petah'] },
+    sets: ['set2'],
+  },
 ];
 
 /**
@@ -5274,6 +5300,30 @@ export const EPIC_RUNES: RuneDef[] = [
     previewCards: ['n2_spellmaiden'],
     reward: { kind: 'grant', cards: ['n2_spellmaiden'] },
     sets: ['set2'],
+  },
+  // ── FURLBOGGEN + HUNTSMAN, owner design 2026-11-23 (R-WIZENED-1123-03 / -04). Set 2 and Set 3. Append only. ──
+  {
+    // A Furlboggen token (`k_furlboggen`, cards/set2/kobolds.ts).
+    id: 'rune_furlboggen',
+    tribes: ['kobold'], // TRIBE GATE (the standing Ruby ruling, owner 2026-09-18): a Ruby rune is Kobold-related
+    name: 'Furlboggen',
+    cost: 4,
+    epic: true,
+    text: 'Get a **Furlboggen**.',
+    previewCards: ['k_furlboggen'],
+    reward: { kind: 'grant', cards: ['k_furlboggen'] },
+    sets: ['set2', 'set3'],
+  },
+  {
+    // A Huntsman token (`n2_huntsman`, cards/set2/neutral.ts).
+    id: 'rune_huntsman',
+    name: 'Huntsman',
+    cost: 3,
+    epic: true,
+    text: 'Get a **Huntsman**.',
+    previewCards: ['n2_huntsman'],
+    reward: { kind: 'grant', cards: ['n2_huntsman'] },
+    sets: ['set2', 'set3'],
   },
 ];
 

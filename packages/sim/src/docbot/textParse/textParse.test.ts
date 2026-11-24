@@ -241,7 +241,9 @@ const SWEEP = runTextSweep({ contracts: CONTRACTS });
 // 2026-11-23 (six Set 2 Epic runes + the Spellmaiden token): 224 -> 229, CONSCIOUSLY. Their rules (a Gold threshold
 // changed on another card, "no Triple Reward when played", a widened Ruby target, the first 3 targeted spells casting
 // twice, spell power multiplied on sale) are engine hooks or modifiers the clause grammar does not read.
-const UNRESOLVED_CAP = 238;
+// 2026-11-23 (Huntsman): 238 -> 239, CONSCIOUSLY. "When any minion dies" (either side) has no trigger word in the grammar;
+// the behaviour is pinned by packages/sim/src/wizenedRunes1123.test.ts. Furlboggen's "cast on this" grew the grammar instead.
+const UNRESOLVED_CAP = 239;
 /** Collapse floor: the parser fully consuming fewer objects than this means a grammar regression. */
 const PARSED_FLOOR = 900;
 /** The HARD ceiling (2026-09-11): the unresolved share of active objects may never reach this fraction again. A

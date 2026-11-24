@@ -85,10 +85,15 @@ export function runeProgress(
   for (const { e } of eventsOfType(events, 'runeSequence')) {
     if (e.side === side && (e.step ?? 0) <= curStep) sequence = e.seq;
   }
-  return sequence ? { triggers, deaths, sequence } : { triggers, deaths };
+  // Wizened Gems: the last replayed count for this side (the silent Shop-spell marker carries it).
+  let wizened: number | undefined;
+  for (const { e } of eventsOfType(events, 'shopSpellTally')) {
+    if (e.side === side && e.wizened !== undefined && (e.step ?? 0) <= curStep) wizened = e.wizened;
+  }
+  return { triggers, deaths, ...(sequence ? { sequence } : {}), ...(wizened !== undefined ? { wizened } : {}) };
 }
 
 /** A stable signature of a progress fold, so a per-beat memo only changes identity when a rune actually moved. */
 export function runeProgressKey(p: RuneCombatProgress | null): string {
-  return p ? `${p.deaths}|${Object.entries(p.triggers).sort().map(([k, v]) => `${k}:${v}`).join(',')}${p.sequence ? `|seq:${p.sequence.join(',')}` : ''}` : '';
+  return p ? `${p.deaths}|${Object.entries(p.triggers).sort().map(([k, v]) => `${k}:${v}`).join(',')}${p.sequence ? `|seq:${p.sequence.join(',')}` : ''}${p.wizened !== undefined ? `|wiz:${p.wizened}` : ''}` : '';
 }

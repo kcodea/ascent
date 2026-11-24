@@ -60,6 +60,16 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Balance',
+        text: 'Four new runes in Set 2, and three new minions that come only from runes.',
+        details: [
+          'Wizened Gems (Basic, 3 Gold, Kobold): When you cast 3 Shop spells, improve your Rubies by +1/+1 and get a Ruby.',
+          'Petah (Basic, 3 Gold, Beast): Get a Petah, a Tier 4 4/3 Beast. When you cast a spell, give 2 other random Beasts +3/+3.',
+          'Furlboggen (Epic, 4 Gold, Kobold): Get a Furlboggen, a Tier 6 8/6 Kobold. When a Ruby is cast on it, it casts a Ruby on another minion of each type.',
+          'Huntsman (Epic, 3 Gold): Get a Huntsman, a Tier 6 12/12. When any minion dies, it gains +6/+6 permanently. It gains double in the Shop.',
+        ],
+      },
+      {
+        category: 'Balance',
         text: 'Six new Epic runes in Set 2, and a new minion that comes only from a rune.',
         details: [
           'Deep Bond (4 Gold, Dwarf or Kobold): Get a Mountainbond. Your Mountainbonds only need 5 Gold spent to trigger.',

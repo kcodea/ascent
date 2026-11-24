@@ -92,6 +92,7 @@ const SELF_EXCLUDING: Record<string, Exclusion> = {
   avengeGiveAttack: 'the recipient walk skips `self`',
   impInheritOnDeath: 'the dying Imp is the payload; the inheritor is chosen from the others',
   impInheritOnSummon: 'the newborn is the payload; the source is not a candidate',
+  onRubyPlayedRubyEachType: 'Furlboggen (2026-11-23): the arena filters `m.uid !== arena.self.uid` out of the each-type walk (driven in wizenedRunes1123.test.ts)',
   onFriendDeathGainEcho: 'returns early when the dead `minion === self`',
   deathrattleSummonRandomTribe: 'fires only for its OWN death, and summons fresh bodies — never itself',
   echoResummonDeadBeasts: 'resummons from the dead; a living source cannot be among them',

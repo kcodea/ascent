@@ -384,4 +384,21 @@ export const SET2_KOBOLDS: CardDef[] = [
     text: 'When you get a **Ruby**, also get a random **Ruby**.',
     goldenText: 'When you get a **Ruby**, also get **2** random **Rubies**.',
   },
+  {
+    // FURLBOGGEN (owner design 2026-11-23, R-WIZENED-1123-03): the Furlboggen rune's token (Set 2 and Set 3). Every Ruby
+    // CAST on it, any source and any phase, casts a Ruby on one OTHER friendly minion of each type (Fatecarver's
+    // board-order selection, itself skipped). A Ruby that lands while any Furlboggen is casting never triggers one
+    // (owner ruling 2026-11-23), so two of them cannot loop. Combat Rubies are combat-only (R-BUFF-PERM). Gilded: 2 each.
+    id: 'k_furlboggen',
+    name: 'Furlboggen',
+    tribe: 'kobold',
+    tier: 6,
+    attack: 8,
+    health: 6,
+    keywords: [],
+    token: true, // forge-only: Source = Rune
+    effects: [{ on: 'onRubyPlayed', do: 'onRubyPlayedRubyEachType', params: { count: 1 } }],
+    text: 'When a **Ruby** is cast on this, cast a **Ruby** on another minion of **each type**.',
+    goldenText: 'When a **Ruby** is cast on this, cast **2 Rubies** on another minion of **each type**.',
+  },
 ];

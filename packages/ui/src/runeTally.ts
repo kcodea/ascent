@@ -2,7 +2,7 @@ import { RETURN_CUSTOMERS_PER_TURN, CLEAR_VOICES_DISTINCT, SPELL_TEMPERING_PER, 
 import { countedGoldSpentThisTurn } from '@game/sim';
 import { requiemLeftThisTurn } from '@game/sim';
 import { CARD_INDEX } from '@game/content';
-import { COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, DRAGON_RUNES_BASIC, GOLEMING_AVENGE, SET2_BASIC_NEUTRAL, SET2_TRIBAL_RUNES, ROYAL_TREASURY_PER, SEQUENCING_DISTINCT, SET3_UNDEAD_RUNES } from '@game/core';
+import { COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, DRAGON_RUNES_BASIC, GOLEMING_AVENGE, SET2_BASIC_NEUTRAL, SET2_TRIBAL_RUNES, ROYAL_TREASURY_PER, SEQUENCING_DISTINCT, SET3_UNDEAD_RUNES, WIZENED_GEMS } from '@game/core';
 
 /**
  * LIVE RUNE TALLIES (owner ask 2026-08-03: "make sure our runes/quests all have tally trackers like the
@@ -72,6 +72,8 @@ export function runeTally(run: RunState, runeId: string): string | null {
   // RUNE OF UNITY (tranche 5): the minion types the board controls right now, out of the active 5 (the full house is on
   // at 5/5). Plain integers, no "types" word (owner 2026-10-22: "we dont want to show 'refreshes' etc in our counter text").
   if (runeId === 'rune_unity' && run.questFlags?.runeUnity) { const u = unityTypeCount(run); return `${u.have}/${u.of}`; }
+  // WIZENED GEMS: Shop spells cast toward the next +1/+1 and Ruby (it carries across turns and fights).
+  if (runeId === 'rune_wizened_gems' && run.questFlags?.runeWizenedGems) return `${run.runeWizenedGemsTick ?? 0}/${WIZENED_GEMS.per}`;
   // RUNE OF THE GEM STAR: the turn's Rubies that already fed the Starform, out of the cap ("the first 4 each turn").
   if (runeId === 'rune_gem_star' && run.questFlags?.runeGemStar) return `${Math.min(GEM_STAR_CAP, run.gemStarThisTurn ?? 0)}/${GEM_STAR_CAP}`;
   // RUNE OF THE OPEN GRAVE: its one charge a turn, as the War Drum shows it (1 ready, 0 spent).
@@ -364,6 +366,8 @@ const RUNE_SUMMONS_PER: Record<string, number> = { rune_remains: 5 };
 export function runeLiveTally(runeId: string, live: RuneLiveState | null | undefined): string | null {
   // Rune of Sequencing: the sequence's length out of 3, the moment each combat cast moves it (R-REALTIME-01).
   if (runeId === 'rune_sequencing' && live?.sequence) return `${Math.min(SEQUENCING_DISTINCT, live.sequence.length)}/${SEQUENCING_DISTINCT}`;
+  // Wizened Gems: the same x/3, the moment each combat Shop spell moves it.
+  if (runeId === 'rune_wizened_gems' && live?.wizenedGems != null) return `${live.wizenedGems}/${WIZENED_GEMS.per}`;
   return null;
 }
 

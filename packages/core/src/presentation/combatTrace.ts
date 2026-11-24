@@ -162,7 +162,7 @@ function project(e: CombatEvent): Pick<CombatSemanticEvent, 'source' | 'target' 
     case 'teamSend':
       return defined({ detail: det({ side: e.side, member: e.member, idx: e.idx }) });
     case 'shopSpellTally':
-      return defined({ amount: e.count, detail: det({ side: e.side }) });
+      return defined({ amount: e.count, detail: det({ side: e.side, ...(e.wizened !== undefined ? { wizened: e.wizened } : {}) }) });
     case 'runeSequence':
       return defined({ amount: e.seq.length, detail: det({ side: e.side, seq: e.seq.join(',') }) });
     case 'tagIn':

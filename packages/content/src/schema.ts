@@ -634,6 +634,8 @@ export const EffectFactoryIdSchema = z.enum([
   'endOfTurnTransformLeftTierUp', // Skybound Ascendant
   'minionSoldDemonGainStats',     // Arcane Behemoth
   'onFriendDeathGainEcho',        // Echo Mimic
+  'onAnyDeathGainSelf',           // Huntsman (rune-only token, 2026-11-23)
+  'onRubyPlayedRubyEachType',     // Furlboggen (rune-only token, 2026-11-23)
   'avengeSummonAttackImproving',  // Muster General
   'rallyDoubleSelf',              // Evolving Abomination
   // ── Set 3 Neutrals, owner handoff 2026-09-18 ──
@@ -864,7 +866,9 @@ export const QuestCombatFlagSchema = z.enum(['bloodTrail', 'echoingCoop', 'lawOf
   // Set 2 rune, owner design 2026-11-13 (Shop-only)
   'runeEndOfQuarter', 'runeDrunkShopkeeper',
   // Set 2 Epic runes, owner design 2026-11-23 (Deep Bond + Double Tap Shop-only; Uninvited Guests combat)
-  'runeDeepBond', 'runeUninvitedGuests', 'runeDoubleTap']);
+  'runeDeepBond', 'runeUninvitedGuests', 'runeDoubleTap',
+  // Wizened Gems (Set 2 + 3 Basic, owner design 2026-11-23): both phases
+  'runeWizenedGems']);
 
 // The reward palette — a discriminated union kept in lockstep with the `QuestReward` type in @game/core.
 export const QuestRewardSchema: z.ZodType = z.lazy(() => z.discriminatedUnion('kind', [

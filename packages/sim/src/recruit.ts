@@ -45,6 +45,7 @@ import { discoverOptionCount, goldenHandshakeOnGild, piggyBankTick, shieldWallSh
 import { collectionsOnSale, drunkShopkeeperOnCast, flamekeeperOnCast, impLegionGraft, roughCutShop } from './set2RunesBasicTribal'; // Set 2 rune batch, Basic tribal
 import { deadWeightOnOverflow, rankAndFileGraft, requiemOnAuraRise, secondBurialNoteRise, secondBurialOnShopDeath, set3UndeadSocReplays, shallowGravesOnBuy } from './set3UndeadRunes'; // Set 3 Undead runes (2026-11-23)
 import { sequencingOnCast } from './runeSequencing'; // Set 2 Epic Dragon rune Sequencing (2026-11-14)
+import { wizenedGemsOnCast } from './wizenedGems'; // Set 2 + 3 Basic Kobold rune Wizened Gems (2026-11-23)
 
 /**
  * The recruit-phase half of the effect system (handoff C.5), split across the
@@ -182,7 +183,7 @@ type RecruitFn = (
    *  to vary a per-proc random selection (Combinator) so each weld picks fresh Mechs. `target` is the
    *  player-chosen friendly minion for a targeted Battlecry (Toxin Tender); absent = auto-pick. `replay`
    *  marks a Djinn-driven extra End-of-Turn (it must not advance a cadence counter — see Frontdrake). */
-  payload: { minion: BoardCard; proc?: number; target?: BoardCard; replay?: boolean; rubyAttack?: number; rubyHealth?: number;
+  payload: { minion: BoardCard; proc?: number; target?: BoardCard; replay?: boolean; rubyAttack?: number; rubyHealth?: number; /** `onRubyPlayed`: how many Rubies the cast was (Furlboggen answers per Ruby; 0 = a body born with Rubies, not a cast). */ rubies?: number;
     /** `onRubyPlayed`: the landed Ruby's keyword rider (a Warding Ruby's Ward), so a bounce carries the WHOLE Ruby. */
     rubyKeyword?: Keyword; spellDef?: CardDef; spellId?: string; /** `onGainCard`: WHICH card just arrived in hand — Kegheart Dwarf filters on it being a Dwarven Ale. The
   *  event used to carry only "a card arrived", which no watcher could filter. */ cardId?: string; /** CELESTIAL orbitFired: the minion whose Orbit resolved (Orrery excludes its own). */ source?: BoardCard; /** CELESTIAL: this Orbit was TRIGGERED (Astral Relay), not caused by a card arriving — so `minion` is
@@ -442,6 +443,9 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
       for (const d of dead) {
         const idx = state.board.indexOf(d);
         if (idx >= 0) state.board.splice(idx, 1);
+        // R-WIZENED-1123-04: a body this kills is a Shop death like any other (the spray's rule). The body whose Echo this
+        // is (`vacatingUid`) is already dying: its own destroy announces its death, so it is never announced twice.
+        if (d.uid !== state.vacatingUid) fireOnFriendDeath(state, d);
       }
       for (const d of dead) fireRecruitDeathrattles(makeContext(state), d);
     },
@@ -2770,6 +2774,7 @@ export function countRubyAsShopSpell(state: RunState, rubyDef: CardDef, casts: n
   state.spellsThisTurn += casts;
   advanceRuneThresholds(state, 'spellCast', casts);
   advanceRuneThresholds(state, 'spellCastNonAle', casts); // a Ruby is not an Ale
+  wizenedGemsOnCast(state, casts); // WIZENED GEMS: a Spellstone Ruby counts as a Shop spell, each resolved cast
   const ctx = makeContext(state);
   for (let i = 0; i < casts; i++) {
     fireShopSpellCastRunes(state); // Spellstone audit 2026-09-23: the per-cast Shop-spell RUNES hear the Ruby too
@@ -4539,6 +4544,20 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   },
 
   /** ECHO MIMIC — copies the Echo of a friendly that died in the shop onto itself (granted, per instance). */
+  /** HUNTSMAN (rune-only token, owner design 2026-11-23), Shop half: `fireOnFriendDeath` offers every Shop death once (the
+   *  enemy has no board here). A Huntsman already at 0 Health (dying in the same spray) gains nothing. */
+  onAnyDeathGainSelf: (ctx, self, params, payload) => {
+    if (self.health <= 0 || (payload as { minion?: BoardCard })?.minion === self) return;
+    ARENA_EFFECTS.onAnyDeathGainSelf(shopArena(ctx.state, self), params);
+  },
+
+  /** FURLBOGGEN (rune-only token, owner design 2026-11-23), Shop half: `fireOnRubyPlayed` tells the Ruby's target, with how
+   *  many Rubies the cast was (0 = a body born with Rubies, not a cast). Only a body on the board answers. */
+  onRubyPlayedRubyEachType: (ctx, self, params, payload) => {
+    if (!ctx.state.board.some((c) => c.uid === self.uid)) return;
+    ARENA_EFFECTS.onRubyPlayedRubyEachType(shopArena(ctx.state, self), { ...params, rubies: (payload as { rubies?: number })?.rubies });
+  },
+
   onFriendDeathGainEcho: (ctx, self, _params, payload) => {
     const dead = payload.minion;
     if (!dead || dead.uid === self.uid) return;
@@ -12453,7 +12472,20 @@ export function fireOnFriendDeath(state: RunState, dead: BoardCard, opts?: { ret
     for (const effect of instanceEffects(card)) {
       if (effect.on !== 'onDeath' || !FRIEND_DEATH_WATCHERS.has(effect.do)) continue;
       const fn = RECRUIT_FACTORIES[effect.do];
-      if (fn) captureBuffFx(state, card, 'minion', () => fn(ctx, card, effect.params ?? {}, { minion: dead }));
+      if (!fn) continue;
+      // Its OWN nested beat per (watcher x death), the `fireSpellCastWatcher` shape: one Huntsman gain per death reads one
+      // at a time inside an End-of-Turn beat. With no collector running it is the bare call.
+      withRecruitTrigger(
+        ctx,
+        {
+          phase: endOfTurnDepth > 0 ? 'endOfTurn' : 'recruit',
+          source: { kind: 'minion', id: card.cardId, uid: card.uid, side: 'player', label: CARD_INDEX[card.cardId]?.name },
+          trigger: 'onDeath',
+          ...beatIdentity(`factory:${effect.do}:onDeath`),
+        },
+        () => captureBuffFx(state, card, 'minion', () => fn(ctx, card, effect.params ?? {}, { minion: dead })),
+        { discardIfEmpty: true },
+      );
     }
   }
 }
@@ -12853,7 +12885,22 @@ export function fireOnRubyPlayed(state: RunState, card: BoardCard, rubyAttack: n
   const ctx = makeContext(state);
   for (const eff of def.effects) {
     if (eff.on !== 'onRubyPlayed') continue;
-    RECRUIT_FACTORIES[eff.do]?.(ctx, card, eff.params ?? {}, { minion: card, rubyAttack, rubyHealth, rubyKeyword });
+    const fn = RECRUIT_FACTORIES[eff.do];
+    if (!fn) continue;
+    // Its OWN nested beat, the `fireSpellCastWatcher` shape: Furlboggen's fan of Rubies is the card's answer to the Ruby
+    // that landed, with its own identity (inside an End-of-Turn beat the parent flushes first, so nothing is claimed
+    // twice). With no collector running it is the bare call.
+    withRecruitTrigger(
+      ctx,
+      {
+        phase: endOfTurnDepth > 0 ? 'endOfTurn' : 'recruit',
+        source: { kind: 'minion', id: card.cardId, uid: card.uid, side: 'player', label: def.name },
+        trigger: 'onRubyPlayed',
+        ...beatIdentity(`factory:${eff.do}:onRubyPlayed`),
+      },
+      () => captureBuffFx(state, card, 'minion', () => fn(ctx, card, eff.params ?? {}, { minion: card, rubyAttack, rubyHealth, rubyKeyword, rubies })),
+      { discardIfEmpty: true },
+    );
   }
 }
 
@@ -15145,6 +15192,7 @@ export function noteSpellCast(state: RunState, spellDef: CardDef): void {
   if (isShopPoolSpell(spellDef, poolOf(state).all)) {
     state.shopSpellsThisTurn = (state.shopSpellsThisTurn ?? 0) + 1;
     ancientNoteShopSpell(state); // ANCIENT OF WAR × Mimic: Shop spells cast this game (a no-op off Ancients runs)
+    wizenedGemsOnCast(state, 1); // WIZENED GEMS: every Shop spell counts, whoever cast it
   }
   // The per-cast SHOP-SPELL RUNES (Summoning / Might / Kindling / Flagship / Scales) — ONE shared function, so a
   // Spellstone Ruby ("counts as a Shop spell") fires exactly the same set (audit 2026-09-23: it used to reach

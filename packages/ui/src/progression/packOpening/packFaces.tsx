@@ -380,10 +380,10 @@ export function PackFace({ card, phase, from, slot, slow = 1, still = false }: P
           </div>
           {!isTitle && <div className="pkf-name"><span>{p.label.name}</span></div>}
           {p.category === null && <div className="pkf-note">{p.label.kind}</div>}
-          {/* what kind of cosmetic it is, just above its rarity and in the rarity's colour (owner 2026-11-24) */}
-          <div className="pkf-cat">{cat}</div>
-          {/* the rarity, in its colour, centred at the bottom; its medallion sits on the card's bottom edge (below) */}
+          {/* the rarity, in its colour, then what kind of cosmetic it is in white between rules of the rarity's colour
+              (owner 2026-11-24: "swap the rarity and the cosmetic type"); the medallion sits on the card's bottom edge (below) */}
           <div className="pkf-ribbon"><span>{packRarityLabel(card.rarity)}</span></div>
+          <div className="pkf-cat">{cat}</div>
         </div>
         <img src={rarityIconSrc(card.rarity)} alt="" decoding="sync" draggable={false} className="pkf-rarity-icon" />
       </div>

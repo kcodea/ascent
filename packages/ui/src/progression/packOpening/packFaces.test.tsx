@@ -67,10 +67,13 @@ describe('PackFace', () => {
     expect(face().querySelector('.pkf-cat')!.textContent).toBe('Title');
   });
 
-  it('the cosmetic type sits just above the rarity in its colour, and a card plate is cropped from its top like the Collection tile (owner 2026-11-24)', () => {
+  it('the cosmetic type sits under the rarity, white between rules of the rarity colour, and a card plate is cropped from its top like the Collection tile (owner 2026-11-24)', () => {
     m = mount(<PackFace card={card('plate_blossom')} phase="featured" />);
-    expect(face().querySelector('.pkf-ribbon')!.previousElementSibling!.classList.contains('pkf-cat')).toBe(true);
-    expect(/\.pkf-cat \{[^}]*\}/.exec(readFileSync(join(__dirname, 'packOpening.css'), 'utf8'))![0]).toMatch(/color: var\(--rc\)/);
+    expect(face().querySelector('.pkf-ribbon')!.nextElementSibling!.classList.contains('pkf-cat')).toBe(true);
+    const sheet = readFileSync(join(__dirname, 'packOpening.css'), 'utf8');
+    expect(/\.pkf-cat \{[^}]*\}/.exec(sheet)![0]).toMatch(/color: #fff;/);
+    expect(sheet).toContain('.pkf-cat::before { background: linear-gradient(90deg, transparent, var(--rc));');
+    expect(sheet).toContain('.pkf-cat::after { background: linear-gradient(90deg, var(--rc), transparent);');
     expect(face().querySelector('.pkf-art')!.previousElementSibling).toBeNull(); // the window opens with the art
     expect(face().querySelector('.pkf-art img.pkf-img-plate')).toBeTruthy();
     const css = readFileSync(join(__dirname, 'packOpening.css'), 'utf8');
@@ -79,7 +82,7 @@ describe('PackFace', () => {
     expect(rule).toMatch(/object-position: 50% 0/);
     m.unmount();
     m = mount(<PackFace card={card('alpha_tester')} phase="featured" />); // a title: the same place
-    expect(face().querySelector('.pkf-ribbon')!.previousElementSibling!.classList.contains('pkf-cat')).toBe(true);
+    expect(face().querySelector('.pkf-ribbon')!.nextElementSibling!.classList.contains('pkf-cat')).toBe(true);
     expect(face().querySelectorAll('.pkf-cat')).toHaveLength(1);
   });
 
@@ -87,7 +90,7 @@ describe('PackFace', () => {
     m = mount(<PackFace card={card('skin_albus_1')} phase="featured" />);
     expect(face().querySelector('.pkf-name > span')!.textContent).toBeTruthy();
     const rule = /.pkf-name {[^}]*}/.exec(readFileSync(join(__dirname, 'packOpening.css'), 'utf8'))![0];
-    expect(rule).toMatch(/background: #091226/);
+    expect(rule).toContain('background: rgba(9, 18, 38, 0.6)'); // the plate navy at 60%
     expect(rule).toMatch(/border-radius/);
     expect(rule).toContain("box-shadow: 0 0 0 2px var(--gold)");
   });

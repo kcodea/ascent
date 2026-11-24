@@ -16,6 +16,17 @@ prototype: `docs/superpowers/specs/2026-11-23-pack-opening-prototype.html`.
 - **The owner's card plate** (`packs/cosmetic-card-plate.webp`) frames every pack card, the Pixi backs and the DOM
   faces alike. The face lands at the back's size, a little larger in the revealed pile on the right; the draw pile
   slides left as it zooms.
+- **Rarity glows**: each pack glows in its rarity (a rarity pack in its own colour, otherwise its guaranteed floor),
+  and each card back and revealed face glows in the card's rarity. Common and Rare are steady, Epic pulses gently,
+  Legendary and Ancient pulse strongly. The pulse animates opacity only over static glow art. Pack glow and card glow
+  each have a slider in the Pack Lab.
+- **Common pack wrapper art** (`packs/` webp from the owner's booster PNG). The pack's shape now comes from the art:
+  300x547 at base size, with the tear strip in the top 61.
+- **Surface gloss**: a light band slides over the pack as it moves, with gloss strength and sharpness sliders. A
+  per-pack shine mask can be added later for a holographic or pearlescent foil.
+- **Mouse tilt on the sealed pack**, driven by the same drag-dive numbers as a dragged card in game (`getDragFeel()`),
+  scaled by a Pack tilt slider. The pack settles flat and stays still once you start opening it. Grabbing works on
+  the corner as drawn, and the hand stays under the finger while the tilt settles.
 
 ## Dev-only
 
@@ -34,7 +45,8 @@ request resets the opening to sealed, so the pack is not consumed in the UI. The
 peelAngle 0.4, edgeTowardCamera 139, slackBeforeTear 0.92, edgeFollowsHand 0.1, maxTearSpeed 18, fibreCatch 0.7,
 pinchTwist 0.65, tearsStraightUp 0.15, highlight 0.65, perspective 1780, volume 0.45, sleeveGrip 80,
 sleeveFollows 0.36, sleeveRimDrag 1, sleeveFingerPinch 0.08, sleeveLetGo 295, stackZoom 0.3, quickOpenMs 1000.
-Pixel values are tuned at a 300x476 pack and scale with the rendered width. Overrides persist to localStorage
+Pixel values were tuned at a 300-wide pack (the prototype was 300x476; the art makes it 300x547) and scale with the
+rendered width. Overrides persist to localStorage
 (`ascent.packFeel.v1`), clamped per key to the knob ranges, with junk falling back to the default.
 
 ## Performance
@@ -51,4 +63,5 @@ hand-dragged tear was not measured by script; the owner's feel check covers it.
 - Pricing.
 - What the Secret medallion is for.
 - Decide whether to gate `packFeel` persistence out of player builds.
-- The owner's pack art: pack PNG 900x1428 with the tear strip in the top 56 of 476 (the card plate has landed).
+- Wrapper art for the other pack kinds (the Common wrapper and the card plate have landed).
+- A holographic or pearlescent foil sheen (gloss plus a per-pack shine mask).

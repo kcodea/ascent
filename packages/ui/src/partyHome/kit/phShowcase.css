@@ -50,7 +50,7 @@ button.phs-press:hover, .phs-menu > button.phs-press { transform: translateY(cal
 .phs-rank.unranked { min-height: 13cqw; box-sizing: border-box; }
 .phs-compact .phs-rank.unranked { min-height: 10.5cqw; }
 .phs-rk { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.8cqw; }
-.phs-rk b { font-weight: 900; font-size: 3.4cqw; letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.phs-rk b { font-weight: 900; font-size: var(--phs-rf, 3.4cqw); letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .phs-rank.unranked .phs-rk b { color: var(--ph-muted); }
 .phs-rk small { font-weight: 700; font-size: 2.3cqw; color: var(--ph-muted); white-space: nowrap; }
 .phs-bar { display: block; height: 1cqw; min-height: 3px; border-radius: 99px; background: rgba(0, 0, 0, 0.45); overflow: hidden; }
@@ -123,11 +123,10 @@ button.phs-press:hover, .phs-menu > button.phs-press { transform: translateY(cal
 .phs-team > .ph-pairlbl { position: absolute; left: 0; right: 0; bottom: calc(100% + 12 * var(--phu, 1px)); margin: 0 auto; }
 
 /* PHONES: the house rule "nothing under calc(18 * var(--phu))" (partyHome.css, PHONE). Each small line keeps its own size
-   where that is larger. The name is left alone (its size fits it to one line; a floor there is the owner's call). */
-html[data-ph-compact] .phs-card :is(.phs-eyebrow, .phs-rk b, .phs-rk small, .phs-band, .phs-badge, .phs-you, .phs-glbl, .phs-gsub, .phs-gpill) { font-size: max(calc(18 * var(--phu)), var(--phs-fs)); }
-html[data-ph-compact] .phs-card .phs-eyebrow { --phs-fs: 2.6cqw; }
-html[data-ph-compact] .phs-card .phs-rk b { --phs-fs: 3.4cqw; }
-html[data-ph-compact] .phs-card .phs-rk small { --phs-fs: 2.3cqw; }
+   where that is larger. ONLY where the floored text fits (R10, measured at phone geometry): the eyebrow, the rank label and
+   the points keep their own sizes, since at 18 units they overran their slots (a phone rank-well layout is the owner's
+   call), and the name keeps its fitted size. */
+html[data-ph-compact] .phs-card :is(.phs-band, .phs-badge, .phs-you, .phs-glbl, .phs-gsub, .phs-gpill) { font-size: max(calc(18 * var(--phu)), var(--phs-fs)); }
 html[data-ph-compact] .phs-card .phs-band { --phs-fs: 2.4cqw; }
 html[data-ph-compact] .phs-card .phs-badge { --phs-fs: 2.2cqw; }
 html[data-ph-compact] .phs-card .phs-you { --phs-fs: 2cqw; }

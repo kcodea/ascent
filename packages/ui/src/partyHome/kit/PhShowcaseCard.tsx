@@ -80,6 +80,17 @@ export function nameFontCqw(name: string): number {
   return Math.round(Math.max(PHS_NAME_FLOOR_CQW, Math.min(PHS_NAME_MAX_CQW, fit)) * 100) / 100;
 }
 
+/** THE RANK LABEL FITS ITS SLOT (R10, 2026-11-23): "Ascendant III" overran the compact slot by 3 px and the full one by far.
+ *  The slot is what the well leaves after its padding, crest and gap: 43 - 6 - 13 - 3 = 21cqw at full and half, 45 - 4.8 -
+ *  10.5 - 3 = 26.7cqw at compact (each minus a hair). The label keeps 3.4cqw when it fits, else shrinks to fit; its 0.04em
+ *  tracking is 0.02em more than the name's, so it adds that per letter to nameEm. */
+export const PHS_RANK_MAX_CQW = 3.4;
+const PHS_RANK_SLOT_CQW: Record<PhCardSize, number> = { full: 20.6, half: 20.6, compact: 26.2 };
+export function rankLabelCqw(label: string, size: PhCardSize): number {
+  const em = nameEm(label) + 0.02 * [...label].length;
+  return Math.round(Math.min(PHS_RANK_MAX_CQW, PHS_RANK_SLOT_CQW[size] / Math.max(em, 1)) * 100) / 100;
+}
+
 export const PhShowcaseCard = memo(function PhShowcaseCard({
   size, label, name, art, eyebrow, titleId, fallbackLine, rank, mine, rival, mirrored, badge, band, youLabel,
   onClick, haspopup, expanded, overlay, under, index = 0, className,
@@ -100,7 +111,7 @@ export const PhShowcaseCard = memo(function PhShowcaseCard({
           <span className="phs-title">
             {titleId ? <TitleBadge id={titleId} /> : fallbackLine ? <span className="phs-fallback">{fallbackLine}</span> : '\u00A0'}
           </span>
-          <RankWell rank={rank} />
+          <RankWell rank={rank} size={size} />
         </span>
       </Press>
       {overlay}
@@ -110,7 +121,7 @@ export const PhShowcaseCard = memo(function PhShowcaseCard({
 });
 
 /** The rank well: crest, division, bar and points; "Unranked" alone when there is no rank. */
-function RankWell({ rank }: { rank: RankPosition | null }) {
+function RankWell({ rank, size }: { rank: RankPosition | null; size: PhCardSize }) {
   if (!rank) {
     return (
       <span className="phs-rank unranked">
@@ -122,7 +133,7 @@ function RankWell({ rank }: { rank: RankPosition | null }) {
     <span className="phs-rank">
       <RankCrest divisionIndex={rank.divisionIndex} size="row" className="phs-crest" />
       <span className="phs-rk">
-        <b>{rankLabel(rank.divisionIndex)}</b>
+        <b style={{ '--phs-rf': `${rankLabelCqw(rankLabel(rank.divisionIndex), size)}cqw` } as CSSProperties}>{rankLabel(rank.divisionIndex)}</b>
         <span className="phs-bar" aria-hidden="true"><i style={{ width: `${barFraction(rank) * 100}%` }} /></span>
         <small>{pointsText(rank)}</small>
       </span>

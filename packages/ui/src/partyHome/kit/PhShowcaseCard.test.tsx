@@ -10,7 +10,7 @@ import { mount, type Mounted } from '../../renderedText.mount';
 // TitleBadge reads the progression store; guard the pixi import chain's canvas probe as rankSurfaces.test.tsx does.
 HTMLCanvasElement.prototype.getContext = (() => null) as unknown as HTMLCanvasElement['getContext'];
 
-import { nameEm, nameFontCqw, PHS_NAME_FLOOR_CQW, PHS_NAME_MAX_CQW, PhShowcaseCard, PhShowcaseGhost } from './PhShowcaseCard';
+import { nameEm, nameFontCqw, PHS_NAME_FLOOR_CQW, PHS_NAME_MAX_CQW, PHS_RANK_MAX_CQW, PhShowcaseCard, PhShowcaseGhost, rankLabelCqw } from './PhShowcaseCard';
 import { pointsText, rankLabel } from '../../rank/rankFormat';
 
 let ui: Mounted | null = null;
@@ -112,5 +112,31 @@ describe('the name fits one line', () => {
   it('pins the mapping', () => {
     expect([4, 8, 11, 16, 24].map((len) => nameFontCqw('A'.repeat(len)))).toEqual([8.4, 6.91, 5.02, 3.45, 2.3]);
     expect(nameFontCqw('W'.repeat(24))).toBe(1.72);
+  });
+});
+
+// R10 (2026-11-23): every rank label rankLabel() can print fits its slot at every card size (21cqw at full and half,
+// 26.7cqw at compact: what the well leaves after padding, crest and gap); short labels keep 3.4cqw.
+describe('the rank label fits its slot', () => {
+  const SLOT = { full: 21, half: 21, compact: 26.7 } as const;
+  const labels = Array.from({ length: 18 }, (_, i) => rankLabel(i));
+  it('covers the whole ladder, Ascendant III the longest', () => {
+    expect(labels).toContain('Ascendant III');
+    expect(Math.max(...labels.map((l) => nameEm(l)))).toBe(nameEm('Ascendant III'));
+  });
+  it('fits every label at full, half and compact', () => {
+    for (const size of ['full', 'half', 'compact'] as const) {
+      for (const l of labels) {
+        const width = (nameEm(l) + 0.02 * l.length) * rankLabelCqw(l, size);
+        expect(width, `${l} @ ${size}`).toBeLessThanOrEqual(SLOT[size]);
+      }
+    }
+  });
+  it('pins the mapping', () => {
+    expect(rankLabelCqw('Gold I', 'full')).toBe(PHS_RANK_MAX_CQW);
+    expect(rankLabelCqw('Bronze I', 'compact')).toBe(PHS_RANK_MAX_CQW);
+    expect(rankLabelCqw('Ascendant III', 'full')).toBe(2.44);
+    expect(rankLabelCqw('Ascendant III', 'compact')).toBe(3.1);
+    expect(rankLabelCqw('Platinum III', 'half')).toBe(2.81);
   });
 });

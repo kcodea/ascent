@@ -20,8 +20,8 @@ prototype: `docs/superpowers/specs/2026-11-23-pack-opening-prototype.html`.
   and each card back and revealed face glows in the card's rarity. Common and Rare are steady, Epic pulses gently,
   Legendary and Ancient pulse strongly. The pulse animates opacity only over static glow art. Pack glow and card glow
   each have a slider in the Pack Lab.
-- **Pack wrapper art per rarity** (`packs/<rarity>-pack.webp`, from the owner's five rarity wrappers; the Secret wrapper
-  is held back until Secret's role is decided). Each PNG is cut on one template, 600x900 with the tear line on row 100:
+- **Pack wrapper art per rarity** (`packs/<rarity>-pack.webp`, from the owner's five rarity wrappers), plus the owner's
+  Secret wrapper as a themed "Secret Pack" look (Secret is not a rarity yet; it glows at an Ancient floor for now). Each PNG is cut on one template, 600x900 with the tear line on row 100:
   strip and body are scaled separately so the crimped edges stay whole and every tear line lines up. The pack is 300x450
   at base size, with the tear strip in the top 50. Category and themed packs keep the placeholder painting.
 - **Surface gloss**: a light band slides over the pack as it moves, with gloss strength and sharpness sliders. A

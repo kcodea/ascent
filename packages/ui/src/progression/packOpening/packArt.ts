@@ -5,8 +5,8 @@ import { packGlowRarity } from './packGlow';
  * PACK WRAPPER ART (owner 2026-11-23: a wrapper per pack rarity). Which pack wears a painted wrapper: the whole pack
  * (tear strip + sleeve body) as one image cut on the `packGeom.ts` template, 600 x 900 webp (2x the pack's 300 x 450
  * base). The strip is the art above the tear line, the body the rest. A look with no entry (category and themed packs)
- * keeps the placeholder painting (packTextures.ts). The owner's Secret wrapper is not shipped: Secret is not a rarity
- * yet (its role is undecided).
+ * keeps the placeholder painting (packTextures.ts). The owner's Secret wrapper ships as a THEMED look
+ * (`SECRET_PACK_LOOK_ID`): Secret is not a rarity yet (its role is undecided), so it hangs off the look's id.
  *
  * Mask-ready (owner ask, not built yet): a greyscale SHINE MASK per wrapper will limit where the gloss shows. Its URL
  * comes from `packShineFor` below; `packViews.ts` marks where the gloss takes it (the MASK HOOK beside the gloss mesh).
@@ -22,8 +22,13 @@ export const RARITY_PACK_ART: Readonly<Record<CrateRarity, string>> = {
   ancient: `${BASE}packs/ancient-pack.webp`,
 };
 
-/** The wrapper art for `look`, or null (the placeholder painting). Only rarity packs have art today. */
+/** The Secret pack's look id (a themed look until Secret's role is decided) and its wrapper. */
+export const SECRET_PACK_LOOK_ID = 'themed-secret';
+export const SECRET_PACK_SRC = `${BASE}packs/secret-pack.webp`;
+
+/** The wrapper art for `look`, or null (the placeholder painting): every rarity pack, and the Secret pack. */
 export function packArtFor(look: PackLook): string | null {
+  if (look.kind === 'themed' && look.id === SECRET_PACK_LOOK_ID) return SECRET_PACK_SRC;
   if (look.kind !== 'rarity') return null;
   return RARITY_PACK_ART[packGlowRarity(look)];
 }

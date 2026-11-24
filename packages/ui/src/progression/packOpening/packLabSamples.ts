@@ -2,6 +2,7 @@ import {
   COSMETIC_RARITIES, cosmeticOf,
   type CosmeticCategory, type CrateRarity, type PackCard, type PackLook, type PackOpenResult,
 } from '@game/progression';
+import { SECRET_PACK_LOOK_ID } from './packArt';
 
 /**
  * THE PACK LAB'S SAMPLE PACKS (dev only). Ready-made `PackOpenResult`s the owner opens to feel the tear, the sleeve and
@@ -36,6 +37,8 @@ export const PACK_LAB_LOOKS: readonly PackLook[] = [
   categoryLook('card_plate', 'Card Plate Pack', 'epic'),
   { kind: 'themed', id: 'themed-launch', name: 'Launch Pack (placeholder)', guaranteedFloor: 'epic' },
   { kind: 'themed', id: 'themed-season', name: 'Season Pack (placeholder)', guaranteedFloor: 'legendary' },
+  // the owner's Secret wrapper; Secret is not a rarity yet, so it glows at an Ancient floor for now
+  { kind: 'themed', id: SECRET_PACK_LOOK_ID, name: 'Secret Pack', guaranteedFloor: 'ancient' },
 ];
 
 const RANK: Readonly<Record<CrateRarity, number>> = { common: 0, rare: 1, epic: 2, legendary: 3, ancient: 4 };

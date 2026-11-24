@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { COSMETIC_RARITIES } from '@game/progression';
-import { RARITY_PACK_ART, packArtFor, packShineFor } from './packArt';
+import { RARITY_PACK_ART, SECRET_PACK_LOOK_ID, SECRET_PACK_SRC, packArtFor, packShineFor } from './packArt';
 import { PACK_LAB_LOOKS } from './packLabSamples';
 import { PACK_ART_TEMPLATE, PACK_GEOM, derivePackHeights } from './packGeom';
 
@@ -25,7 +25,9 @@ describe('packArtFor', () => {
       expect(look, r).toBeDefined();
       expect(packArtFor(look!)).toBe(RARITY_PACK_ART[r]);
     }
-    for (const look of PACK_LAB_LOOKS.filter((l) => l.kind !== 'rarity')) expect(packArtFor(look), look.id).toBeNull();
+    const secret = PACK_LAB_LOOKS.find((l) => l.id === SECRET_PACK_LOOK_ID)!;
+    expect(packArtFor(secret)).toBe(SECRET_PACK_SRC);
+    for (const look of PACK_LAB_LOOKS.filter((l) => l.kind !== 'rarity' && l !== secret)) expect(packArtFor(look), look.id).toBeNull();
     // a category pack with a Common floor is not the Common pack
     expect(packArtFor({ kind: 'category', id: 'category-emote', name: 'Emote Pack', guaranteedFloor: 'common' })).toBeNull();
   });
@@ -37,6 +39,10 @@ describe('packArtFor', () => {
       expect(existsSync(file), r).toBe(true);
       expect(webpSize(file), r).toEqual({ w: PACK_GEOM.W * 2, h: (PACK_GEOM.H + PACK_GEOM.BODY_H) * 2 });
     }
+    expect(SECRET_PACK_SRC.endsWith('packs/secret-pack.webp')).toBe(true);
+    const secret = join(PUBLIC, 'packs', 'secret-pack.webp');
+    expect(existsSync(secret)).toBe(true);
+    expect(webpSize(secret)).toEqual({ w: PACK_GEOM.W * 2, h: (PACK_GEOM.H + PACK_GEOM.BODY_H) * 2 });
   });
 
   it('has no shine mask yet (the hook returns null)', () => {

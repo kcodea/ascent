@@ -7,6 +7,7 @@ import {
   type RankedGatePhase,
 } from './rankedGateTiming';
 import './rankedGate.css';
+import { GATE_ENTER_TINT_ID } from './gateEnterConfig'; // also applies the word's tuned look when it loads
 import { PHONE_GPU } from '../phoneDiag';
 import { dropLocationReveal, playFullReveal, playLightReveal, readyReveal, warmLocationReveal, type LocationRevealRequest } from '../locationReveal/revealPlayer';
 
@@ -344,6 +345,15 @@ export function RankedGate(): JSX.Element | null {
         {(phase === 'forming' || armed || phase === 'shatter') && (
           <div className={`rgate-enter${armed && !pressed ? ' is-on' : ''}`} aria-hidden="true">
             <img className="rgate-enter-word" decoding="sync" src={ENTER_SRC} alt="" draggable={false} />
+            {/* THE TINT (gateEnterConfig.ts): the word washed toward one colour, keeping its own light and dark. The
+                stylesheet links this filter only while the tint is on, and feeds the flood its colour and amount. */}
+            <svg className="rgate-enter-tint" focusable="false">
+              <filter id={GATE_ENTER_TINT_ID} colorInterpolationFilters="sRGB">
+                <feFlood className="rgate-enter-tint-flood" result="wash" />
+                <feComposite in="wash" in2="SourceAlpha" operator="in" result="washOnWord" />
+                <feBlend in="washOnWord" in2="SourceGraphic" mode="color" />
+              </filter>
+            </svg>
           </div>
         )}
       </div>

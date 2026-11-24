@@ -51,6 +51,7 @@ import {
 import { CATEGORY_BUS, CATEGORY_GAINS, CATEGORY_LABEL } from '../audio/config';
 import { familyOf } from '../audio/clipFamily';
 import { LOCATIONS } from '../locationReveal/locations';
+import { GATE_ENTER_BASE_W, GATE_ENTER_DEFAULTS } from './gateEnterConfig';
 
 let ui: Mounted | null = null;
 const phaseOf = (): string | null => {
@@ -581,9 +582,10 @@ describe('what ships', () => {
     const num = (re: RegExp, src: string): number => Number(re.exec(src)![1]);
     // Placed in art pixels by the doors' own cover scale, under the crystal, and never in the pointer's way.
     expect(box).toContain('--rg-u: max(calc(50cqw / var(--rg-art-hw, 836)), calc(100cqh / var(--rg-art-h, 941)))');
-    expect(box).toContain('top: calc(50% + var(--rg-enter-dy) * var(--rg-u))');
+    // (Where exactly, how big and what colour are the dev tuner's: gateEnterConfig.ts and its own test.)
+    expect(box).toContain(`top: calc(50% + var(--rg-enter-dy, ${GATE_ENTER_DEFAULTS.y}) * var(--rg-u))`);
     const crystalBottom = RANKED_GATE_ART.crystalCy - RANKED_GATE_ART.h / 2 + RANKED_GATE_ART.crystalSize / 2;
-    expect(num(/--rg-enter-dy: ([\d.]+);/, box), 'below the crystal').toBeGreaterThan(crystalBottom);
+    expect(GATE_ENTER_DEFAULTS.y, 'below the crystal').toBeGreaterThan(crystalBottom);
     expect(box).toContain('pointer-events: none');
     // The fade: unseen until it is on, in slowly, out fast.
     expect(box).toMatch(/opacity: 0;/);
@@ -592,15 +594,16 @@ describe('what ships', () => {
     expect(fadeIn).toBeGreaterThan(fadeOut * 3);
     // The painted word is committed, and sized in art pixels at its own shape (so it holds its box before it decodes).
     expect(existsSync(pub('frames', 'ranked-gate-enter.webp'))).toBe(true);
-    expect(word).toContain('width: calc(var(--rg-enter-w) * var(--rg-u))');
+    expect(word).toContain(`width: calc(${GATE_ENTER_BASE_W} * var(--rg-enter-scale, 1) * var(--rg-u))`);
     expect(word).toMatch(/aspect-ratio: \d+ \/ \d+;/);
-    // Its light is painted in. The stylesheet adds ONE thing: a black copy thrown well away, down the door, and soft.
+    // Its light is painted in. The stylesheet's own mark on it is a black copy thrown well away, down the door, and
+    // soft: the LAST step of the filter, after the tuner's colour and glow steps.
     expect(word, 'no lettering left to style').not.toMatch(/font-|text-shadow|color:/);
-    const cast = /filter: drop-shadow\(([^;]*)\);/.exec(word)![1]!;
+    const cast = /drop-shadow\((calc\(\d[^;]*)\);/.exec(word)![1]!;
     expect(cast).toMatch(/rgba\(0, 0, 0, 0\.\d+\)$/);
     const [, drop, blur] = /^calc\(\d+ \* var\(--rg-u\)\) calc\((\d+) \* var\(--rg-u\)\) calc\((\d+) \* var\(--rg-u\)\)/.exec(cast)!.map(Number) as [number, number, number];
     const [, artW, artH] = /aspect-ratio: (\d+) \/ (\d+);/.exec(word)!.map(Number) as [number, number, number];
-    const height = num(/--rg-enter-w: (\d+);/, box) * artH / artW;
+    const height = GATE_ENTER_BASE_W * artH / artW;
     expect(drop / height, 'far: a good part of the word\'s own height away').toBeGreaterThan(0.25);
     expect(blur, 'soft: a filter blur is a deviation, so this is twice as wide as the same text-shadow number').toBeGreaterThanOrEqual(9);
     // The bob: light, the image's transform only, and only while the crystal is up.

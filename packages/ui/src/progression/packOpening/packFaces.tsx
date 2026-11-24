@@ -1,7 +1,11 @@
 import {
   useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactElement,
 } from 'react';
-import type { PackCard } from '@game/progression';
+import { cosmeticOf, type PackCard } from '@game/progression';
+import { HeroAttackPreview, heroAttackPreviewKnown } from '../../heroBlast/HeroAttackPreview';
+import { MenuMedal, type MenuMedalName } from '../../menuIcons';
+import { HeroPortraitRing } from '../../portraitFrame/HeroPortraitRing';
+import { TitleBadge } from '../../titles/TitleBadge';
 import { stageViewport, type StageRect } from '../../stage';
 import { rewardPreview, type RewardEmblem } from '../rewardPreview';
 import { CARD_PLATE_SRC, CARD_WINDOW_MASK_SRC, cardPlateSrc, packRarityLabel, rarityIconSrc } from './packRarity';
@@ -146,36 +150,21 @@ const HOLO_MASK = `url("${CARD_WINDOW_MASK_SRC}")`;
 
 const STROKE = { fill: 'none', stroke: 'currentColor', strokeWidth: 3.5, strokeLinecap: 'round', strokeLinejoin: 'round' } as const;
 
-/** One drawn emblem per `RewardEmblem` (no `<title>`: the face is announced by the shell's status region). */
-const EMBLEMS: Readonly<Record<RewardEmblem, ReactElement>> = {
-  title: (
-    <g {...STROKE}>
-      <path d="M14 22h36v18H14z" />
-      <path d="M14 26H6l5 7-5 7h8M50 26h8l-5 7 5 7h-8" />
-      <path d="M22 31h20" />
-    </g>
-  ),
-  announcer: (
-    <g {...STROKE}>
-      <path d="M10 26h8l22-12v36L18 38h-8z" />
-      <path d="M18 38l4 14h7l-4-14" />
-      <path d="M48 24c3 2 4 5 4 8s-1 6-4 8M54 18c5 4 7 9 7 14s-2 10-7 14" />
-    </g>
-  ),
+/**
+ * The Collection's painted category medallions (menuIcons.tsx, `public/menu/`), for the categories with no art of
+ * their own (owner 2026-11-24: "there are medallions to use instead of these random icons", "We also have a title
+ * medallion"). Board and Music have no painted medallion yet, so they keep a drawn emblem.
+ */
+const EMBLEM_MEDALS: Partial<Record<RewardEmblem, MenuMedalName>> = { title: 'titles', announcer: 'announcers', hero_attack: 'attacks' };
+
+/** The drawn emblems, only for what has no painted medallion (no `<title>`: the shell's status region announces the face). */
+const EMBLEMS: Readonly<Record<'music' | 'board' | 'unknown', ReactElement>> = {
   music: (
     <g {...STROKE}>
       <path d="M24 46V16l26-6v30" />
       <path d="M24 24l26-6" />
       <ellipse cx="18" cy="46" rx="6" ry="5" />
       <ellipse cx="44" cy="40" rx="6" ry="5" />
-    </g>
-  ),
-  hero_attack: (
-    <g {...STROKE}>
-      <path d="M12 12l26 26M52 12L26 38" />
-      <path d="M34 42l8-8M30 34l-8 8" />
-      <path d="M40 40l10 10M24 40L14 50" />
-      <path d="M12 12l2 8 6-6zM52 12l-2 8-6-6z" />
     </g>
   ),
   board: (
@@ -192,6 +181,51 @@ const EMBLEMS: Readonly<Record<RewardEmblem, ReactElement>> = {
     </g>
   ),
 };
+
+/** A category's emblem: its painted medallion, else the drawn one. */
+function Emblem({ emblem }: { emblem: RewardEmblem }): ReactElement {
+  const medal = EMBLEM_MEDALS[emblem];
+  return (
+    <div className="pkf-emblem" data-emblem={emblem}>
+      {medal
+        ? <MenuMedal name={medal} className="pkf-medal" />
+        : <svg viewBox="0 0 64 64" aria-hidden focusable="false">{EMBLEMS[emblem === 'music' || emblem === 'board' ? emblem : 'unknown']}</svg>}
+    </div>
+  );
+}
+
+/**
+ * WHAT THE ART WINDOW SHOWS, per category, with the Collection's own pieces (owner 2026-11-24: "use elements from the
+ * existing cosmetics menu to better make each cosmetic fit the card"):
+ * - a hero skin in the portrait ring it wears in a game (`HeroPortraitRing`, no cosmetic frame);
+ * - an attack animation PLAYING in the Collection's sandbox (`HeroAttackPreview`, embedded): by itself once as the face
+ *   lands on the pile and again as the summary row appears (`autoKey`), never under the top face; a click replays it;
+ * - an announcer its painted medallion; a minion skin, emote, portrait frame and card plate their art as before.
+ * A TITLE has no window at all (`.pkf-art-bare`): its medallion over the title's own badge, the way it is worn.
+ */
+function FaceArt({ card, p, lands, phase, still }: {
+  card: PackCard; p: ReturnType<typeof rewardPreview>; lands: boolean; phase: string; still: boolean;
+}): ReactElement {
+  if (p.art) {
+    if (p.art.kind === 'hero') return <HeroPortraitRing art={p.art.url} alt="" frameId={null} className="pkf-heroring" />;
+    return <img src={p.art.url} alt="" decoding="sync" draggable={false} className={`pkf-img pkf-img-${p.art.kind}`} />;
+  }
+  if (p.emblem === 'hero_attack') {
+    const style = cosmeticOf(card.rewardId)?.assets.style;
+    if (typeof style === 'string' && heroAttackPreviewKnown(style)) {
+      return <HeroAttackPreview style={style} reducedMotion={still} embedded autoKey={lands ? phase : null} />;
+    }
+  }
+  if (p.emblem === 'title') {
+    return (
+      <>
+        <Emblem emblem="title" />
+        <TitleBadge item id={card.rewardId} size="md" className="pkf-title" />
+      </>
+    );
+  }
+  return <Emblem emblem={p.emblem ?? 'unknown'} />;
+}
 
 /**
  * THE FACE HOLO (packHolo.ts; owner 2026-11-23, "a holographic or pearlescent sheen"): Epic and up wear a static
@@ -299,6 +333,8 @@ export function PackFace({ card, phase, from, slot, slow = 1, still = false }: P
     }
     : undefined;
 
+  // A title wears its own badge in place of the art window and the name line.
+  const isTitle = p.emblem === 'title';
   const cls = `pkf r-${card.rarity} pkf-${phase}${placed ? ' pkf-placed' : ''}${glow ? ' pkf-glow' : ''}${follow.handlers ? ' pkf-hover' : ''}`;
   return (
     <div
@@ -331,14 +367,8 @@ export function PackFace({ card, phase, from, slot, slow = 1, still = false }: P
         )}
         <div className="pkf-win">
           <div className="pkf-cat">{categoryLabel(p.label.kind, p.category !== null)}</div>
-          <div className="pkf-art">
-            {p.art
-              ? <img src={p.art.url} alt="" decoding="sync" draggable={false} className={`pkf-img pkf-img-${p.art.kind}`} />
-              : (
-                <div className="pkf-emblem" data-emblem={p.emblem ?? 'unknown'}>
-                  <svg viewBox="0 0 64 64" aria-hidden focusable="false">{EMBLEMS[p.emblem ?? 'unknown']}</svg>
-                </div>
-              )}
+          <div className={`pkf-art${isTitle ? ' pkf-art-bare' : ''}`}>
+            <FaceArt card={card} p={p} lands={lands} phase={phase} still={still} />
             {card.duplicate
               ? (
                 <div className="pkf-dup">
@@ -348,13 +378,12 @@ export function PackFace({ card, phase, from, slot, slow = 1, still = false }: P
               )
               : <div className="pkf-new">New</div>}
           </div>
-          <div className="pkf-name">{p.label.name}</div>
+          {!isTitle && <div className="pkf-name">{p.label.name}</div>}
           {p.category === null && <div className="pkf-note">{p.label.kind}</div>}
-          <div className="pkf-ribbon">
-            <img src={rarityIconSrc(card.rarity)} alt="" decoding="sync" draggable={false} className="pkf-rarity-icon" />
-            <span>{packRarityLabel(card.rarity)}</span>
-          </div>
+          {/* the rarity, in its colour, centred at the bottom; its medallion sits on the card's bottom edge (below) */}
+          <div className="pkf-ribbon"><span>{packRarityLabel(card.rarity)}</span></div>
         </div>
+        <img src={rarityIconSrc(card.rarity)} alt="" decoding="sync" draggable={false} className="pkf-rarity-icon" />
       </div>
     </div>
   );

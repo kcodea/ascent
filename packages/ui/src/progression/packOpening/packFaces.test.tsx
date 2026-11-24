@@ -50,15 +50,44 @@ describe('PackFace', () => {
     expect(img.getAttribute('src')).toBeTruthy();
     expect(face().querySelector('.pkf-emblem')).toBeNull();
     expect(face().querySelector('.pkf-cat')!.textContent).toBe('Hero skin');
+    // a hero skin sits in the portrait ring it wears in a game (the Collection's piece), with no cosmetic frame
+    expect(face().querySelector('.pkf-art .cv2-heroframe.pkf-heroring img.heroimg')).toBeTruthy();
   });
 
-  it('an emblem category renders its emblem and no img', () => {
+  it('a title has no art window: the painted Titles medallion over the title in its own badge (owner 2026-11-24)', () => {
     m = mount(<PackFace card={card('alpha_tester')} phase="featured" />);
-    expect(face().querySelector('.pkf-art img')).toBeNull();
-    const svg = face().querySelector('.pkf-emblem svg')!;
-    expect(svg).toBeTruthy();
-    expect(face().querySelector('.pkf-emblem')!.getAttribute('data-emblem')).toBe('title');
+    const art = face().querySelector('.pkf-art')!;
+    expect(art.classList.contains('pkf-art-bare')).toBe(true);
+    expect(art.querySelector('.pkf-emblem')!.getAttribute('data-emblem')).toBe('title');
+    expect(art.querySelector('.pkf-emblem img.pkf-medal')!.getAttribute('src')).toContain('menu/titles.webp');
+    expect(art.querySelector('.pkf-emblem svg')).toBeNull();
+    const badge = art.querySelector('.titlebadge.pkf-title')!;
+    expect(badge.textContent).toBe('Alpha Tester');
+    expect(face().querySelector('.pkf-name')).toBeNull(); // the badge is the name
     expect(face().querySelector('.pkf-cat')!.textContent).toBe('Title');
+  });
+
+  it('an announcer shows the painted Announcers medallion in the window, not a drawn icon', () => {
+    m = mount(<PackFace card={card('announcer_lemon')} phase="featured" />);
+    const art = face().querySelector('.pkf-art')!;
+    expect(art.classList.contains('pkf-art-bare')).toBe(false);
+    expect(art.querySelector('.pkf-emblem img.pkf-medal')!.getAttribute('src')).toContain('menu/announcers.webp');
+    expect(art.querySelector('svg')).toBeNull();
+    expect(face().querySelector('.pkf-name')!.textContent).toBe('Lemon');
+  });
+
+  it('an attack animation plays in the Collection sandbox, embedded: by itself on the top face, never under it', () => {
+    m = mount(<PackFace card={card('attack_cards')} phase="featured" />);
+    expect(face().querySelector('.pkf-art [data-testid="hapv-embedded"] .hapv-stage')).toBeTruthy();
+    expect(face().querySelector('.pkf-art button')).toBeNull(); // no Preview button on a card
+    expect(face().querySelector('.pkf-name')!.textContent).toBe('Card Shark');
+    const src = readFileSync(join(__dirname, 'packFaces.tsx'), 'utf8');
+    expect(src).toMatch(/autoKey=\{lands \? phase : null\}/); // top pile face and the summary row only
+  });
+
+  it('the art window is the solid plate navy, so the foil never shows through it (owner 2026-11-24)', () => {
+    const css = readFileSync(join(__dirname, 'packOpening.css'), 'utf8');
+    expect(/\.pkf-art \{[^}]*\}/.exec(css)![0]).toMatch(/background: #091226;/);
   });
 
   it('an unknown reward renders the update-the-game face', () => {
@@ -122,9 +151,16 @@ describe('PackFace', () => {
     }
   });
 
-  it('the ribbon carries the rarity medallion (decorative, decoding="sync") and Ancient reads Ancient', () => {
+  it('the rarity: its name alone in the window, its medallion on the card bottom edge outside the window (owner 2026-11-24)', () => {
     m = mount(<PackFace card={card('alpha_tester', { rarity: 'ancient' })} phase="featured" />);
-    const icon = face().querySelector('.pkf-ribbon img')!;
+    expect(face().querySelector('.pkf-ribbon img')).toBeNull();
+    expect(face().querySelector('.pkf-win .pkf-rarity-icon')).toBeNull();
+    const icon = face().querySelector('.pkf-card > img.pkf-rarity-icon')!;
+    const css = readFileSync(join(__dirname, 'packOpening.css'), 'utf8');
+    const label = /\.pkf-ribbon > span \{[^}]*\}/.exec(css)![0];
+    expect(label).toMatch(/color: var\(--rc\)/);
+    expect(label).toMatch(/text-shadow/);
+    expect(label).not.toMatch(/background|border-radius|box-shadow/); // no pill
     expect(icon.getAttribute('decoding')).toBe('sync');
     expect(icon.getAttribute('alt')).toBe('');
     expect(icon.getAttribute('src')).toContain('medallions/ascent_rarity_ancient.webp');
@@ -144,7 +180,8 @@ describe('PackFace', () => {
       expect(plate.getAttribute('decoding')).toBe('sync');
       expect(plate.getAttribute('alt')).toBe('');
       const win = face().querySelector('.pkf-win')!;
-      for (const k of ['.pkf-cat', '.pkf-art', '.pkf-name', '.pkf-ribbon']) expect(win.querySelector(k), `${id} ${k}`).toBeTruthy();
+      // a title's badge is its name line (no `.pkf-name`)
+      for (const k of ['.pkf-cat', '.pkf-art', id === 'alpha_tester' ? '.pkf-title' : '.pkf-name', '.pkf-ribbon']) expect(win.querySelector(k), `${id} ${k}`).toBeTruthy();
     }
   });
 

@@ -121,7 +121,20 @@ const RUNNERS: Record<string, { play: (o: HeroAttackOptions & { textures?: null 
  * It owns a tiny Pixi Application of its own (the gameplay overlay is not mounted on the menus), created on the first
  * play and destroyed on unmount. The shared Blast textures are NOT destroyed with it (the gameplay layer reuses them).
  */
-export function HeroAttackPreview({ style, reducedMotion }: { style: string; reducedMotion?: boolean }): JSX.Element {
+/** How long an embedded preview waits before it plays itself (its host, a pack card, is still turning face up). */
+export const HERO_ATTACK_AUTO_DELAY_MS = 520;
+
+/** Whether the sandbox can play `style` (a host with no runner for it shows something else). */
+export const heroAttackPreviewKnown = (style: string): boolean => style in RUNNERS;
+
+/**
+ * `embedded` (the pack card, owner 2026-11-24: "auto preview the animation like we do currently in the preview section of
+ * attack animations"): no button, the box fills its host, and a click on the box replays it. `autoKey` (non-null) plays it
+ * once, by itself, each time the key changes, after `HERO_ATTACK_AUTO_DELAY_MS`; null never auto-plays.
+ */
+export function HeroAttackPreview({ style, reducedMotion, embedded = false, autoKey = null }: {
+  style: string; reducedMotion?: boolean; embedded?: boolean; autoKey?: string | null;
+}): JSX.Element {
   const stageRef = useRef<HTMLDivElement>(null);
   const pixiRef = useRef<HTMLDivElement>(null);
   const youRef = useRef<HTMLDivElement>(null);
@@ -166,8 +179,8 @@ export function HeroAttackPreview({ style, reducedMotion }: { style: string; red
     return booting.current;
   };
 
-  const play = async (): Promise<void> => {
-    sfx.pulse();
+  const play = async (quiet = false): Promise<void> => {
+    if (!quiet) sfx.pulse();
     live.current?.cancel();
     const runner = RUNNERS[style];
     if (!runner) return;
@@ -201,6 +214,31 @@ export function HeroAttackPreview({ style, reducedMotion }: { style: string; red
   };
 
   const known = style in RUNNERS;
+  // The latest `play`, for the auto-play timer (it must not re-arm on every render).
+  const playRef = useRef(play);
+  playRef.current = play;
+  useEffect(() => {
+    if (autoKey === null) return undefined;
+    const t = window.setTimeout(() => { void playRef.current(true); }, HERO_ATTACK_AUTO_DELAY_MS);
+    return () => { window.clearTimeout(t); };
+  }, [autoKey, style]);
+  if (embedded) {
+    return (
+      <div className="hapv hapv-embedded" data-testid="hapv-embedded">
+        <div className="hapv-box" onClick={known && !playing ? () => { void play(); } : undefined}>
+          <div className="hapv-stage" ref={stageRef}>
+            <div className="hapv-floor" aria-hidden />
+            <div className="hapv-cards" aria-hidden>
+              {[0, 1].map((i) => <div key={i} className="hapv-card" ref={(el) => { cardRefs.current[i] = el; }} />)}
+            </div>
+            <div className="hapv-hero you" ref={youRef} aria-hidden><span>You</span></div>
+            <div className="hapv-hero foe" ref={foeRef} aria-hidden><span>Foe</span></div>
+            <div className="hapv-pixi" ref={pixiRef} aria-hidden />
+          </div>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="hapv">
       <div className="hapv-box">

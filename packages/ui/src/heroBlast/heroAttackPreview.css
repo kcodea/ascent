@@ -20,3 +20,7 @@
 .hapv-pixi { position: absolute; inset: 0; pointer-events: none; z-index: 2; }
 .hapv-pixi canvas { display: block; width: 100%; height: 100%; }
 .hapv-play { min-width: 120px; }
+/* Embedded (a pack card's art window): the box is the host's whole box, no border of its own. */
+.hapv-embedded { width: 100%; height: 100%; gap: 0; justify-content: center; }
+/* The sandbox is laid out in px for a ~300px box: keep that size (same shape as the host window) and scale the whole box up. */
+.hapv-embedded .hapv-box { flex: none; width: 300px; max-width: none; height: 263px; border: 0; border-radius: 0; transform: scale(1.254); }

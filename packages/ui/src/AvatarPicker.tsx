@@ -118,7 +118,7 @@ export function AvatarPicker() {
 }
 
 /** The portrait lists shared by the window and its body: owned skins plus the bundled portraits, and an id lookup. */
-function usePortraitEntries() {
+export function usePortraitEntries() {
   const userId = useGame((s) => s.account.userId);
   const mirror = useProgression((s) => s.mirror);
   const catalogEpoch = useProgression((s) => s.catalogEpoch);

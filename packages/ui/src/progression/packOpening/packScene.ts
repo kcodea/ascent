@@ -7,7 +7,8 @@
  * Contract (the React shell, Task 7, owns everything else):
  *  - Lifecycle like `crateFx/crateFxPixi.ts`: one `Application` per opening, async init, `destroy()` safe at any moment
  *    (a late Application is destroyed on arrival). When Pixi is not allowed (`pixiAllowed()`), or init fails, every
- *    method is a no-op and nothing is fired: the shell falls back to its reduced-motion path.
+ *    method is a no-op and the only event fired is `onUnavailable` (once; never after `destroy()`): the shell falls
+ *    back to its reduced-motion path on it. When Pixi is not allowed it fires synchronously, inside `createPackScene`.
  *  - Events in order: `onPop` (the seal gave: ask the server now), `onStripFree` (the sleeve is live), `onSleeveDropped`,
  *    `onZoomed`, then `onFlipEdge` once per `flipTop`. Quick open fires the same events in the same order.
  *  - The scene CALLS `PackSounds` (pop, tear, crackle, rip, sleeveFree, slide, drop, whoosh, flip, silence) but never
@@ -54,6 +55,8 @@ import {
 // ---------------------------------------------------------------- public contract
 
 export interface PackSceneEvents {
+  /** Pixi is not allowed here, or its init failed: nothing else will ever fire. The shell opens without the scene. */
+  onUnavailable(): void;
   /** The seal gave: the shell sends the request now. */
   onPop(): void;
   /** The sleeve is live this instant. */
@@ -243,7 +246,8 @@ class PackSceneImpl implements PackScene {
   // ---------------------------------------------------------------- lifecycle
 
   async init(): Promise<void> {
-    if (this.destroyed || !pixiAllowed()) return; // no Pixi: every method stays a no-op
+    if (this.destroyed) return;
+    if (!pixiAllowed()) { this.unavailable(); return; } // no Pixi: every method stays a no-op
     let app: Application | null = null;
     try {
       const res = Math.min(window.devicePixelRatio || 1, 2) * stageScale();
@@ -267,8 +271,18 @@ class PackSceneImpl implements PackScene {
     } catch (e) {
       console.error('[packScene] pixi init failed; the shell falls back to the reduced-motion opening:', e);
       if (app && this.app !== app) { try { destroyPixiApp(app); } catch { /* half-built */ } }
+      const wanted = !this.destroyed;
       this.teardown();
+      if (wanted) this.unavailable();
     }
+  }
+
+  /** Tell the shell there will be no scene (once; the shell's handler is guarded, but never fire twice). */
+  private unavailableFired = false;
+  private unavailable(): void {
+    if (this.unavailableFired) return;
+    this.unavailableFired = true;
+    this.events.onUnavailable();
   }
 
   private build(app: Application): void {

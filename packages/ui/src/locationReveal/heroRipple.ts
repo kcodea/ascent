@@ -1,13 +1,13 @@
 /**
  * THE RIPPLE THROUGH HERO SELECT (owner + Mike 2026-11-24: "the ripple ... is the same ripple animations we have with the
  * parallax stuff, rippling out from the select hero button", "it's just there, with the custom portrait frame on";
- * R-LOCATION-05). One wave, the reveal's own lens, used twice:
+ * R-LOCATION-05). One canvas, used twice:
  *
  *  - IN, from Select Hero: what the wave has passed IS the finished picture (the living place, the hero in their ring), bent
  *    by the water as it settles; what it has not reached yet is hero select, untouched. When it is over, the ceremony's own
  *    DOM (the same picture) takes over underneath.
- *  - OUT, from Start Game: the same picture covers the screen, alive, while the run is built under it; then the wave spreads
- *    from the button and the board is behind it.
+ *  - AT START GAME the same canvas holds the place alone, on the same clock, while the run is built, and falls away from the
+ *    board as the hero flies to their seat on it (hero-select/heroSeat.ts).
  *
  * One WebGL 2 canvas: the place drawn small into a picture (`Place`, on hero select's own clock), then one pass that bends
  * it, the hero's art and the ring together. Made ready while the player is choosing; with nothing ready (a phone, reduced
@@ -18,7 +18,7 @@ import { audioContext, fxBusTarget, isMuted } from '../sfx';
 import { locationSound, type LocationDef } from './locations';
 import { beginProgram, buffers, clockNow, compiled, finishProgram, nextFrame, Place, uploadTexture, type Prog } from './placeGl';
 import * as SH from './revealShaders';
-import { clamp, seg } from './revealTimeline';
+import { clamp } from './revealTimeline';
 
 /** How long the wave takes to cross the whole screen (s), the reveal's own leaving wave. */
 export const RIPPLE_S = 1.05;
@@ -38,12 +38,10 @@ export const rippleReach = (r: number, far: number): number => {
 export const rippleFar = (x: number, y: number, w: number, h: number): number => Math.max(...[[0, 0], [w, 0], [0, h], [w, h]].map(([a, b]) => Math.hypot(a! - x, b! - y))) / h;
 /** The second, softer ring follows this far behind. */
 const ECHO_S = 0.16;
-/** Launch: how long the scene draws its breath before the wave may leave (s). */
-export const BRACE_S = 0.34;
-/** ...and how long it then takes to fall still, before the run is built under it: that work stops every frame for a moment, and
- *  a picture that is already still shows nothing of it (s). */
-export const STILL_S = 0.2;
-const FADE_MS = 140;
+/** At Start Game the place falls still this fast: building the run stops every frame for a moment, and a picture that is already
+ *  still shows nothing of it (s). */
+export const STILL_S = 0.16;
+const FADE_MS = 130;
 const PLACE_ROWS = 720;
 
 interface Box { left: number; top: number; width: number; height: number }
@@ -64,7 +62,7 @@ const VS = `${SH.common}
 in vec2 a; void main(){ gl_Position = vec4(a, 0., 1.); }`;
 
 const FS = `${SH.common}
-out vec4 o; uniform vec2 R, S, C; uniform float rad, str, rad2, str2, mode, t, brace, artA, settle; uniform vec3 G, CC; uniform vec4 BX, RG; uniform sampler2D SC, ART, RING;
+out vec4 o; uniform vec2 R, S, C; uniform float rad, str, rad2, str2, mode, hero, artA, settle; uniform vec3 G, CC; uniform vec4 BX, RG; uniform sampler2D SC, ART, RING;
 vec2 ring(vec2 p, float r, float R0, float S0, out float crest, out float trough){ float x = r - R0; float body = x > 0. ? exp(-pow(x * 11., 2.)) : exp(-pow(x * 6.2, 2.)); float rip = x < 0. ? sin(x * 38.) * exp(x * 6.) * .13 : 0.; crest = exp(-pow(x * 24., 2.)) + .30 * exp(-pow(x * 8., 2.)); trough = x < 0. ? exp(-pow((x + .13) * 10., 2.)) : 0.; return p / r * (body + rip) * S0; }
 // the ceremony's own DOM, layer for layer: the ground and its veil, the scrim, the glow, the art in its circle, the ring
 vec3 scene(vec2 v){
@@ -72,17 +70,17 @@ vec3 scene(vec2 v){
   float veil = y < .24 ? mix(.58, .24, y / .24) : y < .62 ? .24 : mix(.24, .74, (y - .62) / .38); c = mix(c, vec3(6., 12., 28.) / 255., clamp(veil, 0., 1.));
   c = mix(c, vec3(5., 10., 26.) / 255., .6);
   vec2 px = v * S; c = mix(c, vec3(196., 160., 92.) / 255., .26 * clamp(1. - length(px - G.xy) / G.z / .70, 0., 1.));
+  if (hero < .5) return c;
   vec2 q = CC.xy + (px - CC.xy) / settle; float d = length(q - CC.xy) - CC.z, fw = S.y / R.y;
   float a = clamp(.5 - d / fw, 0., 1.);
   if (a > 0.) { vec2 w = (q - BX.xy) / BX.zw; float ba = BX.z / BX.w; vec2 k = artA > ba ? vec2(ba / artA, 1.) : vec2(1., artA / ba); vec4 art = texture(ART, .5 + (w - .5) * k); c = c * (1. - art.a * a) + art.rgb * a; }
   vec2 rq = (q - RG.xy) / RG.zw; if (all(greaterThan(rq, vec2(0.))) && all(lessThan(rq, vec2(1.)))) { vec4 g = texture(RING, rq); c = c * (1. - g.a) + g.rgb; }
-  float flare = brace * exp(-pow(d / (CC.z * .16), 2.)); c += mix(mg(vec3(.50, .88, 1.)), mg(vec3(1., .84, .55)), .5) * flare * .40;
   return c;
 }
 void main(){
   vec2 u = gl_FragCoord.xy / R; u.y = 1. - u.y; vec2 asp = vec2(S.x / S.y, 1.); vec2 p = (u - C) * asp; float r = length(p) + 1e-4, c1 = 0., t1 = 0., c2 = 0., t2 = 0.;
   vec2 ds = vec2(0.); if (str > .0004) ds += ring(p, r, rad, str, c1, t1); if (str2 > .0004) ds += ring(p, r, rad2, str2, c2, t2);
-  float pull = brace * .020; vec2 v = C + (p * (1. + pull * exp(-r * 1.2)) - ds) / asp, ca = ds * .035 / asp;
+  vec2 v = C + (p - ds) / asp, ca = ds * .035 / asp;
   vec3 c = dot(ds, ds) > 1e-7 ? vec3(scene(v - ca).r, scene(v).g, scene(v + ca).b) : scene(v);
   vec3 sea = mix(mg(vec3(.45, .90, 1.)), mg(vec3(1., .86, .60)), .35);
   c += sea * (c1 * str * 8.5 + c2 * str2 * 9.) * (.30 + .95 * c); c *= 1. - clamp(t1 * str * 7. + t2 * str2 * 6., 0., .55);
@@ -90,8 +88,6 @@ void main(){
   if (mode > 0.) { // in: the picture is what the wave has passed
     al = 1. - smoothstep(-.05, .11, e); c += sea * .16 * exp(min(e, 0.) * 5.) * smoothstep(0., .03, str);
     over = sea * (exp(-pow((r - rad) * 10., 2.)) * .55 + exp(-pow((r - rad - .10) * 8., 2.)) * .14) * (1. - al);
-  } else if (mode < 0.) { // out: the picture is what it has not reached
-    al = smoothstep(-.11, .05, e); over = sea * (exp(-pow((r - rad) * 10., 2.)) * .55 + exp(-pow((r - rad + .16) * 7., 2.)) * .16) * (1. - al);
   }
   o = vec4(clamp(c, 0., 1.) * al + over * smoothstep(0., .012, str), al);
 }`;
@@ -107,7 +103,7 @@ const FD = `${SH.common}
 in vec3 tint; in float al; out vec4 o; void main(){ float r = length(gl_PointCoord - .5) * 2.; o = vec4((tint * exp(-r * r * 6.) + exp(-r * r * 26.) * .6) * al, 0.); }`;
 const SPRAY = 520;
 
-type Mode = 'in' | 'hold' | 'out';
+type Mode = 'in' | 'hold';
 
 export class HeroRipple {
   readonly canvas = document.createElement('canvas');
@@ -127,7 +123,7 @@ export class HeroRipple {
   private mode: Mode = 'hold';
   private raf = 0;
   private t0 = 0;
-  private braceAt = 0;
+  private hero = true;
   /** When (wall, ms) it was told to fall still, and its clock then. */
   private stillAt: { wall: number; s: number } | null = null;
   private onEnd: (() => void) | null = null;
@@ -194,7 +190,7 @@ export class HeroRipple {
     const h = window.innerHeight;
     const box = { left: 0, top: 0, width: 400, height: 400 };
     this.setScene({ stage: { w, h }, art, ring, box, clip: { x: 200, y: 200, r: 190 }, ringBox: box, glow: { x: 200, y: 200, r: 400 } });
-    for (const m of ['hold', 'in', 'out'] as const) { this.mode = m; this.draw(0.4, performance.now()); }
+    for (const m of ['hold', 'in'] as const) { this.mode = m; this.draw(0.4); }
     this.mode = 'hold';
   }
   has(url: string): boolean { return !!this.pics.get(url); }
@@ -230,32 +226,35 @@ export class HeroRipple {
   }
 
   /** The wave, from the point given to `show`. Resolves when it is over (or this is destroyed). */
-  wave(mode: 'in' | 'out', origin: Point = this.origin): Promise<void> {
-    this.origin = origin;
-    this.mode = mode;
+  wave(): Promise<void> {
+    this.hero = true;
+    this.mode = 'in';
     this.t0 = 0;
-    this.sound('wave', { gain: 0.36, rate: mode === 'in' ? 1.08 : 1, lowpass: 5200 });
-    this.sound('title', { gain: 0.26, rate: mode === 'in' ? 1.22 : 1.1, delay: 0.3 });
+    this.sound('wave', { gain: 0.36, rate: 1.08, lowpass: 5200 });
+    this.sound('title', { gain: 0.26, rate: 1.22, delay: 0.3 });
     return new Promise((resolve) => {
       this.onEnd = resolve;
       this.run();
     });
   }
 
-  /** Cover the screen with the living picture and draw a breath (launch). Resolves when it has been drawn. */
+  /** Start Game: take the screen with the place alone (the hero is in the air over it). Resolves when it covers. */
   hold(): Promise<void> {
     this.mode = 'hold';
-    this.braceAt = performance.now();
+    this.hero = false;
     this.canvas.animate?.([{ opacity: 0 }, { opacity: 1 }], { duration: FADE_MS, easing: 'ease-out' });
     this.run();
-    return new Promise((r) => { window.setTimeout(r, BRACE_S * 1000); });
+    return new Promise((r) => { window.setTimeout(r, FADE_MS); });
+  }
+  /** The place falls away from what is under it: it comes past the player and thins to nothing. */
+  fall(ms: number): Promise<void> {
+    const a = this.canvas.animate?.([{ opacity: 1, transform: 'scale(1)' }, { opacity: 0, transform: 'scale(1.22)' }], { duration: ms, easing: 'cubic-bezier(0.45, 0, 0.75, 0.6)', fill: 'forwards' });
+    const end = (): void => { this.rest(); a?.cancel(); };
+    return a ? a.finished.then(end, end) : Promise.resolve(end());
   }
 
-  /** Let the place fall still (see STILL_S). Resolves when it has. */
-  still(): Promise<void> {
-    this.stillAt ??= { wall: performance.now(), s: clockNow() };
-    return new Promise((r) => { window.setTimeout(r, STILL_S * 1000); });
-  }
+  /** Let the place fall still (see STILL_S). */
+  still(): void { this.stillAt ??= { wall: performance.now(), s: clockNow() }; }
   /** Its clock: hero select's own, until it falls still. */
   private now(): number {
     const st = this.stillAt;
@@ -290,9 +289,8 @@ export class HeroRipple {
       this.raf = requestAnimationFrame(tick);
       if (!this.t0) this.t0 = now;
       const t = (now - this.t0) / 1000;
-      this.draw(t, now);
+      this.draw(t);
       if (this.mode !== 'hold' && t >= RIPPLE_S + ECHO_S) {
-        if (this.mode === 'out') { cancelAnimationFrame(this.raf); this.raf = 0; }
         const end = this.onEnd;
         this.onEnd = null;
         end?.();
@@ -301,7 +299,7 @@ export class HeroRipple {
     this.raf = requestAnimationFrame(tick);
   }
 
-  private draw(t: number, now: number): void {
+  private draw(t: number): void {
     const { gl, scene: sc } = this;
     const art = sc && this.pics.get(sc.art);
     const ring = sc && this.pics.get(sc.ring);
@@ -324,14 +322,13 @@ export class HeroRipple {
     gl.uniform2f(u('R'), W, H);
     gl.uniform2f(u('S'), sw, sh);
     gl.uniform2f(u('C'), C.x, C.y);
-    gl.uniform1f(u('mode'), !moving ? 0 : this.mode === 'in' ? 1 : -1);
+    gl.uniform1f(u('mode'), moving ? 1 : 0);
+    gl.uniform1f(u('hero'), this.hero ? 1 : 0);
     gl.uniform1f(u('rad'), moving ? rippleR(t, far) : -1);
     gl.uniform1f(u('str'), moving && x > 0 && x < 1 ? 0.062 * swell(x) : 0);
     gl.uniform1f(u('rad2'), rippleR(t - ECHO_S, far));
     gl.uniform1f(u('str2'), moving && x2 > 0 && x2 < 1 ? 0.026 * swell(x2) : 0);
-    const held = (now - this.braceAt) / 1000;
-    gl.uniform1f(u('brace'), this.mode === 'in' ? 0 : this.mode === 'hold' ? seg(held, 0.04, BRACE_S) ** 2 * (this.stillAt ? 1 : 0.85 + 0.15 * Math.cos((held - BRACE_S) * 2.2)) : 1 - x);
-    gl.uniform1f(u('settle'), this.mode === 'in' ? 1 + 0.05 * (1 - x) ** 3 : 1);
+    gl.uniform1f(u('settle'), moving ? 1 + 0.05 * (1 - x) ** 3 : 1);
     gl.uniform1f(u('artA'), art.aspect);
     gl.uniform3f(u('G'), sc.glow.x, sc.glow.y, sc.glow.r);
     gl.uniform3f(u('CC'), sc.clip.x, sc.clip.y, sc.clip.r);

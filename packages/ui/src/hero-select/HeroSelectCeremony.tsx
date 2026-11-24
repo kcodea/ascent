@@ -23,6 +23,7 @@ import { useVersusHeroesRevealed } from '../versus/versusStore';
 import { usePartyHome } from '../partyHome/partyHomeFlag';
 import { HeroPowerLine } from './HeroPowerLine';
 import { readyRipple, rippleFar, rippleReach, RIPPLE_S, type RippleScene } from '../locationReveal/heroRipple';
+import { canFly } from './heroSeat';
 import { RIPPLE_TIMING, shoveAside, waveOrigin } from './heroRippleTiming';
 import { crumbLight, crumbTrail } from '../crashLog';
 
@@ -220,7 +221,7 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch, splash }: 
     let gone = false;
     rip.show(layer, sc, origin);
     shoveAside(root, origin, vp, animsRef.current);
-    void rip.wave('in').then(() => {
+    void rip.wave().then(() => {
       if (gone) return;
       root.dataset.hscRipple = 'done';
       setLanded(true);
@@ -466,9 +467,7 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch, splash }: 
     fxRef.current?.stopAmbient();
     if (!rip) void fxRef.current?.playLaunch();
     const sc = sceneRef.current;
-    const btn = startBtnRef.current ? rectToStage(startBtnRef.current.getBoundingClientRect()) : null;
-    const from = btn ? { x: btn.left + btn.width / 2, y: btn.top + btn.height / 2 } : sc ? { x: sc.clip.x, y: sc.clip.y } : null;
-    void requestLaunch({ heroId, accent: 'var(--acc)', ...(rip && sc && from && !rip.dead ? { ripple: { gl: rip, scene: sc, origin: from } } : {}) });
+    void requestLaunch({ heroId, accent: 'var(--acc)', ...(sc && canFly() ? { scene: sc, ...(rip && !rip.dead ? { place: rip } : {}) } : {}) });
   };
 
   /* ---- VERSUS (owner 2026-10-14: "let the full hero select animation play out"): once both heroes are locked on the
@@ -618,7 +617,7 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch, splash }: 
           ? { left: pcx - hw * cover, top: pcy - hh * cover, width: pb.width * cover, height: pb.height * cover }
           : pb;
         circleRef.current = { cx, cy, r: clipR };
-        if (rip && art) {
+        if (art && flashed) {
           const vp = stageViewport();
           const gr = Math.max(dest.width, dest.height) * 0.9;
           const sc: RippleScene = {

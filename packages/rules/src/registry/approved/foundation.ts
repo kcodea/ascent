@@ -17222,20 +17222,36 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-LOCATION-05',
-    title: 'Select Hero and Start Game are the same location ripple: from the button, it reveals the hero, then the board',
+    title: 'Select Hero sends the location ripple out from the button, and the hero is just there in their own frame',
     statement:
       'Where a game has a location, pressing Select Hero sends the reveal ripple out from the button. What the wave has passed '
       + 'is the finished picture, the hero in their own portrait frame over the living location, just there; what it has not '
-      + 'reached is hero select, untouched. Nothing flies, shrinks or flashes. Pressing Start Game holds that picture for a '
-      + 'breath while the game is built under it, then the same ripple spreads from the button and the board is behind it. '
-      + 'On a phone, with reduced motion, without WebGL 2 or a location, the older ceremony and fade play.',
+      + 'reached is hero select, untouched. Nothing flies, shrinks or flashes. On a phone, with reduced motion, without WebGL 2 '
+      + 'or a location, and on a watched hero select, the older ceremony plays.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Owner, 2026-11-24', quote: 'the ripple he refers to is the same ripple animations we have with  the parallax stuff in this, rippling out from the select hero button' },
-      { kind: 'owner-chat', ref: 'Owner, 2026-11-24', quote: 'we need an animation that happens when the player hits start game which gets us to the board' },
-      { kind: 'code', ref: 'packages/ui/src/locationReveal/heroRipple.ts; packages/ui/src/hero-select/HeroSelectCeremony.tsx; packages/ui/src/hero-select/HeroLaunchCurtain.tsx' },
+      { kind: 'code', ref: 'packages/ui/src/locationReveal/heroRipple.ts; packages/ui/src/hero-select/HeroSelectCeremony.tsx' },
     ],
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/locationReveal/locationReveal.test.ts'], lastVerifiedAt: '2026-11-24' },
+  },
+  {
+    id: 'R-LOCATION-06',
+    title: 'Start Game: the hero lifts on the press, then flies down into their seat on the board',
+    statement:
+      'Pressing Start Game moves the hero at once: they lift toward the player in their frame, and hang there while the game is '
+      + 'built. Then the location falls away from the board and they fly down into their own portrait on it, which waited as an '
+      + 'empty ring, and land. The lobby reveal and its dim wait for the landing. It comes out of the hero, never the button, '
+      + 'and it is not another ripple. With reduced motion, or no hero circle on screen, the older fade plays.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-24', quote: 'maybe the start game into the board should be different from the wipe/ripple and/or it should come out of the hero instead of start game button for that?' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-24, of the hero taking their seat', quote: 'build 1 let\'s see it' },
+      { kind: 'code', ref: 'packages/ui/src/hero-select/heroSeat.ts; packages/ui/src/hero-select/HeroLaunchCurtain.tsx; packages/ui/src/lobbyReveal/lobbyRevealStore.ts (hold / release)' },
+    ],
+    currentBehaviour: 'Built 2026-11-24 for the owner to see; its feel is not approved yet.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/locationReveal/locationReveal.test.ts'], lastVerifiedAt: '2026-11-24' },
   },
 ];

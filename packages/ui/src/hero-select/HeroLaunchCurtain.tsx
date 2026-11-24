@@ -12,6 +12,8 @@ import { PHONE_GPU } from '../phoneDiag';
 import { usePartyHome } from '../partyHome/partyHomeFlag';
 import { crumbLight, crumbTrail } from '../crashLog';
 import { claimRipple, releaseRipple } from '../locationReveal/heroRipple';
+import { FALL_MS, HeroFlight } from './heroSeat';
+import { lobbyReveal } from '../lobbyReveal/lobbyRevealStore';
 
 /**
  * HERO SELECT CEREMONY — the launch curtain (hero-select-ceremony-blueprint.md §7).
@@ -61,6 +63,7 @@ function twoFrames(): Promise<void> {
 export function HeroLaunchCurtain() {
   const [req, setReq] = useState<HeroLaunchRequest | null>(null);
   const elRef = useRef<HTMLDivElement | null>(null);
+  const airRef = useRef<HTMLDivElement | null>(null);
   const resolveRef = useRef<(() => void) | null>(null);
   const [versusWait, setVersusWait] = useState(false);
   const awaitingFoe = useVersusAwaitingPick();
@@ -81,11 +84,19 @@ export function HeroLaunchCurtain() {
     if (!req) return;
     let dead = false; // Game itself unmounted mid-launch (dev hot reload) — stop touching the DOM
     const t = ceremonyTiming();
-    const rip = req.ripple && !req.ripple.gl.dead ? req.ripple : null;
-    if (rip) claimRipple(rip.gl); // hero select unmounts under it
-    const uncover = (el: HTMLElement | null): Promise<void> => (rip && !rip.gl.dead ? rip.gl.fadeOff(t.launchRevealMs) : fade(el, 1, 0, t.launchRevealMs));
+    // THE HERO TAKES THEIR SEAT (R-LOCATION-06): they lift on the press, before anything else here; the place (or the plain
+    // cover) takes the screen under them, the run is built, and then they fly to their seat as it falls away.
+    const place = req.place && !req.place.dead ? req.place : null;
+    if (place) claimRipple(place); // hero select unmounts under it
+    let hero: HeroFlight | null = null;
+    const uncover = async (el: HTMLElement | null): Promise<void> => {
+      if (place && !place.dead) await place.fadeOff(t.launchRevealMs);
+      else await fade(el, 1, 0, t.launchRevealMs);
+    };
     const finish = () => {
-      if (rip) releaseRipple(rip.gl);
+      hero?.destroy();
+      if (place) releaseRipple(place);
+      lobbyReveal.release();
       resolveRef.current?.();
       resolveRef.current = null;
       setVersusWait(false);
@@ -95,13 +106,18 @@ export function HeroLaunchCurtain() {
       const el = elRef.current;
       // Crash-log trail (phones; R-TOUCH-CRASH-REPORT-02): light steps, the curtain is animating.
       crumbLight('launch cover');
-      if (rip && el) {
-        // THE RIPPLE: the same picture, alive, takes the screen and draws its breath; the run is built under it.
-        rip.gl.show(el, rip.scene, rip.origin);
+      const air = airRef.current;
+      if (req.scene && air) {
+        hero = new HeroFlight(air, req.scene);
+        hero.lift();
+      }
+      if (place && req.scene && el) {
+        place.show(el, req.scene, { x: 0, y: 0 });
         el.style.opacity = '1';
-        await rip.gl.hold();
+        if (useGame.getState().pendingMode !== 'versus') place.still();
+        await place.hold();
       } else {
-        await fade(el, 0, 1, t.launchCoverMs);
+        await fade(el, 0, 1, hero ? 150 : t.launchCoverMs);
       }
       if (dead) return;
       setLaunchCovered(true);
@@ -125,6 +141,7 @@ export function HeroLaunchCurtain() {
           await twoFrames();
           if (dead) return;
           setLaunchCovered(false);
+          hero?.destroy();
           await uncover(el);
           if (!dead) finish();
           return;
@@ -139,8 +156,6 @@ export function HeroLaunchCurtain() {
         if (dead) return;
         setVersusWait(false);
       }
-      if (rip && !versusStart) await rip.gl.still();
-      if (dead) return;
       // Fully covered: NOW build the run. This is the synchronous heavy step (createRun/createLobbyRun +
       // warmLobbyDrivers + writeSave) and it also unmounts HeroSelect behind us.
       try {
@@ -154,6 +169,7 @@ export function HeroLaunchCurtain() {
         const replaying = st.replaySession != null;
         // THE LOBBY REVEAL (owner 2026-10-31): every hero of the game shown, then flown to the rail, BEFORE the Good
         // Luck words and the clock. Begun first, so the intro's first render already waits behind it.
+        if (started && hero) lobbyReveal.hold(); // the line-up waits for the hero to land
         if (started) beginLobbyRevealFor(st.run, { replaying });
         if (started && shouldPlayGoodLuckIntro(st.run, { replaying })) goodLuckIntro.begin();
       } catch (err) {
@@ -166,14 +182,22 @@ export function HeroLaunchCurtain() {
       if (dead) return;
       crumbLight('launch reveal');
       setLaunchCovered(false);
-      if (rip && !rip.gl.dead) await rip.gl.wave('out', rip.origin);
-      else await uncover(el);
+      if (hero && !useGame.getState().showTitle) {
+        await hero.land(() => {
+          if (place && !place.dead) void place.fall(FALL_MS);
+          else void fade(el, 1, 0, FALL_MS);
+        });
+        lobbyReveal.release();
+      } else {
+        hero?.destroy();
+        await uncover(el);
+      }
       if (dead) return;
       finish();
       // Not cancelled with this effect (finish() unmounts it at once): a few store-only timers, phones only.
       crumbTrail('first shop', undefined, true);
     })();
-    return () => { dead = true; setLaunchCovered(false); lobbyPoolGate.cancel(); if (rip) releaseRipple(rip.gl); };
+    return () => { dead = true; setLaunchCovered(false); lobbyPoolGate.cancel(); hero?.destroy(); if (place) releaseRipple(place); lobbyReveal.release(); };
   }, [req]);
 
   if (!req) return null;
@@ -183,10 +207,11 @@ export function HeroLaunchCurtain() {
     <>
       <div
         ref={elRef}
-        className={`hsc-curtain${req.ripple ? ' rip' : ph ? ' ph' : ''}`}
+        className={`hsc-curtain${req.place ? ' rip' : ph ? ' ph' : ''}`}
         style={{ '--hsc-accent': req.accent } as CSSProperties}
         aria-hidden="true"
       />
+      <div ref={airRef} className="hsc-air" aria-hidden="true" />
       <PoolWaitPanel gate={lobbyPoolGate} />
       {versusWait && awaitingFoe && (
         <div className="pool-wait" role="status" aria-live="polite">

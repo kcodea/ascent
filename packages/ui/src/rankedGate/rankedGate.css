@@ -275,7 +275,7 @@
   display: block; white-space: nowrap; line-height: 1; will-change: transform;
   font-family: var(--title-font, 'Cinzel Decorative'), 'Cinzel Decorative', serif; font-weight: 900;
   font-size: calc(var(--rg-enter-size) * var(--rg-u)); letter-spacing: 0.14em; padding-left: 0.14em;
-  color: #b8deff;
+  color: #2f8fd8;
   text-shadow:
     0 0 calc(4 * var(--rg-u)) rgba(170, 222, 255, 0.95),
     0 0 calc(14 * var(--rg-u)) rgba(64, 150, 255, 0.9),

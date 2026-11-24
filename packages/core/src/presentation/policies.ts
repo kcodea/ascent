@@ -272,6 +272,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:goldSpentGetRubiesPlayOnTribe:goldSpent': { policy: 'ownBeat', family: 'economy' }, // Mountainbond (2026-08-14)
   'factory:goldSpentBuffRightmostSlot:goldSpent': { policy: 'foldedCue', family: 'economyReact' },
   'factory:goldSpentBuffTribeAttack:goldSpent': { policy: 'foldedCue', family: 'economyReact' },
+  'factory:goldSpentGrantTribeMinion:cardsBought': { policy: 'ownBeat', family: 'economy' }, // Derenor
   'factory:goldSpentGrantTribeMinion:goldSpent': { policy: 'ownBeat', family: 'economy' },
   'factory:goldSpentMagnetize:cardsBought': { policy: 'foldedCue', family: 'economyReact' },
   'factory:grantFreeRolls:cast': { policy: 'ownBeat', family: 'spellCast' },

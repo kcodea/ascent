@@ -10,7 +10,7 @@
  *    the FRONT of the line, to die;
  *  - Demon Horse (T3 3/3 Rally): +1/+2 to every Shop minion, permanently, every time it attacks — second in line;
  *  - Market Tormentor (T4, Shout): +4/+5 to the right-most slot, stacking; Contract Butcher (T3, Shout): +2/+1
- *    to every Shop minion; Enigma (T5): every consume buffs the Shop +2/+1; Soul Defiler (T5): an escalating
+ *    to every Shop minion; Enigma (T5): every consume buffs the Shop +6/+7 for the turn; Soul Defiler (T5): an escalating
  *    End-of-Turn Shop buff.
  * Two Blarts eat two meals; a THIRD makes a golden (double stats per meal + a tier-up Discover). Chipper (T5) eats
  * whenever a Demon is played; Appetite Agent (T2, targeted) and Cupcakes (spell) feed a chosen eater.
@@ -41,7 +41,7 @@ const ROLES: Record<string, CardRole> = {
   dm_hungerling: R(3, 'Rally: +1/+2 to every Shop minion, permanent, every attack'),
   dm_tormentor: R(3, 'Shout: +4/+5 to the right-most slot, permanent, stacks', { fromWave: 6 }),
   dm_glutton: R(3, 'eats whenever a Demon is played', { fromWave: 8 }),
-  dm_jumbo: R(2, 'every consume buffs the Shop +2/+1', { fromWave: 8 }),
+  dm_jumbo: R(2, 'every consume buffs the Shop +6/+7 for the turn', { fromWave: 8 }),
   dm_curator: R(2, 'escalating End-of-Turn Shop buff', { fromWave: 8 }),
   dm_butcher: R(2, 'Shout: +2/+1 to the Shop, permanent — bought for the Shout, sold when the seat is needed', { filler: true }),
   dm_agent: R(2, 'targeted eat — aim it at the biggest Blart'),

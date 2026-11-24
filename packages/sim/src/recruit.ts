@@ -2395,13 +2395,28 @@ export function dragonflameCasts(state: RunState): number {
  * it beside the permanent `tavernBuyBonus`), and it is cleared at the turn ROLLOVER in `advanceCombat`, i.e.
  * after combat. Built for Rune of the Merchant's Chorus; Night Market Horror is the second caller.
  */
-export function addTurnShopBuff(state: RunState, attack: number, health: number): void {
+export function addTurnShopBuff(state: RunState, attack: number, health: number, sourceCardId?: string): void {
   if (attack === 0 && health === 0) return;
+  if (sourceCardId) state.shopBuffAllSource = sourceCardId; // names the card for the shop-wide FX (Enigma)
   const cur = state.tavernBuyBonusTurn ?? { atk: 0, hp: 0 };
   state.tavernBuyBonusTurn = { atk: cur.atk + attack, hp: cur.hp + health };
   // THE STARFORM is the one offer that survives the refresh a "this shop" buff is scoped to, so it KEEPS the
   // buff: baked onto the offer here (owner rule 6), never read live from this channel (`offerBuyStats`).
   starformFollowShopBuff(state, attack, health, 'Shop Enchant');
+}
+
+/** The shop-wide buff the FX stamps diff: the permanent channel, plus the THIS-TURN one when the change named its card
+ *  (Enigma). An unnamed turn buff (Merchant's Chorus, Night Market Horror) keeps playing no shop-wide effect. */
+export function shopWideDelta(before: { a: number; h: number; ta: number; th: number }, state: RunState): { attack: number; health: number } {
+  const now = shopWideTotals(state);
+  const named = state.shopBuffAllSource !== undefined;
+  return {
+    attack: now.a - before.a + (named ? Math.max(0, now.ta - before.ta) : 0),
+    health: now.h - before.h + (named ? Math.max(0, now.th - before.th) : 0),
+  };
+}
+export function shopWideTotals(state: RunState): { a: number; h: number; ta: number; th: number } {
+  return { a: state.tavernBuyBonus?.atk ?? 0, h: state.tavernBuyBonus?.hp ?? 0, ta: state.tavernBuyBonusTurn?.atk ?? 0, th: state.tavernBuyBonusTurn?.hp ?? 0 };
 }
 
 /** Credit a shop-stat source in the provenance ledger (see `RunState.tavernBuyBonusSources`). Every writer of
@@ -6116,14 +6131,14 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     }
   },
 
-  /** Set 2 — Enigma ("When you consume a minion"): give minions in the Shop +attack/+health PERMANENTLY, via the
-   *  same `tavernBuyBonus` channel Contract Butcher / Staff of Guel use (a lasting buff on everything you buy from
-   *  here on, Fodder included). ANY friendly consume — Blart's End-of-Turn bite, Appetite Agent feeding another
+  /** Set 2 — Enigma ("When you consume a minion"): give minions in the Shop +attack/+health FOR THIS TURN, via the
+   *  `tavernBuyBonusTurn` channel (Refreshes keep it, the turn rollover clears it; R-ENIGMA-TURN-01, owner 2026-11-23: it
+   *  was the permanent channel). The source is named so its shop-wide FX still plays. ANY friendly consume — Blart's End-of-Turn bite, Appetite Agent feeding another
    *  Demon, Enigma itself — not only this body's (owner 2026-09-10: "it should be any consume"; it had been
    *  guarded to `payload.minion === self` like Ashen Broodlord's "when THIS consumes", which is a different
    *  text). `fire` walks the board, so two Enigmas each pay once. Golden doubles. */
   onConsumeBuffShop: (ctx, self, params) => {
-    applyRunShopBuff(ctx.state, num(params.attack, 2) * gold(self), num(params.health, 1) * gold(self), nameOf(self), self.cardId);
+    addTurnShopBuff(ctx.state, num(params.attack, 2) * gold(self), num(params.health, 1) * gold(self), self.cardId);
   },
 
   /** Baby Gastrid (Shout, targeted; ex-Quartermaster Dorrin): +Health per Gold spent THIS TURN — a tempo reward for shopping
@@ -11325,14 +11340,15 @@ export function applyCardsPlayed(state: RunState, count: number): void {
   }
 }
 
-export function applyCardsBought(state: RunState, count: number): void {
+/** `minion`: the card bought was a minion. A meter with `minionsOnly` (Derenor) ignores every other buy. */
+export function applyCardsBought(state: RunState, count: number, minion = true): void {
   if (count <= 0) return;
   advanceRuneThresholds(state, 'cardsBought', count);
   const ctx = makeContext(state);
   for (const card of [...state.board]) {
     const def = CARD_INDEX[card.cardId];
     const effect = def?.effects.find((e) => e.on === 'cardsBought');
-    if (!effect) continue;
+    if (!effect || (effect.params?.minionsOnly === true && !minion)) continue;
     const fn = RECRUIT_FACTORIES[effect.do];
     if (!fn) continue;
     const every = Math.max(1, num(effect.params?.every, 4));
@@ -17123,7 +17139,7 @@ function projectEndOfTurnStepsBody(clone: RunState): {
     // The RUN-WIDE shop channel on its own, so "every offer got +A/+H" (Soul Defiler, Display Curator) can be
     // told apart from "one offer grew" (a Moira-re-fired Market Tormentor). Both land in `shopBuff` above as
     // per-uid deltas; only this one is the shop-wide aura moment.
-    const tavernBefore = { a: clone.tavernBuyBonus?.atk ?? 0, h: clone.tavernBuyBonus?.hp ?? 0 };
+    const tavernBefore = shopWideTotals(clone);
     // Per-minion 'Ruby' buff counts before the beat — the same read the reducer's action boundary uses for
     // `rubyLandedFx`, so an End-of-Turn Ruby (the Lapidary) fires the same gem cascade the shop plays.
     const rubyCountOf = (c: { buffs?: { source: string; count: number }[] }): number =>
@@ -17173,8 +17189,7 @@ function projectEndOfTurnStepsBody(clone: RunState): {
     // The run-wide shop buff this beat produced — the `tavernBuyBonus` delta, matching the reducer's
     // action-level stamp so both paths mean exactly the same thing by "the whole shop was buffed".
     const shopAllDelta = {
-      attack: (clone.tavernBuyBonus?.atk ?? 0) - tavernBefore.a,
-      health: (clone.tavernBuyBonus?.hp ?? 0) - tavernBefore.h,
+      ...shopWideDelta(tavernBefore, clone),
       ...(clone.shopBuffAllSource ? { sourceCardId: clone.shopBuffAllSource } : {}),
     };
     delete clone.shopBuffAllSource; // transient — consumed by this beat's stamp
@@ -17619,7 +17634,7 @@ function withRecruitTrigger(
     const eatenBefore = (state.fodderEaten ?? []).length;
     const shopEatenBefore = (state.shopEaten ?? []).length;
     const rb = state.rubyBonus ?? { attack: 0, health: 0 };
-    const tavernBefore = { a: state.tavernBuyBonus?.atk ?? 0, h: state.tavernBuyBonus?.hp ?? 0 };
+    const tavernBefore = shopWideTotals(state);
     const castStart = (state.castFx ?? []).length; // a spell THIS beat's minion casts tags its buffs (see below)
     // END OF TURN ECONOMY (owner 2026-10-02, R-EOT-ECON-01: "make sure when we have end of turn things that they have
     // beats"): the Shop resources an End-of-Turn trigger moves, diffed like everything else so ANY source (a card, a
@@ -17740,7 +17755,7 @@ function withRecruitTrigger(
         // aura, so the authoritative End of Turn plays the shop-wide effect on the beat, as the Shop and the legacy
         // End-of-Turn path already do (owner 2026-09-24: spell effects from every source). The per-offer climb stays
         // `shopChanged` above. `sourceCardId` names the card that raised it when the sim stamped one.
-        const tvA = (state.tavernBuyBonus?.atk ?? 0) - tavernBefore.a, tvH = (state.tavernBuyBonus?.hp ?? 0) - tavernBefore.h;
+        const { attack: tvA, health: tvH } = shopWideDelta(tavernBefore, state);
         if (tvA > 0 || tvH > 0) collector.emit({ type: 'auraChanged', aura: 'shopBuff', amount: tvA + tvH, attack: tvA, health: tvH, ...(state.shopBuffAllSource ? { sourceCardId: state.shopBuffAllSource } : {}) });
         // BEAT SYSTEM (PR 6c): welds (Attachments this trigger bolted onto a Mech) as a counter, one per host.
         for (const c of state.board) {

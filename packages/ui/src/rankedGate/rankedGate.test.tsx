@@ -591,7 +591,7 @@ describe('what ships', () => {
     expect(fadeIn).toBeGreaterThan(fadeOut * 3);
     // The title wordmark's own face.
     expect(word).toContain("font-family: var(--title-font, 'Cinzel Decorative')");
-    expect(word).toContain('font-weight: var(--title-weight, 700)');
+    expect(word, 'the heaviest cut the face ships (owner: "can we make the font thicker?")').toContain('font-weight: 900');
     expect(word).toContain('font-size: calc(var(--rg-enter-size) * var(--rg-u))');
     // Light blue letters; blue halos with no offset; then ONE dark copy thrown well away, down the door.
     const [r, g, b] = /color: #([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2});/.exec(word)!.slice(1).map((h) => parseInt(h, 16)) as [number, number, number];

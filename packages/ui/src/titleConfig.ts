@@ -88,7 +88,7 @@ export const TITLE_FONTS = [
 const PRELOADED: Record<string, number[]> = {
   outfit: [400, 500, 600, 700, 800, 900],
   sora: [400, 500, 600, 700, 800],
-  'cinzel decorative': [400, 600, 700], // the default title font — also <link>ed from index.html
+  'cinzel decorative': [400, 600, 700, 900], // the default title font — also <link>ed from index.html
 };
 
 const loadedFonts = new Set<string>();

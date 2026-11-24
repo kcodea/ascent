@@ -712,7 +712,7 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
         </div>
         {/* A Versus room still draws its own seat row (versusRoomHome.tsx); the Play lineup is the showcase row. */}
         {vh.row
-          ? <div className={`ph-cards n${slots}${mode.id === 'vduos' ? ' vs' : ''}`} key={mode.id}>{vh.row}</div>
+          ? <div className={vh.rowClass} key={mode.id}>{vh.row}</div>
           : <div className={rowClass} key={mode.id}>{row}</div>}
         {actions}
       </main>

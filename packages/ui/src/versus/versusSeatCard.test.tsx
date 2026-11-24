@@ -295,6 +295,23 @@ describe('every seat carries its rank (the showcase card)', () => {
     expect(backend.selects.some((c) => c.includes('rank_division'))).toBe(true);
   });
 
+  // The cached seat object keeps its identity across reads while nothing changed (the room's cards are memoised on it,
+  // R-VERSUS-ROOM-MOUNTED-01): an equal rank in a NEW object keeps it; a changed rank replaces it.
+  it('an unchanged rank (same values, new object) keeps the cached seat object; a changed rank does not', async () => {
+    const row = (d: number, p: number) => [{ user_id: 'a', favorite_hero: 'indy', equipped_title_id: TITLE_ID, rank_season: RANK_SEASON, rank_division: d, rank_points: p }];
+    backend.profiles = row(4, 20);
+    const first = (await fetchSeatData(['a'])).get('a')!;
+    backend.profiles = row(4, 20);
+    const same = (await fetchSeatData(['a'])).get('a')!;
+    expect(same).toBe(first);
+    backend.profiles = row(4, 21);
+    const moved = (await fetchSeatData(['a'])).get('a')!;
+    expect(moved).not.toBe(first);
+    expect(moved.rank).toEqual({ divisionIndex: 4, points: 21 });
+    backend.profiles = row(5, 21);
+    expect((await fetchSeatData(['a'])).get('a')).not.toBe(moved);
+  });
+
   // The fall-back chain (fetchProfiles): a refused avatar+rank read is blamed on the avatar ONLY once the rank-only read
   // succeeds. Blaming it too early would hide every player's chosen picture for the session over a rank-column problem.
   it('avatar + rank refused, rank alone fine: the avatar is marked unreadable and the rank still arrives', async () => {

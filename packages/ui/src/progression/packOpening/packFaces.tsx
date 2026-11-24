@@ -58,10 +58,15 @@ export const SLOT_X = REVEAL_FACE_X;
 export const SLOT_Y = REVEAL_Y;
 /** The revealed pile's per-card nudge under the top face: [dx px, dy px, deg], by reveal index (cycles). */
 const PILE_JITTER: readonly (readonly [number, number, number])[] = [[-6, 4, -2], [5, -3, 1.5], [-3, -6, -1], [7, 3, 2.2], [-5, 6, -1.6]];
-/** The summary row: centred in the theatre; scale, step between faces, and its centre's offset from the slot centre. */
-const SUMMARY_SCALE = 0.33;
-const SUMMARY_STEP = 184;
-const SUMMARY_DY = -90;
+/**
+ * The summary row: as big as the revealed pile (never bigger), shrunk only as far as one row must to fit the theatre.
+ * The row spans at most `SUMMARY_ROW_W` of the theatre's width with `SUMMARY_GAP` px between faces, each face at most
+ * `SUMMARY_MAX_H` of its height; the row's centre sits at `SUMMARY_Y` of the height (the list panel goes below it).
+ */
+const SUMMARY_ROW_W = 0.95;
+const SUMMARY_GAP = 24;
+const SUMMARY_MAX_H = 0.56;
+export const SUMMARY_Y = 0.4;
 /** The face turns with the scene's perspective: the same multiple of the card's width (the face's own, pre-scale). */
 const PERSPECTIVE = FLIP_PERSPECTIVE_PER_WIDTH * FACE_W;
 /** The handoff's easing: the move eases in and out; the turn starts at the first half's end speed (slope ~1.65). */
@@ -96,10 +101,14 @@ const rowOffset = (slot: PackFaceSlot | undefined, step: number): number => (slo
 export function facePose(
   phase: PackFacePhase, slot: PackFaceSlot | undefined, from: StageRect | undefined, vp: { w: number; h: number }, guaranteed = false,
 ): FacePose {
-  if (phase === 'summary') {
-    return { x: (0.5 - SLOT_X) * vp.w + rowOffset(slot, SUMMARY_STEP), y: SUMMARY_DY, r: 0, sx: SUMMARY_SCALE, sy: SUMMARY_SCALE };
-  }
   const { sx, sy } = pileScale(from, guaranteed, vp);
+  if (phase === 'summary') {
+    const n = Math.max(1, slot?.count ?? 1);
+    const fit = Math.min((SUMMARY_ROW_W * vp.w - SUMMARY_GAP * (n - 1)) / n / FACE_W, (SUMMARY_MAX_H * vp.h) / FACE_H);
+    const k = Math.max(0.05, Math.min(fit, from ? sy : fit)); // the pile's size, or smaller to fit; uniform aspect
+    const step = fit * FACE_W + SUMMARY_GAP; // one step for the whole row, so it stays evenly spaced
+    return { x: (0.5 - SLOT_X) * vp.w + rowOffset(slot, step), y: (SUMMARY_Y - SLOT_Y) * vp.h, r: 0, sx: k, sy: k };
+  }
   if (phase === 'tray') {
     const [x, y, r] = PILE_JITTER[(slot?.index ?? 0) % PILE_JITTER.length]!;
     return { x, y, r, sx, sy };

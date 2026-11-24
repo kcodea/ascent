@@ -29,7 +29,7 @@
 .pkop-back .pkop-back-mark { transition: opacity calc(0.25s * var(--pk-slow, 1)) ease-out; }
 .pkop-back.flipped .pkop-back-mark { opacity: 0; }
 .pkop-faces { position: absolute; inset: 0; pointer-events: none; }
-.pkop-summary { position: absolute; left: 50%; top: 58%; transform: translateX(-50%); min-width: 420px; padding: 16px 28px;
+.pkop-summary { position: absolute; left: 50%; top: 70%; transform: translateX(-50%); min-width: 420px; padding: 16px 28px;
   background: color-mix(in srgb, var(--pk-panel) 95%, transparent); border: 2px solid var(--pk-rim); border-radius: 14px; color: var(--pk-text); font-family: var(--font-ui); }
 .pkop-summary ul { list-style: none; margin: 0 0 10px; padding: 0; display: grid; gap: 6px; font-size: 17px; }
 .pkop-summary-total { font-size: 18px; color: var(--gold-lt); }

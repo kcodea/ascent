@@ -234,11 +234,27 @@ describe('the face poses', () => {
     }
   });
 
-  it('the summary keeps its own smaller scale and lays every face out in one row centred in the theatre', () => {
+  it('the summary row is as big as the revealed pile unless it must shrink to fit, in one row centred in the theatre', () => {
+    const big = { w: 1920, h: 1080 };
+    // one card: the summary face is exactly the revealed pile's size
+    const small = at(700, 300, 200);
+    const pile = facePose('featured', { index: 0, count: 1 }, small, big);
+    const one = facePose('summary', { index: 0, count: 1 }, small, big);
+    expect(one.sx).toBeCloseTo(pile.sy);
+    expect(one.sy).toBeCloseTo(pile.sy);
+    // five cards: never bigger than the pile, but far bigger than a thumbnail, and the row fits the theatre
     const from = at(700, 500, 520);
-    const xs = [0, 1, 2, 3, 4].map((i) => facePose('summary', { index: i, count: 5 }, from, vp));
-    for (const p of xs) { expect(p.sx).toBeLessThan(1); expect(p.y).toBe(xs[0]!.y); expect(p.r).toBe(0); }
-    expect(xs[2]!.x + vp.w * SLOT_X).toBeCloseTo(vp.w / 2);
+    const xs = [0, 1, 2, 3, 4].map((i) => facePose('summary', { index: i, count: 5 }, from, big));
+    const pileK = facePose('featured', { index: 4, count: 5 }, from, big).sy;
+    for (const p of xs) {
+      expect(p.sx).toBeLessThanOrEqual(pileK + 1e-9);
+      expect(p.sx * FACE_W).toBeGreaterThan(300);
+      expect(p.y).toBe(xs[0]!.y); expect(p.r).toBe(0);
+    }
+    const halfW = (xs[0]!.sx * FACE_W) / 2;
+    expect(xs[0]!.x + big.w * SLOT_X - halfW).toBeGreaterThanOrEqual(0);
+    expect(xs[4]!.x + big.w * SLOT_X + halfW).toBeLessThanOrEqual(big.w);
+    expect(xs[2]!.x + big.w * SLOT_X).toBeCloseTo(big.w / 2);
     for (let i = 1; i < 5; i++) expect(xs[i]!.x).toBeGreaterThan(xs[i - 1]!.x);
   });
 

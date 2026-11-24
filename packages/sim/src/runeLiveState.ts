@@ -1,4 +1,4 @@
-import type { QuestCombatMods } from '@game/core';
+import { WIZENED_GEMS, type QuestCombatMods } from '@game/core';
 import { RUNE_INDEX } from '@game/content';
 import { PACKCRAFT_STEP, type RunState } from './state';
 import type { BoardSnapshot } from './snapshot';
@@ -52,6 +52,8 @@ export interface RuneLiveState {
   /** Double Tap (Set 2 Epic, 2026-11-23): the doubled targeted casts left this turn (of 3). A Shop value: a snapshot
    *  never carries it (the turn is over), so an opponent's rune prints its base text. */
   doubleTapLeft?: number;
+  /** Wizened Gems (Set 2 + 3 Basic, 2026-11-23): Shop spells counted toward the next payout (0-2). */
+  wizenedGems?: number;
 }
 
 /** Rune of the Haunted Hand's per-turn cap: the first N hand gains each turn pay (Shop through that turn's combat). */
@@ -119,6 +121,7 @@ export function runeLiveStateOfRun(run: RunState): RuneLiveState {
   if (f?.runeHauntedHand) out.hauntedHandLeft = Math.max(0, HAUNTED_HAND_CAP - (run.hauntedHandThisTurn ?? 0));
   const dt = doubleTapLeft(run);
   if (dt !== undefined) out.doubleTapLeft = dt;
+  if (f?.runeWizenedGems) out.wizenedGems = run.runeWizenedGemsTick ?? 0;
   return out;
 }
 
@@ -144,6 +147,7 @@ export function runeLiveStateOfSnapshot(snap: object | null | undefined): RuneLi
   const bf = intIn(m?.runeBorrowedFlame); // the captured per-copy value (the mod IS the value)
   if (bf) out.borrowedFlame = bf;
   if (m?.runeSequencing) out.sequence = idsIn(m.runeSequence) ?? [];
+  if (m?.runeWizenedGems) out.wizenedGems = intIn(m.runeWizenedGemsTick) ?? 0;
   const hh = intIn(m?.hauntedHandLeft); // what the fight had left of the turn's cap
   if (m?.runeHauntedHand && hh !== undefined) out.hauntedHandLeft = Math.min(HAUNTED_HAND_CAP, hh);
   return out;
@@ -157,6 +161,8 @@ export interface RuneCombatProgress {
   /** Rune of Sequencing: the side's sequence as the last replayed `runeSequence` event left it (absent = no combat cast
    *  moved it yet, so the pre-fight sequence stands). */
   sequence?: string[];
+  /** Wizened Gems: the side's count as the last replayed `shopSpellTally` left it (absent = no combat cast moved it). */
+  wizened?: number;
 }
 
 /**
@@ -186,6 +192,8 @@ export function runeLiveStateInCombat(base: RuneLiveState, prog: RuneCombatProgr
   if (bf > 0 && base.borrowedFlame != null) out.borrowedFlame = base.borrowedFlame + bf;
   // Rune of Sequencing: the replay's latest sequence REPLACES the pre-fight one (each event carries the whole list).
   if (prog.sequence) out.sequence = [...prog.sequence];
+  // Wizened Gems: the replay's latest count replaces the pre-fight one.
+  if (prog.wizened !== undefined) out.wizenedGems = prog.wizened;
   // Rune of the Haunted Hand: every fire (one paying hand gain) spends one of the turn's remaining uses.
   const hh = prog.triggers['runeHauntedHand'] ?? 0;
   if (hh > 0 && base.hauntedHandLeft != null) out.hauntedHandLeft = Math.max(0, base.hauntedHandLeft - hh);
@@ -213,6 +221,7 @@ export function parseRuneLiveState(v: unknown): RuneLiveState | undefined {
   const sq = idsIn(o.sequence); if (sq) out.sequence = sq;
   const hhl = intIn(o.hauntedHandLeft); if (hhl !== undefined) out.hauntedHandLeft = Math.min(HAUNTED_HAND_CAP, hhl);
   const dt = intIn(o.doubleTapLeft); if (dt !== undefined) out.doubleTapLeft = dt;
+  const wg = intIn(o.wizenedGems); if (wg !== undefined) out.wizenedGems = Math.min(WIZENED_GEMS.per - 1, wg);
   return Object.keys(out).length ? out : undefined;
 }
 

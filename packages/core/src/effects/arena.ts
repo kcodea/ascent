@@ -451,6 +451,25 @@ export const vaultPulseActive = (): boolean => vaultPulseDepth > 0;
  * The shared effect bodies. Keyed by the same `do` ids as the legacy registries, so the wrappers in
  * `FACTORIES` / `RECRUIT_FACTORIES` are one-liners and the ratchet test (Step 2) can diff coverage.
  */
+/** Furlboggen's latch: a Ruby landing while one is casting its fan never triggers a Furlboggen (owner ruling 2026-11-23). */
+let furlboggenCasting = false;
+
+/** "A minion of each type" out of `pool`, walked in board order (Fatecarver, Furlboggen; the recruit twin is
+ *  `onePerTribeTargets`): an All-types body always takes its OWN slot, a dual-tribe body fills both of its slots, and a
+ *  body whose types are all taken (or that has none) is skipped. */
+function oneOfEachType(arena: EffectArena, pool: readonly ArenaBody[]): ArenaBody[] {
+  const out: ArenaBody[] = [];
+  const seen = new Set<string>();
+  for (const f of pool) {
+    if (arena.isUniversalTribe(f)) { out.push(f); continue; }
+    const tribes = arena.tribesOf(f);
+    if (tribes.length === 0 || tribes.every((t) => seen.has(t))) continue;
+    for (const t of tribes) seen.add(t);
+    out.push(f);
+  }
+  return out;
+}
+
 export const ARENA_EFFECTS = {
   /** Lastlight — Echo: give `count` friendly minions Ward (golden doubles). Distinct targets, drawn one
    *  `rng.int` per grant from a shrinking board-ordered pool — the EXACT draw pattern of both legacy halves
@@ -807,15 +826,35 @@ export const ARENA_EFFECTS = {
     const a = (typeof params.attack === 'number' ? params.attack : 2) * g;
     const h = (typeof params.health === 'number' ? params.health : 2) * g;
     if (a <= 0 && h <= 0) return;
-    const seen = new Set<string>();
-    for (const f of arena.friends()) {
-      if (arena.isUniversalTribe(f)) { arena.buff(f, a, h); continue; }
-      const tribes = arena.tribesOf(f);
-      if (tribes.length === 0) continue;
-      if (tribes.every((t) => seen.has(t))) continue;
-      for (const t of tribes) seen.add(t);
-      arena.buff(f, a, h);
-    }
+    for (const f of oneOfEachType(arena, arena.friends())) arena.buff(f, a, h);
+  },
+
+  /** Furlboggen (owner design 2026-11-23) — "When a Ruby is cast on this, cast a Ruby on another minion of each type."
+   *  Once PER RUBY cast on it (`params.rubies`, the Trouble ruling: 2 Rubies are 2), it casts `count` Rubies (golden x2),
+   *  each a separate real Ruby, on one OTHER friend of each type, left to right (Fatecarver's selection; itself never
+   *  picked, so another Kobold can take the Kobold slot). OWNER RULING 2026-11-23: Rubies cast by a Furlboggen never
+   *  trigger any Furlboggen. Held as a latch for the whole fan (a Ruby some OTHER effect casts in answer to one of
+   *  these Rubies does not trigger one either), which is what bounds every Ruby chain through it. */
+  onRubyPlayedRubyEachType(arena: EffectArena, params: Record<string, unknown>): void {
+    if (furlboggenCasting) return;
+    const per = num(params.count, 1) * gold(arena);
+    furlboggenCasting = true;
+    try {
+      for (let r = 0; r < num(params.rubies, 1); r++) {
+        const self = arena.self.uid;
+        for (const f of oneOfEachType(arena, arena.friends().filter((m) => m.uid !== self))) {
+          for (let k = 0; k < per; k++) arena.playRubiesOn(f, 1);
+        }
+      }
+    } finally { furlboggenCasting = false; }
+  },
+
+  /** Huntsman (owner design 2026-11-23) — "When any minion dies, gain +6/+6 permanently. Gains double in the Shop." The
+   *  wrappers gate on a LIVING Huntsman that is not the dead body; the gain is `buffPermanent` (a Shop buff is permanent,
+   *  a combat one carries home). `shopTimes` multiplies it in the Shop phase, End of Turn included. Golden doubles. */
+  onAnyDeathGainSelf(arena: EffectArena, params: Record<string, unknown>): void {
+    const m = gold(arena) * (arena.phase === 'shop' ? num(params.shopTimes, 1) : 1);
+    arena.buffPermanent(arena.self, num(params.attack, 6) * m, num(params.health, 6) * m);
   },
 
   /** The asym on-summon buffer: when a friend of `tribe` is played/summoned beside this, buff THE ARRIVER by

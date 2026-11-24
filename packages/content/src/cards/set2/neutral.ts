@@ -367,4 +367,21 @@ export const SET2_NEUTRAL: CardDef[] = [
     text: 'When sold, **double** your **Shop spell power**.',
     goldenText: 'When sold, **triple** your **Shop spell power**.',
   },
+  {
+    // HUNTSMAN (owner design 2026-11-23, R-WIZENED-1123-04): the Huntsman rune's token (Set 2 and Set 3). ANY minion
+    // dying, either side, a Rise or Rebirth death included, gives a LIVING Huntsman +6/+6 for good (`buffPermanent`: a
+    // combat gain carries home). In the Shop (End of Turn included) each death pays double (`shopTimes`). A sale is not a
+    // death. Never its own. A friend-death WATCHER, not an Echo (`DEATH_WATCHER_FACTORIES`). Gilded doubles both.
+    id: 'n2_huntsman',
+    name: 'Huntsman',
+    tribe: 'neutral',
+    tier: 6,
+    attack: 12,
+    health: 12,
+    keywords: [],
+    token: true, // forge-only: Source = Rune
+    effects: [{ on: 'onDeath', do: 'onAnyDeathGainSelf', params: { attack: 6, health: 6, shopTimes: 2 } }],
+    text: 'When any minion dies, gain **+6/+6** permanently. Gains **double** in the Shop.',
+    goldenText: 'When any minion dies, gain **+12/+12** permanently. Gains **double** in the Shop.',
+  },
 ];

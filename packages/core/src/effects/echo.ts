@@ -17,6 +17,7 @@ import type { EffectDef, EffectFactoryId } from '../types';
 export const DEATH_WATCHER_FACTORIES: ReadonlySet<EffectFactoryId> = new Set<EffectFactoryId>([
   'impInheritOnDeath', // Ashen Heir: a friendly Imp died → pass its stats on
   'onFriendDeathGainEcho', // Echo Mimic: another friendly died → gain ITS Echo
+  'onAnyDeathGainSelf', // Huntsman: any minion died, either side → it gains stats
 ]);
 
 /** Is this effect an Echo (an own-death `onDeath` effect), as opposed to a friend-death watcher? */

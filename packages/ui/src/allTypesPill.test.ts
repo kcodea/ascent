@@ -85,6 +85,8 @@ const ART_PENDING = new Set<string>([
   // SET 3 NEUTRALS (2026-09-18): Rig shipped with no master (Shredder + Calibration Master landed with theirs).
   // Owner Set 3 batch (2026-10-13): Indy, the Golden Monkey and Amplification Agnus shipped with no art yet.
   'n3_indy', 'n3_goldenmonkey', 'n3_agnus',
+  // The three rune-only tokens of the owner's 2026-11-23 runes: no art yet (art is wired only on the owner's ask).
+  'b2_petah', 'k_furlboggen', 'n2_huntsman',
   // SET 4: NONE LEFT (owner 2026-10-13: the eight minions and the two Whispers, Tome + Runebind, are arted).
   // SET 3 DRAGONS: NONE LEFT (Matriarch arted in the 2026-10-16 re-wire: "re-wire the set 3 dragon art").
   // Owner Set 3 list 2026-10-27: Studious Steven, Choosey Dragon, Riftwalker and Beer Gut Bud are authored ahead of their art.

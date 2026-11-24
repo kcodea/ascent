@@ -111,7 +111,7 @@ const richBag = (id: string): LiveTextParams => ({
   spellProgress: 5, ascendProgress: 2, summonBonus: 6, /* ≥ Hunter's every-5 improve step */ overflowBonus: 2, hpGrantBonus: 2,
   eotTick: 2, eotBonus: 2, sellBonus: 2, soldProgress: 6,
   playedThisTurn: ['alley', 'alley', 'alley'], tribesPlayed: { undead: 2 }, /* Bicycle Bob's per-tribe channel (2026-09-18) */ attackSeen: 9, permaGain: { attack: 2, health: 2 },
-  squirlScoutBuff: 3, conductorBuff: 3, onBoard: true,
+  squirlScoutBuff: 3, conductorBuff: 3, onBoard: true, inShopPhase: true, /* Huntsman's doubled Shop gain (2026-11-23) */
   goldSpent: 12, /* ≥ Rope Wrangler's per-10-Gold repeat (2026-09-23) */ goldSpentRun: 13, goldPouchValue: 2,
   alesThisTurn: 2, zooSummons: 2, rallySpreadAtk: 5,
   shopSpellsBought: 1, /* Scrollz: this turn's first-spell discount is used (2026-11-10) */

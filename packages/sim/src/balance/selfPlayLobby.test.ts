@@ -102,7 +102,11 @@ describe('B1 — the eight-seat self-play lobby', () => {
     // greedy Set 3 lobby already ran long (seeds 3 and 4 finish in 57 and 51 of the 60-round cap): seed 1 now leaves
     // two seats grinding 2-4 damage a round with the last at 4 Health when the stalemate cap lands, so they end
     // 'capped', not 'placed'. No combat loops or fails; it is a slow endgame. Seed 2 places every seat in 27 rounds.
-    const rec = runSelfPlayLobby(manifest('set3'), 2, greedy, NOOP_RECORDER, identity);
+    // Seed re-pinned 2 → 5 on 2026-11-23 (Wizened Gems, Furlboggen, Huntsman join the Set 3 forge and reshuffle the offers):
+    // seed 2's greedy pilot now buys Grudge ("Gain 10 Armor", in Set 3 since the same day's review board), a legal Armor
+    // gain the "health never rises" line below never modelled (seed 3 buys Hazard Pay). Seed 5 buys no Armor rune and
+    // places every seat in 44 rounds.
+    const rec = runSelfPlayLobby(manifest('set3'), 5, greedy, NOOP_RECORDER, identity);
     checkLobby(rec);
     expect(rec.rounds.some((r) => r.result === 'bye')).toBe(true); // an 8-seat lobby goes odd after the first knockout
     expect(rec.manifest.setId).toBe('set3');

@@ -1048,6 +1048,8 @@ export type EffectFactoryId =
   | 'endOfTurnCopyLeftmostHandCard' // Stonehorn Archivist: every N turns, a plain copy of your left-most HAND card
   | 'endOfTurnTransformLeftTierUp' // Skybound Ascendant: End of Turn, the minion to its left becomes one tier higher
   | 'minionSoldDemonGainStats' // Arcane Behemoth: selling a Demon feeds it that body's stats
+  | 'onAnyDeathGainSelf' // Huntsman (2026-11-23): ANY minion dies, either side → a living Huntsman +a/+h permanently (x `shopTimes` in the Shop)
+  | 'onRubyPlayedRubyEachType' // Furlboggen (2026-11-23): a Ruby cast on this → a Ruby on another friend of each type
   | 'onFriendDeathGainEcho' // Echo Mimic (combat): another friendly dies → this gains that minion's Echo for the fight
   | 'avengeSummonAttackImproving' // Muster General (combat): Avenge summons an improving token that strikes at once
   | 'rallyDoubleSelf' // Evolving Abomination (combat): Rally doubles this minion's stats, capped per combat
@@ -2153,7 +2155,9 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   // Set 2 Epic runes, owner design 2026-11-23: deepBond = your Mountainbonds trigger every 5 Gold spent (Shop-only;
   // sim `goldSpentEvery`); uninvitedGuests = Party Crasher's Avenge Rubies also land on your Beasts (combat);
   // doubleTap = the first 3 targeted spells cast from hand each turn cast twice (Shop-only; sim `doubleTapCastMult`).
-  | 'runeDeepBond' | 'runeUninvitedGuests' | 'runeDoubleTap';
+  | 'runeDeepBond' | 'runeUninvitedGuests' | 'runeDoubleTap'
+  // Wizened Gems (Set 2 + 3 Basic, owner design 2026-11-23): every 3 Shop spells, Rubies +1/+1 and a Ruby (both phases).
+  | 'runeWizenedGems';
 /** Quest-armed combat modifiers threaded into `simulate()` (one trailing options arg). Beast quest capstones +
  *  greaters live here so the pure combat engine can honor them without new positional params per flag. */
 export interface QuestCombatMods {
@@ -3099,6 +3103,11 @@ export interface QuestCombatMods {
   /** Uninvited Guests (Set 2 Epic, owner 2026-11-23): this side's Party Crashers also cast their Avenge Rubies on its
    *  Beasts (a Kobold Beast counted once). Either side; rides a snapshot (`questMods`). */
   runeUninvitedGuests?: boolean;
+  /** Wizened Gems (Set 2 + 3 Basic, owner 2026-11-23): every 3 Shop spells this side casts improve its Rubies +1/+1 and get
+   *  a Ruby, mid-fight too (`wizenedGemsCombat`). Either side; rides a snapshot (`questMods`). */
+  runeWizenedGems?: boolean;
+  /** Wizened Gems: the running count (0-2) going INTO the fight (the run's `runeWizenedGemsTick`). */
+  runeWizenedGemsTick?: number;
 }
 /** Immutable quest definition (data, never mutated). Offered in the quest shop on waves 4/8/12, "bought" for
  *  0 Gold; its objective ticks during play and, when met, applies its reward. `tribe: 'neutral'` is the
@@ -3618,7 +3627,7 @@ export type CombatEvent = (
   | { type: 'attack'; attacker: string; defender: string; swing: number; crit?: boolean; immune?: true }
   | { type: 'dmg'; target: string; amount: number; remainingHp: number; source?: string } // `source` = the uid that dealt this hit (attacker, poisoner, an AoE's caster). Optional: truly sourceless damage omits it. Lets presentation attribute a sourceless-looking damage MOMENT to its actor — e.g. Fel Spikes' Echo volley fires FROM the dying body (source→target FX), the way an `sc` event carries a Start-of-Combat cast's source.
   | { type: 'proccrit'; source: string; mult: number }
-  | { type: 'shopSpellTally'; side: Side; count: number } // a SHOP spell (R-SHOPSPELL-01) resolved mid-fight: `count` = that side's Shop spells THIS TURN so far (recruit turn + this fight). Presentation only, silent and zero hold: Cinderchef's live text reads it in real time (R-CINDERCHEF-01)
+  | { type: 'shopSpellTally'; side: Side; count: number; /** Wizened Gems (2026-11-23): its running count (0-2) after this cast, only while that side holds the rune (a Spellstone Ruby emits it with an unchanged `count`). */ wizened?: number } // a SHOP spell (R-SHOPSPELL-01) resolved mid-fight: `count` = that side's Shop spells THIS TURN so far (recruit turn + this fight). Presentation only, silent and zero hold: Cinderchef's live text reads it in real time (R-CINDERCHEF-01)
   | { type: 'spellcast'; side: Side; count: number } // a Shop Spell resolved mid-fight (Quil/Mammoth/Taragosa/…). `count` = that side's running total. The UI's live counters (Yirin's Attunement, Guel-style tallies) tick off this — carry-backs land at settle, so without it nothing can move in real time. // a chance-to-repeat effect rolled its multiplier (Karwind's 20% double) — the UI floats a crit-style "Nx" above `source`. Presentation only; the repeat itself is already in the buff events.
   | { type: 'shield'; target: string }
   | { type: 'wardDowngrade'; target: string } // a RESILIENT Ward took its first hit: the hit is absorbed and it drops to a plain Ward ('RW' stripped, 'DS' kept). Not a break — `onLoseDivineShield` does not fire. The UI plays it on the Ward-break beat (the orange layer cracks away)
@@ -4517,6 +4526,9 @@ export interface ShoutCarry {
   /** Rune of Sequencing: the side's sequence after this fight, set only when a combat cast moved it. Settle writes it
    *  back to `RunState.runeSequence` so the ONE sequence continues into the next Shop. */
   runeSequence?: string[];
+  /** Wizened Gems: the side's running count after this fight, set only when a combat cast moved it. Settle writes it back
+   *  to `RunState.runeWizenedGemsTick`, so the ONE count continues into the next Shop. */
+  wizenedGemsTick?: number;
   /** Warm-Up (Set 2 batch, 2026-11-12): the side's lifetime Pummel tally after this fight (settle writes it back). */
   warmUpDealt?: number;
 }
@@ -4839,6 +4851,9 @@ export interface CombatContext {
   floodedVaultFor?(side: Side): boolean;
   /** Uninvited Guests — do this side's Party Crashers also cast their Rubies on its Beasts? */
   uninvitedGuestsFor?(side: Side): boolean;
+  /** Wizened Gems: a Ruby the Spellstone made count as a Shop spell was just cast on `side` (one per landing, what
+   *  `castSpell` counts), so the meter ticks. */
+  onSpellstoneRuby?(side: Side): void;
   /** Rune of Battle Refraction — extra combat-Ruby repeats this side's living Prismcasters grant. */
   battleRefractionRepsFor?(side: Side): number;
   /** Rune of Engraving Gems: this side's combat Rubies carry back to the run board (see `playRubyOn`). */

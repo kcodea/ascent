@@ -42,6 +42,7 @@ import { EMPTY_SIDE } from './side';
 import { DRAGONFLAME_ID, SET2_TRIBAL_RUNES } from '../set2TribalRunes'; // Set 2 rune batch, Basic tribal (2026-11-13)
 import { SET3_UNDEAD_RUNES, SKELETON_TOKEN_ID, SPEAR_WARDEN_ID, rankAndFileTaunts } from '../set3UndeadRunes'; // Set 3 Undead runes (2026-11-23)
 import { advanceSequence } from '../runeSequencing'; // Set 2 Epic Dragon rune Sequencing (2026-11-14)
+import { advanceWizenedGems, WIZENED_GEMS } from '../runeWizenedGems'; // Set 2 + 3 Basic (2026-11-23)
 import { applyBankedOpeners, openingEvents, BANKED_CAST_KEY, BANKED_SPELL_OF } from './bankedOpeners';
 
 /** Rune of Enchantment's combat grant (balance 9/23: +4/+6 → +6/+8, and the rune is combat-only). */
@@ -1025,6 +1026,10 @@ export function simulate(
   const shoutCarry = sideReset(() => (perSide<ShoutCarry>(() => ({}))));
   // RUNE OF SEQUENCING (2026-11-14): each side's sequence, seeded from the run's (`QuestCombatMods.runeSequence`) so a
   // sequence started in the Shop continues here; advanced by `sequencingCombat`, written home through `shoutCarry`.
+  // WIZENED GEMS (2026-11-23): each side's running count of Shop spells, seeded from the run's so a count started in the
+  // Shop continues here; advanced by `wizenedGemsCombat`, written home through `shoutCarry`.
+  const wizenedTick: Record<Side, number> = sideReset(() => ({ player: modsFor('player').runeWizenedGemsTick ?? 0, enemy: modsFor('enemy').runeWizenedGemsTick ?? 0 }));
+  let wizenedPaying = false;
   const runeSeq = sideReset(() => ({ player: [...(modsFor('player').runeSequence ?? [])], enemy: [...(modsFor('enemy').runeSequence ?? [])] }));
   /** Set 3 Dragon runes (Basic): Rune of Deep Breaths' Dragon swings used, and Rune of Ember Inheritance's once-per-fight latch. */
   const deepBreathsUsed: Record<Side, number> = sideReset(() => ({ player: 0, enemy: 0 }));
@@ -2475,7 +2480,7 @@ export function simulate(
       // CINDERCHEF (owner 2026-11-15, real time by default): the cast counts toward "Shop spells cast this turn" the
       // moment it resolves, and the replay's live text ticks on the marker.
       shopSpellsLive[side] += 1;
-      emit({ type: 'shopSpellTally', side, count: shopSpellsLive[side] });
+      if (!wizenedGemsCombat(side)) emit({ type: 'shopSpellTally', side, count: shopSpellsLive[side] }); // Wizened Gems counts the cast and emits the tally with its own count in it
       // RUNE OF SHARED SCRIPTURE (owner bug 2026-10-07: "this rune is not working at all"): the warband's FIRST
       // Shop-spell cast in a fight fires the left-most Shout and the left-most Rally. It listens HERE, the per-cast
       // chokepoint EVERY combat caster reports through (`castInCombat`), not inside `resolveCombatSpellCast`, which
@@ -2521,6 +2526,7 @@ export function simulate(
     groveweaverSelfFor: (side) => !!modsFor(side).runeGroveweaver,
     broodmasterSelfFor: (side) => !!modsFor(side).runeBroodmaster,
     floodedVaultFor: (side) => !!modsFor(side).runeFloodedVault,
+    onSpellstoneRuby: (side) => { wizenedGemsCombat(side); }, // Wizened Gems: a Spellstone Ruby counts as a Shop spell
     uninvitedGuestsFor: (side) => !!modsFor(side).runeUninvitedGuests, // Set 2 Epic (2026-11-23): Party Crasher also hits Beasts
     // Rune of Ruptured Rubies (owner 2026-09-25): each combat Ruby hops this many times after landing (see `playRubyOn`).
     rubyRuptureBouncesFor: (side) => (modsFor(side).runeRupturedRubies ? RUPTURED_RUBY_BOUNCES * flagCopiesOf(side, 'runeRupturedRubies') : 0),
@@ -6028,6 +6034,26 @@ export function simulate(
     shoutCarry[side].runeSequence = [...step.seq];
     emit({ type: 'runeSequence', side, seq: [...step.seq] });
   }
+  /** WIZENED GEMS: one Shop spell cast on `side` in combat. Counts on the run's ONE meter; the third pays right then: the
+   *  side's Rubies +1/+1 (live, carried home) and a Ruby to hand, both once per copy held. A cast its own payout sets off
+   *  (a get-a-Ruby watcher under the Spellstone) does not count, so it can never feed itself. The silent `shopSpellTally`
+   *  marker carries the new count, so the rune's x/3 ticks on this beat (R-REALTIME-01). False = not counted. */
+  function wizenedGemsCombat(side: Side): boolean {
+    if (!modsFor(side).runeWizenedGems || wizenedPaying) return false;
+    const step = advanceWizenedGems(wizenedTick[side], 1);
+    wizenedTick[side] = step.tick;
+    shoutCarry[side].wizenedGemsTick = step.tick;
+    emit({ type: 'shopSpellTally', side, count: shopSpellsLive[side], wizened: step.tick });
+    if (step.trips <= 0) return true;
+    const n = step.trips * flagCopiesOf(side, 'runeWizenedGems');
+    fireTrigger('runeWizenedGems', side);
+    wizenedPaying = true;
+    try {
+      ctx.gainRubyBonus(WIZENED_GEMS.attack * n, WIZENED_GEMS.health * n, side, undefined);
+      ctx.grantRubies(n, side, undefined);
+    } finally { wizenedPaying = false; }
+    return true;
+  }
   // LAST HOWL + RUBY DUST hear a friendly death on the `avenge` broadcast: it goes out once per friendly death (a Rise death
   // included), AFTER the body's own Echo and its re-fires, so the Echo's summons take the room first (the 2026-09-18
   // room ruling) and a Ruby the Echo cast is already on the board.
@@ -7258,6 +7284,16 @@ export function simulate(
       for (const eff of w.effects) {
         if (eff.on !== 'spellCast' || eff.do !== 'spellCastBuffAll' || eff.params?.includeRubies !== true) continue;
         for (let r = 0; r < per && !w.dead; r++) FACTORIES.spellCastBuffAll!(ctx, w, eff.params ?? {}, { side });
+      }
+    }
+    // PETAH (rune-only token, owner design 2026-11-23): the same Ruby-is-a-spell rule for its random-Beast grant. With the
+    // Spellstone the landing is ALSO a `castSpell` right after this (which wakes every `spellCast` watcher once), so one
+    // of the cast's Rubies is already paid there and is not paid twice.
+    const rubyFires = per - (modsFor(side).runeSpellstone ? 1 : 0);
+    for (const w of living(side)) {
+      for (const eff of w.effects) {
+        if (eff.on !== 'spellCast' || eff.do !== 'onSpellCastBuffRandomTribe' || eff.params?.includeRubies !== true) continue;
+        for (let r = 0; r < rubyFires && !w.dead; r++) withEffect(w, eff, () => FACTORIES.onSpellCastBuffRandomTribe!(ctx, w, eff.params ?? {}, { side }));
       }
     }
     const m = modsFor(side);

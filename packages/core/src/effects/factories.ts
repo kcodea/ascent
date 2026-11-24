@@ -295,7 +295,10 @@ export function playRubyOn(ctx: CombatContext, self: Minion, target: Minion, per
   }
   // Rune of the Spellstone: this Ruby ALSO counts as a spell cast — fire the trigger so per-spell improvers
   // (Groveweaver, Sovereign, Guel's combat tally) advance, exactly as the recruit path counts it.
-  if (ctx.spellstoneFor?.(self.side)) ctx.castSpell(self.side);
+  if (ctx.spellstoneFor?.(self.side)) {
+    ctx.castSpell(self.side);
+    ctx.onSpellstoneRuby?.(self.side); // Wizened Gems: it counts as a Shop spell
+  }
   // Tell the TARGET a Ruby landed on it, so its own `onRubyPlayed` effects fire — the combat half of the recruit
   // `fireOnRubyPlayed`. Without this, a Geode Guardian Echo playing Rubies onto a Resonance Idol did nothing
   // (owner report 2026-07-25): the Idol's bounce existed only as a RECRUIT factory, so mid-combat Rubies had no
@@ -303,7 +306,7 @@ export function playRubyOn(ctx: CombatContext, self: Minion, target: Minion, per
   // meaningless mid-fight and simply has no combat entry.
   for (const effect of target.effects) {
     if (effect.on !== 'onRubyPlayed') continue;
-    FACTORIES[effect.do]?.(ctx, target, effect.params ?? {}, { minion: target, side: target.side, rubyAttack: a, rubyHealth: h });
+    FACTORIES[effect.do]?.(ctx, target, effect.params ?? {}, { minion: target, side: target.side, rubyAttack: a, rubyHealth: h, rubies: per });
   }
 }
 /** The stat half of playing a Ruby — no `onRubyPlayed` notification, so a BOUNCE can't re-trigger the bounce.
@@ -2991,6 +2994,13 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     flagged.reflectorSpread = true;
   },
 
+  /** FURLBOGGEN (rune-only token, owner design 2026-11-23), combat half: `playRubyOn` tells the Ruby's target, with how many
+   *  Rubies the cast was. One body for both phases: `ARENA_EFFECTS.onRubyPlayedRubyEachType`. */
+  onRubyPlayedRubyEachType: (ctx, self, params, payload) => {
+    if (self.dead || self.health <= 0) return;
+    ARENA_EFFECTS.onRubyPlayedRubyEachType(combatArena(ctx, self), { ...params, rubies: (payload as { rubies?: number }).rubies });
+  },
+
   impInheritOnSummon: (ctx, self, _params, payload) => {
     const born = (payload as MinionPayload).minion;
     if (!born || born === self || born.side !== self.side || self.dead) return;
@@ -5481,6 +5491,15 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  isn't an `onDeath`-of-self, so mirroring two Mimics into each other is inert rather than recursive.
    *  A body already carrying a grafted copy of THIS card's Echoes takes another (two deaths, two Echoes) —
    *  that stacking is the card. Golden grafts each Echo twice. */
+  /** HUNTSMAN (rune-only token, owner design 2026-11-23), combat half: the `onDeath` broadcast carries every death on
+   *  either side (Rise and Rebirth deaths included). A dead or dying Huntsman (0 Health, its own death still queued in the
+   *  same clash) gains nothing, and never off its own death. One body for both phases: `ARENA_EFFECTS.onAnyDeathGainSelf`. */
+  onAnyDeathGainSelf: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || self.health <= 0 || !minion || minion === self) return;
+    ARENA_EFFECTS.onAnyDeathGainSelf(combatArena(ctx, self), params);
+  },
+
   onFriendDeathGainEcho: (ctx, self, _params, payload) => {
     const { minion } = payload as MinionPayload;
     if (self.dead || self.health <= 0) return;

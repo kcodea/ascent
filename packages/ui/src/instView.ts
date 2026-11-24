@@ -8,7 +8,7 @@ import {
   abhorrentHorrorText, ascendProgressText, asymSummonBuffText, cadenceProgressText, cardTypeTallyText, chefRaagText, clingProgressText,
   cryptDrakeText, drunkenOafText, aleTierText, sellDiscoverTierText, shredderText, firstShopSpellDiscountText, karthusText, engraveTallyText, escalatingCastText, guelProgressText, herzogText, hunterText, vaultkeeperText, improvingRubyGrantText, monkProgressText, overflowPerPlayedText, packLeaderText, runescaleText, scTribeBuffPerPlayedText,
   archivistText, ashenHeirText, chooseBothText, attackGrantImproveText, castSpellPerGoldText, copyCastSpellText, runeModifiedNote, runeRewrittenText, type RuneTextFlags, improvingSummonText, perCardPlayedText, rougeRogueText, perGoldSpentText, rallySpreadText, shopBuffImproveText, spellThresholdText, ritualistText, sergeantText, soulsmanText, squirlScoutText, conductorText, perPlayedTargetText, stepProgress, sporebatText, stewardText, thundeerText, summonBuffText, summonEscalatingText, summonFlatZooText, summonImproveText, sellImproveText, rubyCastGainText, summitTierText, summonScalingText, shootingStarText, shopSpellRallyText, echoTallyText,
-  ancientWandererText, musterTrooperText, shopSpellGrowthText,
+  ancientWandererText, musterTrooperText, shopSpellGrowthText, deathGainText,
   taughtSpellText, trailForagerText, transformProgressText, watcherText, withGrantedKeywords, withImpStats, spiritText, whisperGranterText, whisperCasterText, avengeSummonCapText, attackImmuneText, humKeepText, duosTurnCapText, seedEchoNote } from './cardText';
 
 /** Run-wide state + optional per-instance accruals for the live-text chain. Per-instance fields are absent
@@ -136,6 +136,8 @@ export interface LiveTextParams {
   clearanceSellGold?: number;
   /** Golden Bell / Gilded Wings (2026-11-23): this Gilded copy gives no Triple Reward when played (a note in hand). */
   noTripleReward?: boolean;
+  /** Huntsman (2026-11-23): a copy on the Shop board, where each death pays double. Unset in hand and in combat. */
+  inShopPhase?: boolean;
   /** Mage-Pup: the spell Moonhowl Mentor taught THIS token, so its Shout line can print that spell's actual
    *  rule instead of "the spell this was taught". Absent on every other card. */
   taughtSpellId?: string;
@@ -309,6 +311,7 @@ function liveCardTextCore(cardId: string, p: LiveTextParams): { text: string; go
             musterTrooperText(c.id, p.summonBonus ?? 0, p.golden) ?? // Muster General: the Trooper's live stat line
             perGoldSpentText(c.id, p.goldSpent ?? 0, p.golden) ?? // Baby Gastrid: the Health it grants RIGHT NOW
             shopSpellGrowthText(c.id, p.golden, p.inHand) ?? // Goldilox: the doubled gain it takes while in hand
+            deathGainText(c.id, p.golden, p.inShopPhase) ?? // Huntsman: the doubled gain a Shop death pays right now
             castSpellPerGoldText(c.id, p.goldSpent ?? 0, p.golden) ?? // Rope Wrangler: live Lasso cast count
             perCardPlayedText(c.id, Array.isArray(p.playedThisTurn) ? p.playedThisTurn.length : 0, p.golden) ?? // Foreman: same, per card played
             shopBuffImproveText(c.id, p.summonBonus ?? 0, p.golden) ?? // Soul Defiler: its climbing Shop buff
@@ -437,6 +440,7 @@ export function instView(
     whisperTick: inst.whisperTick, // Hatcher: its Whisper's current tier
     clearanceSellGold: clearanceSellGoldOf(inst, live?.sellState), // Frank × Fortune: "Sells for 2 Gold."
     noTripleReward: inst.noTripleReward, // Golden Bell / Gilded Wings: no Triple Reward when played
+    inShopPhase: live?.onBoard, // Huntsman: on the Shop board (a combat body renders through Unit; a hand copy gains nothing)
     keywords: shownKeywords, // a granted Rise leads the text (owner 2026-09-26)
     whisperImprove: live?.whisperImprove, whisperMult: inst.whisperMult, // Set 4: a Whisper's / a granter's live value
   });

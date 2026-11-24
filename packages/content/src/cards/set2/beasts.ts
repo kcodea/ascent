@@ -373,4 +373,21 @@ export const SET2_BEASTS: CardDef[] = [
     text: 'When a **Beast** attacks, give it and this **+2/+1**.',
     goldenText: 'When a **Beast** attacks, give it and this **+4/+2**.',
   },
+  {
+    // PETAH (owner design 2026-11-23, R-WIZENED-1123-02): the Petah rune's token (Set 2). "A spell" is every kind, the
+    // Matriarch definition (R-SPELL-MATRIARCH-01): Shop spells, Gifts and Clues, Whispers and Rubies (`includeRubies`),
+    // each repetition of a cast. 2 distinct random OTHER friendly Beasts (R-TARGET-03: never itself), seeded. Shop and
+    // End of Turn: permanent; combat: a combat buff (R-BUFF-PERM). Gilded doubles the grant.
+    id: 'b2_petah',
+    name: 'Petah',
+    tribe: 'beast',
+    tier: 4,
+    attack: 4,
+    health: 3,
+    keywords: [],
+    token: true, // forge-only: Source = Rune
+    effects: [{ on: 'spellCast', do: 'onSpellCastBuffRandomTribe', params: { tribe: 'beast', count: 2, attack: 3, health: 3, includeRubies: true } }],
+    text: 'When you cast a spell, give **2** other random **Beasts +3/+3**.',
+    goldenText: 'When you cast a spell, give **2** other random **Beasts +6/+6**.',
+  },
 ];

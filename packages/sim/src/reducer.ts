@@ -6153,6 +6153,9 @@ function settleCombat(s: RunState, result: CombatResult): void {
   // RUNE OF SEQUENCING: the fight advanced the run's ONE sequence (and already paid its copies through
   // `playerHandGrants`); only the final sequence comes home, so the next Shop continues it with no double count.
   if (s.questFlags?.runeSequencing && result.playerShoutCarry?.runeSequence) s.runeSequence = [...result.playerShoutCarry.runeSequence];
+  // WIZENED GEMS: the fight advanced the run's ONE count (and already paid its Rubies and its Ruby power through their own
+  // carries); only the final count comes home.
+  if (s.questFlags?.runeWizenedGems && result.playerShoutCarry?.wizenedGemsTick !== undefined) s.runeWizenedGemsTick = result.playerShoutCarry.wizenedGemsTick;
   if (s.questFlags?.runeSpellTempering && result.playerShoutCarry?.whispersCast) {
     s.runeSpellTemperingTick = ((s.runeSpellTemperingTick ?? 0) + result.playerShoutCarry.whispersCast) % SPELL_TEMPERING_PER;
   }
@@ -9157,6 +9160,8 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     runeGemRain: f?.runeGemRain,                     // SoC: 2 permanent Rubies on every friendly minion
     // ── Set 2 Epic runes, owner design 2026-11-23 ──
     runeUninvitedGuests: f?.runeUninvitedGuests,     // Party Crasher's Avenge Rubies also land on your Beasts
+    runeWizenedGems: f?.runeWizenedGems,             // Set 2 + 3 Basic: every 3 Shop spells, Rubies +1/+1 and a Ruby
+    runeWizenedGemsTick: f?.runeWizenedGems && s.runeWizenedGemsTick ? s.runeWizenedGemsTick : undefined, // ...the running count
   };
 }
 

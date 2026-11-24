@@ -123,6 +123,35 @@ button.phs-press:hover, .phs-menu > button.phs-press { transform: translateY(cal
 .phs-team { position: relative; flex: none; display: flex; flex-direction: column; gap: var(--phs-rgap); }
 .phs-team > .ph-pairlbl { position: absolute; left: 0; right: 0; bottom: calc(100% + 12 * var(--phu, 1px)); margin: 0 auto; }
 
+/* ── THE TABS UNDER YOUR CARD (PhCardTabs.tsx): Avatar · Frame · Title · Card plate, centred along your card's bottom edge and
+   hanging below it like folder tabs (flat top against the card, rounded foot). They sit outside the card's box (absolute), so
+   the card keeps its size and the Versus room's seat rects never change; the ROW reserves their height instead: a row
+   holding them is `.phs-lineup.phs-tabbed`, which pads its foot by one tab height (cards read the padded box's cqh, so they
+   shrink to fit) and, in the two-row layouts, widens the row gap by the same, so a tab never covers the card below. Tab
+   sizes are stage units (`--phu`), so the row can reserve exactly what they take. Static paint; a one-shot transform on hover. */
+.phs-lineup.phs-tabbed { --phs-tabh: calc(46 * var(--phu, 1px)); padding-bottom: var(--phs-tabh); }
+.phs-lineup.phs-tabbed:is(.grid, .teams) { --phs-rgap: calc(24 * var(--phu, 1px) + var(--phs-tabh)); }
+.phs-tabs { position: absolute; z-index: 2; top: 100%; left: 50%; translate: -50% 0; display: flex; align-items: flex-start;
+  gap: calc(6 * var(--phu, 1px)); height: var(--phs-tabh, calc(46 * var(--phu, 1px))); }
+.phs-tab { display: inline-flex; align-items: center; gap: calc(8 * var(--phu, 1px)); box-sizing: border-box; height: calc(100% - 6 * var(--phu, 1px));
+  margin: 0; padding: 0 calc(14 * var(--phu, 1px)) 0 calc(8 * var(--phu, 1px)); border: 0; border-radius: 0 0 calc(12 * var(--phu, 1px)) calc(12 * var(--phu, 1px));
+  background: linear-gradient(180deg, var(--ph-well), var(--ph-plate)); color: var(--ph-ink); font: inherit; font-family: var(--ph-font);
+  font-weight: 800; font-size: calc(14 * var(--phu, 1px)); letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap;
+  box-shadow: inset 0 0 0 1px var(--ph-hair), inset 0 calc(-2 * var(--phu, 1px)) 0 color-mix(in srgb, var(--ph-gold) 55%, transparent), 0 calc(6 * var(--phu, 1px)) calc(12 * var(--phu, 1px)) rgba(0, 0, 0, 0.45);
+  transition: transform 0.16s cubic-bezier(0, 0, 0.2, 1); }
+.phs-tab:hover { transform: translateY(calc(3 * var(--phu, 1px))); }
+.phs-tab:focus-visible { outline: calc(2 * var(--phu, 1px)) solid var(--ph-gold-hi); outline-offset: calc(2 * var(--phu, 1px)); }
+.phs-tthumb { display: grid; place-items: center; flex: none; width: calc(26 * var(--phu, 1px)); height: calc(26 * var(--phu, 1px)); }
+.phs-tthumb img { display: block; width: 100%; height: 100%; }
+.phs-tavatar { overflow: hidden; border-radius: 50%; background: var(--ph-well); box-shadow: 0 0 0 calc(1.5 * var(--phu, 1px)) color-mix(in srgb, var(--ph-gold) 80%, transparent); }
+.phs-tavatar img { object-fit: cover; object-position: 50% 22%; }
+.phs-tframe img { object-fit: contain; }
+.phs-tdot { display: block; width: calc(13 * var(--phu, 1px)); height: calc(13 * var(--phu, 1px)); border-radius: 50%;
+  background: var(--rc, var(--ph-muted)); box-shadow: 0 0 0 calc(2 * var(--phu, 1px)) rgba(0, 0, 0, 0.4); }
+.phs-tplate { overflow: hidden; border-radius: calc(4 * var(--phu, 1px)); box-shadow: inset 0 0 0 1px var(--ph-hair); }
+.phs-tplate img { object-fit: cover; }
+.phs-tplain { display: block; width: 100%; height: 100%; background: var(--ph-plate); }
+
 /* PHONES: the house rule "nothing under calc(18 * var(--phu))" (partyHome.css, PHONE). Each small line keeps its own size
    where that is larger. ONLY where the floored text fits (R10, measured at phone geometry): the eyebrow, the rank label and
    the points keep their own sizes, since at 18 units they overran their slots (a phone rank-well layout is the owner's
@@ -136,8 +165,11 @@ html[data-ph-compact] .phs-card .phs-gsub { --phs-fs: 2.6cqw; }
 html[data-ph-compact] .phs-card .phs-gpill { --phs-fs: 2.4cqw; }
 /* The fallback line is 0.8em of the title line (3.4cqw): floored the same way. */
 html[data-ph-compact] .phs-card .phs-fallback { font-size: max(calc(18 * var(--phu)), 2.72cqw); }
+/* The tabs under your card: the floored label, and a taller tab the row reserves to match. */
+html[data-ph-compact] .phs-lineup.phs-tabbed { --phs-tabh: calc(52 * var(--phu)); }
+html[data-ph-compact] .phs-tab { font-size: calc(18 * var(--phu)); }
 
 @media (prefers-reduced-motion: reduce) {
   .phs-card { animation: none; }
-  button.phs-press { transition: none; }
+  button.phs-press, .phs-tab { transition: none; }
 }

@@ -70,6 +70,7 @@ import { playerVersusError, useVersusDown } from './versusCopy';
 import { versusModifierName } from '../versus/versusOptionsUi';
 import { usePhLayer } from './shell/usePhLayer';
 import { ChangeNameDialog, selfCardMenu, type CardMenuItem } from './ChangeName';
+import { OWN_CARD_TABS, useOwnCardTabbed } from './OwnCardTabs';
 import { UpdateReadyNotice } from '../UpdateReadyNotice';
 import { startPracticeThroughGate } from '../locationReveal/startPractice';
 import './partyHome.css';
@@ -104,8 +105,6 @@ function useCompact(): boolean {
 }
 
 export interface PartyHomeProps {
-  /** A guest's Change portrait: the title's own sign-in gate (a guest cannot pick a portrait). */
-  onGuestPortrait: () => void;
   /** A ranked START: the title's nudge + ranked confirmation (R-RANK-06). `then` runs on "Yes" instead of the default. */
   onRankedStart: (kind: 'solo' | 'duos', then?: () => void) => void;
 }
@@ -135,16 +134,15 @@ function slideModesIn(bar: HTMLElement | null): void {
   if (!runs.length) bar.style.clipPath = '';
 }
 
-export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeProps) {
+export default function PartyHome({ onRankedStart }: PartyHomeProps) {
   const startGauntlet = useGame((s) => s.startGauntlet);
   const startTutorial = useGame((s) => s.startTutorial);
   const goTo = useGame((s) => s.goTo);
-  const openAvatarPicker = useGame((s) => s.openAvatarPicker);
   const playerName = useGame((s) => s.playerName);
   const playerAvatar = useGame((s) => s.playerAvatar);
   const showOpp = useShowOpponentCosmetics();
   const userId = useGame((s) => s.account.userId);
-  const guest = useGame((s) => s.account.anonymous);
+  const tabbed = useOwnCardTabbed();
   const pageOpen = useGame(anyPageOpen);
   const savedRun = useGame((s) => s.savedRun);
   const continueRun = useGame((s) => s.continueRun);
@@ -262,7 +260,7 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
   useEffect(() => { if (mode.party === 'rivals' && !sampleOn && !useVersus.getState().room) openVersus('versus'); }, [mode.party, sampleOn]);
   const hostName = (): string => roomName.trim() || (playerName.trim() ? `${playerName.trim()}'s ${mode.label}` : defaultRoomName('', mode.id === 'versus' ? 'duel' : mode.id === 'group' ? 'group' : 'duos'));
   const [nameOpen, setNameOpen] = useState(false);
-  const [renameOpen, setRenameOpen] = useState(false); // your own banner's Change name window
+  const [renameOpen, setRenameOpen] = useState(false); // your own card's Change name window
   const [teamName, setTeamName] = usePartyTeamName(duosRoom);
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [seatNote, setSeatNote] = useState<string | null>(null);
@@ -374,7 +372,7 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
   // context, so a layer over the page would sit on top of the menu and swallow its items.
   useEffect(() => {
     if (!menuFor) return undefined;
-    // The open card: the showcase card's `.phs-card.phs-menu` (and PhBanner's `.ph-cardwrap.menu` while it still exists).
+    // The open card: the showcase card's `.phs-card.phs-menu`.
     const onDown = (e: PointerEvent): void => { if (!(e.target instanceof Element) || !e.target.closest(OPEN_CARD_SELECTOR)) setMenuFor(null); };
     window.addEventListener('pointerdown', onDown, true);
     return () => window.removeEventListener('pointerdown', onDown, true);
@@ -393,7 +391,7 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
   // PHONE: a mark at the end of the mode tabs while more wait off the edge.
   const modesRef = useRef<HTMLDivElement>(null);
   // MODE SLIDE (owner 2026-11-05: "have all of the elements slide left when navigating from ranked to versus and so on, and
-  // slide right going the other way"; chose "slide in only"). The new mode's description, banners and START glide in from the
+  // slide right going the other way"; chose "slide in only"). The new mode's description, cards and START glide in from the
   // side you moved toward, fading up. Web Animations on transform + opacity only (compositor), no re-render, so it adds no cost
   // to the switch itself. A moved-right pick enters from the right (slides left); a moved-left pick enters from the left.
   const stageRef = useRef<HTMLElement>(null);
@@ -497,7 +495,7 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
   const teamLabel = pair ? teamName ?? defaultTeamName(pair[0].name, pair[1].name) : demo && mode.id === 'duos' ? demoTeam ?? defaultTeamName(members[0]!.name, 'Mike') : null;
 
   const cardMenu = (m: Member): CardMenuItem[] => (m.self
-    ? selfCardMenu({ changeName: () => setRenameOpen(true), changePortrait: () => { if (guest) onGuestPortrait(); else openAvatarPicker(); }, viewCareer: () => goTo('career') })
+    ? selfCardMenu({ changeName: () => setRenameOpen(true), viewCareer: () => goTo('career') })
     : [
         { label: 'Message', run: demo || !m.userId ? undefined : () => openDm(m.userId!) },
         ...(m.userId ? [{ label: 'View Career', run: () => goTo('career') }] : []),
@@ -524,7 +522,9 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
       : <OpenSeat key={`open-${i}`} i={members.length + i} size={size} onOpen={onOpenSeat} optional={mode.id === 'group' && members.length + i === 3} />);
   }
   // THE ROW: Versus 1v1 is a duel (VS between), Group a 2 x 2 grid, Versus Duos two team columns split by the VS mark.
-  const rowClass = mode.id === 'versus' ? 'phs-lineup duel' : mode.id === 'group' ? 'phs-lineup grid' : mode.id === 'vduos' ? 'phs-lineup teams' : 'phs-lineup';
+  // Your card's tabs (Avatar / Frame / Title / Card plate) hang below it; the row reserves their height (`phs-tabbed`).
+  const rowClass = (mode.id === 'versus' ? 'phs-lineup duel' : mode.id === 'group' ? 'phs-lineup grid' : mode.id === 'vduos' ? 'phs-lineup teams' : 'phs-lineup')
+    + (tabbed && members.some((m) => m.self) ? ' phs-tabbed' : '');
   const row: JSX.Element[] = mode.id === 'versus' && cards.length === 2
     ? [cards[0]!, <span key="vs" className="phs-vs" aria-hidden="true">VS</span>, cards[1]!]
     : mode.id === 'vduos' && cards.length === 4
@@ -584,7 +584,7 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
       {mode.id === 'gauntlet' && <GauntletPanel selected={stage} onSelect={setStagePick} />}
       {mode.party === 'rivals' && <RoomRulesPanel hasMate={members.length > 1} room={versusRoom} me={homeMe()} modifier={modifier} onModifier={setModifier} name={roomName} onName={setRoomName}
         placeholder={hostName()} />}
-      {/* A phone's spectators live here (the head shows only their count), so the banner row keeps its size. */}
+      {/* A phone's spectators live here (the head shows only their count), so the card row keeps its size. */}
       {phone && vh.stands && <div className="vsr-drawerstands">{vh.stands}</div>}
     </div>
   ) : null;
@@ -673,7 +673,7 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
       </div>
 
       <main ref={stageRef} className="ph-stage" key={enterKey}>
-        {/* The head slot: always the same height (the team plate, a saved game, a held room), so the banners never move. */}
+        {/* The head slot: always the same height (the team plate, a saved game, a held room), so the cards never move. */}
         <div className="ph-stagehead">
         {phone && vh.stands}
         {/* The rule shows here only when it is not the usual one (Modifier: None says that once, in the panel). */}
@@ -791,7 +791,7 @@ function SampleRename({ name, fallback, onSave, onClose }: { name: string | null
   );
 }
 
-/** Open a Versus room behind this screen: the host seated, the rules set. Nothing navigates; the banner row IS the room. */
+/** Open a Versus room behind this screen: the host seated, the rules set. Nothing navigates; the card row IS the room. */
 async function hostVersus(options: VersusRoomOptions, name: string): Promise<void> {
   await createRoom(name.slice(0, 40));
   if (!useVersus.getState().room) return;
@@ -832,7 +832,7 @@ export function mirroredAt(modeId: string, i: number): boolean {
 }
 
 /** A member's showcase card: the portrait, then the mode, name, title (or level) and rank; Ready / In game on the others'
- *  cards. Pressing it opens its small menu. */
+ *  cards. Pressing it opens its small menu. Your own card carries its cosmetics tabs underneath (OWN_CARD_TABS). */
 function LineupCard({ m, i, size, eyebrow, phone, leader, showState, youLabel, rival, mirrored, menuRight, menuOpen, onToggleMenu, menu, onPick }: {
   m: Member; i: number; size: PhCardSize; eyebrow: string; phone: boolean; leader: boolean; showState: boolean; youLabel: boolean; rival?: boolean; mirrored: boolean; menuRight: boolean;
   menuOpen: boolean; onToggleMenu: () => void; menu: { label: string; run?: () => void; soon?: boolean }[]; onPick: (run: () => void) => void;
@@ -853,7 +853,8 @@ function LineupCard({ m, i, size, eyebrow, phone, leader, showState, youLabel, r
       titleId={m.titleId} fallbackLine={m.level != null ? `Level ${m.level}` : null} rank={m.rank} mine={m.self} rival={rival} mirrored={mirrored}
       badge={leader ? <PhLeaderBadge /> : undefined} youLabel={youLabel}
       band={showState ? <PhShowcaseBand tone={m.state}>{m.state === 'in_game' ? 'In game' : 'Ready'}</PhShowcaseBand> : undefined}
-      onClick={onToggleMenu} haspopup expanded={menuOpen} overlay={overlay} className={menuRight ? 'ph-menuright' : undefined} />
+      onClick={onToggleMenu} haspopup expanded={menuOpen} overlay={overlay} under={m.self ? OWN_CARD_TABS : undefined}
+      className={menuRight ? 'ph-menuright' : undefined} />
   );
 }
 

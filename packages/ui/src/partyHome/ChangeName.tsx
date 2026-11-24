@@ -1,7 +1,8 @@
 /**
- * CHANGE NAME from your own banner (owner 2026-11-07: "we need a change name option"; R-PH-CHANGE-NAME-01).
+ * CHANGE NAME from your own card (owner 2026-11-07: "we need a change name option"; R-PH-CHANGE-NAME-01).
  *
- * Your banner's menu offers Change name beside Change portrait and View Career. It opens a small window with the name
+ * Your card's menu offers Change name beside View Career (your portrait, frame, title and card plate change through the
+ * four tabs under your card, PhCardTabs). Change name opens a small window with the name
  * field and saves through the store's `setPlayerName`: the SAME path the title screen's name chip uses (24 characters,
  * trimmed, the `#tag` kept by `claimHandle`, the display name synced). No new rename rules: a guest can rename here
  * exactly as on the title chip, and an empty name falls back to the temporary handle there too.
@@ -20,11 +21,11 @@ export const PLAYER_NAME_MAX = 24;
 
 export interface CardMenuItem { label: string; run?: () => void; soon?: boolean }
 
-/** Your own banner's menu, in order: Change name, Change portrait, View Career. */
-export function selfCardMenu(a: { changeName: () => void; changePortrait: () => void; viewCareer: () => void }): CardMenuItem[] {
+/** Your own card's menu, in order: Change name, View Career. (No Change portrait: only the tabs under your card open the
+ *  cosmetics window, spec "Only the tabs open the window".) */
+export function selfCardMenu(a: { changeName: () => void; viewCareer: () => void }): CardMenuItem[] {
   return [
     { label: 'Change name', run: a.changeName },
-    { label: 'Change portrait', run: a.changePortrait },
     { label: 'View Career', run: a.viewCareer },
   ];
 }
@@ -49,7 +50,7 @@ export function ChangeNameDialog({ onClose }: { onClose: () => void }): JSX.Elem
       </>}>
       <form onSubmit={(e) => { e.preventDefault(); save(); }}>
         <PhField label="Name" value={v} placeholder="Your name" maxLength={PLAYER_NAME_MAX} showCount autoFocus
-          onChange={(e) => { setV(e.target.value); setBlocked(false); }} error={blocked ? NAME_BLOCKED_TEXT : undefined} hint="Other players see this name on your banner and the leaderboards." />
+          onChange={(e) => { setV(e.target.value); setBlocked(false); }} error={blocked ? NAME_BLOCKED_TEXT : undefined} hint="Other players see this name on your card and the leaderboards." />
       </form>
     </PhDialog>
   );

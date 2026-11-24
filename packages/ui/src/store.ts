@@ -168,6 +168,7 @@ import { holdUntilVersusFight, versusAction, versusAfterCommit, versusFreeze, ve
 import { localMateAction, localMateAfterCommit, localMateRefuses } from './versus/localMate';
 import { HALL_VISIBLE } from './hallFlag';
 import { openDockOn } from './friends/dock/dockStore';
+import type { CosmeticsTab } from './cosmetics/cosmeticsPending';
 
 
 // Serve real, buildable boards as enemies: load the COMMITTED opponent pool (`OPPONENT_POOL_DATA`, baked by
@@ -522,6 +523,12 @@ interface GameStore {
   setPlayerAvatar: (id: string | null) => void;
   /** Whether the avatar picker overlay is open (openable from the Title chip + Career profile card). */
   avatarPickerOpen: boolean;
+  /** Which tab of the cosmetics window (Avatar / Frame / Title / Card plate) is showing. `avatarPickerOpen` stays the
+   *  window's one open flag, so every existing reset still closes it. */
+  cosmeticsTab: CosmeticsTab;
+  /** Open the cosmetics window on `tab` (default Avatar). */
+  openCosmetics: (tab?: CosmeticsTab) => void;
+  /** Open the cosmetics window on its Avatar tab (= `openCosmetics('avatar')`). */
   openAvatarPicker: () => void;
   closeAvatarPicker: () => void;
   /** Combat replay speed multiplier (0.5×–5×). 1 = the tuned default. Set by the in-combat slider; persisted. */
@@ -2594,7 +2601,9 @@ export const useGame = create<GameStore>((rawSet, get) => {
     set({ playerAvatar: id });
   },
   avatarPickerOpen: false,
-  openAvatarPicker: () => set({ avatarPickerOpen: true }),
+  cosmeticsTab: 'avatar',
+  openCosmetics: (tab) => set({ avatarPickerOpen: true, cosmeticsTab: tab ?? 'avatar' }),
+  openAvatarPicker: () => set({ avatarPickerOpen: true, cosmeticsTab: 'avatar' }),
   closeAvatarPicker: () => set({ avatarPickerOpen: false }),
   practiceTimer: loadPracticeTimer(),
   practiceSetupOpen: false,

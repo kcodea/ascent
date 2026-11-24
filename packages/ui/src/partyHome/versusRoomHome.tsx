@@ -1,7 +1,7 @@
 /**
  * A VERSUS ROOM IS A STATE OF THE PARTY HOME (owner 2026-11-03: "Launching versus modes should be able to happen from the
  * same party screen ... and not bring you into a new lobby type. The whole point is to basically limit our menus"). There
- * is no room page and no browser page: the Versus tabs show the home's own banner row, and these seats ARE the room's seats.
+ * is no room page and no browser page: the Versus tabs show the home's own card row, and these seats ARE the room's seats.
  * The room is opened invisibly behind the home (an invite, or START) and joining one just fills the same row.
  *
  * `useVersusRoomHome` gives PartyHome everything a held room puts on the home, all through the store's existing calls:
@@ -11,7 +11,7 @@
  *    the stands.
  *  - DRAG TO SEAT, DRAG UP TO SPECTATE (R-VERSUS-DRAG-SEAT-01) through the classic pure helpers (`versus/seatDrag.ts`) and
  *    `takeSeat`; your card's menu does the same without a drag. An occupied seat refuses and the card springs back.
- *  - THE STANDS: a small strip under the banners, off the layout flow, so the banner row never moves.
+ *  - THE STANDS: a small strip under the cards, off the layout flow, so the card row never moves.
  *  - START: the host's once enough sit; everyone else reads what they wait for; Watch for the stands during a match.
  *  - Leave room, Previous match stats and the DEV bot tools, for the row beside START.
  * `OpenRoomsPanel` is the side panel's public room list; `RoomRulesPanel` its rules.
@@ -49,6 +49,7 @@ import { seatPools } from '../versus/VersusRoom';
 import { MAX_RECORD_IDS, playerCardArt, seatCardSource, useSeatData, type SeatServerData, type VersusRecord } from '../versus/versusSeatCard';
 import { clearVersusError, isDuosParty, joinRoom, refreshRooms, setVersusStatsOpen, useVersus, versusRemainingMs } from '../versus/versusStore';
 import { PhButton, PhChip, PhEmpty, PhField, PhRow, PhSegmented, PhShowcaseBand, PhShowcaseCard, PhShowcaseGhost, PhShowcaseInvite, OPEN_CARD_SELECTOR } from './kit';
+import { OWN_CARD_TABS, useOwnCardTabbed } from './OwnCardTabs';
 import type { PhCardSize } from './kit';
 import { openSeatText, ROOM_STATUS, roomJoin, roomModeOf, roomModeShort, roomStartOf, roomTitleOf, seatCap, seatTeams, seatText, VERSUS_OFFLINE_TEXT, visibleRooms, type VersusRoomMode } from './pages/versusPh';
 import { usePartyRoom } from './partyHomeFlag';
@@ -68,7 +69,7 @@ function useCountdown(iso: string | null | undefined): number | null {
   return s;
 }
 
-// ── A MEMBER'S FACE: what their banner and tile show (your own live portrait, title and skins; others' through the
+// ── A MEMBER'S FACE: what their card and tile show (your own live portrait, title and skins; others' through the
 //    opponent-cosmetics switch, exactly as the classic seat card) ───────────────────────────────────────────────────────
 interface Face { name: string; art: string | undefined; titleId: string | null; record: VersusRecord | null; rank: RankPosition | null }
 function useFace(m: Pick<VersusMember, 'userId' | 'displayName' | 'profile'>, server: SeatServerData | undefined, thumb: boolean): Face {
@@ -127,12 +128,12 @@ interface PhDrag {
   from: VersusRole;
   zone: SeatZone;
   valid: boolean;
-  /** The ghost's layout size (stage px): a seat banner's. */
+  /** The ghost's layout size (stage px): a seat card's. */
   w: number;
   h: number;
   /** The sell line (stage px) for a seated card: above it the card goes to the stands. */
   sellTop: number | null;
-  /** The centre of the party stage (stage px): the Spectate chip sits over the banners, not the whole window. */
+  /** The centre of the party stage (stage px): the Spectate chip sits over the cards, not the whole window. */
   bandX: number;
   /** Springing back: the ghost's target (stage px). */
   snap: { x: number; y: number; s: number } | null;
@@ -180,7 +181,7 @@ function useRoomDrag(root: RefObject<HTMLElement>): {
     let snapTimer = 0;
 
     const activate = (): void => {
-      // THE ONE LAYOUT PASS of the drag: the card, the seats, the stands, a seat banner's layout size.
+      // THE ONE LAYOUT PASS of the drag: the card, the seats, the stands, a seat card's layout size.
       const sr = src.getBoundingClientRect();
       origin = { cx: sr.left + sr.width / 2, cy: sr.top + sr.height / 2, w: sr.width };
       const box = (r: DOMRect): SeatDragGeo['seats'][number]['box'] => ({ left: r.left, top: r.top, right: r.right, bottom: r.bottom });
@@ -280,7 +281,7 @@ export interface VersusRoomHome {
   row: JSX.Element[] | null;
   /** The row's lineup class for the room's mode (`phs-lineup duel` / `grid` / `teams`). */
   rowClass: string;
-  /** The strip under the banners. */
+  /** The strip under the cards. */
   stands: JSX.Element | null;
   /** START. */
   start: { label: string; ok: boolean; wait: boolean; note: string | null; run: () => void } | null;
@@ -313,6 +314,7 @@ export function useVersusRoomHome(root: RefObject<HTMLElement>, phone: boolean, 
   const bots = useVersusBots();
   const canAddBot = !bots.busy && bots.bots.length < 3 && freeVersusBotSlot() != null;
   const [menuFor, setMenuFor] = useState<string | null>(null);
+  const tabbed = useOwnCardTabbed();
   const gateLeft = useCountdown(room?.status === 'sealed' ? room.gate_deadline : null);
   const mode: VersusRoomMode = roomModeOf(serverRoom?.options);
   // ONE batched read for every card in the room: every seat and every spectator (at most 24 ids, R-NET-01).
@@ -432,7 +434,8 @@ export function useVersusRoomHome(root: RefObject<HTMLElement>, phone: boolean, 
   );
   return {
     row,
-    rowClass: roomRowClass(mode),
+    // Seated, your card carries its cosmetics tabs underneath; the row reserves their height.
+    rowClass: roomRowClass(mode) + (tabbed && role && role !== 'spectator' ? ' phs-tabbed' : ''),
     stands: <Stands spectators={spectators} room={room} me={me} data={seatData} hiddenId={drag?.userId ?? null} onPointerDown={begin} myDraggable={myDraggable} />,
     start: {
       label: st.label, ok: st.canStart || watch, wait: !!st.wait, note: bots.error ? `Bot: ${bots.error}` : st.note,
@@ -495,9 +498,11 @@ export function SeatBanner({ side, i, size, mirrored, menuRight = false, m, riva
       badge={host ? HOST_BADGE : undefined} band={band}
       className={`vsr-seat vsr-s-${side}${menuRight ? ' ph-menuright' : ''}${draggable ? ' vsr-mineseat' : ''}${over}${hidden ? ' vsr-src' : ''}`}
       label={draggable ? `You, seat ${side.slice(1)}. Drag to another seat, or up to spectate. Options` : `${face.name}${host ? ', host' : ''}, seat ${side.slice(1)}`}
-      onClick={items.length > 0 ? toggle : undefined} haspopup={items.length > 0} expanded={menuOpen && items.length > 0} overlay={overlay} />
+      onClick={items.length > 0 ? toggle : undefined} haspopup={items.length > 0} expanded={menuOpen && items.length > 0} overlay={overlay}
+      under={own ? OWN_CARD_TABS : undefined} />
   );
-  // My own card starts the drag (a wrapper that takes no box, so the card stays a direct item of the row).
+  // My own card starts the drag (a wrapper that takes no box, so the card stays a direct item of the row). Its tabs (under)
+  // stop their own pointerdown, so a tab press never starts a drag or opens the seat menu.
   // Always there, so the card never remounts (and replays its entrance) when the room starts.
   return <div className="vsr-dragwrap" onPointerDown={draggable ? onPointerDown : undefined}>{card}</div>;
 }
@@ -596,7 +601,7 @@ const ROOMS_VISIBLE_MS = 5000;
 const ROOMS_HIDDEN_MS = 30_000;
 
 /**
- * OPEN ROOMS, the side panel's third tab: the public rooms, this mode's first. Joining one just fills the same banner row
+ * OPEN ROOMS, the side panel's third tab: the public rooms, this mode's first. Joining one just fills the same card row
  * (everyone arrives in the stands, R-VERSUS-ROOM-HAND-01). Same refresh as the classic browser (R-NET-BACKOFF-01), only
  * while the tab shows. A list that cannot be read is one friendly line with Retry.
  */

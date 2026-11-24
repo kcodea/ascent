@@ -53,21 +53,26 @@ describe('the gate word\'s tuner', () => {
 
   it('the stylesheet\'s fallbacks are the shipped defaults', () => {
     const vars = gateEnterCssVars(GATE_ENTER_DEFAULTS);
-    const fallback = (name: string): string => new RegExp(`var\\(${name}, ([^()]*?)\\)`).exec(css)![1]!.trim();
-    for (const name of ['--rg-enter-x', '--rg-enter-dy', '--rg-enter-scale', '--rg-enter-glow-blur', '--rg-enter-hue', '--rg-enter-sat', '--rg-enter-bri', '--rg-enter-tint-col', '--rg-enter-tint-amt']) {
-      expect(fallback(name), name).toBe(vars[name]);
-    }
-    // Shipped with no added glow and no tint: both glow layers are clear, and the tint step is absent.
-    expect(GATE_ENTER_DEFAULTS.glowAmount).toBe(0);
-    expect(GATE_ENTER_DEFAULTS.tintAmount).toBe(0);
-    for (const layer of ['--rg-enter-glow-a', '--rg-enter-glow-b']) {
-      expect(fallback(layer), layer).toBe('transparent');
-      expect(vars[layer], layer).toMatch(/\/ 0\)$/);
-    }
+    const mirrored = Object.keys(vars).filter((name) => name !== '--rg-enter-tint');
+    expect(mirrored).toHaveLength(11);
+    for (const name of mirrored) expect(css, name).toContain(`var(${name}, ${vars[name]})`);
+    // The tint's LINK is the one value only the module writes (the gate cannot mount before it has loaded).
     expect(css).toContain('var(--rg-enter-tint, )');
-    expect(vars['--rg-enter-tint']!.trim()).toBe('');
+    expect(vars['--rg-enter-tint']).toBe(GATE_ENTER_DEFAULTS.tintAmount > 0 ? `url(#${GATE_ENTER_TINT_ID})` : ' ');
     // The size: the base width times the scale, in art pixels.
-    expect(css).toContain(`width: calc(${GATE_ENTER_BASE_W} * var(--rg-enter-scale, 1) * var(--rg-u))`);
+    expect(css).toContain(`width: calc(${GATE_ENTER_BASE_W} * var(--rg-enter-scale, ${GATE_ENTER_DEFAULTS.scale}) * var(--rg-u))`);
+  });
+
+  it('ships the owner\'s tune', () => {
+    // Owner 2026-11-24, pasted back from the panel's Copy values after dialling it on the shut gate.
+    expect(GATE_ENTER_DEFAULTS).toEqual({
+      x: 0, y: 109, scale: 0.68, glowAmount: 1.14, glowBlur: 5.5, glowColor: '#3c96ff',
+      hue: 11, saturation: 86, brightness: 111, tintColor: '#009dff', tintAmount: 0.7,
+    });
+    // 1.14 of glow is one full layer and 0.14 of a second, written without floating-point noise.
+    const vars = gateEnterCssVars(GATE_ENTER_DEFAULTS);
+    expect(vars['--rg-enter-glow-a']).toBe('rgb(60 150 255 / 1)');
+    expect(vars['--rg-enter-glow-b']).toBe('rgb(60 150 255 / 0.14)');
   });
 
   it('the filter runs tint, colour, glow, then the black cast shadow last (so no colour step re-colours the shadow)', () => {
@@ -103,7 +108,7 @@ describe('the gate word\'s tuner', () => {
     expect(on['--rg-enter-tint']).toBe(`url(#${GATE_ENTER_TINT_ID})`);
     expect(on['--rg-enter-tint-col']).toBe('#2f8fd8');
     expect(on['--rg-enter-tint-amt']).toBe('0.6');
-    expect(css).toMatch(/\.rgate-enter-tint-flood \{ flood-color: var\(--rg-enter-tint-col, [^)]*\); flood-opacity: var\(--rg-enter-tint-amt, 0\); \}/);
+    expect(css).toMatch(/\.rgate-enter-tint-flood \{ flood-color: var\(--rg-enter-tint-col, [^)]*\); flood-opacity: var\(--rg-enter-tint-amt, [\d.]+\); \}/);
     // The filter it links is the one the gate renders beside the word: the colour, cut to the word, blended as COLOUR.
     const gate = readFileSync(join(__dirname, 'RankedGate.tsx'), 'utf8');
     expect(gate).toContain('<filter id={GATE_ENTER_TINT_ID}');
@@ -120,6 +125,6 @@ describe('the gate word\'s tuner', () => {
     resetGateEnterConfig();
     expect(getGateEnterConfig()).toEqual(GATE_ENTER_DEFAULTS);
     expect(root('--rg-enter-dy')).toBe(String(GATE_ENTER_DEFAULTS.y));
-    expect(root('--rg-enter-glow-a')).toMatch(/\/ 0\)$/);
+    expect(root('--rg-enter-glow-a')).toBe(gateEnterCssVars(GATE_ENTER_DEFAULTS)['--rg-enter-glow-a']);
   });
 });

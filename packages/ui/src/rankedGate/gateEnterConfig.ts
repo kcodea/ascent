@@ -17,7 +17,8 @@
  *  - COLOUR OF THE WORD. `hue` / `saturation` / `brightness` re-colour the painted art as a whole. The TINT washes it
  *    toward one colour instead: `tintColor` replaces the art's hue and saturation and keeps its light and dark (so
  *    the facets survive), mixed in by `tintAmount`. The tint is an SVG filter, linked only while the amount is above
- *    zero, so the shipped look pays nothing for it when it is off.
+ *    zero. That link is the ONE value with no stylesheet fallback: it is written from here alone, which is safe
+ *    because the gate cannot mount before this module has loaded (RankedGate imports it).
  *
  * PERF: every one of these lands in a STATIC `filter` / size on the word. Nothing here animates; the loop is still
  * the bob's transform alone.
@@ -55,18 +56,20 @@ export const GATE_ENTER_BASE_W = 330;
 /** The id of the tint's SVG filter, rendered by RankedGate beside the word. */
 export const GATE_ENTER_TINT_ID = 'rg-enter-tint';
 
+// The owner's tune (2026-11-24, dialled on the shut gate and pasted back from the panel's Copy values): smaller and
+// tucked up under the crystal, a tight blue rim of added glow, and the art washed most of the way to a clear blue.
 const DEFAULTS: GateEnterConfig = {
   x: 0,
-  y: 178,
-  scale: 1,
-  glowAmount: 0,
-  glowBlur: 14,
+  y: 109,
+  scale: 0.68,
+  glowAmount: 1.14,
+  glowBlur: 5.5,
   glowColor: '#3c96ff',
-  hue: 0,
-  saturation: 100,
-  brightness: 100,
-  tintColor: '#2f8fd8',
-  tintAmount: 0,
+  hue: 11,
+  saturation: 86,
+  brightness: 111,
+  tintColor: '#009dff',
+  tintAmount: 0.7,
 };
 export { DEFAULTS as GATE_ENTER_DEFAULTS };
 
@@ -88,6 +91,7 @@ function hexToRgb(hex: string): [number, number, number] {
   return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
 }
 const clamp = (v: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, Number.isFinite(v) ? v : lo));
+const round3 = (v: number): number => Math.round(v * 1000) / 1000;
 
 export function getGateEnterConfig(): GateEnterConfig {
   return cfg;
@@ -104,8 +108,9 @@ export function gateEnterCssVars(c: GateEnterConfig = cfg): Record<string, strin
     '--rg-enter-scale': String(c.scale),
     '--rg-enter-glow-blur': String(Math.max(0, c.glowBlur)),
     // Two layers: the first carries the amount up to 1, the second what is over it.
-    '--rg-enter-glow-a': `rgb(${r} ${g} ${b} / ${Math.min(1, amount)})`,
-    '--rg-enter-glow-b': `rgb(${r} ${g} ${b} / ${Math.max(0, amount - 1)})`,
+    // (Rounded: 1.14 - 1 is 0.1399999999999999 in floating point, and the stylesheet's fallback mirrors this text.)
+    '--rg-enter-glow-a': `rgb(${r} ${g} ${b} / ${round3(Math.min(1, amount))})`,
+    '--rg-enter-glow-b': `rgb(${r} ${g} ${b} / ${round3(Math.max(0, amount - 1))})`,
     '--rg-enter-hue': `${c.hue}deg`,
     '--rg-enter-sat': `${Math.max(0, c.saturation)}%`,
     '--rg-enter-bri': `${Math.max(0, c.brightness)}%`,

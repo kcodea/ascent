@@ -594,7 +594,7 @@ describe('what ships', () => {
     expect(fadeIn).toBeGreaterThan(fadeOut * 3);
     // The painted word is committed, and sized in art pixels at its own shape (so it holds its box before it decodes).
     expect(existsSync(pub('frames', 'ranked-gate-enter.webp'))).toBe(true);
-    expect(word).toContain(`width: calc(${GATE_ENTER_BASE_W} * var(--rg-enter-scale, 1) * var(--rg-u))`);
+    expect(word).toContain(`width: calc(${GATE_ENTER_BASE_W} * var(--rg-enter-scale, ${GATE_ENTER_DEFAULTS.scale}) * var(--rg-u))`);
     expect(word).toMatch(/aspect-ratio: \d+ \/ \d+;/);
     // Its light is painted in. The stylesheet's own mark on it is a black copy thrown well away, down the door, and
     // soft: the LAST step of the filter, after the tuner's colour and glow steps.
@@ -603,7 +603,7 @@ describe('what ships', () => {
     expect(cast).toMatch(/rgba\(0, 0, 0, 0\.\d+\)$/);
     const [, drop, blur] = /^calc\(\d+ \* var\(--rg-u\)\) calc\((\d+) \* var\(--rg-u\)\) calc\((\d+) \* var\(--rg-u\)\)/.exec(cast)!.map(Number) as [number, number, number];
     const [, artW, artH] = /aspect-ratio: (\d+) \/ (\d+);/.exec(word)!.map(Number) as [number, number, number];
-    const height = GATE_ENTER_BASE_W * artH / artW;
+    const height = GATE_ENTER_BASE_W * GATE_ENTER_DEFAULTS.scale * artH / artW;
     expect(drop / height, 'far: a good part of the word\'s own height away').toBeGreaterThan(0.25);
     expect(blur, 'soft: a filter blur is a deviation, so this is twice as wide as the same text-shadow number').toBeGreaterThanOrEqual(9);
     // The bob: light, the image's transform only, and only while the crystal is up.

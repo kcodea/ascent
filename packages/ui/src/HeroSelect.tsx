@@ -29,7 +29,7 @@ import { partyHomeOn, usePartyHome } from './partyHome/partyHomeFlag';
 import { heroShowcaseOn, useHeroShowcase } from './hero-select/heroShowcaseFlag';
 import { heroSelectEyebrow } from './hero-select/heroSelectEyebrow';
 import { HeroPowerLine } from './hero-select/HeroPowerLine';
-import { locationArt } from './locationReveal/locations';
+import { LocationGround } from './locationReveal/LocationGround';
 import { pendingLocation } from './locationReveal/pendingLocation';
 import { versusLocation } from './locationReveal/versusReveal';
 import './locationReveal/locationReveal.css';
@@ -423,8 +423,8 @@ export function HeroSelect({ watch }: { watch?: HeroSelectWatch } = {}) {
   return (
     <div className={`heroselect${active ? ' hsc-active' : ''}${watch ? ' hswatch' : ''}${ph ? ' phhs ph-tokens' : ''}${showcase ? ` hss${snapJump ? ' hss-snap' : ''}` : ''}${browseShowcase ? ` hsb${openNow !== null ? ' hsb-open' : ''}` : ''}`} style={rootStyle} {...(watch ? { 'aria-label': 'Watching Hero Select' } : {})}>
       {ph && HeroSelectPhSkin && <Suspense fallback={null}><HeroSelectPhSkin /></Suspense>}
-      {/* WHERE THE GAME IS PLAYED (owner 2026-11-24): the location's painting, blurred, behind the picker. */}
-      {location && <div className="hs-location" aria-hidden="true" style={{ backgroundImage: `url(${locationArt(location.id, 'blur')})` }} />}
+      {/* WHERE THE GAME IS PLAYED (owner 2026-11-24): the location's painting, blurred and alive, behind the picker. */}
+      {location && <LocationGround key={location.id} location={location} />}
       {/* Return to the main menu (owner ask 2026-09-01) — the same `.hsback` chrome the Title's mode-pick
           wears, top-left. Hidden once a pick's ceremony is running: the launch is committing, and yanking
           the screen out from under the machine mid-choreography is not a state it handles. */}

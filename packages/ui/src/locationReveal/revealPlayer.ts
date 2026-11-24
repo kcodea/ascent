@@ -14,6 +14,7 @@ import { PHONE_GPU } from '../phoneDiag';
 import { locationArt, locationName, POSTER_NAME, type LocationDef } from './locations';
 import { prepareReveal, stageHeight, type PreparedReveal, type RevealGl } from './revealGl';
 import { loadRevealSound, type RevealSound } from './revealSound';
+import { dropAtmosphere, setAtmosphereCovered, syncAtmosphere, warmAtmosphere } from './atmosphereGl';
 import { arriveHeroSelect, type ArriveFrom } from './heroArrive';
 import { A, fitOf, HOLD, NAME, outCubic, outroAt, POST, POST_GAP, posterName, posterRest, POSTER_H, POSTER_W, realOf, seg, simEnd, simOf, smoother, START, washAt, washReach } from './revealTimeline';
 import './locationReveal.css';
@@ -38,7 +39,10 @@ export function warmLocationReveal(loc: LocationDef): void {
   // The light version's pictures; the full one needs only the blur hero select shows.
   const files = light ? ['flat', 'blur', ...loc.posters.map((t) => `poster-${t}`)] : ['blur'];
   const art = files.map((f) => { const i = new Image(); i.decoding = 'async'; i.src = locationArt(loc.id, f); return i; });
-  warm = { id: loc.id, gl: light ? null : prepareReveal(loc), sound: loadRevealSound(loc.id), art };
+  const w: Warm = { id: loc.id, gl: light ? null : prepareReveal(loc), sound: loadRevealSound(loc.id), art };
+  warm = w;
+  // Hero select's living ground, once the reveal itself is whole (not for a gate that has gone meanwhile).
+  void w.gl?.ready.then(() => { if (warm === w) warmAtmosphere(loc); });
 }
 
 /** Ends the reveal on screen, if there is one. */
@@ -53,6 +57,7 @@ export function stopLocationReveal(): void {
 export function dropLocationReveal(): void {
   const w = warm;
   warm = null;
+  dropAtmosphere();
   if (!w) return;
   w.gl?.drop();
   w.sound.stop();
@@ -179,6 +184,7 @@ export function playFullReveal(host: HTMLElement, r: LocationRevealRequest, gl: 
       if (over) return;
       over = true;
       endNow = null;
+      setAtmosphereCovered(false);
       cancelAnimationFrame(raf);
       window.clearTimeout(guard);
       unwatch();
@@ -204,13 +210,14 @@ export function playFullReveal(host: HTMLElement, r: LocationRevealRequest, gl: 
       // It fades up over the gate's own doors, which it matches, then they can go.
       root.style.opacity = real < 0.1 ? String(real / 0.1) : '1';
       // The wave that washes the world away brings hero select in behind it.
-      if (!arrived && s >= washAt(n)) { arrived = true; arriveHeroSelect(waveFrom(root, gl, stagePx, n)); }
-      if (!covered && real > 0.14) { covered = true; onCovered(); }
+      if (!arrived && s >= washAt(n)) { arrived = true; setAtmosphereCovered(false); syncAtmosphere(s); arriveHeroSelect(waveFrom(root, gl, stagePx, n)); }
+      if (!covered && real > 0.14) { covered = true; setAtmosphereCovered(!arrived); onCovered(); }
       raf = requestAnimationFrame(tick);
     };
     root.style.opacity = '0';
     endNow = () => {
       endNow = null;
+      setAtmosphereCovered(false);
       window.setTimeout(finish, STOP_MS);
       w?.sound.stop();
       root.animate?.([{ opacity: 1 }, { opacity: 0 }], { duration: STOP_MS, fill: 'forwards' });

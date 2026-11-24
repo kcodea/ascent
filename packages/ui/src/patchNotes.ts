@@ -63,7 +63,7 @@ export const PATCH_NOTES: PatchNote[] = [
         text: 'Every Ranked, Ranked Duos, Versus and Practice game now opens at its location. Shatter the crystal and its magic carries you to The Outskirts, with the tribes in your game waiting for you.',
         details: [
           'The announcer greets you as the name appears, then a parchment drops open for each tribe in that game.',
-          'Hero select stands over the same place.',
+          'Hero select stands in the same place, and it stays alive around you.',
           'Practice now starts through the gate too.',
           'In Versus and Duos it plays for everyone at once, and the hero clock waits until it is over.',
         ],

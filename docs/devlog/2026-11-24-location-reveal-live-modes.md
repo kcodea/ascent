@@ -15,3 +15,14 @@ Owner ask, the same day as the reveal shipped to Ranked and Practice. Rule R-LOC
   `playVersusEndGate` now cuts the entry gate short (`cancelRankedGate` stops a playing reveal) and asks again after it.
 - The phone memory walk (`scripts/phone-run-memory.mjs`) tapped a hero while the reveal was still over it and went red on
   the first PR; it now waits for the gate. The phone itself was fine: the light version played, peak 243 MB of 300.
+
+## Hero select stays alive, and the water maps (R-LOCATION-04)
+
+- `atmosphereGl.ts`: one small WebGL 2 canvas (540 rows) over the same blurred picture: drifting mist, sway, water, flicker,
+  motes, and a lean of at most about 8 px from the depth map. Built while the gate is shut, not drawn while the reveal covers
+  it, handed the reveal's clock at the wash, freed with hero select. Phones and reduced motion keep the still picture. A
+  teammate's hero select over your own keeps the still one too (only one is ever on screen).
+- **The water map** (`water.webp`, `.claude/location-reveal-prototype/watermap.py` in the primary checkout): the old water was a
+  few rough shapes in the depth map's blue channel, all poured straight down, the Underbelly's whole pool included, across its
+  dock, posts and boats. Now R = falling (between two traced edges), B = across the stream (so streaks follow the curve), G = a
+  flat surface with everything standing in it cut out, rippled in perspective. The Outskirts' falls and puddles are traced too.

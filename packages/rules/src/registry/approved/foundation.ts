@@ -17203,4 +17203,21 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/locationReveal/locationReveal.test.ts', 'packages/ui/src/rankedGate/rankedGate.test.tsx', 'workers/versus/test/rankedCore.test.ts'], lastVerifiedAt: '2026-11-24' },
   },
+  {
+    id: 'R-LOCATION-04',
+    title: 'Hero select stands in a living place: mist, leaves, water, lights and motes keep moving, with a very slight lean',
+    statement:
+      'Behind hero select the blurred location stays alive: its mist drifts, leaves and cloth sway, water runs, lanterns and '
+      + 'crystals flicker, motes float, and the whole place leans a few pixels with its own depth, never following the mouse. '
+      + 'Falling water runs down its own stream, and a flat surface ripples in perspective and never over what stands in it. '
+      + 'A phone, reduced motion, or a machine that cannot draw it keeps the still picture.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-24', quote: 'can you make it so that during the hero select those atmospheric effects continue so it still feels like the player is really at this location? maybe even keep some very slight movement?' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-24', quote: 'take a look at the flowing water in underbelly and make sure it maps well' },
+      { kind: 'code', ref: 'packages/ui/src/locationReveal/atmosphereGl.ts; packages/ui/src/locationReveal/LocationGround.tsx; packages/ui/src/locationReveal/revealShaders.ts (water); apps/web/public/locations (water.webp)' },
+    ],
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/locationReveal/locationReveal.test.ts'], lastVerifiedAt: '2026-11-24' },
+  },
 ];

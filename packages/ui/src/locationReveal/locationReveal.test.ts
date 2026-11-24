@@ -10,6 +10,7 @@ import { DEFAULT_PRACTICE_CONFIG, runTribesForSeed, VERSUS_HERO_SELECT_SECONDS, 
 import { versusHeroSelectMs } from '@game/sim/versus/server';
 import { LOCATIONS, locationName, locationOfSet, POSTER_NAME, postersFor } from './locations';
 import { pendingLocation, pendingReveal, practiceLocation } from './pendingLocation';
+import { LEAN, leanAt, mountAtmosphere } from './atmosphereGl';
 import { versusHeroClock, versusLocation, versusReveal } from './versusReveal';
 import { showOf, slideFor, stageHeight } from './revealGl';
 import { revealCues } from './revealSound';
@@ -30,7 +31,7 @@ describe('the locations', () => {
   it('each hangs exactly its own tribes, and ships every picture and sound it names', () => {
     for (const l of Object.values(LOCATIONS)) {
       expect([...l.posters].sort()).toEqual([...SETS[l.setId].tribes].sort());
-      for (const f of ['flat', 'blur', 'data', 'layer0', 'layer1', 'layer2', 'layer3', ...l.posters.map((t) => `poster-${t}`)]) {
+      for (const f of ['flat', 'blur', 'data', 'water', 'layer0', 'layer1', 'layer2', 'layer3', ...l.posters.map((t) => `poster-${t}`)]) {
         expect(existsSync(join(PUBLIC, l.id, `${f}.webp`)), `${l.id}/${f}`).toBe(true);
       }
       for (const t of l.posters) expect(POSTER_NAME[t]).toBeTruthy();
@@ -54,6 +55,28 @@ describe('the locations', () => {
     expect(r?.location.id).toBe('underbelly');
     expect(r?.tribes).toEqual(['undead', 'spirit']);
     expect(pendingReveal({ pendingMode: 'practice', pendingSeed: undefined, practiceDraft: cfg() })).toBeNull();
+  });
+});
+
+describe('hero select living ground (owner 2026-11-24, R-LOCATION-04)', () => {
+  it('it only ever leans a little, and never jumps', () => {
+    let was = leanAt(0);
+    for (let t = 0; t < 600; t += 0.05) {
+      const p = leanAt(t);
+      expect(Math.abs(p.x)).toBeLessThanOrEqual(LEAN.x);
+      expect(Math.abs(p.y)).toBeLessThanOrEqual(LEAN.y);
+      expect(p.push).toBeGreaterThanOrEqual(0);
+      expect(p.push).toBeLessThanOrEqual(LEAN.push);
+      expect(Math.hypot(p.x - was.x, p.y - was.y)).toBeLessThan(0.001);
+      was = p;
+    }
+    // The nearest things are at depth 0.25: under a hundredth of the screen's height.
+    expect(LEAN.x * 0.25).toBeLessThan(0.01);
+  });
+
+  it('a machine that cannot draw it keeps the still picture', () => {
+    const host = { appendChild: () => { throw new Error('nothing is added'); } } as unknown as HTMLElement;
+    expect(() => mountAtmosphere(host, LOCATIONS.outskirts)()).not.toThrow();
   });
 });
 

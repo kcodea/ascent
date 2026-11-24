@@ -117,19 +117,23 @@
 .pkf-holo-sheet { position: absolute; inset: 0;
   background: repeating-linear-gradient(115deg, transparent 0%, color-mix(in srgb, var(--rc) 55%, #fff) 7%, #fff6fb 10%,
     color-mix(in srgb, var(--rc) 45%, #c4f1ff) 13%, transparent 21%, transparent 26%); }
-/* Ancient: OPAL (owner 2026-11-24: "less rainbow looking and a little more opal prismatic looking"): a milky pearl body
-   with soft flecks of colour (mint, rose, sky, amber) drifting in it, screened over the navy instead of dodged, so the
-   hues stay pale and the bands never posterise into a rainbow. */
+/* Ancient: OPAL (owner 2026-11-24: "less rainbow looking and a little more opal prismatic looking"): then "focus on
+   the colors of white teal and pink"): bands of teal, white and pink with the navy between them, over a faint teal to
+   pink wash, screened over the navy instead of dodged, so the three hues stay clean and never posterise into a rainbow. */
 .r-ancient .pkf-holo { mix-blend-mode: screen; }
 .r-ancient .pkf-holo-sheet {
   background:
-    radial-gradient(ellipse 36% 28% at 22% 26%, rgba(96, 255, 210, 0.62), transparent 68%),
-    radial-gradient(ellipse 32% 26% at 74% 38%, rgba(255, 110, 210, 0.56), transparent 68%),
-    radial-gradient(ellipse 40% 30% at 42% 72%, rgba(96, 170, 255, 0.62), transparent 68%),
-    radial-gradient(ellipse 28% 22% at 84% 86%, rgba(255, 196, 110, 0.5), transparent 68%),
-    repeating-linear-gradient(115deg, rgba(190, 222, 255, 0.16) 0%, rgba(224, 208, 255, 0.34) 6%, rgba(255, 255, 255, 0.6) 9%,
-      rgba(196, 255, 234, 0.3) 13%, rgba(255, 216, 238, 0.22) 19%, rgba(190, 222, 255, 0.16) 25%);
-  background-size: 34% 34%, 34% 34%, 34% 34%, 34% 34%, auto; }
+    repeating-linear-gradient(115deg, transparent 0%, rgba(70, 240, 222, 0.8) 6%, rgba(255, 255, 255, 0.95) 10%, rgba(255, 120, 220, 0.8) 14%,
+      transparent 21%, transparent 26%),
+    linear-gradient(160deg, rgba(70, 240, 222, 0.2), rgba(255, 120, 220, 0.2)); }
+/* Legendary: GOLD (owner 2026-11-24: "a bit more gold? white blue gold?"): bands of gold, white and blue with the navy
+   between them, over a faint gold wash, screened like Ancient's so the gold stays gold. */
+.r-legendary .pkf-holo { mix-blend-mode: screen; }
+.r-legendary .pkf-holo-sheet {
+  background:
+    repeating-linear-gradient(115deg, transparent 0%, rgba(255, 186, 72, 0.9) 6%, rgba(255, 255, 255, 0.95) 10%, rgba(110, 170, 255, 0.8) 14%,
+      transparent 21%, transparent 26%),
+    linear-gradient(160deg, rgba(255, 186, 72, 0.28), rgba(255, 186, 72, 0.1)); }
 .pkf-holo-sweep { animation: pkf-holo-sweep calc(0.9s * var(--pk-slow, 1)) cubic-bezier(0.25, 0.6, 0.3, 1) both; }
 @keyframes pkf-holo-sweep { from { transform: translate(-22%, -12%); } to { transform: none; } }
 /* the summary row's sweep: its own name, so a face that swept on the pile sweeps again as it joins the row */

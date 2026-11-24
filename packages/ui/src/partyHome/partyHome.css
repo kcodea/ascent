@@ -939,7 +939,8 @@ html[data-ph-compact] .ph-stage > .phs-lineup { padding: calc(90 * var(--phu)) c
    is on their left), every other card to its left (the side panel is on its right). It may reach over a neighbour; the card
    with its menu open rises above it (.phs-menu). */
 html:not([data-ph-compact]) .phs-lineup .phs-card > .ph-cardmenu { top: 8%; bottom: auto; left: auto; right: calc(100% + 12 * var(--phu)); translate: none; z-index: 6; }
-html:not([data-ph-compact]) :is(.phs-lineup:not(.grid, .teams) > .phs-card:first-child, .phs-lineup.grid > .phs-card:nth-child(odd), .phs-lineup.teams > .phs-team:first-child > .phs-card) > .ph-cardmenu {
-  right: auto; left: calc(100% + 12 * var(--phu)); }
+/* The left column is marked by position (`ph-menuright`, menuRightAt / roomMenuRight), never by nth-child: the Versus room wraps
+   each seat in a drag handle, and open seats sit between cards. */
+html:not([data-ph-compact]) .phs-lineup .phs-card.ph-menuright > .ph-cardmenu { right: auto; left: calc(100% + 12 * var(--phu)); }
 /* An invited friend's seat: Cancel sits under the ghost's centred lines. */
 .phs-lineup .phs-ghost > .ph-cancelinv { bottom: 8%; }

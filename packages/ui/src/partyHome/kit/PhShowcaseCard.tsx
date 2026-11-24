@@ -27,6 +27,10 @@ import './phShowcase.css';
 
 export type PhCardSize = 'full' | 'half' | 'compact';
 
+/** An open card (its menu showing): the showcase card's `.phs-card.phs-menu`, and PhBanner's `.ph-cardwrap.menu` while it
+ *  still exists. A lineup's outside-press close skips a press inside it, so a menu item's press lands. */
+export const OPEN_CARD_SELECTOR = '.phs-card.phs-menu, .ph-cardwrap.menu';
+
 const cx = (...c: (string | false | null | undefined)[]): string => c.filter(Boolean).join(' ');
 
 /** The card's press target: one button covering the whole card (as PhBanner), labelled for screen readers. */

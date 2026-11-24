@@ -5,8 +5,10 @@
  * The room is opened invisibly behind the home (an invite, or START) and joining one just fills the same row.
  *
  * `useVersusRoomHome` gives PartyHome everything a held room puts on the home, all through the store's existing calls:
- *  - THE SEATS, in seat order, as the kit's banners (`PhBanner`): the member's portrait, name, Versus record, title, Host
- *    badge, Health and Armor in a match. An open seat is Invite for a seated player and Take seat from the stands.
+ *  - THE SEATS, in seat order, as the kit's showcase cards (`PhShowcaseCard`, 2026-11-23): the member's portrait, Versus
+ *    record (the eyebrow), name, title, rank, Host badge, Health and Armor in a match (the band). The far side of the VS
+ *    mark is mirrored (`roomMirrored`). An open seat (`PhShowcaseGhost`) is Invite for a seated player and Take seat from
+ *    the stands.
  *  - DRAG TO SEAT, DRAG UP TO SPECTATE (R-VERSUS-DRAG-SEAT-01) through the classic pure helpers (`versus/seatDrag.ts`) and
  *    `takeSeat`; your card's menu does the same without a drag. An occupied seat refuses and the card springs back.
  *  - THE STANDS: a small strip under the banners, off the layout flow, so the banner row never moves.
@@ -17,7 +19,7 @@
  * PERFORMANCE: static paint. A drag measures the seats ONCE at pick-up and writes only the ghost's transform per frame (one
  * rAF); React hears only a change of drop zone. Phones use the 256 px portrait thumbnails.
  */
-import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode, type RefObject } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { parseCosmeticSnapshot } from '@game/progression';
 import { isBlockedName, NAME_BLOCKED_TEXT, riftDefFor, VERSUS_MODIFIERS, VERSUS_SPECTATOR_CAP, type RankPosition, type VersusGroupSeat, type VersusModifierId, type VersusRoomOptions } from '@game/sim';
@@ -29,13 +31,10 @@ import { Icon } from '../Icon';
 import { currentUserId } from '../identity';
 import { pageHidden } from '../net/backoff';
 import { mirrorFor, useProgression } from '../progression/progressionStore';
-import { RankCrest } from '../rank/RankBar';
-import { rankLabel } from '../rank/rankFormat';
 import { sfx } from '../sfx';
 import { opponentSkins, useLiveLoadout } from '../skins/skins';
 import { stageHost, toStage } from '../stage';
 import { tempHandle, useGame } from '../store';
-import { TitleBadge } from '../titles/TitleBadge';
 import { TAP_SLOP } from '../touchInput';
 import { canDragSeatCard, memberOf, roomWithSeatMove, seatDropOf, seatZoneAt, seatZoneValid, sellLineOf, type SeatDragGeo, type SeatZone } from '../versus/seatDrag';
 import { resumeSpectating } from '../versus/spectate';
@@ -47,9 +46,10 @@ import { VersusMatchStats } from '../versus/VersusMatchStats';
 import { versusModifierName, versusOptionsSummary } from '../versus/versusOptionsUi';
 import type { VersusMember, VersusRole, VersusRoom, VersusRoomSummary } from '../versus/versusRemote';
 import { seatPools } from '../versus/VersusRoom';
-import { MAX_RECORD_IDS, playerCardArt, seatCardSource, useSeatData, type SeatServerData } from '../versus/versusSeatCard';
+import { MAX_RECORD_IDS, playerCardArt, seatCardSource, useSeatData, type SeatServerData, type VersusRecord } from '../versus/versusSeatCard';
 import { clearVersusError, isDuosParty, joinRoom, refreshRooms, setVersusStatsOpen, useVersus, versusRemainingMs } from '../versus/versusStore';
-import { PhBanner, PhBannerInvite, PhBannerName, PhBannerState, PhButton, PhChip, PhEmpty, PhField, PhRow, PhSegmented } from './kit';
+import { PhButton, PhChip, PhEmpty, PhField, PhRow, PhSegmented, PhShowcaseBand, PhShowcaseCard, PhShowcaseGhost, PhShowcaseInvite, OPEN_CARD_SELECTOR } from './kit';
+import type { PhCardSize } from './kit';
 import { openSeatText, ROOM_STATUS, roomJoin, roomModeOf, roomModeShort, roomStartOf, roomTitleOf, seatCap, seatTeams, seatText, VERSUS_OFFLINE_TEXT, visibleRooms, type VersusRoomMode } from './pages/versusPh';
 import { usePartyRoom } from './partyHomeFlag';
 import { homeLeave, homeMe, homeRoomNow, homeSetOptions, homeStart, homeTakeSeat, sampleJoin, sampleRooms, sampleToggleView, useSampleRoom } from './sampleRoom';
@@ -70,7 +70,7 @@ function useCountdown(iso: string | null | undefined): number | null {
 
 // ── A MEMBER'S FACE: what their banner and tile show (your own live portrait, title and skins; others' through the
 //    opponent-cosmetics switch, exactly as the classic seat card) ───────────────────────────────────────────────────────
-interface Face { name: string; art: string | undefined; titleId: string | null; record: { wins: number; losses: number } | null }
+interface Face { name: string; art: string | undefined; titleId: string | null; record: VersusRecord | null; rank: RankPosition | null }
 function useFace(m: Pick<VersusMember, 'userId' | 'displayName' | 'profile'>, server: SeatServerData | undefined, thumb: boolean): Face {
   const own = m.userId === homeMe();
   const showOpp = useShowOpponentCosmetics();
@@ -81,37 +81,41 @@ function useFace(m: Pick<VersusMember, 'userId' | 'displayName' | 'profile'>, se
   return useMemo(() => {
     const src = seatCardSource({ member: m, own, showOpp, server, ...(own ? { self: { avatar: myAvatar ?? null, titleId: myTitle, cosmetics: myLoadout } } : {}) });
     const art = playerCardArt(src);
-    return { name: (own && myName) || src.name || 'Player', art: thumb ? heroThumb(art) : art, titleId: src.titleId, record: src.record };
+    return { name: (own && myName) || src.name || 'Player', art: thumb ? heroThumb(art) : art, titleId: src.titleId, record: src.record, rank: src.rank };
   }, [m.userId, m.displayName, m.profile, own, showOpp, server, myAvatar, myTitle, myLoadout, thumb, myName]);
 }
 
 /** A Duos seat's team (p1 + p2, p3 + p4). */
 const teamOf = (s: VersusGroupSeat): number => (s === 'p1' || s === 'p2' ? 0 : 1);
 
-const plural = (n: number, one: string, many: string): string => `${n} ${n === 1 ? one : many}`;
-
-/** A banner's foot (a seat, and the drag ghost): name, Versus record, title, state. The kit's PhBanner draws the rest. */
-function BannerFoot({ face, medal, state }: { face: Face; medal?: ReactNode; state: ReactNode }) {
-  const record = face.record && (
-    <span className="vsr-rec" aria-label={`Versus record: ${plural(face.record.wins, 'win', 'wins')}, ${plural(face.record.losses, 'loss', 'losses')}`}>
-      <b>{face.record.wins}</b><span>{face.record.wins === 1 ? 'win' : 'wins'}</span><i aria-hidden="true" /><b>{face.record.losses}</b><span>{face.record.losses === 1 ? 'loss' : 'losses'}</span>
-    </span>
-  );
-  return (
-    <>
-      <PhBannerName>{face.name}</PhBannerName>
-      {/* ONE FIXED FOOT: the home's own lines (medal, title, state strip) in every state, so no text ever moves. A line with
-          nothing to say keeps its height and draws nothing (never an empty chip). */}
-      {medal ?? <span className={`ph-rank ${record ? 'vsr-rankplain' : 'vsr-rankspace'}`}>{record ?? '\u00a0'}</span>}
-      <span className="ph-sub">{face.titleId ? <TitleBadge id={face.titleId} className="ph-titlebadge" /> : medal && record ? record : '\u00a0'}</span>
-      {state ?? <PhBannerState tone="space" />}
-    </>
-  );
-}
-/** The Host badge (the kit's Leader badge shape, with the word Host). */
+/** The Host badge (the kit's Leader badge shape, with the word Host). Hoisted: one object, so the card's memo holds. */
 const HOST_BADGE = <><Icon name="crown" /><span>Host</span></>;
 
-/** A seat banner's seat (its `vsr-s-p1` class). */
+/** MIRRORING IS BY POSITION (spec "Layouts per mode"): the seat right of the VS mark in a 1v1 (p2) and the right-hand Duos
+ *  column (p3, p4) face the VS mark. Group has no VS mark and never mirrors. Seats keep their real order, so the drag is
+ *  untouched. */
+export function roomMirrored(mode: VersusRoomMode, side: VersusGroupSeat): boolean {
+  return mode === 'duel' ? side === 'p2' : mode === 'duos' ? side === 'p3' || side === 'p4' : false;
+}
+
+/** The seat card's menu opens to its RIGHT in the row's left column (the screen edge is on its left): a 1v1's p1, Group's p1 and
+ *  p3 (the 2 x 2's left column), Duos' p1 and p2 (team 1). Marked by a class from the seat (`ph-menuright`, partyHome.css),
+ *  since the drag-handle wrapper around every seat defeats structural selectors. */
+export function roomMenuRight(mode: VersusRoomMode, side: VersusGroupSeat): boolean {
+  return mode === 'group' ? side === 'p1' || side === 'p3' : mode === 'duos' ? side === 'p1' || side === 'p2' : side === 'p1';
+}
+
+/** A seat card's eyebrow: the Versus record ("3W 1L"); none reads empty. */
+export function recordEyebrow(r: VersusRecord | null): string {
+  return r ? `${r.wins}W ${r.losses}L` : '';
+}
+
+/** The room's card size: a 1v1's two seats are half cards; Group and Duos (four seats) compact, the same block. */
+const roomCardSize = (mode: VersusRoomMode): PhCardSize => (mode === 'duel' ? 'half' : 'compact');
+/** The lineup row for the room's mode (phShowcase.css). */
+const roomRowClass = (mode: VersusRoomMode): string => (mode === 'duel' ? 'phs-lineup duel' : mode === 'group' ? 'phs-lineup grid' : 'phs-lineup teams');
+
+/** A seat card's seat (its `vsr-s-p1` class). */
 const seatOfEl = (el: Element): VersusGroupSeat | null => {
   const c = [...el.classList].find((x) => x.startsWith('vsr-s-'));
   return c ? (c.slice(6) as VersusGroupSeat) : null;
@@ -160,8 +164,8 @@ function useRoomDrag(root: RefObject<HTMLElement>): {
     const room = homeRoomNow(liveRoomView);
     if (useVersus.getState().seatMove || live.current || !canDragSeatCard(room, me, userId)) return;
     const from = memberOf(room, me)!.role;
-    // The press's own box: a display-contents wrapper (my seat banner) has none, so its banner stands in.
-    const src = e.currentTarget.getBoundingClientRect().width > 0 ? e.currentTarget : (e.currentTarget.querySelector<HTMLElement>('.ph-cardwrap') ?? e.currentTarget);
+    // The press's own box: a display-contents wrapper (my seat card) has none, so its card stands in.
+    const src = e.currentTarget.getBoundingClientRect().width > 0 ? e.currentTarget : (e.currentTarget.querySelector<HTMLElement>('.vsr-seat') ?? e.currentTarget);
     const touch = e.pointerType !== 'mouse';
     const threshold = touch ? Math.max(TAP_SLOP, getDragFeel().threshold) : getDragFeel().threshold;
     const x0 = e.clientX;
@@ -272,8 +276,10 @@ function useRoomDrag(root: RefObject<HTMLElement>): {
 // ── THE ROOM ON THE HOME ──────────────────────────────────────────────────────────────────────────────────────────────
 
 export interface VersusRoomHome {
-  /** The banner row (seat order), or null with no room held. */
+  /** The card row (seat order), or null with no room held. */
   row: JSX.Element[] | null;
+  /** The row's lineup class for the room's mode (`phs-lineup duel` / `grid` / `teams`). */
+  rowClass: string;
   /** The strip under the banners. */
   stands: JSX.Element | null;
   /** START. */
@@ -289,14 +295,6 @@ export interface VersusRoomHome {
 }
 
 export function useVersusRoomHome(root: RefObject<HTMLElement>, phone: boolean, onInvite: () => void, myRank: RankPosition | null): VersusRoomHome {
-  // My banner keeps its medal line in a room, so the name never jumps when a room opens behind the screen.
-  const myMedal: ReactNode = (
-    <span className="ph-rank">
-      {myRank
-        ? <><RankCrest divisionIndex={myRank.divisionIndex} size="mini" /><span>{rankLabel(myRank)}</span></>
-        : <span className="ph-muted">Unranked</span>}
-    </span>
-  );
   const sampleOn = usePartyRoom();
   const sample = useSampleRoom((s) => s.room);
   const sampleView = useSampleRoom((s) => s.view);
@@ -323,12 +321,13 @@ export function useVersusRoomHome(root: RefObject<HTMLElement>, phone: boolean, 
   useEffect(() => { setMenuFor(null); }, [room?.members.find((m) => m.userId === me)?.role, !!drag]);
   useEffect(() => {
     if (!menuFor) return undefined;
-    const close = (e: PointerEvent): void => { if (!(e.target as Element | null)?.closest?.('.ph-cardmenu')) setMenuFor(null); };
+    // A press in the menu, or on the open card itself (its own press toggles it), is not outside (as the Play lineup).
+    const close = (e: PointerEvent): void => { if (!(e.target as Element | null)?.closest?.(`.ph-cardmenu, ${OPEN_CARD_SELECTOR}`)) setMenuFor(null); };
     window.addEventListener('pointerdown', close, true);
     return () => window.removeEventListener('pointerdown', close, true);
   }, [menuFor]);
 
-  if (!room || !serverRoom) return { row: null, stands: null, start: null, side: null, layers: null, memberIds: [], seatsFree: 0, dragging: false };
+  if (!room || !serverRoom) return { row: null, rowClass: 'phs-lineup', stands: null, start: null, side: null, layers: null, memberIds: [], seatsFree: 0, dragging: false };
   const teams = seatTeams(mode);
   const role = room.members.find((m) => m.userId === me)?.role ?? null;
   const mine = memberOf(room, me);
@@ -348,6 +347,7 @@ export function useVersusRoomHome(root: RefObject<HTMLElement>, phone: boolean, 
   const myDraggable = !!me && canDragSeatCard(room, me, me);
   const openSeats = teams.flat().filter((s) => !room.members.some((m) => m.role === s));
 
+  const size = roomCardSize(mode);
   const seatCard = (side: VersusGroupSeat, i: number): JSX.Element => {
     const m = room.members.find((x) => x.role === side) ?? null;
     const over = drag && !drag.snap && drag.zone === side ? (drag.valid ? ' vsr-over' : ' vsr-bad') : '';
@@ -356,17 +356,15 @@ export function useVersusRoomHome(root: RefObject<HTMLElement>, phone: boolean, 
       const target = drag && !drag.snap && seatZoneValid(side, room, me) ? ' vsr-target' : '';
       const fromStands = mine?.role === 'spectator' && t.take;
       return (
-        <PhBanner key={side} ghost index={i} className={`vsr-seat vsr-s-${side} vsr-open${over}${target}`}
+        <PhShowcaseGhost key={side} size={size} index={i} className={`vsr-seat vsr-s-${side} vsr-open${over}${target}`}
           label={fromStands ? `Take seat ${side.slice(1)}` : `Open seat ${side.slice(1)}. Invite a friend`}
           onClick={fromStands ? () => { if (!seatMove) { sfx.play(); void homeTakeSeat(side); } } : () => { sfx.pulse(); onInvite(); }}
           overlay={testTools && canAddBot ? (
             /* TEST TOOLS (dev / opted-in browsers only): a bot fills this seat through the normal server protocol. */
             <span className="vsr-botslot"><PhButton size="s" onClick={() => { sfx.pulse(); void startVersusBot(room.id, side); }}>Add bot</PhButton></span>
           ) : undefined}>
-          {fromStands
-            ? <><span className="ph-invmed" aria-hidden="true"><span>+</span></span><span className="ph-openlbl">Take seat</span><span className="ph-opensub">Or drag your card here</span></>
-            : <PhBannerInvite />}
-        </PhBanner>
+          {fromStands ? <PhShowcaseInvite label="Take seat" sub="Or drag your card here" /> : <PhShowcaseInvite />}
+        </PhShowcaseGhost>
       );
     }
     const mineCard = m.userId === me;
@@ -375,14 +373,15 @@ export function useVersusRoomHome(root: RefObject<HTMLElement>, phone: boolean, 
       ? open ? [...openSeats.map((s) => ({ label: `Move to seat ${s.slice(1)}`, run: () => { sfx.play(); void homeTakeSeat(s); } })), { label: 'Move to spectators', run: () => { sfx.sell(); void homeTakeSeat('spectator'); } }] : []
       : canFriend ? [{ label: 'Add friend', run: () => { sfx.pulse(); void addFriend(m.userId); } }] : [];
     return (
-      <SeatBanner key={m.userId} side={side} i={i} m={m} rival={!mineCard && !!role && role !== 'spectator' && (mode !== 'duos' || teamOf(side) !== teamOf(role as VersusGroupSeat))} medal={mineCard ? myMedal : null} server={seatData.get(m.userId)} thumb={phone} host={m.userId === room.host_user_id} over={over} hidden={drag?.userId === m.userId}
+      <SeatBanner key={m.userId} side={side} i={i} size={size} mirrored={roomMirrored(mode, side)} menuRight={roomMenuRight(mode, side)} m={m} rival={!mineCard && !!role && role !== 'spectator' && (mode !== 'duos' || teamOf(side) !== teamOf(role as VersusGroupSeat))} rank={mineCard ? myRank : undefined} server={seatData.get(m.userId)} thumb={phone} host={m.userId === room.host_user_id} over={over} hidden={drag?.userId === m.userId}
         pools={running ? seatPools(match, side) : null} sealed={room.status === 'sealed'} draggable={mineCard && myDraggable} onPointerDown={(e) => begin(e, m.userId)}
         items={items} menuOpen={menuFor === m.userId} onToggleMenu={() => { if (!clicked()) return; sfx.pulse(); setMenuFor((k) => (k === m.userId ? null : m.userId)); }}
         onPick={(run) => { setMenuFor(null); run(); }} />
     );
   };
 
-  // The same shapes as the home's own row, so nothing moves when a room opens behind it.
+  // The same lineup shapes as the Play page's row (phShowcase.css), so nothing moves when a room opens behind it. Seats
+  // stay in their real seat order (`seatTeams(mode)`), so the drag's seat geometry is unchanged.
   const row: JSX.Element[] = [];
   let k = 0;
   const cards = teams.map((team) => team.map((s) => seatCard(s, k++)));
@@ -392,11 +391,11 @@ export function useVersusRoomHome(root: RefObject<HTMLElement>, phone: boolean, 
       ? <span className="ph-pairlbl">Team {t + 1}</span>
       : <span className={`ph-pairlbl ${myTeam === t ? 'mine' : 'rival'}`}>{myTeam === t ? 'Your team' : 'Rivals'}</span>);
     row.push(
-      <div key="a" className="ph-pair" role="group" aria-label="Team 1"><div className="ph-pairrow">{lbl(0)}{cards[0]}</div></div>,
-      <span key="vs" className="ph-vs" aria-hidden="true">VS</span>,
-      <div key="b" className="ph-pair" role="group" aria-label="Team 2"><div className="ph-pairrow">{lbl(1)}{cards[1]}</div></div>,
+      <div key="a" className="phs-team" role="group" aria-label="Team 1">{lbl(0)}{cards[0]}</div>,
+      <span key="vs" className="phs-vs" aria-hidden="true">VS</span>,
+      <div key="b" className="phs-team" role="group" aria-label="Team 2">{lbl(1)}{cards[1]}</div>,
     );
-  } else if (mode === 'duel') row.push(...cards[0]!, <span key="vs" className="ph-vs" aria-hidden="true">VS</span>, ...cards[1]!);
+  } else if (mode === 'duel') row.push(...cards[0]!, <span key="vs" className="phs-vs" aria-hidden="true">VS</span>, ...cards[1]!);
   else row.push(...cards[0]!);
 
   const leave = (): void => { sfx.pulse(); void stopVersusBot().then(() => homeLeave()); };
@@ -422,7 +421,8 @@ export function useVersusRoomHome(root: RefObject<HTMLElement>, phone: boolean, 
           {sellBand && <div className={`vsr-sellband${drag.zone === 'stands' ? ' vsr-on' : ''}`} style={{ height: drag.sellTop! }} aria-hidden="true"><span style={{ left: drag.bandX }}>Spectate</span></div>}
           <div ref={ghost} className={`vsr-ghost${drag.snap ? ' vsr-snap' : ''}${drag.valid && drag.zone && drag.zone !== 'stands' ? ' vsr-lit' : ''}`} aria-hidden="true"
             style={{ width: drag.w, height: drag.h, ...(drag.snap ? { transform: `translate(${drag.snap.x}px, ${drag.snap.y}px) scale(${drag.snap.s})`, transitionDuration: `${getDragFeel().snapMs}ms` } : {}) }}>
-            <GhostCard userId={drag.userId} room={room} data={seatData} host={drag.userId === room.host_user_id} medal={drag.userId === me ? myMedal : null} />
+            <GhostCard userId={drag.userId} room={room} data={seatData} host={drag.userId === room.host_user_id} size={size}
+              mirrored={drag.from !== 'spectator' && roomMirrored(mode, drag.from)} rank={drag.userId === me ? myRank : undefined} />
           </div>
         </>,
         stageHost(),
@@ -432,6 +432,7 @@ export function useVersusRoomHome(root: RefObject<HTMLElement>, phone: boolean, 
   );
   return {
     row,
+    rowClass: roomRowClass(mode),
     stands: <Stands spectators={spectators} room={room} me={me} data={seatData} hiddenId={drag?.userId ?? null} onPointerDown={begin} myDraggable={myDraggable} />,
     start: {
       label: st.label, ok: st.canStart || watch, wait: !!st.wait, note: bots.error ? `Bot: ${bots.error}` : st.note,
@@ -441,48 +442,77 @@ export function useVersusRoomHome(root: RefObject<HTMLElement>, phone: boolean, 
   };
 }
 
-/** A seated member's banner (the kit's PhBanner). Mine drags; a tap opens its small menu. */
-function SeatBanner({ side, i, m, rival, medal, server, thumb, host, over, hidden, pools, sealed, draggable, onPointerDown, items, menuOpen, onToggleMenu, onPick }: {
-  side: VersusGroupSeat; i: number; m: VersusMember; rival: boolean; medal: ReactNode; server: SeatServerData | undefined; thumb: boolean; host: boolean; over: string; hidden: boolean;
+/**
+ * A seated member's showcase card. Mine drags; a tap opens its small menu.
+ * MEMO STABILITY (CLAUDE.md "Performance is the north star": memoise list items and keep their props referentially
+ * stable): the room re-renders on every poll and every drag zone change,
+ * and hands this seat fresh objects each time (pools, items, callbacks, an equal rank). Every prop the card gets is a
+ * primitive, a hoisted constant, or memoised on the values it shows, so `PhShowcaseCard`'s memo holds until something on
+ * the card really changes. The press and the menu buttons call the LATEST handlers through a ref.
+ */
+export function SeatBanner({ side, i, size, mirrored, menuRight = false, m, rival, rank, server, thumb, host, over, hidden, pools, sealed, draggable, onPointerDown, items, menuOpen, onToggleMenu, onPick }: {
+  side: VersusGroupSeat; i: number; size: PhCardSize; mirrored: boolean; menuRight?: boolean; m: VersusMember; rival: boolean;
+  /** Your own live rank (null: Unranked); undefined reads the seat's server rank. */
+  rank?: RankPosition | null;
+  server: SeatServerData | undefined; thumb: boolean; host: boolean; over: string; hidden: boolean;
   pools: { health: number; armor: number } | null; sealed: boolean; draggable: boolean; onPointerDown: (e: ReactPointerEvent<HTMLElement>) => void;
   items: { label: string; run: () => void }[]; menuOpen: boolean; onToggleMenu: () => void; onPick: (run: () => void) => void;
 }) {
   const face = useFace(m, server, thumb);
-  const state = pools
+  const own = m.userId === homeMe();
+  const latest = useRef({ items, onToggleMenu, onPick });
+  latest.current = { items, onToggleMenu, onPick };
+  const toggle = useCallback(() => latest.current.onToggleMenu(), []);
+  const shown = rank === undefined ? face.rank : rank;
+  const rk = shown?.divisionIndex;
+  const pts = shown?.points;
+  const stableRank = useMemo(() => (rk === undefined || pts === undefined ? null : { divisionIndex: rk, points: pts }), [rk, pts]);
+  const health = pools ? pools.health : null;
+  const armor = pools ? pools.armor : 0;
+  const band = useMemo(() => (health !== null
     ? (
-      <span className="ph-state vsr-hp" aria-label={`Health ${pools.health}${pools.armor > 0 ? `, Armor ${pools.armor}` : ''}`}>
-        <Icon name="heartPill" /><b>{pools.health}</b>
-        {pools.armor > 0 && <><Icon name="armor" /><b>{pools.armor}</b></>}
-      </span>
+      <PhShowcaseBand tone="pools">
+        <span className="vsr-hp" aria-label={`Health ${health}${armor > 0 ? `, Armor ${armor}` : ''}`}>
+          <Icon name="heartPill" /><b>{health}</b>
+          {armor > 0 && <><Icon name="armor" /><b>{armor}</b></>}
+        </span>
+      </PhShowcaseBand>
     )
-    : sealed ? <PhBannerState tone="in_game">Getting ready</PhBannerState> : null;
-  const banner = (
-    <PhBanner art={face.art} index={i} badge={host ? HOST_BADGE : undefined}
-      className={`vsr-seat vsr-s-${side}${rival ? ' rival' : ''}${draggable ? ' vsr-mineseat' : ''}${over}${hidden ? ' vsr-src' : ''}`}
+    : sealed ? <PhShowcaseBand tone="in_game">Getting ready</PhShowcaseBand> : undefined), [health, armor, sealed]);
+  const itemKey = items.map((it) => it.label).join('\n');
+  // No items (the room sealed or started while the menu was open): no menu at all, never an empty item.
+  const overlay = useMemo(() => (menuOpen && itemKey ? (
+    <div className="ph-cardmenu" role="menu" aria-label={`${face.name} options`}>
+      {itemKey.split('\n').map((label) => (
+        <button key={label} type="button" role="menuitem" className="ph-menuitem"
+          onClick={() => { const it = latest.current.items.find((x) => x.label === label); if (it) latest.current.onPick(it.run); }}><span>{label}</span></button>
+      ))}
+    </div>
+  ) : undefined), [menuOpen, itemKey, face.name]);
+  const card = (
+    <PhShowcaseCard size={size} index={i} mirrored={mirrored} mine={own} rival={rival} youLabel={own}
+      art={face.art} name={face.name} eyebrow={recordEyebrow(face.record) || '\u00a0'} titleId={face.titleId} rank={stableRank}
+      badge={host ? HOST_BADGE : undefined} band={band}
+      className={`vsr-seat vsr-s-${side}${menuRight ? ' ph-menuright' : ''}${draggable ? ' vsr-mineseat' : ''}${over}${hidden ? ' vsr-src' : ''}`}
       label={draggable ? `You, seat ${side.slice(1)}. Drag to another seat, or up to spectate. Options` : `${face.name}${host ? ', host' : ''}, seat ${side.slice(1)}`}
-      onClick={items.length > 0 ? onToggleMenu : undefined} haspopup={items.length > 0} expanded={menuOpen}
-      overlay={menuOpen ? (
-        <div className="ph-cardmenu" role="menu" aria-label={`${face.name} options`}>
-          {items.map((it) => <button key={it.label} type="button" role="menuitem" className="ph-menuitem" onClick={() => onPick(it.run)}><span>{it.label}</span></button>)}
-        </div>
-      ) : undefined}>
-      <BannerFoot face={face} medal={medal} state={state} />
-    </PhBanner>
+      onClick={items.length > 0 ? toggle : undefined} haspopup={items.length > 0} expanded={menuOpen && items.length > 0} overlay={overlay} />
   );
-  // My own banner starts the drag (a wrapper that takes no box, so the banner stays a direct item of the row).
-  // Always there, so the banner never remounts (and replays its entrance) when the room starts.
-  return <div className="vsr-dragwrap" onPointerDown={draggable ? onPointerDown : undefined}>{banner}</div>;
+  // My own card starts the drag (a wrapper that takes no box, so the card stays a direct item of the row).
+  // Always there, so the card never remounts (and replays its entrance) when the room starts.
+  return <div className="vsr-dragwrap" onPointerDown={draggable ? onPointerDown : undefined}>{card}</div>;
 }
 
-/** The drag ghost's banner: the dragged member's face at seat size (inert: it never takes focus or a press). */
-function GhostCard({ userId, room, data, host, medal }: { userId: string; room: VersusRoom; data: ReadonlyMap<string, SeatServerData>; host: boolean; medal: ReactNode }) {
+/** The drag ghost's card: the dragged member's card at seat size (inert: it never takes focus or a press). */
+function GhostCard({ userId, room, data, host, size, mirrored, rank }: {
+  userId: string; room: VersusRoom; data: ReadonlyMap<string, SeatServerData>; host: boolean; size: PhCardSize; mirrored: boolean; rank?: RankPosition | null;
+}) {
   const m = memberOf(room, userId);
   const face = useFace(m ?? { userId, displayName: '', profile: {} }, data.get(userId), true);
   return (
     <div className="vsr-ghostwrap" ref={(el) => { el?.setAttribute('inert', ''); }}>
-      <PhBanner art={face.art} badge={host ? HOST_BADGE : undefined} className="vsr-ghostin" label={face.name}>
-        <BannerFoot face={face} medal={medal} state={null} />
-      </PhBanner>
+      <PhShowcaseCard size={size} className="vsr-ghostin" label={face.name} name={face.name} art={face.art} mirrored={mirrored} mine={userId === homeMe()}
+        eyebrow={recordEyebrow(face.record) || '\u00a0'} titleId={face.titleId} rank={rank === undefined ? face.rank : rank}
+        badge={host ? HOST_BADGE : undefined} />
     </div>
   );
 }

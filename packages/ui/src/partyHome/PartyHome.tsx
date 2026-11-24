@@ -59,7 +59,7 @@ import { OpenRoomsPanel, RoomRulesPanel, useVersusRoomHome } from './versusRoomH
 import { defaultRoomName, roomModeOf, roomTitleOf } from './pages/versusPh';
 import { PhFriends } from './shell/PhFriends';
 import { addSampleInvite, clearSampleInvites, removeSampleInvite, setDrawerIsMode, setFriendsOpen, setPhInvite, usePhShell } from './shell/shellStore';
-import { PhButton, PhDialog, PhField, PhLeaderBadge, PhPlate, PhShowcaseBand, PhShowcaseCard, PhShowcaseGhost, PhShowcaseInvite, PhSegmented, PhTabs, phNum } from './kit';
+import { OPEN_CARD_SELECTOR, PhButton, PhDialog, PhField, PhLeaderBadge, PhPlate, PhShowcaseBand, PhShowcaseCard, PhShowcaseGhost, PhShowcaseInvite, PhSegmented, PhTabs, phNum } from './kit';
 import type { PhCardSize } from './kit';
 import { GauntletPanel, PracticePanel, stagePlayable, useGauntletStages } from './ModeOptions';
 import { familyOf, modeHasSettings, partyFamilies, partyModeOf, partyModes, readFamilySub, rememberPartyMode, type ModeFamily, type ModeFamilyId, type PartyMode, type PartyModeId } from './partyModes';
@@ -379,7 +379,8 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
   // context, so a layer over the page would sit on top of the menu and swallow its items.
   useEffect(() => {
     if (!menuFor) return undefined;
-    const onDown = (e: PointerEvent): void => { if (!(e.target instanceof Element) || !e.target.closest('.ph-cardwrap.menu')) setMenuFor(null); };
+    // The open card: the showcase card's `.phs-card.phs-menu` (and PhBanner's `.ph-cardwrap.menu` while it still exists).
+    const onDown = (e: PointerEvent): void => { if (!(e.target instanceof Element) || !e.target.closest(OPEN_CARD_SELECTOR)) setMenuFor(null); };
     window.addEventListener('pointerdown', onDown, true);
     return () => window.removeEventListener('pointerdown', onDown, true);
   }, [menuFor]);
@@ -513,7 +514,7 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
   const size = cardSizeFor(slots);
   const cards: JSX.Element[] = members.map((m, i) => (
     <LineupCard key={m.key} m={m} i={i} size={size} eyebrow={mode.label} phone={phone} leader={showLeader && m.leader} showState={stateOf(m)} youLabel={m.self && slots > 1}
-      rival={mode.party === 'rivals' && !m.self && (mode.id !== 'vduos' || i >= 2)} mirrored={mirroredAt(mode.id, i)}
+      rival={mode.party === 'rivals' && !m.self && (mode.id !== 'vduos' || i >= 2)} mirrored={mirroredAt(mode.id, i)} menuRight={menuRightAt(mode.id, i)}
       menuOpen={menuFor === m.key} onToggleMenu={() => { sfx.pulse(); setMenuFor((k) => (k === m.key ? null : m.key)); }}
       menu={cardMenu(m)} onPick={(run) => { sfx.pulse(); setMenuFor(null); run(); }} />
   ));
@@ -710,9 +711,9 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
           </div>
         )}
         </div>
-        {/* A Versus room still draws its own seat row (versusRoomHome.tsx); the Play lineup is the showcase row. */}
+        {/* Both rows are showcase lineups: a held Versus room's seats (versusRoomHome.tsx, in seat order), else the Play lineup. */}
         {vh.row
-          ? <div className={`ph-cards n${slots}${mode.id === 'vduos' ? ' vs' : ''}`} key={mode.id}>{vh.row}</div>
+          ? <div className={vh.rowClass} key={mode.id}>{vh.row}</div>
           : <div className={rowClass} key={mode.id}>{row}</div>}
         {actions}
       </main>
@@ -813,6 +814,17 @@ function InvitePicker({ onClose }: { onClose: () => void }): JSX.Element {
   );
 }
 
+/** The open card whose menu a press may land in without closing it (the outside-press close skips it; kit/PhShowcaseCard.tsx). */
+export { OPEN_CARD_SELECTOR };
+
+/** The card's menu opens to its RIGHT for the lineup's left column (the screen edge is on its left); every other card's opens
+ *  to its left. Marked by a class from the card's POSITION (`ph-menuright`), not by structural selectors, so a wrapper (the
+ *  Versus room's drag handle) or an open-seat sibling never flips it. Group's 2 x 2 has two left-column cards (0, 2); Versus
+ *  Duos' left team column two (0, 1); every other row only its first card. */
+export function menuRightAt(modeId: string, i: number): boolean {
+  return modeId === 'group' ? i % 2 === 0 : modeId === 'vduos' ? i < 2 : i === 0;
+}
+
 /** The card size for a lineup of `seats` (filled and open): one seat full, two half, three or four compact. */
 export function cardSizeFor(seats: number): PhCardSize {
   return seats <= 1 ? 'full' : seats === 2 ? 'half' : 'compact';
@@ -826,8 +838,8 @@ export function mirroredAt(modeId: string, i: number): boolean {
 
 /** A member's showcase card: the portrait, then the mode, name, title (or level) and rank; Ready / In game on the others'
  *  cards. Pressing it opens its small menu. */
-function LineupCard({ m, i, size, eyebrow, phone, leader, showState, youLabel, rival, mirrored, menuOpen, onToggleMenu, menu, onPick }: {
-  m: Member; i: number; size: PhCardSize; eyebrow: string; phone: boolean; leader: boolean; showState: boolean; youLabel: boolean; rival?: boolean; mirrored: boolean;
+function LineupCard({ m, i, size, eyebrow, phone, leader, showState, youLabel, rival, mirrored, menuRight, menuOpen, onToggleMenu, menu, onPick }: {
+  m: Member; i: number; size: PhCardSize; eyebrow: string; phone: boolean; leader: boolean; showState: boolean; youLabel: boolean; rival?: boolean; mirrored: boolean; menuRight: boolean;
   menuOpen: boolean; onToggleMenu: () => void; menu: { label: string; run?: () => void; soon?: boolean }[]; onPick: (run: () => void) => void;
 }): JSX.Element {
   const art = phone ? heroThumb(m.art) : m.art;
@@ -846,7 +858,7 @@ function LineupCard({ m, i, size, eyebrow, phone, leader, showState, youLabel, r
       titleId={m.titleId} fallbackLine={m.level != null ? `Level ${m.level}` : null} rank={m.rank} mine={m.self} rival={rival} mirrored={mirrored}
       badge={leader ? <PhLeaderBadge /> : undefined} youLabel={youLabel}
       band={showState ? <PhShowcaseBand tone={m.state}>{m.state === 'in_game' ? 'In game' : 'Ready'}</PhShowcaseBand> : undefined}
-      onClick={onToggleMenu} haspopup expanded={menuOpen} overlay={overlay} />
+      onClick={onToggleMenu} haspopup expanded={menuOpen} overlay={overlay} className={menuRight ? 'ph-menuright' : undefined} />
   );
 }
 

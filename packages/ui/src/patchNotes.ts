@@ -60,6 +60,10 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Versus rooms use the new player cards: every seat shows its rank, and the two sides face each other across the VS mark.',
+      },
+      {
+        category: 'Systems',
         text: "The Play page shows each player as a new showcase card with their portrait, title and rank, including your teammate's rank.",
       },
       {

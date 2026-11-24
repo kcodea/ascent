@@ -53,7 +53,8 @@ describe('the Good Luck overlay', () => {
     m = mount(<GoodLuckIntro />);
     expect(m.container.querySelector('.gli')).toBeNull();
     act(() => goodLuckIntro.begin());
-    expect(m.container.querySelector('.gli-text')?.textContent).toBe('Good Luck');
+    expect(m.container.querySelector('.gli-word')?.getAttribute('aria-label')).toBe('Good Luck');
+    expect([...m.container.querySelectorAll('.gli-g')].map((e) => e.firstChild?.textContent).join('')).toBe('GoodLuck');
   });
 
   it('ends on its own when the timeline finishes (and only then)', () => {
@@ -97,7 +98,7 @@ describe('the Good Luck overlay', () => {
 });
 
 describe('the Good Luck sounds (owner 2026-09-24: "it needs a sound effect")', () => {
-  it('queues the shine sound for the moment the sweep starts, and the sparkle for the spark burst', () => {
+  it('queues the shine sound for the burst, and the sparkle for the take-off', () => {
     m = mount(<GoodLuckIntro />);
     act(() => goodLuckIntro.begin());
     const t = goodLuckTimeline(GLI_DEFAULTS, false);
@@ -108,15 +109,15 @@ describe('the Good Luck sounds (owner 2026-09-24: "it needs a sound effect")', (
     expect(snd.spark).toHaveBeenCalledWith(GLI_DEFAULTS.sparkSoundGain, t.sparkAt, goodLuckTail(GLI_DEFAULTS, 'spark'));
   });
 
-  it('follows the tuner: the offset moves the shine sound, gains pass through, 0 sparks = no spark sound', () => {
+  it('follows the tuner: the offset moves the shine sound, gains pass through', () => {
     setGoodLuckIntroValue('shineSoundOffsetMs', -120);
     setGoodLuckIntroValue('shineSoundGain', 0.5);
-    setGoodLuckIntroValue('sparkCount', 0);
+    setGoodLuckIntroValue('sparkSoundGain', 0.3);
     m = mount(<GoodLuckIntro />);
     act(() => goodLuckIntro.begin());
     const shineAt = goodLuckTimeline(GLI_DEFAULTS, false).shineAt;
     expect(snd.shine).toHaveBeenCalledWith(0.5, shineAt - 120, expect.objectContaining({ fadeOutMs: GLI_DEFAULTS.shineFadeOutMs }));
-    expect(snd.spark).not.toHaveBeenCalled();
+    expect(snd.spark).toHaveBeenCalledWith(0.3, goodLuckTimeline(GLI_DEFAULTS, false).sparkAt, expect.anything());
   });
 
   it('an early end (leaving to the title) stops both sounds (the queued shine never rings)', () => {

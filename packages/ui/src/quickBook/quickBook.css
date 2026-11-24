@@ -37,9 +37,10 @@ html[data-qb] .cardref { z-index: 490; }
 
 /* The cards: the full book's own cells, smaller, lowest tier first. `.book` carries the tokens the cards read; everything else of
    that window is undone. */
-.qb .qb-scroll.book { flex: 1; min-height: 0; width: auto; height: auto; display: block; padding: 0 calc(20 * var(--phu)) calc(30 * var(--phu)); overflow-y: auto; overflow-x: hidden; scrollbar-gutter: stable; animation: qb-in 0.16s ease both; isolation: isolate; }
+.qb .qb-scroller { flex: 1; margin: 0 calc(10 * var(--phu)) calc(14 * var(--phu)) 0; }
+.qb .qb-scroll.book { min-height: 0; width: auto; height: auto; display: block; padding: 0 calc(20 * var(--phu)) calc(30 * var(--phu)); overflow-y: auto; overflow-x: hidden; animation: qb-in 0.16s ease both; isolation: isolate; }
 .qb .qb-scroll.book::before, .qb .qb-scroll.book::after { content: none; }
-.qb .qb-grid { --book-zoom: 0.72; flex: none; overflow: visible; contain: none; background: none; margin: 0; padding: calc(38 * var(--phu)) 0 calc(20 * var(--phu)); row-gap: calc(26 * var(--phu)); column-gap: 0; box-shadow: none; }
+.qb .qb-grid { --book-zoom: 0.72; grid-template-columns: repeat(auto-fill, minmax(calc(200 * var(--phu)), 1fr)); flex: none; overflow: visible; contain: none; background: none; margin: 0; padding: calc(38 * var(--phu)) 0 calc(20 * var(--phu)); row-gap: calc(26 * var(--phu)); column-gap: 0; box-shadow: none; }
 .qb .qb-grid.qb-runes { grid-template-columns: repeat(auto-fill, minmax(calc(200 * var(--phu)), 1fr)); gap: calc(44 * var(--phu)) calc(8 * var(--phu)); padding-top: calc(40 * var(--phu)); }
 .qb-empty { padding: calc(80 * var(--phu)) 0; text-align: center; font-weight: 700; font-size: calc(20 * var(--phu)); color: var(--ph-text-dim, #93a4cc); }
 

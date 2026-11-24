@@ -11,6 +11,7 @@ import { useDeferredValue, useEffect, useLayoutEffect, useMemo, useState, type C
 import { inRunTribes, type CardDef, type Tribe } from '@game/core';
 import { activeSet, duosPoolFor, EPIC_RUNES, poolFor, RUNES, SETS, type SetId } from '@game/content';
 import { runTribesForSeed } from '@game/sim';
+import { GameScroll } from '../GameScroll';
 import { LazyCell, LazyRootProvider } from '../bookLazy';
 import { BookCardCell, CAT_META, makeSearchMatcher, poolIds } from '../MinionBook';
 import { keyLabelOf } from '../keybinds/keybinds';
@@ -155,7 +156,7 @@ export function QuickBook(): JSX.Element {
             <button type="button" className={`qb-pill${gilded ? ' on' : ''}`} aria-pressed={gilded} onClick={() => { sfx.tick(); setGilded((g) => !g); }}>Gilded</button>
           </div>
         )}
-        <div className="qb-scroll book" ref={setRoot} key={query ? 'search' : tab}>
+        <GameScroll outerClassName="qb-scroller" className="qb-scroll book" viewRef={setRoot} key={query ? 'search' : tab}>
           <LazyRootProvider root={root} lookahead="80%">
             {shown.length > 0 && (
               <div className="book-grid qb-grid">
@@ -169,7 +170,7 @@ export function QuickBook(): JSX.Element {
             )}
             {count === 0 && <div className="qb-empty">{query ? 'Nothing in this game matches that.' : 'Nothing here.'}</div>}
           </LazyRootProvider>
-        </div>
+        </GameScroll>
       </section>
       <nav className="qb-rail" aria-label="What to look at" style={{ '--n': tabs.length } as CSSProperties}>
         {tabs.map((t, i) => {

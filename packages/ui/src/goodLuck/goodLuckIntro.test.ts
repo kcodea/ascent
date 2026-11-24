@@ -73,7 +73,10 @@ describe('the shop clock and the intro', () => {
 describe('the timeline', () => {
   it('runs in order and lands in the asked-for 2.2 to 3 s window (with the curtain cover)', () => {
     const t = goodLuckTimeline(GLI_DEFAULTS, false);
-    expect(t.inAt).toBeLessThan(t.shineAt);
+    expect(t.inAt).toBeLessThan(t.writeAt);
+    expect(t.writeAt).toBeLessThan(t.shineAt);
+    expect(t.outAt).toBeLessThan(t.diveAt);
+    expect(t.diveAt).toBeLessThan(t.endAt);
     expect(t.shineAt).toBeLessThan(t.outAt);
     expect(t.outAt).toBeLessThan(t.endAt);
     const withCover = t.endAt + 280;
@@ -85,7 +88,7 @@ describe('the timeline', () => {
     const t = goodLuckTimeline(GLI_DEFAULTS, false);
     expect(t.shineSoundAt).toBe(t.shineAt);
     expect(goodLuckTimeline({ ...GLI_DEFAULTS, shineSoundOffsetMs: 80 }, false).shineSoundAt).toBe(t.shineAt + 80);
-    expect(goodLuckTimeline({ ...GLI_DEFAULTS, startDelayMs: 0, fadeInMs: 100, shineSoundOffsetMs: -400 }, false).shineSoundAt).toBe(0);
+    expect(goodLuckTimeline({ ...GLI_DEFAULTS, startDelayMs: 0, flightMs: 100, writeMs: 200, shineSoundOffsetMs: -400 }, false).shineSoundAt).toBe(0);
     expect(t.sparkAt).toBeGreaterThanOrEqual(t.inAt);
     expect(t.sparkAt).toBeLessThan(t.shineAt);
   });

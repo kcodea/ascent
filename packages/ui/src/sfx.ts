@@ -1973,6 +1973,8 @@ export const sfx = {
   // A hero is CHOSEN in Hero Select — drop `audio/heroes/<heroId>.mp3` and it plays, LAYERED over the generic
   // pulse. Silent (no fallback) if the hero has no clip.
   heroSelect: (heroId: string) => { playSample(`heroes/${heroId}`, 'heroSelect'); },
+  /** How long that line is (s), or null when the hero has none or it has not decoded yet. */
+  heroLineSeconds: (heroId: string): number | null => buffers.get(`heroes/${heroId}`)?.duration ?? null,
   // A HERO CEREMONY stinger (audio/ceremony/*). `vol` is the 🎭 tuner's per-sound slider — a literal multiplier
   // on top of the category gain, applied via the live gain node. Missing/undecoded clips stay silent (§15's
   // audio-never-blocks rule): the ceremony's timeline is visual-driven either way.

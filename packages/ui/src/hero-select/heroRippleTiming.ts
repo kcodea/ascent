@@ -10,7 +10,7 @@ import type { HeroCeremonyTiming } from './heroCeremonyTiming';
  *  leaves the screen, and the hero speaks once it has. */
 export const RIPPLE_TIMING: Partial<HeroCeremonyTiming> = {
   headerExitDelayMs: 0, optionExitDelayMs: 0, focusDelayMs: 0, focusMs: 1, settleMs: 1,
-  voiceAtMs: 1250, transformAtMs: 30, transformMs: 1, identityAtMs: 400, readyAtMs: 620, readyMs: 380,
+  voiceAtMs: 1100, transformAtMs: 30, transformMs: 1, identityAtMs: 400, readyAtMs: 620, readyMs: 380,
 };
 
 /** The middle of the Select Hero button that was pressed (stage px); the bottom middle when there is none on screen. */

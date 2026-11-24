@@ -1819,7 +1819,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     id: 'R-LOBBY-REVEAL-01',
     title: 'Game start shows every hero in the game, flown to the rail, before the Good Luck words and before any clock',
     statement:
-      'After Start Game in a lobby, Practice or any Versus match, every hero in the game is shown centre stage with its '
+      'After the hero pick in a lobby, Practice or any Versus match, every hero in the game is shown centre stage with its '
       + 'player name (you highlighted; Duos teammates side by side; a 1v1 as two heroes facing off), in the rail\x27s top-to-bottom '
       + 'order, and a light sweeps across them. The round slice opens, then every portrait flies to its slice together and the '
       + 'slices lock in top to bottom (in a 1v1, to the opponent block and your own portrait); nothing of the rail shows before its portrait. The '
@@ -1836,7 +1836,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'code', ref: 'packages/ui/src/lobbyReveal/ (LobbyReveal.tsx, lobbyRevealModel.ts, lobbyRevealStore.ts); packages/ui/src/goodLuck/GoodLuckIntro.tsx (waits while the reveal plays); packages/ui/src/hero-select/HeroLaunchCurtain.tsx (begins it); packages/ui/src/versus/versusStore.ts ackIntro (unchanged: acks when Good Luck ends)' },
     ],
     currentBehaviour: 'Built 2026-10-31 (feat/lobby-hero-reveal).',
-    example: 'Kev presses Start Game in Practice: seven opponents and his own hero stand in a line with their player names, then each flies to its rail row, the round header settles, and the Good Luck words play before his first turn timer starts.',
+    example: 'Kev picks his hero in Practice: seven opponents and his own hero stand in a line with their player names, then each flies to its rail row, the round header settles, and the Good Luck words play before his first turn timer starts.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/lobbyReveal/LobbyReveal.test.tsx', 'packages/ui/src/lobbyReveal/lobbyRevealModel.test.ts'], lastVerifiedAt: '2026-10-31' },
   },
   {
@@ -17238,12 +17238,13 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-LOCATION-06',
-    title: 'Start Game: the hero fades to the board behind them and their ring opens past the edges of the screen',
+    title: 'Into the game: the frame charges, the hero turns to light, and their ring opens past the edges of the screen',
     statement:
-      'Pressing Start Game moves at once: the place pushes in on the hero while the game is built. Then the hero fades to the '
-      + 'board seen through their ring, and the ring opens toward the player and out past every edge of the screen. It comes out '
-      + 'of the hero, never the button, and it is not another ripple. The lobby reveal and its dim wait for it. Where the ripple '
-      + 'cannot play (R-LOCATION-05) the older fade plays.',
+      'As the game is built the frame charges: two lights chase round it, sparks rush into it, a halo beats and the camera goes '
+      + 'in, all of it moving straight through the loading. Then the hero turns to light from the heart outward, the board is seen '
+      + 'through their ring, and the ring opens toward the player, out past every edge of the screen; the shop springs into place '
+      + 'and the motes of the location drift down over it. It comes out of the hero, and it is not another ripple. The lobby '
+      + 'reveal and its dim wait for it. Where the ripple cannot play (R-LOCATION-05) the older fade plays.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -17252,6 +17253,21 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'code', ref: 'packages/ui/src/locationReveal/heroRipple.ts (hold, open); packages/ui/src/hero-select/HeroLaunchCurtain.tsx; packages/ui/src/lobbyReveal/lobbyRevealStore.ts (hold / release)' },
     ],
     currentBehaviour: 'Built 2026-11-24 for the owner to see; its feel is not approved yet.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/locationReveal/locationReveal.test.ts'], lastVerifiedAt: '2026-11-24' },
+  },
+  {
+    id: 'R-LOCATION-07',
+    title: 'There is no Start Game button: the hero says their line and the game starts as they finish',
+    statement:
+      'After a hero is picked their portrait is revealed, they say their line, and the game starts on its own as they finish it. '
+      + 'The loading happens under the end of the line. A hero with no line holds the stage for a moment instead. In Versus and '
+      + 'Duos it also waits until every hero is locked.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-24, passing on a suggestion as a build ask ("also this")', quote: 'what if we removed the start button and instead just had it reveal the portrait, have the character say their line, and then auto go into the "head to board" animation?' },
+      { kind: 'code', ref: 'packages/ui/src/hero-select/heroLine.ts; packages/ui/src/hero-select/HeroSelectCeremony.tsx' },
+    ],
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/locationReveal/locationReveal.test.ts'], lastVerifiedAt: '2026-11-24' },
   },
 ];

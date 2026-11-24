@@ -274,12 +274,25 @@
    Start Game; the finished picture's own DOM waits under it, unpainted, and takes over when the wave is done. */
 .hsc-ripple { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 8; pointer-events: none; }
 .hsc-curtain.rip { background: none; }
+/* START GAME'S CHARGE (R-LOCATION-06, launchCharge.ts). Static pictures; WAAPI moves them (transform / opacity only). */
+.hsc-charge { position: fixed; inset: 0; z-index: 480; pointer-events: none; overflow: hidden; }
+.hsc-charge-cam { position: absolute; inset: 0; will-change: transform; }
+.hsc-charge-cam > * { position: absolute; border-radius: 50%; will-change: transform, opacity; }
+/* All but transparent, never nothing: what is invisible is not painted, and these must be painted before the press. */
+.hsc-charge-halo { opacity: 0.004; background: radial-gradient(closest-side, transparent 56%, color-mix(in srgb, var(--lit-warm) 62%, transparent) 66%, color-mix(in srgb, var(--lit-cool) 34%, transparent) 76%, transparent 100%); }
+.hsc-comet { opacity: 0.004;
+  background: conic-gradient(from 0deg, transparent 0 52%, color-mix(in srgb, var(--lit) 30%, transparent) 72%, var(--lit) 92%, #fff 98.5%, transparent 100%);
+  -webkit-mask-image: radial-gradient(closest-side, transparent 80%, #000 85%, #000 93%, transparent 99%); mask-image: radial-gradient(closest-side, transparent 80%, #000 85%, #000 93%, transparent 99%); }
+.hsc-comet.warm { --lit: var(--lit-warm); }
+.hsc-comet.cool { --lit: var(--lit-cool); }
+.hsc-spark { opacity: 0.004; --lit: var(--lit-warm); background: radial-gradient(closest-side, #fff 0 22%, var(--lit) 40%, color-mix(in srgb, var(--lit) 35%, transparent) 62%, transparent 100%); }
+.hsc-spark.cool { --lit: var(--lit-cool); }
 .heroselect:is(.phhs, .hss, .hsb) .hsc-rip .hsc-start:disabled { filter: none; }
 .hsc-rip:not(.hsc-landed) > :is(.hsc-scrim, .hsc-glow, .hsc-portrait, .hsc-ring) { visibility: hidden; }
 .hsc-rip > :is(.hsc-scrim, .hsc-glow, .hsc-ring) { animation: none; opacity: 1; transform: none; }
 /* Ahead of the wave hero select is untouched (the older ceremony's fades are off); once it has passed, it is gone. */
 .heroselect[data-hsc-ripple='wave'] :is(.hsprompt, .hsline, .riftpill, .hs-eyebrow, .hss-stage, .hss-confirm, .hss-glow) { opacity: 1 !important; transition: none !important; }
-.heroselect[data-hsc-ripple='done'] > :not(.hsc-layer):not(.hs-location):not(.hsph-bd) { visibility: hidden; }
+.heroselect[data-hsc-ripple='done'] > :not(.hsc-layer):not(.hs-location):not(.hsph-bd) { visibility: hidden; opacity: 0 !important; transition: none !important; } /* opacity too: the Ancient's words set their own visibility */
 
 /* One-shot entrance keyframes — compositor-only (transform/opacity). */
 @keyframes hscFadeIn { to { opacity: 1; } }

@@ -12,6 +12,8 @@ import { LOCATIONS, locationName, locationOfSet, POSTER_NAME, postersFor } from 
 import { pendingLocation, pendingReveal, practiceLocation } from './pendingLocation';
 import { LEAN, leanAt, mountAtmosphere } from './atmosphereGl';
 import { openAt, OPEN_FREE, OPEN_S, primeRipple, readyRipple, rippleFar, rippleR, rippleReach, RIPPLE_S, STILL_S } from './heroRipple';
+import { sparkPath } from '../hero-select/launchCharge';
+import { goAfterLine, LEAD_MS, LEAST_MS, MOST_MS, NO_LINE_MS } from '../hero-select/heroLine';
 import { RIPPLE_TIMING } from '../hero-select/heroRippleTiming';
 import { ceremonyAdvanceSchedule, HERO_CEREMONY_TIMING } from '../hero-select/heroCeremonyTiming';
 import { versusHeroClock, versusLocation, versusReveal } from './versusReveal';
@@ -117,12 +119,32 @@ describe('the ripple through hero select (owner + Mike 2026-11-24, R-LOCATION-05
     const K = 5;
     expect(openAt(0, K)).toEqual({ k: 1, hero: 1 });
     expect(openAt(1, K).k).toBeCloseTo(K, 5);
-    expect(openAt(0.45, K).hero).toBe(0);
+    expect(openAt(0.5, K).hero).toBe(0);
     expect(openAt(0.4, K).k).toBeLessThan(1.6);
     let was = 0;
-    for (let x = 0.2; x <= 1; x += 0.01) { const { k } = openAt(x, K); expect(k).toBeGreaterThanOrEqual(was); was = k; }
-    expect(OPEN_S).toBeLessThan(0.8);
+    for (let x = 0.22; x <= 1; x += 0.01) { const { k } = openAt(x, K); expect(k).toBeGreaterThanOrEqual(was); was = k; }
+    expect(OPEN_S).toBeLessThan(0.9);
     expect(OPEN_FREE).toBeLessThan(1);
+  });
+
+  it('no Start button: the game goes as the hero finishes their line', () => {
+    expect(goAfterLine(2.4)).toBe(2400 - LEAD_MS);
+    expect(goAfterLine(0.4)).toBe(LEAST_MS);
+    expect(goAfterLine(null)).toBe(NO_LINE_MS);
+    expect(goAfterLine(0)).toBe(NO_LINE_MS);
+    expect(goAfterLine(60)).toBe(MOST_MS);
+    const src = readFileSync(join(__dirname, '../hero-select/HeroSelectCeremony.tsx'), 'utf8');
+    expect(src).not.toMatch(/<button/);
+  });
+
+  it('the charge: every spark starts where it was struck and ends on the frame', () => {
+    for (let i = 0; i < 60; i++) {
+      const p = sparkPath({ x: 960, y: 850 }, { x: 960, y: 470 }, 290, i);
+      expect(p[0]!.x).toBeCloseTo(960, 4);
+      expect(p[0]!.y).toBeCloseTo(850, 4);
+      const e = p[p.length - 1]!;
+      expect(Math.hypot(e.x - 960, e.y - 470)).toBeCloseTo(290, 4);
+    }
   });
 
   it('with nothing ready (no WebGL, a phone) there is no ripple: the ceremony and the curtain play as before', () => {

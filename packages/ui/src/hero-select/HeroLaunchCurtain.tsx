@@ -11,7 +11,9 @@ import { launchVersusHero, useVersusAwaitingPick } from '../versus/versusStore';
 import { PHONE_GPU } from '../phoneDiag';
 import { usePartyHome } from '../partyHome/partyHomeFlag';
 import { crumbLight, crumbTrail } from '../crashLog';
-import { claimRipple, releaseRipple } from '../locationReveal/heroRipple';
+import { claimRipple, OPEN_S, PUSH, releaseRipple } from '../locationReveal/heroRipple';
+import { boardArrives, LaunchCharge } from './launchCharge';
+import { stageHost, toScreen } from '../stage';
 import { quietFrames } from './launchQuiet';
 import { REVEAL_FLIGHT_WHOOSH, REVEAL_LOCK_SHIMMER } from '../lobbyReveal/lobbyRevealConfig';
 import { playTailedClip } from '../sfx';
@@ -93,7 +95,9 @@ export function HeroLaunchCurtain() {
       if (place && !place.dead) await place.fadeOff(t.launchRevealMs);
       else await fade(el, 1, 0, t.launchRevealMs);
     };
+    let charge: LaunchCharge | null = req.charge ?? null;
     const finish = () => {
+      charge?.destroy();
       if (place) releaseRipple(place);
       lobbyReveal.release();
       resolveRef.current?.();
@@ -110,7 +114,10 @@ export function HeroLaunchCurtain() {
         place.show(el, req.scene, { x: 0, y: 0 });
         el.style.opacity = '1';
         if (useGame.getState().pendingMode !== 'versus') place.still();
-        await place.hold();
+        const held = place.hold();
+        charge ??= new LaunchCharge(stageHost(), req.scene, place.loc);
+        charge.start({ ...PUSH, origin: place.heart() });
+        await held;
       } else {
         await fade(el, 0, 1, t.launchCoverMs);
       }
@@ -136,6 +143,7 @@ export function HeroLaunchCurtain() {
           await twoFrames();
           if (dead) return;
           setLaunchCovered(false);
+          charge?.release();
           await uncover(el);
           if (!dead) finish();
           return;
@@ -180,7 +188,12 @@ export function HeroLaunchCurtain() {
         await quietFrames();
         if (dead) return;
         playTailedClip(REVEAL_FLIGHT_WHOOSH.clip, 'ceremony', { gain: 0.6, tail: { fadeOutMs: 200, reverbMix: 0, reverbSec: 0.5 } });
-        await place.open(() => lobbyReveal.release());
+        charge?.release();
+        if (req.scene) boardArrives({ x: toScreen(req.scene.clip.x), y: toScreen(req.scene.clip.y) }, OPEN_S * 1000);
+        await place.open(() => {
+          if (el) el.style.pointerEvents = 'none'; // the motes drift on over a board that is already the player's
+          lobbyReveal.release();
+        });
       } else {
         await uncover(el);
       }
@@ -189,7 +202,7 @@ export function HeroLaunchCurtain() {
       // Not cancelled with this effect (finish() unmounts it at once): a few store-only timers, phones only.
       crumbTrail('first shop', undefined, true);
     })();
-    return () => { dead = true; setLaunchCovered(false); lobbyPoolGate.cancel(); if (place) releaseRipple(place); lobbyReveal.release(); };
+    return () => { dead = true; setLaunchCovered(false); lobbyPoolGate.cancel(); charge?.destroy(); if (place) releaseRipple(place); lobbyReveal.release(); };
   }, [req]);
 
   if (!req) return null;

@@ -1,6 +1,6 @@
 # 2026-11-24: The ripple through hero select and into the game
 
-Owner and Mike, the day the reveal shipped. Rules R-LOCATION-05 and R-LOCATION-06.
+Owner and Mike, the day the reveal shipped. Rules R-LOCATION-05 to R-LOCATION-07.
 
 - **The pick** (`locationReveal/heroRipple.ts`): the living place is drawn small into a picture (`placeGl.ts`, now shared with hero
   select's ground, on the same clock), then one pass draws the finished composition (veil, scrim, glow, the art in its circle, the
@@ -12,6 +12,12 @@ Owner and Mike, the day the reveal shipped. Rules R-LOCATION-05 and R-LOCATION-0
   refused outright. Then the owner's pick of four, the frame opens: the ripple's canvas holds the same picture, pushing in on the
   hero (WAAPI on the canvas element, so it runs straight through the 0.5 s of work that stops every frame); the hero fades to the
   board behind the canvas, and their ring opens past the screen (`open`, `openAt`) once three frames in a row have come on time.
+- **The charge** (`hero-select/launchCharge.ts`): layers made and painted while the hero speaks (made on the press they were first
+  painted when the loading was over), each moved by exactly ONE WAAPI animation a property (two on one property are run by the page and
+  freeze with it). The comets and sparks first drew nothing: `--ch` is a registered length in this game.
+- **No Start button**: the launch begins 0.52 s before the end of the hero's line (`heroLine.ts`), so the loading is under its tail.
+- **Stray text after a pick:** the Ancient's words set `visibility: visible` themselves; hero select is now also at zero opacity.
+- **Sound can never strand a launch:** a cue that throws is caught (a reversed clip set its buffer twice and did).
 - **The lobby reveal waits** (`lobbyReveal.hold / release`): it is up from the start (the shop and its clock wait behind it), but its
   dim and line-up begin once the ring is most of the way out.
 - **Ready before the press:** hero select makes the ripple ready in the background and uploads the hero being looked at and the

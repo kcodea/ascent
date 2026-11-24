@@ -5,7 +5,7 @@ import { useSharpArt } from '../fullResArt';
 import { Icon } from '../Icon';
 import { sfx } from '../sfx';
 import {
-  ceremonyReduce, ceremonyCanLaunch, CEREMONY_ORDER,
+  ceremonyReduce, CEREMONY_ORDER,
   type HeroCeremonyState, type HeroCeremonyEvent, type HeroCeremonyPhase, type RectSnapshot,
 } from './heroCeremonyMachine';
 import { coverSquare, destinationRect, exitVector, focusKeyframes, snapshotRect, splashDest, splashTravelTarget, stageScale, transformTo } from './heroCeremonyGeometry';
@@ -16,18 +16,17 @@ import ringArt from './heroportrait.png';
 import { usePortraitFrame } from '../portraitFrame/PortraitFrame';
 import { ringRelativeToDefault } from '../portraitFrame/portraitFrameConfig';
 import { createHeroCeremonyFx, type HeroCeremonyFxController } from './HeroCeremonyPixi';
-import { rectToStage, stageViewport } from '../stage';
+import { rectToStage, stageHost, stageViewport } from '../stage';
 import './heroCeremony.css';
 import { useGame } from '../store';
 import { useVersusHeroesRevealed } from '../versus/versusStore';
 import { usePartyHome } from '../partyHome/partyHomeFlag';
 import { HeroPowerLine } from './HeroPowerLine';
 import { readyRipple, rippleFar, rippleReach, RIPPLE_S, type RippleScene } from '../locationReveal/heroRipple';
+import { goAfterLine } from './heroLine';
+import { LaunchCharge } from './launchCharge';
 import { RIPPLE_TIMING, shoveAside, waveOrigin } from './heroRippleTiming';
 import { crumbLight, crumbTrail } from '../crashLog';
-
-/** VERSUS: how long a finished ceremony waits on Start Game before starting on its own (both heroes locked). */
-const VERSUS_AUTO_START_MS = 1500;
 
 /**
  * HERO SELECT CEREMONY — the post-click presentation (hero-select-ceremony-blueprint.md §6, §8–§10, §13–§14).
@@ -144,7 +143,6 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch, splash }: 
   const cloneWrapRef = useRef<HTMLDivElement | null>(null);
   const frameRef = useRef<HTMLDivElement | null>(null);
   const portraitRef = useRef<HTMLDivElement | null>(null);
-  const startBtnRef = useRef<HTMLButtonElement | null>(null);
   /** Every WAAPI animation we start, for wholesale cancel on unmount (§19 "unmounts unexpectedly"). */
   const animsRef = useRef<Animation[]>([]);
   /** The clone's travel animation alone — the resize snap cancels THIS, never the card exits. */
@@ -198,6 +196,8 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch, splash }: 
   const ringSrc = frame ? ringRelativeToDefault(frame).src : ringArt;
   const [rip] = useState(() => (splash && !watch ? readyRipple(art, ringSrc) : null));
   const [landed, setLanded] = useState(false);
+  /** When the game goes (R-LOCATION-07): as the hero finishes their line. Null until they start it. */
+  const [goAt, setGoAt] = useState<number | null>(null);
   const sceneRef = useRef<RippleScene | null>(null);
   const t = useMemo(() => (rip ? { ...ceremonyTiming(), ...RIPPLE_TIMING } : ceremonyTiming()), [rip]);
   /** When the wave reaches a point of the stage (ms), for what rises on top of the picture. */
@@ -320,7 +320,10 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch, splash }: 
     // plays the shipped defaults. All §15-safe — a missing clip or a failed Pixi init never touches the
     // visual timeline.
     const fx = getHeroCeremonyConfig();
-    at(t.voiceAtMs, () => sfx.heroSelect(heroId));
+    at(t.voiceAtMs, () => {
+      sfx.heroSelect(heroId);
+      setGoAt(performance.now() + goAfterLine(sfx.heroLineSeconds(heroId)));
+    });
     if (rip) {
       if (fx.motesOn >= 1) at(RIPPLE_S * 1000 + 700, () => fxRef.current?.beginAmbient());
       return () => ac.abort();
@@ -407,10 +410,22 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch, splash }: 
     // (deps intentionally omitted — see the comment above)
   }, [portrait]);
 
-  /* ---- Ready: keyboard focus moves to Start Game only once it is fully interactive (§14, §16). */
+  /* ---- THE CHARGE (R-LOCATION-06): made while the hero speaks, so the launch only has to play it. Again on a resize. */
+  const chargeRef = useRef<LaunchCharge | null>(null);
+  const isReady = state.phase === 'ready';
   useEffect(() => {
-    if (state.phase === 'ready') startBtnRef.current?.focus();
-  }, [state.phase]);
+    if (!rip || !landed || !isReady) return undefined;
+    const id = window.setTimeout(() => {
+      const sc = sceneRef.current;
+      if (!sc || launchedRef.current) return;
+      chargeRef.current = new LaunchCharge(stageHost(), sc, rip.loc);
+    }, 60);
+    return () => {
+      window.clearTimeout(id);
+      const c = chargeRef.current;
+      if (c && !launchedRef.current) { c.destroy(); chargeRef.current = null; }
+    };
+  }, [landed, isReady, portrait]);
 
   /* ---- Debounced resize (§17): recompute the destination and SNAP the clone + portrait to it. Never
      restarts the sequence or the voice — the timers above don't know resize exists. */
@@ -452,7 +467,7 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch, splash }: 
     return () => { clearTimeout(id); window.removeEventListener('resize', onResize); };
   }, [source, state.phase, portrait]);
 
-  /* ---- Start Game: reducer first (only `ready` may launch, `launching` is once-only — §5), then the
+  /* ---- The launch: reducer first (only `ready` may launch, `launching` is once-only — §5), then the
      curtain seam. The curtain lives in Game and survives our unmount (§7). */
   const onStart = () => {
     if (watch) return; // a watched ceremony never starts anything
@@ -460,26 +475,24 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch, splash }: 
     if (next === state || launchedRef.current) return; // not ready, or already launched
     launchedRef.current = true;
     dispatch({ type: 'startGame' });
-    sfx.pulse();
     // §12.5: particles pull home + one outward pulse while the curtain covers. Fire-and-forget on purpose —
     // the curtain owns the pacing, and a hung/absent Pixi layer must never delay run creation.
     fxRef.current?.stopAmbient();
     if (!rip) void fxRef.current?.playLaunch();
     const sc = sceneRef.current;
-    void requestLaunch({ heroId, accent: 'var(--acc)', ...(sc && rip && !rip.dead ? { scene: sc, place: rip } : {}) });
+    void requestLaunch({ heroId, accent: 'var(--acc)', ...(sc && rip && !rip.dead ? { scene: sc, place: rip, ...(chargeRef.current ? { charge: chargeRef.current } : {}) } : {}) });
   };
 
-  /* ---- VERSUS (owner 2026-10-14: "let the full hero select animation play out"): once both heroes are locked on the
-     server, a finished ceremony starts the game on its own after a beat, so a player who has stopped at Start Game
-     (or whose hero the 20 s clock picked) still reaches the match with the opponent. */
+  /* ---- NO START BUTTON (R-LOCATION-07): the hero says their line and the game goes as they finish. VERSUS also waits until every
+     hero is locked on the server (owner 2026-10-14: "let the full hero select animation play out"). */
   const ownVersusPick = useGame((s) => s.pendingMode === 'versus');
   const versusPick = watch ? watch.versus : ownVersusPick;
   const heroesLocked = useVersusHeroesRevealed();
   useEffect(() => {
-    if (watch || !versusPick || !heroesLocked || state.phase !== 'ready') return undefined;
-    const id = window.setTimeout(onStart, VERSUS_AUTO_START_MS);
+    if (watch || goAt === null || state.phase !== 'ready' || (versusPick && !heroesLocked)) return undefined;
+    const id = window.setTimeout(onStart, Math.max(0, goAt - performance.now()));
     return () => window.clearTimeout(id);
-  }, [versusPick, heroesLocked, state.phase]);
+  }, [versusPick, heroesLocked, state.phase, goAt]);
 
   const materialized = pi >= phaseIndex('materializing');
 
@@ -682,23 +695,12 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch, splash }: 
             <div className="hsc-name">{hero.name}</div>
             <div className="hsc-power">{hero.power.name}</div>
           </div>
-          {/* VERSUS (owner 2026-10-14): no Start Game; the game starts on its own a beat after the ceremony. */}
-          {!versusPick && !watch && <button
-            ref={startBtnRef}
-            className="hsc-start"
-            disabled={!ceremonyCanLaunch(state)}
-            onClick={onStart}
-          >
-            <span className="hsc-start-orn" aria-hidden="true" />
-            Start Game
-            <span className="hsc-start-orn hsc-start-orn-r" aria-hidden="true" />
-          </button>}
         </div>
       )}
 
       {/* §16: announce readiness to assistive tech. Visually hidden, polite. */}
       <div className="hsc-live" aria-live="polite">
-        {pi >= phaseIndex('ready') ? `${hero.name} selected. ${versusPick || watch ? 'The game starts in a moment.' : 'Start Game is ready.'}` : ''}
+        {pi >= phaseIndex('ready') ? `${hero.name} selected. The game starts in a moment.` : ''}
       </div>
     </div>
   );

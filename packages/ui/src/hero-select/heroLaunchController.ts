@@ -12,6 +12,7 @@
  */
 
 import type { HeroRipple, RippleScene } from '../locationReveal/heroRipple';
+import type { LaunchCharge } from './launchCharge';
 
 export interface HeroLaunchRequest {
   heroId: string;
@@ -20,6 +21,8 @@ export interface HeroLaunchRequest {
   /** THE FRAME OPENS (R-LOCATION-06): the picture as it stands on screen, and the canvas that holds it while the run is built.
    *  Absent = the curtain's own fade. */
   scene?: RippleScene;
+  /** The charge, made ready while the hero spoke (launchCharge.ts). */
+  charge?: LaunchCharge;
   place?: HeroRipple;
 }
 

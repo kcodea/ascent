@@ -27,7 +27,7 @@ button.phs-press:hover, .phs-menu > button.phs-press { transform: translateY(cal
 .phs-art { position: absolute; inset: 0 44% 0 0; overflow: hidden; border-radius: var(--phs-r) 0 0 var(--phs-r); pointer-events: none; }
 .phs-art img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: 50% 22%; }
 .phs-art::after { content: ''; position: absolute; inset: 0; pointer-events: none;
-  background: linear-gradient(90deg, transparent 45%, #12224a 100%), linear-gradient(0deg, rgba(9, 18, 38, 0.7), transparent 35%); }
+  background: linear-gradient(90deg, transparent 45%, #12224a 100%), linear-gradient(0deg, color-mix(in srgb, var(--pill-navy-bot, #091226) 70%, transparent), transparent 35%); }
 
 /* THE INFO COLUMN: eyebrow, name, title, rank well. */
 .phs-info { position: absolute; inset: 7% 5% 8% 52%; display: flex; flex-direction: column; justify-content: center; align-items: stretch; gap: 3cqw; min-width: 0; }
@@ -62,14 +62,16 @@ button.phs-press:hover, .phs-menu > button.phs-press { transform: translateY(cal
 .phs-badge svg { width: 1.2em; height: 1.2em; }
 .phs-band { position: absolute; z-index: 3; left: 0; right: 44%; bottom: 0; display: flex; align-items: center; justify-content: center; gap: 0.6em; padding: 1.3cqw 0;
   border-radius: 0 0 0 var(--phs-r); font-weight: 900; font-size: 2.4cqw; letter-spacing: 0.2em; text-transform: uppercase; text-align: center; color: var(--ph-ink); }
-.phs-band.t-ready { background: linear-gradient(0deg, rgba(40, 120, 70, 0.95), rgba(40, 120, 70, 0.6)); }
-.phs-band.t-in_game { background: linear-gradient(0deg, rgba(150, 90, 20, 0.95), rgba(150, 90, 20, 0.6)); }
+/* Band tints from the tokens: Ready is the ready green deepened into the navy; In game the gold deepened toward its own deep edge. */
+.phs-band.t-ready { --phs-bt: color-mix(in srgb, var(--ph-ready, #9be07f) 50%, var(--pill-navy-bot, #091226)); }
+.phs-band.t-in_game { --phs-bt: color-mix(in srgb, var(--pill-gold, #f6cf5a) 20%, var(--ph-gold-deep, #7a571f)); }
+.phs-band:is(.t-ready, .t-in_game) { background: linear-gradient(0deg, color-mix(in srgb, var(--phs-bt) 95%, transparent), color-mix(in srgb, var(--phs-bt) 60%, transparent)); }
 .phs-band.t-pools { letter-spacing: 0.06em; background: linear-gradient(0deg, color-mix(in srgb, var(--ph-navy) 95%, transparent), color-mix(in srgb, var(--ph-navy) 60%, transparent)); }
 .phs-you { position: absolute; z-index: 3; right: 4cqw; top: 3cqw; font-weight: 800; font-size: 2cqw; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ph-gold-hi); }
 
 /* MIRRORED: the far side of a VS faces inward (art on the right). Only the art image flips; text never does. */
 .phs-mirrored .phs-art { inset: 0 0 0 44%; border-radius: 0 var(--phs-r) var(--phs-r) 0; }
-.phs-mirrored .phs-art::after { background: linear-gradient(270deg, transparent 45%, #12224a 100%), linear-gradient(0deg, rgba(9, 18, 38, 0.7), transparent 35%); }
+.phs-mirrored .phs-art::after { background: linear-gradient(270deg, transparent 45%, #12224a 100%), linear-gradient(0deg, color-mix(in srgb, var(--pill-navy-bot, #091226) 70%, transparent), transparent 35%); }
 .phs-mirrored .phs-art img { transform: scaleX(-1); }
 .phs-mirrored .phs-info { inset: 7% 52% 8% 5%; align-items: flex-end; text-align: right; }
 .phs-mirrored.phs-compact .phs-info { inset: 6% 51% 6% 4%; }
@@ -82,7 +84,7 @@ button.phs-press:hover, .phs-menu > button.phs-press { transform: translateY(cal
 
 /* AN OPEN SEAT: the card's footprint, a faint gold edge and a dashed inner line, its content centred. */
 .phs-ghost > .phs-press { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2.4cqw; text-align: center;
-  background: rgba(9, 18, 38, 0.45); box-shadow: inset 0 0 0 calc(2 * var(--phu, 1px)) color-mix(in srgb, var(--ph-gold) 45%, transparent); }
+  background: color-mix(in srgb, var(--pill-navy-bot, #091226) 45%, transparent); box-shadow: inset 0 0 0 calc(2 * var(--phu, 1px)) color-mix(in srgb, var(--ph-gold) 45%, transparent); }
 .phs-ghost > .phs-press::before { content: ''; position: absolute; inset: 2.4cqw; border-radius: 2.4cqw; border: 0.4cqw dashed color-mix(in srgb, var(--ph-gold) 40%, transparent); pointer-events: none; }
 .phs-gmed { display: grid; place-items: center; width: 14cqw; aspect-ratio: 1; border-radius: 50%; background: var(--ph-metal-gold); color: var(--ph-navy);
   font-weight: 900; font-size: 9cqw; line-height: 1; box-shadow: 0 0.6cqw 1.4cqw rgba(0, 0, 0, 0.5); }
@@ -91,8 +93,9 @@ button.phs-press:hover, .phs-menu > button.phs-press { transform: translateY(cal
 .phs-gsub { font-weight: 700; font-size: 2.6cqw; color: var(--ph-muted); }
 .phs-gpill { padding: 0.5em 1.4em; border-radius: 999px; background: var(--ph-well); box-shadow: inset 0 0 0 1px var(--ph-hair); font-weight: 800; font-size: 2.4cqw; letter-spacing: 0.12em; text-transform: uppercase; }
 
-/* NAMES: `phs-` is shared with the Settings page (phSettings.css owns `.phs-row` and `.phs-name`), so the row is `.phs-lineup` and
-   the card name `.phs-pname`. Check phSettings.css before adding a new `phs-` class here.
+/* NAMES: `phs-` is shared with the Settings page (phSettings.css owns `.phs-row` and `.phs-name`) and the crate shop
+   (progression/ph/crateShopPh.css: `.phs`, `.phs-lower`, `.phs-buy`, ...), so the row is `.phs-lineup` and the card name
+   `.phs-pname`. Check both files before adding a new `phs-` class here; phsClassPrefix.test.ts fails on a shared name.
    ── THE LINEUP ROW: sizes its cards in its own container units (width-bound, else height-bound) ──
    Proportions follow the mockup's 16:9 stage (full 46, half 40, compact 33 of the stage width), re-expressed against the
    row, which spans the stage centre minus its padding. `.phs-lineup.grid` and `.phs-lineup.teams` share one compact width, so
@@ -118,6 +121,21 @@ button.phs-press:hover, .phs-menu > button.phs-press { transform: translateY(cal
 .phs-lineup.teams { gap: calc(var(--phs-gap) * 1.2); }
 .phs-team { position: relative; flex: none; display: flex; flex-direction: column; gap: var(--phs-rgap); }
 .phs-team > .ph-pairlbl { position: absolute; left: 0; right: 0; bottom: calc(100% + 12 * var(--phu, 1px)); margin: 0 auto; }
+
+/* PHONES: the house rule "nothing under calc(18 * var(--phu))" (partyHome.css, PHONE). Each small line keeps its own size
+   where that is larger. The name is left alone (its size fits it to one line; a floor there is the owner's call). */
+html[data-ph-compact] .phs-card :is(.phs-eyebrow, .phs-rk b, .phs-rk small, .phs-band, .phs-badge, .phs-you, .phs-glbl, .phs-gsub, .phs-gpill) { font-size: max(calc(18 * var(--phu)), var(--phs-fs)); }
+html[data-ph-compact] .phs-card .phs-eyebrow { --phs-fs: 2.6cqw; }
+html[data-ph-compact] .phs-card .phs-rk b { --phs-fs: 3.4cqw; }
+html[data-ph-compact] .phs-card .phs-rk small { --phs-fs: 2.3cqw; }
+html[data-ph-compact] .phs-card .phs-band { --phs-fs: 2.4cqw; }
+html[data-ph-compact] .phs-card .phs-badge { --phs-fs: 2.2cqw; }
+html[data-ph-compact] .phs-card .phs-you { --phs-fs: 2cqw; }
+html[data-ph-compact] .phs-card .phs-glbl { --phs-fs: 4.6cqw; }
+html[data-ph-compact] .phs-card .phs-gsub { --phs-fs: 2.6cqw; }
+html[data-ph-compact] .phs-card .phs-gpill { --phs-fs: 2.4cqw; }
+/* The fallback line is 0.8em of the title line (3.4cqw): floored the same way. */
+html[data-ph-compact] .phs-card .phs-fallback { font-size: max(calc(18 * var(--phu)), 2.72cqw); }
 
 @media (prefers-reduced-motion: reduce) {
   .phs-card { animation: none; }

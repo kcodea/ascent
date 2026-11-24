@@ -8,21 +8,21 @@
  * player to invite from there". Style: the Docked lobby rail (shell/shell.css tokens). Bar: "extremely clean".
  *
  * THE SCREEN IS YOUR PARTY:
- *  - A VERSUS ROOM is a state of this screen, not a page (versusRoomHome.tsx): its seats are the banners.
+ *  - A VERSUS ROOM is a state of this screen, not a page (versusRoomHome.tsx): its seats fill the card row.
  *  - TOP: the app shell's nav (shell/PhTopNav.tsx), the same bar every menu page wears in the prototype.
  *  - UNDER IT: the mode tabs and one line on the picked mode. A mode sets the party's seats and what START does. In a
  *    party, the solo modes are dimmed with the reason (the party never silently drops a teammate).
- *  - CENTRE: one tall banner card per member (chosen portrait, name, medal, title or level; Ready / In game on the others'
- *    cards), you first; an open seat per free slot points at the friends list. A card opens a small menu (your
+ *  - CENTRE: one showcase card per member (chosen portrait, the mode, name, title or level, rank; Ready / In game on the
+ *    others' cards), you first; an open seat per free slot points at the friends list. A card opens a small menu (your
  *    portrait and Career; a teammate's message, promote, remove). In a Duos party the team's name plate sits above the
  *    pair with Rename. Beside the cards: the mode's own options, in place (ModeOptions.tsx).
  *  - BOTTOM CENTRE: START, the one strong accent; ranked modes ask the ranked confirmation (R-RANK-06) first, in the
  *    shell's own dialog. Leave party beside it in a party.
  *  - RIGHT: the side panel (owner 2026-11-02: "i dont want the banners to move around from the room options"): two tabs,
  *    Friends (the ONE friends list) and the mode's settings (Practice, Gauntlet, Room rules). Docked at desktop size, the
- *    same drawer on a phone. The banner row never moves: same place and size in every mode, START centred under it.
+ *    same drawer on a phone. The card row never moves: same place and size in every mode, START centred under it.
  *
- * STUBBED (prototype): Ready is "seated" (no server ready flag before a game), a teammate's medal is not read, promote /
+ * STUBBED (prototype): Ready is "seated" (no server ready flag before a game), promote /
  * remove have no server call yet, and a party can only queue Ranked Duos (a server party for every mode is production work).
  *
  * PERFORMANCE: static paint; motion is one-shot transform / opacity (the cards rise in, hover lifts). At most four
@@ -74,7 +74,7 @@ import { UpdateReadyNotice } from '../UpdateReadyNotice';
 import './partyHome.css';
 import { useShowOpponentCosmetics } from '../cosmetics/opponentCosmetics';
 
-/** One banner card's contents. */
+/** One lineup card's contents (PhShowcaseCard). */
 interface Member {
   key: string;
   userId: string | null;

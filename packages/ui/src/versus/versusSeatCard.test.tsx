@@ -22,6 +22,10 @@ const backend = vi.hoisted(() => ({
   lastArgs: null as unknown,
   refuseRank: false,
   selects: [] as string[],
+  /** A select this backend refuses (permission denied), by its column list; null = refuse nothing. */
+  refuseCols: null as null | ((cols: string) => boolean),
+  /** The session's "may read profiles.avatar" flag (remoteBoards' canReadProfileAvatar), owned by the fake so each test starts fresh. */
+  avatarReadable: true,
 }));
 vi.mock('../remoteBoards', async (orig) => {
   const real = await orig<typeof import('../remoteBoards')>();
@@ -29,12 +33,16 @@ vi.mock('../remoteBoards', async (orig) => {
     const q = {
       select: (cols?: string) => { q.cols = cols ?? ''; backend.selects.push(q.cols); return q; }, in: () => q, eq: () => q, or: () => q,
       cols: '',
-      limit: () => Promise.resolve(backend.refuseRank && q.cols.includes('rank_division') ? { data: null, error: { code: '42703', message: 'no column' } } : { data: backend.profiles, error: null }),
+      limit: () => Promise.resolve(backend.refuseRank && q.cols.includes('rank_division') ? { data: null, error: { code: '42703', message: 'no column' } }
+        : backend.refuseCols?.(q.cols) ? { data: null, error: { code: '42501', message: 'permission denied for table profiles' } }
+        : { data: backend.profiles, error: null }),
     };
     return q;
   };
   return {
     ...real,
+    canReadProfileAvatar: () => backend.avatarReadable,
+    noteProfileAvatarRead: (e: { code?: string } | null | undefined) => { if (e && (e.code === '42501' || e.code === '42703')) backend.avatarReadable = false; },
     supabaseClient: () => ({
       rpc: (_fn: string, args: unknown) => { backend.rpcCalls++; backend.lastArgs = args; return Promise.resolve(backend.rpcError ? { data: null, error: backend.rpcError } : { data: backend.records, error: null }); },
       from: () => query(),
@@ -57,7 +65,7 @@ const AVATAR = AVATAR_ART[0]!.id;
 const PLATE = { cardPlate: 'plate_aquarium_rocks', title: TITLE_ID };
 const member = (profile: Record<string, unknown> = {}) => ({ userId: 'them', displayName: 'Orangez', profile, role: 'p2' as const, lastSeenAt: '' });
 
-afterEach(() => { setIdentity(null); useGame.setState({ showOpponentSkins: true }); resetSeatCacheForTests(); backend.records = []; backend.rpcError = null; backend.profiles = []; backend.rpcCalls = 0; backend.refuseRank = false; backend.selects = []; });
+afterEach(() => { setIdentity(null); useGame.setState({ showOpponentSkins: true }); resetSeatCacheForTests(); backend.records = []; backend.rpcError = null; backend.profiles = []; backend.rpcCalls = 0; backend.refuseRank = false; backend.selects = []; backend.refuseCols = null; backend.avatarReadable = true; });
 
 describe('a player card says who they are and how they do in Versus', () => {
   it('wins are the Attack, losses the Health, the title the text, the name the name line', () => {
@@ -253,8 +261,16 @@ describe('every seat carries its rank (the showcase card)', () => {
     const p = initialRankedProfile().position;
     expect(seatRankOfRow({ rank_season: 'old-season', rank_division: 12, rank_points: 80 })).toEqual({ divisionIndex: p.divisionIndex, points: p.points });
   });
-  it('seatRankOfRow: never ranked (no division) is null', () => {
+  it('seatRankOfRow: a row without the rank columns (an older server, or a read that dropped them) is null', () => {
     expect(seatRankOfRow({ rank_season: null, rank_division: null })).toBeNull();
+    expect(seatRankOfRow({ user_id: 'a' })).toBeNull();
+  });
+  it('seatRankOfRow: a never-ranked player (the column defaults, season 0) reads as the fresh-season start', () => {
+    const p = initialRankedProfile().position;
+    expect(seatRankOfRow({ rank_season: 0, rank_division: 0, rank_points: 0 })).toEqual({ divisionIndex: p.divisionIndex, points: p.points });
+  });
+  it('seatRankOfRow: a live-season row with an invalid position is null', () => {
+    expect(seatRankOfRow({ rank_season: RANK_SEASON, rank_division: -1, rank_points: 0 })).toBeNull();
   });
 
   it('seatCardSource carries the server rank for anyone, and `self.rank` for you', () => {
@@ -277,5 +293,28 @@ describe('every seat carries its rank (the showcase card)', () => {
     expect(got?.titleId).toBe(TITLE_ID);
     expect(got?.rank).toBeUndefined();
     expect(backend.selects.some((c) => c.includes('rank_division'))).toBe(true);
+  });
+
+  // The fall-back chain (fetchProfiles): a refused avatar+rank read is blamed on the avatar ONLY once the rank-only read
+  // succeeds. Blaming it too early would hide every player's chosen picture for the session over a rank-column problem.
+  it('avatar + rank refused, rank alone fine: the avatar is marked unreadable and the rank still arrives', async () => {
+    backend.refuseCols = (cols) => cols.includes('avatar');
+    backend.profiles = [{ user_id: 'a', favorite_hero: 'indy', equipped_title_id: TITLE_ID, rank_season: RANK_SEASON, rank_division: 4, rank_points: 20 }];
+    const got = (await fetchSeatData(['a'])).get('a');
+    expect(backend.avatarReadable).toBe(false);
+    expect(got?.rank).toEqual({ divisionIndex: 4, points: 20 });
+    expect(got?.titleId).toBe(TITLE_ID);
+    expect(backend.selects[0]).toContain('avatar');
+    expect(backend.selects[1]).not.toContain('avatar');
+    expect(backend.selects[1]).toContain('rank_division');
+  });
+  it('avatar + rank refused and rank alone refused too: the avatar is NOT blamed (its own read decides)', async () => {
+    backend.refuseCols = (cols) => cols.includes('rank_division');
+    backend.profiles = [{ user_id: 'a', favorite_hero: 'indy', equipped_title_id: TITLE_ID, avatar: AVATAR }];
+    const got = (await fetchSeatData(['a'])).get('a');
+    expect(backend.avatarReadable).toBe(true);
+    expect(got?.avatar).toBe(AVATAR);
+    expect(got?.rank).toBeUndefined();
+    expect(backend.selects.slice(0, 3).map((c) => [c.includes('avatar'), c.includes('rank_division')])).toEqual([[true, true], [false, true], [true, false]]);
   });
 });

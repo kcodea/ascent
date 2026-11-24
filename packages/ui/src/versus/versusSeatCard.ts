@@ -144,8 +144,10 @@ async function fetchRecords(ids: readonly string[]): Promise<Map<string, VersusR
   return rpc && !rpc.error ? parseVersusRecords(rpc.data) : new Map();
 }
 
-/** One `profiles` row's rank columns as a position. Never ranked (no division) = null; a row from another season reads
- *  as the fresh-season start (the rule `rankedProfileOfRow` in remoteBoards applies). */
+/** One `profiles` row's rank columns as a position. A row without the rank columns (an older server, or the fall-back
+ *  read that dropped them) or with an invalid live-season position = null. A row from another season reads as the
+ *  fresh-season start (the rule `rankedProfileOfRow` in remoteBoards applies), and so does a never-ranked player: the
+ *  columns are `not null default 0` (2026-09-20-medal-rank.sql), so season 0 is "never ranked under medals". */
 export function seatRankOfRow(r: Record<string, unknown>): RankPosition | null {
   if (typeof r.rank_division !== 'number' && r.rank_season !== RANK_SEASON) return null;
   if (r.rank_season !== RANK_SEASON) {

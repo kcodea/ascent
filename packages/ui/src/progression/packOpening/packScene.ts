@@ -43,7 +43,7 @@ import { ANCIENT_GLOW_STOPS, BURST_TEX, PACK_GEOM, TEX_RES, rarityTint } from '.
 import { BURST, bigPullTier, burstPoseAt, type BigPullTier, type BurstPose } from './bigPull';
 import { holoShiftInto, packHoloStrength } from './packHolo';
 import {
-  buildPackViews, CARDS_Y, RIBBON_DY, RIBBON_HH, RIBBON_HW, type SceneTextures, type Views,
+  buildPackViews, CARDS_Y, RIBBON_DY, RIBBON_HH, RIBBON_HW, wallInto, type SceneTextures, type Views,
 } from './packViews';
 import {
   newSleeve, newTear, releaseTear, stepSleeve, stepTear, type SleeveState, type TearState, type Vec3,
@@ -209,6 +209,8 @@ class PackSceneImpl implements PackScene {
   private readonly pt: Pt = { x: 0, y: 0 };
   private readonly pt2: Pt = { x: 0, y: 0 };
   private readonly pt3: Pt = { x: 0, y: 0 };
+  /** The body's vertices before the tilt (sized on first use): the back wall is laid from these. */
+  private bodyFlat = new Float32Array(0);
   private readonly pt4: Pt = { x: 0, y: 0 }; // the tilt step's corner (never shared with the pointer handlers)
   private readonly target: Vec3 = { x: 0, y: 0, z: 0 };
   private readonly tearInput: { held: boolean; target: Vec3 | null } = { held: false, target: null };
@@ -541,6 +543,7 @@ class PackSceneImpl implements PackScene {
     v.pack.position.set(0, 0);
     v.sleeveFront.position.set(0, 0); v.sleeveFront.rotation = 0; v.sleeveFront.alpha = 1; v.sleeveFront.visible = true;
     v.sleeveBack.position.set(0, 0); v.sleeveBack.rotation = 0; v.sleeveBack.alpha = 1; v.sleeveBack.visible = true;
+    v.lining.visible = true; v.lining.alpha = 1;
     v.lip.view.y = 0;
     v.lip.update(0);
     v.shadow.alpha = 0;
@@ -913,7 +916,10 @@ class PackSceneImpl implements PackScene {
     flap.alpha = Math.max(0, flap.alpha - 0.012 * dt);
     v.shadow.alpha = Math.max(0, v.shadow.alpha - 0.05 * dt);
     v.sheen.alpha = Math.max(0, v.sheen.alpha - 0.05 * dt);
-    if (flap.alpha <= 0) { this.flying = false; flap.visible = false; }
+    // the pack's inside behind the strip goes with it, quickly (the tear takes the pack's top off)
+    v.lining.alpha = Math.max(0, 1 - (1 - flap.alpha) * 4);
+    if (v.lining.alpha <= 0) v.lining.visible = false;
+    if (flap.alpha <= 0) { this.flying = false; flap.visible = false; v.lining.visible = false; }
   }
 
   /** The sleeve (model step + the body deform), its drop, and the stack's zoom spring. */
@@ -979,6 +985,8 @@ class PackSceneImpl implements PackScene {
     const pos = v.body.geometry.positions, base = v.bodyBase;
     if (pos.length !== base.length) return;
     const sl = this.sleeve, pose = this.tiltPose, p = this.pt3;
+    if (this.bodyFlat.length !== pos.length) this.bodyFlat = new Float32Array(pos.length); // once
+    const flat = this.bodyFlat;
     const gy = (this.grabY - H) * TEX_RES;
     const half = (W * TEX_RES) / 2;
     for (let k = 0; k < pos.length; k += 2) {
@@ -991,6 +999,7 @@ class PackSceneImpl implements PackScene {
         x = half + (bx - half) * (1 - pinch); // squeezed in where you hold it
         y = by - sl.lag * 2 * above * above; // the rim trails, rubbing on the cards
       }
+      flat[k] = x; flat[k + 1] = y; // the body before the tilt: the back wall follows this (it never tilts)
       if (!pose.flat) {
         tiltInto(p, x / TEX_RES, H + y / TEX_RES, 0, pose);
         x = p.x * TEX_RES;
@@ -1000,6 +1009,8 @@ class PackSceneImpl implements PackScene {
       pos[k + 1] = y;
     }
     v.body.geometry.getBuffer('aPosition').update();
+    const wp = v.wall.geometry.positions;
+    if (wp.length === pos.length) { wallInto(wp, flat); v.wall.geometry.getBuffer('aPosition').update(); }
     const sp = v.sheen.geometry.positions, gp = v.gloss.geometry.positions;
     if (sp.length === pos.length) { sp.set(pos); v.sheen.geometry.getBuffer('aPosition').update(); }
     if (gp.length === pos.length) { gp.set(pos); v.gloss.geometry.getBuffer('aPosition').update(); }

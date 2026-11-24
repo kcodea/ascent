@@ -17,12 +17,12 @@
  *   burst (root's FIRST child, so under everything) the big-pull light burst (bigPull.ts): an additive bloom and one or
  *                     two god-ray rings, placed at the landing face's centre; only alpha / scale / rotation change
  */
-import { CanvasSource, Container, Graphics, Mesh, MeshGeometry, MeshPlane, PerspectiveMesh, Sprite, Texture } from 'pixi.js';
+import { CanvasSource, Container, Mesh, MeshGeometry, MeshPlane, PerspectiveMesh, Sprite, Texture } from 'pixi.js';
 import { COSMETIC_RARITIES, type CrateRarity, type PackLook } from '@game/progression';
 import {
   ANCIENT_GLOW_STOPS, PACK_GEOM, TEX_RES, type BackArt, paintArtSlice, paintBlob, paintBody, paintCardFlash, paintCardGlow,
   paintFleck, paintGlossBand, paintPackGlow, paintPinchRing, paintPlainBack, paintRarityBack, paintRibbon, paintShade,
-  paintSheen, paintSpec, paintStrip, paintStripBack, rarityTint, paintBurstBloom, paintBurstRays,
+  paintSheen, paintSpec, paintStrip, paintStripBack, paintStripInside, rarityTint, paintBurstBloom, paintBurstRays,
 } from './packTextures';
 import { BURST } from './bigPull';
 import { packArtFor, packShineFor } from './packArt';
@@ -42,8 +42,6 @@ export const RIBBON_DY = Math.round(CARD_H * (108 / 370));
 export const RIBBON_HW = (CARD_W * 0.92) / 2, RIBBON_HH = 19;
 /** The back wall's inset from the pack's sides and bottom (base units). */
 const BACK_INSET = 6;
-/** Where the back wall's lining starts, as a fraction of the strip's height (clear of the top crimp's see-through teeth). */
-const LINING_TOP = 0.14;
 /** Pooled foil flecks. */
 const FLECKS = 48;
 
@@ -65,8 +63,12 @@ export interface Views {
   packGlow: PerspectiveMesh;
   /** The aura's half size in base units at tier size 1 (its painted halo included). */
   packGlowHalf: { w: number; h: number };
-  /** The back wall: the silver inner lining across the strip's band, the dark wall below it. */
+  /** The back wall: the pack's inside across the strip's band, the dark wall below it. */
   sleeveBack: Container;
+  /** The pack's inside behind the strip (packTextures.ts paintStripInside): fades out as the torn strip flies off. */
+  lining: Sprite;
+  /** The dark wall behind the stack: a mesh on the body's grid, inset (`wallInto`), so it squeezes with the sleeve. */
+  wall: Mesh;
   cardsC: Container;
   cards: Sprite[];
   glow: Sprite;
@@ -109,6 +111,21 @@ export interface HoloViews {
 }
 
 const fromCanvas = (c: HTMLCanvasElement): Texture => new Texture({ source: new CanvasSource({ resource: c }) });
+
+/**
+ * The back wall's vertices from the body's (`src`, the body's positions before any tilt, texture px): pulled in toward
+ * the centre line and up from the bottom by the inset, so the wrapper's see-through crimped edges never show it, and it
+ * follows whatever shape the body takes. Writes `out`, returns it.
+ */
+export function wallInto(out: Float32Array, src: ArrayLike<number>): Float32Array {
+  const half = (W * TEX_RES) / 2;
+  const sx = (W - BACK_INSET * 2) / W, sy = (BODY_H - BACK_INSET) / BODY_H;
+  for (let k = 0; k < out.length; k += 2) {
+    out[k] = half + (src[k]! - half) * sx;
+    out[k + 1] = src[k + 1]! * sy;
+  }
+  return out;
+}
 
 /** A mesh on the body's grid (the same vertices and triangles) with its own uvs and texture. */
 function bodyGridMesh(body: MeshPlane, base: Float32Array, uvs: Float32Array, texture: Texture): Mesh {
@@ -193,18 +210,7 @@ export function buildPackViews(look: PackLook, n: number, own: (t: Texture) => v
   packGlow.tint = packRarity === 'ancient' ? 0xffffff : rarityTint(packRarity);
   packGlow.alpha = 0;
   // inset a little: the wrapper art's crimped edges are see-through, and the back wall must not show through them
-  // the wall's top is the wrapper's silver inner lining (owner 2026-11-24: the peeled strip must never leave a see-through
-  // hole): it fills the strip's band behind the stack, a touch darker than the strip's own underside (it is inside the pack)
-  const liningTex = keep(paintStripBack());
   const sleeveBack = new Container();
-  const lining = new Sprite(liningTex);
-  lining.position.set(BACK_INSET, H * LINING_TOP);
-  lining.width = W - BACK_INSET * 2; lining.height = H * (1 - LINING_TOP) + 12;
-  lining.tint = 0xa3a9b6;
-  sleeveBack.addChild(
-    lining,
-    new Graphics().rect(BACK_INSET, H + 12, W - BACK_INSET * 2, BODY_H - 12 - BACK_INSET).fill('#0c0a12'),
-  );
   const cardsC = new Container();
   cardsC.position.set(W / 2, CARDS_Y);
   const cards: Sprite[] = [];
@@ -241,6 +247,11 @@ export function buildPackViews(look: PackLook, n: number, own: (t: Texture) => v
   const gloss = bodyGridMesh(body, bodyBase, uv0, keep(paintGlossBand()));
   gloss.blendMode = 'add';
   gloss.alpha = 0;
+  // the dark wall: the body's own grid, pulled in a little (wallInto), so the sleeve's squeeze and trailing rim never
+  // leave a rigid rectangle showing past the wrapper
+  const wall = bodyGridMesh(body, wallInto(new Float32Array(bodyBase.length), bodyBase), new Float32Array(bodyBase.length), Texture.WHITE);
+  wall.tint = 0x0c0a12;
+  sleeveBack.addChild(wall);
   const lip = new TornLip();
   const shadow = new Sprite(keep(paintBlob()));
   shadow.anchor.set(0.5); shadow.alpha = 0;
@@ -249,8 +260,15 @@ export function buildPackViews(look: PackLook, n: number, own: (t: Texture) => v
 
   const stripCanvas = paintStrip(look);
   const stripTex = keep(stripCanvas);
+  // THE PACK'S INSIDE behind the strip: the strip's own silhouette in shaded inner foil, so the peel never opens a
+  // see-through band (and never a flat block: it has the wrapper's exact outline, crimped teeth included)
+  const liningCanvas = paintStripInside(stripCanvas);
+  const liningTex = keep(liningCanvas);
+  const lining = new Sprite(liningTex);
+  lining.width = W; lining.height = H;
+  sleeveBack.addChildAt(lining, 0);
   const strip = new StripMesh({
-    front: stripTex, back: liningTex, shade: keep(paintShade()), spec: keep(paintSpec()),
+    front: stripTex, back: keep(paintStripBack()), shade: keep(paintShade()), spec: keep(paintSpec()),
   });
   // THE WRAPPER ART (packArt.ts): the placeholder shows first, then the art repaints both canvases in place, the strip
   // from the art above its tear line, the body the rest. Never blocks init; a load after teardown touches nothing. The
@@ -264,6 +282,7 @@ export function buildPackViews(look: PackLook, n: number, own: (t: Texture) => v
         paintArtSlice(img, bodyCanvas, H, BODY_H);
         stripTex.source.update();
         bodyTex.source.update();
+        if (!liningTex.destroyed) { paintStripInside(stripCanvas, liningCanvas); liningTex.source.update(); } // the art's outline
       } catch { /* keep the placeholder */ }
     });
   }
@@ -298,7 +317,7 @@ export function buildPackViews(look: PackLook, n: number, own: (t: Texture) => v
   root.addChildAt(burst, 0);
 
   const views: Views = {
-    root, pack, packGlow, packGlowHalf, sleeveBack, cardsC, cards, glow, fade, flash, ribbon, sleeveFront, body, bodyBase, sheen,
+    root, pack, packGlow, packGlowHalf, sleeveBack, lining, wall, cardsC, cards, glow, fade, flash, ribbon, sleeveFront, body, bodyBase, sheen,
     gloss, lip, shadow,
     strip, particles, flecks, pinch, flipLayer, flipper, flipRibbon, burst, burstBloom, burstRays, burstRays2, holo,
   };

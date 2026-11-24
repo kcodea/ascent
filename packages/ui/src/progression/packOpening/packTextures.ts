@@ -145,6 +145,45 @@ export function paintStripBack(): HTMLCanvasElement {
   return c;
 }
 
+/**
+ * THE PACK'S INSIDE behind the tear strip (owner 2026-11-24: peeling the top must not leave a see-through band, and not a
+ * flat block of colour either): the wrapper's inner foil, shaded as the inside of a pack (darker toward the opening's
+ * floor), cut to the STRIP'S OWN SILHOUETTE (`strip`, the painted front: its alpha, crimped teeth included), so sealed it
+ * hides exactly behind the strip and peeled it reads as the pack's far wall. `into` repaints in place (the wrapper art
+ * arrives after init and changes the silhouette).
+ */
+export function paintStripInside(strip: HTMLCanvasElement, into?: HTMLCanvasElement): HTMLCanvasElement {
+  const c = into ?? canvas(strip.width, strip.height).c;
+  const g = c.getContext('2d');
+  if (!g) return c;
+  const w = c.width, h = c.height;
+  g.globalCompositeOperation = 'source-over';
+  g.clearRect(0, 0, w, h);
+  const gr = g.createLinearGradient(0, 0, 0, h);
+  gr.addColorStop(0, '#8b91a0');
+  gr.addColorStop(0.55, '#6c7281');
+  gr.addColorStop(1, '#3d414d');
+  g.fillStyle = gr;
+  g.fillRect(0, 0, w, h);
+  const r = prng(11);
+  for (let n = 0; n < 900; n++) {
+    g.fillStyle = `rgba(${r() < 0.5 ? '255,255,255' : '20,22,30'},${r() * 0.1})`;
+    g.fillRect(r() * w, r() * h, 2 + r() * 6, 1);
+  }
+  // a soft shadow under the top seal and at the sides: the wall curves away from the light
+  const side = g.createLinearGradient(0, 0, w, 0);
+  side.addColorStop(0, 'rgba(0,0,0,.4)');
+  side.addColorStop(0.12, 'rgba(0,0,0,0)');
+  side.addColorStop(0.88, 'rgba(0,0,0,0)');
+  side.addColorStop(1, 'rgba(0,0,0,.4)');
+  g.fillStyle = side;
+  g.fillRect(0, 0, w, h);
+  g.globalCompositeOperation = 'destination-in';
+  g.drawImage(strip, 0, 0, w, h);
+  g.globalCompositeOperation = 'source-over';
+  return c;
+}
+
 /** Split a pack name into at most two printed lines. */
 function nameLines(name: string): string[] {
   const words = name.toUpperCase().split(/\s+/).filter(Boolean);

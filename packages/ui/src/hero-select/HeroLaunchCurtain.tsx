@@ -11,6 +11,7 @@ import { launchVersusHero, useVersusAwaitingPick } from '../versus/versusStore';
 import { PHONE_GPU } from '../phoneDiag';
 import { usePartyHome } from '../partyHome/partyHomeFlag';
 import { crumbLight, crumbTrail } from '../crashLog';
+import { claimRipple, releaseRipple } from '../locationReveal/heroRipple';
 
 /**
  * HERO SELECT CEREMONY — the launch curtain (hero-select-ceremony-blueprint.md §7).
@@ -80,7 +81,11 @@ export function HeroLaunchCurtain() {
     if (!req) return;
     let dead = false; // Game itself unmounted mid-launch (dev hot reload) — stop touching the DOM
     const t = ceremonyTiming();
+    const rip = req.ripple && !req.ripple.gl.dead ? req.ripple : null;
+    if (rip) claimRipple(rip.gl); // hero select unmounts under it
+    const uncover = (el: HTMLElement | null): Promise<void> => (rip && !rip.gl.dead ? rip.gl.fadeOff(t.launchRevealMs) : fade(el, 1, 0, t.launchRevealMs));
     const finish = () => {
+      if (rip) releaseRipple(rip.gl);
       resolveRef.current?.();
       resolveRef.current = null;
       setVersusWait(false);
@@ -90,7 +95,14 @@ export function HeroLaunchCurtain() {
       const el = elRef.current;
       // Crash-log trail (phones; R-TOUCH-CRASH-REPORT-02): light steps, the curtain is animating.
       crumbLight('launch cover');
-      await fade(el, 0, 1, t.launchCoverMs);
+      if (rip && el) {
+        // THE RIPPLE: the same picture, alive, takes the screen and draws its breath; the run is built under it.
+        rip.gl.show(el, rip.scene, rip.origin);
+        el.style.opacity = '1';
+        await rip.gl.hold();
+      } else {
+        await fade(el, 0, 1, t.launchCoverMs);
+      }
       if (dead) return;
       setLaunchCovered(true);
       crumbLight('launch covered');
@@ -113,7 +125,7 @@ export function HeroLaunchCurtain() {
           await twoFrames();
           if (dead) return;
           setLaunchCovered(false);
-          await fade(el, 1, 0, t.launchRevealMs);
+          await uncover(el);
           if (!dead) finish();
           return;
         }
@@ -127,6 +139,8 @@ export function HeroLaunchCurtain() {
         if (dead) return;
         setVersusWait(false);
       }
+      if (rip && !versusStart) await rip.gl.still();
+      if (dead) return;
       // Fully covered: NOW build the run. This is the synchronous heavy step (createRun/createLobbyRun +
       // warmLobbyDrivers + writeSave) and it also unmounts HeroSelect behind us.
       try {
@@ -152,13 +166,14 @@ export function HeroLaunchCurtain() {
       if (dead) return;
       crumbLight('launch reveal');
       setLaunchCovered(false);
-      await fade(el, 1, 0, t.launchRevealMs);
+      if (rip && !rip.gl.dead) await rip.gl.wave('out', rip.origin);
+      else await uncover(el);
       if (dead) return;
       finish();
       // Not cancelled with this effect (finish() unmounts it at once): a few store-only timers, phones only.
       crumbTrail('first shop', undefined, true);
     })();
-    return () => { dead = true; setLaunchCovered(false); lobbyPoolGate.cancel(); };
+    return () => { dead = true; setLaunchCovered(false); lobbyPoolGate.cancel(); if (rip) releaseRipple(rip.gl); };
   }, [req]);
 
   if (!req) return null;
@@ -168,7 +183,7 @@ export function HeroLaunchCurtain() {
     <>
       <div
         ref={elRef}
-        className={`hsc-curtain${ph ? ' ph' : ''}`}
+        className={`hsc-curtain${req.ripple ? ' rip' : ph ? ' ph' : ''}`}
         style={{ '--hsc-accent': req.accent } as CSSProperties}
         aria-hidden="true"
       />

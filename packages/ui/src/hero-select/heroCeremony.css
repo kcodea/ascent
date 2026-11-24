@@ -270,6 +270,17 @@
     #0a0703;
 }
 
+/* ---- THE RIPPLE (owner + Mike 2026-11-24, R-LOCATION-05). The wave's canvas lies over hero select and under the name and
+   Start Game; the finished picture's own DOM waits under it, unpainted, and takes over when the wave is done. */
+.hsc-ripple { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 8; pointer-events: none; }
+.hsc-curtain.rip { background: none; }
+.heroselect:is(.phhs, .hss, .hsb) .hsc-rip .hsc-start:disabled { filter: none; }
+.hsc-rip:not(.hsc-landed) > :is(.hsc-scrim, .hsc-glow, .hsc-portrait, .hsc-ring) { visibility: hidden; }
+.hsc-rip > :is(.hsc-scrim, .hsc-glow, .hsc-ring) { animation: none; opacity: 1; transform: none; }
+/* Ahead of the wave hero select is untouched (the older ceremony's fades are off); once it has passed, it is gone. */
+.heroselect[data-hsc-ripple='wave'] :is(.hsprompt, .hsline, .riftpill, .hs-eyebrow, .hss-stage, .hss-confirm, .hss-glow) { opacity: 1 !important; transition: none !important; }
+.heroselect[data-hsc-ripple='done'] > :not(.hsc-layer):not(.hs-location):not(.hsph-bd) { visibility: hidden; }
+
 /* One-shot entrance keyframes — compositor-only (transform/opacity). */
 @keyframes hscFadeIn { to { opacity: 1; } }
 @keyframes hscGlowIn { to { opacity: 1; transform: scale(1); } }

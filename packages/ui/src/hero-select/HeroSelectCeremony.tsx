@@ -22,6 +22,8 @@ import { useGame } from '../store';
 import { useVersusHeroesRevealed } from '../versus/versusStore';
 import { usePartyHome } from '../partyHome/partyHomeFlag';
 import { HeroPowerLine } from './HeroPowerLine';
+import { readyRipple, rippleFar, rippleReach, RIPPLE_S, type RippleScene } from '../locationReveal/heroRipple';
+import { RIPPLE_TIMING, shoveAside, waveOrigin } from './heroRippleTiming';
 import { crumbLight, crumbTrail } from '../crashLog';
 
 /** VERSUS: how long a finished ceremony waits on Start Game before starting on its own (both heroes locked). */
@@ -168,7 +170,7 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch, splash }: 
   // is `resizeTo` its host, so every rect is snapshotted through `rectToStage` and the viewport is the stage's.
   const [dest, setDest] = useState(() => destinationRect(stageViewport().w, stageViewport().h, source));
   /** The circular-portrait FLASH has fired: the ring is on stage and the art clips to a circle inside it. */
-  const [flashed, setFlashed] = useState(false);
+  const [flashed, setFlashed] = useState(() => !!splash && !watch && !!readyRipple(art, frame ? ringRelativeToDefault(frame).src : ringArt));
   /** The clone's travel has actually FINISHED. The portrait's bounds are measured off the settled clone, and
    *  measuring it mid-flight yields a rect at the card's old position and size — which is how the whole
    *  presentation ends up off-centre. Normally the transform beat lands well after the travel, so this is
@@ -176,7 +178,11 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch, splash }: 
    *  where the beat can arrive before the movement has visually happened. */
   const [travelDone, setTravelDone] = useState(false);
   /** Set when materializing begins (and art exists): the portrait's start crop + final bounds. */
-  const [portrait, setPortrait] = useState<{ crop: RectSnapshot; bounds: RectSnapshot } | null>(null);
+  const [portrait, setPortrait] = useState<{ crop: RectSnapshot; bounds: RectSnapshot } | null>(() => {
+    if (!splash || watch || !readyRipple(art, frame ? ringRelativeToDefault(frame).src : ringArt)) return null;
+    const crop = coverSquare(splashDest(destinationRect(stageViewport().w, stageViewport().h, source)));
+    return { crop, bounds: portraitBoundsOf(crop, ph, SPLASH_ART_FIT) };
+  });
   // The tuner's Ring + Hero-art knobs are read here in JS (not CSS vars), so re-render on every tuner change and lay the
   // portrait + ring out from the LIVE config. The stored bounds stay the entrance animation's start point.
   const tunerCfg = useSyncExternalStore(subscribeHeroCeremonyConfig, getHeroCeremonyConfig);
@@ -186,10 +192,47 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch, splash }: 
   const identityTopRef = useRef(0);
   const liveBounds = useMemo(() => (portrait ? portraitBoundsOf(portrait.crop, ph, splash ? SPLASH_ART_FIT : 1) : null), [portrait, tunerCfg, ph, splash]);
 
-  const t = useMemo(() => ceremonyTiming(), []);
+  /* ---- THE RIPPLE (owner + Mike 2026-11-24, R-LOCATION-05): from Select Hero, the location's own wave spreads, and what it
+     has passed is the finished picture. It replaces the whole journey (the clone, the exits, the bursts, the flash): this
+     DOM is laid out finished, hidden, and takes over when the wave is done. Decided once, at commit. */
+  const ringSrc = frame ? ringRelativeToDefault(frame).src : ringArt;
+  const [rip] = useState(() => (splash && !watch ? readyRipple(art, ringSrc) : null));
+  const [landed, setLanded] = useState(false);
+  const sceneRef = useRef<RippleScene | null>(null);
+  const t = useMemo(() => (rip ? { ...ceremonyTiming(), ...RIPPLE_TIMING } : ceremonyTiming()), [rip]);
+  /** When the wave reaches a point of the stage (ms), for what rises on top of the picture. */
+  const [origin] = useState(() => (rip ? waveOrigin() : null));
+  const reachMs = (x: number, y: number): number => {
+    if (!origin) return 0;
+    const vp = stageViewport();
+    return rippleReach(Math.hypot(x - origin.x, y - origin.y) / vp.h, rippleFar(origin.x, origin.y, vp.w, vp.h)) * 1000;
+  };
 
   /* ---- Commit: snapshot the grid ONCE, hide the original under the painted clone, press-acknowledge. */
   useLayoutEffect(() => {
+    if (!rip || !origin) return undefined;
+    const layer = layerRef.current;
+    const root = layer?.closest<HTMLElement>('.heroselect');
+    const sc = sceneRef.current;
+    if (!layer || !root || !sc) return undefined;
+    root.dataset.hscRipple = 'wave'; // hero select stays exactly as it is ahead of the wave (heroCeremony.css)
+    const vp = stageViewport();
+    let gone = false;
+    rip.show(layer, sc, origin);
+    shoveAside(root, origin, vp, animsRef.current);
+    void rip.wave('in').then(() => {
+      if (gone) return;
+      root.dataset.hscRipple = 'done';
+      setLanded(true);
+      // The DOM under it is the same picture: it fades off it, and waits for Start Game.
+      void rip.fadeOff();
+    });
+    return () => { gone = true; delete root.dataset.hscRipple; if (!rip.claimed) rip.rest(); };
+    // Commit-time effect, like the one below.
+  }, []);
+
+  useLayoutEffect(() => {
+    if (rip) return undefined;
     const els: (HTMLElement | null)[] = splash ? splash.exitEls.current : cardEls.current;
     const snaps: { el: HTMLElement; rect: RectSnapshot; index: number }[] = [];
     els.forEach((el, index) => {
@@ -236,8 +279,9 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch, splash }: 
     if (watch && !watch.fx) return undefined; // the DOM ceremony is the whole look without it (§19)
     const fx = createHeroCeremonyFx();
     fxRef.current = fx;
-    if (layerRef.current) void fx.mount(layerRef.current);
-    return () => { fxRef.current = null; fx.destroy(); };
+    // Behind the ripple it is only the quiet motes of the finished picture: started once the wave is over.
+    const id = window.setTimeout(() => { if (layerRef.current && fxRef.current === fx) void fx.mount(layerRef.current); }, rip ? RIPPLE_S * 1000 + 220 : 0);
+    return () => { window.clearTimeout(id); fxRef.current = null; fx.destroy(); };
     // Mount-once, like the sequence runner.
     // (deps intentionally omitted — see the comment above)
   }, []);
@@ -276,6 +320,11 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch, splash }: 
     // plays the shipped defaults. All §15-safe — a missing clip or a failed Pixi init never touches the
     // visual timeline.
     const fx = getHeroCeremonyConfig();
+    at(t.voiceAtMs, () => sfx.heroSelect(heroId));
+    if (rip) {
+      if (fx.motesOn >= 1) at(RIPPLE_S * 1000 + 700, () => fxRef.current?.beginAmbient());
+      return () => ac.abort();
+    }
     if (fx.ring1On >= 1) at(fx.ring1AtMs, () => fxRef.current?.playRingBurst1(fx.ring1Ms));
     if (fx.sparksOn >= 1) at(fx.sparksAtMs, () => fxRef.current?.playSparks(fx.sparksMs));
     if (fx.motesOn >= 1) at(fx.motesAtMs, () => fxRef.current?.beginAmbient());
@@ -287,7 +336,6 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch, splash }: 
     if (fx.woosh2On >= 1) at(fx.woosh2AtMs, () => sfx.ceremony('woosh2', fx.woosh2Vol));
     if (fx.revealOn >= 1) at(fx.revealAtMs, () => sfx.ceremony('ceremonyrevealsound', fx.revealVol));
     at(fx.flashAtMs, () => setFlashed(true));
-    at(t.voiceAtMs, () => sfx.heroSelect(heroId));
     return () => ac.abort();
     // (deps intentionally omitted — see the comment above)
   }, []);
@@ -295,7 +343,7 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch, splash }: 
   /* ---- Dismissing: the unselected cards yield the stage (§9), each along its own exitVector. Rects were
      snapshotted at commit; rows are derived from the snapshots, so this beat does zero layout reads. */
   useEffect(() => {
-    if (!crossed('dismissing') || didExitsRef.current) return;
+    if (rip || !crossed('dismissing') || didExitsRef.current) return;
     didExitsRef.current = true;
     const snaps = cardRectsRef.current;
     // Row = rank of distinct tops (10px tolerance) — drives the small vertical drift per row (§9).
@@ -316,7 +364,7 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch, splash }: 
 
   /* ---- Focusing: the clone travels to center with the §9 overshoot-settle keyframes. */
   useEffect(() => {
-    if (!crossed('focusing') || didFocusRef.current) return;
+    if (rip || !crossed('focusing') || didFocusRef.current) return;
     didFocusRef.current = true;
     // THE SHOWCASE: the splash box may be taller than wide; splashTravelTarget lands its cover-fit art square on the cover square.
     focusAnimRef.current = animateEl(cloneWrapRef.current, focusKeyframes(source, splash ? splashTravelTarget(source, dest) : dest), {
@@ -349,7 +397,7 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch, splash }: 
 
   /* ---- Portrait entrance: from the card-art crop to the final bounds, opacity 0.35 → 1 (§13). */
   useEffect(() => {
-    if (!portrait) return;
+    if (!portrait || rip) return;
     const el = portraitRef.current;
     const from = transformTo(portrait.bounds, portrait.crop);
     animateEl(el, [
@@ -373,6 +421,11 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch, splash }: 
       id = setTimeout(() => {
         const next = destinationRect(stageViewport().w, stageViewport().h, source);
         setDest(next);
+        if (rip) {
+          const crop = coverSquare(splashDest(next));
+          setPortrait({ crop, bounds: portraitBoundsOf(crop, ph, SPLASH_ART_FIT) });
+          return;
+        }
         const settle = splash ? splashTravelTarget(source, next) : next;
         const wrap = cloneWrapRef.current;
         // Only correct once travel is over (post-focus phases); mid-travel the running animation still
@@ -411,8 +464,11 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch, splash }: 
     // §12.5: particles pull home + one outward pulse while the curtain covers. Fire-and-forget on purpose —
     // the curtain owns the pacing, and a hung/absent Pixi layer must never delay run creation.
     fxRef.current?.stopAmbient();
-    void fxRef.current?.playLaunch();
-    void requestLaunch({ heroId, accent: 'var(--acc)' });
+    if (!rip) void fxRef.current?.playLaunch();
+    const sc = sceneRef.current;
+    const btn = startBtnRef.current ? rectToStage(startBtnRef.current.getBoundingClientRect()) : null;
+    const from = btn ? { x: btn.left + btn.width / 2, y: btn.top + btn.height / 2 } : sc ? { x: sc.clip.x, y: sc.clip.y } : null;
+    void requestLaunch({ heroId, accent: 'var(--acc)', ...(rip && sc && from && !rip.dead ? { ripple: { gl: rip, scene: sc, origin: from } } : {}) });
   };
 
   /* ---- VERSUS (owner 2026-10-14: "let the full hero select animation play out"): once both heroes are locked on the
@@ -454,8 +510,8 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch, splash }: 
   // materializing beat (they mount with it) — no extra timers to abort.
   const vars = {
     '--hsc-transform-ms': `${t.transformMs}ms`,
-    '--hsc-identity-delay': `${Math.max(0, t.identityAtMs - t.transformAtMs)}ms`,
-    '--hsc-ready-delay': `${Math.max(0, t.readyAtMs - t.transformAtMs)}ms`,
+    '--hsc-identity-delay': `${Math.max(0, rip ? reachMs(dest.left + dest.width / 2, dest.top + dest.height * 0.55) : t.identityAtMs - t.transformAtMs)}ms`,
+    '--hsc-ready-delay': `${Math.max(0, rip ? 260 : t.readyAtMs - t.transformAtMs)}ms`,
     '--hsc-ready-ms': `${t.readyMs}ms`,
     '--hsc-glow-x': `${dest.left + dest.width / 2}px`,
     '--hsc-glow-y': `${dest.top + dest.height / 2}px`,
@@ -463,7 +519,7 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch, splash }: 
   } as CSSProperties;
 
   return (
-    <div ref={layerRef} className="hsc-layer" style={vars}>
+    <div ref={layerRef} className={`hsc-layer${rip ? ` hsc-rip${landed ? ' hsc-landed' : ''}` : ''}`} style={vars}>
       {/* §10: a slightly deepened scrim + a localized hero-accent light source behind center stage.
           Both are STATIC gradients — only their opacity (and the glow's transform) animate. */}
       <div className="hsc-scrim" aria-hidden="true" />
@@ -473,7 +529,7 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch, splash }: 
           (all keyframes are viewport-px transforms); inner card = the real big-herocard markup at natural
           size, statically scaled to fit the source. `hsc-chrome-out` starts the §13 chrome dissolve;
           `hsc-done` hides the whole card once the clean portrait owns the stage (art only). */}
-      {splash ? (
+      {rip ? null : splash ? (
         /* THE SHOWCASE: the splash art alone, at the inspect card's art box — the same file, cover crop and right-edge
            fade (heroCeremony.css `.hsc-splash`). It travels to splashTravelTarget (its cover-fit art square onto
            coverSquare(splashDest(dest)), whatever the box's aspect), so its art lines up with
@@ -562,6 +618,16 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch, splash }: 
           ? { left: pcx - hw * cover, top: pcy - hh * cover, width: pb.width * cover, height: pb.height * cover }
           : pb;
         circleRef.current = { cx, cy, r: clipR };
+        if (rip && art) {
+          const vp = stageViewport();
+          const gr = Math.max(dest.width, dest.height) * 0.9;
+          const sc: RippleScene = {
+            stage: { w: vp.w, h: vp.h }, art, ring: alt ? alt.src : ringArt, box, clip: { x: cx, y: cy, r: clipR },
+            ringBox: { left: ringCx - ringDraw / 2, top: ringCy - ringDraw / 2, width: ringDraw, height: ringDraw },
+            glow: { x: dest.left + dest.width / 2, y: dest.top + dest.height / 2, r: gr },
+          };
+          sceneRef.current = sc;
+        }
         return (
           <>
             <div
@@ -570,7 +636,7 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch, splash }: 
               style={{
                 left: box.left, top: box.top,
                 width: box.width, height: box.height,
-                transform: transformTo(portrait.bounds, portrait.crop), opacity: 0.35,
+                ...(rip ? {} : { transform: transformTo(portrait.bounds, portrait.crop), opacity: 0.35 }),
                 ...(flashed
                   ? { clipPath: `circle(${clipR.toFixed(1)}px at ${(cx - box.left).toFixed(1)}px ${(cy - box.top).toFixed(1)}px)` }
                   // Before the flash the art is already held to a soft circle the size of the clip, so its square corners
@@ -596,11 +662,11 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch, splash }: 
                   aria-hidden="true"
                 />
                 {/* The FLASH itself: one-shot, mounts with the ring and burns out via CSS animation. */}
-                <div
+                {!rip && <div
                   className="hsc-flash"
                   style={{ left: cx, top: cy, '--hsc-flash-r': `${(ringSize * 0.75).toFixed(0)}px` } as CSSProperties}
                   aria-hidden="true"
-                />
+                />}
               </>
             )}
           </>

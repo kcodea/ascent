@@ -11,10 +11,15 @@
  * no Zustand, no React context, nothing to persist.
  */
 
+import type { HeroRipple, RippleScene } from '../locationReveal/heroRipple';
+
 export interface HeroLaunchRequest {
   heroId: string;
   /** CSS color (var() allowed) for the curtain's center glow — a dark cover with a hero-accent heart, §7. */
   accent: string;
+  /** THE RIPPLE (R-LOCATION-05): the picture the launch holds on screen, and where the wave that opens it on the board
+   *  starts. Absent = the curtain's own fade. */
+  ripple?: { gl: HeroRipple; scene: RippleScene; origin: { x: number; y: number } };
 }
 
 export type HeroLaunchFn = (req: HeroLaunchRequest) => Promise<void>;

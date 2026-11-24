@@ -64,6 +64,7 @@ export const PATCH_NOTES: PatchNote[] = [
         details: [
           'The announcer greets you as the name appears, then a parchment drops open for each tribe in that game.',
           'Hero select stands in the same place, and it stays alive around you.',
+          'Select Hero and Start Game ripple out from the button: to your hero in their frame, then to the board.',
           'Practice now starts through the gate too.',
           'In Versus and Duos it plays for everyone at once, and the hero clock waits until it is over.',
         ],

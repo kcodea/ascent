@@ -17220,4 +17220,22 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/locationReveal/locationReveal.test.ts'], lastVerifiedAt: '2026-11-24' },
   },
+  {
+    id: 'R-LOCATION-05',
+    title: 'Select Hero and Start Game are the same location ripple: from the button, it reveals the hero, then the board',
+    statement:
+      'Where a game has a location, pressing Select Hero sends the reveal ripple out from the button. What the wave has passed '
+      + 'is the finished picture, the hero in their own portrait frame over the living location, just there; what it has not '
+      + 'reached is hero select, untouched. Nothing flies, shrinks or flashes. Pressing Start Game holds that picture for a '
+      + 'breath while the game is built under it, then the same ripple spreads from the button and the board is behind it. '
+      + 'On a phone, with reduced motion, without WebGL 2 or a location, the older ceremony and fade play.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-24', quote: 'the ripple he refers to is the same ripple animations we have with  the parallax stuff in this, rippling out from the select hero button' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-24', quote: 'we need an animation that happens when the player hits start game which gets us to the board' },
+      { kind: 'code', ref: 'packages/ui/src/locationReveal/heroRipple.ts; packages/ui/src/hero-select/HeroSelectCeremony.tsx; packages/ui/src/hero-select/HeroLaunchCurtain.tsx' },
+    ],
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/locationReveal/locationReveal.test.ts'], lastVerifiedAt: '2026-11-24' },
+  },
 ];

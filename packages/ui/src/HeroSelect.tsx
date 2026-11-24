@@ -32,6 +32,8 @@ import { HeroPowerLine } from './hero-select/HeroPowerLine';
 import { LocationGround } from './locationReveal/LocationGround';
 import { pendingLocation } from './locationReveal/pendingLocation';
 import { versusLocation } from './locationReveal/versusReveal';
+import ringArt from './hero-select/heroportrait.png';
+import { ringRelativeToDefault } from './portraitFrame/portraitFrameConfig';
 import './locationReveal/locationReveal.css';
 import { ArmorMedal, HealthMedal } from './menuIcons';
 import { mdBold } from './Card';
@@ -406,6 +408,10 @@ export function HeroSelect({ watch }: { watch?: HeroSelectWatch } = {}) {
     const art = splashArtRef.current;
     if (art) commitPick(choices[sel]!, sel, art);
   };
+  // THE RIPPLE (R-LOCATION-05): the hero being looked at, and the player's ring, ready before Select Hero is pressed.
+  const lookedAt = showcase ? choices[sel] : openNow !== null ? shown[openNow] : undefined;
+  const lookedArt = lookedAt ? heroPortrait(lookedAt, loadout) : undefined;
+  const ringSrc = ownFrame ? ringRelativeToDefault(ownFrame).src : ringArt;
   // THE RE-ROLL control (R-HERO-REROLL-01): one press, any slot; every control then disappears.
   const canReroll = !active && !browse && (watch ? watch.frame.canReroll : mode === 'versus' ? versusCanReroll : soloCanReroll);
   const onReroll = (slot: number) => (): void => {
@@ -424,7 +430,7 @@ export function HeroSelect({ watch }: { watch?: HeroSelectWatch } = {}) {
     <div className={`heroselect${active ? ' hsc-active' : ''}${watch ? ' hswatch' : ''}${ph ? ' phhs ph-tokens' : ''}${showcase ? ` hss${snapJump ? ' hss-snap' : ''}` : ''}${browseShowcase ? ` hsb${openNow !== null ? ' hsb-open' : ''}` : ''}`} style={rootStyle} {...(watch ? { 'aria-label': 'Watching Hero Select' } : {})}>
       {ph && HeroSelectPhSkin && <Suspense fallback={null}><HeroSelectPhSkin /></Suspense>}
       {/* WHERE THE GAME IS PLAYED (owner 2026-11-24): the location's painting, blurred and alive, behind the picker. */}
-      {location && <LocationGround key={location.id} location={location} />}
+      {location && <LocationGround key={location.id} location={location} art={watch ? undefined : lookedArt} ring={ringSrc} />}
       {/* Return to the main menu (owner ask 2026-09-01) — the same `.hsback` chrome the Title's mode-pick
           wears, top-left. Hidden once a pick's ceremony is running: the launch is committing, and yanking
           the screen out from under the machine mid-choreography is not a state it handles. */}

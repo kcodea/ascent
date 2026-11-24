@@ -74,20 +74,31 @@ export function revealCues(id: LocationId, n: number): Cue[] {
   ];
 }
 
+/** The light version's cues (phones): the name, the line, the parchments and the leaving wave, on ITS times. Short clips only: a
+ *  phone decodes nothing it does not play (R-TOUCH-GPU-MEMORY-01's audio budget). Times are seconds from the doors parting. */
+export function lightCues(id: LocationId, n: number, at: { name: number; posters: number; step: number; leave: number }): Cue[] {
+  return [
+    { clip: 'title', at: at.name - 0.12, gain: 0.62 },
+    { clip: `vo-${id}`, at: at.name + LINE_DELAY, gain: VOICE, voice: true },
+    ...Array.from({ length: n }, (_, i): Cue => ({ clip: 'poster', at: at.posters + i * at.step - 0.1, gain: 0.3, lowpass: 1900, env: [[0, 0.2], [0.1, 1], [0.8, 1], [1, 0]], rate: [[0, POSTER_RATE[i % POSTER_RATE.length]!]] })),
+    { clip: 'wave', at: at.leave - 0.2, gain: 0.3, rate: [[0, 1.08]], lowpass: 5200 },
+  ];
+}
+
 export interface RevealSound {
-  /** Lay every cue of a reveal with `n` parchments, from now. */
-  play: (n: number) => void;
+  /** Lay every cue of a reveal with `n` parchments, from `inSeconds` from now. */
+  play: (n: number, inSeconds?: number) => void;
   stop: (fadeMs?: number) => void;
 }
 
 /** Fetch and decode a location's clips now. Never throws; a clip that fails is simply silent. */
-export function loadRevealSound(id: LocationId): RevealSound {
+export function loadRevealSound(id: LocationId, cues: (n: number) => Cue[] = (n) => revealCues(id, n)): RevealSound {
   const buffers = new Map<string, AudioBuffer>();
   let live: { src: AudioBufferSourceNode; gain: GainNode }[] = [];
   let stopped = false;
   const ctx = audioContext();
   if (ctx) {
-    for (const clip of new Set(revealCues(id, 1).map((c) => c.clip))) {
+    for (const clip of new Set(cues(1).map((c) => c.clip))) {
       void fetch(locationSound(clip))
         .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(String(r.status)))))
         .then((b) => ctx.decodeAudioData(b))
@@ -144,9 +155,9 @@ export function loadRevealSound(id: LocationId): RevealSound {
     live.push({ src, gain });
   };
   return {
-    play(n) {
+    play(n, inSeconds = 0) {
       if (!ctx || stopped) return;
-      try { for (const c of revealCues(id, n)) start(c, ctx.currentTime + 0.02); } catch (e) { console.warn('[locationReveal] sound', e); }
+      try { for (const c of cues(n)) start({ ...c, at: c.at + inSeconds }, ctx.currentTime + 0.02); } catch (e) { console.warn('[locationReveal] sound', e); }
     },
     stop(fadeMs = 120) {
       stopped = true;

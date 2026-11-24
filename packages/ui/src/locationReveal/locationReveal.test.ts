@@ -11,9 +11,12 @@ import { versusHeroSelectMs } from '@game/sim/versus/server';
 import { LOCATIONS, locationName, locationOfSet, POSTER_NAME, postersFor } from './locations';
 import { pendingLocation, pendingReveal, practiceLocation } from './pendingLocation';
 import { LEAN, leanAt, mountAtmosphere } from './atmosphereGl';
+import { BRACE_S, primeRipple, readyRipple, rippleFar, rippleR, rippleReach, RIPPLE_S, STILL_S } from './heroRipple';
+import { RIPPLE_TIMING } from '../hero-select/heroRippleTiming';
+import { ceremonyAdvanceSchedule, HERO_CEREMONY_TIMING } from '../hero-select/heroCeremonyTiming';
 import { versusHeroClock, versusLocation, versusReveal } from './versusReveal';
 import { showOf, slideFor, stageHeight } from './revealGl';
-import { revealCues } from './revealSound';
+import { lightCues, revealCues } from './revealSound';
 import { A, fitOf, HOLD, L, NAME, outroAt, POST, posterName, posterPose, posterRest, postDone, realOf, revealSeconds, simEnd, simOf, START, T0, washAt, washR, washReach } from './revealTimeline';
 
 const PUBLIC = join(__dirname, '../../../../apps/web/public/locations');
@@ -77,6 +80,43 @@ describe('hero select living ground (owner 2026-11-24, R-LOCATION-04)', () => {
   it('a machine that cannot draw it keeps the still picture', () => {
     const host = { appendChild: () => { throw new Error('nothing is added'); } } as unknown as HTMLElement;
     expect(() => mountAtmosphere(host, LOCATIONS.outskirts)()).not.toThrow();
+  });
+});
+
+describe('the light version (phones)', () => {
+  it('decodes only the short clips it plays: no long beds, none of the break', () => {
+    for (const id of ['outskirts', 'underbelly'] as const) {
+      const clips = new Set(lightCues(id, 5, { name: 1, posters: 2, step: 0.2, leave: 6 }).map((c) => c.clip));
+      expect([...clips].sort()).toEqual(['poster', 'title', `vo-${id}`, 'wave']);
+      for (const c of clips) expect(existsSync(join(PUBLIC, 'sfx', `${c}.mp3`)), c).toBe(true);
+    }
+  });
+});
+
+describe('the ripple through hero select (owner + Mike 2026-11-24, R-LOCATION-05)', () => {
+  it('spreads from the button past every corner, and never back', () => {
+    for (const [w, h] of [[1920, 1080], [2560, 1080], [1280, 960]] as const) {
+      const far = rippleFar(w / 2, h * 0.88, w, h);
+      expect(rippleR(0, far)).toBe(-1);
+      let was = -1;
+      for (let t = 0.01; t <= RIPPLE_S; t += 0.01) { const r = rippleR(t, far); expect(r).toBeGreaterThanOrEqual(was); was = r; }
+      expect(rippleR(RIPPLE_S, far)).toBeGreaterThan(far + 0.2);
+      for (const r of [0.1, 0.5, far]) expect(rippleR(rippleReach(r, far), far)).toBeCloseTo(r, 2);
+    }
+  });
+
+  it('keeps the ceremony’s phases in order, and is quicker to Start Game than the journey it replaces', () => {
+    const s = ceremonyAdvanceSchedule({ ...HERO_CEREMONY_TIMING, ...RIPPLE_TIMING });
+    expect([s.dismissAt, s.focusAt, s.voicePhaseAt, s.materializeAt, s.readyAt]).toEqual([...[s.dismissAt, s.focusAt, s.voicePhaseAt, s.materializeAt, s.readyAt]].sort((a, b) => a - b));
+    expect(s.materializeAt).toBeLessThan(60);
+    expect(s.readyAt).toBeLessThan(ceremonyAdvanceSchedule(HERO_CEREMONY_TIMING).readyAt);
+    expect(BRACE_S + STILL_S).toBeLessThan(0.7);
+  });
+
+  it('with nothing ready (no WebGL, a phone) there is no ripple: the ceremony and the curtain play as before', () => {
+    expect(() => primeRipple(['a.webp', 'b.png'])).not.toThrow();
+    expect(readyRipple('a.webp', 'b.png')).toBeNull();
+    expect(readyRipple(undefined, 'b.png')).toBeNull();
   });
 });
 

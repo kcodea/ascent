@@ -285,7 +285,7 @@ describe('the gate plays', () => {
     // THE WORD (owner 2026-11-24): "when the crystal is formed and able to be clicked, can we have the word ENTER appear".
     const word = enterEl()!;
     expect(word.classList.contains('is-on')).toBe(true);
-    expect(word.textContent).toBe('Enter');
+    expect(word.querySelector('img.rgate-enter-word')!.getAttribute('src'), 'his own painted word').toContain('frames/ranked-gate-enter.webp');
     expect(word.getAttribute('aria-hidden'), 'the button already has its own label').toBe('true');
     expect(el.contains(word), 'it is a label beside the crystal, never part of the button').toBe(false);
     // Ten minutes later nothing has moved on by itself.
@@ -572,9 +572,10 @@ describe('what ships', () => {
     expect(noComments).not.toMatch(/(?<!is-armed )\.rgate-crystal:hover/);
   });
 
-  it('the word ENTER: the title face, light blue with a blue glow, a far shadow on the door, a light bob, a fade', () => {
-    // Owner 2026-11-24: "Have it in the Ascent Title font, and in a light blue with a blue glow, have it have a far
-    // drop shadow like its cast against the door and have it lightly bobbing up and down".
+  it('the word ENTER: the owner\'s painted lettering, a far soft shadow on the door, a light bob, a fade', () => {
+    // Owner 2026-11-24: "have it have a far drop shadow like its cast against the door and have it lightly bobbing
+    // up and down"; then, of the lettering itself, after a few tries in the title face: "lets try using this" (his
+    // own painted word, glow and all); and of the shadow: "increase the blur on the drop shadow".
     const box = /\.rgate-enter \{([^}]*)\}/.exec(noComments)![1]!;
     const word = /\.rgate-enter-word \{([^}]*)\}/.exec(noComments)![1]!;
     const num = (re: RegExp, src: string): number => Number(re.exec(src)![1]);
@@ -589,27 +590,19 @@ describe('what ships', () => {
     const fadeOut = num(/transition: opacity ([\d.]+)s/, box);
     const fadeIn = num(/\.rgate-enter\.is-on \{ opacity: 1; transition: opacity ([\d.]+)s/, noComments);
     expect(fadeIn).toBeGreaterThan(fadeOut * 3);
-    // The title wordmark's own face.
-    expect(word).toContain("font-family: var(--title-font, 'Cinzel Decorative')");
-    expect(word, 'the heaviest cut the face ships (owner: "can we make the font thicker?")').toContain('font-weight: 900');
-    expect(word).toContain('font-size: calc(var(--rg-enter-size) * var(--rg-u))');
-    // Light blue letters; blue halos with no offset; then ONE dark copy thrown well away, down the door.
-    const [r, g, b] = /color: #([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2});/.exec(word)!.slice(1).map((h) => parseInt(h, 16)) as [number, number, number];
-    expect(b).toBeGreaterThan(r);
-    expect(Math.min(r, g, b), 'light').toBeGreaterThan(180);
-    const shadows = /text-shadow:([^;]*);/.exec(word)![1]!.split(/,(?![^(]*\))/).map((x) => x.trim());
-    const glows = shadows.filter((x) => x.startsWith('0 0 '));
-    expect(glows.length).toBeGreaterThanOrEqual(2);
-    for (const glow of glows) {
-      const [gr, , gb] = /rgba\((\d+), (\d+), (\d+)/.exec(glow)!.slice(1).map(Number) as [number, number, number];
-      expect(gb, glow).toBeGreaterThan(gr);
-    }
-    const cast = shadows.at(-1)!;
-    expect(shadows.length, 'one cast shadow, after the glows, so it is painted under them').toBe(glows.length + 1);
+    // The painted word is committed, and sized in art pixels at its own shape (so it holds its box before it decodes).
+    expect(existsSync(pub('frames', 'ranked-gate-enter.webp'))).toBe(true);
+    expect(word).toContain('width: calc(var(--rg-enter-w) * var(--rg-u))');
+    expect(word).toMatch(/aspect-ratio: \d+ \/ \d+;/);
+    // Its light is painted in. The stylesheet adds ONE thing: a black copy thrown well away, down the door, and soft.
+    expect(word, 'no lettering left to style').not.toMatch(/font-|text-shadow|color:/);
+    const cast = /filter: drop-shadow\(([^;]*)\);/.exec(word)![1]!;
     expect(cast).toMatch(/rgba\(0, 0, 0, 0\.\d+\)$/);
-    const drop = num(/^calc\(\d+ \* var\(--rg-u\)\) calc\((\d+) \* var\(--rg-u\)\)/, cast);
-    expect(drop / num(/--rg-enter-size: (\d+);/, box), 'far: over a third of the letter height away').toBeGreaterThan(0.33);
-    // The bob: light, the word's transform only, and only while the crystal is up.
+    const [, drop, blur] = /^calc\(\d+ \* var\(--rg-u\)\) calc\((\d+) \* var\(--rg-u\)\) calc\((\d+) \* var\(--rg-u\)\)/.exec(cast)!.map(Number) as [number, number, number];
+    const height = num(/--rg-enter-w: (\d+);/, box) * 245 / 1024;
+    expect(drop / height, 'far: a good part of the word\'s own height away').toBeGreaterThan(0.25);
+    expect(blur, 'soft: a filter blur is a deviation, so this is twice as wide as the same text-shadow number').toBeGreaterThanOrEqual(9);
+    // The bob: light, the image's transform only, and only while the crystal is up.
     expect(noComments).toMatch(/\.rgate:is\(\.is-armed, \.is-shatter\) \.rgate-enter-word \{ animation: rg-enter-bob [\d.]+s ease-in-out infinite; \}/);
     const bob = /@keyframes rg-enter-bob \{([\s\S]*?)\n\}/.exec(css)![1]!;
     const travel = [...bob.matchAll(/translateY\(calc\((-?[\d.]+) \* var\(--rg-u\)\)\)/g)].map((m) => Number(m[1]));

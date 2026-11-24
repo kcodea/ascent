@@ -13,6 +13,7 @@ import { dropLocationReveal, playFullReveal, playLightReveal, readyReveal, warmL
 // BASE_URL-relative, NOT root-absolute: itch serves the game from a CDN sub-path, where '/frames/...' 404s
 // (publicAssetPaths.test.ts). The stylesheet's own `url('/frames/...')` is rewritten by Vite at build time.
 const CRYSTAL_SRC = `${import.meta.env.BASE_URL}frames/ranked-gate-crystal.webp`;
+const ENTER_SRC = `${import.meta.env.BASE_URL}frames/ranked-gate-enter.webp`;
 
 /**
  * THE RANKED GATE (owner 2026-10-12): the transition from "Yes, let's go." to hero select. Two painted doors grind
@@ -38,8 +39,9 @@ const CRYSTAL_SRC = `${import.meta.env.BASE_URL}frames/ranked-gate-crystal.webp`
  * only thing that can be pressed is the crystal, and only once it is armed. The crystal is a real button: it takes
  * focus when it arms, so Enter or Space opens the gate too.
  *
- * THE WORD (owner 2026-11-24): "ENTER" fades in under the crystal once it can be pressed, floating off the door, and
- * goes the moment the press is taken. It is a label only: the crystal is still the one thing that can be pressed.
+ * THE WORD (owner 2026-11-24): "ENTER", the owner's own painted lettering, fades in under the crystal once it can be
+ * pressed, floating off the door, and goes the moment the press is taken. It is a label only: the crystal is still
+ * the one thing that can be pressed.
  *
  * Reduced motion skips the gate entirely: the swap
  * happens at once, with no crystal to press.
@@ -341,7 +343,7 @@ export function RankedGate(): JSX.Element | null {
             screen readers, which already have the button's own label. */}
         {(phase === 'forming' || armed || phase === 'shatter') && (
           <div className={`rgate-enter${armed && !pressed ? ' is-on' : ''}`} aria-hidden="true">
-            <span className="rgate-enter-word">Enter</span>
+            <img className="rgate-enter-word" decoding="sync" src={ENTER_SRC} alt="" draggable={false} />
           </div>
         )}
       </div>
@@ -357,7 +359,7 @@ export function RankedGate(): JSX.Element | null {
  *  holding a WebGL context. */
 export function warmRankedGate(opts: { fx?: boolean } = {}): void {
   if (typeof window === 'undefined') return;
-  for (const art of ['ranked-gate-left.webp', 'ranked-gate-right.webp', 'ranked-gate-crystal.webp']) {
+  for (const art of ['ranked-gate-left.webp', 'ranked-gate-right.webp', 'ranked-gate-crystal.webp', 'ranked-gate-enter.webp']) {
     const img = new Image();
     img.decoding = 'async';
     img.src = `${import.meta.env.BASE_URL}frames/${art}`;

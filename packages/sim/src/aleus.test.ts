@@ -63,3 +63,16 @@ describe('Aleus', () => {
     expect(fight('wo_mine', false, false).gain).toEqual([0, 0]);
   });
 });
+
+describe('the owner batch of 2026-11-25', () => {
+  it('stats: Demon Horse, Contract Butcher, Gasket, Raven (R-BALANCE-1125-01); Kennelmaster (R-KENNEL-01); Drunk Daniel (R-DRUNKDANIEL-01)', () => {
+    const line = (id: string) => [CARD_INDEX[id]!.name, CARD_INDEX[id]!.tier, CARD_INDEX[id]!.attack, CARD_INDEX[id]!.health];
+    expect(['dm_hungerling', 'dm_butcher', 'dm_gasket', 'b2_raven', 'kennel', 'dw_drunkdaniel'].map(line)).toEqual([
+      ['Demon Horse', 3, 4, 5], ['Contract Butcher', 3, 3, 2], ['Gasket', 4, 6, 3], ['Raven', 4, 3, 4], ['Kennelmaster', 2, 1, 5], ['Drunk Daniel', 5, 6, 6],
+    ]);
+  });
+
+  it('Pickles is in Set 2 and Set 3 (R-PICKLES-SET2-01)', () => {
+    for (const set of ['set2', 'set3'] as const) expect(poolFor(set).buyable.some((c) => c.id === 'k3_splitpick'), set).toBe(true);
+  });
+});

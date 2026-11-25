@@ -74,7 +74,7 @@ describe('a card reaching hand MID-COMBAT fires its reactors', () => {
       combatSide({ tier: 4 }), combatSide({ tier: 4 }));
     const rubies = r.events.filter((e) => {
       const ev = e as unknown as { type: string; cardId?: string };
-      return ev.type === 'toHand' && ev.cardId === 'ruby';
+      return ev.type === 'toHand' && !!CARD_INDEX[ev.cardId ?? '']?.ruby; // a Special Ruby (R-RUBY-SPECIAL-01)
     }).length;
     expect(rubies, 'fixture guard: a Ruby was minted mid-fight').toBeGreaterThan(0);
     expect(buffTotal(r.events, r.initial.player, 'dw_orin'),

@@ -19282,6 +19282,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "confidence": "high"
     },
     "setIds": [
+      "set2",
       "set3"
     ],
     "tier": 2,
@@ -19727,7 +19728,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "reviewStatus": "extracted",
     "extraction": {
       "extractor": "contracts-extract@1",
-      "confidence": "low"
+      "confidence": "low",
+      "unparsed": [
+        "rubyGainedCast.tribe"
+      ]
     },
     "setIds": [
       "set2"

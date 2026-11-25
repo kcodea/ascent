@@ -148,8 +148,8 @@ export function windowFailure(
 describe('temporal windows — Avenge (rules R-AVWIN-01…11)', () => {
   // §5.4.1 + §5.4.4 + ruling 6 — a source present from the opening counts every death individually, and
   // an early-dying same-card instance's window closes with it (per-source improve counters, §5.5).
-  // RE-PINNED 2026-11-06: Kennelmaster is Avenge (4) again since the owner balance batch, so the thresholds are 4 and 8.
-  it('R-AVWIN-01/06: a start-of-fight Kennelmaster improves at deaths 4 and 8 exactly (each death counts once)', () => {
+  // RE-PINNED 2026-11-25: Kennelmaster is Avenge (3) (owner), so the thresholds are 3 and 6 (and 9, when the side gets there).
+  it('R-AVWIN-01/06: a start-of-fight Kennelmaster improves at every 3rd death exactly (each death counts once)', () => {
     // kennel(600hp) survives past death 8; the Wolves Dens' Echoes flood Crypt Wolves so the side can
     // reach 8+ deaths within the board cap (a wolf only lands when a slot is free — hence two Dens).
     const { r, obs, uid } = run(
@@ -157,10 +157,10 @@ describe('temporal windows — Avenge (rules R-AVWIN-01…11)', () => {
       [bm('sandbag', 2, 4000)]);
     const kennel = uid(0);
     const improves = improvesOn(r, kennel);
-    expect(improves, 'Avenge (4): improve at side-deaths 4 and 8, nowhere else').toEqual([4, 8]);
+    expect(improves, 'Avenge (3): improve at side-deaths 3, 6 and 9, nowhere else').toEqual([3, 6, 9]);
     // Provenance: its window opened at 0 and its counter equals the raw tally throughout.
-    expect(windowFailure(obs, { sourceUid: kennel, atCount: 4, expectSeen: 4 })).toBeNull();
-    expect(windowFailure(obs, { sourceUid: kennel, atCount: 8, expectSeen: 8 })).toBeNull();
+    expect(windowFailure(obs, { sourceUid: kennel, atCount: 3, expectSeen: 3 })).toBeNull();
+    expect(windowFailure(obs, { sourceUid: kennel, atCount: 6, expectSeen: 6 })).toBeNull();
     expect(obs.filter((o) => o.sourceUid === kennel).every((o) => o.baseline === 0), 'a start-of-fight body observes from death 0').toBe(true);
   });
 
@@ -218,7 +218,7 @@ describe('temporal windows — Avenge (rules R-AVWIN-01…11)', () => {
     const fallen = uid(0);
     const survivor = uid(1);
     expect(improvesOn(r, fallen), 'the fallen instance never fires').toEqual([]);
-    expect(improvesOn(r, survivor), 'the surviving instance still pays at death 4 (Avenge (4) since 2026-11-06) — windows are per-source').toEqual([4]);
+    expect(improvesOn(r, survivor), 'the surviving instance still pays at death 3 (Avenge (3) since 2026-11-25) — windows are per-source').toEqual([3]);
     // The dead instance makes no observations after its death (its handlers are dead-gated).
     const fallenDeath = withDeathOrdinal(r.events).find(({ e }) => e.type === 'death' && (e as { target?: string }).target === fallen)!.deaths;
     expect(obs.filter((o) => o.sourceUid === fallen && o.count >= fallenDeath), 'a closed window observes nothing').toEqual([]);

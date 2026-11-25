@@ -41,20 +41,21 @@ export const BEASTS: CardDef[] = [
     tier: 2,
     // Owner rework 2026-11-14: 1/3, no longer Start of Combat. "When you summon a Beast, give it +1 Attack.
     // Avenge (4): Improve this by +1 Attack." (was 2/4 SC "give all Friendly and summoned Beasts +2 Attack").
+    // Owner 2026-11-25: 1/5 and Avenge (3).
     attack: 1,
-    health: 3,
+    health: 5,
     keywords: [],
     effects: [
       // ONE body for both phases (ARENA_EFFECTS.buffOnSummon): `(attack + summonBonus x stepAttack) x golden`. Shop: a
       // Beast played / summoned gets it permanently; combat: a Beast summoned mid-fight gets it for the fight. Never
       // itself. Gilded doubles base and step (+2 improving +2); `kennel` is in GOLD_SCALED_ACCRUAL_CARDS (R-GILD-SUM-01).
       { on: 'onSummon', do: 'buffOnSummon', params: { tribe: 'beast', attack: 1, health: 0, stepAttack: 1, stepHealth: 0 } },
-      // Avenge (4): +1 summonBonus (x Rune of Mastery), permanent per instance (rides summonBonus, carried back).
-      { on: 'avenge', do: 'avengeImproveSummon', params: { count: 4 } },
+      // Avenge (3): +1 summonBonus (x Rune of Mastery), permanent per instance (rides summonBonus, carried back).
+      { on: 'avenge', do: 'avengeImproveSummon', params: { count: 3 } },
     ],
     // The live value surfaces via cardText's summonBuffText helper on every surface (slot 0 = the grant, slot 1 = the step).
-    text: 'When you summon a **Beast**, give it **+1 Attack**. **Avenge (4):** Improve this by **+1 Attack**.',
-    goldenText: 'When you summon a **Beast**, give it **+2 Attack**. **Avenge (4):** Improve this by **+2 Attack**.',
+    text: 'When you summon a **Beast**, give it **+1 Attack**. **Avenge (3):** Improve this by **+1 Attack**.',
+    goldenText: 'When you summon a **Beast**, give it **+2 Attack**. **Avenge (3):** Improve this by **+2 Attack**.',
   },
   {
     id: 'gnash',

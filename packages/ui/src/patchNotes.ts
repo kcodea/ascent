@@ -60,7 +60,19 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Balance',
-        text: 'Drunk Daniel moves to Tier 5.',
+        text: 'Set 2 balance: Kennelmaster, Demon Horse, Contract Butcher, Gasket, Raven and Drunk Daniel.',
+        details: [
+          'Kennelmaster is now a 1/5 and improves on Avenge (3).',
+          'Demon Horse is now a 4/5.',
+          'Contract Butcher is now a 3/2.',
+          'Gasket is now a 6/3.',
+          'Raven is now a 3/4.',
+          'Drunk Daniel moves to Tier 5.',
+        ],
+      },
+      {
+        category: 'Balance',
+        text: 'Pickles (Kobold, Tier 2) joins The Outskirts. It stays in The Underbelly too.',
       },
       {
         category: 'Balance',
@@ -68,7 +80,7 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Balance',
-        text: 'Candle Conduit is back (Set 2 Kobold, Tier 6, 7/7): when you get a Ruby, it casts a Ruby on a random friendly minion.',
+        text: 'Candle Conduit is back (Set 2 Kobold, Tier 6, 7/7): when you get a Ruby, it casts a Ruby on a random friendly Kobold.',
       },
       {
         category: 'Balance',

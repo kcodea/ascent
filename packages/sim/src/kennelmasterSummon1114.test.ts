@@ -5,8 +5,8 @@ import { createRun, reduce, type BoardCard, type RunState } from './index';
 import { summonBuffText } from '../../ui/src/cardText';
 
 /**
- * R-KENNEL-01 — OWNER REWORK 2026-11-14. Kennelmaster is a 1/3 that reads "When you summon a Beast, give it +1 Attack.
- * Avenge (4): Improve this by +1 Attack." It is no longer a Start of Combat card.
+ * R-KENNEL-01 — OWNER REWORK 2026-11-14 (1/5 and Avenge (3) since 2026-11-25). Kennelmaster reads "When you summon a Beast, give it +1 Attack.
+ * Avenge (3): Improve this by +1 Attack." It is no longer a Start of Combat card.
  *
  * One body for both phases (`ARENA_EFFECTS.buffOnSummon`, `(1 + summonBonus) x golden`): a Beast played or summoned in
  * the Shop keeps the buff; a Beast summoned mid-fight gets it for that fight only. The Avenge improvement is permanent
@@ -33,13 +33,13 @@ const liveKennel = (sb: number, golden: boolean): string =>
   summonBuffText('kennel', sb, golden) ?? (golden ? CARD_INDEX['kennel']!.goldenText! : CARD_INDEX['kennel']!.text);
 
 describe('R-KENNEL-01: the card', () => {
-  it('is a 1/3 tier 2 Beast with no Start of Combat', () => {
+  it('is a 1/5 tier 2 Beast with no Start of Combat', () => {
     const d = CARD_INDEX['kennel']!;
-    expect([d.tier, d.attack, d.health, d.tribe]).toEqual([2, 1, 3, 'beast']);
+    expect([d.tier, d.attack, d.health, d.tribe]).toEqual([2, 1, 5, 'beast']);
     expect(d.keywords).not.toContain('SC');
     expect(d.effects.map((e) => e.do)).toEqual(['buffOnSummon', 'avengeImproveSummon']);
-    expect(d.text).toBe('When you summon a **Beast**, give it **+1 Attack**. **Avenge (4):** Improve this by **+1 Attack**.');
-    expect(d.goldenText).toBe('When you summon a **Beast**, give it **+2 Attack**. **Avenge (4):** Improve this by **+2 Attack**.');
+    expect(d.text).toBe('When you summon a **Beast**, give it **+1 Attack**. **Avenge (3):** Improve this by **+1 Attack**.');
+    expect(d.goldenText).toBe('When you summon a **Beast**, give it **+2 Attack**. **Avenge (3):** Improve this by **+2 Attack**.');
   });
 });
 
@@ -53,13 +53,13 @@ describe('R-KENNEL-01: Shop', () => {
     const k = s.board.find((c) => c.uid === 'K')!;
     expect([a.attack, a.health]).toEqual([CARD_INDEX['alley']!.attack + 1, CARD_INDEX['alley']!.health]);
     expect([n.attack, n.health]).toEqual([CARD_INDEX['sandbag']!.attack, CARD_INDEX['sandbag']!.health]);
-    expect([k.attack, k.health]).toEqual([1, 3]);
+    expect([k.attack, k.health]).toEqual([1, 5]);
   });
 
   it('playing Kennelmaster does not buff itself', () => {
     const s = play(shop([], [bc('K', 'kennel')]), 'K');
     const k = s.board.find((c) => c.uid === 'K')!;
-    expect([k.attack, k.health]).toEqual([1, 3]);
+    expect([k.attack, k.health]).toEqual([1, 5]);
   });
 
   it('the grant is base + accrual: two Avenge improves read +3, gilded +6', () => {
@@ -80,7 +80,7 @@ describe('R-KENNEL-01: combat', () => {
     expect(buffs(r).filter((b) => b.source === kUid && b.target === ally)).toEqual([]);
   });
 
-  it('a Beast summoned mid-fight gets +1 Attack, and Avenge (4) raises the next summons at once', () => {
+  it('a Beast summoned mid-fight gets +1 Attack, and Avenge (3) raises the next summons at once', () => {
     // Pack summons two Pups on death; sandbags are the Avenge fodder. The kill order is up to the fight, so the
     // contract is checked per grant: every Kennelmaster grant = 1 + the improves logged before it.
     let sawImprovedGrant = false;
@@ -140,7 +140,7 @@ describe('R-KENNEL-01: combat', () => {
     const s = settleOnto([bc('K', 'kennel'), bc('F1', 'sandbag'), bc('F2', 'sandbag'), bc('F3', 'sandbag'), bc('F4', 'sandbag')], r);
     const k = s.board.find((c) => c.uid === 'K')!;
     expect(k.summonBonus).toBe(1);
-    expect([k.attack, k.health], 'its own stats are untouched').toEqual([1, 3]);
+    expect([k.attack, k.health], 'its own stats are untouched').toEqual([1, 5]);
     expect(liveKennel(k.summonBonus ?? 0, false)).toContain('{{+2 Attack}}');
   });
 

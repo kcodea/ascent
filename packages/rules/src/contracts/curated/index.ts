@@ -157,9 +157,9 @@ export const CURATED_CONTRACTS: readonly ContentContract[] = [
     tribes: ['beast'],
     keywords: [],
     tags: ['trigger:avenge', 'trigger:onSummon', 'counter:improving', 'copy-subject'],
-    // Owner rework 2026-11-14 (R-KENNEL-01): 1/3, no Start of Combat. "When you summon a Beast, give it +1 Attack.
-    // Avenge (4): Improve this by +1 Attack." The Avenge leg stays first: the slice's observations are path-addressed.
-    triggers: [{ event: 'avenge', phase: 'combat', phaseBasis: 'authored', threshold: 4 }, { event: 'onSummon', phase: 'both', phaseBasis: 'authored' }],
+    // Owner rework 2026-11-14 (R-KENNEL-01; 1/5 and Avenge (3) since 2026-11-25): no Start of Combat. "When you summon a Beast, give it +1 Attack.
+    // Avenge (3): Improve this by +1 Attack." The Avenge leg stays first: the slice's observations are path-addressed.
+    triggers: [{ event: 'avenge', phase: 'combat', phaseBasis: 'authored', threshold: 3 }, { event: 'onSummon', phase: 'both', phaseBasis: 'authored' }],
     effects: [
       { kind: 'improve-own-aura', note: 'permanent per-instance accrual (summonBonus channel), +1 Attack per Avenge (gilded +2)' },
       { kind: 'stat-buff', note: 'When you summon a Beast: +1 Attack + accrual (gilded x2). Shop: permanent; combat: combat-only (buffOnSummon, R-KENNEL-01)' },

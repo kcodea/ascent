@@ -129,9 +129,9 @@ describe('Dragon balance (owner 2026-09-24)', () => {
 
 // ── 10. Raven ─────────────────────────────────────────────────────────────────────────────────────────────
 describe('Raven: Rally: give another Beast Execute', () => {
-  it('is a set-2 T4 4/6 Beast with Rally', () => {
+  it('is a set-2 T4 3/4 Beast with Rally (owner 2026-11-25; was 4/6)', () => {
     const d = CARD_INDEX['b2_raven']!;
-    expect([d.tribe, d.tier, d.attack, d.health, d.keywords]).toEqual(['beast', 4, 4, 6, ['RL']]);
+    expect([d.tribe, d.tier, d.attack, d.health, d.keywords]).toEqual(['beast', 4, 3, 4, ['RL']]);
     expect(set2Pool.has('b2_raven')).toBe(true);
   });
 

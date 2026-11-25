@@ -422,8 +422,8 @@ export const SET2_KOBOLDS_LATE: CardDef[] = [
     goldenText: 'When a **Ruby** is cast on this, it bounces **twice**.',
   },
   {
-    // CANDLE CONDUIT (back in Set 2, owner 2026-11-25; archived 2026-08-18 and unchanged): every Ruby you get, any kind from any source,
-    // casts a plain Ruby on a random OTHER friendly minion, in the Shop and live in a fight (R-CONDUIT-01). Gilded: on two.
+    // CANDLE CONDUIT (back in Set 2, owner 2026-11-25; archived 2026-08-18): every Ruby you get, any kind from any source,
+    // casts a plain Ruby on a random OTHER friendly Kobold (owner, same day: "random friendly kobold instead of random friendly minion"), in the Shop and live in a fight (R-CONDUIT-01). Gilded: on two.
     id: 'k_candleconduit',
     name: 'Candle Conduit',
     tribe: 'kobold',
@@ -431,8 +431,8 @@ export const SET2_KOBOLDS_LATE: CardDef[] = [
     attack: 7,
     health: 7,
     keywords: [],
-    effects: [{ on: 'onGetRuby', do: 'rubyGainedCast' }],
-    text: 'When you get a **Ruby**, cast a **Ruby** on a random friendly minion.',
-    goldenText: 'When you get a **Ruby**, cast a **Ruby** on **2** random friendly minions.',
+    effects: [{ on: 'onGetRuby', do: 'rubyGainedCast', params: { tribe: 'kobold' } }],
+    text: 'When you get a **Ruby**, cast a **Ruby** on a random friendly **Kobold**.',
+    goldenText: 'When you get a **Ruby**, cast a **Ruby** on **2** random friendly **Kobolds**.',
   },
 ];

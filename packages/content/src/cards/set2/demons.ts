@@ -14,8 +14,8 @@ export const SET2_DEMONS: CardDef[] = [
     name: 'Contract Butcher',
     tribe: 'demon',
     tier: 3,
-    attack: 4,
-    health: 3,
+    attack: 3, // owner 2026-11-25 (R-BALANCE-1125-01): was 4/3
+    health: 2,
     keywords: [],
     // Owner balance 2026-08-18: +1/+1 → +2/+1. Owner balance 2026-10-10: +2/+1 -> +2/+2 (gilded +4/+4).
     effects: [{ on: 'onPlay', do: 'buffShopPermanent', params: { attack: 2, health: 2 } }],
@@ -44,8 +44,8 @@ export const SET2_DEMONS: CardDef[] = [
     name: 'Demon Horse',
     tribe: 'demon',
     tier: 3,
-    attack: 3,
-    health: 3,
+    attack: 4, // owner 2026-11-25 (R-BALANCE-1125-01): was 3/3
+    health: 5,
     keywords: ['RL'],
     // Owner fix 2026-07-29: the TEXT described a different card entirely — "End of Turn: Consume the right-most
     // Shop minion" — while the effect has always been a Rally shop-buff. The effect was right; the text is now
@@ -438,7 +438,7 @@ export const SET2_DEMONS_1011: CardDef[] = [
     name: 'Gasket',
     tribe: 'demon',
     tier: 4,
-    attack: 7,
+    attack: 6, // owner 2026-11-25 (R-BALANCE-1125-01): was 7/3
     health: 3,
     keywords: ['RL'],
     effects: [{ on: 'onAttack', do: 'rallyDamageAllExceptTribe', params: { amount: 2, exceptTribe: 'demon' } }],

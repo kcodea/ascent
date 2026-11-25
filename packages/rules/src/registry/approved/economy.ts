@@ -396,4 +396,32 @@ export const ECONOMY_RULES: GameRule[] = [
     currentBehaviour: 'Conforms, moved from Tier 6 on 2026-11-25; stats and text unchanged.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/koboldBalance1013.test.ts'], lastVerifiedAt: '2026-11-25' },
   },
+  {
+    id: 'R-BALANCE-1125-01',
+    title: 'The 2026-11-25 stat changes: Demon Horse, Contract Butcher, Gasket, Raven',
+    statement: 'Demon Horse is a 4/5, Contract Butcher a 3/2, Gasket a 6/3 and Raven a 3/4. Tiers and text are unchanged.',
+    domain: 'economy',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-25 ("contract demon" read as Contract Butcher, the only Contract minion in Set 2)', quote: 'demon horse stats to 4/5' },
+      { kind: 'code', ref: 'packages/content/src/cards/set2/demons.ts (dm_hungerling, dm_butcher, dm_gasket); packages/content/src/cards/set2/beasts.ts (b2_raven)' },
+    ],
+    contentIds: ['dm_hungerling', 'dm_butcher', 'dm_gasket', 'b2_raven'],
+    currentBehaviour: 'Conforms since 2026-11-25 (were 3/3, 4/3, 7/3 and 4/6).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/aleus.test.ts'], lastVerifiedAt: '2026-11-25' },
+  },
+  {
+    id: 'R-PICKLES-SET2-01',
+    title: 'Pickles is in both The Outskirts and The Underbelly',
+    statement: 'Pickles (Kobold, Tier 2, 3/3) is sold in Set 2 and in Set 3, one shared card.',
+    domain: 'economy',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-25', quote: 'add pickles to the outskirts. (keep in the underbelly too)' },
+      { kind: 'code', ref: 'packages/content/src/sets.ts SET3_PICKLES_IN_SET2' },
+    ],
+    contentIds: ['k3_splitpick'],
+    currentBehaviour: 'Conforms since 2026-11-25.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/aleus.test.ts'], lastVerifiedAt: '2026-11-25' },
+  },
 ];

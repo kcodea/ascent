@@ -211,6 +211,12 @@ html[data-ph-shell]:not([data-ph-compact]) .phb .book-main > :is(.book-grid, .bo
 .phb .book-tiers.is-inert :is(.book-axislabel, .book-tier, .book-tiers-div, .book-gilded:disabled, .book-chart-quiet) { display: none; }
 .phb .book-tiers.is-inert .book-chart { margin-left: 0; }
 .phb .book-tiers.is-bare { display: none; }
+/* HOW MANY ARE ON SCREEN (owner 2026-11-25), at the row's right end. A phone's row has no room for it (and a row left with only it steps
+   aside there, as a bare one does). */
+.phb .book-count { flex: none; margin-left: auto; padding: 0 calc(8 * var(--phu)); white-space: nowrap; font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t2); letter-spacing: 0.12em; text-transform: uppercase; color: var(--ph-muted); font-variant-numeric: tabular-nums; }
+.phb .book-count b { font-weight: 900; font-size: var(--ph-t4); letter-spacing: 0; margin-right: calc(4 * var(--phu)); color: var(--ph-gold); }
+html[data-ph-compact] .phb .book-count, html[data-ph-compact] .phb .book-tiers.is-countonly { display: none; }
+html[data-ph-compact] .phb .book-tiers.is-countonly + .book-main > :is(.book-grid, .bookguides, .book-empty) { grid-row: 1 / -1; }
 /* A picked tribe pill is gold: its label goes dark. */
 .phb .book-runetribe.on > span { color: var(--ph-navy); text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4); }
 

@@ -161,9 +161,9 @@ export interface CosmeticDef {
 /** The themed title looks (`CosmeticDef.look`). Tribe looks name their tribe; the rest name what the feat is about. */
 export type TitleLookKey =
   | 'dwarf' | 'demon' | 'spirit' | 'dragon' | 'beast' | 'undead' | 'kobold' | 'celestial'
-  | 'coin' | 'steel' | 'royal' | 'jester';
+  | 'coin' | 'steel' | 'royal' | 'jester' | 'lemon';
 export const TITLE_LOOK_KEYS: readonly TitleLookKey[] = Object.freeze([
-  'dwarf', 'demon', 'spirit', 'dragon', 'beast', 'undead', 'kobold', 'celestial', 'coin', 'steel', 'royal', 'jester',
+  'dwarf', 'demon', 'spirit', 'dragon', 'beast', 'undead', 'kobold', 'celestial', 'coin', 'steel', 'royal', 'jester', 'lemon',
 ] as const);
 
 /** Owner 2026-09-27: the MVP's Level 2 title. A level milestone, so it is never in the crate pool. */
@@ -344,6 +344,14 @@ export const SECRET_TITLE_LOOKS: Readonly<Record<string, TitleLookKey>> = Object
  * rarity's look, but never in a crate (an achievement reward). Permanent id.
  */
 export const FIRSTS_100_TITLE_ID = 'title_ascenteerianologist';
+/**
+ * GAME BREAKER (owner 2026-11-25: "add a unique title not earnable called Game Breaker. it should be yellow and green with
+ * a lemon leaf eclipsing the corner"). A GIFT title: no chest, level or achievement grants it, only an ownership row
+ * handed to one account (R-PROG-GIFT-01, R-PROG-TITLE-GIFT-01). Secret, so nobody else's Collection shows it. Permanent id.
+ */
+export const GAME_BREAKER_TITLE_ID = 'title_game_breaker';
+/** The `event` acquisition of an item that is only ever handed to an account. */
+export const GIFT_EVENT_ID = 'gift';
 /** A secret title's catalog id, and the hidden achievement that grants it. Permanent. */
 export const secretTitleId = (key: string): string => `title_secret_${key}`;
 export const secretAchievementId = (key: string): string => `secret.${key}`;
@@ -1242,6 +1250,8 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze(withCollections([
   // The 100 wins title (owner 2026-11-20): Warlord's reward, visible, never in a crate.
   { id: FIRSTS_100_TITLE_ID, category: 'title', name: 'Ascenteerianologist', rarity: 'ancient', acquisition: { type: 'achievement', id: 'career.firsts.100' }, assets: {}, active: true },
   ...SECRET_TITLE_COSMETICS,
+  // GAME BREAKER (owner 2026-11-25): a gift, never earned.
+  { id: GAME_BREAKER_TITLE_ID, category: 'title', name: 'Game Breaker', rarity: SECRET_RARITY, acquisition: { type: 'event', id: GIFT_EVENT_ID }, assets: {}, active: true, look: 'lemon' },
 ]));
 
 /** The ACTIVE members of a collection, in catalog order (the achievement's target is their count). */

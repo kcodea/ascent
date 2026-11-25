@@ -129,8 +129,9 @@ describe('the master hero title (owner pick 2026-10-28: "they look gross with go
 describe('themed secret titles (owner ask 2026-11-20: "more exciting/fun looking based on their tribes or whatever unlocks them")', () => {
   it('every secret title has a look, every look is used, and no other title has one', () => {
     expect(SECRET_TITLE_COSMETICS.every((c) => c.look && TITLE_LOOK_KEYS.includes(c.look))).toBe(true);
-    expect(new Set(SECRET_TITLE_COSMETICS.map((c) => c.look))).toEqual(new Set(TITLE_LOOK_KEYS));
-    expect(COSMETICS.filter((c) => c.look).every((c) => c.id.startsWith('title_secret_'))).toBe(true);
+    // Game Breaker (a gift, owner 2026-11-25) is the one title besides the secret ones with a look, and the only lemon.
+    expect(new Set(SECRET_TITLE_COSMETICS.map((c) => c.look))).toEqual(new Set(TITLE_LOOK_KEYS.filter((k) => k !== 'lemon')));
+    expect(COSMETICS.filter((c) => c.look && !c.id.startsWith('title_secret_')).map((c) => [c.id, c.look])).toEqual([['title_game_breaker', 'lemon']]);
     expect(hasTitlePlate('title_secret_king_brills_jester')).toBe(true);
     expect(hasTitlePlate('title_hero_warden_master')).toBe(true);
     expect(hasTitlePlate('title_wanderer')).toBe(false);
@@ -152,6 +153,15 @@ describe('themed secret titles (owner ask 2026-11-20: "more exciting/fun looking
     expect(badge()!.textContent).toBe('Pacifist');
   });
 
+  it('Game Breaker (R-PROG-TITLE-GIFT-01): the lemon, its name the only text, and a leaf that may leave the box', () => {
+    m.render(<TitleBadge id="title_game_breaker" />);
+    const lemon = badge()!;
+    expect(lemon.classList.contains('tb-look-lemon')).toBe(true);
+    expect(lemon.textContent).toBe('Game Breaker');
+    const css = readFileSync(join(__dirname, '../styles.css'), 'utf8');
+    expect(css.match(/\.titlebadge\.tb-look-lemon \{([^}]*)\}/)![1]).toMatch(/overflow: visible/);
+  });
+
   it('every look has a rule, and its loops animate transform and opacity only, off under reduced motion', () => {
     const css = readFileSync(join(__dirname, '../styles.css'), 'utf8');
     for (const k of TITLE_LOOK_KEYS) expect(css, k).toContain(`.titlebadge.tb-look-${k} {`);
@@ -159,7 +169,7 @@ describe('themed secret titles (owner ask 2026-11-20: "more exciting/fun looking
     for (const [, sel, body] of rules) expect(body, sel).not.toMatch(/transition/);
     // The only animated layers are the two pseudo-elements, and both start PAUSED (running only with `tb-live`).
     const animated = rules.filter(([, , body]) => /(?:^|[\s;])animation:(?!\s*none)/.test(body!));
-    expect(animated.map(([, sel]) => sel!.trim()).sort()).toEqual(['.titlebadge.tb-look::after', '.titlebadge.tb-look::before']);
+    expect(animated.map(([, sel]) => sel!.trim()).sort()).toEqual(['.titlebadge.tb-look-lemon .tb-seal', '.titlebadge.tb-look::after', '.titlebadge.tb-look::before']); // the lemon's leaf sways
     for (const [, sel, body] of animated) expect(body, sel).toMatch(/paused;/);
     expect(css).toMatch(/\.titlebadge\.tb-look\.tb-live::before, \.titlebadge\.tb-look\.tb-live::after \{ animation-play-state: running; \}/);
     // Every theme names an accent, and every accent's keyframes set transform and opacity only.
@@ -170,7 +180,7 @@ describe('themed secret titles (owner ask 2026-11-20: "more exciting/fun looking
       expect(m, k).toBeTruthy();
       names.add(m![1]!);
     }
-    names.add('tbshimmer');
+    names.add('tbshimmer').add('tblk-sway');
     for (const name of names) {
       const line = css.split('\n').find((l) => l.startsWith(`@keyframes ${name} `));
       expect(line, name).toBeTruthy();
@@ -178,6 +188,8 @@ describe('themed secret titles (owner ask 2026-11-20: "more exciting/fun looking
       for (const p of props) expect(['transform', 'opacity'], `${name}: ${p}`).toContain(p);
     }
     const reduced = [...css.matchAll(/@media \(prefers-reduced-motion: reduce\) \{([\s\S]*?)\n\}/g)].map((x) => x[1]).join('\n');
+    expect(reduced).toMatch(/\.titlebadge\.tb-look-lemon \.tb-seal \{ animation: none/);
+    expect(css).toMatch(/\.titlebadge\.tb-look-lemon\.tb-live \.tb-seal \{ animation-play-state: running; \}/);
     expect(reduced).toMatch(/\.titlebadge\.tb-look::after \{ animation: none/);
     expect(reduced).toMatch(/\.titlebadge\.tb-look::before \{ animation: none/);
   });

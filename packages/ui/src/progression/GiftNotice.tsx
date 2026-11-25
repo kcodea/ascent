@@ -5,6 +5,8 @@ import { skinArt } from '../art';
 import { useGame } from '../store';
 import { sfx } from '../sfx';
 import { Icon } from '../Icon';
+import { TitleBadge } from '../titles/TitleBadge';
+import { hasTitlePlate } from '../titles/titleStyle';
 import { dismissGifts, useProgression } from './progressionStore';
 import './collection.css';
 
@@ -62,7 +64,7 @@ export function GiftNotice(): JSX.Element | null {
               <li key={def.id} className={`gift-item r-${def.rarity}`}>
                 {art && <img className="gift-art" src={art} alt="" decoding="sync" draggable={false} />}
                 <div className="gift-text">
-                  <span className={`gift-name r-${def.rarity}`}>{def.name}</span>
+                  {hasTitlePlate(def.id) ? <span className="gift-name"><TitleBadge item id={def.id} size="md" /></span> : <span className={`gift-name r-${def.rarity}`}>{def.name}</span>}
                   <span className="nrw-note">{describe(def)}</span>
                 </div>
               </li>

@@ -58,6 +58,14 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-11-25',
     changes: [
+      {
+        category: 'Balance',
+        text: 'Cassen: finishing a commission no longer gives max Gold.',
+      },
+      {
+        category: 'Balance',
+        text: 'Chimerus now gives its Health to 2 different friendly Dragons: never another Chimerus.',
+      },
       { category: 'Systems', text: 'The trip back to the Shop after a fight has freshly painted scenery: new sky, hills, Shop and flowers.' },
     ],
   },

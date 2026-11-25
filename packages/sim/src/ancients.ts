@@ -411,7 +411,7 @@ import { isEchoEffect } from '@game/core'; // what counts as an Echo (R-ECHO-WAT
  *  · `summonBuffsOthers`          COMBAT: `QuestCombatMods.ancientSummonBuffOthers` at the summon-entry chokepoint: N other
  *                                 random friendly minions gain +a/+h, a combat buff. (Bonds)
  *  CASSEN (Commission, `commission`). The owner's rework (2026-11-16): Shed / House / Bridge / Castle (Zeppelin from
- *  Tier 6), three offered, never the one started last; every payout also gives +1 max Gold. Commissions resolve in the reducer (`payCommission`), which reads
+ *  Tier 6), three offered, never the one started last. Commissions resolve in the reducer (`payCommission`), which reads
  *  `commissionDelayOf`, `ancientCommissionReps` and `ancientAfterCommission`.
  *  · `avengeAdvanceCommission`    each fire: the running commission lands 1 turn sooner. SHOP: right then, and a
  *                                 commission that is now due pays at once (the reducer's action boundary,

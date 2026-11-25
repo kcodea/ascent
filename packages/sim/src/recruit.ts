@@ -1449,8 +1449,6 @@ export const COMMISSION_DELAY: Record<CommissionKind, number> = { spell: 1, gold
 export const COMMISSION_HOUSE_GOLD = 4;
 /** Castle: how much cheaper it makes your next Shop upgrade. */
 export const COMMISSION_CASTLE_DISCOUNT = 3;
-/** Every finished commission also gives Cassen this much max Gold, permanently (owner rework 2026-11-16). */
-export const COMMISSION_MAX_GOLD = 1;
 
 /** Cassen's commissions as a quest-style card: a short NAME and the reward on its own line. */
 export const COMMISSION_NAME: Record<CommissionKind, string> = {
@@ -1483,18 +1481,17 @@ export const COMMISSION_TEXT: Record<CommissionKind, string> = {
 
 /**
  * A commission's reward with its LIVE values (the card-text rule): Bridge names your current Shop Tier, and Cassen x
- * Ancient of Bonds (pays out twice) doubles every number, max Gold included. `maxGold` appends the "+1 max Gold" every
- * payout also gives. Plain text, no markup: the picker prints it verbatim and the panel embeds it.
+ * Ancient of Bonds (pays out twice) doubles every number. Plain text, no markup: the picker prints it verbatim and the
+ * panel embeds it.
  */
-export function commissionRewardOf(state: RunState, kind: CommissionKind, maxGold = true): string {
+export function commissionRewardOf(state: RunState, kind: CommissionKind): string {
   const reps = ancientCommissionReps(state);
   const twice = reps > 1 ? ` ${reps} times` : '';
-  const line = kind === 'gold' ? `Gain ${COMMISSION_HOUSE_GOLD * reps} Gold.`
+  return kind === 'gold' ? `Gain ${COMMISSION_HOUSE_GOLD * reps} Gold.`
     : kind === 'citadel' ? `Reduce the cost of upgrading your Shop by ${COMMISSION_CASTLE_DISCOUNT * reps}.`
     : kind === 'spell' ? `Discover a Shop spell${twice}.`
     : kind === 'fortress' ? `Discover a minion from Tier 7${twice}.`
     : `Discover a minion from Tier ${state.tier}${twice}.`;
-  return maxGold ? `${line} Gain ${COMMISSION_MAX_GOLD * reps} max Gold.` : line;
 }
 
 /** The turns until a commission due on `dueWave` pays out, as printed ("next turn" / "in 2 turns"). */
@@ -1506,7 +1503,7 @@ function commissionDueIn(state: RunState, dueWave: number): string {
 /** One offered commission on the panel: its name, live delay and live reward. */
 function commissionOptionLine(state: RunState, kind: CommissionKind): string {
   const d = commissionDelayOf(state, kind);
-  return `**${COMMISSION_NAME[kind]}** (${d} turn${d === 1 ? '' : 's'}): ${commissionRewardOf(state, kind, false)}`;
+  return `**${COMMISSION_NAME[kind]}** (${d} turn${d === 1 ? '' : 's'}): ${commissionRewardOf(state, kind)}`;
 }
 
 /** The hero power's LIVE rule text. Static for every hero except Ayse, whose printed rule is the queued suit's
@@ -1652,7 +1649,7 @@ function baseHeroPowerText(state: RunState, which: number, live: HeroPowerLive):
     // slot open prints it and the options.
     const second = ancientCommissionSecond(state);
     const working = (c: { kind: CommissionKind; dueWave: number }) => `**${COMMISSION_NAME[c.kind]}** pays out ${commissionDueIn(state, c.dueWave)}. ${commissionRewardOf(state, c.kind)}`;
-    const options = () => `${commissionOffer(state).map((k) => commissionOptionLine(state, k)).join(' · ')} Each one also gives **${COMMISSION_MAX_GOLD * ancientCommissionReps(state)}** max Gold.`;
+    const options = () => `${commissionOffer(state).map((k) => commissionOptionLine(state, k)).join(' · ')}`;
     if (live && second.open) return `Working: ${working(live)} Choose another: ${options()}`;
     if (live && second.running) return `Working: ${working(live)} Also working: ${working(second.running)}`;
     if (live) return `Working: ${working(live)}`;
@@ -4743,9 +4740,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     if (payload.minion !== self) return;
     ARENA_EFFECTS.rallyBuff(shopArena(ctx.state, self), params);
   },
-  rallyGiveHealthToDragons: (ctx, self, _params, payload) => {
+  rallyGiveHealthToDragons: (ctx, self, params, payload) => {
     if (payload.minion !== self) return;
-    ARENA_EFFECTS.rallyGiveHealthToDragons(shopArena(ctx.state, self));
+    ARENA_EFFECTS.rallyGiveHealthToDragons(shopArena(ctx.state, self), params);
   },
   rallyGrantSpell: (ctx, self, _params, payload) => {
     if (payload.minion !== self) return;

@@ -7,7 +7,7 @@
  *
  * `herodata`: R its green light, G how much the wind takes its fur, B where the flame burns. `scenedata`: R green light, G flowing light, B trees.
  */
-export const LIVING_PIECES = ['ground', 'pack', 'hero', 'leaves', 'herodata', 'scenedata'] as const;
+export const LIVING_PIECES = ['ground', 'pack', 'hero', 'leaves', 'herodata', 'scenedata', 'firedata'] as const;
 export type LivingSet = Readonly<Record<string, string>>;
 
 const SIZE = 560;
@@ -355,9 +355,129 @@ void main() {
   o = vec4(c, 1.);
 }`;
 
+/**
+ * FIRE (Derenor, owner 2026-11-25: "another derenor concept with fire influence, it can be somewhat over the top"): the grove burning. Two walls of
+ * flame behind him, lava for the fall, the canopy alight, glowing cracks underfoot; flame off his outline and the staff's ring, his marks and eyes burning.
+ * Pieces as GOLDEN, and `firedata`: R where his fire burns, G the marks that glow, B what is not him, softly.
+ */
+const FS_FIRE = `precision highp float;
+in vec2 v; out vec4 o;
+uniform sampler2D ground, leaves, hd, sd, fdt;
+uniform float T;
+float h1(float n) { return fract(sin(n) * 43758.5453); }
+float h2(vec2 p) { p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
+float n2(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3. - 2. * f); return mix(mix(h2(i), h2(i + vec2(1, 0)), f.x), mix(h2(i + vec2(0, 1)), h2(i + vec2(1, 1)), f.x), f.y); }
+float fbm(vec2 p) { float a = .5, s = 0.; for (int i = 0; i < 4; i++) { s += a * n2(p); p = p * 2.03 + 17.; a *= .5; } return s; }
+vec3 screen(vec3 a, vec3 b) { return 1. - (1. - a) * (1. - clamp(b, 0., 1.)); }
+// how hot: nothing, deep red, orange, yellow, near white
+vec3 ramp(float t) { t = max(t, 0.); return vec3(smoothstep(0., .42, t), pow(smoothstep(.16, .95, t), 1.25) * .92, pow(smoothstep(.62, 1.25, t), 1.5) * .80); }
+// flame: tall ridged tongues that lean and break off as they rise
+float flame(vec2 p, float rise) {
+  vec2 q = vec2(p.x, p.y * .42 + T * rise);
+  q.x += (fbm(vec2(p.x * .7, p.y * .5 + T * rise * .8)) - .5) * 1.5;
+  float a = 1. - abs(2. * fbm(q) - 1.), b = 1. - abs(2. * fbm(q * 2.1 + vec2(5., T * rise * .6)) - 1.);
+  return a * a * .68 + b * b * .42;
+}
+float wall(vec2 uv, float scale, float rise, float top, float s) {
+  float up = (1. - uv.y) / top;                                   // 0 at the ground, 1 where it should end
+  float ragged = fbm(vec2(uv.x * scale * .8 + s * 3., T * .45));
+  return flame(vec2(uv.x * scale + s, uv.y * scale), rise) * (1.28 - .30 * up) - up * (.42 + .85 * ragged) + .10;
+}
+void main() {
+  vec2 uv = (v - .5) * .985 + .5;
+  vec3 hm = texture(hd, uv).rgb, fx = texture(fdt, uv).rgb;
+  float hero_ = hm.r, bg = 1. - hero_;
+  vec3 pic = texture(ground, uv).rgb;
+  float flick = .84 + .10 * sin(T * 8.3) * sin(T * 5.1 + 1.) + .10 * (fbm(vec2(T * 2.1, 7.)) - .5);
+
+  // ── the grove, seen through its own heat ──
+  float clear_ = smoothstep(.55, .12, hm.b);                        // never close enough to him to bend him
+  vec2 heat = vec2(fbm(vec2(uv.x * 15., uv.y * 9. + T * 1.3)) - .5, fbm(vec2(uv.x * 13. + 9., uv.y * 11. + T * 1.6)) - .5);
+  vec2 g = uv + heat * .016 * clear_ * smoothstep(.02, .4, uv.y);
+  vec3 c = texture(ground, g).rgb, sm = texture(sd, g).rgb;
+  float low = dot(c, vec3(.3, .59, .11));
+  c = mix(vec3(.022, .006, .014), vec3(.52, .13, .05), low * low * 1.15) + c * vec3(.34, .12, .06) * (.4 + low);      // a burning dusk
+  // smoke, lit from under
+  float sk = fbm(vec2(uv.x * 2.4 + T * .05, uv.y * 3.4 + T * .20)), sk2 = fbm(vec2(uv.x * 4.6 - T * .07, uv.y * 6. + T * .34));
+  float smoke = smoothstep(.38, .78, sk * .7 + sk2 * .3) * smoothstep(.75, .05, uv.y);
+  c = mix(c, mix(vec3(.045, .018, .022), vec3(.50, .13, .04), smoothstep(.1, .62, uv.y)), smoke * .62);
+  // the fall is lava, and the pool
+  float sl = uv.x + (uv.y - .6) * .22;
+  float lava = fbm(vec2(sl * 36., uv.y * 6.5 - T * .55)) * .65 + fbm(vec2(sl * 80., uv.y * 11. - T * .95)) * .35;
+  c = mix(c, ramp(.16 + lava * 1.25), clamp(sm.r * 1.5, 0., 1.));
+  c += ramp(.6) * exp(-dot((uv - vec2(.19, .74)) * vec2(1., .7), (uv - vec2(.19, .74)) * vec2(1., .7)) * 38.) * .45 * flick;
+  // the painted light is embers; the rune on the arch is white hot
+  c += ramp(.72) * sm.g * (.18 + .55 * pow(.5 + .5 * sin(T * 2.1 + uv.x * 9. + fbm(uv * 8.) * 5.), 2.));
+  vec2 ru = uv - vec2(.873, .343);
+  c = screen(c, vec3(1., .45, .10) * exp(-dot(ru, ru) * 70.) * .75 * flick);
+  c += vec3(1., .85, .5) * sm.g * exp(-dot(ru, ru) * 190.) * 1.1 * flick;
+  // the canopy alight
+  float cf = fbm(vec2(uv.x * 17., uv.y * 15. + T * 1.5));
+  float cm = max(sm.b, max(texture(sd, uv + vec2(0., .022)).b, texture(sd, uv + vec2(.004, .045)).b) * .8);
+  c = screen(c, ramp(cm * (cf * 1.9 - .12)) * .95);
+  // cracks of fire underfoot
+  vec2 gq = vec2((uv.x - .5) / (uv.y - .52) * 1.9, 1.7 / (uv.y - .52));
+  float cr = 1. - abs(2. * fbm(gq * 1.5 + 3.) - 1.);
+  float ground_ = smoothstep(.865, .90, uv.y);
+  c += ramp(pow(cr, 9.) * 1.25 * (.55 + .5 * fbm(gq * .7 + T * .4))) * ground_ * .95;
+
+  // ── two walls of flame, far and near, both behind him ──
+  float far_ = wall(uv, 8.5, .9, .60, 2.) - .16;
+  c = mix(c, ramp(far_ * .62) * vec3(.72, .60, .5), smoothstep(.06, .34, far_) * .85);
+  float nearW = wall(uv, 5.4, 1.25, .40, 11.) - .14;
+  c = mix(c, ramp(min(nearW, 1.) * .74) * .92, smoothstep(.08, .34, nearW) * .94);
+  // the heat of it behind him
+  vec2 gp = (uv - vec2(.54, .52));
+  c = screen(c, vec3(1., .34, .06) * exp(-dot(gp, gp) * 5.) * .16 * flick);
+
+  // ── the fire he wears, behind ──
+  vec2 lick = vec2((fbm(vec2(uv.x * 10., uv.y * 7. + T * 1.7)) - .5) * .060, (fbm(vec2(uv.x * 8. + 4., uv.y * 9. + T * 1.4)) - .5) * .030);
+  float fd = texture(fdt, uv + lick).r;
+  float tongue = flame(vec2(uv.x * 11., uv.y * 11.), 2.1);
+  float fire = fd * .98 + (tongue - .50) * 1.25 - .16;
+  float burn = smoothstep(.20, .50, fire);
+  c = mix(c, ramp(.12 + fire * .70), burn * .96);
+  c = screen(c, vec3(1., .34, .05) * hm.b * hm.b * .50 * flick);
+
+  // ── HIM: as painted, lit by it ──
+  vec3 him = pic * mix(vec3(1.), vec3(1.10, .84, .70), .65) * (.86 + .10 * flick);
+  float under = smoothstep(.25, 1., uv.y);
+  him += pic * vec3(.55, .14, .02) * under * .42 * flick;
+  him = screen(him, vec3(1., .42, .08) * pow(hm.g, 2.2) * (.85 * flick) * (.55 + .8 * fbm(vec2(uv.x * 12., uv.y * 10. + T * 2.))));
+  // his marks burn, the light running up through them
+  float runm = pow(.5 + .5 * sin(uv.y * 34. + T * 3.1 + fbm(uv * 9.) * 4.), 2.);
+  him = mix(him, ramp(.62 + .42 * runm), fx.g * .88);
+  float mg = (texture(fdt, uv + vec2(.010, 0.)).g + texture(fdt, uv - vec2(.010, 0.)).g + texture(fdt, uv + vec2(0., .010)).g + texture(fdt, uv - vec2(0., .010)).g) * .25;
+  him += vec3(1., .36, .05) * mg * (.35 + .35 * runm);
+  // his eyes
+  vec2 e1 = uv - vec2(.5325, .1622), e2 = uv - vec2(.5887, .1717);
+  float i1 = exp(-dot(e1 / vec2(.0135, .0105), e1 / vec2(.0135, .0105))), i2 = exp(-dot(e2 / vec2(.0082, .0085), e2 / vec2(.0082, .0085)));
+  him = mix(him, vec3(1., .78, .34), min(1., (i1 + i2) * 1.25) * smoothstep(.08, .35, pic.r - pic.b));
+  him += vec3(1., .40, .06) * (exp(-length(e1 / vec2(1.35, 1.)) / .014) + exp(-length(e2 / vec2(1.2, 1.)) / .010) * .8) * .95 * flick;
+  c = mix(c, him, hero_);
+  // and a little of it in front: licking over his shoulders, his fur, the ring
+  float front = smoothstep(.52, .86, tongue) * smoothstep(.35, .95, hm.g);
+  c = screen(c, ramp(.34 + tongue * .55) * front * hero_ * .62);
+  // fire trailing from the near eye
+  vec2 ew = uv - vec2(.5325, .1622); float back = clamp(-ew.x / .12, 0., 1.);
+  float tr = exp(-pow((ew.y + back * back * .050 - (fbm(vec2(ew.x * 26. + T * 1.8, T * .8)) - .5) * .040 * back) / (.0060 + .0085 * back), 2.)) * step(ew.x, .0) * smoothstep(0., .08, back) * (1. - back) * (.55 + .7 * fbm(vec2(ew.x * 40. + T * 3., 2.)));
+  c = screen(c, ramp(.85 - back * .35) * tr * 1.1);
+
+  // ── embers, everywhere, going up ──
+  for (int i = 0; i < 46; i++) {
+    float s = float(i) + 5., z = h1(s * 1.9), sp = .10 + .16 * z, l = fract(T * sp + h1(s * 5.1)), id = floor(T * sp + h1(s * 5.1));
+    vec2 fp = vec2(h2(vec2(id, s)) + .05 * sin(l * 9. + s * 3.) + .02 * sin(l * 27. + s), 1.04 - l * 1.12);
+    vec2 d = uv - fp; d.y *= .62;                                     // a streak, not a dot
+    float r = mix(.0024, .0072, z * z) * (1. - l * .55), q = length(d);
+    float tw = .55 + .45 * sin(T * (9. + 6. * z) + s * 7.);
+    c += (ramp(1.05 - l * .55) * smoothstep(r, 0., q) * 1.3 + vec3(1., .34, .05) * smoothstep(r * 5., 0., q) * .30) * tw * mix(bg, 1., step(.55, z)) * smoothstep(0., .06, l) * (1. - smoothstep(.85, 1., l));
+  }
+  o = vec4(c, 1.);
+}`;
+
 interface Pic { canvas: HTMLCanvasElement; draw: (t: number) => boolean; free: () => void }
 /** Which way the same pieces are lit. */
-export type LivingLook = 'flame' | 'storm' | 'gold';
+export type LivingLook = 'flame' | 'storm' | 'gold' | 'fire';
 
 function build(set: LivingSet, look: LivingLook): Pic | null {
   const canvas = document.createElement('canvas');
@@ -367,13 +487,13 @@ function build(set: LivingSet, look: LivingLook): Pic | null {
   const sh = (ty: number, src: string): WebGLShader => { const s = gl.createShader(ty)!; gl.shaderSource(s, src); gl.compileShader(s); return s; };
   const pr = gl.createProgram()!;
   gl.attachShader(pr, sh(gl.VERTEX_SHADER, VS));
-  gl.attachShader(pr, sh(gl.FRAGMENT_SHADER, `#version 300 es\n${look === 'storm' ? '#define STORM\n' : ''}${look === 'gold' ? FS_GOLD : FS}`));
+  gl.attachShader(pr, sh(gl.FRAGMENT_SHADER, `#version 300 es\n${look === 'storm' ? '#define STORM\n' : ''}${look === 'gold' ? FS_GOLD : look === 'fire' ? FS_FIRE : FS}`));
   gl.linkProgram(pr);
   let ready = 0;
   let dead = false;
   // only the pieces this skin has (a picture whose hero never parts from its ground needs no pieces of him)
   const names = LIVING_PIECES.filter((n) => set[n]);
-  const unis = names.map((n) => (n === 'herodata' ? 'hd' : n === 'scenedata' ? 'sd' : n));
+  const unis = names.map((n) => (n === 'herodata' ? 'hd' : n === 'scenedata' ? 'sd' : n === 'firedata' ? 'fdt' : n));
   names.forEach((n, i) => {
     const im = new Image();
     im.src = set[n]!;

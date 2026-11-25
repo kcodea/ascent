@@ -18,9 +18,9 @@ for (const [path, url] of Object.entries(FILES)) {
 export interface Holo { key: string; set: LivingSet; look: LivingLook }
 const HOLOS = new Map([...SETS].map(([key, set]) => [key, { key, set, look: key === 'skin_derenor_1' ? 'gold' : 'flame' } as Holo]));
 /** The same pieces lit another way (owner 2026-11-25: "the green flame is instead blue and almost has more of a lightning vibe to it"). */
-for (const [key, of, look] of [['skin_kennel_4', 'skin_kennel_3', 'storm']] as const) {
+for (const [key, of, look] of [['skin_kennel_4', 'skin_kennel_3', 'storm'], ['skin_derenor_2', 'skin_derenor_1', 'fire']] as const) {
   const set = SETS.get(of);
-  if (set) HOLOS.set(key, { key, set, look });
+  if (set) HOLOS.set(key, { key, set: { ...set, ...SETS.get(key) }, look });
 }
 /** A skin's living picture, by its art url (null = ordinary art). */
 export function holoOf(artUrl: string | undefined): Holo | null {

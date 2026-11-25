@@ -623,6 +623,7 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze(withCollections([
   { ...skin('skin_kennel_3', 'minion_skin', 'Holographic Kennelmaster', 'ancient', 'kennel', 'Kennelmaster.png'), acquisition: { type: 'event', id: 'concept' } },
   { ...skin('skin_kennel_4', 'minion_skin', 'Stormlight Kennelmaster', 'ancient', 'kennel', 'Kennelmaster.png'), acquisition: { type: 'event', id: 'concept' } },
   { ...skin('skin_derenor_1', 'minion_skin', 'Sunlit Derenor', 'ancient', 'b2_derenor', 'Derenor.png'), acquisition: { type: 'event', id: 'concept' } },
+  { ...skin('skin_derenor_2', 'minion_skin', 'Wildfire Derenor', 'ancient', 'b2_derenor', 'Derenor.png'), acquisition: { type: 'event', id: 'concept' } },
   skin('skin_raven_1', 'minion_skin', 'Plushie Raven', 'legendary', 'b2_raven', 'Plushie Raven.png'),
   skin('skin_seaurchin_3', 'minion_skin', 'Plushie Sea Urchin', 'legendary', 'seaurchin', 'Plushie Sea Urchin.png'),
   // Skins batch 13 (owner 2026-10-27: "ive added a lot of new skins to the collection via the folder"). Twenty-nine skins

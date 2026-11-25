@@ -102,19 +102,25 @@
 .pkop-aether-num { display: flex; align-items: center; font-size: 58px; font-weight: 800; line-height: 1; color: #dcf3ff;
   font-variant-numeric: tabular-nums; text-shadow: 0 0 18px rgba(96, 184, 255, 0.85), 0 3px 6px #000; }
 .pkop-aether-plus { margin-right: 4px; opacity: 0.85; }
-.pkop-odo-col { display: inline-block; height: 1em; overflow: hidden; }
+/* each column has room for the digits' glow (its strip's rows are 1.8em apart) and fades at top and bottom, never a hard cut */
+.pkop-odo-col { display: inline-block; height: 1.8em; padding: 0 0.34em; margin: 0 -0.34em; overflow: hidden;
+  -webkit-mask: linear-gradient(180deg, transparent 0, #000 22%, #000 78%, transparent 100%); mask: linear-gradient(180deg, transparent 0, #000 22%, #000 78%, transparent 100%); }
 /* a leading zero's column takes no room until the value reaches it (it changes at 10, 100, ...: a handful of times) */
-.pkop-odo-col.pkop-odo-off { width: 0; opacity: 0; }
+.pkop-odo-col.pkop-odo-off { width: 0; padding: 0; margin: 0; opacity: 0; }
 .pkop-odo-strip { display: flex; flex-direction: column; }
-.pkop-odo-strip > span { display: block; height: 1em; line-height: 1em; text-align: center; }
+.pkop-odo-strip > span { display: block; height: 1.8em; line-height: 1.8em; text-align: center; }
+/* the landing's ring and streak (one-shot Web Animations, transform / opacity) */
+.pkop-aether-ring { position: absolute; inset: -6%; border-radius: 50%; border: 3px solid rgba(190, 236, 255, 0.9); opacity: 0; }
+.pkop-aether-streak { position: absolute; left: 50%; top: 50%; width: 420px; height: 6px; margin: -3px 0 0 -210px; opacity: 0;
+  background: linear-gradient(90deg, transparent, rgba(160, 222, 255, 0.9) 35%, #fff 50%, rgba(160, 222, 255, 0.9) 65%, transparent); border-radius: 3px; }
 /* A DUPLICATE DISSOLVES: the plate goes white-blue hot, then the card fades to a faint ghost as its light leaves. */
 .pkf-aglow { position: absolute; inset: 0; pointer-events: none; opacity: 0;
   -webkit-mask: var(--pkf-plate) center / 100% 100% no-repeat; mask: var(--pkf-plate) center / 100% 100% no-repeat;
   background: radial-gradient(ellipse at 50% 45%, #ffffff 0%, #d6f0ff 42%, #74c2ff 100%);
   animation: pkf-aglow calc(1.5s * var(--pk-slow, 1)) ease-out both; }
-@keyframes pkf-aglow { 0% { opacity: 0; } 14% { opacity: 1; } 52% { opacity: 0.94; } 100% { opacity: 0; } }
+@keyframes pkf-aglow { 0% { opacity: 0; } 12% { opacity: 1; } 30% { opacity: 0.94; } 76%, 100% { opacity: 0; } }
 .pkf-dissolve { pointer-events: none; animation: pkf-dissolve calc(1.5s * var(--pk-slow, 1)) cubic-bezier(0.5, 0, 0.6, 1) both; }
-@keyframes pkf-dissolve { 0%, 46% { opacity: 1; } 100% { opacity: 0.13; } }
+@keyframes pkf-dissolve { 0%, 28% { opacity: 1; } 80%, 100% { opacity: 0.13; } }
 @media (prefers-reduced-motion: reduce) { .pkf-aglow, .pkf-dissolve { animation: none; } .pkop-aether { transition: none; } }
 
 /* ── THE FACE ─────────────────────────────────────────────────────────────────────────────────────────────────────────

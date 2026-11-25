@@ -148,3 +148,8 @@ It had not: the summary was five equal cards on a flat backdrop with a stale cap
   the medallion springs as it swallows them and an odometer beside it (`AetherTally.tsx`) rolls up to the refund,
   driven by what has actually arrived. A dissolved card stays as a faint ghost (my call, 13% opacity). A duplicate is
   never the raised "best pull". Reduced motion shows the medallion and the total at once.
+- Same day, owner pass: the dissolve is now the Good Luck intro's dust treatment (`goodLuck/luckStar.ts`): each card is
+  ~1,500 shader-placed points sampled from its edge and body (energy runs along the edge, then it comes apart top-down
+  and streams along per-mote curves into the medallion, embers at the landing), replacing the sprite streaks. The
+  counter's digit columns have room for their glow (it was cut off by the column clip). The summary deal plays ONE
+  landing sound (the best card's) instead of one per card 90 ms apart.

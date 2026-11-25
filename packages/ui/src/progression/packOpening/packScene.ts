@@ -23,7 +23,7 @@
  *    (Epic and up; Common / Rare glows are static), big-pull burst or pack aura still fading) and restarts on input, `flipTop`, `setBacks`, `quickOpen` and `resetSealed`.
  *  - No allocation per frame in the tear / sleeve loops: pooled flecks, reused points and in-place geometry buffers.
  */
-import { Application, Texture, type Ticker } from 'pixi.js';
+import { Application, type Texture, type Ticker } from 'pixi.js';
 import type { CrateRarity, PackLook } from '@game/progression';
 import { stageScale } from '../../stage';
 import { detachPixiDomEvents } from '../../pixiNoDomEvents';
@@ -52,7 +52,7 @@ import {
 import { PILE_LEAN_PX, PILE_LEAN_RAD, PILE_RISE_PX, newPile, pileAtRest, pileEase, pileScale, type PileState } from './packPile';
 import { cardRestX, cardRestY } from './packViews';
 import { COSMETIC_RARITIES } from '@game/progression';
-import { ANCIENT_GLOW_STOPS, BURST_TEX, PACK_GEOM, TEX_RES, paintFleck, rarityTint } from './packTextures';
+import { ANCIENT_GLOW_STOPS, BURST_TEX, PACK_GEOM, TEX_RES, rarityTint } from './packTextures';
 import { AURA_BURST, BURST, FACE_AMBIENT, FACE_PLATE_H, FLIP_CHARGE, bigPullTier, burstPoseAt, type BigPullTier, type BurstPose } from './bigPull';
 import { holoShiftInto, packHoloStrength } from './packHolo';
 import {
@@ -415,9 +415,7 @@ class PackSceneImpl implements PackScene {
     if (this.auraFace) built.views.root.addChildAt(this.auraFace.mesh, 1);
     if (this.auraPile) built.views.root.addChildAt(this.auraPile.mesh, 1);
     // the Aether stream: over everything else in the scene
-    const moteTex = Texture.from(paintFleck());
-    this.textures.push(moteTex);
-    this.aether = new AetherStream(moteTex);
+    this.aether = new AetherStream(webgl, app.renderer.resolution);
     app.stage.addChild(this.aether.root);
     // the presentation shaders: the stage under everything; the spill between the
     // stack and the sleeve front; the sheen over the stack
@@ -1350,7 +1348,7 @@ class PackSceneImpl implements PackScene {
     this.auraStep(dt);
     this.fxStep(dt);
     v.flecks.step(dt);
-    this.aether?.step(dt, this.aetherUnit);
+    this.aether?.step(dt);
 
     if (this.shake > 0.05) {
       v.pack.x = (Math.random() - 0.5) * this.shake;

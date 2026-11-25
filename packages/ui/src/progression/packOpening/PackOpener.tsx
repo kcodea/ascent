@@ -76,7 +76,7 @@ export function revealPhase(index: number, flipped: number, turning: ReadonlySet
 /** The Aether ending's clock (ms, slow-mo scaled): the wait after the deal, the gap between duplicates, the glow before a card comes apart. */
 export const AETHER_START_MS = 1150;
 export const AETHER_STAGGER_MS = 340;
-export const AETHER_GLOW_MS = 260;
+export const AETHER_GLOW_MS = 120;
 
 export function summaryBest(cards: readonly PackCard[]): number[] {
   return cards
@@ -415,9 +415,10 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, spee
     if (phase !== 'summary' || reduced || !result) return;
     const slow = speed > 0 ? 1 / speed : 1;
     const timers: ReturnType<typeof setTimeout>[] = [];
-    result.cards.forEach((c, i) => {
-      timers.push(setTimeout(() => soundsFn.current().land(c.rarity), (i * SUMMARY_DEAL_MS + 300) * slow));
-    });
+    // ONE landing sound for the whole deal, the best card's (owner 2026-11-25: a sound per card, 90 ms apart, read as one
+    // sound "firing extremely fast one after another")
+    const top = result.cards.reduce((b, c) => (COSMETIC_RARITIES.indexOf(c.rarity) > COSMETIC_RARITIES.indexOf(b) ? c.rarity : b), result.cards[0]?.rarity ?? 'common');
+    timers.push(setTimeout(() => soundsFn.current().land(top), 300 * slow));
     // Light the best pulls once their cards have ARRIVED in the row: wait for each one's move to end (its transform
     // transition), never a guessed delay (a busy frame starts the move late). A card that has no move to make (the
     // summary was reached without a reveal) is measured after a short settle.
@@ -495,7 +496,7 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, spee
         if (!face || !orb || !scene) { progress(1, true); return; }
         const r = face.getBoundingClientRect(), o = orb.getBoundingClientRect();
         scene.aetherFlow(
-          { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width * 0.92, h: r.height * FACE_PLATE_H },
+          { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width * 0.935, h: r.height * FACE_PLATE_H },
           { x: o.left + o.width / 2, y: o.top + o.height / 2 }, progress);
       }, at + AETHER_GLOW_MS * slow));
     });

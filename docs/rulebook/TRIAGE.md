@@ -15,7 +15,7 @@ Decide them in the DEV MENU → Rulebook board (clicks write to decisions.json),
 
 - **q-watch-gravebody** — Grave Body: never reacts to things played past it — confirm the reading
 
-## Doc Bot verification backlog (161) — NOT owner questions
+## Doc Bot verification backlog (153) — NOT owner questions
 
 Items Doc Bot could not yet verify with a staged scenario. Claude works these; they reach the board only if a
 staged scenario CONFIRMS a mismatch or exposes a genuine design fork.
@@ -75,8 +75,6 @@ staged scenario CONFIRMS a mismatch or exposes a genuine design fork.
 - combat mod runeDreamedGraves (Dreamed Graves: "The first minion summoned from your hand each combat gains Rebirth.") — Rune of Dreamed Graves: the first minion summoned FROM THE HAND each combat (a Spirit hand-summon, Rope Wrangler's Echo) gains Rebirth. Once per fight.
 - combat mod runeOpenHand (Open Hand: "When you summon a minion from your hand, give its stats to another friendly minion.") — Rune of the Open Hand: whenever a minion is summoned FROM THE HAND (the same `pendingHandSummon` moment Dreamed Graves reads), another random friendly minion gains its current Attack/Health. Every hand-summon, one grant per copy held.
 - combat mod runeWakingReserve (Waking Reserve: "Start of Combat: summon a copy of your highest-stat minion in hand when you have room. This does not mark that hand card as summoned.") — Rune of the Waking Reserve: Start of Combat — summon a COPY of the highest-stat (Attack + Health) minion in hand when the board has room. The hand card is NOT marked as summoned. One copy per rune copy held.
-- combat mod runeKindredRally (Kindred Rally: "When you summon a minion from your hand in combat, trigger your left-most Rally.") — Kindred Rally: a minion summoned FROM THE HAND (the `pendingHandSummon` moment) fires the left-most Rally, a free Rally, once per copy held.
-- combat mod runeDeepSlumber (Deep Slumber: "Minions in your hand gain double stats from every source.") — Deep Slumber: a minion in your hand gains double stats from every source (each `buffHand` gain is paid once more per copy held).
 - combat mod runeEchoingKobolds (Echoing Kobolds: "Give your Kobolds "Echo: get a Ruby."") — Rune of Echoing Kobolds: every Kobold SUMMONED this fight is grafted "Echo: get a Ruby" (bodies that started the fight carry the Shop graft already, via `grantedEffects`). One Ruby per copy held.
 - combat mod runeRubywire (Rubywire: "When you cast a Shop Spell, cast a Ruby on 2 friendly Kobolds.") — Rune of Rubywire: every Shop-pool spell this side casts (`spellResolved`) casts a Ruby on 2 random friendly Kobolds, once per copy held.
 - combat mod runeCombatativeTick — …and the meter's carried progress (0-2) coming into this fight. Settle advances it by the fight's attacks.
@@ -109,10 +107,6 @@ staged scenario CONFIRMS a mismatch or exposes a genuine design fork.
 - combat mod runeGemStar (Gem Star: "The first 4 Rubies you cast each turn also give your Starform their stats.") — Rune of the Gem Star: the first 4 Rubies cast each turn also give the Starform their stats.
 - combat mod gemStarLeft — Rune of the Gem Star: how many more Rubies may still feed the Starform this turn (4 minus the Shop's).
 - combat mod runeKeepsakeGem (Keepsake Gem: "Your Rubies also cast on the left-most minion in your hand.") — Rune of the Keepsake Gem: every Ruby cast also lands its stats on the left-most hand minion (a hand buff).
-- combat mod runeGemWhispers (Gem Whispers: "Whispers you cast on a minion also cast a Ruby on it.") — Rune of Gem Whispers: every Whisper this side casts on a living friendly minion also casts a plain Ruby on it (per copy).
-- combat mod runeBrewedWhispers (Brewed Whispers: "After you cast a Dwarven Ale, get a random Whisper.") — Rune of Brewed Whispers: every Dwarven Ale this side casts gets a random (tier-gated) Whisper to hand (per copy).
-- combat mod runeHauntedHand (Haunted Hand: "When a minion in your hand gains stats, give your Undead Aura +1 Attack. (5 times per turn)") — Rune of the Haunted Hand: a hand minion gaining stats raises this side's Undead Aura +1 Attack (per copy).
-- combat mod hauntedHandLeft — Rune of the Haunted Hand: how many more hand gains may still pay this turn (5 minus the Shop's).
 - combat mod runeUnity (Unity: "While you control all 5 minion types, your minions count as every type.") — Rune of Unity: while this side controls every active minion type (naturally), its minions count as every type.
 - combat mod runeSpellFedScales (Spell-Fed Scales: "Whenever you cast a Shop Spell, give a Dragon +6/+7.") — Rune of Spell-Fed Scales: every Shop-pool spell this side casts gives a random living friendly Dragon +6/+7 per copy.
 - combat mod runeBorrowedFlame (Borrowed Flame: "Whenever you cast a Whisper on a Dragon, give it +1/+1 and improve this.") — Rune of Borrowed Flame: the per-copy value a Whisper cast on a Dragon gives right now (1 = unimproved). Each trigger grows it by `improveRepsFor`; the growth is carried back (`ShoutCarry.borrowedFlameGain`).
@@ -179,5 +173,3 @@ staged scenario CONFIRMS a mismatch or exposes a genuine design fork.
 - combat mod runeBulwarkLine (Bulwark Line: "Start of Combat: give your Taunt minions Ward.") — Bulwark Line: Start of Combat, every friendly Taunt minion gains Ward.
 - combat mod runePackTactics (Pack Tactics: "Your Beasts' Rallies also trigger when that Beast is attacked.") — Pack Tactics: a Beast chosen as an attack's target fires its own Rally (per copy).
 - combat mod runeHellfire (Hellfire: "When a Demon attacks or dies, deal 1 damage to all enemies. This counts as Demon damage.") — Hellfire: a friendly Demon's attack or death has THAT Demon deal 1 damage to every enemy minion (per copy); it is Demon damage (owner 2026-11-13).
-- combat mod runeWizenedGems (Wizened Gems: "When you cast 3 Shop spells, improve your Rubies by +1/+1 and get a Ruby.") — Wizened Gems (Set 2 + 3 Basic, owner 2026-11-23): every 3 Shop spells this side casts improve its Rubies +1/+1 and get a Ruby, mid-fight too (`wizenedGemsCombat`). Either side; rides a snapshot (`questMods`).
-- combat mod runeWizenedGemsTick — Wizened Gems: the running count (0-2) going INTO the fight (the run's `runeWizenedGemsTick`).

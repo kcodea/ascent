@@ -2,14 +2,12 @@
  * PACK OPENING: THE PRESENTATION SHADERS (owner 2026-11-24: "its everything, the animations, the card back visuals, the
  * tear effects, the unsheathe effects, the entire presentation, EVERYTHING needs to be brought up").
  *
- * Four small procedural shaders (GLSL ES 3.0, WebGL only, no textures of their own; `null` on any other renderer and
+ * Three small procedural shaders (GLSL ES 3.0, WebGL only, no textures of their own; `null` on any other renderer and
  * the scene simply goes without them):
  *
  *  - THE STAGE: the theatre itself, drawn behind everything. A dark void lit by one spotlight that falls on the pack,
  *    dust drifting through the beam, slow motes, a pool of the pack's own colour behind it, a vignette, and a wash of
  *    a big pull's colour from where its face lands. It replaces the dimmed menu showing through a scrim.
- *  - THE FOIL: creases on the wrapper. A field of fold lines lit from the tilt: it wrinkles where the hand is (hover,
- *    squeeze, the tear's front, the sleeve grip) and stays a little more crumpled the more the pack is handled.
  *  - THE SPILL: light from inside the pack. Shafts and rising dust in the pack's colour pour out of the opening as the
  *    strip comes off, and from the sleeve's mouth as the cards slide out.
  *  - THE BACK SHEEN: the pile's top card back is alive: a band of light that follows the pointer across it, glints
@@ -94,43 +92,11 @@ void main() {
   finalColor = vec4(col, 1.) * uColor.a;
 }`;
 
-/** THE FOIL. vUV 0..1 over the wrapper body (the body mesh's own uvs). */
-export const FOIL_FRAG = `${HEAD}
-uniform sampler2D uTex;    // the wrapper art: its alpha is the foil's shape
-uniform vec2 uPoint;       // where the hand is (body uv)
-uniform vec2 uLight;       // the light's direction across the foil (from the tilt)
-uniform float uGrip;       // 0..1: how hard it is held there
-uniform float uAll;        // 0..1: how crumpled the whole wrapper has become
-// crumpled foil is FACETED: each cell of the fold pattern is a flat facet tilted its own way.
-// Returns (distance to the nearest fold line, the facet's own random pair).
-vec3 facet(vec2 p){
-  vec2 g = floor(p), f = fract(p); float d1 = 9., d2 = 9.; vec2 cid = vec2(0.);
-  for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++) {
-    vec2 k = vec2(float(x), float(y)), c = k + h22(g + k) - f; float qd = dot(c, c);
-    if (qd < d1) { d2 = d1; d1 = qd; cid = g + k; } else if (qd < d2) { d2 = qd; }
-  }
-  return vec3(sqrt(d2) - sqrt(d1), h22(cid + 5.));
-}
-void main() {
-  float m = texture(uTex, vUV).a;
-  vec2 d = (vUV - uPoint) * vec2(1., 1.33);
-  float L = clamp(uAll + uGrip * exp(-dot(d, d) * 8.), 0., 1.);
-  if (L < .01 || m < .01) { finalColor = vec4(0.); return; }
-  vec2 w = vUV * vec2(1., 1.33);
-  w += (vec2(n2(w * 3.), n2(w * 3. + 7.)) - .5) * .22;   // the folds bend, they are not a grid
-  vec3 a = facet(w * 4.2), b = facet(w * 9. + 3.);
-  vec2 n = (a.yz - .5) * 1.5 + (b.yz - .5) * .8;          // this facet's tilt (big folds, small folds)
-  float lit = dot(n, uLight);                             // facing the light, or away from it
-  float fold = (1. - smoothstep(0., .08, a.x)) * .6 + (1. - smoothstep(0., .06, b.x)) * .4;
-  float hi = clamp(max(lit, 0.) * .5 + fold * max(lit + .25, 0.) * .45, 0., 1.) * L;
-  float sh = clamp(max(-lit, 0.) * .46 + fold * .2, 0., .62) * L;
-  // premultiplied: adds the highlight, darkens by the shadow
-  finalColor = vec4(vec3(hi), clamp(hi + sh, 0., 1.)) * m * uColor.a;
-}`;
-
 /** How far the pack's half width sits inside the spill quad (the quad is wider than the pack), and where its gap line is. */
 export const SPILL_PACK_HALF = 0.62;
 export const SPILL_LINE_V = 0.85;
+/** The light's width over the wrapper's: inside its edges at the opening. */
+export const SPILL_INSET = 0.93;
 /**
  * The least the light reaches above the opening, in pack base units. The scene stretches it to the TOP OF THE SCREEN
  * when that is further, so it fades out slowly over the whole way up and is gone exactly at the edge (owner 2026-11-24:
@@ -143,14 +109,18 @@ export const SPILL_FRAG = `${HEAD}
 uniform float uTime;
 uniform float uOpen;       // 0..1: how much of the top is open, from the left
 uniform float uLevel;      // 0..1
+uniform float uReach;      // how far the light reaches above the opening (pack units)
+uniform float uLineY;      // where the opening is (pack units, y down): the dust is anchored to the STAGE, not the wrapper
+uniform float uLine;       // how sharply the hot line at the opening falls off (the quad stretches; the line must not)
 uniform vec3 uTint;        // the pack's colour
 uniform vec3 uHot;
 void main() {
-  float x = vUV.x / ${SPILL_PACK_HALF.toFixed(2)};
+  // (the light is a little NARROWER than the wrapper, so its ends never jut past the wrapper's edges: owner 2026-11-24)
+  float x = vUV.x / ${(SPILL_PACK_HALF * SPILL_INSET).toFixed(3)};
   float h = (${SPILL_LINE_V.toFixed(2)} - vUV.y) / ${(1 + SPILL_LINE_V).toFixed(2)};   // 0 at the gap, 1 at the quad's top
   float open = uOpen * 2. - 1.;
   float sx = x / (1. + max(h, 0.) * .5);   // the shafts fan out as they rise
-  float gap = smoothstep(open + .05, open - .08, sx) * smoothstep(-1.1, -.95, sx);
+  float gap = smoothstep(open, open - .1, sx) * smoothstep(-1., -.88, sx);
   float shaft = n2(vec2(sx * 8., uTime * .45)) * .55 + n2(vec2(sx * 21. + 4., -uTime * .75)) * .45;
   shaft = pow(smoothstep(.28, .9, shaft), 1.5);
   // a long, slow fade: bright at the opening, still faintly there far above it, gone by the quad's top
@@ -158,9 +128,11 @@ void main() {
   float up = step(0., h) * exp(-h * 2.4) * fall * sqrt(fall);
   vec3 col = uTint * (.35 + 1.5 * shaft) * up * gap;
   // the hot line at the opening itself
-  col += uHot * exp(-abs(h) * 130.) * smoothstep(open + .03, open - .05, x) * smoothstep(-1.06, -.96, x) * .8;
+  col += uHot * exp(-abs(h) * uLine) * smoothstep(open, open - .07, x) * smoothstep(-1., -.93, x) * .8;
   // dust rising in the light
-  vec2 uq = vec2(sx * 7., h * 17. + uTime * .5);
+  // the dust hangs in the air: its height is measured on the stage, so pulling the wrapper down does not drag it
+  // along (owner 2026-11-24: "have the sparkles ignore the drag down")
+  vec2 uq = vec2(sx * 7., (h * uReach - uLineY) / 24. + uTime * .5);
   vec2 id = floor(uq), ff = fract(uq) - .5;
   float life = h21(id + 2.3);
   float tw = .5 + .5 * sin(uTime * 4. + life * 30.);
@@ -236,29 +208,20 @@ const STAGE_U = {
   uTime: 'f32', uAspect: 'f32', uEnergy: 'f32', uWash: 'f32', uFocus: 'vec2<f32>', uWashAt: 'vec2<f32>', uTint: 'vec3<f32>',
   uWashTint: 'vec3<f32>',
 } as const satisfies USpec;
-const FOIL_U = { uPoint: 'vec2<f32>', uLight: 'vec2<f32>', uGrip: 'f32', uAll: 'f32' } as const satisfies USpec;
-const SPILL_U = { uTime: 'f32', uOpen: 'f32', uLevel: 'f32', uTint: 'vec3<f32>', uHot: 'vec3<f32>' } as const satisfies USpec;
+const SPILL_U = { uTime: 'f32', uOpen: 'f32', uLevel: 'f32', uLine: 'f32', uReach: 'f32', uLineY: 'f32', uTint: 'vec3<f32>', uHot: 'vec3<f32>' } as const satisfies USpec;
 const SHEEN_U = { uTime: 'f32', uLevel: 'f32', uAim: 'vec2<f32>' } as const satisfies USpec;
 
 export type StageFx = Fx<typeof STAGE_U>;
-export type FoilFx = Fx<typeof FOIL_U>;
 export type SpillFx = Fx<typeof SPILL_U>;
 export type SheenFx = Fx<typeof SHEEN_U>;
 
 export const makeStage = (webgl: boolean): StageFx | null => make(webgl, STAGE_FRAG, STAGE_U, 'normal');
-/** The foil rides the wrapper body's own grid: `positions` are copied from the body whenever the scene writes them. */
-export function makeFoil(webgl: boolean, body: Mesh, bodyTex: Texture): FoilFx | null {
-  const bg = body.geometry as MeshGeometry;
-  const geometry = new MeshGeometry({
-    positions: Float32Array.from(bg.positions), uvs: Float32Array.from(bg.uvs), indices: Uint32Array.from(bg.indices),
-  });
-  return make(webgl, FOIL_FRAG, FOIL_U, 'normal', geometry, bodyTex);
-}
 export const makeSpill = (webgl: boolean): SpillFx | null => make(webgl, SPILL_FRAG, SPILL_U, 'add');
 export const makeSheen = (webgl: boolean): SheenFx | null => make(webgl, SHEEN_FRAG, SHEEN_U, 'add');
 
 /**
- * THE WRAPPER'S HANDLING, as plain maths (the scene eases it, the foil shader shows it, the sounds hear it).
+ * THE WRAPPER'S HANDLING, as plain maths (the scene eases it, the sounds hear it: the crinkle is heard, not drawn. A
+ * drawn wrinkle overlay was tried and removed, owner 2026-11-24: "remove the wrinkle effect on the wrapper").
  * `grip` is how hard the foil is held at the hand; `wear` is how crumpled the whole wrapper has become, which only
  * grows while it is handled (a wrapper never un-crumples) up to `WEAR_MAX`.
  */

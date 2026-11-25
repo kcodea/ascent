@@ -45,8 +45,8 @@ import {
 } from './packTease';
 import { AURA_COLORS, makeAura, type Aura } from './packAura';
 import {
-  SPILL_LINE_V, SPILL_MIN_REACH, SPILL_PACK_HALF, makeFoil, makeSheen, makeSpill, makeStage, newHandling, stepHandling,
-  type FoilFx, type Handling, type SheenFx, type SpillFx, type StageFx,
+  SPILL_LINE_V, SPILL_MIN_REACH, SPILL_PACK_HALF, makeSheen, makeSpill, makeStage, newHandling, stepHandling,
+  type Handling, type SheenFx, type SpillFx, type StageFx,
 } from './packFx';
 import { PILE_LEAN_PX, PILE_LEAN_RAD, PILE_RISE_PX, newPile, pileAtRest, pileEase, pileScale, type PileState } from './packPile';
 import { cardRestX, cardRestY } from './packViews';
@@ -167,6 +167,8 @@ const BASE = import.meta.env?.BASE_URL ?? '/';
  * like 20%?"). Only the pack shrinks: the zoomed stack grows by 1 / PACK_SIZE more, so the cards land where they did.
  */
 export const PACK_SIZE = 0.87;
+/** How much of the sealed pack's outer halo is drawn (0 = none: the pack's light stays behind the wrapper). */
+export const PACK_HALO = 0;
 /**
  * The stack's scale while it sits in the sleeve (owner 2026-11-24: "when crinkling the wrapper, the sides get squeezed and
  * the card side can be seen. increase the size of the wrapper only"): the wrapper is drawn larger (PACK_SIZE) and the
@@ -274,10 +276,9 @@ class PackSceneImpl implements PackScene {
   private faceAmbient = 0;
   private pileAmbient = 0; // the second aura's level on the summary (it lights the second-best pull)
   private summaryOn = false;
-  // the presentation shaders (packFx.ts): the stage behind everything, the foil's creases, the light from inside the
+  // the presentation shaders (packFx.ts): the stage behind everything, the light from inside the
   // pack, the top card back's sheen; and what drives them
   private stage: StageFx | null = null;
-  private foil: FoilFx | null = null;
   private spill: SpillFx | null = null;
   private sheen: SheenFx | null = null;
   private readonly handling: Handling = newHandling();
@@ -286,6 +287,8 @@ class PackSceneImpl implements PackScene {
   private stageEnergy = 0.3;
   private stageWash = 0;
   private spillLevel = 0;
+  private haloFade = 1;
+  private rimPinch = 0; // how far the wrapper's open end is drawn in (0..1 of its half width)
   private sheenLevel = 0;
   private readonly focus: Pt = { x: 0, y: 0 };
   private focusSet = false;
@@ -389,17 +392,12 @@ class PackSceneImpl implements PackScene {
     this.auraPile = makeAura(webgl);
     if (this.auraFace) built.views.root.addChildAt(this.auraFace.mesh, 1);
     if (this.auraPile) built.views.root.addChildAt(this.auraPile.mesh, 1);
-    // the presentation shaders: the stage under everything; the foil over the wrapper body; the spill between the
+    // the presentation shaders: the stage under everything; the spill between the
     // stack and the sleeve front; the sheen over the stack
     const vw = built.views;
     const pc = AURA_COLORS[packGlowRarity(this.look)];
     this.stage = makeStage(webgl);
     if (this.stage) { app.stage.addChildAt(this.stage.mesh, 0); this.stage.mesh.visible = true; this.stage.u.uTint.set(pc[0]); }
-    this.foil = makeFoil(webgl, vw.body, vw.body.texture);
-    if (this.foil) {
-      this.foil.mesh.position.copyFrom(vw.body.position); this.foil.mesh.scale.copyFrom(vw.body.scale);
-      vw.sleeveFront.addChildAt(this.foil.mesh, vw.sleeveFront.getChildIndex(vw.body) + 1);
-    }
     this.spill = makeSpill(webgl);
     if (this.spill) {
       this.spill.u.uTint.set(pc[0]); this.spill.u.uHot.set(pc[2]);
@@ -746,7 +744,7 @@ class PackSceneImpl implements PackScene {
   }
 
   /**
-   * The presentation shaders' frame (packFx.ts). The stage follows the pack, then the pile; the foil wrinkles where the
+   * The presentation shaders' frame (packFx.ts). The stage follows the pack, then the pile; the wrapper is heard to crinkle where the
    * hand is and remembers it; light spills from the opening and from the sleeve's mouth; the top card back shimmers.
    * Uniforms only.
    */
@@ -800,18 +798,6 @@ class PackSceneImpl implements PackScene {
     if (Math.abs(sqTo - sqz.a) < 0.002) sqz.a = sqTo;
     if (sqTo > 0) sqz.y = Math.max(220, (this.hoverPt.y - H) * TEX_RES);
     if (sealed && sqz.a !== this.bodyKey.sq) this.syncBody(false);
-    const foil = this.foil;
-    if (foil) {
-      const on = (hd.grip > 0.01 || hd.wear > 0.01) && v.sleeveFront.visible;
-      foil.mesh.visible = on;
-      if (on) {
-        const u = foil.u, t = this.tilt;
-        u.uPoint[0] = hd.px; u.uPoint[1] = hd.py; u.uGrip = hd.grip; u.uAll = hd.wear;
-        // the light slides across the creases as the pack tilts
-        u.uLight[0] = 0.55 - t.ry * 0.06; u.uLight[1] = -0.7 + t.rx * 0.06;
-      }
-    }
-
     // THE LIGHT INSIDE: out of the opening as the strip comes off, out of the sleeve's mouth as the cards slide out
     const sp = this.spill;
     if (sp) {
@@ -823,14 +809,17 @@ class PackSceneImpl implements PackScene {
       const on = this.spillLevel > 0;
       sp.mesh.visible = on;
       if (on) {
-        const lineY = H + (this.phase === 'peel' ? 0 : sl.dy);
+        // the light sits ON the wrapper's open end: it rides the sleeve, and trails with its rim exactly as the torn lip does
+        const lineY = H + (this.phase === 'peel' ? 0 : sl.dy - sl.lag);
         // the light climbs all the way to the top of the screen, fading the whole way
         const reach = Math.max(SPILL_MIN_REACH, lineY + v.root.y / k);
-        const hw = (W / 2) / SPILL_PACK_HALF, hh = reach / (1 + SPILL_LINE_V);
+        const hw = ((W / 2) / SPILL_PACK_HALF) * (1 - this.rimPinch), hh = reach / (1 + SPILL_LINE_V);
         sp.mesh.position.set(W / 2, lineY - SPILL_LINE_V * hh);
         sp.mesh.scale.set(hw, hh);
         const u = sp.u;
         u.uTime = sec; u.uOpen = opening ? Math.min(1, this.tear.T / W) : 1;
+        u.uReach = reach; u.uLineY = lineY;
+        u.uLine = reach / 2.4; // a hot line about 2.4 units thick, however far the light reaches
         u.uLevel = this.spillLevel * (0.6 + 0.4 * this.packTier.size / PACK_GLOW_TIERS.ancient.size);
       }
     }
@@ -863,7 +852,8 @@ class PackSceneImpl implements PackScene {
       if (L.active) {
         L.t += dt;
         const u = Math.min(1, L.t / L.dur), e = 1 - (1 - u) * (1 - u);
-        af.place(L.x0 + (L.x1 - L.x0) * e, L.y0 + (L.y1 - L.y0) * e, L.h0 + (L.h1 - L.h0) * e);
+        // the face opens from edge-on to flat as it lands: the aura opens with it
+        af.place(L.x0 + (L.x1 - L.x0) * e, L.y0 + (L.y1 - L.y0) * e, L.h0 + (L.h1 - L.h0) * e, Math.sin(u * Math.PI / 2));
         if (u >= 1) L.active = false;
       }
       if (!this.flip.active) {
@@ -949,8 +939,8 @@ class PackSceneImpl implements PackScene {
     this.summaryOn = false; this.pileAmbient = 0;
     v.pack.visible = true; v.flipLayer.visible = true;
     const hd = this.handling; hd.grip = 0; hd.wear = 0; hd.px = 0.5; hd.py = 0.5;
+    this.haloFade = 1;
     this.packPressed = false; this.squeeze.a = 0; this.stageWash = 0; this.spillLevel = 0; this.sheenLevel = 0; this.focusSet = false;
-    if (this.foil) this.foil.mesh.visible = false;
     if (this.spill) this.spill.mesh.visible = false;
     if (this.sheen) this.sheen.mesh.visible = false;
     this.faceAmbient = 0; this.land.active = false;
@@ -1130,7 +1120,7 @@ class PackSceneImpl implements PackScene {
       const c = this.edgeScreen(this.pt2);
       // hit-test the corner where the tilt DRAWS it (the pinch ring), not where the flat pack has it
       if (!tiltedCornerHit(p.x, p.y, c.x, c.y, this.tiltPose, this.tear.started ? GRAB_R_STARTED : GRAB_R_SEALED, this.pt3)) {
-        // not the corner: a press on the sealed wrapper squeezes it (the foil dents and crinkles under the hand)
+        // not the corner: a press on the sealed wrapper squeezes it (its sides draw in, and it is heard to crinkle)
         if (!this.tear.started && p.x > 0 && p.x < W && p.y > H && p.y < H + BODY_H) {
           this.packPressed = true;
           this.sounds.squeeze();
@@ -1466,10 +1456,15 @@ class PackSceneImpl implements PackScene {
     const sp = v.sheen.geometry.positions, gp = v.gloss.geometry.positions;
     if (sp.length === pos.length) { sp.set(pos); v.sheen.geometry.getBuffer('aPosition').update(); }
     if (gp.length === pos.length) { gp.set(pos); v.gloss.geometry.getBuffer('aPosition').update(); }
-    const fg = this.foil?.mesh.geometry;
-    if (fg && fg.positions.length === pos.length) { fg.positions.set(pos); fg.getBuffer('aPosition').update(); }
+    // the holo sheen rides the wrapper's own shape: tilt, squeeze and the sleeve's pinch alike
     const hg = v.holo?.body.geometry;
     if (hg && hg.positions.length === pos.length) { hg.positions.set(pos); hg.getBuffer('aPosition').update(); }
+    // the torn lip follows the wrapper's open end: it trails with the rim, and narrows with it when the sleeve is pinched
+    // near the top (owner 2026-11-24: "when pinching near the top, the edge doesnt connect to the edge of the bag")
+    const rq = gy / 170;
+    this.rimPinch = deform ? sl.pinch * Math.exp(-(rq * rq)) : 0;
+    v.lip.view.scale.x = 1 - this.rimPinch;
+    v.lip.view.x = (W / 2) * this.rimPinch;
     if (deform) v.lip.view.y = -sl.lag;
     this.bodyKey.rx = this.tilt.rx; this.bodyKey.ry = this.tilt.ry; this.bodyKey.D = pose.D; this.bodyKey.sq = sq.a;
   }
@@ -1550,7 +1545,12 @@ class PackSceneImpl implements PackScene {
     const live = this.phase === 'peel' || (this.phase === 'sleeve' && !this.sleeve.falling);
     if (!live) this.packGlowFade = Math.max(0, this.packGlowFade - PACK_GLOW_FADE * dt);
     if (this.packGlowFade === 0) { g.visible = false; g.alpha = 0; return; }
-    g.alpha = glowAlphaAt(this.packTier, this.time, feel.packGlow) * this.packGlowFade;
+    // once the strip is off, the halo (the SEALED pack's outline) no longer fits the wrapper: it bows out, and the
+    // light from inside is the pack's glow from there on
+    this.haloFade += ((this.phase === 'peel' && !this.flying ? 1 : 0) - this.haloFade) * Math.min(1, 0.12 * dt);
+    // the halo is drawn at PACK_HALO of its strength (0: nothing shows past the wrapper's edge on any pack, owner
+    // 2026-11-24: "reduce that on all card packs so its fully behind the card"); the stage pools the pack's colour behind it
+    g.alpha = glowAlphaAt(this.packTier, this.time, feel.packGlow) * this.packGlowFade * this.haloFade * PACK_HALO;
     // its corners: the tier's size about the pack's centre (riding the sleeve), through the sealed tilt
     const s = this.packTier.size, hw = v.packGlowHalf.w * s, hh = v.packGlowHalf.h * s;
     const cx = W / 2, cy = (H + BODY_H) / 2 + (this.phase === 'peel' ? 0 : this.sleeve.dy);
@@ -1618,7 +1618,8 @@ class PackSceneImpl implements PackScene {
     const af = this.auraFace, fb = this.backs?.[f.idx];
     if (af && fb) {
       // light gathers behind the turning card, in its own colour
-      af.place(this.pose.cx, this.pose.cy, CARD_H * this.pose.s);
+      // (it turns with the card: it narrows as the card goes edge-on, so the light stays on the card's edges)
+      af.place(this.pose.cx, this.pose.cy, CARD_H * this.pose.s, Math.cos(flipAngle(p)));
       const charge = FLIP_CHARGE[fb.rarity] * p * p * Math.min(1, getPackFeel().bigPull);
       if (charge > af.level) af.level = charge;
     }

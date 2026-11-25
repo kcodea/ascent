@@ -331,7 +331,7 @@ export function PackFace({ card, phase, from, slot, slow = 1, still = false, bes
       transform: css(atEdge ? edgePose(from!, vp!) : facePose(phase, slot, from, vp!, card.guaranteed)),
       transition: atEdge ? 'none' : handoff ? `transform ${turnMs}ms ${MOVE_EASE}` : undefined,
       // the summary row is DEALT: each card leaves the pile a beat after the one before it
-      transitionDelay: phase === 'summary' && !still ? `${(slot?.index ?? 0) * SUMMARY_DEAL_MS * (Number.isFinite(slow) && slow > 0 ? slow : 1)}ms` : undefined,
+      ...(phase === 'summary' && !still ? { '--pkf-deal': `${(slot?.index ?? 0) * SUMMARY_DEAL_MS * (Number.isFinite(slow) && slow > 0 ? slow : 1)}ms` } : null),
     }
     : undefined;
   const inner: CSSProperties | undefined = placed
@@ -399,7 +399,7 @@ export function PackFace({ card, phase, from, slot, slow = 1, still = false, bes
           <div className="pkf-cat">{cat}</div>
         </div>
         <img src={rarityIconSrc(card.rarity)} alt="" decoding="sync" draggable={false} className="pkf-rarity-icon" />
-        {revealed && <div className="pkf-flash" data-testid="pkf-flash" />}
+        {revealed && <div className="pkf-flash" data-testid="pkf-flash" style={{ '--pkf-plate': `url("${cardPlateSrc(card.rarity)}")` } as CSSProperties} />}
       </div>
     </div>
   );

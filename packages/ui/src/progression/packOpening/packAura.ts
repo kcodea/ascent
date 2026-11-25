@@ -194,10 +194,14 @@ export class Aura {
     this.u.uA.set(c[0]); this.u.uB.set(c[1]); this.u.uC.set(c[2]);
   }
 
-  /** Centre it on (x, y), for a card `cardH` tall (parent units). */
-  place(x: number, y: number, cardH: number): void {
+  /**
+   * Centre it on (x, y), for a card `cardH` tall (parent units). `turn` (1 = facing us, toward 0 = edge-on) narrows it
+   * with a card turning about its vertical axis, so the aura stays on the card's edges through a flip.
+   */
+  place(x: number, y: number, cardH: number, turn = 1): void {
     this.mesh.position.set(x, y);
-    this.mesh.scale.set(cardH * AURA_REACH);
+    const k = cardH * AURA_REACH;
+    this.mesh.scale.set(k * Math.max(0.05, Math.min(1, turn)), k);
   }
 
   fireBurst(k: number): void { this.burstT = 0; this.burstK = k; }

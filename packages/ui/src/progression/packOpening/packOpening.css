@@ -55,7 +55,7 @@
 .pkop-live-quiet { width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 /* THE SUMMARY ROW: a card lifts under the pointer; the best pull stands raised and a little larger. The standalone
    `scale` / `translate` properties, so they compose with the row's inline transform. */
-.pkf-summary { transition: transform calc(0.42s * var(--pk-slow, 1)) cubic-bezier(0.2, 0.9, 0.25, 1.08), scale 0.2s ease-out, translate 0.2s ease-out; }
+.pkf-summary { transition: transform calc(0.42s * var(--pk-slow, 1)) cubic-bezier(0.2, 0.9, 0.25, 1.08) var(--pkf-deal, 0ms), scale 0.2s ease-out, translate 0.2s ease-out; }
 .pkf-summary.pkf-best { scale: 1.05; translate: 0 -14px; z-index: 3; }
 .pkf-summary.pkf-hover:hover { scale: 1.06; translate: 0 -10px; z-index: 4; }
 .pkf-summary.pkf-best.pkf-hover:hover { scale: 1.09; translate: 0 -18px; }
@@ -107,7 +107,10 @@
    .pkf-flash: the rarity's light as the face opens (opacity only), stronger each rarity up. .pkf-punch: the card swells
    as it lands flat and settles (the standalone `scale` property, so it composes with the turn's inline transform; its
    delay is set inline to the end of the turn), bigger each rarity up. Never under reduced motion. */
-.pkf-flash { position: absolute; inset: 1.5%; border-radius: 7% / 4.7%; pointer-events: none; opacity: 0;
+/* (cut to the plate's OWN silhouette, its alpha as the mask: a plain rounded box showed as a pale frame off the card's
+   edges while it turned, owner 2026-11-24) */
+.pkf-flash { position: absolute; inset: 0; pointer-events: none; opacity: 0;
+  -webkit-mask: var(--pkf-plate) center / 100% 100% no-repeat; mask: var(--pkf-plate) center / 100% 100% no-repeat;
   background: radial-gradient(ellipse 80% 70% at 50% 45%, #fff 0%, color-mix(in srgb, var(--rc) 55%, #fff) 45%, var(--rc) 100%);
   animation: pkf-flash calc(0.6s * var(--pk-slow, 1)) cubic-bezier(0.3, 0.6, 0.4, 1) both; }
 @keyframes pkf-flash { from { opacity: var(--pkf-fl, 0.3); } to { opacity: 0; } }

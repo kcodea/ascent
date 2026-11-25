@@ -310,11 +310,16 @@ export function paintBlob(): HTMLCanvasElement {
   return c;
 }
 
-/** One foil fleck (tinted per particle). */
+/** One spark (tinted per particle, drawn additively): a hot core in a soft glow. */
 export function paintFleck(): HTMLCanvasElement {
-  const { c, g } = canvas(6, 3);
-  g.fillStyle = '#fff';
-  g.fillRect(0, 0, 6, 3);
+  const { c, g } = canvas(32, 32);
+  const gr = g.createRadialGradient(16, 16, 0, 16, 16, 16);
+  gr.addColorStop(0, 'rgba(255,255,255,1)');
+  gr.addColorStop(0.16, 'rgba(255,255,255,.95)');
+  gr.addColorStop(0.4, 'rgba(255,255,255,.3)');
+  gr.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = gr;
+  g.fillRect(0, 0, 32, 32);
   return c;
 }
 

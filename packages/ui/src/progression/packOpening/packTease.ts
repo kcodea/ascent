@@ -18,9 +18,9 @@
 import { COSMETIC_RARITIES, type CrateRarity } from '@game/progression';
 
 /** The first step (Common's glow): short, so a pack of Commons still flips briskly. */
-export const TEASE_FIRST_FRAMES = 6;
+export const TEASE_FIRST_FRAMES = 12; // (doubled, owner 2026-11-24: "increase the hold on each tier by 100%")
 /** Every further step up the ladder. */
-export const TEASE_STEP_FRAMES = 9;
+export const TEASE_STEP_FRAMES = 18;
 
 const mult = (m: number): number => (Number.isFinite(m) ? Math.max(0, m) : 1);
 

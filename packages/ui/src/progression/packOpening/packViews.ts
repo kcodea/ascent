@@ -282,6 +282,7 @@ export function buildPackViews(look: PackLook, n: number, own: (t: Texture) => v
   const holo = buildHolo(look, body, bodyBase, strip, sleeveFront, keep);
   const particles = new Container();
   const flecks = new FleckPool(particles, keep(paintFleck()));
+  flecks.setTint(packRarity === 'ancient' ? 0x6ff3e6 : rarityTint(packRarity));
   const pinch = new Sprite(keep(paintPinchRing()));
   pinch.anchor.set(0.5); pinch.scale.set(0.55); pinch.blendMode = 'add';
   pack.addChild(packGlow, sleeveBack, cardsC, sleeveFront, strip.view, particles, pinch);
@@ -363,60 +364,77 @@ function buildHolo(
 export const cardRestX = (i: number): number => (i % 2 ? 1 : -1) * i * 0.9;
 export const cardRestY = (i: number): number => i * 2.4;
 
-/** The torn foil's flecks: a fixed pool of sprites (no allocation when the tear sheds them). */
+/**
+ * The tear's SPARKS (owner 2026-11-24: the confetti was "a 3/10 ... glowing sparks emit and float up instead"): a fixed
+ * pool of additive glow sprites (no allocation when the tear sheds them). A spark leaves the torn edge, rises on its
+ * own heat (it is lighter than air: it slows sideways, speeds up), wanders, twinkles, shrinks and dies. Tinted in the
+ * pack's colour or white-hot.
+ */
 export class FleckPool {
-  /** Live flecks. */
+  /** Live sparks. */
   count = 0;
   private readonly sprites: Sprite[] = [];
   private readonly vx = new Float32Array(FLECKS);
   private readonly vy = new Float32Array(FLECKS);
-  private readonly vr = new Float32Array(FLECKS);
+  private readonly ph = new Float32Array(FLECKS);
+  private readonly size = new Float32Array(FLECKS);
   private readonly life = new Float32Array(FLECKS);
+  private readonly span = new Float32Array(FLECKS);
+  private tint = 0xffffff;
 
   constructor(parent: Container, tex: Texture) {
     for (let k = 0; k < FLECKS; k++) {
       const s = new Sprite(tex);
       s.anchor.set(0.5);
+      s.blendMode = 'add';
       s.visible = false;
       this.sprites.push(s);
       parent.addChild(s);
     }
   }
 
-  /** Shed up to `n` flecks at (x, y); a full pool drops the rest. */
+  /** The pack's colour (the sparks are this, or white-hot). */
+  setTint(tint: number): void { this.tint = tint; }
+
+  /** Shed up to `n` sparks at (x, y); a full pool drops the rest. */
   spawn(n: number, x: number, y: number): void {
     for (let k = 0; k < FLECKS && n > 0; k++) {
       if (this.life[k] > 0) continue;
       const s = this.sprites[k];
       s.visible = true;
-      s.tint = Math.random() < 0.5 ? 0xdfe6f5 : 0x6f8cc4;
-      s.x = x + (Math.random() - 0.5) * 6;
-      s.y = y + (Math.random() - 0.5) * 4;
-      s.rotation = 0;
+      s.tint = Math.random() < 0.6 ? this.tint : 0xffffff;
+      s.x = x + (Math.random() - 0.5) * 10;
+      s.y = y + (Math.random() - 0.5) * 5;
       s.alpha = 1;
-      s.scale.set(0.5 + Math.random() * 0.9);
-      this.vx[k] = (Math.random() - 0.3) * 2.4;
-      this.vy[k] = -Math.random() * 2.6 - 0.4;
-      this.vr[k] = (Math.random() - 0.5) * 0.4;
-      this.life[k] = 40 + Math.random() * 30;
+      this.size[k] = 0.22 + Math.random() * 0.5;
+      s.scale.set(this.size[k]);
+      this.vx[k] = (Math.random() - 0.4) * 2.6;
+      this.vy[k] = -Math.random() * 2.2 - 0.5;
+      this.ph[k] = Math.random() * 6.28;
+      this.span[k] = 60 + Math.random() * 80;
+      this.life[k] = this.span[k];
       this.count++;
       n--;
     }
   }
 
-  /** One frame: drift, fall, spin, fade. */
+  /** One frame: rise, wander, twinkle, shrink, fade. */
   step(dt: number): void {
     if (this.count === 0) return;
+    const drag = Math.pow(0.965, dt);
     for (let k = 0; k < FLECKS; k++) {
       if (this.life[k] <= 0) continue;
       const s = this.sprites[k];
-      s.x += this.vx[k] * dt; s.y += this.vy[k] * dt;
-      this.vy[k] += 0.14 * dt;
-      s.rotation += this.vr[k] * dt;
       const life = this.life[k] - dt;
       this.life[k] = life;
-      s.alpha = Math.min(1, life / 20);
-      if (life <= 0) { s.visible = false; this.count--; }
+      if (life <= 0) { s.visible = false; this.count--; continue; }
+      const age = 1 - life / this.span[k];
+      this.vx[k] *= drag;
+      this.vy[k] = this.vy[k] * drag - 0.028 * dt; // buoyant: it keeps rising
+      s.x += (this.vx[k] + Math.sin(life * 0.07 + this.ph[k]) * 0.35) * dt;
+      s.y += this.vy[k] * dt;
+      s.alpha = Math.min(1, life / 26) * (0.62 + 0.38 * Math.sin(life * 0.42 + this.ph[k]));
+      s.scale.set(this.size[k] * (1 - 0.55 * age));
     }
   }
 

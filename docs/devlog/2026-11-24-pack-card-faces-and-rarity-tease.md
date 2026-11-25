@@ -109,3 +109,23 @@ It had not: the summary was five equal cards on a flat backdrop with a stale cap
   for screen readers only.
 - The auras are placed when each best card's move has ENDED (`transitionend` on its transform), never after a guessed
   delay: a busy frame starts the move late, and a measurement taken early lit the old pile spot at pile size.
+
+## Owner pass on the wrapper and the flip (2026-11-25)
+
+- **The light from the opening** sits ON the wrapper's open end: it trails with the rim (`sl.lag`, as the torn lip
+  does), narrows with it when the sleeve is pinched near the top (`rimPinch`, the lip too), is a little narrower than
+  the wrapper (`SPILL_INSET`), keeps a thin hot line however far it reaches (`uLine`), and its dust is anchored to the
+  stage so pulling the wrapper down does not drag the sparkles with it (`uReach` / `uLineY`).
+- **The wrinkle overlay is gone** (owner: "it doesnt need it"). The crinkle is heard, not drawn; the press still draws
+  the wrapper's sides in. Removing it, the holo's position update was cut by mistake for a few minutes (the sheen stopped
+  following tilt and pinch): restored. The holo, sheen and gloss all copy the body's positions in `writeBody`.
+- **No halo past the wrapper** (`PACK_HALO = 0`, owner: "fully behind the card ... im willing to do it"); the stage's
+  pooled colour is the pack's light.
+- **Sparks, not confetti** (`FleckPool`): additive glow sprites in the pack's colour or white-hot that leave the torn
+  edge, rise on their own heat, wander, twinkle and shrink.
+- **The card's aura turns with the card**: `Aura.place(..., turn)` narrows it by the flip's cosine through the scene's
+  half and opens it again through the face's half. The face's opening flash is cut to the plate's own silhouette (its
+  alpha as the mask); a plain rounded box showed as a pale frame off the card's edges.
+- **The tease holds each tier twice as long** (`TEASE_FIRST_FRAMES` 12, `TEASE_STEP_FRAMES` 18).
+- The summary deal's stagger moved to a CSS variable (`--pkf-deal`); an inline `transitionDelay` beside the `transition`
+  shorthand made React warn.

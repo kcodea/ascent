@@ -74,7 +74,8 @@ One stage, three zones, top to bottom (the owner's 1920 x 1080 stage; everything
 - A tag appears beside it with three things: the **price**, the **guaranteed rarity**, and **how many items in it the
   player does not own yet** ("14 of 40 new to you"). The third number is the reason to want the pack. A pack with
   nothing new says so plainly.
-- Clicking the tag (or pressing Enter on a focused pack) opens the odds, as the Chest Shop publishes them today.
+- The published odds are not shown by this project: the odds display is the economy project's (pack-opening spec,
+  section 12). The tag leaves room for an "Odds" link.
 
 ### 4.3 Picking it up
 - Press and hold: the pack comes off the shelf into the grip with the opening's crinkle and squeeze. It follows the
@@ -138,8 +139,8 @@ New folder `packages/ui/src/progression/packShop/`:
 Reused as they are: `packFx.ts` (stage, masked sheen and gloss), `packTilt`, `packTextures` and `packArt` (pack art),
 `packAether.ts` (the stream), `AetherTally` (the odometer), `PackOpener`, `dragFeel.ts`.
 
-The pack on the shelf and the sealed pack in the opener are drawn by the same code. The build should lift the opener's
-sealed-pack view (body mesh, strip, sheen, holo) into something both scenes can make, not copy it. The shop and the
+The pack on the shelf and the sealed pack in the opener share their art, tilt maths and gloss shader (section 14,
+answer 2), so they look the same without the shop needing the opener's tear machinery. The shop and the
 opener each own a Pixi application; at the handoff the opener's canvas fades in over the shop's with the pack at the same
 place and pose, then the shop's scene stops its ticker.
 
@@ -267,9 +268,10 @@ All settled by me; none changes what the owner approved.
    faded out, fade in over a given time) and an "Open next" path that plays the next queued pack without remounting.
    **The pedestal matches the opener:** a pack on the pedestal is drawn at the opener's sealed pack size and place, so
    nothing has to move at the handoff. "Larger" in 4.1 means larger than the other shelf packs.
-2. **Sharing the sealed pack.** Extract the sealed-pack builder from `packViews.ts` as a behaviour-preserving refactor,
-   as its own first task, with the opener's tests unchanged and passing. The shop then uses the extracted builder. Not a
-   thin wrapper, not a copy.
+2. **Sharing the sealed pack** (amended while planning, 2026-11-25). A shelf pack never tears, so it does not need the
+   opener's body grid or strip mesh. It is a lighter view (`shelfPack.ts`) that shares what makes the pack look the same:
+   the pack art (`packArt.ts`), the tilt maths (`packTilt.ts`) and the art-masked gloss shader (`packFx.ts`). The opener's
+   scene is not refactored. The two are drawn at the same place and size on the pedestal and crossfaded at the handoff.
 3. **The Aether stream, reversed.** Generalise `AetherStream.emit` (a source rectangle of any size to a target point is
    already its shape): the wallet gem is the source, the pack the target. Add what that needs to the existing class; no
    second class. `AetherTally` already rolls toward any target, up or down, and is a standalone component; give it an

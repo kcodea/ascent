@@ -82,7 +82,7 @@ describe('Doc Bot — entry paths: the non-shop worklist', () => {
     for (const id of GIFT_IDS) expect(scan.verified[id], `${id} verified via`).toMatch(/^rune:rune_(merry_christmas|happy_birthday)/);
     expect(scan.verified['tower_shield']).toMatch(/^card:/);
     expect(scan.verified['clue']).toMatch(/^equipment:/);
-    expect(scan.verified['ruby']).toMatch(/^rune:/);
+    expect(scan.verified['ruby']).toMatch(/^factory:getRubies/); // Prospector's own mint (a Special Ruby is never the plain one, 2026-11-25)
     expect(scan.verified['copycat']).toMatch(/^rune:/);
   });
 
@@ -102,7 +102,9 @@ describe('Doc Bot — entry paths: the non-shop worklist', () => {
     // Golden Ruby's cast stays covered directly in rubyTypes.test.ts.
     // RE-PIN 2026-10-20 (Kobold balance): Prospector mints plain Rubies again, so the stager's first random-Ruby
     // carrier changed and its draw now delivers Golden; Golden left the unstaged queue.
-    expect(Object.keys(scan.unstaged).sort(), `unstaged: ${JSON.stringify(scan.unstaged)}`).toEqual(['dark-ruby', 'ripple-ruby', 'rubyblast', 'splintered-ruby']);
+    // RE-PIN 2026-11-25 (R-RUBY-SPECIAL-01): the draw is over the five special Rubies, so the fixture seed delivers Golden and Splintered
+    // now; Warding joined the queue (its cast is driven in rubyTypes.test.ts).
+    expect(Object.keys(scan.unstaged).sort(), `unstaged: ${JSON.stringify(scan.unstaged)}`).toEqual(['dark-ruby', 'ripple-ruby', 'rubyblast', 'warding-ruby']);
   });
 
   it('every cast-shaped, named worklist item lands in exactly one bucket (nothing is silently skipped)', () => {

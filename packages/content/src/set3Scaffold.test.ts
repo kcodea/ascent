@@ -172,6 +172,6 @@ describe('set 3 scaffold', () => {
     // +1 on 2026-10-07: Jewel (a set-3 Kobold) joined set 2 (owner), appended at the end of set 2.
     // -1 on 2026-10-10: Cavern Fiend (k_gemgorge, a Kobold/Demon) archived (owner).
     // -1 on 2026-10-13: Mineral Master (k_mineralmaster) archived (owner).
-    expect(poolFor('set2').buyable.filter((c) => c.tribe === 'kobold')).toHaveLength(22); // + Reflektion (2026-11-25)
+    expect(poolFor('set2').buyable.filter((c) => c.tribe === 'kobold')).toHaveLength(23); // + Reflektion and Candle Conduit (2026-11-25)
   });
 });

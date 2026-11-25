@@ -56,6 +56,15 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-11-25',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Fixed Ranked Duos breaking on the second game of a party: it replayed fights from the game before and never came back to the Shop.',
+      },
+    ],
+  },
+  {
     date: '2026-11-24',
     changes: [
       {

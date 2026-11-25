@@ -12646,6 +12646,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       ]
     },
     "setIds": [
+      "set2",
       "set3"
     ],
     "tier": 1,
@@ -22925,6 +22926,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "confidence": "high"
     },
     "setIds": [
+      "set2",
       "set3"
     ],
     "tier": 2,
@@ -23072,6 +23074,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "confidence": "high"
     },
     "setIds": [
+      "set2",
       "set3"
     ],
     "tier": 4,

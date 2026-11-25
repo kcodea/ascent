@@ -72,7 +72,7 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Balance',
-        text: 'Pickles (Kobold, Tier 2) joins The Outskirts. It stays in The Underbelly too.',
+        text: 'Pickles, Alchemist Frank, Defender and Indy join The Outskirts. They stay in The Underbelly too.',
       },
       {
         category: 'Balance',

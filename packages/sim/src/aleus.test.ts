@@ -75,4 +75,16 @@ describe('the owner batch of 2026-11-25', () => {
   it('Pickles is in Set 2 and Set 3 (R-PICKLES-SET2-01)', () => {
     for (const set of ['set2', 'set3'] as const) expect(poolFor(set).buyable.some((c) => c.id === 'k3_splitpick'), set).toBe(true);
   });
+
+  it('Frank, Defender and Indy are in Set 2 and Set 3, and work in a Set 2 run (R-SET2-NEUTRALS-1125-01)', () => {
+    for (const set of ['set2', 'set3'] as const) for (const id of ['e3_frank', 'n3_defender', 'n3_indy']) expect(poolFor(set).buyable.some((c) => c.id === id), `${set} ${id}`).toBe(true);
+    let s = reduce(run([bc('x', 'sandbag')], ['e3_frank', 'n3_defender', 'n3_indy']), { type: 'play', uid: 'h0' });
+    s = reduce(s, { type: 'activateEquipment', targetUid: 'x' });
+    expect(s.board.find((c) => c.uid === 'x')!.attack, 'the Bloodpot').toBe(5);
+    s = reduce(s, { type: 'play', uid: 'h1' });
+    expect(s.hand.filter((c) => c.cardId === 'tower_shield')).toHaveLength(2);
+    s = reduce(s, { type: 'play', uid: 'h2' });
+    for (let i = 0; i < 5; i++) s = reduce(s, { type: 'roll' });
+    expect(s.shop.some((c) => c?.cardId === 'n3_goldenmonkey')).toBe(true);
+  });
 });

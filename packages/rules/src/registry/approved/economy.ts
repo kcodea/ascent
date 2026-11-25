@@ -424,4 +424,20 @@ export const ECONOMY_RULES: GameRule[] = [
     currentBehaviour: 'Conforms since 2026-11-25.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/aleus.test.ts'], lastVerifiedAt: '2026-11-25' },
   },
+  {
+    id: 'R-SET2-NEUTRALS-1125-01',
+    title: 'Alchemist Frank, Defender and Indy are in both The Outskirts and The Underbelly',
+    statement:
+      'Alchemist Frank (Tier 1), Defender (Tier 2) and Indy (Tier 4) are sold in Set 2 and in Set 3, one shared card each, and work the same in '
+      + 'both: the Bloodpot can be equipped and used, Defender gets its Tower Shields, Indy adds its Golden Monkey.',
+    domain: 'economy',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-25', quote: 'add alchemist frank, defender, and indy to the outskirts' },
+      { kind: 'code', ref: 'packages/content/src/sets.ts SET3_NEUTRALS_IN_SET2' },
+    ],
+    contentIds: ['e3_frank', 'n3_defender', 'n3_indy'],
+    currentBehaviour: 'Conforms since 2026-11-25. Read as staying in The Underbelly, as the owner said of Pickles the same day.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/aleus.test.ts'], lastVerifiedAt: '2026-11-25' },
+  },
 ];

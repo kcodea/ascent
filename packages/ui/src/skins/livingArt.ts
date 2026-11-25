@@ -45,7 +45,7 @@ float bolt(vec2 p, vec2 a, vec2 b, float s, float amp, float w) {
   return (1. - smoothstep(thin * .25, thin, q)) + exp(-q / (thin * 4.5)) * .55 + exp(-q / (thin * 18.)) * .20;
 }
 // a strike: how bright it is now, and which one
-float struck(float period, float ph, out float id) { float x = T / period + ph; id = floor(x); float t = fract(x) * period; return (exp(-t * 11.) + .85 * exp(-abs(t - .15) * 34.) + .5 * exp(-abs(t - .29) * 26.)) * step(t, .75); }
+float struck(float period, float ph, out float id) { float x = T / period + ph; id = floor(x); float t = fract(x) * period; return smoothstep(0., .07, t) * (exp(-t * 4.2) * .8 + .22 * exp(-abs(t - .34) * 9.)) * step(t, 1.4); }
 #else
 vec3 G(vec3 c) { return c; }
 vec3 paint(vec3 c, float strict) { return c; }
@@ -105,22 +105,22 @@ void main() {
   c = mix(c, vec3(.035, .05, .13) + c * .22, (.34 + .58 * smoothstep(.34, .72, cl)) * sky);
   float lit = 0.;
   for (int i = 0; i < 3; i++) {
-    float id, f = struck(i == 0 ? 2.3 : i == 1 ? 3.7 : 5.9, i == 0 ? .1 : i == 1 ? .55 : .3, id);
+    float id, f = struck(i == 0 ? 5.3 : i == 1 ? 8.9 : 14.3, i == 0 ? .1 : i == 1 ? .55 : .3, id);
     if (f > .004) {
       float r = h2(vec2(id, float(i) * 7. + 2.)), s = id * 3.7 + float(i) * 11.;
       vec2 to = r < .22 ? vec2(.185, .125) : r < .44 ? vec2(.797, .105) : r < .60 ? vec2(.725, .36) : r < .74 ? vec2(.245, .33) : r < .87 ? vec2(.94, .34) : vec2(.065, .34);
       vec2 from = vec2(to.x + (h2(vec2(id, 4.)) - .5) * .34, -.04);
       vec2 mid = mix(from, to, .42 + .2 * h2(vec2(id, 8.)));
       vec2 side = vec2(to.x + (h2(vec2(id, 12.)) < .5 ? -1. : 1.) * (.10 + .10 * h2(vec2(id, 13.))), mix(mid.y, to.y, .9) + .05);
-      float bl = bolt(uv, from, to, s, .095, .0082) + bolt(uv, mid, side, s + 40., .06, .0046) * .8;
+      float bl = bolt(uv, from, to, s, .085, .0058) + bolt(uv, mid, side, s + 40., .05, .0034) * .6;
       lit += bl * f;
       flash += f;
       c += vec3(.5, .7, 1.) * m.r * f * step(r, .44) * step(0., (to.x - .5) * (g.x - .5)) * .9;       // the stone it struck flares
     }
   }
-  flash = min(flash, 1.2);
+  flash = min(flash, 1.) * .5;
   c += vec3(.36, .46, .95) * flash * (.20 + .9 * smoothstep(.3, .8, cl)) * sky;
-  c += (vec3(.40, .60, 1.) * lit + vec3(.9, .95, 1.) * smoothstep(.6, 1.3, lit)) * 1.1;
+  c += (vec3(.36, .56, 1.) * lit + vec3(.7, .8, .9) * smoothstep(.6, 1.3, lit)) * .85;
 #endif
   // mist drifting behind the pack
   float mist = fbm(vec2(uv.x * 3.2 - T * .085, uv.y * 5.5 + T * .03)) ;
@@ -155,6 +155,15 @@ void main() {
   float flick = .75 + .25 * sin(T * 9.) * sin(T * 13.7 + 1.) + .2 * (fbm(vec2(T * 2.4, 3.)) - .5);
   hc += G(vec3(.16, .75, .22)) * bump(uv, vec2(.345, .60), vec2(.13, .17)) * .30 * flick;
   hc += vec3(.42, .56, 1.) * pow(hm.g, 1.6) * (1. - smoothstep(.62, .74, k.x) * smoothstep(.66, .74, k.y)) * flash * .55 + hc * vec3(.6, .8, 1.3) * flash * .10;
+#ifdef STORM
+  vec2 e1 = (k - vec2(.5045, .1655)), e2 = (k - vec2(.5795, .1830));
+  float i1 = exp(-dot(e1 / vec2(.0120, .0105), e1 / vec2(.0120, .0105))), i2 = exp(-dot(e2 / vec2(.0072, .0088), e2 / vec2(.0072, .0088)));
+  float gold = smoothstep(.06, .28, hc.r - hc.b);                                          // the iris only: the pupil and the glint stay
+  float eyeP = .82 + .18 * sin(T * 1.7);
+  hc = mix(hc, vec3(.16, .52, 1.) * (.45 + 1.1 * hc.g) * 1.15, min(1., (i1 + i2) * 1.6) * gold);
+  hc += vec3(.16, .46, 1.) * (exp(-length(e1 / vec2(1.25, 1.)) / .0125) * .75 + exp(-length(e2) / .0085) * .6) * eyeP;
+  hc += vec3(.55, .80, 1.) * (smoothstep(.0048, .0, length(e1 - vec2(.0025, .0015))) + smoothstep(.0032, .0, length(e2))) * .35 * eyeP;
+#endif
   c = mix(c, hc, hs.a);
 
   // ── THE FLAME ──
@@ -174,21 +183,21 @@ void main() {
   c += G(vec3(.10, .55, .16)) * bump(uv, vec2(.335, .57), vec2(.10, .15)) * .24 * flick;
 #ifdef STORM
   // the current: filaments crawling over the whistle and up the flame, and arcs jumping from it to whatever is near
-  vec2 cr = uv * 15. + vec2(0., T * .9);
-  float r1 = 1. - abs(2. * fbm(cr + fbm(cr * 1.4 + T * .8) * 1.3) - 1.), r2 = 1. - abs(2. * fbm(cr * 1.9 - vec2(T * 1.3, T * .4)) - 1.);
+  vec2 cr = uv * 15. + vec2(0., T * .5);
+  float r1 = 1. - abs(2. * fbm(cr + fbm(cr * 1.4 + T * .4) * 1.3) - 1.), r2 = 1. - abs(2. * fbm(cr * 1.9 - vec2(T * .6, T * .2)) - 1.);
   float fil = (pow(r1, 13.) + .8 * pow(r2, 15.)) * smoothstep(.16, .6, texture(hd, uv).b + texture(hd, uv + vec2(.03, 0.)).b * .4 + texture(hd, uv - vec2(.03, 0.)).b * .4);
-  float strobe = .6 + .4 * step(.35, h1(floor(T * 17.)));
+  float strobe = .8 + .2 * sin(T * 3.1) * sin(T * 4.7 + 1.);
   fil *= mix(1., .22, smoothstep(.45, .85, body));
-  c += (vec3(.14, .42, 1.) + vec3(.5, .42, .2) * smoothstep(.45, 1., fil)) * fil * 1.05 * strobe;
+  c += (vec3(.14, .42, 1.) + vec3(.5, .42, .2) * smoothstep(.45, 1., fil)) * fil * .8 * strobe;
   float arcs = 0.;
-  for (int i = 0; i < 6; i++) {
-    float fi = float(i), tk = T * (7.5 + fi * .7) + fi * 3.3, id = floor(tk), e = fract(tk);
-    if (h2(vec2(id, fi)) < .30) continue;
+  for (int i = 0; i < 3; i++) {
+    float fi = float(i), tk = T * (2.1 + fi * .37) + fi * 3.3, id = floor(tk), e = fract(tk);
+    if (h2(vec2(id, fi)) < .38) continue;
     float ra = h2(vec2(id, fi + 20.)), rb = h2(vec2(id, fi + 31.));
     vec2 a = mix(vec2(.305, .665), vec2(.395, .575), ra);
     float w = h2(vec2(id * .37, fi + 44.));
     vec2 b = w < .16 ? vec2(.40, .40) : w < .30 ? vec2(.285, .46) : w < .46 ? vec2(.49, .47) : w < .62 ? vec2(.52, .61) : w < .76 ? vec2(.215, .56) : w < .90 ? vec2(.44, .78) : vec2(.28, .80);
-    arcs += bolt(uv, a, b + (vec2(rb, ra) - .5) * .045, id * 1.7 + fi * 9., .075, .0050) * (1. - e * .7);
+    arcs += bolt(uv, a, b + (vec2(rb, ra) - .5) * .045, id * 1.7 + fi * 9. + floor(e * 3.), .055, .0032) * smoothstep(0., .12, e) * (1. - smoothstep(.35, .95, e)) * .8;
   }
   float near2 = smoothstep(.30, .85, body);                 // where they all leave from: the whistle itself must be seen
   arcs *= mix(1., .16, near2);
@@ -201,6 +210,11 @@ void main() {
     float r = .0055 * (1. - l * .6);
     c += G(vec3(.6, 1., .45)) * smoothstep(r * 2.4, 0., length(uv - sp2)) * smoothstep(0., .08, l) * (1. - l) * 1.2;
   }
+#ifdef STORM
+  vec2 ew = uv - vec2(.5045, .1655); float back = clamp(-ew.x / .085, 0., 1.);
+  float wisp = exp(-pow((ew.y + back * back * .030 - (fbm(vec2(ew.x * 30. + T * .9, T * .5)) - .5) * .022 * back) / (.0045 + .004 * back), 2.)) * step(ew.x, 0.) * smoothstep(0., .12, back) * (1. - back) * (.5 + .5 * fbm(vec2(ew.x * 46. + T * 1.6, 2.)));
+  c += vec3(.22, .55, 1.) * wisp * .75;
+#endif
   // fireflies, some behind (dimmer, small), some near
   for (int i = 0; i < 12; i++) {
     float s = float(i) + 20., z = h1(s * 1.7);

@@ -55,6 +55,8 @@ export interface PackFaceProps {
   still?: boolean;
   /** The summary row's best pull: raised and a little larger than the rest. */
   best?: boolean;
+  /** The face's turn-in transition really started: its start on the document timeline and its length (ms). */
+  onTurnStart?: (startMs: number, durMs: number) => void;
 }
 
 /**
@@ -288,7 +290,7 @@ function useHoloFollow(enabled: boolean) {
   return { layer, handlers };
 }
 
-export function PackFace({ card, phase, from, slot, slow = 1, still = false, best }: PackFaceProps) {
+export function PackFace({ card, phase, from, slot, slow = 1, still = false, best, onTurnStart }: PackFaceProps) {
   const p = rewardPreview(card.rewardId);
   const placed = from !== undefined || slot !== undefined;
   const handoff = phase === 'handoff' && from !== undefined;
@@ -296,6 +298,24 @@ export function PackFace({ card, phase, from, slot, slow = 1, still = false, bes
   // mounts it in `handoff`, but a face that mounts straight into the pile still turns rather than popping there.
   const [arrived, setArrived] = useState(!(from !== undefined && phase !== 'summary'));
   const ref = useRef<HTMLDivElement | null>(null);
+
+  // The turn's transition exists now: report its real start and length (document timeline ms), so the scene's aura can
+  // read the same clock and stay on this face's edges. One read per flip, never per frame.
+  const turnRef = useRef<HTMLDivElement | null>(null);
+  const reported = useRef(false);
+  useLayoutEffect(() => {
+    if (!arrived || reported.current || !onTurnStart || from === undefined) return;
+    reported.current = true;
+    const el = turnRef.current;
+    const a = el && typeof el.getAnimations === 'function' ? el.getAnimations()[0] : undefined;
+    if (!a) return;
+    let live = true;
+    void a.ready.then(() => {
+      const t0 = a.startTime, d = a.effect?.getComputedTiming().duration;
+      if (live && typeof t0 === 'number' && typeof d === 'number') onTurnStart(t0, d);
+    }).catch(() => undefined);
+    return () => { live = false; };
+  }, [arrived, onTurnStart, from]);
 
   // Mounted on the scene's card: flush that pose once (one style/layout read per flip, never per frame), then let the
   // transition carry it to the slot.
@@ -359,7 +379,7 @@ export function PackFace({ card, phase, from, slot, slow = 1, still = false, bes
       aria-hidden
       {...follow.handlers}
     >
-      <div className={`pkf-card${revealed ? ' pkf-punch' : ''}`} style={inner}>
+      <div ref={turnRef} className={`pkf-card${revealed ? ' pkf-punch' : ''}`} style={inner}>
         {aura && (
           <div
             className={`pkf-aura pkf-aura-${pulse}`}

@@ -107,6 +107,12 @@ export interface PackScene {
    * visible height, in SCREEN px. Call it with no spots first (the row is still dealing), then with them once it settled.
    */
   showSummary(spots: readonly SummarySpot[]): void;
+  /**
+   * The DOM face's turn really began: `startMs` is its transition's start on the document timeline and `durMs` its
+   * length. The aura behind the face reads the same clock from here on, so it turns and travels with the face frame for
+   * frame (owner 2026-11-25: "its still slightly off"). Until this arrives the aura waits edge-on.
+   */
+  faceTurnStarted(startMs: number, durMs: number): void;
   /** Scale the scene's clock (1 = real time, 0.25 = slow-mo). Dev-only (the Pack Lab); a no-op until Pixi is up. */
   setSpeed(mult: number): void;
   /** Safe at any moment, including before the async init resolves. */
@@ -297,7 +303,7 @@ class PackSceneImpl implements PackScene {
   private sheenLevel = 0;
   private readonly focus: Pt = { x: 0, y: 0 };
   private focusSet = false;
-  private readonly land = { active: false, t: 0, dur: 1, x0: 0, y0: 0, h0: 1, x1: 0, y1: 0, h1: 1 };
+  private readonly land = { active: false, t: 0, dur: 1, x0: 0, y0: 0, h0: 1, x1: 0, y1: 0, h1: 1, t0: -1, durMs: 1, wait: 0 };
   private readonly teaseOut: TeaseAt = { stage: 0, k: 0 };
   /** The glow's alpha when the tease ended (0 = no glow to fade): it fades from here through the turn (`flipStep`). */
   private teaseGlowOut = 0;
@@ -445,6 +451,12 @@ class PackSceneImpl implements PackScene {
     this.resetState();
     app.ticker.add(this.tick);
     if (this.pendingQuick) { this.pendingQuick = false; this.quickOpen(); }
+  }
+
+  faceTurnStarted(startMs: number, durMs: number): void {
+    const L = this.land;
+    if (!L.active || L.t0 >= 0 || !(durMs > 0) || !Number.isFinite(startMs)) return;
+    L.t0 = startMs; L.durMs = durMs;
   }
 
   showSummary(spots: readonly SummarySpot[]): void {
@@ -725,7 +737,7 @@ class PackSceneImpl implements PackScene {
     if (aura) {
       aura.tier = at.stage;
       aura.level = Math.min(1, teaseAuraLevel(at.stage, at.k) * knob * ts.level + 0.22 * beat * ts.level);
-      aura.place(this.pileC.x, this.pileC.y, CARD_H * v.cardsC.scale.x);
+      aura.place(this.pileC.x, this.pileC.y, CARD_H * FACE_PLATE_H * v.cardsC.scale.x); // the VISIBLE plate, not the art box
     }
     this.teasePopV = teasePop(at.stage, at.k) * ts.level;
     this.teaseRotV = teaseTremble(at.stage, this.time) * ts.level;
@@ -875,10 +887,16 @@ class PackSceneImpl implements PackScene {
     if (af) {
       const L = this.land;
       if (L.active) {
-        L.t += dt;
         // the DOM face's own curves: it travels on MOVE_EASE and turns from edge-on to flat on TURN_EASE, with the same
-        // perspective; the aura takes the same pose every frame
-        const u = Math.min(1, L.t / L.dur), e = faceMoveEase(u);
+        // perspective; the aura takes the same pose every frame. It reads the face's OWN clock (the document timeline,
+        // from the transition's real start): the face mounts a frame or two after the edge, so a clock started at the
+        // edge ran ahead of it. Until the face reports, the aura waits edge-on; a face that never reports (no scene
+        // handoff) lets the aura run on the scene's clock after a short wait.
+        let u: number;
+        if (L.t0 >= 0) u = Math.min(1, Math.max(0, (timelineNow() - L.t0) / L.durMs));
+        else if ((L.wait += dt) < LAND_WAIT_FRAMES) u = 0;
+        else { L.t += dt; u = Math.min(1, L.t / L.dur); }
+        const e = faceMoveEase(u);
         const hh = L.h0 + (L.h1 - L.h0) * e;
         if (u >= 1) { L.active = false; af.place(L.x1, L.y1, L.h1); }
         else {
@@ -1654,7 +1672,7 @@ class PackSceneImpl implements PackScene {
     if (af && fb) {
       // light gathers behind the turning card, in its own colour
       // (it turns with the card: it narrows as the card goes edge-on, so the light stays on the card's edges)
-      af.placeTurned(this.pose.cx, this.pose.cy, CARD_H * this.pose.s, flipAngle(p), FLIP_PERSPECTIVE_PER_WIDTH * CARD_W * this.pose.s);
+      af.placeTurned(this.pose.cx, this.pose.cy, CARD_H * FACE_PLATE_H * this.pose.s, flipAngle(p), FLIP_PERSPECTIVE_PER_WIDTH * CARD_W * this.pose.s);
       const charge = FLIP_CHARGE[fb.rarity] * p * p * Math.min(1, getPackFeel().bigPull);
       if (charge > af.level) af.level = charge;
     }
@@ -1662,8 +1680,8 @@ class PackSceneImpl implements PackScene {
     if (af && fb) {
       // the face shows: the aura follows it to the slot, bursts, and settles behind it
       const L = this.land;
-      L.active = true; L.t = 0; L.dur = f.dur;
-      L.x0 = this.pose.cx; L.y0 = this.pose.cy; L.h0 = CARD_H * this.pose.s;
+      L.active = true; L.t = 0; L.dur = f.dur; L.t0 = -1; L.wait = 0;
+      L.x0 = this.pose.cx; L.y0 = this.pose.cy; L.h0 = CARD_H * FACE_PLATE_H * this.pose.s;
       L.x1 = f.tx; L.y1 = f.ty; L.h1 = CARD_H * f.scale * REVEALED_SCALE * FACE_PLATE_H;
       const k = AURA_BURST[fb.rarity] * Math.min(1.2, getPackFeel().bigPull);
       if (k > 0) af.fireBurst(k);
@@ -1758,6 +1776,14 @@ class PackSceneImpl implements PackScene {
     }
   }
 }
+
+/** How long the aura waits edge-on for the DOM face to report its turn before it runs on the scene's clock (frames). */
+const LAND_WAIT_FRAMES = 15;
+/** The document timeline's time (ms): the clock CSS transitions are sampled on, fixed for a frame. */
+const timelineNow = (): number => {
+  const t = typeof document !== 'undefined' ? document.timeline?.currentTime : null;
+  return typeof t === 'number' ? t : performance.now();
+};
 
 /**
  * Build the scene in `host` (an absolutely-positionable element the shell sizes). Returns at once; Pixi starts

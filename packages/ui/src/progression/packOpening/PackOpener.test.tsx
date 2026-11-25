@@ -51,6 +51,7 @@ const sceneFactory: NonNullable<PackOpenerProps['sceneFactory']> = (_host, _look
     resetSealed: () => { f.calls.push('resetSealed'); },
     setInputEnabled: (on) => { f.calls.push('input:' + on); },
     showSummary: (spots) => { f.calls.push('summary:' + spots.length); },
+    faceTurnStarted: () => undefined,
     setSpeed: (m) => { f.calls.push('speed:' + m); },
     destroy: () => { f.calls.push('destroy'); },
   };

@@ -111,6 +111,7 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, spee
   const reqRef = useRef(0);
   const mountedRef = useRef(true);
   const sceneRef = useRef<PackScene | null>(null);
+  const onTurnStart = useCallback((startMs: number, durMs: number) => sceneRef.current?.faceTurnStarted(startMs, durMs), []);
   const soundsRef = useRef<PackSounds | null>(null);
   const hostRef = useRef<HTMLDivElement | null>(null);
   const slotRef = useRef<HTMLDivElement | null>(null);
@@ -480,7 +481,7 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, spee
             {cards.map((c, i) => {
               if (phase !== 'summary' && i >= flipped) return null;
               const facePhase = phase === 'summary' ? 'summary' : revealPhase(i, flipped, turning, flipping);
-              return <PackFace key={i} card={c} phase={facePhase} from={froms[i]} slot={{ index: i, count: cards.length }} slow={1 / speed} still={reduced} best={i === bestIndex} />;
+              return <PackFace key={i} card={c} phase={facePhase} from={froms[i]} slot={{ index: i, count: cards.length }} slow={1 / speed} still={reduced} best={i === bestIndex} onTurnStart={onTurnStart} />;
             })}
           </div>
         )}

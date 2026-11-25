@@ -77,10 +77,6 @@
 .pks-tag-medal, .pks-card-medal { width: 54px; height: 54px; object-fit: contain; flex: none; pointer-events: none; }
 .pks-tag-price, .pks-card-price { display: flex; align-items: center; font-size: 22px; font-weight: 800; color: #dcf3ff; margin-top: 4px; }
 .pks-tag-price .aether-icon, .pks-card-price .aether-icon { width: 30px; height: 30px; margin-right: 6px; }
-.pks-tag-fresh, .pks-card-fresh { display: flex; flex-direction: column; gap: 5px; margin-top: 4px; }
-/* how much of the pack is still new to the player: a bar that fills by transform only */
-.pks-bar { display: block; height: 7px; border-radius: 4px; background: rgba(255, 255, 255, 0.12); overflow: hidden; }
-.pks-bar > span { display: block; height: 100%; border-radius: 4px; background: linear-gradient(90deg, #7fd6ff, #b7ffcf); transform-origin: 0 50%; }
 .pks-tag-line, .pks-card-line { font-size: 15px; opacity: 0.85; }
 .pks-tag-short, .pks-card-short { font-size: 15px; font-weight: 700; color: #ff9c8a; }
 .pks-buy, .pks-open { margin-top: 8px; }
@@ -112,7 +108,7 @@
 .pks-card-art { height: 140px; width: auto; object-fit: contain; filter: drop-shadow(0 10px 12px rgba(0, 0, 0, 0.6)); pointer-events: none; }
 .pks-card-art-medal { height: 120px; margin-bottom: 10px; }
 .pks-card .pks-buy { margin-top: auto; }
-.pks-card .pks-card-fresh, .pks-card .pks-card-short { margin-bottom: 6px; }
+.pks-card .pks-card-short { margin-bottom: 6px; }
 .pks-empty { margin: 0; font-size: 18px; opacity: 0.75; }
 .pks-handhead { font-size: 18px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--gold-lt); }
 .pks-owned { display: flex; align-items: center; gap: 12px; padding: 8px 14px 8px 10px; border-radius: 10px; border: 1.5px solid var(--pk-rim);

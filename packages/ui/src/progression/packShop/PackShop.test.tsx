@@ -571,16 +571,13 @@ describe('PackShop', () => {
     expect(art('Odd')).toBeNull();
   });
 
-  it("the tag shows the pack's medallion and how much of it is new to you as a bar", () => {
+  it("the tag shows the pack's medallion, and no 'new to you' bar or line (owner 2026-11-25)", () => {
     render({ offers: [offer('rare', 'Rare Pack', 200, { newToYou: { unowned: 10, total: 40 } }), ...OFFERS.slice(1)] });
     fire((e) => { e.onHover('rare', R); });
     const tag = document.querySelector('[data-testid="pks-tag"]')!;
     expect(tag.querySelector('.pks-tag-medal')!.getAttribute('src')).toContain('ascent_rarity_rare');
-    expect((tag.querySelector('.pks-bar > span') as HTMLElement).style.transform).toBe('scaleX(0.25)');
-    expect(tag.textContent).toContain('10 of 40 new to you');
-    // a pack with nothing to tell has no bar
-    fire((e) => { e.onHover('epic', R); });
-    expect(document.querySelector('[data-testid="pks-tag"] .pks-bar')).toBeNull();
+    expect(tag.querySelector('.pks-bar')).toBeNull();
+    expect(tag.textContent).not.toContain('new to you');
   });
 
   it('reduced motion renders the grid with Buy and Open buttons and no scene', async () => {

@@ -594,14 +594,6 @@ export function PackShop(props: PackShopProps) {
           </div>
         </div>
         <div className={`${cls}-price`}>{o.price > 0 && <AetherIcon />}{t.price}</div>
-        {t.fresh && (
-          <div className={`${cls}-fresh`}>
-            {o.newToYou && o.newToYou.total > 0 && (
-              <span className="pks-bar" aria-hidden="true"><span style={{ transform: `scaleX(${Math.max(0, Math.min(1, o.newToYou.unowned / o.newToYou.total))})` }} /></span>
-            )}
-            <span className={`${cls}-line`}>{t.fresh}</span>
-          </div>
-        )}
         {t.soldOut ? <div className={`${cls}-short`}>Sold out</div> : t.short > 0 && <div className={`${cls}-short`}>{`Need ${t.short} more Aether`}</div>}
         {withButton && (
           <button type="button" className="crate-btn pressable pks-buy" ref={cls === 'pks-tag' ? buyBtnRef : undefined}

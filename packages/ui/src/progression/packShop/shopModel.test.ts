@@ -7,16 +7,14 @@ const offer = (id: string, over: Partial<PackOffer> = {}, floor: CrateRarity = '
 });
 
 describe('shopModel', () => {
-  it('packTag: price, floor and fresh strings', () => {
+  it('packTag: price and floor strings; how much is new to the player is not on the card (owner 2026-11-25)', () => {
     const t = packTag(offer('a', { newToYou: { unowned: 14, total: 40 } }), 500);
-    expect(t).toEqual({ price: '200 Aether', floor: 'Guaranteed Rare or better', fresh: '14 of 40 new to you', short: 0, soldOut: false });
+    expect(t).toEqual({ price: '200 Aether', floor: 'Guaranteed Rare or better', short: 0, soldOut: false });
   });
 
-  it('packTag: Free at 0, Ancient has no "or better", nothing new, no newToYou', () => {
+  it('packTag: Free at 0, Ancient has no "or better"', () => {
     expect(packTag(offer('a', { price: 0 }), 0).price).toBe('Free');
     expect(packTag(offer('a', {}, 'ancient'), 0).floor).toBe('Guaranteed Ancient');
-    expect(packTag(offer('a', { newToYou: { unowned: 0, total: 40 } }), 0).fresh).toBe('Nothing new to you');
-    expect(packTag(offer('a'), 0).fresh).toBeNull();
   });
 
   it('packTag: short and soldOut', () => {
@@ -25,7 +23,7 @@ describe('shopModel', () => {
   });
 
   it('srLine: one line, box count before the price, short and sold out last', () => {
-    expect(srLine(offer('a', { newToYou: { unowned: 14, total: 40 } }), 500)).toBe('Rare Pack, 200 Aether, Guaranteed Rare or better, 14 of 40 new to you');
+    expect(srLine(offer('a', { newToYou: { unowned: 14, total: 40 } }), 500)).toBe('Rare Pack, 200 Aether, Guaranteed Rare or better');
     expect(srLine(offer('b', { contains: 10, price: 1800 }, 'epic', 'Epic Box'), 5000)).toBe('Epic Box, 10 packs, 1800 Aether, Guaranteed Epic or better');
     expect(srLine(offer('a'), 150)).toBe('Rare Pack, 200 Aether, Guaranteed Rare or better, Need 50 more Aether');
     expect(srLine(offer('a', { soldOut: true }), 0)).toBe('Rare Pack, 200 Aether, Guaranteed Rare or better, Sold out');

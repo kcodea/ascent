@@ -59,6 +59,7 @@ import { packGlowRarity } from '../packOpening/packGlow';
 import { PACK_GEOM, paintGlossBand } from '../packOpening/packTextures';
 import { aimInto, newTilt, stepTilt, tiltEaseK, type TiltState } from '../packOpening/packTilt';
 import { LIFT_GROW, ShelfPack, liftPoseInto } from './shelfPack';
+import { LOOK_EASE, ShopBackdrop } from './shopBackdrop';
 import {
   Placard, loadTexture, paintTray, placardBadge, placardCount,
 } from './shopDressing';
@@ -277,6 +278,8 @@ class ShopSceneImpl implements ShopScene {
   private rack: Container | null = null;
   // the dressing (shopDressing.ts): the hand's light and a price tag (`Placard`) hanging off each shelf slot's pack
   private tray: Sprite | null = null;
+  /** The room in layers (shopBackdrop.ts): the wall and the counter under the packs, the foreground over them. */
+  private backdrop: ShopBackdrop | null = null;
   private readonly placards: Placard[] = [];
   private readonly dressTex: Texture[] = [];
   /** The shelf's price tags (in front of the packs): they ride the entrance and fade with the rack. */
@@ -462,6 +465,8 @@ class ShopSceneImpl implements ShopScene {
     this.bandTex = new Texture({ source: new CanvasSource({ resource: paintGlossBand() }) });
     // THE DRESSING: the hand's pool of light, and (further down) the price placards
     const tex = (c: HTMLCanvasElement): Texture => { const t = new Texture({ source: new CanvasSource({ resource: c }) }); this.dressTex.push(t); return t; };
+    this.backdrop = new ShopBackdrop();
+    app.stage.addChild(this.backdrop.back);
     this.tray = new Sprite(tex(paintTray()));
     this.tray.anchor.set(0.5);
     app.stage.addChild(this.tray);
@@ -514,6 +519,7 @@ class ShopSceneImpl implements ShopScene {
     app.stage.addChild(this.heldPack.view);
     this.heldTag = new Placard(Texture.EMPTY, FONT);
     app.stage.addChild(this.heldTag.view);
+    app.stage.addChild(this.backdrop.front); // the foreground: nearer than anything on the counter
 
     app.stage.alpha = this.fade.alpha;
     app.stage.visible = this.fade.alpha > 0;
@@ -581,6 +587,7 @@ class ShopSceneImpl implements ShopScene {
     for (const pl of this.placards) pl.destroy();
     this.placards.length = 0;
     this.tray = null; this.placardLayer = null;
+    this.backdrop?.destroy(); this.backdrop = null;
     for (const t of this.dressTex) t.destroy(true);
     this.dressTex.length = 0;
     this.rack = null;
@@ -628,6 +635,7 @@ class ShopSceneImpl implements ShopScene {
   /** Place the dressing for this canvas (on a resize only). */
   private dress(): void {
     const L = this.L, w = L.w;
+    this.backdrop?.layout(L);
     if (this.tray) {
       this.tray.position.set(w / 2, L.handY);
       this.tray.width = Math.min(w, L.handPackH * ASPECT * 9); this.tray.height = L.handPackH * 1.7;
@@ -815,6 +823,7 @@ class ShopSceneImpl implements ShopScene {
     if (this.fadeStep(dt)) moving = true;
     if (this.enterStep(dt)) moving = true;
     this.stageStep(dt);
+    if (this.backdrop?.step(easeK(LOOK_EASE, dt))) moving = true;
     if (this.aether?.count) { this.aether.step(dt); moving = true; }
     if (!moving && !this.stage) app.ticker.stop(); // (a lit stage never stops: its dust keeps drifting)
   };
@@ -1041,6 +1050,7 @@ class ShopSceneImpl implements ShopScene {
       // the dressing leaves with the shelf: only the played pack stays, on its way to the opener
       const ra = this.rackAlpha;
       if (this.tray) this.tray.alpha = ra;
+      this.backdrop?.setAlpha(ra);
       if (this.placardLayer) this.placardLayer.alpha = ra;
       if (this.handLayer) this.handLayer.alpha = ra;
       if (this.lineBase) this.lineBase.visible = ra > 0.02;
@@ -1691,13 +1701,14 @@ class ShopSceneImpl implements ShopScene {
 
   private readonly onEnter = (): void => { this.cacheRect(); };
 
-  private readonly onLeave = (): void => { this.pointerOn = false; this.wake(); };
+  private readonly onLeave = (): void => { this.pointerOn = false; this.backdrop?.rest(); this.wake(); };
 
   private readonly onMove = (e: PointerEvent): void => {
     if (!this.app) return;
     const held = this.isHeld();
     if (held && e.pointerId !== this.held.pointerId) return; // a second finger never moves the held pack
     if (!this.toCanvas(e)) return;
+    this.backdrop?.lookAt(this.pointer.x, this.pointer.y); // the room looks where the pointer is
     if (held) {
       // every sample the pointer took since the last event (a fast mouse sends several per frame), each with its time
       const list = typeof e.getCoalescedEvents === 'function' ? e.getCoalescedEvents() : null;

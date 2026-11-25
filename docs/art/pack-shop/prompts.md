@@ -164,3 +164,128 @@ portrait, transparent background, evenly lit, no shadow.
 A brass shop till for a fantasy card shop, same painted style, seen straight on from the front, transparent background,
 evenly lit, no shadow, no text. About as wide as it is tall.
 ```
+
+---
+
+## 5. The shop's interior, as seen through its own doorway (owner 2026-11-25)
+
+The pack shop is the INSIDE of the little shop players already know from the board (the "Return to shop" building).
+Attach `shop-exterior-reference.png` (beside this file; it is `apps/web/public/return-to-shop.webp`) so the inside
+matches the outside: the same honey-coloured timber and grey stone, the arched doorway, amber lanterns, shelves of
+blue and violet potion bottles, purple crystals, the purple bunting hung with teal crystals, and the gold compass-star
+emblem with its teal gem.
+
+These replace the three prompts in section 3 when you want that look. Same three layers, same template, same margins.
+
+### 5a. Layer 1, the back wall
+
+```
+ATTACH 2 IMAGES: (1) shop-exterior-reference.png  (2) shop-layout-template-16x9.png
+
+I am making the background of the card pack shop in my fantasy game ASCENT.
+
+IMAGE 1 - STYLE AND WORLD REFERENCE: the outside of this shop, as it appears in the game. Look through its arched
+doorway: I want the INSIDE of that same building. Match its art style, materials, colours and level of detail exactly.
+
+IMAGE 2 - LAYOUT TEMPLATE: a diagram, not artwork. It shows where the game's own interface will sit.
+
+Create LAYER 1 of 3, THE BACK WALL: the far wall of the shop's interior, seen straight on at eye level, as if I have
+just stepped through the doorway and am standing at the counter.
+
+=== LAYOUT RULES (follow exactly) ===
+- Landscape 16:9, as large as possible, same framing as the template. Paint about 6% extra on every side beyond the
+  frame (the game slides this layer), with nothing important in that margin.
+- CENTRE (the pink area, where the packs stand): a large, shallow ARCHED ALCOVE in the back wall, built of the same
+  carved timber as the doorway in Image 1, with the gold compass-star emblem and its teal gem set at the top of the
+  arch. Inside the alcove: plain, dark, softly lit wood panelling and nothing else. No objects, no bright spots, no
+  hard edges. The packs will cover it.
+- TOP (the blue band): heavy ceiling beams in shadow, with the purple bunting and its hanging teal crystals strung
+  along them. Calm and dark, low detail.
+- LEFT AND RIGHT WINGS: this is where the detail goes. Floor-to-ceiling timber shelving, slightly out of focus,
+  receding into shadow: rows of sealed card packs standing upright and stacked booster boxes (plain coloured
+  wrappers, no readable print), mixed with the blue and violet potion bottles, purple crystals and rolled scrolls
+  from Image 1. One hanging amber lantern on each side, like the ones by the doorway. A rolling ladder on one side.
+  Keep the two wings roughly balanced and darker than the centre.
+- BELOW THE AMBER DASHED LINE: leave it EMPTY and dark. The counter is a separate layer.
+- Lighting: warm amber lantern light from the wings, a soft cooler glow in the alcove, everything falling off to
+  shadow at the edges. A soft vignette. No hard borders.
+
+=== STYLE RULES ===
+- Match Image 1: painted, slightly stylised, polished fantasy game art; chunky hand-carved shapes, soft painterly
+  shading, warm rim light on the wood.
+- Palette from Image 1: honey and chestnut timber, grey stone, amber lantern light, with small accents of royal
+  purple, teal and potion blue. Keep it MID-TO-DARK and less saturated than Image 1 (this is a dim interior at dusk,
+  and the packs in front must be the brightest, most colourful things on screen).
+- Slightly soft focus, as if a few metres away.
+
+=== DO NOT INCLUDE ===
+Readable text, logos, characters, a shopkeeper, creatures, hands, cards facing the viewer, a counter, a window onto
+bright daylight, or any marking from the template.
+
+=== VARIATION (the part I change each time) ===
+Time of day: [e.g. dusk, lanterns lit / deep night, candlelight only / a rainy afternoon, grey light from one window]
+Extra details on the wings: [e.g. a sleeping cat on a shelf, a brass telescope, jars of glowing dust, a cuckoo clock]
+Extra notes: [optional, e.g. "darker overall", "more purple", "fewer bottles, more packs"]
+```
+
+### 5b. Layer 2, the counter
+
+```
+Now create LAYER 2 of 3, THE COUNTER, to sit in front of the image you just made. Same 16:9 frame and template.
+- TRANSPARENT background. Only the counter and what stands on it.
+- The shop's own counter, seen straight on, built from the same honey-coloured timber and iron studs as the display
+  table outside the shop in Image 1. Its top surface fills everything BELOW the amber dashed line. Its back edge is
+  one straight horizontal edge exactly on that line, with a thin worn brass strip along it.
+- The green area (the player's hand) is plain counter top: polished, slightly worn wood with a soft sheen. No objects.
+- In the far left and far right corners only, staying outside the green area: a few props from Image 1's world, such
+  as a brass till, an open ledger with a quill, a small stack of scrolls, one potion bottle, a short candle. Only
+  their tops may rise above the amber line.
+- Same painted style and warm lantern lighting, a little sharper than Layer 1 (it is closer). Paint 6% extra left and
+  right.
+- Nothing above the amber line except the tops of those corner props. No text.
+```
+
+### 5c. Layer 3, the foreground
+
+```
+Now create LAYER 3 of 3, THE FOREGROUND, to sit in front of everything. Same 16:9 frame.
+- TRANSPARENT background, and at least 85% of the image left EMPTY.
+- I am standing just inside the doorway from Image 1, so the nearest things are the doorway itself: the dark inner
+  edge of the arched timber frame down the far left and far right, one of the hanging lanterns from Image 1 in a top
+  corner, and a strand of the purple bunting with a teal crystal in the other top corner. All of it dark, heavily
+  blurred and close to the viewer.
+- Nothing in the centre, nothing over the pink, green or blue areas of the template.
+- Same palette and lighting. Paint 10% extra on every side (this layer slides the most).
+```
+
+### 5d. One flat image instead (no layers)
+
+Use this to try a look quickly before committing to three layers. It will not have depth in the game.
+
+```
+ATTACH 2 IMAGES: (1) shop-exterior-reference.png  (2) shop-layout-template-16x9.png
+
+The INSIDE of the shop in Image 1, seen straight on at eye level from just inside its doorway, as the background of
+my game's card pack shop. Landscape 16:9, framed like the template in Image 2 (a diagram, not artwork).
+- Centre: a shallow arched timber alcove with the gold compass-star emblem at its top, its inside plain, dark and
+  softly lit (the game's packs stand there).
+- Wings: tall shelves of sealed card packs, booster boxes, potion bottles, crystals and scrolls, a hanging amber
+  lantern each side, receding into shadow.
+- Top: dark ceiling beams and purple bunting with teal crystals.
+- Bottom third (below the template's amber dashed line): the shop's wooden counter top, plain and softly polished in
+  the middle, its back edge a straight horizontal line, small props only in the far corners.
+- Same painted style, materials and palette as Image 1, but a dim interior at dusk: mid-to-dark values, lower
+  saturation, warm lantern light, soft vignette.
+- No text, logos, characters, hands or template markings.
+```
+
+### 5e. Other rooms worth trying (swap into 5a's opening line and wings)
+
+- **The loft above the shop:** up the stairs under the blue slate roof: sloping rafters, the round amber window from
+  Image 1 glowing behind the alcove, crates of unopened stock.
+- **The vault below it:** a stone cellar under the shop: iron-bound chests, a round vault door standing open behind
+  the alcove, packs glowing faintly on stone ledges.
+- **The market stall:** the open-air table outside the shop at night: the floating islands and stars from the game's
+  sky behind the alcove, the bunting overhead, lanterns on poles.
+- **The collector's back room:** velvet-lined display cases, framed rare cards (backs only) on the wall, one green
+  banker's lamp.

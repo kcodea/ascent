@@ -17407,4 +17407,20 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Built 2026-11-25. The owner has not heard or seen it yet.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/locationReveal/placeAmbience.test.ts'], lastVerifiedAt: '2026-11-25' },
   },
+  {
+    id: 'R-LOCATION-10',
+    title: 'The Compendium lists each set by the name of its location',
+    statement:
+      'The Compendium\x27s picker reads Location and lists Scrapyard (Set 1), The Outskirts (Set 2), The Underbelly (Set 3) and Forest\x27s Edge '
+      + '(Set 4), in that order, with Live on the one new games play. A player never reads "Set N" there. Scrapyard and Forest\x27s Edge are names '
+      + 'only for now: no reveal, no Practice pick and no longer hero select clock come with them.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-25, with a screenshot of the Compendium set picker', quote: 'rename these here as well to the locations. name Set 1 -> Scrapyard name Set 4 -> Forest\x27s Edge' },
+      { kind: 'code', ref: 'packages/content/src/sets.ts (placeName, setPlaceName); packages/ui/src/MinionBook.tsx; packages/ui/src/CompendiumSetPicker.tsx' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-11-25 (feat/compendium-locations). The picker itself is dev-only. Other dev tools (Scene Builder, balance panel) keep the internal set names.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/compendiumSetPicker.test.tsx'], lastVerifiedAt: '2026-11-25' },
+  },
 ];

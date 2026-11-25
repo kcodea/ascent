@@ -2,7 +2,7 @@ import { Fragment, lazy, memo, Suspense, useCallback, useDeferredValue, useEffec
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent, ReactNode } from 'react';
 import { keyLabelOf } from './keybinds/keybinds';
 import { inRunTribes, type CardDef, type Tribe } from '@game/core';
-import { CARD_INDEX, DUOS_WHISPERS, EPIC_RUNES, GIFTS, QUEST_DEFS, RUNES, SETS, activeSet, duosPoolFor, poolFor, type SetId } from '@game/content';
+import { CARD_INDEX, DUOS_WHISPERS, EPIC_RUNES, GIFTS, QUEST_DEFS, RUNES, SETS, setPlaceName, activeSet, duosPoolFor, poolFor, type SetId } from '@game/content';
 import { questRewardCardsFor, runeRewardCardsFor } from './compendiumRewards';
 import { HEROES, chooseBothActive, isArchivedHero, rubyStatBonus, type RunState } from '@game/sim';
 import { Card, inspectViewOf, mdBold, type CardView } from './Card';
@@ -458,7 +458,7 @@ function BookView({ frame }: { frame?: (parts: CompendiumParts) => ReactNode }) 
   // book shows the run's own set. Browsing any other set, or browsing from the title, shows that WHOLE set.
   const browsingRun = !showTitle && setId === runSetId;
   const setOptions: SetPickerOption[] = useMemo(
-    () => Object.values(SETS).map((d) => ({ id: d.id, name: d.name, live: d.id === liveSetId })),
+    () => Object.values(SETS).map((d) => ({ id: d.id, name: setPlaceName(d), live: d.id === liveSetId })),
     [liveSetId],
   );
   const [duos, setDuos] = useState(false); // THE DUOS TOGGLE: add the Duos-only cards to the book (see DUOS_GIFTS)

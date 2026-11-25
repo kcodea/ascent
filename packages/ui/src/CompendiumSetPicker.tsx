@@ -11,7 +11,7 @@ export interface SetPickerOption {
 }
 
 /**
- * The Compendium's SET PICKER (owner ask 2026-09-24): a custom dropdown at the far right of the tier bar that
+ * The Compendium's SET PICKER (owner ask 2026-09-24; each set by the name of its LOCATION, owner 2026-11-25, R-LOCATION-10): a custom dropdown at the far right of the tier bar that
  * swaps which card set the book shows. View-only: it only reports the chosen id to the book, never touches the
  * active set or any run.
  *
@@ -96,11 +96,11 @@ export function CompendiumSetPicker({ options, value, onChange }: {
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={listId}
-        aria-label={`Card set: ${current?.name ?? ''}. Choose a set to browse.`}
+        aria-label={`Location: ${current?.name ?? ''}. Choose a location to browse.`}
         onClick={() => (open ? close(false) : openList())}
         onKeyDown={onButtonKey}
       >
-        <span className="book-setpick-cap">Set</span>
+        <span className="book-setpick-cap">Location</span>
         <span className="book-setpick-name">{current?.name}</span>
         {current?.live && <span className="book-setpick-live">Live</span>}
         <svg className="book-setpick-caret" viewBox="0 0 24 24" aria-hidden="true">
@@ -111,7 +111,7 @@ export function CompendiumSetPicker({ options, value, onChange }: {
         id={listId}
         className="book-setpick-list"
         role="listbox"
-        aria-label="Card sets"
+        aria-label="Locations"
         aria-hidden={!open}
         onKeyDown={onListKey}
       >

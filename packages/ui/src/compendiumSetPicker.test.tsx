@@ -13,7 +13,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
-import { EPIC_RUNES, RUNES, SETS, activeSet, poolFor, type SetId } from '@game/content';
+import { EPIC_RUNES, RUNES, SETS, setPlaceName, activeSet, poolFor, type SetId } from '@game/content';
 import { MinionBook } from './MinionBook';
 import { useGame } from './store';
 import { mount, type Mounted } from './renderedText.mount';
@@ -43,13 +43,13 @@ describe('Compendium set picker', () => {
 
   it('lists every set in the registry and defaults to the ACTIVE set', () => {
     const live = activeSet();
-    expect(options(m.container).map((o) => o.textContent?.replace(/Live$/, ''))).toEqual(Object.values(SETS).map((s) => s.name));
-    expect(pickerBtn(m.container).getAttribute('aria-label')).toContain(live.name);
+    expect(options(m.container).map((o) => o.textContent?.replace(/Live$/, ''))).toEqual(['Scrapyard', 'The Outskirts', 'The Underbelly', "Forest's Edge"]); // R-LOCATION-10: by location
+    expect(pickerBtn(m.container).getAttribute('aria-label')).toContain(setPlaceName(live));
     const selected = options(m.container).filter((o) => o.getAttribute('aria-selected') === 'true');
     expect(selected).toHaveLength(1);
-    expect(selected[0]!.textContent).toContain(live.name);
+    expect(selected[0]!.textContent).toContain(setPlaceName(live));
     // Only the live set wears the Live tag.
-    expect(options(m.container).filter((o) => o.querySelector('.book-setpick-live')).map((o) => o.textContent)).toEqual([`${live.name}Live`]);
+    expect(options(m.container).filter((o) => o.querySelector('.book-setpick-live')).map((o) => o.textContent)).toEqual([`${setPlaceName(live)}Live`]);
   });
 
   it("switching sets shows that set's cards and tribes, and leaves the active set and the run alone", () => {
@@ -65,10 +65,10 @@ describe('Compendium set picker', () => {
     // Open, then pick the other set.
     act(() => { pickerBtn(m.container).click(); });
     expect(pickerBtn(m.container).getAttribute('aria-expanded')).toBe('true');
-    const opt = options(m.container).find((o) => o.textContent?.startsWith(SETS[other].name))!;
+    const opt = options(m.container).find((o) => o.textContent?.startsWith(setPlaceName(SETS[other])))!;
     act(() => { opt.click(); });
     expect(pickerBtn(m.container).getAttribute('aria-expanded')).toBe('false');
-    expect(pickerBtn(m.container).getAttribute('aria-label')).toContain(SETS[other].name);
+    expect(pickerBtn(m.container).getAttribute('aria-label')).toContain(setPlaceName(SETS[other]));
 
     // The gallery and the tribe rail now describe the other set.
     expect(subtitle(m.container)).not.toBe(beforeSub);
@@ -84,7 +84,7 @@ describe('Compendium set picker', () => {
 
     // And switching back restores the original listing.
     act(() => { pickerBtn(m.container).click(); });
-    act(() => { options(m.container).find((o) => o.textContent?.startsWith(SETS[live].name))!.click(); });
+    act(() => { options(m.container).find((o) => o.textContent?.startsWith(setPlaceName(SETS[live])))!.click(); });
     expect(subtitle(m.container)).toBe(beforeSub);
     expect(railLabels(m.container)).toEqual(beforeRail);
   });
@@ -116,7 +116,7 @@ describe('Compendium set picker', () => {
     for (const id of [activeSet().id, ...(Object.keys(SETS) as SetId[]).filter((x) => x !== activeSet().id && poolFor(x).buyable.length > 0)]) {
       if (id !== activeSet().id) {
         click(pickerBtn(m.container));
-        click(options(m.container).find((o) => o.textContent?.startsWith(SETS[id].name)));
+        click(options(m.container).find((o) => o.textContent?.startsWith(setPlaceName(SETS[id]))));
       }
       // The Neutral pill sits LAST, after the set's tribe pills, in the same style.
       expect(pills()).toHaveLength(SETS[id].tribes.length + 1);
@@ -185,7 +185,7 @@ describe('Compendium set picker is dev-only', () => {
     const m = mount(<MinionBook />);
     try {
       expect(pickerBtn(m.container)).toBeTruthy();
-      expect(pickerBtn(m.container).getAttribute('aria-label')).toContain(activeSet().name);
+      expect(pickerBtn(m.container).getAttribute('aria-label')).toContain(setPlaceName(activeSet()));
     } finally { m.unmount(); }
   });
 

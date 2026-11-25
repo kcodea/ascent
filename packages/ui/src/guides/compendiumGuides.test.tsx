@@ -8,7 +8,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { act } from 'react';
-import { SETS, activeSet, type SetId } from '@game/content';
+import { SETS, setPlaceName, activeSet, type SetId } from '@game/content';
 import { MinionBook } from '../MinionBook';
 import { useGame } from '../store';
 import { mount, type Mounted } from '../renderedText.mount';
@@ -86,7 +86,7 @@ describe('Compendium Guides tab', () => {
     click(guidesTab(m.container));
     const other = (Object.keys(SETS) as SetId[]).find((id) => id !== activeSet().id)!;
     act(() => { (m.container.querySelector('.book-setpick-btn') as HTMLButtonElement).click(); });
-    const opt = [...m.container.querySelectorAll<HTMLElement>('.book-setpick-opt')].find((o) => o.textContent?.startsWith(SETS[other].name))!;
+    const opt = [...m.container.querySelectorAll<HTMLElement>('.book-setpick-opt')].find((o) => o.textContent?.startsWith(setPlaceName(SETS[other])))!;
     act(() => { opt.click(); });
     expect(shownIds(m.container)).toEqual(guidesFor(other, SETS[other].tribes).map((g) => g.id));
   });

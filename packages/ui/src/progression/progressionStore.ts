@@ -539,6 +539,7 @@ export async function equipCosmetic(slot: EquipSlot, targetId: string, cosmeticI
   if (!userId) return false;
   // DEV ONLY: a frame granted by the dev test path equips locally, never on the server (see devGrantPortraitFrame).
   if (import.meta.env.DEV && slot === 'portrait_frame' && devEquipPortraitFrame(cosmeticId)) return true;
+  if (import.meta.env.DEV && slot === 'minion_skin' && devEquipConcept(targetId, cosmeticId)) return true;
   const out = await equipCosmeticRemote(slot, targetId, cosmeticId).catch(() => null);
   if (!out || out.status !== 'ok') return false;
   adoptProgressionProfile(userId, out.profile);
@@ -641,6 +642,51 @@ if (import.meta.env.DEV && typeof localStorage !== 'undefined') {
     try { applyDevFrames(); } finally { applying = false; }
   });
   applyDevFrames();
+}
+
+// ── DEV ONLY: CONCEPT skins (owner 2026-11-25: "add it as an equippable skin in my collection so i can turn it on/off") ──
+// Owned by every dev build and worn locally (`ascent.dev.concepts`), laid over the mirror in memory like the dev frames above: the server never hears of it.
+const DEV_CONCEPTS: readonly { id: string; cardId: string }[] = [{ id: 'skin_kennel_3', cardId: 'kennel' }];
+const DEV_CONCEPTS_KEY = 'ascent.dev.concepts';
+const loadConcepts = (): string[] => {
+  try { const x = JSON.parse(localStorage.getItem(DEV_CONCEPTS_KEY) ?? '[]') as unknown; return Array.isArray(x) ? x.filter((v): v is string => typeof v === 'string') : []; } catch { return []; }
+};
+function applyConcepts(): void {
+  if (loadDevUnlock()) return; // "Unlock everything" already owns and equips it
+  const userId = currentUserId();
+  const m = useProgression.getState().mirror ?? (userId ? { userId, accountXp: 0, accountLevel: 1, revision: 0, equippedTitleId: null, titles: [] } as ProgressionMirror : null);
+  if (!m) return;
+  const worn = loadConcepts();
+  const owned = m.cosmetics ?? m.titles;
+  const skins: Record<string, string> = { ...(m.loadout?.minionSkinByCardId ?? {}) };
+  for (const c of DEV_CONCEPTS) {
+    if (worn.includes(c.id)) skins[c.cardId] = c.id;
+    else if (skins[c.cardId] === c.id) delete skins[c.cardId];
+  }
+  const missing = DEV_CONCEPTS.map((c) => c.id).filter((id) => !owned.includes(id));
+  const before = JSON.stringify(m.loadout?.minionSkinByCardId ?? {});
+  if (!missing.length && JSON.stringify(skins) === before) return;
+  useProgression.setState({ mirror: { ...m, cosmetics: [...owned, ...missing], loadout: { ...(m.loadout ?? {}), minionSkinByCardId: skins } } });
+}
+/** Wear or take off a concept skin locally. False = not one: the server handles it (a concept on that card comes off first). */
+function devEquipConcept(targetId: string, cosmeticId: string | null): boolean {
+  const c = DEV_CONCEPTS.find((x) => x.cardId === targetId);
+  if (!c || loadDevUnlock()) return false;
+  const worn = loadConcepts();
+  const mine = cosmeticId === c.id || (cosmeticId === null && worn.includes(c.id));
+  const next = cosmeticId === c.id ? [...new Set([...worn, c.id])] : worn.filter((id) => id !== c.id);
+  try { localStorage.setItem(DEV_CONCEPTS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+  applyConcepts();
+  return mine;
+}
+if (import.meta.env.DEV && import.meta.env.MODE !== 'test' && typeof localStorage !== 'undefined') {
+  let laying = false;
+  useProgression.subscribe((s, prev) => {
+    if (laying || s.mirror === prev.mirror) return;
+    laying = true;
+    try { applyConcepts(); } finally { laying = false; }
+  });
+  queueMicrotask(applyConcepts);
 }
 
 /** The equipped title's display name for a mirror/profile, or null. */

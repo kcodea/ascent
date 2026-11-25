@@ -618,6 +618,9 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze(withCollections([
   skin('skin_packstrider_1', 'minion_skin', 'Plushie Packstrider', 'rare', 'b2_packstrider', 'Plushie Packstrider.png'),
   skin('skin_wolvie_1', 'minion_skin', 'Plushie Wolvie', 'rare', 'b2_wolvie', 'Plushie Wolvie.png'),
   skin('skin_kennel_2', 'minion_skin', 'Plushie Kennelmaster', 'epic', 'kennel', 'Plushie Kennelmaster.png'),
+  // HOLOGRAPHIC (concept, owner 2026-11-25: "make it an ancient tier skin"): the card's own art in moving pieces (ui skins/HoloArt.tsx). Not in any
+  // chest: an event item nobody is granted, owned only by a dev build (progressionStore DEV_CONCEPTS).
+  { ...skin('skin_kennel_3', 'minion_skin', 'Holographic Kennelmaster', 'ancient', 'kennel', 'Kennelmaster.png'), acquisition: { type: 'event', id: 'concept' } },
   skin('skin_raven_1', 'minion_skin', 'Plushie Raven', 'legendary', 'b2_raven', 'Plushie Raven.png'),
   skin('skin_seaurchin_3', 'minion_skin', 'Plushie Sea Urchin', 'legendary', 'seaurchin', 'Plushie Sea Urchin.png'),
   // Skins batch 13 (owner 2026-10-27: "ive added a lot of new skins to the collection via the folder"). Twenty-nine skins

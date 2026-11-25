@@ -130,6 +130,7 @@ import { artFor, artVariantKey } from './art';
 import { requestArt, useArtFade } from './artPreload';
 import { FadeImg } from './FadeImg';
 import { useMinionSkinMap } from './skins/skinArt';
+import { HoloArt, holoOf } from './skins/HoloArt';
 import { useCardPlateLook } from './cardPlate/cardPlateLook';
 import { renameTerms } from './terms';
 import { getRebirthConfig } from './rebirthConfig';
@@ -954,6 +955,7 @@ export const Card = memo(function Card({
   // stays invisible over the `.art-wait` placeholder and fades in once ready; art already decoded (the preload's
   // normal case) renders exactly as before, with no fade. See artPreload.ts.
   const artFade = useArtFade(artUrl);
+  const holo = holoOf(artUrl);
   // TAUNT frame: render the raster shield if the asset loads; on 404 fall back to the SVG placeholder.
   const [frameOk, setFrameOk] = useState(tauntFrameAvailable);
   const [starsOk, setStarsOk] = useState(tierStarsAvailable);
@@ -1241,6 +1243,7 @@ export const Card = memo(function Card({
           ) : (
             <Sprite name={spriteForTribe(card.tribe)} scale={5} />
           )}
+          {holo && <HoloArt holo={holo} />}
           {/* Reborn — a faint ethereal aqua-green dome + rising randomized wisps (CSS, replacing the old Pixi
               wisp), clipped to the oval window. Each wisp carries its own random position/size/rise/drift. */}
           {/* REBIRTH (`RB`) — the VEIL: soft blue fire licking up over the portrait's lower edge (clipped to the window,

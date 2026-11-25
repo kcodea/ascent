@@ -513,15 +513,24 @@ export function paintPackGlow(stops?: readonly string[]): HTMLCanvasElement {
   g.shadowColor = 'rgba(255,255,255,1)';
   g.shadowBlur = pad * 0.85;
   g.fillStyle = 'rgba(255,255,255,.9)';
-  rr(g, pad, pad, pw, ph, 14);
+  // the solid source of the halo sits a little INSIDE the pack's box (under the art), so only its soft falloff shows
+  // outside the wrapper, never a flat pale border
+  const tuck = 7 * TEX_RES;
+  rr(g, pad + tuck, pad + tuck, pw - tuck * 2, ph - tuck * 2, 14);
   g.fill();
-  // a halo only: the pack's own box is cleared, so nothing shows through where the torn strip was
-  g.shadowColor = 'transparent';
-  g.shadowBlur = 0;
+  // a halo only: the pack's middle is cleared, so no slab of glow shows where the torn strip was. The hole is INSET and
+  // SOFT-EDGED (owner 2026-11-24: "why does the card area have a dark hard line shadow around it?"): a hole cut exactly
+  // on the pack's box showed the stage through the wrapper's see-through crimps and past its tilted edges, as a dark
+  // hard-edged frame. The glow now runs on under the pack's edges and fades out well inside them.
+  const inset = 16 * TEX_RES;
+  g.shadowColor = '#000';
+  g.shadowBlur = 12 * TEX_RES;
   g.globalCompositeOperation = 'destination-out';
   g.fillStyle = '#000';
-  rr(g, pad, pad, pw, ph, 14);
+  rr(g, pad + inset, pad + inset, pw - inset * 2, ph - inset * 2, 14);
   g.fill();
+  g.shadowColor = 'transparent';
+  g.shadowBlur = 0;
   g.globalCompositeOperation = 'source-over';
   recolour(g, c.width, c.height, stops);
   return c;

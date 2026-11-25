@@ -41,12 +41,20 @@ export interface PackOpenerProps {
   queue: readonly PackQueueItem[];
   open: (packId: string) => Promise<PackOpenOutcome>;
   onOpened?: (r: PackOpenResult) => void;
+  /** The opener asks to close (with `exitFadeMs`: as its exit fade STARTS, so the parent can rise while it leaves). */
   onClose?: () => void;
+  /** The exit fade is done (at once, right after `onClose`, when there is none): the parent may unmount the opener now. */
+  onClosed?: () => void;
   reducedMotion?: boolean;
   /** Dev-only clock multiplier (the Pack Lab's slow-mo): scales the scene and the DOM handoff transitions. Default 1. */
   speed?: number;
   /** The shop's handoff: when > 0 the dialog mounts transparent (`pkop-entering`) and fades in over this many ms (slow-mo scaled). Omitted = no fade. */
   entryFadeMs?: number;
+  /**
+   * The way back to the shop: when > 0 a close fades the dialog out (`pkop-closing`, inert meanwhile) over this many ms
+   * (slow-mo scaled) between `onClose` and `onClosed`. Omitted, or under reduced motion = no fade.
+   */
+  exitFadeMs?: number;
   /** Tests inject a fake. */
   sceneFactory?: typeof createPackScene;
 }
@@ -90,7 +98,7 @@ export function summaryBest(cards: readonly PackCard[]): number[] {
     .map((x) => x.i);
 }
 
-export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, speed = 1, entryFadeMs = 0, sceneFactory = createPackScene }: PackOpenerProps) {
+export function PackOpener({ queue, open, onOpened, onClose, onClosed, reducedMotion, speed = 1, entryFadeMs = 0, exitFadeMs = 0, sceneFactory = createPackScene }: PackOpenerProps) {
   /** The scene said Pixi is unavailable (not allowed, or init failed): the reduced-motion path from then on. */
   const [pixiFailed, setPixiFailed] = useState(false);
   const reduced = (reducedMotion ?? prefersReducedMotion()) || pixiFailed;
@@ -102,6 +110,10 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, spee
     const raf = requestAnimationFrame(() => setEntering(false));
     return () => cancelAnimationFrame(raf);
   }, [entering]);
+  /** The exit fade (`exitFadeMs`): set once a close has started; the dialog is inert until the parent unmounts it. */
+  const [closing, setClosing] = useState(false);
+  const closingRef = useRef(false);
+  const exitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [phase, setPhaseState] = useState<PackPhase>('sealed');
   const [note, setNote] = useState<string | null>(null);
   const [result, setResult] = useState<PackOpenResult | null>(null);
@@ -177,6 +189,7 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, spee
       stopTimer();
       clearBigHold();
       clearTurns();
+      if (exitTimerRef.current) { clearTimeout(exitTimerRef.current); exitTimerRef.current = null; }
     };
   }, [clearBigHold, clearTurns, stopTimer]);
 
@@ -373,13 +386,28 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, spee
     sceneRef.current?.quickOpen();
   }, [go, item, reduced, request]);
 
+  /** Close: with an exit fade, `onClose` as it starts and `onClosed` when it is done; else both at once. Only once. */
+  const closeOutRef = useRef({ onClose, onClosed, ms: 0 });
+  closeOutRef.current = { onClose, onClosed, ms: exitFadeMs > 0 && !reduced ? exitFadeMs * (speed > 0 ? 1 / speed : 1) : 0 };
+  const close = useCallback((): void => {
+    if (closingRef.current) return;
+    const { onClose: started, onClosed: done, ms } = closeOutRef.current;
+    if (ms <= 0) { started?.(); done?.(); return; }
+    closingRef.current = true;
+    setClosing(true);
+    sceneRef.current?.setInputEnabled(false);
+    started?.();
+    exitTimerRef.current = setTimeout(() => { exitTimerRef.current = null; closeOutRef.current.onClosed?.(); }, ms);
+  }, []);
+
   const requestClose = useCallback((): void => {
-    if (phaseRef.current === 'summary' || !poppedRef.current) { onClose?.(); return; }
+    if (closingRef.current) return;
+    if (phaseRef.current === 'summary' || !poppedRef.current) { close(); return; }
     if (resultRef.current) { goSummary(); return; }
     // Popped but no answer yet: the cards are not known. Wait for them, then show the summary.
     closeWantedRef.current = true;
     go('waiting');
-  }, [go, goSummary, onClose]);
+  }, [close, go, goSummary]);
 
   const openNext = useCallback((): void => {
     stopTimer();
@@ -422,7 +450,7 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, spee
       const t = e.target as HTMLElement | null;
       if (t && (/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || t.isContentEditable)) return;
       if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); if (!e.repeat) keysRef.current.requestClose(); return; }
-      if (e.repeat) return;
+      if (e.repeat || closingRef.current) return;
       if (e.key !== 'Enter' && e.key !== ' ') return;
       if ((e.target as HTMLElement | null)?.tagName === 'BUTTON') return;
       if (phaseRef.current === 'sealed') { e.preventDefault(); keysRef.current.quickOpen(); }
@@ -544,9 +572,11 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, spee
   const newCount = cards.length - dupCount;
   const bestIndex = summaryBest(cards)[0] ?? -1;
 
+  const exitMs = closeOutRef.current.ms;
   const theatre = (
-    <div className={`pkop${entering ? ' pkop-entering' : ''}${entryFadeMs > 0 && !reduced ? ' pkop-fade' : ''}`} role="dialog" aria-modal="true" aria-label="Opening a pack" ref={dialogRef} tabIndex={-1}
-         style={speed === 1 && !(entryFadeMs > 0) ? undefined : ({ ...(speed === 1 ? null : { '--pk-slow': 1 / speed }), ...(entryFadeMs > 0 ? { '--pk-entry-ms': `${entryFadeMs * (speed > 0 ? 1 / speed : 1)}ms` } : null) } as CSSProperties)}>
+    <div className={`pkop${entering ? ' pkop-entering' : ''}${entryFadeMs > 0 && !reduced ? ' pkop-fade' : ''}${closing ? ' pkop-closing' : ''}`} role="dialog" aria-modal="true" aria-label="Opening a pack" ref={dialogRef} tabIndex={-1}
+         {...(closing ? { inert: '' } : null)}
+         style={speed === 1 && !(entryFadeMs > 0) && !closing ? undefined : ({ ...(speed === 1 ? null : { '--pk-slow': 1 / speed }), ...(entryFadeMs > 0 ? { '--pk-entry-ms': `${entryFadeMs * (speed > 0 ? 1 / speed : 1)}ms` } : null), ...(closing ? { '--pk-exit-ms': `${exitMs}ms` } : null) } as CSSProperties)}>
       <div className="pkop-scrim" aria-hidden />
       {/* The theatre content (the scene + the faces) shakes as one on a big pull; the slot, notes and buttons stay put. */}
       <div
@@ -626,7 +656,7 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, spee
           <button type="button" className="crate-btn pressable" onClick={openNext}>Open next</button>
         )}
         {phase === 'summary' && (
-          <button type="button" className="crate-btn crate-btn-quiet pressable" onClick={() => onClose?.()}>Done</button>
+          <button type="button" className="crate-btn crate-btn-quiet pressable" onClick={close}>Done</button>
         )}
       </div>
       {phase !== 'summary' && (

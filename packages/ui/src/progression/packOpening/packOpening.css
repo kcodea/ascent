@@ -10,7 +10,9 @@
    scaled inline). Only present when the shop passes entryFadeMs; opacity only. */
 .pkop-fade { transition: opacity var(--pk-entry-ms, 0ms) linear; }
 .pkop-entering { opacity: 0; }
-@media (prefers-reduced-motion: reduce) { .pkop-fade { transition: none; } .pkop-entering { opacity: 1; } }
+/* The way back to the shop (`exitFadeMs`): the dialog fades out as the shop rises behind it; inert meanwhile. */
+.pkop-closing { opacity: 0; pointer-events: none; transition: opacity var(--pk-exit-ms, 0ms) ease-in; }
+@media (prefers-reduced-motion: reduce) { .pkop-fade, .pkop-closing { transition: none; } .pkop-entering { opacity: 1; } }
 /* The theatre's backdrop: near-opaque and dark, so the menu never shows through (owner 2026-11-24: "the entire
    presentation"). The Pixi stage (packFx.ts) lights it during the opening; this is what the summary and the
    reduced-motion path stand on. */

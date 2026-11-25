@@ -566,3 +566,63 @@ describe('PackOpener: Escape in a real app', () => {
     } finally { window.removeEventListener('keydown', game); }
   });
 });
+
+describe('PackOpener: exitFadeMs (the way back to the shop)', () => {
+  beforeEach(() => { vi.useFakeTimers(); });
+  const dlg = (): HTMLElement | null => document.querySelector('.pkop');
+
+  it('a close fades the dialog out: onClose at once, inert while closing, onClosed when the fade is done', () => {
+    const onClose = vi.fn(), onClosed = vi.fn();
+    render({ onClose, onClosed, exitFadeMs: 200 });
+    click(btn('Close'));
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(onClosed).not.toHaveBeenCalled();
+    expect(dlg()!.classList.contains('pkop-closing')).toBe(true);
+    expect(dlg()!.hasAttribute('inert')).toBe(true);
+    expect(dlg()!.style.getPropertyValue('--pk-exit-ms')).toBe('200ms');
+    // closing: nothing more is asked of it, by key or by click
+    key('Escape');
+    click(btn('Close'));
+    expect(onClose).toHaveBeenCalledTimes(1);
+    act(() => { vi.advanceTimersByTime(199); });
+    expect(onClosed).not.toHaveBeenCalled();
+    act(() => { vi.advanceTimersByTime(1); });
+    expect(onClosed).toHaveBeenCalledTimes(1);
+  });
+
+  it("the summary's Done fades out too, slow-mo scaled", async () => {
+    const onClose = vi.fn(), onClosed = vi.fn();
+    render({ onClose, onClosed, exitFadeMs: 200, speed: 0.5 });
+    act(() => { fake().events.onPop(); });
+    await settle(ok(mk(5)));
+    click(btn('Close'));
+    click(btn('Done'));
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(dlg()!.style.getPropertyValue('--pk-exit-ms')).toBe('400ms');
+    act(() => { vi.advanceTimersByTime(399); });
+    expect(onClosed).not.toHaveBeenCalled();
+    act(() => { vi.advanceTimersByTime(1); });
+    expect(onClosed).toHaveBeenCalledTimes(1);
+  });
+
+  it('omitted, or under reduced motion, a close is immediate: onClose then onClosed, no closing class', () => {
+    for (const over of [{}, { exitFadeMs: 200, reducedMotion: true }]) {
+      const calls: string[] = [];
+      render({ onClose: () => calls.push('close'), onClosed: () => calls.push('closed'), ...over });
+      click(btn('Close'));
+      expect(calls).toEqual(['close', 'closed']);
+      expect(dlg()!.classList.contains('pkop-closing')).toBe(false);
+      expect(dlg()!.hasAttribute('inert')).toBe(false);
+      m?.unmount(); m = null;
+    }
+  });
+
+  it('unmounted mid-fade, onClosed never fires', () => {
+    const onClosed = vi.fn();
+    render({ onClosed, exitFadeMs: 200 });
+    click(btn('Close'));
+    m!.unmount(); m = null;
+    act(() => { vi.advanceTimersByTime(500); });
+    expect(onClosed).not.toHaveBeenCalled();
+  });
+});

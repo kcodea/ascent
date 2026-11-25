@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /**
  * The shop with the REAL opener mounted from it (jsdom has no WebGL, so the opener falls back to its reduced-motion path):
- * Esc reaches the opener exactly as in the Pack Lab, closes it, and does not close the shop.
+ * Esc reaches the opener exactly as in the Pack Lab, fades it out, and does not close the shop.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
@@ -43,11 +43,13 @@ describe('PackShop with the real opener', () => {
     expect(document.activeElement).toBe(document.querySelector('.pkop'));
     calls.length = 0;
     act(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); });
+    // the opener fades out over the shop, which is back at once (focus on the played pack), and then unmounts
+    expect(document.querySelector('.pkop')?.classList.contains('pkop-closing')).toBe(true);
+    expect(calls).toEqual(['setHand:h1,h2', 'visible:true:200']);
+    expect(document.activeElement?.getAttribute('data-pack')).toBe('h1');
+    await act(async () => { await new Promise((r) => setTimeout(r, 260)); });
     expect(document.querySelector('.pkop')).toBeNull();
     expect(calls).toEqual(['setHand:h1,h2', 'visible:true:200', 'input:true']);
     expect(onClose).not.toHaveBeenCalled();
-    expect(document.activeElement?.getAttribute('data-pack')).toBe('h1');
-    // let the opener's (failing) pixi init report before the console spies are restored
-    await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
   });
 });

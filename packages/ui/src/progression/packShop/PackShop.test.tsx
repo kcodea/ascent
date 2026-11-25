@@ -286,6 +286,7 @@ describe('PackShop', () => {
       const before = fake().calls.length;
       act(() => { openerProps!.onClose!(); });
       expect(fake().calls.slice(before, before + 2)).toEqual(['setHand:h3', 'visible:true:200']);
+      act(() => { openerProps!.onClosed!(); });
       expect(fake().calls.filter((c) => c === 'visible:true:200')).toHaveLength(1);
       expect(opener()).toBeNull();
       expect(handLabels()).toEqual(['Rare Pack, Open']);
@@ -314,7 +315,7 @@ describe('PackShop', () => {
       act(() => { vi.advanceTimersByTime(SHOP_PLAY_TRAVEL_MS); });
       expect(opener()?.getAttribute('data-queue')).toBe('h2,h1');
       const before = fake().calls.length;
-      act(() => { openerProps!.onClose!(); });
+      act(() => { openerProps!.onClose!(); openerProps!.onClosed!(); });
       expect(fake().calls.slice(before)).toContain('input:true');
     });
 
@@ -323,9 +324,29 @@ describe('PackShop', () => {
       click(btns('Rare Pack, Open')[0]);
       act(() => { openerProps!.onClose!(); });
       expect(document.activeElement?.getAttribute('data-pack')).toBe('h1');
+      act(() => { openerProps!.onClosed!(); });
       click(btns('Epic Pack, Open')[0]);
-      act(() => { openerProps!.onOpened!({ packId: 'h2', pack: look('epic', 'Epic Pack'), cards: [] }); openerProps!.onClose!(); });
+      act(() => { openerProps!.onOpened!({ packId: 'h2', pack: look('epic', 'Epic Pack'), cards: [] }); openerProps!.onClose!(); openerProps!.onClosed!(); });
       expect(document.activeElement).toBe(document.querySelector('.pks'));
+    });
+
+    it('the way back is a crossfade: the shop rises as the opener starts to leave, and the opener unmounts only when its fade is done', () => {
+      render({ hand: [owned('h1'), owned('h2', 'Epic Pack')] });
+      click(btns('Rare Pack, Open')[0]);
+      expect(openerProps!.exitFadeMs).toBe(200);
+      expect(document.querySelector('.pks')!.classList.contains('pks-away')).toBe(true);
+      const before = fake().calls.length;
+      act(() => { openerProps!.onClose!(); });
+      // the shop comes back now: its words and the scene rise while the opener fades out over it
+      expect(document.querySelector('.pks')!.classList.contains('pks-away')).toBe(false);
+      expect(fake().calls.slice(before)).toEqual(['setHand:h1,h2', 'visible:true:200']);
+      expect(opener()).not.toBeNull();
+      // nothing can be played or picked up until the opener has gone
+      click(btns('Epic Pack, Open')[0]);
+      expect(opener()?.getAttribute('data-queue')).toBe('h1,h2');
+      act(() => { openerProps!.onClosed!(); });
+      expect(opener()).toBeNull();
+      expect(fake().calls.slice(before)).toEqual(['setHand:h1,h2', 'visible:true:200', 'input:true']);
     });
 
     it('unmounting during the wait leaves no timer firing', () => {

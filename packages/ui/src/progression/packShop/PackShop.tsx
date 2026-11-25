@@ -35,7 +35,9 @@ import './packShop.css';
  *
  * The hand shown is `hand`, plus packs bought here that the parent has not passed yet (by `packId`), minus packs opened
  * here. Playing a pack hides the scene and mounts `PackOpener` with that pack first and the rest of the hand after it;
- * on its close the hand is updated BEFORE the scene is shown again (or the played pack flashes back into the fan).
+ * on its close the hand is updated BEFORE the scene is shown again (or the played pack flashes back into the fan). The
+ * way back is a crossfade: the opener's `onClose` starts its exit fade (`exitFadeMs`) and the shop rises under it at
+ * once (the scene, the words, the refund stream, focus); its `onClosed` unmounts it and gives the scene its input back.
  *
  * Reduced motion, or no Pixi (`onUnavailable`): no scene; a grid of pack cards with Buy buttons and a row of owned packs
  * with Open buttons.
@@ -116,6 +118,8 @@ export function PackShop(props: PackShopProps) {
   const [held, setHeld] = useState<string | null>(null);
   const [overLine, setOverLine] = useState(false);
   const [opening, setOpening] = useState<readonly PackQueueItem[] | null>(null);
+  /** The opener is fading out over the shop (its `onClose` .. `onClosed`): the shop is already back, not yet usable. */
+  const [leaving, setLeaving] = useState(false);
 
   // Latest values for the scene's handlers and the async purchase.
   const offersRef = useRef(offers); offersRef.current = offers;
@@ -316,13 +320,13 @@ export function PackShop(props: PackShopProps) {
     setOpened(next);
   }, []);
 
-  const closeOpener = useCallback((): void => {
-    setOpening(null);
+  /** The opener has started to leave (its exit fade): the shop comes back under it. */
+  const openerLeaving = useCallback((): void => {
+    setLeaving(true);
     const scene = sceneRef.current;
     // The hand as it now stands FIRST, then the scene comes back.
     scene?.setHand(shownHandOf(handRef.current, boughtRef.current, openedRef.current));
     scene?.setVisible(true, SHOP_HANDOFF_MS);
-    scene?.setInputEnabled(true);
     // Aether that arrived while the opener was up (its duplicates' refund) streams into the wallet now
     const st = streamRef.current;
     if (st.deferred !== null && !st.active) {
@@ -346,6 +350,13 @@ export function PackShop(props: PackShopProps) {
       ? dialogRef.current?.querySelector<HTMLElement>(`[data-pack="${played}"]`) : null;
     (item ?? dialogRef.current)?.focus();
   }, [finishStream, setTally]);
+
+  /** The opener has faded out: it unmounts, and only now can a pack be picked up or played again. */
+  const openerGone = useCallback((): void => {
+    setOpening(null);
+    setLeaving(false);
+    sceneRef.current?.setInputEnabled(true);
+  }, []);
 
   // ------------------------------------------------------------------ the scene
 
@@ -545,7 +556,7 @@ export function PackShop(props: PackShopProps) {
   }, [shelves, offers]);
 
   const shop = (
-    <div className={`pks${opening ? ' pks-away' : ''}`} role="dialog" aria-modal="true" aria-label="Pack shop" ref={dialogRef} tabIndex={-1}
+    <div className={`pks${opening && !leaving ? ' pks-away' : ''}`} role="dialog" aria-modal="true" aria-label="Pack shop" ref={dialogRef} tabIndex={-1}
          onKeyDown={onArrows}>
       <div className="pkop-scrim" aria-hidden />
       {!reduced && <div className="pks-fx" ref={hostRef} aria-hidden />}
@@ -640,7 +651,8 @@ export function PackShop(props: PackShopProps) {
     <>
       {createPortal(shop, stageHost())}
       {opening && (
-        <PackOpener queue={opening} open={open} reducedMotion={reducedMotion} onOpened={(r) => onOpened(r.packId)} entryFadeMs={SHOP_HANDOFF_MS} onClose={closeOpener} />
+        <PackOpener queue={opening} open={open} reducedMotion={reducedMotion} onOpened={(r) => onOpened(r.packId)} entryFadeMs={SHOP_HANDOFF_MS}
+                    exitFadeMs={SHOP_HANDOFF_MS} onClose={openerLeaving} onClosed={openerGone} />
       )}
     </>
   );

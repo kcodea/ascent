@@ -126,6 +126,7 @@ export function PackShop(props: PackShopProps) {
   const buyRef = useRef(buy); buyRef.current = buy;
   const onCloseRef = useRef(onClose); onCloseRef.current = onClose;
   const pendingRef = useRef(false);
+  const playedRef = useRef<string | null>(null);
   const playTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const openingRef = useRef(opening); openingRef.current = opening;
   /** Request ids of attempts still waiting for a definite answer, by `buyKey`. */
@@ -207,7 +208,7 @@ export function PackShop(props: PackShopProps) {
 
   /** Buy `offer`. `viaScene`: the scene is holding the pack at the hand and waits for `buySettled`. */
   const purchase = useCallback((offer: PackOffer, viaScene: boolean): void => {
-    if (pendingRef.current) return;
+    if (pendingRef.current || playTimerRef.current !== null) return;
     const key = buyKey(offer);
     let requestId = idsRef.current.get(key);
     if (!requestId) { requestId = mintRequestId(); idsRef.current.set(key, requestId); }
@@ -284,7 +285,8 @@ export function PackShop(props: PackShopProps) {
 
   // ------------------------------------------------------------------ playing a pack
 
-  const play = useCallback((packId: string): void => {
+  /** `viaScene`: the drag-drop on the pedestal, where the scene carries the pack to the opener's pose (so we wait for it). */
+  const play = useCallback((packId: string, viaScene = false): void => {
     const all = shownHandRef.current;
     const first = all.find((p) => p.packId === packId);
     if (!first || openingRef.current || playTimerRef.current !== null) return;
@@ -293,11 +295,14 @@ export function PackShop(props: PackShopProps) {
     // The scene carries the pack to the opener's pose itself; only then does the scene hide and the opener mount.
     const mountOpener = (): void => {
       playTimerRef.current = null;
+      playedRef.current = packId;
       sceneRef.current?.setVisible(false, SHOP_HANDOFF_MS);
       setOpening([first, ...shownHandRef.current.filter((p) => p.packId !== packId)]);
     };
-    // No scene (reduced motion) means no pack is travelling: go straight to the opener.
-    if (!sceneRef.current) { mountOpener(); return; }
+    // Only a drop on the pedestal makes the scene carry a pack (and no scene, no travel): every other path goes at once.
+    if (!viaScene || !sceneRef.current) { mountOpener(); return; }
+    // The shop is busy until the opener closes: nothing else may be picked up or bought while the pack travels.
+    sceneRef.current.setInputEnabled(false);
     playTimerRef.current = setTimeout(mountOpener, SHOP_PLAY_TRAVEL_MS);
   }, []);
   useEffect(() => () => { if (playTimerRef.current !== null) clearTimeout(playTimerRef.current); playTimerRef.current = null; }, []);
@@ -314,7 +319,12 @@ export function PackShop(props: PackShopProps) {
     // The hand as it now stands FIRST, then the scene comes back.
     scene?.setHand(shownHandOf(handRef.current, boughtRef.current, openedRef.current));
     scene?.setVisible(true, SHOP_HANDOFF_MS);
-    dialogRef.current?.focus();
+    scene?.setInputEnabled(true);
+    // Focus goes back to the hand item that was played, if it is still in the hand, else to the dialog.
+    const played = playedRef.current;
+    const item = played && !openedRef.current.has(played)
+      ? dialogRef.current?.querySelector<HTMLElement>(`[data-pack="${played}"]`) : null;
+    (item ?? dialogRef.current)?.focus();
   }, []);
 
   // ------------------------------------------------------------------ the scene
@@ -346,7 +356,7 @@ export function PackShop(props: PackShopProps) {
         });
       },
       onPickUp: (from, id) => {
-        if (!live) return;
+        if (!live || playTimerRef.current !== null) return;
         pickRef.current = { id, at: performance.now() };
         setSel(null);
         setHover(null);
@@ -361,13 +371,14 @@ export function PackShop(props: PackShopProps) {
         setHeld(null);
         setOverLine(false);
         if (action === 'buy') {
+          if (playTimerRef.current !== null) { sceneRef.current?.buySettled(false); return; }
           if (pendingRef.current) return;
           const offer = offersRef.current.find((o) => o.offerId === id);
           if (!offer) { sceneRef.current?.buySettled(false); return; }
           purchaseRef.current(offer, true);
           return;
         }
-        if (action === 'play') { playRef.current(id); return; }
+        if (action === 'play') { playRef.current(id, true); return; }
         // A quick press and release is a tap: select the pack and show its Buy / Open button.
         if (pick && pick.id === id && performance.now() - pick.at <= TAP_MS) {
           const kind = offersRef.current.some((o) => o.offerId === id) ? 'shelf' : 'hand';
@@ -431,7 +442,7 @@ export function PackShop(props: PackShopProps) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       // The opener has its own keys (its Esc closes it, not the shop); a handled key is not ours.
-      if (openingRef.current || e.defaultPrevented || e.repeat) return;
+      if (openingRef.current || playTimerRef.current !== null || e.defaultPrevented || e.repeat) return;
       if (e.key === 'Escape') {
         e.preventDefault();
         if (!pendingRef.current) onCloseRef.current?.();
@@ -548,7 +559,7 @@ export function PackShop(props: PackShopProps) {
             <ul aria-label="Your hand" data-arrows="hand">
               {shownHand.map((p) => (
                 <li key={p.packId}>
-                  <button type="button" data-arrow-item onClick={() => play(p.packId)}>{`${p.look.name}, Open`}</button>
+                  <button type="button" data-arrow-item data-pack={p.packId} onClick={() => play(p.packId)}>{`${p.look.name}, Open`}</button>
                 </li>
               ))}
             </ul>

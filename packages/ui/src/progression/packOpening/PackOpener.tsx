@@ -404,7 +404,13 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, spee
     dialogRef.current?.focus();
   }, [clearBigHold, clearTurns, go, stopTimer]);
 
-  useEffect(() => { dialogRef.current?.focus(); }, []);
+  // Focus the dialog on mount, and once more a frame later: something behind it (the shop that mounted us) may have
+  // moved focus as it hid, and the keys (Esc) belong to the opener.
+  useEffect(() => {
+    dialogRef.current?.focus();
+    const raf = requestAnimationFrame(() => { const d = dialogRef.current; if (d && !d.contains(document.activeElement)) d.focus(); });
+    return () => cancelAnimationFrame(raf);
+  }, []);
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       const t = e.target as HTMLElement | null;

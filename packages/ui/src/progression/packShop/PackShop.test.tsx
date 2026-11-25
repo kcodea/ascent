@@ -290,6 +290,43 @@ describe('PackShop', () => {
       expect(handLabels()).toEqual(['Rare Pack, Open']);
     });
 
+    it('a play from a button or the hand item (no drag) hides the scene and mounts the opener at once', () => {
+      render({ hand: [owned('h1'), owned('h2', 'Epic Pack')] });
+      click(btns('Rare Pack, Open')[0]);
+      expect(fake().calls.at(-1)).toBe('visible:false:200');
+      expect(opener()?.getAttribute('data-queue')).toBe('h1,h2');
+      expect(fake().calls).not.toContain('input:false');
+    });
+
+    it('while the pack travels the shop is busy: input is off, Buy and a second Open do nothing, then input returns on close', () => {
+      render({ hand: [owned('h1'), owned('h2', 'Epic Pack')] });
+      fire((e) => { e.onDrop('play', 'h2', R); });
+      expect(fake().calls.at(-1)).toBe('input:false');
+      // a Buy press (the tag's button) and a second Open press
+      click(shelfItem('epic'));
+      click(btn('Buy for 500 Aether'));
+      expect(buys).toHaveLength(0);
+      click(btns('Rare Pack, Open')[0]);
+      fire((e) => { e.onPickUp('shelf', 'rare'); e.onDrop('buy', 'rare', R); });
+      expect(buys).toHaveLength(0);
+      expect(fake().calls.at(-1)).toBe('buySettled:false');
+      act(() => { vi.advanceTimersByTime(SHOP_PLAY_TRAVEL_MS); });
+      expect(opener()?.getAttribute('data-queue')).toBe('h2,h1');
+      const before = fake().calls.length;
+      act(() => { openerProps!.onClose!(); });
+      expect(fake().calls.slice(before)).toContain('input:true');
+    });
+
+    it('on close, focus returns to the played hand item if it is still in the hand, else to the dialog', () => {
+      render({ hand: [owned('h1'), owned('h2', 'Epic Pack')] });
+      click(btns('Rare Pack, Open')[0]);
+      act(() => { openerProps!.onClose!(); });
+      expect(document.activeElement?.getAttribute('data-pack')).toBe('h1');
+      click(btns('Epic Pack, Open')[0]);
+      act(() => { openerProps!.onOpened!({ packId: 'h2', pack: look('epic', 'Epic Pack'), cards: [] }); openerProps!.onClose!(); });
+      expect(document.activeElement).toBe(document.querySelector('.pks'));
+    });
+
     it('unmounting during the wait leaves no timer firing', () => {
       render({ hand: [owned('h1'), owned('h2', 'Epic Pack')] });
       fire((e) => { e.onDrop('play', 'h2', R); });

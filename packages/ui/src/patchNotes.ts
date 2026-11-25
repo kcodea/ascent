@@ -66,6 +66,7 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'Systems',
         text: 'Fixed Ranked Duos breaking on the second game of a party: it replayed fights from the game before and never came back to the Shop.',
       },
+      { category: 'Systems', text: 'The trip back to the Shop after a fight has freshly painted scenery: new sky, hills, Shop and flowers.' },
     ],
   },
   {

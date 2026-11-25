@@ -56,6 +56,12 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-11-25',
+    changes: [
+      { category: 'Systems', text: 'The trip back to the Shop after a fight has freshly painted scenery: new sky, hills, Shop and flowers.' },
+    ],
+  },
+  {
     date: '2026-11-24',
     changes: [
       {

@@ -13,7 +13,7 @@ import { useGame } from './store';
 import { PracticeOptions } from './PracticeOptions';
 
 const LIVE: SetId = activeSet().id;
-const DEV: SetId = practiceSetOptions().find((o) => !o.live)!.id;
+const DEV: SetId = 'set3'; // the Underbelly: any location but the live one
 
 let ui: Mounted | null = null;
 afterEach(() => {
@@ -35,7 +35,7 @@ const press = (b: HTMLElement): void => { act(() => { b.dispatchEvent(new MouseE
 describe('the Practice screen: dev-only Locations row', { timeout: 120_000 }, () => {
   it('offers the locations by name (owner 2026-11-24), the live one lit by default', () => {
     const el = open();
-    expect(buttons(el, 'Locations').map((b) => b.textContent)).toEqual(['The Outskirts', 'The Underbelly']);
+    expect(buttons(el, 'Locations').map((b) => b.textContent)).toEqual(['Scrapyard', 'The Outskirts', 'The Underbelly', 'Rune Barriers']);
     expect(lit(el, 'Locations')).toEqual(['The Outskirts']);
     expect(el.textContent).not.toMatch(/Set \d/);
   });

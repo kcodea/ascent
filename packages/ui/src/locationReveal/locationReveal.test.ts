@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest';
 import { SETS } from '@game/content';
 import { DEFAULT_PRACTICE_CONFIG, runTribesForSeed, VERSUS_HERO_SELECT_SECONDS, VERSUS_REVEAL_SECONDS, type PracticeConfig } from '@game/sim';
 import { versusHeroSelectMs } from '@game/sim/versus/server';
-import { LOCATIONS, locationName, locationOfSet, POSTER_NAME, postersFor } from './locations';
+import { isTribePoster, LOCATIONS, locationName, locationOfSet, POSTER_NAME, postersFor } from './locations';
 import { pendingLocation, pendingReveal, practiceLocation } from './pendingLocation';
 import { LEAN, leanAt, mountAtmosphere } from './atmosphereGl';
 import { openAt, OPEN_FREE, OPEN_S, primeRipple, readyRipple, rippleFar, rippleR, rippleReach, RIPPLE_S, STILL_S } from './heroRipple';
@@ -25,17 +25,30 @@ const PUBLIC = join(__dirname, '../../../../apps/web/public/locations');
 const cfg = (over: Partial<PracticeConfig> = {}): PracticeConfig => ({ ...DEFAULT_PRACTICE_CONFIG, ...over });
 
 describe('the locations', () => {
-  it('Set 2 is the Outskirts and Set 3 the Underbelly; Sets 1 and 4 have none', () => {
+  it('every announcer line is as loud as the others (R-LOCATION-12): each clip at its measured loudness, brought to the same', () => {
+    // Integrated loudness of the clips (BS.1770, 2026-11-25). A new line is measured and added here.
+    const lufs: Record<string, number> = { outskirts: -15.5, underbelly: -14.4, scrapyard: -18.4, runebarriers: -14 };
+    for (const l of Object.values(LOCATIONS)) expect(Math.abs(lufs[l.id]! + 20 * Math.log10(l.mix.line) - -15.5), l.id).toBeLessThan(0.3);
+  });
+
+  it('Set 1 is the Scrapyard, 2 the Outskirts, 3 the Underbelly, 4 the Rune Barriers (R-LOCATION-11)', () => {
     expect(locationName(LOCATIONS.outskirts)).toBe('The Outskirts');
     expect(locationName(LOCATIONS.underbelly)).toBe('The Underbelly');
     expect(locationOfSet('set2')?.id).toBe('outskirts');
     expect(locationOfSet('set3')?.id).toBe('underbelly');
-    for (const id of ['set1', 'set4'] as const) { expect(locationOfSet(id)).toBeNull(); expect(SETS[id].location).toBeUndefined(); }
+    expect(locationOfSet('set1')?.id).toBe('scrapyard');
+    expect(locationOfSet('set4')?.id).toBe('runebarriers');
+    expect(locationName(LOCATIONS.scrapyard)).toBe('Scrapyard');
+    expect(locationName(LOCATIONS.runebarriers)).toBe('Rune Barriers');
+    expect(LOCATIONS.scrapyard.line).toBe('Ahh... the Scrapyards.');
+    expect(LOCATIONS.runebarriers.line).toBe('The great Rune Barriers.');
+    // Guardians hang there though no set has the tribe yet (owner 2026-11-25), whatever the game's tribes are.
+    expect(postersFor(LOCATIONS.runebarriers, ['beast'])).toEqual(['guardian', 'beast']);
   });
 
   it('each hangs exactly its own tribes, and ships every picture and sound it names', () => {
     for (const l of Object.values(LOCATIONS)) {
-      expect([...l.posters].sort()).toEqual([...SETS[l.setId].tribes].sort());
+      expect(l.posters.filter(isTribePoster).sort()).toEqual([...SETS[l.setId].tribes].sort());
       for (const f of ['flat', 'blur', 'data', 'water', 'layer0', 'layer1', 'layer2', 'layer3', ...l.posters.flatMap((t) => [`poster-${t}`, `sheet-${t}`])]) {
         expect(existsSync(join(PUBLIC, l.id, `${f}.webp`)), `${l.id}/${f}`).toBe(true);
       }
@@ -49,7 +62,8 @@ describe('the locations', () => {
     expect(at('lobby', { setId: 'set3' })).toBe('outskirts');
     expect(at('practice')).toBe('outskirts');
     expect(at('practice', { setId: 'set3' })).toBe('underbelly');
-    expect(at('practice', { setId: 'set4' })).toBe('outskirts');
+    expect(at('practice', { setId: 'set4' })).toBe('runebarriers');
+    expect(at('practice', { setId: 'set1' })).toBe('scrapyard');
     expect(practiceLocation(cfg({ setId: 'set3', godMode: true }))?.id).toBe('outskirts');
     for (const m of ['gauntlet', 'versus', 'rift', 'tutorial']) expect(at(m)).toBeNull();
   });
@@ -161,7 +175,7 @@ describe('the live modes (owner 2026-11-24, R-LOCATION-03)', () => {
   it('the match is played at the location of its set, with the tribes of that player', () => {
     expect(versusLocation('set2')?.id).toBe('outskirts');
     expect(versusLocation('set3')?.id).toBe('underbelly');
-    for (const s of ['set1', 'nonsense', null, undefined]) expect(versusLocation(s)).toBeNull();
+    for (const s of ['nonsense', null, undefined]) expect(versusLocation(s)).toBeNull();
     expect(at()?.location.id).toBe('outskirts');
     expect(at()?.tribes).toEqual(postersFor(LOCATIONS.outskirts, runTribesForSeed(5, 'set2')));
   });
@@ -171,14 +185,14 @@ describe('the live modes (owner 2026-11-24, R-LOCATION-03)', () => {
       expect(revealSeconds(l.posters.length) + 0.9).toBeLessThanOrEqual(VERSUS_REVEAL_SECONDS);
       expect(versusHeroSelectMs(l.setId)).toBe((VERSUS_HERO_SELECT_SECONDS + VERSUS_REVEAL_SECONDS) * 1000);
     }
-    expect(versusHeroSelectMs('set1')).toBe(VERSUS_HERO_SELECT_SECONDS * 1000);
+    expect(versusHeroSelectMs('nonsense')).toBe(VERSUS_HERO_SELECT_SECONDS * 1000);
   });
 
   it('it never eats the pick clock: a server without the extra seconds, a late arrival, a pause or a later phase skip it', () => {
     expect(at({ remainingMs: VERSUS_HERO_SELECT_SECONDS * 1000 })).toBeNull();
     expect(at({ remainingMs: full - 6000 })).toBeNull();
     expect(at({ remainingMs: full - 1500 })).not.toBeNull();
-    for (const o of [{ remainingMs: null }, { paused: true }, { phase: 'shop' }, { setId: 'set1' }]) expect(at(o)).toBeNull();
+    for (const o of [{ remainingMs: null }, { paused: true }, { phase: 'shop' }, { setId: 'nonsense' }]) expect(at(o)).toBeNull();
   });
 
   it('the clock face waits at 20 through it', () => {

@@ -44,7 +44,7 @@ const VARIANT_BASES = new Set(['buy', 'sell', 'smack', 'cleave']);
  * variant family collapses onto that base; the irregular table catches the rest; anything else is 1:1.
  */
 export function familyOf(clip: string): string {
-  if (clip.startsWith('heroes/')) return clip.endsWith('.power') ? 'heroPower' : 'heroSelect';
+  if (clip.startsWith('heroes/')) return clip.endsWith('.power') ? 'heroPower' : clip.includes('.') ? 'heroSelect' : 'heroLine';
   if (clip.startsWith('cards/')) return clip.endsWith('.effect') ? 'cardEffect' : clip.endsWith('.death') ? 'cardDeath' : 'cardVoice';
   if (clip.startsWith('ceremony/')) return 'ceremony';
   // FX-primitive clips imported through the workbench (`fx/<slug>`) all share ONE desk fader. Their slugs are

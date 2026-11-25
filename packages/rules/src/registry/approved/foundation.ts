@@ -17156,7 +17156,8 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Owner, 2026-11-24', quote: 'ranked stays outskirts only for now' },
       { kind: 'code', ref: 'packages/content/src/sets.ts (SetDef.location); packages/sim/src/practiceTribes.ts (practiceSetOptions, practiceSetOf); packages/ui/src/locationReveal/pendingLocation.ts' },
     ],
-    enforcement: { kind: 'scenario', refs: ['packages/sim/src/lobby/practiceDevSet.test.ts', 'packages/ui/src/PracticeOptionsSet.test.tsx', 'packages/ui/src/locationReveal/locationReveal.test.ts'], lastVerifiedAt: '2026-11-24' },
+    currentBehaviour: 'PARTLY SUPERSEDED 2026-11-25 by R-LOCATION-11: Set 1 is the Scrapyard and Set 4 the Rune Barriers, and Practice offers all four.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/lobby/practiceDevSet.test.ts', 'packages/ui/src/PracticeOptionsSet.test.tsx', 'packages/ui/src/locationReveal/locationReveal.test.ts'], lastVerifiedAt: '2026-11-25' },
   },
   {
     id: 'R-LOCATION-02',
@@ -17412,16 +17413,50 @@ export const FOUNDATION_RULES: GameRule[] = [
     title: 'The Compendium lists each set by the name of its location',
     statement:
       'The Compendium\x27s picker reads Location and lists Scrapyard (Set 1), The Outskirts (Set 2), The Underbelly (Set 3) and Rune Barriers '
-      + '(Set 4), in that order, with Live on the one new games play. A player never reads "Set N" there. Scrapyard and Rune Barriers are names '
-      + 'only for now: no reveal, no Practice pick and no longer hero select clock come with them.',
+      + '(Set 4), in that order, with Live on the one new games play. A player never reads "Set N" there. (Scrapyard and Rune Barriers '
+      + 'were names only until R-LOCATION-11.)',
     domain: 'foundation',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Owner, 2026-11-25, with a screenshot of the Compendium set picker', quote: 'rename these here as well to the locations. name Set 1 -> Scrapyard name Set 4 -> Forest\x27s Edge' },
       { kind: 'owner-chat', ref: 'Owner, 2026-11-25 (the name of Set 4)', quote: 'Rename forests edge to rune barriers' },
-      { kind: 'code', ref: 'packages/content/src/sets.ts (placeName, setPlaceName); packages/ui/src/MinionBook.tsx; packages/ui/src/CompendiumSetPicker.tsx' },
+      { kind: 'code', ref: 'packages/content/src/sets.ts (setPlaceName); packages/ui/src/MinionBook.tsx; packages/ui/src/CompendiumSetPicker.tsx' },
     ],
     currentBehaviour: 'Conforms, built 2026-11-25 (feat/compendium-locations). The picker itself is dev-only. Other dev tools (Scene Builder, balance panel) keep the internal set names.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/compendiumSetPicker.test.tsx'], lastVerifiedAt: '2026-11-25' },
+  },
+  {
+    id: 'R-LOCATION-11',
+    title: 'The Scrapyard (Set 1) and the Rune Barriers (Set 4) are locations, picked in Practice by developers',
+    statement:
+      'Set 1 is played at the Scrapyard and Set 4 at the Rune Barriers, with everything a location has: the reveal from their own painting in '
+      + 'layers, water and lights, their parchments, their travel and ambience sounds, hero select over them, and the announcer saying "Ahh... the '
+      + 'Scrapyards." and "The great Rune Barriers." Practice\x27s dev-only Locations row offers all four locations; a player build offers none, '
+      + 'and no live mode moves: Ranked, Versus and Ranked Duos stay at The Outskirts.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-25', quote: 'i have art for scrapyard and rune barriers added as the set 1 and set 4 locations. can you go through the same motion of parallaxing them and wiring them up? allow devs to select them in practice mode as well.' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-25', quote: 'add announcer lines for both of these while we\x27re here, and bespoke sound effects where necessary like the background noise. Lines: "Ahh... the Scrapyards." "The great Rune Barriers"' },
+      { kind: 'code', ref: 'packages/ui/src/locationReveal/locations.ts (scrapyard, runebarriers); scripts/locations/layers.py; scripts/locations/watermap.py; scripts/locations/sound.mjs' },
+    ],
+    currentBehaviour: 'Built 2026-11-25 (feat/scrapyard-rune-barriers). The owner has not seen or heard it yet. Guardians hang at the Rune Barriers (owner 2026-11-25: "Add guardians to the rune barriers") though no set has the tribe yet: that parchment opens nothing.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/locationReveal/locationReveal.test.ts', 'packages/ui/src/PracticeOptionsSet.test.tsx'], lastVerifiedAt: '2026-11-25' },
+  },
+  {
+    id: 'R-LOCATION-12',
+    title: 'The hero\x27s line and the announcer\x27s line are equally loud, as loud as the travel',
+    statement:
+      'Every hero\x27s hero select line plays at the same measured loudness, the location announcer lines play at that loudness too, whichever '
+      + 'location, and both sit level with the sound of the travel and the landing. A new line is measured and given its own trim. Lines said '
+      + 'during a game keep their own level.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-25', quote: 'Can you make sure the hero select lines are all loud enough / equally loud to match sounds of the travel animations etc' },
+      { kind: 'code', ref: 'packages/ui/src/audio/config.ts (heroLine, clips); packages/ui/src/locationReveal/locations.ts (mix.line); packages/ui/src/locationReveal/revealSound.ts' },
+    ],
+    currentBehaviour: 'Built 2026-11-25 (feat/scrapyard-rune-barriers), by measurement (about -17 LUFS at the default sliders; the hero lines were -23). The owner has not heard it yet.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/locationReveal/locationReveal.test.ts', 'packages/ui/src/audio/config.test.ts'], lastVerifiedAt: '2026-11-25' },
   },
 ];

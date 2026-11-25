@@ -6,7 +6,7 @@
  */
 import { announcerOutput } from '../announcer';
 import { audioContext, fxBusTarget, isMuted } from '../sfx';
-import { locationSound, type LocationId } from './locations';
+import { LOCATIONS, locationSound, type LocationId } from './locations';
 import { holdAmbience, seamless } from './placeAmbience';
 import { clamp, L, NAME, outroAt, posterRest, realOf, ROLL_STEP, simEnd, START, T0, washAt } from './revealTimeline';
 
@@ -49,11 +49,11 @@ export function revealCues(id: LocationId, n: number): Cue[] {
   const name = t(NAME);
   const end = t(simEnd(n));
   const ride = land - t0;
-  const bright = id === 'outskirts';
+  const { mix } = LOCATIONS[id];
   return [
     { clip: 'charge', at: t0 - 0.74, gain: 0.55, reverse: true },
     {
-      clip: `ride-${id}`, at: t0 - 0.05, gain: bright ? 0.85 : 0.72, loop: true, len: ride + 0.3,
+      clip: `ride-${id}`, at: t0 - 0.05, gain: mix.ride, loop: true, len: ride + 0.3,
       env: [[0, 0], [0.55, 0.6], [ride - 0.35, 1], [ride - 0.04, 0.45], [ride + 0.3, 0]], rate: [[0, 0.86], [ride, 1.28]], pan: [[0, 0], [0.35, -0.45], [1.1, -0.15], [ride, 0.18]],
     },
     { clip: 'gather', at: land - 0.53, gain: 0.95 },
@@ -61,12 +61,12 @@ export function revealCues(id: LocationId, n: number): Cue[] {
     { clip: 'wave', at: land - 0.06, gain: 0.48 },
     { clip: 'weld', at: land + 0.06, gain: 0.85 },
     {
-      clip: `ambience-${id}`, at: land + 0.1, gain: bright ? 1.9 : 0.75, loop: true, stays: true,
+      clip: `ambience-${id}`, at: land + 0.1, gain: mix.ambience, loop: true, stays: true,
       // the place goes on sounding into hero select, a step back from where the reveal had it
       env: [[0, 0], [0.75, 0.8], [name - land - 0.1, 0.8], [name - land + 0.15, 0.42], [name - land + 2, 0.42], [name - land + 2.7, 1], [end - land - 1.1, 1], [end - land + 0.6, AMBIENCE_STAY]],
     },
     { clip: 'title', at: name - 0.12, gain: 0.62 },
-    { clip: `vo-${id}`, at: name + LINE_DELAY, gain: VOICE, voice: true },
+    { clip: `vo-${id}`, at: name + LINE_DELAY, gain: VOICE * mix.line, voice: true },
     ...Array.from({ length: n }, (_, i): Cue => ({
       clip: 'poster', at: t(posterRest(i, n).at) - 0.1, gain: 0.36, lowpass: 1900, env: [[0, 0.2], [0.1, 1], [0.8, 1], [1, 0]],
       rate: [[0, POSTER_RATE[i % POSTER_RATE.length]!]], pan: [[0, clamp((i - (n - 1) / 2) * 0.32, -1, 1)]],
@@ -85,7 +85,7 @@ export function revealCues(id: LocationId, n: number): Cue[] {
 export function lightCues(id: LocationId, n: number, at: { name: number; posters: number; step: number; leave: number }): Cue[] {
   return [
     { clip: 'title', at: at.name - 0.12, gain: 0.62 },
-    { clip: `vo-${id}`, at: at.name + LINE_DELAY, gain: VOICE, voice: true },
+    { clip: `vo-${id}`, at: at.name + LINE_DELAY, gain: VOICE * LOCATIONS[id].mix.line, voice: true },
     ...Array.from({ length: n }, (_, i): Cue => ({ clip: 'poster', at: at.posters + i * at.step - 0.1, gain: 0.3, lowpass: 1900, env: [[0, 0.2], [0.1, 1], [0.8, 1], [1, 0]], rate: [[0, POSTER_RATE[i % POSTER_RATE.length]!]] })),
     { clip: 'wave', at: at.leave - 0.2, gain: 0.3, rate: [[0, 1.08]], lowpass: 5200 },
   ];

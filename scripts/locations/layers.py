@@ -3,14 +3,15 @@
    piece's own colour is carried out under its soft edge, so no rim of background travels with it.
  - BEHIND: what a piece hides continues as the mirror of what is beside it (real texture), easing into a smooth fill.
  - FEET: where a piece stands on something it is faded in, and the ground under it has the piece's own depth, so nothing slides.
-python scripts/locations/layers.py [o|u] [proof-dir]   (from the repo root; see docs/locations.md)"""
+python scripts/locations/layers.py [o|u|s|r] [proof-dir]   (from the repo root; see docs/locations.md)"""
 import os
 import sys
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter
 from scipy import sparse
 from scipy.sparse.linalg import cg
-from scipy.ndimage import binary_dilation, binary_erosion, distance_transform_edt, gaussian_filter, gaussian_filter1d, uniform_filter
+from scipy.sparse.csgraph import maximum_flow
+from scipy.ndimage import binary_dilation, binary_erosion, distance_transform_edt, gaussian_filter, gaussian_filter1d, label, map_coordinates, uniform_filter
 
 Image.MAX_IMAGE_PIXELS = None
 OUT_H = 1440
@@ -73,6 +74,97 @@ def matte(img, known, value, lam=120.0, eps=2e-6):
     out = value.copy().ravel()
     out[u] = np.clip(x, 0, 1)
     return out.reshape(h, w)
+
+
+def snap(I, fg, bg, reach=34, lam=3.2, rounds=3):
+    """WHERE THE EDGE REALLY IS: `fg` and `bg` are certain, everything else is decided by a graph cut on the painting's own
+    colours near it (each pixel against the certain ones around it), so an outline only has to be close. Returns the mask."""
+    from numba import njit, prange
+
+    @njit(parallel=True, fastmath=True, cache=False)
+    def cost(I, lab, ys, xs, reach, out):
+        h, w = lab.shape
+        for n in prange(len(ys)):
+            y, x = ys[n], xs[n]
+            s0, s1, n0, n1 = 0., 0., 1e-6, 1e-6
+            st = (y * 7919 + x * 104729) & 0x7fffffff
+            for k in range(900):
+                st = (st * 1103515245 + 12345) & 0x7fffffff
+                r = reach * (.12 + .88 * ((st >> 8) & 1023) / 1023.)
+                st = (st * 1103515245 + 12345) & 0x7fffffff
+                a = ((st >> 8) & 4095) / 4095. * 6.2832
+                yy, xx = int(y + r * np.sin(a)), int(x + r * np.cos(a))
+                if yy < 0 or xx < 0 or yy >= h or xx >= w:
+                    continue
+                l = lab[yy, xx]
+                if l == 2:
+                    continue
+                d = (I[yy, xx, 0] - I[y, x, 0]) ** 2 + (I[yy, xx, 1] - I[y, x, 1]) ** 2 + (I[yy, xx, 2] - I[y, x, 2]) ** 2
+                q = np.exp(-d / (2 * .055 ** 2)) + .004
+                if l == 1:
+                    s1 += q
+                    n1 += 1
+                else:
+                    s0 += q
+                    n0 += 1
+            p1 = s1 / n1 if n1 > 2 else .004
+            p0 = s0 / n0 if n0 > 2 else .004
+            out[n] = np.log((p1 + 1e-4) / (p0 + 1e-4))
+
+    h_, w_ = fg.shape
+    unk = ~fg & ~bg
+    ys, xs = np.nonzero(unk)
+    if not len(ys):
+        return fg.copy()
+    idx = np.full((h_, w_), -1, np.int64)
+    idx[ys, xs] = np.arange(len(ys))
+    lab = np.where(fg, 1, np.where(bg, 0, 2)).astype(np.int8)
+    out = np.zeros(len(ys))
+    If = I.astype(np.float64)
+    mask = fg.copy()
+    # the pairs, once
+    pairs = []
+    for dy, dx, far in ((0, 1, 1.), (1, 0, 1.), (1, 1, 1.414), (1, -1, 1.414)):
+        for sy, sx in ((dy, dx), (-dy, -dx)):
+            yy, xx = ys + sy, xs + sx
+            ok = (yy >= 0) & (xx >= 0) & (yy < h_) & (xx < w_)
+            n = np.flatnonzero(ok)
+            d = ((If[ys[n], xs[n]] - If[yy[n], xx[n]]) ** 2).sum(1)
+            pairs.append((n, yy[n], xx[n], d, far))
+    sig = np.median(np.concatenate([q[3] for q in pairs])) * 3 + 1e-4
+    for it in range(rounds):
+        cost(If, lab, ys, xs, float(reach), out)
+        src = np.maximum(out, 0) * 1.
+        snk = np.maximum(-out, 0) * 1.
+        rows, cols, vals = [], [], []
+        N = len(ys)
+        for n, yy, xx, d, far in pairs:
+            v = lam * (np.exp(-d / sig) + .035) / far
+            j = idx[yy, xx]
+            m = j >= 0
+            rows.append(n[m]); cols.append(j[m]); vals.append(v[m])
+            src[n[~m]] += v[~m] * fg[yy[~m], xx[~m]]
+            snk[n[~m]] += v[~m] * bg[yy[~m], xx[~m]]
+        rows += [np.full(N, N), np.arange(N)]
+        cols += [np.arange(N), np.full(N, N + 1)]
+        vals += [src, snk]
+        G = sparse.coo_matrix((np.round(np.concatenate(vals) * 200).astype(np.int64), (np.concatenate(rows), np.concatenate(cols))), shape=(N + 2, N + 2)).tocsr()
+        G.data = np.minimum(G.data, 2 ** 30).astype(np.int32)
+        G.eliminate_zeros()
+        f = maximum_flow(G, N, N + 1).flow
+        res = (G - f).tocsr()
+        res.data = np.maximum(res.data, 0)
+        res.eliminate_zeros()
+        seen = np.zeros(N + 2, bool)
+        order = sparse.csgraph.breadth_first_order((res > 0).astype(np.int8), N, return_predecessors=False)
+        seen[order] = True
+        mask = fg.copy()
+        mask[ys, xs] = seen[:N]
+        # the next round learns from what is well inside either side
+        inn = binary_erosion(mask, iterations=2)
+        outn = binary_erosion(~mask, iterations=2)
+        lab = np.where(fg | (inn & unk), 1, np.where(bg | (outn & unk), 0, 2)).astype(np.int8)
+    return mask
 
 
 def pushpull(img, w):
@@ -149,12 +241,60 @@ def guided(I, p, r, eps):
     return np.clip(m(a) * I + m(mp - a * mi), 0, 1)
 
 
-def make(tag, folder, file, specs, depth, wind, water):
+def registered(I, B, hole):
+    """the owner's background moved onto the painting where the two drifted (a few pixels, smoothly): offsets of the
+    tiles they share, eased across the rest"""
+    S2 = 1980 / W
+    small = lambda a: np.asarray(Image.fromarray(np.uint8(np.clip(a, 0, 1) * 255)).resize((1980, 840), Image.BOX), float) / 255
+    g = lambda a: gaussian_filter(small(a) @ np.array([.30, .59, .11]), 1.2)
+    ed = lambda a: np.hypot(*np.gradient(g(a)))
+    ei, eb = ed(I), ed(B)
+    ho = np.asarray(Image.fromarray(np.uint8(hole * 255)).resize((1980, 840), Image.NEAREST)) > 127
+    n, win, pts = 128, np.outer(np.hanning(128), np.hanning(128)), []
+    for y in range(0, 840 - n, 64):
+        for x in range(0, 1980 - n, 64):
+            w = ~ho[y:y + n, x:x + n]
+            if w.mean() < .85:
+                continue
+            p, q = ei[y:y + n, x:x + n] * w, eb[y:y + n, x:x + n] * w
+            p, q = (p - p.mean()) * win, (q - q.mean()) * win
+            F = np.fft.fft2(p) * np.conj(np.fft.fft2(q))
+            c = np.fft.ifft2(F / (np.abs(F) ** .6 + 1e-6)).real
+            dy, dx = [v if v < n / 2 else v - n for v in np.unravel_index(c.argmax(), c.shape)]
+            if c.max() / c.std() > 9 and abs(dx) < 20 and abs(dy) < 20:
+                pts.append((x + n / 2, y + n / 2, -dx, -dy))
+    P = np.array(pts)
+    yy, xx = np.mgrid[0:60, 0:140] * 14 + 7.
+    num_, den = np.zeros((60, 140, 2)), np.full((60, 140), 1e-9)
+    for x, y, dx, dy in P:
+        near = P[np.hypot(P[:, 0] - x, P[:, 1] - y) < 220]
+        if np.hypot(dx - np.median(near[:, 2]), dy - np.median(near[:, 3])) > 3:
+            continue
+        k = np.exp(-((xx - x) ** 2 + (yy - y) ** 2) / (2 * 170 ** 2)) + 1e-7
+        num_ += k[..., None] * np.array([dx, dy])
+        den += k
+    f = num_ / den[..., None]
+    up_ = lambda a: np.asarray(Image.fromarray(a.astype(np.float32)).resize((W, H), Image.BICUBIC)) / S2
+    fx, fy = up_(f[..., 0]), up_(f[..., 1])
+    print('registered: mean', np.abs(f).mean().round(2), 'most', np.abs(f).max().round(1), 'of', len(P), 'tiles', flush=True)
+    Y, X = np.mgrid[0:H, 0:W].astype(float)
+    return np.stack([map_coordinates(B[..., i], [Y + fy, X + fx], order=1, mode='nearest') for i in range(3)], -1)
+
+
+def make(tag, folder, file, specs, depth, wind, water, back=None, align=False):
     """The painting itself is the ground; the owner's background shows only where a piece hides it. So nothing can be lost."""
     master = Image.open(ART + file).convert('RGB')
     I = np.asarray(master.resize((W, H), Image.LANCZOS), float) / 255
-    B = np.asarray(Image.open(ART + file.replace('4k.jpg', '4kBG.jpg')).convert('RGB').resize((W, H), Image.LANCZOS), float) / 255
+    B = np.asarray(Image.open(ART + (back or file.replace('4k.jpg', '4kBG.jpg'))).convert('RGB').resize((W, H), Image.LANCZOS), float) / 255
     lum = I @ np.array([.30, .59, .11])
+    if align:
+        hole = np.zeros((H, W), bool)
+        for li in (1, 2, 3):
+            for polys, holes, band in specs[li]['groups']:
+                hole |= binary_dilation(raster(polys) > .5, iterations=24)
+            for zone, fn in specs[li].get('key', []):
+                hole |= raster([zone]) > .5
+        B = registered(I, B, hole)
     near = np.zeros((H, W))
     free = np.ones((H, W), bool)
     done = []
@@ -173,27 +313,76 @@ def make(tag, folder, file, specs, depth, wind, water):
         unk &= ~core
         val = np.where(core, 1., np.where(unk, solid, 0.))
         for zone, fn in sp.get('key', []):
-            z = (raster([zone]) > .5) & (near < .5) & ~core
+            z = (raster([zone]) > .5) & (near < .5) & (~core | bool(specs.get('snap')))
             f, b = fn(I, lum)
-            val = np.where(z & f, 1., np.where(z & b, 0., np.where(z, .5, val)))
-            unk = np.where(z, ~(f | b), unk)
+            if specs.get('snap'):          # inside an outline only what is plainly background is opened
+                op = z & core & (I[..., 2] - I[..., 0] > .04) & (lum > .55)
+                lab_, n_ = label(op)
+                op &= (np.bincount(lab_.ravel()) > 250)[lab_]
+                if sp.get('open'):         # and where a lattice is known to let the light through, anything pale
+                    op |= (raster(sp['open']) > .5) & core & (lum > .50) & (I[..., 2] - I[..., 0] > -.02)
+                op = binary_dilation(op, iterations=5) & core
+                zz = z & (~core | op)
+                val = np.where(zz & f & ~(core & ~op), 1., np.where(zz & b, 0., np.where(zz, .5, val)))
+                unk = np.where(zz, ~(f | b), unk)
+            else:
+                val = np.where(z & f, 1., np.where(z & b, 0., np.where(z, .5, val)))
+                unk = np.where(z, ~(f | b), unk)
         fade = raster(sp['fade'], sp.get('soft', 8) * S) if sp.get('fade') else np.zeros((H, W))
         for q, b in sp.get('mist', []):
             fade = np.maximum(fade, raster([q], b * S))
         unk &= near < .5
-        a = matte(I, ~unk, val)
-        a = np.clip((a - .07) / .85, 0, 1)
+        if specs.get('snap'):
+            sure = (val > .5) & ~unk
+            none = (val <= .5) & ~unk
+            cut = snap(I, sure, none)
+            for flip, least in ((False, 90), (True, 60)):      # no specks, no pinholes
+                m = ~cut if flip else cut
+                lab_, n_ = label(m)
+                size = np.bincount(lab_.ravel())
+                drop = (size < least)[lab_] & m & unk
+                cut = np.where(drop, flip, cut)
+            edge = binary_dilation(cut, iterations=2) & ~binary_erosion(cut, iterations=2, border_value=1) & unk
+            a = matte(I, ~edge, cut.astype(float))
+            a = np.clip((a - .05) / .90, 0, 1)
+            a = np.minimum(a, np.clip(gaussian_filter(cut.astype(float), 1.1) * 2.2, 0, 1))   # nothing outside the cut
+        else:
+            a = matte(I, ~unk, val)
+            a = np.clip((a - .07) / .85, 0, 1)
         a = np.where(near > .5, np.maximum(a, solid), a)
         a = a * (1 - np.clip(fade * 1.02, 0, 1))
         mine = gaussian_filter(fade, 9 * S)
         free &= ~((a > .015) & (mine < .10))
         clean = (a > .94) & (near < .03)
         clean = binary_erosion(clean, iterations=1, border_value=1)
-        F = mirror(I, clean, 34)
+        if specs.get('snap'):              # a piece's colour never comes from its own soft edge
+            clean = binary_erosion(a > .9, iterations=2, border_value=1) & (near < .03) | ((a > .97) & ~binary_dilation(a < .5, iterations=2) & (near < .03))
+        F = mirror(I, clean, sp.get('reach', 34))
+        if sp.get('misty'):                # what is behind a nearer piece here is mist: the light around it, with no crease and no stone
+            acc, got = np.zeros_like(I), np.zeros((H, W))
+            for s in (8, 18, 40, 90, 200):
+                w_ = clean * np.clip((lum - .50) / .28, .01, 1) ** 2 * np.clip((I[..., 2] - I[..., 0]) / .10 + .4, .02, 1)
+                q = gaussian_filter(w_, s)
+                c = np.stack([gaussian_filter(I[..., i] * w_, s) for i in range(3)], -1) / np.maximum(q, 1e-6)[..., None]
+                t = np.clip(q / .06, 0, 1) * (1 - got)
+                acc += c * t[..., None]
+                got += t
+            soft_ = acc / np.maximum(got, 1e-4)[..., None]
+            lab_, n_ = label(clean)        # what shows through a hole of that piece is no edge to continue
+            big = clean & (np.bincount(lab_.ravel()) > 20000)[lab_]
+            k_ = np.maximum(np.exp(-(distance_transform_edt(~big) / 22) ** 2), np.exp(-(distance_transform_edt(~clean) / 7) ** 2))[..., None]
+            F = np.where(clean[..., None], I, F * k_ + soft_ * (1 - k_))
+        if sp.get('back'):                 # what a nearer piece hides of this one is the owner's background
+            z = gaussian_filter(binary_dilation(near > .03, iterations=3).astype(float), 5)[..., None]
+            q = np.maximum(gaussian_filter(clean.astype(float), 34), 1e-4)
+            D = (gaussian_filter(lum * clean, 34) + .02 * q) / (gaussian_filter((B @ np.array([.30, .59, .11])) * clean, 34) + .02 * q)      # in this picture's own light
+            F = F * (1 - z) + np.clip(B * np.clip(D, .42, 1.1)[..., None], 0, 1) * z
         ck = gaussian_filter(clean.astype(float), .8)[..., None]
         done.append((li, np.clip(I * ck + F * (1 - ck), 0, 1), a))
         near = np.maximum(near, a)
         print(tag, li, 'matted', int(unk.sum()), 'px', flush=True)
+    for q in specs.get('clean', []):   # where the owner's background is the ground, whole (nothing of a piece can be left in it)
+        free &= ~(raster([q]) > .5)
     free = binary_erosion(free, iterations=2, border_value=1)
     # the background, with its light brought to the painting's where the two meet
     q = 6
@@ -206,9 +395,24 @@ def make(tag, folder, file, specs, depth, wind, water):
     E = np.stack([np.asarray(Image.fromarray(E[..., i].astype(np.float32)).resize((W, H), Image.BICUBIC)) for i in range(3)], -1)
     E *= np.exp(-(distance_transform_edt(~free) / 190) ** 2)[..., None]
     w0 = gaussian_filter(free.astype(float), 1.6)[..., None]
-    under = np.clip(np.maximum(B + np.clip(E, -.16, .22), B * .55), 0, 1)
+    tone = specs.get('tone', .22)
+    under = np.clip(np.maximum(B + np.clip(E, -min(.16, tone), tone), B * .55), 0, 1)
     if specs.get('fill'):              # where the background grew something of its own right beside a piece: continue the painting instead
-        M = mirror(I, fr, 110)
+        M = mirror(I, fr, specs.get('range', 110))
+        if specs.get('haze'):
+            # haze: the colours around, spread ever wider, never a crease
+            acc, got = np.zeros_like(I), np.zeros((H, W))
+            for s in (6, 14, 30, 64, 130, 260):
+                w_ = fr * np.clip((lum - .42) / .30, .02, 1) ** 2
+                q = gaussian_filter(w_, s)
+                c = np.stack([gaussian_filter(I[..., i] * w_, s) for i in range(3)], -1) / np.maximum(q, 1e-6)[..., None]
+                t = np.clip(q / .10, 0, 1) * (1 - got)
+                acc += c * t[..., None]
+                got += t
+            soft_ = acc / np.maximum(got, 1e-4)[..., None]
+            dd = distance_transform_edt(~fr)
+            k_ = np.exp(-(dd / 10) ** 2)[..., None]
+            M = M * k_ + soft_ * (1 - k_)
         z = raster(specs['fill'], 14)[..., None]
         under = under * (1 - z) + M * z
     bout = np.clip(I * w0 + under * (1 - w0), 0, 1)
@@ -227,13 +431,20 @@ def make(tag, folder, file, specs, depth, wind, water):
     Image.fromarray(np.uint8(vis * 255)).resize((1980, 840)).save(PREV + f'lost-{tag}.png')
     Image.fromarray(np.uint8(bout * 255)).resize((1980, 840)).save(PREV + f'ground-{tag}.png')
     for nm, (px, py, k) in {'a': (-.16, -.08, .08), 'b': (.28, .06, .25)}.items():
-        c = warp(bout, depth, px, py, k)
+        c = warp(bout, depth * (0 if specs.get('planes') else 1), px, py, k)
         for li in (1, 2, 3):
             C, A = out_layers[li]
-            c = over(c, C, A, DEP[li] * .25, px, py, k)
+            c = over(c, C, A, specs['planes'] if specs.get('planes') and li == 1 else DEP[li] * .25, px, py, k)
         Image.fromarray(np.uint8(np.clip(c, 0, 1) * 255)).save(PREV + f'move-{tag}-{nm}.png')
     master.resize((1886, 800), Image.LANCZOS).save(out + 'flat.webp', quality=86)
     master.resize((960, 407), Image.LANCZOS).filter(ImageFilter.GaussianBlur(3.4)).point(lambda v: int(v * .84)).save(out + 'blur.webp', quality=88)
+    if specs.get('planes'):            # hero select's lean reads the same planes
+        x = np.repeat(np.linspace(0, 1, W)[None, :], H, 0)
+        depth = np.zeros((H, W))
+        for li in (1, 2, 3):
+            A = out_layers[li][1]
+            depth = depth * (1 - A) + specs['planes'](x)[li - 1] * 4 * A
+        depth = gaussian_filter(depth, 5 * S)
     data = np.dstack([depth, wind, water])
     Image.fromarray(np.uint8(np.clip(data, 0, 1) * 255)).resize((990, 420), Image.LANCZOS).save(out + 'data.webp', lossless=True)
 
@@ -278,7 +489,12 @@ def warp(tex, depth, px, py, k):
 
 
 def over(c, C, A, dep, px, py, k):
-    u, v = at(dep, px, py, k)
+    if callable(dep):
+        u, v = at(.085, px, py, k)
+        for _ in range(4):
+            u, v = at(dep(u)[0], px, py, k)
+    else:
+        u, v = at(dep, px, py, k)
     a = sample(A, u, v)[..., None]
     return c * (1 - a) + sample(C, u, v) * a
 
@@ -397,5 +613,136 @@ def underbelly():
     make('u', 'underbelly', 'TheUnderbelly/Underbelly4k.jpg', specs, gaussian_filter(d, 6 * S), wind, water)
 
 
-for k in (sys.argv[1:] or ['o', 'u']):
-    outskirts() if k == 'o' else underbelly()
+def wood(I, lum):
+    """brown wood, iron and red cloth against a blue sky and pale cliffs"""
+    r, b = I[..., 0], I[..., 2]
+    return ((r - b > .07) & (lum < .50)) | (r - b > .24) | (lum < .27), ((b - r > .015) & (lum > .40)) | ((lum > .62) & (r - b < .02))
+
+
+def dim(I, lum):
+    """near timber against the same timber gone pale with distance"""
+    r, b = I[..., 0], I[..., 2]
+    return (lum < .33) | ((r - b > .14) & (lum < .46)), (lum > .56) | ((b - r > .03) & (lum > .46))
+
+
+def hazy(I, lum):
+    """the same, gone grey with distance"""
+    return lum < .46, lum > .57
+
+
+def scrapyard():
+    global VP
+    VP = [.50, .37]
+    sA = view(.17, 0, .47, .58, 1500, 1230)
+    sB = view(0, .17, .21, .78, 1500, 1848)
+    sC = view(.58, 0, .92, .72, 1500, 1347)
+    sD = view(.68, .20, 1, 1, 1500, 1590)
+    sE = view(0, .62, .48, 1, 1500, 504)
+    s3 = view(.17, 0, .47, .36, 1500, 764)
+    crane = s3([(205, -20), (160, 200), (150, 236), (140, 237), (120, 325), (92, 345), (84, 395), (95, 408), (20, 655), (50, 640), (80, 660), (110, 690), (120, 705), (180, 728), (190, 745), (215, 752), (270, 752), (320, 764)]) + sA([(390, 870), (452, 965), (475, 945), (512, 916), (545, 920), (572, 800), (590, 702), (616, 704), (632, 640), (636, 545)]) + s3([
+        (640, 545), (700, 505), (800, 450), (838, 432), (858, 400), (856, 345), (822, 300), (870, 300), (908, 290), (968, 246), (975, 285), (1026, 308), (1078, 280), (1090, 294), (1160, 250), (1168, 202), (1228, 176), (1284, 160), (1300, 180), (1330, 236), (1346, 238), (1352, 180), (1395, 138), (1412, 100), (1420, 50), (1412, -20)])
+    crane_holes = [s3([(365, -20), (383, -20), (395, 60), (400, 100), (420, 215), (302, 262), (300, 245), (330, 130)]), s3([(281, 373), (420, 322), (422, 395), (402, 443), (350, 525), (288, 600), (225, 690), (194, 733), (190, 690), (212, 600), (230, 515), (246, 440)]), s3([(534, -20), (585, -20), (566, 36), (570, 46), (560, 98), (549, 106), (541, 60)]), s3([(1077, 264), (1092, 244), (1122, 250), (1102, 280), (1079, 290)])]
+    ezc = view(.17, 0, .47, .46, 1800, 1169)
+    s4 = view(.83, .02, 1, .64, 1500, 2320)
+    post = s4([(290, 1920), (400, 1900), (470, 1915), (545, 2042), (600, 2190), (645, 2330), (512, 2330), (470, 2210), (420, 2080), (375, 1990), (300, 1985)])
+    linkholes = [ezc([(884, 1062), (912, 1050), (924, 1090), (916, 1138), (892, 1142), (880, 1100)])]
+    cranetop = s3([(690, -30), (1225, -30), (1180, 6), (1088, 42), (1030, 36), (970, 64), (800, 118), (735, 140), (690, 112)])
+    cranechains = [sA([(700, 10), (760, 8), (850, 50), (912, 66), (912, 104), (840, 100), (810, 122), (720, 84)]), sA([(838, 336), (900, 300), (940, 240), (1010, 262), (1000, 330), (980, 420), (1060, 430), (1110, 400), (1180, 300), (1230, 190), (1300, 160), (1344, 230), (1350, 360), (1330, 420), (1368, 420), (1366, 500), (1330, 520), (1392, 620), (1392, 700),
+                                                                                                                      (1310, 742), (1230, 720), (1205, 650), (1220, 580), (1262, 590), (1270, 530), (1240, 510), (1244, 440), (1270, 420), (1264, 290), (1200, 400), (1130, 470), (1040, 520), (960, 510), (910, 480), (870, 540), (800, 610), (690, 655), (660, 640), (620, 600), (650, 570), (760, 560), (780, 480), (840, 470)])]
+    hang = [sA([(780, 440), (806, 440), (804, 500), (790, 540), (800, 560), (796, 660), (804, 690), (798, 780), (772, 800), (774, 850), (786, 870), (778, 950), (768, 980), (770, 1040), (740, 1076), (706, 1068), (712, 1020), (722, 980), (722, 900), (740, 850), (742, 780), (744, 690), (768, 660), (776, 560), (766, 500)])]
+    stall = sB([(-40, 46), (40, 46), (104, 88), (135, 78), (150, 92), (215, 152), (305, 210), (405, 278), (480, 310), (585, 338), (705, 380), (784, 392), (806, 356), (836, 360), (834, 430), (866, 464), (846, 500), (864, 545), (945, 610), (1065, 690), (1165, 728), (1250, 738), (1262, 680), (1290, 648), (1332, 668), (1322, 760), (1378, 782), (1382, 812),
+                (1358, 882), (1302, 850), (1292, 900), (1262, 1050), (1210, 1300), (1170, 1560), (1132, 1700), (1068, 1700), (900, 1720), (700, 1860), (300, 1880), (-40, 1880)])
+    rope = sB([(1282, 880), (1304, 1000), (1330, 1150), (1372, 1310), (1424, 1400), (1396, 1418), (1350, 1330), (1308, 1150), (1280, 980)])
+    yard = [sC([(185, 985), (330, 900), (440, 828), (578, 798), (590, 768), (622, 768), (640, 788), (700, 758), (760, 590), (752, 570), (784, 540), (800, 572), (900, 560), (1040, 510), (1150, 445), (1148, 395), (1166, 395), (1176, 460), (1230, 486), (1320, 470), (1330, 458), (1352, 470), (1340, 560), (1400, 552), (1470, 610), (1540, 640), (1660, 640), (1870, 480), (1870, 1330), (900, 1330), (700, 1310), (640, 1290), (500, 1300), (320, 1330), (40, 1320), (30, 1250), (55, 1200), (55, 1070), (25, 1050), (150, 985)]),
+            sC([(500, 142), (600, 116), (706, 72), (706, 200), (722, 670), (690, 652), (668, 600), (654, 680), (616, 754), (596, 630), (560, 722), (512, 798)]), sC([(400, 500), (500, 480), (860, 480), (1010, 520), (1040, 540), (860, 600), (780, 600), (700, 770), (640, 800), (570, 800), (440, 830), (400, 820)]),
+            sC([(358, 440), (395, 400), (500, 395), (500, 480), (400, 500), (360, 470)]), sC([(700, 350), (850, 315), (1050, 425), (1072, 440), (1052, 500), (960, 486), (700, 480)]), sC([(1180, 345), (1250, 320), (1260, 300), (1360, 320), (1445, 370), (1460, 405), (1180, 405)]), sC([(1165, 235), (1250, 138), (1380, 175), (1445, 245), (1370, 240), (1300, 180)])]
+    yardzone = [sC([(372, 860), (372, 640), (380, 600), (350, 460), (350, 400), (400, 280), (400, 140), (500, 120), (690, 44), (790, 44), (850, 110), (950, 180), (960, 250), (1160, 160), (1180, 130), (1260, 120), (1360, 60), (1410, 70), (1420, 160), (1470, 250), (1480, 560), (1540, 560), (1540, 660), (1400, 560), (1160, 470), (1000, 530), (800, 600), (640, 800), (420, 840)]),
+                sD([(900, 180), (1060, 110), (1180, 0), (1260, 0), (1260, 130), (1320, 80), (1420, 100), (1440, 150), (1330, 300), (1200, 460), (1100, 400)])]
+    tent = sD([(1560, -120), (1495, 20), (1450, 125), (1402, 222), (1330, 305), (1205, 462), (1060, 560), (935, 630), (905, 604), (870, 622), (880, 648), (855, 658), (865, 698), (905, 704), (950, 815), (1010, 1005), (1060, 1180), (1100, 1260), (1560, 1300)])
+    tent_holes = [sD([(935, 700), (1000, 722), (1056, 795), (1076, 802), (1062, 855), (968, 858)])]
+    pileR = sD([(505, 948), (640, 890), (785, 832), (960, 853), (1060, 862), (1110, 800), (1290, 765), (1560, 760), (1560, 1660), (440, 1660), (470, 1540), (505, 1470), (585, 1372), (583, 1250), (570, 1200), (530, 1140), (510, 1080)])
+    blockR = sD([(440, 1660), (470, 1540), (505, 1470), (590, 1375), (640, 1345), (745, 1318), (790, 1360), (860, 1400), (950, 1450), (1075, 1482), (1080, 1440), (1112, 1400), (1112, 1300), (1150, 1290), (1200, 1230), (1250, 1190), (1330, 1165), (1360, 1135), (1560, 1140), (1560, 1660)])
+    pileL = sE([(-40, 318), (60, 328), (150, 362), (240, 408), (300, 440), (350, 398), (400, 418), (402, 330), (420, 280), (455, 235), (470, 214), (520, 187), (580, 182), (610, 138), (640, 150), (660, 180), (672, 90), (693, 58), (725, 88), (757, 160), (757, 196), (820, 174), (826, 210), (814, 270), (852, 266), (854, 300), (836, 326), (872, 273), (902, 284), (1002, 360), (1062, 420), (1118, 500), (1135, 560), (-40, 560)])
+    s1 = view(.60, .28, .72, .56, 1500, 1484)
+    pz = view(.54, .40, .70, .64, 700, 446)
+    arm = pz([(230, 146), (262, 146), (264, 190), (270, 197), (385, 216), (385, 224), (350, 232), (330, 240), (300, 262), (225, 284), (202, 292), (200, 275), (228, 268), (232, 220), (218, 214), (218, 188), (230, 186)])
+    sidezone = s1([(280, 1300), (285, 1230), (320, 890), (425, 890), (425, 590), (360, 580), (358, 490), (420, 485), (420, 440), (495, 440), (500, 500), (640, 470), (745, 440), (755, 345), (830, 345), (880, 250), (835, 250), (840, 0), (910, 0), (880, 1010), (560, 1180)])
+    ez1 = view(.655, 0, 1, .5, 1800, 1107)
+    openings = [ez1(q) for q in [[(30, 440), (210, 440), (212, 1000), (160, 1000), (150, 960), (90, 1000), (60, 1100), (0, 1100), (0, 900), (40, 560)], [(610, 590), (800, 590), (800, 650), (640, 660)], [(985, 290), (1000, 300), (1080, 190), (1010, 185), (1010, 440), (1090, 440), (1090, 380), (1040, 380)], [(1440, 740), (1740, 640), (1720, 700), (1600, 860), (1480, 800)]]]
+    towerzone = sC([(1160, 400), (1470, 400), (1484, 565), (1345, 560), (1335, 480), (1180, 470)])
+    scrap = {
+        1: dict(reach=55, open=openings, groups=[(yard, None, 7), ([arm], None, 5)], key=[(z, wood) for z in yardzone] + [(sidezone, dim)] + [(towerzone, hazy)]),
+        2: dict(reach=55, groups=[([crane], crane_holes, 8), ([stall], None, 8), ([rope], None, 4), (hang, linkholes, 5), ([post], None, 5), ([tent], tent_holes, 7), ([pileR], None, 8)], key=[(z, wood) for z in cranechains + hang + [cranetop]]),
+        3: dict(groups=[([blockR, pileL], None, 9)]),
+        'clean': [[(.175, -.02), (.46, -.02), (.46, .17), (.45, .36), (.40, .36), (.35, .28), (.335, .30), (.30, .26), (.26, .34), (.17, .30), (.18, .20), (.20, .12)], [(.662, .10), (.69, .04), (.735, .01), (.78, .04), (.80, .10), (.84, .08), (.865, .10), (.880, .035), (.90, .035), (.912, .08), (.935, .16), (.955, .16), (.99, .20), (.97, .34), (.93, .42), (.80, .40), (.69, .42), (.678, .42), (.678, .30), (.662, .26)]],
+        'snap': True, 'tone': .015,
+    }
+    d = ramp(.60, .9) * .86
+    d = np.maximum(d, soft([([(0, 0), (.20, .10), (.21, .34), (0, .30)], .07), ([(.42, .34), (.62, .34), (.62, .72), (.42, .72)], .13), ([(.47, .18), (.66, .20), (.66, .50), (.56, .46)], .11), ([(.28, .36), (.43, .36), (.43, .66), (.28, .66)], .22), ([(.56, .07), (.68, .07), (.68, .40), (.56, .40)], .03), ([(.12, .26), (.22, .30), (.22, .46), (.14, .42)], .24)], 22))
+    for q, v, b in [([(-.02, .52), (.21, .48), (.21, .84), (-.02, .86)], .52, 18), ([(.17, .33), (.275, .36), (.275, .56), (.17, .56)], .52, 10), ([(.245, .43), (.36, .45), (.36, .62), (.28, .64)], .40, 8), ([(.19, .52), (.30, .52), (.30, .70), (.19, .70)], .46, 8),
+                    ([(.235, .58), (.375, .58), (.375, .84), (.235, .84)], .50, 9), ([(.355, .58), (.42, .58), (.42, .72), (.355, .72)], .30, 8), ([(.43, .62), (.485, .62), (.485, .75), (.43, .75)], .24, 9), ([(.34, .70), (.49, .70), (.49, .90), (.34, .90)], .58, 10),
+                    ([(.575, .60), (.95, .60), (.95, .74), (.575, .74)], .30, 12), ([(.72, .72), (.80, .72), (.80, .88), (.72, .88)], .56, 8), ([(.775, .64), (.83, .64), (.83, .92), (.775, .92)], .52, 14), ([(.68, .86), (.78, .86), (.78, .98), (.68, .98)], .80, 7)]:
+        d = put(d, q, v, b * 2.4)      # wide: the ground must never be seen to bend
+    wind = soft([([(0, .20), (.19, .42), (.17, .50), (0, .30)], .7), ([(.28, .38), (.41, .38), (.41, .50), (.30, .50)], .5), ([(.695, .06), (.742, .05), (.742, .42), (.695, .43)], .9), ([(.755, .26), (.885, .24), (.88, .34), (.77, .36)], .55), ([(.62, .46), (.71, .43), (.70, .56), (.64, .56)], .5),
+                 ([(.86, .55), (1, .30), (1, .58), (.90, .60)], .7), ([(.805, .13), (.85, .09), (.84, .18), (.81, .18)], .8), ([(.10, .72), (.17, .71), (.15, .82), (.10, .82)], .6), ([(.39, .86), (.46, .84), (.46, .95), (.39, .95)], .6), ([(.42, .70), (.45, .69), (.45, .76), (.41, .76)], .5),
+                 ([(.12, .28), (.21, .32), (.20, .42), (.12, .38)], .45), ([(.19, .46), (.26, .48), (.25, .58), (.19, .58)], .4), ([(.22, .88), (.32, .86), (.31, 1), (.22, 1)], .7), ([(.68, .70), (.73, .69), (.73, .76), (.68, .76)], .5)], 9)
+    water = soft([([(.651, .14), (.661, .14), (.661, .30), (.651, .30)], 1), ([(.417, .375), (.430, .375), (.430, .50), (.417, .50)], 1), ([(.926, .13), (.953, .13), (.95, .28), (.926, .28)], 1)], 3)
+    make('s', 'scrapyard', 'Scrapyard/Scrapyard.jpg', scrap, gaussian_filter(d, 6 * S), wind, water, 'Scrapyard/parallax/ScrapyardBG.jpg', True)
+
+
+def runebarriers():
+    """Four rigid pieces and no stretching: the row of gates is one plane that recedes (its depth is linear in x), the hill
+    with its ruins another, the near rocks the third; the sky and the far cliffs never bend. See LocationDef.row."""
+    global VP
+    VP = [.478, .36]
+    rA = view(.21, 0, .62, .74, 1500, 1149)
+    rB = view(.22, .33, .51, .82, 1500, 1075)
+    rC = view(.66, .48, 1, 1, 1500, 974)
+    rD = view(0, .55, .45, 1, 1500, 637)
+    r1 = view(.54, .18, .84, .76, 1500, 1230)
+    r2 = view(0, .12, .32, .72, 1500, 1192)
+    r3 = view(.24, .60, .62, .98, 1500, 636)
+    r4 = view(.56, .62, 1, 1, 1500, 549)
+    r5 = view(.30, 0, .56, .74, 1500, 1811)
+    tower = rA([(38, 655), (60, 520), (98, 440), (105, 380), (132, 270), (160, 196), (150, 184), (128, 155), (145, 105), (170, 100), (175, -40), (326, -40), (332, 55), (372, 90), (372, 186), (398, 170), (412, 160), (424, 205), (436, 222), (455, 150), (470, 108), (490, 108), (500, 92), (560, 68), (590, 84), (614, 122), (604, 100), (630, 50), (690, 10), (735, -40),
+               (1120, -40), (1128, 50), (1112, 76), (1152, 110), (1182, 180), (1217, 270), (1232, 342), (1252, 350), (1256, 386), (1242, 402), (1256, 490), (1270, 520), (1290, 514), (1290, 546), (1274, 562), (1286, 630), (1308, 690), (1302, 732), (1270, 742), (1292, 880), (1345, 910), (1372, 985), (1280, 1030), (1160, 1056), (1020, 1070), (700, 1076), (640, 1046), (560, 960), (500, 925), (430, 830), (400, 760), (100, 720)])
+    row = r1([(-160, 330), (60, 200), (80, 278), (165, 330), (172, 300), (195, 277), (215, 298), (217, 372), (236, 384), (222, 385), (240, 345), (250, 300), (250, 285), (268, 255), (318, 232), (330, 198), (362, 182), (358, 158), (375, 110), (412, 102), (445, 96), (455, 72), (515, 50), (545, 62), (580, 78), (600, 118), (618, 178), (622, 215),
+              (640, 260), (655, 320), (668, 360), (680, 420), (690, 468), (705, 468), (706, 498), (699, 505), (704, 540), (716, 546), (728, 560), (734, 598), (740, 570), (742, 540), (770, 515), (798, 495), (805, 460), (848, 440), (855, 425), (890, 418), (925, 432), (945, 470), (950, 510), (958, 545), (972, 600), (985, 650), (994, 685),
+              (1010, 705), (1012, 756), (1030, 715), (1040, 690), (1060, 665), (1068, 625), (1100, 605), (1135, 594), (1160, 615), (1168, 650), (1172, 690), (1185, 730), (1195, 772), (1205, 780), (1218, 785), (1220, 820), (1225, 770), (1250, 735), (1262, 712), (1300, 697), (1328, 705), (1335, 740), (1345, 800), (1360, 850), (1370, 900), (1378, 950), (1384, 1040)]) + r4([
+              (905, 60), (940, 122), (962, 140), (985, 190), (985, 260), (960, 330), (900, 430), (200, 430), (-120, 400)]) + [(.36, .80), (.36, .66), (.50, .62)]
+    hill = r2([(-40, 20), (0, 42), (55, 85), (100, 150), (150, 175), (165, 145), (180, 130), (240, 122), (262, 150), (300, 190), (318, 250), (328, 310), (326, 360), (335, 425), (370, 440), (385, 500), (420, 505), (425, 480), (450, 440), (455, 370), (470, 350), (485, 340), (490, 312), (520, 303), (560, 320), (590, 345), (600, 375), (645, 385), (700, 395), (710, 420), (738, 455), (725, 490),
+               (733, 560), (733, 612), (760, 625), (800, 610), (792, 560), (793, 535), (820, 508), (840, 512), (842, 530), (878, 520), (880, 488), (910, 480), (930, 490), (933, 520), (968, 525), (975, 508), (1015, 515), (1030, 525), (1030, 590), (1012, 610), (1015, 630), (1060, 645), (1135, 665), (1150, 620), (1170, 590), (1250, 545), (1270, 500), (1285, 470), (1310, 465), (1312, 425), (1322, 440), (1345, 455), (1355, 410), (1378, 365), (1392, 420), (1396, 470), (1420, 448), (1434, 444), (1428, 490), (1450, 505), (1448, 525), (1420, 520)]) + rB([
+               (492, 200), (506, 290), (546, 350), (556, 452), (612, 470), (646, 510), (655, 600), (664, 600), (700, 578), (780, 588), (790, 574), (870, 548), (958, 520), (960, 508), (1010, 500), (1020, 488), (1045, 470), (1040, 448), (1060, 444), (1056, 384), (1080, 388), (1096, 404), (1110, 370), (1135, 308), (1152, 340), (1162, 400), (1202, 404), (1206, 440), (1222, 468), (1224, 506), (1302, 540), (1376, 580), (1382, 700), (1392, 722), (1396, 840)]) + r3([
+               (985, 190), (1012, 165), (1008, 130), (1020, 100), (1030, 75), (1045, 110), (1048, 158), (1060, 158), (1083, 170), (1085, 205), (1110, 208), (1132, 210), (1180, 228), (1235, 238), (1238, 275), (1280, 275), (1285, 318), (1320, 320), (1332, 368), (1370, 362), (1410, 385), (1440, 382), (1490, 400)]) + r4([
+               (85, 282), (115, 300), (160, 300), (195, 320), (250, 325), (270, 300), (310, 292), (325, 265), (345, 292), (358, 310), (375, 335), (410, 355), (470, 365), (515, 370), (520, 355), (560, 350), (605, 358), (660, 372), (740, 362), (800, 345), (815, 320), (840, 290), (880, 275), (915, 268), (922, 240), (945, 195), (990, 180), (1040, 185), (1110, 205), (1100, 150), (1100, 115), (1155, 95), (1150, 75), (1175, 62), (1215, 68), (1222, 85), (1270, 78), (1335, 66), (1342, 30)]) + [(.956, .60), (.962, .585), (.965, .555), (.984, .531), (1.04, .50), (1.04, 1.04), (-.04, 1.04)]
+    hill_holes = [r2([(518, 606), (522, 560), (530, 500), (550, 462), (585, 458), (615, 475), (635, 505), (640, 540), (632, 600), (622, 676), (590, 655), (548, 636)]), r3([(1140, 300), (1145, 270), (1165, 258), (1185, 275), (1196, 322), (1180, 335)]), r4([(1178, 196), (1190, 168), (1220, 140), (1258, 154), (1286, 180), (1255, 186), (1220, 190)])]
+    ruin_holes = [rB([(880, 824), (885, 760), (910, 715), (960, 680), (973, 700), (966, 780), (955, 836)]), rB([(1196, 955), (1194, 690), (1205, 660), (1225, 645), (1250, 665), (1268, 720), (1272, 975), (1250, 985)])]
+    archR_holes = [rC([(1424, 478), (1430, 330), (1450, 290), (1500, 250), (1570, 232), (1570, 445), (1480, 462), (1440, 478)])]
+    rockL = rD([(-40, 58), (40, 82), (110, 102), (162, 130), (202, 180), (236, 240), (272, 285), (288, 312), (332, 324), (402, 358), (452, 388), (482, 424), (502, 450), (522, 490), (530, 540), (527, 640), (520, 720), (-40, 720)])
+    rockM = rD([(480, 720), (500, 650), (560, 608), (650, 558), (740, 523), (870, 503), (950, 513), (1000, 538), (1060, 588), (1100, 638), (1120, 720)])
+    plants = rD([(818, 464), (840, 418), (872, 450), (878, 342), (912, 380), (932, 430), (944, 370), (965, 303), (973, 340), (1032, 338), (1037, 400), (1060, 378), (1090, 390), (1122, 370), (1127, 430), (1158, 418), (1152, 468), (1192, 474), (1172, 500), (1200, 520), (1247, 523), (1217, 560), (1222, 590), (1247, 610), (1242, 720), (820, 720), (860, 560)])
+    rockR = rC([(60, 1030), (80, 950), (140, 895), (148, 826), (165, 866), (200, 840), (213, 796), (235, 850), (250, 800), (262, 830), (268, 792), (282, 768), (340, 744), (420, 704), (500, 688), (550, 671), (620, 684), (642, 710), (692, 740), (717, 790), (727, 830), (800, 834), (880, 849), (960, 879), (1002, 920), (1034, 980), (1040, 1030)])
+    plantsR = rC([(1180, 1030), (1250, 960), (1312, 930), (1290, 900), (1230, 850), (1155, 786), (1200, 783), (1290, 812), (1286, 758), (1332, 736), (1346, 760), (1397, 728), (1402, 760), (1372, 800), (1372, 860), (1400, 800), (1430, 783), (1500, 768), (1560, 756), (1560, 1030)])
+    flash = [r5([(860, 350), (920, 332), (985, 338), (1010, 380), (1045, 480), (1075, 460), (1108, 430), (1160, 480), (1215, 570), (1250, 680), (1262, 780), (1255, 815), (1235, 850), (1232, 895), (1262, 930), (1285, 990), (1288, 1030), (1265, 1060), (1268, 1110), (1290, 1140), (1302, 1300), (1305, 1480), (1302, 1640), (1290, 1720), (800, 1720), (780, 1500), (778, 1000), (790, 870), (832, 830), (838, 700), (800, 670), (793, 560), (805, 460), (830, 390)]),
+             r1([(482, 312), (500, 330), (520, 385), (545, 372), (570, 420), (590, 480), (602, 550), (612, 610), (600, 650), (618, 690), (622, 730), (620, 780), (632, 820), (636, 900), (642, 1000), (644, 1090), (490, 1090), (470, 980), (462, 900), (445, 800), (437, 640), (462, 620), (460, 570), (435, 560), (437, 470), (445, 400), (460, 345)]),
+             r1([(868, 592), (885, 620), (900, 630), (915, 660), (930, 710), (936, 770), (940, 850), (948, 920), (955, 1000), (960, 1070), (880, 1060), (868, 960), (855, 850), (862, 770), (850, 750), (848, 690), (855, 630)]),
+             r1([(1112, 722), (1135, 745), (1152, 800), (1160, 860), (1170, 950), (1175, 1040), (1115, 1040), (1105, 960), (1110, 880), (1100, 850), (1100, 780)]), r1([(1297, 802), (1315, 830), (1325, 880), (1330, 950), (1335, 1030), (1290, 1030), (1288, 950), (1285, 870)])]
+    e = raster(flash)
+    e = np.clip(gaussian_filter(e, 2.6 * S) * 2 - .9, 0, 1)          # its edge is inside the stone: nothing but the barrier moves
+    e *= 1 - np.clip((np.linspace(0, 1, H)[:, None] - .60) / .10, 0, 1)
+    wind = soft([([(.318, .13), (.362, .20), (.362, .47), (.318, .46)], .8), ([(.572, .37), (.592, .39), (.592, .60), (.572, .58)], .7), ([(0, .34), (.07, .40), (.08, .56), (0, .56)], .5), ([(.23, .55), (.29, .57), (.29, .66), (.23, .66)], .6), ([(.33, .62), (.36, .63), (.36, .70), (.33, .70)], .5), ([(.24, .76), (.38, .76), (.39, 1), (.25, 1)], .75), ([(.63, .79), (.68, .80), (.67, .87), (.63, .87)], .5),
+                 ([(.40, .86), (.46, .86), (.46, .94), (.40, .94)], .5), ([(.69, .88), (.73, .90), (.72, 1), (.69, 1)], .4), ([(.91, .86), (1, .84), (1, 1), (.91, 1)], .75), ([(.82, .76), (.96, .72), (.97, .86), (.84, .88)], .4), ([(0, .80), (.12, .82), (.14, 1), (0, 1)], .45)], 9)
+    specs = {
+        1: dict(groups=[([tower, row], None, 9)], mist=[([(.838, .50), (.93, .50), (.93, 1), (.846, 1), (.842, .80)], 10)], reach=26, misty=True),
+        2: dict(groups=[([hill], hill_holes + ruin_holes + archR_holes, 8)], back=True, reach=70),
+        3: dict(groups=[([rockM, rockR], None, 8), ([plants, plantsR], None, 8)]),
+        'clean': [[(.945, .57), (.965, .55), (.985, .53), (1.02, .515), (1.02, .64), (.945, .63)], [(.237, -.02), (.39, -.02), (.39, .10), (.335, .16), (.31, .14), (.26, .12), (.245, .20), (.237, .20)], [(.50, -.02), (.53, -.02), (.562, .30), (.566, .42), (.555, .42), (.535, .25)]],
+        'fill': [[(.552, .17), (.90, .17), (.90, 1), (.50, 1), (.50, .70), (.552, .66)], [(-.02, .10), (.17, .10), (.222, .22), (.262, .22), (.262, .46), (.27, .60), (.27, 1), (-.02, 1)], [(.80, .40), (1.02, .40), (1.02, 1.02), (.80, 1.02)]],
+        'snap': True, 'tone': .06, 'planes': lambda x: [.085 - .2 * (x - VP[0]), .130, .250], 'range': 26, 'haze': True,
+    }
+    make('r', 'runebarriers', 'Rune Barriers/RuneBarriers.jpg', specs, np.zeros((H, W)), wind, e, 'Rune Barriers/parallax/RuneBarriersBG.jpg')
+
+
+PLACES = {'o': outskirts, 'u': underbelly, 's': scrapyard, 'r': runebarriers}
+for k in (sys.argv[1:2] or list(PLACES)):
+    PLACES[k]()

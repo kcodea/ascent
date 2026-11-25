@@ -59,6 +59,10 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-11-25',
     changes: [
       {
+        category: 'Systems',
+        text: 'Hero select lines are louder, and level with the announcer.',
+      },
+      {
         category: 'Balance',
         text: 'New Set 2 Kobold: Reflektion (Tier 3, 3/5). When a Ruby is cast on it, the Ruby bounces once to another friendly minion.',
       },

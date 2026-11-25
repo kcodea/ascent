@@ -1,5 +1,5 @@
 // The hanging parchments (sheet-<tribe>.webp), baked from the reveal's own shader at rest. Needs the dev server; loads nothing but it.
-//   node scripts/locations/sheets.mjs [http://localhost:5173/]
+//   node scripts/locations/sheets.mjs [http://localhost:5173/] [location...]
 import { chromium } from 'playwright-core';
 import sharp from 'sharp';
 const URL_ = process.argv[2] ?? 'http://localhost:5173/';
@@ -11,8 +11,9 @@ await p.route('**/*', (r) => (/localhost|127.0.0.1|^data:|^blob:/.test(r.request
 await p.goto(URL_, { waitUntil: 'commit' });
 await p.waitForTimeout(10000);
 /** Keep in step with `posters` in locations.ts (the order is each sheet's own crease and sway). */
-const L = { outskirts: ['dragon', 'beast', 'kobold', 'dwarf', 'demon'], underbelly: ['undead', 'kobold', 'dragon', 'dwarf', 'spirit'] };
-for (const [loc, tribes] of Object.entries(L)) for (let i = 0; i < tribes.length; i++) {
+const L = { outskirts: ['dragon', 'beast', 'kobold', 'dwarf', 'demon'], underbelly: ['undead', 'kobold', 'dragon', 'dwarf', 'spirit'], scrapyard: ['mech', 'beast', 'dragon', 'demon', 'undead'], runebarriers: ['celestial', 'guardian', 'beast'] };
+const only = process.argv.slice(3);
+for (const [loc, tribes] of Object.entries(L)) if (!only.length || only.includes(loc)) for (let i = 0; i < tribes.length; i++) {
   const url = await p.evaluate(async ({ loc, t, i, W, H, SRC }) => {
     const SH = await (async () => { const u = performance.getEntriesByType('resource').map((r) => r.name).find((n) => /revealShaders\.ts/.test(n)); return import(u ?? `/@fs${SRC}`); })();
     const c = document.createElement('canvas'); c.width = W; c.height = H;

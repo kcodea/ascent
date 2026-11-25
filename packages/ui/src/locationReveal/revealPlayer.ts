@@ -9,9 +9,8 @@
  *    then the name, the line and the parchments fade in. Same words, same sound from the name on.
  * Plain DOM, one rAF loop, no React state: nothing here re-renders the game.
  */
-import type { Tribe } from '@game/core';
 import { PHONE_GPU } from '../phoneDiag';
-import { locationArt, locationName, POSTER_NAME, type LocationDef } from './locations';
+import { locationArt, locationName, POSTER_NAME, type LocationDef, type Poster } from './locations';
 import { prepareReveal, stageHeight, type PreparedReveal, type RevealGl } from './revealGl';
 import { lightCues, loadRevealSound, type RevealSound } from './revealSound';
 import { dropAtmosphere, setAtmosphereCovered, syncAtmosphere, warmAtmosphere } from './atmosphereGl';
@@ -24,7 +23,7 @@ import './locationReveal.css';
 export interface LocationRevealRequest {
   location: LocationDef;
   /** The parchments, in order (`postersFor`). */
-  tribes: readonly Tribe[];
+  tribes: readonly Poster[];
 }
 
 interface Warm { id: LocationDef['id']; gl: PreparedReveal | null; sound: RevealSound; art: HTMLImageElement[] }

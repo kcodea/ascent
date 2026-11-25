@@ -480,15 +480,36 @@ export const SET2_DWARVES_LATE: CardDef[] = [
     // (`battlecryGrantSpellPowerRun`, Wardkeeper's Shout body) fired at End of Turn instead; it is trigger-agnostic, so the
     // same body serves a combat replay. Gilded +4/+4.
     // Owner balance 2026-10-13 ("drunk daniel should go from 2/2 to 1/1"): +1/+1 a turn, Gilded +2/+2. The body is unchanged.
+    // Owner 2026-11-25 ("move drunk daniel to T5", R-DRUNKDANIEL-01): Tier 6 to 5, stats and text unchanged.
     id: 'dw_drunkdaniel',
     name: 'Drunk Daniel',
     tribe: 'dwarf',
-    tier: 6,
+    tier: 5,
     attack: 6,
     health: 6,
     keywords: [],
     effects: [{ on: 'endOfTurn', do: 'battlecryGrantSpellPowerRun', params: { attack: 1, health: 1 } }],
     text: '**End of Turn:** give your **Shop spells +1/+1**.',
     goldenText: '**End of Turn:** give your **Shop spells +2/+2**.',
+  },
+];
+
+/** Set 2 Dwarves added after every list above was appended: a list of its own at the very end of set 2's `own`, so no position moves. */
+export const SET2_DWARVES_1125: CardDef[] = [
+  {
+    // ALEUS (owner design 2026-11-25, R-ALEUS-01): every Dwarven Ale CAST, any caster, gives minions in the Shop +2/+2. "Give minions in
+    // the Shop" is the permanent Shop buff (owner's standing rule of 2026-07-25, Contract Butcher's channel), in the Shop and for an
+    // Ale cast in a fight. Gilded +4/+4.
+    id: 'dw_aleus',
+    name: 'Aleus',
+    tribe: 'dwarf',
+    tribe2: 'demon',
+    tier: 4,
+    attack: 1,
+    health: 7,
+    keywords: [],
+    effects: [{ on: 'spellCast', do: 'aleCastBuffShop', params: { attack: 2, health: 2 } }],
+    text: 'When you cast an **Ale**, give minions in the Shop **+2/+2**.',
+    goldenText: 'When you cast an **Ale**, give minions in the Shop **+4/+4**.',
   },
 ];

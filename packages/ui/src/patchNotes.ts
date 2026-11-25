@@ -60,6 +60,14 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Balance',
+        text: 'Drunk Daniel moves to Tier 5.',
+      },
+      {
+        category: 'Balance',
+        text: 'New Set 2 minion: Aleus (Dwarf and Demon, Tier 4, 1/7). When you cast an Ale, give minions in the Shop +2/+2.',
+      },
+      {
+        category: 'Balance',
         text: 'Candle Conduit is back (Set 2 Kobold, Tier 6, 7/7): when you get a Ruby, it casts a Ruby on a random friendly minion.',
       },
       {

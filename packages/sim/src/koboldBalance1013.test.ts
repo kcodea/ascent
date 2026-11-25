@@ -124,9 +124,9 @@ describe('Drunk Daniel: "End of Turn: give your Shop spells +1/+1" (Gilded +2/+2
     applyEndOfTurn(s);
     expect(s.spellBonus, 'it stacks every turn').toEqual({ attack: 2 * n, health: 2 * n });
   });
-  it('the body is unchanged (Tier 6, 6/6) and the text matches', () => {
+  it('the body is 6/6 (Tier 5 since 2026-11-25) and the text matches', () => {
     const d = CARD_INDEX['dw_drunkdaniel']!;
-    expect([d.tier, d.attack, d.health]).toEqual([6, 6, 6]);
+    expect([d.tier, d.attack, d.health]).toEqual([5, 6, 6]);
     expect([d.text, d.goldenText]).toEqual(['**End of Turn:** give your **Shop spells +1/+1**.', '**End of Turn:** give your **Shop spells +2/+2**.']);
   });
 });

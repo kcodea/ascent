@@ -67,14 +67,14 @@ describe('2026-10-10 set membership: Striker, Drunk Daniel and Hydraskus appende
     // Later adds (Gasket, 2026-10-10) append AFTER these three, so pin their run, not the tail.
     const at = own.indexOf('dw3_striker');
     expect(own.slice(at, at + 3)).toEqual(['dw3_striker', 'dw_drunkdaniel', 'dm_hydraskus']);
-    expect(own.slice(-6)).toEqual(['dm_ruinouslord', 'dm_gasket', 'dm_radrachel', 'b2_derenor', 'k_reflektion', 'k_candleconduit']); // then the rune-only Ruinous Lord, then Gasket + Rad Rachel
+    expect(own.slice(-7)).toEqual(['dm_ruinouslord', 'dm_gasket', 'dm_radrachel', 'b2_derenor', 'k_reflektion', 'k_candleconduit', 'dw_aleus']); // then the rune-only Ruinous Lord, then Gasket + Rad Rachel
     const buyable = poolFor('set2').buyable.map((c) => c.id);
     for (const id of ['dw3_striker', 'dw_drunkdaniel', 'dm_hydraskus']) expect(buyable, id).toContain(id);
   });
 
-  it('the new cards: Drunk Daniel T6 6/6 Dwarf, Hydraskus T6 6/8 Demon', () => {
+  it('the new cards: Drunk Daniel 6/6 Dwarf (T5 since 2026-11-25), Hydraskus T6 6/8 Demon', () => {
     const d = CARD_INDEX['dw_drunkdaniel']!;
-    expect([d.tribe, d.tier, d.attack, d.health, d.token ?? false]).toEqual(['dwarf', 6, 6, 6, false]);
+    expect([d.tribe, d.tier, d.attack, d.health, d.token ?? false]).toEqual(['dwarf', 5, 6, 6, false]);
     const h = CARD_INDEX['dm_hydraskus']!;
     expect([h.tribe, h.tier, h.attack, h.health, h.token ?? false]).toEqual(['demon', 6, 6, 8, false]);
   });

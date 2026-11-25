@@ -2467,8 +2467,8 @@ export function simulate(
         // BRATWORST BUCK (Duos batch A): "When you cast a Dwarven Ale, give your teammate a copy." The same per-cast hook.
         for (const m of living(side)) {
           for (const eff of m.effects) {
-            if (eff.on !== 'spellCast' || eff.do !== 'aleCastGiftTeammate') continue;
-            withEffect(m, eff, () => FACTORIES.aleCastGiftTeammate!(ctx, m, eff.params ?? {}, { side, spellId }));
+            if (eff.on !== 'spellCast' || (eff.do !== 'aleCastGiftTeammate' && eff.do !== 'aleCastBuffShop')) continue; // ...and ALEUS (2026-11-25)
+            withEffect(m, eff, () => FACTORIES[eff.do]!(ctx, m, eff.params ?? {}, { side, spellId }));
           }
         }
       }

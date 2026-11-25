@@ -364,4 +364,36 @@ export const ECONOMY_RULES: GameRule[] = [
     example: 'Enigma on the board, a Demon eats a Shop minion: every Shop minion this turn is +6/+7, after a Refresh too. Next turn: back to normal.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2NewMinionsAug18.test.ts'], lastVerifiedAt: '2026-11-23' },
   },
+  {
+    id: 'R-ALEUS-01',
+    title: 'Aleus: every Ale you cast permanently gives minions in the Shop +2/+2',
+    statement:
+      'Aleus (Set 2, Dwarf and Demon, Tier 4, 1/7): each Dwarven Ale cast on your side, from your hand or by a card or rune, and each '
+      + 'repetition of a cast that repeats, gives minions in the Shop +2/+2 (Gilded +4/+4), permanently: the minions there now and every '
+      + 'one after. An Ale cast in a fight pays it too, while Aleus lives. No other spell does. Two of them both pay.',
+    domain: 'economy',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-25 (Aleus)', quote: 'Aleus - 1/7 - When you cast an Ale, give minions in the shop +2/+2.' },
+      { kind: 'code', ref: 'packages/content/src/cards/set2/dwarves.ts (dw_aleus); packages/sim/src/recruit.ts aleCastBuffShop; packages/core/src/effects/factories.ts aleCastBuffShop' },
+    ],
+    cardText: 'When you cast an **Ale**, give minions in the Shop **+2/+2**.',
+    contentIds: ['dw_aleus'],
+    currentBehaviour: 'Conforms, built 2026-11-25. Permanent by the standing reading of "give minions in the Shop" (Contract Butcher).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/aleus.test.ts'], lastVerifiedAt: '2026-11-25' },
+  },
+  {
+    id: 'R-DRUNKDANIEL-01',
+    title: 'Drunk Daniel is Tier 5',
+    statement: 'Drunk Daniel (Set 2 Dwarf) is a Tier 5 6/6. Its End of Turn gives your Shop spells +1/+1 (Gilded +2/+2), as before.',
+    domain: 'economy',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-25', quote: 'move drunk daniel to T5' },
+      { kind: 'code', ref: 'packages/content/src/cards/set2/dwarves.ts (dw_drunkdaniel)' },
+    ],
+    contentIds: ['dw_drunkdaniel'],
+    currentBehaviour: 'Conforms, moved from Tier 6 on 2026-11-25; stats and text unchanged.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/koboldBalance1013.test.ts'], lastVerifiedAt: '2026-11-25' },
+  },
 ];

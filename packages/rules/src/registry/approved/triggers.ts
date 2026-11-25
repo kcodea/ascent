@@ -1908,9 +1908,10 @@ export const TRIGGERS_RULES: GameRule[] = [
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-25', quote: 'add candle conduit to set 2 and wire its new art.' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-25', quote: "change candle conduit's text to random friendly kobold instead of random friendly minion" },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-25 (wording only)', quote: 'make candle conduit's text say "another friendly kobold" so it is clear it doesnt buff itself' },
       { kind: 'code', ref: 'packages/content/src/cards/set2/kobolds.ts (k_candleconduit); packages/sim/src/recruit.ts candleConduitCast / withGemSagesHeld; packages/core/src/effects/factories.ts rubyGainedCast' },
     ],
-    cardText: 'When you get a **Ruby**, cast a **Ruby** on a random friendly **Kobold**.',
+    cardText: 'When you get a **Ruby**, cast a **Ruby** on another friendly **Kobold**.',
     contentIds: ['k_candleconduit'],
     currentBehaviour: 'Conforms, built 2026-11-25. The card is the archived one (its rework of 2026-08-11) with Kobold targets; its fight half is new (a combat Ruby used to reach it at settle), and Gilded now picks two different minions.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/candleConduit.test.ts', 'packages/sim/src/rubies.test.ts'], lastVerifiedAt: '2026-11-25' },

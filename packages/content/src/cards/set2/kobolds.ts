@@ -432,7 +432,7 @@ export const SET2_KOBOLDS_LATE: CardDef[] = [
     health: 7,
     keywords: [],
     effects: [{ on: 'onGetRuby', do: 'rubyGainedCast', params: { tribe: 'kobold' } }],
-    text: 'When you get a **Ruby**, cast a **Ruby** on a random friendly **Kobold**.',
-    goldenText: 'When you get a **Ruby**, cast a **Ruby** on **2** random friendly **Kobolds**.',
+    text: 'When you get a **Ruby**, cast a **Ruby** on another friendly **Kobold**.',
+    goldenText: 'When you get a **Ruby**, cast a **Ruby** on **2** other friendly **Kobolds**.',
   },
 ];

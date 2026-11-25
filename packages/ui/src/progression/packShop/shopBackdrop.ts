@@ -24,7 +24,9 @@ import type { ShopLayout } from './shopLayout';
 export type BackdropLayer = 'wall' | 'counter' | 'fore';
 
 /** Real art for a layer, once it exists (a path under the app's public folder). Empty: the placeholder is drawn. */
-export const SHOP_ART: Partial<Record<BackdropLayer, string>> = {};
+export const SHOP_ART: Partial<Record<BackdropLayer, string>> = {
+  wall: '/packs/shop-wall.webp', // owner 2026-11-25 (prompts.md 5a): the shop's interior, an arched alcove behind the packs
+};
 
 /** How much wider than the canvas each layer is painted, per side (the prompts ask the art for the same margins). */
 export const OVERSCAN: Record<BackdropLayer, number> = { wall: 0.06, counter: 0.06, fore: 0.1 };
@@ -44,7 +46,7 @@ export const DEPTH: Record<BackdropLayer, { x: number; y: number }> = {
 export const LOOK_EASE = 0.07;
 const LOOK_SETTLE = 0.0005;
 
-/** The placeholder wall's strength: the shelves stay well under the packs in front of them. */
+/** The PLACEHOLDER wall's strength: its shelves stay well under the packs in front of them. Real art is shown as painted. */
 const WALL_ALPHA = 0.7;
 
 /** The share of the counter painting that stands ABOVE the counter line (room for the tops of the corner props). */
@@ -331,7 +333,7 @@ export class ShopBackdrop {
     const sprites: Record<BackdropLayer, Sprite> = { wall: this.wall, counter: this.counter, fore: this.fore };
     for (const layer of Object.keys(SHOP_ART) as BackdropLayer[]) {
       const src = SHOP_ART[layer];
-      if (src) loadTexture(src, () => this.alive, (t) => { this.textures.push(t); sprites[layer].texture = t; this.size(); });
+      if (src) loadTexture(src, () => this.alive, (t) => { this.textures.push(t); sprites[layer].texture = t; sprites[layer].alpha = 1; this.size(); });
     }
   }
 

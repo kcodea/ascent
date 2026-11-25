@@ -56,10 +56,10 @@ export const RANDOMNESS_RULES: GameRule[] = [
   },
   {
     id: 'R-RAND-02',
-    title: '"A random Ruby" is one of all six Ruby types at equal odds, drawn per Ruby from the seeded RNG',
+    title: '"A Special Ruby" (once "a random Ruby") is drawn per Ruby from the seeded RNG, at equal odds',
     statement:
-      'Every "get a random Ruby" (Ruby Shipment, Kobe\'s Pummel, Gem Sage, Resonance, Investment) '
-      + 'draws each Ruby SEPARATELY and uniformly from the six types: Ruby, Warding, Golden, Splintered, Ripple and '
+      'Every "get a Special Ruby" (Ruby Shipment, Kobe\'s Pummel, Gem Sage, Resonance, Investment) '
+      + 'draws each Ruby SEPARATELY and uniformly from the five that are not plain (R-RUBY-SPECIAL-01; all six until 2026-11-25): Warding, Golden, Splintered, Ripple and '
       + 'Dark, on the run cursor in the Shop and the fight RNG in combat, so a replay draws the same Rubies. Each '
       + 'is minted at its own printed base plus the run\'s Ruby strength. A plain "get N Rubies" stays plain Rubies.',
     domain: 'randomness',
@@ -69,8 +69,8 @@ export const RANDOMNESS_RULES: GameRule[] = [
       { kind: 'code', ref: 'packages/core/src/types.ts RUBY_TYPE_IDS; packages/sim/src/recruit.ts mintRandomRubies; packages/core/src/combat/simulate.ts ctx.grantRandomRubies (playerRubyGrantIds)' },
     ],
     contentIds: ['rubyshipment', 'k_kobe', 'k_gemsage', 'rune_resonance', 'rune_investment', 'k3_dealski'],
-    currentBehaviour: 'Conforms as of 2026-09-24.',
-    enforcement: { kind: 'scenario', refs: ['packages/sim/src/rubyTypes.test.ts'], lastVerifiedAt: '2026-09-24' },
+    currentBehaviour: 'Conforms as of 2026-09-24; the pool is the five special types since 2026-11-25 (R-RUBY-SPECIAL-01).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/rubyTypes.test.ts'], lastVerifiedAt: '2026-11-25' },
   },
   {
     id: 'R-RANDOM-POOL-01',
@@ -147,10 +147,10 @@ export const RANDOMNESS_RULES: GameRule[] = [
     id: 'R-RAND-RUBY-DISCOVER-01',
     title: 'A Ruby DISCOVER offers only the special Ruby types, never the plain Ruby',
     statement:
-      'Every Ruby Discover is WORDED "Discover N special Rubies" (today: the Ruby branch of Prismatic Pick, from Picksy, '
-      + '"Discover 2 special Rubies" = two separate Discovers, Gilded four) and offers 3 of the 5 SPECIAL Ruby types (Warding, Golden, Splintered, Ripple, Dark) and '
+      'Every Ruby Discover is WORDED "Discover N Special Rubies" (today: the Ruby branch of Prismatic Pick, from Picksy, '
+      + '"Discover 2 Special Rubies" = two separate Discovers, Gilded four) and offers 3 of the 5 SPECIAL Ruby types (Warding, Golden, Splintered, Ripple, Dark) and '
       + 'never the plain Ruby. The pick is minted at the live run Ruby strength. By contrast "get / play / cast a Ruby" '
-      + 'without "random" is the plain Ruby, and "a random Ruby" draws from all six (R-RAND-02).',
+      + 'without "random" is the plain Ruby (R-RUBY-SPECIAL-01).',
     domain: 'randomness',
     status: 'approved',
     evidence: [
@@ -161,5 +161,23 @@ export const RANDOMNESS_RULES: GameRule[] = [
     contentIds: ['k3_prismpick'],
     currentBehaviour: 'Conforms (the pool was already special-only since 2026-09-24; pinned across seeds 2026-10-22).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3KoboldPool1022.test.ts', 'packages/sim/src/prismaticPick.test.ts'], lastVerifiedAt: '2026-10-22' },
+  },
+  {
+    id: 'R-RUBY-SPECIAL-01',
+    title: '"Special Ruby" is the word for a random Ruby, and it is never the plain one',
+    statement:
+      'No player text says "random Ruby": it is a Special Ruby ("get a Special Ruby", "get 2 Special Rubies", "Discover 2 Special Rubies"). A Special '
+      + 'Ruby is always one of Warding, Golden, Splintered, Ripple or Dark, each as likely, each drawn on its own, in the Shop and in a fight, '
+      + 'from every source (cards, runes, spells, quests). "Get / cast a Ruby" is the plain Ruby. A card that says Special Ruby previews one of the '
+      + 'five, a different one each time, and a Special Ruby counts as a Ruby everywhere.',
+    domain: 'randomness',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-25', quote: 'change terminology -> "random ruby" becomes "Special Ruby" and is ALWAYS a non-standard Ruby.' },
+      { kind: 'code', ref: 'packages/core/src/types.ts SPECIAL_RUBY_IDS; packages/sim/src/recruit.ts mintRandomRubies; packages/core/src/combat/simulate.ts ctx.grantRandomRubies; packages/ui/src/cardRefs.ts; packages/ui/src/keywordGlossary.ts' },
+    ],
+    contentIds: ['rubyshipment', 'k_kobe', 'k_gemsage', 'k3_dealski', 'k3_prismpick', 'rune_resonance', 'rune_investment'],
+    currentBehaviour: 'Conforms from 2026-11-25 (feat/candle-conduit-special-rubies). Supersedes the six-type pool of R-RAND-02. Ids in code keep the old word (getRandomRubies).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/rubyTypes.test.ts', 'packages/ui/src/specialRubyWording.test.ts'], lastVerifiedAt: '2026-11-25' },
   },
 ];

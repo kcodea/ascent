@@ -12,7 +12,7 @@
  * the special ones").
  */
 import { describe, it, expect } from 'vitest';
-import { makeRng, simulate, RUBY_TYPE_IDS, SPECIAL_RUBY_IDS } from '@game/core';
+import { makeRng, simulate, SPECIAL_RUBY_IDS } from '@game/core';
 import { ARCHIVED_CARDS, CARD_INDEX, EQUIPMENT_INDEX, SETS, poolFor } from '@game/content';
 import { createRun, reduce, equipmentText, chooseBothActive, chooseBothStateOf, sideFromSnapshot, type Action, type BoardCard, type RunState } from './index';
 import { snapshotBoard } from './snapshot';
@@ -102,8 +102,8 @@ describe('Dealski: "When you play a Choose One card, get a random Ruby."', () =>
   it('prints the new text, keeps T4 6/6', () => {
     const d = CARD_INDEX['k3_dealski']!;
     expect([d.tier, d.attack, d.health]).toEqual([4, 6, 6]);
-    expect(d.text).toBe('When you play a **Choose One** card, get a random **Ruby**.');
-    expect(d.goldenText).toBe('When you play a **Choose One** card, get **2** random **Rubies**.');
+    expect(d.text).toBe('When you play a **Choose One** card, get a **Special Ruby**.');
+    expect(d.goldenText).toBe('When you play a **Choose One** card, get **2 Special Rubies**.');
   });
 
   const play = (golden: boolean, rngCursor: number) => {
@@ -120,7 +120,7 @@ describe('Dealski: "When you play a Choose One card, get a random Ruby."', () =>
       expect(p).toHaveLength(1);
       expect(play(true, seed * 7919)).toHaveLength(2);
       expect(play(false, seed * 7919), 'same seed, same Ruby').toEqual(p);
-      for (const id of p) { expect(RUBY_TYPE_IDS).toContain(id); seen.add(id); }
+      for (const id of p) { expect(SPECIAL_RUBY_IDS).toContain(id); seen.add(id); }
     }
     expect(seen.size, 'genuinely random across types').toBeGreaterThan(2);
   });
@@ -138,9 +138,9 @@ describe('Prismatic Pick: "Choose One: Discover 2 Rubies or your next Choose One
 
   it('prints the new text on the Equipment, its branch and Picksy', () => {
     const eq = EQUIPMENT_INDEX['prismatic_pick']!;
-    expect(eq.text).toBe('Choose One: **Discover 2 special Rubies** or your next **Choose One** card this turn gains **both** effects.');
-    expect(eq.chooseOne![0]!.text).toBe('**Discover 2 special Rubies**.');
-    expect(CARD_INDEX['k3_prismpick']!.text).toContain('**Discover 2 special Rubies**');
+    expect(eq.text).toBe('Choose One: **Discover 2 Special Rubies** or your next **Choose One** card this turn gains **both** effects.');
+    expect(eq.chooseOne![0]!.text).toBe('**Discover 2 Special Rubies**.');
+    expect(CARD_INDEX['k3_prismpick']!.text).toContain('**Discover 2 Special Rubies**');
   });
 
   it('branch 1 is TWO Ruby Discovers, and NEITHER ever offers the plain Ruby (owner ruling 2026-10-22), across seeds', () => {

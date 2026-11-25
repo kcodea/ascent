@@ -1,5 +1,5 @@
 import { DEATH_WATCHER_FACTORIES, isEchoEffect } from '@game/core'; // what counts as an Echo (R-ECHO-WATCHER-01)
-import { soulFurnaceHealth, rubyCastGainOf, ROSEYS_GARDEN_GAIN, isLegalRandomCard, ALE_IDS, aleGrantCount, RUBY_TYPE_IDS, SPECIAL_RUBY_IDS, TRIBES, runVaultPulse, improvingGrant, vaultPulseActive, inRunTribes, alignAllows, makeRng, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth, COMBAT_REPLAYABLE_BATTLECRIES, NO_COPY_SPELL_IDS, extraTriggerFires, extraTriggerContributors, boardShoutExtras, boardShoutContributors, RALLY_WATCHER_EFFECTS, foldEchoExtraFires, socTwilightExtraFires, BODY_COUNTING_DEATHS, ARENA_EFFECTS, pickAutoTarget, beatIdentity, seedEchoEffects, SEED_TOKEN_ID, rollableWhisperIds, whisperAllowedAtTier, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TeamEffect, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
+import { soulFurnaceHealth, rubyCastGainOf, ROSEYS_GARDEN_GAIN, isLegalRandomCard, ALE_IDS, aleGrantCount, SPECIAL_RUBY_IDS, TRIBES, runVaultPulse, improvingGrant, vaultPulseActive, inRunTribes, alignAllows, makeRng, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth, COMBAT_REPLAYABLE_BATTLECRIES, NO_COPY_SPELL_IDS, extraTriggerFires, extraTriggerContributors, boardShoutExtras, boardShoutContributors, RALLY_WATCHER_EFFECTS, foldEchoExtraFires, socTwilightExtraFires, BODY_COUNTING_DEATHS, ARENA_EFFECTS, pickAutoTarget, beatIdentity, seedEchoEffects, SEED_TOKEN_ID, rollableWhisperIds, whisperAllowedAtTier, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TeamEffect, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
 import { FERAL_RETURN_GAIN } from '@game/core'; // Set 2 Epic tribal runes (2026-11-12)
 import { ancientGorrShopDeath, ancientGorrEotCopyLive, ancientRunGorrEotCopy, ancientOnRobinSale, ancientOnShopSummon, ancientRobinMaxGoldLive, ancientRunRobinMaxGold, ancientRunXeroxPairs, ancientXeroxPairsLive, ancientRunTradesUpgrade, ancientTradesUpgradeLive, ancientTradesShopDeath, tradesUpgradeCost, ancientRallyGoldGraft, rallyGoldGraftEffect, noteTradesRallyGold, ancientXeroxBondValidate, ancientXeroxShopDeath, ancientOnSale, ancientOnShopDeath, ancientOnShopShout, ancientOnShopRise, ancientPowerText, ancientBondsReact, ancientOnPlay, ancientOnSpellCast, ANCIENTS, ancientClearanceSellValue } from './ancients';
 import { ancientBramShopDeath, ancientOnEffectRefresh } from './ancients'; // Braum; a "Refresh" effect outside refreshTavern (R-ANCSYS-03)
@@ -3350,24 +3350,42 @@ export function rubyStatBonus(state: RunState): { attack: number; health: number
  *  Rubies a Sage grants never re-trigger a Sage. Synchronous and restored in a `finally`, so a reduce can never
  *  leave it set. */
 let gemSageMinting = false;
+/** Candle Conduit's latch: up while one casts (no loop) and while a fight's Rubies are minted at settle (it cast for those live). */
+let conduitCasting = false;
 /** Run `fn` with every Gem Sage held quiet. Settle mints the Rubies a fight won through here: the Sages already paid
  *  for those live, in combat, on the beat each Ruby was won (R-RUBY-03), so the mint must not pay them again. Every
  *  other get-a-Ruby watcher still hears the mint. */
 export function withGemSagesHeld<T>(fn: () => T): T {
   const was = gemSageMinting;
+  const wasConduit = conduitCasting;
   gemSageMinting = true;
-  try { return fn(); } finally { gemSageMinting = was; }
+  conduitCasting = true;
+  try { return fn(); } finally { gemSageMinting = was; conduitCasting = wasConduit; }
 }
 
-/** "Get a random Ruby" (owner Ruby batch 2026-09-24): `count` Rubies, EACH drawn separately from all six types
- *  (`RUBY_TYPE_IDS`) at equal odds on the run cursor, then minted through `mintRubies` one at a time so each one
+/** Candle Conduit's cast: a plain Ruby at the run's live strength on `1` (Gilded `2` different) random other friendly minions. */
+function candleConduitCast(state: RunState, self: BoardCard, params: Record<string, unknown>): void {
+  const bonus = rubyStatBonus(state);
+  const tribe = str(params.tribe);
+  const pool = othersOnBoard(state, self, (m) => !tribe || isTribe(m, tribe as Tribe)); // never itself (R-TARGET-03)
+  for (let c = 0; c < gold(self) && pool.length > 0; c++) {
+    const rng = makeRng(state.rngCursor);
+    const target = pool.splice(rng.int(pool.length), 1)[0]!;
+    state.rngCursor = rng.state();
+    addBuff(target, 'Ruby', 1 + bonus.attack, 1 + bonus.health);
+    fireOnRubyPlayed(state, target, 1 + bonus.attack, 1 + bonus.health); // a real Ruby cast: its target and every cast watcher hear it
+  }
+}
+
+/** "Get a Special Ruby" (R-RUBY-SPECIAL-01, owner 2026-11-25): `count` Rubies, EACH drawn separately from the five that are
+ *  not plain (`SPECIAL_RUBY_IDS`) at equal odds on the run cursor, then minted through `mintRubies` one at a time so each one
  *  bakes the run's live Ruby strength and fires the same get-a-Ruby / gain-a-card watchers a plain mint does.
  *  The draw is made per Ruby BEFORE its mint, so two Rubies can differ (Ruby Shipment's "Get 2 random Rubies"). */
 export function mintRandomRubies(state: RunState, count: number): void {
   for (let i = 0; i < count; i++) {
     if (state.hand.length >= handCap(state)) return;
     const rng = makeRng(state.rngCursor);
-    const id = RUBY_TYPE_IDS[rng.int(RUBY_TYPE_IDS.length)]!;
+    const id = SPECIAL_RUBY_IDS[rng.int(SPECIAL_RUBY_IDS.length)]!;
     state.rngCursor = rng.state();
     mintRubies(state, 1, id);
   }
@@ -5782,28 +5800,13 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     gainGold(ctx.state, num(params.gold, 3));
   },
 
-  /** Set 2 — Candle Conduit: when you get a Ruby, cast a Ruby (base 1/1 + rubyBonus) on a random friendly
-   *  `tribe` minion. Golden: any friendly minion (not just the tribe), TWICE. Deterministic (run rngCursor). */
+  /** CANDLE CONDUIT (Set 2 again, owner 2026-11-25): when you get a Ruby, any kind from any source, cast a Ruby on a random OTHER friendly
+   *  minion (Gilded: on two different ones). The combat half casts live (`factories.ts`), so settle mints hold this one (`withGemSagesHeld`).
+   *  The module latch: a Ruby gotten because a Conduit cast one never makes a Conduit cast again (R-CONDUIT-01). */
   rubyGainedCast: (ctx, self, params) => {
-    const state = ctx.state;
-    const bonus = rubyStatBonus(state);
-    const ra = 1 + bonus.attack;
-    const rh = 1 + bonus.health;
-    const tribe = self.golden ? '' : str(params.tribe); // golden drops the tribe filter (any friendly minion)
-    const casts = self.golden ? 2 : 1;
-    for (let c = 0; c < casts; c++) {
-      const pool = othersOnBoard(state, self, (m) => !tribe || isTribe(m, tribe as Tribe)); // All-types counts as every tribe; never itself (R-TARGET-03)
-      if (pool.length === 0) return;
-      const rng = makeRng(state.rngCursor);
-      const target = pool[rng.int(pool.length)]!;
-      state.rngCursor = rng.state();
-      addBuff(target, 'Ruby', ra, rh);
-    // A Ruby PLAYED by a card is a real Ruby play: tell the target so its own `onRubyPlayed` effects see it
-    // (Ruby Broker's Gold, Resonance Idol's bounce) and its `rubiesOnThisTurn` counter moves. Three
-    // card-played paths skipped this — they landed the stats and nothing else, so a board built around the
-    // Ruby engine read them as no-ops (owner report 2026-08-02, via Alchemist Brisbane).
-      fireOnRubyPlayed(state, target, ra, rh);
-    }
+    if (conduitCasting) return;
+    conduitCasting = true;
+    try { candleConduitCast(ctx.state, self, params); } finally { conduitCasting = false; }
   },
 
   /** Set 2 — Alchemist Brisbane (EoT half): at End of Turn, play `count` Rubies (base 1/1 + rubyBonus) on

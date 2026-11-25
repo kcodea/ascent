@@ -193,8 +193,8 @@ export const SET3_KOBOLDS: CardDef[] = [
     keywords: [],
     effects: [{ on: 'equip', do: 'grantEquipment', params: { equipmentId: 'prismatic_pick' } }],
     // Owner rework 2026-10-22: the Ruby branch Discovers 2 Rubies (was 1); the Equipment's own text says the same.
-    text: '**Equip Prismatic Pick (1): Choose One.** **Discover 2 special Rubies** or your next **Choose One** card this turn gains **both** effects.',
-    goldenText: '**Equip Prismatic Pick (1): Choose One.** **Discover 4 special Rubies** or your next **2 Choose One** cards this turn gain **both** effects.',
+    text: '**Equip Prismatic Pick (1): Choose One.** **Discover 2 Special Rubies** or your next **Choose One** card this turn gains **both** effects.',
+    goldenText: '**Equip Prismatic Pick (1): Choose One.** **Discover 4 Special Rubies** or your next **2 Choose One** cards this turn gain **both** effects.',
   },
   {
     // Set 3 — the SPELL-reactive Kobold. "Shop spell" is load-bearing (owner vocabulary rule): a Ruby is not
@@ -311,8 +311,8 @@ export const SET3_KOBOLDS: CardDef[] = [
     health: 6,
     keywords: [],
     effects: [{ on: 'chooseOnePlayed', do: 'getRandomRubies', params: { count: 1 } }],
-    text: 'When you play a **Choose One** card, get a random **Ruby**.',
-    goldenText: 'When you play a **Choose One** card, get **2** random **Rubies**.',
+    text: 'When you play a **Choose One** card, get a **Special Ruby**.',
+    goldenText: 'When you play a **Choose One** card, get **2 Special Rubies**.',
   },  {
     // RESTORED to Set 3 2026-10-22 (owner Set 3 Kobold pool call: "add back into Set 3"). Archived 2026-10-13; moved back verbatim, unchanged.
     // Echo (a death trigger) hands back the Veinstorm spell.

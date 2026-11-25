@@ -1569,7 +1569,7 @@ export const TRIGGERS_RULES: GameRule[] = [
       { kind: 'owner-handoff', ref: 'Owner content changes for Set 3 Kobolds, 2026-10-22', quote: 'Choose One: Discover 2 Rubies or your next Choose One card gains both effects.' },
       { kind: 'code', ref: 'packages/content/src/sets.ts SET2_KOBOLDS_IN_SET3; packages/content/src/cards/set3/kobolds.ts; packages/content/src/equipment.ts PRISMATIC_PICK; packages/sim/src/equipment.ts equipmentText' },
     ],
-    cardText: 'When you play a **Choose One** card, get a random **Ruby**.',
+    cardText: 'When you play a **Choose One** card, get a **Special Ruby**.',
     contentIds: ['k_kobe', 'k_blazer', 'k3_veinchant', 'k3_facetbound', 'k_gemgorge', 'k3_dealski', 'k3_prismpick'],
     currentBehaviour: 'Conforms (built 2026-10-22).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3KoboldPool1022.test.ts'], lastVerifiedAt: '2026-10-22' },
@@ -1893,5 +1893,25 @@ export const TRIGGERS_RULES: GameRule[] = [
     contentIds: ['k_reflektion'],
     currentBehaviour: 'Conforms, built 2026-11-25 (feat/reflektion). The Gilded line is a judgement call, flagged to the owner.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/reflektion.test.ts'], lastVerifiedAt: '2026-11-25' },
+  },
+  {
+    id: 'R-CONDUIT-01',
+    title: 'Candle Conduit: every Ruby you get casts a Ruby on a random other friendly minion, live in both phases',
+    statement:
+      'Candle Conduit (Set 2, Tier 6, 7/7): each Ruby that reaches your hand, plain or Special, from any source, makes each of your Conduits cast a '
+      + 'plain Ruby on a random OTHER friendly minion (Gilded: on two different ones). It is a real cast: its target and every cast watcher hear '
+      + 'it. In a fight it casts at that moment, on a living minion, for the fight only (an Engraved minion or a permanent-Ruby rune keeps it), '
+      + 'and nothing is cast again when the Rubies are minted after the fight. A Ruby gotten because a Conduit cast one never makes a Conduit '
+      + 'cast again, so it cannot loop. Alone on the board it does nothing.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-25', quote: 'add candle conduit to set 2 and wire its new art.' },
+      { kind: 'code', ref: 'packages/content/src/cards/set2/kobolds.ts (k_candleconduit); packages/sim/src/recruit.ts candleConduitCast / withGemSagesHeld; packages/core/src/effects/factories.ts rubyGainedCast' },
+    ],
+    cardText: 'When you get a **Ruby**, cast a **Ruby** on a random friendly minion.',
+    contentIds: ['k_candleconduit'],
+    currentBehaviour: 'Conforms, built 2026-11-25. The card is the archived one unchanged (its rework of 2026-08-11); its fight half is new (a combat Ruby used to reach it at settle), and Gilded now picks two different minions.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/candleConduit.test.ts', 'packages/sim/src/rubies.test.ts'], lastVerifiedAt: '2026-11-25' },
   },
 ];

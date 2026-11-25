@@ -59,6 +59,14 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-11-25',
     changes: [
       {
+        category: 'Balance',
+        text: 'Candle Conduit is back (Set 2 Kobold, Tier 6, 7/7): when you get a Ruby, it casts a Ruby on a random friendly minion.',
+      },
+      {
+        category: 'Balance',
+        text: 'A random Ruby is now called a Special Ruby, and it is never the plain one: Warding, Golden, Splintered, Ripple or Dark.',
+      },
+      {
         category: 'Systems',
         text: 'The Compendium says how many cards, runes or heroes you are looking at.',
       },

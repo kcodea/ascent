@@ -95,8 +95,8 @@ export const SET2_KOBOLDS: CardDef[] = [
     // Owner balance 2026-10-10: "Rally: Get 2 random Rubies" (was 3 plain). `random` draws each Ruby's type.
     // Owner balance 2026-10-24: "tunneller rik -> rally: get a random ruby" (2 -> 1; Gilded 4 -> 2).
     effects: [{ on: 'onAttack', do: 'rallyGetRubies', params: { count: 1, random: true } }],
-    text: '**Rally:** Get a random **Ruby**.',
-    goldenText: '**Rally:** Get **2** random **Rubies**.',
+    text: '**Rally:** Get a **Special Ruby**.',
+    goldenText: '**Rally:** Get **2 Special Rubies**.',
   },
   {
     // Avenge (combat): every 3 friendly deaths, raise your Ruby strength — grows held + future Rubies (carried
@@ -315,8 +315,8 @@ export const SET2_KOBOLDS: CardDef[] = [
     // Gover / Goldvein use): every 15 damage this deals gets a random Ruby (any of the six types), at most TWICE
     // per combat. Gilded: 2 random Rubies per payout, still twice. The Rubies ride the combat carry-back to hand.
     effects: [{ on: 'passive', do: 'dealtDamageGetRandomRuby', params: { every: 15, count: 1, maxPerCombat: 2 } }],
-    text: '**Taunt.** **Ward.** **Pummel (15):** Get a random **Ruby**. (Twice per combat)',
-    goldenText: '**Taunt.** **Ward.** **Pummel (15):** Get **2** random **Rubies**. (Twice per combat)',
+    text: '**Taunt.** **Ward.** **Pummel (15):** Get a **Special Ruby**. (Twice per combat)',
+    goldenText: '**Taunt.** **Ward.** **Pummel (15):** Get **2 Special Rubies**. (Twice per combat)',
   },
   {
     // Rally: each attack plays PERMANENT Rubies on itself. Golden doubles the count.
@@ -343,8 +343,8 @@ export const SET2_KOBOLDS: CardDef[] = [
     keywords: [],
     // Owner balance 2026-10-10: "Sell: Get a random Ruby" (was 2 plain; the drop to one is confirmed).
     effects: [{ on: 'onSell', do: 'onSellGetRubies', params: { count: 1, random: true } }],
-    text: '**Sell:** Get a random **Ruby**.',
-    goldenText: '**Sell:** Get **2** random **Rubies**.',
+    text: '**Sell:** Get a **Special Ruby**.',
+    goldenText: '**Sell:** Get **2 Special Rubies**.',
   },
   {
     // Flurry + Rally: every attack (twice, with Flurry) plays a PERMANENT Ruby on your whole board.
@@ -381,8 +381,8 @@ export const SET2_KOBOLDS: CardDef[] = [
     // random Ruby (all six types). A Ruby a Gem Sage granted never re-triggers a Gem Sage (the factory's own
     // re-entrancy latch). Gilded: 2 random Rubies (judgement call, flagged in the PR).
     effects: [{ on: 'onGetRuby', do: 'onGetRubyRandomRuby', params: { count: 1 } }],
-    text: 'When you get a **Ruby**, also get a random **Ruby**.',
-    goldenText: 'When you get a **Ruby**, also get **2** random **Rubies**.',
+    text: 'When you get a **Ruby**, also get a **Special Ruby**.',
+    goldenText: 'When you get a **Ruby**, also get **2 Special Rubies**.',
   },
   {
     // FURLBOGGEN (owner design 2026-11-23, R-WIZENED-1123-03): the Furlboggen rune's token (Set 2 and Set 3). Every Ruby
@@ -420,5 +420,19 @@ export const SET2_KOBOLDS_LATE: CardDef[] = [
     effects: [{ on: 'onRubyPlayed', do: 'rubyPlayedBounce', params: { hops: 1, goldenHops: 2 } }],
     text: 'When a **Ruby** is cast on this, it bounces **once**.',
     goldenText: 'When a **Ruby** is cast on this, it bounces **twice**.',
+  },
+  {
+    // CANDLE CONDUIT (back in Set 2, owner 2026-11-25; archived 2026-08-18 and unchanged): every Ruby you get, any kind from any source,
+    // casts a plain Ruby on a random OTHER friendly minion, in the Shop and live in a fight (R-CONDUIT-01). Gilded: on two.
+    id: 'k_candleconduit',
+    name: 'Candle Conduit',
+    tribe: 'kobold',
+    tier: 6,
+    attack: 7,
+    health: 7,
+    keywords: [],
+    effects: [{ on: 'onGetRuby', do: 'rubyGainedCast' }],
+    text: 'When you get a **Ruby**, cast a **Ruby** on a random friendly minion.',
+    goldenText: 'When you get a **Ruby**, cast a **Ruby** on **2** random friendly minions.',
   },
 ];

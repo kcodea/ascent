@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { combatSide, makeRng, simulate, RUBY_TYPE_IDS, type BoardMinion, type CombatEvent } from '@game/core';
+import { combatSide, makeRng, simulate, type BoardMinion, type CombatEvent, SPECIAL_RUBY_IDS } from '@game/core';
 import { CARD_INDEX, poolFor } from '@game/content';
 import { createRun, reduce, type Action, type BoardCard, type RunState } from './index';
 import { fireRecruitDeathrattlesForTest, fireShopRally } from './recruit';
@@ -36,21 +36,21 @@ const stats = (id: string) => { const d = CARD_INDEX[id]!; return [d.tribe, d.ti
 describe('Tunneller Rik: Rally: get a random Ruby (2026-10-24, was 2)', () => {
   it('keeps its body; text says one random Ruby (Gilded 2)', () => {
     expect(stats('k_tunnelcharger')).toEqual(['kobold', 3, 3, 4, ['RL']]);
-    expect(CARD_INDEX['k_tunnelcharger']!.text).toBe('**Rally:** Get a random **Ruby**.');
-    expect(CARD_INDEX['k_tunnelcharger']!.goldenText).toBe('**Rally:** Get **2** random **Rubies**.');
+    expect(CARD_INDEX['k_tunnelcharger']!.text).toBe('**Rally:** Get a **Special Ruby**.');
+    expect(CARD_INDEX['k_tunnelcharger']!.goldenText).toBe('**Rally:** Get **2 Special Rubies**.');
   });
   it.each([[false, 1], [true, 2]] as const)('COMBAT (golden=%s): one Rally mints %i random Ruby type(s)', (golden, n) => {
     const r = simulate([{ cardId: 'k_tunnelcharger', attack: 3, health: 300, sourceUid: 'T', keywords: ['RL'], golden } as BoardMinion],
       [{ cardId: 'sandbag', attack: 0, health: 3 }], makeRng(2), CARD_INDEX, combatSide({ tier: 6 }), combatSide({ tier: 1 }));
     expect(r.playerRubyGrantIds ?? []).toHaveLength(n);
-    for (const id of r.playerRubyGrantIds ?? []) expect(RUBY_TYPE_IDS).toContain(id);
+    for (const id of r.playerRubyGrantIds ?? []) expect(SPECIAL_RUBY_IDS).toContain(id);
     expect(r.playerRubyGrants ?? 0, 'no plain-Ruby mints').toBe(0);
   });
   it.each([[false, 1], [true, 2]] as const)('SHOP (golden=%s): a Rally replay gets %i random Ruby(ies)', (golden, n) => {
     const s = run({ board: [body('T', 'k_tunnelcharger', { golden })] });
     fireShopRally(s, s.board[0]!);
     expect(rubiesInHand(s)).toHaveLength(n);
-    for (const c of rubiesInHand(s)) expect(RUBY_TYPE_IDS).toContain(c.cardId);
+    for (const c of rubiesInHand(s)) expect(SPECIAL_RUBY_IDS).toContain(c.cardId);
   });
 });
 

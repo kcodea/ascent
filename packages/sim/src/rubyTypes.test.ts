@@ -197,7 +197,7 @@ describe('the new Ruby tokens', () => {
 
 // ── 3. "A random Ruby" + Ruby Shipment ────────────────────────────────────────────────────────────────────
 
-describe('a random Ruby — all six types at equal odds, seeded', () => {
+describe('a Special Ruby: the five that are not plain, at equal odds, seeded (R-RUBY-SPECIAL-01)', () => {
   it('every type appears, roughly evenly, and the same seed draws the same Rubies', () => {
     const tally: Record<string, number> = {};
     for (let seed = 1; seed <= 600; seed++) {
@@ -205,8 +205,8 @@ describe('a random Ruby — all six types at equal odds, seeded', () => {
       mintRandomRubies(s, 1);
       tally[s.hand[0]!.cardId] = (tally[s.hand[0]!.cardId] ?? 0) + 1;
     }
-    expect(Object.keys(tally).sort()).toEqual([...RUBY_TYPE_IDS].sort());
-    for (const id of RUBY_TYPE_IDS) expect(tally[id], id).toBeGreaterThan(60); // ~100 each of 600
+    expect(Object.keys(tally).sort()).toEqual([...SPECIAL_RUBY_IDS].sort());
+    for (const id of SPECIAL_RUBY_IDS) expect(tally[id], id).toBeGreaterThan(80); // ~120 each of 600
     const a = run({ rngCursor: 42 }); mintRandomRubies(a, 3);
     const b = run({ rngCursor: 42 }); mintRandomRubies(b, 3);
     expect(a.hand.map((c) => c.cardId)).toEqual(b.hand.map((c) => c.cardId));
@@ -223,7 +223,7 @@ describe('a random Ruby — all six types at equal odds, seeded', () => {
 
   it('Ruby Shipment costs 2 and gets 2 random Rubies, each drawn separately', () => {
     const d = CARD_INDEX['rubyshipment']!;
-    expect([d.cost, d.text]).toEqual([2, 'Get **2** random **Rubies**.']);
+    expect([d.cost, d.text]).toEqual([2, 'Get **2 Special Rubies**.']);
     const kinds = new Set<string>();
     for (let seed = 1; seed <= 40; seed++) {
       let s = run({ rngCursor: seed * 104729, hand: [body('sh', 'rubyshipment')] });
@@ -234,7 +234,8 @@ describe('a random Ruby — all six types at equal odds, seeded', () => {
       for (const g of got) kinds.add(g.cardId);
     }
     expect(kinds.has('mixed'), 'the two draws are independent').toBe(true);
-    expect(kinds.size).toBeGreaterThanOrEqual(6);
+    expect(kinds.size).toBe(1 + SPECIAL_RUBY_IDS.length); // every kind, never the plain Ruby
+    expect(kinds.has('ruby')).toBe(false);
   });
 });
 
@@ -248,13 +249,13 @@ describe('Kobe — Pummel (15): Get a random Ruby. (Twice per combat)', () => {
   it('keeps Taunt and 5/6, gains Ward (balance 2026-10-10); the text is the owner\'s', () => {
     const d = CARD_INDEX['k_kobe']!;
     expect([d.attack, d.health, d.keywords]).toEqual([5, 6, ['T', 'DS']]);
-    expect(d.text).toBe('**Taunt.** **Ward.** **Pummel (15):** Get a random **Ruby**. (Twice per combat)');
+    expect(d.text).toBe('**Taunt.** **Ward.** **Pummel (15):** Get a **Special Ruby**. (Twice per combat)');
   });
 
   it('every 15 damage dealt gets a random Ruby — at most TWICE per combat', () => {
     const r = fight({});
     expect(r.playerRubyGrantIds, 'many 15-damage hits, but capped at two payouts').toHaveLength(2);
-    for (const id of r.playerRubyGrantIds!) expect(RUBY_TYPE_IDS).toContain(id);
+    for (const id of r.playerRubyGrantIds!) expect(SPECIAL_RUBY_IDS).toContain(id);
     expect(r.events.filter((e) => e.type === 'pummelTrigger')).toHaveLength(2);
     expect(r.events.filter((e) => e.type === 'toHand' && RUBY_TYPE_IDS.includes(e.cardId)), 'each Ruby flies to hand as its own type').toHaveLength(2);
   });
@@ -422,7 +423,7 @@ describe('Rune of Investment — Epic: sell 4 minions, get 2 random Rubies and i
   it('is an EPIC rune now', () => {
     expect(EPIC_RUNES.some((r) => r.id === 'rune_investment')).toBe(true);
     expect(RUNES.some((r) => r.id === 'rune_investment')).toBe(false);
-    expect(EPIC_RUNES.find((r) => r.id === 'rune_investment')!.text).toBe('When you **Sell 4 minions**, get **2 random Rubies** and improve your **Rubies** by **+1/+1**.');
+    expect(EPIC_RUNES.find((r) => r.id === 'rune_investment')!.text).toBe('When you **Sell 4 minions**, get **2 Special Rubies** and improve your **Rubies** by **+1/+1**.');
   });
   it('the fourth sale pays 2 random Rubies at the improved strength', () => {
     let s = run({ runeSellRubies: 2, runeSellRubiesSold: 3, board: [plain('x', 'beast')] });
@@ -430,7 +431,7 @@ describe('Rune of Investment — Epic: sell 4 minions, get 2 random Rubies and i
     const got = rubiesInHand(s);
     expect(got).toHaveLength(2);
     for (const c of got) {
-      expect(RUBY_TYPE_IDS).toContain(c.cardId);
+      expect(SPECIAL_RUBY_IDS).toContain(c.cardId);
       expect(c.attack).toBe(CARD_INDEX[c.cardId]!.attack + 1);
     }
   });
@@ -443,7 +444,7 @@ describe('Rune of Resonance — Your Rubies cast twice from hand. Start of Turn:
   it('buying it hands over one random Ruby at once', () => {
     const s = buy();
     expect(rubiesInHand(s)).toHaveLength(1);
-    expect(RUBY_TYPE_IDS).toContain(rubiesInHand(s)[0]!.cardId);
+    expect(SPECIAL_RUBY_IDS).toContain(rubiesInHand(s)[0]!.cardId);
   });
 
   it('EVERY Ruby played from hand casts twice — no per-turn window any more', () => {
@@ -544,7 +545,7 @@ describe('Dealski — When you play a Choose One card, get a random Ruby (rework
     const gilded = play(true, 'k_veinbreaker');
     expect(plain).toHaveLength(1);
     expect(gilded).toHaveLength(2);
-    for (const id of [...plain, ...gilded]) expect(RUBY_TYPE_IDS).toContain(id);
+    for (const id of [...plain, ...gilded]) expect(SPECIAL_RUBY_IDS).toContain(id);
     expect(play(false, 'k_beggy')).toEqual([]);
   });
 });

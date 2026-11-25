@@ -36,7 +36,7 @@ export const SET2_SPELLS: CardDef[] = [
     spell: true,
     cost: 2,
     effects: [{ on: 'cast', do: 'getRandomRubies', params: { count: 2 } }],
-    text: 'Get **2** random **Rubies**.',
+    text: 'Get **2 Special Rubies**.',
   },
   {
     // Facetwright ("Facetwright's Choice" until 2026-09-24; owner rename, id + art unchanged) — Choose One: your Rubies gain +1 Attack, or +1 Health (`rubyStatGain` → run

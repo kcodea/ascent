@@ -1,5 +1,5 @@
 import { CARD_INDEX, referencedCardIds } from '@game/content';
-import { ALE_IDS } from '@game/core';
+import { ALE_IDS, SPECIAL_RUBY_IDS } from '@game/core';
 
 /** The MANUAL related-card map — Fodder/Imp cards whose references aren't effect params (Feed *consumes* Fodder).
  *  The shop's hover popup and the Compendium's both read it, on top of `referencedCardIds` (every card an effect
@@ -19,7 +19,8 @@ export const CARD_REFERENCES: Record<string, string[]> = {
  *  the shop and the Compendium, so a card previews the same things wherever you hover it. */
 export function relatedCardIds(cardId: string): string[] {
   const def = CARD_INDEX[cardId];
-  const mentionsRuby = !!def && !def.ruby && /\bRub(y|ies)\b/i.test(`${def.text} ${def.goldenText ?? ''}`);
+  // "Special Ruby" is never the plain one (R-RUBY-SPECIAL-01): it previews one of its own (`relatedPickOneIds`).
+  const mentionsRuby = !!def && !def.ruby && /\bRub(y|ies)\b/i.test(`${def.text} ${def.goldenText ?? ''}`.replace(/\bSpecial Rub(y|ies)\b/g, ''));
   const named = [...(CARD_REFERENCES[cardId] ?? []), ...(def ? referencedCardIds(def) : [])];
   const namesARuby = named.some((id) => CARD_INDEX[id]?.ruby);
   return [...new Set([...named, ...(mentionsRuby && !namesARuby ? ['ruby'] : [])])].filter((id) => CARD_INDEX[id]);
@@ -33,5 +34,6 @@ export function relatedPickOneIds(cardId: string): string[] {
   if (!def) return [];
   const txt = `${def.text} ${def.goldenText ?? ''}`;
   if (/\b(Dwarven )?Ales?\b/.test(txt) && !relatedCardIds(cardId).some((id) => ALE_IDS.includes(id))) return [...ALE_IDS].filter((id) => CARD_INDEX[id]);
+  if (!def.ruby && /\bSpecial Rub(y|ies)\b/.test(txt)) return [...SPECIAL_RUBY_IDS].filter((id) => CARD_INDEX[id]);
   return [];
 }

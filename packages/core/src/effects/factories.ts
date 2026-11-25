@@ -45,6 +45,8 @@ let gainWatchDepth = 0;
 /** Gem Sage's combat latch: true while a Sage is granting its random Ruby, so a Ruby a Sage grants never triggers
  *  a Sage (this one or a copy). The combat twin of `gemSageMinting` in the run's `recruit.ts`. */
 let gemSageGranting = false;
+/** Candle Conduit's latch: a Ruby gotten because a Conduit cast one never makes a Conduit cast again (R-CONDUIT-01). */
+let conduitCasting = false;
 
 /** `onGainCard` is a BUS broadcast, and the bus reaches every subscribed body on BOTH sides. "Your hand" means
  *  the owner's, so a reactor only fires for a card that reached its OWN side's hand — without this an enemy
@@ -1577,6 +1579,18 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if (self.dead || self.health <= 0 || !gainedByOwnSide(self, payload) || gemSageGranting) return;
     gemSageGranting = true;
     try { ctx.grantRandomRubies(num(params.count, 1) * mul(self), self.side, self.uid); } finally { gemSageGranting = false; }
+  },
+
+  /** CANDLE CONDUIT in combat (R-CONDUIT-01, real time like Gem Sage above): a Ruby reached this side's hand, so each living Conduit
+   *  casts one on a random OTHER living friendly minion (Gilded: on two different ones), through the one combat Ruby primitive. */
+  rubyGainedCast: (ctx, self, params, payload) => {
+    if (self.dead || self.health <= 0 || !gainedByOwnSide(self, payload) || conduitCasting) return;
+    const tribe = str(params.tribe);
+    const pool = ctx.living(self.side).filter((m) => m !== self && !m.dead && (!tribe || bodyIsTribe(m, tribe, ctx.getCard(m.cardId))));
+    conduitCasting = true;
+    try {
+      for (let c = 0; c < mul(self) && pool.length > 0; c++) playRubyOn(ctx, self, pool.splice(ctx.rng.int(pool.length), 1)[0]!, 1);
+    } finally { conduitCasting = false; }
   },
 
   /** Deathrattle: summon `count` copies of token `tokenId` beside self. (Echo Warden adds copies

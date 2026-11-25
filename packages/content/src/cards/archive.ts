@@ -1365,21 +1365,6 @@ export const ARCHIVED_CARDS: CardDef[] = [
   // ── 2026-08-18 owner archive batch (Set 2 Kobold / Dwarf / Demon cull) ───────────────────────────────────
   {
     // ARCHIVED 2026-08-18. Moved verbatim from set2/kobolds.ts.
-    // Owner rework 2026-08-11: from a Ruby-bounce passive to a ruby-gain reactor. `rubyGainedCast` (no tribe
-    // filter) casts a Ruby on ONE random friendly minion each time you get a Ruby; golden casts 2.
-    id: 'k_candleconduit',
-    name: 'Candle Conduit',
-    tribe: 'kobold',
-    tier: 6,
-    attack: 7,
-    health: 7,
-    keywords: [],
-    effects: [{ on: 'onGetRuby', do: 'rubyGainedCast' }],
-    text: 'When you get a **Ruby**, cast a **Ruby** on a random friendly minion.',
-    goldenText: 'When you get a **Ruby**, cast a **Ruby** on **2** random friendly minions.',
-  },
-  {
-    // ARCHIVED 2026-08-18. Moved verbatim from set2/kobolds.ts.
     // "When a Ruby is played on THIS minion" trigger — the buff bounces on to random friends. Owner rework
     // 2026-07-27: Ward, and random targets instead of the two neighbours (so position no longer gates it).
     id: 'k_resonance',

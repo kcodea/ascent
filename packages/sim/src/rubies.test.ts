@@ -155,6 +155,7 @@ describe('Ruby engine (set 2)', () => {
     mintRubies(s, 1);
     const after = s.board.reduce((sum, c) => sum + c.attack + c.health, 0);
     expect(after - before, 'two Rubies (+1/+1 each) cast onto the board').toBe(4);
+    expect(s.board.map((c) => c.attack), 'on two DIFFERENT minions, never itself').toEqual([2, 3, 3]);
   });
 
   it('Prismcaster makes a hand Ruby cast an extra time', () => {

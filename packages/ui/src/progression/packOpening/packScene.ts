@@ -48,7 +48,7 @@ import { PILE_LEAN_PX, PILE_LEAN_RAD, PILE_RISE_PX, newPile, pileAtRest, pileEas
 import { cardRestX, cardRestY } from './packViews';
 import { COSMETIC_RARITIES } from '@game/progression';
 import { ANCIENT_GLOW_STOPS, BURST_TEX, PACK_GEOM, TEX_RES, rarityTint } from './packTextures';
-import { AURA_BURST, BURST, FACE_AMBIENT, FLIP_CHARGE, bigPullTier, burstPoseAt, type BigPullTier, type BurstPose } from './bigPull';
+import { AURA_BURST, BURST, FACE_AMBIENT, FACE_PLATE_H, FLIP_CHARGE, bigPullTier, burstPoseAt, type BigPullTier, type BurstPose } from './bigPull';
 import { holoShiftInto, packHoloStrength } from './packHolo';
 import {
   buildPackViews, CARDS_Y, RIBBON_DY, RIBBON_HH, RIBBON_HW, wallInto, type SceneTextures, type Views,
@@ -573,7 +573,8 @@ class PackSceneImpl implements PackScene {
     const idx = this.flipped;
     const card = v.cards[idx], b = this.backs?.[idx];
     const dur = b ? teaseFrames(b.rarity, feel.tease) : 0;
-    const on = dur > 0 && !!card && !this.flip.active && !this.reset.active && this.overPile();
+    // (never while a card is turning or its face is still landing: one reveal at a time holds the eye)
+    const on = dur > 0 && !!card && !this.flip.active && !this.land.active && !this.reset.active && this.overPile();
     if (!ts.live) {
       if (!on) return;
       ts.live = true; ts.t = 0; ts.idx = idx; ts.stage = -1; ts.level = 0; this.beatT = 0;
@@ -610,7 +611,7 @@ class PackSceneImpl implements PackScene {
     if (!this.xf.active) {
       v.flash.visible = true;
       v.flash.position.set(cardRestX(idx), cardRestY(idx));
-      v.flash.alpha = (0.09 + 0.06 * at.stage) * ts.level * (0.65 + 0.35 * Math.sin(this.time * 0.21)) + 0.12 * this.pile.beat * ts.level;
+      v.flash.alpha = (0.04 + 0.025 * at.stage) * ts.level * (0.6 + 0.4 * Math.sin(this.time * 0.21)) + 0.1 * this.pile.beat * ts.level;
     }
     // the heartbeat of a held big tease
     const every = teaseBeatFrames(at.stage);
@@ -1402,7 +1403,7 @@ class PackSceneImpl implements PackScene {
       const L = this.land;
       L.active = true; L.t = 0; L.dur = f.dur;
       L.x0 = this.pose.cx; L.y0 = this.pose.cy; L.h0 = CARD_H * this.pose.s;
-      L.x1 = f.tx; L.y1 = f.ty; L.h1 = CARD_H * f.scale * REVEALED_SCALE;
+      L.x1 = f.tx; L.y1 = f.ty; L.h1 = CARD_H * f.scale * REVEALED_SCALE * FACE_PLATE_H;
       const k = AURA_BURST[fb.rarity] * Math.min(1.2, getPackFeel().bigPull);
       if (k > 0) af.fireBurst(k);
       this.faceAmbient = FACE_AMBIENT[fb.rarity] * Math.min(1, getPackFeel().bigPull);

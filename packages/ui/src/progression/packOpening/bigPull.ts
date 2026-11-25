@@ -53,8 +53,14 @@ export const bigPullShakePx = (tier: BigPullTier, knob: number): number =>
  * (0 = none). `FACE_AMBIENT`: the level the aura settles to behind the landed face (0 = it dies away).
  */
 export const FLIP_CHARGE: Readonly<Record<CrateRarity, number>> = { common: 0.2, rare: 0.36, epic: 0.7, legendary: 1, ancient: 1 };
-export const AURA_BURST: Readonly<Record<CrateRarity, number>> = { common: 0, rare: 0.32, epic: 0.62, legendary: 1, ancient: 1.25 };
-export const FACE_AMBIENT: Readonly<Record<CrateRarity, number>> = { common: 0, rare: 0, epic: 0.2, legendary: 0.5, ancient: 0.62 };
+export const AURA_BURST: Readonly<Record<CrateRarity, number>> = { common: 0, rare: 0.3, epic: 0.55, legendary: 0.85, ancient: 1.1 };
+export const FACE_AMBIENT: Readonly<Record<CrateRarity, number>> = { common: 0, rare: 0, epic: 0.25, legendary: 0.55, ancient: 0.7 };
+
+/**
+ * The visible card plate's height over the face's layout box (the plate art has a clear margin: 2844 of 3072 source px),
+ * so the aura's rim sits ON the landed face's edge, not outside it.
+ */
+export const FACE_PLATE_H = 0.926;
 
 export interface BurstPose {
   /** 0..1 envelope times the peak and the strength knob (capped at 1). */

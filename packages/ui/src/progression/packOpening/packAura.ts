@@ -8,7 +8,7 @@
  *    rays (Legendary and up) and twinkling motes carried outward. More tiers = further reach and more layers.
  *  - THE BURST (`burstT`, seconds since it fired; negative = none): a shockwave ring with a noise-torn edge and a
  *    second thinner ring inside it, long god rays of layered angular noise, a core flash, embers thrown outward as
- *    streaks, and crystal facets that flash where the wave passes.
+ *    streaks, and fine glitter that lights where the wave passes.
  *  - THE AMBIENT hold behind a big pull's face: the same wisps at a lower level.
  *
  * Everything is procedural (no textures to paint or upload). Per frame only uniforms change; no allocation. WebGL only
@@ -68,7 +68,7 @@ float motes(vec2 p, float r, float ang, float N, float M, float flow, float stre
   float life = h21(id + seed + 3.1);
   float tw = .55 + .45 * sin(t * 7. + life * 40.);
   vec2 dv = (f - o) * vec2(r * TAU * M / N, streak);
-  return smoothstep(.11, 0., length(dv)) * tw * step(.5, life);
+  return smoothstep(.05, 0., length(dv)) * tw * step(.6, life);
 }
 
 void main() {
@@ -79,6 +79,8 @@ void main() {
   float d = sdRound(p, vec2(.3333, .5), .045);   // the card: < 0 inside
   float od = max(d, 0.);
   vec3 col = vec3(0.);
+  // nothing reaches this far without a burst: skip the noise (most of the quad, most of the time)
+  if (uBurst < 0. && od > .7) { finalColor = vec4(0.); return; }
 
   if (uLevel > .002) {
     float tk = clamp(uTier / 4., 0., 1.);
@@ -90,7 +92,7 @@ void main() {
     float tongues = fb(qa + flow * vec2(.83, .56) + wv * 1.1);
     float fine = fb(p * 4.6 + vec2(t * .17, -t * .26) + tongues * 1.7);
     float w = tongues * .62 + fine * .38;
-    float reach = mix(.07, .24, uLevel) * (1. + 1.1 * tk);
+    float reach = mix(.04, .085, uLevel) * (1. + .9 * tk);   // card heights: it hugs the card, the burst is what fills the stage
     float body = exp(-od / reach);
     float wisps = smoothstep(.36, .9, w + body * .5) * body;
     col += mix(uA, uB, smoothstep(.15, .85, od / reach * .5 + fine * .5)) * wisps * 1.3;
@@ -100,20 +102,20 @@ void main() {
     // the rim: a hot line on the card's edge, sparks running along it
     float rim = exp(-abs(d) * 46.);
     float run = an(ang, 26., t * 1.9) * an(ang, 9., 4. - t * .8);
-    col += uC * rim * (.4 + 2.4 * run * run) + uA * exp(-od * 16.) * .35;
+    col += uC * rim * (.22 + 2.6 * run * run) + uA * exp(-od * 18.) * .22;
     // fine rays (Legendary and up)
     float rayK = smoothstep(2.4, 3.1, uTier);
     if (rayK > 0.) {
       float ray = an(ang, 9., t * .33) * .55 + an(ang, 23., 9. - t * .55) * .45;
       ray = pow(smoothstep(.42, .9, ray), 2.);
-      col += mix(uB, uC, .55) * ray * exp(-od * 1.9) * smoothstep(0., .05, od) * rayK * 1.1;
+      col += mix(uB, uC, .55) * ray * exp(-od * 4.6) * smoothstep(0., .04, od) * rayK * 1.1;
     }
     // motes carried outward (Rare and up), three depths
     float moteK = smoothstep(.5, 1.4, uTier) * (.5 + .7 * tk);
     if (moteK > 0.) {
       float m = motes(p, r, ang, 26., 5.5, t * .55, 1., 1., t) + motes(p, r, ang, 41., 8., t * .8, 1., 9., t) * .8
         + motes(p, r, ang, 17., 3.5, t * .32, 1., 21., t) * 1.2;
-      col += uC * m * exp(-od * 2.3) * smoothstep(0., .03, od) * moteK;
+      col += uC * m * exp(-od * 4.2) * smoothstep(0., .03, od) * moteK;
     }
     col *= uLevel;
   }
@@ -121,18 +123,18 @@ void main() {
   if (uBurst >= 0.) {
     float bt = uBurst;
     float e = 1. - exp(-bt * 3.6);
-    float R = .36 + 1.5 * e * uBurstK;
+    float R = .34 + 1.12 * e * uBurstK;
     float fade = exp(-bt * 2.1);
     float clear = smoothstep(0., .05, od);
     // the shell: its radius wanders with the angle and its light comes in torn arcs of uneven weight, never a clean circle
     float Rr = R + (an(ang, 4., bt * .9 + 2.) - .5) * .42 * R + (an(ang, 13., 7. - bt * 1.4) - .5) * .14 * R;
     float arcs = (1.9 * pow(an(ang, 6., bt * 1.1 + 5.), 2.) + 1.1 * pow(an(ang, 19., 3. + bt * 2.), 3.)) * (.55 + .9 * fb(dir * 9. + r * 3.));
     float x1 = (r - Rr) * (9. + 16. * an(ang, 9., 11.));
-    col += (uC * 1.2 + uA * .6) * exp(-x1 * x1) * arcs * fade * 1.3;
+    col += (uC * 1.1 + uA * .6) * exp(-x1 * x1) * arcs * fade * 1.1;
     // plasma trailing inside the front, streaming outward
     float plasma = fb(dir * 3. + (r * 2.2 - bt * 2.6) * vec2(.8, .6) + 3.);
-    float wake = step(r, Rr) * exp(-(Rr - r) * 3.4);
-    col += mix(uA, uB, plasma) * wake * (.3 + 1.2 * plasma * plasma) * fade * clear;
+    float wake = smoothstep(Rr, Rr - .09, r) * exp(-(Rr - r) * 3.4);
+    col += mix(uA, uB, plasma) * wake * (.04 + 1.5 * plasma * plasma * plasma) * fade * clear;
     // god rays: broad beams and fine needles of layered angular noise, each its own length
     float gr = an(ang, 9., bt * .6) * .5 + an(ang, 21., 2. - bt * 1.1) * .3 + an(ang, 45., bt * 1.7) * .2;
     float beams = pow(smoothstep(.4, .85, gr), 1.6);
@@ -140,20 +142,15 @@ void main() {
     float len = Rr * (1.05 + 1.2 * an(ang, 6., bt * .5 + 1.));
     col += mix(uC, uA, smoothstep(.1, 1.5, r)) * (beams * 1.9 + needles) * smoothstep(len, len * .15, r) * exp(-bt * 1.3) * uBurstK * clear;
     // the core flash
-    col += uC * exp(-r * r * 3.2) * exp(-bt * 5.) * 3.;
+    col += uC * exp(-r * r * 7.5) * exp(-bt * 6.) * 1.7;
     // embers thrown out with the wave, streaked along their flight
     float em = motes(p, r, ang, 31., 4., e * 4.2, .2, 3., t) + motes(p, r, ang, 47., 6., e * 6.5, .16, 13., t) * .8
       + motes(p, r, ang, 19., 2.8, e * 2.6, .24, 27., t) * 1.1;
     col += mix(uC, uB, .25) * em * smoothstep(Rr * 1.2, Rr * .15, r) * exp(-bt * 1.1) * 1.9 * smoothstep(.02, .1, bt) * clear;
-    // glints: crystal facet edges that catch the front as it passes (edges only)
-    vec2 vp = p * 6.5, g = floor(vp), f = fract(vp); float d1 = 9., d2 = 9.;
-    for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++) {
-      vec2 k = vec2(float(x), float(y)), c = k + h22(g + k) - f; float qd = dot(c, c);
-      if (qd < d1) { d2 = d1; d1 = qd; } else if (qd < d2) { d2 = qd; }
-    }
-    float edge = smoothstep(.07, 0., sqrt(d2) - sqrt(d1));
-    float x3 = (r - Rr) * 5.5;
-    col += mix(uA, uC, .7) * edge * exp(-x3 * x3) * fade * .75 * uBurstK;
+    // glitter: fine sparks that light where the front passes, then die
+    float x3 = (r - Rr) * 4.5;
+    float gl = motes(p, r, ang, 67., 13., 0., 1., 41., t) + motes(p, r, ang, 89., 17., 0., 1., 53., t);
+    col += uC * gl * exp(-x3 * x3) * fade * 1.4 * uBurstK * clear;
   }
 
   // fade to nothing before the quad's edge

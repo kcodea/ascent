@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { BREATH_AMP, arrivingPlaceHidden, breathScale, handFanInto, inRotatedRect, newShake, newSwing, parksOnArrival, rubberY, stepShake, stepSwing } from './shopMotion';
+import {
+  BREATH_AMP, arrivingPlaceHidden, bindFan, breathScale, handFanInto, inRotatedRect, newPointerVel, newShake, newSwing,
+  parksOnArrival, pointerVelDecay, resetPointerVel, rubberY, samplePointerVel, settleDip, softDead, staggerArrivals,
+  stepShake, stepSwing,
+} from './shopMotion';
 
 describe('stepShake', () => {
   it('fires on three direction changes within 400 ms', () => {
@@ -149,5 +153,107 @@ describe('arrivingPlaceHidden', () => {
     expect(arrivingPlaceHidden('buying', 4, 3, 2, 4)).toBe(false);
     expect(arrivingPlaceHidden('toShelf', 4, 3, 3, 4)).toBe(false);
     expect(arrivingPlaceHidden('idle', 4, 3, 3, 4)).toBe(false);
+  });
+});
+
+describe('softDead', () => {
+  it('is zero inside the dead zone and continuous at its edge (no step when a crawl becomes a move)', () => {
+    expect(softDead(0.3, 0.6)).toBe(0);
+    expect(softDead(-0.6, 0.6)).toBe(0);
+    expect(softDead(0.61, 0.6)).toBeCloseTo(0.01);
+    expect(softDead(-2, 0.6)).toBeCloseTo(-1.4);
+  });
+});
+
+describe('the pointer velocity estimate', () => {
+  it('reads a steady drag at its true speed (px per 60 Hz frame), whatever the event rate', () => {
+    for (const every of [1, 4, 8, 16]) { // a 1000 Hz, 250 Hz, 125 Hz and 60 Hz pointer
+      const p = newPointerVel();
+      resetPointerVel(p, 0, 0, 0);
+      for (let t = every; t <= 600; t += every) samplePointerVel(p, t * 0.3, 0, t); // 0.3 px/ms = 5 px/frame
+      expect(p.vx).toBeCloseTo(5, 1);
+      expect(p.vy).toBe(0);
+    }
+  });
+
+  it('ignores a repeated timestamp, and decays to zero once the pointer stops sending moves', () => {
+    const p = newPointerVel();
+    resetPointerVel(p, 0, 0, 0);
+    for (let t = 8; t <= 400; t += 8) samplePointerVel(p, t * 0.3, 0, t);
+    samplePointerVel(p, 9999, 0, 400); // same timestamp: no infinite speed
+    expect(p.vx).toBeCloseTo(5, 1);
+    expect(pointerVelDecay(p, 410)).toBe(1); // a frame between events: still moving
+    expect(pointerVelDecay(p, 500)).toBeLessThan(0.3);
+    expect(pointerVelDecay(p, 900)).toBeLessThan(0.001);
+  });
+
+  it('a reset starts from rest (a pick-up never inherits the last drag)', () => {
+    const p = newPointerVel();
+    resetPointerVel(p, 0, 0, 0);
+    samplePointerVel(p, 100, 100, 16);
+    resetPointerVel(p, 5, 5, 20);
+    expect(p.vx).toBe(0); expect(p.vy).toBe(0);
+  });
+});
+
+describe('settleDip', () => {
+  it('a small bob: zero at the start and the end with no kink, deepest in the middle', () => {
+    expect(settleDip(0)).toBe(0);
+    expect(settleDip(1)).toBe(0);
+    expect(settleDip(-0.2)).toBe(0);
+    expect(settleDip(1.5)).toBe(0);
+    expect(settleDip(0.5)).toBeCloseTo(1);
+    expect(settleDip(0.02)).toBeLessThan(0.01); // eases in: no velocity step on arrival
+    expect(settleDip(0.98)).toBeLessThan(0.01);
+  });
+});
+
+describe('bindFan', () => {
+  const H = (...ids: string[]) => ids.map((packId) => ({ packId }));
+  const make = () => ({ viewId: new Array<string | null>(7).fill(null), placeView: new Int32Array(7).fill(-1), fresh: new Uint8Array(7) });
+
+  it('binds each shown pack to a view, marking new ones fresh', () => {
+    const b = make();
+    expect(bindFan(b.viewId, b.placeView, b.fresh, H('a', 'b', 'c'), 3)).toBe(true);
+    expect([...b.placeView].slice(0, 3).map((v) => b.viewId[v])).toEqual(['a', 'b', 'c']);
+    expect([...b.fresh].filter(Boolean)).toHaveLength(3);
+  });
+
+  it('a pack keeps its own view when its place changes, and a pack new to the fan takes a free one', () => {
+    const b = make();
+    bindFan(b.viewId, b.placeView, b.fresh, H('a', 'b', 'c'), 3);
+    const vb = b.placeView[1]!, vc = b.placeView[2]!;
+    b.fresh.fill(0);
+    bindFan(b.viewId, b.placeView, b.fresh, H('b', 'c', 'd'), 3); // 'a' played: b and c shift down a place
+    expect(b.placeView[0]).toBe(vb);
+    expect(b.placeView[1]).toBe(vc);
+    expect(b.viewId[b.placeView[2]!]).toBe('d');
+    expect(b.fresh[vb]).toBe(0); expect(b.fresh[vc]).toBe(0); expect(b.fresh[b.placeView[2]!]).toBe(1);
+    expect(b.viewId.filter((id) => id === 'a')).toHaveLength(0); // the played pack's view is free
+    expect(b.placeView[3]).toBe(-1);
+  });
+
+  it('reports no change when nothing moved, and binds only `count` places', () => {
+    const b = make();
+    bindFan(b.viewId, b.placeView, b.fresh, H('a', 'b', 'c', 'd'), 2);
+    expect(b.viewId.filter(Boolean)).toEqual(expect.arrayContaining(['a', 'b']));
+    expect(b.viewId.filter(Boolean)).toHaveLength(2);
+    expect(bindFan(b.viewId, b.placeView, b.fresh, H('a', 'b', 'c', 'd'), 2)).toBe(false);
+  });
+});
+
+describe('staggerArrivals', () => {
+  it('packs new to a hand that grew by more than one arrive one after another', () => {
+    const out = new Map<string, number>();
+    const n = staggerArrivals(new Set(['a']), [{ packId: 'a' }, { packId: 'b' }, { packId: 'c' }, { packId: 'd' }], 100, 4, out);
+    expect(n).toBe(3);
+    expect(out.get('b')).toBe(100); expect(out.get('c')).toBe(104); expect(out.get('d')).toBe(108);
+    expect(out.has('a')).toBe(false);
+  });
+
+  it('a single new pack, or a first hand, arrives at once (nothing staggered)', () => {
+    const out = new Map<string, number>();
+    expect(staggerArrivals(new Set(['a']), [{ packId: 'a' }, { packId: 'b' }], 0, 4, out)).toBe(0);
+    expect(out.size).toBe(0);
   });
 });

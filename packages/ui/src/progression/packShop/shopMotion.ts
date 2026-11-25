@@ -150,3 +150,110 @@ export function parksOnArrival(phase: string, shownAgain: boolean): boolean {
 export function arrivingPlaceHidden(phase: string, n: number, buyN: number, j: number, places: number): boolean {
   return (phase === 'buying' || phase === 'toHand') && n > buyN && j === places - 1;
 }
+
+// ---------------------------------------------------------------- the carried pack's dive
+
+/** `v` with a dead zone of `dead` taken off its magnitude: 0 inside it, continuous at its edge (no step in the dive). */
+export function softDead(v: number, dead: number): number {
+  const a = Math.abs(v) - dead;
+  return a > 0 ? (v < 0 ? -a : a) : 0;
+}
+
+/**
+ * THE POINTER'S VELOCITY, measured from the pointer's own samples (coalesced events, with their timestamps), not from
+ * how far the pack happened to move between two frames: pointer events land unevenly against frames (two in one
+ * frame, none in the next), and a per-frame difference turns that into a shiver in the dive. `vx` / `vy` are px per 60 Hz
+ * frame, low-passed with a time constant of `VEL_TAU_MS`.
+ */
+export interface PointerVel { x: number; y: number; t: number; vx: number; vy: number }
+const FRAME_MS = 1000 / 60;
+const VEL_TAU_MS = 40;
+/** No sample for longer than this and the pointer is taken to be slowing to a stop ... */
+const VEL_GRACE_MS = 34;
+/** ... over this time constant. */
+const VEL_STOP_TAU_MS = 40;
+
+export const newPointerVel = (): PointerVel => ({ x: 0, y: 0, t: 0, vx: 0, vy: 0 });
+
+/** Start measuring from rest at (x, y), time `t` (ms). */
+export function resetPointerVel(p: PointerVel, x: number, y: number, t: number): void {
+  p.x = x; p.y = y; p.t = t; p.vx = 0; p.vy = 0;
+}
+
+/** One pointer sample at (x, y), time `t` (ms). A sample at the same (or an earlier) time only moves the position. */
+export function samplePointerVel(p: PointerVel, x: number, y: number, t: number): void {
+  const dt = t - p.t;
+  if (dt > 0) {
+    const a = 1 - Math.exp(-dt / VEL_TAU_MS);
+    p.vx += (((x - p.x) / dt) * FRAME_MS - p.vx) * a;
+    p.vy += (((y - p.y) / dt) * FRAME_MS - p.vy) * a;
+    p.t = t;
+  }
+  p.x = x; p.y = y;
+}
+
+/** What share of the measured velocity still holds at `now` (ms): 1 while samples keep arriving, falling to 0 after. */
+export function pointerVelDecay(p: PointerVel, now: number): number {
+  const age = now - p.t - VEL_GRACE_MS;
+  return age <= 0 ? 1 : Math.exp(-age / VEL_STOP_TAU_MS);
+}
+
+// ---------------------------------------------------------------- a returned pack sits down
+
+/** How long a returned pack's settle lasts (60 Hz frames) and how deep it dips (its own heights). */
+export const SETTLE_FRAMES = 16;
+export const SETTLE_DEPTH = 0.022;
+
+/** The settle's dip at progress `u` (0..1): a smooth bob, 0 with no kink at either end and 1 in the middle. */
+export function settleDip(u: number): number {
+  if (!(u > 0) || u >= 1) return 0;
+  const s = Math.sin(Math.PI * u);
+  return s * s;
+}
+
+// ---------------------------------------------------------------- the hand's views, keyed by pack
+
+/**
+ * Bind the first `count` packs of `hand` (their fan places) to the hand's pool of views, KEYED BY PACK: a pack already
+ * on a view keeps it (so it keeps its own motion and glides to its new place), a view whose pack left the fan is freed,
+ * and a pack new to the fan takes a free view and is marked in `fresh`. Writes `placeView` (place -> view, -1 past
+ * `count`). Allocates nothing. True when any binding changed.
+ */
+export function bindFan(
+  viewId: (string | null)[], placeView: Int32Array, fresh: Uint8Array, hand: readonly { packId: string }[], count: number,
+): boolean {
+  const views = viewId.length;
+  const n = Math.min(count, hand.length, views, placeView.length);
+  let used = 0, changed = false;
+  placeView.fill(-1);
+  for (let j = 0; j < n; j++) {
+    const id = hand[j]!.packId;
+    for (let v = 0; v < views; v++) if (!(used & (1 << v)) && viewId[v] === id) { placeView[j] = v; used |= 1 << v; break; }
+  }
+  for (let v = 0; v < views; v++) if (!(used & (1 << v)) && viewId[v] !== null) { viewId[v] = null; changed = true; }
+  for (let j = 0; j < n; j++) {
+    if (placeView[j] !== -1) continue;
+    for (let v = 0; v < views; v++) {
+      if (used & (1 << v)) continue;
+      viewId[v] = hand[j]!.packId; fresh[v] = 1; used |= 1 << v; placeView[j] = v; changed = true;
+      break;
+    }
+  }
+  return changed;
+}
+
+/**
+ * A hand that grew by more than one pack at once (a box bought): the new packs arrive one after another, `step` apart
+ * from `now` (any clock), in hand order. Writes each new pack's arrival into `out` and returns how many were staggered
+ * (0 for a single new pack, which simply arrives). Allocates nothing beyond `out`'s entries; call it on a hand change.
+ */
+export function staggerArrivals(
+  prev: ReadonlySet<string>, next: readonly { packId: string }[], now: number, step: number, out: Map<string, number>,
+): number {
+  let fresh = 0;
+  for (const p of next) if (!prev.has(p.packId)) fresh++;
+  if (fresh < 2) return 0;
+  let k = 0;
+  for (const p of next) if (!prev.has(p.packId)) out.set(p.packId, now + step * k++);
+  return k;
+}

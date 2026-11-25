@@ -63,3 +63,23 @@ describe('nearestIndex', () => {
     for (const i of [1, 2, 3, 4, 5]) expect(nearestIndex(L, 3, shelfPoseInto(p, L, i, 3).x)).toBe(i);
   });
 });
+
+describe('the packs stand on the counter', () => {
+  for (const [w, h] of [[1920, 1080], [1600, 900], [2160, 1080]] as const) {
+    it(`at ${w} x ${h}: every shelf pack's bottom is on the floor, the featured pack's on its plinth`, () => {
+      const L = shopLayout(w, h), p = { x: 0, y: 0, h: 0, rot: 0, alpha: 0 };
+      for (const scroll of [3, 3.4, 2.75]) {
+        for (let i = 0; i < 7; i++) {
+          shelfPoseInto(p, L, i, scroll);
+          const near = Math.min(1, Math.abs(i - scroll));
+          expect(p.y + p.h / 2).toBeCloseTo(L.floorY - L.plinth * (1 - near), 6);
+        }
+      }
+      shelfPoseInto(p, L, 3, 3);
+      expect(p.y + p.h / 2).toBeCloseTo(L.floorY - L.plinth, 6);
+      shelfPoseInto(p, L, 4, 3);
+      expect(p.y + p.h / 2).toBeCloseTo(L.floorY, 6);
+      expect(L.floorY).toBeLessThan(L.lineY);
+    });
+  }
+});

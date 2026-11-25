@@ -243,7 +243,9 @@ const SWEEP = runTextSweep({ contracts: CONTRACTS });
 // twice, spell power multiplied on sale) are engine hooks or modifiers the clause grammar does not read.
 // 2026-11-23 (Huntsman): 238 -> 239, CONSCIOUSLY. "When any minion dies" (either side) has no trigger word in the grammar;
 // the behaviour is pinned by packages/sim/src/wizenedRunes1123.test.ts. Furlboggen's "cast on this" grew the grammar instead.
-const UNRESOLVED_CAP = 239;
+// 2026-11-25 (Reflektion): 239 -> 240, CONSCIOUSLY. "it bounces once" has no verb in the grammar (the bounce is a hop, not a cast);
+// R-REFLEKTION-01 and reflektion.test.ts hold it.
+const UNRESOLVED_CAP = 240;
 /** Collapse floor: the parser fully consuming fewer objects than this means a grammar regression. */
 const PARSED_FLOOR = 900;
 /** The HARD ceiling (2026-09-11): the unresolved share of active objects may never reach this fraction again. A

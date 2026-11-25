@@ -1874,4 +1874,24 @@ export const TRIGGERS_RULES: GameRule[] = [
     currentBehaviour: 'Conforms from 2026-11-20. Before, every `onDeath` effect counted as an Echo, so Echohorn spent its trigger on a left-most Brood Matron (whose watcher then did nothing) instead of the real Echo to its right. Brood Matron was reworked the same day to an Avenge card and has no watcher left.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/echoExcludesDeathWatchers.test.ts'], lastVerifiedAt: '2026-11-20' },
   },
+  {
+    id: 'R-REFLEKTION-01',
+    title: 'Reflektion: a Ruby cast on it bounces once to a random other friendly minion, and never chains',
+    statement:
+      'Every Ruby CAST on Reflektion, from any source, in the Shop or in a fight, on either side, bounces once: its stats (and its Ward, on a '
+      + 'Kobold) land on one random OTHER friendly minion. The bounced Ruby is a Ruby buff and not a cast: no "when a Ruby is cast on" effect, '
+      + 'another Reflektion included, hears it, and neither does Lorekeeping, Rosey or any other cast counter. A Ruby that reached Reflektion as a '
+      + 'bounce does not bounce on. In a fight the bounce is permanent exactly when the Ruby was. Gilded bounces twice, each to a random other '
+      + 'friendly minion. Alone on the board it does nothing.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-25 (Reflektion)', quote: 'Reflektion - T3 3/5 - When a Ruby is cast on this, it bounces once. this cannot chain. the bounced ruby does not count as casting a ruby on another minion, it\x27s a bounced ruby buff but won\x27t trigger cast-on effects.' },
+      { kind: 'code', ref: 'packages/content/src/cards/set2/kobolds.ts (k_reflektion); packages/core/src/effects/arena.ts rubyPlayedBounce (hops, goldenHops)' },
+    ],
+    cardText: 'When a **Ruby** is cast on this, it bounces **once**.',
+    contentIds: ['k_reflektion'],
+    currentBehaviour: 'Conforms, built 2026-11-25 (feat/reflektion). The Gilded line is a judgement call, flagged to the owner.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/reflektion.test.ts'], lastVerifiedAt: '2026-11-25' },
+  },
 ];

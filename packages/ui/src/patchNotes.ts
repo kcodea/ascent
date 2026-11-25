@@ -64,6 +64,10 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Balance',
+        text: 'New Set 2 Kobold: Reflektion (Tier 3, 3/5). When a Ruby is cast on it, the Ruby bounces once to another friendly minion.',
+      },
+      {
+        category: 'Balance',
         text: 'Cassen: finishing a commission no longer gives max Gold.',
       },
       {

@@ -182,6 +182,7 @@ export function playFullReveal(host: HTMLElement, r: LocationRevealRequest, gl: 
     });
     let raf = 0;
     let over = false;
+    let cut = false;
     const finish = (): void => {
       if (over) return;
       over = true;
@@ -190,7 +191,7 @@ export function playFullReveal(host: HTMLElement, r: LocationRevealRequest, gl: 
       cancelAnimationFrame(raf);
       window.clearTimeout(guard);
       unwatch();
-      w?.sound.stop();
+      w?.sound.stop(120, !cut);
       gl.destroy();
       root.remove();
       resolve();
@@ -219,6 +220,7 @@ export function playFullReveal(host: HTMLElement, r: LocationRevealRequest, gl: 
     root.style.opacity = '0';
     endNow = () => {
       endNow = null;
+      cut = true;
       setAtmosphereCovered(false);
       window.setTimeout(finish, STOP_MS);
       w?.sound.stop();

@@ -32,6 +32,11 @@ vec2 ripple(vec2 q, float g, float t){ if (g < .01) return vec2(0.); vec2 p = su
 vec3 wet(vec3 c, vec2 q, vec3 w, float t, float k){
   if (w.r > .01) { float run = n2(vec2(w.b * 4.2 + 3., q.y * 15. - t * 5.2)) * .5 + n2(vec2(w.b * 9. + 17., q.y * 34. - t * 12.5)) * .5; c += (c * (run - .47) * 1.15 + vec3(.80, .94, 1.) * smoothstep(.66, .92, run) * .16) * w.r * k; }
   if (w.g > .01) { vec2 p = surf(q); float a = n2(p * vec2(4., 22.) + vec2(t * .55, t * 1.0)), b = n2(p * vec2(7., 38.) + vec2(-t * .7 + 5., t * 1.3)); float m = a * .55 + b * .45; c += c * ((m - .48) * .55 + smoothstep(.60, .80, m) * .55) * w.g * k; }
+  return c; }
+/* The same water seen out of focus (hero select's blurred ground): broad and slow, with no streak or glint finer than the blur. */
+vec3 wetSoft(vec3 c, vec2 q, vec3 w, float t, float k){
+  float run = n2(vec2(w.b * 1.6 + 3., q.y * 5. - t * 1.9)) * .6 + n2(vec2(w.b * 2.6 + 17., q.y * 9. - t * 3.4)) * .4; c += c * (run - .5) * .85 * w.r * k;
+  if (w.g > .01) { vec2 p = surf(q); float m = n2(p * vec2(2., 7.) + vec2(t * .35, t * .6)) * .6 + n2(p * vec2(3.2, 11.) + vec2(5. - t * .4, t * .8)) * .4; c += c * (m - .5) * .5 * w.g * k; }
   return c; }`;
 
 

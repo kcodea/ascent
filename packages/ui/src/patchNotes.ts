@@ -60,6 +60,10 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'The sound of the location now carries on through hero select, and its water is softer behind the blur.',
+      },
+      {
+        category: 'Systems',
         text: 'Fixed Ranked Duos breaking on the second game of a party: it replayed fights from the game before and never came back to the Shop.',
       },
     ],

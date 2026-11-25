@@ -7,6 +7,7 @@
 import { announcerOutput } from '../announcer';
 import { audioContext, fxBusTarget, isMuted } from '../sfx';
 import { locationSound, type LocationId } from './locations';
+import { holdAmbience, seamless } from './placeAmbience';
 import { clamp, L, NAME, outroAt, posterRest, realOf, ROLL_STEP, simEnd, START, T0, washAt } from './revealTimeline';
 
 type Curve = readonly (readonly [number, number])[];
@@ -26,6 +27,8 @@ interface Cue {
   pan?: Curve;
   lowpass?: number;
   voice?: boolean;
+  /** It is still sounding when the reveal is over, and is handed to hero select (`placeAmbience.ts`). */
+  stays?: boolean;
 }
 
 /** The whole mix against the game's gate cues: 1 = the prototype's balance, where the shatter played 0.8 (here it plays 0.6). */
@@ -34,6 +37,8 @@ const LEVEL = 0.75;
 const VOICE = 1.2;
 /** The line starts this long after the name does. */
 export const LINE_DELAY = 0.18;
+/** How much of itself the ambience keeps at hero select. */
+export const AMBIENCE_STAY = 0.62;
 const POSTER_RATE = [0.76, 0.79, 0.82, 0.85, 0.88];
 
 /** Every cue of a reveal with `n` parchments. Times are wall seconds from the press. */
@@ -56,8 +61,9 @@ export function revealCues(id: LocationId, n: number): Cue[] {
     { clip: 'wave', at: land - 0.06, gain: 0.48 },
     { clip: 'weld', at: land + 0.06, gain: 0.85 },
     {
-      clip: `ambience-${id}`, at: land + 0.1, gain: bright ? 1.9 : 0.75, loop: true, len: end - land - 0.1,
-      env: [[0, 0], [0.75, 0.8], [name - land - 0.1, 0.8], [name - land + 0.15, 0.42], [name - land + 2, 0.42], [name - land + 2.7, 1], [end - land - 0.75, 1], [end - land - 0.1, 0]],
+      clip: `ambience-${id}`, at: land + 0.1, gain: bright ? 1.9 : 0.75, loop: true, stays: true,
+      // the place goes on sounding into hero select, a step back from where the reveal had it
+      env: [[0, 0], [0.75, 0.8], [name - land - 0.1, 0.8], [name - land + 0.15, 0.42], [name - land + 2, 0.42], [name - land + 2.7, 1], [end - land - 1.1, 1], [end - land + 0.6, AMBIENCE_STAY]],
     },
     { clip: 'title', at: name - 0.12, gain: 0.62 },
     { clip: `vo-${id}`, at: name + LINE_DELAY, gain: VOICE, voice: true },
@@ -88,13 +94,14 @@ export function lightCues(id: LocationId, n: number, at: { name: number; posters
 export interface RevealSound {
   /** Lay every cue of a reveal with `n` parchments, from `inSeconds` from now. */
   play: (n: number, inSeconds?: number) => void;
-  stop: (fadeMs?: number) => void;
+  /** `keep`: what stays (the place's own ambience) is handed on instead of stopped. */
+  stop: (fadeMs?: number, keep?: boolean) => void;
 }
 
 /** Fetch and decode a location's clips now. Never throws; a clip that fails is simply silent. */
 export function loadRevealSound(id: LocationId, cues: (n: number) => Cue[] = (n) => revealCues(id, n)): RevealSound {
   const buffers = new Map<string, AudioBuffer>();
-  let live: { src: AudioBufferSourceNode; gain: GainNode }[] = [];
+  let live: { src: AudioBufferSourceNode; gain: GainNode; stays: boolean }[] = [];
   let stopped = false;
   const ctx = audioContext();
   if (ctx) {
@@ -124,8 +131,8 @@ export function loadRevealSound(id: LocationId, cues: (n: number) => Cue[] = (n)
   const start = (c: Cue, from: number): void => {
     const raw = buffers.get(c.clip);
     if (!ctx || !raw) return;
-    const buf = c.reverse ? reversed(raw) : raw;
-    const len = c.len ?? buf.duration;
+    const buf = c.reverse ? reversed(raw) : c.stays ? seamless(ctx, raw) : raw;
+    const len = c.len ?? (c.loop ? Infinity : buf.duration);
     const skip = Math.max(0, -c.at); // a cue that would have begun before the press starts part way in
     if (skip >= len) return;
     const when = from + Math.max(0, c.at);
@@ -152,17 +159,18 @@ export function loadRevealSound(id: LocationId, cues: (n: number) => Cue[] = (n)
     tail.connect(pan).connect(out);
     src.start(when, c.loop ? skip % buf.duration : skip);
     if (c.len) src.stop(when + len - skip);
-    live.push({ src, gain });
+    live.push({ src, gain, stays: !!c.stays });
   };
   return {
     play(n, inSeconds = 0) {
       if (!ctx || stopped) return;
       try { for (const c of cues(n)) start({ ...c, at: c.at + inSeconds }, ctx.currentTime + 0.02); } catch (e) { console.warn('[locationReveal] sound', e); }
     },
-    stop(fadeMs = 120) {
+    stop(fadeMs = 120, keep = false) {
       stopped = true;
       buffers.clear();
-      for (const { src, gain } of live) {
+      for (const { src, gain, stays } of live) {
+        if (stays && keep) { holdAmbience(src, gain); continue; }
         try {
           const at = ctx!.currentTime;
           gain.gain.cancelScheduledValues(at);

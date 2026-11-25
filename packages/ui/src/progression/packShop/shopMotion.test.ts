@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  BREATH_AMP, arrivingPlaceHidden, bindFan, breathScale, handFanInto, inRotatedRect, newPointerVel, newShake, newSwing,
+  BREATH_AMP, arrivingPlaceHidden, bindFan, breathScale, handFanInto, hiddenAsleep, inRotatedRect, newPointerVel, newShake, newSwing,
   parksOnArrival, pointerVelDecay, resetPointerVel, rubberY, samplePointerVel, settleDip, softDead, staggerArrivals,
   stepShake, stepSwing,
 } from './shopMotion';
@@ -102,6 +102,16 @@ describe('breathScale', () => {
     expect(hi - lo).toBeGreaterThan(BREATH_AMP);
     expect(BREATH_AMP).toBeLessThanOrEqual(0.012);
     expect(breathScale(10, 0)).not.toBe(breathScale(10, 1));
+  });
+});
+
+describe('hiddenAsleep', () => {
+  it('sleeps only when faded all the way out, meant to stay out, and no Aether is in flight', () => {
+    expect(hiddenAsleep(0, 0, 0)).toBe(true);
+    expect(hiddenAsleep(0.4, 0, 0)).toBe(false); // still fading out
+    expect(hiddenAsleep(0, 1, 0)).toBe(false); // setVisible(true): fading back in
+    expect(hiddenAsleep(0, 0, 3)).toBe(false); // a stream still flying
+    expect(hiddenAsleep(1, 1, 0)).toBe(false);
   });
 });
 

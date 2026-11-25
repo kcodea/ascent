@@ -39,7 +39,8 @@
  *  - Returns: a pack put back (above the line, or a hand pack off the pedestal) travels to its place, keeps the tilt it
  *    arrived with and sits down with a small bob (`settleDip`). No snap at arrival.
  *  - One ticker; no allocation per frame; a pack whose pose `alpha` is 0 is not drawn. The ticker idles when nothing
- *    moves only when there is no stage shader (a lit stage never stops: its dust keeps drifting).
+ *    moves only when there is no stage shader (a lit stage never stops: its dust keeps drifting), and always once the
+ *    scene has faded out under the opener with no Aether in flight (`hiddenAsleep`); `setVisible(true)` wakes it.
  */
 import { Application, CanvasSource, Container, Graphics, Sprite, Text, Texture, type Ticker } from 'pixi.js';
 import type { OwnedPack, PackOffer } from '@game/progression';
@@ -65,9 +66,9 @@ import { AETHER_ICON_SRC } from '../AetherIcon';
 import { arrived, buySettled, cancelHeld, moveHeld, newDrag, pickUp, release, zoneAt, type ShopDrag } from './shopDrag';
 import { HAND_FAN_MAX, clampScroll, handPoseInto, shelfPoseInto, shopLayout, startScroll, type PackPose, type ShopLayout } from './shopLayout';
 import {
-  SETTLE_DEPTH, SETTLE_FRAMES, arrivingPlaceHidden, bindFan, handFanInto, inRotatedRect, newPointerVel, newShake, newSwing,
-  parksOnArrival, pointerVelDecay, resetPointerVel, resetShake, rubberY, samplePointerVel, settleDip, softDead,
-  staggerArrivals, stepShake, stepSwing, type HandFan,
+  SETTLE_DEPTH, SETTLE_FRAMES, arrivingPlaceHidden, bindFan, handFanInto, hiddenAsleep, inRotatedRect, newPointerVel,
+  newShake, newSwing, parksOnArrival, pointerVelDecay, resetPointerVel, resetShake, rubberY, samplePointerVel, settleDip,
+  softDead, staggerArrivals, stepShake, stepSwing, type HandFan,
 } from './shopMotion';
 import type { ShopSounds } from './shopSounds';
 
@@ -796,6 +797,8 @@ class ShopSceneImpl implements ShopScene {
   private readonly tick = (tk: Ticker): void => {
     const app = this.app;
     if (!app) return;
+    // hidden under the opener: nothing here can be seen, so nothing is stepped or drawn until something wakes it
+    if (hiddenAsleep(this.fade.alpha, this.fade.to, this.aether?.count ?? 0)) { app.ticker.stop(); return; }
     const dt = Math.min(MAX_DT, tk.deltaTime);
     this.time += dt;
     let moving = this.slideStep(dt);

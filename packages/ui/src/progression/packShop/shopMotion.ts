@@ -119,6 +119,17 @@ export function breathScale(time: number, index: number): number {
   return 1 + BREATH_AMP * Math.sin(time * BREATH_RATE + index * BREATH_PHASE);
 }
 
+// ---------------------------------------------------------------- the hidden scene
+
+/**
+ * Whether the scene may sleep this frame: it is hidden (faded all the way out and meant to stay out, as under the
+ * opener) and no Aether is in flight. Then nothing on it can be seen, so the ticker stops (the stage's dust and the
+ * shelf's idle light included) until `setVisible(true)` or another call wakes it.
+ */
+export function hiddenAsleep(fadeAlpha: number, fadeTo: number, aetherInFlight: number): boolean {
+  return fadeAlpha <= 0 && fadeTo <= 0 && aetherInFlight <= 0;
+}
+
 // ---------------------------------------------------------------- hit tests and the carry's small decisions
 
 /**

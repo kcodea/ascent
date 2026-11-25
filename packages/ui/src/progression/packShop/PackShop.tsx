@@ -462,14 +462,15 @@ export function PackShop(props: PackShopProps) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       // The opener has its own keys (its Esc closes it, not the shop); a handled key is not ours.
-      if (openingRef.current || playTimerRef.current !== null || e.defaultPrevented || e.repeat) return;
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        if (!pendingRef.current) onCloseRef.current?.();
-      }
+      if (e.key !== 'Escape' || openingRef.current || e.defaultPrevented) return;
+      // Esc is the shop's alone (window, capture: heard before the game's own Esc listener, which opens Settings).
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.repeat || playTimerRef.current !== null || pendingRef.current) return;
+      onCloseRef.current?.();
     };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
   }, []);
 
   /** Arrow keys inside the dialog: along the tabs, the shelf (scrolling the rack) or the hand. */

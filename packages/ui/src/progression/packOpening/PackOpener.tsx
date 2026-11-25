@@ -411,20 +411,26 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, spee
     const raf = requestAnimationFrame(() => { const d = dialogRef.current; if (d && !d.contains(document.activeElement)) d.focus(); });
     return () => cancelAnimationFrame(raf);
   }, []);
+  // The keys, heard FIRST (window, capture) by ONE listener for the opener's life, reading the handlers through refs.
+  // Esc is the opener's alone: it stops there, so the game's own Esc listener (Game.tsx: it opens Settings) never sees
+  // it. Both matter in the real app: that listener's store update re-renders our parent mid-dispatch, and a listener
+  // removed and re-added in that re-render (as a deps change would) is skipped by the DOM for the event in flight.
+  const keysRef = useRef({ flipNext, quickOpen, requestClose });
+  keysRef.current = { flipNext, quickOpen, requestClose };
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       const t = e.target as HTMLElement | null;
       if (t && (/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || t.isContentEditable)) return;
+      if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); if (!e.repeat) keysRef.current.requestClose(); return; }
       if (e.repeat) return;
-      if (e.key === 'Escape') { e.preventDefault(); requestClose(); return; }
       if (e.key !== 'Enter' && e.key !== ' ') return;
       if ((e.target as HTMLElement | null)?.tagName === 'BUTTON') return;
-      if (phaseRef.current === 'sealed') { e.preventDefault(); quickOpen(); }
-      else if (phaseRef.current === 'reveal') { e.preventDefault(); flipNext(); }
+      if (phaseRef.current === 'sealed') { e.preventDefault(); keysRef.current.quickOpen(); }
+      else if (phaseRef.current === 'reveal') { e.preventDefault(); keysRef.current.flipNext(); }
     };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [flipNext, quickOpen, requestClose]);
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, []);
 
   // THE SUMMARY: once the row has been dealt and has settled, each card lands with its sound and the best pulls light up.
   // Measured once, after the deal (never per frame).

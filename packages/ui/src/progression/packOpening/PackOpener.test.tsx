@@ -5,7 +5,8 @@
  * click, Reveal all, 3-card packs, Quick open, reduced motion and the portal.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { StrictMode, act } from 'react';
+import { StrictMode, act, useState } from 'react';
+import { flushSync } from 'react-dom';
 import type { PackOpenResult } from '@game/progression';
 import { mount, type Mounted } from '../../renderedText.mount';
 
@@ -536,5 +537,32 @@ describe('PackOpener', () => {
     const last = fake();
     m.unmount(); m = null;
     expect(last.calls).toContain('destroy');
+  });
+});
+
+describe('PackOpener: Escape in a real app', () => {
+  /**
+   * The game's own Esc listener (Game.tsx, a window listener added at boot) opens Settings: a store update that
+   * re-renders the opener's parent synchronously, mid-dispatch. A listener the opener removed and re-added in that
+   * re-render is skipped by the DOM for this event: the opener must hear Esc before anything else does, and keep it.
+   */
+  it('Esc closes the opener even when an earlier window listener re-renders its parent mid-dispatch, and the app never sees it', () => {
+    const onClose = vi.fn();
+    let bump: (() => void) | null = null;
+    function Parent() {
+      const [, setN] = useState(0);
+      bump = () => { flushSync(() => setN((n) => n + 1)); };
+      // a fresh callback every render, as a parent passing an inline arrow does
+      return <PackOpener queue={q} open={controllable()} sceneFactory={sceneFactory} reducedMotion={false} onOpened={() => undefined} onClose={onClose} />;
+    }
+    const appEsc = vi.fn();
+    const game = (e: KeyboardEvent): void => { if (e.key === 'Escape') { appEsc(); bump?.(); } };
+    window.addEventListener('keydown', game);
+    try {
+      m = mount(<Parent />);
+      key('Escape');
+      expect(onClose).toHaveBeenCalledTimes(1);
+      expect(appEsc).not.toHaveBeenCalled();
+    } finally { window.removeEventListener('keydown', game); }
   });
 });

@@ -484,6 +484,19 @@ describe('PackShop', () => {
     expect(live()).toBe('Could not buy the pack. Try again.');
   });
 
+  it("Escape is the shop's own key: it closes the shop and the game's Esc listener (Settings) never hears it", () => {
+    const onClose = vi.fn();
+    const appEsc = vi.fn();
+    const game = (e: KeyboardEvent): void => { if (e.key === 'Escape') appEsc(); };
+    window.addEventListener('keydown', game);
+    try {
+      render({ onClose });
+      key('Escape');
+      expect(onClose).toHaveBeenCalledTimes(1);
+      expect(appEsc).not.toHaveBeenCalled();
+    } finally { window.removeEventListener('keydown', game); }
+  });
+
   it('keyboard: a failed buy keeps focus on the Buy button (never disabled under it), so the keys still work', async () => {
     render();
     act(() => { shelfItem('rare').focus(); });

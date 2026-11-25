@@ -11,7 +11,7 @@
  *    back to its reduced-motion path on it. When Pixi is not allowed it fires synchronously, inside `createPackScene`.
  *  - Events in order: `onPop` (the seal gave: ask the server now), `onStripFree` (the sleeve is live), `onSleeveDropped`,
  *    `onZoomed`, then `onFlipEdge` once per `flipTop`. Quick open fires the same events in the same order.
- *  - The scene CALLS `PackSounds` (pop, tear, crackle, rip, sleeveFree, slide, drop, whoosh, flip, silence) but never
+ *  - The scene CALLS `PackSounds` (pop, tear, crackle, rip, sleeveFree, slide, drop, whoosh, tease, flip, silence) but never
  *    creates or disposes it. The DOM beats (stamp, aether, summary) are the shell's.
  *  - Coordinates: the renderer is sized to the host in LAYOUT px (`resizeTo: host`, resolution x `stageScale()`); the
  *    pack is simulated in its BASE units (`PACK_GEOM`, 300 x 450) and the whole pack is scaled to fit the host. Pointer
@@ -39,7 +39,7 @@ import {
 import { getPackFeel, PACK_BASE_SIZE, type PackFeel } from './packFxConfig';
 import { CARD_GLOW_TIERS, PACK_GLOW_TIERS, glowAlphaAt, packGlowRarity, type GlowTier } from './packGlow';
 import type { PackSounds } from './packSounds';
-import { teaseAt, teaseFrames, teaseGlowAlpha, teasePop, teaseRarityAt, teaseWobble, type TeaseAt } from './packTease';
+import { teaseAt, teaseFrames, teaseGlowAlpha, teaseGlowFade, teasePop, teaseRarityAt, teaseWobble, type TeaseAt } from './packTease';
 import { ANCIENT_GLOW_STOPS, BURST_TEX, PACK_GEOM, TEX_RES, rarityTint } from './packTextures';
 import { BURST, bigPullTier, burstPoseAt, type BigPullTier, type BurstPose } from './bigPull';
 import { holoShiftInto, packHoloStrength } from './packHolo';
@@ -221,9 +221,11 @@ class PackSceneImpl implements PackScene {
   private readonly flip = {
     active: false, idx: 0, t: 0, dur: 1, c0x: 0, c0y: 0, tx: 0, ty: 0, scale: 1, lift: 0, ribbon: false,
   };
-  // the rarity tease before the turn (packTease.ts): the click starts it, its end starts the flip
-  private readonly tease = { active: false, t: 0, dur: 0, idx: 0, stage: -1, sx: 1, sy: 1 };
+  // the rarity tease (packTease.ts): it builds while the pointer rests on the pile's top card, and eases away when it leaves
+  private readonly tease = { live: false, t: 0, idx: 0, stage: -1, level: 0, sx: 1, sy: 1 };
   private readonly teaseOut: TeaseAt = { stage: 0, k: 0 };
+  /** The glow's alpha when the tease ended (0 = no glow to fade): it fades from here through the turn (`flipStep`). */
+  private teaseGlowOut = 0;
   // the top card's back crossfade
   private readonly xf = { active: false, t: 0 };
   private glowFade = 1;
@@ -433,7 +435,7 @@ class PackSceneImpl implements PackScene {
 
   flipTop(toScreen: { x: number; y: number }): boolean {
     const v = this.v, app = this.app;
-    if (!v || !app || !this.zoomed || this.flip.active || this.tease.active || this.flipped >= this.n || this.reset.active) return false;
+    if (!v || !app || !this.zoomed || this.flip.active || this.flipped >= this.n || this.reset.active) return false;
     this.cacheRect();
     if (!this.rect.valid) return false;
     const idx = this.flipped;
@@ -452,14 +454,12 @@ class PackSceneImpl implements PackScene {
     f.tx = ((toScreen.x - this.rect.l) * sx - v.root.x) / v.root.scale.x;
     f.ty = ((toScreen.y - this.rect.t) * sy - v.root.y) / v.root.scale.y;
     f.ribbon = !!b?.guaranteed;
-    // THE TEASE: the card stays put while its glow climbs the rarity ladder to its own colour, then it turns
-    const dur = b ? teaseFrames(b.rarity, getPackFeel().tease) : 0;
-    if (dur > 0) {
-      const ts = this.tease;
-      ts.active = true; ts.t = 0; ts.dur = dur; ts.idx = idx; ts.stage = -1;
-      ts.sx = card.scale.x; ts.sy = card.scale.y;
-      this.wake();
-      return true;
+    // a click turns the card at once; whatever glow the hover built fades out through the turn (flipStep)
+    const ts = this.tease;
+    if (ts.live) {
+      this.teaseGlowOut = v.glow.visible ? v.glow.alpha : 0;
+      card.scale.set(ts.sx, ts.sy); card.rotation = 0;
+      ts.live = false; ts.t = 0; ts.stage = -1; ts.level = 0;
     }
     this.beginFlip();
     return true;
@@ -484,27 +484,58 @@ class PackSceneImpl implements PackScene {
     this.setFlipCorners(0);
     // the next card comes up under it
     this.flipped = idx + 1;
+    const gx = v.glow.x, gy = v.glow.y;
     this.showTop(true);
+    // the tease's glow stays where the card was and fades out as it turns away (flipStep)
+    if (this.teaseGlowOut > 0) {
+      v.glow.position.set(gx, gy);
+      v.glow.alpha = this.teaseGlowOut;
+      v.glow.visible = true;
+    }
     this.sounds.flip(b?.rarity ?? 'common', !!b?.guaranteed);
     this.wake();
   }
 
+  /** Is the pointer (mouse / pen; touch has no hover) resting on the pile's top card? Arithmetic only, no layout read. */
+  private overPile(): boolean {
+    const v = this.v;
+    if (!v || !this.hoverOn || !this.zoomed || this.flipped >= this.n) return false;
+    const card = v.cards[this.flipped]!;
+    const s = v.cardsC.scale.x;
+    const cx = v.pack.x + v.cardsC.x + card.x * s, cy = v.pack.y + v.cardsC.y + card.y * s;
+    return Math.abs(this.hoverPt.x - cx) <= (CARD_W / 2) * s && Math.abs(this.hoverPt.y - cy) <= (CARD_H / 2) * s;
+  }
+
   /**
-   * One frame of the tease: the glow behind the top card shows the current step's rarity colour and swells, the card
-   * pops as each step lands and wobbles a little more each step. Only tint / texture change at a step; alpha, scale and
-   * rotation per frame. Its end restores the card and starts the turn.
+   * One frame of the tease. While the pointer rests on the pile's top card, the glow behind it climbs the rarity ladder
+   * to the card's own colour and holds there; the card pops as each step lands (with its sound) and wobbles a little
+   * more each step. When the pointer leaves, it all eases away and the next hover builds again. Only tint / texture
+   * change at a step; alpha, scale and rotation per frame. A click turns the card whatever the tease is doing (flipTop).
    */
   private teaseStep(dt: number, feel: PackFeel): void {
     const v = this.v, tex = this.tex;
     const ts = this.tease;
-    if (!v || !tex) { ts.active = false; return; }
-    const card = v.cards[ts.idx], b = this.backs?.[ts.idx];
-    ts.t += dt;
-    if (!card || !b || ts.t >= ts.dur) {
-      if (card) { card.scale.set(ts.sx, ts.sy); card.rotation = 0; }
+    if (!v || !tex) return;
+    const idx = this.flipped;
+    const card = v.cards[idx], b = this.backs?.[idx];
+    const dur = b ? teaseFrames(b.rarity, feel.tease) : 0;
+    const on = dur > 0 && !!card && !this.flip.active && !this.reset.active && this.overPile();
+    if (!ts.live) {
+      if (!on) return;
+      ts.live = true; ts.t = 0; ts.idx = idx; ts.stage = -1; ts.level = 0;
+      ts.sx = card!.scale.x; ts.sy = card!.scale.y;
+    }
+    const c = v.cards[ts.idx];
+    if (!c || !b || ts.idx !== idx) { // the card under the tease is gone (a reset): drop it
+      ts.live = false; ts.level = 0; v.glow.visible = false;
+      return;
+    }
+    if (on) ts.t = Math.min(dur, ts.t + dt);
+    ts.level += ((on ? 1 : 0) - ts.level) * Math.min(1, 0.22 * dt);
+    if (!on && ts.level < 0.02) {
+      c.scale.set(ts.sx, ts.sy); c.rotation = 0;
       v.glow.visible = false;
-      ts.active = false;
-      this.beginFlip();
+      ts.live = false; ts.level = 0;
       return;
     }
     const at = teaseAt(b.rarity, ts.t, feel.tease, this.teaseOut);
@@ -514,12 +545,14 @@ class PackSceneImpl implements PackScene {
       v.glow.texture = ancient ? tex.glowAncient : tex.glowWhite;
       v.glow.tint = ancient ? 0xffffff : rarityTint(r);
       v.glow.scale.set(CARD_GLOW_TIERS[r].size / TEX_RES);
+      v.glow.position.copyFrom(c.position);
       v.glow.visible = true;
+      this.sounds.tease(at.stage);
     }
-    v.glow.alpha = teaseGlowAlpha(at.stage, at.k) * Math.min(1, feel.cardGlow);
-    const pop = 1 + teasePop(at.stage, at.k);
-    card.scale.set(ts.sx * pop, ts.sy * pop);
-    card.rotation = Math.sin(this.time * 0.9) * teaseWobble(at.stage);
+    v.glow.alpha = teaseGlowAlpha(at.stage, at.k) * Math.min(1, feel.cardGlow) * ts.level;
+    const pop = 1 + teasePop(at.stage, at.k) * ts.level;
+    c.scale.set(ts.sx * pop, ts.sy * pop);
+    c.rotation = Math.sin(this.time * 0.9) * teaseWobble(at.stage) * ts.level;
   }
 
   quickOpen(): void {
@@ -586,7 +619,8 @@ class PackSceneImpl implements PackScene {
     v.packGlow.visible = true;
     this.flipped = 0;
     this.flip.active = false;
-    this.tease.active = false;
+    this.tease.live = false; this.tease.level = 0; this.tease.t = 0; this.tease.stage = -1;
+    this.teaseGlowOut = 0;
     this.xf.active = false;
     this.quick.active = false;
     this.burst.active = false;
@@ -729,6 +763,7 @@ class PackSceneImpl implements PackScene {
     if (e.pointerType === 'touch' || !this.toPack(e, this.hoverPt)) return;
     aimInto(this.hoverAim, this.hoverPt.x, this.hoverPt.y, W, H + BODY_H);
     this.hoverOn = true;
+    if (this.zoomed && this.overPile()) this.wake(); // the tease builds while the pointer rests on the pile
     if (this.phase === 'peel') this.wake(); // (the ticker runs throughout the peel today; this keeps the tilt live if that changes)
   }
 
@@ -883,7 +918,7 @@ class PackSceneImpl implements PackScene {
     this.cardsStep(dt);
     this.packGlowStep(dt, feel);
     this.holoStep(feel);
-    if (this.tease.active) this.teaseStep(dt, feel);
+    if (this.zoomed) this.teaseStep(dt, feel);
     if (this.flip.active) this.flipStep(dt);
     if (this.burst.active) this.burstStep(dt, feel);
     v.flecks.step(dt);
@@ -895,7 +930,7 @@ class PackSceneImpl implements PackScene {
     } else { v.pack.x = 0; v.pack.y = 0; this.shake = 0; }
 
     // idle once the stack has zoomed and nothing moves (the render of this frame still runs)
-    if (this.phase === 'end' && !this.flip.active && !this.tease.active && !this.xf.active && v.flecks.count === 0 && this.shake === 0
+    if (this.phase === 'end' && !this.flip.active && !this.tease.live && !this.overPile() && !this.xf.active && v.flecks.count === 0 && this.shake === 0
       && (!this.sideOn || this.side === 1) && !this.reset.active && !this.flying && this.glowReveal === 1 && this.packGlowFade === 0
       && !this.burst.active) {
       app.ticker.stop();
@@ -1209,8 +1244,10 @@ class PackSceneImpl implements PackScene {
     f.t += dt;
     const p = Math.min(1, f.t / f.dur);
     this.setFlipCorners(p);
+    if (this.teaseGlowOut > 0) v.glow.alpha = teaseGlowFade(this.teaseGlowOut, p);
     if (p < 1) return;
     f.active = false;
+    if (this.teaseGlowOut > 0) { this.teaseGlowOut = 0; v.glow.visible = false; }
     v.flipper.visible = false;
     v.flipRibbon.visible = false;
     const { cx, cy, s } = flipPoseAt(f, 1, this.pose);

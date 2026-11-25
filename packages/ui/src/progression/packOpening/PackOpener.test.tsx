@@ -16,7 +16,7 @@ vi.mock('./packSounds', () => ({
   createPackSounds: () => {
     const rec = (n: string) => () => { soundCalls.push(n); };
     return { pop: rec('pop'), tear: rec('tear'), crackle: rec('crackle'), rip: rec('rip'), sleeveFree: rec('sleeveFree'), slide: rec('slide'),
-      drop: rec('drop'), whoosh: rec('whoosh'), flip: rec('flip'), stamp: rec('stamp'), aether: rec('aether'), summary: rec('summary'),
+      drop: rec('drop'), whoosh: rec('whoosh'), tease: rec('tease'), flip: rec('flip'), stamp: rec('stamp'), aether: rec('aether'), summary: rec('summary'),
       silence: rec('silence'), dispose: rec('dispose'), bigPull: (t: string) => { soundCalls.push('bigPull:' + t); } };
   },
 }));

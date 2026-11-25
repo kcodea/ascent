@@ -22,6 +22,8 @@ export interface PackSounds {
   slide(speed: number): void;
   drop(): void;
   whoosh(): void;
+  /** One step of the rarity tease landed (packTease.ts): `stage` 0 = Common's colour ... 4 = Ancient's. Each step rings higher and a little louder. */
+  tease(stage: number): void;
   flip(rarity: CrateRarity, guaranteed: boolean): void;
   /** A Legendary / Ancient card landed (bigPull.ts): the chest's tier burst; Ancient a touch louder and brighter. */
   bigPull(tier: BigPullTier): void;
@@ -50,6 +52,10 @@ export const PACK_CUES = {
   summary: { kind: 'chest', cue: 'sting' },
   bigPull: { kind: 'chest', cue: 'tierBurst' },
 } as const satisfies Record<string, CueSlot>;
+
+/** The tease's first step rings here; each step up the rarity ladder multiplies the pitch (a major third). */
+export const TEASE_BASE_HZ = 720;
+export const TEASE_STEP_RATIO = 1.26;
 
 /** Seedless PRNG for the noise bed and crackle picks (one helper so it is swappable). */
 const rand = (): number => Math.random();
@@ -184,6 +190,14 @@ export function createPackSounds(): PackSounds {
     },
     drop: () => play(PACK_CUES.drop),
     whoosh: () => play(PACK_CUES.whoosh),
+    tease(stage) {
+      const s = Math.max(0, Math.min(COSMETIC_RARITIES.length - 1, Math.floor(stage)));
+      const hz = TEASE_BASE_HZ * Math.pow(TEASE_STEP_RATIO, s);
+      const gain = 0.5 + 0.1 * s;
+      // a narrow, rising ring (the pitch) over a short airy tick (the attack)
+      burst({ ms: 150 + 20 * s, hz, gain, q: 9, sweepTo: hz * 1.18 });
+      burst({ ms: 35, hz: hz * 4, gain: gain * 0.45, q: 1.5 });
+    },
     flip(rarity, guaranteed) {
       const i = Math.max(0, COSMETIC_RARITIES.indexOf(rarity));
       play(PACK_CUES.flip, { rate: 0.9 + i * 0.06, gain: guaranteed ? 1.2 : 1 });

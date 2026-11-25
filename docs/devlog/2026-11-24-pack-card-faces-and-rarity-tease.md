@@ -23,14 +23,20 @@ sheet artifact (every cosmetic type at every rarity) and the Pack Lab.
 
 - **One neutral back.** Every card back is the navy reveal frame (`packs/card-plate-reveal.webp`), before and after the
   result arrives, so no edge or glow gives a rarity away. `paintRarityBack` and the per-rarity back textures are gone.
-- **The tease** (`packTease.ts`): between the click and the turn, a glow behind the card climbs the rarity ladder one
-  colour per step and stops at the card's own; each step pops the card and adds wobble. Common is one short step
-  (6 frames), each rarity above adds 9 frames. The Pack Lab's `tease` knob scales the length; 0 turns it off.
-- `flipTop` now starts the tease; `beginFlip` (the old tail of `flipTop`) runs when it ends. The flip sound moved with it.
+- **The tease** (`packTease.ts`) plays only while the pointer rests on the draw pile's top card (owner: "only do that
+  buildup if the player is hovering over the card draw pile"): a glow behind the card climbs the rarity ladder one colour
+  per step and holds at the card's own; each step pops the card and adds wobble. Common is one short step (6 frames),
+  each rarity above adds 9 frames. Leaving the pile eases it out; hovering again rebuilds it. The Pack Lab's `tease`
+  knob scales the length; 0 turns it off.
+- A click turns the card at once, built up or not (`flipTop` then `beginFlip`). Touch has no hover, so no tease there.
+- The glow does not cut off at the turn: it stays where the card was and fades out through the flip's first half
+  (`teaseGlowFade`, driven from `flipStep`).
+- Each step has a sound (`PackSounds.tease(stage)`): a short synthesised ring, a major third higher and a little louder
+  per step, so the pitch climbs with the colour.
 - Reduced motion: the row's backs keep a neutral border until turned.
 
 ## Not done
 
-- The tease has no sound of its own yet.
+- The tease's sound is synthesised (no recorded clip yet).
 - In the built-in browser pane the scene runs at about 1.5 fps when the pane is not on screen, so the tease's steps were
   confirmed by unit tests and a start/end screenshot, not watched at speed.

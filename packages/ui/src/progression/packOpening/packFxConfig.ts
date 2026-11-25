@@ -62,7 +62,7 @@ export interface PackFeel {
   bigPullHoldMs: number;
   /** The holographic / pearlescent sheen on Epic+ packs and faces (packHolo.ts): a master multiplier; 0 = off. */
   holo: number;
-  /** The rarity tease before a card turns (packTease.ts): a multiplier on its length; 0 = off (the card turns at once). */
+  /** The rarity tease while the pointer rests on the pile (packTease.ts): a multiplier on its length; 0 = off. */
   tease: number;
 }
 
@@ -130,7 +130,7 @@ export const PACK_FEEL_KNOBS: readonly PackFeelKnob[] = [
   { key: 'bigPullShake', label: 'BIG PULL: shake (px, Ancient x1.5)', min: 0, max: 20, step: 1 },
   { key: 'bigPullHoldMs', label: 'BIG PULL: hold before the next flip (ms)', min: 0, max: 1500, step: 25 },
   { key: 'holo', label: 'HOLO: pack + card holo sheen (0 = off)', min: 0, max: 2, step: 0.05 },
-  { key: 'tease', label: 'TEASE: rarity build-up before the flip (x length, 0 = off)', min: 0, max: 2.5, step: 0.05 },
+  { key: 'tease', label: 'TEASE: rarity build-up while hovering the pile (x length, 0 = off)', min: 0, max: 2.5, step: 0.05 },
 ];
 
 const STORAGE_KEY = 'ascent.packFeel.v1';

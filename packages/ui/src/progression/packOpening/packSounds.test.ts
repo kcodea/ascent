@@ -34,7 +34,7 @@ function fakeCtx(): { ctx: unknown; gains: Array<{ gain: FakeParam }>; counts: {
 
 const callAll = (s: ReturnType<typeof createPackSounds>): void => {
   s.pop(); s.tear(5); s.crackle(5, 1); s.rip(); s.sleeveFree(); s.slide(5); s.drop(); s.whoosh();
-  s.flip('epic', true); s.bigPull('legendary'); s.bigPull('ancient'); s.bigPull('none'); s.stamp(); s.aether(); s.summary(); s.silence(); s.dispose();
+  s.tease(0); s.tease(4); s.tease(99); s.tease(-1); s.flip('epic', true); s.bigPull('legendary'); s.bigPull('ancient'); s.bigPull('none'); s.stamp(); s.aether(); s.summary(); s.silence(); s.dispose();
 };
 
 describe('packSounds', () => {

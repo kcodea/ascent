@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { COSMETIC_RARITIES } from '@game/progression';
 import {
-  TEASE_FIRST_FRAMES, TEASE_STEP_FRAMES, teaseAt, teaseFrames, teaseGlowAlpha, teasePop, teaseRarityAt, teaseStages, teaseWobble,
+  TEASE_FIRST_FRAMES, TEASE_STEP_FRAMES, teaseAt, teaseFrames, teaseGlowAlpha, teaseGlowFade, teasePop, teaseRarityAt, teaseStages, teaseWobble,
   type TeaseAt,
 } from './packTease';
 
@@ -49,5 +49,18 @@ describe('the rarity tease', () => {
     expect(teasePop(3, 1)).toBe(0); // the pop settles by the end of the step
     expect(teaseGlowAlpha(4, 1)).toBeLessThanOrEqual(1);
     expect(teaseGlowAlpha(2, 1)).toBeGreaterThan(teaseGlowAlpha(2, 0)); // it swells through the step
+  });
+
+  it('the glow fades out as the card turns: from where the tease left it to nothing at the edge', () => {
+    expect(teaseGlowFade(0.8, 0)).toBe(0.8);
+    expect(teaseGlowFade(0.8, 1)).toBe(0);
+    expect(teaseGlowFade(0.8, 3)).toBe(0);
+    expect(teaseGlowFade(0.8, -1)).toBe(0.8);
+    let prev = teaseGlowFade(0.8, 0);
+    for (let p = 0.1; p <= 1.0001; p += 0.1) {
+      const a = teaseGlowFade(0.8, p);
+      expect(a).toBeLessThan(prev);
+      prev = a;
+    }
   });
 });

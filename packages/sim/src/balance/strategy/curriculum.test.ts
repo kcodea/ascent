@@ -100,9 +100,10 @@ describe.each(CURRICULA)('curriculum — $pkg', ({ pkg, ready, engine, forge }) 
     // at +1/+1 it did not. The balance bot is paused by owner ruling (2026-09-15), so the pilot is not retuned here;
     // the guard stays live for every other package and the spellEngine case is pinned to what it does today.
     // ('rally' carried the same pin from the Kobold balance of 2026-10-20, Blazer 2/7 -> 2/5, until Blazer went to
-    // 3/4 on 2026-11-06: the pilot keeps Packstrider again, so rally is back under the live guard.)
+    // 3/4 on 2026-11-06: the pilot keeps Packstrider again, so rally is back under the live guard. PINNED AGAIN 2026-11-25:
+    // Reflektion joined the Set 2 pool, the Shop it rolls after a sale changed, and the pilot sells Packstrider for it.)
     const soldEngine = actions.some((a) => a.type === 'sell');
-    if (pkg === 'spellEngine') expect(soldEngine, `${pkg}: re-pin when the pilot is retuned`).toBe(true);
+    if (pkg === 'spellEngine' || pkg === 'rally') expect(soldEngine, `${pkg}: re-pin when the pilot is retuned`).toBe(true);
     else expect(soldEngine, 'the engine was sold').toBe(false);
   });
 

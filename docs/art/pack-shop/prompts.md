@@ -289,3 +289,70 @@ my game's card pack shop. Landscape 16:9, framed like the template in Image 2 (a
   sky behind the alcove, the bunting overhead, lanterns on poles.
 - **The collector's back room:** velvet-lined display cases, framed rare cards (backs only) on the wall, one green
   banker's lamp.
+
+---
+
+## 6. Beyond the room: four pieces that lift the shop further (owner 2026-11-25)
+
+Run section 5 first (the three layers). These come after, in this order. Only 6a drops in with no new code; 6b to 6d
+each need wiring once the art exists.
+
+### 6a. The Launch Pack (section 1's prompt, filled in)
+
+Paste section 1's prompt and use this for its last block. Then ask for the foil shine mask in the same chat.
+
+```
+Pack name: "Launch Pack"
+Colour family: deep rose and wine red, with warm gold
+Emblem: a four-pointed compass star with a teal gem at its centre (the emblem above the shop's door)
+Scene behind it: the first floating island at sunrise, a stone stair climbing from it into the clouds
+Mood: a beginning; bright, hopeful, a little grand
+Extra notes: as rich and detailed as the Legendary pack, so it does not look cheaper beside it
+```
+
+### 6b. The opening table (behind a pack while it is opened)
+
+```
+ATTACH 1 IMAGE: the finished back wall from section 5 (so the two rooms match)
+
+The same shop as the attached image, a moment later: I have carried my pack to a quiet reading nook at the back of the
+shop to open it. This is the background behind the pack while it is torn open and its five cards are revealed.
+- Landscape 16:9, as large as possible. Paint about 6% extra on every side.
+- CENTRE (the middle 60% of the width, full height): almost empty. Dark, soft, out-of-focus wood panelling with one
+  gentle pool of warm light from above. No objects, no bright spots, no hard edges. The pack and the cards cover it.
+- LEFT AND RIGHT EDGES: heavy velvet curtains in royal purple drawn back, a brass wall lamp each side, the dim edge of
+  a bookshelf. Dark and blurred.
+- BOTTOM 15%: the near edge of a dark felt-topped table, plain, with a thin brass rim.
+- Same painted style, materials and palette as the attached image, but darker and quieter: this is the hush before a
+  reveal. Strong vignette.
+- No text, logos, characters, hands, cards or packs.
+```
+
+### 6c. The counter mat (where the player's packs rest)
+
+```
+A shopkeeper's velvet counter mat for my fantasy card shop, same painted style as the counter from section 5.
+- Landscape, about 3:1, fully TRANSPARENT background, the mat filling the width.
+- Seen from the same slightly raised front view as the counter: a long, low, rounded rectangle of deep midnight-blue
+  velvet, a thin gold embroidered border, the gold compass-star emblem stitched small at each end, soft worn creases.
+- The middle is plain velvet with no pattern (packs lie on it).
+- Evenly lit, no drop shadow, no objects on it, no text.
+```
+
+### 6d. The shopkeeper (optional: gives the shop a face)
+
+```
+ATTACH 1 IMAGE: shop-exterior-reference.png
+
+The keeper of the shop in the attached image, in the same painted style.
+- Portrait 2:3, fully TRANSPARENT background, one character only, seen from the waist up, turned three-quarters toward
+  the viewer's right, as if leaning on a counter that is not in the picture (crop cleanly at the waist).
+- [Who they are, e.g. "an elderly kobold with brass spectacles and a patched purple waistcoat", "a broad, cheerful dwarf
+  with a braided beard and a jeweller's loupe", "a tall hooded figure whose face is only two warm lights"]
+- Friendly and a little sly, one hand raised as if presenting something to their side.
+- Lit by warm lantern light from the right, matching the shop. Mid-to-dark values so they sit behind the packs.
+- No text, no props held in front of the body, no background, no shadow on the ground.
+
+Follow-up in the same chat: "The same character, same framing and size, with three more expressions: delighted
+(someone just bought a pack), astonished (a Legendary was pulled), and idle (looking down at a ledger)."
+```

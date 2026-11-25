@@ -143,6 +143,9 @@ void main() {
 }`;
 
 /** THE BACK SHEEN. vUV -1..1 on the card's own quad. */
+/** The card back sheen's strength (owner 2026-11-25: "reduce the sheen opacity"; 1 was the first pass). */
+export const SHEEN_GAIN = 0.5;
+
 export const SHEEN_FRAG = `${HEAD}
 uniform float uTime;
 uniform float uLevel;      // 0..1
@@ -162,9 +165,9 @@ void main() {
   float tw = pow(.5 + .5 * sin(uTime * 1.7 + h21(id) * 40.), 6.);
   float glint = smoothstep(.2, 0., length(f)) * tw * step(.68, h21(id + 2.));
   // a soft flare on the star
-  float star = exp(-length(c * vec2(1., .8)) * 8.) * (.55 + .45 * sin(uTime * .85));
-  vec3 col = vec3(.72, .84, 1.) * band * .2 + vec3(.9, .95, 1.) * glint * (.12 + 1.3 * band) + vec3(1., .86, .52) * star * .22;
-  col *= uLevel * mask * uColor.a;
+  float star = exp(-length(c * vec2(1., .8)) * 5.5) * (.55 + .45 * sin(uTime * .85));
+  vec3 col = vec3(.72, .84, 1.) * band * .2 + vec3(.9, .95, 1.) * glint * (.12 + 1.3 * band) + vec3(1., .86, .52) * star * .1;
+  col *= uLevel * mask * uColor.a * ${SHEEN_GAIN.toFixed(2)};
   finalColor = vec4(col, clamp(max(col.r, max(col.g, col.b)), 0., 1.));
 }`;
 

@@ -91,10 +91,12 @@
 .pkop-summary-total { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 /* THE AETHER TALLY (AetherTally.tsx): the medallion and its rolling counter under the row. The medallion's spring and
    its halo's flash are one-shot Web Animations (transform / opacity only). */
-.pkop-aether { position: absolute; left: 50%; top: 77%; display: flex; align-items: center; gap: 20px; pointer-events: none;
-  font-family: var(--font-ui); opacity: 0; transform: translate(-50%, 14px);
+/* laid out from a FIXED left edge, never centred on its own width: the number grows to the right as digits appear, and the
+   gem must not move (the dust is aimed at it once) */
+.pkop-aether { position: absolute; left: calc(50% - 140px); top: 77%; display: flex; align-items: center; gap: 20px; pointer-events: none;
+  font-family: var(--font-ui); opacity: 0; transform: translateY(14px);
   transition: opacity calc(0.35s * var(--pk-slow, 1)) ease-out, transform calc(0.35s * var(--pk-slow, 1)) cubic-bezier(0.2, 0.9, 0.25, 1); }
-.pkop-aether-on { opacity: 1; transform: translate(-50%, 0); }
+.pkop-aether-on { opacity: 1; transform: none; }
 .pkop-aether-orb { position: relative; display: grid; place-items: center; width: 104px; height: 104px; }
 .pkop-aether-halo { position: absolute; inset: -42%; border-radius: 50%; opacity: 0.28;
   background: radial-gradient(circle, rgba(226, 246, 255, 0.95) 0%, rgba(120, 200, 255, 0.6) 30%, rgba(60, 140, 255, 0.22) 55%, transparent 72%); }
@@ -115,8 +117,9 @@
 .pkop-odo-strip > span { display: block; height: 1.8em; line-height: 1.8em; text-align: center; }
 /* the landing's ring and streak (one-shot Web Animations, transform / opacity) */
 .pkop-aether-ring { position: absolute; inset: -6%; border-radius: 50%; border: 3px solid rgba(190, 236, 255, 0.9); opacity: 0; }
-.pkop-aether-streak { position: absolute; left: 50%; top: 50%; width: 420px; height: 6px; margin: -3px 0 0 -210px; opacity: 0;
-  background: linear-gradient(90deg, transparent, rgba(160, 222, 255, 0.9) 35%, #fff 50%, rgba(160, 222, 255, 0.9) 65%, transparent); border-radius: 3px; }
+.pkop-aether-streak { position: absolute; left: 50%; top: 50%; width: 260px; height: 5px; margin: -2.5px 0 0 -130px; opacity: 0;
+  background: radial-gradient(ellipse at center, #fff 0%, rgba(160, 222, 255, 0.85) 30%, rgba(160, 222, 255, 0) 70%); }
+.pkop-aether-ring2 { position: absolute; inset: -6%; border-radius: 50%; border: 2px solid rgba(150, 214, 255, 0.8); opacity: 0; }
 /* A DUPLICATE DISSOLVES: the plate goes white-blue hot, then the card fades to a faint ghost as its light leaves. */
 .pkf-aglow { position: absolute; inset: 0; pointer-events: none; opacity: 0;
   -webkit-mask: var(--pkf-plate) center / 100% 100% no-repeat; mask: var(--pkf-plate) center / 100% 100% no-repeat;

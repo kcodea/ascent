@@ -52,7 +52,7 @@ import {
 import { PILE_LEAN_PX, PILE_LEAN_RAD, PILE_RISE_PX, newPile, pileAtRest, pileEase, pileScale, type PileState } from './packPile';
 import { cardRestX, cardRestY } from './packViews';
 import { COSMETIC_RARITIES } from '@game/progression';
-import { ANCIENT_GLOW_STOPS, BURST_TEX, PACK_GEOM, TEX_RES, rarityTint } from './packTextures';
+import { ANCIENT_GLOW_STOPS, BACK_LOGO, BURST_TEX, PACK_GEOM, TEX_RES, rarityTint } from './packTextures';
 import { AURA_BURST, BURST, FACE_AMBIENT, FACE_PLATE_H, FLIP_CHARGE, bigPullTier, burstPoseAt, type BigPullTier, type BurstPose } from './bigPull';
 import { holoShiftInto, packHoloStrength } from './packHolo';
 import {
@@ -290,8 +290,6 @@ class PackSceneImpl implements PackScene {
   private cardSY = 0;
   // the shader auras (packAura.ts): one under the pile (the tease), one that rides the turning card and lands with its face
   private auraPile: Aura | null = null;
-  /** The Aether medallion's aura: it burns while the dust streams in and bursts as the last of it lands. */
-  private auraGem: Aura | null = null;
   private auraFace: Aura | null = null;
   private faceAmbient = 0;
   private pileAmbient = 0; // the second aura's level on the summary (it lights the second-best pull)
@@ -418,8 +416,6 @@ class PackSceneImpl implements PackScene {
     this.auraPile = makeAura(webgl);
     if (this.auraFace) built.views.root.addChildAt(this.auraFace.mesh, 1);
     if (this.auraPile) built.views.root.addChildAt(this.auraPile.mesh, 1);
-    this.auraGem = makeAura(webgl);
-    if (this.auraGem) { built.views.root.addChild(this.auraGem.mesh); this.auraGem.setRarity('rare'); this.auraGem.tier = 3; }
     // the Aether stream: over everything else in the scene
     this.aether = new AetherStream(webgl, app.renderer.resolution);
     app.stage.addChild(this.aether.root);
@@ -445,7 +441,7 @@ class PackSceneImpl implements PackScene {
       vw.pack.addChildAt(this.spill.mesh, vw.pack.getChildIndex(vw.sleeveFront));
     }
     this.sheen = makeSheen(webgl);
-    if (this.sheen) vw.cardsC.addChild(this.sheen.mesh);
+    if (this.sheen) { vw.cardsC.addChild(this.sheen.mesh); vw.cardsC.addChild(vw.backLogo); }
 
     const canvas = app.canvas;
     canvas.style.position = 'absolute';
@@ -486,20 +482,14 @@ class PackSceneImpl implements PackScene {
     if (!this.rect.valid) { progress(1, true); return; }
     const sx = app.screen.width / this.rect.w, sy = app.screen.height / this.rect.h;
     this.aetherUnit = Math.max(0.2, stageScale() * sx);
-    const ag = this.auraGem, v = this.v;
-    if (ag && v) {
-      const k = v.root.scale.x;
-      ag.place(((to.x - this.rect.l) * sx - v.root.x) / k, ((to.y - this.rect.t) * sy - v.root.y) / k, (AETHER_GEM_H * this.aetherUnit) / k);
-    }
     ae.emit((from.x - this.rect.l) * sx, (from.y - this.rect.t) * sy, from.w * sx, from.h * sy,
       (to.x - this.rect.l) * sx, (to.y - this.rect.t) * sy, this.aetherUnit, progress);
     this.wake();
   }
 
   aetherBurst(): void {
-    if (this.destroyed || !this.auraGem) return;
-    this.auraGem.fireBurst(AETHER_GEM_BURST);
-    this.wake();
+    // nothing in the scene: the card aura is card-shaped, so behind the round gem it read as a square, off centre
+    // (owner 2026-11-25). The medallion's own rings (AetherTally.tsx) are centred on the gem by construction.
   }
 
   showSummary(spots: readonly SummarySpot[]): void {
@@ -912,11 +902,20 @@ class PackSceneImpl implements PackScene {
       this.sheenLevel += (to - this.sheenLevel) * Math.min(1, 0.1 * dt);
       const on = !!card && this.sheenLevel > 0.01;
       sh.mesh.visible = on;
+      const lg = v.backLogo, lw = lg.texture.width;
+      lg.visible = on && lw > 1;
       if (on && card) {
         const ks = this.cardSX !== 0 ? card.scale.x / this.cardSX : 1;
         sh.mesh.position.copyFrom(card.position);
         sh.mesh.rotation = card.rotation;
         sh.mesh.scale.set((CARD_W / 2) * ks, (CARD_H / 2) * ks);
+        // the logo over the sheen: exactly on the painted one (the window's centre, a hair under the card's)
+        if (lg.visible) {
+          const r = card.rotation, dy = BACK_LOGO.dy * ks;
+          lg.position.set(card.position.x - Math.sin(r) * dy, card.position.y + Math.cos(r) * dy);
+          lg.rotation = r;
+          lg.scale.set((BACK_LOGO.w * ks) / lw);
+        }
         const u = sh.u, p = this.pile;
         u.uTime = sec; u.uLevel = this.sheenLevel; u.uAim[0] = p.lx * p.lift; u.uAim[1] = p.ly * p.lift;
       }
@@ -958,13 +957,6 @@ class PackSceneImpl implements PackScene {
       if (Math.abs(this.pileAmbient - ap.level) < 0.004) ap.level = this.pileAmbient;
     }
     ap?.update(sec, time);
-    const ag = this.auraGem;
-    if (ag) {
-      const to = this.aether?.count ? AETHER_GEM_LEVEL : 0;
-      ag.level += (to - ag.level) * Math.min(1, 0.06 * dt);
-      if (Math.abs(to - ag.level) < 0.004) ag.level = to;
-      ag.update(sec, time);
-    }
   }
 
   quickOpen(): void {
@@ -1033,7 +1025,7 @@ class PackSceneImpl implements PackScene {
     this.flip.active = false;
     this.tease.live = false; this.tease.level = 0; this.tease.t = 0; this.tease.stage = -1;
     this.teaseGlowOut = 0;
-    this.auraPile?.off(); this.auraFace?.off(); this.auraGem?.off();
+    this.auraPile?.off(); this.auraFace?.off();
     this.summaryOn = false; this.pileAmbient = 0;
     v.pack.visible = true; v.flipLayer.visible = true;
     const hd = this.handling; hd.grip = 0; hd.wear = 0; hd.px = 0.5; hd.py = 0.5;
@@ -1041,6 +1033,7 @@ class PackSceneImpl implements PackScene {
     this.packPressed = false; this.squeeze.a = 0; this.stageWash = 0; this.spillLevel = 0; this.sheenLevel = 0; this.focusSet = false;
     if (this.spill) this.spill.mesh.visible = false;
     if (this.sheen) this.sheen.mesh.visible = false;
+    v.backLogo.visible = false;
     this.faceAmbient = 0; this.land.active = false;
     this.pilePressed = false;
     const pl = this.pile; pl.lift = 0; pl.press = 0; pl.lx = 0; pl.ly = 0; pl.beat = 0;
@@ -1829,10 +1822,6 @@ class PackSceneImpl implements PackScene {
   }
 }
 
-/** The medallion's aura: the height it is drawn round (stage px), its level while it drinks, and its burst. */
-const AETHER_GEM_H = 96;
-const AETHER_GEM_LEVEL = 0; // no standing aura (it is card-shaped and read as a square round the gem): the burst alone
-const AETHER_GEM_BURST = 0.55;
 
 /** How long the aura waits edge-on for the DOM face to report its turn before it runs on the scene's clock (frames). */
 const LAND_WAIT_FRAMES = 15;

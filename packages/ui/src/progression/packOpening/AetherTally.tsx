@@ -50,6 +50,7 @@ export const AetherTally = forwardRef<AetherTallyHandle, AetherTallyProps>(funct
   const halo = useRef<HTMLSpanElement | null>(null);
   const ring = useRef<HTMLSpanElement | null>(null);
   const streak = useRef<HTMLSpanElement | null>(null);
+  const ring2 = useRef<HTMLSpanElement | null>(null);
   const strips = useRef<(HTMLSpanElement | null)[]>([]);
   const st = useRef({ shown: 0, target: 0, raf: 0, last: 0, gulpAt: 0 });
 
@@ -95,6 +96,7 @@ export const AetherTally = forwardRef<AetherTallyHandle, AetherTallyProps>(funct
       h?.animate([{ opacity: big ? 1 : 0.85 }, { opacity: 0.28 }], { duration: ms * 1.4, easing: 'ease-out' });
       // a ring leaves the medallion with each gulp; the last one also throws a streak of light across it
       ring.current?.animate([{ opacity: big ? 0.9 : 0.5, transform: 'scale(0.7)' }, { opacity: 0, transform: `scale(${big ? 2.6 : 1.7})` }], { duration: ms * (big ? 1.2 : 1.5), easing: 'cubic-bezier(0.1, 0.7, 0.3, 1)' });
+      if (big) ring2.current?.animate([{ opacity: 0, transform: 'scale(0.7)' }, { opacity: 0.8, transform: 'scale(1.2)', offset: 0.25 }, { opacity: 0, transform: 'scale(3.6)' }], { duration: ms * 1.7, easing: 'cubic-bezier(0.1, 0.7, 0.3, 1)' });
       if (big) streak.current?.animate([{ opacity: 0, transform: 'scaleX(0.3)' }, { opacity: 1, transform: 'scaleX(1)', offset: 0.2 }, { opacity: 0, transform: 'scaleX(1.15)' }], { duration: ms * 1.3, easing: 'ease-out' });
     },
   }), [cols, still, slow]);
@@ -112,6 +114,7 @@ export const AetherTally = forwardRef<AetherTallyHandle, AetherTallyProps>(funct
       <span className="pkop-aether-orb" ref={orb}>
         <span className="pkop-aether-halo" ref={halo} />
         <span className="pkop-aether-ring" ref={ring} />
+        <span className="pkop-aether-ring2" ref={ring2} />
         <span className="pkop-aether-streak" ref={streak} />
         <AetherIcon className="pkop-aether-gem" />
       </span>

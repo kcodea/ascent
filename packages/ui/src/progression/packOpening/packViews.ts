@@ -29,7 +29,7 @@ import { packArtFor, packShineFor } from './packArt';
 import { packGlowRarity } from './packGlow';
 import { packHoloHue, packHoloStrength } from './packHolo';
 import { makeHoloMaterial, makeHoloMesh, type HoloMesh, type HoloUniformValues } from './packHoloMesh';
-import { CARD_BACK_LOGO_SRC, CARD_BACK_PLATE_SRC } from './packRarity';
+import { CARD_BACK_LOGO_SRC, CARD_BACK_PLATE_SRC, CARD_WINDOW_MASK_SRC } from './packRarity';
 import { StripMesh, TornLip } from './stripMesh';
 
 const { W, H, BODY_H, CARD_W, CARD_H } = PACK_GEOM;
@@ -87,6 +87,8 @@ export interface Views {
   strip: StripMesh;
   particles: Container;
   flecks: FleckPool;
+  /** The logo again, over the top card's sheen (its texture arrives after init: `Texture.EMPTY` until then). */
+  backLogo: Sprite;
   pinch: Sprite;
   flipLayer: Container;
   flipper: PerspectiveMesh;
@@ -181,7 +183,17 @@ export function buildPackViews(look: PackLook, n: number, own: (t: Texture) => v
   // one back for every card: the neutral reveal frame, so no edge ever tells a rarity (packRarity.ts CARD_BACK_PLATE_SRC)
   const plain = back((art, into) => { paintPlainBack(look, art, into); });
   loadImage(CARD_BACK_PLATE_SRC, (img) => { plain.art.plate = img; repaint(plain); });
-  loadImage(CARD_BACK_LOGO_SRC, (img) => { plain.art.icon = img; repaint(plain); });
+  loadImage(CARD_WINDOW_MASK_SRC, (img) => { plain.art.window = img; repaint(plain); });
+  // the logo is painted on the back, and also drawn again OVER the top card's sheen and sparkles (owner 2026-11-25:
+  // "put the logo over the sheen and sparkles"); the scene poses this copy on the top card
+  const backLogo = new Sprite(Texture.EMPTY);
+  backLogo.anchor.set(0.5);
+  backLogo.visible = false;
+  loadImage(CARD_BACK_LOGO_SRC, (img) => {
+    plain.art.icon = img; repaint(plain);
+    if (plain.tex.destroyed) return;
+    try { const t = Texture.from(img); own(t); backLogo.texture = t; } catch { /* the painted logo alone */ }
+  });
   const glowWhite = keep(paintCardGlow());
   const glowAncient = keep(paintCardGlow(ANCIENT_GLOW_STOPS));
   const burstRaysTex = { legendary: keep(paintBurstRays(BURST.legendary.rays)), ancient: keep(paintBurstRays(BURST.ancient.rays)) };
@@ -314,7 +326,7 @@ export function buildPackViews(look: PackLook, n: number, own: (t: Texture) => v
   const views: Views = {
     root, pack, packGlow, packGlowHalf, sleeveBack, lining, wall, cardsC, cards, glow, fade, flash, ribbon, sleeveFront, body, bodyBase, sheen,
     gloss, lip, shadow,
-    strip, particles, flecks, pinch, flipLayer, flipper, flipRibbon, burst, burstBloom, burstRays, burstRays2, holo,
+    strip, particles, flecks, backLogo, pinch, flipLayer, flipper, flipRibbon, burst, burstBloom, burstRays, burstRays2, holo,
   };
   return { views, tex };
 }

@@ -399,9 +399,11 @@ function openWindow(g: Ctx, from: string, to: string): void {
 
 /** The logo's width on the card back, as a share of the plate's window. */
 export const BACK_LOGO_W = 0.5;
+/** The logo on the back in card BASE units: its width, and how far below the card's centre the window's centre sits. */
+export const BACK_LOGO = { w: PACK_GEOM.CARD_W * (1 - PLATE_WINDOW.l - PLATE_WINDOW.r) * BACK_LOGO_W, dy: PACK_GEOM.CARD_H * (PLATE_WINDOW.t - PLATE_WINDOW.b) / 2 } as const;
 
 /** The art a back is painted with once it loads (both optional: the fallback paints without them). */
-export interface BackArt { plate?: CanvasImageSource; icon?: CanvasImageSource }
+export interface BackArt { plate?: CanvasImageSource; icon?: CanvasImageSource; window?: CanvasImageSource }
 
 const ctxOf = (into: HTMLCanvasElement | undefined): { c: HTMLCanvasElement; g: Ctx } =>
   (into ? { c: into, g: into.getContext('2d')! } : canvas(CW, CH));
@@ -414,19 +416,30 @@ const ctxOf = (into: HTMLCanvasElement | undefined): { c: HTMLCanvasElement; g: 
 export function paintPlainBack(look: PackLook, art: BackArt = {}, into?: HTMLCanvasElement): HTMLCanvasElement {
   const { c, g } = ctxOf(into);
   paintPlate(g, art.plate);
-  openWindow(g, '#1d2448', '#0c0f22');
-  g.lineWidth = 4;
-  g.strokeStyle = 'rgba(140,170,225,.4)'; // the reveal frame's own steel blue
-  rr(g, WIN.x + 14, WIN.y + 14, WIN.w - 28, WIN.h - 28, WIN.r - 10);
-  g.stroke();
+  // The ground fills the plate's REAL window (its raised notch and stepped corners), cut with the window's own mask
+  // (owner 2026-11-25: "make this section perfectly matched with the frame border"; a rounded box left the notch bare).
+  // No inner line (same ask). Until the mask has loaded, the rounded box stands in.
+  if (art.window) {
+    const { c: wc, g: wg } = canvas(CW, CH);
+    const gr = wg.createLinearGradient(WIN.x, WIN.y, WIN.x + WIN.w, WIN.y + WIN.h);
+    gr.addColorStop(0, '#1d2448');
+    gr.addColorStop(1, '#0c0f22');
+    wg.fillStyle = gr;
+    wg.fillRect(0, 0, CW, CH);
+    wg.globalCompositeOperation = 'destination-in';
+    wg.drawImage(art.window, 0, 0, CW, CH);
+    g.drawImage(wc, 0, 0);
+    g.save();
+  } else openWindow(g, '#1d2448', '#0c0f22');
   // the Ascent logo, alone on the ground (owner 2026-11-25: "remove the icon and the pattern from the card back. use the
   // Ascent Logo instead"); until its image has loaded the window is plain
   const logo = art.icon as (CanvasImageSource & { width?: number; height?: number }) | undefined;
   if (logo) {
     const lw = Number(logo.width) || 1, lh = Number(logo.height) || 1;
     const w = WIN.w * BACK_LOGO_W, h = w * (lh / lw), cx = CW / 2, cy = WIN.y + WIN.h / 2;
-    const halo = g.createRadialGradient(cx, cy, 0, cx, cy, w * 0.9);
-    halo.addColorStop(0, 'rgba(255,214,120,.20)');
+    const halo = g.createRadialGradient(cx, cy, 0, cx, cy, w * 1.25);
+    halo.addColorStop(0, 'rgba(255,214,120,.09)');
+    halo.addColorStop(0.5, 'rgba(255,214,120,.035)');
     halo.addColorStop(1, 'rgba(255,214,120,0)');
     g.fillStyle = halo;
     g.fillRect(WIN.x, WIN.y, WIN.w, WIN.h);

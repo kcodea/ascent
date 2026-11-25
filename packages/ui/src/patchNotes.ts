@@ -72,6 +72,10 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'The Compendium says how many cards, runes or heroes you are looking at.',
+      },
+      {
+        category: 'Systems',
         text: 'Hero select lines are louder, and level with the announcer.',
       },
       {

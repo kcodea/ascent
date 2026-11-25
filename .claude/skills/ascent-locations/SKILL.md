@@ -1,12 +1,16 @@
 ---
 name: ascent-locations
-description: Work on ASCENT's locations (The Outskirts, The Underbelly, and any new one) — the gate reveal, the living hero select, the hero ripple and frame opening, tribe parchments, the quick Compendium overlay, the Good Luck comet, and the art preparation behind them (parallax layers, water maps, baked parchments, sound). Use when adding a location or a new effect in this sequence.
+description: Work on ASCENT's locations (The Outskirts, The Underbelly, the Scrapyard, the Rune Barriers, and any new one) — the gate reveal, the living hero select, the hero ripple and frame opening, tribe parchments, the quick Compendium overlay, the Good Luck comet, and the art preparation behind them (parallax layers, water maps, baked parchments, sound). Use when adding a location or a new effect in this sequence.
 ---
 
 # ASCENT Locations
 
 Read [`docs/locations.md`](../../../docs/locations.md) first: the sequence and the file that owns each moment, the steps for adding a
 location, the approved and refused looks, the building patterns and the traps. Keep it true in the same PR as any change here.
+
+**Making or fixing a location's parallax: read [`method.md`](method.md) and work to its bar.** The method the owner approved: plan the pieces, trace on gridded
+crops, maps and a prompt for the owner's background, graph-cut edges, every piece proofed on magenta, one idea of the place's own that moves, measured sound.
+Several passes, not one.
 
 - Everything a location is lives in `packages/ui/src/locationReveal/locations.ts`, its art in `apps/web/public/locations/<id>/`, its name on the
   set (`SetDef.location`). No other file names a location.

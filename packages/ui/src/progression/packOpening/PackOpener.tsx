@@ -648,7 +648,9 @@ export function PackOpener({ queue, open, onOpened, onClose, onClosed, reducedMo
         <AetherTally ref={tallyRef} total={aetherTotal} still={reduced} shown={reduced || tallyOn} slow={speed > 0 ? 1 / speed : 1} />
       )}
 
-      <div className="pkop-btns">
+      {/* the end screen's buttons are the screen's one action: large, and raised toward the cards (owner 2026-11-25);
+          they stay under the Aether tally when the pack paid any */}
+      <div className={`pkop-btns${phase === 'summary' ? ` pkop-btns-end${aetherTotal > 0 ? '' : ' pkop-btns-high'}` : ''}`}>
         {phase === 'sealed' && (
           <button type="button" className="crate-btn crate-btn-quiet pressable" onClick={quickOpen}>{reduced ? 'Open' : 'Quick open'}</button>
         )}

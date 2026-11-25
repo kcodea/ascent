@@ -72,6 +72,10 @@
 .pkop-note { position: absolute; left: 0; right: 0; bottom: 130px; text-align: center; font-family: var(--font-ui); font-size: 20px; color: var(--gold-lt); pointer-events: none; }
 .pkop-live { position: absolute; left: 0; right: 0; bottom: 96px; text-align: center; font-family: var(--font-ui); font-size: 16px; color: var(--pk-text); opacity: 0.8; pointer-events: none; }
 .pkop-btns { position: absolute; left: 0; right: 0; bottom: 36px; display: flex; justify-content: center; gap: 16px; }
+/* the end screen: its buttons are much larger and sit higher; with an Aether tally (top 77%, 104px) they stay below it */
+.pkop-btns-end { bottom: 4%; gap: 22px; }
+.pkop-btns-end.pkop-btns-high { bottom: 16%; }
+.pkop-btns-end .crate-btn { font-size: 24px; padding: 18px 56px; border-radius: 14px; }
 .pkop-corner { position: absolute; top: 24px; right: 28px; }
 .pkop-row { position: absolute; left: 0; right: 0; top: 26%; display: flex; justify-content: center; gap: 18px; }
 .pkop-back, .pkop-pack { position: relative; width: 150px; height: 225px; box-sizing: border-box; border-radius: 12px; overflow: hidden;

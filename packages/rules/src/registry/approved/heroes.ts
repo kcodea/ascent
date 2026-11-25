@@ -1806,7 +1806,7 @@ export const HEROES_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: "Claude Code session, 2026-11-16 (Cassen rework)", quote: "every commission finished also grants cassen +1 max gold." },
       { kind: 'code', ref: "packages/sim/src/recruit.ts commissionOffer / commissionRewardOf / COMMISSION_DELAY; packages/sim/src/reducer.ts payCommissionOnce" },
     ],
-    currentBehaviour: "Conforms (built 2026-11-16). Supersedes R-CASSEN-01. Live in every mode.",
+    currentBehaviour: "Conforms (built 2026-11-16). Supersedes R-CASSEN-01. Live in every mode. PARTLY SUPERSEDED 2026-11-25 by R-CASSEN-03: no commission gives max Gold any more.",
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsCassen.test.ts"], lastVerifiedAt: '2026-11-16' },
   },
   {
@@ -5010,5 +5010,21 @@ export const HEROES_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms from 2026-11-20. Before, the wave-1 gate refused freeze too, so the Freeze button did nothing on his turn 1.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/docbot/heroPowerStagers.test.ts'], lastVerifiedAt: '2026-11-20' },
+  },
+  {
+    id: 'R-CASSEN-03',
+    title: 'Cassen: a finished commission gives no max Gold',
+    statement:
+      'A Commission pays only its own job (Shed, House, Bridge, Castle, Zeppelin). It gives no max Gold and no Gold beyond the House\x27s 4, with '
+      + 'any Ancient, the Ancient of Bonds\x27 second payout included. No text of the power or its picker mentions max Gold. Max Gold a run already '
+      + 'earned from commissions before this change is kept. Everything else of R-CASSEN-02 stands.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-25 (balance)', quote: 'Cassen - remove max gold for completing a commission' },
+      { kind: 'code', ref: 'packages/sim/src/reducer.ts payCommissionOnce; packages/sim/src/recruit.ts commissionRewardOf / heroPowerText' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-25 (feat/game-breaker-and-balance). Supersedes the max Gold part of R-CASSEN-02.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsCassen.test.ts'], lastVerifiedAt: '2026-11-25' },
   },
 ];

@@ -4313,7 +4313,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "reviewStatus": "extracted",
     "extraction": {
       "extractor": "contracts-extract@1",
-      "confidence": "low"
+      "confidence": "high"
     },
     "setIds": [
       "set1"
@@ -4337,7 +4337,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "effects": [
       {
-        "kind": "rallyGiveHealthToDragons"
+        "kind": "rallyGiveHealthToDragons",
+        "refs": [
+          "chimerus"
+        ]
       }
     ],
     "gildedDelta": {

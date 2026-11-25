@@ -1594,14 +1594,16 @@ export const ARENA_EFFECTS = {
   },
 
   /** Chimerus — Rally: give up to 2 friendly Dragons +Health equal to its own Health. MAX Health, not the
-   *  damaged current value (owner ruling 2026-08-08). Golden runs the whole hand-out TWICE (re-picking each
+   *  damaged current value (owner ruling 2026-08-08). `excludeId` drops minions of that card id ("different",
+   *  R-TARGET-02, owner 2026-11-25: a Chimerus never feeds a Chimerus). Golden runs the whole hand-out TWICE (re-picking each
    *  round). In the shop a card's printed Health IS its max, so `maxHealth ?? health` reads correctly in both. */
-  rallyGiveHealthToDragons(arena: EffectArena, _params?: Record<string, unknown>): void {
+  rallyGiveHealthToDragons(arena: EffectArena, params: Record<string, unknown> = {}): void {
+    const exclude = str(params.excludeId);
     const amt = arena.self.maxHealth ?? arena.self.health;
     if (amt <= 0) return;
     const rng = arena.rng();
     for (let round = 0; round < gold(arena); round++) {
-      const pickable = arena.friends().filter((m) => m.uid !== arena.self.uid && arena.isTribe(m, 'dragon'));
+      const pickable = arena.friends().filter((m) => m.uid !== arena.self.uid && (!exclude || m.cardId !== exclude) && arena.isTribe(m, 'dragon'));
       for (let i = 0; i < 2 && pickable.length > 0; i++) {
         const m = rng.pick(pickable);
         pickable.splice(pickable.indexOf(m), 1);

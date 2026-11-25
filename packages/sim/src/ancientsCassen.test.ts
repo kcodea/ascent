@@ -2,7 +2,7 @@
  * ANCIENTS × CASSEN (owner pairings 2026-10-09), plus the owner's Commission rework (2026-11-16): Shed (Discover a Shop
  * spell, 1 turn), House (gain 4 Gold, 2 turns), Bridge (Discover a minion from your Tier, 3 turns), Castle (upgrading
  * costs 3 less, 3 turns), Zeppelin at Tier 6 in place of the Castle (Discover a Tier 7 minion, 2 turns); 3 offered, never
- * the same one twice in a row; every finished commission also gives +1 max Gold. Every pairing in the phase(s) it fires in.
+ * the same one twice in a row; no commission gives max Gold (R-CASSEN-03). Every pairing in the phase(s) it fires in.
  */
 import { describe, expect, it } from 'vitest';
 import { CARD_INDEX } from '@game/content';
@@ -119,40 +119,40 @@ describe('Cassen Commission rework (owner 2026-11-16)', () => {
     return { s, c };
   };
 
-  it('Shed: Discover a Shop spell, +1 max Gold', () => {
+  it('Shed: Discover a Shop spell', () => {
     const { s, c } = payout('spell');
     expect(s.discover?.length).toBeGreaterThan(0);
     expect(s.discover!.every(isShopSpell)).toBe(true);
-    expect((s.maxGoldBonus ?? 0) - (c.maxGoldBonus ?? 0)).toBe(1);
+    expect((s.maxGoldBonus ?? 0) - (c.maxGoldBonus ?? 0)).toBe(0);
     const t = takeAll(s).s;
     expect(spells(t).length).toBe(1);
   });
 
-  it('House: gain 4 Gold, +1 max Gold (spendable this turn too)', () => {
+  it('House: gain 4 Gold, and no more', () => {
     const { s, c } = payout('gold');
-    expect((s.maxGoldBonus ?? 0) - (c.maxGoldBonus ?? 0)).toBe(1);
-    expect(s.embers - c.embers).toBe(4 + 1);
+    expect((s.maxGoldBonus ?? 0) - (c.maxGoldBonus ?? 0)).toBe(0);
+    expect(s.embers - c.embers).toBe(4);
   });
 
   it('Bridge: Discover a minion from your Shop Tier', () => {
     const { s, c } = payout('discover', { tier: 3 });
     expect(s.discover?.length).toBeGreaterThan(0);
     for (const id of s.discover!) expect(CARD_INDEX[id]!.tier, id).toBe(s.tier);
-    expect((s.maxGoldBonus ?? 0) - (c.maxGoldBonus ?? 0)).toBe(1);
+    expect((s.maxGoldBonus ?? 0) - (c.maxGoldBonus ?? 0)).toBe(0);
   });
 
   it('Castle: upgrading your Shop costs 3 less', () => {
     const { s, c } = payout('citadel', { tier: 2, upgradeCost: 11 });
     expect(c.upgradeCost).toBeGreaterThanOrEqual(3);
     expect(s.upgradeCost).toBe(c.upgradeCost - 3);
-    expect((s.maxGoldBonus ?? 0) - (c.maxGoldBonus ?? 0)).toBe(1);
+    expect((s.maxGoldBonus ?? 0) - (c.maxGoldBonus ?? 0)).toBe(0);
   });
 
   it('Zeppelin (Tier 6): Discover a Tier 7 minion', () => {
     const { s, c } = payout('fortress', { tier: 6 });
     expect(s.discover?.length).toBeGreaterThan(0);
     for (const id of s.discover!) expect(CARD_INDEX[id]!.tier, id).toBe(7);
-    expect((s.maxGoldBonus ?? 0) - (c.maxGoldBonus ?? 0)).toBe(1);
+    expect((s.maxGoldBonus ?? 0) - (c.maxGoldBonus ?? 0)).toBe(0);
   });
 
   it('a Castle already working when you reach Tier 6 stays a Castle', () => {
@@ -162,18 +162,18 @@ describe('Cassen Commission rework (owner 2026-11-16)', () => {
     expect(heroPowerText(s)).toContain('**Castle** pays out in 3 turns.');
     while (s.commission) s = nextTurn(s);
     expect(s.discover ?? [], 'no Zeppelin Discover').toEqual([]);
-    expect((s.maxGoldBonus ?? 0) - max0).toBe(1);
+    expect((s.maxGoldBonus ?? 0) - max0).toBe(0);
   });
 
-  it('the printed rule: names, delays, live rewards, the max Gold, no em dash', () => {
+  it('the printed rule: names, delays, live rewards, no max Gold, no em dash', () => {
     const t = heroPowerText(base({ tier: 2 }));
-    expect(t).toBe('Choose one: **Shed** (1 turn): Discover a Shop spell. · **House** (2 turns): Gain 4 Gold. · **Bridge** (3 turns): Discover a minion from Tier 2. Each one also gives **1** max Gold.');
+    expect(t).toBe('Choose one: **Shed** (1 turn): Discover a Shop spell. · **House** (2 turns): Gain 4 Gold. · **Bridge** (3 turns): Discover a minion from Tier 2.');
     expect(t).not.toMatch(/—|--/);
     expect(heroPowerText(base({ tier: 6, lastCommission: 'spell' }))).toContain('**Zeppelin** (2 turns): Discover a minion from Tier 7.');
-    expect(heroPowerText({ ...base(), commission: { kind: 'gold', dueWave: base().wave + 2 } } as RunState)).toBe('Working: **House** pays out in 2 turns. Gain 4 Gold. Gain 1 max Gold.');
-    expect(heroPowerText({ ...base(), commission: { kind: 'spell', dueWave: base().wave + 1 } } as RunState)).toBe('Working: **Shed** pays out next turn. Discover a Shop spell. Gain 1 max Gold.');
-    expect(commissionRewardOf(base({ tier: 4 }), 'discover')).toBe('Discover a minion from Tier 4. Gain 1 max Gold.');
-    expect(commissionRewardOf(base(), 'citadel')).toBe('Reduce the cost of upgrading your Shop by 3. Gain 1 max Gold.');
+    expect(heroPowerText({ ...base(), commission: { kind: 'gold', dueWave: base().wave + 2 } } as RunState)).toBe('Working: **House** pays out in 2 turns. Gain 4 Gold.');
+    expect(heroPowerText({ ...base(), commission: { kind: 'spell', dueWave: base().wave + 1 } } as RunState)).toBe('Working: **Shed** pays out next turn. Discover a Shop spell.');
+    expect(commissionRewardOf(base({ tier: 4 }), 'discover')).toBe('Discover a minion from Tier 4.');
+    expect(commissionRewardOf(base(), 'citadel')).toBe('Reduce the cost of upgrading your Shop by 3.');
   });
 
   it('OLD SAVES: a Citadel / Fortress already working pays the new Castle / Zeppelin; an old last pick is still honoured', () => {
@@ -193,13 +193,13 @@ describe('Cassen Commission rework (owner 2026-11-16)', () => {
   });
 });
 
-describe('Cassen: +1 max Gold per finished commission, with each Ancient', () => {
+describe('Cassen: a finished commission gives no max Gold (R-CASSEN-03), with each Ancient', () => {
   it.each(ANCIENT_IDS.map((id) => [id]))('%s', (id) => {
     let s = commission(picked(id as AncientId), 'gold');
     const before = s.maxGoldBonus ?? 0;
     for (let k = 0; k < 4 && s.commission; k++) s = takeAll(nextTurn(s)).s;
     expect(s.commission).toBeUndefined();
-    expect((s.maxGoldBonus ?? 0) - before, 'Bonds pays twice, max Gold included').toBe(id === 'bonds' ? 2 : 1);
+    expect((s.maxGoldBonus ?? 0) - before, 'a payout never moves max Gold').toBe(0);
   });
 });
 
@@ -208,7 +208,7 @@ describe('Cassen × DEATH: "Avenge (5): advance your commission 1 turn." (owner 
     let s = commission(picked('death', { board: [...['d1', 'd2', 'd3', 'd4', 'd5', 'd6', 'd7'].map((u, i) => card(u, N(i))), card('k', N(8))] }), 'gold');
     const due = s.commission!.dueWave;
     expect(due).toBe(s.wave + 2);
-    expect(heroPowerText(s)).toBe('Working: **House** pays out in 2 turns. Gain 4 Gold. Gain 1 max Gold. **Avenge (5):** your commission pays out **1** turn sooner (**5** more to go).');
+    expect(heroPowerText(s)).toBe('Working: **House** pays out in 2 turns. Gain 4 Gold. **Avenge (5):** your commission pays out **1** turn sooner (**5** more to go).');
     expect(ancientOfferText('cassen', 'death')).toBe('**Avenge (5):** your commission pays out **1** turn sooner.');
     s = structuredClone(s);
     for (const u of ['d1', 'd2', 'd3', 'd4']) destroyMinionInShop(makeContext(s), at(s, u));
@@ -291,7 +291,7 @@ describe('Cassen × TIME (ancient pass 1, owner 2026-11-16): "Choose two commiss
     s = commission(s, 'spell');
     expect(s.commission).toEqual({ kind: 'discover', dueWave: s.wave + 3 });
     expect(s.ancients!.cassenSecond).toEqual({ kind: 'spell', dueWave: s.wave + 1 });
-    expect(heroPowerText(s)).toBe(`Working: **Bridge** pays out in 3 turns. Discover a minion from Tier ${s.tier}. Gain 1 max Gold. Also working: **Shed** pays out next turn. Discover a Shop spell. Gain 1 max Gold. You can have **2** working at once.`);
+    expect(heroPowerText(s)).toBe(`Working: **Bridge** pays out in 3 turns. Discover a minion from Tier ${s.tier}. Also working: **Shed** pays out next turn. Discover a Shop spell. You can have **2** working at once.`);
     expect(s.lastCommission, 'the one started last').toBe('spell');
     expect(reduce({ ...s, heroReady: true }, { type: 'heroPower', commission: 'gold' }).ancients!.cassenSecond!.kind, 'a third is refused').toBe('spell');
     // Next turn the second (Spell) pays on its own beat; the first keeps running; the second slot is open again.
@@ -320,7 +320,7 @@ describe('Cassen × TIME (ancient pass 1, owner 2026-11-16): "Choose two commiss
     while (s.commission) s = nextTurn(s);
     expect(s.ancients!.cassenSecond).toBeUndefined();
     expect(s.discover?.length, 'the Bridge Discover').toBeGreaterThan(0);
-    expect((s.maxGoldBonus ?? 0) - max0).toBe(2);
+    expect((s.maxGoldBonus ?? 0) - max0).toBe(0);
   });
   it('without the pairing a second commission is refused (one at a time)', () => {
     const s = commission(picked('fortune'), 'spell');
@@ -329,17 +329,17 @@ describe('Cassen × TIME (ancient pass 1, owner 2026-11-16): "Choose two commiss
 });
 
 describe('Cassen × BONDS: "Commission pays out twice."', () => {
-  it('a Shed opens two spell Discovers; a House pays 8 Gold; max Gold doubles too; the text counts both', () => {
+  it('a Shed opens two spell Discovers; a House pays 8 Gold; no max Gold; the text counts both', () => {
     let s = commission(picked('bonds'), 'spell');
-    expect(heroPowerText(s)).toBe('Working: **Shed** pays out next turn. Discover a Shop spell 2 times. Gain 2 max Gold. It pays out **twice** (the numbers above count both).');
+    expect(heroPowerText(s)).toBe('Working: **Shed** pays out next turn. Discover a Shop spell 2 times. It pays out **twice** (the numbers above count both).');
     const max0 = s.maxGoldBonus ?? 0;
     s = nextTurn(s);
     const { s: t, offers } = takeAll(s);
     expect(offers.length).toBe(2);
     expect(offers.every((o) => o.every(isShopSpell))).toBe(true);
     expect(spells(t).length).toBe(2);
-    expect((t.maxGoldBonus ?? 0) - max0).toBe(2);
-    expect(commissionRewardOf(t, 'gold')).toBe('Gain 8 Gold. Gain 2 max Gold.');
+    expect((t.maxGoldBonus ?? 0) - max0).toBe(0);
+    expect(commissionRewardOf(t, 'gold')).toBe('Gain 8 Gold.');
   });
 });
 

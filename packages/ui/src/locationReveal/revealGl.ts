@@ -10,7 +10,7 @@ import type { Tribe } from '@game/core';
 import { publicArt } from '../phoneArt';
 import { TRIBE_COLOR_DEFAULTS } from '../tribeColorConfig';
 import { RANKED_GATE_ART } from '../rankedGate/rankedGateTiming';
-import { locationArt, type LocationDef } from './locations';
+import { fourOf, locationArt, type LocationDef } from './locations';
 import * as SH from './revealShaders';
 import {
   A, clamp, distAt, GEM_SIZE, GEM_Y, heartAt, inCubic, inOut, kick, L, mix, NAME, outCubic, outroAt, POST, POSTER_H, POSTER_W, posterPose, seg, simEnd,
@@ -414,6 +414,10 @@ export class RevealGl {
     if (u.WARMC) gl.uniform3fv(u.WARMC, loc.warm ?? [1, 1, 1]);
     if (u.DEEP) gl.uniform3fv(u.DEEP, loc.deep);
     if (u.SECOND) gl.uniform3fv(u.SECOND, loc.second);
+    if (u.PLN) gl.uniform3f(u.PLN, loc.row?.depth ?? 0.075, loc.row?.slope ?? 0, loc.row ? 0 : 1);
+    if (u['FLT[0]']) gl.uniform4fv(u['FLT[0]'], fourOf(loc.floats));
+    if (u.EN) gl.uniform1f(u.EN, loc.energy ? 1 : 0);
+    if (u['EC[0]']) gl.uniform4fv(u['EC[0]'], fourOf(loc.energy));
     for (const n in vals) {
       const at = u[n];
       const x = vals[n]!;

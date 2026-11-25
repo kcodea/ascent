@@ -3,7 +3,7 @@
  * framebuffer is bound. Hero select's ground (atmosphereGl.ts) is one; the hero pick's ripple (heroRipple.ts) draws the same
  * place, on the same clock, into a picture it can bend.
  */
-import { locationArt, type LocationDef } from './locations';
+import { fourOf, locationArt, type LocationDef } from './locations';
 import { showOf, slideFor } from './revealGl';
 import * as SH from './revealShaders';
 import { A } from './revealTimeline';
@@ -25,6 +25,7 @@ in vec2 a; void main(){ gl_Position = vec4(a, 0., 1.); }`;
 const FS = `${SH.common}
 out vec4 o; uniform vec2 R, SHOW, pan; uniform float s, push, warmth, live; uniform sampler2D BL, DT;
 ${SH.water}
+${SH.energy}
 const float NEAR = .25;
 vec2 at(vec2 rel, float dep, float k){ return VP - OFS + (rel * .962 - pan * dep) / (1. + dep * k); }
 void main(){
@@ -35,6 +36,8 @@ void main(){
   q += n * vec2(sin(q.y * 11. + s * 1.7 + q.x * 6.), .4 * cos(q.x * 10. + s * 1.4)) * .0030 * gust;
   // the water is behind the blur like everything here: its own edges as soft as the picture's, its movement broad
   vec3 wm = textureLod(WT, q, 4.).rgb * .55 + textureLod(WT, q, 5.).rgb * .45; wm.b = textureLod(WT, q, 3.).b; vec3 c = wetSoft(texture(BL, q + ripple(q, wm.g, s) * 1.2).rgb, q, wm, s, .6 * live);
+  // a barrier of light, out of focus: its breath and its slow pulses
+  if (EN > .5) { float e = textureLod(DT, q, 3.).b * live; if (e > .01) { float p = textureLod(DT, q, 4.).b * pulse(q, s * .7, 1.9); float f = fb(q * vec2(11., 5.) + vec2(s * .05, -s * .09)); c += (c * .5 + vec3(.06, .16, .30)) * (p * .34 + smoothstep(.4, .8, f) * .26) * e; } }
   float low = smoothstep(.2, 1., uv.y);
   for (int i = 0; i < 2; i++) { float fi = float(i); vec2 m = uv - pan * (.06 + fi * .10); float h = n2(m * vec2(3.2, 5.) + vec2(s * (.06 + fi * .03) + fi * 9., -s * .02)) * .6 + n2(m * vec2(7., 10.) + vec2(s * .10, fi * 5.)) * .4; c += mg(vec3(.62, .80, 1.)) * smoothstep(.42, .85, h) * (.13 - fi * .04) * (.35 + .65 * low) * live; }
   // motes, out of focus like everything else here
@@ -131,7 +134,9 @@ export class Place {
   private show: readonly [number, number] = [1, 1];
   private ofs: readonly [number, number] = [0, 0];
 
-  constructor(private gl: WebGL2RenderingContext, readonly loc: LocationDef) {}
+  private readonly hearts: Float32Array;
+
+  constructor(private gl: WebGL2RenderingContext, readonly loc: LocationDef) { this.hearts = fourOf(loc.energy); }
 
   /** A step a frame, off the player's way. False = `dead` meanwhile. */
   async build(dead: () => boolean): Promise<boolean> {
@@ -180,6 +185,8 @@ export class Place {
         gl.disable(gl.BLEND);
         gl.uniform2f(u('R'), W, H);
         gl.uniform1f(u('warmth'), loc.warmth);
+        gl.uniform1f(u('EN'), loc.energy ? 1 : 0);
+        gl.uniform4fv(u('EC[0]'), this.hearts);
         gl.uniform1f(u('MGK'), loc.cool ? 1 : 0);
         if (loc.cool) gl.uniform3f(u('COOL'), ...loc.cool);
         if (loc.warm) gl.uniform3f(u('WARMC'), ...loc.warm);

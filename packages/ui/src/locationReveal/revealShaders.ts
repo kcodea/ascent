@@ -24,6 +24,25 @@ vec2 arm(float th0, float q, float tight){ float st = TAU / 6., k = floor(th0 / 
 vec3 current(float q, float th0, float tight, float wide, float s, float t0, float L){ vec3 head = comet(s, t0, L), was = comet(s - q * .42, t0, L); float rad = mix(.012, .50 + .62 * wide, pow(q, 1.2)); return vec3(mix(head.xy, was.xy, .9) * (1. - .7 * q * q) + arm(th0, q, tight) * rad, mix(head.z, -1.04, pow(q, .9))); }
 float waveAt(float r){ return -log(max(1. - r / WR, .02)) / WK; }`;
 
+/** A BARRIER OF LIGHT (data.webp's blue, only where a location says it has one): the painted cracks carry pulses out from their node, the
+ *  light behind them drifts and is deeper than its frame, and the landing's wave rings it. `lit` is that wave's own brightness. */
+export const energy = String.raw`uniform float EN; uniform vec4 EC[4];
+vec2 heartOf(vec2 q){ vec2 b = EC[0].xy; for (int i = 1; i < 4; i++) if (abs(q.x - EC[i].x) < abs(q.x - b.x)) b = EC[i].xy; return b; }
+float pulse(vec2 q, float s, float f){ vec2 d = (q - heartOf(q)) * vec2(A, 1.); float r = length(d), n = n2(q * vec2(30., 13.) + 4.); float a = fract(r * f - s * .42 + n * .55), b = fract(r * f * .6 - s * .27 + n * .9 + .4); return smoothstep(0., .12, a) * exp(-a * 5.5) + .6 * smoothstep(0., .1, b) * exp(-b * 7.); }
+vec2 drift(vec2 q, float s, float e, float ring){ vec2 m = vec2(n2(q * vec2(26., 11.) + vec2(s * .16, -s * .30)) - .5, n2(q * vec2(24., 12.) + vec2(7. - s * .20, s * .24)) - .5); vec2 d = (q - heartOf(q)) * vec2(A, 1.); float r = length(d) + 1e-4; return e * (m * vec2(.0042, .0070) + d / r * ring * sin(r * 70. - s * 9.) * .0034 * vec2(1. / A, 1.)); }
+vec3 barrier(vec3 c, vec3 bl, vec2 q, float s, float e, vec2 deep, float lit){
+  // the cracks are what is brighter than the light around them (so a far barrier, pale all over, is not all crack)
+  float crack = smoothstep(.07, .30, c.g - bl.g), dark = 1. - crack, p = pulse(q, s, 3.4), far = smoothstep(.45, .75, bl.g);
+  vec2 d1 = q - deep * .6, d2 = q - deep * 1.2; float f1 = fb(d1 * vec2(17., 8.) + vec2(s * .05, -s * .10)), f2 = fb(d2 * vec2(30., 14.) + vec2(-s * .07, -s * .16) + 9.);
+  float veil = smoothstep(.40, .78, f1) * .6 + smoothstep(.46, .82, f2) * .4;
+  vec3 rich = c * mix(vec3(.50, .48, .74), vec3(1.10, 1.06, 1.16), veil) + vec3(.16, .06, .30) * veil * .22;               // the light behind: deep violet, rolling
+  c = mix(c, rich, .85 * dark * (1. - .7 * far) * e);
+  vec2 g = d2 * vec2(A, 1.) * 46. + vec2(0., s * .22); vec2 id = floor(g); float h = h21(id); if (h > .82) { vec2 o = fract(g) - .5 - (h22(id + 3.) - .5) * .6; float tw = .5 + .5 * sin(s * (1.2 + h * 2.4) + h * 60.); c += vec3(.62, .80, 1.) * exp(-dot(o, o) * 150.) * tw * .6 * dark * (1. - far) * e; }   // and stars in it
+  c += vec3(.26, .70, .88) * crack * (p * .80 + .16 * lit) * e;                                                          // the pulse, along the cracks
+  c += (bl * .30 + vec3(.02, .09, .20)) * p * .34 * dark * (1. - .6 * far) * e;                                             // and its glow on the rest
+  float rim = e * (1. - e) * 4.; c += vec3(.22, .58, .82) * rim * (.10 + .07 * sin(s * 1.5 + q.y * 14.) + .45 * lit) * (1. - .7 * far);
+  return c + vec3(.16, .34, .62) * lit * .16 * e * (1. - far); }`;
+
 /** THE WATER (water.webp: r = falling, g = a flat surface, b = across the stream), in the painting's own space. A fall's streaks
  *  run down between its two edges; a surface ripples in perspective, finer and closer together the farther it is. */
 export const water = String.raw`uniform sampler2D WT;
@@ -67,16 +86,22 @@ void main(){
 export const fsScene = String.raw`out vec4 o;
 uniform vec2 R, pan; uniform float s, push, dof, after, drain; uniform sampler2D DT, L0, L1, L2, L3;
 ${water}
-uniform float near_; const vec4 DEP = vec4(.0, .075, .130, .250);
+${energy}
+uniform vec3 PLN; uniform vec4 FLT[4]; uniform float near_; const vec4 DEP = vec4(.0, .075, .130, .250);
 vec2 at(vec2 rel, float dep, float k){ return VP - OFS + (rel * .962 - pan * dep) / (1. + dep * k); }
 vec2 wind(vec2 q, float amt, float gust, vec2 dir){ float n = texture(DT, q).g * amt; return q + n * (vec2(sin(q.y * 15. + s * 2.6 + q.x * 7.), .45 * cos(q.x * 13. + s * 2.1)) * .0022 * (gust * 1.4 + .22) - dir * .0034 * gust); }
 vec4 lay(sampler2D t, vec2 q, float f){ return textureLod(t, q, dof + f); }
 vec3 haze(vec3 c, vec2 uv, float dep, float k, float amt){ vec2 q = at(uv - VP, dep, k); float f = fb(q * vec2(3.2, 5.) + vec2(s * .05 + dep * 30., -s * .015)); float low = smoothstep(.25, 1., uv.y); return c + mg(vec3(.62, .80, 1.)) * smoothstep(.42, .85, f) * amt * .6 * (.35 + .65 * low); }
+// what floats there hovers, each on its own breath
+vec2 hover(vec2 q){ for (int i = 0; i < 4; i++) if (FLT[i].z > 0.) { vec2 d = (q - FLT[i].xy) / FLT[i].zw; float w = 1. - smoothstep(.55, 1., length(d)); q += w * vec2(.0010 * sin(s * .31 + float(i) * 2.1), .0052 * sin(s * (.52 + .07 * float(i)) + float(i) * 1.7)); } return q; }
+// the first piece may be a plane that recedes across the picture: rigid, its depth linear in x
+vec2 row(vec2 rel, float k){ vec2 q = at(rel, PLN.x, k); if (PLN.y != 0.) for (int i = 0; i < 3; i++) q = at(rel, clamp(PLN.x + PLN.y * (q.x - VP.x + OFS.x), 0., .2), k); return q; }
 void main(){
   vec2 uv = gl_FragCoord.xy / R; vec2 rel = uv - VP; float rr = length(rel * vec2(A, 1.)), lt = after - waveAt(rr) + (fb(uv * 7.) - .5) * .05;
   float hv = lt > 0. ? exp(-lt * 5.) * sin(min(lt * 9., 3.14159)) : 0., gust = lt > 0. ? exp(-lt * 1.3) : 0.; float k = push + hv * .9; vec2 dir = normalize(rel + 1e-5);
-  vec2 q = at(rel, DEP.w * texture(DT, uv - OFS).r, k); q = at(rel, DEP.w * texture(DT, q).r, k); q = at(rel, DEP.w * texture(DT, q).r, k); float wk = 1. - smoothstep(0., 1.6, dof) * .6; vec3 wm = texture(WT, q).rgb; vec3 c = wet(textureLod(L0, q + ripple(q, wm.g, s), dof).rgb, q, wm, s, wk);
-  q = wind(at(rel, DEP.y, k), .8, gust, dir); vec4 t = lay(L1, q, 0.); c = haze(c, uv, .04, k, .16); c = mix(c, wet(t.rgb, q, texture(WT, q).rgb, s, wk), t.a);
+  vec2 q = at(rel, 0., k); if (PLN.z > .5) { q = at(rel, DEP.w * texture(DT, uv - OFS).r, k); q = at(rel, DEP.w * texture(DT, q).r, k); q = at(rel, DEP.w * texture(DT, q).r, k); } else q = hover(q); float wk = 1. - smoothstep(0., 1.6, dof) * .6; vec3 wm = texture(WT, q).rgb; vec3 c = wet(textureLod(L0, q + ripple(q, wm.g, s), dof).rgb, q, wm, s, wk);
+  q = row(rel, k); float en = EN > .5 ? smoothstep(.04, .9, texture(DT, q).b) : 0., ring = lt > 0. ? exp(-lt * 1.5) : 0.; q = wind(q, .8, gust, dir); if (en > .01) q += drift(q, s, en, ring) - pan * .012 * en * en;
+  vec4 t = lay(L1, q, 0.); c = haze(c, uv, .04, k, .16); vec3 c1 = wet(t.rgb, q, texture(WT, q).rgb, s, wk); if (en > .01) c1 = barrier(c1, textureLod(L1, q, 5.5).rgb, q, s, en * wk, pan * .16, ring); c = mix(c, c1, t.a);
   q = wind(at(rel, DEP.z, k), 1., gust, dir); t = lay(L2, q, near_ * .55); c = haze(c, uv, .11, k, .11); c = mix(c, wet(t.rgb, q, texture(WT, q).rgb, s, wk), t.a);
   q = wind(at(rel, DEP.w, k), 1.2, gust, dir); t = lay(L3, q, near_); c = haze(c, uv, .20, k, .07); c = mix(c, t.rgb, t.a);
   c *= 1. - .16 * smoothstep(0., 3., dof);

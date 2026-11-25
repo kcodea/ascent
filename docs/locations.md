@@ -101,6 +101,11 @@ reduced motion; `phone-budgets` in CI (300 MB, 6 GL contexts, 80 MB decoded audi
 - A fresh browser profile compiles Skia and GL pipelines for the first time: measure both a first and a second run before calling something a hitch.
 - The dev server's watcher can die and go on serving old files: check that it serves the new source before judging a screenshot.
 
+**Rigid or bending ground** (owner 2026-11-25, the Rune Barriers: "warping and not really all that exciting"): a depth map that bends the ground
+shears anything upright standing on it. Ground that is mist, sky and far hills may bend; a place of big upright things is cut into RIGID pieces
+instead (`LocationDef.row`: the first piece may be one receding plane, depth linear in x). Moving magic is never the water map: give it its own
+effect (`energy`, a mask in data.webp's blue). Things in the sky hover through `floats`.
+
 ## Where a new effect goes
 
 Reusable drawing (the place, programs, textures) in `placeGl.ts`; a moment of its own in its own file with its own timeline and its own

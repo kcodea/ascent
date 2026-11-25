@@ -28,6 +28,13 @@ export interface LocationDef {
   lights: readonly (readonly number[])[];
   /** The order the parchments hang in (left to right); a game shows the ones it plays with. */
   posters: readonly Tribe[];
+  /** RIGID PIECES (the Rune Barriers): the first piece is a plane receding across the picture, its depth linear in x (`depth` at `vp`,
+   *  `slope` a painting's width), and the ground behind never bends. Absent = the ground bends by the depth map. */
+  row?: { depth: number; slope: number };
+  /** What hovers in its sky: x, y, half width, half height (up to four). */
+  floats?: readonly (readonly number[])[];
+  /** A barrier of light (data.webp's blue): the heart of each, its pulses run out from (up to four). */
+  energy?: readonly (readonly number[])[];
   /** The announcer's line as the name appears. */
   line: string;
   /** How loud its own travel and ambience clips sit in the mix (clips differ: set by ear). */
@@ -117,14 +124,17 @@ export const LOCATIONS: Readonly<Record<LocationId, LocationDef>> = {
     warmth: 0.3,
     // Guardians are painted too, for the day Set 4 has them.
     posters: ['celestial', 'beast'],
+    row: { depth: 0.085, slope: -0.2 },
+    floats: [[0.205, 0.1, 0.06, 0.16], [0.593, 0.125, 0.07, 0.15], [0.858, 0.16, 0.04, 0.07], [0.897, 0.215, 0.032, 0.07]],
+    energy: [[0.4785, 0.433], [0.6445, 0.5], [0.717, 0.56], [0.768, 0.6]],
     line: 'The great Rune Barriers.',
     mix: { ride: 0.5, ambience: 1.4 },
     lights: [
-      [0.479, 0.43, 3.4, 0.075, ...AZURE], [0.48, 0.33, 2, 0.075, ...CYAN], [0.457, 0.55, 1.6, 0.075, ...AZURE], [0.5, 0.57, 1.4, 0.075, ...CYAN], [0.5025, 0.054, 1.5, 0.075, ...VIOLET], [0.392, 0.232, 1.2, 0.075, ...CYAN], [0.417, 0.41, 0.8, 0.075, ...CYAN],
-      [0.366, 0.187, 0.4, 0.075, ...VIOLET], [0.375, 0.312, 0.4, 0.075, ...CYAN], [0.645, 0.5, 1.8, 0.0425, ...AZURE], [0.6556, 0.271, 0.9, 0.0425, ...VIOLET], [0.602, 0.405, 0.8, 0.0425, ...CYAN], [0.62, 0.53, 0.6, 0.0425, ...CYAN],
-      [0.717, 0.56, 1.2, 0.036, ...AZURE], [0.726, 0.417, 0.5, 0.036, ...VIOLET], [0.697, 0.52, 0.5, 0.036, ...CYAN], [0.768, 0.59, 0.8, 0.032, ...AZURE], [0.8, 0.595, 0.6, 0.03, ...AZURE],
-      [0.292, 0.345, 1.1, 0.13, ...VIOLET], [0.439, 0.514, 1.1, 0.13, ...VIOLET], [0.101, 0.685, 1.7, 0.14, ...VIOLET], [0.174, 0.863, 1.1, 0.185, ...VIOLET], [0.576, 0.649, 0.9, 0.05, ...VIOLET], [0.5, 0.667, 0.6, 0.06, ...VIOLET],
-      [0.77, 0.917, 1.2, 0.25, ...VIOLET], [0.323, 0.857, 0.8, 0.25, ...VIOLET], [0.785, 0.75, 0.5, 0.04, ...CYAN], [0.817, 0.744, 0.45, 0.04, ...CYAN], [0.769, 0.22, 0.7, 0, ...CYAN], [0.768, 0.36, 0.7, 0, ...CYAN], [0.944, 0.42, 1.2, 0.015, ...CYAN], [0.967, 0.18, 0.7, 0.015, ...CYAN],
+      [0.479, 0.43, 3.4, 0.085, ...AZURE], [0.48, 0.33, 2, 0.085, ...CYAN], [0.457, 0.55, 1.6, 0.089, ...AZURE], [0.5, 0.57, 1.4, 0.081, ...CYAN], [0.5025, 0.054, 1.5, 0.08, ...VIOLET], [0.392, 0.232, 1.2, 0.102, ...CYAN], [0.417, 0.41, 0.8, 0.097, ...CYAN],
+      [0.366, 0.187, 0.4, 0.107, ...VIOLET], [0.375, 0.312, 0.4, 0.106, ...CYAN], [0.645, 0.5, 1.8, 0.052, ...AZURE], [0.6556, 0.271, 0.9, 0.049, ...VIOLET], [0.602, 0.405, 0.8, 0.06, ...CYAN], [0.62, 0.53, 0.6, 0.057, ...CYAN],
+      [0.717, 0.56, 1.2, 0.037, ...AZURE], [0.726, 0.417, 0.5, 0.035, ...VIOLET], [0.697, 0.52, 0.5, 0.041, ...CYAN], [0.768, 0.59, 0.8, 0.027, ...AZURE], [0.8, 0.595, 0.6, 0.021, ...AZURE],
+      [0.292, 0.345, 1.1, 0.13, ...VIOLET], [0.439, 0.514, 1.1, 0.13, ...VIOLET], [0.101, 0.685, 1.7, 0.13, ...VIOLET], [0.174, 0.863, 1.1, 0.13, ...VIOLET], [0.576, 0.649, 0.9, 0.13, ...VIOLET], [0.5, 0.667, 0.6, 0.13, ...VIOLET],
+      [0.77, 0.917, 1.2, 0.25, ...VIOLET], [0.323, 0.857, 0.8, 0.25, ...VIOLET], [0.785, 0.75, 0.5, 0.024, ...CYAN], [0.817, 0.744, 0.45, 0.017, ...CYAN], [0.769, 0.22, 0.7, 0, ...CYAN], [0.768, 0.36, 0.7, 0, ...CYAN], [0.944, 0.42, 1.2, 0, ...CYAN], [0.967, 0.18, 0.7, 0, ...CYAN],
     ],
   },
 };
@@ -132,6 +142,15 @@ export const LOCATIONS: Readonly<Record<LocationId, LocationDef>> = {
 /** The location a set is played at, or null for a set that has none yet (the gate then opens as before). */
 export function locationOfSet(setId: SetId): LocationDef | null {
   return Object.values(LOCATIONS).find((l) => l.setId === setId) ?? null;
+}
+
+/** Up to four points or boxes as the shaders take them: four vec4s. */
+export function fourOf(v: readonly (readonly number[])[] | undefined): Float32Array {
+  const o = new Float32Array(16);
+  v?.slice(0, 4).forEach((q, i) => o.set(q.slice(0, 4), i * 4));
+  // Fewer than four hearts: the last again, so none is ever nearest from the corner.
+  for (let i = v?.length ?? 4; i < 4 && v?.[0]?.length === 2; i++) o.set(v[v.length - 1]!, i * 4);
+  return o;
 }
 
 /** Its name, as players read it. */

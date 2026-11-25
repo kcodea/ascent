@@ -406,6 +406,25 @@ describe('PackShop', () => {
     expect(document.querySelector('.pks')!.classList.contains('pks-still')).toBe(true);
   });
 
+  it('the guarantee is a gauge: the rarity medallion, the words, and one pip per pack to go (at most 10), in both modes', () => {
+    const gauge = () => {
+      const g = document.querySelector('.pks-guarantee')!;
+      return { words: g.textContent, medal: g.querySelector('img')?.getAttribute('src') ?? '', pips: g.querySelectorAll('.pks-pip').length };
+    };
+    render({ guarantee: { rarity: 'legendary', within: 6 } });
+    expect(gauge().words).toBe('Legendary guaranteed within 6 packs');
+    expect(gauge().medal).toContain('ascent_rarity_legendary');
+    expect(gauge().pips).toBe(6);
+    render({ guarantee: { rarity: 'epic', within: 1 } });
+    expect(gauge()).toMatchObject({ words: 'Epic guaranteed within 1 pack', pips: 1 });
+    render({ guarantee: { rarity: 'legendary', within: 25 } });
+    expect(gauge()).toMatchObject({ words: 'Legendary guaranteed within 25 packs', pips: 10 });
+    m!.unmount(); m = null;
+    render({ reducedMotion: true, guarantee: { rarity: 'legendary', within: 3 } });
+    expect(gauge()).toMatchObject({ words: 'Legendary guaranteed within 3 packs', pips: 3 });
+    expect(gauge().medal).toContain('ascent_rarity_legendary');
+  });
+
   it('reduced motion renders the grid with Buy and Open buttons and no scene', async () => {
     render({ reducedMotion: true, hand: [owned('h1'), owned('h2', 'Epic Pack')] });
     expect(fakes).toHaveLength(0);

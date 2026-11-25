@@ -4,7 +4,7 @@ import { PACK_LAB_SAMPLES, cancelLabTimers, makeLabOpen, type LabTimers } from '
 import { packDuplicateAether } from '@game/progression';
 import { PackShop, type PackShopProps } from './PackShop';
 import {
-  SHOP_LAB_OFFERS, SHOP_LAB_SHELVES, labHand, makeLabBuy,
+  LAB_GUARANTEE_EVERY, SHOP_LAB_OFFERS, SHOP_LAB_SHELVES, labGuaranteeAfter, labHand, makeLabBuy,
   type LabBuyMode, type LabBuyOpts, type LabState,
 } from './shopLabData';
 
@@ -35,6 +35,8 @@ export function PackShopLab(): JSX.Element {
   const [reduced, setReduced] = useState(false);
   const [run, setRun] = useState<number | null>(null);
   const [state, setStateRaw] = useState<LabState>({ aether: 0, hand: [] });
+  /** The Legendary guarantee: one step down per pack bought, back to 10 when it reaches 0. */
+  const [within, setWithin] = useState(LAB_GUARANTEE_EVERY);
 
   const stateRef = useRef<LabState>(state);
   const setState = useCallback((next: LabState): void => { stateRef.current = next; setStateRaw(next); }, []);
@@ -45,10 +47,15 @@ export function PackShopLab(): JSX.Element {
   useEffect(() => { const t = timersRef.current; return () => cancelLabTimers(t); }, []);
   const sampleN = useRef(0);
 
-  const buy = useMemo(
-    () => makeLabBuy(() => stateRef.current, setState, () => optsRef.current, timersRef.current, SHOP_LAB_OFFERS),
-    [setState],
-  );
+  const buy = useMemo<PackShopProps['buy']>(() => {
+    const labBuy = makeLabBuy(() => stateRef.current, setState, () => optsRef.current, timersRef.current, SHOP_LAB_OFFERS);
+    const counted = new Set<string>(); // a repeated request id is answered again, never counted again
+    return async (offerId, requestId) => {
+      const out = await labBuy(offerId, requestId);
+      if (out.status === 'ok' && !counted.has(requestId)) { counted.add(requestId); setWithin((w) => labGuaranteeAfter(w, out.packs.length)); }
+      return out;
+    };
+  }, [setState]);
 
   const open = useCallback<PackShopProps['open']>(async (packId) => {
     const pack = stateRef.current.hand.find((p) => p.packId === packId);
@@ -66,12 +73,14 @@ export function PackShopLab(): JSX.Element {
   const start = (): void => {
     cancelLabTimers(timersRef.current);
     setState({ aether: clampInt(startAether, 0, 1_000_000), hand: labHand(startHand) });
+    setWithin(LAB_GUARANTEE_EVERY);
     setRun((n) => (n ?? 0) + 1);
   };
   const close = (): void => { cancelLabTimers(timersRef.current); setRun(null); };
   const reset = (): void => {
     cancelLabTimers(timersRef.current);
     setState({ aether: clampInt(startAether, 0, 1_000_000), hand: labHand(startHand) });
+    setWithin(LAB_GUARANTEE_EVERY);
     setRun((n) => (n === null ? n : n + 1));
   };
 
@@ -122,6 +131,7 @@ export function PackShopLab(): JSX.Element {
           offers={SHOP_LAB_OFFERS}
           hand={state.hand}
           aether={state.aether}
+          guarantee={{ rarity: 'legendary', within }}
           buy={buy}
           open={open}
           reducedMotion={reduced}

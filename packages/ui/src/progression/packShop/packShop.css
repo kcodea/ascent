@@ -55,8 +55,16 @@
   transition: opacity 0.15s ease-out; }
 .pks-line-lit .pks-line-words { opacity: 1; color: var(--gold-lt); border-color: var(--gold); }
 .pks-line-short { color: #ff9c8a; }
-.pks-guarantee { position: absolute; right: 48px; top: calc(66% + 18px); font-size: 17px; font-weight: 700; letter-spacing: 0.08em;
-  color: var(--gold-lt); opacity: 0.85; pointer-events: none; }
+/* THE GUARANTEE'S GAUGE, under the counter line at the right: the rarity's medallion, the words, and a pip per pack to go
+   (`.r-<rarity>` gives the pips the rarity's colour token, `--rc`), so the player sees it count down. Static glow only. */
+.pks-guarantee { position: absolute; right: 48px; top: calc(66% + 16px); display: flex; align-items: center; gap: 12px; padding: 6px 20px 6px 6px;
+  border-radius: 34px; background: linear-gradient(180deg, rgba(40, 50, 96, 0.82), rgba(14, 18, 38, 0.9)); border: 1.5px solid rgba(255, 210, 122, 0.26);
+  pointer-events: none; }
+.pks-guarantee-medal { width: 54px; height: 54px; object-fit: contain; flex: none; }
+.pks-guarantee-body { display: flex; flex-direction: column; gap: 7px; }
+.pks-guarantee-words { font-size: 16px; font-weight: 700; letter-spacing: 0.06em; color: var(--gold-lt); }
+.pks-pips { display: flex; gap: 5px; }
+.pks-pip { width: 16px; height: 7px; border-radius: 4px; background: var(--rc, var(--gold)); box-shadow: 0 0 7px color-mix(in srgb, var(--rc, var(--gold)) 70%, transparent); }
 
 /* THE TAG beside a hovered, focused or selected pack (placed inline from the pack's rect, stage px). A selected pack's tag
    carries its Buy / Open button; without a rect (a pack out of view) it docks above the counter line. */
@@ -101,7 +109,7 @@
 .pks-owned { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 10px; background: var(--pk-panel); border: 1.5px solid var(--pk-rim); }
 .pks-owned .pks-open { margin-top: 0; }
 .pks-owned-name { font-size: 17px; font-weight: 700; }
-.pks-guarantee-plain { position: static; }
+.pks-guarantee-plain { position: static; align-self: flex-start; }
 
 @media (prefers-reduced-motion: reduce) {
   .pks-tag { animation: none; }

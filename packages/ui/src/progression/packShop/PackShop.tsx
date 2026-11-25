@@ -71,6 +71,8 @@ export const SHOP_PLAY_TRAVEL_MS = 420;
 /** The gap between the pack and its tag, and the tag's width (stage px) for choosing its side. */
 const TAG_GAP = 18;
 const TAG_W = 300;
+/** The most pips the guarantee's gauge draws. */
+const GAUGE_PIPS = 10;
 /** Refusals that are definite: the server did not charge, so the attempt's request id is spent. */
 const DEFINITE = new Set(['insufficient', 'price_changed', 'sold_out', 'guest']);
 
@@ -565,6 +567,20 @@ export function PackShop(props: PackShopProps) {
     return out;
   }, [shelves, offers]);
 
+  // The guarantee's gauge: its rarity's medallion, the words (read as they are), and a pip per pack to go (at most
+  // GAUGE_PIPS drawn), so the countdown is seen.
+  const gauge = guarantee && (
+    <div className={`pks-guarantee${reduced ? ' pks-guarantee-plain' : ''}`}>
+      <img className="pks-guarantee-medal" src={rarityIconSrc(guarantee.rarity)} alt="" aria-hidden="true" decoding="sync" draggable={false} />
+      <div className="pks-guarantee-body">
+        <span className="pks-guarantee-words">{`${packRarityLabel(guarantee.rarity)} guaranteed within ${guarantee.within} ${guarantee.within === 1 ? 'pack' : 'packs'}`}</span>
+        <span className={`pks-pips r-${guarantee.rarity}`} aria-hidden="true">
+          {Array.from({ length: Math.max(0, Math.min(GAUGE_PIPS, Math.floor(guarantee.within))) }, (_, i) => <span key={i} className="pks-pip" />)}
+        </span>
+      </div>
+    </div>
+  );
+
   const shop = (
     <div className={`pks${entering && !reduced ? ' pks-enter' : ''}${opening && !leaving ? ' pks-away' : ''}${reduced ? ' pks-still' : ''}`} role="dialog" aria-modal="true" aria-label="Pack shop" ref={dialogRef} tabIndex={-1}
          onKeyDown={onArrows}>
@@ -593,9 +609,7 @@ export function PackShop(props: PackShopProps) {
             {lineWords && <span className={`pks-line-words${heldOffer && packTag(heldOffer, balance).short > 0 ? ' pks-line-short' : ''}`}>{lineWords}</span>}
           </div>
           <div className="pks-handlabel" aria-hidden>{`Your packs \u00b7 ${shownHand.length}`}</div>
-          {guarantee && (
-            <div className="pks-guarantee">{`${packRarityLabel(guarantee.rarity)} guaranteed within ${guarantee.within} ${guarantee.within === 1 ? 'pack' : 'packs'}`}</div>
-          )}
+          {gauge}
           {tagFor && (tagOffer || tagPack) && (
             <div className={`pks-tag${tagFor.rect ? '' : ' pks-tag-dock'}${tagFor.armed ? ' pks-tag-armed' : ''}`} style={tagStyle(tagFor.rect)}
                  data-testid="pks-tag">
@@ -635,7 +649,7 @@ export function PackShop(props: PackShopProps) {
 
       {reduced && (
         <div className="pks-plain">
-          {guarantee && <div className="pks-guarantee pks-guarantee-plain">{`${packRarityLabel(guarantee.rarity)} guaranteed within ${guarantee.within} ${guarantee.within === 1 ? 'pack' : 'packs'}`}</div>}
+          {gauge}
           <ul className="pks-grid" aria-label="Shelf">
             {shelf.map((o) => <li key={o.offerId} className="pks-card">{offerCard(o, true, 'pks-card')}</li>)}
           </ul>

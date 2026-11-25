@@ -112,3 +112,13 @@ export function labHand(n: number): OwnedPack[] {
   const count = Math.max(0, Math.min(30, Math.floor(n) || 0));
   return Array.from({ length: count }, (_, i) => ({ packId: mintLabPackId(), look: PACK_LAB_LOOKS[i % PACK_LAB_LOOKS.length]! }));
 }
+
+/** The lab's guarantee counter: how many packs until the guaranteed rarity, starting (and restarting) at this. */
+export const LAB_GUARANTEE_EVERY = 10;
+
+/** The guarantee after `bought` more packs: one step down per pack, back to `LAB_GUARANTEE_EVERY` each time it reaches 0. */
+export function labGuaranteeAfter(within: number, bought: number): number {
+  let w = within;
+  for (let i = 0; i < bought; i++) { w -= 1; if (w <= 0) w = LAB_GUARANTEE_EVERY; }
+  return w;
+}

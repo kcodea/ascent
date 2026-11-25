@@ -53,7 +53,10 @@ import { aimInto, newTilt, stepTilt, tiltEaseK, type TiltState } from '../packOp
 import { ShelfPack, liftPoseInto } from './shelfPack';
 import { arrived, buySettled, cancelHeld, moveHeld, newDrag, pickUp, release, zoneAt, type ShopDrag } from './shopDrag';
 import { HAND_FAN_MAX, clampScroll, handPoseInto, shelfPoseInto, shopLayout, type PackPose, type ShopLayout } from './shopLayout';
-import { breathScale, handFanInto, newShake, newSwing, resetShake, rubberY, stepShake, stepSwing, type HandFan } from './shopMotion';
+import {
+  arrivingPlaceHidden, breathScale, handFanInto, inRotatedRect, newShake, newSwing, parksOnArrival, resetShake, rubberY, stepShake,
+  stepSwing, type HandFan,
+} from './shopMotion';
 import type { ShopSounds } from './shopSounds';
 
 // ---------------------------------------------------------------- public contract
@@ -231,6 +234,8 @@ class ShopSceneImpl implements ShopScene {
   };
   /** A played pack resting on the pedestal after its travel (the shell hides the scene). */
   private parkedId: string | null = null;
+  /** `setVisible(true)` landed while a played pack was still travelling: it must not park when it arrives. */
+  private shownAgain = false;
   private rackAlpha = 1;
   private readonly shake = newShake();
   private readonly swing = newSwing();
@@ -565,7 +570,10 @@ class ShopSceneImpl implements ShopScene {
     f.to = on ? 1 : 0;
     f.rate = fadeMs > 0 ? FRAME_MS / fadeMs : 1;
     const app = this.app;
-    if (on) this.parkedId = null; // back from the opener: the played pack leaves the pedestal, the shelf returns
+    if (on) {
+      this.parkedId = null; // back from the opener: the played pack leaves the pedestal, the shelf returns
+      if (this.drag.phase === 'toPedestal') this.shownAgain = true; // (still on its way: it must not park on arrival)
+    }
     if (!app) { f.alpha = f.to; return; }
     app.canvas.style.pointerEvents = on ? 'auto' : 'none';
     if (!on) { this.pointerOn = false; this.endScrollDrag(); this.cancelHold(); }
@@ -678,14 +686,19 @@ class ShopSceneImpl implements ShopScene {
 
   /** The pool slot whose pack (as drawn) holds canvas point (x, y), or -1. Leaves that pack's lifted pose in `lifted`. */
   private packAt(x: number, y: number): number {
+    if (this.rackAlpha < 1) return -1; // the shelf is fading for (or back from) a played pack: nothing on it can be taken
     for (let s = 0; s < POOL; s++) {
       const i = this.slotIdx[s]!;
       if (i < 0 || this.slotId[s] === null) continue;
       const p = shelfPoseInto(this.pose, this.L, i, this.scroll);
       if (p.alpha <= 0) continue;
       p.x += this.rackX;
+      // as drawn: with its lean away from a hovered neighbour (rackStep)
+      const lean = this.slotLean[s]!;
+      p.rot += lean * LEAN_ROT;
+      p.x += lean * LEAN_PUSH * p.h * ASPECT;
       const q = liftPoseInto(this.lifted, p, this.slotLift[s]!);
-      if (Math.abs(x - q.x) <= (q.h * ASPECT) / 2 && Math.abs(y - q.y) <= q.h / 2) return s;
+      if (inRotatedRect(x, y, q.x, q.y, q.h * ASPECT, q.h, q.rot)) return s;
     }
     return -1;
   }
@@ -793,19 +806,37 @@ class ShopSceneImpl implements ShopScene {
     const id = this.hand[j]!.packId, ph = this.drag.phase;
     if (id === this.parkedId) return true;
     if (id === this.drag.id && (ph === 'heldHand' || ph === 'toHandBack' || ph === 'toPedestal')) return true;
-    // a purchase on its way in: the hand already holds it, the travelling pack is drawn instead
-    return ph === 'toHand' && n > this.held.buyN && j === this.fan.places - 1;
+    // a purchase waiting or on its way in: the hand already holds it, the held pack is drawn instead
+    return arrivingPlaceHidden(ph, n, this.held.buyN, j, this.fan.places);
   }
 
-  /** The hand place under canvas point (x, y), topmost first, or -1. */
+  /**
+   * The hand place under canvas point (x, y), or -1, in draw order topmost first: the raised (hovered) pack, then the
+   * rest from the last place down (the resting fan is drawn in index order, `raiseHand`). Tested as drawn: rotated.
+   */
   private handAt(x: number, y: number): number {
     this.syncFan();
-    for (let j = this.fan.places - 1; j >= 0; j--) {
-      if (this.handPlaceHidden(j)) continue;
-      const q = this.handPlacePose(j);
-      if (Math.abs(x - q.x) <= (q.h * ASPECT) / 2 && Math.abs(y - q.y) <= q.h / 2) return j;
-    }
+    const hv = this.handHover;
+    if (hv >= 0 && this.handPlaceHit(hv, x, y)) return hv;
+    for (let j = this.fan.places - 1; j >= 0; j--) if (j !== hv && this.handPlaceHit(j, x, y)) return j;
     return -1;
+  }
+
+  private handPlaceHit(j: number, x: number, y: number): boolean {
+    if (j >= this.fan.places || this.handPlaceHidden(j)) return false;
+    const q = this.handPlacePose(j);
+    return inRotatedRect(x, y, q.x, q.y, q.h * ASPECT, q.h, q.rot);
+  }
+
+  /**
+   * Draw hand place `j` over its neighbours (-1: none), first putting the previously raised pack back at its own index,
+   * so the resting fan is always drawn in index order (the pile's count stays on top of all).
+   */
+  private raiseHand(prev: number, j: number): void {
+    const layer = this.handLayer;
+    if (!layer) return;
+    if (prev >= 0) layer.setChildIndex(this.handPacks[prev]!.view, prev);
+    if (j >= 0) layer.setChildIndex(this.handPacks[j]!.view, HAND_FAN_MAX - 1);
   }
 
   private handHoverStep(): void {
@@ -815,8 +846,9 @@ class ShopSceneImpl implements ShopScene {
       j = this.handAt(this.pointer.x, this.pointer.y);
     }
     if (j === this.handHover) return;
+    const prev = this.handHover;
     this.handHover = j;
-    if (j >= 0) this.handLayer?.setChildIndex(this.handPacks[j]!.view, HAND_FAN_MAX - 1); // over its neighbours (the pile's count stays on top)
+    this.raiseHand(prev, j);
   }
 
   /** Bind each fan place to its pack, ease its hover lift and pose it, and place the pile's count. True while moving. */
@@ -884,6 +916,7 @@ class ShopSceneImpl implements ShopScene {
     if (!app || !id || !look || !this.heldPack) return;
     if (!pickUp(this.drag, from, id)) return;
     this.parkedId = null;
+    this.shownAgain = false;
     const H = this.held, q = from === 'shelf' ? this.lifted : this.handPlacePose(at); // the shelf hit left its pose in `lifted`
     H.pointerId = e.pointerId; H.touch = e.pointerType === 'touch'; H.from = from;
     H.x = q.x; H.y = q.y; H.h = q.h; H.rot = q.rot;
@@ -1108,7 +1141,9 @@ class ShopSceneImpl implements ShopScene {
   private finishTravel(): void {
     const d = this.drag, ph = d.phase, id = d.id;
     arrived(d);
-    if (ph === 'toPedestal') { this.parkedId = id; return; }
+    const shownAgain = this.shownAgain;
+    this.shownAgain = false;
+    if (parksOnArrival(ph, shownAgain)) { this.parkedId = id; return; }
     if (ph === 'toHand') this.sounds.land();
     if (ph === 'toShelf' && id !== null) { const s = this.slotId.indexOf(id); if (s >= 0) this.slotShow[s] = 1; } // back in its place: no restock fade
     if (this.heldPack) this.heldPack.view.visible = false;

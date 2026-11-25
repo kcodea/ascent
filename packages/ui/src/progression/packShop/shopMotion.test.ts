@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BREATH_AMP, breathScale, handFanInto, newShake, newSwing, rubberY, stepShake, stepSwing } from './shopMotion';
+import { BREATH_AMP, arrivingPlaceHidden, breathScale, handFanInto, inRotatedRect, newShake, newSwing, parksOnArrival, rubberY, stepShake, stepSwing } from './shopMotion';
 
 describe('stepShake', () => {
   it('fires on three direction changes within 400 ms', () => {
@@ -98,5 +98,56 @@ describe('breathScale', () => {
     expect(hi - lo).toBeGreaterThan(BREATH_AMP);
     expect(BREATH_AMP).toBeLessThanOrEqual(0.012);
     expect(breathScale(10, 0)).not.toBe(breathScale(10, 1));
+  });
+});
+
+describe('inRotatedRect', () => {
+  // a 20 x 100 pack centred at the origin
+  it('without rotation it is the plain box', () => {
+    expect(inRotatedRect(9, 49, 0, 0, 20, 100, 0)).toBe(true);
+    expect(inRotatedRect(11, 0, 0, 0, 20, 100, 0)).toBe(false);
+  });
+
+  it('a point inside the rotated pack but outside its axis-aligned box hits', () => {
+    // rotated a quarter turn clockwise, the pack lies along x: (40, 0) is outside the unrotated 20-wide box
+    expect(inRotatedRect(40, 0, 0, 0, 20, 100, Math.PI / 2)).toBe(true);
+    // at 0.3 rad the top end swings right: a point near its top-right corner
+    const r = 0.3, tx = 50 * Math.sin(r), ty = -50 * Math.cos(r);
+    expect(Math.abs(tx)).toBeGreaterThan(10);
+    expect(inRotatedRect(tx, ty, 0, 0, 20, 100, r)).toBe(true);
+  });
+
+  it('a point inside the axis-aligned box but outside the rotated pack misses', () => {
+    expect(inRotatedRect(0, 45, 0, 0, 20, 100, Math.PI / 2)).toBe(false);
+    expect(inRotatedRect(-9, -48, 0, 0, 20, 100, 0.3)).toBe(false);
+    expect(inRotatedRect(-9, -48, 0, 0, 20, 100, 0)).toBe(true);
+  });
+
+  it('honours the centre', () => {
+    expect(inRotatedRect(105, 200, 100, 200, 20, 100, 0.3)).toBe(true);
+    expect(inRotatedRect(5, 0, 100, 200, 20, 100, 0.3)).toBe(false);
+  });
+});
+
+describe('parksOnArrival', () => {
+  it('a played pack parks on the pedestal unless the scene was shown again during its travel', () => {
+    expect(parksOnArrival('toPedestal', false)).toBe(true);
+    expect(parksOnArrival('toPedestal', true)).toBe(false);
+    expect(parksOnArrival('toHand', false)).toBe(false);
+    expect(parksOnArrival('toShelf', false)).toBe(false);
+  });
+});
+
+describe('arrivingPlaceHidden', () => {
+  it('hides the fan\'s last place while a purchase waits or travels in, once the hand has grown', () => {
+    expect(arrivingPlaceHidden('buying', 4, 3, 3, 4)).toBe(true);
+    expect(arrivingPlaceHidden('toHand', 4, 3, 3, 4)).toBe(true);
+  });
+
+  it('hides nothing before the hand grows, for other places, or in other phases', () => {
+    expect(arrivingPlaceHidden('buying', 3, 3, 3, 4)).toBe(false);
+    expect(arrivingPlaceHidden('buying', 4, 3, 2, 4)).toBe(false);
+    expect(arrivingPlaceHidden('toShelf', 4, 3, 3, 4)).toBe(false);
+    expect(arrivingPlaceHidden('idle', 4, 3, 3, 4)).toBe(false);
   });
 });

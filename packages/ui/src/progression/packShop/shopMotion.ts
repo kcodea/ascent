@@ -118,3 +118,35 @@ const BREATH_PHASE = 1.9;
 export function breathScale(time: number, index: number): number {
   return 1 + BREATH_AMP * Math.sin(time * BREATH_RATE + index * BREATH_PHASE);
 }
+
+// ---------------------------------------------------------------- hit tests and the carry's small decisions
+
+/**
+ * Whether (px, py) lies inside a `w` x `h` rectangle centred on (cx, cy) and rotated by `rot` radians (as Pixi rotates a
+ * view: positive is clockwise on a y-down canvas). The point is turned back into the rectangle's own frame; no
+ * allocation.
+ */
+export function inRotatedRect(px: number, py: number, cx: number, cy: number, w: number, h: number, rot: number): boolean {
+  const dx = px - cx, dy = py - cy;
+  const c = Math.cos(-rot), s = Math.sin(-rot);
+  const lx = dx * c - dy * s, ly = dx * s + dy * c;
+  return Math.abs(lx) <= w / 2 && Math.abs(ly) <= h / 2;
+}
+
+/**
+ * Whether a pack that reaches the pedestal stays parked there: only when it is arriving from a play (`toPedestal`) and
+ * the scene was not shown again meanwhile (`shownAgain`: `setVisible(true)` landed during the travel, so the handoff is
+ * already over and the shelf must come back).
+ */
+export function parksOnArrival(phase: string, shownAgain: boolean): boolean {
+  return phase === 'toPedestal' && !shownAgain;
+}
+
+/**
+ * Whether hand place `j` (of `places`) is hidden because a bought pack is on its way into it: the shell has already
+ * grown the hand (`n` > `buyN`, the hand's size when the purchase was dropped) while the purchase waits (`buying`) or
+ * travels in (`toHand`), so the travelling pack is drawn in its place instead. The bought pack is the fan's last place.
+ */
+export function arrivingPlaceHidden(phase: string, n: number, buyN: number, j: number, places: number): boolean {
+  return (phase === 'buying' || phase === 'toHand') && n > buyN && j === places - 1;
+}

@@ -1,6 +1,6 @@
 # Locations: how a place is made
 
-A **location** is where a game is played. A location IS a set (`SetDef.location`): Set 2 is The Outskirts, Set 3 The Underbelly.
+A **location** is where a game is played. A location IS a set (`SetDef.location`): Set 1 is the Scrapyard, Set 2 The Outskirts, Set 3 The Underbelly, Set 4 the Rune Barriers (R-LOCATION-11; only Set 2 is live).
 Nothing in the engine knows about it. This is the playbook for adding one, and the rules the two we have taught us. History and
 measurements are in the devlog (`docs/devlog/2026-11-24-*`); the rules are `R-LOCATION-01..08`, `R-COMPENDIUM-QUICK-01` and
 `R-GOODLUCK-STAR-01` in `packages/rules/src/registry/approved/foundation.ts`.
@@ -30,6 +30,9 @@ for it (`versusHeroSelectMs`), so **a Worker deploy is part of shipping a change
 1. The painting, 21:9 (ours are 6336 x 2688), full detail. `C:/Game Assets/Ascent Art/Locations/<Place>/<Place>4k.jpg`.
 2. The same painting with every near piece REMOVED (`...4kBG.jpg`), same size and registration. This is the one input that makes
    the parallax clean; without it, what is behind a piece has to be invented and it shows.
+   The owner makes it in ChatGPT from maps we cut: trace the pieces first, then hand over `parallax/0-full-painting.png`,
+   `1-background-blurry.png` and `2-background-holes-magenta.png` with a prompt (`Locations/background-prompts.md`). What comes back
+   may have drifted a few pixels: `make(..., align=True)` moves it onto the painting (the Scrapyard needed it, the Barriers did not).
 3. One square picture a tribe (600 x 600), for the parchments.
 4. The name, the announcer's line, and the mood of its magic (two colours).
 
@@ -44,12 +47,14 @@ for it (`versusHeroSelectMs`), so **a Worker deploy is part of shipping a change
    the crystal's blue everywhere): no other file should name a location.
 3. `layers.py <id>`: add a function for the place (outlines as polygons read off zoomed crops, depths, wind, sky) and run it. It writes
    `layer0..3`, `flat`, `blur`, `data` into `apps/web/public/locations/<id>/`. Look at every `move-*` proof it writes: no rims, no
-   smears, nothing sliding at its feet.
+   smears, nothing sliding at its feet. Specks of a lattice (chains, scaffolds) left in the sky: give their zone to `clean`, where the owner's
+   background is the ground whole. A tint where the two meet: lower `tone`.
 4. `watermap.py`: trace every fall by its two edges and every flat surface with what stands in it cut out. Check the proof.
 5. Posters: `poster-<tribe>.webp` (600 x 600, quality 86). Then `sheets.mjs` bakes `sheet-<tribe>.webp` from the reveal's own shader at
    rest (needs the dev server).
 6. Sound: `sound.mjs`. Per location: `ride-<id>`, `ambience-<id>`, `vo-<id>` (the Announcer voice, slower than the game's 0.89). The rest is
-   shared. The ElevenLabs key is Mike's, in `.env.secrets`, read at run time: never print or commit it, report the credits used.
+   shared. Set the two levels in `mix` (clips come back at very different loudness:
+   measure them against the others). The ElevenLabs key is Mike's, in `.env.secrets`, read at run time: never print or commit it, report the credits used.
 7. Tests: `locationReveal.test.ts` checks every location's files, lights and posters; add the new one's expectations.
 8. Rules, patch note, devlog in the same PR.
 

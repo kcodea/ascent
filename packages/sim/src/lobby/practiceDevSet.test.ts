@@ -29,9 +29,9 @@ const SEED = 4242;
 const inSet = (setId: SetId, id: string): boolean => poolFor(setId).all.some((c) => c.id === id) || !!CARD_INDEX[id]?.token;
 
 describe("Practice's dev set picker", { timeout: 120_000 }, () => {
-  it('offers the LOCATIONS (owner 2026-11-24: only the Outskirts and the Underbelly), the live one marked, and reads any other pick as the live set', () => {
-    expect(practiceSetOptions().map((o) => [o.id, o.name])).toEqual([['set2', 'The Outskirts'], ['set3', 'The Underbelly']]);
-    for (const id of ['set1', 'set4'] as SetId[]) expect(practiceSetOf({ setId: id }), `${id} is not a place to play`).toBe(LIVE);
+  it('offers the LOCATIONS (owner 2026-11-25: all four, R-LOCATION-11), the live one marked, and reads any other pick as the live set', () => {
+    expect(practiceSetOptions().map((o) => [o.id, o.name])).toEqual([['set1', 'Scrapyard'], ['set2', 'The Outskirts'], ['set3', 'The Underbelly'], ['set4', 'Rune Barriers']]);
+    for (const id of ['set1', 'set4'] as SetId[]) expect(practiceSetOf({ setId: id })).toBe(id);
     expect(practiceSetOptions().filter((o) => o.live).map((o) => o.id)).toEqual([LIVE]);
     expect(practiceSetOf(undefined)).toBe(LIVE);
     expect(practiceSetOf({ setId: 'nope' as SetId })).toBe(LIVE);

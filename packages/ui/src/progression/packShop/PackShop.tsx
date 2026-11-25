@@ -529,8 +529,18 @@ export function PackShop(props: PackShopProps) {
 
   const offerCard = (o: PackOffer, withButton: boolean, cls: string) => {
     const t = packTag(o, balance);
+    // the grid card has no pack beside it (the tag does): it stands its pack's art on a little stage of its own
+    // (a look with no art yet stands its rarity's medallion there instead)
+    const art = cls === 'pks-card' ? packArtFor(o.look) : null;
     return (
       <>
+        {cls === 'pks-card' && (
+          <div className="pks-card-stage" aria-hidden="true">
+            {art
+              ? <img className="pks-card-art" src={art} alt="" decoding="sync" draggable={false} />
+              : <img className="pks-card-art pks-card-art-medal" src={rarityIconSrc(o.look.guaranteedFloor)} alt="" decoding="sync" draggable={false} />}
+          </div>
+        )}
         <div className={`${cls}-head`}>
           <img className={`${cls}-medal`} src={rarityIconSrc(o.look.guaranteedFloor)} alt="" aria-hidden="true" decoding="sync" draggable={false} />
           <div>
@@ -658,6 +668,8 @@ export function PackShop(props: PackShopProps) {
           <ul className="pks-handrow" aria-label="Your hand">
             {shownHand.map((p) => (
               <li key={p.packId} className="pks-owned">
+                <img className={`pks-owned-art${packArtFor(p.look) ? '' : ' pks-owned-medal'}`} src={packArtFor(p.look) ?? rarityIconSrc(p.look.guaranteedFloor)} alt=""
+                     aria-hidden="true" decoding="sync" draggable={false} />
                 <span className="pks-owned-name">{p.look.name}</span>
                 <button type="button" className="crate-btn crate-btn-quiet pressable pks-open" onClick={() => play(p.packId)}>Open</button>
               </li>

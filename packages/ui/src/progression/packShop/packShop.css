@@ -102,14 +102,29 @@
 /* REDUCED MOTION (or no Pixi): a plain grid of the shelf and a row of owned packs. */
 .pks-plain { position: absolute; left: 60px; right: 60px; top: 120px; bottom: 70px; display: flex; flex-direction: column; gap: 22px; overflow-y: auto; }
 .pks-grid, .pks-handrow { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 18px; }
-.pks-card { width: 260px; box-sizing: border-box; padding: 16px 18px; border-radius: 12px; background: var(--pk-panel); border: 2px solid var(--pk-rim);
+/* The grid card is the tag's twin (`offerCard`) with its pack standing on a lit stage above, and the Buy button at the
+   card's foot so a row of cards lines up. Its back is the tag's gradient. */
+.pks-card { width: 280px; box-sizing: border-box; padding: 0 18px 16px; border-radius: 14px; overflow: hidden;
+  background: linear-gradient(180deg, rgba(34, 40, 74, 0.97), rgba(14, 17, 36, 0.97)); border: 1.5px solid var(--pk-rim); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
   display: flex; flex-direction: column; gap: 5px; }
+.pks-card-stage { margin: 0 -18px 6px; height: 176px; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 12px;
+  background: radial-gradient(ellipse 60% 70% at 50% 62%, rgba(120, 160, 255, 0.28), transparent 72%), linear-gradient(180deg, rgba(10, 14, 32, 0.6), rgba(10, 14, 32, 0));
+  border-bottom: 1px solid rgba(255, 210, 122, 0.18); }
+.pks-card-art { height: 140px; width: auto; object-fit: contain; filter: drop-shadow(0 10px 12px rgba(0, 0, 0, 0.6)); pointer-events: none; }
+.pks-card-art-medal { height: 120px; margin-bottom: 10px; }
+.pks-card .pks-buy { margin-top: auto; }
+.pks-card .pks-card-fresh, .pks-card .pks-card-short { margin-bottom: 6px; }
 .pks-empty { margin: 0; font-size: 18px; opacity: 0.75; }
 .pks-handhead { font-size: 18px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--gold-lt); }
-.pks-owned { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 10px; background: var(--pk-panel); border: 1.5px solid var(--pk-rim); }
+.pks-owned { display: flex; align-items: center; gap: 12px; padding: 8px 14px 8px 10px; border-radius: 10px; border: 1.5px solid var(--pk-rim);
+  background: linear-gradient(180deg, rgba(34, 40, 74, 0.97), rgba(14, 17, 36, 0.97)); }
+.pks-owned-art { width: 34px; height: 51px; object-fit: contain; transform: rotate(-6deg); pointer-events: none; }
+.pks-owned-medal { transform: none; }
 .pks-owned .pks-open { margin-top: 0; }
 .pks-owned-name { font-size: 17px; font-weight: 700; }
 .pks-guarantee-plain { position: static; align-self: flex-start; }
+/* With no scene over it, the scrim is the whole backdrop: fully opaque, so nothing behind the shop ghosts through. */
+.pks-still > .pkop-scrim { opacity: 1; }
 
 @media (prefers-reduced-motion: reduce) {
   .pks-tag { animation: none; }

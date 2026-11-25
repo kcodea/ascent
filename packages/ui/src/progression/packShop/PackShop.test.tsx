@@ -447,6 +447,19 @@ describe('PackShop', () => {
     expect(document.querySelector('[data-testid="fake-opener"]')?.getAttribute('data-queue')).toBe('h2,h1,n1');
   });
 
+  it('reduced motion: each grid card and each owned pack wears its pack art, as the shelf does', () => {
+    render({ reducedMotion: true, hand: [owned('h1'), owned('h2', 'Epic Pack')] });
+    const cardArt = [...document.querySelectorAll('.pks-card .pks-card-art')].map((i) => i.getAttribute('src'));
+    expect(cardArt).toHaveLength(2);
+    expect(cardArt.every((src) => !!src && /\.(webp|png)$/.test(src))).toBe(true);
+    expect(document.querySelector('.pks-card-art')!.getAttribute('alt')).toBe('');
+    expect(document.querySelectorAll('.pks-owned .pks-owned-art')).toHaveLength(2);
+    // a look with no art yet stands its rarity's medallion there
+    const themed = { kind: 'themed', id: 'x', name: 'Themed Pack', guaranteedFloor: 'epic' } as unknown as PackOffer['look'];
+    render({ reducedMotion: true, offers: [offer('t', 'Themed Pack', 100, { look: themed })] });
+    expect(document.querySelector('.pks-card .pks-card-art')!.getAttribute('src')).toContain('ascent_rarity_epic');
+  });
+
   it('an empty shelf and an empty hand render without throwing; a hand of 30 announces 30 packs', () => {
     render({ shelves: [], offers: [], hand: [] });
     expect(document.body.textContent).toContain('Nothing on this shelf');

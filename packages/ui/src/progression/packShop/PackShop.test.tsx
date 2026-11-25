@@ -39,7 +39,7 @@ vi.mock('../packOpening/AetherTally', async () => {
   };
 });
 
-import { PackShop, type PackShopProps } from './PackShop';
+import { PackShop, SHOP_PLAY_TRAVEL_MS, type PackShopProps } from './PackShop';
 import type { ShopScene, ShopSceneEvents } from './shopScene';
 
 const look = (id: string, name: string) => ({ kind: 'rarity', id, name, guaranteedFloor: 'rare' } as const);
@@ -245,24 +245,61 @@ describe('PackShop', () => {
     expect(balance()).toBe('1000 Aether');
   });
 
-  it('playing a hand pack mounts PackOpener with that pack first and the rest of the hand after it', () => {
-    render({ hand: [owned('h1'), owned('h2', 'Epic Pack'), owned('h3')] });
-    expect(document.querySelector('[data-testid="fake-opener"]')).toBeNull();
-    fire((e) => { e.onPickUp('hand', 'h2'); e.onDrop('play', 'h2', R); });
-    expect(fake().calls.at(-1)).toBe('visible:false:200');
-    expect(document.querySelector('[data-testid="fake-opener"]')?.getAttribute('data-queue')).toBe('h2,h1,h3');
-    expect(openerProps!.open).toBe(opens);
-    // the opener opens h2 and h1 (Open next), then closes
-    act(() => {
-      openerProps!.onOpened!({ packId: 'h2', pack: look('epic', 'Epic Pack'), cards: [] });
-      openerProps!.onOpened!({ packId: 'h1', pack: look('rare', 'Rare Pack'), cards: [] });
+  describe('playing a hand pack', () => {
+    beforeEach(() => { vi.useFakeTimers(); });
+    afterEach(() => { vi.useRealTimers(); });
+    const opener = (): Element | null => document.querySelector('[data-testid="fake-opener"]');
+
+    it('waits for the pack to travel, then hides the scene and mounts PackOpener with that pack first and the rest of the hand after it', () => {
+      render({ hand: [owned('h1'), owned('h2', 'Epic Pack'), owned('h3')] });
+      fire((e) => { e.onPickUp('hand', 'h2'); e.onDrop('play', 'h2', R); });
+      expect(opener()).toBeNull();
+      expect(fake().calls.some((c) => c.startsWith('visible:'))).toBe(false);
+      act(() => { vi.advanceTimersByTime(SHOP_PLAY_TRAVEL_MS - 1); });
+      expect(opener()).toBeNull();
+      act(() => { vi.advanceTimersByTime(1); });
+      expect(fake().calls.at(-1)).toBe('visible:false:200');
+      expect(opener()?.getAttribute('data-queue')).toBe('h2,h1,h3');
+      expect(openerProps!.open).toBe(opens);
+      expect(openerProps!.entryFadeMs).toBe(200);
     });
-    const before = fake().calls.length;
-    act(() => { openerProps!.onClose!(); });
-    // the hand as it now stands BEFORE the scene comes back
-    expect(fake().calls.slice(before, before + 2)).toEqual(['setHand:h3', 'visible:true:200']);
-    expect(document.querySelector('[data-testid="fake-opener"]')).toBeNull();
-    expect(handLabels()).toEqual(['Rare Pack, Open']);
+
+    it('a second play during the wait is ignored', () => {
+      render({ hand: [owned('h1'), owned('h2', 'Epic Pack'), owned('h3')] });
+      fire((e) => { e.onDrop('play', 'h2', R); });
+      fire((e) => { e.onDrop('play', 'h3', R); });
+      act(() => { vi.advanceTimersByTime(SHOP_PLAY_TRAVEL_MS * 3); });
+      expect(opener()?.getAttribute('data-queue')).toBe('h2,h1,h3');
+      expect(fake().calls.filter((c) => c === 'visible:false:200')).toHaveLength(1);
+    });
+
+    it('on close of the opener the hand is updated first, then the scene is shown', () => {
+      render({ hand: [owned('h1'), owned('h2', 'Epic Pack'), owned('h3')] });
+      fire((e) => { e.onDrop('play', 'h2', R); });
+      act(() => { vi.advanceTimersByTime(SHOP_PLAY_TRAVEL_MS); });
+      // the opener opens h2 and h1 (Open next), then closes
+      act(() => {
+        openerProps!.onOpened!({ packId: 'h2', pack: look('epic', 'Epic Pack'), cards: [] });
+        openerProps!.onOpened!({ packId: 'h1', pack: look('rare', 'Rare Pack'), cards: [] });
+      });
+      const before = fake().calls.length;
+      act(() => { openerProps!.onClose!(); });
+      expect(fake().calls.slice(before, before + 2)).toEqual(['setHand:h3', 'visible:true:200']);
+      expect(fake().calls.filter((c) => c === 'visible:true:200')).toHaveLength(1);
+      expect(opener()).toBeNull();
+      expect(handLabels()).toEqual(['Rare Pack, Open']);
+    });
+
+    it('unmounting during the wait leaves no timer firing', () => {
+      render({ hand: [owned('h1'), owned('h2', 'Epic Pack')] });
+      fire((e) => { e.onDrop('play', 'h2', R); });
+      const pending = vi.getTimerCount();
+      const calls = fake().calls;
+      m!.unmount(); m = null;
+      expect(vi.getTimerCount()).toBeLessThan(pending);
+      act(() => { vi.advanceTimersByTime(SHOP_PLAY_TRAVEL_MS * 2); });
+      expect(calls.some((c) => c === 'visible:false:200')).toBe(false);
+    });
   });
 
   it('keyboard: Enter selects, Enter on Buy purchases; Escape does nothing while a purchase is pending', async () => {

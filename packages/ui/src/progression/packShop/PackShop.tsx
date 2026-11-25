@@ -60,8 +60,10 @@ interface Selection { kind: 'shelf' | 'hand'; id: string; rect: StageRect | null
 const FAILED_NOTE = 'Could not buy the pack. Try again.';
 /** A press and release within this long, on the same pack, with no buy or play, is a tap: it selects the pack. */
 const TAP_MS = 250;
-/** The scene's fade at the handoff to the opener and back. */
-const HANDOFF_FADE_MS = 200;
+/** The scene's fade at the handoff to the opener and back (also the opener's entry fade). */
+export const SHOP_HANDOFF_MS = 200;
+/** How long a played pack travels to the opener's pose before the scene hides and the opener mounts (the scene's travel is ~350-450 ms). */
+export const SHOP_PLAY_TRAVEL_MS = 420;
 /** The gap between the pack and its tag, and the tag's width (stage px) for choosing its side. */
 const TAG_GAP = 18;
 const TAG_W = 300;
@@ -124,6 +126,7 @@ export function PackShop(props: PackShopProps) {
   const buyRef = useRef(buy); buyRef.current = buy;
   const onCloseRef = useRef(onClose); onCloseRef.current = onClose;
   const pendingRef = useRef(false);
+  const playTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const openingRef = useRef(opening); openingRef.current = opening;
   /** Request ids of attempts still waiting for a definite answer, by `buyKey`. */
   const idsRef = useRef(new Map<string, string>());
@@ -275,12 +278,20 @@ export function PackShop(props: PackShopProps) {
   const play = useCallback((packId: string): void => {
     const all = shownHandRef.current;
     const first = all.find((p) => p.packId === packId);
-    if (!first || openingRef.current) return;
+    if (!first || openingRef.current || playTimerRef.current !== null) return;
     setSel(null);
     setHover(null);
-    sceneRef.current?.setVisible(false, HANDOFF_FADE_MS);
-    setOpening([first, ...all.filter((p) => p.packId !== packId)]);
+    // The scene carries the pack to the opener's pose itself; only then does the scene hide and the opener mount.
+    const mountOpener = (): void => {
+      playTimerRef.current = null;
+      sceneRef.current?.setVisible(false, SHOP_HANDOFF_MS);
+      setOpening([first, ...shownHandRef.current.filter((p) => p.packId !== packId)]);
+    };
+    // No scene (reduced motion) means no pack is travelling: go straight to the opener.
+    if (!sceneRef.current) { mountOpener(); return; }
+    playTimerRef.current = setTimeout(mountOpener, SHOP_PLAY_TRAVEL_MS);
   }, []);
+  useEffect(() => () => { if (playTimerRef.current !== null) clearTimeout(playTimerRef.current); playTimerRef.current = null; }, []);
 
   const onOpened = useCallback((packId: string): void => {
     const next = new Set(openedRef.current).add(packId);
@@ -293,7 +304,7 @@ export function PackShop(props: PackShopProps) {
     const scene = sceneRef.current;
     // The hand as it now stands FIRST, then the scene comes back.
     scene?.setHand(shownHandOf(handRef.current, boughtRef.current, openedRef.current));
-    scene?.setVisible(true, HANDOFF_FADE_MS);
+    scene?.setVisible(true, SHOP_HANDOFF_MS);
     dialogRef.current?.focus();
   }, []);
 
@@ -562,7 +573,7 @@ export function PackShop(props: PackShopProps) {
     <>
       {createPortal(shop, stageHost())}
       {opening && (
-        <PackOpener queue={opening} open={open} reducedMotion={reducedMotion} onOpened={(r) => onOpened(r.packId)} onClose={closeOpener} />
+        <PackOpener queue={opening} open={open} reducedMotion={reducedMotion} onOpened={(r) => onOpened(r.packId)} entryFadeMs={SHOP_HANDOFF_MS} onClose={closeOpener} />
       )}
     </>
   );

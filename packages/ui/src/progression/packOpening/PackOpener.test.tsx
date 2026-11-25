@@ -112,6 +112,30 @@ describe('PackOpener', () => {
     expect((document.querySelector('.pkop') as HTMLElement).style.getPropertyValue('--pk-slow')).toBe('4');
   });
 
+  it('entryFadeMs mounts the dialog held transparent, then releases it after a frame; omitted, the class is never present', async () => {
+    render({ entryFadeMs: 200 });
+    const dlg = document.querySelector('.pkop') as HTMLElement;
+    expect(dlg.classList.contains('pkop-entering')).toBe(true);
+    expect(dlg.style.getPropertyValue('--pk-entry-ms')).toBe('200ms');
+    await wait(60);
+    expect(dlg.classList.contains('pkop-entering')).toBe(false);
+    m?.unmount(); m = null;
+    render();
+    const plain = document.querySelector('.pkop') as HTMLElement;
+    expect(plain.classList.contains('pkop-entering')).toBe(false);
+    expect(plain.classList.contains('pkop-fade')).toBe(false);
+    await wait(60);
+    expect(plain.classList.contains('pkop-entering')).toBe(false);
+  });
+
+  it('entryFadeMs is slow-mo scaled, and does nothing under reduced motion', () => {
+    render({ entryFadeMs: 200, speed: 0.5 });
+    expect((document.querySelector('.pkop') as HTMLElement).style.getPropertyValue('--pk-entry-ms')).toBe('400ms');
+    m?.unmount(); m = null;
+    render({ entryFadeMs: 200, reducedMotion: true });
+    expect(document.querySelector('.pkop')!.classList.contains('pkop-entering')).toBe(false);
+  });
+
   it('does not request on press, requests once on pop', () => {
     render();
     expect(opens).toEqual([]);

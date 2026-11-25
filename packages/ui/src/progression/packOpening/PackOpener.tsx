@@ -45,6 +45,8 @@ export interface PackOpenerProps {
   reducedMotion?: boolean;
   /** Dev-only clock multiplier (the Pack Lab's slow-mo): scales the scene and the DOM handoff transitions. Default 1. */
   speed?: number;
+  /** The shop's handoff: when > 0 the dialog mounts transparent (`pkop-entering`) and fades in over this many ms (slow-mo scaled). Omitted = no fade. */
+  entryFadeMs?: number;
   /** Tests inject a fake. */
   sceneFactory?: typeof createPackScene;
 }
@@ -88,11 +90,18 @@ export function summaryBest(cards: readonly PackCard[]): number[] {
     .map((x) => x.i);
 }
 
-export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, speed = 1, sceneFactory = createPackScene }: PackOpenerProps) {
+export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, speed = 1, entryFadeMs = 0, sceneFactory = createPackScene }: PackOpenerProps) {
   /** The scene said Pixi is unavailable (not allowed, or init failed): the reduced-motion path from then on. */
   const [pixiFailed, setPixiFailed] = useState(false);
   const reduced = (reducedMotion ?? prefersReducedMotion()) || pixiFailed;
   const [qi, setQi] = useState(0);
+  /** The entry fade: the class holds the dialog at opacity 0 for the first frame only (never under reduced motion). */
+  const [entering, setEntering] = useState(entryFadeMs > 0 && !reduced);
+  useEffect(() => {
+    if (!entering) return;
+    const raf = requestAnimationFrame(() => setEntering(false));
+    return () => cancelAnimationFrame(raf);
+  }, [entering]);
   const [phase, setPhaseState] = useState<PackPhase>('sealed');
   const [note, setNote] = useState<string | null>(null);
   const [result, setResult] = useState<PackOpenResult | null>(null);
@@ -524,8 +533,8 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, spee
   const bestIndex = summaryBest(cards)[0] ?? -1;
 
   const theatre = (
-    <div className="pkop" role="dialog" aria-modal="true" aria-label="Opening a pack" ref={dialogRef} tabIndex={-1}
-         style={speed === 1 ? undefined : ({ '--pk-slow': 1 / speed } as CSSProperties)}>
+    <div className={`pkop${entering ? ' pkop-entering' : ''}${entryFadeMs > 0 && !reduced ? ' pkop-fade' : ''}`} role="dialog" aria-modal="true" aria-label="Opening a pack" ref={dialogRef} tabIndex={-1}
+         style={speed === 1 && !(entryFadeMs > 0) ? undefined : ({ ...(speed === 1 ? null : { '--pk-slow': 1 / speed }), ...(entryFadeMs > 0 ? { '--pk-entry-ms': `${entryFadeMs * (speed > 0 ? 1 / speed : 1)}ms` } : null) } as CSSProperties)}>
       <div className="pkop-scrim" aria-hidden />
       {/* The theatre content (the scene + the faces) shakes as one on a big pull; the slot, notes and buttons stay put. */}
       <div

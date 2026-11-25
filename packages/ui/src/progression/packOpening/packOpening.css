@@ -6,6 +6,11 @@
 /* z-index 700: the crate theatre's layer (crateTheatre.css); there is no z-index token. */
 .pkop { position: fixed; inset: 0; z-index: 700; outline: none; --pk-rim: color-mix(in srgb, var(--gold) 70%, transparent);
   --pk-slow: 1; --pk-text: #f6ecd0; --pk-panel: #1a2033; }
+/* THE SHOP HANDOFF (entryFadeMs): the dialog mounts held at opacity 0, then fades to 1 over `--pk-entry-ms` (already slow-mo
+   scaled inline). Only present when the shop passes entryFadeMs; opacity only. */
+.pkop-fade { transition: opacity var(--pk-entry-ms, 0ms) linear; }
+.pkop-entering { opacity: 0; }
+@media (prefers-reduced-motion: reduce) { .pkop-fade { transition: none; } .pkop-entering { opacity: 1; } }
 /* The theatre's backdrop: near-opaque and dark, so the menu never shows through (owner 2026-11-24: "the entire
    presentation"). The Pixi stage (packFx.ts) lights it during the opening; this is what the summary and the
    reduced-motion path stand on. */

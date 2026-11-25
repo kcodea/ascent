@@ -1,0 +1,71 @@
+/* THE PACK SHOP SHELL (PackShop.tsx). The DOM layer over the shop's Pixi scene: tabs, the wallet, the tag beside a pack,
+   the words at the counter line, the plain (reduced motion) grid, and the visually hidden mirror of the canvas. The
+   same look as the opener (`.pkop-*` in packOpening.css): its fonts, colours and button classes. No looping animation;
+   the one-shot transitions touch transform / opacity only. */
+.pks { position: fixed; inset: 0; z-index: 690; outline: none; font-family: var(--font-ui);
+  --pk-text: #f6ecd0; --pk-panel: #1a2033; --pk-rim: color-mix(in srgb, var(--gold) 70%, transparent); color: var(--pk-text); }
+.pks-fx { position: absolute; inset: 0; }
+/* While the opener plays, the shop's words step aside (the scene fades itself). */
+.pks-top, .pks-line, .pks-guarantee, .pks-tag, .pks-close { transition: opacity 0.2s ease-out; }
+.pks-away :is(.pks-top, .pks-line, .pks-guarantee, .pks-tag, .pks-close) { opacity: 0; pointer-events: none; }
+
+/* THE TOP BAR: the shelf tabs on the left, the wallet on the right. */
+.pks-top { position: absolute; left: 36px; right: 36px; top: 22px; display: flex; align-items: center; justify-content: space-between;
+  pointer-events: none; }
+.pks-tabs { display: flex; gap: 10px; pointer-events: auto; }
+.pks-tab { font-family: var(--font-ui); font-size: 17px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--pk-text); opacity: 0.62; background: rgba(10, 14, 28, 0.72); border: 1.5px solid var(--pk-rim); border-radius: 10px;
+  padding: 9px 20px; transition: opacity 0.15s ease-out; }
+.pks-tab:hover, .pks-tab:focus-visible { opacity: 0.9; }
+.pks-tab-on { opacity: 1; color: var(--gold-lt); border-color: var(--gold); }
+/* The wallet: the opener's Aether tally, standing in the bar and always shown. */
+.pks-wallet { position: relative; pointer-events: none; }
+.pks-wallet .pkop-aether { position: static; opacity: 1; transform: none; gap: 12px; }
+.pks-wallet .pkop-aether-orb, .pks-wallet .pkop-aether-gem.aether-icon { width: 64px; height: 64px; }
+.pks-wallet .pkop-aether-num { font-size: 40px; }
+
+/* THE COUNTER LINE'S WORDS: the scene draws and lights the line at 66% of the stage; the price (or what is missing)
+   sits on it while a shelf pack is carried. */
+.pks-line { position: absolute; left: 0; right: 0; top: 66%; height: 0; display: flex; justify-content: center; pointer-events: none; }
+.pks-line-words { transform: translateY(-50%); padding: 6px 18px; border-radius: 10px; background: rgba(10, 14, 28, 0.86);
+  border: 1.5px solid var(--pk-rim); font-size: 22px; font-weight: 800; letter-spacing: 0.06em; color: var(--pk-text); opacity: 0.75;
+  transition: opacity 0.15s ease-out; }
+.pks-line-lit .pks-line-words { opacity: 1; color: var(--gold-lt); border-color: var(--gold); }
+.pks-line-short { color: #ff9c8a; }
+.pks-guarantee { position: absolute; right: 48px; top: calc(66% + 18px); font-size: 17px; font-weight: 700; letter-spacing: 0.08em;
+  color: var(--gold-lt); opacity: 0.85; pointer-events: none; }
+
+/* THE TAG beside a hovered, focused or selected pack (placed inline from the pack's rect, stage px). A selected pack's tag
+   carries its Buy / Open button; without a rect (a pack out of view) it docks above the counter line. */
+.pks-tag { position: absolute; width: 300px; box-sizing: border-box; padding: 14px 18px; border-radius: 12px;
+  background: rgba(14, 17, 32, 0.94); border: 1.5px solid var(--pk-rim); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+  display: flex; flex-direction: column; gap: 5px; pointer-events: none; animation: pks-tag-in 0.16s ease-out both; }
+.pks-tag-armed { pointer-events: auto; }
+.pks-tag-dock { left: calc(50% - 150px); top: calc(66% - 220px); }
+@keyframes pks-tag-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.pks-tag-name, .pks-card-name { font-family: var(--font-cardname); font-size: 22px; font-weight: 800; color: var(--gold-lt); }
+.pks-tag-price, .pks-card-price { font-size: 20px; font-weight: 800; color: #dcf3ff; }
+.pks-tag-line, .pks-card-line { font-size: 15px; opacity: 0.85; }
+.pks-tag-short, .pks-card-short { font-size: 15px; font-weight: 700; color: #ff9c8a; }
+.pks-buy, .pks-open { margin-top: 8px; }
+
+.pks-live { position: absolute; left: 0; right: 0; bottom: 18px; text-align: center; font-size: 17px; color: var(--pk-text); opacity: 0.85;
+  pointer-events: none; }
+.pks-close { position: absolute; top: 100px; right: 36px; }
+
+/* Visually hidden, still read and focusable: the mirror of the canvas. Its focused pack shows the tag instead. */
+.pks-sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+/* REDUCED MOTION (or no Pixi): a plain grid of the shelf and a row of owned packs. */
+.pks-plain { position: absolute; left: 60px; right: 60px; top: 120px; bottom: 70px; display: flex; flex-direction: column; gap: 22px; overflow-y: auto; }
+.pks-grid, .pks-handrow { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 18px; }
+.pks-card { width: 260px; box-sizing: border-box; padding: 16px 18px; border-radius: 12px; background: var(--pk-panel); border: 2px solid var(--pk-rim);
+  display: flex; flex-direction: column; gap: 5px; }
+.pks-empty { margin: 0; font-size: 18px; opacity: 0.75; }
+.pks-handhead { font-size: 18px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--gold-lt); }
+.pks-owned { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 10px; background: var(--pk-panel); border: 1.5px solid var(--pk-rim); }
+.pks-owned .pks-open { margin-top: 0; }
+.pks-owned-name { font-size: 17px; font-weight: 700; }
+.pks-guarantee-plain { position: static; }
+
+@media (prefers-reduced-motion: reduce) { .pks-tag { animation: none; } }

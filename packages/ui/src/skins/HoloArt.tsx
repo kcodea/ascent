@@ -16,7 +16,7 @@ for (const [path, url] of Object.entries(FILES)) {
   SETS.set(m[1]!, set);
 }
 export interface Holo { key: string; set: LivingSet; look: LivingLook }
-const HOLOS = new Map([...SETS].map(([key, set]) => [key, { key, set, look: 'flame' } as Holo]));
+const HOLOS = new Map([...SETS].map(([key, set]) => [key, { key, set, look: key === 'skin_derenor_1' ? 'gold' : 'flame' } as Holo]));
 /** The same pieces lit another way (owner 2026-11-25: "the green flame is instead blue and almost has more of a lightning vibe to it"). */
 for (const [key, of, look] of [['skin_kennel_4', 'skin_kennel_3', 'storm']] as const) {
   const set = SETS.get(of);

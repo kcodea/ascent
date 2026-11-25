@@ -646,7 +646,7 @@ if (import.meta.env.DEV && typeof localStorage !== 'undefined') {
 
 // ── DEV ONLY: CONCEPT skins (owner 2026-11-25: "add it as an equippable skin in my collection so i can turn it on/off") ──
 // Owned by every dev build and worn locally (`ascent.dev.concepts`), laid over the mirror in memory like the dev frames above: the server never hears of it.
-const DEV_CONCEPTS: readonly { id: string; cardId: string }[] = [{ id: 'skin_kennel_3', cardId: 'kennel' }, { id: 'skin_kennel_4', cardId: 'kennel' }];
+const DEV_CONCEPTS: readonly { id: string; cardId: string }[] = [{ id: 'skin_kennel_3', cardId: 'kennel' }, { id: 'skin_kennel_4', cardId: 'kennel' }, { id: 'skin_derenor_1', cardId: 'b2_derenor' }];
 const DEV_CONCEPTS_KEY = 'ascent.dev.concepts';
 const loadConcepts = (): string[] => {
   try { const x = JSON.parse(localStorage.getItem(DEV_CONCEPTS_KEY) ?? '[]') as unknown; return Array.isArray(x) ? x.filter((v): v is string => typeof v === 'string') : []; } catch { return []; }

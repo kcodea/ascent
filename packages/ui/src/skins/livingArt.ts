@@ -235,9 +235,129 @@ void main() {
   o = vec4(c, 1.);
 }`;
 
+
+/**
+ * GOLDEN (Derenor, owner 2026-11-25: "his background is animated and has like a soft golden glow to it"): the painting whole, and behind its hero the
+ * light alive: shafts and haze, the fall and the pool running, the painted gold breathing, leaves coming down, dust and soft discs of light.
+ * `herodata`: R the hero, G the rim inside his outline, B the glow outside it. `scenedata`: R water, G painted gold, B leaves overhead. `leaves`: one leaf.
+ */
+const FS_GOLD = `precision highp float;
+in vec2 v; out vec4 o;
+uniform sampler2D ground, pack, hero, leaves, hd, sd;
+uniform float T;
+float h1(float n) { return fract(sin(n) * 43758.5453); }
+float h2(vec2 p) { p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
+float n2(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3. - 2. * f); return mix(mix(h2(i), h2(i + vec2(1, 0)), f.x), mix(h2(i + vec2(0, 1)), h2(i + vec2(1, 1)), f.x), f.y); }
+float fbm(vec2 p) { float a = .5, s = 0.; for (int i = 0; i < 4; i++) { s += a * n2(p); p = p * 2.03 + 17.; a *= .5; } return s; }
+vec3 screen(vec3 a, vec3 b) { return 1. - (1. - a) * (1. - clamp(b, 0., 1.)); }
+// one leaf: where it is at this moment of its fall, turning over as it comes
+vec4 leaf(vec2 uv, float s, float size, float speed) {
+  float l = fract(T * speed + h1(s * 1.7)), id = floor(T * speed + h1(s * 1.7));
+  float u = h2(vec2(id, s)), x = (u < .5 ? mix(.13, .40, u * 2.) : mix(.60, .93, u * 2. - 1.)) + l * -.06 + .045 * sin(l * 11. + s * 3.);      // to either side of him
+  vec2 c = vec2(x, -.08 + l * 1.16 + .012 * sin(l * 22. + s));
+  vec2 d = uv - c;
+  float a = s * 2. + l * 7. + 1.1 * sin(l * 11. + s * 3.), k = cos(a), q = sin(a);
+  d = vec2(d.x * k + d.y * q, -d.x * q + d.y * k) / size;
+  d.x /= .28 + .72 * abs(cos(l * 13. + s * 5.));                                   // turning over
+  d.y /= .81;
+  if (abs(d.x) > .5 || abs(d.y) > .5) return vec4(0.);
+  vec4 t = texture(leaves, d + .5);
+  t.rgb *= .82 + .4 * abs(cos(l * 13. + s * 5.));
+  t.a *= smoothstep(0., .06, l) * (1. - smoothstep(.93, 1., l));
+  return t;
+}
+void main() {
+  vec2 uv = (v - .5) * .985 + .5;
+  vec3 c = texture(ground, uv).rgb;
+  vec3 hm = texture(hd, uv).rgb, sm = texture(sd, uv).rgb;
+  float hero_ = hm.r, bg = 1. - hero_;
+  vec3 pic = c;
+  float lum = dot(c, vec3(.3, .59, .11));
+  float slow = .5 + .5 * sin(T * .55), slow2 = .5 + .5 * sin(T * .37 + 2.);
+
+  // ── the water ──
+  float sl = uv.x + (uv.y - .6) * .22;
+  float run = fbm(vec2(sl * 62., uv.y * 7.5 - T * 1.25)) * .6 + fbm(vec2(sl * 120., uv.y * 13. - T * 2.0)) * .4;
+  float poolM = smoothstep(.775, .79, uv.y);
+  float rip = fbm(vec2(uv.x * 16. + T * .22, uv.y * 70. - T * .5));
+  c += sm.r * mix((run - .42) * vec3(.95, 1.02, 1.04), (rip - .46) * vec3(1.05, .95, .70) * 1.5, poolM);
+  c += sm.r * vec3(1., .86, .52) * smoothstep(.70, .9, mix(run, rip, poolM)) * .55;
+
+  // ── the air warms ──
+  float low = dot(c, vec3(.3, .59, .11));
+  vec3 amber = mix(vec3(low) * vec3(1.05, .64, .26), c * vec3(1.04, .80, .50), .62);
+  c = mix(c, amber, .58 * (1. - .75 * sm.r));                              // the water keeps its own colour
+  c = c * c * (1.5 - .5 * c) * .62 + c * .30;                              // deeper darks: the painting stays a painting
+  c += sm.r * vec3(.05, .07, .08);      // a deep amber, so the light has something to glow on
+  // shafts of light out of the canopy, upper right
+  vec2 rp = uv - vec2(.80, -.10); float ang = atan(rp.x, rp.y), rd = length(rp);
+  float shaft = smoothstep(.40, .78, fbm(vec2(ang * 7.5 + T * .045, T * .06))) * .75 + smoothstep(.46, .8, fbm(vec2(ang * 15. - T * .06, 4. + T * .05))) * .45;
+  shaft *= exp(-rd * 1.05) * smoothstep(1.15, .25, abs(ang + .38));
+  c = screen(c, vec3(1., .70, .26) * shaft * (.80 + .20 * slow));
+  // a great soft glow behind him, breathing
+  vec2 gp = (uv - vec2(.55, .40)) * vec2(1., 1.05);
+  float big = exp(-dot(gp, gp) * 4.6);
+  float drift = fbm(uv * 3.1 + vec2(T * .06, -T * .09));
+  c = screen(c, vec3(1., .56, .13) * big * (.24 + .08 * slow) * (.45 + 1.1 * drift));
+  // and close to his outline, light coming off him in slow wisps
+  vec2 w2 = uv - vec2(.52, .45); float r2 = length(w2); w2 /= max(r2, .001);          // round a circle, so there is no seam
+  float wisp = fbm(vec2(w2.x * 3.4 + w2.y * 1.7, w2.y * 3.4) + vec2(3., r2 * 11. - T * .42));
+  c = screen(c, vec3(1., .66, .20) * hm.b * hm.b * (.80 + .24 * slow2) * (.45 + 1.1 * smoothstep(.3, .72, wisp)));
+  // beams standing off him, turning slowly: the glow seen moving
+  vec2 bd = vec2(w2.x * cos(T * .10) - w2.y * sin(T * .10), w2.x * sin(T * .10) + w2.y * cos(T * .10));
+  float beam = smoothstep(.50, .70, fbm(bd * 4.6 + vec2(0., T * .06))) + .6 * smoothstep(.5, .76, fbm(bd * 9.5 - vec2(T * .08, 4.)));
+  c = screen(c, vec3(1., .70, .24) * beam * smoothstep(.10, .26, r2) * exp(-max(0., r2 - .24) * 2.6) * (.62 + .16 * slow));
+  // and now and then a soft band of gold going across behind him
+  float bnd = fract(T * .135) * 2.1 - .55, across = (uv.x * .86 + uv.y * .50);
+  c = screen(c, vec3(1., .76, .34) * exp(-pow((across - bnd) * 7.5, 2.)) * .42);
+  // golden haze low down, drifting
+  float hz = fbm(vec2(uv.x * 2.6 - T * .05, uv.y * 5. + T * .02));
+  c = screen(c, vec3(.95, .60, .20) * smoothstep(.40, .82, hz) * smoothstep(.42, .88, uv.y) * .13);
+  // the painted gold: the rune on the arch, the light on moss and bark
+  float beat = .5 + .5 * sin(T * 1.05 + uv.x * 5.);
+  c += vec3(1., .70, .24) * sm.g * (.06 + .30 * beat * (.6 + .6 * fbm(uv * 9. + T * .15)));
+  vec2 ru = uv - vec2(.873, .343);
+  float rb = .55 + .45 * sin(T * 1.2);
+  c = screen(c, vec3(1., .70, .26) * exp(-dot(ru, ru) * 95.) * (.28 + .30 * rb));
+  c += vec3(1., .86, .5) * sm.g * exp(-dot(ru, ru) * 190.) * rb * .75;
+  // the leaves overhead catch it
+  float gl = fbm(uv * 13. + vec2(T * .16, -T * .07));
+  c += vec3(1., .50, .20) * sm.b * smoothstep(.46, .78, gl) * .55;
+
+  // ── soft discs of light, far off, drifting up ──
+  for (int i = 0; i < 9; i++) {
+    float s = float(i) + 3., sp = .018 + .014 * h1(s * 3.), l = fract(T * sp + h1(s * 5.)), id = floor(T * sp + h1(s * 5.));
+    vec2 bp = vec2(h2(vec2(id, s)) + .03 * sin(T * .3 + s), 1.02 - l * 1.0);
+    float r = mix(.014, .044, h1(s * 7. + 1.)), d = length(uv - bp);
+    float disc = smoothstep(r, r * .78, d) * (.55 + .45 * smoothstep(r * .4, r, d));
+    c = screen(c, vec3(1., .74, .32) * disc * .40 * sin(3.14159 * l) * (.6 + .4 * sin(T * .8 + s * 2.)));
+  }
+  // leaves coming down behind him
+  for (int i = 0; i < 11; i++) {
+    float s = float(i) + 1., z = h1(s * 4.1);
+    vec4 lf = leaf(uv, s, mix(.052, .088, z), mix(.062, .100, z));
+    c = mix(c, lf.rgb * vec3(1.14, .80, .66), lf.a * .96);
+  }
+
+  // ── HIM: exactly as painted, with the light on his edge ──
+  vec3 him = pic;
+  him = screen(him, vec3(1., .70, .30) * hm.g * (.34 + .16 * slow2) * (.5 + .9 * wisp));
+  him = screen(him, vec3(1., .78, .42) * shaft * .10);
+  c = mix(c, him, hero_);
+
+  // ── near: dust in the light ──
+  for (int i = 0; i < 34; i++) {
+    float s = float(i) + 40., z = h1(s * 1.9);
+    vec2 fp = vec2(fract(h1(s) + T * .006 * (z - .4)) + .03 * sin(T * (.3 + .3 * z) + s), fract(h1(s * 5.3) - T * (.020 + .032 * z)));
+    float r = mix(.0030, .0082, z * z), d = length(uv - fp), tw = pow(.5 + .5 * sin(T * (.8 + z) + s * 4.), 2.);
+    c += vec3(1., .82, .46) * (smoothstep(r, 0., d) + smoothstep(r * 5., 0., d) * .30) * tw * mix(bg, 1., step(.72, z)) * smoothstep(0., .08, fp.y) * 1.05;
+  }
+  o = vec4(c, 1.);
+}`;
+
 interface Pic { canvas: HTMLCanvasElement; draw: (t: number) => boolean; free: () => void }
 /** Which way the same pieces are lit. */
-export type LivingLook = 'flame' | 'storm';
+export type LivingLook = 'flame' | 'storm' | 'gold';
 
 function build(set: LivingSet, look: LivingLook): Pic | null {
   const canvas = document.createElement('canvas');
@@ -247,15 +367,16 @@ function build(set: LivingSet, look: LivingLook): Pic | null {
   const sh = (ty: number, src: string): WebGLShader => { const s = gl.createShader(ty)!; gl.shaderSource(s, src); gl.compileShader(s); return s; };
   const pr = gl.createProgram()!;
   gl.attachShader(pr, sh(gl.VERTEX_SHADER, VS));
-  gl.attachShader(pr, sh(gl.FRAGMENT_SHADER, `#version 300 es\n${look === 'storm' ? '#define STORM\n' : ''}${FS}`));
+  gl.attachShader(pr, sh(gl.FRAGMENT_SHADER, `#version 300 es\n${look === 'storm' ? '#define STORM\n' : ''}${look === 'gold' ? FS_GOLD : FS}`));
   gl.linkProgram(pr);
   let ready = 0;
   let dead = false;
-  const names = ['ground', 'pack', 'hero', 'leaves', 'herodata', 'scenedata'];
-  const unis = ['ground', 'pack', 'hero', 'leaves', 'hd', 'sd'];
+  // only the pieces this skin has (a picture whose hero never parts from its ground needs no pieces of him)
+  const names = LIVING_PIECES.filter((n) => set[n]);
+  const unis = names.map((n) => (n === 'herodata' ? 'hd' : n === 'scenedata' ? 'sd' : n));
   names.forEach((n, i) => {
     const im = new Image();
-    im.src = set[n] ?? '';
+    im.src = set[n]!;
     void im.decode().then(() => createImageBitmap(im, { premultiplyAlpha: 'none', colorSpaceConversion: 'none' })).then((bm) => {
       if (dead) { bm.close(); return; }
       gl.activeTexture(gl.TEXTURE0 + i);

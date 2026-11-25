@@ -443,7 +443,7 @@ export const SETS: Record<SetId, SetDef> = {
   set4: {
     id: 'set4',
     name: 'Set 4',
-    placeName: "Forest's Edge",
+    placeName: 'Rune Barriers',
     blurb: 'In development.',
     // A SCAFFOLD (owner 2026-10-13), started the way Set 3 was: selectable in the Scene Builder's set picker (which
     // offers disabled sets on purpose), NEVER the active set. `activeSet()` is first-enabled-wins in declaration

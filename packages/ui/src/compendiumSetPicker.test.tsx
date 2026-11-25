@@ -43,7 +43,7 @@ describe('Compendium set picker', () => {
 
   it('lists every set in the registry and defaults to the ACTIVE set', () => {
     const live = activeSet();
-    expect(options(m.container).map((o) => o.textContent?.replace(/Live$/, ''))).toEqual(['Scrapyard', 'The Outskirts', 'The Underbelly', "Forest's Edge"]); // R-LOCATION-10: by location
+    expect(options(m.container).map((o) => o.textContent?.replace(/Live$/, ''))).toEqual(['Scrapyard', 'The Outskirts', 'The Underbelly', 'Rune Barriers']); // R-LOCATION-10: by location
     expect(pickerBtn(m.container).getAttribute('aria-label')).toContain(setPlaceName(live));
     const selected = options(m.container).filter((o) => o.getAttribute('aria-selected') === 'true');
     expect(selected).toHaveLength(1);

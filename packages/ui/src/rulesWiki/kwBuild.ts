@@ -334,7 +334,7 @@ export const ENTRIES: readonly WikiEntry[] = [
     id: 'ruby-on-shop-minion',
     topic: 'keywords',
     q: 'Can I cast a Ruby on a minion in the Shop?',
-    a: "A plain Ruby, yes: it says \"a minion\", so you can buff a Shop offer before you buy it. Some special Rubies need a friendly minion on your board instead, like the Warding Ruby.",
+    a: "A plain Ruby, yes: it says \"a minion\", so you can buff a Shop offer before you buy it. Some Special Rubies need a friendly minion on your board instead, like the Warding Ruby.",
     aliases: ['ruby shop offer', 'ruby tavern', 'buff before buying'],
     seeAlso: ['ruby'],
   },
@@ -345,7 +345,7 @@ export const ENTRIES: readonly WikiEntry[] = [
     a: "There are six: plain, Warding, Golden, Splintered, Ripple and Dark. They all give stats, and the special ones do something extra **if the target is a Kobold** (Ward, 2 Gold, a bounce, a second cast, or eating a Shop minion). \"Get a Special Ruby\" picks evenly among the five that are not plain.",
     aliases: ['warding ruby', 'golden ruby', 'splintered ruby', 'ripple ruby', 'dark ruby', 'random ruby', 'special ruby'],
     seeAlso: ['ruby'],
-    covers: [{ rule: 'R-RAND-02', fp: '0baf397b' }],
+    covers: [{ rule: 'R-RAND-02', fp: '7e20ae95' }, { keyword: 'specialruby', fp: '' }],
   },
   {
     id: 'ruby-gilded',

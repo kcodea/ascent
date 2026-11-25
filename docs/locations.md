@@ -101,6 +101,11 @@ reduced motion; `phone-budgets` in CI (300 MB, 6 GL contexts, 80 MB decoded audi
 - A fresh browser profile compiles Skia and GL pipelines for the first time: measure both a first and a second run before calling something a hitch.
 - The dev server's watcher can die and go on serving old files: check that it serves the new source before judging a screenshot.
 
+**Cuts are found, not drawn** (owner 2026-11-25: "Be very precise with our movement cuts"): with `snap` on, an outline is only a guide (a band of 5 to 9
+px); the edge is a graph cut on the painting's own colours near it, then matted in 2 px. Lattices are colour `key` zones; `open` zones let the light
+through where an outline was drawn solid. Check EVERY piece alone on flat magenta, zoomed, before showing it. A piece cut from the ground must take
+everything that stands on it (a post left behind is seen twice).
+
 **Rigid or bending ground** (owner 2026-11-25, the Rune Barriers: "warping and not really all that exciting"): a depth map that bends the ground
 shears anything upright standing on it. Ground that is mist, sky and far hills may bend; a place of big upright things is cut into RIGID pieces
 instead (`LocationDef.row`: the first piece may be one receding plane, depth linear in x). Moving magic is never the water map: give it its own

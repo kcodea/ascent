@@ -95,3 +95,17 @@ How it was checked: frames captured from the running game in headless Chrome (pl
 for the sealed pack, hover, squeeze, the tear, a slow-motion quick open through the sleeve, the pile and five reveals.
 The clips were measured (length, level, envelope), not heard. NOT checked: any sound by ear, motion at 60 fps, and
 performance on a real GPU (software GL only; the stage is a full-screen shader).
+
+## The end of the pack (same day, owner: "how about when the cards are presented at the end? did all of that get enhanced?")
+
+It had not: the summary was five equal cards on a flat backdrop with a stale caption. Now:
+
+- **The stage stays lit.** The scene's canvas is no longer hidden for the summary; `PackScene.showSummary(spots)` clears
+  the pack, the pile and the flip off the stage, moves the light to the row, and burns an aura (with a small burst)
+  behind the best pulls (`summaryBest`: Epic and up, best first; the first two are lit).
+- **The row is dealt**: each card leaves the pile a beat after the one before (`SUMMARY_DEAL_MS`), lands with a card
+  sound, and the best pull stands raised and a little larger (`.pkf-best`). A card lifts under the pointer.
+- **A head**: the pack's name between pointed rules, and "5 cards / 4 new / 1 duplicate". The reveal's caption is kept
+  for screen readers only.
+- The auras are placed when each best card's move has ENDED (`transitionend` on its transform), never after a guessed
+  delay: a busy frame starts the move late, and a measurement taken early lit the old pile spot at pile size.

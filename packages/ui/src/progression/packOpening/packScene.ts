@@ -101,11 +101,20 @@ export interface PackScene {
   /** A short fade back to a fresh sealed pack with plain backs and input enabled (the failure path). */
   resetSealed(): void;
   setInputEnabled(on: boolean): void;
+  /**
+   * The end of the pack: the pack, the pile and the flip go, the stage stays lit, and an aura burns behind each given
+   * card of the row (at most two: the best pulls), bursting once as it lights. `x` / `y` are a card's centre and `h` its
+   * visible height, in SCREEN px. Call it with no spots first (the row is still dealing), then with them once it settled.
+   */
+  showSummary(spots: readonly SummarySpot[]): void;
   /** Scale the scene's clock (1 = real time, 0.25 = slow-mo). Dev-only (the Pack Lab); a no-op until Pixi is up. */
   setSpeed(mult: number): void;
   /** Safe at any moment, including before the async init resolves. */
   destroy(): void;
 }
+
+/** One card of the summary row to light: its centre and visible height (screen px), and its rarity. */
+export interface SummarySpot { x: number; y: number; h: number; rarity: CrateRarity }
 
 /**
  * Scale the px-valued feel knobs (tuned at `PACK_BASE_SIZE.w`) to a pack drawn `packW` wide. Pure; never mutates.
@@ -256,6 +265,8 @@ class PackSceneImpl implements PackScene {
   private auraPile: Aura | null = null;
   private auraFace: Aura | null = null;
   private faceAmbient = 0;
+  private pileAmbient = 0; // the second aura's level on the summary (it lights the second-best pull)
+  private summaryOn = false;
   // the presentation shaders (packFx.ts): the stage behind everything, the foil's creases, the light from inside the
   // pack, the top card back's sheen; and what drives them
   private stage: StageFx | null = null;
@@ -414,6 +425,32 @@ class PackSceneImpl implements PackScene {
     this.resetState();
     app.ticker.add(this.tick);
     if (this.pendingQuick) { this.pendingQuick = false; this.quickOpen(); }
+  }
+
+  showSummary(spots: readonly SummarySpot[]): void {
+    const v = this.v, app = this.app;
+    if (!v || !app || this.destroyed) return;
+    this.summaryOn = true;
+    // the opening's own pieces leave the stage
+    v.pack.visible = false; v.flipLayer.visible = false; v.burst.visible = false;
+    this.flip.active = false; this.land.active = false; this.burst.active = false;
+    this.cacheRect();
+    const auras = [this.auraFace, this.auraPile];
+    for (let i = 0; i < auras.length; i++) {
+      const a = auras[i], s = spots[i];
+      if (!a) continue;
+      if (!s || !this.rect.valid) { a.off(); if (i === 0) this.faceAmbient = 0; else this.pileAmbient = 0; continue; }
+      const sx = app.screen.width / this.rect.w, sy = app.screen.height / this.rect.h, k = v.root.scale.x;
+      a.setRarity(s.rarity);
+      a.tier = Math.max(0, COSMETIC_RARITIES.indexOf(s.rarity));
+      a.place(((s.x - this.rect.l) * sx - v.root.x) / k, ((s.y - this.rect.t) * sy - v.root.y) / k, (s.h * sy) / k);
+      a.level = 0;
+      const amb = Math.max(0.3, FACE_AMBIENT[s.rarity]) * (i === 0 ? 1 : 0.8);
+      if (i === 0) this.faceAmbient = amb; else this.pileAmbient = amb;
+      const burst = AURA_BURST[s.rarity] * 0.42; // a small burst: the row is close-packed
+      if (burst > 0) a.fireBurst(burst);
+    }
+    this.wake();
   }
 
   setSpeed(mult: number): void {
@@ -719,13 +756,14 @@ class PackSceneImpl implements PackScene {
     if (st) {
       const fx = this.zoom > 0 ? v.pack.x + v.cardsC.x : W / 2;
       const fy = this.zoom > 0 ? v.pack.y + v.cardsC.y : (H + BODY_H) / 2;
-      const tx = ((v.root.x + fx * k) / w) * 2 - 1, ty = ((v.root.y + fy * k) / h) * 2 - 1;
+      const tx = this.summaryOn ? 0 : ((v.root.x + fx * k) / w) * 2 - 1;
+      const ty = this.summaryOn ? -0.2 : ((v.root.y + fy * k) / h) * 2 - 1;
       const f = this.focus;
       if (!this.focusSet) { f.x = tx; f.y = ty; this.focusSet = true; }
       const e = Math.min(1, 0.12 * dt);
       f.x += (tx - f.x) * e; f.y += (ty - f.y) * e;
       // brightest while the pack is being opened, calmer once the cards are out
-      const energyTo = sealed ? 0.34 + 0.1 * Math.sin(this.time * 0.03) : this.phase === 'peel' || this.phase === 'sleeve' ? 0.75 : 0.18;
+      const energyTo = this.summaryOn ? 0.5 : sealed ? 0.34 + 0.1 * Math.sin(this.time * 0.03) : this.phase === 'peel' || this.phase === 'sleeve' ? 0.75 : 0.18;
       this.stageEnergy += (energyTo - this.stageEnergy) * Math.min(1, 0.06 * dt);
       this.stageWash *= Math.pow(0.968, dt);
       if (this.stageWash < 0.003) this.stageWash = 0;
@@ -825,6 +863,10 @@ class PackSceneImpl implements PackScene {
       }
       af.update(sec, time);
     }
+    if (ap && this.summaryOn) {
+      ap.level += (this.pileAmbient - ap.level) * Math.min(1, 0.045 * dt);
+      if (Math.abs(this.pileAmbient - ap.level) < 0.004) ap.level = this.pileAmbient;
+    }
     ap?.update(sec, time);
   }
 
@@ -895,6 +937,8 @@ class PackSceneImpl implements PackScene {
     this.tease.live = false; this.tease.level = 0; this.tease.t = 0; this.tease.stage = -1;
     this.teaseGlowOut = 0;
     this.auraPile?.off(); this.auraFace?.off();
+    this.summaryOn = false; this.pileAmbient = 0;
+    v.pack.visible = true; v.flipLayer.visible = true;
     const hd = this.handling; hd.grip = 0; hd.wear = 0; hd.px = 0.5; hd.py = 0.5;
     this.packPressed = false; this.squeeze.a = 0; this.stageWash = 0; this.spillLevel = 0; this.sheenLevel = 0; this.focusSet = false;
     if (this.foil) this.foil.mesh.visible = false;

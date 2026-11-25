@@ -6,7 +6,10 @@ import { FLIP_DIP, FLIP_HALF_GUARANTEED_MS, FLIP_HALF_MS, flipHalfMs, flipPoseAt
 import { AURA_BURST, FACE_AMBIENT, FLIP_CHARGE } from './bigPull';
 import { AURA_COLORS } from './packAura';
 import { teaseAuraLevel, teaseBeatFrames, teaseGlowPop, teaseTremble, teaseWobble } from './packTease';
-import { CARD_CUES, TEASE_RATES } from './packSounds';
+import { CARD_CUES, FOIL, TEASE_RATES } from './packSounds';
+import { summaryBest } from './PackOpener';
+import { WEAR_MAX, newHandling, stepHandling } from './packFx';
+import type { PackCard } from '@game/progression';
 
 /** The feel pass (owner 2026-11-24: tactile cards, building excitement, the rush of a big pull). */
 describe('the pack opening feel pass', () => {
@@ -59,6 +62,29 @@ describe('the pack opening feel pass', () => {
     for (let t = 0; t < 400; t += 0.5) { maxEpic = Math.max(maxEpic, Math.abs(teaseTremble(2, t))); maxLeg = Math.max(maxLeg, Math.abs(teaseTremble(3, t))); }
     expect(maxEpic).toBeLessThanOrEqual(teaseWobble(2) + 1e-9);
     expect(maxLeg).toBeGreaterThan(teaseWobble(3));
+  });
+
+  it('the summary raises the best pull: Epic and up only, best first, the earlier card on a tie', () => {
+    const c = (rarity: PackCard['rarity']): PackCard => ({ rarity } as PackCard);
+    expect(summaryBest([c('common'), c('rare')])).toEqual([]);
+    expect(summaryBest([c('epic'), c('common'), c('ancient'), c('legendary'), c('epic')])).toEqual([2, 3, 0, 4]);
+    expect(summaryBest([c('legendary'), c('legendary')])).toEqual([0, 1]);
+  });
+
+  it('the wrapper only gets more crumpled as it is worked, up to a cap, and the foil recordings exist on disk', () => {
+    const h = newHandling();
+    expect(stepHandling(h, 0, 0.9, 0.9, 1)).toBe(0); // not held: moving the hand works nothing
+    let worked = 0;
+    for (let i = 0; i < 400; i++) worked += stepHandling(h, 1, i % 2 ? 0.1 : 0.9, 0.5, 1);
+    expect(worked).toBeGreaterThan(0);
+    expect(h.wear).toBeGreaterThan(0);
+    expect(h.wear).toBeLessThanOrEqual(WEAR_MAX);
+    const before = h.wear;
+    for (let i = 0; i < 60; i++) stepHandling(h, 0, 0.5, 0.5, 1);
+    expect(h.wear).toBe(before); // letting go never smooths it out
+    expect(h.grip).toBe(0);
+    const audio = fileURLToPath(new URL('../../audio/', import.meta.url));
+    for (const v of Object.values(FOIL)) for (const f of Array.isArray(v) ? v : [v]) expect(() => readFileSync(audio + f.clip + '.mp3'), f.clip).not.toThrow();
   });
 
   it('the card beats are RECORDED clips that exist on disk, and the tease pitch climbs one step per rarity', () => {

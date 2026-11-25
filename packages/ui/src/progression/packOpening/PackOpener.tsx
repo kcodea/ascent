@@ -1,15 +1,15 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
-import { packDuplicateAether, type PackCard, type PackLook, type PackOpenResult } from '@game/progression';
+import { COSMETIC_RARITIES, packDuplicateAether, type PackCard, type PackLook, type PackOpenResult } from '@game/progression';
 import { rectToStage, stageHost, type StageRect } from '../../stage';
 import { prefersReducedMotion } from '../CrateOpener';
 import { rewardPreview } from '../rewardPreview';
 import { createPackScene, type PackScene } from './packScene';
 import { createPackSounds, type PackSounds } from './packSounds';
 import { packRarityLabel } from './packRarity';
-import { PackFace, slotBox, warmFaceArt, type PackFacePhase } from './packFaces';
+import { PackFace, SUMMARY_DEAL_MS, slotBox, warmFaceArt, type PackFacePhase } from './packFaces';
 import { flipHalfMs } from './cardFlip';
-import { bigPullShakePx, bigPullTier } from './bigPull';
+import { bigPullShakePx, bigPullTier, FACE_PLATE_H } from './bigPull';
 import { getPackFeel } from './packFxConfig';
 import './packOpening.css';
 
@@ -66,6 +66,18 @@ const cardText = (c: PackCard): string => {
 export function revealPhase(index: number, flipped: number, turning: ReadonlySet<number>, flipping: boolean): PackFacePhase {
   if (turning.has(index)) return 'handoff';
   return index === flipped - 1 && !flipping ? 'featured' : 'tray';
+}
+
+/**
+ * The summary's best pulls, best first: the indices of the cards at Epic or above, by rarity (the earlier card on a
+ * tie). The first is raised in the row; the first two are lit by the stage.
+ */
+export function summaryBest(cards: readonly PackCard[]): number[] {
+  return cards
+    .map((c, i) => ({ i, r: COSMETIC_RARITIES.indexOf(c.rarity) }))
+    .filter((x) => x.r >= 2)
+    .sort((a, b) => b.r - a.r || a.i - b.i)
+    .map((x) => x.i);
 }
 
 export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, speed = 1, sceneFactory = createPackScene }: PackOpenerProps) {
@@ -154,6 +166,7 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, spee
     clearTurns();
     go('summary');
     sounds().summary();
+    sceneRef.current?.showSummary([]); // the pile leaves; the stage stays lit for the row
   }, [clearBigHold, clearTurns, go, sounds, stopTimer]);
 
   /** A failed or malformed answer: back to a fresh sealed pack, nothing consumed. */
@@ -385,12 +398,63 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, spee
     return () => window.removeEventListener('keydown', onKey);
   }, [flipNext, quickOpen, requestClose]);
 
+  // THE SUMMARY: once the row has been dealt and has settled, each card lands with its sound and the best pulls light up.
+  // Measured once, after the deal (never per frame).
+  useEffect(() => {
+    if (phase !== 'summary' || reduced || !result) return;
+    const slow = speed > 0 ? 1 / speed : 1;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    result.cards.forEach((c, i) => {
+      timers.push(setTimeout(() => soundsFn.current().land(c.rarity), (i * SUMMARY_DEAL_MS + 300) * slow));
+    });
+    // Light the best pulls once their cards have ARRIVED in the row: wait for each one's move to end (its transform
+    // transition), never a guessed delay (a busy frame starts the move late). A card that has no move to make (the
+    // summary was reached without a reveal) is measured after a short settle.
+    const best = summaryBest(result.cards).slice(0, 2);
+    const faces = dialogRef.current?.querySelectorAll<HTMLElement>('[data-testid="pack-face"]');
+    const els = best.map((i) => faces?.[i]).filter((e): e is HTMLElement => !!e);
+    const waiting = new Set(els);
+    let lit = false;
+    const light = (): void => {
+      if (lit) return;
+      lit = true;
+      const spots = best.flatMap((i) => {
+        const el = faces?.[i];
+        if (!el) return [];
+        const r = el.getBoundingClientRect();
+        return [{ x: r.left + r.width / 2, y: r.top + r.height / 2, h: r.height * FACE_PLATE_H, rarity: result.cards[i]!.rarity }];
+      });
+      sceneRef.current?.showSummary(spots);
+    };
+    const onEnd = (e: TransitionEvent): void => {
+      const el = e.currentTarget as HTMLElement;
+      if (e.target !== el || e.propertyName !== 'transform') return;
+      waiting.delete(el);
+      if (waiting.size === 0) light();
+    };
+    for (const el of els) el.addEventListener('transitionend', onEnd);
+    const settle = (): void => {
+      // still moving: the transitionend will light them; otherwise there was nothing to wait for
+      const moving = els.some((el) => typeof el.getAnimations === 'function' && el.getAnimations().some((a) => a.playState === 'running'));
+      if (moving) timers.push(setTimeout(settle, 250));
+      else light();
+    };
+    if (els.length > 0) timers.push(setTimeout(settle, (result.cards.length * SUMMARY_DEAL_MS + 700) * slow));
+    return () => {
+      for (const t of timers) clearTimeout(t);
+      for (const el of els) el.removeEventListener('transitionend', onEnd);
+    };
+  }, [phase, reduced, result, speed]);
+
   if (!item) return null;
   const hasMore = qi < queue.length - 1;
   const cards = result?.cards ?? [];
   const allFlipped = result !== null && flipped >= cards.length;
   const aetherTotal = result ? packDuplicateAether(result) : 0;
   const showBacks = reduced && result !== null && phase !== 'summary';
+  const dupCount = cards.filter((c) => c.duplicate).length;
+  const newCount = cards.length - dupCount;
+  const bestIndex = summaryBest(cards)[0] ?? -1;
 
   const theatre = (
     <div className="pkop" role="dialog" aria-modal="true" aria-label="Opening a pack" ref={dialogRef} tabIndex={-1}
@@ -403,7 +467,7 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, spee
       >
         {!reduced && (
           <div
-            className={`pkop-fx${phase === 'summary' ? ' pkop-hidden' : ''}`}
+            className={`pkop-fx${phase === 'summary' ? ' pkop-still' : ''}`}
             ref={hostRef}
             aria-hidden
             onClick={() => { if (phaseRef.current === 'reveal') flipNext(); }}
@@ -416,7 +480,7 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, spee
             {cards.map((c, i) => {
               if (phase !== 'summary' && i >= flipped) return null;
               const facePhase = phase === 'summary' ? 'summary' : revealPhase(i, flipped, turning, flipping);
-              return <PackFace key={i} card={c} phase={facePhase} from={froms[i]} slot={{ index: i, count: cards.length }} slow={1 / speed} still={reduced} />;
+              return <PackFace key={i} card={c} phase={facePhase} from={froms[i]} slot={{ index: i, count: cards.length }} slow={1 / speed} still={reduced} best={i === bestIndex} />;
             })}
           </div>
         )}
@@ -436,7 +500,17 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, spee
 
       {phase === 'waiting' && <div className="pkop-note" role="status">Still opening</div>}
       {note && phase === 'sealed' && <div className="pkop-note" role="status">{note}</div>}
-      <div className="pkop-live" role="status">{announce}</div>
+      <div className={`pkop-live${phase === 'summary' ? ' pkop-live-quiet' : ''}`} role="status">{announce}</div>
+      {phase === 'summary' && result && (
+        <div className="pkop-sumhead" aria-hidden>
+          <div className="pkop-sumtitle">{item.look.name}</div>
+          <div className="pkop-sumline">
+            <span>{`${cards.length} cards`}</span>
+            {newCount > 0 && <span>{`${newCount} new`}</span>}
+            {dupCount > 0 && <span>{`${dupCount} duplicate${dupCount === 1 ? '' : 's'}`}</span>}
+          </div>
+        </div>
+      )}
 
       {phase === 'summary' && result && (
         <div className="pkop-summary">

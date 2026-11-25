@@ -53,6 +53,8 @@ export interface PackFaceProps {
   slow?: number;
   /** Reduced motion: the holo is static (no sweep, no pointer follow). */
   still?: boolean;
+  /** The summary row's best pull: raised and a little larger than the rest. */
+  best?: boolean;
 }
 
 /**
@@ -135,6 +137,9 @@ export function edgePose(from: StageRect, vp: { w: number; h: number }): FacePos
     sy: from.height / FACE_H,
   };
 }
+
+/** The gap between two cards being dealt into the summary row (ms at speed 1). */
+export const SUMMARY_DEAL_MS = 90;
 
 const css = (p: FacePose): string => `translate(${p.x}px, ${p.y}px) rotate(${p.r}deg) scale(${p.sx}, ${p.sy})`;
 
@@ -283,7 +288,7 @@ function useHoloFollow(enabled: boolean) {
   return { layer, handlers };
 }
 
-export function PackFace({ card, phase, from, slot, slow = 1, still = false }: PackFaceProps) {
+export function PackFace({ card, phase, from, slot, slow = 1, still = false, best }: PackFaceProps) {
   const p = rewardPreview(card.rewardId);
   const placed = from !== undefined || slot !== undefined;
   const handoff = phase === 'handoff' && from !== undefined;
@@ -325,6 +330,8 @@ export function PackFace({ card, phase, from, slot, slow = 1, still = false }: P
       ...slotBox(),
       transform: css(atEdge ? edgePose(from!, vp!) : facePose(phase, slot, from, vp!, card.guaranteed)),
       transition: atEdge ? 'none' : handoff ? `transform ${turnMs}ms ${MOVE_EASE}` : undefined,
+      // the summary row is DEALT: each card leaves the pile a beat after the one before it
+      transitionDelay: phase === 'summary' && !still ? `${(slot?.index ?? 0) * SUMMARY_DEAL_MS * (Number.isFinite(slow) && slow > 0 ? slow : 1)}ms` : undefined,
     }
     : undefined;
   const inner: CSSProperties | undefined = placed
@@ -340,7 +347,7 @@ export function PackFace({ card, phase, from, slot, slow = 1, still = false }: P
   // A title wears its own badge in place of the art window and the name line.
   const isTitle = p.emblem === 'title';
   const cat = categoryLabel(p.label.kind, p.category !== null);
-  const cls = `pkf r-${card.rarity} pkf-${phase}${placed ? ' pkf-placed' : ''}${glow ? ' pkf-glow' : ''}${follow.handlers ? ' pkf-hover' : ''}`;
+  const cls = `pkf r-${card.rarity} pkf-${phase}${placed ? ' pkf-placed' : ''}${glow ? ' pkf-glow' : ''}${follow.handlers ? ' pkf-hover' : ''}${best && phase === 'summary' ? ' pkf-best' : ''}`;
   return (
     <div
       ref={ref}

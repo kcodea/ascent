@@ -50,6 +50,7 @@ const sceneFactory: NonNullable<PackOpenerProps['sceneFactory']> = (_host, _look
     quickOpen: () => { f.calls.push('quickOpen'); },
     resetSealed: () => { f.calls.push('resetSealed'); },
     setInputEnabled: (on) => { f.calls.push('input:' + on); },
+    showSummary: (spots) => { f.calls.push('summary:' + spots.length); },
     setSpeed: (m) => { f.calls.push('speed:' + m); },
     destroy: () => { f.calls.push('destroy'); },
   };

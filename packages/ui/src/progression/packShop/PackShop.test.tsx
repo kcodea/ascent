@@ -243,6 +243,11 @@ describe('PackShop', () => {
     fire((e) => { e.onDrop('buy', 'rare', R); });
     await settle({ status: 'error', reason: 'price_changed' });
     expect(fake().calls.at(-1)).toBe('buySettled:false');
+    // said at once, before the new quote is here
+    expect(live()).toBe('The price changed');
+    // new offers quoting the same price (a fresh array, as the lab sends): nothing new is said
+    render({ offers: OFFERS.map((o) => ({ ...o })) });
+    expect(live()).toBe('The price changed');
     // the parent re-renders with the server's new quote
     render({ offers: OFFERS.map((o) => (o.offerId === 'rare' ? { ...o, price: 250 } : o)) });
     expect(live()).toBe('The price changed. It is now 250 Aether');

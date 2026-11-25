@@ -213,18 +213,24 @@ export function PackShop(props: PackShopProps) {
     tallyRef.current?.gulp();
     say(`Need ${short} more Aether`);
   }, [say]);
-  /** A price_changed answer whose new quote has not arrived yet: announced once, when the next offers do. */
-  const priceWaitRef = useRef<string | null>(null);
+  /**
+   * A price_changed answer whose new quote has not arrived yet (the offer, and the price it was bought at): "The price
+   * changed" is said at once, and the new price once offers arrive that quote it differently (never for the same price).
+   */
+  const priceWaitRef = useRef<{ id: string; was: number } | null>(null);
   const priceChangedText = (offerId: string): string => {
     const o = offersRef.current.find((x) => x.offerId === offerId);
     if (!o) return 'The price changed';
     return o.price === 0 ? 'The price changed. It is now free' : `The price changed. It is now ${o.price} Aether`;
   };
   useEffect(() => {
-    const id = priceWaitRef.current;
-    if (id === null) return;
+    const wait = priceWaitRef.current;
+    if (wait === null) return;
+    const cur = offers.find((o) => o.offerId === wait.id);
+    if (cur && cur.price === wait.was) return; // the same quote again: keep waiting, say nothing
     priceWaitRef.current = null;
-    setAnnounce(priceChangedText(id));
+    // (an offer that vanished: "The price changed" was already said)
+    if (cur) setAnnounce(priceChangedText(wait.id));
   }, [offers]);
 
   // ------------------------------------------------------------------ the purchase
@@ -272,7 +278,7 @@ export function PackShop(props: PackShopProps) {
             // the new quote may already be here (the parent re-rendered first); else it is announced when it arrives
             const cur = offersRef.current.find((o) => o.offerId === offer.offerId);
             if (!cur || cur.price !== offer.price) say(priceChangedText(offer.offerId));
-            else priceWaitRef.current = offer.offerId;
+            else { say('The price changed'); priceWaitRef.current = { id: offer.offerId, was: offer.price }; }
             break;
           }
           case 'sold_out': say('Sold out'); break;

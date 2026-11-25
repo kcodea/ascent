@@ -110,6 +110,7 @@ const SELF_EXCLUDING: Record<string, Exclusion> = {
 
   // ── Excludes only because the CARD asks it to ──────────────────────────────────────────────────────────
   rallyGiveAttackToOthers: 'the arena pool filters `m.uid !== arena.self.uid` — "Others" is the contract',
+  rallyGiveHealthToDragons: 'the arena pool filters `m.uid !== arena.self.uid`, and `excludeId` drops every Chimerus ("different", R-TARGET-CHIMERUS-01)',
 
   // ── Excludes only because the CARD asks it to, and the two do it with OPPOSITE polarity ────────────────
   //

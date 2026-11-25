@@ -43,7 +43,7 @@ export const RIBBON_HW = (CARD_W * 0.92) / 2, RIBBON_HH = 19;
 /** The back wall's inset from the pack's sides and bottom (base units). */
 const BACK_INSET = 6;
 /** Pooled foil flecks. */
-const FLECKS = 48;
+const FLECKS = 180;
 
 export interface SceneTextures {
   /** The one card back (the neutral reveal frame): every card wears it. */

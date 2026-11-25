@@ -225,6 +225,8 @@ class PackSceneImpl implements PackScene {
   private sleeve: SleeveState = newSleeve();
   private time = 0;
   private prevT = 0.5;
+  /** Foil torn that has not shed its spark yet (in sparks). */
+  private sparkDebt = 0;
   private shake = 0;
   private popFired = false;
   private flying = false;
@@ -1009,7 +1011,7 @@ class PackSceneImpl implements PackScene {
     this.phase = 'peel';
     this.tear = newTear();
     this.sleeve = newSleeve();
-    this.prevT = this.tear.T;
+    this.prevT = this.tear.T; this.sparkDebt = 0;
     this.shake = 0;
     this.popFired = false;
     this.flying = false;
@@ -1309,7 +1311,7 @@ class PackSceneImpl implements PackScene {
     this.shake = 7;
     this.sounds.rip();
     this.handling.wear = Math.min(0.42, this.handling.wear + 0.1);
-    v.flecks.spawn(34, W - 4, H);
+    v.flecks.spawn(10, W - 4, H); // a few more as the strip lets go (the line has already shed its own)
     this.phase = 'sleeve';
     v.cardsC.visible = true; v.sleeveBack.visible = true; // never left hidden by the tilt (see tick)
     this.setCursor('');
@@ -1407,7 +1409,18 @@ class PackSceneImpl implements PackScene {
     const speed = Math.max(0, (tear.T - this.prevT) / Math.max(dt, 0.001));
     // (nothing sounds before the pop: the audio graph must not start before a user gesture)
     if (tear.started) { this.sounds.tear(tear.done ? 0 : speed); this.sounds.crackle(speed, dt); }
-    if (tear.started && speed > 0.3) v.flecks.spawn(Math.min(7, Math.floor(speed * 0.45 + Math.random())), tear.T, H);
+    // THE SPARKS FOLLOW THE TEAR LINE (owner 2026-11-25: "they kinda poof up in sections"): one for every so much foil torn,
+    // each at its own place along the stretch torn this frame, never a clump at the tear's head. A fast tear sheds the same
+    // sparks per inch as a slow one.
+    if (tear.started && tear.T > this.prevT) {
+      const from = this.prevT, len = tear.T - from;
+      this.sparkDebt += len / (W / TEAR_SPARKS);
+      const n = Math.floor(this.sparkDebt);
+      if (n > 0) {
+        this.sparkDebt -= n;
+        for (let i = 0; i < n; i++) v.flecks.spawn(1, from + len * ((i + Math.random()) / n), H);
+      }
+    }
     this.prevT = tear.T;
 
     v.strip.compute(tear.T, tear.hand, feel.peelAngle, feel.pinchTwist, feel.highlight, feel.perspective, this.time, this.surface);
@@ -1823,6 +1836,9 @@ class PackSceneImpl implements PackScene {
   }
 }
 
+
+/** Sparks shed along a whole tear, edge to edge. */
+const TEAR_SPARKS = 80;
 
 /** How long the aura waits edge-on for the DOM face to report its turn before it runs on the scene's clock (frames). */
 const LAND_WAIT_FRAMES = 15;

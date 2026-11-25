@@ -89,7 +89,8 @@
 /* Unavailable (pending, short, sold out): aria-disabled, not disabled, so a focused button keeps focus. */
 .pks-buy[aria-disabled='true'] { opacity: 0.5; filter: grayscale(0.6); }
 
-.pks-live { position: absolute; left: 0; right: 0; bottom: 18px; text-align: center; font-size: 17px; color: var(--pk-text); opacity: 0.85;
+/* The spoken line, shown small at the lower left under the hand's label, clear of the packs. */
+.pks-live { position: absolute; left: 6%; top: calc(86% + 22px); max-width: 22%; font-size: 15px; line-height: 1.3; color: var(--pk-text); opacity: 0.8;
   pointer-events: none; }
 .pks-close { position: absolute; top: 32px; right: 36px; }
 /* The hand's label, at the hand's left. */

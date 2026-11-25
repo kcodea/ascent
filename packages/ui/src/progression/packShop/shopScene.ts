@@ -64,12 +64,13 @@ import {
 } from './shopDressing';
 import { AETHER_ICON_SRC } from '../AetherIcon';
 import { arrived, buySettled, cancelHeld, moveHeld, newDrag, pickUp, release, zoneAt, type ShopDrag } from './shopDrag';
-import { HAND_FAN_MAX, clampScroll, handPoseInto, shelfPoseInto, shopLayout, startScroll, type PackPose, type ShopLayout } from './shopLayout';
+import { HAND_FAN_MAX, clampScroll, handPoseInto, shelfPoseInto, shopLayout, type PackPose, type ShopLayout } from './shopLayout';
 import {
   SETTLE_DEPTH, SETTLE_FRAMES, arrivingPlaceHidden, bindFan, handFanInto, hiddenAsleep, inRotatedRect, newPointerVel,
   newShake, newSwing, parksOnArrival, pointerVelDecay, resetPointerVel, resetShake, rubberY, samplePointerVel, settleDip,
   softDead, staggerArrivals, stepShake, stepSwing, type HandFan,
 } from './shopMotion';
+import { startIndex } from './shopModel';
 import type { ShopSounds } from './shopSounds';
 
 // ---------------------------------------------------------------- public contract
@@ -786,7 +787,7 @@ class ShopSceneImpl implements ShopScene {
     const centre = keepCentre ? this.offers[Math.round(this.target)]?.offerId : undefined;
     this.offers = next;
     const kept = centre === undefined ? -1 : next.findIndex((o) => o.offerId === centre);
-    this.target = kept >= 0 ? kept : keepCentre ? clampScroll(this.target, next.length) : startScroll(next.length);
+    this.target = kept >= 0 ? kept : keepCentre ? clampScroll(this.target, next.length) : startIndex(next);
     if (!keepCentre || !this.app) this.scroll = this.target;
     this.slotId.fill(null); // rebind every slot (a look may have changed under the same id)
     this.wake();

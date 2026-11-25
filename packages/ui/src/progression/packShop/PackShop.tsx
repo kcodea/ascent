@@ -10,8 +10,7 @@ import { packArtFor } from '../packOpening/packArt';
 import { AetherIcon } from '../AetherIcon';
 import { createShopScene, type ScreenRect, type ShopScene } from './shopScene';
 import { createShopSounds, type ShopSounds } from './shopSounds';
-import { affordableIds, buyKey, packTag, shelfOffers, srLine } from './shopModel';
-import { startScroll } from './shopLayout';
+import { affordableIds, buyKey, packTag, shelfOffers, srLine, startIndex } from './shopModel';
 import '../packOpening/packOpening.css';
 import './packShop.css';
 
@@ -486,9 +485,9 @@ export function PackShop(props: PackShopProps) {
   const lookAt = useCallback((offerId: string): void => {
     const list = shelfRef.current;
     const to = list.findIndex((o) => o.offerId === offerId);
-    // the scene starts (and restarts on a tab change) with the middle offer on the pedestal (`startScroll`)
+    // the scene starts (and restarts on a tab change) on `startIndex`: the featured pack, else a new one, else the middle
     const known = list.findIndex((o) => o.offerId === centreRef.current);
-    const from = known >= 0 ? known : startScroll(list.length);
+    const from = known >= 0 ? known : startIndex(list);
     const scene = sceneRef.current;
     if (scene && to >= 0 && to !== from) { scene.scrollBy(to - from); centreRef.current = offerId; }
     const r = scene?.rectOf(offerId);

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { CrateRarity, PackOffer } from '@game/progression';
-import { affordableIds, buyKey, packTag, shelfOffers, srLine } from './shopModel';
+import { affordableIds, buyKey, packTag, shelfOffers, srLine, startIndex } from './shopModel';
 
 const offer = (id: string, over: Partial<PackOffer> = {}, floor: CrateRarity = 'rare', name = 'Rare Pack'): PackOffer => ({
   offerId: id, look: { kind: 'rarity', id: floor, name, guaranteedFloor: floor }, price: 200, shelf: 'packs', contains: 1, ...over,
@@ -31,11 +31,20 @@ describe('shopModel', () => {
     expect(srLine(offer('a', { soldOut: true }), 0)).toBe('Rare Pack, 200 Aether, Guaranteed Rare or better, Sold out');
   });
 
-  it('shelfOffers: filters by shelf, featured first, stable inside each group', () => {
+  it('shelfOffers: filters by shelf and keeps the given order (no featured-first sort)', () => {
     const list = [offer('a'), offer('f1', { badge: 'featured' }), offer('x', { shelf: 'boxes' }), offer('b', { badge: 'new' }), offer('f2', { badge: 'featured' })];
-    expect(shelfOffers(list, 'packs').map((o) => o.offerId)).toEqual(['f1', 'f2', 'a', 'b']);
+    expect(shelfOffers(list, 'packs').map((o) => o.offerId)).toEqual(['a', 'f1', 'b', 'f2']);
     expect(shelfOffers(list, 'none')).toEqual([]);
     expect(list).toHaveLength(5);
+  });
+
+  it('startIndex: the first featured offer, else the first new one, else the middle', () => {
+    const ids = (xs: PackOffer[]): number => startIndex(xs);
+    expect(ids([offer('a'), offer('b', { badge: 'new' }), offer('f1', { badge: 'featured' }), offer('c'), offer('f2', { badge: 'featured' })])).toBe(2);
+    expect(ids([offer('a'), offer('b'), offer('c'), offer('n1', { badge: 'new' }), offer('n2', { badge: 'new' })])).toBe(3);
+    expect(ids([offer('a'), offer('free', { badge: 'free' }), offer('c'), offer('d'), offer('e')])).toBe(2);
+    expect(ids([offer('a'), offer('b'), offer('c'), offer('d')])).toBe(1);
+    expect(ids([])).toBe(0);
   });
 
   it('buyKey changes when the price changes', () => {

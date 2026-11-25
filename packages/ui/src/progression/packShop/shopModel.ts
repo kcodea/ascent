@@ -1,5 +1,6 @@
 import { aetherShort, canAfford, type PackOffer } from '@game/progression';
 import { packRarityLabel } from '../packOpening/packRarity';
+import { startScroll } from './shopLayout';
 
 /**
  * THE PACK SHOP'S TEXT AND ORDER (pure; spec docs/superpowers/specs/2026-11-25-pack-shop-design.md). The tag under each
@@ -32,10 +33,23 @@ export function packTag(offer: PackOffer, aether: number): PackTag {
   };
 }
 
-/** The offers on one shelf: `featured` first, every other keeping the given order (the sort is stable). */
+/**
+ * The offers on one shelf, in the given order. (No featured-first sort: the rack opens on `startIndex`, so a featured
+ * pack already stands on the pedestal with its neighbours on both sides.)
+ */
 export function shelfOffers(offers: readonly PackOffer[], shelfId: string): PackOffer[] {
-  const on = offers.filter((o) => o.shelf === shelfId);
-  return [...on.filter((o) => o.badge === 'featured'), ...on.filter((o) => o.badge !== 'featured')];
+  return offers.filter((o) => o.shelf === shelfId);
+}
+
+/**
+ * The offer a rack opens on (the pedestal), for a new rack and on every tab change: the first `featured` offer, else the
+ * first `new` one, else the middle (`startScroll`), so both sides of the shelf are filled.
+ */
+export function startIndex(offers: readonly PackOffer[]): number {
+  const featured = offers.findIndex((o) => o.badge === 'featured');
+  if (featured >= 0) return featured;
+  const fresh = offers.findIndex((o) => o.badge === 'new');
+  return fresh >= 0 ? fresh : startScroll(offers.length);
 }
 
 /** One comma-separated line a screen reader speaks for a pack. */

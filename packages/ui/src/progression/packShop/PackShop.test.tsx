@@ -723,4 +723,16 @@ describe('PackShop', () => {
     act(() => { shelfItem('e').focus(); });
     expect(fake().calls.at(-1)).toBe('scrollBy:4');
   });
+
+  it('a shelf with a featured pack keeps its order and opens on that pack: keyboard focus scrolls from it, on every tab change', () => {
+    const five = ['a', 'b', 'c', 'd', 'e'].map((id) => offer(id, id.toUpperCase() + ' Pack', 100, id === 'd' ? { badge: 'featured' } : {}));
+    render({ offers: [...five, offer('box', 'Rare Box', 1000, { shelf: 'boxes', contains: 10, badge: 'new' })] });
+    expect(fake().calls[0]).toBe('setShelf:a,b,c,d,e');
+    act(() => { shelfItem('a').focus(); });
+    expect(fake().calls.at(-1)).toBe('scrollBy:-3');
+    click(btn('Boxes'));
+    click(btn('Packs'));
+    act(() => { shelfItem('e').focus(); });
+    expect(fake().calls.at(-1)).toBe('scrollBy:1');
+  });
 });

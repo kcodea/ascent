@@ -129,6 +129,28 @@ describe('PackOpener', () => {
     expect(plain.classList.contains('pkop-entering')).toBe(false);
   });
 
+  it('entryFadeMs holds the dialog for TWO frames (one could release it before it was painted); an unmount between cancels the second', () => {
+    const frames = new Map<number, FrameRequestCallback>();
+    let next = 0;
+    const raf = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => { frames.set(++next, cb); return next; });
+    const caf = vi.spyOn(window, 'cancelAnimationFrame').mockImplementation((id) => { frames.delete(id); });
+    const frame = (): void => { act(() => { const due = [...frames.values()]; frames.clear(); for (const cb of due) cb(0); }); };
+    try {
+      render({ entryFadeMs: 200 });
+      const dlg = document.querySelector('.pkop') as HTMLElement;
+      frame();
+      expect(dlg.classList.contains('pkop-entering')).toBe(true);
+      frame();
+      expect(dlg.classList.contains('pkop-entering')).toBe(false);
+      m?.unmount(); m = null;
+      render({ entryFadeMs: 200 });
+      frame();
+      const second = raf.mock.results.at(-1)!.value as number;
+      m!.unmount(); m = null;
+      expect(caf).toHaveBeenCalledWith(second);
+    } finally { raf.mockRestore(); caf.mockRestore(); }
+  });
+
   it('entryFadeMs is slow-mo scaled, and does nothing under reduced motion', () => {
     render({ entryFadeMs: 200, speed: 0.5 });
     expect((document.querySelector('.pkop') as HTMLElement).style.getPropertyValue('--pk-entry-ms')).toBe('400ms');

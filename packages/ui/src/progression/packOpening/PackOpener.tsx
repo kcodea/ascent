@@ -105,11 +105,15 @@ export function PackOpener({ queue, open, onOpened, onClose, onClosed, reducedMo
   const [pixiFailed, setPixiFailed] = useState(false);
   const reduced = (reducedMotion ?? prefersReducedMotion()) || pixiFailed;
   const [qi, setQi] = useState(0);
-  /** The entry fade: the class holds the dialog at opacity 0 for the first frame only (never under reduced motion). */
+  /**
+   * The entry fade: the class holds the dialog at opacity 0, released TWO frames later (as the shop's own entrance: a
+   * mount from a click flushes its effects before the first paint, so one frame could release it before it was ever
+   * drawn, and the dialog would pop in). Never under reduced motion.
+   */
   const [entering, setEntering] = useState(entryFadeMs > 0 && !reduced);
   useEffect(() => {
     if (!entering) return;
-    const raf = requestAnimationFrame(() => setEntering(false));
+    let raf = requestAnimationFrame(() => { raf = requestAnimationFrame(() => setEntering(false)); });
     return () => cancelAnimationFrame(raf);
   }, [entering]);
   /** The exit fade (`exitFadeMs`): set once a close has started; the dialog is inert until the parent unmounts it. */

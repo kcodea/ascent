@@ -197,6 +197,23 @@ export const CARD_IN_SLEEVE = 0.92;
 /** The stack's scale at full zoom, over its size in the sleeve: the `stackZoom` knob, made up for the smaller pack. */
 export const stackZoomScale = (stackZoom: number): number => (1 + stackZoom) / PACK_SIZE;
 
+/**
+ * The scale the sealed pack is drawn at for a `w` x `h` host (pack base units to px). The one rule for the opener's
+ * `layout` and for anything that must match the pack's drawn size (the pack shop's pedestal).
+ */
+export function sealedPackScale(w: number, h: number): number {
+  const zf = 1 + getPackFeel().stackZoom;
+  const kFit = ((REVEAL_FACE_X - REVEAL_STACK_X) * w * REVEAL_FIT) / (CARD_W * zf * (1 + REVEALED_SCALE) / 2);
+  // the revealed face (REVEALED_SCALE x the zoomed back) is never taller than PILE_MAX_H of the host
+  const kHigh = (PILE_MAX_H * h) / (CARD_H * zf * REVEALED_SCALE);
+  // the fit sizes the ZOOMED CARDS; the pack itself is drawn PACK_SIZE of that, and the stack's zoom makes up the
+  // difference (`stackZoomScale`), so shrinking the pack leaves the reveal's cards the size they were
+  return Math.max(0.2, Math.min((h * 0.62) / PACK_BASE_SIZE.h, (w * 0.5) / PACK_BASE_SIZE.w, kFit, kHigh)) * PACK_SIZE;
+}
+
+/** The sealed pack's drawn height in px for a `w` x `h` host. */
+export const sealedPackHeight = (w: number, h: number): number => sealedPackScale(w, h) * PACK_BASE_SIZE.h;
+
 const CURSOR_GRAB = `url('${BASE}cursors/gauntlet_open.svg') 6 2, pointer`;
 const CURSOR_HELD = `url('${BASE}cursors/hand_closed.svg') 13 12, grabbing`;
 
@@ -573,13 +590,7 @@ class PackSceneImpl implements PackScene {
     const app = this.app, v = this.v;
     if (!app || !v) return;
     const w = app.screen.width, h = app.screen.height;
-    const zf = 1 + getPackFeel().stackZoom;
-    const kFit = ((REVEAL_FACE_X - REVEAL_STACK_X) * w * REVEAL_FIT) / (CARD_W * zf * (1 + REVEALED_SCALE) / 2);
-    // the revealed face (REVEALED_SCALE x the zoomed back) is never taller than PILE_MAX_H of the host
-    const kHigh = (PILE_MAX_H * h) / (CARD_H * zf * REVEALED_SCALE);
-    // the fit sizes the ZOOMED CARDS; the pack itself is drawn PACK_SIZE of that, and the stack's zoom makes up the
-    // difference (`stackZoomScale`), so shrinking the pack leaves the reveal's cards the size they were
-    const k = Math.max(0.2, Math.min((h * 0.62) / PACK_BASE_SIZE.h, (w * 0.5) / PACK_BASE_SIZE.w, kFit, kHigh)) * PACK_SIZE;
+    const k = sealedPackScale(w, h);
     v.root.scale.set(k);
     v.root.x = Math.round(w / 2 - (W / 2) * k);
     v.root.y = Math.round(h / 2 - (PACK_BASE_SIZE.h / 2) * k);

@@ -17411,8 +17411,8 @@ export const FOUNDATION_RULES: GameRule[] = [
     id: 'R-LOCATION-10',
     title: 'The Compendium lists each set by the name of its location',
     statement:
-      'The Compendium\x27s picker reads Location and lists Scrapyard (Set 1), The Outskirts (Set 2), The Underbelly (Set 3) and Forest\x27s Edge '
-      + '(Set 4), in that order, with Live on the one new games play. A player never reads "Set N" there. Scrapyard and Forest\x27s Edge are names '
+      'The Compendium\x27s picker reads Location and lists Scrapyard (Set 1), The Outskirts (Set 2), The Underbelly (Set 3) and Rune Barriers '
+      + '(Set 4), in that order, with Live on the one new games play. A player never reads "Set N" there. Scrapyard and Rune Barriers are names '
       + 'only for now: no reveal, no Practice pick and no longer hero select clock come with them.',
     domain: 'foundation',
     status: 'approved',

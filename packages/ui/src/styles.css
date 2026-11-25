@@ -14395,7 +14395,35 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 /* The confetti band starts one stripe period to the left (2.4em along 115deg = 2.648em across) and slides exactly one
    period, so the loop is seamless. */
 .titlebadge.tb-look-jester::before { left: -2.648em; border-radius: 0; }
+/* GAME BREAKER (owner 2026-11-25: "yellow and green with a lemon leaf eclipsing the corner to make it look kinda like a
+   lemon", then "super cliparty ... more like a clean and polished title", then "any way to improve it further"). The same
+   pill as every title: a green enamel frame, a pale hairline inside it, satin lemon ripening to green at the far end, the
+   name in leaf green, and one leaf (two greens, a tapered rib, whisper veins) over the top right corner where the other
+   looks keep their crimson seal. It is the only badge that lets something out of its box (the leaf), so the shared sweep
+   (::after) is off and the light runs in a clipped layer of its own BEHIND the letters (`tb-shine`). The leaf stirs. Both
+   are transform only, paused off screen, off under reduced motion. */
+.titlebadge.tb-look-lemon { --lk-solid: #234a12; --lk-ls: 0.13em; --lk-text: linear-gradient(180deg, #41741a 0%, #1d4a0f 55%, #0e2f08 100%);
+  --lk-fx: radial-gradient(50% 50% at 50% 50%, rgba(255, 255, 255, 0.5), transparent); --lk-anim: tblk-breathe 4.2s ease-in-out infinite;
+  overflow: visible; padding: 0.22em 1.65em 0.2em 1em; border: max(1.5px, 0.07em) solid transparent;
+  background: radial-gradient(60% 90% at 32% 0%, rgba(255, 255, 235, 0.7), transparent 70%) padding-box, linear-gradient(180deg, #ffea62 0%, #fcd62c 48%, #f0c018 100%) padding-box, linear-gradient(180deg, #b9e85a 0%, #4f9e26 45%, #1e5a17 100%) border-box;
+  box-shadow: 0 0 0 1px rgba(10, 30, 6, 0.85), 0 0.12em 0.35em rgba(0, 0, 0, 0.45), 0 0 1em -0.1em rgba(190, 235, 80, 0.5), inset 0 0 0 1px rgba(255, 252, 214, 0.65), inset -1.9em 0 1.5em -1.2em rgba(92, 160, 28, 0.6), inset 0 -0.4em 0.55em -0.25em rgba(150, 104, 0, 0.34); }
+.titlebadge.tb-look-lemon.tb-md { padding: 0.3em 1.8em 0.28em 1.15em; }
+.titlebadge.tb-look-lemon .tb-text { filter: drop-shadow(0 0.05em 0 rgba(255, 252, 210, 0.75)); }
+.titlebadge.tb-look-lemon::before { inset: 6% 46% 40% 6%; }
+.titlebadge.tb-look-lemon::after { display: none; }
+.titlebadge.tb-look-lemon .tb-shine { position: absolute; inset: 0; z-index: 0; border-radius: inherit; overflow: hidden; pointer-events: none; }
+.titlebadge.tb-look-lemon .tb-shine::after { content: ''; position: absolute; inset: 0; background: linear-gradient(100deg, transparent 36%, rgba(255, 255, 255, 0.75) 50%, transparent 64%);
+  transform: translateX(-120%); animation: tbshimmer 5.6s ease-in-out infinite paused; }
+.titlebadge.tb-look-lemon .tb-seal { position: absolute; z-index: 3; top: -0.74em; right: -0.5em; width: 2.35em; height: 1.62em; margin: 0; font-size: 1em; text-shadow: none;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 44'%3E%3Cdefs%3E%3ClinearGradient id='u' x1='.1' y1='1' x2='.8' y2='0'%3E%3Cstop offset='0' stop-color='%233f8f22'/%3E%3Cstop offset='.55' stop-color='%237cc63a'/%3E%3Cstop offset='1' stop-color='%23c9f06a'/%3E%3C/linearGradient%3E%3ClinearGradient id='l' x1='0' y1='1' x2='1' y2='.1'%3E%3Cstop offset='0' stop-color='%23124a18'/%3E%3Cstop offset='.6' stop-color='%232b7a24'/%3E%3Cstop offset='1' stop-color='%235bab32'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M7 38C9 22 25 5 61 3C43 13 22 27 7 38Z' fill='url(%23u)'/%3E%3Cpath d='M7 38C28 41 52 30 61 3C43 13 22 27 7 38Z' fill='url(%23l)'/%3E%3Cpath d='M8.5 33C13 19 29 6.5 58 3.8' fill='none' stroke='%23f1ffc4' stroke-opacity='.55' stroke-width='.8'/%3E%3Cpath d='M19 30C20 24 23 19 27 14M30 22.5C32 18 35 14 39 10.5M41 15.5C43 12.5 46 9.5 50 7M20 30C26 32 32 32 37 30M31 22.5C37 24.5 43 24 48 21M42 15.5C47 17 51 16 55 13' fill='none' stroke='%23e9ffb8' stroke-opacity='.22' stroke-width='.7' stroke-linecap='round'/%3E%3Cpath d='M2.5 41.5C3.5 40 5 38.7 7 37.6C22 27 43 13 61 3C43 14.5 23 28.5 8 38.8C6 40 4.5 41.3 3.4 42.2Z' fill='%23f0ffc6'/%3E%3C/svg%3E") center / contain no-repeat; filter: drop-shadow(-0.03em 0.13em 0.1em rgba(30, 50, 0, 0.55)); transform-origin: 5% 94%; animation: tblk-sway 5.2s ease-in-out infinite paused; }
+.titlebadge.tb-look-lemon .tb-seal::after { content: none; }
+.titlebadge.tb-look-lemon.tb-live .tb-seal, .titlebadge.tb-look-lemon.tb-live .tb-shine::after { animation-play-state: running; }
+/* Rows that clip their name line let this one badge's leaf through. */
+:is(.lb-handle, .phc-tile-name, .phl-name):has(> .tb-look-lemon) { overflow: visible; }
+@keyframes tblk-sway { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(4deg); } }
 @media (prefers-reduced-motion: reduce) {
+  .titlebadge.tb-look-lemon .tb-seal { animation: none; }
+  .titlebadge.tb-look-lemon .tb-shine::after { animation: none; opacity: 0; }
   .titlebadge.tb-look::after { animation: none; opacity: 0; }
   .titlebadge.tb-look::before { animation: none; opacity: 0.5; transform: none; }
 }

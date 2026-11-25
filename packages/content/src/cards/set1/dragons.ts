@@ -349,9 +349,10 @@ export const DRAGONS: CardDef[] = [
     attack: 4,
     health: 8,
     keywords: ['RL'],
-    effects: [{ on: 'onAttack', do: 'rallyGiveHealthToDragons' }],
-    text: "**Rally:** give this minion's Health to 2 friendly Dragons.",
-    goldenText: "**Rally:** give this minion's Health to 2 friendly Dragons, **twice**.",
+    // "DIFFERENT" (owner 2026-11-25, R-TARGET-02): no Chimerus, itself included, is ever a recipient.
+    effects: [{ on: 'onAttack', do: 'rallyGiveHealthToDragons', params: { excludeId: 'chimerus' } }],
+    text: "**Rally:** give this minion's Health to **2 different** friendly Dragons.",
+    goldenText: "**Rally:** give this minion's Health to **2 different** friendly Dragons, **twice**.",
     token: true,
   },
 ];

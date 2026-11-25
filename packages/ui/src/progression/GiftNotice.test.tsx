@@ -38,6 +38,14 @@ const text = (sel: string): string => ($(sel)?.textContent ?? '').replace(/\s+/g
 const button = (label: string): HTMLButtonElement | undefined => [...document.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent?.trim() === label);
 
 describe('the gift notice', () => {
+  it('a gift title shows as its own badge (Game Breaker, R-PROG-TITLE-GIFT-01)', async () => {
+    fetchUnseenGiftIds.mockResolvedValue(['title_game_breaker']);
+    await refreshGifts('u-1');
+    ui = mount(<GiftNotice />);
+    expect(text('.gift-name .titlebadge.tb-look-lemon')).toBe('Game Breaker');
+    expect(text('.gift-text .nrw-note')).toBe('A Secret title.');
+  });
+
   it('reads the unseen gifts and names the item, its rarity and its minion', async () => {
     fetchUnseenGiftIds.mockResolvedValue(['skin_kobabyboldies_3']);
     await refreshGifts('u-1');

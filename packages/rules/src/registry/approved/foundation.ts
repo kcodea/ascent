@@ -17352,6 +17352,24 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/partyHome/kit/PhCardTabs.test.tsx'], lastVerifiedAt: '2026-11-24' },
   },
   {
+    id: 'R-PROG-TITLE-GIFT-01',
+    title: 'Game Breaker is a gift title: never earned, hidden from everyone who does not own it, and painted as a lemon',
+    statement:
+      'Game Breaker comes from no chest, level or achievement: an account has it only when it is handed to it (R-PROG-GIFT-01). It is Secret, so '
+      + 'a Collection without it neither shows nor counts it. It paints the lemon look everywhere a title shows: a satin lemon yellow pill in a '
+      + 'green frame, ripening to green, the name in leaf green, and one leaf over the top right corner. The gift notice and the Collection show the badge itself, and the Collection '
+      + 'says it cannot be earned.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-25 (Game Breaker)', quote: 'add a unique title not earnable called Game Breaker. it should be yellow and green with a lemon leaf eclipsing the corner to make it look kinda like a lemon however you can.' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-25 (after the first look)', quote: 'the lemon title is like a 5/10. it looks super cliparty, can you please make it look more like a clean and polished title?' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (GAME_BREAKER_TITLE_ID, GIFT_EVENT_ID, look lemon); packages/ui/src/styles.css (.tb-look-lemon); packages/ui/src/progression/GiftNotice.tsx' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-11-25 (feat/game-breaker-and-balance). The one account that gets it is an ownership row added after the release.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/titles/titles.test.tsx', 'packages/progression/src/gameBreaker.test.ts', 'packages/ui/src/progression/GiftNotice.test.tsx'], lastVerifiedAt: '2026-11-25' },
+  },
+  {
     id: 'R-VERSUS-ROUNDS-MATCH-01',
     title: 'A Versus client never plays a fight of another match: cached rounds belong to one match',
     statement:

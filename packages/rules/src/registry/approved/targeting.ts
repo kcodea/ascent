@@ -350,4 +350,21 @@ export const TARGETING_RULES: GameRule[] = [
       + 'author when it was written.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/aimHover.test.ts'], lastVerifiedAt: '2026-11-13' },
   },
+  {
+    id: 'R-TARGET-CHIMERUS-01',
+    title: 'Chimerus gives its Health to 2 DIFFERENT friendly Dragons: never itself, never another Chimerus',
+    statement:
+      'Chimerus\x27s Rally picks 2 friendly Dragons that are not a Chimerus (R-TARGET-02, "different": no copy of the same-named card, the source '
+      + 'included, Gilded or not), in a fight and in the Shop. A Gilded Chimerus hands out twice from the same pool. With no other Dragon it '
+      + 'gives nothing.',
+    domain: 'targeting',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-25 (balance)', quote: 'chimerus - add "different" so that it cannot buff another chimerus or itself.' },
+      { kind: 'code', ref: 'packages/content/src/cards/set1/dragons.ts (chimerus, excludeId); packages/core/src/effects/arena.ts rallyGiveHealthToDragons' },
+    ],
+    contentIds: ['chimerus'],
+    currentBehaviour: 'Conforms from 2026-11-25 (feat/game-breaker-and-balance). Before, two Chimerus fed each other; a Chimerus never fed itself.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/chimerusDifferent.test.ts'], lastVerifiedAt: '2026-11-25' },
+  },
 ];

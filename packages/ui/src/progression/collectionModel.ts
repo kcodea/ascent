@@ -1,5 +1,5 @@
 import {
-  COSMETICS, COSMETIC_CATEGORIES, ALL_COSMETIC_RARITIES, achievementOf, emoteLoadoutOf, heroTitleInfo, isCategoryLive, isCosmeticLive, isSecretRarity, titleShelf,
+  COSMETICS, COSMETIC_CATEGORIES, GIFT_EVENT_ID, ALL_COSMETIC_RARITIES, achievementOf, emoteLoadoutOf, heroTitleInfo, isCategoryLive, isCosmeticLive, isSecretRarity, titleShelf,
   type CosmeticCategory, type CosmeticDef, type CosmeticRarity, type ProgressionProfile,
 } from '@game/progression';
 import { CARD_INDEX } from '@game/content';
@@ -134,7 +134,7 @@ export function acquisitionText(c: CosmeticDef): string {
     case 'crate': return 'Found in chests.';
     case 'level_milestone': return `Reach Level ${c.acquisition.level}.`;
     case 'achievement': return achievementOf(c.acquisition.id)?.requirement ?? 'Earned from an achievement.';
-    case 'event': return 'Earned in an event.';
+    case 'event': return c.acquisition.id === GIFT_EVENT_ID ? 'A gift. It cannot be earned.' : 'Earned in an event.';
     case 'starter': return 'Every player starts with it.';
   }
 }

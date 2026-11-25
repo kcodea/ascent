@@ -359,8 +359,8 @@ describe('the crates migration (2026-09-28)', () => {
       cosmeticId: id!, category: category!, rarity: rarity!, acquisitionSource: source!, milestoneLevel: nul(level) === null ? null : Number(level),
       targetType: nul(targetType), targetId: nul(targetId), achievementId: nul(achievementId), active: active === 'true',
     }));
-    // the hero titles (2026-09-29) came later, in their own file's seed (below); titles batch 2 (2026-11-11) arrives through the catalog sync
-    const batch2: readonly string[] = ['title_banana', 'title_beastmaster', 'title_dwarven_warlord', 'title_leader_of_the_pack', 'title_doom', 'title_gem_stoned', 'title_dragonborn', 'title_re_blarted'];
+    // the hero titles (2026-09-29) came later, in their own file's seed (below); titles batch 2 (2026-11-11) arrives through the catalog sync, as does the Game Breaker gift (2026-11-25)
+    const batch2: readonly string[] = ['title_banana', 'title_beastmaster', 'title_dwarven_warlord', 'title_leader_of_the_pack', 'title_doom', 'title_gem_stoned', 'title_dragonborn', 'title_re_blarted', 'title_game_breaker'];
     const titles = catalogSyncPayload().items.filter((i) => i.category === 'title' && i.acquisitionSource !== 'achievement' && !batch2.includes(i.cosmeticId));
     expect([...sqlRows].sort((a, b) => (a.cosmeticId < b.cosmeticId ? -1 : 1))).toEqual(titles);
     // the settlement's Alpha Tester constants agree with the catalog's level milestone

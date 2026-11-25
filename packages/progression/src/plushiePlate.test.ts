@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ACHIEVEMENT_INDEX, COLLECTION_METRIC, UNIQUE_PLATE_REWARD_TEXT } from './achievements';
 import {
-  ALL_COSMETIC_RARITIES, COSMETICS, COSMETIC_RARITIES, PLUSHIE_BEASTS_COLLECTION_ID, PLUSHIE_BEAST_SKIN_IDS, PLUSHIE_PLATE_ID, RARITY_LABELS,
+  ALL_COSMETIC_RARITIES, COSMETICS, COSMETIC_RARITIES, PLUSHIE_BEASTS_COLLECTION_ID, PLUSHIE_BEAST_SKIN_IDS, PLUSHIE_PLATE_ID, GAME_BREAKER_TITLE_ID, RARITY_LABELS,
   catalogSyncPayload, collectionMembers, cosmeticOf, eligibleCrateCosmetics,
 } from './cosmetics';
 import { atOrAbove } from './crateShop';
@@ -49,9 +49,9 @@ describe('the Secret rarity and the plate', () => {
     expect(atOrAbove('secret', 'common')).toBe(false);
   });
 
-  it('the plate is the only Secret item besides the secret titles (2026-11-20): a card plate, achievement-only, never in a crate', () => {
-    expect(COSMETICS.filter((c) => c.rarity === 'secret' && !c.id.startsWith('title_secret_')).map((c) => c.id)).toEqual([PLUSHIE_PLATE_ID]);
-    expect(COSMETICS.filter((c) => c.rarity === 'secret').every((c) => c.acquisition.type === 'achievement')).toBe(true);
+  it('the plate is the only Secret item besides the secret titles (2026-11-20) and the Game Breaker gift (2026-11-25): a card plate, achievement-only, never in a crate', () => {
+    expect(COSMETICS.filter((c) => c.rarity === 'secret' && !c.id.startsWith('title_secret_')).map((c) => c.id)).toEqual([PLUSHIE_PLATE_ID, GAME_BREAKER_TITLE_ID]);
+    expect(COSMETICS.filter((c) => c.rarity === 'secret' && c.id !== GAME_BREAKER_TITLE_ID).every((c) => c.acquisition.type === 'achievement')).toBe(true);
     expect(cosmeticOf(PLUSHIE_PLATE_ID)).toMatchObject({
       category: 'card_plate', name: 'Plushie', acquisition: { type: 'achievement', id: PLUSHIE_BEASTS_COLLECTION_ID }, assets: { art: PLUSHIE_PLATE_ID, master: 'Plushie Plate.png' },
     });

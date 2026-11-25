@@ -22,7 +22,7 @@
  *  - The carry (spec 4.3 to 4.6): every decision goes through the drag state machine (`shopDrag.ts`). A press on a shelf
  *    or hand pack picks it up (`onPickUp`, the crinkle); it follows the pointer with the in-game drag feel (`dragFeel.ts`:
  *    the follow, the recentre and the travel dive), a shelf pack's price tag hangs behind it on a damped spring, and its
- *    place shows a faint outline. The counter line at `lineY` lights while `overLine` (`onOverLine` on each change). An
+ *    place keeps a faint ghost of the pack. The counter line at `lineY` lights while `overLine` (`onOverLine` on each change). An
  *    unaffordable shelf pack carried below the line is pulled back toward it (`rubberY`). Shaking a held pack (three
  *    direction changes within 400 ms, `stepShake`) rattles its cards. Release maps through `release()` to
  *    `onDrop(action, id, rect)` (rect: the pack as drawn at that moment, screen px). `buy` holds the pack at its hand
@@ -41,7 +41,7 @@
  *  - One ticker; no allocation per frame; a pack whose pose `alpha` is 0 is not drawn. The ticker idles when nothing
  *    moves only when there is no stage shader (a lit stage never stops: its dust keeps drifting).
  */
-import { Application, CanvasSource, Container, Graphics, PerspectiveMesh, Sprite, Text, Texture, type Ticker } from 'pixi.js';
+import { Application, CanvasSource, Container, Graphics, Sprite, Text, Texture, type Ticker } from 'pixi.js';
 import type { OwnedPack, PackOffer } from '@game/progression';
 import { stageScale } from '../../stage';
 import { detachPixiDomEvents } from '../../pixiNoDomEvents';
@@ -59,7 +59,7 @@ import { PACK_GEOM, paintGlossBand } from '../packOpening/packTextures';
 import { aimInto, newTilt, stepTilt, tiltEaseK, type TiltState } from '../packOpening/packTilt';
 import { LIFT_GROW, ShelfPack, liftPoseInto } from './shelfPack';
 import {
-  PLACARD_H, Placard, loadTexture, paintCounter, paintPlacard, paintPlinth, paintShadow, paintTray, placardBadge, placardCount,
+  Placard, loadTexture, paintTray, placardBadge, placardCount,
 } from './shopDressing';
 import { AETHER_ICON_SRC } from '../AetherIcon';
 import { arrived, buySettled, cancelHeld, moveHeld, newDrag, pickUp, release, zoneAt, type ShopDrag } from './shopDrag';
@@ -162,6 +162,9 @@ const LEAN_ROT = 0.012;
 const LEAN_PUSH = 0.03;
 /** A shelf place emptied by a pick-up fills back in at this ease (a restock), per 60 Hz frame. */
 const RESTOCK_EASE = 0.12;
+/** A taken pack's ghost on its place (alpha), and how far a restocked pack swells as it fills back in (its height). */
+const GHOST = 0.2;
+const RESTOCK_POP = 0.07;
 /** The entrance: its ease per 60 Hz frame, how far the shelf drops in and the hand rises (canvas heights). */
 const ENTER_EASE = 0.11;
 const ENTER_DROP = 0.05;
@@ -211,14 +214,18 @@ const LINE_REST = 0.14;
 const LINE_HELD = 0.4;
 const LINE_EASE = 0.2;
 const LINE_COLOR = 0xffd27a;
-/** The emptied place's outline (alpha), its stroke and corner (pack base units). */
-const OUTLINE_ALPHA = 0.22;
-const OUTLINE_STROKE = 5;
-const OUTLINE_RADIUS = 18;
+
 /** The shelf fades out while a played pack goes to the pedestal, per 60 Hz frame. */
 const RACK_FADE_EASE = 0.15;
 /** The price tag's text and the pile's count, as shares of a shelf / hand pack's height. */
 const TAG_FONT = 0.075;
+/**
+ * THE PRICE TAGS: where the twine is tied (a share of the pack's height in from its top-left corner), how far the tag
+ * hangs out to the left at rest (radians, clockwise), and the knot acceleration under which it does not stir.
+ */
+const TAG_INSET = 0.035;
+const TAG_REST = 0.3;
+const TAG_ACC_DEAD = 0.00002;
 const PILE_FONT = 0.16;
 const FONT = 'Outfit, sans-serif';
 const ZERO_RECT: ScreenRect = { left: 0, top: 0, width: 0, height: 0 };
@@ -264,25 +271,27 @@ class ShopSceneImpl implements ShopScene {
   private stage: StageFx | null = null;
   private bandTex: Texture | null = null;
   private rack: Container | null = null;
-  // the dressing (shopDressing.ts): the counter, the plinth, the hand's light, a shadow and a price placard per shelf slot
-  private counter: PerspectiveMesh | null = null;
-  private plinth: Sprite | null = null;
+  // the dressing (shopDressing.ts): the hand's light and a price placard per shelf slot. (A counter slab, a plinth and
+  // contact shadows stood under the packs for one pass; the owner removed that "stage" on 2026-11-25.)
   private tray: Sprite | null = null;
-  private readonly shadows: Sprite[] = [];
   private readonly placards: Placard[] = [];
   private readonly dressTex: Texture[] = [];
   /** The placards' scale for this canvas, and their y on the counter. */
   private placardLayer: Container | null = null;
   /** The offer each slot's placard was last written for (offers are immutable quotes): rewritten only on a change. */
   private readonly placardOf: (PackOffer | null)[] = new Array<PackOffer | null>(POOL).fill(null);
-  /** Per pool slot: its contact shadow's eased strength (it fades as its pack is taken, rather than vanishing). */
-  private readonly slotShade = new Float64Array(POOL).fill(1);
   /** Per pool slot: when its returned pack began to sit down (scene frames; -1: not settling). */
   private readonly slotSettle = new Float64Array(POOL).fill(-1);
   /** THE ENTRANCE (0..1): the shelf drops onto the counter and the hand rises, at first show and on every return. */
   private enter = 0;
   private placardK = 1;
-  private placardY = 0;
+  /** Per pool slot: its tag's swing, and its knot's last x and speed (the rack moving under it sets it swinging). */
+  private readonly tagSwing = Array.from({ length: POOL }, () => newSwing());
+  private readonly tagX = new Float64Array(POOL).fill(NaN);
+  private readonly tagV = new Float64Array(POOL);
+  /** The carried pack's own tag, and the offer it was last written for. */
+  private heldTag: Placard | null = null;
+  private heldTagOf: PackOffer | null = null;
   private readonly packs: ShelfPack[] = [];
   /** Per pool slot: the offer index and id it shows (-1 / null: none), its eased aim and its lift. */
   private readonly slotIdx = new Int32Array(POOL).fill(-1);
@@ -367,7 +376,6 @@ class ShopSceneImpl implements ShopScene {
   private lineBase: Graphics | null = null;
   private lineLit: Graphics | null = null;
   private readonly line = { base: LINE_REST, lit: 0 };
-  private outline: Graphics | null = null;
   private readonly tintTo = new Float32Array([0.6, 0.66, 0.78]);
 
   // the rack's motion
@@ -448,24 +456,12 @@ class ShopSceneImpl implements ShopScene {
     this.stage = makeStage(webgl);
     if (this.stage) { app.stage.addChildAt(this.stage.mesh, 0); this.stage.mesh.visible = true; this.stage.u.uTint.set(this.tintTo); }
     this.bandTex = new Texture({ source: new CanvasSource({ resource: paintGlossBand() }) });
-    // THE DRESSING, under the packs: the counter they stand on, the featured pack's plinth, the hand's pool of light
+    // THE DRESSING: the hand's pool of light, and (further down) the price placards
     const tex = (c: HTMLCanvasElement): Texture => { const t = new Texture({ source: new CanvasSource({ resource: c }) }); this.dressTex.push(t); return t; };
-    this.counter = new PerspectiveMesh({ texture: tex(paintCounter()), verticesX: 12, verticesY: 4 });
-    this.plinth = new Sprite(tex(paintPlinth()));
-    this.plinth.anchor.set(0.5, 0);
     this.tray = new Sprite(tex(paintTray()));
     this.tray.anchor.set(0.5);
-    app.stage.addChild(this.counter, this.tray, this.plinth);
-    const shadowTex = tex(paintShadow()), plateTex = tex(paintPlacard());
+    app.stage.addChild(this.tray);
     const rack = new Container();
-    // (shadows first, so every pack draws over every shadow)
-    for (let s = 0; s < POOL; s++) {
-      const sh = new Sprite(shadowTex);
-      sh.anchor.set(0.5);
-      sh.visible = false;
-      this.shadows.push(sh);
-      rack.addChild(sh);
-    }
     for (let s = 0; s < POOL; s++) {
       const p = new ShelfPack(webgl, this.bandTex);
       this.packs.push(p);
@@ -473,30 +469,28 @@ class ShopSceneImpl implements ShopScene {
     }
     this.rack = rack;
     app.stage.addChild(rack);
-    // the price placards stand on the counter in FRONT of the packs
+    // every pack's price tag hangs off its top-left corner, in FRONT of the packs
     const cards = new Container();
     for (let s = 0; s < POOL; s++) {
-      const pl = new Placard(plateTex, Texture.EMPTY, FONT);
+      const pl = new Placard(Texture.EMPTY, FONT);
       this.placards.push(pl);
       cards.addChild(pl.view);
     }
     this.placardLayer = cards;
     app.stage.addChild(cards);
-    loadTexture(AETHER_ICON_SRC, () => !this.destroyed, (t) => { this.dressTex.push(t); for (const pl of this.placards) pl.setGem(t); this.placardOf.fill(null); this.wake(); });
+    loadTexture(AETHER_ICON_SRC, () => !this.destroyed, (t) => {
+      this.dressTex.push(t);
+      for (const pl of this.placards) pl.setGem(t);
+      this.heldTag?.setGem(t);
+      this.placardOf.fill(null); this.heldTagOf = null;
+      this.wake();
+    });
 
     // the counter line: a thin rule (dim at rest, brighter while carrying) and its glow (lit while over the line)
     this.lineBase = new Graphics();
     this.lineLit = new Graphics();
     this.lineLit.alpha = 0;
     app.stage.addChild(this.lineBase, this.lineLit);
-
-    // the emptied place's outline, drawn once in pack base units and scaled to the place
-    const { W, H, BODY_H } = PACK_GEOM;
-    const outline = new Graphics();
-    outline.roundRect(-W / 2, -(H + BODY_H) / 2, W, H + BODY_H, OUTLINE_RADIUS).stroke({ width: OUTLINE_STROKE, color: 0xffffff, alpha: 1 });
-    outline.visible = false;
-    this.outline = outline;
-    app.stage.addChild(outline);
 
     const hand = new Container();
     for (let j = 0; j < HAND_FAN_MAX; j++) {
@@ -511,17 +505,11 @@ class ShopSceneImpl implements ShopScene {
     this.handLayer = hand;
     app.stage.addChild(hand);
 
-    // the held pack, its price tag hanging behind it
-    const tag = new Container();
-    this.tagPlate = new Graphics();
-    this.tagText = new Text({ text: '', style: { fontFamily: FONT, fontSize: 20, fontWeight: '700', fill: 0xfff1d0 } });
-    this.tagText.anchor.set(0.5, 0.5);
-    tag.addChild(this.tagPlate, this.tagText);
-    tag.visible = false;
-    this.tag = tag;
-    app.stage.addChild(tag);
+    // the held pack, its price tag tied to its top-left corner (drawn over it)
     this.heldPack = new ShelfPack(webgl, this.bandTex);
     app.stage.addChild(this.heldPack.view);
+    this.heldTag = new Placard(Texture.EMPTY, FONT);
+    app.stage.addChild(this.heldTag.view);
 
     app.stage.alpha = this.fade.alpha;
     app.stage.visible = this.fade.alpha > 0;
@@ -587,15 +575,15 @@ class ShopSceneImpl implements ShopScene {
     this.aether?.clear();
     this.aether = null;
     for (const pl of this.placards) pl.destroy();
-    this.placards.length = 0; this.shadows.length = 0;
-    this.counter = null; this.plinth = null; this.tray = null; this.placardLayer = null;
+    this.placards.length = 0;
+    this.tray = null; this.placardLayer = null;
     for (const t of this.dressTex) t.destroy(true);
     this.dressTex.length = 0;
     this.rack = null;
     this.handLayer = null;
     this.pileText = null;
-    this.tag = null; this.tagPlate = null; this.tagText = null;
-    this.lineBase = null; this.lineLit = null; this.outline = null;
+    this.heldTag?.destroy(); this.heldTag = null; this.heldTagOf = null;
+    this.lineBase = null; this.lineLit = null;
     this.bandTex?.destroy(true);
     this.bandTex = null;
     this.stage = null;
@@ -628,7 +616,6 @@ class ShopSceneImpl implements ShopScene {
     this.dress();
     this.drawLine();
     if (this.pileText) this.pileText.style.fontSize = Math.max(10, PILE_FONT * this.L.handPackH);
-    if (this.tagText) this.tagText.style.fontSize = Math.max(10, TAG_FONT * this.L.packH);
     this.cacheRect();
     if (resized) this.cancelHold(); // a resize while holding: the pack returns to where it came from
     this.wake();
@@ -637,21 +624,12 @@ class ShopSceneImpl implements ShopScene {
   /** Place the dressing for this canvas (on a resize only). */
   private dress(): void {
     const L = this.L, w = L.w;
-    // the counter's top: from the back edge the packs stand on, widening toward the lip (the counter line)
-    this.counter?.setCorners(w * 0.06, L.floorY, w * 0.94, L.floorY, w * 1.04, L.lineY, -w * 0.04, L.lineY);
-    const pw = L.pedestalH * ASPECT;
-    if (this.plinth) {
-      this.plinth.position.set(w / 2, L.floorY - L.plinth - pw * 0.075);
-      this.plinth.width = pw * 1.5; this.plinth.height = pw * 1.5 * (96 / 512);
-    }
     if (this.tray) {
       this.tray.position.set(w / 2, L.handY);
       this.tray.width = Math.min(w, L.handPackH * ASPECT * 9); this.tray.height = L.handPackH * 1.7;
     }
-    // a placard is 62% of the counter's depth tall, standing a little behind the lip
-    const depth = L.lineY - L.floorY;
-    this.placardK = (depth * 0.62) / PLACARD_H;
-    this.placardY = L.floorY + depth * 0.9;
+    // a tag's size: its price is this share of a shelf pack's height
+    this.placardK = (TAG_FONT * L.packH) / 34;
   }
 
   /** The counter line across the canvas at `lineY` (redrawn only on a resize). */
@@ -960,7 +938,7 @@ class ShopSceneImpl implements ShopScene {
         if (this.slotIdx[s] !== -1 || this.slotId[s] !== null) { this.slotIdx[s] = -1; this.slotId[s] = null; }
         tilt.ax = 0; tilt.ay = 0; this.slotLift[s] = 0; this.slotLean[s] = 0;
         pack.view.visible = false;
-        this.shadows[s]!.visible = false; this.placards[s]!.view.visible = false;
+        this.placards[s]!.view.visible = false; this.tagX[s] = NaN;
         continue;
       }
       const offer = offers[i]!;
@@ -971,18 +949,27 @@ class ShopSceneImpl implements ShopScene {
       }
       this.slotIdx[s] = i;
       const taken = offer.offerId === takenId;
-      if (taken) this.slotShow[s] = 0;
-      else if (this.slotShow[s]! < 1) this.slotShow[s] = this.slotShow[s]! > 0.995 ? 1 : this.slotShow[s]! + (1 - this.slotShow[s]!) * kr;
-      const shadeTo = taken ? 0 : 1;
-      if (this.slotShade[s] !== shadeTo) {
-        const sv = this.slotShade[s]! + (shadeTo - this.slotShade[s]!) * ks;
-        this.slotShade[s] = Math.abs(shadeTo - sv) < LIFT_SETTLE ? shadeTo : sv;
+      // A TAKEN PACK LEAVES ITS GHOST (owner 2026-11-25: "instead of a grey box, lets just have a faded ghost of the card pack
+      // in that spot"): the place keeps a faint copy of the pack while it is carried or bought. When it is restocked the
+      // ghost fills back in with a small pop, then sits down.
+      let show = this.slotShow[s]!;
+      if (taken) {
+        if (show !== GHOST) { show += (GHOST - show) * ks; if (Math.abs(GHOST - show) < LIFT_SETTLE) show = GHOST; this.slotShow[s] = show; moving = true; }
+      } else if (show < 1) {
+        show += (1 - show) * kr;
+        if (show > 0.995) { show = 1; this.slotSettle[s] = this.time; }
+        this.slotShow[s] = show;
         moving = true;
       }
       const p = shelfPoseInto(this.pose, L, i, this.scroll);
       p.x += this.rackX;
       const shelfAlpha = p.alpha;
-      p.alpha *= this.slotShow[s]!;
+      p.alpha *= show;
+      if (!taken && show < 1) {
+        // the restock's pop: it swells past its size as it fills in, feet on the same line
+        const grow = RESTOCK_POP * Math.sin(Math.PI * Math.max(0, (show - GHOST) / (1 - GHOST))) * p.h;
+        p.h += grow; p.y -= grow / 2;
+      }
       // lean away from a hovered neighbour, eased
       const leanTo = hi >= 0 && (i === hi - 1 || i === hi + 1) ? Math.sign(i - hi) : 0;
       let lean = this.slotLean[s]!;
@@ -1003,7 +990,7 @@ class ShopSceneImpl implements ShopScene {
         this.slotLift[s] = lift;
         moving = true;
       }
-      // its placard (rewritten only when the offer or its price changed) and its contact shadow
+      // its price tag (rewritten only when the offer changed)
       const pl = this.placards[s]!;
       if (this.placardOf[s] !== offer) {
         this.placardOf[s] = offer;
@@ -1012,23 +999,23 @@ class ShopSceneImpl implements ShopScene {
         else if (offer.price <= 0) pl.set('Free', 'free', count, badge);
         else pl.set(String(offer.price), 'price', count, badge);
       }
-      const restX = p.x - lean * LEAN_PUSH * p.h * ASPECT, footY = p.y + p.h / 2;
-      // (the placard stays on the counter while its pack is carried: only the rack's own motion moves it)
-      pl.view.visible = shelfAlpha > 0;
+      // the tag hangs off the pack's top-left corner (as drawn: lifted), askew, and swings as the rack moves under it.
+      // A taken pack's ghost wears none: the carried pack has its own.
+      const tagA = shelfAlpha * Math.max(0, (show - GHOST) / (1 - GHOST));
+      pl.view.visible = tagA > 0.01;
       if (pl.view.visible) {
-        pl.view.alpha = shelfAlpha;
-        pl.view.position.set(restX, this.placardY);
-        pl.view.scale.set(this.placardK * (1 + 0.08 * lift));
-      }
-      const sh = this.shadows[s]!, shade = shelfAlpha * Math.max(this.slotShow[s]!, this.slotShade[s]!);
-      sh.visible = shade > 0;
-      if (sh.visible) {
-        // a lifted pack's shadow shrinks and fades: it has left the counter
-        const sw = p.h * ASPECT * (1.12 - 0.22 * lift);
-        sh.position.set(p.x, footY);
-        sh.width = sw; sh.height = sw * 0.16;
-        sh.alpha = 0.7 * shade * (1 - 0.5 * lift);
-      }
+        const q = liftPoseInto(this.lifted, p, lift);
+        const kx = q.x - (q.h * ASPECT) / 2 + q.h * TAG_INSET, ky = q.y - q.h / 2 + q.h * TAG_INSET;
+        const sw = this.tagSwing[s]!;
+        const v = Number.isNaN(this.tagX[s]!) ? 0 : (kx - this.tagX[s]!) / Math.max(dt, 1e-3);
+        const acc = (v - this.tagV[s]!) / Math.max(dt, 1e-3) / Math.max(1, q.h);
+        this.tagX[s] = kx; this.tagV[s] = v;
+        if (stepSwing(sw, Math.abs(acc) < TAG_ACC_DEAD ? 0 : acc, dt)) moving = true;
+        pl.view.alpha = tagA;
+        pl.view.position.set(kx, ky);
+        pl.view.rotation = TAG_REST + sw.a;
+        pl.view.scale.set(this.placardK * Math.sqrt(q.h / Math.max(1, L.packH)));
+      } else this.tagX[s] = NaN;
       // a pack just put back sits down: a small bob into its place
       const st = this.slotSettle[s]!;
       if (st >= 0) {
@@ -1047,8 +1034,6 @@ class ShopSceneImpl implements ShopScene {
       if (this.rack) { this.rack.alpha = this.rackAlpha; this.rack.visible = this.rackAlpha > 0; }
       // the dressing leaves with the shelf: only the played pack stays, on its way to the opener
       const ra = this.rackAlpha;
-      if (this.counter) this.counter.alpha = ra;
-      if (this.plinth) this.plinth.alpha = ra;
       if (this.tray) this.tray.alpha = ra;
       if (this.placardLayer) this.placardLayer.alpha = ra;
       if (this.handLayer) this.handLayer.alpha = ra;
@@ -1351,18 +1336,15 @@ class ShopSceneImpl implements ShopScene {
     this.wake();
   }
 
-  /** The price tag's text and plate (on a pick-up: never per frame). It hangs from its top centre. */
+  /** Write the carried pack's tag for its offer (on a pick-up: never per frame). */
   private dressTag(offer: PackOffer): void {
-    const text = this.tagText, plate = this.tagPlate;
-    if (!text || !plate) return;
-    text.text = offer.price === 0 ? 'Free' : `${offer.price} Aether`;
-    const fs = Number(text.style.fontSize) || 20;
-    const w = text.width + fs * 1.2, h = fs * 1.7, cord = fs * 1.4;
-    text.position.set(0, cord + h / 2);
-    plate.clear()
-      .rect(-1, 0, 2, cord).fill({ color: LINE_COLOR, alpha: 0.8 })
-      .roundRect(-w / 2, cord, w, h, h * 0.3).fill({ color: 0x15121f, alpha: 0.92 })
-      .stroke({ width: 2, color: LINE_COLOR, alpha: 0.9 });
+    const tag = this.heldTag;
+    if (!tag || this.heldTagOf === offer) return;
+    this.heldTagOf = offer;
+    const count = placardCount(offer.contains), badge = placardBadge(offer.badge);
+    if (offer.soldOut) tag.set('Sold out', 'sold', count, badge);
+    else if (offer.price <= 0) tag.set('Free', 'free', count, badge);
+    else tag.set(String(offer.price), 'price', count, badge);
   }
 
   /** A held pointer moved: shake to listen, and whether the counter line is lit under it. */
@@ -1475,15 +1457,14 @@ class ShopSceneImpl implements ShopScene {
     }
   }
 
-  /** The held or travelling pack: follow, travel, the dive, the tag's swing and the emptied place's outline. */
+  /** The held or travelling pack: follow, travel, the dive, and the tag's swing. */
   private heldStep(dt: number): boolean {
     const hp = this.heldPack, d = this.drag, H = this.held;
     if (!hp) return false;
     const parked = d.phase === 'idle' && this.parkedId !== null;
     if (d.phase === 'idle' && !parked) {
       hp.view.visible = false;
-      if (this.tag) this.tag.visible = false;
-      if (this.outline) this.outline.visible = false;
+      if (this.heldTag) this.heldTag.view.visible = false;
       return false;
     }
     const df = getDragFeel(), g = this.goal, L = this.L;
@@ -1551,7 +1532,7 @@ class ShopSceneImpl implements ShopScene {
     hp.pose(P, aimX, aimY, 0);
 
     // the price tag hangs from the pack's bottom, behind it, on its spring: it fades in at a pick-up and out at a drop
-    const tag = this.tag;
+    const tag = this.heldTag?.view;
     if (tag) {
       const tagTo = d.phase === 'heldShelf' ? 1 : 0;
       if (H.tagA !== tagTo) {
@@ -1560,37 +1541,16 @@ class ShopSceneImpl implements ShopScene {
       }
       tag.visible = H.tagA > 0 && H.from === 'shelf';
       if (tag.visible) {
-        stepSwing(this.swing, accel, dt);
+        stepSwing(this.swing, Math.abs(accel) < TAG_ACC_DEAD ? 0 : accel, dt);
         tag.alpha = H.tagA;
-        tag.position.set(H.x, H.y + H.h * 0.38);
-        tag.rotation = this.swing.a;
-        tag.scale.set(H.h / Math.max(1, H.srcH * df.scale));
+        tag.position.set(H.x - (H.h * ASPECT) / 2 + H.h * TAG_INSET, H.y - H.h / 2 + H.h * TAG_INSET);
+        tag.rotation = TAG_REST + this.swing.a;
+        tag.scale.set(this.placardK * Math.sqrt(H.h / Math.max(1, this.L.packH)));
       }
     }
-    this.outlineStep();
 
     if (arrivedNow) this.finishTravel();
     return true;
-  }
-
-  /** The faint outline on the place a held pack came from, while that place is empty. */
-  private outlineStep(): void {
-    const o = this.outline, d = this.drag;
-    if (!o) return;
-    let q: PackPose | null = null;
-    if (d.id !== null && (d.phase === 'heldShelf' || d.phase === 'buying' || d.phase === 'toShelf')) {
-      const i = this.offerIndexOf(d.id);
-      if (i >= 0) { q = shelfPoseInto(this.pose, this.L, i, this.scroll); q.x += this.rackX; }
-    } else if (d.id !== null && (d.phase === 'heldHand' || d.phase === 'toHandBack')) {
-      const j = this.handIndexOf(d.id);
-      if (j >= 0) { this.syncFan(); q = handPoseInto(this.pose, this.L, Math.min(j, this.fan.shown), this.fan.places); }
-    }
-    o.visible = q !== null && q.alpha > 0;
-    if (!q || !o.visible) return;
-    o.position.set(q.x, q.y);
-    o.rotation = q.rot;
-    o.scale.set(q.h / (PACK_GEOM.H + PACK_GEOM.BODY_H));
-    o.alpha = OUTLINE_ALPHA * q.alpha;
   }
 
   /** A travelling pack reached its place: the state machine goes idle; a played pack stays on the pedestal. */
@@ -1606,7 +1566,7 @@ class ShopSceneImpl implements ShopScene {
       const s = this.slotId.indexOf(id);
       if (s >= 0) {
         // back in its place: no restock fade; it keeps the tilt it arrived with (easing to rest) and sits down
-        this.slotShow[s] = 1; this.slotShade[s] = 1;
+        this.slotShow[s] = 1;
         const t = this.slotTilt[s]!;
         t.ax = H.aimX - this.idleAim(this.slotIdx[s]!, 0); t.ay = H.aimY;
         this.slotSettle[s] = this.time;
@@ -1620,7 +1580,6 @@ class ShopSceneImpl implements ShopScene {
     // (the held pack stays drawn THIS frame, posed exactly on its place: the rack and the hand were posed earlier in
     // the tick with the place still empty, so hiding it now left one empty frame. The next frame shows the place's own
     // pack and `heldStep` hides this one.)
-    if (this.outline) this.outline.visible = false;
     this.fanKey = -1; // the reserved place (if any) is released
   }
 
@@ -1634,7 +1593,10 @@ class ShopSceneImpl implements ShopScene {
     const base = this.lineBase, lit = this.lineLit;
     if (!base || !lit) return false;
     const held = this.isHeld();
-    const baseTo = held ? LINE_HELD : LINE_REST, litTo = this.drag.overLine ? 1 : 0;
+    // (no line while a hand pack is carried or played: the line is where a SHELF pack is bought; owner 2026-11-25)
+    const ph = this.drag.phase;
+    const playing = ph === 'heldHand' || ph === 'toHandBack' || ph === 'toPedestal' || this.parkedId !== null;
+    const baseTo = playing ? 0 : held ? LINE_HELD : LINE_REST, litTo = this.drag.overLine ? 1 : 0;
     const ln = this.line;
     if (ln.base === baseTo && ln.lit === litTo) return false;
     const k = easeK(LINE_EASE, dt);
@@ -1790,7 +1752,7 @@ class ShopSceneImpl implements ShopScene {
   private readonly onWheel = (e: WheelEvent): void => {
     if (!this.app || !this.inputOn || this.slide.phase !== SLIDE_NONE) return;
     e.preventDefault(); // the wheel scrolls the rack, never the page
-    if (this.isHeld()) return; // the rack stays put under a held pack (its place keeps its outline)
+    if (this.isHeld()) return; // the rack stays put under a held pack (its place keeps its ghost)
     const raw = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
     const delta = e.deltaMode === 1 ? raw * 16 : e.deltaMode === 2 ? raw * 400 : raw;
     this.wheelAcc += delta;

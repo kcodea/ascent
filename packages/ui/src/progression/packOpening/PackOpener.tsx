@@ -55,6 +55,8 @@ export interface PackOpenerProps {
    * (slow-mo scaled) between `onClose` and `onClosed`. Omitted, or under reduced motion = no fade.
    */
   exitFadeMs?: number;
+  /** The end screen's close button (default "Done"): the shop says "Return to shop". */
+  doneLabel?: string;
   /** Tests inject a fake. */
   sceneFactory?: typeof createPackScene;
 }
@@ -98,7 +100,7 @@ export function summaryBest(cards: readonly PackCard[]): number[] {
     .map((x) => x.i);
 }
 
-export function PackOpener({ queue, open, onOpened, onClose, onClosed, reducedMotion, speed = 1, entryFadeMs = 0, exitFadeMs = 0, sceneFactory = createPackScene }: PackOpenerProps) {
+export function PackOpener({ queue, open, onOpened, onClose, onClosed, reducedMotion, speed = 1, entryFadeMs = 0, exitFadeMs = 0, doneLabel = 'Done', sceneFactory = createPackScene }: PackOpenerProps) {
   /** The scene said Pixi is unavailable (not allowed, or init failed): the reduced-motion path from then on. */
   const [pixiFailed, setPixiFailed] = useState(false);
   const reduced = (reducedMotion ?? prefersReducedMotion()) || pixiFailed;
@@ -656,7 +658,7 @@ export function PackOpener({ queue, open, onOpened, onClose, onClosed, reducedMo
           <button type="button" className="crate-btn pressable" onClick={openNext}>Open next</button>
         )}
         {phase === 'summary' && (
-          <button type="button" className="crate-btn crate-btn-quiet pressable" onClick={close}>Done</button>
+          <button type="button" className="crate-btn crate-btn-quiet pressable" onClick={close}>{doneLabel}</button>
         )}
       </div>
       {phase !== 'summary' && (

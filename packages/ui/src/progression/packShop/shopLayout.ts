@@ -37,9 +37,12 @@ const ASPECT = PACK_BASE_SIZE.w / PACK_BASE_SIZE.h;
 /** The pedestal pack's height, in canvas heights. */
 const PEDESTAL_H = 0.46;
 const SHELF_SCALE = 0.72;
-/** The counter's back edge and the plinth's rise, in canvas heights. */
+/**
+ * The line the packs' feet share, in canvas heights. `PLINTH` raised the featured pack on a drawn plinth for one pass;
+ * the owner removed that "stage" (2026-11-25), so it is 0: every pack stands on the same line.
+ */
 const FLOOR_Y = 0.585;
-const PLINTH = 0.012;
+const PLINTH = 0;
 const HAND_SCALE = 0.5;
 /** Past this many steps from the pedestal a slot is invisible; it fades in over the last `FADE_STEPS`. */
 const FADE_END = 2.6;

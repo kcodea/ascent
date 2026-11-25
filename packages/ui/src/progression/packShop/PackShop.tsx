@@ -316,7 +316,9 @@ export function PackShop(props: PackShopProps) {
       playTimerRef.current = null;
       playedRef.current = packId;
       sceneRef.current?.setVisible(false, SHOP_HANDOFF_MS);
-      setOpening([first, ...shownHandRef.current.filter((p) => p.packId !== packId)]);
+      // ONE pack at a time (owner 2026-11-25: "remove the open next button for now"): the opener is handed only the pack
+      // played, so its end screen offers only the way back to the shop
+      setOpening([first]);
     };
     // Only a drop on the pedestal makes the scene carry a pack (and no scene, no travel): every other path goes at once.
     if (!viaScene || !sceneRef.current) { mountOpener(); return; }
@@ -687,7 +689,7 @@ export function PackShop(props: PackShopProps) {
     <>
       {createPortal(shop, stageHost())}
       {opening && (
-        <PackOpener queue={opening} open={open} reducedMotion={reducedMotion} onOpened={(r) => onOpened(r.packId)} entryFadeMs={SHOP_HANDOFF_MS}
+        <PackOpener queue={opening} open={open} reducedMotion={reducedMotion} onOpened={(r) => onOpened(r.packId)} entryFadeMs={SHOP_HANDOFF_MS} doneLabel="Return to shop"
                     exitFadeMs={SHOP_HANDOFF_MS} onClose={openerLeaving} onClosed={openerGone} />
       )}
     </>

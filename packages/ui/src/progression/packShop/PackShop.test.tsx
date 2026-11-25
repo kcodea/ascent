@@ -251,7 +251,7 @@ describe('PackShop', () => {
     afterEach(() => { vi.useRealTimers(); });
     const opener = (): Element | null => document.querySelector('[data-testid="fake-opener"]');
 
-    it('waits for the pack to travel, then hides the scene and mounts PackOpener with that pack first and the rest of the hand after it', () => {
+    it('waits for the pack to travel, then hides the scene and mounts PackOpener with that pack alone (one pack at a time: no "Open next")', () => {
       render({ hand: [owned('h1'), owned('h2', 'Epic Pack'), owned('h3')] });
       fire((e) => { e.onPickUp('hand', 'h2'); e.onDrop('play', 'h2', R); });
       expect(opener()).toBeNull();
@@ -260,7 +260,7 @@ describe('PackShop', () => {
       expect(opener()).toBeNull();
       act(() => { vi.advanceTimersByTime(1); });
       expect(fake().calls.at(-1)).toBe('visible:false:200');
-      expect(opener()?.getAttribute('data-queue')).toBe('h2,h1,h3');
+      expect(opener()?.getAttribute('data-queue')).toBe('h2');
       expect(openerProps!.open).toBe(opens);
       expect(openerProps!.entryFadeMs).toBe(200);
     });
@@ -270,7 +270,7 @@ describe('PackShop', () => {
       fire((e) => { e.onDrop('play', 'h2', R); });
       fire((e) => { e.onDrop('play', 'h3', R); });
       act(() => { vi.advanceTimersByTime(SHOP_PLAY_TRAVEL_MS * 3); });
-      expect(opener()?.getAttribute('data-queue')).toBe('h2,h1,h3');
+      expect(opener()?.getAttribute('data-queue')).toBe('h2');
       expect(fake().calls.filter((c) => c === 'visible:false:200')).toHaveLength(1);
     });
 
@@ -296,7 +296,7 @@ describe('PackShop', () => {
       render({ hand: [owned('h1'), owned('h2', 'Epic Pack')] });
       click(btns('Rare Pack, Open')[0]);
       expect(fake().calls.at(-1)).toBe('visible:false:200');
-      expect(opener()?.getAttribute('data-queue')).toBe('h1,h2');
+      expect(opener()?.getAttribute('data-queue')).toBe('h1');
       expect(fake().calls).not.toContain('input:false');
     });
 
@@ -313,7 +313,7 @@ describe('PackShop', () => {
       expect(buys).toHaveLength(0);
       expect(fake().calls.at(-1)).toBe('buySettled:false');
       act(() => { vi.advanceTimersByTime(SHOP_PLAY_TRAVEL_MS); });
-      expect(opener()?.getAttribute('data-queue')).toBe('h2,h1');
+      expect(opener()?.getAttribute('data-queue')).toBe('h2');
       const before = fake().calls.length;
       act(() => { openerProps!.onClose!(); openerProps!.onClosed!(); });
       expect(fake().calls.slice(before)).toContain('input:true');
@@ -343,7 +343,7 @@ describe('PackShop', () => {
       expect(opener()).not.toBeNull();
       // nothing can be played or picked up until the opener has gone
       click(btns('Epic Pack, Open')[0]);
-      expect(opener()?.getAttribute('data-queue')).toBe('h1,h2');
+      expect(opener()?.getAttribute('data-queue')).toBe('h1');
       act(() => { openerProps!.onClosed!(); });
       expect(opener()).toBeNull();
       expect(fake().calls.slice(before)).toEqual(['setHand:h1,h2', 'visible:true:200', 'input:true']);
@@ -483,7 +483,7 @@ describe('PackShop', () => {
     click(btn('Buy for 1000 Aether'));
     expect(buys).toHaveLength(1);
     click(btns('Open')[1]);
-    expect(document.querySelector('[data-testid="fake-opener"]')?.getAttribute('data-queue')).toBe('h2,h1,n1');
+    expect(document.querySelector('[data-testid="fake-opener"]')?.getAttribute('data-queue')).toBe('h2');
   });
 
   it('reduced motion: each grid card and each owned pack wears its pack art, as the shelf does', () => {

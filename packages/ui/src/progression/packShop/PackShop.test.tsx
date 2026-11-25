@@ -27,6 +27,18 @@ vi.mock('../packOpening/PackOpener', () => ({
   },
 }));
 
+/** Every target the wallet counter was given, in order (the real tally rolls toward them on rAF). */
+const tallyTargets: number[] = [];
+vi.mock('../packOpening/AetherTally', async () => {
+  const { forwardRef, useImperativeHandle } = await import('react');
+  return {
+    AetherTally: forwardRef<{ setTarget(v: number): void; gulp(): void }>(function FakeTally(_p, ref) {
+      useImperativeHandle(ref, () => ({ setTarget: (v: number) => { tallyTargets.push(v); }, gulp: () => undefined }), []);
+      return <span className="pkop-aether-orb" />;
+    }),
+  };
+});
+
 import { PackShop, type PackShopProps } from './PackShop';
 import type { ShopScene, ShopSceneEvents } from './shopScene';
 
@@ -40,6 +52,9 @@ const R = { left: 100, top: 100, width: 80, height: 120 };
 
 interface Fake { calls: string[]; events: ShopSceneEvents; scene: ShopScene }
 let fakes: Fake[] = [];
+/** When set, `payAether` keeps its progress callback here for the test to step, instead of landing at once. */
+let holdStream = false;
+let stream: ((frac: number, done: boolean) => void) | null = null;
 const sceneFactory: NonNullable<PackShopProps['sceneFactory']> = (_host, events) => {
   const f: Fake = { calls: [], events, scene: null as unknown as ShopScene };
   const ids = (xs: readonly { offerId?: string; packId?: string }[]): string => xs.map((x) => x.offerId ?? x.packId).join(',');
@@ -50,7 +65,11 @@ const sceneFactory: NonNullable<PackShopProps['sceneFactory']> = (_host, events)
     scrollBy: (n) => { f.calls.push('scrollBy:' + n); },
     buySettled: (ok) => { f.calls.push('buySettled:' + ok); },
     rectOf: () => R,
-    payAether: (_from, id, progress) => { f.calls.push('payAether:' + id); progress(0.5, false); progress(1, true); },
+    payAether: (_from, id, progress) => {
+      f.calls.push('payAether:' + id);
+      if (holdStream) { stream = progress; return; }
+      progress(0.5, false); progress(1, true);
+    },
     setInputEnabled: (on) => { f.calls.push('input:' + on); },
     setVisible: (on, ms) => { f.calls.push(`visible:${on}:${ms}`); },
     destroy: () => { f.calls.push('destroy'); },
@@ -87,7 +106,7 @@ const key = (k: string): void => { act(() => { window.dispatchEvent(new Keyboard
 const shelfItem = (id: string): HTMLButtonElement => document.querySelector<HTMLButtonElement>(`[data-offer="${id}"]`)!;
 const handLabels = (): string[] => [...document.querySelectorAll('ul[aria-label="Your hand"] button')].map((b) => b.textContent ?? '');
 
-beforeEach(() => { fakes = []; buys = []; answer = null; openerProps = null; opens.mockClear(); });
+beforeEach(() => { fakes = []; buys = []; answer = null; openerProps = null; opens.mockClear(); tallyTargets.length = 0; holdStream = false; stream = null; });
 afterEach(() => { m?.unmount(); m = null; });
 
 describe('PackShop', () => {
@@ -180,8 +199,21 @@ describe('PackShop', () => {
     expect(fake().calls).toContain('setShelf:rare,epic');
     fire((e) => { e.onPickUp('shelf', 'rare'); });
     expect(document.querySelector('.pks-line-words')?.textContent).toBe('250 Aether');
-    // the offer gone altogether
-    render({ offers: OFFERS.filter((o) => o.offerId !== 'rare') });
+    // a later price move, with no purchase, says nothing new
+    render({ offers: OFFERS.map((o) => (o.offerId === 'rare' ? { ...o, price: 300 } : o)) });
+    expect(live()).toBe('The price changed. It is now 250 Aether');
+  });
+
+  it('price_changed after the parent already sent the new quote announces it at once; a vanished offer says so', async () => {
+    render();
+    fire((e) => { e.onDrop('buy', 'rare', R); });
+    render({ offers: OFFERS.map((o) => (o.offerId === 'rare' ? { ...o, price: 250 } : o)) });
+    expect(live()).toBe('');
+    await settle({ status: 'error', reason: 'price_changed' });
+    expect(live()).toBe('The price changed. It is now 250 Aether');
+    fire((e) => { e.onDrop('buy', 'epic', R); });
+    render({ offers: OFFERS.filter((o) => o.offerId !== 'epic') });
+    await settle({ status: 'error', reason: 'price_changed' });
     expect(live()).toBe('The price changed');
   });
 
@@ -280,8 +312,10 @@ describe('PackShop', () => {
     expect(balance()).toBe('800 Aether');
     // a box on its own shelf
     click(btn('Boxes'));
-    expect(btn('Buy for 1000 Aether')!.disabled).toBe(true);
+    expect(btn('Buy for 1000 Aether')!.getAttribute('aria-disabled')).toBe('true');
     expect(document.body.textContent).toContain('Need 200 more Aether');
+    click(btn('Buy for 1000 Aether'));
+    expect(buys).toHaveLength(1);
     click(btns('Open')[1]);
     expect(document.querySelector('[data-testid="fake-opener"]')?.getAttribute('data-queue')).toBe('h2,h1,n1');
   });
@@ -296,5 +330,82 @@ describe('PackShop', () => {
     expect(document.body.textContent).toContain('Your hand, 30 packs');
     expect(handLabels()).toHaveLength(30);
     expect(fake().calls).toContain('setHand:' + thirty.map((p) => p.packId).join(','));
+  });
+
+  it('the wallet rolls down once, by the stream, even when the parent sends the new balance mid-stream', async () => {
+    holdStream = true;
+    render();
+    tallyTargets.length = 0; // (the mount's own target, the starting balance)
+    fire((e) => { e.onDrop('buy', 'rare', R); });
+    await settle({ status: 'ok', packs: [owned('n1')], aether: 800 });
+    act(() => { stream!(0.25, false); });
+    render({ aether: 800, hand: [owned('h1'), owned('n1')] }); // the caller updates its own balance on the answer
+    act(() => { stream!(0.5, false); stream!(0.75, false); });
+    act(() => { stream!(1, true); });
+    const t = [...tallyTargets];
+    for (let i = 1; i < t.length; i++) expect(t[i]!).toBeLessThanOrEqual(t[i - 1]!);
+    expect(t).toEqual([950, 900, 850, 800]);
+  });
+
+  it('a parent balance that lands before the answer waits for the stream', async () => {
+    holdStream = true;
+    render();
+    tallyTargets.length = 0; // (the mount's own target, the starting balance)
+    fire((e) => { e.onDrop('buy', 'rare', R); });
+    render({ aether: 800 });
+    expect(tallyTargets).toEqual([]); // no roll yet: the stream will carry it
+    await settle({ status: 'ok', packs: [owned('n1')], aether: 800 });
+    act(() => { stream!(0.5, false); stream!(1, true); });
+    expect(tallyTargets).toEqual([900, 800]);
+    // a later change with no stream in flight still moves the counter
+    render({ aether: 1200 });
+    expect(tallyTargets.at(-1)).toBe(1200);
+  });
+
+  it('two identical outcomes in a row are both spoken: the region empties when a purchase starts', async () => {
+    render();
+    fire((e) => { e.onDrop('buy', 'rare', R); });
+    await settle({ status: 'ok', packs: [owned('n1')], aether: 800 });
+    expect(live()).toBe('Bought Rare Pack');
+    fire((e) => { e.onDrop('buy', 'rare', R); });
+    expect(live()).toBe('');
+    await settle({ status: 'ok', packs: [owned('n2')], aether: 600 });
+    expect(live()).toBe('Bought Rare Pack');
+    fire((e) => { e.onDrop('buy', 'rare', R); });
+    await fail();
+    fire((e) => { e.onDrop('buy', 'rare', R); });
+    expect(live()).toBe('');
+    await fail();
+    expect(live()).toBe('Could not buy the pack. Try again.');
+  });
+
+  it('keyboard: a failed buy keeps focus on the Buy button (never disabled under it), so the keys still work', async () => {
+    render();
+    act(() => { shelfItem('rare').focus(); });
+    click(shelfItem('rare'));
+    const buyBtn = btn('Buy for 200 Aether')!;
+    expect(document.activeElement).toBe(buyBtn);
+    click(buyBtn);
+    expect(buyBtn.disabled).toBe(false);
+    expect(buyBtn.getAttribute('aria-disabled')).toBe('true');
+    expect(document.activeElement).toBe(buyBtn);
+    await fail();
+    expect(document.activeElement).toBe(buyBtn);
+    expect(buyBtn.getAttribute('aria-disabled')).toBe('false');
+    // the dialog's arrow keys still reach the scene
+    act(() => { buyBtn.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })); });
+    expect(fake().calls.at(-1)).toBe('scrollBy:1');
+    // and a retry from the same button sends the same request id
+    click(buyBtn);
+    expect(buys.map((b) => b.requestId)).toEqual([buys[0]!.requestId, buys[0]!.requestId]);
+  });
+
+  it('the rack starts on the middle offer: keyboard focus scrolls from there', () => {
+    const five = ['a', 'b', 'c', 'd', 'e'].map((id) => offer(id, id.toUpperCase() + ' Pack', 100));
+    render({ offers: five });
+    act(() => { shelfItem('a').focus(); });
+    expect(fake().calls.at(-1)).toBe('scrollBy:-2');
+    act(() => { shelfItem('e').focus(); });
+    expect(fake().calls.at(-1)).toBe('scrollBy:4');
   });
 });

@@ -9,6 +9,7 @@ import { packRarityLabel } from '../packOpening/packRarity';
 import { createShopScene, type ScreenRect, type ShopScene } from './shopScene';
 import { createShopSounds, type ShopSounds } from './shopSounds';
 import { affordableIds, buyKey, packTag, shelfOffers, srLine } from './shopModel';
+import { startScroll } from './shopLayout';
 import '../packOpening/packOpening.css';
 import './packShop.css';
 
@@ -53,7 +54,6 @@ export interface PackShopProps {
   sceneFactory?: typeof createShopScene;
 }
 
-type Announce = { kind: 'text'; text: string } | { kind: 'priceChanged'; offerId: string };
 /** The pack whose tag is up: `armed` shows its Buy / Open button (a tap, or Enter), else it is only looked at (focus). */
 interface Selection { kind: 'shelf' | 'hand'; id: string; rect: StageRect | null; armed: boolean }
 
@@ -105,7 +105,7 @@ export function PackShop(props: PackShopProps) {
   const [opened, setOpened] = useState<ReadonlySet<string>>(() => new Set());
   const shownHand = useMemo(() => shownHandOf(hand, bought, opened), [hand, bought, opened]);
   const [pending, setPending] = useState(false);
-  const [announce, setAnnounce] = useState<Announce | null>(null);
+  const [announce, setAnnounce] = useState('');
   const [hover, setHover] = useState<{ id: string; rect: StageRect } | null>(null);
   const [sel, setSel] = useState<Selection | null>(null);
   /** The shelf pack being carried (the counter line's words), and whether it is over the line. */
@@ -144,16 +144,50 @@ export function PackShop(props: PackShopProps) {
 
   useEffect(() => { mountedRef.current = true; return () => { mountedRef.current = false; }; }, []);
 
+  /**
+   * The wallet counter's target. While a purchase is pending or its Aether is streaming, the counter belongs to the
+   * stream: it rolls down once, by the stream's progress, never back up. A parent's balance arriving meanwhile (a caller
+   * updating its own `aether` on the answer) is kept in `deferred` and applied when the stream is done.
+   */
+  const tallyTargetRef = useRef(aether);
+  const streamRef = useRef<{ active: boolean; deferred: number | null }>({ active: false, deferred: null });
+  const setTally = useCallback((v: number): void => { tallyTargetRef.current = v; tallyRef.current?.setTarget(v); }, []);
+
   // The parent's balance is the truth whenever it changes.
   useEffect(() => {
     balanceRef.current = aether;
     setBalance(aether);
-    tallyRef.current?.setTarget(aether);
-  }, [aether]);
+    if (pendingRef.current || streamRef.current.active) streamRef.current.deferred = aether;
+    else setTally(aether);
+  }, [aether, setTally]);
 
-  const say = useCallback((text: string): void => { setAnnounce({ kind: 'text', text }); }, []);
+  const say = useCallback((text: string): void => { setAnnounce(text); }, []);
+  /** A price_changed answer whose new quote has not arrived yet: announced once, when the next offers do. */
+  const priceWaitRef = useRef<string | null>(null);
+  const priceChangedText = (offerId: string): string => {
+    const o = offersRef.current.find((x) => x.offerId === offerId);
+    if (!o) return 'The price changed';
+    return o.price === 0 ? 'The price changed. It is now free' : `The price changed. It is now ${o.price} Aether`;
+  };
+  useEffect(() => {
+    const id = priceWaitRef.current;
+    if (id === null) return;
+    priceWaitRef.current = null;
+    setAnnounce(priceChangedText(id));
+  }, [offers]);
 
   // ------------------------------------------------------------------ the purchase
+
+  /**
+   * After a keyboard / tap purchase answers: keep focus in the dialog. The Buy button keeps it (it is only
+   * `aria-disabled` while pending, so it never drops focus); anything else returns focus to the pack's item.
+   */
+  const keepFocus = useCallback((offerId: string): void => {
+    const root = dialogRef.current;
+    const active = document.activeElement;
+    if (root && active && active !== document.body && root.contains(active)) return;
+    for (const el of root?.querySelectorAll<HTMLElement>('[data-offer]') ?? []) if (el.dataset.offer === offerId) el.focus();
+  }, []);
 
   /** Buy `offer`. `viaScene`: the scene is holding the pack at the hand and waits for `buySettled`. */
   const purchase = useCallback((offer: PackOffer, viaScene: boolean): void => {
@@ -163,6 +197,9 @@ export function PackShop(props: PackShopProps) {
     if (!requestId) { requestId = mintRequestId(); idsRef.current.set(key, requestId); }
     pendingRef.current = true;
     setPending(true);
+    // An empty region in between, so the same outcome twice is still spoken twice.
+    setAnnounce('');
+    priceWaitRef.current = null;
     // A keyboard / tap buy: nothing may be picked up until it answers.
     if (!viaScene) sceneRef.current?.setInputEnabled(false);
     const settle = (out: BuyPackOutcome): void => {
@@ -171,30 +208,51 @@ export function PackShop(props: PackShopProps) {
       if (!mountedRef.current) return;
       setPending(false);
       const scene = sceneRef.current;
+      const stream = streamRef.current;
       if (!viaScene) scene?.setInputEnabled(true);
       if (out.status !== 'ok') {
         if (viaScene) scene?.buySettled(false);
+        // no stream: a balance the parent sent meanwhile shows now
+        if (stream.deferred !== null) { const d = stream.deferred; stream.deferred = null; setTally(d); }
         switch (out.reason) {
           case 'insufficient': say(`Need ${aetherShort(offer, out.aether ?? balanceRef.current)} more Aether`); break;
-          case 'price_changed': setAnnounce({ kind: 'priceChanged', offerId: offer.offerId }); break;
+          case 'price_changed': {
+            // the new quote may already be here (the parent re-rendered first); else it is announced when it arrives
+            const cur = offersRef.current.find((o) => o.offerId === offer.offerId);
+            if (!cur || cur.price !== offer.price) say(priceChangedText(offer.offerId));
+            else priceWaitRef.current = offer.offerId;
+            break;
+          }
           case 'sold_out': say('Sold out'); break;
           case 'guest': say('Sign in to buy packs'); break; // the caller's own `buy` shows its sign-in gate
           default: say(FAILED_NOTE);
         }
+        if (!viaScene) keepFocus(offer.offerId);
         return;
       }
-      const before = balanceRef.current, after = out.aether;
+      // From what the counter shows now (the parent's new balance may already be deferred) to the answer.
+      const before = tallyTargetRef.current, after = out.aether;
       balanceRef.current = after;
       setBalance(after);
       // The gem is measured once, here, never per frame.
       const orb = walletRef.current?.querySelector<HTMLElement>('.pkop-aether-orb');
       const g = orb?.getBoundingClientRect();
-      const tally = tallyRef.current;
+      const finish = (): void => {
+        stream.active = false;
+        const end = stream.deferred ?? after;
+        stream.deferred = null;
+        setTally(end);
+      };
       if (scene && g) {
+        stream.active = true;
         scene.payAether({ left: g.left, top: g.top, width: g.width, height: g.height }, offer.offerId, (frac, done) => {
-          tallyRef.current?.setTarget(done ? after : before + (after - before) * frac);
+          if (!stream.active) return;
+          if (done) { finish(); return; }
+          // never back up: a stream's progress only rolls the counter down toward the answer
+          const v = before + (after - before) * Math.max(0, Math.min(1, frac));
+          if ((after <= before && v < tallyTargetRef.current) || (after > before && v > tallyTargetRef.current)) setTally(v);
         });
-      } else tally?.setTarget(after);
+      } else finish();
       if (viaScene) scene?.buySettled(true);
       const nextBought = [...boughtRef.current, ...out.packs];
       boughtRef.current = nextBought;
@@ -210,7 +268,7 @@ export function PackShop(props: PackShopProps) {
     let p: Promise<BuyPackOutcome>;
     try { p = buyRef.current(offer.offerId, requestId); } catch (e) { p = Promise.reject(e); }
     Promise.resolve(p).then(settle, () => settle({ status: 'error', reason: 'failed' }));
-  }, [say]);
+  }, [keepFocus, say, setTally]);
 
   // ------------------------------------------------------------------ playing a pack
 
@@ -328,7 +386,9 @@ export function PackShop(props: PackShopProps) {
   const lookAt = useCallback((offerId: string): void => {
     const list = shelfRef.current;
     const to = list.findIndex((o) => o.offerId === offerId);
-    const from = Math.max(0, list.findIndex((o) => o.offerId === centreRef.current));
+    // the scene starts (and restarts on a tab change) with the middle offer on the pedestal (`startScroll`)
+    const known = list.findIndex((o) => o.offerId === centreRef.current);
+    const from = known >= 0 ? known : startScroll(list.length);
     const scene = sceneRef.current;
     if (scene && to >= 0 && to !== from) { scene.scrollBy(to - from); centreRef.current = offerId; }
     const r = scene?.rectOf(offerId);
@@ -377,11 +437,6 @@ export function PackShop(props: PackShopProps) {
 
   // ------------------------------------------------------------------ render
 
-  const announceText = !announce ? '' : announce.kind === 'text' ? announce.text : (() => {
-    const o = offers.find((x) => x.offerId === announce.offerId);
-    if (!o) return 'The price changed';
-    return o.price === 0 ? 'The price changed. It is now free' : `The price changed. It is now ${o.price} Aether`;
-  })();
 
   const heldOffer = held ? offers.find((o) => o.offerId === held) : undefined;
   const lineWords = heldOffer ? (() => {
@@ -406,7 +461,8 @@ export function PackShop(props: PackShopProps) {
         {t.soldOut ? <div className={`${cls}-short`}>Sold out</div> : t.short > 0 && <div className={`${cls}-short`}>{`Need ${t.short} more Aether`}</div>}
         {withButton && (
           <button type="button" className="crate-btn pressable pks-buy" ref={cls === 'pks-tag' ? buyBtnRef : undefined}
-                  disabled={pending || t.soldOut || t.short > 0} onClick={() => purchase(o, false)}>{buyLabel(o)}</button>
+                  aria-disabled={pending || t.soldOut || t.short > 0}
+                  onClick={() => { if (!pending && !t.soldOut && t.short <= 0) purchase(o, false); }}>{buyLabel(o)}</button>
         )}
       </>
     );
@@ -497,7 +553,7 @@ export function PackShop(props: PackShopProps) {
         </div>
       )}
 
-      <div className="pks-live" role="status">{announceText}</div>
+      <div className="pks-live" role="status">{announce}</div>
       <button type="button" className="crate-btn crate-btn-quiet pressable pks-close" disabled={pending} onClick={() => onClose?.()}>Close</button>
     </div>
   );

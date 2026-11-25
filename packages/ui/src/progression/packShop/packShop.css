@@ -25,8 +25,8 @@
 .pks-wallet .pkop-aether-num { font-size: 40px; }
 
 /* THE COUNTER LINE'S WORDS: the scene draws and lights the line at 66% of the stage; the price (or what is missing)
-   sits on it while a shelf pack is carried. */
-.pks-line { position: absolute; left: 0; right: 0; top: 66%; height: 0; display: flex; justify-content: center; pointer-events: none; }
+   sits on it while a shelf pack is carried, at the line's LEFT end, where the carried pack does not cover it. */
+.pks-line { position: absolute; left: 6%; right: 0; top: 66%; height: 0; display: flex; justify-content: flex-start; pointer-events: none; }
 .pks-line-words { transform: translateY(-50%); padding: 6px 18px; border-radius: 10px; background: rgba(10, 14, 28, 0.86);
   border: 1.5px solid var(--pk-rim); font-size: 22px; font-weight: 800; letter-spacing: 0.06em; color: var(--pk-text); opacity: 0.75;
   transition: opacity 0.15s ease-out; }
@@ -48,6 +48,8 @@
 .pks-tag-line, .pks-card-line { font-size: 15px; opacity: 0.85; }
 .pks-tag-short, .pks-card-short { font-size: 15px; font-weight: 700; color: #ff9c8a; }
 .pks-buy, .pks-open { margin-top: 8px; }
+/* Unavailable (pending, short, sold out): aria-disabled, not disabled, so a focused button keeps focus. */
+.pks-buy[aria-disabled='true'] { opacity: 0.5; filter: grayscale(0.6); }
 
 .pks-live { position: absolute; left: 0; right: 0; bottom: 18px; text-align: center; font-size: 17px; color: var(--pk-text); opacity: 0.85;
   pointer-events: none; }

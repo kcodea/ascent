@@ -202,6 +202,17 @@ export function PackShop(props: PackShopProps) {
   }, [aether, setTally]);
 
   const say = useCallback((text: string): void => { setAnnounce(text); }, []);
+  /**
+   * A pack the wallet cannot cover was asked for (a carried pack let go below the line, or its Buy pressed): the wallet
+   * pulses once and the shortfall is said (spec 4.4). A sold-out pack only says so.
+   */
+  const refuseShort = useCallback((offer: PackOffer): void => {
+    if (offer.soldOut) { say('Sold out'); return; }
+    const short = aetherShort(offer, balanceRef.current);
+    if (short <= 0) return;
+    tallyRef.current?.gulp();
+    say(`Need ${short} more Aether`);
+  }, [say]);
   /** A price_changed answer whose new quote has not arrived yet: announced once, when the next offers do. */
   const priceWaitRef = useRef<string | null>(null);
   const priceChangedText = (offerId: string): string => {
@@ -397,6 +408,7 @@ export function PackShop(props: PackShopProps) {
   // ------------------------------------------------------------------ the scene
 
   const purchaseRef = useRef(purchase); purchaseRef.current = purchase;
+  const refuseShortRef = useRef(refuseShort); refuseShortRef.current = refuseShort;
   const playRef = useRef(play); playRef.current = play;
 
   useEffect(() => {
@@ -431,6 +443,10 @@ export function PackShop(props: PackShopProps) {
         setOverLine(false);
       },
       onOverLine: (over) => { if (live) setOverLine(over); },
+      onShort: (id) => {
+        const offer = live ? offersRef.current.find((o) => o.offerId === id) : undefined;
+        if (offer) refuseShortRef.current(offer);
+      },
       onDrop: (action, id, rect) => {
         if (!live) return;
         const pick = pickRef.current;
@@ -584,7 +600,10 @@ export function PackShop(props: PackShopProps) {
         {withButton && (
           <button type="button" className="crate-btn pressable pks-buy" ref={cls === 'pks-tag' ? buyBtnRef : undefined}
                   aria-disabled={pending || t.soldOut || t.short > 0}
-                  onClick={() => { if (!pending && !t.soldOut && t.short <= 0) purchase(o, false); }}>{buyLabel(o)}</button>
+                  onClick={() => {
+                    if (pending) return;
+                    if (t.soldOut || t.short > 0) refuseShort(o); else purchase(o, false);
+                  }}>{buyLabel(o)}</button>
         )}
       </>
     );

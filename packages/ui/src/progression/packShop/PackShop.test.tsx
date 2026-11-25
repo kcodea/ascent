@@ -29,11 +29,13 @@ vi.mock('../packOpening/PackOpener', () => ({
 
 /** Every target the wallet counter was given, in order (the real tally rolls toward them on rAF). */
 const tallyTargets: number[] = [];
+/** How many times the wallet pulsed (`gulp`). */
+const gulps = vi.hoisted(() => ({ n: 0 }));
 vi.mock('../packOpening/AetherTally', async () => {
   const { forwardRef, useImperativeHandle } = await import('react');
   return {
     AetherTally: forwardRef<{ setTarget(v: number): void; gulp(): void }>(function FakeTally(_p, ref) {
-      useImperativeHandle(ref, () => ({ setTarget: (v: number) => { tallyTargets.push(v); }, gulp: () => undefined }), []);
+      useImperativeHandle(ref, () => ({ setTarget: (v: number) => { tallyTargets.push(v); }, gulp: () => { gulps.n++; } }), []);
       return <span className="pkop-aether-orb" />;
     }),
   };
@@ -107,7 +109,7 @@ const key = (k: string): void => { act(() => { window.dispatchEvent(new Keyboard
 const shelfItem = (id: string): HTMLButtonElement => document.querySelector<HTMLButtonElement>(`[data-offer="${id}"]`)!;
 const handLabels = (): string[] => [...document.querySelectorAll('ul[aria-label="Your hand"] button')].map((b) => b.textContent ?? '');
 
-beforeEach(() => { fakes = []; buys = []; answer = null; openerProps = null; opens.mockClear(); tallyTargets.length = 0; holdStream = false; stream = null; });
+beforeEach(() => { fakes = []; buys = []; answer = null; openerProps = null; opens.mockClear(); tallyTargets.length = 0; holdStream = false; stream = null; gulps.n = 0; });
 afterEach(() => { m?.unmount(); m = null; });
 
 describe('PackShop', () => {
@@ -280,6 +282,25 @@ describe('PackShop', () => {
     render({ aether: 150 });
     fire((e) => { e.onPickUp('shelf', 'rare'); });
     expect(document.querySelector('.pks-line-words')?.textContent).toBe('Need 50 more Aether');
+  });
+
+  it('a pack the wallet cannot cover, let go below the line or its Buy pressed: the wallet pulses once and the shortfall is said', () => {
+    render({ aether: 150 });
+    fire((e) => { e.onPickUp('shelf', 'rare'); e.onDrop('return', 'rare', R); e.onShort('rare'); });
+    expect(gulps.n).toBe(1);
+    expect(live()).toBe('Need 50 more Aether');
+    expect(buys).toHaveLength(0);
+    act(() => { shelfItem('epic').focus(); });
+    click(shelfItem('epic'));
+    click(btn('Buy for 500 Aether'));
+    expect(gulps.n).toBe(2);
+    expect(live()).toBe('Need 350 more Aether');
+    expect(buys).toHaveLength(0);
+    // a sold-out pack only says so
+    render({ aether: 150, offers: [offer('rare', 'Rare Pack', 100, { soldOut: true }), ...OFFERS.slice(1)] });
+    fire((e) => { e.onPickUp('shelf', 'rare'); e.onDrop('return', 'rare', R); e.onShort('rare'); });
+    expect(gulps.n).toBe(2);
+    expect(live()).toBe('Sold out');
   });
 
   it('a guest outcome returns the pack and changes nothing in the hand', async () => {

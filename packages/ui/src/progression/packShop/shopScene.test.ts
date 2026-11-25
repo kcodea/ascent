@@ -43,7 +43,7 @@ const recorder = (): { fired: string[]; events: ShopSceneEvents } => {
     fired,
     events: {
       onUnavailable: rec('unavailable'), onHover: rec('hover'), onCentre: rec('centre'), onPickUp: rec('pickUp'),
-      onOverLine: rec('overLine'), onDrop: rec('drop'),
+      onOverLine: rec('overLine'), onDrop: rec('drop'), onShort: rec('short'),
     },
   };
 };

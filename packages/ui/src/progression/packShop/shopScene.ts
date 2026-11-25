@@ -87,6 +87,8 @@ export interface ShopSceneEvents {
   onPickUp(from: 'shelf' | 'hand', id: string): void;
   onOverLine(over: boolean): void;
   onDrop(action: 'buy' | 'play' | 'return', id: string, rect: ScreenRect): void;
+  /** A shelf pack the wallet does not cover (or sold out) was let go below the counter line: it goes back (`onDrop`). */
+  onShort(offerId: string): void;
 }
 
 export interface ShopScene {
@@ -1384,9 +1386,11 @@ class ShopSceneImpl implements ShopScene {
       this.held.box = !!o && o.contains > 1;
     }
     else if (action === 'play') this.sounds.play();
-    else if (fromShelf && zone === 'hand') this.sounds.refuse(); // carried across but not affordable
+    const short = fromShelf && zone === 'hand'; // carried across but not affordable
+    if (short) this.sounds.refuse();
     const rect = this.screenRect(this.heldPose) ?? ZERO_RECT;
     this.emit('onDrop', () => this.events.onDrop(action, id, rect));
+    if (short) this.emit('onShort', () => this.events.onShort(id));
     this.wake();
   }
 

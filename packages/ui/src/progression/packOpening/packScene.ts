@@ -316,6 +316,8 @@ class PackSceneImpl implements PackScene {
   private faceAmbient = 0;
   private pileAmbient = 0; // the second aura's level on the summary (it lights the second-best pull)
   private summaryOn = false;
+  /** The guaranteed seal's stamp, 0..1 (1 = down on the card). */
+  private sealT = 1;
   private aether: AetherStream | null = null;
   /** One stage px in canvas px (the Aether motes are sized in stage px). */
   private aetherUnit = 1;
@@ -817,7 +819,16 @@ class PackSceneImpl implements PackScene {
     card.rotation = p.lx * PILE_LEAN_RAD * p.lift + this.teaseRotV;
     card.x = cardRestX(idx) + p.lx * PILE_LEAN_PX * p.lift;
     card.y = cardRestY(idx) + p.ly * PILE_LEAN_PX * p.lift - PILE_RISE_PX * p.lift;
-    if (v.ribbon.visible) { v.ribbon.position.set(card.x, card.y + RIBBON_DY * k); v.ribbon.rotation = card.rotation; }
+    if (v.ribbon.visible) {
+      // THE SEAL: it is stamped onto the card as that card comes to the top (large and turned, then down onto the
+      // card), and breathes a little there; it rides the card's pose.
+      if (this.sealT < 1) this.sealT = Math.min(1, this.sealT + dt / SEAL_STAMP_FRAMES);
+      const e = 1 - Math.pow(1 - this.sealT, 3);
+      const size = (1 + SEAL_STAMP * (1 - e)) * (1 + SEAL_PULSE * Math.sin(this.time * SEAL_PULSE_RATE) * e);
+      v.ribbon.position.set(card.x, card.y + RIBBON_DY * k);
+      v.ribbon.rotation = card.rotation - SEAL_TURN * (1 - e);
+      v.ribbon.scale.set((k * size) / TEX_RES);
+    }
     if (v.fade.visible) { v.fade.position.copyFrom(card.position); v.fade.rotation = card.rotation; }
   }
 
@@ -1136,7 +1147,9 @@ class PackSceneImpl implements PackScene {
     ribbon.position.set(card.x, card.y + RIBBON_DY);
     const b = this.backs?.[top];
     glow.visible = false; // at rest a back gives nothing away; the tease lights it
-    ribbon.visible = !!b?.guaranteed;
+    const sealed = !!b?.guaranteed;
+    if (sealed && !ribbon.visible) { this.sealT = 0; this.sounds.stamp(); } // the seal is stamped on as this card comes up
+    ribbon.visible = sealed;
     if (animated && card.texture !== target) {
       fade.texture = target;
       fade.width = CARD_W; fade.height = CARD_H;
@@ -1853,6 +1866,13 @@ class PackSceneImpl implements PackScene {
 
 /** Sparks shed along a whole tear, edge to edge. */
 const TEAR_SPARKS = 80;
+
+/** The guaranteed seal: how long its stamp takes (frames), how much larger and how far turned it starts, and its breath. */
+const SEAL_STAMP_FRAMES = 22;
+const SEAL_STAMP = 0.9;
+const SEAL_TURN = 0.5;
+const SEAL_PULSE = 0.025;
+const SEAL_PULSE_RATE = 0.06;
 
 /** How long the aura waits edge-on for the DOM face to report its turn before it runs on the scene's clock (frames). */
 const LAND_WAIT_FRAMES = 15;

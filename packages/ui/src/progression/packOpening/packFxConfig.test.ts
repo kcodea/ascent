@@ -14,10 +14,10 @@ describe('packFxConfig', () => {
   it("defaults are the owner's tuned values", async () => {
     const m = await load();
     expect(m.DEFAULT_PACK_FEEL).toEqual({
-      peelAngle: 0.4, edgeTowardCamera: 139, slackBeforeTear: 0.92, edgeFollowsHand: 0.1, maxTearSpeed: 18,
-      fibreCatch: 0.7, pinchTwist: 0.65, tearsStraightUp: 0.15, highlight: 0.65, perspective: 1780, volume: 0.45,
+      peelAngle: 0.5, edgeTowardCamera: 139, slackBeforeTear: 0.87, edgeFollowsHand: 0.78, maxTearSpeed: 24,
+      fibreCatch: 0.7, pinchTwist: 0, tearsStraightUp: 0.15, highlight: 0.35, perspective: 1780, volume: 0.5,
       sleeveGrip: 80, sleeveFollows: 0.36, sleeveRimDrag: 1, sleeveFingerPinch: 0.08, sleeveLetGo: 295,
-      stackZoom: 0.3, quickOpenMs: 1000, packGlow: 1, cardGlow: 1, gloss: 0.3, glossSharpness: 0.7, packTilt: 0.6,
+      stackZoom: 0, quickOpenMs: 1000, packGlow: 1, cardGlow: 1, gloss: 0.2, glossSharpness: 0.4, packTilt: 0.6,
       bigPull: 1, bigPullShake: 6, bigPullHoldMs: 450, holo: 1, tease: 1,
     });
     expect(m.getPackFeel()).toEqual(m.DEFAULT_PACK_FEEL);

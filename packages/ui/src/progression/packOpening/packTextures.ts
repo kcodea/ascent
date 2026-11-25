@@ -449,28 +449,119 @@ export function paintPlainBack(look: PackLook, art: BackArt = {}, into?: HTMLCan
   return c;
 }
 
-/** The guaranteed card's ribbon: "Guaranteed <floor>+", laid across the lower back. */
-export function paintRibbon(floor: CrateRarity): HTMLCanvasElement {
-  const w = CW * 0.92, h = 76;
-  const { c, g } = canvas(w, h);
+/** The guaranteed seal's painted size (px): a square, half the card's width. */
+export const SEAL_PX = Math.round(CW * 0.5);
+
+/**
+ * THE GUARANTEED SEAL (owner 2026-11-25: "the 'guaranteed X' banner on the card back is pretty lame ... make it a bit
+ * more fun"). The pack's promise is stamped on the guaranteed card's back as an embossed rosette in the rarity's own
+ * colour: a scalloped rim, the words running round it ("GUARANTEED" over the top, "EPIC OR BETTER" under), and the
+ * rarity's medallion (`medal`, once its image has loaded; a star until then) set in the middle. `into` repaints an
+ * existing canvas in place (the medallion arrives after init).
+ */
+export function paintRibbon(floor: CrateRarity, medal?: CanvasImageSource, into?: HTMLCanvasElement): HTMLCanvasElement {
+  const S = SEAL_PX;
+  const c = into ?? canvas(S, S).c;
+  const g = c.getContext('2d')!;
+  g.clearRect(0, 0, S, S);
   const col = PACK_RARITY_COLORS[floor];
+  const cx = S / 2, cy = S / 2, R = S * 0.46;
+  // a soft shadow under the seal: it sits ON the card
+  g.save();
+  g.shadowColor = 'rgba(0,0,0,.6)'; g.shadowBlur = S * 0.05; g.shadowOffsetY = S * 0.02;
+  // the scalloped rim
+  const SCALLOPS = 18;
   g.beginPath();
-  g.moveTo(0, 0); g.lineTo(w, 0); g.lineTo(w - 22, h / 2); g.lineTo(w, h); g.lineTo(0, h); g.lineTo(22, h / 2);
+  for (let i = 0; i <= 360; i += 2) {
+    const th = (i * Math.PI) / 180, r = R * (0.955 + 0.045 * Math.cos(th * SCALLOPS));
+    const x = cx + Math.cos(th) * r, y = cy + Math.sin(th) * r;
+    if (i === 0) g.moveTo(x, y); else g.lineTo(x, y);
+  }
   g.closePath();
-  const gr = g.createLinearGradient(0, 0, 0, h);
-  gr.addColorStop(0, '#2a1d08');
-  gr.addColorStop(1, '#120c03');
-  g.fillStyle = gr;
+  const rim = g.createRadialGradient(cx - R * 0.3, cy - R * 0.35, R * 0.1, cx, cy, R);
+  rim.addColorStop(0, '#ffffff');
+  rim.addColorStop(0.25, col);
+  rim.addColorStop(1, shade(col, 0.42));
+  g.fillStyle = rim;
   g.fill();
-  g.lineWidth = 4;
-  g.strokeStyle = col;
+  g.restore();
+  g.lineWidth = Math.max(2, S * 0.012);
+  g.strokeStyle = shade(col, 0.3);
   g.stroke();
+  // pleats: fine rays from the middle to the rim, like a pressed foil seal
+  g.save();
+  g.globalAlpha = 0.22;
+  g.strokeStyle = '#ffffff';
+  g.lineWidth = 1;
+  for (let i = 0; i < SCALLOPS * 2; i++) {
+    const th = (i / (SCALLOPS * 2)) * Math.PI * 2;
+    g.beginPath(); g.moveTo(cx + Math.cos(th) * R * 0.66, cy + Math.sin(th) * R * 0.66); g.lineTo(cx + Math.cos(th) * R * 0.93, cy + Math.sin(th) * R * 0.93); g.stroke();
+  }
+  g.restore();
+  // the inner well, where the medallion sits
+  const well = g.createRadialGradient(cx, cy - R * 0.1, R * 0.05, cx, cy, R * 0.62);
+  well.addColorStop(0, '#2a3566');
+  well.addColorStop(1, '#0c1024');
+  g.beginPath(); g.arc(cx, cy, R * 0.6, 0, Math.PI * 2); g.fillStyle = well; g.fill();
+  g.lineWidth = Math.max(2, S * 0.014); g.strokeStyle = '#ffe2a0'; g.stroke();
+  g.beginPath(); g.arc(cx, cy, R * 0.655, 0, Math.PI * 2); g.lineWidth = 1.2; g.strokeStyle = shade(col, 0.35); g.stroke();
+  // the words round the rim
+  const ink = shade(col, 0.16);
+  arcText(g, 'GUARANTEED', cx, cy, R * 0.79, -Math.PI / 2, S * 0.082, ink, false);
+  arcText(g, floor === 'ancient' ? 'ANCIENT' : `${packRarityLabel(floor).toUpperCase()} OR BETTER`, cx, cy, R * 0.79, Math.PI / 2, S * 0.074, ink, true);
+  // the medallion (or a star until it loads)
+  if (medal) {
+    const m = R * 1.08;
+    g.drawImage(medal, cx - m / 2, cy - m / 2, m, m);
+  } else {
+    g.fillStyle = col;
+    g.beginPath();
+    for (let k = 0; k < 8; k++) {
+      const a2 = (k / 8) * Math.PI * 2 - Math.PI / 2, rad = k % 2 ? R * 0.14 : R * 0.42;
+      g.lineTo(cx + Math.cos(a2) * rad, cy + Math.sin(a2) * rad);
+    }
+    g.closePath(); g.fill();
+  }
+  // a glint across the upper left of the rim
+  const glint = g.createLinearGradient(cx - R, cy - R, cx, cy);
+  glint.addColorStop(0, 'rgba(255,255,255,.34)');
+  glint.addColorStop(0.5, 'rgba(255,255,255,0)');
+  g.save();
+  g.beginPath(); g.arc(cx, cy, R * 0.95, 0, Math.PI * 2); g.arc(cx, cy, R * 0.66, 0, Math.PI * 2, true); g.clip('evenodd');
+  g.fillStyle = glint; g.fillRect(0, 0, S, S);
+  g.restore();
+  return c;
+}
+
+/** `hex` darkened to `k` of its brightness (0..1). */
+function shade(hex: string, k: number): string {
+  const n = parseInt(hex.slice(1), 16);
+  const f = (v: number): number => Math.round(v * k);
+  return `rgb(${f((n >> 16) & 255)},${f((n >> 8) & 255)},${f(n & 255)})`;
+}
+
+/** Text set along a circle of radius `r`, centred on angle `mid`; `under` reads left to right along the bottom. */
+function arcText(g: Ctx, text: string, cx: number, cy: number, r: number, mid: number, size: number, fill: string, under: boolean): void {
+  g.save();
+  g.font = `900 ${size}px ${SERIF}`;
+  g.fillStyle = fill;
   g.textAlign = 'center';
   g.textBaseline = 'middle';
-  g.fillStyle = col;
-  g.font = `bold 30px ${SERIF}`;
-  g.fillText(`GUARANTEED ${packRarityLabel(floor).toUpperCase()}+`, w / 2, h / 2 + 2, w - 70);
-  return c;
+  const gap = size * 0.14;
+  const widths = [...text].map((ch) => g.measureText(ch).width + gap);
+  const total = widths.reduce((a2, b2) => a2 + b2, 0);
+  let at = -total / 2;
+  [...text].forEach((ch, i) => {
+    const w = widths[i]!, off = (at + w / 2) / r;
+    const th = under ? mid - off : mid + off;
+    g.save();
+    g.translate(cx + Math.cos(th) * r, cy + Math.sin(th) * r);
+    g.rotate(under ? th - Math.PI / 2 : th + Math.PI / 2);
+    g.fillText(ch, 0, 0);
+    g.restore();
+    at += w;
+  });
+  g.restore();
 }
 
 /**

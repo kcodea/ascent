@@ -29,17 +29,17 @@ import { packArtFor, packShineFor } from './packArt';
 import { packGlowRarity } from './packGlow';
 import { packHoloHue, packHoloStrength } from './packHolo';
 import { makeHoloMaterial, makeHoloMesh, type HoloMesh, type HoloUniformValues } from './packHoloMesh';
-import { CARD_BACK_LOGO_SRC, CARD_BACK_PLATE_SRC, CARD_WINDOW_MASK_SRC } from './packRarity';
+import { CARD_BACK_LOGO_SRC, CARD_BACK_PLATE_SRC, CARD_WINDOW_MASK_SRC, rarityIconSrc } from './packRarity';
 import { StripMesh, TornLip } from './stripMesh';
 
 const { W, H, BODY_H, CARD_W, CARD_H } = PACK_GEOM;
 
 /** The stack's resting centre (inside the sleeve, its top showing at the opening). */
 export const CARDS_Y = H * 0.42 + CARD_H / 2;
-/** The guaranteed ribbon's centre below the card's centre (the same fraction of the card's height at any CARD_H). */
-export const RIBBON_DY = Math.round(CARD_H * (108 / 370));
-/** The ribbon's half size on the card (base units). */
-export const RIBBON_HW = (CARD_W * 0.92) / 2, RIBBON_HH = 19;
+/** The guaranteed SEAL's centre below the card's centre: under the logo, in the lower part of the back. */
+export const RIBBON_DY = Math.round(CARD_W * 0.47);
+/** The seal's half size on the card (base units): a square, half the card wide. */
+export const RIBBON_HW = CARD_W * 0.25, RIBBON_HH = CARD_W * 0.25;
 /** The back wall's inset from the pack's sides and bottom (base units). */
 const BACK_INSET = 6;
 /** Pooled foil flecks. */
@@ -234,7 +234,13 @@ export function buildPackViews(look: PackLook, n: number, own: (t: Texture) => v
   fade.anchor.set(0.5); fade.width = CARD_W; fade.height = CARD_H; fade.visible = false;
   const flash = new Sprite(keep(paintCardFlash()));
   flash.anchor.set(0.5); flash.scale.set(1 / TEX_RES); flash.blendMode = 'add'; flash.visible = false;
-  const ribbonTex = keep(paintRibbon(look.guaranteedFloor));
+  const ribbonCanvas = paintRibbon(look.guaranteedFloor);
+  const ribbonTex = keep(ribbonCanvas);
+  // the rarity's medallion sets into the seal once its image has loaded
+  loadImage(rarityIconSrc(look.guaranteedFloor), (img) => {
+    if (ribbonTex.destroyed) return;
+    try { paintRibbon(look.guaranteedFloor, img, ribbonCanvas); ribbonTex.source.update(); } catch { /* the star stays */ }
+  });
   const ribbon = new Sprite(ribbonTex);
   ribbon.anchor.set(0.5); ribbon.scale.set(1 / TEX_RES); ribbon.visible = false;
   cardsC.addChild(glow, fade, flash, ribbon);
@@ -303,7 +309,7 @@ export function buildPackViews(look: PackLook, n: number, own: (t: Texture) => v
   const flipLayer = new Container();
   const flipper = new PerspectiveMesh({ texture: tex.plain, verticesX: 12, verticesY: 12 });
   flipper.visible = false;
-  const flipRibbon = new PerspectiveMesh({ texture: ribbonTex, verticesX: 6, verticesY: 2 });
+  const flipRibbon = new PerspectiveMesh({ texture: ribbonTex, verticesX: 6, verticesY: 6 });
   flipRibbon.visible = false;
   flipLayer.addChild(flipper, flipRibbon);
   root.addChild(flipLayer);

@@ -30,11 +30,14 @@ for it (`versusHeroSelectMs`), so **a Worker deploy is part of shipping a change
 1. The painting, 21:9 (ours are 6336 x 2688), full detail. `C:/Game Assets/Ascent Art/Locations/<Place>/<Place>4k.jpg`.
 2. The same painting with every near piece REMOVED (`...4kBG.jpg`), same size and registration. This is the one input that makes
    the parallax clean; without it, what is behind a piece has to be invented and it shows.
-   The owner makes it in ChatGPT from maps we cut: trace the pieces first, then hand over `parallax/0-full-painting.png`,
-   `1-background-blurry.png` and `2-background-holes-magenta.png` with a prompt (`Locations/background-prompts.md`). What comes back
+   The owner makes it in ChatGPT from maps we cut: trace the pieces first (`crop.py`), then `layers.py <id> <dir> maps` and hand over
+   `parallax/0-full-painting.png`, `1-background-blurry.png` and `2-background-holes-magenta.png` with a prompt (`Locations/background-prompts.md`;
+   its shape is in the skill's `method.md`). What comes back
    may have drifted a few pixels: `make(..., align=True)` moves it onto the painting (the Scrapyard needed it, the Barriers did not).
 3. One square picture a tribe (600 x 600), for the parchments.
 4. The name, the announcer's line, and the mood of its magic (two colours).
+
+The method and the bar, step by step: [`.claude/skills/ascent-locations/method.md`](../.claude/skills/ascent-locations/method.md).
 
 **Then, in order** (scripts in `scripts/locations/`, run from the repo root; they need Python with numpy, scipy and Pillow):
 
@@ -54,7 +57,7 @@ for it (`versusHeroSelectMs`), so **a Worker deploy is part of shipping a change
    rest (needs the dev server).
 6. Sound: `sound.mjs`. Per location: `ride-<id>`, `ambience-<id>`, `vo-<id>` (the Announcer voice, slower than the game's 0.89). The rest is
    shared. Set the two levels in `mix` (clips come back at very different loudness:
-   measure them against the others). The ElevenLabs key is Mike's, in `.env.secrets`, read at run time: never print or commit it, report the credits used.
+   measure them with `loudness.mjs` against the others). The ElevenLabs key is Mike's, in `.env.secrets`, read at run time: never print or commit it, report the credits used.
 7. Tests: `locationReveal.test.ts` checks every location's files, lights and posters; add the new one's expectations.
 8. Rules, patch note, devlog in the same PR.
 
@@ -103,7 +106,7 @@ reduced motion; `phone-budgets` in CI (300 MB, 6 GL contexts, 80 MB decoded audi
 
 **Cuts are found, not drawn** (owner 2026-11-25: "Be very precise with our movement cuts"): with `snap` on, an outline is only a guide (a band of 5 to 9
 px); the edge is a graph cut on the painting's own colours near it, then matted in 2 px. Lattices are colour `key` zones; `open` zones let the light
-through where an outline was drawn solid. Check EVERY piece alone on flat magenta, zoomed, before showing it. A piece cut from the ground must take
+through where an outline was drawn solid. Check EVERY piece alone on flat magenta, zoomed (`proof.py`), before showing it. A piece cut from the ground must take
 everything that stands on it (a post left behind is seen twice).
 
 **Rigid or bending ground** (owner 2026-11-25, the Rune Barriers: "warping and not really all that exciting"): a depth map that bends the ground

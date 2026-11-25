@@ -3,7 +3,8 @@
    piece's own colour is carried out under its soft edge, so no rim of background travels with it.
  - BEHIND: what a piece hides continues as the mirror of what is beside it (real texture), easing into a smooth fill.
  - FEET: where a piece stands on something it is faded in, and the ground under it has the piece's own depth, so nothing slides.
-python scripts/locations/layers.py [o|u|s|r] [proof-dir]   (from the repo root; see docs/locations.md)"""
+python scripts/locations/layers.py [o|u|s|r] [proof-dir]        (from the repo root; see docs/locations.md)
+python scripts/locations/layers.py [o|u|s|r] [proof-dir] maps   (before there is a background: the maps the owner makes it from, into proof-dir)"""
 import os
 import sys
 import numpy as np
@@ -11,7 +12,7 @@ from PIL import Image, ImageDraw, ImageFilter
 from scipy import sparse
 from scipy.sparse.linalg import cg
 from scipy.sparse.csgraph import maximum_flow
-from scipy.ndimage import binary_dilation, binary_erosion, distance_transform_edt, gaussian_filter, gaussian_filter1d, label, map_coordinates, uniform_filter
+from scipy.ndimage import binary_closing, binary_dilation, binary_erosion, distance_transform_edt, gaussian_filter, gaussian_filter1d, label, map_coordinates, uniform_filter
 
 Image.MAX_IMAGE_PIXELS = None
 OUT_H = 1440
@@ -20,7 +21,9 @@ W, H = OUT_W, OUT_H
 S = W / 1980
 PUB = 'apps/web/public/locations/'
 ART = os.environ.get('LOCATION_ART', r'C:/Game Assets/Ascent Art/Locations/')
-PREV = (sys.argv[2] if len(sys.argv) > 2 else os.environ.get('TEMP', '.')) + '/'
+MAPS = 'maps' in sys.argv
+ARGS = [a for a in sys.argv[1:] if a != 'maps']
+PREV = (ARGS[1] if len(ARGS) > 1 else os.environ.get('TEMP', '.')) + '/'
 DEP = [0, .30, .52, 1.0]
 
 
@@ -281,9 +284,51 @@ def registered(I, B, hole):
     return np.stack([map_coordinates(B[..., i], [Y + fy, X + fx], order=1, mode='nearest') for i in range(3)], -1)
 
 
+def maps(tag, master, specs):
+    """what the owner makes the background from: the painting, the same with every piece cut out in magenta, and with the holes
+    blurred; and `cut-*`, the outlines over the painting, to check the tracing before anyone paints to it"""
+    I = np.asarray(master.resize((W, H), Image.LANCZOS), float) / 255
+    lum = I @ np.array([.30, .59, .11])
+    vis, total = I * .75, np.zeros((H, W), bool)
+    for li, tint in {1: (60, 200, 255), 2: (255, 220, 40), 3: (255, 60, 200)}.items():
+        m = np.zeros((H, W), bool)
+        for polys, holes, band in specs[li]['groups']:
+            s = raster(polys) > .5
+            m |= s & ~(raster(holes) > .5) if holes else s
+        for zone, fn in specs[li].get('key', []):
+            f, b = fn(I, lum)
+            m |= (raster([zone]) > .5) & ~b & binary_dilation(f, iterations=2)
+        edge, t = m & ~binary_erosion(m, iterations=3), np.array(tint) / 255
+        vis = np.where(m[..., None], vis * .72 + t * .28, vis)
+        vis = np.where(edge[..., None], t, vis)
+        total |= m
+    Image.fromarray(np.uint8(np.clip(vis, 0, 1) * 255)).resize((1980, 840), Image.LANCZOS).save(PREV + f'cut-{tag}.png')
+    hole = binary_dilation(total, iterations=22)
+    hole = binary_closing(hole, iterations=12) | hole
+    lab, n = label(~hole)              # tiny islands left inside a piece are noise: cut them too
+    if n:
+        hole |= (np.bincount(lab.ravel()) < 6000)[lab] & ~hole
+    Image.fromarray(np.uint8(I * 255)).save(PREV + f'{tag}-0-full-painting.png')
+    w = (~hole).astype(float)
+    acc, got = np.zeros_like(I), np.zeros((H, W))
+    for s in (14, 40, 100, 240):
+        q = gaussian_filter(w, s)
+        c = np.stack([gaussian_filter(I[..., i] * w, s) for i in range(3)], -1) / np.maximum(q, 1e-5)[..., None]
+        t = np.clip(q / .08, 0, 1) * (1 - got)
+        acc += c * t[..., None]
+        got += t
+    acc /= np.maximum(got, 1e-5)[..., None]
+    k = gaussian_filter(hole.astype(float), 2)[..., None]
+    Image.fromarray(np.uint8(np.clip(I * (1 - k) + acc * k, 0, 1) * 255)).save(PREV + f'{tag}-1-background-blurry.png')
+    Image.fromarray(np.uint8(np.where(hole[..., None], np.array([1., 0, 1]), I) * 255)).save(PREV + f'{tag}-2-background-holes-magenta.png')
+    print(tag, 'cut out', round(hole.mean() * 100, 1), '%', flush=True)
+
+
 def make(tag, folder, file, specs, depth, wind, water, back=None, align=False):
     """The painting itself is the ground; the owner's background shows only where a piece hides it. So nothing can be lost."""
     master = Image.open(ART + file).convert('RGB')
+    if MAPS:
+        return maps(tag, master, specs)
     I = np.asarray(master.resize((W, H), Image.LANCZOS), float) / 255
     B = np.asarray(Image.open(ART + (back or file.replace('4k.jpg', '4kBG.jpg'))).convert('RGB').resize((W, H), Image.LANCZOS), float) / 255
     lum = I @ np.array([.30, .59, .11])
@@ -744,5 +789,5 @@ def runebarriers():
 
 
 PLACES = {'o': outskirts, 'u': underbelly, 's': scrapyard, 'r': runebarriers}
-for k in (sys.argv[1:2] or list(PLACES)):
+for k in (ARGS[:1] or list(PLACES)):
     PLACES[k]()

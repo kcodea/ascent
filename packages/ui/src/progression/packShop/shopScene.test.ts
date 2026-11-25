@@ -26,7 +26,7 @@ vi.mock('pixi.js', async (importOriginal) => {
 });
 
 import type { OwnedPack, PackOffer } from '@game/progression';
-import { createShopScene, type ShopSceneEvents } from './shopScene';
+import { createShopScene, hoverAllowed, type ShopSceneEvents } from './shopScene';
 import { createShopSounds } from './shopSounds';
 
 const LOOK = { kind: 'rarity', id: 'rare', name: 'Rare Pack', guaranteedFloor: 'rare' } as const;
@@ -94,5 +94,25 @@ describe('shopScene: no Pixi', () => {
     scene.destroy();
     await flush();
     expect(fired).toEqual([]);
+  });
+});
+
+describe('hoverAllowed', () => {
+  // (pointerOn, inputOn, shown, sliding, scrollDrag, scrolling)
+  it('a still rack under a live pointer can be hovered', () => {
+    expect(hoverAllowed(true, true, true, false, false, false)).toBe(true);
+  });
+
+  it('no hover while the scroll is still easing to its target (the rect would go stale); back once it settles', () => {
+    expect(hoverAllowed(true, true, true, false, false, true)).toBe(false);
+    expect(hoverAllowed(true, true, true, false, false, false)).toBe(true);
+  });
+
+  it('no hover during a tab slide, a scroll drag, with input off, hidden, or with no pointer', () => {
+    expect(hoverAllowed(true, true, true, true, false, false)).toBe(false);
+    expect(hoverAllowed(true, true, true, false, true, false)).toBe(false);
+    expect(hoverAllowed(true, false, true, false, false, false)).toBe(false);
+    expect(hoverAllowed(true, true, false, false, false, false)).toBe(false);
+    expect(hoverAllowed(false, true, true, false, false, false)).toBe(false);
   });
 });

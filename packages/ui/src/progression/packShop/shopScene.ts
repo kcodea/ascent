@@ -16,7 +16,8 @@
  *    drag on empty shelf space and `scrollBy` move the target. A tab change (`setShelf` with another shelf) slides the
  *    old rack out and the new one in with one overshoot. `onCentre` fires when the scroll settles on a new offer.
  *  - Hover (mouse / pen: touch has no hover): the pack under the pointer lifts, tilts toward it with the opener's tilt
- *    maths and gloss (`packTilt.ts`), and `onHover` reports it with its lifted rect.
+ *    maths and gloss (`packTilt.ts`), and `onHover` reports it with its lifted rect. There is no hover while the rack moves
+ *    (`hoverAllowed`), so a reported rect never goes stale; it is re-picked from the pointer's last place once settled.
  *  - The hand, the carry and the counter (`setHand`, `setAffordable`, `buySettled`, `onPickUp`, `onOverLine`, `onDrop`)
  *    are the next part: today those calls are only kept.
  *  - One ticker; no allocation per frame; a pack whose pose `alpha` is 0 is not drawn. The ticker idles when nothing
@@ -100,6 +101,17 @@ const ASPECT = PACK_GEOM.W / (PACK_GEOM.H + PACK_GEOM.BODY_H);
 const STAGE_ENERGY = 0.34;
 
 const SLIDE_NONE = 0, SLIDE_OUT_PHASE = 1, SLIDE_IN_PHASE = 2;
+
+/**
+ * Whether a pack may be hovered this frame. Never while the rack moves (a tab slide, a scroll drag, or the scroll still
+ * easing to its target): a hovered pack's reported rect would go stale as it travels. Once the rack settles the scene
+ * re-picks the hover from the pointer's last position (it need not move) and reports the settled rect.
+ */
+export function hoverAllowed(
+  pointerOn: boolean, inputOn: boolean, shown: boolean, sliding: boolean, scrollDrag: boolean, scrolling: boolean,
+): boolean {
+  return pointerOn && inputOn && shown && !sliding && !scrollDrag && !scrolling;
+}
 
 const easeOutBack = (u: number): number => {
   const c3 = SLIDE_BACK + 1, v = u - 1;
@@ -454,7 +466,9 @@ class ShopSceneImpl implements ShopScene {
   /** Which pack is under the pointer (as drawn: with its current lift), and the pointer's aim over it. */
   private hoverStep(): void {
     let slot = -1;
-    if (this.pointerOn && this.inputOn && this.fade.to > 0 && this.slide.phase === SLIDE_NONE && !this.scrollDrag.active) {
+    // (positional, not an options object: this runs every frame and allocates nothing)
+    if (hoverAllowed(this.pointerOn, this.inputOn, this.fade.to > 0, this.slide.phase !== SLIDE_NONE, this.scrollDrag.active,
+      this.scroll !== this.target)) {
       slot = this.packAt(this.pointer.x, this.pointer.y);
       if (slot >= 0) {
         const q = this.lifted; // posed by packAt for the hit

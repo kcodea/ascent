@@ -5,7 +5,7 @@
  * pick, the Last Call, shipped as "Rune of Closing Time" (the Set 2 `rune_last_call` owns "Rune of Last Call").
  */
 import { describe, expect, it } from 'vitest';
-import { ALE_IDS, RUBY_TYPE_IDS, type CardDef } from '@game/core';
+import { ALE_IDS, type CardDef, SPECIAL_RUBY_IDS } from '@game/core';
 import { CARD_INDEX, RUNE_INDEX } from '@game/content';
 import { applyEndOfTurn, applyGoldSpent, castSpell, destroyMinionInShop, displayedStatsOf, grimToastFold, makeContext, mintRubies, raiseUndeadAuraShop, GEM_STAR_CAP } from './recruit';
 import { questCombatMods } from './reducer';
@@ -63,7 +63,7 @@ describe('the tranche 4 roster (owner 2026-09-27)', () => {
     }
     expect(RUNE_INDEX['rune_tavern_tab']).toBeUndefined();
     // The owner's texts, verbatim.
-    expect(RUNE_INDEX['rune_minted_gems']!.text).toBe('Every **8 Gold** spent, get a random **Ruby**.');
+    expect(RUNE_INDEX['rune_minted_gems']!.text).toBe('Every **8 Gold** spent, get a **Special Ruby**.');
     expect(RUNE_INDEX['rune_grim_toast']!.text).toBe('Your **Dwarves** also get your **Undead Aura**.');
     expect(RUNE_INDEX['rune_closing_time']!.text).toBe('When you **Sell** a **Reveler**, get a **Dwarven Ale**.');
     expect(RUNE_INDEX['rune_keepsake_gem']!.text).toBe('Your **Rubies** also cast on the left-most minion in your hand.');
@@ -79,7 +79,7 @@ describe('Rune of Minted Gems', () => {
     applyGoldSpent(s, 1);
     const rubies = s.hand.filter((c) => CARD_INDEX[c.cardId]?.ruby);
     expect(rubies).toHaveLength(1);
-    expect(RUBY_TYPE_IDS).toContain(rubies[0]!.cardId);
+    expect(SPECIAL_RUBY_IDS).toContain(rubies[0]!.cardId);
     applyGoldSpent(s, 16);
     expect(s.hand.filter((c) => CARD_INDEX[c.cardId]?.ruby)).toHaveLength(3);
   });

@@ -138,7 +138,8 @@ export const KEYWORD_GLOSSARY: KeywordDef[] = [
 
   // ── Spells & tokens ────────────────────────────────────────────────────────────────────────────────────────
   { id: 'shopspell', name: 'Shop spell', aliases: ['Shop spells', 'Shop Spell', 'Shop Spells'], section: 'tokens', icon: 'mana', def: 'A spell offered from the shop. Cannot be sold.' },
-  { id: 'ruby', name: 'Ruby', aliases: ['Rubies'], section: 'tokens', icon: 'ember', def: 'A Kobold spell that can be applied to minions to permanently increase their stats. Not a shop spell.' },
+  { id: 'ruby', name: 'Ruby', aliases: ['Rubies'], match: /(?<![A-Za-z])(?<!Special )(?:Ruby|Rubies)(?![A-Za-z])/, section: 'tokens', icon: 'ember', def: 'A Kobold spell that can be applied to minions to permanently increase their stats. Not a shop spell.' },
+  { id: 'specialruby', name: 'Special Ruby', aliases: ['Special Rubies'], section: 'tokens', icon: 'ember', def: 'A Ruby that is not the plain one: Warding, Golden, Splintered, Ripple or Dark, each as likely. It does something extra on a Kobold.' },
   { id: 'ale', name: 'Dwarven Ale', aliases: ['Ale', 'Ales'], section: 'tokens', icon: 'flame', def: 'A set of Dwarf spells that provide various benefits. Count as shop spells.' },
   // Gifts (owner design 2026-08-26): a spell class of its own — see `cards/gifts.ts`.
   { id: 'gift', name: 'Gift', aliases: ['Gifts'], section: 'tokens', icon: 'gift', def: 'A free spell put into your hand by a rune, hero or card. It casts like any spell but is never a Shop spell: never in the Shop and never copied, and only a rune that says so can Discover one.' },

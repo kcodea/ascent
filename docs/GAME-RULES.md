@@ -2603,7 +2603,7 @@ that much Health; a Health gain never re-fires it), the Satchel (Epic: a card ad
 
 **Design pass tranche 4: hybrids (owner 2026-09-27)** adds 8 Set-3-only runes, each gated to its two tribes (**200
 runes, 107 Basic / 93 Epic**; with the restored Festival Circuit and Soul Script, 10 hybrids, one per tribe pair).
-Basic: Minted Gems (Kobold + Dwarf: every 8 Gold spent gets a random Ruby), the Gem Crypt (Kobold + Undead: a friendly
+Basic: Minted Gems (Kobold + Dwarf: every 8 Gold spent gets a Special Ruby), the Gem Crypt (Kobold + Undead: a friendly
 minion that Rises comes back with the Ruby stats it had), the Pallbearer (Undead + Spirit: a friendly Undead death gives
 the left-most minion in your hand +2/+2), the Star Tap (Dwarf + Celestial: a Dwarven Ale cast gives your Starform
 +3/+3), **Closing Time** (Dwarf + Spirit, the owner's "Last Call", renamed because Set 2's Last Call owns that
@@ -3348,12 +3348,12 @@ rider that fires only when the Ruby's **target is a Kobold** (dual-tribe and All
 | Ripple Ruby | +1/+1 | it casts again on the same minion (a real cast, never a third) |
 | Dark Ruby | +1/+1 | it consumes the Shop minion with the highest Health (ties: leftmost; the Starform counts) and gains its stats as Rubies; no Shop minion, no consume |
 
-- **"A random Ruby"** is any of the six at equal odds, each Ruby drawn separately (Ruby Shipment, Kobe, Gem Sage,
-  Resonance, Investment). "Get N Rubies" without "random" stays plain Rubies.
+- **"A Special Ruby"** (the word for a random Ruby since 2026-11-25) is any of the five that are not plain, at equal odds, each drawn
+  separately (Ruby Shipment, Kobe, Gem Sage, Resonance, Investment). "Get N Rubies" is plain Rubies.
 - A rider resolves **once per cast** on the direct target; a cast multiplier repeats the whole cast (under
   Resonance a Ripple lands four times). A **hop** (a bounce, Redirection / Distillation) carries the
   stats and the Ward only.
-- **Gem Sage** pays a random Ruby for every Ruby that reaches your hand; a Sage's own Rubies never re-trigger a
+- **Gem Sage** pays a Special Ruby for every Ruby that reaches your hand; a Sage's own Rubies never re-trigger a
   Sage. A Ruby won in combat reaches the hand at settle, so the Sage pays there.
 - The special Rubies are only ever cast from the hand in the Shop today; no combat effect casts one.
 
@@ -3519,12 +3519,12 @@ Seven Epic runes, Set 3 only, offered when Dragon is one of the run's tribes.
 
 Five runes, Set 3 only, offered when Kobold is one of the run's tribes. Each copy held pays its own share.
 
-- **Refreshing Rubies** (Basic, 2): "When you Refresh 4 times, get a random Ruby." Counts every Refresh you press, a free
+- **Refreshing Rubies** (Basic, 2): "When you Refresh 4 times, get a Special Ruby." Counts every Refresh you press, a free
   one included (the Rosey / Indy meter); the new turn's Shop and rune, hero or spell refreshes do not count. A running
   meter: it carries across turns and repeats. The rune shows a plain N/4 counter.
-- **Ruby Sales** (Basic, 1): "When you Sell 3 minions, get a random Ruby." Every minion you Sell counts (board or hand,
+- **Ruby Sales** (Basic, 1): "When you Sell 3 minions, get a Special Ruby." Every minion you Sell counts (board or hand,
   a spell that Sells included). A running meter with a plain N/3 counter.
-- Both pay one random Ruby (any of the six types, R-RAND-02). They respect the hand cap: a full hand gets nothing.
+- Both pay one Special Ruby (R-RUBY-SPECIAL-01). They respect the hand cap: a full hand gets nothing.
 - **Goleming** (Basic, 2): "Avenge (5): summon a Gemheart Golem and cast 6 Rubies on it." Combat only (Avenge); Fury
   repeats it. A plain summon: on a full board the Golem is lost, and its Rubies with it. The Golem casts 6 plain Rubies
   on itself (real casts: your Ruby strength, Rosey and Rosey's Garden all count them). The Golem lasts the fight.

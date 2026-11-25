@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { combatSide, makeRng, simulate, RUBY_TYPE_IDS, type BoardMinion } from '@game/core';
+import { combatSide, makeRng, simulate, type BoardMinion, SPECIAL_RUBY_IDS } from '@game/core';
 import { CARD_INDEX, poolFor } from '@game/content';
 import { createRun, reduce, type Action, type BoardCard, type RunState } from './index';
 import { applyEndOfTurn, endOfTurnTicksOf, eotTickCount } from './recruit';
@@ -129,7 +129,7 @@ describe('Ruby stat-gain numbers', () => {
     s = act(run({ hand: [body('c', 'k_veinbreaker')] }), { type: 'play', uid: 'c' });
     s = act(s, { type: 'chooseOne', index: 1 });
     expect(rubiesInHand(s)).toHaveLength(4);
-    for (const r of rubiesInHand(s)) expect(RUBY_TYPE_IDS).toContain(r.cardId);
+    for (const r of rubiesInHand(s)) expect(r.cardId, 'plain Rubies').toBe('ruby');
   });
   it('Cave Cutter: Rune of the Unbroken Vein still grants BOTH halves', () => {
     const s = act(run({ runeUnbrokenVein: true, hand: [body('c', 'k_veinbreaker')] } as Partial<RunState>), { type: 'play', uid: 'c' });
@@ -139,15 +139,15 @@ describe('Ruby stat-gain numbers', () => {
   });
 });
 
-describe('random-Ruby grants', () => {
-  it('Prospector: Shout gets ONE random Ruby (Gilded 2)', () => {
+describe('Ruby grants', () => {
+  it('Prospector: Shout gets ONE plain Ruby (Gilded 2)', () => {
     for (const [golden, n] of [[false, 1], [true, 2]] as const) {
       const s = act(run({ hand: [body('p', 'k_chipwick', { golden })] }), { type: 'play', uid: 'p' });
       expect(rubiesInHand(s)).toHaveLength(n);
-      for (const r of rubiesInHand(s)) expect(RUBY_TYPE_IDS).toContain(r.cardId);
+      for (const r of rubiesInHand(s)) expect(r.cardId).toBe('ruby');
     }
   });
-  it('Beggy: Sell gets ONE random Ruby (Gilded 2)', () => {
+  it('Beggy: Sell gets ONE Special Ruby (Gilded 2)', () => {
     for (const [golden, n] of [[false, 1], [true, 2]] as const) {
       const s = act(run({ board: [body('b', 'k_beggy', { golden })] }), { type: 'sell', uid: 'b' } as Action);
       expect(rubiesInHand(s)).toHaveLength(n);
@@ -165,7 +165,7 @@ describe('random-Ruby grants', () => {
     const r = simulate([{ cardId: 'k_tunnelcharger', attack: 3, health: 300, sourceUid: 'T', keywords: ['RL'] } as BoardMinion],
       [{ cardId: 'sandbag', attack: 0, health: 3 }], makeRng(2), CARD_INDEX, combatSide({ tier: 6 }), combatSide({ tier: 1 }));
     expect(r.playerRubyGrantIds ?? []).toHaveLength(1);
-    for (const id of r.playerRubyGrantIds ?? []) expect(RUBY_TYPE_IDS).toContain(id);
+    for (const id of r.playerRubyGrantIds ?? []) expect(SPECIAL_RUBY_IDS).toContain(id);
     expect(r.playerRubyGrants ?? 0, 'none are plain-Ruby mints').toBe(0);
   });
 });

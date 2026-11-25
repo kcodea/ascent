@@ -24,7 +24,7 @@ import type {
   Side,
   Tribe,
 } from '../types';
-import { ALE_IDS, DRAGON_RUNES_BASIC, ENGRAVE_KEEPS_KEYWORDS, RUBY_TYPE_IDS, damageMeterOf, alignAllows, extraTriggerContributors, extraTriggerFires, boardShoutExtras, foldEchoExtraFires, socTwilightExtraFires, COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, GOLEMING_AVENGE, GOLEMING_RUBIES, ROSEYS_GARDEN_GAIN, RUPTURED_RUBY_BOUNCES, soulFurnaceHealth } from '../types';
+import { ALE_IDS, DRAGON_RUNES_BASIC, ENGRAVE_KEEPS_KEYWORDS, SPECIAL_RUBY_IDS, damageMeterOf, alignAllows, extraTriggerContributors, extraTriggerFires, boardShoutExtras, foldEchoExtraFires, socTwilightExtraFires, COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, GOLEMING_AVENGE, GOLEMING_RUBIES, ROSEYS_GARDEN_GAIN, RUPTURED_RUBY_BOUNCES, soulFurnaceHealth } from '../types';
 import { SET2_BASIC_NEUTRAL } from '../set2RunesBasicNeutral';
 import { makeRng, type Rng } from '../rng';
 import { CombatBus } from '../events';
@@ -2055,14 +2055,14 @@ export function simulate(
       }
     },
     grantRandomRubies: (count, side, sourceUid) => {
-      // "Get a random Ruby" (owner Ruby batch 2026-09-24): each Ruby is drawn SEPARATELY from all six types at
+      // "Get a Special Ruby" (R-RUBY-SPECIAL-01): each Ruby is drawn SEPARATELY from the five that are not plain, at
       // equal odds, on the side's grant stream (the player's is the fight RNG, so a replay reproduces it). The
       // drawn TYPE rides the `toHand` so the replay flies the real Ruby; the mint happens at settle through the
       // run's `mintRubies`, baked with the live Ruby strength, the same as `grantRubies`.
       if (count <= 0) return;
       const draw = grantRngFor(side);
       for (let i = 0; i < count; i++) {
-        const id = RUBY_TYPE_IDS[draw.int(RUBY_TYPE_IDS.length)]!;
+        const id = SPECIAL_RUBY_IDS[draw.int(SPECIAL_RUBY_IDS.length)]!;
         rubyGrantIds[side].push(id);
         emit({ type: 'toHand', cardId: id, side, source: sourceUid });
         emitGainCard(id, side);

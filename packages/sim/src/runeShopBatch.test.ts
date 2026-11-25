@@ -9,7 +9,7 @@ import { ALE_IDS, RUBY_ID, applyEndOfTurn, consumeShopMinion, noteSpellCast, rub
  */
 const set2 = (): RunState => ({ ...createRun(1, 'drakko'), setId: 'set2' } as RunState);
 const byName = (n: string) => [...RUNES, ...EPIC_RUNES].find((r) => r.name === n);
-const rubies = (s: RunState) => s.hand.filter((c) => c.cardId === RUBY_ID).length;
+const rubies = (s: RunState) => s.hand.filter((c) => CARD_INDEX[c.cardId]?.ruby).length; // any kind: a Special Ruby is a Ruby
 const ales = (s: RunState) => s.hand.filter((c) => ALE_IDS.includes(c.cardId)).length;
 const minionIdx = (s: RunState) => s.shop.findIndex((o) => !CARD_INDEX[o.cardId]?.spell && !CARD_INDEX[o.cardId]?.ruby);
 const shopMinions = (s: RunState) => s.shop.filter((o) => !CARD_INDEX[o.cardId]?.spell && !CARD_INDEX[o.cardId]?.ruby).length;
@@ -29,8 +29,10 @@ describe('Rune of Investment — selling mints Rubies', () => {
     cur = reduce(cur, { type: 'sell', uid: 'w' });
     expect(rubies(cur), 'the fourth sell mints the payout').toBe(2);
     expect(cur.rubyBonus, 'and improves your Rubies +1/+1').toEqual({ attack: 6, health: 6 });
-    expect(cur.hand.find((c) => c.cardId === RUBY_ID)!.attack, 'minted at the improved strength')
-      .toBe(CARD_INDEX[RUBY_ID]!.attack + 6);
+    for (const c of cur.hand) {
+      expect(c.cardId, 'Special Rubies, never plain').not.toBe(RUBY_ID);
+      expect(c.attack, 'minted at the improved strength').toBe(CARD_INDEX[c.cardId]!.attack + 6);
+    }
     expect(cur.runeSellRubiesSold, 'the meter wraps').toBe(0);
   });
 

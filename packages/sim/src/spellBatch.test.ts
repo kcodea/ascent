@@ -581,10 +581,10 @@ describe('spell batch — Open the Gates', () => {
 describe('spell batch — tranche A (Set 2 Ruby spells)', () => {
   const RUBY = 'ruby';
 
-  it('Ruby Shipment: mints 2 Rubies into hand', () => {
+  it('Ruby Shipment: mints 2 Special Rubies into hand', () => {
     let s: RunState = { ...createRun(1), setId: 'set2', hand: [mkSpell('sp', 'rubyshipment')] };
     s = reduce(reduce(s, { type: 'play', uid: 'sp', targetUid: undefined }), { type: 'resolveShopDeath' });
-    expect(s.hand.filter((c) => c.cardId === RUBY).length).toBe(2);
+    expect(s.hand.filter((c) => CARD_INDEX[c.cardId]?.ruby && c.cardId !== RUBY).length).toBe(2); // never plain (R-RUBY-SPECIAL-01)
     expect(s.hand.some((c) => c.cardId === 'rubyshipment')).toBe(false); // consumed
   });
 

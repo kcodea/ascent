@@ -228,7 +228,7 @@ export const RUNES: RuneDef[] = [
     tribes: ['kobold'], // TRIBE GATE (owner 2026-09-18): a Ruby rune is Kobold-related — Rubies come from Kobolds
     name: 'Resonance',
     cost: 2, // owner balance 2026-11-06 (was 1); balance 9/23 (was 3)
-    text: '**Start of Turn:** get a random **Ruby**. Your **Rubies** cast twice from hand.', // owner 2026-09-25: reordered (text only)
+    text: '**Start of Turn:** get a **Special Ruby**. Your **Rubies** cast twice from hand.', // owner 2026-09-25: reordered (text only)
     previewCards: ['ruby'], // text names it — the forge hover shows the card
     reward: { kind: 'multi', rewards: [{ kind: 'rubyExtraCasts', amount: 1, scope: 'always' }, { kind: 'runeRubyDrip' }] },
     sets: ['set2', 'set3'], // Rubies // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
@@ -1633,7 +1633,7 @@ export const RUNES: RuneDef[] = [
     tribes: ['kobold'],
     name: 'Refreshing Rubies',
     cost: 2,
-    text: 'When you **Refresh 4 times**, get a random **Ruby**.',
+    text: 'When you **Refresh 4 times**, get a **Special Ruby**.',
     previewCards: ['ruby'],
     reward: { kind: 'runeThreshold', meter: 'refresh', per: 4, grantRandomRuby: 1 },
     sets: ['set3'],
@@ -1645,7 +1645,7 @@ export const RUNES: RuneDef[] = [
     tribes: ['kobold'],
     name: 'Ruby Sales',
     cost: 1,
-    text: 'When you **Sell 3 minions**, get a random **Ruby**.',
+    text: 'When you **Sell 3 minions**, get a **Special Ruby**.',
     previewCards: ['ruby'],
     reward: { kind: 'runeThreshold', meter: 'sell', per: 3, grantRandomRuby: 1 },
     sets: ['set3'],
@@ -1941,7 +1941,7 @@ export const RUNES: RuneDef[] = [
     tribes: ['kobold', 'dwarf'],
     name: 'Minted Gems',
     cost: 2,
-    text: 'Every **8 Gold** spent, get a random **Ruby**.',
+    text: 'Every **8 Gold** spent, get a **Special Ruby**.',
     previewCards: ['ruby'],
     reward: { kind: 'runeThreshold', meter: 'gold', per: 8, grantRandomRuby: 1 },
     sets: ['set3'],
@@ -4384,7 +4384,7 @@ export const EPIC_RUNES: RuneDef[] = [
     name: 'Investment',
     cost: 4, // owner 2026-10-23 -1 (was 5); balance 9/23 (was 3)
     epic: true,
-    text: 'When you **Sell 4 minions**, get **2 random Rubies** and improve your **Rubies** by **+1/+1**.',
+    text: 'When you **Sell 4 minions**, get **2 Special Rubies** and improve your **Rubies** by **+1/+1**.',
     previewCards: ['ruby'], // names Rubies — forge hover shows the live Ruby (audit 2026-08-06)
     reward: { kind: 'runeSellRubies', count: 2 },
     sets: ['set2', 'set3'], // Rubies // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)

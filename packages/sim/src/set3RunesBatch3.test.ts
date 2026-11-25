@@ -89,7 +89,7 @@ describe('batch 3 roster — pool, cost, Set 3 only, tribe gate', () => {
     }
   });
   it('Rune of Resonance reads Start of Turn first (owner 2026-09-25); its behaviour is unchanged', () => {
-    expect(RUNE_INDEX['rune_resonance']!.text).toBe('**Start of Turn:** get a random **Ruby**. Your **Rubies** cast twice from hand.');
+    expect(RUNE_INDEX['rune_resonance']!.text).toBe('**Start of Turn:** get a **Special Ruby**. Your **Rubies** cast twice from hand.');
     const s = armed('rune_resonance');
     expect(s.runeRubyDrip).toBe(true);
     expect(s.rubyExtraCasts).toBe(1);

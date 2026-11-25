@@ -20,7 +20,8 @@ export function aleGrantCount(params: Record<string, unknown> | undefined, tier:
  *  read this one list. Lives in core beside `ALE_IDS` because BOTH phases draw from it (the shop mint and the
  *  combat `grantRandomRubies` carry-back). Order is load-bearing: a draw is `rng.int(length)` over it. */
 export const RUBY_TYPE_IDS: readonly string[] = ['ruby', 'warding-ruby', 'golden-ruby', 'splintered-ruby', 'ripple-ruby', 'dark-ruby'];
-/** The five SPECIAL Rubies (every type but the plain one) — Prismatic Pick's "Discover a Ruby" offers 3 of these. */
+/** The five SPECIAL Rubies (every type but the plain one): what every "Special Ruby" is drawn from, each at equal odds (owner
+ *  2026-11-25, R-RUBY-SPECIAL-01; "a random Ruby" drew from all six until then). Prismatic Pick's Discover offers 3 of these. */
 export const SPECIAL_RUBY_IDS: readonly string[] = RUBY_TYPE_IDS.filter((id) => id !== 'ruby');
 
 /** A Ruby's Kobold RIDER — what a special Ruby does ON TOP of its stats when it lands on a Kobold (owner batch

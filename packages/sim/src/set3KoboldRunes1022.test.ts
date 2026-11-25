@@ -10,7 +10,7 @@
  * Every block drives the real engine: the Runeforge `buyRune`, the reducer's `roll` / `sell` / `play`, and `simulate()`.
  */
 import { describe, it, expect } from 'vitest';
-import { RUBY_TYPE_IDS, combatSide, makeRng, simulate, type BoardMinion, type CombatEvent } from '@game/core';
+import { RUBY_TYPE_IDS, combatSide, makeRng, simulate, type BoardMinion, type CombatEvent, SPECIAL_RUBY_IDS } from '@game/core';
 import { CARD_INDEX, EPIC_RUNES, RUNES, RUNE_INDEX, SETS, poolFor } from '@game/content';
 import { CONFIG, createRun, reduce, type Action, type BoardCard, type RunState } from './index';
 import { questCombatMods } from './reducer';
@@ -68,8 +68,8 @@ const homeOf = (r: Fight, sourceUid: string) => (r.playerPermaBuffs ?? []).filte
 describe('the five runes as content', () => {
   it('names, costs, pools (Basic vs Epic by array), Kobold gate, Set 3 only, text', () => {
     const rows: [string, string, number, boolean, string][] = [
-      ['rune_refreshing_rubies', 'Refreshing Rubies', 2, false, 'When you **Refresh 4 times**, get a random **Ruby**.'],
-      ['rune_ruby_sales', 'Ruby Sales', 1, false, 'When you **Sell 3 minions**, get a random **Ruby**.'],
+      ['rune_refreshing_rubies', 'Refreshing Rubies', 2, false, 'When you **Refresh 4 times**, get a **Special Ruby**.'],
+      ['rune_ruby_sales', 'Ruby Sales', 1, false, 'When you **Sell 3 minions**, get a **Special Ruby**.'],
       ['rune_goleming', 'Goleming', 2, false, '**Avenge (5):** summon a **Gemheart Golem** and cast **6 Rubies** on it.'],
       ['rune_red_start', 'Red Start', 3, true, '**Start of Combat:** cast a **permanent Ruby** on your **Kobolds**.'],
       ['rune_roseys_garden', "Rosey's Garden", 3, true, 'When you cast a **Ruby**, give a random minion **+4/+5** permanently.'],
@@ -94,7 +94,7 @@ describe('REFRESHING RUBIES: When you Refresh 4 times, get a random Ruby', () =>
     expect(runeTally(s, 'rune_refreshing_rubies')).toBe('3/4');
     s = act(s, { type: 'roll' });
     expect(rubiesInHand(s)).toHaveLength(1);
-    expect(RUBY_TYPE_IDS).toContain(rubiesInHand(s)[0]);
+    expect(SPECIAL_RUBY_IDS).toContain(rubiesInHand(s)[0]);
     expect(runeTally(s, 'rune_refreshing_rubies')).toBe('0/4');
     for (let i = 0; i < 4; i++) s = act(s, { type: 'roll' });
     expect(rubiesInHand(s)).toHaveLength(2);

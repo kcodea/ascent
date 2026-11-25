@@ -77,6 +77,8 @@ export function revealPhase(index: number, flipped: number, turning: ReadonlySet
 export const AETHER_START_MS = 1150;
 export const AETHER_STAGGER_MS = 340;
 export const AETHER_GLOW_MS = 120;
+/** The shake as the last Aether lands (stage px). */
+export const AETHER_QUAKE_PX = 5;
 
 export function summaryBest(cards: readonly PackCard[]): number[] {
   return cards
@@ -479,6 +481,8 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, spee
         setDissolved((prev) => (prev.includes(d.i) ? prev : [...prev, d.i]));
         soundsFn.current().dissolve(k);
       }, at));
+      // it comes apart: the shatter, and with the first one the stream's rush
+      timers.push(setTimeout(() => { soundsFn.current().shatter(k); if (k === 0) soundsFn.current().stream(); }, at + (AETHER_GLOW_MS + 300) * slow));
       // the card has gone white-hot: it comes apart (measured once, here)
       timers.push(setTimeout(() => {
         const progress = (frac: number, done: boolean): void => {
@@ -486,8 +490,14 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, spee
           fracs[k] = frac;
           const tally = tallyRef.current;
           tally?.setTarget(dups.reduce((n, x, j) => n + x.aether * fracs[j]!, 0));
-          if (done && ++finished === dups.length) { tally?.setTarget(total); tally?.gulp(true); soundsFn.current().aether(); }
-          else tally?.gulp();
+          const all = dups.reduce((n, x, j) => n + x.aether * fracs[j]!, 0) / Math.max(1, total);
+          if (done && ++finished === dups.length) {
+            // the last of it is in: the medallion's impact, a burst of light from the scene and a short shake
+            tally?.setTarget(total); tally?.gulp(true);
+            soundsFn.current().aetherLand(); soundsFn.current().aether();
+            sceneRef.current?.aetherBurst();
+            setQuake((q) => ({ n: (q?.n ?? 0) + 1, px: AETHER_QUAKE_PX }));
+          } else { tally?.gulp(); soundsFn.current().tally(all); }
         };
         const root = dialogRef.current;
         const face = root?.querySelectorAll<HTMLElement>('[data-testid="pack-face"]')[d.i];

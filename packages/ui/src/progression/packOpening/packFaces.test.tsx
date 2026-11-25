@@ -452,7 +452,7 @@ describe('the face poses', () => {
     const pileK = facePose('featured', { index: 4, count: 5 }, from, big).sy;
     for (const p of xs) {
       expect(p.sx).toBeLessThanOrEqual(pileK + 1e-9);
-      expect(p.sx * FACE_W).toBeGreaterThan(300);
+      expect(p.sx * FACE_W).toBeGreaterThan(280);
       expect(p.y).toBe(xs[0]!.y); expect(p.r).toBe(0);
     }
     const halfW = (xs[0]!.sx * FACE_W) / 2;
@@ -481,7 +481,7 @@ describe('the handoff', () => {
   const sceneFactory: NonNullable<PackOpenerProps['sceneFactory']> = (_h, _l, _n, _s, ev) => {
     events = ev;
     return { setBacks: () => undefined, flipTop: () => true, quickOpen: () => undefined, resetSealed: () => undefined,
-      setInputEnabled: () => undefined, showSummary: () => undefined, faceTurnStarted: () => undefined, aetherFlow: () => undefined, setSpeed: () => undefined, destroy: () => undefined };
+      setInputEnabled: () => undefined, showSummary: () => undefined, faceTurnStarted: () => undefined, aetherFlow: () => undefined, aetherBurst: () => undefined, setSpeed: () => undefined, destroy: () => undefined };
   };
   beforeEach(() => { events = null; });
 

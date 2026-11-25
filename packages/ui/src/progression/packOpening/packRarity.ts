@@ -28,6 +28,8 @@ export const cardPlateSrc = (r: CrateRarity): string => `${import.meta.env.BASE_
  * arrives. A card's rarity is first hinted by the tease (packTease.ts) and first shown by its face.
  */
 export const CARD_BACK_PLATE_SRC = `${import.meta.env.BASE_URL}packs/card-plate-reveal.webp`;
+/** The Ascent logo on every card back (owner art, `Reference Art/Ascent Logo.png`, trimmed, 617 x 640 webp). */
+export const CARD_BACK_LOGO_SRC = `${import.meta.env.BASE_URL}packs/ascent-logo.webp`;
 
 /**
  * THE PLATE'S WINDOW, as an alpha mask (512 x 768 webp, the card's full box): the navy window every rarity plate shares,

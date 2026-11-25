@@ -40,6 +40,14 @@ export interface PackSounds {
   stamp(): void;
   /** The k-th duplicate of the summary row begins to dissolve into Aether (0 = the first): each rings a step higher. */
   dissolve(k: number): void;
+  /** The k-th duplicate comes apart into dust. */
+  shatter(k: number): void;
+  /** The first dust leaves for the medallion: the stream's rush, once. */
+  stream(): void;
+  /** The counter rolls as the dust lands (`progress` 0..1): a tick that climbs in pitch; throttled here. */
+  tally(progress: number): void;
+  /** The last dust is in: the medallion's impact. */
+  aetherLand(): void;
   aether(): void;
   summary(): void;
   silence(): void;
@@ -50,6 +58,9 @@ export interface PackSounds {
 interface Burst { ms: number; hz: number; gain: number; q?: number; sweepTo?: number }
 /** A cue slot: bursts layered together, or a borrowed chest reveal cue. */
 type CueSlot = { kind: 'bursts'; bursts: readonly Burst[] } | { kind: 'chest'; cue: CrateCue };
+
+/** The least time between two counter ticks (ms): a roll, never a buzz. */
+export const TALLY_GAP_MS = 85;
 
 export const PACK_CUES = {
   pop: { kind: 'bursts', bursts: [{ ms: 70, hz: 1700, gain: 0.9, q: 1.2 }, { ms: 30, hz: 5200, gain: 0.6, q: 1.2 }] },
@@ -78,7 +89,11 @@ export const CARD_CUES = {
   press: [{ clip: 'cardtouch', cat: 'crateStamp', gain: 0.5 }],
   tease: [{ clip: 'fx/glass-sing', cat: 'crateTierShimmer', gain: 0.34 }, { clip: 'fx/glass-tick', cat: 'crateTierShimmer', gain: 0.3 }],
   heartbeat: [{ clip: 'pulse', cat: 'cratePulse', gain: 0.5 }],
-  dissolve: [{ clip: 'fx/glass-sing', cat: 'crateTierShimmer', gain: 0.26 }],
+  dissolve: [{ clip: 'fx/glass-sing', cat: 'crateTierShimmer', gain: 0.3 }, { clip: 'fx/glass-swell', cat: 'crateCharge', gain: 0.34 }],
+  shatter: [{ clip: 'fx/glass-shatter', cat: 'crateStamp', gain: 0.3 }, { clip: 'rebornshatter', cat: 'crateStamp', gain: 0.26, delayMs: 40 }],
+  stream: [{ clip: 'fx/reaping-drain', cat: 'crateWhoosh', gain: 0.5 }, { clip: 'fx/djartmusic-christmas-sparkle-whoosh-1-275404', cat: 'crateTierShimmer', gain: 0.36, delayMs: 120 }],
+  tally: [{ clip: 'tallycounter', cat: 'crateStamp', gain: 0.3 }],
+  aetherLand: [{ clip: 'fx/blue-impact-hit', cat: 'crateStamp', gain: 0.6 }, { clip: 'tallyimpact', cat: 'crateStamp', gain: 0.55 }, { clip: 'fx/reveal-shimmer', cat: 'crateTierShimmer', gain: 0.45, delayMs: 60 }],
   turn: [{ clip: 'reordercard', cat: 'crateWhoosh', gain: 0.5 }, { clip: 'fx/pack-card-flip', cat: 'crateWhoosh', gain: 0.5 }],
   turnBig: [{ clip: 'windup', cat: 'crateCharge', gain: 0.45 }],
   land: [{ clip: 'cardlanding', cat: 'crateStamp', gain: 0.5 }],
@@ -299,6 +314,8 @@ export function createPackSounds(): PackSounds {
     }
   };
 
+  let tallyAt = 0;
+
   const setLoop = (bp: BiquadFilterNode | null, g: GainNode | null, hz: number, gain: number): void => {
     if (!a || !bp || !g) return;
     const t = a.currentTime;
@@ -375,6 +392,16 @@ export function createPackSounds(): PackSounds {
     },
     stamp: () => play(PACK_CUES.stamp),
     dissolve: (k) => cues(CARD_CUES.dissolve, 1 + 0.12 * Math.max(0, Math.min(5, k))),
+    shatter: (k) => cues(CARD_CUES.shatter, 0.94 + 0.07 * Math.max(0, Math.min(5, k))),
+    stream: () => cues(CARD_CUES.stream),
+    tally(progress) {
+      const now = typeof performance !== 'undefined' ? performance.now() : 0;
+      if (now - tallyAt < TALLY_GAP_MS) return;
+      tallyAt = now;
+      const p = Math.max(0, Math.min(1, progress));
+      cues(CARD_CUES.tally, 0.85 + 0.6 * p, 0.7 + 0.5 * p);
+    },
+    aetherLand: () => cues(CARD_CUES.aetherLand),
     aether: () => play(PACK_CUES.aether),
     summary: () => play(PACK_CUES.summary),
     silence() {

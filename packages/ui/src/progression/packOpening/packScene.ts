@@ -121,6 +121,8 @@ export interface PackScene {
    * it is told at once that everything arrived.
    */
   aetherFlow(from: { x: number; y: number; w: number; h: number }, to: { x: number; y: number }, progress: AetherProgress): void;
+  /** The last Aether has landed: the medallion's aura bursts. */
+  aetherBurst(): void;
   /** Scale the scene's clock (1 = real time, 0.25 = slow-mo). Dev-only (the Pack Lab); a no-op until Pixi is up. */
   setSpeed(mult: number): void;
   /** Safe at any moment, including before the async init resolves. */
@@ -288,6 +290,8 @@ class PackSceneImpl implements PackScene {
   private cardSY = 0;
   // the shader auras (packAura.ts): one under the pile (the tease), one that rides the turning card and lands with its face
   private auraPile: Aura | null = null;
+  /** The Aether medallion's aura: it burns while the dust streams in and bursts as the last of it lands. */
+  private auraGem: Aura | null = null;
   private auraFace: Aura | null = null;
   private faceAmbient = 0;
   private pileAmbient = 0; // the second aura's level on the summary (it lights the second-best pull)
@@ -414,6 +418,8 @@ class PackSceneImpl implements PackScene {
     this.auraPile = makeAura(webgl);
     if (this.auraFace) built.views.root.addChildAt(this.auraFace.mesh, 1);
     if (this.auraPile) built.views.root.addChildAt(this.auraPile.mesh, 1);
+    this.auraGem = makeAura(webgl);
+    if (this.auraGem) { built.views.root.addChild(this.auraGem.mesh); this.auraGem.setRarity('rare'); this.auraGem.tier = 3; }
     // the Aether stream: over everything else in the scene
     this.aether = new AetherStream(webgl, app.renderer.resolution);
     app.stage.addChild(this.aether.root);
@@ -480,8 +486,19 @@ class PackSceneImpl implements PackScene {
     if (!this.rect.valid) { progress(1, true); return; }
     const sx = app.screen.width / this.rect.w, sy = app.screen.height / this.rect.h;
     this.aetherUnit = Math.max(0.2, stageScale() * sx);
+    const ag = this.auraGem, v = this.v;
+    if (ag && v) {
+      const k = v.root.scale.x;
+      ag.place(((to.x - this.rect.l) * sx - v.root.x) / k, ((to.y - this.rect.t) * sy - v.root.y) / k, (AETHER_GEM_H * this.aetherUnit) / k);
+    }
     ae.emit((from.x - this.rect.l) * sx, (from.y - this.rect.t) * sy, from.w * sx, from.h * sy,
       (to.x - this.rect.l) * sx, (to.y - this.rect.t) * sy, this.aetherUnit, progress);
+    this.wake();
+  }
+
+  aetherBurst(): void {
+    if (this.destroyed || !this.auraGem) return;
+    this.auraGem.fireBurst(AETHER_GEM_BURST);
     this.wake();
   }
 
@@ -941,6 +958,13 @@ class PackSceneImpl implements PackScene {
       if (Math.abs(this.pileAmbient - ap.level) < 0.004) ap.level = this.pileAmbient;
     }
     ap?.update(sec, time);
+    const ag = this.auraGem;
+    if (ag) {
+      const to = this.aether?.count ? AETHER_GEM_LEVEL : 0;
+      ag.level += (to - ag.level) * Math.min(1, 0.06 * dt);
+      if (Math.abs(to - ag.level) < 0.004) ag.level = to;
+      ag.update(sec, time);
+    }
   }
 
   quickOpen(): void {
@@ -1009,7 +1033,7 @@ class PackSceneImpl implements PackScene {
     this.flip.active = false;
     this.tease.live = false; this.tease.level = 0; this.tease.t = 0; this.tease.stage = -1;
     this.teaseGlowOut = 0;
-    this.auraPile?.off(); this.auraFace?.off();
+    this.auraPile?.off(); this.auraFace?.off(); this.auraGem?.off();
     this.summaryOn = false; this.pileAmbient = 0;
     v.pack.visible = true; v.flipLayer.visible = true;
     const hd = this.handling; hd.grip = 0; hd.wear = 0; hd.px = 0.5; hd.py = 0.5;
@@ -1804,6 +1828,11 @@ class PackSceneImpl implements PackScene {
     }
   }
 }
+
+/** The medallion's aura: the height it is drawn round (stage px), its level while it drinks, and its burst. */
+const AETHER_GEM_H = 96;
+const AETHER_GEM_LEVEL = 0; // no standing aura (it is card-shaped and read as a square round the gem): the burst alone
+const AETHER_GEM_BURST = 0.55;
 
 /** How long the aura waits edge-on for the DOM face to report its turn before it runs on the scene's clock (frames). */
 const LAND_WAIT_FRAMES = 15;

@@ -29,7 +29,7 @@ import { packArtFor, packShineFor } from './packArt';
 import { packGlowRarity } from './packGlow';
 import { packHoloHue, packHoloStrength } from './packHolo';
 import { makeHoloMaterial, makeHoloMesh, type HoloMesh, type HoloUniformValues } from './packHoloMesh';
-import { CARD_BACK_PLATE_SRC } from './packRarity';
+import { CARD_BACK_LOGO_SRC, CARD_BACK_PLATE_SRC } from './packRarity';
 import { StripMesh, TornLip } from './stripMesh';
 
 const { W, H, BODY_H, CARD_W, CARD_H } = PACK_GEOM;
@@ -181,6 +181,7 @@ export function buildPackViews(look: PackLook, n: number, own: (t: Texture) => v
   // one back for every card: the neutral reveal frame, so no edge ever tells a rarity (packRarity.ts CARD_BACK_PLATE_SRC)
   const plain = back((art, into) => { paintPlainBack(look, art, into); });
   loadImage(CARD_BACK_PLATE_SRC, (img) => { plain.art.plate = img; repaint(plain); });
+  loadImage(CARD_BACK_LOGO_SRC, (img) => { plain.art.icon = img; repaint(plain); });
   const glowWhite = keep(paintCardGlow());
   const glowAncient = keep(paintCardGlow(ANCIENT_GLOW_STOPS));
   const burstRaysTex = { legendary: keep(paintBurstRays(BURST.legendary.rays)), ancient: keep(paintBurstRays(BURST.ancient.rays)) };

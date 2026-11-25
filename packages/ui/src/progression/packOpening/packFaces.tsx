@@ -78,10 +78,10 @@ const PILE_JITTER: readonly (readonly [number, number, number])[] = [[-6, 4, -2]
  * The row spans at most `SUMMARY_ROW_W` of the theatre's width with `SUMMARY_GAP` px between faces, each face at most
  * `SUMMARY_MAX_H` of its height; the row's centre sits at `SUMMARY_Y` of the height (the list panel goes below it).
  */
-const SUMMARY_ROW_W = 0.95;
+const SUMMARY_ROW_W = 0.82;
 const SUMMARY_GAP = 24;
-const SUMMARY_MAX_H = 0.56;
-export const SUMMARY_Y = 0.4;
+const SUMMARY_MAX_H = 0.5;
+export const SUMMARY_Y = 0.455;
 /** The face turns with the scene's perspective: the same multiple of the card's width (the face's own, pre-scale). */
 const PERSPECTIVE = FLIP_PERSPECTIVE_PER_WIDTH * FACE_W;
 /** The handoff's easing: the move eases in and out; the turn starts at the first half's end speed (slope ~1.65). */

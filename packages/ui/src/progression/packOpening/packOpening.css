@@ -100,13 +100,17 @@
   background: radial-gradient(circle, rgba(226, 246, 255, 0.95) 0%, rgba(120, 200, 255, 0.6) 30%, rgba(60, 140, 255, 0.22) 55%, transparent 72%); }
 .pkop-aether-gem.aether-icon { position: relative; width: 104px; height: 104px; margin: 0; vertical-align: middle; }
 .pkop-aether-num { display: flex; align-items: center; font-size: 58px; font-weight: 800; line-height: 1; color: #dcf3ff;
-  font-variant-numeric: tabular-nums; text-shadow: 0 0 18px rgba(96, 184, 255, 0.85), 0 3px 6px #000; }
+  font-variant-numeric: tabular-nums;
+  /* ONE glow for the whole number (a shadow per digit column painted over its neighbours) */
+  filter: drop-shadow(0 0 10px rgba(96, 184, 255, 0.8)) drop-shadow(0 3px 4px rgba(0, 0, 0, 0.9)); }
 .pkop-aether-plus { margin-right: 4px; opacity: 0.85; }
-/* each column has room for the digits' glow (its strip's rows are 1.8em apart) and fades at top and bottom, never a hard cut */
-.pkop-odo-col { display: inline-block; height: 1.8em; padding: 0 0.34em; margin: 0 -0.34em; overflow: hidden;
-  -webkit-mask: linear-gradient(180deg, transparent 0, #000 22%, #000 78%, transparent 100%); mask: linear-gradient(180deg, transparent 0, #000 22%, #000 78%, transparent 100%); }
+/* the digits roll behind one soft window (rows 1.8em apart: a resting digit's neighbours are out of sight); the glow is
+   added after the window, so nothing cuts it */
+.pkop-odo { display: flex; height: 1.8em; overflow: hidden;
+  -webkit-mask: linear-gradient(180deg, transparent 0, #000 24%, #000 76%, transparent 100%); mask: linear-gradient(180deg, transparent 0, #000 24%, #000 76%, transparent 100%); }
+.pkop-odo-col { display: inline-block; height: 1.8em; }
 /* a leading zero's column takes no room until the value reaches it (it changes at 10, 100, ...: a handful of times) */
-.pkop-odo-col.pkop-odo-off { width: 0; padding: 0; margin: 0; opacity: 0; }
+.pkop-odo-col.pkop-odo-off { width: 0; opacity: 0; }
 .pkop-odo-strip { display: flex; flex-direction: column; }
 .pkop-odo-strip > span { display: block; height: 1.8em; line-height: 1.8em; text-align: center; }
 /* the landing's ring and streak (one-shot Web Animations, transform / opacity) */
@@ -120,7 +124,8 @@
   animation: pkf-aglow calc(1.5s * var(--pk-slow, 1)) ease-out both; }
 @keyframes pkf-aglow { 0% { opacity: 0; } 12% { opacity: 1; } 30% { opacity: 0.94; } 76%, 100% { opacity: 0; } }
 .pkf-dissolve { pointer-events: none; animation: pkf-dissolve calc(1.5s * var(--pk-slow, 1)) cubic-bezier(0.5, 0, 0.6, 1) both; }
-@keyframes pkf-dissolve { 0%, 28% { opacity: 1; } 80%, 100% { opacity: 0.13; } }
+/* it swells as it goes white-hot, then lets go */
+@keyframes pkf-dissolve { 0% { opacity: 1; scale: 1; } 14% { opacity: 1; scale: 1.06; } 28% { opacity: 1; scale: 1.02; } 80%, 100% { opacity: 0.13; scale: 1; } }
 @media (prefers-reduced-motion: reduce) { .pkf-aglow, .pkf-dissolve { animation: none; } .pkop-aether { transition: none; } }
 
 /* ── THE FACE ─────────────────────────────────────────────────────────────────────────────────────────────────────────

@@ -369,30 +369,6 @@ const box = (k: { l: number; r: number; t: number; b: number; radius: number }, 
 const WIN = box(PLATE_WINDOW, CW, CH);
 const OUTER = box(PLATE_OUTER, CW, CH);
 
-/** Diamond lattice over a back. */
-function lattice(g: Ctx, w: number, h: number, alpha: number): void {
-  g.save();
-  g.globalAlpha = alpha;
-  g.fillStyle = '#fff';
-  for (let y = 0; y < h; y += 36) {
-    for (let x = (y / 36) % 2 ? 18 : 0; x < w; x += 36) {
-      g.beginPath();
-      g.moveTo(x, y - 9); g.lineTo(x + 9, y); g.lineTo(x, y + 9); g.lineTo(x - 9, y);
-      g.fill();
-    }
-  }
-  g.restore();
-}
-
-function star(g: Ctx, cx: number, cy: number, r: number, inner: number): void {
-  g.beginPath();
-  for (let k = 0; k < 8; k++) {
-    const a = (k / 8) * Math.PI * 2 - Math.PI / 2, rad = k % 2 ? inner : r;
-    g.lineTo(cx + Math.cos(a) * rad, cy + Math.sin(a) * rad);
-  }
-  g.closePath();
-}
-
 /**
  * The plate behind a back: the owner's card plate once it has loaded (`plate`), or until then a plain gold frame in its
  * outer shape (the fallback, so a back is never blank). The caller then paints its content clipped to the window.
@@ -421,6 +397,9 @@ function openWindow(g: Ctx, from: string, to: string): void {
   g.fillRect(WIN.x, WIN.y, WIN.w, WIN.h);
 }
 
+/** The logo's width on the card back, as a share of the plate's window. */
+export const BACK_LOGO_W = 0.5;
+
 /** The art a back is painted with once it loads (both optional: the fallback paints without them). */
 export interface BackArt { plate?: CanvasImageSource; icon?: CanvasImageSource }
 
@@ -429,22 +408,30 @@ const ctxOf = (into: HTMLCanvasElement | undefined): { c: HTMLCanvasElement; g: 
 
 /**
  * THE CARD BACK: every card wears it, before and after the result arrives (owner 2026-11-24: the back never tells the
- * rarity; the tease and then the face do). The neutral reveal frame (`art.plate`), and inside its window the pack's
- * lattice and star. `into` repaints an existing canvas in place (the plate arrives after init).
+ * rarity; the tease and then the face do). The neutral reveal frame (`art.plate`), and inside its window the Ascent
+ * logo (`art.icon`). `into` repaints an existing canvas in place (the plate arrives after init).
  */
 export function paintPlainBack(look: PackLook, art: BackArt = {}, into?: HTMLCanvasElement): HTMLCanvasElement {
-  const p = packPalette(look);
   const { c, g } = ctxOf(into);
   paintPlate(g, art.plate);
   openWindow(g, '#1d2448', '#0c0f22');
-  lattice(g, CW, CH, 0.07);
   g.lineWidth = 4;
   g.strokeStyle = 'rgba(140,170,225,.4)'; // the reveal frame's own steel blue
   rr(g, WIN.x + 14, WIN.y + 14, WIN.w - 28, WIN.h - 28, WIN.r - 10);
   g.stroke();
-  g.fillStyle = p.accent;
-  star(g, CW / 2, WIN.y + WIN.h / 2, 120, 30);
-  g.fill();
+  // the Ascent logo, alone on the ground (owner 2026-11-25: "remove the icon and the pattern from the card back. use the
+  // Ascent Logo instead"); until its image has loaded the window is plain
+  const logo = art.icon as (CanvasImageSource & { width?: number; height?: number }) | undefined;
+  if (logo) {
+    const lw = Number(logo.width) || 1, lh = Number(logo.height) || 1;
+    const w = WIN.w * BACK_LOGO_W, h = w * (lh / lw), cx = CW / 2, cy = WIN.y + WIN.h / 2;
+    const halo = g.createRadialGradient(cx, cy, 0, cx, cy, w * 0.9);
+    halo.addColorStop(0, 'rgba(255,214,120,.20)');
+    halo.addColorStop(1, 'rgba(255,214,120,0)');
+    g.fillStyle = halo;
+    g.fillRect(WIN.x, WIN.y, WIN.w, WIN.h);
+    g.drawImage(logo, cx - w / 2, cy - h / 2, w, h);
+  }
   g.restore();
   return c;
 }

@@ -117,13 +117,13 @@ export const AetherTally = forwardRef<AetherTallyHandle, AetherTallyProps>(funct
       </span>
       <span className="pkop-aether-num">
         <span className="pkop-aether-plus">+</span>
-        {places.map((place) => (
+        <span className="pkop-odo">{places.map((place) => (
           <span className="pkop-odo-col" key={place}>
             <span className="pkop-odo-strip" ref={(el) => { strips.current[place] = el; }}>
               {DIGITS.map((d, i) => <span key={i}>{d}</span>)}
             </span>
           </span>
-        ))}
+        ))}</span>
       </span>
     </div>
   );

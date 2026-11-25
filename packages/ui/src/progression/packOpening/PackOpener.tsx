@@ -7,6 +7,7 @@ import { rewardPreview } from '../rewardPreview';
 import { createPackScene, type PackScene } from './packScene';
 import { createPackSounds, type PackSounds } from './packSounds';
 import { packRarityLabel } from './packRarity';
+import { AetherTally, type AetherTallyHandle } from './AetherTally';
 import { PackFace, SUMMARY_DEAL_MS, slotBox, warmFaceArt, type PackFacePhase } from './packFaces';
 import { flipHalfMs } from './cardFlip';
 import { bigPullShakePx, bigPullTier, FACE_PLATE_H } from './bigPull';
@@ -72,10 +73,15 @@ export function revealPhase(index: number, flipped: number, turning: ReadonlySet
  * The summary's best pulls, best first: the indices of the cards at Epic or above, by rarity (the earlier card on a
  * tie). The first is raised in the row; the first two are lit by the stage.
  */
+/** The Aether ending's clock (ms, slow-mo scaled): the wait after the deal, the gap between duplicates, the glow before a card comes apart. */
+export const AETHER_START_MS = 1150;
+export const AETHER_STAGGER_MS = 340;
+export const AETHER_GLOW_MS = 260;
+
 export function summaryBest(cards: readonly PackCard[]): number[] {
   return cards
     .map((c, i) => ({ i, r: COSMETIC_RARITIES.indexOf(c.rarity) }))
-    .filter((x) => x.r >= 2)
+    .filter((x) => x.r >= 2 && !cards[x.i]!.duplicate) // a duplicate dissolves into Aether: it is never the one raised
     .sort((a, b) => b.r - a.r || a.i - b.i)
     .map((x) => x.i);
 }
@@ -101,6 +107,10 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, spee
   /** The big-pull shake: a fresh `n` restarts the one-shot keyframe (it alternates two identical names); `px` its amplitude. */
   const [quake, setQuake] = useState<{ n: number; px: number } | null>(null);
   const [announce, setAnnounce] = useState('');
+  /** The summary's duplicates that have begun to dissolve into Aether, and whether the Aether tally is up. */
+  const [dissolved, setDissolved] = useState<readonly number[]>([]);
+  const [tallyOn, setTallyOn] = useState(false);
+  const tallyRef = useRef<AetherTallyHandle | null>(null);
 
   const phaseRef = useRef<PackPhase>('sealed');
   const resultRef = useRef<PackOpenResult | null>(null);
@@ -447,6 +457,51 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, spee
     };
   }, [phase, reduced, result, speed]);
 
+  // THE AETHER: once the row has settled, each duplicate glows white-blue and comes apart into Aether that flows into
+  // the medallion under the row; the medallion springs as it swallows the light and its counter rolls up to the refund
+  // (owner 2026-11-25). The counter follows what has actually ARRIVED (the scene reports it), never a guessed delay.
+  useEffect(() => {
+    if (phase !== 'summary') { setDissolved([]); setTallyOn(false); return; }
+    if (reduced || !result) return;
+    const dups = result.cards.map((c, i) => ({ i, aether: c.duplicate?.aether ?? 0, dup: !!c.duplicate })).filter((d) => d.dup);
+    if (dups.length === 0) return;
+    const slow = speed > 0 ? 1 / speed : 1;
+    const total = dups.reduce((n, d) => n + d.aether, 0);
+    const fracs = dups.map(() => 0);
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    let alive = true, finished = 0;
+    const t0 = (result.cards.length * SUMMARY_DEAL_MS + AETHER_START_MS) * slow;
+    timers.push(setTimeout(() => setTallyOn(true), Math.max(0, t0 - 350 * slow)));
+    dups.forEach((d, k) => {
+      const at = t0 + k * AETHER_STAGGER_MS * slow;
+      timers.push(setTimeout(() => {
+        setDissolved((prev) => (prev.includes(d.i) ? prev : [...prev, d.i]));
+        soundsFn.current().dissolve(k);
+      }, at));
+      // the card has gone white-hot: it comes apart (measured once, here)
+      timers.push(setTimeout(() => {
+        const progress = (frac: number, done: boolean): void => {
+          if (!alive) return;
+          fracs[k] = frac;
+          const tally = tallyRef.current;
+          tally?.setTarget(dups.reduce((n, x, j) => n + x.aether * fracs[j]!, 0));
+          if (done && ++finished === dups.length) { tally?.setTarget(total); tally?.gulp(true); soundsFn.current().aether(); }
+          else tally?.gulp();
+        };
+        const root = dialogRef.current;
+        const face = root?.querySelectorAll<HTMLElement>('[data-testid="pack-face"]')[d.i];
+        const orb = root?.querySelector<HTMLElement>('.pkop-aether-orb');
+        const scene = sceneRef.current;
+        if (!face || !orb || !scene) { progress(1, true); return; }
+        const r = face.getBoundingClientRect(), o = orb.getBoundingClientRect();
+        scene.aetherFlow(
+          { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width * 0.92, h: r.height * FACE_PLATE_H },
+          { x: o.left + o.width / 2, y: o.top + o.height / 2 }, progress);
+      }, at + AETHER_GLOW_MS * slow));
+    });
+    return () => { alive = false; for (const t of timers) clearTimeout(t); };
+  }, [phase, reduced, result, speed]);
+
   if (!item) return null;
   const hasMore = qi < queue.length - 1;
   const cards = result?.cards ?? [];
@@ -481,7 +536,7 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, spee
             {cards.map((c, i) => {
               if (phase !== 'summary' && i >= flipped) return null;
               const facePhase = phase === 'summary' ? 'summary' : revealPhase(i, flipped, turning, flipping);
-              return <PackFace key={i} card={c} phase={facePhase} from={froms[i]} slot={{ index: i, count: cards.length }} slow={1 / speed} still={reduced} best={i === bestIndex} onTurnStart={onTurnStart} />;
+              return <PackFace key={i} card={c} phase={facePhase} from={froms[i]} slot={{ index: i, count: cards.length }} slow={1 / speed} still={reduced} best={i === bestIndex} onTurnStart={onTurnStart} dissolve={dissolved.includes(i)} />;
             })}
           </div>
         )}
@@ -520,6 +575,9 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, spee
           </ul>
           {aetherTotal > 0 && <div className="pkop-summary-total">{`Duplicates: +${aetherTotal} Aether`}</div>}
         </div>
+      )}
+      {phase === 'summary' && result && aetherTotal > 0 && (
+        <AetherTally ref={tallyRef} total={aetherTotal} still={reduced} shown={reduced || tallyOn} slow={speed > 0 ? 1 / speed : 1} />
       )}
 
       <div className="pkop-btns">

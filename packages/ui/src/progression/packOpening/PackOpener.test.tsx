@@ -16,7 +16,7 @@ vi.mock('./packSounds', () => ({
   createPackSounds: () => {
     const rec = (n: string) => () => { soundCalls.push(n); };
     return { pop: rec('pop'), tear: rec('tear'), crackle: rec('crackle'), rip: rec('rip'), sleeveFree: rec('sleeveFree'), slide: rec('slide'),
-      drop: rec('drop'), whoosh: rec('whoosh'), tease: rec('tease'), handle: rec('handle'), squeeze: rec('squeeze'), press: rec('press'), heartbeat: rec('heartbeat'), land: rec('land'), flip: rec('flip'), stamp: rec('stamp'), aether: rec('aether'), summary: rec('summary'),
+      drop: rec('drop'), whoosh: rec('whoosh'), tease: rec('tease'), handle: rec('handle'), squeeze: rec('squeeze'), press: rec('press'), heartbeat: rec('heartbeat'), land: rec('land'), flip: rec('flip'), stamp: rec('stamp'), dissolve: rec('dissolve'), aether: rec('aether'), summary: rec('summary'),
       silence: rec('silence'), dispose: rec('dispose'), bigPull: (t: string) => { soundCalls.push('bigPull:' + t); } };
   },
 }));
@@ -52,6 +52,7 @@ const sceneFactory: NonNullable<PackOpenerProps['sceneFactory']> = (_host, _look
     setInputEnabled: (on) => { f.calls.push('input:' + on); },
     showSummary: (spots) => { f.calls.push('summary:' + spots.length); },
     faceTurnStarted: () => undefined,
+    aetherFlow: (_from, _to, progress) => { progress(1, true); },
     setSpeed: (m) => { f.calls.push('speed:' + m); },
     destroy: () => { f.calls.push('destroy'); },
   };

@@ -87,8 +87,35 @@
   color: var(--pk-text); font-family: var(--font-ui); }
 .pkop-summary ul { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0);
   white-space: nowrap; border: 0; }
-.pkop-summary-total { padding: 10px 24px; font-size: 18px; color: var(--gold-lt);
-  background: color-mix(in srgb, var(--pk-panel) 95%, transparent); border: 2px solid var(--pk-rim); border-radius: 14px; }
+/* the refund's words are for screen readers; the Aether tally below shows it */
+.pkop-summary-total { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+/* THE AETHER TALLY (AetherTally.tsx): the medallion and its rolling counter under the row. The medallion's spring and
+   its halo's flash are one-shot Web Animations (transform / opacity only). */
+.pkop-aether { position: absolute; left: 50%; top: 77%; display: flex; align-items: center; gap: 20px; pointer-events: none;
+  font-family: var(--font-ui); opacity: 0; transform: translate(-50%, 14px);
+  transition: opacity calc(0.35s * var(--pk-slow, 1)) ease-out, transform calc(0.35s * var(--pk-slow, 1)) cubic-bezier(0.2, 0.9, 0.25, 1); }
+.pkop-aether-on { opacity: 1; transform: translate(-50%, 0); }
+.pkop-aether-orb { position: relative; display: grid; place-items: center; width: 104px; height: 104px; }
+.pkop-aether-halo { position: absolute; inset: -42%; border-radius: 50%; opacity: 0.28;
+  background: radial-gradient(circle, rgba(226, 246, 255, 0.95) 0%, rgba(120, 200, 255, 0.6) 30%, rgba(60, 140, 255, 0.22) 55%, transparent 72%); }
+.pkop-aether-gem.aether-icon { position: relative; width: 104px; height: 104px; margin: 0; vertical-align: middle; }
+.pkop-aether-num { display: flex; align-items: center; font-size: 58px; font-weight: 800; line-height: 1; color: #dcf3ff;
+  font-variant-numeric: tabular-nums; text-shadow: 0 0 18px rgba(96, 184, 255, 0.85), 0 3px 6px #000; }
+.pkop-aether-plus { margin-right: 4px; opacity: 0.85; }
+.pkop-odo-col { display: inline-block; height: 1em; overflow: hidden; }
+/* a leading zero's column takes no room until the value reaches it (it changes at 10, 100, ...: a handful of times) */
+.pkop-odo-col.pkop-odo-off { width: 0; opacity: 0; }
+.pkop-odo-strip { display: flex; flex-direction: column; }
+.pkop-odo-strip > span { display: block; height: 1em; line-height: 1em; text-align: center; }
+/* A DUPLICATE DISSOLVES: the plate goes white-blue hot, then the card fades to a faint ghost as its light leaves. */
+.pkf-aglow { position: absolute; inset: 0; pointer-events: none; opacity: 0;
+  -webkit-mask: var(--pkf-plate) center / 100% 100% no-repeat; mask: var(--pkf-plate) center / 100% 100% no-repeat;
+  background: radial-gradient(ellipse at 50% 45%, #ffffff 0%, #d6f0ff 42%, #74c2ff 100%);
+  animation: pkf-aglow calc(1.5s * var(--pk-slow, 1)) ease-out both; }
+@keyframes pkf-aglow { 0% { opacity: 0; } 14% { opacity: 1; } 52% { opacity: 0.94; } 100% { opacity: 0; } }
+.pkf-dissolve { pointer-events: none; animation: pkf-dissolve calc(1.5s * var(--pk-slow, 1)) cubic-bezier(0.5, 0, 0.6, 1) both; }
+@keyframes pkf-dissolve { 0%, 46% { opacity: 1; } 100% { opacity: 0.13; } }
+@media (prefers-reduced-motion: reduce) { .pkf-aglow, .pkf-dissolve { animation: none; } .pkop-aether { transition: none; } }
 
 /* ── THE FACE ─────────────────────────────────────────────────────────────────────────────────────────────────────────
    Every face is the owner's cosmetic card plate (packs/cosmetic-card-plate.webp, 2:3: a gold frame, a raised notch at

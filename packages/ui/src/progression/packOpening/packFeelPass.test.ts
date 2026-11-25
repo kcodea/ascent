@@ -8,6 +8,7 @@ import { AURA_COLORS } from './packAura';
 import { teaseAuraLevel, teaseBeatFrames, teaseGlowPop, teaseTremble, teaseWobble } from './packTease';
 import { CARD_CUES, FOIL, TEASE_RATES } from './packSounds';
 import { summaryBest } from './PackOpener';
+import { odometerRoll } from './AetherTally';
 import { WEAR_MAX, newHandling, stepHandling } from './packFx';
 import type { PackCard } from '@game/progression';
 
@@ -69,6 +70,17 @@ describe('the pack opening feel pass', () => {
     expect(summaryBest([c('common'), c('rare')])).toEqual([]);
     expect(summaryBest([c('epic'), c('common'), c('ancient'), c('legendary'), c('epic')])).toEqual([2, 3, 0, 4]);
     expect(summaryBest([c('legendary'), c('legendary')])).toEqual([0, 1]);
+  });
+
+  it('a duplicate is never the raised best pull, and the Aether counter rolls like an odometer', () => {
+    const c = (rarity: PackCard['rarity'], dup = false): PackCard => ({ rarity, duplicate: dup ? { aether: 10 } : null } as PackCard);
+    expect(summaryBest([c('ancient', true), c('epic'), c('legendary', true)])).toEqual([1]);
+    expect(odometerRoll(0, 0)).toBe(0);
+    expect(odometerRoll(7.5, 0)).toBeCloseTo(7.5);
+    expect(odometerRoll(200, 2)).toBe(2);
+    expect(odometerRoll(199.5, 2)).toBeCloseTo(1.5); // the hundreds turn only as the lower digits carry
+    expect(odometerRoll(150, 2)).toBe(1);
+    expect(odometerRoll(19.25, 1)).toBeCloseTo(1.25);
   });
 
   it('the wrapper only gets more crumpled as it is worked, up to a cap, and the foil recordings exist on disk', () => {

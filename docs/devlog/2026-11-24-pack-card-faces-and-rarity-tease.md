@@ -137,3 +137,14 @@ It had not: the summary was five equal cards on a flat backdrop with a stale cap
   through the flip's projection (`projectTurnedRect`'s maths), through the scene's half of the turn and then the DOM
   face's half (`faceMoveEase` / `faceTurnEase`, the face's own cubic-beziers). The painted glow no longer stays behind
   the turning card when the aura carries the light. The torn lip's ends sit just inside the wrapper's sides (`LIP_INSET`).
+
+## 2026-11-25: aura fit, and duplicates dissolve into Aether
+
+- The card aura is sized to the VISIBLE plate (`FACE_PLATE_H` of the art box; the art has a clear margin) in the tease,
+  the turn and the landing, and the landing aura reads the DOM face's own transition clock (`faceTurnStarted`), since
+  the face mounts a frame or two after the edge-on moment.
+- The end screen's "Duplicates: +N Aether" pill is gone (owner ask). Each duplicate glows white-blue, comes apart into
+  motes (`packAether.ts`, a pooled additive stream on the stage) that curve into the Aether medallion under the row;
+  the medallion springs as it swallows them and an odometer beside it (`AetherTally.tsx`) rolls up to the refund,
+  driven by what has actually arrived. A dissolved card stays as a faint ghost (my call, 13% opacity). A duplicate is
+  never the raised "best pull". Reduced motion shows the medallion and the total at once.

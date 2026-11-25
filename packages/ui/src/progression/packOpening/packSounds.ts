@@ -38,6 +38,8 @@ export interface PackSounds {
   /** A Legendary / Ancient card landed (bigPull.ts): the chest's tier burst; Ancient a touch louder and brighter. */
   bigPull(tier: BigPullTier): void;
   stamp(): void;
+  /** The k-th duplicate of the summary row begins to dissolve into Aether (0 = the first): each rings a step higher. */
+  dissolve(k: number): void;
   aether(): void;
   summary(): void;
   silence(): void;
@@ -76,6 +78,7 @@ export const CARD_CUES = {
   press: [{ clip: 'cardtouch', cat: 'crateStamp', gain: 0.5 }],
   tease: [{ clip: 'fx/glass-sing', cat: 'crateTierShimmer', gain: 0.34 }, { clip: 'fx/glass-tick', cat: 'crateTierShimmer', gain: 0.3 }],
   heartbeat: [{ clip: 'pulse', cat: 'cratePulse', gain: 0.5 }],
+  dissolve: [{ clip: 'fx/glass-sing', cat: 'crateTierShimmer', gain: 0.26 }],
   turn: [{ clip: 'reordercard', cat: 'crateWhoosh', gain: 0.5 }, { clip: 'fx/pack-card-flip', cat: 'crateWhoosh', gain: 0.5 }],
   turnBig: [{ clip: 'windup', cat: 'crateCharge', gain: 0.45 }],
   land: [{ clip: 'cardlanding', cat: 'crateStamp', gain: 0.5 }],
@@ -371,6 +374,7 @@ export function createPackSounds(): PackSounds {
       cues(tier === 'ancient' ? CARD_CUES.bigAncient : CARD_CUES.bigLegendary);
     },
     stamp: () => play(PACK_CUES.stamp),
+    dissolve: (k) => cues(CARD_CUES.dissolve, 1 + 0.12 * Math.max(0, Math.min(5, k))),
     aether: () => play(PACK_CUES.aether),
     summary: () => play(PACK_CUES.summary),
     silence() {

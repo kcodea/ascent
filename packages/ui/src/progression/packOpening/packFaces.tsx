@@ -57,6 +57,8 @@ export interface PackFaceProps {
   best?: boolean;
   /** The face's turn-in transition really started: its start on the document timeline and its length (ms). */
   onTurnStart?: (startMs: number, durMs: number) => void;
+  /** The summary row's duplicate is dissolving into Aether: it glows white-blue, then fades to a faint ghost. */
+  dissolve?: boolean;
 }
 
 /**
@@ -290,7 +292,7 @@ function useHoloFollow(enabled: boolean) {
   return { layer, handlers };
 }
 
-export function PackFace({ card, phase, from, slot, slow = 1, still = false, best, onTurnStart }: PackFaceProps) {
+export function PackFace({ card, phase, from, slot, slow = 1, still = false, best, onTurnStart, dissolve = false }: PackFaceProps) {
   const p = rewardPreview(card.rewardId);
   const placed = from !== undefined || slot !== undefined;
   const handoff = phase === 'handoff' && from !== undefined;
@@ -367,7 +369,7 @@ export function PackFace({ card, phase, from, slot, slow = 1, still = false, bes
   // A title wears its own badge in place of the art window and the name line.
   const isTitle = p.emblem === 'title';
   const cat = categoryLabel(p.label.kind, p.category !== null);
-  const cls = `pkf r-${card.rarity} pkf-${phase}${placed ? ' pkf-placed' : ''}${glow ? ' pkf-glow' : ''}${follow.handlers ? ' pkf-hover' : ''}${best && phase === 'summary' ? ' pkf-best' : ''}`;
+  const cls = `pkf r-${card.rarity} pkf-${phase}${placed ? ' pkf-placed' : ''}${glow ? ' pkf-glow' : ''}${follow.handlers ? ' pkf-hover' : ''}${best && phase === 'summary' ? ' pkf-best' : ''}${dissolve && phase === 'summary' ? ' pkf-dissolve' : ''}`;
   return (
     <div
       ref={ref}
@@ -419,6 +421,7 @@ export function PackFace({ card, phase, from, slot, slow = 1, still = false, bes
           <div className="pkf-cat">{cat}</div>
         </div>
         <img src={rarityIconSrc(card.rarity)} alt="" decoding="sync" draggable={false} className="pkf-rarity-icon" />
+        {dissolve && phase === 'summary' && <div className="pkf-aglow" style={{ '--pkf-plate': `url("${cardPlateSrc(card.rarity)}")` } as CSSProperties} />}
         {revealed && <div className="pkf-flash" data-testid="pkf-flash" style={{ '--pkf-plate': `url("${cardPlateSrc(card.rarity)}")` } as CSSProperties} />}
       </div>
     </div>

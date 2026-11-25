@@ -23,7 +23,7 @@
  *    (Epic and up; Common / Rare glows are static), big-pull burst or pack aura still fading) and restarts on input, `flipTop`, `setBacks`, `quickOpen` and `resetSealed`.
  *  - No allocation per frame in the tear / sleeve loops: pooled flecks, reused points and in-place geometry buffers.
  */
-import { Application, type Texture, type Ticker } from 'pixi.js';
+import { Application, Texture, type Ticker } from 'pixi.js';
 import type { CrateRarity, PackLook } from '@game/progression';
 import { stageScale } from '../../stage';
 import { detachPixiDomEvents } from '../../pixiNoDomEvents';
@@ -44,6 +44,7 @@ import {
   type TeaseAt,
 } from './packTease';
 import { AURA_COLORS, makeAura, type Aura } from './packAura';
+import { AetherStream, type AetherProgress } from './packAether';
 import {
   SPILL_LINE_V, SPILL_MIN_REACH, SPILL_PACK_HALF, makeMaskedGloss, makeMaskedSheen, makeSheen, makeSpill, makeStage, newHandling,
   stepHandling, type GlossFx, type Handling, type MaskedFx, type SheenFx, type SpillFx, type StageFx,
@@ -51,7 +52,7 @@ import {
 import { PILE_LEAN_PX, PILE_LEAN_RAD, PILE_RISE_PX, newPile, pileAtRest, pileEase, pileScale, type PileState } from './packPile';
 import { cardRestX, cardRestY } from './packViews';
 import { COSMETIC_RARITIES } from '@game/progression';
-import { ANCIENT_GLOW_STOPS, BURST_TEX, PACK_GEOM, TEX_RES, rarityTint } from './packTextures';
+import { ANCIENT_GLOW_STOPS, BURST_TEX, PACK_GEOM, TEX_RES, paintFleck, rarityTint } from './packTextures';
 import { AURA_BURST, BURST, FACE_AMBIENT, FACE_PLATE_H, FLIP_CHARGE, bigPullTier, burstPoseAt, type BigPullTier, type BurstPose } from './bigPull';
 import { holoShiftInto, packHoloStrength } from './packHolo';
 import {
@@ -113,6 +114,13 @@ export interface PackScene {
    * frame (owner 2026-11-25: "its still slightly off"). Until this arrives the aura waits edge-on.
    */
   faceTurnStarted(startMs: number, durMs: number): void;
+  /**
+   * A duplicate card of the summary row comes apart into Aether and flows into the medallion (packAether.ts). `from` is
+   * the card (centre, width, height) and `to` the medallion's centre, in SCREEN px. `progress` hears how much of the
+   * card the medallion has taken (0..1), at most once a frame, and `done` with the last mote; with no scene to draw it,
+   * it is told at once that everything arrived.
+   */
+  aetherFlow(from: { x: number; y: number; w: number; h: number }, to: { x: number; y: number }, progress: AetherProgress): void;
   /** Scale the scene's clock (1 = real time, 0.25 = slow-mo). Dev-only (the Pack Lab); a no-op until Pixi is up. */
   setSpeed(mult: number): void;
   /** Safe at any moment, including before the async init resolves. */
@@ -284,6 +292,9 @@ class PackSceneImpl implements PackScene {
   private faceAmbient = 0;
   private pileAmbient = 0; // the second aura's level on the summary (it lights the second-best pull)
   private summaryOn = false;
+  private aether: AetherStream | null = null;
+  /** One stage px in canvas px (the Aether motes are sized in stage px). */
+  private aetherUnit = 1;
   // the presentation shaders (packFx.ts): the stage behind everything, the light from inside the
   // pack, the top card back's sheen; and what drives them
   private stage: StageFx | null = null;
@@ -403,6 +414,11 @@ class PackSceneImpl implements PackScene {
     this.auraPile = makeAura(webgl);
     if (this.auraFace) built.views.root.addChildAt(this.auraFace.mesh, 1);
     if (this.auraPile) built.views.root.addChildAt(this.auraPile.mesh, 1);
+    // the Aether stream: over everything else in the scene
+    const moteTex = Texture.from(paintFleck());
+    this.textures.push(moteTex);
+    this.aether = new AetherStream(moteTex);
+    app.stage.addChild(this.aether.root);
     // the presentation shaders: the stage under everything; the spill between the
     // stack and the sleeve front; the sheen over the stack
     const vw = built.views;
@@ -457,6 +473,18 @@ class PackSceneImpl implements PackScene {
     const L = this.land;
     if (!L.active || L.t0 >= 0 || !(durMs > 0) || !Number.isFinite(startMs)) return;
     L.t0 = startMs; L.durMs = durMs;
+  }
+
+  aetherFlow(from: { x: number; y: number; w: number; h: number }, to: { x: number; y: number }, progress: AetherProgress): void {
+    const app = this.app, ae = this.aether;
+    if (!app || !ae || this.destroyed) { progress(1, true); return; }
+    this.cacheRect();
+    if (!this.rect.valid) { progress(1, true); return; }
+    const sx = app.screen.width / this.rect.w, sy = app.screen.height / this.rect.h;
+    this.aetherUnit = Math.max(0.2, stageScale() * sx);
+    ae.emit((from.x - this.rect.l) * sx, (from.y - this.rect.t) * sy, from.w * sx, from.h * sy,
+      (to.x - this.rect.l) * sx, (to.y - this.rect.t) * sy, this.aetherUnit, progress);
+    this.wake();
   }
 
   showSummary(spots: readonly SummarySpot[]): void {
@@ -1026,6 +1054,7 @@ class PackSceneImpl implements PackScene {
     this.bodyKey.rx = NaN; // the body meshes are rewritten (with the current tilt) on the next frame
     this.writeBody(false);
     v.flecks.clear();
+    this.aether?.clear();
     v.flipper.visible = false;
     v.flipRibbon.visible = false;
     v.fade.visible = false;
@@ -1321,6 +1350,7 @@ class PackSceneImpl implements PackScene {
     this.auraStep(dt);
     this.fxStep(dt);
     v.flecks.step(dt);
+    this.aether?.step(dt, this.aetherUnit);
 
     if (this.shake > 0.05) {
       v.pack.x = (Math.random() - 0.5) * this.shake;
@@ -1330,7 +1360,7 @@ class PackSceneImpl implements PackScene {
 
     // idle once the stack has zoomed and nothing moves (the render of this frame still runs)
     if (this.phase === 'end' && !this.flip.active && !this.tease.live && !this.overPile() && pileAtRest(this.pile) && !this.pilePressed
-      && !this.auraFace?.live && !this.auraPile?.live && !this.xf.active && v.flecks.count === 0 && this.shake === 0
+      && !this.auraFace?.live && !this.auraPile?.live && !this.xf.active && v.flecks.count === 0 && !this.aether?.count && this.shake === 0
       && (!this.sideOn || this.side === 1) && !this.reset.active && !this.flying && this.glowReveal === 1 && this.packGlowFade === 0
       && !this.burst.active && !this.stage) { // (a lit stage never stops: its dust keeps drifting)
       app.ticker.stop();

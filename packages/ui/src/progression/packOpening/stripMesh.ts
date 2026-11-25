@@ -13,7 +13,7 @@
  * Everything is in the pack's base units (`PACK_GEOM`). No allocation per frame: every buffer is created once and
  * updated in place.
  */
-import { Container, Mesh, MeshGeometry, Texture } from 'pixi.js';
+import { Container, Mesh, MeshGeometry, Shader, Texture } from 'pixi.js';
 import type { Vec3 } from './peelModel';
 import { PACK_GEOM } from './packTextures';
 import { glossD, glossSpecAlpha, glossStripU, tiltInto, type GlossBand, type TiltPose } from './packTilt';
@@ -57,6 +57,32 @@ export interface StripTextures { front: Texture; back: Texture; shade: Texture; 
  */
 export interface StripSurface { tilt: TiltPose; band: GlossBand; gloss: number }
 
+const SPEC_VERT = `#version 300 es
+in vec2 aPosition;
+in vec2 aUV;
+in vec2 aArt;
+out vec2 vUV;
+out vec2 vArt;
+uniform mat3 uProjectionMatrix;
+uniform mat3 uWorldTransformMatrix;
+uniform mat3 uTransformMatrix;
+void main() {
+  mat3 mvp = uProjectionMatrix * uWorldTransformMatrix * uTransformMatrix;
+  gl_Position = vec4((mvp * vec3(aPosition, 1.0)).xy, 0.0, 1.0);
+  vUV = aUV; vArt = aArt;
+}`;
+const SPEC_FRAG = `#version 300 es
+precision highp float;
+in vec2 vUV;
+in vec2 vArt;
+out vec4 finalColor;
+uniform vec4 uColor;
+uniform sampler2D uTex;    // the printed strip (its alpha is the foil's shape)
+uniform sampler2D uTex2;   // the highlight lookup
+void main() {
+  finalColor = texture(uTex2, vUV) * texture(uTex, vArt).a * uColor.a;
+}`;
+
 export class StripMesh {
   /** The flap: the four meshes. The scene flies this off at the rip. */
   readonly view = new Container();
@@ -67,7 +93,8 @@ export class StripMesh {
   private readonly backG: MeshGeometry;
   private readonly shadeG: MeshGeometry;
   private readonly specG: MeshGeometry;
-  private readonly specM: Mesh;
+  private specM: Mesh | Mesh<MeshGeometry, Shader>;
+  private readonly tex: StripTextures;
   /** The holo over the printed front (packHoloMesh.ts), when the pack has one: it shares the front's positions. */
   private holoG: MeshGeometry | null = null;
   private readonly gx = new Float32Array(G);
@@ -82,6 +109,7 @@ export class StripMesh {
   private readonly p: Pt = { x: 0, y: 0 };
 
   constructor(tex: StripTextures) {
+    this.tex = tex;
     const tris: number[] = [];
     for (let j = 0; j < NY; j++) {
       for (let i = 0; i < NX; i++) {
@@ -113,6 +141,32 @@ export class StripMesh {
     this.specM = new Mesh({ geometry: this.specG, texture: tex.spec });
     this.specM.blendMode = 'add';
     this.view.addChild(frontM, backM, shadeM, this.specM);
+  }
+
+  /**
+   * Cut the strip's highlight to the strip's ART (owner 2026-11-25: "the sheen doesnt match the curve of the wrapper"):
+   * the plain spec mesh lights the strip's whole rectangle, the art's see-through margin and rounded corners included,
+   * which showed as a pale block past the wrapper's edge. This swaps it for the same lookup multiplied by the printed
+   * strip's alpha (sampled at the strip's own uv, a second attribute), so the light ends where the foil does, however
+   * the strip is tilted or peeled. WebGL only (GLSL ES 3.0); on failure the plain mesh stays.
+   */
+  maskSpecToArt(): void {
+    try {
+      this.specG.addAttribute('aArt', Float32Array.from(this.frontG.uvs));
+      const { front, spec } = this.tex;
+      const shader = Shader.from({
+        gl: { vertex: SPEC_VERT, fragment: SPEC_FRAG },
+        resources: { uTex: front.source, uTexSampler: front.source.style, uTex2: spec.source, uTex2Sampler: spec.source.style },
+      });
+      const masked = new Mesh({ geometry: this.specG, shader });
+      masked.blendMode = 'add';
+      masked.alpha = this.specM.alpha;
+      const at = this.view.getChildIndex(this.specM);
+      this.view.removeChild(this.specM);
+      this.specM.destroy();
+      this.view.addChildAt(masked, at);
+      this.specM = masked;
+    } catch (e) { console.warn('[stripMesh] masked spec unavailable:', e); }
   }
 
   /**

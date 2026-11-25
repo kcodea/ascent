@@ -427,6 +427,7 @@ class PackSceneImpl implements PackScene {
     if (this.stage) { app.stage.addChildAt(this.stage.mesh, 0); this.stage.mesh.visible = true; this.stage.u.uTint.set(pc[0]); }
     // the wrapper's highlights, cut to the art's own shape: they take the plain sheen / gloss meshes' place
     this.sheenOv = makeMaskedSheen(webgl, vw.body, vw.body.texture, vw.sheen.texture);
+    if (webgl) vw.strip.maskSpecToArt(); // the strip's highlight, cut to its art the same way
     this.glossOv = makeMaskedGloss(webgl, vw.body, vw.body.texture, vw.gloss.texture);
     for (const [ov, plain] of [[this.sheenOv, vw.sheen], [this.glossOv, vw.gloss]] as const) {
       if (!ov) continue;

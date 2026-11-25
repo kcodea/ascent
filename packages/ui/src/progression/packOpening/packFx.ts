@@ -152,7 +152,8 @@ uniform float uLevel;      // 0..1
 uniform vec2 uAim;         // where the pointer is on the card, -1..1 (0 when it is not on it)
 void main() {
   vec2 c = vUV * vec2(.3333, .5);   // card heights
-  float mask = smoothstep(0., -.012, sdRound(c, vec2(.3333, .5) * .955, .045));
+  // cut to the plate itself (its outer edge sits inside the art box, a hair low), so no light shows past its corners
+  float mask = smoothstep(0., -.012, sdRound(c - vec2(0., .0055), vec2(.3333 * .925, .5 * .912), .055));
   if (mask <= 0. || uLevel < .01) { finalColor = vec4(0.); return; }
   // a band of light across the card: it follows the pointer, and drifts on its own when nobody is there
   float s = dot(c, normalize(vec2(.8, .6)));

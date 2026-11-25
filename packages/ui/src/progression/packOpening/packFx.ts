@@ -2,7 +2,7 @@
  * PACK OPENING: THE PRESENTATION SHADERS (owner 2026-11-24: "its everything, the animations, the card back visuals, the
  * tear effects, the unsheathe effects, the entire presentation, EVERYTHING needs to be brought up").
  *
- * Three small procedural shaders (GLSL ES 3.0, WebGL only, no textures of their own; `null` on any other renderer and
+ * Small procedural shaders (GLSL ES 3.0, WebGL only, no textures of their own; `null` on any other renderer and
  * the scene simply goes without them):
  *
  *  - THE STAGE: the theatre itself, drawn behind everything. A dark void lit by one spotlight that falls on the pack,
@@ -168,7 +168,33 @@ void main() {
   finalColor = vec4(col, clamp(max(col.r, max(col.g, col.b)), 0., 1.));
 }`;
 
-type UType = 'f32' | 'vec2<f32>' | 'vec3<f32>';
+/**
+ * THE WRAPPER'S HIGHLIGHTS, CUT TO THE ART (owner 2026-11-25: "i can still see the sheen over the edge of the wrapper";
+ * "identical to the size and reaction of the wrapper, including when pinched"). The idle sheen and the gloss band ride
+ * the wrapper body's own grid, but a plain textured mesh lights the whole body RECTANGLE, the art's see-through margin
+ * and crimps included. These two draw the same textures multiplied by the wrapper art's alpha (`uTex`), so the light
+ * ends exactly where the printed foil does, however the body is tilted, squeezed or pinched. vUV = the body's own uvs.
+ */
+export const MASKED_FRAG = `${HEAD}
+uniform sampler2D uTex;    // the wrapper art (its alpha is the foil's shape)
+uniform sampler2D uTex2;   // the highlight
+void main() {
+  finalColor = texture(uTex2, vUV) * texture(uTex, vUV).a * uColor.a;
+}`;
+
+/** The gloss band, placed from uniforms (no per-frame uv rewrite): `uBand` = centre, half width, slope, cy (pack units). */
+export const GLOSS_FRAG = `${HEAD}
+uniform sampler2D uTex;    // the wrapper art
+uniform sampler2D uTex2;   // the band (sampled along u at v = 0.5)
+uniform vec4 uBand;
+uniform vec3 uGeom;        // the pack's W, H (the strip's height) and BODY_H
+void main() {
+  float x = vUV.x * uGeom.x, y = uGeom.y + vUV.y * uGeom.z;
+  float d = (x + uBand.z * (y - uBand.w) - uBand.x) / uBand.y;
+  finalColor = texture(uTex2, vec2(.5 + .5 * d, .5)) * step(abs(d), 1.) * texture(uTex, vUV).a * uColor.a;
+}`;
+
+type UType = 'f32' | 'vec2<f32>' | 'vec3<f32>' | 'vec4<f32>';
 type USpec = Record<string, UType>;
 type UValues<S extends USpec> = { -readonly [K in keyof S]: S[K] extends 'f32' ? number : Float32Array };
 
@@ -182,18 +208,19 @@ const unitQuad = (): MeshGeometry => new MeshGeometry({
 });
 
 function make<S extends USpec>(
-  webgl: boolean, frag: string, spec: S, blend: 'add' | 'normal', geometry?: MeshGeometry, tex?: Texture,
+  webgl: boolean, frag: string, spec: S, blend: 'add' | 'normal', geometry?: MeshGeometry, tex?: Texture, tex2?: Texture,
 ): Fx<S> | null {
   if (!webgl) return null;
   try {
     const def: Record<string, { value: number | Float32Array; type: UType }> = {};
     for (const k of Object.keys(spec)) {
       const t = spec[k]!;
-      def[k] = { value: t === 'f32' ? 0 : new Float32Array(t === 'vec2<f32>' ? 2 : 3), type: t };
+      def[k] = { value: t === 'f32' ? 0 : new Float32Array(t === 'vec2<f32>' ? 2 : t === 'vec3<f32>' ? 3 : 4), type: t };
     }
     const group = new UniformGroup(def);
     const resources: Record<string, unknown> = { fxUniforms: group };
     if (tex) { resources.uTex = tex.source; resources.uTexSampler = tex.source.style; }
+    if (tex2) { resources.uTex2 = tex2.source; resources.uTex2Sampler = tex2.source.style; }
     const shader = Shader.from({ gl: { vertex: GL_VERT, fragment: frag }, resources });
     const mesh = new Mesh({ geometry: geometry ?? unitQuad(), shader });
     mesh.blendMode = blend;
@@ -216,6 +243,21 @@ export type SpillFx = Fx<typeof SPILL_U>;
 export type SheenFx = Fx<typeof SHEEN_U>;
 
 export const makeStage = (webgl: boolean): StageFx | null => make(webgl, STAGE_FRAG, STAGE_U, 'normal');
+const NO_U = {} as const satisfies USpec;
+const GLOSS_U = { uBand: 'vec4<f32>', uGeom: 'vec3<f32>' } as const satisfies USpec;
+export type MaskedFx = Fx<typeof NO_U>;
+export type GlossFx = Fx<typeof GLOSS_U>;
+/** A copy of the wrapper body's grid (the scene copies the body's positions into it whenever it writes them). */
+const bodyGrid = (body: Mesh): MeshGeometry => {
+  const bg = body.geometry as MeshGeometry;
+  return new MeshGeometry({ positions: Float32Array.from(bg.positions), uvs: Float32Array.from(bg.uvs), indices: Uint32Array.from(bg.indices) });
+};
+/** The idle sheen, cut to the wrapper art. */
+export const makeMaskedSheen = (webgl: boolean, body: Mesh, art: Texture, sheen: Texture): MaskedFx | null =>
+  make(webgl, MASKED_FRAG, NO_U, 'add', bodyGrid(body), art, sheen);
+/** The gloss band, cut to the wrapper art. */
+export const makeMaskedGloss = (webgl: boolean, body: Mesh, art: Texture, band: Texture): GlossFx | null =>
+  make(webgl, GLOSS_FRAG, GLOSS_U, 'add', bodyGrid(body), art, band);
 export const makeSpill = (webgl: boolean): SpillFx | null => make(webgl, SPILL_FRAG, SPILL_U, 'add');
 export const makeSheen = (webgl: boolean): SheenFx | null => make(webgl, SHEEN_FRAG, SHEEN_U, 'add');
 

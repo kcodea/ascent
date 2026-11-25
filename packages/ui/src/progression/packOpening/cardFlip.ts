@@ -57,6 +57,23 @@ export const flipHalfMs = (rarity: CrateRarity | undefined, guaranteed: boolean)
 /** The card sinks this much (of its size) as the turn starts, then lifts: the wind-up before the throw. */
 export const FLIP_DIP = 0.04;
 
+/** A CSS cubic-bezier(x1, y1, x2, y2) evaluated at time `u` (0..1): the same curve a transition runs. */
+export function bezierEase(x1: number, y1: number, x2: number, y2: number, u: number): number {
+  const x = Math.max(0, Math.min(1, u));
+  let t = x;
+  for (let i = 0; i < 6; i++) { // Newton on the curve's x
+    const cx = 3 * x1, bx = 3 * (x2 - x1) - cx, ax = 1 - cx - bx;
+    const fx = ((ax * t + bx) * t + cx) * t - x, dx = (3 * ax * t + 2 * bx) * t + cx;
+    if (Math.abs(dx) < 1e-6) break;
+    t = Math.max(0, Math.min(1, t - fx / dx));
+  }
+  const cy = 3 * y1, by = 3 * (y2 - y1) - cy, ay = 1 - cy - by;
+  return ((ay * t + by) * t + cy) * t;
+}
+/** The DOM face's two curves (packFaces.tsx MOVE_EASE / TURN_EASE): how it travels to its slot, and how it turns flat. */
+export const faceMoveEase = (u: number): number => bezierEase(0.45, 0, 0.25, 1, u);
+export const faceTurnEase = (u: number): number => bezierEase(0.3, 0.5, 0.4, 1, u);
+
 /** Where a flip starts and heads (any one 2D space), the card's scale at the start, and how much it lifts by 90 deg. */
 export interface FlipPath { c0x: number; c0y: number; tx: number; ty: number; scale: number; lift: number }
 export interface FlipPose { cx: number; cy: number; s: number }

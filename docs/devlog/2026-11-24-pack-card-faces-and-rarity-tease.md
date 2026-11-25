@@ -129,3 +129,11 @@ It had not: the summary was five equal cards on a flat backdrop with a stale cap
 - **The tease holds each tier twice as long** (`TEASE_FIRST_FRAMES` 12, `TEASE_STEP_FRAMES` 18).
 - The summary deal's stagger moved to a CSS variable (`--pkf-deal`); an inline `transitionDelay` beside the `transition`
   shorthand made React warn.
+- **The wrapper's highlights are cut to the art** (`MASKED_FRAG`, `GLOSS_FRAG` in `packFx.ts`): the idle sheen and the
+  gloss band were plain textured meshes on the body's grid, so they lit the body's whole RECTANGLE, the art's
+  see-through margin included (a pale band past the wrapper's edge, most visible when pinched). They are now drawn
+  multiplied by the wrapper art's alpha; the gloss band is placed by uniforms (no per-frame uv rewrite needed for it).
+- **The aura turns in the card's own perspective** (`Aura.placeTurned`): its mesh is a 13 x 13 grid and every vertex goes
+  through the flip's projection (`projectTurnedRect`'s maths), through the scene's half of the turn and then the DOM
+  face's half (`faceMoveEase` / `faceTurnEase`, the face's own cubic-beziers). The painted glow no longer stays behind
+  the turning card when the aura carries the light. The torn lip's ends sit just inside the wrapper's sides (`LIP_INSET`).

@@ -31,6 +31,9 @@ void main() {
   vUV = aUV;
 }`;
 
+/** The aura's grid: vertices along each side. */
+export const AURA_GRID = 13;
+
 /** The quad spans this many card heights from its centre to an edge (the shader's `p` is in card heights). */
 export const AURA_REACH = 2.1;
 
@@ -186,7 +189,13 @@ export class Aura {
   /** How long a burst lives (seconds). */
   static readonly BURST_LIFE = 2.6;
 
-  constructor(readonly mesh: Mesh<MeshGeometry, Shader>, private readonly u: AuraUniforms) {}
+  private turned = false;
+  /** The grid's resting positions (-1..1). */
+  private readonly base: Float32Array;
+
+  constructor(readonly mesh: Mesh<MeshGeometry, Shader>, private readonly u: AuraUniforms) {
+    this.base = Float32Array.from(mesh.geometry.positions);
+  }
 
   /** Dress the aura in a rarity's colours. */
   setRarity(r: CrateRarity): void {
@@ -194,14 +203,38 @@ export class Aura {
     this.u.uA.set(c[0]); this.u.uB.set(c[1]); this.u.uC.set(c[2]);
   }
 
-  /**
-   * Centre it on (x, y), for a card `cardH` tall (parent units). `turn` (1 = facing us, toward 0 = edge-on) narrows it
-   * with a card turning about its vertical axis, so the aura stays on the card's edges through a flip.
-   */
-  place(x: number, y: number, cardH: number, turn = 1): void {
+  /** Centre it on (x, y), facing us, for a card `cardH` tall (parent units). */
+  place(x: number, y: number, cardH: number): void {
     this.mesh.position.set(x, y);
-    const k = cardH * AURA_REACH;
-    this.mesh.scale.set(k * Math.max(0.05, Math.min(1, turn)), k);
+    this.mesh.scale.set(cardH * AURA_REACH);
+    if (this.turned) {
+      this.turned = false;
+      const pos = this.mesh.geometry.positions;
+      pos.set(this.base);
+      this.mesh.geometry.getBuffer('aPosition').update();
+    }
+  }
+
+  /**
+   * Centre it on (x, y) for a card `cardH` tall that is TURNED by `ang` (radians) about its vertical axis and seen with
+   * perspective distance `D` (parent units): the same projection the flipping card uses (cardFlip.ts
+   * `projectTurnedRect`), applied to every vertex of the aura's grid, so the light stays on the card's edges through the
+   * whole turn, nearer edge larger, farther edge smaller (owner 2026-11-25: "its not turning with the card").
+   */
+  placeTurned(x: number, y: number, cardH: number, ang: number, D: number): void {
+    this.mesh.position.set(x, y);
+    this.mesh.scale.set(1);
+    this.turned = true;
+    const k = cardH * AURA_REACH, cos = Math.cos(ang), sin = Math.sin(ang);
+    const pos = this.mesh.geometry.positions, base = this.base;
+    for (let i = 0; i < base.length; i += 2) {
+      const lx = base[i]! * k, ly = base[i + 1]! * k;
+      // depth toward the camera is -lx*sin; never let a far-out vertex blow up as it nears the eye
+      const f = D / Math.max(D * 0.5, D + lx * sin);
+      pos[i] = lx * cos * f;
+      pos[i + 1] = ly * f;
+    }
+    this.mesh.geometry.getBuffer('aPosition').update();
   }
 
   fireBurst(k: number): void { this.burstT = 0; this.burstK = k; }
@@ -217,6 +250,11 @@ export class Aura {
     this.u.uA.set(o.u.uA); this.u.uB.set(o.u.uB); this.u.uC.set(o.u.uC);
     this.mesh.position.copyFrom(o.mesh.position);
     this.mesh.scale.copyFrom(o.mesh.scale);
+    if (this.turned || o.turned) {
+      this.turned = o.turned;
+      this.mesh.geometry.positions.set(o.mesh.geometry.positions);
+      this.mesh.geometry.getBuffer('aPosition').update();
+    }
   }
 
   /** One frame: advance the burst, write the uniforms (`dtSec` and `timeSec` in seconds, slow-mo scaled). */
@@ -245,11 +283,17 @@ export function makeAura(webgl: boolean): Aura | null {
       uC: { value: new Float32Array(3), type: 'vec3<f32>' },
     });
     const shader = Shader.from({ gl: { vertex: GL_VERT, fragment: GL_FRAG }, resources: { auraUniforms: group } });
-    const geometry = new MeshGeometry({
-      positions: new Float32Array([-1, -1, 1, -1, 1, 1, -1, 1]),
-      uvs: new Float32Array([-1, -1, 1, -1, 1, 1, -1, 1]),
-      indices: new Uint32Array([0, 1, 2, 0, 2, 3]),
-    });
+    // a grid, not one quad: each vertex is projected when the card turns, so the aura keystones with it
+    const N = AURA_GRID, pos = new Float32Array(N * N * 2), idx = new Uint32Array((N - 1) * (N - 1) * 6);
+    for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+      const o = (j * N + i) * 2;
+      pos[o] = (i / (N - 1)) * 2 - 1; pos[o + 1] = (j / (N - 1)) * 2 - 1;
+    }
+    for (let j = 0, q = 0; j < N - 1; j++) for (let i = 0; i < N - 1; i++) {
+      const a = j * N + i, b = a + 1, c = a + N, d = c + 1;
+      idx[q++] = a; idx[q++] = b; idx[q++] = c; idx[q++] = b; idx[q++] = d; idx[q++] = c;
+    }
+    const geometry = new MeshGeometry({ positions: pos, uvs: Float32Array.from(pos), indices: idx });
     const mesh = new Mesh({ geometry, shader });
     mesh.blendMode = 'add';
     mesh.visible = false;

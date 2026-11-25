@@ -34,7 +34,7 @@ import { followStage } from '../../pixiStageFollow';
 import { getDragFeel } from '../../dragFeel';
 import {
   FLIP_LIFT, FLIP_LIFT_GUARANTEED, FLIP_PERSPECTIVE_PER_WIDTH, PILE_MAX_H, REVEAL_FACE_X,
-  REVEAL_STACK_X, REVEAL_Y, REVEALED_SCALE, flipAngle, flipHalfMs, flipPoseAt, projectTurnedRect, type FlipPose,
+  REVEAL_STACK_X, REVEAL_Y, REVEALED_SCALE, faceMoveEase, faceTurnEase, flipAngle, flipHalfMs, flipPoseAt, projectTurnedRect, type FlipPose,
 } from './cardFlip';
 import { getPackFeel, PACK_BASE_SIZE, type PackFeel } from './packFxConfig';
 import { CARD_GLOW_TIERS, PACK_GLOW_TIERS, glowAlphaAt, packGlowRarity, type GlowTier } from './packGlow';
@@ -45,8 +45,8 @@ import {
 } from './packTease';
 import { AURA_COLORS, makeAura, type Aura } from './packAura';
 import {
-  SPILL_LINE_V, SPILL_MIN_REACH, SPILL_PACK_HALF, makeSheen, makeSpill, makeStage, newHandling, stepHandling,
-  type Handling, type SheenFx, type SpillFx, type StageFx,
+  SPILL_LINE_V, SPILL_MIN_REACH, SPILL_PACK_HALF, makeMaskedGloss, makeMaskedSheen, makeSheen, makeSpill, makeStage, newHandling,
+  stepHandling, type GlossFx, type Handling, type MaskedFx, type SheenFx, type SpillFx, type StageFx,
 } from './packFx';
 import { PILE_LEAN_PX, PILE_LEAN_RAD, PILE_RISE_PX, newPile, pileAtRest, pileEase, pileScale, type PileState } from './packPile';
 import { cardRestX, cardRestY } from './packViews';
@@ -167,6 +167,8 @@ const BASE = import.meta.env?.BASE_URL ?? '/';
  * like 20%?"). Only the pack shrinks: the zoomed stack grows by 1 / PACK_SIZE more, so the cards land where they did.
  */
 export const PACK_SIZE = 0.87;
+/** The torn lip's width over the wrapper's: its ends stay just inside the wrapper's sides. */
+export const LIP_INSET = 0.975;
 /** How much of the sealed pack's outer halo is drawn (0 = none: the pack's light stays behind the wrapper). */
 export const PACK_HALO = 0;
 /**
@@ -280,6 +282,9 @@ class PackSceneImpl implements PackScene {
   // pack, the top card back's sheen; and what drives them
   private stage: StageFx | null = null;
   private spill: SpillFx | null = null;
+  // the wrapper's idle sheen and gloss band, cut to the wrapper art (they replace the plain meshes when WebGL is up)
+  private sheenOv: MaskedFx | null = null;
+  private glossOv: GlossFx | null = null;
   private sheen: SheenFx | null = null;
   private readonly handling: Handling = newHandling();
   private packPressed = false; // a press on the sealed wrapper (a squeeze)
@@ -398,6 +403,16 @@ class PackSceneImpl implements PackScene {
     const pc = AURA_COLORS[packGlowRarity(this.look)];
     this.stage = makeStage(webgl);
     if (this.stage) { app.stage.addChildAt(this.stage.mesh, 0); this.stage.mesh.visible = true; this.stage.u.uTint.set(pc[0]); }
+    // the wrapper's highlights, cut to the art's own shape: they take the plain sheen / gloss meshes' place
+    this.sheenOv = makeMaskedSheen(webgl, vw.body, vw.body.texture, vw.sheen.texture);
+    this.glossOv = makeMaskedGloss(webgl, vw.body, vw.body.texture, vw.gloss.texture);
+    for (const [ov, plain] of [[this.sheenOv, vw.sheen], [this.glossOv, vw.gloss]] as const) {
+      if (!ov) continue;
+      ov.mesh.position.copyFrom(plain.position); ov.mesh.scale.copyFrom(plain.scale);
+      vw.sleeveFront.addChildAt(ov.mesh, vw.sleeveFront.getChildIndex(plain));
+      plain.visible = false;
+    }
+    if (this.glossOv) { const g3 = this.glossOv.u.uGeom; g3[0] = W; g3[1] = H; g3[2] = BODY_H; }
     this.spill = makeSpill(webgl);
     if (this.spill) {
       this.spill.u.uTint.set(pc[0]); this.spill.u.uHot.set(pc[2]);
@@ -577,7 +592,8 @@ class PackSceneImpl implements PackScene {
     f.ribbon = !!b?.guaranteed;
     // a click turns the card at once; whatever glow the hover built fades out through the turn (flipStep)
     const ts = this.tease;
-    this.teaseGlowOut = ts.live && v.glow.visible ? v.glow.alpha : 0;
+    // (with the shader aura the light goes WITH the card; the painted glow would stay behind it, flat)
+    this.teaseGlowOut = !this.auraFace && ts.live && v.glow.visible ? v.glow.alpha : 0;
     ts.live = false; ts.t = 0; ts.stage = -1; ts.level = 0;
     this.pilePressed = false;
     // the aura goes with the card: the tease's wisps (or a fresh charge) ride the turn, in the card's own colour
@@ -798,6 +814,15 @@ class PackSceneImpl implements PackScene {
     if (Math.abs(sqTo - sqz.a) < 0.002) sqz.a = sqTo;
     if (sqTo > 0) sqz.y = Math.max(220, (this.hoverPt.y - H) * TEX_RES);
     if (sealed && sqz.a !== this.bodyKey.sq) this.syncBody(false);
+    // the wrapper's highlights (cut to the art): the plain meshes' levels, and the band's place
+    const so = this.sheenOv, go = this.glossOv;
+    if (so) { so.mesh.alpha = v.sheen.alpha; so.mesh.visible = v.sheen.alpha > 0.002; }
+    if (go) {
+      go.mesh.alpha = v.gloss.alpha; go.mesh.visible = v.gloss.alpha > 0.002;
+      const b = this.band, ub = go.u.uBand;
+      ub[0] = b.centre; ub[1] = Math.max(0.001, b.halfWidth); ub[2] = b.slope; ub[3] = b.cy;
+    }
+
     // THE LIGHT INSIDE: out of the opening as the strip comes off, out of the sleeve's mouth as the cards slide out
     const sp = this.spill;
     if (sp) {
@@ -851,10 +876,15 @@ class PackSceneImpl implements PackScene {
       const L = this.land;
       if (L.active) {
         L.t += dt;
-        const u = Math.min(1, L.t / L.dur), e = 1 - (1 - u) * (1 - u);
-        // the face opens from edge-on to flat as it lands: the aura opens with it
-        af.place(L.x0 + (L.x1 - L.x0) * e, L.y0 + (L.y1 - L.y0) * e, L.h0 + (L.h1 - L.h0) * e, Math.sin(u * Math.PI / 2));
-        if (u >= 1) L.active = false;
+        // the DOM face's own curves: it travels on MOVE_EASE and turns from edge-on to flat on TURN_EASE, with the same
+        // perspective; the aura takes the same pose every frame
+        const u = Math.min(1, L.t / L.dur), e = faceMoveEase(u);
+        const hh = L.h0 + (L.h1 - L.h0) * e;
+        if (u >= 1) { L.active = false; af.place(L.x1, L.y1, L.h1); }
+        else {
+          af.placeTurned(L.x0 + (L.x1 - L.x0) * e, L.y0 + (L.y1 - L.y0) * e, hh, -(Math.PI / 2) * (1 - faceTurnEase(u)),
+            FLIP_PERSPECTIVE_PER_WIDTH * (hh / FACE_PLATE_H) * (CARD_W / CARD_H));
+        }
       }
       if (!this.flip.active) {
         af.level += (this.faceAmbient - af.level) * Math.min(1, 0.045 * dt);
@@ -1456,6 +1486,10 @@ class PackSceneImpl implements PackScene {
     const sp = v.sheen.geometry.positions, gp = v.gloss.geometry.positions;
     if (sp.length === pos.length) { sp.set(pos); v.sheen.geometry.getBuffer('aPosition').update(); }
     if (gp.length === pos.length) { gp.set(pos); v.gloss.geometry.getBuffer('aPosition').update(); }
+    for (const ov of [this.sheenOv, this.glossOv]) {
+      const og = ov?.mesh.geometry;
+      if (og && og.positions.length === pos.length) { og.positions.set(pos); og.getBuffer('aPosition').update(); }
+    }
     // the holo sheen rides the wrapper's own shape: tilt, squeeze and the sleeve's pinch alike
     const hg = v.holo?.body.geometry;
     if (hg && hg.positions.length === pos.length) { hg.positions.set(pos); hg.getBuffer('aPosition').update(); }
@@ -1463,8 +1497,9 @@ class PackSceneImpl implements PackScene {
     // near the top (owner 2026-11-24: "when pinching near the top, the edge doesnt connect to the edge of the bag")
     const rq = gy / 170;
     this.rimPinch = deform ? sl.pinch * Math.exp(-(rq * rq)) : 0;
-    v.lip.view.scale.x = 1 - this.rimPinch;
-    v.lip.view.x = (W / 2) * this.rimPinch;
+    const lipK = (1 - this.rimPinch) * LIP_INSET;
+    v.lip.view.scale.x = lipK;
+    v.lip.view.x = (W / 2) * (1 - lipK);
     if (deform) v.lip.view.y = -sl.lag;
     this.bodyKey.rx = this.tilt.rx; this.bodyKey.ry = this.tilt.ry; this.bodyKey.D = pose.D; this.bodyKey.sq = sq.a;
   }
@@ -1619,7 +1654,7 @@ class PackSceneImpl implements PackScene {
     if (af && fb) {
       // light gathers behind the turning card, in its own colour
       // (it turns with the card: it narrows as the card goes edge-on, so the light stays on the card's edges)
-      af.place(this.pose.cx, this.pose.cy, CARD_H * this.pose.s, Math.cos(flipAngle(p)));
+      af.placeTurned(this.pose.cx, this.pose.cy, CARD_H * this.pose.s, flipAngle(p), FLIP_PERSPECTIVE_PER_WIDTH * CARD_W * this.pose.s);
       const charge = FLIP_CHARGE[fb.rarity] * p * p * Math.min(1, getPackFeel().bigPull);
       if (charge > af.level) af.level = charge;
     }

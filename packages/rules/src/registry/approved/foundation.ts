@@ -17418,6 +17418,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Owner, 2026-11-25, with a screenshot of the Compendium set picker', quote: 'rename these here as well to the locations. name Set 1 -> Scrapyard name Set 4 -> Forest\x27s Edge' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-25 (the name of Set 4)', quote: 'Rename forests edge to rune barriers' },
       { kind: 'code', ref: 'packages/content/src/sets.ts (placeName, setPlaceName); packages/ui/src/MinionBook.tsx; packages/ui/src/CompendiumSetPicker.tsx' },
     ],
     currentBehaviour: 'Conforms, built 2026-11-25 (feat/compendium-locations). The picker itself is dev-only. Other dev tools (Scene Builder, balance panel) keep the internal set names.',

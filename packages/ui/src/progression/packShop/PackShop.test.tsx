@@ -65,6 +65,7 @@ const sceneFactory: NonNullable<PackShopProps['sceneFactory']> = (_host, events)
     scrollBy: (n) => { f.calls.push('scrollBy:' + n); },
     buySettled: (ok) => { f.calls.push('buySettled:' + ok); },
     rectOf: () => R,
+    gainAether: (_to, progress) => { f.calls.push('gain'); progress(1, true); },
     payAether: (_from, id, progress) => {
       f.calls.push('payAether:' + id);
       if (holdStream) { stream = progress; return; }

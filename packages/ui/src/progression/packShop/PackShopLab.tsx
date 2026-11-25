@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDraggablePanel } from '../../useDraggablePanel';
 import { PACK_LAB_SAMPLES, cancelLabTimers, makeLabOpen, type LabTimers } from '../packOpening/packLabSamples';
+import { packDuplicateAether } from '@game/progression';
 import { PackShop, type PackShopProps } from './PackShop';
 import {
   SHOP_LAB_OFFERS, SHOP_LAB_SHELVES, labHand, makeLabBuy,
@@ -56,7 +57,8 @@ export function PackShopLab(): JSX.Element {
     const outcome = await makeLabOpen(sample, look, timersRef.current)();
     if (outcome.status === 'ok') {
       const cur = stateRef.current;
-      setState({ ...cur, hand: cur.hand.filter((p) => p.packId !== packId) });
+      // the duplicates' Aether is refunded, as the real server will (the shop shows it arriving on the way back)
+      setState({ aether: cur.aether + packDuplicateAether(outcome.result), hand: cur.hand.filter((p) => p.packId !== packId) });
     }
     return outcome;
   }, [setState]);

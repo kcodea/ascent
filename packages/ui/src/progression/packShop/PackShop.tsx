@@ -5,7 +5,9 @@ import { rectToStage, stageHost, stageViewport, type StageRect } from '../../sta
 import { prefersReducedMotion } from '../CrateOpener';
 import { PackOpener, type PackOpenOutcome, type PackQueueItem } from '../packOpening/PackOpener';
 import { AetherTally, type AetherTallyHandle } from '../packOpening/AetherTally';
-import { packRarityLabel } from '../packOpening/packRarity';
+import { packRarityLabel, rarityIconSrc } from '../packOpening/packRarity';
+import { packArtFor } from '../packOpening/packArt';
+import { AetherIcon } from '../AetherIcon';
 import { createShopScene, type ScreenRect, type ShopScene } from './shopScene';
 import { createShopSounds, type ShopSounds } from './shopSounds';
 import { affordableIds, buyKey, packTag, shelfOffers, srLine } from './shopModel';
@@ -174,7 +176,8 @@ export function PackShop(props: PackShopProps) {
   useEffect(() => {
     balanceRef.current = aether;
     setBalance(aether);
-    if (pendingRef.current || streamRef.current.active) streamRef.current.deferred = aether;
+    // (also while the opener is up: a refund from its duplicates is shown arriving once the shop is back)
+    if (pendingRef.current || streamRef.current.active || openingRef.current) streamRef.current.deferred = aether;
     else setTally(aether);
   }, [aether, setTally]);
 
@@ -320,12 +323,29 @@ export function PackShop(props: PackShopProps) {
     scene?.setHand(shownHandOf(handRef.current, boughtRef.current, openedRef.current));
     scene?.setVisible(true, SHOP_HANDOFF_MS);
     scene?.setInputEnabled(true);
+    // Aether that arrived while the opener was up (its duplicates' refund) streams into the wallet now
+    const st = streamRef.current;
+    if (st.deferred !== null && !st.active) {
+      const to = st.deferred, from = tallyTargetRef.current;
+      st.deferred = null;
+      const orb = walletRef.current?.querySelector<HTMLElement>('.pkop-aether-orb');
+      const g = orb?.getBoundingClientRect();
+      if (scene && g && to > from) {
+        st.active = true; st.to = to;
+        scene.gainAether({ left: g.left, top: g.top, width: g.width, height: g.height }, (frac, done) => {
+          if (!st.active) return;
+          if (done) { finishStream(); tallyRef.current?.gulp(true); return; }
+          const v = from + (to - from) * Math.max(0, Math.min(1, frac));
+          if (v > tallyTargetRef.current) { setTally(v); tallyRef.current?.gulp(); }
+        });
+      } else setTally(to);
+    }
     // Focus goes back to the hand item that was played, if it is still in the hand, else to the dialog.
     const played = playedRef.current;
     const item = played && !openedRef.current.has(played)
       ? dialogRef.current?.querySelector<HTMLElement>(`[data-pack="${played}"]`) : null;
     (item ?? dialogRef.current)?.focus();
-  }, []);
+  }, [finishStream, setTally]);
 
   // ------------------------------------------------------------------ the scene
 
@@ -487,10 +507,22 @@ export function PackShop(props: PackShopProps) {
     const t = packTag(o, balance);
     return (
       <>
-        <div className={`${cls}-name`}>{o.look.name}{o.contains > 1 ? ` (${o.contains} packs)` : ''}</div>
-        <div className={`${cls}-price`}>{t.price}</div>
-        <div className={`${cls}-line`}>{t.floor}</div>
-        {t.fresh && <div className={`${cls}-line`}>{t.fresh}</div>}
+        <div className={`${cls}-head`}>
+          <img className={`${cls}-medal`} src={rarityIconSrc(o.look.guaranteedFloor)} alt="" aria-hidden="true" decoding="sync" draggable={false} />
+          <div>
+            <div className={`${cls}-name`}>{o.look.name}{o.contains > 1 ? ` (${o.contains} packs)` : ''}</div>
+            <div className={`${cls}-line`}>{t.floor}</div>
+          </div>
+        </div>
+        <div className={`${cls}-price`}>{o.price > 0 && <AetherIcon />}{t.price}</div>
+        {t.fresh && (
+          <div className={`${cls}-fresh`}>
+            {o.newToYou && o.newToYou.total > 0 && (
+              <span className="pks-bar" aria-hidden="true"><span style={{ transform: `scaleX(${Math.max(0, Math.min(1, o.newToYou.unowned / o.newToYou.total))})` }} /></span>
+            )}
+            <span className={`${cls}-line`}>{t.fresh}</span>
+          </div>
+        )}
         {t.soldOut ? <div className={`${cls}-short`}>Sold out</div> : t.short > 0 && <div className={`${cls}-short`}>{`Need ${t.short} more Aether`}</div>}
         {withButton && (
           <button type="button" className="crate-btn pressable pks-buy" ref={cls === 'pks-tag' ? buyBtnRef : undefined}
@@ -502,6 +534,14 @@ export function PackShop(props: PackShopProps) {
   };
 
   const handCount = `${shownHand.length} ${shownHand.length === 1 ? 'pack' : 'packs'}`;
+  // each tab wears the art of its shelf's lead pack (the first offer that has art)
+  const tabArt = useMemo(() => {
+    const out: Record<string, string> = {};
+    for (const s of shelves) {
+      for (const o of offers) { if (o.shelf !== s.id) continue; const src = packArtFor(o.look); if (src) { out[s.id] = src; break; } }
+    }
+    return out;
+  }, [shelves, offers]);
 
   const shop = (
     <div className={`pks${opening ? ' pks-away' : ''}`} role="dialog" aria-modal="true" aria-label="Pack shop" ref={dialogRef} tabIndex={-1}
@@ -513,7 +553,10 @@ export function PackShop(props: PackShopProps) {
         <div className="pks-tabs" role="tablist" aria-label="Shelves" data-arrows="tabs">
           {shelves.map((s) => (
             <button key={s.id} type="button" role="tab" aria-selected={s.id === activeShelf} tabIndex={s.id === activeShelf ? 0 : -1}
-                    className={`pks-tab${s.id === activeShelf ? ' pks-tab-on' : ''}`} data-arrow-item onClick={() => selectTab(s.id)}>{s.name}</button>
+                    className={`pks-tab${s.id === activeShelf ? ' pks-tab-on' : ''}`} data-arrow-item onClick={() => selectTab(s.id)}>
+              {tabArt[s.id] && <img className="pks-tab-art" src={tabArt[s.id]} alt="" aria-hidden="true" decoding="sync" draggable={false} />}
+              <span className="pks-tab-name">{s.name}</span>
+            </button>
           ))}
         </div>
         <div className="pks-wallet" ref={walletRef}>
@@ -527,6 +570,7 @@ export function PackShop(props: PackShopProps) {
           <div className={`pks-line${overLine ? ' pks-line-lit' : ''}`} aria-hidden>
             {lineWords && <span className={`pks-line-words${heldOffer && packTag(heldOffer, balance).short > 0 ? ' pks-line-short' : ''}`}>{lineWords}</span>}
           </div>
+          <div className="pks-handlabel" aria-hidden>{`Your packs \u00b7 ${shownHand.length}`}</div>
           {guarantee && (
             <div className="pks-guarantee">{`${packRarityLabel(guarantee.rarity)} guaranteed within ${guarantee.within} ${guarantee.within === 1 ? 'pack' : 'packs'}`}</div>
           )}

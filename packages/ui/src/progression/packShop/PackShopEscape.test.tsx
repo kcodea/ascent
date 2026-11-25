@@ -19,7 +19,7 @@ const calls: string[] = [];
 const sceneFactory: NonNullable<PackShopProps['sceneFactory']> = () => scene as unknown as ShopScene;
 const scene: Record<string, (...a: never[]) => unknown> & { setHand(p: readonly OwnedPack[]): void; setInputEnabled(on: boolean): void; setVisible(on: boolean, ms: number): void } = {
   setShelf: () => undefined, setAffordable: () => undefined, scrollBy: () => undefined, buySettled: () => undefined,
-  rectOf: () => ({ left: 0, top: 0, width: 10, height: 10 }), payAether: () => undefined,
+  rectOf: () => ({ left: 0, top: 0, width: 10, height: 10 }), payAether: () => undefined, gainAether: () => undefined,
   setHand: (p) => { calls.push('setHand:' + p.map((x) => x.packId).join(',')); },
   setInputEnabled: (on) => { calls.push('input:' + on); },
   setVisible: (on, ms) => { calls.push(`visible:${on}:${ms}`); },

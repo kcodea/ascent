@@ -10,16 +10,26 @@
 .pks-away :is(.pks-top, .pks-line, .pks-guarantee, .pks-tag, .pks-close) { opacity: 0; pointer-events: none; }
 
 /* THE TOP BAR: the shelf tabs on the left, the wallet on the right. */
-.pks-top { position: absolute; left: 36px; right: 36px; top: 22px; display: flex; align-items: center; justify-content: space-between;
+.pks-top { position: absolute; left: 36px; right: 168px; top: 22px; display: flex; align-items: center; justify-content: space-between;
   pointer-events: none; }
 .pks-tabs { display: flex; gap: 10px; pointer-events: auto; }
-.pks-tab { font-family: var(--font-ui); font-size: 17px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase;
-  color: var(--pk-text); opacity: 0.62; background: rgba(10, 14, 28, 0.72); border: 1.5px solid var(--pk-rim); border-radius: 10px;
-  padding: 9px 20px; transition: opacity 0.15s ease-out; }
-.pks-tab:hover, .pks-tab:focus-visible { opacity: 0.9; }
+/* A tab is a little shelf label: its shelf's lead pack leaning beside the name. The picked one stands lit, with a gold
+   bar under it (a pseudo-element with a static glow: only opacity and transform ever change). */
+.pks-tab { position: relative; display: flex; align-items: center; gap: 10px; height: 60px; padding: 0 20px 0 12px;
+  font-family: var(--font-ui); font-size: 17px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--pk-text);
+  background: linear-gradient(180deg, rgba(40, 50, 96, 0.82), rgba(14, 18, 38, 0.9)); border: 1.5px solid rgba(255, 210, 122, 0.26);
+  border-radius: 12px; opacity: 0.72; transition: opacity 0.15s ease-out, transform 0.15s ease-out; }
+.pks-tab::after { content: ''; position: absolute; left: 14px; right: 14px; bottom: -7px; height: 3px; border-radius: 2px; background: var(--gold);
+  box-shadow: 0 0 12px rgba(255, 200, 100, 0.9); opacity: 0; transform: scaleX(0.4); transition: opacity 0.18s ease-out, transform 0.18s ease-out; }
+.pks-tab-art { width: 30px; height: 45px; object-fit: contain; transform: rotate(-7deg); transition: transform 0.18s ease-out; pointer-events: none; }
+.pks-tab:hover, .pks-tab:focus-visible { opacity: 0.95; transform: translateY(-2px); }
+.pks-tab:hover .pks-tab-art, .pks-tab:focus-visible .pks-tab-art { transform: rotate(0deg) scale(1.12); }
 .pks-tab-on { opacity: 1; color: var(--gold-lt); border-color: var(--gold); }
+.pks-tab-on::after { opacity: 1; transform: none; }
+.pks-tab-on .pks-tab-art { transform: rotate(0deg) scale(1.12); }
 /* The wallet: the opener's Aether tally, standing in the bar and always shown. */
-.pks-wallet { position: relative; pointer-events: none; }
+.pks-wallet { position: relative; pointer-events: none; height: 60px; padding: 0 22px 0 6px; display: flex; align-items: center;
+  background: linear-gradient(180deg, rgba(40, 50, 96, 0.82), rgba(14, 18, 38, 0.9)); border: 1.5px solid rgba(120, 190, 255, 0.4); border-radius: 30px; }
 .pks-wallet .pkop-aether { position: static; opacity: 1; transform: none; gap: 12px; }
 .pks-wallet .pkop-aether-orb, .pks-wallet .pkop-aether-gem.aether-icon { width: 64px; height: 64px; }
 .pks-wallet .pkop-aether-num { font-size: 40px; }
@@ -27,8 +37,8 @@
 /* THE COUNTER LINE'S WORDS: the scene draws and lights the line at 66% of the stage; the price (or what is missing)
    sits on it while a shelf pack is carried, at the line's LEFT end, where the carried pack does not cover it. */
 .pks-line { position: absolute; left: 6%; right: 0; top: 66%; height: 0; display: flex; justify-content: flex-start; pointer-events: none; }
-.pks-line-words { transform: translateY(-50%); padding: 6px 18px; border-radius: 10px; background: rgba(10, 14, 28, 0.86);
-  border: 1.5px solid var(--pk-rim); font-size: 22px; font-weight: 800; letter-spacing: 0.06em; color: var(--pk-text); opacity: 0.75;
+.pks-line-words { transform: translateY(8px); padding: 7px 18px; border-radius: 0 0 12px 12px; background: linear-gradient(180deg, rgba(34, 40, 74, 0.96), rgba(14, 17, 36, 0.96));
+  border: 1.5px solid var(--pk-rim); border-top: none; font-size: 21px; font-weight: 800; letter-spacing: 0.06em; color: var(--pk-text); opacity: 0.8;
   transition: opacity 0.15s ease-out; }
 .pks-line-lit .pks-line-words { opacity: 1; color: var(--gold-lt); border-color: var(--gold); }
 .pks-line-short { color: #ff9c8a; }
@@ -37,14 +47,21 @@
 
 /* THE TAG beside a hovered, focused or selected pack (placed inline from the pack's rect, stage px). A selected pack's tag
    carries its Buy / Open button; without a rect (a pack out of view) it docks above the counter line. */
-.pks-tag { position: absolute; width: 300px; box-sizing: border-box; padding: 14px 18px; border-radius: 12px;
-  background: rgba(14, 17, 32, 0.94); border: 1.5px solid var(--pk-rim); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+.pks-tag { position: absolute; width: 320px; box-sizing: border-box; padding: 14px 18px 16px; border-radius: 14px;
+  background: linear-gradient(180deg, rgba(34, 40, 74, 0.97), rgba(14, 17, 36, 0.97)); border: 1.5px solid var(--pk-rim); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
   display: flex; flex-direction: column; gap: 5px; pointer-events: none; animation: pks-tag-in 0.16s ease-out both; }
 .pks-tag-armed { pointer-events: auto; }
-.pks-tag-dock { left: calc(50% - 150px); top: calc(66% - 220px); }
+.pks-tag-dock { left: calc(50% - 160px); top: calc(66% - 220px); }
 @keyframes pks-tag-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
-.pks-tag-name, .pks-card-name { font-family: var(--font-cardname); font-size: 22px; font-weight: 800; color: var(--gold-lt); }
-.pks-tag-price, .pks-card-price { font-size: 20px; font-weight: 800; color: #dcf3ff; }
+.pks-tag-name, .pks-card-name { font-family: var(--font-cardname); font-size: 22px; font-weight: 800; color: var(--gold-lt); line-height: 1.15; }
+.pks-tag-head, .pks-card-head { display: flex; align-items: center; gap: 12px; }
+.pks-tag-medal, .pks-card-medal { width: 54px; height: 54px; object-fit: contain; flex: none; pointer-events: none; }
+.pks-tag-price, .pks-card-price { display: flex; align-items: center; font-size: 22px; font-weight: 800; color: #dcf3ff; margin-top: 4px; }
+.pks-tag-price .aether-icon, .pks-card-price .aether-icon { width: 30px; height: 30px; margin-right: 6px; }
+.pks-tag-fresh, .pks-card-fresh { display: flex; flex-direction: column; gap: 5px; margin-top: 4px; }
+/* how much of the pack is still new to the player: a bar that fills by transform only */
+.pks-bar { display: block; height: 7px; border-radius: 4px; background: rgba(255, 255, 255, 0.12); overflow: hidden; }
+.pks-bar > span { display: block; height: 100%; border-radius: 4px; background: linear-gradient(90deg, #7fd6ff, #b7ffcf); transform-origin: 0 50%; }
 .pks-tag-line, .pks-card-line { font-size: 15px; opacity: 0.85; }
 .pks-tag-short, .pks-card-short { font-size: 15px; font-weight: 700; color: #ff9c8a; }
 .pks-buy, .pks-open { margin-top: 8px; }
@@ -53,7 +70,11 @@
 
 .pks-live { position: absolute; left: 0; right: 0; bottom: 18px; text-align: center; font-size: 17px; color: var(--pk-text); opacity: 0.85;
   pointer-events: none; }
-.pks-close { position: absolute; top: 100px; right: 36px; }
+.pks-close { position: absolute; top: 32px; right: 36px; }
+/* The hand's label, at the hand's left. */
+.pks-handlabel { position: absolute; left: 6%; top: 86%; transform: translateY(-50%); font-size: 17px; font-weight: 800; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--gold-lt); opacity: 0.7; pointer-events: none; transition: opacity 0.2s ease-out; }
+.pks-away .pks-handlabel { opacity: 0; }
 
 /* Visually hidden, still read and focusable: the mirror of the canvas. Its focused pack shows the tag instead. */
 .pks-sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }

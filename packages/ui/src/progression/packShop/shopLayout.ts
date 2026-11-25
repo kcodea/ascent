@@ -15,6 +15,8 @@ export const HAND_FAN_MAX = 7;
 export interface ShopLayout {
   w: number; h: number;
   shelfY: number; lineY: number; handY: number;
+  /** The counter's back edge, where every shelf pack stands (their BOTTOMS share it), and how far the plinth raises the featured pack. */
+  floorY: number; plinth: number;
   /** A shelf pack's height (off the pedestal). */
   packH: number;
   /**
@@ -35,6 +37,9 @@ const ASPECT = PACK_BASE_SIZE.w / PACK_BASE_SIZE.h;
 /** The pedestal pack's height, in canvas heights. */
 const PEDESTAL_H = 0.46;
 const SHELF_SCALE = 0.72;
+/** The counter's back edge and the plinth's rise, in canvas heights. */
+const FLOOR_Y = 0.585;
+const PLINTH = 0.012;
 const HAND_SCALE = 0.5;
 /** Past this many steps from the pedestal a slot is invisible; it fades in over the last `FADE_STEPS`. */
 const FADE_END = 2.6;
@@ -51,7 +56,10 @@ export function shopLayout(w: number, h: number): ShopLayout {
   const handPackH = HAND_SCALE * pedestalH;
   return {
     w, h,
-    shelfY: 0.37 * h, lineY: 0.66 * h, handY: 0.86 * h,
+    // the packs STAND on the counter: bottoms on `floorY`, the featured pack raised by the plinth. `shelfY` is the
+    // featured pack's centre (the pedestal zone and the spotlight aim there).
+    floorY: FLOOR_Y * h, plinth: PLINTH * h,
+    shelfY: (FLOOR_Y - PLINTH) * h - pedestalH / 2, lineY: 0.66 * h, handY: 0.86 * h,
     packH, pedestalH, handPackH,
     slotStep: packH * ASPECT * 1.25,
   };
@@ -61,8 +69,8 @@ export function shelfPoseInto(out: PackPose, L: ShopLayout, index: number, scrol
   const d = index - scroll, a = Math.abs(d);
   const near = Math.min(1, a);
   out.x = L.w / 2 + Math.sign(d) * (a * L.slotStep + near * PEDESTAL_GAP * L.packH * ASPECT);
-  out.y = L.shelfY;
   out.h = L.pedestalH - (L.pedestalH - L.packH) * near;
+  out.y = L.floorY - L.plinth * (1 - near) - out.h / 2; // standing on the counter; the featured pack on its plinth
   out.rot = 0;
   out.alpha = Math.max(0, Math.min(1, (FADE_END - a) / FADE_STEPS));
   return out;

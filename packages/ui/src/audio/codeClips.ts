@@ -25,6 +25,8 @@ export const CODE_FX_CLIPS: readonly string[] = [
   'fx/ancient-stone-slide-5',
   'fx/ancient-stone-slide-6',
   'fx/blue-impact-hit',
+  'fx/cartoon-music-cha-ching-new-purchase-494486',
+  'fx/chess-slide',
   'fx/djartmusic-christmas-sparkle-whoosh-1-275404',
   'fx/duos-drop-whoosh',
   'fx/duos-land',

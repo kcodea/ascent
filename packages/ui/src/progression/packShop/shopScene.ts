@@ -16,14 +16,27 @@
  *    drag on empty shelf space and `scrollBy` move the target. A tab change (`setShelf` with another shelf) slides the
  *    old rack out and the new one in with one overshoot. `onCentre` fires when the scroll settles on a new offer.
  *  - Hover (mouse / pen: touch has no hover): the pack under the pointer lifts, tilts toward it with the opener's tilt
- *    maths and gloss (`packTilt.ts`), and `onHover` reports it with its lifted rect. There is no hover while the rack moves
- *    (`hoverAllowed`), so a reported rect never goes stale; it is re-picked from the pointer's last place once settled.
- *  - The hand, the carry and the counter (`setHand`, `setAffordable`, `buySettled`, `onPickUp`, `onOverLine`, `onDrop`)
- *    are the next part: today those calls are only kept.
+ *    maths and gloss (`packTilt.ts`), its two neighbours lean away a touch, and `onHover` reports it with its lifted rect.
+ *    There is no hover while the rack moves (`hoverAllowed`) or while a pack is held or travelling, so a reported rect
+ *    never goes stale; it is re-picked from the pointer's last place once settled. A pack at rest breathes (`breathScale`).
+ *  - The carry (spec 4.3 to 4.6): every decision goes through the drag state machine (`shopDrag.ts`). A press on a shelf
+ *    or hand pack picks it up (`onPickUp`, the crinkle); it follows the pointer with the in-game drag feel (`dragFeel.ts`:
+ *    the follow, the recentre and the travel dive), a shelf pack's price tag hangs behind it on a damped spring, and its
+ *    place shows a faint outline. The counter line at `lineY` lights while `overLine` (`onOverLine` on each change). An
+ *    unaffordable shelf pack carried below the line is pulled back toward it (`rubberY`). Shaking a held pack (three
+ *    direction changes within 400 ms, `stepShake`) rattles its cards. Release maps through `release()` to
+ *    `onDrop(action, id, rect)` (rect: the pack as drawn at that moment, screen px). `buy` holds the pack at its hand
+ *    place with a shimmer until `buySettled(ok)`: ok sends it into the hand, not ok back to the shelf. `play` sends it to
+ *    the pedestal, where it stays (the shelf fades) until `setVisible(true)` or the next pick-up. A lost pointer, a
+ *    renderer resize, `setInputEnabled(false)` or `setVisible(false)` while holding calls `cancelHeld`: the pack returns
+ *    to where it came from, reported as `onDrop('return', ...)`.
+ *  - The hand: owned packs fan along the bottom (`handPoseInto`), more than seven stack into a counted pile at the fan's
+ *    end (`handPile`); hover lifts one and its neighbours make room; a press on the pile takes its top pack. A purchase
+ *    in flight holds a place at the fan's end for the pack on its way in.
  *  - One ticker; no allocation per frame; a pack whose pose `alpha` is 0 is not drawn. The ticker idles when nothing
  *    moves only when there is no stage shader (a lit stage never stops: its dust keeps drifting).
  */
-import { Application, CanvasSource, Container, Texture, type Ticker } from 'pixi.js';
+import { Application, CanvasSource, Container, Graphics, Text, Texture, type Ticker } from 'pixi.js';
 import type { OwnedPack, PackOffer } from '@game/progression';
 import { stageScale } from '../../stage';
 import { detachPixiDomEvents } from '../../pixiNoDomEvents';
@@ -38,7 +51,9 @@ import { packGlowRarity } from '../packOpening/packGlow';
 import { PACK_GEOM, paintGlossBand } from '../packOpening/packTextures';
 import { aimInto, newTilt, stepTilt, tiltEaseK, type TiltState } from '../packOpening/packTilt';
 import { ShelfPack, liftPoseInto } from './shelfPack';
-import { clampScroll, shelfPoseInto, shopLayout, type PackPose, type ShopLayout } from './shopLayout';
+import { arrived, buySettled, cancelHeld, moveHeld, newDrag, pickUp, release, zoneAt, type ShopDrag } from './shopDrag';
+import { HAND_FAN_MAX, clampScroll, handPoseInto, shelfPoseInto, shopLayout, type PackPose, type ShopLayout } from './shopLayout';
+import { breathScale, handFanInto, newShake, newSwing, resetShake, rubberY, stepShake, stepSwing, type HandFan } from './shopMotion';
 import type { ShopSounds } from './shopSounds';
 
 // ---------------------------------------------------------------- public contract
@@ -102,6 +117,45 @@ const STAGE_ENERGY = 0.34;
 
 const SLIDE_NONE = 0, SLIDE_OUT_PHASE = 1, SLIDE_IN_PHASE = 2;
 
+/** A travelling pack's ease toward its target, per 60 Hz frame, and how close (canvas px) counts as arrived. */
+const TRAVEL_EASE = 0.2;
+const ARRIVE_PX = 0.75;
+/** A held pack's size ease toward its carried size (the drag dive's `scale`), per 60 Hz frame. */
+const HELD_SIZE_EASE = 0.3;
+/** How far past the counter line (in the held pack's heights) an unaffordable pack can be pulled. */
+const RUBBER_REACH = 0.22;
+/** The buying shimmer: the gloss sweeps back and forth across the waiting pack (radians per frame), and how far up it hangs. */
+const SHIMMER_RATE = 0.11;
+const BUY_HANG = 0.18;
+/** A hovered hand pack rises this share of its height; its neighbours make this much room (pack widths), at full lift. */
+const HAND_RISE = 0.35;
+const HAND_ROOM = 0.3;
+/** A hovered shelf pack's two neighbours lean away (radians) and step aside (pack widths), at full lift. */
+const LEAN_ROT = 0.06;
+const LEAN_PUSH = 0.05;
+/** A shelf place emptied by a pick-up fills back in at this ease (a restock), per 60 Hz frame. */
+const RESTOCK_EASE = 0.12;
+/** The counter line: resting, while a pack is carried, and its ease; the lit glow eases at the same rate. */
+const LINE_REST = 0.14;
+const LINE_HELD = 0.4;
+const LINE_EASE = 0.2;
+const LINE_COLOR = 0xffd27a;
+/** The emptied place's outline (alpha), its stroke and corner (pack base units). */
+const OUTLINE_ALPHA = 0.22;
+const OUTLINE_STROKE = 5;
+const OUTLINE_RADIUS = 18;
+/** The shelf fades out while a played pack goes to the pedestal, per 60 Hz frame. */
+const RACK_FADE_EASE = 0.15;
+/** The price tag's text and the pile's count, as shares of a shelf / hand pack's height. */
+const TAG_FONT = 0.075;
+const PILE_FONT = 0.16;
+const FONT = 'Outfit, sans-serif';
+const ZERO_RECT: ScreenRect = { left: 0, top: 0, width: 0, height: 0 };
+
+const clamp1 = (v: number): number => (v < -1 ? -1 : v > 1 ? 1 : v);
+/** `k` per 60 Hz frame as a step over `dt` frames (frame-rate independent). */
+const easeK = (k: number, dt: number): number => (k >= 1 ? 1 : 1 - Math.pow(1 - k, dt));
+
 /**
  * Whether a pack may be hovered this frame. Never while the rack moves (a tab slide, a scroll drag, or the scroll still
  * easing to its target): a hovered pack's reported rect would go stale as it travels. Once the rack settles the scene
@@ -128,10 +182,8 @@ class ShopSceneImpl implements ShopScene {
   private offers: readonly PackOffer[] = [];
   /** The rack waiting for the old one to slide out (a tab change in flight). */
   private pending: readonly PackOffer[] | null = null;
-  /** Kept for the hand and the carry (the next part draws them). */
-  private readonly kept: { hand: readonly OwnedPack[]; affordable: ReadonlySet<string>; buyOk: boolean | null } = {
-    hand: [], affordable: new Set(), buyOk: null,
-  };
+  private hand: readonly OwnedPack[] = [];
+  private affordable: ReadonlySet<string> = new Set();
   private inputOn = true;
 
   // the scene
@@ -145,7 +197,51 @@ class ShopSceneImpl implements ShopScene {
   private readonly slotId: (string | null)[] = new Array<string | null>(POOL).fill(null);
   private readonly slotTilt: TiltState[] = Array.from({ length: POOL }, newTilt);
   private readonly slotLift = new Float64Array(POOL);
+  /** Per pool slot: its eased lean away from a hovered neighbour (-1..1) and its restock fade (0..1). */
+  private readonly slotLean = new Float64Array(POOL);
+  private readonly slotShow = new Float64Array(POOL).fill(1);
   private time = 0;
+
+  // the hand: a pool of HAND_FAN_MAX packs, one per fan place (place j shows hand pack j; the last is the pile's top)
+  private handLayer: Container | null = null;
+  private readonly handPacks: ShelfPack[] = [];
+  private readonly handSlotId: (string | null)[] = new Array<string | null>(HAND_FAN_MAX).fill(null);
+  private readonly handLift = new Float64Array(HAND_FAN_MAX);
+  private handHover = -1;
+  private pileText: Text | null = null;
+  private readonly fan: HandFan = { places: 0, shown: 0, piled: 0 };
+  /** The (hand size, reserve) the fan was last computed for; -1 forces a recompute. */
+  private fanKey = -1;
+
+  // the carry
+  private readonly drag: ShopDrag = newDrag();
+  private heldPack: ShelfPack | null = null;
+  private readonly held = {
+    pointerId: -1, touch: false, from: 'shelf' as 'shelf' | 'hand',
+    /** Where it is drawn (canvas px) and its height and rotation. */
+    x: 0, y: 0, h: 0, rot: 0,
+    /** Its height when picked up (it is carried at the drag dive's `scale` of this). */
+    srcH: 0,
+    /** The offset from the pointer to the pack's centre, easing to 0 (the recentre). */
+    ax: 0, ay: 0,
+    /** The smoothed travel per frame (the dive) and last frame's (the tag's push). */
+    vx: 0, vy: 0, pvx: 0,
+    /** The hand's size when the purchase was dropped (a place is held at the fan's end until the hand grows). */
+    buyN: 0,
+  };
+  /** A played pack resting on the pedestal after its travel (the shell hides the scene). */
+  private parkedId: string | null = null;
+  private rackAlpha = 1;
+  private readonly shake = newShake();
+  private readonly swing = newSwing();
+  private readonly lastMove = { x: 0, y: 0 };
+  private tag: Container | null = null;
+  private tagPlate: Graphics | null = null;
+  private tagText: Text | null = null;
+  private lineBase: Graphics | null = null;
+  private lineLit: Graphics | null = null;
+  private readonly line = { base: LINE_REST, lit: 0 };
+  private outline: Graphics | null = null;
   private readonly tintTo = new Float32Array([0.6, 0.66, 0.78]);
 
   // the rack's motion
@@ -170,6 +266,8 @@ class ShopSceneImpl implements ShopScene {
   // scratch (no per-frame allocation)
   private readonly pose: PackPose = { x: 0, y: 0, h: 0, rot: 0, alpha: 0 };
   private readonly lifted: PackPose = { x: 0, y: 0, h: 0, rot: 0, alpha: 0 };
+  private readonly goal: PackPose = { x: 0, y: 0, h: 0, rot: 0, alpha: 0 };
+  private readonly heldPose: PackPose = { x: 0, y: 0, h: 0, rot: 0, alpha: 1 };
 
   constructor(
     private readonly host: HTMLElement,
@@ -230,6 +328,46 @@ class ShopSceneImpl implements ShopScene {
     }
     this.rack = rack;
     app.stage.addChild(rack);
+
+    // the counter line: a thin rule (dim at rest, brighter while carrying) and its glow (lit while over the line)
+    this.lineBase = new Graphics();
+    this.lineLit = new Graphics();
+    this.lineLit.alpha = 0;
+    app.stage.addChild(this.lineBase, this.lineLit);
+
+    // the emptied place's outline, drawn once in pack base units and scaled to the place
+    const { W, H, BODY_H } = PACK_GEOM;
+    const outline = new Graphics();
+    outline.roundRect(-W / 2, -(H + BODY_H) / 2, W, H + BODY_H, OUTLINE_RADIUS).stroke({ width: OUTLINE_STROKE, color: 0xffffff, alpha: 1 });
+    outline.visible = false;
+    this.outline = outline;
+    app.stage.addChild(outline);
+
+    const hand = new Container();
+    for (let j = 0; j < HAND_FAN_MAX; j++) {
+      const p = new ShelfPack(webgl, this.bandTex);
+      this.handPacks.push(p);
+      hand.addChild(p.view);
+    }
+    this.pileText = new Text({ text: '', style: { fontFamily: FONT, fontSize: 24, fontWeight: '700', fill: 0xffffff } });
+    this.pileText.anchor.set(0.5, 1);
+    this.pileText.visible = false;
+    hand.addChild(this.pileText);
+    this.handLayer = hand;
+    app.stage.addChild(hand);
+
+    // the held pack, its price tag hanging behind it
+    const tag = new Container();
+    this.tagPlate = new Graphics();
+    this.tagText = new Text({ text: '', style: { fontFamily: FONT, fontSize: 20, fontWeight: '700', fill: 0xfff1d0 } });
+    this.tagText.anchor.set(0.5, 0.5);
+    tag.addChild(this.tagPlate, this.tagText);
+    tag.visible = false;
+    this.tag = tag;
+    app.stage.addChild(tag);
+    this.heldPack = new ShelfPack(webgl, this.bandTex);
+    app.stage.addChild(this.heldPack.view);
+
     app.stage.alpha = this.fade.alpha;
     app.stage.visible = this.fade.alpha > 0;
 
@@ -285,7 +423,15 @@ class ShopSceneImpl implements ShopScene {
     app.ticker.stop();
     for (const p of this.packs) p.destroy();
     this.packs.length = 0;
+    for (const p of this.handPacks) p.destroy();
+    this.handPacks.length = 0;
+    this.heldPack?.destroy();
+    this.heldPack = null;
     this.rack = null;
+    this.handLayer = null;
+    this.pileText = null;
+    this.tag = null; this.tagPlate = null; this.tagText = null;
+    this.lineBase = null; this.lineLit = null; this.outline = null;
     this.bandTex?.destroy(true);
     this.bandTex = null;
     this.stage = null;
@@ -305,6 +451,7 @@ class ShopSceneImpl implements ShopScene {
     const app = this.app;
     if (!app) return;
     const w = app.screen.width, h = app.screen.height;
+    const resized = w !== this.L.w || h !== this.L.h;
     this.L = shopLayout(w, h);
     if (this.stage) {
       this.stage.mesh.position.set(w / 2, h / 2); this.stage.mesh.scale.set(w / 2, h / 2);
@@ -312,9 +459,25 @@ class ShopSceneImpl implements ShopScene {
       u.uAspect = w / Math.max(1, h);
       u.uFocus[0] = 0; u.uFocus[1] = (this.L.shelfY / Math.max(1, h)) * 2 - 1; // the spotlight falls on the pedestal
     }
+    this.drawLine();
+    if (this.pileText) this.pileText.style.fontSize = Math.max(10, PILE_FONT * this.L.handPackH);
+    if (this.tagText) this.tagText.style.fontSize = Math.max(10, TAG_FONT * this.L.packH);
     this.cacheRect();
+    if (resized) this.cancelHold(); // a resize while holding: the pack returns to where it came from
     this.wake();
   };
+
+  /** The counter line across the canvas at `lineY` (redrawn only on a resize). */
+  private drawLine(): void {
+    const base = this.lineBase, lit = this.lineLit, L = this.L;
+    if (!base || !lit) return;
+    base.clear().rect(0, L.lineY - 1, L.w, 2).fill({ color: LINE_COLOR, alpha: 1 });
+    lit.clear()
+      .rect(0, L.lineY - 12, L.w, 24).fill({ color: LINE_COLOR, alpha: 0.06 })
+      .rect(0, L.lineY - 6, L.w, 12).fill({ color: LINE_COLOR, alpha: 0.12 })
+      .rect(0, L.lineY - 2, L.w, 4).fill({ color: LINE_COLOR, alpha: 0.55 })
+      .rect(0, L.lineY - 1, L.w, 2).fill({ color: 0xffffff, alpha: 0.9 });
+  }
 
   // ---------------------------------------------------------------- the shell's calls
 
@@ -339,17 +502,24 @@ class ShopSceneImpl implements ShopScene {
 
   setHand(packs: readonly OwnedPack[]): void {
     if (this.destroyed) return;
-    this.kept.hand = packs.slice();
+    this.hand = packs.slice();
+    this.fanKey = -1;
+    this.wake();
   }
 
   setAffordable(ids: ReadonlySet<string>): void {
     if (this.destroyed) return;
-    this.kept.affordable = new Set(ids);
+    this.affordable = new Set(ids);
+    if (this.isHeld()) this.overLineFrom(this.pointer.x, this.pointer.y); // the line may light (or go dark) under the held pack
   }
 
   buySettled(ok: boolean): void {
     if (this.destroyed) return;
-    this.kept.buyOk = ok;
+    const was = this.drag.phase;
+    buySettled(this.drag, ok);
+    if (was !== 'buying') return;
+    if (ok) this.sounds.till(); else this.sounds.refuse();
+    this.wake();
   }
 
   scrollBy(steps: number): void {
@@ -364,19 +534,28 @@ class ShopSceneImpl implements ShopScene {
   rectOf(id: string): ScreenRect | null {
     const app = this.app;
     if (!app || this.destroyed) return null;
-    const i = this.offers.findIndex((o) => o.offerId === id);
-    if (i < 0) return null;
-    const p = shelfPoseInto(this.pose, this.L, i, this.scroll);
-    if (p.alpha <= 0) return null;
-    p.x += this.rackX;
-    const s = this.slotId.indexOf(id);
-    return this.screenRect(liftPoseInto(this.lifted, p, s >= 0 ? this.slotLift[s]! : 0));
+    // the held, travelling or parked pack: where it is drawn
+    if ((this.drag.phase !== 'idle' && this.drag.id === id) || this.parkedId === id) return this.screenRect(this.heldPose);
+    const i = this.offerIndexOf(id);
+    if (i >= 0) {
+      const p = shelfPoseInto(this.pose, this.L, i, this.scroll);
+      if (p.alpha <= 0) return null;
+      p.x += this.rackX;
+      const s = this.slotId.indexOf(id);
+      return this.screenRect(liftPoseInto(this.lifted, p, s >= 0 ? this.slotLift[s]! : 0));
+    }
+    const j = this.handIndexOf(id);
+    if (j < 0) return null;
+    this.syncFan();
+    const place = Math.min(j, this.fan.shown);
+    if (place >= this.fan.places) return null;
+    return this.screenRect(this.handPlacePose(place));
   }
 
   setInputEnabled(on: boolean): void {
     if (this.destroyed) return;
     this.inputOn = on;
-    if (!on) this.endScrollDrag();
+    if (!on) { this.endScrollDrag(); this.cancelHold(); }
     this.wake(); // the hover drops (or comes back) on the next frame
   }
 
@@ -386,9 +565,10 @@ class ShopSceneImpl implements ShopScene {
     f.to = on ? 1 : 0;
     f.rate = fadeMs > 0 ? FRAME_MS / fadeMs : 1;
     const app = this.app;
+    if (on) this.parkedId = null; // back from the opener: the played pack leaves the pedestal, the shelf returns
     if (!app) { f.alpha = f.to; return; }
     app.canvas.style.pointerEvents = on ? 'auto' : 'none';
-    if (!on) { this.pointerOn = false; this.endScrollDrag(); }
+    if (!on) { this.pointerOn = false; this.endScrollDrag(); this.cancelHold(); }
     this.wake();
   }
 
@@ -413,7 +593,11 @@ class ShopSceneImpl implements ShopScene {
     let moving = this.slideStep(dt);
     if (this.scrollStep(dt)) moving = true;
     this.hoverStep();
+    this.handHoverStep();
     if (this.rackStep(dt)) moving = true;
+    if (this.handStep(dt)) moving = true;
+    if (this.heldStep(dt)) moving = true;
+    if (this.lineStep(dt)) moving = true;
     if (this.fadeStep(dt)) moving = true;
     this.stageStep(dt);
     if (!moving && !this.stage) app.ticker.stop(); // (a lit stage never stops: its dust keeps drifting)
@@ -467,8 +651,9 @@ class ShopSceneImpl implements ShopScene {
   private hoverStep(): void {
     let slot = -1;
     // (positional, not an options object: this runs every frame and allocates nothing)
-    if (hoverAllowed(this.pointerOn, this.inputOn, this.fade.to > 0, this.slide.phase !== SLIDE_NONE, this.scrollDrag.active,
-      this.scroll !== this.target)) {
+    // (and none while a pack is held or travelling: its neighbours would light up under it)
+    if (this.drag.phase === 'idle' && this.parkedId === null && hoverAllowed(this.pointerOn, this.inputOn, this.fade.to > 0,
+      this.slide.phase !== SLIDE_NONE, this.scrollDrag.active, this.scroll !== this.target)) {
       slot = this.packAt(this.pointer.x, this.pointer.y);
       if (slot >= 0) {
         const q = this.lifted; // posed by packAt for the hit
@@ -510,15 +695,20 @@ class ShopSceneImpl implements ShopScene {
     const offers = this.offers, count = offers.length, L = this.L;
     const base = Math.floor(this.scroll) - (POOL >> 1);
     const k = tiltEaseK(getDragFeel().tiltEase, dt * FRAME_MS);
-    const kl = 1 - Math.pow(1 - LIFT_EASE, dt);
-    let moving = false;
+    const kl = easeK(LIFT_EASE, dt), kr = easeK(RESTOCK_EASE, dt);
+    // the hovered pack's offer index (its neighbours lean away from it)
+    const hi = this.hoverSlot >= 0 ? this.slotIdx[this.hoverSlot]! : -1;
+    // the pack taken off the shelf leaves its place empty until it is back (or bought: then a fresh one restocks it)
+    const ph = this.drag.phase;
+    const takenId = ph === 'heldShelf' || ph === 'buying' || ph === 'toShelf' || ph === 'toHand' ? this.drag.id : null;
+    let moving = count > 0; // a pack at rest breathes
     for (let s = 0; s < POOL; s++) {
       const pack = this.packs[s]!;
       const i = base + ((((s - base) % POOL) + POOL) % POOL); // the index this slot shows: i = s (mod POOL)
       const tilt = this.slotTilt[s]!;
       if (i < 0 || i >= count) {
         if (this.slotIdx[s] !== -1 || this.slotId[s] !== null) { this.slotIdx[s] = -1; this.slotId[s] = null; }
-        tilt.ax = 0; tilt.ay = 0; this.slotLift[s] = 0;
+        tilt.ax = 0; tilt.ay = 0; this.slotLift[s] = 0; this.slotLean[s] = 0;
         pack.view.visible = false;
         continue;
       }
@@ -526,11 +716,24 @@ class ShopSceneImpl implements ShopScene {
       if (this.slotId[s] !== offer.offerId) {
         pack.setLook(offer.look);
         this.slotId[s] = offer.offerId;
-        tilt.ax = 0; tilt.ay = 0; this.slotLift[s] = 0;
+        tilt.ax = 0; tilt.ay = 0; this.slotLift[s] = 0; this.slotLean[s] = 0;
       }
       this.slotIdx[s] = i;
+      if (offer.offerId === takenId) this.slotShow[s] = 0;
+      else if (this.slotShow[s]! < 1) this.slotShow[s] = this.slotShow[s]! > 0.995 ? 1 : this.slotShow[s]! + (1 - this.slotShow[s]!) * kr;
       const p = shelfPoseInto(this.pose, L, i, this.scroll);
       p.x += this.rackX;
+      p.alpha *= this.slotShow[s]!;
+      // lean away from a hovered neighbour, eased
+      const leanTo = hi >= 0 && (i === hi - 1 || i === hi + 1) ? Math.sign(i - hi) : 0;
+      let lean = this.slotLean[s]!;
+      if (lean !== leanTo) {
+        lean += (leanTo - lean) * kl;
+        if (Math.abs(leanTo - lean) < LIFT_SETTLE) lean = leanTo;
+        this.slotLean[s] = lean;
+      }
+      p.rot += lean * LEAN_ROT;
+      p.x += lean * LEAN_PUSH * p.h * ASPECT;
       const hovered = s === this.hoverSlot;
       if (stepTilt(tilt, hovered ? this.hoverAim.x : 0, hovered ? this.hoverAim.y : 0, 0, 0, k)) moving = true;
       const liftTo = hovered ? 1 : 0;
@@ -541,9 +744,395 @@ class ShopSceneImpl implements ShopScene {
         this.slotLift[s] = lift;
         moving = true;
       }
-      pack.pose(p, tilt.ax, tilt.ay, lift);
+      // the resting breath, gone as the pack lifts
+      pack.pose(p, tilt.ax, tilt.ay, lift, 1 + (breathScale(this.time, i) - 1) * (1 - lift));
+    }
+    // the shelf fades while a played pack goes to the pedestal, and comes back with the scene
+    const rackTo = ph === 'toPedestal' || this.parkedId !== null ? 0 : 1;
+    if (this.rackAlpha !== rackTo) {
+      this.rackAlpha += (rackTo - this.rackAlpha) * easeK(RACK_FADE_EASE, dt);
+      if (Math.abs(rackTo - this.rackAlpha) < LIFT_SETTLE) this.rackAlpha = rackTo;
+      if (this.rack) { this.rack.alpha = this.rackAlpha; this.rack.visible = this.rackAlpha > 0; }
+      moving = true;
     }
     return moving;
+  }
+
+  // ---------------------------------------------------------------- the hand
+
+  /** Recompute the fan when the hand's size or the purchase's reserved place changed (allocates; not per frame). */
+  private syncFan(): void {
+    const n = this.hand.length, ph = this.drag.phase;
+    const reserve = (ph === 'buying' || ph === 'toHand') && n <= this.held.buyN ? 1 : 0;
+    const key = n * 2 + reserve;
+    if (key === this.fanKey) return;
+    this.fanKey = key;
+    const f = handFanInto(this.fan, n, reserve);
+    const t = this.pileText;
+    if (t) {
+      t.visible = f.piled > 0;
+      if (f.piled > 0) t.text = `+${f.piled}`;
+    }
+  }
+
+  /** Hand place `j` as drawn now: its fan pose, the room made around a hovered pack, and its own hover lift. */
+  private handPlacePose(j: number): PackPose {
+    const p = handPoseInto(this.pose, this.L, j, this.fan.places);
+    const hv = this.handHover;
+    if (hv >= 0 && j !== hv) p.x += Math.sign(j - hv) * HAND_ROOM * p.h * ASPECT * this.handLift[hv]!;
+    const lift = this.handLift[j]!;
+    p.y -= HAND_RISE * p.h * lift;
+    p.rot *= 1 - lift;
+    return liftPoseInto(this.lifted, p, lift);
+  }
+
+  /** Whether hand place `j`'s pack is out of the fan (held, travelling, waiting on the pedestal, or arriving). */
+  private handPlaceHidden(j: number): boolean {
+    const n = this.hand.length;
+    if (j >= n) return true; // a reserved place
+    const id = this.hand[j]!.packId, ph = this.drag.phase;
+    if (id === this.parkedId) return true;
+    if (id === this.drag.id && (ph === 'heldHand' || ph === 'toHandBack' || ph === 'toPedestal')) return true;
+    // a purchase on its way in: the hand already holds it, the travelling pack is drawn instead
+    return ph === 'toHand' && n > this.held.buyN && j === this.fan.places - 1;
+  }
+
+  /** The hand place under canvas point (x, y), topmost first, or -1. */
+  private handAt(x: number, y: number): number {
+    this.syncFan();
+    for (let j = this.fan.places - 1; j >= 0; j--) {
+      if (this.handPlaceHidden(j)) continue;
+      const q = this.handPlacePose(j);
+      if (Math.abs(x - q.x) <= (q.h * ASPECT) / 2 && Math.abs(y - q.y) <= q.h / 2) return j;
+    }
+    return -1;
+  }
+
+  private handHoverStep(): void {
+    let j = -1;
+    if (this.drag.phase === 'idle' && this.parkedId === null && hoverAllowed(this.pointerOn, this.inputOn, this.fade.to > 0,
+      this.slide.phase !== SLIDE_NONE, this.scrollDrag.active, false) && this.pointer.y > this.L.lineY) {
+      j = this.handAt(this.pointer.x, this.pointer.y);
+    }
+    if (j === this.handHover) return;
+    this.handHover = j;
+    if (j >= 0) this.handLayer?.setChildIndex(this.handPacks[j]!.view, HAND_FAN_MAX - 1); // over its neighbours (the pile's count stays on top)
+  }
+
+  /** Bind each fan place to its pack, ease its hover lift and pose it, and place the pile's count. True while moving. */
+  private handStep(dt: number): boolean {
+    this.syncFan();
+    const f = this.fan, n = this.hand.length, kl = easeK(LIFT_EASE, dt);
+    let moving = false;
+    for (let j = 0; j < HAND_FAN_MAX; j++) {
+      const pack = this.handPacks[j]!;
+      if (j >= f.places || j >= n) { pack.view.visible = false; this.handLift[j] = 0; continue; }
+      const owned = this.hand[j]!;
+      if (this.handSlotId[j] !== owned.packId) {
+        pack.setLook(owned.look);
+        this.handSlotId[j] = owned.packId;
+        this.handLift[j] = 0;
+      }
+      const liftTo = j === this.handHover ? 1 : 0;
+      let lift = this.handLift[j]!;
+      if (lift !== liftTo) {
+        lift += (liftTo - lift) * kl;
+        if (Math.abs(liftTo - lift) < LIFT_SETTLE) lift = liftTo;
+        this.handLift[j] = lift;
+        moving = true;
+      }
+    }
+    for (let j = 0; j < f.places && j < n; j++) {
+      const q = this.handPlacePose(j);
+      if (this.handPlaceHidden(j)) q.alpha = 0;
+      // (the lift is already in q: pose it unlifted)
+      this.handPacks[j]!.pose(q, 0, 0, 0);
+    }
+    const t = this.pileText;
+    if (t && t.visible) {
+      const q = handPoseInto(this.pose, this.L, f.shown, f.places);
+      t.position.set(q.x, q.y - q.h / 2 - HAND_RISE * q.h * this.handLift[f.shown]!);
+    }
+    return moving;
+  }
+
+  // ---------------------------------------------------------------- the carry
+
+  private isHeld(): boolean {
+    return this.drag.phase === 'heldShelf' || this.drag.phase === 'heldHand';
+  }
+
+  private offerIndexOf(id: string): number {
+    const o = this.offers;
+    for (let i = 0; i < o.length; i++) if (o[i]!.offerId === id) return i;
+    return -1;
+  }
+
+  private handIndexOf(id: string): number {
+    const h = this.hand;
+    for (let i = 0; i < h.length; i++) if (h[i]!.packId === id) return i;
+    return -1;
+  }
+
+  /** Pick up the pack at shelf slot / hand place `at` (posed for the hit in `lifted`, as drawn). */
+  private startHold(e: PointerEvent, from: 'shelf' | 'hand', at: number): void {
+    const app = this.app;
+    const offer = from === 'shelf' ? this.offers[this.slotIdx[at]!] : undefined;
+    const owned = from === 'hand' ? this.hand[at] : undefined;
+    const id = offer?.offerId ?? owned?.packId;
+    const look = offer?.look ?? owned?.look;
+    if (!app || !id || !look || !this.heldPack) return;
+    if (!pickUp(this.drag, from, id)) return;
+    this.parkedId = null;
+    const H = this.held, q = from === 'shelf' ? this.lifted : this.handPlacePose(at); // the shelf hit left its pose in `lifted`
+    H.pointerId = e.pointerId; H.touch = e.pointerType === 'touch'; H.from = from;
+    H.x = q.x; H.y = q.y; H.h = q.h; H.rot = q.rot;
+    H.srcH = from === 'shelf' ? shelfPoseInto(this.goal, this.L, this.slotIdx[at]!, this.scroll).h : this.L.handPackH;
+    H.ax = q.x - this.pointer.x; H.ay = q.y - this.pointer.y;
+    H.vx = 0; H.vy = 0; H.pvx = 0;
+    this.heldPose.x = q.x; this.heldPose.y = q.y; this.heldPose.h = q.h; this.heldPose.rot = q.rot;
+    this.lastMove.x = this.pointer.x; this.lastMove.y = this.pointer.y;
+    resetShake(this.shake);
+    this.swing.a = 0; this.swing.v = 0;
+    this.heldPack.setLook(look);
+    if (offer) this.dressTag(offer);
+    if (this.tag) this.tag.visible = !!offer;
+    try { app.canvas.setPointerCapture(e.pointerId); } catch { /* synthetic pointer */ }
+    e.preventDefault();
+    this.sounds.pickUp();
+    this.emit('onPickUp', () => this.events.onPickUp(from, id));
+    this.wake();
+  }
+
+  /** The price tag's text and plate (on a pick-up: never per frame). It hangs from its top centre. */
+  private dressTag(offer: PackOffer): void {
+    const text = this.tagText, plate = this.tagPlate;
+    if (!text || !plate) return;
+    text.text = offer.price === 0 ? 'Free' : `${offer.price} Aether`;
+    const fs = Number(text.style.fontSize) || 20;
+    const w = text.width + fs * 1.2, h = fs * 1.7, cord = fs * 1.4;
+    text.position.set(0, cord + h / 2);
+    plate.clear()
+      .rect(-1, 0, 2, cord).fill({ color: LINE_COLOR, alpha: 0.8 })
+      .roundRect(-w / 2, cord, w, h, h * 0.3).fill({ color: 0x15121f, alpha: 0.92 })
+      .stroke({ width: 2, color: LINE_COLOR, alpha: 0.9 });
+  }
+
+  /** A held pointer moved: shake to listen, and whether the counter line is lit under it. */
+  private heldMove(e: PointerEvent): void {
+    const p = this.pointer;
+    if (stepShake(this.shake, p.x - this.lastMove.x, p.y - this.lastMove.y, e.timeStamp)) this.sounds.shake();
+    this.lastMove.x = p.x; this.lastMove.y = p.y;
+    this.overLineFrom(p.x, p.y);
+    this.wake();
+  }
+
+  private overLineFrom(x: number, y: number): void {
+    const d = this.drag, was = d.overLine;
+    moveHeld(d, zoneAt(this.L, x, y), d.id !== null && this.affordable.has(d.id));
+    if (d.overLine === was) return;
+    if (d.overLine) this.sounds.overLine();
+    const over = d.overLine;
+    this.emit('onOverLine', () => this.events.onOverLine(over));
+  }
+
+  /** The pointer let go of the held pack: `release()` decides, the shell hears it. */
+  private releaseHeld(): void {
+    const d = this.drag, id = d.id;
+    if (!id || !this.isHeld()) return;
+    const fromShelf = d.phase === 'heldShelf', wasOver = d.overLine;
+    const zone = zoneAt(this.L, this.pointer.x, this.pointer.y);
+    const action = release(d, zone, this.affordable.has(id));
+    this.endHold(wasOver);
+    if (action === 'none') return;
+    if (action === 'buy') this.held.buyN = this.hand.length;
+    else if (action === 'play') this.sounds.play();
+    else if (fromShelf && zone === 'hand') this.sounds.refuse(); // carried across but not affordable
+    const rect = this.screenRect(this.heldPose) ?? ZERO_RECT;
+    this.emit('onDrop', () => this.events.onDrop(action, id, rect));
+    this.wake();
+  }
+
+  /** A held pack goes back where it came from (a lost pointer, a resize, input off, the scene hidden). */
+  private cancelHold(): void {
+    const d = this.drag, id = d.id;
+    if (!id || !this.isHeld()) return;
+    const wasOver = d.overLine;
+    const action = cancelHeld(d);
+    this.endHold(wasOver);
+    if (action !== 'return') return;
+    const rect = this.screenRect(this.heldPose) ?? ZERO_RECT;
+    this.emit('onDrop', () => this.events.onDrop('return', id, rect));
+    this.wake();
+  }
+
+  private endHold(wasOver: boolean): void {
+    const app = this.app, pid = this.held.pointerId;
+    this.held.pointerId = -1;
+    if (app && pid >= 0) { try { if (app.canvas.hasPointerCapture(pid)) app.canvas.releasePointerCapture(pid); } catch { /* gone */ } }
+    if (wasOver) this.emit('onOverLine', () => this.events.onOverLine(false));
+  }
+
+  /**
+   * Where the held or travelling pack is headed this frame, into `goal` (canvas px). False when its place is gone (the
+   * offer left the shelf, the pack left the hand): it then arrives where it is.
+   */
+  private goalInto(g: PackPose): boolean {
+    const d = this.drag, L = this.L, H = this.held, df = getDragFeel();
+    switch (d.phase) {
+      case 'heldShelf':
+      case 'heldHand': {
+        let py = this.pointer.y;
+        // an unaffordable shelf pack below the counter line is pulled back toward it
+        if (d.phase === 'heldShelf' && d.id !== null && !this.affordable.has(d.id)) py = rubberY(py, L.lineY, RUBBER_REACH * H.h);
+        g.x = this.pointer.x + H.ax; g.y = py + H.ay;
+        g.h = H.srcH * df.scale; g.rot = (df.staticRotate * Math.PI) / 180;
+        return true;
+      }
+      case 'buying':
+      case 'toHand': {
+        this.syncFan();
+        const f = this.fan;
+        if (f.places <= 0) return false;
+        handPoseInto(g, L, f.places - 1, f.places);
+        if (d.phase === 'buying') g.y -= BUY_HANG * g.h; // it hangs just above its place while the purchase settles
+        return true;
+      }
+      case 'toHandBack': {
+        const j = d.id === null ? -1 : this.handIndexOf(d.id);
+        if (j < 0) return false;
+        this.syncFan();
+        handPoseInto(g, L, Math.min(j, this.fan.shown), this.fan.places);
+        return true;
+      }
+      case 'toShelf': {
+        const i = d.id === null ? -1 : this.offerIndexOf(d.id);
+        if (i < 0) return false;
+        shelfPoseInto(g, L, i, this.scroll);
+        g.x += this.rackX;
+        return true;
+      }
+      case 'toPedestal':
+      case 'idle':
+        g.x = L.w / 2; g.y = L.shelfY; g.h = L.pedestalH; g.rot = 0;
+        return true;
+    }
+  }
+
+  /** The held or travelling pack: follow, travel, the dive, the tag's swing and the emptied place's outline. */
+  private heldStep(dt: number): boolean {
+    const hp = this.heldPack, d = this.drag, H = this.held;
+    if (!hp) return false;
+    const parked = d.phase === 'idle' && this.parkedId !== null;
+    if (d.phase === 'idle' && !parked) {
+      hp.view.visible = false;
+      if (this.tag) this.tag.visible = false;
+      if (this.outline) this.outline.visible = false;
+      return false;
+    }
+    const df = getDragFeel(), g = this.goal;
+    const held = this.isHeld();
+    const found = this.goalInto(g);
+    if (!found) { g.x = H.x; g.y = H.y; g.h = H.h; g.rot = H.rot; }
+    let k: number, kh: number;
+    if (held) {
+      const follow = H.touch ? Math.max(df.follow, 0.9) : df.follow; // a finger never trails (as Recruit.tsx)
+      k = easeK(follow, dt);
+      kh = easeK(HELD_SIZE_EASE, dt);
+      const kc = easeK(df.recenter, dt);
+      H.ax -= H.ax * kc; H.ay -= H.ay * kc;
+    } else {
+      k = easeK(TRAVEL_EASE, dt);
+      kh = k;
+    }
+    const sx = (g.x - H.x) * k, sy = (g.y - H.y) * k;
+    H.x += sx; H.y += sy;
+    H.h += (g.h - H.h) * kh;
+    H.rot += (g.rot - H.rot) * kh;
+    // the drag dive: the smoothed travel per frame leans the leading edge down (Recruit.tsx's dive, as an aim)
+    const ek = easeK(df.tiltEase, dt);
+    H.vx += (sx / Math.max(dt, 1e-3) - H.vx) * ek;
+    H.vy += (sy / Math.max(dt, 1e-3) - H.vy) * ek;
+    const accel = (H.vx - H.pvx) / Math.max(1, H.h);
+    H.pvx = H.vx;
+    const gain = df.tiltMax > 0 ? df.tiltGain / df.tiltMax : 0;
+    let aimX = clamp1(H.vx * gain), aimY = clamp1(H.vy * gain);
+    if (d.phase === 'buying') aimX = 0.9 * Math.sin(this.time * SHIMMER_RATE); // the shimmer: the gloss sweeps while it waits
+    if (parked) { aimX = 0; aimY = 0; }
+
+    const arrivedNow = !held && d.phase !== 'buying' && !parked
+      && (!found || (Math.abs(g.x - H.x) < ARRIVE_PX && Math.abs(g.y - H.y) < ARRIVE_PX && Math.abs(g.h - H.h) < ARRIVE_PX));
+    if (arrivedNow && found) { H.x = g.x; H.y = g.y; H.h = g.h; H.rot = g.rot; }
+    const P = this.heldPose;
+    P.x = H.x; P.y = H.y; P.h = H.h; P.rot = H.rot; P.alpha = 1;
+    hp.pose(P, aimX, aimY, 0);
+
+    // the price tag hangs from the pack's bottom, behind it, on its spring
+    const tag = this.tag;
+    if (tag) {
+      tag.visible = d.phase === 'heldShelf';
+      if (tag.visible) {
+        stepSwing(this.swing, accel, dt);
+        tag.position.set(H.x, H.y + H.h * 0.38);
+        tag.rotation = this.swing.a;
+        tag.scale.set(H.h / Math.max(1, H.srcH * df.scale));
+      }
+    }
+    this.outlineStep();
+
+    if (arrivedNow) this.finishTravel();
+    return true;
+  }
+
+  /** The faint outline on the place a held pack came from, while that place is empty. */
+  private outlineStep(): void {
+    const o = this.outline, d = this.drag;
+    if (!o) return;
+    let q: PackPose | null = null;
+    if (d.id !== null && (d.phase === 'heldShelf' || d.phase === 'buying' || d.phase === 'toShelf')) {
+      const i = this.offerIndexOf(d.id);
+      if (i >= 0) { q = shelfPoseInto(this.pose, this.L, i, this.scroll); q.x += this.rackX; }
+    } else if (d.id !== null && (d.phase === 'heldHand' || d.phase === 'toHandBack')) {
+      const j = this.handIndexOf(d.id);
+      if (j >= 0) { this.syncFan(); q = handPoseInto(this.pose, this.L, Math.min(j, this.fan.shown), this.fan.places); }
+    }
+    o.visible = q !== null && q.alpha > 0;
+    if (!q || !o.visible) return;
+    o.position.set(q.x, q.y);
+    o.rotation = q.rot;
+    o.scale.set(q.h / (PACK_GEOM.H + PACK_GEOM.BODY_H));
+    o.alpha = OUTLINE_ALPHA * q.alpha;
+  }
+
+  /** A travelling pack reached its place: the state machine goes idle; a played pack stays on the pedestal. */
+  private finishTravel(): void {
+    const d = this.drag, ph = d.phase, id = d.id;
+    arrived(d);
+    if (ph === 'toPedestal') { this.parkedId = id; return; }
+    if (ph === 'toHand') this.sounds.land();
+    if (ph === 'toShelf' && id !== null) { const s = this.slotId.indexOf(id); if (s >= 0) this.slotShow[s] = 1; } // back in its place: no restock fade
+    if (this.heldPack) this.heldPack.view.visible = false;
+    if (this.outline) this.outline.visible = false;
+    this.fanKey = -1; // the reserved place (if any) is released
+  }
+
+  /** The counter line: dim at rest, brighter while a pack is carried, its glow lit while over the line. */
+  private lineStep(dt: number): boolean {
+    const base = this.lineBase, lit = this.lineLit;
+    if (!base || !lit) return false;
+    const held = this.isHeld();
+    const baseTo = held ? LINE_HELD : LINE_REST, litTo = this.drag.overLine ? 1 : 0;
+    const ln = this.line;
+    if (ln.base === baseTo && ln.lit === litTo) return false;
+    const k = easeK(LINE_EASE, dt);
+    ln.base += (baseTo - ln.base) * k;
+    ln.lit += (litTo - ln.lit) * k;
+    if (Math.abs(baseTo - ln.base) < LIFT_SETTLE) ln.base = baseTo;
+    if (Math.abs(litTo - ln.lit) < LIFT_SETTLE) ln.lit = litTo;
+    base.alpha = ln.base;
+    lit.alpha = ln.lit;
+    lit.visible = ln.lit > 0;
+    return true;
   }
 
   private fadeStep(dt: number): boolean {
@@ -603,7 +1192,11 @@ class ShopSceneImpl implements ShopScene {
   private readonly onLeave = (): void => { this.pointerOn = false; this.wake(); };
 
   private readonly onMove = (e: PointerEvent): void => {
-    if (!this.app || !this.toCanvas(e)) return;
+    if (!this.app) return;
+    const held = this.isHeld();
+    if (held && e.pointerId !== this.held.pointerId) return; // a second finger never moves the held pack
+    if (!this.toCanvas(e)) return;
+    if (held) { this.heldMove(e); return; }
     const d = this.scrollDrag;
     if (d.active && e.pointerId === d.id) {
       // whole steps: the rack follows the drag a pack at a time
@@ -618,11 +1211,18 @@ class ShopSceneImpl implements ShopScene {
 
   private readonly onDown = (e: PointerEvent): void => {
     const app = this.app;
-    if (!app || !this.inputOn || this.slide.phase !== SLIDE_NONE || this.scrollDrag.active) return;
+    if (!app || !this.inputOn || this.slide.phase !== SLIDE_NONE || this.scrollDrag.active || this.drag.phase !== 'idle') return;
+    if (e.button > 0) return; // the main button (or a touch / pen contact) only
     this.cacheRect();
     if (!this.toCanvas(e)) return;
     const { x, y } = this.pointer;
-    if (y >= this.L.lineY || this.packAt(x, y) >= 0) return; // a pack (picked up in the next part) or below the counter
+    if (y >= this.L.lineY) {
+      const j = this.handAt(x, y);
+      if (j >= 0) this.startHold(e, 'hand', j);
+      return;
+    }
+    const s = this.packAt(x, y);
+    if (s >= 0) { this.startHold(e, 'shelf', s); return; }
     const d = this.scrollDrag;
     d.active = true; d.id = e.pointerId; d.startX = x; d.startTarget = this.target;
     try { app.canvas.setPointerCapture(e.pointerId); } catch { /* synthetic pointer */ }
@@ -631,6 +1231,11 @@ class ShopSceneImpl implements ShopScene {
   };
 
   private readonly onUp = (e: PointerEvent): void => {
+    if (this.isHeld() && e.pointerId === this.held.pointerId) {
+      // a release decides; a cancel or a lost capture (the pointer went away) sends the pack back
+      if (e.type === 'pointerup') { this.toCanvas(e); this.releaseHeld(); } else this.cancelHold();
+      return;
+    }
     if (this.scrollDrag.active && e.pointerId === this.scrollDrag.id) this.endScrollDrag();
   };
 
@@ -642,6 +1247,7 @@ class ShopSceneImpl implements ShopScene {
   private readonly onWheel = (e: WheelEvent): void => {
     if (!this.app || !this.inputOn || this.slide.phase !== SLIDE_NONE) return;
     e.preventDefault(); // the wheel scrolls the rack, never the page
+    if (this.isHeld()) return; // the rack stays put under a held pack (its place keeps its outline)
     const raw = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
     const delta = e.deltaMode === 1 ? raw * 16 : e.deltaMode === 2 ? raw * 400 : raw;
     this.wheelAcc += delta;

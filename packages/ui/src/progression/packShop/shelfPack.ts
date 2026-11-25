@@ -116,9 +116,10 @@ export class ShelfPack {
    * Draw the pack at `p` (canvas px, `shopLayout.ts`), tilted toward the pointer and lifted. `tiltX` / `tiltY` are the
    * eased pointer aim over the pack, each -1..1 (`packTilt.ts` `aimInto`, 0 = at rest): they become the tilt's angles
    * through the live knobs (the drag dive's `tiltMax` x the Pack Lab's `packTilt`) and slide the gloss band. `lift` is
-   * 0..1 (`liftPoseInto`). A pose with `alpha` 0 is not drawn.
+   * 0..1 (`liftPoseInto`). `breath` scales the drawn pack only (the resting breath), not its tilt depth, so a breathing
+   * pack never rewrites its mesh. A pose with `alpha` 0 is not drawn.
    */
-  pose(p: PackPose, tiltX: number, tiltY: number, lift: number): void {
+  pose(p: PackPose, tiltX: number, tiltY: number, lift: number, breath = 1): void {
     if (this.destroyed) return;
     const q = liftPoseInto(this.lifted, p, lift);
     const on = q.alpha > 0;
@@ -128,7 +129,7 @@ export class ShelfPack {
     this.view.alpha = q.alpha;
     this.view.position.set(q.x, q.y);
     this.view.rotation = q.rot;
-    this.view.scale.set(k);
+    this.view.scale.set(k * breath);
 
     const df = getDragFeel(), feel = getPackFeel();
     const a = tiltTargetInto(this.angles, tiltX, tiltY, df.tiltMax, feel.packTilt, true);

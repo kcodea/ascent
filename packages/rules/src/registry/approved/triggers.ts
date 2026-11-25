@@ -1896,22 +1896,23 @@ export const TRIGGERS_RULES: GameRule[] = [
   },
   {
     id: 'R-CONDUIT-01',
-    title: 'Candle Conduit: every Ruby you get casts a Ruby on a random other friendly minion, live in both phases',
+    title: 'Candle Conduit: every Ruby you get casts a Ruby on a random other friendly Kobold, live in both phases',
     statement:
       'Candle Conduit (Set 2, Tier 6, 7/7): each Ruby that reaches your hand, plain or Special, from any source, makes each of your Conduits cast a '
-      + 'plain Ruby on a random OTHER friendly minion (Gilded: on two different ones). It is a real cast: its target and every cast watcher hear '
+      + 'plain Ruby on a random OTHER friendly Kobold, All-types minions included (Gilded: on two different ones). It is a real cast: its target and every cast watcher hear '
       + 'it. In a fight it casts at that moment, on a living minion, for the fight only (an Engraved minion or a permanent-Ruby rune keeps it), '
       + 'and nothing is cast again when the Rubies are minted after the fight. A Ruby gotten because a Conduit cast one never makes a Conduit '
-      + 'cast again, so it cannot loop. Alone on the board it does nothing.',
+      + 'cast again, so it cannot loop. With no other Kobold on the board it does nothing.',
     domain: 'triggers',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-25', quote: 'add candle conduit to set 2 and wire its new art.' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-25', quote: "change candle conduit's text to random friendly kobold instead of random friendly minion" },
       { kind: 'code', ref: 'packages/content/src/cards/set2/kobolds.ts (k_candleconduit); packages/sim/src/recruit.ts candleConduitCast / withGemSagesHeld; packages/core/src/effects/factories.ts rubyGainedCast' },
     ],
-    cardText: 'When you get a **Ruby**, cast a **Ruby** on a random friendly minion.',
+    cardText: 'When you get a **Ruby**, cast a **Ruby** on a random friendly **Kobold**.',
     contentIds: ['k_candleconduit'],
-    currentBehaviour: 'Conforms, built 2026-11-25. The card is the archived one unchanged (its rework of 2026-08-11); its fight half is new (a combat Ruby used to reach it at settle), and Gilded now picks two different minions.',
+    currentBehaviour: 'Conforms, built 2026-11-25. The card is the archived one (its rework of 2026-08-11) with Kobold targets; its fight half is new (a combat Ruby used to reach it at settle), and Gilded now picks two different minions.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/candleConduit.test.ts', 'packages/sim/src/rubies.test.ts'], lastVerifiedAt: '2026-11-25' },
   },
 ];

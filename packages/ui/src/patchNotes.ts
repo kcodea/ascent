@@ -60,7 +60,7 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Balance',
-        text: 'Candle Conduit is back (Set 2 Kobold, Tier 6, 7/7): when you get a Ruby, it casts a Ruby on a random friendly minion.',
+        text: 'Candle Conduit is back (Set 2 Kobold, Tier 6, 7/7): when you get a Ruby, it casts a Ruby on a random friendly Kobold.',
       },
       {
         category: 'Balance',

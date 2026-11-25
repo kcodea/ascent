@@ -19677,7 +19677,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "reviewStatus": "extracted",
     "extraction": {
       "extractor": "contracts-extract@1",
-      "confidence": "low"
+      "confidence": "low",
+      "unparsed": [
+        "rubyGainedCast.tribe"
+      ]
     },
     "setIds": [
       "set2"

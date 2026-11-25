@@ -19,20 +19,20 @@ describe('Candle Conduit', () => {
     expect(ARCHIVED_CARDS.some((c) => c.id === 'k_candleconduit')).toBe(false);
   });
 
-  it('SHOP: once a Ruby, plain or Special, on another minion; alone it does nothing', () => {
-    let s = run([bc('c', 'k_candleconduit'), bc('x', 'sandbag')]);
+  it('SHOP: once a Ruby, plain or Special, on another Kobold, never another type; with no other Kobold it does nothing', () => {
+    let s = run([bc('c', 'k_candleconduit'), bc('x', 'k_chipwick'), bc('n', 'sandbag')]);
     mintRubies(s, 2);
     mintRandomRubies(s, 1);
     expect(rubied(s)).toBe(3);
     expect(s.board[0]!.attack, 'never itself').toBe(2);
     expect(s.board[1]!.rubiesOnThisTurn, 'real casts').toBe(3);
-    s = run([bc('c', 'k_candleconduit')]);
+    s = run([bc('c', 'k_candleconduit'), bc('n', 'sandbag')]); // no other Kobold
     mintRubies(s, 1);
     expect(rubied(s)).toBe(0);
   });
 
   const fight = (golden = false, other: Partial<BoardMinion>[] = [{}, {}]) => simulate(
-    [bm('k_kobe', { attack: 15, health: 400 }), bm('k_candleconduit', { golden }), ...other.map((o) => bm('sandbag', o))],
+    [bm('k_kobe', { attack: 15, health: 400 }), bm('k_candleconduit', { golden }), ...other.map((o) => bm('k_chipwick', { attack: 0, ...o }))],
     [{ cardId: 'sandbag', attack: 0, health: 4000 }], makeRng(5), CARD_INDEX, combatSide({ tier: 6, tribes: ['kobold', 'demon'] }), combatSide());
   const casts = (r: ReturnType<typeof fight>): Buff[] => {
     const uid = r.initial.player.find((m) => m.cardId === 'k_candleconduit')!.uid;
@@ -50,7 +50,7 @@ describe('Candle Conduit', () => {
   });
 
   it('COMBAT: nothing is cast again when the fight settles', () => {
-    let s = run([bc('c', 'k_candleconduit'), bc('x', 'sandbag')], { phase: 'combat',
+    let s = run([bc('c', 'k_candleconduit'), bc('x', 'k_chipwick')], { phase: 'combat',
       lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] }, playerRubyMints: 1, playerRubyGrants: 1, playerRubyGrantIds: ['dark-ruby'] } } as unknown as Partial<RunState>);
     s = reduce(s, { type: 'settleCombat' });
     expect(s.hand.filter((c) => CARD_INDEX[c.cardId]?.ruby).length).toBe(3);
@@ -60,7 +60,7 @@ describe('Candle Conduit', () => {
   });
 
   it('two Conduits and a Gem Sage end: every Ruby is heard once by each', () => {
-    const s = run([bc('c', 'k_candleconduit'), bc('d', 'k_candleconduit'), bc('g', 'k_gemsage'), bc('x', 'sandbag')]);
+    const s = run([bc('c', 'k_candleconduit'), bc('d', 'k_candleconduit'), bc('g', 'k_gemsage'), bc('x', 'k_chipwick')]);
     mintRubies(s, 1); // the Ruby, and the Sage's one: two Rubies, two Conduits
     expect(s.hand.length).toBe(2);
     expect(rubied(s)).toBe(4);

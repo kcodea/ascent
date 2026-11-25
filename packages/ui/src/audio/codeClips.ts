@@ -42,7 +42,6 @@ export const CODE_FX_CLIPS: readonly string[] = [
   'fx/pack-squeeze',
   'fx/pack-tear',
   'fx/reveal-impact-1',
-  'fx/reveal-impact-4',
   'fx/reveal-shimmer',
   'fx/soumages-magic-spell-333896',
   'fx/stereogenicstudio-swish-swoosh-woosh-sfx-27-357164-3',

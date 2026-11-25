@@ -85,8 +85,10 @@ export const CARD_CUES = {
     { clip: 'fx/reveal-shimmer', cat: 'crateTierShimmer', gain: 0.6, delayMs: 120 },
   ],
   bigAncient: [
-    { clip: 'fx/reveal-impact-4', cat: 'crateBurst', gain: 0.8 },
-    { clip: 'fx/universfield-cinematic-swoosh-impact-454392', cat: 'crateBurst', gain: 0.5 },
+    // (owner 2026-11-24: "change the sound for the ancient reveal impact": a heavy slam under an explosive swoosh, in
+    // place of the first pass's reveal-impact + cinematic swoosh)
+    { clip: 'fx/ancient-slam', cat: 'crateBurst', gain: 0.85 },
+    { clip: 'fx/ancient-explosion-swoosh', cat: 'crateBurst', gain: 0.55 },
     { clip: 'fx/reveal-shimmer', cat: 'crateTierShimmer', gain: 0.7, delayMs: 120, rate: 1.12 },
   ],
 } as const satisfies Record<string, readonly ClipCue[]>;

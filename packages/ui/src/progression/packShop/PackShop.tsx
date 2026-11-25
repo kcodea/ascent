@@ -120,6 +120,16 @@ export function PackShop(props: PackShopProps) {
   const [opening, setOpening] = useState<readonly PackQueueItem[] | null>(null);
   /** The opener is fading out over the shop (its `onClose` .. `onClosed`): the shop is already back, not yet usable. */
   const [leaving, setLeaving] = useState(false);
+  /**
+   * The first mount's entrance: the words start away and are released TWO frames later (a mount from a click flushes its
+   * effects before the first paint, so one frame could release them before their away style was ever drawn).
+   */
+  const [entering, setEntering] = useState(!reduced);
+  useEffect(() => {
+    if (!entering) return;
+    let raf = requestAnimationFrame(() => { raf = requestAnimationFrame(() => setEntering(false)); });
+    return () => cancelAnimationFrame(raf);
+  }, [entering]);
 
   // Latest values for the scene's handlers and the async purchase.
   const offersRef = useRef(offers); offersRef.current = offers;
@@ -556,7 +566,7 @@ export function PackShop(props: PackShopProps) {
   }, [shelves, offers]);
 
   const shop = (
-    <div className={`pks${opening && !leaving ? ' pks-away' : ''}`} role="dialog" aria-modal="true" aria-label="Pack shop" ref={dialogRef} tabIndex={-1}
+    <div className={`pks${entering && !reduced ? ' pks-enter' : ''}${opening && !leaving ? ' pks-away' : ''}${reduced ? ' pks-still' : ''}`} role="dialog" aria-modal="true" aria-label="Pack shop" ref={dialogRef} tabIndex={-1}
          onKeyDown={onArrows}>
       <div className="pkop-scrim" aria-hidden />
       {!reduced && <div className="pks-fx" ref={hostRef} aria-hidden />}

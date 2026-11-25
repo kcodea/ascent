@@ -394,6 +394,18 @@ describe('PackShop', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it('the first mount plays the entrance once: the words start away (pks-enter) and are released two frames later; never under reduced motion', async () => {
+    render();
+    const root = document.querySelector('.pks')!;
+    expect(root.classList.contains('pks-enter')).toBe(true);
+    await act(async () => { await new Promise((r) => setTimeout(r, 80)); });
+    expect(root.classList.contains('pks-enter')).toBe(false);
+    m!.unmount(); m = null;
+    render({ reducedMotion: true });
+    expect(document.querySelector('.pks')!.classList.contains('pks-enter')).toBe(false);
+    expect(document.querySelector('.pks')!.classList.contains('pks-still')).toBe(true);
+  });
+
   it('reduced motion renders the grid with Buy and Open buttons and no scene', async () => {
     render({ reducedMotion: true, hand: [owned('h1'), owned('h2', 'Epic Pack')] });
     expect(fakes).toHaveLength(0);

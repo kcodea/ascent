@@ -252,8 +252,12 @@ describe('the face holo', () => {
     m?.unmount();
     m = mount(<PackFace card={card('skin_albus_1', { rarity: 'legendary' })} phase="featured" />);
     const layer = holo()!;
-    expect(layer.previousElementSibling?.classList.contains('pkf-plate')).toBe(true);
+    expect(layer.previousElementSibling?.classList.contains('pkf-tint')).toBe(true); // plate, tint, foil, content
     expect(layer.nextElementSibling?.classList.contains('pkf-win')).toBe(true);
+    // the rarity tint is cut to the same traced window (no straight edge across the notch), under the foil
+    const tint = face().querySelector('.pkf-tint') as HTMLElement;
+    expect(tint.style.getPropertyValue('--pkf-window')).toMatch(/packs\/card-plate-window\.webp/);
+    expect(tint.previousElementSibling?.classList.contains('pkf-plate')).toBe(true);
     expect(layer.querySelector('.pkf-name, .pkf-ribbon, .pkf-art')).toBeNull();
   });
 

@@ -357,6 +357,8 @@ export function PackFace({ card, phase, from, slot, slow = 1, still = false }: P
           />
         )}
         <img src={cardPlateSrc(card.rarity)} alt="" decoding="sync" draggable={false} className="pkf-plate" />
+        {/* the rarity tint over the navy: cut to the plate's real window (the notch too), so it has no straight top edge */}
+        <div className="pkf-tint" data-testid="pkf-tint" style={{ '--pkf-window': HOLO_MASK } as CSSProperties} />
         {/* the foil is the card's BACKGROUND: over the plate's window, under the item, the text and the rarity */}
         {holo > 0 && (
           <div className="pkf-holo" data-testid="pkf-holo" style={{ opacity: Math.min(1, holo), '--pkf-window': HOLO_MASK } as CSSProperties}>

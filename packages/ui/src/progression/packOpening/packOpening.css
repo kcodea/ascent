@@ -82,8 +82,13 @@
   backface-visibility: hidden; transform-origin: 50% 50%; }
 .pkf-plate { position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; user-select: none; }
 .pkf-win { position: absolute; left: 6.4%; right: 6.4%; top: 7%; bottom: 5.3%; border-radius: 14% / 9.5%; overflow: hidden;
-  box-sizing: border-box; padding: 40px 26px 26px; display: flex; flex-direction: column; align-items: center; gap: 13px;
-  background: radial-gradient(ellipse 85% 55% at 50% 34%, color-mix(in srgb, var(--rc) 26%, transparent), transparent 72%); }
+  box-sizing: border-box; padding: 40px 26px 26px; display: flex; flex-direction: column; align-items: center; gap: 13px; }
+/* The rarity tint on the navy (the same wash the window used to carry, in the card's box): masked by the plate's traced
+   window like the foil, so it fills the notch and has no straight edge across the top (owner 2026-11-24: "theres still
+   a hard line up near the top"). */
+.pkf-tint { position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(ellipse 74% 48% at 50% 37%, color-mix(in srgb, var(--rc) 26%, transparent), transparent 72%);
+  -webkit-mask: var(--pkf-window) center / 100% 100% no-repeat; mask: var(--pkf-window) center / 100% 100% no-repeat; }
 /* THE RARITY AURA (packGlow.ts): behind the plate's outer edge, on the top face of the revealed pile and on every summary
    face. `.pkf-aura` holds the tier's STATIC opacity (inline: the tier x the cardGlow knob); its ::before carries a STATIC
    shadow in the rarity colour, and only that ::before's opacity breathes (the kwglow rule): Common / Rare none, Epic

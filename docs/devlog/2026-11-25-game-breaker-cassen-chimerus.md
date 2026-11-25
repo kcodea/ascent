@@ -6,8 +6,9 @@ itself", and "add a unique title not earnable called Game Breaker. it should be 
 - **Cassen** (R-CASSEN-03): `COMMISSION_MAX_GOLD` is gone from the payout and from every text. Max Gold already earned in a run stays.
 - **Chimerus** (R-TARGET-CHIMERUS-01): `rallyGiveHealthToDragons` takes `excludeId`, the same channel Lieutenant Thane uses for "different".
 - **Game Breaker** (R-PROG-TITLE-GIFT-01): the first gift-only title. `acquisition: { type: 'event', id: 'gift' }`, Secret rarity (hidden until
-  owned), look `lemon`. The first look (a drawn lemon) was "super cliparty": it is now the normal pill in satin yellow with one leaf. The leaf
-  leaves the box, so it is the only look with `overflow: visible`, and it has no sweep for that reason. The gift notice now shows any plated title as its badge.
+  owned), look `lemon`. The first look (a drawn lemon) was "super cliparty": it is now the normal pill in satin yellow in a green frame, with one
+  leaf. The leaf leaves the box, so it is the only look with `overflow: visible`, and its light sweep runs in its own clipped layer (`tb-shine`)
+  behind the letters. The gift notice now shows any plated title as its badge.
 
 ## Granting it
 

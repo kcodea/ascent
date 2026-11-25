@@ -17356,8 +17356,8 @@ export const FOUNDATION_RULES: GameRule[] = [
     title: 'Game Breaker is a gift title: never earned, hidden from everyone who does not own it, and painted as a lemon',
     statement:
       'Game Breaker comes from no chest, level or achievement: an account has it only when it is handed to it (R-PROG-GIFT-01). It is Secret, so '
-      + 'a Collection without it neither shows nor counts it. It paints the lemon look everywhere a title shows: a satin lemon yellow pill ripening '
-      + 'to green, the name in leaf green, and one leaf over the top right corner. The gift notice and the Collection show the badge itself, and the Collection '
+      + 'a Collection without it neither shows nor counts it. It paints the lemon look everywhere a title shows: a satin lemon yellow pill in a '
+      + 'green frame, ripening to green, the name in leaf green, and one leaf over the top right corner. The gift notice and the Collection show the badge itself, and the Collection '
       + 'says it cannot be earned.',
     domain: 'foundation',
     status: 'approved',

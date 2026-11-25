@@ -103,6 +103,7 @@ const ThemedBadge = memo(function ThemedBadge({ cls, id, rarity, look, name }: {
   useEffect(() => (ref.current ? observeLive(ref.current) : undefined), [cls]);
   return (
     <span ref={ref} className={cls} data-title-id={id} data-rarity={rarity} data-look={look}>
+      {look === 'lemon' && <span className="tb-shine" aria-hidden="true" />}
       <span className="tb-text">{name}</span>
       <span className="tb-seal" aria-hidden="true" />
     </span>

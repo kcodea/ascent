@@ -169,7 +169,7 @@ describe('themed secret titles (owner ask 2026-11-20: "more exciting/fun looking
     for (const [, sel, body] of rules) expect(body, sel).not.toMatch(/transition/);
     // The only animated layers are the two pseudo-elements, and both start PAUSED (running only with `tb-live`).
     const animated = rules.filter(([, , body]) => /(?:^|[\s;])animation:(?!\s*none)/.test(body!));
-    expect(animated.map(([, sel]) => sel!.trim()).sort()).toEqual(['.titlebadge.tb-look-lemon .tb-seal', '.titlebadge.tb-look::after', '.titlebadge.tb-look::before']); // the lemon's leaf sways
+    expect(animated.map(([, sel]) => sel!.trim()).sort()).toEqual(['.titlebadge.tb-look-lemon .tb-seal', '.titlebadge.tb-look-lemon .tb-shine::after', '.titlebadge.tb-look::after', '.titlebadge.tb-look::before']); // the lemon's leaf sways, and its light is its own
     for (const [, sel, body] of animated) expect(body, sel).toMatch(/paused;/);
     expect(css).toMatch(/\.titlebadge\.tb-look\.tb-live::before, \.titlebadge\.tb-look\.tb-live::after \{ animation-play-state: running; \}/);
     // Every theme names an accent, and every accent's keyframes set transform and opacity only.
@@ -189,7 +189,8 @@ describe('themed secret titles (owner ask 2026-11-20: "more exciting/fun looking
     }
     const reduced = [...css.matchAll(/@media \(prefers-reduced-motion: reduce\) \{([\s\S]*?)\n\}/g)].map((x) => x[1]).join('\n');
     expect(reduced).toMatch(/\.titlebadge\.tb-look-lemon \.tb-seal \{ animation: none/);
-    expect(css).toMatch(/\.titlebadge\.tb-look-lemon\.tb-live \.tb-seal \{ animation-play-state: running; \}/);
+    expect(reduced).toMatch(/\.titlebadge\.tb-look-lemon \.tb-shine::after \{ animation: none/);
+    expect(css).toMatch(/\.titlebadge\.tb-look-lemon\.tb-live \.tb-seal, \.titlebadge\.tb-look-lemon\.tb-live \.tb-shine::after \{ animation-play-state: running; \}/);
     expect(reduced).toMatch(/\.titlebadge\.tb-look::after \{ animation: none/);
     expect(reduced).toMatch(/\.titlebadge\.tb-look::before \{ animation: none/);
   });

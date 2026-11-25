@@ -1386,7 +1386,7 @@ class ShopSceneImpl implements ShopScene {
       this.held.box = !!o && o.contains > 1;
     }
     else if (action === 'play') this.sounds.play();
-    const short = fromShelf && zone === 'hand'; // carried across but not affordable
+    const short = action === 'return' && fromShelf && zone === 'hand'; // carried across but not affordable
     if (short) this.sounds.refuse();
     const rect = this.screenRect(this.heldPose) ?? ZERO_RECT;
     this.emit('onDrop', () => this.events.onDrop(action, id, rect));

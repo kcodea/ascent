@@ -1,0 +1,50 @@
+import { describe, expect, it } from 'vitest';
+import type { CrateRarity, PackOffer } from '@game/progression';
+import { affordableIds, buyKey, packTag, shelfOffers, srLine } from './shopModel';
+
+const offer = (id: string, over: Partial<PackOffer> = {}, floor: CrateRarity = 'rare', name = 'Rare Pack'): PackOffer => ({
+  offerId: id, look: { kind: 'rarity', id: floor, name, guaranteedFloor: floor }, price: 200, shelf: 'packs', contains: 1, ...over,
+});
+
+describe('shopModel', () => {
+  it('packTag: price, floor and fresh strings', () => {
+    const t = packTag(offer('a', { newToYou: { unowned: 14, total: 40 } }), 500);
+    expect(t).toEqual({ price: '200 Aether', floor: 'Guaranteed Rare or better', fresh: '14 of 40 new to you', short: 0, soldOut: false });
+  });
+
+  it('packTag: Free at 0, Ancient has no "or better", nothing new, no newToYou', () => {
+    expect(packTag(offer('a', { price: 0 }), 0).price).toBe('Free');
+    expect(packTag(offer('a', {}, 'ancient'), 0).floor).toBe('Guaranteed Ancient');
+    expect(packTag(offer('a', { newToYou: { unowned: 0, total: 40 } }), 0).fresh).toBe('Nothing new to you');
+    expect(packTag(offer('a'), 0).fresh).toBeNull();
+  });
+
+  it('packTag: short and soldOut', () => {
+    expect(packTag(offer('a'), 150)).toMatchObject({ short: 50, soldOut: false });
+    expect(packTag(offer('a', { soldOut: true }), 999)).toMatchObject({ short: 0, soldOut: true });
+  });
+
+  it('srLine: one line, box count before the price, short and sold out last', () => {
+    expect(srLine(offer('a', { newToYou: { unowned: 14, total: 40 } }), 500)).toBe('Rare Pack, 200 Aether, Guaranteed Rare or better, 14 of 40 new to you');
+    expect(srLine(offer('b', { contains: 10, price: 1800 }, 'epic', 'Epic Box'), 5000)).toBe('Epic Box, 10 packs, 1800 Aether, Guaranteed Epic or better');
+    expect(srLine(offer('a'), 150)).toBe('Rare Pack, 200 Aether, Guaranteed Rare or better, Need 50 more Aether');
+    expect(srLine(offer('a', { soldOut: true }), 0)).toBe('Rare Pack, 200 Aether, Guaranteed Rare or better, Sold out');
+  });
+
+  it('shelfOffers: filters by shelf, featured first, stable inside each group', () => {
+    const list = [offer('a'), offer('f1', { badge: 'featured' }), offer('x', { shelf: 'boxes' }), offer('b', { badge: 'new' }), offer('f2', { badge: 'featured' })];
+    expect(shelfOffers(list, 'packs').map((o) => o.offerId)).toEqual(['f1', 'f2', 'a', 'b']);
+    expect(shelfOffers(list, 'none')).toEqual([]);
+    expect(list).toHaveLength(5);
+  });
+
+  it('buyKey changes when the price changes', () => {
+    expect(buyKey(offer('a'))).toBe('a|200');
+    expect(buyKey(offer('a', { price: 250 }))).not.toBe(buyKey(offer('a')));
+  });
+
+  it('affordableIds: balance covers it, free always, sold out never', () => {
+    const list = [offer('a'), offer('free', { price: 0 }), offer('sold', { soldOut: true, price: 0 }), offer('dear', { price: 900 })];
+    expect([...affordableIds(list, 200)].sort()).toEqual(['a', 'free']);
+  });
+});

@@ -4,7 +4,7 @@
  * is what a phone, reduced motion or a machine without WebGL 2 sees.
  */
 import { memo, useEffect, useRef, useState } from 'react';
-import { showLiving, type LivingSet } from './livingArt';
+import { showLiving, type LivingLook, type LivingSet } from './livingArt';
 
 const FILES = import.meta.glob('../art/skins/holo/*.webp', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
 const SETS = new Map<string, Record<string, string>>();
@@ -15,8 +15,13 @@ for (const [path, url] of Object.entries(FILES)) {
   set[m[2]!] = url;
   SETS.set(m[1]!, set);
 }
-export interface Holo { key: string; set: LivingSet }
-const HOLOS = new Map([...SETS].map(([key, set]) => [key, { key, set } as Holo]));
+export interface Holo { key: string; set: LivingSet; look: LivingLook }
+const HOLOS = new Map([...SETS].map(([key, set]) => [key, { key, set, look: 'flame' } as Holo]));
+/** The same pieces lit another way (owner 2026-11-25: "the green flame is instead blue and almost has more of a lightning vibe to it"). */
+for (const [key, of, look] of [['skin_kennel_4', 'skin_kennel_3', 'storm']] as const) {
+  const set = SETS.get(of);
+  if (set) HOLOS.set(key, { key, set, look });
+}
 /** A skin's living picture, by its art url (null = ordinary art). */
 export function holoOf(artUrl: string | undefined): Holo | null {
   if (!artUrl || !artUrl.includes('skin_')) return null;
@@ -32,7 +37,7 @@ export const HoloArt = memo(function HoloArt({ holo }: { holo: Holo }): JSX.Elem
   useEffect(() => {
     const el = ref.current;
     if (!el || still()) return;
-    return showLiving(holo.key, holo.set, el, () => setOn(true));
+    return showLiving(holo.key, holo.set, holo.look, el, () => setOn(true));
   }, [holo]);
   return <canvas ref={ref} className="artimg" aria-hidden="true" style={{ opacity: on ? 1 : 0, maxWidth: 'none', maxHeight: 'none' }} />;
 });

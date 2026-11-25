@@ -646,7 +646,7 @@ if (import.meta.env.DEV && typeof localStorage !== 'undefined') {
 
 // ── DEV ONLY: CONCEPT skins (owner 2026-11-25: "add it as an equippable skin in my collection so i can turn it on/off") ──
 // Owned by every dev build and worn locally (`ascent.dev.concepts`), laid over the mirror in memory like the dev frames above: the server never hears of it.
-const DEV_CONCEPTS: readonly { id: string; cardId: string }[] = [{ id: 'skin_kennel_3', cardId: 'kennel' }];
+const DEV_CONCEPTS: readonly { id: string; cardId: string }[] = [{ id: 'skin_kennel_3', cardId: 'kennel' }, { id: 'skin_kennel_4', cardId: 'kennel' }];
 const DEV_CONCEPTS_KEY = 'ascent.dev.concepts';
 const loadConcepts = (): string[] => {
   try { const x = JSON.parse(localStorage.getItem(DEV_CONCEPTS_KEY) ?? '[]') as unknown; return Array.isArray(x) ? x.filter((v): v is string => typeof v === 'string') : []; } catch { return []; }
@@ -659,10 +659,8 @@ function applyConcepts(): void {
   const worn = loadConcepts();
   const owned = m.cosmetics ?? m.titles;
   const skins: Record<string, string> = { ...(m.loadout?.minionSkinByCardId ?? {}) };
-  for (const c of DEV_CONCEPTS) {
-    if (worn.includes(c.id)) skins[c.cardId] = c.id;
-    else if (skins[c.cardId] === c.id) delete skins[c.cardId];
-  }
+  for (const c of DEV_CONCEPTS) if (skins[c.cardId] === c.id && !worn.includes(c.id)) delete skins[c.cardId];
+  for (const c of DEV_CONCEPTS) if (worn.includes(c.id)) skins[c.cardId] = c.id;
   const missing = DEV_CONCEPTS.map((c) => c.id).filter((id) => !owned.includes(id));
   const before = JSON.stringify(m.loadout?.minionSkinByCardId ?? {});
   if (!missing.length && JSON.stringify(skins) === before) return;
@@ -670,11 +668,12 @@ function applyConcepts(): void {
 }
 /** Wear or take off a concept skin locally. False = not one: the server handles it (a concept on that card comes off first). */
 function devEquipConcept(targetId: string, cosmeticId: string | null): boolean {
-  const c = DEV_CONCEPTS.find((x) => x.cardId === targetId);
-  if (!c || loadDevUnlock()) return false;
+  const ids = DEV_CONCEPTS.filter((x) => x.cardId === targetId).map((x) => x.id);
+  if (!ids.length || loadDevUnlock()) return false;
   const worn = loadConcepts();
-  const mine = cosmeticId === c.id || (cosmeticId === null && worn.includes(c.id));
-  const next = cosmeticId === c.id ? [...new Set([...worn, c.id])] : worn.filter((id) => id !== c.id);
+  const on = cosmeticId !== null && ids.includes(cosmeticId);
+  const mine = on || (cosmeticId === null && worn.some((id) => ids.includes(id)));
+  const next = [...worn.filter((id) => !ids.includes(id)), ...(on ? [cosmeticId] : [])]; // one at a time on a card
   try { localStorage.setItem(DEV_CONCEPTS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
   applyConcepts();
   return mine;

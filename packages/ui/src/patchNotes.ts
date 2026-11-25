@@ -59,6 +59,26 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-11-25',
     changes: [
       {
+        category: 'Balance',
+        text: 'Cassen: finishing a commission no longer gives max Gold.',
+      },
+      {
+        category: 'Balance',
+        text: 'Chimerus now gives its Health to 2 different friendly Dragons: never another Chimerus.',
+      },
+      {
+        category: 'Systems',
+        text: 'The sound of the location now carries on through hero select, and its water is softer behind the blur.',
+      },
+      {
+        category: 'Balance',
+        text: 'Cassen: finishing a commission no longer gives max Gold.',
+      },
+      {
+        category: 'Balance',
+        text: 'Chimerus now gives its Health to 2 different friendly Dragons: never another Chimerus.',
+      },
+      {
         category: 'Systems',
         text: 'The sound of the location now carries on through hero select, and its water is softer behind the blur.',
       },

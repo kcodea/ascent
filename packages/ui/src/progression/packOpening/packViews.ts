@@ -211,7 +211,7 @@ export function buildPackViews(look: PackLook, n: number, own: (t: Texture) => v
     const s = new Sprite(tex.plain);
     s.anchor.set(0.5);
     s.width = CARD_W; s.height = CARD_H;
-    s.x = (i % 2 ? 1 : -1) * i * 0.9; s.y = i * 2.4;
+    s.x = cardRestX(i); s.y = cardRestY(i);
     cards.push(s);
   }
   for (let i = n - 1; i >= 0; i--) cardsC.addChild(cards[i]!);
@@ -358,6 +358,10 @@ function buildHolo(
   });
   return views;
 }
+
+/** Card `i`'s resting place in the stack (the pile's top card is moved by the pointer and put back here). */
+export const cardRestX = (i: number): number => (i % 2 ? 1 : -1) * i * 0.9;
+export const cardRestY = (i: number): number => i * 2.4;
 
 /** The torn foil's flecks: a fixed pool of sprites (no allocation when the tear sheds them). */
 export class FleckPool {

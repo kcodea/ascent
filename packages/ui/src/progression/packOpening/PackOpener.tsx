@@ -8,7 +8,7 @@ import { createPackScene, type PackScene } from './packScene';
 import { createPackSounds, type PackSounds } from './packSounds';
 import { packRarityLabel } from './packRarity';
 import { PackFace, slotBox, warmFaceArt, type PackFacePhase } from './packFaces';
-import { FLIP_HALF_GUARANTEED_MS, FLIP_HALF_MS } from './cardFlip';
+import { flipHalfMs } from './cardFlip';
 import { bigPullShakePx, bigPullTier } from './bigPull';
 import { getPackFeel } from './packFxConfig';
 import './packOpening.css';
@@ -235,9 +235,10 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, spee
         // this same task; a click may start one mid-turn): it leaves `handoff` only when its turn is done.
         setFlipping(false);
         setTurning((prev) => new Set(prev).add(index));
-        const turnMs = (card.guaranteed ? FLIP_HALF_GUARANTEED_MS : FLIP_HALF_MS) / (speedRef.current > 0 ? speedRef.current : 1);
+        const turnMs = flipHalfMs(card.rarity, card.guaranteed) / (speedRef.current > 0 ? speedRef.current : 1);
         const t = setTimeout(() => {
           turnTimersRef.current.delete(t);
+          soundsFn.current().land(card.rarity); // the face comes to rest on the pile
           setTurning((prev) => { const next = new Set(prev); next.delete(index); return next; });
         }, turnMs);
         turnTimersRef.current.add(t);

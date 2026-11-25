@@ -6,6 +6,8 @@
  * edge away, so the card turns off to the right. No Pixi, no allocation: results are written into caller-owned objects.
  */
 
+import type { CrateRarity } from '@game/progression';
+
 /** The flip's perspective distance as a multiple of the card's on-screen width (the DOM half uses the same). */
 export const FLIP_PERSPECTIVE_PER_WIDTH = 4;
 /**
@@ -41,6 +43,20 @@ export const FLIP_LIFT_GUARANTEED = 0.12;
 export const FLIP_HALF_MS = 260;
 export const FLIP_HALF_GUARANTEED_MS = 380;
 
+/**
+ * The flip's first half by rarity (ms): the better the card, the slower and heavier the turn, so a big pull is felt
+ * coming before its face shows (owner 2026-11-24: "the building excitement of potentially uncovering something great").
+ * Common and Rare keep the ordinary turn; a guaranteed card never turns faster than the guaranteed flip.
+ */
+export const FLIP_HALF_BY_RARITY: Readonly<Record<CrateRarity, number>> = {
+  common: FLIP_HALF_MS, rare: FLIP_HALF_MS, epic: 330, legendary: 460, ancient: 560,
+};
+export const flipHalfMs = (rarity: CrateRarity | undefined, guaranteed: boolean): number =>
+  Math.max(guaranteed ? FLIP_HALF_GUARANTEED_MS : FLIP_HALF_MS, rarity ? FLIP_HALF_BY_RARITY[rarity] : FLIP_HALF_MS);
+
+/** The card sinks this much (of its size) as the turn starts, then lifts: the wind-up before the throw. */
+export const FLIP_DIP = 0.04;
+
 /** Where a flip starts and heads (any one 2D space), the card's scale at the start, and how much it lifts by 90 deg. */
 export interface FlipPath { c0x: number; c0y: number; tx: number; ty: number; scale: number; lift: number }
 export interface FlipPose { cx: number; cy: number; s: number }
@@ -50,7 +66,7 @@ export function flipPoseAt(path: FlipPath, p: number, out: FlipPose): FlipPose {
   const move = 0.5 * (1 - (1 - p) * (1 - p));
   out.cx = path.c0x + (path.tx - path.c0x) * move;
   out.cy = path.c0y + (path.ty - path.c0y) * move;
-  out.s = path.scale * (1 + path.lift * p);
+  out.s = path.scale * (1 + path.lift * p - FLIP_DIP * Math.sin(Math.PI * Math.min(1, Math.max(0, p) / 0.32)));
   return out;
 }
 

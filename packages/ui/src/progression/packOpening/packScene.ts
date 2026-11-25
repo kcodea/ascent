@@ -33,15 +33,22 @@ import { phonePixiOptions, pixiAllowed } from '../../phoneDiag';
 import { followStage } from '../../pixiStageFollow';
 import { getDragFeel } from '../../dragFeel';
 import {
-  FLIP_HALF_GUARANTEED_MS, FLIP_HALF_MS, FLIP_LIFT, FLIP_LIFT_GUARANTEED, FLIP_PERSPECTIVE_PER_WIDTH, PILE_MAX_H, REVEAL_FACE_X,
-  REVEAL_STACK_X, REVEAL_Y, REVEALED_SCALE, flipAngle, flipPoseAt, projectTurnedRect, type FlipPose,
+  FLIP_LIFT, FLIP_LIFT_GUARANTEED, FLIP_PERSPECTIVE_PER_WIDTH, PILE_MAX_H, REVEAL_FACE_X,
+  REVEAL_STACK_X, REVEAL_Y, REVEALED_SCALE, flipAngle, flipHalfMs, flipPoseAt, projectTurnedRect, type FlipPose,
 } from './cardFlip';
 import { getPackFeel, PACK_BASE_SIZE, type PackFeel } from './packFxConfig';
 import { CARD_GLOW_TIERS, PACK_GLOW_TIERS, glowAlphaAt, packGlowRarity, type GlowTier } from './packGlow';
 import type { PackSounds } from './packSounds';
-import { teaseAt, teaseFrames, teaseGlowAlpha, teaseGlowFade, teasePop, teaseRarityAt, teaseWobble, type TeaseAt } from './packTease';
+import {
+  teaseAt, teaseAuraLevel, teaseBeatFrames, teaseFrames, teaseGlowAlpha, teaseGlowFade, teaseGlowPop, teasePop, teaseRarityAt, teaseTremble,
+  type TeaseAt,
+} from './packTease';
+import { makeAura, type Aura } from './packAura';
+import { PILE_LEAN_PX, PILE_LEAN_RAD, PILE_RISE_PX, newPile, pileAtRest, pileEase, pileScale, type PileState } from './packPile';
+import { cardRestX, cardRestY } from './packViews';
+import { COSMETIC_RARITIES } from '@game/progression';
 import { ANCIENT_GLOW_STOPS, BURST_TEX, PACK_GEOM, TEX_RES, rarityTint } from './packTextures';
-import { BURST, bigPullTier, burstPoseAt, type BigPullTier, type BurstPose } from './bigPull';
+import { AURA_BURST, BURST, FACE_AMBIENT, FLIP_CHARGE, bigPullTier, burstPoseAt, type BigPullTier, type BurstPose } from './bigPull';
 import { holoShiftInto, packHoloStrength } from './packHolo';
 import {
   buildPackViews, CARDS_Y, RIBBON_DY, RIBBON_HH, RIBBON_HW, wallInto, type SceneTextures, type Views,
@@ -230,7 +237,22 @@ class PackSceneImpl implements PackScene {
     active: false, idx: 0, t: 0, dur: 1, c0x: 0, c0y: 0, tx: 0, ty: 0, scale: 1, lift: 0, ribbon: false,
   };
   // the rarity tease (packTease.ts): it builds while the pointer rests on the pile's top card, and eases away when it leaves
-  private readonly tease = { live: false, t: 0, idx: 0, stage: -1, level: 0, sx: 1, sy: 1 };
+  private readonly tease = { live: false, t: 0, idx: 0, stage: -1, level: 0 };
+  /** What the tease adds to the top card's pose this frame (read by `pileStep`, the one place the card is posed). */
+  private teasePopV = 0;
+  private teaseRotV = 0;
+  private beatT = 0;
+  // the pile under the hand (packPile.ts): the top card lifts, leans, sinks on a press
+  private readonly pile: PileState = newPile();
+  private pilePressed = false;
+  private readonly pileC: Pt = { x: 0, y: 0 }; // the top card's centre in root units (written by `pileHit`)
+  private cardSX = 0; // a card's rest scale (captured once, before any card is posed)
+  private cardSY = 0;
+  // the shader auras (packAura.ts): one under the pile (the tease), one that rides the turning card and lands with its face
+  private auraPile: Aura | null = null;
+  private auraFace: Aura | null = null;
+  private faceAmbient = 0;
+  private readonly land = { active: false, t: 0, dur: 1, x0: 0, y0: 0, h0: 1, x1: 0, y1: 0, h1: 1 };
   private readonly teaseOut: TeaseAt = { stage: 0, k: 0 };
   /** The glow's alpha when the tease ended (0 = no glow to fade): it fades from here through the turn (`flipStep`). */
   private teaseGlowOut = 0;
@@ -324,6 +346,12 @@ class PackSceneImpl implements PackScene {
     this.tex = built.tex;
     this.v = built.views;
     app.stage.addChild(built.views.root);
+    // the auras sit just over the painted burst, under the pack and the flipping card
+    const webgl = (app.renderer as { name?: string }).name === 'webgl';
+    this.auraFace = makeAura(webgl);
+    this.auraPile = makeAura(webgl);
+    if (this.auraFace) built.views.root.addChildAt(this.auraFace.mesh, 1);
+    if (this.auraPile) built.views.root.addChildAt(this.auraPile.mesh, 1);
 
     const canvas = app.canvas;
     canvas.style.position = 'absolute';
@@ -455,7 +483,7 @@ class PackSceneImpl implements PackScene {
     const f = this.flip;
     f.idx = idx;
     f.t = 0;
-    f.dur = (b?.guaranteed ? FLIP_HALF_GUARANTEED_MS : FLIP_HALF_MS) / FRAME_MS;
+    f.dur = flipHalfMs(b?.rarity, !!b?.guaranteed) / FRAME_MS;
     f.lift = b?.guaranteed ? FLIP_LIFT_GUARANTEED : FLIP_LIFT;
     f.scale = v.cardsC.scale.x;
     f.c0x = v.pack.x + v.cardsC.x + card.x * f.scale;
@@ -466,10 +494,18 @@ class PackSceneImpl implements PackScene {
     f.ribbon = !!b?.guaranteed;
     // a click turns the card at once; whatever glow the hover built fades out through the turn (flipStep)
     const ts = this.tease;
-    if (ts.live) {
-      this.teaseGlowOut = v.glow.visible ? v.glow.alpha : 0;
-      card.scale.set(ts.sx, ts.sy); card.rotation = 0;
-      ts.live = false; ts.t = 0; ts.stage = -1; ts.level = 0;
+    this.teaseGlowOut = ts.live && v.glow.visible ? v.glow.alpha : 0;
+    ts.live = false; ts.t = 0; ts.stage = -1; ts.level = 0;
+    this.pilePressed = false;
+    // the aura goes with the card: the tease's wisps (or a fresh charge) ride the turn, in the card's own colour
+    const af = this.auraFace, ap = this.auraPile;
+    if (af) {
+      if (ap && ap.level > 0.02) af.copyFrom(ap); else { af.level = 0; }
+      af.burstT = -1;
+      ap?.off();
+      if (b) { af.setRarity(b.rarity); af.tier = Math.max(0, COSMETIC_RARITIES.indexOf(b.rarity)); } else af.level = 0;
+      this.faceAmbient = 0;
+      this.land.active = false;
     }
     this.beginFlip();
     return true;
@@ -506,25 +542,32 @@ class PackSceneImpl implements PackScene {
     this.wake();
   }
 
-  /** Is the pointer (mouse / pen; touch has no hover) resting on the pile's top card? Arithmetic only, no layout read. */
-  private overPile(): boolean {
+  /** Is (x, y) (root units) on the pile's top card? Writes the card's centre to `pileC`. Arithmetic only. */
+  private pileHit(x: number, y: number): boolean {
     const v = this.v;
-    if (!v || !this.hoverOn || !this.zoomed || this.flipped >= this.n) return false;
-    const card = v.cards[this.flipped]!;
-    const s = v.cardsC.scale.x;
-    const cx = v.pack.x + v.cardsC.x + card.x * s, cy = v.pack.y + v.cardsC.y + card.y * s;
-    return Math.abs(this.hoverPt.x - cx) <= (CARD_W / 2) * s && Math.abs(this.hoverPt.y - cy) <= (CARD_H / 2) * s;
+    if (!v || !this.zoomed || this.flipped >= this.n) return false;
+    const i = this.flipped, s = v.cardsC.scale.x;
+    const cx = v.pack.x + v.cardsC.x + cardRestX(i) * s, cy = v.pack.y + v.cardsC.y + cardRestY(i) * s;
+    this.pileC.x = cx; this.pileC.y = cy;
+    return Math.abs(x - cx) <= (CARD_W / 2) * s && Math.abs(y - cy) <= (CARD_H / 2) * s;
+  }
+
+  /** Is the pointer (mouse / pen; touch has no hover) resting on the pile's top card? */
+  private overPile(): boolean {
+    return this.hoverOn && this.pileHit(this.hoverPt.x, this.hoverPt.y);
   }
 
   /**
-   * One frame of the tease. While the pointer rests on the pile's top card, the glow behind it climbs the rarity ladder
+   * One frame of the tease. While the pointer rests on the pile's top card, the aura behind it climbs the rarity ladder
    * to the card's own colour and holds there; the card pops as each step lands (with its sound) and wobbles a little
-   * more each step. When the pointer leaves, it all eases away and the next hover builds again. Only tint / texture
-   * change at a step; alpha, scale and rotation per frame. A click turns the card whatever the tease is doing (flipTop).
+   * more each step; from Legendary up it trembles and beats like a heart while it is held. When the pointer leaves, it
+   * all eases away and the next hover builds again. The card itself is posed by `pileStep` (this only says how much).
+   * Only colours change at a step; alpha, scale and uniforms per frame. A click turns the card whatever this is doing.
    */
   private teaseStep(dt: number, feel: PackFeel): void {
     const v = this.v, tex = this.tex;
-    const ts = this.tease;
+    const ts = this.tease, aura = this.auraPile;
+    this.teasePopV = 0; this.teaseRotV = 0;
     if (!v || !tex) return;
     const idx = this.flipped;
     const card = v.cards[idx], b = this.backs?.[idx];
@@ -532,37 +575,99 @@ class PackSceneImpl implements PackScene {
     const on = dur > 0 && !!card && !this.flip.active && !this.reset.active && this.overPile();
     if (!ts.live) {
       if (!on) return;
-      ts.live = true; ts.t = 0; ts.idx = idx; ts.stage = -1; ts.level = 0;
-      ts.sx = card!.scale.x; ts.sy = card!.scale.y;
+      ts.live = true; ts.t = 0; ts.idx = idx; ts.stage = -1; ts.level = 0; this.beatT = 0;
     }
-    const c = v.cards[ts.idx];
-    if (!c || !b || ts.idx !== idx) { // the card under the tease is gone (a reset): drop it
-      ts.live = false; ts.level = 0; v.glow.visible = false;
+    if (!card || !b || ts.idx !== idx) { // the card under the tease is gone (a reset): drop it
+      ts.live = false; ts.level = 0; v.glow.visible = false; aura?.off();
       return;
     }
     if (on) ts.t = Math.min(dur, ts.t + dt);
     ts.level += ((on ? 1 : 0) - ts.level) * Math.min(1, 0.22 * dt);
     if (!on && ts.level < 0.02) {
-      c.scale.set(ts.sx, ts.sy); c.rotation = 0;
-      v.glow.visible = false;
+      v.glow.visible = false; aura?.off();
       ts.live = false; ts.level = 0;
       return;
     }
     const at = teaseAt(b.rarity, ts.t, feel.tease, this.teaseOut);
+    const r = teaseRarityAt(at.stage);
+    this.pileHit(0, 0); // refresh the pile's centre (the stack may be sliding aside)
     if (at.stage !== ts.stage) {
       ts.stage = at.stage;
-      const r = teaseRarityAt(at.stage), ancient = r === 'ancient';
+      const ancient = r === 'ancient';
       v.glow.texture = ancient ? tex.glowAncient : tex.glowWhite;
       v.glow.tint = ancient ? 0xffffff : rarityTint(r);
-      v.glow.scale.set(CARD_GLOW_TIERS[r].size / TEX_RES);
-      v.glow.position.copyFrom(c.position);
+      v.glow.position.set(cardRestX(idx), cardRestY(idx));
       v.glow.visible = true;
+      aura?.setRarity(r);
+      this.beatT = 0;
       this.sounds.tease(at.stage);
     }
-    v.glow.alpha = teaseGlowAlpha(at.stage, at.k) * Math.min(1, feel.cardGlow) * ts.level;
-    const pop = 1 + teasePop(at.stage, at.k) * ts.level;
-    c.scale.set(ts.sx * pop, ts.sy * pop);
-    c.rotation = Math.sin(this.time * 0.9) * teaseWobble(at.stage) * ts.level;
+    // the heartbeat of a held big tease
+    const every = teaseBeatFrames(at.stage);
+    if (on && every > 0 && ts.t >= dur) {
+      this.beatT += dt;
+      if (this.beatT >= every) { this.beatT = 0; this.pile.beat = 1; this.sounds.heartbeat(at.stage); }
+    }
+    const beat = this.pile.beat, knob = Math.min(1, feel.cardGlow);
+    // with the shader aura the painted glow is only its soft bed
+    v.glow.alpha = teaseGlowAlpha(at.stage, at.k) * knob * ts.level * (aura ? 0.6 : 1);
+    v.glow.scale.set((CARD_GLOW_TIERS[r].size / TEX_RES) * (teaseGlowPop(at.k) + 0.07 * beat));
+    if (aura) {
+      aura.tier = at.stage;
+      aura.level = Math.min(1, teaseAuraLevel(at.stage, at.k) * knob * ts.level + 0.22 * beat * ts.level);
+      aura.place(this.pileC.x, this.pileC.y, CARD_H * v.cardsC.scale.x);
+    }
+    this.teasePopV = teasePop(at.stage, at.k) * ts.level;
+    this.teaseRotV = teaseTremble(at.stage, this.time) * ts.level;
+  }
+
+  /**
+   * The pile under the hand (packPile.ts), and the ONE place the top card is posed: it lifts and leans toward a resting
+   * pointer, sinks under a press, and takes the tease's pop and tremble on top. Runs every frame once the stack has zoomed.
+   */
+  private pileStep(dt: number, feel: PackFeel): void {
+    const v = this.v;
+    if (!v) return;
+    if (this.cardSX === 0) { const c0 = v.cards[this.n - 1]!; this.cardSX = c0.scale.x; this.cardSY = c0.scale.y; }
+    this.teaseStep(dt, feel);
+    const idx = this.flipped, card = v.cards[idx];
+    const over = !this.reset.active && this.overPile();
+    let nx = 0, ny = 0;
+    if (over) {
+      const s = v.cardsC.scale.x;
+      nx = (this.hoverPt.x - this.pileC.x) / ((CARD_W / 2) * s);
+      ny = (this.hoverPt.y - this.pileC.y) / ((CARD_H / 2) * s);
+    }
+    const p = pileEase(this.pile, over, this.pilePressed && !!card, nx, ny, dt);
+    if (!card) return;
+    const k = pileScale(p) + this.teasePopV;
+    card.scale.set(this.cardSX * k, this.cardSY * k);
+    card.rotation = p.lx * PILE_LEAN_RAD * p.lift + this.teaseRotV;
+    card.x = cardRestX(idx) + p.lx * PILE_LEAN_PX * p.lift;
+    card.y = cardRestY(idx) + p.ly * PILE_LEAN_PX * p.lift - PILE_RISE_PX * p.lift;
+    if (v.ribbon.visible) { v.ribbon.position.set(card.x, card.y + RIBBON_DY * k); v.ribbon.rotation = card.rotation; }
+    if (v.fade.visible) { v.fade.position.copyFrom(card.position); v.fade.rotation = card.rotation; }
+  }
+
+  /** The auras' frame: the face aura follows its face to the slot and settles to its ambient level; uniforms written. */
+  private auraStep(dt: number): void {
+    const af = this.auraFace, ap = this.auraPile;
+    const sec = dt / 60, time = this.time / 60;
+    if (af) {
+      const L = this.land;
+      if (L.active) {
+        L.t += dt;
+        const u = Math.min(1, L.t / L.dur), e = 1 - (1 - u) * (1 - u);
+        af.place(L.x0 + (L.x1 - L.x0) * e, L.y0 + (L.y1 - L.y0) * e, L.h0 + (L.h1 - L.h0) * e);
+        if (u >= 1) L.active = false;
+      }
+      if (!this.flip.active) {
+        af.level += (this.faceAmbient - af.level) * Math.min(1, 0.045 * dt);
+        if (Math.abs(this.faceAmbient - af.level) < 0.004) af.level = this.faceAmbient;
+      }
+      af.update(sec, time);
+    }
+    ap?.update(sec, time);
   }
 
   quickOpen(): void {
@@ -631,6 +736,17 @@ class PackSceneImpl implements PackScene {
     this.flip.active = false;
     this.tease.live = false; this.tease.level = 0; this.tease.t = 0; this.tease.stage = -1;
     this.teaseGlowOut = 0;
+    this.auraPile?.off(); this.auraFace?.off();
+    this.faceAmbient = 0; this.land.active = false;
+    this.pilePressed = false;
+    const pl = this.pile; pl.lift = 0; pl.press = 0; pl.lx = 0; pl.ly = 0; pl.beat = 0;
+    if (this.cardSX !== 0) {
+      for (let i = 0; i < this.n; i++) {
+        const c = v.cards[i]!;
+        c.scale.set(this.cardSX, this.cardSY); c.rotation = 0; c.position.set(cardRestX(i), cardRestY(i));
+      }
+    }
+    v.ribbon.rotation = 0; v.fade.rotation = 0;
     this.xf.active = false;
     this.quick.active = false;
     this.burst.active = false;
@@ -766,7 +882,7 @@ class PackSceneImpl implements PackScene {
   private readonly onEnter = (): void => { this.cacheRect(); };
 
   /** The pointer left the stage: the tilt and the gloss ease back to rest. */
-  private readonly onLeave = (): void => { this.hoverOn = false; };
+  private readonly onLeave = (): void => { this.hoverOn = false; this.pilePressed = false; };
 
   /** A mouse / pen position over the stage, for the sealed tilt and the gloss (touch has no hover). */
   private trackHover(e: PointerEvent): void {
@@ -783,6 +899,11 @@ class PackSceneImpl implements PackScene {
     this.cacheRect();
     const p = this.pt;
     if (!this.toPack(e, p)) return;
+    if (this.zoomed) {
+      // a press on the pile: the top card sinks under it (the click that follows turns it)
+      if (this.pileHit(p.x, p.y)) { this.pilePressed = true; this.sounds.press(); this.wake(); }
+      return;
+    }
     if (this.phase === 'sleeve') {
       if (!this.inSleeveGrab(p, 10)) return;
       this.sleeveHeld = true;
@@ -840,6 +961,7 @@ class PackSceneImpl implements PackScene {
   };
 
   private readonly onUp = (e: PointerEvent): void => {
+    if (this.pilePressed) { this.pilePressed = false; this.wake(); }
     if (e.pointerId !== this.pointerId) return;
     this.releaseHolds();
   };
@@ -928,9 +1050,10 @@ class PackSceneImpl implements PackScene {
     this.cardsStep(dt);
     this.packGlowStep(dt, feel);
     this.holoStep(feel);
-    if (this.zoomed) this.teaseStep(dt, feel);
+    if (this.zoomed) this.pileStep(dt, feel);
     if (this.flip.active) this.flipStep(dt);
     if (this.burst.active) this.burstStep(dt, feel);
+    this.auraStep(dt);
     v.flecks.step(dt);
 
     if (this.shake > 0.05) {
@@ -940,7 +1063,8 @@ class PackSceneImpl implements PackScene {
     } else { v.pack.x = 0; v.pack.y = 0; this.shake = 0; }
 
     // idle once the stack has zoomed and nothing moves (the render of this frame still runs)
-    if (this.phase === 'end' && !this.flip.active && !this.tease.live && !this.overPile() && !this.xf.active && v.flecks.count === 0 && this.shake === 0
+    if (this.phase === 'end' && !this.flip.active && !this.tease.live && !this.overPile() && pileAtRest(this.pile) && !this.pilePressed
+      && !this.auraFace?.live && !this.auraPile?.live && !this.xf.active && v.flecks.count === 0 && this.shake === 0
       && (!this.sideOn || this.side === 1) && !this.reset.active && !this.flying && this.glowReveal === 1 && this.packGlowFade === 0
       && !this.burst.active) {
       app.ticker.stop();
@@ -1255,7 +1379,24 @@ class PackSceneImpl implements PackScene {
     const p = Math.min(1, f.t / f.dur);
     this.setFlipCorners(p);
     if (this.teaseGlowOut > 0) v.glow.alpha = teaseGlowFade(this.teaseGlowOut, p);
+    const af = this.auraFace, fb = this.backs?.[f.idx];
+    if (af && fb) {
+      // light gathers behind the turning card, in its own colour
+      af.place(this.pose.cx, this.pose.cy, CARD_H * this.pose.s);
+      const charge = FLIP_CHARGE[fb.rarity] * p * p * Math.min(1, getPackFeel().bigPull);
+      if (charge > af.level) af.level = charge;
+    }
     if (p < 1) return;
+    if (af && fb) {
+      // the face shows: the aura follows it to the slot, bursts, and settles behind it
+      const L = this.land;
+      L.active = true; L.t = 0; L.dur = f.dur;
+      L.x0 = this.pose.cx; L.y0 = this.pose.cy; L.h0 = CARD_H * this.pose.s;
+      L.x1 = f.tx; L.y1 = f.ty; L.h1 = CARD_H * f.scale * REVEALED_SCALE;
+      const k = AURA_BURST[fb.rarity] * Math.min(1.2, getPackFeel().bigPull);
+      if (k > 0) af.fireBurst(k);
+      this.faceAmbient = FACE_AMBIENT[fb.rarity] * Math.min(1, getPackFeel().bigPull);
+    }
     f.active = false;
     if (this.teaseGlowOut > 0) { this.teaseGlowOut = 0; v.glow.visible = false; }
     v.flipper.visible = false;
@@ -1293,6 +1434,8 @@ class PackSceneImpl implements PackScene {
     v.burstRays2.visible = ancient;
     v.burstRays2.texture = tex.burstRays.legendary;
     v.burstRays2.tint = rarityTint('ancient');
+    // with the shader aura the painted ray rings stand down (the aura draws the rays); the soft bloom stays under it
+    if (this.auraFace) { v.burstRays.visible = false; v.burstRays2.visible = false; }
     v.burst.visible = true;
     this.burstStep(0, getPackFeel());
   }

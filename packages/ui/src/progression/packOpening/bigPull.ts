@@ -47,6 +47,15 @@ export const BIG_PULL_SHAKE_MS = 260;
 export const bigPullShakePx = (tier: BigPullTier, knob: number): number =>
   tier === 'none' || !(knob > 0) ? 0 : knob * (tier === 'ancient' ? ANCIENT_SHAKE_MULT : 1);
 
+/**
+ * THE CARD AURA's part in a reveal (packAura.ts), by rarity. `FLIP_CHARGE`: how hard the aura burns by the time the card
+ * is edge-on (light gathering behind the turning card). `AURA_BURST`: the size of the shockwave when the face shows
+ * (0 = none). `FACE_AMBIENT`: the level the aura settles to behind the landed face (0 = it dies away).
+ */
+export const FLIP_CHARGE: Readonly<Record<CrateRarity, number>> = { common: 0.2, rare: 0.36, epic: 0.7, legendary: 1, ancient: 1 };
+export const AURA_BURST: Readonly<Record<CrateRarity, number>> = { common: 0, rare: 0.32, epic: 0.62, legendary: 1, ancient: 1.25 };
+export const FACE_AMBIENT: Readonly<Record<CrateRarity, number>> = { common: 0, rare: 0, epic: 0.2, legendary: 0.5, ancient: 0.62 };
+
 export interface BurstPose {
   /** 0..1 envelope times the peak and the strength knob (capped at 1). */
   alpha: number;

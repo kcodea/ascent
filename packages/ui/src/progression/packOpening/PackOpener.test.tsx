@@ -16,7 +16,7 @@ vi.mock('./packSounds', () => ({
   createPackSounds: () => {
     const rec = (n: string) => () => { soundCalls.push(n); };
     return { pop: rec('pop'), tear: rec('tear'), crackle: rec('crackle'), rip: rec('rip'), sleeveFree: rec('sleeveFree'), slide: rec('slide'),
-      drop: rec('drop'), whoosh: rec('whoosh'), tease: rec('tease'), flip: rec('flip'), stamp: rec('stamp'), aether: rec('aether'), summary: rec('summary'),
+      drop: rec('drop'), whoosh: rec('whoosh'), tease: rec('tease'), press: rec('press'), heartbeat: rec('heartbeat'), land: rec('land'), flip: rec('flip'), stamp: rec('stamp'), aether: rec('aether'), summary: rec('summary'),
       silence: rec('silence'), dispose: rec('dispose'), bigPull: (t: string) => { soundCalls.push('bigPull:' + t); } };
   },
 }));
@@ -417,9 +417,9 @@ describe('PackOpener', () => {
       expect(soundCalls).toContain('bigPull:legendary');
       expect(shaking()).toBe(true);
       expect(quakeEl().style.getPropertyValue('--pk-quake')).toBe('6px');
-      // The hold: the face's 260ms turn + the default 450ms.
+      // The hold: the face's own turn (a Legendary turns in 460ms: cardFlip.ts FLIP_HALF_BY_RARITY) + the default 450ms.
       click(fx()); key('Enter');
-      tick(690);
+      tick(890);
       click(fx());
       expect(flips()).toBe(1);
       tick(30);
@@ -452,7 +452,7 @@ describe('PackOpener', () => {
       expect(soundCalls).toContain('bigPull:ancient');
       expect(quakeEl().style.getPropertyValue('--pk-quake')).toBe('9px');
       expect(flips()).toBe(2);
-      tick(680);
+      tick(980); // an Ancient turns in 560ms, + the 450ms hold
       expect(flips()).toBe(2);
       tick(80);
       expect(flips()).toBe(3);
@@ -464,7 +464,7 @@ describe('PackOpener', () => {
       await settle(ok(withRarity({ 0: 'legendary' })));
       vi.useFakeTimers();
       click(fx()); edge(0);
-      tick(1400); // (260 + 450) x 2 = 1420
+      tick(1800); // (460 + 450) x 2 = 1820
       click(fx());
       expect(flips()).toBe(1);
       tick(30);

@@ -22,8 +22,14 @@ export interface PackSounds {
   slide(speed: number): void;
   drop(): void;
   whoosh(): void;
+  /** A press on the pile's top card. */
+  press(): void;
   /** One step of the rarity tease landed (packTease.ts): `stage` 0 = Common's colour ... 4 = Ancient's. Each step rings higher and a little louder. */
   tease(stage: number): void;
+  /** A heartbeat of a held Legendary / Ancient tease. */
+  heartbeat(stage: number): void;
+  /** A face came to rest on the revealed pile. */
+  land(rarity: CrateRarity): void;
   flip(rarity: CrateRarity, guaranteed: boolean): void;
   /** A Legendary / Ancient card landed (bigPull.ts): the chest's tier burst; Ancient a touch louder and brighter. */
   bigPull(tier: BigPullTier): void;
@@ -53,9 +59,33 @@ export const PACK_CUES = {
   bigPull: { kind: 'chest', cue: 'tierBurst' },
 } as const satisfies Record<string, CueSlot>;
 
-/** The tease's first step rings here; each step up the rarity ladder multiplies the pitch (a major third). */
-export const TEASE_BASE_HZ = 720;
-export const TEASE_STEP_RATIO = 1.26;
+/**
+ * THE CARD BEATS use RECORDED clips from the game's library (owner 2026-11-24: "i want the sound effects to sound real,
+ * satisfying, and fun"), never synthesised tones: a card under a thumb, a glass that sings higher on each tease step, a
+ * low pulse for the heartbeat, a card swish and a wind-up on the turn, a card landing, and layered impacts for a big
+ * pull. One table, so a clip can be swapped in one place. `rate` is the playback rate (pitch).
+ */
+interface ClipCue { clip: string; cat: string; gain: number; rate?: number; delayMs?: number }
+/** The tease's pitch ladder: one step per rarity colour (a rising arpeggio). */
+export const TEASE_RATES: readonly number[] = [0.8, 0.9, 1, 1.19, 1.5];
+export const CARD_CUES = {
+  press: [{ clip: 'cardtouch', cat: 'crateStamp', gain: 0.5 }],
+  tease: [{ clip: 'fx/glass-sing', cat: 'crateTierShimmer', gain: 0.34 }, { clip: 'fx/glass-tick', cat: 'crateTierShimmer', gain: 0.3 }],
+  heartbeat: [{ clip: 'pulse', cat: 'cratePulse', gain: 0.5 }],
+  turn: [{ clip: 'reordercard', cat: 'crateWhoosh', gain: 0.6 }],
+  turnBig: [{ clip: 'windup', cat: 'crateCharge', gain: 0.45 }],
+  land: [{ clip: 'cardlanding', cat: 'crateStamp', gain: 0.5 }],
+  landEpic: [{ clip: 'prismaticpick', cat: 'crateTierShimmer', gain: 0.4, delayMs: 40 }],
+  bigLegendary: [
+    { clip: 'fx/reveal-impact-1', cat: 'crateBurst', gain: 0.7 },
+    { clip: 'fx/reveal-shimmer', cat: 'crateTierShimmer', gain: 0.6, delayMs: 120 },
+  ],
+  bigAncient: [
+    { clip: 'fx/reveal-impact-4', cat: 'crateBurst', gain: 0.8 },
+    { clip: 'fx/universfield-cinematic-swoosh-impact-454392', cat: 'crateBurst', gain: 0.5 },
+    { clip: 'fx/reveal-shimmer', cat: 'crateTierShimmer', gain: 0.7, delayMs: 120, rate: 1.12 },
+  ],
+} as const satisfies Record<string, readonly ClipCue[]>;
 
 /** Seedless PRNG for the noise bed and crackle picks (one helper so it is swappable). */
 const rand = (): number => Math.random();
@@ -157,6 +187,15 @@ export function createPackSounds(): PackSounds {
     });
   };
 
+  /** Play a card beat's recorded clips (`rateMul` / `gainMul` on top of each cue's own), scaled by the pack volume knob. */
+  const cues = (list: readonly ClipCue[], rateMul = 1, gainMul = 1): void => {
+    if (disposed || !audioContext()) return;
+    const vol = getPackFeel().volume / DEFAULT_PACK_FEEL.volume;
+    for (const c of list) {
+      playTailedClip(c.clip, c.cat, { gain: c.gain * gainMul * vol, rate: (c.rate ?? 1) * rateMul, delayMs: c.delayMs ?? 0 });
+    }
+  };
+
   const setLoop = (bp: BiquadFilterNode | null, g: GainNode | null, hz: number, gain: number): void => {
     if (!a || !bp || !g) return;
     const t = a.currentTime;
@@ -190,21 +229,28 @@ export function createPackSounds(): PackSounds {
     },
     drop: () => play(PACK_CUES.drop),
     whoosh: () => play(PACK_CUES.whoosh),
+    press: () => cues(CARD_CUES.press),
     tease(stage) {
-      const s = Math.max(0, Math.min(COSMETIC_RARITIES.length - 1, Math.floor(stage)));
-      const hz = TEASE_BASE_HZ * Math.pow(TEASE_STEP_RATIO, s);
-      const gain = 0.5 + 0.1 * s;
-      // a narrow, rising ring (the pitch) over a short airy tick (the attack)
-      burst({ ms: 150 + 20 * s, hz, gain, q: 9, sweepTo: hz * 1.18 });
-      burst({ ms: 35, hz: hz * 4, gain: gain * 0.45, q: 1.5 });
+      const s = Math.max(0, Math.min(TEASE_RATES.length - 1, Math.floor(stage)));
+      cues(CARD_CUES.tease, TEASE_RATES[s]!, 1 + 0.16 * s);
+    },
+    heartbeat: (stage) => cues(CARD_CUES.heartbeat, stage >= 4 ? 1.1 : 0.9),
+    land(rarity) {
+      const i = Math.max(0, COSMETIC_RARITIES.indexOf(rarity));
+      cues(CARD_CUES.land, 1.06 - i * 0.05, 1 + 0.14 * i);
+      if (i === 2) cues(CARD_CUES.landEpic);
     },
     flip(rarity, guaranteed) {
       const i = Math.max(0, COSMETIC_RARITIES.indexOf(rarity));
       play(PACK_CUES.flip, { rate: 0.9 + i * 0.06, gain: guaranteed ? 1.2 : 1 });
+      // the card itself: a swish, lower for a heavier card; a wind-up under a Legendary / Ancient turn
+      cues(CARD_CUES.turn, 1.12 - i * 0.07);
+      if (i >= 3) cues(CARD_CUES.turnBig, i >= 4 ? 0.85 : 1);
     },
     bigPull(tier) {
       if (tier === 'none') return;
       play(PACK_CUES.bigPull, tier === 'ancient' ? { rate: 1.08, gain: 1.25 } : {});
+      cues(tier === 'ancient' ? CARD_CUES.bigAncient : CARD_CUES.bigLegendary);
     },
     stamp: () => play(PACK_CUES.stamp),
     aether: () => play(PACK_CUES.aether),

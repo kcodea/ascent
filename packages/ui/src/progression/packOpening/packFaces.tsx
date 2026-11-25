@@ -10,7 +10,7 @@ import { stageViewport, type StageRect } from '../../stage';
 import { rewardPreview, type RewardEmblem } from '../rewardPreview';
 import { CARD_PLATE_SRC, CARD_WINDOW_MASK_SRC, cardPlateSrc, packRarityLabel, rarityIconSrc } from './packRarity';
 import {
-  FLIP_HALF_GUARANTEED_MS, FLIP_HALF_MS, FLIP_LIFT, FLIP_LIFT_GUARANTEED, FLIP_PERSPECTIVE_PER_WIDTH, PILE_MAX_H, REVEAL_FACE_X,
+  FLIP_LIFT, flipHalfMs, FLIP_LIFT_GUARANTEED, FLIP_PERSPECTIVE_PER_WIDTH, PILE_MAX_H, REVEAL_FACE_X,
   REVEAL_Y, REVEALED_SCALE,
 } from './cardFlip';
 import { getPackFeel } from './packFxConfig';
@@ -302,7 +302,10 @@ export function PackFace({ card, phase, from, slot, slow = 1, still = false }: P
 
   const atEdge = !arrived;
   // The DOM half of the flip, at the same clock as the scene's half and every class transition (slow-mo included).
-  const turnMs = (card.guaranteed ? FLIP_HALF_GUARANTEED_MS : FLIP_HALF_MS) * (Number.isFinite(slow) && slow > 0 ? slow : 1);
+  const turnMs = flipHalfMs(card.rarity, card.guaranteed) * (Number.isFinite(slow) && slow > 0 ? slow : 1);
+  // The reveal's own beats on a face that turned in from the scene (never the summary row, the tray or reduced motion):
+  // a flash of the rarity's light as it opens, and a punch of scale as it lands flat.
+  const revealed = placed && !still && phase !== 'summary';
   // The rarity aura (packGlow.ts): on the TOP face of the revealed pile and on every summary face, never on the faces
   // under the top one (five glows would blend into a blob). Common / Rare static, Epic breathes gently, Legendary /
   // Ancient strongly (`pkf-glow` marks the strong tier).
@@ -330,6 +333,7 @@ export function PackFace({ card, phase, from, slot, slow = 1, still = false }: P
       // The turn's transition stays on in EVERY placed phase: a face that leaves `handoff` mid-turn finishes its turn
       // instead of snapping flat (removing the transition would cancel the running one).
       transition: atEdge ? 'none' : `transform ${turnMs}ms ${TURN_EASE}`,
+      animationDelay: revealed ? `${Math.round(turnMs * 0.82)}ms` : undefined,
     }
     : undefined;
 
@@ -348,7 +352,7 @@ export function PackFace({ card, phase, from, slot, slow = 1, still = false }: P
       aria-hidden
       {...follow.handlers}
     >
-      <div className="pkf-card" style={inner}>
+      <div className={`pkf-card${revealed ? ' pkf-punch' : ''}`} style={inner}>
         {aura && (
           <div
             className={`pkf-aura pkf-aura-${pulse}`}
@@ -388,6 +392,7 @@ export function PackFace({ card, phase, from, slot, slow = 1, still = false }: P
           <div className="pkf-cat">{cat}</div>
         </div>
         <img src={rarityIconSrc(card.rarity)} alt="" decoding="sync" draggable={false} className="pkf-rarity-icon" />
+        {revealed && <div className="pkf-flash" data-testid="pkf-flash" />}
       </div>
     </div>
   );

@@ -34,7 +34,7 @@ function fakeCtx(): { ctx: unknown; gains: Array<{ gain: FakeParam }>; counts: {
 
 const callAll = (s: ReturnType<typeof createPackSounds>): void => {
   s.pop(); s.tear(5); s.crackle(5, 1); s.rip(); s.sleeveFree(); s.slide(5); s.drop(); s.whoosh();
-  s.tease(0); s.tease(4); s.tease(99); s.tease(-1); s.flip('epic', true); s.bigPull('legendary'); s.bigPull('ancient'); s.bigPull('none'); s.stamp(); s.aether(); s.summary(); s.silence(); s.dispose();
+  s.press(); s.tease(0); s.tease(4); s.tease(99); s.tease(-1); s.heartbeat(3); s.heartbeat(4); s.land('common'); s.land('epic'); s.land('ancient'); s.flip('epic', true); s.bigPull('legendary'); s.bigPull('ancient'); s.bigPull('none'); s.stamp(); s.aether(); s.summary(); s.silence(); s.dispose();
 };
 
 describe('packSounds', () => {
@@ -75,12 +75,17 @@ describe('packSounds', () => {
     const s = createPackSounds();
     s.bigPull('none');
     s.flip('common', false);
-    expect(h.clips.map((c) => c.category)).toEqual(['crateReveal']);
+    // a flip: the chest's reveal cue and the card's own swish; no big-pull cue
+    expect(h.clips.map((c) => c.category)).toEqual(['crateReveal', 'crateWhoosh']);
     h.clips.length = 0;
     s.bigPull('legendary');
     s.bigPull('ancient');
-    expect(h.clips.map((c) => c.category)).toEqual(['crateTierBurst', 'crateTierBurst']);
-    const [leg, anc] = h.clips;
+    const tier = h.clips.filter((c) => c.category === 'crateTierBurst');
+    expect(tier).toHaveLength(2);
+    // each big pull also layers recorded impacts and a shimmer over the tier burst
+    expect(h.clips.filter((c) => c.category === 'crateBurst').length).toBeGreaterThanOrEqual(2);
+    expect(h.clips.some((c) => c.category === 'crateTierShimmer')).toBe(true);
+    const [leg, anc] = tier;
     expect(anc!.gain).toBeGreaterThan(leg!.gain);
     expect(anc!.rate).toBeGreaterThan(leg!.rate);
   });

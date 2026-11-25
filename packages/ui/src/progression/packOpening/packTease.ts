@@ -69,5 +69,23 @@ export const teaseGlowFade = (a0: number, p: number): number => {
 /** The card's extra scale as a step lands (a pop that settles through the step): bigger each step up. */
 export const teasePop = (stage: number, k: number): number => (0.012 + 0.009 * stage) * (1 - k) * (1 - k);
 
+/** The glow's extra size as a step lands (it punches out, then settles through the step). */
+export const teaseGlowPop = (k: number): number => 1 + 0.2 * (1 - k) * (1 - k);
+
+/** The shader aura's level on step `stage` at progress `k` (packAura.ts): further and hotter each step up. */
+export const teaseAuraLevel = (stage: number, k: number): number => Math.min(1, 0.38 + 0.155 * stage) * (0.6 + 0.4 * k);
+
+/**
+ * The card's rotation (radians) on step `stage` at scene time `time` (60 Hz frames): the slow wobble, and from Legendary
+ * up a faster tremble on top of it, as if the card can barely hold what is in it.
+ */
+export const teaseTremble = (stage: number, time: number): number => {
+  const a = teaseWobble(stage);
+  return Math.sin(time * 0.9) * a + (stage >= 3 ? Math.sin(time * 2.9 + 1.3) * a * 0.55 : 0);
+};
+
+/** Frames between heartbeats while a finished tease is held (0 = no heartbeat: Common..Epic). Ancient beats faster. */
+export const teaseBeatFrames = (stage: number): number => (stage >= 4 ? 27 : stage >= 3 ? 36 : 0);
+
 /** The card's wobble amplitude (radians) on step `stage`: none on Common's, a little more each step up. */
 export const teaseWobble = (stage: number): number => 0.0045 * stage;

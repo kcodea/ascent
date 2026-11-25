@@ -77,6 +77,23 @@
 .pkf { position: absolute; width: 480px; height: 720px; transform-origin: 50% 50%;
   transition: transform calc(0.36s * var(--pk-slow, 1)) cubic-bezier(0.2, 0.8, 0.3, 1); }
 .pkf-handoff, .pkf-featured { z-index: 2; }
+/* THE REVEAL'S BEATS ON THE FACE (owner 2026-11-24: the "dopamine rush of hitting it big"), both one-shots.
+   .pkf-flash: the rarity's light as the face opens (opacity only), stronger each rarity up. .pkf-punch: the card swells
+   as it lands flat and settles (the standalone `scale` property, so it composes with the turn's inline transform; its
+   delay is set inline to the end of the turn), bigger each rarity up. Never under reduced motion. */
+.pkf-flash { position: absolute; inset: 1.5%; border-radius: 7% / 4.7%; pointer-events: none; opacity: 0;
+  background: radial-gradient(ellipse 80% 70% at 50% 45%, #fff 0%, color-mix(in srgb, var(--rc) 55%, #fff) 45%, var(--rc) 100%);
+  animation: pkf-flash calc(0.6s * var(--pk-slow, 1)) cubic-bezier(0.3, 0.6, 0.4, 1) both; }
+@keyframes pkf-flash { from { opacity: var(--pkf-fl, 0.3); } to { opacity: 0; } }
+.r-rare .pkf-flash { --pkf-fl: 0.45; }
+.r-epic .pkf-flash { --pkf-fl: 0.65; }
+.r-legendary .pkf-flash, .r-ancient .pkf-flash { --pkf-fl: 0.95; }
+.pkf-punch { animation: pkf-punch calc(0.46s * var(--pk-slow, 1)) cubic-bezier(0.2, 0.9, 0.3, 1) both; }
+@keyframes pkf-punch { 0% { scale: 1; } 28% { scale: var(--pkf-pn, 1.02); } 100% { scale: 1; } }
+.r-epic .pkf-punch { --pkf-pn: 1.045; }
+.r-legendary .pkf-punch { --pkf-pn: 1.075; }
+.r-ancient .pkf-punch { --pkf-pn: 1.095; }
+@media (prefers-reduced-motion: reduce) { .pkf-flash, .pkf-punch { animation: none; } }
 .pkf-handoff { will-change: transform; }
 .pkf-card { position: relative; width: 100%; height: 100%; color: var(--pk-text, var(--gold-lt)); font-family: var(--font-ui);
   backface-visibility: hidden; transform-origin: 50% 50%; }

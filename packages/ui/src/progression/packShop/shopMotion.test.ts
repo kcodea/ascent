@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  BREATH_AMP, arrivingPlaceHidden, bindFan, breathScale, handFanInto, hiddenAsleep, inRotatedRect, newPointerVel, newShake, newSwing,
+  arrivingPlaceHidden, bindFan, handFanInto, hiddenAsleep, inRotatedRect, newPointerVel, newShake, newSwing,
   parksOnArrival, pointerVelDecay, resetPointerVel, rubberY, samplePointerVel, settleDip, softDead, staggerArrivals,
   stepShake, stepSwing,
 } from './shopMotion';
@@ -90,18 +90,6 @@ describe('handFanInto', () => {
     expect(handFanInto(out, 7, 0)).toEqual({ places: 7, shown: 7, piled: 0 });
     expect(handFanInto(out, 7, 1)).toEqual({ places: 7, shown: 6, piled: 2 });
     expect(handFanInto(out, 18, 0)).toEqual({ places: 7, shown: 6, piled: 12 });
-  });
-});
-
-describe('breathScale', () => {
-  it('wobbles about 1%, out of phase per index', () => {
-    let lo = 2, hi = 0;
-    for (let t = 0; t < 600; t++) { const b = breathScale(t, 0); lo = Math.min(lo, b); hi = Math.max(hi, b); }
-    expect(hi).toBeLessThanOrEqual(1 + BREATH_AMP + 1e-9);
-    expect(lo).toBeGreaterThanOrEqual(1 - BREATH_AMP - 1e-9);
-    expect(hi - lo).toBeGreaterThan(BREATH_AMP);
-    expect(BREATH_AMP).toBeLessThanOrEqual(0.012);
-    expect(breathScale(10, 0)).not.toBe(breathScale(10, 1));
   });
 });
 

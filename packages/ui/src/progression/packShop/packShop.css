@@ -6,7 +6,7 @@
   --pk-text: #f6ecd0; --pk-panel: #1a2033; --pk-rim: color-mix(in srgb, var(--gold) 70%, transparent); color: var(--pk-text); }
 .pks-fx { position: absolute; inset: 0; }
 /* THE WORDS MOVE WITH THE SCENE. While the opener plays (`.pks-away`) the bar (tabs, wallet, Close) lifts away and the
-   words at the counter and the hand sink away, over the scene's own fade (SHOP_HANDOFF_MS, ease in). They come back with
+   words at the counter line and the hand sink away, over the scene's own fade (SHOP_HANDOFF_MS, ease in). They come back with
    the scene's entrance (the shelf settles from above, the hand rises: ease out, a touch longer), and on the shop's first
    mount (`.pks-enter`, released two frames in). One-shot transitions on opacity and `translate` only: `translate` leaves
    a button's own press transform (`.pressable`) alone. `.pks-still` (reduced motion, or no Pixi): no slide. */
@@ -15,11 +15,9 @@
 .pks-top, .pks-line, .pks-guarantee, .pks-handlabel { transition: var(--pks-back); }
 .pks-close { transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), filter 0.14s ease, box-shadow 0.18s cubic-bezier(0.16, 1, 0.3, 1),
   border-color 0.14s ease, var(--pks-back); }
-.pks-tag { transition: opacity 0.2s ease-out; }
 :is(.pks-away, .pks-enter) :is(.pks-top, .pks-close) { opacity: 0; translate: 0 calc(var(--pks-slide) * -1); }
 :is(.pks-away, .pks-enter) :is(.pks-line, .pks-guarantee, .pks-handlabel) { opacity: 0; translate: 0 var(--pks-slide); }
 .pks-away :is(.pks-top, .pks-line, .pks-guarantee, .pks-handlabel, .pks-close) { pointer-events: none; transition: var(--pks-leave); }
-.pks-away .pks-tag { opacity: 0; pointer-events: none; }
 .pks-still :is(.pks-top, .pks-line, .pks-guarantee, .pks-handlabel, .pks-close) { translate: none; transition: opacity 0.2s ease-out; }
 
 /* THE TOP BAR: the shelf tabs on the left, the wallet on the right. */
@@ -129,5 +127,5 @@
 
 @media (prefers-reduced-motion: reduce) {
   .pks-tag { animation: none; }
-  .pks :is(.pks-top, .pks-line, .pks-guarantee, .pks-handlabel, .pks-close, .pks-tag) { translate: none; transition: none; }
+  .pks :is(.pks-top, .pks-line, .pks-guarantee, .pks-handlabel, .pks-close) { translate: none; transition: none; }
 }

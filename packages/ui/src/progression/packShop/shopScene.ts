@@ -194,7 +194,7 @@ const PACK_RECENTER = 0.22;
  * affordability changes under it.
  */
 const RUBBER_EASE = 0.45;
-/** The hanging price tag fades in at a pick-up and out at a drop, and a taken pack's shadow fades (per 60 Hz frame). */
+/** The hanging price tag fades in at a pick-up and out at a drop, and a taken pack fades to its ghost (per 60 Hz frame). */
 const TAG_FADE = 0.25;
 /** A sold box sinks into the hand and fades (per 60 Hz frame) while its packs rise into the fan. */
 const BOX_FADE = 0.16;
@@ -273,19 +273,19 @@ class ShopSceneImpl implements ShopScene {
   private stage: StageFx | null = null;
   private bandTex: Texture | null = null;
   private rack: Container | null = null;
-  // the dressing (shopDressing.ts): the hand's light and a price placard per shelf slot. (A counter slab, a plinth and
-  // contact shadows stood under the packs for one pass; the owner removed that "stage" on 2026-11-25.)
+  // the dressing (shopDressing.ts): the hand's light and a price tag (`Placard`) hanging off each shelf slot's pack
   private tray: Sprite | null = null;
   private readonly placards: Placard[] = [];
   private readonly dressTex: Texture[] = [];
-  /** The placards' scale for this canvas, and their y on the counter. */
+  /** The shelf's price tags (in front of the packs): they ride the entrance and fade with the rack. */
   private placardLayer: Container | null = null;
   /** The offer each slot's placard was last written for (offers are immutable quotes): rewritten only on a change. */
   private readonly placardOf: (PackOffer | null)[] = new Array<PackOffer | null>(POOL).fill(null);
   /** Per pool slot: when its returned pack began to sit down (scene frames; -1: not settling). */
   private readonly slotSettle = new Float64Array(POOL).fill(-1);
-  /** THE ENTRANCE (0..1): the shelf drops onto the counter and the hand rises, at first show and on every return. */
+  /** THE ENTRANCE (0..1): the shelf drops into place and the hand rises, at first show and on every return. */
   private enter = 0;
+  /** The price tags' scale for this canvas (`layout`). */
   private placardK = 1;
   /** Per pool slot: its tag's swing, and its knot's last x and speed (the rack moving under it sets it swinging). */
   private readonly tagSwing = Array.from({ length: POOL }, () => newSwing());
@@ -933,7 +933,7 @@ class ShopSceneImpl implements ShopScene {
     // the pack taken off the shelf leaves its place empty until it is back (or bought: then a fresh one restocks it)
     const ph = this.drag.phase;
     const takenId = ph === 'heldShelf' || ph === 'buying' || ph === 'toShelf' || ph === 'toHand' ? this.drag.id : null;
-    let moving = count > 0; // a pack at rest breathes
+    let moving = count > 0; // the shelf's idle wave of light never rests
     for (let s = 0; s < POOL; s++) {
       const pack = this.packs[s]!;
       const i = base + ((((s - base) % POOL) + POOL) % POOL); // the index this slot shows: i = s (mod POOL)

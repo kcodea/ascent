@@ -1,8 +1,8 @@
 /**
  * THE SHOP'S DRESSING (owner 2026-11-25: "use more visuals where possible ... a cohesive and smooth experience"). What
- * makes the stage a SHOP instead of packs floating in the dark: the counter the packs stand on (its front lip is the
- * line a purchase crosses), a paper price tag tied to every pack, and the soft light the hand rests in. (A counter
- * slab, a plinth and contact shadows stood here for one pass; the owner removed that "stage" on 2026-11-25.)
+ * makes the stage a SHOP instead of packs floating in the dark: a paper price tag tied to every pack, and the soft
+ * light the hand rests in. (A counter slab, a plinth, contact shadows and placards stood here for earlier passes; the
+ * owner removed them on 2026-11-25.)
  *
  * Everything here is painted once into a canvas (no per-frame drawing); the scene only moves, scales and fades the
  * sprites. No Pixi ticker, no DOM beyond off-screen canvases.
@@ -56,7 +56,7 @@ const CHIP_H = 26;
 const PAPER = 0xf4e6c2, EDGE = 0x8a6a36, INK = 0x3a2412, INK_FREE = 0x1f6b3a, INK_SOLD = 0xa12a1a, INK_COUNT = 0x7a5a1c;
 const TWINE = 0xd8c08a, RING = 0xc79a45;
 /** The tag's own units (the scene scales the whole view): the twine's length, the price's size, the gem's. */
-export const TAG_CORD = 40;
+const TAG_CORD = 40;
 const TAG_FONT_PX = 34, TAG_GEM = 40, TAG_H = 74, TAG_CUT = 20, TAG_HOLE = 6.5;
 
 /**

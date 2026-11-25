@@ -1,7 +1,7 @@
 /**
  * The pack shop's small motion rules, pure (no Pixi, no DOM) so they are testable: the shake detector, the counter
- * line's rubber band, the price tag's swing, the hand's fan places and the resting breath. State objects are mutated in
- * place so a per-frame or per-event caller allocates nothing. `dt` is in 60 Hz frames.
+ * line's rubber band, the price tag's swing, the hand's fan places and when the hidden scene sleeps. State objects are
+ * mutated in place so a per-frame or per-event caller allocates nothing. `dt` is in 60 Hz frames.
  */
 import { handPile } from './shopLayout';
 
@@ -104,19 +104,6 @@ export function handFanInto(out: HandFan, n: number, reserve: number): HandFan {
   out.piled = p.piled;
   out.places = p.shown + (p.piled > 0 ? 1 : 0);
   return out;
-}
-
-// ---------------------------------------------------------------- the resting breath
-
-/** A pack at rest grows and shrinks by this share of its size. */
-export const BREATH_AMP = 0.01;
-/** Radians per frame (about 3.3 s a breath) and the phase between neighbours. */
-const BREATH_RATE = 0.032;
-const BREATH_PHASE = 1.9;
-
-/** The scale of a resting pack at offer `index`, `time` frames in. */
-export function breathScale(time: number, index: number): number {
-  return 1 + BREATH_AMP * Math.sin(time * BREATH_RATE + index * BREATH_PHASE);
 }
 
 // ---------------------------------------------------------------- the hidden scene

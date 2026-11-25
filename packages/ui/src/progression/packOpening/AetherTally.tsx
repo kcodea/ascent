@@ -21,6 +21,10 @@ export interface AetherTallyProps {
   total: number;
   /** Show the total at once, with no roll (reduced motion, or no scene to feed it). */
   still?: boolean;
+  /** What is drawn before the number (default '+'; '' draws nothing, as the wallet's counter does). */
+  prefix?: string;
+  /** The value shown before any `setTarget`, at once with no roll up from 0; later targets roll from it, up or down. */
+  initial?: number;
   /** Fade in (the first duplicate has begun to dissolve). */
   shown: boolean;
   /** The Pack Lab's slow-mo factor. */
@@ -43,7 +47,7 @@ export function odometerRoll(v: number, place: number): number {
   return d + Math.max(0, lower - (p - 1));
 }
 
-export const AetherTally = forwardRef<AetherTallyHandle, AetherTallyProps>(function AetherTally({ total, still = false, shown, slow = 1 }, ref) {
+export const AetherTally = forwardRef<AetherTallyHandle, AetherTallyProps>(function AetherTally({ total, still = false, shown, slow = 1, prefix = '+', initial = 0 }, ref) {
   const cols = Math.max(1, String(Math.max(0, Math.round(total))).length);
   const root = useRef<HTMLDivElement | null>(null);
   const orb = useRef<HTMLSpanElement | null>(null);
@@ -52,7 +56,7 @@ export const AetherTally = forwardRef<AetherTallyHandle, AetherTallyProps>(funct
   const streak = useRef<HTMLSpanElement | null>(null);
   const ring2 = useRef<HTMLSpanElement | null>(null);
   const strips = useRef<(HTMLSpanElement | null)[]>([]);
-  const st = useRef({ shown: 0, target: 0, raf: 0, last: 0, gulpAt: 0 });
+  const st = useRef({ shown: initial, target: initial, raf: 0, last: 0, gulpAt: 0 });
 
   const paint = (v: number): void => {
     for (let place = 0; place < cols; place++) {
@@ -119,7 +123,7 @@ export const AetherTally = forwardRef<AetherTallyHandle, AetherTallyProps>(funct
         <AetherIcon className="pkop-aether-gem" />
       </span>
       <span className="pkop-aether-num">
-        <span className="pkop-aether-plus">+</span>
+        {prefix !== '' && <span className="pkop-aether-plus">{prefix}</span>}
         <span className="pkop-odo">{places.map((place) => (
           <span className="pkop-odo-col" key={place}>
             <span className="pkop-odo-strip" ref={(el) => { strips.current[place] = el; }}>

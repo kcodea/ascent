@@ -46,6 +46,7 @@ import { phonePixiOptions, pixiAllowed } from '../../phoneDiag';
 import { followStage } from '../../pixiStageFollow';
 import { getDragFeel } from '../../dragFeel';
 import { AURA_COLORS } from '../packOpening/packAura';
+import { AetherStream, type AetherProgress } from '../packOpening/packAether';
 import { makeStage, type StageFx } from '../packOpening/packFx';
 import { packGlowRarity } from '../packOpening/packGlow';
 import { PACK_GEOM, paintGlossBand } from '../packOpening/packTextures';
@@ -84,6 +85,12 @@ export interface ShopScene {
   buySettled(ok: boolean): void;
   /** Measured from the scene's own numbers, never the DOM. Null when the pack is not in view. */
   rectOf(id: string): ScreenRect | null;
+  /**
+   * Aether streams from the wallet gem (`from`, screen px) into the pack `toId` (the one being bought, held at the hand,
+   * or on the shelf / in the hand). `progress` hears the fraction landed and `done` exactly once; at once (1, true) with
+   * no WebGL, no scene or an unknown pack.
+   */
+  payAether(from: ScreenRect, toId: string, progress: AetherProgress): void;
   setInputEnabled(on: boolean): void;
   /** The handoff to the opener. */
   setVisible(on: boolean, fadeMs: number): void;
@@ -219,6 +226,8 @@ class ShopSceneImpl implements ShopScene {
   // the carry
   private readonly drag: ShopDrag = newDrag();
   private heldPack: ShelfPack | null = null;
+  /** The Aether stream out of the wallet: above the packs, stepped in the one ticker. Null without WebGL. */
+  private aether: AetherStream | null = null;
   private readonly held = {
     pointerId: -1, touch: false, from: 'shelf' as 'shelf' | 'hand',
     /** Where it is drawn (canvas px) and its height and rotation. */
@@ -398,6 +407,8 @@ class ShopSceneImpl implements ShopScene {
       this.resizeObs.observe(this.host);
     }
     this.layout();
+    this.aether = new AetherStream(webgl, app.renderer.resolution);
+    app.stage.addChild(this.aether.root);
     app.ticker.add(this.tick);
   }
 
@@ -432,6 +443,8 @@ class ShopSceneImpl implements ShopScene {
     this.handPacks.length = 0;
     this.heldPack?.destroy();
     this.heldPack = null;
+    this.aether?.clear();
+    this.aether = null;
     this.rack = null;
     this.handLayer = null;
     this.pileText = null;
@@ -557,6 +570,21 @@ class ShopSceneImpl implements ShopScene {
     return this.screenRect(this.handPlacePose(place));
   }
 
+  payAether(from: ScreenRect, toId: string, progress: AetherProgress): void {
+    const app = this.app, ae = this.aether;
+    if (!app || !ae || this.destroyed) { progress(1, true); return; }
+    const to = this.rectOf(toId);
+    if (!to) { progress(1, true); return; }
+    if (!this.rect.valid) this.cacheRect();
+    if (!this.rect.valid) { progress(1, true); return; }
+    // screen px to canvas px (the stream draws in the canvas's own px)
+    const sx = app.screen.width / this.rect.w, sy = app.screen.height / this.rect.h;
+    const unit = Math.max(0.2, stageScale() * sx);
+    ae.emit((from.left + from.width / 2 - this.rect.l) * sx, (from.top + from.height / 2 - this.rect.t) * sy, from.width * sx, from.height * sy,
+      (to.left + to.width / 2 - this.rect.l) * sx, (to.top + to.height / 2 - this.rect.t) * sy, unit, progress, 'point');
+    this.wake();
+  }
+
   setInputEnabled(on: boolean): void {
     if (this.destroyed) return;
     this.inputOn = on;
@@ -608,6 +636,7 @@ class ShopSceneImpl implements ShopScene {
     if (this.lineStep(dt)) moving = true;
     if (this.fadeStep(dt)) moving = true;
     this.stageStep(dt);
+    if (this.aether?.count) { this.aether.step(dt); moving = true; }
     if (!moving && !this.stage) app.ticker.stop(); // (a lit stage never stops: its dust keeps drifting)
   };
 

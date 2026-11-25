@@ -27,12 +27,19 @@ export const AETHER_SWEEP_S = 0.38;
 export const AETHER_SCATTER_S = 0.14;
 export const AETHER_FLIGHT_S = 0.62;
 export const AETHER_FLIGHT_VAR_S = 0.3;
+/** The `'point'` shape (a small round source such as the wallet gem): no edge phase and no sweep, just a short scatter as the motes leave. */
+export const AETHER_POINT_SCATTER_S = 0.2;
+export type AetherShape = 'card' | 'point';
 /** How long the landing's last embers take to go. */
 const AFTER_S = 0.9;
 
 /** When the mote at height `v` (-0.5 top .. 0.5 bottom) with randoms r1, r2 leaves its card, and when it lands (seconds). The shader's own formula. */
 export const moteLeaves = (v: number, r1: number): number => AETHER_LEAVE_S + (v + 0.5) * AETHER_SWEEP_S + r1 * AETHER_SCATTER_S;
 export const moteLands = (v: number, r1: number, r2: number): number => moteLeaves(v, r1) + AETHER_FLIGHT_S + AETHER_FLIGHT_VAR_S * r2;
+
+/** When a `'point'` mote with randoms r1, r2 leaves its source, and when it lands (seconds). The shader's own formula. */
+export const pointLeaves = (r1: number): number => r1 * AETHER_POINT_SCATTER_S;
+export const pointLands = (r1: number, r2: number): number => pointLeaves(r1) + AETHER_FLIGHT_S + AETHER_FLIGHT_VAR_S * r2;
 
 const VERT = `#version 300 es
 precision highp float;
@@ -41,7 +48,7 @@ in vec2 aUV;       // x: random + kind (0.. body, 2.. edge, 4.. landing ember); 
 uniform mat3 uProjectionMatrix;
 uniform mat3 uWorldTransformMatrix;
 uniform mat3 uTransformMatrix;
-uniform float uT, uUnit, uRes;
+uniform float uT, uUnit, uRes, uShape; // uShape: 0 card, 1 point
 uniform vec4 uCard; // centre, size
 uniform vec2 uTo;
 out vec3 vTint; out float vAl; flat out float vStar;
@@ -54,11 +61,25 @@ void main(){
   vTint = r2 < .5 ? COOL : r2 < .74 ? mix(COOL, vec3(1.), .65) : r2 < .9 ? DEEP : TEAL;
   vStar = 0.; vAl = 0.; float size = 2.; vec2 p = uTo;
   if (kind > 1.5) { // the landing: embers thrown off the medallion as the stream arrives
-    float age = t - ${(AETHER_LEAVE_S + AETHER_FLIGHT_S).toFixed(2)} - r1 * ${(AETHER_SWEEP_S + AETHER_SCATTER_S + AETHER_FLIGHT_VAR_S).toFixed(2)};
+    float age = uShape < .5 ? t - ${(AETHER_LEAVE_S + AETHER_FLIGHT_S).toFixed(2)} - r1 * ${(AETHER_SWEEP_S + AETHER_SCATTER_S + AETHER_FLIGHT_VAR_S).toFixed(2)}
+      : t - ${AETHER_FLIGHT_S.toFixed(2)} - r1 * ${(AETHER_POINT_SCATTER_S + AETHER_FLIGHT_VAR_S).toFixed(2)};
     float life = .3 + .45 * r4, th = r2 * 6.283, r = (22. + 120. * r3) * q;
     p = uTo + vec2(cos(th), sin(th)) * r * (1. - exp(-max(age, 0.) * 5.)) + vec2(0., age * age * 70.) * q;
     size = 1.6 + 4. * pow(r3, 3.); vStar = step(.86, r4); if (vStar > .5) size = 7. + 5. * r3;
     vAl = step(0., age) * smoothstep(life, life * .25, age);
+  } else if (uShape > .5) { // a small round source: the body motes start inside it, scatter briefly, and leave (no edge motes, no sweep)
+    if (kind < .5) {
+      vec2 g = uCard.xy + vec2(cos(r3 * 6.283), sin(r3 * 6.283)) * sqrt(r4) * .5 * min(uCard.z, uCard.w);
+      float tb = r1 * ${AETHER_POINT_SCATTER_S.toFixed(2)};
+      float te = tb + ${AETHER_FLIGHT_S.toFixed(2)} + ${AETHER_FLIGHT_VAR_S.toFixed(2)} * r2, age = t - tb;
+      if (age >= 0.) {
+        float u = clamp(age / (te - tb), 0., 1.), e = u * u * (2.2 - 1.2 * u);
+        vec2 up = g + vec2((r3 - .5) * 100., -30. - 110. * r4) * q, near = uTo + vec2((r3 - .5) * 300., -110. - 190. * r2) * q;
+        p = bz(g, up, near, uTo, e) + vec2(sin(age * 9. + id), cos(age * 8. + id * 1.3)) * 4. * q * (1. - u);
+        size = (1.7 + 3.8 * pow(r4, 3.)) * mix(1.15, .75, u); vStar = step(.82, r3); if (vStar > .5) size = (6. + 6. * r4) * mix(1., .7, u);
+        vAl = smoothstep(0., .06, age) * smoothstep(1., .9, u) * (.7 + .3 * sin(t * (7. + 7. * r1) + id));
+      }
+    }
   } else {
     vec2 g = uCard.xy + aPosition * uCard.zw;
     float tb = ${AETHER_LEAVE_S.toFixed(2)} + (aPosition.y + .5) * ${AETHER_SWEEP_S.toFixed(2)} + r1 * ${AETHER_SCATTER_S.toFixed(2)};
@@ -94,8 +115,8 @@ void main(){
 }`;
 
 export type AetherProgress = (frac: number, done: boolean) => void;
-interface FlowUniforms { uT: number; uUnit: number; uRes: number; uCard: Float32Array; uTo: Float32Array }
-interface Flow { mesh: Mesh<MeshGeometry, Shader>; u: FlowUniforms; live: boolean; t: number; arrived: number; cb: AetherProgress | null }
+interface FlowUniforms { uT: number; uUnit: number; uRes: number; uShape: number; uCard: Float32Array; uTo: Float32Array }
+interface Flow { mesh: Mesh<MeshGeometry, Shader>; u: FlowUniforms; live: boolean; t: number; arrived: number; cb: AetherProgress | null; lands: Float32Array }
 
 /** A point on a rounded rectangle's edge (-0.5..0.5 both ways) at `s` (0..1 round it), for a card `aspect` wide per tall. */
 export function rimPoint(s: number, aspect: number, out: { x: number; y: number }): { x: number; y: number } {
@@ -125,10 +146,13 @@ export class AetherStream {
   private readonly flows: Flow[] = [];
   /** When each card mote lands (seconds from `emit`), ascending: the arrivals are counted from it. */
   private readonly lands: Float32Array;
+  /** The same for the `'point'` shape (the body motes only). */
+  private readonly pointLandsTable: Float32Array;
 
   /** `webgl` false = nothing is drawn and every flow reports its arrival at once. `res` is the renderer's resolution. */
   constructor(webgl: boolean, res: number) {
     this.lands = new Float32Array(AETHER_EDGE + AETHER_BODY);
+    this.pointLandsTable = new Float32Array(AETHER_BODY);
     if (!webgl) return;
     try {
       const pos = new Float32Array(N * 2), rnd = new Float32Array(N * 2), idx = new Uint32Array(N);
@@ -146,14 +170,17 @@ export class AetherStream {
         rnd[i * 2] = kind * 2 + r1; rnd[i * 2 + 1] = r2;
         idx[i] = i;
         if (kind < 2) this.lands[i] = moteLands(pt.y, r1, r2);
+        if (kind === 0) this.pointLandsTable[i - AETHER_EDGE] = pointLands(r1, r2);
       }
       this.lands.sort();
+      this.pointLandsTable.sort();
       const geometry = new MeshGeometry({ positions: pos, uvs: rnd, indices: idx, topology: 'point-list' });
       for (let f = 0; f < AETHER_FLOWS; f++) {
         const group = new UniformGroup({
           uT: { value: -1, type: 'f32' },
           uUnit: { value: 1, type: 'f32' },
           uRes: { value: res, type: 'f32' },
+          uShape: { value: 0, type: 'f32' },
           uCard: { value: new Float32Array(4), type: 'vec4<f32>' },
           uTo: { value: new Float32Array(2), type: 'vec2<f32>' },
         });
@@ -162,7 +189,7 @@ export class AetherStream {
         mesh.blendMode = 'add';
         mesh.visible = false;
         this.root.addChild(mesh);
-        this.flows.push({ mesh, u: group.uniforms as unknown as FlowUniforms, live: false, t: 0, arrived: 0, cb: null });
+        this.flows.push({ mesh, u: group.uniforms as unknown as FlowUniforms, live: false, t: 0, arrived: 0, cb: null, lands: this.lands });
       }
     } catch (e) { console.warn('[packAether]', e); this.flows.length = 0; }
   }
@@ -170,12 +197,15 @@ export class AetherStream {
   /**
    * A card at (cx, cy), `w` x `h`, comes apart and flows to (tx, ty). `unit` is the size of one stage px in canvas px
    * (the motes and their paths scale with the theatre). `cb` hears how much of the card has landed (0..1), at most once
-   * a frame, and `done` when the last mote is in.
+   * a frame, and `done` when the last mote is in. `shape` `'point'` is a small round source (the wallet gem): the motes
+   * start inside the rectangle and leave over a short scatter, with no edge motes and no top-down sweep.
    */
-  emit(cx: number, cy: number, w: number, h: number, tx: number, ty: number, unit: number, cb: AetherProgress | null): void {
+  emit(cx: number, cy: number, w: number, h: number, tx: number, ty: number, unit: number, cb: AetherProgress | null, shape: AetherShape = 'card'): void {
     const f = this.flows.find((x) => !x.live);
     if (!f) { cb?.(1, true); return; }
     f.live = true; f.t = 0; f.arrived = 0; f.cb = cb;
+    f.u.uShape = shape === 'point' ? 1 : 0;
+    f.lands = shape === 'point' ? this.pointLandsTable : this.lands;
     f.u.uCard[0] = cx; f.u.uCard[1] = cy; f.u.uCard[2] = w; f.u.uCard[3] = h;
     f.u.uTo[0] = tx; f.u.uTo[1] = ty;
     f.u.uUnit = unit; f.u.uT = 0;
@@ -186,9 +216,9 @@ export class AetherStream {
   /** One frame (`dt` in 60 Hz frames, already slow-mo scaled). */
   step(dt: number): void {
     if (this.count === 0) return;
-    const lands = this.lands, n = lands.length, last = lands[n - 1]!;
     for (const f of this.flows) {
       if (!f.live) continue;
+      const lands = f.lands, n = lands.length, last = lands[n - 1]!;
       f.t += dt / 60;
       f.u.uT = f.t;
       let a = f.arrived;

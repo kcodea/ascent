@@ -349,6 +349,21 @@ describe('PackShop', () => {
       expect(fake().calls.slice(before)).toEqual(['setHand:h1,h2', 'visible:true:200', 'input:true']);
     });
 
+    it('Aether that arrives while the opener is up (a refund) is held, then streams in once on the way back and the wallet lands on it', () => {
+      render({ hand: [owned('h1'), owned('h2', 'Epic Pack')] });
+      click(btns('Rare Pack, Open')[0]);
+      tallyTargets.length = 0;
+      render({ hand: [owned('h2', 'Epic Pack')], aether: 1300 });
+      expect(tallyTargets).not.toContain(1300);
+      expect(fake().calls).not.toContain('gain');
+      act(() => { openerProps!.onClose!(); });
+      expect(fake().calls.filter((c) => c === 'gain')).toHaveLength(1);
+      expect(tallyTargets.at(-1)).toBe(1300);
+      act(() => { openerProps!.onClosed!(); });
+      expect(fake().calls.filter((c) => c === 'gain')).toHaveLength(1);
+      expect(balance()).toBe('1300 Aether');
+    });
+
     it('unmounting during the wait leaves no timer firing', () => {
       render({ hand: [owned('h1'), owned('h2', 'Epic Pack')] });
       fire((e) => { e.onDrop('play', 'h2', R); });
@@ -423,6 +438,30 @@ describe('PackShop', () => {
     render({ reducedMotion: true, guarantee: { rarity: 'legendary', within: 3 } });
     expect(gauge()).toMatchObject({ words: 'Legendary guaranteed within 3 packs', pips: 3 });
     expect(gauge().medal).toContain('ascent_rarity_legendary');
+  });
+
+  it("each tab wears its shelf's lead pack art when an offer on that shelf has art; a shelf with none shows no art", () => {
+    const themed = { kind: 'themed', id: 'x', name: 'Themed Pack', guaranteedFloor: 'epic' } as unknown as PackOffer['look'];
+    render({
+      shelves: [...SHELVES, { id: 'odd', name: 'Odd' }],
+      offers: [...OFFERS, offer('t', 'Themed Pack', 100, { shelf: 'odd', look: themed })],
+    });
+    const art = (name: string) => btn(name)!.querySelector('.pks-tab-art')?.getAttribute('src') ?? null;
+    expect(art('Packs')).toMatch(/packs\/.+\.webp$/);
+    expect(art('Boxes')).toMatch(/packs\/.+\.webp$/);
+    expect(art('Odd')).toBeNull();
+  });
+
+  it("the tag shows the pack's medallion and how much of it is new to you as a bar", () => {
+    render({ offers: [offer('rare', 'Rare Pack', 200, { newToYou: { unowned: 10, total: 40 } }), ...OFFERS.slice(1)] });
+    fire((e) => { e.onHover('rare', R); });
+    const tag = document.querySelector('[data-testid="pks-tag"]')!;
+    expect(tag.querySelector('.pks-tag-medal')!.getAttribute('src')).toContain('ascent_rarity_rare');
+    expect((tag.querySelector('.pks-bar > span') as HTMLElement).style.transform).toBe('scaleX(0.25)');
+    expect(tag.textContent).toContain('10 of 40 new to you');
+    // a pack with nothing to tell has no bar
+    fire((e) => { e.onHover('epic', R); });
+    expect(document.querySelector('[data-testid="pks-tag"] .pks-bar')).toBeNull();
   });
 
   it('reduced motion renders the grid with Buy and Open buttons and no scene', async () => {

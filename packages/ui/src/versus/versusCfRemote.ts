@@ -138,6 +138,21 @@ export function makeCfVersusRemote(deps: CfRemoteDeps): VersusRemote {
   const groupRounds = new Map<number, VersusGroupRoundRaw>();
   /** RANKED DUOS: the committed rounds (pushed as they commit). */
   const rankedRounds = new Map<number, RankedDuosRoundRow>();
+  /**
+   * ONE ROOM, MANY MATCHES (R-VERSUS-ROUNDS-MATCH-01, live 2026-11-25: the second Ranked Duos game of a party replayed the
+   * first one's fights). The three round caches above are keyed by round NUMBER, which restarts every match, so they belong
+   * to one match and are emptied together the moment the room's match is another one. Ranked Duos rows carry no match id.
+   */
+  let roundsFor: string | null = null;
+  const cacheFor = (id: string): void => {
+    if (roundsFor === id) return;
+    roundsFor = id;
+    rounds.clear();
+    groupRounds.clear();
+    rankedRounds.clear();
+  };
+  /** May this match's rounds be read here? (Before any match is known the caller's is taken.) */
+  const holds = (id: string): boolean => { if (roundsFor === null) cacheFor(id); return roundsFor === id; };
   const isGroupJson = (m: Record<string, unknown>): boolean => Array.isArray(m.seats);
   /** The latest committed round of a match row (combat / complete: this one; otherwise the one before). */
   const committedOf = (m: { phase: string; round: number }): number => (m.phase === 'combat' || m.phase === 'complete' ? m.round : m.round - 1);
@@ -187,12 +202,12 @@ export function makeCfVersusRemote(deps: CfRemoteDeps): VersusRemote {
     } else if (msg.t === 'match') {
       if (isGroupJson(msg.match)) {
         const g = msg.match as unknown as VersusGroupMatchRaw;
-        if (group && g.id !== group.id) groupRounds.clear();
+        cacheFor(g.id);
         group = g;
         match = null;
       } else {
         const m = msg.match as unknown as VersusMatch;
-        if (match && m.id !== match.id) rounds.clear();
+        cacheFor(m.id);
         match = m;
         group = null;
       }
@@ -240,8 +255,9 @@ export function makeCfVersusRemote(deps: CfRemoteDeps): VersusRemote {
     room = null;
     match = null;
     priv = null;
-    rounds.clear();
     group = null;
+    roundsFor = null;
+    rounds.clear();
     groupRounds.clear();
     rankedRounds.clear();
     const c = new VersusCfClient({
@@ -359,7 +375,7 @@ export function makeCfVersusRemote(deps: CfRemoteDeps): VersusRemote {
       if (match?.id === id) return match;
       if (group?.id === id || !roomId) return null; // a group match: the store reads it through groupMatch
       const s = await req<{ match: Record<string, unknown> | null }>(roomId, 'sync');
-      if (s.match && isGroupJson(s.match)) { group = s.match as unknown as VersusGroupMatchRaw; return null; }
+      if (s.match && isGroupJson(s.match)) { group = s.match as unknown as VersusGroupMatchRaw; cacheFor(group.id); return null; }
       return s.match?.id === id ? (s.match as unknown as VersusMatch) : null;
     },
     async myPrivate(id: string) {
@@ -367,12 +383,14 @@ export function makeCfVersusRemote(deps: CfRemoteDeps): VersusRemote {
       return roomId ? mreq<VersusPrivate | null>('my_private', { matchId: id }) : null;
     },
     async rounds(matchId: string, fromRound = 1) {
+      if (!holds(matchId)) return [];
       // Served from the pushes when they cover every committed round from `fromRound`; else one read (a reload).
       const last = match?.id === matchId ? (match.phase === 'combat' || match.phase === 'complete' ? match.round : match.round - 1) : -1;
       let complete = last >= fromRound || last === fromRound - 1;
       for (let r = fromRound; complete && r <= last; r++) if (!rounds.has(r)) complete = false;
       if (!complete && roomId) {
         const rows = await mreq<Record<string, unknown>[]>('rounds', { matchId, from: fromRound });
+        if (!holds(matchId)) return []; // the room moved on to another match while this read was in flight
         for (const row of rows) { const r = roundOf(row); rounds.set(r.round, r); }
       }
       return [...rounds.values()].filter((r) => r.match_id === matchId && r.round >= fromRound).sort((a, b) => a.round - b.round);
@@ -402,15 +420,18 @@ export function makeCfVersusRemote(deps: CfRemoteDeps): VersusRemote {
       if (group?.id === id) return group;
       if (!roomId) return null;
       const s = await req<{ match: Record<string, unknown> | null }>(roomId, 'sync');
-      if (s.match && isGroupJson(s.match) && s.match.id === id) { group = s.match as unknown as VersusGroupMatchRaw; return group; }
+      if (s.match && isGroupJson(s.match) && s.match.id === id) { group = s.match as unknown as VersusGroupMatchRaw; cacheFor(group.id); return group; }
       return null;
     },
     async groupRounds(matchId: string, fromRound = 1) {
+      if (!holds(matchId)) return [];
       const last = group?.id === matchId ? committedOf(group) : -1;
       let complete = last >= fromRound - 1;
       for (let r = fromRound; complete && r <= last; r++) if (!groupRounds.has(r)) complete = false;
       if (!complete && roomId) {
-        for (const row of await mreq<VersusGroupRoundRaw[]>('rounds', { matchId, from: fromRound })) groupRounds.set(row.round, row);
+        const rows = await mreq<VersusGroupRoundRaw[]>('rounds', { matchId, from: fromRound });
+        if (!holds(matchId)) return [];
+        for (const row of rows) groupRounds.set(row.round, row);
       }
       return [...groupRounds.values()].filter((r) => r.round >= fromRound && r.fights.length > 0).sort((a, b) => a.round - b.round);
     },
@@ -449,10 +470,15 @@ export function makeCfVersusRemote(deps: CfRemoteDeps): VersusRemote {
     rankedTable: (id: string) => mreq<RankedDuosTableRaw>('ranked_table', { matchId: id }),
     rankedTeams: (id: string) => mreq<RankedDuosTeamRead[]>('ranked_teams', { matchId: id }),
     async rankedRounds(id: string, fromRound = 1) {
+      if (!holds(id)) return [];
       const last = group?.id === id ? committedOf(group) : -1;
       let complete = last >= fromRound - 1;
       for (let r = fromRound; complete && r <= last; r++) if (!rankedRounds.has(r)) complete = false;
-      if (!complete && roomId) for (const row of await mreq<RankedDuosRoundRow[]>('ranked_rounds', { matchId: id, from: fromRound })) rankedRounds.set(row.round, row);
+      if (!complete && roomId) {
+        const rows = await mreq<RankedDuosRoundRow[]>('ranked_rounds', { matchId: id, from: fromRound });
+        if (!holds(id)) return [];
+        for (const row of rows) rankedRounds.set(row.round, row);
+      }
       return [...rankedRounds.values()].filter((r) => r.round >= fromRound).sort((a, b) => a.round - b.round);
     },
     duosPass: (id: string, round: number, seq: number, card: unknown) => mreq<VersusDuosPassRow>('duos_pass', { matchId: id, round, seq, card }),

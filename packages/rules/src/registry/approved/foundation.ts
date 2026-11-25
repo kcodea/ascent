@@ -17367,6 +17367,27 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (GAME_BREAKER_TITLE_ID, GIFT_EVENT_ID, look lemon); packages/ui/src/styles.css (.tb-look-lemon); packages/ui/src/progression/GiftNotice.tsx' },
     ],
     currentBehaviour: 'Conforms, built 2026-11-25 (feat/game-breaker-and-balance). The one account that gets it is an ownership row added after the release.',
-    enforcement: { kind: 'scenario', refs: ['packages/ui/src/titles/titles.test.tsx', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/GiftNotice.test.tsx'], lastVerifiedAt: '2026-11-25' },
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/titles/titles.test.tsx', 'packages/progression/src/gameBreaker.test.ts', 'packages/ui/src/progression/GiftNotice.test.tsx'], lastVerifiedAt: '2026-11-25' },
+  },
+  {
+    id: 'R-VERSUS-ROUNDS-MATCH-01',
+    title: 'A Versus client never plays a fight of another match: cached rounds belong to one match',
+    statement:
+      'A room plays match after match, and a round is known by its number, which restarts every match. The rounds a client caches '
+      + '(1v1, Group, Duos, Ranked Duos) belong to one match: they are dropped the moment the match of the room is another one, a read '
+      + 'for another match answers nothing, and a read still in flight when the room moves on brings nothing. So a second game of a '
+      + 'party starts with no committed rounds and only ever plays its own fights.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, live Ranked Duos with Mike, 2026-11-25 (matches ec2d9537 and 38a06801, right after 01eddb89)', quote: 'we just played a duos game flawlessly, but this game when we had our first turn, the game bugged and never let us back to shop. it also felt like we were like watching a replay or something, we didnt buy any cards that were suddenly in our boards' },
+      { kind: 'code', ref: 'packages/ui/src/versus/versusCfRemote.ts (cacheFor, holds)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-25 (fix/ranked-duos-second-game). Before, the Ranked Duos rounds of a room were never dropped when its match '
+      + 'changed, so a second game of the same party played the first one\x27s rounds 2, 3, ... as its own fights, ran past the '
+      + 'server, and sat on a locked shop while the server closed the real rounds without the players.',
+    example: 'A party finishes a 13 round Ranked Duos game and starts another: after the round 1 fight the round 2 shop opens.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/cfRoundsPerMatch.test.ts'], lastVerifiedAt: '2026-11-25' },
   },
 ];

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { clampScroll, handPile, handPoseInto, nearestIndex, shelfPoseInto, shopLayout } from './shopLayout';
+import { HAND_FAN_MAX, clampScroll, handPile, handPoseInto, nearestIndex, shelfPoseInto, shopLayout, startScroll } from './shopLayout';
+import { PACK_BASE_SIZE } from '../packOpening/packFxConfig';
 
 describe('shopLayout', () => {
   it('five slots are in view: the centre one is the pedestal, larger, and the outer ones fade', () => {
@@ -24,6 +25,35 @@ describe('shopLayout', () => {
     const L = shopLayout(1920, 1080), a = { x: 0, y: 0, h: 0, rot: 0, alpha: 0 }, b = { ...a };
     handPoseInto(a, L, 0, 5); handPoseInto(b, L, 4, 5);
     expect(a.x + b.x).toBeCloseTo(1920); expect(a.rot).toBeCloseTo(-b.rot); expect(a.rot).toBeLessThan(0);
+  });
+});
+
+describe('the pedestal and the hand keep clear of the bar and the line', () => {
+  for (const [w, h] of [[1920, 1080], [1600, 900], [2160, 1080]] as const) {
+    it(`at ${w} x ${h}: the pedestal pack sits between the top bar and the counter line`, () => {
+      const L = shopLayout(w, h), p = { x: 0, y: 0, h: 0, rot: 0, alpha: 0 };
+      shelfPoseInto(p, L, 2, 2);
+      expect(p.h).toBeCloseTo(0.46 * h);
+      expect(p.y - p.h / 2).toBeGreaterThan(0.1 * h);
+      expect(p.y + p.h / 2).toBeLessThanOrEqual(L.lineY - 0.04 * h);
+      expect(L.packH).toBeCloseTo(0.72 * L.pedestalH);
+    });
+    it(`at ${w} x ${h}: every place of a full fan rests wholly below the line`, () => {
+      const L = shopLayout(w, h), p = { x: 0, y: 0, h: 0, rot: 0, alpha: 0 };
+      const hw = (L.handPackH * PACK_BASE_SIZE.w) / PACK_BASE_SIZE.h / 2;
+      for (let i = 0; i < HAND_FAN_MAX; i++) {
+        handPoseInto(p, L, i, HAND_FAN_MAX);
+        // the highest corner of the rotated pack
+        const top = p.y - (p.h / 2) * Math.cos(p.rot) - hw * Math.abs(Math.sin(p.rot));
+        expect(top).toBeGreaterThan(L.lineY);
+      }
+    });
+  }
+});
+
+describe('startScroll', () => {
+  it('starts the rack on the middle offer', () => {
+    expect([0, 1, 2, 3, 4, 5, 9].map(startScroll)).toEqual([0, 0, 0, 1, 1, 2, 4]);
   });
 });
 

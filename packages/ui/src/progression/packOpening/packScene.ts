@@ -214,6 +214,9 @@ export function sealedPackScale(w: number, h: number): number {
 /** The sealed pack's drawn height in px for a `w` x `h` host. */
 export const sealedPackHeight = (w: number, h: number): number => sealedPackScale(w, h) * PACK_BASE_SIZE.h;
 
+/** The sealed pack's centre in px for a `w` x `h` host: `layout` centres it on the host (the pack shop's handoff). */
+export const sealedPackCentre = (w: number, h: number): { x: number; y: number } => ({ x: w / 2, y: h / 2 });
+
 const CURSOR_GRAB = `url('${BASE}cursors/gauntlet_open.svg') 6 2, pointer`;
 const CURSOR_HELD = `url('${BASE}cursors/hand_closed.svg') 13 12, grabbing`;
 

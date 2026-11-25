@@ -48,12 +48,13 @@ import { getDragFeel } from '../../dragFeel';
 import { AURA_COLORS } from '../packOpening/packAura';
 import { AetherStream, type AetherProgress } from '../packOpening/packAether';
 import { makeStage, type StageFx } from '../packOpening/packFx';
+import { sealedPackCentre, sealedPackHeight } from '../packOpening/packScene';
 import { packGlowRarity } from '../packOpening/packGlow';
 import { PACK_GEOM, paintGlossBand } from '../packOpening/packTextures';
 import { aimInto, newTilt, stepTilt, tiltEaseK, type TiltState } from '../packOpening/packTilt';
 import { ShelfPack, liftPoseInto } from './shelfPack';
 import { arrived, buySettled, cancelHeld, moveHeld, newDrag, pickUp, release, zoneAt, type ShopDrag } from './shopDrag';
-import { HAND_FAN_MAX, clampScroll, handPoseInto, shelfPoseInto, shopLayout, type PackPose, type ShopLayout } from './shopLayout';
+import { HAND_FAN_MAX, clampScroll, handPoseInto, shelfPoseInto, shopLayout, startScroll, type PackPose, type ShopLayout } from './shopLayout';
 import {
   arrivingPlaceHidden, breathScale, handFanInto, inRotatedRect, newShake, newSwing, parksOnArrival, resetShake, rubberY, stepShake,
   stepSwing, type HandFan,
@@ -198,6 +199,8 @@ class ShopSceneImpl implements ShopScene {
 
   // the scene
   private L: ShopLayout = shopLayout(1, 1);
+  /** Where the opener draws its sealed pack on this canvas (a played pack ends there, so the handoff has no jump). */
+  private sealed = { x: 0, y: 0, h: 0 };
   private stage: StageFx | null = null;
   private bandTex: Texture | null = null;
   private rack: Container | null = null;
@@ -471,6 +474,8 @@ class ShopSceneImpl implements ShopScene {
     const w = app.screen.width, h = app.screen.height;
     const resized = w !== this.L.w || h !== this.L.h;
     this.L = shopLayout(w, h);
+    const sc = sealedPackCentre(w, h);
+    this.sealed.x = sc.x; this.sealed.y = sc.y; this.sealed.h = sealedPackHeight(w, h);
     if (this.stage) {
       this.stage.mesh.position.set(w / 2, h / 2); this.stage.mesh.scale.set(w / 2, h / 2);
       const u = this.stage.u;
@@ -613,7 +618,7 @@ class ShopSceneImpl implements ShopScene {
     const centre = keepCentre ? this.offers[Math.round(this.target)]?.offerId : undefined;
     this.offers = next;
     const kept = centre === undefined ? -1 : next.findIndex((o) => o.offerId === centre);
-    this.target = kept >= 0 ? kept : keepCentre ? clampScroll(this.target, next.length) : 0;
+    this.target = kept >= 0 ? kept : keepCentre ? clampScroll(this.target, next.length) : startScroll(next.length);
     if (!keepCentre || !this.app) this.scroll = this.target;
     this.slotId.fill(null); // rebind every slot (a look may have changed under the same id)
     this.wake();
@@ -949,7 +954,7 @@ class ShopSceneImpl implements ShopScene {
     const H = this.held, q = from === 'shelf' ? this.lifted : this.handPlacePose(at); // the shelf hit left its pose in `lifted`
     H.pointerId = e.pointerId; H.touch = e.pointerType === 'touch'; H.from = from;
     H.x = q.x; H.y = q.y; H.h = q.h; H.rot = q.rot;
-    H.srcH = from === 'shelf' ? shelfPoseInto(this.goal, this.L, this.slotIdx[at]!, this.scroll).h : this.L.handPackH;
+    H.srcH = this.L.packH; // carried at shelf pack size, wherever it came from (a pedestal-sized pack hid the stage)
     H.ax = q.x - this.pointer.x; H.ay = q.y - this.pointer.y;
     H.vx = 0; H.vy = 0; H.pvx = 0;
     this.heldPose.x = q.x; this.heldPose.y = q.y; this.heldPose.h = q.h; this.heldPose.rot = q.rot;
@@ -1076,7 +1081,8 @@ class ShopSceneImpl implements ShopScene {
       }
       case 'toPedestal':
       case 'idle':
-        g.x = L.w / 2; g.y = L.shelfY; g.h = L.pedestalH; g.rot = 0;
+        // the opener's sealed pose: it grows on its way, so the opener's canvas crossfades over it with no jump
+        g.x = this.sealed.x; g.y = this.sealed.y; g.h = this.sealed.h; g.rot = 0;
         return true;
     }
   }

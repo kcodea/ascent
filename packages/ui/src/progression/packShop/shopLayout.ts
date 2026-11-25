@@ -6,7 +6,6 @@
  * line, and the hand of owned packs.
  */
 import { PACK_BASE_SIZE } from '../packOpening/packFxConfig';
-import { sealedPackHeight } from '../packOpening/packScene';
 
 /** Slots in view on the shelf (the pedestal is the middle one). */
 export const SHELF_VISIBLE = 5;
@@ -18,7 +17,10 @@ export interface ShopLayout {
   shelfY: number; lineY: number; handY: number;
   /** A shelf pack's height (off the pedestal). */
   packH: number;
-  /** The pedestal pack's height: the opener's sealed pack height for this canvas. */
+  /**
+   * The pedestal pack's height. Not the opener's sealed size (about 0.63 of the height, which crowded the tab bar and the
+   * counter line): a played pack grows to the opener's size on its way there (`shopScene.ts`).
+   */
   pedestalH: number;
   /** A pack in the hand. */
   handPackH: number;
@@ -30,6 +32,8 @@ export interface ShopLayout {
 export interface PackPose { x: number; y: number; h: number; rot: number; alpha: number }
 
 const ASPECT = PACK_BASE_SIZE.w / PACK_BASE_SIZE.h;
+/** The pedestal pack's height, in canvas heights. */
+const PEDESTAL_H = 0.46;
 const SHELF_SCALE = 0.72;
 const HAND_SCALE = 0.5;
 /** Past this many steps from the pedestal a slot is invisible; it fades in over the last `FADE_STEPS`. */
@@ -42,12 +46,12 @@ const HAND_LEAN = 0.1;
 const HAND_SAG = 0.012;
 
 export function shopLayout(w: number, h: number): ShopLayout {
-  const pedestalH = sealedPackHeight(w, h);
+  const pedestalH = PEDESTAL_H * h;
   const packH = SHELF_SCALE * pedestalH;
   const handPackH = HAND_SCALE * pedestalH;
   return {
     w, h,
-    shelfY: 0.36 * h, lineY: 0.66 * h, handY: 0.86 * h,
+    shelfY: 0.37 * h, lineY: 0.66 * h, handY: 0.86 * h,
     packH, pedestalH, handPackH,
     slotStep: packH * ASPECT * 1.25,
   };
@@ -62,6 +66,11 @@ export function shelfPoseInto(out: PackPose, L: ShopLayout, index: number, scrol
   out.rot = 0;
   out.alpha = Math.max(0, Math.min(1, (FADE_END - a) / FADE_STEPS));
   return out;
+}
+
+/** Where a rack of `count` offers starts: the middle offer on the pedestal, so both sides of the shelf are filled. */
+export function startScroll(count: number): number {
+  return Math.max(0, Math.floor((count - 1) / 2));
 }
 
 export function clampScroll(scroll: number, count: number): number {

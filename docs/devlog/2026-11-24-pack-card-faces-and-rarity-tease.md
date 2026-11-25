@@ -66,3 +66,32 @@ sheet artifact (every cosmetic type at every rarity) and the Pack Lab.
 How it was checked: the shader's look from a CPU reference render of the shipped GLSL (it compiles in a real WebGL2
 context); the maths and the face beats by unit tests. NOT checked: the motion at real speed and the sounds by ear (the
 built-in browser pane ran under one frame a second). Both need the owner's eye and ear.
+
+## The whole-presentation pass (same day, owner: "its everything, the animations, the card back visuals, the tear effects, the unsheathe effects, the entire presentation, EVERYTHING needs to be brought up"; "sound, crinkling of the card wrapper, tearing the wrapper")
+
+- **A stage, not a dimmed menu** (`packFx.ts` `STAGE_FRAG`): one shader behind everything draws a dark void, a spotlight
+  that falls on the pack (then the pile), dust in the beam, drifting motes, the pack's own colour pooled behind it, and
+  a wash of a big pull's colour from where its face lands. The DOM scrim is now a near-opaque dark gradient (the summary
+  and reduced motion stand on it). The ticker no longer idles while the stage is up (its dust keeps moving).
+- **The foil crinkles** (`FOIL_FRAG`, on the wrapper body's own grid): faceted folds lit from the tilt. It wrinkles where
+  the hand is (hover, a press, the tear's front, the sleeve grip) and `Handling.wear` keeps the wrapper a little more
+  crumpled the more it is worked (it never un-crumples); it crumples fully as the sleeve falls away. A press on the
+  sealed wrapper also squeezes its sides in (`writeBody`).
+- **Light from inside** (`SPILL_FRAG`): shafts and rising dust in the pack's colour pour out of the opening as the strip
+  comes off, and out of the sleeve's mouth as the cards slide out.
+- **The tear**: a ragged fringe instead of a hairline (`TornLip`), a foil lining with creases, a sheen band and a crimped
+  edge on the strip's underside (`paintStripBack`), more flecks.
+- **The card back is alive** (`SHEEN_FRAG`): a band of light follows the pointer across the top back, glints twinkle on
+  its lattice, the star flares softly. Never tinted by rarity.
+- **The wrapper's sounds are recorded foil** (`FOIL` in `packSounds.ts`; eleven clips generated with ElevenLabs
+  sound-generation on the owner's go-ahead, in `audio/fx/pack-*.mp3`). They are played granularly so they follow the
+  hand: the tear and the sleeve are loops of real foil ripping and cards sliding whose level and pitch ride the speed,
+  with grains of the same recordings as the foil catches; the crinkle is grains of a real wrapper crinkle fired by the
+  distance the held foil is worked; one-shots for the pinch, the squeeze, the final rip, the release, the dropped
+  wrapper and the cards coming out. Each recording is levelled in the table (they were not generated at one level). The
+  synthesised cues remain only as the fallback until a clip has decoded.
+
+How it was checked: frames captured from the running game in headless Chrome (playwright-core + the installed Chrome),
+for the sealed pack, hover, squeeze, the tear, a slow-motion quick open through the sleeve, the pile and five reveals.
+The clips were measured (length, level, envelope), not heard. NOT checked: any sound by ear, motion at 60 fps, and
+performance on a real GPU (software GL only; the stage is a full-screen shader).

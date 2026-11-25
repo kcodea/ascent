@@ -142,6 +142,39 @@ export function paintStripBack(): HTMLCanvasElement {
     g.fillStyle = `rgba(${r() < 0.5 ? '255,255,255' : '90,95,110'},${r() * 0.12})`;
     g.fillRect(r() * w, r() * h, 2 + r() * 6, 1);
   }
+  // crumpled facets: soft light and dark patches between fold lines
+  for (let n = 0; n < 26; n++) {
+    const x = r() * w, y = r() * h, rad = 26 + r() * 60;
+    const fg = g.createRadialGradient(x, y, 0, x, y, rad);
+    const light = r() < 0.5;
+    fg.addColorStop(0, light ? 'rgba(255,255,255,.3)' : 'rgba(70,78,98,.26)');
+    fg.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = fg;
+    g.fillRect(x - rad, y - rad, rad * 2, rad * 2);
+  }
+  // fold lines: a dark crease with a bright edge beside it
+  g.lineCap = 'round';
+  for (let n = 0; n < 22; n++) {
+    let x = r() * w, y = r() * h;
+    const pts = [[x, y]];
+    const ang = r() * Math.PI * 2;
+    for (let s2 = 0; s2 < 3; s2++) { x += Math.cos(ang + (r() - 0.5) * 1.1) * (22 + r() * 46); y += Math.sin(ang + (r() - 0.5) * 1.1) * (14 + r() * 30); pts.push([x, y]); }
+    for (const [dx, col, lw] of [[0, 'rgba(60,66,84,.5)', 1.6], [1.6, 'rgba(255,255,255,.75)', 1.1]] as [number, string, number][]) {
+      g.strokeStyle = col; g.lineWidth = lw;
+      g.beginPath();
+      pts.forEach((pt, i) => (i ? g.lineTo(pt[0]! + dx, pt[1]! + dx) : g.moveTo(pt[0]! + dx, pt[1]! + dx)));
+      g.stroke();
+    }
+  }
+  // a bright sheen band across it
+  const sg = g.createLinearGradient(0, 0, w, h * 3);
+  sg.addColorStop(0.3, 'rgba(255,255,255,0)');
+  sg.addColorStop(0.46, 'rgba(255,255,255,.5)');
+  sg.addColorStop(0.6, 'rgba(255,255,255,0)');
+  g.fillStyle = sg;
+  g.fillRect(0, 0, w, h);
+  // the heat-sealed crimp along its top edge
+  for (let x = 0; x < w; x += 6) { g.fillStyle = x % 12 ? 'rgba(255,255,255,.35)' : 'rgba(70,76,96,.3)'; g.fillRect(x, 0, 3, h * 0.2); }
   return c;
 }
 

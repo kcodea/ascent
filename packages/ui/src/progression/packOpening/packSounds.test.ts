@@ -1,17 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const h = vi.hoisted(() => ({ ctx: null as unknown, clips: [] as { category: string; gain: number; rate: number }[] }));
+const h = vi.hoisted(() => ({ ctx: null as unknown, clips: [] as { category: string; gain: number; rate: number }[], buf: null as unknown }));
 vi.mock('../../sfx', () => ({
   audioContext: () => h.ctx,
   fxBusTarget: () => ({ connect: () => undefined }),
+  getFxClipBuffer: () => h.buf,
   playTailedClip: (_clip: string, category: string, o: { gain: number; rate: number }) => { h.clips.push({ category, gain: o.gain, rate: o.rate }); return null; },
 }));
 
 import { createPackSounds } from './packSounds';
 
-interface FakeParam { value: number; targets: number[]; setTargetAtTime(v: number): void; setValueAtTime(v: number): void; exponentialRampToValueAtTime(v: number): void; cancelScheduledValues(): void }
+interface FakeParam { value: number; targets: number[]; setTargetAtTime(v: number): void; setValueAtTime(v: number): void; exponentialRampToValueAtTime(v: number): void; linearRampToValueAtTime(v: number): void; cancelScheduledValues(): void }
 const param = (v = 0): FakeParam => {
-  const p: FakeParam = { value: v, targets: [], setTargetAtTime(x) { p.targets.push(x); }, setValueAtTime(x) { p.value = x; }, exponentialRampToValueAtTime() {}, cancelScheduledValues() {} };
+  const p: FakeParam = { value: v, targets: [], setTargetAtTime(x) { p.targets.push(x); }, setValueAtTime(x) { p.value = x; }, exponentialRampToValueAtTime() {}, linearRampToValueAtTime() {}, cancelScheduledValues() {} };
   return p;
 };
 const node = (extra: Record<string, unknown> = {}): Record<string, unknown> => {
@@ -34,11 +35,11 @@ function fakeCtx(): { ctx: unknown; gains: Array<{ gain: FakeParam }>; counts: {
 
 const callAll = (s: ReturnType<typeof createPackSounds>): void => {
   s.pop(); s.tear(5); s.crackle(5, 1); s.rip(); s.sleeveFree(); s.slide(5); s.drop(); s.whoosh();
-  s.press(); s.tease(0); s.tease(4); s.tease(99); s.tease(-1); s.heartbeat(3); s.heartbeat(4); s.land('common'); s.land('epic'); s.land('ancient'); s.flip('epic', true); s.bigPull('legendary'); s.bigPull('ancient'); s.bigPull('none'); s.stamp(); s.aether(); s.summary(); s.silence(); s.dispose();
+  s.squeeze(); s.handle(0.5); s.handle(0); s.press(); s.tease(0); s.tease(4); s.tease(99); s.tease(-1); s.heartbeat(3); s.heartbeat(4); s.land('common'); s.land('epic'); s.land('ancient'); s.flip('epic', true); s.bigPull('legendary'); s.bigPull('ancient'); s.bigPull('none'); s.stamp(); s.aether(); s.summary(); s.silence(); s.dispose();
 };
 
 describe('packSounds', () => {
-  beforeEach(() => { h.ctx = null; h.clips.length = 0; });
+  beforeEach(() => { h.ctx = null; h.clips.length = 0; h.buf = null; });
 
   it('every cue is a no-op when there is no AudioContext', () => {
     expect(() => callAll(createPackSounds())).not.toThrow();
@@ -76,7 +77,7 @@ describe('packSounds', () => {
     s.bigPull('none');
     s.flip('common', false);
     // a flip: the chest's reveal cue and the card's own swish; no big-pull cue
-    expect(h.clips.map((c) => c.category)).toEqual(['crateReveal', 'crateWhoosh']);
+    expect(h.clips.map((c) => c.category)).toEqual(['crateReveal', 'crateWhoosh', 'crateWhoosh']); // the reveal cue, the swish, the card snap
     h.clips.length = 0;
     s.bigPull('legendary');
     s.bigPull('ancient');
@@ -88,6 +89,24 @@ describe('packSounds', () => {
     const [leg, anc] = tier;
     expect(anc!.gain).toBeGreaterThan(leg!.gain);
     expect(anc!.rate).toBeGreaterThan(leg!.rate);
+  });
+
+  it('the wrapper plays RECORDED foil once it has decoded: one standing loop per recording, grains throttled', () => {
+    const f = fakeCtx();
+    h.ctx = f.ctx;
+    h.buf = { duration: 3 };
+    const s = createPackSounds();
+    s.tear(4);
+    const afterFirst = f.counts.sources;
+    for (let i = 0; i < 30; i++) { s.tear(i); s.slide(i); }
+    // the recorded tear and slide loops are built once each, never per frame
+    expect(f.counts.sources).toBeLessThanOrEqual(afterFirst + 1);
+    const n = f.counts.sources;
+    // the fake clock never advances, so every grain after the first lands inside the grain gap: no node storm
+    for (let i = 0; i < 200; i++) { s.handle(1); s.crackle(40, 1); }
+    expect(f.counts.sources).toBeLessThanOrEqual(n + 1);
+    // the one-shots play the recordings (a node each), and nothing throws
+    expect(() => { s.pop(); s.squeeze(); s.rip(); s.sleeveFree(); s.drop(); s.whoosh(); s.silence(); s.dispose(); }).not.toThrow();
   });
 
   it('dispose() is idempotent', () => {

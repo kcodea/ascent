@@ -43,7 +43,11 @@ import {
   teaseAt, teaseAuraLevel, teaseBeatFrames, teaseFrames, teaseGlowAlpha, teaseGlowFade, teaseGlowPop, teasePop, teaseRarityAt, teaseTremble,
   type TeaseAt,
 } from './packTease';
-import { makeAura, type Aura } from './packAura';
+import { AURA_COLORS, makeAura, type Aura } from './packAura';
+import {
+  SPILL_LINE_V, SPILL_PACK_HALF, makeFoil, makeSheen, makeSpill, makeStage, newHandling, stepHandling,
+  type FoilFx, type Handling, type SheenFx, type SpillFx, type StageFx,
+} from './packFx';
 import { PILE_LEAN_PX, PILE_LEAN_RAD, PILE_RISE_PX, newPile, pileAtRest, pileEase, pileScale, type PileState } from './packPile';
 import { cardRestX, cardRestY } from './packViews';
 import { COSMETIC_RARITIES } from '@game/progression';
@@ -252,6 +256,21 @@ class PackSceneImpl implements PackScene {
   private auraPile: Aura | null = null;
   private auraFace: Aura | null = null;
   private faceAmbient = 0;
+  // the presentation shaders (packFx.ts): the stage behind everything, the foil's creases, the light from inside the
+  // pack, the top card back's sheen; and what drives them
+  private stage: StageFx | null = null;
+  private foil: FoilFx | null = null;
+  private spill: SpillFx | null = null;
+  private sheen: SheenFx | null = null;
+  private readonly handling: Handling = newHandling();
+  private packPressed = false; // a press on the sealed wrapper (a squeeze)
+  private readonly squeeze = { a: 0, y: 0 };
+  private stageEnergy = 0.3;
+  private stageWash = 0;
+  private spillLevel = 0;
+  private sheenLevel = 0;
+  private readonly focus: Pt = { x: 0, y: 0 };
+  private focusSet = false;
   private readonly land = { active: false, t: 0, dur: 1, x0: 0, y0: 0, h0: 1, x1: 0, y1: 0, h1: 1 };
   private readonly teaseOut: TeaseAt = { stage: 0, k: 0 };
   /** The glow's alpha when the tease ended (0 = no glow to fade): it fades from here through the turn (`flipStep`). */
@@ -282,7 +301,7 @@ class PackSceneImpl implements PackScene {
   private readonly band = newGlossBand();
   private readonly surface: StripSurface = { tilt: this.tiltPose, band: this.band, gloss: 0 };
   /** What the body meshes were last written with (rewrite only when one changes: the tilt idles once settled). */
-  private readonly bodyKey = { rx: NaN, ry: NaN, D: NaN };
+  private readonly bodyKey = { rx: NaN, ry: NaN, D: NaN, sq: 0 };
   private readonly glossKey = { centre: NaN, halfWidth: NaN, slope: NaN };
   private readonly glowCorners = new Float64Array(8);
   /** The holo gradient's sample offset this frame (packHolo.ts `holoShiftInto`). */
@@ -352,6 +371,24 @@ class PackSceneImpl implements PackScene {
     this.auraPile = makeAura(webgl);
     if (this.auraFace) built.views.root.addChildAt(this.auraFace.mesh, 1);
     if (this.auraPile) built.views.root.addChildAt(this.auraPile.mesh, 1);
+    // the presentation shaders: the stage under everything; the foil over the wrapper body; the spill between the
+    // stack and the sleeve front; the sheen over the stack
+    const vw = built.views;
+    const pc = AURA_COLORS[packGlowRarity(this.look)];
+    this.stage = makeStage(webgl);
+    if (this.stage) { app.stage.addChildAt(this.stage.mesh, 0); this.stage.mesh.visible = true; this.stage.u.uTint.set(pc[0]); }
+    this.foil = makeFoil(webgl, vw.body, vw.body.texture);
+    if (this.foil) {
+      this.foil.mesh.position.copyFrom(vw.body.position); this.foil.mesh.scale.copyFrom(vw.body.scale);
+      vw.sleeveFront.addChildAt(this.foil.mesh, vw.sleeveFront.getChildIndex(vw.body) + 1);
+    }
+    this.spill = makeSpill(webgl);
+    if (this.spill) {
+      this.spill.u.uTint.set(pc[0]); this.spill.u.uHot.set(pc[2]);
+      vw.pack.addChildAt(this.spill.mesh, vw.pack.getChildIndex(vw.sleeveFront));
+    }
+    this.sheen = makeSheen(webgl);
+    if (this.sheen) vw.cardsC.addChild(this.sheen.mesh);
 
     const canvas = app.canvas;
     canvas.style.position = 'absolute';
@@ -441,6 +478,10 @@ class PackSceneImpl implements PackScene {
     v.root.scale.set(k);
     v.root.x = Math.round(w / 2 - (W / 2) * k);
     v.root.y = Math.round(h / 2 - (PACK_BASE_SIZE.h / 2) * k);
+    if (this.stage) {
+      this.stage.mesh.position.set(w / 2, h / 2); this.stage.mesh.scale.set(w / 2, h / 2);
+      this.stage.u.uAspect = w / Math.max(1, h);
+    }
     this.zoomTx = (REVEAL_STACK_X * w - v.root.x) / k;
     this.zoomCx = (0.5 * w - v.root.x) / k;
     this.zoomTy = (REVEAL_Y * h - v.root.y) / k;
@@ -660,6 +701,112 @@ class PackSceneImpl implements PackScene {
     if (v.fade.visible) { v.fade.position.copyFrom(card.position); v.fade.rotation = card.rotation; }
   }
 
+  /**
+   * The presentation shaders' frame (packFx.ts). The stage follows the pack, then the pile; the foil wrinkles where the
+   * hand is and remembers it; light spills from the opening and from the sleeve's mouth; the top card back shimmers.
+   * Uniforms only.
+   */
+  private fxStep(dt: number): void {
+    const v = this.v, app = this.app;
+    if (!v || !app) return;
+    const sec = this.time / 60, k = v.root.scale.x;
+    const w = Math.max(1, app.screen.width), h = Math.max(1, app.screen.height);
+    const sealed = this.phase === 'peel' && !this.tear.started;
+    const sl = this.sleeve;
+
+    // THE STAGE: its light follows the pack, then the pile
+    const st = this.stage;
+    if (st) {
+      const fx = this.zoom > 0 ? v.pack.x + v.cardsC.x : W / 2;
+      const fy = this.zoom > 0 ? v.pack.y + v.cardsC.y : (H + BODY_H) / 2;
+      const tx = ((v.root.x + fx * k) / w) * 2 - 1, ty = ((v.root.y + fy * k) / h) * 2 - 1;
+      const f = this.focus;
+      if (!this.focusSet) { f.x = tx; f.y = ty; this.focusSet = true; }
+      const e = Math.min(1, 0.12 * dt);
+      f.x += (tx - f.x) * e; f.y += (ty - f.y) * e;
+      // brightest while the pack is being opened, calmer once the cards are out
+      const energyTo = sealed ? 0.34 + 0.1 * Math.sin(this.time * 0.03) : this.phase === 'peel' || this.phase === 'sleeve' ? 0.75 : 0.18;
+      this.stageEnergy += (energyTo - this.stageEnergy) * Math.min(1, 0.06 * dt);
+      this.stageWash *= Math.pow(0.968, dt);
+      if (this.stageWash < 0.003) this.stageWash = 0;
+      const u = st.u;
+      u.uTime = sec; u.uEnergy = this.stageEnergy; u.uWash = this.stageWash; u.uFocus[0] = f.x; u.uFocus[1] = f.y;
+    }
+
+    // THE WRAPPER UNDER THE HAND: where it is held, how hard, and how crumpled it has become
+    const hd = this.handling;
+    let gripTo = 0, gx = hd.px, gy = hd.py;
+    if (this.phase === 'peel' && !this.flying) {
+      if (this.tear.started) {
+        if (this.tearHeld) { gripTo = 0.85; gx = this.tear.T / W; gy = 0.03; }
+      } else if (this.hoverOn && this.hoverPt.x > 0 && this.hoverPt.x < W && this.hoverPt.y > H && this.hoverPt.y < H + BODY_H) {
+        gripTo = this.packPressed ? 1 : 0.3;
+        gx = this.hoverPt.x / W; gy = (this.hoverPt.y - H) / BODY_H;
+      }
+    } else if (this.phase === 'sleeve') {
+      if (sl.falling) hd.wear += (0.8 - hd.wear) * Math.min(1, 0.08 * dt); // it crumples as it falls away
+      else if (this.sleeveHeld) { gripTo = 1; gx = 0.5; gy = Math.max(0.05, Math.min(0.95, (this.grabY - H) / BODY_H)); }
+    }
+    const worked = stepHandling(hd, gripTo, gx, gy, dt);
+    if (worked > 0.0004) this.sounds.handle(worked * 9);
+    const sqz = this.squeeze;
+    const sqTo = this.packPressed && sealed ? 1 : 0;
+    sqz.a += (sqTo - sqz.a) * Math.min(1, 0.3 * dt);
+    if (Math.abs(sqTo - sqz.a) < 0.002) sqz.a = sqTo;
+    if (sqTo > 0) sqz.y = Math.max(220, (this.hoverPt.y - H) * TEX_RES);
+    if (sealed && sqz.a !== this.bodyKey.sq) this.syncBody(false);
+    const foil = this.foil;
+    if (foil) {
+      const on = (hd.grip > 0.01 || hd.wear > 0.01) && v.sleeveFront.visible;
+      foil.mesh.visible = on;
+      if (on) {
+        const u = foil.u, t = this.tilt;
+        u.uPoint[0] = hd.px; u.uPoint[1] = hd.py; u.uGrip = hd.grip; u.uAll = hd.wear;
+        // the light slides across the creases as the pack tilts
+        u.uLight[0] = 0.55 - t.ry * 0.06; u.uLight[1] = -0.7 + t.rx * 0.06;
+      }
+    }
+
+    // THE LIGHT INSIDE: out of the opening as the strip comes off, out of the sleeve's mouth as the cards slide out
+    const sp = this.spill;
+    if (sp) {
+      const opening = this.phase === 'peel' && this.tear.started;
+      const mouth = this.phase === 'sleeve' && !sl.falling;
+      const to = opening || mouth ? 1 : 0;
+      this.spillLevel += (to - this.spillLevel) * Math.min(1, (to ? 0.12 : 0.07) * dt);
+      if (this.spillLevel < 0.004 && !to) this.spillLevel = 0;
+      const on = this.spillLevel > 0;
+      sp.mesh.visible = on;
+      if (on) {
+        const hw = (W / 2) / SPILL_PACK_HALF, hh = 150;
+        const lineY = H + (this.phase === 'peel' ? 0 : sl.dy);
+        sp.mesh.position.set(W / 2, lineY - SPILL_LINE_V * hh);
+        sp.mesh.scale.set(hw, hh);
+        const u = sp.u;
+        u.uTime = sec; u.uOpen = opening ? Math.min(1, this.tear.T / W) : 1;
+        u.uLevel = this.spillLevel * (0.6 + 0.4 * this.packTier.size / PACK_GLOW_TIERS.ancient.size);
+      }
+    }
+
+    // THE BACK SHEEN: on the stack's top card once the cards are out
+    const sh = this.sheen;
+    if (sh) {
+      const card = this.phase === 'peel' ? undefined : v.cards[this.flipped];
+      const to = card && card.visible ? 1 : 0;
+      this.sheenLevel += (to - this.sheenLevel) * Math.min(1, 0.1 * dt);
+      const on = !!card && this.sheenLevel > 0.01;
+      sh.mesh.visible = on;
+      if (on && card) {
+        const ks = this.cardSX !== 0 ? card.scale.x / this.cardSX : 1;
+        sh.mesh.position.copyFrom(card.position);
+        sh.mesh.rotation = card.rotation;
+        sh.mesh.scale.set((CARD_W / 2) * ks, (CARD_H / 2) * ks);
+        const u = sh.u, p = this.pile;
+        u.uTime = sec; u.uLevel = this.sheenLevel; u.uAim[0] = p.lx * p.lift; u.uAim[1] = p.ly * p.lift;
+      }
+    }
+  }
+
   /** The auras' frame: the face aura follows its face to the slot and settles to its ambient level; uniforms written. */
   private auraStep(dt: number): void {
     const af = this.auraFace, ap = this.auraPile;
@@ -748,6 +895,11 @@ class PackSceneImpl implements PackScene {
     this.tease.live = false; this.tease.level = 0; this.tease.t = 0; this.tease.stage = -1;
     this.teaseGlowOut = 0;
     this.auraPile?.off(); this.auraFace?.off();
+    const hd = this.handling; hd.grip = 0; hd.wear = 0; hd.px = 0.5; hd.py = 0.5;
+    this.packPressed = false; this.squeeze.a = 0; this.stageWash = 0; this.spillLevel = 0; this.sheenLevel = 0; this.focusSet = false;
+    if (this.foil) this.foil.mesh.visible = false;
+    if (this.spill) this.spill.mesh.visible = false;
+    if (this.sheen) this.sheen.mesh.visible = false;
     this.faceAmbient = 0; this.land.active = false;
     this.pilePressed = false;
     const pl = this.pile; pl.lift = 0; pl.press = 0; pl.lx = 0; pl.ly = 0; pl.beat = 0;
@@ -893,7 +1045,7 @@ class PackSceneImpl implements PackScene {
   private readonly onEnter = (): void => { this.cacheRect(); };
 
   /** The pointer left the stage: the tilt and the gloss ease back to rest. */
-  private readonly onLeave = (): void => { this.hoverOn = false; this.pilePressed = false; };
+  private readonly onLeave = (): void => { this.hoverOn = false; this.pilePressed = false; this.packPressed = false; };
 
   /** A mouse / pen position over the stage, for the sealed tilt and the gloss (touch has no hover). */
   private trackHover(e: PointerEvent): void {
@@ -924,7 +1076,15 @@ class PackSceneImpl implements PackScene {
       if (this.tear.done || this.flying) return;
       const c = this.edgeScreen(this.pt2);
       // hit-test the corner where the tilt DRAWS it (the pinch ring), not where the flat pack has it
-      if (!tiltedCornerHit(p.x, p.y, c.x, c.y, this.tiltPose, this.tear.started ? GRAB_R_STARTED : GRAB_R_SEALED, this.pt3)) return;
+      if (!tiltedCornerHit(p.x, p.y, c.x, c.y, this.tiltPose, this.tear.started ? GRAB_R_STARTED : GRAB_R_SEALED, this.pt3)) {
+        // not the corner: a press on the sealed wrapper squeezes it (the foil dents and crinkles under the hand)
+        if (!this.tear.started && p.x > 0 && p.x < W && p.y > H && p.y < H + BODY_H) {
+          this.packPressed = true;
+          this.sounds.squeeze();
+          this.wake();
+        }
+        return;
+      }
       this.tearHeld = true;
       this.tiltLocked = true; // the opening has begun: the tilt eases flat and stays flat
       // the hand lives in FLAT pack space: the pointer goes through the inverse tilt, so the corner stays under the
@@ -973,6 +1133,7 @@ class PackSceneImpl implements PackScene {
 
   private readonly onUp = (e: PointerEvent): void => {
     if (this.pilePressed) { this.pilePressed = false; this.wake(); }
+    this.packPressed = false;
     if (e.pointerId !== this.pointerId) return;
     this.releaseHolds();
   };
@@ -991,6 +1152,7 @@ class PackSceneImpl implements PackScene {
     if (this.popFired) return;
     this.popFired = true;
     this.shake = 4;
+    this.handling.wear = Math.min(0.42, this.handling.wear + 0.08);
     this.sounds.pop();
     this.emit('onPop', () => this.events.onPop());
   }
@@ -1010,7 +1172,8 @@ class PackSceneImpl implements PackScene {
     this.fv.r = 0.05 + Math.random() * 0.05;
     this.shake = 7;
     this.sounds.rip();
-    v.flecks.spawn(18, W - 4, H);
+    this.handling.wear = Math.min(0.42, this.handling.wear + 0.1);
+    v.flecks.spawn(34, W - 4, H);
     this.phase = 'sleeve';
     v.cardsC.visible = true; v.sleeveBack.visible = true; // never left hidden by the tilt (see tick)
     this.setCursor('');
@@ -1065,6 +1228,7 @@ class PackSceneImpl implements PackScene {
     if (this.flip.active) this.flipStep(dt);
     if (this.burst.active) this.burstStep(dt, feel);
     this.auraStep(dt);
+    this.fxStep(dt);
     v.flecks.step(dt);
 
     if (this.shake > 0.05) {
@@ -1077,7 +1241,7 @@ class PackSceneImpl implements PackScene {
     if (this.phase === 'end' && !this.flip.active && !this.tease.live && !this.overPile() && pileAtRest(this.pile) && !this.pilePressed
       && !this.auraFace?.live && !this.auraPile?.live && !this.xf.active && v.flecks.count === 0 && this.shake === 0
       && (!this.sideOn || this.side === 1) && !this.reset.active && !this.flying && this.glowReveal === 1 && this.packGlowFade === 0
-      && !this.burst.active) {
+      && !this.burst.active && !this.stage) { // (a lit stage never stops: its dust keeps drifting)
       app.ticker.stop();
     }
   };
@@ -1106,7 +1270,7 @@ class PackSceneImpl implements PackScene {
     const speed = Math.max(0, (tear.T - this.prevT) / Math.max(dt, 0.001));
     // (nothing sounds before the pop: the audio graph must not start before a user gesture)
     if (tear.started) { this.sounds.tear(tear.done ? 0 : speed); this.sounds.crackle(speed, dt); }
-    if (tear.started && speed > 0.3) v.flecks.spawn(Math.min(4, Math.floor(speed * 0.25 + Math.random())), tear.T, H);
+    if (tear.started && speed > 0.3) v.flecks.spawn(Math.min(7, Math.floor(speed * 0.45 + Math.random())), tear.T, H);
     this.prevT = tear.T;
 
     v.strip.compute(tear.T, tear.hand, feel.peelAngle, feel.pinchTwist, feel.highlight, feel.perspective, this.time, this.surface);
@@ -1200,7 +1364,7 @@ class PackSceneImpl implements PackScene {
   /** While sealed: rewrite the body meshes only when the tilt (or its depth) has changed since the last write. */
   private syncBody(deform: boolean): void {
     const k = this.bodyKey, t = this.tilt, D = this.tiltPose.D;
-    if (k.rx === t.rx && k.ry === t.ry && k.D === D) return; // settled: nothing to write, the tilt idles
+    if (k.rx === t.rx && k.ry === t.ry && k.D === D && k.sq === this.squeeze.a) return; // settled: nothing to write, the tilt idles
     this.writeBody(deform);
   }
 
@@ -1218,9 +1382,15 @@ class PackSceneImpl implements PackScene {
     const flat = this.bodyFlat;
     const gy = (this.grabY - H) * TEX_RES;
     const half = (W * TEX_RES) / 2;
+    const sq = this.squeeze, sqOn = !deform && sq.a > 0.001;
     for (let k = 0; k < pos.length; k += 2) {
       const bx = base[k]!, by = base[k + 1]!;
       let x = bx, y = by;
+      if (sqOn) {
+        // a squeeze on the sealed wrapper: its sides draw in a little around the hand
+        const q = (by - sq.y) / 210;
+        x = half + (bx - half) * (1 - 0.05 * sq.a * Math.exp(-(q * q)));
+      }
       if (deform) {
         const above = gy > 0 ? Math.max(0, 1 - by / gy) : 0; // 1 at the rim, 0 at the fingers
         const q = (by - gy) / 170;
@@ -1243,10 +1413,12 @@ class PackSceneImpl implements PackScene {
     const sp = v.sheen.geometry.positions, gp = v.gloss.geometry.positions;
     if (sp.length === pos.length) { sp.set(pos); v.sheen.geometry.getBuffer('aPosition').update(); }
     if (gp.length === pos.length) { gp.set(pos); v.gloss.geometry.getBuffer('aPosition').update(); }
+    const fg = this.foil?.mesh.geometry;
+    if (fg && fg.positions.length === pos.length) { fg.positions.set(pos); fg.getBuffer('aPosition').update(); }
     const hg = v.holo?.body.geometry;
     if (hg && hg.positions.length === pos.length) { hg.positions.set(pos); hg.getBuffer('aPosition').update(); }
     if (deform) v.lip.view.y = -sl.lag;
-    this.bodyKey.rx = this.tilt.rx; this.bodyKey.ry = this.tilt.ry; this.bodyKey.D = pose.D;
+    this.bodyKey.rx = this.tilt.rx; this.bodyKey.ry = this.tilt.ry; this.bodyKey.D = pose.D; this.bodyKey.sq = sq.a;
   }
 
   /**
@@ -1445,6 +1617,14 @@ class PackSceneImpl implements PackScene {
     v.burstRays2.visible = ancient;
     v.burstRays2.texture = tex.burstRays.legendary;
     v.burstRays2.tint = rarityTint('ancient');
+    // the stage takes the big pull's colour for a moment, from where the face lands
+    if (this.stage && this.app) {
+      const st = this.stage, app = this.app, ac = AURA_COLORS[tier];
+      this.stageWash = 1;
+      st.u.uWashTint.set(ac[0]);
+      st.u.uWashAt[0] = ((v.root.x + x * v.root.scale.x) / Math.max(1, app.screen.width)) * 2 - 1;
+      st.u.uWashAt[1] = ((v.root.y + y * v.root.scale.y) / Math.max(1, app.screen.height)) * 2 - 1;
+    }
     // with the shader aura the painted ray rings stand down (the aura draws the rays); the soft bloom stays under it
     if (this.auraFace) { v.burstRays.visible = false; v.burstRays2.visible = false; }
     v.burst.visible = true;

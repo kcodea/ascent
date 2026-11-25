@@ -88,8 +88,6 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, spee
   const bigHoldRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** The big-pull shake: a fresh `n` restarts the one-shot keyframe (it alternates two identical names); `px` its amplitude. */
   const [quake, setQuake] = useState<{ n: number; px: number } | null>(null);
-  /** A big pull's colour wash over the theatre (one-shot; `n` restarts it). */
-  const [wash, setWash] = useState<{ n: number; tier: 'legendary' | 'ancient' } | null>(null);
   const [announce, setAnnounce] = useState('');
 
   const phaseRef = useRef<PackPhase>('sealed');
@@ -174,7 +172,6 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, spee
     setFroms([]);
     clearBigHold();
     setQuake(null);
-    setWash(null);
     clearTurns();
     artRef.current = [];
     setAnnounce('');
@@ -277,7 +274,6 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, spee
     soundsFn.current().bigPull(tier);
     const px = shake ? bigPullShakePx(tier, feel.bigPullShake) : 0;
     if (px > 0) setQuake((q) => ({ n: (q?.n ?? 0) + 1, px }));
-    if (shake) setWash((w) => ({ n: (w?.n ?? 0) + 1, tier }));
     startBigHold(turnMs + feel.bigPullHoldMs * slow);
   }, [startBigHold]);
   const bigPullRef = useRef(bigPull);
@@ -363,7 +359,6 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, spee
     setFroms([]);
     clearBigHold();
     setQuake(null);
-    setWash(null);
     clearTurns();
     artRef.current = [];
     setAnnounce('');
@@ -401,8 +396,6 @@ export function PackOpener({ queue, open, onOpened, onClose, reducedMotion, spee
     <div className="pkop" role="dialog" aria-modal="true" aria-label="Opening a pack" ref={dialogRef} tabIndex={-1}
          style={speed === 1 ? undefined : ({ '--pk-slow': 1 / speed } as CSSProperties)}>
       <div className="pkop-scrim" aria-hidden />
-      {/* A big pull washes the theatre in its rarity's light for a moment (under the scene and the faces). */}
-      {wash && !reduced && <div key={wash.n} className={`pkop-wash r-${wash.tier}`} data-testid="pkop-wash" aria-hidden />}
       {/* The theatre content (the scene + the faces) shakes as one on a big pull; the slot, notes and buttons stay put. */}
       <div
         className={`pkop-quake${quake && !reduced ? (quake.n % 2 ? ' pkop-quake-a' : ' pkop-quake-b') : ''}`}

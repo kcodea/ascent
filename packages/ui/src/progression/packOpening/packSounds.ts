@@ -1,5 +1,5 @@
 import { COSMETIC_RARITIES, type CrateRarity } from '@game/progression';
-import { audioContext, fxBusTarget, playTailedClip } from '../../sfx';
+import { audioContext, fxBusTarget, getFxClipBuffer, playTailedClip } from '../../sfx';
 import { CRATE_CUE_CATEGORY, crateCue, getCrateFxConfig, type CrateCue } from '../crateFx/crateFxConfig';
 import { DEFAULT_PACK_FEEL, getPackFeel } from './packFxConfig';
 import type { BigPullTier } from './bigPull';
@@ -22,6 +22,10 @@ export interface PackSounds {
   slide(speed: number): void;
   drop(): void;
   whoosh(): void;
+  /** A press on the sealed wrapper: one foil crunch. */
+  squeeze(): void;
+  /** The wrapper worked under the hand (a hover, a squeeze, the tear's front, the sleeve grip): `amount` ~0..1 per call. */
+  handle(amount: number): void;
   /** A press on the pile's top card. */
   press(): void;
   /** One step of the rarity tease landed (packTease.ts): `stage` 0 = Common's colour ... 4 = Ancient's. Each step rings higher and a little louder. */
@@ -72,7 +76,7 @@ export const CARD_CUES = {
   press: [{ clip: 'cardtouch', cat: 'crateStamp', gain: 0.5 }],
   tease: [{ clip: 'fx/glass-sing', cat: 'crateTierShimmer', gain: 0.34 }, { clip: 'fx/glass-tick', cat: 'crateTierShimmer', gain: 0.3 }],
   heartbeat: [{ clip: 'pulse', cat: 'cratePulse', gain: 0.5 }],
-  turn: [{ clip: 'reordercard', cat: 'crateWhoosh', gain: 0.6 }],
+  turn: [{ clip: 'reordercard', cat: 'crateWhoosh', gain: 0.5 }, { clip: 'fx/pack-card-flip', cat: 'crateWhoosh', gain: 0.5 }],
   turnBig: [{ clip: 'windup', cat: 'crateCharge', gain: 0.45 }],
   land: [{ clip: 'cardlanding', cat: 'crateStamp', gain: 0.5 }],
   landEpic: [{ clip: 'prismaticpick', cat: 'crateTierShimmer', gain: 0.4, delayMs: 40 }],
@@ -86,6 +90,29 @@ export const CARD_CUES = {
     { clip: 'fx/reveal-shimmer', cat: 'crateTierShimmer', gain: 0.7, delayMs: 120, rate: 1.12 },
   ],
 } as const satisfies Record<string, readonly ClipCue[]>;
+
+/**
+ * THE WRAPPER'S SOUNDS are RECORDED foil (owner 2026-11-24: "sound, crinkling of the card wrapper, tearing the wrapper":
+ * they must sound real), generated for this opening and played GRANULARLY so they follow the hand: the tear and the
+ * sleeve are loops of real foil ripping and cards sliding whose level and pitch ride the speed, with short grains of the
+ * same recordings fired as the foil catches; the crinkle is grains of a real wrapper crinkle fired as the foil is worked.
+ * `gain` levels each recording (they were not recorded at one level); `from` / `to` (seconds) is the part that is sound,
+ * not lead-in silence. Until a clip has decoded (or with no audio), the old synthesised cue plays in its place.
+ */
+interface FoilClip { clip: string; gain: number; from?: number; to?: number }
+export const FOIL = {
+  crinkle: [{ clip: 'fx/pack-crinkle-1', gain: 2.6, from: 0, to: 0.55 }, { clip: 'fx/pack-crinkle-2', gain: 2.4, from: 0.05, to: 0.55 }],
+  squeeze: { clip: 'fx/pack-squeeze', gain: 1.5 },
+  pinch: { clip: 'fx/pack-pinch', gain: 0.6 },
+  tear: { clip: 'fx/pack-tear', gain: 0.55, from: 1.05, to: 2.3 },
+  rip: { clip: 'fx/pack-rip', gain: 2 },
+  slide: { clip: 'fx/pack-slide', gain: 0.9, from: 0.7, to: 2.2 },
+  release: { clip: 'fx/pack-release', gain: 1.6 },
+  drop: { clip: 'fx/pack-drop', gain: 5 },
+  cards: { clip: 'fx/pack-cards', gain: 4 },
+} as const satisfies Record<string, FoilClip | readonly FoilClip[]>;
+/** The shortest gap between two grains (seconds): keeps the node count bounded however fast the hand moves. */
+export const GRAIN_GAP_S = 0.03;
 
 /** Seedless PRNG for the noise bed and crackle picks (one helper so it is swappable). */
 const rand = (): number => Math.random();
@@ -187,6 +214,77 @@ export function createPackSounds(): PackSounds {
     });
   };
 
+  /** A recorded clip's buffer once decoded (asking kicks the decode); null until then, or with no audio. */
+  const bufOf = (c: FoilClip): AudioBuffer | null => (disposed ? null : getFxClipBuffer(c.clip));
+
+  /** Play a recorded clip once. False when it is not decoded yet (the caller plays the synth instead). */
+  const shot = (c: FoilClip, gainMul = 1, rate = 1): boolean => {
+    const ctx = ready(), b = bufOf(c);
+    if (!ctx || !master || !b) return false;
+    const src = ctx.createBufferSource();
+    src.buffer = b;
+    src.playbackRate.value = rate;
+    const g = ctx.createGain();
+    g.gain.value = c.gain * gainMul;
+    src.connect(g); g.connect(master);
+    src.start(ctx.currentTime, c.from ?? 0);
+    return true;
+  };
+
+  /** One short grain out of a recorded clip's sounding part, with a click-free envelope. False when not decoded yet. */
+  let lastGrain = -1;
+  const grain = (c: FoilClip, ms: number, gainMul: number, rate: number): boolean => {
+    const ctx = ready(), b = bufOf(c);
+    if (!ctx || !master || !b) return false;
+    const t = ctx.currentTime;
+    if (t - lastGrain < GRAIN_GAP_S) return true; // heard, just not this frame
+    lastGrain = t;
+    const from = c.from ?? 0, to = Math.min(c.to ?? b.duration, b.duration), dur = ms / 1000;
+    const off = from + rand() * Math.max(0, to - from - dur);
+    const src = ctx.createBufferSource();
+    src.buffer = b;
+    src.playbackRate.value = rate;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(c.gain * gainMul, t + 0.004);
+    g.gain.exponentialRampToValueAtTime(0.0008, t + dur);
+    src.connect(g); g.connect(master);
+    src.start(t, off, dur + 0.02);
+    return true;
+  };
+
+  /** A standing loop of a recorded clip's sounding part (built once, when it has decoded); its level and pitch are set per frame. */
+  const recLoops = new Map<string, { src: AudioBufferSourceNode; gain: GainNode } | null>();
+  const recLoop = (c: FoilClip): { src: AudioBufferSourceNode; gain: GainNode } | null => {
+    const have = recLoops.get(c.clip);
+    if (have) return have;
+    const ctx = ready(), b = bufOf(c);
+    if (!ctx || !master || !b) return null;
+    try {
+      const src = ctx.createBufferSource();
+      src.buffer = b;
+      src.loop = true;
+      src.loopStart = c.from ?? 0;
+      src.loopEnd = Math.min(c.to ?? b.duration, b.duration);
+      const gain = ctx.createGain();
+      gain.gain.value = 0;
+      src.connect(gain); gain.connect(master);
+      src.start(ctx.currentTime, c.from ?? 0);
+      sources.push(src);
+      const node = { src, gain };
+      recLoops.set(c.clip, node);
+      return node;
+    } catch { return null; }
+  };
+  const setRec = (c: FoilClip, level: number, rate: number): boolean => {
+    const n = recLoop(c);
+    if (!n || !a) return false;
+    const t = a.currentTime;
+    n.gain.gain.setTargetAtTime(c.gain * level, t, 0.03);
+    n.src.playbackRate.setTargetAtTime(rate, t, 0.05);
+    return true;
+  };
+
   /** Play a card beat's recorded clips (`rateMul` / `gainMul` on top of each cue's own), scaled by the pack volume knob. */
   const cues = (list: readonly ClipCue[], rateMul = 1, gainMul = 1): void => {
     if (disposed || !audioContext()) return;
@@ -204,31 +302,49 @@ export function createPackSounds(): PackSounds {
   };
 
   return {
-    pop: () => play(PACK_CUES.pop),
+    pop() { if (!shot(FOIL.pinch)) play(PACK_CUES.pop); },
     tear(speed) {
       if (!ready()) return;
       const v = Math.max(0, speed);
-      setLoop(tearBp, tearGain, 1300 + v * 220, Math.min(1, v / 9) * 0.55);
+      // the recorded tear's level and pitch ride the speed; the synth bed only until it has decoded
+      if (setRec(FOIL.tear, Math.min(1, v / 8), 0.82 + Math.min(1, v / 14) * 0.5)) setLoop(tearBp, tearGain, 1300, 0);
+      else setLoop(tearBp, tearGain, 1300 + v * 220, Math.min(1, v / 9) * 0.55);
     },
     crackle(speed, dt) {
       if (!ready() || !(speed > 0) || !(dt > 0)) return;
       // Rate speed*0.07 per unit dt; at most one crackle per call keeps allocation bounded.
       if (rand() < speed * 0.07 * dt) {
-        burst({ ms: 10 + rand() * 25, hz: 2400 + rand() * 4500, gain: 0.35, q: 2 });
+        // the foil catching: a grain of the real tear, pitched a little differently each time
+        if (!grain(FOIL.tear, 50 + rand() * 70, 0.9, 0.9 + rand() * 0.5)) burst({ ms: 10 + rand() * 25, hz: 2400 + rand() * 4500, gain: 0.35, q: 2 });
       }
     },
     rip() {
-      play(PACK_CUES.rip);
+      if (!shot(FOIL.rip)) play(PACK_CUES.rip);
       setLoop(tearBp, tearGain, 1300, 0);
+      setRec(FOIL.tear, 0, 1);
     },
-    sleeveFree: () => play(PACK_CUES.sleeveFree),
+    sleeveFree() { if (!shot(FOIL.release)) play(PACK_CUES.sleeveFree); },
     slide(speed) {
       if (!ready()) return;
       const v = Math.max(0, speed);
-      setLoop(slideBp, slideGain, 450 + v * 80, Math.min(1, v / 10) * 0.45);
+      if (setRec(FOIL.slide, Math.min(1, v / 9), 0.8 + Math.min(1, v / 14) * 0.45)) setLoop(slideBp, slideGain, 450, 0);
+      else setLoop(slideBp, slideGain, 450 + v * 80, Math.min(1, v / 10) * 0.45);
     },
-    drop: () => play(PACK_CUES.drop),
-    whoosh: () => play(PACK_CUES.whoosh),
+    drop() { if (!shot(FOIL.drop)) play(PACK_CUES.drop); setRec(FOIL.slide, 0, 1); },
+    whoosh() { if (!shot(FOIL.cards)) play(PACK_CUES.whoosh); },
+    squeeze() {
+      if (!shot(FOIL.squeeze, 1, 0.92 + rand() * 0.16)) burst({ ms: 60, hz: 3200, gain: 0.4, q: 1.5 });
+    },
+    handle(amount) {
+      if (!ready() || !(amount > 0)) return;
+      // at most one crinkle grain per call, more likely the harder the foil is worked
+      const k = Math.min(1, amount);
+      if (rand() >= k) return;
+      const c = FOIL.crinkle[rand() < 0.5 ? 0 : 1]!;
+      if (!grain(c, 70 + rand() * 110, 0.55 + 0.45 * k, 0.88 + rand() * 0.34)) {
+        burst({ ms: 14 + rand() * 30, hz: 2600 + rand() * 5200, gain: 0.16 + 0.2 * k, q: 2.5 });
+      }
+    },
     press: () => cues(CARD_CUES.press),
     tease(stage) {
       const s = Math.max(0, Math.min(TEASE_RATES.length - 1, Math.floor(stage)));
@@ -259,11 +375,14 @@ export function createPackSounds(): PackSounds {
       if (!a) return;
       const t = a.currentTime;
       for (const g of [tearGain, slideGain]) g?.gain.setTargetAtTime(0, t, 0.02);
+      for (const n of recLoops.values()) n?.gain.gain.setTargetAtTime(0, t, 0.02);
     },
     dispose() {
       if (disposed) return;
       const t = a ? a.currentTime : 0;
       for (const g of [tearGain, slideGain]) g?.gain.setTargetAtTime(0, t, 0.02);
+      for (const n of recLoops.values()) n?.gain.gain.setTargetAtTime(0, t, 0.02);
+      recLoops.clear();
       disposed = true;
       for (const s of sources) { try { s.stop(t + 0.1); } catch { /* already stopped */ } }
       sources.length = 0;

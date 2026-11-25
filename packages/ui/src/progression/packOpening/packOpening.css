@@ -6,7 +6,11 @@
 /* z-index 700: the crate theatre's layer (crateTheatre.css); there is no z-index token. */
 .pkop { position: fixed; inset: 0; z-index: 700; outline: none; --pk-rim: color-mix(in srgb, var(--gold) 70%, transparent);
   --pk-slow: 1; --pk-text: #f6ecd0; --pk-panel: #1a2033; }
-.pkop-scrim { position: absolute; inset: 0; background: rgba(6, 8, 16, 0.86); }
+/* The theatre's backdrop: near-opaque and dark, so the menu never shows through (owner 2026-11-24: "the entire
+   presentation"). The Pixi stage (packFx.ts) lights it during the opening; this is what the summary and the
+   reduced-motion path stand on. */
+.pkop-scrim { position: absolute; inset: 0; opacity: 0.985;
+  background: radial-gradient(ellipse 80% 72% at 50% 42%, #0d1632 0%, #070b19 55%, #030509 100%); }
 /* THE BIG-PULL SHAKE (bigPull.ts): the scene and the faces shake as one, once, when a Legendary / Ancient lands. A
    one-shot transform keyframe (BIG_PULL_SHAKE_MS = 260ms, slow-mo scaled), decaying; `--pk-quake` is the amplitude (px,
    set inline). Two identical names (-a / -b) so consecutive big pulls restart it. Never under reduced motion. */
@@ -32,13 +36,6 @@
   87% { transform: translate(calc(var(--pk-quake) * -0.07), calc(var(--pk-quake) * 0.04)); }
 }
 @media (prefers-reduced-motion: reduce) { .pkop-quake-a, .pkop-quake-b { animation: none; } }
-/* THE BIG-PULL WASH: the theatre is lit in the rarity's colour from where the face lands (the featured slot, 66% / 47%)
-   for a moment. One-shot, opacity only; remounted per big pull (its key), so it restarts. */
-.pkop-wash { position: absolute; inset: 0; pointer-events: none; opacity: 0;
-  background: radial-gradient(ellipse 62% 78% at 66% 47%, color-mix(in srgb, var(--rc) 55%, transparent), color-mix(in srgb, var(--rc) 15%, transparent) 55%, transparent 82%);
-  animation: pkop-wash calc(1.2s * var(--pk-slow, 1)) ease-out both; }
-@keyframes pkop-wash { 0% { opacity: 0; } 10% { opacity: 0.9; } 100% { opacity: 0; } }
-@media (prefers-reduced-motion: reduce) { .pkop-wash { animation: none; } }
 .pkop-fx { position: absolute; inset: 0; }
 .pkop-fx.pkop-hidden { visibility: hidden; pointer-events: none; }
 /* The featured slot's box is set inline from packFaces.tsx (`slotBox`), shared with the faces. */

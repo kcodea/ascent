@@ -274,7 +274,8 @@ export class TornLip {
   constructor() {
     this.n = Math.ceil(W / LIP_STEP) + 1;
     this.jag = new Float32Array(this.n);
-    for (let k = 0; k < this.n; k++) this.jag[k] = (Math.random() - 0.5) * 4;
+    // ragged: mostly small teeth, now and then a longer fibre pulled up
+    for (let k = 0; k < this.n; k++) this.jag[k] = (Math.random() - 0.5) * 6 - (Math.random() < 0.18 ? Math.random() * 7 : 0);
     const pos = new Float32Array(this.n * 4);
     const idx = new Uint32Array((this.n - 1) * 6);
     for (let k = 0; k < this.n - 1; k++) {
@@ -284,8 +285,8 @@ export class TornLip {
     }
     this.geom = new MeshGeometry({ positions: pos, uvs: new Float32Array(this.n * 4), indices: idx });
     this.view = new Mesh({ geometry: this.geom, texture: Texture.WHITE });
-    this.view.tint = 0xd9e0ee;
-    this.view.alpha = 0.9;
+    this.view.tint = 0xeef2fa;
+    this.view.alpha = 0.95;
     this.update(0);
   }
 
@@ -297,8 +298,8 @@ export class TornLip {
     const pos = this.geom.positions;
     for (let k = 0; k < this.n; k++) {
       const x = Math.min(k * LIP_STEP, T), y = H + this.jag[k], o = k * 4;
-      pos[o] = x; pos[o + 1] = y - 1;
-      pos[o + 2] = x; pos[o + 3] = y + 1;
+      pos[o] = x; pos[o + 1] = y - 1.6;
+      pos[o + 2] = x; pos[o + 3] = H + 2.2;
     }
     this.geom.getBuffer('aPosition').update();
   }

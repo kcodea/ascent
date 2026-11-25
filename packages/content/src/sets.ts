@@ -344,6 +344,9 @@ export interface SetDef {
   /** The LOCATION this set is played at, as players read it (owner 2026-11-24: "instead of Set 2 it would now be The
    *  Outskirts"). Absent = it has none yet, so nothing offers it as a place to play. */
   location?: string;
+  /** The name of the place a set WILL be played at (owner 2026-11-25), for a set with no `location` yet: read as its name
+   *  where sets are listed (`setPlaceName`), and nothing else (no reveal, no Practice pick, no clock). */
+  placeName?: string;
   /** One-line blurb for banners / tooltips. */
   blurb: string;
   /** The on/off switch. `false` retires the set for NEW runs; in-flight runs keep their pinned copy. */
@@ -378,6 +381,7 @@ export const SETS: Record<SetId, SetDef> = {
   set1: {
     id: 'set1',
     name: 'Set 1',
+    placeName: 'Scrapyard',
     blurb: 'The founding collection.',
     enabled: false, // set 2 went live 2026-07-31 — first-enabled-wins, so this must flip off
     tribes: ['beast', 'dragon', 'undead', 'mech', 'demon'], // the five founding playable tribes
@@ -439,6 +443,7 @@ export const SETS: Record<SetId, SetDef> = {
   set4: {
     id: 'set4',
     name: 'Set 4',
+    placeName: 'Rune Barriers',
     blurb: 'In development.',
     // A SCAFFOLD (owner 2026-10-13), started the way Set 3 was: selectable in the Scene Builder's set picker (which
     // offers disabled sets on purpose), NEVER the active set. `activeSet()` is first-enabled-wins in declaration
@@ -451,6 +456,9 @@ export const SETS: Record<SetId, SetDef> = {
     own: [...SET4_CARDS, ...SET4_SHARED_SPELLS, ...SET4_SPELLS], // → packages/content/src/cards/set4/*.ts (Beasts, then the Celestials + Starform), then Set 3's generic neutral spells by reference (owner 2026-10-14), then Set 4's own Celestial spells
   },
 };
+
+/** A set's name as PLAYERS read it: its location, the place it will be, else its internal name (R-LOCATION-10). */
+export const setPlaceName = (d: SetDef): string => d.location ?? d.placeName ?? d.name;
 
 /** The set a NEW run should adopt — the first enabled entry, or `set1` if somebody disabled them all.
  *  Deterministic (depends only on the registry's `enabled` flags), so it's safe to call from `createRun`. */

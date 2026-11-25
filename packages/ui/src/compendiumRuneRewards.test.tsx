@@ -10,7 +10,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { act } from 'react';
-import { CARD_INDEX, EPIC_RUNES, RUNES, SETS, type SetId } from '@game/content';
+import { CARD_INDEX, EPIC_RUNES, RUNES, SETS, setPlaceName, type SetId } from '@game/content';
 import { MinionBook } from './MinionBook';
 import { questRewardCardsFor, runeRewardCardsFor } from './compendiumRewards';
 import { useGame } from './store';
@@ -50,7 +50,7 @@ describe('Compendium Rune Rewards section', () => {
   const names = (): string[] => [...m.container.querySelectorAll('.book-grid .book-cell .cn')].map((n) => n.textContent ?? '');
   const pickSet = (id: SetId): void => {
     click(m.container.querySelector('.book-setpick-btn'));
-    click([...m.container.querySelectorAll('.book-setpick-opt')].find((o) => o.textContent?.startsWith(SETS[id].name)));
+    click([...m.container.querySelectorAll('.book-setpick-opt')].find((o) => o.textContent?.startsWith(setPlaceName(SETS[id]))));
   };
   const search = (q: string): void => {
     act(() => {

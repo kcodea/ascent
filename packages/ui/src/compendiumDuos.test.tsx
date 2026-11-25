@@ -7,7 +7,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { act } from 'react';
-import { CARD_INDEX, DUOS_CARDS, RUNES, EPIC_RUNES, SETS, duosPoolFor, poolFor, type SetId } from '@game/content';
+import { CARD_INDEX, DUOS_CARDS, RUNES, EPIC_RUNES, SETS, setPlaceName, duosPoolFor, poolFor, type SetId } from '@game/content';
 import { MinionBook } from './MinionBook';
 import { runeRewardCardsFor } from './compendiumRewards';
 import { useGame } from './store';
@@ -24,7 +24,7 @@ describe('Compendium Duos toggle', () => {
   const cat = (label: string): void => click(m.container.querySelector(`.book-rail .book-cat[aria-label="${label}"]`));
   const pickSet = (id: SetId): void => {
     click(m.container.querySelector('.book-setpick-btn'));
-    click([...m.container.querySelectorAll('.book-setpick-opt')].find((o) => o.textContent?.startsWith(SETS[id].name)));
+    click([...m.container.querySelectorAll('.book-setpick-opt')].find((o) => o.textContent?.startsWith(setPlaceName(SETS[id]))));
   };
   const nameOf = (id: string): string => CARD_INDEX[id]!.name;
 

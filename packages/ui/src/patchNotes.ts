@@ -75,14 +75,6 @@ export const PATCH_NOTES: PatchNote[] = [
         text: 'The sound of the location now carries on through hero select, and its water is softer behind the blur.',
       },
       {
-        category: 'Balance',
-        text: 'Cassen: finishing a commission no longer gives max Gold.',
-      },
-      {
-        category: 'Balance',
-        text: 'Chimerus now gives its Health to 2 different friendly Dragons: never another Chimerus.',
-      },
-      {
         category: 'Systems',
         text: 'Fixed Ranked Duos breaking on the second game of a party: it replayed fights from the game before and never came back to the Shop.',
       },

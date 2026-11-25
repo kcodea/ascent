@@ -58,7 +58,9 @@ import { packGlowRarity } from '../packOpening/packGlow';
 import { PACK_GEOM, paintGlossBand } from '../packOpening/packTextures';
 import { aimInto, newTilt, stepTilt, tiltEaseK, type TiltState } from '../packOpening/packTilt';
 import { LIFT_GROW, ShelfPack, liftPoseInto } from './shelfPack';
-import { PLACARD_H, Placard, loadTexture, paintCounter, paintPlacard, paintPlinth, paintShadow, paintTray } from './shopDressing';
+import {
+  PLACARD_H, Placard, loadTexture, paintCounter, paintPlacard, paintPlinth, paintShadow, paintTray, placardBadge, placardCount,
+} from './shopDressing';
 import { AETHER_ICON_SRC } from '../AetherIcon';
 import { arrived, buySettled, cancelHeld, moveHeld, newDrag, pickUp, release, zoneAt, type ShopDrag } from './shopDrag';
 import { HAND_FAN_MAX, clampScroll, handPoseInto, shelfPoseInto, shopLayout, startScroll, type PackPose, type ShopLayout } from './shopLayout';
@@ -1005,7 +1007,10 @@ class ShopSceneImpl implements ShopScene {
       const pl = this.placards[s]!;
       if (this.placardOf[s] !== offer) {
         this.placardOf[s] = offer;
-        if (offer.soldOut) pl.set('Sold out', 'sold'); else if (offer.price <= 0) pl.set('Free', 'free'); else pl.set(String(offer.price), 'price');
+        const count = placardCount(offer.contains), badge = placardBadge(offer.badge);
+        if (offer.soldOut) pl.set('Sold out', 'sold', count, badge);
+        else if (offer.price <= 0) pl.set('Free', 'free', count, badge);
+        else pl.set(String(offer.price), 'price', count, badge);
       }
       const restX = p.x - lean * LEAN_PUSH * p.h * ASPECT, footY = p.y + p.h / 2;
       // (the placard stays on the counter while its pack is carried: only the rack's own motion moves it)

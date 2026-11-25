@@ -7,7 +7,7 @@
  * Everything here is painted once into a canvas (no per-frame drawing); the scene only moves, scales and fades the
  * sprites. No Pixi ticker, no DOM beyond off-screen canvases.
  */
-import { Container, Sprite, Text, Texture } from 'pixi.js';
+import { Container, Graphics, Sprite, Text, Texture } from 'pixi.js';
 
 const canvasOf = (w: number, h: number): { c: HTMLCanvasElement; g: CanvasRenderingContext2D | null } => {
   const c = document.createElement('canvas');
@@ -144,11 +144,37 @@ export function paintPlacard(): HTMLCanvasElement {
 
 export type PlacardKind = 'price' | 'free' | 'sold';
 
-/** A price placard: the plate, the Aether gem and the price (or "Free" / "Sold out"). `view`'s origin is its bottom centre. */
+/** The ribbon chip's words for an offer's badge (null: no chip). "Free" has none: the placard already says it. */
+export function placardBadge(badge: 'new' | 'free' | 'featured' | undefined): string | null {
+  return badge === 'new' ? 'New' : badge === 'featured' ? 'Featured' : null;
+}
+
+/** A box's count beside its price ("x10"); empty for a single pack. */
+export function placardCount(contains: number): string {
+  return contains > 1 ? `x${contains}` : '';
+}
+
+/** The ribbon chip's colours: New is mint, Featured is the shop's gold. */
+const CHIP = {
+  New: { fill: 0x1f6b57, rim: 0x8dffd8, text: 0xd9fff2 },
+  Featured: { fill: 0x6b4a12, rim: 0xffd27a, text: 0xfff1d0 },
+} as const;
+const CHIP_FONT = 20;
+const CHIP_H = 28;
+
+/**
+ * A price placard: the plate, the Aether gem and the price (or "Free" / "Sold out"), a box's count beside it ("x10"),
+ * and a ribbon chip on its top edge for a new or featured offer. `view`'s origin is its bottom centre. Everything is
+ * rewritten only when what it shows changes.
+ */
 export class Placard {
   readonly view = new Container();
   private readonly icon: Sprite;
   private readonly text: Text;
+  private readonly count: Text;
+  private readonly chip = new Container();
+  private readonly chipPlate = new Graphics();
+  private readonly chipText: Text;
   private key = '';
 
   constructor(plate: Texture, gem: Texture, font: string) {
@@ -158,29 +184,59 @@ export class Placard {
     this.icon.anchor.set(0.5);
     this.text = new Text({ text: '', style: { fontFamily: font, fontSize: 34, fontWeight: '800', fill: 0xdcf3ff } });
     this.text.anchor.set(0, 0.5);
-    this.view.addChild(bg, this.icon, this.text);
+    this.count = new Text({ text: '', style: { fontFamily: font, fontSize: 24, fontWeight: '800', fill: 0xffd27a } });
+    this.count.anchor.set(0, 0.5);
+    this.count.visible = false;
+    this.chipText = new Text({ text: '', style: { fontFamily: font, fontSize: CHIP_FONT, fontWeight: '800', fill: 0xffffff, letterSpacing: 0.5 } });
+    this.chipText.anchor.set(0.5);
+    this.chip.addChild(this.chipPlate, this.chipText);
+    this.chip.visible = false;
+    this.chip.position.set(0, -PLACARD_H + 4); // centred on the plate's top edge
+    this.view.addChild(bg, this.icon, this.text, this.count, this.chip);
     this.view.visible = false;
   }
 
   /** The gem's texture arrives after the scene is up. */
   setGem(gem: Texture): void { this.icon.texture = gem; this.key = ''; }
 
-  /** Show `label` (the number, or the words) as `kind`. Lays the gem and the text out centred; no-op when unchanged. */
-  set(label: string, kind: PlacardKind): void {
-    const key = `${kind}:${label}:${this.icon.texture.width}`;
+  /**
+   * Show `label` (the number, or the words) as `kind`, a box's `count` words beside it (`placardCount`; '' for none) and
+   * a ribbon chip's words (`placardBadge`; null for none). Lays the gem and the words out centred; no-op when unchanged.
+   */
+  set(label: string, kind: PlacardKind, count = '', badge: string | null = null): void {
+    const key = `${kind}:${label}:${count}:${badge ?? ''}:${this.icon.texture.width}`;
     if (key === this.key) return;
     this.key = key;
-    const t = this.text, ic = this.icon;
+    const t = this.text, ic = this.icon, c = this.count;
     t.text = label;
     t.style.fill = kind === 'sold' ? 0xff9c8a : kind === 'free' ? 0xb7ffcf : 0xdcf3ff;
     const cy = -(PLACARD_H - 12) / 2 - 6;
     const gem = kind === 'price' && ic.texture.width > 1;
     ic.visible = gem;
-    const gw = 44;
-    const total = (gem ? gw + 8 : 0) + t.width;
+    c.visible = count !== '' && kind !== 'sold';
+    if (c.visible) c.text = count;
+    const gw = 44, gap = 8, cgap = 10;
+    const total = (gem ? gw + gap : 0) + t.width + (c.visible ? cgap + c.width : 0);
     let x = -total / 2;
-    if (gem) { ic.width = gw; ic.height = gw; ic.position.set(x + gw / 2, cy); x += gw + 8; }
+    if (gem) { ic.width = gw; ic.height = gw; ic.position.set(x + gw / 2, cy); x += gw + gap; }
     t.position.set(x, cy);
+    x += t.width + cgap;
+    if (c.visible) c.position.set(x, cy + 3); // (smaller words: a touch lower, so their baselines nearly meet)
+    this.dressChip(badge);
+  }
+
+  private dressChip(words: string | null): void {
+    const chip = this.chip;
+    chip.visible = words !== null;
+    if (words === null) return;
+    const look = words === 'New' ? CHIP.New : CHIP.Featured;
+    const tx = this.chipText;
+    tx.text = words;
+    tx.style.fill = look.text;
+    const w = tx.width + CHIP_H, h = CHIP_H;
+    this.chipPlate.clear()
+      .roundRect(-w / 2, -h / 2, w, h, h / 2).fill({ color: look.fill, alpha: 0.97 })
+      .stroke({ width: 2, color: look.rim, alpha: 0.95 });
   }
 
   destroy(): void { this.view.destroy({ children: true }); }

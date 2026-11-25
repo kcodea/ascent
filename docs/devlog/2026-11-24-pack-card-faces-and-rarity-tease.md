@@ -40,3 +40,29 @@ sheet artifact (every cosmetic type at every rarity) and the Pack Lab.
 - The tease's sound is synthesised (no recorded clip yet).
 - In the built-in browser pane the scene runs at about 1.5 fps when the pane is not on screen, so the tease's steps were
   confirmed by unit tests and a start/end screenshot, not watched at speed.
+
+## The feel pass (same day, owner: "generate iterations that improve the real tactile feel of opening cards, and the dopamine rush of hitting it big, as well as the building excitement"; "i want the details to be intricate"; "sound effects to sound real")
+
+- **The card aura is a shader** (`packAura.ts`, GLSL ES 3.0, WebGL only; the painted glow and burst sprites remain as the
+  fallback and as a soft bed under it). One fragment shader per aura draws: wisps of warped noise streaming out from the
+  card's own rounded edge, filaments, a hot rim with running sparks, fine rays (Legendary up), drifting motes; and on a
+  reveal a torn plasma shell (never a clean circle), god rays with needles, a core flash, streaked embers and facet
+  glints. Two auras: one under the pile (the tease) and one that rides the turning card, follows the face to its slot,
+  bursts there and stays lit behind a Legendary / Ancient face. Sizes by rarity: `bigPull.ts` (`FLIP_CHARGE`,
+  `AURA_BURST`, `FACE_AMBIENT`).
+- **The pile answers the pointer** (`packPile.ts`): the top card lifts and leans toward a resting pointer, sinks under a
+  press. `pileStep` is the one place the top card is posed (the tease only says how much to add).
+- **The tease escalates**: the aura and a tinted glare on the card back climb with the colour; from Legendary the card
+  trembles and a heartbeat kicks it while the pointer holds.
+- **A better card turns slower** (`flipHalfMs`: Epic 330, Legendary 460, Ancient 560 ms per half), with a small sink
+  before the lift. The shell, the scene and the face all read the one function.
+- **The face**: a flash of the rarity's light as it opens and a punch of scale as it lands (`.pkf-flash`, `.pkf-punch`),
+  and a big pull washes the theatre in its colour (`.pkop-wash`). All one-shots, opacity / transform / `scale` only.
+- **Sounds are recorded clips** from the game's library (`CARD_CUES` in `packSounds.ts`): card touch on a press, a
+  singing glass that climbs a pitch ladder per tease step, a low pulse for the heartbeat, a card swish (and a wind-up for
+  Legendary / Ancient) on the turn, a card landing, and layered impacts and shimmer on a big pull. The synthesised tease
+  ring is gone.
+
+How it was checked: the shader's look from a CPU reference render of the shipped GLSL (it compiles in a real WebGL2
+context); the maths and the face beats by unit tests. NOT checked: the motion at real speed and the sounds by ear (the
+built-in browser pane ran under one frame a second). Both need the owner's eye and ear.

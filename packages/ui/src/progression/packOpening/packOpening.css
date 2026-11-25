@@ -32,6 +32,13 @@
   87% { transform: translate(calc(var(--pk-quake) * -0.07), calc(var(--pk-quake) * 0.04)); }
 }
 @media (prefers-reduced-motion: reduce) { .pkop-quake-a, .pkop-quake-b { animation: none; } }
+/* THE BIG-PULL WASH: the theatre is lit in the rarity's colour from where the face lands (the featured slot, 66% / 47%)
+   for a moment. One-shot, opacity only; remounted per big pull (its key), so it restarts. */
+.pkop-wash { position: absolute; inset: 0; pointer-events: none; opacity: 0;
+  background: radial-gradient(ellipse 62% 78% at 66% 47%, color-mix(in srgb, var(--rc) 55%, transparent), color-mix(in srgb, var(--rc) 15%, transparent) 55%, transparent 82%);
+  animation: pkop-wash calc(1.2s * var(--pk-slow, 1)) ease-out both; }
+@keyframes pkop-wash { 0% { opacity: 0; } 10% { opacity: 0.9; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .pkop-wash { animation: none; } }
 .pkop-fx { position: absolute; inset: 0; }
 .pkop-fx.pkop-hidden { visibility: hidden; pointer-events: none; }
 /* The featured slot's box is set inline from packFaces.tsx (`slotBox`), shared with the faces. */

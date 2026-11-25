@@ -527,6 +527,7 @@ class PackSceneImpl implements PackScene {
     this.xf.active = false;
     v.fade.visible = false;
     v.flash.visible = false;
+    v.flash.tint = 0xffffff; // the tease may have tinted it
     this.setFlipCorners(0);
     // the next card comes up under it
     this.flipped = idx + 1;
@@ -585,6 +586,8 @@ class PackSceneImpl implements PackScene {
     ts.level += ((on ? 1 : 0) - ts.level) * Math.min(1, 0.22 * dt);
     if (!on && ts.level < 0.02) {
       v.glow.visible = false; aura?.off();
+      if (!this.xf.active) v.flash.visible = false;
+      v.flash.tint = 0xffffff;
       ts.live = false; ts.level = 0;
       return;
     }
@@ -601,6 +604,13 @@ class PackSceneImpl implements PackScene {
       aura?.setRarity(r);
       this.beatT = 0;
       this.sounds.tease(at.stage);
+      v.flash.tint = ancient ? 0xffffff : rarityTint(r);
+    }
+    // the light inside shows on the card's own back too: a tinted glare that breathes (never during a back crossfade)
+    if (!this.xf.active) {
+      v.flash.visible = true;
+      v.flash.position.set(cardRestX(idx), cardRestY(idx));
+      v.flash.alpha = (0.09 + 0.06 * at.stage) * ts.level * (0.65 + 0.35 * Math.sin(this.time * 0.21)) + 0.12 * this.pile.beat * ts.level;
     }
     // the heartbeat of a held big tease
     const every = teaseBeatFrames(at.stage);

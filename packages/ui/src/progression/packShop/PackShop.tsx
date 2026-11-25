@@ -26,7 +26,8 @@ import './packShop.css';
  * `buyKey(offer)` (the offer AND its quote) until a DEFINITE answer: `ok`, or a refusal (`insufficient`,
  * `price_changed`, `sold_out`, `guest`). An attempt that threw or answered `failed` may have landed, so a retry of the
  * same quote sends the SAME id. One purchase at a time: while one is pending, another drop or Buy does nothing and Esc
- * does not close.
+ * does not close. A purchase with no answer after `BUY_TIMEOUT_MS` settles as `failed` (the id kept); its late answer is
+ * ignored.
  *
  * The purchase from a drag: `onDrop('buy')` -> `buy`. On ok, in this order: `payAether` from the wallet gem (measured
  * once, now) with the counter rolling down as the light lands, `buySettled(true)`, then the bought packs join the hand.
@@ -73,6 +74,8 @@ const TAG_GAP = 18;
 const TAG_W = 300;
 /** The most pips the guarantee's gauge draws. */
 const GAUGE_PIPS = 10;
+/** A purchase with no answer by then settles as `failed` (its request id kept), so the shop is never held for good. */
+export const BUY_TIMEOUT_MS = 15000;
 /** Refusals that are definite: the server did not charge, so the attempt's request id is spent. */
 const DEFINITE = new Set(['insufficient', 'price_changed', 'sold_out', 'guest']);
 
@@ -146,6 +149,8 @@ export function PackShop(props: PackShopProps) {
   const pendingRef = useRef(false);
   const playedRef = useRef<string | null>(null);
   const playTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** The pending purchase's timeout (`BUY_TIMEOUT_MS`). */
+  const buyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const openingRef = useRef(opening); openingRef.current = opening;
   /** Request ids of attempts still waiting for a definite answer, by `buyKey`. */
   const idsRef = useRef(new Map<string, string>());
@@ -297,10 +302,22 @@ export function PackShop(props: PackShopProps) {
         for (const el of items) if (el.dataset.offer === offer.offerId) el.focus();
       }
     };
+    // ONE answer per attempt: the first of the real answer and the shell's timeout. A purchase that never answers would
+    // hold the pack and the shop (no Close, no Esc) for good, so after BUY_TIMEOUT_MS it settles as `failed` (the id is
+    // kept: a retry sends the same one) and a late answer is ignored.
+    let done = false;
+    const once = (out: BuyPackOutcome): void => {
+      if (done) return;
+      done = true;
+      if (buyTimerRef.current !== null) { clearTimeout(buyTimerRef.current); buyTimerRef.current = null; }
+      settle(out);
+    };
+    buyTimerRef.current = setTimeout(() => { buyTimerRef.current = null; once({ status: 'error', reason: 'failed' }); }, BUY_TIMEOUT_MS);
     let p: Promise<BuyPackOutcome>;
     try { p = buyRef.current(offer.offerId, requestId); } catch (e) { p = Promise.reject(e); }
-    Promise.resolve(p).then(settle, () => settle({ status: 'error', reason: 'failed' }));
+    Promise.resolve(p).then(once, () => once({ status: 'error', reason: 'failed' }));
   }, [finishStream, keepFocus, say, setTally]);
+  useEffect(() => () => { if (buyTimerRef.current !== null) clearTimeout(buyTimerRef.current); buyTimerRef.current = null; }, []);
 
   // ------------------------------------------------------------------ playing a pack
 

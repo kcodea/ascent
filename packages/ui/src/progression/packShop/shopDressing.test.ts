@@ -1,5 +1,8 @@
 // @vitest-environment jsdom
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
+// jsdom has no canvas: Pixi probes one on import
+vi.hoisted(() => { HTMLCanvasElement.prototype.getContext = (() => null) as unknown as HTMLCanvasElement['getContext']; });
 import { placardBadge, placardCount } from './shopDressing';
 
 describe('the placard\'s words', () => {

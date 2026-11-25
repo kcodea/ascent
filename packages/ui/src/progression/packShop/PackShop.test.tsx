@@ -39,7 +39,7 @@ vi.mock('../packOpening/AetherTally', async () => {
   };
 });
 
-import { PackShop, SHOP_PLAY_TRAVEL_MS, type PackShopProps } from './PackShop';
+import { BUY_TIMEOUT_MS, PackShop, SHOP_PLAY_TRAVEL_MS, type PackShopProps } from './PackShop';
 import type { ShopScene, ShopSceneEvents } from './shopScene';
 
 const look = (id: string, name: string) => ({ kind: 'rarity', id, name, guaranteedFloor: 'rare' } as const);
@@ -172,6 +172,53 @@ describe('PackShop', () => {
     await settle({ status: 'ok', packs: [owned('n1')], aether: 800 });
     fire((e) => { e.onDrop('buy', 'epic', R); });
     expect(buys[3]!.requestId).not.toBe(buys[0]!.requestId);
+  });
+
+  describe('a purchase that never answers', () => {
+    beforeEach(() => { vi.useFakeTimers(); });
+    afterEach(() => { vi.useRealTimers(); });
+
+    it('settles as failed after BUY_TIMEOUT_MS: the pack returns, Close and Esc work again, a retry sends the same id, a late answer changes nothing', async () => {
+      const onClose = vi.fn();
+      render({ onClose });
+      fire((e) => { e.onDrop('buy', 'rare', R); });
+      const late = answer!;
+      key('Escape');
+      expect(onClose).not.toHaveBeenCalled();
+      expect(btn('Close')!.disabled).toBe(true);
+      act(() => { vi.advanceTimersByTime(BUY_TIMEOUT_MS - 1); });
+      expect(fake().calls.some((c) => c.startsWith('buySettled'))).toBe(false);
+      act(() => { vi.advanceTimersByTime(1); });
+      expect(fake().calls.at(-1)).toBe('buySettled:false');
+      expect(live()).toBe('Could not buy the pack. Try again.');
+      expect(btn('Close')!.disabled).toBe(false);
+      key('Escape');
+      expect(onClose).toHaveBeenCalledTimes(1);
+      // the answer the timeout gave up on arrives late: ignored
+      const before = fake().calls.length;
+      await act(async () => { late.resolve({ status: 'ok', packs: [owned('n1')], aether: 800 }); await flush(); });
+      expect(fake().calls.length).toBe(before);
+      expect(balance()).toBe('1000 Aether');
+      expect(handLabels()).toEqual(['Rare Pack, Open']);
+      expect(live()).toBe('Could not buy the pack. Try again.');
+      // the retry may have landed: the same request id
+      fire((e) => { e.onDrop('buy', 'rare', R); });
+      expect(buys).toHaveLength(2);
+      expect(buys[1]!.requestId).toBe(buys[0]!.requestId);
+      await settle({ status: 'ok', packs: [owned('n1')], aether: 800 });
+      expect(fake().calls.filter((c) => c.startsWith('buySettled'))).toEqual(['buySettled:false', 'buySettled:true']);
+      // a real answer clears its timeout: nothing fires later
+      act(() => { vi.advanceTimersByTime(BUY_TIMEOUT_MS * 2); });
+      expect(live()).toBe('Bought Rare Pack');
+    });
+
+    it('unmounting with a purchase pending leaves no timeout behind', () => {
+      render();
+      fire((e) => { e.onDrop('buy', 'rare', R); });
+      const timers = vi.getTimerCount();
+      m!.unmount(); m = null;
+      expect(vi.getTimerCount()).toBeLessThan(timers);
+    });
   });
 
   it('a definite refusal drops the id: the next attempt sends a new one', async () => {

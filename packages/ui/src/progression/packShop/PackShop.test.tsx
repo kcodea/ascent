@@ -142,7 +142,8 @@ describe('PackShop', () => {
     fire((e) => { e.onDrop('buy', 'epic', R); });
     fire((e) => { e.onDrop('buy', 'rare', R); });
     expect(buys).toHaveLength(1);
-    expect(fake().calls.filter((c) => c.startsWith('buySettled'))).toEqual([]);
+    // each extra drop goes straight back to the shelf (never left hanging as "buying")
+    expect(fake().calls.filter((c) => c.startsWith('buySettled'))).toEqual(['buySettled:false', 'buySettled:false']);
     // Esc does not close mid-purchase, nor does the Close button
     const onClose = vi.fn();
     render({ onClose });
@@ -150,7 +151,7 @@ describe('PackShop', () => {
     expect(btn('Close')!.disabled).toBe(true);
     expect(onClose).not.toHaveBeenCalled();
     await settle({ status: 'ok', packs: [owned('n1')], aether: 800 });
-    expect(fake().calls.filter((c) => c.startsWith('buySettled'))).toEqual(['buySettled:true']);
+    expect(fake().calls.filter((c) => c.startsWith('buySettled'))).toEqual(['buySettled:false', 'buySettled:false', 'buySettled:true']);
     fire((e) => { e.onDrop('buy', 'epic', R); });
     expect(buys.map((b) => b.offerId)).toEqual(['rare', 'epic']);
   });
@@ -409,6 +410,51 @@ describe('PackShop', () => {
       act(() => { openerProps!.onClosed!(); });
       expect(fake().calls.filter((c) => c === 'gain')).toHaveLength(1);
       expect(balance()).toBe('1300 Aether');
+    });
+
+    it('behind the opener the shop is inert and hidden from readers, and buys nothing; both lift as the opener leaves', () => {
+      render({ hand: [owned('h1'), owned('h2', 'Epic Pack')] });
+      const root = document.querySelector('.pks')!;
+      expect(root.hasAttribute('inert')).toBe(false);
+      click(btns('Rare Pack, Open')[0]);
+      expect(root.hasAttribute('inert')).toBe(true);
+      expect(root.getAttribute('aria-hidden')).toBe('true');
+      // a Buy press (the hidden list's item, then its Buy) and a drop across the line do nothing
+      click(shelfItem('epic'));
+      click(btn('Buy for 500 Aether'));
+      fire((e) => { e.onDrop('buy', 'rare', R); });
+      expect(buys).toHaveLength(0);
+      expect(fake().calls.at(-1)).toBe('buySettled:false');
+      act(() => { openerProps!.onClose!(); });
+      expect(root.hasAttribute('inert')).toBe(false);
+      expect(root.hasAttribute('aria-hidden')).toBe(false);
+      // still fading out over the shop: nothing is bought until it has gone
+      click(btn('Buy for 500 Aether'));
+      expect(buys).toHaveLength(0);
+      act(() => { openerProps!.onClosed!(); });
+      expect(root.hasAttribute('inert')).toBe(false);
+      click(shelfItem('epic'));
+      click(btn('Buy for 500 Aether'));
+      expect(buys.map((b) => b.offerId)).toEqual(['epic']);
+    });
+
+    it('no pack is played while a purchase is pending: not from the hand item, nor from Open in the reduced grid', async () => {
+      render({ hand: [owned('h1'), owned('h2', 'Epic Pack')] });
+      act(() => { shelfItem('epic').focus(); });
+      click(shelfItem('epic'));
+      click(btn('Buy for 500 Aether'));
+      expect(buys).toHaveLength(1);
+      click(btns('Rare Pack, Open')[0]);
+      expect(opener()).toBeNull();
+      await settle({ status: 'ok', packs: [owned('n1', 'Epic Pack')], aether: 500 });
+      m!.unmount(); m = null;
+      render({ reducedMotion: true, hand: [owned('h1')] });
+      click(btn('Buy for 200 Aether'));
+      click(btns('Open')[0]);
+      expect(opener()).toBeNull();
+      await settle({ status: 'ok', packs: [owned('n2')], aether: 800 });
+      click(btns('Open')[0]);
+      expect(opener()?.getAttribute('data-queue')).toBe('h1');
     });
 
     it('unmounting during the wait leaves no timer firing', () => {

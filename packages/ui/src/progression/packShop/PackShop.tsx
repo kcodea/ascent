@@ -25,8 +25,8 @@ import './packShop.css';
  * NEVER CHARGED TWICE (as the Chest Shop, `CrateShop.tsx`): every purchase attempt sends a request id, kept per
  * `buyKey(offer)` (the offer AND its quote) until a DEFINITE answer: `ok`, or a refusal (`insufficient`,
  * `price_changed`, `sold_out`, `guest`). An attempt that threw or answered `failed` may have landed, so a retry of the
- * same quote sends the SAME id. One purchase at a time: while one is pending, another drop or Buy does nothing and Esc
- * does not close. A purchase with no answer after `BUY_TIMEOUT_MS` settles as `failed` (the id kept); its late answer is
+ * same quote sends the SAME id. One purchase at a time: while one is pending, another drop goes back, a Buy does
+ * nothing, no pack is played and Esc does not close. Behind the opener the shop is `inert` and buys nothing. A purchase with no answer after `BUY_TIMEOUT_MS` settles as `failed` (the id kept); its late answer is
  * ignored.
  *
  * The purchase from a drag: `onDrop('buy')` -> `buy`. On ok, in this order: `payAether` from the wallet gem (measured
@@ -232,7 +232,8 @@ export function PackShop(props: PackShopProps) {
 
   /** Buy `offer`. `viaScene`: the scene is holding the pack at the hand and waits for `buySettled`. */
   const purchase = useCallback((offer: PackOffer, viaScene: boolean): void => {
-    if (pendingRef.current || playTimerRef.current !== null) return;
+    // never behind the opener (the shop is inert under it, and nothing is bought until it has gone)
+    if (pendingRef.current || playTimerRef.current !== null || openingRef.current) return;
     const key = buyKey(offer);
     let requestId = idsRef.current.get(key);
     if (!requestId) { requestId = mintRequestId(); idsRef.current.set(key, requestId); }
@@ -325,7 +326,8 @@ export function PackShop(props: PackShopProps) {
   const play = useCallback((packId: string, viaScene = false): void => {
     const all = shownHandRef.current;
     const first = all.find((p) => p.packId === packId);
-    if (!first || openingRef.current || playTimerRef.current !== null) return;
+    // never during a purchase: its answer would pull focus out of the opener
+    if (!first || openingRef.current || playTimerRef.current !== null || pendingRef.current) return;
     setSel(null);
     setHover(null);
     // The scene carries the pack to the opener's pose itself; only then does the scene hide and the opener mount.
@@ -375,7 +377,10 @@ export function PackShop(props: PackShopProps) {
         });
       } else setTally(to);
     }
-    // Focus goes back to the hand item that was played, if it is still in the hand, else to the dialog.
+    // Focus goes back to the hand item that was played, if it is still in the hand, else to the dialog. The shop stops
+    // being inert NOW (its render comes after this), or the focus would not land.
+    dialogRef.current?.removeAttribute('inert');
+    dialogRef.current?.removeAttribute('aria-hidden');
     const played = playedRef.current;
     const item = played && !openedRef.current.has(played)
       ? dialogRef.current?.querySelector<HTMLElement>(`[data-pack="${played}"]`) : null;
@@ -386,7 +391,8 @@ export function PackShop(props: PackShopProps) {
   const openerGone = useCallback((): void => {
     setOpening(null);
     setLeaving(false);
-    sceneRef.current?.setInputEnabled(true);
+    // (a purchase still pending keeps the scene's input off until it answers)
+    sceneRef.current?.setInputEnabled(!pendingRef.current);
   }, []);
 
   // ------------------------------------------------------------------ the scene
@@ -433,10 +439,9 @@ export function PackShop(props: PackShopProps) {
         setHeld(null);
         setOverLine(false);
         if (action === 'buy') {
-          if (playTimerRef.current !== null) { sceneRef.current?.buySettled(false); return; }
-          if (pendingRef.current) return;
+          // the shop is busy (a pack travelling, a purchase pending, the opener up): the pack goes back, never stuck
           const offer = offersRef.current.find((o) => o.offerId === id);
-          if (!offer) { sceneRef.current?.buySettled(false); return; }
+          if (!offer || playTimerRef.current !== null || pendingRef.current || openingRef.current) { sceneRef.current?.buySettled(false); return; }
           purchaseRef.current(offer, true);
           return;
         }
@@ -610,8 +615,10 @@ export function PackShop(props: PackShopProps) {
     </div>
   );
 
+  // Under the opener the shop is inert: nothing in it can be focused, pressed or read until the opener starts to leave.
+  const away = !!opening && !leaving;
   const shop = (
-    <div className={`pks${entering && !reduced ? ' pks-enter' : ''}${opening && !leaving ? ' pks-away' : ''}${reduced ? ' pks-still' : ''}`} role="dialog" aria-modal="true" aria-label="Pack shop" ref={dialogRef} tabIndex={-1}
+    <div {...(away ? { inert: '', 'aria-hidden': true } : {})} className={`pks${entering && !reduced ? ' pks-enter' : ''}${away ? ' pks-away' : ''}${reduced ? ' pks-still' : ''}`} role="dialog" aria-modal="true" aria-label="Pack shop" ref={dialogRef} tabIndex={-1}
          onKeyDown={onArrows}>
       <div className="pkop-scrim" aria-hidden />
       {!reduced && <div className="pks-fx" ref={hostRef} aria-hidden />}

@@ -150,11 +150,24 @@ export function PackShop(props: PackShopProps) {
   /**
    * The wallet counter's target. While a purchase is pending or its Aether is streaming, the counter belongs to the
    * stream: it rolls down once, by the stream's progress, never back up. A parent's balance arriving meanwhile (a caller
-   * updating its own `aether` on the answer) is kept in `deferred` and applied when the stream is done.
+   * updating its own `aether` on the answer) is kept in `deferred` and applied when the stream is done. `to` is the
+   * answered balance the stream rolls toward.
    */
   const tallyTargetRef = useRef(aether);
-  const streamRef = useRef<{ active: boolean; deferred: number | null }>({ active: false, deferred: null });
+  const streamRef = useRef<{ active: boolean; deferred: number | null; to: number }>({ active: false, deferred: null, to: aether });
   const setTally = useCallback((v: number): void => { tallyTargetRef.current = v; tallyRef.current?.setTarget(v); }, []);
+  /**
+   * End the wallet stream: the counter lands on the parent's balance if one arrived meanwhile, else the answered one.
+   * Also called when the scene is torn down mid-stream (its flows are cleared and never report `done`), so a stream
+   * never stays "in flight" and later balances reach the counter again.
+   */
+  const finishStream = useCallback((): void => {
+    const st = streamRef.current;
+    st.active = false;
+    const end = st.deferred ?? st.to;
+    st.deferred = null;
+    setTally(end);
+  }, [setTally]);
 
   // The parent's balance is the truth whenever it changes.
   useEffect(() => {
@@ -240,12 +253,8 @@ export function PackShop(props: PackShopProps) {
       // The gem is measured once, here, never per frame.
       const orb = walletRef.current?.querySelector<HTMLElement>('.pkop-aether-orb');
       const g = orb?.getBoundingClientRect();
-      const finish = (): void => {
-        stream.active = false;
-        const end = stream.deferred ?? after;
-        stream.deferred = null;
-        setTally(end);
-      };
+      stream.to = after;
+      const finish = finishStream;
       if (scene && g) {
         stream.active = true;
         scene.payAether({ left: g.left, top: g.top, width: g.width, height: g.height }, offer.offerId, (frac, done) => {
@@ -271,7 +280,7 @@ export function PackShop(props: PackShopProps) {
     let p: Promise<BuyPackOutcome>;
     try { p = buyRef.current(offer.offerId, requestId); } catch (e) { p = Promise.reject(e); }
     Promise.resolve(p).then(settle, () => settle({ status: 'error', reason: 'failed' }));
-  }, [keepFocus, say, setTally]);
+  }, [finishStream, keepFocus, say, setTally]);
 
   // ------------------------------------------------------------------ playing a pack
 
@@ -374,6 +383,8 @@ export function PackShop(props: PackShopProps) {
       live = false;
       scene.destroy();
       if (sceneRef.current === scene) sceneRef.current = null;
+      // its flows are cleared and never report done: the shell finishes a stream in flight itself
+      if (streamRef.current.active) finishStream();
     };
     // One scene per shop (or per mode change); its handlers read refs.
   }, [reduced]);

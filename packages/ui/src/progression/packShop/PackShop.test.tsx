@@ -384,6 +384,36 @@ describe('PackShop', () => {
     expect(t).toEqual([950, 900, 850, 800]);
   });
 
+  it('a scene torn down mid-stream (reduced motion turns on) finishes the stream: later balances reach the counter', async () => {
+    holdStream = true;
+    render();
+    tallyTargets.length = 0;
+    fire((e) => { e.onDrop('buy', 'rare', R); });
+    await settle({ status: 'ok', packs: [owned('n1')], aether: 800 });
+    act(() => { stream!(0.5, false); });
+    expect(tallyTargets).toEqual([900]);
+    render({ reducedMotion: true }); // the scene is destroyed; its flows never report done
+    expect(fake().calls.at(-1)).toBe('destroy');
+    expect(tallyTargets.at(-1)).toBe(800); // the counter lands on the answered balance
+    act(() => { stream!(1, true); }); // a stale callback, were one to come, changes nothing
+    expect(tallyTargets.at(-1)).toBe(800);
+    render({ reducedMotion: true, aether: 650 });
+    expect(tallyTargets.at(-1)).toBe(650);
+    expect(balance()).toBe('650 Aether');
+  });
+
+  it('a teardown mid-stream lands on a balance the parent sent during the stream', async () => {
+    holdStream = true;
+    render();
+    tallyTargets.length = 0;
+    fire((e) => { e.onDrop('buy', 'rare', R); });
+    await settle({ status: 'ok', packs: [owned('n1')], aether: 800 });
+    act(() => { stream!(0.25, false); });
+    render({ aether: 790 }); // deferred while the stream runs
+    render({ aether: 790, reducedMotion: true });
+    expect(tallyTargets).toEqual([950, 790]);
+  });
+
   it('a parent balance that lands before the answer waits for the stream', async () => {
     holdStream = true;
     render();

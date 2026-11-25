@@ -17390,4 +17390,21 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'A party finishes a 13 round Ranked Duos game and starts another: after the round 1 fight the round 2 shop opens.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/cfRoundsPerMatch.test.ts'], lastVerifiedAt: '2026-11-25' },
   },
+  {
+    id: 'R-LOCATION-09',
+    title: 'The sound of the place goes on at hero select, and its water is behind the blur like everything else',
+    statement:
+      'When the location reveal ends its ambience does not: it loops on, a step quieter and with no seam, under hero select and the line '
+      + 'of the hero, and fades as the board takes over (or when hero select is left). Muting the game ends it. The water of the blurred '
+      + 'ground is as soft as the picture it is in: broad slow movement, with no streak or glint finer than the blur. A phone plays no '
+      + 'ambience (it decodes none) and keeps the still picture.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-25, with a screenshot of hero select', quote: 'the sound in this screen should continue and not drop off, and the water behind needs to be behind the blur more' },
+      { kind: 'code', ref: 'packages/ui/src/locationReveal/placeAmbience.ts; revealSound.ts (stays); placeGl.ts and revealShaders.ts (wetSoft)' },
+    ],
+    currentBehaviour: 'Built 2026-11-25. The owner has not heard or seen it yet.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/locationReveal/placeAmbience.test.ts'], lastVerifiedAt: '2026-11-25' },
+  },
 ];

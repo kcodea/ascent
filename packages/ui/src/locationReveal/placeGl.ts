@@ -33,7 +33,8 @@ void main(){
   float dep = NEAR * textureLod(DT, uv - OFS, 3.).r; vec2 q = at(rel, dep, push); dep = NEAR * textureLod(DT, q, 3.).r; q = at(rel, dep, push);
   float n = textureLod(DT, q, 2.).g, gust = .35 + .65 * smoothstep(.35, .75, n2(vec2(q.x * 2.2 - s * .16, q.y + s * .05)));
   q += n * vec2(sin(q.y * 11. + s * 1.7 + q.x * 6.), .4 * cos(q.x * 10. + s * 1.4)) * .0030 * gust;
-  vec3 wm = textureLod(WT, q, 2.).rgb; wm.b = texture(WT, q).b; vec3 c = wet(texture(BL, q + ripple(q, wm.g, s) * 2.).rgb, q, wm, s, .42 * live);
+  // the water is behind the blur like everything here: its own edges as soft as the picture's, its movement broad
+  vec3 wm = textureLod(WT, q, 4.).rgb * .55 + textureLod(WT, q, 5.).rgb * .45; wm.b = textureLod(WT, q, 3.).b; vec3 c = wetSoft(texture(BL, q + ripple(q, wm.g, s) * 1.2).rgb, q, wm, s, .6 * live);
   float low = smoothstep(.2, 1., uv.y);
   for (int i = 0; i < 2; i++) { float fi = float(i); vec2 m = uv - pan * (.06 + fi * .10); float h = n2(m * vec2(3.2, 5.) + vec2(s * (.06 + fi * .03) + fi * 9., -s * .02)) * .6 + n2(m * vec2(7., 10.) + vec2(s * .10, fi * 5.)) * .4; c += mg(vec3(.62, .80, 1.)) * smoothstep(.42, .85, h) * (.13 - fi * .04) * (.35 + .65 * low) * live; }
   // motes, out of focus like everything else here

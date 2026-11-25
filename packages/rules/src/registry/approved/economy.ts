@@ -364,4 +364,80 @@ export const ECONOMY_RULES: GameRule[] = [
     example: 'Enigma on the board, a Demon eats a Shop minion: every Shop minion this turn is +6/+7, after a Refresh too. Next turn: back to normal.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2NewMinionsAug18.test.ts'], lastVerifiedAt: '2026-11-23' },
   },
+  {
+    id: 'R-ALEUS-01',
+    title: 'Aleus: every Ale you cast permanently gives minions in the Shop +2/+2',
+    statement:
+      'Aleus (Set 2, Dwarf and Demon, Tier 4, 1/7): each Dwarven Ale cast on your side, from your hand or by a card or rune, and each '
+      + 'repetition of a cast that repeats, gives minions in the Shop +2/+2 (Gilded +4/+4), permanently: the minions there now and every '
+      + 'one after. An Ale cast in a fight pays it too, while Aleus lives. No other spell does. Two of them both pay.',
+    domain: 'economy',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-25 (Aleus)', quote: 'Aleus - 1/7 - When you cast an Ale, give minions in the shop +2/+2.' },
+      { kind: 'code', ref: 'packages/content/src/cards/set2/dwarves.ts (dw_aleus); packages/sim/src/recruit.ts aleCastBuffShop; packages/core/src/effects/factories.ts aleCastBuffShop' },
+    ],
+    cardText: 'When you cast an **Ale**, give minions in the Shop **+2/+2**.',
+    contentIds: ['dw_aleus'],
+    currentBehaviour: 'Conforms, built 2026-11-25. Permanent by the standing reading of "give minions in the Shop" (Contract Butcher).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/aleus.test.ts'], lastVerifiedAt: '2026-11-25' },
+  },
+  {
+    id: 'R-DRUNKDANIEL-01',
+    title: 'Drunk Daniel is Tier 5',
+    statement: 'Drunk Daniel (Set 2 Dwarf) is a Tier 5 6/6. Its End of Turn gives your Shop spells +1/+1 (Gilded +2/+2), as before.',
+    domain: 'economy',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-25', quote: 'move drunk daniel to T5' },
+      { kind: 'code', ref: 'packages/content/src/cards/set2/dwarves.ts (dw_drunkdaniel)' },
+    ],
+    contentIds: ['dw_drunkdaniel'],
+    currentBehaviour: 'Conforms, moved from Tier 6 on 2026-11-25; stats and text unchanged.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/koboldBalance1013.test.ts'], lastVerifiedAt: '2026-11-25' },
+  },
+  {
+    id: 'R-BALANCE-1125-01',
+    title: 'The 2026-11-25 stat changes: Demon Horse, Contract Butcher, Gasket, Raven',
+    statement: 'Demon Horse is a 4/5, Contract Butcher a 3/2, Gasket a 6/3 and Raven a 3/4. Tiers and text are unchanged.',
+    domain: 'economy',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-25 ("contract demon" read as Contract Butcher, the only Contract minion in Set 2)', quote: 'demon horse stats to 4/5' },
+      { kind: 'code', ref: 'packages/content/src/cards/set2/demons.ts (dm_hungerling, dm_butcher, dm_gasket); packages/content/src/cards/set2/beasts.ts (b2_raven)' },
+    ],
+    contentIds: ['dm_hungerling', 'dm_butcher', 'dm_gasket', 'b2_raven'],
+    currentBehaviour: 'Conforms since 2026-11-25 (were 3/3, 4/3, 7/3 and 4/6).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/aleus.test.ts'], lastVerifiedAt: '2026-11-25' },
+  },
+  {
+    id: 'R-PICKLES-SET2-01',
+    title: 'Pickles is in both The Outskirts and The Underbelly',
+    statement: 'Pickles (Kobold, Tier 2, 3/3) is sold in Set 2 and in Set 3, one shared card.',
+    domain: 'economy',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-25', quote: 'add pickles to the outskirts. (keep in the underbelly too)' },
+      { kind: 'code', ref: 'packages/content/src/sets.ts SET3_PICKLES_IN_SET2' },
+    ],
+    contentIds: ['k3_splitpick'],
+    currentBehaviour: 'Conforms since 2026-11-25.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/aleus.test.ts'], lastVerifiedAt: '2026-11-25' },
+  },
+  {
+    id: 'R-SET2-NEUTRALS-1125-01',
+    title: 'Alchemist Frank, Defender and Indy are in both The Outskirts and The Underbelly',
+    statement:
+      'Alchemist Frank (Tier 1), Defender (Tier 2) and Indy (Tier 4) are sold in Set 2 and in Set 3, one shared card each, and work the same in '
+      + 'both: the Bloodpot can be equipped and used, Defender gets its Tower Shields, Indy adds its Golden Monkey.',
+    domain: 'economy',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-25', quote: 'add alchemist frank, defender, and indy to the outskirts' },
+      { kind: 'code', ref: 'packages/content/src/sets.ts SET3_NEUTRALS_IN_SET2' },
+    ],
+    contentIds: ['e3_frank', 'n3_defender', 'n3_indy'],
+    currentBehaviour: 'Conforms since 2026-11-25. Read as staying in The Underbelly, as the owner said of Pickles the same day.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/aleus.test.ts'], lastVerifiedAt: '2026-11-25' },
+  },
 ];

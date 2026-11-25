@@ -4564,6 +4564,13 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if (m && m !== self) return;
     ARENA_EFFECTS.giftTeammateTripleReward(combatArena(ctx, self), params);
   },
+  /** ALEUS (R-ALEUS-01), combat half: an Ale cast mid-fight on this side gives minions in the Shop the same permanent buff (carried back).
+   *  Called by `spellResolved` (simulate.ts) with the cast Ale's id; the bare `spellCast` emit carries none and is ignored. */
+  aleCastBuffShop: (ctx, self, params, payload) => {
+    const { side, spellId } = (payload ?? {}) as { side?: Side; spellId?: string };
+    if (self.dead || side !== self.side || !spellId || !ALE_IDS.includes(spellId)) return;
+    ARENA_EFFECTS.rallyBuffShopPermanent(combatArena(ctx, self), params);
+  },
   /** BRATWORST BUCK (Duos batch A), combat half: an Ale cast mid-fight on this side gives the teammate a copy. Called
    *  by `spellResolved` (simulate.ts) with the cast Ale's id; the bare `spellCast` emit carries none and is ignored.
    *  The combat budget is `perTurn` per body per FIGHT (the Shop's turn count is not carried into combat). */

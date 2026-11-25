@@ -8,7 +8,7 @@ import { DEMONS } from './cards/set1/demons';
 import { SPELLS } from './cards/set1/spells';
 import { TIER7 } from './cards/set1/tier7';
 import { SET2_KOBOLDS, SET2_KOBOLDS_LATE } from './cards/set2/kobolds';
-import { SET2_DWARVES, SET2_DWARF_TOKENS, SET2_DWARF_RUNE_MINIONS, SET2_DWARVES_LATE } from './cards/set2/dwarves';
+import { SET2_DWARVES, SET2_DWARF_TOKENS, SET2_DWARF_RUNE_MINIONS, SET2_DWARVES_LATE, SET2_DWARVES_1125 } from './cards/set2/dwarves';
 import { SET2_DEMONS, SET2_DEMONS_LATE, SET2_DEMON_RUNE_MINIONS, SET2_DEMONS_1011 } from './cards/set2/demons';
 import { SET2_NEUTRAL } from './cards/set2/neutral';
 import { SET2_DRAGONS, SET2_DRAGON_RUNE_MINIONS } from './cards/set2/dragons';
@@ -134,6 +134,11 @@ const SET1_TIER7_IN_SET2: readonly CardDef[] = TIER7.filter((c) => ['uron', 'sal
  *  both keep their home set. Opted in by id and APPENDED at the end of set 2's `own`, so every existing set-2 pool
  *  position (seeded picks) stays put. */
 const SET3_KOBOLDS_IN_SET2: readonly CardDef[] = SET3_CARDS.filter((c) => c.id === 'k3_jeweler');
+/** Pickles (owner 2026-11-25: "add pickles to the outskirts. (keep in the underbelly too)"): a set-3 Kobold shared the way Jewel is, appended last. */
+const SET3_PICKLES_IN_SET2: readonly CardDef[] = SET3_CARDS.filter((c) => c.id === 'k3_splitpick');
+/** Owner 2026-11-25 ("add alchemist frank, defender, and indy to the outskirts"): three set-3 Neutrals shared the same way, appended last. They
+ *  stay in set 3. Frank's Bloodpot, Defender's Tower Shields and Indy's Golden Monkey all resolve by id. */
+const SET3_NEUTRALS_IN_SET2: readonly CardDef[] = [...SET3_CARDS, ...SET3_NEUTRAL].filter((c) => ['e3_frank', 'n3_defender', 'n3_indy'].includes(c.id));
 const SET1_DEMONS_LATE_IN_SET2: readonly CardDef[] = DEMONS.filter((c) => c.id === 'brood');
 /** Owner balance batch 2026-10-10: Striker (a set-3 Dwarf) joins set 2 as a SHARED definition (it stays in set 3), and
  *  set 2 gains two new Tier 6 minions, Drunk Daniel (Dwarf) and Hydraskus (Demon). All three are APPENDED after the
@@ -399,7 +404,7 @@ export const SETS: Record<SetId, SetDef> = {
     // dropped in, so an explicit `own` list is the manifest. Add `inherits: 'set1'` (+ `excludes`) instead
     // if you'd rather start from set 1 and trim; both compose, and `own` always appends last.
     // Kobolds (this set's minions) + Set 1's carried-over neutral spell toolkit + Set 2's own Ruby spells.
-    own: [...SET2_KOBOLDS, ...SET2_DWARVES, ...SET2_DRAGONS, ...SET1_DRAGONS_IN_SET2, ...SET2_BEASTS, ...SET1_BEASTS_IN_SET2, ...SET2_DEMONS, ...SET1_DEMONS_IN_SET2, ...SET2_NEUTRAL, ...SET1_NEUTRALS_IN_SET2, ...SET1_SPELLS_IN_SET2, ...SET2_SPELLS, ...SET1_TIER7_IN_SET2, ...SET2_DWARF_TOKENS, ...SET2_DWARF_RUNE_MINIONS_IN_SET2, ...SET2_DRAGON_RUNE_MINIONS, ...SET3_KOBOLDS_IN_SET2, ...SET1_DEMONS_LATE_IN_SET2, ...SET3_DWARVES_IN_SET2, ...SET2_DWARVES_LATE, ...SET2_DEMONS_LATE, ...SET2_DEMON_RUNE_MINIONS, ...SET2_DEMONS_1011, ...SET2_BEASTS_LATE, ...SET2_KOBOLDS_LATE], // → packages/content/src/cards/set2/*.ts (WIP). The two cross-set adds (2026-10-07) and the 2026-10-10 adds (Striker, Drunk Daniel, Hydraskus, then the rune-only Ruinous Lord, then Gasket and Rad Rachel) are APPENDED so no existing set-2 position moves.
+    own: [...SET2_KOBOLDS, ...SET2_DWARVES, ...SET2_DRAGONS, ...SET1_DRAGONS_IN_SET2, ...SET2_BEASTS, ...SET1_BEASTS_IN_SET2, ...SET2_DEMONS, ...SET1_DEMONS_IN_SET2, ...SET2_NEUTRAL, ...SET1_NEUTRALS_IN_SET2, ...SET1_SPELLS_IN_SET2, ...SET2_SPELLS, ...SET1_TIER7_IN_SET2, ...SET2_DWARF_TOKENS, ...SET2_DWARF_RUNE_MINIONS_IN_SET2, ...SET2_DRAGON_RUNE_MINIONS, ...SET3_KOBOLDS_IN_SET2, ...SET1_DEMONS_LATE_IN_SET2, ...SET3_DWARVES_IN_SET2, ...SET2_DWARVES_LATE, ...SET2_DEMONS_LATE, ...SET2_DEMON_RUNE_MINIONS, ...SET2_DEMONS_1011, ...SET2_BEASTS_LATE, ...SET2_KOBOLDS_LATE, ...SET2_DWARVES_1125, ...SET3_PICKLES_IN_SET2, ...SET3_NEUTRALS_IN_SET2], // → packages/content/src/cards/set2/*.ts (WIP). The two cross-set adds (2026-10-07) and the 2026-10-10 adds (Striker, Drunk Daniel, Hydraskus, then the rune-only Ruinous Lord, then Gasket and Rad Rachel) are APPENDED so no existing set-2 position moves.
   },
   set3: {
     id: 'set3',

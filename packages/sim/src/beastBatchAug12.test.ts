@@ -198,11 +198,11 @@ describe('Rune of Beastial Swarm — per-death buff + Avenge(2) improvement', ()
   });
 });
 
-// ── Kennelmaster — Avenge 4 again since 2026-11-06 ──────────────────────────────────────────────────────────────────
-describe('Kennelmaster — Avenge (4)', () => {
-  it('the avenge effect fires on the 4th friendly death (4 since 2026-08-12, 3 from 2026-10-10, 4 again by the owner balance 2026-11-06)', () => {
+// ── Kennelmaster — Avenge 3 since 2026-11-25 ──────────────────────────────────────────────────────────────────
+describe('Kennelmaster — Avenge (3)', () => {
+  it('the avenge effect fires on the 3rd friendly death (owner 2026-11-25; 4 from 2026-11-06)', () => {
     const eff = CARD_INDEX['kennel']!.effects.find((e) => e.do === 'avengeImproveSummon');
-    expect(eff?.params?.count).toBe(4);
+    expect(eff?.params?.count).toBe(3);
   });
 });
 

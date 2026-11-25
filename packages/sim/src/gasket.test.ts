@@ -40,9 +40,9 @@ const sprayHits = (evs: CombatEvent[], uid = 'm0') =>
 const waves = (evs: CombatEvent[]) => [...new Set(sprayHits(evs).map((e) => e.wave))];
 
 describe('Gasket: Rally, deal 2 damage to all minions except friendly Demons', () => {
-  it('the card: T4 7/3 Demon with Rally, appended at the very end of set 2', async () => {
+  it('the card: T4 6/3 Demon with Rally, appended at the very end of set 2', async () => {
     const d = CARD_INDEX['dm_gasket']!;
-    expect(d).toMatchObject({ tier: 4, attack: 7, health: 3, tribe: 'demon' });
+    expect(d).toMatchObject({ tier: 4, attack: 6, health: 3, tribe: 'demon' });
     expect(d.keywords).toContain('RL');
     const { SETS } = await import('@game/content');
     const own = SETS.set2.own.map((c) => c.id);

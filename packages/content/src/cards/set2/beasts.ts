@@ -318,8 +318,8 @@ export const SET2_BEASTS: CardDef[] = [
     name: 'Raven',
     tribe: 'beast',
     tier: 4,
-    attack: 4,
-    health: 6,
+    attack: 3, // owner 2026-11-25 (R-BALANCE-1125-01): was 4/6
+    health: 4,
     keywords: ['RL'],
     effects: [{ on: 'onAttack', do: 'rallyGrantKeywordRandomTribe', params: { tribe: 'beast', keyword: 'V' } }],
     text: '**Rally:** give another **Beast** **Execute**.',

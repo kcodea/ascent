@@ -106,7 +106,7 @@ describe('Rad Rachel in the SHOP: a Demon dealing damage in the Recruit phase gi
     fireRallies(s);
     const by = (u: string) => s.board.find((c) => c.uid === u)!;
     // One landed hit (the neutral), so one Rachel proc: +2/+1 on all three, the neutral net 10 - 2 + 1.
-    expect([by('g').attack, by('g').health]).toEqual([9, 4]);
+    expect([by('g').attack, by('g').health]).toEqual([8, 4]);
     expect([by('r').attack, by('r').health]).toEqual([10, 11]);
     expect([by('n').attack, by('n').health]).toEqual([1 + 2, 9]);
     expect(by('r').buffs?.some((b) => b.source === 'Rad Rachel'), 'a permanent Shop buff line').toBe(true);

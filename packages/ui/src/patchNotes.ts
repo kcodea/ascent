@@ -60,6 +60,26 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Balance',
+        text: 'Set 2 balance: Kennelmaster, Demon Horse, Contract Butcher, Gasket, Raven and Drunk Daniel.',
+        details: [
+          'Kennelmaster is now a 1/5 and improves on Avenge (3).',
+          'Demon Horse is now a 4/5.',
+          'Contract Butcher is now a 3/2.',
+          'Gasket is now a 6/3.',
+          'Raven is now a 3/4.',
+          'Drunk Daniel moves to Tier 5.',
+        ],
+      },
+      {
+        category: 'Balance',
+        text: 'Pickles, Alchemist Frank, Defender and Indy join The Outskirts. They stay in The Underbelly too.',
+      },
+      {
+        category: 'Balance',
+        text: 'New Set 2 minion: Aleus (Dwarf and Demon, Tier 4, 1/7). When you cast an Ale, give minions in the Shop +2/+2.',
+      },
+      {
+        category: 'Balance',
         text: 'Candle Conduit is back (Set 2 Kobold, Tier 6, 7/7): when you get a Ruby, it casts a Ruby on a random friendly Kobold.',
       },
       {

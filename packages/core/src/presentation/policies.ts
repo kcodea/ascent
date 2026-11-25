@@ -252,6 +252,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:teamPassBuffSelf:teamPassedCard': { policy: 'ownBeat', family: 'economy' }, // Hitchhiker
   // ── DUOS-ONLY CARDS, batch A (owner design 2026-10-30) ──
   'factory:giftTeammate:onDeath': { policy: 'ownBeat', family: 'echo' }, // Antsy (the teammate's half lands on their run)
+  'factory:aleCastBuffShop:spellCast': { policy: 'ownBeat', family: 'economy' }, // Aleus
   'factory:aleCastGiftTeammate:spellCast': { policy: 'ownBeat', family: 'economy' }, // Bratworst Buck
   'factory:teamUpgradeDiscount:onDeath': { policy: 'ownBeat', family: 'echo' }, // Spencer
   'factory:getRubies:passedCard': { policy: 'ownBeat', family: 'economy' }, // Roo

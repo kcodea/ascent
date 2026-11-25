@@ -4440,6 +4440,14 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     addBuff(self, nameOf(self), a, h);
   },
 
+  /** ALEUS (R-ALEUS-01, owner 2026-11-25): "When you cast an Ale, give minions in the Shop +2/+2." Every Ale cast (each repetition of a multiplied
+   *  one), any caster, raises the permanent Shop buff. Gilded doubles. Combat half: `spellResolved` in simulate.ts. */
+  aleCastBuffShop: (ctx, self, params, payload) => {
+    const id = payload.spellDef?.id ?? payload.spellId;
+    if (!id || !ALE_IDS.includes(id)) return;
+    applyRunShopBuff(ctx.state, num(params.attack, 2) * gold(self), num(params.health, 2) * gold(self), nameOf(self), self.cardId);
+  },
+
   // ── DUOS-ONLY CARDS, batch A (owner design 2026-10-30): each card's own block. ──
 
   /** BRATWORST BUCK — "When you cast a Dwarven Ale, give your teammate a copy. (Twice per turn)". A `spellCast` watcher:

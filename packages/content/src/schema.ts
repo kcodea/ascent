@@ -83,6 +83,7 @@ export const EffectFactoryIdSchema = z.enum([
   'giftTeammateTripleReward',
   // DUOS-ONLY CARDS, batch A (owner design 2026-10-30)
   'aleCastGiftTeammate',
+  'aleCastBuffShop',                 // Aleus (2026-11-25): an Ale cast permanently buffs the Shop
   'passedSpellGetCopy',
   'demonConsumesShop',
   'spellBuffTeamLeftmost',

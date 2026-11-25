@@ -1100,6 +1100,7 @@ export type EffectFactoryId =
   | 'giftTeammateTripleReward' // give your teammate a Triple Reward (Duos runes). Both phases
   | 'teammateSoldGainStats' // `teammateSold`: this gains the sold minion's stats (`oncePerTurn`; gilded doubles) (Hippie Hulk)
   // ── DUOS-ONLY CARDS, batch A (owner design 2026-10-30) ──
+  | 'aleCastBuffShop' // `spellCast` (Ale only): permanently buff every minion in the Shop (Aleus). Both phases
   | 'aleCastGiftTeammate' // `spellCast` (Ale only): give your teammate a copy of the cast Ale, `perTurn` times a turn (Bratworst Buck). Both phases
   | 'passedSpellGetCopy' // `passedCard` (`spellOnly`, `oncePerTurn`): get a copy of the passed Shop Spell (Galfagan)
   | 'demonConsumesShop' // `passedCard`: a random friendly Demon consumes a random Shop minion; gilded = double stats (Proxus)

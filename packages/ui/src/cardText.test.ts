@@ -274,8 +274,8 @@ describe('cardText helpers', () => {
     // bold "**+N Attack**" / "**+N/+N**" tokens the helpers regex into. Assert the injected text keeps the live
     // number AND the new wording, so a future re-word that drops the token can't silently strand the value.
     // Kennelmaster since its 2026-11-14 rework: only the GRANT is live; the "Improve this by +N Attack" step stays printed.
-    expect(summonBuffText('kennel', 2)).toBe('When you summon a **Beast**, give it {{+3 Attack}}. **Avenge (4):** Improve this by **+1 Attack**.');
-    expect(summonBuffText('kennel', 2, true)).toBe('When you summon a **Beast**, give it {{+6 Attack}}. **Avenge (4):** Improve this by **+2 Attack**.');
+    expect(summonBuffText('kennel', 2)).toBe('When you summon a **Beast**, give it {{+3 Attack}}. **Avenge (3):** Improve this by **+1 Attack**.');
+    expect(summonBuffText('kennel', 2, true)).toBe('When you summon a **Beast**, give it {{+6 Attack}}. **Avenge (3):** Improve this by **+2 Attack**.');
     expect(summonBuffText('trophystalker', 5)).toBe('**Rally:** Give all Friendly and summoned Beasts {{+10/+10}}. Improve this by **+5/+5** whenever Trophy Stalker attacks.');
     for (const s of [summonBuffText('kennel', 2)!, summonBuffText('trophystalker', 5)!]) {
       expect(s).not.toMatch(/Beast Aura|this combat|wherever they are|everywhere/);

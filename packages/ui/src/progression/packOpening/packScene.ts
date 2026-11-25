@@ -45,7 +45,7 @@ import {
 } from './packTease';
 import { AURA_COLORS, makeAura, type Aura } from './packAura';
 import {
-  SPILL_LINE_V, SPILL_PACK_HALF, makeFoil, makeSheen, makeSpill, makeStage, newHandling, stepHandling,
+  SPILL_LINE_V, SPILL_MIN_REACH, SPILL_PACK_HALF, makeFoil, makeSheen, makeSpill, makeStage, newHandling, stepHandling,
   type FoilFx, type Handling, type SheenFx, type SpillFx, type StageFx,
 } from './packFx';
 import { PILE_LEAN_PX, PILE_LEAN_RAD, PILE_RISE_PX, newPile, pileAtRest, pileEase, pileScale, type PileState } from './packPile';
@@ -166,7 +166,14 @@ const BASE = import.meta.env?.BASE_URL ?? '/';
  * The sealed pack's size, as a share of what the fit allows (owner 2026-11-24: "can we make the pack size smaller? by
  * like 20%?"). Only the pack shrinks: the zoomed stack grows by 1 / PACK_SIZE more, so the cards land where they did.
  */
-export const PACK_SIZE = 0.8;
+export const PACK_SIZE = 0.87;
+/**
+ * The stack's scale while it sits in the sleeve (owner 2026-11-24: "when crinkling the wrapper, the sides get squeezed and
+ * the card side can be seen. increase the size of the wrapper only"): the wrapper is drawn larger (PACK_SIZE) and the
+ * cards inside it this much smaller, so the cards are the size on screen they were and a squeezed or tilted wrapper
+ * still covers them. The zoom takes the stack from this to its reveal size (unchanged).
+ */
+export const CARD_IN_SLEEVE = 0.92;
 /** The stack's scale at full zoom, over its size in the sleeve: the `stackZoom` knob, made up for the smaller pack. */
 export const stackZoomScale = (stackZoom: number): number => (1 + stackZoom) / PACK_SIZE;
 
@@ -816,8 +823,10 @@ class PackSceneImpl implements PackScene {
       const on = this.spillLevel > 0;
       sp.mesh.visible = on;
       if (on) {
-        const hw = (W / 2) / SPILL_PACK_HALF, hh = 150;
         const lineY = H + (this.phase === 'peel' ? 0 : sl.dy);
+        // the light climbs all the way to the top of the screen, fading the whole way
+        const reach = Math.max(SPILL_MIN_REACH, lineY + v.root.y / k);
+        const hw = (W / 2) / SPILL_PACK_HALF, hh = reach / (1 + SPILL_LINE_V);
         sp.mesh.position.set(W / 2, lineY - SPILL_LINE_V * hh);
         sp.mesh.scale.set(hw, hh);
         const u = sp.u;
@@ -975,7 +984,7 @@ class PackSceneImpl implements PackScene {
     v.sheen.alpha = 0;
     v.pinch.visible = true;
     v.cardsC.position.set(W / 2, CARDS_Y);
-    v.cardsC.scale.set(1);
+    v.cardsC.scale.set(CARD_IN_SLEEVE);
     this.bodyKey.rx = NaN; // the body meshes are rewritten (with the current tilt) on the next frame
     this.writeBody(false);
     v.flecks.clear();
@@ -1395,7 +1404,7 @@ class PackSceneImpl implements PackScene {
           this.emit('onZoomed', () => this.events.onZoomed());
         }
       }
-      v.cardsC.scale.set(1 + (stackZoomScale(feel.stackZoom) - 1) * this.zoom);
+      v.cardsC.scale.set(CARD_IN_SLEEVE + (stackZoomScale(feel.stackZoom) - CARD_IN_SLEEVE) * this.zoom);
       if (this.sideOn && this.side < 1) {
         // ease aside over about the first flip (smooth out, no overshoot)
         this.side += (1 - this.side) * (1 - Math.pow(1 - SIDE_EASE, dt));

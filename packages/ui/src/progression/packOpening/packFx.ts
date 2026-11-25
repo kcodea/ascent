@@ -130,7 +130,13 @@ void main() {
 
 /** How far the pack's half width sits inside the spill quad (the quad is wider than the pack), and where its gap line is. */
 export const SPILL_PACK_HALF = 0.62;
-export const SPILL_LINE_V = 0.62;
+export const SPILL_LINE_V = 0.85;
+/**
+ * The least the light reaches above the opening, in pack base units. The scene stretches it to the TOP OF THE SCREEN
+ * when that is further, so it fades out slowly over the whole way up and is gone exactly at the edge (owner 2026-11-24:
+ * "extend further and have a really long fade out").
+ */
+export const SPILL_MIN_REACH = 240;
 
 /** THE SPILL. vUV -1..1 on a quad above the pack's opening: the gap line is at v = SPILL_LINE_V, the pack spans x in +-SPILL_PACK_HALF. */
 export const SPILL_FRAG = `${HEAD}
@@ -143,16 +149,18 @@ void main() {
   float x = vUV.x / ${SPILL_PACK_HALF.toFixed(2)};
   float h = (${SPILL_LINE_V.toFixed(2)} - vUV.y) / ${(1 + SPILL_LINE_V).toFixed(2)};   // 0 at the gap, 1 at the quad's top
   float open = uOpen * 2. - 1.;
-  float sx = x / (1. + max(h, 0.) * .4);   // the shafts fan out as they rise
+  float sx = x / (1. + max(h, 0.) * .5);   // the shafts fan out as they rise
   float gap = smoothstep(open + .05, open - .08, sx) * smoothstep(-1.1, -.95, sx);
   float shaft = n2(vec2(sx * 8., uTime * .45)) * .55 + n2(vec2(sx * 21. + 4., -uTime * .75)) * .45;
   shaft = pow(smoothstep(.28, .9, shaft), 1.5);
-  float up = step(0., h) * exp(-h * 3.4);
+  // a long, slow fade: bright at the opening, still faintly there far above it, gone by the quad's top
+  float fall = clamp(1. - h, 0., 1.);
+  float up = step(0., h) * exp(-h * 2.4) * fall * sqrt(fall);
   vec3 col = uTint * (.35 + 1.5 * shaft) * up * gap;
   // the hot line at the opening itself
-  col += uHot * exp(-abs(h) * 46.) * smoothstep(open + .03, open - .05, x) * smoothstep(-1.06, -.96, x) * .8;
+  col += uHot * exp(-abs(h) * 130.) * smoothstep(open + .03, open - .05, x) * smoothstep(-1.06, -.96, x) * .8;
   // dust rising in the light
-  vec2 uq = vec2(sx * 7., h * 6. + uTime * .5);
+  vec2 uq = vec2(sx * 7., h * 17. + uTime * .5);
   vec2 id = floor(uq), ff = fract(uq) - .5;
   float life = h21(id + 2.3);
   float tw = .5 + .5 * sin(uTime * 4. + life * 30.);

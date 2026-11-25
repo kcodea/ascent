@@ -1,0 +1,56 @@
+/**
+ * THE PACK SHOP CONTRACT (spec docs/superpowers/specs/2026-11-25-pack-shop-design.md, section 6).
+ *
+ * What the pack shop is handed and what a purchase answers with: the offers on the shelves, the packs a purchase puts in
+ * the player's hand, and the outcome of a buy. The SERVER decides every price and charges the player; every number the
+ * shop shows is a quote, and the helpers here only read a quote, they never decide one.
+ *
+ * DEPENDENCY-FREE ON PURPOSE, like the other progression files: sibling relative imports only. Not yet a shared
+ * artifact (the economy project adds it to `SHARED_ARTIFACTS` once the server answers in this shape).
+ */
+
+import type { PackLook } from './packs';
+
+/** One pack (or box of packs) standing on a shelf. */
+export interface PackOffer {
+  offerId: string;
+  /** What it shows (art / name / colour). */
+  look: PackLook;
+  /** Aether; 0 = free. */
+  price: number;
+  /** Which shelf (tab) it stands on: a `PackShelf.id`. */
+  shelf: string;
+  /** 1 for a pack; more for a box. */
+  contains: number;
+  newToYou?: { unowned: number; total: number };
+  badge?: 'new' | 'free' | 'featured';
+  soldOut?: boolean;
+}
+
+export interface PackShelf {
+  id: string;
+  name: string;
+}
+
+/** A pack the player owns and has not opened yet. */
+export interface OwnedPack {
+  packId: string;
+  look: PackLook;
+}
+
+/** Why a purchase did not go through. */
+export type BuyPackError = 'insufficient' | 'price_changed' | 'sold_out' | 'guest' | 'failed';
+
+export type BuyPackOutcome =
+  | { status: 'ok'; packs: readonly OwnedPack[]; aether: number }
+  | { status: 'error'; reason: BuyPackError; aether?: number };
+
+/** Whether the quote can be bought with this balance: never when sold out, always when free. */
+export function canAfford(offer: PackOffer, aether: number): boolean {
+  return !offer.soldOut && aether >= offer.price;
+}
+
+/** How much Aether is missing to buy the quote; 0 when the balance covers it. */
+export function aetherShort(offer: PackOffer, aether: number): number {
+  return Math.max(0, offer.price - aether);
+}

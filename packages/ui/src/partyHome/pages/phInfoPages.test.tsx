@@ -31,6 +31,7 @@ import { MinionBook } from '../../MinionBook';
 import { PATCH_NOTES } from '../../patchNotes';
 import { matchesWords, patchEntries, PhPatchNotes, playerLabel } from './PhPatchNotes';
 import { PhSettings, SETTINGS_TABS } from './PhSettings';
+import { countNounFor } from '../../MinionBook';
 import { PhCompendium } from './PhCompendium';
 import { usePhShell } from '../shell/shellStore';
 
@@ -273,6 +274,25 @@ describe('the Compendium in the shell', () => {
     grid().scrollTop = 800;
     click(ui.container.querySelector('.book-tier'));
     expect(grid().scrollTop).toBe(0);
+  });
+
+  it('R-COMPENDIUM-COUNT-01: the filter row says how many are on screen, with their noun, and Guides say their own', () => {
+    ui = mount(<PhCompendium />);
+    const tab = (t: string): void => click([...ui!.container.querySelectorAll('.book-cat')].find((b) => b.textContent === t));
+    const count = (): string | undefined => ui!.container.querySelector('.book-count')?.textContent ?? undefined;
+    const cells = (): number => ui!.container.querySelectorAll('.book-grid > *').length;
+    for (const [t, noun] of [['Demons', 'minions'], ['Spells', 'spells'], ['Runes', 'runes'], ['Heroes', 'heroes']] as const) {
+      tab(t);
+      expect(count(), t).toBe(`${cells()} ${noun}`);
+    }
+    tab('Demons');
+    const all = cells();
+    click(ui.container.querySelector('.book-tier'));
+    expect(cells()).toBeLessThan(all);
+    expect(count()).toBe(`${cells()} ${countNounFor(cells(), 'minions')}`);
+    expect([countNounFor(1, 'heroes'), countNounFor(1, 'matches'), countNounFor(1, 'runes'), countNounFor(2, 'runes')]).toEqual(['hero', 'match', 'rune', 'runes']);
+    click([...ui.container.querySelectorAll('.phk-tab')].find((b) => b.textContent === 'Guides'));
+    expect(count()).toBeUndefined();
   });
 
   it('R-COMPENDIUM-GUIDES-FILTER-01: Guides shows its own tribe filter even with Runes lit before it', () => {

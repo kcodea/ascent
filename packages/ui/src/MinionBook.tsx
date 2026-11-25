@@ -403,6 +403,10 @@ export interface CompendiumParts {
   codex: boolean;
 }
 
+/** "1 hero", "24 minions", "1 match": the count's noun, singular when it is one. */
+export const countNounFor = (n: number, plural: string): string => (n !== 1 ? plural
+  : plural.split(' & ').map((w) => (w === 'heroes' ? 'hero' : w === 'matches' ? 'match' : w.replace(/s$/, ''))).join(' & '));
+
 /**
  * The Compendium (C) — a filterable codex of minions + spells: the whole card set when opened from the
  * title (pre-run), or scoped to the active run's tribes once a run is underway. A blurred
@@ -879,6 +883,9 @@ function BookView({ frame }: { frame?: (parts: CompendiumParts) => ReactNode }) 
               .filter(Boolean)
               .join(' & ') || 'minions'
           } ${!browsingRun || cats.has('runeRewards') || cats.has('gifts') ? 'in the game' : 'findable this run'}`;
+  // HOW MANY ARE ON SCREEN, in the filter row (owner 2026-11-25, R-COMPENDIUM-COUNT-01): what every filter and the search left. The shell's book
+  // only: the classic window prints it in its subtitle.
+  const [countN, countNoun] = cats.has('heroes') ? [heroesToShow.length, 'heroes'] : cats.has('runes') ? [runesToShow.length, 'runes'] : cats.has('quests') ? [questsToShow.length, 'quests'] : [filtered.length, chartNoun];
   const controls = (
     <>
       {frame && !codex && showSetPicker && <CompendiumSetPicker options={setOptions} value={setId} onChange={pickSet} />}
@@ -948,7 +955,7 @@ function BookView({ frame }: { frame?: (parts: CompendiumParts) => ReactNode }) 
             filter at the far right. ALWAYS rendered — it used to unmount on the Runes / Heroes tabs (their pools
             aren't tiered), which dropped the whole window by a row every time you switched (owner report
             2026-09-18). Now the bar holds its place; on those tabs the chips dim and the chart goes quiet. */}
-        <div className={`book-tiers${ownGalleryTab ? ' is-inert' : ''}${ownGalleryTab && !guidesOn && !cats.has('runes') && !kw && (frame || !showSetPicker) ? ' is-bare' : ''}`}>
+        <div className={`book-tiers${ownGalleryTab ? ' is-inert' : ''}${ownGalleryTab && !guidesOn && !cats.has('runes') && !kw && (frame || !showSetPicker) ? (frame ? ' is-countonly' : ' is-bare') : ''}`}>
           <span className="book-axislabel">Tier</span>
           {TIERS.map((t) => (
             <button
@@ -1079,6 +1086,7 @@ function BookView({ frame }: { frame?: (parts: CompendiumParts) => ReactNode }) 
           {/* The far-right cluster: the active keyword chip (when one is on), then the SET PICKER (dev only), always
               last. Not rendered at all when it would be empty, so a player build's tribe pills centre in the space
               right of Gilded instead of leaving a gap where the picker was. */}
+          {frame && !guidesOn && <span className="book-count" aria-hidden="true"><b>{countN}</b> {countNounFor(countN, countNoun)}</span>}
           {(kw || (showSetPicker && !frame)) && <div className="book-tiers-end">
             {kw && (
               <button className="book-kwchip" onClick={() => setKw(null)} aria-label="Clear keyword filter">

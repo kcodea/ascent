@@ -17459,4 +17459,20 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Built 2026-11-25 (feat/scrapyard-rune-barriers), by measurement (about -17 LUFS at the default sliders; the hero lines were -23). The owner has not heard it yet.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/locationReveal/locationReveal.test.ts', 'packages/ui/src/audio/config.test.ts'], lastVerifiedAt: '2026-11-25' },
   },
+  {
+    id: 'R-COMPENDIUM-COUNT-01',
+    title: 'The Compendium\x27s filter row says how many things are on screen',
+    statement:
+      'At the right end of the Compendium\x27s filter row is how many cards, runes or heroes the list holds right now, with its noun ("24 minions", '
+      + '"61 runes", "1 hero"): after the tribes, tiers, toggles and keyword, and "N matches" while searching. Heroes keep the row for it. Guides say '
+      + 'their own. A phone has no room for it.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-25, with a screenshot of the Compendium on Dwarves', quote: 'add a "x minions" or "x runes" etc text in the top bar so i can quickly know how many things im viewing' },
+      { kind: 'code', ref: 'packages/ui/src/MinionBook.tsx (book-count, countNounFor); packages/ui/src/partyHome/pages/phCompendium.css' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-11-25 (feat/compendium-count).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/partyHome/pages/phInfoPages.test.tsx'], lastVerifiedAt: '2026-11-25' },
+  },
 ];

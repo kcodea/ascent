@@ -345,7 +345,7 @@ export const ENTRIES: readonly WikiEntry[] = [
     a: "There are six: plain, Warding, Golden, Splintered, Ripple and Dark. They all give stats, and the special ones do something extra **if the target is a Kobold** (Ward, 2 Gold, a bounce, a second cast, or eating a Shop minion). \"Get a Special Ruby\" picks evenly among the five that are not plain.",
     aliases: ['warding ruby', 'golden ruby', 'splintered ruby', 'ripple ruby', 'dark ruby', 'random ruby', 'special ruby'],
     seeAlso: ['ruby'],
-    covers: [{ rule: 'R-RAND-02', fp: '7e20ae95' }, { keyword: 'specialruby', fp: '' }],
+    covers: [{ rule: 'R-RAND-02', fp: '7e20ae95' }, { keyword: 'specialruby', fp: '25ad96c7' }],
   },
   {
     id: 'ruby-gilded',

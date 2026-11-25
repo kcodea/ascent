@@ -17,7 +17,7 @@ import { LazyCell, LazyRootProvider } from '../bookLazy';
 import { BookCardCell, CAT_META, makeSearchMatcher, poolIds } from '../MinionBook';
 import { keyLabelOf } from '../keybinds/keybinds';
 import { PosterSheet } from '../locationReveal/LocationPosters';
-import { locationArt, locationOfSet, type LocationDef } from '../locationReveal/locations';
+import { isTribePoster, locationArt, locationOfSet, type LocationDef } from '../locationReveal/locations';
 import { pendingLocation, pendingTribes } from '../locationReveal/pendingLocation';
 import { RuneCard } from '../RuneCard';
 import { openRuneInspect } from '../runeInspectStore';
@@ -73,7 +73,7 @@ export function QuickBook(): JSX.Element {
   const inRun = useGame((s) => !isPreRun(s) && s.heroChoices === null);
   const run = useGame((s) => s.run);
   const [scope] = useState(scopeNow);
-  const tabs = useMemo(() => quickTabs(scope.tribes, scope.location?.posters ?? null), [scope]);
+  const tabs = useMemo(() => quickTabs(scope.tribes, scope.location?.posters.filter(isTribePoster) ?? null), [scope]);
   const [picked, setTab] = useState<QuickTab>(() => asked?.tribe ?? (lastTab && tabs.some((t) => t.id === lastTab) ? lastTab : tabs[0]!.id));
   // The light moves at once; the page (cards to mount) follows a frame behind it, under motion the browser runs on its own.
   const tab = useDeferredValue(picked);

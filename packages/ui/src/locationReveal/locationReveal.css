@@ -57,3 +57,6 @@
 .heroselect.hsc-active .hs-posters { opacity: 0; transition: opacity 0.25s ease; }
 .heroselect[data-hsc-ripple='wave'] .hs-posters { opacity: 1 !important; transition: none !important; }
 @media (prefers-reduced-motion: reduce) { .hs-poster-hang { animation: none; } .hs-poster-hang > img { transition: none; } }
+/* A parchment whose tribe no set has yet. */
+.lrev, .hs-posters { --t-guardian: #54c4ff; }
+.hs-poster:disabled { pointer-events: none; }

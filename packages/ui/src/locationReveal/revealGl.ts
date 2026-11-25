@@ -6,11 +6,10 @@
  * one small step per frame: shaders, buffers, then one picture per frame, decoded off the main thread. Every stage is
  * drawn once there too, so nothing compiles under the player's press. Everything is freed when the reveal ends.
  */
-import type { Tribe } from '@game/core';
 import { publicArt } from '../phoneArt';
 import { TRIBE_COLOR_DEFAULTS } from '../tribeColorConfig';
 import { RANKED_GATE_ART } from '../rankedGate/rankedGateTiming';
-import { fourOf, locationArt, type LocationDef } from './locations';
+import { fourOf, GUARDIAN_COLOR, isTribePoster, locationArt, type LocationDef, type Poster } from './locations';
 import * as SH from './revealShaders';
 import {
   A, clamp, distAt, GEM_SIZE, GEM_Y, heartAt, inCubic, inOut, kick, L, mix, NAME, outCubic, outroAt, POST, POSTER_H, POSTER_W, posterPose, seg, simEnd,
@@ -42,7 +41,7 @@ type ProgramName = keyof typeof PROGRAMS;
 
 const TRAIL_N = 1600;
 /** White makes no light of its own; the Dragons' glow is violet. */
-const GLOW: Partial<Record<Tribe, string>> = { dragon: '#b48cff' };
+const GLOW: Partial<Record<Poster, string>> = { dragon: '#b48cff', guardian: GUARDIAN_COLOR };
 const rgb = (hex: string): number[] => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
 
 export class RevealGl {
@@ -50,7 +49,7 @@ export class RevealGl {
   private readonly gl: WebGL2RenderingContext;
   private readonly loc: LocationDef;
   /** The parchments this game hangs, in order (set by the play; every one of the location's is loaded). */
-  tribes: readonly Tribe[];
+  tribes: readonly Poster[];
   private readonly P: Partial<Record<ProgramName, Program>> = {};
   private readonly tex = new Map<string, WebGLTexture>();
   private readonly mesh: Record<string, Mesh> = {};
@@ -596,7 +595,7 @@ export class RevealGl {
         const f = fit;
         this.use('poster', {
           c: [p.x * f, p.y * f], sz: [POSTER_W * f, POSTER_H * f], ang: p.angle, sc: p.scale, rev: p.open, sway: p.sway, curl: p.curl, s, seed: i + 1.3,
-          fade: (1 - p.out) * p.enter, tc: rgb(GLOW[t] ?? TRIBE_COLOR_DEFAULTS[t]),
+          fade: (1 - p.out) * p.enter, tc: rgb(GLOW[t] ?? (isTribePoster(t) ? TRIBE_COLOR_DEFAULTS[t] : GUARDIAN_COLOR)),
         }, { T: tex.get(`poster-${t}`) });
         this.tris('quad');
       }

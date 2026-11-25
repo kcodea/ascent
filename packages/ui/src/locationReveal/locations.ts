@@ -7,6 +7,11 @@ import type { Tribe } from '@game/core';
 import { SETS, type SetId } from '@game/content';
 
 export type LocationId = 'outskirts' | 'underbelly' | 'scrapyard' | 'runebarriers';
+/** What hangs on a parchment: a tribe, or one a location is promised and no set has yet (owner 2026-11-25: "Add guardians to the rune barriers"). */
+export type Poster = Tribe | 'guardian';
+export const isTribePoster = (p: Poster): p is Tribe => p !== 'guardian';
+/** The colour of one that has no tribe token (CSS: `--t-guardian`, locationReveal.css). */
+export const GUARDIAN_COLOR = '#54c4ff';
 export type Rgb = readonly [number, number, number];
 
 export interface LocationDef {
@@ -27,7 +32,7 @@ export interface LocationDef {
   /** Every lantern, crystal and fall in the painting: x, y, size, depth, r, g, b. Each wakes as the wave reaches it. */
   lights: readonly (readonly number[])[];
   /** The order the parchments hang in (left to right); a game shows the ones it plays with. */
-  posters: readonly Tribe[];
+  posters: readonly Poster[];
   /** RIGID PIECES (the Rune Barriers): the first piece is a plane receding across the picture, its depth linear in x (`depth` at `vp`,
    *  `slope` a painting's width), and the ground behind never bends. Absent = the ground bends by the depth map. */
   row?: { depth: number; slope: number };
@@ -37,8 +42,8 @@ export interface LocationDef {
   energy?: readonly (readonly number[])[];
   /** The announcer's line as the name appears. */
   line: string;
-  /** How loud its own travel and ambience clips sit in the mix (clips differ: set by ear). */
-  mix: { ride: number; ambience: number };
+  /** How loud its own clips sit in the mix. `line` brings every announcer line to the same measured loudness (R-LOCATION-12). */
+  mix: { ride: number; ambience: number; line: number };
 }
 
 const WARM = [1, 0.7, 0.34] as const;
@@ -59,7 +64,7 @@ export const LOCATIONS: Readonly<Record<LocationId, LocationDef>> = {
     warmth: 0.1,
     posters: ['dragon', 'beast', 'kobold', 'dwarf', 'demon'],
     line: 'Welcome to the Outskirts.',
-    mix: { ride: 0.85, ambience: 1.9 },
+    mix: { ride: 0.85, ambience: 1.9, line: 1 },
     lights: [
       [0.325, 0.51, 1.7, 0.13, ...WARM], [0.685, 0.475, 1.2, 0.13, ...WARM], [0.636, 0.62, 0.7, 0.13, ...WARM], [0.667, 0.54, 1.2, 0.13, 1, 0.32, 0.52],
       [0.529, 0.19, 0.8, 0, ...VIOLET], [0.634, 0.165, 1.1, 0, ...CYAN], [0.66, 0.035, 1.2, 0, ...CYAN], [0.523, 0.27, 0.5, 0, ...CYAN], [0.668, 0.21, 0.5, 0, ...CYAN],
@@ -78,7 +83,7 @@ export const LOCATIONS: Readonly<Record<LocationId, LocationDef>> = {
     warmth: 0.6,
     posters: ['undead', 'kobold', 'dragon', 'dwarf', 'spirit'],
     line: 'The Underbelly awaits.',
-    mix: { ride: 0.72, ambience: 0.75 },
+    mix: { ride: 0.72, ambience: 0.75, line: 0.88 },
     lights: [
       [0.48, 0.14, 1.5, 0.13, ...WARM], [0.354, 0.385, 1.6, 0.13, ...WARM], [0.365, 0.5, 1.9, 0.13, ...WARM], [0.065, 0.31, 0.9, 0.04, ...WARM], [0.13, 0.605, 1.1, 0.13, ...WARM],
       [0.197, 0.36, 0.7, 0.13, ...WARM], [0.229, 0.345, 0.7, 0.13, ...WARM], [0.175, 0.64, 0.7, 0.06, ...WARM], [0.481, 0.325, 0.7, 0, ...WARM], [0.526, 0.37, 0.8, 0, ...WARM],
@@ -104,7 +109,7 @@ export const LOCATIONS: Readonly<Record<LocationId, LocationDef>> = {
     warmth: 0.75,
     posters: ['mech', 'beast', 'dragon', 'demon', 'undead'],
     line: 'Ahh... the Scrapyards.',
-    mix: { ride: 0.85, ambience: 1.7 },
+    mix: { ride: 0.85, ambience: 1.7, line: 1.4 },
     lights: [
       [0.78, 0.607, 2.6, 0.075, ...FORGE], [0.803, 0.56, 1.6, 0.075, ...FORGE], [0.818, 0.508, 1, 0.075, ...WARM], [0.6126, 0.595, 0.8, 0.075, ...WARM], [0.872, 0.155, 0.9, 0.075, ...FORGE], [0.81, 0.443, 0.6, 0.075, ...FORGE],
       [0.386, 0.49, 1.1, 0.05, ...WARM], [0.33, 0.521, 0.7, 0.05, ...WARM], [0.601, 0.28, 0.7, 0.028, ...WARM], [0.632, 0.277, 0.6, 0.028, ...WARM], [0.609, 0.917, 0.6, 0.15, ...WARM],
@@ -122,13 +127,12 @@ export const LOCATIONS: Readonly<Record<LocationId, LocationDef>> = {
     cool: [0.45, 0.64, 1],
     warm: [0.78, 0.5, 1],
     warmth: 0.3,
-    // Guardians are painted too, for the day Set 4 has them.
-    posters: ['celestial', 'beast'],
+    posters: ['celestial', 'guardian', 'beast'],
     row: { depth: 0.085, slope: -0.2 },
     floats: [[0.205, 0.1, 0.06, 0.16], [0.593, 0.125, 0.07, 0.15], [0.858, 0.16, 0.04, 0.07], [0.897, 0.215, 0.032, 0.07]],
     energy: [[0.4785, 0.433], [0.6445, 0.5], [0.717, 0.56], [0.768, 0.6]],
     line: 'The great Rune Barriers.',
-    mix: { ride: 0.5, ambience: 1.4 },
+    mix: { ride: 0.5, ambience: 1.4, line: 0.84 },
     lights: [
       [0.479, 0.43, 3.4, 0.085, ...AZURE], [0.48, 0.33, 2, 0.085, ...CYAN], [0.457, 0.55, 1.6, 0.089, ...AZURE], [0.5, 0.57, 1.4, 0.081, ...CYAN], [0.5025, 0.054, 1.5, 0.08, ...VIOLET], [0.392, 0.232, 1.2, 0.102, ...CYAN], [0.417, 0.41, 0.8, 0.097, ...CYAN],
       [0.366, 0.187, 0.4, 0.107, ...VIOLET], [0.375, 0.312, 0.4, 0.106, ...CYAN], [0.645, 0.5, 1.8, 0.052, ...AZURE], [0.6556, 0.271, 0.9, 0.049, ...VIOLET], [0.602, 0.405, 0.8, 0.06, ...CYAN], [0.62, 0.53, 0.6, 0.057, ...CYAN],
@@ -161,11 +165,11 @@ export const locationArt = (id: LocationId, file: string): string => `${import.m
 export const locationSound = (file: string): string => `${import.meta.env.BASE_URL}locations/sfx/${file}.mp3`;
 
 /** What the parchments are called. */
-export const POSTER_NAME: Readonly<Partial<Record<Tribe, string>>> = {
-  dragon: 'Dragons', beast: 'Beasts', kobold: 'Kobolds', dwarf: 'Dwarves', demon: 'Demons', undead: 'Undead', spirit: 'Spirits', mech: 'Mechs', celestial: 'Celestials',
+export const POSTER_NAME: Readonly<Partial<Record<Poster, string>>> = {
+  dragon: 'Dragons', beast: 'Beasts', kobold: 'Kobolds', dwarf: 'Dwarves', demon: 'Demons', undead: 'Undead', spirit: 'Spirits', mech: 'Mechs', celestial: 'Celestials', guardian: 'Guardians',
 };
 
-/** The parchments a game shows: the location's, in its order, for the tribes this game plays with. */
-export function postersFor(l: LocationDef, tribes: readonly Tribe[]): Tribe[] {
-  return l.posters.filter((t) => tribes.includes(t));
+/** The parchments a game shows: the location's, in its order, for the tribes this game plays with (and any no set has yet). */
+export function postersFor(l: LocationDef, tribes: readonly Tribe[]): Poster[] {
+  return l.posters.filter((t) => !isTribePoster(t) || tribes.includes(t));
 }

@@ -59,6 +59,10 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-11-25',
     changes: [
       {
+        category: 'Systems',
+        text: 'Hero select lines are louder, and level with the announcer.',
+      },
+      {
         category: 'Balance',
         text: 'Cassen: finishing a commission no longer gives max Gold.',
       },

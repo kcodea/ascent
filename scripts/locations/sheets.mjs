@@ -11,7 +11,7 @@ await p.route('**/*', (r) => (/localhost|127.0.0.1|^data:|^blob:/.test(r.request
 await p.goto(URL_, { waitUntil: 'commit' });
 await p.waitForTimeout(10000);
 /** Keep in step with `posters` in locations.ts (the order is each sheet's own crease and sway). */
-const L = { outskirts: ['dragon', 'beast', 'kobold', 'dwarf', 'demon'], underbelly: ['undead', 'kobold', 'dragon', 'dwarf', 'spirit'], scrapyard: ['mech', 'beast', 'dragon', 'demon', 'undead'], runebarriers: ['celestial', 'beast'] };
+const L = { outskirts: ['dragon', 'beast', 'kobold', 'dwarf', 'demon'], underbelly: ['undead', 'kobold', 'dragon', 'dwarf', 'spirit'], scrapyard: ['mech', 'beast', 'dragon', 'demon', 'undead'], runebarriers: ['celestial', 'guardian', 'beast'] };
 const only = process.argv.slice(3);
 for (const [loc, tribes] of Object.entries(L)) if (!only.length || only.includes(loc)) for (let i = 0; i < tribes.length; i++) {
   const url = await p.evaluate(async ({ loc, t, i, W, H, SRC }) => {

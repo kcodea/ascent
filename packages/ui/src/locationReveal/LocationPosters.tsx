@@ -1,11 +1,11 @@
 import { useEffect, useLayoutEffect, useRef, type CSSProperties } from 'react';
-import type { Tribe } from '@game/core';
 import { sfx } from '../sfx';
 import { useGame } from '../store';
-import { locationArt, POSTER_NAME, type LocationDef } from './locations';
+import type { Tribe } from '@game/core';
+import { isTribePoster, locationArt, POSTER_NAME, type LocationDef, type Poster } from './locations';
 
 /** One parchment, hanging, pressable: hero select's and the quick Compendium's (QuickBook.tsx) are the same thing. */
-export function PosterSheet({ location, tribe, index, label, onPress, disabled, on }: { location: LocationDef; tribe: Tribe; index: number; label: string; onPress: () => void; disabled?: boolean; on?: boolean }): JSX.Element {
+export function PosterSheet({ location, tribe, index, label, onPress, disabled, on }: { location: LocationDef; tribe: Poster; index: number; label: string; onPress: () => void; disabled?: boolean; on?: boolean }): JSX.Element {
   // One clock for every column of them: the quick Compendium's takes over from hero select's in mid sway, and nothing jumps.
   const hang = useRef<HTMLSpanElement | null>(null);
   useLayoutEffect(() => { for (const a of hang.current?.getAnimations?.() ?? []) a.startTime = 0; }, []);
@@ -24,7 +24,7 @@ export function PosterSheet({ location, tribe, index, label, onPress, disabled, 
  * as well ... clicking them open the compendium to that tribes list"; R-LOCATION-08). The reveal's own torn sheets (baked from
  * its shader at rest: `sheet-<tribe>.webp`), one for each tribe of this game, in its order. Static pictures; only transforms move.
  */
-export function LocationPosters({ location, tribes, inert, duos }: { location: LocationDef; tribes: readonly Tribe[]; inert: boolean; duos: boolean }): JSX.Element {
+export function LocationPosters({ location, tribes, inert, duos }: { location: LocationDef; tribes: readonly Poster[]; inert: boolean; duos: boolean }): JSX.Element {
   // The page they open, fetched before it is asked for.
   useEffect(() => {
     const id = window.setTimeout(() => {
@@ -43,7 +43,7 @@ export function LocationPosters({ location, tribes, inert, duos }: { location: L
   return (
     <div className={`hs-posters${duos ? ' duos' : ''}`} style={{ '--n': tribes.length } as CSSProperties}>
       {tribes.map((t, i) => (
-        <PosterSheet key={t} location={location} tribe={t} index={i} disabled={inert} label={`${POSTER_NAME[t] ?? t}. Open the Compendium on them.`} onPress={() => open(t)} />
+        <PosterSheet key={t} location={location} tribe={t} index={i} disabled={inert || !isTribePoster(t)} label={isTribePoster(t) ? `${POSTER_NAME[t] ?? t}. Open the Compendium on them.` : POSTER_NAME[t] ?? t} onPress={() => { if (isTribePoster(t)) open(t); }} />
       ))}
     </div>
   );

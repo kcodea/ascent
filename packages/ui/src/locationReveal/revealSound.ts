@@ -66,7 +66,7 @@ export function revealCues(id: LocationId, n: number): Cue[] {
       env: [[0, 0], [0.75, 0.8], [name - land - 0.1, 0.8], [name - land + 0.15, 0.42], [name - land + 2, 0.42], [name - land + 2.7, 1], [end - land - 1.1, 1], [end - land + 0.6, AMBIENCE_STAY]],
     },
     { clip: 'title', at: name - 0.12, gain: 0.62 },
-    { clip: `vo-${id}`, at: name + LINE_DELAY, gain: VOICE, voice: true },
+    { clip: `vo-${id}`, at: name + LINE_DELAY, gain: VOICE * mix.line, voice: true },
     ...Array.from({ length: n }, (_, i): Cue => ({
       clip: 'poster', at: t(posterRest(i, n).at) - 0.1, gain: 0.36, lowpass: 1900, env: [[0, 0.2], [0.1, 1], [0.8, 1], [1, 0]],
       rate: [[0, POSTER_RATE[i % POSTER_RATE.length]!]], pan: [[0, clamp((i - (n - 1) / 2) * 0.32, -1, 1)]],
@@ -85,7 +85,7 @@ export function revealCues(id: LocationId, n: number): Cue[] {
 export function lightCues(id: LocationId, n: number, at: { name: number; posters: number; step: number; leave: number }): Cue[] {
   return [
     { clip: 'title', at: at.name - 0.12, gain: 0.62 },
-    { clip: `vo-${id}`, at: at.name + LINE_DELAY, gain: VOICE, voice: true },
+    { clip: `vo-${id}`, at: at.name + LINE_DELAY, gain: VOICE * LOCATIONS[id].mix.line, voice: true },
     ...Array.from({ length: n }, (_, i): Cue => ({ clip: 'poster', at: at.posters + i * at.step - 0.1, gain: 0.3, lowpass: 1900, env: [[0, 0.2], [0.1, 1], [0.8, 1], [1, 0]], rate: [[0, POSTER_RATE[i % POSTER_RATE.length]!]] })),
     { clip: 'wave', at: at.leave - 0.2, gain: 0.3, rate: [[0, 1.08]], lowpass: 5200 },
   ];

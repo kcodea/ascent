@@ -46,3 +46,13 @@ describe('effectiveGain + busOf', () => {
     expect(effectiveGain(DEFAULT_AUDIO_CONFIG, 'brand_new_cue')).toBe(0.6);
   });
 });
+
+describe('hero select lines (R-LOCATION-12)', () => {
+  it('have a fader of their own, level with the announcer, apart from the lines said during a game', () => {
+    // -20.2 LUFS clips through heroLine and the master: about the -17 LUFS the announcer's lines come out at.
+    const out = -20.2 + 20 * Math.log10(effectiveGain(DEFAULT_AUDIO_CONFIG, 'heroLine') * DEFAULT_AUDIO_CONFIG.masterGain);
+    expect(Math.abs(out - -17)).toBeLessThan(0.3);
+    expect(CATEGORY_GAINS.heroSelect).toBe(1.4);
+    expect(DEFAULT_AUDIO_CONFIG.clips['heroes/gambler']).toBeLessThan(1);
+  });
+});

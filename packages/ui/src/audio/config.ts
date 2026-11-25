@@ -24,12 +24,14 @@ export const CATEGORY_GAINS: Record<string, number> = {
   reorder: 0.225, deny: 0.5, freeze: 0.31, unfreeze: 0.35, pulse: 0.5, triggerpulse: 0.21, triggerglow: 0.45,
   gemapply: 0.18, rubypower: 0.3, clickthock: 0.39, cardtouch: 0.27, divineshieldbreak: 0.29, rebornshatter: 0.24, rebornsummon: 0.24,
   skullburst: 0.06, inspect: 0.5, upgrade: 0.37, roll: 0.88, combatStart: 0.64, cardVoice: 0.11,
-  cardEffect: 0.18, cardDeath: 0.18, heroSelect: 1.4, heroPower: 0.5, summon: 0.2, buff: 0.46, turncharge: 0.5, turnexplosion: 0.5,
+  cardEffect: 0.18, cardDeath: 0.18, heroSelect: 1.4, heroLine: 2.9, heroPower: 0.5, summon: 0.2, buff: 0.46, turncharge: 0.5, turnexplosion: 0.5,
   // gemapply 0.35 -> 0.245 (owner 2026-11-10: "reduce the new gem apply sound level by 30%", the 3-layer Ruby clip).
   // gemapply 0.245 -> 0.18 (owner 2026-11-11, set by ear on the Mixing Desk fader: ".18 is good").
   // heroSelect 0.5 -> 1.3 (owner 2026-10-09, raised in steps: 0.6, 0.9, then "from .9 to 1.3"); -> 1.56 (owner
   // 2026-10-11: "bump the hero voicelines by another 20%"); -> 1.4 (owner 2026-10-12: "reduce the hero voicelines
   // by 10%": 1.56 x 0.9 = 1.404).
+  // heroLine (the line said at hero select) left that fader and went 1.4 -> 2.9 (owner 2026-11-25: "make sure the hero select lines are
+  // all loud enough / equally loud to match sounds of the travel animations"): -17 LUFS out, like the announcer's. R-LOCATION-12.
   // The final-countdown clock tick at 5..1 left (owner 2026-10-07); the per-tick build rides on top (sfx TURN_TICK_BUILD).
   turntick: 0.5,
   // The crystal fuse appearing at 0:21 (owner 2026-10-27): the owner's magic-twinkle clip (fuseappear.mp3), kept soft.
@@ -118,7 +120,7 @@ export const CATEGORY_BUS: Record<string, BusName> = {
   summon: 'combat', taunt: 'combat', shield: 'combat', flurrylunge: 'combat', flurryhit: 'combat', cleave: 'combat',
   felSpikeEcho: 'combat', felSpikeEchoLand: 'combat',
   cardVoice: 'voice', cardEffect: 'voice', cardDeath: 'voice',
-  heroSelect: 'hero', heroPower: 'hero',
+  heroSelect: 'hero', heroLine: 'hero', heroPower: 'hero',
   runeArrival: 'ui',
   mateready: 'ui',
   // The hand-off and the fallen board are part of the fight (they stop with it); the pass and the team cues are not.
@@ -242,7 +244,8 @@ export const DEFAULT_AUDIO_CONFIG: AudioConfig = {
   buses: { ui: { gain: 1, comp: null }, combat: { gain: 1, comp: null }, voice: { gain: 1, comp: null }, hero: { gain: 1, comp: null }, equipment: { gain: 1, comp: null } },
   categories: buildCategories(),
   // rubywhoosh 1 -> 0.2 of the `rubypower` group (owner 2026-11-11: "reduce the woosh to .2"); the strikes stay at 1.
-  clips: { rubywhoosh: 0.2 },
+  // Two hero lines recorded about 1 dB hotter than the rest (all the others measure -20.2 LUFS within 0.4).
+  clips: { rubywhoosh: 0.2, 'heroes/gambler': 0.88, 'heroes/cindy': 0.91 },
 };
 
 /** Deep-merge a saved (partial) config over the defaults: saved scalars/entries win; missing fields filled. */

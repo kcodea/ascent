@@ -17440,7 +17440,23 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Owner, 2026-11-25', quote: 'add announcer lines for both of these while we\x27re here, and bespoke sound effects where necessary like the background noise. Lines: "Ahh... the Scrapyards." "The great Rune Barriers"' },
       { kind: 'code', ref: 'packages/ui/src/locationReveal/locations.ts (scrapyard, runebarriers); scripts/locations/layers.py; scripts/locations/watermap.py; scripts/locations/sound.mjs' },
     ],
-    currentBehaviour: 'Built 2026-11-25 (feat/scrapyard-rune-barriers). The owner has not seen or heard it yet. Guardians have a parchment and no tribe in Set 4 yet, so it is not hung.',
+    currentBehaviour: 'Built 2026-11-25 (feat/scrapyard-rune-barriers). The owner has not seen or heard it yet. Guardians hang at the Rune Barriers (owner 2026-11-25: "Add guardians to the rune barriers") though no set has the tribe yet: that parchment opens nothing.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/locationReveal/locationReveal.test.ts', 'packages/ui/src/PracticeOptionsSet.test.tsx'], lastVerifiedAt: '2026-11-25' },
+  },
+  {
+    id: 'R-LOCATION-12',
+    title: 'The hero\x27s line and the announcer\x27s line are equally loud, as loud as the travel',
+    statement:
+      'Every hero\x27s hero select line plays at the same measured loudness, the location announcer lines play at that loudness too, whichever '
+      + 'location, and both sit level with the sound of the travel and the landing. A new line is measured and given its own trim. Lines said '
+      + 'during a game keep their own level.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-25', quote: 'Can you make sure the hero select lines are all loud enough / equally loud to match sounds of the travel animations etc' },
+      { kind: 'code', ref: 'packages/ui/src/audio/config.ts (heroLine, clips); packages/ui/src/locationReveal/locations.ts (mix.line); packages/ui/src/locationReveal/revealSound.ts' },
+    ],
+    currentBehaviour: 'Built 2026-11-25 (feat/scrapyard-rune-barriers), by measurement (about -17 LUFS at the default sliders; the hero lines were -23). The owner has not heard it yet.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/locationReveal/locationReveal.test.ts', 'packages/ui/src/audio/config.test.ts'], lastVerifiedAt: '2026-11-25' },
   },
 ];

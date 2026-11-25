@@ -402,3 +402,23 @@ export const SET2_KOBOLDS: CardDef[] = [
     goldenText: 'When a **Ruby** is cast on this, cast **2 Rubies** on another minion of **each type**.',
   },
 ];
+
+/** Set 2 Kobolds added after the roster was laid out. A list of its own, APPENDED in `sets.ts`, so no existing set-2
+ *  position moves (the `SET2_BEASTS_LATE` shape). */
+export const SET2_KOBOLDS_LATE: CardDef[] = [
+  {
+    // REFLEKTION (owner design 2026-11-25, R-REFLEKTION-01): every Ruby CAST on it, any source and any phase, bounces once to a
+    // random other friendly minion. The hop is the Ruby's stats and its Ward rider, never a cast (R-RUBY-02): nothing hears it,
+    // so it never chains, and it inherits the landing's permanence. Gilded: bounces twice, each to a random other minion.
+    id: 'k_reflektion',
+    name: 'Reflektion',
+    tribe: 'kobold',
+    tier: 3,
+    attack: 3,
+    health: 5,
+    keywords: [],
+    effects: [{ on: 'onRubyPlayed', do: 'rubyPlayedBounce', params: { hops: 1, goldenHops: 2 } }],
+    text: 'When a **Ruby** is cast on this, it bounces **once**.',
+    goldenText: 'When a **Ruby** is cast on this, it bounces **twice**.',
+  },
+];

@@ -107,7 +107,8 @@ export interface EffectArena {
    *  `grantKeyword` is the Ruby's keyword rider (a Warding Ruby's Ward): a hop resolves on its destination
    *  exactly as if the Ruby had been cast there, so the rider lands too — under the same Kobold gate as a direct
    *  landing (owner report 2026-09-23: a Warding Ruby bounced off the Idol onto a Kobold must grant it Ward). */
-  gainRubyStats(t: ArenaBody, attack: number, health: number, grantKeyword?: string): void;
+  /** `permanent` (combat): the hop inherits the landing's permanence (owner 2026-10-16). The Shop's Rubies always are. */
+  gainRubyStats(t: ArenaBody, attack: number, health: number, grantKeyword?: string, permanent?: boolean): void;
   /** The nearest living neighbours (left, right) of a body. */
   neighboursOf(t: ArenaBody): ArenaBody[];
   /** Raise the run's MAXIMUM Gold. Combat routes through its carry-back channel (and logs the maxGold
@@ -593,7 +594,8 @@ export const ARENA_EFFECTS = {
 
   /** Resonance Idol — a Ruby played on this bounces the same stats onward (golden: `goldenReps` per target).
    *  `random: N` (the 2026-07-27 rework — position no longer gates the payoff) bounces to N DISTINCT random
-   *  friends; without it, to the two neighbours. The bounce uses `gainRubyStats` (no watcher notification) so
+   *  friends; without it, to the two neighbours. `hops: N` / `goldenHops: N` (Reflektion, owner 2026-11-25) bounces N
+   *  times, each to a random OTHER friend picked afresh. The bounce uses `gainRubyStats` (no watcher notification) so
    *  a bounce can never re-trigger a bounce.
    *
    *  UNIFICATION FIXED REAL DRIFT: the rework only ever landed in the shop half — combat ignored `random` and
@@ -605,7 +607,18 @@ export const ARENA_EFFECTS = {
     const a = typeof params.rubyAttack === 'number' ? params.rubyAttack : 0;
     const h = typeof params.rubyHealth === 'number' ? params.rubyHealth : 0;
     const kw = typeof params.rubyKeyword === 'string' && params.rubyKeyword ? params.rubyKeyword : undefined;
+    const perm = params.rubyPermanent === true;
     if (a <= 0 && h <= 0) return;
+    const hops = arena.self.golden ? num(params.goldenHops, num(params.hops, 0)) : num(params.hops, 0);
+    if (hops > 0) {
+      const rng = arena.rng();
+      for (let i = 0; i < hops; i++) {
+        const pool = arena.friends().filter((m) => m.uid !== arena.self.uid);
+        if (pool.length === 0) return;
+        arena.gainRubyStats(pool[rng.int(pool.length)]!, a, h, kw, perm);
+      }
+      return;
+    }
     const reps = arena.self.golden ? (typeof params.goldenReps === 'number' ? params.goldenReps : 2) : 1;
     const randomN = typeof params.random === 'number' ? params.random : 0;
     if (randomN > 0) {
@@ -613,12 +626,12 @@ export const ARENA_EFFECTS = {
       const pool = arena.friends().filter((m) => m.uid !== arena.self.uid);
       for (let i = 0; i < randomN && pool.length > 0; i++) {
         const t = pool.splice(rng.int(pool.length), 1)[0]!;
-        for (let r = 0; r < reps; r++) arena.gainRubyStats(t, a, h, kw);
+        for (let r = 0; r < reps; r++) arena.gainRubyStats(t, a, h, kw, perm);
       }
       return;
     }
     for (const adj of arena.neighboursOf(arena.self)) {
-      for (let r = 0; r < reps; r++) arena.gainRubyStats(adj, a, h, kw);
+      for (let r = 0; r < reps; r++) arena.gainRubyStats(adj, a, h, kw, perm);
     }
   },
 

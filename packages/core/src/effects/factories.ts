@@ -306,7 +306,7 @@ export function playRubyOn(ctx: CombatContext, self: Minion, target: Minion, per
   // meaningless mid-fight and simply has no combat entry.
   for (const effect of target.effects) {
     if (effect.on !== 'onRubyPlayed') continue;
-    FACTORIES[effect.do]?.(ctx, target, effect.params ?? {}, { minion: target, side: target.side, rubyAttack: a, rubyHealth: h, rubies: per });
+    FACTORIES[effect.do]?.(ctx, target, effect.params ?? {}, { minion: target, side: target.side, rubyAttack: a, rubyHealth: h, rubies: per, rubyPermanent: engraved });
   }
 }
 /** The stat half of playing a Ruby — no `onRubyPlayed` notification, so a BOUNCE can't re-trigger the bounce.
@@ -469,9 +469,9 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
     // Warding Ruby's Ward) lands with the hop, Kobold-gated like a direct landing (owner report 2026-09-23).
     // No combat Ruby source names a keyworded Ruby today (`playRubyOn` plays the plain Ruby), so the rider is
     // only ever present here when a payload carries one — the adapter honours it so the phases cannot drift.
-    gainRubyStats: (t, a, h, kw) => {
+    gainRubyStats: (t, a, h, kw, permanent) => {
       const m = t as Minion;
-      applyRubyStats(ctx, self, m, a, h, false, { from: self.uid, kind: 'ruby' });
+      applyRubyStats(ctx, self, m, a, h, permanent === true, { from: self.uid, kind: 'ruby' });
       if (!kw || m.dead || m.keywords.includes(kw as Keyword)) return;
       if (!arena.isTribe(m, 'kobold')) return; // the Kobold gate, through the one body-level predicate (all-types counts)
       if (kw === 'DS') grantShield(ctx, m);
@@ -3713,8 +3713,8 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   // ARENA-MIGRATED (Step 3, Ruby family). This unification FIXED drift: the 2026-07-27 random-N rework had
   // only ever landed in the shop half, so combat still bounced to neighbours while the shop went random.
   rubyPlayedBounce: (ctx, self, params, payload) => {
-    const { rubyAttack, rubyHealth, rubyKeyword } = payload as { rubyAttack?: number; rubyHealth?: number; rubyKeyword?: string };
-    ARENA_EFFECTS.rubyPlayedBounce(combatArena(ctx, self), { ...params, rubyAttack, rubyHealth, rubyKeyword });
+    const { rubyAttack, rubyHealth, rubyKeyword, rubyPermanent } = payload as { rubyAttack?: number; rubyHealth?: number; rubyKeyword?: string; rubyPermanent?: boolean };
+    ARENA_EFFECTS.rubyPlayedBounce(combatArena(ctx, self), { ...params, rubyAttack, rubyHealth, rubyKeyword, rubyPermanent });
   },
 
   /** Set 2 — Geode Guardian (Echo): on death, play `rubies` Rubies on EACH adjacent minion (permanent carry-back). */

@@ -93,7 +93,10 @@ export class ShelfPack {
     this.canvas = document.createElement('canvas');
     this.canvas.width = Math.round(W * TEX_RES);
     this.canvas.height = Math.round(HT * TEX_RES);
-    this.tex = new Texture({ source: new CanvasSource({ resource: this.canvas }) });
+    // Mipmaps and anisotropic sampling: a pack lying back on the counter is drawn far smaller (and far more squashed
+    // top to bottom) than its 2x canvas, and plain linear sampling skips texels there, which reads as grain and jagged
+    // lettering (owner 2026-11-26: "the angled packs lose their visual quality pretty intensely").
+    this.tex = new Texture({ source: new CanvasSource({ resource: this.canvas, autoGenerateMipmaps: true, scaleMode: 'linear', mipmapFilter: 'linear', maxAnisotropy: 16 }) });
     this.mesh = new PerspectiveMesh({ texture: this.tex, verticesX: 10, verticesY: 10 });
     this.mesh.setCorners(-W / 2, -HT / 2, W / 2, -HT / 2, W / 2, HT / 2, -W / 2, HT / 2);
     this.gloss = makeMaskedGloss(webgl, this.mesh, this.tex, bandTex);

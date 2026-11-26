@@ -61,7 +61,7 @@ import { aimInto, newTilt, stepTilt, tiltEaseK, type TiltState } from '../packOp
 import { LIFT_GROW, ShelfPack, liftPoseInto } from './shelfPack';
 import { LOOK_EASE, ShopBackdrop } from './shopBackdrop';
 import {
-  Placard, SHOP_TAG_SRC, loadTexture, paintPackShadow, paintTray, placardBadge, placardCount,
+  Placard, SHOP_GROMMET_SRC, SHOP_TAG_SRC, loadTexture, paintPackShadow, paintTray, placardBadge, placardCount,
 } from './shopDressing';
 import { AETHER_ICON_SRC } from '../AetherIcon';
 import { arrived, buySettled, cancelHeld, moveHeld, newDrag, pickUp, release, zoneAt, type ShopDrag } from './shopDrag';
@@ -505,6 +505,12 @@ class ShopSceneImpl implements ShopScene {
       this.wake();
     });
 
+    loadTexture(SHOP_GROMMET_SRC, () => !this.destroyed, (t) => {
+      this.dressTex.push(t);
+      for (const pl of this.placards) pl.setGrommet(t);
+      this.heldTag?.setGrommet(t);
+      this.wake();
+    });
     loadTexture(SHOP_TAG_SRC, () => !this.destroyed, (t) => {
       this.dressTex.push(t);
       for (const pl of this.placards) pl.setArt(t);

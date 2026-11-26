@@ -78,6 +78,13 @@ const TAG_FONT_PX = 34, TAG_GEM = 40, TAG_H = 74, TAG_CUT = 20, TAG_HOLE = 6.5;
  */
 export const SHOP_TAG_SRC = `${import.meta.env.BASE_URL}packs/shop-tag.webp`;
 export const TAG_ART = { w: 512, h: 349, knotX: 265.5, bodyH: 228, textY: 258, innerW: 420 } as const;
+/**
+ * THE GROMMET (owner 2026-11-25: "the grommet to place where the string meets the card pack"): a brass eyelet set in
+ * the pack where the rope is tied, under the rope's knot. `size` is its diameter and `y` its centre below the knot's
+ * top, in the tag's own units; `hole` is the hole's share of that diameter (dark: the pack is punched through).
+ */
+export const SHOP_GROMMET_SRC = `${import.meta.env.BASE_URL}packs/shop-grommet.webp`;
+const GROMMET = { size: 27, y: 6, hole: 0.47 } as const;
 /** The painted tag's body height in the tag's own units (the drawn tag's is TAG_H), and the room left beside the price. */
 const TAG_ART_H = 88, TAG_ART_PAD = 18;
 
@@ -100,6 +107,8 @@ export class Placard {
   readonly view = new Container();
   private readonly paper = new Graphics();
   private readonly art = new Sprite(Texture.EMPTY);
+  private readonly grommet = new Sprite(Texture.EMPTY);
+  private readonly grommetHole = new Graphics();
   private readonly icon: Sprite;
   private readonly text: Text;
   private readonly count: Text;
@@ -122,7 +131,13 @@ export class Placard {
     this.chip.visible = false;
     this.art.anchor.set(TAG_ART.knotX / TAG_ART.w, 0);
     this.art.visible = false;
-    this.view.addChild(this.paper, this.art, this.icon, this.text, this.count, this.chip);
+    // the grommet sits in the pack, under the rope: the hole first, then the ring, then the tag and its rope over them
+    this.grommetHole.circle(0, GROMMET.y, (GROMMET.size * GROMMET.hole) / 2 + 0.5).fill({ color: 0x0b0806, alpha: 1 });
+    this.grommet.anchor.set(0.5);
+    this.grommet.position.set(0, GROMMET.y);
+    this.grommet.width = GROMMET.size; this.grommet.height = GROMMET.size;
+    this.grommet.visible = false; this.grommetHole.visible = false;
+    this.view.addChild(this.grommetHole, this.grommet, this.paper, this.art, this.icon, this.text, this.count, this.chip);
     this.view.visible = false;
   }
 
@@ -131,6 +146,13 @@ export class Placard {
 
   /** The painted tag's texture arrives after the scene is up: it replaces the drawn paper. */
   setArt(tag: Texture): void { this.art.texture = tag; this.key = ''; }
+
+  /** The grommet's texture arrives after the scene is up. */
+  setGrommet(ring: Texture): void {
+    this.grommet.texture = ring;
+    this.grommet.width = GROMMET.size; this.grommet.height = GROMMET.size;
+    this.grommet.visible = true; this.grommetHole.visible = true;
+  }
 
   /**
    * Show `label` (the number, or the words) as `kind`, a box's `count` words beside it (`placardCount`; '' for none) and

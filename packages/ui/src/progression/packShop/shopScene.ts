@@ -592,6 +592,7 @@ class ShopSceneImpl implements ShopScene {
       const p = new ShelfPack(webgl, this.bandTex);
       p.enableShadow(contactTex);
       p.enableGlow(glowTex);
+      p.enableBody(); // a pack on the counter has thickness and a puffed sleeve
       this.handPacks.push(p);
       hand.addChild(p.view);
     }

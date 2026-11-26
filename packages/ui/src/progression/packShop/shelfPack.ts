@@ -30,6 +30,16 @@ const PLACEHOLDER_CARDS = 5;
 export const SHADOW_SLAB = 76 / 128;
 /** The contact shadow against the pack's own outline: a little narrower (none at the sides), no taller (it is offset forward). */
 const SHADOW_GROW = { x: 0.96, y: 1 } as const;
+/**
+ * A PACK WITH A BODY (owner 2026-11-26: "it looks like a 2d image laying flat. how can we make it look a bit more like a
+ * physical card pack with a bit of depth and height?"). `BODY_THICK`: how thick the pack is (a share of its height): its
+ * underside is drawn that far below it, darkened by `BODY_SIDE_TINT`, so the near edge shows as the pack's side when it
+ * lies back, and hides under it when it stands up. `PUFF` is the shading painted onto the sleeve (alphas).
+ */
+const BODY_THICK = 0.022;
+const BODY_SIDE_TINT = 0x4a4a4a;
+const PUFF = { light: 0.16, front: 0.24, side: 0.26, crease: 0.3 } as const;
+
 /** A hovered pack at full lift: this much taller, and raised this share of its height. */
 export const LIFT_GROW = 0.08;
 export const LIFT_RISE = 0.06;
@@ -62,6 +72,45 @@ function withImage(src: string, onLoad: (img: HTMLImageElement) => void): void {
   el.addEventListener('load', () => { onLoad(el); }, { once: true });
 }
 
+/**
+ * THE PUFFED SLEEVE: shading painted over a pack's art, only where the art is (`source-atop`), so a flat picture reads as
+ * a filled foil sleeve. The light is behind the packs (the lanterns on the back wall): a soft light across the far side
+ * of the body, a shade toward the near edge, both sides falling away, and a crease where the body meets each sealed end.
+ * Painted once per look, never per frame.
+ */
+function paintPuff(g: CanvasRenderingContext2D, w: number, h: number): void {
+  const top = (H / HT) * h, bot = h - (H / HT) * h * 0.9; // where the body meets the top strip and the bottom seal
+  g.save();
+  g.globalCompositeOperation = 'source-atop';
+  // far side lit, near side shaded
+  const v = g.createLinearGradient(0, top, 0, bot);
+  v.addColorStop(0, 'rgba(255, 255, 255, 0)');
+  v.addColorStop(0.16, `rgba(255, 255, 255, ${PUFF.light})`);
+  v.addColorStop(0.42, 'rgba(255, 255, 255, 0)');
+  v.addColorStop(0.62, 'rgba(0, 0, 0, 0)');
+  v.addColorStop(1, `rgba(0, 0, 0, ${PUFF.front})`);
+  g.fillStyle = v;
+  g.fillRect(0, top, w, bot - top);
+  // the sides fall away
+  const s = g.createLinearGradient(0, 0, w, 0);
+  s.addColorStop(0, `rgba(0, 0, 0, ${PUFF.side})`);
+  s.addColorStop(0.14, 'rgba(0, 0, 0, 0)');
+  s.addColorStop(0.86, 'rgba(0, 0, 0, 0)');
+  s.addColorStop(1, `rgba(0, 0, 0, ${PUFF.side})`);
+  g.fillStyle = s;
+  g.fillRect(0, top, w, bot - top);
+  // a crease under the top seal and above the bottom one (the body swells between them)
+  const band = h * 0.022;
+  for (const [y0, y1] of [[top, top + band], [bot, bot - band]] as const) {
+    const c = g.createLinearGradient(0, y0, 0, y1);
+    c.addColorStop(0, `rgba(0, 0, 0, ${PUFF.crease})`);
+    c.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    g.fillStyle = c;
+    g.fillRect(0, Math.min(y0, y1), w, band);
+  }
+  g.restore();
+}
+
 export class ShelfPack {
   readonly view = new Container();
   private readonly canvas: HTMLCanvasElement;
@@ -73,6 +122,10 @@ export class ShelfPack {
   private readonly shadowAt = { dx: 0, dy: 0 };
   /** The pack's glow (`enableGlow`): a soft light round its outline, shown while it is selected. */
   private glow: PerspectiveMesh | null = null;
+  /** The pack's underside (`enableBody`): its near edge is the pack's side. */
+  private side: PerspectiveMesh | null = null;
+  /** The sleeve is painted puffed (`enableBody`). */
+  private puffed = false;
   private lookKey = '';
   /** Bumped by every `setLook` and by `destroy`: a load that arrives for an older look touches nothing. */
   private loadToken = 0;
@@ -85,6 +138,7 @@ export class ShelfPack {
   private readonly band = newGlossBand();
   private readonly pt = { x: 0, y: 0 };
   private readonly corners = new Float64Array(8);
+  private readonly sideCorners = new Float64Array(8);
   /** What the mesh was last written with (rewrite only when one changes). */
   private readonly key = { rx: NaN, ry: NaN, D: NaN };
 
@@ -192,6 +246,19 @@ export class ShelfPack {
     this.key.rx = NaN;
   }
 
+  /**
+   * Give the pack a body: its underside (the pack's own painting, darkened) drawn a pack-thickness below it, and the
+   * puffed-sleeve shading on its painting. Call before `setLook`.
+   */
+  enableBody(): void {
+    if (this.side || this.destroyed) return;
+    this.side = new PerspectiveMesh({ texture: this.tex, verticesX: 4, verticesY: 4 });
+    this.side.tint = BODY_SIDE_TINT;
+    this.view.addChildAt(this.side, this.view.getChildIndex(this.mesh));
+    this.puffed = true;
+    this.key.rx = NaN;
+  }
+
   /** The glow's strength (0..1) and colour. */
   setGlow(alpha: number, tint: number): void {
     const g = this.glow;
@@ -231,7 +298,7 @@ export class ShelfPack {
     this.destroyed = true;
     this.loadToken++;
     const gm = this.gloss?.mesh;
-    const geoms = [this.mesh.geometry, gm?.geometry, this.shadow?.geometry, this.glow?.geometry];
+    const geoms = [this.mesh.geometry, gm?.geometry, this.shadow?.geometry, this.glow?.geometry, this.side?.geometry];
     const shader = gm?.shader;
     this.view.destroy({ children: true });
     for (const geo of geoms) geo?.destroy();
@@ -249,6 +316,17 @@ export class ShelfPack {
       c[i * 2] = p.x; c[i * 2 + 1] = p.y;
     }
     this.mesh.setCorners(c[0]!, c[1]!, c[2]!, c[3]!, c[4]!, c[5]!, c[6]!, c[7]!);
+    const sd = this.side;
+    if (sd) {
+      // the same four corners one thickness BELOW the pack (away from the camera), through the same tilt
+      const s = this.sideCorners, z = -BODY_THICK * HT;
+      for (let i = 0; i < 4; i++) {
+        const x = i === 1 || i === 2 ? W / 2 : -W / 2, y = i >= 2 ? HT / 2 : -HT / 2;
+        if (pose.flat) { p.x = x; p.y = y; } else tiltInto(p, x, y, z, pose);
+        s[i * 2] = p.x; s[i * 2 + 1] = p.y;
+      }
+      sd.setCorners(s[0]!, s[1]!, s[2]!, s[3]!, s[4]!, s[5]!, s[6]!, s[7]!);
+    }
     const gl = this.glow;
     if (gl) {
       // the pack's own outline: the texture's bright slab is the pack, its soft edge reaches out past it
@@ -279,6 +357,7 @@ export class ShelfPack {
       g.clearRect(0, 0, this.canvas.width, this.canvas.height);
       g.drawImage(paintStrip(look), 0, 0, this.canvas.width, H * TEX_RES);
       g.drawImage(paintBody(look, PLACEHOLDER_CARDS), 0, H * TEX_RES, this.canvas.width, BODY_H * TEX_RES);
+      if (this.puffed) paintPuff(g, this.canvas.width, this.canvas.height);
       this.tex.source.update();
     } catch { /* no 2D canvas: the pack stays blank */ }
   }
@@ -290,6 +369,7 @@ export class ShelfPack {
     try {
       g.clearRect(0, 0, this.canvas.width, this.canvas.height);
       g.drawImage(img, 0, 0, this.canvas.width, this.canvas.height);
+      if (this.puffed) paintPuff(g, this.canvas.width, this.canvas.height);
       this.tex.source.update();
     } catch { /* keep what is painted */ }
   }

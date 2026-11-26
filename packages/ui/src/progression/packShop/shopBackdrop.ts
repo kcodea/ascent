@@ -30,7 +30,8 @@ export const SHOP_ART: Partial<Record<BackdropLayer, string>> = {
   // Cropped so its back edge sits at COUNTER_HEADROOM of the image, as the placeholder's does.
   counter: '/packs/shop-counter.webp',
   // owner 2026-11-25 (prompts.md 5c): soft-focus curtains down both edges, a lantern and a swag in the top corners.
-  // The painting had no spare margin, so the file carries its edge pixels repeated outward by OVERSCAN.fore.
+  // The file is the painting with its edge pixels repeated outward by 3%: less than OVERSCAN.fore, on purpose, so the
+  // curtains sit mostly off screen and encroach less (owner 2026-11-25). Rebuild with a larger repeat to bring them in.
   fore: '/packs/shop-fore.webp',
 };
 

@@ -193,8 +193,7 @@ const RELIEF_LIGHT = 1.25;
 const RELIEF_SLOPE = 2.6;
 const RELIEF_DIFF = 0.6;
 const RELIEF_SPEC = 0.55;
-/** The finish: how much brighter the gloss band is on a relief pack's glossy ground, and how much of the lit slope matte felt keeps. */
-const RELIEF_GROUND_GLOSS = 3;
+/** The finish: how much of the lit slope a matte part keeps. */
 const RELIEF_FELT = 0.55;
 /** The felt: how much its fibre grain leans the surface, and how bright its fuzz rim is. */
 const FELT_GRAIN = 0.55;
@@ -215,6 +214,8 @@ uniform vec3 uGeom;        // the pack's W, H (the strip's height) and BODY_H
 uniform float uRelief;     // how strongly the pack answers its relief (0 = a flat pack)
 uniform float uBandA;      // the band's own strength (the Gloss knob); the relief light does not ride it
 uniform vec2 uLight;       // the eased aim over the pack, -1..1: the relief's light leans that way
+uniform vec2 uMat;         // the wrapper's material (packRelief.ts): x = how much brighter the band is at full gloss,
+                           // y = how fuzzy its matte parts are (the fibre grain and the fuzz rim)
 void main() {
   float x = vUV.x * uGeom.x, y = uGeom.y + vUV.y * uGeom.z;
   // THE BAND TRAVELS OVER AN EMBOSSED SURFACE: where the surface leans, the light is found a little further along (the
@@ -228,14 +229,14 @@ void main() {
   float xs = x + n.x * ${RELIEF_BEND.toFixed(1)}, ys = y + n.y * ${RELIEF_BEND.toFixed(1)};
   float d = (xs + uBand.z * (ys - uBand.w) - uBand.x) / uBand.y;
   float lit = clamp(1. + dot(n, vec2(-.45, -.9)) * ${RELIEF_LIGHT.toFixed(2)}, .2, 2.4);
-  vec4 band = texture(uTex2, vec2(.5 + .5 * d, .5)) * step(abs(d), 1.) * lit * uBandA * mix(1., glossy * ${RELIEF_GROUND_GLOSS.toFixed(1)}, on);
+  vec4 band = texture(uTex2, vec2(.5 + .5 * d, .5)) * step(abs(d), 1.) * lit * uBandA * mix(1., glossy * uMat.x, on);
   // THE RELIEF'S OWN LIGHT, over the whole pack: a slope that faces the light catches it (a flat part gets none), with a
   // tight glint on top. The light sits above and a little left, and leans toward the pointer.
   // FELT IS FIBRES: a fine grain leans the felt's surface this way and that, so its light breaks up softly (two sizes of
   // grain, in pack units, coarse enough not to shimmer on a small shelf pack)
   vec2 gp = vec2(x, y);
   vec2 grain = vec2(n2(gp * vec2(.42, .3)) + .5 * n2(gp * vec2(.9, .7) + 31.), n2(gp * vec2(.3, .42) + 17.) + .5 * n2(gp * vec2(.7, .9) + 53.)) - .75;
-  vec3 N = normalize(vec3(n * ${RELIEF_SLOPE.toFixed(1)} + grain * felt * ${FELT_GRAIN.toFixed(2)}, 1.));
+  vec3 N = normalize(vec3(n * ${RELIEF_SLOPE.toFixed(1)} + grain * felt * uMat.y * ${FELT_GRAIN.toFixed(2)}, 1.));
   vec2 l2 = vec2(-.35, -.6) + uLight * 1.5;
   vec3 L = normalize(vec3(l2, .75));
   vec3 Hv = normalize(L + vec3(0., 0., 1.));
@@ -245,14 +246,14 @@ void main() {
   // THE FUZZ RIM: felt glows softly where its surface turns away from the eye, most on the side toward the light
   float turn = 1. - N.z;
   float toward = .5 + .5 * dot(normalize(N.xy + 1e-4), normalize(l2));
-  emboss += vec3(1., .93, .8) * pow(turn, 1.4) * (.35 + .65 * toward) * felt * ${FELT_RIM.toFixed(2)};
+  emboss += vec3(1., .93, .8) * pow(turn, 1.4) * (.35 + .65 * toward) * felt * uMat.y * ${FELT_RIM.toFixed(2)};
   // SHADOWS (this mesh blends premultiplied: rgb adds light, alpha takes it away): a slope facing away from the light
   // darkens, and the felt throws a short shadow onto the glossy ground on its far side (the finish map, looked up a few
   // units toward the light: felt there, ground here = in its shadow)
   float away = max(L.z - dot(N, L), 0.);
   vec2 stp = normalize(l2) * ${FELT_CAST_REACH.toFixed(1)} / vec2(uGeom.x, uGeom.y + uGeom.z);
-  float cast = glossy * (1. - .5 * (texture(uTex3, ruv + stp).b + texture(uTex3, ruv + stp * 2.).b));
-  float shade = clamp(away * ${RELIEF_SHADE.toFixed(2)} + cast * ${FELT_CAST.toFixed(2)}, 0., .6) * on;
+  float thrown = max(glossy - .5 * (texture(uTex3, ruv + stp).b + texture(uTex3, ruv + stp * 2.).b), 0.);
+  float shade = clamp(away * ${RELIEF_SHADE.toFixed(2)} + thrown * ${FELT_CAST.toFixed(2)}, 0., .6) * on;
   finalColor = vec4(band.rgb + emboss, shade) * texture(uTex, vUV).a * uColor.a;
 }`;
 
@@ -307,7 +308,7 @@ export type SheenFx = Fx<typeof SHEEN_U>;
 
 export const makeStage = (webgl: boolean): StageFx | null => make(webgl, STAGE_FRAG, STAGE_U, 'normal');
 const NO_U = {} as const satisfies USpec;
-const GLOSS_U = { uBand: 'vec4<f32>', uGeom: 'vec3<f32>', uRelief: 'f32', uBandA: 'f32', uLight: 'vec2<f32>' } as const satisfies USpec;
+const GLOSS_U = { uBand: 'vec4<f32>', uGeom: 'vec3<f32>', uRelief: 'f32', uBandA: 'f32', uLight: 'vec2<f32>', uMat: 'vec2<f32>' } as const satisfies USpec;
 export type MaskedFx = Fx<typeof NO_U>;
 export type GlossFx = Fx<typeof GLOSS_U>;
 /** A copy of the wrapper body's grid (the scene copies the body's positions into it whenever it writes them). */

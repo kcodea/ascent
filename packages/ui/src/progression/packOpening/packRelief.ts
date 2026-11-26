@@ -12,16 +12,33 @@ import type { PackLook } from '@game/progression';
 import { packArtFor } from './packArt';
 import type { GlossFx } from './packFx';
 
-/** The wrappers that ship a relief map, by their art file's id (`packs/<id>-pack.webp`). */
-const RELIEF_IDS: ReadonlySet<string> = new Set(['plushie']);
-/** How strongly the band answers the relief (0 = flat). */
-export const RELIEF_STRENGTH = 1;
+/**
+ * A wrapper's MATERIAL: `band` = how much brighter the gloss band is where the finish is full gloss (1 = the band as a
+ * flat pack shows it), `fuzz` = how fuzzy its matte parts are (0..1: the fibre grain and the soft rim), `depth` = how
+ * strongly the wrapper answers its relief (1 = the Plushie felt; a printed wrapper is far shallower, so its small
+ * lettering stays readable).
+ */
+interface PackMaterial { band: number; fuzz: number; depth: number }
+/** Printed foil all over: the band as it always was, glints on every slope, no fuzz. */
+const FOIL: PackMaterial = { band: 1, fuzz: 0, depth: 0.42 };
+/** The wrappers that ship a relief map, by their art file's id (`packs/<id>-pack.webp`), and what each is made of. */
+const RELIEF: Readonly<Record<string, PackMaterial>> = {
+  common: FOIL, rare: FOIL, epic: FOIL, legendary: FOIL, ancient: FOIL, secret: FOIL, launch: FOIL,
+  eightbit: FOIL, voxel: FOIL, lowpoly: FOIL,
+  plushie: { band: 3, fuzz: 1, depth: 1 },      // felt on a glossy ground
+  scribble: { band: 2.5, fuzz: 0.5, depth: 0.4 }, // crayon on paper (finish 0.4 all over: the band as it was, a waxy tooth)
+  sketchbook: { band: 3, fuzz: 0.4, depth: 0.35 }, // pencil on paper (finish 0.3 all over)
+};
 
 /** The relief map for `look`, or null. */
 export function packReliefFor(look: PackLook): string | null {
   const art = packArtFor(look);
   const id = art ? /packs\/([a-z]+)-pack\.webp$/.exec(art)?.[1] : undefined;
-  return art && id && RELIEF_IDS.has(id) ? art.replace(/\.webp$/, '-relief.webp') : null;
+  return art && id && RELIEF[id] ? art.replace(/\.webp$/, '-relief.webp') : null;
+}
+
+function materialFor(src: string): PackMaterial {
+  return RELIEF[/packs\/([a-z]+)-pack-relief\.webp$/.exec(src)?.[1] ?? ''] ?? FOIL;
 }
 
 let flat: Texture | null = null;
@@ -50,10 +67,12 @@ export function bindRelief(gloss: GlossFx, look: PackLook, stillWanted: () => bo
     try { gloss.mesh.shader!.resources.uTex3 = t.source; gloss.u.uRelief = k; } catch { /* the band was destroyed */ }
   };
   if (!src) { set(flatRelief(), 0); return; }
+  const mat = materialFor(src);
+  try { const um = gloss.u.uMat; um[0] = mat.band; um[1] = mat.fuzz; } catch { /* the band was destroyed */ }
   const have = loaded.get(src);
-  if (have) { set(have, RELIEF_STRENGTH); return; }
+  if (have) { set(have, mat.depth); return; }
   set(flatRelief(), 0);
-  const use = (t: Texture): void => { if (stillWanted()) set(t, RELIEF_STRENGTH); };
+  const use = (t: Texture): void => { if (stillWanted()) set(t, mat.depth); };
   const queue = waiting.get(src);
   if (queue) { queue.push(use); return; }
   waiting.set(src, [use]);

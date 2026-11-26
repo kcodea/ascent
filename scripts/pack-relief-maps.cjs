@@ -8,8 +8,9 @@
 // embossed one. It is a 300 x 450 image: R = the lean left/right, G = the lean up/down (128 = flat), B = the FINISH
 // (255 = the glossy printed ground, 0 = a matte material standing on it, like felt).
 //
-// The finish is read from the art's colour: each wrapper names the hue range of its GROUND (`ground`), and whatever is
-// not that colour is the matte material.
+// The finish comes from `ground`: a hue range ({ from, to } in degrees) reads it from the art's colour (that colour is
+// the glossy ground, everything else the matte material on it); a number (0..1) is one finish for the whole wrapper
+// (1 = printed foil all over, lower = a paper-like wrapper).
 //
 // The height is built from what the art shows, in three layers:
 //   1. FORMS: the art's brightness, blurred wide. On these wrappers the things that stand proud (the emblem, the
@@ -22,7 +23,21 @@ const sharp = require('sharp');
 const [, , SRC_DIR, OUT_DIR, PREVIEW] = process.argv;
 // The wrappers that get a relief map, and how strongly each layer counts (forms, parts, detail) and the overall slope.
 const PACKS = {
-  plushie: { forms: 0.5, parts: 0.42, detail: 0.3, slope: 5.5, ground: { from: 250, to: 340 } }, // the purple sky
+  plushie: { forms: 0.5, parts: 0.42, detail: 0.3, slope: 5.5, ground: { from: 250, to: 340 } }, // felt on a purple sky
+  // the painted foil wrappers: a metal emblem and logo standing proud of a soft painted scene
+  common: { forms: 0.4, parts: 0.5, detail: 0.34, slope: 5.5, ground: 1 },
+  rare: { forms: 0.4, parts: 0.5, detail: 0.34, slope: 5.5, ground: 1 },
+  epic: { forms: 0.4, parts: 0.5, detail: 0.34, slope: 5.5, ground: 1 },
+  legendary: { forms: 0.4, parts: 0.5, detail: 0.34, slope: 5.5, ground: 1 },
+  ancient: { forms: 0.36, parts: 0.5, detail: 0.34, slope: 5.5, ground: 1 },
+  secret: { forms: 0.4, parts: 0.5, detail: 0.34, slope: 5.5, ground: 1 },
+  launch: { forms: 0.4, parts: 0.5, detail: 0.34, slope: 5.5, ground: 1 },
+  // the style wrappers
+  scribble: { forms: 0.3, parts: 0.3, detail: 0.5, slope: 5, ground: 0.4 },    // crayon on paper: waxy strokes, little form
+  eightbit: { forms: 0.3, parts: 0.3, detail: 0.6, slope: 5, ground: 1 },      // printed pixels: crisp steps
+  voxel: { forms: 0.45, parts: 0.4, detail: 0.5, slope: 5.5, ground: 1 },      // glossy blocks
+  lowpoly: { forms: 0.45, parts: 0.45, detail: 0.4, slope: 5.5, ground: 1 },   // glossy facets
+  sketchbook: { forms: 0.2, parts: 0.25, detail: 0.5, slope: 4.5, ground: 0.3 }, // pencil on paper: nearly flat, the lines bite in
 };
 // The template's named parts, as soft ellipses in shares of the wrapper (cx, cy, rx, ry) and their swell.
 const PARTS = [
@@ -65,10 +80,11 @@ function blur(src, r) {
       const mx = Math.max(r, g, b), c = mx - Math.min(r, g, b);
       let h = 0;
       if (c > 0) h = 60 * (mx === r ? ((g - b) / c + 6) % 6 : mx === g ? (b - r) / c + 2 : (r - g) / c + 4);
+      if (typeof k.ground === 'number') { ground[i] = k.ground; continue; }
       const hueIn = h > k.ground.from && h < k.ground.to ? Math.min(1, Math.min(h - k.ground.from, k.ground.to - h) / 20) : 0;
       ground[i] = hueIn * Math.min(1, Math.max(0, (b - g) * 5)) * alpha[i];
     }
-    const finish = blur(ground, 1);
+    const finish = typeof k.ground === 'number' ? ground : blur(ground, 1);
     const forms = blur(lum, 7), detail = blur(lum, 1), base = blur(lum, 18);
     const height = new Float32Array(W * H);
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {

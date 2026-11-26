@@ -271,13 +271,16 @@
 .pkf-art-bare { flex: 1 1 auto; height: auto; flex-direction: column; gap: 22px; overflow: visible; background: none; box-shadow: none; }
 .pkf-art-bare .pkf-emblem { width: 150px; height: 150px; }
 .pkf-title.titlebadge { --tb-fs: 23px; max-width: 100%; }
-/* A HERO SKIN and a MINION SKIN: no framed window (owner 2026-11-26). The art box reaches the card window's top and
-   sides (the window's own padding is cancelled; `.pkf-win` still clips it to the window's rounded shape), and the art
-   fades out by its bottom, so the plate's navy (with the rarity's tint and foil) shows through. Static paint. */
-.pkf-art-full { width: calc(100% + 52px); height: 398px; margin: -40px -26px 0; border-radius: 0; background: none; box-shadow: none; }
-.pkf-art-full .pkf-img { object-position: 50% 18%;
-  -webkit-mask-image: linear-gradient(180deg, #000 52%, transparent 97%); mask-image: linear-gradient(180deg, #000 52%, transparent 97%); }
-.pkf-art-full .pkf-new { top: 46px; right: 34px; }
+/* A HERO SKIN and a MINION SKIN: no framed window (owner 2026-11-26). `.pkf-fullart` is the card's box cut to the
+   plate's TRACED window (`--pkf-window`, the top notch too: owner, "theres still a gap"); the art fills its top and
+   fades out by its bottom, so the plate's navy (with the rarity's tint and foil) shows through. `.pkf-art-full` is the
+   empty space the art shows in (it still carries the NEW chip and the DUPLICATE stamp). Static paint. */
+.pkf-fullart { position: absolute; inset: 0; pointer-events: none;
+  -webkit-mask: var(--pkf-window) center / 100% 100% no-repeat; mask: var(--pkf-window) center / 100% 100% no-repeat; }
+.pkf-fullart > img { position: absolute; left: 4%; top: 2.5%; width: 92%; height: 64%; object-fit: cover; object-position: 50% 18%; user-select: none;
+  -webkit-mask-image: linear-gradient(180deg, #000 55%, transparent 97%); mask-image: linear-gradient(180deg, #000 55%, transparent 97%); }
+.pkf-art-full { border-radius: 0; background: none; box-shadow: none; overflow: visible; }
+.pkf-art-full .pkf-new { top: 6px; right: 8px; }
 /* The name sits in its own thin frame: the preview window's navy, rounded corners and gold line (owner 2026-11-24), so
    the foil never runs behind the words. The span clamps to two lines inside the frame's padding. */
 .pkf-name { margin-top: 6px; width: 100%; box-sizing: border-box; padding: 10px 14px 12px; border-radius: 14px; background: rgba(9, 18, 38, 0.6); /* the plate navy at 60% (owner 2026-11-24) */
@@ -295,7 +298,7 @@
 .pkf-rarity-icon { position: absolute; left: 50%; bottom: -11px; width: 86px; height: 86px; margin-left: -43px; object-fit: contain; pointer-events: none;
   filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.6)); }
 .pkf-new { position: absolute; top: 13px; right: 13px; padding: 3px 14px; border-radius: 999px; font-size: 18px; font-weight: 900; letter-spacing: 0.14em;
-  text-transform: uppercase; color: #12160c; background: var(--gold-lt); box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6); }
+  text-transform: uppercase; color: #12160c; background: var(--gold-lt); box-shadow: 0 0 0 2px #000, 0 2px 6px rgba(0, 0, 0, 0.6); } /* a black stroke round the pill (owner 2026-11-26) */
 .pkf-dup { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 13px; pointer-events: none; }
 /* The stamp lands once, after the turn (one-shot, transform/opacity only). */
 .pkf-stamp { padding: 6px 22px; border: 5px solid var(--threat); border-radius: 10px; color: var(--threat); background: rgba(10, 8, 14, 0.75);

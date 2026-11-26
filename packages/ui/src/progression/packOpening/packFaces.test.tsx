@@ -44,14 +44,15 @@ const face = (): HTMLElement => document.querySelector('[data-testid="pack-face"
 describe('PackFace', () => {
   it('an art category renders its art with decoding="sync"', () => {
     m = mount(<PackFace card={card('skin_albus_1')} phase="featured" />);
-    const img = face().querySelector('.pkf-art img')!;
+    const img = face().querySelector('.pkf-fullart img')!;
     expect(img).toBeTruthy();
     expect(img.getAttribute('decoding')).toBe('sync');
     expect(img.getAttribute('src')).toBeTruthy();
     expect(face().querySelector('.pkf-emblem')).toBeNull();
     expect(face().querySelector('.pkf-cat')!.textContent).toBe('Hero skin');
     // a hero skin has no framed window: its art runs the card window's full width and fades into the navy (owner 2026-11-26)
-    expect(face().querySelector('.pkf-art.pkf-art-full img.pkf-img-hero')).toBeTruthy();
+    expect(face().querySelector('.pkf-fullart img.pkf-img-hero')).toBeTruthy();
+    expect(face().querySelector('.pkf-art.pkf-art-full img')).toBeNull(); // the framed window is an empty spacer
     expect(face().querySelector('.pkf-heroring')).toBeNull();
   });
 
@@ -254,7 +255,8 @@ describe('the face holo', () => {
     m = mount(<PackFace card={card('skin_albus_1', { rarity: 'legendary' })} phase="featured" />);
     const layer = holo()!;
     expect(layer.previousElementSibling?.classList.contains('pkf-tint')).toBe(true); // plate, tint, foil, content
-    expect(layer.nextElementSibling?.classList.contains('pkf-win')).toBe(true);
+    expect(layer.nextElementSibling?.classList.contains('pkf-fullart')).toBe(true); // a skin's art lies over the foil, under the content
+    expect(layer.nextElementSibling?.nextElementSibling?.classList.contains('pkf-win')).toBe(true);
     // the rarity tint is cut to the same traced window (no straight edge across the notch), under the foil
     const tint = face().querySelector('.pkf-tint') as HTMLElement;
     expect(tint.style.getPropertyValue('--pkf-window')).toMatch(/packs\/card-plate-window\.webp/);

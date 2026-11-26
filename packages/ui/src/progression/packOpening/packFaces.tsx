@@ -369,6 +369,7 @@ export function PackFace({ card, phase, from, slot, slow = 1, still = false, bes
   // A title wears its own badge in place of the art window and the name line.
   const isTitle = p.emblem === 'title';
   const cat = categoryLabel(p.label.kind, p.category !== null);
+  const fullArt = p.art && (p.art.kind === 'hero' || p.art.kind === 'minion') ? p.art : null;
   const cls = `pkf r-${card.rarity} pkf-${phase}${placed ? ' pkf-placed' : ''}${glow ? ' pkf-glow' : ''}${follow.handlers ? ' pkf-hover' : ''}${best && phase === 'summary' ? ' pkf-best' : ''}${dissolve && phase === 'summary' ? ' pkf-dissolve' : ''}`;
   return (
     <div
@@ -401,9 +402,15 @@ export function PackFace({ card, phase, from, slot, slow = 1, still = false, bes
             </div>
           </div>
         )}
+        {/* a skin's art is a layer of the CARD, cut to the plate's traced window (the top notch too), over the foil */}
+        {fullArt && (
+          <div className="pkf-fullart" style={{ '--pkf-window': HOLO_MASK } as CSSProperties}>
+            <img src={fullArt.url} alt="" decoding="sync" draggable={false} className={`pkf-img-${fullArt.kind}`} />
+          </div>
+        )}
         <div className="pkf-win">
-          <div className={`pkf-art${isTitle ? ' pkf-art-bare' : ''}${p.art && (p.art.kind === 'hero' || p.art.kind === 'minion') ? ' pkf-art-full' : ''}`}>
-            <FaceArt card={card} p={p} lands={lands} phase={phase} still={still} />
+          <div className={`pkf-art${isTitle ? ' pkf-art-bare' : ''}${fullArt ? ' pkf-art-full' : ''}`}>
+            {!fullArt && <FaceArt card={card} p={p} lands={lands} phase={phase} still={still} />}
             {card.duplicate
               ? (
                 <div className="pkf-dup">

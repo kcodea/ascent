@@ -893,7 +893,10 @@ class PackSceneImpl implements PackScene {
     const so = this.sheenOv, go = this.glossOv;
     if (so) { so.mesh.alpha = v.sheen.alpha; so.mesh.visible = v.sheen.alpha > 0.002; }
     if (go) {
-      go.mesh.alpha = v.gloss.alpha; go.mesh.visible = v.gloss.alpha > 0.002;
+      // the band's strength rides a uniform, so the relief's light (packRelief.ts) is not dimmed by the Gloss knob
+      go.u.uBandA = v.gloss.alpha; go.mesh.alpha = 1; go.mesh.visible = v.gloss.alpha > 0.002;
+      const ul = go.u.uLight;
+      ul[0] = this.tilt.ax; ul[1] = this.tilt.ay;
       const b = this.band, ub = go.u.uBand;
       ub[0] = b.centre; ub[1] = Math.max(0.001, b.halfWidth); ub[2] = b.slope; ub[3] = b.cy;
     }

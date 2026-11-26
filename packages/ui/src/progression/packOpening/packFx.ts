@@ -189,6 +189,10 @@ void main() {
 /** How far a full lean moves the band (pack units; the pack is 300 wide), and how much a facing slope brightens. */
 const RELIEF_BEND = 52;
 const RELIEF_LIGHT = 1.25;
+/** The relief's own light: how steep a full lean reads, and how bright its lit slopes and its glints are. */
+const RELIEF_SLOPE = 2.6;
+const RELIEF_DIFF = 0.6;
+const RELIEF_SPEC = 0.55;
 
 /** The gloss band, placed from uniforms (no per-frame uv rewrite): `uBand` = centre, half width, slope, cy (pack units). */
 export const GLOSS_FRAG = `${HEAD}
@@ -197,7 +201,9 @@ uniform sampler2D uTex2;   // the band (sampled along u at v = 0.5)
 uniform sampler2D uTex3;   // the wrapper's RELIEF (packRelief.ts): rg = which way the surface leans (.5 = flat), over the WHOLE pack
 uniform vec4 uBand;
 uniform vec3 uGeom;        // the pack's W, H (the strip's height) and BODY_H
-uniform float uRelief;     // how strongly the band answers the relief (0 = a flat pack)
+uniform float uRelief;     // how strongly the pack answers its relief (0 = a flat pack)
+uniform float uBandA;      // the band's own strength (the Gloss knob); the relief light does not ride it
+uniform vec2 uLight;       // the eased aim over the pack, -1..1: the relief's light leans that way
 void main() {
   float x = vUV.x * uGeom.x, y = uGeom.y + vUV.y * uGeom.z;
   // THE BAND TRAVELS OVER AN EMBOSSED SURFACE: where the surface leans, the light is found a little further along (the
@@ -206,7 +212,16 @@ void main() {
   float xs = x + n.x * ${RELIEF_BEND.toFixed(1)}, ys = y + n.y * ${RELIEF_BEND.toFixed(1)};
   float d = (xs + uBand.z * (ys - uBand.w) - uBand.x) / uBand.y;
   float lit = clamp(1. + dot(n, vec2(-.45, -.9)) * ${RELIEF_LIGHT.toFixed(2)}, .2, 2.4);
-  finalColor = texture(uTex2, vec2(.5 + .5 * d, .5)) * step(abs(d), 1.) * lit * texture(uTex, vUV).a * uColor.a;
+  vec4 band = texture(uTex2, vec2(.5 + .5 * d, .5)) * step(abs(d), 1.) * lit * uBandA;
+  // THE RELIEF'S OWN LIGHT, over the whole pack: a slope that faces the light catches it (a flat part gets none), with a
+  // tight glint on top. The light sits above and a little left, and leans toward the pointer.
+  vec3 N = normalize(vec3(n * ${RELIEF_SLOPE.toFixed(1)}, 1.));
+  vec3 L = normalize(vec3(vec2(-.35, -.6) + uLight * 1.5, .75));
+  vec3 Hv = normalize(L + vec3(0., 0., 1.));
+  float diff = max(dot(N, L) - L.z, 0.);
+  float spec = max(pow(max(dot(N, Hv), 0.), 28.) - pow(Hv.z, 28.), 0.);
+  vec3 emboss = vec3(1., .95, .84) * (diff * ${RELIEF_DIFF.toFixed(2)} + spec * ${RELIEF_SPEC.toFixed(2)}) * step(.001, uRelief);
+  finalColor = (band + vec4(emboss, max(emboss.r, emboss.b))) * texture(uTex, vUV).a * uColor.a;
 }`;
 
 type UType = 'f32' | 'vec2<f32>' | 'vec3<f32>' | 'vec4<f32>';
@@ -260,7 +275,7 @@ export type SheenFx = Fx<typeof SHEEN_U>;
 
 export const makeStage = (webgl: boolean): StageFx | null => make(webgl, STAGE_FRAG, STAGE_U, 'normal');
 const NO_U = {} as const satisfies USpec;
-const GLOSS_U = { uBand: 'vec4<f32>', uGeom: 'vec3<f32>', uRelief: 'f32' } as const satisfies USpec;
+const GLOSS_U = { uBand: 'vec4<f32>', uGeom: 'vec3<f32>', uRelief: 'f32', uBandA: 'f32', uLight: 'vec2<f32>' } as const satisfies USpec;
 export type MaskedFx = Fx<typeof NO_U>;
 export type GlossFx = Fx<typeof GLOSS_U>;
 /** A copy of the wrapper body's grid (the scene copies the body's positions into it whenever it writes them). */

@@ -215,8 +215,12 @@ export class ShelfPack {
     const g = this.gloss;
     if (g) {
       const b = glossBandInto(this.band, feel.gloss, feel.glossSharpness, tiltX, tiltY, a.rx, a.ry, df.tiltMax, W, HT);
-      g.mesh.alpha = b.alpha;
-      g.mesh.visible = b.alpha > 0.002;
+      // the band's strength rides a uniform, so the relief's light (packRelief.ts) shows whatever the Gloss knob says
+      g.u.uBandA = b.alpha;
+      g.mesh.alpha = 1;
+      g.mesh.visible = b.alpha > 0.002 || g.u.uRelief > 0;
+      const ul = g.u.uLight;
+      ul[0] = tiltX; ul[1] = tiltY;
       const ub = g.u.uBand;
       ub[0] = b.centre; ub[1] = Math.max(0.001, b.halfWidth); ub[2] = b.slope; ub[3] = b.cy;
     }

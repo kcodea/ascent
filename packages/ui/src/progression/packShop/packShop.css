@@ -20,10 +20,15 @@
 .pks-away :is(.pks-top, .pks-line, .pks-guarantee, .pks-handlabel, .pks-close) { pointer-events: none; transition: var(--pks-leave); }
 .pks-still :is(.pks-top, .pks-line, .pks-guarantee, .pks-handlabel, .pks-close) { translate: none; transition: opacity 0.2s ease-out; }
 
-/* THE TOP BAR: the shelf tabs on the left, the wallet on the right. */
-.pks-top { position: absolute; left: 36px; right: 168px; top: 22px; display: flex; align-items: center; justify-content: space-between;
-  pointer-events: none; }
-.pks-tabs { display: flex; gap: 10px; pointer-events: auto; }
+/* THE TOP BAR (owner 2026-11-25: "center the categories and put the whole top section in front of a navy bar with a gold
+   line on the bottom, like the main menu top nav bar"): a navy band across the stage with the main menu nav's thin gold
+   rule on its foot. The shelf tabs stand in its middle, the wallet and Close at its right. */
+.pks-top { position: absolute; left: 0; right: 0; top: 0; height: 88px; box-sizing: border-box; padding: 0 168px 0 36px; display: flex; align-items: center;
+  justify-content: flex-end; pointer-events: none;
+  background: linear-gradient(180deg, rgba(10, 13, 30, 0.97), rgba(18, 23, 48, 0.93)); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4); }
+.pks-top::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; pointer-events: none;
+  background: color-mix(in srgb, var(--pill-edge, #c8953f) 85%, transparent); }
+.pks-tabs { position: absolute; left: 50%; top: 50%; translate: -50% -50%; display: flex; gap: 10px; pointer-events: auto; }
 /* A tab is a little shelf label: its shelf's lead pack leaning beside the name. The picked one stands lit, with a gold
    bar under it (a pseudo-element with a static glow: only opacity and transform ever change). */
 .pks-tab { position: relative; display: flex; align-items: center; gap: 10px; height: 60px; padding: 0 20px 0 12px;
@@ -45,9 +50,9 @@
 .pks-wallet .pkop-aether-orb, .pks-wallet .pkop-aether-gem.aether-icon { width: 64px; height: 64px; }
 .pks-wallet .pkop-aether-num { font-size: 40px; }
 
-/* THE COUNTER LINE'S WORDS: the scene draws and lights the line at 66% of the stage; the price (or what is missing)
+/* THE COUNTER LINE'S WORDS: the scene draws and lights the line at 73% of the stage; the price (or what is missing)
    sits on it while a shelf pack is carried, at the line's LEFT end, where the carried pack does not cover it. */
-.pks-line { position: absolute; left: 6%; right: 0; top: 66%; height: 0; display: flex; justify-content: flex-start; pointer-events: none; }
+.pks-line { position: absolute; left: 6%; right: 0; top: 73%; height: 0; display: flex; justify-content: flex-start; pointer-events: none; }
 .pks-line-words { transform: translateY(8px); padding: 7px 18px; border-radius: 0 0 12px 12px; background: linear-gradient(180deg, rgba(34, 40, 74, 0.96), rgba(14, 17, 36, 0.96));
   border: 1.5px solid var(--pk-rim); border-top: none; font-size: 21px; font-weight: 800; letter-spacing: 0.06em; color: var(--pk-text); opacity: 0.8;
   transition: opacity 0.15s ease-out; }
@@ -55,7 +60,7 @@
 .pks-line-short { color: #ff9c8a; }
 /* THE GUARANTEE'S GAUGE, under the counter line at the right: the rarity's medallion, the words, and a pip per pack to go
    (`.r-<rarity>` gives the pips the rarity's colour token, `--rc`), so the player sees it count down. Static glow only. */
-.pks-guarantee { position: absolute; right: 48px; top: calc(66% + 16px); display: flex; align-items: center; gap: 12px; padding: 6px 20px 6px 6px;
+.pks-guarantee { position: absolute; right: 36px; top: 104px; display: flex; align-items: center; gap: 12px; padding: 6px 20px 6px 6px;
   border-radius: 34px; background: linear-gradient(180deg, rgba(40, 50, 96, 0.82), rgba(14, 18, 38, 0.9)); border: 1.5px solid rgba(255, 210, 122, 0.26);
   pointer-events: none; }
 .pks-guarantee-medal { width: 54px; height: 54px; object-fit: contain; flex: none; }
@@ -68,14 +73,14 @@
    carries its Buy / Open button; without a rect (a pack out of view) it docks above the counter line. */
 .pks-tag { position: absolute; width: max-content; max-width: 520px; box-sizing: border-box; padding: 8px 18px 9px; border-radius: 14px;
   background: linear-gradient(180deg, rgba(34, 40, 74, 0.97), rgba(14, 17, 36, 0.97)); border: 1.5px solid var(--pk-rim); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
-  display: flex; flex-flow: row wrap; align-items: center; justify-content: space-between; gap: 4px 26px; pointer-events: none; animation: pks-tag-in 0.16s ease-out both; }
-/* one compact row (the pack's medal, name and floor; then its price): it fits the gap between a shelf pack and the
-   counter. A warning or the Buy button takes a row of its own under it. */
+  display: flex; flex-direction: column; gap: 2px; pointer-events: none; animation: pks-tag-in 0.16s ease-out both; }
+/* compact: the pack's medal, name and floor, then its price under the name; a warning or the Buy button takes a row of
+   its own under that. It sits in the gap between a shelf pack and the counter. */
 .pks-tag .pks-tag-medal { width: 44px; height: 44px; }
-.pks-tag .pks-tag-price { margin-top: 0; }
-.pks-tag :is(.pks-tag-short, .pks-buy, .pks-open) { flex-basis: 100%; }
+.pks-tag .pks-tag-price { margin-top: 0; padding-left: 56px; }
+.pks-tag :is(.pks-buy, .pks-open) { margin-top: 6px; }
 .pks-tag-armed { pointer-events: auto; }
-.pks-tag-dock { left: 50%; top: calc(66% - 150px); translate: -50% 0; }
+.pks-tag-dock { left: 50%; top: calc(73% - 150px); translate: -50% 0; }
 @keyframes pks-tag-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 .pks-tag-name, .pks-card-name { font-family: var(--font-cardname); font-size: 22px; font-weight: 800; color: var(--gold-lt); line-height: 1.15; }
 .pks-tag-head, .pks-card-head { display: flex; align-items: center; gap: 12px; }
@@ -91,9 +96,9 @@
 /* The spoken line, shown small at the lower left under the hand's label, clear of the packs. */
 .pks-live { position: absolute; left: 6%; top: calc(86% + 22px); max-width: 22%; font-size: 15px; line-height: 1.3; color: var(--pk-text); opacity: 0.8;
   pointer-events: none; }
-.pks-close { position: absolute; top: 32px; right: 36px; }
+.pks-close { position: absolute; top: 24px; right: 36px; }
 /* The hand's label, at the hand's left. */
-.pks-handlabel { position: absolute; left: 50%; top: 97.6%; transform: translate(-50%, -50%); font-size: 17px; font-weight: 800; letter-spacing: 0.14em;
+.pks-handlabel { position: absolute; left: 50%; top: 76.4%; transform: translate(-50%, -50%); font-size: 17px; font-weight: 800; letter-spacing: 0.14em;
   text-transform: uppercase; color: var(--gold-lt); opacity: 0.7; pointer-events: none; }
 
 /* Visually hidden, still read and focusable: the mirror of the canvas. Its focused pack shows the tag instead. */

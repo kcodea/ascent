@@ -325,6 +325,8 @@ export class ShopBackdrop {
   private h = 0;
   private lineY = 0;
   private alive = true;
+  /** The counter is the painted art (not the placeholder): it keeps its own proportions. */
+  private counterArt = false;
 
   constructor() {
     const tex = (c: HTMLCanvasElement): Texture => { const t = new Texture({ source: new CanvasSource({ resource: c }) }); this.textures.push(t); return t; };
@@ -342,7 +344,7 @@ export class ShopBackdrop {
     const sprites: Record<BackdropLayer, Sprite> = { wall: this.wall, counter: this.counter, fore: this.fore };
     for (const layer of Object.keys(SHOP_ART) as BackdropLayer[]) {
       const src = SHOP_ART[layer];
-      if (src) loadTexture(src, () => this.alive, (t) => { this.textures.push(t); sprites[layer].texture = t; sprites[layer].alpha = 1; this.size(); });
+      if (src) loadTexture(src, () => this.alive, (t) => { this.textures.push(t); sprites[layer].texture = t; sprites[layer].alpha = 1; if (layer === 'counter') this.counterArt = true; this.size(); });
     }
   }
 
@@ -359,7 +361,12 @@ export class ShopBackdrop {
     this.fore.width = w * (1 + 2 * OVERSCAN.fore); this.fore.height = h * (1 + 2 * OVERSCAN.fore);
     // the counter's painting runs from its headroom above the line to the canvas's foot
     this.counter.width = w * (1 + 2 * OVERSCAN.counter);
-    this.counter.height = Math.max(1, h - this.lineY) / (1 - COUNTER_HEADROOM);
+    // The painted counter keeps its proportions (its props must not squash): where that is taller than the room under the
+    // line, its near edge runs off the bottom of the canvas.
+    const need = Math.max(1, h - this.lineY) / (1 - COUNTER_HEADROOM);
+    const tex = this.counter.texture;
+    const natural = this.counterArt && tex.width > 1 ? this.counter.width * (tex.height / tex.width) : 0;
+    this.counter.height = Math.max(need, natural);
   }
 
   /** The pointer is at (px, py) in canvas px. */

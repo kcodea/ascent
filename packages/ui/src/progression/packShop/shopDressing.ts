@@ -43,6 +43,17 @@ export function paintPackShadow(): HTMLCanvasElement {
   return c;
 }
 
+/** A pack's GLOW: a white slab with a wide soft edge (the same layout as the contact shadow's), tinted and added by the scene. */
+export function paintPackGlow(): HTMLCanvasElement {
+  const W = 128, H = 128;
+  const { c, g } = canvasOf(W, H);
+  if (!g) return c;
+  g.filter = 'blur(9px)';
+  g.fillStyle = 'rgba(255,255,255,1)';
+  g.beginPath(); g.roundRect(22, 22, W - 44, H - 44, 6); g.fill();
+  return c;
+}
+
 /** A pack's CONTACT shadow: a dark slab with a tight soft edge (the middle 76 of 128 px: `shelfPack.ts SHADOW_SLAB`). */
 export function paintContactShadow(): HTMLCanvasElement {
   const W = 128, H = 128;

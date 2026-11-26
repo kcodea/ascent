@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { HAND_FAN_MAX, clampScroll, handPile, handPoseInto, shelfPoseInto, shopLayout, startScroll } from './shopLayout';
+import { HAND_FAN_MAX, HAND_RECLINE, clampScroll, handPile, handPoseInto, shelfPoseInto, shopLayout, startScroll } from './shopLayout';
 import { PACK_BASE_SIZE } from '../packOpening/packFxConfig';
 
 describe('shopLayout', () => {
@@ -38,13 +38,14 @@ describe('the pedestal and the hand keep clear of the bar and the line', () => {
       expect(p.y + p.h / 2).toBeLessThanOrEqual(L.lineY - 0.04 * h);
       expect(L.packH).toBeCloseTo(0.72 * L.pedestalH);
     });
-    it(`at ${w} x ${h}: every place of a full fan rests wholly below the line`, () => {
+    it(`at ${w} x ${h}: every place of a full fan lies wholly below the line (a hand pack is drawn reclined)`, () => {
       const L = shopLayout(w, h), p = { x: 0, y: 0, h: 0, rot: 0, alpha: 0 };
       const hw = (L.handPackH * PACK_BASE_SIZE.w) / PACK_BASE_SIZE.h / 2;
       for (let i = 0; i < HAND_FAN_MAX; i++) {
         handPoseInto(p, L, i, HAND_FAN_MAX);
         // the highest corner of the rotated pack
-        const top = p.y - (p.h / 2) * Math.cos(p.rot) - hw * Math.abs(Math.sin(p.rot));
+        const lie = Math.cos((HAND_RECLINE * Math.PI) / 180);
+        const top = p.y - (p.h / 2) * lie * Math.cos(p.rot) - hw * Math.abs(Math.sin(p.rot));
         expect(top).toBeGreaterThan(L.lineY);
       }
     });

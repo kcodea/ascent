@@ -61,11 +61,11 @@ import { aimInto, newTilt, stepTilt, tiltEaseK, type TiltState } from '../packOp
 import { LIFT_GROW, ShelfPack, liftPoseInto } from './shelfPack';
 import { LOOK_EASE, ShopBackdrop } from './shopBackdrop';
 import {
-  Placard, SHOP_GROMMET_SRC, SHOP_TAG_SRC, loadTexture, paintContactShadow, paintPackShadow, paintTray, placardBadge, placardCount,
+  Placard, SHOP_GROMMET_SRC, SHOP_TAG_SRC, loadTexture, paintContactShadow, paintPackGlow, paintPackShadow, paintTray, placardBadge, placardCount,
 } from './shopDressing';
 import { AETHER_ICON_SRC } from '../AetherIcon';
 import { arrived, buySettled, cancelHeld, moveHeld, newDrag, pickUp, release, zoneAt, type ShopDrag } from './shopDrag';
-import { HAND_FAN_MAX, clampScroll, handPoseInto, shelfPoseInto, shopLayout, type PackPose, type ShopLayout } from './shopLayout';
+import { HAND_FAN_MAX, HAND_RECLINE, clampScroll, handPoseInto, shelfPoseInto, shopLayout, type PackPose, type ShopLayout } from './shopLayout';
 import {
   SETTLE_DEPTH, SETTLE_FRAMES, arrivingPlaceHidden, bindFan, handFanInto, hiddenAsleep, inRotatedRect, newPointerVel,
   newShake, newSwing, parksOnArrival, pointerVelDecay, resetPointerVel, resetShake, rubberY, samplePointerVel, settleDip,
@@ -228,13 +228,18 @@ const RACK_FADE_EASE = 0.15;
  * so it is foreshortened like the counter under it, and stands up to face the player as it is hovered. Each casts a
  * shadow: this dark at rest, offset down and right by these shares of the pack's height, lighter and further as it lifts.
  */
-const HAND_RECLINE = 52;
 const HAND_SHADOW = { alpha: 0.42, dx: 0.035, dy: 0.05, lift: 0.1 } as const;
 /**
  * The hand packs' CONTACT shadow (owner 2026-11-25: "add shadows here to make it look a bit more like its against the
  * table"): tight and dark under the pack's own outline, offset by these shares of its height. As the pack lifts it
  * fades to `lifted` of its strength and slides `away` times further off (the pack has left the wood).
  */
+/**
+ * A SELECTED hand pack glows (owner 2026-11-25: "when the card is selected, have it glow"): the light round a pack as it
+ * stands up under the pointer, in its rarity's colour, this strong at full lift.
+ */
+const HAND_GLOW = 0.85;
+const GLOW_TINT: Readonly<Record<string, number>> = { common: 0xdfe6f2, rare: 0x6fb4ff, epic: 0xc88bff, legendary: 0xffc55a, ancient: 0x7ff2e2 };
 const HAND_CONTACT = { alpha: 0.72, dx: 0.014, dy: 0.03, lifted: 0.35, away: 4 } as const;
 const TAG_FONT = 0.0525; // owner 2026-11-25: "make the tag smaller by 30%" (was 0.075)
 /**
@@ -546,10 +551,12 @@ class ShopSceneImpl implements ShopScene {
     this.shadowLayer = shadows;
     app.stage.addChild(shadows);
     const contactTex = tex(paintContactShadow());
+    const glowTex = tex(paintPackGlow());
     const hand = new Container();
     for (let j = 0; j < HAND_FAN_MAX; j++) {
       const p = new ShelfPack(webgl, this.bandTex);
       p.enableShadow(contactTex);
+      p.enableGlow(glowTex);
       this.handPacks.push(p);
       hand.addChild(p.view);
     }
@@ -1321,6 +1328,7 @@ class ShopSceneImpl implements ShopScene {
       // (the lift is already in q: pose it unlifted) lying back on the counter, standing up as it lifts
       const up = this.handLift[v]!, lie = HAND_RECLINE * (1 - up);
       const away = 1 + (HAND_CONTACT.away - 1) * up;
+      this.handPacks[v]!.setGlow(HAND_GLOW * up, GLOW_TINT[packGlowRarity(this.hand[j]!.look)] ?? 0xffd27a);
       this.handPacks[v]!.setShadow(HAND_CONTACT.alpha * (1 - (1 - HAND_CONTACT.lifted) * up), HAND_CONTACT.dx * away, HAND_CONTACT.dy * away);
       this.handPacks[v]!.pose(q, ax, ay, 0, lie);
       const sh = this.handShadows[v];

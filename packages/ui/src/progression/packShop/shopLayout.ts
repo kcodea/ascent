@@ -36,18 +36,20 @@ const ASPECT = PACK_BASE_SIZE.w / PACK_BASE_SIZE.h;
 const PEDESTAL_H = 0.46;
 const SHELF_SCALE = 0.72;
 /** The line the packs' feet share, in canvas heights. */
-const FLOOR_Y = 0.585;
+const FLOOR_Y = 0.62; // owner 2026-11-25: "move the shop display packs down a bit" (was 0.585)
 /** A pack in the hand lies on the counter, nearer than the shelf: it is drawn reclined (`shopScene.ts HAND_RECLINE`), so
  *  its drawn height is well under this. */
-const HAND_SCALE = 0.66;
+const HAND_SCALE = 0.6;
 /** Past this many steps from the pedestal a slot is invisible; it fades in over the last `FADE_STEPS`. */
 const FADE_END = 2.6;
 const FADE_STEPS = 0.6;
 /** Extra room between the (larger) pedestal pack and its neighbours, in shelf pack widths. */
 const PEDESTAL_GAP = 0.2;
 /** Lean per place from the hand's centre (radians) and how far the outer packs sag. */
+/** How far back a pack in the hand lies on the counter (degrees): its drawn height is `cos` of this of its own. */
+export const HAND_RECLINE = 52;
 const HAND_LEAN = 0.035;
-const HAND_SAG = 0.012;
+const HAND_SAG = 0; // a row lying on the counter does not sag (it did, as a held fan)
 
 export function shopLayout(w: number, h: number): ShopLayout {
   const pedestalH = PEDESTAL_H * h;
@@ -58,7 +60,7 @@ export function shopLayout(w: number, h: number): ShopLayout {
     // the packs STAND on one line: bottoms on `floorY`. `shelfY` is the pedestal pack's centre (the pedestal zone and
     // the spotlight aim there).
     floorY: FLOOR_Y * h,
-    shelfY: FLOOR_Y * h - pedestalH / 2, lineY: 0.66 * h, handY: 0.82 * h,
+    shelfY: FLOOR_Y * h - pedestalH / 2, lineY: 0.73 * h, handY: 0.86 * h, // owner 2026-11-25: "lower the table by a good amount" (the line was 0.66)
     packH, pedestalH, handPackH,
     slotStep: packH * ASPECT * 1.25,
   };

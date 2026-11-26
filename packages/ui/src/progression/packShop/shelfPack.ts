@@ -70,6 +70,8 @@ export class ShelfPack {
   /** The pack's contact shadow (`enableShadow`): the pack's own outline, a little larger, offset down and right. */
   private shadow: PerspectiveMesh | null = null;
   private readonly shadowAt = { dx: 0, dy: 0 };
+  /** The pack's glow (`enableGlow`): a soft light round its outline, shown while it is selected. */
+  private glow: PerspectiveMesh | null = null;
   private lookKey = '';
   /** Bumped by every `setLook` and by `destroy`: a load that arrives for an older look touches nothing. */
   private loadToken = 0;
@@ -169,6 +171,29 @@ export class ShelfPack {
     this.view.addChildAt(this.shadow, 0);
   }
 
+  /**
+   * Give the pack a glow round its outline (`tex`: `paintPackGlow`'s slab, shared, same layout as the shadow's). Drawn
+   * under the pack and over its shadow, added to what is behind it.
+   */
+  enableGlow(tex: Texture): void {
+    if (this.glow || this.destroyed) return;
+    this.glow = new PerspectiveMesh({ texture: tex, verticesX: 4, verticesY: 4 });
+    this.glow.blendMode = 'add';
+    this.glow.alpha = 0;
+    this.glow.visible = false;
+    this.view.addChildAt(this.glow, this.shadow ? 1 : 0);
+    this.key.rx = NaN;
+  }
+
+  /** The glow's strength (0..1) and colour. */
+  setGlow(alpha: number, tint: number): void {
+    const g = this.glow;
+    if (!g) return;
+    g.alpha = alpha;
+    g.visible = alpha > 0.004;
+    g.tint = tint;
+  }
+
   /** The contact shadow's strength (0..1) and its offset, as shares of the pack's height. Call before `pose`. */
   setShadow(alpha: number, dx: number, dy: number): void {
     const sh = this.shadow;
@@ -199,7 +224,7 @@ export class ShelfPack {
     this.destroyed = true;
     this.loadToken++;
     const gm = this.gloss?.mesh;
-    const geoms = [this.mesh.geometry, gm?.geometry, this.shadow?.geometry];
+    const geoms = [this.mesh.geometry, gm?.geometry, this.shadow?.geometry, this.glow?.geometry];
     const shader = gm?.shader;
     this.view.destroy({ children: true });
     for (const geo of geoms) geo?.destroy();
@@ -217,6 +242,15 @@ export class ShelfPack {
       c[i * 2] = p.x; c[i * 2 + 1] = p.y;
     }
     this.mesh.setCorners(c[0]!, c[1]!, c[2]!, c[3]!, c[4]!, c[5]!, c[6]!, c[7]!);
+    const gl = this.glow;
+    if (gl) {
+      // the pack's own outline: the texture's bright slab is the pack, its soft edge reaches out past it
+      const mx = (c[0]! + c[2]! + c[4]! + c[6]!) / 4, my = (c[1]! + c[3]! + c[5]! + c[7]!) / 4, e = 1 / SHADOW_SLAB;
+      gl.setCorners(
+        mx + (c[0]! - mx) * e, my + (c[1]! - my) * e, mx + (c[2]! - mx) * e, my + (c[3]! - my) * e,
+        mx + (c[4]! - mx) * e, my + (c[5]! - my) * e, mx + (c[6]! - mx) * e, my + (c[7]! - my) * e,
+      );
+    }
     const sh = this.shadow;
     if (sh) {
       // the pack's own outline, grown so the texture's slab is a little larger than the pack, then offset

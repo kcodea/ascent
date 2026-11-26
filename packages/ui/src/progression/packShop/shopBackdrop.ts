@@ -31,10 +31,9 @@ export const SHOP_ART: Partial<Record<BackdropLayer, string>> = {
   // same vanishing point as the hand's reclined packs (centred, 40% down the canvas), so the packs lie in its perspective.
   // Cropped so its back edge sits at COUNTER_HEADROOM of the image, as the placeholder's does.
   counter: `${BASE}packs/shop-counter.webp`,
-  // owner 2026-11-25 (prompts.md 5c): soft-focus curtains down both edges, and nothing else: the painting's
-  // small lantern and swag were painted out (owner: at that distance they would be huge and blurred, and unwanted).
-  // The file is the painting with its edge pixels repeated outward by 3%: less than OVERSCAN.fore, on purpose, so the
-  // curtains sit mostly off screen and encroach less (owner 2026-11-25). Rebuild with a larger repeat to bring them in.
+  // owner 2026-11-26: a wooden DOORWAY ("a new front for the shop to replace the side walls"): a post down each edge and
+  // an arch across the top, the shop seen through it. The file is the painting with its edge pixels repeated outward by
+  // 10% (OVERSCAN.fore), so the painting fills the screen exactly at rest (its posts inside it) and a slid layer never shows an edge.
   fore: `${BASE}packs/shop-fore.webp`,
 };
 
@@ -49,7 +48,7 @@ export const OVERSCAN: Record<BackdropLayer, number> = { wall: 0.06, counter: 0,
 export const DEPTH: Record<BackdropLayer, { x: number; y: number }> = {
   wall: { x: 0.012, y: 0.008 },
   counter: { x: 0, y: 0 }, // it does not move at all (owner 2026-11-26): the hand's packs lie on it, and they do not move
-  fore: { x: -0.05, y: -0.03 },
+  fore: { x: -0.025, y: -0.015 }, // owner 2026-11-26: the doorway's posts stand inside the screen, so it slides half as far as the curtains did (they sat off screen)
 };
 
 /** How quickly the room follows the pointer (per 60 Hz frame), and when it counts as arrived. */

@@ -34,11 +34,24 @@ export const LAUNCH_PACK_SRC = `${BASE}packs/launch-pack.webp`;
 export const SCRIBBLE_PACK_LOOK_ID = 'themed-scribble';
 export const SCRIBBLE_PACK_SRC = `${BASE}packs/scribble-pack.webp`;
 
+/**
+ * THE STYLE PACKS (owner 2026-11-26): a wrapper per cosmetic art style, painted in that style. `file` names the art,
+ * `packs/<file>-pack.webp`. (The Scribble Pack above is one of them; it keeps its own constants.)
+ */
+export const STYLE_PACKS: readonly { id: string; file: string; name: string }[] = [
+  { id: 'themed-plushie', file: 'plushie', name: 'Plushie Pack' },
+  { id: 'themed-8bit', file: 'eightbit', name: '8 Bit Pack' },
+  { id: 'themed-voxel', file: 'voxel', name: 'Voxel Pack' },
+  { id: 'themed-low-poly', file: 'lowpoly', name: 'Low Poly Pack' },
+  { id: 'themed-sketchbook', file: 'sketchbook', name: 'Sketchbook Pack' },
+];
+
 /** Themed looks that wear their own wrapper, by look id. */
 export const THEMED_PACK_ART: Readonly<Record<string, string>> = {
   [SECRET_PACK_LOOK_ID]: SECRET_PACK_SRC,
   [LAUNCH_PACK_LOOK_ID]: LAUNCH_PACK_SRC,
   [SCRIBBLE_PACK_LOOK_ID]: SCRIBBLE_PACK_SRC,
+  ...Object.fromEntries(STYLE_PACKS.map((p) => [p.id, `${BASE}packs/${p.file}-pack.webp`])),
 };
 
 /** The wrapper art for `look`, or null (the placeholder painting): every rarity pack, and the themed packs with art. */

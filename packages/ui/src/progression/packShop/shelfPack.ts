@@ -105,6 +105,9 @@ export class ShelfPack {
     this.view.visible = false;
   }
 
+  /** The pack's painted texture (shared with the rest of its stack, `StackRest`). */
+  get texture(): Texture { return this.tex; }
+
   /** Show `look`: its art when it has some (the placeholder until the image loads), else the placeholder. */
   setLook(look: PackLook): void {
     if (this.destroyed) return;
@@ -285,5 +288,88 @@ export class ShelfPack {
       g.drawImage(img, 0, 0, this.canvas.width, this.canvas.height);
       this.tex.source.update();
     } catch { /* keep what is painted */ }
+  }
+}
+
+/**
+ * How each pack UNDER a stack's top lies, top-most first: turned in the counter's plane (degrees) and shifted (shares
+ * of the pack's height), so a stack looks dropped there, not machined. Mirrored on alternate stacks.
+ */
+const STACK_ASKEW = [
+  { a: -5, x: -0.022, y: 0.012, tint: 0xe2e2e2 },
+  { a: 4, x: 0.026, y: -0.016, tint: 0xcacaca },
+  { a: -2.5, x: -0.014, y: -0.03, tint: 0xb4b4b4 },
+] as const;
+/** The most packs drawn under a stack's top (a taller stack shows these and its count). */
+export const STACK_UNDER_MAX = STACK_ASKEW.length;
+
+/**
+ * THE REST OF A STACK (owner 2026-11-25: "stack packs of the same type over the same slot, but each one is slightly
+ * askew"): up to `STACK_UNDER_MAX` packs lying under a hand pack, drawn with that pack's own texture (no canvas of
+ * their own). They stay on the counter while the top pack lifts or is carried away. Rewritten only when the lie, the
+ * depth or the stack's seed changes.
+ */
+export class StackRest {
+  readonly view = new Container();
+  private readonly meshes: PerspectiveMesh[] = [];
+  private readonly tiltPose = newTiltPose();
+  private readonly pt = { x: 0, y: 0 };
+  private readonly key = { rx: NaN, D: NaN, seed: NaN };
+  private tex: Texture | null = null;
+
+  constructor() {
+    for (let i = 0; i < STACK_UNDER_MAX; i++) {
+      const m = new PerspectiveMesh({ texture: Texture.EMPTY, verticesX: 6, verticesY: 6 });
+      m.tint = STACK_ASKEW[i]!.tint;
+      m.visible = false;
+      this.meshes.push(m);
+    }
+    for (let i = STACK_UNDER_MAX - 1; i >= 0; i--) this.view.addChild(this.meshes[i]!); // the deepest first
+    this.view.visible = false;
+  }
+
+  /** The texture the stack's packs wear (their top pack's). */
+  setTexture(tex: Texture): void {
+    if (tex === this.tex) return;
+    this.tex = tex;
+    for (const m of this.meshes) m.texture = tex;
+  }
+
+  /** Draw `n` packs lying at (x, y) (canvas px), `h` tall before the lie, turned `rot`, laid back `recline` degrees. */
+  pose(x: number, y: number, h: number, rot: number, alpha: number, recline: number, n: number, seed: number): void {
+    const on = n > 0 && alpha > 0;
+    this.view.visible = on;
+    if (!on) return;
+    const k = h / HT;
+    this.view.position.set(x, y);
+    this.view.rotation = rot;
+    this.view.scale.set(k);
+    this.view.alpha = alpha;
+    for (let i = 0; i < STACK_UNDER_MAX; i++) this.meshes[i]!.visible = i < n;
+    const D = getDragFeel().perspective / Math.max(0.05, k), key = this.key;
+    if (key.rx === recline && key.D === D && key.seed === seed) return;
+    key.rx = recline; key.D = D; key.seed = seed;
+    const pose = setTiltPose(this.tiltPose, recline, 0, 0, 0, D), p = this.pt;
+    const flip = seed % 2 === 0 ? 1 : -1;
+    for (let i = 0; i < STACK_UNDER_MAX; i++) {
+      const s = STACK_ASKEW[i]!, a = (s.a * flip * Math.PI) / 180, ca = Math.cos(a), sa = Math.sin(a);
+      const ox = s.x * HT * flip, oy = s.y * HT, c = this.corners;
+      for (let j = 0; j < 4; j++) {
+        const lx = j === 1 || j === 2 ? W / 2 : -W / 2, ly = j >= 2 ? HT / 2 : -HT / 2;
+        // turned and shifted IN the counter's plane, then seen through the lie
+        const px = lx * ca - ly * sa + ox, py = lx * sa + ly * ca + oy;
+        if (pose.flat) { p.x = px; p.y = py; } else tiltInto(p, px, py, 0, pose);
+        c[j * 2] = p.x; c[j * 2 + 1] = p.y;
+      }
+      this.meshes[i]!.setCorners(c[0]!, c[1]!, c[2]!, c[3]!, c[4]!, c[5]!, c[6]!, c[7]!);
+    }
+  }
+
+  private readonly corners = new Float64Array(8);
+
+  destroy(): void {
+    const geoms = this.meshes.map((m) => m.geometry);
+    this.view.destroy({ children: true });
+    for (const g of geoms) g.destroy();
   }
 }

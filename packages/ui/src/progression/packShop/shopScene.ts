@@ -58,7 +58,7 @@ import { sealedPackCentre, sealedPackHeight } from '../packOpening/packScene';
 import { packGlowRarity } from '../packOpening/packGlow';
 import { PACK_GEOM, paintGlossBand } from '../packOpening/packTextures';
 import { aimInto, newTilt, stepTilt, tiltEaseK, type TiltState } from '../packOpening/packTilt';
-import { LIFT_GROW, ShelfPack, liftPoseInto } from './shelfPack';
+import { LIFT_GROW, STACK_UNDER_MAX, ShelfPack, StackRest, liftPoseInto } from './shelfPack';
 import { LOOK_EASE, ShopBackdrop } from './shopBackdrop';
 import {
   Placard, SHOP_GROMMET_SRC, SHOP_TAG_SRC, loadTexture, paintContactShadow, paintPackGlow, paintPackShadow, paintTray, placardBadge, placardCount,
@@ -159,9 +159,8 @@ const RUBBER_REACH = 0.22;
 /** The buying shimmer: the gloss sweeps back and forth across the waiting pack (radians per frame), and how far up it hangs. */
 const SHIMMER_RATE = 0.11;
 const BUY_HANG = 0.18;
-/** A hovered hand pack rises this share of its height; its neighbours make this much room (pack widths), at full lift. */
+/** A hovered hand pack rises this share of its height, at full lift. */
 const HAND_RISE = 0.35;
-const HAND_ROOM = 0.2;
 /** A hovered shelf pack's two neighbours lean away (radians) and step aside (pack widths), at full lift. */
 const LEAN_ROT = 0.012;
 const LEAN_PUSH = 0.03;
@@ -228,7 +227,7 @@ const RACK_FADE_EASE = 0.15;
  * so it is foreshortened like the counter under it, and stands up to face the player as it is hovered. Each casts a
  * shadow: this dark at rest, offset down and right by these shares of the pack's height, lighter and further as it lifts.
  */
-const HAND_SHADOW = { alpha: 0.42, dx: 0.035, dy: 0.05, lift: 0.1 } as const;
+const HAND_SHADOW = { alpha: 0.42, dx: 0, dy: 0.075, lift: 0.1 } as const; // the lanterns are behind: shadows fall toward the viewer
 /**
  * The hand packs' CONTACT shadow (owner 2026-11-25: "add shadows here to make it look a bit more like its against the
  * table"): tight and dark under the pack's own outline, offset by these shares of its height. As the pack lifts it
@@ -240,7 +239,11 @@ const HAND_SHADOW = { alpha: 0.42, dx: 0.035, dy: 0.05, lift: 0.1 } as const;
  */
 const HAND_GLOW = 0.85;
 const GLOW_TINT: Readonly<Record<string, number>> = { common: 0xdfe6f2, rare: 0x6fb4ff, epic: 0xc88bff, legendary: 0xffc55a, ancient: 0x7ff2e2 };
-const HAND_CONTACT = { alpha: 0.72, dx: 0.014, dy: 0.03, lifted: 0.35, away: 4 } as const;
+/** A stack's count ("x4"): its size as a share of a hand pack's height, and where it sits (shares of the pack's width and height from its centre). */
+const STACK_COUNT = { font: 0.1, x: 0.5, y: 0.3 } as const;
+/** A pack's type: packs of one type lie in one stack. */
+const lookKeyOf = (look: OwnedPack['look']): string => `${look.kind}:${look.id}`;
+const HAND_CONTACT = { alpha: 0.72, dx: 0, dy: 0.04, lifted: 0.35, away: 4 } as const;
 const TAG_FONT = 0.0525; // owner 2026-11-25: "make the tag smaller by 30%" (was 0.075)
 /**
  * THE PRICE TAGS: where the twine is tied (a share of the pack's height in from its top-left corner), how far the tag
@@ -298,6 +301,19 @@ class ShopSceneImpl implements ShopScene {
   private tray: Sprite | null = null;
   /** The hand packs' shadows on the counter (one per hand view, under the hand). */
   private handShadows: Sprite[] = [];
+  /**
+   * THE HAND IS STACKS (owner 2026-11-25): `hand` holds each stack's TOP pack, in the order the types first appear, so a
+   * fan place is a stack. `handAll` is every owned pack, `stackN[j]` how many packs stack `j` holds, `handKeys[j]` its
+   * type (the views are bound by type, so a stack keeps its view when its top pack is opened).
+   */
+  private handAll: readonly OwnedPack[] = [];
+  private stackN: number[] = [];
+  private handKeys: { packId: string }[] = [];
+  private readonly stackRests: StackRest[] = [];
+  private readonly stackCounts: Text[] = [];
+  private readonly stackCountN = new Int32Array(HAND_FAN_MAX).fill(-1);
+  private restLayer: Container | null = null;
+  private countLayer: Container | null = null;
   /** Scratch: where a tag's knot lands on its (tilted) pack. */
   private readonly tagPt = { x: 0, y: 0 };
   private shadowLayer: Container | null = null;
@@ -383,6 +399,8 @@ class ShopSceneImpl implements ShopScene {
     vx: 0, vy: 0, pvx: 0,
     /** The hand's size when the purchase was dropped (a place is held at the fan's end until the hand grows). */
     buyN: 0,
+    /** The bought pack's type, whether a stack of it already lay in the hand (it lands ON that stack), and how many packs were owned. */
+    buyKey: '', onto: false, buyTotal: 0,
     /** The counter line's eased pull (canvas px, added to y), the tag's eased alpha and the pack's own alpha. */
     rub: 0, tagA: 0, alpha: 1,
     /** The purchase is a box (`contains > 1`): its packs rise into the fan one by one, the box itself sinks and fades. */
@@ -550,6 +568,12 @@ class ShopSceneImpl implements ShopScene {
     shadows.eventMode = 'none';
     this.shadowLayer = shadows;
     app.stage.addChild(shadows);
+    // the rest of each stack: under the hand's top packs, over their shadows on the wood
+    const rests = new Container();
+    for (let j = 0; j < HAND_FAN_MAX; j++) { const r = new StackRest(); this.stackRests.push(r); rests.addChild(r.view); }
+    rests.eventMode = 'none';
+    this.restLayer = rests;
+    app.stage.addChild(rests);
     const contactTex = tex(paintContactShadow());
     const glowTex = tex(paintPackGlow());
     const hand = new Container();
@@ -566,6 +590,18 @@ class ShopSceneImpl implements ShopScene {
     hand.addChild(this.pileText);
     this.handLayer = hand;
     app.stage.addChild(hand);
+    // each stack's count, over the hand
+    const counts = new Container();
+    for (let j = 0; j < HAND_FAN_MAX; j++) {
+      const t = new Text({ text: '', style: { fontFamily: FONT, fontSize: 24, fontWeight: '800', fill: 0xffffff, stroke: { color: 0x120a04, width: 5, join: 'round' } } });
+      t.anchor.set(0.5);
+      t.visible = false;
+      this.stackCounts.push(t);
+      counts.addChild(t);
+    }
+    counts.eventMode = 'none';
+    this.countLayer = counts;
+    app.stage.addChild(counts);
 
     // the held pack, its price tag tied to its top-left corner (drawn over it)
     this.heldPack = new ShelfPack(webgl, this.bandTex);
@@ -641,6 +677,8 @@ class ShopSceneImpl implements ShopScene {
     this.placards.length = 0;
     this.tray = null; this.placardLayer = null;
     this.handShadows.length = 0; this.shadowLayer = null;
+    for (const r of this.stackRests) r.destroy();
+    this.stackRests.length = 0; this.stackCounts.length = 0; this.restLayer = null; this.countLayer = null;
     this.backdrop?.destroy(); this.backdrop = null;
     for (const t of this.dressTex) t.destroy(true);
     this.dressTex.length = 0;
@@ -681,6 +719,7 @@ class ShopSceneImpl implements ShopScene {
     this.dress();
     this.drawLine();
     if (this.pileText) this.pileText.style.fontSize = Math.max(10, PILE_FONT * this.L.handPackH);
+    for (const t of this.stackCounts) t.style.fontSize = Math.max(10, STACK_COUNT.font * this.L.handPackH);
     this.cacheRect();
     if (resized) this.cancelHold(); // a resize while holding: the pack returns to where it came from
     this.wake();
@@ -733,8 +772,15 @@ class ShopSceneImpl implements ShopScene {
 
   setHand(packs: readonly OwnedPack[]): void {
     if (this.destroyed) return;
-    const prev = this.hand;
-    this.hand = packs.slice();
+    const prev = this.handAll;
+    this.handAll = packs.slice();
+    // one stack per type, in the order the types first appear; its top is the first pack of that type
+    const tops: OwnedPack[] = [], counts: number[] = [], keys: { packId: string }[] = [], at = new Map<string, number>();
+    for (const p of this.handAll) {
+      const k = lookKeyOf(p.look), i = at.get(k);
+      if (i === undefined) { at.set(k, tops.length); tops.push(p); counts.push(1); keys.push({ packId: k }); } else counts[i] = counts[i]! + 1;
+    }
+    this.hand = tops; this.stackN = counts; this.handKeys = keys;
     // a hand that grew by more than one pack (a box): the new packs arrive one after another, each rising into its place
     if (this.app && this.handShown && this.enter >= 1) {
       const had = new Set(prev.map((p) => p.packId));
@@ -1110,6 +1156,8 @@ class ShopSceneImpl implements ShopScene {
       if (this.placardLayer) this.placardLayer.alpha = ra;
       if (this.handLayer) this.handLayer.alpha = ra;
       if (this.shadowLayer) this.shadowLayer.alpha = ra;
+      if (this.restLayer) this.restLayer.alpha = ra;
+      if (this.countLayer) this.countLayer.alpha = ra;
       if (this.lineBase) this.lineBase.visible = ra > 0.02;
       moving = true;
     }
@@ -1126,7 +1174,7 @@ class ShopSceneImpl implements ShopScene {
   /** Recompute the fan when the hand's size or the purchase's reserved place changed (allocates; not per frame). */
   private syncFan(): void {
     const n = this.hand.length, ph = this.drag.phase;
-    const reserve = (ph === 'buying' || ph === 'toHand') && n <= this.held.buyN && !this.held.box ? 1 : 0;
+    const reserve = (ph === 'buying' || ph === 'toHand') && n <= this.held.buyN && !this.held.box && !this.held.onto ? 1 : 0;
     const key = n * 2 + reserve;
     if (key === this.fanKey) return;
     this.fanKey = key;
@@ -1142,7 +1190,7 @@ class ShopSceneImpl implements ShopScene {
   private bindHandViews(): void {
     this.handBound = true;
     const f = this.fan, count = Math.min(f.places, this.hand.length), L = this.L;
-    bindFan(this.handViewId, this.placeView, this.viewFresh, this.hand, count);
+    bindFan(this.handViewId, this.placeView, this.viewFresh, this.handKeys, count);
     const snap = !this.handShown || this.enter < 1;
     for (let j = 0; j < count; j++) {
       const v = this.placeView[j]!;
@@ -1181,8 +1229,7 @@ class ShopSceneImpl implements ShopScene {
       const st = this.hSettle[v]!;
       if (st >= 0) p.y += SETTLE_DEPTH * p.h * settleDip((this.time - st) / SETTLE_FRAMES);
     }
-    const hv = this.handHover;
-    if (hv >= 0 && j !== hv) p.x += Math.sign(j - hv) * HAND_ROOM * p.h * ASPECT * this.liftAt(hv);
+    // (the neighbours stay put: they lie on the counter. Owner 2026-11-25: "the other packs slide away, this shouldnt happen")
     const lift = this.liftAt(j);
     p.y -= HAND_RISE * p.h * lift;
     p.rot *= 1 - lift;
@@ -1204,7 +1251,7 @@ class ShopSceneImpl implements ShopScene {
     if (id === this.parkedId || this.pendingArrival(id)) return true;
     if (id === this.drag.id && (ph === 'heldHand' || ph === 'toHandBack' || ph === 'toPedestal')) return true;
     // a purchase waiting or on its way in: the hand already holds it, the held pack is drawn instead
-    return !this.held.box && arrivingPlaceHidden(ph, n, this.held.buyN, j, this.fan.places);
+    return !this.held.box && !this.held.onto && arrivingPlaceHidden(ph, n, this.held.buyN, j, this.fan.places);
   }
 
   /**
@@ -1273,6 +1320,9 @@ class ShopSceneImpl implements ShopScene {
     for (let v = 0; v < HAND_FAN_MAX; v++) {
       const sh = this.handShadows[v];
       if (sh) sh.visible = false;
+      const sr0 = this.stackRests[v], ct0 = this.stackCounts[v];
+      if (sr0) sr0.view.visible = false;
+      if (ct0) ct0.visible = false;
       if (this.handViewId[v] !== null) continue;
       this.handPacks[v]!.view.visible = false;
       this.handLift[v] = 0;
@@ -1331,8 +1381,24 @@ class ShopSceneImpl implements ShopScene {
       this.handPacks[v]!.setGlow(HAND_GLOW * up, GLOW_TINT[packGlowRarity(this.hand[j]!.look)] ?? 0xffd27a);
       this.handPacks[v]!.setShadow(HAND_CONTACT.alpha * (1 - (1 - HAND_CONTACT.lifted) * up), HAND_CONTACT.dx * away, HAND_CONTACT.dy * away);
       this.handPacks[v]!.pose(q, ax, ay, 0, lie);
+      // the rest of this pack's stack lies under it, askew, and stays on the wood while the top lifts or is carried off
+      const stackN = this.stackShown(j), under = Math.min(STACK_UNDER_MAX, stackN - 1), rh = L.handPackH;
+      const sr = this.stackRests[v];
+      if (sr) {
+        sr.setTexture(this.handPacks[v]!.texture);
+        sr.pose(this.hx[v]!, this.hy[v]!, rh, this.hr[v]!, waiting ? 0 : 1, HAND_RECLINE, under, v);
+      }
+      const ct = this.stackCounts[v];
+      if (ct) {
+        const showN = !waiting && stackN > 1;
+        ct.visible = showN;
+        if (showN) {
+          if (this.stackCountN[v] !== stackN) { this.stackCountN[v] = stackN; ct.text = `x${stackN}`; }
+          ct.position.set(this.hx[v]! + rh * ASPECT * STACK_COUNT.x, this.hy[v]! + rh * STACK_COUNT.y);
+        }
+      }
       const sh = this.handShadows[v];
-      if (sh && q.alpha > 0) {
+      if (sh && (q.alpha > 0 || (under > 0 && !waiting))) {
         sh.visible = true;
         sh.alpha = HAND_SHADOW.alpha * (1 - 0.5 * up);
         sh.rotation = q.rot;
@@ -1380,10 +1446,32 @@ class ShopSceneImpl implements ShopScene {
     return -1;
   }
 
+  /** The hand place (stack) holding pack `id`: its own when it is a stack's top, else the stack of its type. */
   private handIndexOf(id: string): number {
     const h = this.hand;
     for (let i = 0; i < h.length; i++) if (h[i]!.packId === id) return i;
+    return this.stackOf(this.keyOfPack(id));
+  }
+
+  /** The type of owned pack `id` ('' when it is not owned). */
+  private keyOfPack(id: string): string {
+    for (const p of this.handAll) if (p.packId === id) return lookKeyOf(p.look);
+    return '';
+  }
+
+  /** The hand place of the stack of type `key` (-1: none). */
+  private stackOf(key: string): number {
+    if (!key) return -1;
+    const k = this.handKeys;
+    for (let i = 0; i < k.length; i++) if (k[i]!.packId === key) return i;
     return -1;
+  }
+
+  /** How many packs stack `j` shows: a bought pack still on its way onto the stack is not counted yet. */
+  private stackShown(j: number): number {
+    const n = this.stackN[j] ?? 1, H = this.held, ph = this.drag.phase;
+    const arriving = H.onto && (ph === 'buying' || ph === 'toHand') && this.handAll.length > H.buyTotal && this.handKeys[j]?.packId === H.buyKey;
+    return arriving ? Math.max(1, n - 1) : n;
   }
 
   /** Pick up the pack at shelf slot / hand place `at` (posed for the hit in `lifted`, as drawn). */
@@ -1467,6 +1555,10 @@ class ShopSceneImpl implements ShopScene {
       this.held.buyN = this.hand.length;
       const o = this.offers[this.offerIndexOf(id)];
       this.held.box = !!o && o.contains > 1;
+      // a pack of a type already in the hand lands ON that stack; a new type takes a new place at the fan's end
+      this.held.buyKey = o ? lookKeyOf(o.look) : '';
+      this.held.onto = !this.held.box && this.stackOf(this.held.buyKey) >= 0;
+      this.held.buyTotal = this.handAll.length;
     }
     else if (action === 'play') this.sounds.play();
     const short = action === 'return' && fromShelf && zone === 'hand'; // carried across but not affordable
@@ -1522,7 +1614,8 @@ class ShopSceneImpl implements ShopScene {
         this.syncFan();
         const f = this.fan;
         if (f.places <= 0) return false;
-        handPoseInto(g, L, f.places - 1, f.places);
+        const onto = H.onto ? this.stackOf(H.buyKey) : -1;
+        handPoseInto(g, L, onto >= 0 ? Math.min(onto, f.shown) : f.places - 1, f.places);
         if (d.phase === 'buying') g.y -= BUY_HANG * g.h; // it hangs just above its place while the purchase settles
         return true;
       }
@@ -1666,7 +1759,8 @@ class ShopSceneImpl implements ShopScene {
     }
     if ((ph === 'toHandBack' || (ph === 'toHand' && !H.box)) && id !== null) {
       // into its fan place (a bought pack: the fan's last), the same way: it keeps its arrival tilt and sits down
-      const v = ph === 'toHand' ? this.viewAtPlace(this.fan.places - 1) : this.handViewId.indexOf(id);
+      const onto = ph === 'toHand' && H.onto ? this.stackOf(H.buyKey) : -1;
+      const v = ph === 'toHand' ? this.viewAtPlace(onto >= 0 ? Math.min(onto, this.fan.shown) : this.fan.places - 1) : this.handViewId.indexOf(this.keyOfPack(id));
       if (v >= 0) { this.hAimX[v] = H.aimX; this.hAimY[v] = H.aimY; this.hSettle[v] = this.time; }
     }
     // (the held pack stays drawn THIS frame, posed exactly on its place: the rack and the hand were posed earlier in
@@ -1712,6 +1806,8 @@ class ShopSceneImpl implements ShopScene {
     if (this.placardLayer) { this.placardLayer.y = ENTER_DROP * 0.5 * h * o; this.placardLayer.alpha = this.rackAlpha * this.enter; }
     if (this.handLayer) this.handLayer.y = ENTER_RISE * h * o;
     if (this.shadowLayer) this.shadowLayer.y = ENTER_RISE * h * o;
+    if (this.restLayer) this.restLayer.y = ENTER_RISE * h * o;
+    if (this.countLayer) this.countLayer.y = ENTER_RISE * h * o;
     return true;
   }
 

@@ -10,6 +10,7 @@ import { packArtFor } from '../packOpening/packArt';
 import { AetherIcon } from '../AetherIcon';
 import { createShopScene, type ScreenRect, type ShopScene } from './shopScene';
 import { createShopSounds, type ShopSounds } from './shopSounds';
+import { shopLayout } from './shopLayout';
 import { affordableIds, buyKey, packTag, shelfOffers, srLine, startIndex } from './shopModel';
 import '../packOpening/packOpening.css';
 import './packShop.css';
@@ -102,7 +103,9 @@ function tagStyle(r: StageRect | null, kind: 'shelf' | 'hand'): CSSProperties | 
   const vp = stageViewport();
   const left = Math.max(TAG_W / 2 + TAG_GAP, Math.min(vp.w - TAG_W / 2 - TAG_GAP, r.left + r.width / 2));
   if (kind === 'hand') return { left, bottom: vp.h - r.top + TAG_GAP, translate: '-50% 0' };
-  return { left, top: r.top + r.height + TAG_GAP, translate: '-50% 0' };
+  // never lower than just under the line the shelf packs stand on (a selected pack's box can be reported from lower down)
+  const foot = shopLayout(vp.w, vp.h).floorY + TAG_GAP;
+  return { left, top: Math.min(r.top + r.height + TAG_GAP, foot), translate: '-50% 0' };
 }
 
 export function PackShop(props: PackShopProps) {

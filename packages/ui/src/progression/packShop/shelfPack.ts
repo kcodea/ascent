@@ -116,9 +116,10 @@ export class ShelfPack {
    * Draw the pack at `p` (canvas px, `shopLayout.ts`), tilted toward the pointer and lifted. `tiltX` / `tiltY` are the
    * eased pointer aim over the pack, each -1..1 (`packTilt.ts` `aimInto`, 0 = at rest): they become the tilt's angles
    * through the live knobs (the drag dive's `tiltMax` x the Pack Lab's `packTilt`) and slide the gloss band. `lift` is
-   * 0..1 (`liftPoseInto`). A pose with `alpha` 0 is not drawn.
+   * 0..1 (`liftPoseInto`). A pose with `alpha` 0 is not drawn. `recline` (degrees) lays the pack back on a surface: its
+   * top edge goes away from the viewer, on top of the pointer tilt (a pack lying on the counter).
    */
-  pose(p: PackPose, tiltX: number, tiltY: number, lift: number): void {
+  pose(p: PackPose, tiltX: number, tiltY: number, lift: number, recline = 0): void {
     if (this.destroyed) return;
     const q = liftPoseInto(this.lifted, p, lift);
     const on = q.alpha > 0;
@@ -134,10 +135,10 @@ export class ShelfPack {
     const a = tiltTargetInto(this.angles, tiltX, tiltY, df.tiltMax, feel.packTilt, true);
     // the drag dive's CSS perspective (stage px) in pack base units, as the opener's sealed pack has it
     const D = df.perspective / Math.max(0.05, k);
-    const key = this.key;
-    if (key.rx !== a.rx || key.ry !== a.ry || key.D !== D) {
-      this.writeCorners(a.rx, a.ry, D);
-      key.rx = a.rx; key.ry = a.ry; key.D = D;
+    const key = this.key, rx = a.rx + recline;
+    if (key.rx !== rx || key.ry !== a.ry || key.D !== D) {
+      this.writeCorners(rx, a.ry, D);
+      key.rx = rx; key.ry = a.ry; key.D = D;
     }
 
     const g = this.gloss;

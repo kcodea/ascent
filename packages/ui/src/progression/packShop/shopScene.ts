@@ -61,7 +61,7 @@ import { aimInto, newTilt, stepTilt, tiltEaseK, type TiltState } from '../packOp
 import { LIFT_GROW, ShelfPack, liftPoseInto } from './shelfPack';
 import { LOOK_EASE, ShopBackdrop } from './shopBackdrop';
 import {
-  Placard, SHOP_TAG_SRC, loadTexture, paintTray, placardBadge, placardCount,
+  Placard, SHOP_TAG_SRC, loadTexture, paintPackShadow, paintTray, placardBadge, placardCount,
 } from './shopDressing';
 import { AETHER_ICON_SRC } from '../AetherIcon';
 import { arrived, buySettled, cancelHeld, moveHeld, newDrag, pickUp, release, zoneAt, type ShopDrag } from './shopDrag';
@@ -223,6 +223,13 @@ const LINE_COLOR = 0xffd27a;
 /** The shelf fades out while a played pack goes to the pedestal, per 60 Hz frame. */
 const RACK_FADE_EASE = 0.15;
 /** The price tag's text and the pile's count, as shares of a shelf / hand pack's height. */
+/**
+ * THE HAND LIES ON THE COUNTER (owner 2026-11-25): each pack rests tilted back by this many degrees (its top edge away),
+ * so it is foreshortened like the counter under it, and stands up to face the player as it is hovered. Each casts a
+ * shadow: this dark at rest, offset down and right by these shares of the pack's height, lighter and further as it lifts.
+ */
+const HAND_RECLINE = 52;
+const HAND_SHADOW = { alpha: 0.5, dx: 0.035, dy: 0.05, lift: 0.1 } as const;
 const TAG_FONT = 0.0525; // owner 2026-11-25: "make the tag smaller by 30%" (was 0.075)
 /**
  * THE PRICE TAGS: where the twine is tied (a share of the pack's height in from its top-left corner), how far the tag
@@ -278,6 +285,9 @@ class ShopSceneImpl implements ShopScene {
   private rack: Container | null = null;
   // the dressing (shopDressing.ts): the hand's light and a price tag (`Placard`) hanging off each shelf slot's pack
   private tray: Sprite | null = null;
+  /** The hand packs' shadows on the counter (one per hand view, under the hand). */
+  private handShadows: Sprite[] = [];
+  private shadowLayer: Container | null = null;
   /** The room in layers (shopBackdrop.ts): the wall and the counter under the packs, the foreground over them. */
   private backdrop: ShopBackdrop | null = null;
   private readonly placards: Placard[] = [];
@@ -509,6 +519,18 @@ class ShopSceneImpl implements ShopScene {
     this.lineLit.alpha = 0;
     app.stage.addChild(this.lineBase, this.lineLit);
 
+    const shadows = new Container();
+    const shadowTex = tex(paintPackShadow());
+    for (let j = 0; j < HAND_FAN_MAX; j++) {
+      const sh = new Sprite(shadowTex);
+      sh.anchor.set(0.5);
+      sh.visible = false;
+      this.handShadows.push(sh);
+      shadows.addChild(sh);
+    }
+    shadows.eventMode = 'none';
+    this.shadowLayer = shadows;
+    app.stage.addChild(shadows);
     const hand = new Container();
     for (let j = 0; j < HAND_FAN_MAX; j++) {
       const p = new ShelfPack(webgl, this.bandTex);
@@ -595,6 +617,7 @@ class ShopSceneImpl implements ShopScene {
     for (const pl of this.placards) pl.destroy();
     this.placards.length = 0;
     this.tray = null; this.placardLayer = null;
+    this.handShadows.length = 0; this.shadowLayer = null;
     this.backdrop?.destroy(); this.backdrop = null;
     for (const t of this.dressTex) t.destroy(true);
     this.dressTex.length = 0;
@@ -1061,6 +1084,7 @@ class ShopSceneImpl implements ShopScene {
       this.backdrop?.setAlpha(ra);
       if (this.placardLayer) this.placardLayer.alpha = ra;
       if (this.handLayer) this.handLayer.alpha = ra;
+      if (this.shadowLayer) this.shadowLayer.alpha = ra;
       if (this.lineBase) this.lineBase.visible = ra > 0.02;
       moving = true;
     }
@@ -1222,6 +1246,8 @@ class ShopSceneImpl implements ShopScene {
     const kl = easeK(LIFT_EASE, dt), kg = easeK(HAND_GLIDE, dt), ka = easeK(TRAVEL_EASE, dt);
     let moving = false;
     for (let v = 0; v < HAND_FAN_MAX; v++) {
+      const sh = this.handShadows[v];
+      if (sh) sh.visible = false;
       if (this.handViewId[v] !== null) continue;
       this.handPacks[v]!.view.visible = false;
       this.handLift[v] = 0;
@@ -1274,8 +1300,19 @@ class ShopSceneImpl implements ShopScene {
       }
       const q = this.handPlacePose(j);
       if (hidden) q.alpha = 0;
-      // (the lift is already in q: pose it unlifted)
-      this.handPacks[v]!.pose(q, ax, ay, 0);
+      // (the lift is already in q: pose it unlifted) lying back on the counter, standing up as it lifts
+      const up = this.handLift[v]!, lie = HAND_RECLINE * (1 - up);
+      this.handPacks[v]!.pose(q, ax, ay, 0, lie);
+      const sh = this.handShadows[v];
+      if (sh && q.alpha > 0) {
+        sh.visible = true;
+        sh.alpha = HAND_SHADOW.alpha * (1 - 0.5 * up);
+        sh.rotation = q.rot;
+        sh.position.set(q.x + q.h * HAND_SHADOW.dx, q.y + q.h * (HAND_SHADOW.dy + HAND_SHADOW.lift * up));
+        // the texture's slab is the middle 60% of the sprite: size the sprite so the slab is the pack's drawn outline
+        sh.width = (q.h * ASPECT * 1.12) / 0.6;
+        sh.height = (q.h * (Math.cos((lie * Math.PI) / 180) + 0.06)) / 0.6;
+      }
     }
     // the piled packs still waiting their turn (their arrivals are dropped once due: the pile draws only its top)
     if (this.arrivals.size > 0 && f.piled > 0) {
@@ -1645,6 +1682,7 @@ class ShopSceneImpl implements ShopScene {
     if (this.rack) this.rack.y = -ENTER_DROP * h * o;
     if (this.placardLayer) { this.placardLayer.y = ENTER_DROP * 0.5 * h * o; this.placardLayer.alpha = this.rackAlpha * this.enter; }
     if (this.handLayer) this.handLayer.y = ENTER_RISE * h * o;
+    if (this.shadowLayer) this.shadowLayer.y = ENTER_RISE * h * o;
     return true;
   }
 

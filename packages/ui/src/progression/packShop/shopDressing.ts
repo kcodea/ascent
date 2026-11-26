@@ -32,6 +32,17 @@ export function paintTray(): HTMLCanvasElement {
   return c;
 }
 
+/** The shadow a pack lying on the counter casts: a soft dark slab, stretched under each pack. */
+export function paintPackShadow(): HTMLCanvasElement {
+  const W = 128, H = 128;
+  const { c, g } = canvasOf(W, H);
+  if (!g) return c;
+  g.filter = 'blur(12px)';
+  g.fillStyle = 'rgba(12,6,2,0.95)';
+  g.beginPath(); g.roundRect(26, 26, W - 52, H - 52, 8); g.fill();
+  return c;
+}
+
 export type PlacardKind = 'price' | 'free' | 'sold';
 
 /** The ribbon chip's words for an offer's badge (null: no chip). "Free" has none: the placard already says it. */

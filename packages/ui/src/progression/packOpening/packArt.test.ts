@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { COSMETIC_RARITIES } from '@game/progression';
-import { LAUNCH_PACK_LOOK_ID, LAUNCH_PACK_SRC, RARITY_PACK_ART, SECRET_PACK_LOOK_ID, SECRET_PACK_SRC, packArtFor, packShineFor } from './packArt';
+import { LAUNCH_PACK_LOOK_ID, LAUNCH_PACK_SRC, RARITY_PACK_ART, SCRIBBLE_PACK_LOOK_ID, SCRIBBLE_PACK_SRC, SECRET_PACK_LOOK_ID, SECRET_PACK_SRC, packArtFor, packShineFor } from './packArt';
 import { PACK_LAB_LOOKS } from './packLabSamples';
 import { PACK_ART_TEMPLATE, PACK_GEOM, derivePackHeights } from './packGeom';
 
@@ -29,7 +29,9 @@ describe('packArtFor', () => {
     expect(packArtFor(secret)).toBe(SECRET_PACK_SRC);
     const launch = PACK_LAB_LOOKS.find((l) => l.id === LAUNCH_PACK_LOOK_ID)!;
     expect(packArtFor(launch)).toBe(LAUNCH_PACK_SRC);
-    for (const look of PACK_LAB_LOOKS.filter((l) => l.kind !== 'rarity' && l !== secret && l !== launch)) expect(packArtFor(look), look.id).toBeNull();
+    const scribble = PACK_LAB_LOOKS.find((l) => l.id === SCRIBBLE_PACK_LOOK_ID)!;
+    expect(packArtFor(scribble)).toBe(SCRIBBLE_PACK_SRC);
+    for (const look of PACK_LAB_LOOKS.filter((l) => l.kind !== 'rarity' && l !== secret && l !== launch && l !== scribble)) expect(packArtFor(look), look.id).toBeNull();
     // a category pack with a Common floor is not the Common pack
     expect(packArtFor({ kind: 'category', id: 'category-emote', name: 'Emote Pack', guaranteedFloor: 'common' })).toBeNull();
   });
@@ -49,10 +51,13 @@ describe('packArtFor', () => {
     const launch = join(PUBLIC, 'packs', 'launch-pack.webp');
     expect(existsSync(launch)).toBe(true);
     expect(webpSize(launch)).toEqual({ w: PACK_GEOM.W * 2, h: (PACK_GEOM.H + PACK_GEOM.BODY_H) * 2 });
+    const scribble = join(PUBLIC, 'packs', 'scribble-pack.webp');
+    expect(existsSync(scribble)).toBe(true);
+    expect(webpSize(scribble)).toEqual({ w: PACK_GEOM.W * 2, h: (PACK_GEOM.H + PACK_GEOM.BODY_H) * 2 });
   });
 
   it('every wrapper look has its shine mask (half the wrapper, 300 x 450, on disk); the rest none', () => {
-    const ids = [...COSMETIC_RARITIES, 'secret', 'launch'];
+    const ids = [...COSMETIC_RARITIES, 'secret', 'launch', 'scribble'];
     let masked = 0;
     for (const look of PACK_LAB_LOOKS) {
       const art = packArtFor(look);

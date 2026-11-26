@@ -30,10 +30,15 @@ export const SECRET_PACK_SRC = `${BASE}packs/secret-pack.webp`;
 export const LAUNCH_PACK_LOOK_ID = 'themed-launch';
 export const LAUNCH_PACK_SRC = `${BASE}packs/launch-pack.webp`;
 
+/** The Scribble Pack's look id and its wrapper (owner 2026-11-26: crayon purple, the googly-eyed star). */
+export const SCRIBBLE_PACK_LOOK_ID = 'themed-scribble';
+export const SCRIBBLE_PACK_SRC = `${BASE}packs/scribble-pack.webp`;
+
 /** Themed looks that wear their own wrapper, by look id. */
 export const THEMED_PACK_ART: Readonly<Record<string, string>> = {
   [SECRET_PACK_LOOK_ID]: SECRET_PACK_SRC,
   [LAUNCH_PACK_LOOK_ID]: LAUNCH_PACK_SRC,
+  [SCRIBBLE_PACK_LOOK_ID]: SCRIBBLE_PACK_SRC,
 };
 
 /** The wrapper art for `look`, or null (the placeholder painting): every rarity pack, and the themed packs with art. */

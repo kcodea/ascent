@@ -10,7 +10,7 @@
 // holo; flat painted sky and dark areas stay mostly matte. Output: 300 x 450 greyscale webp per pack.
 const sharp = require('sharp');
 const [, , SRC_DIR, OUT_DIR, PREVIEW] = process.argv;
-const IDS = ['common', 'rare', 'epic', 'legendary', 'ancient', 'secret', 'launch'];
+const IDS = ['common', 'rare', 'epic', 'legendary', 'ancient', 'secret', 'launch', 'scribble'];
 const W = 300, H = 450;
 const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 

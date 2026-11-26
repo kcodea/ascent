@@ -196,6 +196,13 @@ const RELIEF_SPEC = 0.55;
 /** The finish: how much brighter the gloss band is on a relief pack's glossy ground, and how much of the lit slope matte felt keeps. */
 const RELIEF_GROUND_GLOSS = 3;
 const RELIEF_FELT = 0.55;
+/** The felt: how much its fibre grain leans the surface, and how bright its fuzz rim is. */
+const FELT_GRAIN = 0.55;
+const FELT_RIM = 0.5;
+/** The shadows: how dark a slope facing away gets, how dark the felt's cast shadow on the ground is, and how far it reaches (pack units). */
+const RELIEF_SHADE = 0.55;
+const FELT_CAST = 0.34;
+const FELT_CAST_REACH = 4;
 
 /** The gloss band, placed from uniforms (no per-frame uv rewrite): `uBand` = centre, half width, slope, cy (pack units). */
 export const GLOSS_FRAG = `${HEAD}
@@ -212,24 +219,41 @@ void main() {
   float x = vUV.x * uGeom.x, y = uGeom.y + vUV.y * uGeom.z;
   // THE BAND TRAVELS OVER AN EMBOSSED SURFACE: where the surface leans, the light is found a little further along (the
   // band bends round raised parts), and a slope facing the light (above and a little left) is brighter, one facing away dimmer
-  vec4 rel = texture(uTex3, vec2(vUV.x, y / (uGeom.y + uGeom.z)));
+  vec2 ruv = vec2(vUV.x, y / (uGeom.y + uGeom.z));
+  vec4 rel = texture(uTex3, ruv);
   vec2 n = (rel.rg - .5) * 2. * uRelief;
   // THE FINISH: a relief pack's printed ground is glossy (the band shows strongly there, and slopes glint); the felt on
   // it is matte (no band, no glint, only its soft lit slopes). A flat pack is all plain band.
-  float on = step(.001, uRelief), glossy = rel.b;
+  float on = step(.001, uRelief), glossy = rel.b, felt = (1. - glossy) * on;
   float xs = x + n.x * ${RELIEF_BEND.toFixed(1)}, ys = y + n.y * ${RELIEF_BEND.toFixed(1)};
   float d = (xs + uBand.z * (ys - uBand.w) - uBand.x) / uBand.y;
   float lit = clamp(1. + dot(n, vec2(-.45, -.9)) * ${RELIEF_LIGHT.toFixed(2)}, .2, 2.4);
   vec4 band = texture(uTex2, vec2(.5 + .5 * d, .5)) * step(abs(d), 1.) * lit * uBandA * mix(1., glossy * ${RELIEF_GROUND_GLOSS.toFixed(1)}, on);
   // THE RELIEF'S OWN LIGHT, over the whole pack: a slope that faces the light catches it (a flat part gets none), with a
   // tight glint on top. The light sits above and a little left, and leans toward the pointer.
-  vec3 N = normalize(vec3(n * ${RELIEF_SLOPE.toFixed(1)}, 1.));
-  vec3 L = normalize(vec3(vec2(-.35, -.6) + uLight * 1.5, .75));
+  // FELT IS FIBRES: a fine grain leans the felt's surface this way and that, so its light breaks up softly (two sizes of
+  // grain, in pack units, coarse enough not to shimmer on a small shelf pack)
+  vec2 gp = vec2(x, y);
+  vec2 grain = vec2(n2(gp * vec2(.42, .3)) + .5 * n2(gp * vec2(.9, .7) + 31.), n2(gp * vec2(.3, .42) + 17.) + .5 * n2(gp * vec2(.7, .9) + 53.)) - .75;
+  vec3 N = normalize(vec3(n * ${RELIEF_SLOPE.toFixed(1)} + grain * felt * ${FELT_GRAIN.toFixed(2)}, 1.));
+  vec2 l2 = vec2(-.35, -.6) + uLight * 1.5;
+  vec3 L = normalize(vec3(l2, .75));
   vec3 Hv = normalize(L + vec3(0., 0., 1.));
   float diff = max(dot(N, L) - L.z, 0.);
   float spec = max(pow(max(dot(N, Hv), 0.), 28.) - pow(Hv.z, 28.), 0.);
   vec3 emboss = vec3(1., .95, .84) * (diff * ${RELIEF_DIFF.toFixed(2)} * mix(${RELIEF_FELT.toFixed(2)}, 1., glossy) + spec * ${RELIEF_SPEC.toFixed(2)} * glossy) * on;
-  finalColor = (band + vec4(emboss, max(emboss.r, emboss.b))) * texture(uTex, vUV).a * uColor.a;
+  // THE FUZZ RIM: felt glows softly where its surface turns away from the eye, most on the side toward the light
+  float turn = 1. - N.z;
+  float toward = .5 + .5 * dot(normalize(N.xy + 1e-4), normalize(l2));
+  emboss += vec3(1., .93, .8) * pow(turn, 1.4) * (.35 + .65 * toward) * felt * ${FELT_RIM.toFixed(2)};
+  // SHADOWS (this mesh blends premultiplied: rgb adds light, alpha takes it away): a slope facing away from the light
+  // darkens, and the felt throws a short shadow onto the glossy ground on its far side (the finish map, looked up a few
+  // units toward the light: felt there, ground here = in its shadow)
+  float away = max(L.z - dot(N, L), 0.);
+  vec2 stp = normalize(l2) * ${FELT_CAST_REACH.toFixed(1)} / vec2(uGeom.x, uGeom.y + uGeom.z);
+  float cast = glossy * (1. - .5 * (texture(uTex3, ruv + stp).b + texture(uTex3, ruv + stp * 2.).b));
+  float shade = clamp(away * ${RELIEF_SHADE.toFixed(2)} + cast * ${FELT_CAST.toFixed(2)}, 0., .6) * on;
+  finalColor = vec4(band.rgb + emboss, shade) * texture(uTex, vUV).a * uColor.a;
 }`;
 
 type UType = 'f32' | 'vec2<f32>' | 'vec3<f32>' | 'vec4<f32>';
@@ -296,7 +320,7 @@ export const makeMaskedSheen = (webgl: boolean, body: Mesh, art: Texture, sheen:
   make(webgl, MASKED_FRAG, NO_U, 'add', bodyGrid(body), art, sheen);
 /** The gloss band, cut to the wrapper art; `relief` is the wrapper's relief map (packRelief.ts `flatRelief()` for none; `bindRelief` swaps it). */
 export const makeMaskedGloss = (webgl: boolean, body: Mesh, art: Texture, band: Texture, relief: Texture): GlossFx | null =>
-  make(webgl, GLOSS_FRAG, GLOSS_U, 'add', bodyGrid(body), art, band, relief);
+  make(webgl, GLOSS_FRAG, GLOSS_U, 'normal', bodyGrid(body), art, band, relief); // premultiplied: rgb adds light, alpha shades
 export const makeSpill = (webgl: boolean): SpillFx | null => make(webgl, SPILL_FRAG, SPILL_U, 'add');
 export const makeSheen = (webgl: boolean): SheenFx | null => make(webgl, SHEEN_FRAG, SHEEN_U, 'add');
 

@@ -60,17 +60,35 @@ const TAG_CORD = 40;
 const TAG_FONT_PX = 34, TAG_GEM = 40, TAG_H = 74, TAG_CUT = 20, TAG_HOLE = 6.5;
 
 /**
+ * THE PAINTED TAG (owner 2026-11-25: "use this for the tag"): a parchment tag with a gold rim, a brass eyelet and a
+ * loop of rope, levelled and trimmed from the owner's art. The numbers are the art's own px: the rope's knot (the
+ * view's origin), the tag body's height, where the price is centred (clear of the eyelet) and how wide the parchment
+ * inside the rim is.
+ */
+export const SHOP_TAG_SRC = `${import.meta.env.BASE_URL}packs/shop-tag.webp`;
+export const TAG_ART = { w: 512, h: 349, knotX: 265.5, bodyH: 228, textY: 258, innerW: 420 } as const;
+/** The painted tag's body height in the tag's own units (the drawn tag's is TAG_H), and the room left beside the price. */
+const TAG_ART_H = 88, TAG_ART_PAD = 18;
+
+/** The painted tag's scale for a price `content` units wide: its resting size, larger only when the price needs the room. */
+export function tagArtScale(content: number): number {
+  const s0 = TAG_ART_H / TAG_ART.bodyH;
+  return s0 * Math.max(1, (content + TAG_ART_PAD) / (TAG_ART.innerW * s0));
+}
+
+/**
  * A PRICE TAG ON A STRING (owner 2026-11-25: "can we make it look more like a price tag? like a tag attached with
  * string?", then "have the tag persistent and incorporate these pills in it ... hanging off the top left of the pack").
  * A paper tag with clipped shoulders and a punched, ringed hole, hanging from a loop of twine. It carries the price with
  * the Aether gem (or "Free" / "Sold out"), a box's count beside it ("x10"), and a New / Featured label on its foot.
  *
  * `view`'s origin is the KNOT (where the twine is tied to the pack): rotate the view to swing the tag. Everything is
- * redrawn only when what it shows changes.
+ * redrawn only when what it shows changes. Until the painted tag (`setArt`) has loaded, a drawn paper tag stands in.
  */
 export class Placard {
   readonly view = new Container();
   private readonly paper = new Graphics();
+  private readonly art = new Sprite(Texture.EMPTY);
   private readonly icon: Sprite;
   private readonly text: Text;
   private readonly count: Text;
@@ -91,19 +109,24 @@ export class Placard {
     this.chipText.anchor.set(0.5);
     this.chip.addChild(this.chipPlate, this.chipText);
     this.chip.visible = false;
-    this.view.addChild(this.paper, this.icon, this.text, this.count, this.chip);
+    this.art.anchor.set(TAG_ART.knotX / TAG_ART.w, 0);
+    this.art.visible = false;
+    this.view.addChild(this.paper, this.art, this.icon, this.text, this.count, this.chip);
     this.view.visible = false;
   }
 
   /** The gem's texture arrives after the scene is up. */
   setGem(gem: Texture): void { this.icon.texture = gem; this.key = ''; }
 
+  /** The painted tag's texture arrives after the scene is up: it replaces the drawn paper. */
+  setArt(tag: Texture): void { this.art.texture = tag; this.key = ''; }
+
   /**
    * Show `label` (the number, or the words) as `kind`, a box's `count` words beside it (`placardCount`; '' for none) and
    * a label's words (`placardBadge`; null for none). Sizes the paper to what it holds; no-op when unchanged.
    */
   set(label: string, kind: PlacardKind, count = '', badge: string | null = null): void {
-    const key = `${kind}:${label}:${count}:${badge ?? ''}:${this.icon.texture.width}`;
+    const key = `${kind}:${label}:${count}:${badge ?? ''}:${this.icon.texture.width}:${this.art.texture.width}`;
     if (key === this.key) return;
     this.key = key;
     const t = this.text, ic = this.icon, c = this.count;
@@ -115,13 +138,23 @@ export class Placard {
     if (c.visible) c.text = count;
     const gap = 6, cgap = 8;
     const content = (gem ? TAG_GEM + gap : 0) + t.width + (c.visible ? cgap + c.width : 0);
+    const painted = this.art.texture.width > 1;
+    const k = painted ? tagArtScale(content) : 1;
     const w = Math.max(96, content + 34), top = TAG_CORD - TAG_CUT * 0.5, h = TAG_H;
-    const cy = top + TAG_CUT + (h - TAG_CUT) / 2 + 1;
+    const cy = painted ? TAG_ART.textY * k : top + TAG_CUT + (h - TAG_CUT) / 2 + 1;
     let x = -content / 2;
     if (gem) { ic.width = TAG_GEM; ic.height = TAG_GEM; ic.position.set(x + TAG_GEM / 2, cy); x += TAG_GEM + gap; }
     t.position.set(x, cy);
     x += t.width + cgap;
     if (c.visible) c.position.set(x, cy + 3);
+    this.art.visible = painted;
+    this.paper.visible = !painted;
+    if (painted) {
+      this.art.scale.set(k);
+      this.chip.position.set(0, TAG_ART.h * k); // its label straddles the tag's foot
+      this.dressChip(badge);
+      return;
+    }
     this.paper.clear()
       // the twine: a loop (two strands) from the knot down through the hole, and the knot itself
       .moveTo(0, 0).quadraticCurveTo(-TAG_CORD * 0.3, TAG_CORD * 0.55, -TAG_HOLE * 0.5, TAG_CORD).stroke({ width: 2.4, color: TWINE, alpha: 0.95 })

@@ -27,7 +27,8 @@ export type BackdropLayer = 'wall' | 'counter' | 'fore';
 const BASE = import.meta.env.BASE_URL;
 export const SHOP_ART: Partial<Record<BackdropLayer, string>> = {
   wall: `${BASE}packs/shop-wall.webp`, // owner 2026-11-25 (prompts.md 5a): the shop's interior, an arched alcove behind the packs
-  // owner 2026-11-25 (prompts.md 5b): the wooden counter, a till and ledger far left, scrolls and a candle far right.
+  // owner 2026-11-26: a BARE wooden counter (no props), its plank seams running toward the viewer and converging on the
+  // same vanishing point as the hand's reclined packs (centred, 40% down the canvas), so the packs lie in its perspective.
   // Cropped so its back edge sits at COUNTER_HEADROOM of the image, as the placeholder's does.
   counter: `${BASE}packs/shop-counter.webp`,
   // owner 2026-11-25 (prompts.md 5c): soft-focus curtains down both edges, and nothing else: the painting's
@@ -38,7 +39,7 @@ export const SHOP_ART: Partial<Record<BackdropLayer, string>> = {
 };
 
 /** How much wider than the canvas each layer is painted, per side (the prompts ask the art for the same margins). */
-export const OVERSCAN: Record<BackdropLayer, number> = { wall: 0.06, counter: 0.02, fore: 0.1 }; // the counter's props sit near its ends: it hides only what its slide needs
+export const OVERSCAN: Record<BackdropLayer, number> = { wall: 0.06, counter: 0, fore: 0.1 }; // the counter never slides, so it is drawn edge to edge (its perspective stays the hand's)
 
 /**
  * How far each layer slides at the pointer's furthest reach, in canvas widths (x) and heights (y). Positive moves WITH
@@ -47,7 +48,7 @@ export const OVERSCAN: Record<BackdropLayer, number> = { wall: 0.06, counter: 0.
  */
 export const DEPTH: Record<BackdropLayer, { x: number; y: number }> = {
   wall: { x: 0.012, y: 0.008 },
-  counter: { x: -0.016, y: 0 },
+  counter: { x: 0, y: 0 }, // it does not move at all (owner 2026-11-26): the hand's packs lie on it, and they do not move
   fore: { x: -0.05, y: -0.03 },
 };
 

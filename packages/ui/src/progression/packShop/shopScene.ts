@@ -227,7 +227,10 @@ const RACK_FADE_EASE = 0.15;
  * so it is foreshortened like the counter under it, and stands up to face the player as it is hovered. Each casts a
  * shadow: this dark at rest, offset down and right by these shares of the pack's height, lighter and further as it lifts.
  */
-const HAND_SHADOW = { alpha: 0.42, dx: 0, dy: 0.075, lift: 0.1 } as const; // the lanterns are behind: shadows fall toward the viewer
+// THE LIGHT IS BEHIND THE PACKS (the lanterns on the back wall), so every shadow falls FORWARD, toward the viewer: it
+// shows along a pack's near edge and nowhere else (owner 2026-11-25 / 26: "the shadow should be cast on the front of the
+// card packs"). `w` is the soft shadow's width as a share of the pack's: under 1, so none shows at the sides.
+const HAND_SHADOW = { alpha: 0.85, dx: 0, dy: 0.2, lift: 0.1, w: 0.94 } as const;
 /**
  * The hand packs' CONTACT shadow (owner 2026-11-25: "add shadows here to make it look a bit more like its against the
  * table"): tight and dark under the pack's own outline, offset by these shares of its height. As the pack lifts it
@@ -243,7 +246,7 @@ const GLOW_TINT: Readonly<Record<string, number>> = { common: 0xdfe6f2, rare: 0x
 const STACK_COUNT = { font: 0.1, x: 0.5, y: 0.3 } as const;
 /** A pack's type: packs of one type lie in one stack. */
 const lookKeyOf = (look: OwnedPack['look']): string => `${look.kind}:${look.id}`;
-const HAND_CONTACT = { alpha: 0.72, dx: 0, dy: 0.04, lifted: 0.35, away: 4 } as const;
+const HAND_CONTACT = { alpha: 0.95, dx: 0, dy: 0.1, lifted: 0.35, away: 3 } as const;
 const TAG_FONT = 0.0525; // owner 2026-11-25: "make the tag smaller by 30%" (was 0.075)
 /**
  * THE PRICE TAGS: where the twine is tied (a share of the pack's height in from its top-left corner), how far the tag
@@ -1404,7 +1407,7 @@ class ShopSceneImpl implements ShopScene {
         sh.rotation = q.rot;
         sh.position.set(q.x + q.h * HAND_SHADOW.dx, q.y + q.h * (HAND_SHADOW.dy + HAND_SHADOW.lift * up));
         // the texture's slab is the middle 60% of the sprite: size the sprite so the slab is the pack's drawn outline
-        sh.width = (q.h * ASPECT * 1.12) / 0.6;
+        sh.width = (q.h * ASPECT * HAND_SHADOW.w) / 0.6;
         sh.height = (q.h * (Math.cos((lie * Math.PI) / 180) + 0.06)) / 0.6;
       }
     }

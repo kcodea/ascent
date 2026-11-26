@@ -33,10 +33,10 @@ describe('the pedestal and the hand keep clear of the bar and the line', () => {
     it(`at ${w} x ${h}: the pedestal pack sits between the top bar and the counter line`, () => {
       const L = shopLayout(w, h), p = { x: 0, y: 0, h: 0, rot: 0, alpha: 0 };
       shelfPoseInto(p, L, 2, 2);
-      expect(p.h).toBeCloseTo(0.46 * h);
+      expect(p.h).toBeCloseTo(0.414 * h);
       expect(p.y - p.h / 2).toBeGreaterThan(0.1 * h);
       expect(p.y + p.h / 2).toBeLessThanOrEqual(L.lineY - 0.04 * h);
-      expect(L.packH).toBeCloseTo(0.72 * L.pedestalH);
+      expect(L.packH).toBeCloseTo(0.8 * L.pedestalH);
     });
     it(`at ${w} x ${h}: every place of a full fan lies wholly below the line (a hand pack is drawn reclined)`, () => {
       const L = shopLayout(w, h), p = { x: 0, y: 0, h: 0, rot: 0, alpha: 0 };

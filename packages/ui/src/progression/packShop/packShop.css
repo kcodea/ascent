@@ -79,6 +79,7 @@
 .pks-tag .pks-tag-medal { width: 44px; height: 44px; }
 .pks-tag .pks-tag-price { margin-top: 0; padding-left: 56px; }
 .pks-tag :is(.pks-buy, .pks-open) { margin-top: 6px; }
+.pks-tag .pks-tag-short { text-align: center; }
 .pks-tag-armed { pointer-events: auto; }
 .pks-tag-dock { left: 50%; top: calc(73% - 150px); translate: -50% 0; }
 @keyframes pks-tag-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }

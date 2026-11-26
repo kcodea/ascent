@@ -28,7 +28,8 @@ const HT = H + BODY_H;
 const PLACEHOLDER_CARDS = 5;
 /** The contact shadow texture's dark slab, as a share of the texture (`paintContactShadow`), and how much larger than the pack it is drawn. */
 export const SHADOW_SLAB = 76 / 128;
-const SHADOW_GROW = 1.03;
+/** The contact shadow against the pack's own outline: a little narrower (none at the sides), no taller (it is offset forward). */
+const SHADOW_GROW = { x: 0.96, y: 1 } as const;
 /** A hovered pack at full lift: this much taller, and raised this share of its height. */
 export const LIFT_GROW = 0.08;
 export const LIFT_RISE = 0.06;
@@ -258,10 +259,10 @@ export class ShelfPack {
     if (sh) {
       // the pack's own outline, grown so the texture's slab is a little larger than the pack, then offset
       const mx = (c[0]! + c[2]! + c[4]! + c[6]!) / 4, my = (c[1]! + c[3]! + c[5]! + c[7]!) / 4;
-      const e = SHADOW_GROW / SHADOW_SLAB, ox = this.shadowAt.dx * HT, oy = this.shadowAt.dy * HT;
+      const ex = SHADOW_GROW.x / SHADOW_SLAB, ey = SHADOW_GROW.y / SHADOW_SLAB, ox = this.shadowAt.dx * HT, oy = this.shadowAt.dy * HT;
       sh.setCorners(
-        mx + (c[0]! - mx) * e + ox, my + (c[1]! - my) * e + oy, mx + (c[2]! - mx) * e + ox, my + (c[3]! - my) * e + oy,
-        mx + (c[4]! - mx) * e + ox, my + (c[5]! - my) * e + oy, mx + (c[6]! - mx) * e + ox, my + (c[7]! - my) * e + oy,
+        mx + (c[0]! - mx) * ex + ox, my + (c[1]! - my) * ey + oy, mx + (c[2]! - mx) * ex + ox, my + (c[3]! - my) * ey + oy,
+        mx + (c[4]! - mx) * ex + ox, my + (c[5]! - my) * ey + oy, mx + (c[6]! - mx) * ex + ox, my + (c[7]! - my) * ey + oy,
       );
     }
     const og = this.gloss?.mesh.geometry, pos = this.mesh.geometry.positions;

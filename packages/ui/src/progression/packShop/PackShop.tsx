@@ -572,7 +572,8 @@ export function PackShop(props: PackShopProps) {
   const lineWords = heldOffer ? (() => {
     const t = packTag(heldOffer, balance);
     if (t.soldOut) return 'Sold out';
-    return t.short > 0 ? `Need ${t.short} more Aether` : t.price;
+    // (the price itself is not repeated here: owner 2026-11-26, "when buying a card, this pops up. remove it")
+    return t.short > 0 ? `Need ${t.short} more Aether` : null;
   })() : null;
 
   // The tag: the hovered pack, else the selected / focused one.

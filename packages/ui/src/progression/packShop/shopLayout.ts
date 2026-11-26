@@ -33,13 +33,13 @@ export interface PackPose { x: number; y: number; h: number; rot: number; alpha:
 
 const ASPECT = PACK_BASE_SIZE.w / PACK_BASE_SIZE.h;
 /** The pedestal pack's height, in canvas heights. */
-const PEDESTAL_H = 0.46;
-const SHELF_SCALE = 0.72;
+const PEDESTAL_H = 0.414; // owner 2026-11-26: the featured (centre) pack is 10% smaller (was 0.46)
+const SHELF_SCALE = 0.8;
 /** The line the packs' feet share, in canvas heights. */
-const FLOOR_Y = 0.62; // owner 2026-11-25: "move the shop display packs down a bit" (was 0.585)
+const FLOOR_Y = 0.65; // owner 2026-11-25 / 26: the shop's display packs stand lower (was 0.585, then 0.62)
 /** A pack in the hand lies on the counter, nearer than the shelf: it is drawn reclined (`shopScene.ts HAND_RECLINE`), so
  *  its drawn height is well under this. */
-const HAND_SCALE = 0.6;
+const HAND_SCALE = 0.667;
 /** Past this many steps from the pedestal a slot is invisible; it fades in over the last `FADE_STEPS`. */
 const FADE_END = 2.6;
 const FADE_STEPS = 0.6;

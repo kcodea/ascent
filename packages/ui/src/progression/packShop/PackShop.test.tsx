@@ -117,7 +117,7 @@ describe('PackShop', () => {
     render();
     expect(fake().calls.slice(0, 3)).toEqual(['setShelf:rare,epic', 'setHand:h1', 'setAffordable:rare,epic,box']);
     fire((e) => { e.onPickUp('shelf', 'rare'); });
-    expect(document.querySelector('.pks-line-words')?.textContent).toBe('200 Aether');
+    expect(document.querySelector('.pks-line-words')).toBeNull(); // the line does not repeat the price (owner 2026-11-26)
     fire((e) => { e.onDrop('buy', 'rare', R); });
     expect(buys).toHaveLength(1);
     expect(buys[0]!.offerId).toBe('rare');
@@ -254,7 +254,7 @@ describe('PackShop', () => {
     expect(shelfItem('rare').textContent).toContain('250 Aether');
     expect(fake().calls).toContain('setShelf:rare,epic');
     fire((e) => { e.onPickUp('shelf', 'rare'); });
-    expect(document.querySelector('.pks-line-words')?.textContent).toBe('250 Aether');
+    expect(document.querySelector('.pks-line-words')).toBeNull();
     // a later price move, with no purchase, says nothing new
     render({ offers: OFFERS.map((o) => (o.offerId === 'rare' ? { ...o, price: 300 } : o)) });
     expect(live()).toBe('The price changed. It is now 250 Aether');

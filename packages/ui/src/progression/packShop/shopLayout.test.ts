@@ -9,7 +9,8 @@ describe('shopLayout', () => {
     expect(shelfPoseInto(p, L, 3, 3).h).toBe(L.pedestalH);
     expect(shelfPoseInto(p, L, 4, 3).h).toBeLessThan(L.pedestalH);
     expect(shelfPoseInto(p, L, 5, 3).alpha).toBe(1);
-    expect(shelfPoseInto(p, L, 6, 3).alpha).toBe(0);
+    expect(shelfPoseInto(p, L, 6, 3).alpha).toBeCloseTo(0.4, 6); // the next pack peeks in, faded
+    expect(shelfPoseInto(p, L, 7, 3).alpha).toBe(0);
   });
   it('the zones are ordered top to bottom and the scroll is clamped', () => {
     const L = shopLayout(1920, 1080);
@@ -91,8 +92,8 @@ describe('an even rack is centred on its two middle packs, both large', () => {
     expect(xs[1]! + xs[2]!).toBeCloseTo(L.w, 6); expect(xs[0]! + xs[3]!).toBeCloseTo(L.w, 6);
     expect(xs[2]! - xs[1]!).toBeGreaterThan(L.pedestalH * (L.slotStep / L.packH / 1.25)); // the two large packs do not touch
   });
-  it('an odd rack is unchanged, and a long even rack scrolls by pairs', () => {
-    expect(clampRack(9, 5)).toBe(4);
-    expect(clampRack(9, 8)).toBe(6); expect(clampRack(-1, 8)).toBe(0);
+  it('a shelf of up to five stays centred; a longer one scrolls with a full row always showing (owner 2026-11-26)', () => {
+    expect(clampRack(9, 5)).toBe(2); expect(clampRack(0, 3)).toBe(1);
+    expect(clampRack(9, 8)).toBe(5); expect(clampRack(-1, 8)).toBe(2); expect(clampRack(4, 10)).toBe(4);
   });
 });

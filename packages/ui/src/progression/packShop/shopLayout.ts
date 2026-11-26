@@ -40,9 +40,13 @@ const FLOOR_Y = 0.65; // owner 2026-11-25 / 26: the shop's display packs stand l
 /** A pack in the hand lies on the counter, nearer than the shelf: it is drawn reclined (`shopScene.ts HAND_RECLINE`), so
  *  its drawn height is well under this. */
 const HAND_SCALE = 0.667;
-/** Past this many steps from the pedestal a slot is invisible; it fades in over the last `FADE_STEPS`. */
-const FADE_END = 2.6;
-const FADE_STEPS = 0.6;
+/** Steps out from the centre that are shown at full strength (two each side: five packs). */
+const SHOWN_STEPS = 2;
+/** The pack past them peeks in at the edge: this share of a step further out, this much smaller, at this alpha; it is gone `PEEK_FADE` of a step later. */
+const PEEK_STEP = 0.7;
+const PEEK_SHRINK = 0.12;
+const PEEK_ALPHA = 0.4;
+const PEEK_FADE = 0.6;
 /** Extra room between the (larger) pedestal pack and its neighbours, in shelf pack widths. */
 const PEDESTAL_GAP = 0.2;
 /** Half the extra room between the two large packs of a pair, in shelf pack widths. */
@@ -77,26 +81,40 @@ export function shopLayout(w: number, h: number): ShopLayout {
 export function shelfPoseInto(out: PackPose, L: ShopLayout, index: number, scroll: number, pair = false): PackPose {
   const half = pair ? 0.5 : 0;
   const d = index - scroll - half, a = Math.abs(d);
-  const near = Math.max(0, Math.min(1, a - half));
+  const e = a - half; // steps out from the centre pack (or pair)
+  const near = Math.max(0, Math.min(1, e));
+  // PAST THE FIVE SHOWN (owner 2026-11-26: "have the others on the edge low opacity"): the next pack each side peeks in at
+  // the edge, closer in than a full step, a little smaller and faded; the ones beyond it are gone.
+  const over = Math.max(0, e - SHOWN_STEPS);
+  const steps = Math.min(a, SHOWN_STEPS + half) + Math.min(over, 1 + PEEK_FADE) * PEEK_STEP;
   // the two large packs of a pair stand a little apart (the offset grows from the centre, so a scroll through it is smooth)
   const apart = pair ? Math.min(a, 0.5) * 2 * PAIR_GAP : 0;
-  out.x = L.w / 2 + Math.sign(d) * (a * L.slotStep + (apart + near * PEDESTAL_GAP) * L.packH * ASPECT);
-  out.h = L.pedestalH - (L.pedestalH - L.packH) * near;
+  out.x = L.w / 2 + Math.sign(d) * (steps * L.slotStep + (apart + near * PEDESTAL_GAP) * L.packH * ASPECT);
+  out.h = (L.pedestalH - (L.pedestalH - L.packH) * near) * (1 - PEEK_SHRINK * Math.min(1, over));
   out.y = L.shelfY; // every shelf pack is centred on the one line, whatever its size
   out.rot = 0;
-  out.alpha = Math.max(0, Math.min(1, (FADE_END - (a - half)) / FADE_STEPS));
+  out.alpha = over <= 1 ? 1 - (1 - PEEK_ALPHA) * over : Math.max(0, PEEK_ALPHA * (1 - (over - 1) / PEEK_FADE));
   return out;
 }
 
-/** An even rack is posed as a pair (`shelfPoseInto`). */
-export const isPairRack = (count: number): boolean => count > 0 && count % 2 === 0;
-/** An even rack this small shows every pack at once, so it does not scroll: it stays centred. */
-const PAIR_FIXED_MAX = 6;
-/** The scroll range of a rack: a pair rack's `scroll` is its LEFT centre pack (0 to count - 2). */
+/** The most packs a shelf shows at full strength; a longer shelf scrolls (owner 2026-11-26: "more than 5"). */
+export const SHELF_SHOWN = 5;
+/** A shelf of 2 or 4 is posed as a pair (`shelfPoseInto`): centred on its two middle packs. */
+export const isPairRack = (count: number): boolean => count > 0 && count <= SHELF_SHOWN && count % 2 === 0;
+/**
+ * The scroll range of a rack (`scroll` is its centre pack; a pair rack's is its LEFT centre pack). A shelf of up to
+ * `SHELF_SHOWN` shows every pack, so it stays centred. A longer one scrolls with a full row always showing: its centre
+ * runs from the third pack to the third from last.
+ */
+export function rackRange(count: number): { min: number; max: number } {
+  if (count <= 0) return { min: 0, max: 0 };
+  if (count <= SHELF_SHOWN) { const c = isPairRack(count) ? count / 2 - 1 : (count - 1) / 2; return { min: c, max: c }; }
+  const side = (SHELF_SHOWN - 1) / 2;
+  return { min: side, max: count - 1 - side };
+}
 export function clampRack(scroll: number, count: number): number {
-  if (!isPairRack(count)) return clampScroll(scroll, count);
-  if (count <= PAIR_FIXED_MAX) return count / 2 - 1;
-  return Math.max(0, Math.min(count - 2, scroll));
+  const r = rackRange(count);
+  return Math.max(r.min, Math.min(r.max, scroll));
 }
 
 /** Where a rack of `count` offers starts: the middle offer on the pedestal, so both sides of the shelf are filled. */

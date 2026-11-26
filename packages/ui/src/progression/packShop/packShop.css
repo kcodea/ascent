@@ -155,3 +155,15 @@ html[data-pks-shop] .ph-navhost { z-index: 695; }
 .pks-waiting-foil { display: block; box-sizing: border-box; border: 1px solid; border-radius: 2px; box-shadow: inset 0 5px 0 rgba(255, 255, 255, 0.16); }
 .pks-waiting-n { font-size: 15px; font-weight: 800; color: var(--pk-text); }
 :is(.pks-away, .pks-enter) .pks-waiting { opacity: 0; translate: 0 var(--pks-slide); }
+
+/* THE SHELF'S ARROWS (owner 2026-11-26): a shelf of more than five packs scrolls; a round gold-rimmed button each side,
+   level with the packs and just inside the doorway's posts, steps it one pack. Static paint; the press is the shared
+   `pressable` transform. */
+.pks-arrow { position: absolute; width: 56px; height: 56px; margin-top: -28px; padding: 0; border-radius: 50%; border: 2px solid var(--gold);
+  background: linear-gradient(180deg, rgba(40, 50, 96, 0.92), rgba(14, 18, 38, 0.95)); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.55); transition: var(--pks-back); }
+.pks-arrow::before { content: ''; position: absolute; left: 50%; top: 50%; width: 14px; height: 14px; border-top: 4px solid var(--gold-lt); border-right: 4px solid var(--gold-lt); }
+.pks-arrow-l { left: 7.8%; }
+.pks-arrow-r { right: 7.8%; }
+.pks-arrow-l::before { transform: translate(-30%, -50%) rotate(-135deg); }
+.pks-arrow-r::before { transform: translate(-70%, -50%) rotate(45deg); }
+:is(.pks-away, .pks-enter) .pks-arrow { opacity: 0; }

@@ -1,4 +1,5 @@
 import type { BuyPackOutcome, OwnedPack, PackLook, PackOffer, PackShelf } from '@game/progression';
+import { SCRIBBLE_PACK_LOOK_ID, STYLE_PACKS } from '../packOpening/packArt';
 import { PACK_LAB_LOOKS, type LabTimers } from '../packOpening/packLabSamples';
 
 /**
@@ -33,7 +34,9 @@ const offer = (look: PackLook, shelf: string, extra: Partial<PackOffer> = {}, su
   ...extra,
 });
 
-const shelfOfLook = (look: PackLook): string => (look.kind === 'rarity' ? 'rarity' : look.kind === 'category' ? 'category' : 'season');
+// (owner 2026-11-26: the style packs, Scribble and its kin, stand with the category packs: "in the by category shop, could they all be there?")
+const STYLE_IDS = new Set<string>([SCRIBBLE_PACK_LOOK_ID, ...STYLE_PACKS.map((p) => p.id)]);
+const shelfOfLook = (look: PackLook): string => (look.kind === 'rarity' ? 'rarity' : look.kind === 'category' || STYLE_IDS.has(look.id) ? 'category' : 'season');
 
 /** Every look in the Pack Lab stands on a shelf; a few carry the states the shop has to draw. */
 export const SHOP_LAB_OFFERS: readonly PackOffer[] = [

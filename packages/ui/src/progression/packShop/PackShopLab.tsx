@@ -97,8 +97,8 @@ export function PackShopLab(): JSX.Element {
       </div>
       <div className="sfxmix-row tuner-row">
         <span className="sfxmix-name">Starting hand</span>
-        <input type="number" min={0} max={30} step={1} value={startHand} aria-label="Starting hand size"
-          onChange={(e) => setStartHand(clampInt(Number(e.target.value), 0, 30))} />
+        <input type="number" min={0} max={80} step={1} value={startHand} aria-label="Starting hand size"
+          onChange={(e) => setStartHand(clampInt(Number(e.target.value), 0, 80))} />
       </div>
       <div className="sfxmix-row tuner-row">
         <span className="sfxmix-name">Answer delay (ms)</span>

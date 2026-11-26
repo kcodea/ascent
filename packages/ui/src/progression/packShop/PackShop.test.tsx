@@ -624,7 +624,9 @@ describe('PackShop', () => {
     render({ shelves: [], offers: [], hand: thirty });
     expect(document.body.textContent).toContain('Your hand, 30 packs');
     expect(handLabels()).toHaveLength(30);
-    expect(fake().calls).toContain('setHand:' + thirty.map((p) => p.packId).join(','));
+    // the counter takes 8 of one type (owner 2026-11-26); the other 22 wait beside it, counted
+    expect(fake().calls).toContain('setHand:' + thirty.slice(0, 8).map((p) => p.packId).join(','));
+    expect(document.querySelector('.pks-waiting')?.textContent).toContain('x22');
   });
 
   it('the wallet rolls down once, by the stream, even when the parent sends the new balance mid-stream', async () => {

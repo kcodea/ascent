@@ -296,10 +296,17 @@ export class ShelfPack {
  * How each pack UNDER a stack's top lies, top-most first: turned in the counter's plane (degrees) and shifted (shares
  * of the pack's height), so a stack looks dropped there, not machined. Mirrored on alternate stacks.
  */
+// (owner 2026-11-26: "i dont see the packs stacking. they should stack once per purchase, up to a max of 8": seven
+// packs under the top one, each turned and pushed a little further up the counter than the one above, so every pack owned
+// shows an edge.)
 const STACK_ASKEW = [
-  { a: -5, x: -0.022, y: 0.012, tint: 0xe2e2e2 },
-  { a: 4, x: 0.026, y: -0.016, tint: 0xcacaca },
-  { a: -2.5, x: -0.014, y: -0.03, tint: 0xb4b4b4 },
+  { a: -6, x: -0.03, y: -0.034, tint: 0xe6e6e6 },
+  { a: 5, x: 0.036, y: -0.058, tint: 0xdadada },
+  { a: -3.5, x: -0.02, y: -0.084, tint: 0xcecece },
+  { a: 7, x: 0.046, y: -0.106, tint: 0xc2c2c2 },
+  { a: -7.5, x: -0.05, y: -0.128, tint: 0xb6b6b6 },
+  { a: 3, x: 0.022, y: -0.15, tint: 0xababab },
+  { a: -4.5, x: -0.036, y: -0.172, tint: 0xa0a0a0 },
 ] as const;
 /** The most packs drawn under a stack's top (a taller stack shows these and its count). */
 export const STACK_UNDER_MAX = STACK_ASKEW.length;

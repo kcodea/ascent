@@ -109,7 +109,7 @@ export function makeLabBuy(
 
 /** A starting hand of `n` packs (0 to 30), cycling through the looks. */
 export function labHand(n: number): OwnedPack[] {
-  const count = Math.max(0, Math.min(30, Math.floor(n) || 0));
+  const count = Math.max(0, Math.min(80, Math.floor(n) || 0));
   return Array.from({ length: count }, (_, i) => ({ packId: mintLabPackId(), look: PACK_LAB_LOOKS[i % PACK_LAB_LOOKS.length]! }));
 }
 

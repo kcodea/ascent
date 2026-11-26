@@ -12,7 +12,7 @@ import { createShopScene, type ScreenRect, type ShopScene } from './shopScene';
 import { createShopSounds, type ShopSounds } from './shopSounds';
 import { shopLayout } from './shopLayout';
 import { setNavAether } from '../../partyHome/shell/shellStore';
-import { affordableIds, buyKey, packTag, shelfOffers, srLine, startIndex } from './shopModel';
+import { NO_ROOM_NOTE, buyKey, buyableIds, counterHasRoom, counterSplit, packTag, shelfOffers, srLine, startIndex } from './shopModel';
 import '../packOpening/packOpening.css';
 import './packShop.css';
 
@@ -151,6 +151,9 @@ export function PackShop(props: PackShopProps) {
   const boughtRef = useRef(bought);
   const openedRef = useRef(opened);
   const shownHandRef = useRef(shownHand); shownHandRef.current = shownHand;
+  // The counter holds 7 pack types, 8 of each; the rest wait beside it (shopModel.ts `counterSplit`).
+  const split = useMemo(() => counterSplit(shownHand), [shownHand]);
+  const counterRef = useRef(split.counter); counterRef.current = split.counter;
   const balanceRef = useRef(balance);
   const buyRef = useRef(buy); buyRef.current = buy;
   const onCloseRef = useRef(onClose); onCloseRef.current = onClose;
@@ -240,6 +243,7 @@ export function PackShop(props: PackShopProps) {
    */
   const refuseShort = useCallback((offer: PackOffer): void => {
     if (offer.soldOut) { say('Sold out'); return; }
+    if (!counterHasRoom(shownHandRef.current, offer.look)) { say(NO_ROOM_NOTE); return; }
     const short = aetherShort(offer, balanceRef.current);
     if (short <= 0) return;
     gulp();
@@ -282,6 +286,8 @@ export function PackShop(props: PackShopProps) {
   const purchase = useCallback((offer: PackOffer, viaScene: boolean): void => {
     // never behind the opener (the shop is inert under it, and nothing is bought until it has gone)
     if (pendingRef.current || playTimerRef.current !== null || openingRef.current) return;
+    // no place for it on the counter: nothing is bought (owner 2026-11-26)
+    if (!counterHasRoom(shownHandRef.current, offer.look)) { if (viaScene) sceneRef.current?.buySettled(false); setAnnounce(NO_ROOM_NOTE); return; }
     const key = buyKey(offer);
     let requestId = idsRef.current.get(key);
     if (!requestId) { requestId = mintRequestId(); idsRef.current.set(key, requestId); }
@@ -342,7 +348,7 @@ export function PackShop(props: PackShopProps) {
       const nextBought = [...boughtRef.current, ...out.packs];
       boughtRef.current = nextBought;
       setBought(nextBought);
-      scene?.setHand(shownHandOf(handRef.current, nextBought, openedRef.current));
+      scene?.setHand(counterSplit(shownHandOf(handRef.current, nextBought, openedRef.current)).counter);
       say(offer.contains > 1 ? `Bought ${out.packs.length} packs` : `Bought ${offer.look.name}`);
       if (!viaScene) {
         setSel(null);
@@ -405,7 +411,7 @@ export function PackShop(props: PackShopProps) {
     setLeaving(true);
     const scene = sceneRef.current;
     // The hand as it now stands FIRST, then the scene comes back.
-    scene?.setHand(shownHandOf(handRef.current, boughtRef.current, openedRef.current));
+    scene?.setHand(counterSplit(shownHandOf(handRef.current, boughtRef.current, openedRef.current)).counter);
     scene?.setVisible(true, SHOP_HANDOFF_MS);
     // Aether that arrived while the opener was up (its duplicates' refund) streams into the wallet now
     const st = streamRef.current;
@@ -507,8 +513,8 @@ export function PackShop(props: PackShopProps) {
     }, sounds);
     sceneRef.current = scene;
     scene.setShelf(shelfRef.current);
-    scene.setHand(shownHandRef.current);
-    scene.setAffordable(affordableIds(offersRef.current, balanceRef.current));
+    scene.setHand(counterRef.current);
+    scene.setAffordable(buyableIds(offersRef.current, balanceRef.current, shownHandRef.current));
     return () => {
       live = false;
       scene.destroy();
@@ -522,8 +528,8 @@ export function PackShop(props: PackShopProps) {
   useEffect(() => () => { soundsRef.current?.dispose(); soundsRef.current = null; }, []);
 
   useEffect(() => { sceneRef.current?.setShelf(shelf); }, [shelf]);
-  useEffect(() => { sceneRef.current?.setHand(shownHand); }, [shownHand]);
-  useEffect(() => { sceneRef.current?.setAffordable(affordableIds(offers, balance)); }, [offers, balance]);
+  useEffect(() => { sceneRef.current?.setHand(split.counter); }, [split]);
+  useEffect(() => { sceneRef.current?.setAffordable(buyableIds(offers, balance, shownHand)); }, [offers, balance, shownHand]);
 
   // ------------------------------------------------------------------ keyboard, focus, tabs
 
@@ -617,6 +623,7 @@ export function PackShop(props: PackShopProps) {
 
   const offerCard = (o: PackOffer, withButton: boolean, cls: string) => {
     const t = packTag(o, balance);
+    const full = !t.soldOut && !counterHasRoom(shownHand, o.look);
     // the grid card has no pack beside it (the tag does): it stands its pack's art on a little stage of its own
     // (a look with no art yet stands its rarity's medallion there instead)
     const art = cls === 'pks-card' ? packArtFor(o.look) : null;
@@ -638,12 +645,13 @@ export function PackShop(props: PackShopProps) {
         </div>
         <div className={`${cls}-price`}>{o.price > 0 && <AetherIcon />}{t.price}</div>
         {t.soldOut ? <div className={`${cls}-short`}>Sold out</div> : t.short > 0 && <div className={`${cls}-short`}>{`Need ${t.short} more Aether`}</div>}
+        {full && t.short <= 0 && <div className={`${cls}-short`}>Open packs to make room</div>}
         {withButton && (
           <button type="button" className="crate-btn pressable pks-buy" ref={cls === 'pks-tag' ? buyBtnRef : undefined}
-                  aria-disabled={pending || t.soldOut || t.short > 0}
+                  aria-disabled={pending || t.soldOut || t.short > 0 || full}
                   onClick={() => {
                     if (pending) return;
-                    if (t.soldOut || t.short > 0) refuseShort(o); else purchase(o, false);
+                    if (t.soldOut || t.short > 0 || full) refuseShort(o); else purchase(o, false);
                   }}>{buyLabel(o)}</button>
         )}
       </>
@@ -786,6 +794,20 @@ export function PackShop(props: PackShopProps) {
         </div>
       )}
 
+      {split.waiting.length > 0 && (
+        <div className="pks-waiting">
+          <div className="pks-waiting-words">Open packs to clear space for your other packs</div>
+          <ul className="pks-waiting-row" aria-label="Packs waiting for space">
+            {split.waiting.map((w) => (
+              <li key={w.key} className="pks-waiting-pack" aria-label={`${w.look.name}, ${w.count}`}>
+                <img className={`pks-waiting-art${packArtFor(w.look) ? '' : ' pks-waiting-medal'}`} src={packArtFor(w.look) ?? rarityIconSrc(w.look.guaranteedFloor)} alt=""
+                     aria-hidden="true" decoding="sync" draggable={false} />
+                <span className="pks-waiting-n" aria-hidden="true">{`x${w.count}`}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       <div className="pks-live" role="status">{announce}</div>
       <button type="button" className="crate-btn crate-btn-quiet pressable pks-close" disabled={pending} onClick={() => onClose?.()}>Close</button>
     </div>

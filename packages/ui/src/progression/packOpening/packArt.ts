@@ -5,7 +5,8 @@ import { packGlowRarity } from './packGlow';
  * PACK WRAPPER ART (owner 2026-11-23: a wrapper per pack rarity). Which pack wears a painted wrapper: the whole pack
  * (tear strip + sleeve body) as one image cut on the `packGeom.ts` template, 600 x 900 webp (2x the pack's 300 x 450
  * base). The strip is the art above the tear line, the body the rest. A look with no entry (category and themed packs)
- * keeps the placeholder painting (packTextures.ts). The owner's Secret wrapper ships as a THEMED look
+ * keeps the placeholder painting (packTextures.ts), except the themed looks named in `THEMED_PACK_ART` (the Launch
+ * Pack, owner 2026-11-25). The owner's Secret wrapper ships as a THEMED look
  * (`SECRET_PACK_LOOK_ID`): Secret is not a rarity yet (its role is undecided), so it hangs off the look's id.
  *
  * Each wrapper has a greyscale SHINE MASK (`packShineFor` below) limiting where the holo sheen shows (packHoloMesh.ts).
@@ -25,9 +26,19 @@ export const RARITY_PACK_ART: Readonly<Record<CrateRarity, string>> = {
 export const SECRET_PACK_LOOK_ID = 'themed-secret';
 export const SECRET_PACK_SRC = `${BASE}packs/secret-pack.webp`;
 
-/** The wrapper art for `look`, or null (the placeholder painting): every rarity pack, and the Secret pack. */
+/** The Launch Pack's look id and its wrapper (owner 2026-11-25: wine red, the compass star, the first island at sunrise). */
+export const LAUNCH_PACK_LOOK_ID = 'themed-launch';
+export const LAUNCH_PACK_SRC = `${BASE}packs/launch-pack.webp`;
+
+/** Themed looks that wear their own wrapper, by look id. */
+export const THEMED_PACK_ART: Readonly<Record<string, string>> = {
+  [SECRET_PACK_LOOK_ID]: SECRET_PACK_SRC,
+  [LAUNCH_PACK_LOOK_ID]: LAUNCH_PACK_SRC,
+};
+
+/** The wrapper art for `look`, or null (the placeholder painting): every rarity pack, and the themed packs with art. */
 export function packArtFor(look: PackLook): string | null {
-  if (look.kind === 'themed' && look.id === SECRET_PACK_LOOK_ID) return SECRET_PACK_SRC;
+  if (look.kind === 'themed') return THEMED_PACK_ART[look.id] ?? null;
   if (look.kind !== 'rarity') return null;
   return RARITY_PACK_ART[packGlowRarity(look)];
 }

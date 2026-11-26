@@ -223,7 +223,7 @@ const LINE_COLOR = 0xffd27a;
 /** The shelf fades out while a played pack goes to the pedestal, per 60 Hz frame. */
 const RACK_FADE_EASE = 0.15;
 /** The price tag's text and the pile's count, as shares of a shelf / hand pack's height. */
-const TAG_FONT = 0.075;
+const TAG_FONT = 0.0525; // owner 2026-11-25: "make the tag smaller by 30%" (was 0.075)
 /**
  * THE PRICE TAGS: where the twine is tied (a share of the pack's height in from its top-left corner), how far the tag
  * hangs out to the left at rest (radians, clockwise), and the knot acceleration under which it does not stir.

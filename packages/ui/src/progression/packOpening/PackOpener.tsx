@@ -476,13 +476,14 @@ export function PackOpener({ queue, open, onOpened, onClose, onClosed, reducedMo
     // sound "firing extremely fast one after another")
     const top = result.cards.reduce((b, c) => (COSMETIC_RARITIES.indexOf(c.rarity) > COSMETIC_RARITIES.indexOf(b) ? c.rarity : b), result.cards[0]?.rarity ?? 'common');
     timers.push(setTimeout(() => soundsFn.current().land(top), 300 * slow));
-    // Light the best pulls once their cards have ARRIVED in the row: wait for each one's move to end (its transform
-    // transition), never a guessed delay (a busy frame starts the move late). A card that has no move to make (the
-    // summary was reached without a reveal) is measured after a short settle.
+    // Light the best pulls once their cards have ARRIVED in the row and stopped. Their places are measured only after the
+    // whole deal has had time to start AND each card's box has then held still across two looks (owner 2026-11-25: the
+    // light sat, far too large, behind another card: the old wait took the end of ANY move, so a card could be measured
+    // where it was revealed, at its reveal size, and its light was left there).
     const best = summaryBest(result.cards).slice(0, 2);
     const faces = dialogRef.current?.querySelectorAll<HTMLElement>('[data-testid="pack-face"]');
     const els = best.map((i) => faces?.[i]).filter((e): e is HTMLElement => !!e);
-    const waiting = new Set(els);
+    const last = new Map<HTMLElement, { x: number; y: number; w: number }>();
     let lit = false;
     const light = (): void => {
       if (lit) return;
@@ -495,23 +496,18 @@ export function PackOpener({ queue, open, onOpened, onClose, onClosed, reducedMo
       });
       sceneRef.current?.showSummary(spots);
     };
-    const onEnd = (e: TransitionEvent): void => {
-      const el = e.currentTarget as HTMLElement;
-      if (e.target !== el || e.propertyName !== 'transform') return;
-      waiting.delete(el);
-      if (waiting.size === 0) light();
-    };
-    for (const el of els) el.addEventListener('transitionend', onEnd);
     const settle = (): void => {
-      // still moving: the transitionend will light them; otherwise there was nothing to wait for
-      const moving = els.some((el) => typeof el.getAnimations === 'function' && el.getAnimations().some((a) => a.playState === 'running'));
-      if (moving) timers.push(setTimeout(settle, 250));
-      else light();
+      let still = true;
+      for (const el of els) {
+        const r = el.getBoundingClientRect(), was = last.get(el);
+        if (!was || Math.abs(was.x - r.left) > 0.5 || Math.abs(was.y - r.top) > 0.5 || Math.abs(was.w - r.width) > 0.5) still = false;
+        last.set(el, { x: r.left, y: r.top, w: r.width });
+      }
+      if (still) light(); else timers.push(setTimeout(settle, 140));
     };
-    if (els.length > 0) timers.push(setTimeout(settle, (result.cards.length * SUMMARY_DEAL_MS + 700) * slow));
+    if (els.length > 0) timers.push(setTimeout(settle, (result.cards.length * SUMMARY_DEAL_MS + 500) * slow));
     return () => {
       for (const t of timers) clearTimeout(t);
-      for (const el of els) el.removeEventListener('transitionend', onEnd);
     };
   }, [phase, reduced, result, speed]);
 

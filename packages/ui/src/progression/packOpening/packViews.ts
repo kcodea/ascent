@@ -37,7 +37,7 @@ const { W, H, BODY_H, CARD_W, CARD_H } = PACK_GEOM;
 /** The stack's resting centre (inside the sleeve, its top showing at the opening). */
 export const CARDS_Y = H * 0.42 + CARD_H / 2;
 /** The guaranteed SEAL's centre below the card's centre: under the logo, in the lower part of the back. */
-export const RIBBON_DY = Math.round(CARD_W * 0.47);
+export const RIBBON_DY = Math.round(CARD_W * 0.53); // owner 2026-11-25: "lower the stamp a bit" (was 0.47)
 /** The seal's half size on the card (base units): a square, half the card wide. */
 export const RIBBON_HW = CARD_W * 0.25, RIBBON_HH = CARD_W * 0.25;
 /** The back wall's inset from the pack's sides and bottom (base units). */

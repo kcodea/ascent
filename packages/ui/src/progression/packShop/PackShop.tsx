@@ -665,7 +665,6 @@ export function PackShop(props: PackShopProps) {
           <div className={`pks-line${overLine ? ' pks-line-lit' : ''}`} aria-hidden>
             {lineWords && <span className={`pks-line-words${heldOffer && packTag(heldOffer, balance).short > 0 ? ' pks-line-short' : ''}`}>{lineWords}</span>}
           </div>
-          <div className="pks-handlabel" aria-hidden>{`Your packs \u00b7 ${shownHand.length}`}</div>
           {gauge}
           {tagFor && (tagOffer || tagPack) && (
             <div className={`pks-tag${tagFor.rect ? '' : ' pks-tag-dock'}${tagFor.armed ? ' pks-tag-armed' : ''}`} style={tagStyle(tagFor.rect, tagFor.kind)}

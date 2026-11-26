@@ -419,6 +419,17 @@ export function paintPlainBack(look: PackLook, art: BackArt = {}, into?: HTMLCan
   // The ground fills the plate's REAL window (its raised notch and stepped corners), cut with the window's own mask
   // (owner 2026-11-25: "make this section perfectly matched with the frame border"; a rounded box left the notch bare).
   // No inner line (same ask). Until the mask has loaded, the rounded box stands in.
+  const logo = art.icon as (CanvasImageSource & { width?: number; height?: number }) | undefined;
+  const logoW = WIN.w * BACK_LOGO_W, logoX = CW / 2, logoY = WIN.y + WIN.h / 2;
+  // the logo's warm halo, as a fill for `on` (the caller has already bounded it to the window's real shape)
+  const haloOn = (on: Ctx): void => {
+    const halo = on.createRadialGradient(logoX, logoY, 0, logoX, logoY, logoW * 1.25);
+    halo.addColorStop(0, 'rgba(255,214,120,.09)');
+    halo.addColorStop(0.5, 'rgba(255,214,120,.035)');
+    halo.addColorStop(1, 'rgba(255,214,120,0)');
+    on.fillStyle = halo;
+    on.fillRect(0, 0, CW, CH);
+  };
   if (art.window) {
     const { c: wc, g: wg } = canvas(CW, CH);
     const gr = wg.createLinearGradient(WIN.x, WIN.y, WIN.x + WIN.w, WIN.y + WIN.h);
@@ -426,6 +437,9 @@ export function paintPlainBack(look: PackLook, art: BackArt = {}, into?: HTMLCan
     gr.addColorStop(1, '#0c0f22');
     wg.fillStyle = gr;
     wg.fillRect(0, 0, CW, CH);
+    // the halo goes in before the cut, so it traces the frame's border exactly (owner 2026-11-25: "the sheen on the back
+    // of the card isnt perfectly tracing the border of the card frame")
+    if (logo) haloOn(wg);
     wg.globalCompositeOperation = 'destination-in';
     wg.drawImage(art.window, 0, 0, CW, CH);
     g.drawImage(wc, 0, 0);
@@ -433,17 +447,11 @@ export function paintPlainBack(look: PackLook, art: BackArt = {}, into?: HTMLCan
   } else openWindow(g, '#1d2448', '#0c0f22');
   // the Ascent logo, alone on the ground (owner 2026-11-25: "remove the icon and the pattern from the card back. use the
   // Ascent Logo instead"); until its image has loaded the window is plain
-  const logo = art.icon as (CanvasImageSource & { width?: number; height?: number }) | undefined;
   if (logo) {
     const lw = Number(logo.width) || 1, lh = Number(logo.height) || 1;
-    const w = WIN.w * BACK_LOGO_W, h = w * (lh / lw), cx = CW / 2, cy = WIN.y + WIN.h / 2;
-    const halo = g.createRadialGradient(cx, cy, 0, cx, cy, w * 1.25);
-    halo.addColorStop(0, 'rgba(255,214,120,.09)');
-    halo.addColorStop(0.5, 'rgba(255,214,120,.035)');
-    halo.addColorStop(1, 'rgba(255,214,120,0)');
-    g.fillStyle = halo;
-    g.fillRect(WIN.x, WIN.y, WIN.w, WIN.h);
-    g.drawImage(logo, cx - w / 2, cy - h / 2, w, h);
+    const h = logoW * (lh / lw);
+    if (!art.window) haloOn(g); // (clipped to the stand-in rounded box)
+    g.drawImage(logo, logoX - logoW / 2, logoY - h / 2, logoW, h);
   }
   g.restore();
   return c;
@@ -488,16 +496,7 @@ export function paintRibbon(floor: CrateRarity, medal?: CanvasImageSource, into?
   g.lineWidth = Math.max(2, S * 0.012);
   g.strokeStyle = shade(col, 0.3);
   g.stroke();
-  // pleats: fine rays from the middle to the rim, like a pressed foil seal
-  g.save();
-  g.globalAlpha = 0.22;
-  g.strokeStyle = '#ffffff';
-  g.lineWidth = 1;
-  for (let i = 0; i < SCALLOPS * 2; i++) {
-    const th = (i / (SCALLOPS * 2)) * Math.PI * 2;
-    g.beginPath(); g.moveTo(cx + Math.cos(th) * R * 0.66, cy + Math.sin(th) * R * 0.66); g.lineTo(cx + Math.cos(th) * R * 0.93, cy + Math.sin(th) * R * 0.93); g.stroke();
-  }
-  g.restore();
+  // (no pleat rays: owner 2026-11-25, "remove the white lines from the stamp")
   // the inner well, where the medallion sits
   const well = g.createRadialGradient(cx, cy - R * 0.1, R * 0.05, cx, cy, R * 0.62);
   well.addColorStop(0, '#2a3566');

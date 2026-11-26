@@ -186,16 +186,27 @@ void main() {
   finalColor = texture(uTex2, vUV) * texture(uTex, vUV).a * uColor.a;
 }`;
 
+/** How far a full lean moves the band (pack units; the pack is 300 wide), and how much a facing slope brightens. */
+const RELIEF_BEND = 52;
+const RELIEF_LIGHT = 1.25;
+
 /** The gloss band, placed from uniforms (no per-frame uv rewrite): `uBand` = centre, half width, slope, cy (pack units). */
 export const GLOSS_FRAG = `${HEAD}
 uniform sampler2D uTex;    // the wrapper art
 uniform sampler2D uTex2;   // the band (sampled along u at v = 0.5)
+uniform sampler2D uTex3;   // the wrapper's RELIEF (packRelief.ts): rg = which way the surface leans (.5 = flat), over the WHOLE pack
 uniform vec4 uBand;
 uniform vec3 uGeom;        // the pack's W, H (the strip's height) and BODY_H
+uniform float uRelief;     // how strongly the band answers the relief (0 = a flat pack)
 void main() {
   float x = vUV.x * uGeom.x, y = uGeom.y + vUV.y * uGeom.z;
-  float d = (x + uBand.z * (y - uBand.w) - uBand.x) / uBand.y;
-  finalColor = texture(uTex2, vec2(.5 + .5 * d, .5)) * step(abs(d), 1.) * texture(uTex, vUV).a * uColor.a;
+  // THE BAND TRAVELS OVER AN EMBOSSED SURFACE: where the surface leans, the light is found a little further along (the
+  // band bends round raised parts), and a slope facing the light (above and a little left) is brighter, one facing away dimmer
+  vec2 n = (texture(uTex3, vec2(vUV.x, y / (uGeom.y + uGeom.z))).rg - .5) * 2. * uRelief;
+  float xs = x + n.x * ${RELIEF_BEND.toFixed(1)}, ys = y + n.y * ${RELIEF_BEND.toFixed(1)};
+  float d = (xs + uBand.z * (ys - uBand.w) - uBand.x) / uBand.y;
+  float lit = clamp(1. + dot(n, vec2(-.45, -.9)) * ${RELIEF_LIGHT.toFixed(2)}, .2, 2.4);
+  finalColor = texture(uTex2, vec2(.5 + .5 * d, .5)) * step(abs(d), 1.) * lit * texture(uTex, vUV).a * uColor.a;
 }`;
 
 type UType = 'f32' | 'vec2<f32>' | 'vec3<f32>' | 'vec4<f32>';
@@ -212,7 +223,7 @@ const unitQuad = (): MeshGeometry => new MeshGeometry({
 });
 
 function make<S extends USpec>(
-  webgl: boolean, frag: string, spec: S, blend: 'add' | 'normal', geometry?: MeshGeometry, tex?: Texture, tex2?: Texture,
+  webgl: boolean, frag: string, spec: S, blend: 'add' | 'normal', geometry?: MeshGeometry, tex?: Texture, tex2?: Texture, tex3?: Texture,
 ): Fx<S> | null {
   if (!webgl) return null;
   try {
@@ -225,6 +236,7 @@ function make<S extends USpec>(
     const resources: Record<string, unknown> = { fxUniforms: group };
     if (tex) { resources.uTex = tex.source; resources.uTexSampler = tex.source.style; }
     if (tex2) { resources.uTex2 = tex2.source; resources.uTex2Sampler = tex2.source.style; }
+    if (tex3) { resources.uTex3 = tex3.source; resources.uTex3Sampler = tex3.source.style; }
     const shader = Shader.from({ gl: { vertex: GL_VERT, fragment: frag }, resources });
     const mesh = new Mesh({ geometry: geometry ?? unitQuad(), shader });
     mesh.blendMode = blend;
@@ -248,7 +260,7 @@ export type SheenFx = Fx<typeof SHEEN_U>;
 
 export const makeStage = (webgl: boolean): StageFx | null => make(webgl, STAGE_FRAG, STAGE_U, 'normal');
 const NO_U = {} as const satisfies USpec;
-const GLOSS_U = { uBand: 'vec4<f32>', uGeom: 'vec3<f32>' } as const satisfies USpec;
+const GLOSS_U = { uBand: 'vec4<f32>', uGeom: 'vec3<f32>', uRelief: 'f32' } as const satisfies USpec;
 export type MaskedFx = Fx<typeof NO_U>;
 export type GlossFx = Fx<typeof GLOSS_U>;
 /** A copy of the wrapper body's grid (the scene copies the body's positions into it whenever it writes them). */
@@ -259,9 +271,9 @@ const bodyGrid = (body: Mesh): MeshGeometry => {
 /** The idle sheen, cut to the wrapper art. */
 export const makeMaskedSheen = (webgl: boolean, body: Mesh, art: Texture, sheen: Texture): MaskedFx | null =>
   make(webgl, MASKED_FRAG, NO_U, 'add', bodyGrid(body), art, sheen);
-/** The gloss band, cut to the wrapper art. */
-export const makeMaskedGloss = (webgl: boolean, body: Mesh, art: Texture, band: Texture): GlossFx | null =>
-  make(webgl, GLOSS_FRAG, GLOSS_U, 'add', bodyGrid(body), art, band);
+/** The gloss band, cut to the wrapper art; `relief` is the wrapper's relief map (packRelief.ts `flatRelief()` for none; `bindRelief` swaps it). */
+export const makeMaskedGloss = (webgl: boolean, body: Mesh, art: Texture, band: Texture, relief: Texture): GlossFx | null =>
+  make(webgl, GLOSS_FRAG, GLOSS_U, 'add', bodyGrid(body), art, band, relief);
 export const makeSpill = (webgl: boolean): SpillFx | null => make(webgl, SPILL_FRAG, SPILL_U, 'add');
 export const makeSheen = (webgl: boolean): SheenFx | null => make(webgl, SHEEN_FRAG, SHEEN_U, 'add');
 

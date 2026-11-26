@@ -38,6 +38,7 @@ import {
 } from './cardFlip';
 import { getPackFeel, PACK_BASE_SIZE, type PackFeel } from './packFxConfig';
 import { CARD_GLOW_TIERS, PACK_GLOW_TIERS, glowAlphaAt, packGlowRarity, type GlowTier } from './packGlow';
+import { bindRelief, flatRelief } from './packRelief';
 import type { PackSounds } from './packSounds';
 import {
   teaseAt, teaseAuraLevel, teaseBeatFrames, teaseFrames, teaseGlowAlpha, teaseGlowFade, teaseGlowPop, teasePop, teaseRarityAt, teaseTremble,
@@ -452,7 +453,8 @@ class PackSceneImpl implements PackScene {
     // the wrapper's highlights, cut to the art's own shape: they take the plain sheen / gloss meshes' place
     this.sheenOv = makeMaskedSheen(webgl, vw.body, vw.body.texture, vw.sheen.texture);
     if (webgl) vw.strip.maskSpecToArt(); // the strip's highlight, cut to its art the same way
-    this.glossOv = makeMaskedGloss(webgl, vw.body, vw.body.texture, vw.gloss.texture);
+    this.glossOv = webgl ? makeMaskedGloss(webgl, vw.body, vw.body.texture, vw.gloss.texture, flatRelief()) : null;
+    if (this.glossOv) bindRelief(this.glossOv, this.look, () => !this.destroyed);
     for (const [ov, plain] of [[this.sheenOv, vw.sheen], [this.glossOv, vw.gloss]] as const) {
       if (!ov) continue;
       ov.mesh.position.copyFrom(plain.position); ov.mesh.scale.copyFrom(plain.scale);

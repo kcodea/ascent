@@ -16,6 +16,7 @@ import type { PackLook } from '@game/progression';
 import { getDragFeel } from '../../dragFeel';
 import { packArtFor } from '../packOpening/packArt';
 import { makeMaskedGloss, type GlossFx } from '../packOpening/packFx';
+import { bindRelief, flatRelief } from '../packOpening/packRelief';
 import { getPackFeel } from '../packOpening/packFxConfig';
 import { PACK_GEOM, TEX_RES, paintBody, paintStrip } from '../packOpening/packTextures';
 import { glossBandInto, newGlossBand, newTiltPose, setTiltPose, tiltInto, tiltTargetInto } from '../packOpening/packTilt';
@@ -153,7 +154,7 @@ export class ShelfPack {
     this.tex = new Texture({ source: new CanvasSource({ resource: this.canvas, autoGenerateMipmaps: true, scaleMode: 'linear', mipmapFilter: 'linear', maxAnisotropy: 16 }) });
     this.mesh = new PerspectiveMesh({ texture: this.tex, verticesX: 10, verticesY: 10 });
     this.mesh.setCorners(-W / 2, -HT / 2, W / 2, -HT / 2, W / 2, HT / 2, -W / 2, HT / 2);
-    this.gloss = makeMaskedGloss(webgl, this.mesh, this.tex, bandTex);
+    this.gloss = webgl ? makeMaskedGloss(webgl, this.mesh, this.tex, bandTex, flatRelief()) : null;
     this.view.addChild(this.mesh);
     if (this.gloss) {
       const g = this.gloss.u.uGeom;
@@ -173,6 +174,7 @@ export class ShelfPack {
     if (key === this.lookKey) return;
     this.lookKey = key;
     const token = ++this.loadToken;
+    if (this.gloss) bindRelief(this.gloss, look, () => token === this.loadToken && !this.destroyed);
     const src = packArtFor(look);
     const cached = src ? images.get(src) : undefined;
     if (cached && ready(cached)) { this.paintArt(cached); return; }

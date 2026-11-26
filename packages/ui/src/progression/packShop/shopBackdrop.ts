@@ -29,7 +29,8 @@ export const SHOP_ART: Partial<Record<BackdropLayer, string>> = {
   // owner 2026-11-25 (prompts.md 5b): the wooden counter, a till and ledger far left, scrolls and a candle far right.
   // Cropped so its back edge sits at COUNTER_HEADROOM of the image, as the placeholder's does.
   counter: '/packs/shop-counter.webp',
-  // owner 2026-11-25 (prompts.md 5c): soft-focus curtains down both edges, a lantern and a swag in the top corners.
+  // owner 2026-11-25 (prompts.md 5c): soft-focus curtains down both edges, and nothing else: the painting's
+  // small lantern and swag were painted out (owner: at that distance they would be huge and blurred, and unwanted).
   // The file is the painting with its edge pixels repeated outward by 3%: less than OVERSCAN.fore, on purpose, so the
   // curtains sit mostly off screen and encroach less (owner 2026-11-25). Rebuild with a larger repeat to bring them in.
   fore: '/packs/shop-fore.webp',

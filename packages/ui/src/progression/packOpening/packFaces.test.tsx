@@ -50,8 +50,9 @@ describe('PackFace', () => {
     expect(img.getAttribute('src')).toBeTruthy();
     expect(face().querySelector('.pkf-emblem')).toBeNull();
     expect(face().querySelector('.pkf-cat')!.textContent).toBe('Hero skin');
-    // a hero skin sits in the portrait ring it wears in a game (the Collection's piece), with no cosmetic frame
-    expect(face().querySelector('.pkf-art .cv2-heroframe.pkf-heroring img.heroimg')).toBeTruthy();
+    // a hero skin has no framed window: its art runs the card window's full width and fades into the navy (owner 2026-11-26)
+    expect(face().querySelector('.pkf-art.pkf-art-full img.pkf-img-hero')).toBeTruthy();
+    expect(face().querySelector('.pkf-heroring')).toBeNull();
   });
 
   it('a title has no art window: the painted Titles medallion over the title in its own badge (owner 2026-11-24)', () => {

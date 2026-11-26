@@ -271,8 +271,13 @@
 .pkf-art-bare { flex: 1 1 auto; height: auto; flex-direction: column; gap: 22px; overflow: visible; background: none; box-shadow: none; }
 .pkf-art-bare .pkf-emblem { width: 150px; height: 150px; }
 .pkf-title.titlebadge { --tb-fs: 23px; max-width: 100%; }
-/* A hero skin in the portrait ring it wears in a game; an attack animation's sandbox fills the window. */
-.pkf-art .pkf-heroring { --ring: 322px; }
+/* A HERO SKIN and a MINION SKIN: no framed window (owner 2026-11-26). The art box reaches the card window's top and
+   sides (the window's own padding is cancelled; `.pkf-win` still clips it to the window's rounded shape), and the art
+   fades out by its bottom, so the plate's navy (with the rarity's tint and foil) shows through. Static paint. */
+.pkf-art-full { width: calc(100% + 52px); height: 398px; margin: -40px -26px 0; border-radius: 0; background: none; box-shadow: none; }
+.pkf-art-full .pkf-img { object-position: 50% 18%;
+  -webkit-mask-image: linear-gradient(180deg, #000 52%, transparent 97%); mask-image: linear-gradient(180deg, #000 52%, transparent 97%); }
+.pkf-art-full .pkf-new { top: 46px; right: 34px; }
 /* The name sits in its own thin frame: the preview window's navy, rounded corners and gold line (owner 2026-11-24), so
    the foil never runs behind the words. The span clamps to two lines inside the frame's padding. */
 .pkf-name { margin-top: 6px; width: 100%; box-sizing: border-box; padding: 10px 14px 12px; border-radius: 14px; background: rgba(9, 18, 38, 0.6); /* the plate navy at 60% (owner 2026-11-24) */

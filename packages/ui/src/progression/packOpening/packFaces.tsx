@@ -4,7 +4,6 @@ import {
 import { cosmeticOf, type PackCard } from '@game/progression';
 import { HeroAttackPreview, heroAttackPreviewKnown } from '../../heroBlast/HeroAttackPreview';
 import { MenuMedal, type MenuMedalName } from '../../menuIcons';
-import { HeroPortraitRing } from '../../portraitFrame/HeroPortraitRing';
 import { TitleBadge } from '../../titles/TitleBadge';
 import { stageViewport, type StageRect } from '../../stage';
 import { rewardPreview, type RewardEmblem } from '../rewardPreview';
@@ -206,17 +205,18 @@ function Emblem({ emblem }: { emblem: RewardEmblem }): ReactElement {
 /**
  * WHAT THE ART WINDOW SHOWS, per category, with the Collection's own pieces (owner 2026-11-24: "use elements from the
  * existing cosmetics menu to better make each cosmetic fit the card"):
- * - a hero skin in the portrait ring it wears in a game (`HeroPortraitRing`, no cosmetic frame);
+ * - a hero skin and a minion skin with NO framed window (`.pkf-art-full`, owner 2026-11-26: "removing the border around
+ *   them, and have their art full width and fade to navy by the bottom"): the art runs the card window's full width from
+ *   its top and fades into the navy;
  * - an attack animation PLAYING in the Collection's sandbox (`HeroAttackPreview`, embedded): by itself once as the face
  *   lands on the pile and again as the summary row appears (`autoKey`), never under the top face; a click replays it;
- * - an announcer its painted medallion; a minion skin, emote, portrait frame and card plate their art as before.
+ * - an announcer its painted medallion; an emote, portrait frame and card plate their art as before.
  * A TITLE has no window at all (`.pkf-art-bare`): its medallion over the title's own badge, the way it is worn.
  */
 function FaceArt({ card, p, lands, phase, still }: {
   card: PackCard; p: ReturnType<typeof rewardPreview>; lands: boolean; phase: string; still: boolean;
 }): ReactElement {
   if (p.art) {
-    if (p.art.kind === 'hero') return <HeroPortraitRing art={p.art.url} alt="" frameId={null} className="pkf-heroring" />;
     return <img src={p.art.url} alt="" decoding="sync" draggable={false} className={`pkf-img pkf-img-${p.art.kind}`} />;
   }
   if (p.emblem === 'hero_attack') {
@@ -402,7 +402,7 @@ export function PackFace({ card, phase, from, slot, slow = 1, still = false, bes
           </div>
         )}
         <div className="pkf-win">
-          <div className={`pkf-art${isTitle ? ' pkf-art-bare' : ''}`}>
+          <div className={`pkf-art${isTitle ? ' pkf-art-bare' : ''}${p.art && (p.art.kind === 'hero' || p.art.kind === 'minion') ? ' pkf-art-full' : ''}`}>
             <FaceArt card={card} p={p} lands={lands} phase={phase} still={still} />
             {card.duplicate
               ? (

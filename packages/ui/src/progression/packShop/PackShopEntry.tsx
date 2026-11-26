@@ -1,0 +1,128 @@
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { createPortal } from 'react-dom';
+import { packDuplicateAether } from '@game/progression';
+import { closePackShopDoor, usePhShell } from '../../partyHome/shell/shellStore';
+import { getScreenWipeConfig } from '../../screenWipeConfig';
+import { sfx } from '../../sfx';
+import { stageHost } from '../../stage';
+import { VISTA_DOOR_CLIP, VISTA_DOOR_CLIP_ID } from '../../vistaDoor';
+import { PACK_LAB_SAMPLES, cancelLabTimers, makeLabOpen, type LabTimers } from '../packOpening/packLabSamples';
+import { PackShop, type PackShopProps } from './PackShop';
+import { LAB_GUARANTEE_EVERY, SHOP_LAB_OFFERS, SHOP_LAB_SHELVES, labGuaranteeAfter, labHand, makeLabBuy, type LabState } from './shopLabData';
+
+/**
+ * THE WAY INTO THE PACK SHOP FROM THE MENU (owner 2026-11-26: "when clicking shop. i want to use the return to shop
+ * transition ... it shows a shop in a meadow and then leaps through the door to the game board, instead of going through
+ * the door to the game board, it goes into the shop itself").
+ *
+ * The nav's Shop tab bumps `packShopDoor` (shellStore). This plays the return trip's VISTA (the same layers, classes and
+ * timings as Recruit's: the land rises in, a hold, the dive through the door; styles.css `.wipevista`) over the menu, and
+ * mounts the pack shop behind it at the hold, so the dive lands inside the shop.
+ *
+ * DEV ONLY for now: there is no server for pack purchases yet, so the shop behind the door runs on the Pack Shop lab's
+ * fake catalog, wallet and hand (`shopLabData.ts`). Production keeps the crate shop on the Shop tab.
+ */
+
+/** The vista's layers behind the shop, back to front (Recruit's `VISTA_LAYERS`, here as plain CSS pictures). */
+const BEHIND = ['sky', 'far', 'mid'] as const;
+/** The land has settled this long after the trip starts (Recruit's `VISTA_ARRIVAL_MS`). */
+const ARRIVAL_MS = 800;
+/** The words in the vista's sky. */
+const TITLE = ['To The', 'Shop'] as const;
+
+type Trip = 'in' | 'held' | 'dive' | 'done';
+
+function ShopDoorTrip({ onCovered, onDone }: { onCovered: () => void; onDone: () => void }) {
+  const [step, setStep] = useState<Trip>('in');
+  const cfg = getScreenWipeConfig();
+  const cb = useRef({ onCovered, onDone });
+  cb.current = { onCovered, onDone };
+  useEffect(() => {
+    sfx.vistaTrip('arrive');
+    const timers = [
+      window.setTimeout(() => sfx.vistaTrip('title'), ARRIVAL_MS - 300),
+      window.setTimeout(() => { setStep('held'); cb.current.onCovered(); }, ARRIVAL_MS),
+      window.setTimeout(() => sfx.vistaTrip('portal'), ARRIVAL_MS + Math.max(0, cfg.holdOutMs - 580)),
+      window.setTimeout(() => { setStep('dive'); sfx.vistaTrip('dive'); }, ARRIVAL_MS + cfg.holdOutMs),
+      window.setTimeout(() => { setStep('done'); cb.current.onDone(); }, ARRIVAL_MS + cfg.holdOutMs + cfg.revealMs),
+    ];
+    return () => { for (const t of timers) window.clearTimeout(t); };
+    // one trip per mount
+  }, []);
+  if (step === 'done') return null;
+  const cls = `wipevista on ${step === 'in' ? 'in' : step === 'held' ? 'in held' : 'dive'}`;
+  return createPortal(
+    <div className={cls} aria-hidden="true" style={{ '--wipe-reveal-dur': `${cfg.revealMs}ms` } as CSSProperties}>
+      <svg className="wipevista-defs" width="0" height="0" aria-hidden="true" focusable="false">
+        <clipPath id={VISTA_DOOR_CLIP_ID} clipPathUnits="objectBoundingBox"><path clipRule="evenodd" d={VISTA_DOOR_CLIP} /></clipPath>
+      </svg>
+      <div className="wipevista-dusk" />
+      <div className="wipevista-stage">
+        <div className="wipevista-masked">
+          {BEHIND.map((n) => <div key={n} className={`wipevista-dive wipevista-dive-${n}`}><div className={`wipevista-layer wipevista-${n}`} /></div>)}
+          <div className="wipevista-dive wipevista-dive-title"><div className="wipevista-titlebox">
+            <div className="wipevista-title wipevs-label"><span>{TITLE[0]}</span><span>{TITLE[1]}</span></div>
+          </div></div>
+          <div className="wipevista-layer wipevista-shop" />
+          <div className="wipevista-layer wipevista-flat" />
+        </div>
+        <div className="wipevista-doorwrap"><div className="wipevista-doorfill"><div className="wipevista-doordark" /></div><div className="wipevista-doorglow" /></div>
+        <div className="wipevista-dive wipevista-dive-fore"><div className="wipevista-layer wipevista-fore" /></div>
+      </div>
+      <div className="wipevista-flash" />
+    </div>,
+    stageHost(),
+  );
+}
+
+const START_AETHER = 2000;
+const START_HAND = 4;
+
+/** The pack shop on the lab's fake catalog, wallet and hand (as `PackShopLab` runs it, with its default knobs). */
+function LabPackShop({ onClose }: { onClose: () => void }) {
+  const [state, setStateRaw] = useState<LabState>(() => ({ aether: START_AETHER, hand: labHand(START_HAND) }));
+  const [within, setWithin] = useState(LAB_GUARANTEE_EVERY);
+  const stateRef = useRef(state);
+  const setState = useCallback((next: LabState): void => { stateRef.current = next; setStateRaw(next); }, []);
+  const timersRef = useRef<LabTimers>(new Set());
+  useEffect(() => { const t = timersRef.current; return () => cancelLabTimers(t); }, []);
+  const sampleN = useRef(0);
+  const buy = useMemo<PackShopProps['buy']>(() => {
+    const labBuy = makeLabBuy(() => stateRef.current, setState, { delayMs: 100, mode: 'ok' }, timersRef.current, SHOP_LAB_OFFERS);
+    const counted = new Set<string>();
+    return async (offerId, requestId) => {
+      const out = await labBuy(offerId, requestId);
+      if (out.status === 'ok' && !counted.has(requestId)) { counted.add(requestId); setWithin((w) => labGuaranteeAfter(w, out.packs.length)); }
+      return out;
+    };
+  }, [setState]);
+  const open = useCallback<PackShopProps['open']>(async (packId) => {
+    const pack = stateRef.current.hand.find((p) => p.packId === packId);
+    const sample = PACK_LAB_SAMPLES[sampleN.current++ % PACK_LAB_SAMPLES.length]!;
+    const outcome = await makeLabOpen(sample, pack?.look ?? sample.result.pack, timersRef.current)();
+    if (outcome.status === 'ok') {
+      const cur = stateRef.current;
+      setState({ aether: cur.aether + packDuplicateAether(outcome.result), hand: cur.hand.filter((p) => p.packId !== packId) });
+    }
+    return outcome;
+  }, [setState]);
+  return (
+    <PackShop shelves={SHOP_LAB_SHELVES} offers={SHOP_LAB_OFFERS} hand={state.hand} aether={state.aether}
+      guarantee={{ rarity: 'legendary', within }} buy={buy} open={open} onClose={onClose} />
+  );
+}
+
+/** Mounted once by the app shell (dev builds). Each press of the Shop tab plays the trip and opens the shop behind it. */
+export default function PackShopEntry() {
+  const door = usePhShell((s) => s.packShopDoor);
+  const [trip, setTrip] = useState(0); // the door count whose trip is playing (0 = none)
+  const [shop, setShop] = useState(false);
+  useEffect(() => { if (door > 0) setTrip(door); }, [door]);
+  const close = useCallback((): void => { setShop(false); setTrip(0); closePackShopDoor(); }, []);
+  return (
+    <>
+      {shop && <LabPackShop onClose={close} />}
+      {trip > 0 && <ShopDoorTrip key={trip} onCovered={() => setShop(true)} onDone={() => setTrip(0)} />}
+    </>
+  );
+}

@@ -26,7 +26,7 @@ import { getTitleText } from '../../titleTextConfig';
 import { warmPhPages } from './phWarm';
 import { useLiveCount } from '../../live/liveCount';
 import { clearDevToolsSlot, setDevToolsSlot } from './devToolsSlot';
-import { leaveCrates, openCrates, setFriendsOpen, toggleFriends, usePhShell, pulseFriends } from './shellStore';
+import { leaveCrates, openCrates, openPackShopDoor, setFriendsOpen, toggleFriends, usePhShell, pulseFriends } from './shellStore';
 import { unreadLabel, useFriendsBadge } from './friendsBadge';
 import './shell.css';
 
@@ -101,6 +101,12 @@ export function PhTopNav({ current: given, friendsDocked = false, ownDrawer = fa
       if (st.settingsOpen) { st.closeSettings(); return; }
       if (showBook) closeBook();
       st.openSettings();
+      return;
+    }
+    if (dest === 'crates' && import.meta.env.DEV) {
+      // DEV: the Shop tab goes through the shop's door into the pack shop (PackShopEntry.tsx; owner 2026-11-26). Production
+      // keeps the crate shop below until pack purchases have a server.
+      setFriendsOpen(false); if (showBook) closeBook(); openPackShopDoor();
       return;
     }
     if (dest === 'crates') {

@@ -3,7 +3,7 @@
  * A page still loading keeps the nav, and its highlight follows the store on the very next frame, whatever the page is doing. The
  * pages' own bars stay in their layout for spacing but are hidden (shell.css).
  */
-import { useEffect } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { anyPageOpen, useGame } from '../../store';
 import { isPhone } from '../../deviceClass';
 import { phAttach, phPagePushed, phTakeReloadPage, phTakeReturn } from './phHistory';
@@ -38,6 +38,9 @@ function useCurrent(): PhNavCurrent {
   });
 }
 
+/** DEV: the pack shop behind the Shop tab's door (its own chunk, never in a production build's menu). */
+const PackShopEntry = import.meta.env.DEV ? lazy(() => import('../../progression/packShop/PackShopEntry')) : null;
+
 export default function PhSteadyNav() {
   const current = useCurrent();
   const home = current === 'home';
@@ -59,5 +62,10 @@ export default function PhSteadyNav() {
   const compact = document.documentElement.hasAttribute('data-ph-compact') || isPhone();
   // On the home at desktop size Friends opens this nav's slide-in drawer (the side panel has no Friends tab, owner 2026-11-06);
   // on a phone the home's side panel is the drawer.
-  return <div className="ph-navhost"><PhTopNav current={current} ownDrawer={home && compact} /></div>;
+  return (
+    <>
+      <div className="ph-navhost"><PhTopNav current={current} ownDrawer={home && compact} /></div>
+      {PackShopEntry && <Suspense fallback={null}><PackShopEntry /></Suspense>}
+    </>
+  );
 }

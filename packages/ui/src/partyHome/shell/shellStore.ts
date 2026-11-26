@@ -39,12 +39,18 @@ export interface PhShellState {
   sampleInvites: readonly string[];
   /** The Aether the nav shows instead of the account's, while a screen owns the count (the pack shop rolls it as a pack is paid for). */
   aetherShown: number | null;
+  /** The pack shop's door (PackShopEntry.tsx, dev builds): 0 = shut; each press of the nav's Shop tab bumps it, which plays the trip in. */
+  packShopDoor: number;
 }
 
 const NO_INVITE: PhInvite = { can: false, reason: null, members: [], modeLabel: '', send: null };
 
-export const usePhShell = create<PhShellState>(() => ({ friendsOpen: false, friendsPulse: 0, invite: NO_INVITE, collectionIntent: null, compendiumPage: null, crates: false, drawerIsMode: false, cratesSeq: 0, sampleInvites: [], aetherShown: null }));
+export const usePhShell = create<PhShellState>(() => ({ friendsOpen: false, friendsPulse: 0, invite: NO_INVITE, collectionIntent: null, compendiumPage: null, crates: false, drawerIsMode: false, cratesSeq: 0, sampleInvites: [], aetherShown: null, packShopDoor: 0 }));
 /** Show this Aether in the nav (null: the account's own again). */
+let doorSeq = 0;
+/** Open the pack shop through its door (a press while it is open does nothing). */
+export const openPackShopDoor = (): void => { if (usePhShell.getState().packShopDoor === 0) usePhShell.setState({ packShopDoor: ++doorSeq }); };
+export const closePackShopDoor = (): void => { if (usePhShell.getState().packShopDoor !== 0) usePhShell.setState({ packShopDoor: 0 }); };
 export const setNavAether = (n: number | null): void => { if (usePhShell.getState().aetherShown !== n) usePhShell.setState({ aetherShown: n }); };
 /** Register the Compendium's page content (call once at module load; null removes it). */
 export const setCompendiumPage = (c: ComponentType | null): void => usePhShell.setState({ compendiumPage: c });

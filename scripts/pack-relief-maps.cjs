@@ -5,7 +5,11 @@
 //   <outDir>  where <id>-pack-relief.webp lands, normally apps/web/public/packs
 //
 // A relief map says which way each point of the wrapper's surface leans, so a flat picture catches the light like an
-// embossed one. It is a 300 x 450 image: R = the lean left/right, G = the lean up/down (128 = flat), B = the height.
+// embossed one. It is a 300 x 450 image: R = the lean left/right, G = the lean up/down (128 = flat), B = the FINISH
+// (255 = the glossy printed ground, 0 = a matte material standing on it, like felt).
+//
+// The finish is read from the art's colour: each wrapper names the hue range of its GROUND (`ground`), and whatever is
+// not that colour is the matte material.
 //
 // The height is built from what the art shows, in three layers:
 //   1. FORMS: the art's brightness, blurred wide. On these wrappers the things that stand proud (the emblem, the
@@ -18,7 +22,7 @@ const sharp = require('sharp');
 const [, , SRC_DIR, OUT_DIR, PREVIEW] = process.argv;
 // The wrappers that get a relief map, and how strongly each layer counts (forms, parts, detail) and the overall slope.
 const PACKS = {
-  plushie: { forms: 0.5, parts: 0.42, detail: 0.3, slope: 5.5 },
+  plushie: { forms: 0.5, parts: 0.42, detail: 0.3, slope: 5.5, ground: { from: 250, to: 340 } }, // the purple sky
 };
 // The template's named parts, as soft ellipses in shares of the wrapper (cx, cy, rx, ry) and their swell.
 const PARTS = [
@@ -52,11 +56,19 @@ function blur(src, r) {
   const previews = [];
   for (const [id, k] of Object.entries(PACKS)) {
     const { data } = await sharp(`${SRC_DIR}/${id}-pack.webp`).resize(W, H).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
-    const lum = new Float32Array(W * H), alpha = new Float32Array(W * H);
+    const lum = new Float32Array(W * H), alpha = new Float32Array(W * H), ground = new Float32Array(W * H);
     for (let i = 0; i < W * H; i++) {
       lum[i] = (0.2126 * data[i * 4] + 0.7152 * data[i * 4 + 1] + 0.0722 * data[i * 4 + 2]) / 255;
       alpha[i] = data[i * 4 + 3] / 255;
+      // the ground: inside the wrapper's ground hue range (20 degrees of soft edge), and clearly bluer than green
+      const r = data[i * 4] / 255, g = data[i * 4 + 1] / 255, b = data[i * 4 + 2] / 255;
+      const mx = Math.max(r, g, b), c = mx - Math.min(r, g, b);
+      let h = 0;
+      if (c > 0) h = 60 * (mx === r ? ((g - b) / c + 6) % 6 : mx === g ? (b - r) / c + 2 : (r - g) / c + 4);
+      const hueIn = h > k.ground.from && h < k.ground.to ? Math.min(1, Math.min(h - k.ground.from, k.ground.to - h) / 20) : 0;
+      ground[i] = hueIn * Math.min(1, Math.max(0, (b - g) * 5)) * alpha[i];
     }
+    const finish = blur(ground, 1);
     const forms = blur(lum, 7), detail = blur(lum, 1), base = blur(lum, 18);
     const height = new Float32Array(W * H);
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
@@ -79,7 +91,7 @@ function blur(src, r) {
       const nx = Math.max(-1, Math.min(1, (l - r) * k.slope)), ny = Math.max(-1, Math.min(1, (u - d) * k.slope));
       out[i * 3] = Math.round(127.5 + 127.5 * nx * alpha[i]);
       out[i * 3 + 1] = Math.round(127.5 + 127.5 * ny * alpha[i]);
-      out[i * 3 + 2] = Math.round(255 * Math.max(0, Math.min(1, 0.5 + hs[i])));
+      out[i * 3 + 2] = Math.round(255 * Math.max(0, Math.min(1, finish[i])));
     }
     await sharp(out, { raw: { width: W, height: H, channels: 3 } }).webp({ quality: 92 }).toFile(`${OUT_DIR}/${id}-pack-relief.webp`);
     previews.push({ input: await sharp(out, { raw: { width: W, height: H, channels: 3 } }).png().toBuffer(), left: previews.length * (W + 10), top: 0 });

@@ -1,7 +1,7 @@
 /**
  * PACK RELIEF (owner 2026-11-26: "deeply analyze the plushie pack art ... and create a normal map so that the sheen
  * responds to it and makes it look more 3d"). A wrapper may ship a RELIEF MAP beside its art, `packs/<id>-pack-relief.webp`
- * (300 x 450: R / G = which way the surface leans, 128 = flat; B = its height), built by `scripts/pack-relief-maps.cjs`
+ * (300 x 450: R / G = which way the surface leans, 128 = flat; B = its finish, 255 = glossy ground, 0 = matte felt), built by `scripts/pack-relief-maps.cjs`
  * from the art. The gloss band's shader (`packFx.ts` GLOSS_FRAG) reads it: the band bends over the raised parts and
  * brightens on the slopes that face the light, so the sheen travels over an embossed surface, not a flat picture.
  *

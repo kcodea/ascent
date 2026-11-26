@@ -65,7 +65,7 @@ import {
 } from './shopDressing';
 import { AETHER_ICON_SRC } from '../AetherIcon';
 import { arrived, buySettled, cancelHeld, moveHeld, newDrag, pickUp, release, zoneAt, type ShopDrag } from './shopDrag';
-import { HAND_FAN_MAX, HAND_RECLINE, clampScroll, handPoseInto, shelfPoseInto, shopLayout, type PackPose, type ShopLayout } from './shopLayout';
+import { HAND_FAN_MAX, HAND_RECLINE, clampRack, handPoseInto, isPairRack, shelfPoseInto, shopLayout, type PackPose, type ShopLayout } from './shopLayout';
 import {
   SETTLE_DEPTH, SETTLE_FRAMES, arrivingPlaceHidden, bindFan, handFanInto, hiddenAsleep, inRotatedRect, newPointerVel,
   newShake, newSwing, parksOnArrival, pointerVelDecay, resetPointerVel, resetShake, rubberY, samplePointerVel, settleDip,
@@ -231,7 +231,7 @@ const RACK_FADE_EASE = 0.15;
 // shows along a pack's near edge and nowhere else (owner 2026-11-25 / 26: "the shadow should be cast on the front of the
 // card packs"). `w` is the soft shadow's width as a share of the pack's: under 1, so none shows at the sides.
 // (owner 2026-11-26: "the shadows make the packs look like they are hovering": lighter, and tight to the pack's foot)
-const HAND_SHADOW = { alpha: 0.5, dx: 0, dy: 0.09, lift: 0.1, w: 0.94 } as const;
+const HAND_SHADOW = { alpha: 0.36, dx: 0, dy: 0.115, lift: 0.1, w: 0.94 } as const;
 /**
  * The hand packs' CONTACT shadow (owner 2026-11-25: "add shadows here to make it look a bit more like its against the
  * table"): tight and dark under the pack's own outline, offset by these shares of its height. As the pack lifts it
@@ -248,7 +248,7 @@ const GLOW_TINT: Readonly<Record<string, number>> = { common: 0xdfe6f2, rare: 0x
 const STACK_COUNT = { font: 0.1, x: 0, y: 0.34 } as const; // on the foot edge, under the pack's name
 /** A pack's type: packs of one type lie in one stack. */
 const lookKeyOf = (look: OwnedPack['look']): string => `${look.kind}:${look.id}`;
-const HAND_CONTACT = { alpha: 0.8, dx: 0, dy: 0.045, lifted: 0.35, away: 3 } as const;
+const HAND_CONTACT = { alpha: 0.6, dx: 0, dy: 0.06, lifted: 0.35, away: 3 } as const;
 const TAG_FONT = 0.0525; // owner 2026-11-25: "make the tag smaller by 30%" (was 0.075)
 /**
  * THE PRICE TAGS: where the twine is tied (a share of the pack's height in from its top-left corner), how far the tag
@@ -434,6 +434,8 @@ class ShopSceneImpl implements ShopScene {
   // the rack's motion
   private scroll = 0;
   private target = 0;
+  /** An even rack: centred between `target` and `target + 1`, both at the pedestal size (`shopLayout.ts`). */
+  private pair = false;
   private centreKnown = false;
   private centreId: string | null = null;
   private readonly slide = { phase: SLIDE_NONE, t: 0, from: 0 };
@@ -819,7 +821,7 @@ class ShopSceneImpl implements ShopScene {
     if (this.destroyed) return;
     const n = Math.round(steps);
     if (!n) return;
-    this.target = clampScroll(this.target + n, this.offers.length);
+    this.target = clampRack(this.target + n, this.offers.length);
     if (!this.app) this.scroll = this.target;
     this.wake();
   }
@@ -831,7 +833,7 @@ class ShopSceneImpl implements ShopScene {
     if ((this.drag.phase !== 'idle' && this.drag.id === id) || this.parkedId === id) return this.screenRect(this.heldPose);
     const i = this.offerIndexOf(id);
     if (i >= 0) {
-      const p = shelfPoseInto(this.pose, this.L, i, this.scroll);
+      const p = shelfPoseInto(this.pose, this.L, i, this.scroll, this.pair);
       if (p.alpha <= 0) return null;
       p.x += this.rackX;
       const s = this.slotId.indexOf(id);
@@ -901,8 +903,9 @@ class ShopSceneImpl implements ShopScene {
   private replaceRack(next: readonly PackOffer[], keepCentre: boolean): void {
     const centre = keepCentre ? this.offers[Math.round(this.target)]?.offerId : undefined;
     this.offers = next;
+    this.pair = isPairRack(next.length);
     const kept = centre === undefined ? -1 : next.findIndex((o) => o.offerId === centre);
-    this.target = kept >= 0 ? kept : keepCentre ? clampScroll(this.target, next.length) : startIndex(next);
+    this.target = clampRack(kept >= 0 ? kept : keepCentre ? this.target : startIndex(next), next.length);
     if (!keepCentre || !this.app) this.scroll = this.target;
     this.slotId.fill(null); // rebind every slot (a look may have changed under the same id)
     this.wake();
@@ -999,7 +1002,7 @@ class ShopSceneImpl implements ShopScene {
     if (slot >= 0) this.rack?.setChildIndex(this.packs[slot]!.view, POOL - 1); // a lifted pack draws over its neighbours
     let rect: ScreenRect | null = null;
     if (slot >= 0) {
-      const p = shelfPoseInto(this.pose, this.L, this.slotIdx[slot]!, this.scroll);
+      const p = shelfPoseInto(this.pose, this.L, this.slotIdx[slot]!, this.scroll, this.pair);
       p.x += this.rackX;
       rect = this.screenRect(liftPoseInto(this.lifted, p, 1));
     }
@@ -1023,7 +1026,7 @@ class ShopSceneImpl implements ShopScene {
   private slotHit(s: number, x: number, y: number, sticky: boolean): boolean {
     const i = this.slotIdx[s]!;
     if (i < 0 || this.slotId[s] === null) return false;
-    const p = shelfPoseInto(this.pose, this.L, i, this.scroll);
+    const p = shelfPoseInto(this.pose, this.L, i, this.scroll, this.pair);
     if (p.alpha <= 0) return false;
     p.x += this.rackX;
     const r = this.rest;
@@ -1081,7 +1084,7 @@ class ShopSceneImpl implements ShopScene {
         this.slotShow[s] = show;
         moving = true;
       }
-      const p = shelfPoseInto(this.pose, L, i, this.scroll);
+      const p = shelfPoseInto(this.pose, L, i, this.scroll, this.pair);
       p.x += this.rackX;
       const shelfAlpha = p.alpha;
       p.alpha *= show;
@@ -1634,7 +1637,7 @@ class ShopSceneImpl implements ShopScene {
       case 'toShelf': {
         const i = d.id === null ? -1 : this.offerIndexOf(d.id);
         if (i < 0) return false;
-        shelfPoseInto(g, L, i, this.scroll);
+        shelfPoseInto(g, L, i, this.scroll, this.pair);
         g.x += this.rackX;
         return true;
       }
@@ -1901,7 +1904,7 @@ class ShopSceneImpl implements ShopScene {
     if (d.active && e.pointerId === d.id) {
       // whole steps: the rack follows the drag a pack at a time
       const steps = Math.round((d.startX - this.pointer.x) / Math.max(1, this.L.slotStep));
-      this.target = clampScroll(d.startTarget + steps, this.offers.length);
+      this.target = clampRack(d.startTarget + steps, this.offers.length);
       this.wake();
       return;
     }

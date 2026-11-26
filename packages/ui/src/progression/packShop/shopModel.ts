@@ -69,7 +69,7 @@ export function affordableIds(offers: readonly PackOffer[], aether: number): Set
  * packs until a slot opens up"). Packs that do not fit (rewards given while the counter is full) WAIT beside it and take a
  * place as packs are opened.
  */
-export const COUNTER_TYPES_MAX = 7;
+export const COUNTER_TYPES_MAX = 5; // owner 2026-11-26: "cap the max pack types at 5" (was 7)
 export const STACK_MAX = 8;
 export const NO_ROOM_NOTE = 'No room on the counter. Open packs to clear space';
 /** A pack's type: packs of one type lie in one stack. */
@@ -94,12 +94,17 @@ export function counterSplit(hand: readonly OwnedPack[]): { counter: OwnedPack[]
   return { counter, waiting: [...wait.values()] };
 }
 
-/** A bought pack of this type would have a place on the counter: its stack is not full, or a place is free. Never while packs wait. */
+/**
+ * A bought pack of this type would have a place on the counter: its stack there is not full, or a place is free (owner
+ * 2026-11-26: "theres a legendary pack on the counter. i should be able to stack these", also while other packs wait).
+ */
 export function counterHasRoom(hand: readonly OwnedPack[], look: PackLook): boolean {
   const key = lookKey(look);
-  const stacks = new Map<string, number>();
-  for (const p of hand) { const k = lookKey(p.look); stacks.set(k, (stacks.get(k) ?? 0) + 1); }
-  if (stacks.size > COUNTER_TYPES_MAX) return false; // packs are already waiting for a place
+  const stacks = new Map<string, number>(); // the stacks ON the counter (the first `COUNTER_TYPES_MAX` types owned)
+  for (const p of hand) {
+    const k = lookKey(p.look), c = stacks.get(k);
+    if (c !== undefined) stacks.set(k, c + 1); else if (stacks.size < COUNTER_TYPES_MAX) stacks.set(k, 1);
+  }
   const n = stacks.get(key);
   return n === undefined ? stacks.size < COUNTER_TYPES_MAX : n < STACK_MAX;
 }

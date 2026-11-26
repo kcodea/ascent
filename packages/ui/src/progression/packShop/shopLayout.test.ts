@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { HAND_FAN_MAX, HAND_RECLINE, clampScroll, handPile, handPoseInto, shelfPoseInto, shopLayout, startScroll } from './shopLayout';
+import { HAND_FAN_MAX, HAND_RECLINE, clampRack, clampScroll, handPile, handPoseInto, shelfPoseInto, shopLayout, startScroll } from './shopLayout';
 import { PACK_BASE_SIZE } from '../packOpening/packFxConfig';
 
 describe('shopLayout', () => {
@@ -58,21 +58,41 @@ describe('startScroll', () => {
   });
 });
 
-describe('the packs stand on one line', () => {
+describe('the shelf packs share one centre line', () => {
   for (const [w, h] of [[1920, 1080], [1600, 900], [2160, 1080]] as const) {
-    it(`at ${w} x ${h}: every shelf pack's bottom is on the floor, the pedestal pack's too`, () => {
+    it(`at ${w} x ${h}: every shelf pack is centred on the shelf line, and the pedestal pack's foot is the floor`, () => {
       const L = shopLayout(w, h), p = { x: 0, y: 0, h: 0, rot: 0, alpha: 0 };
       for (const scroll of [3, 3.4, 2.75]) {
         for (let i = 0; i < 7; i++) {
           shelfPoseInto(p, L, i, scroll);
-          expect(p.y + p.h / 2).toBeCloseTo(L.floorY, 6);
+          expect(p.y).toBeCloseTo(L.shelfY, 6);
         }
       }
       shelfPoseInto(p, L, 3, 3);
       expect(p.y + p.h / 2).toBeCloseTo(L.floorY, 6);
       shelfPoseInto(p, L, 4, 3);
-      expect(p.y + p.h / 2).toBeCloseTo(L.floorY, 6);
+      expect(p.y).toBeCloseTo(L.shelfY, 6);
+      expect(p.y + p.h / 2).toBeLessThan(L.floorY);
       expect(L.floorY).toBeLessThan(L.lineY);
     });
   }
+});
+
+describe('an even rack is centred on its two middle packs, both large', () => {
+  it('four packs: the middle two are the pedestal size, mirrored about the centre, and the rack does not scroll', () => {
+    const L = shopLayout(1920, 1080), p = { x: 0, y: 0, h: 0, rot: 0, alpha: 0 };
+    const at = clampRack(0, 4);
+    expect(at).toBe(1);
+    expect(clampRack(3, 4)).toBe(1);
+    const xs: number[] = [], hs: number[] = [];
+    for (let i = 0; i < 4; i++) { shelfPoseInto(p, L, i, at, true); xs.push(p.x); hs.push(p.h); expect(p.alpha).toBe(1); }
+    expect(hs[1]).toBe(L.pedestalH); expect(hs[2]).toBe(L.pedestalH);
+    expect(hs[0]).toBeCloseTo(L.packH, 6); expect(hs[3]).toBeCloseTo(L.packH, 6);
+    expect(xs[1]! + xs[2]!).toBeCloseTo(L.w, 6); expect(xs[0]! + xs[3]!).toBeCloseTo(L.w, 6);
+    expect(xs[2]! - xs[1]!).toBeGreaterThan(L.pedestalH * (L.slotStep / L.packH / 1.25)); // the two large packs do not touch
+  });
+  it('an odd rack is unchanged, and a long even rack scrolls by pairs', () => {
+    expect(clampRack(9, 5)).toBe(4);
+    expect(clampRack(9, 8)).toBe(6); expect(clampRack(-1, 8)).toBe(0);
+  });
 });

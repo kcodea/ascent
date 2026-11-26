@@ -297,16 +297,17 @@ export class ShelfPack {
  * of the pack's height), so a stack looks dropped there, not machined. Mirrored on alternate stacks.
  */
 // (owner 2026-11-26: "i dont see the packs stacking. they should stack once per purchase, up to a max of 8": seven
-// packs under the top one, each turned and pushed a little further up the counter than the one above, so every pack owned
+// packs under the top one, each turned and pushed a little further TOWARD THE FRONT of the counter than the one above (owner
+// 2026-11-26: "see the stacking on the front of the packs, not the back"), so every pack owned
 // shows an edge.)
 const STACK_ASKEW = [
-  { a: -6, x: -0.03, y: -0.034, tint: 0xe6e6e6 },
-  { a: 5, x: 0.036, y: -0.058, tint: 0xdadada },
-  { a: -3.5, x: -0.02, y: -0.084, tint: 0xcecece },
-  { a: 7, x: 0.046, y: -0.106, tint: 0xc2c2c2 },
-  { a: -7.5, x: -0.05, y: -0.128, tint: 0xb6b6b6 },
-  { a: 3, x: 0.022, y: -0.15, tint: 0xababab },
-  { a: -4.5, x: -0.036, y: -0.172, tint: 0xa0a0a0 },
+  { a: -6, x: -0.03, y: 0.034, tint: 0xe6e6e6 },
+  { a: 5, x: 0.036, y: 0.058, tint: 0xdadada },
+  { a: -3.5, x: -0.02, y: 0.084, tint: 0xcecece },
+  { a: 7, x: 0.046, y: 0.106, tint: 0xc2c2c2 },
+  { a: -7.5, x: -0.05, y: 0.128, tint: 0xb6b6b6 },
+  { a: 3, x: 0.022, y: 0.15, tint: 0xababab },
+  { a: -4.5, x: -0.036, y: 0.172, tint: 0xa0a0a0 },
 ] as const;
 /** The most packs drawn under a stack's top (a taller stack shows these and its count). */
 export const STACK_UNDER_MAX = STACK_ASKEW.length;

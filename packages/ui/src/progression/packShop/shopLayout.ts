@@ -45,6 +45,8 @@ const FADE_END = 2.6;
 const FADE_STEPS = 0.6;
 /** Extra room between the (larger) pedestal pack and its neighbours, in shelf pack widths. */
 const PEDESTAL_GAP = 0.2;
+/** Half the extra room between the two large packs of a pair, in shelf pack widths. */
+const PAIR_GAP = 0.16;
 /** Lean per place from the hand's centre (radians) and how far the outer packs sag. */
 /** How far back a pack in the hand lies on the counter (degrees): its drawn height is `cos` of this of its own. */
 export const HAND_RECLINE = 52;
@@ -57,24 +59,44 @@ export function shopLayout(w: number, h: number): ShopLayout {
   const handPackH = HAND_SCALE * pedestalH;
   return {
     w, h,
-    // the packs STAND on one line: bottoms on `floorY`. `shelfY` is the pedestal pack's centre (the pedestal zone and
+    // the shelf packs share ONE CENTRE LINE, `shelfY` (owner 2026-11-26: "make the packs all vertically aligned instead of
+    // bottom aligned"); `floorY` is the pedestal pack's foot. `shelfY` is also the pedestal pack's centre (the pedestal zone and
     // the spotlight aim there).
     floorY: FLOOR_Y * h,
-    shelfY: FLOOR_Y * h - pedestalH / 2, lineY: 0.73 * h, handY: 0.86 * h, // owner 2026-11-25: "lower the table by a good amount" (the line was 0.66)
+    shelfY: FLOOR_Y * h - pedestalH / 2, lineY: 0.73 * h, handY: 0.845 * h, // owner 2026-11-25: "lower the table by a good amount" (the line was 0.66)
     packH, pedestalH, handPackH,
     slotStep: packH * ASPECT * 1.25,
   };
 }
 
-export function shelfPoseInto(out: PackPose, L: ShopLayout, index: number, scroll: number): PackPose {
-  const d = index - scroll, a = Math.abs(d);
-  const near = Math.min(1, a);
-  out.x = L.w / 2 + Math.sign(d) * (a * L.slotStep + near * PEDESTAL_GAP * L.packH * ASPECT);
+/**
+ * `pair` (an even number of offers, owner 2026-11-26: "when there are even amounts of packs for sale in a window can you
+ * make sure they are centered? make two center most packs the larger size"): the rack is centred BETWEEN offers `scroll`
+ * and `scroll + 1`, and both of them are the pedestal size.
+ */
+export function shelfPoseInto(out: PackPose, L: ShopLayout, index: number, scroll: number, pair = false): PackPose {
+  const half = pair ? 0.5 : 0;
+  const d = index - scroll - half, a = Math.abs(d);
+  const near = Math.max(0, Math.min(1, a - half));
+  // the two large packs of a pair stand a little apart (the offset grows from the centre, so a scroll through it is smooth)
+  const apart = pair ? Math.min(a, 0.5) * 2 * PAIR_GAP : 0;
+  out.x = L.w / 2 + Math.sign(d) * (a * L.slotStep + (apart + near * PEDESTAL_GAP) * L.packH * ASPECT);
   out.h = L.pedestalH - (L.pedestalH - L.packH) * near;
-  out.y = L.floorY - out.h / 2; // standing on the line
+  out.y = L.shelfY; // every shelf pack is centred on the one line, whatever its size
   out.rot = 0;
-  out.alpha = Math.max(0, Math.min(1, (FADE_END - a) / FADE_STEPS));
+  out.alpha = Math.max(0, Math.min(1, (FADE_END - (a - half)) / FADE_STEPS));
   return out;
+}
+
+/** An even rack is posed as a pair (`shelfPoseInto`). */
+export const isPairRack = (count: number): boolean => count > 0 && count % 2 === 0;
+/** An even rack this small shows every pack at once, so it does not scroll: it stays centred. */
+const PAIR_FIXED_MAX = 6;
+/** The scroll range of a rack: a pair rack's `scroll` is its LEFT centre pack (0 to count - 2). */
+export function clampRack(scroll: number, count: number): number {
+  if (!isPairRack(count)) return clampScroll(scroll, count);
+  if (count <= PAIR_FIXED_MAX) return count / 2 - 1;
+  return Math.max(0, Math.min(count - 2, scroll));
 }
 
 /** Where a rack of `count` offers starts: the middle offer on the pedestal, so both sides of the shelf are filled. */
@@ -95,7 +117,7 @@ export function handPile(count: number): { shown: number; piled: number } {
 /** Place `index` of a hand fanning `shown` places (include the pile's place when there is one). */
 export function handPoseInto(out: PackPose, L: ShopLayout, index: number, shown: number): PackPose {
   const o = index - (shown - 1) / 2;
-  out.x = L.w / 2 + o * L.handPackH * ASPECT * 0.85;
+  out.x = L.w / 2 + o * L.handPackH * ASPECT * 1.08; // owner 2026-11-26: "a little more space between the pack sections" (was 0.85)
   out.y = L.handY + o * o * HAND_SAG * L.handPackH;
   out.h = L.handPackH;
   out.rot = o * HAND_LEAN;

@@ -152,6 +152,6 @@ html[data-pks-shop] .ph-navhost { z-index: 695; }
 .pks-waiting-row { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 12px; }
 .pks-waiting-pack { display: flex; align-items: flex-end; gap: 3px; }
 .pks-waiting-art { width: 30px; height: 45px; object-fit: contain; transform: rotate(-5deg); }
-.pks-waiting-medal { transform: none; height: 30px; }
+.pks-waiting-foil { display: block; box-sizing: border-box; border: 1px solid; border-radius: 2px; box-shadow: inset 0 5px 0 rgba(255, 255, 255, 0.16); }
 .pks-waiting-n { font-size: 15px; font-weight: 800; color: var(--pk-text); }
 :is(.pks-away, .pks-enter) .pks-waiting { opacity: 0; translate: 0 var(--pks-slide); }

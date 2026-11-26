@@ -30,7 +30,7 @@ export function PackShopLab(): JSX.Element {
   const { panelRef, headerPointerDown, panelStyle } = useDraggablePanel('packshop');
   const [startAether, setStartAether] = useState(2000);
   const [startHand, setStartHand] = useState(4);
-  const [delayMs, setDelayMs] = useState(600);
+  const [delayMs, setDelayMs] = useState(100); // owner 2026-11-26: "make the answer delay 100ms and default it"
   const [mode, setMode] = useState<LabBuyMode>('ok');
   const [reduced, setReduced] = useState(false);
   const [run, setRun] = useState<number | null>(null);

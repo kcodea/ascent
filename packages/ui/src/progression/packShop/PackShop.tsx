@@ -7,6 +7,7 @@ import { PackOpener, type PackOpenOutcome, type PackQueueItem } from '../packOpe
 import { AetherTally, type AetherTallyHandle } from '../packOpening/AetherTally';
 import { packRarityLabel, rarityIconSrc } from '../packOpening/packRarity';
 import { packArtFor } from '../packOpening/packArt';
+import { packPalette } from '../packOpening/packTextures';
 import { AetherIcon } from '../AetherIcon';
 import { createShopScene, type ScreenRect, type ShopScene } from './shopScene';
 import { createShopSounds, type ShopSounds } from './shopSounds';
@@ -64,8 +65,6 @@ export interface PackShopProps {
 interface Selection { kind: 'shelf' | 'hand'; id: string; rect: StageRect | null; armed: boolean }
 
 const FAILED_NOTE = 'Could not buy the pack. Try again.';
-/** A press and release within this long, on the same pack, with no buy or play, is a tap: it selects the pack. */
-const TAP_MS = 250;
 /** The scene's fade at the handoff to the opener and back (also the opener's entry fade). */
 export const SHOP_HANDOFF_MS = 200;
 /** How long a played pack travels to the opener's pose before the scene hides and the opener mounts (the scene's travel is ~350-450 ms). */
@@ -151,7 +150,7 @@ export function PackShop(props: PackShopProps) {
   const boughtRef = useRef(bought);
   const openedRef = useRef(opened);
   const shownHandRef = useRef(shownHand); shownHandRef.current = shownHand;
-  // The counter holds 7 pack types, 8 of each; the rest wait beside it (shopModel.ts `counterSplit`).
+  // The counter holds 5 pack types, 8 of each; the rest wait beside it (shopModel.ts `counterSplit`).
   const split = useMemo(() => counterSplit(shownHand), [shownHand]);
   const counterRef = useRef(split.counter); counterRef.current = split.counter;
   const balanceRef = useRef(balance);
@@ -503,12 +502,10 @@ export function PackShop(props: PackShopProps) {
           return;
         }
         if (action === 'play') { playRef.current(id, true); return; }
-        // A quick press and release is a tap: select the pack and show its Buy / Open button.
-        if (pick && pick.id === id && performance.now() - pick.at <= TAP_MS) {
-          const kind = offersRef.current.some((o) => o.offerId === id) ? 'shelf' : 'hand';
-          // its card stands under the pack's PLACE (the released rect is the pack mid-lift, off to one side)
-          setSel({ kind, id, rect: stage(sceneRef.current?.rectOf(id) ?? rect), armed: true });
-        }
+        // A click does nothing more (owner 2026-11-26: "remove the sticky nature of clicking and having the window show up.
+        // only have the window show on hover. remove the option to purchase with the click"): a pack is bought by carrying
+        // it over the counter line, and its card shows while the pointer is on it.
+        void pick; void rect;
       },
     }, sounds);
     sceneRef.current = scene;
@@ -620,6 +617,15 @@ export function PackShop(props: PackShopProps) {
   const tagFor = hover && (!sel || sel.id !== hover.id) ? { kind: 'shelf' as const, id: hover.id, rect: hover.rect, armed: false } : sel;
   const tagOffer = tagFor?.kind === 'shelf' ? offers.find((o) => o.offerId === tagFor.id) : undefined;
   const tagPack = tagFor?.kind === 'hand' ? shownHand.find((p) => p.packId === tagFor.id) : undefined;
+
+  // A waiting pack's thumbnail is its PACK (owner 2026-11-26: "instead of just the medallions, show the pack art"): its
+  // wrapper, or for a look with no wrapper yet the foil its placeholder pack is painted in.
+  const waitingArt = (look: PackOffer['look']) => {
+    const src = packArtFor(look);
+    if (src) return <img className="pks-waiting-art" src={src} alt="" aria-hidden="true" decoding="sync" draggable={false} />;
+    const p = packPalette(look);
+    return <span className="pks-waiting-art pks-waiting-foil" aria-hidden="true" style={{ background: `linear-gradient(150deg, ${p.a}, ${p.b} 50%, ${p.c})`, borderColor: p.accent }} />;
+  };
 
   const offerCard = (o: PackOffer, withButton: boolean, cls: string) => {
     const t = packTag(o, balance);
@@ -800,8 +806,7 @@ export function PackShop(props: PackShopProps) {
           <ul className="pks-waiting-row" aria-label="Packs waiting for space">
             {split.waiting.map((w) => (
               <li key={w.key} className="pks-waiting-pack" aria-label={`${w.look.name}, ${w.count}`}>
-                <img className={`pks-waiting-art${packArtFor(w.look) ? '' : ' pks-waiting-medal'}`} src={packArtFor(w.look) ?? rarityIconSrc(w.look.guaranteedFloor)} alt=""
-                     aria-hidden="true" decoding="sync" draggable={false} />
+                {waitingArt(w.look)}
                 <span className="pks-waiting-n" aria-hidden="true">{`x${w.count}`}</span>
               </li>
             ))}

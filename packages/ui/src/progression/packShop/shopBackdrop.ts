@@ -26,10 +26,16 @@ export type BackdropLayer = 'wall' | 'counter' | 'fore';
 /** Real art for a layer, once it exists (a path under the app's public folder). Empty: the placeholder is drawn. */
 export const SHOP_ART: Partial<Record<BackdropLayer, string>> = {
   wall: '/packs/shop-wall.webp', // owner 2026-11-25 (prompts.md 5a): the shop's interior, an arched alcove behind the packs
+  // owner 2026-11-25 (prompts.md 5b): the wooden counter, a till and ledger far left, scrolls and a candle far right.
+  // Cropped so its back edge sits at COUNTER_HEADROOM of the image, as the placeholder's does.
+  counter: '/packs/shop-counter.webp',
+  // owner 2026-11-25 (prompts.md 5c): soft-focus curtains down both edges, a lantern and a swag in the top corners.
+  // The painting had no spare margin, so the file carries its edge pixels repeated outward by OVERSCAN.fore.
+  fore: '/packs/shop-fore.webp',
 };
 
 /** How much wider than the canvas each layer is painted, per side (the prompts ask the art for the same margins). */
-export const OVERSCAN: Record<BackdropLayer, number> = { wall: 0.06, counter: 0.06, fore: 0.1 };
+export const OVERSCAN: Record<BackdropLayer, number> = { wall: 0.06, counter: 0.02, fore: 0.1 }; // the counter's props sit near its ends: it hides only what its slide needs
 
 /**
  * How far each layer slides at the pointer's furthest reach, in canvas widths (x) and heights (y). Positive moves WITH

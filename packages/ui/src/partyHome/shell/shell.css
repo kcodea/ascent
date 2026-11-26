@@ -608,3 +608,12 @@ html[data-ph-compact] .ph-livecount { top: calc(1 * var(--phu)); left: 110%; hei
   .ph-top .ph-navtab > .ph-liveic { transition: none; }
   .ph-top .ph-navtab:not(.ph-play):is(:hover, :active) > .ph-liveic { transform: none; }
 }
+
+/* THE AETHER COUNT wears the pack shop counter's look on every screen (owner 2026-11-26: "i love this counter for aether.
+   lets see how we can actually modify the home screen nav to have this"): a navy pill with a blue edge, the crystal
+   standing taller than the pill at its left, a large pale-blue number. Static paint (the glow is a static shadow). */
+html:not([data-ph-compact]) .ph-top .ph-wallet > .ph-coin { height: calc(40 * var(--phu)); padding: 0 calc(18 * var(--phu)) 0 calc(4 * var(--phu)); gap: calc(8 * var(--phu));
+  background: linear-gradient(180deg, rgba(40, 50, 96, 0.82), rgba(14, 18, 38, 0.9)); box-shadow: none; border: calc(1.5 * var(--phu)) solid rgba(120, 190, 255, 0.4); overflow: visible; }
+html:not([data-ph-compact]) .ph-top .ph-wallet > .ph-coin .ph-aether { width: calc(46 * var(--phu)); height: calc(46 * var(--phu)); margin: calc(-6 * var(--phu)) 0;
+  filter: drop-shadow(0 0 calc(6 * var(--phu)) rgba(90, 170, 255, 0.75)); }
+html:not([data-ph-compact]) .ph-top .ph-wallet > .ph-coin b { font-size: calc(26 * var(--phu)); color: #dcf3ff; text-shadow: 0 0 calc(10 * var(--phu)) rgba(110, 190, 255, 0.55), 0 calc(2 * var(--phu)) calc(3 * var(--phu)) rgba(0, 0, 0, 0.7); }

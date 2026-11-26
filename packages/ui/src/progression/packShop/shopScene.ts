@@ -230,7 +230,8 @@ const RACK_FADE_EASE = 0.15;
 // THE LIGHT IS BEHIND THE PACKS (the lanterns on the back wall), so every shadow falls FORWARD, toward the viewer: it
 // shows along a pack's near edge and nowhere else (owner 2026-11-25 / 26: "the shadow should be cast on the front of the
 // card packs"). `w` is the soft shadow's width as a share of the pack's: under 1, so none shows at the sides.
-const HAND_SHADOW = { alpha: 0.85, dx: 0, dy: 0.2, lift: 0.1, w: 0.94 } as const;
+// (owner 2026-11-26: "the shadows make the packs look like they are hovering": lighter, and tight to the pack's foot)
+const HAND_SHADOW = { alpha: 0.5, dx: 0, dy: 0.09, lift: 0.1, w: 0.94 } as const;
 /**
  * The hand packs' CONTACT shadow (owner 2026-11-25: "add shadows here to make it look a bit more like its against the
  * table"): tight and dark under the pack's own outline, offset by these shares of its height. As the pack lifts it
@@ -243,16 +244,17 @@ const HAND_SHADOW = { alpha: 0.85, dx: 0, dy: 0.2, lift: 0.1, w: 0.94 } as const
 const HAND_GLOW = 0.85;
 const GLOW_TINT: Readonly<Record<string, number>> = { common: 0xdfe6f2, rare: 0x6fb4ff, epic: 0xc88bff, legendary: 0xffc55a, ancient: 0x7ff2e2 };
 /** A stack's count ("x4"): its size as a share of a hand pack's height, and where it sits (shares of the pack's width and height from its centre). */
-const STACK_COUNT = { font: 0.1, x: 0.5, y: 0.3 } as const;
+// (owner 2026-11-26: centred on the pack's foot, so a count never lies over the next stack)
+const STACK_COUNT = { font: 0.1, x: 0, y: 0.34 } as const; // on the foot edge, under the pack's name
 /** A pack's type: packs of one type lie in one stack. */
 const lookKeyOf = (look: OwnedPack['look']): string => `${look.kind}:${look.id}`;
-const HAND_CONTACT = { alpha: 0.95, dx: 0, dy: 0.1, lifted: 0.35, away: 3 } as const;
+const HAND_CONTACT = { alpha: 0.8, dx: 0, dy: 0.045, lifted: 0.35, away: 3 } as const;
 const TAG_FONT = 0.0525; // owner 2026-11-25: "make the tag smaller by 30%" (was 0.075)
 /**
  * THE PRICE TAGS: where the twine is tied (a share of the pack's height in from its top-left corner), how far the tag
  * hangs out to the left at rest (radians, clockwise), and the knot acceleration under which it does not stir.
  */
-const TAG_INSET = 0.035;
+const TAG_INSET = { x: 0.055, y: 0.068 } as const; // owner 2026-11-26: tied further in and lower, on the spot he marked (was 0.035 both ways)
 const TAG_REST = 0.3;
 const TAG_ACC_DEAD = 0.00002;
 const PILE_FONT = 0.16;
@@ -1123,7 +1125,7 @@ class ShopSceneImpl implements ShopScene {
       pl.view.visible = tagA > 0.01;
       if (pl.view.visible) {
         const q = liftPoseInto(this.lifted, p, lift);
-        const kx = q.x - (q.h * ASPECT) / 2 + q.h * TAG_INSET, ky = q.y - q.h / 2 + q.h * TAG_INSET;
+        const kx = q.x - (q.h * ASPECT) / 2 + q.h * TAG_INSET.x, ky = q.y - q.h / 2 + q.h * TAG_INSET.y;
         const sw = this.tagSwing[s]!;
         const v = Number.isNaN(this.tagX[s]!) ? 0 : (kx - this.tagX[s]!) / Math.max(dt, 1e-3);
         const acc = (v - this.tagV[s]!) / Math.max(dt, 1e-3) / Math.max(1, q.h);
@@ -1144,7 +1146,7 @@ class ShopSceneImpl implements ShopScene {
       // the shelf's idle wave of light, gone as the pack lifts
       pack.pose(p, tilt.ax + this.idleAim(i, lift), tilt.ay, lift);
       // the tag's knot rides the pack's own corner, through its tilt (and its settle bob)
-      if (pl.view.visible) { const a = pack.pointInto(this.tagPt, TAG_INSET, TAG_INSET); pl.view.position.set(a.x, a.y); }
+      if (pl.view.visible) { const a = pack.pointInto(this.tagPt, TAG_INSET.x, TAG_INSET.y); pl.view.position.set(a.x, a.y); }
     }
     // the shelf fades while a played pack goes to the pedestal, and comes back with the scene
     const rackTo = ph === 'toPedestal' || this.parkedId !== null ? 0 : 1;
@@ -1730,7 +1732,7 @@ class ShopSceneImpl implements ShopScene {
       if (tag.visible) {
         stepSwing(this.swing, Math.abs(accel) < TAG_ACC_DEAD ? 0 : accel, dt);
         tag.alpha = H.tagA;
-        const a = hp.pointInto(this.tagPt, TAG_INSET, TAG_INSET); // on the pack's corner, through its dive
+        const a = hp.pointInto(this.tagPt, TAG_INSET.x, TAG_INSET.y); // on the pack's corner, through its dive
         tag.position.set(a.x, a.y);
         tag.rotation = TAG_REST + this.swing.a;
         tag.scale.set(this.placardK * Math.sqrt(H.h / Math.max(1, this.L.packH)));

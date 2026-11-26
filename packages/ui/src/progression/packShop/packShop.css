@@ -23,7 +23,7 @@
 /* THE TOP BAR (owner 2026-11-25: "center the categories and put the whole top section in front of a navy bar with a gold
    line on the bottom, like the main menu top nav bar"): a navy band across the stage with the main menu nav's thin gold
    rule on its foot. The shelf tabs stand in its middle, the wallet and Close at its right. */
-.pks-top { position: absolute; left: 0; right: 0; top: 0; height: 88px; box-sizing: border-box; padding: 0 168px 0 36px; display: flex; align-items: center;
+.pks-top { position: absolute; left: 0; right: 0; top: var(--pks-nav, 0px); height: 88px; box-sizing: border-box; padding: 0 168px 0 36px; display: flex; align-items: center;
   justify-content: flex-end; pointer-events: none;
   background: linear-gradient(180deg, rgba(10, 13, 30, 0.97), rgba(18, 23, 48, 0.93)); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4); }
 .pks-top::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; pointer-events: none;
@@ -60,7 +60,7 @@
 .pks-line-short { color: #ff9c8a; }
 /* THE GUARANTEE'S GAUGE, under the counter line at the right: the rarity's medallion, the words, and a pip per pack to go
    (`.r-<rarity>` gives the pips the rarity's colour token, `--rc`), so the player sees it count down. Static glow only. */
-.pks-guarantee { position: absolute; right: 36px; top: 104px; display: flex; align-items: center; gap: 12px; padding: 6px 20px 6px 6px;
+.pks-guarantee { position: absolute; right: 36px; top: calc(var(--pks-nav, 0px) + 104px); display: flex; align-items: center; gap: 12px; padding: 6px 20px 6px 6px;
   border-radius: 34px; background: linear-gradient(180deg, rgba(40, 50, 96, 0.82), rgba(14, 18, 38, 0.9)); border: 1.5px solid rgba(255, 210, 122, 0.26);
   pointer-events: none; }
 .pks-guarantee-medal { width: 54px; height: 54px; object-fit: contain; flex: none; }
@@ -97,13 +97,23 @@
 /* The spoken line, shown small at the lower left under the hand's label, clear of the packs. */
 .pks-live { position: absolute; left: 6%; top: calc(86% + 22px); max-width: 22%; font-size: 15px; line-height: 1.3; color: var(--pk-text); opacity: 0.8;
   pointer-events: none; }
-.pks-close { position: absolute; top: 24px; right: 36px; }
+.pks-close { position: absolute; top: calc(var(--pks-nav, 0px) + 24px); right: 36px; }
+/* UNDER THE MAIN MENU'S NAV (owner 2026-11-26): the nav bar stays up and paints over the shop (it is lifted above the
+   shop's layer while the shop is up, and drops back under the opener). The shop's own bar is a slimmer, quieter band at
+   the nav's foot (`--pks-nav`, measured once): the shelf tabs and Close. The nav's Aether count is the wallet, so the
+   shop's own is not drawn (it stays mounted: it is the count's model). */
+html[data-pks-shop] .ph-navhost { z-index: 695; }
+.pks-undernav .pks-top { height: 92px; background: linear-gradient(180deg, rgba(10, 13, 30, 0.82), rgba(18, 23, 48, 0.62)); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3); }
+.pks-undernav .pks-top::after { height: 1px; opacity: 0.55; }
+.pks-undernav .pks-wallet { visibility: hidden; }
+.pks-undernav .pks-close { top: calc(var(--pks-nav, 0px) + 26px); }
+.pks-undernav .pks-guarantee { top: calc(var(--pks-nav, 0px) + 106px); }
 
 /* Visually hidden, still read and focusable: the mirror of the canvas. Its focused pack shows the tag instead. */
 .pks-sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
 /* REDUCED MOTION (or no Pixi): a plain grid of the shelf and a row of owned packs. */
-.pks-plain { position: absolute; left: 60px; right: 60px; top: 120px; bottom: 70px; display: flex; flex-direction: column; gap: 22px; overflow-y: auto; }
+.pks-plain { position: absolute; left: 60px; right: 60px; top: calc(var(--pks-nav, 0px) + 120px); bottom: 70px; display: flex; flex-direction: column; gap: 22px; overflow-y: auto; }
 .pks-grid, .pks-handrow { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 18px; }
 /* The grid card is the tag's twin (`offerCard`) with its pack standing on a lit stage above, and the Buy button at the
    card's foot so a row of cards lines up. Its back is the tag's gradient. */

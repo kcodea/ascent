@@ -37,11 +37,15 @@ export interface PhShellState {
   drawerIsMode: boolean;
   /** The sample party's sent invites (DEV, no backend): their ids show "Invited" and a pending seat. */
   sampleInvites: readonly string[];
+  /** The Aether the nav shows instead of the account's, while a screen owns the count (the pack shop rolls it as a pack is paid for). */
+  aetherShown: number | null;
 }
 
 const NO_INVITE: PhInvite = { can: false, reason: null, members: [], modeLabel: '', send: null };
 
-export const usePhShell = create<PhShellState>(() => ({ friendsOpen: false, friendsPulse: 0, invite: NO_INVITE, collectionIntent: null, compendiumPage: null, crates: false, drawerIsMode: false, cratesSeq: 0, sampleInvites: [] }));
+export const usePhShell = create<PhShellState>(() => ({ friendsOpen: false, friendsPulse: 0, invite: NO_INVITE, collectionIntent: null, compendiumPage: null, crates: false, drawerIsMode: false, cratesSeq: 0, sampleInvites: [], aetherShown: null }));
+/** Show this Aether in the nav (null: the account's own again). */
+export const setNavAether = (n: number | null): void => { if (usePhShell.getState().aetherShown !== n) usePhShell.setState({ aetherShown: n }); };
 /** Register the Compendium's page content (call once at module load; null removes it). */
 export const setCompendiumPage = (c: ComponentType | null): void => usePhShell.setState({ compendiumPage: c });
 

@@ -11,6 +11,7 @@ import { AetherIcon } from '../AetherIcon';
 import { createShopScene, type ScreenRect, type ShopScene } from './shopScene';
 import { createShopSounds, type ShopSounds } from './shopSounds';
 import { shopLayout } from './shopLayout';
+import { setNavAether } from '../../partyHome/shell/shellStore';
 import { affordableIds, buyKey, packTag, shelfOffers, srLine, startIndex } from './shopModel';
 import '../packOpening/packOpening.css';
 import './packShop.css';
@@ -166,6 +167,16 @@ export function PackShop(props: PackShopProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const walletRef = useRef<HTMLDivElement | null>(null);
+  /**
+   * THE MAIN MENU'S NAV BAR STAYS UP (owner 2026-11-26: "the shop experience should still have the main menu nav bar at
+   * the top, then the shop specific section needs to be below that"). When the shell's one nav is mounted, the shop
+   * stands under it: the nav paints over the shop, the shop's own bar starts at the nav's foot, and the nav's Aether
+   * count is the wallet. Found once at mount (null where there is no nav: a game, a test).
+   */
+  const navRef = useRef<HTMLElement | null>(null);
+  const [navH, setNavH] = useState(0);
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
   const tallyRef = useRef<AetherTallyHandle | null>(null);
   const buyBtnRef = useRef<HTMLButtonElement | null>(null);
   const mountedRef = useRef(true);
@@ -186,7 +197,20 @@ export function PackShop(props: PackShopProps) {
    */
   const tallyTargetRef = useRef(aether);
   const streamRef = useRef<{ active: boolean; deferred: number | null; to: number }>({ active: false, deferred: null, to: aether });
-  const setTally = useCallback((v: number): void => { tallyTargetRef.current = v; tallyRef.current?.setTarget(v); }, []);
+  const setTally = useCallback((v: number): void => {
+    tallyTargetRef.current = v; tallyRef.current?.setTarget(v);
+    if (navRef.current) setNavAether(Math.round(v));
+  }, []);
+  /** The Aether gem a stream flies to or from: the nav's when the shop stands under it, else the shop's own wallet's. */
+  const gemRect = useCallback((): DOMRect | undefined => (
+    navRef.current?.querySelector<HTMLElement>('.ph-coin .ph-aether') ?? walletRef.current?.querySelector<HTMLElement>('.pkop-aether-orb')
+  )?.getBoundingClientRect(), []);
+  /** The wallet's one-shot pulse (transform only), on the nav's count when it is the wallet. */
+  const gulp = useCallback((big = false): void => {
+    tallyRef.current?.gulp(big);
+    const coin = navRef.current?.querySelector<HTMLElement>('.ph-coin');
+    if (coin?.animate) coin.animate([{ transform: 'scale(1)' }, { transform: `scale(${big ? 1.22 : 1.12})` }, { transform: 'scale(1)' }], { duration: 260, easing: 'ease-out' });
+  }, []);
   /**
    * End the wallet stream: the counter lands on the parent's balance if one arrived meanwhile, else the answered one.
    * Also called when the scene is torn down mid-stream (its flows are cleared and never report `done`), so a stream
@@ -218,9 +242,9 @@ export function PackShop(props: PackShopProps) {
     if (offer.soldOut) { say('Sold out'); return; }
     const short = aetherShort(offer, balanceRef.current);
     if (short <= 0) return;
-    tallyRef.current?.gulp();
+    gulp();
     say(`Need ${short} more Aether`);
-  }, [say]);
+  }, [say, gulp]);
   /**
    * A price_changed answer whose new quote has not arrived yet (the offer, and the price it was bought at): "The price
    * changed" is said at once, and the new price once offers arrive that quote it differently (never for the same price).
@@ -301,8 +325,7 @@ export function PackShop(props: PackShopProps) {
       balanceRef.current = after;
       setBalance(after);
       // The gem is measured once, here, never per frame.
-      const orb = walletRef.current?.querySelector<HTMLElement>('.pkop-aether-orb');
-      const g = orb?.getBoundingClientRect();
+      const g = gemRect();
       stream.to = after;
       const finish = finishStream;
       if (scene && g) {
@@ -389,15 +412,14 @@ export function PackShop(props: PackShopProps) {
     if (st.deferred !== null && !st.active) {
       const to = st.deferred, from = tallyTargetRef.current;
       st.deferred = null;
-      const orb = walletRef.current?.querySelector<HTMLElement>('.pkop-aether-orb');
-      const g = orb?.getBoundingClientRect();
+      const g = gemRect();
       if (scene && g && to > from) {
         st.active = true; st.to = to;
         scene.gainAether({ left: g.left, top: g.top, width: g.width, height: g.height }, (frac, done) => {
           if (!st.active) return;
-          if (done) { finishStream(); tallyRef.current?.gulp(true); return; }
+          if (done) { finishStream(); gulp(true); return; }
           const v = from + (to - from) * Math.max(0, Math.min(1, frac));
-          if (v > tallyTargetRef.current) { setTally(v); tallyRef.current?.gulp(); }
+          if (v > tallyTargetRef.current) { setTally(v); gulp(); }
         });
       } else setTally(to);
     }
@@ -478,7 +500,8 @@ export function PackShop(props: PackShopProps) {
         // A quick press and release is a tap: select the pack and show its Buy / Open button.
         if (pick && pick.id === id && performance.now() - pick.at <= TAP_MS) {
           const kind = offersRef.current.some((o) => o.offerId === id) ? 'shelf' : 'hand';
-          setSel({ kind, id, rect: stage(rect), armed: true });
+          // its card stands under the pack's PLACE (the released rect is the pack mid-lift, off to one side)
+          setSel({ kind, id, rect: stage(sceneRef.current?.rectOf(id) ?? rect), armed: true });
         }
       },
     }, sounds);
@@ -531,6 +554,17 @@ export function PackShop(props: PackShopProps) {
 
   const unlook = useCallback((id: string): void => { setSel((s) => (s && s.id === id && !s.armed ? null : s)); }, []);
 
+  // A press anywhere but the armed card puts it away (owner 2026-11-26: "when clicking away from it, it should automatically close").
+  const armedId = sel?.armed ? sel.id : null;
+  useEffect(() => {
+    if (!armedId) return undefined;
+    const away = (e: PointerEvent): void => {
+      if (e.target instanceof Element && e.target.closest('.pks-tag')) return;
+      setSel((s) => (s && s.armed && s.id === armedId ? null : s));
+    };
+    document.addEventListener('pointerdown', away, true);
+    return () => document.removeEventListener('pointerdown', away, true);
+  }, [armedId]);
   // The armed tag's button takes focus (the keyboard's one explicit confirmation).
   useEffect(() => { if (sel?.armed) buyBtnRef.current?.focus(); }, [sel?.armed, sel?.id]);
 
@@ -642,8 +676,32 @@ export function PackShop(props: PackShopProps) {
 
   // Under the opener the shop is inert: nothing in it can be focused, pressed or read until the opener starts to leave.
   const away = !!opening && !leaving;
+  // Under the nav: found and measured once; the nav shows the shop's count; a press on a nav destination closes the shop.
+  useEffect(() => {
+    const host = document.querySelector<HTMLElement>('.ph-navhost');
+    if (!host) return undefined;
+    navRef.current = host;
+    const r = rectToStage(host.querySelector('.ph-top')?.getBoundingClientRect() ?? host.getBoundingClientRect());
+    setNavH(Math.round(r.height));
+    setNavAether(Math.round(tallyTargetRef.current));
+    const onNav = (e: MouseEvent): void => {
+      const t = e.target instanceof Element ? e.target : null;
+      // the Aether count is the shop's wallet here, not a way into another shop
+      if (t?.closest('.ph-coin')) { e.stopPropagation(); e.preventDefault(); return; }
+      if (t?.closest('.ph-navtab, .ph-brand')) closeRef.current?.();
+    };
+    host.addEventListener('click', onNav, true);
+    return () => { host.removeEventListener('click', onNav, true); navRef.current = null; setNavAether(null); };
+  }, []);
+  // The nav paints over the shop, but never over the opener.
+  useEffect(() => {
+    if (!navH || away) return undefined;
+    const html = document.documentElement;
+    html.setAttribute('data-pks-shop', '');
+    return () => html.removeAttribute('data-pks-shop');
+  }, [navH, away]);
   const shop = (
-    <div {...(away ? { inert: '', 'aria-hidden': true } : {})} className={`pks${entering && !reduced ? ' pks-enter' : ''}${away ? ' pks-away' : ''}${reduced ? ' pks-still' : ''}`} role="dialog" aria-modal="true" aria-label="Pack shop" ref={dialogRef} tabIndex={-1}
+    <div {...(away ? { inert: '', 'aria-hidden': true } : {})} className={`pks${entering && !reduced ? ' pks-enter' : ''}${away ? ' pks-away' : ''}${reduced ? ' pks-still' : ''}${navH ? ' pks-undernav' : ''}`} style={navH ? { '--pks-nav': `${navH}px` } as CSSProperties : undefined} role="dialog" aria-modal="true" aria-label="Pack shop" ref={dialogRef} tabIndex={-1}
          onKeyDown={onArrows}>
       <div className="pkop-scrim" aria-hidden />
       {!reduced && <div className="pks-fx" ref={hostRef} aria-hidden />}

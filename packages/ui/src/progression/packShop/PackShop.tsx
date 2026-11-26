@@ -69,8 +69,9 @@ export const SHOP_HANDOFF_MS = 200;
 /** How long a played pack travels to the opener's pose before the scene hides and the opener mounts (the scene's travel is ~350-450 ms). */
 export const SHOP_PLAY_TRAVEL_MS = 420;
 /** The gap between the pack and its tag, and the tag's width (stage px) for choosing its side. */
-const TAG_GAP = 18;
-const TAG_W = 300;
+const TAG_GAP = 8;
+/** The widest the tag gets (its CSS max-width): used only to keep it on screen. */
+const TAG_W = 520;
 /** The most pips the guarantee's gauge draws. */
 const GAUGE_PIPS = 10;
 /** A purchase with no answer by then settles as `failed` (its request id kept), so the shop is never held for good. */
@@ -92,12 +93,16 @@ export function shownHandOf(hand: readonly OwnedPack[], bought: readonly OwnedPa
 
 const buyLabel = (offer: PackOffer): string => (offer.price === 0 ? 'Take for free' : `Buy for ${offer.price} Aether`);
 
-/** The tag's place beside a pack (stage px): to its right, or to its left when the right has no room. */
-function tagStyle(r: StageRect | null): CSSProperties | undefined {
+/**
+ * The tag's place (stage px), centred on its pack: UNDER a shelf pack, in the gap above the counter (owner 2026-11-25:
+ * "can you put the description here?"), and OVER a pack in the hand, which has no room under it. Kept on screen.
+ */
+function tagStyle(r: StageRect | null, kind: 'shelf' | 'hand'): CSSProperties | undefined {
   if (!r) return undefined;
-  const top = r.top + r.height * 0.12;
-  if (r.right + TAG_GAP + TAG_W <= stageViewport().w) return { left: r.right + TAG_GAP, top };
-  return { right: stageViewport().w - r.left + TAG_GAP, top };
+  const vp = stageViewport();
+  const left = Math.max(TAG_W / 2 + TAG_GAP, Math.min(vp.w - TAG_W / 2 - TAG_GAP, r.left + r.width / 2));
+  if (kind === 'hand') return { left, bottom: vp.h - r.top + TAG_GAP, translate: '-50% 0' };
+  return { left, top: r.top + r.height + TAG_GAP, translate: '-50% 0' };
 }
 
 export function PackShop(props: PackShopProps) {
@@ -663,7 +668,7 @@ export function PackShop(props: PackShopProps) {
           <div className="pks-handlabel" aria-hidden>{`Your packs \u00b7 ${shownHand.length}`}</div>
           {gauge}
           {tagFor && (tagOffer || tagPack) && (
-            <div className={`pks-tag${tagFor.rect ? '' : ' pks-tag-dock'}${tagFor.armed ? ' pks-tag-armed' : ''}`} style={tagStyle(tagFor.rect)}
+            <div className={`pks-tag${tagFor.rect ? '' : ' pks-tag-dock'}${tagFor.armed ? ' pks-tag-armed' : ''}`} style={tagStyle(tagFor.rect, tagFor.kind)}
                  data-testid="pks-tag">
               {tagOffer && offerCard(tagOffer, tagFor.armed, 'pks-tag')}
               {tagPack && (

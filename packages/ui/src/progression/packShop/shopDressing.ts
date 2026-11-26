@@ -43,6 +43,17 @@ export function paintPackShadow(): HTMLCanvasElement {
   return c;
 }
 
+/** A pack's CONTACT shadow: a dark slab with a tight soft edge (the middle 76 of 128 px: `shelfPack.ts SHADOW_SLAB`). */
+export function paintContactShadow(): HTMLCanvasElement {
+  const W = 128, H = 128;
+  const { c, g } = canvasOf(W, H);
+  if (!g) return c;
+  g.filter = 'blur(4px)';
+  g.fillStyle = 'rgba(10,5,2,1)';
+  g.beginPath(); g.roundRect(26, 26, W - 52, H - 52, 3); g.fill();
+  return c;
+}
+
 export type PlacardKind = 'price' | 'free' | 'sold';
 
 /** The ribbon chip's words for an offer's badge (null: no chip). "Free" has none: the placard already says it. */

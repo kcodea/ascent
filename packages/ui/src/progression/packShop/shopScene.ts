@@ -61,7 +61,7 @@ import { aimInto, newTilt, stepTilt, tiltEaseK, type TiltState } from '../packOp
 import { LIFT_GROW, ShelfPack, liftPoseInto } from './shelfPack';
 import { LOOK_EASE, ShopBackdrop } from './shopBackdrop';
 import {
-  Placard, SHOP_GROMMET_SRC, SHOP_TAG_SRC, loadTexture, paintPackShadow, paintTray, placardBadge, placardCount,
+  Placard, SHOP_GROMMET_SRC, SHOP_TAG_SRC, loadTexture, paintContactShadow, paintPackShadow, paintTray, placardBadge, placardCount,
 } from './shopDressing';
 import { AETHER_ICON_SRC } from '../AetherIcon';
 import { arrived, buySettled, cancelHeld, moveHeld, newDrag, pickUp, release, zoneAt, type ShopDrag } from './shopDrag';
@@ -229,7 +229,13 @@ const RACK_FADE_EASE = 0.15;
  * shadow: this dark at rest, offset down and right by these shares of the pack's height, lighter and further as it lifts.
  */
 const HAND_RECLINE = 52;
-const HAND_SHADOW = { alpha: 0.5, dx: 0.035, dy: 0.05, lift: 0.1 } as const;
+const HAND_SHADOW = { alpha: 0.42, dx: 0.035, dy: 0.05, lift: 0.1 } as const;
+/**
+ * The hand packs' CONTACT shadow (owner 2026-11-25: "add shadows here to make it look a bit more like its against the
+ * table"): tight and dark under the pack's own outline, offset by these shares of its height. As the pack lifts it
+ * fades to `lifted` of its strength and slides `away` times further off (the pack has left the wood).
+ */
+const HAND_CONTACT = { alpha: 0.72, dx: 0.014, dy: 0.03, lifted: 0.35, away: 4 } as const;
 const TAG_FONT = 0.0525; // owner 2026-11-25: "make the tag smaller by 30%" (was 0.075)
 /**
  * THE PRICE TAGS: where the twine is tied (a share of the pack's height in from its top-left corner), how far the tag
@@ -287,6 +293,8 @@ class ShopSceneImpl implements ShopScene {
   private tray: Sprite | null = null;
   /** The hand packs' shadows on the counter (one per hand view, under the hand). */
   private handShadows: Sprite[] = [];
+  /** Scratch: where a tag's knot lands on its (tilted) pack. */
+  private readonly tagPt = { x: 0, y: 0 };
   private shadowLayer: Container | null = null;
   /** The room in layers (shopBackdrop.ts): the wall and the counter under the packs, the foreground over them. */
   private backdrop: ShopBackdrop | null = null;
@@ -537,9 +545,11 @@ class ShopSceneImpl implements ShopScene {
     shadows.eventMode = 'none';
     this.shadowLayer = shadows;
     app.stage.addChild(shadows);
+    const contactTex = tex(paintContactShadow());
     const hand = new Container();
     for (let j = 0; j < HAND_FAN_MAX; j++) {
       const p = new ShelfPack(webgl, this.bandTex);
+      p.enableShadow(contactTex);
       this.handPacks.push(p);
       hand.addChild(p.view);
     }
@@ -1077,6 +1087,8 @@ class ShopSceneImpl implements ShopScene {
       }
       // the shelf's idle wave of light, gone as the pack lifts
       pack.pose(p, tilt.ax + this.idleAim(i, lift), tilt.ay, lift);
+      // the tag's knot rides the pack's own corner, through its tilt (and its settle bob)
+      if (pl.view.visible) { const a = pack.pointInto(this.tagPt, TAG_INSET, TAG_INSET); pl.view.position.set(a.x, a.y); }
     }
     // the shelf fades while a played pack goes to the pedestal, and comes back with the scene
     const rackTo = ph === 'toPedestal' || this.parkedId !== null ? 0 : 1;
@@ -1308,6 +1320,8 @@ class ShopSceneImpl implements ShopScene {
       if (hidden) q.alpha = 0;
       // (the lift is already in q: pose it unlifted) lying back on the counter, standing up as it lifts
       const up = this.handLift[v]!, lie = HAND_RECLINE * (1 - up);
+      const away = 1 + (HAND_CONTACT.away - 1) * up;
+      this.handPacks[v]!.setShadow(HAND_CONTACT.alpha * (1 - (1 - HAND_CONTACT.lifted) * up), HAND_CONTACT.dx * away, HAND_CONTACT.dy * away);
       this.handPacks[v]!.pose(q, ax, ay, 0, lie);
       const sh = this.handShadows[v];
       if (sh && q.alpha > 0) {
@@ -1612,7 +1626,8 @@ class ShopSceneImpl implements ShopScene {
       if (tag.visible) {
         stepSwing(this.swing, Math.abs(accel) < TAG_ACC_DEAD ? 0 : accel, dt);
         tag.alpha = H.tagA;
-        tag.position.set(H.x - (H.h * ASPECT) / 2 + H.h * TAG_INSET, H.y - H.h / 2 + H.h * TAG_INSET);
+        const a = hp.pointInto(this.tagPt, TAG_INSET, TAG_INSET); // on the pack's corner, through its dive
+        tag.position.set(a.x, a.y);
         tag.rotation = TAG_REST + this.swing.a;
         tag.scale.set(this.placardK * Math.sqrt(H.h / Math.max(1, this.L.packH)));
       }

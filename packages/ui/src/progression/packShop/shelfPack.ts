@@ -26,6 +26,9 @@ const { W, H, BODY_H } = PACK_GEOM;
 const HT = H + BODY_H;
 /** The placeholder's printed card count (a pack holds five cards). */
 const PLACEHOLDER_CARDS = 5;
+/** The contact shadow texture's dark slab, as a share of the texture (`paintContactShadow`), and how much larger than the pack it is drawn. */
+export const SHADOW_SLAB = 76 / 128;
+const SHADOW_GROW = 1.03;
 /** A hovered pack at full lift: this much taller, and raised this share of its height. */
 export const LIFT_GROW = 0.08;
 export const LIFT_RISE = 0.06;
@@ -64,6 +67,9 @@ export class ShelfPack {
   private readonly tex: Texture;
   private readonly mesh: PerspectiveMesh;
   private readonly gloss: GlossFx | null;
+  /** The pack's contact shadow (`enableShadow`): the pack's own outline, a little larger, offset down and right. */
+  private shadow: PerspectiveMesh | null = null;
+  private readonly shadowAt = { dx: 0, dy: 0 };
   private lookKey = '';
   /** Bumped by every `setLook` and by `destroy`: a load that arrives for an older look touches nothing. */
   private loadToken = 0;
@@ -151,12 +157,49 @@ export class ShelfPack {
     }
   }
 
+  /**
+   * Give the pack a contact shadow (a pack lying on the counter). `tex` is `paintContactShadow`'s slab, shared: its dark
+   * slab is the middle `SHADOW_SLAB` of the texture. Drawn under the pack inside its own view, so it follows the pack's
+   * tilt and also darkens whatever the pack overlaps.
+   */
+  enableShadow(tex: Texture): void {
+    if (this.shadow || this.destroyed) return;
+    this.shadow = new PerspectiveMesh({ texture: tex, verticesX: 4, verticesY: 4 });
+    this.shadow.alpha = 0;
+    this.view.addChildAt(this.shadow, 0);
+  }
+
+  /** The contact shadow's strength (0..1) and its offset, as shares of the pack's height. Call before `pose`. */
+  setShadow(alpha: number, dx: number, dy: number): void {
+    const sh = this.shadow;
+    if (!sh) return;
+    sh.alpha = alpha;
+    sh.visible = alpha > 0.004;
+    const at = this.shadowAt;
+    if (at.dx !== dx || at.dy !== dy) { at.dx = dx; at.dy = dy; this.key.rx = NaN; }
+  }
+
+  /**
+   * Where a spot ON the pack is drawn (canvas px), as last posed: `u` / `v` are shares of the pack's HEIGHT in from its
+   * top-left corner. It goes through the pack's tilt, so something tied there (the price tag's grommet) stays on the same
+   * spot of the pack as it leans toward the pointer or dives while dragged. Writes `out`.
+   */
+  pointInto(out: { x: number; y: number }, u: number, v: number): { x: number; y: number } {
+    const x = -W / 2 + HT * u, y = -HT / 2 + HT * v;
+    if (this.tiltPose.flat) { out.x = x; out.y = y; } else tiltInto(out, x, y, 0, this.tiltPose);
+    const vw = this.view, k = vw.scale.x, c = Math.cos(vw.rotation), s = Math.sin(vw.rotation);
+    const px = out.x * k, py = out.y * k;
+    out.x = vw.position.x + px * c - py * s;
+    out.y = vw.position.y + px * s + py * c;
+    return out;
+  }
+
   destroy(): void {
     if (this.destroyed) return;
     this.destroyed = true;
     this.loadToken++;
     const gm = this.gloss?.mesh;
-    const geoms = [this.mesh.geometry, gm?.geometry];
+    const geoms = [this.mesh.geometry, gm?.geometry, this.shadow?.geometry];
     const shader = gm?.shader;
     this.view.destroy({ children: true });
     for (const geo of geoms) geo?.destroy();
@@ -174,6 +217,16 @@ export class ShelfPack {
       c[i * 2] = p.x; c[i * 2 + 1] = p.y;
     }
     this.mesh.setCorners(c[0]!, c[1]!, c[2]!, c[3]!, c[4]!, c[5]!, c[6]!, c[7]!);
+    const sh = this.shadow;
+    if (sh) {
+      // the pack's own outline, grown so the texture's slab is a little larger than the pack, then offset
+      const mx = (c[0]! + c[2]! + c[4]! + c[6]!) / 4, my = (c[1]! + c[3]! + c[5]! + c[7]!) / 4;
+      const e = SHADOW_GROW / SHADOW_SLAB, ox = this.shadowAt.dx * HT, oy = this.shadowAt.dy * HT;
+      sh.setCorners(
+        mx + (c[0]! - mx) * e + ox, my + (c[1]! - my) * e + oy, mx + (c[2]! - mx) * e + ox, my + (c[3]! - my) * e + oy,
+        mx + (c[4]! - mx) * e + ox, my + (c[5]! - my) * e + oy, mx + (c[6]! - mx) * e + ox, my + (c[7]! - my) * e + oy,
+      );
+    }
     const og = this.gloss?.mesh.geometry, pos = this.mesh.geometry.positions;
     if (og && og.positions.length === pos.length) { og.positions.set(pos); og.getBuffer('aPosition').update(); }
   }

@@ -66,11 +66,16 @@
 
 /* THE TAG beside a hovered, focused or selected pack (placed inline from the pack's rect, stage px). A selected pack's tag
    carries its Buy / Open button; without a rect (a pack out of view) it docks above the counter line. */
-.pks-tag { position: absolute; width: 320px; box-sizing: border-box; padding: 14px 18px 16px; border-radius: 14px;
+.pks-tag { position: absolute; width: max-content; max-width: 520px; box-sizing: border-box; padding: 8px 18px 9px; border-radius: 14px;
   background: linear-gradient(180deg, rgba(34, 40, 74, 0.97), rgba(14, 17, 36, 0.97)); border: 1.5px solid var(--pk-rim); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
-  display: flex; flex-direction: column; gap: 5px; pointer-events: none; animation: pks-tag-in 0.16s ease-out both; }
+  display: flex; flex-flow: row wrap; align-items: center; justify-content: space-between; gap: 4px 26px; pointer-events: none; animation: pks-tag-in 0.16s ease-out both; }
+/* one compact row (the pack's medal, name and floor; then its price): it fits the gap between a shelf pack and the
+   counter. A warning or the Buy button takes a row of its own under it. */
+.pks-tag .pks-tag-medal { width: 44px; height: 44px; }
+.pks-tag .pks-tag-price { margin-top: 0; }
+.pks-tag :is(.pks-tag-short, .pks-buy, .pks-open) { flex-basis: 100%; }
 .pks-tag-armed { pointer-events: auto; }
-.pks-tag-dock { left: calc(50% - 160px); top: calc(66% - 220px); }
+.pks-tag-dock { left: 50%; top: calc(66% - 150px); translate: -50% 0; }
 @keyframes pks-tag-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 .pks-tag-name, .pks-card-name { font-family: var(--font-cardname); font-size: 22px; font-weight: 800; color: var(--gold-lt); line-height: 1.15; }
 .pks-tag-head, .pks-card-head { display: flex; align-items: center; gap: 12px; }

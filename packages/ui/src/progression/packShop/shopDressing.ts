@@ -73,11 +73,12 @@ const TAG_FONT_PX = 34, TAG_GEM = 40, TAG_H = 74, TAG_CUT = 20, TAG_HOLE = 6.5;
 /**
  * THE PAINTED TAG (owner 2026-11-25: "use this for the tag"): a parchment tag with a gold rim, a brass eyelet and a
  * loop of rope, levelled and trimmed from the owner's art. The numbers are the art's own px: the rope's knot (the
- * view's origin), the tag body's height, where the price is centred (clear of the eyelet) and how wide the parchment
- * inside the rim is.
+ * view's origin), the tag body's height, the parchment's centre (where the price is centred, both ways: owner
+ * 2026-11-25, "the numbers aren't centered horizontally or vertically on the tag") and how wide the parchment inside
+ * the rim is.
  */
 export const SHOP_TAG_SRC = `${import.meta.env.BASE_URL}packs/shop-tag.webp`;
-export const TAG_ART = { w: 512, h: 349, knotX: 265.5, bodyH: 228, textY: 258, innerW: 420 } as const;
+export const TAG_ART = { w: 512, h: 349, knotX: 265.5, bodyH: 228, textX: 256, textY: 236, innerW: 420 } as const;
 /**
  * THE GROMMET (owner 2026-11-25: "the grommet to place where the string meets the card pack"): a brass eyelet set in
  * the pack where the rope is tied, under the rope's knot. `size` is its diameter and `y` its centre below the knot's
@@ -175,7 +176,8 @@ export class Placard {
     const k = painted ? tagArtScale(content) : 1;
     const w = Math.max(96, content + 34), top = TAG_CORD - TAG_CUT * 0.5, h = TAG_H;
     const cy = painted ? TAG_ART.textY * k : top + TAG_CUT + (h - TAG_CUT) / 2 + 1;
-    let x = -content / 2;
+    // centred on the parchment (the painted tag's rope is tied a little right of its middle)
+    let x = -content / 2 + (painted ? (TAG_ART.textX - TAG_ART.knotX) * k : 0);
     if (gem) { ic.width = TAG_GEM; ic.height = TAG_GEM; ic.position.set(x + TAG_GEM / 2, cy); x += TAG_GEM + gap; }
     t.position.set(x, cy);
     x += t.width + cgap;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { HAND_FAN_MAX, HAND_RECLINE, clampRack, clampScroll, handPile, handPoseInto, shelfPoseInto, shopLayout, startScroll } from './shopLayout';
+import { HAND_FAN_MAX, HAND_RECLINE, clampRack, clampScroll, handPile, wrapIndex, handPoseInto, shelfPoseInto, shopLayout, startScroll } from './shopLayout';
 import { PACK_BASE_SIZE } from '../packOpening/packFxConfig';
 
 describe('shopLayout', () => {
@@ -92,8 +92,9 @@ describe('an even rack is centred on its two middle packs, both large', () => {
     expect(xs[1]! + xs[2]!).toBeCloseTo(L.w, 6); expect(xs[0]! + xs[3]!).toBeCloseTo(L.w, 6);
     expect(xs[2]! - xs[1]!).toBeGreaterThan(L.pedestalH * (L.slotStep / L.packH / 1.25)); // the two large packs do not touch
   });
-  it('a shelf of up to five stays centred; a longer one scrolls with a full row always showing (owner 2026-11-26)', () => {
+  it('a shelf of up to five stays centred; a longer one is a ring with no ends (owner 2026-11-26)', () => {
     expect(clampRack(9, 5)).toBe(2); expect(clampRack(0, 3)).toBe(1);
-    expect(clampRack(9, 8)).toBe(5); expect(clampRack(-1, 8)).toBe(2); expect(clampRack(4, 10)).toBe(4);
+    expect(clampRack(9, 8)).toBe(9); expect(clampRack(-1, 8)).toBe(-1);
+    expect(wrapIndex(9, 8)).toBe(1); expect(wrapIndex(-1, 8)).toBe(7); expect(wrapIndex(3, 0)).toBe(0);
   });
 });

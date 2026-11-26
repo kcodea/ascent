@@ -101,20 +101,18 @@ export function shelfPoseInto(out: PackPose, L: ShopLayout, index: number, scrol
 export const SHELF_SHOWN = 5;
 /** A shelf of 2 or 4 is posed as a pair (`shelfPoseInto`): centred on its two middle packs. */
 export const isPairRack = (count: number): boolean => count > 0 && count <= SHELF_SHOWN && count % 2 === 0;
+/** A longer shelf is a RING (owner 2026-11-26: "make it loop round endlessly"): its scroll has no ends, and place `i` shows offer `i mod count`. */
+export const isLoopRack = (count: number): boolean => count > SHELF_SHOWN;
+/** `i mod count`, always 0 .. count - 1 (0 for an empty rack). */
+export const wrapIndex = (i: number, count: number): number => (count > 0 ? ((i % count) + count) % count : 0);
 /**
- * The scroll range of a rack (`scroll` is its centre pack; a pair rack's is its LEFT centre pack). A shelf of up to
- * `SHELF_SHOWN` shows every pack, so it stays centred. A longer one scrolls with a full row always showing: its centre
- * runs from the third pack to the third from last.
+ * Where a rack may rest (`scroll` is its centre pack; a pair rack's is its LEFT centre pack). A shelf of up to
+ * `SHELF_SHOWN` shows every pack, so it stays centred; a ring rests anywhere.
  */
-export function rackRange(count: number): { min: number; max: number } {
-  if (count <= 0) return { min: 0, max: 0 };
-  if (count <= SHELF_SHOWN) { const c = isPairRack(count) ? count / 2 - 1 : (count - 1) / 2; return { min: c, max: c }; }
-  const side = (SHELF_SHOWN - 1) / 2;
-  return { min: side, max: count - 1 - side };
-}
 export function clampRack(scroll: number, count: number): number {
-  const r = rackRange(count);
-  return Math.max(r.min, Math.min(r.max, scroll));
+  if (count <= 0) return 0;
+  if (isLoopRack(count)) return scroll;
+  return isPairRack(count) ? count / 2 - 1 : (count - 1) / 2;
 }
 
 /** Where a rack of `count` offers starts: the middle offer on the pedestal, so both sides of the shelf are filled. */

@@ -11,7 +11,7 @@ import { packPalette } from '../packOpening/packTextures';
 import { AetherIcon } from '../AetherIcon';
 import { createShopScene, type ScreenRect, type ShopScene } from './shopScene';
 import { createShopSounds, type ShopSounds } from './shopSounds';
-import { clampRack, rackRange, shopLayout } from './shopLayout';
+import { isLoopRack, shopLayout } from './shopLayout';
 import { setNavAether } from '../../partyHome/shell/shellStore';
 import { NO_ROOM_NOTE, buyKey, buyableIds, counterHasRoom, counterSplit, packTag, shelfOffers, srLine, startIndex } from './shopModel';
 import '../packOpening/packOpening.css';
@@ -184,8 +184,6 @@ export function PackShop(props: PackShopProps) {
   const mountedRef = useRef(true);
   /** The offer on the pedestal (the scene's `onCentre`, moved ahead by keyboard scrolls). */
   const centreRef = useRef<string | null>(null);
-  /** The offer the shelf is centred on (the scene reports it once it settles): the arrows read it. */
-  const [centreId, setCentreId] = useState<string | null>(null);
   const pickRef = useRef<{ id: string; at: number } | null>(null);
   /** The digit columns the wallet needs: the most it has shown this session (a roll down never loses a column mid-roll). */
   const walletMaxRef = useRef(aether);
@@ -470,7 +468,6 @@ export function PackShop(props: PackShopProps) {
       onCentre: (id) => {
         if (!live) return;
         centreRef.current = id;
-        setCentreId(id);
         // a keyboard-scrolled pack has arrived on the pedestal: its tag follows it there
         setSel((s) => {
           if (!s || s.id !== id || s.kind !== 'shelf') return s;
@@ -608,14 +605,10 @@ export function PackShop(props: PackShopProps) {
   // ------------------------------------------------------------------ render
 
 
-  // The shelf's arrows: only on a shelf longer than the row, and only toward packs that are there.
-  const arrows = (() => {
-    const range = rackRange(shelf.length);
-    if (range.min === range.max) return { left: false, right: false };
-    const known = shelf.findIndex((o) => o.offerId === centreId);
-    const at = clampRack(known >= 0 ? known : startIndex(shelf), shelf.length);
-    return { left: at > range.min, right: at < range.max };
-  })();
+  // The shelf's arrows: only on a shelf longer than the row.
+  // (such a shelf is a ring, so both arrows always have somewhere to go)
+  const ring = isLoopRack(shelf.length);
+  const arrows = { left: ring, right: ring };
   const arrowTop = shopLayout(stageViewport().w, stageViewport().h).shelfY;
 
   const heldOffer = held ? offers.find((o) => o.offerId === held) : undefined;

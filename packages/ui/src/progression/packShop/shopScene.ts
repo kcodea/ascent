@@ -65,7 +65,7 @@ import {
 } from './shopDressing';
 import { AETHER_ICON_SRC } from '../AetherIcon';
 import { arrived, buySettled, cancelHeld, moveHeld, newDrag, pickUp, release, zoneAt, type ShopDrag } from './shopDrag';
-import { HAND_FAN_MAX, HAND_RECLINE, clampRack, handPoseInto, isPairRack, shelfPoseInto, shopLayout, type PackPose, type ShopLayout } from './shopLayout';
+import { HAND_FAN_MAX, HAND_RECLINE, clampRack, handPoseInto, isLoopRack, isPairRack, shelfPoseInto, wrapIndex, shopLayout, type PackPose, type ShopLayout } from './shopLayout';
 import {
   SETTLE_DEPTH, SETTLE_FRAMES, arrivingPlaceHidden, bindFan, handFanInto, hiddenAsleep, inRotatedRect, newPointerVel,
   newShake, newSwing, parksOnArrival, pointerVelDecay, resetPointerVel, resetShake, rubberY, samplePointerVel, settleDip,
@@ -121,6 +121,8 @@ export interface ShopScene {
 
 // ---------------------------------------------------------------- constants (dt = 60 Hz frames)
 
+/** A pool slot showing nothing (a ring's places run below zero, so -1 is a real place). */
+const NO_PLACE = -(1 << 30);
 /** Shelf packs in the pool: enough for every index a fractional scroll can show (`shelfPoseInto` fades past 2.6). */
 const POOL = 7;
 const FRAME_MS = 1000 / 60;
@@ -345,7 +347,7 @@ class ShopSceneImpl implements ShopScene {
   private heldTagOf: PackOffer | null = null;
   private readonly packs: ShelfPack[] = [];
   /** Per pool slot: the offer index and id it shows (-1 / null: none), its eased aim and its lift. */
-  private readonly slotIdx = new Int32Array(POOL).fill(-1);
+  private readonly slotIdx = new Int32Array(POOL).fill(NO_PLACE);
   private readonly slotId: (string | null)[] = new Array<string | null>(POOL).fill(null);
   private readonly slotTilt: TiltState[] = Array.from({ length: POOL }, newTilt);
   private readonly slotLift = new Float64Array(POOL);
@@ -436,6 +438,8 @@ class ShopSceneImpl implements ShopScene {
   private target = 0;
   /** An even rack: centred between `target` and `target + 1`, both at the pedestal size (`shopLayout.ts`). */
   private pair = false;
+  /** A ring (more than five offers): `scroll` and `target` are unbounded PLACES, and place `i` shows offer `i mod count`. */
+  private loop = false;
   private centreKnown = false;
   private centreId: string | null = null;
   private readonly slide = { phase: SLIDE_NONE, t: 0, from: 0 };
@@ -831,8 +835,8 @@ class ShopSceneImpl implements ShopScene {
     if (!app || this.destroyed) return null;
     // the held, travelling or parked pack: where it is drawn
     if ((this.drag.phase !== 'idle' && this.drag.id === id) || this.parkedId === id) return this.screenRect(this.heldPose);
-    const i = this.offerIndexOf(id);
-    if (i >= 0) {
+    const i = this.placeOf(id);
+    if (i !== NO_PLACE) {
       const p = shelfPoseInto(this.pose, this.L, i, this.scroll, this.pair);
       if (p.alpha <= 0) return null;
       p.x += this.rackX;
@@ -901,9 +905,10 @@ class ShopSceneImpl implements ShopScene {
 
   /** Swap the rack's offers in place. `keepCentre`: the same shelf updated, so the pedestal keeps its offer. */
   private replaceRack(next: readonly PackOffer[], keepCentre: boolean): void {
-    const centre = keepCentre ? this.offers[Math.round(this.target)]?.offerId : undefined;
+    const centre = keepCentre ? this.offers[wrapIndex(Math.round(this.target), this.offers.length)]?.offerId : undefined;
     this.offers = next;
     this.pair = isPairRack(next.length);
+    this.loop = isLoopRack(next.length);
     const kept = centre === undefined ? -1 : next.findIndex((o) => o.offerId === centre);
     this.target = clampRack(kept >= 0 ? kept : keepCentre ? this.target : startIndex(next), next.length);
     if (!keepCentre || !this.app) this.scroll = this.target;
@@ -968,7 +973,7 @@ class ShopSceneImpl implements ShopScene {
       moving = true;
     }
     if (this.scroll === this.target && this.slide.phase === SLIDE_NONE) {
-      const offer = this.offers[this.target];
+      const offer = this.offers[wrapIndex(this.target, this.offers.length)];
       const id = offer?.offerId ?? null;
       if (!this.centreKnown || id !== this.centreId) {
         this.centreKnown = true;
@@ -1025,7 +1030,7 @@ class ShopSceneImpl implements ShopScene {
    */
   private slotHit(s: number, x: number, y: number, sticky: boolean): boolean {
     const i = this.slotIdx[s]!;
-    if (i < 0 || this.slotId[s] === null) return false;
+    if (i === NO_PLACE || this.slotId[s] === null) return false;
     const p = shelfPoseInto(this.pose, this.L, i, this.scroll, this.pair);
     if (p.alpha <= 0) return false;
     p.x += this.rackX;
@@ -1048,7 +1053,7 @@ class ShopSceneImpl implements ShopScene {
     const k = tiltEaseK(getDragFeel().tiltEase, dt * FRAME_MS);
     const kl = easeK(LIFT_EASE, dt), kr = easeK(RESTOCK_EASE, dt), ks = easeK(TAG_FADE, dt);
     // the hovered pack's offer index (its neighbours lean away from it)
-    const hi = this.hoverSlot >= 0 ? this.slotIdx[this.hoverSlot]! : -1;
+    const hi = this.hoverSlot >= 0 ? this.slotIdx[this.hoverSlot]! : NO_PLACE;
     // the pack taken off the shelf leaves its place empty until it is back (or bought: then a fresh one restocks it)
     const ph = this.drag.phase;
     const takenId = ph === 'heldShelf' || ph === 'buying' || ph === 'toShelf' || ph === 'toHand' ? this.drag.id : null;
@@ -1057,14 +1062,14 @@ class ShopSceneImpl implements ShopScene {
       const pack = this.packs[s]!;
       const i = base + ((((s - base) % POOL) + POOL) % POOL); // the index this slot shows: i = s (mod POOL)
       const tilt = this.slotTilt[s]!;
-      if (i < 0 || i >= count) {
-        if (this.slotIdx[s] !== -1 || this.slotId[s] !== null) { this.slotIdx[s] = -1; this.slotId[s] = null; }
+      if (count === 0 || (!this.loop && (i < 0 || i >= count))) {
+        if (this.slotIdx[s] !== NO_PLACE || this.slotId[s] !== null) { this.slotIdx[s] = NO_PLACE; this.slotId[s] = null; }
         tilt.ax = 0; tilt.ay = 0; this.slotLift[s] = 0; this.slotLean[s] = 0;
         pack.view.visible = false;
         this.placards[s]!.view.visible = false; this.tagX[s] = NaN;
         continue;
       }
-      const offer = offers[i]!;
+      const offer = offers[this.loop ? wrapIndex(i, count) : i]!;
       if (this.slotId[s] !== offer.offerId) {
         pack.setLook(offer.look);
         this.slotId[s] = offer.offerId;
@@ -1094,7 +1099,7 @@ class ShopSceneImpl implements ShopScene {
         p.h += grow; p.y -= grow / 2;
       }
       // lean away from a hovered neighbour, eased
-      const leanTo = hi >= 0 && (i === hi - 1 || i === hi + 1) ? Math.sign(i - hi) : 0;
+      const leanTo = hi !== NO_PLACE && (i === hi - 1 || i === hi + 1) ? Math.sign(i - hi) : 0;
       let lean = this.slotLean[s]!;
       if (lean !== leanTo) {
         lean += (leanTo - lean) * kl;
@@ -1448,6 +1453,13 @@ class ShopSceneImpl implements ShopScene {
     return this.drag.phase === 'heldShelf' || this.drag.phase === 'heldHand';
   }
 
+  /** The PLACE an offer stands at (its index; on a ring, the turn of it nearest the view), or `NO_PLACE`. */
+  private placeOf(id: string): number {
+    const i = this.offerIndexOf(id), n = this.offers.length;
+    if (i < 0) return NO_PLACE;
+    return this.loop ? i + n * Math.round((this.scroll - i) / n) : i;
+  }
+
   private offerIndexOf(id: string): number {
     const o = this.offers;
     for (let i = 0; i < o.length; i++) if (o[i]!.offerId === id) return i;
@@ -1485,7 +1497,7 @@ class ShopSceneImpl implements ShopScene {
   /** Pick up the pack at shelf slot / hand place `at` (posed for the hit in `lifted`, as drawn). */
   private startHold(e: PointerEvent, from: 'shelf' | 'hand', at: number): void {
     const app = this.app;
-    const offer = from === 'shelf' ? this.offers[this.slotIdx[at]!] : undefined;
+    const offer = from === 'shelf' ? this.offers[wrapIndex(this.slotIdx[at]!, this.offers.length)] : undefined;
     const owned = from === 'hand' ? this.hand[at] : undefined;
     const id = offer?.offerId ?? owned?.packId;
     const look = offer?.look ?? owned?.look;
@@ -1635,8 +1647,8 @@ class ShopSceneImpl implements ShopScene {
         return true;
       }
       case 'toShelf': {
-        const i = d.id === null ? -1 : this.offerIndexOf(d.id);
-        if (i < 0) return false;
+        const i = d.id === null ? NO_PLACE : this.placeOf(d.id);
+        if (i === NO_PLACE) return false;
         shelfPoseInto(g, L, i, this.scroll, this.pair);
         g.x += this.rackX;
         return true;

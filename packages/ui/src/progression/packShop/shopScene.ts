@@ -170,6 +170,8 @@ const LEAN_PUSH = 0.03;
 const RESTOCK_EASE = 0.12;
 /** A taken pack's ghost on its place (alpha), and how far a restocked pack swells as it fills back in (its height). */
 const GHOST = 0.2;
+/** A shelf pack at or below this alpha (one peeking in at the rack's edge) shows no price tag; the tag fades in above it (owner 2026-11-27: "the tag of the ghost card pack is overlapping the card pack actually being displayed"). */
+const TAG_PEEK_GONE = 0.45;
 const RESTOCK_POP = 0.07;
 /** The entrance: its ease per 60 Hz frame, how far the shelf drops in and the hand rises (canvas heights). */
 const ENTER_EASE = 0.11;
@@ -639,6 +641,7 @@ class ShopSceneImpl implements ShopScene {
     canvas.addEventListener('pointercancel', this.onUp);
     canvas.addEventListener('lostpointercapture', this.onUp);
     canvas.addEventListener('wheel', this.onWheel, { passive: false });
+    canvas.addEventListener('contextmenu', this.onMenu);
     this.host.appendChild(canvas);
 
     app.renderer.on('resize', this.layout);
@@ -674,6 +677,7 @@ class ShopSceneImpl implements ShopScene {
     canvas.removeEventListener('pointercancel', this.onUp);
     canvas.removeEventListener('lostpointercapture', this.onUp);
     canvas.removeEventListener('wheel', this.onWheel);
+    canvas.removeEventListener('contextmenu', this.onMenu);
     app.renderer.off('resize', this.layout);
     app.ticker.remove(this.tick);
     app.ticker.stop();
@@ -1130,7 +1134,8 @@ class ShopSceneImpl implements ShopScene {
       }
       // the tag hangs off the pack's top-left corner (as drawn: lifted), askew, and swings as the rack moves under it.
       // A taken pack's ghost wears none: the carried pack has its own.
-      const tagA = shelfAlpha * Math.max(0, (show - GHOST) / (1 - GHOST));
+      // A pack peeking in at the rack's edge wears none either: its tag would hang over the full pack beside it.
+      const tagA = Math.max(0, (shelfAlpha - TAG_PEEK_GONE) / (1 - TAG_PEEK_GONE)) * Math.max(0, (show - GHOST) / (1 - GHOST));
       pl.view.visible = tagA > 0.01;
       if (pl.view.visible) {
         const q = liftPoseInto(this.lifted, p, lift);
@@ -1928,10 +1933,13 @@ class ShopSceneImpl implements ShopScene {
   private readonly onDown = (e: PointerEvent): void => {
     const app = this.app;
     if (!app || !this.inputOn || this.slide.phase !== SLIDE_NONE || this.scrollDrag.active || this.drag.phase !== 'idle') return;
-    if (e.button > 0) return; // the main button (or a touch / pen contact) only
+    if (e.button > 0 && e.button !== 2) return; // the main button (or a touch / pen contact), or the right button
     this.cacheRect();
     if (!this.toCanvas(e)) return;
     const { x, y } = this.pointer;
+    // owner 2026-11-27: "make holding right click to drag and slide card pack shop options": the right button slides
+    // the rack from anywhere, packs included (it never picks one up)
+    if (e.button === 2) { this.startScrollDrag(e, x); return; }
     if (y >= this.L.lineY) {
       const j = this.handAt(x, y);
       if (j >= 0) this.startHold(e, 'hand', j);
@@ -1939,12 +1947,19 @@ class ShopSceneImpl implements ShopScene {
     }
     const s = this.packAt(x, y);
     if (s >= 0) { this.startHold(e, 'shelf', s); return; }
+    this.startScrollDrag(e, x);
+  };
+
+  private startScrollDrag(e: PointerEvent, x: number): void {
     const d = this.scrollDrag;
     d.active = true; d.id = e.pointerId; d.startX = x; d.startTarget = this.target;
-    try { app.canvas.setPointerCapture(e.pointerId); } catch { /* synthetic pointer */ }
+    try { this.app?.canvas.setPointerCapture(e.pointerId); } catch { /* synthetic pointer */ }
     e.preventDefault();
     this.wake();
-  };
+  }
+
+  /** The right button slides the rack, so it never opens the browser's menu over the shop. */
+  private readonly onMenu = (e: Event): void => { e.preventDefault(); };
 
   private readonly onUp = (e: PointerEvent): void => {
     if (this.isHeld() && e.pointerId === this.held.pointerId) {

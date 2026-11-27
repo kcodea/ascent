@@ -39,7 +39,9 @@ const SHADOW_GROW = { x: 0.96, y: 1 } as const;
  */
 const BODY_THICK = 0.009; // owner 2026-11-27: "make this line a bit thinner", then "a bit thinner still" (0.022, then 0.014)
 const BODY_SIDE_TINT = 0x4a4a4a;
-const PUFF = { light: 0.16, front: 0.24, side: 0.26, crease: 0.3 } as const;
+// owner 2026-11-27 ("theres an odd shadow on the face of the pack ... it comes to a hard line"): the near shade is
+// lighter and carries on down through the bottom seal, and the bottom crease is faint (`creaseNear`), so nothing stops dead.
+const PUFF = { light: 0.16, front: 0.12, side: 0.26, crease: 0.3, creaseNear: 0.08 } as const;
 
 /** A hovered pack at full lift: this much taller, and raised this share of its height. */
 export const LIFT_GROW = 0.08;
@@ -92,6 +94,12 @@ function paintPuff(g: CanvasRenderingContext2D, w: number, h: number): void {
   v.addColorStop(1, `rgba(0, 0, 0, ${PUFF.front})`);
   g.fillStyle = v;
   g.fillRect(0, top, w, bot - top);
+  // the near shade carries on down the bottom seal, easing off toward the pack's end
+  const n = g.createLinearGradient(0, bot, 0, h);
+  n.addColorStop(0, `rgba(0, 0, 0, ${PUFF.front})`);
+  n.addColorStop(1, `rgba(0, 0, 0, ${PUFF.front * 0.5})`);
+  g.fillStyle = n;
+  g.fillRect(0, bot, w, h - bot);
   // the sides fall away
   const s = g.createLinearGradient(0, 0, w, 0);
   s.addColorStop(0, `rgba(0, 0, 0, ${PUFF.side})`);
@@ -102,9 +110,9 @@ function paintPuff(g: CanvasRenderingContext2D, w: number, h: number): void {
   g.fillRect(0, top, w, bot - top);
   // a crease under the top seal and above the bottom one (the body swells between them)
   const band = h * 0.022;
-  for (const [y0, y1] of [[top, top + band], [bot, bot - band]] as const) {
+  for (const [y0, y1, a] of [[top, top + band, PUFF.crease], [bot, bot - band, PUFF.creaseNear]] as const) {
     const c = g.createLinearGradient(0, y0, 0, y1);
-    c.addColorStop(0, `rgba(0, 0, 0, ${PUFF.crease})`);
+    c.addColorStop(0, `rgba(0, 0, 0, ${a})`);
     c.addColorStop(1, 'rgba(0, 0, 0, 0)');
     g.fillStyle = c;
     g.fillRect(0, Math.min(y0, y1), w, band);

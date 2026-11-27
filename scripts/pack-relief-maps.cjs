@@ -19,8 +19,19 @@
 //      scene and the pack's name each get a soft swell of their own, so they rise as whole shapes, not only by brightness.
 //   3. DETAIL: the art's brightness, blurred a little: stitches, letter edges, small ornaments.
 // A hand-painted map (same layout) may replace any output.
+//
+// DEPTH (owner 2026-11-26: "lets run the depth model on all 13 wrappers"): when scripts/pack-depth/<id>.png exists (a
+// grey depth picture of the wrapper from the Depth Anything V2 model, white = nearest), it REPLACES layers 1 and 2: the
+// shapes the model saw (emblem, logo, island, clouds) rise as themselves instead of by how bright their paint is. The
+// depth is measured against its own wide average, so the scene's far sky is not one deep pit. Layer 3 still adds the
+// fine detail. A new wrapper needs its depth picture made once (the model is not in the repo; see docs/devlog).
 const sharp = require('sharp');
+const fs = require('fs');
+const path = require('path');
 const [, , SRC_DIR, OUT_DIR, PREVIEW] = process.argv;
+const DEPTH_DIR = path.join(__dirname, 'pack-depth');
+/** How strongly the depth model's shapes count, and how wide "its own average" is (pixels of the 300 x 450 map). */
+const DEPTH_UP = 2.2, DEPTH_WIDE = 20;
 // The wrappers that get a relief map, and how strongly each layer counts (forms, parts, detail) and the overall slope.
 const PACKS = {
   plushie: { forms: 0.5, parts: 0.42, detail: 0.3, slope: 5.5, ground: { from: 250, to: 340 } }, // felt on a purple sky
@@ -87,8 +98,17 @@ function blur(src, r) {
     const finish = typeof k.ground === 'number' ? ground : blur(ground, 1);
     const forms = blur(lum, 7), detail = blur(lum, 1), base = blur(lum, 18);
     const height = new Float32Array(W * H);
+    const depthFile = path.join(DEPTH_DIR, `${id}.png`);
+    let shape = null;
+    if (fs.existsSync(depthFile)) {
+      const dep = Float32Array.from(await sharp(depthFile).resize(W, H, { fit: 'fill' }).greyscale().raw().toBuffer(), (v) => v / 255);
+      const near = blur(dep, 1), wide = blur(dep, DEPTH_WIDE);
+      shape = new Float32Array(W * H);
+      for (let i = 0; i < W * H; i++) shape[i] = (near[i] - wide[i]) * DEPTH_UP;
+    }
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
       const i = y * W + x;
+      if (shape) { height[i] = alpha[i] * (shape[i] + k.detail * (detail[i] - forms[i]) * 2); continue; }
       let parts = 0;
       for (const p of PARTS) {
         const dx = (x / W - p.cx) / p.rx, dy = (y / H - p.cy) / p.ry, d = dx * dx + dy * dy;

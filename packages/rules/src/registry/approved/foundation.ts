@@ -17496,4 +17496,31 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'Skip a fight, open Summary, press Watch replay by accident: the diamond glows gold again, one click races the fight to its deciding hit and you are back on the recap.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/skipTurboReplay.test.tsx'], lastVerifiedAt: '2026-11-27' },
   },
+  {
+    id: 'R-PROG-SKINS-30',
+    title: 'Skins batches 22-27: six style sets, 220 Set 2 minion skins whose rarity follows the minion\x27s tavern tier',
+    statement:
+      'Six style sets are crate minion skins, each skin targeting one Set 2 card by stable id and shipping its own 512px '
+      + 'WebP in packages/ui/src/art/skins/: Voxel (40, "Voxel <minion>"), Sketchbook (40, "Sketch <minion>"), Crayon (20, '
+      + '"Crayon <minion>"), Encore (40, "Encore <minion>"), 8 Bit (40, "8 Bit <minion>") and Low Poly (40, "Low Poly '
+      + '<minion>", or "Poly <minion>" when that keeps the full minion name within 20 characters). Their rarity follows the '
+      + 'tavern tier of the minion they dress, not a rarity folder: Tier 1-2 Common, Tier 3-4 Rare, Tier 5-6 Epic, Tier 7 '
+      + 'Legendary. A skin name still over 20 characters drops a word. With them in, a first crate holds 157 Common, 211 '
+      + 'Rare, 211 Epic, 139 Legendary and 38 Ancient items (each Common 0.223%, Rare 0.147%, Epic 0.104%, Legendary '
+      + '0.065%, Ancient 0.079%).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-27 (skins batch 22, the Voxel set)', quote: 'here are the 40 voxel skins for the voxel pack' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-27 (skins batch 23, the Sketchbook set)', quote: 'ok i created all 40 skins for the sketchbook pack' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-27 (rarity for the style sets)', quote: 'Follow tavern tier' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-27 (skins batch 24, the Crayon set)', quote: 'i just provided the crayon set' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-27 (Crayon set in the same PR)', quote: 'Yes, same PR' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-27 (skins batch 25, the Encore set)', quote: 'here is the art for the encore pack' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-27 (skins batches 26-27, the 8 Bit and Low Poly sets)', quote: 'and yes add all to the same pr' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (COSMETICS, skins batches 22 to 27); packages/ui/src/art/skins/ (220 new webps)' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-11-27 (feat/skins-voxel-sketchbook): 65 Common, 65 Rare, 61 Epic and 29 Legendary skins, each checked against its card\x27s tier. The tier rule is a ruling for these six sets; other batches still take the rarity of their master\x27s folder (R-PROG-SKINS-11). Names cut to 20 characters (for example Voxel Brisbane, Sketch Hank, Encore Brian, Encore Flamebeat, Low Poly Steward) are Claude calls for the owner to confirm. The older crayon skins keep their Scribble names. Auric Runemaster gets its first skins. Reaches the database through the catalog sync.',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/skins.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionSkins.test.tsx'], lastVerifiedAt: '2026-11-27' },
+  },
 ];

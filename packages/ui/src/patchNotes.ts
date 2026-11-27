@@ -60,6 +60,15 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Six new sets of minion skins in chests, 220 skins in all: Voxel, Sketchbook, Crayon, Encore, 8 Bit and Low Poly.',
+        details: [
+          'Forty skins in each set, twenty in Crayon.',
+          'A skin\'s rarity follows its minion\'s tavern tier: Tier 1-2 Common, Tier 3-4 Rare, Tier 5-6 Epic, Tier 7 Legendary.',
+          'Among them: Voxel Yazzus, Sketch Orivax, Crayon Zyff, Encore Uron, 8 Bit Brisbane and Low Poly McKlusky. Auric Runemaster gets its first skins.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Watch replay can always be skipped: the diamond offers Skip Combat again, even for a fight you already skipped.',
         details: [
           'Before, if you had skipped a fight and then pressed Watch replay in the Fight Recap, the diamond stayed dim and you had to sit through the whole fight.',

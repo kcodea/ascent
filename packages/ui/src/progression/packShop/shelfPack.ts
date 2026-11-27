@@ -37,7 +37,7 @@ const SHADOW_GROW = { x: 0.96, y: 1 } as const;
  * underside is drawn that far below it, darkened by `BODY_SIDE_TINT`, so the near edge shows as the pack's side when it
  * lies back, and hides under it when it stands up. `PUFF` is the shading painted onto the sleeve (alphas).
  */
-const BODY_THICK = 0.022;
+const BODY_THICK = 0.014; // owner 2026-11-27: "make this line a bit thinner" (was 0.022)
 const BODY_SIDE_TINT = 0x4a4a4a;
 const PUFF = { light: 0.16, front: 0.24, side: 0.26, crease: 0.3 } as const;
 

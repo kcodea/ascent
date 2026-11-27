@@ -20,14 +20,15 @@ import type { GlossFx } from './packFx';
  */
 interface PackMaterial { band: number; fuzz: number; depth: number }
 /** Printed foil all over: the band as it always was, glints on every slope, no fuzz. */
-const FOIL: PackMaterial = { band: 1, fuzz: 0, depth: 0.42 };
+const FOIL: PackMaterial = { band: 0.8, fuzz: 0, depth: 0.1 };
+/* Owner 2026-11-27: "lower relief depth to .1 for all and gloss boost to .8 for all". Fuzz stays per wrapper. */
 /** The wrappers that ship a relief map, by their art file's id (`packs/<id>-pack.webp`), and what each is made of. */
 const RELIEF: Readonly<Record<string, PackMaterial>> = {
   common: FOIL, rare: FOIL, epic: FOIL, legendary: FOIL, ancient: FOIL, secret: FOIL, launch: FOIL,
   eightbit: FOIL, voxel: FOIL, lowpoly: FOIL,
-  plushie: { band: 3, fuzz: 1, depth: 1 },      // felt on a glossy ground
-  scribble: { band: 2.5, fuzz: 0.5, depth: 0.4 }, // crayon on paper (finish 0.4 all over: the band as it was, a waxy tooth)
-  sketchbook: { band: 3, fuzz: 0.4, depth: 0.35 }, // pencil on paper (finish 0.3 all over)
+  plushie: { band: 0.8, fuzz: 1, depth: 0.1 },      // felt on a glossy ground
+  scribble: { band: 0.8, fuzz: 0.5, depth: 0.1 }, // crayon on paper (finish 0.4 all over: the band as it was, a waxy tooth)
+  sketchbook: { band: 0.8, fuzz: 0.4, depth: 0.1 }, // pencil on paper (finish 0.3 all over)
 };
 
 /** The relief map for `look`, or null. */

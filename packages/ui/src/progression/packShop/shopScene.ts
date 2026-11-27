@@ -123,8 +123,10 @@ export interface ShopScene {
 
 /** A pool slot showing nothing (a ring's places run below zero, so -1 is a real place). */
 const NO_PLACE = -(1 << 30);
-/** Shelf packs in the pool: enough for every index a fractional scroll can show (`shelfPoseInto` fades past 2.6). */
-const POOL = 7;
+/** Shelf packs in the pool: every index a fractional scroll can show. A pack is visible until 3.6 steps out from the centre
+ *  (`shelfPoseInto`), so mid-scroll the NEXT edge pack is already fading in: with 7 it had no slot until the scroll crossed a
+ *  whole step, and popped in at the peek alpha (owner 2026-11-27: "can we have the side cards fade in instead of pop in?"). */
+const POOL = 9;
 const FRAME_MS = 1000 / 60;
 /** A cap on one frame's dt: a hitch never jumps the rack. */
 const MAX_DT = 3;
@@ -530,6 +532,7 @@ class ShopSceneImpl implements ShopScene {
       this.packs.push(p);
       rack.addChild(p.view);
     }
+    rack.sortableChildren = true; // draw order is set per pack in `rackStep` (outer packs behind inner ones)
     this.rack = rack;
     app.stage.addChild(rack);
     // every pack's price tag hangs off its top-left corner, in FRONT of the packs
@@ -1009,7 +1012,6 @@ class ShopSceneImpl implements ShopScene {
     this.hoverSlot = slot;
     if (id === this.hoverId) return;
     this.hoverId = id;
-    if (slot >= 0) this.rack?.setChildIndex(this.packs[slot]!.view, POOL - 1); // a lifted pack draws over its neighbours
     let rect: ScreenRect | null = null;
     if (slot >= 0) {
       const p = shelfPoseInto(this.pose, this.L, this.slotIdx[slot]!, this.scroll, this.pair);
@@ -1054,7 +1056,8 @@ class ShopSceneImpl implements ShopScene {
   /** Bind each pool slot to its offer, ease its lift and tilt, and pose it. True while anything moves. */
   private rackStep(dt: number): boolean {
     const offers = this.offers, count = offers.length, L = this.L;
-    const base = Math.floor(this.scroll) - (POOL >> 1);
+    // a pair rack is centred half a step right of `scroll`, so its window of places sits one further right
+    const base = Math.floor(this.scroll) - (POOL >> 1) + (this.pair ? 1 : 0);
     const k = tiltEaseK(getDragFeel().tiltEase, dt * FRAME_MS);
     const kl = easeK(LIFT_EASE, dt), kr = easeK(RESTOCK_EASE, dt), ks = easeK(TAG_FADE, dt);
     // the hovered pack's offer index (its neighbours lean away from it)
@@ -1123,6 +1126,9 @@ class ShopSceneImpl implements ShopScene {
         this.slotLift[s] = lift;
         moving = true;
       }
+      // DRAW ORDER (owner 2026-11-27: "the card pops in OVER the card pack in shop ... it should always be behind"): the further
+      // out a pack stands, the further back it draws, so an edge pack is always behind its inner neighbour; a lifted pack is on top.
+      pack.view.zIndex = lift > 0 ? 100 : -Math.abs(i - this.scroll - (this.pair ? 0.5 : 0));
       // its price tag (rewritten only when the offer changed)
       const pl = this.placards[s]!;
       if (this.placardOf[s] !== offer) {

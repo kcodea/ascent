@@ -41,12 +41,13 @@ const mk = (n: number, dupAt: number[] = []): PackOpenResult => ({
   })),
 });
 
-interface Fake { calls: string[]; events: PackSceneEvents; flipInFlight: boolean; scene: PackScene }
+interface Fake { calls: string[]; events: PackSceneEvents; flipInFlight: boolean; onBack: boolean; scene: PackScene }
 let fakes: Fake[] = [];
 const sceneFactory: NonNullable<PackOpenerProps['sceneFactory']> = (_host, _look, _n, _sounds, events) => {
-  const f: Fake = { calls: [], events, flipInFlight: false, scene: null as unknown as PackScene };
+  const f: Fake = { calls: [], events, flipInFlight: false, onBack: true, scene: null as unknown as PackScene };
   f.scene = {
     setBacks: (b) => { f.calls.push('setBacks:' + (b ? b.length : 'null')); },
+    onTopCard: () => f.onBack,
     flipTop: () => { if (f.flipInFlight) return false; f.calls.push('flipTop'); f.flipInFlight = true; return true; },
     quickOpen: () => { f.calls.push('quickOpen'); },
     resetSealed: () => { f.calls.push('resetSealed'); },
@@ -217,6 +218,21 @@ describe('PackOpener', () => {
     expect(onOpened).not.toHaveBeenCalled();
     expect(err).not.toHaveBeenCalled();
     err.mockRestore();
+  });
+
+  it('only a click on the card back turns a card: a click anywhere else, or on a face, does nothing (owner 2026-11-27)', async () => {
+    render();
+    toZoom();
+    await settle(ok(mk(5)));
+    fake().onBack = false;
+    click(fx());
+    expect(fake().calls.filter((c) => c === 'flipTop')).toHaveLength(0);
+    fake().onBack = true;
+    click(fx());
+    expect(fake().calls.filter((c) => c === 'flipTop')).toHaveLength(1);
+    edge(0);
+    click(document.querySelector('.pkop-faces .pkf'));
+    expect(fake().calls.filter((c) => c === 'flipTop')).toHaveLength(1);
   });
 
   it('rapid clicks flip exactly one card per click in order', async () => {

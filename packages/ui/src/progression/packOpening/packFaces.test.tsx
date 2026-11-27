@@ -488,7 +488,7 @@ describe('the handoff', () => {
   let events: PackSceneEvents | null = null;
   const sceneFactory: NonNullable<PackOpenerProps['sceneFactory']> = (_h, _l, _n, _s, ev) => {
     events = ev;
-    return { setBacks: () => undefined, flipTop: () => true, quickOpen: () => undefined, resetSealed: () => undefined,
+    return { setBacks: () => undefined, flipTop: () => true, onTopCard: () => true, quickOpen: () => undefined, resetSealed: () => undefined,
       setInputEnabled: () => undefined, showSummary: () => undefined, faceTurnStarted: () => undefined, aetherFlow: () => undefined, aetherBurst: () => undefined, setSpeed: () => undefined, destroy: () => undefined };
   };
   beforeEach(() => { events = null; });

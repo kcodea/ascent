@@ -98,6 +98,11 @@ export interface PackScene {
    * or when no card remains.
    */
   flipTop(toScreen: { x: number; y: number }): boolean;
+  /**
+   * Is the point (client px) on the stack's top card back? Only a click there turns a card (owner 2026-11-27: "right now
+   * clicking anywhere causes the card to flip, only clicking the card back should allow the player to click").
+   */
+  onTopCard(clientX: number, clientY: number): boolean;
   /** Scripted tear + sleeve over `feel.quickOpenMs` (the same events and sounds as a hand-driven opening). */
   quickOpen(): void;
   /** A short fade back to a fresh sealed pack with plain backs and input enabled (the failure path). */
@@ -1185,7 +1190,14 @@ class PackSceneImpl implements PackScene {
   }
 
   /** A pointer event's position in pack base units (written to `out`). False when there is no usable rect. */
-  private toPack(e: PointerEvent, out: Pt): boolean {
+  onTopCard(clientX: number, clientY: number): boolean {
+    const p = this.tapPt;
+    return this.toPack({ clientX, clientY }, p) && this.pileHit(p.x, p.y);
+  }
+
+  private readonly tapPt: Pt = { x: 0, y: 0 };
+
+  private toPack(e: { clientX: number; clientY: number }, out: Pt): boolean {
     const app = this.app, v = this.v;
     if (!app || !v) return false;
     if (!this.rect.valid) this.cacheRect(); // only after a resize invalidated it, never per frame

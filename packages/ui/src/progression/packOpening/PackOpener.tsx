@@ -590,13 +590,12 @@ export function PackOpener({ queue, open, onOpened, onClose, onClosed, reducedMo
             className={`pkop-fx${phase === 'summary' ? ' pkop-still' : ''}`}
             ref={hostRef}
             aria-hidden
-            onClick={() => { if (phaseRef.current === 'reveal') flipNext(); }}
+            onClick={(e) => { if (phaseRef.current === 'reveal' && sceneRef.current?.onTopCard(e.clientX, e.clientY)) flipNext(); }}
           />
         )}
         {(phase === 'summary' || (!reduced && phase === 'reveal')) && cards.length > 0 && (
-          // a click on a hovered face (the holo's pointer follow gives the top face and the summary faces the pointer) does
-          // what a click on the theatre does
-          <div className="pkop-faces" aria-hidden onClick={() => { if (phaseRef.current === 'reveal') flipNext(); }}>
+          // only the card back turns a card: a click on a face (or anywhere else) does nothing (owner 2026-11-27)
+          <div className="pkop-faces" aria-hidden>
             {cards.map((c, i) => {
               if (phase !== 'summary' && i >= flipped) return null;
               const facePhase = phase === 'summary' ? 'summary' : revealPhase(i, flipped, turning, flipping);

@@ -38,7 +38,7 @@ export function LocationPosters({ location, tribes, inert, duos }: { location: L
     if (st.showBook) return;
     sfx.pulse();
     if (st.settingsOpen) st.closeSettings();
-    st.openBookTribe(t, location.setId);
+    if (location.setId) st.openBookTribe(t, location.setId); // a place with no set (Terys Gate) hangs no parchments
   };
   return (
     <div className={`hs-posters${duos ? ' duos' : ''}`} style={{ '--n': tribes.length } as CSSProperties}>

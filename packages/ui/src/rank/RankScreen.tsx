@@ -1,4 +1,5 @@
 import { createRef, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { usePostGameHeld } from '../locationReveal/postGame';
 import { sfx } from '../sfx';
 import { Icon } from '../Icon';
 import { RankBar, type RankBarAnimRefs } from './RankBar';
@@ -131,9 +132,11 @@ export function RankScreen(props: RankScreenProps): JSX.Element {
   resultRef.current = result;
   const finishRef = useRef(finish);
   finishRef.current = finish;
+  // THE POST-GAME JOURNEY (postGame.tsx): mounted behind the gate, the sequence starts as the wave washes the screen in.
+  const held = usePostGameHeld();
   useLayoutEffect(() => {
     const result = resultRef.current;
-    if (!shouldAnimate || !result || settled || armedFor !== resultKey) return;
+    if (held || !shouldAnimate || !result || settled || armedFor !== resultKey) return;
     const steps = planRankSequence(result);
     const tl = buildRankTimeline(steps, {
       placement: placementRef.current, crestOld: anim.crest.current, crestNew: anim.crestNext.current,
@@ -149,7 +152,7 @@ export function RankScreen(props: RankScreenProps): JSX.Element {
       tl.kill();
       tlRef.current = null;
     };
-  }, [shouldAnimate, settled, armedFor, resultKey, anim, preview, runId]);
+  }, [held, shouldAnimate, settled, armedFor, resultKey, anim, preview, runId]);
 
   // Focus Continue on mount, and again the moment the score lock lifts (a disabled button cannot hold focus), but
   // never away from something the player moved to meanwhile (Match details opened during the lock: a Space there

@@ -1,7 +1,8 @@
 /**
  * THE SHELL's ONE STEADY BACKDROP (owner 2026-11-04: "it'll flash the old background and it's very jarring and gross", then
  * "i think i like the citadel backdrop more"; 2026-11-22: replaced by the world map painting, a 5px blur baked in at build
- * time, no runtime filter). `Game` mounts it ONCE, under everything, for as long as the menus are up: pages and the party home are transparent
+ * time, no runtime filter; 2026-11-27: "this is also the new background art in the menu", Terys Gate, where every game's journey
+ * ends, the same 5px blur baked in). `Game` mounts it ONCE, under everything, for as long as the menus are up: pages and the party home are transparent
  * over it and never bring their own, so moving between them cannot swap or unmount it, and a page that is still loading (or
  * never loads) shows this and nothing else. Eager and styled inline: it must paint before any lazy chunk or its stylesheet.
  * The art is in the boot gate's first lane (`backdrops/` in preloadPlan.ts), so it is decoded before the shell's first paint.
@@ -10,7 +11,7 @@ import { useLayoutEffect, type CSSProperties } from 'react';
 import { phonePublicUrl } from '../../phoneArt';
 import { anyPageOpen, useGame } from '../../store';
 
-const ART = phonePublicUrl('backdrops/world-soft.webp', import.meta.env.BASE_URL);
+const ART = phonePublicUrl('backdrops/terys-soft.webp', import.meta.env.BASE_URL);
 const FILL: CSSProperties = { position: 'absolute', inset: 0, width: '100%', height: '100%' };
 const VEIL = 'linear-gradient(180deg, rgba(6, 12, 28, 0.82) 0%, rgba(6, 12, 28, 0.58) 26%, rgba(6, 12, 28, 0.42) 60%, rgba(6, 12, 28, 0.88) 100%), radial-gradient(70% 70% at 45% 50%, transparent 0%, rgba(4, 8, 20, 0.5) 100%)';
 

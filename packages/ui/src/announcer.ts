@@ -50,6 +50,7 @@
  * cached buffer (never the eager `import.meta.glob` bank in sfx.ts). Without Web Audio an HTMLAudioElement per
  * line carries the level. Lines never overlap each other.
  */
+import { isPostGameHeld, onPostGameRelease } from './locationReveal/postGameHold';
 import { CARD_INDEX } from '@game/content';
 import { ALE_IDS, TRIBES, type Tribe } from '@game/core';
 import {
@@ -166,7 +167,7 @@ export const GAUNTLET_ANNOUNCER_EVENTS: readonly AnnouncerEvent[] = ['gauntletRo
  *  table, placement or rank, which would misfire on a Versus table. Since 2026-10-26 Versus plays on Health and Armor
  *  with the lobby's damage (R-VERSUS-HEALTH-01), so the Health, Armor and damage lines speak there too. */
 export const VERSUS_SILENT_EVENTS: readonly AnnouncerEvent[] = [
-  'topFour', 'topTwo', 'gameWon', 'gameLoss', 'secondPlace', 'knockout', 'finalShowdown', 'lobbyLast', 'firstOut',
+  'topFour', 'topTwo', 'gameWon', 'gameLoss', 'secondPlace', 'thirdPlace', 'fourthPlace', 'midPlace', 'seventhPlace', 'lastPlace', 'knockout', 'finalShowdown', 'lobbyLast', 'firstOut',
   'leaderboardTop', 'playersRemain', 'comebackWin', 'rankUp', 'ghostFight', 'resumeGame',
 ];
 /**
@@ -351,7 +352,7 @@ export const ANNOUNCER_LINES: Record<AnnouncerEvent, readonly string[]> = {
   topFour: ['top-four-1', 'top-four-2', 'top-four-3', 'top-four-4'],
   // Takes 4-7: the fun final-two lines (owner 2026-11-15: "some fun ones for the final 2 showdown").
   topTwo: ['top-two-1', 'top-two-2', 'top-two-3', 'top-two-4', 'top-two-5', 'top-two-6', 'top-two-7'],
-  gameWon: ['game-won', 'game-won-2', 'game-won-3', 'game-won-4'],
+  gameWon: ['game-won', 'game-won-2', 'game-won-3', 'game-won-4', 'game-won-5', 'game-won-6'],
   gameLoss: ['game-loss-1', 'game-loss-2', 'game-loss-3', 'game-loss-4', 'game-loss-5'],
   // The second batch (owner 2026-09-24).
   // knockout-4 CUT 2026-11-15 (language: R-TEXT-ANNOUNCER-03).
@@ -389,7 +390,7 @@ export const ANNOUNCER_LINES: Record<AnnouncerEvent, readonly string[]> = {
   // BoardTotal) speaks once until it gets more takes: the no-repeat bag goes silent when its takes run out.
   lateGame: ['late-game-1', 'late-game-2'],
   roundMilestone: ['round-milestone-1'],
-  secondPlace: ['second-place-1', 'second-place-2', 'second-place-3'],
+  secondPlace: ['second-place-1', 'second-place-2', 'second-place-3', 'second-place-4', 'second-place-5'],
   brokeTurn: ['broke-turn-1', 'broke-turn-2'],
   fastTier: ['fast-tier-1', 'fast-tier-2'],
   sellSpree: ['sell-spree-1', 'sell-spree-2', 'sell-spree-3'],
@@ -483,6 +484,12 @@ export const ANNOUNCER_LINES: Record<AnnouncerEvent, readonly string[]> = {
   tribeTakeover: allKeyedTakes(TRIBE_TAKEOVER_TAKES),
   tribeSurge: allKeyedTakes(TRIBE_SURGE_TAKES),
   rankUp: ['rank-up-1'], // "Promoted!": generic, any promotion
+  // The post-game lines (owner 2026-11-27), one pool a place (`placeEvent`).
+  thirdPlace: ['third-place-1', 'third-place-2', 'third-place-3', 'third-place-4', 'third-place-5'],
+  fourthPlace: ['fourth-place-1', 'fourth-place-2', 'fourth-place-3', 'fourth-place-4', 'fourth-place-5'],
+  midPlace: ['mid-place-1', 'mid-place-2', 'mid-place-3', 'mid-place-4', 'mid-place-5'],
+  seventhPlace: ['seventh-place-1', 'seventh-place-2', 'seventh-place-3', 'seventh-place-4', 'seventh-place-5'],
+  lastPlace: ['last-place-1', 'last-place-2', 'last-place-3', 'last-place-4', 'last-place-5'],
   // The fight specials (owner 2026-09-25): one ElevenLabs take each (the catalog's example line).
   grimPayout: ['grim-payout-1'],
   hanGover: ['han-gover-1'],
@@ -573,6 +580,11 @@ export const ANNOUNCER_PRIORITY: Record<AnnouncerEvent, number> = {
   // The moment catalog's first batch (owner 2026-09-25). PROPOSED by Claude, each slotted beside the live moment it
   // most resembles; the owner tunes. Ties with an existing moment are deliberate (same weight, first queued wins).
   secondPlace: 100,
+  thirdPlace: 100,
+  fourthPlace: 100,
+  midPlace: 100,
+  seventhPlace: 100,
+  lastPlace: 100,
   playersRemain: 84,
   firstOut: 82,
   oneResolve: 78,
@@ -1086,6 +1098,17 @@ const freshBatch3Tallies = (): void => {
 };
 /** RankUp: when the end-of-game line was queued to speak (RankUp never goes before it); null before the end. */
 let endLineAt: number | null = null;
+/** The end line of a game whose results are still behind the journey (`isPostGameHeld`), spoken as the wave brings them in. */
+let pendingEnd: { event: AnnouncerEvent; wave: number; seed: number; rankUp?: boolean } | null = null;
+onPostGameRelease(() => {
+  const p = pendingEnd;
+  pendingEnd = null;
+  if (!p || !active || runKey !== p.seed) return;
+  const at = deps.now() + ANNOUNCER_END_DELAY_MS;
+  enqueue({ event: p.event, shelf: 'never', notBefore: at, wave: p.wave });
+  endLineAt = at;
+  if (p.rankUp) enqueue({ event: 'rankUp', shelf: 'never', notBefore: at, wave: p.wave, bypassCooldown: true });
+});
 const log: AnnouncerLogEntry[] = [];
 
 function note(kind: AnnouncerLogKind, event: AnnouncerEvent, extra: { file?: string; why?: string } = {}): void {
@@ -1313,6 +1336,21 @@ const hasBigStat = (units: readonly { attack: number; health: number }[]): boole
   units.some((u) => u.attack >= ANNOUNCER_BIG_STAT || u.health >= ANNOUNCER_BIG_STAT);
 const aliveSeats = (r: AnnouncerRunLike): number => r.lobby?.seats.filter((x) => x.alive).length ?? 0;
 const playerAlive = (r: AnnouncerRunLike): boolean => r.lobby?.seats[0]?.alive ?? r.resolve > 0;
+/** Every solo end line: one of them speaks per game. */
+const END_EVENTS: readonly AnnouncerEvent[] = ['gameWon', 'secondPlace', 'thirdPlace', 'fourthPlace', 'midPlace', 'seventhPlace', 'lastPlace', 'gameLoss'];
+/**
+ * THE POST-GAME LINE for a place (owner 2026-11-27: "Add announcer lines here like nice try, etc with enough variations that make end
+ * games slightly unique each time"): its own pool for 1st, 2nd, 3rd, 4th, 5th or 6th, 7th, and last of the table.
+ */
+export function placeEvent(placement: number, seats: number): AnnouncerEvent {
+  if (placement <= 1) return 'gameWon';
+  if (placement >= seats) return 'lastPlace';
+  if (placement === 2) return 'secondPlace';
+  if (placement === 3) return 'thirdPlace';
+  if (placement === 4) return 'fourthPlace';
+  return placement <= 6 ? 'midPlace' : 'seventhPlace';
+}
+
 /** Placement at the end: the seat's stamped placement, else how many were still standing (EndScreen's rule). */
 export function finalPlacement(r: AnnouncerRunLike): number {
   const me = r.lobby?.seats[0];
@@ -1554,6 +1592,7 @@ function enterRun(s: AnnouncerStateLike, prev: AnnouncerStateLike | null): void 
   tribeBuys = { wave: -1, byTribe: new Map(), all: 0 };
   freshBatch3Tallies();
   endLineAt = null;
+  pendingEnd = null;
   if (gauntletOnly) {
     // A Gauntlet (owner 2026-09-30): the round call is its only line. Round 1 speaks when GameStart would (after the
     // Good Luck intro, past the music's fade-in); a Continue into a Shop turn whose call never spoke hears it then.
@@ -1687,7 +1726,8 @@ export function syncAnnouncer(s: AnnouncerStateLike, prev: AnnouncerStateLike | 
   // Continue off the screen (leaving the run) cancels it.
   if ((run.phase === 'gameover' || run.phase === 'victory') && s.rankResult?.promoted && s.rankResult !== prev?.rankResult
     && !hasFired(slice, 'rankUp')) {
-    enqueue({ event: 'rankUp', shelf: 'never', notBefore: Math.max(deps.now(), endLineAt ?? 0), wave: run.wave, bypassCooldown: true });
+    if (pendingEnd) pendingEnd.rankUp = true; // the end line is still on its way: "Promoted!" follows it
+    else enqueue({ event: 'rankUp', shelf: 'never', notBefore: Math.max(deps.now(), endLineAt ?? 0), wave: run.wave, bypassCooldown: true });
   }
   const p = prev?.run;
   if (!p || p === run || p.seed !== run.seed) return;
@@ -1817,8 +1857,11 @@ export function syncAnnouncer(s: AnnouncerStateLike, prev: AnnouncerStateLike | 
     expire('shop');
     combatStartedAt = null;
     const placement = finalPlacement(run);
-    const event: AnnouncerEvent = placement === 1 ? 'gameWon' : placement === 2 ? 'secondPlace' : 'gameLoss';
-    if (!hasFired(slice, 'gameWon') && !hasFired(slice, 'gameLoss') && !hasFired(slice, 'secondPlace')) {
+    const event = placeEvent(placement, run.lobby?.seats.length ?? 8);
+    const said = slice;
+    if (!END_EVENTS.some((e) => hasFired(said, e))) {
+      // THE JOURNEY (postGame.tsx): the game ended behind the gate's doors; the line waits for the wave to bring the results in.
+      if (isPostGameHeld()) { pendingEnd = { event, wave: run.wave, seed: run.seed }; endLineAt = null; return; }
       enqueue({ event, shelf: 'never', notBefore: now + ANNOUNCER_END_DELAY_MS, wave: run.wave });
     }
     endLineAt = now + ANNOUNCER_END_DELAY_MS;
@@ -2471,6 +2514,7 @@ export function resetAnnouncerForTests(): void {
   tribeBuys = { wave: -1, byTribe: new Map(), all: 0 };
   freshBatch3Tallies();
   endLineAt = null;
+  pendingEnd = null;
   deckCache = null;
   log.length = 0;
 }

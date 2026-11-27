@@ -60,6 +60,14 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'A new ending: when your game ends, the gate closes on a crystal. Break it to travel to Terys Gate, where your results wait.',
+        details: [
+          'The same journey as the start of a game takes you to a new place, Terys Gate, and your results appear there.',
+          'Terys Gate is also the new backdrop of the main menu.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Watch replay can always be skipped: the diamond offers Skip Combat again, even for a fight you already skipped.',
         details: [
           'Before, if you had skipped a fight and then pressed Watch replay in the Fight Recap, the diamond stayed dim and you had to sit through the whole fight.',

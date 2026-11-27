@@ -1360,6 +1360,151 @@
       "id": "final-showdown-5",
       "voice": "announcer",
       "text": "Everyone else went home. Finish it."
+    },
+    {
+      "id": "game-won-5",
+      "voice": "announcer",
+      "text": "Victory! The table is yours."
+    },
+    {
+      "id": "game-won-6",
+      "voice": "announcer",
+      "text": "Champion! Nobody could stop you."
+    },
+    {
+      "id": "second-place-4",
+      "voice": "announcer",
+      "text": "Second place. One fight from glory."
+    },
+    {
+      "id": "second-place-5",
+      "voice": "announcer",
+      "text": "So close! A fine finish."
+    },
+    {
+      "id": "third-place-1",
+      "voice": "announcer",
+      "text": "Third place. A podium finish!"
+    },
+    {
+      "id": "third-place-2",
+      "voice": "announcer",
+      "text": "Bronze for you. Well played."
+    },
+    {
+      "id": "third-place-3",
+      "voice": "announcer",
+      "text": "Third! A strong game."
+    },
+    {
+      "id": "third-place-4",
+      "voice": "announcer",
+      "text": "A podium finish. Nicely done."
+    },
+    {
+      "id": "third-place-5",
+      "voice": "announcer",
+      "text": "Third place. You made them sweat."
+    },
+    {
+      "id": "fourth-place-1",
+      "voice": "announcer",
+      "text": "Fourth place. Top four, well done."
+    },
+    {
+      "id": "fourth-place-2",
+      "voice": "announcer",
+      "text": "You made the top four. Nice work."
+    },
+    {
+      "id": "fourth-place-3",
+      "voice": "announcer",
+      "text": "Fourth. A solid game."
+    },
+    {
+      "id": "fourth-place-4",
+      "voice": "announcer",
+      "text": "Top four! Not bad at all."
+    },
+    {
+      "id": "fourth-place-5",
+      "voice": "announcer",
+      "text": "Fourth place. That will do nicely."
+    },
+    {
+      "id": "mid-place-1",
+      "voice": "announcer",
+      "text": "Nice try. Just short of the top four."
+    },
+    {
+      "id": "mid-place-2",
+      "voice": "announcer",
+      "text": "Close to the top four. Next time."
+    },
+    {
+      "id": "mid-place-3",
+      "voice": "announcer",
+      "text": "Not bad. You held your own."
+    },
+    {
+      "id": "mid-place-4",
+      "voice": "announcer",
+      "text": "A decent run. Keep at it."
+    },
+    {
+      "id": "mid-place-5",
+      "voice": "announcer",
+      "text": "Good effort. The next one is yours."
+    },
+    {
+      "id": "seventh-place-1",
+      "voice": "announcer",
+      "text": "A tough game. Shake it off."
+    },
+    {
+      "id": "seventh-place-2",
+      "voice": "announcer",
+      "text": "Seventh. Not your day."
+    },
+    {
+      "id": "seventh-place-3",
+      "voice": "announcer",
+      "text": "Rough one. Regroup and go again."
+    },
+    {
+      "id": "seventh-place-4",
+      "voice": "announcer",
+      "text": "That one stung. Try again."
+    },
+    {
+      "id": "seventh-place-5",
+      "voice": "announcer",
+      "text": "Seventh place. Better luck next time."
+    },
+    {
+      "id": "last-place-1",
+      "voice": "announcer",
+      "text": "Nice try. Everyone starts somewhere."
+    },
+    {
+      "id": "last-place-2",
+      "voice": "announcer",
+      "text": "Last place. It happens to the best of us."
+    },
+    {
+      "id": "last-place-3",
+      "voice": "announcer",
+      "text": "Ouch. That was a hard one."
+    },
+    {
+      "id": "last-place-4",
+      "voice": "announcer",
+      "text": "Eighth. Time to plan a comeback."
+    },
+    {
+      "id": "last-place-5",
+      "voice": "announcer",
+      "text": "Tough break. Go again!"
     }
   ],
   "sfx": [

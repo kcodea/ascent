@@ -10,6 +10,7 @@ const CUES = {
   'ride-outskirts': [4.0, 0.3, 'Seamless loop of continuous steady high speed magical wind rush, airy whoosh with bright sparkling glassy shimmer, constant even volume the whole time, no impact, no music'],
   'ride-underbelly': [4.0, 0.3, 'Seamless loop of continuous steady high speed deep arcane wind rush, low airy rumble with soft dark shimmer, constant even volume the whole time, no impact, no music'],
   'ride-scrapyard': [4.0, 0.3, 'Seamless loop of continuous steady high speed wind rush with a warm low furnace roar and soft metallic ember shimmer, constant even volume the whole time, no impact, no music'],
+  'ride-terys': [4.0, 0.3, 'Seamless loop of continuous steady high speed magical wind rush, bright regal airy whoosh with warm golden shimmer and soft glassy harmonic resonance, constant even volume the whole time, no impact, no music, no voices'],
   'ride-runebarriers': [4.0, 0.3, 'Seamless loop of continuous steady high speed magical wind rush, deep resonant arcane hum with bright crystalline rune shimmer, constant even volume the whole time, no impact, no music'],
   gather: [1.1, 0.45, 'Hundreds of small glass shards rushing together, reverse suction swell accelerating and rising quickly to a sudden cut off, magical, no impact'],
   impact: [3.0, 0.4, 'Clean deep cinematic boom, soft round sub bass hit with a clear crystal bell ring on top, long smooth reverb tail, undistorted, moderate volume, single hit at the start, no music'],
@@ -19,6 +20,7 @@ const CUES = {
   'ambience-underbelly': [8.0, 0.3, 'Seamless loop of an uneasy crowd commotion in an underground cavern market: constant restless murmuring and muttering, unintelligible tense voices, scuffling feet, chains and crates clattering, dark low rumble, constant even volume the whole time'],
   'ambience-scrapyard': [8.0, 0.35, 'Seamless loop, loud, close and clearly present: a blacksmith forge fire roaring and crackling, big leather bellows breathing, rhythmic hammering on metal a short way off, heavy chains clinking and wooden beams creaking, constant even volume the whole time, no voices, no music'],
   'ambience-runebarriers': [8.0, 0.3, 'Seamless loop of a great magical barrier humming softly: deep warm resonant arcane drone with gentle crackling energy and faint crystal tones, high mountain wind and a distant waterfall, constant even volume the whole time, no music'],
+  'ambience-terys': [8.0, 0.3, 'Seamless loop, close and clearly present: a great magical portal humming softly, warm bright resonant hum with gentle shimmering sparkle, a soft breeze in leaves and cloth banners fluttering, distant waterfalls, a few birds, constant even volume the whole time, no voices, no music'],
   title: [2.4, 0.4, 'A warm majestic magical shimmer reveal, soft low brass-like swell with golden sparkling chime tail, fantasy game title appears, gentle, not loud'],
   poster: [1.0, 0.4, 'A gentle soft wind whoosh, smooth swell in and out, like a light breeze passing a hanging cloth banner, airy, rounded, quiet, no impact, no crackle, no music'],
 };

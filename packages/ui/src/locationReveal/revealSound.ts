@@ -6,7 +6,7 @@
  */
 import { announcerOutput } from '../announcer';
 import { audioContext, fxBusTarget, isMuted } from '../sfx';
-import { LOCATIONS, locationSound, type LocationId } from './locations';
+import { locationById, locationSound, type LocationId } from './locations';
 import { holdAmbience, seamless } from './placeAmbience';
 import { clamp, L, NAME, outroAt, posterRest, realOf, ROLL_STEP, simEnd, START, T0, washAt } from './revealTimeline';
 
@@ -49,7 +49,12 @@ export function revealCues(id: LocationId, n: number): Cue[] {
   const name = t(NAME);
   const end = t(simEnd(n));
   const ride = land - t0;
-  const { mix } = LOCATIONS[id];
+  const { mix } = locationById(id);
+  // A JOURNEY (no parchments): no name and no line, and the place is heard for the moment it has the screen, then a step back.
+  const journey = n === 0;
+  const ambienceEnv: [number, number][] = journey
+    ? [[0, 0], [0.75, 0.8], [end - land - 0.7, 0.8], [end - land + 0.6, AMBIENCE_STAY]]
+    : [[0, 0], [0.75, 0.8], [name - land - 0.1, 0.8], [name - land + 0.15, 0.42], [name - land + 2, 0.42], [name - land + 2.7, 1], [end - land - 1.1, 1], [end - land + 0.6, AMBIENCE_STAY]];
   return [
     { clip: 'charge', at: t0 - 0.74, gain: 0.55, reverse: true },
     {
@@ -63,10 +68,12 @@ export function revealCues(id: LocationId, n: number): Cue[] {
     {
       clip: `ambience-${id}`, at: land + 0.1, gain: mix.ambience, loop: true, stays: true,
       // the place goes on sounding into hero select, a step back from where the reveal had it
-      env: [[0, 0], [0.75, 0.8], [name - land - 0.1, 0.8], [name - land + 0.15, 0.42], [name - land + 2, 0.42], [name - land + 2.7, 1], [end - land - 1.1, 1], [end - land + 0.6, AMBIENCE_STAY]],
+      env: ambienceEnv,
     },
-    { clip: 'title', at: name - 0.12, gain: 0.62 },
-    { clip: `vo-${id}`, at: name + LINE_DELAY, gain: VOICE * mix.line, voice: true },
+    ...(journey ? [] : [
+      { clip: 'title', at: name - 0.12, gain: 0.62 },
+      { clip: `vo-${id}`, at: name + LINE_DELAY, gain: VOICE * mix.line, voice: true },
+    ] as Cue[]),
     ...Array.from({ length: n }, (_, i): Cue => ({
       clip: 'poster', at: t(posterRest(i, n).at) - 0.1, gain: 0.36, lowpass: 1900, env: [[0, 0.2], [0.1, 1], [0.8, 1], [1, 0]],
       rate: [[0, POSTER_RATE[i % POSTER_RATE.length]!]], pan: [[0, clamp((i - (n - 1) / 2) * 0.32, -1, 1)]],
@@ -83,9 +90,10 @@ export function revealCues(id: LocationId, n: number): Cue[] {
 /** The light version's cues (phones): the name, the line, the parchments and the leaving wave, on ITS times. Short clips only: a
  *  phone decodes nothing it does not play (R-TOUCH-GPU-MEMORY-01's audio budget). Times are seconds from the doors parting. */
 export function lightCues(id: LocationId, n: number, at: { name: number; posters: number; step: number; leave: number }): Cue[] {
+  if (n === 0) return [{ clip: 'wave', at: at.leave - 0.2, gain: 0.3, rate: [[0, 1.08]], lowpass: 5200 }]; // a journey: the wave alone
   return [
     { clip: 'title', at: at.name - 0.12, gain: 0.62 },
-    { clip: `vo-${id}`, at: at.name + LINE_DELAY, gain: VOICE * LOCATIONS[id].mix.line, voice: true },
+    { clip: `vo-${id}`, at: at.name + LINE_DELAY, gain: VOICE * locationById(id).mix.line, voice: true },
     ...Array.from({ length: n }, (_, i): Cue => ({ clip: 'poster', at: at.posters + i * at.step - 0.1, gain: 0.3, lowpass: 1900, env: [[0, 0.2], [0.1, 1], [0.8, 1], [1, 0]], rate: [[0, POSTER_RATE[i % POSTER_RATE.length]!]] })),
     { clip: 'wave', at: at.leave - 0.2, gain: 0.3, rate: [[0, 1.08]], lowpass: 5200 },
   ];

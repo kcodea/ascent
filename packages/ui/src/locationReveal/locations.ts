@@ -6,7 +6,10 @@
 import type { Tribe } from '@game/core';
 import { SETS, type SetId } from '@game/content';
 
-export type LocationId = 'outskirts' | 'underbelly' | 'scrapyard' | 'runebarriers';
+/** A place a set is played at. */
+export type SetLocationId = 'outskirts' | 'underbelly' | 'scrapyard' | 'runebarriers';
+/** Every place the reveal can travel to: a set's, or Terys Gate (where every game's journey ends, `TERYS_GATE`). */
+export type LocationId = SetLocationId | 'terys';
 /** What hangs on a parchment: a tribe, or one a location is promised and no set has yet (owner 2026-11-25: "Add guardians to the rune barriers"). */
 export type Poster = Tribe | 'guardian';
 export const isTribePoster = (p: Poster): p is Tribe => p !== 'guardian';
@@ -16,7 +19,10 @@ export type Rgb = readonly [number, number, number];
 
 export interface LocationDef {
   id: LocationId;
-  setId: SetId;
+  /** The set played here. None: a place no game is played at (Terys Gate). */
+  setId?: SetId;
+  /** Its name, for a place with no set (a set's location is named on the set). */
+  name?: string;
   /** Where the crystal lands, as a fraction of the painting (x right, y down). Everything radiates from it. */
   vp: readonly [number, number];
   /** What a window that crops the 21:9 painting is centred on (x right, y down): 16:9 shows three quarters of its width. */
@@ -53,7 +59,7 @@ const TEAL = [0.5, 1, 0.74] as const;
 const AZURE = [0.4, 0.66, 1] as const;
 const FORGE = [1, 0.55, 0.18] as const;
 
-export const LOCATIONS: Readonly<Record<LocationId, LocationDef>> = {
+export const LOCATIONS: Readonly<Record<SetLocationId, LocationDef & { setId: SetId }>> = {
   outskirts: {
     id: 'outskirts',
     setId: 'set2',
@@ -143,6 +149,52 @@ export const LOCATIONS: Readonly<Record<LocationId, LocationDef>> = {
   },
 };
 
+/**
+ * TERYS GATE (owner 2026-11-27: "use this for the returning art", first called the Portal of Kings, then "Rename it to Terys Gate"): where the journey at
+ * the end of every game travels to, and where the post-game screen stands (postGame.tsx). No game is played here, so it has no set,
+ * no parchments and no announcer line. One rigid piece for now (no background was painted for a cut parallax): its own idea is the
+ * light in the portal and its ring of runes, pulsing out from its heart (`energy`).
+ */
+export const TERYS_GATE: LocationDef = {
+  id: 'terys',
+  name: 'Terys Gate',
+  vp: [0.595, 0.365],
+  focus: [0.57, 0.45],
+  deep: [0.02, 0.035, 0.12],
+  second: [1, 0.82, 0.45],
+  warmth: 0.45,
+  posters: [],
+  energy: [[0.595, 0.365]],
+  line: '',
+  // Measured (loudness.mjs): the ride -10.7 LUFS and the ambience -25.4, brought level with the other places' as heard.
+  mix: { ride: 0.78, ambience: 1.5, line: 1 },
+  lights: [
+    [0.595, 0.36, 3.4, 0.1, ...CYAN], [0.615, 0.35, 1.4, 0.1, 1, 0.95, 0.8], [0.586, 0.175, 1.3, 0.1, ...WARM], [0.498, 0.369, 1.1, 0.1, ...WARM], [0.676, 0.35, 1.1, 0.1, ...WARM],
+    [0.567, 0.163, 0.6, 0.1, ...CYAN], [0.615, 0.15, 0.6, 0.1, ...CYAN], [0.663, 0.225, 0.6, 0.1, ...CYAN], [0.676, 0.4, 0.6, 0.1, ...CYAN], [0.663, 0.4875, 0.6, 0.1, ...CYAN],
+    [0.512, 0.4375, 0.6, 0.1, ...CYAN], [0.512, 0.3125, 0.6, 0.1, ...CYAN], [0.536, 0.2, 0.6, 0.1, ...CYAN], [0.252, 0.164, 1.2, 0.1, 1, 0.93, 0.78], [0.606, 0.83, 1.3, 0.1, ...WARM],
+    [0.068, 0.55, 0.8, 0.1, ...AZURE], [0.127, 0.62, 0.8, 0.1, ...AZURE],
+  ],
+};
+
+/** How a game ended, for its colours: 1st, 2nd to 4th, 5th to 8th. */
+export type ResultBand = 'won' | 'top4' | 'lost';
+export const resultBand = (placement: number): ResultBand => (placement <= 1 ? 'won' : placement <= 4 ? 'top4' : 'lost');
+
+/**
+ * TERYS GATE IN THE RESULT'S COLOURS (owner 2026-11-27: "The portal effect should be different colors for a bottom 4, top 4 and a
+ * victory. (Red/green/gold variations)"): the journey's magic (its deep, its second hue, and every cool and warm light turned to them)
+ * in gold for a win, green for the top four, red for the rest. Same painting, same files; one def each, so they are told apart by
+ * identity (the warm reveal and the atmosphere compare the def, not its id).
+ */
+export const TERYS_GATE_BY_RESULT: Readonly<Record<ResultBand, LocationDef>> = {
+  won: { ...TERYS_GATE, deep: [0.1, 0.065, 0.012], second: [1, 0.82, 0.32], cool: [1, 0.84, 0.42], warm: [1, 0.7, 0.28], warmth: 0.85 },
+  top4: { ...TERYS_GATE, deep: [0.012, 0.075, 0.04], second: [0.45, 1, 0.55], cool: [0.42, 1, 0.62], warm: [0.82, 1, 0.5], warmth: 0.35 },
+  lost: { ...TERYS_GATE, deep: [0.1, 0.012, 0.018], second: [1, 0.32, 0.26], cool: [1, 0.36, 0.32], warm: [1, 0.55, 0.3], warmth: 0.6 },
+};
+
+/** Any place by its id. */
+export const locationById = (id: LocationId): LocationDef => (id === 'terys' ? TERYS_GATE : LOCATIONS[id]);
+
 /** The location a set is played at, or null for a set that has none yet (the gate then opens as before). */
 export function locationOfSet(setId: SetId): LocationDef | null {
   return Object.values(LOCATIONS).find((l) => l.setId === setId) ?? null;
@@ -158,7 +210,7 @@ export function fourOf(v: readonly (readonly number[])[] | undefined): Float32Ar
 }
 
 /** Its name, as players read it. */
-export const locationName = (l: LocationDef): string => SETS[l.setId].location ?? SETS[l.setId].name;
+export const locationName = (l: LocationDef): string => l.name ?? (l.setId ? SETS[l.setId].location ?? SETS[l.setId].name : '');
 
 /** A file of the location's own art (BASE_URL-relative: itch serves the game from a sub-path). */
 export const locationArt = (id: LocationId, file: string): string => `${import.meta.env.BASE_URL}locations/${id}/${file}.webp`;

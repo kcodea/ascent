@@ -60,3 +60,8 @@
 /* A parchment whose tribe no set has yet. */
 .lrev, .hs-posters { --t-guardian: #54c4ff; }
 .hs-poster:disabled { pointer-events: none; }
+
+/* THE POST-GAME SCREEN at the place (postGame.tsx): the location, blurred and alive, instead of the end screen's own backdrop. A little
+   darker than hero select's, so the results read over it. */
+.heroselect.endscreen.at-place { background: #06101f; }
+.pg-location::after { background: radial-gradient(ellipse 70% 62% at 50% 46%, rgba(6, 12, 28, 0.46), rgba(6, 12, 28, 0.80)); }

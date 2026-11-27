@@ -17460,6 +17460,26 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/locationReveal/locationReveal.test.ts', 'packages/ui/src/audio/config.test.ts'], lastVerifiedAt: '2026-11-25' },
   },
   {
+    id: 'R-LOCATION-13',
+    title: 'A game ends through the crystal gate, a journey to Terys Gate, and the results there',
+    statement:
+      'When the fight that ends a lobby game (Ranked or Practice) is left, the gate\x27s doors close and a crystal forms on them, as when a game '
+      + 'starts. Pressing it shatters it and plays the same travel as a location reveal, with no name, announcer line or parchments, to Terys Gate. '
+      + 'Its wave washes in the post-game screen, which stands at Terys Gate, blurred and alive, with its ambience; the results\x27 own sequence '
+      + 'and the placement tone wait for that wave. Closing the screen goes to the main menu, whose backdrop is Terys Gate too. Under reduced '
+      + 'motion the game ends the usual way, with no gate.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-27', quote: 'gates close with a crystal forming again. you click it to shatter and play the same portal style animation' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-27', quote: 'Rename it to Terys Gate instead of portal of kings' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-27', quote: 'this is also the new background art in the menu' },
+      { kind: 'code', ref: 'packages/ui/src/locationReveal/postGame.tsx; packages/ui/src/locationReveal/locations.ts (TERYS_GATE); packages/ui/src/Recruit.tsx (endCombat); packages/ui/src/partyHome/shell/PhBackdrop.tsx' },
+    ],
+    currentBehaviour: 'Built 2026-11-27 (feat/postgame-portal). The post-game screen shows the same results as before, over the new place. The crystal still carries the painted ENTER word. Not yet seen or heard by the owner.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/locationReveal/locationReveal.test.ts'], lastVerifiedAt: '2026-11-27' },
+  },
+  {
     id: 'R-COMPENDIUM-COUNT-01',
     title: 'The Compendium\x27s filter row says how many things are on screen',
     statement:

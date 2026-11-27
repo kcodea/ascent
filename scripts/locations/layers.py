@@ -3,7 +3,7 @@
    piece's own colour is carried out under its soft edge, so no rim of background travels with it.
  - BEHIND: what a piece hides continues as the mirror of what is beside it (real texture), easing into a smooth fill.
  - FEET: where a piece stands on something it is faded in, and the ground under it has the piece's own depth, so nothing slides.
-python scripts/locations/layers.py [o|u|s|r] [proof-dir]        (from the repo root; see docs/locations.md)
+python scripts/locations/layers.py [o|u|s|r|p] [proof-dir]      (from the repo root; see docs/locations.md)
 python scripts/locations/layers.py [o|u|s|r] [proof-dir] maps   (before there is a background: the maps the owner makes it from, into proof-dir)"""
 import os
 import sys
@@ -788,6 +788,43 @@ def runebarriers():
     make('r', 'runebarriers', 'Rune Barriers/RuneBarriers.jpg', specs, np.zeros((H, W)), wind, e, 'Rune Barriers/parallax/RuneBarriersBG.jpg')
 
 
-PLACES = {'o': outskirts, 'u': underbelly, 's': scrapyard, 'r': runebarriers}
+
+def terys():
+    """TERYS GATE (owner 2026-11-27: "use this for the returning art", renamed from the Portal of Kings): where a game's journey ends.
+    No background was painted for it yet, so v1 is ONE rigid piece: a constant depth (nothing bends, nothing slides), wind on the tree,
+    banners and flowers only, and its own idea in the portal: the light inside it, and its ring of runes, pulse out from its heart
+    (an `energy` mask in data.webp's blue). A cut parallax needs the owner's background (method.md, section 3)."""
+    file = 'PortalOfKings.jpg'
+    master = Image.open(ART + file).convert('RGB')
+    out = PUB + 'terys/'
+    os.makedirs(out, exist_ok=True)
+    I = master.resize((W, H), Image.LANCZOS)
+    I.save(out + 'layer0.webp', quality=88, method=6)
+    clear = Image.new('RGBA', (W, H), (0, 0, 0, 0))
+    for li in (1, 2, 3):
+        clear.save(out + f'layer{li}.webp', quality=88, alpha_quality=97, method=6, exact=True)
+    master.resize((1886, 800), Image.LANCZOS).save(out + 'flat.webp', quality=86)
+    master.resize((960, 407), Image.LANCZOS).filter(ImageFilter.GaussianBlur(3.4)).point(lambda v: int(v * .84)).save(out + 'blur.webp', quality=88)
+    depth = np.full((H, W), .10)
+    wind = soft([([(0, 0), (.20, 0), (.24, .06), (.20, .20), (.12, .30), (.05, .44), (0, .44)], .8),               # the tree
+                 ([(.062, .16), (.098, .16), (.098, .46), (.08, .47), (.062, .40)], .75),                             # its banner
+                 ([(.81, 0), (.865, 0), (.86, .30), (.835, .39), (.81, .30)], .75),                                   # the great banner, right
+                 ([(.31, .35), (.335, .35), (.335, .50), (.31, .50)], .55), ([(.375, .45), (.395, .45), (.395, .55), (.375, .55)], .5),
+                 ([(.762, .41), (.785, .41), (.785, .52), (.762, .52)], .5),
+                 ([(0, .55), (.10, .58), (.13, .70), (.12, 1), (0, 1)], .7),                                           # the flowers, left (not the stone)
+                 ([(.36, .73), (.45, .72), (.46, .82), (.37, .83)], .45),
+                 ([(.70, .72), (.785, .70), (.79, 1), (.70, 1)], .55), ([(.875, .74), (.95, .72), (.95, .86), (1, .86), (1, 1), (.875, 1)], .7)], 9)
+    yy, xx = np.mgrid[0:H, 0:W]
+    r = np.hypot(xx * 1886 / W - 1122, yy * 800 / H - 292)
+    disc = np.clip((136 - r) / 22, 0, 1)                                    # its edge is inside the frame: nothing but the light moves
+    runes = np.clip(1 - np.abs(r - 166) / 13, 0, 1) * .8
+    e = gaussian_filter(np.maximum(disc, runes), 1.5 * S) * (1 - np.clip((yy / H - .53) / .03, 0, 1))
+    data = np.dstack([depth, wind, e])
+    Image.fromarray(np.uint8(np.clip(data, 0, 1) * 255)).resize((990, 420), Image.LANCZOS).save(out + 'data.webp', lossless=True)
+    Image.fromarray(np.uint8(np.clip(data, 0, 1) * 255)).resize((1980, 840)).save(PREV + 'data-p.png')
+    print('p', 'written')
+
+
+PLACES = {'o': outskirts, 'u': underbelly, 's': scrapyard, 'r': runebarriers, 'p': terys}
 for k in (ARGS[:1] or list(PLACES)):
     PLACES[k]()

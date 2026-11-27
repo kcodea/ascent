@@ -298,6 +298,7 @@ import { startStreamCapture } from './replay/streamRecorder';
 import { combatMayEndGame, gateMotionAllowed, resolutionEndsGame } from './rankedGate/endGameGate';
 import { requestRankedGate } from './rankedGate/rankedGateController';
 import { warmRankedGate } from './rankedGate/RankedGate';
+import { holdPostGame, postGameJourney } from './locationReveal/postGame';
 import { endGateRevealDelayMs, playPlacementTone } from './placementTone';
 import { gateBlocks as tutorialGateBlocks, notifyGateNudge as notifyTutorialGateNudge, tutorialTakesEndCombat } from './tutorial/gateBus';
 import { Unit } from './Unit';
@@ -3769,6 +3770,19 @@ export function Recruit() {
       if (combatMayEndGame(st.run)) {
         const tx = st.preparePresentationAction({ type: 'resolveCombat' });
         if (tx && tx.action.type === 'resolveCombat' && resolutionEndsGame(tx.after) && gateMotionAllowed()) {
+          // THE POST-GAME JOURNEY (owner 2026-11-27, postGame.tsx): where the game has a location, the doors shut with a crystal
+          // that waits for the press, and its shatter carries the player to the post-game screen. The placement tone lands with it.
+          const journey = postGameJourney(tx.after, () => { playPlacementTone(useGame.getState().run, 260); });
+          if (journey) {
+            void requestRankedGate(() => {
+              pixiFx.clearParticles();
+              releaseCombatHold(); // the end screen's own sounds + FX play from here
+              holdPostGame(true); // its rank sequence waits for the wave to reach it
+              useGame.getState().commitPresentationAction();
+              wipeExitRef.current = false;
+            }, 'entry', { reveal: journey }).finally(() => holdPostGame(false));
+            return;
+          }
           void requestRankedGate(() => {
             // Behind the shut doors: drop the fight's lingering particles, then land the result. The phase flips
             // to the end of the game, so the end screen mounts out of sight and the doors open on it.

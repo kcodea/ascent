@@ -16,6 +16,7 @@ import { unratedReasonOf, useRankSource } from './rank/rankSource';
 import { ProgressionPostgame } from './progression/ProgressionPostgame';
 import { MatchDetailsDialog } from './matchDetails/MatchScoreboard';
 import { GauntletEndScreen } from './gauntlet/GauntletEndScreen';
+import { PostGameGround, postGameLocation } from './locationReveal/postGame';
 
 /** A live `CardView` for a final-warband minion — shared with the final-board capture (see `liveBoardView`),
  *  so scaling cards show their *accumulated* magnitude at run's end, not the printed base. */
@@ -95,10 +96,14 @@ function LobbyEndScreen({ lobby, run, onPlayAgain }: {
   // OFFLINE = UNRATED (owner 2026-09-28): a ranked lobby with no recorded player run at the table ranks nothing,
   // and says why, the way Practice does.
   const noOpponents = run.mode === 'lobby' && lobbyIsUnrated(lobby);
+  // THE POST-GAME SCREEN stands at the place the game was played (postGame.tsx), as hero select did.
+  const at = postGameLocation(run);
+  const ground = at ? <PostGameGround key={at.id} location={at} /> : null;
   if (run.mode === 'practice' || noOpponents || rankSource) {
     const practice = run.mode === 'practice' || noOpponents;
     return (
-      <div className={`heroselect endscreen lobbyend rankend${won ? ' won' : ''}`}>
+      <div className={`heroselect endscreen lobbyend rankend${won ? ' won' : ''}${at ? ' at-place' : ''}`}>
+        {ground}
         <div className="hsbox endbox">
           <RankScreen
             placement={place}
@@ -125,7 +130,8 @@ function LobbyEndScreen({ lobby, run, onPlayAgain }: {
     );
   }
   return (
-    <div className={`heroselect endscreen lobbyend${won ? ' won' : ''}`}>
+    <div className={`heroselect endscreen lobbyend${won ? ' won' : ''}${at ? ' at-place' : ''}`}>
+      {ground}
       <div className="hsbox endbox">
         <div className="endplace" aria-label={`Finished ${ordinal(place)} of ${lobby.seats.length}`}>
           <span className="endplace-num">{ordinal(place)}</span>

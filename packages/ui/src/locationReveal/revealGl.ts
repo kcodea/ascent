@@ -486,7 +486,7 @@ export class RevealGl {
     const d = distAt(s);
     const gather = smoother(seg(s, L - 0.7, L));
     const inh = landed ? 0 : gather;
-    const posters = seg(s, POST - 0.15, POST + 0.55);
+    const posters = n === 0 ? 0 : seg(s, POST - 0.15, POST + 0.55); // a journey hangs none
     const whole = after > waveAt(this.far) + 0.2;
     const outro = smoother(seg(s, outroAt(n) + 0.1, washAt(n) + WASH * 0.7)); // it softens and you step in
     const hp = heartAt(s, this.vcx, this.vcy, GEM_Y * this.gate);

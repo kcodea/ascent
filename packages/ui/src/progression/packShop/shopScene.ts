@@ -255,6 +255,19 @@ const HAND_SHADOW = { lift: 0.12, spread: 0.16, lifted: 0.45 } as const;
  */
 const HAND_GLOW = 0.85;
 const GLOW_TINT: Readonly<Record<string, number>> = { common: 0xdfe6f2, rare: 0x6fb4ff, epic: 0xc88bff, legendary: 0xffc55a, ancient: 0x7ff2e2 };
+/**
+ * A HOVERED shelf pack glows softly in its own main colour (owner 2026-11-27: "when hovering a card, it should subtly glow
+ * its main color"), this strong at full lift: the wrapper's colour for a themed pack (the Launch Pack is wine red), its
+ * rarity's for a rarity pack, the foil's teal for a category pack.
+ */
+const SHELF_GLOW = 0.5;
+const THEMED_GLOW: Readonly<Record<string, number>> = { 'themed-launch': 0xe0466e };
+const CATEGORY_GLOW = 0x5cc0c4;
+export function shelfGlowTint(look: PackOffer['look']): number {
+  if (look.kind === 'themed') return THEMED_GLOW[look.id] ?? 0xe07aa2;
+  if (look.kind === 'category') return CATEGORY_GLOW;
+  return GLOW_TINT[packGlowRarity(look)] ?? 0xffd27a;
+}
 /** A stack's count ("x4"): its size as a share of a hand pack's height, and where it sits (shares of the pack's width and height from its centre). */
 // (owner 2026-11-26: centred on the pack's foot, so a count never lies over the next stack)
 const STACK_COUNT = { font: 0.1, x: 0, y: 0.34 } as const; // on the foot edge, under the pack's name
@@ -538,8 +551,10 @@ class ShopSceneImpl implements ShopScene {
     this.tray.anchor.set(0.5);
     app.stage.addChild(this.tray);
     const rack = new Container();
+    const shelfGlowTex = tex(paintPackGlow());
     for (let s = 0; s < POOL; s++) {
       const p = new ShelfPack(webgl, this.bandTex);
+      p.enableGlow(shelfGlowTex);
       this.packs.push(p);
       rack.addChild(p.view);
     }
@@ -609,7 +624,7 @@ class ShopSceneImpl implements ShopScene {
     this.restLayer = rests;
     app.stage.addChild(rests);
     const contactTex = tex(paintContactShadow());
-    const glowTex = tex(paintPackGlow());
+    const glowTex = shelfGlowTex; // one glow slab for shelf and hand
     const hand = new Container();
     for (let j = 0; j < HAND_FAN_MAX; j++) {
       const p = new ShelfPack(webgl, this.bandTex);
@@ -1184,6 +1199,7 @@ class ShopSceneImpl implements ShopScene {
         if (u >= 1) this.slotSettle[s] = -1; else p.y += SETTLE_DEPTH * p.h * settleDip(u);
         moving = true;
       }
+      pack.setGlow(SHELF_GLOW * lift, shelfGlowTint(offer.look));
       // the shelf's idle wave of light, gone as the pack lifts
       pack.pose(p, tilt.ax + this.idleAim(i, lift), tilt.ay, lift);
       // the tag's knot rides the pack's own corner, through its tilt (and its settle bob)

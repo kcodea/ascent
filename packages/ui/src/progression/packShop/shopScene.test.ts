@@ -26,7 +26,7 @@ vi.mock('pixi.js', async (importOriginal) => {
 });
 
 import type { OwnedPack, PackOffer } from '@game/progression';
-import { createShopScene, hoverAllowed, type ShopSceneEvents } from './shopScene';
+import { createShopScene, hoverAllowed, shelfGlowTint, type ShopSceneEvents } from './shopScene';
 import { createShopSounds } from './shopSounds';
 
 const LOOK = { kind: 'rarity', id: 'rare', name: 'Rare Pack', guaranteedFloor: 'rare' } as const;
@@ -114,5 +114,14 @@ describe('hoverAllowed', () => {
     expect(hoverAllowed(true, false, true, false, false, false)).toBe(false);
     expect(hoverAllowed(true, true, false, false, false, false)).toBe(false);
     expect(hoverAllowed(false, true, true, false, false, false)).toBe(false);
+  });
+});
+
+describe('a hovered shelf pack glows its own main colour', () => {
+  // owner 2026-11-27: "when hovering a card, it should subtly glow its main color"
+  it('picks the wrapper colour: wine red Launch, gold Legendary, blue Rare', () => {
+    expect(shelfGlowTint({ kind: 'themed', id: 'themed-launch', name: 'Launch Pack', guaranteedFloor: 'epic' } as PackOffer['look'])).toBe(0xe0466e);
+    expect(shelfGlowTint({ kind: 'rarity', id: 'rarity-legendary', name: 'Legendary', guaranteedFloor: 'legendary' } as PackOffer['look'])).toBe(0xffc55a);
+    expect(shelfGlowTint({ kind: 'rarity', id: 'rarity-rare', name: 'Rare', guaranteedFloor: 'rare' } as PackOffer['look'])).toBe(0x6fb4ff);
   });
 });

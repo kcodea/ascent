@@ -66,6 +66,15 @@ export const PATCH_NOTES: PatchNote[] = [
           'Skipping the rewatch fast-forwards it the same way and brings you back to the recap.',
         ],
       },
+      {
+        category: 'Systems',
+        text: 'The Rules page in the Compendium is up to date, with 71 new questions answered.',
+        details: [
+          'Answers now match the current menus: the top bar, the Play screen tabs, Settings on Esc and the gear menu.',
+          'New questions cover Ancients, Versus (1v1, Group and Duos), Ranked Duos, Live Games, Friends, God Mode, Match details and Game strength.',
+          'Many keyword answers gained the edge cases players ask about, like Ward against Destroy, Rise with a full board, and Spell Power.',
+        ],
+      },
     ],
   },
   {

@@ -15,7 +15,7 @@ export const ENTRIES: readonly WikiEntry[] = [
     id: 'health-and-armor',
     topic: 'basics',
     q: 'How do Health and Armor work?',
-    a: "Everyone starts at **30 Health**, and your hero also gives you some **Armor** on top (it's different for each hero). Damage hits your Armor first, and only what's left over reaches your Health. Armor never comes back once it's gone. When your Armor and Health are both gone, you're eliminated.",
+    a: "Everyone starts at **30 Health**, and your hero also gives you some **Armor** on top (it's different for each hero). Damage hits your Armor first, and only what's left over reaches your Health. Armor doesn't refill by itself, but a few spells and runes can give you more (like the **Mend** spell or the **Hazard Pay** rune), and it stays until damage takes it. When your Armor and Health are both gone, you're eliminated.",
     aliases: ['hp', 'life', 'resolve', 'shield', 'eliminated', 'die', 'knocked out'],
     seeAlso: ['how-much-damage', 'goal-of-the-game'],
     covers: [{ rule: 'R-ARMOR-01', fp: '2a7cb924' }],

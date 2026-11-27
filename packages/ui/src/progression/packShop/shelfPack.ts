@@ -11,7 +11,7 @@
  * Coordinates: the view is centred on the pack and drawn in the pack's BASE units (`PACK_GEOM`), scaled to the pose's
  * height. `pose` allocates nothing and rewrites the mesh only when the tilt, its depth or the gloss band moved.
  */
-import { CanvasSource, Container, PerspectiveMesh, Texture } from 'pixi.js';
+import { CanvasSource, ColorMatrixFilter, Container, PerspectiveMesh, Texture } from 'pixi.js';
 import type { PackLook } from '@game/progression';
 import { getDragFeel } from '../../dragFeel';
 import { packArtFor } from '../packOpening/packArt';
@@ -24,6 +24,16 @@ import type { PackPose } from './shopLayout';
 
 /** A greyed pack's tint (owner 2026-11-27: "lightly grey out the pack"). */
 const MUTED_TINT = 0x9c9c9c;
+/**
+ * A SOLD-OUT pack (owner 2026-11-27: "when sold out, make the card transparent. grey it out"): drained of colour by one
+ * static filter (shared, only on sold-out packs) and see-through, so it reads stronger than an owned-everything pack.
+ */
+const SOLD_ALPHA = 0.4;
+let soldFilter: ColorMatrixFilter | null = null;
+const soldOutFilter = (): ColorMatrixFilter => {
+  if (!soldFilter) { soldFilter = new ColorMatrixFilter(); soldFilter.desaturate(); }
+  return soldFilter;
+};
 
 const { W, H, BODY_H } = PACK_GEOM;
 /** The whole pack's height (strip + body), base units. */
@@ -209,7 +219,7 @@ export class ShelfPack {
     this.view.visible = on;
     if (!on) return;
     const k = q.h / HT;
-    this.view.alpha = q.alpha;
+    this.view.alpha = q.alpha * (this.soldOut ? SOLD_ALPHA : 1);
     this.view.position.set(q.x, q.y);
     this.view.rotation = q.rot;
     this.view.scale.set(k);
@@ -274,6 +284,15 @@ export class ShelfPack {
     this.side.tint = BODY_SIDE_TINT;
     this.view.addChildAt(this.side, this.view.getChildIndex(this.mesh));
     this.puffed = true;
+    this.key.rx = NaN;
+  }
+
+  private soldOut = false;
+  /** Sold out: greyscale and see-through (call before `pose`). */
+  setSoldOut(on: boolean): void {
+    if (on === this.soldOut) return;
+    this.soldOut = on;
+    this.view.filters = on ? [soldOutFilter()] : [];
     this.key.rx = NaN;
   }
 

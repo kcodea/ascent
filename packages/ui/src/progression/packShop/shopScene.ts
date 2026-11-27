@@ -1244,7 +1244,8 @@ class ShopSceneImpl implements ShopScene {
       } else this.tagX[s] = NaN;
       // OWNED EVERY COSMETIC (owner 2026-11-27: "lightly grey out the pack and overlay a notice"): still buyable
       const owned = ownsEveryCosmetic(offer);
-      pack.setMuted(owned);
+      pack.setMuted(owned && !offer.soldOut);
+      pack.setSoldOut(!!offer.soldOut);
       const note = this.ownedNotes[s]!;
       note.view.visible = owned && tagA > 0.01;
       if (note.view.visible) {

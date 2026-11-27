@@ -1,10 +1,11 @@
-# Skins batches 22 to 27: six style sets (2026-11-27)
+# Skins batches 22 to 29: eight style sets (2026-11-27)
 
-Two hundred and twenty Set 2 minion skins in six style sets: Voxel, Sketchbook, Crayon, Encore, 8 Bit and Low Poly. All
-are crate items like every other skin. Rarity, owner: "Follow tavern tier". Unlike earlier batches the rarity is not the
+Two hundred and ninety Set 2 minion skins in eight style sets: Voxel, Sketchbook, Crayon, Encore, 8 Bit, Low Poly, Sports
+and Stained Glass. All are crate items like every other skin. Rarity, owner: "Follow tavern tier". Unlike earlier batches the rarity is not the
 folder the master sits in: it follows the tavern tier of the minion. Tier 1-2 Common, Tier 3-4 Rare, Tier 5-6 Epic,
 Tier 7 Legendary. Every row below was checked against its card's tier in `@game/content`. The Crayon set joined the PR
-on "Yes, same PR", the Encore, 8 Bit and Low Poly sets on "and yes add all to the same pr".
+on "Yes, same PR", the Encore, 8 Bit and Low Poly sets on "and yes add all to the same pr", and the Sports and Stained Glass sets followed as
+their art arrived.
 
 ## Batch 22, the Voxel set (40: 12 Common, 12 Rare, 12 Epic, 4 Legendary)
 
@@ -268,16 +269,103 @@ Owner: "and yes add all to the same pr".
 | Low Poly Orivax | Orivax | d2_orivax | 7 | Legendary | Low Poly Orivax.png |
 | Low Poly Runemaster | Auric Runemaster | dw_runemaster | 7 | Legendary | Low Poly Runemaster.png |
 
+## Batch 28, the Sports set (30: 9 Common, 9 Rare, 8 Epic, 4 Legendary)
+
+Owner: "here is the sports pack skins". Named like the earlier sports skins (Golf Midas, Boxing Brewer): the sport, then
+the minion, each skin a different sport, dropping a word to stay within 20 characters (Rugby Bearer, Slugger Agent).
+
+| Skin | Minion | Card id | Tier | Rarity | Sport |
+|---|---|---|---|---|---|
+| Discus Blade Thrower | Blade Thrower | dw_bladethrower | 4 | Rare | discus |
+| Bowling Enigma | Enigma | dm_jumbo | 5 | Epic | bowling |
+| Hammer Runemaster | Auric Runemaster | dw_runemaster | 7 | Legendary | hammer throw |
+| Sprinter Spots | Spots | b2_spots | 6 | Epic | sprint |
+| Linebacker Orin | Oathshield Orin | dw_orin | 1 | Common | American football |
+| Ribbon Jewel | Jewel | k3_jeweler | 4 | Rare | rhythmic gymnastics |
+| Volleyball Matron | Brood Matron | brood | 3 | Rare | volleyball |
+| Tennis Whelp | Ember Whelp | d2_embermouth | 1 | Common | tennis |
+| Climber Leech | Leech | dm_leech | 1 | Common | climbing |
+| Skateboard Armadiyo | Armadiyo | b2_armadiyo | 3 | Rare | skateboarding |
+| Slam Dunk Nimbus | Nimbus | nimbus | 5 | Epic | basketball |
+| Motocross Blazer | Blazer | k_blazer | 3 | Rare | motocross |
+| Ping Pong Cheap Date | Cheap Date | k_pouchpincher | 1 | Common | ping pong |
+| Boxing Striker | Striker | dw3_striker | 2 | Common | boxing |
+| Hockey Grobbus | Grobbus | dm_grobbus | 4 | Rare | ice hockey |
+| Fencing Joker | Mysterious Joker | joker | 6 | Epic | fencing |
+| Kayak Riverback | Riverback | d2_riverdrake | 3 | Rare | kayak |
+| Skater Mirrorwing | Mirrorwing | d2_mirrorwing | 2 | Common | figure skating |
+| Water Polo Urchin | Sea Urchin | seaurchin | 4 | Rare | water polo |
+| Long Jump Panther | Void Panther | manasaber | 1 | Common | long jump |
+| Golf McKlusky | Salvatore McKlusky | salvatore | 7 | Legendary | golf |
+| Slugger Agent | Appetite Agent | dm_agent | 2 | Common | baseball |
+| Badminton Mender | Ruby Mender | k_deepvein | 2 | Common | badminton |
+| Snowboard Wooly | Wooly | b2_mammoth | 5 | Epic | snowboarding |
+| Surfer Orivax | Orivax | d2_orivax | 7 | Legendary | surfing |
+| Soccer Grimoire | Grimoire | d2_grimoire | 6 | Epic | soccer |
+| BMX Party Crasher | Party Crasher | k_gemstorm | 6 | Epic | BMX |
+| Archer Brisbane | Alchemist Brisbane | k_alchemist | 7 | Legendary | archery |
+| Rugby Bearer | Standard Bearer | n2_standardbearer | 3 | Rare | rugby |
+| Weightlifter Edward | Edward Keg-hands | dw_edward | 5 | Epic | weightlifting |
+
+## Batch 29, the Stained Glass set (40: 12 Common, 12 Rare, 11 Epic, 5 Legendary)
+
+Owner: "here is tehe Stained Glass minions for the stained glass pack". Named "Stained Glass <minion>", or "Glass <minion>"
+(after the older Glass Guardian) when that keeps the name within 20 characters.
+
+| Skin | Minion | Card id | Tier | Rarity | Master |
+|---|---|---|---|---|---|
+| Glass Gangplank | Gangplank | dw_gangplank | 3 | Rare | Glass Gangplank.png |
+| Glass Roomworks | Roomworks | d2_roomworks | 4 | Rare | Glass Roomworks.png |
+| Glass Broodfire | Broodfire | d2_broodfire | 2 | Common | Glass Broodfire.png |
+| Glass Crownvein | Crownvein | k_crownvein | 5 | Epic | Glass Crownvein.png |
+| Glass Bob Blart | Bob Blart | dm_gourmand | 3 | Rare | Glass Bob Blart.png |
+| Glass Conductor | Conductor | n2_conductor | 3 | Rare | Glass Conductor.png |
+| Glass Captain Flamus | Captain Flamus | d2_warflame | 6 | Epic | Glass Captain Flamus.png |
+| Glass Paymaster Pimm | Paymaster Pimm | dw_pimm | 1 | Common | Glass Paymaster Pimm.png |
+| Glass Tauntbreaker | Tauntbreaker | tauntbreaker | 4 | Rare | Glass Tauntbreaker.png |
+| Glass Fel Spikes | Fel Spikes | dm_felspikes | 5 | Epic | Glass Fel Spikes.png |
+| Glass Elderhorn | Elderhorn | b2_elderhorn | 7 | Legendary | Glass Elderhorn.png |
+| Glass Storm Chaser | Storm Chaser | k_stormchaser | 3 | Rare | Glass Storm Chaser.png |
+| Stained Glass Zyff | Zyff | zyff | 7 | Legendary | Stained Glass Zyff.png |
+| Glass Hydraskus | Hydraskus | dm_hydraskus | 6 | Epic | Glass Hydraskus.png |
+| Glass Warpath | Warpath | d2_blazingkeeper | 5 | Epic | Glass Warpath.png |
+| Glass Grobbus | Grobbus | dm_grobbus | 4 | Rare | Glass Grobbus.png |
+| Glass Runemaster | Auric Runemaster | dw_runemaster | 7 | Legendary | Glass Runemaster.png |
+| Glass Sharpshooter | Sharpshooter | dw_sharpshooter | 4 | Rare | Glass Sharpshooter.png |
+| Glass Jensen & Fi | Jensen & Fi | jenkins | 5 | Epic | Glass Jensen & Fi.png |
+| Glass Vicious | Vicious | b2_florida | 6 | Epic | Glass Vicious.png |
+| Glass Tapkeeper | Tapkeeper | dw_tapkeeper | 6 | Epic | Glass Tapkeeper.png |
+| Glass Cheap Date | Cheap Date | k_pouchpincher | 1 | Common | Glass Cheap Date.png |
+| Glass Kringle | Kringle | dw_foreman | 5 | Epic | Glass Kringle.png |
+| Glass Sea Urchin | Sea Urchin | seaurchin | 4 | Rare | Glass Sea Urchin.png |
+| Glass Sunmane | Sunmane | b2_sunmane | 5 | Epic | Glass Sunmane.png |
+| Glass Buddy Buddy | Buddy Buddy | buddy | 2 | Common | Glass Buddy Buddy.png |
+| Glass Armadiyo | Armadiyo | b2_armadiyo | 3 | Rare | Glass Armadiyo.png |
+| Glass Packstrider | Packstrider | b2_packstrider | 1 | Common | Glass Packstrider.png |
+| Glass Kennelmaster | Kennelmaster | kennel | 2 | Common | Glass Kennelmaster.png |
+| Glass Earthbreaker | Earthbreaker | d2_scalechanter | 3 | Rare | Glass Earthbreaker.png |
+| Stained Glass Delvey | Delvey | k_deepdelve | 6 | Epic | Stained Glass Delvey.png |
+| Glass Overseer | Overseer | impoverseer | 2 | Common | Glass Overseer.png |
+| Glass Brisbane | Alchemist Brisbane | k_alchemist | 7 | Legendary | Glass Brisbane.png |
+| Glass Ruby Mender | Ruby Mender | k_deepvein | 2 | Common | Glass Ruby Mender.png |
+| Stained Glass Leech | Leech | dm_leech | 1 | Common | Stained Glass Leech.png |
+| Glass Cinderchef | Cinderchef | d2_cinderchef | 1 | Common | Glass Cinderchef.png |
+| Stained Glass Billy | Big Brain Billy | dw_bigbrainbilly | 2 | Common | Stained Glass Billy.png |
+| Glass Assembler | Assembler | k_assembler | 4 | Rare | Glass Assembler.png |
+| Stained Glass Beggy | Beggy | k_beggy | 1 | Common | Stained Glass Beggy.png |
+| Stained Glass Orivax | Orivax | d2_orivax | 7 | Legendary | Stained Glass Orivax.png |
+
 ## Calls for the owner to confirm
 
 - **Naming.** Voxel skins are "Voxel <minion>", Sketchbook "Sketch <minion>" (Sketchbook Brian, an older skin, keeps its
   name), Crayon "Crayon <minion>" (the older crayon skins keep their Scribble names), Encore "Encore <minion>", 8 Bit
   "8 Bit <minion>", and Low Poly "Low Poly <minion>", or "Poly <minion>" when that keeps the full minion name within 20
-  characters (like the older Poly Flutterbutter).
+  characters (like the older Poly Flutterbutter). Sports skins are the sport then the minion; Stained Glass skins are
+  "Stained Glass <minion>" or "Glass <minion>".
 - **Names over 20 characters drop a word.** For example Voxel Brisbane, Voxel Flamebeat, Sketch Hank (Right Hand Hank),
   Sketch Voss (Bellringer Voss), Sketch Pimm (Paymaster Pimm), Crayon Brain Billy, Crayon Flamus, Encore Brian (Black
   Belt Brian), Encore Flamebeat, Low Poly Steward (Steward of Spells).
-- **Tavern tier as rarity** is ruled for these six sets; other batches still follow their master's folder
+- **Tavern tier as rarity** is ruled for these eight sets; other batches still follow their master's folder
   (R-PROG-SKINS-11).
 - Two masters hold an ampersand (`Sketch Grevlin & Co.png`, `Sketch Jensen & Fi.png`); the master-name check in
   `skins.test.ts` now allows `&`.
@@ -285,9 +373,9 @@ Owner: "and yes add all to the same pr".
 
 ## What moved
 
-528 skins in all. A first crate holds 157 Common, 211 Rare, 211 Epic, 139 Legendary and 38 Ancient items (each Common
-0.223%, Rare 0.147%, Epic 0.104%, Legendary 0.065%, Ancient 0.079%). Minion skins are 70.4% of a first crate (was 58.2%).
-The Minions tab holds 484 skins; the Collection total is 806. Rule R-PROG-SKINS-30.
+598 skins in all. A first crate holds 178 Common, 232 Rare, 230 Epic, 148 Legendary and 38 Ancient items (each Common
+0.197%, Rare 0.134%, Epic 0.096%, Legendary 0.061%, Ancient 0.079%). Minion skins are 72.8% of a first crate (was 58.2%).
+The Minions tab holds 554 skins; the Collection total is 876. Rule R-PROG-SKINS-30.
 
 ## Deploy
 

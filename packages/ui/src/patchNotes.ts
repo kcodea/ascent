@@ -60,11 +60,11 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
-        text: 'Six new sets of minion skins in chests, 220 skins in all: Voxel, Sketchbook, Crayon, Encore, 8 Bit and Low Poly.',
+        text: 'Eight new sets of minion skins in chests, 290 skins in all: Voxel, Sketchbook, Crayon, Encore, 8 Bit, Low Poly, Sports and Stained Glass.',
         details: [
-          'Forty skins in each set, twenty in Crayon.',
+          'Forty skins in each set, twenty in Crayon and thirty in Sports.',
           'A skin\'s rarity follows its minion\'s tavern tier: Tier 1-2 Common, Tier 3-4 Rare, Tier 5-6 Epic, Tier 7 Legendary.',
-          'Among them: Voxel Yazzus, Sketch Orivax, Crayon Zyff, Encore Uron, 8 Bit Brisbane and Low Poly McKlusky. Auric Runemaster gets its first skins.',
+          'Among them: Voxel Yazzus, Sketch Orivax, Crayon Zyff, Encore Uron, 8 Bit Brisbane, Low Poly McKlusky, Bowling Enigma, Golf McKlusky and Surfer Orivax. Auric Runemaster gets its first skins.',
         ],
       },
       {

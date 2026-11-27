@@ -46,7 +46,8 @@ export const STYLE_PACKS: readonly { id: string; file: string; name: string }[] 
   { id: 'themed-sketchbook', file: 'sketchbook', name: 'Sketchbook Pack' },
   { id: 'themed-encore', file: 'encore', name: 'Encore Pack' },
   { id: 'themed-crayon', file: 'crayon', name: 'Crayon Pack' },
-  { id: 'themed-sports', file: 'sports', name: 'Sports Pack' }, // owner 2026-11-27: "here is the sports pack wrapper" // owner 2026-11-27: "here is the crayon pack wrapper" // owner 2026-11-27: "here is the art for the encore pack"
+  { id: 'themed-sports', file: 'sports', name: 'Sports Pack' },
+  { id: 'themed-stained-glass', file: 'stainedglass', name: 'Stained Glass Pack' }, // owner 2026-11-27: "i want it stained glass themed" // owner 2026-11-27: "here is the sports pack wrapper" // owner 2026-11-27: "here is the crayon pack wrapper" // owner 2026-11-27: "here is the art for the encore pack"
 ];
 
 /** Themed looks that wear their own wrapper, by look id. */

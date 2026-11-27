@@ -55,6 +55,7 @@ const PACKS = {
   encore: { logo: [0.43, 0.545], forms: 0.4, parts: 0.5, detail: 0.34, slope: 5.5, ground: 1 }, // painted foil, a concert stage
   crayon: { logo: [0.41, 0.495], forms: 0.3, parts: 0.3, detail: 0.5, slope: 5, ground: 0.4 }, // crayon on paper, like Scribble
   sports: { logo: [0.395, 0.47], forms: 0.4, parts: 0.5, detail: 0.34, slope: 5.5, ground: 1 }, // painted foil, a stadium
+  stainedglass: { logo: [0.405, 0.49], forms: 0.4, parts: 0.5, detail: 0.34, slope: 5.5, ground: 1 }, // glass panes in gold leading
   sketchbook: { logo: [0.38, 0.487], forms: 0.2, parts: 0.25, detail: 0.5, slope: 4.5, ground: 0.3 }, // pencil on paper: nearly flat, the lines bite in
 };
 // The template's named parts, as soft ellipses in shares of the wrapper (cx, cy, rx, ry) and their swell.

@@ -18,6 +18,8 @@ export interface PackOffer {
   look: PackLook;
   /** Aether; 0 = free. */
   price: number;
+  /** On sale: the price before the discount (more than `price`). The shop shows the cut, never decides it. */
+  fullPrice?: number;
   /** Which shelf (tab) it stands on: a `PackShelf.id`. */
   shelf: string;
   /** 1 for a pack; more for a box. */
@@ -44,6 +46,13 @@ export type BuyPackError = 'insufficient' | 'price_changed' | 'sold_out' | 'gues
 export type BuyPackOutcome =
   | { status: 'ok'; packs: readonly OwnedPack[]; aether: number }
   | { status: 'error'; reason: BuyPackError; aether?: number };
+
+/** A sale's discount as a whole percent (40 for 40% off), or 0 when the offer is not on sale. */
+export function saleOff(offer: PackOffer): number {
+  const full = offer.fullPrice ?? 0;
+  if (full <= 0 || offer.price >= full) return 0;
+  return Math.round(((full - offer.price) / full) * 100);
+}
 
 /** Whether the quote can be bought with this balance: never when sold out, always when free. */
 export function canAfford(offer: PackOffer, aether: number): boolean {

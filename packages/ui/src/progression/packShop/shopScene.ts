@@ -43,7 +43,7 @@
  *    scene has faded out under the opener with no Aether in flight (`hiddenAsleep`); `setVisible(true)` wakes it.
  */
 import { Application, CanvasSource, Container, Graphics, Sprite, Text, Texture, type Ticker } from 'pixi.js';
-import type { OwnedPack, PackOffer } from '@game/progression';
+import { saleOff, type OwnedPack, type PackOffer } from '@game/progression';
 import { stageScale } from '../../stage';
 import { detachPixiDomEvents } from '../../pixiNoDomEvents';
 import { destroyPixiApp, guardAppRender, watchContextLoss } from '../../pixiAppSafety';
@@ -1169,7 +1169,7 @@ class ShopSceneImpl implements ShopScene {
       const pl = this.placards[s]!;
       if (this.placardOf[s] !== offer) {
         this.placardOf[s] = offer;
-        const count = placardCount(offer.contains), badge = placardBadge(offer.badge);
+        const count = placardCount(offer.contains), badge = placardBadge(offer.badge, saleOff(offer));
         if (offer.soldOut) pl.set('Sold out', 'sold', count, badge);
         else if (offer.price <= 0) pl.set('Free', 'free', count, badge);
         else pl.set(String(offer.price), 'price', count, badge);
@@ -1583,7 +1583,7 @@ class ShopSceneImpl implements ShopScene {
     const tag = this.heldTag;
     if (!tag || this.heldTagOf === offer) return;
     this.heldTagOf = offer;
-    const count = placardCount(offer.contains), badge = placardBadge(offer.badge);
+    const count = placardCount(offer.contains), badge = placardBadge(offer.badge, saleOff(offer));
     if (offer.soldOut) tag.set('Sold out', 'sold', count, badge);
     else if (offer.price <= 0) tag.set('Free', 'free', count, badge);
     else tag.set(String(offer.price), 'price', count, badge);

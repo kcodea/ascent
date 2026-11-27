@@ -9,7 +9,8 @@ describe('the placard\'s words', () => {
   it('a new or featured offer wears a ribbon chip; a free offer does not (its placard already says "Free")', () => {
     expect(placardBadge('new')).toBe('New');
     expect(placardBadge('featured')).toBe('Featured');
-    expect(placardBadge('free')).toBeNull();
+    expect(placardBadge('free')).toBe('Daily');
+    expect(placardBadge('featured', 40)).toBe('-40%');
     expect(placardBadge(undefined)).toBeNull();
   });
 

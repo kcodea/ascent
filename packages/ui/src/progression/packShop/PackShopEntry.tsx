@@ -8,7 +8,7 @@ import { stageHost } from '../../stage';
 import { VISTA_DOOR_CLIP, VISTA_DOOR_CLIP_ID } from '../../vistaDoor';
 import { PACK_LAB_SAMPLES, cancelLabTimers, makeLabOpen, type LabTimers } from '../packOpening/packLabSamples';
 import { PackShop, type PackShopProps } from './PackShop';
-import { LAB_GUARANTEE_EVERY, SHOP_LAB_OFFERS, SHOP_LAB_SHELVES, labGuaranteeAfter, labHand, makeLabBuy, type LabState } from './shopLabData';
+import { LAB_GUARANTEE_EVERY, SHOP_LAB_SHELVES, shopLabOffers, labGuaranteeAfter, labHand, makeLabBuy, type LabState } from './shopLabData';
 
 /**
  * THE WAY INTO THE PACK SHOP FROM THE MENU (owner 2026-11-26: "when clicking shop. i want to use the return to shop
@@ -99,15 +99,24 @@ function LabPackShop({ onClose }: { onClose: () => void }) {
   const timersRef = useRef<LabTimers>(new Set());
   useEffect(() => { const t = timersRef.current; return () => cancelLabTimers(t); }, []);
   const sampleN = useRef(0);
+  // today's shelves, drawn as the shop opens (the featured window rotates by the day); the daily free pack is taken once
+  const allOffers = useMemo(() => shopLabOffers(), []);
+  const [freeTaken, setFreeTaken] = useState<ReadonlySet<string>>(() => new Set());
+  const offers = useMemo(() => allOffers.map((o) => (freeTaken.has(o.offerId) ? { ...o, soldOut: true } : o)), [allOffers, freeTaken]);
   const buy = useMemo<PackShopProps['buy']>(() => {
-    const labBuy = makeLabBuy(() => stateRef.current, setState, { delayMs: 100, mode: 'ok' }, timersRef.current, SHOP_LAB_OFFERS);
+    const labBuy = makeLabBuy(() => stateRef.current, setState, { delayMs: 100, mode: 'ok' }, timersRef.current, allOffers);
+    const taken = new Set<string>();
     const counted = new Set<string>();
     return async (offerId, requestId) => {
       const out = await labBuy(offerId, requestId);
       if (out.status === 'ok' && !counted.has(requestId)) { counted.add(requestId); setWithin((w) => labGuaranteeAfter(w, out.packs.length)); }
+      if (out.status === 'ok' && allOffers.find((o) => o.offerId === offerId)?.badge === 'free' && !taken.has(offerId)) {
+        taken.add(offerId);
+        setFreeTaken(new Set(taken));
+      }
       return out;
     };
-  }, [setState]);
+  }, [setState, allOffers]);
   const open = useCallback<PackShopProps['open']>(async (packId) => {
     const pack = stateRef.current.hand.find((p) => p.packId === packId);
     const sample = PACK_LAB_SAMPLES[sampleN.current++ % PACK_LAB_SAMPLES.length]!;
@@ -119,7 +128,7 @@ function LabPackShop({ onClose }: { onClose: () => void }) {
     return outcome;
   }, [setState]);
   return (
-    <PackShop shelves={SHOP_LAB_SHELVES} offers={SHOP_LAB_OFFERS} hand={state.hand} aether={state.aether}
+    <PackShop shelves={SHOP_LAB_SHELVES} offers={offers} hand={state.hand} aether={state.aether}
       guarantee={{ rarity: 'legendary', within }} buy={buy} open={open} onClose={onClose} />
   );
 }

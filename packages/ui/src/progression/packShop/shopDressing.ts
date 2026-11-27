@@ -70,8 +70,9 @@ export function paintContactShadow(): HTMLCanvasElement {
 export type PlacardKind = 'price' | 'free' | 'sold';
 
 /** The ribbon chip's words for an offer's badge (null: no chip). "Free" has none: the placard already says it. */
-export function placardBadge(badge: 'new' | 'free' | 'featured' | undefined): string | null {
-  return badge === 'new' ? 'New' : badge === 'featured' ? 'Featured' : null;
+export function placardBadge(badge: 'new' | 'free' | 'featured' | undefined, off = 0): string | null {
+  if (off > 0) return `-${off}%`; // a sale's cut wins the tag's one label (owner 2026-11-27: discounted featured packs)
+  return badge === 'new' ? 'New' : badge === 'featured' ? 'Featured' : badge === 'free' ? 'Daily' : null;
 }
 
 /** A box's count beside its price ("x10"); empty for a single pack. */
@@ -83,6 +84,8 @@ export function placardCount(contains: number): string {
 const CHIP = {
   New: { fill: 0x1f6b57, rim: 0x8dffd8, text: 0xd9fff2 },
   Featured: { fill: 0x6b4a12, rim: 0xffd27a, text: 0xfff1d0 },
+  Daily: { fill: 0x1f6b57, rim: 0x8dffd8, text: 0xd9fff2 },
+  Sale: { fill: 0x8a1f1f, rim: 0xff9a7a, text: 0xfff0e8 },
 } as const;
 const CHIP_FONT = 19;
 const CHIP_H = 26;
@@ -236,7 +239,7 @@ export class Placard {
     const chip = this.chip;
     chip.visible = words !== null;
     if (words === null) return;
-    const look = words === 'New' ? CHIP.New : CHIP.Featured;
+    const look = words === 'New' ? CHIP.New : words === 'Daily' ? CHIP.Daily : words.startsWith('-') ? CHIP.Sale : CHIP.Featured;
     const tx = this.chipText;
     tx.text = words;
     tx.style.fill = look.text;

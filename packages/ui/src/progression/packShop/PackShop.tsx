@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { createPortal } from 'react-dom';
-import { aetherShort, type BuyPackOutcome, type CrateRarity, type OwnedPack, type PackOffer, type PackShelf } from '@game/progression';
+import { aetherShort, saleOff, type BuyPackOutcome, type CrateRarity, type OwnedPack, type PackOffer, type PackShelf } from '@game/progression';
 import { rectToStage, stageHost, stageViewport, type StageRect } from '../../stage';
 import { prefersReducedMotion } from '../CrateOpener';
 import { PackOpener, type PackOpenOutcome, type PackQueueItem } from '../packOpening/PackOpener';
@@ -667,7 +667,13 @@ export function PackShop(props: PackShopProps) {
             <div className={`${cls}-line`}>{t.floor}</div>
           </div>
         </div>
-        <div className={`${cls}-price`}>{o.price > 0 && <AetherIcon />}{t.price}</div>
+        <div className={`${cls}-price`}>
+          {o.price > 0 && <AetherIcon />}{t.price}
+          {saleOff(o) > 0 && <>
+            <s className="pks-was" aria-label={`was ${o.fullPrice} Aether`}>{o.fullPrice}</s>
+            <span className="pks-off">{`-${saleOff(o)}%`}</span>
+          </>}
+        </div>
         {t.soldOut ? <div className={`${cls}-short`}>Sold out</div> : t.short > 0 && <div className={`${cls}-short`}>{`Need ${t.short} more Aether`}</div>}
         {full && t.short <= 0 && <div className={`${cls}-short`}>Open packs to make room</div>}
         {withButton && (

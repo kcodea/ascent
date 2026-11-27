@@ -3,7 +3,9 @@ import type { WikiEntry } from './types';
 // Checked against packages/core/src/effects/arena.ts + factories.ts, combat/simulate.ts (isTribeOf),
 // packages/core/src/tribeGate.ts, packages/content/src/sets.ts, packages/sim/src/recruit.ts (playCard, fire
 // 'onSummon', settleMinionSale, addTurnShopBuff), reducer.ts (sell, spendGold, combineIntoGolden, buy),
-// packages/ui/src/Card.tsx (tribe plate) and the approved rules cited in `covers`, on 2026-09-28.
+// packages/ui/src/Card.tsx (tribe plate) and the approved rules cited in `covers`, on 2026-09-28. Re-checked
+// 2026-11-27: R-TEXT-RECRUIT-PHASE-01 (the phase is the Recruit phase, "the Shop" is the offer row), R-AURA-03 (no Beast
+// Aura) and the live set's dual-tribe minions (set2/dwarves.ts).
 export const ENTRIES: readonly WikiEntry[] = [
   // ── Tribes ──────────────────────────────────────────────────────────────────────────────────────────────
   {
@@ -26,7 +28,7 @@ export const ENTRIES: readonly WikiEntry[] = [
     id: 'dual-tribe-minions',
     topic: 'glossary',
     q: 'Does a minion with two tribes count as both?',
-    a: "Yep. A minion printed with two tribes (like **Dragon / Demon**) counts as **both, fully**. \"Give your Demons +2/+2\" buffs it, and so does \"give your Dragons +2/+2\". It also counts once for each of its tribes when something counts your minions of a type.",
+    a: "Yep. A minion printed with two tribes (like **Dwarf / Demon**) counts as **both, fully**. \"Give your Demons +2/+2\" buffs it, and so does \"give your Dwarves +2/+2\". It also counts once for each of its tribes when something counts your minions of a type.",
     aliases: ['two tribes', 'double tribe', 'dual type', 'hybrid', 'both types', 'slash tribe'],
     seeAlso: ['what-is-a-tribe', 'all-type-minions'],
   },
@@ -44,7 +46,7 @@ export const ENTRIES: readonly WikiEntry[] = [
     id: 'minion-vs-card',
     topic: 'glossary',
     q: 'What\'s the difference between a "card", a "minion" and a "unit"?',
-    a: "**Card** means anything you can hold: minions and spells alike. A **minion** is a card with Attack and Health that goes on your board and fights. A few cards say **unit**; that just means minion.",
+    a: "**Card** means anything you can hold: minions and spells alike. A **minion** is a card with Attack and Health that goes on your board and fights. A couple of older cards say **unit**; that just means minion.",
     aliases: ['unit', 'units', 'card', 'minion', 'creature', 'body', 'follower'],
     seeAlso: ['spell-vs-minion', 'what-is-a-token'],
   },
@@ -148,7 +150,7 @@ export const ENTRIES: readonly WikiEntry[] = [
     id: 'what-cast-means',
     topic: 'glossary',
     q: 'If a minion casts a spell for me, does that count as me casting it?',
-    a: "Yes. A spell a minion (or rune) casts **counts as a spell cast** everywhere: your \"whenever you cast a spell\" cards react, and it counts toward spell tallies, in the Shop, at End of Turn and in combat. It just **isn't a card played from hand**, so it doesn't count as \"played\".",
+    a: "Yes. A spell a minion (or rune) casts **counts as a spell cast** everywhere: your \"whenever you cast a spell\" cards react, and it counts toward spell tallies, in the Recruit phase, at End of Turn and in combat. It just **isn't a card played from hand**, so it doesn't count as \"played\".",
     aliases: ['cast', 'casts', 'minion casts a spell', 'does it count as a spell', 'spell cast by minion'],
     seeAlso: ['cast-multipliers-from-hand', 'what-counts-as-played'],
     covers: [{ rule: 'R-MINIONCAST-01', fp: 'fe99a8c1' }, { rule: 'R-PLAY-01', fp: '55820196' }],
@@ -177,7 +179,7 @@ export const ENTRIES: readonly WikiEntry[] = [
     id: 'destroy-vs-dies',
     topic: 'glossary',
     q: 'Is "destroy" different from a minion dying?',
-    a: "**Destroy** kills a minion outright, no matter how much Health it has. It's still a real death: its **Echo goes off** and a **Rise** minion comes back, in the Shop just like in combat.",
+    a: "**Destroy** kills a minion outright, no matter how much Health it has. It's still a real death: its **Echo goes off** and a **Rise** minion comes back, in the Recruit phase just like in combat. It even goes **straight through a Ward**.",
     aliases: ['destroy', 'destroyed', 'kill', 'dies', 'death', 'sacrifice', 'destroy in shop'],
     seeAlso: ['selling-is-not-dying', 'rise-in-shop'],
     covers: [{ rule: 'R-RISE-02', fp: '0487dd36' }],
@@ -232,7 +234,7 @@ export const ENTRIES: readonly WikiEntry[] = [
     id: 'enemy-meaning',
     topic: 'glossary',
     q: 'What counts as an "enemy"?',
-    a: "The minions on your **opponent's** side in a fight. Enemies only exist in **combat**; the Shop is just you and your board.",
+    a: "The minions on your **opponent's** side in a fight. Enemies only exist in **combat**; in the Recruit phase it's just you and your board.",
     aliases: ['enemy', 'enemies', 'opponent minions', 'foe', 'their minions'],
     seeAlso: ['friendly', 'who-do-i-fight'],
   },
@@ -308,8 +310,8 @@ export const ENTRIES: readonly WikiEntry[] = [
   {
     id: 'this-turn-includes-combat',
     topic: 'glossary',
-    q: 'Does "this turn" include the fight after the Shop?',
-    a: "Yes. A turn is your Shop phase **plus the fight that ends it**. Something that lasts \"this turn\" (or counts \"this turn\") is still live in that combat, and it resets when your next Shop opens.",
+    q: 'Does "this turn" include the fight after the Recruit phase?',
+    a: "Yes. A turn is your Recruit phase **plus the fight that ends it**. Something that lasts \"this turn\" (or counts \"this turn\") is still live in that combat, and it resets when your next Recruit phase starts.",
     aliases: ['this turn', 'turn', 'until end of turn', 'when does it reset', 'per turn'],
     seeAlso: ['each-turn-vs-start-of-turn', 'combat-vs-permanent-wording'],
     covers: [{ rule: 'R-TURN-01', fp: '61026a27' }],
@@ -318,7 +320,7 @@ export const ENTRIES: readonly WikiEntry[] = [
     id: 'each-turn-vs-start-of-turn',
     topic: 'glossary',
     q: 'What\'s the difference between "each turn", "Start of Turn" and "End of Turn"?',
-    a: "**Start of Turn** fires when your Shop opens. **End of Turn** fires after you press End Turn, right before the fight. **Each turn** (or \"once per turn\") is a limit: you get it once per turn, and it's ready again when your next Shop opens.",
+    a: "**Start of Turn** fires as your Recruit phase opens. **End of Turn** fires after you press End Turn, right before the fight. **Each turn** (or \"once per turn\") is a limit: you get it once per turn, and it's ready again when your next Recruit phase opens.",
     aliases: ['each turn', 'once per turn', 'start of turn', 'end of turn', 'every turn', 'resets'],
     seeAlso: ['this-turn-includes-combat', 'end-turn'],
     covers: [{ keyword: 'startofturn', fp: '702c8f9f' }, { keyword: 'endofturn', fp: '5d1f6a10' }],
@@ -400,8 +402,8 @@ export const ENTRIES: readonly WikiEntry[] = [
   {
     id: 'aura-meaning',
     topic: 'glossary',
-    q: 'What does "your Beast Aura" (or any Aura) mean?',
-    a: "An **Aura** is a run-wide bonus for a whole group. Giving your Beast Aura +2/+4 buffs **every Beast you have**, on your board, in your hand and in the Shop, **plus every Beast you get later**. It never wears off, even if it happened in combat.",
+    q: 'What does "your Imp Aura" (or any Aura) mean?',
+    a: "An **Aura** is a run-wide bonus for a whole group, like your **Imp Aura** or **Undead Aura**. Improving your Imp Aura by +3/+3 buffs **every Imp you have**, on your board and in your hand, **plus every Imp you get later**. It never wears off, even if it happened in combat. Heads up: Beasts have no Aura. \"Give all Friendly and summoned Beasts\" is a normal buff, and one given during a fight only lasts that fight.",
     aliases: ['aura', 'beast aura', 'imp aura', 'undead aura', 'run wide', 'everywhere', 'wherever they are'],
     seeAlso: ['combat-vs-permanent-wording', 'plain-copy'],
     covers: [{ keyword: 'aura', fp: 'b871a698' }, { rule: 'R-AURA-02', fp: '5884cd85' }],
@@ -413,5 +415,13 @@ export const ENTRIES: readonly WikiEntry[] = [
     a: "Every card has a tier from 1 upward (stronger cards sit higher). The Shop only offers cards **at or below your Tavern Tier**, so tiering up is how you unlock better cards. Tier 6 is the normal top; Tier 7 cards only appear when something unlocks them.",
     aliases: ['tier', 'card tier', 'tavern tier', 'level', 'star', 'tier 7'],
     seeAlso: ['tavern-tier-cost', 'tavern-up-button'],
+  },
+  {
+    id: 'recruit-phase',
+    topic: 'glossary',
+    q: 'What is the "Recruit phase"? Is it the same as the Shop?',
+    a: "The **Recruit phase** is the part of your turn before the fight, when you buy, sell and play cards. **The Shop** is just the row of cards on offer. So \"in the Recruit phase\" means any time before combat, and \"minions in the Shop\" means the ones you haven't bought yet.",
+    aliases: ['recruit', 'recruit phase', 'shop phase', 'in the shop', 'buy phase'],
+    seeAlso: ['this-turn-includes-combat', 'each-turn-vs-start-of-turn'],
   },
 ];

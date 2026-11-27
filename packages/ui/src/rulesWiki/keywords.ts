@@ -52,7 +52,7 @@ export const ENTRIES: readonly WikiEntry[] = [
     id: 'discover',
     topic: 'keywords',
     q: 'What does Discover mean?',
-    a: "You get shown **three cards** and **pick one** to keep in your hand. A card that makes you Discover never offers you a copy of itself.",
+    a: "You get shown **three cards** (one more for each **Second Opinion** rune you hold) and **pick one** to keep in your hand. A card that makes you Discover never offers you a copy of itself.",
     aliases: ['choose a card', 'pick one of three', 'offer'],
     seeAlso: ['triples'],
     covers: [{ keyword: 'discover', fp: 'dc85b48f' }],

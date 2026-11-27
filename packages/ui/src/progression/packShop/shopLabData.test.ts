@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { PACK_LAB_LOOKS } from '../packOpening/packLabSamples';
 import { saleOff } from '@game/progression';
-import { DEAL_OFF, DEAL_STOCK, FEATURED_DEALS, LAB_GUARANTEE_EVERY, labNextRefresh, labShopDay, SHOP_LAB_OFFERS, SHOP_LAB_SHELVES, featuredOffers, shopLabOffers, labGuaranteeAfter, makeLabBuy, type LabBuyMode, type LabState } from './shopLabData';
+import { DEAL_OFF, DEAL_STOCK, FEATURED_DEALS, labNextRefresh, labShopDay, SHOP_LAB_OFFERS, SHOP_LAB_SHELVES, featuredOffers, shopLabOffers, labRewardCount, labRewardPack, makeLabBuy, type LabBuyMode, type LabState } from './shopLabData';
 
 const setup = (aether: number, mode: LabBuyMode = 'ok') => {
   let state: LabState = { aether, hand: [] };
@@ -72,13 +72,14 @@ describe('makeLabBuy', () => {
     await new Promise((r) => setTimeout(r, 20));
     expect(settled).toBe(false);
   });
-  it('the guarantee counts down one per pack and restarts at 10 when it reaches 0', () => {
-    expect(LAB_GUARANTEE_EVERY).toBe(10);
-    expect(labGuaranteeAfter(10, 1)).toBe(9);
-    expect(labGuaranteeAfter(3, 2)).toBe(1);
-    expect(labGuaranteeAfter(1, 1)).toBe(10);
-    expect(labGuaranteeAfter(2, 3)).toBe(9);
-    expect(labGuaranteeAfter(4, 0)).toBe(4);
+  it('the reward pack is a Legendary Rarity Pack, and only paid packs count toward it', () => {
+    const p = labRewardPack();
+    expect(p.look.kind).toBe('rarity');
+    expect(p.look.guaranteedFloor).toBe('legendary');
+    const paid = SHOP_LAB_OFFERS.find((o) => o.price > 0)!;
+    expect(labRewardCount(paid, 3)).toBe(3);
+    expect(labRewardCount({ ...paid, price: 0 }, 1)).toBe(0);
+    expect(labRewardCount(undefined, 2)).toBe(0);
   });
 });
 

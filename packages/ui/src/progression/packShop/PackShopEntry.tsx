@@ -8,7 +8,8 @@ import { stageHost } from '../../stage';
 import { VISTA_DOOR_CLIP, VISTA_DOOR_CLIP_ID } from '../../vistaDoor';
 import { PACK_LAB_SAMPLES, cancelLabTimers, makeLabOpen, type LabTimers } from '../packOpening/packLabSamples';
 import { PackShop, type PackShopProps } from './PackShop';
-import { LAB_GUARANTEE_EVERY, SHOP_LAB_SHELVES, labNextRefresh, labShopDay, shopLabOffers, labGuaranteeAfter, labHand, makeLabBuy, type LabState } from './shopLabData';
+import { SHOP_LAB_SHELVES, labNextRefresh, labRewardCount, labShopDay, shopLabOffers, labHand, makeLabBuy, type LabState } from './shopLabData';
+import { useLabReward } from './useLabReward';
 
 /**
  * THE WAY INTO THE PACK SHOP FROM THE MENU (owner 2026-11-26: "when clicking shop. i want to use the return to shop
@@ -93,9 +94,10 @@ const START_HAND = 4;
 /** The pack shop on the lab's fake catalog, wallet and hand (as `PackShopLab` runs it, with its default knobs). */
 function LabPackShop({ onClose }: { onClose: () => void }) {
   const [state, setStateRaw] = useState<LabState>(() => ({ aether: START_AETHER, hand: labHand(START_HAND) }));
-  const [within, setWithin] = useState(LAB_GUARANTEE_EVERY);
   const stateRef = useRef(state);
   const setState = useCallback((next: LabState): void => { stateRef.current = next; setStateRaw(next); }, []);
+  const lab = useLabReward(stateRef, setState);
+  const countReward = lab.count;
   const timersRef = useRef<LabTimers>(new Set());
   useEffect(() => { const t = timersRef.current; return () => cancelLabTimers(t); }, []);
   const sampleN = useRef(0);
@@ -118,7 +120,7 @@ function LabPackShop({ onClose }: { onClose: () => void }) {
     const counted = new Set<string>();
     return async (offerId, requestId) => {
       const out = await labBuy(offerId, requestId);
-      if (out.status === 'ok' && !counted.has(requestId)) { counted.add(requestId); setWithin((w) => labGuaranteeAfter(w, out.packs.length)); }
+      if (out.status === 'ok' && !counted.has(requestId)) { counted.add(requestId); countReward(labRewardCount(allOffers.find((o) => o.offerId === offerId), out.packs.length)); }
       if (out.status === 'ok' && !counted.has(`stock:${requestId}`) && allOffers.find((o) => o.offerId === offerId)?.stock !== undefined) {
         counted.add(`stock:${requestId}`);
         setBoughtOf((m) => new Map(m).set(offerId, (m.get(offerId) ?? 0) + 1));
@@ -129,7 +131,7 @@ function LabPackShop({ onClose }: { onClose: () => void }) {
       }
       return out;
     };
-  }, [setState, allOffers]);
+  }, [setState, allOffers, countReward]);
   // the day turned over: the new day's window, and its per-day limits start fresh
   const onRefresh = useCallback(() => { setDay(labShopDay()); setFreeTaken(new Set()); setBoughtOf(new Map()); }, []);
   const open = useCallback<PackShopProps['open']>(async (packId) => {
@@ -144,7 +146,7 @@ function LabPackShop({ onClose }: { onClose: () => void }) {
   }, [setState]);
   return (
     <PackShop shelves={SHOP_LAB_SHELVES} offers={offers} refreshesAt={refreshesAt} onRefresh={onRefresh} hand={state.hand} aether={state.aether}
-      guarantee={{ rarity: 'legendary', within }} buy={buy} open={open} onClose={onClose} />
+      reward={lab.reward} claimReward={lab.claim} buy={buy} open={open} onClose={onClose} />
   );
 }
 

@@ -37,3 +37,15 @@ describe('owning every cosmetic a pack can give', () => {
     expect(ownedEveryNotice(cat)).toBe('You own every cosmetic from this pack. You may continue purchasing more of the "Emote Pack" at your own discretion.');
   });
 });
+
+describe('the pack reward (owner 2026-11-27: every 15 packs purchased gives one free Legendary Rarity Pack)', () => {
+  it('counts purchases, earns one per 15, carries the remainder, and stacks unclaimed rewards', async () => {
+    const { PACK_REWARD_EVERY, packRewardAfter } = await import('./packShop');
+    expect(PACK_REWARD_EVERY).toBe(15);
+    expect(packRewardAfter({ progress: 0, ready: 0 }, 1)).toEqual({ progress: 1, ready: 0 });
+    expect(packRewardAfter({ progress: 14, ready: 0 }, 1)).toEqual({ progress: 0, ready: 1 });
+    expect(packRewardAfter({ progress: 13, ready: 0 }, 3)).toEqual({ progress: 1, ready: 1 });
+    expect(packRewardAfter({ progress: 5, ready: 1 }, 25)).toEqual({ progress: 0, ready: 3 });
+    expect(packRewardAfter({ progress: 4, ready: 0 }, 0)).toEqual({ progress: 4, ready: 0 });
+  });
+});

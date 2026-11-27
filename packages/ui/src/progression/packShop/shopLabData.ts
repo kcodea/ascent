@@ -184,12 +184,8 @@ export function labHand(n: number): OwnedPack[] {
   return Array.from({ length: count }, (_, i) => ({ packId: mintLabPackId(), look: PACK_LAB_LOOKS[i % PACK_LAB_LOOKS.length]! }));
 }
 
-/** The lab's guarantee counter: how many packs until the guaranteed rarity, starting (and restarting) at this. */
-export const LAB_GUARANTEE_EVERY = 10;
-
-/** The guarantee after `bought` more packs: one step down per pack, back to `LAB_GUARANTEE_EVERY` each time it reaches 0. */
-export function labGuaranteeAfter(within: number, bought: number): number {
-  let w = within;
-  for (let i = 0; i < bought; i++) { w -= 1; if (w <= 0) w = LAB_GUARANTEE_EVERY; }
-  return w;
-}
+/** The pack reward's pack: a Legendary Rarity Pack (owner 2026-11-27: "Every 15 packs purchased gives the player one free Legendary Rarity Pack. it should glow and say 'Click to receive your reward' and when the player clicks it, it sparks and a legendary pack is sent to their counter. if it cant fit, send to their backpack"). */
+const REWARD_LOOK: PackLook = PACK_LAB_LOOKS.find((l) => l.kind === 'rarity' && l.guaranteedFloor === 'legendary')!;
+export const labRewardPack = (): OwnedPack => ({ packId: mintLabPackId(), look: REWARD_LOOK });
+/** Packs an offer's purchase counts toward the reward: every pack it gives, unless it was free. */
+export const labRewardCount = (offer: PackOffer | undefined, packs: number): number => (offer && offer.price > 0 ? packs : 0);

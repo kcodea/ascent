@@ -540,23 +540,43 @@ describe('PackShop', () => {
     expect(document.querySelector('.pks')!.classList.contains('pks-still')).toBe(true);
   });
 
-  it('the guarantee is a gauge: the rarity medallion, the words, and one pip per pack to go (at most 10), in both modes', () => {
+  it('the reward gauge counts purchases toward a free Legendary Pack: words, medallion and a lit pip per purchase', () => {
     const gauge = () => {
       const g = document.querySelector('.pks-guarantee')!;
-      return { words: g.textContent, medal: g.querySelector('img')?.getAttribute('src') ?? '', pips: g.querySelectorAll('.pks-pip').length };
+      return { words: g.querySelector('.pks-guarantee-words')?.textContent, medal: g.querySelector('img')?.getAttribute('src') ?? '',
+        pips: g.querySelectorAll('.pks-pip').length, lit: g.querySelectorAll('.pks-pip:not(.pks-pip-off)').length, claim: !!g.querySelector('.pks-reward-claim') };
     };
-    render({ guarantee: { rarity: 'legendary', within: 6 } });
-    expect(gauge().words).toBe('Legendary guaranteed within 6 packs');
+    render({ reward: { rarity: 'legendary', every: 15, progress: 6, ready: 0 } });
+    expect(gauge()).toMatchObject({ words: '9 more packs for a free Legendary Pack', pips: 15, lit: 6, claim: false });
     expect(gauge().medal).toContain('ascent_rarity_legendary');
-    expect(gauge().pips).toBe(6);
-    render({ guarantee: { rarity: 'epic', within: 1 } });
-    expect(gauge()).toMatchObject({ words: 'Epic guaranteed within 1 pack', pips: 1 });
-    render({ guarantee: { rarity: 'legendary', within: 25 } });
-    expect(gauge()).toMatchObject({ words: 'Legendary guaranteed within 25 packs', pips: 10 });
+    render({ reward: { rarity: 'legendary', every: 15, progress: 14, ready: 0 } });
+    expect(gauge()).toMatchObject({ words: '1 more pack for a free Legendary Pack', lit: 14 });
     m!.unmount(); m = null;
-    render({ reducedMotion: true, guarantee: { rarity: 'legendary', within: 3 } });
-    expect(gauge()).toMatchObject({ words: 'Legendary guaranteed within 3 packs', pips: 3 });
-    expect(gauge().medal).toContain('ascent_rarity_legendary');
+    render({ reducedMotion: true, reward: { rarity: 'legendary', every: 15, progress: 2, ready: 0 } });
+    expect(gauge()).toMatchObject({ words: '13 more packs for a free Legendary Pack', lit: 2 });
+  });
+
+  it('a waiting reward glows and says so; a click claims it and its pack joins the counter, or waits beside a full one', async () => {
+    const claims: string[] = [];
+    let n = 0;
+    const legend = { kind: 'rarity', id: 'rarity-legendary', name: 'Legendary Pack', guaranteedFloor: 'legendary' } as const;
+    const claimReward: PackShopProps['claimReward'] = async (requestId) => { claims.push(requestId); return { status: 'ok', packs: [{ packId: `r${++n}`, look: legend }] }; };
+    render({ reducedMotion: true, claimReward, reward: { rarity: 'legendary', every: 15, progress: 0, ready: 1 } });
+    const g = document.querySelector('.pks-guarantee')!;
+    expect(g.classList.contains('pks-reward-ready')).toBe(true);
+    expect(g.querySelector('.pks-guarantee-words')?.textContent).toBe('Click to receive your reward');
+    await act(async () => { (document.querySelector('[data-testid="pks-reward-claim"]') as HTMLElement).click(); await flush(); });
+    expect(claims).toHaveLength(1);
+    expect(live()).toBe('Legendary Pack received');
+    expect(document.body.textContent).toContain('Legendary Pack');
+    // a full counter (5 pack types): the reward waits beside it
+    m!.unmount(); m = null;
+    const full = Array.from({ length: 5 }, (_, i): OwnedPack => ({ packId: `f${i}`, look: { kind: 'rarity', id: `t${i}`, name: `Type ${i}`, guaranteedFloor: 'rare' } }));
+    render({ reducedMotion: true, hand: full, claimReward, reward: { rarity: 'legendary', every: 15, progress: 0, ready: 2 } });
+    expect(document.querySelector('.pks-reward-n')?.textContent).toBe('x2');
+    await act(async () => { (document.querySelector('[data-testid="pks-reward-claim"]') as HTMLElement).click(); await flush(); });
+    expect(live()).toBe('Legendary Pack received. No room on the counter, so it waits beside it');
+    expect(document.querySelector('ul[aria-label="Packs waiting for space"]')?.textContent).toContain('x1');
   });
 
   it("each tab wears its shelf's lead pack art when an offer on that shelf has art; a shelf with none shows no art", () => {

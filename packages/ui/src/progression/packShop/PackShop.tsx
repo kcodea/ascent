@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { createPortal } from 'react-dom';
-import { aetherShort, saleOff, type BuyPackOutcome, type CrateRarity, type OwnedPack, type PackOffer, type PackShelf } from '@game/progression';
+import { aetherShort, saleOff, type BuyPackOutcome, type ClaimRewardOutcome, type CrateRarity, type OwnedPack, type PackOffer, type PackShelf } from '@game/progression';
 import { rectToStage, stageHost, stageViewport, type StageRect } from '../../stage';
 import { prefersReducedMotion } from '../CrateOpener';
 import { PackOpener, type PackOpenOutcome, type PackQueueItem } from '../packOpening/PackOpener';
@@ -51,7 +51,13 @@ export interface PackShopProps {
   offers: readonly PackOffer[];
   hand: readonly OwnedPack[];
   aether: number;
-  guarantee?: { rarity: CrateRarity; within: number };
+  /**
+   * The pack reward's gauge (owner 2026-11-27: "Every 15 packs purchased gives the player one free Legendary Rarity Pack. it should glow and say 'Click to receive your reward' and when the player clicks it, it sparks and a legendary pack is sent to their counter. if it cant fit, send to their backpack"): its pack's rarity, how many purchases earn one, the purchases toward the next and
+   * the rewards waiting. With one waiting it glows and a click claims it.
+   */
+  reward?: { rarity: CrateRarity; every: number; progress: number; ready: number };
+  /** Claim one waiting reward; the packs it answers with join the hand (the counter, or beside it when it is full). */
+  claimReward?: (requestId: string) => Promise<ClaimRewardOutcome>;
   buy: (offerId: string, requestId: string) => Promise<BuyPackOutcome>;
   /** Passed straight to `PackOpener`. */
   open: (packId: string) => Promise<PackOpenOutcome>;
@@ -108,8 +114,12 @@ export const SHOP_PLAY_TRAVEL_MS = 420;
 const TAG_GAP = 8;
 /** The widest the tag gets (its CSS max-width): used only to keep it on screen. */
 const TAG_W = 520;
-/** The most pips the guarantee's gauge draws. */
-const GAUGE_PIPS = 10;
+/** The most pips the reward's gauge draws. */
+const GAUGE_PIPS = 15;
+/** A claimed reward sparks first; its pack takes its place on the counter this long after (ms). */
+export const REWARD_SPARK_LEAD_MS = 260;
+/** The spark's rays. */
+const SPARK_RAYS = 12;
 /** A purchase with no answer by then settles as `failed` (its request id kept), so the shop is never held for good. */
 export const BUY_TIMEOUT_MS = 15000;
 /** Refusals that are definite: the server did not charge, so the attempt's request id is spent. */
@@ -150,7 +160,7 @@ function tagStyle(r: StageRect | null, kind: 'shelf' | 'hand'): CSSProperties | 
 let browseHintSeen = false;
 
 export function PackShop(props: PackShopProps) {
-  const { shelves, offers, hand, aether, guarantee, buy, open, onClose, reducedMotion, sceneFactory = createShopScene } = props;
+  const { shelves, offers, hand, aether, reward, claimReward, buy, open, onClose, reducedMotion, sceneFactory = createShopScene } = props;
   const [pixiFailed, setPixiFailed] = useState(false);
   const reduced = (reducedMotion ?? prefersReducedMotion()) || pixiFailed;
 
@@ -414,6 +424,56 @@ export function PackShop(props: PackShopProps) {
     Promise.resolve(p).then(once, () => once({ status: 'error', reason: 'failed' }));
   }, [finishStream, keepFocus, say, setTally]);
   useEffect(() => () => { if (buyTimerRef.current !== null) clearTimeout(buyTimerRef.current); buyTimerRef.current = null; }, []);
+
+  // ------------------------------------------------------------------ claiming the pack reward
+
+  const claimRef = useRef(claimReward); claimRef.current = claimReward;
+  const claimingRef = useRef(false);
+  const [claiming, setClaiming] = useState(false);
+  /** Bumped per claimed reward: the spark's key, so each claim plays it once. */
+  const [spark, setSpark] = useState(0);
+  /** The claim's request id, kept until a definite answer (a retry after no answer sends the same one). */
+  const claimIdRef = useRef<string | null>(null);
+  const claimTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (claimTimerRef.current !== null) clearTimeout(claimTimerRef.current); claimTimerRef.current = null; }, []);
+  /**
+   * Claim one waiting reward: the gauge sparks, then the pack takes its place on the counter (it rises in like a bought
+   * pack), or, with no room there, waits beside it with the other packs waiting for space.
+   */
+  const claim = useCallback((): void => {
+    const fn = claimRef.current;
+    if (!fn || claimingRef.current || pendingRef.current || openingRef.current || playTimerRef.current !== null) return;
+    claimingRef.current = true;
+    setClaiming(true);
+    setAnnounce('');
+    const requestId = claimIdRef.current ?? (claimIdRef.current = mintRequestId());
+    const settle = (out: ClaimRewardOutcome): void => {
+      claimingRef.current = false;
+      if (out.status === 'ok' || out.reason !== 'failed') claimIdRef.current = null;
+      if (!mountedRef.current) return;
+      setClaiming(false);
+      if (out.status !== 'ok') {
+        say(out.reason === 'guest' ? 'Sign in to claim rewards' : out.reason === 'none' ? 'No reward waiting' : 'Could not claim the reward. Try again.');
+        return;
+      }
+      if (!reduced) setSpark((n) => n + 1);
+      const fits = out.packs.length > 0 && counterHasRoom(shownHandRef.current, out.packs[0]!.look);
+      const land = (): void => {
+        claimTimerRef.current = null;
+        if (!mountedRef.current) return;
+        const nextBought = [...boughtRef.current, ...out.packs];
+        boughtRef.current = nextBought;
+        setBought(nextBought);
+        sceneRef.current?.setHand(counterSplit(shownHandOf(handRef.current, nextBought, openedRef.current)).counter);
+        const name = out.packs[0]?.look.name ?? 'Pack';
+        say(fits ? `${name} received` : `${name} received. No room on the counter, so it waits beside it`);
+      };
+      if (reduced) land(); else claimTimerRef.current = setTimeout(land, REWARD_SPARK_LEAD_MS);
+    };
+    let p: Promise<ClaimRewardOutcome>;
+    try { p = fn(requestId); } catch (e) { p = Promise.reject(e); }
+    Promise.resolve(p).then(settle, () => settle({ status: 'error', reason: 'failed' }));
+  }, [reduced, say]);
 
   // ------------------------------------------------------------------ playing a pack
 
@@ -734,17 +794,35 @@ export function PackShop(props: PackShopProps) {
     return out;
   }, [shelves, offers]);
 
-  // The guarantee's gauge: its rarity's medallion, the words (read as they are), and a pip per pack to go (at most
-  // GAUGE_PIPS drawn), so the countdown is seen.
-  const gauge = guarantee && (
-    <div className={`pks-guarantee${reduced ? ' pks-guarantee-plain' : ''}`}>
-      <img className="pks-guarantee-medal" src={rarityIconSrc(guarantee.rarity)} alt="" aria-hidden="true" decoding="sync" draggable={false} />
+  // The reward's gauge (owner 2026-11-27: "Every 15 packs purchased gives the player one free Legendary Rarity Pack. it should glow and say 'Click to receive your reward' and when the player clicks it, it sparks and a legendary pack is sent to their counter. if it cant fit, send to their backpack"): its rarity's medallion, the words, and a pip per purchase (lit as they count up).
+  // With a reward waiting it glows, says so, and the whole gauge is the button that claims it; a claim sparks.
+  const rewardReady = !!reward && reward.ready > 0;
+  const rewardPack = reward ? `${packRarityLabel(reward.rarity)} Pack` : '';
+  const rewardLeft = reward ? Math.max(1, reward.every - reward.progress) : 0;
+  const rewardPips = reward ? Math.max(0, Math.min(GAUGE_PIPS, Math.floor(reward.every))) : 0;
+  const rewardLit = reward ? (rewardReady ? rewardPips : Math.round((reward.progress / Math.max(1, reward.every)) * rewardPips)) : 0;
+  const gauge = reward && (
+    <div className={`pks-guarantee r-${reward.rarity}${rewardReady ? ' pks-reward-ready' : ''}${reduced ? ' pks-guarantee-plain' : ''}`} data-testid="pks-reward">
+      <img className="pks-guarantee-medal" src={rarityIconSrc(reward.rarity)} alt="" aria-hidden="true" decoding="sync" draggable={false} />
       <div className="pks-guarantee-body">
-        <span className="pks-guarantee-words">{`${packRarityLabel(guarantee.rarity)} guaranteed within ${guarantee.within} ${guarantee.within === 1 ? 'pack' : 'packs'}`}</span>
-        <span className={`pks-pips r-${guarantee.rarity}`} aria-hidden="true">
-          {Array.from({ length: Math.max(0, Math.min(GAUGE_PIPS, Math.floor(guarantee.within))) }, (_, i) => <span key={i} className="pks-pip" />)}
+        <span className="pks-guarantee-words">
+          {rewardReady ? 'Click to receive your reward' : `${rewardLeft} more ${rewardLeft === 1 ? 'pack' : 'packs'} for a free ${rewardPack}`}
+        </span>
+        <span className="pks-pips" aria-hidden="true">
+          {Array.from({ length: rewardPips }, (_, i) => <span key={i} className={`pks-pip${i < rewardLit ? '' : ' pks-pip-off'}`} />)}
         </span>
       </div>
+      {rewardReady && reward.ready > 1 && <span className="pks-reward-n" aria-hidden="true">{`x${reward.ready}`}</span>}
+      {rewardReady && (
+        <button type="button" className="pks-reward-claim" disabled={claiming || pending} onClick={claim} data-testid="pks-reward-claim"
+                aria-label={`Click to receive your reward: a free ${rewardPack}${reward.ready > 1 ? `, ${reward.ready} waiting` : ''}`} />
+      )}
+      {spark > 0 && (
+        <span key={spark} className="pks-reward-spark" aria-hidden="true">
+          <b />
+          {Array.from({ length: SPARK_RAYS }, (_, i) => <i key={i} style={{ '--a': `${(360 / SPARK_RAYS) * i}deg` } as CSSProperties} />)}
+        </span>
+      )}
     </div>
   );
 

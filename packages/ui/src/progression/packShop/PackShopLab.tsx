@@ -4,9 +4,10 @@ import { PACK_RELIEF_IDS, reliefDefaultDepth, reliefDefaultMat, reliefDepth, rel
 import { PACK_LAB_SAMPLES, cancelLabTimers, makeLabOpen, type LabTimers } from '../packOpening/packLabSamples';
 import { packDuplicateAether } from '@game/progression';
 import { PackShop, type PackShopProps } from './PackShop';
+import { useLabReward } from './useLabReward';
 import { castShadowTune, setCastShadowTune, type CastShadowTune } from './castShadowTune';
 import {
-  LAB_GUARANTEE_EVERY, SHOP_LAB_OFFERS, SHOP_LAB_SHELVES, labGuaranteeAfter, labHand, makeLabBuy,
+  SHOP_LAB_OFFERS, SHOP_LAB_SHELVES, labHand, labRewardCount, makeLabBuy,
   type LabBuyMode, type LabBuyOpts, type LabState,
 } from './shopLabData';
 
@@ -49,8 +50,7 @@ export function PackShopLab(): JSX.Element {
   const [reduced, setReduced] = useState(false);
   const [run, setRun] = useState<number | null>(null);
   const [state, setStateRaw] = useState<LabState>({ aether: 0, hand: [] });
-  /** The Legendary guarantee: one step down per pack bought, back to 10 when it reaches 0. */
-  const [within, setWithin] = useState(LAB_GUARANTEE_EVERY);
+
   /** The relief tuner: each wrapper's depth (0 = no relief), live on every pack on screen. */
   const [depths, setDepths] = useState<Record<string, number>>(() => Object.fromEntries(PACK_RELIEF_IDS.map((id) => [id, reliefDepth(id)])));
   const [copied, setCopied] = useState(false);
@@ -86,15 +86,17 @@ export function PackShopLab(): JSX.Element {
   useEffect(() => { const t = timersRef.current; return () => cancelLabTimers(t); }, []);
   const sampleN = useRef(0);
 
+  const lab = useLabReward(stateRef, setState);
+  const countReward = lab.count;
   const buy = useMemo<PackShopProps['buy']>(() => {
     const labBuy = makeLabBuy(() => stateRef.current, setState, () => optsRef.current, timersRef.current, SHOP_LAB_OFFERS);
     const counted = new Set<string>(); // a repeated request id is answered again, never counted again
     return async (offerId, requestId) => {
       const out = await labBuy(offerId, requestId);
-      if (out.status === 'ok' && !counted.has(requestId)) { counted.add(requestId); setWithin((w) => labGuaranteeAfter(w, out.packs.length)); }
+      if (out.status === 'ok' && !counted.has(requestId)) { counted.add(requestId); countReward(labRewardCount(SHOP_LAB_OFFERS.find((o) => o.offerId === offerId), out.packs.length)); }
       return out;
     };
-  }, [setState]);
+  }, [setState, countReward]);
 
   const open = useCallback<PackShopProps['open']>(async (packId) => {
     const pack = stateRef.current.hand.find((p) => p.packId === packId);
@@ -112,14 +114,14 @@ export function PackShopLab(): JSX.Element {
   const start = (): void => {
     cancelLabTimers(timersRef.current);
     setState({ aether: clampInt(startAether, 0, 1_000_000), hand: labHand(startHand) });
-    setWithin(LAB_GUARANTEE_EVERY);
+    lab.reset();
     setRun((n) => (n ?? 0) + 1);
   };
   const close = (): void => { cancelLabTimers(timersRef.current); setRun(null); };
   const reset = (): void => {
     cancelLabTimers(timersRef.current);
     setState({ aether: clampInt(startAether, 0, 1_000_000), hand: labHand(startHand) });
-    setWithin(LAB_GUARANTEE_EVERY);
+    lab.reset();
     setRun((n) => (n === null ? n : n + 1));
   };
 
@@ -212,7 +214,8 @@ export function PackShopLab(): JSX.Element {
           offers={SHOP_LAB_OFFERS}
           hand={state.hand}
           aether={state.aether}
-          guarantee={{ rarity: 'legendary', within }}
+          reward={lab.reward}
+          claimReward={lab.claim}
           buy={buy}
           open={open}
           reducedMotion={reduced}

@@ -266,3 +266,11 @@ shop and retires `CrateOpener`.
 1. PR(s) for this project ship the Pack Lab + `PackOpener` + the shared preview refactor. Players see no change. No patch
    notes entry (no player-facing change yet).
 2. The economy project wires it in for players, with its patch notes.
+
+**The pack reward (owner 2026-11-27, replaces the "Legendary guaranteed within N packs" pity gauge):** "Every 15 packs
+purchased gives the player one free Legendary Rarity Pack. it should glow and say 'Click to receive your reward' and when
+the player clicks it, it sparks and a legendary pack is sent to their counter. if it cant fit, send to their backpack."
+Rule: `PACK_REWARD_EVERY = 15` / `packRewardAfter` in `packages/progression/src/packShop.ts`. Every pack in a paid
+purchase counts (a box counts each pack); free packs and the reward itself do not. Unclaimed rewards stack (`ready`) and
+are claimed one per click. With no room on the counter the pack waits beside it with the other packs waiting for space
+(our reading of "backpack": there is no separate backpack yet). The real server must own the count and the claim.

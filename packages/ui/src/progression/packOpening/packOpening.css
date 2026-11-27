@@ -311,3 +311,28 @@
 .pkf-aether { font-size: 24px; font-weight: 800; color: var(--watcher-pulse-color); text-shadow: 0 2px 5px #000; animation: pkf-fade calc(0.3s * var(--pk-slow, 1)) ease-out calc(0.5s * var(--pk-slow, 1)) both; }
 @keyframes pkf-stamp { from { opacity: 0; transform: rotate(-12deg) scale(1.8); } to { opacity: 1; transform: rotate(-12deg) scale(1); } }
 @keyframes pkf-fade { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+/* THE RARE ONES TREMBLE (owner 2026-11-27: "in the final showcase view, have epic, legendary, and ancient tier cards slightly
+   shake, like they are shaking with imbued power. have the amount of shake increase from epic to ancient"). A fast,
+   irregular tremor on the card inside a summary face (the face itself keeps its deal, lift and hover), starting once it
+   has been dealt. Amount per rarity: `--pkf-sa` (px) and `--pkf-sr` (deg). Looping on translate + rotate only (compositor);
+   the class is never set under reduced motion (`still`) or on a dissolving duplicate. */
+.pkf-summary.pkf-shake { --pkf-sa: 0.5px; --pkf-sr: 0.2deg; }
+.pkf-summary.pkf-shake.r-legendary { --pkf-sa: 0.9px; --pkf-sr: 0.38deg; }
+.pkf-summary.pkf-shake.r-ancient { --pkf-sa: 1.5px; --pkf-sr: 0.6deg; }
+.pkf-summary.pkf-shake > .pkf-card { animation: pkf-imbue 0.46s linear calc(var(--pkf-deal, 0ms) + 0.45s * var(--pk-slow, 1)) infinite; }
+.pkf-summary.pkf-shake.r-ancient > .pkf-card { animation-duration: 0.38s; }
+@keyframes pkf-imbue {
+  0% { translate: 0 0; rotate: 0deg; }
+  10% { translate: calc(var(--pkf-sa) * -0.8) calc(var(--pkf-sa) * 0.5); rotate: calc(var(--pkf-sr) * 0.6); }
+  20% { translate: calc(var(--pkf-sa) * 0.6) calc(var(--pkf-sa) * -0.9); rotate: calc(var(--pkf-sr) * -0.4); }
+  30% { translate: calc(var(--pkf-sa) * -0.3) calc(var(--pkf-sa) * 0.8); rotate: calc(var(--pkf-sr) * 0.9); }
+  40% { translate: calc(var(--pkf-sa) * 0.9) calc(var(--pkf-sa) * 0.2); rotate: calc(var(--pkf-sr) * -0.7); }
+  50% { translate: calc(var(--pkf-sa) * -0.7) calc(var(--pkf-sa) * -0.6); rotate: calc(var(--pkf-sr) * 0.3); }
+  60% { translate: calc(var(--pkf-sa) * 0.4) calc(var(--pkf-sa) * 0.9); rotate: calc(var(--pkf-sr) * -0.9); }
+  70% { translate: calc(var(--pkf-sa) * -0.9) calc(var(--pkf-sa) * -0.2); rotate: calc(var(--pkf-sr) * 0.5); }
+  80% { translate: calc(var(--pkf-sa) * 0.6) calc(var(--pkf-sa) * -0.7); rotate: calc(var(--pkf-sr) * -0.3); }
+  90% { translate: calc(var(--pkf-sa) * -0.2) calc(var(--pkf-sa) * 0.6); rotate: calc(var(--pkf-sr) * 0.8); }
+  100% { translate: 0 0; rotate: 0deg; }
+}
+@media (prefers-reduced-motion: reduce) { .pkf-summary.pkf-shake > .pkf-card { animation: none; } }

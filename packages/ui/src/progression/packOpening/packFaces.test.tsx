@@ -318,6 +318,27 @@ describe('the face holo', () => {
     expect(anim('pkf-holo-sweep-row')).toBe('pkf-holo-sweep-row');
   });
 
+  it('Epic and up tremble in the summary row, more each tier; never Common / Rare, a pile face, a dissolving duplicate or reduced motion (owner 2026-11-27)', () => {
+    const slot = { index: 0, count: 3 };
+    const shakes = (rarity: string, phase: 'summary' | 'featured', extra: { still?: boolean; dissolve?: boolean } = {}): boolean => {
+      m?.unmount();
+      m = mount(<PackFace card={card('skin_albus_1', { rarity: rarity as never })} phase={phase} slot={slot} {...extra} />);
+      return face().classList.contains('pkf-shake');
+    };
+    for (const r of ['epic', 'legendary', 'ancient']) expect(shakes(r, 'summary'), r).toBe(true);
+    for (const r of ['common', 'rare']) expect(shakes(r, 'summary'), r).toBe(false);
+    expect(shakes('ancient', 'featured')).toBe(false);
+    expect(shakes('ancient', 'summary', { still: true })).toBe(false);
+    expect(shakes('ancient', 'summary', { dissolve: true })).toBe(false);
+    // the amount rises Epic -> Legendary -> Ancient, and the loop moves translate + rotate only
+    const css = readFileSync(join(__dirname, 'packOpening.css'), 'utf8');
+    const amount = (sel: string) => Number(new RegExp(`${sel} \\{ --pkf-sa: ([\\d.]+)px`).exec(css)?.[1]);
+    expect(amount('\\.pkf-summary\\.pkf-shake')).toBeLessThan(amount('\\.pkf-summary\\.pkf-shake\\.r-legendary'));
+    expect(amount('\\.pkf-summary\\.pkf-shake\\.r-legendary')).toBeLessThan(amount('\\.pkf-summary\\.pkf-shake\\.r-ancient'));
+    const frames = /@keyframes pkf-imbue \{([\s\S]*?)\n\}/.exec(css)![1]!;
+    expect(frames).not.toMatch(/transform|box-shadow|filter|background/);
+  });
+
   it('when the follow turns off (the face goes under the top one) a queued frame is dropped and the layer recentres', () => {
     const raf: FrameRequestCallback[] = [];
     const cancel = vi.fn();

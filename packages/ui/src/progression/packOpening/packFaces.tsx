@@ -41,6 +41,9 @@ export { CARD_PLATE_SRC };
  * An unplaced face (the reduced-motion row) has no inline pose; its parent places it.
  */
 
+/** The rarities that tremble in the summary row (packOpening.css sets each one's amount). */
+const SHAKE_RARITIES: ReadonlySet<string> = new Set(['epic', 'legendary', 'ancient']);
+
 export type PackFacePhase = 'handoff' | 'featured' | 'tray' | 'summary';
 export interface PackFaceSlot { index: number; count: number }
 export interface PackFaceProps {
@@ -375,7 +378,10 @@ export function PackFace({ card, phase, from, slot, slow = 1, still = false, bes
   // (owner 2026-11-27: "lets try the full card window effect that we did with minions and hero skins, but for portraits and
   // card plates as well")
   const fullArt = p.art && FULL_ART_KINDS.has(p.art.kind) ? p.art : null;
-  const cls = `pkf r-${card.rarity} pkf-${phase}${placed ? ' pkf-placed' : ''}${glow ? ' pkf-glow' : ''}${follow.handlers ? ' pkf-hover' : ''}${best && phase === 'summary' ? ' pkf-best' : ''}${dissolve && phase === 'summary' ? ' pkf-dissolve' : ''}`;
+  // Epic and up TREMBLE in the summary row, more each tier, "like they are shaking with imbued power" (owner 2026-11-27);
+  // never under reduced motion, never a duplicate dissolving into Aether (packOpening.css `pkf-imbue`).
+  const shake = phase === 'summary' && !still && !dissolve && SHAKE_RARITIES.has(card.rarity);
+  const cls = `pkf r-${card.rarity} pkf-${phase}${placed ? ' pkf-placed' : ''}${glow ? ' pkf-glow' : ''}${follow.handlers ? ' pkf-hover' : ''}${best && phase === 'summary' ? ' pkf-best' : ''}${dissolve && phase === 'summary' ? ' pkf-dissolve' : ''}${shake ? ' pkf-shake' : ''}`;
   return (
     <div
       ref={ref}

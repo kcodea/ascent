@@ -99,7 +99,8 @@ export const CARD_CUES = {
   land: [{ clip: 'cardlanding', cat: 'crateStamp', gain: 0.5 }],
   landEpic: [{ clip: 'prismaticpick', cat: 'crateTierShimmer', gain: 0.4, delayMs: 40 }],
   bigLegendary: [
-    { clip: 'fx/reveal-impact-1', cat: 'crateBurst', gain: 0.7 },
+    // (owner 2026-11-27: "the legendary reveal has that terrible sound i dont like, the smacky sound when it lands. remove
+    // it": the reveal-impact hit is gone, the shimmer stays)
     { clip: 'fx/reveal-shimmer', cat: 'crateTierShimmer', gain: 0.6, delayMs: 120 },
   ],
   bigAncient: [

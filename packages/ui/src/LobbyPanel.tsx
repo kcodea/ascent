@@ -37,6 +37,10 @@ import { enterTeammateView } from './versus/teammateView';
 import { LobbyGuides } from './guides/LobbyGuides';
 import { canEditGuide, guidesFor, type Guide, type GuidesMode } from './guides/guides';
 import { ownsMine, useGuides } from './guides/guidesStore';
+import { onGuidesKey } from './guides/guidesHotkey';
+import { locationArt, locationOfSet } from './locationReveal/locations';
+import { useKeyLabel } from './keybinds/keybinds';
+import './quickBook/quickBook.css'; // the Guides overlay wears the quick Compendium's look (R-GUIDES-QUICKLOOK-01)
 import './lobbyRail.css'; // the Gem / Classic rail looks (switch: `data-lobby-rail`, 🎨 Lobby Rail Look tuner)
 import { railKey } from './pings/pingKeys';
 import { railHeroName } from './railHeroName';
@@ -167,21 +171,6 @@ export function versusDuelLayout(versus: boolean, seats: number, groupMatch: boo
   return versus && seats <= 2 && !groupMatch;
 }
 
-/**
- * Where the Guides panel's foot goes (stage px from the bottom): just above the Duos teammate portrait when one is on
- * screen (its top + 10), else null (the CSS default: just above the Guides button). One layout read, on the press that
- * opens the panel.
- */
-export function guidesFloor(): number | null {
-  if (typeof document === 'undefined') return null;
-  const mate = document.querySelector<HTMLElement>('.duosdock:not(.self)');
-  const r = mate?.getBoundingClientRect();
-  if (!r || !(r.width > 0)) return null;
-  const host = stageHost().getBoundingClientRect();
-  const bottom = host.height > 0 ? host.top + host.height : window.innerHeight;
-  return toStage(bottom - r.top) + 10;
-}
-
 /** The hover tip on the max-damage readout, with the live number (owner ask 2026-10-02). */
 export function maxDamageTip(cap: number): { title: string; rule: string } {
   return Number.isFinite(cap)
@@ -209,8 +198,8 @@ let railViewMemo: { run: string; view: RailView } = { run: '', view: 'opponents'
  *  localStorage (a per-viewer convenience: it falls back to the default whenever storage is unavailable). Default
  *  SIMPLE, because the wide rail covers End Turn and part of Refresh. */
 const GUIDES_MODE_KEY = 'ascent.guidesMode';
-/** How long the bottom-right Guides panel takes to sink back into its button (guidesdockout, lobbyGuides.css). */
-const GUIDES_CLOSE_MS = 160;
+/** How long the Guides overlay takes to fade away (guidesdockout, lobbyGuides.css: the quick Compendium's 190 ms fade). */
+const GUIDES_CLOSE_MS = 190;
 function readGuidesMode(): GuidesMode {
   try { return localStorage.getItem(GUIDES_MODE_KEY) === 'full' ? 'full' : 'simple'; } catch { return 'simple'; }
 }
@@ -332,9 +321,6 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
   // The corner panel sinks back into its button before it unmounts (`gdClosing` holds it on screen for that).
   const [gdClosing, setGdClosing] = useState(false);
   const gdTimer = useRef(0);
-  // DUOS: the panel's foot sits above the teammate portrait (owner 2026-10-31: the panel must not cover it), read ONCE as
-  // it opens (a layout read on a press, never per frame). Null = just above the Guides button (the CSS default).
-  const [gdFloor, setGdFloor] = useState<number | null>(null);
   useEffect(() => () => window.clearTimeout(gdTimer.current), []);
   useLayoutEffect(() => {
     if (!showGuides) return;
@@ -353,9 +339,15 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
       setView('opponents');
     } else {
       setGdClosing(false);
-      setGdFloor(guidesFloor());
       setView('guides');
     }
+  };
+  /** Fade the overlay away (then it unmounts). */
+  const closeGuides = (): void => {
+    window.clearTimeout(gdTimer.current);
+    setGdClosing(true);
+    gdTimer.current = window.setTimeout(() => setGdClosing(false), GUIDES_CLOSE_MS);
+    setView('opponents');
   };
   // Escape closes the corner panel (capture: the Esc menu does not open under it).
   const closeOnEsc = showGuides && !versusDuelView;
@@ -365,14 +357,29 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
       if (e.key !== 'Escape') return;
       e.preventDefault();
       e.stopImmediatePropagation();
-      window.clearTimeout(gdTimer.current);
-      setGdClosing(true);
-      gdTimer.current = window.setTimeout(() => setGdClosing(false), GUIDES_CLOSE_MS);
-      setView('opponents');
+      closeGuides();
     };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
+    // closeGuides only sets state and clears a ref's timer: re-binding per render would buy nothing.
   }, [closeOnEsc]);
+  // G (R-GUIDES-KEY-01, guidesHotkey.ts): the Guides square's own toggle, while the square is on screen.
+  const toggleRef = useRef(toggleView);
+  toggleRef.current = toggleView;
+  useEffect(() => {
+    if (!guidesOn || staged) return undefined;
+    const onKey = (e: KeyboardEvent): void => onGuidesKey(e, () => toggleRef.current());
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [guidesOn, staged]);
+  const guidesKey = useKeyLabel('guides');
+  // The game's place, painted dark behind the overlay as the quick Compendium paints it.
+  const gdPlace = useMemo(() => locationOfSet(setId ?? 'set1'), [setId]);
+  // One overlay at a time: the Compendium opening (C, its button) puts the guides away.
+  const bookOpen = useGame((st) => st.showBook);
+  useEffect(() => {
+    if (bookOpen && view === 'guides') closeGuides();
+  }, [bookOpen]);
   const setMode = (m: GuidesMode): void => {
     if (m === mode) return;
     if (railGuides) setSwap(m === 'full' ? 'wide' : 'narrow');
@@ -761,17 +768,35 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
         {showGuides ? <Icon name="chevron" /> : <MenuMedal name="guides" className="guidesbtn-ico" />}
       </button>
     )}
-    {guidesOn && !staged && (showGuides || gdClosing) && (
-      <div className={`guidesdock guides-${mode}${showGuides ? '' : ' closing'}`} role="region" aria-label="Build guides"
-        style={gdFloor !== null ? ({ '--gd-bottom': `${gdFloor}px` } as React.CSSProperties) : undefined}>
-        <div className="guidesdock-head">
-          <span className="guidesdock-title">Guides</span>
-          <span className="guidesdock-count">{guideCountLabel}</span>
+    {guidesOn && !staged && (showGuides || gdClosing) && createPortal(
+      // THE QUICK COMPENDIUM'S LOOK (owner 2026-11-27: "Make the guides overlay look like the new in game compendium
+      // overlay"; R-GUIDES-QUICKLOOK-01): its own classes (quickBook.css): the place opened dark along the right, its
+      // name in light with the line drawn from it, the X, a press outside closes. The list is the same LobbyGuides.
+      // PORTALED to the stage, where the quick Compendium lives: inside `.app` the HUD's own layers (the hero, the corner
+      // buttons) sat over it, undimmed.
+      <div className={`guidesdock qb ph-tokens game${gdPlace ? '' : ' plain'} guides-${mode}${showGuides ? '' : ' closing'}`} role="dialog"
+        aria-label={`Build guides. Press Esc${guidesKey ? ` or ${guidesKey}` : ''} to close.`} style={{ '--c': '#fbe6a6' } as React.CSSProperties}>
+        <div className="qb-dim" onClick={closeGuides} />
+        <div className="qb-place" aria-hidden="true">
+          <div className="qb-pic" style={gdPlace ? { backgroundImage: `url(${locationArt(gdPlace.id, 'blur')})` } : undefined} />
+          <div className="qb-tint" />
+          <div className="qb-wash" />
         </div>
-        <div className="lobbyview">
-          <LobbyGuides guides={guides} mine={myGuides} bookmarked={bookmarkedGuides} canEdit={canEditInRail} tribes={runTribes} runKey={runKey} mode={mode} onMode={setMode} />
-        </div>
-      </div>
+        <section className="qb-panel guidesdock-panel">
+          <header className="qb-head">
+            <div className="qb-title">
+              <h2 className="guidesdock-title">Guides</h2>
+              <span className="qb-count guidesdock-count">{guideCountLabel}</span>
+            </div>
+            <button type="button" className="qb-x" onClick={closeGuides} aria-label="Close">✕</button>
+          </header>
+          <div className="qb-line" aria-hidden="true" />
+          <div className="lobbyview">
+            <LobbyGuides guides={guides} mine={myGuides} bookmarked={bookmarkedGuides} canEdit={canEditInRail} tribes={runTribes} runKey={runKey} mode={mode} onMode={setMode} />
+          </div>
+        </section>
+      </div>,
+      stageHost(),
     )}
     {/* `--lby-n`: the seat count, so the Gem rail can hold exactly the height Classic sizes to (lobbyRail.css). */}
     <div ref={railRef} className={`lobbyrail${railMods}${vMod}`} style={{

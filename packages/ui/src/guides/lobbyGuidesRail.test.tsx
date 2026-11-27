@@ -43,7 +43,7 @@ const mountRail = (seed = 4242, mode?: 'tutorial'): HTMLElement => {
   if (mode) run.mode = mode;
   act(() => { useGame.setState({ run, combatStaged: false }); });
   ui = mount(<LobbyPanel lobby={run.lobby!} />);
-  return ui.container;
+  return document.body;
 };
 
 describe('lobby rail guides view', () => {
@@ -73,10 +73,9 @@ describe('lobby rail guides view', () => {
     expect(c.querySelector('.lobbyrailtab')).toBeNull();
     const css = ['../lobbyRailDocked.css', 'lobbyGuides.css', '../touchUi.css', '../phoneLayout.css'].map((f) => readFileSync(join(__dirname, f), 'utf8')).join(' ');
     expect(css).not.toMatch(/lobbyrailtab|--lr2-tab/);
-    // The panel: anchored bottom right, growing up from the button's corner, one-shot transform + opacity.
+    // R-GUIDES-QUICKLOOK-01: the panel wears the quick Compendium's look (its own classes), fading away on close.
     const g = readFileSync(join(__dirname, 'lobbyGuides.css'), 'utf8');
-    expect(g).toMatch(/\.guidesdock \{[^}]*--gd-b: var\(--gd-bottom, calc\(var\(--gb-b\) \+ var\(--gb-cb\) \+ 8px\)\);[^}]*right: var\(--gb-r\); bottom: var\(--gd-b\);[^}]*transform-origin: 100% 100%;/);
-    expect(g).toContain('@keyframes guidesdockin { from { opacity: 0; transform: scale(0.12); } 40% { opacity: 1; } }');
+    expect(g).toContain('@keyframes guidesdockout { to { opacity: 0; } }');
     expect(g).not.toMatch(/\.guides(btn|dock)[^{]*\{[^}]*cursor:/);
   });
 
@@ -216,8 +215,8 @@ describe('lobby rail guides view', () => {
     // The guides on show, whatever they are today: each name their text holds is highlighted. How many that is does
     // not matter here (it may be none).
     ui = mount(<LobbyPanel lobby={run.lobby!} />);
-    openGuides(ui.container);
-    check(ui.container, guidesFor(run.setId, run.tribes));
+    openGuides(document.body);
+    check(document.body, guidesFor(run.setId, run.tribes));
     ui.unmount();
     // And a guide built here, so the rule is always checked on something: one card and one nickname its text holds,
     // and one card it lists and does not name.
@@ -229,9 +228,9 @@ describe('lobby rail guides view', () => {
     expect(holds(made.body, CARD_INDEX['b2_sunmane']!.name)).toBe(false);
     act(() => { useGuides.setState({ list: [made], source: 'server', capability: 'on' }); });
     ui = mount(<LobbyPanel lobby={run.lobby!} />);
-    openGuides(ui.container);
-    expect(check(ui.container, [made])).toBe(2);
-    const shown = [...ui.container.querySelectorAll('.lobbyguide[data-guide="made-up"] .lobbyguide-text .lobbyguide-name')].map((n) => n.textContent!.toLowerCase());
+    openGuides(document.body);
+    expect(check(document.body, [made])).toBe(2);
+    const shown = [...document.body.querySelectorAll('.lobbyguide[data-guide="made-up"] .lobbyguide-text .lobbyguide-name')].map((n) => n.textContent!.toLowerCase());
     expect(shown.sort()).toEqual(['king', named.toLowerCase()].sort());
   });
 
@@ -451,8 +450,8 @@ describe('lobby rail guides view', () => {
       act(() => { useGame.setState({ run, combatStaged: false, account }); });
       act(() => { useGuides.setState({ mine: [own], mineOwner: 'u-1' }); });
       ui = mount(<LobbyPanel lobby={run.lobby!} />);
-      openGuides(ui.container);
-      return ui.container;
+      openGuides(document.body);
+      return document.body;
     };
     const shown = (c: HTMLElement): (string | null)[] => [...c.querySelectorAll('.lobbyguide')].map((g) => g.getAttribute('data-guide'));
     for (const account of [
@@ -521,7 +520,7 @@ describe('lobby rail guides view', () => {
     run.tribes = run.tribes.slice(0, -1);
     act(() => { useGame.setState({ run, combatStaged: false }); });
     ui = mount(<LobbyPanel lobby={run.lobby!} />);
-    const c = ui.container;
+    const c = document.body;
     signInU1();
     const set: SetId = run.setId ?? 'set1';
     const team = guidesFor(run.setId, run.tribes).length;

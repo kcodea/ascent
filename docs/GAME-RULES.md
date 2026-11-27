@@ -1969,14 +1969,16 @@ Ranked Duos party).
   slices take the pointer (R-RAIL-DOCKED-CLICKTHROUGH-01). Presentation only.
 - **Guides** (owner ask 2026-10-09; moved 2026-10-31, R-GUIDES-CORNER-01: "the guides button likely needs a new home
   entirely, like in the bottom right and have it expand upwards"): a **Guides** square in the bottom-right cluster
-  (stacked just above the Settings gear, beside the Compendium) grows a panel UP out of itself, over the rail column
-  up to the round header (in Duos its foot sits above the teammate portrait), and sinks it back on a second press or
-  Escape; the rail itself always shows the table (no Guides tab on it any more). The list scrolls inside with the
+  (stacked just above the Settings gear, beside the Compendium), or the **G** key (rebindable, R-GUIDES-KEY-01; not while
+  typing), opens the Guides overlay, and a second press, **G**, Escape, its X or a press outside closes it; the rail itself
+  always shows the table (no Guides tab on it any more). Since 2026-11-27 the overlay wears the quick Compendium's look
+  (R-GUIDES-QUICKLOOK-01: the game dims, the place opens dark along the right, "Guides" in light with its count, the line,
+  the X; it fades away on close). The list scrolls inside with the
   game's scrollbar. Every Versus mode, a 1v1 included, uses the same corner (R-RAIL-DOCKED-ALLMODES-01). The panel holds short
   BUILD GUIDES (data in `packages/ui/src/guides/guides.ts`, one card per build line). Only guides for the run's
   pinned set and for tribes in this lobby show; neutral guides always show. A guide opens in place to its **Core** and
   **Enablers** minions (board portraits with the normal hover preview). Each card wears its signature card's art and
-  its tribe name in the tribe's colour. **Simple** (the default) keeps the rail's width and shows only the portraits;
+  its tribe name in the tribe's colour. **Simple** (the default) is the narrower page and shows only the portraits;
   the open card's **Detailed** button widens the panel to the left and adds the write-up (remembered per device). Every new game starts closed. Gone in combat (the button goes quiet, the panel is not drawn), back after it,
   absent in the Tutorial, the Gauntlet (no rail) and God Mode (no rail). Presentation only; no game effect.
 - **Gold** ("Embers"): start with **3**, **+1 per wave**, capped at **10**

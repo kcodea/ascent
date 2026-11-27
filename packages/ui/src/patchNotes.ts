@@ -64,6 +64,15 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'Press G in a game to open the Guides. Press G again to close them.',
+        details: [
+          'The Guides now open the same way the in-game Compendium does: dark along the right side, with the list beside the game.',
+          'Esc, the X or a click outside also closes them.',
+          'You can change the key in Settings, under Keybindings.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Watch replay can always be skipped: the diamond offers Skip Combat again, even for a fight you already skipped.',
         details: [
           'Before, if you had skipped a fight and then pressed Watch replay in the Fight Recap, the diamond stayed dim and you had to sit through the whole fight.',

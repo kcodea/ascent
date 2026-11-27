@@ -76,7 +76,8 @@ export function placardBadge(badge: 'new' | 'free' | 'featured' | undefined, off
 }
 
 /** A box's count beside its price ("x10"); empty for a single pack. */
-export function placardCount(contains: number): string {
+export function placardCount(contains: number, stock?: number): string {
+  if (stock !== undefined && stock > 0) return `${stock} left`; // a limited offer says how many are left
   return contains > 1 ? `x${contains}` : '';
 }
 

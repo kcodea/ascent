@@ -102,7 +102,14 @@ function LabPackShop({ onClose }: { onClose: () => void }) {
   // today's shelves, drawn as the shop opens (the featured window rotates by the day); the daily free pack is taken once
   const allOffers = useMemo(() => shopLabOffers(), []);
   const [freeTaken, setFreeTaken] = useState<ReadonlySet<string>>(() => new Set());
-  const offers = useMemo(() => allOffers.map((o) => (freeTaken.has(o.offerId) ? { ...o, soldOut: true } : o)), [allOffers, freeTaken]);
+  // a limited deal's purchases so far (its stock counts down; at 0 it is sold out)
+  const [boughtOf, setBoughtOf] = useState<ReadonlyMap<string, number>>(() => new Map());
+  const offers = useMemo(() => allOffers.map((o) => {
+    if (freeTaken.has(o.offerId)) return { ...o, soldOut: true };
+    if (o.stock === undefined) return o;
+    const left = Math.max(0, o.stock - (boughtOf.get(o.offerId) ?? 0));
+    return { ...o, stock: left, soldOut: left === 0 || o.soldOut };
+  }), [allOffers, freeTaken, boughtOf]);
   const buy = useMemo<PackShopProps['buy']>(() => {
     const labBuy = makeLabBuy(() => stateRef.current, setState, { delayMs: 100, mode: 'ok' }, timersRef.current, allOffers);
     const taken = new Set<string>();
@@ -110,6 +117,10 @@ function LabPackShop({ onClose }: { onClose: () => void }) {
     return async (offerId, requestId) => {
       const out = await labBuy(offerId, requestId);
       if (out.status === 'ok' && !counted.has(requestId)) { counted.add(requestId); setWithin((w) => labGuaranteeAfter(w, out.packs.length)); }
+      if (out.status === 'ok' && !counted.has(`stock:${requestId}`) && allOffers.find((o) => o.offerId === offerId)?.stock !== undefined) {
+        counted.add(`stock:${requestId}`);
+        setBoughtOf((m) => new Map(m).set(offerId, (m.get(offerId) ?? 0) + 1));
+      }
       if (out.status === 'ok' && allOffers.find((o) => o.offerId === offerId)?.badge === 'free' && !taken.has(offerId)) {
         taken.add(offerId);
         setFreeTaken(new Set(taken));

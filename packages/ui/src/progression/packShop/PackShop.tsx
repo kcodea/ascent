@@ -674,6 +674,7 @@ export function PackShop(props: PackShopProps) {
             <span className="pks-off">{`-${saleOff(o)}%`}</span>
           </>}
         </div>
+        {!t.soldOut && o.stock !== undefined && <div className="pks-stock">{`${o.stock} left today`}</div>}
         {t.soldOut ? <div className={`${cls}-short`}>Sold out</div> : t.short > 0 && <div className={`${cls}-short`}>{`Need ${t.short} more Aether`}</div>}
         {full && t.short <= 0 && <div className={`${cls}-short`}>Open packs to make room</div>}
         {withButton && (

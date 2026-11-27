@@ -202,3 +202,6 @@ html[data-pks-navaway] .ph-navhost { opacity: 0; pointer-events: none; transitio
 /* A featured sale (owner 2026-11-27: "4 other discounted ... between 20 and 60% off"): the old price struck through, and the cut. */
 .pks-was { margin-left: 10px; font-size: 16px; font-weight: 700; color: rgba(220, 243, 255, 0.5); }
 .pks-off { margin-left: 8px; padding: 1px 7px; border-radius: 6px; font-size: 14px; font-weight: 800; color: #fff0e8; background: #8a1f1f; border: 1px solid #ff9a7a; }
+
+/* A limited featured deal's stock (owner 2026-11-27: "randomly roll which amount of stock they have from 2 to 5"). */
+.pks-stock { font-size: 15px; font-weight: 700; color: #ffd27a; }

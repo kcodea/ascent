@@ -1186,7 +1186,7 @@ class ShopSceneImpl implements ShopScene {
       const pl = this.placards[s]!;
       if (this.placardOf[s] !== offer) {
         this.placardOf[s] = offer;
-        const count = placardCount(offer.contains), badge = placardBadge(offer.badge, saleOff(offer));
+        const count = placardCount(offer.contains, offer.stock), badge = placardBadge(offer.badge, saleOff(offer));
         if (offer.soldOut) pl.set('Sold out', 'sold', count, badge);
         else if (offer.price <= 0) pl.set('Free', 'free', count, badge);
         else pl.set(String(offer.price), 'price', count, badge);
@@ -1619,7 +1619,7 @@ class ShopSceneImpl implements ShopScene {
     const tag = this.heldTag;
     if (!tag || this.heldTagOf === offer) return;
     this.heldTagOf = offer;
-    const count = placardCount(offer.contains), badge = placardBadge(offer.badge, saleOff(offer));
+    const count = placardCount(offer.contains, offer.stock), badge = placardBadge(offer.badge, saleOff(offer));
     if (offer.soldOut) tag.set('Sold out', 'sold', count, badge);
     else if (offer.price <= 0) tag.set('Free', 'free', count, badge);
     else tag.set(String(offer.price), 'price', count, badge);

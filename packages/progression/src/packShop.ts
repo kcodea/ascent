@@ -25,6 +25,8 @@ export interface PackOffer {
   /** 1 for a pack; more for a box. */
   contains: number;
   newToYou?: { unowned: number; total: number };
+  /** A limited offer: how many are left to buy (0 = sold out). Absent = unlimited. */
+  stock?: number;
   badge?: 'new' | 'free' | 'featured';
   soldOut?: boolean;
 }

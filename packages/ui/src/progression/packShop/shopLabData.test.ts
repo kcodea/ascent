@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { PACK_LAB_LOOKS } from '../packOpening/packLabSamples';
 import { saleOff } from '@game/progression';
-import { DEAL_OFF, FEATURED_DEALS, LAB_GUARANTEE_EVERY, SHOP_LAB_OFFERS, SHOP_LAB_SHELVES, featuredOffers, shopLabOffers, labGuaranteeAfter, makeLabBuy, type LabBuyMode, type LabState } from './shopLabData';
+import { DEAL_OFF, DEAL_STOCK, FEATURED_DEALS, LAB_GUARANTEE_EVERY, SHOP_LAB_OFFERS, SHOP_LAB_SHELVES, featuredOffers, shopLabOffers, labGuaranteeAfter, makeLabBuy, type LabBuyMode, type LabState } from './shopLabData';
 
 const setup = (aether: number, mode: LabBuyMode = 'ok') => {
   let state: LabState = { aether, hand: [] };
@@ -103,6 +103,9 @@ describe('the featured window', () => {
         expect(off).toBeGreaterThanOrEqual(DEAL_OFF.min - 3);
         expect(off).toBeLessThanOrEqual(DEAL_OFF.max + 3);
         expect(d.price).toBeLessThan(d.fullPrice!);
+        expect(d.stock).toBeGreaterThanOrEqual(DEAL_STOCK.min);
+        expect(d.stock).toBeLessThanOrEqual(DEAL_STOCK.max);
+        expect(Number.isInteger(d.stock)).toBe(true);
       }
     }
   });

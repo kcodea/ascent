@@ -965,6 +965,7 @@ class ShopSceneImpl implements ShopScene {
     if (this.enterStep(dt)) moving = true;
     this.stageStep(dt);
     if (this.backdrop?.step(easeK(LOOK_EASE, dt))) moving = true;
+    this.backdrop?.tickLamps(dt); // (the shelf's idle wave of light keeps the ticker running, so the lanterns always flicker)
     if (this.aether?.count) { this.aether.step(dt); moving = true; }
     if (!moving && !this.stage) app.ticker.stop(); // (a lit stage never stops: its dust keeps drifting)
   };

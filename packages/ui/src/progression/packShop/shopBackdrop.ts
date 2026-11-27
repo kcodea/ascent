@@ -303,6 +303,54 @@ export function paintFore(): HTMLCanvasElement {
   return c;
 }
 
+// ------------------------------------------------------------------ the lanterns' life
+
+/**
+ * THE LANTERNS FLICKER, AND GIVE OFF SPARKS (owner 2026-11-27: "these lights lightly flickering the whole time, with very
+ * faint sparks that float up and fade away", and "the glow would need to move with the parallax effect"). A warm glow over
+ * each lantern of the WALL painting and a few faint sparks rising from it, all inside the wall's own layer, so they slide
+ * with it. Only over the real wall art (the placeholder paints its lanterns elsewhere). Alpha and position only.
+ *
+ * `at`: each lantern's glass, as shares of the wall painting (found by its bright warm pixels). `glow`: the glow's size as a
+ * share of the canvas height, its strength at rest and how far the flicker moves it. `spark`: how many per lantern, their
+ * size (px), how high they rise (canvas heights), how long they live (s), and how bright they get.
+ */
+export const LANTERNS = {
+  at: [{ x: 0.168, y: 0.356 }, { x: 0.836, y: 0.355 }],
+  glow: { size: 0.16, alpha: 0.32, flicker: 0.1 },
+  spark: { count: 5, size: 2.4, rise: 0.11, life: [1.6, 2.8] as const, alpha: 0.5, sway: 0.006 },
+} as const;
+
+/** A soft warm round light, white at its heart (added by the scene). */
+function paintLampGlow(): HTMLCanvasElement {
+  const c = document.createElement('canvas');
+  c.width = 128; c.height = 128;
+  const g = c.getContext('2d');
+  if (!g) return c;
+  const r = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+  r.addColorStop(0, 'rgba(255,214,140,0.9)');
+  r.addColorStop(0.25, 'rgba(255,170,80,0.45)');
+  r.addColorStop(1, 'rgba(255,140,40,0)');
+  g.fillStyle = r; g.fillRect(0, 0, 128, 128);
+  return c;
+}
+
+/** A spark: a tiny soft dot. */
+function paintSpark(): HTMLCanvasElement {
+  const c = document.createElement('canvas');
+  c.width = 16; c.height = 16;
+  const g = c.getContext('2d');
+  if (!g) return c;
+  const r = g.createRadialGradient(8, 8, 0, 8, 8, 8);
+  r.addColorStop(0, 'rgba(255,236,190,1)');
+  r.addColorStop(0.4, 'rgba(255,180,90,0.6)');
+  r.addColorStop(1, 'rgba(255,150,60,0)');
+  g.fillStyle = r; g.fillRect(0, 0, 16, 16);
+  return c;
+}
+
+interface Spark { s: Sprite; lamp: number; age: number; life: number; dx: number; phase: number }
+
 // ------------------------------------------------------------------ the layers in the scene
 
 /**
@@ -317,6 +365,12 @@ export class ShopBackdrop {
   private readonly wall: Sprite;
   private readonly counter: Sprite;
   private readonly fore: Sprite;
+  /** The lanterns' glows and sparks: inside the wall's layer (they slide with it), shown once the wall art is in. */
+  private readonly lamps = new Container();
+  private readonly glows: Sprite[] = [];
+  private readonly sparks: Spark[] = [];
+  private lampTime = 0;
+  private seed = 0x2f6b1d;
   private readonly textures: Texture[] = [];
   private readonly look = { x: 0, y: 0 };
   private readonly lookTo = { x: 0, y: 0 };
@@ -337,14 +391,29 @@ export class ShopBackdrop {
     this.counter.anchor.set(0.5, COUNTER_HEADROOM);
     this.fore = new Sprite(tex(paintFore()));
     this.fore.anchor.set(0.5);
-    this.back.addChild(this.wall, this.counter);
+    const glowTex = tex(paintLampGlow()), sparkTex = tex(paintSpark());
+    for (let i = 0; i < LANTERNS.at.length; i++) {
+      const gl = new Sprite(glowTex);
+      gl.anchor.set(0.5); gl.blendMode = 'add';
+      this.glows.push(gl); this.lamps.addChild(gl);
+      for (let j = 0; j < LANTERNS.spark.count; j++) {
+        const s = new Sprite(sparkTex);
+        s.anchor.set(0.5); s.blendMode = 'add'; s.alpha = 0;
+        this.sparks.push({ s, lamp: i, age: 0, life: 1, dx: 0, phase: 0 });
+        this.lamps.addChild(s);
+      }
+    }
+    // staggered: each starts part way through its life, so they never rise together
+    for (const sp of this.sparks) { this.respawn(sp); sp.age = this.rand() * sp.life; }
+    this.lamps.visible = false;
+    this.back.addChild(this.wall, this.lamps, this.counter);
     this.front.addChild(this.fore);
     this.back.eventMode = 'none';
     this.front.eventMode = 'none';
     const sprites: Record<BackdropLayer, Sprite> = { wall: this.wall, counter: this.counter, fore: this.fore };
     for (const layer of Object.keys(SHOP_ART) as BackdropLayer[]) {
       const src = SHOP_ART[layer];
-      if (src) loadTexture(src, () => this.alive, (t) => { this.textures.push(t); sprites[layer].texture = t; sprites[layer].alpha = 1; if (layer === 'counter') this.counterArt = true; this.size(); });
+      if (src) loadTexture(src, () => this.alive, (t) => { this.textures.push(t); sprites[layer].texture = t; sprites[layer].alpha = 1; if (layer === 'counter') this.counterArt = true; if (layer === 'wall') this.lamps.visible = true; this.size(); });
     }
   }
 
@@ -358,6 +427,12 @@ export class ShopBackdrop {
   private size(): void {
     const w = this.w, h = this.h;
     this.wall.width = w * (1 + 2 * OVERSCAN.wall); this.wall.height = h * (1 + 2 * OVERSCAN.wall);
+    for (let i = 0; i < this.glows.length; i++) {
+      const a = LANTERNS.at[i]!, gl = this.glows[i]!;
+      gl.position.set((a.x - 0.5) * this.wall.width, (a.y - 0.5) * this.wall.height);
+      gl.width = gl.height = LANTERNS.glow.size * h;
+    }
+    for (const sp of this.sparks) sp.s.width = sp.s.height = LANTERNS.spark.size * 2.5;
     this.fore.width = w * (1 + 2 * OVERSCAN.fore); this.fore.height = h * (1 + 2 * OVERSCAN.fore);
     // the counter's painting runs from its headroom above the line to the canvas's foot
     this.counter.width = w * (1 + 2 * OVERSCAN.counter);
@@ -391,10 +466,48 @@ export class ShopBackdrop {
     return true;
   }
 
+  /** A small seeded random (presentation only), 0..1. */
+  private rand(): number {
+    this.seed = (this.seed * 1664525 + 1013904223) >>> 0;
+    return this.seed / 4294967296;
+  }
+
+  private respawn(sp: Spark): void {
+    const L = LANTERNS.spark;
+    sp.age = 0;
+    sp.life = L.life[0] + (L.life[1] - L.life[0]) * this.rand();
+    sp.dx = (this.rand() - 0.5) * 0.4;
+    sp.phase = this.rand() * Math.PI * 2;
+  }
+
+  /**
+   * The lanterns' flicker and sparks, every frame (`dt` in 60 Hz frames). The flicker is a few sines out of step plus a
+   * rare dip, so it never reads as a loop; each spark rises from its lantern, sways, swells in and fades out.
+   */
+  tickLamps(dt: number): void {
+    if (!this.lamps.visible || this.h <= 0) return;
+    const t = (this.lampTime += dt / 60), G = LANTERNS.glow, P = LANTERNS.spark, h = this.h;
+    for (let i = 0; i < this.glows.length; i++) {
+      const o = i * 1.7;
+      const f = 0.5 * Math.sin(t * 7.3 + o) + 0.3 * Math.sin(t * 13.1 + o * 2) + 0.2 * Math.sin(t * 2.1 + o * 3);
+      const dip = Math.max(0, Math.sin(t * 0.9 + o * 5)) ** 12; // now and then the flame gutters
+      this.glows[i]!.alpha = Math.max(0, G.alpha * (1 + G.flicker * f - 0.35 * dip));
+    }
+    for (const sp of this.sparks) {
+      sp.age += dt / 60;
+      if (sp.age >= sp.life) this.respawn(sp);
+      const u = sp.age / sp.life, gl = this.glows[sp.lamp]!;
+      const sway = Math.sin(sp.phase + u * 5) * P.sway * h;
+      sp.s.position.set(gl.position.x + sp.dx * 0.06 * h * u + sway, gl.position.y - 0.02 * h - P.rise * h * u);
+      sp.s.alpha = P.alpha * Math.min(1, u / 0.15) * (1 - u) ** 1.5; // in quickly, out slowly
+    }
+  }
+
   private place(): void {
     const w = this.w, h = this.h, s = this.slide, l = this.look;
     slideInto(s, 'wall', l.x, l.y, w, h);
     this.wall.position.set(w / 2 + s.x, h / 2 + s.y);
+    this.lamps.position.copyFrom(this.wall.position);
     slideInto(s, 'counter', l.x, l.y, w, h);
     this.counter.position.set(w / 2 + s.x, this.lineY);
     slideInto(s, 'fore', l.x, l.y, w, h);

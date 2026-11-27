@@ -277,6 +277,9 @@ export class ShelfPack {
     this.key.rx = NaN;
   }
 
+  /** The pack's painted face (a stack drawn behind it wears the same). */
+  get face(): Texture { return this.tex; }
+
   /** Lightly greyed (a category pack whose every cosmetic the player owns), or its own colours. */
   setMuted(muted: boolean): void {
     this.mesh.tint = muted ? MUTED_TINT : 0xffffff;

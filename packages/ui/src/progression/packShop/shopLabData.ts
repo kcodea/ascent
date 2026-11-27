@@ -11,9 +11,10 @@ import { PACK_LAB_LOOKS, type LabTimers } from '../packOpening/packLabSamples';
 // (owner 2026-11-27: "remove the season, boxes, and chests categories. Let's have featured as the first window, then
 // let's have category, and then let's have rarity")
 export const SHOP_LAB_SHELVES: readonly PackShelf[] = [
-  { id: 'featured', name: 'Featured' },
-  { id: 'category', name: 'Category' },
-  { id: 'rarity', name: 'Rarity' },
+  // (owner 2026-11-27: renamed: "Daily Featured", "Themed Packs", "Rarity Packs")
+  { id: 'featured', name: 'Daily Featured' },
+  { id: 'category', name: 'Themed Packs' },
+  { id: 'rarity', name: 'Rarity Packs' },
 ];
 
 const PRICE: Readonly<Record<string, number>> = { common: 100, rare: 200, epic: 450, legendary: 900, ancient: 1800 };

@@ -276,8 +276,10 @@ const lookKeyOf = (look: OwnedPack['look']): string => `${look.kind}:${look.id}`
 const HAND_CONTACT = { alpha: 0, dx: 0, dy: 0.04, lifted: 0.1, away: 3 } as const; // tight to the outline; nearly gone once the pack is off the wood
 /** The owned-every notice, in its own units at a pack OWNED_NOTE.packH tall: its width, padding, type, and its centre's drop from the pack's middle (shares of the pack's height). */
 const OWNED_NOTE = { packH: 400, w: 236, pad: 14, font: 17, y: 0.06 } as const;
+/** The stack behind a deal: at most this many packs (stock 5 = the front pack and 4 behind), each this share of the pack's width right and of its height up, and darker as it goes back. */
+const STOCK_STACK = { max: 4, dx: 0.018, dy: 0.01, tints: [0xa8a8a8, 0x8c8c8c, 0x747474, 0x606060] } as const; // owner 2026-11-27: "make the stack less aggressive" (was 0.045 / 0.022)
 /** A deal's "N left": its type at a pack STOCK_LABEL.packH tall, and its gap above the pack (a share of the pack's height). */
-const STOCK_LABEL = { packH: 400, font: 24, gap: 0.015 } as const;
+const STOCK_LABEL = { packH: 400, font: 22, gap: 0.015 } as const; // owner 2026-11-27: 2px smaller, white
 const TAG_FONT = 0.0525; // owner 2026-11-25: "make the tag smaller by 30%" (was 0.075)
 /**
  * THE PRICE TAGS: where the twine is tied (a share of the pack's height in from its top-left corner), how far the tag
@@ -356,6 +358,8 @@ class ShopSceneImpl implements ShopScene {
   private readonly placards: Placard[] = [];
   /** Per pool slot: the "you own every cosmetic" notice over its pack, and the text it last showed. */
   private readonly ownedNotes: { view: Container; text: Text; said: string }[] = [];
+  /** Per pool slot: the packs stacked behind a limited deal, one per pack left after the front one. */
+  private readonly stockStacks: Sprite[][] = [];
   /** Per pool slot: a limited deal's "N left", above its pack's top-right corner. */
   private readonly stockLabels: Text[] = [];
   private readonly dressTex: Texture[] = [];
@@ -566,6 +570,20 @@ class ShopSceneImpl implements ShopScene {
       this.packs.push(p);
       rack.addChild(p.view);
     }
+    // a daily deal's stock stands behind it as a stack of the same pack (owner 2026-11-27: "create a visual stack of card
+    // packs equal to how many are left. this should only be in the featured section")
+    for (let s = 0; s < POOL; s++) {
+      const row: Sprite[] = [];
+      for (let k = 0; k < STOCK_STACK.max; k++) {
+        const sp = new Sprite(Texture.EMPTY);
+        sp.anchor.set(0.5);
+        sp.visible = false;
+        sp.eventMode = 'none';
+        row.push(sp);
+        rack.addChild(sp);
+      }
+      this.stockStacks.push(row);
+    }
     rack.sortableChildren = true; // draw order is set per pack in `rackStep` (outer packs behind inner ones)
     this.rack = rack;
     app.stage.addChild(rack);
@@ -590,7 +608,7 @@ class ShopSceneImpl implements ShopScene {
     }
     // a limited deal's stock, above its pack (owner 2026-11-27: "put the amount left here, not in the tag")
     for (let s = 0; s < POOL; s++) {
-      const t = new Text({ text: '', style: { fontFamily: FONT, fontSize: STOCK_LABEL.font, fontWeight: '800', fill: 0xffe3a0, letterSpacing: 1, dropShadow: { color: 0x000000, alpha: 0.85, blur: 4, distance: 2, angle: Math.PI / 2 } } });
+      const t = new Text({ text: '', style: { fontFamily: FONT, fontSize: STOCK_LABEL.font, fontWeight: '800', fill: 0xffffff, letterSpacing: 1, dropShadow: { color: 0x000000, alpha: 0.85, blur: 4, distance: 2, angle: Math.PI / 2 } } });
       t.anchor.set(1, 1);
       t.visible = false;
       t.eventMode = 'none';
@@ -1142,6 +1160,7 @@ class ShopSceneImpl implements ShopScene {
         this.placards[s]!.view.visible = false; this.tagX[s] = NaN;
         this.ownedNotes[s]!.view.visible = false;
         this.stockLabels[s]!.visible = false;
+        for (const sp of this.stockStacks[s]!) sp.visible = false;
         continue;
       }
       const offer = offers[this.loop ? wrapIndex(i, count) : i]!;
@@ -1241,6 +1260,24 @@ class ShopSceneImpl implements ShopScene {
         note.view.position.set(q.x, q.y + q.h * OWNED_NOTE.y);
         note.view.rotation = q.rot;
         note.view.scale.set(q.h / OWNED_NOTE.packH);
+      }
+      // the stack behind a deal: its packs left after the front one, each a step up and to the right, darker as they go back.
+      // It stays at the pack's resting place (the front pack lifts off it on hover).
+      const row = this.stockStacks[s]!;
+      const behind = offer.shelf === 'featured' && offer.stock !== undefined ? Math.min(STOCK_STACK.max, Math.max(0, offer.stock - 1)) : 0;
+      for (let k = 0; k < STOCK_STACK.max; k++) {
+        const sp = row[k]!;
+        sp.visible = k < behind && tagA > 0.01;
+        if (!sp.visible) continue;
+        if (sp.texture !== pack.face) sp.texture = pack.face;
+        const d = k + 1, w = p.h * ASPECT;
+        const c = Math.cos(p.rot), sn = Math.sin(p.rot), dx = d * STOCK_STACK.dx * w, dy = -d * STOCK_STACK.dy * p.h;
+        sp.position.set(p.x + dx * c - dy * sn, p.y + dx * sn + dy * c);
+        sp.rotation = p.rot;
+        sp.width = w; sp.height = p.h;
+        sp.tint = STOCK_STACK.tints[k]!;
+        sp.alpha = tagA;
+        sp.zIndex = pack.view.zIndex - 0.01 * d;
       }
       // a limited deal's stock, over its top-right corner, riding the pack's lift and turn
       const sl = this.stockLabels[s]!;

@@ -167,3 +167,9 @@ html[data-pks-shop] .ph-navhost { z-index: 695; }
 .pks-arrow-l::before { transform: translate(-30%, -50%) rotate(-135deg); }
 .pks-arrow-r::before { transform: translate(-70%, -50%) rotate(45deg); }
 :is(.pks-away, .pks-enter) .pks-arrow { opacity: 0; }
+/* The browse tip: under the right arrow, at the shelf's edge. It never takes the pointer. */
+.pks-hint { position: absolute; right: 2.2%; width: 150px; margin-top: 56px; padding: 10px 12px; border-radius: 14px; box-sizing: border-box;
+  background: linear-gradient(180deg, rgba(40, 50, 96, 0.9), rgba(14, 18, 38, 0.94)); border: 1.5px solid rgba(255, 210, 122, 0.4);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.55); color: var(--gold-lt); font-size: 14px; font-weight: 700; line-height: 1.3; text-align: center;
+  pointer-events: none; transition: var(--pks-back); }
+:is(.pks-away, .pks-enter) .pks-hint { opacity: 0; }

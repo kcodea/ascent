@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { aetherShort, type BuyPackOutcome, type CrateRarity, type OwnedPack, type PackOffer, type PackShelf } from '@game/progression';
 import { rectToStage, stageHost, stageViewport, type StageRect } from '../../stage';
@@ -107,6 +107,12 @@ function tagStyle(r: StageRect | null, kind: 'shelf' | 'hand'): CSSProperties | 
   const foot = shopLayout(vp.w, vp.h).floorY + TAG_GAP;
   return { left, top: Math.min(r.top + r.height + TAG_GAP, foot), translate: '-50% 0' };
 }
+
+/**
+ * The browse tip (owner 2026-11-27: "Hold down right click to browse the shop options. once the player holds right click,
+ * have it go away for that entire session"): seen once, it stays away until the game is restarted.
+ */
+let browseHintSeen = false;
 
 export function PackShop(props: PackShopProps) {
   const { shelves, offers, hand, aether, guarantee, buy, open, onClose, reducedMotion, sceneFactory = createShopScene } = props;
@@ -720,9 +726,16 @@ export function PackShop(props: PackShopProps) {
     html.setAttribute('data-pks-shop', '');
     return () => html.removeAttribute('data-pks-shop');
   }, [navH, away]);
+  // The browse tip leaves for the session the first time the player holds the right button anywhere in the shop.
+  const [browseHint, setBrowseHint] = useState(!browseHintSeen);
+  const onBrowsePress = (e: ReactPointerEvent): void => {
+    if (e.button !== 2 || browseHintSeen) return;
+    browseHintSeen = true;
+    setBrowseHint(false);
+  };
   const shop = (
     <div {...(away ? { inert: '', 'aria-hidden': true } : {})} className={`pks${entering && !reduced ? ' pks-enter' : ''}${away ? ' pks-away' : ''}${reduced ? ' pks-still' : ''}${navH ? ' pks-undernav' : ''}`} style={navH ? { '--pks-nav': `${navH}px` } as CSSProperties : undefined} role="dialog" aria-modal="true" aria-label="Pack shop" ref={dialogRef} tabIndex={-1}
-         onKeyDown={onArrows}>
+         onKeyDown={onArrows} onPointerDownCapture={onBrowsePress}>
       <div className="pkop-scrim" aria-hidden />
       {!reduced && <div className="pks-fx" ref={hostRef} aria-hidden />}
 
@@ -751,6 +764,9 @@ export function PackShop(props: PackShopProps) {
           {/* A shelf of more than five scrolls: an arrow each side steps it one pack (owner 2026-11-26). */}
           {arrows.left && <button type="button" className="pks-arrow pks-arrow-l pressable" style={{ top: arrowTop }} aria-label="Earlier packs" onClick={() => sceneRef.current?.scrollBy(-1)} />}
           {arrows.right && <button type="button" className="pks-arrow pks-arrow-r pressable" style={{ top: arrowTop }} aria-label="More packs" onClick={() => sceneRef.current?.scrollBy(1)} />}
+          {browseHint && (arrows.left || arrows.right) && (
+            <div className="pks-hint" style={{ top: arrowTop }} data-testid="pks-hint">Hold down right click to browse the shop options.</div>
+          )}
           {tagFor && (tagOffer || tagPack) && (
             <div className={`pks-tag${tagFor.rect ? '' : ' pks-tag-dock'}${tagFor.armed ? ' pks-tag-armed' : ''}`} style={tagStyle(tagFor.rect, tagFor.kind)}
                  data-testid="pks-tag">

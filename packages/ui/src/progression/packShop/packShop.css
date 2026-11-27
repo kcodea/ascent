@@ -232,3 +232,11 @@ html[data-pks-navaway] .ph-navhost { opacity: 0; pointer-events: none; transitio
 /* The shop's refresh countdown, at the bar's left (owner 2026-11-27: "a 'Shop refreshes in: HH:MM:SS' ticker in the top left"). */
 .pks-refresh { position: absolute; left: 36px; top: 50%; translate: 0 -50%; font-size: 16px; font-weight: 700; color: rgba(220, 230, 255, 0.75); white-space: nowrap; }
 .pks-refresh-clock { color: #ffd27a; font-variant-numeric: tabular-nums; }
+/* THE DOORWAY OPENS FIRST (owner 2026-11-27, of the doorway mid-fade: "this part should be fully transparent by now"): the
+   door's painted interior is gone before the picture starts to fade (FADE_AT_MS), so the shop shows through the doorway
+   at full strength while the land around it fades. As it goes it also fades to black (owner 2026-11-27: "it should fade to
+   black while also fading to transparent at the same time"): its black veil rises as the two fade out together. Opacity only. */
+.wipevista.shoptrip.dive .wipevista-doorfill { animation: vistashopdooropen var(--shop-door-ms, 300ms) ease-out both; }
+@keyframes vistashopdooropen { 0% { opacity: 1; } 100% { opacity: 0; } }
+.wipevista.shoptrip.dive .wipevista-doordark { animation: vistashopdoordark var(--shop-door-ms, 300ms) ease-out both; }
+@keyframes vistashopdoordark { 0% { opacity: 0; } 100% { opacity: 1; } }

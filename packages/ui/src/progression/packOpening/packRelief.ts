@@ -28,6 +28,7 @@ const RELIEF: Readonly<Record<string, PackMaterial>> = {
   eightbit: FOIL, voxel: FOIL, lowpoly: FOIL, encore: FOIL,
   plushie: { band: 0.8, fuzz: 1, depth: 0.1 },      // felt on a glossy ground
   scribble: { band: 0.8, fuzz: 0.5, depth: 0.1 }, // crayon on paper (finish 0.4 all over: the band as it was, a waxy tooth)
+  crayon: { band: 0.8, fuzz: 0.5, depth: 0.1 }, // crayon on paper, like Scribble
   sketchbook: { band: 0.8, fuzz: 0.4, depth: 0.1 }, // pencil on paper (finish 0.3 all over)
 };
 

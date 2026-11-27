@@ -877,6 +877,15 @@ const VISTA_TRIP_LAYERS: Record<VistaTripCue, readonly WipeLayer[]> = {
     { clip: 'fx/soumages-magic-spell-333896', category: 'vistaspell', offset: 0.45, duration: 1.5, fadeInMs: 200, fadeMs: 600 }],
   title: [{ clip: 'fx/stereogenicstudio-swish-swoosh-woosh-sfx-39-357160', category: 'vistatitle', offset: 0.1, duration: 1, fadeMs: 300 }],
 };
+/**
+ * The menu's trip INTO the pack shop (PackShopEntry.tsx) plays only the title's swish and the woosh into the doorway: none of
+ * the trip's magic (owner 2026-11-27: "theres some magic sparkle sound effects that occur that relate to the magic effects. i
+ * just want the sounds related to the title showing, and the woosh of entering the doorway"). The same layers as Recruit's.
+ */
+const SHOP_TRIP_LAYERS: Record<'title' | 'enter', readonly WipeLayer[]> = {
+  title: VISTA_TRIP_LAYERS.title,
+  enter: VISTA_TRIP_LAYERS.portal.filter((l) => l.clip !== 'triggerglow'),
+};
 const WIPE_GATE_LAYERS: Record<WipeGateCue, readonly WipeLayer[]> = {
   drop: [{ clip: 'wipedrop' }],
   impact: [
@@ -2126,6 +2135,8 @@ export const sfx = {
   wipeGate: (cue: WipeGateCue): void => { for (const l of WIPE_GATE_LAYERS[cue]) playWipeLayer(l); },
   /** The return trip's cues (`VISTA_TRIP_LAYERS`): every layer of the moment at once. */
   vistaTrip: (cue: VistaTripCue): void => { for (const l of VISTA_TRIP_LAYERS[cue]) playWipeLayer(l); },
+  /** The pack shop trip's cues (`SHOP_TRIP_LAYERS`): the title's swish, and the woosh into the doorway. */
+  shopTrip: (cue: 'title' | 'enter'): void => { for (const l of SHOP_TRIP_LAYERS[cue]) playWipeLayer(l); },
   /** Fetch + decode the falling gate's clips now (Recruit, on mount), so the first End Turn of a session is not silent. */
   warmWipeGate: (): void => {
     for (const ls of [...Object.values(WIPE_GATE_LAYERS), ...Object.values(VISTA_TRIP_LAYERS)]) for (const l of ls) loadSample(l.clip);

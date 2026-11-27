@@ -31,10 +31,15 @@ const ARRIVAL_MS = 800;
 const TITLE = ['To The', 'Shop'] as const;
 /**
  * The dive INTO the shop (packShop.css `vistashopdive`, owner 2026-11-27): it eases in and settles slowly with the door's
- * sides on the shop's own doorposts, over DIVE_MS, then the picture fades over FADE_MS. Not Recruit's fly-through.
+ * sides on the shop's own doorposts, over DIVE_MS; the picture starts fading FADE_AT_MS in, as the doorway closes on the
+ * shop's (owner 2026-11-27: "have the fade out happen sooner with the doorway"), over FADE_MS. Not Recruit's fly-through.
+ * The hold before it is 30% shorter than Recruit's (owner 2026-11-27: "make the hold 30% shorter").
  */
 const DIVE_MS = 1600;
 const FADE_MS = 500;
+const FADE_AT_MS = 850;
+/** The hold before the dive: Recruit's, 30% shorter. */
+const HOLD_SHARE = 0.7;
 
 type Trip = 'in' | 'held' | 'dive' | 'done';
 
@@ -44,13 +49,13 @@ function ShopDoorTrip({ onCovered, onDone }: { onCovered: () => void; onDone: ()
   const cb = useRef({ onCovered, onDone });
   cb.current = { onCovered, onDone };
   useEffect(() => {
-    sfx.vistaTrip('arrive');
+    const hold = Math.round(cfg.holdOutMs * HOLD_SHARE);
     const timers = [
-      window.setTimeout(() => sfx.vistaTrip('title'), ARRIVAL_MS - 300),
+      window.setTimeout(() => sfx.shopTrip('title'), ARRIVAL_MS - 300),
       window.setTimeout(() => { setStep('held'); cb.current.onCovered(); }, ARRIVAL_MS),
-      window.setTimeout(() => sfx.vistaTrip('portal'), ARRIVAL_MS + Math.max(0, cfg.holdOutMs - 580)),
-      window.setTimeout(() => { setStep('dive'); sfx.vistaTrip('dive'); }, ARRIVAL_MS + cfg.holdOutMs),
-      window.setTimeout(() => { setStep('done'); cb.current.onDone(); }, ARRIVAL_MS + cfg.holdOutMs + DIVE_MS + FADE_MS),
+      window.setTimeout(() => sfx.shopTrip('enter'), ARRIVAL_MS + Math.max(0, hold - 580)),
+      window.setTimeout(() => { setStep('dive'); }, ARRIVAL_MS + hold),
+      window.setTimeout(() => { setStep('done'); cb.current.onDone(); }, ARRIVAL_MS + hold + Math.max(DIVE_MS, FADE_AT_MS + FADE_MS)),
     ];
     return () => { for (const t of timers) window.clearTimeout(t); };
     // one trip per mount
@@ -58,7 +63,7 @@ function ShopDoorTrip({ onCovered, onDone }: { onCovered: () => void; onDone: ()
   if (step === 'done') return null;
   const cls = `wipevista shoptrip on ${step === 'in' ? 'in' : step === 'held' ? 'in held' : 'dive'}`;
   return createPortal(
-    <div className={cls} aria-hidden="true" style={{ '--wipe-reveal-dur': `${DIVE_MS}ms`, '--shop-fade-ms': `${FADE_MS}ms` } as CSSProperties}>
+    <div className={cls} aria-hidden="true" style={{ '--wipe-reveal-dur': `${DIVE_MS}ms`, '--shop-fade-ms': `${FADE_MS}ms`, '--shop-fade-at': `${FADE_AT_MS}ms` } as CSSProperties}>
       <svg className="wipevista-defs" width="0" height="0" aria-hidden="true" focusable="false">
         <clipPath id={VISTA_DOOR_CLIP_ID} clipPathUnits="objectBoundingBox"><path clipRule="evenodd" d={VISTA_DOOR_CLIP} /></clipPath>
       </svg>

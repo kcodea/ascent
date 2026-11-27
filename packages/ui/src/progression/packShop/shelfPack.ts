@@ -22,6 +22,9 @@ import { PACK_GEOM, TEX_RES, paintBody, paintStrip } from '../packOpening/packTe
 import { glossBandInto, newGlossBand, newTiltPose, setTiltPose, tiltInto, tiltTargetInto } from '../packOpening/packTilt';
 import type { PackPose } from './shopLayout';
 
+/** A greyed pack's tint (owner 2026-11-27: "lightly grey out the pack"). */
+const MUTED_TINT = 0x9c9c9c;
+
 const { W, H, BODY_H } = PACK_GEOM;
 /** The whole pack's height (strip + body), base units. */
 const HT = H + BODY_H;
@@ -272,6 +275,11 @@ export class ShelfPack {
     this.view.addChildAt(this.side, this.view.getChildIndex(this.mesh));
     this.puffed = true;
     this.key.rx = NaN;
+  }
+
+  /** Lightly greyed (a category pack whose every cosmetic the player owns), or its own colours. */
+  setMuted(muted: boolean): void {
+    this.mesh.tint = muted ? MUTED_TINT : 0xffffff;
   }
 
   /** The glow's strength (0..1) and colour. */

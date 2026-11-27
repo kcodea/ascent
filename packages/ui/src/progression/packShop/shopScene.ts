@@ -43,7 +43,7 @@
  *    scene has faded out under the opener with no Aether in flight (`hiddenAsleep`); `setVisible(true)` wakes it.
  */
 import { Application, CanvasSource, Container, Graphics, Sprite, Text, Texture, type Ticker } from 'pixi.js';
-import { saleOff, type OwnedPack, type PackOffer } from '@game/progression';
+import { ownedEveryNotice, ownsEveryCosmetic, saleOff, type OwnedPack, type PackOffer } from '@game/progression';
 import { stageScale } from '../../stage';
 import { detachPixiDomEvents } from '../../pixiNoDomEvents';
 import { destroyPixiApp, guardAppRender, watchContextLoss } from '../../pixiAppSafety';
@@ -274,6 +274,8 @@ const STACK_COUNT = { font: 0.1, x: 0, y: 0.34 } as const; // on the foot edge, 
 /** A pack's type: packs of one type lie in one stack. */
 const lookKeyOf = (look: OwnedPack['look']): string => `${look.kind}:${look.id}`;
 const HAND_CONTACT = { alpha: 0, dx: 0, dy: 0.04, lifted: 0.1, away: 3 } as const; // tight to the outline; nearly gone once the pack is off the wood
+/** The owned-every notice, in its own units at a pack OWNED_NOTE.packH tall: its width, padding, type, and its centre's drop from the pack's middle (shares of the pack's height). */
+const OWNED_NOTE = { packH: 400, w: 236, pad: 14, font: 17, y: 0.06 } as const;
 const TAG_FONT = 0.0525; // owner 2026-11-25: "make the tag smaller by 30%" (was 0.075)
 /**
  * THE PRICE TAGS: where the twine is tied (a share of the pack's height in from its top-left corner), how far the tag
@@ -350,6 +352,8 @@ class ShopSceneImpl implements ShopScene {
   /** The room in layers (shopBackdrop.ts): the wall and the counter under the packs, the foreground over them. */
   private backdrop: ShopBackdrop | null = null;
   private readonly placards: Placard[] = [];
+  /** Per pool slot: the "you own every cosmetic" notice over its pack, and the text it last showed. */
+  private readonly ownedNotes: { view: Container; text: Text; said: string }[] = [];
   private readonly dressTex: Texture[] = [];
   /** The cast shadow's texture and the canvas it is painted on (repainted when the dev tuner's blur changes). */
   private castCanvas: HTMLCanvasElement | null = null;
@@ -567,6 +571,18 @@ class ShopSceneImpl implements ShopScene {
       const pl = new Placard(Texture.EMPTY, FONT);
       this.placards.push(pl);
       cards.addChild(pl.view);
+    }
+    // the notice over a pack the player owns every cosmetic of, under the tags
+    for (let s = 0; s < POOL; s++) {
+      const view = new Container();
+      const bg = new Graphics();
+      const text = new Text({ text: '', style: { fontFamily: FONT, fontSize: OWNED_NOTE.font, fontWeight: '700', fill: 0xffffff, align: 'center', wordWrap: true, wordWrapWidth: OWNED_NOTE.w - OWNED_NOTE.pad * 2, lineHeight: OWNED_NOTE.font * 1.25 } });
+      text.anchor.set(0.5);
+      view.addChild(bg, text);
+      view.visible = false;
+      view.eventMode = 'none';
+      this.ownedNotes.push({ view, text, said: '' });
+      cards.addChildAt(view, 0);
     }
     this.placardLayer = cards;
     app.stage.addChild(cards);
@@ -1111,6 +1127,7 @@ class ShopSceneImpl implements ShopScene {
         tilt.ax = 0; tilt.ay = 0; this.slotLift[s] = 0; this.slotLean[s] = 0;
         pack.view.visible = false;
         this.placards[s]!.view.visible = false; this.tagX[s] = NaN;
+        this.ownedNotes[s]!.view.visible = false;
         continue;
       }
       const offer = offers[this.loop ? wrapIndex(i, count) : i]!;
@@ -1192,6 +1209,25 @@ class ShopSceneImpl implements ShopScene {
         pl.view.rotation = TAG_REST + sw.a;
         pl.view.scale.set(this.placardK * Math.sqrt(q.h / Math.max(1, L.packH)));
       } else this.tagX[s] = NaN;
+      // OWNED EVERY COSMETIC (owner 2026-11-27: "lightly grey out the pack and overlay a notice"): still buyable
+      const owned = ownsEveryCosmetic(offer);
+      pack.setMuted(owned);
+      const note = this.ownedNotes[s]!;
+      note.view.visible = owned && tagA > 0.01;
+      if (note.view.visible) {
+        const said = ownedEveryNotice(offer);
+        if (note.said !== said) {
+          note.said = said;
+          note.text.text = said;
+          const bg = note.view.children[0] as Graphics, hh = note.text.height + OWNED_NOTE.pad * 2;
+          bg.clear().roundRect(-OWNED_NOTE.w / 2, -hh / 2, OWNED_NOTE.w, hh, 12).fill({ color: 0x0b0f1e, alpha: 0.82 }).stroke({ color: 0xd8c08a, width: 2, alpha: 0.7 });
+        }
+        const q = liftPoseInto(this.lifted, p, lift);
+        note.view.alpha = tagA;
+        note.view.position.set(q.x, q.y + q.h * OWNED_NOTE.y);
+        note.view.rotation = q.rot;
+        note.view.scale.set(q.h / OWNED_NOTE.packH);
+      }
       // a pack just put back sits down: a small bob into its place
       const st = this.slotSettle[s]!;
       if (st >= 0) {

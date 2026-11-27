@@ -47,6 +47,18 @@ export type BuyPackOutcome =
   | { status: 'ok'; packs: readonly OwnedPack[]; aether: number }
   | { status: 'error'; reason: BuyPackError; aether?: number };
 
+/**
+ * Whether the player already owns every cosmetic a CATEGORY pack can give (owner 2026-11-27: its guaranteed card is never
+ * one they own, so once they own them all it can only be a duplicate). Rarity packs may always duplicate: never true.
+ */
+export function ownsEveryCosmetic(offer: PackOffer): boolean {
+  return offer.look.kind !== 'rarity' && offer.newToYou?.unowned === 0;
+}
+
+/** The notice over a pack whose every cosmetic the player owns (owner 2026-11-27, his words, spelling fixed). */
+export const ownedEveryNotice = (offer: PackOffer): string =>
+  `You own every cosmetic from this pack. You may continue purchasing more of the "${offer.look.name}" at your own discretion.`;
+
 /** A sale's discount as a whole percent (40 for 40% off), or 0 when the offer is not on sale. */
 export function saleOff(offer: PackOffer): number {
   const full = offer.fullPrice ?? 0;

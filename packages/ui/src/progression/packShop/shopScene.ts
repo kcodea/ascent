@@ -237,7 +237,7 @@ const RACK_FADE_EASE = 0.15;
 // shows along a pack's near edge and nowhere else (owner 2026-11-25 / 26: "the shadow should be cast on the front of the
 // card packs"). `w` is the soft shadow's width as a share of the pack's: under 1, so none shows at the sides.
 // (owner 2026-11-26: "the shadows make the packs look like they are hovering": lighter, and tight to the pack's foot)
-const HAND_SHADOW = { alpha: 0.36, dx: 0, dy: 0.115, lift: 0.1, w: 0.94 } as const;
+const HAND_SHADOW = { alpha: 0.52, dx: 0, dy: 0.115, lift: 0.1, w: 0.94 } as const;
 /**
  * The hand packs' CONTACT shadow (owner 2026-11-25: "add shadows here to make it look a bit more like its against the
  * table"): tight and dark under the pack's own outline, offset by these shares of its height. As the pack lifts it
@@ -254,7 +254,7 @@ const GLOW_TINT: Readonly<Record<string, number>> = { common: 0xdfe6f2, rare: 0x
 const STACK_COUNT = { font: 0.1, x: 0, y: 0.34 } as const; // on the foot edge, under the pack's name
 /** A pack's type: packs of one type lie in one stack. */
 const lookKeyOf = (look: OwnedPack['look']): string => `${look.kind}:${look.id}`;
-const HAND_CONTACT = { alpha: 0.6, dx: 0, dy: 0.06, lifted: 0.35, away: 3 } as const;
+const HAND_CONTACT = { alpha: 0.78, dx: 0, dy: 0.06, lifted: 0.35, away: 3 } as const;
 const TAG_FONT = 0.0525; // owner 2026-11-25: "make the tag smaller by 30%" (was 0.075)
 /**
  * THE PRICE TAGS: where the twine is tied (a share of the pack's height in from its top-left corner), how far the tag

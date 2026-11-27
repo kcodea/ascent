@@ -790,16 +790,22 @@ export function PackShop(props: PackShopProps) {
     html.setAttribute('data-pks-navaway', '');
     return () => html.removeAttribute('data-pks-navaway');
   }, [away]);
-  // The browse tip leaves for the session the first time the player holds the right button anywhere in the shop.
+  // The browse tip leaves for the session the first time the player holds the right button, or turns the wheel, anywhere in
+  // the shop (owner 2026-11-27: "in the tooltip about right clicking to drag, also add that you can use the scrollwheel").
   const [browseHint, setBrowseHint] = useState(!browseHintSeen);
   const onBrowsePress = (e: ReactPointerEvent): void => {
     if (e.button !== 2 || browseHintSeen) return;
     browseHintSeen = true;
     setBrowseHint(false);
   };
+  const onBrowseWheel = (): void => {
+    if (browseHintSeen) return;
+    browseHintSeen = true;
+    setBrowseHint(false);
+  };
   const shop = (
     <div {...(away ? { inert: '', 'aria-hidden': true } : {})} className={`pks${entering && !reduced ? ' pks-enter' : ''}${away ? ' pks-away' : ''}${reduced ? ' pks-still' : ''}${navH ? ' pks-undernav' : ''}`} style={navH ? { '--pks-nav': `${navH}px` } as CSSProperties : undefined} role="dialog" aria-modal="true" aria-label="Pack shop" ref={dialogRef} tabIndex={-1}
-         onKeyDown={onArrows} onPointerDownCapture={onBrowsePress}>
+         onKeyDown={onArrows} onPointerDownCapture={onBrowsePress} onWheelCapture={onBrowseWheel}>
       <div className="pkop-scrim" aria-hidden />
       {!reduced && <div className="pks-fx" ref={hostRef} aria-hidden />}
 
@@ -830,7 +836,7 @@ export function PackShop(props: PackShopProps) {
           {arrows.left && <button type="button" className="pks-arrow pks-arrow-l pressable" style={{ top: arrowTop }} aria-label="Earlier packs" onClick={() => sceneRef.current?.scrollBy(-1)} />}
           {arrows.right && <button type="button" className="pks-arrow pks-arrow-r pressable" style={{ top: arrowTop }} aria-label="More packs" onClick={() => sceneRef.current?.scrollBy(1)} />}
           {browseHint && (arrows.left || arrows.right) && (
-            <div className="pks-hint" style={{ top: arrowTop }} data-testid="pks-hint">Hold down right click to browse the shop options.</div>
+            <div className="pks-hint" style={{ top: arrowTop }} data-testid="pks-hint">Hold down right click or use the scroll wheel to browse the shop options.</div>
           )}
           {tagFor && (tagOffer || tagPack) && (
             <div className={`pks-tag${tagFor.rect ? '' : ' pks-tag-dock'}${tagFor.armed ? ' pks-tag-armed' : ''}`} style={tagStyle(tagFor.rect, tagFor.kind)}

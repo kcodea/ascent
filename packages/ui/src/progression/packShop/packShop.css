@@ -205,3 +205,7 @@ html[data-pks-navaway] .ph-navhost { opacity: 0; pointer-events: none; transitio
 
 /* A limited featured deal's stock (owner 2026-11-27: "randomly roll which amount of stock they have from 2 to 5"). */
 .pks-stock { font-size: 15px; font-weight: 700; color: #ffd27a; }
+
+/* The shop's refresh countdown, at the bar's left (owner 2026-11-27: "a 'Shop refreshes in: HH:MM:SS' ticker in the top left"). */
+.pks-refresh { position: absolute; left: 36px; top: 50%; translate: 0 -50%; font-size: 16px; font-weight: 700; color: rgba(220, 230, 255, 0.75); white-space: nowrap; }
+.pks-refresh-clock { color: #ffd27a; font-variant-numeric: tabular-nums; }

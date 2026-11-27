@@ -278,6 +278,31 @@ const HAND_CONTACT = { alpha: 0, dx: 0, dy: 0.04, lifted: 0.1, away: 3 } as cons
 const OWNED_NOTE = { packH: 400, w: 236, pad: 14, font: 17, y: 0.06 } as const;
 /** The stack behind a deal: at most this many packs (stock 5 = the front pack and 4 behind), each this share of the pack's width right and of its height up, and darker as it goes back. */
 const STOCK_STACK = { max: 4, dx: 0.018, dy: 0.01, tints: [0xa8a8a8, 0x8c8c8c, 0x747474, 0x606060] } as const; // owner 2026-11-27: "make the stack less aggressive" (was 0.045 / 0.022)
+/**
+ * Each pack behind sits a little askew (owner 2026-11-27: "make the stack a bit more natural and slightly askew looking"):
+ * its own turn (1 to 3 degrees, either way) and an uneven step, peeking out on both sides. Seeded by the offer, so it never
+ * moves between frames.
+ */
+const STACK_ASKEW_DEG = { min: 1, max: 3 } as const;
+/** Per offer: each pack behind's [x step (pack widths, signed), y step (pack heights), turn (radians)]. */
+const stackAskewCache = new Map<string, readonly (readonly [number, number, number])[]>();
+export function stackAskew(offerId: string): readonly (readonly [number, number, number])[] {
+  const hit = stackAskewCache.get(offerId);
+  if (hit) return hit;
+  let h = 2166136261;
+  for (let i = 0; i < offerId.length; i++) { h ^= offerId.charCodeAt(i); h = Math.imul(h, 16777619); }
+  const rnd = (): number => { h = Math.imul(h ^ (h >>> 15), 2246822507); h = Math.imul(h ^ (h >>> 13), 3266489909); h ^= h >>> 16; return (h >>> 0) / 4294967296; };
+  const out: (readonly [number, number, number])[] = [];
+  for (let k = 0; k < STOCK_STACK.max; k++) {
+    const side = k % 2 === 0 ? 1 : -1; // alternate sides, so edges show left and right
+    const x = side * STOCK_STACK.dx * (0.6 + 0.9 * rnd()) * (1 + 0.35 * k);
+    const y = STOCK_STACK.dy * (0.6 + 0.8 * rnd()) * (k + 1);
+    const turn = (rnd() < 0.5 ? -1 : 1) * (STACK_ASKEW_DEG.min + (STACK_ASKEW_DEG.max - STACK_ASKEW_DEG.min) * rnd()) * (Math.PI / 180);
+    out.push([x, y, turn]);
+  }
+  stackAskewCache.set(offerId, out);
+  return out;
+}
 /** A deal's "N left": its type at a pack STOCK_LABEL.packH tall, and its gap above the pack (a share of the pack's height). */
 const STOCK_LABEL = { packH: 400, font: 22, gap: 0.015 } as const; // owner 2026-11-27: 2px smaller, white
 const TAG_FONT = 0.0525; // owner 2026-11-25: "make the tag smaller by 30%" (was 0.075)
@@ -1266,15 +1291,16 @@ class ShopSceneImpl implements ShopScene {
       // It stays at the pack's resting place (the front pack lifts off it on hover).
       const row = this.stockStacks[s]!;
       const behind = offer.shelf === 'featured' && offer.stock !== undefined ? Math.min(STOCK_STACK.max, Math.max(0, offer.stock - 1)) : 0;
+      const askew = behind > 0 ? stackAskew(offer.offerId) : null;
       for (let k = 0; k < STOCK_STACK.max; k++) {
         const sp = row[k]!;
         sp.visible = k < behind && tagA > 0.01;
         if (!sp.visible) continue;
         if (sp.texture !== pack.face) sp.texture = pack.face;
-        const d = k + 1, w = p.h * ASPECT;
-        const c = Math.cos(p.rot), sn = Math.sin(p.rot), dx = d * STOCK_STACK.dx * w, dy = -d * STOCK_STACK.dy * p.h;
+        const d = k + 1, w = p.h * ASPECT, a = askew![k]!;
+        const c = Math.cos(p.rot), sn = Math.sin(p.rot), dx = a[0] * w, dy = -a[1] * p.h;
         sp.position.set(p.x + dx * c - dy * sn, p.y + dx * sn + dy * c);
-        sp.rotation = p.rot;
+        sp.rotation = p.rot + a[2];
         sp.width = w; sp.height = p.h;
         sp.tint = STOCK_STACK.tints[k]!;
         sp.alpha = tagA;

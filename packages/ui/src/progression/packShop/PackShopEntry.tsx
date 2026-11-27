@@ -8,7 +8,7 @@ import { stageHost } from '../../stage';
 import { VISTA_DOOR_CLIP, VISTA_DOOR_CLIP_ID } from '../../vistaDoor';
 import { PACK_LAB_SAMPLES, cancelLabTimers, makeLabOpen, type LabTimers } from '../packOpening/packLabSamples';
 import { PackShop, type PackShopProps } from './PackShop';
-import { LAB_GUARANTEE_EVERY, SHOP_LAB_SHELVES, shopLabOffers, labGuaranteeAfter, labHand, makeLabBuy, type LabState } from './shopLabData';
+import { LAB_GUARANTEE_EVERY, SHOP_LAB_SHELVES, labNextRefresh, labShopDay, shopLabOffers, labGuaranteeAfter, labHand, makeLabBuy, type LabState } from './shopLabData';
 
 /**
  * THE WAY INTO THE PACK SHOP FROM THE MENU (owner 2026-11-26: "when clicking shop. i want to use the return to shop
@@ -100,7 +100,9 @@ function LabPackShop({ onClose }: { onClose: () => void }) {
   useEffect(() => { const t = timersRef.current; return () => cancelLabTimers(t); }, []);
   const sampleN = useRef(0);
   // today's shelves, drawn as the shop opens (the featured window rotates by the day); the daily free pack is taken once
-  const allOffers = useMemo(() => shopLabOffers(), []);
+  const [day, setDay] = useState(() => labShopDay());
+  const refreshesAt = useMemo(() => labNextRefresh(new Date(`${day}T12:00:00Z`)), [day]);
+  const allOffers = useMemo(() => shopLabOffers(day), [day]);
   const [freeTaken, setFreeTaken] = useState<ReadonlySet<string>>(() => new Set());
   // a limited deal's purchases so far (its stock counts down; at 0 it is sold out)
   const [boughtOf, setBoughtOf] = useState<ReadonlyMap<string, number>>(() => new Map());
@@ -128,6 +130,8 @@ function LabPackShop({ onClose }: { onClose: () => void }) {
       return out;
     };
   }, [setState, allOffers]);
+  // the day turned over: the new day's window, and its per-day limits start fresh
+  const onRefresh = useCallback(() => { setDay(labShopDay()); setFreeTaken(new Set()); setBoughtOf(new Map()); }, []);
   const open = useCallback<PackShopProps['open']>(async (packId) => {
     const pack = stateRef.current.hand.find((p) => p.packId === packId);
     const sample = PACK_LAB_SAMPLES[sampleN.current++ % PACK_LAB_SAMPLES.length]!;
@@ -139,7 +143,7 @@ function LabPackShop({ onClose }: { onClose: () => void }) {
     return outcome;
   }, [setState]);
   return (
-    <PackShop shelves={SHOP_LAB_SHELVES} offers={offers} hand={state.hand} aether={state.aether}
+    <PackShop shelves={SHOP_LAB_SHELVES} offers={offers} refreshesAt={refreshesAt} onRefresh={onRefresh} hand={state.hand} aether={state.aether}
       guarantee={{ rarity: 'legendary', within }} buy={buy} open={open} onClose={onClose} />
   );
 }

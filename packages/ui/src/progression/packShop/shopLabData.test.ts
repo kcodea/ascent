@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { PACK_LAB_LOOKS } from '../packOpening/packLabSamples';
 import { saleOff } from '@game/progression';
-import { DEAL_OFF, DEAL_STOCK, FEATURED_DEALS, LAB_GUARANTEE_EVERY, SHOP_LAB_OFFERS, SHOP_LAB_SHELVES, featuredOffers, shopLabOffers, labGuaranteeAfter, makeLabBuy, type LabBuyMode, type LabState } from './shopLabData';
+import { DEAL_OFF, DEAL_STOCK, FEATURED_DEALS, LAB_GUARANTEE_EVERY, labNextRefresh, labShopDay, SHOP_LAB_OFFERS, SHOP_LAB_SHELVES, featuredOffers, shopLabOffers, labGuaranteeAfter, makeLabBuy, type LabBuyMode, type LabState } from './shopLabData';
 
 const setup = (aether: number, mode: LabBuyMode = 'ok') => {
   let state: LabState = { aether, hand: [] };
@@ -113,5 +113,25 @@ describe('the featured window', () => {
     expect(featuredOffers(days[0]!)).toEqual(featuredOffers(days[0]!));
     const windows = new Set(days.map((d) => featuredOffers(d).slice(1).map((o) => `${o.look.id}@${o.price}`).join(',')));
     expect(windows.size).toBeGreaterThan(20);
+  });
+});
+
+// owner 2026-11-27: "day rolls over at Midnight Eastern Time" (daylight saving included)
+describe('the shop day', () => {
+  it('is the Eastern date', () => {
+    expect(labShopDay(new Date('2026-01-16T04:59:00Z'))).toBe('2026-01-15'); // 23:59 EST
+    expect(labShopDay(new Date('2026-01-16T05:00:00Z'))).toBe('2026-01-16'); // 00:00 EST
+    expect(labShopDay(new Date('2026-07-16T03:59:00Z'))).toBe('2026-07-15'); // 23:59 EDT
+    expect(labShopDay(new Date('2026-07-16T04:00:00Z'))).toBe('2026-07-16'); // 00:00 EDT
+  });
+  it('refreshes at the coming midnight Eastern, winter and summer, across a clock change', () => {
+    expect(new Date(labNextRefresh(new Date('2026-01-15T12:00:00Z'))).toISOString()).toBe('2026-01-16T05:00:00.000Z');
+    expect(new Date(labNextRefresh(new Date('2026-07-15T12:00:00Z'))).toISOString()).toBe('2026-07-16T04:00:00.000Z');
+    // the evening before the spring change (Mar 8 2026): its midnight is still EST
+    expect(new Date(labNextRefresh(new Date('2026-03-08T02:00:00Z'))).toISOString()).toBe('2026-03-08T05:00:00.000Z');
+    // the day of the spring change: the next midnight is EDT
+    expect(new Date(labNextRefresh(new Date('2026-03-08T12:00:00Z'))).toISOString()).toBe('2026-03-09T04:00:00.000Z');
+    // the day of the autumn change (Nov 1 2026): the next midnight is EST
+    expect(new Date(labNextRefresh(new Date('2026-11-01T12:00:00Z'))).toISOString()).toBe('2026-11-02T05:00:00.000Z');
   });
 });

@@ -59,6 +59,41 @@ export interface PackShopProps {
   reducedMotion?: boolean;
   /** Tests inject a fake. */
   sceneFactory?: typeof createShopScene;
+  /** When the shop next refreshes (ms since the epoch, a quote from the server like its prices): the top-left countdown. */
+  refreshesAt?: number;
+  /** The countdown reached zero: fetch the new day's offers. */
+  onRefresh?: () => void;
+}
+
+/** "HH:MM:SS" for a span of ms (never negative). */
+export function refreshClock(ms: number): string {
+  const t = Math.max(0, Math.ceil(ms / 1000));
+  const two = (n: number): string => String(n).padStart(2, '0');
+  return `${two(Math.floor(t / 3600))}:${two(Math.floor((t % 3600) / 60))}:${two(t % 60)}`;
+}
+
+/**
+ * THE REFRESH COUNTDOWN (owner 2026-11-27: "there should also be a 'Shop refreshes in: HH:MM:SS' ticker in the top left").
+ * Its own component, so its once-a-second tick re-renders only itself, never the shelf. At zero it calls `onDone` once.
+ */
+function RefreshTicker({ at, onDone }: { at: number; onDone?: () => void }) {
+  const [now, setNow] = useState(() => Date.now());
+  const doneRef = useRef(onDone);
+  doneRef.current = onDone;
+  useEffect(() => {
+    let fired = false;
+    const id = window.setInterval(() => {
+      const t = Date.now();
+      setNow(t);
+      if (!fired && t >= at) { fired = true; doneRef.current?.(); }
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [at]);
+  return (
+    <div className="pks-refresh" role="timer" aria-live="off">
+      <span className="pks-refresh-words">Shop refreshes in:</span> <span className="pks-refresh-clock">{refreshClock(at - now)}</span>
+    </div>
+  );
 }
 
 /** The pack whose tag is up: `armed` shows its Buy / Open button (a tap, or Enter), else it is only looked at (focus). */
@@ -769,6 +804,7 @@ export function PackShop(props: PackShopProps) {
       {!reduced && <div className="pks-fx" ref={hostRef} aria-hidden />}
 
       <div className="pks-top">
+        {props.refreshesAt !== undefined && <RefreshTicker at={props.refreshesAt} onDone={props.onRefresh} />}
         <div className="pks-tabs" role="tablist" aria-label="Shelves" data-arrows="tabs">
           {shelves.map((s) => (
             <button key={s.id} type="button" role="tab" aria-selected={s.id === activeShelf} tabIndex={s.id === activeShelf ? 0 : -1}

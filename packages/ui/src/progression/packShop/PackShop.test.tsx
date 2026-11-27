@@ -41,7 +41,7 @@ vi.mock('../packOpening/AetherTally', async () => {
   };
 });
 
-import { BUY_TIMEOUT_MS, PackShop, SHOP_PLAY_TRAVEL_MS, type PackShopProps } from './PackShop';
+import { BUY_TIMEOUT_MS, PackShop, SHOP_PLAY_TRAVEL_MS, refreshClock, type PackShopProps } from './PackShop';
 import type { ShopScene, ShopSceneEvents } from './shopScene';
 
 const look = (id: string, name: string) => ({ kind: 'rarity', id, name, guaranteedFloor: 'rare' } as const);
@@ -759,5 +759,15 @@ describe('PackShop', () => {
     click(btn('Packs'));
     act(() => { shelfItem('e').focus(); });
     expect(fake().calls.at(-1)).toBe('scrollBy:1');
+  });
+});
+
+// owner 2026-11-27: "a 'Shop refreshes in: HH:MM:SS' ticker in the top left"
+describe('the refresh countdown', () => {
+  it('reads HH:MM:SS and never goes negative', () => {
+    expect(refreshClock(0)).toBe('00:00:00');
+    expect(refreshClock(-5000)).toBe('00:00:00');
+    expect(refreshClock(3_723_000)).toBe('01:02:03');
+    expect(refreshClock(23 * 3600_000 + 59 * 60_000 + 59_500)).toBe('24:00:00');
   });
 });

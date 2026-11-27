@@ -44,8 +44,38 @@ const SHELF_OFFERS: readonly PackOffer[] = PACK_LAB_LOOKS.flatMap((look, i): Pac
   return [base];
 });
 
-/** Today's shop day (UTC): the featured window rotates when it changes. */
-export const labShopDay = (now: Date = new Date()): string => now.toISOString().slice(0, 10);
+/**
+ * THE SHOP DAY turns over at MIDNIGHT EASTERN (owner 2026-11-27: "day rolls over at Midnight Eastern Time"), daylight
+ * saving included: read from the America/New_York zone, never a fixed offset. The server will own the real boundary; the
+ * lab computes the same one.
+ */
+export const SHOP_ZONE = 'America/New_York';
+const zoneFmt = new Intl.DateTimeFormat('en-US', {
+  timeZone: SHOP_ZONE, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit',
+});
+/** The wall-clock fields in the shop's zone at instant `ms`. */
+function zoneParts(ms: number): { y: number; mo: number; d: number; h: number; mi: number; s: number } {
+  const p: Record<string, number> = {};
+  for (const part of zoneFmt.formatToParts(new Date(ms))) if (part.type !== 'literal') p[part.type] = Number(part.value);
+  return { y: p.year!, mo: p.month!, d: p.day!, h: p.hour!, mi: p.minute!, s: p.second! };
+}
+/** How far the shop's zone is ahead of UTC at instant `ms` (negative: Eastern is behind), in ms. */
+function zoneOffset(ms: number): number {
+  const z = zoneParts(ms);
+  return Date.UTC(z.y, z.mo - 1, z.d, z.h, z.mi, z.s) - Math.floor(ms / 1000) * 1000;
+}
+/** Today's shop day ("YYYY-MM-DD", Eastern): the featured window rotates when it changes. */
+export function labShopDay(now: Date = new Date()): string {
+  const z = zoneParts(now.getTime());
+  return `${z.y}-${String(z.mo).padStart(2, '0')}-${String(z.d).padStart(2, '0')}`;
+}
+/** The instant (ms) the shop next refreshes: the coming midnight Eastern. */
+export function labNextRefresh(now: Date = new Date()): number {
+  const z = zoneParts(now.getTime());
+  const wall = Date.UTC(z.y, z.mo - 1, z.d + 1, 0, 0, 0); // tomorrow 00:00, as if Eastern were UTC
+  const guess = wall - zoneOffset(now.getTime());
+  return wall - zoneOffset(guess); // re-read the offset AT midnight (a DST change may fall in between)
+}
 
 /** A small seeded generator for the day's picks (the same day always draws the same window). */
 function dayRng(day: string): () => number {

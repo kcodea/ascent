@@ -26,7 +26,7 @@ vi.mock('pixi.js', async (importOriginal) => {
 });
 
 import type { OwnedPack, PackOffer } from '@game/progression';
-import { createShopScene, hoverAllowed, shelfGlowTint, type ShopSceneEvents } from './shopScene';
+import { createShopScene, hoverAllowed, shelfGlowTint, stackAskew, type ShopSceneEvents } from './shopScene';
 import { createShopSounds } from './shopSounds';
 
 const LOOK = { kind: 'rarity', id: 'rare', name: 'Rare Pack', guaranteedFloor: 'rare' } as const;
@@ -123,5 +123,20 @@ describe('a hovered shelf pack glows its own main colour', () => {
     expect(shelfGlowTint({ kind: 'themed', id: 'themed-launch', name: 'Launch Pack', guaranteedFloor: 'epic' } as PackOffer['look'])).toBe(0xe0466e);
     expect(shelfGlowTint({ kind: 'rarity', id: 'rarity-legendary', name: 'Legendary', guaranteedFloor: 'legendary' } as PackOffer['look'])).toBe(0xffc55a);
     expect(shelfGlowTint({ kind: 'rarity', id: 'rarity-rare', name: 'Rare', guaranteedFloor: 'rare' } as PackOffer['look'])).toBe(0x6fb4ff);
+  });
+});
+
+// owner 2026-11-27: "make the stack a bit more natural and slightly askew looking"
+describe('the deal stack sits askew', () => {
+  it('turns each pack 1 to 3 degrees, either way, the same every time, and peeks out on both sides', () => {
+    const a = stackAskew('lab-rarity-epic-deal-2026-11-27');
+    expect(stackAskew('lab-rarity-epic-deal-2026-11-27')).toBe(a);
+    for (const [, , turn] of a) {
+      const deg = Math.abs(turn) * (180 / Math.PI);
+      expect(deg).toBeGreaterThanOrEqual(1);
+      expect(deg).toBeLessThanOrEqual(3);
+    }
+    expect(a.some(([x]) => x > 0)).toBe(true);
+    expect(a.some(([x]) => x < 0)).toBe(true);
   });
 });

@@ -276,6 +276,8 @@ const lookKeyOf = (look: OwnedPack['look']): string => `${look.kind}:${look.id}`
 const HAND_CONTACT = { alpha: 0, dx: 0, dy: 0.04, lifted: 0.1, away: 3 } as const; // tight to the outline; nearly gone once the pack is off the wood
 /** The owned-every notice, in its own units at a pack OWNED_NOTE.packH tall: its width, padding, type, and its centre's drop from the pack's middle (shares of the pack's height). */
 const OWNED_NOTE = { packH: 400, w: 236, pad: 14, font: 17, y: 0.06 } as const;
+/** A deal's "N left": its type at a pack STOCK_LABEL.packH tall, and its gap above the pack (a share of the pack's height). */
+const STOCK_LABEL = { packH: 400, font: 24, gap: 0.015 } as const;
 const TAG_FONT = 0.0525; // owner 2026-11-25: "make the tag smaller by 30%" (was 0.075)
 /**
  * THE PRICE TAGS: where the twine is tied (a share of the pack's height in from its top-left corner), how far the tag
@@ -354,6 +356,8 @@ class ShopSceneImpl implements ShopScene {
   private readonly placards: Placard[] = [];
   /** Per pool slot: the "you own every cosmetic" notice over its pack, and the text it last showed. */
   private readonly ownedNotes: { view: Container; text: Text; said: string }[] = [];
+  /** Per pool slot: a limited deal's "N left", above its pack's top-right corner. */
+  private readonly stockLabels: Text[] = [];
   private readonly dressTex: Texture[] = [];
   /** The cast shadow's texture and the canvas it is painted on (repainted when the dev tuner's blur changes). */
   private castCanvas: HTMLCanvasElement | null = null;
@@ -583,6 +587,15 @@ class ShopSceneImpl implements ShopScene {
       view.eventMode = 'none';
       this.ownedNotes.push({ view, text, said: '' });
       cards.addChildAt(view, 0);
+    }
+    // a limited deal's stock, above its pack (owner 2026-11-27: "put the amount left here, not in the tag")
+    for (let s = 0; s < POOL; s++) {
+      const t = new Text({ text: '', style: { fontFamily: FONT, fontSize: STOCK_LABEL.font, fontWeight: '800', fill: 0xffe3a0, letterSpacing: 1, dropShadow: { color: 0x000000, alpha: 0.85, blur: 4, distance: 2, angle: Math.PI / 2 } } });
+      t.anchor.set(1, 1);
+      t.visible = false;
+      t.eventMode = 'none';
+      this.stockLabels.push(t);
+      cards.addChild(t);
     }
     this.placardLayer = cards;
     app.stage.addChild(cards);
@@ -1128,6 +1141,7 @@ class ShopSceneImpl implements ShopScene {
         pack.view.visible = false;
         this.placards[s]!.view.visible = false; this.tagX[s] = NaN;
         this.ownedNotes[s]!.view.visible = false;
+        this.stockLabels[s]!.visible = false;
         continue;
       }
       const offer = offers[this.loop ? wrapIndex(i, count) : i]!;
@@ -1186,7 +1200,7 @@ class ShopSceneImpl implements ShopScene {
       const pl = this.placards[s]!;
       if (this.placardOf[s] !== offer) {
         this.placardOf[s] = offer;
-        const count = placardCount(offer.contains, offer.stock), badge = placardBadge(offer.badge, saleOff(offer));
+        const count = placardCount(offer.contains), badge = placardBadge(offer.badge, saleOff(offer));
         if (offer.soldOut) pl.set('Sold out', 'sold', count, badge);
         else if (offer.price <= 0) pl.set('Free', 'free', count, badge);
         else pl.set(String(offer.price), 'price', count, badge);
@@ -1227,6 +1241,19 @@ class ShopSceneImpl implements ShopScene {
         note.view.position.set(q.x, q.y + q.h * OWNED_NOTE.y);
         note.view.rotation = q.rot;
         note.view.scale.set(q.h / OWNED_NOTE.packH);
+      }
+      // a limited deal's stock, over its top-right corner, riding the pack's lift and turn
+      const sl = this.stockLabels[s]!;
+      sl.visible = offer.stock !== undefined && offer.stock > 0 && tagA > 0.01;
+      if (sl.visible) {
+        const words = `${offer.stock} LEFT`;
+        if (sl.text !== words) sl.text = words;
+        const q = liftPoseInto(this.lifted, p, lift);
+        const c = Math.cos(q.rot), sn = Math.sin(q.rot), dx = (q.h * ASPECT) / 2, dy = -q.h / 2 - q.h * STOCK_LABEL.gap;
+        sl.alpha = tagA;
+        sl.position.set(q.x + dx * c - dy * sn, q.y + dx * sn + dy * c);
+        sl.rotation = q.rot;
+        sl.scale.set(q.h / STOCK_LABEL.packH);
       }
       // a pack just put back sits down: a small bob into its place
       const st = this.slotSettle[s]!;
@@ -1619,7 +1646,7 @@ class ShopSceneImpl implements ShopScene {
     const tag = this.heldTag;
     if (!tag || this.heldTagOf === offer) return;
     this.heldTagOf = offer;
-    const count = placardCount(offer.contains, offer.stock), badge = placardBadge(offer.badge, saleOff(offer));
+    const count = placardCount(offer.contains), badge = placardBadge(offer.badge, saleOff(offer));
     if (offer.soldOut) tag.set('Sold out', 'sold', count, badge);
     else if (offer.price <= 0) tag.set('Free', 'free', count, badge);
     else tag.set(String(offer.price), 'price', count, badge);

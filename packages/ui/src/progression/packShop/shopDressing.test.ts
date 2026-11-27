@@ -11,7 +11,6 @@ describe('the placard\'s words', () => {
     expect(placardBadge('featured')).toBe('Featured');
     expect(placardBadge('free')).toBe('Daily');
     expect(placardBadge('featured', 40)).toBe('-40%');
-    expect(placardCount(1, 3)).toBe('3 left');
     expect(placardCount(10)).toBe('x10');
     expect(placardBadge(undefined)).toBeNull();
   });

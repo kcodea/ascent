@@ -36,7 +36,7 @@ const TITLE = ['To The', 'Shop'] as const;
  * The hold before it is 30% shorter than Recruit's (owner 2026-11-27: "make the hold 30% shorter").
  */
 const DIVE_MS = 1600;
-const FADE_MS = 650;
+const FADE_MS = 250; // owner 2026-11-27: the doorway fades "to nothing much faster" (was 650)
 const FADE_AT_MS = 350;
 /** The hold before the dive: Recruit's, 30% shorter. */
 const HOLD_SHARE = 0.7;

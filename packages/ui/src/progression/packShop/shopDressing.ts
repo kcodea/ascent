@@ -76,8 +76,7 @@ export function placardBadge(badge: 'new' | 'free' | 'featured' | undefined, off
 }
 
 /** A box's count beside its price ("x10"); empty for a single pack. */
-export function placardCount(contains: number, stock?: number): string {
-  if (stock !== undefined && stock > 0) return `${stock} left`; // a limited offer says how many are left
+export function placardCount(contains: number): string {
   return contains > 1 ? `x${contains}` : '';
 }
 
@@ -88,15 +87,15 @@ const CHIP = {
   Daily: { fill: 0x1f6b57, rim: 0x8dffd8, text: 0xd9fff2 },
   Sale: { fill: 0x8a1f1f, rim: 0xff9a7a, text: 0xfff0e8 },
 } as const;
-const CHIP_FONT = 19;
-const CHIP_H = 26;
+const CHIP_FONT = 20; // owner 2026-11-27: the discount and free pills 1px larger (were 19 / 26)
+const CHIP_H = 27;
 
 /** The tag's paper, edge, inks, twine and the hole's brass ring. */
 const PAPER = 0xf4e6c2, EDGE = 0x8a6a36, INK = 0x3a2412, INK_FREE = 0x1f6b3a, INK_SOLD = 0xa12a1a, INK_COUNT = 0x7a5a1c;
 const TWINE = 0xd8c08a, RING = 0xc79a45;
 /** The tag's own units (the scene scales the whole view): the twine's length, the price's size, the gem's. */
 const TAG_CORD = 40;
-const TAG_FONT_PX = 34, TAG_GEM = 40, TAG_H = 74, TAG_CUT = 20, TAG_HOLE = 6.5;
+const TAG_FONT_PX = 36, /* owner 2026-11-27: the price 2px larger (was 34) */ TAG_GEM = 40, TAG_H = 74, TAG_CUT = 20, TAG_HOLE = 6.5;
 
 /**
  * THE PAINTED TAG (owner 2026-11-25: "use this for the tag"): a parchment tag with a gold rim, a brass eyelet and a

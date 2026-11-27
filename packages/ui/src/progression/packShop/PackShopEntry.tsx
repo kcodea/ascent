@@ -29,6 +29,12 @@ const BEHIND = ['sky', 'far', 'mid'] as const;
 const ARRIVAL_MS = 800;
 /** The words in the vista's sky. */
 const TITLE = ['To The', 'Shop'] as const;
+/**
+ * The dive INTO the shop (packShop.css `vistashopdive`, owner 2026-11-27): it eases in and settles slowly with the door's
+ * sides on the shop's own doorposts, over DIVE_MS, then the picture fades over FADE_MS. Not Recruit's fly-through.
+ */
+const DIVE_MS = 1600;
+const FADE_MS = 500;
 
 type Trip = 'in' | 'held' | 'dive' | 'done';
 
@@ -44,15 +50,15 @@ function ShopDoorTrip({ onCovered, onDone }: { onCovered: () => void; onDone: ()
       window.setTimeout(() => { setStep('held'); cb.current.onCovered(); }, ARRIVAL_MS),
       window.setTimeout(() => sfx.vistaTrip('portal'), ARRIVAL_MS + Math.max(0, cfg.holdOutMs - 580)),
       window.setTimeout(() => { setStep('dive'); sfx.vistaTrip('dive'); }, ARRIVAL_MS + cfg.holdOutMs),
-      window.setTimeout(() => { setStep('done'); cb.current.onDone(); }, ARRIVAL_MS + cfg.holdOutMs + cfg.revealMs),
+      window.setTimeout(() => { setStep('done'); cb.current.onDone(); }, ARRIVAL_MS + cfg.holdOutMs + DIVE_MS + FADE_MS),
     ];
     return () => { for (const t of timers) window.clearTimeout(t); };
     // one trip per mount
   }, []);
   if (step === 'done') return null;
-  const cls = `wipevista on ${step === 'in' ? 'in' : step === 'held' ? 'in held' : 'dive'}`;
+  const cls = `wipevista shoptrip on ${step === 'in' ? 'in' : step === 'held' ? 'in held' : 'dive'}`;
   return createPortal(
-    <div className={cls} aria-hidden="true" style={{ '--wipe-reveal-dur': `${cfg.revealMs}ms` } as CSSProperties}>
+    <div className={cls} aria-hidden="true" style={{ '--wipe-reveal-dur': `${DIVE_MS}ms`, '--shop-fade-ms': `${FADE_MS}ms` } as CSSProperties}>
       <svg className="wipevista-defs" width="0" height="0" aria-hidden="true" focusable="false">
         <clipPath id={VISTA_DOOR_CLIP_ID} clipPathUnits="objectBoundingBox"><path clipRule="evenodd" d={VISTA_DOOR_CLIP} /></clipPath>
       </svg>
@@ -66,7 +72,8 @@ function ShopDoorTrip({ onCovered, onDone }: { onCovered: () => void; onDone: ()
           <div className="wipevista-layer wipevista-shop" />
           <div className="wipevista-layer wipevista-flat" />
         </div>
-        <div className="wipevista-doorwrap"><div className="wipevista-doorfill"><div className="wipevista-doordark" /></div><div className="wipevista-doorglow" /></div>
+        {/* no door glow: this trip walks INTO the shop (owner 2026-11-27: "i dont want the door to glow as we move towards it") */}
+        <div className="wipevista-doorwrap"><div className="wipevista-doorfill"><div className="wipevista-doordark" /></div></div>
         <div className="wipevista-dive wipevista-dive-fore"><div className="wipevista-layer wipevista-fore" /></div>
       </div>
       <div className="wipevista-flash" />

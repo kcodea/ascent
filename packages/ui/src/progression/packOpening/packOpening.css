@@ -279,6 +279,10 @@
   -webkit-mask: var(--pkf-window) center / 100% 100% no-repeat; mask: var(--pkf-window) center / 100% 100% no-repeat; }
 .pkf-fullart > img { position: absolute; left: 4%; top: 2.5%; width: 92%; height: 64%; object-fit: cover; object-position: 50% 18%; user-select: none;
   -webkit-mask-image: linear-gradient(180deg, #000 55%, transparent 97%); mask-image: linear-gradient(180deg, #000 55%, transparent 97%); }
+/* A CARD PLATE and a PORTRAIT FRAME get the same full window (owner 2026-11-27, a trial). The plate keeps its Collection crop
+   (from its top); the portrait frame is a ring, so it is shown whole, centred in the window's upper part. */
+.pkf-fullart > img.pkf-img-plate { object-position: 50% 0; }
+.pkf-fullart > img.pkf-img-frame { left: 12%; top: 6%; width: 76%; height: 56%; object-fit: contain; object-position: 50% 50%; -webkit-mask-image: none; mask-image: none; }
 .pkf-art-full { border-radius: 0; background: none; box-shadow: none; overflow: visible; }
 .pkf-art-full .pkf-new { top: 6px; right: 8px; }
 /* The name sits in its own thin frame: the preview window's navy, rounded corners and gold line (owner 2026-11-24), so

@@ -77,11 +77,16 @@ describe('PackFace', () => {
     expect(sheet).toContain('.pkf-cat::before { background: linear-gradient(90deg, transparent, var(--rc));');
     expect(sheet).toContain('.pkf-cat::after { background: linear-gradient(90deg, var(--rc), transparent);');
     expect(face().querySelector('.pkf-art')!.previousElementSibling).toBeNull(); // the window opens with the art
-    expect(face().querySelector('.pkf-art img.pkf-img-plate')).toBeTruthy();
+    // a card plate and a portrait frame fill the whole plate window, as the skins do (owner 2026-11-27)
+    expect(face().querySelector('.pkf-fullart img.pkf-img-plate')).toBeTruthy();
+    expect(face().querySelector('.pkf-art.pkf-art-full img')).toBeNull();
     const css = readFileSync(join(__dirname, 'packOpening.css'), 'utf8');
     const rule = /\.pkf-img-plate \{[^}]*\}/.exec(css)![0];
     expect(rule).toMatch(/object-fit: cover/);
     expect(rule).toMatch(/object-position: 50% 0/);
+    m.unmount();
+    m = mount(<PackFace card={card('frame_honey')} phase="featured" />);
+    expect(face().querySelector('.pkf-fullart img.pkf-img-frame')).toBeTruthy();
     m.unmount();
     m = mount(<PackFace card={card('alpha_tester')} phase="featured" />); // a title: the same place
     expect(face().querySelector('.pkf-ribbon')!.nextElementSibling!.classList.contains('pkf-cat')).toBe(true);

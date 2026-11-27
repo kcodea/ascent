@@ -213,6 +213,9 @@ function Emblem({ emblem }: { emblem: RewardEmblem }): ReactElement {
  * - an announcer its painted medallion; an emote, portrait frame and card plate their art as before.
  * A TITLE has no window at all (`.pkf-art-bare`): its medallion over the title's own badge, the way it is worn.
  */
+/** The art kinds that fill the card's whole plate window instead of a framed art window. */
+const FULL_ART_KINDS: ReadonlySet<string> = new Set(['hero', 'minion', 'plate', 'frame']);
+
 function FaceArt({ card, p, lands, phase, still }: {
   card: PackCard; p: ReturnType<typeof rewardPreview>; lands: boolean; phase: string; still: boolean;
 }): ReactElement {
@@ -369,7 +372,9 @@ export function PackFace({ card, phase, from, slot, slow = 1, still = false, bes
   // A title wears its own badge in place of the art window and the name line.
   const isTitle = p.emblem === 'title';
   const cat = categoryLabel(p.label.kind, p.category !== null);
-  const fullArt = p.art && (p.art.kind === 'hero' || p.art.kind === 'minion') ? p.art : null;
+  // (owner 2026-11-27: "lets try the full card window effect that we did with minions and hero skins, but for portraits and
+  // card plates as well")
+  const fullArt = p.art && FULL_ART_KINDS.has(p.art.kind) ? p.art : null;
   const cls = `pkf r-${card.rarity} pkf-${phase}${placed ? ' pkf-placed' : ''}${glow ? ' pkf-glow' : ''}${follow.handlers ? ' pkf-hover' : ''}${best && phase === 'summary' ? ' pkf-best' : ''}${dissolve && phase === 'summary' ? ' pkf-dissolve' : ''}`;
   return (
     <div

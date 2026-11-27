@@ -44,6 +44,7 @@ export const STYLE_PACKS: readonly { id: string; file: string; name: string }[] 
   { id: 'themed-voxel', file: 'voxel', name: 'Voxel Pack' },
   { id: 'themed-low-poly', file: 'lowpoly', name: 'Low Poly Pack' },
   { id: 'themed-sketchbook', file: 'sketchbook', name: 'Sketchbook Pack' },
+  { id: 'themed-encore', file: 'encore', name: 'Encore Pack' }, // owner 2026-11-27: "here is the art for the encore pack"
 ];
 
 /** Themed looks that wear their own wrapper, by look id. */

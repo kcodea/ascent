@@ -17476,8 +17476,31 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Owner, 2026-11-27', quote: 'this is also the new background art in the menu' },
       { kind: 'code', ref: 'packages/ui/src/locationReveal/postGame.tsx; packages/ui/src/locationReveal/locations.ts (TERYS_GATE); packages/ui/src/Recruit.tsx (endCombat); packages/ui/src/partyHome/shell/PhBackdrop.tsx' },
     ],
-    currentBehaviour: 'Built 2026-11-27 (feat/postgame-portal). The post-game screen shows the same results as before, over the new place. The crystal still carries the painted ENTER word. Not yet seen or heard by the owner.',
+    currentBehaviour: 'Built 2026-11-27 (feat/postgame-portal), with the journey in the result\x27s colours (gold 1st, green 2nd to 4th, red 5th to 8th). Its crystal carries no word (owner: "Remove the enter text from the post game gate crystal"; `RankedGateOptions.word`). Not yet seen or heard by the owner.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/locationReveal/locationReveal.test.ts'], lastVerifiedAt: '2026-11-27' },
+  },
+  {
+    id: 'R-POSTGAME-01',
+    title: 'The post-game screen: the result, then the whole lobby, with a line for every place',
+    statement:
+      'The post-game screen plays in two beats at Terys Gate. First the result: a band of the result\x27s colour (gold, green, red) across the '
+      + 'screen with the placement and one word (Victory, Top Four, Eliminated), then the rank change, its bar animating (a promotion or demotion game set up LOCKS the bar, gold or red), then the Account XP, then the screen moves into the lobby by itself (once). "Lobby" '
+      + 'then shows a scoreboard, a row a seat in placement order: hero, name, hero power and Ancient, runes, final board, and the round it '
+      + 'went out (or its health, still standing), the player who knocked you out marked, with Continue, Rewatch and a way back. No sentence '
+      + 'where a number or a picture says it. The announcer speaks a line for the place as the results '
+      + 'arrive, from its own pool for 1st, 2nd, 3rd, 4th, 5th or 6th, 7th and last, in whichever announcer voice is equipped.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-27', quote: 'This should included rank and xp gains' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-27', quote: 'show all opponents and their boards, turns eliminated etc etc. all runes ancients and otherwise should be shown' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-27', quote: 'Add announcer lines here like nice try, etc with enough variations' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-27', quote: 'I need a 10/10 post game screen. Remove extra fluffy text too' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-27', quote: 'If it puts a player into a demotion or promotion setup have the bar "lock" and turn red or gold. Then show experience / account related gains after that, then Into the post game rows.' },
+      { kind: 'code', ref: 'packages/ui/src/postGame/PostGameScreen.tsx; packages/ui/src/announcer.ts (placeEvent, pendingEnd); packages/ui/src/rank/RankScreen.tsx' },
+    ],
+    currentBehaviour: 'Built 2026-11-27 (feat/postgame-portal), the two-beat layout, a line pool per place and all boards expanded by the owner\x27s picks. Rewatch is on the lobby beat (the 2026-09-20 rank screen had none). Not yet seen or heard by the owner.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/postGame/postGameScreen.test.ts', 'packages/ui/src/announcer.test.ts'], lastVerifiedAt: '2026-11-27' },
   },
   {
     id: 'R-COMPENDIUM-COUNT-01',

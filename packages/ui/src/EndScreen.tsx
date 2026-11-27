@@ -11,12 +11,12 @@ import { Icon } from './Icon';
 import { useGame } from './store';
 import { sfx } from './sfx';
 import { startReplay } from './replay/replayPlayer';
-import { RankScreen } from './rank/RankScreen';
 import { unratedReasonOf, useRankSource } from './rank/rankSource';
 import { ProgressionPostgame } from './progression/ProgressionPostgame';
 import { MatchDetailsDialog } from './matchDetails/MatchScoreboard';
 import { GauntletEndScreen } from './gauntlet/GauntletEndScreen';
 import { PostGameGround, postGameLocation } from './locationReveal/postGame';
+import { PostGameScreen } from './postGame/PostGameScreen';
 
 /** A live `CardView` for a final-warband minion — shared with the final-board capture (see `liveBoardView`),
  *  so scaling cards show their *accumulated* magnitude at run's end, not the printed base. */
@@ -101,32 +101,26 @@ function LobbyEndScreen({ lobby, run, onPlayAgain }: {
   const ground = at ? <PostGameGround key={at.id} location={at} /> : null;
   if (run.mode === 'practice' || noOpponents || rankSource) {
     const practice = run.mode === 'practice' || noOpponents;
+    // THE POST-GAME SCREEN (owner 2026-11-27, postGame/PostGameScreen.tsx): the result (placement, rank, Account XP), then the
+    // whole lobby, at Terys Gate. The rank sequence and the Account XP inside it are RankScreen's, as before.
     return (
-      <div className={`heroselect endscreen lobbyend rankend${won ? ' won' : ''}${at ? ' at-place' : ''}`}>
-        {ground}
-        <div className="hsbox endbox">
-          <RankScreen
-            placement={place}
-            seatCount={lobby.seats.length}
-            submission={practice ? 'unrated' : rankSource!.submission}
-            result={practice ? null : rankSource!.result}
-            current={practice ? null : rankSource!.current}
-            error={practice ? undefined : rankSource!.error}
-            unratedReason={unratedReasonOf(run.mode, noOpponents)}
-            runId={rankSource?.runId ?? rankSource?.result?.runId ?? String(run.seed)}
-            onContinue={onPlayAgain}
-            onRetry={practice ? undefined : rankSource!.retry}
-            // ACCOUNT XP waits its turn: not while the rank is still settling (its sequence would re-arm and hide
-            // the panel again) and not while the rank celebration plays.
-            extra={(settled) => (
-              <ProgressionPostgame localKey={String(run.seed)} active={settled && (practice || rankSource!.submission !== 'pending')} />
-            )}
-            onMatchDetails={match ? openMatch : undefined}
-            scoring={scoring}
-          />
-        </div>
-        {matchDialog}
-      </div>
+      <PostGameScreen
+        run={run}
+        place={place}
+        seatCount={lobby.seats.length}
+        practice={practice}
+        submission={practice ? 'unrated' : rankSource!.submission}
+        result={practice ? null : rankSource!.result}
+        current={practice ? null : rankSource!.current}
+        error={practice ? undefined : rankSource!.error}
+        unratedReason={unratedReasonOf(run.mode, noOpponents)}
+        runId={rankSource?.runId ?? rankSource?.result?.runId ?? String(run.seed)}
+        onRetry={practice ? undefined : rankSource!.retry}
+        match={match}
+        scoring={scoring}
+        onContinue={onPlayAgain}
+        onRewatch={canRewatch ? () => startReplay(lastReplay!) : undefined}
+      />
     );
   }
   return (

@@ -181,12 +181,17 @@ describe('the planned sequence per fixture', () => {
     expect(medalSteps[2]).toMatchObject({ kind: 'transition', from: 8, to: 9, medal: true });
     expect(medalSteps[3]).toMatchObject({ divisionIndex: 9, from: 0, to: 10 });
   });
-  it('a clamping loss (the demotion game set up): ONE bar drain to 0, no transition, the demotion-game outcome line (owner 2026-09-21: no instant demotion)', () => {
+  it('a clamping loss (the demotion game set up): ONE bar drain to 0, no transition, the bar LOCKS red, the demotion-game outcome line (owner 2026-09-21: no instant demotion; 2026-11-27: the lock)', () => {
     const steps = planRankSequence(fixtureById('demotion')!.result!);
-    expect(steps.map((s) => s.kind)).toEqual(['reveal', 'establish', 'bar', 'outcome']);
+    expect(steps.map((s) => s.kind)).toEqual(['reveal', 'establish', 'bar', 'gate', 'outcome']);
     expect(steps[2]).toMatchObject({ divisionIndex: 7, from: 10, to: 0 });
-    expect(steps[3]).toMatchObject({ kind: 'outcome', text: 'Demotion game. Finish top 4 to stay in Gold II.' });
-    expect(planRankSequence(fixtureById('demo-gate')!.result!).map((s) => s.kind)).toEqual(['reveal', 'establish', 'bar', 'outcome']);
+    expect(steps[3]).toMatchObject({ kind: 'gate', tone: 'red' });
+    expect(steps[4]).toMatchObject({ kind: 'outcome', text: 'Demotion game. Finish top 4 to stay in Gold II.' });
+    expect(planRankSequence(fixtureById('demo-gate')!.result!).map((s) => s.kind)).toEqual(['reveal', 'establish', 'bar', 'gate', 'outcome']);
+  });
+  it('a promotion set-up locks the bar gold (owner 2026-11-27: "have the bar "lock" and turn red or gold")', () => {
+    expect(planRankSequence(fixtureById('gate')!.result!).find((s) => s.kind === 'gate')).toMatchObject({ tone: 'gold' });
+    expect(planRankSequence(fixtureById('gain')!.result!).some((s) => s.kind === 'gate')).toBe(false);
   });
   it('a lost demotion game inside a medal: the bar holds at 0 → crest/tier transitions down ONE division → the landing bar fills to 100 + the award', () => {
     const steps = planRankSequence(fixtureById('demo-lost-division')!.result!);

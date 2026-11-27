@@ -3780,7 +3780,7 @@ export function Recruit() {
               holdPostGame(true); // its rank sequence waits for the wave to reach it
               useGame.getState().commitPresentationAction();
               wipeExitRef.current = false;
-            }, 'entry', { reveal: journey }).finally(() => holdPostGame(false));
+            }, 'entry', { reveal: journey, word: false }).finally(() => holdPostGame(false));
             return;
           }
           void requestRankedGate(() => {

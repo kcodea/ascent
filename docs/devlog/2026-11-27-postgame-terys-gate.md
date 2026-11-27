@@ -28,8 +28,39 @@ pulse out from its heart (`energy`, data.webp's blue). A real parallax needs the
 Sounds `ride-terys` / `ambience-terys` were generated with ElevenLabs (`sound.mjs`); measured -10.7 / -25.4 LUFS, trimmed to
 `mix: { ride: 0.78, ambience: 1.5 }`. The restricted key cannot read the subscription, so the credits used were not reported by the API.
 
+## The post-game screen (second pass, same day)
+
+Owner: "The post game screen needs a massive revamp ... rank and xp gains ... (Red/green/gold variations) ... show all opponents and
+their boards, turns eliminated ... all runes ancients ... announcer lines here like nice try ... look like a AAA experience." Picks:
+two beats, a line pool per place, every board expanded. Rule R-POSTGAME-01.
+
+- `postGame/PostGameScreen.tsx`. A first pass (a reskinned column, a 2x4 grid of seat cards, sentences everywhere) was judged "a 2/10"
+  ("I need a 10/10 post game screen. Remove extra fluffy text too"). v2: Beat 1 is `RankScreen` (sequence, retries, scoring lock, XP
+  panel untouched) laid out by grid areas under a full-width band of the result's colour; the numeral slams onto it on arrival with one
+  word; rank and XP side by side; Continue (the menu's `.ph-start`) and Lobby in one row. "Unrated" and the end line are gone. Beat 2 is a
+  scoreboard of 8 full-width rows (place, portrait, name, `SeatPower` with the Ancient, rune discs, `StoredTeam`, then a crown, "R9" or
+  health). Its boards mount one seat a frame (idle) after the journey lands, under a hidden layer, so the switch is transform / opacity
+  only; their keyword FX use still frames unless the row is hovered (styles.css).
+- Journey colours: `TERYS_GATE_BY_RESULT` (gold / green / red), three defs with one id; the warm reveal and the atmosphere now compare
+  the def itself, not its id.
+- Announcer: `placeEvent` maps a place to its pool (new events thirdPlace, fourthPlace, midPlace, seventhPlace, lastPlace; two more
+  takes each for GameWon and SecondPlace). 29 lines in the default voice plus the same in lemon, underdweller and little-inu (116 clips,
+  all levelled to -20 LUFS). Generation used about 3,450 characters. The solo end line no longer fires as the phase flips behind the
+  doors: while `isPostGameHeld()` it is parked (`pendingEnd`) and spoken when the hold lets go; "Promoted!" follows it.
+- The victory placement now reads gold, not green (the 2026-09-20 ruling), to match the journey's colours.
+
+- The end-of-game crystal carries no word (owner: "Remove the enter text from the post game gate crystal"): `RankedGateOptions.word: false`.
+
+- THE ORDER (owner: "show the ranked gain/loss ... have the bar "lock" and turn red or gold. Then show experience / account related
+  gains after that, then Into the post game rows"): the rank plate is compact (crest beside the bar). `planRankSequence` now ends a
+  set-up with a `gate` step carrying a `tone` (gold for `promotionUnlocked`, red for `demotionUnlocked`, which had no beat before);
+  the timeline adds `lockClasses` to the bar, and `RankBar`'s `lock` prop draws the same once settled (track lit, fill tinted, a
+  padlock; the post-game plate glows with it). `RankScreen.onSettled` tells the screen, the XP panel follows, and `AUTO_LOBBY_MS`
+  (4.2 s) later the screen moves into the lobby once, unless the player already moved. Filmed with the rank fixtures injected (the
+  bench is offline): the Account XP panel itself was not seen.
+
 ## Open
 
-- The crystal still shows the painted "ENTER" word at the end of a game: a different word needs owner lettering.
-- The post-game screen shows the same results as before, over the new place; a redesign of its content is the owner's call.
+- Rewatch sits on the lobby beat although the 2026-09-20 rank screen had none (it was in the owner's picked layout).
+- Beat 1 with a ranked result (rank bar, promotion) and the XP panel were not seen in a test: the test bench is offline (unrated).
 - Not heard or seen by the owner yet; not profiled on a production build; phones (light version) not checked.

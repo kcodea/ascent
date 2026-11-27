@@ -31,6 +31,9 @@ export interface RankedGateOptions {
    * answer null: the doors then open as they always have.
    */
   reveal?: { location: () => LocationDef | null; request: () => LocationRevealRequest | null };
+  /** The painted word under the armed crystal ("ENTER"). False: the crystal alone (owner 2026-11-27, the end of a game: "Remove the
+   *  enter text from the post game gate crystal"). */
+  word?: boolean;
 }
 
 /** Plays the gate. Must call `onShut` once the doors are shut, and resolve when the sequence has ended. */

@@ -1,0 +1,226 @@
+/* ── THE POST-GAME SCREEN (PostGameScreen.tsx, owner 2026-11-27: "I need a 10/10 post game screen. Remove extra fluffy text too") ───
+   Over Terys Gate, in the result's colour (gold a win, green the top four, red the rest: the journey's own three). The menu kit's tokens
+   (`.ph-tokens`), its START plaque and plate buttons. Words only where a number or a picture cannot say it.
+   PERFORMANCE: static paint. Every motion is a one-shot transform / opacity (the band's sweep, the numeral's slam, the rows' rise);
+   nothing loops, no live filters. No `cursor` here (the gauntlet rule paints it). */
+
+.pg2 { --b1: #fff6cf; --b2: #f4c552; --b3: #a06c14; --bglow: rgba(244, 197, 82, 0.34); --bdeep: rgba(70, 46, 8, 0.62); }
+.pg2.band-top4 { --b1: #eefff3; --b2: #74e8a0; --b3: #1d7c46; --bglow: rgba(116, 232, 160, 0.26); --bdeep: rgba(8, 54, 30, 0.6); }
+.pg2.band-lost { --b1: #ffe6e1; --b2: #ff7868; --b3: #8e1f1a; --bglow: rgba(255, 120, 104, 0.24); --bdeep: rgba(64, 10, 10, 0.62); }
+.pg2 { overflow: hidden; }
+
+/* The place, dimmed toward the edges so the screen's content owns the middle. */
+.pg2-vignette { position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  background: radial-gradient(ellipse 75% 70% at 50% 45%, transparent 35%, rgba(3, 7, 18, 0.72) 100%); transition: opacity 0.4s ease; }
+.pg2.on-lobby .pg2-vignette { opacity: 0; }
+
+/* ── THE TWO BEATS ── one transform / opacity move each way. */
+.pg2-result, .pg2-lobby { position: absolute; inset: 0; z-index: 2; }
+.pg2-result { transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.32s ease; }
+.pg2.on-lobby .pg2-result { transform: translateY(calc(-40 * var(--phu))); opacity: 0; pointer-events: none; }
+.pg2-lobby { display: flex; flex-direction: column; gap: calc(10 * var(--phu)); box-sizing: border-box;
+  padding: calc(14 * var(--phu)) calc(36 * var(--phu) + var(--safe-r, 0px)) calc(62 * var(--phu) + var(--safe-b, 0px)) calc(36 * var(--phu) + var(--safe-l, 0px));
+  background: linear-gradient(180deg, rgba(4, 9, 22, 0.78), rgba(4, 9, 22, 0.62) 30%, rgba(4, 9, 22, 0.7));
+  opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 0.32s ease, visibility 0s linear 0.32s; }
+.pg2.on-lobby .pg2-lobby { opacity: 1; visibility: visible; pointer-events: auto; transition: opacity 0.32s ease 0.06s, visibility 0s; }
+
+/* ── BEAT 1: THE RESULT ──────────────────────────────────────────────────────────────────────────────────────────────────── */
+/* The panel is pinned so its first two rows (the numeral and the word) sit exactly on the band. */
+.pg2 .pg2-result .endbox { position: absolute; left: 0; right: 0; top: calc(50% - 300 * var(--phu)); margin: 0; max-width: none; max-height: none; zoom: 1;
+  padding: 0; background: none; box-shadow: none; border: 0; }
+.pg2 .rankend-panel { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: calc(20 * var(--phu)); row-gap: 0; justify-items: center;
+  grid-template-areas: 'place place' 'word word' 'rank xp' 'status status' 'scoring scoring' 'act sec'; max-height: none; }
+.pg2 .rankend-panel > .rankend-place { grid-area: place; height: calc(222 * var(--phu)); justify-content: center; }
+.pg2 .rankend-panel > .pg2-word { grid-area: word; }
+.pg2 .rankend-panel > .rankend-rank { grid-area: rank; justify-self: end; }
+.pg2 .rankend-panel > .acctxp { grid-area: xp; justify-self: start; }
+.pg2 .rankend-panel:not(:has(> .acctxp)) > .rankend-rank, .pg2 .rankend-panel:not(:has(> .rankend-rank)) > .acctxp { grid-column: 1 / -1; justify-self: center; }
+.pg2 .rankend-panel > .rankend-status { grid-area: status; margin-top: calc(14 * var(--phu)); }
+.pg2 .rankend-panel > .rankend-status.unrated { display: none; }
+.pg2 .rankend-panel > .rankend-scoring { grid-area: scoring; }
+.pg2 .rankend-panel > .rankend-actions { grid-area: act; justify-self: end; margin-top: calc(40 * var(--phu)); }
+.pg2 .rankend-panel > .rankend-secondary { grid-area: sec; justify-self: start; margin-top: calc(40 * var(--phu)); min-height: calc(64 * var(--phu)); }
+/* Practice (no rank, no XP): the two buttons are the whole lower half, closer to the band. */
+.pg2 .rankend-panel:not(:has(> .rankend-rank)):not(:has(> .acctxp)) > :is(.rankend-actions, .rankend-secondary) { margin-top: calc(72 * var(--phu)); }
+
+/* THE BAND: the result's light, full width, with a hairline of it top and bottom. Static paint; it sweeps open once (scaleX). */
+.pg2-band { position: absolute; left: 0; right: 0; top: calc(50% - 300 * var(--phu)); height: calc(300 * var(--phu)); z-index: 0; pointer-events: none;
+  background: linear-gradient(90deg, transparent 0%, var(--bdeep) 18%, var(--bdeep) 82%, transparent 100%); transform-origin: 50% 50%; }
+.pg2-band::before, .pg2-band::after { content: ''; position: absolute; left: 0; right: 0; height: calc(2 * var(--phu));
+  background: linear-gradient(90deg, transparent 4%, var(--b2) 30%, var(--b1) 50%, var(--b2) 70%, transparent 96%); }
+.pg2-band::before { top: 0; }
+.pg2-band::after { bottom: 0; }
+/* Its light: slow rays behind the numeral (static paint, turned once), a bloom that swells as it lands, a flare that cuts across under it. */
+.pg2-rays { position: absolute; left: 50%; top: 40%; width: calc(1500 * var(--phu)); height: calc(1500 * var(--phu)); margin: calc(-750 * var(--phu)) 0 0 calc(-750 * var(--phu)); pointer-events: none;
+  background: repeating-conic-gradient(from 0deg, color-mix(in srgb, var(--b2) 13%, transparent) 0deg 3deg, transparent 3deg 15deg);
+  -webkit-mask-image: radial-gradient(circle, #000 0%, rgba(0, 0, 0, 0.6) 22%, transparent 48%); mask-image: radial-gradient(circle, #000 0%, rgba(0, 0, 0, 0.6) 22%, transparent 48%); opacity: 0.7; }
+.pg2-bloom { position: absolute; inset: calc(-60 * var(--phu)) 0; background: radial-gradient(ellipse 26% 50% at 50% 46%, var(--bglow), transparent 72%); }
+.pg2-flare { position: absolute; left: 0; right: 0; top: 75%; height: calc(2 * var(--phu)); opacity: 0.35;
+  background: linear-gradient(90deg, transparent 12%, var(--b2) 34%, #fff 50%, var(--b2) 66%, transparent 88%); }
+
+/* THE NUMERAL: the location reveal's own lettering (cut Cinzel, a deep drop, a halo, R-LOCATION), each glyph its own layer. */
+.pg2 .rankend-place-text, .pg2.won .rankend-place-text { display: inline-flex; align-items: flex-start; background: none; -webkit-background-clip: border-box; background-clip: border-box; color: var(--b1); filter: none;
+  font-family: 'Cinzel', var(--title-font, 'Cinzel Decorative'), serif; font-weight: 900; font-size: calc(216 * var(--phu)); line-height: 1; letter-spacing: 0.01em; }
+.pg2-num { display: inline-flex; }
+.pg2-num > i, .pg2-ord { font-style: normal; display: inline-block; color: var(--b1);
+  text-shadow: 0 0.04em 0 var(--b3), 0 0.075em 0 rgba(0, 0, 0, 0.55), 0 0 0.3em var(--bglow), 0 0.14em 0.32em rgba(0, 0, 0, 0.8); }
+.pg2-ord { margin: 0.14em 0 0 0.05em; font-size: 0.36em; letter-spacing: 0.04em; }
+.pg2-word { display: flex; align-items: center; gap: calc(22 * var(--phu)); height: calc(64 * var(--phu)); }
+.pg2-word > span { font-family: 'Cinzel', var(--title-font, 'Cinzel Decorative'), serif; font-weight: 900; font-size: calc(32 * var(--phu)); letter-spacing: 0.42em; padding-left: 0.42em; text-transform: uppercase;
+  color: var(--b1); text-shadow: 0 0.06em 0 var(--b3), 0 0 0.6em var(--bglow), 0 0.12em 0.3em rgba(0, 0, 0, 0.7); }
+
+/* The rank and the Account XP: two slim plates, side by side, a band-coloured hairline on top. */
+.pg2 .rankend-rank, .pg2 .acctxp { width: calc(440 * var(--phu)); box-sizing: border-box; margin-top: calc(28 * var(--phu)); border-radius: 0;
+  background: linear-gradient(180deg, rgba(8, 15, 34, 0.86), rgba(8, 15, 34, 0.7)); clip-path: var(--ph-clip-s);
+  box-shadow: inset 0 calc(2 * var(--phu)) 0 color-mix(in srgb, var(--b2) 70%, transparent), inset 0 0 0 calc(1 * var(--phu)) rgba(200, 149, 63, 0.28); }
+.pg2 .rankend-rank { padding: calc(14 * var(--phu)) calc(24 * var(--phu)) calc(12 * var(--phu)); }
+.pg2 .acctxp { padding: calc(14 * var(--phu)) calc(22 * var(--phu)); }
+.pg2 .rankend-status { font-family: var(--ph-font); }
+
+/* THE RANK PLATE, compact (owner 2026-11-27: the rank change shown and animated): the crest beside the bar, not above it, so the
+   plate, the Account XP and the buttons all fit under the band. */
+.pg2 .rankend-rank { width: calc(560 * var(--phu)); display: grid; grid-template-columns: auto 1fr; grid-template-areas: 'bar bar' 'delta outcome'; align-items: center; gap: calc(6 * var(--phu)) calc(18 * var(--phu)); }
+.pg2 .rankend-rank > .rankbar { grid-area: bar; flex-direction: row; align-items: center; text-align: left; gap: calc(20 * var(--phu)); }
+.pg2 .rankend-rank .rankcrest-xl { --ring: calc(104 * var(--phu)); }
+.pg2 .rankend-rank .rankbar-body { align-items: flex-start; gap: calc(6 * var(--phu)); flex: 1; }
+.pg2 .rankend-rank .rankbar-label { font-family: 'Cinzel', var(--title-font, 'Cinzel Decorative'), serif; font-size: calc(26 * var(--phu)); letter-spacing: 0.08em; }
+.pg2 .rankend-rank .rankbar-track { width: 100%; height: calc(16 * var(--phu)); }
+.pg2 .rankend-rank .rankbar-points { font-size: calc(16 * var(--phu)); }
+.pg2 .rankend-rank > .rankend-delta { grid-area: delta; font-size: calc(30 * var(--phu)); }
+.pg2 .rankend-rank > .rankend-outcome { grid-area: outcome; justify-self: start; text-align: left; font-size: calc(14 * var(--phu)); letter-spacing: 0.08em; }
+/* THE LOCK: the whole plate lit in its colour, its outline growing in as the bar locks. */
+.pg2 .rankend-rank::after { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: 0; clip-path: var(--ph-clip-s); }
+/* As it locks, the plate's own outline grows in with the bar's (one-shot transform / opacity; the settled plate is simply lit). */
+@media (prefers-reduced-motion: no-preference) {
+  .pg2 .rankend-rank:has(.rankbar.locking)::after { animation: pg2-plategrow 0.6s cubic-bezier(0.2, 1.1, 0.35, 1) 0.08s both; }
+}
+@keyframes pg2-plategrow { from { opacity: 0; transform: scale(0.94); } 40% { opacity: 1; } to { opacity: 1; transform: none; } }
+.pg2 .rankend-rank { position: relative; }
+.pg2 .rankend-rank:has(.rankbar.lock-gold)::after { opacity: 1; box-shadow: inset 0 0 0 calc(2 * var(--phu)) #ffd76a, inset 0 0 calc(40 * var(--phu)) rgba(255, 200, 80, 0.32); }
+.pg2 .rankend-rank:has(.rankbar.lock-red)::after { opacity: 1; box-shadow: inset 0 0 0 calc(2 * var(--phu)) #ff6a5c, inset 0 0 calc(40 * var(--phu)) rgba(255, 80, 60, 0.3); }
+.pg2 .rankend-rank:has(.rankbar.lock-gold) .rankend-outcome { color: #ffd76a; }
+.pg2 .rankend-rank:has(.rankbar.lock-red) .rankend-outcome { color: #ff8a7c; }
+
+/* Continue (the menu's START plaque) and Lobby (a plate of the same height). */
+.pg2 .rankend-actions .rankend-continue.ph-start { margin: 0; width: calc(300 * var(--phu)); height: calc(64 * var(--phu)); font-size: var(--ph-t4); }
+.pg2 .rankend-continue.ph-start.scoring { opacity: 0.5; filter: none; }
+.pg2 .rankend-details { display: inline-flex; align-items: center; justify-content: center; gap: calc(12 * var(--phu)); width: calc(220 * var(--phu)); height: calc(64 * var(--phu)); padding: 0; margin: 0; border: 0; border-radius: 0;
+  background: var(--ph-plate); box-shadow: var(--ph-gild); clip-path: var(--ph-clip); font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t3); letter-spacing: 0.2em; text-transform: uppercase;
+  color: var(--ph-text); text-shadow: var(--ph-shadow); transition: transform 0.12s cubic-bezier(0, 0, 0.2, 1); }
+.pg2 .rankend-details:hover:not(:disabled) { background: var(--ph-plate-hover); color: var(--ph-ink); transform: scale(1.03); }
+.pg2 .rankend-details:active:not(:disabled) { transform: scale(0.98); }
+.pg2 .rankend-details svg { width: calc(22 * var(--phu)); height: calc(22 * var(--phu)); color: var(--ph-gold-hi); }
+.pg2 .rankend-link { font-family: var(--ph-font); }
+
+/* THE ARRIVAL (as the journey's wave washes the screen in): the band sweeps open, the numeral slams down, the word follows. */
+@media (prefers-reduced-motion: no-preference) {
+  .pg2:not(.arrived) :is(.pg2-band, .pg2-num > i, .pg2-ord, .pg2-word) { opacity: 0; }
+  .pg2.arrived .pg2-band { animation: pg2-sweep 0.6s cubic-bezier(0.16, 0.9, 0.24, 1) 0.05s both; }
+  .pg2.arrived .pg2-rays { animation: pg2-turn 7s cubic-bezier(0.1, 0.6, 0.2, 1) 0.2s both; }
+  .pg2.arrived .pg2-bloom { animation: pg2-bloom 1.4s ease-out 0.4s both; }
+  .pg2.arrived .pg2-flare { animation: pg2-flare 0.9s cubic-bezier(0.16, 0.9, 0.24, 1) 0.55s both; }
+  .pg2.arrived :is(.pg2-num > i, .pg2-ord) { animation: pg2-letter 0.62s cubic-bezier(0.2, 1.35, 0.4, 1) both; animation-delay: calc(0.3s + var(--k, 0) * 0.09s); }
+  .pg2.arrived .pg2-word { animation: pg2-word 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) 0.75s both; }
+}
+@keyframes pg2-sweep { from { opacity: 0; transform: scaleX(0.1); } 40% { opacity: 1; } to { opacity: 1; transform: none; } }
+@keyframes pg2-turn { from { opacity: 0; transform: rotate(-14deg) scale(0.8); } 30% { opacity: 0.7; } to { opacity: 0.7; transform: none; } }
+@keyframes pg2-bloom { from { opacity: 0; transform: scale(0.6); } 35% { opacity: 1; transform: scale(1.08); } to { opacity: 0.75; transform: none; } }
+@keyframes pg2-flare { from { opacity: 0; transform: scaleX(0); } 30% { opacity: 1; } to { opacity: 0.35; transform: none; } }
+@keyframes pg2-letter { from { opacity: 0; transform: translateY(0.3em) scale(1.3); } 55% { opacity: 1; } to { opacity: 1; transform: none; } }
+@keyframes pg2-word { from { opacity: 0; transform: translateY(calc(12 * var(--phu))); } to { opacity: 1; transform: none; } }
+
+/* ── BEAT 2: THE LOBBY ───────────────────────────────────────────────────────────────────────────────────────────────────── */
+.pg2-lbar { flex: none; display: flex; align-items: center; justify-content: space-between; gap: calc(16 * var(--phu)); }
+.pg2-back { display: grid; place-items: center; width: calc(56 * var(--phu)); height: calc(56 * var(--phu)); padding: 0; margin: 0; border: 0; border-radius: 0;
+  background: var(--ph-plate); box-shadow: var(--ph-gild); clip-path: var(--ph-clip-s); color: var(--ph-text); transition: transform 0.12s cubic-bezier(0, 0, 0.2, 1); }
+.pg2-back:hover { background: var(--ph-plate-hover); color: var(--ph-ink); transform: scale(1.05); }
+.pg2-back:active { transform: scale(0.97); }
+.pg2-back svg { width: calc(26 * var(--phu)); height: calc(26 * var(--phu)); transform: rotate(90deg); }
+.pg2-lacts { display: flex; align-items: center; gap: calc(16 * var(--phu)); }
+.pg2-lacts .phk-btn.s-l { height: calc(56 * var(--phu)); }
+.pg2-lacts .ph-start { width: calc(260 * var(--phu)); height: calc(56 * var(--phu)); font-size: var(--ph-t4); }
+.pg2-lacts .ph-start.scoring { opacity: 0.5; }
+
+/* THE SCOREBOARD: column heads, then a row a seat. Every column is one thing, sized to be read at a glance. */
+.pg2-board { --cols: calc(66 * var(--phu)) calc(96 * var(--phu)) calc(210 * var(--phu)) calc(84 * var(--phu)) calc(92 * var(--phu)) calc(170 * var(--phu)) minmax(0, 1fr) calc(96 * var(--phu));
+  flex: 1; min-height: 0; display: flex; flex-direction: column; gap: calc(6 * var(--phu)); }
+.pg2-heads { flex: none; display: grid; grid-template-columns: var(--cols); column-gap: calc(14 * var(--phu)); padding: 0 calc(4 * var(--phu));
+  font-family: var(--ph-font); font-weight: 900; font-size: calc(11 * var(--phu)); letter-spacing: 0.22em; text-transform: uppercase; color: color-mix(in srgb, var(--ph-muted) 85%, transparent); }
+.pg2-heads > span { text-shadow: var(--ph-shadow); white-space: nowrap; }
+.pg2-heads .h-player { grid-column: 1 / span 3; padding-left: calc(80 * var(--phu)); }
+.pg2-heads .h-power, .pg2-heads .h-anc, .pg2-heads .h-end { text-align: center; }
+.pg2-heads .h-team { padding-left: calc(6 * var(--phu)); }
+.pg2-rows { flex: 1; min-height: 0; display: grid; grid-template-rows: repeat(8, minmax(0, 1fr)); gap: calc(6 * var(--phu)); }
+
+/* A ROW. Its shape and its plate are a layer under it (::before), so nothing it shows (a tooltip, a card preview) is ever clipped. */
+.pg2-row { --sb: #aebddb; --plate: linear-gradient(90deg, rgba(14, 24, 50, 0.94), rgba(10, 18, 38, 0.86) 55%, rgba(10, 18, 38, 0.92)); --edge: rgba(200, 149, 63, 0.24);
+  position: relative; min-height: 0; min-width: 0; display: grid; grid-template-columns: var(--cols); column-gap: calc(14 * var(--phu)); align-items: center; padding-right: calc(4 * var(--phu)); }
+.pg2-row::before { content: ''; position: absolute; inset: 0; z-index: 0; background: var(--plate); clip-path: var(--ph-clip-s); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--edge); }
+.pg2-row > * { position: relative; z-index: 1; min-width: 0; }
+.pg2-row.band-won { --sb: #f4c552; }
+.pg2-row.band-top4 { --sb: #74e8a0; }
+.pg2-row.band-lost { --sb: #ff7868; }
+.pg2-row.self { --plate: linear-gradient(90deg, rgba(70, 52, 14, 0.95), rgba(30, 30, 44, 0.9) 40%, rgba(12, 20, 40, 0.92)); --edge: var(--ph-gold); }
+.pg2-row.self::before { box-shadow: inset 0 0 0 calc(2 * var(--phu)) var(--ph-gold), inset 0 0 calc(34 * var(--phu)) rgba(255, 206, 110, 0.18); }
+.pg2-row.killer::before { box-shadow: inset 0 0 0 calc(2 * var(--phu)) rgba(255, 110, 92, 0.9), inset 0 0 calc(30 * var(--phu)) rgba(255, 90, 70, 0.14); }
+.pg2-row::after { content: ''; position: absolute; inset: 0; z-index: 0; pointer-events: none; opacity: 0; background: rgba(255, 226, 160, 0.06); clip-path: var(--ph-clip-s); transition: opacity 0.12s ease; }
+.pg2-row:hover::after { opacity: 1; }
+.pg2.on-lobby .pg2-row { animation: pg2-rise 0.42s cubic-bezier(0.2, 0.8, 0.2, 1) both; animation-delay: calc(0.08s + var(--i, 0) * 40ms); }
+@keyframes pg2-rise { from { opacity: 0; transform: translateX(calc(-28 * var(--phu))); } to { opacity: 1; transform: none; } }
+
+/* PLACE: the band's colour down the row's edge, the number in the reveal's Cinzel. */
+.pg2-place { align-self: stretch; display: flex; align-items: center; justify-content: center; gap: calc(1 * var(--phu)); clip-path: polygon(0 0, 100% 0, 100% 100%, var(--ph-cut-s) 100%, 0 calc(100% - var(--ph-cut-s)));
+  background: linear-gradient(90deg, color-mix(in srgb, var(--sb) 38%, transparent), color-mix(in srgb, var(--sb) 8%, transparent)); box-shadow: inset calc(4 * var(--phu)) 0 0 var(--sb); }
+.pg2-place > span { font-family: 'Cinzel', var(--title-font, 'Cinzel Decorative'), serif; font-weight: 900; font-size: calc(40 * var(--phu)); line-height: 1; color: var(--sb);
+  text-shadow: 0 0.05em 0 rgba(0, 0, 0, 0.6), 0 0 0.4em color-mix(in srgb, var(--sb) 40%, transparent); }
+.pg2-place.open > span { color: color-mix(in srgb, var(--ph-muted) 70%, transparent); }
+.pg2-place > i { align-self: center; margin: 0; transform: translateY(calc(-10 * var(--phu))); font-style: normal; font-family: 'Cinzel', var(--title-font, 'Cinzel Decorative'), serif; font-weight: 900; font-size: calc(14 * var(--phu)); color: var(--sb); text-transform: uppercase; }
+
+/* THE HERO: the portrait, full height, cut on its right edge. */
+.pg2-face { align-self: stretch; position: relative; clip-path: polygon(0 0, 100% 0, calc(100% - calc(14 * var(--phu))) 100%, 0 100%); background: #0b1226; }
+.pg2-face > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 22%; }
+.pg2-face::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 55%, rgba(4, 8, 20, 0.55)); }
+.pg2-killmark { position: absolute; left: calc(6 * var(--phu)); bottom: calc(6 * var(--phu)); z-index: 1; display: grid; place-items: center; width: calc(24 * var(--phu)); height: calc(24 * var(--phu)); border-radius: 50%;
+  background: #a1241d; color: #ffe6e1; box-shadow: 0 0 0 calc(2 * var(--phu)) rgba(8, 14, 30, 0.95); }
+.pg2-killmark svg { width: calc(14 * var(--phu)); height: calc(14 * var(--phu)); }
+
+.pg2-names { display: flex; flex-direction: column; gap: calc(4 * var(--phu)); }
+.pg2-name { font-family: var(--ph-name-font); font-weight: 900; font-size: calc(22 * var(--phu)); line-height: 1.1; color: var(--ph-ink); text-shadow: var(--ph-shadow); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pg2-row.self .pg2-name { color: var(--ph-gold-hi); }
+.pg2-heroname { font-family: var(--ph-font); font-weight: 800; font-size: calc(13 * var(--phu)); letter-spacing: 0.1em; text-transform: uppercase; color: var(--ph-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* POWER: the power's own disc, large (its Ancient's crack on it); its name and text on hover (SeatPower's tip). */
+.pg2-power { display: grid; place-items: center; }
+.pg2-power .rgp-power { padding: 0; gap: 0; background: none; box-shadow: none; border-radius: 50%; }
+.pg2-power .rgp-power:hover, .pg2-power .rgp-power:focus-visible { box-shadow: none; }
+.pg2-power .rgp-power .rgp-power-disc { --u: calc(62 * var(--phu) / 128); }
+.pg2-power .rgp-power-txt { display: none; }
+.pg2-power .rgp-power-pop { z-index: 30; }
+
+/* ANCIENT: the lobby tiles' Ancient medallion, large, named under it in its colour. */
+.pg2-anc { display: flex; flex-direction: column; align-items: center; gap: calc(4 * var(--phu)); }
+.pg2-anc .lp-tile-anc.heropowerbtn { --u: calc(54 * var(--phu) / 128); margin: 0; box-shadow: 0 0 0 calc(2 * var(--phu)) var(--anc-c, var(--ph-gold)), 0 0 calc(14 * var(--phu)) color-mix(in srgb, var(--anc-c, #c8953f) 50%, transparent); }
+.pg2-anc-name { font-family: 'Cinzel', var(--title-font, 'Cinzel Decorative'), serif; font-weight: 900; font-size: calc(12 * var(--phu)); letter-spacing: 0.1em; text-transform: uppercase; line-height: 1; text-shadow: var(--ph-shadow); }
+
+/* RUNES: every rune, a 4 x 2 block of discs. */
+.pg2-runes { display: grid; grid-template-columns: repeat(4, calc(36 * var(--phu))); grid-auto-rows: calc(36 * var(--phu)); gap: calc(5 * var(--phu)); align-content: center; overflow: hidden; max-height: calc(78 * var(--phu)); }
+.pg2-runes .cv2-rune { padding: 0; gap: 0; border: 0; background: none; }
+.pg2-runes .cv2-rune-disc { width: calc(36 * var(--phu)); height: calc(36 * var(--phu)); }
+.pg2-runes .cv2-rune-name { display: none; }
+
+.pg2-team { align-self: stretch; container-type: size; min-height: 0; display: flex; align-items: center; }
+.pg2-team .cv2-team { --tw: min(calc(74cqh), calc((100cqw - 8px) / 8)); --tile-gap: calc(var(--tw) * 0.18); width: 100%; flex-wrap: nowrap; justify-content: flex-start; padding: 0 calc(4 * var(--phu)); }
+
+/* RESULT: the crown, the round out, or health still standing. */
+.pg2-end { display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1; gap: calc(3 * var(--phu)); }
+.pg2-end b { font-family: 'Cinzel', var(--title-font, 'Cinzel Decorative'), serif; font-weight: 900; font-size: calc(30 * var(--phu)); color: var(--ph-text); text-shadow: var(--ph-shadow); }
+.pg2-end small { font-family: var(--ph-font); font-weight: 900; font-size: calc(11 * var(--phu)); letter-spacing: 0.22em; padding-left: 0.22em; text-transform: uppercase; color: #ff9f92; }
+.pg2-end.out b { color: #ffc9c1; }
+.pg2-end.won svg { width: calc(38 * var(--phu)); height: calc(38 * var(--phu)); color: #f4c552; filter: drop-shadow(0 calc(2 * var(--phu)) 0 rgba(0, 0, 0, 0.5)); }
+.pg2-end.in { flex-direction: row; gap: calc(6 * var(--phu)); }
+.pg2-end.in svg { width: calc(20 * var(--phu)); height: calc(20 * var(--phu)); color: #ff6f7d; }
+
+@media (prefers-reduced-motion: reduce) {
+  .pg2-result, .pg2-lobby, .pg2-vignette { transition-duration: 0.01s; }
+  .pg2.on-lobby .pg2-row { animation: none; }
+}

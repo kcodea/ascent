@@ -32,6 +32,10 @@ const [, , SRC_DIR, OUT_DIR, PREVIEW] = process.argv;
 const DEPTH_DIR = path.join(__dirname, 'pack-depth');
 /** How strongly the depth model's shapes count, and how wide "its own average" is (pixels of the 300 x 450 map). */
 const DEPTH_UP = 2.2, DEPTH_WIDE = 20;
+/** Facets: how alike two neighbours' colours must be to share a face (sum of the three channels, 0..765), how much of the smooth lean a face keeps, and how much its painted brightness leans it. */
+const FACET_TOL = 46, FACET_SHAPE = 1.6, FACET_LIT = 1.6;
+/** Tiles: a block's size (points of the double-size map), the height of one terrace, how hard a step leans, and each block's own faint bevel. */
+const TILE = 4, TILE_STEP = 0.09, TILE_SLOPE = 7, TILE_BEVEL = 0.012;
 // The wrappers that get a relief map, and how strongly each layer counts (forms, parts, detail) and the overall slope.
 const PACKS = {
   plushie: { forms: 0.5, parts: 0.42, detail: 0.3, slope: 5.5, ground: { from: 250, to: 340 } }, // felt on a purple sky
@@ -45,8 +49,8 @@ const PACKS = {
   launch: { forms: 0.4, parts: 0.5, detail: 0.34, slope: 5.5, ground: 1 },
   // the style wrappers
   scribble: { forms: 0.3, parts: 0.3, detail: 0.5, slope: 5, ground: 0.4 },    // crayon on paper: waxy strokes, little form
-  eightbit: { forms: 0.3, parts: 0.3, detail: 0.6, slope: 5, ground: 1 },      // printed pixels: crisp steps
-  voxel: { forms: 0.45, parts: 0.4, detail: 0.5, slope: 5.5, ground: 1 },      // glossy blocks
+  eightbit: { forms: 0.3, parts: 0.3, detail: 0.6, slope: 5, ground: 1, style: 'tiles' },   // printed pixels: flat terraces of blocks
+  voxel: { forms: 0.45, parts: 0.4, detail: 0.5, slope: 5.5, ground: 1, style: 'facets' }, // glossy blocks: one lean per face
   lowpoly: { forms: 0.45, parts: 0.45, detail: 0.4, slope: 5.5, ground: 1 },   // glossy facets
   sketchbook: { forms: 0.2, parts: 0.25, detail: 0.5, slope: 4.5, ground: 0.3 }, // pencil on paper: nearly flat, the lines bite in
 };
@@ -118,20 +122,80 @@ function blur(src, r) {
       height[i] = alpha[i] * (k.forms * (forms[i] - base[i]) * 2 + k.parts * parts + k.detail * (detail[i] - forms[i]) * 2);
     }
     const hs = blur(height, 1);
-    const out = Buffer.alloc(W * H * 3);
+    // the lean at each point: downhill, so a slope facing left has a negative x
+    const nx = new Float32Array(W * H), ny = new Float32Array(W * H);
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
       const i = y * W + x;
       const l = hs[y * W + Math.max(0, x - 1)], r = hs[y * W + Math.min(W - 1, x + 1)];
       const u = hs[Math.max(0, y - 1) * W + x], d = hs[Math.min(H - 1, y + 1) * W + x];
-      // the lean: downhill, so a slope facing left has a negative x
-      const nx = Math.max(-1, Math.min(1, (l - r) * k.slope)), ny = Math.max(-1, Math.min(1, (u - d) * k.slope));
-      out[i * 3] = Math.round(127.5 + 127.5 * nx * alpha[i]);
-      out[i * 3 + 1] = Math.round(127.5 + 127.5 * ny * alpha[i]);
-      out[i * 3 + 2] = Math.round(255 * Math.max(0, Math.min(1, finish[i])));
+      nx[i] = Math.max(-1, Math.min(1, (l - r) * k.slope)); ny[i] = Math.max(-1, Math.min(1, (u - d) * k.slope));
     }
-    await sharp(out, { raw: { width: W, height: H, channels: 3 } }).webp({ quality: 92 }).toFile(`${OUT_DIR}/${id}-pack-relief.webp`);
-    previews.push({ input: await sharp(out, { raw: { width: W, height: H, channels: 3 } }).png().toBuffer(), left: previews.length * (W + 10), top: 0 });
-    console.log(id, 'relief written');
+    let ow = W, oh = H, crisp = false;
+    let lean = (x, y) => [nx[y * W + x], ny[y * W + x]];
+    if (k.style === 'facets') {
+      // FACETS (owner 2026-11-27, the Voxel pack: "give those unique maps a try"): the art is cut into its flat faces
+      // (neighbours of nearly one colour), and each face gets ONE lean: the average of the smooth lean over it, plus how
+      // much brighter the face is painted than its surroundings (a lit face leans toward the light). A whole face
+      // catches the light at once, and the edges between faces stay sharp.
+      crisp = true;
+      const region = new Int32Array(W * H).fill(-1), sums = [];
+      const stack = [];
+      for (let s = 0; s < W * H; s++) {
+        if (region[s] >= 0) continue;
+        const id2 = sums.length, sr = data[s * 4], sg = data[s * 4 + 1], sb = data[s * 4 + 2];
+        const acc = { n: 0, nx: 0, ny: 0, lum: 0, base: 0 };
+        region[s] = id2; stack.push(s);
+        while (stack.length) {
+          const i = stack.pop(), x = i % W, y = (i - x) / W;
+          acc.n++; acc.nx += nx[i]; acc.ny += ny[i]; acc.lum += lum[i]; acc.base += base[i];
+          for (const j of [x > 0 ? i - 1 : -1, x < W - 1 ? i + 1 : -1, y > 0 ? i - W : -1, y < H - 1 ? i + W : -1]) {
+            if (j < 0 || region[j] >= 0) continue;
+            if (Math.abs(data[j * 4] - sr) + Math.abs(data[j * 4 + 1] - sg) + Math.abs(data[j * 4 + 2] - sb) > FACET_TOL) continue;
+            region[j] = id2; stack.push(j);
+          }
+        }
+        sums.push(acc);
+      }
+      const face = sums.map((a) => {
+        const lit = (a.lum - a.base) / a.n * FACET_LIT; // brighter than its surroundings = facing the light (up and left)
+        return [Math.max(-1, Math.min(1, a.nx / a.n * FACET_SHAPE - 0.45 * lit)), Math.max(-1, Math.min(1, a.ny / a.n * FACET_SHAPE - 0.9 * lit))];
+      });
+      lean = (x, y) => face[region[y * W + x]];
+    } else if (k.style === 'tiles') {
+      // TILES (the 8 Bit pack): the height is read once per BLOCK (TILE x TILE points of a map twice the usual size) and
+      // snapped to a few flat levels, so the surface is stacked flat terraces with stair-stepped edges; only a block's
+      // rim leans, by the step to its neighbour, plus a faint bevel so each block reads as its own raised tile. The art
+      // is painted to look pixelated and sits on no regular grid, so the blocks are this map's own.
+      crisp = true;
+      ow = W * 2; oh = H * 2;
+      const gw = Math.ceil(ow / TILE), gh = Math.ceil(oh / TILE), q = new Float32Array(gw * gh);
+      for (let gy = 0; gy < gh; gy++) for (let gx = 0; gx < gw; gx++) {
+        const mx = Math.min(W - 1, Math.floor((gx + 0.5) * TILE / 2)), my = Math.min(H - 1, Math.floor((gy + 0.5) * TILE / 2));
+        q[gy * gw + gx] = Math.round(height[my * W + mx] / TILE_STEP) * TILE_STEP;
+      }
+      const at = (gx, gy) => q[Math.max(0, Math.min(gh - 1, gy)) * gw + Math.max(0, Math.min(gw - 1, gx))];
+      lean = (x, y) => {
+        const gx = Math.floor(x / TILE), gy = Math.floor(y / TILE), px = x % TILE, py = y % TILE;
+        let lx = 0, ly = 0;
+        if (px === 0) lx = (at(gx - 1, gy) - at(gx, gy)) * TILE_SLOPE - TILE_BEVEL;
+        else if (px === TILE - 1) lx = (at(gx, gy) - at(gx + 1, gy)) * TILE_SLOPE + TILE_BEVEL;
+        if (py === 0) ly = (at(gx, gy - 1) - at(gx, gy)) * TILE_SLOPE - TILE_BEVEL;
+        else if (py === TILE - 1) ly = (at(gx, gy) - at(gx, gy + 1)) * TILE_SLOPE + TILE_BEVEL;
+        return [Math.max(-1, Math.min(1, lx)), Math.max(-1, Math.min(1, ly))];
+      };
+    }
+    const out = Buffer.alloc(ow * oh * 3), sc = ow / W;
+    for (let y = 0; y < oh; y++) for (let x = 0; x < ow; x++) {
+      const i = y * ow + x, m = Math.floor(y / sc) * W + Math.floor(x / sc);
+      const [lx, ly] = lean(x, y);
+      out[i * 3] = Math.round(127.5 + 127.5 * lx * alpha[m]);
+      out[i * 3 + 1] = Math.round(127.5 + 127.5 * ly * alpha[m]);
+      out[i * 3 + 2] = Math.round(255 * Math.max(0, Math.min(1, finish[m])));
+    }
+    const img = sharp(out, { raw: { width: ow, height: oh, channels: 3 } });
+    await img.clone().webp(crisp ? { lossless: true } : { quality: 92 }).toFile(`${OUT_DIR}/${id}-pack-relief.webp`);
+    previews.push({ input: await img.clone().resize(W, H, { kernel: 'nearest' }).png().toBuffer(), left: previews.length * (W + 10), top: 0 });
+    console.log(id, 'relief written', k.style ?? 'smooth');
   }
   if (PREVIEW) await sharp({ create: { width: previews.length * (W + 10), height: H, channels: 3, background: '#000' } }).composite(previews).png().toFile(PREVIEW);
 })();

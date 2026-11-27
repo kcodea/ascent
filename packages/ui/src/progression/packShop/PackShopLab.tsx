@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDraggablePanel } from '../../useDraggablePanel';
+import { PACK_RELIEF_IDS, reliefDefaultDepth, reliefDepth, setReliefDepth } from '../packOpening/packRelief';
 import { PACK_LAB_SAMPLES, cancelLabTimers, makeLabOpen, type LabTimers } from '../packOpening/packLabSamples';
 import { packDuplicateAether } from '@game/progression';
 import { PackShop, type PackShopProps } from './PackShop';
@@ -37,6 +38,19 @@ export function PackShopLab(): JSX.Element {
   const [state, setStateRaw] = useState<LabState>({ aether: 0, hand: [] });
   /** The Legendary guarantee: one step down per pack bought, back to 10 when it reaches 0. */
   const [within, setWithin] = useState(LAB_GUARANTEE_EVERY);
+  /** The relief tuner: each wrapper's depth (0 = no relief), live on every pack on screen. */
+  const [depths, setDepths] = useState<Record<string, number>>(() => Object.fromEntries(PACK_RELIEF_IDS.map((id) => [id, reliefDepth(id)])));
+  const [copied, setCopied] = useState(false);
+  const setDepth = (id: string, v: number): void => { setReliefDepth(id, v); setDepths((d) => ({ ...d, [id]: v })); setCopied(false); };
+  const shippedDepths = (): void => {
+    for (const id of PACK_RELIEF_IDS) setReliefDepth(id, null);
+    setDepths(Object.fromEntries(PACK_RELIEF_IDS.map((id) => [id, reliefDefaultDepth(id)])));
+    setCopied(false);
+  };
+  const copyDepths = (): void => {
+    const text = PACK_RELIEF_IDS.map((id) => `${id}: ${depths[id] ? depths[id].toFixed(2) : 'off'}`).join(', ');
+    void navigator.clipboard?.writeText(text).then(() => setCopied(true), () => undefined);
+  };
 
   const stateRef = useRef<LabState>(state);
   const setState = useCallback((next: LabState): void => { stateRef.current = next; setStateRaw(next); }, []);
@@ -122,6 +136,20 @@ export function PackShopLab(): JSX.Element {
       <div className="lunge-btns">
         <button type="button" className="sfxmix-copy" onClick={start}>Open shop</button>
         <button type="button" className="sfxmix-copy" onClick={reset}>Reset</button>
+      </div>
+
+      <div className="sfxmix-sub">Relief depth (0 = off)</div>
+      {PACK_RELIEF_IDS.map((id) => (
+        <div className="sfxmix-row" key={id}>
+          <span className="sfxmix-name">{id}</span>
+          <input type="range" min={0} max={1.5} step={0.05} value={depths[id] ?? 0} aria-label={`${id} relief depth`}
+            onChange={(e) => setDepth(id, Number(e.target.value))} />
+          <span className="sfxmix-val">{depths[id] ? depths[id].toFixed(2) : 'off'}</span>
+        </div>
+      ))}
+      <div className="lunge-btns">
+        <button type="button" className="sfxmix-copy" onClick={copyDepths}>{copied ? 'Copied' : 'Copy depths'}</button>
+        <button type="button" className="sfxmix-copy" onClick={shippedDepths}>Shipped depths</button>
       </div>
 
       {run !== null && (

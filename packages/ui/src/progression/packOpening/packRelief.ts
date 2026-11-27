@@ -37,8 +37,50 @@ export function packReliefFor(look: PackLook): string | null {
   return art && id && RELIEF[id] ? art.replace(/\.webp$/, '-relief.webp') : null;
 }
 
+const idOf = (src: string): string => /packs\/([a-z]+)-pack-relief\.webp$/.exec(src)?.[1] ?? '';
 function materialFor(src: string): PackMaterial {
-  return RELIEF[/packs\/([a-z]+)-pack-relief\.webp$/.exec(src)?.[1] ?? ''] ?? FOIL;
+  return RELIEF[idOf(src)] ?? FOIL;
+}
+
+/*
+ * THE RELIEF TUNER (dev only; owner 2026-11-26: "some are too aggressive. others dont make as much sense. id like to
+ * determine which gets normal treatment and which dont"). The Pack Shop lab sets a depth per wrapper (0 = no relief),
+ * kept in localStorage and applied live to every bound band. A shipped build never reads it.
+ */
+const TUNE_KEY = 'ascent.dev.packReliefDepth';
+const DEV = import.meta.env.DEV;
+let tuned: Record<string, number> | null = null;
+function tuning(): Record<string, number> {
+  if (tuned) return tuned;
+  tuned = {};
+  try {
+    const raw: unknown = JSON.parse(localStorage.getItem(TUNE_KEY) ?? '{}');
+    if (raw && typeof raw === 'object') for (const [k, v] of Object.entries(raw)) if (typeof v === 'number' && RELIEF[k]) tuned[k] = v;
+  } catch { /* nothing stored */ }
+  return tuned;
+}
+/** The dev bands bound to a relief map, by wrapper id: a depth change reaches them at once. */
+const bound = new Map<GlossFx, string>();
+
+/** Every wrapper that ships a relief map. */
+export const PACK_RELIEF_IDS: readonly string[] = Object.keys(RELIEF);
+/** The depth a wrapper ships with. */
+export function reliefDefaultDepth(id: string): number { return RELIEF[id]?.depth ?? 0; }
+/** The depth a wrapper shows now (the dev tuner's value when one is set). */
+export function reliefDepth(id: string): number {
+  return (DEV ? tuning()[id] : undefined) ?? reliefDefaultDepth(id);
+}
+/** Dev tuner: set a wrapper's depth (0 = no relief; null = back to what it ships with). */
+export function setReliefDepth(id: string, depth: number | null): void {
+  if (!DEV) return;
+  const t = tuning();
+  if (depth === null) delete t[id]; else t[id] = depth;
+  try { localStorage.setItem(TUNE_KEY, JSON.stringify(t)); } catch { /* storage is full or blocked */ }
+  const d = reliefDepth(id);
+  for (const [g, gid] of bound) {
+    if (gid !== id) continue;
+    try { g.u.uRelief = d; } catch { bound.delete(g); }
+  }
 }
 
 let flat: Texture | null = null;
@@ -66,13 +108,15 @@ export function bindRelief(gloss: GlossFx, look: PackLook, stillWanted: () => bo
   const set = (t: Texture, k: number): void => {
     try { gloss.mesh.shader!.resources.uTex3 = t.source; gloss.u.uRelief = k; } catch { /* the band was destroyed */ }
   };
+  if (DEV) bound.delete(gloss);
   if (!src) { set(flatRelief(), 0); return; }
-  const mat = materialFor(src);
+  const mat = materialFor(src), id = idOf(src);
   try { const um = gloss.u.uMat; um[0] = mat.band; um[1] = mat.fuzz; } catch { /* the band was destroyed */ }
   const have = loaded.get(src);
-  if (have) { set(have, mat.depth); return; }
+  const bind = (t: Texture): void => { set(t, reliefDepth(id)); if (DEV) bound.set(gloss, id); };
+  if (have) { bind(have); return; }
   set(flatRelief(), 0);
-  const use = (t: Texture): void => { if (stillWanted()) set(t, mat.depth); };
+  const use = (t: Texture): void => { if (stillWanted()) bind(t); };
   const queue = waiting.get(src);
   if (queue) { queue.push(use); return; }
   waiting.set(src, [use]);

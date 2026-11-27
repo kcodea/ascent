@@ -37,8 +37,8 @@ export function paintPackShadow(): HTMLCanvasElement {
   const W = 128, H = 128;
   const { c, g } = canvasOf(W, H);
   if (!g) return c;
-  g.filter = 'blur(12px)';
-  g.fillStyle = 'rgba(12,6,2,0.95)';
+  g.filter = 'blur(8px)'; // a thin pack casts a short shadow with a narrow soft edge (it was 12px: a wide smear)
+  g.fillStyle = 'rgba(20,9,3,0.95)';
   g.beginPath(); g.roundRect(26, 26, W - 52, H - 52, 8); g.fill();
   return c;
 }
@@ -59,8 +59,8 @@ export function paintContactShadow(): HTMLCanvasElement {
   const W = 128, H = 128;
   const { c, g } = canvasOf(W, H);
   if (!g) return c;
-  g.filter = 'blur(4px)';
-  g.fillStyle = 'rgba(10,5,2,1)';
+  g.filter = 'blur(3px)';
+  g.fillStyle = 'rgba(16,7,3,1)';
   g.beginPath(); g.roundRect(26, 26, W - 52, H - 52, 3); g.fill();
   return c;
 }

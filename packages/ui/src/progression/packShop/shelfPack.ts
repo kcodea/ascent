@@ -29,8 +29,9 @@ const HT = H + BODY_H;
 const PLACEHOLDER_CARDS = 5;
 /** The contact shadow texture's dark slab, as a share of the texture (`paintContactShadow`), and how much larger than the pack it is drawn. */
 export const SHADOW_SLAB = 76 / 128;
-/** The contact shadow against the pack's own outline: a little narrower (none at the sides), no taller (it is offset forward). */
-const SHADOW_GROW = { x: 0.96, y: 1 } as const;
+/** The contact shadow against the pack's own outline: a hair larger all round, so a thin dark rim shows where the pack meets the
+ *  wood on every side (owner 2026-11-27: "how to make the shadows look the most realistic"); it was narrower, with none at the sides. */
+const SHADOW_GROW = { x: 1.025, y: 1.012 } as const;
 /**
  * A PACK WITH A BODY (owner 2026-11-26: "it looks like a 2d image laying flat. how can we make it look a bit more like a
  * physical card pack with a bit of depth and height?"). `BODY_THICK`: how thick the pack is (a share of its height): its

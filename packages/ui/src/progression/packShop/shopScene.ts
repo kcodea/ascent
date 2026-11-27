@@ -237,7 +237,9 @@ const RACK_FADE_EASE = 0.15;
 // shows along a pack's near edge and nowhere else (owner 2026-11-25 / 26: "the shadow should be cast on the front of the
 // card packs"). `w` is the soft shadow's width as a share of the pack's: under 1, so none shows at the sides.
 // (owner 2026-11-26: "the shadows make the packs look like they are hovering": lighter, and tight to the pack's foot)
-const HAND_SHADOW = { alpha: 0.52, dx: 0, dy: 0.115, lift: 0.1, w: 0.94 } as const;
+// (owner 2026-11-27, the realism pass: a thin pack's cast shadow is SHORT and fairly sharp; as the pack lifts it slides
+// further off, spreads by `spread` and fades to `lifted` of its strength)
+const HAND_SHADOW = { alpha: 0.62, dx: 0, dy: 0.09, lift: 0.12, w: 0.99, spread: 0.16, lifted: 0.45 } as const;
 /**
  * The hand packs' CONTACT shadow (owner 2026-11-25: "add shadows here to make it look a bit more like its against the
  * table"): tight and dark under the pack's own outline, offset by these shares of its height. As the pack lifts it
@@ -254,7 +256,7 @@ const GLOW_TINT: Readonly<Record<string, number>> = { common: 0xdfe6f2, rare: 0x
 const STACK_COUNT = { font: 0.1, x: 0, y: 0.34 } as const; // on the foot edge, under the pack's name
 /** A pack's type: packs of one type lie in one stack. */
 const lookKeyOf = (look: OwnedPack['look']): string => `${look.kind}:${look.id}`;
-const HAND_CONTACT = { alpha: 0.78, dx: 0, dy: 0.06, lifted: 0.35, away: 3 } as const;
+const HAND_CONTACT = { alpha: 0.9, dx: 0, dy: 0.032, lifted: 0.1, away: 3 } as const; // tight to the outline; nearly gone once the pack is off the wood
 const TAG_FONT = 0.0525; // owner 2026-11-25: "make the tag smaller by 30%" (was 0.075)
 /**
  * THE PRICE TAGS: where the twine is tied (a share of the pack's height in from its top-left corner), how far the tag
@@ -1425,12 +1427,13 @@ class ShopSceneImpl implements ShopScene {
       const sh = this.handShadows[v];
       if (sh && (q.alpha > 0 || (under > 0 && !waiting))) {
         sh.visible = true;
-        sh.alpha = HAND_SHADOW.alpha * (1 - 0.5 * up);
+        sh.alpha = HAND_SHADOW.alpha * (1 - (1 - HAND_SHADOW.lifted) * up);
         sh.rotation = q.rot;
         sh.position.set(q.x + q.h * HAND_SHADOW.dx, q.y + q.h * (HAND_SHADOW.dy + HAND_SHADOW.lift * up));
         // the texture's slab is the middle 60% of the sprite: size the sprite so the slab is the pack's drawn outline
-        sh.width = (q.h * ASPECT * HAND_SHADOW.w) / 0.6;
-        sh.height = (q.h * (Math.cos((lie * Math.PI) / 180) + 0.06)) / 0.6;
+        const spread = 1 + HAND_SHADOW.spread * up;
+        sh.width = (q.h * ASPECT * HAND_SHADOW.w * spread) / 0.6;
+        sh.height = (q.h * (Math.cos((lie * Math.PI) / 180) + 0.06) * spread) / 0.6;
       }
     }
     // the piled packs still waiting their turn (their arrivals are dropped once due: the pile draws only its top)

@@ -38,7 +38,7 @@ const FACET_TOL = 46, FACET_SHAPE = 1.6, FACET_LIT = 1.6;
 const TILE = 4, TILE_STEP = 0.09, TILE_SLOPE = 7, TILE_BEVEL = 0.012;
 // The wrappers that get a relief map, and how strongly each layer counts (forms, parts, detail) and the overall slope.
 const PACKS = {
-  plushie: { forms: 0.5, parts: 0.42, detail: 0.3, slope: 5.5, ground: { from: 250, to: 340, sky: true } }, // felt on a glossy sky (purple down to orange)
+  plushie: { logo: [0.37, 0.485], forms: 0.5, parts: 0.42, detail: 0.3, slope: 5.5, ground: { from: 250, to: 340, sky: true } }, // felt on a glossy sky (purple down to orange)
   // the painted foil wrappers: a metal emblem and logo standing proud of a soft painted scene
   common: { forms: 0.4, parts: 0.5, detail: 0.34, slope: 5.5, ground: 1 },
   rare: { forms: 0.4, parts: 0.5, detail: 0.34, slope: 5.5, ground: 1 },
@@ -46,13 +46,13 @@ const PACKS = {
   legendary: { forms: 0.4, parts: 0.5, detail: 0.34, slope: 5.5, ground: 1 },
   ancient: { forms: 0.36, parts: 0.5, detail: 0.34, slope: 5.5, ground: 1 },
   secret: { forms: 0.4, parts: 0.5, detail: 0.34, slope: 5.5, ground: 1 },
-  launch: { forms: 0.4, parts: 0.5, detail: 0.34, slope: 5.5, ground: 1 },
+  launch: { logo: [0.42, 0.515], forms: 0.4, parts: 0.5, detail: 0.34, slope: 5.5, ground: 1 },
   // the style wrappers
-  scribble: { forms: 0.3, parts: 0.3, detail: 0.5, slope: 5, ground: 0.4 },    // crayon on paper: waxy strokes, little form
-  eightbit: { forms: 0.3, parts: 0.3, detail: 0.6, slope: 5, ground: 1, style: 'tiles' },   // printed pixels: flat terraces of blocks
-  voxel: { forms: 0.45, parts: 0.4, detail: 0.5, slope: 5.5, ground: 1, style: 'facets' }, // glossy blocks: one lean per face
-  lowpoly: { forms: 0.45, parts: 0.45, detail: 0.4, slope: 5.5, ground: 1, style: 'facets' }, // glossy facets: one lean per face
-  sketchbook: { forms: 0.2, parts: 0.25, detail: 0.5, slope: 4.5, ground: 0.3 }, // pencil on paper: nearly flat, the lines bite in
+  scribble: { logo: [0.4, 0.525], forms: 0.3, parts: 0.3, detail: 0.5, slope: 5, ground: 0.4 },    // crayon on paper: waxy strokes, little form
+  eightbit: { logo: [0.395, 0.482], forms: 0.3, parts: 0.3, detail: 0.6, slope: 5, ground: 1, style: 'tiles' },   // printed pixels: flat terraces of blocks
+  voxel: { logo: [0.4, 0.505], forms: 0.45, parts: 0.4, detail: 0.5, slope: 5.5, ground: 1, style: 'facets' }, // glossy blocks: one lean per face
+  lowpoly: { logo: [0.4, 0.512], forms: 0.45, parts: 0.45, detail: 0.4, slope: 5.5, ground: 1, style: 'facets' }, // glossy facets: one lean per face
+  sketchbook: { logo: [0.38, 0.487], forms: 0.2, parts: 0.25, detail: 0.5, slope: 4.5, ground: 0.3 }, // pencil on paper: nearly flat, the lines bite in
 };
 // The template's named parts, as soft ellipses in shares of the wrapper (cx, cy, rx, ry) and their swell.
 const PARTS = [
@@ -61,6 +61,23 @@ const PARTS = [
   { name: 'island', cx: 0.5, cy: 0.66, rx: 0.34, ry: 0.13, up: 0.7 },
   { name: 'name', cx: 0.5, cy: 0.875, rx: 0.36, ry: 0.045, up: 0.7 },
 ];
+/*
+ * THE CORE (owner 2026-11-27: "i just want the core element to look raised as compared to the rest of the pack. smaller
+ * text and details shouldnt have any raised texture as it becomes hard to read"): only the emblem and the ASCENT logo
+ * keep their relief. Everywhere else the map is flat, so the tagline, the pack's name, the scene and the ornaments take
+ * the plain gloss band. Each wrapper says where its ASCENT lettering sits (`logo`: its top and bottom, in shares of the
+ * wrapper's height, stopping above the tagline); the emblem is the box from CORE_TOP down to the lettering.
+ */
+const CORE_TOP = 0.11, LOGO = [0.455, 0.555];
+function coreBoxes(logo) {
+  const [y0, y1] = logo;
+  return [
+    { cx: 0.5, cy: (CORE_TOP + y0) / 2, rx: 0.27, ry: (y0 - CORE_TOP) / 2 + 0.02 },  // the emblem
+    { cx: 0.5, cy: (y0 + y1) / 2, rx: 0.44, ry: (y1 - y0) / 2 + 0.008 },             // the ASCENT lettering
+  ];
+}
+/** How much of a core box's edge fades out (share of its radius). */
+const CORE_EDGE = 0.18;
 const W = 300, H = 450;
 // a sky ground: how strongly coloured a pixel must be, and how far it may stand up from its surroundings
 const SKY_SAT = 0.5, SKY_RISE = 0.03, SKY_LUM = 0.52;
@@ -85,7 +102,7 @@ function blur(src, r) {
 }
 
 (async () => {
-  const previews = [];
+  const previews = [], corePreviews = [];
   for (const [id, k] of Object.entries(PACKS)) {
     const { data } = await sharp(`${SRC_DIR}/${id}-pack.webp`).resize(W, H).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
     const lum = new Float32Array(W * H), alpha = new Float32Array(W * H), ground = new Float32Array(W * H);
@@ -146,6 +163,17 @@ function blur(src, r) {
       const u = hs[Math.max(0, y - 1) * W + x], d = hs[Math.min(H - 1, y + 1) * W + x];
       nx[i] = Math.max(-1, Math.min(1, (l - r) * k.slope)); ny[i] = Math.max(-1, Math.min(1, (u - d) * k.slope));
     }
+    const core = new Float32Array(W * H), boxes = coreBoxes(k.logo ?? LOGO);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      let c = 0;
+      for (const p of boxes) {
+        const dx = Math.abs((x + 0.5) / W - p.cx) / p.rx, dy = Math.abs((y + 0.5) / H - p.cy) / p.ry;
+        const d = Math.pow(Math.pow(dx, 4) + Math.pow(dy, 4), 0.25); // a rounded box
+        const t = Math.max(0, Math.min(1, (1 - d) / CORE_EDGE));
+        c = Math.max(c, t * t * (3 - 2 * t));
+      }
+      core[y * W + x] = c;
+    }
     let ow = W, oh = H, crisp = false;
     let lean = (x, y) => [nx[y * W + x], ny[y * W + x]];
     if (k.style === 'facets') {
@@ -204,14 +232,21 @@ function blur(src, r) {
     for (let y = 0; y < oh; y++) for (let x = 0; x < ow; x++) {
       const i = y * ow + x, m = Math.floor(y / sc) * W + Math.floor(x / sc);
       const [lx, ly] = lean(x, y);
-      out[i * 3] = Math.round(127.5 + 127.5 * lx * alpha[m]);
-      out[i * 3 + 1] = Math.round(127.5 + 127.5 * ly * alpha[m]);
+      out[i * 3] = Math.round(127.5 + 127.5 * lx * alpha[m] * core[m]);
+      out[i * 3 + 1] = Math.round(127.5 + 127.5 * ly * alpha[m] * core[m]);
       out[i * 3 + 2] = Math.round(255 * Math.max(0, Math.min(1, finish[m])));
     }
     const img = sharp(out, { raw: { width: ow, height: oh, channels: 3 } });
     await img.clone().webp(crisp ? { lossless: true } : { quality: 92 }).toFile(`${OUT_DIR}/${id}-pack-relief.webp`);
     previews.push({ input: await img.clone().resize(W, H, { kernel: 'nearest' }).png().toBuffer(), left: previews.length * (W + 10), top: 0 });
+    if (process.env.PACK_CORE_PREVIEW) {
+      // a check sheet: the art, dimmed wherever the map is flat
+      const dim = Buffer.alloc(W * H * 3);
+      for (let i = 0; i < W * H; i++) for (let ch = 0; ch < 3; ch++) dim[i * 3 + ch] = Math.round(data[i * 4 + ch] * (0.25 + 0.75 * core[i]));
+      corePreviews.push({ input: await sharp(dim, { raw: { width: W, height: H, channels: 3 } }).png().toBuffer(), left: corePreviews.length * (W + 10), top: 0 });
+    }
     console.log(id, 'relief written', k.style ?? 'smooth');
   }
+  if (corePreviews.length) await sharp({ create: { width: corePreviews.length * (W + 10), height: H, channels: 3, background: '#000' } }).composite(corePreviews).png().toFile(process.env.PACK_CORE_PREVIEW);
   if (PREVIEW) await sharp({ create: { width: previews.length * (W + 10), height: H, channels: 3, background: '#000' } }).composite(previews).png().toFile(PREVIEW);
 })();

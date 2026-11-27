@@ -56,6 +56,19 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-11-27',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Watch replay can always be skipped: the diamond offers Skip Combat again, even for a fight you already skipped.',
+        details: [
+          'Before, if you had skipped a fight and then pressed Watch replay in the Fight Recap, the diamond stayed dim and you had to sit through the whole fight.',
+          'Skipping the rewatch fast-forwards it the same way and brings you back to the recap.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-11-25',
     changes: [
       {

@@ -1212,7 +1212,7 @@ export interface CombatReplay {
    * falls back to `skip`.
    */
   turbo: (onLand?: () => void) => void;
-  /** True from a `turbo` call until the next fight starts. */
+  /** True from a `turbo` call until the next fight starts, or until this one starts over (`seekTo(0)`, a rewatch). */
   turboing: boolean;
   /**
    * DEV (proc harness): jump the replay to `index`, clearing per-beat transient state as a fresh fight would,
@@ -4545,7 +4545,14 @@ export function useCombatReplay(
     seekTo: (index: number) => {
       setSeekNonce((n) => n + 1); // here, not in `resetTo` — a fresh combat already changes `combat` identity
       setEndNonce((n) => n + 1);  // …and re-arm the final hold (a zero-beat fight never flips `replayComplete`)
-      resetTo(Math.max(0, Math.min(beats.length - 1, index)));
+      const to = Math.max(0, Math.min(beats.length - 1, index));
+      // A seek back to the TOP is the fight starting over (the Fight Recap's Watch replay), so it drops the Skip
+      // like a new fight does (R-SKIP-REWATCH-01). Left latched, a fight Skipped once reported `turboing` for its
+      // whole rewatch: the diamond stayed dead and a second Skip was ignored. The speed loop's teardown restores
+      // the FX clock and the sound when the dropped Skip was still racing. A seek FORWARD keeps it: that is a
+      // spectator catching up to the player's beat mid-Skip.
+      if (to === 0) setTurbo(null);
+      resetTo(to);
     },
   };
 }

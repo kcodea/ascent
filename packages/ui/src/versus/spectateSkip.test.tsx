@@ -85,7 +85,8 @@ describe('R-SPECTATE-SKIP-01: the tap', () => {
 
   it('Recruit tags the player\'s own Skip and runs the same skip on the watch screen\'s cue', () => {
     const src = readFileSync(join(__dirname, '..', 'Recruit.tsx'), 'utf8');
-    expect(src).toContain('if (!useGame.getState().replaying) tapSkipCombat();');
+    // …but never a Skip pressed while watching the fight AGAIN from the recap (R-SKIP-REWATCH-01).
+    expect(src).toContain('if (!useGame.getState().replaying && !rewatchingRef.current) tapSkipCombat();');
     expect(src).toContain('if (!replay.done) skipCombat();');
   });
 });

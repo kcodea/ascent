@@ -138,6 +138,8 @@ export function PackShop(props: PackShopProps) {
   const [opening, setOpening] = useState<readonly PackQueueItem[] | null>(null);
   /** The opener is fading out over the shop (its `onClose` .. `onClosed`): the shop is already back, not yet usable. */
   const [leaving, setLeaving] = useState(false);
+  /** A played pack is travelling to the opener (the shelf and the room are already fading to the opener's backdrop). */
+  const [travel, setTravel] = useState(false);
   /**
    * The first mount's entrance: the words start away and are released TWO frames later (a mount from a click flushes its
    * effects before the first paint, so one frame could release them before their away style was ever drawn).
@@ -392,6 +394,7 @@ export function PackShop(props: PackShopProps) {
     const mountOpener = (): void => {
       playTimerRef.current = null;
       playedRef.current = packId;
+      setTravel(false);
       sceneRef.current?.setVisible(false, SHOP_HANDOFF_MS);
       // ONE pack at a time (owner 2026-11-25: "remove the open next button for now"): the opener is handed only the pack
       // played, so its end screen offers only the way back to the shop
@@ -401,6 +404,9 @@ export function PackShop(props: PackShopProps) {
     if (!viaScene || !sceneRef.current) { mountOpener(); return; }
     // The shop is busy until the opener closes: nothing else may be picked up or bought while the pack travels.
     sceneRef.current.setInputEnabled(false);
+    // the bars leave NOW, with the room's fade, not when the opener mounts (owner 2026-11-27: "have them fade out at the same
+    // time the other background fades in")
+    setTravel(true);
     playTimerRef.current = setTimeout(mountOpener, SHOP_PLAY_TRAVEL_MS);
   }, []);
   useEffect(() => () => { if (playTimerRef.current !== null) clearTimeout(playTimerRef.current); playTimerRef.current = null; }, []);
@@ -701,7 +707,8 @@ export function PackShop(props: PackShopProps) {
   );
 
   // Under the opener the shop is inert: nothing in it can be focused, pressed or read until the opener starts to leave.
-  const away = !!opening && !leaving;
+  // (from the moment a played pack starts its travel: the bars fade with the room, owner 2026-11-27)
+  const away = (!!opening || travel) && !leaving;
   // Under the nav: found and measured once; the nav shows the shop's count; a press on a nav destination closes the shop.
   useEffect(() => {
     const host = document.querySelector<HTMLElement>('.ph-navhost');
@@ -726,6 +733,21 @@ export function PackShop(props: PackShopProps) {
     html.setAttribute('data-pks-shop', '');
     return () => html.removeAttribute('data-pks-shop');
   }, [navH, away]);
+  // THE SITE NAV FADES WITH THE BARS (owner 2026-11-27: "the top navigation takes a moment to fade away, can you have them
+  // fade out at the same time the other background fades in?"): while the shop is up the nav carries a fade, and while a pack
+  // is played it is faded out (packShop.css).
+  useEffect(() => {
+    if (!navH) return undefined;
+    const html = document.documentElement;
+    html.setAttribute('data-pks-nav', '');
+    return () => html.removeAttribute('data-pks-nav');
+  }, [navH]);
+  useEffect(() => {
+    if (!away) return undefined;
+    const html = document.documentElement;
+    html.setAttribute('data-pks-navaway', '');
+    return () => html.removeAttribute('data-pks-navaway');
+  }, [away]);
   // The browse tip leaves for the session the first time the player holds the right button anywhere in the shop.
   const [browseHint, setBrowseHint] = useState(!browseHintSeen);
   const onBrowsePress = (e: ReactPointerEvent): void => {

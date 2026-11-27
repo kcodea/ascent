@@ -103,6 +103,9 @@
    the nav's foot (`--pks-nav`, measured once): the shelf tabs and Close. The nav's Aether count is the wallet, so the
    shop's own is not drawn (it stays mounted: it is the count's model). */
 html[data-pks-shop] .ph-navhost { z-index: 695; }
+/* the site nav leaves and comes back with the shop's own bars (PackShop.tsx `data-pks-nav` / `data-pks-navaway`) */
+html[data-pks-nav] .ph-navhost { transition: opacity 0.3s ease-out; }
+html[data-pks-navaway] .ph-navhost { opacity: 0; pointer-events: none; transition: opacity 0.2s ease-in; }
 .pks-undernav .pks-top { height: 92px; background: linear-gradient(180deg, rgba(10, 13, 30, 0.82), rgba(18, 23, 48, 0.62)); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3); }
 .pks-undernav .pks-top::after { height: 1px; opacity: 0.55; }
 .pks-undernav .pks-wallet { visibility: hidden; }

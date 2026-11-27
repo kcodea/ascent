@@ -58,6 +58,7 @@ import { sealedPackCentre, sealedPackHeight } from '../packOpening/packScene';
 import { packGlowRarity } from '../packOpening/packGlow';
 import { PACK_GEOM, paintGlossBand } from '../packOpening/packTextures';
 import { aimInto, newTilt, stepTilt, tiltEaseK, type TiltState } from '../packOpening/packTilt';
+import { CAST_SHADOW_SHIPPED, castShadowTune, onCastShadowTune } from './castShadowTune';
 import { CastShadow, LIFT_GROW, STACK_UNDER_MAX, ShelfPack, StackRest, liftPoseInto } from './shelfPack';
 import { LOOK_EASE, ShopBackdrop } from './shopBackdrop';
 import {
@@ -240,8 +241,9 @@ const RACK_FADE_EASE = 0.15;
 // (owner 2026-11-27, the realism pass: a thin pack's cast shadow is SHORT and fairly sharp; as the pack lifts it slides
 // further off, spreads by `spread` and fades to `lifted` of its strength)
 // (owner 2026-11-27: the contact shadow went "lower that opacity by 65%", then "another 50%"; it is OFF for now, alpha 0: "remove
-// the other shadow so we know what is what". The cast shadow follows the pack outline (`CastShadow`), `w` a touch wider.)
-const HAND_SHADOW = { alpha: 0.62, dx: 0, dy: 0.09, lift: 0.12, w: 1.03, spread: 0.16, lifted: 0.45 } as const;
+// the other shadow so we know what is what". The cast shadow follows the pack outline (`CastShadow`); its place, blur, size and
+// strength at rest are `castShadowTune.ts` (a dev tuner over them). `lift`, `spread`, `lifted`: how it moves as the pack lifts.)
+const HAND_SHADOW = { lift: 0.12, spread: 0.16, lifted: 0.45 } as const;
 /**
  * The hand packs' CONTACT shadow (owner 2026-11-25: "add shadows here to make it look a bit more like its against the
  * table"): tight and dark under the pack's own outline, offset by these shares of its height. As the pack lifts it
@@ -336,6 +338,11 @@ class ShopSceneImpl implements ShopScene {
   private backdrop: ShopBackdrop | null = null;
   private readonly placards: Placard[] = [];
   private readonly dressTex: Texture[] = [];
+  /** The cast shadow's texture and the canvas it is painted on (repainted when the dev tuner's blur changes). */
+  private castCanvas: HTMLCanvasElement | null = null;
+  private castTex: Texture | null = null;
+  private castBlur = CAST_SHADOW_SHIPPED.blur;
+  private offCastTune: (() => void) | null = null;
   /** The shelf's price tags (in front of the packs): they ride the entrance and fade with the rack. */
   private placardLayer: Container | null = null;
   /** The offer each slot's placard was last written for (offers are immutable quotes): rewritten only on a change. */
@@ -577,7 +584,16 @@ class ShopSceneImpl implements ShopScene {
     app.stage.addChild(this.lineBase, this.lineLit);
 
     const shadows = new Container();
-    const shadowTex = tex(paintPackShadow());
+    this.castBlur = castShadowTune().blur;
+    this.castCanvas = paintPackShadow(this.castBlur);
+    const shadowTex = tex(this.castCanvas);
+    this.castTex = shadowTex;
+    this.offCastTune = onCastShadowTune((t) => {
+      if (t.blur === this.castBlur || !this.castCanvas || !this.castTex) return;
+      this.castBlur = t.blur;
+      paintPackShadow(t.blur, this.castCanvas);
+      this.castTex.source.update();
+    });
     for (let j = 0; j < HAND_FAN_MAX; j++) {
       const sh = new CastShadow(shadowTex);
       this.handShadows.push(sh);
@@ -702,6 +718,7 @@ class ShopSceneImpl implements ShopScene {
     for (const r of this.stackRests) r.destroy();
     this.stackRests.length = 0; this.stackCounts.length = 0; this.restLayer = null; this.countLayer = null;
     this.backdrop?.destroy(); this.backdrop = null;
+    this.offCastTune?.(); this.offCastTune = null; this.castCanvas = null; this.castTex = null;
     for (const t of this.dressTex) t.destroy(true);
     this.dressTex.length = 0;
     this.rack = null;
@@ -1427,9 +1444,9 @@ class ShopSceneImpl implements ShopScene {
       const sh = this.handShadows[v];
       if (sh && (q.alpha > 0 || (under > 0 && !waiting))) {
         // the pack's own outline, flat on the wood (always the full lie: it stays down while the pack stands up)
-        const spread = 1 + HAND_SHADOW.spread * up;
-        sh.pose(q.x + q.h * HAND_SHADOW.dx, q.y, q.h, q.rot, HAND_SHADOW.alpha * (1 - (1 - HAND_SHADOW.lifted) * up), HAND_RECLINE,
-          HAND_SHADOW.w * spread, spread, HAND_SHADOW.dy + HAND_SHADOW.lift * up);
+        const spread = 1 + HAND_SHADOW.spread * up, cs = castShadowTune();
+        sh.pose(q.x + q.h * cs.x, q.y, q.h, q.rot, cs.alpha * (1 - (1 - HAND_SHADOW.lifted) * up), HAND_RECLINE,
+          cs.w * spread, cs.h * spread, cs.y + HAND_SHADOW.lift * up);
       }
     }
     // the piled packs still waiting their turn (their arrivals are dropped once due: the pile draws only its top)

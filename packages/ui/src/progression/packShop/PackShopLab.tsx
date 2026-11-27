@@ -4,11 +4,22 @@ import { PACK_RELIEF_IDS, reliefDefaultDepth, reliefDefaultMat, reliefDepth, rel
 import { PACK_LAB_SAMPLES, cancelLabTimers, makeLabOpen, type LabTimers } from '../packOpening/packLabSamples';
 import { packDuplicateAether } from '@game/progression';
 import { PackShop, type PackShopProps } from './PackShop';
+import { castShadowTune, setCastShadowTune, type CastShadowTune } from './castShadowTune';
 import {
   LAB_GUARANTEE_EVERY, SHOP_LAB_OFFERS, SHOP_LAB_SHELVES, labGuaranteeAfter, labHand, makeLabBuy,
   type LabBuyMode, type LabBuyOpts, type LabState,
 } from './shopLabData';
 
+
+/** The cast shadow tuner's sliders: x / y and the size are shares of the pack's height / outline; blur is px on its texture. */
+const SHADOW_SLIDERS: readonly { k: keyof CastShadowTune; label: string; min: number; max: number; step: number; digits: number }[] = [
+  { k: 'x', label: 'X', min: -0.2, max: 0.2, step: 0.005, digits: 3 },
+  { k: 'y', label: 'Y', min: -0.15, max: 0.3, step: 0.005, digits: 3 },
+  { k: 'blur', label: 'Blur', min: 0, max: 16, step: 0.5, digits: 1 },
+  { k: 'w', label: 'Width', min: 0.8, max: 1.4, step: 0.01, digits: 2 },
+  { k: 'h', label: 'Height', min: 0.8, max: 1.6, step: 0.01, digits: 2 },
+  { k: 'alpha', label: 'Opacity', min: 0, max: 1, step: 0.01, digits: 2 },
+];
 /**
  * THE PACK SHOP LAB (dev only). Mounts the real `PackShop` against a fake catalog, wallet and hand. The knobs set the
  * starting Aether and hand, how long the fake server takes to answer a purchase and what it answers; playing a hand pack
@@ -49,14 +60,20 @@ export function PackShopLab(): JSX.Element {
   const [mats, setMats] = useState<Record<string, [number, number]>>(() => Object.fromEntries(PACK_RELIEF_IDS.map((id) => [id, reliefMat(id)])));
   const mat = mats[matId] ?? [1, 0];
   const setMat = (band: number, fuzz: number): void => { setReliefMat(matId, [band, fuzz]); setMats((m) => ({ ...m, [matId]: [band, fuzz] })); setCopied(false); };
+  /** The counter packs' cast shadow tuner (`castShadowTune.ts`): live on the packs on the counter. */
+  const [shadow, setShadowState] = useState<CastShadowTune>(() => ({ ...castShadowTune() }));
+  const setShadow = (k: keyof CastShadowTune, v: number): void => { setCastShadowTune({ [k]: v }); setShadowState((t) => ({ ...t, [k]: v })); setCopied(false); };
   const shippedDepths = (): void => {
+    setCastShadowTune(null);
+    setShadowState({ ...castShadowTune() });
     for (const id of PACK_RELIEF_IDS) { setReliefDepth(id, null); setReliefMat(id, null); }
     setMats(Object.fromEntries(PACK_RELIEF_IDS.map((id) => [id, reliefDefaultMat(id)])));
     setDepths(Object.fromEntries(PACK_RELIEF_IDS.map((id) => [id, reliefDefaultDepth(id)])));
     setCopied(false);
   };
   const copyDepths = (): void => {
-    const text = PACK_RELIEF_IDS.map((id) => `${id}: depth ${depths[id] ? depths[id].toFixed(2) : 'off'} band ${(mats[id]?.[0] ?? 1).toFixed(2)} fuzz ${(mats[id]?.[1] ?? 0).toFixed(2)}`).join(', ');
+    const sh = `shadow: x ${shadow.x.toFixed(3)} y ${shadow.y.toFixed(3)} blur ${shadow.blur.toFixed(1)} width ${shadow.w.toFixed(2)} height ${shadow.h.toFixed(2)} opacity ${shadow.alpha.toFixed(2)}`;
+    const text = [sh, ...PACK_RELIEF_IDS.map((id) => `${id}: depth ${depths[id] ? depths[id].toFixed(2) : 'off'} band ${(mats[id]?.[0] ?? 1).toFixed(2)} fuzz ${(mats[id]?.[1] ?? 0).toFixed(2)}`)].join(', ');
     void navigator.clipboard?.writeText(text).then(() => setCopied(true), () => undefined);
   };
 
@@ -174,6 +191,15 @@ export function PackShopLab(): JSX.Element {
           onChange={(e) => setMat(mat[0], Number(e.target.value))} />
         <span className="sfxmix-val">{mat[1].toFixed(2)}</span>
       </div>
+      <div className="sfxmix-sub">Counter pack shadow</div>
+      {SHADOW_SLIDERS.map((sl) => (
+        <div className="sfxmix-row" key={sl.k}>
+          <span className="sfxmix-name">{sl.label}</span>
+          <input type="range" min={sl.min} max={sl.max} step={sl.step} value={shadow[sl.k]} aria-label={`Shadow ${sl.label}`}
+            onChange={(e) => setShadow(sl.k, Number(e.target.value))} />
+          <span className="sfxmix-val">{shadow[sl.k].toFixed(sl.digits)}</span>
+        </div>
+      ))}
       <div className="lunge-btns">
         <button type="button" className="sfxmix-copy" onClick={copyDepths}>{copied ? 'Copied' : 'Copy values'}</button>
         <button type="button" className="sfxmix-copy" onClick={shippedDepths}>Shipped values</button>

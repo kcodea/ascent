@@ -33,11 +33,13 @@ export function paintTray(): HTMLCanvasElement {
 }
 
 /** The shadow a pack lying on the counter casts: a soft dark slab, stretched under each pack. */
-export function paintPackShadow(): HTMLCanvasElement {
+export function paintPackShadow(blur: number, into?: HTMLCanvasElement): HTMLCanvasElement {
   const W = 128, H = 128;
-  const { c, g } = canvasOf(W, H);
+  const c = into ?? canvasOf(W, H).c, g = c.getContext('2d');
   if (!g) return c;
-  g.filter = 'blur(2.5px)'; // owner 2026-11-27: "much tighter", then "tighten it significantly" (8px, then 3.5px)
+  g.clearRect(0, 0, W, H);
+  // the soft edge (`castShadowTune.ts`: owner 2026-11-27, "much tighter", then "tighten it significantly")
+  g.filter = blur > 0 ? `blur(${blur}px)` : 'none';
   g.fillStyle = 'rgba(20,9,3,0.95)';
   g.beginPath(); g.roundRect(26, 26, W - 52, H - 52, 8); g.fill();
   return c;

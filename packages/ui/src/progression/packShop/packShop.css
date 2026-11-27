@@ -184,7 +184,7 @@ html[data-pks-navaway] .ph-navhost { opacity: 0; pointer-events: none; transitio
    (the hole's sides, x 0.4393 / 0.5139 of the vista after its 1.12 push, onto the shop arch's inner posts at 6.9% / 93.1%
    of the stage, its threshold well below the screen, so nothing in front of it shows), the whole picture fading as it settles (from 0.85 s), leaving the shop in the same frame.
    No door glow (the trip does not render it). Transform + opacity only. */
-.wipevista.shoptrip.dive { animation: vistashopfade var(--shop-fade-ms, 500ms) ease-in-out var(--shop-fade-at, 850ms) both; }
+.wipevista.shoptrip.dive { animation: vistashopfade var(--shop-fade-ms, 650ms) ease-in-out var(--shop-fade-at, 350ms) both; }
 @keyframes vistashopfade { 0% { opacity: 1; } 100% { opacity: 0; } }
 .wipevista.shoptrip.dive .wipevista-stage { transform-origin: 47.66% 83.49%;
   animation: vistashopdive var(--wipe-reveal-dur, 1600ms) cubic-bezier(.4, 0, .1, 1) both; }

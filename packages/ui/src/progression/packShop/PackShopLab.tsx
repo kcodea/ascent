@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDraggablePanel } from '../../useDraggablePanel';
-import { PACK_RELIEF_IDS, reliefDefaultDepth, reliefDepth, setReliefDepth } from '../packOpening/packRelief';
+import { PACK_RELIEF_IDS, reliefDefaultDepth, reliefDefaultMat, reliefDepth, reliefMat, setReliefDepth, setReliefMat } from '../packOpening/packRelief';
 import { PACK_LAB_SAMPLES, cancelLabTimers, makeLabOpen, type LabTimers } from '../packOpening/packLabSamples';
 import { packDuplicateAether } from '@game/progression';
 import { PackShop, type PackShopProps } from './PackShop';
@@ -42,13 +42,19 @@ export function PackShopLab(): JSX.Element {
   const [depths, setDepths] = useState<Record<string, number>>(() => Object.fromEntries(PACK_RELIEF_IDS.map((id) => [id, reliefDepth(id)])));
   const [copied, setCopied] = useState(false);
   const setDepth = (id: string, v: number): void => { setReliefDepth(id, v); setDepths((d) => ({ ...d, [id]: v })); setCopied(false); };
+  /** The material tuner: one wrapper at a time, its band boost on the glossy parts and the fuzz of its matte parts. */
+  const [matId, setMatId] = useState('plushie');
+  const [mats, setMats] = useState<Record<string, [number, number]>>(() => Object.fromEntries(PACK_RELIEF_IDS.map((id) => [id, reliefMat(id)])));
+  const mat = mats[matId] ?? [1, 0];
+  const setMat = (band: number, fuzz: number): void => { setReliefMat(matId, [band, fuzz]); setMats((m) => ({ ...m, [matId]: [band, fuzz] })); setCopied(false); };
   const shippedDepths = (): void => {
-    for (const id of PACK_RELIEF_IDS) setReliefDepth(id, null);
+    for (const id of PACK_RELIEF_IDS) { setReliefDepth(id, null); setReliefMat(id, null); }
+    setMats(Object.fromEntries(PACK_RELIEF_IDS.map((id) => [id, reliefDefaultMat(id)])));
     setDepths(Object.fromEntries(PACK_RELIEF_IDS.map((id) => [id, reliefDefaultDepth(id)])));
     setCopied(false);
   };
   const copyDepths = (): void => {
-    const text = PACK_RELIEF_IDS.map((id) => `${id}: ${depths[id] ? depths[id].toFixed(2) : 'off'}`).join(', ');
+    const text = PACK_RELIEF_IDS.map((id) => `${id}: depth ${depths[id] ? depths[id].toFixed(2) : 'off'} band ${(mats[id]?.[0] ?? 1).toFixed(2)} fuzz ${(mats[id]?.[1] ?? 0).toFixed(2)}`).join(', ');
     void navigator.clipboard?.writeText(text).then(() => setCopied(true), () => undefined);
   };
 
@@ -147,9 +153,28 @@ export function PackShopLab(): JSX.Element {
           <span className="sfxmix-val">{depths[id] ? depths[id].toFixed(2) : 'off'}</span>
         </div>
       ))}
+      <div className="sfxmix-sub">Material</div>
+      <div className="sfxmix-row tuner-row">
+        <span className="sfxmix-name">Wrapper</span>
+        <select value={matId} aria-label="Wrapper to tune" onChange={(e) => setMatId(e.target.value)}>
+          {PACK_RELIEF_IDS.map((id) => <option key={id} value={id}>{id}</option>)}
+        </select>
+      </div>
+      <div className="sfxmix-row">
+        <span className="sfxmix-name">Gloss boost</span>
+        <input type="range" min={0} max={5} step={0.1} value={mat[0]} aria-label="Gloss boost on the glossy parts"
+          onChange={(e) => setMat(Number(e.target.value), mat[1])} />
+        <span className="sfxmix-val">{mat[0].toFixed(1)}</span>
+      </div>
+      <div className="sfxmix-row">
+        <span className="sfxmix-name">Fuzz</span>
+        <input type="range" min={0} max={1} step={0.05} value={mat[1]} aria-label="Fuzz of the matte parts"
+          onChange={(e) => setMat(mat[0], Number(e.target.value))} />
+        <span className="sfxmix-val">{mat[1].toFixed(2)}</span>
+      </div>
       <div className="lunge-btns">
-        <button type="button" className="sfxmix-copy" onClick={copyDepths}>{copied ? 'Copied' : 'Copy depths'}</button>
-        <button type="button" className="sfxmix-copy" onClick={shippedDepths}>Shipped depths</button>
+        <button type="button" className="sfxmix-copy" onClick={copyDepths}>{copied ? 'Copied' : 'Copy values'}</button>
+        <button type="button" className="sfxmix-copy" onClick={shippedDepths}>Shipped values</button>
       </div>
 
       {run !== null && (

@@ -38,9 +38,6 @@ export function packReliefFor(look: PackLook): string | null {
 }
 
 const idOf = (src: string): string => /packs\/([a-z]+)-pack-relief\.webp$/.exec(src)?.[1] ?? '';
-function materialFor(src: string): PackMaterial {
-  return RELIEF[idOf(src)] ?? FOIL;
-}
 
 /*
  * THE RELIEF TUNER (dev only; owner 2026-11-26: "some are too aggressive. others dont make as much sense. id like to
@@ -59,7 +56,22 @@ function tuning(): Record<string, number> {
   } catch { /* nothing stored */ }
   return tuned;
 }
-/** The dev bands bound to a relief map, by wrapper id: a depth change reaches them at once. */
+const MAT_KEY = 'ascent.dev.packReliefMat';
+let tunedMat: Record<string, [number, number]> | null = null;
+function matTuning(): Record<string, [number, number]> {
+  if (tunedMat) return tunedMat;
+  tunedMat = {};
+  try {
+    const raw: unknown = JSON.parse(localStorage.getItem(MAT_KEY) ?? '{}');
+    if (raw && typeof raw === 'object') {
+      for (const [k, v] of Object.entries(raw)) {
+        if (RELIEF[k] && Array.isArray(v) && typeof v[0] === 'number' && typeof v[1] === 'number') tunedMat[k] = [v[0], v[1]];
+      }
+    }
+  } catch { /* nothing stored */ }
+  return tunedMat;
+}
+/** The dev bands bound to a relief map, by wrapper id: a depth or material change reaches them at once. */
 const bound = new Map<GlossFx, string>();
 
 /** Every wrapper that ships a relief map. */
@@ -80,6 +92,25 @@ export function setReliefDepth(id: string, depth: number | null): void {
   for (const [g, gid] of bound) {
     if (gid !== id) continue;
     try { g.u.uRelief = d; } catch { bound.delete(g); }
+  }
+}
+
+/** The band boost and fuzz a wrapper ships with, as [band, fuzz]. */
+export function reliefDefaultMat(id: string): [number, number] { const m = RELIEF[id] ?? FOIL; return [m.band, m.fuzz]; }
+/** The band boost and fuzz a wrapper shows now (the dev tuner's values when set). */
+export function reliefMat(id: string): [number, number] {
+  return (DEV ? matTuning()[id] : undefined) ?? reliefDefaultMat(id);
+}
+/** Dev tuner: set a wrapper's band boost and fuzz (null = back to what it ships with). */
+export function setReliefMat(id: string, mat: [number, number] | null): void {
+  if (!DEV) return;
+  const t = matTuning();
+  if (mat === null) delete t[id]; else t[id] = mat;
+  try { localStorage.setItem(MAT_KEY, JSON.stringify(t)); } catch { /* storage is full or blocked */ }
+  const m = reliefMat(id);
+  for (const [g, gid] of bound) {
+    if (gid !== id) continue;
+    try { const um = g.u.uMat; um[0] = m[0]; um[1] = m[1]; } catch { bound.delete(g); }
   }
 }
 
@@ -110,8 +141,8 @@ export function bindRelief(gloss: GlossFx, look: PackLook, stillWanted: () => bo
   };
   if (DEV) bound.delete(gloss);
   if (!src) { set(flatRelief(), 0); return; }
-  const mat = materialFor(src), id = idOf(src);
-  try { const um = gloss.u.uMat; um[0] = mat.band; um[1] = mat.fuzz; } catch { /* the band was destroyed */ }
+  const id = idOf(src), mat = reliefMat(id);
+  try { const um = gloss.u.uMat; um[0] = mat[0]; um[1] = mat[1]; } catch { /* the band was destroyed */ }
   const have = loaded.get(src);
   const bind = (t: Texture): void => { set(t, reliefDepth(id)); if (DEV) bound.set(gloss, id); };
   if (have) { bind(have); return; }

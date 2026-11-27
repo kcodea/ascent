@@ -416,6 +416,62 @@ export const STACK_UNDER_MAX = STACK_ASKEW.length;
  * their own). They stay on the counter while the top pack lifts or is carried away. Rewritten only when the lie, the
  * depth or the stack's seed changes.
  */
+/**
+ * A pack's CAST shadow on the counter (owner 2026-11-27: "rebuild it to follow the outline"): the pack's own outline laid
+ * on the wood through the same lie, so it follows the perspective (wider at the near edge, like the pack), grown and
+ * pushed toward the viewer. `tex` is `paintPackShadow`'s slab (the middle `SHADOW_SLAB` of the texture, as the contact
+ * shadow's). It is its own view on the wood, not part of the pack, so it stays down while the pack lifts.
+ */
+export class CastShadow {
+  readonly view = new Container();
+  private readonly mesh: PerspectiveMesh;
+  private readonly tiltPose = newTiltPose();
+  private readonly pt = { x: 0, y: 0 };
+  private readonly corners = new Float64Array(8);
+  private readonly key = { rx: NaN, D: NaN, gx: NaN, gy: NaN, dy: NaN };
+
+  constructor(tex: Texture) {
+    this.mesh = new PerspectiveMesh({ texture: tex, verticesX: 4, verticesY: 4 });
+    this.view.addChild(this.mesh);
+    this.view.visible = false;
+  }
+
+  hide(): void { this.view.visible = false; }
+
+  /**
+   * Lay the shadow of a pack centred at (x, y) (canvas px), `h` tall before the lie, turned `rot`, laid back `recline`
+   * degrees. `gx` / `gy`: its size against the pack's outline; `dy`: how far it is pushed toward the viewer, a share of
+   * the pack's height.
+   */
+  pose(x: number, y: number, h: number, rot: number, alpha: number, recline: number, gx: number, gy: number, dy: number): void {
+    const on = alpha > 0.004;
+    this.view.visible = on;
+    if (!on) return;
+    const k = h / HT;
+    this.view.position.set(x, y);
+    this.view.rotation = rot;
+    this.view.scale.set(k);
+    this.view.alpha = alpha;
+    const D = getDragFeel().perspective / Math.max(0.05, k), key = this.key;
+    if (key.rx === recline && key.D === D && key.gx === gx && key.gy === gy && key.dy === dy) return;
+    key.rx = recline; key.D = D; key.gx = gx; key.gy = gy; key.dy = dy;
+    const pose = setTiltPose(this.tiltPose, recline, 0, 0, 0, D), p = this.pt, c = this.corners;
+    const ex = gx / SHADOW_SLAB, ey = gy / SHADOW_SLAB, oy = dy * HT;
+    for (let j = 0; j < 4; j++) {
+      const lx = (j === 1 || j === 2 ? W / 2 : -W / 2) * ex, ly = (j >= 2 ? HT / 2 : -HT / 2) * ey;
+      if (pose.flat) { p.x = lx; p.y = ly; } else tiltInto(p, lx, ly, 0, pose);
+      c[j * 2] = p.x; c[j * 2 + 1] = p.y + oy;
+    }
+    this.mesh.setCorners(c[0]!, c[1]!, c[2]!, c[3]!, c[4]!, c[5]!, c[6]!, c[7]!);
+  }
+
+  destroy(): void {
+    const geo = this.mesh.geometry;
+    this.view.destroy({ children: true });
+    geo.destroy();
+  }
+}
+
 export class StackRest {
   readonly view = new Container();
   private readonly meshes: PerspectiveMesh[] = [];

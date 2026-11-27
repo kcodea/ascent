@@ -58,7 +58,7 @@ import { sealedPackCentre, sealedPackHeight } from '../packOpening/packScene';
 import { packGlowRarity } from '../packOpening/packGlow';
 import { PACK_GEOM, paintGlossBand } from '../packOpening/packTextures';
 import { aimInto, newTilt, stepTilt, tiltEaseK, type TiltState } from '../packOpening/packTilt';
-import { LIFT_GROW, STACK_UNDER_MAX, ShelfPack, StackRest, liftPoseInto } from './shelfPack';
+import { CastShadow, LIFT_GROW, STACK_UNDER_MAX, ShelfPack, StackRest, liftPoseInto } from './shelfPack';
 import { LOOK_EASE, ShopBackdrop } from './shopBackdrop';
 import {
   Placard, SHOP_GROMMET_SRC, SHOP_TAG_SRC, loadTexture, paintContactShadow, paintPackGlow, paintPackShadow, paintTray, placardBadge, placardCount,
@@ -239,8 +239,9 @@ const RACK_FADE_EASE = 0.15;
 // (owner 2026-11-26: "the shadows make the packs look like they are hovering": lighter, and tight to the pack's foot)
 // (owner 2026-11-27, the realism pass: a thin pack's cast shadow is SHORT and fairly sharp; as the pack lifts it slides
 // further off, spreads by `spread` and fades to `lifted` of its strength)
-// (owner 2026-11-27: the contact shadow is "lower that opacity by 65%" (0.9 to 0.315); the cast shadow is back on, "tighten it significantly")
-const HAND_SHADOW = { alpha: 0.62, dx: 0, dy: 0.09, lift: 0.12, w: 1.01, spread: 0.16, lifted: 0.45 } as const;
+// (owner 2026-11-27: the contact shadow went "lower that opacity by 65%", then "another 50%"; it is OFF for now, alpha 0: "remove
+// the other shadow so we know what is what". The cast shadow follows the pack outline (`CastShadow`), `w` a touch wider.)
+const HAND_SHADOW = { alpha: 0.62, dx: 0, dy: 0.09, lift: 0.12, w: 1.03, spread: 0.16, lifted: 0.45 } as const;
 /**
  * The hand packs' CONTACT shadow (owner 2026-11-25: "add shadows here to make it look a bit more like its against the
  * table"): tight and dark under the pack's own outline, offset by these shares of its height. As the pack lifts it
@@ -257,7 +258,7 @@ const GLOW_TINT: Readonly<Record<string, number>> = { common: 0xdfe6f2, rare: 0x
 const STACK_COUNT = { font: 0.1, x: 0, y: 0.34 } as const; // on the foot edge, under the pack's name
 /** A pack's type: packs of one type lie in one stack. */
 const lookKeyOf = (look: OwnedPack['look']): string => `${look.kind}:${look.id}`;
-const HAND_CONTACT = { alpha: 0.1575, dx: 0, dy: 0.04, lifted: 0.1, away: 3 } as const; // tight to the outline; nearly gone once the pack is off the wood
+const HAND_CONTACT = { alpha: 0, dx: 0, dy: 0.04, lifted: 0.1, away: 3 } as const; // tight to the outline; nearly gone once the pack is off the wood
 const TAG_FONT = 0.0525; // owner 2026-11-25: "make the tag smaller by 30%" (was 0.075)
 /**
  * THE PRICE TAGS: where the twine is tied (a share of the pack's height in from its top-left corner), how far the tag
@@ -314,7 +315,7 @@ class ShopSceneImpl implements ShopScene {
   // the dressing (shopDressing.ts): the hand's light and a price tag (`Placard`) hanging off each shelf slot's pack
   private tray: Sprite | null = null;
   /** The hand packs' shadows on the counter (one per hand view, under the hand). */
-  private handShadows: Sprite[] = [];
+  private handShadows: CastShadow[] = [];
   /**
    * THE HAND IS STACKS (owner 2026-11-25): `hand` holds each stack's TOP pack, in the order the types first appear, so a
    * fan place is a stack. `handAll` is every owned pack, `stackN[j]` how many packs stack `j` holds, `handKeys[j]` its
@@ -578,11 +579,9 @@ class ShopSceneImpl implements ShopScene {
     const shadows = new Container();
     const shadowTex = tex(paintPackShadow());
     for (let j = 0; j < HAND_FAN_MAX; j++) {
-      const sh = new Sprite(shadowTex);
-      sh.anchor.set(0.5);
-      sh.visible = false;
+      const sh = new CastShadow(shadowTex);
       this.handShadows.push(sh);
-      shadows.addChild(sh);
+      shadows.addChild(sh.view);
     }
     shadows.eventMode = 'none';
     this.shadowLayer = shadows;
@@ -698,6 +697,7 @@ class ShopSceneImpl implements ShopScene {
     for (const pl of this.placards) pl.destroy();
     this.placards.length = 0;
     this.tray = null; this.placardLayer = null;
+    for (const s of this.handShadows) s.destroy();
     this.handShadows.length = 0; this.shadowLayer = null;
     for (const r of this.stackRests) r.destroy();
     this.stackRests.length = 0; this.stackCounts.length = 0; this.restLayer = null; this.countLayer = null;
@@ -1346,8 +1346,7 @@ class ShopSceneImpl implements ShopScene {
     const kl = easeK(LIFT_EASE, dt), kg = easeK(HAND_GLIDE, dt), ka = easeK(TRAVEL_EASE, dt);
     let moving = false;
     for (let v = 0; v < HAND_FAN_MAX; v++) {
-      const sh = this.handShadows[v];
-      if (sh) sh.visible = false;
+      this.handShadows[v]?.hide();
       const sr0 = this.stackRests[v], ct0 = this.stackCounts[v];
       if (sr0) sr0.view.visible = false;
       if (ct0) ct0.visible = false;
@@ -1427,14 +1426,10 @@ class ShopSceneImpl implements ShopScene {
       }
       const sh = this.handShadows[v];
       if (sh && (q.alpha > 0 || (under > 0 && !waiting))) {
-        sh.visible = true;
-        sh.alpha = HAND_SHADOW.alpha * (1 - (1 - HAND_SHADOW.lifted) * up);
-        sh.rotation = q.rot;
-        sh.position.set(q.x + q.h * HAND_SHADOW.dx, q.y + q.h * (HAND_SHADOW.dy + HAND_SHADOW.lift * up));
-        // the texture's slab is the middle 60% of the sprite: size the sprite so the slab is the pack's drawn outline
+        // the pack's own outline, flat on the wood (always the full lie: it stays down while the pack stands up)
         const spread = 1 + HAND_SHADOW.spread * up;
-        sh.width = (q.h * ASPECT * HAND_SHADOW.w * spread) / 0.6;
-        sh.height = (q.h * (Math.cos((lie * Math.PI) / 180) + 0.06) * spread) / 0.6;
+        sh.pose(q.x + q.h * HAND_SHADOW.dx, q.y, q.h, q.rot, HAND_SHADOW.alpha * (1 - (1 - HAND_SHADOW.lifted) * up), HAND_RECLINE,
+          HAND_SHADOW.w * spread, spread, HAND_SHADOW.dy + HAND_SHADOW.lift * up);
       }
     }
     // the piled packs still waiting their turn (their arrivals are dropped once due: the pile draws only its top)

@@ -239,7 +239,8 @@ const RACK_FADE_EASE = 0.15;
 // (owner 2026-11-26: "the shadows make the packs look like they are hovering": lighter, and tight to the pack's foot)
 // (owner 2026-11-27, the realism pass: a thin pack's cast shadow is SHORT and fairly sharp; as the pack lifts it slides
 // further off, spreads by `spread` and fades to `lifted` of its strength)
-const HAND_SHADOW = { alpha: 0.62, dx: 0, dy: 0.1, lift: 0.12, w: 0.99, spread: 0.16, lifted: 0.45 } as const;
+// (owner 2026-11-27: "show only the contact shadow for now": the cast shadow is OFF, alpha 0; it was 0.62)
+const HAND_SHADOW = { alpha: 0, dx: 0, dy: 0.1, lift: 0.12, w: 0.99, spread: 0.16, lifted: 0.45 } as const;
 /**
  * The hand packs' CONTACT shadow (owner 2026-11-25: "add shadows here to make it look a bit more like its against the
  * table"): tight and dark under the pack's own outline, offset by these shares of its height. As the pack lifts it

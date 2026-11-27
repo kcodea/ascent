@@ -13,6 +13,8 @@ import {
  * THE PACK SHOP LAB (dev only). Mounts the real `PackShop` against a fake catalog, wallet and hand. The knobs set the
  * starting Aether and hand, how long the fake server takes to answer a purchase and what it answers; playing a hand pack
  * runs the real pack opener against a sample result. Wallet and hand live in this panel and survive until Reset.
+ * While the shop is open the panel sits above it (the shop is a full-screen layer), so the relief and material sliders
+ * can be dragged with the packs in view.
  */
 
 const MODES: readonly { id: LabBuyMode; label: string }[] = [
@@ -105,7 +107,7 @@ export function PackShopLab(): JSX.Element {
   };
 
   return (
-    <div className="sfxmix tunerpanel" ref={panelRef} style={{ minWidth: 380, ...panelStyle }}>
+    <div className="sfxmix tunerpanel" ref={panelRef} style={{ minWidth: 380, ...panelStyle, ...(run !== null ? { zIndex: 700 } : null) }}>
       <div className="sfxmix-h drag" onPointerDown={headerPointerDown}>
         <span aria-hidden="true">🛒</span> <b>Pack Shop</b>
       </div>

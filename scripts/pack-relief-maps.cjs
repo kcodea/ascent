@@ -38,7 +38,7 @@ const FACET_TOL = 46, FACET_SHAPE = 1.6, FACET_LIT = 1.6;
 const TILE = 4, TILE_STEP = 0.09, TILE_SLOPE = 7, TILE_BEVEL = 0.012;
 // The wrappers that get a relief map, and how strongly each layer counts (forms, parts, detail) and the overall slope.
 const PACKS = {
-  plushie: { forms: 0.5, parts: 0.42, detail: 0.3, slope: 5.5, ground: { from: 250, to: 340 } }, // felt on a purple sky
+  plushie: { forms: 0.5, parts: 0.42, detail: 0.3, slope: 5.5, ground: { from: 250, to: 340, sky: true } }, // felt on a glossy sky (purple down to orange)
   // the painted foil wrappers: a metal emblem and logo standing proud of a soft painted scene
   common: { forms: 0.4, parts: 0.5, detail: 0.34, slope: 5.5, ground: 1 },
   rare: { forms: 0.4, parts: 0.5, detail: 0.34, slope: 5.5, ground: 1 },
@@ -62,6 +62,8 @@ const PARTS = [
   { name: 'name', cx: 0.5, cy: 0.875, rx: 0.36, ry: 0.045, up: 0.7 },
 ];
 const W = 300, H = 450;
+// a sky ground: how strongly coloured a pixel must be, and how far it may stand up from its surroundings
+const SKY_SAT = 0.5, SKY_RISE = 0.03, SKY_LUM = 0.52;
 
 function blur(src, r) {
   // two box passes each way: close to a Gaussian, and cheap
@@ -99,7 +101,7 @@ function blur(src, r) {
       const hueIn = h > k.ground.from && h < k.ground.to ? Math.min(1, Math.min(h - k.ground.from, k.ground.to - h) / 20) : 0;
       ground[i] = hueIn * Math.min(1, Math.max(0, (b - g) * 5)) * alpha[i];
     }
-    const finish = typeof k.ground === 'number' ? ground : blur(ground, 1);
+    let finish = typeof k.ground === 'number' ? ground : blur(ground, 1);
     const forms = blur(lum, 7), detail = blur(lum, 1), base = blur(lum, 18);
     const height = new Float32Array(W * H);
     const depthFile = path.join(DEPTH_DIR, `${id}.png`);
@@ -109,6 +111,20 @@ function blur(src, r) {
       const near = blur(dep, 1), wide = blur(dep, DEPTH_WIDE);
       shape = new Float32Array(W * H);
       for (let i = 0; i < W * H; i++) shape[i] = (near[i] - wide[i]) * DEPTH_UP;
+    }
+    if (shape && k.ground.sky) {
+      // the whole sky is the glossy ground, whatever its colour: strongly coloured, not pale or bright (the clouds, the lettering), and not
+      // standing up from what is around it in the depth picture (the star, the lettering, the island)
+      const sky = new Float32Array(W * H);
+      for (let i = 0; i < W * H; i++) {
+        const r = data[i * 4] / 255, g = data[i * 4 + 1] / 255, b = data[i * 4 + 2] / 255;
+        const mx = Math.max(r, g, b), sat = mx > 0 ? (mx - Math.min(r, g, b)) / mx : 0;
+        const coloured = Math.min(1, Math.max(0, (sat - SKY_SAT) * 6));
+        const low = 1 - Math.min(1, Math.max(0, (shape[i] - SKY_RISE) / SKY_RISE));
+        const dim = 1 - Math.min(1, Math.max(0, (lum[i] - SKY_LUM) * 12)); // the lit felt (clouds, lettering) is brighter than any sky
+        sky[i] = Math.max(ground[i], coloured * low * dim * alpha[i]);
+      }
+      finish = blur(sky, 1);
     }
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
       const i = y * W + x;

@@ -37,7 +37,7 @@ export function paintPackShadow(): HTMLCanvasElement {
   const W = 128, H = 128;
   const { c, g } = canvasOf(W, H);
   if (!g) return c;
-  g.filter = 'blur(3.5px)'; // owner 2026-11-27: "make the shadow much tighter now" (it was 8px, and 12px before the realism pass)
+  g.filter = 'blur(1.5px)'; // owner 2026-11-27: "much tighter", then "tighten it significantly" (8px, then 3.5px)
   g.fillStyle = 'rgba(20,9,3,0.95)';
   g.beginPath(); g.roundRect(26, 26, W - 52, H - 52, 8); g.fill();
   return c;

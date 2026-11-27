@@ -239,8 +239,8 @@ const RACK_FADE_EASE = 0.15;
 // (owner 2026-11-26: "the shadows make the packs look like they are hovering": lighter, and tight to the pack's foot)
 // (owner 2026-11-27, the realism pass: a thin pack's cast shadow is SHORT and fairly sharp; as the pack lifts it slides
 // further off, spreads by `spread` and fades to `lifted` of its strength)
-// (owner 2026-11-27: "show only the contact shadow for now": the cast shadow is OFF, alpha 0; it was 0.62)
-const HAND_SHADOW = { alpha: 0, dx: 0, dy: 0.1, lift: 0.12, w: 0.99, spread: 0.16, lifted: 0.45 } as const;
+// (owner 2026-11-27: the contact shadow is "lower that opacity by 65%" (0.9 to 0.315); the cast shadow is back on, "tighten it significantly")
+const HAND_SHADOW = { alpha: 0.62, dx: 0, dy: 0.07, lift: 0.12, w: 0.98, spread: 0.16, lifted: 0.45 } as const;
 /**
  * The hand packs' CONTACT shadow (owner 2026-11-25: "add shadows here to make it look a bit more like its against the
  * table"): tight and dark under the pack's own outline, offset by these shares of its height. As the pack lifts it
@@ -257,7 +257,7 @@ const GLOW_TINT: Readonly<Record<string, number>> = { common: 0xdfe6f2, rare: 0x
 const STACK_COUNT = { font: 0.1, x: 0, y: 0.34 } as const; // on the foot edge, under the pack's name
 /** A pack's type: packs of one type lie in one stack. */
 const lookKeyOf = (look: OwnedPack['look']): string => `${look.kind}:${look.id}`;
-const HAND_CONTACT = { alpha: 0.9, dx: 0, dy: 0.04, lifted: 0.1, away: 3 } as const; // tight to the outline; nearly gone once the pack is off the wood
+const HAND_CONTACT = { alpha: 0.315, dx: 0, dy: 0.04, lifted: 0.1, away: 3 } as const; // tight to the outline; nearly gone once the pack is off the wood
 const TAG_FONT = 0.0525; // owner 2026-11-25: "make the tag smaller by 30%" (was 0.075)
 /**
  * THE PRICE TAGS: where the twine is tied (a share of the pack's height in from its top-left corner), how far the tag

@@ -236,6 +236,20 @@ held (Collection, shop), "Open all" for several packs, the SQL + Edge Function c
 display, and the player-facing patch notes. When that project lands, it wires `PackOpener` into the Collection and the
 shop and retires `CrateOpener`.
 
+### Owner rulings on what a pack holds (2026-11-27, for the economy project's roll)
+
+- **Rarity packs.** Cards 1–4 roll at Common-pack rarity odds; card 5 is the pack's rarity. Each card's rarity is drawn
+  first, then its category, every category at equal odds ("When that rarity is determined or drawn, then from there, any
+  category has equal odds of showing up"). Any card may be a duplicate of what the player owns (duplicates pay Aether).
+- **Category packs (style packs count as category packs).** Cards 1–4 come "from whole catalog": Common-pack rarity odds,
+  any category, duplicates allowed. Card 5 must be from the pack's own category and must not be a duplicate of what the
+  player owns.
+- **Owning the whole category.** When the player already owns every cosmetic a category pack can give, the shop lightly
+  greys the pack and shows "You own every cosmetic from this pack. You may continue purchasing more of the "<pack
+  name>" at your own discretion." The pack stays buyable; its card 5 is then necessarily a duplicate (Aether). Built on
+  the shop side (`ownsEveryCosmetic` / `ownedEveryNotice` in `packages/progression/src/packShop.ts`); the quote marks
+  around the name are pending the owner's call.
+
 ## 13. Testing
 
 - `peelModel.ts`: unit tests for the owner's two rulings: the tear never advances on a pull away from the tear line;

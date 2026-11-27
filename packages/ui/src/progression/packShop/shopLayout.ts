@@ -53,7 +53,7 @@ const PEDESTAL_GAP = 0.2;
 const PAIR_GAP = 0.16;
 /** Lean per place from the hand's centre (radians) and how far the outer packs sag. */
 /** How far back a pack in the hand lies on the counter (degrees): its drawn height is `cos` of this of its own. */
-export const HAND_RECLINE = 52;
+export const HAND_RECLINE = 58; // owner 2026-11-27: "58 looks best" (it was 52: the packs read as propped up off the wood)
 const HAND_LEAN = 0.035;
 const HAND_SAG = 0; // a row lying on the counter does not sag (it did, as a held fan)
 

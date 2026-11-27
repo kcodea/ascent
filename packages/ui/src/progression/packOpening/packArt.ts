@@ -44,10 +44,11 @@ export const STYLE_PACKS: readonly { id: string; file: string; name: string }[] 
   { id: 'themed-voxel', file: 'voxel', name: 'Voxel Pack' },
   { id: 'themed-low-poly', file: 'lowpoly', name: 'Low Poly Pack' },
   { id: 'themed-sketchbook', file: 'sketchbook', name: 'Sketchbook Pack' },
-  { id: 'themed-encore', file: 'encore', name: 'Encore Pack' },
-  { id: 'themed-crayon', file: 'crayon', name: 'Crayon Pack' },
-  { id: 'themed-sports', file: 'sports', name: 'Sports Pack' },
-  { id: 'themed-stained-glass', file: 'stainedglass', name: 'Stained Glass Pack' }, // owner 2026-11-27: "i want it stained glass themed" // owner 2026-11-27: "here is the sports pack wrapper" // owner 2026-11-27: "here is the crayon pack wrapper" // owner 2026-11-27: "here is the art for the encore pack"
+  { id: 'themed-encore', file: 'encore', name: 'Encore Pack' }, // owner 2026-11-27: "here is the art for the encore pack"
+  { id: 'themed-crayon', file: 'crayon', name: 'Crayon Pack' }, // owner 2026-11-27: "here is the crayon pack wrapper"
+  { id: 'themed-sports', file: 'sports', name: 'Sports Pack' }, // owner 2026-11-27: "here is the sports pack wrapper"
+  { id: 'themed-stained-glass', file: 'stainedglass', name: 'Stained Glass Pack' }, // owner 2026-11-27: "i want it stained glass themed"
+  { id: 'themed-scifi', file: 'scifi', name: 'Sci-Fi Pack' }, // owner 2026-11-27: "here is the wrapper" (the Sci-Fi Pack)
 ];
 
 /** Themed looks that wear their own wrapper, by look id. */

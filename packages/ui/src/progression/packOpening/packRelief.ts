@@ -25,7 +25,7 @@ const FOIL: PackMaterial = { band: 0.8, fuzz: 0, depth: 0.1 };
 /** The wrappers that ship a relief map, by their art file's id (`packs/<id>-pack.webp`), and what each is made of. */
 const RELIEF: Readonly<Record<string, PackMaterial>> = {
   common: FOIL, rare: FOIL, epic: FOIL, legendary: FOIL, ancient: FOIL, secret: FOIL, launch: FOIL,
-  eightbit: FOIL, voxel: FOIL, lowpoly: FOIL, encore: FOIL, sports: FOIL, stainedglass: FOIL,
+  eightbit: FOIL, voxel: FOIL, lowpoly: FOIL, encore: FOIL, sports: FOIL, stainedglass: FOIL, scifi: FOIL,
   plushie: { band: 0.8, fuzz: 1, depth: 0.1 },      // felt on a glossy ground
   scribble: { band: 0.8, fuzz: 0.5, depth: 0.1 }, // crayon on paper (finish 0.4 all over: the band as it was, a waxy tooth)
   crayon: { band: 0.8, fuzz: 0.5, depth: 0.1 }, // crayon on paper, like Scribble

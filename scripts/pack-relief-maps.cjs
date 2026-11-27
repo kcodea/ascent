@@ -51,7 +51,7 @@ const PACKS = {
   scribble: { forms: 0.3, parts: 0.3, detail: 0.5, slope: 5, ground: 0.4 },    // crayon on paper: waxy strokes, little form
   eightbit: { forms: 0.3, parts: 0.3, detail: 0.6, slope: 5, ground: 1, style: 'tiles' },   // printed pixels: flat terraces of blocks
   voxel: { forms: 0.45, parts: 0.4, detail: 0.5, slope: 5.5, ground: 1, style: 'facets' }, // glossy blocks: one lean per face
-  lowpoly: { forms: 0.45, parts: 0.45, detail: 0.4, slope: 5.5, ground: 1 },   // glossy facets
+  lowpoly: { forms: 0.45, parts: 0.45, detail: 0.4, slope: 5.5, ground: 1, style: 'facets' }, // glossy facets: one lean per face
   sketchbook: { forms: 0.2, parts: 0.25, detail: 0.5, slope: 4.5, ground: 0.3 }, // pencil on paper: nearly flat, the lines bite in
 };
 // The template's named parts, as soft ellipses in shares of the wrapper (cx, cy, rx, ry) and their swell.

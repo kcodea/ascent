@@ -17475,4 +17475,25 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms, built 2026-11-25 (feat/compendium-count).',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/partyHome/pages/phInfoPages.test.tsx'], lastVerifiedAt: '2026-11-25' },
   },
+  {
+    id: 'R-SKIP-REWATCH-01',
+    title: 'A fight being watched again can always be skipped, even one that was already skipped',
+    statement:
+      'Whenever a fight is playing on screen and has not finished, the player can Skip it, and that includes a fight they chose to watch again '
+      + 'from the Fight Recap. Skipping a fight once never uses the Skip up: each time the fight starts over from the top, Skip is offered again '
+      + 'and works the same way. A Skip pressed while watching a fight again belongs to that screen only: it is not passed on to spectators and '
+      + 'is not written into the game\x27s recording, because the fight itself is already over.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Mike, 2026-11-27', quote: 'would be nice to be able to skip/fast foward after you click "Watch Replay" in the round summary menu. sometimes I accidentally click it but have to wait for the whole combat to finish' },
+      { kind: 'fix-pr', ref: 'fix/rewatch-skip: packages/ui/src/useCombatReplay.ts seekTo drops the Skip on a seek to the top; packages/ui/src/Recruit.tsx skipCombat does not tap a rewatch Skip to the stands' },
+    ],
+    currentBehaviour: 'FIXED 2026-11-27. Before, a Skip stayed latched until the next fight, so a fight that had been skipped reported itself as still '
+      + 'skipping for the whole of its Watch replay: the diamond sat dim and dead and the fight had to be sat through. A fight that had NOT been '
+      + 'skipped the first time could already be skipped on its rewatch. The spectator and recording half is pinned by source text, not by a live '
+      + 'two-screen run.',
+    example: 'Skip a fight, open Summary, press Watch replay by accident: the diamond glows gold again, one click races the fight to its deciding hit and you are back on the recap.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/skipTurboReplay.test.tsx'], lastVerifiedAt: '2026-11-27' },
+  },
 ];

@@ -3435,6 +3435,10 @@ export function Recruit() {
    *  object every render, so a `[replay]` dep would hand the memoized shop controls a new callback each render. */
   const replayRef = useRef(replay);
   replayRef.current = replay;
+  /** True while the Fight Recap's Watch replay is playing this fight AGAIN (set by `watchReplay`, cleared when the
+   *  rewatch ends or the fight is left). Up here because `skipCombat` reads it: a Skip pressed during a rewatch is
+   *  local to this screen (R-SKIP-REWATCH-01). */
+  const rewatchingRef = useRef(false);
 
   // DEV (proc harness): publish the live replay's `seekTo` on a window handle so the FX workbench's rail-mode
   // harness can jump the fight to a moment. NOT a prop and NOT a store field, deliberately:
@@ -3820,7 +3824,9 @@ export function Recruit() {
     const r = replayRef.current;
     if (r.turboing || r.done) return;
     // The stands skip with the player (R-SPECTATE-SKIP-01): a no-op with nobody watching, and never from a viewer.
-    if (!useGame.getState().replaying) tapSkipCombat();
+    // Never from a REWATCH either (R-SKIP-REWATCH-01): the fight itself is over, so that Skip is this screen's alone.
+    // Sent on, it would skip a spectator's first viewing of the fight and write a second Skip into the recording.
+    if (!useGame.getState().replaying && !rewatchingRef.current) tapSkipCombat();
     beginSkipTurboAudio();
     r.turbo();
   }, []);
@@ -9070,7 +9076,8 @@ export function Recruit() {
   // post-fight settle and the damage strike can never run a second time.
   // A rewatch hands the player BACK to the recap when it ends (played out or Skipped), so they land where they
   // pressed the button (owner report 2026-09-24). Cleared when the fight is left, so a new fight never reopens it.
-  const rewatchingRef = useRef(false);
+  // The seek to 0 also drops a Skip the fight was already given, so the diamond offers Skip again for the rewatch
+  // (R-SKIP-REWATCH-01, owner 2026-11-27). `rewatchingRef` is declared beside `replayRef`.
   const watchReplay = useCallback((): void => { rewatchingRef.current = true; setShowLog(false); replayRef.current.seekTo(0); }, []);
   useEffect(() => {
     if (!inCombat) { rewatchingRef.current = false; return; }

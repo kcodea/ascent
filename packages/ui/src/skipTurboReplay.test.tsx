@@ -3,6 +3,8 @@
  * R-SKIP-TURBO-01 through the real replay hook: Skip (`turbo`) fast-forwards a fight to the end far sooner than
  * playing it out, lands its once-only callback, ignores a second press, and a zero-beat fight still finishes.
  */
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import { combatSide, makeRng, simulate, type CombatResult } from '@game/core';
@@ -64,6 +66,52 @@ describe('R-SKIP-TURBO-01: Skip fast-forwards the replay', () => {
     expect(onLand).toHaveBeenCalledTimes(1);
     expect(peak).toBeGreaterThan(15);           // it really races (20× by default)…
     expect(speedAtLanding).toBeCloseTo(1, 5);   // …and is back at the player's speed for the deciding hit
+  });
+
+  // R-SKIP-REWATCH-01 (owner 2026-11-27): the Fight Recap's Watch replay restarts the fight from the top, and a fight
+  // that was already Skipped once must be skippable AGAIN. The Skip used to stay latched ("until the next fight"), so
+  // the rewatch reported `turboing`, the diamond stayed dead and the whole fight had to be sat through.
+  it('a rewatch of a fight that was already Skipped can be Skipped again', () => {
+    ui = mount(<Harness combat={longFight()} />);
+    const full = msToDone();
+
+    ui.unmount();
+    ui = mount(<Harness combat={longFight()} />);
+    act(() => { vi.advanceTimersByTime(20); });
+    act(() => { replay!.turbo(); });             // Skip the fight itself
+    msToDone();
+    expect(replay!.done).toBe(true);
+
+    act(() => { replay!.seekTo(0); });           // Watch replay
+    expect(replay!.done).toBe(false);
+    expect(replay!.turboing).toBe(false);        // the diamond offers Skip again (ShopControls `skipReady`)
+    act(() => { vi.advanceTimersByTime(20); });
+    const onLand = vi.fn();
+    act(() => { replay!.turbo(onLand); });       // Skip the rewatch
+    expect(replay!.turboing).toBe(true);
+    const turbo = msToDone();
+    expect(replay!.done).toBe(true);
+    expect(turbo).toBeLessThan(full * 0.5);
+    expect(onLand).toHaveBeenCalledTimes(1);
+    expect(peak).toBeGreaterThan(15);
+  });
+
+  it('a seek FORWARD (a spectator catching up) keeps a Skip that is still racing', () => {
+    ui = mount(<Harness combat={longFight()} />);
+    act(() => { vi.advanceTimersByTime(20); });
+    const onLand = vi.fn();
+    act(() => { replay!.turbo(onLand); });
+    act(() => { replay!.seekTo(2); });
+    expect(replay!.turboing).toBe(true);
+    msToDone();
+    expect(replay!.done).toBe(true);
+    expect(onLand).toHaveBeenCalledTimes(1);
+  });
+
+  it('a Skip pressed during a rewatch stays on this screen (not sent to spectators or the recording)', () => {
+    const src = readFileSync(join(__dirname, 'Recruit.tsx'), 'utf8');
+    expect(src).toContain('rewatchingRef.current = true; setShowLog(false); replayRef.current.seekTo(0);');
+    expect(src).toContain('if (!useGame.getState().replaying && !rewatchingRef.current) tapSkipCombat();');
   });
 
   it('a zero-beat fight still finishes and lands', () => {

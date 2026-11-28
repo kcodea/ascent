@@ -117,22 +117,35 @@ describe('the featured window', () => {
   });
 });
 
-// owner 2026-11-27: "day rolls over at Midnight Eastern Time" (daylight saving included)
-describe('the shop day', () => {
-  it('is the Eastern date', () => {
-    expect(labShopDay(new Date('2026-01-16T04:59:00Z'))).toBe('2026-01-15'); // 23:59 EST
-    expect(labShopDay(new Date('2026-01-16T05:00:00Z'))).toBe('2026-01-16'); // 00:00 EST
-    expect(labShopDay(new Date('2026-07-16T03:59:00Z'))).toBe('2026-07-15'); // 23:59 EDT
-    expect(labShopDay(new Date('2026-07-16T04:00:00Z'))).toBe('2026-07-16'); // 00:00 EDT
+// owner 2026-11-27: "lets change the shop refresh timer from 24 hours to every 6 hours", anchored to midnight Eastern
+// ("day rolls over at Midnight Eastern Time"): 12am, 6am, 12pm and 6pm Eastern, daylight saving included
+describe('the shop window', () => {
+  it('is the Eastern date and its 6-hour block', () => {
+    expect(labShopDay(new Date('2026-01-16T04:59:00Z'))).toBe('2026-01-15T18'); // 23:59 EST
+    expect(labShopDay(new Date('2026-01-16T05:00:00Z'))).toBe('2026-01-16T00'); // 00:00 EST
+    expect(labShopDay(new Date('2026-01-16T10:59:00Z'))).toBe('2026-01-16T00'); // 05:59 EST
+    expect(labShopDay(new Date('2026-01-16T11:00:00Z'))).toBe('2026-01-16T06'); // 06:00 EST
+    expect(labShopDay(new Date('2026-01-16T17:00:00Z'))).toBe('2026-01-16T12'); // 12:00 EST
+    expect(labShopDay(new Date('2026-07-16T03:59:00Z'))).toBe('2026-07-15T18'); // 23:59 EDT
+    expect(labShopDay(new Date('2026-07-16T04:00:00Z'))).toBe('2026-07-16T00'); // 00:00 EDT
   });
-  it('refreshes at the coming midnight Eastern, winter and summer, across a clock change', () => {
-    expect(new Date(labNextRefresh(new Date('2026-01-15T12:00:00Z'))).toISOString()).toBe('2026-01-16T05:00:00.000Z');
-    expect(new Date(labNextRefresh(new Date('2026-07-15T12:00:00Z'))).toISOString()).toBe('2026-07-16T04:00:00.000Z');
-    // the evening before the spring change (Mar 8 2026): its midnight is still EST
-    expect(new Date(labNextRefresh(new Date('2026-03-08T02:00:00Z'))).toISOString()).toBe('2026-03-08T05:00:00.000Z');
-    // the day of the spring change: the next midnight is EDT
-    expect(new Date(labNextRefresh(new Date('2026-03-08T12:00:00Z'))).toISOString()).toBe('2026-03-09T04:00:00.000Z');
-    // the day of the autumn change (Nov 1 2026): the next midnight is EST
-    expect(new Date(labNextRefresh(new Date('2026-11-01T12:00:00Z'))).toISOString()).toBe('2026-11-02T05:00:00.000Z');
+  it('refreshes at the coming 12am / 6am / 12pm / 6pm Eastern, winter and summer, across a clock change', () => {
+    const at = (iso: string) => new Date(labNextRefresh(new Date(iso))).toISOString();
+    expect(at('2026-01-15T12:00:00Z')).toBe('2026-01-15T17:00:00.000Z'); // 07:00 EST -> 12pm
+    expect(at('2026-01-15T17:00:00Z')).toBe('2026-01-15T23:00:00.000Z'); // 12:00 EST exactly -> 6pm
+    expect(at('2026-01-15T23:30:00Z')).toBe('2026-01-16T05:00:00.000Z'); // 18:30 EST -> midnight
+    expect(at('2026-07-15T12:00:00Z')).toBe('2026-07-15T16:00:00.000Z'); // 08:00 EDT -> 12pm
+    // the spring change (Mar 8 2026, 2am): the 12am-6am window is 5 hours; 6am is already EDT
+    expect(at('2026-03-08T05:30:00Z')).toBe('2026-03-08T10:00:00.000Z');
+    // the autumn change (Nov 1 2026, 2am): the 12am-6am window is 7 hours; 6am is EST
+    expect(at('2026-11-01T04:30:00Z')).toBe('2026-11-01T11:00:00.000Z');
+  });
+  it('gives one free pack a day but new deals every window', () => {
+    const [free0, ...deals0] = featuredOffers('2026-11-05T00');
+    const [free6, ...deals6] = featuredOffers('2026-11-05T06');
+    expect(free0!.offerId).toBe(free6!.offerId);
+    expect(featuredOffers('2026-11-06T00')[0]!.offerId).not.toBe(free0!.offerId);
+    const key = (ds: typeof deals0) => ds.map((d) => d.offerId).join(',');
+    expect(key(deals0)).not.toBe(key(deals6));
   });
 });

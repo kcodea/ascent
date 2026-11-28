@@ -286,3 +286,10 @@ All settled by me; none changes what the owner approved.
    press) and plays the counter animation on its own. The keyboard path is the same: Enter selects, Enter on Buy buys.
 8. **Sounds.** Existing clips may be registered in `audio/codeClips.ts` and used freely. Only generating new audio needs
    the owner's go-ahead.
+
+**The shop refresh (owner 2026-11-27).** "lets change the shop refresh timer from 24 hours to every 6 hours": the shop
+refreshes at 12am, 6am, 12pm and 6pm Eastern, anchored to his earlier "day rolls over at Midnight Eastern Time" (daylight
+saving included, so a window spanning a clock change is 5 or 7 hours). The "Shop refreshes in" ticker counts to the next
+one. The Featured deals rotate every window; the free Rare stays DAILY (one per Eastern date; he calls it a "daily free
+card pack"). The lab: `SHOP_REFRESH_HOURS`, `labShopDay`, `labNextRefresh` in `shopLabData.ts`; the server will own
+the real boundary.

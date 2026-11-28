@@ -45,10 +45,13 @@ const SHELF_OFFERS: readonly PackOffer[] = PACK_LAB_LOOKS.flatMap((look, i): Pac
 });
 
 /**
- * THE SHOP DAY turns over at MIDNIGHT EASTERN (owner 2026-11-27: "day rolls over at Midnight Eastern Time"), daylight
- * saving included: read from the America/New_York zone, never a fixed offset. The server will own the real boundary; the
- * lab computes the same one.
+ * THE SHOP REFRESHES EVERY 6 HOURS (owner 2026-11-27: "lets change the shop refresh timer from 24 hours to every 6
+ * hours"), anchored to MIDNIGHT EASTERN (his earlier "day rolls over at Midnight Eastern Time"): at 12am, 6am, 12pm and
+ * 6pm Eastern wall-clock time, daylight saving included (read from the America/New_York zone, never a fixed offset; a
+ * window that spans a clock change is 5 or 7 hours long). The server will own the real boundary; the lab computes the
+ * same one.
  */
+export const SHOP_REFRESH_HOURS = 6;
 export const SHOP_ZONE = 'America/New_York';
 const zoneFmt = new Intl.DateTimeFormat('en-US', {
   timeZone: SHOP_ZONE, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit',
@@ -64,17 +67,22 @@ function zoneOffset(ms: number): number {
   const z = zoneParts(ms);
   return Date.UTC(z.y, z.mo - 1, z.d, z.h, z.mi, z.s) - Math.floor(ms / 1000) * 1000;
 }
-/** Today's shop day ("YYYY-MM-DD", Eastern): the featured window rotates when it changes. */
+/**
+ * The current shop window ("YYYY-MM-DDTHH", Eastern, HH = 00 / 06 / 12 / 18): the featured deals rotate when it changes.
+ * Its first 10 characters are the Eastern date (the daily free pack's day).
+ */
 export function labShopDay(now: Date = new Date()): string {
   const z = zoneParts(now.getTime());
-  return `${z.y}-${String(z.mo).padStart(2, '0')}-${String(z.d).padStart(2, '0')}`;
+  const h = Math.floor(z.h / SHOP_REFRESH_HOURS) * SHOP_REFRESH_HOURS;
+  return `${z.y}-${String(z.mo).padStart(2, '0')}-${String(z.d).padStart(2, '0')}T${String(h).padStart(2, '0')}`;
 }
-/** The instant (ms) the shop next refreshes: the coming midnight Eastern. */
+/** The instant (ms) the shop next refreshes: the coming 12am / 6am / 12pm / 6pm Eastern. */
 export function labNextRefresh(now: Date = new Date()): number {
   const z = zoneParts(now.getTime());
-  const wall = Date.UTC(z.y, z.mo - 1, z.d + 1, 0, 0, 0); // tomorrow 00:00, as if Eastern were UTC
+  const next = (Math.floor(z.h / SHOP_REFRESH_HOURS) + 1) * SHOP_REFRESH_HOURS; // 24 rolls into tomorrow's midnight
+  const wall = Date.UTC(z.y, z.mo - 1, z.d, next, 0, 0); // the boundary, as if Eastern were UTC
   const guess = wall - zoneOffset(now.getTime());
-  return wall - zoneOffset(guess); // re-read the offset AT midnight (a DST change may fall in between)
+  return wall - zoneOffset(guess); // re-read the offset AT the boundary (a DST change may fall in between)
 }
 
 /** A small seeded generator for the day's picks (the same day always draws the same window). */
@@ -104,7 +112,9 @@ export const DEAL_OFF = { min: 20, max: 60, step: 5 } as const;
  */
 export function featuredOffers(day: string): PackOffer[] {
   const rare = SHELF_OFFERS.find((o) => o.look.id === 'rarity-rare')!;
-  const free: PackOffer = { ...rare, offerId: `lab-daily-free-${day}`, shelf: 'featured', price: 0, badge: 'free' };
+  // the free pack is DAILY (keyed on the Eastern date, so one per day however often the shop refreshes); the deals rotate
+  // with every refresh window
+  const free: PackOffer = { ...rare, offerId: `lab-daily-free-${day.slice(0, 10)}`, shelf: 'featured', price: 0, badge: 'free' };
   const rnd = dayRng(day);
   const pool = SHELF_OFFERS.filter((o) => o.look.id !== 'rarity-rare' && !o.soldOut);
   const deals: PackOffer[] = [];

@@ -103,7 +103,8 @@ function LabPackShop({ onClose }: { onClose: () => void }) {
   const sampleN = useRef(0);
   // today's shelves, drawn as the shop opens (the featured window rotates by the day); the daily free pack is taken once
   const [day, setDay] = useState(() => labShopDay());
-  const refreshesAt = useMemo(() => labNextRefresh(new Date(`${day}T12:00:00Z`)), [day]);
+  // the window's end, read as it opens (and again at each refresh, below)
+  const [refreshesAt, setRefreshesAt] = useState(() => labNextRefresh());
   const allOffers = useMemo(() => shopLabOffers(day), [day]);
   const [freeTaken, setFreeTaken] = useState<ReadonlySet<string>>(() => new Set());
   // a limited deal's purchases so far (its stock counts down; at 0 it is sold out)
@@ -133,7 +134,11 @@ function LabPackShop({ onClose }: { onClose: () => void }) {
     };
   }, [setState, allOffers, countReward]);
   // the day turned over: the new day's window, and its per-day limits start fresh
-  const onRefresh = useCallback(() => { setDay(labShopDay()); setFreeTaken(new Set()); setBoughtOf(new Map()); }, []);
+  const onRefresh = useCallback(() => {
+    const now = new Date();
+    // the free pack taken stays taken (its id is the day's, so a new day's pack is a fresh id)
+    setDay(labShopDay(now)); setRefreshesAt(labNextRefresh(now)); setBoughtOf(new Map());
+  }, []);
   const open = useCallback<PackShopProps['open']>(async (packId) => {
     const pack = stateRef.current.hand.find((p) => p.packId === packId);
     const sample = PACK_LAB_SAMPLES[sampleN.current++ % PACK_LAB_SAMPLES.length]!;

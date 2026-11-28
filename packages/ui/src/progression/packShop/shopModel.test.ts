@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { CrateRarity, PackOffer } from '@game/progression';
-import { affordableIds, buyKey, packGuarantee, packTag, shelfOffers, srLine, startIndex } from './shopModel';
+import { affordableIds, buyKey, ownedCount, packGuarantee, packTag, shelfOffers, srLine, startIndex } from './shopModel';
 
 const offer = (id: string, over: Partial<PackOffer> = {}, floor: CrateRarity = 'rare', name = 'Rare Pack'): PackOffer => ({
   offerId: id, look: { kind: 'rarity', id: floor, name, guaranteedFloor: floor }, price: 200, shelf: 'packs', contains: 1, ...over,
@@ -29,6 +29,15 @@ describe('shopModel', () => {
     // themed looks with no ruling (Launch) and unknown categories keep their rarity floor
     expect(packTag(offer('l', { look: { kind: 'themed', id: 'themed-launch', name: 'Launch Pack', guaranteedFloor: 'epic' } }), 0).floor).toBe('4 random cards + 1 Epic or better');
     expect(packGuarantee({ kind: 'category', id: 'category-nope', name: 'Nope Pack', guaranteedFloor: 'rare' })).toEqual({ kind: 'rarity', rarity: 'rare' });
+  });
+
+  it('ownedCount: a themed pack shows owned/total; a Rarity pack, or a quote with no count, shows none', () => {
+    const cat = offer('h', { look: { kind: 'category', id: 'category-hero_skin', name: 'Hero Skin Pack', guaranteedFloor: 'rare' }, newToYou: { unowned: 30, total: 40 } });
+    expect(ownedCount(cat)).toEqual({ owned: 10, total: 40, text: '10/40' });
+    expect(srLine(cat, 500)).toBe('Hero Skin Pack, 200 Aether, 4 random cards + 1 guaranteed new Hero Skin, 10 of 40 collected');
+    expect(ownedCount({ ...cat, newToYou: { unowned: 0, total: 40 } })!.text).toBe('40/40');
+    expect(ownedCount(offer('r', { newToYou: { unowned: 3, total: 40 } }))).toBeNull();
+    expect(ownedCount({ ...cat, newToYou: undefined })).toBeNull();
   });
 
   it('packTag: short and soldOut', () => {

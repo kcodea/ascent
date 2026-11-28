@@ -72,7 +72,7 @@ import {
   newShake, newSwing, parksOnArrival, pointerVelDecay, resetPointerVel, resetShake, rubberY, samplePointerVel, settleDip,
   softDead, staggerArrivals, stepShake, stepSwing, type HandFan,
 } from './shopMotion';
-import { startIndex } from './shopModel';
+import { startIndex, ownedCount } from './shopModel';
 import type { ShopSounds } from './shopSounds';
 
 // ---------------------------------------------------------------- public contract
@@ -392,6 +392,8 @@ class ShopSceneImpl implements ShopScene {
   private readonly stockStacks: Sprite[][] = [];
   /** Per pool slot: a limited deal's "N left", above its pack's top-right corner. */
   private readonly stockLabels: Text[] = [];
+  /** Per pool slot: a themed pack's collection count, "owned/total", under its pack's bottom-right corner. */
+  private readonly ownedCounts: Text[] = [];
   private readonly dressTex: Texture[] = [];
   /** The cast shadow's texture and the canvas it is painted on (repainted when the dev tuner's blur changes). */
   private castCanvas: HTMLCanvasElement | null = null;
@@ -645,6 +647,15 @@ class ShopSceneImpl implements ShopScene {
       this.stockLabels.push(t);
       cards.addChild(t);
     }
+    // a themed pack's collection count, under its pack, the stock label's twin (owner 2026-11-27: "we need to add a counter to each of the themed packs that shows how many of the themed cards they have unlocked of the amount available. show it here, have it in the hover tooltip as well as a N/N value. keep it white and the same size as the card packs in stock numbers")
+    for (let s = 0; s < POOL; s++) {
+      const t = new Text({ text: '', style: { fontFamily: FONT, fontSize: STOCK_LABEL.font, fontWeight: '800', fill: 0xffffff, letterSpacing: 1, dropShadow: { color: 0x000000, alpha: 0.85, blur: 4, distance: 2, angle: Math.PI / 2 } } });
+      t.anchor.set(1, 0);
+      t.visible = false;
+      t.eventMode = 'none';
+      this.ownedCounts.push(t);
+      cards.addChild(t);
+    }
     this.placardLayer = cards;
     app.stage.addChild(cards);
     loadTexture(AETHER_ICON_SRC, () => !this.destroyed, (t) => {
@@ -851,7 +862,7 @@ class ShopSceneImpl implements ShopScene {
     this.drawLine();
     if (this.pileText) this.pileText.style.fontSize = Math.max(10, PILE_FONT * this.L.handPackH);
     for (const t of this.stackCounts) t.style.fontSize = Math.max(10, STACK_COUNT.font * this.L.handPackH);
-    for (const t of this.stockLabels) t.style.fontSize = Math.max(10, (STOCK_LABEL.font * this.L.packH) / STOCK_LABEL.packH);
+    for (const t of [...this.stockLabels, ...this.ownedCounts]) t.style.fontSize = Math.max(10, (STOCK_LABEL.font * this.L.packH) / STOCK_LABEL.packH);
     this.cacheRect();
     if (resized) this.cancelHold(); // a resize while holding: the pack returns to where it came from
     this.wake();
@@ -1190,6 +1201,7 @@ class ShopSceneImpl implements ShopScene {
         pack.view.visible = false;
         this.placards[s]!.view.visible = false; this.tagX[s] = NaN;
         this.ownedNotes[s]!.view.visible = false;
+        this.ownedCounts[s]!.visible = false;
         this.stockLabels[s]!.visible = false;
         for (const sp of this.stockStacks[s]!) sp.visible = false;
         continue;
@@ -1323,6 +1335,18 @@ class ShopSceneImpl implements ShopScene {
         sl.alpha = tagA;
         sl.position.set(q.x + dx * c - dy * sn, q.y + dx * sn + dy * c);
         sl.rotation = q.rot;
+      }
+      // a themed pack's collection count, under its bottom-right corner, the same size and gap as the stock label
+      const oc = this.ownedCounts[s]!;
+      const own = ownedCount(offer);
+      oc.visible = !!own && tagA > 0.01;
+      if (own && oc.visible) {
+        if (oc.text !== own.text) oc.text = own.text;
+        const q = liftPoseInto(this.lifted, p, lift);
+        const c = Math.cos(q.rot), sn = Math.sin(q.rot), dx = (q.h * ASPECT) / 2, dy = q.h / 2 + this.L.packH * STOCK_LABEL.gap;
+        oc.alpha = tagA;
+        oc.position.set(q.x + dx * c - dy * sn, q.y + dx * sn + dy * c);
+        oc.rotation = q.rot;
       }
       // a pack just put back sits down: a small bob into its place
       const st = this.slotSettle[s]!;

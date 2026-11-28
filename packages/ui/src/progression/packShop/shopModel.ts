@@ -79,12 +79,25 @@ export function startIndex(offers: readonly PackOffer[]): number {
   return fresh >= 0 ? fresh : startScroll(offers.length);
 }
 
+/**
+ * A themed pack's COLLECTION COUNT, "owned/total" (owner 2026-11-27: "we need to add a counter to each of the themed packs that shows how many of the themed cards they have unlocked of the amount available. show it here, have it in the hover tooltip as well as a N/N value. keep it white and the same size as the card packs in stock numbers"): how many of the cosmetics its guaranteed card can give the
+ * player already owns. Null for a Rarity pack, or when the quote carries no count.
+ */
+export function ownedCount(offer: PackOffer): { owned: number; total: number; text: string } | null {
+  const n = offer.newToYou;
+  if (offer.look.kind === 'rarity' || !n || n.total <= 0) return null;
+  const owned = Math.max(0, Math.min(n.total, n.total - n.unowned));
+  return { owned, total: n.total, text: `${owned}/${n.total}` };
+}
+
 /** One comma-separated line a screen reader speaks for a pack. */
 export function srLine(offer: PackOffer, aether: number): string {
   const t = packTag(offer, aether);
   const parts = [offer.look.name];
   if (offer.contains > 1) parts.push(`${offer.contains} packs`);
   parts.push(t.price, t.floor);
+  const own = ownedCount(offer);
+  if (own) parts.push(`${own.owned} of ${own.total} collected`);
   if (t.soldOut) parts.push('Sold out');
   else if (t.short > 0) parts.push(`Need ${t.short} more Aether`);
   return parts.join(', ');

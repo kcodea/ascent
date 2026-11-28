@@ -22,6 +22,7 @@ vi.mock('./progressionRemote', async (orig) => ({
 import { PACK_INTRO_GIFT, PACK_INTRO_OK, PACK_INTRO_TITLE, PackShopIntro, packShopIntroSeen, resetPackShopIntroForTests } from './PackShopIntroPopup';
 import { RANKED_CONFIRM_EXIT_MS } from '../rank/rankedEntry';
 import { resetProgressionForTests, useProgression } from './progressionStore';
+import { aetherIntroSeen, resetAetherIntroForTests } from './AetherIntroPopup';
 import { useGame } from '../store';
 
 const profile = (): ProgressionProfile => ({ accountXp: 0, accountLevel: 12, revision: 1, equippedTitleId: null, titles: [], cosmetics: [], aether: 3000 });
@@ -69,6 +70,14 @@ describe('Introducing the Pack Shop', () => {
     await show();
     expect(dialog()).not.toBeNull();
     expect(text()).not.toContain('Aether. Enjoy');
+  });
+
+  it('does not replace the Aether introduction: that one keeps its own once-per-account flag', async () => {
+    resetAetherIntroForTests();
+    await show();
+    expect(dialog()).not.toBeNull();
+    expect(packShopIntroSeen('u-1')).toBe(true);
+    expect(aetherIntroSeen('u-1')).toBe(false);
   });
 
   it('never with packs off, never before the profile, and not until the ledger read answers', async () => {

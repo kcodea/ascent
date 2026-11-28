@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { AETHER_LAUNCH_GRANT } from '@game/progression';
 import { sfx } from '../sfx';
+import { packsVisible, useProgression } from './progressionStore';
 import { RANKED_CONFIRM_EXIT_MS } from '../rank/rankedEntry';
 import { usePhLayer } from '../partyHome/shell/usePhLayer';
 import './collection.css';
@@ -20,6 +21,8 @@ import './collection.css';
 /** The copy, the owner's words (2026-10-19); "an currency" read as "a currency". The amount is the server's grant. */
 export const AETHER_INTRO_TITLE = 'Introducing Aether';
 export const AETHER_INTRO_TEXT = 'Aether is a currency that you earn by playing Ascent. Earn even more by placing higher in ranked matches. Aether is used to unlock chests of various rarities that contain hundreds of different cosmetic items.';
+/** The same, once packs are on: Aether buys packs now (spec 14). */
+export const AETHER_INTRO_TEXT_PACKS = 'Aether is a currency that you earn by playing Ascent. Earn even more by placing higher in ranked matches. Aether is used to buy packs of various rarities that contain hundreds of different cosmetic items.';
 export const AETHER_INTRO_GIFT = `Enjoy the first ${AETHER_LAUNCH_GRANT.toLocaleString('en-US')} Aether on us!`;
 export const AETHER_INTRO_SIGN = '- The Ascent Team';
 /** The one answer. The wording is Claude's pick, not the owner's. */
@@ -46,6 +49,7 @@ export function AetherIntroPopup({ userId, onDone }: {
   /** Called once the exit has played (the caller unmounts it and lets the next popup in). */
   onDone: () => void;
 }): JSX.Element {
+  const packsOn = useProgression(packsVisible);
   const [closing, setClosing] = useState(false);
   const okRef = useRef<HTMLButtonElement>(null);
   const timer = useRef<number | null>(null);
@@ -74,7 +78,7 @@ export function AetherIntroPopup({ userId, onDone }: {
         <span className="rc-crest" aria-hidden="true" />
         <span className="rc-crest rc-crest-foot" aria-hidden="true" />
         <div className="rc-title">{AETHER_INTRO_TITLE}</div>
-        <p className="rankedconfirm-text">{AETHER_INTRO_TEXT}</p>
+        <p className="rankedconfirm-text">{packsOn ? AETHER_INTRO_TEXT_PACKS : AETHER_INTRO_TEXT}</p>
         <p className="rankedconfirm-text aetherintro-gift">{AETHER_INTRO_GIFT}</p>
         <p className="aetherintro-sign">{AETHER_INTRO_SIGN}</p>
         <div className="rankedconfirm-actions">

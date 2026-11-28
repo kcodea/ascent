@@ -23,4 +23,10 @@ export const WIKI_ENTRIES: readonly WikiEntry[] = [
   ...basics, ...shop, ...shopMore, ...runesHeroes, ...combat, ...kwCombat, ...keywords, ...kwTriggers, ...kwBuild,
   ...lobby, ...lobbyModes, ...questsRunes, ...controls, ...glossary, ...glossaryMore,
 ];
+/** The entries as a player sees them: with packs on, an entry's `packs` wording replaces its chest wording. */
+export function wikiEntriesFor(packsOn: boolean): readonly WikiEntry[] {
+  if (!packsOn) return WIKI_ENTRIES;
+  return WIKI_ENTRIES.map((e) => (e.packs ? { ...e, q: e.packs.q ?? e.q, a: e.packs.a, aTouch: undefined, aliases: e.packs.aliases ?? e.aliases } : e));
+}
+
 export const WIKI_BY_ID: Readonly<Record<string, WikiEntry>> = Object.fromEntries(WIKI_ENTRIES.map((e) => [e.id, e]));

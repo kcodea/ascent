@@ -7,7 +7,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { act } from 'react';
 import { MinionBook } from './MinionBook';
-import { WIKI_ENTRIES } from './rulesWiki';
+import { WIKI_ENTRIES, wikiEntriesFor } from './rulesWiki';
 import { useGame } from './store';
 import { mount, type Mounted } from './renderedText.mount';
 
@@ -93,5 +93,19 @@ describe('Title Rules button → Compendium on the Rules page', () => {
     const m2 = mount(<MinionBook />);
     expect(q(m2.container, '.wiki-body')).toBeNull();
     m2.unmount();
+  });
+});
+
+describe('Rules wiki with packs on', () => {
+  it('swaps the chest answers for the pack ones and keeps the chest ones while packs are off', () => {
+    const chest = WIKI_ENTRIES.find((e) => e.id === 'crates')!;
+    expect(chest.q).toContain('chests');
+    expect(chest.a).not.toMatch(/packs?/i);
+    const packs = wikiEntriesFor(true).find((e) => e.id === 'crates')!;
+    expect(packs.q).toContain('packs');
+    expect(packs.a).toContain('5 cards');
+    expect(packs.a).toContain("levels you reached before packs arrived don't count");
+    expect(wikiEntriesFor(false)).toBe(WIKI_ENTRIES);
+    expect(wikiEntriesFor(true).find((e) => e.id === 'collection')!.a).toContain('Open your packs');
   });
 });

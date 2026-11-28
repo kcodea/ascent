@@ -42,6 +42,8 @@ export interface WikiEntry {
   aliases?: string[];
   /** Ids of related entries, shown as "See also" links. */
   seeAlso?: string[];
+  /** With the server's packs switch on, these replace the same fields (the chest answer above stays for packs-off). */
+  packs?: { q?: string; a: string; aliases?: string[] };
   /** The tripwire: what this answer depends on. */
   covers?: WikiCover[];
 }

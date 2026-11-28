@@ -1124,6 +1124,29 @@ describe('the Collection screen with packs on (the pack economy, 2026-12-01)', (
     clean();
   });
 
+  it('the New rewards pop-up lists only packs still sealed: one opened in the Pack Shop drops out', () => {
+    resetNewRewardsForTests();
+    packsOn();
+    queueNewRewards('u-1', { achievements: [], unlockedTitles: [], crateIds: [], after: { lifetimeXp: 0, level: 2 }, packIds: ['pk-1', 'pk-2'] });
+    const look = { kind: 'rarity' as const, id: 'rarity-common', name: 'Common Pack', guaranteedFloor: 'common' as const };
+    // the Pack Shop has been read: pk-1 was opened there, only pk-2 is still in the hand
+    useProgression.setState({ packShop: { userId: 'u-1', status: 'ready', shop: { packs: [{ packId: 'pk-2', look }] } as never } });
+    try {
+      open({ aether: 1200 }, { aether: true });
+      expect(text('.nrw-packs .nrw-kicker')).toBe('Pack earned');
+      expect(text('.nrw-packs .nrw-note')).toBe(PACKS_EARNED_NOTE);
+      ui!.unmount(); ui = null;
+      // both opened: nothing is waiting in the Pack Shop, so no pack line
+      useProgression.setState({ packShop: { userId: 'u-1', status: 'ready', shop: { packs: [] } as never } });
+      open({ aether: 1200 }, { aether: true });
+      expect($('.nrw-packs')).toBeNull();
+    } finally {
+      useProgression.setState({ packShop: null });
+      act(() => { resetNewRewardsForTests(); });
+      clean();
+    }
+  });
+
   it('with packs off, an earned pack id is never listed and the chest keeps its Open', () => {
     resetNewRewardsForTests();
     queueNewCrate('u-1', { crateId: 'c-2', earnedLevel: 2 });

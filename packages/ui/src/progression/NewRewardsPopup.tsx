@@ -42,9 +42,12 @@ export function NewPill() {
 /** The Career's one-shot open intent (Career.tsx `CAREER_OPEN_TAB_KEY`): "See all in Career" opens the Achievements tab. */
 const CAREER_TAB_KEY = 'ascent.career.openTab';
 
-export function NewRewardsPopup({ sealedIds, onOpenCrates, packsOn = false }: {
+export function NewRewardsPopup({ sealedIds, sealedPackIds = null, onOpenCrates, packsOn = false }: {
   /** The crates still sealed right now (a queued crate opened elsewhere drops out). */
   sealedIds: ReadonlySet<string> | null;
+  /** The packs still sealed right now, once the Pack Shop has been read (a queued pack opened there drops out); null =
+   *  not known yet, so every queued pack is listed. */
+  sealedPackIds?: ReadonlySet<string> | null;
   /** The server's packs switch: chests show without Open, and packs link to the Pack Shop. */
   packsOn?: boolean;
   /** Open the crates in the Collection's theatre: one, or all. */
@@ -79,7 +82,8 @@ export function NewRewardsPopup({ sealedIds, onOpenCrates, packsOn = false }: {
   const achievements = shown.achievements.map((a) => ({ ...a, def: achievementOf(a.id) })).filter((a) => !!a.def);
   const titles = shown.titles.filter((t) => titleName(t));
   // Packs are listed only with packs on (the Pack Shop is where they are); before the switch none are granted.
-  const packs = packsOn ? shown.packs ?? [] : [];
+  // Only the ones still sealed: "They are waiting for you in the Pack Shop" must be true of each one listed.
+  const packs = packsOn ? (shown.packs ?? []).filter((id) => !sealedPackIds || sealedPackIds.has(id)) : [];
   // Everything it held has gone (the crates opened elsewhere, ids this build does not know): nothing to show.
   if (achievements.length + titles.length + crates.length + packs.length === 0) { queueMicrotask(dismiss); return null; }
   const toPackShop = (): void => { sfx.pulse(); dismiss(); openPackShopDoor(); };

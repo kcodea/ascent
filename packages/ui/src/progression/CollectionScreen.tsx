@@ -245,6 +245,9 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
   const oddsLine = useMemo(() => (aetherOn ? floorOddsLine(firstFloor ?? MILESTONE_FLOOR) : crateOddsLine()), [aetherOn, firstFloor]);
 
   const sealedIds = useMemo(() => (crateList ? new Set(sealed.map((c) => c.crateId)) : null), [crateList, sealed]);
+  // The packs still sealed, once this account's Pack Shop has been read (null before: the pop-up then lists them all).
+  const packHand = useProgression((s) => (s.packShop && s.packShop.userId === userId ? s.packShop.shop?.packs ?? null : null));
+  const sealedPackIds = useMemo(() => (packHand ? new Set(packHand.map((p) => p.packId)) : null), [packHand]);
   // The Titles album shows each hero title once (its golden master once owned), so both lists read ownership.
   const everything = useMemo(() => collectibleItems(undefined, owned), [catalogEpoch, owned]);
   const total = useMemo(() => countOf(everything, owned), [everything, owned]);
@@ -389,7 +392,7 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
     <>
       {/* NEW REWARDS (owner 2026-09-28): what the last games awarded, summarised once, then marked seen. */}
       {introFor && <AetherIntroPopup userId={introFor} onDone={() => setIntroFor(null)} />}
-      {!introUp && <NewRewardsPopup sealedIds={sealedIds} packsOn={packsOn} onOpenCrates={(all) => { if (all) openAllBay(); else openBay(); }} />}
+      {!introUp && <NewRewardsPopup sealedIds={sealedIds} sealedPackIds={sealedPackIds} packsOn={packsOn} onOpenCrates={(all) => { if (all) openAllBay(); else openBay(); }} />}
       <CrateSignInGate open={gate} onClose={closeGate} />
       {hover && <SkinCardPreview key={`${hover.cardId}:${hover.art ?? ''}:${hover.plate === undefined ? '' : hover.plate?.id ?? 'standard'}:${hover.rect.left}:${hover.rect.top}`} cardId={hover.cardId} art={hover.art} anchor={hover.rect} plate={hover.plate} />}
       {theatre && (

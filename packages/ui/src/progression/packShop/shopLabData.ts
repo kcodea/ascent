@@ -17,12 +17,19 @@ export const SHOP_LAB_SHELVES: readonly PackShelf[] = [
   { id: 'rarity', name: 'Rarity Packs' },
 ];
 
-const PRICE: Readonly<Record<string, number>> = { common: 100, rare: 200, epic: 450, legendary: 900, ancient: 1800 };
+/**
+ * PACK PRICES, in Aether (owner 2026-11-27: "for rarity lets do 100 for common, 175 for rare, 300 for epic, 500 for
+ * legendary and 850 for ancient. for themed packs, because they follow the common pack odds, but narrow it down to a
+ * category that the player is more interested in, lets have those at a flat 200"). Every non-rarity pack (the Category
+ * packs and the style packs) is the flat themed price. The server will own the real prices (the economy project).
+ */
+export const RARITY_PACK_PRICE: Readonly<Record<string, number>> = { common: 100, rare: 175, epic: 300, legendary: 500, ancient: 850 };
+export const THEMED_PACK_PRICE = 200;
 
 const offer = (look: PackLook, shelf: string, extra: Partial<PackOffer> = {}, suffix = ''): PackOffer => ({
   offerId: `lab-${look.id}${suffix}`,
   look,
-  price: PRICE[look.guaranteedFloor] ?? 100,
+  price: look.kind === 'rarity' ? RARITY_PACK_PRICE[look.guaranteedFloor] ?? 100 : THEMED_PACK_PRICE,
   shelf,
   contains: 1,
   ...extra,

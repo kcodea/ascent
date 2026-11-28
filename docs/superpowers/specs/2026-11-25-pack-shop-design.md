@@ -293,3 +293,9 @@ saving included, so a window spanning a clock change is 5 or 7 hours). The "Shop
 one. The Featured deals rotate every window; the free Rare stays DAILY (one per Eastern date; he calls it a "daily free
 card pack"). The lab: `SHOP_REFRESH_HOURS`, `labShopDay`, `labNextRefresh` in `shopLabData.ts`; the server will own
 the real boundary.
+
+**Pack prices (owner 2026-11-27).** "for rarity lets do 100 for common, 175 for rare, 300 for epic, 500 for legendary and
+850 for ancient. for themed packs, because they follow the common pack odds, but narrow it down to a category that the
+player is more interested in, lets have those at a flat 200". Rarity packs: Common 100, Rare 175, Epic 300, Legendary
+500, Ancient 850 Aether. Themed packs (the Category packs and the style packs alike): a flat 200. The lab:
+`RARITY_PACK_PRICE` and `THEMED_PACK_PRICE` in `shopLabData.ts`; the server will own the real prices.

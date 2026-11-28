@@ -83,6 +83,17 @@ describe('makeLabBuy', () => {
   });
 });
 
+// owner 2026-11-27: the rarity prices and the flat themed price
+describe('pack prices', () => {
+  it('Rarity packs 100 / 175 / 300 / 500 / 850; every Category and style pack a flat 200', () => {
+    const price = (id: string) => SHOP_LAB_OFFERS.find((o) => o.look.id === id && o.shelf !== 'featured')!.price;
+    expect(['common', 'rare', 'epic', 'legendary', 'ancient'].map((r) => price(`rarity-${r}`))).toEqual([100, 175, 300, 500, 850]);
+    const themed = SHOP_LAB_OFFERS.filter((o) => o.shelf === 'category');
+    expect(themed.length).toBeGreaterThan(10);
+    for (const o of themed) expect(o.price, o.look.id).toBe(200);
+  });
+});
+
 // owner 2026-11-27: "a daily free card pack ... a rare card pack ... 4 other discounted, randomly discounted between 20 and 60%
 // off card packs of any other type, whether it is rarity or category. And those should rotate out of the shop every day"
 describe('the featured window', () => {

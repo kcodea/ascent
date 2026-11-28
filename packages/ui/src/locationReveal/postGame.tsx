@@ -26,6 +26,15 @@ export { holdPostGame } from './postGameHold';
 /** Is the journey still on its way to the post-game screen? */
 export const usePostGameHeld = (): boolean => useSyncExternalStore(subscribePostGameHold, isPostGameHeld, () => false);
 
+// ── the journey's last frame (revealPlayer `keepFrame`): the picture the results stand on ───────────────────────────────────────
+let lastFrame: { canvas: HTMLCanvasElement; w: number; h: number } | null = null;
+const frameSubs = new Set<() => void>();
+const setLastFrame = (f: typeof lastFrame): void => { lastFrame = f; for (const s of frameSubs) s(); };
+/** The journey's last frame, while the post-game screen it belongs to is up (null: the light version, or none kept). */
+export const useJourneyFrame = (): typeof lastFrame => useSyncExternalStore((f) => { frameSubs.add(f); return () => { frameSubs.delete(f); }; }, () => lastFrame, () => null);
+/** Let the frame go (the screen is left). */
+export const dropJourneyFrame = (): void => setLastFrame(null);
+
 // ── where the journey goes ─────────────────────────────────────────────────────────────────────────────────────────────────
 /** Where a finished run stands: Terys Gate, for every game, in its result's colours (gold, green, red). Null is kept for a mode that
  *  should not travel. */
@@ -52,7 +61,7 @@ export function postGameJourney(run: Pick<RunState, 'lobby'>, onArrive: () => vo
     try { onArrive(); } catch (err) { console.warn('[postGame] arrival', err); }
     arriveScreen(from, '.endscreen', PIECES);
   };
-  return { location: () => loc, request: () => ({ location: loc, tribes: [], arrive }) };
+  return { location: () => loc, request: () => { setLastFrame(null); return { location: loc, tribes: [], arrive, keepFrame: (canvas, w, h) => setLastFrame({ canvas, w, h }) }; } };
 }
 
 // ── the ground ─────────────────────────────────────────────────────────────────────────────────────────────────────────────

@@ -14,15 +14,17 @@
  * so the switch is a transform / opacity move only. Keyword FX on those boards show their still frames unless the row is pointed at
  * (styles.css). Every animation is one-shot transform / opacity; nothing loops.
  */
-import { memo, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { ANCIENTS, getHero, type MatchDetails, type MatchSeat, type RunState } from '@game/sim';
 import { ancientTextColor } from '../ancients/ancientsConfig';
 import { RankScreen } from '../rank/RankScreen';
 import { beginExitFade } from '../rank/exitFade';
 import type { RankPosition, RankResult, RankSubmission } from '../rank/types';
 import { ProgressionPostgame } from '../progression/ProgressionPostgame';
-import { PostGameGround, postGameLocation, usePostGameHeld } from '../locationReveal/postGame';
+import { dropJourneyFrame, PostGameGround, postGameLocation, useJourneyFrame, usePostGameHeld } from '../locationReveal/postGame';
 import { locationArt, locationName, resultBand, type ResultBand } from '../locationReveal/locations';
+import { slideFor, stageHeight } from '../locationReveal/revealGl';
+import { A } from '../locationReveal/revealTimeline';
 import { SeatAncientBadge, SeatPower } from '../matchDetails/SeatPower';
 import { placeLabel } from '../matchDetails/matchDetailsText';
 import { StoredTeam } from '../StoredTeam';
@@ -96,6 +98,27 @@ export interface PostGameScreenProps {
 /** How long the result (the rank's outcome, then the Account XP filling in) holds before the screen moves into the lobby. */
 export const AUTO_LOBBY_MS = 4200;
 
+/**
+ * The backdrop framed EXACTLY as the journey left the place, so nothing jumps (or is seen twice) as the wave washes the results in:
+ * the reveal's settled camera (revealShaders `at`: painting = VP - OFS + (screen - VP) * 0.962, the ground having no depth) on its
+ * stage (the painting's height covering the screen, `stageHeight`, slid by `slideFor`). Returns the CSS background size and position
+ * in px for a `w` x `h` screen.
+ */
+export function revealFrame(loc: { vp: readonly [number, number]; focus: readonly [number, number] }, w: number, h: number): { size: string; pos: string } {
+  // The reveal is drawn in the gate's layer, 16 px past the screen on every side (`.lrev`), its stage centred on that.
+  const gw = w + 32;
+  const gh = h + 32;
+  const H = stageHeight(gw, gh);
+  const W = H * A;
+  const [ox, oy] = slideFor(loc, gw, gh);
+  const k = 0.962;
+  const u0x = loc.vp[0] + (ox - loc.vp[0]) / k;
+  const u0y = loc.vp[1] + (oy - loc.vp[1]) / k;
+  const left = -16 + (gw - W) / 2 + u0x * W;
+  const top = -16 + (gh - H) / 2 + u0y * H;
+  return { size: `${(W / k).toFixed(1)}px ${(H / k).toFixed(1)}px`, pos: `${left.toFixed(1)}px ${top.toFixed(1)}px` };
+}
+
 /** React 18 has no `inert` prop: the attribute itself, for the beat that is out of sight (nothing in it can be focused or clicked). */
 const inertIf = (on: boolean): Record<string, string> => (on ? { inert: '' } : {});
 
@@ -109,12 +132,24 @@ export function PostGameScreen(p: PostGameScreenProps): JSX.Element {
   const [leaving, setLeaving] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const held = usePostGameHeld();
+  // The journey's own last frame (the full version), else the painting framed as the reveal frames it (`revealFrame`).
+  const journey = useJourneyFrame();
+  useEffect(() => () => dropJourneyFrame(), []);
+  // The backdrop's framing follows the screen's shape (`framePosition`).
+  const [frame, setFrame] = useState<{ size: string; pos: string }>({ size: 'cover', pos: '50% 50%' });
+  useLayoutEffect(() => {
+    if (!at) return undefined;
+    const measure = (): void => { const el = rootRef.current; if (el && el.clientWidth) setFrame(revealFrame(at, el.clientWidth, el.clientHeight)); };
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, [at]);
   // The sharp picture is decoded while the journey plays (the screen is mounted behind the doors), so the wash lands on it whole.
   useEffect(() => {
     if (!at) return;
     const img = new Image();
     img.decoding = 'async';
-    img.src = locationArt(at.id, 'layer0');
+    img.src = locationArt(at.id, 'full');
     img.decode?.().catch(() => { /* it paints when it arrives */ });
   }, [at]);
   // The scoreboard mounts behind the result, a seat a frame, once the journey has arrived (nothing competes with the wave).
@@ -155,7 +190,9 @@ export function PostGameScreen(p: PostGameScreenProps): JSX.Element {
       {/* THE PLACE ITSELF, sharp (owner 2026-11-27: "Have the ranked progress and experience from the game all happen on top of that
           art, then go from there to the post game rows"): the picture the journey landed on, still drifting, and its name where the
           journey left it. The lobby steps back onto the blurred ground. */}
-      {at && <div className="pg2-sharp" aria-hidden="true" style={{ backgroundImage: `url(${locationArt(at.id, 'layer0')})`, backgroundPosition: `${at.focus[0] * 100}% ${at.focus[1] * 100}%` }} />}
+      {at && (journey
+        ? <JourneyFrame frame={journey} />
+        : <div className="pg2-sharp" aria-hidden="true" style={{ backgroundImage: `url(${locationArt(at.id, 'full')})`, backgroundSize: frame.size, backgroundPosition: frame.pos }} />)}
       {at && <div className="pg2-placename" aria-hidden="true">{[...locationName(at)].map((c, i) => <i key={i}>{c}</i>)}</div>}
       <div className="pg2-vignette" aria-hidden="true" />
       <div className="pg2-result" aria-hidden={beat === 'lobby'} {...inertIf(beat === 'lobby')}>
@@ -197,6 +234,22 @@ export function PostGameScreen(p: PostGameScreenProps): JSX.Element {
       )}
     </div>
   );
+}
+
+/** The journey's last frame, exactly where it was on screen (the reveal's canvas is centred, `stageH` tall), drifting on slowly. */
+function JourneyFrame({ frame }: { frame: { canvas: HTMLCanvasElement; w: number; h: number } }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const host = ref.current;
+    if (!host) return undefined;
+    const c = frame.canvas;
+    c.className = 'pg2-frame';
+    c.style.width = `${frame.w}px`;
+    c.style.height = `${frame.h}px`;
+    host.appendChild(c);
+    return () => { c.remove(); };
+  }, [frame]);
+  return <div className="pg2-sharp pg2-sharp-frame" ref={ref} aria-hidden="true" />;
 }
 
 /** Mount `n` items one a frame (idle when the browser offers it) once `go` is true. */

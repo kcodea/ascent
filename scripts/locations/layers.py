@@ -831,17 +831,17 @@ def terys_specs():
     trunk = cT([(-20, 300), (320, 300), (290, 380), (260, 470), (240, 560), (200, 640), (160, 700), (110, 760), (60, 820), (-20, 880)])
     banner = cT([(285, 330), (330, 300), (450, 300), (462, 330), (440, 420), (430, 700), (445, 820), (462, 900), (430, 880), (380, 850), (330, 800), (285, 770), (280, 700)])
     leftfoliage = cT([(-20, 860), (40, 870), (80, 920), (100, 1000), (90, 1100), (120, 1180), (-20, 1180)])  # the leaves at the edge, not the cliff
-    rail = cL([(-20, -20), (260, -20), (330, 60), (380, 90), (400, 160), (470, 180), (500, 230), (560, 240), (780, 250), (785, 190), (1050, 185), (1205, 220), (1180, 265),
+    rail = cL([(-20, 180), (120, 130), (260, 100), (330, 110), (380, 140), (400, 160), (470, 180), (500, 230), (560, 240), (780, 250), (785, 190), (1050, 185), (1205, 220), (1180, 265),
                (1172, 505), (1310, 515), (1325, 640), (1240, 690), (1100, 700), (1000, 700), (900, 690), (800, 700), (720, 760), (720, 860), (-20, 860)])
     rail_holes = [cL([(432, 402), (486, 402), (486, 555), (470, 590), (432, 590)]), cL([(602, 378), (655, 378), (655, 470), (640, 480), (625, 470), (605, 480)]),
                   cL([(762, 378), (790, 378), (790, 460), (775, 470), (762, 460)])]
     right = cR([(470, 1500), (380, 1500), (385, 1228), (470, 1225), (480, 1180), (500, 1095), (530, 1070), (528, 950), (470, 940), (470, 760), (520, 720), (515, 460),
                 (495, 400), (492, 345), (560, 322), (610, 300), (600, 250), (690, 140), (730, 180), (800, 240), (860, 290), (880, 370), (860, 460), (840, 560), (820, 690),
-                (810, 760), (860, 805), (1000, 815), (1080, 745), (1180, 755), (1240, 795), (1275, 1065), (1520, 1072), (1520, 1500)])
+                (810, 760), (850, 930), (1000, 960), (1100, 940), (1180, 950), (1240, 960), (1275, 1065), (1520, 1072), (1520, 1500)])
     rightpillar = cR([(1245, 420), (1290, 378), (1400, 348), (1520, 348), (1520, 1075), (1272, 1065), (1254, 700)])
     leaves = [(-.02, -.02), (.36, -.02), (.36, .14), (.30, .14), (.24, .08), (.20, .10), (.165, .19), (.10, .22), (.08, .27), (-.02, .27)]
     return {
-        1: dict(groups=[([gate], gate_holes, 16)]),  # a wide band: the skyline is traced outside the marble, the cut finds its edge
+        1: dict(groups=[([gate], gate_holes, 12)]),  # a wide band: the skyline is traced outside the marble, the cut finds its edge
         2: dict(groups=[([post, urnL, urnR], None, 8)]),
         3: dict(groups=[([trunk, vine, banner, leftfoliage], None, 8), ([rail], rail_holes, 8), ([right, rightpillar], None, 8)], key=[(leaves, canopy)]),
         'snap': True, 'tone': .08, 'planes': lambda x: [.075, .14, .26],
@@ -872,6 +872,8 @@ def terys():
     e = gaussian_filter(np.maximum(disc, runes), 1.5 * S) * (1 - np.clip((yy / H - .53) / .03, 0, 1))
     # The owner's background (2026-11-27, from the maps and the prompt in Locations/background-prompts.md), moved onto the painting.
     make('p', 'terys', file, terys_specs(), np.zeros((H, W)), wind, e, 'Terys Gate/TerysGateBG.jpg', align=True)
+    # The whole painting, sharp, for the post-game screen's backdrop (layer0 is the background with the pieces taken out).
+    master.resize((W, H), Image.LANCZOS).save(PUB + 'terys/full.webp', quality=88, method=6)
 
 
 PLACES = {'o': outskirts, 'u': underbelly, 's': scrapyard, 'r': runebarriers, 'p': terys}

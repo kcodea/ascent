@@ -27,6 +27,10 @@ export interface LocationRevealRequest {
   tribes: readonly Poster[];
   /** The screen the leaving wave washes in (default: hero select). Called once, as the wave starts. */
   arrive?: (from: ArriveFrom) => void;
+  /** THE LAST FRAME (the post-game screen, postGame.tsx): handed a copy of the place as it was drawn just before it softens for the
+   *  wash, with the size it was shown at (css px, centred on the screen), so the screen behind can stand on EXACTLY that picture (the
+   *  near pieces sit off their painted places at rest: no flat copy of the painting lines up). Once, in the full version only. */
+  keepFrame?: (frame: HTMLCanvasElement, w: number, h: number) => void;
 }
 
 interface Warm { id: LocationDef['id']; loc: LocationDef; gl: PreparedReveal | null; sound: RevealSound; art: HTMLImageElement[] }
@@ -206,6 +210,7 @@ export function playFullReveal(host: HTMLElement, r: LocationRevealRequest, gl: 
     let t0 = 0;
     let covered = false;
     let arrived = false;
+    let kept = false;
     const tick = (now: number): void => {
       if (over) return;
       if (!t0) { t0 = now; w?.sound.play(n); }
@@ -213,6 +218,17 @@ export function playFullReveal(host: HTMLElement, r: LocationRevealRequest, gl: 
       if (gl.lost || real >= total) { finish(); return; }
       const s = simOf(from + real);
       try { gl.draw(s, fit); write(s); } catch (err) { console.warn('[locationReveal] stopped', err); finish(); return; }
+      // The frame just drawn, copied in the same task (the drawing buffer is not kept past it): once, before the outro softens it.
+      if (r.keepFrame && !kept && s >= outroAt(n) - 0.02) {
+        kept = true;
+        try {
+          const c = document.createElement('canvas');
+          c.width = gl.canvas.width;
+          c.height = gl.canvas.height;
+          c.getContext('2d')?.drawImage(gl.canvas, 0, 0);
+          r.keepFrame(c, gl.canvas.clientWidth, gl.canvas.clientHeight);
+        } catch (err) { console.warn('[locationReveal] no frame kept', err); }
+      }
       // It fades up over the gate's own doors, which it matches, then they can go.
       root.style.opacity = real < 0.1 ? String(real / 0.1) : '1';
       // The wave that washes the world away brings hero select in behind it.

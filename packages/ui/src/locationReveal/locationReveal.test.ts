@@ -72,7 +72,7 @@ describe('the locations', () => {
     expect(TERYS_GATE_BY_RESULT.top4.second[1]).toBeGreaterThan(TERYS_GATE_BY_RESULT.top4.second[0]); // green
     expect(TERYS_GATE_BY_RESULT.lost.second[0]).toBeGreaterThan(TERYS_GATE_BY_RESULT.lost.second[1]); // red
     expect(TERYS_GATE.posters).toEqual([]);
-    for (const f of ['flat', 'blur', 'data', 'water', 'layer0', 'layer1', 'layer2', 'layer3']) expect(existsSync(join(PUBLIC, 'terys', `${f}.webp`)), f).toBe(true);
+    for (const f of ['flat', 'blur', 'data', 'water', 'layer0', 'layer1', 'layer2', 'layer3', 'full']) expect(existsSync(join(PUBLIC, 'terys', `${f}.webp`)), f).toBe(true);
     // A journey (no parchments): its name's sting and the leaving wave's shimmer, and no announcer line (owner 2026-11-27: "have the
     // text say "terys gate" at the top of it like our other location text does").
     const clips = revealCues('terys', 0).map((c) => c.clip);

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { CrateRarity, PackOffer } from '@game/progression';
-import { affordableIds, buyKey, packTag, shelfOffers, srLine, startIndex } from './shopModel';
+import { affordableIds, buyKey, packGuarantee, packTag, shelfOffers, srLine, startIndex } from './shopModel';
 
 const offer = (id: string, over: Partial<PackOffer> = {}, floor: CrateRarity = 'rare', name = 'Rare Pack'): PackOffer => ({
   offerId: id, look: { kind: 'rarity', id: floor, name, guaranteedFloor: floor }, price: 200, shelf: 'packs', contains: 1, ...over,
@@ -15,6 +15,20 @@ describe('shopModel', () => {
   it('packTag: Free at 0, Ancient has no "or better"', () => {
     expect(packTag(offer('a', { price: 0 }), 0).price).toBe('Free');
     expect(packTag(offer('a', {}, 'ancient'), 0).floor).toBe('Guaranteed Ancient');
+  });
+
+  it('packTag: a Category or style pack promises its guaranteed new fifth card, not a rarity floor (owner 2026-11-27)', () => {
+    const cat = offer('h', { look: { kind: 'category', id: 'category-hero_skin', name: 'Hero Skin Pack', guaranteedFloor: 'rare' }, newToYou: { unowned: 5, total: 40 } });
+    expect(packTag(cat, 500).floor).toBe('4 random cards + 1 guaranteed new Hero Skin');
+    expect(packGuarantee(cat.look)).toEqual({ kind: 'category', category: 'hero_skin', label: 'Hero Skin' });
+    const style = offer('s', { look: { kind: 'themed', id: 'themed-scribble', name: 'Scribble Pack', guaranteedFloor: 'rare' } });
+    expect(packTag(style, 500).floor).toBe('4 random cards + 1 guaranteed new Scribble cosmetic');
+    expect(srLine(style, 500)).toBe('Scribble Pack, 200 Aether, 4 random cards + 1 guaranteed new Scribble cosmetic');
+    // owning the whole category: the fifth card can only be a duplicate, so the line stops promising "new"
+    expect(packTag({ ...cat, newToYou: { unowned: 0, total: 40 } }, 500).floor).toBe('4 random cards + 1 Hero Skin (you own them all)');
+    // themed looks with no ruling (Launch) and unknown categories keep their rarity floor
+    expect(packTag(offer('l', { look: { kind: 'themed', id: 'themed-launch', name: 'Launch Pack', guaranteedFloor: 'epic' } }), 0).floor).toBe('Guaranteed Epic or better');
+    expect(packGuarantee({ kind: 'category', id: 'category-nope', name: 'Nope Pack', guaranteedFloor: 'rare' })).toEqual({ kind: 'rarity', rarity: 'rare' });
   });
 
   it('packTag: short and soldOut', () => {

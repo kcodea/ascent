@@ -1,4 +1,5 @@
-import { aetherShort, canAfford, type OwnedPack, type PackLook, type PackOffer } from '@game/progression';
+import { aetherShort, canAfford, COSMETIC_CATEGORIES, ownsEveryCosmetic, type CosmeticCategory, type CrateRarity, type OwnedPack, type PackLook, type PackOffer } from '@game/progression';
+import { SCRIBBLE_PACK_LOOK_ID, STYLE_PACKS } from '../packOpening/packArt';
 import { packRarityLabel } from '../packOpening/packRarity';
 import { startScroll } from './shopLayout';
 
@@ -8,17 +9,51 @@ import { startScroll } from './shopLayout';
  */
 export interface PackTag {
   price: string;
+  /** What the pack promises, as its roll gives it (`packGuarantee`): a Rarity pack's floor, or a Category / style pack's guaranteed fifth card. */
   floor: string;
   /** Aether missing to buy it; 0 when the balance covers it. */
   short: number;
   soldOut: boolean;
 }
 
+/**
+ * WHAT A PACK GUARANTEES, by the owner's roll rulings (2026-11-27, docs/superpowers/specs/2026-11-23-pack-opening-design.md
+ * §12): a RARITY pack's fifth card is its rarity (cards 1-4 at Common-pack odds); a CATEGORY pack's fifth card is from its
+ * own category and never a duplicate, and the STYLE packs (Scribble and its kin) count as category packs, their fifth card
+ * from their style. Themed looks with no ruling yet (Launch, Season, Secret: on no shelf) keep their rarity floor. The
+ * economy project's roll must follow the same rulings; this is the shop's one reading of them (owner 2026-11-27: "we need
+ * to be more accurate with the thumbnails, now that we have new logic in place for themed packs").
+ */
+export type PackGuarantee =
+  | { kind: 'rarity'; rarity: CrateRarity }
+  | { kind: 'category'; category: CosmeticCategory; label: string }
+  | { kind: 'style'; label: string };
+
+const STYLE_IDS = new Set<string>([SCRIBBLE_PACK_LOOK_ID, ...STYLE_PACKS.map((p) => p.id)]);
+/** "hero_skin" -> "Hero Skin". */
+const categoryName = (c: CosmeticCategory): string => c.split('_').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+
+export function packGuarantee(look: PackLook): PackGuarantee {
+  if (look.kind === 'category') {
+    const c = look.id.replace(/^category-/, '');
+    if ((COSMETIC_CATEGORIES as readonly string[]).includes(c)) return { kind: 'category', category: c as CosmeticCategory, label: categoryName(c as CosmeticCategory) };
+  }
+  if (look.kind === 'themed' && STYLE_IDS.has(look.id)) return { kind: 'style', label: look.name.replace(/\s+Pack$/i, '') };
+  return { kind: 'rarity', rarity: look.guaranteedFloor };
+}
+
+/** The tag's promise line for `offer`. Once the player owns every cosmetic a category pack can give, its fifth card can only be a duplicate. */
+function guaranteeLine(offer: PackOffer): string {
+  const g = packGuarantee(offer.look);
+  if (g.kind === 'rarity') return g.rarity === 'ancient' ? 'Guaranteed Ancient' : `Guaranteed ${packRarityLabel(g.rarity)} or better`;
+  const what = g.kind === 'category' ? g.label : `${g.label} cosmetic`;
+  return ownsEveryCosmetic(offer) ? `4 random cards + 1 ${what} (you own them all)` : `4 random cards + 1 guaranteed new ${what}`;
+}
+
 export function packTag(offer: PackOffer, aether: number): PackTag {
-  const floor = offer.look.guaranteedFloor;
   return {
     price: offer.price === 0 ? 'Free' : `${offer.price} Aether`,
-    floor: floor === 'ancient' ? 'Guaranteed Ancient' : `Guaranteed ${packRarityLabel(floor)} or better`,
+    floor: guaranteeLine(offer),
     short: aetherShort(offer, aether),
     soldOut: !!offer.soldOut,
   };

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { createPortal } from 'react-dom';
-import { aetherShort, saleOff, type BuyPackOutcome, type ClaimRewardOutcome, type CrateRarity, type OwnedPack, type PackOffer, type PackShelf } from '@game/progression';
+import { aetherShort, saleOff, type BuyPackOutcome, type ClaimRewardOutcome, type CosmeticCategory, type CrateRarity, type OwnedPack, type PackOffer, type PackShelf } from '@game/progression';
 import { rectToStage, stageHost, stageViewport, type StageRect } from '../../stage';
 import { prefersReducedMotion } from '../CrateOpener';
 import { PackOpener, type PackOpenOutcome, type PackQueueItem } from '../packOpening/PackOpener';
@@ -9,13 +9,20 @@ import { packRarityLabel, rarityIconSrc } from '../packOpening/packRarity';
 import { packArtFor } from '../packOpening/packArt';
 import { packPalette } from '../packOpening/packTextures';
 import { AetherIcon } from '../AetherIcon';
+import { MenuMedal, type MenuMedalName } from '../../menuIcons';
 import { createShopScene, type ScreenRect, type ShopScene } from './shopScene';
 import { createShopSounds, type ShopSounds } from './shopSounds';
 import { isLoopRack, shopLayout } from './shopLayout';
 import { setNavAether } from '../../partyHome/shell/shellStore';
-import { NO_ROOM_NOTE, buyKey, buyableIds, counterHasRoom, counterSplit, packTag, shelfOffers, srLine, startIndex } from './shopModel';
+import { NO_ROOM_NOTE, buyKey, buyableIds, counterHasRoom, counterSplit, packGuarantee, packTag, shelfOffers, srLine, startIndex } from './shopModel';
 import '../packOpening/packOpening.css';
 import './packShop.css';
+
+/** A Category pack's icon: its category's painted Collection medallion (menuIcons.tsx). Board and Music have none yet (their gem stands in). */
+const CATEGORY_MEDALS: Partial<Record<CosmeticCategory, MenuMedalName>> = {
+  hero_skin: 'heroes', minion_skin: 'minions', emote: 'emotes', card_plate: 'plates',
+  title: 'titles', hero_attack: 'attacks', portrait_frame: 'frames', announcer: 'announcers',
+};
 
 /**
  * THE PACK SHOP SHELL (spec docs/superpowers/specs/2026-11-25-pack-shop-design.md, sections 4, 6, 7, 14). The Pixi scene
@@ -740,6 +747,18 @@ export function PackShop(props: PackShopProps) {
     return <span className="pks-waiting-art pks-waiting-foil" aria-hidden="true" style={{ background: `linear-gradient(150deg, ${p.a}, ${p.b} 50%, ${p.c})`, borderColor: p.accent }} />;
   };
 
+  // The card's icon says what the pack promises (packGuarantee): a Rarity pack its rarity's gem, a Category pack its
+  // category's Collection medallion, a style pack its own wrapper (owner 2026-11-27: "we need to be more accurate with the
+  // thumbnails, now that we have new logic in place for themed packs").
+  const guaranteeIcon = (look: PackOffer['look'], cls: string) => {
+    const g = packGuarantee(look);
+    const medal = g.kind === 'category' ? CATEGORY_MEDALS[g.category] : undefined;
+    if (medal) return <MenuMedal name={medal} className={`${cls}-medal`} />;
+    const art = g.kind === 'style' ? packArtFor(look) : null;
+    if (art) return <img className={`${cls}-medal pks-medal-pack`} src={art} alt="" aria-hidden="true" decoding="sync" draggable={false} />;
+    return <img className={`${cls}-medal`} src={rarityIconSrc(look.guaranteedFloor)} alt="" aria-hidden="true" decoding="sync" draggable={false} />;
+  };
+
   const offerCard = (o: PackOffer, withButton: boolean, cls: string) => {
     const t = packTag(o, balance);
     const full = !t.soldOut && !counterHasRoom(shownHand, o.look);
@@ -756,7 +775,7 @@ export function PackShop(props: PackShopProps) {
           </div>
         )}
         <div className={`${cls}-head`}>
-          <img className={`${cls}-medal`} src={rarityIconSrc(o.look.guaranteedFloor)} alt="" aria-hidden="true" decoding="sync" draggable={false} />
+          {guaranteeIcon(o.look, cls)}
           <div>
             <div className={`${cls}-name`}>{o.look.name}{o.contains > 1 ? ` (${o.contains} packs)` : ''}</div>
             <div className={`${cls}-line`}>{t.floor}</div>

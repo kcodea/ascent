@@ -68,14 +68,14 @@ shown is the price charged, a repeated request is charged once).
 | New accounts | "give new accounts 5 common packs, 2 rare packs, 1 epic and 1 legendary pack". Nine packs in place of the Welcome Chest. (This replaces the earlier ruling of one free Legendary pack.) |
 | Launch gift | "give all accounts 3k Aether when we release the new shop announcement". A one-time 3,000 Aether for every account, delivered with the new-shop announcement. Accounts made after launch do NOT get it: Mike first answered "yes, new accounts get the 3k too", then, asked to confirm, chose "Launch-day accounts only" (2026-11-27). New players get the nine Welcome packs instead. |
 | Focus | Removed. |
-| Old chests | Not converted into packs. The lump sum is out of scope. |
+| Old chests | Not converted into packs. The lump sum is out of scope. Until then they are FROZEN: asked whether players can still open the chests they hold, Mike chose "Freeze them" (2026-11-27). |
 
 ## 4. Approaches considered
 
 | | Approach | Trade-off |
 |---|---|---|
 | A | **Stretch `loot_crates`** into packs: a `kind` column, five reward columns, the chest roll widened. | Fewest new tables. But every chest constraint, trigger and parser (one reward, never a duplicate, `pool_exhausted`, the milestone floor check) would have to learn two shapes, and the chests still in players' hands share a table with the thing replacing them. One mistake breaks both. |
-| B | **New pack tables beside the chests** (chosen). `packs`, `pack_shop_windows`, `pack_meters`, a `pack_config` row; new functions `buy_pack`, `open_pack`, `claim_pack_reward`; `loot_crates` and `open_crate` are left exactly as they are. | More new SQL, but nothing about a chest changes, the new rules are written once in their own shape, and the chest side can be deleted later in one piece when the lump-sum project is done. |
+| B | **New pack tables beside the chests** (chosen). `packs`, `pack_shop_windows`, `pack_meters`, a `pack_config` row; new functions `buy_pack`, `open_pack`, `claim_pack_reward`; `loot_crates` is left as it is and `open_crate` only gains the freeze (section 11). | More new SQL, but nothing about a chest changes, the new rules are written once in their own shape, and the chest side can be deleted later in one piece when the lump-sum project is done. |
 | C | **Roll at purchase**, store the five cards sealed, reveal at open. | Simpler opening, and the result is fixed the moment Aether is spent. But a category pack's "never a duplicate" fifth card would be judged against what the player owned at purchase; two packs of one category bought together could promise the same item. Rejected: the roll happens at open (B). |
 
 **B, rolling at open, is my call** for the owner to overrule. It is the same split today's chests use (bought and
@@ -278,9 +278,14 @@ switches (R-EGRESS-02). Flipped by an owner-run `pack_rollout()` (service role, 
 With the switch ON:
 - `buy_crate` refuses with `shop_retired` before charging. `aether_quote` answers null. Focus is gone with it.
 - The settlement grants packs, not chests (section 10).
-- `open_crate` keeps working, unchanged, for chests already held. *(Section 13, question 2.)*
+- **Sealed chests are frozen** (owner 2026-11-27, "Freeze them"). `open_crate` refuses with `chests_frozen` as its
+  first check after the lock, before anything is rolled, charged or written, so the chest stays sealed and counted for
+  the lump sum. Opened chests and the items they gave are untouched. A re-open of an already-opened chest still returns
+  its committed reward (nothing changes, so it is not refused). With the switch off `open_crate` works as today.
 - The new client hides the Chest Shop and its focus picker and shows the Pack Shop; the Collection's chest bay shows
-  only while the player still holds a sealed chest.
+  only while the player still holds a sealed chest, with no Open or Open all, and one line saying the chests will be
+  exchanged later (wording left to the builder, without promising an amount). The New rewards pop-up offers no chest
+  Open either.
 
 The chest code (`crateShop.ts`, `CrateShop.tsx`, `buy_crate`, the tiered pick) is deleted in a later cleanup PR, once
 the lump-sum project has dealt with the remaining chests. Nothing in this project removes a table or a column.
@@ -325,7 +330,8 @@ The same shape as the 1,000 Aether launch gift (`2026-10-19-aether-launch-grant.
   charged. It cannot buy anything until it updates.
 - Its settlements still go to the server, which grants packs. The old client ignores `packsAwarded` and shows no new
   chest; the packs wait on the server and appear when it updates. Nothing is lost.
-- Its chest bay still opens old chests.
+- Its chest bay's Open answers `chests_frozen`, which it does not know: it shows its generic open failure and the
+  chest stays sealed. Nothing is lost.
 - No minimum-version gate is added: the desktop app updates itself on restart, an old client can lose nothing, and the
   window is short. *(My call.)*
 
@@ -336,21 +342,18 @@ version, only from `packs_enabled`.
 
 For the owner, in order of how much they change the build:
 
-1. **Old chests meanwhile.** Until the lump-sum project, can a player still open the sealed chests they hold? My lean:
-   yes, exactly as today (no code changes, nothing taken away). The alternative is freezing them so the lump sum
-   counts every one.
-2. **Featured deals.** The lab has four discounted packs (20-60% off, 2-5 in stock, re-rolled every window). Launch with
+1. **Featured deals.** The lab has four discounted packs (20-60% off, 2-5 in stock, re-rolled every window). Launch with
    them, and is stock per player? The server supports `fullPrice` and `stock` either way. Launching them moves the
    lab's pick-and-discount rule into the window generator and its numbers into `pack_config`. Per-player stock fits
    the per-user lock; shared stock (one counter every buyer competes for) does not, and needs its own locking. My lean:
    per player.
-3. **Odds shown to players.** Chests print their odds (R-PROG-CRATE-03). Packs: show them, and where?
-4. **Free-pack cadence.** The brief calls the free Rare once per Eastern day, but the shop spec quotes the owner,
+2. **Odds shown to players.** Chests print their odds (R-PROG-CRATE-03). Packs: show them, and where?
+3. **Free-pack cadence.** The brief calls the free Rare once per Eastern day, but the shop spec quotes the owner,
    asked whether it stays daily, answering "Every 6 hours", and the lab gives one per window. This doc builds one per
    window (`free:<window id>`); a daily pack is a one-line change to the source key.
-5. **Launch, Season and Secret packs**, and Secret as a sixth rarity in packs with its odds (today Secret exists as an
+4. **Launch, Season and Secret packs**, and Secret as a sixth rarity in packs with its odds (today Secret exists as an
    achievement-only rarity above Ancient, R-PROG-SECRET-01).
-6. **Booster box pricing.** The shop supports `contains` > 1; how a box fits the counter limit is decided with it.
+5. **Booster box pricing.** The shop supports `contains` > 1; how a box fits the counter limit is decided with it.
 
 ## 14. The "chest" to "pack" copy sweep
 
@@ -376,7 +379,8 @@ evidence and a regression test as enforcement:
 | R-PROG-AETHER-04 (Epic chest every 10 levels, Welcome Chest) | Amended: Legendary pack every 5 levels reached after launch (not backdated), nine Welcome packs (5 Common, 2 Rare, 1 Epic, 1 Legendary); old milestone chests kept. |
 | R-PROG-AETHER-06 (Announcers not focusable) | Retired (no focus). |
 | R-PROG-AETHER-01 (payouts) | Unchanged numbers; "spent in the Pack Shop"; names the 3,000 launch gift beside R-PROG-AETHER-05's 1,000. |
-| R-PROG-CRATE-02 (never an owned item; never converted to currency) | Scoped to chests. Packs may duplicate and pay Aether. |
+| R-PROG-CRATE-02 (opening is optional, now or later; never an owned item; never converted to currency) | Scoped to chests, and amended: with packs on, a sealed chest cannot be opened (frozen until the lump-sum project). Packs may duplicate and pay Aether. |
+| R-PROG-CRATE-04 / R-PROG-COLLECTION-01 (the chest bay's Open and Open all) | No Open while frozen. |
 | R-PROG-CRATE-03 (one draw, odds shown) | Scoped to chests; pack roll in R-PROG-PACK-02. |
 | R-PROG-CRATE-04 (guests cannot open crates) | Extended to packs, or a twin R-PROG-PACK rule. |
 | R-PROG-SECRET-01 ("No chest ever rolls it") | "No chest or pack". |
@@ -402,7 +406,8 @@ oracle rules).
 - `packRoll.db.test.ts`: SQL equals TS draw for draw.
 - `packs.db.test.ts`: buy (each refusal, including `no_room` and `expired`), a repeated request charged once, open paid
   once, claim, the counter order, grants waiting, guests refused, the switch off refusing everything, `buy_crate`
-  answering `shop_retired` with the switch on.
+  answering `shop_retired` with the switch on, `open_crate` answering `chests_frozen` on a sealed chest with the
+  switch on (the chest still sealed, nothing written) and opening as today with it off.
 - Settlement: the nine Welcome packs on enrollment (and not again on a retry), level packs at 5/10/15 for a
   new account, none at or below the launch level for an existing one (Level 37 at launch: first pack at 40), a re-run
   rollout never moving the launch level, self-healing above it, no milestone chest with packs on.

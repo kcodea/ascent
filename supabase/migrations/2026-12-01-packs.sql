@@ -603,7 +603,8 @@ $$;
 
 -- THE SHELVES (mirror of shelfOffers): the Rarity Packs (common to ancient, shelf 'rarity', with their `odds`), then a
 -- pack per category in COSMETIC_CATEGORIES order, then a pack per style in STYLE_PACK_IDS order (both shelf
--- 'category'), each only while its pool is not empty, at its price, offerId `<window>:<look id>`.
+-- 'category'), each only while it can be opened (R-PROG-PACK-07): a Rarity pack while the pool holds an item AT OR ABOVE
+-- its rarity, a themed pack while its own pool is not empty; at its price, offerId `<window>:<look id>`.
 create or replace function public.progression_pack_shelf(p_window text, p_eco jsonb)
 returns jsonb
 language plpgsql
@@ -619,14 +620,14 @@ declare
   v_themed int := public.progression_pack_config_int(p_eco, array['themedPackPrice']);
   v_x      text;
 begin
-  if exists (select 1 from public.progression_pack_pool()) then
-    foreach v_x in array c_rarities loop
-      v_out := v_out || jsonb_build_array(jsonb_build_object(
-        'offerId', p_window || ':rarity-' || v_x, 'look', public.progression_pack_look_json('rarity', 'rarity-' || v_x, v_x),
-        'price', public.progression_pack_config_int(p_eco, array['rarityPackPrice', v_x]), 'shelf', 'rarity', 'contains', 1,
-        'odds', public.progression_pack_odds(p_eco, v_x)));
-    end loop;
-  end if;
+  foreach v_x in array c_rarities loop
+    continue when not exists (select 1 from public.progression_pack_pool() p
+      where array_position(c_rarities, p.rarity) >= array_position(c_rarities, v_x));
+    v_out := v_out || jsonb_build_array(jsonb_build_object(
+      'offerId', p_window || ':rarity-' || v_x, 'look', public.progression_pack_look_json('rarity', 'rarity-' || v_x, v_x),
+      'price', public.progression_pack_config_int(p_eco, array['rarityPackPrice', v_x]), 'shelf', 'rarity', 'contains', 1,
+      'odds', public.progression_pack_odds(p_eco, v_x)));
+  end loop;
   foreach v_x in array c_categories loop
     continue when not exists (select 1 from public.progression_pack_pool() p where p.category = v_x);
     v_out := v_out || jsonb_build_array(jsonb_build_object(
@@ -916,9 +917,12 @@ begin
     return jsonb_build_object('status', 'error', 'reason', 'expired', 'aether', v_balance,
       'offers', public.pack_shop_json(p_user) -> 'offers');
   end if;
-  -- an offer whose pool emptied mid-window (a category switched off or admin_off) is gone, never sold
+  -- an offer whose pool emptied mid-window (a category switched off or admin_off) is gone, never sold: a Rarity pack
+  -- needs an item AT OR ABOVE its rarity (R-PROG-PACK-07), a themed pack anything in its own pool
   if not exists (select 1 from public.progression_pack_pool() p
-      where v_offer -> 'look' ->> 'kind' = 'rarity'
+      where (v_offer -> 'look' ->> 'kind' = 'rarity'
+             and array_position(array['common', 'rare', 'epic', 'legendary', 'ancient'], p.rarity)
+                 >= array_position(array['common', 'rare', 'epic', 'legendary', 'ancient'], v_offer -> 'look' ->> 'guaranteedFloor'))
          or (v_offer -> 'look' ->> 'kind' = 'category' and p.category = substr(v_offer -> 'look' ->> 'id', 10))
          or (v_offer -> 'look' ->> 'kind' = 'themed' and (v_offer -> 'look' ->> 'id') = any(p.pack_styles))) then
     return jsonb_build_object('status', 'error', 'reason', 'expired', 'aether', v_balance,

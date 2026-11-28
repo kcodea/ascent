@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { aetherShort, canAfford, ownedEveryNotice, ownsEveryCosmetic, type PackOffer } from './packShop';
+import { COSMETICS, type CosmeticDef } from './cosmetics';
+import { aetherShort, canAfford, ownedEveryNotice, ownsEveryCosmetic, shelfOffers, type PackOffer } from './packShop';
 
 const offer = (price: number, soldOut = false): PackOffer => ({
   offerId: 'o',
@@ -25,6 +26,23 @@ describe('pack shop contract', () => {
 
 // owner 2026-11-27: "lightly grey out the pack and overlay a notice that says 'You own every cosmetic from this pack. You may
 // continue purchasing more of the "name_of_pack" at your own descretion.'" (category packs only: rarity packs may duplicate)
+describe('shelfOffers sells only packs that can be opened (R-PROG-PACK-01)', () => {
+  const rarityIds = (cat: readonly CosmeticDef[]): string[] => shelfOffers('w', cat).filter((o) => o.shelf === 'rarity').map((o) => o.look.id);
+  it('lists every Rarity pack while each rarity has something rollable', () => {
+    expect(rarityIds(COSMETICS)).toEqual(['rarity-common', 'rarity-rare', 'rarity-epic', 'rarity-legendary', 'rarity-ancient']);
+  });
+  it('omits a Rarity pack with nothing at or above its rarity, keeps the ones below it', () => {
+    const noAncient = COSMETICS.map((c) => (c.rarity === 'ancient' ? { ...c, active: false } : c));
+    expect(rarityIds(noAncient)).toEqual(['rarity-common', 'rarity-rare', 'rarity-epic', 'rarity-legendary']);
+    // only Common left: the Common pack alone (its last card can be Common), never a higher one
+    const commonOnly = COSMETICS.map((c) => (c.rarity !== 'common' ? { ...c, active: false } : c));
+    expect(rarityIds(commonOnly)).toEqual(['rarity-common']);
+    // only Ancient left: every Rarity pack still opens (its last card is Ancient, at or above every floor)
+    const ancientOnly = COSMETICS.map((c) => (c.rarity !== 'ancient' ? { ...c, active: false } : c));
+    expect(rarityIds(ancientOnly)).toEqual(['rarity-common', 'rarity-rare', 'rarity-epic', 'rarity-legendary', 'rarity-ancient']);
+  });
+});
+
 describe('owning every cosmetic a pack can give', () => {
   const cat: PackOffer = { offerId: 'c', look: { kind: 'category', id: 'category-emote', name: 'Emote Pack', guaranteedFloor: 'rare' }, price: 200, shelf: 'category', contains: 1, newToYou: { unowned: 0, total: 40 } };
   it('is a category / style pack with nothing new left, never a rarity pack', () => {

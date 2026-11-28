@@ -17633,8 +17633,10 @@ export const FOUNDATION_RULES: GameRule[] = [
     statement:
       'With packs on, the Shop sells card packs in place of the Chest Shop. Every pack holds 5 cards. A Rarity pack costs '
       + 'Common 100, Rare 175, Epic 300, Legendary 500 or Ancient 850 Aether; every Category pack and every style pack costs a '
-      + 'flat 200. The shelves list the Rarity packs, then one pack per enabled category, then the style packs; a themed pack '
-      + 'with nothing in its pool is not offered, and a Category or style pack whose pool the player already owns in full is '
+      + 'flat 200. The shelves list the Rarity packs, then one pack per enabled category, then the style packs. A pack is never '
+      + 'offered for sale unless it can be opened: a themed pack with nothing in its pool, or a Rarity pack with nothing at or '
+      + 'above its own rarity, is not offered, and an offer that stops being openable mid-window is refused as expired and '
+      + 'charges nothing. A Category or style pack whose pool the player already owns in full is '
       + 'greyed out with a notice but stays buyable (a Rarity pack never is). The price shown is the price charged: a purchase '
       + 'names the price the player saw and is refused, uncharged, when the server\x27s price differs. The numbers are held by '
       + 'the server (pack_config) and the shop draws the offers the server sends. There is no Focus: a Category or style pack '
@@ -17649,8 +17651,9 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'fix-pr', ref: 'PR #2902 — packages/progression/src/packEconomy.ts (DEFAULT_PACK_ECONOMY: rarityPackPrice, themedPackPrice); packages/progression/src/packShop.ts (shelfOffers, ownsEveryCosmetic, ownedEveryNotice)' },
       { kind: 'fix-pr', ref: 'PR #2903 — supabase/migrations/2026-12-01-packs.sql (pack_config, progression_pack_shelf, buy_pack: price_changed)' },
       { kind: 'code', ref: 'packages/ui/src/progression/packShop/PackShopEntry.tsx (with packs_enabled the Shop tab opens the server Pack Shop, never the Chest Shop)' },
+      { kind: 'code', ref: 'feat/pack-economy-client final review fix — supabase/migrations/2026-12-01-packs.sql (progression_pack_shelf and buy_pack\x27s expired guard: a Rarity pack needs a rollable item at or above its rarity); packages/progression/src/packShop.ts (shelfOffers, the TS twin)' },
     ],
-    currentBehaviour: 'Built 2026-12-01 (PRs #2902, #2903, #2904 and feat/pack-economy-client), behind progression_config.packs_enabled, which ships OFF until the owner runs pack_rollout (spec section 12). Before, the Shop was the Chest Shop (R-PROG-AETHER-02, R-PROG-AETHER-03). The greyed-out decision (ownsEveryCosmetic) and its notice are pinned in the model; no UI test checks the grey drawing itself.',
+    currentBehaviour: 'Built 2026-12-01 (PRs #2902, #2903, #2904 and feat/pack-economy-client), behind progression_config.packs_enabled, which ships OFF until the owner runs pack_rollout (spec section 12). Before, the Shop was the Chest Shop (R-PROG-AETHER-02, R-PROG-AETHER-03). The greyed-out decision (ownsEveryCosmetic) and its notice are pinned in the model; no UI test checks the grey drawing itself. Until the final branch review (2026-11-28) a Rarity pack was listed whenever the pool held anything, so with every Ancient item admin_off the Ancient pack still sold and then failed to open (pack_pool_empty); now the shelf, buy_pack\x27s mid-window guard and shelfOffers all require an item at or above the pack\x27s rarity (pinned in packShop.test.ts and packs.db.test.ts). That clause extends the approved spec\x27s "not offered while its pool is empty" and its anti-goal "a charge without a pack"; the owner gave no separate ruling on it.',
     enforcement: { kind: 'scenario', refs: ['packages/progression/src/packEconomy.test.ts', 'packages/progression/src/packWindow.test.ts', 'packages/progression/src/packShop.test.ts', 'packages/progression/src/packs.db.test.ts', 'packages/ui/src/progression/packShop/PackShopEntry.test.tsx'], lastVerifiedAt: '2026-11-28' },
   },
   {

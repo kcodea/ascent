@@ -530,6 +530,34 @@ describe('buy_pack', () => {
     expect((await buy(u, `${w}:category-emote`, 200)).status).toBe('ok');
   });
 
+  it('R-PROG-PACK-01: a Rarity pack with nothing at or above its rarity is not listed (as windowOffers) and is expired, uncharged', async () => {
+    await setWindow(); // made while Ancient items are rollable: the window still lists the Ancient pack
+    const w = await currentWindow();
+    const u = await newUser({ aether: 1000 });
+    expect((await shop(u)).offers.some((o) => o.offerId === `${w}:rarity-ancient`)).toBe(true);
+    await db.exec("update public.cosmetic_catalog set admin_off = true where rarity = 'ancient';");
+    try {
+      // a window made now has no Ancient pack (not on the shelf, never a deal), exactly as the TS twin
+      const noAncient = CATALOG.map((c) => (c.rarity === 'ancient' ? { ...c, active: false } : c));
+      const r = rand(91);
+      for (let k = 0; k < 20; k++) {
+        const d = Array.from({ length: 12 }, r);
+        const sql = (await one<{ o: PackOffer[] }>('select public.progression_pack_window_offers($1, $2::float8[]) as o', [w, arr(d)])).o;
+        expect(sql).toEqual(json(windowOffers(w, d, noAncient)));
+        expect(sql.some((o) => o.look.id === 'rarity-ancient')).toBe(false);
+        expect(sql.some((o) => o.look.id === 'rarity-legendary')).toBe(true);
+      }
+      // the window made before it still lists the Ancient pack: buying it is expired and charges nothing
+      const before = await snapshot(u);
+      expect(await buy(u, `${w}:rarity-ancient`, 850)).toMatchObject({ status: 'error', reason: 'expired', aether: 1000 });
+      expect(await snapshot(u)).toEqual(before);
+      // a lower Rarity pack still sells (Legendary items remain)
+      expect((await buy(u, `${w}:rarity-common`, 100)).status).toBe('ok');
+    } finally {
+      await db.exec("update public.cosmetic_catalog set admin_off = false where rarity = 'ancient';");
+    }
+  });
+
   it('an offer of more than one pack (a box, not designed yet) is refused and charges nothing', async () => {
     const offers = await setWindow();
     const w = await currentWindow();

@@ -1096,7 +1096,9 @@ flipped, see "Before the Pack Shop" at the end of this section.
   | Style (Scribble, Plushie, 8 Bit, ...) | Standard odds | From that style, never one you own | 200 |
 
   A Category or style pack whose cosmetics you already own in full is **greyed out with a notice but still buyable**;
-  its fifth card is then a duplicate from that theme. A style pack with nothing in it yet is not on the shelf. The price
+  its fifth card is then a duplicate from that theme. A pack is never sold unless it can be opened: a style pack with
+  nothing in it yet is not on the shelf, nor is a Rarity pack while nothing at or above its rarity can roll (every Ancient
+  item switched off hides the Ancient pack), and an offer that stops being openable mid-window is refused, uncharged. The price
   you see is the price you pay: if it changed since your screen loaded, the purchase is refused, uncharged, and you see
   the new price. A double-click or a retry is charged once, and a pack opens once (R-PROG-PACK-11).
 - **What is inside (R-PROG-PACK-02).** The server rolls all five cards when you open the pack. Each card first rolls a

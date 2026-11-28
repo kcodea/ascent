@@ -148,7 +148,10 @@ html[data-pks-navaway] .ph-navhost { opacity: 0; pointer-events: none; transitio
 .pks-undernav .pks-top::after { height: 1px; opacity: 0.55; }
 .pks-undernav .pks-wallet { visibility: hidden; }
 .pks-undernav .pks-close { top: calc(var(--pks-nav, 0px) + 26px); }
-.pks-undernav .pks-guarantee { top: calc(var(--pks-nav, 0px) + 106px); }
+/* The pack reward's gauge rides IN the shop's bar, between the shelf tabs and Close (owner 2026-11-27: "i want to move
+   the epic pack unlock to the subcategory bar"), and comes and goes with the bar (from above). */
+.pks-undernav .pks-guarantee { top: calc(var(--pks-nav, 0px) + 13px); right: 150px; }
+:is(.pks-away, .pks-enter).pks-undernav .pks-guarantee { translate: 0 calc(var(--pks-slide) * -1); }
 
 /* Visually hidden, still read and focusable: the mirror of the canvas. Its focused pack shows the tag instead. */
 .pks-sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }

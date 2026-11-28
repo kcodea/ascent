@@ -24,6 +24,7 @@ import { create } from 'zustand';
 
 export type KeyActionId =
   | 'compendium'
+  | 'guides'
   | 'duosPeek'
   | 'lobbyChat'
   | 'spectateNext'
@@ -61,6 +62,7 @@ export interface KeyAction {
  */
 export const KEY_ACTIONS: readonly KeyAction[] = [
   { id: 'compendium', label: 'Compendium', note: 'Opens and closes the Compendium.', group: 'game', defaults: ['c'] },
+  { id: 'guides', label: 'Guides', note: 'Opens and closes the build guides.', group: 'game', defaults: ['g'] },
   { id: 'duosPeek', label: 'Peek at teammate', note: 'Duos: hold to watch your teammate\'s board, let go to come back.', group: 'game', defaults: ['Tab'] },
   { id: 'lobbyChat', label: 'Open lobby chat', note: 'Opens the chat for everyone in the game.', group: 'game', defaults: ['Enter', 'y'] },
   { id: 'spectateNext', label: 'Next player', note: 'Watch the next player still in.', group: 'spectate', defaults: ['e'] },

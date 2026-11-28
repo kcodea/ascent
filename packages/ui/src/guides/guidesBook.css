@@ -1,0 +1,61 @@
+/* THE GUIDES OVERLAY (GuidesBook.tsx, R-GUIDES-QUICKLOOK-01; owner 2026-11-27): the quick Compendium (quickBook.css: `.qb`,
+   `.qb-dim`, `.qb-place`, `.qb-panel`, `.qb-head`, `.qb-title`, `.qb-count`, `.qb-x`, `.qb-line`, `.qb-scroll.book`,
+   `.qb-grid`), with the guides hanging down the right edge where its parchments hang, and the page beside them as wide as
+   the room left. Only what differs is here. Everything that moves is the quick book's one-shot transform / opacity, and
+   the fade on close; nothing loops. No `cursor` anywhere: every control is a button. */
+.guidesdock {
+  --gd-list: calc(330 * var(--phu));
+  --gd-edge: calc(28 * var(--phu) + var(--safe-r, 0px));
+}
+.guidesdock.closing { animation: guidesdockout 0.19s ease-out forwards; pointer-events: none; }
+.guidesdock.closing *, .guidesdock.closing *::before, .guidesdock.closing *::after { transition: none !important; }
+@keyframes guidesdockout { to { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .guidesdock.closing { animation-duration: 0.01s; } }
+
+/* The page: the quick book's left edge, its right edge moved over for the list. */
+.guidesdock .gdbook-page { right: calc(var(--gd-edge) + var(--gd-list) + 34 * var(--phu)); width: calc(var(--qb-w) - 478 * var(--phu)); }
+.guidesdock .qb-title h2 { overflow: hidden; text-overflow: ellipsis; }
+.gdbook-tribes { font-family: var(--font-ui); font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; opacity: 1; }
+.gdbook-scroll { padding-top: calc(18 * var(--phu)); }
+.gdbook-tagline { margin: calc(22 * var(--phu)) calc(8 * var(--phu)) 0; font-weight: 700; font-size: calc(21 * var(--phu)); line-height: 1.35;
+  color: color-mix(in srgb, var(--c) 45%, #fff3cf); }
+.guidesdock .lobbyguide-text { max-width: 78ch; margin: calc(14 * var(--phu)) calc(8 * var(--phu)) 0; font-family: var(--font-ui); font-size: calc(18 * var(--phu));
+  line-height: 1.6; font-weight: 600; color: rgba(223, 232, 255, 0.86); }
+/* A section: its name in the quick book's axis type, its cards the quick book's own cells. */
+.gdbook-sec { margin-top: calc(26 * var(--phu)); }
+.guidesdock .gdbook-seclabel { margin: 0; padding: 0 calc(8 * var(--phu)); font-family: var(--font-ui); font-weight: 800; font-size: calc(17 * var(--phu));
+  letter-spacing: 0.14em; text-transform: uppercase; color: color-mix(in srgb, var(--c) 60%, #fff); }
+.guidesdock .qb-grid.gdbook-grid { padding-top: calc(30 * var(--phu)); padding-bottom: calc(10 * var(--phu)); }
+.gdbook-missing { display: grid; place-items: center; min-height: calc(280 * var(--phu)); pointer-events: none; font-weight: 800; font-size: calc(15 * var(--phu));
+  letter-spacing: 0.08em; text-transform: uppercase; color: rgba(223, 232, 255, 0.5); }
+
+/* THE LIST: down the right edge, coming in with the page. */
+.gdbook-list { position: absolute; top: calc(34 * var(--phu)); bottom: calc(20 * var(--phu)); right: var(--gd-edge); width: var(--gd-list);
+  display: flex; flex-direction: column; animation: qb-open 0.42s var(--qb-ease) both; }
+.gdbook-listhead { flex: none; display: flex; align-items: baseline; gap: calc(10 * var(--phu)); padding: calc(10 * var(--phu)) calc(10 * var(--phu)) calc(14 * var(--phu)); }
+.gdbook-listhead .guidesdock-title { font: 900 calc(26 * var(--phu)) / 1 'Cinzel', var(--title-font, 'Cinzel Decorative'), serif; color: #fff3cf;
+  text-shadow: 0 0.045em 0 #4a2f0c, 0 0.1em 0.3em rgba(0, 0, 0, 0.8); }
+.gdbook-listhead .guidesdock-count { font: 700 calc(16 * var(--phu)) / 1 'Cinzel', serif; color: rgba(255, 243, 207, 0.7); }
+.gdbook-list .lobbyguides-wrap { flex: 1 1 0; min-height: 0; }
+.gdbook-list .lobbyguides { gap: calc(4 * var(--phu)); padding: 0 calc(6 * var(--phu)) calc(20 * var(--phu)) 0; }
+.gdbook-list .lobbyguides-sec { margin: calc(14 * var(--phu)) 0 calc(4 * var(--phu)); padding-left: calc(10 * var(--phu)); font-family: var(--font-ui);
+  font-weight: 800; font-size: calc(14 * var(--phu)); letter-spacing: 0.14em; text-transform: uppercase; color: rgba(223, 232, 255, 0.5); }
+/* A guide in the list: no plate, like a parchment in the dark; the one being read is lit (the quick book's light). */
+.gdbook-list .lobbyguide { border-radius: calc(10 * var(--phu)); background: none; box-shadow: none; opacity: 0.66; transition: opacity 0.2s ease; }
+.gdbook-list .lobbyguide::before { inset: 0; width: auto; border-radius: inherit; opacity: 0; transition: opacity 0.28s ease;
+  background: radial-gradient(120% 140% at 0% 50%, color-mix(in srgb, var(--gc) 34%, transparent), transparent 70%); }
+.gdbook-list .lobbyguide:hover { opacity: 0.9; }
+.gdbook-list .lobbyguide.open { opacity: 1; box-shadow: none; }
+.gdbook-list .lobbyguide.open::before { opacity: 1; }
+.gdbook-list .lobbyguide-head { --lgd-face: calc(54 * var(--phu)); position: relative; grid-template-columns: var(--lgd-face) minmax(0, 1fr); column-gap: calc(12 * var(--phu)); row-gap: calc(2 * var(--phu));
+  padding: calc(8 * var(--phu)) calc(10 * var(--phu)); background: none; font-family: var(--font-ui); }
+.gdbook-list .lobbyguide-head:focus-visible { outline: 2px solid var(--ui-edge-hi, #ffd98a); outline-offset: -2px; }
+.gdbook-list .lobbyguide-title { font-size: calc(19 * var(--phu)); font-weight: 800; color: rgba(223, 232, 255, 0.9); }
+.gdbook-list .lobbyguide.open .lobbyguide-title { color: #fff3cf; text-shadow: 0 0 0.6em rgba(255, 206, 110, 0.6), 0 1px 0 rgba(0, 0, 0, 0.7); }
+.gdbook-list .lobbyguide-tag { font-size: calc(13 * var(--phu)); letter-spacing: 0.06em; text-transform: uppercase; }
+/* The light under the one being read, drawn from it like the quick book's underline. */
+.gdbook-list .lobbyguide-head::after { content: ''; position: absolute; left: calc(76 * var(--phu)); right: calc(10 * var(--phu)); bottom: 0; height: calc(2 * var(--phu));
+  opacity: 0; transform: scaleX(0.2); transform-origin: 0 50%; transition: opacity 0.2s ease, transform 0.28s var(--qb-ease); pointer-events: none;
+  background: linear-gradient(90deg, #fff3cf, color-mix(in srgb, var(--gc) 70%, transparent) 50%, transparent); }
+.gdbook-list .lobbyguide.open .lobbyguide-head::after { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) { .gdbook-list, .gdbook-list * { animation: none !important; transition: none !important; } }

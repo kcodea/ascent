@@ -218,6 +218,19 @@ describe('the roll refuses malformed input', () => {
     expect(await call(u, 'rarity', 'rarity-common', 'common', arr(zeros))).toBe('no error');
   });
 
+  it('Standard odds that do not sum to exactly 100 are a missing config, never a roll', async () => {
+    const u = await newUser();
+    try {
+      for (const odds of [{ common: 35, rare: 31, epic: 22, legendary: 9, ancient: 2 }, { common: 1000000000, rare: 1000000000, epic: 1000000000, legendary: 0, ancient: 0 }]) {
+        await db.query("update public.pack_config set economy = jsonb_set(economy, '{standardOdds}', $1::jsonb) where id = 1", [JSON.stringify(odds)]);
+        expect(await call(u, 'rarity', 'rarity-common', 'common', arr(zeros)), JSON.stringify(odds)).toContain('pack_config_missing');
+      }
+    } finally {
+      await db.exec(`update public.pack_config set economy = '${JSON.stringify(DEFAULT_PACK_ECONOMY)}'::jsonb where id = 1;`);
+    }
+    expect(await call(u, 'rarity', 'rarity-common', 'common', arr(zeros))).toBe('no error');
+  });
+
   it('an unknown look, category or style, and a bad floor', async () => {
     const u = await newUser();
     const d = arr(zeros);
@@ -276,7 +289,7 @@ describe('the pack tables', () => {
     const u = await newUser();
     const p = await insertPack(u, 'shop:a:1');
     expect((await one<{ state: string; price_paid: number }>('select state, price_paid from public.packs where pack_id = $1', [p]))).toEqual({ state: 'sealed', price_paid: 175 });
-    for (const col of ["user_id = gen_random_uuid()", "look_kind = 'category'", "look_id = 'rarity-epic'", "floor_rarity = 'epic'", "source = 'x'", 'price_paid = 0', "offer_id = 'other'", 'created_at = now() - interval \'1 day\'']) {
+    for (const col of ['pack_id = gen_random_uuid()', "user_id = gen_random_uuid()", 'request_id = gen_random_uuid()', "look_kind = 'category'", "look_id = 'rarity-epic'", "floor_rarity = 'epic'", "source = 'x'", 'price_paid = 0', "offer_id = 'other'", 'created_at = now() - interval \'1 day\'']) {
       expect(await raises(`update public.packs set ${col} where pack_id = $1`, [p]), col).toContain('pack_identity_is_immutable');
     }
     expect(await raises("update public.packs set state = 'opened' where pack_id = $1", [p])).toContain('packs_opened_consistent');

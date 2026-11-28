@@ -63,7 +63,7 @@ export const PATCH_NOTES: PatchNote[] = [
         text: 'A new ending: when your game ends, the gate closes on a crystal. Break it to travel to Terys Gate, where your results wait.',
         details: [
           'The same journey as the start of a game takes you to a new place, Terys Gate. It glows gold for a win, green for the top four, and red otherwise.',
-          'A brand new results screen: your place, your rank change and your Account XP, then Lobby to see every player\'s final board, runes, hero power and Ancient, and when they went out.',
+          'A brand new results screen: your place, your rank change and your Account XP, then Match Info to see every player\'s final board, runes, hero power and Ancient, and when they went out.',
           'The announcer has new lines for every place, in every announcer voice.',
           'Arriving at Terys Gate, the portal flares awake and its runes light up as its name rises.',
           'Terys Gate is also the new backdrop of the main menu.',

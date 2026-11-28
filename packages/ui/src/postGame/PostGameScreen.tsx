@@ -197,10 +197,13 @@ export function PostGameScreen(p: PostGameScreenProps): JSX.Element {
             runId={p.runId}
             onContinue={p.onContinue}
             onRetry={p.onRetry}
-            extra={(settled) => <ProgressionPostgame localKey={String(p.run.seed)} active={settled && (p.practice || p.submission !== 'pending')} />}
+            // The XP's slot is there from the start, so the rank never shifts when the XP arrives in it.
+            extra={(settled) => <div className="pg2-xpslot"><ProgressionPostgame localKey={String(p.run.seed)} active={settled && (p.practice || p.submission !== 'pending')} /></div>}
             onMatchDetails={p.match ? toLobby : undefined}
-            detailsLabel="Lobby"
-            continueClassName="ph-start"
+            detailsLabel="Match Info"
+            detailsClassName="ph-start pg2-plaque"
+            detailsAlways
+            continueClassName="ph-start pg2-plaque"
             headline={<div className="pg2-word"><span>{BAND_WORD[band]}</span></div>}
             placeText={<PlaceLetters place={p.place} />}
             scoring={p.scoring}

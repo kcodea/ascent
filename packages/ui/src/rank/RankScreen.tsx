@@ -68,6 +68,11 @@ export interface RankScreenProps {
   detailsLabel?: string;
   /** Extra classes for Continue (the post-game screen dresses it as the main menu's START plaque, `.ph-start`). */
   continueClassName?: string;
+  /** THE POST-GAME SCREEN: the details button dressed like Continue (`detailsClassName`) and there from the start, so nothing pops in
+   *  beside Continue as the rank settles (owner 2026-11-27: "they move around when they come in ... i dont like the continue button and
+   *  lobby being different"). Skipping the animation stays a click on the rank. */
+  detailsClassName?: string;
+  detailsAlways?: boolean;
 }
 
 function prefersReducedMotion(): boolean {
@@ -85,7 +90,7 @@ const cues = {
 };
 
 export function RankScreen(props: RankScreenProps): JSX.Element {
-  const { placement, seatCount, submission, result, current, error, unratedReason, runId, onContinue, onRetry, preview = false, extra, onMatchDetails, scoring, headline, detailsLabel, continueClassName, placeText, onSettled } = props;
+  const { placement, seatCount, submission, result, current, error, unratedReason, runId, onContinue, onRetry, preview = false, extra, onMatchDetails, scoring, headline, detailsLabel, continueClassName, placeText, onSettled, detailsClassName, detailsAlways } = props;
   const locked = !!scoring;
   // Real progress: fights done out of fights to do, clamped (the total is an estimate until the reference loads).
   const scoringShare = scoring && scoring.total > 0 ? Math.min(1, Math.max(0, scoring.done / scoring.total)) : 0;
@@ -297,11 +302,11 @@ export function RankScreen(props: RankScreenProps): JSX.Element {
       {/* The only secondary action (owner 2026-09-20: no Rewatch / Final warband here — Rewatch lives in
           Recent Games). The row keeps its height while settled so the layout never jumps. */}
       <div className="rankend-secondary">
-        {!settled && <button type="button" className="rankend-link" onClick={skip}>Skip animation</button>}
-        {settled && onMatchDetails && (
-          <button type="button" className="rankend-details pressable" onClick={onMatchDetails} disabled={leaving}>
-            <Icon name="board" />{detailsLabel ?? 'Match details'}
-          </button>
+        {!settled && !detailsAlways && <button type="button" className="rankend-link" onClick={skip}>Skip animation</button>}
+        {(settled || detailsAlways) && onMatchDetails && (
+          detailsClassName
+            ? <button type="button" className={`${detailsClassName} rankend-details`} onClick={onMatchDetails} disabled={leaving}><span>{detailsLabel ?? 'Match details'}</span></button>
+            : <button type="button" className="rankend-details pressable" onClick={onMatchDetails} disabled={leaving}><Icon name="board" />{detailsLabel ?? 'Match details'}</button>
         )}
       </div>
       <div className="rankend-live" aria-live="polite">{announce}</div>

@@ -45,20 +45,27 @@
 /* The panel is pinned so its first two rows (the numeral and the word) sit exactly on the band. */
 .pg2 .pg2-result .endbox { position: absolute; left: 0; right: 0; top: calc(50% - 250 * var(--phu)); margin: 0; max-width: none; max-height: none; zoom: 1;
   padding: 0; background: none; box-shadow: none; border: 0; }
-.pg2 .rankend-panel { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: calc(20 * var(--phu)); row-gap: 0; justify-items: center;
-  grid-template-areas: 'place place' 'word word' 'rank xp' 'status status' 'scoring scoring' 'act sec'; max-height: none; }
-.pg2 .rankend-panel > .rankend-place { grid-area: place; height: calc(222 * var(--phu)); justify-content: center; }
-.pg2 .rankend-panel > .pg2-word { grid-area: word; }
-.pg2 .rankend-panel > .rankend-rank { grid-area: rank; justify-self: end; }
-.pg2 .rankend-panel > .acctxp { grid-area: xp; justify-self: start; }
-.pg2 .rankend-panel:not(:has(> .acctxp)) > .rankend-rank, .pg2 .rankend-panel:not(:has(> .rankend-rank)) > .acctxp { grid-column: 1 / -1; justify-self: center; }
-.pg2 .rankend-panel > .rankend-status { grid-area: status; margin-top: calc(14 * var(--phu)); }
+/* THE LAYOUT IS FIXED (owner 2026-11-27: "they move around when they come in"): two slots of the same size for the rank and the
+   Account XP, there from the first frame whether or not their content has arrived; each fades in where it stays. Status lines
+   (Updating rank, Calculating Score) overlay the space under the slots instead of taking it. The two plaques sit as a centred pair. */
+.pg2 { --slot-w: calc(470 * var(--phu)); --slot-h: calc(176 * var(--phu)); --slot-gap: calc(20 * var(--phu)); }
+.pg2 .rankend-panel { position: relative; display: grid; grid-template-columns: var(--slot-w) var(--slot-w); justify-content: center; column-gap: var(--slot-gap); row-gap: 0;
+  justify-items: stretch; grid-template-areas: 'place place' 'word word' 'rank xp' 'act act'; grid-template-rows: auto auto calc(var(--slot-h) + 28 * var(--phu)) auto; max-height: none; }
+.pg2 .rankend-panel > .rankend-place { grid-area: place; justify-self: center; height: calc(222 * var(--phu)); justify-content: center; }
+.pg2 .rankend-panel > .pg2-word { grid-area: word; justify-self: center; }
+.pg2 .rankend-panel > .rankend-rank { grid-area: rank; align-self: start; }
+.pg2 .rankend-panel > .pg2-xpslot { grid-area: xp; align-self: start; display: flex; }
+.pg2 .pg2-xpslot > .acctxp { flex: 1; }
+/* No rank (Practice): the XP takes the middle, alone. */
+.pg2 .rankend-panel:not(:has(> .rankend-rank)) > .pg2-xpslot { grid-column: 1 / -1; justify-self: center; width: var(--slot-w); }
+.pg2 .rankend-panel > .rankend-status { position: absolute; left: 0; right: 0; top: calc(100% - 64 * var(--phu) - 40 * var(--phu)); display: flex; justify-content: center; pointer-events: none; }
 .pg2 .rankend-panel > .rankend-status.unrated { display: none; }
-.pg2 .rankend-panel > .rankend-scoring { grid-area: scoring; }
-.pg2 .rankend-panel > .rankend-actions { grid-area: act; justify-self: end; margin-top: calc(40 * var(--phu)); }
-.pg2 .rankend-panel > .rankend-secondary { grid-area: sec; justify-self: start; margin-top: calc(40 * var(--phu)); min-height: calc(64 * var(--phu)); }
-/* Practice (no rank, no XP): the two buttons are the whole lower half, closer to the band. */
-.pg2 .rankend-panel:not(:has(> .rankend-rank)):not(:has(> .acctxp)) > :is(.rankend-actions, .rankend-secondary) { margin-top: calc(72 * var(--phu)); }
+.pg2 .rankend-panel > .rankend-scoring { position: absolute; left: 0; right: 0; top: 100%; margin-top: calc(14 * var(--phu)); }
+.pg2 .rankend-panel > .rankend-actions { grid-area: act; justify-self: center; margin: calc(36 * var(--phu)) 0 0; }
+.pg2 .rankend-panel > .rankend-secondary { grid-area: act; justify-self: center; margin: calc(36 * var(--phu)) 0 0; min-height: calc(64 * var(--phu)); }
+/* With Match Info: the two plaques side by side, centred as a pair. */
+.pg2 .rankend-panel:has(.rankend-details) > .rankend-actions { transform: translateX(calc(-180 * var(--phu))); }
+.pg2 .rankend-panel:has(.rankend-details) > .rankend-secondary { transform: translateX(calc(180 * var(--phu))); }
 
 /* THE BAND: the result's light, full width, with a hairline of it top and bottom. Static paint; it sweeps open once (scaleX). */
 .pg2-band { position: absolute; left: 0; right: 0; top: calc(50% - 250 * var(--phu)); height: calc(300 * var(--phu)); z-index: 0; pointer-events: none;
@@ -86,17 +93,23 @@
 .pg2-word > span { font-family: 'Cinzel', var(--title-font, 'Cinzel Decorative'), serif; font-weight: 900; font-size: calc(32 * var(--phu)); letter-spacing: 0.42em; padding-left: 0.42em; text-transform: uppercase;
   color: var(--b1); text-shadow: 0 0.06em 0 var(--b3), 0 0 0.6em var(--bglow), 0 0.12em 0.3em rgba(0, 0, 0, 0.7); }
 
-/* The rank and the Account XP: two slim plates, side by side, a band-coloured hairline on top. */
-.pg2 .rankend-rank, .pg2 .acctxp { width: calc(440 * var(--phu)); box-sizing: border-box; margin-top: calc(28 * var(--phu)); border-radius: 0;
-  background: linear-gradient(180deg, rgba(8, 15, 34, 0.86), rgba(8, 15, 34, 0.7)); clip-path: var(--ph-clip-s);
+/* The rank and the Account XP: two plates of one size and one frame (a band-coloured hairline on top), fading in where they stay. */
+.pg2 .rankend-rank, .pg2 .acctxp { width: auto; height: var(--slot-h); box-sizing: border-box; margin: 0; border-radius: 0;
+  background: linear-gradient(180deg, rgba(8, 15, 34, 0.88), rgba(8, 15, 34, 0.74)); clip-path: var(--ph-clip-s);
   box-shadow: inset 0 calc(2 * var(--phu)) 0 color-mix(in srgb, var(--b2) 70%, transparent), inset 0 0 0 calc(1 * var(--phu)) rgba(200, 149, 63, 0.28); }
-.pg2 .rankend-rank { padding: calc(14 * var(--phu)) calc(24 * var(--phu)) calc(12 * var(--phu)); }
-.pg2 .acctxp { padding: calc(14 * var(--phu)) calc(22 * var(--phu)); }
+.pg2 .rankend-rank { padding: calc(16 * var(--phu)) calc(24 * var(--phu)); }
+.pg2 .acctxp { padding: calc(16 * var(--phu)) calc(24 * var(--phu)); overflow: hidden; }
+.pg2 .acctxp.acctxp-status { display: flex; align-items: center; justify-content: center; }
+.pg2 .acctxp-eyebrow { font-family: 'Cinzel', var(--title-font, 'Cinzel Decorative'), serif; font-weight: 900; font-size: calc(18 * var(--phu)); letter-spacing: 0.1em; color: #fff6e4; }
 .pg2 .rankend-status { font-family: var(--ph-font); }
+@media (prefers-reduced-motion: no-preference) {
+  .pg2 :is(.rankend-rank, .acctxp) { animation: pg2-platein 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+}
+@keyframes pg2-platein { from { opacity: 0; } to { opacity: 1; } }
 
 /* THE RANK PLATE, compact (owner 2026-11-27: the rank change shown and animated): the crest beside the bar, not above it, so the
    plate, the Account XP and the buttons all fit under the band. */
-.pg2 .rankend-rank { width: calc(560 * var(--phu)); display: grid; grid-template-columns: auto 1fr; grid-template-areas: 'bar bar' 'delta outcome'; align-items: center; gap: calc(6 * var(--phu)) calc(18 * var(--phu)); }
+.pg2 .rankend-rank { display: grid; grid-template-columns: auto 1fr; grid-template-areas: 'bar bar' 'delta outcome'; align-items: center; gap: calc(6 * var(--phu)) calc(18 * var(--phu)); }
 .pg2 .rankend-rank > .rankbar { grid-area: bar; flex-direction: row; align-items: center; text-align: left; gap: calc(20 * var(--phu)); }
 .pg2 .rankend-rank .rankcrest-xl { --ring: calc(104 * var(--phu)); }
 .pg2 .rankend-rank .rankbar-body { align-items: flex-start; gap: calc(6 * var(--phu)); flex: 1; }
@@ -118,15 +131,16 @@
 .pg2 .rankend-rank:has(.rankbar.lock-gold) .rankend-outcome { color: #ffd76a; }
 .pg2 .rankend-rank:has(.rankbar.lock-red) .rankend-outcome { color: #ff8a7c; }
 
-/* Continue (the menu's START plaque) and Lobby (a plate of the same height). */
-.pg2 .rankend-actions .rankend-continue.ph-start { margin: 0; width: calc(300 * var(--phu)); height: calc(64 * var(--phu)); font-size: var(--ph-t4); }
+/* Continue and Match Info: the same plaque (the menu's START), the same size (owner 2026-11-27: "i dont like the continue button and lobby
+   being different"). */
+.pg2 .pg2-plaque.ph-start { margin: 0; width: calc(340 * var(--phu)); height: calc(64 * var(--phu)); font-size: calc(23 * var(--phu)); letter-spacing: 0.14em; padding: 0; }
+.pg2 .pg2-plaque.ph-start > span { padding-left: 0.14em; }
+/* Match Info also wears `.rankend-details` (the Match details link's own look): the plaque's own box and type win. */
+.pg2 .pg2-plaque.ph-start.rankend-details { display: block; gap: 0; padding: 0; border: 0; border-radius: 0; font-family: var(--ph-font); font-weight: 900; color: #2a1a06;
+  text-shadow: 0 1px 0 rgba(255, 245, 210, 0.6); background: url('../partyHome/ornaments/start-plaque.webp') center / 100% 100% no-repeat; text-align: center; }
+.pg2 .pg2-plaque.ph-start.rankend-details:hover:not(:disabled) { color: #2a1a06; border-color: transparent; background: url('../partyHome/ornaments/start-plaque.webp') center / 100% 100% no-repeat; }
+.pg2 .pg2-plaque.ph-start { height: calc(340 * var(--phu) * 197 / 800); }
 .pg2 .rankend-continue.ph-start.scoring { opacity: 0.5; filter: none; }
-.pg2 .rankend-details { display: inline-flex; align-items: center; justify-content: center; gap: calc(12 * var(--phu)); width: calc(220 * var(--phu)); height: calc(64 * var(--phu)); padding: 0; margin: 0; border: 0; border-radius: 0;
-  background: var(--ph-plate); box-shadow: var(--ph-gild); clip-path: var(--ph-clip); font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t3); letter-spacing: 0.2em; text-transform: uppercase;
-  color: var(--ph-text); text-shadow: var(--ph-shadow); transition: transform 0.12s cubic-bezier(0, 0, 0.2, 1); }
-.pg2 .rankend-details:hover:not(:disabled) { background: var(--ph-plate-hover); color: var(--ph-ink); transform: scale(1.03); }
-.pg2 .rankend-details:active:not(:disabled) { transform: scale(0.98); }
-.pg2 .rankend-details svg { width: calc(22 * var(--phu)); height: calc(22 * var(--phu)); color: var(--ph-gold-hi); }
 .pg2 .rankend-link { font-family: var(--ph-font); }
 
 /* THE ARRIVAL (as the journey's wave washes the screen in): the band sweeps open, the numeral slams down, the word follows. */

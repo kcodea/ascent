@@ -66,7 +66,7 @@ shown is the price charged, a repeated request is charged once).
 | Match payouts | Unchanged. |
 | Level packs | A free Legendary pack every 5 levels (5, 10, 15, ...), replacing the Epic milestone chest every 10 levels. |
 | New accounts | "give new accounts 5 common packs, 2 rare packs, 1 epic and 1 legendary pack". Nine packs in place of the Welcome Chest. (This replaces the earlier ruling of one free Legendary pack.) |
-| Launch gift | "give all accounts 3k Aether when we release the new shop announcement". A one-time 3,000 Aether for every account, delivered with the new-shop announcement. |
+| Launch gift | "give all accounts 3k Aether when we release the new shop announcement". A one-time 3,000 Aether for every account, delivered with the new-shop announcement. Asked whether accounts made after launch get it too: "yes, new accounts get the 3k too". |
 | Focus | Removed. |
 | Old chests | Not converted into packs. The lump sum is out of scope. |
 
@@ -303,7 +303,11 @@ The same shape as the 1,000 Aether launch gift (`2026-10-19-aether-launch-grant.
   packs on, naming the 3,000 Aether gift (the "Introducing Aether" announcement is the pattern). The Aether is paid
   by the rollout, not by seeing the announcement, so a player who dismisses it, or plays on an old client, still has it.
   *(My call.)* Whether the announcement wording also mentions the nine Welcome packs is copy, left to the builder.
-- Accounts created AFTER the launch: section 13, question 2.
+- **Accounts created AFTER the launch get it too** (owner 2026-11-27: "yes, new accounts get the 3k too"). A trigger on
+  a new profile calls `pack_launch_grant` once packs are on (the `profiles_aether_launch_grant` pattern of
+  2026-10-19), so a new account starts with 3,000 Aether on top of its nine Welcome packs. The rollout and the trigger
+  share the one ledger key (`grant` / `pack_launch`), so an account made while the rollout runs is still paid
+  exactly once. An account made before packs are on is paid by the rollout.
 - Separate from the unopened-chest lump sum, which this project does not build.
 
 **An old client after the flip** (a friend who has not restarted to take the update):
@@ -329,26 +333,21 @@ For the owner, in order of how much they change the build:
    as written, with `pack_rollout()` backfilling like `aether_rollout()` did; (b) needs each account's level stored at
    the flip and the grant to stop self-healing below it; (c) skips multiples of 10 and changes the plausibility cap.
    Packs once opened cannot be taken back, so this is decided before the flip.
-2. **The 3,000 Aether for accounts made after launch.** The 1,000 Aether launch gift went to every account, including
-   ones created later (a trigger paid each new profile). Should the 3,000 do the same, or only go to accounts that exist
-   on launch day? New accounts already start with nine packs. My lean: only accounts that exist at launch, since it
-   comes "when we release the new shop announcement" and new players get the Welcome packs instead. The other way adds
-   a trigger, as in 2026-10-19.
-3. **Old chests meanwhile.** Until the lump-sum project, can a player still open the sealed chests they hold? My lean:
+2. **Old chests meanwhile.** Until the lump-sum project, can a player still open the sealed chests they hold? My lean:
    yes, exactly as today (no code changes, nothing taken away). The alternative is freezing them so the lump sum
    counts every one.
-4. **Featured deals.** The lab has four discounted packs (20-60% off, 2-5 in stock, re-rolled every window). Launch with
+3. **Featured deals.** The lab has four discounted packs (20-60% off, 2-5 in stock, re-rolled every window). Launch with
    them, and is stock per player? The server supports `fullPrice` and `stock` either way. Launching them moves the
    lab's pick-and-discount rule into the window generator and its numbers into `pack_config`. Per-player stock fits
    the per-user lock; shared stock (one counter every buyer competes for) does not, and needs its own locking. My lean:
    per player.
-5. **Odds shown to players.** Chests print their odds (R-PROG-CRATE-03). Packs: show them, and where?
-6. **Free-pack cadence.** The brief calls the free Rare once per Eastern day, but the shop spec quotes the owner,
+4. **Odds shown to players.** Chests print their odds (R-PROG-CRATE-03). Packs: show them, and where?
+5. **Free-pack cadence.** The brief calls the free Rare once per Eastern day, but the shop spec quotes the owner,
    asked whether it stays daily, answering "Every 6 hours", and the lab gives one per window. This doc builds one per
    window (`free:<window id>`); a daily pack is a one-line change to the source key.
-7. **Launch, Season and Secret packs**, and Secret as a sixth rarity in packs with its odds (today Secret exists as an
+6. **Launch, Season and Secret packs**, and Secret as a sixth rarity in packs with its odds (today Secret exists as an
    achievement-only rarity above Ancient, R-PROG-SECRET-01).
-8. **Booster box pricing.** The shop supports `contains` > 1; how a box fits the counter limit is decided with it.
+7. **Booster box pricing.** The shop supports `contains` > 1; how a box fits the counter limit is decided with it.
 
 ## 14. The "chest" to "pack" copy sweep
 
@@ -403,5 +402,6 @@ oracle rules).
   answering `shop_retired` with the switch on.
 - Settlement: the nine Welcome packs on enrollment (and not again on a retry), level packs at 5/10/15 and
   self-healing, no milestone chest with packs on.
-- Launch gift: `pack_rollout()` pays 3,000 once per account, a second run pays nothing, and it pays before the switch flips.
+- Launch gift: `pack_rollout()` pays 3,000 once per account, a second run pays nothing, and it pays before the switch flips;
+  a profile created after the flip is paid by the trigger, once, and a profile created during the rollout is paid once.
 - `sqlParity.test.ts` extended for the new config document.

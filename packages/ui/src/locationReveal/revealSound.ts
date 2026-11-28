@@ -71,6 +71,7 @@ export function revealCues(id: LocationId, n: number): Cue[] {
       env: ambienceEnv,
     },
     { clip: 'title', at: name - 0.12, gain: 0.62 },
+    ...(journey && locationById(id).arrival ? [{ clip: locationById(id).arrival!.clip, at: name - 0.45, gain: locationById(id).arrival!.gain }] as Cue[] : []),
     ...(journey ? [] : [{ clip: `vo-${id}`, at: name + LINE_DELAY, gain: VOICE * mix.line, voice: true }] as Cue[]),
     ...Array.from({ length: n }, (_, i): Cue => ({
       clip: 'poster', at: t(posterRest(i, n).at) - 0.1, gain: 0.36, lowpass: 1900, env: [[0, 0.2], [0.1, 1], [0.8, 1], [1, 0]],
@@ -89,7 +90,8 @@ export function revealCues(id: LocationId, n: number): Cue[] {
  *  phone decodes nothing it does not play (R-TOUCH-GPU-MEMORY-01's audio budget). Times are seconds from the doors parting. */
 export function lightCues(id: LocationId, n: number, at: { name: number; posters: number; step: number; leave: number }): Cue[] {
   // A journey: its name's sting, then the wave (no announcer line, no parchments).
-  if (n === 0) return [{ clip: 'title', at: at.name - 0.12, gain: 0.62 }, { clip: 'wave', at: at.leave - 0.2, gain: 0.3, rate: [[0, 1.08]], lowpass: 5200 }];
+  const sw = locationById(id).arrival;
+  if (n === 0) return [...(sw ? [{ clip: sw.clip, at: at.name - 0.45, gain: sw.gain }] : []), { clip: 'title', at: at.name - 0.12, gain: 0.62 }, { clip: 'wave', at: at.leave - 0.2, gain: 0.3, rate: [[0, 1.08]], lowpass: 5200 }];
   return [
     { clip: 'title', at: at.name - 0.12, gain: 0.62 },
     { clip: `vo-${id}`, at: at.name + LINE_DELAY, gain: VOICE * locationById(id).mix.line, voice: true },

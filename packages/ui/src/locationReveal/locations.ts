@@ -48,6 +48,8 @@ export interface LocationDef {
   energy?: readonly (readonly number[])[];
   /** The announcer's line as the name appears. */
   line: string;
+  /** A journey's arrival swell (Terys Gate), played as its name rises; the gain is measured (-9.3 LUFS against the name sting's -13.6). */
+  arrival?: { clip: string; gain: number };
   /** How loud its own clips sit in the mix. `line` brings every announcer line to the same measured loudness (R-LOCATION-12). */
   mix: { ride: number; ambience: number; line: number };
 }
@@ -158,6 +160,7 @@ export const LOCATIONS: Readonly<Record<SetLocationId, LocationDef & { setId: Se
 export const TERYS_GATE: LocationDef = {
   id: 'terys',
   name: 'Terys Gate',
+  arrival: { clip: 'arrive-terys', gain: 0.38 },
   vp: [0.595, 0.365],
   focus: [0.57, 0.45],
   deep: [0.02, 0.035, 0.12],
@@ -173,6 +176,8 @@ export const TERYS_GATE: LocationDef = {
     [0.567, 0.163, 0.6, 0.1, ...CYAN], [0.615, 0.15, 0.6, 0.1, ...CYAN], [0.663, 0.225, 0.6, 0.1, ...CYAN], [0.676, 0.4, 0.6, 0.1, ...CYAN], [0.663, 0.4875, 0.6, 0.1, ...CYAN],
     [0.512, 0.4375, 0.6, 0.1, ...CYAN], [0.512, 0.3125, 0.6, 0.1, ...CYAN], [0.536, 0.2, 0.6, 0.1, ...CYAN], [0.252, 0.164, 1.2, 0.1, 1, 0.93, 0.78], [0.606, 0.83, 1.3, 0.1, ...WARM],
     [0.068, 0.55, 0.8, 0.1, ...AZURE], [0.127, 0.62, 0.8, 0.1, ...AZURE],
+    // the rune ring, glyph by glyph: the landing wave lights it round (owner 2026-11-27: "more exciting")
+    [0.5949, 0.1575, 0.55, 0.1, ...CYAN], [0.6250, 0.1700, 0.55, 0.1, ...CYAN], [0.6515, 0.2060, 0.55, 0.1, ...CYAN], [0.6711, 0.2612, 0.55, 0.1, ...CYAN], [0.6816, 0.3290, 0.55, 0.1, ...CYAN], [0.6816, 0.4010, 0.55, 0.1, ...CYAN], [0.6711, 0.4688, 0.55, 0.1, ...CYAN], [0.6515, 0.5240, 0.55, 0.1, ...CYAN], [0.5383, 0.5240, 0.55, 0.1, ...CYAN], [0.5187, 0.4688, 0.55, 0.1, ...CYAN], [0.5082, 0.4010, 0.55, 0.1, ...CYAN], [0.5082, 0.3290, 0.55, 0.1, ...CYAN], [0.5187, 0.2613, 0.55, 0.1, ...CYAN], [0.5383, 0.2060, 0.55, 0.1, ...CYAN], [0.5648, 0.1700, 0.55, 0.1, ...CYAN],
   ],
 };
 

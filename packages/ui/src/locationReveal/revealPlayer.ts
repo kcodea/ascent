@@ -16,7 +16,7 @@ import { lightCues, loadRevealSound, type RevealSound } from './revealSound';
 import { dropAtmosphere, setAtmosphereCovered, syncAtmosphere, warmAtmosphere } from './atmosphereGl';
 import { arriveHeroSelect, type ArriveFrom } from './heroArrive';
 export type { ArriveFrom } from './heroArrive';
-import { A, fitOf, HOLD, NAME, outCubic, outroAt, POST, POST_GAP, posterName, posterRest, POSTER_H, POSTER_W, realOf, seg, simEnd, simOf, smoother, START, washAt, washReach } from './revealTimeline';
+import { A, fitOf, HOLD, L, NAME, outCubic, outroAt, POST, POST_GAP, posterName, posterRest, POSTER_H, POSTER_W, realOf, seg, simEnd, simOf, smoother, START, washAt, washReach } from './revealTimeline';
 import './locationReveal.css';
 
 
@@ -177,6 +177,10 @@ export function playFullReveal(host: HTMLElement, r: LocationRevealRequest, gl: 
     root.appendChild(gl.canvas);
     const words = n > 0 || locationName(r.location) ? buildWords(root, r) : null;
     const write = words ? makeWordsWriter(words, n) : (): void => undefined;
+    // THE ARRIVAL (a journey: Terys Gate, owner 2026-11-27: "make the gate look and feel more exciting"): at the landing the portal
+    // flares, a shock ring runs out, rays turn slowly behind it and motes rise, in the place's own colour. CSS one-shots (transform /
+    // opacity), started once (`on`), placed on the landing point.
+    const arrive = n === 0 ? buildArrival(root, r.location) : null;
     let fit = 1;
     let stagePx = 0;
     const unwatch = watchSize(root, (stageH, f, w, h) => {
@@ -184,6 +188,7 @@ export function playFullReveal(host: HTMLElement, r: LocationRevealRequest, gl: 
       fit = f;
       stagePx = stageH;
       gl.canvas.style.width = `${stageH * A}px`;
+      if (arrive) { arrive.style.left = `calc(50% + ${((gl.vp[0] - 0.5) * A * stageH).toFixed(1)}px)`; arrive.style.top = `calc(50% + ${((gl.vp[1] - 0.5) * stageH).toFixed(1)}px)`; arrive.style.setProperty('--u', `${stageH}px`); }
       gl.canvas.style.height = `${stageH}px`;
       words?.layout(stageH, f);
     });
@@ -218,6 +223,8 @@ export function playFullReveal(host: HTMLElement, r: LocationRevealRequest, gl: 
       if (gl.lost || real >= total) { finish(); return; }
       const s = simOf(from + real);
       try { gl.draw(s, fit); write(s); } catch (err) { console.warn('[locationReveal] stopped', err); finish(); return; }
+      if (arrive && s >= L - 0.02 && !arrive.classList.contains('on')) arrive.classList.add('on');
+      if (arrive && s >= outroAt(n) && !arrive.classList.contains('off')) arrive.classList.add('off');
       // The frame just drawn, copied in the same task (the drawing buffer is not kept past it): once, before the outro softens it.
       if (r.keepFrame && !kept && s >= outroAt(n) - 0.02) {
         kept = true;
@@ -251,6 +258,29 @@ export function playFullReveal(host: HTMLElement, r: LocationRevealRequest, gl: 
 
 /** How long a reveal that is cut short takes to fade. */
 const STOP_MS = 260;
+
+/** The arrival's layer (see `playFullReveal`): a flare, a shock ring, rays and motes, centred on the landing point. */
+function buildArrival(root: HTMLElement, loc: LocationDef): HTMLElement {
+  const a = el('div', 'lrev-arrive', root);
+  a.setAttribute('aria-hidden', 'true');
+  const c = loc.second.map((v) => Math.round(Math.min(1, v) * 255)).join(', ');
+  a.style.setProperty('--ac', c);
+  el('i', 'lra-rays', a);
+  el('i', 'lra-bloom', a);
+  el('i', 'lra-ring', a);
+  el('i', 'lra-ring lra-ring2', a);
+  el('i', 'lra-flash', a);
+  for (let k = 0; k < 26; k++) {
+    const m = el('b', 'lra-mote', a);
+    const h = (Math.sin(k * 91.7) * 43758.5453) % 1;
+    const r = Math.abs(h);
+    m.style.setProperty('--x', `${((k * 0.6180339) % 1 - 0.5) * 1.5}`);
+    m.style.setProperty('--y', `${0.15 + r * 0.45}`);
+    m.style.setProperty('--d', `${(0.2 + ((k * 0.37) % 1) * 1.6).toFixed(2)}s`);
+    m.style.setProperty('--s', `${(0.5 + r).toFixed(2)}`);
+  }
+  return a;
+}
 
 /** Where the leaving wave starts on screen, and when it reaches a point. */
 function waveFrom(root: HTMLElement, gl: RevealGl, stagePx: number, n: number): ArriveFrom {

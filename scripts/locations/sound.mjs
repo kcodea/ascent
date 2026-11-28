@@ -21,6 +21,7 @@ const CUES = {
   'ambience-scrapyard': [8.0, 0.35, 'Seamless loop, loud, close and clearly present: a blacksmith forge fire roaring and crackling, big leather bellows breathing, rhythmic hammering on metal a short way off, heavy chains clinking and wooden beams creaking, constant even volume the whole time, no voices, no music'],
   'ambience-runebarriers': [8.0, 0.3, 'Seamless loop of a great magical barrier humming softly: deep warm resonant arcane drone with gentle crackling energy and faint crystal tones, high mountain wind and a distant waterfall, constant even volume the whole time, no music'],
   'ambience-terys': [8.0, 0.3, 'Seamless loop, close and clearly present: a great magical portal humming softly, warm bright resonant hum with gentle shimmering sparkle, a soft breeze in leaves and cloth banners fluttering, distant waterfalls, a few birds, constant even volume the whole time, no voices, no music'],
+  'arrive-terys': [3.5, 0.45, 'A majestic heavenly choir and warm brass swell rising to a bright triumphant sustained chord, shimmering harp and bell sparkle on top, fantasy game arrival, close and clearly present, no words, no drums'],
   title: [2.4, 0.4, 'A warm majestic magical shimmer reveal, soft low brass-like swell with golden sparkling chime tail, fantasy game title appears, gentle, not loud'],
   poster: [1.0, 0.4, 'A gentle soft wind whoosh, smooth swell in and out, like a light breeze passing a hanging cloth banner, airy, rounded, quiet, no impact, no crackle, no music'],
 };

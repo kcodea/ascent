@@ -67,6 +67,14 @@ two beats, a line pool per place, every board expanded. Rule R-POSTGAME-01.
   blurred ground.
 - DEV: `EndGameTuner` (🏁 End Practice game) ends the current Practice game at a chosen place on the next fight.
 
+- POLISH (owner: "an overall 5/10 experience ... continue should take the player back to main menu, lobby should take the player to
+  the post-game lobby screen ... make the gate look and feel more exciting, add the announcer lines in too"; the gate = the Terys Gate
+  arrival): the result no longer moves into the lobby by itself (buttons only); the Scene Builder ending speaks its place's line
+  (`announceEndLine`, a sandbox run's queue stays off) and shows a late-game table; at the landing the portal flares, a soft ring rolls
+  out, rays turn and motes rise in the place's colour (`buildArrival`, CSS one-shots), the rune ring gets a light per glyph, the camera
+  keeps pushing as it rests, and an arrival swell plays with the name (`arrive-terys`, ElevenLabs, -9.3 LUFS, trimmed to 0.38).
+- The cut parallax was tried three times and rejected ("utterly terrible"); Terys Gate stays one flat layer.
+
 ## Open
 
 - Rewatch sits on the lobby beat although the 2026-09-20 rank screen had none (it was in the owner's picked layout).

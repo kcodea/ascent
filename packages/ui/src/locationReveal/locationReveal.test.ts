@@ -80,7 +80,7 @@ describe('the locations', () => {
     expect(revealCues('outskirts', 5).filter((c) => c.clip === 'title')).toHaveLength(2);
     expect(clips.some((c) => c.startsWith('vo-'))).toBe(false);
     for (const c of clips) expect(existsSync(join(PUBLIC, 'sfx', `${c}.mp3`)), c).toBe(true);
-    expect(lightCues('terys', 0, { name: 1, posters: 2, step: 0.3, leave: 3 }).map((c) => c.clip)).toEqual(['title', 'wave']);
+    expect(lightCues('terys', 0, { name: 1, posters: 2, step: 0.3, leave: 3 }).map((c) => c.clip)).toEqual(['arrive-terys', 'title', 'wave']); // its arrival swell (owner: "more exciting")
   });
 
   it('a journey is the travel alone: the wash comes a short rest after the landing', () => {

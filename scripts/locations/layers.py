@@ -873,7 +873,7 @@ def terys():
     runes = np.clip(1 - np.abs(r - 166) / 13, 0, 1) * .8
     e = gaussian_filter(np.maximum(disc, runes), 1.5 * S) * (1 - np.clip((yy / H - .53) / .03, 0, 1))
     # The owner's background (2026-11-27, from the maps and the prompt in Locations/background-prompts.md), moved onto the painting.
-    make('p', 'terys', file, terys_specs(), np.zeros((H, W)), wind, e, 'Terys Gate/TerysGateBG.jpg', align=True)
+    make('p', 'terys', file, terys_specs(), np.zeros((H, W)), wind, e, 'Terys Gate/parallax/v2/TerysBG4k.jpg', align=True)
     # The whole painting, sharp, for the post-game screen's backdrop (layer0 is the background with the pieces taken out).
     master.resize((W, H), Image.LANCZOS).save(PUB + 'terys/full.webp', quality=88, method=6)
 

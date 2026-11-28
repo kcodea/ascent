@@ -164,6 +164,9 @@ export const TERYS_GATE: LocationDef = {
   second: [1, 0.82, 0.45],
   warmth: 0.45,
   posters: [],
+  // The frame moves over a still ground (scripts/locations/layers.py `terys_specs`): the posts and urns a little, the tree, the railing
+  // and the pillars more. The gate building is painted into the ground and never moves.
+  row: { depth: 0.12, slope: 0 },
   energy: [[0.595, 0.365]],
   line: '',
   // Measured (loudness.mjs): the ride -10.7 LUFS and the ambience -25.4, brought level with the other places' as heard.

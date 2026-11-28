@@ -218,7 +218,7 @@ export function CollectionPh({ view: v }: { view: CollectionPhView }): JSX.Eleme
                 {v.shown.length === 0 ? (
                   <PhEmpty
                     title={v.show === 'owned' && v.albumCount.owned === 0 ? 'You have none yet' : v.show === 'missing' && v.albumCount.owned === v.albumCount.total ? 'You have them all' : v.show === 'new' && v.rarity === 'all' ? 'Nothing new here' : 'Nothing matches these filters'}
-                    sub={v.show === 'owned' && v.albumCount.owned === 0 ? 'Open a chest to find one.' : v.show === 'new' && v.rarity === 'all' ? 'New items from chests and rewards show up here.' : undefined}
+                    sub={v.show === 'owned' && v.albumCount.owned === 0 ? `Open a ${v.chestsFrozen ? 'pack' : 'chest'} to find one.` : v.show === 'new' && v.rarity === 'all' ? `New items from ${v.chestsFrozen ? 'packs' : 'chests'} and rewards show up here.` : undefined}
                     action={<PhButton variant="plate" size="s" onClick={() => { sfx.pulse(); v.setShow('all'); v.setRarity('all'); }}>Show all</PhButton>}
                   />
                 ) : (
@@ -456,7 +456,7 @@ function Detail({ v, item }: { v: CollectionPhView; item: CosmeticDef }): JSX.El
   // No "For" row: the category already says what an item dresses (owner 2026-11-06).
   if (showDefault && !equipped) facts.push(['In use', frame ? 'Default frame' : plate ? 'Standard plate' : 'Default art']);
   // Every chest cosmetic says where it comes from, owned or not (owner 2026-11-06).
-  if (owned || item.acquisition.type === 'crate') facts.push(['How to get', acquisitionText(item)]);
+  if (owned || item.acquisition.type === 'crate') facts.push(['How to get', acquisitionText(item, !!v.chestsFrozen)]);
   // How many different looks the attack plays, by blow size: Rares have 2, Epics 3, Legendaries and Ancients 4 (heroAttackStyle.ts;
   // owner 2026-11-06).
   if (attack) facts.push(['Attack patterns', String(attackPatternCount(item.rarity))]);

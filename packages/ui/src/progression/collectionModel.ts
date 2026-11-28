@@ -128,10 +128,10 @@ export function filterAlbum(
 }
 
 /** How an item is found, in plain words for the detail panel. */
-export function acquisitionText(c: CosmeticDef): string {
+export function acquisitionText(c: CosmeticDef, packs = false): string {
   // (Titles and skins share the sources; a skin's target is its own line in the detail panel.)
   switch (c.acquisition.type) {
-    case 'crate': return 'Found in chests.';
+    case 'crate': return packs ? 'Found in packs.' : 'Found in chests.';
     case 'level_milestone': return `Reach Level ${c.acquisition.level}.`;
     case 'achievement': return achievementOf(c.acquisition.id)?.requirement ?? 'Earned from an achievement.';
     case 'event': return c.acquisition.id === GIFT_EVENT_ID ? 'A gift. It cannot be earned.' : 'Earned in an event.';
@@ -140,9 +140,9 @@ export function acquisitionText(c: CosmeticDef): string {
 }
 
 /** The short "how to get it" line on a missing item. */
-export function missingHint(c: CosmeticDef): string {
+export function missingHint(c: CosmeticDef, packs = false): string {
   if (c.acquisition.type === 'achievement') return achievementOf(c.acquisition.id)?.requirement ?? 'Not found yet.';
-  return c.acquisition.type === 'level_milestone' ? `Reach Level ${c.acquisition.level} to earn it.` : c.acquisition.type === 'crate' ? 'Open chests to find it.' : 'Not found yet.';
+  return c.acquisition.type === 'level_milestone' ? `Reach Level ${c.acquisition.level} to earn it.` : c.acquisition.type === 'crate' ? (packs ? 'Open packs to find it.' : 'Open chests to find it.') : 'Not found yet.';
 }
 
 /** A hero title's mastery line for the detail panel (owner 2026-09-29; the master look since 2026-10-28), or null for

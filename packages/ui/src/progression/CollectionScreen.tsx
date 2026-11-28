@@ -519,7 +519,7 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
               <div className="colls-gridwrap" onScroll={hover ? clearHover : undefined}>
                 {shown.length === 0 ? (
                   <div className="colls-nomatch">
-                    <div>{show === 'owned' && albumCount.owned === 0 ? 'You have none yet. Open a chest to find one.' : show === 'missing' && albumCount.owned === albumCount.total ? 'You have them all.' : show === 'new' && rarity === 'all' ? 'Nothing new here. New items from chests and rewards show up here.' : 'Nothing matches these filters.'}</div>
+                    <div>{show === 'owned' && albumCount.owned === 0 ? `You have none yet. Open a ${packsOn ? 'pack' : 'chest'} to find one.` : show === 'missing' && albumCount.owned === albumCount.total ? 'You have them all.' : show === 'new' && rarity === 'all' ? `Nothing new here. New items from ${packsOn ? 'packs' : 'chests'} and rewards show up here.` : 'Nothing matches these filters.'}</div>
                     <button type="button" className="colls-quiet pressable quiet" onClick={() => { sfx.pulse(); setShow('all'); setRarity('all'); }}>Show all</button>
                   </div>
                 ) : (
@@ -529,7 +529,7 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
                         <ItemTile
                           id={c.id} name={c.name} rarity={c.rarity} art={c.category === 'portrait_frame' ? frameSrc(c.id) : c.category === 'emote' ? emoteSrc(c.id) : c.category === 'card_plate' ? plateLookOf(c)?.thumb : skinArtOf(c)} ring={c.category === 'portrait_frame' || c.category === 'card_plate'} emote={c.category === 'emote'} target={skinTargetName(c) ?? undefined}
                           owned={owned.has(c.id)} equipped={worn(c)} fresh={fresh(c)} selected={selectedId === c.id} master={hasTitlePlate(c.id)}
-                          how={owned.has(c.id) ? undefined : acquisitionText(c)}
+                          how={owned.has(c.id) ? undefined : acquisitionText(c, packsOn)}
                           onPick={onPick} onHover={c.target?.type === 'card' || c.category === 'card_plate' ? onHover : undefined}
                         />
                       </li>
@@ -647,6 +647,7 @@ function DetailPanel({ item, owned, equipped, busy, error, playerName, reducedMo
   emoteSlots?: readonly (string | null)[];
   onPlaceEmote?: (position: number) => void;
 }): JSX.Element {
+  const packsOn = useProgression(packsVisible);
   const skinArt = skinArtOf(item);
   const art = showDefault ? defaultArtOf(item) ?? skinArt : skinArt;
   const cardSkin = item.target?.type === 'card';
@@ -722,7 +723,7 @@ function DetailPanel({ item, owned, equipped, busy, error, playerName, reducedMo
         {emote && <div className="colls-fact"><span>For</span><b>Your hero. {touchText('Right-click', 'Tap and hold')} your portrait in a game to say it</b></div>}
         {emote && emotePosition >= 0 && <div className="colls-fact"><span>In your menu</span><b>Slot {emotePosition + 1}</b></div>}
         {/* Owned: where it came from. Missing: the hint under the facts already says how to get it (it repeated it). */}
-        {owned && <div className="colls-fact"><span>How to get</span><b>{acquisitionText(item)}</b></div>}
+        {owned && <div className="colls-fact"><span>How to get</span><b>{acquisitionText(item, packsOn)}</b></div>}
         {masteryText(item) && <div className="colls-fact"><span>Mastery</span><b>{masteryText(item)}</b></div>}
       </div>
       {item.category === 'title' && (
@@ -743,7 +744,7 @@ function DetailPanel({ item, owned, equipped, busy, error, playerName, reducedMo
       <div className="colls-detail-actions">
         {emote && <EmoteSlotRow item={item} owned={owned} busy={busy} slots={emoteSlots} onPlace={onPlaceEmote} />}
         {emote && owned ? null : !owned ? (
-          <div className="colls-hint">{missingHint(item)}</div>
+          <div className="colls-hint">{missingHint(item, packsOn)}</div>
         ) : equipped ? (
           <>
             <div className="colls-worn-tag" role="status">Equipped</div>

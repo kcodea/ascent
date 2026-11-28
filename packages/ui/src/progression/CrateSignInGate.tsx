@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useGame } from '../store';
+import { packsVisible, useProgression } from './progressionStore';
 import { sfx } from '../sfx';
 import { Icon } from '../Icon';
 import { remoteEnabled } from '../remoteBoards';
@@ -24,6 +25,7 @@ import './collection.css';
  * Styling reuses the New rewards pop-up's shell (`nrw-*`) so the two read as one family.
  */
 export function CrateSignInGate({ open, onClose }: { open: boolean; onClose: () => void }): JSX.Element | null {
+  const packsOn = useProgression(packsVisible);
   const anonymous = useGame((s) => s.account.anonymous);
   const userId = useGame((s) => s.account.userId);
   const openAccountPanel = useGame((s) => s.openAccountPanel);
@@ -57,18 +59,18 @@ export function CrateSignInGate({ open, onClose }: { open: boolean; onClose: () 
     <div className="nrw-scrim" onPointerDown={notNow}>
       <section className="nrw-panel crgate-panel" role="dialog" aria-modal="true" aria-labelledby="crgate-title" onPointerDown={(e) => e.stopPropagation()}>
         <header className="nrw-head">
-          <span className="nrw-title" id="crgate-title"><Icon name="gift" />{available ? 'Create an account to open chests' : 'Accounts are unavailable'}</span>
+          <span className="nrw-title" id="crgate-title"><Icon name="gift" />{available ? (packsOn ? 'Create an account to open packs' : 'Create an account to open chests') : 'Accounts are unavailable'}</span>
         </header>
         {available ? (
           <div className="crgate-body">
-            <p className="crgate-lead">Your chests, level and collection are saved to your account.</p>
+            <p className="crgate-lead">{packsOn ? 'Your packs, level and collection are saved to your account.' : 'Your chests, level and collection are saved to your account.'}</p>
             <p className="nrw-note">It is free and takes a minute. You only need an email.</p>
-            <p className="crgate-warn">Already have an account? Signing in switches to it. Chests earned as a guest stay on this guest.</p>
+            <p className="crgate-warn">Already have an account? Signing in switches to it. {packsOn ? 'Packs earned as a guest stay on this guest.' : 'Chests earned as a guest stay on this guest.'}</p>
           </div>
         ) : (
           <div className="crgate-body">
-            <p className="crgate-lead">You need an account to open chests, and accounts cannot be reached right now.</p>
-            <p className="nrw-note">Your chests stay sealed. Try again later.</p>
+            <p className="crgate-lead">You need an account to open {packsOn ? 'packs' : 'chests'}, and accounts cannot be reached right now.</p>
+            <p className="nrw-note">{packsOn ? 'Your packs stay unopened. Try again later.' : 'Your chests stay sealed. Try again later.'}</p>
           </div>
         )}
         <footer className="nrw-foot crgate-foot">

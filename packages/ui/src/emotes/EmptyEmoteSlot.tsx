@@ -4,13 +4,17 @@
  * a muted "Empty" and the game's hover bubble pointing at crates. Never clickable. Used by the right-click menu and the
  * Collection's slot row, so both read the same.
  */
+import { packsVisible, useProgression } from '../progression/progressionStore';
+
 export const EMPTY_EMOTE_TIP = 'Empty slot. Find more emotes in chests.';
+export const EMPTY_EMOTE_TIP_PACKS = 'Empty slot. Find more emotes in packs.';
 
 export function EmptyEmoteSlot({ position, role }: { position: number; role?: 'menuitem' }): JSX.Element {
+  const packsOn = useProgression(packsVisible);
   return (
     <span
       className="emote-pick emote-slot-empty gtip"
-      data-tip={EMPTY_EMOTE_TIP}
+      data-tip={packsOn ? EMPTY_EMOTE_TIP_PACKS : EMPTY_EMOTE_TIP}
       role={role}
       aria-disabled={role ? 'true' : undefined}
       aria-label={`Slot ${position + 1} is empty`}

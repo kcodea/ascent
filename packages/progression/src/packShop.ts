@@ -5,12 +5,13 @@
  * the player's hand, and the outcome of a buy. The SERVER decides every price and charges the player; every number the
  * shop shows is a quote, and the helpers here only read a quote, they never decide one.
  *
- * DEPENDENCY-FREE ON PURPOSE, like the other progression files: sibling relative imports only. Not yet a shared
- * artifact (the economy project adds it to `SHARED_ARTIFACTS` once the server answers in this shape).
+ * DEPENDENCY-FREE ON PURPOSE, like the other progression files: sibling relative imports only. A shared artifact
+ * (the Edge Functions import the generated copy), so it also owns the shop window maths the server and the lab share.
  */
 
 import type { CrateRarity } from './cosmetics';
 import type { PackLook } from './packs';
+import { DEFAULT_PACK_ECONOMY, type PackEconomy } from './packEconomy';
 
 /** One pack (or box of packs) standing on a shelf. */
 export interface PackOffer {
@@ -49,9 +50,9 @@ export interface OwnedPack {
  * Pack since his later ruling (owner 2026-11-27: "change the free legendary after 15 purchases to Epic."). Earned rewards wait (`ready`) until
  * the player claims them, one per claim; the count toward the next keeps going meanwhile.
  */
-export const PACK_REWARD_EVERY = 15;
+export const PACK_REWARD_EVERY = DEFAULT_PACK_ECONOMY.rewardEvery;
 /** The reward pack's rarity (owner 2026-11-27, later: "change the free legendary after 15 purchases to Epic."). */
-export const PACK_REWARD_RARITY: CrateRarity = 'epic';
+export const PACK_REWARD_RARITY: CrateRarity = DEFAULT_PACK_ECONOMY.rewardRarity;
 export interface PackRewardState {
   /** Packs purchased toward the next reward: 0 to PACK_REWARD_EVERY - 1. */
   progress: number;
@@ -103,4 +104,49 @@ export function canAfford(offer: PackOffer, aether: number): boolean {
 /** How much Aether is missing to buy the quote; 0 when the balance covers it. */
 export function aetherShort(offer: PackOffer, aether: number): number {
   return Math.max(0, offer.price - aether);
+}
+
+// ── The shop window ─────────────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * THE SHOP REFRESHES every `refreshHours` (6) hours (owner 2026-11-27: "lets change the shop refresh timer from 24 hours
+ * to every 6 hours"), anchored to midnight in `refreshZone` (Eastern): at 12am, 6am, 12pm and 6pm wall-clock time,
+ * daylight saving included (read from the zone, never a fixed offset; a window that spans a clock change is 5 or 7 hours
+ * long). The server computes the same boundary in SQL.
+ */
+const zoneFormats = new Map<string, Intl.DateTimeFormat>();
+function zoneFormat(zone: string): Intl.DateTimeFormat {
+  let f = zoneFormats.get(zone);
+  if (!f) {
+    f = new Intl.DateTimeFormat('en-US', {
+      timeZone: zone, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit',
+    });
+    zoneFormats.set(zone, f);
+  }
+  return f;
+}
+/** The wall-clock fields in `zone` at instant `ms`. */
+function zoneParts(ms: number, zone: string): { y: number; mo: number; d: number; h: number; mi: number; s: number } {
+  const p: Record<string, number> = {};
+  for (const part of zoneFormat(zone).formatToParts(new Date(ms))) if (part.type !== 'literal') p[part.type] = Number(part.value);
+  return { y: p.year!, mo: p.month!, d: p.day!, h: p.hour!, mi: p.minute!, s: p.second! };
+}
+/** How far `zone` is ahead of UTC at instant `ms` (negative: Eastern is behind), in ms. */
+function zoneOffset(ms: number, zone: string): number {
+  const z = zoneParts(ms, zone);
+  return Date.UTC(z.y, z.mo - 1, z.d, z.h, z.mi, z.s) - Math.floor(ms / 1000) * 1000;
+}
+/** The current shop window ("YYYY-MM-DDTHH", Eastern, HH = 00 / 06 / 12 / 18): the free pack and the deals turn over with it. */
+export function shopWindowId(now: Date = new Date(), eco: PackEconomy = DEFAULT_PACK_ECONOMY): string {
+  const z = zoneParts(now.getTime(), eco.refreshZone);
+  const h = Math.floor(z.h / eco.refreshHours) * eco.refreshHours;
+  return `${z.y}-${String(z.mo).padStart(2, '0')}-${String(z.d).padStart(2, '0')}T${String(h).padStart(2, '0')}`;
+}
+/** The instant (ms) the shop next refreshes: the coming 12am / 6am / 12pm / 6pm Eastern. */
+export function nextShopRefresh(now: Date = new Date(), eco: PackEconomy = DEFAULT_PACK_ECONOMY): number {
+  const z = zoneParts(now.getTime(), eco.refreshZone);
+  const next = (Math.floor(z.h / eco.refreshHours) + 1) * eco.refreshHours; // 24 rolls into tomorrow's midnight
+  const wall = Date.UTC(z.y, z.mo - 1, z.d, next, 0, 0); // the boundary, as if the zone were UTC
+  const guess = wall - zoneOffset(now.getTime(), eco.refreshZone);
+  return wall - zoneOffset(guess, eco.refreshZone); // re-read the offset AT the boundary (a DST change may fall in between)
 }

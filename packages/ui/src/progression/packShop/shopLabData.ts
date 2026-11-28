@@ -1,4 +1,4 @@
-import { PACK_REWARD_RARITY, type BuyPackOutcome, type OwnedPack, type PackLook, type PackOffer, type PackShelf } from '@game/progression';
+import { DEFAULT_PACK_ECONOMY, nextShopRefresh, PACK_REWARD_RARITY, shopWindowId, type BuyPackOutcome, type OwnedPack, type PackLook, type PackOffer, type PackShelf } from '@game/progression';
 import { SCRIBBLE_PACK_LOOK_ID, STYLE_PACKS } from '../packOpening/packArt';
 import { PACK_LAB_LOOKS, type LabTimers } from '../packOpening/packLabSamples';
 
@@ -52,45 +52,13 @@ const SHELF_OFFERS: readonly PackOffer[] = PACK_LAB_LOOKS.flatMap((look, i): Pac
 });
 
 /**
- * THE SHOP REFRESHES EVERY 6 HOURS (owner 2026-11-27: "lets change the shop refresh timer from 24 hours to every 6
- * hours"), anchored to MIDNIGHT EASTERN (his earlier "day rolls over at Midnight Eastern Time"): at 12am, 6am, 12pm and
- * 6pm Eastern wall-clock time, daylight saving included (read from the America/New_York zone, never a fixed offset; a
- * window that spans a clock change is 5 or 7 hours long). The server will own the real boundary; the lab computes the
- * same one.
+ * THE SHOP WINDOW now lives in `@game/progression` (`shopWindowId` / `nextShopRefresh`, one copy for the server and the
+ * lab; every 6 hours at 12am / 6am / 12pm / 6pm Eastern, owner 2026-11-27). The lab keeps its old names for them.
  */
-export const SHOP_REFRESH_HOURS = 6;
-export const SHOP_ZONE = 'America/New_York';
-const zoneFmt = new Intl.DateTimeFormat('en-US', {
-  timeZone: SHOP_ZONE, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit',
-});
-/** The wall-clock fields in the shop's zone at instant `ms`. */
-function zoneParts(ms: number): { y: number; mo: number; d: number; h: number; mi: number; s: number } {
-  const p: Record<string, number> = {};
-  for (const part of zoneFmt.formatToParts(new Date(ms))) if (part.type !== 'literal') p[part.type] = Number(part.value);
-  return { y: p.year!, mo: p.month!, d: p.day!, h: p.hour!, mi: p.minute!, s: p.second! };
-}
-/** How far the shop's zone is ahead of UTC at instant `ms` (negative: Eastern is behind), in ms. */
-function zoneOffset(ms: number): number {
-  const z = zoneParts(ms);
-  return Date.UTC(z.y, z.mo - 1, z.d, z.h, z.mi, z.s) - Math.floor(ms / 1000) * 1000;
-}
-/**
- * The current shop window ("YYYY-MM-DDTHH", Eastern, HH = 00 / 06 / 12 / 18): the featured deals rotate when it changes.
- * The free pack and the deals both turn over with it.
- */
-export function labShopDay(now: Date = new Date()): string {
-  const z = zoneParts(now.getTime());
-  const h = Math.floor(z.h / SHOP_REFRESH_HOURS) * SHOP_REFRESH_HOURS;
-  return `${z.y}-${String(z.mo).padStart(2, '0')}-${String(z.d).padStart(2, '0')}T${String(h).padStart(2, '0')}`;
-}
-/** The instant (ms) the shop next refreshes: the coming 12am / 6am / 12pm / 6pm Eastern. */
-export function labNextRefresh(now: Date = new Date()): number {
-  const z = zoneParts(now.getTime());
-  const next = (Math.floor(z.h / SHOP_REFRESH_HOURS) + 1) * SHOP_REFRESH_HOURS; // 24 rolls into tomorrow's midnight
-  const wall = Date.UTC(z.y, z.mo - 1, z.d, next, 0, 0); // the boundary, as if Eastern were UTC
-  const guess = wall - zoneOffset(now.getTime());
-  return wall - zoneOffset(guess); // re-read the offset AT the boundary (a DST change may fall in between)
-}
+export const SHOP_REFRESH_HOURS = DEFAULT_PACK_ECONOMY.refreshHours;
+export const SHOP_ZONE = DEFAULT_PACK_ECONOMY.refreshZone;
+export const labShopDay = shopWindowId;
+export const labNextRefresh = nextShopRefresh;
 
 /** A small seeded generator for the day's picks (the same day always draws the same window). */
 function dayRng(day: string): () => number {

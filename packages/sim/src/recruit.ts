@@ -3259,8 +3259,12 @@ export function grantMinionToHandOrBoard(state: RunState, def: CardDef, golden: 
     keywords: [...def.keywords],
     golden: false,
   };
+  // A SPELL (or a Ruby) is a hand card and NEVER takes a board slot (owner report 2026-11-27: Rune of Dragon Hoard paid two
+  // Dragonflames onto a full hand's board, where they sat in minion slots). With no room in hand it drops, like every full-hand
+  // spell grant, unless the reward may over-cap the hand.
+  const handOnly = !!def.spell || !!def.ruby;
   if (state.hand.length < handCap(state)) state.hand.push(card);
-  else if (state.board.length < CONFIG.boardMax) state.board.push(card); // hand full → onto the board
+  else if (!handOnly && state.board.length < CONFIG.boardMax) state.board.push(card); // hand full → a minion goes onto the board
   else if (overflow) state.hand.push(card); // quest / rune REWARD cards may over-cap the hand (owner ruling — never lose an earned reward)
   else return card; // otherwise the hand is a hard 10-card cap: hand + board both full → drop, never over-capped
   if (golden) gildMinion(card, state);

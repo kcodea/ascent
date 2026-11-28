@@ -60,6 +60,21 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Fixed: a spell granted while your hand was full (for example a Dragonflame from Rune of Dragon Hoard) could land on your board in a minion slot.',
+      },
+      {
+        category: 'Systems',
+        text: 'Press G in a game to open the Guides. Press G again to close them.',
+        details: [
+          'The Guides now look like the in-game Compendium: your guides hang down the right side, and the one you pick fills the page.',
+          'Every guide shows in full: its write-up and its Core and Enablers cards, as big as in the Compendium. No more Simple or Detailed.',
+          'Up and Down switch between guides.',
+          'Esc, the X or a click outside also closes them.',
+          'You can change the key in Settings, under Keybindings.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Nine new sets of minion skins in chests, 330 skins in all: Voxel, Sketchbook, Crayon, Encore, 8 Bit, Low Poly, Sports, Stained Glass and Sci-Fi.',
         details: [
           'Forty skins in each set, twenty in Crayon and thirty in Sports.',

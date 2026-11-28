@@ -1,11 +1,11 @@
-# Skins batches 22 to 29: eight style sets (2026-11-27)
+# Skins batches 22 to 30: nine style sets (2026-11-27)
 
-Two hundred and ninety Set 2 minion skins in eight style sets: Voxel, Sketchbook, Crayon, Encore, 8 Bit, Low Poly, Sports
-and Stained Glass. All are crate items like every other skin. Rarity, owner: "Follow tavern tier". Unlike earlier batches the rarity is not the
+Three hundred and thirty Set 2 minion skins in nine style sets: Voxel, Sketchbook, Crayon, Encore, 8 Bit, Low Poly,
+Sports, Stained Glass and Sci-Fi. All are crate items like every other skin. Rarity, owner: "Follow tavern tier". Unlike earlier batches the rarity is not the
 folder the master sits in: it follows the tavern tier of the minion. Tier 1-2 Common, Tier 3-4 Rare, Tier 5-6 Epic,
 Tier 7 Legendary. Every row below was checked against its card's tier in `@game/content`. The Crayon set joined the PR
-on "Yes, same PR", the Encore, 8 Bit and Low Poly sets on "and yes add all to the same pr", and the Sports and Stained Glass sets followed as
-their art arrived.
+on "Yes, same PR", the Encore, 8 Bit and Low Poly sets on "and yes add all to the same pr", and the Sports, Stained Glass and Sci-Fi sets
+followed as their art arrived.
 
 ## Batch 22, the Voxel set (40: 12 Common, 12 Rare, 12 Epic, 4 Legendary)
 
@@ -355,6 +355,56 @@ Owner: "here is tehe Stained Glass minions for the stained glass pack". Named "S
 | Stained Glass Beggy | Beggy | k_beggy | 1 | Common | Stained Glass Beggy.png |
 | Stained Glass Orivax | Orivax | d2_orivax | 7 | Legendary | Stained Glass Orivax.png |
 
+## Batch 30, the Sci-Fi set (40: 12 Common, 11 Rare, 12 Epic, 5 Legendary)
+
+Owner: "here are the scifi skins pack". Sleek, form-fitting sci-fi armour, mostly darker armour with one glow colour.
+Named "Sci-Fi <minion>", dropping a word to stay within 20 characters. Two names are Claude calls: Warhorn Captain
+became Sci-Fi Warhorn and Right Hand Hank became Sci-Fi Hank (cutting from the front gave "Sci-Fi Captain" and "Sci-Fi Hand
+Hank"). Grevlin & Co. drops its full stop (Sci-Fi Grevlin & Co), as Sketch Grevlin & Co did.
+
+| Skin | Minion | Card id | Tier | Rarity | Master |
+|---|---|---|---|---|---|
+| Sci-Fi Conductor | Conductor | n2_conductor | 3 | Rare | Sci-Fi Conductor.png |
+| Sci-Fi Cheap Date | Cheap Date | k_pouchpincher | 1 | Common | Sci-Fi Cheap Date.png |
+| Sci-Fi Uron | Uron | uron | 7 | Legendary | Sci-Fi Uron.png |
+| Sci-Fi Joker | Mysterious Joker | joker | 6 | Epic | Sci-Fi Joker.png |
+| Sci-Fi Tort | Tort | b2_tort | 5 | Epic | Sci-Fi Tort.png |
+| Sci-Fi Baby Gastrid | Baby Gastrid | dw_dorrin | 4 | Rare | Sci-Fi Baby Gastrid.png |
+| Sci-Fi Scrapper | Scrapper | k_faultline | 2 | Common | Sci-Fi Scrapper.png |
+| Sci-Fi Flamus | Captain Flamus | d2_warflame | 6 | Epic | Sci-Fi Flamus.png |
+| Sci-Fi Thane | Lieutenant Thane | dw_thane | 6 | Epic | Sci-Fi Thane.png |
+| Sci-Fi Void Panther | Void Panther | manasaber | 1 | Common | Sci-Fi Void Panther.png |
+| Sci-Fi Warhorn | Warhorn Captain | dw_ironlung | 2 | Common | Sci-Fi Warhorn.png |
+| Sci-Fi Pimm | Paymaster Pimm | dw_pimm | 1 | Common | Sci-Fi Pimm.png |
+| Sci-Fi Hank | Right Hand Hank | dm_hank | 2 | Common | Sci-Fi Hank.png |
+| Sci-Fi Beardsley | Beardsley | b2_beardsley | 4 | Rare | Sci-Fi Beardsley.png |
+| Sci-Fi Tunneller Rik | Tunneller Rik | k_tunnelcharger | 3 | Rare | Sci-Fi Tunneller Rik.png |
+| Sci-Fi Demon Horse | Demon Horse | dm_hungerling | 3 | Rare | Sci-Fi Demon Horse.png |
+| Sci-Fi Portsmith | Portsmith | k_portsmith | 5 | Epic | Sci-Fi Portsmith.png |
+| Sci-Fi Paragon | Paragon | n2_paragon | 5 | Epic | Sci-Fi Paragon.png |
+| Sci-Fi Beggy | Beggy | k_beggy | 1 | Common | Sci-Fi Beggy.png |
+| Sci-Fi Brisbane | Alchemist Brisbane | k_alchemist | 7 | Legendary | Sci-Fi Brisbane.png |
+| Sci-Fi Leech | Leech | dm_leech | 1 | Common | Sci-Fi Leech.png |
+| Sci-Fi Earthbreaker | Earthbreaker | d2_scalechanter | 3 | Rare | Sci-Fi Earthbreaker.png |
+| Sci-Fi Anvilshade | Anvilshade | dw_anvilshade | 5 | Epic | Sci-Fi Anvilshade.png |
+| Sci-Fi Grevlin & Co | Grevlin & Co. | dm_grevlin | 6 | Epic | Sci-Fi Grevlin & Co.png |
+| Sci-Fi Party Crasher | Party Crasher | k_gemstorm | 6 | Epic | Sci-Fi Party Crasher.png |
+| Sci-Fi Coinfire | Coinfire | dw_coinfire | 3 | Rare | Sci-Fi Coinfire.png |
+| Sci-Fi Malphas | Malphas | dm_malphas | 7 | Legendary | Sci-Fi Malphas.png |
+| Sci-Fi Elderhorn | Elderhorn | b2_elderhorn | 7 | Legendary | Sci-Fi Elderhorn.png |
+| Sci-Fi Flutterbutter | Flutterbutter | d2_flutterdrake | 4 | Rare | Sci-Fi Flutterbutter.png |
+| Sci-Fi Fel Spikes | Fel Spikes | dm_felspikes | 5 | Epic | Sci-Fi Fel Spikes.png |
+| Sci-Fi Assembler | Assembler | k_assembler | 4 | Rare | Sci-Fi Assembler.png |
+| Sci-Fi Shrieker | Shrieker | d2_shrieker | 5 | Epic | Sci-Fi Shrieker.png |
+| Sci-Fi Buddy Buddy | Buddy Buddy | buddy | 2 | Common | Sci-Fi Buddy Buddy.png |
+| Sci-Fi Solaris | Solaris | b2_solaris | 6 | Epic | Sci-Fi Solaris.png |
+| Sci-Fi Mirrorwing | Mirrorwing | d2_mirrorwing | 2 | Common | Sci-Fi Mirrorwing.png |
+| Sci-Fi Arena Heckler | Arena Heckler | arenaheckler | 4 | Rare | Sci-Fi Arena Heckler.png |
+| Sci-Fi Armadiyo | Armadiyo | b2_armadiyo | 3 | Rare | Sci-Fi Armadiyo.png |
+| Sci-Fi Ember Whelp | Ember Whelp | d2_embermouth | 1 | Common | Sci-Fi Ember Whelp.png |
+| Sci-Fi Orivax | Orivax | d2_orivax | 7 | Legendary | Sci-Fi Orivax.png |
+| Sci-Fi T-Rex | T-Rex | b2_trex | 2 | Common | Sci-Fi T-Rex.png |
+
 ## Calls for the owner to confirm
 
 - **Naming.** Voxel skins are "Voxel <minion>", Sketchbook "Sketch <minion>" (Sketchbook Brian, an older skin, keeps its
@@ -365,7 +415,7 @@ Owner: "here is tehe Stained Glass minions for the stained glass pack". Named "S
 - **Names over 20 characters drop a word.** For example Voxel Brisbane, Voxel Flamebeat, Sketch Hank (Right Hand Hank),
   Sketch Voss (Bellringer Voss), Sketch Pimm (Paymaster Pimm), Crayon Brain Billy, Crayon Flamus, Encore Brian (Black
   Belt Brian), Encore Flamebeat, Low Poly Steward (Steward of Spells).
-- **Tavern tier as rarity** is ruled for these eight sets; other batches still follow their master's folder
+- **Tavern tier as rarity** is ruled for these nine sets; other batches still follow their master's folder
   (R-PROG-SKINS-11).
 - Two masters hold an ampersand (`Sketch Grevlin & Co.png`, `Sketch Jensen & Fi.png`); the master-name check in
   `skins.test.ts` now allows `&`.
@@ -373,9 +423,9 @@ Owner: "here is tehe Stained Glass minions for the stained glass pack". Named "S
 
 ## What moved
 
-598 skins in all. A first crate holds 178 Common, 232 Rare, 230 Epic, 148 Legendary and 38 Ancient items (each Common
-0.197%, Rare 0.134%, Epic 0.096%, Legendary 0.061%, Ancient 0.079%). Minion skins are 72.8% of a first crate (was 58.2%).
-The Minions tab holds 554 skins; the Collection total is 876. Rule R-PROG-SKINS-30.
+638 skins in all. A first crate holds 190 Common, 243 Rare, 242 Epic, 153 Legendary and 38 Ancient items (each Common
+0.184%, Rare 0.128%, Epic 0.091%, Legendary 0.059%, Ancient 0.079%). Minion skins are 74% of a first crate (was 58.2%).
+The Minions tab holds 594 skins; the Collection total is 916. Rule R-PROG-SKINS-30.
 
 ## Deploy
 

@@ -17498,18 +17498,19 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-PROG-SKINS-30',
-    title: 'Skins batches 22-29: eight style sets, 290 Set 2 minion skins whose rarity follows the minion\x27s tavern tier',
+    title: 'Skins batches 22-30: nine style sets, 330 Set 2 minion skins whose rarity follows the minion\x27s tavern tier',
     statement:
-      'Eight style sets are crate minion skins, each skin targeting one Set 2 card by stable id and shipping its own 512px '
+      'Nine style sets are crate minion skins, each skin targeting one Set 2 card by stable id and shipping its own 512px '
       + 'WebP in packages/ui/src/art/skins/: Voxel (40, "Voxel <minion>"), Sketchbook (40, "Sketch <minion>"), Crayon (20, '
       + '"Crayon <minion>"), Encore (40, "Encore <minion>"), 8 Bit (40, "8 Bit <minion>"), Low Poly (40, "Low Poly '
       + '<minion>", or "Poly <minion>" when that keeps the full minion name within 20 characters), Sports (30, the sport '
       + 'then the minion, like Golf Midas, each skin a different sport) and Stained Glass (40, "Stained Glass <minion>", or '
-      + '"Glass <minion>" when that keeps the name within 20 characters). Their rarity follows the '
+      + '"Glass <minion>" when that keeps the name within 20 characters) and Sci-Fi (40, "Sci-Fi <minion>"). Their rarity '
+      + 'follows the '
       + 'tavern tier of the minion they dress, not a rarity folder: Tier 1-2 Common, Tier 3-4 Rare, Tier 5-6 Epic, Tier 7 '
-      + 'Legendary. A skin name still over 20 characters drops a word. With them in, a first crate holds 178 Common, 232 '
-      + 'Rare, 230 Epic, 148 Legendary and 38 Ancient items (each Common 0.197%, Rare 0.134%, Epic 0.096%, Legendary '
-      + '0.061%, Ancient 0.079%).',
+      + 'Legendary. A skin name still over 20 characters drops a word. With them in, a first crate holds 190 Common, 243 '
+      + 'Rare, 242 Epic, 153 Legendary and 38 Ancient items (each Common 0.184%, Rare 0.128%, Epic 0.091%, Legendary '
+      + '0.059%, Ancient 0.079%).',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -17522,9 +17523,10 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-27 (skins batches 26-27, the 8 Bit and Low Poly sets)', quote: 'and yes add all to the same pr' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-27 (skins batch 28, the Sports set)', quote: 'here is the sports pack skins' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-27 (skins batch 29, the Stained Glass set)', quote: 'here is tehe Stained Glass minions for the stained glass pack' },
-      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (COSMETICS, skins batches 22 to 29); packages/ui/src/art/skins/ (290 new webps)' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-27 (skins batch 30, the Sci-Fi set)', quote: 'here are the scifi skins pack' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (COSMETICS, skins batches 22 to 30); packages/ui/src/art/skins/ (330 new webps)' },
     ],
-    currentBehaviour: 'Conforms, built 2026-11-27 (feat/skins-voxel-sketchbook, PR #2895): 86 Common, 86 Rare, 80 Epic and 38 Legendary skins, each checked against its card\x27s tier. The tier rule is a ruling for these eight sets; other batches still take the rarity of their master\x27s folder (R-PROG-SKINS-11). Names cut to 20 characters (for example Voxel Brisbane, Sketch Hank, Encore Brian, Encore Flamebeat, Low Poly Steward) are Claude calls for the owner to confirm. The older crayon skins keep their Scribble names. Auric Runemaster gets its first skins. Reaches the database through the catalog sync.',
+    currentBehaviour: 'Conforms, built 2026-11-27 (feat/skins-voxel-sketchbook, PR #2895): 98 Common, 97 Rare, 92 Epic and 43 Legendary skins, each checked against its card\x27s tier. The tier rule is a ruling for these nine sets; other batches still take the rarity of their master\x27s folder (R-PROG-SKINS-11). Names cut to 20 characters (for example Voxel Brisbane, Sketch Hank, Encore Brian, Encore Flamebeat, Low Poly Steward, Sci-Fi Warhorn, Sci-Fi Hank) are Claude calls for the owner to confirm. The older crayon skins keep their Scribble names. Auric Runemaster gets its first skins. Reaches the database through the catalog sync.',
     enforcement: { kind: 'scenario', refs: ['packages/progression/src/skins.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionSkins.test.tsx'], lastVerifiedAt: '2026-11-27' },
   },
 ];

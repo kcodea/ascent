@@ -17,7 +17,7 @@ afterEach(() => setServerCatalogState(null));
 
 const skins = COSMETICS.filter((c) => c.category === 'hero_skin' || c.category === 'minion_skin');
 
-describe('the five hundred and ninety-eight skins', () => {
+describe('the six hundred and thirty-eight skins', () => {
   // 2026-09-28: a third Black Belt Brian (Legendary) joined; owner: "i added a legendary black belt brian skin and
   // renaemd skins to match their rarity" (masters renamed SkinRare / SkinEpic / SkinLegendary; ids unchanged); then
   // "put the bellringer voss skin in too" (an Epic for Bellringer Voss). Then skins batch 2: "i added some skins here:
@@ -40,7 +40,7 @@ describe('the five hundred and ninety-eight skins', () => {
   // Then skins batch 11 (2026-10-26): "i just added a ton of new images to the art folder ... IMPORT them into
   // collections" (22 minion skins at their folder rarity, nearly all Set 2 Beasts: the Plushie line, Frostclaw,
   // Stoneclaw, Pinata Claw, Stormhorn, Snowyhorn, Solar Spots, Voidworks, Cyborg Roomworks).
-  it('four Black Belt Brian minion skins (Rare, Epic, Legendary, Common), Bellringer Voss, batches 2 to 29, and the hero skins; crate items with art keys and attributed masters', () => {
+  it('four Black Belt Brian minion skins (Rare, Epic, Legendary, Common), Bellringer Voss, batches 2 to 30, and the hero skins; crate items with art keys and attributed masters', () => {
     expect(skins.map((c) => [c.id, c.category, c.target, c.rarity])).toEqual([
       ['skin_blackbelt_1', 'minion_skin', { type: 'card', id: 'blackbelt' }, 'common'],
       ['skin_blackbelt_2', 'minion_skin', { type: 'card', id: 'blackbelt' }, 'epic'],
@@ -655,6 +655,47 @@ describe('the five hundred and ninety-eight skins', () => {
       ['skin_runemaster_6', 'minion_skin', { type: 'card', id: 'dw_runemaster' }, 'legendary'],
       ['skin_orivax_9', 'minion_skin', { type: 'card', id: 'd2_orivax' }, 'legendary'],
       ['skin_zyff_3', 'minion_skin', { type: 'card', id: 'zyff' }, 'legendary'],
+      // skins batch 30 (2026-11-27), the Sci-Fi set: "here are the scifi skins pack"
+      ['skin_beggy_6', 'minion_skin', { type: 'card', id: 'k_beggy' }, 'common'],
+      ['skin_buddy_7', 'minion_skin', { type: 'card', id: 'buddy' }, 'common'],
+      ['skin_pouchpincher_10', 'minion_skin', { type: 'card', id: 'k_pouchpincher' }, 'common'],
+      ['skin_embermouth_6', 'minion_skin', { type: 'card', id: 'd2_embermouth' }, 'common'],
+      ['skin_hank_4', 'minion_skin', { type: 'card', id: 'dm_hank' }, 'common'],
+      ['skin_leech_5', 'minion_skin', { type: 'card', id: 'dm_leech' }, 'common'],
+      ['skin_mirrorwing_6', 'minion_skin', { type: 'card', id: 'd2_mirrorwing' }, 'common'],
+      ['skin_pimm_7', 'minion_skin', { type: 'card', id: 'dw_pimm' }, 'common'],
+      ['skin_faultline_3', 'minion_skin', { type: 'card', id: 'k_faultline' }, 'common'],
+      ['skin_trex_4', 'minion_skin', { type: 'card', id: 'b2_trex' }, 'common'],
+      ['skin_manasaber_6', 'minion_skin', { type: 'card', id: 'manasaber' }, 'common'],
+      ['skin_ironlung_4', 'minion_skin', { type: 'card', id: 'dw_ironlung' }, 'common'],
+      ['skin_arenaheckler_4', 'minion_skin', { type: 'card', id: 'arenaheckler' }, 'rare'],
+      ['skin_armadiyo_4', 'minion_skin', { type: 'card', id: 'b2_armadiyo' }, 'rare'],
+      ['skin_assembler_3', 'minion_skin', { type: 'card', id: 'k_assembler' }, 'rare'],
+      ['skin_dorrin_4', 'minion_skin', { type: 'card', id: 'dw_dorrin' }, 'rare'],
+      ['skin_beardsley_3', 'minion_skin', { type: 'card', id: 'b2_beardsley' }, 'rare'],
+      ['skin_coinfire_5', 'minion_skin', { type: 'card', id: 'dw_coinfire' }, 'rare'],
+      ['skin_conductor_5', 'minion_skin', { type: 'card', id: 'n2_conductor' }, 'rare'],
+      ['skin_hungerling_5', 'minion_skin', { type: 'card', id: 'dm_hungerling' }, 'rare'],
+      ['skin_scalechanter_6', 'minion_skin', { type: 'card', id: 'd2_scalechanter' }, 'rare'],
+      ['skin_flutterdrake_3', 'minion_skin', { type: 'card', id: 'd2_flutterdrake' }, 'rare'],
+      ['skin_tunnelcharger_4', 'minion_skin', { type: 'card', id: 'k_tunnelcharger' }, 'rare'],
+      ['skin_anvilshade_3', 'minion_skin', { type: 'card', id: 'dw_anvilshade' }, 'epic'],
+      ['skin_felspikes_5', 'minion_skin', { type: 'card', id: 'dm_felspikes' }, 'epic'],
+      ['skin_warflame_7', 'minion_skin', { type: 'card', id: 'd2_warflame' }, 'epic'],
+      ['skin_grevlin_4', 'minion_skin', { type: 'card', id: 'dm_grevlin' }, 'epic'],
+      ['skin_joker_6', 'minion_skin', { type: 'card', id: 'joker' }, 'epic'],
+      ['skin_paragon_2', 'minion_skin', { type: 'card', id: 'n2_paragon' }, 'epic'],
+      ['skin_gemstorm_6', 'minion_skin', { type: 'card', id: 'k_gemstorm' }, 'epic'],
+      ['skin_portsmith_3', 'minion_skin', { type: 'card', id: 'k_portsmith' }, 'epic'],
+      ['skin_shrieker_4', 'minion_skin', { type: 'card', id: 'd2_shrieker' }, 'epic'],
+      ['skin_solaris_4', 'minion_skin', { type: 'card', id: 'b2_solaris' }, 'epic'],
+      ['skin_thane_4', 'minion_skin', { type: 'card', id: 'dw_thane' }, 'epic'],
+      ['skin_tort_3', 'minion_skin', { type: 'card', id: 'b2_tort' }, 'epic'],
+      ['skin_alchemist_10', 'minion_skin', { type: 'card', id: 'k_alchemist' }, 'legendary'],
+      ['skin_elderhorn_8', 'minion_skin', { type: 'card', id: 'b2_elderhorn' }, 'legendary'],
+      ['skin_malphas_7', 'minion_skin', { type: 'card', id: 'dm_malphas' }, 'legendary'],
+      ['skin_orivax_10', 'minion_skin', { type: 'card', id: 'd2_orivax' }, 'legendary'],
+      ['skin_uron_3', 'minion_skin', { type: 'card', id: 'uron' }, 'legendary'],
       // skins batch 20 (2026-11-12): "added some priestess skins in our skins folder"
       ['skin_priestess_1', 'hero_skin', { type: 'hero', id: 'priestess' }, 'rare'],
       ['skin_priestess_2', 'hero_skin', { type: 'hero', id: 'priestess' }, 'epic'],
@@ -678,7 +719,7 @@ describe('the five hundred and ninety-eight skins', () => {
     expect(skinsForTarget('minion_skin', 'b2_echohorn').map((c) => c.id)).toEqual(['skin_echohorn_1', 'skin_echohorn_2', 'skin_echohorn_3', 'skin_echohorn_4', 'skin_echohorn_5']); // batch 11; 8 Bit Echohorn batch 18
     expect(skinsForTarget('minion_skin', 'b2_oona').map((c) => c.id)).toEqual(['skin_oona_1', 'skin_oona_2', 'skin_oona_3']); // batch 11
     expect(skinsForTarget('minion_skin', 'drummer').map((c) => c.id)).toEqual(['skin_drummer_1', 'skin_drummer_2', 'skin_drummer_3', 'skin_drummer_4']);
-    expect(skinsForTarget('minion_skin', 'buddy').map((c) => c.id)).toEqual(['skin_buddy_1', 'skin_buddy_2', 'skin_buddy_3', 'skin_buddy_4', 'skin_buddy_5', 'skin_buddy_6']);
+    expect(skinsForTarget('minion_skin', 'buddy').map((c) => c.id)).toEqual(['skin_buddy_1', 'skin_buddy_2', 'skin_buddy_3', 'skin_buddy_4', 'skin_buddy_5', 'skin_buddy_6', 'skin_buddy_7']);
     expect(skinsForTarget('minion_skin', 'd2_recaller').map((c) => c.id)).toEqual(['skin_recaller_1', 'skin_recaller_2', 'skin_recaller_3', 'skin_recaller_4']);
     expect(skinsForTarget('minion_skin', 'nimbus').map((c) => c.id)).toEqual(['skin_nimbus_1', 'skin_nimbus_2', 'skin_nimbus_3', 'skin_nimbus_4', 'skin_nimbus_5', 'skin_nimbus_6']);
     expect(skinsForTarget('minion_skin', 'd2_chronicler').map((c) => c.id)).toEqual(['skin_chronicler_1', 'skin_chronicler_2', 'skin_chronicler_3', 'skin_chronicler_4', 'skin_chronicler_5']);

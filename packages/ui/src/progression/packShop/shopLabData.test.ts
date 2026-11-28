@@ -72,10 +72,10 @@ describe('makeLabBuy', () => {
     await new Promise((r) => setTimeout(r, 20));
     expect(settled).toBe(false);
   });
-  it('the reward pack is a Legendary Rarity Pack, and only paid packs count toward it', () => {
+  it('the reward pack is an Epic Rarity Pack, and only paid packs count toward it', () => {
     const p = labRewardPack();
     expect(p.look.kind).toBe('rarity');
-    expect(p.look.guaranteedFloor).toBe('legendary');
+    expect(p.look.guaranteedFloor).toBe('epic');
     const paid = SHOP_LAB_OFFERS.find((o) => o.price > 0)!;
     expect(labRewardCount(paid, 3)).toBe(3);
     expect(labRewardCount({ ...paid, price: 0 }, 1)).toBe(0);

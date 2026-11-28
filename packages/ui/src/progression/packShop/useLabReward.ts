@@ -1,9 +1,9 @@
 import { useCallback, useRef, useState } from 'react';
-import { PACK_REWARD_EVERY, packRewardAfter, type ClaimRewardOutcome, type OwnedPack, type PackRewardState } from '@game/progression';
+import { PACK_REWARD_EVERY, PACK_REWARD_RARITY, packRewardAfter, type ClaimRewardOutcome, type OwnedPack, type PackRewardState } from '@game/progression';
 import { labRewardPack, type LabState } from './shopLabData';
 
 /**
- * THE LAB'S PACK REWARD (dev only): the count toward the free Legendary Pack and its claim, answered the way the server
+ * THE LAB'S PACK REWARD (dev only): the count toward the free reward pack (an Epic Pack) and its claim, answered the way the server
  * will (one reward per claim, never two for the same request id). It starts a few purchases short, so a session sees the
  * reward come up without buying fifteen packs first.
  */
@@ -29,5 +29,5 @@ export function useLabReward(stateRef: { readonly current: LabState }, setState:
     return { status: 'ok', packs };
   }, [setReward, setState, stateRef]);
   const reset = useCallback((): void => { claimed.current.clear(); setReward(LAB_REWARD_START); }, [setReward]);
-  return { reward: { rarity: 'legendary' as const, every: PACK_REWARD_EVERY, ...reward }, count, claim, reset };
+  return { reward: { rarity: PACK_REWARD_RARITY, every: PACK_REWARD_EVERY, ...reward }, count, claim, reset };
 }

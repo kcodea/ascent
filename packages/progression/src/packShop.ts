@@ -9,6 +9,7 @@
  * artifact (the economy project adds it to `SHARED_ARTIFACTS` once the server answers in this shape).
  */
 
+import type { CrateRarity } from './cosmetics';
 import type { PackLook } from './packs';
 
 /** One pack (or box of packs) standing on a shelf. */
@@ -44,10 +45,13 @@ export interface OwnedPack {
 
 /**
  * THE PACK REWARD (owner 2026-11-27: "Every 15 packs purchased gives the player one free Legendary Rarity Pack. it should glow and say 'Click to receive your reward' and when the player clicks it, it sparks and a legendary pack is sent to their counter. if it cant fit, send to their backpack"). Every `PACK_REWARD_EVERY` packs PURCHASED (a box counts each pack in it; a free pack is not
- * a purchase, and neither is the reward itself) earns one free Legendary Rarity Pack. Earned rewards wait (`ready`) until
+ * a purchase, and neither is the reward itself) earns one free Rarity Pack of `PACK_REWARD_RARITY`, an Epic
+ * Pack since his later ruling (owner 2026-11-27: "change the free legendary after 15 purchases to Epic."). Earned rewards wait (`ready`) until
  * the player claims them, one per claim; the count toward the next keeps going meanwhile.
  */
 export const PACK_REWARD_EVERY = 15;
+/** The reward pack's rarity (owner 2026-11-27, later: "change the free legendary after 15 purchases to Epic."). */
+export const PACK_REWARD_RARITY: CrateRarity = 'epic';
 export interface PackRewardState {
   /** Packs purchased toward the next reward: 0 to PACK_REWARD_EVERY - 1. */
   progress: number;

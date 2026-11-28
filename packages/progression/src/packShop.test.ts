@@ -38,7 +38,11 @@ describe('owning every cosmetic a pack can give', () => {
   });
 });
 
-describe('the pack reward (owner 2026-11-27: every 15 packs purchased gives one free Legendary Rarity Pack)', () => {
+describe('the pack reward (owner 2026-11-27: every 15 packs purchased gives one free Rarity Pack, Epic since his later ruling)', () => {
+  it('is an Epic pack ("change the free legendary after 15 purchases to Epic")', async () => {
+    const { PACK_REWARD_RARITY } = await import('./packShop');
+    expect(PACK_REWARD_RARITY).toBe('epic');
+  });
   it('counts purchases, earns one per 15, carries the remainder, and stacks unclaimed rewards', async () => {
     const { PACK_REWARD_EVERY, packRewardAfter } = await import('./packShop');
     expect(PACK_REWARD_EVERY).toBe(15);

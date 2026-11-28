@@ -306,3 +306,14 @@ pack price for ITS OWN rarity, whatever pack it came from: Common 20, Rare 35, E
 Aether. (Known and accepted: a near-complete collector gets about 225 Aether back per 100-Aether Common pack; it matters
 only if Aether ever buys something other than packs.) Economy-project behaviour; the lab's sample opens pay it
 (`DUPLICATE_AETHER` in `packOpening/packLabSamples.ts`).
+
+**Chests, match payouts, level rewards and the purchase reward (owner 2026-11-27).** "i dont think chests can be
+converted to packs, we will give players a lump sum of aether to offset any chests they didnt open. we will keep aether
+payouts the same fo rmatches, players should get a Legendary card pack whenever they level up 5 times (intead of the
+chest). so level 5, 10, 15, and so on. change the free legendary after 15 purchases to Epic."
+- Unopened chests are NOT converted to packs: their owners get a lump sum of Aether instead (the amount is not set yet).
+- Match Aether payouts stay as they are.
+- Every 5 account levels (5, 10, 15, ...) gives a free Legendary pack, replacing today's milestone chest (an Epic crate
+  every 10 levels). Economy-project behaviour.
+- The reward for every 15 packs purchased is a free EPIC pack, no longer Legendary (`PACK_REWARD_RARITY` in
+  `packages/progression/src/packShop.ts`; built in the shop's reward gauge).

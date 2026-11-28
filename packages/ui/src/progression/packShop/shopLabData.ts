@@ -1,4 +1,4 @@
-import type { BuyPackOutcome, OwnedPack, PackLook, PackOffer, PackShelf } from '@game/progression';
+import { PACK_REWARD_RARITY, type BuyPackOutcome, type OwnedPack, type PackLook, type PackOffer, type PackShelf } from '@game/progression';
 import { SCRIBBLE_PACK_LOOK_ID, STYLE_PACKS } from '../packOpening/packArt';
 import { PACK_LAB_LOOKS, type LabTimers } from '../packOpening/packLabSamples';
 
@@ -201,8 +201,8 @@ export function labHand(n: number): OwnedPack[] {
   return Array.from({ length: count }, (_, i) => ({ packId: mintLabPackId(), look: PACK_LAB_LOOKS[i % PACK_LAB_LOOKS.length]! }));
 }
 
-/** The pack reward's pack: a Legendary Rarity Pack (owner 2026-11-27: "Every 15 packs purchased gives the player one free Legendary Rarity Pack. it should glow and say 'Click to receive your reward' and when the player clicks it, it sparks and a legendary pack is sent to their counter. if it cant fit, send to their backpack"). */
-const REWARD_LOOK: PackLook = PACK_LAB_LOOKS.find((l) => l.kind === 'rarity' && l.guaranteedFloor === 'legendary')!;
+/** The pack reward's pack: the Rarity Pack of `PACK_REWARD_RARITY`, an Epic Pack (owner 2026-11-27, later: "change the free legendary after 15 purchases to Epic."). First (owner 2026-11-27: "Every 15 packs purchased gives the player one free Legendary Rarity Pack. it should glow and say 'Click to receive your reward' and when the player clicks it, it sparks and a legendary pack is sent to their counter. if it cant fit, send to their backpack"). */
+const REWARD_LOOK: PackLook = PACK_LAB_LOOKS.find((l) => l.kind === 'rarity' && l.guaranteedFloor === PACK_REWARD_RARITY)!;
 export const labRewardPack = (): OwnedPack => ({ packId: mintLabPackId(), look: REWARD_LOOK });
 /** Packs an offer's purchase counts toward the reward: every pack it gives, unless it was free. */
 export const labRewardCount = (offer: PackOffer | undefined, packs: number): number => (offer && offer.price > 0 ? packs : 0);

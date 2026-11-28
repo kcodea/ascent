@@ -276,3 +276,5 @@ Rule: `PACK_REWARD_EVERY = 15` / `packRewardAfter` in `packages/progression/src/
 purchase counts (a box counts each pack); free packs and the reward itself do not. Unclaimed rewards stack (`ready`) and
 are claimed one per click. With no room on the counter the pack waits beside it with the other packs waiting for space
 (our reading of "backpack": there is no separate backpack yet). The real server must own the count and the claim.
+**The reward is now an EPIC pack** (owner 2026-11-27, later: "change the free legendary after 15 purchases to Epic"):
+`PACK_REWARD_RARITY` in the same file.

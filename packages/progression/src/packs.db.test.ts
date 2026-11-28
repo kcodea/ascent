@@ -25,9 +25,18 @@ import { counterHasRoom, lookKey, nextShopRefresh, shopWindowId, windowOffers, t
  */
 const root = join(__dirname, '../../..');
 const read = (f: string): string => readFileSync(join(root, 'supabase/migrations', f), 'utf8');
-const FILES = ['2026-09-27-account-progression.sql', '2026-09-28-progression-crates.sql', '2026-09-28-progression-skins.sql', '2026-09-28-achievements.sql', '2026-09-29-crate-fixed-rarity-odds.sql', '2026-09-29-crate-uniform-within-rarity.sql', '2026-09-29-gauntlet-progress.sql', '2026-10-02-ancient-rarity.sql', '2026-10-03-placement-xp.sql', '2026-10-13-versus.sql', '2026-10-14-versus-shop-start.sql', '2026-10-14-versus-scout.sql', '2026-10-14-versus-ready-pause.sql', '2026-10-14-versus-progression.sql'];
+const FILES = [
+  '2026-09-27-account-progression.sql', '2026-09-28-progression-crates.sql', '2026-09-28-progression-skins.sql', '2026-09-28-achievements.sql',
+  '2026-09-29-crate-fixed-rarity-odds.sql', '2026-09-29-crate-uniform-within-rarity.sql', '2026-09-29-gauntlet-progress.sql', '2026-10-02-ancient-rarity.sql',
+  '2026-10-03-placement-xp.sql', '2026-10-13-versus.sql', '2026-10-14-versus-shop-start.sql', '2026-10-14-versus-scout.sql', '2026-10-14-versus-ready-pause.sql',
+  '2026-10-14-versus-progression.sql', '2026-10-15-versus-hero-reroll.sql', '2026-10-16-versus-clock-grace.sql', '2026-10-17-versus-open-rooms.sql',
+];
 const STARTER_CHECK = ((t: string): string => t.slice(0, t.indexOf('-- ── 2. equip_cosmetic')))(read('2026-10-13-emotes.sql'));
-const AETHER = read('2026-10-18-aether.sql');
+/** After the starter check: Aether and the chain through the newest settle_progression (2026-10-25-versus-duos-xp.sql),
+ *  which the packs file replaces (its tables must exist for the replacement to compile). */
+const LATER = ['2026-10-18-aether.sql', '2026-10-19-aether-launch-grant.sql', '2026-10-20-milestone-chests-epic.sql', '2026-10-20-announcers-not-focusable.sql',
+  '2026-10-15-lobby-live.sql', '2026-10-15-lobby-live-watcher-identity.sql', '2026-10-24-versus-group.sql', '2026-10-24-versus-spectator-xp.sql',
+  '2026-10-25-versus-duos.sql', '2026-10-25-versus-duos-xp.sql'];
 const SECRET = read('2026-11-03-secret-plushie-plate.sql');
 const PACKS = read('2026-12-01-packs.sql');
 
@@ -162,7 +171,7 @@ beforeAll(async () => {
   await db.exec(STUB);
   for (const f of FILES) { await db.exec(read(f)); await db.exec(API_GRANTS); }
   await db.exec(STARTER_CHECK);
-  await db.exec(AETHER);
+  for (const f of LATER) { await db.exec(read(f)); await db.exec(API_GRANTS); }
   await db.exec(SECRET);
   await db.exec(PACKS);
   await db.exec(API_GRANTS);

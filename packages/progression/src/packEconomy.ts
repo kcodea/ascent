@@ -62,6 +62,24 @@ export const DEFAULT_PACK_ECONOMY: Readonly<PackEconomy> = Object.freeze({
 
 /** The launch gift: Aether granted to launch-day accounts only (owner 2026-11-27). */
 export const PACK_LAUNCH_GRANT = 3000;
+/**
+ * THE LEVEL PACKS (spec section 10; owner 2026-11-27, "Only after launch"): the levels that grant a `levelPackRarity`
+ * pack, every multiple of `levelPackEvery` ABOVE `baseline` (the account's launch level; 0 for an account made after the
+ * launch) and at or below `level`, ascending. Mirror of the settlement's `level:<L>` grant. `levelPacksBetween(37, 41)`
+ * is `[40]`: an account at Level 37 (or exactly 35) on launch day gets its first pack at 40.
+ */
+export function levelPacksBetween(baseline: number, level: number, eco: PackEconomy = DEFAULT_PACK_ECONOMY): number[] {
+  const every = eco.levelPackEvery;
+  const out: number[] = [];
+  if (!Number.isInteger(every) || every < 1) return out;
+  for (let l = (Math.floor(Math.max(0, baseline) / every) + 1) * every; l <= level; l += every) out.push(l);
+  return out;
+}
+
+/** How many Welcome packs an account's enrolling settlement makes (9 at the owner's values). */
+export const welcomePackCount = (eco: PackEconomy = DEFAULT_PACK_ECONOMY): number =>
+  COSMETIC_RARITIES.reduce((s, r) => s + eco.welcomePacks[r], 0);
+
 /** The version of the roll the server runs (bumped when the roll's rules change). */
 export const PACK_ROLL_VERSION = 1;
 

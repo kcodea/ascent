@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { handleSubmitProgression, resetAchievementSyncForTests, settlementParity, validateSubmitBody, type RpcCall } from './server';
 import { levelOfXp, parseProgressionResult, xpForSettlement } from './rules';
+import { levelPacksBetween } from './packEconomy';
 
 /**
  * The `submit-progression` Edge Function's logic with a MOCKED database (no live Supabase, no Deno): input
@@ -215,5 +216,37 @@ describe('settlementParity with Aether on (2026-10-18)', () => {
     const afterXp = xpReaching(21);
     const off = okResult({ before: { lifetimeXp: afterXp - 160, level: levelOfXp(afterXp - 160) }, after: { lifetimeXp: afterXp, level: 21 }, unlockedTitles: [], cratesAwarded: 0, crateIds: [] });
     expect(settlementParity(parseProgressionResult(off)!)).toBe(false);
+  });
+});
+
+describe('settlementParity with packs on (2026-12-01)', () => {
+  // With packs on a settlement makes the nine Welcome packs (when it enrolled the account) and a Level pack per
+  // multiple of 5 up to the level reached, and never a crate. The cap counts from launch level 0 (the result carries no
+  // launch level): at most levelPacksBetween(0, level) + 9.
+  const xpReaching = (level: number): number => { let xp = 0; while (levelOfXp(xp) < level) xp += 5; return xp; };
+  const ids = (n: number): string[] => Array.from({ length: n }, (_, i) => `p-${i}`);
+  const packResult = (level: number, packs: number, over: Record<string, unknown> = {}) => {
+    const afterXp = xpReaching(level);
+    return parseProgressionResult(okResult({
+      before: { lifetimeXp: afterXp - 160, level: levelOfXp(afterXp - 160) }, after: { lifetimeXp: afterXp, level: levelOfXp(afterXp) },
+      unlockedTitles: [], cratesAwarded: 0, crateIds: [], packsAwarded: packs, packIds: ids(packs),
+      aether: { base: 50, placement: 45, total: 95 }, aetherBalance: 95, ...over,
+    }))!;
+  };
+
+  it('holds at the cap: Level 21 = four Level packs (5, 10, 15, 20) plus the nine Welcome packs', () => {
+    expect(levelPacksBetween(0, 21)).toEqual([5, 10, 15, 20]);
+    expect(settlementParity(packResult(21, 13))).toBe(true);
+    expect(settlementParity(packResult(21, 1))).toBe(true);
+    expect(settlementParity(packResult(21, 0))).toBe(true);
+  });
+  it('fails with more packs than levelPacksBetween(0, level) + 9', () => {
+    expect(settlementParity(packResult(21, 14))).toBe(false);
+    expect(settlementParity(packResult(4, 10))).toBe(false);
+    expect(settlementParity(packResult(4, 9))).toBe(true);
+  });
+  it('fails when the ids do not match the count, or when a settlement made packs AND crates', () => {
+    expect(settlementParity(packResult(21, 2, { packIds: ids(3) }))).toBe(false);
+    expect(settlementParity(packResult(21, 2, { cratesAwarded: 1, crateIds: ['c-1'] }))).toBe(false);
   });
 });

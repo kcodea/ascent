@@ -91,7 +91,7 @@
   position: fixed;
   z-index: var(--tut-z-panel);
   pointer-events: auto; /* the panel itself is interactive (Why, Next) */
-  cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; /* keep the game cursor over the panel body */
+  cursor: var(--cursor-default), auto; /* keep the game cursor over the panel body */
   box-sizing: border-box;
   width: max-content;
   max-width: min(calc(320px * var(--tut-scale)), calc(var(--lvw, 100vw) - 24px));
@@ -205,7 +205,7 @@ body.dragging .tut-coach-panel { pointer-events: none; }
   background: none;
   border: none;
   padding: 0;
-  cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
+  cursor: var(--cursor-open), pointer;
   font-family: var(--font-ui, 'Outfit'), sans-serif;
   font-weight: 700;
   font-size: calc(12px * var(--tut-scale));
@@ -239,7 +239,7 @@ body.dragging .tut-coach-panel { pointer-events: none; }
   border: 1.5px solid color-mix(in srgb, var(--tut-gold) 70%, #000);
   background: linear-gradient(180deg, var(--tut-gold-lt), var(--tut-gold));
   color: #1a1006;
-  cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
+  cursor: var(--cursor-open), pointer;
 }
 .tut-coach-next:hover {
   filter: brightness(1.06);
@@ -270,7 +270,7 @@ body.dragging .tut-coach-panel { pointer-events: none; }
   /* An element with `backdrop-filter` breaks inherited `url()` cursors on itself + descendants (Chromium), so
      re-declare the game's custom cursor here — the same reason `.inspect-ov` does. Without it the mouse cursor
      disappears / falls back to the OS arrow over this whole panel. */
-  cursor: url('/cursors/gauntlet_default.svg') 6 2, auto;
+  cursor: var(--cursor-default), auto;
 }
 @keyframes tut-fl-in { from { opacity: 0; } to { opacity: 1; } }
 .tut-fl-card {
@@ -302,7 +302,7 @@ body.dragging .tut-coach-panel { pointer-events: none; }
   gap: 2px;
   padding: 13px 18px;
   border-radius: 12px;
-  cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
+  cursor: var(--cursor-open), pointer;
   transition: transform 0.12s ease, filter 0.12s ease;
 }
 .tut-fl-primary:hover, .tut-fl-secondary:hover { transform: translateY(-2px); filter: brightness(1.08); }

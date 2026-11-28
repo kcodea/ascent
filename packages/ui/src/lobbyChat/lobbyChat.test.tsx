@@ -341,7 +341,7 @@ describe('lobby chat quality of life (R-LOBBY-CHAT-02)', () => {
     expect(css).toMatch(/\.dm-bubble \{[^}]*line-height: 1\.35/);
     expect(rule('.dm-bubble.solo .dm-emote')).toMatch(/height: 2\.88em/);
     const lc = readFileSync(join(__dirname, 'lobbyChat.css'), 'utf8');
-    for (const c of lc.matchAll(/cursor: ([^;]+);/g)) expect(c[1]).toMatch(/^url\('\/cursors\//);
+    for (const c of lc.matchAll(/cursor: ([^;]+);/g)) expect(c[1]).toMatch(/^var\(--cursor-(default|open|closed)\)/);
     expect(lc).not.toMatch(/infinite/);
   });
 });

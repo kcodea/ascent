@@ -216,7 +216,7 @@ describe('R-SPECTATE-CURSOR-02: the spectator HUD never swaps the OS cursor in',
     for (const f of files) {
       const src = readFileSync(join(__dirname, f), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
       // CSS `cursor: <keyword>` without the gauntlet url(), or a React `cursor:` style
-      expect(src, f).not.toMatch(/cursor\s*:\s*(?!url\()[a-z-]+/);
+      expect(src, f).not.toMatch(/cursor\s*:\s*(?!url\(|var\(--cursor-)[a-z-]+/);
     }
   });
 });

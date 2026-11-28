@@ -14,10 +14,10 @@ const versus = readFileSync(join(__dirname, 'versus.css'), 'utf8');
 
 describe('R-CURSOR-ROOT-01: the gauntlet cursor on the page root', () => {
   it('html carries the default gauntlet, so the bare page never shows the OS arrow', () => {
-    expect(styles).toContain("html { cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }");
+    expect(styles).toContain("html { cursor: var(--cursor-default), auto; }");
   });
   it('while the teammate swap transition runs, html shows the open gauntlet (the portrait under the hand)', () => {
-    expect(versus).toContain("html.duos-vt { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }");
+    expect(versus).toContain("html.duos-vt { cursor: var(--cursor-open), pointer; }");
   });
   it('the swap toggles exactly that class on the document element', () => {
     const src = readFileSync(join(__dirname, 'teammateView.tsx'), 'utf8');

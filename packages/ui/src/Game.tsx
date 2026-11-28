@@ -4,6 +4,7 @@ import './uiTheme.css'; // the shared colour tokens (--ui-*) for tooltips + HUD 
 import { keyCaptureActive, useKeyLabel } from './keybinds/keybinds';
 import { hoverSoundsOn } from './audio/hoverSounds';
 import { FpsCounter } from './FpsCounter';
+import { ReactiveCursor } from './reactiveCursor/ReactiveCursorDriver';
 import './tooltips.css';
 import './touchUi.css'; // THE TOUCH UI: every rule keyed off html[data-touch-ui] (touch devices only, R-TOUCH-UISCALE-01)
 import './phoneMenus.css'; // THE PHONE MENUS: each menu page laid out for a phone (html[data-touch-small][data-page-scale], R-PHONE-MENUS-03)
@@ -739,6 +740,7 @@ export function Game() {
       {/* Frame-health HUD. Ships in production but stays dormant unless opted into (?perf=1 /
           localStorage / the dev menu) — a slowness report is only trustworthy against the prod build. */}
       {perfOn && <PerfHud onClose={() => { setPerfFlag(false); setPerfOn(false); }} />}
+      <ReactiveCursor />{/* Settings > Reactive Cursor: re-skins the cursor to the board's main tribe; nothing while off */}
       <FpsCounter />{/* Settings > Video > Show FPS counter: nothing while off */}
       {/* DEV-ONLY (owner 2026-08-24): the Balance Report reads dev/session telemetry and must not ship in the
           exe or itch repacks, which are production `build:web` bundles where `import.meta.env.DEV` is false. */}

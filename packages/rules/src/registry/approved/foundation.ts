@@ -17496,4 +17496,27 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'Skip a fight, open Summary, press Watch replay by accident: the diamond glows gold again, one click races the fight to its deciding hit and you are back on the recap.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/skipTurboReplay.test.tsx'], lastVerifiedAt: '2026-11-27' },
   },
+  {
+    id: 'R-CURSOR-REACTIVE-01',
+    title: 'Reactive Cursor: your cursor wears the tribe you have the most of on your board; a tie goes to the leftmost',
+    statement:
+      'A Settings switch, "Reactive Cursor" (off by default, saved on the device), makes your own cursor take the look of '
+      + 'the tribe you have the most of on your board, in all three of its states (resting, over something clickable, '
+      + 'dragging). A minion counts toward each of its tribes, a spell-added tribe included; an All-types minion counts '
+      + 'toward every tribe; Neutral never counts. On a tie, the tied tribe whose minion sits furthest left wins; a minion '
+      + 'holding several tied tribes decides by its printed order, and an All-types minion decides nothing (the next minion '
+      + 'to its right does). An empty or all-Neutral board, a tribe with no cursor art yet, the menus, the end of a game, '
+      + 'replays, spectating and watching a live game all show the normal gauntlet. Only your own cursor changes; nobody '
+      + 'else sees it. Every cursor in the game reads one of three shared settings, so the swap reaches every element.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Mike, 2026-11-27', quote: 'lets make it a toggle-able setting called "Reactive Cursor" where the cursor automatically changes to the theme of whatever tribe you have the most of on your board' },
+      { kind: 'owner-chat', ref: 'Mike, 2026-11-27', quote: 'A tie is broken by whichever of the tied tribes unit is furthest left on the board' },
+      { kind: 'code', ref: 'feat/reactive-cursor: packages/ui/src/reactiveCursor/reactiveCursor.ts (dominantTribe, applyTribeCursor); ReactiveCursor.tsx; styles.css :root --cursor-default/open/closed' },
+    ],
+    currentBehaviour: 'PARTIAL since 2026-11-27 (feat/reactive-cursor): the pick, the settings and the one-source cursor variables ship, but no tribe has art yet (TRIBES_WITH_CURSOR_ART is empty), so the switch is hidden and every cursor is the gauntlet. Each tribe goes live when its three SVGs land and it is listed. The All-types and multi-tribe tie details and the gauntlet outside your own game are engineering calls the owner approved in the design.',
+    example: 'Your board, left to right: a Dwarf, a Beast, a Dragon, a Beast, a Dragon. Beasts and Dragons tie at two; the Beast is further left, so your cursor is the paw.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/reactiveCursor/reactiveCursor.test.ts'], lastVerifiedAt: '2026-11-27' },
+  },
 ];

@@ -48,8 +48,9 @@ sets the default, and one rule gives `.card, .btn, button, [role="button"]` the 
 **never put a bare `cursor: pointer` (or any plain keyword cursor) on an interactive element** — a class
 selector out-specifies the global `button` rule and swaps the game cursor back to the OS arrow, which reads as
 the cursor "breaking" on that control (owner report 2026-08-24, hit on the Patch Notes ✕). Let the global rule
-paint it, or, when an element genuinely needs its own cursor, use the gauntlet URL form
-(`cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer`). Check any new button/overlay for this before
+paint it, or, when an element genuinely needs its own cursor, use the shared cursor variable
+(`cursor: var(--cursor-open), pointer` — or `--cursor-default` / `--cursor-closed`; never a raw cursor `url()`, which
+would escape the Reactive Cursor setting, R-CURSOR-REACTIVE-01). Check any new button/overlay for this before
 shipping.
 
 **HUD controls take the pointer only through their drawn shape** (R-HIT-SHAPE-01): a board/HUD control whose art is not

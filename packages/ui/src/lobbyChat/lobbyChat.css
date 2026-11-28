@@ -48,7 +48,7 @@ html[data-phone-layout] .dmchat-at.lchat-at.phone { min-width: 180px; height: ca
 
 .lchat-head { flex: none; display: flex; align-items: center; gap: 8px; padding: 7px 8px 7px 12px; border-bottom: 1px solid rgba(196, 160, 92, 0.25); }
 /* MOVE: the header is the handle (the open gauntlet; the closed hand while moving, dm.css). */
-.lchat-at:not(.phone) .lchat-head { cursor: url('/cursors/gauntlet_open.svg') 6 2, move; touch-action: none; }
+.lchat-at:not(.phone) .lchat-head { cursor: var(--cursor-open), move; touch-action: none; }
 .lchat-title { font-family: var(--font-ui); font-weight: 900; font-size: 13px; letter-spacing: 0.04em; text-transform: uppercase; color: #f0d089; }
 .lchat-unmute { font-size: 11.5px; font-weight: 700; font-family: var(--font-ui); }
 .lchat-tools { margin-left: auto; flex: none; display: flex; align-items: center; gap: 6px; }

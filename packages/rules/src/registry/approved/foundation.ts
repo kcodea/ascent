@@ -2327,10 +2327,14 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'crates a settlement awarded are queued for that account (they survive a reload) and shown once, as a New rewards pop-up the '
       + 'next time the Collection opens: achievements with their XP and a link to see them all in the Career, titles, and crates '
       + 'with Open and Open all through the Collection\x27s own crate opener. Closing it in any way marks them seen, and a reward '
-      + 'is never shown twice. While rewards wait, every Collection entry point wears an orange NEW pill.',
+      + 'is never shown twice. While rewards wait, every Collection entry point wears an orange NEW pill. With packs on, the '
+      + 'packs a settlement gave are queued the same way (once by id, they survive a reload) and listed as earned packs with '
+      + 'a link to the Pack Shop, where they are opened; a chest in the pop-up is listed with no Open, beside the frozen-chests '
+      + 'line (R-PROG-CRATE-02).',
     domain: 'foundation',
     status: 'approved',
     evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-27 (the pack economy spec, docs/superpowers/specs/2026-11-27-pack-economy-design.md: chest wording now means packs, section 15)', quote: 'Approved' },
       { kind: 'owner-chat', ref: 'Match details review, 2026-09-28', quote: 'can you have the unlocks, achievements, and crates be a pop up when the player gets back to the collection?' },
       { kind: 'owner-chat', ref: 'Match details review, 2026-09-28', quote: 'just highlight the collection\x27s text in orange or have a "new" pill or something on it so players go there?' },
       { kind: 'code', ref: 'packages/ui/src/progression/newRewards.ts (queue, localStorage per account, the never-twice set); packages/ui/src/progression/NewRewardsPopup.tsx; progressionStore.ts applyProgressionOutcome; ProgressionPostgame.tsx; Title.tsx, MenuSidebar.tsx, AccountLevel.tsx (the NEW pill)' },
@@ -2338,8 +2342,11 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour:
       'Conforms as of 2026-09-28. The queue is local (localStorage, per account id), filled when a settlement answer is '
       + 'confirmed, so rewards earned on another device show there, not here. A queued crate already opened elsewhere drops out of '
-      + 'the pop-up; a pop-up left with nothing never opens. The guest save prompt stays on the end screen.',
-    enforcement: { kind: 'scenario', refs: ['packages/ui/src/progression/newRewards.test.tsx', 'packages/ui/src/progression/Crates.test.tsx', 'packages/ui/src/progression/ProgressionPostgame.test.tsx'], lastVerifiedAt: '2026-09-28' },
+      + 'the pop-up; a pop-up left with nothing never opens. The guest save prompt stays on the end screen. AMENDED 2026-11-28 '
+      + '(the pack economy, feat/pack-economy-client): earned packs queue by id (newRewards.test.tsx); with packs on the pop-up '
+      + 'lists them as "Pack earned" linking to the Pack Shop and a chest with no Open, and with packs off an earned pack is '
+      + 'never listed and a chest keeps its Open (CollectionScreen.test.tsx).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/progression/newRewards.test.tsx', 'packages/ui/src/progression/Crates.test.tsx', 'packages/ui/src/progression/ProgressionPostgame.test.tsx', 'packages/ui/src/progression/CollectionScreen.test.tsx'], lastVerifiedAt: '2026-11-28' },
   },
   {
     id: 'R-PROG-CRATE-01',
@@ -2372,7 +2379,11 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'rarity with nothing left never fails the open: it falls to the nearest rarity with something left. '
       + 'The player never receives an item they already own (unique ownership is the final guard), and a second open of '
       + 'the same crate returns the committed reward. When nothing eligible remains the crate stays sealed and the answer is '
-      + '"pool_exhausted"; it is never converted into currency or anything else. Earn only: no keys, purchases or rerolls.',
+      + '"pool_exhausted"; it is never converted into currency or anything else. Earn only: no keys, purchases or rerolls. '
+      + 'This rule is about CHESTS. With packs on (owner 2026-11-27) a sealed chest cannot be opened: it is frozen, kept sealed '
+      + 'and shown with no Open until a later exchange, and an open answers chests_frozen with nothing rolled or charged; an '
+      + 'opened chest still answers its committed reward. Chests are not converted into packs. Packs are a different item: '
+      + 'their cards may duplicate and a duplicate pays Aether (R-PROG-PACK-02, R-PROG-PACK-03).',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -2380,9 +2391,13 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-handoff', ref: 'C:/Users/kevin/.codex/visualizations/2026/09/10/01a08bcd-7027-7c60-a951-4c941ed57d4a/ascent-account-progression-achievements-claude-handoff.md §2', quote: 'A player can never receive a cosmetic they already own.' },
       { kind: 'owner-handoff', ref: 'C:/Users/kevin/.codex/visualizations/2026/09/10/01a08bcd-7027-7c60-a951-4c941ed57d4a/ascent-account-progression-achievements-claude-handoff.md §5.4', quote: 'Do not roll a rarity first and fail when that rarity is exhausted.' },
       { kind: 'code', ref: 'open_crate + progression_crate_pool in supabase/migrations/2026-09-28-progression-crates.sql, replaced by supabase/migrations/2026-09-29-crate-fixed-rarity-odds.sql; pickCrateReward / eligibleCrateCosmetics in packages/progression/src/cosmetics.ts; packages/ui/src/progression/CrateOpener.tsx' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-27 (old chests; recorded in docs/superpowers/specs/2026-11-25-pack-shop-design.md)', quote: 'i dont think chests can be converted to packs, we will give players a lump sum of aether to offset any chests they didnt open.' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-27 (asked whether players can still open the chests they hold; spec docs/superpowers/specs/2026-11-27-pack-economy-design.md section 3)', quote: 'Freeze them' },
+      { kind: 'fix-pr', ref: 'PR #2903 — supabase/migrations/2026-12-01-packs.sql (open_crate raises chests_frozen with packs on)' },
+      { kind: 'code', ref: 'packages/ui/src/progression/collectionModel.ts (FROZEN_CHESTS_NOTE); packages/ui/src/progression/CollectionScreen.tsx, NewRewardsPopup.tsx and ph/CollectionPh.tsx (the frozen bay with no Open)' },
     ],
-    currentBehaviour: 'Conforms, built 2026-09-28; the roll itself changed 2026-09-29 (R-PROG-CRATE-03).',
-    enforcement: { kind: 'scenario', refs: ['packages/progression/src/crates.db.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/progression/src/sqlParity.test.ts', 'packages/progression/src/inventory.test.ts', 'packages/ui/src/progression/Crates.test.tsx'], lastVerifiedAt: '2026-09-28' },
+    currentBehaviour: 'Conforms, built 2026-09-28; the roll itself changed 2026-09-29 (R-PROG-CRATE-03). AMENDED 2026-11-28 for the pack economy (PR #2903 and feat/pack-economy-client): with packs on open_crate answers chests_frozen for a sealed chest and already_opened for an opened one (packGrants.db.test.ts), and the Collection bay, the party home bay and the New rewards pop-up list sealed chests with no Open and the "exchanged later" line (CollectionScreen.test.tsx, CollectionPh.test.tsx). The lump-sum exchange is not built; its amount is the owner\x27s to set.',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/crates.db.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/progression/src/sqlParity.test.ts', 'packages/progression/src/inventory.test.ts', 'packages/ui/src/progression/Crates.test.tsx', 'packages/progression/src/packGrants.db.test.ts', 'packages/ui/src/progression/CollectionScreen.test.tsx', 'packages/ui/src/progression/ph/CollectionPh.test.tsx'], lastVerifiedAt: '2026-11-28' },
   },
   {
     id: 'R-PROG-CRATE-03',
@@ -2401,18 +2416,21 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'else is unchanged: no duplicates, the per-user lock, already_opened, the admin_off kill switch. Opened crates '
       + 'record roll_version 4 (3 before the Ancient rarity). The odds live once in TS (CRATE_RARITY_ODDS) and once in SQL (progression_crate_pick), '
       + 'and a parity test fails on any drift. The lower-rarity tie-break is the builder\x27s call (the owner did not '
-      + 'specify it), flagged for review.',
+      + 'specify it), flagged for review. This roll is a CHEST\x27s. With packs on no chest is opened (R-PROG-CRATE-02) and '
+      + 'the frozen bay prints no odds; a pack rolls by R-PROG-PACK-02, and only a Rarity pack\x27s tag shows odds '
+      + '(R-PROG-PACK-12).',
     domain: 'foundation',
     status: 'approved',
     evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-27 (odds shown on packs; spec docs/superpowers/specs/2026-11-27-pack-economy-design.md section 3)', quote: 'pack odds can show on the rarity packs. the other packs dont need it. o nthe pack tag' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (crate odds, option C chosen)', quote: 'go to C' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (crate odds, the numbers)', quote: 'make it 50/30/15/5 though' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (crate odds, each item within a rarity equally likely?)', quote: 'yeah equal chance' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (the Ancient rarity)', quote: 'these will be a 3% drop rate' },
       { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (CRATE_RARITY_ODDS, CRATE_ROLL_VERSION, rollCrateRarity, crateRarityFallback, pickCrateReward, crateChances, crateOddsLine); supabase/migrations/2026-09-29-crate-fixed-rarity-odds.sql (progression_crate_pool) and 2026-10-02-ancient-rarity.sql (progression_crate_pick, open_crate; the 2026-09-29 equal-chance shape with five rarities); packages/ui/src/progression/CollectionScreen.tsx (CrateBay odds line)' },
     ],
-    currentBehaviour: 'Conforms, built 2026-09-29; five rarities at 35/31/22/9/3 since 2026-10-02. Live once the owner runs 2026-10-02-ancient-rarity.sql and deploys progression-inventory.',
-    enforcement: { kind: 'scenario', refs: ['packages/progression/src/cosmetics.test.ts', 'packages/progression/src/sqlParity.test.ts', 'packages/progression/src/crateOdds.db.test.ts', 'packages/ui/src/progression/CollectionScreen.test.tsx'], lastVerifiedAt: '2026-10-02' },
+    currentBehaviour: 'Conforms, built 2026-09-29; five rarities at 35/31/22/9/3 since 2026-10-02. Live once the owner runs 2026-10-02-ancient-rarity.sql and deploys progression-inventory. SCOPED to chests 2026-11-28 (the pack economy, feat/pack-economy-client): with packs on the Collection bay shows no odds (CollectionScreen.test.tsx).',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/cosmetics.test.ts', 'packages/progression/src/sqlParity.test.ts', 'packages/progression/src/crateOdds.db.test.ts', 'packages/ui/src/progression/CollectionScreen.test.tsx'], lastVerifiedAt: '2026-11-28' },
   },
   {
     id: 'R-PROG-CATALOG-01',
@@ -2472,15 +2490,18 @@ export const FOUNDATION_RULES: GameRule[] = [
       + '(gold, the longest build, the heaviest burst, god rays and a sting). A failed answer winds down to "Could not open '
       + 'the crate. Try again." A click or a key skips to the reveal (pressed before the answer, the reveal lands the moment '
       + 'it arrives); reduced motion shows a short fade instead. Presentation only: the server still picks the reward at open '
-      + 'time (R-PROG-CRATE-02).',
+      + 'time (R-PROG-CRATE-02). With packs on, the bay still lists the sealed chests a player holds but offers no Open or Open '
+      + 'all, only the line that they will be exchanged later (shown only when a chest is held), the Collection has no Chest '
+      + 'Shop button, and packs are opened from the Pack Shop counter, one at a time.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-27 (asked whether players can still open the chests they hold; spec docs/superpowers/specs/2026-11-27-pack-economy-design.md section 3)', quote: 'Freeze them' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (Collection screen + crate opening brief)', quote: 'make the collection screen separate and build a AAA animation for crate opening, with pixi and everything. put a tuner in for it to test it' },
       { kind: 'code', ref: 'packages/ui/src/progression/CollectionScreen.tsx; packages/ui/src/progression/CrateOpener.tsx (the theatre + flow); packages/ui/src/progression/crateFx/crateFxConfig.ts (presetFor / crateBeats); packages/ui/src/progression/crateFx/crateScene.ts + crateFxPixi.ts (the Pixi layer); showCollection / openCollection / goTo(collection) in packages/ui/src/store.ts' },
     ],
-    currentBehaviour: 'Conforms, built 2026-09-28. The crate is drawn procedurally until the crate art from the owner drops in through the `crateArt` tuner key.',
-    enforcement: { kind: 'scenario', refs: ['packages/ui/src/progression/Crates.test.tsx', 'packages/ui/src/progression/crateFx/crateFx.test.ts', 'packages/ui/src/Career.test.tsx'], lastVerifiedAt: '2026-09-28' },
+    currentBehaviour: 'Conforms, built 2026-09-28. The crate is drawn procedurally until the crate art from the owner drops in through the `crateArt` tuner key. AMENDED 2026-11-28 (the pack economy, feat/pack-economy-client): with packs on the frozen bay, the missing Chest Shop button (CollectionScreen.test.tsx) and one pack at a time from the counter (PackShop.test.tsx: no "Open next").',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/progression/Crates.test.tsx', 'packages/ui/src/progression/crateFx/crateFx.test.ts', 'packages/ui/src/Career.test.tsx', 'packages/ui/src/progression/CollectionScreen.test.tsx', 'packages/ui/src/progression/packShop/PackShop.test.tsx'], lastVerifiedAt: '2026-11-28' },
   },
   {
     id: 'R-PROG-COLLECTION-02',
@@ -4348,15 +4369,17 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'reload. The gate warns that signing into an EXISTING account switches to it and leaves the guest\x27s crates behind, '
       + 'and the account panel says the same at the moment that happens. With no account backend the gate says accounts '
       + 'are unavailable instead of opening a panel that cannot work. Dev tuners and the crate FX preview (practice crates, '
-      + 'never the server) are not gated.',
+      + 'never the server) are not gated. With packs on no chest has an Open at all, for anyone (frozen, R-PROG-CRATE-02), '
+      + 'and the same guest rule covers packs: a guest never buys, opens or claims one (R-PROG-PACK-10).',
     domain: 'foundation',
     status: 'approved',
     evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-27 (asked whether players can still open the chests they hold; spec docs/superpowers/specs/2026-11-27-pack-economy-design.md section 3)', quote: 'Freeze them' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (crate sign-in gate)', quote: 'ask players not signed in to sign in when they try to open a crate? we\x27d like players to create sign ins for account progression' },
       { kind: 'code', ref: 'packages/ui/src/progression/CrateSignInGate.tsx; CollectionScreen.tsx begin() (the one crate-open path) + CrateBay guest hint; packages/ui/src/AccountPanel.tsx (existing-account warning); remoteBoards.ts signInWithEmail `existing`' },
     ],
-    currentBehaviour: 'Conforms, built 2026-09-29 (the owner picked a hard gate over a soft nudge). Client-side gate: the server does not yet refuse an anonymous open.',
-    enforcement: { kind: 'scenario', refs: ['packages/ui/src/progression/CollectionScreen.test.tsx', 'packages/ui/src/progression/Crates.test.tsx', 'packages/ui/src/AccountPanel.test.tsx'], lastVerifiedAt: '2026-09-29' },
+    currentBehaviour: 'Conforms, built 2026-09-29 (the owner picked a hard gate over a soft nudge). Client-side gate: the server does not yet refuse an anonymous chest open. AMENDED 2026-11-28 for the pack economy (feat/pack-economy-client): with packs on the bay and the New rewards pop-up offer no Open or Open all (CollectionScreen.test.tsx, CollectionPh.test.tsx); the server does refuse a guest\x27s pack opening (R-PROG-PACK-10).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/progression/CollectionScreen.test.tsx', 'packages/ui/src/progression/Crates.test.tsx', 'packages/ui/src/AccountPanel.test.tsx', 'packages/ui/src/progression/ph/CollectionPh.test.tsx'], lastVerifiedAt: '2026-11-28' },
   },
   // ── The normal game's loss cap (owner ask 2026-10-02) ───────────────────────────────────────────────
   {
@@ -5308,7 +5331,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     title: 'A God Mode practice game never persists anything',
     statement:
       'A God Mode game counts for nothing and keeps nothing: it is never saved and never offered as Continue, earns no '
-      + 'XP and no crate, is never uploaded as a Practice game and records no replay. Starting one leaves the player\'s '
+      + 'XP, no crate, no pack and no Aether, is never uploaded as a Practice game and records no replay. Starting one leaves the player\'s '
       + 'real saved game untouched, and leaving it puts that saved game back behind Continue (or no Continue when there '
       + 'was none). Even if a God Mode game ends, it never clears the real save.',
     domain: 'foundation',
@@ -5321,7 +5344,9 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour:
       'Conforms, built 2026-10-08. A God Mode run is a `sandbox` run (packages/sim/src/godMode.ts, packages/ui/src/store.ts): '
       + 'the save slot, Continue and the real save on disk are pinned by the store test. PARTIAL pin: no XP, crate, '
-      + 'upload or replay rides the pre-existing `sandbox` write barrier, which these tests do not re-check.',
+      + 'upload or replay rides the pre-existing `sandbox` write barrier, which these tests do not re-check. Amended '
+      + '2026-11-28 (the pack economy): "no crate" reads "no crate, no pack and no Aether"; packs and Aether are granted only '
+      + 'by a settlement, which the same barrier keeps a God Mode game from reaching, and no test re-checks that either.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/godModeStore.test.ts', 'packages/ui/src/gameMenu.test.tsx'], lastVerifiedAt: '2026-10-08' },
   },
   {
@@ -8192,8 +8217,10 @@ export const FOUNDATION_RULES: GameRule[] = [
     id: 'R-PROG-AETHER-01',
     title: 'Aether is earned by playing, never bought: Ranked pays a base plus a placement bonus, Versus pays for the match, Gauntlet pays a first clear, Practice and Tutorial pay nothing',
     statement:
-      'Aether is a currency an account earns by playing; it is never sold for real money. Apart from the one-time launch gift of '
-      + 'R-PROG-AETHER-05 (1,000 Aether for every account), an account starts with 0 and playing is the only way to earn more. '
+      'Aether is a currency an account earns by playing; it is never sold for real money. Apart from the one-time launch gifts '
+      + '(1,000 Aether for every account when Aether launched, R-PROG-AETHER-05, and 3,000 Aether for every account that exists '
+      + 'when packs launch, R-PROG-PACK-09), an account starts with 0 and playing is the only way to earn more. Aether is spent '
+      + 'in the Shop: with packs on, in the Pack Shop (R-PROG-PACK-01); before that, in the Chest Shop. '
       + 'A placed, accepted Ranked game pays 50 Aether win or lose, plus a bonus by final place: 1st 140, 2nd 80, 3rd 45, 4th 35, '
       + '5th 25, 6th 15, 7th 10, 8th 0. A game with no valid placement pays 0. A completed Versus match pays 25, plus 45 more to '
       + 'the winner (an abandoned match with no winner pays 25). Practice and Tutorial pay 0, and there is no comeback bonus. '
@@ -8208,13 +8235,16 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Owner, 2026-10-18 (Aether + Crate Shop brainstorm; spec docs/superpowers/specs/2026-10-18-aether-crate-shop-design.md)', quote: 'make first place a 140 bonus and second 80' },
       { kind: 'owner-chat', ref: 'Owner, 2026-10-18 (Aether + Crate Shop brainstorm; spec docs/superpowers/specs/2026-10-18-aether-crate-shop-design.md)', quote: 'yeah they can earn aether' },
       { kind: 'code', ref: 'supabase/migrations/2026-10-18-aether.sql (aether_config, aether_apply, settle_progression, record_gauntlet_clear); packages/progression/src/aether.ts (DEFAULT_AETHER_ECONOMY, aetherForSettlement)' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-27 (the pack economy: match payouts; recorded in docs/superpowers/specs/2026-11-25-pack-shop-design.md)', quote: 'we will keep aether payouts the same fo rmatches' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-27 (the 3,000 Aether pack launch gift; spec docs/superpowers/specs/2026-11-27-pack-economy-design.md section 3)', quote: 'give all accounts 3k Aether when we release the new shop announcement' },
+      { kind: 'fix-pr', ref: 'PR #2903 — supabase/migrations/2026-12-01-packs.sql (pack_rollout: the 3,000 Aether launch gift; buy_pack spends Aether on packs)' },
     ],
-    currentBehaviour: 'Conforms as of 2026-10-18 (feat/aether-engine), behind progression_config.aether_enabled (off until the owner runs aether_rollout).',
-    enforcement: { kind: 'scenario', refs: ['packages/progression/src/aether.db.test.ts', 'packages/progression/src/aether.test.ts', 'packages/progression/src/crateShop.test.ts'], lastVerifiedAt: '2026-10-18' },
+    currentBehaviour: 'Conforms as of 2026-10-18 (feat/aether-engine), behind progression_config.aether_enabled (off until the owner runs aether_rollout). Amended 2026-11-28 (the pack economy, PRs #2902 to #2904 and feat/pack-economy-client): the payouts are unchanged; with packs on Aether is spent in the Pack Shop, and pack_rollout pays the 3,000 Aether launch gift (R-PROG-PACK-09).',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/aether.db.test.ts', 'packages/progression/src/aether.test.ts', 'packages/progression/src/crateShop.test.ts', 'packages/progression/src/packGrants.db.test.ts'], lastVerifiedAt: '2026-11-28' },
   },
   {
     id: 'R-PROG-AETHER-02',
-    title: 'The Chest Shop sells five crates with a rarity floor each; the odds inside a crate are the standard odds restricted to the floor and above, never below it',
+    title: 'The Chest Shop sells five crates with a rarity floor each; the odds inside a crate are the standard odds restricted to the floor and above, never below it (RETIRED with packs on, 2026-11-27: R-PROG-PACK-01)',
     statement:
       'The shop sells five crates, each guaranteeing a minimum rarity: Standard (floor Common) 100 Aether, Rare (floor Rare) 200, '
       + 'Epic (floor Epic) 400, Legendary (floor Legendary) 600, Ancient (floor Ancient) 900. A crate\x27s reward is drawn with the '
@@ -8223,7 +8253,9 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'still at or above the floor; it never drops below it. A Standard crate with no focus rolls exactly as the old crates did. '
       + 'The price shown is the price charged: a purchase names the price the player saw and is refused if the server\x27s price '
       + 'differs, and a repeated purchase request is charged once. Guests earn Aether but cannot spend it: every spend path asks '
-      + 'them to sign in. Crates already earned and sealed before Aether launched still open as before.',
+      + 'them to sign in. Crates already earned and sealed before Aether launched still open as before. RETIRED once packs are '
+      + 'on: the Pack Shop replaces the Chest Shop (R-PROG-PACK-01), a crate purchase is refused as shop_retired and charges '
+      + 'nothing, sealed chests are frozen (R-PROG-CRATE-02), and guests are covered by R-PROG-PACK-10.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -8232,13 +8264,16 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Owner, 2026-10-18 (Aether + Crate Shop brainstorm; spec docs/superpowers/specs/2026-10-18-aether-crate-shop-design.md)', quote: 'lets do 6x and 9x for leg and ancient' },
       { kind: 'owner-chat', ref: 'Owner, 2026-10-18 (Aether + Crate Shop brainstorm; spec docs/superpowers/specs/2026-10-18-aether-crate-shop-design.md)', quote: 'can we make standard crates 100 aether instead?' },
       { kind: 'code', ref: 'supabase/migrations/2026-10-18-aether.sql (progression_tiered_crate_pick, buy_crate, open_crate); packages/progression/src/crateShop.ts (CRATE_TIER_FLOOR, pickTieredCrateReward, tierOddsPercent); packages/progression/src/aether.ts (DEFAULT_AETHER_ECONOMY.cratePrice)' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-27 (the pack economy spec, docs/superpowers/specs/2026-11-27-pack-economy-design.md: packs REPLACE the Chest Shop, section 3; this rule retired, section 15)', quote: 'Approved' },
+      { kind: 'fix-pr', ref: 'PR #2903 — supabase/migrations/2026-12-01-packs.sql (buy_crate answers shop_retired and aether_quote null with packs on)' },
+      { kind: 'code', ref: 'packages/ui/src/progression/packShop/PackShopEntry.tsx (the Shop tab opens the Pack Shop with packs on); packages/ui/src/progression/CollectionScreen.tsx (no Chest Shop button with packs on)' },
     ],
-    currentBehaviour: 'Conforms as of 2026-10-18 (feat/aether-engine), behind progression_config.aether_enabled (off until the owner runs aether_rollout). The guest half is CLIENT-SIDE: as of 2026-10-19 (feat/aether-shop-ui) the Chest Shop picker sends a guest\x27s Buy, and a milestone crate\x27s Open (focused or not), to CrateSignInGate (`onGuest`) and never to the store (CrateShop.test.tsx pins it); a guest\x27s Buy stays enabled at the price whatever their balance, so even a guest with 0 Aether reaches the gate (only a sold-out crate disables it). The Collection screen wires `onGuest` to its CrateSignInGate, and a guest\x27s bay Open on a milestone crate is the gate, never the focus step (CollectionScreen.test.tsx pins both). The server still accepts a spend from any signed-in session, guests included (the SQL does not distinguish guests). "Charged once" on the client (2026-10-19, final review): a purchase whose answer never came (a timeout, a network error, a 5xx, an unparseable answer) may have landed, so the Chest Shop keeps its request id for the same tier, focus and total and a retry sends the SAME id (a landed purchase answers already_opened and its reveal plays); a definite answer (success or a 4xx refusal) or a change of picks drops it, and the store re-reads the balance and the crates after such a failure (CrateShop.test.tsx and progressionStore.test.ts pin it).',
-    enforcement: { kind: 'scenario', refs: ['packages/progression/src/aether.db.test.ts', 'packages/progression/src/crateShop.test.ts', 'packages/ui/src/progression/CrateShop.test.tsx', 'packages/ui/src/progression/CollectionScreen.test.tsx', 'packages/ui/src/progression/progressionStore.test.ts'], lastVerifiedAt: '2026-10-19' },
+    currentBehaviour: 'RETIRED once packs are on (progression_config.packs_enabled, flipped by pack_rollout; the pack economy, 2026-12-01, PRs #2902 to #2904 and feat/pack-economy-client): buy_crate answers shop_retired and aether_quote null (packGrants.db.test.ts), the Shop tab opens the Pack Shop (PackShopEntry.test.tsx) and the Collection has no Chest Shop button (CollectionScreen.test.tsx). With packs off everything below still holds. Conforms as of 2026-10-18 (feat/aether-engine), behind progression_config.aether_enabled (off until the owner runs aether_rollout). The guest half is CLIENT-SIDE: as of 2026-10-19 (feat/aether-shop-ui) the Chest Shop picker sends a guest\x27s Buy, and a milestone crate\x27s Open (focused or not), to CrateSignInGate (`onGuest`) and never to the store (CrateShop.test.tsx pins it); a guest\x27s Buy stays enabled at the price whatever their balance, so even a guest with 0 Aether reaches the gate (only a sold-out crate disables it). The Collection screen wires `onGuest` to its CrateSignInGate, and a guest\x27s bay Open on a milestone crate is the gate, never the focus step (CollectionScreen.test.tsx pins both). The server still accepts a spend from any signed-in session, guests included (the SQL does not distinguish guests). "Charged once" on the client (2026-10-19, final review): a purchase whose answer never came (a timeout, a network error, a 5xx, an unparseable answer) may have landed, so the Chest Shop keeps its request id for the same tier, focus and total and a retry sends the SAME id (a landed purchase answers already_opened and its reveal plays); a definite answer (success or a 4xx refusal) or a change of picks drops it, and the store re-reads the balance and the crates after such a failure (CrateShop.test.tsx and progressionStore.test.ts pin it).',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/aether.db.test.ts', 'packages/progression/src/crateShop.test.ts', 'packages/ui/src/progression/CrateShop.test.tsx', 'packages/ui/src/progression/CollectionScreen.test.tsx', 'packages/ui/src/progression/progressionStore.test.ts', 'packages/progression/src/packGrants.db.test.ts', 'packages/ui/src/progression/packShop/PackShopEntry.test.tsx'], lastVerifiedAt: '2026-11-28' },
   },
   {
     id: 'R-PROG-AETHER-03',
-    title: 'Focusing a crate costs a share of its price that falls as more categories are ticked; only focusable categories still available count; all available is free; a sold-out focus cannot be bought',
+    title: 'Focusing a crate costs a share of its price that falls as more categories are ticked; only focusable categories still available count; all available is free; a sold-out focus cannot be bought (RETIRED with packs on, 2026-11-27: Focus is removed)',
     statement:
       'A crate can be focused on one or more cosmetic categories for an extra fee that is a percentage of the crate\x27s price, set by '
       + 'how many categories are ticked: 1 category 100%, 2 60%, 3 40%, 4 25%, 5 15%, 6 10%, 7 5%, and 8 or more (but not every '
@@ -8247,23 +8282,28 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'crate (at or above its floor, not already owned) count as available, both for the fee and for the choice; a category with '
       + 'nothing left cannot be ticked. Ticking every available '
       + 'category is the same as no focus and costs nothing. A focus with nothing left to give (all ticked categories sold out) '
-      + 'cannot be bought. The fee is added to the crate price in one charge. A focus that is not a list of known categories is refused.',
+      + 'cannot be bought. The fee is added to the crate price in one charge. A focus that is not a list of known categories is refused. '
+      + 'RETIRED once packs are on: Focus is removed, no crate can be bought (R-PROG-AETHER-02), and a Category or style pack is how '
+      + 'a player aims at a kind of cosmetic (R-PROG-PACK-01).',
     domain: 'foundation',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Owner, 2026-10-18 (Aether + Crate Shop brainstorm; spec docs/superpowers/specs/2026-10-18-aether-crate-shop-design.md)', quote: 'focusing shouldnt be added cost per extra category, as adding more categories actually sort of removes your odds of getting precisely what you want' },
       { kind: 'owner-chat', ref: 'Owner, 2026-10-18 (Aether + Crate Shop brainstorm; spec docs/superpowers/specs/2026-10-18-aether-crate-shop-design.md)', quote: 'i want to go in a slightly different direction where you purchase a crate of various rarity floors, but then you can pay additional ammounts to focus it into one or more of the various categories' },
       { kind: 'code', ref: 'supabase/migrations/2026-10-18-aether.sql (aether_quote, progression_tiered_crate_pool, buy_crate); packages/progression/src/crateShop.ts (focusFeePercent, quoteCrate, availableFocusCategories, normalizeFocus); packages/progression/src/aether.ts (DEFAULT_AETHER_ECONOMY.focusFeePercent)' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-27 (new accounts and Focus; recorded in docs/superpowers/specs/2026-11-25-pack-shop-design.md)', quote: 'yes legendary pack for new accounts, and remove focus' },
+      { kind: 'fix-pr', ref: 'PR #2903 — supabase/migrations/2026-12-01-packs.sql (with packs on aether_quote answers null and buy_crate shop_retired, so no focus is priced or sold)' },
     ],
-    currentBehaviour: 'Conforms as of 2026-10-18 (feat/aether-engine), behind progression_config.aether_enabled (off until the owner runs aether_rollout). '
+    currentBehaviour: 'RETIRED once packs are on (the pack economy, 2026-12-01, PR #2903): aether_quote answers null and buy_crate shop_retired, so no focus is priced or bought (packGrants.db.test.ts); a milestone crate never took a focus (R-PROG-AETHER-04). With packs off everything below still holds. '
+      + 'Conforms as of 2026-10-18 (feat/aether-engine), behind progression_config.aether_enabled (off until the owner runs aether_rollout). '
       + 'Amended 2026-10-20 (feat/chest-shop-screen): the available set is the focusable categories with something left, so Announcers never count '
       + '(R-PROG-AETHER-06). The client (availableFocusCategories) conforms from that branch; the server (aether_quote) conforms once the owner runs '
       + '2026-10-20-announcers-not-focusable.sql, and until then it still counts announcer as available.',
-    enforcement: { kind: 'scenario', refs: ['packages/progression/src/aether.db.test.ts', 'packages/progression/src/crateShop.test.ts'], lastVerifiedAt: '2026-10-21' },
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/aether.db.test.ts', 'packages/progression/src/crateShop.test.ts', 'packages/progression/src/packGrants.db.test.ts'], lastVerifiedAt: '2026-11-28' },
   },
   {
     id: 'R-PROG-AETHER-04',
-    title: 'Level 10, 20 and every 10th level grant a free Epic crate in place of the per-level crates; backdated at launch; never focused (the Legendary ones already granted are kept)',
+    title: 'Level 10, 20 and every 10th level grant a free Epic crate in place of the per-level crates; backdated at launch; never focused (the Legendary ones already granted are kept); AMENDED with packs on: a Legendary pack every 5 levels reached after the pack launch and nine Welcome packs (R-PROG-PACK-08)',
     statement:
       'Once Aether is on, reaching an Account Level that is a multiple of 10 (10, 20, 30, and so on) grants one free sealed EPIC-floor '
       + 'crate, and the other levels grant no crate. The Level 1 Welcome Chest is kept. When Aether launches, every multiple of 10 at or '
@@ -8271,7 +8311,10 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'NEVER be focused: it opens unfocused and free, like any other earned crate, and Open all opens it with the rest; no crate '
       + 'takes a focus at opening (a focus is bought with a crate in the shop). A milestone crate granted at Legendary before Epic '
       + 'became the floor is kept at Legendary, sealed or opened. Crates earned and sealed before Aether launched stay and open '
-      + 'exactly as they did. Aether is earned only, never granted by levelling.',
+      + 'exactly as they did. Aether is earned only, never granted by levelling. With packs on (owner 2026-11-27) no milestone '
+      + 'crate and no Welcome Chest is made: every 5th level reached after the pack launch gives a free Legendary pack, not '
+      + 'backdated, and a new account starts with nine Welcome packs, 5 Common, 2 Rare, 1 Epic and 1 Legendary '
+      + '(R-PROG-PACK-08). The milestone chests already granted are kept, sealed and frozen (R-PROG-CRATE-02).',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -8280,9 +8323,13 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Owner, 2026-10-20 (Claude Code session, the milestone chest change)', quote: 'i want the chest quality to reduce down to Epic for the milestone chests (every 10 levels) and you cannot focus those ones specifically' },
       { kind: 'owner-chat', ref: 'Owner, 2026-10-20 (same session, asked what happens to milestone chests already granted at Legendary)', quote: 'Keep them Legendary' },
       { kind: 'code', ref: 'supabase/migrations/2026-10-18-aether.sql (the first milestone crates); supabase/migrations/2026-10-20-milestone-chests-epic.sql (settle_progression + aether_rollout at Epic, open_crate refuses every focus, the loot_crates_milestone_floor check); packages/progression/src/aether.ts (milestoneLevelsThrough, MILESTONE_CRATE_TIER); packages/ui/src/progression/CollectionScreen.tsx (openBay, openAllBay)' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-27 (level rewards; recorded in docs/superpowers/specs/2026-11-25-pack-shop-design.md)', quote: 'players should get a Legendary card pack whenever they level up 5 times (intead of the chest). so level 5, 10, 15, and so on.' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-27 (asked whether accounts get packs for levels already passed at launch; spec docs/superpowers/specs/2026-11-27-pack-economy-design.md section 3)', quote: 'Only after launch' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-27 (new accounts; same spec)', quote: 'give new accounts 5 common packs, 2 rare packs, 1 epic and 1 legendary pack' },
+      { kind: 'fix-pr', ref: 'PR #2903 — supabase/migrations/2026-12-01-packs.sql (settle_progression step 9b: packs, no crate, with packs on)' },
     ],
-    currentBehaviour: 'Conforms as of 2026-10-20 (feat/milestone-chests-epic) once 2026-10-20-milestone-chests-epic.sql has been run in the SQL Editor: until then production still grants Legendary milestone crates and accepts a focus at open (the client already offers no focus step). The SQL: settle_progression and aether_rollout create milestone crates at floor Epic; a milestone crate already held (at Legendary) is never touched, since each level\x27s crate is made once; open_crate refuses any focus as focus_not_allowed before charging or rolling, keeping its 4-argument signature so an older client\x27s focused call is refused rather than unmatched; the table accepts a milestone crate only at Epic or Legendary. The client: a milestone crate opens in the bay like any other earned crate, through Open and Open all and the New rewards pop-up, named and opened as its own floor ("Level 10 Epic Chest"; a kept one "Level 20 Legendary Chest"), and the Chest Shop has no milestone mode. HISTORY (superseded 2026-10-20): from 2026-10-18 (feat/aether-engine) milestone crates were floor Legendary and focusable at open for the Legendary fee; the client half as of 2026-10-19 (feat/aether-shop-ui), with Aether on: every milestone crate is opened one at a time through its focus step; Open all skips them (ruling 2026-10-19, revising the earlier bulk open). The single Open, the bay\x27s and the New rewards pop-up\x27s alike, goes through the bay\x27s own logic. When the milestone crate is the bay\x27s first sealed crate, Open shows its focus step (the Chest Shop in milestone mode: a free unfocused Open, or the Legendary fee once a category is ticked) instead of starting the theatre; when older crates come first (a pre-Aether level crate sorts ahead of a backdated milestone crate), the theatre\x27s queue stops before the first milestone crate, so its "Open next" never opens one unfocused and the next Open reaches the focus step. Open all (the bay\x27s and the pop-up\x27s) opens only the other sealed crates and leaves every milestone crate sealed; with only milestone crates sealed it is not offered, and the single Open leads to the focus step. The bay names the next multiple of 10 as the next crate\x27s level (still true). milestoneChestsEpic.db.test.ts pins the Epic floor from the rollout and the settlement, a held Legendary crate kept, every focus at open refused uncharged, the free unfocused roll at or above the crate\x27s floor, and the table check; sqlParity.test.ts pins the SQL text against MILESTONE_CRATE_TIER; CollectionScreen.test.tsx pins the bay, Open all and the pop-up opening milestone crates unfocused as their own floor\x27s chest.',
-    enforcement: { kind: 'scenario', refs: ['packages/progression/src/milestoneChestsEpic.db.test.ts', 'packages/progression/src/sqlParity.test.ts', 'packages/ui/src/progression/CollectionScreen.test.tsx', 'packages/ui/src/progression/CrateShop.test.tsx'], lastVerifiedAt: '2026-10-20' },
+    currentBehaviour: 'AMENDED 2026-11-28 for the pack economy (PR #2903): with packs on the settlement makes the Welcome and Level packs and no crate (packGrants.db.test.ts: "no milestone chest with packs on"); with packs off it is as below. Conforms as of 2026-10-20 (feat/milestone-chests-epic) once 2026-10-20-milestone-chests-epic.sql has been run in the SQL Editor: until then production still grants Legendary milestone crates and accepts a focus at open (the client already offers no focus step). The SQL: settle_progression and aether_rollout create milestone crates at floor Epic; a milestone crate already held (at Legendary) is never touched, since each level\x27s crate is made once; open_crate refuses any focus as focus_not_allowed before charging or rolling, keeping its 4-argument signature so an older client\x27s focused call is refused rather than unmatched; the table accepts a milestone crate only at Epic or Legendary. The client: a milestone crate opens in the bay like any other earned crate, through Open and Open all and the New rewards pop-up, named and opened as its own floor ("Level 10 Epic Chest"; a kept one "Level 20 Legendary Chest"), and the Chest Shop has no milestone mode. HISTORY (superseded 2026-10-20): from 2026-10-18 (feat/aether-engine) milestone crates were floor Legendary and focusable at open for the Legendary fee; the client half as of 2026-10-19 (feat/aether-shop-ui), with Aether on: every milestone crate is opened one at a time through its focus step; Open all skips them (ruling 2026-10-19, revising the earlier bulk open). The single Open, the bay\x27s and the New rewards pop-up\x27s alike, goes through the bay\x27s own logic. When the milestone crate is the bay\x27s first sealed crate, Open shows its focus step (the Chest Shop in milestone mode: a free unfocused Open, or the Legendary fee once a category is ticked) instead of starting the theatre; when older crates come first (a pre-Aether level crate sorts ahead of a backdated milestone crate), the theatre\x27s queue stops before the first milestone crate, so its "Open next" never opens one unfocused and the next Open reaches the focus step. Open all (the bay\x27s and the pop-up\x27s) opens only the other sealed crates and leaves every milestone crate sealed; with only milestone crates sealed it is not offered, and the single Open leads to the focus step. The bay names the next multiple of 10 as the next crate\x27s level (still true). milestoneChestsEpic.db.test.ts pins the Epic floor from the rollout and the settlement, a held Legendary crate kept, every focus at open refused uncharged, the free unfocused roll at or above the crate\x27s floor, and the table check; sqlParity.test.ts pins the SQL text against MILESTONE_CRATE_TIER; CollectionScreen.test.tsx pins the bay, Open all and the pop-up opening milestone crates unfocused as their own floor\x27s chest.',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/milestoneChestsEpic.db.test.ts', 'packages/progression/src/sqlParity.test.ts', 'packages/ui/src/progression/CollectionScreen.test.tsx', 'packages/ui/src/progression/CrateShop.test.tsx', 'packages/progression/src/packGrants.db.test.ts'], lastVerifiedAt: '2026-11-28' },
   },
   {
     id: 'R-PROG-AETHER-05',
@@ -8648,10 +8695,11 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-PROG-AETHER-06',
-    title: 'Announcers can never be a chest focus; they still drop from unfocused chests, and ticking every focusable category is an unfocused, free chest that can give one',
+    title: 'Announcers can never be a chest focus; they still drop from unfocused chests, and ticking every focusable category is an unfocused, free chest that can give one (RETIRED with packs on, 2026-11-27: there is no Focus)',
     statement:
       'Announcers are never a chest focus category. They still drop from unfocused chests. When every focusable category is ticked '
-      + '(or the ticked ones are all that is left at the tier), the chest is unfocused: free, and it can give an Announcer.',
+      + '(or the ticked ones are all that is left at the tier), the chest is unfocused: free, and it can give an Announcer. '
+      + 'RETIRED once packs are on: there is no Focus to exclude them from (R-PROG-AETHER-03).',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -8659,9 +8707,11 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Owner, 2026-10-20 (Chest Shop screen design; spec docs/superpowers/specs/2026-10-20-chest-shop-screen-design.md)', quote: 'yes, announcers can drop from the unfocused chests' },
       { kind: 'owner-chat', ref: 'Owner, 2026-10-20 (Chest Shop screen design; spec docs/superpowers/specs/2026-10-20-chest-shop-screen-design.md)', quote: 'Free, may give an Announcer' },
       { kind: 'code', ref: 'packages/progression/src/crateShop.ts (NON_FOCUSABLE_CATEGORIES, isFocusableCategory, availableFocusCategories); supabase/migrations/2026-10-20-announcers-not-focusable.sql (aether_quote)' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-27 (new accounts and Focus; recorded in docs/superpowers/specs/2026-11-25-pack-shop-design.md)', quote: 'yes legendary pack for new accounts, and remove focus' },
+      { kind: 'fix-pr', ref: 'PR #2903 — supabase/migrations/2026-12-01-packs.sql (aether_quote answers null with packs on)' },
     ],
-    currentBehaviour: 'Conforms as of 2026-10-20 (feat/chest-shop-screen), once the owner runs 2026-10-20-announcers-not-focusable.sql after the milestone file. The client (availableFocusCategories) and the server (aether_quote) both leave announcer out of the available focus categories, so a focus naming it is refused as bad_focus and ticking every other category collapses to no focus (null, fee 0). The pool is untouched (eligibleForCrate, progression_tiered_crate_pool), so an unfocused chest still rolls Announcers. Until the SQL is run, the live server still accepts an announcer focus: the Edge Function\x27s parseFocus is deliberately unchanged, so the SQL quote is the gate.',
-    enforcement: { kind: 'scenario', refs: ['packages/progression/src/crateShop.test.ts', 'packages/progression/src/announcersNotFocusable.db.test.ts'], lastVerifiedAt: '2026-10-20' },
+    currentBehaviour: 'RETIRED once packs are on (the pack economy, 2026-12-01, PR #2903): aether_quote answers null, so no focus exists (packGrants.db.test.ts). Announcers roll in packs like any other category (R-PROG-PACK-02). With packs off everything below still holds. Conforms as of 2026-10-20 (feat/chest-shop-screen), once the owner runs 2026-10-20-announcers-not-focusable.sql after the milestone file. The client (availableFocusCategories) and the server (aether_quote) both leave announcer out of the available focus categories, so a focus naming it is refused as bad_focus and ticking every other category collapses to no focus (null, fee 0). The pool is untouched (eligibleForCrate, progression_tiered_crate_pool), so an unfocused chest still rolls Announcers. Until the SQL is run, the live server still accepts an announcer focus: the Edge Function\x27s parseFocus is deliberately unchanged, so the SQL quote is the gate.',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/crateShop.test.ts', 'packages/progression/src/announcersNotFocusable.db.test.ts', 'packages/progression/src/packGrants.db.test.ts'], lastVerifiedAt: '2026-11-28' },
   },
   {
     id: 'R-REPLAY-DRAG-SHARED-01',
@@ -11189,9 +11239,9 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-PROG-SECRET-01',
-    title: 'The Secret rarity: a red rarity above Ancient that no chest rolls, hidden in the Collection until owned; the Plushie Plate is the Plushie Collector reward',
+    title: 'The Secret rarity: a red rarity above Ancient that no chest or pack rolls, hidden in the Collection until owned; the Plushie Plate is the Plushie Collector reward',
     statement:
-      'Secret is a cosmetic rarity ranked above Ancient, coloured red and labelled "Secret". No chest ever rolls it: a Secret '
+      'Secret is a cosmetic rarity ranked above Ancient, coloured red and labelled "Secret". No chest or pack ever rolls it: a Secret '
       + 'item comes only from an achievement. Until a player owns a Secret item, the Collection does not show it anywhere (not in its '
       + 'album, any count, or the collected total); once owned it leads its album under its own Secret rarity row. A COLLECTION '
       + 'achievement completes when the account owns every active item of its collection, and grants its reward in the same '
@@ -11206,9 +11256,11 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-27 (Plushie Plate, the Secret tier)', quote: 'wont it have its own category as "Secret"? we can make it Red, over Ancient. Should ONLY show up once you unlock it' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-27 (question answers)', quote: 'Visible, shows progress; Yes, players who already earned it keep it' },
       { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (SECRET_RARITY, PLUSHIE_BEAST_SKIN_IDS, the plate_plushie item); packages/progression/src/achievements.ts (COLLECTION_METRIC, collection.plushie_beasts); supabase/migrations/2026-11-03-secret-plushie-plate.sql; packages/ui/src/progression/collectionModel.ts (albumOf); packages/ui/src/progression/AchievementsTab.tsx' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-27 (the pack economy spec, docs/superpowers/specs/2026-11-27-pack-economy-design.md section 15: "No chest or pack")', quote: 'Approved' },
+      { kind: 'fix-pr', ref: 'PR #2902 — packages/progression/src/packRoll.ts (packPool: rollable rarities only, never Secret); PR #2903 — supabase/migrations/2026-12-01-packs.sql (progression_pack_pool)' },
     ],
-    currentBehaviour: 'Conforms, built 2026-10-28 (feat/plushie-plate). Reaches players once the owner runs 2026-11-03-secret-plushie-plate.sql and then deploys progression-inventory (in that order); the first catalog sync after that credits anyone who already owns every Plushie Beast. The Plushie Collector does not pay XP.',
-    enforcement: { kind: 'scenario', refs: ['packages/progression/src/plushiePlate.db.test.ts', 'packages/progression/src/plushiePlate.test.ts', 'packages/ui/src/progression/secretRarity.test.ts', 'packages/ui/src/progression/AchievementsTab.test.tsx'], lastVerifiedAt: '2026-10-28' },
+    currentBehaviour: 'Conforms, built 2026-10-28 (feat/plushie-plate). Reaches players once the owner runs 2026-11-03-secret-plushie-plate.sql and then deploys progression-inventory (in that order); the first catalog sync after that credits anyone who already owns every Plushie Beast. The Plushie Collector does not pay XP. Amended 2026-11-28 (the pack economy, PRs #2902 and #2903): "No chest" reads "No chest or pack"; the pack pool leaves Secret out in TS and SQL alike (packRoll.test.ts: never rolls a Secret item; packRoll.db.test.ts: the SQL roll equals the TS roll).',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/plushiePlate.db.test.ts', 'packages/progression/src/plushiePlate.test.ts', 'packages/ui/src/progression/secretRarity.test.ts', 'packages/ui/src/progression/AchievementsTab.test.tsx', 'packages/progression/src/packRoll.test.ts', 'packages/progression/src/packRoll.db.test.ts'], lastVerifiedAt: '2026-11-28' },
   },
   {
     id: 'R-VERSUS-CF-CUTOVER-01',
@@ -11605,7 +11657,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     id: 'R-EGRESS-02',
     title: 'progression_config is read once per session; the cosmetic kill switch is re-read only when its hash moves',
     statement:
-      'The progression switches (epoch, crates, achievements, Aether) and the catalog hash come from ONE read of the '
+      'The progression switches (epoch, crates, achievements, Aether, packs) and the catalog hash come from ONE read of the '
       + 'progression_config row, kept for the session once answered (a failed read is asked again). The kill-switch '
       + 'catalog read asks only for switched-off items and categories, and is skipped while '
       + 'progression_config.catalog_state_hash (kept by a trigger on cosmetic_catalog and cosmetic_categories) equals the '
@@ -11616,8 +11668,8 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Owner ask 2026-10-28 (Supabase cleanup, P1.2)', quote: "scope out a massive supabase clean up so that we\x27re running really cleanly across the board." },
       { kind: 'code', ref: 'packages/ui/src/progression/progressionRemote.ts fetchProgressionConfig + fetchServerCatalogState; progressionStore.ts refreshServerCatalog; supabase/migrations/2026-11-07-catalog-state-hash.sql' },
     ],
-    currentBehaviour: 'Conforms from 2026-10-28. Before, every probe sent four single-column progression_config reads and the full 458-row catalog (~31 KB), ~87,000 times in 16 days.',
-    enforcement: { kind: 'scenario', refs: ['packages/ui/src/progression/progressionConfigOnce.test.ts', 'packages/progression/src/catalogStateHash.db.test.ts'], lastVerifiedAt: '2026-10-28' },
+    currentBehaviour: 'Conforms from 2026-10-28. Before, every probe sent four single-column progression_config reads and the full 458-row catalog (~31 KB), ~87,000 times in 16 days. Amended 2026-11-28 (the pack economy, feat/pack-economy-client): packs_enabled rides the same one read (progressionConfigOnce.test.ts: five probes, one request).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/progression/progressionConfigOnce.test.ts', 'packages/progression/src/catalogStateHash.db.test.ts'], lastVerifiedAt: '2026-11-28' },
   },
   {
     id: 'R-EGRESS-05',
@@ -14290,17 +14342,20 @@ export const FOUNDATION_RULES: GameRule[] = [
       'With the DEV "Party home (prototype)" switch on, the Collection page sits under the top nav as a shell kit page: the categories (owned / total, NEW count, Soon) and the sealed-chest bay (count, Open, Open all, the next chest\x27s level, your XP toward it, the odds) on the left; the Show tabs, rarity filters and the album in the middle; the selected item\x27s live preview, facts and Equip on the right. '
       + 'The Chest Shop is the same shop in the shell (the chest cards, focus rows, receipt, odds and buy, every celebration intact), and the chest opening keeps its reveal while its buttons and notes take the shell\x27s look. '
       + 'Every capability and rule of the page is unchanged (guests are gated, a purchase is never charged twice, Esc goes back). '
-      + 'A failed chest opening is never pulled off screen by the shell. With the switch off, and in every production build, the page is today\x27s.',
+      + 'A failed chest opening is never pulled off screen by the shell. With the switch off, and in every production build, the page is today\x27s. '
+      + 'With packs on, the shell\x27s bay keeps the sealed chests with no Open or Open all, only the line that they will be exchanged later '
+      + '(with no chest held it is the level-only bay, no frozen line), and the Shop is the Pack Shop, not the Chest Shop.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-02 (party home revamp)', quote: 'like all of these menus should get revamped to work with the new setup as well' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-27 (asked whether players can still open the chests they hold; spec docs/superpowers/specs/2026-11-27-pack-economy-design.md section 3)', quote: 'Freeze them' },
       { kind: 'code', ref: 'packages/ui/src/progression/ph/CollectionPh.tsx, packages/ui/src/progression/ph/CrateShopPh.tsx, packages/ui/src/progression/CollectionScreen.tsx, packages/ui/src/progression/CrateShop.tsx (useCrateShop), packages/ui/src/partyHome/partyHome.css (the shell note renamed .ph-err), packages/ui/src/partyHome/shell/shellStore.ts (takeCollectionIntent: the Crates tab lands on the Chest Shop)' },
     ],
     currentBehaviour:
-      'Conforms as of 2026-11-02 (feat/ph-page-collection). Before, the pages rendered their old layout under the top nav, and a failed chest opening under the switch slid half off screen: the theatre\x27s phase class `ph-error` matched the party home\x27s own `.ph-error` note rule (the shell renamed its note `.ph-err`). The shell\x27s Crates tab opens this page straight on the Chest Shop. On phones a tap opens a chest or odds tip (its `.tt-on` selector stands apart from `:hover`, which the hover guard moves under a hover-only query), and the tips and the picked chest\x27s check are sized in the shell\x27s units, at least `--ph-t1`.',
+      'Conforms as of 2026-11-02 (feat/ph-page-collection). Before, the pages rendered their old layout under the top nav, and a failed chest opening under the switch slid half off screen: the theatre\x27s phase class `ph-error` matched the party home\x27s own `.ph-error` note rule (the shell renamed its note `.ph-err`). The shell\x27s Crates tab opens this page straight on the Chest Shop. On phones a tap opens a chest or odds tip (its `.tt-on` selector stands apart from `:hover`, which the hover guard moves under a hover-only query), and the tips and the picked chest\x27s check are sized in the shell\x27s units, at least `--ph-t1`. Amended 2026-11-28 (the pack economy, feat/pack-economy-client): with packs on, the frozen bay (CollectionPh.test.tsx) and the Shop tab into the Pack Shop (PackShopEntry.test.tsx).',
     example: 'Kevin turns on the party home switch and opens Collection: Heroes, Minions and the rest are a list on the left with his 3 sealed chests under them, the album in the middle, Surf Day Albus large on the right with Equip. He opens a chest that fails: the chest and its Try again sit in the middle of the screen.',
-    enforcement: { kind: 'scenario', refs: ['packages/ui/src/progression/ph/CollectionPh.test.tsx'], lastVerifiedAt: '2026-11-02' },
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/progression/ph/CollectionPh.test.tsx', 'packages/ui/src/progression/packShop/PackShopEntry.test.tsx'], lastVerifiedAt: '2026-11-28' },
   },
   {
     id: 'R-DUOS-RAIL-PLATE-01',
@@ -17570,5 +17625,273 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms, built 2026-11-27 (feat/skins-voxel-sketchbook, PR #2895): 98 Common, 97 Rare, 92 Epic and 43 Legendary skins, each checked against its card\x27s tier. The tier rule is a ruling for these nine sets; other batches still take the rarity of their master\x27s folder (R-PROG-SKINS-11). Names cut to 20 characters (for example Voxel Brisbane, Sketch Hank, Encore Brian, Encore Flamebeat, Low Poly Steward, Sci-Fi Warhorn, Sci-Fi Hank) are Claude calls for the owner to confirm. The older crayon skins keep their Scribble names. Auric Runemaster gets its first skins. Reaches the database through the catalog sync.',
     enforcement: { kind: 'scenario', refs: ['packages/progression/src/skins.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionSkins.test.tsx'], lastVerifiedAt: '2026-11-27' },
+  },
+  // ── The pack economy (owner rulings 2026-11-27; spec docs/superpowers/specs/2026-11-27-pack-economy-design.md) ──
+  {
+    id: 'R-PROG-PACK-01',
+    title: 'Packs replace the Chest Shop: Rarity packs Common 100 / Rare 175 / Epic 300 / Legendary 500 / Ancient 850 Aether, every Category and style pack 200, five cards in every pack, no Focus',
+    statement:
+      'With packs on, the Shop sells card packs in place of the Chest Shop. Every pack holds 5 cards. A Rarity pack costs '
+      + 'Common 100, Rare 175, Epic 300, Legendary 500 or Ancient 850 Aether; every Category pack and every style pack costs a '
+      + 'flat 200. The shelves list the Rarity packs, then one pack per enabled category, then the style packs; a themed pack '
+      + 'with nothing in its pool is not offered, and a Category or style pack whose pool the player already owns in full is '
+      + 'greyed out with a notice but stays buyable (a Rarity pack never is). The price shown is the price charged: a purchase '
+      + 'names the price the player saw and is refused, uncharged, when the server\x27s price differs. The numbers are held by '
+      + 'the server (pack_config) and the shop draws the offers the server sends. There is no Focus: a Category or style pack '
+      + 'is how a player aims at a kind of cosmetic.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-27 (pack prices; recorded in docs/superpowers/specs/2026-11-25-pack-shop-design.md)', quote: 'for rarity lets do 100 for common, 175 for rare, 300 for epic, 500 for legendary and 850 for ancient. for themed packs, because they follow the common pack odds, but narrow it down to a category that the player is more interested in, lets have those at a flat 200' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-27 (new accounts and Focus; recorded in docs/superpowers/specs/2026-11-25-pack-shop-design.md)', quote: 'yes legendary pack for new accounts, and remove focus' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-27 (a fully owned themed pack; quoted in packages/progression/src/packShop.test.ts)', quote: 'lightly grey out the pack and overlay a notice' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-27 (the pack economy spec, docs/superpowers/specs/2026-11-27-pack-economy-design.md: packs replace the Chest Shop)', quote: 'Approved' },
+      { kind: 'fix-pr', ref: 'PR #2902 — packages/progression/src/packEconomy.ts (DEFAULT_PACK_ECONOMY: rarityPackPrice, themedPackPrice); packages/progression/src/packShop.ts (shelfOffers, ownsEveryCosmetic, ownedEveryNotice)' },
+      { kind: 'fix-pr', ref: 'PR #2903 — supabase/migrations/2026-12-01-packs.sql (pack_config, progression_pack_shelf, buy_pack: price_changed)' },
+      { kind: 'code', ref: 'packages/ui/src/progression/packShop/PackShopEntry.tsx (with packs_enabled the Shop tab opens the server Pack Shop, never the Chest Shop)' },
+    ],
+    currentBehaviour: 'Built 2026-12-01 (PRs #2902, #2903, #2904 and feat/pack-economy-client), behind progression_config.packs_enabled, which ships OFF until the owner runs pack_rollout (spec section 12). Before, the Shop was the Chest Shop (R-PROG-AETHER-02, R-PROG-AETHER-03). The greyed-out decision (ownsEveryCosmetic) and its notice are pinned in the model; no UI test checks the grey drawing itself.',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/packEconomy.test.ts', 'packages/progression/src/packWindow.test.ts', 'packages/progression/src/packShop.test.ts', 'packages/progression/src/packs.db.test.ts', 'packages/ui/src/progression/packShop/PackShopEntry.test.tsx'], lastVerifiedAt: '2026-11-28' },
+  },
+  {
+    id: 'R-PROG-PACK-02',
+    title: 'A pack rolls five cards on the server: cards 1-4 at the Standard odds from the whole catalog; card 5 is guaranteed (a Rarity pack: its rarity or higher; a Category or style pack: from its theme, never owned)',
+    statement:
+      'Opening a pack makes one server-side roll of 5 cards, the guaranteed card last. Cards 1 to 4 each roll a rarity at the '
+      + 'Standard odds (Common 35, Rare 31, Epic 22, Legendary 9, Ancient 3) over the whole catalog. Card 5 of a Rarity pack '
+      + 'rolls at the same odds kept only for the pack\x27s rarity and above, so it is never below that rarity. Card 5 of a '
+      + 'Category or style pack comes from that category or style and is never an item the player owns, counting cards 1 to 4 '
+      + 'of the same pack; only when the whole theme is owned is it a duplicate from the theme. Once the rarity is drawn, every '
+      + 'category that has an item of that rarity is equally likely, then every item of it in that category. A rarity with '
+      + 'nothing in the pool falls to the nearest rarity that has something (ties toward the more common one), never below a '
+      + 'Rarity pack\x27s own rarity. No card ever rolls a Secret item, an inactive or non-crate item, or an item or category '
+      + 'switched off. What a pack is comes from its own row, never from the caller at open. The TypeScript roll and the SQL '
+      + 'roll give the same cards from the same draws.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-27 (Rarity packs; spec docs/superpowers/specs/2026-11-27-pack-economy-design.md section 3)', quote: 'they are just guaranteeing that the final pull is of that tier or higher' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-27 (within a rarity; same spec, section 3)', quote: 'When that rarity is determined or drawn, then from there, any category has equal odds of showing up.' },
+      { kind: 'fix-pr', ref: 'PR #2902 — packages/progression/src/packRoll.ts (rollPack, packPool, drawCard)' },
+      { kind: 'fix-pr', ref: 'PR #2903 — supabase/migrations/2026-12-01-packs.sql (progression_pack_draw, progression_pack_roll, open_pack)' },
+    ],
+    currentBehaviour: 'Built 2026-12-01 (PRs #2902, #2903), behind progression_config.packs_enabled. packRoll.db.test.ts runs 2,000 seeded draw sets through both rolls and requires the same cards.',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/packRoll.test.ts', 'packages/progression/src/packRoll.db.test.ts', 'packages/progression/src/packs.db.test.ts'], lastVerifiedAt: '2026-11-28' },
+  },
+  {
+    id: 'R-PROG-PACK-03',
+    title: 'A duplicate card pays 20% of its OWN rarity\x27s Rarity-pack price (Common 20, Rare 35, Epic 60, Legendary 100, Ancient 170 Aether), once',
+    statement:
+      'A pack card the player already owns, from before the pack or from an earlier card of the same pack, is a duplicate. It '
+      + 'grants nothing new and pays Aether by the duplicate\x27s own rarity, whatever pack it came from: Common 20, Rare 35, '
+      + 'Epic 60, Legendary 100, Ancient 170 (20% of that rarity\x27s Rarity-pack price). The payout is part of the opening and '
+      + 'is paid once. A card that is new is owned at once; a title from a pack is worn at once only when the player wears no '
+      + 'title.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-27 (duplicate refunds; recorded in docs/superpowers/specs/2026-11-25-pack-shop-design.md)', quote: 'lets refund 20% of the pack\x27s rarity value. so common would be 20, and so forth' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-27 (asked whether that is the duplicate\x27s rarity or its pack\x27s; same spec)', quote: 'its own rarity' },
+      { kind: 'fix-pr', ref: 'PR #2902 — packages/progression/src/packEconomy.ts (duplicateAether); packages/progression/src/packRoll.ts (rollPack duplicate); packages/progression/src/packs.ts (parsePackOpenResult, packDuplicateAether)' },
+      { kind: 'fix-pr', ref: 'PR #2903 — supabase/migrations/2026-12-01-packs.sql (open_pack)' },
+    ],
+    currentBehaviour: 'Built 2026-12-01 (PRs #2902, #2903), behind progression_config.packs_enabled.',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/packRoll.test.ts', 'packages/progression/src/packs.test.ts', 'packages/progression/src/packs.db.test.ts'], lastVerifiedAt: '2026-11-28' },
+  },
+  {
+    id: 'R-PROG-PACK-04',
+    title: 'The counter holds 5 pack types, up to 8 of each: a purchase with no room is refused uncharged; a pack that is given is never refused and waits beside the counter',
+    statement:
+      'Sealed packs sit on the counter by type (one look: a Rarity pack of one rarity, one Category pack, one style pack), '
+      + 'oldest first: at most 5 types and at most 8 packs of each. A purchase, paid or free, of a pack that would not fit (its '
+      + 'stack is at 8, or it would be a sixth type) is refused as no_room and charges nothing; the player cannot buy it until '
+      + 'a place opens. A pack that is given, not bought (Welcome, Level, the purchase reward, any later gift), is never '
+      + 'refused: it is made and waits beside the counter until there is room, and packs waiting never block a stack that has '
+      + 'room. Two purchases racing for the last place: one wins, the other is refused and charged nothing. The shop draws '
+      + 'the same counter the server enforces.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-27 (the counter; spec docs/superpowers/specs/2026-11-27-pack-economy-design.md section 3)', quote: 'The player cannot purchase any more packs until a slot opens up.' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-27 (a reward that cannot fit; recorded in docs/superpowers/specs/2026-11-23-pack-opening-design.md)', quote: 'if it cant fit, send to their backpack' },
+      { kind: 'fix-pr', ref: 'PR #2902 — packages/progression/src/packShop.ts (counterSplit, counterHasRoom)' },
+      { kind: 'fix-pr', ref: 'PR #2903 — supabase/migrations/2026-12-01-packs.sql (progression_counter_has_room, buy_pack: no_room)' },
+      { kind: 'code', ref: 'packages/ui/src/progression/packShop/PackShop.tsx (a server no_room sends the pack back to the shelf with the counter\x27s note)' },
+    ],
+    currentBehaviour: 'Built 2026-12-01 (PRs #2902, #2903 and feat/pack-economy-client), behind progression_config.packs_enabled. "Backpack" is read as the packs waiting beside the counter: there is no separate backpack.',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/packCounter.test.ts', 'packages/progression/src/packs.db.test.ts', 'packages/progression/src/packGrants.db.test.ts', 'packages/ui/src/progression/packShop/PackShop.test.tsx'], lastVerifiedAt: '2026-11-28' },
+  },
+  {
+    id: 'R-PROG-PACK-05',
+    title: 'The Pack Shop refreshes every 6 hours, at 12am, 6am, 12pm and 6pm Eastern, and every window gives each player one free Rare pack',
+    statement:
+      'The shop window turns over at 12am, 6am, 12pm and 6pm Eastern time (America/New_York, daylight saving included, so a '
+      + 'window across a clock change is 5 or 7 hours). Each window opens with one free Rare pack: each player may take it once '
+      + 'per window, it costs nothing, and it never counts toward the purchase reward; once taken it reads as taken for that '
+      + 'player only. The window, its offers and the time of the next refresh come from the server. An offer from a window that '
+      + 'has ended is refused as expired, uncharged, and the answer carries the current offers. The refresh countdown never '
+      + 'goes below zero.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-27 (the shop refresh; recorded in docs/superpowers/specs/2026-11-25-pack-shop-design.md)', quote: 'lets change the shop refresh timer from 24 hours to every 6 hours' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-27 (asked whether the free Rare stays daily; same spec)', quote: 'Every 6 hours' },
+      { kind: 'fix-pr', ref: 'PR #2902 — packages/progression/src/packShop.ts (shopWindowId, nextShopRefresh, windowOffers: the free Rare first)' },
+      { kind: 'fix-pr', ref: 'PR #2903 — supabase/migrations/2026-12-01-packs.sql (pack_window_id, pack_next_refresh_at, pack_shop_window, buy_pack: the free pack and expired)' },
+      { kind: 'code', ref: 'packages/ui/src/progression/packShop/PackShop.tsx (the refresh countdown)' },
+    ],
+    currentBehaviour: 'Built 2026-12-01 (PRs #2902, #2903 and feat/pack-economy-client), behind progression_config.packs_enabled.',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/packEconomy.test.ts', 'packages/progression/src/packWindow.test.ts', 'packages/progression/src/packs.db.test.ts', 'packages/ui/src/progression/packShop/PackShop.test.tsx'], lastVerifiedAt: '2026-11-28' },
+  },
+  {
+    id: 'R-PROG-PACK-06',
+    title: 'Featured has four deals every window: four different packs (never the Rare pack), 20% to 60% off in 5% steps, 2 to 5 in stock per player',
+    statement:
+      'Beside the free Rare, each window\x27s Featured shelf has 4 deals drawn from the other packs on the shelves (Rarity, '
+      + 'Category or style): four different packs, never the Rare pack. Each deal is 20% to 60% off in 5% steps, priced to the '
+      + 'nearest 5 Aether (a tie rounds up) and never below 5, and has 2 to 5 in stock. Stock is per player: one player buying '
+      + 'a deal out leaves everyone else\x27s stock as it was. A deal is a paid pack, so it counts toward the purchase reward. '
+      + 'The deals turn over with the window.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-27 (Featured deals; spec docs/superpowers/specs/2026-11-27-pack-economy-design.md section 3)', quote: 'in featured should also have 4 other discounted, randomly discounted between 20 and 60% off card packs of any other type, whether it is rarity or category' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-27 (stock per deal; same spec)', quote: '2 to 5' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-27 (asked whether the deals launch with the shop and whether stock is per player; same spec)', quote: 'Yes, per player' },
+      { kind: 'fix-pr', ref: 'PR #2902 — packages/progression/src/packShop.ts (windowOffers, dealPrice)' },
+      { kind: 'fix-pr', ref: 'PR #2903 — supabase/migrations/2026-12-01-packs.sql (progression_pack_window_offers, buy_pack: sold_out per player)' },
+    ],
+    currentBehaviour: 'Built 2026-12-01 (PRs #2902, #2903), behind progression_config.packs_enabled. packs.db.test.ts requires the SQL offers to equal windowOffers draw for draw.',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/packWindow.test.ts', 'packages/progression/src/packs.db.test.ts'], lastVerifiedAt: '2026-11-28' },
+  },
+  {
+    id: 'R-PROG-PACK-07',
+    title: 'Every 15 paid packs earn one free Epic pack; free and zero-price packs do not count; rewards stack and are claimed one at a time',
+    statement:
+      'The server counts every paid pack a player buys (a Featured deal included); every 15 make one free Epic pack ready, and '
+      + 'the count carries over. The free Rare, any pack priced 0 and the reward itself do not count. Ready rewards stack until '
+      + 'claimed; a claim makes one Epic pack, and the pack joins the counter or waits beside a full one (R-PROG-PACK-04). The '
+      + 'shop\x27s reward gauge shows the purchases toward the next reward from the server\x27s meter, glows while a reward is '
+      + 'ready, and names the reward\x27s size and rarity as the server holds them.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-27 (the pack reward; recorded in docs/superpowers/specs/2026-11-23-pack-opening-design.md)', quote: 'Every 15 packs purchased gives the player one free Legendary Rarity Pack.' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-27, later (recorded in docs/superpowers/specs/2026-11-25-pack-shop-design.md)', quote: 'change the free legendary after 15 purchases to Epic' },
+      { kind: 'fix-pr', ref: 'PR #2902 — packages/progression/src/packShop.ts (PACK_REWARD_EVERY, PACK_REWARD_RARITY, packRewardAfter)' },
+      { kind: 'fix-pr', ref: 'PR #2903 — supabase/migrations/2026-12-01-packs.sql (buy_pack: the meter, claim_pack_reward, progression_pack_meter_json)' },
+      { kind: 'code', ref: 'packages/ui/src/progression/packShop/PackShop.tsx (the reward gauge and claim); packages/ui/src/progression/packShop/PackShopEntry.tsx (the label from pack_config)' },
+    ],
+    currentBehaviour: 'Built 2026-12-01 (PRs #2902, #2903 and feat/pack-economy-client), behind progression_config.packs_enabled.',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/packShop.test.ts', 'packages/progression/src/packs.db.test.ts', 'packages/ui/src/progression/packShop/PackShop.test.tsx', 'packages/ui/src/progression/packShop/PackShopEntry.test.tsx'], lastVerifiedAt: '2026-11-28' },
+  },
+  {
+    id: 'R-PROG-PACK-08',
+    title: 'With packs on, a new account starts with nine Welcome packs (5 Common, 2 Rare, 1 Epic, 1 Legendary), and every 5th level reached after the pack launch gives a free Legendary pack; nothing is backdated',
+    statement:
+      'With packs on, the settlement that enrolls an account (its first settled game) gives nine sealed Rarity packs in place '
+      + 'of the Welcome Chest: 5 Common, 2 Rare, 1 Epic and 1 Legendary. An account enrolled before packs launched gets no '
+      + 'Welcome packs. Every Account Level that is a multiple of 5 (5, 10, 15, ...) gives one free Legendary pack, in place '
+      + 'of the Epic chest every 10 levels, but only for levels above the level the account held when packs launched: nothing '
+      + 'is backdated (an account at Level 37 at the launch gets its first pack at Level 40). An account made after the launch '
+      + 'counts every multiple of 5 it reaches, so a first game that reaches Level 10 gives the Welcome packs and the Level 5 '
+      + 'and Level 10 packs. Each pack is made once (a retried settlement makes none, and a missing one is made at the next '
+      + 'settlement), and given packs never wait on room (R-PROG-PACK-04). No milestone chest is made with packs on; the '
+      + 'chests already held are kept, frozen (R-PROG-CRATE-02).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-27 (level rewards; recorded in docs/superpowers/specs/2026-11-25-pack-shop-design.md)', quote: 'players should get a Legendary card pack whenever they level up 5 times (intead of the chest). so level 5, 10, 15, and so on.' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-27 (asked whether accounts get packs for levels already passed at launch; spec docs/superpowers/specs/2026-11-27-pack-economy-design.md section 3)', quote: 'Only after launch' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-27 (new accounts; same spec)', quote: 'give new accounts 5 common packs, 2 rare packs, 1 epic and 1 legendary pack' },
+      { kind: 'fix-pr', ref: 'PR #2902 — packages/progression/src/packEconomy.ts (welcomePacks, levelPackEvery, levelPackRarity, levelPacksBetween, welcomePackCount)' },
+      { kind: 'fix-pr', ref: 'PR #2903 — supabase/migrations/2026-12-01-packs.sql (settle_progression step 9b with packs on, the launch level baseline, pack_rollout)' },
+    ],
+    currentBehaviour: 'Built 2026-12-01 (PRs #2902, #2903), live once the owner runs 2026-12-01-packs.sql and pack_rollout. With the switch off the settlement makes the Welcome Chest and the milestone chests exactly as before (R-PROG-AETHER-04). A switch flipped by hand without pack_rollout gives Welcome packs on enrollment but never a Level pack (no launch level is written).',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/packGrants.db.test.ts', 'packages/progression/src/sqlParity.test.ts'], lastVerifiedAt: '2026-11-28' },
+  },
+  {
+    id: 'R-PROG-PACK-09',
+    title: 'The pack launch pays 3,000 Aether once to every account that exists at the launch; accounts made later never get it',
+    statement:
+      'When packs launch, every account that exists at that moment, guests included, receives 3,000 Aether once, paid by the '
+      + 'server and recorded like any other Aether; running the launch again pays nobody twice. An account created after the '
+      + 'launch never receives it; new players get the nine Welcome packs instead (R-PROG-PACK-08). It is a separate gift from '
+      + 'the 1,000 Aether of R-PROG-AETHER-05. The first time the game opens on the menus with packs on, an "Introducing the '
+      + 'Pack Shop" announcement opens (the "Introducing Aether" window): for a launch-day account it names the 3,000 Aether, '
+      + 'and an account made after the launch sees it without the gift line. It shows once per account on each device, never '
+      + 'with packs off, and waits while a gift notice is up. The announcement pays nothing itself.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-27 (the launch gift; spec docs/superpowers/specs/2026-11-27-pack-economy-design.md section 3)', quote: 'give all accounts 3k Aether when we release the new shop announcement' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-27 (first answer on new accounts, since revised; same spec)', quote: 'yes, new accounts get the 3k too' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-27 (asked to confirm; same spec, sections 3 and 12.1)', quote: 'Launch-day accounts only' },
+      { kind: 'fix-pr', ref: 'PR #2902 — packages/progression/src/packEconomy.ts (PACK_LAUNCH_GRANT)' },
+      { kind: 'fix-pr', ref: 'PR #2903 — supabase/migrations/2026-12-01-packs.sql (pack_rollout: the gift under its own ledger key, no new-profile trigger)' },
+      { kind: 'code', ref: 'packages/ui/src/progression/PackShopIntroPopup.tsx (the announcement; the gift line only when the ledger holds the gift); packages/ui/src/progression/progressionRemote.ts (fetchPackLaunchGiftReceived)' },
+    ],
+    currentBehaviour: 'Built 2026-12-01 (PRs #2902, #2903 and feat/pack-economy-client), paid when the owner runs pack_rollout. The seen flag is per device (localStorage), so a second device shows the announcement once more.',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/packGrants.db.test.ts', 'packages/progression/src/sqlParity.test.ts', 'packages/ui/src/progression/PackShopIntroPopup.test.tsx'], lastVerifiedAt: '2026-11-28' },
+  },
+  {
+    id: 'R-PROG-PACK-10',
+    title: 'A guest never buys, opens or claims a pack: the client shows the sign-in gate and the server refuses it',
+    statement:
+      'A guest (anonymous account) sees the Pack Shop and its Aether but never spends or opens: buying a pack, opening a pack '
+      + 'and claiming the purchase reward show the sign-in gate instead and never reach the server. The server refuses a '
+      + 'guest\x27s purchase, opening and claim as guest and changes nothing, so a guest answer from the server shows the same '
+      + 'gate. While the gate is up it sits above the shop, and Esc closes the gate, not the shop.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (the crate sign-in gate, carried to packs by the pack economy spec, section 15)', quote: 'ask players not signed in to sign in when they try to open a crate? we\x27d like players to create sign ins for account progression' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-27 (the pack economy spec, docs/superpowers/specs/2026-11-27-pack-economy-design.md)', quote: 'Approved' },
+      { kind: 'fix-pr', ref: 'PR #2903 — supabase/migrations/2026-12-01-packs.sql (progression_is_guest; buy_pack, open_pack and claim_pack_reward answer guest)' },
+      { kind: 'code', ref: 'packages/ui/src/progression/packShop/PackShopEntry.tsx (ServerPackShop: a guest\x27s buy, opening or claim opens the sign-in gate and never calls the server; the gate sits on the stage)' },
+    ],
+    currentBehaviour: 'Built 2026-12-01 (PR #2903 and feat/pack-economy-client), behind progression_config.packs_enabled. PARTIAL pin on the client: PackShopEntry.test.tsx pins the gate for a guest\x27s buy and for a server guest answer; the client gate on a guest\x27s opening and claim is in the code but not pinned by a test (the server refusal of both is pinned in packs.db.test.ts).',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/packs.db.test.ts', 'packages/ui/src/progression/packShop/PackShopEntry.test.tsx', 'packages/ui/src/progression/packShop/PackShop.test.tsx'], lastVerifiedAt: '2026-11-28' },
+  },
+  {
+    id: 'R-PROG-PACK-11',
+    title: 'A pack purchase is charged once per request, an opening pays once, and a claim makes one pack per request',
+    statement:
+      'Every purchase names a request id, and the server charges it at most once: a repeated request answers the first '
+      + 'result, even after packs are switched off. The client keeps the id of a purchase whose answer never came (a time-out, '
+      + 'a network error, a failed call), so a retry of the same offer at the same price sends the same id; a definite answer '
+      + 'drops it, and a late answer changes nothing. No second purchase is sent while one is pending. A pack opens once: a '
+      + 'second opening answers the same cards and pays no duplicate Aether again. A claim of the purchase reward makes at '
+      + 'most one pack per request. Each runs under the per-user progression lock, and the Edge Function passes only '
+      + 'server-side arguments, never a reward the client names.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-27 (the pack economy spec, docs/superpowers/specs/2026-11-27-pack-economy-design.md: section 2, a repeated request is charged once; section 9.3)', quote: 'Approved' },
+      { kind: 'fix-pr', ref: 'PR #2903 — supabase/migrations/2026-12-01-packs.sql (buy_pack: shop:<request id> sources; open_pack; claim_pack_reward)' },
+      { kind: 'fix-pr', ref: 'PR #2904 — packages/progression/src/inventory.ts (the pack actions: buy_pack, open_pack, claim_pack_reward, pack_shop)' },
+      { kind: 'code', ref: 'packages/ui/src/progression/packShop/PackShop.tsx (the kept request id, BUY_TIMEOUT_MS, the pending purchase)' },
+    ],
+    currentBehaviour: 'Built 2026-12-01 (PRs #2903, #2904 and feat/pack-economy-client), behind progression_config.packs_enabled.',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/packs.db.test.ts', 'packages/progression/src/inventory.test.ts', 'packages/ui/src/progression/packShop/PackShop.test.tsx'], lastVerifiedAt: '2026-11-28' },
+  },
+  {
+    id: 'R-PROG-PACK-12',
+    title: 'A Rarity pack\x27s tag shows its odds (cards 1-4 and card 5), equal to the odds it rolls; Category and style packs show none',
+    statement:
+      'A Rarity pack offer carries its odds: the Standard odds for cards 1 to 4, and for card 5 the Standard odds kept only for '
+      + 'its rarity and above, made to total 100%. They are read from the same server-held numbers the roll uses, so the odds '
+      + 'shown are the odds rolled, and a retune reaches both. The pack\x27s tag shows them. A Category or style pack carries '
+      + 'and shows no odds.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-27 (odds shown; spec docs/superpowers/specs/2026-11-27-pack-economy-design.md section 3)', quote: 'pack odds can show on the rarity packs. the other packs dont need it. o nthe pack tag' },
+      { kind: 'fix-pr', ref: 'PR #2902 — packages/progression/src/packEconomy.ts (rarityPackOdds); packages/progression/src/packShop.ts (shelfOffers: odds on Rarity offers only)' },
+      { kind: 'fix-pr', ref: 'PR #2903 — supabase/migrations/2026-12-01-packs.sql (progression_pack_odds, pack_shop_json)' },
+      { kind: 'code', ref: 'packages/ui/src/progression/progressionRemote.ts (the offer parser reads odds)' },
+    ],
+    currentBehaviour: 'PARTIAL as of 2026-12-01 (PRs #2902, #2903 and feat/pack-economy-client). The server sends odds on Rarity offers only, re-read from pack_config, and the client parses them; the Pack Shop tag does not draw them yet, so nothing on screen shows the odds.',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/packEconomy.test.ts', 'packages/progression/src/packWindow.test.ts', 'packages/progression/src/packs.db.test.ts'], lastVerifiedAt: '2026-11-28' },
   },
 ];

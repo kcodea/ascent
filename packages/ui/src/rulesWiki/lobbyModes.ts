@@ -216,7 +216,7 @@ export const ENTRIES: readonly WikiEntry[] = [
     a: "A single-player challenge of hand-built **stages** that you play one at a time. Open the **Gauntlet** tab on the Play screen, pick a stage, press **Start** and pick any hero. Each stage is **10 rounds** against one opponent whose board grows every round: **survive all ten** and you clear it. **Clearing a stage unlocks the next one.** Nothing is rated, so it never touches your Rating. Signed in, the **first clear of each stage earns a chest**, or **200 Aether** once Aether has arrived; replaying a cleared stage doesn't. Signed out, your clears are saved on this device only and earn nothing.",
     aliases: ['stages', 'stage select', 'single player', 'solo', 'campaign', 'challenge'],
     seeAlso: ['game-modes', 'crates'],
-    covers: [{ rule: 'R-PROG-AETHER-01', fp: '2865f837' }],
+    covers: [{ rule: 'R-PROG-AETHER-01', fp: '204d6c10' }],
   },
   {
     id: 'practice-mode',
@@ -378,8 +378,8 @@ export const ENTRIES: readonly WikiEntry[] = [
     },
     seeAlso: ['collection', 'account-levels'],
     covers: [
-      { rule: 'R-PROG-CRATE-01', fp: '1ac19df4' }, { rule: 'R-PROG-CRATE-02', fp: 'f8a0ebcc' },
-      { rule: 'R-PROG-AETHER-01', fp: '2865f837' }, { rule: 'R-PROG-AETHER-02', fp: 'c6de6628' }, { rule: 'R-PROG-AETHER-04', fp: 'c9e8b35c' },
+      { rule: 'R-PROG-CRATE-01', fp: '1ac19df4' }, { rule: 'R-PROG-CRATE-02', fp: 'b98a5986' },
+      { rule: 'R-PROG-AETHER-01', fp: '204d6c10' }, { rule: 'R-PROG-AETHER-02', fp: '09cad20f' }, { rule: 'R-PROG-AETHER-04', fp: 'bb86eb5e' },
     ],
   },
   {

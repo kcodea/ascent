@@ -17,6 +17,7 @@ import { MatchDetailsDialog } from './matchDetails/MatchScoreboard';
 import { GauntletEndScreen } from './gauntlet/GauntletEndScreen';
 import { PostGameGround, postGameLocation } from './locationReveal/postGame';
 import { PostGameScreen } from './postGame/PostGameScreen';
+import { clearSimEnding, useSimEnding } from './postGame/simEnding';
 
 /** A live `CardView` for a final-warband minion — shared with the final-board capture (see `liveBoardView`),
  *  so scaling cards show their *accumulated* magnitude at run's end, not the printed base. */
@@ -99,8 +100,10 @@ function LobbyEndScreen({ lobby, run, onPlayAgain }: {
   // THE POST-GAME SCREEN stands at the place the game was played (postGame.tsx), as hero select did.
   const at = postGameLocation(run);
   const ground = at ? <PostGameGround key={at.id} location={at} /> : null;
-  if (run.mode === 'practice' || noOpponents || rankSource) {
-    const practice = run.mode === 'practice' || noOpponents;
+  // A SIMULATED ENDING (DEV, the Scene Builder's "Play ending", postGame/simEnding.ts): its made-up rank in place of the real one.
+  const sim = useSimEnding();
+  if (run.mode === 'practice' || noOpponents || rankSource || sim.active) {
+    const practice = sim.active ? !sim.rank : run.mode === 'practice' || noOpponents;
     // THE POST-GAME SCREEN (owner 2026-11-27, postGame/PostGameScreen.tsx): the result (placement, rank, Account XP), then the
     // whole lobby, at Terys Gate. The rank sequence and the Account XP inside it are RankScreen's, as before.
     return (
@@ -109,16 +112,16 @@ function LobbyEndScreen({ lobby, run, onPlayAgain }: {
         place={place}
         seatCount={lobby.seats.length}
         practice={practice}
-        submission={practice ? 'unrated' : rankSource!.submission}
-        result={practice ? null : rankSource!.result}
-        current={practice ? null : rankSource!.current}
-        error={practice ? undefined : rankSource!.error}
+        submission={practice ? 'unrated' : sim.active ? 'confirmed' : rankSource!.submission}
+        result={practice ? null : sim.active ? sim.rank : rankSource!.result}
+        current={practice ? null : sim.active ? sim.rank!.before : rankSource!.current}
+        error={practice || sim.active ? undefined : rankSource!.error}
         unratedReason={unratedReasonOf(run.mode, noOpponents)}
-        runId={rankSource?.runId ?? rankSource?.result?.runId ?? String(run.seed)}
-        onRetry={practice ? undefined : rankSource!.retry}
+        runId={sim.active ? sim.rank?.runId ?? `sim-${run.seed}` : rankSource?.runId ?? rankSource?.result?.runId ?? String(run.seed)}
+        onRetry={practice || sim.active ? undefined : rankSource!.retry}
         match={match}
         scoring={scoring}
-        onContinue={onPlayAgain}
+        onContinue={() => { clearSimEnding(); onPlayAgain(); }} // a simulated ending's made-up rank and XP leave with it
         onRewatch={canRewatch ? () => startReplay(lastReplay!) : undefined}
       />
     );

@@ -167,6 +167,9 @@
 .scenebuilder .sb-seg { display: grid; grid-template-columns: 1fr 1fr; overflow: hidden; border: 1px solid var(--sbn-hair); background: var(--sbn-well); box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.6); border-radius: 6px; }
 .scenebuilder .sb-seg-3 { grid-template-columns: repeat(3, 1fr); }
 .scenebuilder .sb-seg-7 { grid-template-columns: repeat(7, 1fr); flex: 1; }
+.scenebuilder .sb-seg-8 { grid-template-columns: repeat(8, 1fr); }
+.scenebuilder .sb-seg-5 { grid-template-columns: repeat(5, 1fr); margin-top: 6px; }
+.scenebuilder .sb-seg-5 .sb-seg-btn { font-size: 11px; padding-left: 2px; padding-right: 2px; }
 .scenebuilder .sb-seg-btn { min-height: var(--sb-ctl-h); background: transparent; border: 0; color: var(--sbn-muted); padding: 0 calc(4 * var(--u));
   font-family: var(--sbn-font); font-size: var(--sb-fs); font-weight: 800; letter-spacing: 0.02em; text-shadow: var(--sbn-shadow); transition: color 0.12s ease; }
 .scenebuilder .sb-seg-btn + .sb-seg-btn { border-left: 1px solid var(--sbn-hair); }

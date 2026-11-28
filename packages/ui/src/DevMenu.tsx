@@ -74,7 +74,6 @@ import { QaWorkbench } from './QaWorkbench';
 import { TitleVeilTuner } from './TitleVeilTuner';
 import { TitleAccountTuner } from './TitleAccountTuner';
 import { BoardEdgeTuner } from './BoardEdgeTuner';
-import { EndGameTuner } from './EndGameTuner';
 import { SecondPowerTuner } from './SecondPowerTuner';
 import { CombatRampTuner } from './CombatRampTuner';
 import { StepProcFxTuner } from './StepProcFxTuner';
@@ -224,7 +223,6 @@ const GROUPS: Group[] = [
       { key: 'scoutcard', icon: '🔎', label: 'Scout Card', C: ScoutCardTuner, hint: 'The hover/pinned opponent scouting report — box, text, portraits, rune sockets, colours', alt: 'opponent scout hover card intel report' },
       { key: 'secondpower', icon: '👥', label: 'Second Power', C: SecondPowerTuner, hint: "Void's second hero-power button — offset + scale", alt: 'void twin power position' },
       { key: 'chatbubbles', icon: '💭', label: 'Chat Bubbles', C: ChatBubbleTuner, hint: 'The springs on the chat bubbles beside faces: the pop in, the words landing, being pushed down, leaving, and the hopping typing dots. Turn on Chat sandbox + fake chatter to watch them', alt: 'chat bubble speech spring bounce pop typing dots hop squash stretch wobble' },
-      { key: 'endgame', icon: '🏁', label: 'End Practice game', C: EndGameTuner, hint: 'Win, or finish 2nd to 8th, on the next fight of the current Practice game, to test the gate, the journey and the post-game screen', alt: 'win lose end game practice placement finish victory eliminated post game test' },
       { key: 'boardedge', icon: '🌫️', label: 'Board Edge', C: BoardEdgeTuner, hint: 'The colour the board fades into on an ultrawide (wider than 16:9) window', alt: 'ultrawide margin side blend' },
       { key: 'modepick', icon: '🎛️', label: 'Play Mode Screen', C: ModePickTuner, hint: 'The MODE picker — pan and zoom the art inside each mode tile', alt: 'play screen mode picker' },
       { key: 'buffdrawer', icon: '🧪', label: 'Buffs Panel', C: BuffDrawerTuner, hint: 'The run-buffs pop-out' },

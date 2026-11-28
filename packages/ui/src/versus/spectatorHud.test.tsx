@@ -232,9 +232,9 @@ describe('R-SPECTATE-LOCAL-01: a spectator uses their own rail, guides and Summa
     ui = mount(<LobbyPanel lobby={run.lobby!} />);
     const tab = ui.container.querySelector('.guidesbtn')!;
     click(tab);
-    expect(ui.container.querySelector('.guidesdock')).not.toBeNull();
+    expect(document.body.querySelector('.guidesdock')).not.toBeNull(); // portaled to the stage (R-GUIDES-QUICKLOOK-01)
     // read only: no Edit button on any guide
-    expect(ui.container.querySelector('.lobbyguide-editbtn')).toBeNull();
+    expect(document.body.querySelector('.lobbyguide-editbtn')).toBeNull();
     click(ui.container.querySelector('.guidesbtn')!);
     const seat = [...ui.container.querySelectorAll('.lobbyseat')].find((s) => !s.classList.contains('you'))!;
     click(seat);

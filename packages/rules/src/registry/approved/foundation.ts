@@ -13789,11 +13789,11 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-GUIDES-CORNER-01',
-    title: 'Build guides open from a Guides square in the bottom-right cluster, as a panel growing up out of it; the lobby rail has no Guides tab',
+    title: 'Build guides open from a Guides square in the bottom-right cluster; the lobby rail has no Guides tab',
     statement:
       'In every run with lobby guides (not the Tutorial, not a Versus 1v1, which keeps its own Guides plate and drawer) a Guides square with the corner plaque sits in the bottom-right cluster, stacked just above the Settings gear (the Compendium | Settings row and the room left of it keep their places). '
-      + 'Pressing it grows the guides panel UP out of the button, its bottom-right corner on the button, scaling from that corner (one-shot transform + opacity); pressing it again or Escape sinks it back. The panel is as wide as the rail column (wider in Detailed), runs up to just under the round header and lies over the rail in one piece; '
-      + 'in Duos its foot sits just above the teammate portrait (measured once as it opens), so the portrait is never covered. The guide list scrolls inside with the game\x27s scrollbar. Combat hides the panel and quiets the button; the view returns after. '
+      + 'Pressing it (or its key, R-GUIDES-KEY-01) opens the Guides overlay, which since 2026-11-27 wears the quick Compendium\x27s look (R-GUIDES-QUICKLOOK-01); pressing it again or Escape closes it. '
+      + 'The guide list scrolls inside with the game\x27s scrollbar. Combat hides the overlay and quiets the button; the view returns after. '
       + 'The rail itself always shows the table: the old Guides / Opponents tab, its per-look positions and its tuner controls are gone. A spectator opens their own guides the same way.',
     domain: 'foundation',
     status: 'approved',
@@ -13801,9 +13801,9 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-31', quote: 'the guides button likely needs a new home entirely, like in the bottom right and have it expand upwards' },
       { kind: 'code', ref: 'packages/ui/src/LobbyPanel.tsx (guidesbtn, guidesdock, guidesFloor), packages/ui/src/guides/lobbyGuides.css, packages/ui/src/guides/LobbyGuides.tsx (GameScroll)' },
     ],
-    currentBehaviour: 'Built 2026-10-31 (feat/corner-buttons-teammate). Before: a two-glyph tab on the rail\x27s edge flipped the whole rail between the table and the guides.',
-    example: 'Mid-shop Ann presses the book square above her gear: the guides grow up out of it over the player list; she opens Dragons, reads, presses the chevron and the list sinks back into the square.',
-    enforcement: { kind: 'scenario', refs: ['packages/ui/src/guides/lobbyGuidesRail.test.tsx', 'packages/ui/src/versus/spectatorHud.test.tsx'], lastVerifiedAt: '2026-10-31' },
+    currentBehaviour: 'Built 2026-10-31 (feat/corner-buttons-teammate). Before: a two-glyph tab on the rail\x27s edge flipped the whole rail between the table and the guides. From 2026-10-31 to 2026-11-27 the panel grew up out of the square, as wide as the rail column, its foot above a Duos teammate portrait.',
+    example: 'Mid-shop Ann presses the book square above her gear: the guides open along the right side; she opens Dragons, reads, presses the chevron and they close.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/guides/lobbyGuidesRail.test.tsx', 'packages/ui/src/versus/spectatorHud.test.tsx'], lastVerifiedAt: '2026-11-27' },
   },
   {
     id: 'R-RAIL-DOCKED-ALLMODES-01',
@@ -17495,6 +17495,48 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'two-screen run.',
     example: 'Skip a fight, open Summary, press Watch replay by accident: the diamond glows gold again, one click races the fight to its deciding hit and you are back on the recap.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/skipTurboReplay.test.tsx'], lastVerifiedAt: '2026-11-27' },
+  },
+  {
+    id: 'R-GUIDES-KEY-01',
+    title: 'G opens and closes the build guides in a game (rebindable)',
+    statement:
+      'In a game whose Guides square is on screen (not the Tutorial, not during combat), pressing G opens the Guides overlay, the same one the '
+      + 'square opens, and pressing it again closes it. It is a Settings binding like the Compendium\x27s C (R-SETTINGS-KEYBINDS-01): listed under '
+      + 'In a game as Guides, rebindable, G by default. A G typed into a text field, the chat or a search box stays text; with Ctrl, Cmd or Alt held it '
+      + 'does nothing; a held key does not flicker the overlay; it does nothing on Hero Select or while a Settings key button waits for a key. One overlay at a '
+      + 'time: G with the Compendium or Settings open swaps to the guides, and opening the Compendium puts the guides away.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-27, relayed by the coordinator', quote: 'add "g" as a keybind to open guides. Make the guides overlay look like the new in game compendium overlay' },
+      { kind: 'code', ref: 'packages/ui/src/guides/guidesHotkey.ts (onGuidesKey); packages/ui/src/keybinds/keybinds.ts (guides); packages/ui/src/LobbyPanel.tsx' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-11-27 (feat/guides-keybind). Before, the guides opened only from the bottom-right square.',
+    example: 'Mid-shop, press G: the guides open along the right side. Press G again: they close. Type a g in the lobby chat: the chat gets the letter.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/guides/guidesHotkey.test.tsx'], lastVerifiedAt: '2026-11-27' },
+  },
+  {
+    id: 'R-GUIDES-QUICKLOOK-01',
+    title: 'The in-game Guides overlay is the quick Compendium, with the guides as its tabs and every guide shown in full',
+    statement:
+      'The build guides in a game open as the quick Compendium does (R-COMPENDIUM-QUICK-01), built from its own parts: the game dims and the game\x27s '
+      + 'place opens dark along the right side. The guides of this game hang down the right edge where the Compendium\x27s parchments hang (Team Ascent\x27s, '
+      + 'then Your guides, then Bookmarked), each its art, name and tribes; the one being read is lit, the rest sit back. The page beside them, as wide as '
+      + 'the room left, is that guide in full: its name written large in light with its tribes beside it, the line of light in its tribe\x27s colour, its '
+      + 'tagline, its write-up with every card name hoverable, then Core and Enablers as the Compendium\x27s own card cells (full card art, hover and '
+      + 'inspect as in the Compendium). The first guide is open at once and the one picked is kept for the game; another one switches the page, and Up '
+      + 'and Down walk them. There is no Simple or Detailed view. Edit, where allowed, sits in the head. Esc, the X, a press outside or the key closes '
+      + 'it, and it fades away as the quick Compendium does. Everything moves once (transform and opacity); nothing loops.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-27, relayed by the coordinator', quote: 'add "g" as a keybind to open guides. Make the guides overlay look like the new in game compendium overlay' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-27, relayed by the coordinator (same PR)', quote: 'give the guide appearance an overhaul so it looks more like the in game compendium a bit. make it the "full/detailed" look and information as well, taking up more space since we have more with this new setup and screen.' },
+      { kind: 'code', ref: 'packages/ui/src/guides/GuidesBook.tsx (the qb classes, BookCardCell, portaled to the stage by LobbyPanel.tsx); packages/ui/src/guides/guidesBook.css; packages/ui/src/quickBook/quickBook.css' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-11-27 (feat/guides-keybind). Before, the guides were a small panel growing up out of the Guides square on the rail\x27s plate: folding cards, Simple (portraits only) by default with a per-card Detailed button for the write-up, and a press outside did not close it.',
+    example: 'Press G: the board dims and Sunmane is open in full beside the list of guides. Press Combat Rubies in the list: its write-up and its Kobold cards take the page. A press on the board closes it.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/guides/guidesHotkey.test.tsx', 'packages/ui/src/guides/lobbyGuidesRail.test.tsx'], lastVerifiedAt: '2026-11-27' },
   },
   {
     id: 'R-CURSOR-REACTIVE-01',

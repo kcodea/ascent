@@ -789,6 +789,64 @@ def runebarriers():
 
 
 
+def canopy(I, lum):
+    """the tree's leaves and branches against the sky: leaf and bark are green, gold or brown (blue under green) or dark; sky is
+    blue or white (blue at or over green) and light"""
+    leaf = (I[..., 2] < I[..., 1] - .05) | (lum < .30)
+    sky = (I[..., 2] >= I[..., 1] - .005) & (lum > .55)
+    return leaf, sky
+
+
+def terys_specs():
+    """TERYS GATE's pieces (owner 2026-11-27: "make it function like the locations do with parallax elements"). Rigid pieces, the ground
+    never bends (the Rune Barriers' way: big upright marble everywhere):
+     1 (far) the gate building: its statues, the portal, the stairs and terraces, the ruined colonnade on its left, the wall and
+       arches on its right. The sky shows through its arches.
+     2 (middle) the second crowned post and the two urn pedestals at the foot of the stairs.
+     3 (near) the tree, its leaves across the top (a colour `key`: a lattice of leaves on sky) and its banner; the stone railing with
+       its crowned post and the lilies; the vine pillar with its plinth, the right pillar and the flower beds.
+    The sky, the floating castles, the cliffs and falls, the far temple and the courtyard floor are the background."""
+    cT = view(0, 0, .34, .62, 1500, 1161)
+    cL = view(0, .58, .32, 1, 1500, 835)
+    cR = view(.7, .3, 1, 1, 1500, 1485)
+    cM = view(.24, .5, .7, .86, 1500, 498)
+    cG = view(.27, 0, .82, .52, 1500, 602)
+    q2 = view(.45, 0, 1, .55, 1500, 636)
+    q4 = view(.45, .45, 1, 1, 1500, 636)
+    # ── 1: the gate building ──
+    gate = (cM([(40, 498), (40, 205), (65, 168)]) + cT([(1215, 1100), (1212, 640)])
+            + cG([(12, 390), (40, 372), (75, 385), (105, 370), (108, 292), (130, 282), (165, 282), (168, 250), (180, 238), (232, 238), (242, 252), (240, 305),
+                  (330, 302), (338, 295), (338, 175), (350, 160), (400, 165), (405, 92), (420, 80), (470, 82), (472, 102), (500, 96), (505, 72), (530, 57),
+                  (565, 60), (598, 84), (620, 78), (645, 50), (680, 28), (700, 8), (705, -8)])
+            + q2([(1009, -8), (1218, -8), (1218, 60), (1226, 140), (1222, 300), (1240, 400), (1252, 460), (1255, 518), (1300, 505), (1520, 500)])
+            + cR([(1520, 720), (1100, 715), (800, 720)]) + q4([(950, 332), (770, 352), (650, 346), (0, 346)])
+            + cM([(640, 345), (480, 332), (330, 330), (200, 340), (190, 360), (160, 420), (150, 498)]))
+    gate_holes = [cG([(358, 195), (398, 195), (400, 300), (358, 300)]), cG([(728, 12), (782, 12), (782, 98), (728, 98)]),
+                  cG([(985, 8), (1012, 8), (1012, 80), (985, 80)]), cG([(1408, -8), (1470, -8), (1470, 165), (1408, 165)])]
+    # ── 2: the middle posts ──
+    post = cM([(195, 270), (210, 262), (420, 262), (432, 290), (412, 300), (415, 500), (205, 500), (215, 320)])
+    urnL = cM([(485, 40), (530, 10), (580, 5), (630, 40), (615, 75), (580, 90), (575, 140), (620, 155), (625, 322), (560, 332), (505, 322), (505, 160), (540, 140), (540, 95), (500, 80)])
+    urnR = q4([(645, 95), (700, 60), (760, 70), (775, 100), (745, 125), (745, 180), (770, 190), (770, 330), (700, 355), (670, 355), (655, 330), (655, 190), (680, 180), (680, 125)])
+    # ── 3: the near frame ──
+    trunk = cT([(-20, 300), (320, 300), (290, 380), (260, 470), (240, 560), (200, 640), (160, 700), (110, 760), (60, 820), (-20, 880)])
+    banner = cT([(285, 330), (330, 300), (450, 300), (462, 330), (440, 420), (430, 700), (445, 820), (462, 900), (430, 880), (380, 850), (330, 800), (285, 770), (280, 700)])
+    leftfoliage = cT([(-20, 860), (60, 860), (120, 900), (160, 960), (180, 1050), (250, 1100), (260, 1180), (-20, 1180)])
+    rail = cL([(-20, -20), (260, -20), (330, 60), (380, 90), (400, 160), (470, 180), (500, 230), (560, 240), (780, 250), (785, 190), (1050, 185), (1205, 220), (1180, 265),
+               (1172, 505), (1310, 515), (1325, 640), (1240, 690), (1100, 700), (1000, 700), (900, 690), (800, 700), (720, 760), (720, 860), (-20, 860)])
+    rail_holes = [cL([(425, 395), (492, 395), (492, 560), (470, 600), (425, 600)]), cL([(602, 378), (655, 378), (655, 470), (640, 480), (625, 470), (605, 480)]),
+                  cL([(762, 378), (790, 378), (790, 460), (775, 470), (762, 460)])]
+    right = cR([(470, 1500), (380, 1500), (385, 1228), (470, 1225), (480, 1180), (500, 1095), (530, 1070), (528, 950), (470, 940), (470, 760), (520, 720), (515, 460),
+                (495, 400), (492, 345), (560, 322), (610, 300), (600, 250), (690, 140), (730, 180), (800, 240), (860, 290), (880, 370), (860, 460), (840, 560), (820, 690),
+                (810, 760), (860, 805), (1000, 815), (1080, 745), (1180, 755), (1240, 795), (1250, 560), (1245, 420), (1290, 378), (1400, 348), (1520, 348), (1520, 1500)])
+    leaves = [(-.02, -.02), (.36, -.02), (.36, .14), (.30, .14), (.24, .08), (.20, .10), (.165, .19), (.10, .22), (.08, .27), (-.02, .27)]
+    return {
+        1: dict(groups=[([gate], gate_holes, 9)]),
+        2: dict(groups=[([post, urnL, urnR], None, 8)]),
+        3: dict(groups=[([trunk, banner, leftfoliage], None, 8), ([rail], rail_holes, 8), ([right], None, 8)], key=[(leaves, canopy)]),
+        'snap': True, 'tone': .08, 'planes': lambda x: [.075, .14, .26],
+    }
+
+
 def terys():
     """TERYS GATE (owner 2026-11-27: "use this for the returning art", renamed from the Portal of Kings): where a game's journey ends.
     No background was painted for it yet, so v1 is ONE rigid piece: a constant depth (nothing bends, nothing slides), wind on the tree,
@@ -796,6 +854,8 @@ def terys():
     (an `energy` mask in data.webp's blue). A cut parallax needs the owner's background (method.md, section 3)."""
     file = 'PortalOfKings.jpg'
     master = Image.open(ART + file).convert('RGB')
+    if MAPS:
+        return maps('p', master, terys_specs())
     out = PUB + 'terys/'
     os.makedirs(out, exist_ok=True)
     I = master.resize((W, H), Image.LANCZOS)

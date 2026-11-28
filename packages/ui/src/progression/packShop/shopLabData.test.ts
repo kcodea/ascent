@@ -151,11 +151,11 @@ describe('the shop window', () => {
     // the autumn change (Nov 1 2026, 2am): the 12am-6am window is 7 hours; 6am is EST
     expect(at('2026-11-01T04:30:00Z')).toBe('2026-11-01T11:00:00.000Z');
   });
-  it('gives one free pack a day but new deals every window', () => {
+  it('gives a new free pack and new deals every window (owner: "Every 6 hours")', () => {
     const [free0, ...deals0] = featuredOffers('2026-11-05T00');
     const [free6, ...deals6] = featuredOffers('2026-11-05T06');
-    expect(free0!.offerId).toBe(free6!.offerId);
-    expect(featuredOffers('2026-11-06T00')[0]!.offerId).not.toBe(free0!.offerId);
+    expect(free0!.offerId).not.toBe(free6!.offerId);
+    expect(featuredOffers('2026-11-05T00')[0]!.offerId).toBe(free0!.offerId);
     const key = (ds: typeof deals0) => ds.map((d) => d.offerId).join(',');
     expect(key(deals0)).not.toBe(key(deals6));
   });

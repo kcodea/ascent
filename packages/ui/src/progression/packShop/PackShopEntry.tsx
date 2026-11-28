@@ -136,7 +136,7 @@ function LabPackShop({ onClose }: { onClose: () => void }) {
   // the day turned over: the new day's window, and its per-day limits start fresh
   const onRefresh = useCallback(() => {
     const now = new Date();
-    // the free pack taken stays taken (its id is the day's, so a new day's pack is a fresh id)
+    // the free pack taken stays taken (its id is the window's, so the next window's pack is a fresh id)
     setDay(labShopDay(now)); setRefreshesAt(labNextRefresh(now)); setBoughtOf(new Map());
   }, []);
   const open = useCallback<PackShopProps['open']>(async (packId) => {

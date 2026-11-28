@@ -76,7 +76,7 @@ function zoneOffset(ms: number): number {
 }
 /**
  * The current shop window ("YYYY-MM-DDTHH", Eastern, HH = 00 / 06 / 12 / 18): the featured deals rotate when it changes.
- * Its first 10 characters are the Eastern date (the daily free pack's day).
+ * The free pack and the deals both turn over with it.
  */
 export function labShopDay(now: Date = new Date()): string {
   const z = zoneParts(now.getTime());
@@ -119,9 +119,8 @@ export const DEAL_OFF = { min: 20, max: 60, step: 5 } as const;
  */
 export function featuredOffers(day: string): PackOffer[] {
   const rare = SHELF_OFFERS.find((o) => o.look.id === 'rarity-rare')!;
-  // the free pack is DAILY (keyed on the Eastern date, so one per day however often the shop refreshes); the deals rotate
-  // with every refresh window
-  const free: PackOffer = { ...rare, offerId: `lab-daily-free-${day.slice(0, 10)}`, shelf: 'featured', price: 0, badge: 'free' };
+  // a free pack EVERY REFRESH, like the deals (owner 2026-11-27, asked whether the free Rare stays daily: "Every 6 hours")
+  const free: PackOffer = { ...rare, offerId: `lab-daily-free-${day}`, shelf: 'featured', price: 0, badge: 'free' };
   const rnd = dayRng(day);
   const pool = SHELF_OFFERS.filter((o) => o.look.id !== 'rarity-rare' && !o.soldOut);
   const deals: PackOffer[] = [];

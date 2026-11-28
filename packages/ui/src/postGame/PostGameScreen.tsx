@@ -95,9 +95,6 @@ export interface PostGameScreenProps {
   onRewatch?: () => void;
 }
 
-/** How long the result (the rank's outcome, then the Account XP filling in) holds before the screen moves into the lobby. */
-export const AUTO_LOBBY_MS = 4200;
-
 /**
  * The backdrop framed EXACTLY as the journey left the place, so nothing jumps (or is seen twice) as the wave washes the results in:
  * the reveal's settled camera (revealShaders `at`: painting = VP - OFS + (screen - VP) * 0.962, the ground having no depth) on its
@@ -155,19 +152,10 @@ export function PostGameScreen(p: PostGameScreenProps): JSX.Element {
   // The scoreboard mounts behind the result, a seat a frame, once the journey has arrived (nothing competes with the wave).
   const mounted = useStagger(p.match?.seats.length ?? 0, !held);
 
-  // THE ORDER (owner 2026-11-27: "show the ranked gain/loss ... Then show experience / account related gains after that, then Into the
-  // post game rows"): the rank plays (RankScreen), the Account XP after it (its `extra`), then the screen moves into the lobby by itself,
-  // once. Any press of the player's own takes over (`moved`).
-  const [rankShown, setRankShown] = useState(false);
-  const moved = useRef(false);
-  const toLobby = useCallback(() => { moved.current = true; sfx.tick(); setBeat('lobby'); }, []);
-  const toResult = useCallback(() => { moved.current = true; sfx.tick(); setBeat('result'); }, []);
-  const ready = !held && !!p.match && (p.submission === 'pending' ? false : p.submission === 'confirmed' ? rankShown : true);
-  useEffect(() => {
-    if (!ready || moved.current || leaving) return undefined;
-    const id = window.setTimeout(() => { if (!moved.current) { moved.current = true; setBeat('lobby'); } }, AUTO_LOBBY_MS);
-    return () => window.clearTimeout(id);
-  }, [ready, leaving]);
+  // THE BUTTONS (owner 2026-11-27: "continue should take the player back to main menu, lobby should take the player to the post-game
+  // lobby screen"): the result plays (rank, then Account XP) and waits; nothing moves to the lobby by itself.
+  const toLobby = useCallback(() => { sfx.tick(); setBeat('lobby'); }, []);
+  const toResult = useCallback(() => { sfx.tick(); setBeat('result'); }, []);
   // Continue from the lobby beat: the same cross-fade into the main menu as the result's own Continue (rank/exitFade.ts).
   const leave = useCallback(() => {
     if (leaving || p.scoring) return;
@@ -215,7 +203,6 @@ export function PostGameScreen(p: PostGameScreenProps): JSX.Element {
             continueClassName="ph-start"
             headline={<div className="pg2-word"><span>{BAND_WORD[band]}</span></div>}
             placeText={<PlaceLetters place={p.place} />}
-            onSettled={() => setRankShown(true)}
             scoring={p.scoring}
           />
         </div>

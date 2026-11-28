@@ -9,7 +9,10 @@
  * the XP shown are made up here and live only in this module and the progression store's on-screen slot until the screen is left.
  */
 import { create } from 'zustand';
-import { buildMatchDetails, type RunState } from '@game/sim';
+import { ANCIENT_IDS, buildMatchDetails, poolOf, type RunState } from '@game/sim';
+import { RUNE_INDEX } from '@game/content';
+import { announceEndLine } from '../announcer';
+import { onPostGameRelease } from '../locationReveal/postGameHold';
 import type { ProgressionResult } from '@game/progression';
 import { useGame } from '../store';
 import { useProgression } from '../progression/progressionStore';
@@ -78,7 +81,10 @@ export function playSimulatedEnding(place: number, rank: SimRank): string | null
   const ended = endedRun(run, place);
   const p = ended.lobby!.seats[0]!.placement!;
   let details = null;
-  try { details = buildMatchDetails(ended.lobby!, { name: 'You', placement: p, selfBoard: selfBoardOf(run) }); } catch (e) { console.warn('[simEnding] no match details', e); }
+  try { details = dressTable(buildMatchDetails(ended.lobby!, { name: 'You', placement: p, selfBoard: selfBoardOf(run) }), run); } catch (e) { console.warn('[simEnding] no match details', e); }
+  // Its end line, as the results come in (a sandbox run's own announcer queue stays off).
+  const seatsN = ended.lobby!.seats.length;
+  const off = onPostGameRelease(() => { off(); announceEndLine(p, seatsN); });
   const result = simRankResult(rank, p, currentRankOf(st) ?? { divisionIndex: 7, points: 60 });
   const xp = simXp(p, String(ended.seed));
   const journey = postGameJourney(ended, () => { playPlacementTone(useGame.getState().run, 260); });
@@ -91,6 +97,32 @@ export function playSimulatedEnding(place: number, rank: SimRank): string | null
     useGame.setState({ run: ended, lastMatch: details ? { seed: ended.seed, details } : null });
   }, 'entry', { reveal: journey, word: false }).finally(() => holdPostGame(false));
   return null;
+}
+
+const END_ROUND = 14;
+
+/** A late-game table for the preview: every seat a full board of the run's own pool, stronger the better it placed, a hand of runes
+ *  and an Ancient. Made up, like the rank; nothing reads it but this screen. */
+function dressTable(d: NonNullable<ReturnType<typeof buildMatchDetails>>, run: RunState): typeof d {
+  const minions = poolOf(run).buyable.filter((c) => !c.spell && !c.token && !c.ruby && c.tier >= 3);
+  const runes = Object.keys(RUNE_INDEX).filter((id) => { const r = RUNE_INDEX[id]!; return !r.sets || (run.setId ? r.sets.includes(run.setId) : true); });
+  let k = 7;
+  const pick = <T,>(xs: readonly T[]): T => { k = (k * 1103515245 + 12345) & 0x7fffffff; return xs[k % xs.length]!; };
+  const n = d.seats.length;
+  const seats = d.seats.map((s, i) => {
+    const place = s.self ? d.placement : s.placement ?? i + 1;
+    const power = Math.max(1, n + 1 - place);
+    const keepSelf = s.self && (s.board?.minions.length ?? 0) > 0;
+    const board = keepSelf ? s.board! : {
+      round: d.endRound, tier: Math.min(6, 2 + Math.ceil(power / 2)),
+      minions: Array.from({ length: 7 }, () => { const c = pick(minions); return { cardId: c.id, attack: c.attack + power * 4 + pick([0, 3, 7]), health: c.health + power * 5 + pick([0, 4, 9]), keywords: [...c.keywords], golden: pick([false, false, false, true]) }; }),
+      runes: Array.from({ length: 2 + (power % 4) }, () => pick(runes)),
+    };
+    // A late game: out a round apart from the bottom up, the winner standing at the end (round 14).
+    const out = place === 1 ? undefined : END_ROUND - (place - 2);
+    return { ...s, board: { ...board, round: out ?? END_ROUND }, ancient: s.ancient ?? { id: pick(ANCIENT_IDS), heroId: s.heroId }, ...(out ? { eliminatedRound: out } : { eliminatedRound: undefined }) };
+  });
+  return { ...d, endRound: d.placement === 1 ? END_ROUND : END_ROUND - (d.placement - 2), seats };
 }
 
 /** The made-up Account XP of the ending (the post-game panel reads the progression store's current slot). */

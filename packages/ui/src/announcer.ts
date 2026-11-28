@@ -1649,6 +1649,19 @@ export function announceTeamResult(placement: number): AnnouncerEvent | null {
 }
 
 /**
+ * THE SIMULATED ENDING's line (DEV, postGame/simEnding.ts): a sandbox run keeps the run queue silent, so the Scene Builder's "Play
+ * ending" speaks the place's own end line (`placeEvent`) the same way the Duos result does, after the usual end delay.
+ */
+export function announceEndLine(placement: number, seats: number): AnnouncerEvent | null {
+  const event = placeEvent(placement, seats);
+  cancelTeamResultLine();
+  if (announcerEventChance(event) <= 0) return null;
+  cancelAnnouncer('simulated ending');
+  startTeamLines([event], ANNOUNCER_END_DELAY_MS);
+  return event;
+}
+
+/**
  * RANKED DUOS: the team was PROMOTED (the server's result landed, after the result screen opened). RankUp follows the
  * end line when that is still waiting or talking, as on the solo screen; else it speaks now.
  */

@@ -164,9 +164,6 @@ export const TERYS_GATE: LocationDef = {
   second: [1, 0.82, 0.45],
   warmth: 0.45,
   posters: [],
-  // Rigid pieces over the owner's background (scripts/locations/layers.py `terys_specs`): the gate building, then the posts and urns,
-  // then the tree, the railing and the pillars. The ground never bends.
-  row: { depth: 0.075, slope: 0 },
   energy: [[0.595, 0.365]],
   line: '',
   // Measured (loudness.mjs): the ride -10.7 LUFS and the ambience -25.4, brought level with the other places' as heard.

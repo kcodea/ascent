@@ -22,7 +22,7 @@ import { beginExitFade } from '../rank/exitFade';
 import type { RankPosition, RankResult, RankSubmission } from '../rank/types';
 import { ProgressionPostgame } from '../progression/ProgressionPostgame';
 import { dropJourneyFrame, PostGameGround, postGameLocation, useJourneyFrame, usePostGameHeld } from '../locationReveal/postGame';
-import { locationArt, locationName, resultBand, type ResultBand } from '../locationReveal/locations';
+import { locationArt, resultBand, type ResultBand } from '../locationReveal/locations';
 import { slideFor, stageHeight } from '../locationReveal/revealGl';
 import { A } from '../locationReveal/revealTimeline';
 import { SeatAncientBadge, SeatPower } from '../matchDetails/SeatPower';
@@ -181,7 +181,6 @@ export function PostGameScreen(p: PostGameScreenProps): JSX.Element {
       {at && (journey
         ? <JourneyFrame frame={journey} />
         : <div className="pg2-sharp" aria-hidden="true" style={{ backgroundImage: `url(${locationArt(at.id, 'full')})`, backgroundSize: frame.size, backgroundPosition: frame.pos }} />)}
-      {at && <div className="pg2-placename" aria-hidden="true">{[...locationName(at)].map((c, i) => <i key={i}>{c}</i>)}</div>}
       <div className="pg2-vignette" aria-hidden="true" />
       <div className="pg2-result" aria-hidden={beat === 'lobby'} {...inertIf(beat === 'lobby')}>
         <div className="pg2-band" aria-hidden="true"><b className="pg2-rays" /><i className="pg2-bloom" /><em className="pg2-flare" /></div>
@@ -201,7 +200,7 @@ export function PostGameScreen(p: PostGameScreenProps): JSX.Element {
             extra={(settled) => <div className="pg2-xpslot"><ProgressionPostgame localKey={String(p.run.seed)} active={settled && (p.practice || p.submission !== 'pending')} /></div>}
             onMatchDetails={p.match ? toLobby : undefined}
             detailsLabel="Match Info"
-            detailsClassName="ph-start pg2-plaque"
+            detailsClassName="pg2-plate"
             detailsAlways
             continueClassName="ph-start pg2-plaque"
             headline={<div className="pg2-word"><span>{BAND_WORD[band]}</span></div>}

@@ -70,7 +70,7 @@ export function revealCues(id: LocationId, n: number): Cue[] {
       // the place goes on sounding into hero select, a step back from where the reveal had it
       env: ambienceEnv,
     },
-    { clip: 'title', at: name - 0.12, gain: 0.62 },
+    ...(journey ? [] : [{ clip: 'title', at: name - 0.12, gain: 0.62 }] as Cue[]), // a journey writes no name: no sting for it
     ...(journey && locationById(id).arrival ? [{ clip: locationById(id).arrival!.clip, at: name - 0.45, gain: locationById(id).arrival!.gain }] as Cue[] : []),
     ...(journey ? [] : [{ clip: `vo-${id}`, at: name + LINE_DELAY, gain: VOICE * mix.line, voice: true }] as Cue[]),
     ...Array.from({ length: n }, (_, i): Cue => ({
@@ -91,7 +91,7 @@ export function revealCues(id: LocationId, n: number): Cue[] {
 export function lightCues(id: LocationId, n: number, at: { name: number; posters: number; step: number; leave: number }): Cue[] {
   // A journey: its name's sting, then the wave (no announcer line, no parchments).
   const sw = locationById(id).arrival;
-  if (n === 0) return [...(sw ? [{ clip: sw.clip, at: at.name - 0.45, gain: sw.gain }] : []), { clip: 'title', at: at.name - 0.12, gain: 0.62 }, { clip: 'wave', at: at.leave - 0.2, gain: 0.3, rate: [[0, 1.08]], lowpass: 5200 }];
+  if (n === 0) return [...(sw ? [{ clip: sw.clip, at: at.name - 0.45, gain: sw.gain }] : []), { clip: 'wave', at: at.leave - 0.2, gain: 0.3, rate: [[0, 1.08]], lowpass: 5200 }];
   return [
     { clip: 'title', at: at.name - 0.12, gain: 0.62 },
     { clip: `vo-${id}`, at: at.name + LINE_DELAY, gain: VOICE * locationById(id).mix.line, voice: true },

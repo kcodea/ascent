@@ -58,7 +58,7 @@ describe('the locations', () => {
     }
   });
 
-  it('TERYS GATE (owner 2026-11-27): every game ends its journey there; it is no set place, hangs nothing, says its name (no announcer line), and ships its files', () => {
+  it('TERYS GATE (owner 2026-11-27): every game ends its journey there; it is no set place, hangs nothing, writes no name (owner: "remove the terys gate text entirely"), and ships its files', () => {
     expect(locationName(TERYS_GATE)).toBe('Terys Gate');
     expect(locationById('terys')).toBe(TERYS_GATE);
     for (const s of ['set1', 'set2', 'set3', 'set4'] as const) expect(locationOfSet(s)?.id).not.toBe('terys');
@@ -76,11 +76,11 @@ describe('the locations', () => {
     // A journey (no parchments): its name's sting and the leaving wave's shimmer, and no announcer line (owner 2026-11-27: "have the
     // text say "terys gate" at the top of it like our other location text does").
     const clips = revealCues('terys', 0).map((c) => c.clip);
-    expect(clips.filter((c) => c === 'title')).toHaveLength(2);
+    expect(clips.filter((c) => c === 'title')).toHaveLength(1); // only the leaving wave's shimmer: no name, no name sting
     expect(revealCues('outskirts', 5).filter((c) => c.clip === 'title')).toHaveLength(2);
     expect(clips.some((c) => c.startsWith('vo-'))).toBe(false);
     for (const c of clips) expect(existsSync(join(PUBLIC, 'sfx', `${c}.mp3`)), c).toBe(true);
-    expect(lightCues('terys', 0, { name: 1, posters: 2, step: 0.3, leave: 3 }).map((c) => c.clip)).toEqual(['arrive-terys', 'title', 'wave']); // its arrival swell (owner: "more exciting")
+    expect(lightCues('terys', 0, { name: 1, posters: 2, step: 0.3, leave: 3 }).map((c) => c.clip)).toEqual(['arrive-terys', 'wave']); // its arrival swell (owner: "more exciting")
   });
 
   it('a journey is the travel alone: the wash comes a short rest after the landing', () => {

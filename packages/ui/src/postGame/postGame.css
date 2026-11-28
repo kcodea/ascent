@@ -14,13 +14,9 @@
    blurred ground. */
 .pg2 { container-type: size; }
 .pg2-sharp { position: absolute; inset: 0; z-index: 0; background: #06101f no-repeat; transform-origin: 59.5% 36.5%; transition: opacity 0.5s ease; }
-.pg2-placename { position: absolute; left: 0; right: 0; top: 5.5cqh; z-index: 1; display: flex; justify-content: center; pointer-events: none; transition: opacity 0.4s ease;
-  font-family: 'Cinzel', var(--title-font, 'Cinzel Decorative'), serif; font-weight: 900; font-size: 11.7cqh; line-height: 1.15; white-space: nowrap; }
-.pg2-placename > i { font-style: normal; display: block; white-space: pre; color: #fff3cf;
-  text-shadow: 0 0.045em 0 #6b430f, 0 0 0.33em rgba(255, 196, 96, 0.55), 0 0.136em 0.3em rgba(0, 0, 0, 0.75); }
 .pg2-sharp-frame { overflow: hidden; background: #06101f; }
 .pg2-frame { position: absolute; left: 50%; top: 50%; display: block; max-width: none; transform: translate(-50%, -50%); }
-.pg2.on-lobby :is(.pg2-sharp, .pg2-placename) { opacity: 0; }
+.pg2.on-lobby .pg2-sharp { opacity: 0; }
 @media (prefers-reduced-motion: no-preference) {
   .pg2-sharp { animation: pg2-drift 40s cubic-bezier(0.2, 0.5, 0.3, 1) both; }
 }
@@ -135,10 +131,14 @@
    being different"). */
 .pg2 .pg2-plaque.ph-start { margin: 0; width: calc(340 * var(--phu)); height: calc(64 * var(--phu)); font-size: calc(23 * var(--phu)); letter-spacing: 0.14em; padding: 0; }
 .pg2 .pg2-plaque.ph-start > span { padding-left: 0.14em; }
-/* Match Info also wears `.rankend-details` (the Match details link's own look): the plaque's own box and type win. */
-.pg2 .pg2-plaque.ph-start.rankend-details { display: block; gap: 0; padding: 0; border: 0; border-radius: 0; font-family: var(--ph-font); font-weight: 900; color: #2a1a06;
-  text-shadow: 0 1px 0 rgba(255, 245, 210, 0.6); background: url('../partyHome/ornaments/start-plaque.webp') center / 100% 100% no-repeat; text-align: center; }
-.pg2 .pg2-plaque.ph-start.rankend-details:hover:not(:disabled) { color: #2a1a06; border-color: transparent; background: url('../partyHome/ornaments/start-plaque.webp') center / 100% 100% no-repeat; }
+/* Match Info: the navy plate (owner 2026-11-27: "change the match info button back to the blue styled button it was before"), the
+   same height as Continue's plaque and the same cut. It also wears `.rankend-details`; this look wins. */
+.pg2 .pg2-plate.rankend-details { display: grid; place-items: center; width: calc(300 * var(--phu)); height: calc(340 * var(--phu) * 197 / 800 - 16 * var(--phu)); padding: 0; margin: calc(8 * var(--phu)) 0 0; border: 0; border-radius: 0;
+  background: var(--ph-plate); box-shadow: var(--ph-gild); clip-path: var(--ph-clip); font-family: var(--ph-font); font-weight: 900; font-size: calc(22 * var(--phu)); letter-spacing: 0.18em;
+  text-transform: uppercase; color: var(--ph-text); text-shadow: var(--ph-shadow); transition: transform 0.12s cubic-bezier(0, 0, 0.2, 1); }
+.pg2 .pg2-plate.rankend-details > span { padding-left: 0.18em; }
+.pg2 .pg2-plate.rankend-details:hover:not(:disabled) { background: var(--ph-plate-hover); color: var(--ph-ink); border-color: transparent; transform: scale(1.04); }
+.pg2 .pg2-plate.rankend-details:active:not(:disabled) { transform: scale(0.97); }
 .pg2 .pg2-plaque.ph-start { height: calc(340 * var(--phu) * 197 / 800); }
 .pg2 .rankend-continue.ph-start.scoring { opacity: 0.5; filter: none; }
 .pg2 .rankend-link { font-family: var(--ph-font); }

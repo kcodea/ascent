@@ -175,7 +175,8 @@ export function playFullReveal(host: HTMLElement, r: LocationRevealRequest, gl: 
     const root = el('div', 'lrev', host);
     gl.canvas.className = 'lrev-canvas';
     root.appendChild(gl.canvas);
-    const words = n > 0 || locationName(r.location) ? buildWords(root, r) : null;
+    // A JOURNEY writes no name (owner 2026-11-27: "remove the terys gate text entirely"): the place speaks for itself.
+    const words = n > 0 ? buildWords(root, r) : null;
     const write = words ? makeWordsWriter(words, n) : (): void => undefined;
     // THE ARRIVAL (a journey: Terys Gate, owner 2026-11-27: "make the gate look and feel more exciting"): at the landing the portal
     // flares, a shock ring runs out, rays turn slowly behind it and motes rise, in the place's own colour. CSS one-shots (transform /
@@ -317,7 +318,7 @@ export function playLightReveal(under: HTMLElement, r: LocationRevealRequest, pa
       e.style.backgroundImage = `url(${locationArt(r.location.id, `poster-${t}`)})`;
       return e;
     });
-    const words = n > 0 || locationName(r.location) ? buildWords(root, r) : null;
+    const words = n > 0 ? buildWords(root, r) : null;
     words?.letters.forEach((e) => { e.style.opacity = '1'; });
     const unwatch = watchSize(root, (stageH, fit) => {
       const u = stageH * fit;

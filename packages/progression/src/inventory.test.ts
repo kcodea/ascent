@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { COSMETICS, COSMETIC_CATEGORY_DEFS, parseOpenCrateResult, type CosmeticDef } from './cosmetics';
 import { parseBuyCrateResult } from './crateShop';
+import { shelfOffers, windowOffers } from './packShop';
 import { handleInventory, openParity, validateInventoryBody } from './inventory';
 import type { RpcCall } from './server';
 
@@ -246,5 +247,97 @@ describe('parseOpenCrateResult keeps the Aether balance', () => {
     expect(parseOpenCrateResult(shopOpened(reward, {}, { aether: -3 }))).not.toHaveProperty('aether');
     expect(parseOpenCrateResult(shopOpened(reward, {}, { aether: 'lots' }))).not.toHaveProperty('aether');
     expect(parseOpenCrateResult(opened())).not.toHaveProperty('aether');
+  });
+});
+
+describe('the pack actions (2026-12-01)', () => {
+  const WIN = '2026-12-01T06';
+  const PACK = 'bbbbbbbb-cccc-dddd-eeee-ffffffffffff';
+  const buyPack = (over: Record<string, unknown> = {}) => ({ action: 'buy_pack', offerId: `${WIN}:rarity-rare`, expectedPrice: 175, requestId: REQ, ...over });
+
+  it('validates each action and refuses a bad uuid, an over-bound price and an unknown offer shape (400)', () => {
+    expect(validateInventoryBody({ action: 'pack_shop' })).toEqual({ ok: true, request: { action: 'pack_shop' } });
+    expect(validateInventoryBody(buyPack({ requestId: REQ.toUpperCase() }))).toEqual({ ok: true, request: { action: 'buy_pack', offerId: `${WIN}:rarity-rare`, expectedPrice: 175, requestId: REQ } });
+    for (const offerId of [`${WIN}:free`, `${WIN}:deal:0`, `${WIN}:deal:3`, `${WIN}:rarity-ancient`, `${WIN}:category-hero_skin`, `${WIN}:themed-8bit`]) {
+      expect(validateInventoryBody(buyPack({ offerId }))).toMatchObject({ ok: true });
+    }
+    for (const offerId of ['free', WIN, `${WIN}:`, `${WIN}:deal`, `${WIN}:deal:x`, `${WIN}:deal:123`, `${WIN}:rarity-mythic`, `${WIN}:category-nope`, `${WIN}:themed-nope`, `2026-12-01:free`, `${WIN}:free `, 7, null]) {
+      expect(validateInventoryBody(buyPack({ offerId }))).toEqual({ ok: false, status: 400, error: 'bad_offer_id' });
+    }
+    expect(validateInventoryBody(buyPack({ expectedPrice: 1_000_001 }))).toEqual({ ok: false, status: 400, error: 'bad_price' });
+    expect(validateInventoryBody(buyPack({ expectedPrice: -1 }))).toMatchObject({ error: 'bad_price' });
+    expect(validateInventoryBody(buyPack({ expectedPrice: 1.5 }))).toMatchObject({ error: 'bad_price' });
+    expect(validateInventoryBody(buyPack({ expectedPrice: '175' }))).toMatchObject({ error: 'bad_price' });
+    expect(validateInventoryBody(buyPack({ requestId: 'x' }))).toEqual({ ok: false, status: 400, error: 'bad_request_id' });
+    expect(validateInventoryBody({ action: 'open_pack', packId: PACK.toUpperCase() })).toEqual({ ok: true, request: { action: 'open_pack', packId: PACK } });
+    expect(validateInventoryBody({ action: 'open_pack', packId: 'nope' })).toEqual({ ok: false, status: 400, error: 'bad_pack_id' });
+    expect(validateInventoryBody({ action: 'claim_pack_reward', requestId: REQ })).toEqual({ ok: true, request: { action: 'claim_pack_reward', requestId: REQ } });
+    expect(validateInventoryBody({ action: 'claim_pack_reward', requestId: 'x' })).toEqual({ ok: false, status: 400, error: 'bad_request_id' });
+  });
+
+  const shopAnswer = { windowId: WIN, nextRefreshAt: '2026-12-01T18:00:00Z', shelves: [{ id: 'featured', name: 'Daily Featured' }], offers: [], packs: [], packMeter: { paidPacks: 3, every: 15 }, aether: 5 };
+  const buyAnswer = { status: 'ok', packs: [{ packId: PACK }], aether: 5, meter: { paidPacks: 4, every: 15 } };
+  const openAnswer = { status: 'opened', packId: PACK, pack: { kind: 'rarity', id: 'rarity-rare' }, cards: [{ cosmeticId: 'title_ironbeard' }], aether: 25 };
+  const claimAnswer = { status: 'ok', packs: [{ packId: PACK }], meter: { paidPacks: 15, every: 15 } };
+
+  it('calls each SQL function with server-side args only and passes its real answer shape through intact (the shop read has no status key)', async () => {
+    const cases: Array<[Record<string, unknown>, string, Record<string, unknown>, unknown]> = [
+      [{ action: 'pack_shop' }, 'pack_shop_json', { p_user: USER }, shopAnswer],
+      [buyPack(), 'buy_pack', { p_user: USER, p_offer_id: `${WIN}:rarity-rare`, p_expected_price: 175, p_request_id: REQ }, buyAnswer],
+      [{ action: 'open_pack', packId: PACK }, 'open_pack', { p_user: USER, p_pack_id: PACK }, openAnswer],
+      [{ action: 'open_pack', packId: PACK }, 'open_pack', { p_user: USER, p_pack_id: PACK }, { ...openAnswer, status: 'already_opened' }],
+      [{ action: 'claim_pack_reward', requestId: REQ }, 'claim_pack_reward', { p_user: USER, p_request_id: REQ }, claimAnswer],
+    ];
+    for (const [body, fn, args, answer] of cases) {
+      const rpc = rpcReturning(answer);
+      expect(await handleInventory(USER, body, rpc)).toEqual({ status: 200, body: answer });
+      expect(rpc).toHaveBeenCalledWith(fn, args);
+    }
+  });
+
+  it('accepts every offer id the shop generator mints (free, all deals, every rarity, category and style pack)', () => {
+    const draws = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.05, 0.15, 0.25];
+    const ids = [...windowOffers(WIN, draws), ...shelfOffers(WIN)].map((o) => o.offerId);
+    expect(ids.some((id) => id.endsWith(':free'))).toBe(true);
+    expect(ids.filter((id) => id.includes(':deal:')).length).toBe(4);
+    expect(ids.length).toBeGreaterThan(15);
+    for (const offerId of ids) expect(validateInventoryBody(buyPack({ offerId })), offerId).toMatchObject({ ok: true });
+  });
+
+  it('maps every RAISED code to its status', async () => {
+    const codes: Record<string, number> = { packs_disabled: 409, pack_not_found: 404, unsupported_offer: 409, shop_retired: 409, chests_frozen: 409, bad_offer_id: 400, bad_pack_id: 400 };
+    for (const [code, status] of Object.entries(codes)) {
+      expect(await handleInventory(USER, buyPack(), rpcReturning(null, { message: `P0001: ${code}` }))).toEqual({ status, body: { error: code } });
+    }
+  });
+
+  it('maps every JSON refusal to its status and keeps the answer body intact (each refusal in the shape its function answers)', async () => {
+    const offers = [{ offerId: `${WIN}:free` }];
+    const open = { action: 'open_pack', packId: PACK };
+    const claim = { action: 'claim_pack_reward', requestId: REQ };
+    const cases: Array<[Record<string, unknown>, Record<string, unknown>, number]> = [
+      [buyPack(), { status: 'error', reason: 'guest', aether: 40 }, 403],
+      [buyPack(), { status: 'error', reason: 'expired', aether: 40, offers }, 409],
+      [buyPack(), { status: 'error', reason: 'price_changed', aether: 40 }, 409],
+      [buyPack(), { status: 'error', reason: 'sold_out', aether: 40 }, 409],
+      [buyPack(), { status: 'error', reason: 'no_room', aether: 40 }, 409],
+      [buyPack(), { status: 'error', reason: 'insufficient', aether: 40 }, 409],
+      [open, { status: 'error', reason: 'guest', aether: 40 }, 403],
+      [claim, { status: 'error', reason: 'guest' }, 403],
+      [claim, { status: 'error', reason: 'none' }, 409],
+    ];
+    for (const [body, answer, status] of cases) expect(await handleInventory(USER, body, rpcReturning(answer))).toEqual({ status, body: answer });
+  });
+
+  it('an unknown reason, a missing status or a non-object answer is a 500, and 401 without a caller', async () => {
+    const bad = { status: 500, body: { error: 'inventory_malformed' } };
+    expect(await handleInventory(USER, buyPack(), rpcReturning({ status: 'error', reason: 'weird' }))).toEqual(bad);
+    expect(await handleInventory(USER, buyPack(), rpcReturning({ packs: [] }))).toEqual(bad);
+    expect(await handleInventory(USER, buyPack(), rpcReturning(null))).toEqual(bad);
+    expect(await handleInventory(USER, { action: 'pack_shop' }, rpcReturning(null))).toEqual(bad);
+    expect(await handleInventory(USER, { action: 'pack_shop' }, rpcReturning([]))).toEqual(bad);
+    const rpc = rpcReturning(null);
+    expect(await handleInventory(null, buyPack(), rpc)).toEqual({ status: 401, body: { error: 'unauthenticated' } });
+    expect(rpc).not.toHaveBeenCalled();
   });
 });

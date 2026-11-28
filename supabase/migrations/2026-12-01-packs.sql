@@ -852,7 +852,11 @@ $$;
 --  4. no place on the counter answers `no_room`; a balance short of the price answers `insufficient`;
 --  5. the charge (`aether_apply(-price, 'pack_purchase', request id)`, skipped at price 0), the pack(s) (`shop:<request
 --     id>:<n>`, or `free:<window id>`), `contains` added to the meter when the price is above 0, and `ok`.
--- Every refusal answers `{status 'error', reason, aether}` and writes nothing. Malformed input raises.
+-- Every refusal answers `{status 'error', reason, aether}` and writes nothing. Malformed input raises. A REPLAYED
+-- request answers with the pack(s) it first made but the CURRENT `aether` and `meter` (not the numbers of the first
+-- answer). An offer whose pack can no longer give anything (its category switched off or admin_off mid-window) is
+-- `expired`, never sold. Only single packs are sold: an offer with `contains` other than 1 raises `unsupported_offer`
+-- until booster boxes are designed (spec 13.3: how a box fits the counter is decided with it).
 create or replace function public.buy_pack(p_user uuid, p_offer_id text, p_expected_price int, p_request_id uuid)
 returns jsonb
 language plpgsql
@@ -879,7 +883,7 @@ begin
   if p_expected_price is null or p_expected_price < 0 then raise exception 'bad_price'; end if;
   perform pg_advisory_xact_lock(hashtextextended('progression:' || p_user::text, 0));
 
-  -- 1. a replayed request
+  -- 1. a replayed request: its pack(s), with today's balance and meter
   select jsonb_agg(public.progression_owned_pack_json(p) order by length(p.source), p.source) into v_packs
     from public.packs p where p.user_id = p_user and p.request_id = p_request_id and (p.source like 'shop:%' or p.source like 'free:%');
   if v_packs is not null then
@@ -903,6 +907,14 @@ begin
     return jsonb_build_object('status', 'error', 'reason', 'expired', 'aether', v_balance,
       'offers', public.pack_shop_json(p_user) -> 'offers');
   end if;
+  -- an offer whose pool emptied mid-window (a category switched off or admin_off) is gone, never sold
+  if not exists (select 1 from public.progression_pack_pool() p
+      where v_offer -> 'look' ->> 'kind' = 'rarity'
+         or (v_offer -> 'look' ->> 'kind' = 'category' and p.category = substr(v_offer -> 'look' ->> 'id', 10))
+         or (v_offer -> 'look' ->> 'kind' = 'themed' and (v_offer -> 'look' ->> 'id') = any(p.pack_styles))) then
+    return jsonb_build_object('status', 'error', 'reason', 'expired', 'aether', v_balance,
+      'offers', public.pack_shop_json(p_user) -> 'offers');
+  end if;
   v_free := p_offer_id = v_window || ':free';
   if v_free then
     select jsonb_build_array(public.progression_owned_pack_json(p)) into v_packs
@@ -913,6 +925,8 @@ begin
   end if;
   v_price := (v_offer ->> 'price')::int;
   v_contains := (v_offer ->> 'contains')::int;
+  -- booster boxes are not designed yet (spec 13.3): only single packs are sold
+  if v_contains is distinct from 1 then raise exception 'unsupported_offer'; end if;
   v_look := v_offer -> 'look';
   if v_price <> p_expected_price then
     return jsonb_build_object('status', 'error', 'reason', 'price_changed', 'aether', v_balance);
@@ -1002,7 +1016,7 @@ begin
 
   insert into public.player_cosmetics (user_id, cosmetic_id, source, source_id)
     select p_user, e ->> 'rewardId', 'pack', p_pack_id::text
-    from jsonb_array_elements(v_cards) as e where jsonb_typeof(e -> 'duplicate') = 'null'
+    from jsonb_array_elements(v_cards) as e where coalesce(jsonb_typeof(e -> 'duplicate'), 'null') = 'null'
     on conflict (user_id, cosmetic_id) do nothing;
   select coalesce(sum((e -> 'duplicate' ->> 'aether')::int), 0) into v_dup
     from jsonb_array_elements(v_cards) as e where jsonb_typeof(e -> 'duplicate') = 'object';
@@ -1017,7 +1031,7 @@ begin
     equipped_title_id = coalesce(equipped_title_id,
       (select c.cosmetic_id from jsonb_array_elements(v_cards) with ordinality as e(x, o)
          join public.cosmetic_catalog c on c.cosmetic_id = e.x ->> 'rewardId'
-         where c.category = 'title' and jsonb_typeof(e.x -> 'duplicate') = 'null' order by e.o limit 1)),
+         where c.category = 'title' and coalesce(jsonb_typeof(e.x -> 'duplicate'), 'null') = 'null' order by e.o limit 1)),
     progression_revision = progression_revision + 1,
     updated_at = now()
   where user_id = p_user;

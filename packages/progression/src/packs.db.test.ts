@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { PGlite } from '@electric-sql/pglite';
 import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
@@ -104,6 +104,21 @@ type Shop = { windowId: string; nextRefreshAt: number; shelves: unknown[]; offer
 async function shop(u: string): Promise<Shop> {
   return (await one<{ j: Shop }>('select public.pack_shop_json($1) as j', [u])).j;
 }
+/**
+ * The writers read the clock (`now()`), so a test that makes the current window and then buys from it must not straddle
+ * a refresh. Before every test: if the next refresh is under two minutes away, wait it out (every test here takes
+ * well under that), so one test always sees one window.
+ */
+async function clearOfRefresh(marginMs = 120_000): Promise<void> {
+  const left = nextShopRefresh(new Date()) - Date.now();
+  if (left < marginMs) await new Promise((r) => setTimeout(r, left + 1_000));
+}
+/** The window before `w` (walking back from now: a window may be 5, 6 or 7 hours long). */
+function windowBefore(w: string): string {
+  let t = Date.now();
+  while (shopWindowId(new Date(t)) === w) t -= 15 * 60_000;
+  return shopWindowId(new Date(t));
+}
 async function currentWindow(): Promise<string> {
   return (await one<{ w: string }>('select public.pack_window_id(now()) as w')).w;
 }
@@ -156,6 +171,7 @@ beforeAll(async () => {
   await db.exec('update public.progression_config set packs_enabled = true where id = 1;');
 }, 180_000);
 afterAll(async () => { await db?.close(); });
+beforeEach(() => clearOfRefresh(), 150_000);
 
 describe('the shop window', () => {
   it('pack_window_id and pack_next_refresh_at equal shopWindowId / nextShopRefresh, hourly across both DST weeks', async () => {
@@ -341,7 +357,7 @@ describe('buy_pack', () => {
   it('Review Focus 2: an offer of the previous window is expired, uncharged, and the answer carries the current offers', async () => {
     await setWindow();
     const now = await currentWindow();
-    const prev = shopWindowId(new Date(Date.now() - 6 * 3_600_000));
+    const prev = windowBefore(now);
     expect(prev).not.toBe(now);
     await db.query('select public.pack_shop_window($1)', [prev]);
     const u = await newUser({ aether: 1000 });
@@ -485,6 +501,56 @@ describe('buy_pack', () => {
       await db.exec('update public.progression_config set packs_enabled = true where id = 1;');
     }
     expect(await snapshot(u)).toEqual(before);
+  });
+
+  it('an offer whose pool emptied mid-window (its category admin_off) is expired, uncharged', async () => {
+    await setWindow();
+    const w = await currentWindow();
+    const u = await newUser({ aether: 1000 });
+    expect((await shop(u)).offers.some((o) => o.offerId === `${w}:category-emote`)).toBe(true);
+    await db.exec("update public.cosmetic_categories set admin_off = true where category = 'emote';");
+    try {
+      const before = await snapshot(u);
+      const a = await buy(u, `${w}:category-emote`, 200);
+      expect(a).toMatchObject({ status: 'error', reason: 'expired', aether: 1000 });
+      expect(a.offers!.length).toBeGreaterThan(0);
+      expect(await snapshot(u)).toEqual(before);
+    } finally {
+      await db.exec("update public.cosmetic_categories set admin_off = false where category = 'emote';");
+    }
+    expect((await buy(u, `${w}:category-emote`, 200)).status).toBe('ok');
+  });
+
+  it('an offer of more than one pack (a box, not designed yet) is refused and charges nothing', async () => {
+    const offers = await setWindow();
+    const w = await currentWindow();
+    const i = offers.findIndex((o) => o.offerId === `${w}:rarity-common`);
+    await db.query(`update public.pack_shop_windows set offers = jsonb_set(offers, '{${i},contains}', '2') where window_id = $1`, [w]);
+    try {
+      const u = await newUser({ aether: 1000 });
+      const before = await snapshot(u);
+      expect(await raises('select public.buy_pack($1, $2, 100, $3)', [u, `${w}:rarity-common`, randomUUID()])).toContain('unsupported_offer');
+      expect(await snapshot(u)).toEqual(before);
+    } finally {
+      await setWindow();
+    }
+  });
+
+  it('a replayed request answers before the switch: the first packs, even with packs switched off', async () => {
+    await setWindow();
+    const w = await currentWindow();
+    const u = await newUser({ aether: 500 });
+    const rid = randomUUID();
+    const a = await buy(u, `${w}:rarity-common`, 100, rid);
+    expect(a.status).toBe('ok');
+    await db.exec('update public.progression_config set packs_enabled = false where id = 1;');
+    try {
+      expect(await buy(u, `${w}:rarity-common`, 100, rid)).toEqual(a);
+      expect(await raises('select public.buy_pack($1, $2, 100, $3)', [u, `${w}:rarity-common`, randomUUID()])).toContain('packs_disabled');
+    } finally {
+      await db.exec('update public.progression_config set packs_enabled = true where id = 1;');
+    }
+    expect((await one<{ n: number }>('select count(*)::int as n from public.aether_ledger where user_id = $1', [u])).n).toBe(1);
   });
 
   it('malformed input raises', async () => {

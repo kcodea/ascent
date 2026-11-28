@@ -2688,6 +2688,13 @@ Prowess copy × Chronos repeat, Twilight or not. So Prowess + Twilight + Underdo
 ×4 in combat. The shop replays are permanent and compound every turn, so folding Twilight there is an explicit
 owner balance decision, not a silent mirror (open; see `docs/devlog/2026-09-21-twilight-rune-soc.md`).
 
+**Combat Prowess and the Ancients (owner ruling 2026-11-27, "All of them").** A picked Ancient's Start of Combat
+replays at End of Turn like any other, as a permanent Shop effect: the stat grants stay, Ward / Flurry / Rally stay,
+the gild is a real gild, the Shouts really fire, and a summoned copy is a real card (to hand when the board is full).
+Each is one beat named for the hero power. Two have no Shop meaning and do not replay: Magician × War (it needs the
+teammate's board) and the unused `socEnemyCopy` primitive. Source: `ancientSocShopReplays` in
+`packages/sim/src/ancients.ts`.
+
 Source: `packages/sim/src/heroes.ts` (`runeforge`, `epicRuneforge`),
 `packages/content/src/runes.ts`, `packages/sim/src/runeDup.ts`.
 

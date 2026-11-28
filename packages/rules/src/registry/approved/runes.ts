@@ -3854,4 +3854,19 @@ export const RUNES_RULES: GameRule[] = [
     example: 'A Set 2 Epic forge, even one with Undead rolled, never shows Soul Taxes.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/derenor.test.ts', 'packages/sim/src/set3RuneReview.test.ts'], lastVerifiedAt: '2026-11-23' },
   },
+  {
+    id: 'R-PROWESS-ANCIENT-SOC-01',
+    title: 'Combat Prowess replays every Ancient Start of Combat at End of Turn, as a permanent Shop effect',
+    statement: 'Rune of Combat Prowess ("Your Start of Combat effects also trigger at End of Turn") replays the picked Ancient pairing\x27s Start of Combat at End of Turn, like every other Start of Combat effect. Each replay follows its combat rule with Shop semantics: stat grants are permanent (Braum, Flint and Priestess x War, Braum x Bonds triple, Drakko x War, Gorun x Time Blade Mastery), keywords stay (Gorun x Genesis Ward and Flurry, Midas x War Ward), the gild is a real gild (Indy x Time right-most, Cindy x War left-most), the Shouts really fire (Auctioneer x Time edges, Drakko x Time left-most), Nadja x War\x27s Rally graft stays on the left-most minion and a later End of Turn grows that one graft, and a summoned copy is a real card that goes to hand when the board is full (Xerox x War, Brackus x War, whose plain copy to hand also comes). Random picks draw the run\x27s seeded cursor. Each replay is one beat sourced on the hero, named for the hero power. Not replayed: Magician x War (it needs the teammate\x27s board, which a run never holds in the Shop) and the unused socEnemyCopy primitive.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner bug report 2026-11-27 (Gorun with the Ancient of Genesis and Rune of Combat Prowess)', quote: 'combat prowess didnt trigger' },
+      { kind: 'owner-chat', ref: 'Owner ruling 2026-11-27, chosen from offered options (which Ancient Start of Combat effects replay)', quote: 'All of them' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts ancientSocShopReplays; packages/sim/src/recruit.ts socRuneReplaysOf' },
+    ],
+    contentIds: ['rune_combat_prowess'],
+    currentBehaviour: 'Conforms as of 2026-11-27. Before, no Ancient Start of Combat was on the End of Turn replay list, so Combat Prowess did nothing for any pairing. Builder readings the owner has not confirmed yet: Nadja x War grows one Rally graft each End of Turn rather than stacking a new Rally; Twilight does not repeat these replays (the rune-replay rule).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/prowessAncientSoc.test.ts'], lastVerifiedAt: '2026-11-27' },
+  },
 ];

@@ -60,6 +60,16 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Fixed: Rune of Combat Prowess now replays your Ancient\'s Start of Combat effect at End of Turn.',
+        details: [
+          'Before, no Ancient Start of Combat effect triggered at End of Turn, so Combat Prowess did nothing for them.',
+          'Like every Shop effect, the result is permanent: stats and keywords stay, a Gild is a real Gild, Shouts really trigger, and a copy is a real card.',
+          'A copy that would be summoned onto a full board goes to your hand instead.',
+          'Magician with the Ancient of War is the one exception, since it needs your teammate\'s board.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Fixed: a spell granted while your hand was full (for example a Dragonflame from Rune of Dragon Hoard) could land on your board in a minion slot.',
       },
       {

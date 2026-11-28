@@ -17,6 +17,7 @@ import { ancientEotShoutCount, ancientLuckySeatNeed, ancientCommissionSecond } f
 import { procAncient as procAncientG1 } from './ancients'; // ancient trigger procs, group 1 (R-FX-ANCIENT-PROC-01)
 import { procAncient as procAncientG2 } from './ancients'; // ancient trigger procs, group 2 (R-FX-ANCIENT-PROC-01)
 import { ancientUnitedFrontShape, ancientUnitedFrontAtEot, ancientBatchBEotLive, ancientRunBatchBEot } from './ancients'; // the 2026-11-10 batch B
+import { ancientSocShopReplays } from './ancients'; // every Ancient Start of Combat under Combat Prowess (R-PROWESS-ANCIENT-SOC-01)
 import { ancientNoteShopSpell, ancientPass2EotLabel, ancientPass2EotLive, ancientRunPass2Eot, ancientTargetedSpellMult, ancientTargetedCastMult } from './ancients'; // ancient pass 2
 import { ancientGrantOriginOf, isAncientBuffLabel } from './ancientBuffFx'; // R-FX-ANCIENT-TENDRIL-01 / R-FX-ANCIENT-ORIGIN-01
 import type { AncientId } from './ancients';
@@ -15830,6 +15831,9 @@ export function socRuneReplaysOf(state: RunState): SocRuneReplay[] {
   // EMISSARY × ANCIENT OF TIME: United Front is an End-of-Turn effect then (its own recurring entry), never a Start of
   // Combat one, so it is not in this list.
   if (hasPower(state, 'unitedFront') && !ancientUnitedFrontAtEot(state)) out.push({ id: state.heroId, kind: 'hero', label: 'United Front', fire: (st) => { fireShopUnitedFront(st); } });
+  // THE ANCIENTS (owner 2026-11-27, "All of them", R-PROWESS-ANCIENT-SOC-01): the picked pairing's Start of Combat, each its
+  // own hero-sourced beat named for the hero power (`ancientSocShopReplays`: permanent Shop grants, copies to hand on a full board).
+  for (const r of ancientSocShopReplays(state)) out.push({ id: state.heroId, kind: 'hero', label: r.label, fire: r.fire });
   // Rune of the Centerline: ends of DIFFERENT (primary, non-neutral) types → the middle gains Crit + Ward.
   if (f?.runeCenterline) out.push({ id: 'rune_centerline', kind: 'rune', label: 'Centerline', fire: (st) => {
     if (st.board.length < 3) return;

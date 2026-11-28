@@ -14,8 +14,9 @@ export type RankStep =
   | { kind: 'establish'; ms: number }
   /** The bar travels `from` → `to` inside one division; the counter follows. `uncapped` = counter only. */
   | { kind: 'bar'; ms: number; divisionIndex: number; from: number; to: number; uncapped: boolean }
-  /** The bar endpoint illuminates: the gate just unlocked. */
-  | { kind: 'gate'; ms: number }
+  /** The bar LOCKS on a set-up (owner 2026-11-27: "If it puts a player into a demotion or promotion setup have the bar "lock" and
+   *  turn red or gold"): gold for a promotion game, red for a demotion game. */
+  | { kind: 'gate'; ms: number; tone: 'gold' | 'red' }
   /** Crest / tier swap between two divisions (a medal change when the medals differ). */
   | { kind: 'transition'; ms: number; from: number; to: number; direction: 'up' | 'down'; medal: boolean }
   /** The outcome line appears and the sequence holds. */
@@ -67,7 +68,8 @@ export function planRankSequence(r: RankResult): RankStep[] {
     steps.push({ kind: 'bar', ms: RANK_BEAT_MS.barHalf, divisionIndex: r.after.divisionIndex, from: POINTS_PER_DIVISION, to: r.after.points, uncapped: false });
   } else {
     steps.push({ kind: 'bar', ms: RANK_BEAT_MS.bar, divisionIndex: r.before.divisionIndex, from: r.before.points, to: r.after.points, uncapped: isUncapped(r.after.divisionIndex) });
-    if (r.promotionUnlocked) steps.push({ kind: 'gate', ms: RANK_BEAT_MS.gate });
+    if (r.promotionUnlocked) steps.push({ kind: 'gate', ms: RANK_BEAT_MS.gate, tone: 'gold' });
+    else if (r.demotionUnlocked) steps.push({ kind: 'gate', ms: RANK_BEAT_MS.gate, tone: 'red' });
   }
   steps.push({ kind: 'outcome', ms: RANK_BEAT_MS.outcome, text });
   return steps;

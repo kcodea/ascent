@@ -86,7 +86,7 @@ function make(loc: LocationDef): Warm | null {
 /** Make it ready while the gate is shut (idempotent; nothing to do when hero select, behind the gate, already has it). */
 export function warmAtmosphere(loc: LocationDef): void {
   if (onScreen && !onScreen.dead) return;
-  if (warm && !warm.gl.dead && warm.gl.loc.id === loc.id) return;
+  if (warm && !warm.gl.dead && warm.gl.loc === loc) return; // the def itself: Terys Gate's result colours share one id
   dropAtmosphere();
   warm = make(loc);
 }

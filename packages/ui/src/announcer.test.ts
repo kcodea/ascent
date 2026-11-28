@@ -18,7 +18,7 @@ import { COSMETICS } from '@game/progression';
 import {
   __setAnnouncerDepsForTests, ANNOUNCER_BACK_TO_SHOP_DELAY_MS, ANNOUNCER_BIG_STAT, ANNOUNCER_COMBAT_SILENCE_MS, ANNOUNCER_COOLDOWN_MS, ANNOUNCER_BIG_COOLDOWN_MS, ANNOUNCER_BIG_MOMENT_PRIORITY, announcerCooldownFor,
   ANNOUNCER_END_DELAY_MS, ANNOUNCER_EQUIPMENT_DELAY_MS, ANNOUNCER_FACE_OMEN_DELAY_MS, ANNOUNCER_GAME_START_DELAY_MS,
-  ANNOUNCER_LINES, ANNOUNCER_PRIORITY, ANNOUNCER_RARE_CHANCE, ANNOUNCER_STOP_FADE_MS, ANNOUNCER_TIME_WARNING_SECONDS, ANNOUNCER_TURN_ONE_QUIET_MS,
+  ANNOUNCER_LINES, placeEvent, ANNOUNCER_PRIORITY, ANNOUNCER_RARE_CHANCE, ANNOUNCER_STOP_FADE_MS, ANNOUNCER_TIME_WARNING_SECONDS, ANNOUNCER_TURN_ONE_QUIET_MS,
   announcerDebug, announcerPick, announcerRoll, hasPair, cancelAnnouncer, getAnnouncerVolume, isAnnouncerMuted, observeCombatBoard,
   announcerExhausted, ANNOUNCER_CHANCE, ANNOUNCER_NAMED_BUYS, ANNOUNCER_RANDOM_BUY_GAP_WAVES, ANNOUNCER_RANDOM_BUY_MAX, observeTurnClock, previewAnnouncerEvent, announcerClipUrl, ANNOUNCER_SAMPLE_LINES, previewAnnouncerPack, setAnnouncerPackProvider, stopAnnouncerPreview,
   ANNOUNCER_CUT_TAKES, CATALOG_BATCH_1_EVENTS, CATALOG_BATCH_2_EVENTS, CATALOG_BATCH_3_EVENTS, FIGHT_SPECIAL_EVENTS, observeCombatMoments, type CombatReplayView, isMixedBoard, isTribeFullBoard, RANDOM_BUY_EVENTS, SPECIALTY_EVENTS, type AnnouncerDeps, setAnnouncerVolume, syncAnnouncer, toggleAnnouncerMute, type AnnouncerEvent, type AnnouncerRunLike,
@@ -728,7 +728,7 @@ describe('the detectors', () => {
     expect(events()).toEqual(['top-four']);
     expect(announcerDebug().log.filter((l) => l.kind === 'queue' && l.event === 'runeforge')).toHaveLength(1);
   });
-  it('GameWon at 1st place ANNOUNCER_END_DELAY_MS into the end screen; GameLoss at 2nd to 8th', async () => {
+  it('GameWon at 1st place ANNOUNCER_END_DELAY_MS into the end screen; each other place its own pool (owner 2026-11-27)', async () => {
     const r = openShop();
     go({ ...r, phase: 'gameover', lobby: { seats: seats(1, 1) } });
     await tick(ANNOUNCER_END_DELAY_MS - 1);
@@ -741,7 +741,7 @@ describe('the detectors', () => {
     go({ ...r, seed: SEED + 1, phase: 'recruit' });
     go({ ...r, seed: SEED + 1, phase: 'gameover', lobby: { seats: seats(3, 4) } });
     await tick(ANNOUNCER_END_DELAY_MS);
-    expect(events()).toEqual(['game-won', 'game-loss']);
+    expect(events()).toEqual(['game-won', 'fourth-place']);
   });
   it('ANNOUNCER_LINES covers every event with at least one clip and every clip name is kebab-case', () => {
     for (const [event, clips] of Object.entries(ANNOUNCER_LINES)) {
@@ -783,7 +783,7 @@ describe('the second batch (owner 2026-09-24)', () => {
     // 2026-09-24: the old TopTwo2 (a wrong take) was removed. 2026-10-11: `top-two-2` is a NEW line, not that clip.
     expect(ANNOUNCER_LINES.topTwo).toEqual(['top-two-1', 'top-two-2', 'top-two-3', 'top-two-4', 'top-two-5', 'top-two-6', 'top-two-7']);
     expect(ANNOUNCER_LINES.threeWinStreak).toEqual(['three-win-streak-1', 'three-win-streak-2', 'three-win-streak-3', 'three-win-streak-4']);
-    expect(ANNOUNCER_LINES.gameWon).toEqual(['game-won', 'game-won-2', 'game-won-3', 'game-won-4']);
+    expect(ANNOUNCER_LINES.gameWon.slice(0, 4)).toEqual(['game-won', 'game-won-2', 'game-won-3', 'game-won-4']);
     expect(ANNOUNCER_LINES.knockout).toHaveLength(5); // knockout-4 cut for its language (2026-11-15)
     expect(ANNOUNCER_LINES.pair).toHaveLength(4);
     expect(ANNOUNCER_LINES.randomSpellBuy).toHaveLength(4);
@@ -1824,14 +1824,20 @@ describe('the moment catalog\'s first batch (owner 2026-09-25): ElevenLabs lines
     });
   });
 
-  it('SecondPlace replaces GameLoss for exactly 2nd; 3rd and lower still hear GameLoss', async () => {
+  it('SecondPlace for exactly 2nd, then a pool for every other place (owner 2026-11-27)', async () => {
     let r = openShop();
     go({ ...r, phase: 'gameover', lobby: { seats: seats(1, 2) } });
     expect(await first(ANNOUNCER_END_DELAY_MS + 20)).toBe('second-place');
     fresh();
     r = openShop();
     go({ ...r, phase: 'gameover', lobby: { seats: seats(1, 3) } });
-    expect(await first(ANNOUNCER_END_DELAY_MS + 20)).toBe('game-loss');
+    expect(await first(ANNOUNCER_END_DELAY_MS + 20)).toBe('third-place');
+  });
+  it('placeEvent: 1st, 2nd, 3rd, 4th, 5th or 6th, 7th, and the last seat of any table', () => {
+    expect([1, 2, 3, 4, 5, 6, 7, 8].map((p) => placeEvent(p, 8))).toEqual(
+      ['gameWon', 'secondPlace', 'thirdPlace', 'fourthPlace', 'midPlace', 'midPlace', 'seventhPlace', 'lastPlace']);
+    expect(placeEvent(4, 4)).toBe('lastPlace'); // a smaller Practice table: last is last
+    expect(placeEvent(2, 2)).toBe('lastPlace');
   });
 });
 
@@ -2501,7 +2507,7 @@ describe('the moment catalog\'s group D (owner 2026-09-25): per-hero / per-tribe
       const over = go({ ...r, phase: 'gameover', lobby: { seats: seats(1, 5) } });
       go(over, promoted(false));
       await tick(ANNOUNCER_END_DELAY_MS + LINE_MS + ANNOUNCER_COOLDOWN_MS);
-      expect(events()).toEqual(['game-loss']);
+      expect(events()).toEqual(['mid-place']);
     });
     it('never while the run is still going', async () => {
       const r = openShop();

@@ -60,3 +60,41 @@
 /* A parchment whose tribe no set has yet. */
 .lrev, .hs-posters { --t-guardian: #54c4ff; }
 .hs-poster:disabled { pointer-events: none; }
+
+/* THE POST-GAME SCREEN at the place (postGame.tsx): the location, blurred and alive, instead of the end screen's own backdrop. A little
+   darker than hero select's, so the results read over it. */
+.heroselect.endscreen.at-place { background: #06101f; }
+.pg-location::after { background: radial-gradient(ellipse 70% 62% at 50% 46%, rgba(6, 12, 28, 0.46), rgba(6, 12, 28, 0.80)); }
+
+/* THE ARRIVAL at a journey's place (revealPlayer `buildArrival`, Terys Gate, owner 2026-11-27: "make the gate look and feel more
+   exciting"): centred on the landing point, sized in the stage's height (--u), in the place's colour (--ac). Every piece is a one-shot
+   transform / opacity animation started once (`.on`) and faded with the outro (`.off`); nothing loops, no live filters. */
+.lrev-arrive { position: absolute; width: 0; height: 0; pointer-events: none; --u: 900px; --ac: 255, 214, 120; }
+.lrev-arrive > * { position: absolute; left: 0; top: 0; opacity: 0; will-change: transform, opacity; }
+.lra-flash { width: calc(var(--u) * 0.9); height: calc(var(--u) * 0.9); margin: calc(var(--u) * -0.45) 0 0 calc(var(--u) * -0.45); border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.95) 0%, rgba(var(--ac), 0.7) 18%, rgba(var(--ac), 0) 62%); mix-blend-mode: screen; }
+.lra-bloom { width: calc(var(--u) * 1.3); height: calc(var(--u) * 1.3); margin: calc(var(--u) * -0.65) 0 0 calc(var(--u) * -0.65); border-radius: 50%;
+  background: radial-gradient(circle, rgba(var(--ac), 0.34) 0%, rgba(var(--ac), 0.1) 38%, rgba(var(--ac), 0) 66%); mix-blend-mode: screen; }
+.lra-ring { width: calc(var(--u) * 0.5); height: calc(var(--u) * 0.5); margin: calc(var(--u) * -0.25) 0 0 calc(var(--u) * -0.25); border-radius: 50%; mix-blend-mode: screen;
+  background: radial-gradient(circle, rgba(var(--ac), 0) 52%, rgba(var(--ac), 0.35) 62%, rgba(255, 255, 255, 0.55) 67%, rgba(var(--ac), 0.3) 72%, rgba(var(--ac), 0) 82%); }
+.lra-rays { width: calc(var(--u) * 2.2); height: calc(var(--u) * 2.2); margin: calc(var(--u) * -1.1) 0 0 calc(var(--u) * -1.1); border-radius: 50%; mix-blend-mode: screen;
+  background: repeating-conic-gradient(from 0deg, rgba(255, 248, 225, 0.3) 0deg 1.6deg, rgba(var(--ac), 0.16) 1.6deg 4deg, rgba(var(--ac), 0) 4deg 13deg);
+  -webkit-mask-image: radial-gradient(circle, #000 4%, rgba(0, 0, 0, 0.55) 22%, transparent 50%); mask-image: radial-gradient(circle, #000 4%, rgba(0, 0, 0, 0.55) 22%, transparent 50%); }
+.lra-mote { width: calc(var(--u) * 0.011 * var(--s)); height: calc(var(--u) * 0.011 * var(--s)); border-radius: 50%;
+  background: radial-gradient(circle, #fffdf2 0%, rgba(255, 246, 214, 0.95) 35%, rgba(var(--ac), 0) 100%); }
+@media (prefers-reduced-motion: no-preference) {
+  .lrev-arrive.on .lra-flash { animation: lra-flash 1.1s cubic-bezier(0.1, 0.8, 0.3, 1) both; }
+  .lrev-arrive.on .lra-bloom { animation: lra-bloom 3.4s ease-out 0.15s both; }
+  .lrev-arrive.on .lra-ring { animation: lra-ring 1.5s cubic-bezier(0.1, 0.7, 0.3, 1) 0.05s both; }
+  .lrev-arrive.on .lra-ring2 { animation-delay: 0.4s; animation-duration: 1.9s; }
+  .lrev-arrive.on .lra-rays { animation: lra-rays 6s cubic-bezier(0.2, 0.6, 0.3, 1) 0.1s both; }
+  .lrev-arrive.on .lra-mote { animation: lra-mote 3.6s cubic-bezier(0.2, 0.6, 0.4, 1) var(--d) both; }
+}
+.lrev-arrive.off { opacity: 0; transition: opacity 0.6s ease-in; }
+@keyframes lra-flash { from { opacity: 0; transform: scale(0.2); } 12% { opacity: 1; } to { opacity: 0; transform: scale(1.6); } }
+@keyframes lra-bloom { from { opacity: 0; transform: scale(0.5); } 25% { opacity: 1; } to { opacity: 0.75; transform: scale(1.1); } }
+@keyframes lra-ring { from { opacity: 0; transform: scale(0.4); } 12% { opacity: 1; } to { opacity: 0; transform: scale(3); } }
+@keyframes lra-rays { from { opacity: 0; transform: rotate(-20deg) scale(0.7); } 20% { opacity: 1; } to { opacity: 0.8; transform: rotate(14deg) scale(1.05); } }
+@keyframes lra-mote { from { opacity: 0; transform: translate(calc(var(--x) * var(--u) * 0.3), calc(var(--y) * var(--u) * 0.9)) scale(0.6); }
+  15% { opacity: 1; } to { opacity: 0; transform: translate(calc(var(--x) * var(--u) * 0.36), calc(var(--y) * var(--u) * 0.1)) scale(1); } }
+

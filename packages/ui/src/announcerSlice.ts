@@ -55,6 +55,13 @@ export type AnnouncerEvent =
   | 'lateGame'
   | 'roundMilestone'
   | 'secondPlace'
+  // THE POST-GAME LINES (owner 2026-11-27: "Add announcer lines here like nice try, etc with enough variations that make end games
+  // slightly unique each time"): a pool for every place, beside GameWon (1st) and SecondPlace (2nd).
+  | 'thirdPlace'
+  | 'fourthPlace'
+  | 'midPlace'
+  | 'seventhPlace'
+  | 'lastPlace'
   | 'brokeTurn'
   | 'fastTier'
   | 'sellSpree'
@@ -175,7 +182,7 @@ export function announcedFor(slice: AnnouncedSlice | null | undefined, seed: num
 
 /** The end-of-game lines (GameWon, SecondPlace, GameLoss, and RankUp on the rank screen after them) never expire
  *  and wait out the cooldown. */
-export const UNCAPPED_EVENTS: readonly AnnouncerEvent[] = ['gameWon', 'gameLoss', 'secondPlace', 'rankUp'];
+export const UNCAPPED_EVENTS: readonly AnnouncerEvent[] = ['gameWon', 'gameLoss', 'secondPlace', 'thirdPlace', 'fourthPlace', 'midPlace', 'seventhPlace', 'lastPlace', 'rankUp'];
 
 /** Pure: the slice after `event` spoke at `wave`, playing `take` (when given). `reshuffle` empties the event's
  *  bag first: the events allowed to repeat a take once every take has been heard (see `announcer.ts`). */

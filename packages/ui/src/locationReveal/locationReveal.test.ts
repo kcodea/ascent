@@ -8,7 +8,8 @@ import { describe, expect, it } from 'vitest';
 import { SETS } from '@game/content';
 import { DEFAULT_PRACTICE_CONFIG, runTribesForSeed, VERSUS_HERO_SELECT_SECONDS, VERSUS_REVEAL_SECONDS, type PracticeConfig } from '@game/sim';
 import { versusHeroSelectMs } from '@game/sim/versus/server';
-import { isTribePoster, LOCATIONS, locationName, locationOfSet, POSTER_NAME, postersFor } from './locations';
+import { isTribePoster, LOCATIONS, locationById, locationName, locationOfSet, POSTER_NAME, postersFor, TERYS_GATE, TERYS_GATE_BY_RESULT } from './locations';
+import { postGameLocation } from './postGame';
 import { pendingLocation, pendingReveal, practiceLocation } from './pendingLocation';
 import { LEAN, leanAt, mountAtmosphere } from './atmosphereGl';
 import { openAt, OPEN_FREE, OPEN_S, primeRipple, readyRipple, rippleFar, rippleR, rippleReach, RIPPLE_S, STILL_S } from './heroRipple';
@@ -55,6 +56,36 @@ describe('the locations', () => {
       for (const t of l.posters) expect(POSTER_NAME[t]).toBeTruthy();
       for (const c of revealCues(l.id, 5)) expect(existsSync(join(PUBLIC, 'sfx', `${c.clip}.mp3`)), c.clip).toBe(true);
     }
+  });
+
+  it('TERYS GATE (owner 2026-11-27): every game ends its journey there; it is no set place, hangs nothing, writes no name (owner: "remove the terys gate text entirely"), and ships its files', () => {
+    expect(locationName(TERYS_GATE)).toBe('Terys Gate');
+    expect(locationById('terys')).toBe(TERYS_GATE);
+    for (const s of ['set1', 'set2', 'set3', 'set4'] as const) expect(locationOfSet(s)?.id).not.toBe('terys');
+    // In the result's colours (owner 2026-11-27: "Red/green/gold variations"): gold for 1st, green for 2nd to 4th, red for the rest.
+    const at = (placement: number) => postGameLocation({ lobby: { seats: [{ placement, alive: false }] } } as unknown as Parameters<typeof postGameLocation>[0]);
+    expect(at(1)).toBe(TERYS_GATE_BY_RESULT.won);
+    expect([2, 3, 4].map(at)).toEqual([TERYS_GATE_BY_RESULT.top4, TERYS_GATE_BY_RESULT.top4, TERYS_GATE_BY_RESULT.top4]);
+    expect([5, 8].map(at)).toEqual([TERYS_GATE_BY_RESULT.lost, TERYS_GATE_BY_RESULT.lost]);
+    for (const v of Object.values(TERYS_GATE_BY_RESULT)) expect(v.id).toBe('terys');
+    expect(TERYS_GATE_BY_RESULT.won.second[0]).toBeGreaterThan(TERYS_GATE_BY_RESULT.won.second[2]); // gold
+    expect(TERYS_GATE_BY_RESULT.top4.second[1]).toBeGreaterThan(TERYS_GATE_BY_RESULT.top4.second[0]); // green
+    expect(TERYS_GATE_BY_RESULT.lost.second[0]).toBeGreaterThan(TERYS_GATE_BY_RESULT.lost.second[1]); // red
+    expect(TERYS_GATE.posters).toEqual([]);
+    for (const f of ['flat', 'blur', 'data', 'water', 'layer0', 'layer1', 'layer2', 'layer3', 'full']) expect(existsSync(join(PUBLIC, 'terys', `${f}.webp`)), f).toBe(true);
+    // A journey (no parchments): its name's sting and the leaving wave's shimmer, and no announcer line (owner 2026-11-27: "have the
+    // text say "terys gate" at the top of it like our other location text does").
+    const clips = revealCues('terys', 0).map((c) => c.clip);
+    expect(clips.filter((c) => c === 'title')).toHaveLength(1); // only the leaving wave's shimmer: no name, no name sting
+    expect(revealCues('outskirts', 5).filter((c) => c.clip === 'title')).toHaveLength(2);
+    expect(clips.some((c) => c.startsWith('vo-'))).toBe(false);
+    for (const c of clips) expect(existsSync(join(PUBLIC, 'sfx', `${c}.mp3`)), c).toBe(true);
+    expect(lightCues('terys', 0, { name: 1, posters: 2, step: 0.3, leave: 3 }).map((c) => c.clip)).toEqual(['arrive-terys', 'wave']); // its arrival swell (owner: "more exciting")
+  });
+
+  it('a journey is the travel alone: the wash comes a short rest after the landing', () => {
+    expect(outroAt(0)).toBeLessThan(outroAt(1));
+    expect(outroAt(0)).toBeGreaterThan(NAME + 1.5); // long enough to read its name (owner: "Let the gate art parallax play longer")
   });
 
   it('Ranked is always the Outskirts, Practice is its own pick, God Mode the live one, every other mode none', () => {

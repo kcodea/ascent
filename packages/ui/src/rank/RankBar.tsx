@@ -56,7 +56,7 @@ export interface RankBarAnimRefs {
   points: RefObject<HTMLDivElement>;
 }
 
-export function RankBar({ position, size = 'row', layout = 'row', showGate = true, demotionReady = false, caption, anim, nextDivisionIndex, className = '' }: {
+export function RankBar({ position, size = 'row', layout = 'row', showGate = true, demotionReady = false, caption, anim, nextDivisionIndex, lock, className = '' }: {
   position: RankPosition;
   size?: RankSize;
   layout?: RankLayout;
@@ -71,6 +71,10 @@ export function RankBar({ position, size = 'row', layout = 'row', showGate = tru
   anim?: RankBarAnimRefs;
   /** End screen only: a second crest (the division a transition lands on), hidden until the timeline shows it. */
   nextDivisionIndex?: number;
+  /** LOCKED on a set-up (the post-game screen, owner 2026-11-27): the fill in gold (a promotion game) or red (a demotion game), a
+   *  lit outline around the track. The animated sequence adds the same classes as it lands, and `locking`, which grows the outline
+   *  out once (`lockClasses`, rankTimeline.ts). */
+  lock?: 'gold' | 'red';
   className?: string;
 }): JSX.Element {
   const frac = barFraction(position);
@@ -80,13 +84,13 @@ export function RankBar({ position, size = 'row', layout = 'row', showGate = tru
   const label = <div className="rankbar-label" ref={anim?.label}>{rankLabel(position)}</div>;
   const track = (
     <div className="rankbar-track" ref={anim?.track} role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(frac * 100)} aria-label="Division progress">
-      <div className="rankbar-fill" ref={anim?.fill} style={{ transform: `scaleX(${frac})` }} />
+      <div className="rankbar-fill" ref={anim?.fill} style={{ transform: `scaleX(${frac})` }}><i className="rankbar-locktint" aria-hidden="true" /></div>
       <span className="rankbar-tip" ref={anim?.tip} />
     </div>
   );
   const points = <div className="rankbar-points" ref={anim?.points}>{pointsText(position)}</div>;
   return (
-    <div className={`rankbar rankbar-${size} rankbar-${layout} rankbar-${medal}${onGate ? ' on-gate' : ''} ${className}`.trim()} aria-label={`${rankLabel(position)}, ${pointsText(position)}`}>
+    <div className={`rankbar rankbar-${size} rankbar-${layout} rankbar-${medal}${onGate ? ' on-gate' : ''}${lock ? ` locked lock-${lock}` : ''} ${className}`.trim()} aria-label={`${rankLabel(position)}, ${pointsText(position)}`}>
       <div className="rankbar-crests">
         <RankCrest divisionIndex={position.divisionIndex} size={size} crestRef={anim?.crest} />
         {nextDivisionIndex !== undefined && (

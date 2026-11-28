@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { playSimulatedEnding, SIM_RANKS, type SimRank } from './postGame/simEnding';
 import { CARD_INDEX, SETS, activeSet, poolFor, type SetId } from '@game/content';
 import { getHero, handCap, runQaScenario, validateQaScenario, type BoardSnapshot, type BotLevel, type QaScenarioV1, type RunState, type ShopCard } from '@game/sim';
 import { buildQaScenario, reproCommandFor, scenarioFileName, scenarioFileText, QA_SCENARIO_FIXTURE_DIR } from './qaScenarioBridge';
@@ -555,6 +556,7 @@ function SceneBuilderInner({ closed }: { closed: boolean }) {
           {/* SETUP — hero, set, rules, bots, Duos, Ancients. Folded by default (2026-11-01); its heading names the
               current picks. Hero + set both restart the sandbox, and each carries the OTHER's current value so
               switching hero can't silently drop you back to the live set (or vice versa). */}
+          <SbEnding folded={folded} onFold={fold} />
           <Sec id="setup" title="Setup" folded={folded} onFold={fold} defaultFolded
             right={<span className="sb-count sb-count-sum">{setupSummary}</span>}>
             {/* HERO: a portrait button that slides the hero grid out beside the panel (SceneBuilderHeroPicker). */}
@@ -719,6 +721,35 @@ function SceneBuilderInner({ closed }: { closed: boolean }) {
  * local team on (`installSbDuos`); unmounting (Duos off, the rig closed) takes you back to your board and drops it. The
  * portrait keeps one identity across the swap (`key="dock"`), exactly as `VersusHud` mounts it.
  */
+/** THE ENDING (owner 2026-11-27: "add a scene builder option for me to end game as x place. make sure it doesnt grant mmr and it is just a
+ *  simulated experience so i can see the full workflow"): plays the whole real ending, simulated (postGame/simEnding.ts). */
+function SbEnding({ folded, onFold }: { folded: Record<string, boolean>; onFold: (id: string, closed: boolean) => void }): JSX.Element {
+  const [place, setPlace] = useState(1);
+  const [rank, setRank] = useState<SimRank>('gain');
+  const [note, setNote] = useState('');
+  const seats = useGame((s) => s.run.lobby?.seats.length ?? 8);
+  return (
+    <Sec id="ending" title="Ending" folded={folded} onFold={onFold}>
+      <div className="sb-seg sb-seg-8" role="radiogroup" aria-label="Finish as">
+        {Array.from({ length: seats }, (_, i) => i + 1).map((k) => (
+          <button key={k} type="button" role="radio" aria-checked={place === k} className={`sb-seg-btn${place === k ? ' on' : ''}`} onClick={() => setPlace(k)}>{k}</button>
+        ))}
+      </div>
+      <div className="sb-seg sb-seg-5" role="radiogroup" aria-label="Rank change">
+        {SIM_RANKS.map((r) => (
+          <button key={r.id} type="button" role="radio" aria-checked={rank === r.id} className={`sb-seg-btn${rank === r.id ? ' on' : ''}`} onClick={() => setRank(r.id)}>{r.label}</button>
+        ))}
+      </div>
+      <button className="sb-btn sb-primary sb-wide" onClick={() => setNote(playSimulatedEnding(place, rank) ?? '')}
+        aria-description="Play the whole ending as this place: the gate, the journey, the result, this rank change, the XP and the lobby. Simulated: no MMR, nothing saved">
+        Play ending
+      </button>
+      {note && <div className="sb-mini">{note}</div>}
+      <div className="sb-mini">Simulated: no MMR, nothing saved.</div>
+    </Sec>
+  );
+}
+
 function SbDuosHud(): JSX.Element | null {
   useEffect(() => { installSbDuos(); return () => uninstallSbDuos(); }, []);
   const viewing = useSbDuos((s) => s.viewing);

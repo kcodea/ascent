@@ -15,18 +15,25 @@ import { prepareReveal, stageHeight, type PreparedReveal, type RevealGl } from '
 import { lightCues, loadRevealSound, type RevealSound } from './revealSound';
 import { dropAtmosphere, setAtmosphereCovered, syncAtmosphere, warmAtmosphere } from './atmosphereGl';
 import { arriveHeroSelect, type ArriveFrom } from './heroArrive';
-import { A, fitOf, HOLD, NAME, outCubic, outroAt, POST, POST_GAP, posterName, posterRest, POSTER_H, POSTER_W, realOf, seg, simEnd, simOf, smoother, START, washAt, washReach } from './revealTimeline';
+export type { ArriveFrom } from './heroArrive';
+import { A, fitOf, HOLD, L, NAME, outCubic, outroAt, POST, POST_GAP, posterName, posterRest, POSTER_H, POSTER_W, realOf, seg, simEnd, simOf, smoother, START, washAt, washReach } from './revealTimeline';
 import './locationReveal.css';
 
 
 
 export interface LocationRevealRequest {
   location: LocationDef;
-  /** The parchments, in order (`postersFor`). */
+  /** The parchments, in order (`postersFor`). None: a JOURNEY (`JOURNEY_REST`), the travel and the place's name alone. */
   tribes: readonly Poster[];
+  /** The screen the leaving wave washes in (default: hero select). Called once, as the wave starts. */
+  arrive?: (from: ArriveFrom) => void;
+  /** THE LAST FRAME (the post-game screen, postGame.tsx): handed a copy of the place as it was drawn just before it softens for the
+   *  wash, with the size it was shown at (css px, centred on the screen), so the screen behind can stand on EXACTLY that picture (the
+   *  near pieces sit off their painted places at rest: no flat copy of the painting lines up). Once, in the full version only. */
+  keepFrame?: (frame: HTMLCanvasElement, w: number, h: number) => void;
 }
 
-interface Warm { id: LocationDef['id']; gl: PreparedReveal | null; sound: RevealSound; art: HTMLImageElement[] }
+interface Warm { id: LocationDef['id']; loc: LocationDef; gl: PreparedReveal | null; sound: RevealSound; art: HTMLImageElement[] }
 let warm: Warm | null = null;
 
 const loadLight = (id: LocationDef['id']): RevealSound => loadRevealSound(id, (n) => lightCues(id, n, { name: LIGHT.name, posters: LIGHT.posters, step: LIGHT.step, leave: lightSeconds(n) - LIGHT.fade }));
@@ -34,13 +41,13 @@ const loadLight = (id: LocationDef['id']): RevealSound => loadRevealSound(id, (n
 /** Get a reveal ready (idempotent). Called as the gate's doors meet, so it is whole before the crystal can be pressed. */
 export function warmLocationReveal(loc: LocationDef): void {
   if (typeof window === 'undefined') return;
-  if (warm?.id === loc.id) return;
+  if (warm?.loc === loc) return; // the def itself: Terys Gate's result colours share one id
   dropLocationReveal();
   const light = PHONE_GPU || typeof createImageBitmap !== 'function';
   // The light version's pictures; the full one needs only the blur hero select shows.
   const files = light ? ['flat', 'blur', ...loc.posters.map((t) => `poster-${t}`)] : ['blur'];
   const art = files.map((f) => { const i = new Image(); i.decoding = 'async'; i.src = locationArt(loc.id, f); return i; });
-  const w: Warm = { id: loc.id, gl: light ? null : prepareReveal(loc), sound: light ? loadLight(loc.id) : loadRevealSound(loc.id), art };
+  const w: Warm = { id: loc.id, loc, gl: light ? null : prepareReveal(loc), sound: light ? loadLight(loc.id) : loadRevealSound(loc.id), art };
   warm = w;
   // Hero select's living ground, once the reveal itself is whole (not for a gate that has gone meanwhile).
   void w.gl?.ready.then(() => { if (warm === w) warmAtmosphere(loc); });
@@ -131,7 +138,8 @@ function makeWordsWriter(w: ReturnType<typeof buildWords>, n: number): (s: numbe
       const eased = outCubic(k);
       const hop = Math.sin(Math.PI * seg(u, 0.62 + i * 0.035, 1.02 + i * 0.035)) ** 2;
       const hot = (k > 0 ? Math.exp(-Math.max(0, u - from) * 3.6) : 0) + 0.35 * hop;
-      const away = smoother(seg(s, out + 0.16 + from, out + 0.52 + from)); // it lifts off, letter by letter, as it came
+      // It lifts off, letter by letter, as it came. A JOURNEY's name stays: the screen it washes into shows it in the same place.
+      const away = n === 0 ? 0 : smoother(seg(s, out + 0.16 + from, out + 0.52 + from));
       e.style.opacity = String(smoother(Math.min(1, k * 1.6)) * (1 - away));
       e.style.transform = `translate(${((i - mid) * ((1 - eased) * 9 + away * 5)).toFixed(2)}%, ${(14 * (1 - eased) - 5 * hop - 22 * away).toFixed(2)}%)`;
       e.style.filter = hot > 0.02 ? `brightness(${(1 + hot * 1.5).toFixed(3)})` : 'none';
@@ -167,8 +175,13 @@ export function playFullReveal(host: HTMLElement, r: LocationRevealRequest, gl: 
     const root = el('div', 'lrev', host);
     gl.canvas.className = 'lrev-canvas';
     root.appendChild(gl.canvas);
-    const words = buildWords(root, r);
-    const write = makeWordsWriter(words, n);
+    // A JOURNEY writes no name (owner 2026-11-27: "remove the terys gate text entirely"): the place speaks for itself.
+    const words = n > 0 ? buildWords(root, r) : null;
+    const write = words ? makeWordsWriter(words, n) : (): void => undefined;
+    // THE ARRIVAL (a journey: Terys Gate, owner 2026-11-27: "make the gate look and feel more exciting"): at the landing the portal
+    // flares, a shock ring runs out, rays turn slowly behind it and motes rise, in the place's own colour. CSS one-shots (transform /
+    // opacity), started once (`on`), placed on the landing point.
+    const arrive = n === 0 ? buildArrival(root, r.location) : null;
     let fit = 1;
     let stagePx = 0;
     const unwatch = watchSize(root, (stageH, f, w, h) => {
@@ -176,8 +189,9 @@ export function playFullReveal(host: HTMLElement, r: LocationRevealRequest, gl: 
       fit = f;
       stagePx = stageH;
       gl.canvas.style.width = `${stageH * A}px`;
+      if (arrive) { arrive.style.left = `calc(50% + ${((gl.vp[0] - 0.5) * A * stageH).toFixed(1)}px)`; arrive.style.top = `calc(50% + ${((gl.vp[1] - 0.5) * stageH).toFixed(1)}px)`; arrive.style.setProperty('--u', `${stageH}px`); }
       gl.canvas.style.height = `${stageH}px`;
-      words.layout(stageH, f);
+      words?.layout(stageH, f);
     });
     let raf = 0;
     let over = false;
@@ -202,6 +216,7 @@ export function playFullReveal(host: HTMLElement, r: LocationRevealRequest, gl: 
     let t0 = 0;
     let covered = false;
     let arrived = false;
+    let kept = false;
     const tick = (now: number): void => {
       if (over) return;
       if (!t0) { t0 = now; w?.sound.play(n); }
@@ -209,10 +224,23 @@ export function playFullReveal(host: HTMLElement, r: LocationRevealRequest, gl: 
       if (gl.lost || real >= total) { finish(); return; }
       const s = simOf(from + real);
       try { gl.draw(s, fit); write(s); } catch (err) { console.warn('[locationReveal] stopped', err); finish(); return; }
+      if (arrive && s >= L - 0.02 && !arrive.classList.contains('on')) arrive.classList.add('on');
+      if (arrive && s >= outroAt(n) && !arrive.classList.contains('off')) arrive.classList.add('off');
+      // The frame just drawn, copied in the same task (the drawing buffer is not kept past it): once, before the outro softens it.
+      if (r.keepFrame && !kept && s >= outroAt(n) - 0.02) {
+        kept = true;
+        try {
+          const c = document.createElement('canvas');
+          c.width = gl.canvas.width;
+          c.height = gl.canvas.height;
+          c.getContext('2d')?.drawImage(gl.canvas, 0, 0);
+          r.keepFrame(c, gl.canvas.clientWidth, gl.canvas.clientHeight);
+        } catch (err) { console.warn('[locationReveal] no frame kept', err); }
+      }
       // It fades up over the gate's own doors, which it matches, then they can go.
       root.style.opacity = real < 0.1 ? String(real / 0.1) : '1';
       // The wave that washes the world away brings hero select in behind it.
-      if (!arrived && s >= washAt(n)) { arrived = true; setAtmosphereCovered(false); syncAtmosphere(s); arriveHeroSelect(waveFrom(root, gl, stagePx, n)); }
+      if (!arrived && s >= washAt(n)) { arrived = true; setAtmosphereCovered(false); syncAtmosphere(s); (r.arrive ?? arriveHeroSelect)(waveFrom(root, gl, stagePx, n)); }
       if (!covered && real > 0.14) { covered = true; setAtmosphereCovered(!arrived); onCovered(); }
       raf = requestAnimationFrame(tick);
     };
@@ -232,6 +260,29 @@ export function playFullReveal(host: HTMLElement, r: LocationRevealRequest, gl: 
 /** How long a reveal that is cut short takes to fade. */
 const STOP_MS = 260;
 
+/** The arrival's layer (see `playFullReveal`): a flare, a shock ring, rays and motes, centred on the landing point. */
+function buildArrival(root: HTMLElement, loc: LocationDef): HTMLElement {
+  const a = el('div', 'lrev-arrive', root);
+  a.setAttribute('aria-hidden', 'true');
+  const c = loc.second.map((v) => Math.round(Math.min(1, v) * 255)).join(', ');
+  a.style.setProperty('--ac', c);
+  el('i', 'lra-rays', a);
+  el('i', 'lra-bloom', a);
+  el('i', 'lra-ring', a);
+  el('i', 'lra-ring lra-ring2', a);
+  el('i', 'lra-flash', a);
+  for (let k = 0; k < 26; k++) {
+    const m = el('b', 'lra-mote', a);
+    const h = (Math.sin(k * 91.7) * 43758.5453) % 1;
+    const r = Math.abs(h);
+    m.style.setProperty('--x', `${((k * 0.6180339) % 1 - 0.5) * 1.5}`);
+    m.style.setProperty('--y', `${0.15 + r * 0.45}`);
+    m.style.setProperty('--d', `${(0.2 + ((k * 0.37) % 1) * 1.6).toFixed(2)}s`);
+    m.style.setProperty('--s', `${(0.5 + r).toFixed(2)}`);
+  }
+  return a;
+}
+
 /** Where the leaving wave starts on screen, and when it reaches a point. */
 function waveFrom(root: HTMLElement, gl: RevealGl, stagePx: number, n: number): ArriveFrom {
   const box = root.getBoundingClientRect();
@@ -246,7 +297,7 @@ function waveFrom(root: HTMLElement, gl: RevealGl, stagePx: number, n: number): 
 
 /** The light version's own moments (s from when the doors start to part). */
 export const LIGHT = { name: 1.1, posters: 2.6, step: POST_GAP, hold: HOLD, fade: 0.55 } as const;
-export const lightSeconds = (n: number): number => LIGHT.posters + Math.max(0, n - 1) * LIGHT.step + 0.5 + LIGHT.hold + LIGHT.fade;
+export const lightSeconds = (n: number): number => (n === 0 ? LIGHT.name + 2 + LIGHT.fade : LIGHT.posters + Math.max(0, n - 1) * LIGHT.step + 0.5 + LIGHT.hold + LIGHT.fade);
 
 /**
  * THE LIGHT VERSION, in `under` (behind the gate's doors, which the gate opens itself). `partAt` (ms): when they start to
@@ -267,11 +318,11 @@ export function playLightReveal(under: HTMLElement, r: LocationRevealRequest, pa
       e.style.backgroundImage = `url(${locationArt(r.location.id, `poster-${t}`)})`;
       return e;
     });
-    const words = buildWords(root, r);
-    words.letters.forEach((e) => { e.style.opacity = '1'; });
+    const words = n > 0 ? buildWords(root, r) : null;
+    words?.letters.forEach((e) => { e.style.opacity = '1'; });
     const unwatch = watchSize(root, (stageH, fit) => {
       const u = stageH * fit;
-      words.layout(stageH, fit);
+      words?.layout(stageH, fit);
       sheets.style.setProperty('--lru', `${u}px`);
       posters.forEach((e, i) => {
         const p = posterRest(i, n);
@@ -285,15 +336,15 @@ export function playLightReveal(under: HTMLElement, r: LocationRevealRequest, pa
     const timers: number[] = [];
     if (w && !w.gl) w.sound.play(n, partAt / 1000); // a machine that turned out too slow has the full version's clips: it stays quiet
     const later = (sec: number, fn: () => void): void => { timers.push(window.setTimeout(fn, partAt + sec * 1000)); };
-    later(LIGHT.name, () => { words.title.classList.add('on'); });
-    posters.forEach((e, i) => later(LIGHT.posters + i * LIGHT.step, () => { e.classList.add('on'); words.names[i]!.classList.add('on'); }));
+    if (words) later(LIGHT.name, () => { words.title.classList.add('on'); });
+    posters.forEach((e, i) => later(LIGHT.posters + i * LIGHT.step, () => { e.classList.add('on'); words?.names[i]!.classList.add('on'); }));
     const total = lightSeconds(n);
     const finish = (): void => { endNow = null; timers.forEach((t) => window.clearTimeout(t)); unwatch(); w?.sound.stop(); root.remove(); resolve(); };
     endNow = () => { endNow = null; timers.forEach((t) => window.clearTimeout(t)); root.classList.add('off'); timers.push(window.setTimeout(finish, LIGHT.fade * 1000)); };
     later(total - LIGHT.fade, () => {
       root.classList.add('off');
       const box = root.getBoundingClientRect();
-      arriveHeroSelect({ x: box.left + box.width / 2, y: box.top + box.height / 2, delayMs: (px) => 120 + (px / Math.max(1, box.height)) * 380 });
+      (r.arrive ?? arriveHeroSelect)({ x: box.left + box.width / 2, y: box.top + box.height / 2, delayMs: (px) => 120 + (px / Math.max(1, box.height)) * 380 });
     });
     later(total, finish);
   });

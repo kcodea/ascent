@@ -2639,13 +2639,13 @@ body.aimpick .zone[data-zone='tavern'] .card { pointer-events: none; }
 /* STILL while the board is covered by a full-screen choice (Discover, Runeforge, an Ancient's offer, a scouted board:
    Recruit's `body.modalup`), on a menu board that is not pointed at, and for reduced motion. The cards INSIDE the
    overlay are not under `.app .zone`, so their auras keep playing. Named subjects only, never a universal one. */
-body.modalup .zone .kwfx-rise, .lazy-row.is-far .kwfx-rise, .lb-row:not(:hover) .lb-team .kwfx-rise, .gc .cv2-team .kwfx-rise, .ct-board:not(.ct-pinboard) .kwfx-rise { background-image: url('/kwfx/rise-still.webp'); }
-body.modalup .zone .risetint-blue .kwfx-rise, .lazy-row.is-far .risetint-blue .kwfx-rise, .lb-row:not(:hover) .lb-team .risetint-blue .kwfx-rise, .gc .cv2-team .risetint-blue .kwfx-rise, .ct-board:not(.ct-pinboard) .risetint-blue .kwfx-rise { background-image: url('/kwfx/rise-blue-still.webp'); }
-body.modalup .zone .risetint-red .kwfx-rise, .lazy-row.is-far .risetint-red .kwfx-rise, .lb-row:not(:hover) .lb-team .risetint-red .kwfx-rise, .gc .cv2-team .risetint-red .kwfx-rise, .ct-board:not(.ct-pinboard) .risetint-red .kwfx-rise { background-image: url('/kwfx/rise-red-still.webp'); }
-body.modalup .zone .kwfx-flurry, .lazy-row.is-far .kwfx-flurry, .lb-row:not(:hover) .lb-team .kwfx-flurry, .gc:not(:hover) .cv2-team .kwfx-flurry, .ct-board:not(.ct-pinboard) .kwfx-flurry { background-image: url('/kwfx/flurry-still.webp'); }
-body.modalup .zone .kwfx-execute, .lazy-row.is-far .kwfx-execute, .lb-row:not(:hover) .lb-team .kwfx-execute, .gc:not(:hover) .cv2-team .kwfx-execute, .ct-board:not(.ct-pinboard) .kwfx-execute { background-image: url('/kwfx/execute-still.webp'); }
-body.modalup .zone .kwfx-rebirth, .lazy-row.is-far .kwfx-rebirth, .lb-row:not(:hover) .lb-team .kwfx-rebirth, .gc:not(:hover) .cv2-team .kwfx-rebirth, .ct-board:not(.ct-pinboard) .kwfx-rebirth { background-image: url('/kwfx/rebirth-still.webp'); }
-body.modalup .zone .kwfx-rebirth.shield, .lazy-row.is-far .kwfx-rebirth.shield, .lb-row:not(:hover) .lb-team .kwfx-rebirth.shield, .gc:not(:hover) .cv2-team .kwfx-rebirth.shield, .ct-board:not(.ct-pinboard) .kwfx-rebirth.shield { background-image: url('/kwfx/rebirth-shield-still.webp'); }
+body.modalup .zone .kwfx-rise, .lazy-row.is-far .kwfx-rise, .lb-row:not(:hover) .lb-team .kwfx-rise, .gc .cv2-team .kwfx-rise, .pg2-seat:not(:hover) .cv2-team .kwfx-rise, .ct-board:not(.ct-pinboard) .kwfx-rise { background-image: url('/kwfx/rise-still.webp'); }
+body.modalup .zone .risetint-blue .kwfx-rise, .lazy-row.is-far .risetint-blue .kwfx-rise, .lb-row:not(:hover) .lb-team .risetint-blue .kwfx-rise, .gc .cv2-team .risetint-blue .kwfx-rise, .pg2-seat:not(:hover) .cv2-team .risetint-blue .kwfx-rise, .ct-board:not(.ct-pinboard) .risetint-blue .kwfx-rise { background-image: url('/kwfx/rise-blue-still.webp'); }
+body.modalup .zone .risetint-red .kwfx-rise, .lazy-row.is-far .risetint-red .kwfx-rise, .lb-row:not(:hover) .lb-team .risetint-red .kwfx-rise, .gc .cv2-team .risetint-red .kwfx-rise, .pg2-seat:not(:hover) .cv2-team .risetint-red .kwfx-rise, .ct-board:not(.ct-pinboard) .risetint-red .kwfx-rise { background-image: url('/kwfx/rise-red-still.webp'); }
+body.modalup .zone .kwfx-flurry, .lazy-row.is-far .kwfx-flurry, .lb-row:not(:hover) .lb-team .kwfx-flurry, .gc:not(:hover) .cv2-team .kwfx-flurry, .pg2-seat:not(:hover) .cv2-team .kwfx-flurry, .ct-board:not(.ct-pinboard) .kwfx-flurry { background-image: url('/kwfx/flurry-still.webp'); }
+body.modalup .zone .kwfx-execute, .lazy-row.is-far .kwfx-execute, .lb-row:not(:hover) .lb-team .kwfx-execute, .gc:not(:hover) .cv2-team .kwfx-execute, .pg2-seat:not(:hover) .cv2-team .kwfx-execute, .ct-board:not(.ct-pinboard) .kwfx-execute { background-image: url('/kwfx/execute-still.webp'); }
+body.modalup .zone .kwfx-rebirth, .lazy-row.is-far .kwfx-rebirth, .lb-row:not(:hover) .lb-team .kwfx-rebirth, .gc:not(:hover) .cv2-team .kwfx-rebirth, .pg2-seat:not(:hover) .cv2-team .kwfx-rebirth, .ct-board:not(.ct-pinboard) .kwfx-rebirth { background-image: url('/kwfx/rebirth-still.webp'); }
+body.modalup .zone .kwfx-rebirth.shield, .lazy-row.is-far .kwfx-rebirth.shield, .lb-row:not(:hover) .lb-team .kwfx-rebirth.shield, .gc:not(:hover) .cv2-team .kwfx-rebirth.shield, .pg2-seat:not(:hover) .cv2-team .kwfx-rebirth.shield, .ct-board:not(.ct-pinboard) .kwfx-rebirth.shield { background-image: url('/kwfx/rebirth-shield-still.webp'); }
 @media (prefers-reduced-motion: reduce) {
   .card.compact .kwfx-rise { background-image: url('/kwfx/rise-still.webp'); }
   .card.compact.risetint-blue .kwfx-rise { background-image: url('/kwfx/rise-blue-still.webp'); }
@@ -14000,6 +14000,23 @@ html[data-phone-gpu] .opphand-card.spent > img { filter: grayscale(0.72) brightn
 .rankbar-tip { position: absolute; right: -8px; top: 50%; width: 26px; height: 26px; margin-top: -13px; border-radius: 50%; opacity: 0; pointer-events: none;
   background: radial-gradient(circle, rgba(255, 244, 200, 0.95), rgba(255, 220, 120, 0) 70%); }
 .rankbar.on-gate .rankbar-tip { opacity: 0.85; }
+/* LOCKED on a set-up (RankBar `lock`, the post-game sequence's lock beat; owner 2026-11-27: "have the bar "lock" and turn red or gold",
+   then "Remove the pad lock. Just have it sound like it locks and have the outline grow around it"): the whole track lights in the lock's
+   colour (a demotion set-up sits at 0, so the fill alone would show nothing), the fill takes it too, and an outline of that colour grows
+   out around the track as it lands (`locking`, once). Static paint; the grow is a one-shot transform / opacity. */
+.rankbar { --lock: #ffd76a; --lock-deep: #a8741a; }
+.rankbar.lock-red { --lock: #ff6a5c; --lock-deep: #8e1f1a; }
+.rankbar-track::after { content: ''; position: absolute; inset: -4px; border-radius: inherit; pointer-events: none; opacity: 0;
+  background: color-mix(in srgb, var(--lock) 26%, transparent); box-shadow: 0 0 0 2px var(--lock), 0 0 16px color-mix(in srgb, var(--lock) 60%, transparent); }
+.rankbar-locktint { position: absolute; inset: 0; border-radius: inherit; opacity: 0; background: linear-gradient(90deg, var(--lock-deep), var(--lock)); }
+.rankbar.locked .rankbar-track::after, .rankbar.locked .rankbar-locktint { opacity: 1; }
+.rankbar.locked .rankbar-tip { opacity: 0; }
+@media (prefers-reduced-motion: no-preference) {
+  .rankbar.locking .rankbar-track::after { animation: rankbar-lockgrow 0.55s cubic-bezier(0.2, 1.2, 0.35, 1) both; }
+  .rankbar.locking .rankbar-locktint { animation: rankbar-locktint 0.4s ease-out both; }
+}
+@keyframes rankbar-lockgrow { from { opacity: 0; transform: scale(0.9, 0.2); } 45% { opacity: 1; } to { opacity: 1; transform: none; } }
+@keyframes rankbar-locktint { from { opacity: 0; } to { opacity: 1; } }
 .rankbar-points { font-family: var(--font-ui); font-weight: 800; font-size: 14px; font-variant-numeric: tabular-nums; color: rgba(255, 246, 228, 0.85); white-space: nowrap; }
 .rankbar-caption { font-family: var(--font-ui); font-weight: 800; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255, 255, 255, 0.5); }
 .rankbar-gate { font-family: var(--font-ui); font-weight: 800; font-size: 12px; letter-spacing: 0.04em; color: #ffe08a; text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8); }
@@ -14597,7 +14614,7 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 /* The Reborn wisps and dome stay still on a menu board even when the card is pointed at (measured 2026-10-16 on Recent
    Games: their keyframes run on the main thread, ~46k style invalidations and most of the hover cost over a 3 s sweep).
    In a game they play as always; this is the menu boards only. */
-.gc .cv2-team .wisp, .gc .cv2-team .reborn-dome { animation-play-state: paused !important; }
+.gc .cv2-team .wisp, .gc .cv2-team .reborn-dome, .pg2-seat .cv2-team .wisp, .pg2-seat .cv2-team .reborn-dome { animation-play-state: paused !important; }
 /* Every game card (Career AND Recent Games, which share the StoredTeam board since layout B, 2026-10-16). */
 @media (hover: hover) {
   .gc:not([data-pointed]) .cv2-team *, .gc:not([data-pointed]) .cv2-team *::before, .gc:not([data-pointed]) .cv2-team *::after { animation-play-state: paused !important; }

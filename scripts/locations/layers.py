@@ -3,7 +3,7 @@
    piece's own colour is carried out under its soft edge, so no rim of background travels with it.
  - BEHIND: what a piece hides continues as the mirror of what is beside it (real texture), easing into a smooth fill.
  - FEET: where a piece stands on something it is faded in, and the ground under it has the piece's own depth, so nothing slides.
-python scripts/locations/layers.py [o|u|s|r] [proof-dir]        (from the repo root; see docs/locations.md)
+python scripts/locations/layers.py [o|u|s|r|p] [proof-dir]      (from the repo root; see docs/locations.md)
 python scripts/locations/layers.py [o|u|s|r] [proof-dir] maps   (before there is a background: the maps the owner makes it from, into proof-dir)"""
 import os
 import sys
@@ -788,6 +788,96 @@ def runebarriers():
     make('r', 'runebarriers', 'Rune Barriers/RuneBarriers.jpg', specs, np.zeros((H, W)), wind, e, 'Rune Barriers/parallax/RuneBarriersBG.jpg')
 
 
-PLACES = {'o': outskirts, 'u': underbelly, 's': scrapyard, 'r': runebarriers}
+
+def canopy(I, lum):
+    """the tree's leaves and branches against the sky: leaf and bark are green, gold or brown (blue under green) or dark; sky is
+    blue or white (blue at or over green) and light"""
+    leaf = (I[..., 2] < I[..., 1] - .05) | (lum < .30)
+    sky = (I[..., 2] >= I[..., 1] - .005) & (lum > .55)
+    return leaf, sky
+
+
+def terys_specs():
+    """TERYS GATE's pieces (owner 2026-11-27: "make it function like the locations do with parallax elements"). Rigid pieces, the ground
+    never bends (the Rune Barriers' way: big upright marble everywhere):
+     1 (far) the gate building: its statues, the portal, the stairs and terraces, the ruined colonnade on its left, the wall and
+       arches on its right. The sky shows through its arches.
+     2 (middle) the second crowned post and the two urn pedestals at the foot of the stairs.
+     3 (near) the tree, its leaves across the top (a colour `key`: a lattice of leaves on sky) and its banner; the stone railing with
+       its crowned post and the lilies; the vine pillar with its plinth, the right pillar and the flower beds.
+    The sky, the floating castles, the cliffs and falls, the far temple and the courtyard floor are the background."""
+    cT = view(0, 0, .34, .62, 1500, 1161)
+    cL = view(0, .58, .32, 1, 1500, 835)
+    cR = view(.7, .3, 1, 1, 1500, 1485)
+    cM = view(.24, .5, .7, .86, 1500, 498)
+    cG = view(.27, 0, .82, .52, 1500, 602)
+    q2 = view(.45, 0, 1, .55, 1500, 636)
+    q4 = view(.45, .45, 1, 1, 1500, 636)
+    # ── 1: the gate building ──
+    gate = (cM([(40, 498), (40, 205), (65, 168)]) + cT([(1200, 1100), (1196, 640)])
+            + cG([(12, 378), (40, 360), (75, 373), (105, 358), (108, 280), (130, 270), (165, 270), (168, 238), (180, 226), (232, 226), (242, 240), (240, 293),
+                  (330, 290), (338, 283), (338, 163), (350, 148), (400, 153), (405, 80), (420, 68), (470, 70), (472, 90), (500, 84), (505, 60), (530, 45),
+                  (565, 48), (598, 72), (620, 66), (645, 38), (680, 16), (700, -4), (705, -20)])
+            + q2([(1009, -20), (1262, -20), (1262, 60), (1268, 140), (1262, 300), (1272, 400), (1278, 460), (1278, 518), (1300, 505), (1520, 500)])
+            + cR([(1520, 720), (1100, 715), (800, 720)]) + q4([(950, 332), (770, 352), (650, 346), (0, 346)])
+            + cM([(640, 345), (480, 332), (330, 330), (200, 340), (190, 360), (160, 420), (150, 498)]))
+    gate_holes = None  # the sky in its arches moves with it: a window cut through the outline clipped real edges
+    # ── 2: the middle posts ──
+    post = cM([(195, 270), (210, 262), (420, 262), (432, 290), (412, 300), (415, 500), (205, 500), (215, 320)])
+    urnL = cM([(485, 40), (530, 10), (580, 5), (630, 40), (615, 75), (580, 90), (575, 140), (620, 155), (625, 322), (560, 332), (505, 322), (505, 160), (540, 140), (540, 95), (500, 80)])
+    urnR = q4([(645, 95), (700, 60), (760, 70), (775, 100), (745, 125), (745, 180), (770, 190), (770, 330), (700, 355), (670, 355), (655, 330), (655, 190), (680, 180), (680, 125)])
+    # ── 3: the near frame ──
+    vine = cT([(195, 560), (242, 560), (238, 885), (204, 885)])  # the vine hanging off the trunk
+    trunk = cT([(-20, 300), (320, 300), (290, 380), (260, 470), (240, 560), (200, 640), (160, 700), (110, 760), (60, 820), (-20, 880)])
+    banner = cT([(285, 330), (330, 300), (450, 300), (462, 330), (440, 420), (430, 700), (445, 820), (462, 900), (430, 880), (380, 850), (330, 800), (285, 770), (280, 700)])
+    leftfoliage = cT([(-20, 860), (40, 870), (80, 920), (100, 1000), (90, 1100), (120, 1180), (-20, 1180)])  # the leaves at the edge, not the cliff
+    rail = cL([(-20, 180), (120, 130), (260, 100), (330, 110), (380, 140), (400, 160), (470, 180), (500, 230), (560, 240), (780, 250), (785, 190), (1050, 185), (1205, 220), (1180, 265),
+               (1172, 505), (1310, 515), (1325, 640), (1240, 690), (1100, 700), (1000, 700), (900, 690), (800, 700), (720, 760), (720, 860), (-20, 860)])
+    rail_holes = [cL([(432, 402), (486, 402), (486, 555), (470, 590), (432, 590)]), cL([(602, 378), (655, 378), (655, 470), (640, 480), (625, 470), (605, 480)]),
+                  cL([(762, 378), (790, 378), (790, 460), (775, 470), (762, 460)])]
+    right = cR([(470, 1500), (380, 1500), (385, 1228), (470, 1225), (480, 1180), (500, 1095), (530, 1070), (528, 950), (470, 940), (470, 760), (520, 720), (515, 460),
+                (495, 400), (492, 345), (560, 322), (610, 300), (600, 250), (690, 140), (730, 180), (800, 240), (860, 290), (880, 370), (860, 460), (840, 560), (820, 690),
+                (810, 760), (850, 930), (1000, 960), (1100, 940), (1180, 950), (1240, 960), (1275, 1065), (1520, 1072), (1520, 1500)])
+    rightpillar = cR([(1245, 420), (1290, 378), (1400, 348), (1520, 348), (1520, 1075), (1272, 1065), (1254, 700)])
+    leaves = [(-.02, -.02), (.36, -.02), (.36, .14), (.30, .14), (.24, .08), (.20, .10), (.165, .19), (.10, .22), (.08, .27), (-.02, .27)]
+    return {
+        # The gate building is NOT a piece (2026-11-27, second pass): it fills the middle third, and a cutout that size slid across
+        # an invented valley read as cardboard. It stays painted in the ground and never moves; only the frame does.
+        1: dict(groups=[([post, urnL, urnR], None, 8)]),
+        2: dict(groups=[([[(-.5, -.5), (-.49, -.5), (-.49, -.49)]], None, 2)]),  # empty
+        3: dict(groups=[([trunk, vine, banner, leftfoliage], None, 8), ([rail], rail_holes, 8), ([right, rightpillar], None, 8)], key=[(leaves, canopy)]),
+        'snap': True, 'tone': .08, 'planes': lambda x: [.12, .12, .26],
+    }
+
+
+def terys():
+    """TERYS GATE (owner 2026-11-27: "use this for the returning art", renamed from the Portal of Kings): where a game's journey ends.
+    Rigid pieces over the owner's background (`terys_specs`: the gate building far, the posts and urns middle, the tree, railing and
+    pillars near), wind on the tree, banners and flowers only, and its own idea in the portal: the light inside it, and its ring of
+    runes, pulse out from its heart (an `energy` mask in data.webp's blue)."""
+    file = 'PortalOfKings.jpg'
+    master = Image.open(ART + file).convert('RGB')
+    if MAPS:
+        return maps('p', master, terys_specs())
+    wind = soft([([(0, 0), (.20, 0), (.24, .06), (.20, .20), (.12, .30), (.05, .44), (0, .44)], .8),               # the tree
+                 ([(.062, .16), (.098, .16), (.098, .46), (.08, .47), (.062, .40)], .75),                             # its banner
+                 ([(.81, 0), (.865, 0), (.86, .30), (.835, .39), (.81, .30)], .75),                                   # the great banner, right
+                 ([(.31, .35), (.335, .35), (.335, .50), (.31, .50)], .55), ([(.375, .45), (.395, .45), (.395, .55), (.375, .55)], .5),
+                 ([(.762, .41), (.785, .41), (.785, .52), (.762, .52)], .5),
+                 ([(0, .55), (.10, .58), (.13, .70), (.12, 1), (0, 1)], .7),                                           # the flowers, left (not the stone)
+                 ([(.36, .73), (.45, .72), (.46, .82), (.37, .83)], .45),
+                 ([(.70, .72), (.785, .70), (.79, 1), (.70, 1)], .55), ([(.875, .74), (.95, .72), (.95, .86), (1, .86), (1, 1), (.875, 1)], .7)], 9)
+    yy, xx = np.mgrid[0:H, 0:W]
+    r = np.hypot(xx * 1886 / W - 1122, yy * 800 / H - 292)
+    disc = np.clip((136 - r) / 22, 0, 1)                                    # its edge is inside the frame: nothing but the light moves
+    runes = np.clip(1 - np.abs(r - 166) / 13, 0, 1) * .8
+    e = gaussian_filter(np.maximum(disc, runes), 1.5 * S) * (1 - np.clip((yy / H - .53) / .03, 0, 1))
+    # The owner's background (2026-11-27, from the maps and the prompt in Locations/background-prompts.md), moved onto the painting.
+    make('p', 'terys', file, terys_specs(), np.zeros((H, W)), wind, e, 'Terys Gate/parallax/v2/TerysBG4k.jpg', align=True)
+    # The whole painting, sharp, for the post-game screen's backdrop (layer0 is the background with the pieces taken out).
+    master.resize((W, H), Image.LANCZOS).save(PUB + 'terys/full.webp', quality=88, method=6)
+
+
+PLACES = {'o': outskirts, 'u': underbelly, 's': scrapyard, 'r': runebarriers, 'p': terys}
 for k in (ARGS[:1] or list(PLACES)):
     PLACES[k]()

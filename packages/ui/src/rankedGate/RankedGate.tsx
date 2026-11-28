@@ -344,7 +344,7 @@ export function RankedGate(): JSX.Element | null {
         )}
         {/* THE WORD: in the tree from the forming on (unseen), so that arming it is a fade and not a pop. Hidden from
             screen readers, which already have the button's own label. */}
-        {(phase === 'forming' || armed || phase === 'shatter') && (
+        {(phase === 'forming' || armed || phase === 'shatter') && live.current?.opts?.word !== false && (
           <div className={`rgate-enter${armed && !pressed ? ' is-on' : ''}`} aria-hidden="true">
             <img className="rgate-enter-word" decoding="sync" src={ENTER_SRC} alt="" draggable={false} />
             {/* THE TINT (gateEnterConfig.ts): the word washed toward one colour, keeping its own light and dark. The

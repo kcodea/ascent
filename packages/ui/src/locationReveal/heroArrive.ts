@@ -15,11 +15,16 @@ export interface ArriveFrom {
 const PIECES = '.hs-eyebrow, .hsprompt, .hsline, .hsback, .hss-slot, .hss-card, .herocard, .hsbook, .hs-poster';
 
 export function arriveHeroSelect(from: ArriveFrom, root: ParentNode = document): number {
-  const host = root.querySelector<HTMLElement>('.heroselect:not(.hswatch)');
+  return arriveScreen(from, '.heroselect:not(.hswatch)', PIECES, root);
+}
+
+/** The same arrival for any screen: `host` its root, `pieces` what rises into place as the wave reaches it. */
+export function arriveScreen(from: ArriveFrom, hostSel: string, pieces: string, root: ParentNode = document): number {
+  const host = root.querySelector<HTMLElement>(hostSel);
   if (!host) return 0;
   const vh = window.innerHeight;
   let n = 0;
-  for (const e of host.querySelectorAll<HTMLElement>(PIECES)) {
+  for (const e of host.querySelectorAll<HTMLElement>(pieces)) {
     if (typeof e.animate !== 'function') continue;
     const r = e.getBoundingClientRect();
     if (r.width === 0 || r.top > vh || r.bottom < 0) continue;

@@ -58,6 +58,10 @@ const pointsLabel = (v: number, uncapped: boolean): string =>
 const frac = (points: number): number => Math.min(1, Math.max(0, points / POINTS_PER_DIVISION));
 
 /** Build (paused) the timeline for `steps` over `t`. The caller plays it, and MUST `kill()` it on unmount. */
+/** The classes a bar wears as it LOCKS: RankBar's `lock` prop renders the first two (the settled bar); `locking` grows the outline out
+ *  around it, once, as it lands (owner 2026-11-27: "Just have it sound like it locks and have the outline grow around it"). */
+export const lockClasses = (tone: 'gold' | 'red'): string[] => ['locked', `lock-${tone}`, 'locking'];
+
 export function buildRankTimeline(steps: readonly RankStep[], t: RankTimelineTargets, cues: RankTimelineCues, onComplete: () => void): gsap.core.Timeline {
   const tl = gsap.timeline({ paused: true, onComplete });
   const sec = (ms: number): number => ms / 1000;
@@ -90,8 +94,9 @@ export function buildRankTimeline(steps: readonly RankStep[], t: RankTimelineTar
         break;
       }
       case 'gate': {
-        // The endpoint lights (opacity only) and holds a soft glow — the "you are on the gate" cue.
-        tl.call(cues.gate, undefined, '>');
+        // The endpoint lights (opacity only) and holds a soft glow — the "you are on the gate" cue. The bar LOCKS in the set-up's
+        // colour (`lockClasses`: its tint and padlock are one-shot CSS, RankBar.tsx).
+        tl.call(() => { cues.gate(); t.track?.closest('.rankbar')?.classList.add(...lockClasses(step.tone)); }, undefined, '>');
         tl.fromTo(el(t.tip), { opacity: 0, scale: 0.6 }, { opacity: 1, scale: 1.25, duration: sec(step.ms) * 0.4, ease: 'power2.out' }, '<');
         tl.to(el(t.tip), { scale: 1, opacity: 0.85, duration: sec(step.ms) * 0.6, ease: 'power1.inOut' }, '>');
         break;

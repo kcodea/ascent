@@ -486,13 +486,14 @@ export class RevealGl {
     const d = distAt(s);
     const gather = smoother(seg(s, L - 0.7, L));
     const inh = landed ? 0 : gather;
-    const posters = seg(s, POST - 0.15, POST + 0.55);
+    const posters = n === 0 ? 0 : seg(s, POST - 0.15, POST + 0.55); // a journey hangs none
     const whole = after > waveAt(this.far) + 0.2;
     const outro = smoother(seg(s, outroAt(n) + 0.1, washAt(n) + WASH * 0.7)); // it softens and you step in
     const hp = heartAt(s, this.vcx, this.vcy, GEM_Y * this.gate);
     const hk = tt <= 0 || landed ? 0 : (0.55 + 0.45 * seg(tt, 0.1, 0.8) + 0.5 * inh) * seg(tt, 0.02, 0.2);
     // The camera pushes in, slides across and rises as it arrives, then drifts. It never follows the mouse (owner 2026-11-24).
-    const push = -0.56 + 0.64 / (1 + Math.exp(-(s - L - 0.06) * 4.4)) + 0.12 * smoother(seg(s, L + 0.2, end + 0.9)) + 0.34 * outro;
+    // A JOURNEY (Terys Gate, owner 2026-11-27: "make the gate look and feel more exciting") keeps pushing toward the portal as it rests.
+    const push = -0.56 + 0.64 / (1 + Math.exp(-(s - L - 0.06) * 4.4)) + (n === 0 ? 0.3 : 0.12) * smoother(seg(s, L + 0.2, end + 0.9)) + 0.34 * outro;
     const tr = outCubic(seg(s, L - 0.4, L + 2.6));
     const pan = [mix(-0.46, 0.04, tr) + 0.22 * smoother(seg(s, L + 0.8, end + 0.6)), mix(-0.26, 0.04, tr)];
     const fw = 1.2 / (1.2 + hp[2]);

@@ -87,7 +87,7 @@ describe('<GameScroll>', () => {
   it('the bar uses the gauntlet cursors and hides the native scrollbar', () => {
     const css = readFileSync(join(__dirname, 'gameScroll.css'), 'utf8');
     expect(css).toMatch(/\.gscroll-view \{ scrollbar-width: none/);
-    expect(css).toMatch(/\.gscroll-thumb \{[^}]*cursor: url\('\/cursors\/gauntlet_open\.svg'\) 6 2, grab/);
+    expect(css).toMatch(/\.gscroll-thumb \{[^}]*cursor: var\(--cursor-open\), grab/);
     expect(css).not.toMatch(/cursor:\s*(pointer|grab|grabbing)\s*;/);
   });
 });

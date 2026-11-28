@@ -241,7 +241,7 @@ describe('the gate and the UI rules', () => {
     const css = here('./gamesPages.css');
     expect(tsx).not.toMatch(/<[a-z][a-z0-9]*\s[^>]*\stitle=/);
     // Only the gauntlet form; never a plain keyword.
-    for (const m of css.matchAll(/cursor:[^;]*/g)) expect(m[0]).toMatch(/gauntlet/);
+    for (const m of css.matchAll(/cursor:[^;]*/g)) expect(m[0]).toMatch(/var\(--cursor-(default|open|closed)\)/);
     expect(css).not.toMatch(/infinite/);
     for (const m of tsx.matchAll(/'([^'\n]*)'|>([^<>{}\n]+)</g)) {
       const s = m[1] ?? m[2] ?? '';

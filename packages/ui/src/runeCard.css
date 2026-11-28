@@ -31,7 +31,7 @@
   position: relative; flex: 0 0 auto; width: var(--cw); min-height: calc(var(--cw) * 1.72);
   display: flex; flex-direction: column; align-items: center; text-align: center;
   padding: 0 18px 20px; border: none; background: none; overflow: visible; font-family: var(--font-ui);
-  cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; transition: transform 0.18s cubic-bezier(0.2, 0.8, 0.3, 1);
+  cursor: var(--cursor-open), pointer; transition: transform 0.18s cubic-bezier(0.2, 0.8, 0.3, 1);
   outline: none;
 }
 .runecard[data-tribe="neutral"] { --rt-body: #e8c27a; }   /* neutral accents: a soft gold */
@@ -46,7 +46,7 @@
 }
 .runecard:is(:hover, :focus-visible):not(:disabled) { transform: translateY(-6px); }
 .runecard:is(:hover, :focus-visible):not(:disabled)::after { opacity: 1; }
-.runecard.cantafford { cursor: url('/cursors/gauntlet_default.svg') 6 2, not-allowed; }
+.runecard.cantafford { cursor: var(--cursor-default), not-allowed; }
 .runecard.cantafford > :not(.runecard-lock) { opacity: 0.55; }
 
 /* The body: a clean, deep, saturated tribe tint over the game's violet (not near-black, which turned warm hues brown),

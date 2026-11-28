@@ -41,6 +41,7 @@ import { setSpectatorEmotesOn, useSpectatorEmotePrefs } from '../../versus/spect
 import { setFilterMessages, setShowActivity, useFriendsPrefs } from '../../friends/friendsPrefs';
 import { setLobbyChatEnabled, useLobbyChat } from '../../lobbyChat/lobbyChatStore';
 import { setLobbyRevealEnabled, useLobbyRevealEnabled } from '../../lobbyReveal/lobbyRevealStore';
+import { reactiveCursorReady, setReactiveCursorEnabled, useReactiveCursorEnabled } from '../../reactiveCursor/reactiveCursor';
 import { setAchievementPopupsOn, useAchievementPopupsOn } from '../../progression/achievementToastPrefs';
 import { isTouchDevice, touchText } from '../../touchInput';
 import { TOUCH_UI_LABEL, TOUCH_UI_SIZES, setTouchUiSize, touchUi, type TouchUiSize } from '../../touchUi';
@@ -246,6 +247,7 @@ function CosmeticsTab() {
   const showOpponentSkins = useGame((s) => s.showOpponentSkins);
   const setShowOpponentSkins = useGame((s) => s.setShowOpponentSkins);
   const hidden = useCosmeticVisibility((s) => s.hidden);
+  const reactiveCursorOn = useReactiveCursorEnabled();
   const anyHidden = Object.keys(hidden).length > 0;
   return (
     <>
@@ -253,6 +255,11 @@ function CosmeticsTab() {
         <ToggleRow label="Show opponent cosmetics" note="Off shows other players in their default art and hero attack. Your own cosmetics always show."
           on={showOpponentSkins} onToggle={() => { setShowOpponentSkins(!showOpponentSkins); sfx.pulse(); }} />
       </Section>
+      {reactiveCursorReady() && <Section title="Cursor">
+        {/* R-CURSOR-REACTIVE-01 (owner 2026-11-27). Saved on this device. */}
+        <ToggleRow label="Reactive Cursor" note="Your cursor takes the look of the tribe you have the most of on your board. A tie goes to the leftmost."
+          on={reactiveCursorOn} onToggle={() => { setReactiveCursorEnabled(!reactiveCursorOn); sfx.pulse(); }} />
+      </Section>}
       <Section title="Show cosmetics" note="Each switch applies to everyone, you included: your games, the lobby, replays and spectating. Off shows the default look. Nothing is unequipped.">
         {COSMETIC_TOGGLE_ROWS.map((r) => (
           <ToggleRow key={r.id} label={r.label} note={r.note} on={hidden[r.id] !== true}

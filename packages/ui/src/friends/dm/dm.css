@@ -85,19 +85,19 @@ html[data-touch-ui][data-touch-small] .dmchat-at.phone > .dmchat.vspanel { --dmc
   width: calc((var(--lvw, 100vw) - 24px) / var(--dmchat-z)); height: calc((var(--lvh, 100vh) - 24px) / var(--dmchat-z)); }
 
 /* MOVE: the strip and the header take the open gauntlet (they can be grabbed); while moving, the closed one. */
-.dmchat-at:not(.phone) :is(.dmchat-top, .dmchat-head) { cursor: url('/cursors/gauntlet_open.svg') 6 2, move; touch-action: none; }
-.dmchat-at.moving, .dmchat-at.moving * { cursor: url('/cursors/hand_closed.svg') 13 12, grabbing; }
+.dmchat-at:not(.phone) :is(.dmchat-top, .dmchat-head) { cursor: var(--cursor-open), move; touch-action: none; }
+.dmchat-at.moving, .dmchat-at.moving * { cursor: var(--cursor-closed), grabbing; }
 /* RESIZE: thin grips on the frame's edges (corners a little bigger), just outside the panel's rounded rim. The gauntlet
    with the resize arrow as its fallback. */
 .dmchat-rs { position: absolute; z-index: 2; touch-action: none; }
-.dmchat-rs-n, .dmchat-rs-s { left: 14px; right: 14px; height: 10px; cursor: url('/cursors/gauntlet_open.svg') 6 2, ns-resize; }
-.dmchat-rs-e, .dmchat-rs-w { top: 14px; bottom: 14px; width: 10px; cursor: url('/cursors/gauntlet_open.svg') 6 2, ew-resize; }
+.dmchat-rs-n, .dmchat-rs-s { left: 14px; right: 14px; height: 10px; cursor: var(--cursor-open), ns-resize; }
+.dmchat-rs-e, .dmchat-rs-w { top: 14px; bottom: 14px; width: 10px; cursor: var(--cursor-open), ew-resize; }
 .dmchat-rs-n { top: -5px; } .dmchat-rs-s { bottom: -5px; } .dmchat-rs-e { right: -5px; } .dmchat-rs-w { left: -5px; }
 .dmchat-rs-ne, .dmchat-rs-se, .dmchat-rs-sw, .dmchat-rs-nw { width: 18px; height: 18px; }
-.dmchat-rs-ne { top: -6px; right: -6px; cursor: url('/cursors/gauntlet_open.svg') 6 2, nesw-resize; }
-.dmchat-rs-sw { bottom: -6px; left: -6px; cursor: url('/cursors/gauntlet_open.svg') 6 2, nesw-resize; }
-.dmchat-rs-nw { top: -6px; left: -6px; cursor: url('/cursors/gauntlet_open.svg') 6 2, nwse-resize; }
-.dmchat-rs-se { bottom: -6px; right: -6px; width: 30px; height: 30px; cursor: url('/cursors/gauntlet_open.svg') 6 2, nwse-resize; }
+.dmchat-rs-ne { top: -6px; right: -6px; cursor: var(--cursor-open), nesw-resize; }
+.dmchat-rs-sw { bottom: -6px; left: -6px; cursor: var(--cursor-open), nesw-resize; }
+.dmchat-rs-nw { top: -6px; left: -6px; cursor: var(--cursor-open), nwse-resize; }
+.dmchat-rs-se { bottom: -6px; right: -6px; width: 30px; height: 30px; cursor: var(--cursor-open), nwse-resize; }
 /* THE GRIPS, made easy to see (owner 2026-10-30: "make the adjustment way more obvious, it's too hard to see",
    R-DM-CHAT-03). The bottom-right corner carries the classic grip: three gold diagonal ridges, 20px, in the panel's gold,
    brighter while the window is hovered and brightest on the grip itself. Hovering the window shows a faint gold line on

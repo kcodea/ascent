@@ -168,7 +168,7 @@ html[data-ph-shell][data-touch-small] .phc-herogrid { grid-template-columns: rep
 html[data-ph-shell] .phc-page .phc-achview .ach-ghost :is(.ach-cat, .ach-tile, .ach-chip) { opacity: 0.35; pointer-events: none; }
 @media (prefers-reduced-motion: reduce) { .phc-main.fadein > .phc-view, .phc-achview .ach-tab.fadein { animation: none; } }
 /* A clickable match row wears the open gauntlet, as a Lobby tile does. */
-.phc-page .rgp-item:not(.rgp-rowghost) { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.phc-page .rgp-item:not(.rgp-rowghost) { cursor: var(--cursor-open), pointer; }
 /* The head never outgrows the page: the tabs give way (they scroll) so the actions stay whole. */
 html[data-ph-shell] .phc-page .phc-pg .phk-pagetabs { flex: 0 1 auto; min-width: 0; }
 html[data-ph-shell] .phc-page .phc-pg .phk-pageactions { flex: none; }

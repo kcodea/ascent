@@ -815,7 +815,7 @@ body:has(.vsms-scrim) .inspect-ov { z-index: 590; }
 /* A SPECTATOR HOVERS RUNES (owner 2026-10-16, R-SPECTATE-RUNEHOVER-01): the Runeforge's offer cards take the
    spectator's hover (its preview) but never a pick (RuneCard refuses a viewer's press), so they don't lift like a
    button and wear the gauntlet's default, not its "open" hand. */
-.app.viewing.spectating .runecard { pointer-events: auto; cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
+.app.viewing.spectating .runecard { pointer-events: auto; cursor: var(--cursor-default), default; }
 .app.viewing.spectating .runecard:is(:hover, :focus-visible) { transform: none; }
 
 /* A SPECTATOR HOVERS DISCOVER CARDS (owner 2026-10-18: the watched player's Discover choices, Gift picks among them,
@@ -824,7 +824,7 @@ body:has(.vsms-scrim) .inspect-ov { z-index: 590; }
    no hover, no preview. Every offer row's cards (Discover, the hero-power Discover, Choose One, the Quest pick, the
    scout) take the spectator's hover again, exactly like a card in hand; a press still does nothing (the store refuses a
    viewer's dispatch, and the pick sound skips a viewer). The gauntlet's default hand: it reads, it never picks. */
-.app.viewing.spectating .discover-ov .card { pointer-events: auto; cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
+.app.viewing.spectating .discover-ov .card { pointer-events: auto; cursor: var(--cursor-default), default; }
 
 /* VERSUS DUOS (R-DUOS-TAGTEAM-01, owner 2026-10-26): NO "steps in" plate ("dont show the 'xyz swoops in' ... just have
    the current portrait of the player side or opponent side swap to the player who's board is live"). The hero slot on
@@ -879,12 +879,12 @@ html .etbwrap.duos-viewing, html .rfbwrap.duos-viewing, html .actiontray.duos-vi
    R-DUOS-VIEW-06). Their Runeforge, Discover, Quest, hero-power offer, Choose One and scouted board are all the full-screen
    `.discover-ov` scrim (z160, at root under `body.modalup`), and the Ancients gate is z105: at z75 the portrait sat under
    the scrim and the click back landed on it. z180: over those, under the swap's ghost (z190) and the pixi FX (z200). */
-.duosdock.self { z-index: 180; pointer-events: auto; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; } /* the whole portrait is the way back */
+.duosdock.self { z-index: 180; pointer-events: auto; cursor: var(--cursor-open), pointer; } /* the whole portrait is the way back */
 /* The watch screen makes every [role=button] inert (`.app.viewing [role="button"]`); MY portrait is the one control
    that must stay live there (owner 2026-10-25: "Clicking your portrait should take you back to your board"). Before
    this rule the inert rule out-ranked the portrait and the click back did nothing. */
 .app.viewing .duosdock.self, .app.viewing .duosdock.self[role="button"] { pointer-events: auto; }
-.duosdock-hold { position: absolute; inset: 0; pointer-events: auto; border-radius: 50%; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.duosdock-hold { position: absolute; inset: 0; pointer-events: auto; border-radius: 50%; cursor: var(--cursor-open), pointer; }
 .duosdock .duosdock-disc { width: 100%; height: 100%; box-sizing: border-box; border-width: calc(4 * var(--u)); }
 .duosdock-glow, .duosdock-no { position: absolute; inset: 0; border-radius: 50%; pointer-events: none; opacity: 0; z-index: 3; }
 .duosdock-glow { box-shadow: 0 0 calc(34 * var(--u)) calc(12 * var(--u)) rgba(64, 214, 236, 0.95), 0 0 0 calc(5 * var(--u)) rgba(96, 226, 244, 0.95); will-change: opacity; }
@@ -944,7 +944,7 @@ html .etbwrap.duos-viewing, html .rfbwrap.duos-viewing, html .actiontray.duos-vi
   background: linear-gradient(180deg, #fff, #f3ead4); color: var(--ink); border: 2px solid var(--gold); animation: duosviewfade 0.18s ease both; }
 :root[data-hp-look="gem"] :is(.duosdock, .duostagin) .hudpill-name { color: var(--ui-title); }
 /* The rail row stays a second way in to the teammate view (a click), not a pass target. */
-.lobbyseat.mate { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.lobbyseat.mate { cursor: var(--cursor-open), pointer; }
 
 /* VERSUS DUOS: THE SWAP CROSS-FADE between my board and my teammate's (teammateView.turn; R-DUOS-VIEW-01). The GHOST is a
    frozen clone of `#root` (the screen being left) laid exactly over the live one; only its opacity animates (one-shot),
@@ -961,14 +961,14 @@ html.duos-vt::view-transition-old(root), html.duos-vt::view-transition-new(root)
   animation-timing-function: cubic-bezier(0.33, 0, 0.2, 1); }
 /* The pointer is on the portrait you just clicked while the fade runs, and the transition hit-tests `html` (R-CURSOR-ROOT-01):
    the open gauntlet, the portrait's own cursor, so nothing changes under the hand. */
-html.duos-vt { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+html.duos-vt { cursor: var(--cursor-open), pointer; }
 
 /* THE VERSUS BOTS + DUOS DEV TUNER (DEV only, the dev menu's panel): the dev panel's own pieces, laid out as rows of
    small buttons. The game's gauntlet cursor on every control (the dev panel button class sets a bare pointer). */
 .duostuner { width: 380px; max-height: calc(84 * var(--vh)); overflow-y: auto; }
 .duostuner .duostuner-btns { flex-wrap: wrap; padding: 6px 12px 10px; gap: 6px; }
 .duostuner .duostuner-btns .sfxmix-copy { width: auto; flex: 1 0 auto; padding: 5px 8px; font-size: 12px; }
-.duostuner :is(.sfxmix-copy, select, input, label) { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.duostuner :is(.sfxmix-copy, select, input, label) { cursor: var(--cursor-open), pointer; }
 .duostuner .sfxmix-copy:disabled { opacity: 0.45; }
 .duostuner-line { flex: 1 0 100%; font-size: 12px; color: var(--ink2, #555); }
 .duostuner-bot { flex: 1 0 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
@@ -1013,7 +1013,7 @@ html.duos-vt { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
    powers can be read, but they take no pick: the gauntlet's DEFAULT hand on them (never the "open" pointer of a control),
    and the re-roll buttons are shown inert. It sits over a Duos player's own Hero Select (same z, later in the DOM); the
    spectator chrome, the team frame and the teammate portrait come up above both. Nothing here animates. */
-.heroselect.hswatch .herocard, .heroselect.hswatch .hcreroll { cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
+.heroselect.hswatch .herocard, .heroselect.hswatch .hcreroll { cursor: var(--cursor-default), auto; }
 .heroselect.hswatch .hcreroll { pointer-events: none; }
 body:has(.heroselect.hswatch) .vsspec { z-index: 410; }
 .duosview-vignette.hsvignette { z-index: 405; }

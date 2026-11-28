@@ -187,7 +187,7 @@ describe('R-SPECTATE-DISCHOVER-01: a spectator hovers the watched player\'s Disc
     expect(card.getAttribute('role')).toBe('button'); // why `.app.viewing [role="button"]` made it inert
     expect(card.matches(hover.LOCAL_HOVER_SELECTOR)).toBe(true); // the spectator's own hover wins over the mirror
     const css = readFileSync(join(__dirname, 'versus.css'), 'utf8');
-    expect(css).toContain(".app.viewing.spectating .discover-ov .card { pointer-events: auto; cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }");
+    expect(css).toContain(".app.viewing.spectating .discover-ov .card { pointer-events: auto; cursor: var(--cursor-default), default; }");
     act(() => { root.unmount(); });
   });
 });

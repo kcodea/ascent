@@ -837,7 +837,7 @@ describe('the chat window moves, resizes and pins (R-DM-CHAT-02)', () => {
     expect(z('.dmchat-at')).toBeGreaterThan(z('.dmchat-veil'));
     expect(z('.dmchat-ghost')).toBeGreaterThan(z('.dmchat-at'));
     // Gauntlet cursors only (CLAUDE.md): every cursor rule names a gauntlet / hand image first.
-    for (const m of css.matchAll(/cursor: ([^;]+);/g)) expect(m[1]).toMatch(/^url\('\/cursors\//);
+    for (const m of css.matchAll(/cursor: ([^;]+);/g)) expect(m[1]).toMatch(/^var\(--cursor-(default|open|closed)\)/);
     // Moving and resizing never animate layout: the frame moves by transform and nothing loops.
     expect(css).toContain('.dmchat-at { position: fixed; left: 0; top: 0; z-index: 493; width: var(--dmw); height: var(--dmh); transform: translate(var(--dmx), var(--dmy)); }');
     expect(css).not.toMatch(/infinite/);

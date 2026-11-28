@@ -134,6 +134,6 @@ describe('R-SPECTATE-RUNEHOVER-01: the spectator hovers runes themselves', () =>
     const game = readFileSync(join(__dirname, '..', 'Game.tsx'), 'utf8');
     expect(game).toContain("if (pick.closest('.app.viewing')) return;");
     const css = readFileSync(join(__dirname, 'versus.css'), 'utf8');
-    expect(css).toContain(".app.viewing.spectating .runecard { pointer-events: auto; cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }");
+    expect(css).toContain(".app.viewing.spectating .runecard { pointer-events: auto; cursor: var(--cursor-default), default; }");
   });
 });

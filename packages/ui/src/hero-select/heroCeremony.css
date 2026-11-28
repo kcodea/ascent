@@ -232,7 +232,7 @@
   box-shadow: var(--pill-outline), 0 5px 14px -4px rgba(0, 0, 0, 0.75);
   padding: 19px 38px; border-radius: 14px;
   transition: translate 0.1s ease;
-  cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
+  cursor: var(--cursor-open), pointer;
   opacity: 0;
   animation: hscRise var(--hsc-ready-ms, 250ms) ease var(--hsc-ready-delay, 700ms) forwards;
 }

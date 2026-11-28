@@ -218,7 +218,11 @@ html, body { overscroll-behavior: none; touch-action: manipulation; }
    measured with getBoundingClientRect need no conversion). Their CSS box is the layout viewport, so the stage's
    transform lays them back exactly over the window. `!important` beats Pixi's autoDensity inline size. */
 :root[data-stage-scaled] canvas.pixi-screen { width: var(--lvw) !important; height: var(--lvh) !important; }
-body { font-family: var(--font-body), sans-serif; color: var(--ink); background: var(--bg); overflow: hidden; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+/* THE GAME CURSOR, ONE SOURCE (R-CURSOR-REACTIVE-01, 2026-11-27): every cursor rule reads one of these three, never a raw
+   url. They are the gauntlet; the Reactive Cursor setting (reactiveCursor/) overrides them inline on <html> with a tribe's
+   art, so one write re-skins every rule. Hotspots ride with the url. reactiveCursor.test.ts fails on a raw cursor url. */
+:root { --cursor-default: url('/cursors/gauntlet_default.svg') 6 2; --cursor-open: url('/cursors/gauntlet_open.svg') 6 2; --cursor-closed: url('/cursors/hand_closed.svg') 13 12; }
+body { font-family: var(--font-body), sans-serif; color: var(--ink); background: var(--bg); overflow: hidden; cursor: var(--cursor-default), auto; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 /* No grey tap-flash on a finger tap (the game paints its own press states). */
 body { -webkit-tap-highlight-color: transparent; }
 /* TOUCH (R-TOUCH-LONGPRESS-01): a long-press is the game's right-click, so no iOS image callout ("Save image") or
@@ -247,9 +251,9 @@ html { background: #0a1730; }
    up). A View Transition makes that happen for its whole run: the browser hit-tests the document element while the
    ::view-transition snapshots cover the page, so the teammate swap showed the OS arrow, and it stayed until the mouse
    moved. Static (never toggled here). */
-html { cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
+html { cursor: var(--cursor-default), auto; }
 /* gauntlet opens over anything grabbable/clickable */
-.card, .btn, button, .climb, .skip, [role="button"] { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.card, .btn, button, .climb, .skip, [role="button"] { cursor: var(--cursor-open), pointer; }
 /* Scroll areas hide the NATIVE scrollbar and scroll by wheel/trackpad. A native scrollbar (even a styled
    ::-webkit-scrollbar) forces the OS arrow cursor — the browser ignores `cursor` on it — which breaks the
    game's custom gauntlet cursor. Hiding it keeps the cursor consistent everywhere; content still scrolls. */
@@ -261,7 +265,7 @@ html { cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
 .inspect-buffs::-webkit-scrollbar, .sfxmix::-webkit-scrollbar, .colls-gridwrap::-webkit-scrollbar { width: 0; height: 0; display: none; }
 /* The hero frame is no longer clickable (the power fires from its button only) — don't show the action cursor on it.
    A disabled power button keeps the game's custom default cursor (not the bare OS arrow), like the other ctl buttons. */
-.heropowerbtn:disabled { cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
+.heropowerbtn:disabled { cursor: var(--cursor-default), default; }
 /* FOE HERO POWER (owner ask 2026-08-29) — the display-only twin in the screen's top-right corner during
    combat (rendered by CombatOpponent, staged with it under the curtain). Same box/clip as the player's
    button via the shared class; pointer-events none keeps it inert and hover-glow-free. */
@@ -295,7 +299,7 @@ html { cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
 /* closed fist while a card is being dragged. Carried by a transparent veil laid over the page for the drag
    (`dragCursorVeil.ts`), NOT by `body.dragging *`: toggling a universal, inherited cursor rule restyled the whole
    document at both ends of every drag (perf 2026-10-09). The veil sits above every layer, portals included. */
-.drag-cursor-veil { position: fixed; inset: 0; z-index: 2147483000; background: transparent; cursor: url('/cursors/hand_closed.svg') 13 12, grabbing; }
+.drag-cursor-veil { position: fixed; inset: 0; z-index: 2147483000; background: transparent; cursor: var(--cursor-closed), grabbing; }
 .disp { font-family: var(--font-title), sans-serif; }
 canvas.spr { image-rendering: pixelated; display: block; }
 
@@ -1054,7 +1058,7 @@ body.wipe-up .bgrtoast { z-index: 3170; }
    row (life+armor · tier ★ · wins 👑 — one size, life emphasized by COLOR only, so no mixed baselines).
    Below the hairline: grey minion silhouettes (count only) over a quiet one-line comp read ("2 Triples ·
    3 Dragons", tribe word tinted). ★ = tier ONLY — triples are text. The pill is the single strong accent. */
-.oppframe { position: relative; display: flex; flex-direction: column; width: calc(212 * var(--u)); background: var(--card); border: 2px solid var(--gold); border-radius: calc(13 * var(--u)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 calc(4 * var(--u)) calc(12 * var(--u)) var(--shadow); cursor: url('/cursors/gauntlet_default.svg') 6 2, help; transform: scale(1.265); transform-origin: top right; }
+.oppframe { position: relative; display: flex; flex-direction: column; width: calc(212 * var(--u)); background: var(--card); border: 2px solid var(--gold); border-radius: calc(13 * var(--u)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 calc(4 * var(--u)) calc(12 * var(--u)) var(--shadow); cursor: var(--cursor-default), help; transform: scale(1.265); transform-origin: top right; }
 /* Author name — a pill centered over the top edge. */
 .oppframe .opp-name { position: absolute; top: 0; left: 50%; transform: translate(-50%, -55%); max-width: calc(180 * var(--u)); padding: calc(2 * var(--u)) calc(14 * var(--u)); background: var(--threat); color: #fff; border: 2px solid var(--card); border-radius: 999px; font-family: var(--font-ui); font-weight: 800; font-size: calc(14 * var(--u)); letter-spacing: 0.03em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 calc(2 * var(--u)) calc(5 * var(--u)) rgba(0, 0, 0, 0.18); z-index: 2; }
 .oppframe .opp-plate { display: flex; align-items: center; gap: calc(10 * var(--u)); padding: calc(14 * var(--u)) calc(12 * var(--u)) calc(10 * var(--u)); }
@@ -1081,7 +1085,7 @@ body.wipe-up .bgrtoast { z-index: 3170; }
 .oppframe.threat .opp-name { background: var(--ink3); }
 /* Run-buffs window — a compact list of active permanent buffs; collapsible header. Normal (system) cursor,
    not the custom gauntlet, so the panel reads as plain UI chrome. */
-.buffsframe { display: flex; flex-direction: column; min-width: calc(150 * var(--u)); background: var(--card); border: 2px solid var(--line); border-radius: calc(13 * var(--u)); box-shadow: 0 calc(4 * var(--u)) calc(14 * var(--u)) var(--shadow); overflow: hidden; cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
+.buffsframe { display: flex; flex-direction: column; min-width: calc(150 * var(--u)); background: var(--card); border: 2px solid var(--line); border-radius: calc(13 * var(--u)); box-shadow: 0 calc(4 * var(--u)) calc(14 * var(--u)) var(--shadow); overflow: hidden; cursor: var(--cursor-default), default; }
 .buffs-head { display: flex; align-items: center; gap: calc(6 * var(--u)); width: 100%; padding: calc(5 * var(--u)) calc(10 * var(--u)); background: none; border: none; font-family: var(--font-ui); font-weight: 800; font-size: calc(11 * var(--u)); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink3); }
 .buffs-head svg { width: calc(13 * var(--u)); height: calc(13 * var(--u)); color: var(--acc); }
 .buffs-head .buffs-title { flex: 1; text-align: left; }
@@ -1138,11 +1142,11 @@ body.wipe-up .bgrtoast { z-index: 3170; }
    wash-out — only a short top scrim for the title), dark inset objective/reward panels, and a bottom gem.
    Slots into the tavern `.row`, a touch taller than a shop card. Layers: art(0) < top-scrim(1) < text(2) <
    emblem/gem(5). */
-.questcard { position: relative; flex: 0 0 auto; width: var(--cw); min-height: calc(var(--cw) * 1.62); display: flex; flex-direction: column; text-align: left; padding: 0; border: none; border-radius: 15px; overflow: visible; background: radial-gradient(125% 85% at 50% 18%, color-mix(in srgb, var(--c) 24%, #14100c), #100b08); font-family: var(--font-ui); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; transition: transform 0.14s ease, filter 0.14s ease, box-shadow 0.14s ease; box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.55), 0 0 0 3px var(--c), 0 0 0 5px rgba(0, 0, 0, 0.5), 0 12px 26px -10px rgba(0, 0, 0, 0.75), 0 0 20px -6px color-mix(in srgb, var(--c) 55%, transparent); }
+.questcard { position: relative; flex: 0 0 auto; width: var(--cw); min-height: calc(var(--cw) * 1.62); display: flex; flex-direction: column; text-align: left; padding: 0; border: none; border-radius: 15px; overflow: visible; background: radial-gradient(125% 85% at 50% 18%, color-mix(in srgb, var(--c) 24%, #14100c), #100b08); font-family: var(--font-ui); cursor: var(--cursor-open), pointer; transition: transform 0.14s ease, filter 0.14s ease, box-shadow 0.14s ease; box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.55), 0 0 0 3px var(--c), 0 0 0 5px rgba(0, 0, 0, 0.5), 0 12px 26px -10px rgba(0, 0, 0, 0.75), 0 0 20px -6px color-mix(in srgb, var(--c) 55%, transparent); }
 .questcard:hover { transform: translateY(-8px); filter: brightness(1.05); box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.55), 0 0 0 3px var(--c), 0 0 0 6px rgba(0, 0, 0, 0.45), 0 18px 32px -10px rgba(0, 0, 0, 0.75), 0 0 42px -4px color-mix(in srgb, var(--c) 88%, transparent); }
 /* Read-only quest cards in the Compendium's Quests tab — a reference view, not a take-a-quest button. Use the
    game's custom default cursor (NOT the bare `default` keyword, which shows the Windows arrow). */
-.questcard.readonly { cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
+.questcard.readonly { cursor: var(--cursor-default), default; }
 .questcard-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 32%; border-radius: calc(13 * var(--u)); z-index: 0; }
 .questcard::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 48%; border-radius: calc(13 * var(--u)) calc(13 * var(--u)) 0 0; background: linear-gradient(180deg, rgba(8, 6, 4, 0.74) 0%, rgba(8, 6, 4, 0.3) 46%, transparent 100%); z-index: 1; pointer-events: none; }
 /* Tribe emblem (top) + gem (bottom): tribe-hued, overhanging the frame. Metrics are --u-scaled so the offer card
@@ -1181,7 +1185,7 @@ body.wipe-up .bgrtoast { z-index: 3170; }
 .hero { display: flex; align-items: center; gap: calc(9 * var(--u)); background: var(--card); border: 2px solid var(--gold); border-radius: calc(13 * var(--u)); padding: calc(4 * var(--u)) calc(14 * var(--u)) calc(4 * var(--u)) calc(5 * var(--u)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 calc(4 * var(--u)) calc(12 * var(--u)) -4px var(--shadow); }
 /* never fade the hero/portrait when unusable; keep the game's custom cursor (not the OS
    arrow) so moving onto a spent/passive hero doesn't visibly switch/flicker the cursor */
-.hero.spent, .hero.passive { cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
+.hero.spent, .hero.passive { cursor: var(--cursor-default), auto; }
 .hero .f { width: calc(34 * var(--u)); height: calc(34 * var(--u)); border-radius: 50%; background: var(--ink); display: grid; place-items: center; overflow: hidden; }
 .hero .f svg { width: calc(19 * var(--u)); height: calc(19 * var(--u)); color: var(--acc); }
 .hero .f .heroimg { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; -webkit-user-drag: none; }
@@ -1244,7 +1248,7 @@ body.wipe-up .bgrtoast { z-index: 3170; }
   color: #f4ecdb; background: linear-gradient(180deg, #241a13, #17110c);
   border: 1px solid color-mix(in srgb, var(--gold) 50%, #000);
   border-radius: calc(7 * var(--u));
-  cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
+  cursor: var(--cursor-open), pointer;
 }
 .statcell .timermult:hover { border-color: var(--acc); }
 .statcell .timermult option { background: #17110c; color: #f4ecdb; } /* the popup list is OS-drawn — keep it legible */
@@ -1310,14 +1314,14 @@ body.wipe-up .bgrtoast { z-index: 3170; }
 .goldtip .gt-row span { color: var(--atip-text); }
 .goldtip .gt-row b { display: inline-flex; align-items: center; gap: 0.25em; font-variant-numeric: tabular-nums; }
 .goldtip .gt-row b svg { width: 1.1em; height: 1.1em; color: var(--mana); }
-.shopbtn { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: calc(9 * var(--u)); height: calc(50 * var(--u)); padding: 0 calc(18 * var(--u)); background: linear-gradient(180deg, #f5e8cb 0%, #e4c992 100%); border: 2px solid var(--gold); border-radius: calc(12 * var(--u)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 calc(3 * var(--u)) calc(8 * var(--u)) -3px var(--shadow); font-family: var(--font-ui); font-weight: 800; color: #5a3d12; cursor: url('/cursors/gauntlet_default.svg') 6 2, pointer; transition: transform 0.1s ease, filter 0.1s ease, background 0.1s ease; }
+.shopbtn { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: calc(9 * var(--u)); height: calc(50 * var(--u)); padding: 0 calc(18 * var(--u)); background: linear-gradient(180deg, #f5e8cb 0%, #e4c992 100%); border: 2px solid var(--gold); border-radius: calc(12 * var(--u)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 calc(3 * var(--u)) calc(8 * var(--u)) -3px var(--shadow); font-family: var(--font-ui); font-weight: 800; color: #5a3d12; cursor: var(--cursor-default), pointer; transition: transform 0.1s ease, filter 0.1s ease, background 0.1s ease; }
 button.shopbtn:not(:disabled):hover { filter: brightness(1.05); }
 button.shopbtn:not(:disabled):active { transform: translateY(calc(2 * var(--u))) scale(0.98); filter: brightness(0.94); }
 /* Drop the browser's rectangular focus ring (it boxes the element outside the octagon plaque); use a
    drop-shadow glow instead, which follows the plaque's alpha so the highlight hugs the button's actual shape. */
 .shopbtn:focus { outline: none; }
 .shopbtn:focus-visible { outline: none; filter: drop-shadow(0 0 calc(4 * var(--u)) var(--acc)) brightness(1.04); }
-button.shopbtn:disabled { opacity: 0.5; cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
+button.shopbtn:disabled { opacity: 0.5; cursor: var(--cursor-default), default; }
 .shopbtn .sb-l { font-size: calc(15 * var(--u)); letter-spacing: 0.03em; text-transform: uppercase; color: #7a5a24; }
 .shopbtn .sb-ic { display: grid; place-items: center; }
 .shopbtn .sb-ic svg { width: calc(23 * var(--u)); height: calc(23 * var(--u)); color: var(--acc-dk); }
@@ -1352,10 +1356,10 @@ button.shopbtn:disabled { opacity: 0.5; cursor: url('/cursors/gauntlet_default.s
   transform: translate(-50%, -50%) scale(calc(var(--etb-s, 1.17) * var(--piece-grow, 1.05)));
   width: calc(128 * var(--u)); height: calc(140 * var(--u)); /* the trimmed art's 468×512 aspect */
   background: none; border: none; padding: 0; z-index: 41;
-  cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
+  cursor: var(--cursor-open), pointer;
 }
 body.dragging .etbwrap { pointer-events: none; } /* a card dragged across it drops through */
-.etbwrap:disabled { cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
+.etbwrap:disabled { cursor: var(--cursor-default), default; }
 /* Base housing (owner's new art, gem baked in) — always shown, never dims (board furniture like the Tavern
    Up stone; a dimmed housing pops off the board). */
 .etbwrap .etb-base { position: absolute; inset: 0; width: 100%; height: 100%; -webkit-user-drag: none; z-index: 2; }
@@ -1540,7 +1544,7 @@ body.etb-glow-preview .etbwrap:not(.pressed):not(:disabled) .etb-gem {
   border: var(--cc-sum-bw, 1px) solid var(--cc-sum-border, #b07047);
   border-radius: var(--cc-sum-radius, 30px); padding: 8px 18px;
   box-shadow: 0 3px 9px -3px rgba(0, 0, 0, 0.6);
-  cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
+  cursor: var(--cursor-open), pointer;
   z-index: 41;
   animation: sumfadein 0.38s ease both;
 }
@@ -1563,14 +1567,14 @@ body.etb-glow-preview .etbwrap:not(.pressed):not(:disabled) .etb-gem {
   transform: translate(-50%, -50%) scale(calc(var(--tvb-s, 1.24) * var(--piece-grow, 1.05)));
   width: calc(128 * var(--u)); height: calc(139.6 * var(--u)); /* the new base art's 795×867 aspect (0.917) */
   background: none; border: none; padding: 0; z-index: 41;
-  cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
+  cursor: var(--cursor-open), pointer;
 }
 body.dragging .tvbwrap { pointer-events: none; } /* a card dragged across it drops through */
 /* Current-tier pill on the stone (owner ask 2026-08-11) — the Tier readout moved off the top bar onto the
    button that changes it. A cream/gold label eclipsing the stone's bottom edge, matching the hero-name pill;
    pointer-events off so it never eats the upgrade click. Scales with the button (it's a child of the wrap). */
 .tvbwrap .tvb-tierpill { position: absolute; left: 50%; bottom: calc(6 * var(--u)); transform: translate(calc(-50% + var(--tierpill-x, 87px) * var(--scale)), calc(var(--tierpill-y, -141px) * var(--scale))) scale(var(--tierpill-s, 1.21)); z-index: 6; pointer-events: none; white-space: nowrap; padding: calc(2 * var(--u)) calc(12 * var(--u)); border-radius: 999px; background: linear-gradient(180deg, #fff, #f3ead4); color: var(--ink); border: 2px solid var(--gold); font-family: var(--font-ui); font-weight: 800; font-size: calc(12 * var(--u)); letter-spacing: 0.02em; box-shadow: 0 calc(2 * var(--u)) calc(6 * var(--u)) -2px var(--shadow); }
-.tvbwrap:disabled { cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
+.tvbwrap:disabled { cursor: var(--cursor-default), default; }
 
 /* Standalone GOLD pill (owner ask 2026-08-11) — the Gold readout moved off the top strip to its own glass
    button pinned BOTTOM-RIGHT of the board: a yellow-glass plaque with the live Gold total. Stage-pinned; the
@@ -1878,9 +1882,9 @@ body.hpb-glow-preview .heropowerbtn .hpb-glow, .heropowerbtn:not(:disabled).tt-o
   border-top-color: rgba(255, 255, 255, 0.5); /* the lit top edge that sells the glass */
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.18); /* static */
-  cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
+  cursor: var(--cursor-open), pointer;
 }
-.statusbar .heropanel .hmn-btn:disabled { opacity: 0.45; cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
+.statusbar .heropanel .hmn-btn:disabled { opacity: 0.45; cursor: var(--cursor-default), default; }
 .statusbar .heropanel .hmn-btn:not(:disabled):hover {
   border-color: rgba(255, 235, 170, 0.75);
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.08) 45%, rgba(20, 16, 10, 0.3));
@@ -3744,7 +3748,7 @@ body.modalup .app { z-index: auto; }
   padding: calc(10 * var(--u)) calc(22 * var(--u)); border-radius: calc(13 * var(--u));
   box-shadow: 0 calc(7 * var(--u)) calc(20 * var(--u)) -8px rgba(0, 0, 0, 0.65), inset 0 0 0 1px rgba(255, 255, 255, 0.06);
   text-shadow: 0 2px 6px rgba(0, 0, 0, 0.7);
-  cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; animation: fadein 0.2s ease;
+  cursor: var(--cursor-open), pointer; animation: fadein 0.2s ease;
 }
 .disc-toggle svg { width: calc(16 * var(--u)); height: calc(16 * var(--u)); color: #e8c877; }
 .disc-toggle:hover { border-color: var(--acc); color: #fff; }
@@ -3814,7 +3818,7 @@ body.modalup .app { z-index: auto; }
 /* Re-roll — a chiseled button row under the rune tablets (the player must pick a rune; there is no leave button, owner 2026-09-15). */
 .forge-actions { display: flex; align-items: center; justify-content: center; gap: calc(14 * var(--u)); transform-origin: top center; }
 /* Re-roll — the once-per-visit gold-spend. */
-.forge-reroll:disabled { opacity: 0.45; cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
+.forge-reroll:disabled { opacity: 0.45; cursor: var(--cursor-default), default; }
 /* Spent: the button keeps its box (so the centred panel does not re-flow and drop the rune row) but is invisible
    and inert. `visibility` rather than `opacity` so it also leaves the accessibility tree and hover/cursor. */
 .forge-reroll.forge-reroll-spent { visibility: hidden; pointer-events: none; }
@@ -3899,7 +3903,7 @@ body.modalup .app { z-index: auto; }
 /* The dim + blur live on a `::before` BEHIND the card, not on the overlay itself: a `backdrop-filter` on an ancestor
    makes it a backdrop root, so a frosted-glass card plate inside (Simple Glass) would blur only the overlay's own
    tint, never the board (owner 2026-10-19: "the blur effect is not happening when … inspecting"). Same look. */
-.inspect-ov { position: fixed; inset: 0; z-index: 500; display: grid; place-items: center; animation: fadein 0.14s ease; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
+.inspect-ov { position: fixed; inset: 0; z-index: 500; display: grid; place-items: center; animation: fadein 0.14s ease; cursor: var(--cursor-default), auto; }
 .inspect-ov::before { content: ''; position: absolute; inset: 0; z-index: -1; background: rgba(26, 16, 6, 0.6); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
 /* An opacity fade makes its element a backdrop root too, so for a glass card only the backdrop fades and the card
    pops on scale alone: the glass is blurred from the first frame instead of switching colour after the fade. */
@@ -3910,7 +3914,7 @@ body.modalup .app { z-index: auto; }
 /* The inspect view scales the whole group (buff breakdown + card) as one unit, so the breakdown
    panel sits cleanly to the LEFT of the enlarged card without transform/layout mismatch. */
 .inspect-card { position: relative; display: flex; align-items: center; gap: 10px; transform: scale(1.9) translateY(-15%); transform-origin: center; animation: inspectpop 0.18s cubic-bezier(0.34, 1.3, 0.64, 1); }
-.inspect-card .card { animation: none; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
+.inspect-card .card { animation: none; cursor: var(--cursor-default), auto; }
 .inspect-card .card:hover { transform: none; border-color: var(--line); }
 /* Reserve the plate overhang as margin (same as `.cardref .card.plated`) so the plate can't lap over the
    buffs (left) or the keyword definitions (right) — the gap then sits clear of the plate, not the body. */
@@ -4119,7 +4123,7 @@ body.modalup .app { z-index: auto; }
   background: color-mix(in srgb, var(--threat) 12%, var(--card)); border: 2px solid var(--line); color: var(--ink);
 }
 .crashdetails { max-width: calc(70 * var(--vw, 1vw)); width: 100%; }
-.crashdetails summary { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; font-family: var(--font-ui), sans-serif; font-weight: 700; font-size: 13px; color: var(--ink3); user-select: none; }
+.crashdetails summary { cursor: var(--cursor-open), pointer; font-family: var(--font-ui), sans-serif; font-weight: 700; font-size: 13px; color: var(--ink3); user-select: none; }
 .crashdetails summary:hover { color: var(--ink); }
 .crashstack { max-height: calc(34 * var(--vh, 1vh)); overflow: auto !important; white-space: pre-wrap; word-break: break-word; margin-top: 8px; font-size: 11px !important; }
 .crashcopy { margin-top: 8px; font-family: var(--font-ui), sans-serif; font-weight: 700; font-size: 12px; padding: 6px 14px; border-radius: 9px; border: 2px solid var(--line); background: var(--card); color: var(--ink); }
@@ -4551,7 +4555,7 @@ html.lite-art .statusbar .hero .f .heroimg, html.lite-art .combatopp-img {
 .statusbar .hero .f.hasbuffs:hover .herohover { opacity: 1; }
 /* Buffs expand affordance — a small arrow riding the TOP of the portrait (the player-name pill moved to the
    bottom, freeing the top). Only present when there are buffs; the whole portrait is the click target. */
-.statusbar .hero .f.hasbuffs { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.statusbar .hero .f.hasbuffs { cursor: var(--cursor-open), pointer; }
 .statusbar .hero .f .herobuffs-arrow {
   position: absolute; left: 50%; top: 0; transform: translate(-50%, -75%); z-index: 5; pointer-events: none;
   font-size: calc(16 * var(--u)); line-height: 1; color: #f4ecdb; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
@@ -5026,8 +5030,8 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
 .card.armed { box-shadow: 0 0 0 4px var(--c), 0 0 20px 1px color-mix(in srgb, var(--c) 80%, transparent), 0 3px 0 var(--shadow); }
 /* the minion currently under a hero-power / targeted-ability aim — strong, unmistakable */
 .card.targeted { box-shadow: 0 0 0 4px var(--c), 0 0 32px 5px color-mix(in srgb, var(--c) 95%, transparent), 0 3px 0 var(--shadow); transform: translateY(-4px) scale(1.03); z-index: 22; }
-.card[draggable='true'] { cursor: url('/cursors/gauntlet_open.svg') 6 2, grab; }
-.card[draggable='true']:active { cursor: url('/cursors/hand_closed.svg') 13 12, grabbing; }
+.card[draggable='true'] { cursor: var(--cursor-open), grab; }
+.card[draggable='true']:active { cursor: var(--cursor-closed), grabbing; }
 
 .li { font-family: var(--font-ui); font-weight: 700; font-size: 11px; color: var(--ink2); display: flex; align-items: center; gap: 6px; background: var(--card); border: 2px solid var(--line); border-radius: 9px; padding: 4px 10px; }
 .li b { color: var(--ink); }
@@ -6728,7 +6732,7 @@ body:has(.fxwb-stage-mount) .pixifx { z-index: 501; }
 /* Pre-run hero picker — first slice of the Title→Mode→Hero flow (one store flag drives it). */
 /* Two rows: the brand lockup pinned at the TOP (auto), then the picker box CENTRED in the rest (1fr) — owner
    ask 2026-08-24. `place-items: safe center` centres each row's child horizontally (and the box vertically). */
-.heroselect { position: fixed; inset: 0; z-index: 400; display: grid; grid-template-rows: auto 1fr; place-items: safe center; overflow-y: auto; padding: 24px 0; background: color-mix(in srgb, var(--bg) 92%, transparent); animation: fadein 0.3s ease; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
+.heroselect { position: fixed; inset: 0; z-index: 400; display: grid; grid-template-rows: auto 1fr; place-items: safe center; overflow-y: auto; padding: 24px 0; background: color-mix(in srgb, var(--bg) 92%, transparent); animation: fadein 0.3s ease; cursor: var(--cursor-default), auto; }
 /* The pre-run picker uses the board art, heavily dimmed, as its textured backdrop. */
 /* Same aspect-switched board the player will actually play on (see --board), so the champion pick previews it. */
 /* Board art lives on a ::before layer so it can be blurred HARD without touching the picker's text/cards.
@@ -6770,7 +6774,7 @@ body:has(.heroselect) .statusbar { visibility: hidden; }
   color: var(--ui-text); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
   font-family: var(--font-body), sans-serif; font-weight: 700; font-size: 17px; line-height: 1; letter-spacing: normal; text-transform: none;
   transition: translate 0.1s ease;
-  cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
+  cursor: var(--cursor-open), pointer;
 }
 .hsback:hover, .hsbook:hover { color: #fff; translate: 0 -1px; background: var(--ui-sheen) padding-box, var(--ui-hover-plate) padding-box, var(--ui-hover-edge) border-box; }
 .hsback:active, .hsback:hover:active, .hsbook:active { translate: 0 1px; transition-duration: 0.05s; }
@@ -6825,7 +6829,7 @@ body:has(.heroselect) .statusbar { visibility: hidden; }
 /* Rift-patch telegraph — a glowing pill ("Rift: <name>") with the game's standard clean floating
    tooltip (mirrors .questbadge-tip). Shared by hero select (`-hero`, big) + the in-game HUD (`-hud`, compact).
    `--ap-fs` sizes the pill so each context can scale it; the tooltip is a fixed, readable size. */
-.riftpill { position: relative; display: inline-flex; align-items: center; gap: 8px; font-family: var(--font-ui); font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; font-size: var(--ap-fs, 13px); cursor: url('/cursors/gauntlet_default.svg') 6 2, help; }
+.riftpill { position: relative; display: inline-flex; align-items: center; gap: 8px; font-family: var(--font-ui); font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; font-size: var(--ap-fs, 13px); cursor: var(--cursor-default), help; }
 .riftpill-tag { color: rgba(198, 160, 255, 0.85); }
 /* THE RAIL LOOK (owner 2026-11-01): the rift's name on the navy plate; the rift's violet stays as its edge and glow (and
    the tag beside it), so it still reads as the rift. Static. */
@@ -6837,7 +6841,7 @@ body:has(.heroselect) .statusbar { visibility: hidden; }
 .riftpill-tip { position: absolute; top: calc(100% + 10px); left: 0; display: flex; flex-direction: column; gap: 4px; overflow-wrap: break-word; opacity: 0; pointer-events: none; z-index: 70; transition: opacity 0.14s; }
 .riftpill:hover .riftpill-tip, .riftpill.tt-on .riftpill-tip { opacity: 1; transition-delay: 0.3s; }
 .hsrow { display: flex; gap: 29px; align-items: stretch; justify-content: center; flex-wrap: wrap; }
-.herocard { width: 333px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 13px; padding: 29px 23px 23px; border-radius: 26px; border: 3px solid var(--line); background: var(--card); color: var(--ink); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; box-shadow: 0 10px 30px -12px rgba(0, 0, 0, 0.5); transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease; }
+.herocard { width: 333px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 13px; padding: 29px 23px 23px; border-radius: 26px; border: 3px solid var(--line); background: var(--card); color: var(--ink); cursor: var(--cursor-open), pointer; box-shadow: 0 10px 30px -12px rgba(0, 0, 0, 0.5); transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease; }
 .herocard:hover { transform: translateY(-8px); border-color: var(--acc); box-shadow: 0 0 0 4px color-mix(in srgb, var(--acc) 40%, transparent), 0 16px 36px -12px rgba(0, 0, 0, 0.55); }
 .hcart { width: 151px; height: 151px; border-radius: 23px; background: var(--ink); display: grid; place-items: center; overflow: hidden; flex: none; }
 .hcart img { width: 100%; height: 100%; object-fit: cover; -webkit-user-drag: none; }
@@ -7092,22 +7096,22 @@ body:has(.heroselect) .statusbar { visibility: hidden; }
 .endpip.cal { opacity: 0.4; filter: grayscale(0.55); }
 /* Clickable pips (a board was captured that round) — open the round-board popover. */
 button.endpip { border: none; padding: 0; font: inherit; }
-.endpip.clickable { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; transition: transform 0.08s ease, box-shadow 0.08s ease; }
+.endpip.clickable { cursor: var(--cursor-open), pointer; transition: transform 0.08s ease, box-shadow 0.08s ease; }
 .endpip.clickable:hover { transform: translateY(-2px); box-shadow: 0 5px 14px rgba(0, 0, 0, 0.4); }
 .endpip.clickable.active { outline: 3px solid var(--acc); outline-offset: 2px; }
 /* Viewing a past round's board (clicked a pip): the board label becomes a "back to final" control. */
 .endboardlabel { font-family: var(--font-ui); font-weight: 700; font-size: 26px; letter-spacing: 0.2em; text-transform: uppercase; color: #ddd2c0; margin: 44px 0 14px; }
-.endboard-back { font: inherit; letter-spacing: inherit; text-transform: inherit; color: var(--acc); background: none; border: none; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.endboard-back { font: inherit; letter-spacing: inherit; text-transform: inherit; color: var(--acc); background: none; border: none; cursor: var(--cursor-open), pointer; }
 .endboard-backhint { color: rgba(255, 255, 255, 0.55); font-size: 0.7em; margin-left: 10px; }
 .endboard-back:hover .endboard-backhint { color: rgba(255, 255, 255, 0.85); }
 .endboard { display: flex; gap: 14px; justify-content: center; align-items: flex-start; flex-wrap: nowrap; zoom: 0.92; max-width: calc(96 * var(--vw, 1vw)); }
-.endboard .card { cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
+.endboard .card { cursor: var(--cursor-default), default; }
 .endempty { font-family: var(--font-ui); font-weight: 700; font-size: 15px; color: #ddd2c0; padding: 24px; }
-.endplay { margin-top: 44px; font-family: var(--font-ui); font-weight: 800; font-size: 30px; letter-spacing: 0.12em; text-transform: uppercase; color: #fff; text-shadow: 0 2px 4px rgba(120, 60, 10, 0.5); background: linear-gradient(180deg, #f7a63c, #e8842a); border: 3px solid var(--acc-dk); box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.3), 0 7px 0 var(--acc-dk), 0 14px 34px -8px rgba(0, 0, 0, 0.55); padding: 22px 72px; border-radius: 18px; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.endplay { margin-top: 44px; font-family: var(--font-ui); font-weight: 800; font-size: 30px; letter-spacing: 0.12em; text-transform: uppercase; color: #fff; text-shadow: 0 2px 4px rgba(120, 60, 10, 0.5); background: linear-gradient(180deg, #f7a63c, #e8842a); border: 3px solid var(--acc-dk); box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.3), 0 7px 0 var(--acc-dk), 0 14px 34px -8px rgba(0, 0, 0, 0.55); padding: 22px 72px; border-radius: 18px; cursor: var(--cursor-open), pointer; }
 .endplay:hover { background: linear-gradient(180deg, #f0982f, #d97722); }
 
 /* Avatar picker — a modal grid of every bundled hero / minion / token / power art. */
-.avatarpick-close { font-family: var(--font-ui); font-weight: 800; font-size: 18px; color: #ddd2c0; background: rgba(255, 255, 255, 0.08); border: none; border-radius: 10px; width: 40px; height: 40px; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.avatarpick-close { font-family: var(--font-ui); font-weight: 800; font-size: 18px; color: #ddd2c0; background: rgba(255, 255, 255, 0.08); border: none; border-radius: 10px; width: 40px; height: 40px; cursor: var(--cursor-open), pointer; }
 .avatarpick-close:hover { background: rgba(255, 255, 255, 0.16); color: #fff; }
 .endscreen.won .eyebrow { color: var(--acc); }
 
@@ -7116,7 +7120,7 @@ button.endpip { border: none; padding: 0; font: inherit; }
    ornate left-aligned menu stays legible over the bright sky. */
 .titlescreen { position: fixed; inset: 0; z-index: 450; overflow: hidden; background:
     url('/homescreen.webp') center / cover no-repeat, var(--bg);
-  animation: fadein 0.3s ease; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
+  animation: fadein 0.3s ease; cursor: var(--cursor-default), auto; }
 /* Looping ambience video — sits over the webp base; the vignette (::before) + menu render above it. */
 /* Fade the video in only once it's actually playing, so it cross-dissolves from the webp base instead of the
    still image popping/flashing to the first video frame. */
@@ -7236,13 +7240,13 @@ body:has(.titlescreen) .version { visibility: hidden; }
 
 /* Font Lab (dev) — bottom-right of the title; a small toggle that opens the per-role font pickers. */
 .fontlab { position: fixed; right: 18px; bottom: 18px; z-index: 460; display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
-.fontlab-toggle { width: 46px; height: 46px; border-radius: 12px; border: 2px solid rgba(255, 255, 255, 0.28); background: rgba(18, 20, 32, 0.9); color: #ecdcb2; font-family: var(--font-title); font-weight: 900; font-size: 20px; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.fontlab-toggle { width: 46px; height: 46px; border-radius: 12px; border: 2px solid rgba(255, 255, 255, 0.28); background: rgba(18, 20, 32, 0.9); color: #ecdcb2; font-family: var(--font-title); font-weight: 900; font-size: 20px; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4); cursor: var(--cursor-open), pointer; }
 .fontlab-toggle:hover { border-color: rgba(255, 255, 255, 0.6); }
 .fontlab-panel { width: 250px; background: rgba(18, 20, 32, 0.97); border: 2px solid rgba(255, 255, 255, 0.16); border-radius: 14px; padding: 14px 16px; box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5); display: flex; flex-direction: column; gap: 10px; }
 .fontlab-title { font-family: var(--font-ui); font-weight: 800; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(255, 255, 255, 0.55); }
 .fontlab-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-family: var(--font-ui); font-weight: 700; font-size: 13px; color: #ecdcb2; }
-.fontlab-row select { flex: none; width: 140px; padding: 5px 8px; border-radius: 8px; border: 1.5px solid rgba(255, 255, 255, 0.2); background: rgba(0, 0, 0, 0.35); color: #fff; font-size: 12px; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
-.fontlab-reset { margin-top: 2px; align-self: stretch; padding: 7px; border-radius: 8px; border: none; background: rgba(255, 255, 255, 0.1); color: #ddd2c0; font-family: var(--font-ui); font-weight: 700; font-size: 12px; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.fontlab-row select { flex: none; width: 140px; padding: 5px 8px; border-radius: 8px; border: 1.5px solid rgba(255, 255, 255, 0.2); background: rgba(0, 0, 0, 0.35); color: #fff; font-size: 12px; cursor: var(--cursor-open), pointer; }
+.fontlab-reset { margin-top: 2px; align-self: stretch; padding: 7px; border-radius: 8px; border: none; background: rgba(255, 255, 255, 0.1); color: #ddd2c0; font-family: var(--font-ui); font-weight: 700; font-size: 12px; cursor: var(--cursor-open), pointer; }
 .fontlab-reset:hover { background: rgba(255, 255, 255, 0.18); color: #fff; }
 /* The account-panel input base (the Title's name field shares it and restyles into the name plate above). */
 .acctinput { font-family: var(--font-ui); font-weight: 800; font-size: 26px; letter-spacing: 0.06em; color: #ecdcb2;
@@ -7273,10 +7277,10 @@ body:has(.titlescreen) .version { visibility: hidden; }
 .acctpanel-code { text-align: center; font-size: 26px; letter-spacing: 0.4em; font-weight: 800; text-indent: 0.4em; }
 .acctpanel-error { font-size: 13px; font-weight: 700; color: #ff9aa6; margin: 0; }
 .acctpanel-btn { font-family: var(--font-ui); font-weight: 800; font-size: 14px; letter-spacing: 0.04em; padding: 11px 16px; border-radius: 10px; border: 1.5px solid transparent;
-  cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; transition: filter 0.1s, opacity 0.1s; }
+  cursor: var(--cursor-open), pointer; transition: filter 0.1s, opacity 0.1s; }
 .acctpanel-btn.primary { color: #0d1420; background: #a8d8ef; }
 .acctpanel-btn.primary:hover { filter: brightness(1.08); }
-.acctpanel-btn.primary:disabled { opacity: 0.45; cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
+.acctpanel-btn.primary:disabled { opacity: 0.45; cursor: var(--cursor-default), default; }
 .acctpanel-btn.ghost { color: #eef4fb; background: transparent; border-color: rgba(190, 214, 240, 0.4); align-self: flex-start; }
 .acctpanel-btn.ghost:hover { border-color: rgba(226, 240, 255, 0.6); }
 
@@ -7324,7 +7328,7 @@ body:has(.titlescreen) .version { visibility: hidden; }
      is what your eye reads as "this object can be pushed". */
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), inset 0 0 0 1px rgba(0, 0, 0, 0.35),
               0 4px 0 #0a1526, 0 9px 18px -9px rgba(0, 0, 0, 0.7);
-  color: #e7d9b5; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
+  color: #e7d9b5; cursor: var(--cursor-open), pointer;
   /* Exponential ease-out on the slide (a confident arrival), plainer ease on the tonal bits. */
   transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), filter 0.14s ease, border-color 0.14s ease; }
 /* LAMP-CATCH SHEEN — a narrow band of light that sweeps the plaque once on hover, as if the lamp above the
@@ -7498,7 +7502,7 @@ body:has(.titlescreen) .version { visibility: hidden; }
 .menubtn.active .mbicon, .menubtn.active:hover .mbicon { color: var(--cta-ink); }
 .menubtn.active .mblabel { font-weight: 900; }
 .menubtn.disabled { opacity: 0.62; }
-.menubtn.disabled:hover { transform: none; filter: none; border-color: rgba(196, 160, 92, 0.6); cursor: url('/cursors/gauntlet_default.svg') 6 2, not-allowed; }
+.menubtn.disabled:hover { transform: none; filter: none; border-color: rgba(196, 160, 92, 0.6); cursor: var(--cursor-default), not-allowed; }
 /* A dead control doesn't catch the light. */
 .menubtn.disabled:hover::after { animation: none; }
 
@@ -7537,7 +7541,7 @@ body:has(.titlescreen) .version { visibility: hidden; }
 .clearrun { flex: none; width: 66px; display: grid; place-items: center; border-radius: 9px; padding: 0 10px;
   border: 2px solid rgba(196, 160, 92, 0.55); background: rgba(18, 12, 22, 0.5); color: #d9b86a;
   font-family: var(--font-ui); font-weight: 800; font-size: 13px; letter-spacing: 0.05em; text-transform: uppercase;
-  cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; transition: transform 0.08s ease, filter 0.08s ease, color 0.1s ease, border-color 0.1s ease, background 0.1s ease; }
+  cursor: var(--cursor-open), pointer; transition: transform 0.08s ease, filter 0.08s ease, color 0.1s ease, border-color 0.1s ease, background 0.1s ease; }
 .clearrun svg { width: 23px; height: 23px; }
 .clearrun:hover { transform: translateY(-1px); color: var(--threat); border-color: var(--threat); filter: brightness(1.05); }
 .clearrun.armed { background: var(--threat); border-color: var(--threat); color: #fff; }
@@ -7546,7 +7550,7 @@ body:has(.titlescreen) .version { visibility: hidden; }
 /* Preserved secondary modes — small links under the main menu. */
 .titlesecondary { display: flex; align-items: center; gap: 10px; padding-left: 4px; }
 .titlesecondary button { font-family: var(--font-ui); font-weight: 700; font-size: 14px; letter-spacing: 0.08em; text-transform: uppercase;
-  color: rgba(236, 220, 178, 0.72); background: none; border: none; padding: 2px 4px; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+  color: rgba(236, 220, 178, 0.72); background: none; border: none; padding: 2px 4px; cursor: var(--cursor-open), pointer; }
 .titlesecondary button:hover { color: #ecdcb2; text-decoration: underline; }
 .tsdot { color: rgba(236, 220, 178, 0.4); }
 
@@ -8132,7 +8136,7 @@ html[data-bl="game"] .devmenu { left: auto; right: calc(var(--edge-r) + 16px); b
 }
 
 /* ---- THE GAME POINTER, EVERYWHERE IN A DEV PANEL -------------------------------------------------------
-   The game paints its own cursor: every interactive element declares `url('/cursors/gauntlet_*.svg')` with a
+   The game paints its own cursor: every interactive element declares `var(--cursor-open)` (or default / closed) with a
    native keyword only as the FALLBACK if the asset fails. The dev panels had accumulated ~20 bare `cursor:
    pointer` / `move` / `help` / `text` declarations — mine included — and each one beat the global rule on
    specificity, so crossing a panel made the pointer flicker between the gauntlet and the OS hand on every row,
@@ -8147,7 +8151,7 @@ html[data-bl="game"] .devmenu { left: auto; right: calc(var(--edge-r) + 16px); b
    else — so the pointer still ANSWERS, it just never leaves the game's world. */
 .sfxmix.sfxmix, .sfxmix.sfxmix *,
 .desk.desk, .desk.desk *,
-.fxwb.fxwb, .fxwb.fxwb * { cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
+.fxwb.fxwb, .fxwb.fxwb * { cursor: var(--cursor-default), default; }
 .sfxmix.sfxmix button, .desk.desk button,
 .sfxmix.sfxmix input, .desk.desk input,
 .sfxmix.sfxmix select, .desk.desk select,
@@ -8155,17 +8159,17 @@ html[data-bl="game"] .devmenu { left: auto; right: calc(var(--edge-r) + 16px); b
 .sfxmix.sfxmix [role="button"], .desk.desk [role="button"],
 .sfxmix.sfxmix .sfxmix-h.drag, .desk.desk .desk-h.drag,
 .fxwb.fxwb button, .fxwb.fxwb input, .fxwb.fxwb select,
-.fxwb.fxwb label, .fxwb.fxwb [role="button"] { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.fxwb.fxwb label, .fxwb.fxwb [role="button"] { cursor: var(--cursor-open), pointer; }
 /* Disabled controls take the resting pose, and a few rules inside the workbench set `cursor` at (0,3,1) with an
    attribute selector — the same shape that kept the tuner slider on the OS hand until its declaration was
    removed. `.fxwb.fxwb X[disabled]` clears them without another sweep. */
 .fxwb.fxwb button:disabled, .fxwb.fxwb input:disabled,
 .fxwb.fxwb button[disabled], .fxwb.fxwb input[disabled],
 .fxwb.fxwb input[type="range"], .fxwb.fxwb input[type="checkbox"], .fxwb.fxwb input[type="color"] {
-  cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
+  cursor: var(--cursor-open), pointer;
 }
 .fxwb.fxwb button:disabled, .fxwb.fxwb input:disabled {
-  cursor: url('/cursors/gauntlet_default.svg') 6 2, default;
+  cursor: var(--cursor-default), default;
 }
 /* A text field still needs to say "you can type here", so it keeps the resting gauntlet and an I-beam fallback
    rather than the grab pose. */
@@ -8173,11 +8177,11 @@ html[data-bl="game"] .devmenu { left: auto; right: calc(var(--edge-r) + 16px); b
 .sfxmix.sfxmix input[type="text"], .desk.desk input[type="text"],
 .sfxmix.sfxmix input[type="search"], .desk.desk input[type="search"],
 .sfxmix.sfxmix input[type="number"], .desk.desk input[type="number"] {
-  cursor: url('/cursors/gauntlet_default.svg') 6 2, text; }
+  cursor: var(--cursor-default), text; }
 /* Nothing to act on: a disabled control reverts to the resting pose, matching `.shopbtn:disabled` and friends. */
 .sfxmix.sfxmix button:disabled, .desk.desk button:disabled,
 .sfxmix.sfxmix input:disabled, .desk.desk input:disabled,
-.sfxmix.sfxmix .tuner-note { cursor: url('/cursors/gauntlet_default.svg') 6 2, help; }
+.sfxmix.sfxmix .tuner-note { cursor: var(--cursor-default), help; }
 
 .sfxmix.lunge .sfxmix-name { flex-basis: 96px; }
 .sfxmix.lunge .sfxmix-val { flex-basis: 42px; }
@@ -8351,7 +8355,7 @@ html[data-bl="game"] .devmenu { left: auto; right: calc(var(--edge-r) + 16px); b
 .escvol .evl { flex: 0 0 150px; font-family: var(--font-ui); font-weight: 800; font-size: 18px; color: #f4eee2; white-space: nowrap; }
 .escvol .evv { font-family: var(--font-ui); font-weight: 800; font-size: 16px; color: #e8c877; min-width: 30px; text-align: right; font-variant-numeric: tabular-nums; }
 /* The slider: a dark recessed groove with a gold hairline, a gold gem thumb. */
-.escvol input[type='range'] { flex: none; width: 360px; max-width: 100%; height: 8px; -webkit-appearance: none; appearance: none; background: rgba(0, 0, 0, 0.45); border: 1px solid rgba(196, 160, 92, 0.3); border-radius: 99px; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; outline: none; }
+.escvol input[type='range'] { flex: none; width: 360px; max-width: 100%; height: 8px; -webkit-appearance: none; appearance: none; background: rgba(0, 0, 0, 0.45); border: 1px solid rgba(196, 160, 92, 0.3); border-radius: 99px; cursor: var(--cursor-open), pointer; outline: none; }
 .escname { flex: 1; min-width: 0; font-family: var(--font-ui); font-weight: 700; font-size: 15px; color: var(--ink); background: var(--card); border: 2px solid var(--line); border-radius: 9px; padding: 7px 11px; outline: none; }
 .escname:focus { border-color: var(--acc); }
 .escname::placeholder { color: var(--ink3); }
@@ -8417,11 +8421,11 @@ html[data-bl="game"] .devmenu { left: auto; right: calc(var(--edge-r) + 16px); b
 .escvol .escmute { flex: 0 0 auto; font-family: var(--font-ui); font-weight: 800; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(232, 200, 119, 0.8); background: rgba(0, 0, 0, 0.32); border: 1.5px solid rgba(196, 160, 92, 0.42); border-radius: 99px; padding: 5px 11px; transition: border-color 0.12s, color 0.12s; }
 .escvol .escmute:hover { border-color: #e8c877; color: #f4dc9c; }
 .escvol .escmute.on { color: #241705; border-color: #8a6428; background: linear-gradient(180deg, #f0d089, #c99d4e); }
-.escvol input[type='range']::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 18px; height: 18px; border-radius: 50%; background: linear-gradient(180deg, #f6dc9c, #c99d4e); border: 2px solid #0d1628; box-shadow: 0 0 0 1px rgba(232, 200, 119, 0.55), 0 2px 5px rgba(0, 0, 0, 0.5); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
-.escvol input[type='range']::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: linear-gradient(180deg, #f6dc9c, #c99d4e); border: 2px solid #0d1628; box-shadow: 0 0 0 1px rgba(232, 200, 119, 0.55), 0 2px 5px rgba(0, 0, 0, 0.5); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.escvol input[type='range']::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 18px; height: 18px; border-radius: 50%; background: linear-gradient(180deg, #f6dc9c, #c99d4e); border: 2px solid #0d1628; box-shadow: 0 0 0 1px rgba(232, 200, 119, 0.55), 0 2px 5px rgba(0, 0, 0, 0.5); cursor: var(--cursor-open), pointer; }
+.escvol input[type='range']::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: linear-gradient(180deg, #f6dc9c, #c99d4e); border: 2px solid #0d1628; box-shadow: 0 0 0 1px rgba(232, 200, 119, 0.55), 0 2px 5px rgba(0, 0, 0, 0.5); cursor: var(--cursor-open), pointer; }
 /* The press edge reads as the dark navy under the row (the `.pressable` box-shadow); the primary row's gold inner
    hairline rides `--pr-inset` so it survives the press instead of being overwritten by it. */
-.escbtn { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding: 12px 16px; border-radius: 12px; border: 1.5px solid rgba(196, 160, 92, 0.28); background: rgba(0, 0, 0, 0.3); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; text-align: left; }
+.escbtn { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding: 12px 16px; border-radius: 12px; border: 1.5px solid rgba(196, 160, 92, 0.28); background: rgba(0, 0, 0, 0.3); cursor: var(--cursor-open), pointer; text-align: left; }
 .escbtn:hover { border-color: rgba(196, 160, 92, 0.7); background: rgba(196, 160, 92, 0.08); }
 .escbtn .ebl { font-family: var(--font-ui); font-weight: 800; font-size: 18px; color: #f4eee2; }
 .escbtn.danger { border-color: rgba(217, 102, 106, 0.55); }
@@ -8434,10 +8438,10 @@ html[data-bl="game"] .devmenu { left: auto; right: calc(var(--edge-r) + 16px); b
 .escbtn.escbtn-primary .ebl { color: #f0d089; }
 /* Resume — the house gold action (the Career's `.cv2-btn` / ladder `.lb-btn` face): gold gradient, dark ink. Half the
    panel's width, centred, ~30% taller than a row (owner ask 2026-10-08). */
-.escclose { display: block; margin: 22px auto 0; width: 50%; padding: 17px 12px; border-radius: 12px; border: 1.5px solid #8a6428; background: linear-gradient(180deg, #f0d089, #c99d4e); color: #1a1206; font-family: var(--font-ui); font-weight: 900; font-size: 22px; letter-spacing: 0.12em; text-transform: uppercase; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.escclose { display: block; margin: 22px auto 0; width: 50%; padding: 17px 12px; border-radius: 12px; border: 1.5px solid #8a6428; background: linear-gradient(180deg, #f0d089, #c99d4e); color: #1a1206; font-family: var(--font-ui); font-weight: 900; font-size: 22px; letter-spacing: 0.12em; text-transform: uppercase; cursor: var(--cursor-open), pointer; }
 
 /* Leaderboard — full "Hall of Champions" page (scrollable; Back top-left; each entry shows its warband inline) */
-.lbpage { position: fixed; inset: 0; z-index: 470; display: flex; flex-direction: column; background: radial-gradient(ellipse 60% 60% at 50% 50%, #24468a 0%, #0a1730 100%); /* the loading splash's navy — the same backdrop as the rank screen (owner 2026-09-20), replacing the title art */ animation: fadein 0.2s ease; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
+.lbpage { position: fixed; inset: 0; z-index: 470; display: flex; flex-direction: column; background: radial-gradient(ellipse 60% 60% at 50% 50%, #24468a 0%, #0a1730 100%); /* the loading splash's navy — the same backdrop as the rank screen (owner 2026-09-20), replacing the title art */ animation: fadein 0.2s ease; cursor: var(--cursor-default), auto; }
 /* THE PARTY HOME SHELL's ONE BACKDROP (DEV prototype, inert without the attribute): here, not in the shell's lazy stylesheet,
    because it must hold from the first frame. Nothing above `Game`'s steady backdrop has a ground of its own. */
 .titlescreen.ph-clear { background: none; animation: none; }
@@ -8459,7 +8463,7 @@ html[data-ph-gm][data-touch-small] .gmenu .msb-nav { gap: calc(var(--lvh, 100vh)
 html[data-ph-gm][data-touch-small] .gmenu .sbbtn { height: calc(var(--lvh, 100vh) * 0.082) !important; min-height: 0 !important; padding-top: 0 !important; padding-bottom: 0 !important; }
 html[data-ph-gm][data-touch-small] { --bl-b: calc(var(--lvh, 100vh) * 0.012) !important; --bl-cb: calc(var(--lvh, 100vh) * 0.1) !important; }
 .lbtopbar { display: flex; align-items: center; gap: 18px; padding: 22px 30px 14px; flex: none; }
-.lbback { display: inline-flex; align-items: center; gap: 8px; font-family: var(--font-ui); font-weight: 800; font-size: 15px; letter-spacing: 0.08em; text-transform: uppercase; color: #f0dcae; background: rgba(0, 0, 0, 0.38); border: 2px solid rgba(196, 160, 92, 0.55); padding: 10px 22px; border-radius: 999px; box-shadow: inset 0 0 0 1px rgba(196, 160, 92, 0.18); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; flex: none; }
+.lbback { display: inline-flex; align-items: center; gap: 8px; font-family: var(--font-ui); font-weight: 800; font-size: 15px; letter-spacing: 0.08em; text-transform: uppercase; color: #f0dcae; background: rgba(0, 0, 0, 0.38); border: 2px solid rgba(196, 160, 92, 0.55); padding: 10px 22px; border-radius: 999px; box-shadow: inset 0 0 0 1px rgba(196, 160, 92, 0.18); cursor: var(--cursor-open), pointer; flex: none; }
 .lbback:hover { border-color: var(--acc); color: var(--acc); }
 .lbtitle { display: flex; align-items: center; gap: 12px; }
 .lbtitle svg { width: 30px; height: 30px; color: var(--acc); flex: none; }
@@ -8490,7 +8494,7 @@ html[data-ph-gm][data-touch-small] { --bl-b: calc(var(--lvh, 100vh) * 0.012) !im
   background: linear-gradient(180deg, rgba(8, 16, 34, 0.78) 0%, rgba(10, 22, 46, 0.52) 30%, rgba(8, 18, 38, 0.5) 62%, rgba(4, 9, 22, 0.82) 100%);
   border-right: 2px solid rgba(196, 160, 92, 0.55);
   box-shadow: inset 0 0 0 1px rgba(196, 160, 92, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.08), 12px 0 32px -14px rgba(0, 0, 0, 0.8);
-  cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
+  cursor: var(--cursor-default), auto; }
 /* The picker SCROLLS as a whole on a short viewport (`.modepick { overflow-y: auto }`), so its sidebar is fixed
    to the viewport rather than absolute in the scroller — it would scroll away with the cards otherwise. */
 .modepick.sb-host .msb { position: fixed; }
@@ -8720,7 +8724,7 @@ html[data-ph-gm][data-touch-small] { --bl-b: calc(var(--lvh, 100vh) * 0.012) !im
    class out-specifies it and swaps the OS arrow back in; review fix 2026-09-22). */
 .balchip, .balrun { font-family: var(--font-ui); font-weight: 800; font-size: 13px; color: #f6efe2; background: rgba(0, 0, 0, 0.34); border: 2px solid rgba(255, 255, 255, 0.2); padding: 7px 12px; border-radius: 9px; }
 .balchip.on { border-color: var(--acc); color: var(--acc); }
-.balchip:disabled, .balrun:disabled { opacity: 0.5; cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
+.balchip:disabled, .balrun:disabled { opacity: 0.5; cursor: var(--cursor-default), default; }
 .balrun { margin-left: 6px; background: var(--acc); color: #1a1206; border-color: var(--acc); padding: 7px 18px; }
 .baldim { color: rgba(255, 255, 255, 0.45); font-weight: 600; font-size: 12px; }
 /* Derived-view explainer line above a report table (Balance Report, 2026-08-06). Static text, no effects. */
@@ -8802,7 +8806,7 @@ html[data-ph-gm][data-touch-small] { --bl-b: calc(var(--lvh, 100vh) * 0.012) !im
 .balgrid-solo .balrow-h .balsort { white-space: normal; }
 /* Report picker dropdown (which section to view). A <select> is outside the global button rule, so it names
    the gauntlet itself in the sanctioned URL form rather than a bare keyword. */
-.balpick { font-family: var(--font-ui); font-weight: 800; font-size: 13px; color: #f6efe2; background: rgba(0, 0, 0, 0.34); border: 2px solid rgba(255, 255, 255, 0.2); padding: 7px 12px; border-radius: 9px; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.balpick { font-family: var(--font-ui); font-weight: 800; font-size: 13px; color: #f6efe2; background: rgba(0, 0, 0, 0.34); border: 2px solid rgba(255, 255, 255, 0.2); padding: 7px 12px; border-radius: 9px; cursor: var(--cursor-open), pointer; }
 .balpick:focus-visible { outline: 2px solid var(--acc); }
 .balpick option { color: #1a1206; }
 
@@ -8918,7 +8922,7 @@ html[data-ph-gm][data-touch-small] { --bl-b: calc(var(--lvh, 100vh) * 0.012) !im
 .balchart-key.avail::before { background: rgba(255, 255, 255, 0.45); }
 .balchart-key.spent::before { background: var(--acc); }
 .balchart-key.spentwin::before { background: #46d17f; }
-.balseg button:disabled { opacity: 0.4; cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
+.balseg button:disabled { opacity: 0.4; cursor: var(--cursor-default), default; }
 
 /* A column header's bubble anchors to the header's RIGHT edge (numeric headers sit at the right of narrow
    tracks, so a centred bubble on the last column would run off the table). */
@@ -8939,7 +8943,7 @@ html[data-ph-gm][data-touch-small] { --bl-b: calc(var(--lvh, 100vh) * 0.012) !im
 .lb-label { font-family: var(--font-ui); font-weight: 800; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(232, 200, 119, 0.85); }
 /* The gold action button (WATCH / WATCH REPLAY) — the Career's `.cv2-btn` shape. */
 .lb-btn { position: relative; font-family: var(--font-ui); font-weight: 900; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: #1a1206; background: linear-gradient(180deg, #f0d089, #c99d4e); border: 1.5px solid #8a6428; padding: 9px 16px; border-radius: 10px; white-space: nowrap; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45); --pr-edge: 3px; --pr-edge-c: #8a6428; }
-.lb-btn:disabled { opacity: 0.4; filter: saturate(0.4); cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
+.lb-btn:disabled { opacity: 0.4; filter: saturate(0.4); cursor: var(--cursor-default), default; }
 /* The SECONDARY action (the ranked table's WATCH beside CAREER PAGE): the same shape, hollow — gold text on the
    navy plate with the gold frame, so the filled button beside it reads as the primary. */
 .lb-btn-ghost { color: #f0d089; background: rgba(0, 0, 0, 0.28); border-color: rgba(196, 160, 92, 0.6); box-shadow: inset 0 0 0 1px rgba(196, 160, 92, 0.14); --pr-edge-c: rgba(120, 88, 36, 0.9); }
@@ -9239,7 +9243,7 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
 .cv2-btn { position: relative; display: inline-flex; align-items: center; gap: 8px; font-family: var(--font-ui); font-weight: 900; font-size: 14px; letter-spacing: 0.08em; text-transform: uppercase; color: #1a1206; background: linear-gradient(180deg, #f0d089, #c99d4e); border: 1.5px solid #8a6428; padding: 11px 20px; border-radius: 10px; white-space: nowrap; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45); --pr-edge: 3px; --pr-edge-c: #8a6428; }
 .cv2-btn svg { width: 18px; height: 18px; }
 .cv2-btn:hover:not(:disabled) { background: linear-gradient(180deg, #fbe3a6, #d8ac5c); border-color: #a87a34; }
-.cv2-btn:disabled { opacity: 0.45; filter: saturate(0.3); cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
+.cv2-btn:disabled { opacity: 0.45; filter: saturate(0.3); cursor: var(--cursor-default), default; }
 .cv2-btn:disabled:hover { transform: none; filter: saturate(0.3); }
 
 /* Whole-page states (loading / offline / signed-out / no backend) + the empty list — an icon, a headline,
@@ -9498,10 +9502,10 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
 .rgverdict.lost { color: #ff9a9a; }
 /* A clickable Recent-Games row opens the player's Career. Button reset + a 5th column for the chevron; a
    one-shot hover/press (no looping paint animation). */
-.matchrow-btn { grid-template-columns: 48px minmax(0, 1fr) auto auto auto; text-align: left; font: inherit; width: 100%; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; transition: border-color 0.12s ease, background 0.12s ease, transform 0.06s ease; }
+.matchrow-btn { grid-template-columns: 48px minmax(0, 1fr) auto auto auto; text-align: left; font: inherit; width: 100%; cursor: var(--cursor-open), pointer; transition: border-color 0.12s ease, background 0.12s ease, transform 0.06s ease; }
 .matchrow-btn:hover { border-color: rgba(255, 255, 255, 0.34); background: rgba(14, 20, 36, 0.92); }
 .matchrow-btn:active { transform: translateY(1px); }
-.matchrow-btn:disabled { opacity: 0.6; cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
+.matchrow-btn:disabled { opacity: 0.6; cursor: var(--cursor-default), default; }
 .matchrow-btn:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
 .rgchev { font-family: var(--font-ui); font-weight: 900; font-size: 18px; color: rgba(255, 255, 255, 0.4); }
 .matchrow-btn:hover .rgchev { color: var(--acc); }
@@ -9512,7 +9516,7 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
    a button), so .matchrow-btn's plate/hover chrome applies unchanged. */
 .matchrow.haswatch { grid-template-columns: 48px minmax(0, 1fr) auto auto auto; }
 .matchrow-btn.haswatch { grid-template-columns: 48px minmax(0, 1fr) auto auto auto auto; }
-.matchwatch { font: inherit; font-weight: 800; font-size: 13px; letter-spacing: 0.02em; color: #1a1206; background: var(--acc); border: none; padding: 7px 14px; border-radius: 9px; white-space: nowrap; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.matchwatch { font: inherit; font-weight: 800; font-size: 13px; letter-spacing: 0.02em; color: #1a1206; background: var(--acc); border: none; padding: 7px 14px; border-radius: 9px; white-space: nowrap; cursor: var(--cursor-open), pointer; }
 .matchwatch:hover:not(:disabled) { filter: brightness(1.08); }
 .matchwatch:disabled { opacity: 0.55; cursor: default; }
 
@@ -9703,7 +9707,7 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
   border: 2px solid color-mix(in srgb, var(--tier-7) 60%, #000);
   border-radius: 12px; padding: 8px 20px;
   box-shadow: 0 3px 10px -3px rgba(0, 0, 0, 0.65), 0 0 14px -4px var(--tier-7);
-  cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
+  cursor: var(--cursor-open), pointer;
   z-index: 41;
   overflow: hidden; /* clips the swirl layer to the plaque's rounded box */
   isolation: isolate;
@@ -9746,7 +9750,7 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
      options, which reuse the class. */
   background: radial-gradient(ellipse 60% 60% at 50% 50%, #24468a 0%, #0a1730 100%);
   animation: fadein 0.3s ease;
-  cursor: url('/cursors/gauntlet_default.svg') 6 2, auto;
+  cursor: var(--cursor-default), auto;
 }
 /* Match hero select's zoom so the cards are the same physical size on the same screen. */
 .modepick { --hs-zoom: calc(var(--scale, 0.745) / 0.745 * var(--mobile-boost, 1)); }
@@ -9796,7 +9800,7 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
   width: 375px; gap: 12px; padding: 32px 12px 12px;
   display: flex; flex-direction: column; align-items: center; text-align: center;
   background: none; border: none; box-shadow: none; color: var(--ink);
-  cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
+  cursor: var(--cursor-open), pointer;
   transition: transform 0.16s ease;
 }
 .modecard:not([data-mp]):hover { transform: translateY(-6px); }
@@ -9912,7 +9916,7 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
   transition: transform 0.16s ease;
 }
 .gslot:not(:disabled):hover { transform: translateY(-5px); }
-.gslot:disabled { cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
+.gslot:disabled { cursor: var(--cursor-default), default; }
 .gslot[data-state='locked'], .gslot[data-state='soon'] {
   background: radial-gradient(120% 100% at 50% 0%, #2a2f3a 0%, #191d24 60%, #10131a 100%); opacity: 0.6;
 }
@@ -9972,7 +9976,7 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
 
 /* Locked "coming soon" learning slot — dimmed, non-interactive, but still framed so the hub reads as "more to
    come" rather than empty. */
-.modecard.mclocked { cursor: url('/cursors/gauntlet_default.svg') 6 2, default; opacity: 0.5; }
+.modecard.mclocked { cursor: var(--cursor-default), default; opacity: 0.5; }
 .modecard.mclocked:hover { transform: none; }
 .modecard.mclocked .mcname { background: linear-gradient(180deg, #e9e9ee, #d3d3db); }
 
@@ -10048,7 +10052,7 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
 .tutprompt-actions .endplay { margin-top: 0; white-space: nowrap; font-size: 24px; padding: 16px 44px; }
 .tutprompt-skip {
   background: none; border: none; color: #aeb8c8; font-family: var(--font-ui); font-weight: 700; font-size: 16px;
-  padding: 8px; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; border-radius: 10px;
+  padding: 8px; cursor: var(--cursor-open), pointer; border-radius: 10px;
 }
 .tutprompt-skip:hover { color: #e6ecf6; text-decoration: underline; }
 /* THE RANKED CONFIRMATION (Title `rankedConfirm`, owner 2026-10-11) — a small window in the COMPENDIUM's chrome
@@ -10169,10 +10173,10 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
   transform: translate(-50%, -50%) scale(calc(var(--rfb-s, 1.53) * var(--piece-grow, 1.05)));
   width: calc(170 * var(--u)); height: calc(72 * var(--u)); /* the art's 1927×816 (2.362) aspect */
   background: none; border: none; padding: 0; z-index: 41;
-  cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
+  cursor: var(--cursor-open), pointer;
 }
 body.dragging .rfbwrap { pointer-events: none; } /* a card dragged across it drops through */
-.rfbwrap:disabled { cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
+.rfbwrap:disabled { cursor: var(--cursor-default), default; }
 .rfbwrap.off .rfb-artbox { filter: brightness(var(--rfb-art-dim, 0.63)) saturate(0.7); }
 
 /* The crystal. It no longer rotates on press (owner 2026-07-21) — clicking emits dust + a shine only. */
@@ -10441,7 +10445,7 @@ button.frzwrap.frzwrap:focus-visible {
   border-radius: calc(9 * var(--u));
   font-family: var(--font-ui); font-weight: 800; font-size: calc(10 * var(--u)); color: #f4ecdb;
   box-shadow: 0 calc(4 * var(--u)) calc(12 * var(--u)) -5px rgba(0, 0, 0, 0.65), inset 0 0 0 1px rgba(255, 255, 255, 0.06);
-  cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
+  cursor: var(--cursor-open), pointer;
 }
 .herobuffs-tab:hover { border-color: var(--acc); color: #fff; }
 .herobuffs-tab svg { width: calc(10 * var(--u)); height: calc(10 * var(--u)); color: #e8c877; flex: none; }
@@ -10749,9 +10753,9 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .uned-foundrow .sb-t { width: 16px; height: 16px; font-size: 10px; }
 .uned-kwbtn.locked { opacity: 0.6; }
 /* The game cursor, doubled like `.uned.uned` below it in intent. */
-.stbc.stbc, .stbc.stbc * { cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
-.stbc.stbc .stbc-add, .stbc.stbc .stbc-slot, .stbc.stbc .stbc-slot * { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
-.stbc.stbc .stbc-row.reordering, .stbc.stbc .stbc-row.reordering * { cursor: url('/cursors/hand_closed.svg') 13 12, grabbing; }
+.stbc.stbc, .stbc.stbc * { cursor: var(--cursor-default), default; }
+.stbc.stbc .stbc-add, .stbc.stbc .stbc-slot, .stbc.stbc .stbc-slot * { cursor: var(--cursor-open), pointer; }
+.stbc.stbc .stbc-row.reordering, .stbc.stbc .stbc-row.reordering * { cursor: var(--cursor-closed), grabbing; }
 .bsc-id { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bsc-banner { background: #3a2413; border: 1px solid #a0632a; border-radius: calc(6 * var(--u)); color: #f0b978; font-size: calc(12 * var(--u)); line-height: 1.4; padding: calc(6 * var(--u)) calc(8 * var(--u)); }
 .bsc-badges { gap: calc(4 * var(--u)); }
@@ -11018,7 +11022,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 }
 /* Matches the `.fxwb.fxwb X` specificity pattern above (0,2,0 default → 0,3,0 override) so the track keeps
    the "open" gauntlet instead of a bare `cursor: pointer` reverting it to the OS arrow (CLAUDE.md UI conv.). */
-.fxwb.fxwb .fxwb-hsb-track { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.fxwb.fxwb .fxwb-hsb-track { cursor: var(--cursor-open), pointer; }
 /* Multi-stop gradient bar: click to add a stop, double-click a stop to remove it, click to select
    (opens the HSB picker below it). Presentation only — maths delegated to fx/gradient.ts. */
 .fxwb-grad { display: flex; flex-direction: column; gap: 7px; width: 100%; }
@@ -11032,7 +11036,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 /* Matches the `.fxwb.fxwb X` specificity pattern above (0,2,0 default → 0,3,0 override) so the bar and
    its stops keep the "open" gauntlet instead of a bare `cursor: pointer` reverting it to the OS arrow
    (CLAUDE.md UI convention). */
-.fxwb.fxwb .fxwb-grad-bar, .fxwb.fxwb .fxwb-grad-stop { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.fxwb.fxwb .fxwb-grad-bar, .fxwb.fxwb .fxwb-grad-stop { cursor: var(--cursor-open), pointer; }
 .fxwb-row input[type='checkbox'] { justify-self: start; accent-color: #c8a45c; width: 15px; height: 15px; cursor: pointer; }
 /* The "React on" picker in the toolbar — which minion a `react` layer animates in the preview. Same
    treatment as the inspector's selects; it just isn't inside a `.fxwb-row` grid. */
@@ -11105,10 +11109,10 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .fxwb-layer-grip {
   grid-column: 1; grid-row: 1 / span 2; display: flex; align-items: center; justify-content: center;
   width: 12px; height: 100%; color: #6b6152; font-size: 12px; line-height: 1; touch-action: none;
-  cursor: url('/cursors/gauntlet_open.svg') 6 2, grab;
+  cursor: var(--cursor-open), grab;
 }
 .fxwb-layer-grip:hover { color: #c8a45c; }
-.fxwb-layer-grip:active { cursor: url('/cursors/gauntlet_open.svg') 6 2, grabbing; }
+.fxwb-layer-grip:active { cursor: var(--cursor-open), grabbing; }
 /* The row a grip-drag is hovering over as its drop target — a bright top edge reads as "it lands here"
    without needing a separate line element between rows. */
 .fxwb-layer-row.fxwb-layer-drop { box-shadow: inset 0 2px 0 #c8a45c; }
@@ -11217,7 +11221,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   /* Empty track background scrubs the playhead on drag — the gauntlet cursor marks it as interactive
      rather than falling back to a bare OS pointer (see CLAUDE.md "UI conventions"). Bars/grips paint
      their own cursor (`grab`/`ew-resize`) which wins over this since they sit deeper in the DOM. */
-  cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
+  cursor: var(--cursor-open), pointer;
 }
 .fxwb-timeline-row { position: relative; height: 16px; }
 /* The lane-reorder grip: pointerdown here starts a vertical drag that reorders layers (mirrors
@@ -11227,10 +11231,10 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .fxwb-timeline-reorder-grip {
   position: absolute; top: 0; left: 0; bottom: 0; z-index: 2; width: 10px; display: flex; align-items: center;
   justify-content: center; color: #6b6152; font-size: 8px; line-height: 1; touch-action: none;
-  cursor: url('/cursors/gauntlet_open.svg') 6 2, grab;
+  cursor: var(--cursor-open), grab;
 }
 .fxwb-timeline-reorder-grip:hover { color: #c8a45c; }
-.fxwb-timeline-reorder-grip:active { cursor: url('/cursors/gauntlet_open.svg') 6 2, grabbing; }
+.fxwb-timeline-reorder-grip:active { cursor: var(--cursor-open), grabbing; }
 /* The row a lane-reorder drag is hovering over as its drop target — same treatment as
    `.fxwb-layer-row.fxwb-layer-drop`. */
 .fxwb-timeline-row.fxwb-timeline-drop { box-shadow: inset 0 2px 0 #c8a45c; }
@@ -11804,7 +11808,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
    wrapper, which also holds the dot and the `?` help button) — the gauntlet cursor (never a bare keyword
    `cursor`, see the custom-cursor rule) signals just that text is clickable; an already-default row keeps the
    OS arrow since double-clicking it is a no-op. */
-.fxwb-row.changed > .fxwb-lab > label { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.fxwb-row.changed > .fxwb-lab > label { cursor: var(--cursor-open), pointer; }
 /* One-shot reset-confirmation pop. transform/opacity ONLY (no box-shadow/filter/background) so it composites
    without a repaint, and it never loops — `onAnimationEnd` clears the triggering class in Inspector.tsx. */
 .fxwb-lab.fxwb-reset-flash { animation: fxwb-reset-pop 0.3s ease both; }
@@ -12713,7 +12717,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
    a class selector here would out-specify it and swap the game cursor back to the OS arrow (CLAUDE.md's
    custom-cursor rule). Rows aren't `button`/`[role="button"]` (they're `[role="option"]`), so the gauntlet
    URL form is used explicitly, matching `.fxwb-grad-bar`/`.fxwb-hsb-track` above. */
-.fxwb.fxwb .fxwb-cmd-row { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.fxwb.fxwb .fxwb-cmd-row { cursor: var(--cursor-open), pointer; }
 .fxwb-cmd-row.hi { background: color-mix(in srgb, #c8a45c 22%, #241f17); }
 .fxwb-cmd-kind {
   flex: none; font-size: 10px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase;
@@ -12757,9 +12761,9 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .fxwb-stagecard-handle {
   position: absolute; top: 4px; right: 4px; z-index: 7; width: 18px; height: 18px; border-radius: 4px;
   background: color-mix(in srgb, #241f17 70%, transparent); border: 1px solid #4a4136;
-  cursor: url('/cursors/gauntlet_open.svg') 6 2, grab;
+  cursor: var(--cursor-open), grab;
 }
-.fxwb-stagecard-handle:active { cursor: url('/cursors/hand_closed.svg') 13 12, grabbing; }
+.fxwb-stagecard-handle:active { cursor: var(--cursor-closed), grabbing; }
 
 /* ---- FX STAGE SETTER (dev) — the composable canvas (StageSetter.tsx) ----
    Two zone rows (`[data-zone="tavern"]` / `[data-zone="warband"]`, each wrapping a real `.row` — see that
@@ -12797,9 +12801,9 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .fxwb-stage-handle {
   position: absolute; z-index: 20; width: 16px; height: 16px; margin: -8px 0 0 -8px;
   border-radius: 50%; border: 2px solid #100d08; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45), 0 2px 4px rgba(0, 0, 0, 0.5);
-  cursor: url('/cursors/gauntlet_open.svg') 6 2, grab;
+  cursor: var(--cursor-open), grab;
 }
-.fxwb-stage-handle:active { cursor: url('/cursors/hand_closed.svg') 13 12, grabbing; }
+.fxwb-stage-handle:active { cursor: var(--cursor-closed), grabbing; }
 .fxwb-stage-handle::after {
   content: attr(data-handle); position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
   margin-top: 3px; padding: 1px 5px; border-radius: 4px; background: #100d08;
@@ -12866,11 +12870,11 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
    Doubled `.uned.uned` raises specificity above any later same-file rule of equal weight (the file-order
    trap this repo has hit seven times); nothing existing is being superseded here, this is just following
    the established `.fxwb.fxwb` convention above. */
-.uned.uned, .uned.uned * { cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
+.uned.uned, .uned.uned * { cursor: var(--cursor-default), default; }
 .uned.uned button, .uned.uned select, .uned.uned input {
-  cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
+  cursor: var(--cursor-open), pointer;
 }
-.uned.uned input[type="number"] { cursor: url('/cursors/gauntlet_default.svg') 6 2, text; }
+.uned.uned input[type="number"] { cursor: var(--cursor-default), text; }
 
 /* ── DICE ROLL — the shared top-down 3D die (`DiceRoll.tsx`, owner handoff 2026-09-17) ───────────────────
    ONE component for the Gambler's power (lands on the power button) and the Gamble spell (lands at the cast
@@ -13016,14 +13020,14 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   -webkit-backdrop-filter: blur(10px) saturate(1.15); backdrop-filter: blur(10px) saturate(1.15);
   border: 1px solid rgba(190, 214, 240, 0.22); border-top-color: rgba(226, 240, 255, 0.42);
   box-shadow: 0 16px 40px -12px rgba(0, 0, 0, 0.6); color: #eef4fb; font-family: var(--font-ui); }
-.replaybtn { font-family: var(--font-ui); font-weight: 800; font-size: 15px; min-width: 46px; height: 42px; padding: 0 8px; border-radius: 9px; border: 1.5px solid rgba(190, 214, 240, 0.4); background: transparent; color: #eef4fb; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; display: grid; place-items: center; }
+.replaybtn { font-family: var(--font-ui); font-weight: 800; font-size: 15px; min-width: 46px; height: 42px; padding: 0 8px; border-radius: 9px; border: 1.5px solid rgba(190, 214, 240, 0.4); background: transparent; color: #eef4fb; cursor: var(--cursor-open), pointer; display: grid; place-items: center; }
 .replaybtn:hover { border-color: rgba(226, 240, 255, 0.6); }
 /* The viewer toggles (2026-09-19): a dimmed frame + muted glyph when OFF, so the state reads at a glance. */
 .replaybtn.toggle { min-width: 40px; font-size: 14px; }
 .replaybtn.toggle.off { opacity: 0.45; border-style: dashed; }
 /* The scrub track. `overflow: visible` so the handle can overhang it; the FILL clips itself instead. Padded
    vertically with a transparent hit area — an 8px-tall drag target is the mechanical half of "clunky". */
-.replayprog { position: relative; width: 300px; height: 14px; border-radius: 8px; background: rgba(255, 255, 255, 0.14); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; overflow: visible; touch-action: none; }
+.replayprog { position: relative; width: 300px; height: 14px; border-radius: 8px; background: rgba(255, 255, 255, 0.14); cursor: var(--cursor-open), pointer; overflow: visible; touch-action: none; }
 .replayprog::before { content: ''; position: absolute; left: 0; right: 0; top: -8px; bottom: -8px; }
 .replayprog.scrubbing { background: rgba(255, 255, 255, 0.22); }
 /* The handle. Transform-only motion on a static shadow (CLAUDE.md's rule) and it grows while scrubbing so
@@ -13048,7 +13052,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   min-width: 58px; height: 42px; padding: 0 10px; border-radius: 10px;
   border: 1.5px solid rgba(190, 214, 240, 0.4); background: transparent;
   display: inline-flex; align-items: center; justify-content: center; gap: 4px;
-  cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+  cursor: var(--cursor-open), pointer; }
 .replayspeed-btn:hover { border-color: rgba(226, 240, 255, 0.6); }
 .replayspeed-caret { font-size: 10px; opacity: 0.7; }
 /* Opens UPWARD: the bar sits at the bottom of the viewport, so a downward menu would fall off-screen. */
@@ -13061,7 +13065,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .replayspeed-opt {
   font-family: var(--font-ui); font-weight: 800; font-size: 13px; color: #eef4fb;
   min-width: 62px; padding: 7px 12px; border-radius: 8px; border: none; background: transparent;
-  text-align: center; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+  text-align: center; cursor: var(--cursor-open), pointer; }
 .replayspeed-opt:hover { background: rgba(255, 255, 255, 0.1); }
 .replayspeed-opt.on { background: rgba(255, 255, 255, 0.16); color: #e6b45a; }
 /* Round rail — the per-round index (REWORKED 2026-09-19: one table — Round · Recruit · Combat · Gold · Acts ·
@@ -13077,8 +13081,8 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .roundrail-wrap.rr-dragging { user-select: none; }
 /* Any point of the rail drags it (2026-09-20), so the whole surface wears the grab gauntlet; buttons keep the
    global open-gauntlet rule. `touch-action: none` on the surface keeps a touch drag from scrolling the page. */
-.roundrail-wrap { cursor: url('/cursors/gauntlet_open.svg') 6 2, grab; touch-action: none; }
-.roundrail-wrap.rr-dragging, .roundrail-wrap.rr-dragging * { cursor: url('/cursors/gauntlet_open.svg') 6 2, grabbing; }
+.roundrail-wrap { cursor: var(--cursor-open), grab; touch-action: none; }
+.roundrail-wrap.rr-dragging, .roundrail-wrap.rr-dragging * { cursor: var(--cursor-open), grabbing; }
 .roundrail {
   display: flex; flex-direction: column; gap: 3px; padding: 6px 6px 8px; border-radius: 10px; max-height: calc(82 * var(--vh, 1vh)); overflow-y: auto;
   background: #14111c; box-shadow: 0 4px 14px -6px rgba(0, 0, 0, 0.7), inset 0 0 0 1px rgba(255, 255, 255, 0.09);
@@ -13089,7 +13093,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   text-transform: uppercase; color: rgba(255, 255, 255, 0.6); }
 .roundrail-grab { display: inline-grid; place-items: center; width: 18px; height: 20px; border-radius: 5px;
   font-weight: 800; font-size: 12px; line-height: 1; letter-spacing: -2px; color: rgba(255, 255, 255, 0.45);
-  cursor: url('/cursors/gauntlet_open.svg') 6 2, grab; touch-action: none; }
+  cursor: var(--cursor-open), grab; touch-action: none; }
 .roundrail-grab:hover { background: rgba(255, 255, 255, 0.08); color: #fff; }
 .roundrail-wrap.rr-dragging .roundrail-grab { background: rgba(196, 160, 92, 0.25); color: #fff; }
 .roundrail-toggle { display: inline-grid; place-items: center; width: 20px; height: 20px; padding: 0; border: none;
@@ -13515,7 +13519,7 @@ html[data-phone-gpu] .opphand-card.spent > img { filter: grayscale(0.72) brightn
    pill and the panel drops DOWN out of the group instead of up. The whole `.combatopp` group is
    pointer-events:none; the portrait re-enables itself (the way the runes column does) only when the served
    snapshot actually carries buff rows. */
-.combatopp-portrait.hasbuffs { pointer-events: auto; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.combatopp-portrait.hasbuffs { pointer-events: auto; cursor: var(--cursor-open), pointer; }
 /* The hover scrim + prompt — mirrors `.statusbar .hero .f .herohover`; the font compensates for the duel
    wrapper's scale so the on-screen text size matches the player's prompt. */
 .combatopp-portrait .herohover {
@@ -13898,7 +13902,7 @@ html[data-phone-gpu] .opphand-card.spent > img { filter: grayscale(0.72) brightn
 /* Cards are deliberately NOT in that list: they keep pointer events so hover tooltips and rules text still
    work while watching, which is most of why anyone watches. Dragging one is refused in `onCardPointerDown`
    instead — a JS guard, because the card must stay hoverable and `pointer-events: none` cannot do both. */
-.app.viewing .card { cursor: url('/cursors/gauntlet_open.svg') 6 2, default; }
+.app.viewing .card { cursor: var(--cursor-open), default; }
 
 /* ---- SCENE BUILDER: badge stat editor + library preview (2026-09-16) ----
    DUMMIES / UNIT EDITOR — the game's OWN stat badges (`.badge.atk` / `.badge.hp` + `.plate` + `.value`, the
@@ -14089,7 +14093,7 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .rankend.won .rankend-place-text { background-image: linear-gradient(180deg, #f2fff2, #8ff0a4 50%, #2f9a4a); }
 /* The rank display is the skip target while the sequence plays (role=button → the global gauntlet pointer). */
 .rankend-rank { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 6px 28px 10px; border-radius: 24px; }
-.rankend-panel.settled .rankend-rank { cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
+.rankend-panel.settled .rankend-rank { cursor: var(--cursor-default), default; }
 .rankend-delta { font-family: var(--font-ui); font-weight: 900; font-size: 36px; line-height: 1; font-variant-numeric: tabular-nums; text-shadow: 0 2px 10px rgba(0, 0, 0, 0.9); will-change: transform, opacity; }
 .rankend-delta.up { color: #6fe089; }
 .rankend-delta.down { color: #ff7d7d; }

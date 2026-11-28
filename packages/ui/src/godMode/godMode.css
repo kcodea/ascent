@@ -23,7 +23,7 @@
    i want it all on one row"). The panel shrinks to that row's width. */
 .godp.collapsed { width: max-content; }
 /* Header + a divider under it (owner 2026-10-08: "have the god mode text much larger, create a horizontal line separating it"). */
-.godp-head { display: flex; align-items: center; justify-content: space-between; gap: calc(12 * var(--u)); padding: calc(10 * var(--u)) calc(14 * var(--u)); border-bottom: 1px solid var(--ui-chip-edge); touch-action: none; cursor: url('/cursors/gauntlet_open.svg') 6 2, move; }
+.godp-head { display: flex; align-items: center; justify-content: space-between; gap: calc(12 * var(--u)); padding: calc(10 * var(--u)) calc(14 * var(--u)); border-bottom: 1px solid var(--ui-chip-edge); touch-action: none; cursor: var(--cursor-open), move; }
 .godp-title { font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; font-size: calc(24 * var(--u)); line-height: 1.1; white-space: nowrap; color: var(--ui-title); }
 .godp.collapsed .godp-head { border-bottom: 0; }
 /* The collapse caret at 2x (owner 2026-10-08: "make the collapse arrow 100% bigger"), centred on the title. */

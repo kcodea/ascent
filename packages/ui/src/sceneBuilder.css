@@ -61,8 +61,8 @@
    chips read in full. The ✕ closes the panel by unmounting it (no display rule: the modern layout's `display: flex`
    out-specified the old `.minimized { display: none }`, so the ✕ looked dead). */
 .sfxmix.scenebuilder.collapsed { width: calc(300 * var(--u)); padding-bottom: 0; height: auto !important; min-height: 0; resize: none; }
-.scenebuilder :is(button, select, .sb-chk, input[type='checkbox']) { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
-.scenebuilder button:disabled { cursor: url('/cursors/gauntlet_open.svg') 6 2, default; }
+.scenebuilder :is(button, select, .sb-chk, input[type='checkbox']) { cursor: var(--cursor-open), pointer; }
+.scenebuilder button:disabled { cursor: var(--cursor-open), default; }
 
 /* HEADER — the navy nameplate: emblem, title, the status chips, the wide toggle and the collapse caret. */
 .scenebuilder .sb-head { margin: 0; padding: calc(6 * var(--u)) calc(32 * var(--u)) calc(6 * var(--u)) calc(9 * var(--u)); gap: calc(5 * var(--u));
@@ -246,7 +246,7 @@
   animation: sbhpin 0.14s ease-out; }
 .sbhp[data-side='right'] { --sbhp-dx: -16px; }
 @keyframes sbhpin { from { opacity: 0; transform: translateX(var(--sbhp-dx, 16px)); } to { opacity: 1; transform: none; } }
-.sbhp :is(button, input[type='checkbox']) { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.sbhp :is(button, input[type='checkbox']) { cursor: var(--cursor-open), pointer; }
 .sbhp-head { display: flex; align-items: center; gap: 8px; }
 .sbhp-title { font-family: var(--sbn-font); font-size: 15px; font-weight: 800; color: var(--sbn-text); letter-spacing: 0.02em; text-shadow: var(--sbn-shadow); }
 .sbhp-count { font-size: 11px; font-weight: 700; color: var(--sbn-text); background: var(--sbn-well); border: 1px solid var(--sbn-hair); border-radius: 5px; padding: 0 7px; font-variant-numeric: tabular-nums; }

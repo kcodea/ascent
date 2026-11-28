@@ -355,7 +355,7 @@ html[data-touch-small] .rgp-lobby { padding: calc(8 * var(--phu)) calc(24 * var(
 @media (prefers-reduced-motion: reduce) { .rgp-lobby.fadein .lp-tiles { animation: none; } }
 
 /* ROUND 11. A row reads as pressable: the open gauntlet, like the lobby tiles (never a plain keyword). */
-.rgp-list .phk-selitem { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.rgp-list .phk-selitem { cursor: var(--cursor-open), pointer; }
 /* A tab switch in flight: the last feed stays up, a little dimmed (a one-shot opacity), and swaps in place. */
 .rgp.stale .phk-pagebody { opacity: 0.7; transition: opacity 0.12s ease; }
 /* The first game held for its lobby: the plate alone, the height of the panel. */

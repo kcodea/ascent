@@ -33,7 +33,7 @@
 /* ── The overlay + the window ─────────────────────────────────────────────────────────────────────────────────── */
 /* No backdrop-filter (perf 2026-10-09): a full-screen blur re-runs every frame the game behind it animates. A deeper
    scrim does the job. */
-.book-ov { position: fixed; inset: 0; z-index: 480; background: rgba(4, 3, 12, 0.8); display: grid; place-items: center; animation: fadein 0.16s ease; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
+.book-ov { position: fixed; inset: 0; z-index: 480; background: rgba(4, 3, 12, 0.8); display: grid; place-items: center; animation: fadein 0.16s ease; cursor: var(--cursor-default), auto; }
 /* The surface tokens the CARDS read stay exactly as owner-tuned 2026-08-10 (see the header note).
    THE WINDOW: `.book` itself paints nothing. `::before` is the backdrop (the dark plate), inset to the middle of the
    frame's rails so nothing shows outside the painted corners. `::after` is the painted frame, a 9-slice on top of
@@ -47,7 +47,7 @@
   padding: calc(146px * var(--bf-s)) calc(140px * var(--bf-s)) calc(146px * var(--bf-s));
   color: var(--ui-text);
   animation: bookpop 0.18s cubic-bezier(0.34, 1.2, 0.64, 1);
-  cursor: url('/cursors/gauntlet_default.svg') 6 2, auto;
+  cursor: var(--cursor-default), auto;
 }
 .book::before {
   content: ''; position: absolute; z-index: -1; inset: calc(70px * var(--bf-s)); border-radius: calc(110px * var(--bf-s));
@@ -110,7 +110,7 @@ body:has(.book-ov) .cardref { z-index: 490; }
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), inset 0 -2px 3px -1px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(0, 0, 0, 0.45), 0 0 14px -2px color-mix(in srgb, var(--ui-title) 60%, transparent);
 }
 :is(.book-tier, .book-gilded).on:hover:not(:disabled) { color: var(--ui-chip-bg); background: linear-gradient(180deg, #fff 0%, var(--ui-edge-hi) 40%, var(--ui-title) 100%) padding-box, var(--ui-hover-edge) border-box; }
-:is(.book-tier, .book-gilded, .book-runetribe):disabled { opacity: 0.34; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; transform: none; }
+:is(.book-tier, .book-gilded, .book-runetribe):disabled { opacity: 0.34; cursor: var(--cursor-default), auto; transform: none; }
 :is(.book-close, .book-tier, .book-gilded, .book-setpick-btn, .book-runetribe, .book-kwchip, .wiki-chip, .book-gloss, .book-zoom-btn):focus-visible { outline: 2px solid var(--ui-edge-hi); outline-offset: 2px; }
 
 /* An inset FIELD (the search boxes): the chip well the HUD's speed chip uses, a gold hairline on focus. */
@@ -171,7 +171,7 @@ body:has(.book-ov) .cardref { z-index: 490; }
 }
 .book-zoom-btn:hover:not(:disabled) { border-color: var(--ui-edge-main); color: var(--ui-title); }
 .book-zoom-btn:active:not(:disabled), .book-zoom-btn:hover:active:not(:disabled) { transform: translateY(1px); transition-duration: 0.05s; }
-.book-zoom-btn:disabled { opacity: 0.35; cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
+.book-zoom-btn:disabled { opacity: 0.35; cursor: var(--cursor-default), default; }
 .book-zoom-val { min-width: 42px; text-align: center; font-family: var(--font-ui); font-size: 12.5px; font-weight: 800; letter-spacing: 0.04em; font-variant-numeric: tabular-nums; color: var(--ui-text); }
 
 .book-close { flex: none; width: 36px; height: 36px; padding: 0; display: grid; place-items: center; border-radius: 7px; font-size: 15px; line-height: 1; }
@@ -274,7 +274,7 @@ body:has(.book-ov) .cardref { z-index: 490; }
   display: flex; align-items: center; justify-content: space-between; gap: 14px; min-width: 150px; height: 36px; padding: 0 12px; white-space: nowrap;
   border-radius: 8px; border: 1px solid transparent; color: var(--ui-text);
   font-family: var(--font-ui); font-weight: 800; font-size: 13.5px; letter-spacing: 0.05em; text-transform: uppercase;
-  cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; outline: none;
+  cursor: var(--cursor-open), pointer; outline: none;
 }
 .book-setpick-opt.is-focus { background: color-mix(in srgb, var(--ui-hover-mid) 85%, transparent); border-color: var(--ui-divider); }
 .book-setpick-opt.on { color: var(--ui-title); background: var(--ui-hover-plate); border-color: var(--ui-edge-main); }
@@ -417,7 +417,7 @@ body:has(.book-ov) .cardref { z-index: 490; }
 /* Rows share one base (button reset included, since clickable rows are <button>): a rounded hover tint, no hairline
    separators, the icon medallion anchors each row. */
 .gloss-row { display: flex; gap: 13px; align-items: flex-start; width: 100%; padding: 9px 10px; border: 0; border-radius: 10px; background: transparent; text-align: left; font: inherit; color: inherit; }
-.gloss-row.is-click { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.gloss-row.is-click { cursor: var(--cursor-open), pointer; }
 .gloss-row.is-click:hover { background: color-mix(in srgb, var(--ui-hover-mid) 80%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ui-edge-main) 35%, transparent); }
 .gloss-row.is-click:hover .gloss-term { color: var(--ui-title); }
 .gloss-row.is-click:hover .gloss-ico { box-shadow: inset 0 0 0 1px var(--ui-edge-main), 0 1px 2px rgba(0, 0, 0, 0.5); }

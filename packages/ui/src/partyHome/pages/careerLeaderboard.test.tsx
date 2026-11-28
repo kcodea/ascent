@@ -247,7 +247,7 @@ describe('shell pages: production and UI rules', () => {
     const tsx = [here('./career/PhCareer.tsx'), here('./leaderboard/PhLeaderboard.tsx')].join('\n');
     const css = [here('./career/phCareer.css'), here('./leaderboard/phLeaderboard.css')].join('\n');
     expect(tsx).not.toMatch(/<[a-z][a-z0-9]*\s[^>]*\stitle=/);
-    expect(css).not.toMatch(/cursor:(?!\s*url\('\/cursors\/gauntlet_open\.svg'\))/); // only the open gauntlet, never a keyword
+    expect(css).not.toMatch(/cursor:(?!\s*var\(--cursor-open\))/); // only the open gauntlet variable, never a keyword
     expect(css).not.toMatch(/infinite/);
     const strings = [...tsx.matchAll(/'([^'\n]*)'/g), ...tsx.matchAll(/>([^<>{}\n]+)</g)].map((x) => x[1] ?? '');
     for (const s of strings) { expect(s).not.toMatch(/—|\s--\s/); expect(s).not.toMatch(/\b(Oath|climb)\b/i); }

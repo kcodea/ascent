@@ -32,6 +32,7 @@ import { setSpectatorEmotesOn, useSpectatorEmotePrefs } from './versus/spectator
 import { setFilterMessages, setShowActivity, useFriendsPrefs } from './friends/friendsPrefs';
 import { setLobbyChatEnabled, useLobbyChat } from './lobbyChat/lobbyChatStore';
 import { setLobbyRevealEnabled, useLobbyRevealEnabled } from './lobbyReveal/lobbyRevealStore';
+import { reactiveCursorReady, setReactiveCursorEnabled, useReactiveCursorEnabled } from './reactiveCursor/reactiveCursor';
 import { setAchievementPopupsOn, useAchievementPopupsOn } from './progression/achievementToastPrefs';
 import { isTouchDevice, touchText } from './touchInput';
 import { TOUCH_UI_LABEL, TOUCH_UI_SIZES, setTouchUiSize, touchUi, type TouchUiSize } from './touchUi';
@@ -122,6 +123,7 @@ export function SettingsPanel() {
   const filterMessages = useFriendsPrefs((s) => s.filterMessages);
   const lobbyChatOn = useLobbyChat((s) => s.enabled);
   const lobbyRevealOn = useLobbyRevealEnabled();
+  const reactiveCursorOn = useReactiveCursorEnabled();
   const achPopupsOn = useAchievementPopupsOn();
   const setShowOpponentSkins = useGame((s) => s.setShowOpponentSkins);
   const fpsCap = useGame((s) => s.fpsCap);
@@ -217,6 +219,13 @@ export function SettingsPanel() {
           on={showOpponentSkins}
           onToggle={() => { setShowOpponentSkins(!showOpponentSkins); sfx.pulse(); }}
         />
+        {/* REACTIVE CURSOR (owner 2026-11-27, R-CURSOR-REACTIVE-01): the cursor wears your board's main tribe. Saved on this device. */}
+        {reactiveCursorReady() && <ToggleRow
+          label="Reactive Cursor"
+          note="Your cursor takes the look of the tribe you have the most of on your board. A tie goes to the leftmost."
+          on={reactiveCursorOn}
+          onToggle={() => { setReactiveCursorEnabled(!reactiveCursorOn); sfx.pulse(); }}
+        />}
         <ToggleRow
           label="Spectator emotes"
           note={`Off hides the emotes of people watching your game. ${touchText('Right-click', 'Tap and hold')} a spectator in the top left to mute just them.`} /* R-TOUCH-WORDING-01 */

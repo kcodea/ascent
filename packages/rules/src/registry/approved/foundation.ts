@@ -17571,4 +17571,27 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms, built 2026-11-27 (feat/skins-voxel-sketchbook, PR #2895): 98 Common, 97 Rare, 92 Epic and 43 Legendary skins, each checked against its card\x27s tier. The tier rule is a ruling for these nine sets; other batches still take the rarity of their master\x27s folder (R-PROG-SKINS-11). Names cut to 20 characters (for example Voxel Brisbane, Sketch Hank, Encore Brian, Encore Flamebeat, Low Poly Steward, Sci-Fi Warhorn, Sci-Fi Hank) are Claude calls for the owner to confirm. The older crayon skins keep their Scribble names. Auric Runemaster gets its first skins. Reaches the database through the catalog sync.',
     enforcement: { kind: 'scenario', refs: ['packages/progression/src/skins.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionSkins.test.tsx'], lastVerifiedAt: '2026-11-27' },
   },
+  {
+    id: 'R-CURSOR-REACTIVE-01',
+    title: 'Reactive Cursor: your cursor wears the tribe you have the most of on your board; a tie goes to the leftmost',
+    statement:
+      'A Settings switch, "Reactive Cursor" (off by default, saved on the device), makes your own cursor take the look of '
+      + 'the tribe you have the most of on your board, in all three of its states (resting, over something clickable, '
+      + 'dragging). A minion counts toward each of its tribes, a spell-added tribe included; an All-types minion counts '
+      + 'toward every tribe; Neutral never counts. On a tie, the tied tribe whose minion sits furthest left wins; a minion '
+      + 'holding several tied tribes decides by its printed order, and an All-types minion decides nothing (the next minion '
+      + 'to its right does). An empty or all-Neutral board, a tribe with no cursor art yet, the menus, the end of a game, '
+      + 'replays, spectating and watching a live game all show the normal gauntlet. Only your own cursor changes; nobody '
+      + 'else sees it. Every cursor in the game reads one of three shared settings, so the swap reaches every element.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Mike, 2026-11-27', quote: 'lets make it a toggle-able setting called "Reactive Cursor" where the cursor automatically changes to the theme of whatever tribe you have the most of on your board' },
+      { kind: 'owner-chat', ref: 'Mike, 2026-11-27', quote: 'A tie is broken by whichever of the tied tribes unit is furthest left on the board' },
+      { kind: 'code', ref: 'feat/reactive-cursor: packages/ui/src/reactiveCursor/reactiveCursor.ts (dominantTribe, applyTribeCursor); ReactiveCursor.tsx; styles.css :root --cursor-default/open/closed' },
+    ],
+    currentBehaviour: 'PARTIAL since 2026-11-27 (feat/reactive-cursor): the pick, the settings and the one-source cursor variables ship, but no tribe has art yet (TRIBES_WITH_CURSOR_ART is empty), so the switch is hidden and every cursor is the gauntlet. Each tribe goes live when its three SVGs land and it is listed. The All-types and multi-tribe tie details and the gauntlet outside your own game are engineering calls the owner approved in the design.',
+    example: 'Your board, left to right: a Dwarf, a Beast, a Dragon, a Beast, a Dragon. Beasts and Dragons tie at two; the Beast is further left, so your cursor is the paw.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/reactiveCursor/reactiveCursor.test.ts'], lastVerifiedAt: '2026-11-27' },
+  },
 ];

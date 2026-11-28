@@ -303,8 +303,13 @@ export function stackAskew(offerId: string): readonly (readonly [number, number,
   stackAskewCache.set(offerId, out);
   return out;
 }
-/** A deal's "N left": its type at a pack STOCK_LABEL.packH tall, and its gap above the pack (a share of the pack's height). */
-const STOCK_LABEL = { packH: 400, font: 22, gap: 0.015 } as const; // owner 2026-11-27: 2px smaller, white
+/**
+ * A deal's "N left": its type at a SHELF pack STOCK_LABEL.packH tall, and its gap above the pack (a share of a SHELF pack's
+ * height). Both follow the layout, never the pack's own size, so every label is the same size and the same height above
+ * its pack, featured, hovered or not (owner 2026-11-27: "make each of the numbers and letters the same size no matter what.
+ * raise it up slightly"; was gap 0.015 of the pack's own height).
+ */
+const STOCK_LABEL = { packH: 400, font: 22, gap: 0.04 } as const; // owner 2026-11-27: 2px smaller, white
 const TAG_FONT = 0.0525; // owner 2026-11-25: "make the tag smaller by 30%" (was 0.075)
 /**
  * THE PRICE TAGS: where the twine is tied (a share of the pack's height in from its top-left corner), how far the tag
@@ -846,6 +851,7 @@ class ShopSceneImpl implements ShopScene {
     this.drawLine();
     if (this.pileText) this.pileText.style.fontSize = Math.max(10, PILE_FONT * this.L.handPackH);
     for (const t of this.stackCounts) t.style.fontSize = Math.max(10, STACK_COUNT.font * this.L.handPackH);
+    for (const t of this.stockLabels) t.style.fontSize = Math.max(10, (STOCK_LABEL.font * this.L.packH) / STOCK_LABEL.packH);
     this.cacheRect();
     if (resized) this.cancelHold(); // a resize while holding: the pack returns to where it came from
     this.wake();
@@ -1313,11 +1319,10 @@ class ShopSceneImpl implements ShopScene {
         const words = `${offer.stock} LEFT`;
         if (sl.text !== words) sl.text = words;
         const q = liftPoseInto(this.lifted, p, lift);
-        const c = Math.cos(q.rot), sn = Math.sin(q.rot), dx = (q.h * ASPECT) / 2, dy = -q.h / 2 - q.h * STOCK_LABEL.gap;
+        const c = Math.cos(q.rot), sn = Math.sin(q.rot), dx = (q.h * ASPECT) / 2, dy = -q.h / 2 - this.L.packH * STOCK_LABEL.gap;
         sl.alpha = tagA;
         sl.position.set(q.x + dx * c - dy * sn, q.y + dx * sn + dy * c);
         sl.rotation = q.rot;
-        sl.scale.set(q.h / STOCK_LABEL.packH);
       }
       // a pack just put back sits down: a small bob into its place
       const st = this.slotSettle[s]!;

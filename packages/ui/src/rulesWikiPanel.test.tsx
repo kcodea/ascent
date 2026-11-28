@@ -7,7 +7,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { act } from 'react';
 import { MinionBook } from './MinionBook';
-import { WIKI_ENTRIES } from './rulesWiki';
+import { WIKI_ENTRIES, wikiEntriesFor } from './rulesWiki';
 import { useGame } from './store';
 import { mount, type Mounted } from './renderedText.mount';
 
@@ -93,5 +93,29 @@ describe('Title Rules button → Compendium on the Rules page', () => {
     const m2 = mount(<MinionBook />);
     expect(q(m2.container, '.wiki-body')).toBeNull();
     m2.unmount();
+  });
+});
+
+describe('Rules wiki with packs on', () => {
+  it('swaps the chest answers for the pack ones and keeps the chest ones while packs are off', () => {
+    const chest = WIKI_ENTRIES.find((e) => e.id === 'crates')!;
+    expect(chest.q).toContain('chests');
+    expect(chest.a).not.toMatch(/packs?/i);
+    const packs = wikiEntriesFor(true).find((e) => e.id === 'crates')!;
+    expect(packs.q).toContain('packs');
+    expect(packs.a).toContain('5 cards');
+    expect(packs.a).toContain("levels you reached before packs arrived don't count");
+    expect(wikiEntriesFor(false)).toBe(WIKI_ENTRIES);
+    // Packs only open in the Shop; the Collection has no pack opener (final review 2026-11-28).
+    const coll = wikiEntriesFor(true).find((e) => e.id === 'collection')!.a;
+    expect(coll).not.toMatch(/open your packs there/i);
+    expect(coll).toContain('you open packs in the **Shop**');
+  });
+
+  it("never says every card is new: cards can be duplicates, only a themed pack's last card is never owned", () => {
+    const packs = wikiEntriesFor(true).find((e) => e.id === 'crates')!.a;
+    expect(packs).not.toContain("(cosmetics you **don't already own**)");
+    expect(packs).toContain("a themed pack's last card comes from that theme and is always one you **don't own yet**");
+    expect(packs).toContain('Any other card can be one you already own');
   });
 });

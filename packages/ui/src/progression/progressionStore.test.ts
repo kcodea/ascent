@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_AETHER_ECONOMY, type AetherEconomy, type BuyCrateResult, type CrateRow, type ProgressionProfile, type ProgressionResult, type ProgressionRunFactsV1 } from '@game/progression';
-import type { InventoryOutcome } from './progressionRemote';
+import type { BuyPackRemoteOutcome, InventoryOutcome, PackShopSnapshot } from './progressionRemote';
 
 /**
  * ACCOUNT PROGRESSION: the client slice. The feature flag (capability probe) gates everything; the mirror adopts
@@ -20,6 +20,11 @@ const buyRemote = vi.fn<(req: { tier: string; focus: string[] | null; expectedTo
 const openRemote = vi.fn<(crateId: string, focus?: string[] | null, expectedFee?: number) => Promise<InventoryOutcome<BuyCrateResult>>>();
 const ownCrates = vi.fn<() => Promise<CrateRow[] | undefined>>(async () => undefined);
 const flush = vi.fn(async () => {});
+const packsEnabled = vi.fn<() => Promise<boolean | undefined>>(async () => undefined);
+const packShopRead = vi.fn<() => Promise<{ status: 'ok'; shop: PackShopSnapshot } | { status: 'error'; reason: string }>>();
+const buyPackRemote = vi.fn<(req: { offerId: string; expectedPrice: number; requestId: string }) => Promise<BuyPackRemoteOutcome>>();
+const openPackRemote = vi.fn<(packId: string) => Promise<unknown>>();
+const claimRemote = vi.fn<(requestId: string) => Promise<unknown>>();
 const enqueue = vi.fn((req: { runId: string }) => (userId && remote ? { ...req, userId, at: '', attempts: 0 } : null));
 
 vi.mock('../identity', () => ({ currentUserId: () => userId }));
@@ -36,6 +41,11 @@ vi.mock('./progressionRemote', async (orig) => ({
   fetchOwnProgression: () => own(),
   fetchOwnCrates: () => ownCrates(),
   fetchSeenCosmeticIds: () => seenIds(),
+  fetchPacksEnabled: () => packsEnabled(),
+  fetchPackShop: () => packShopRead(),
+  buyPackRemote: (req: Parameters<typeof buyPackRemote>[0]) => buyPackRemote(req),
+  openPackRemote: (id: string) => openPackRemote(id),
+  claimPackRewardRemote: (id: string) => claimRemote(id),
 }));
 vi.mock('./progressionQueue', () => ({
   enqueuePendingProgression: (req: { runId: string }) => enqueue(req),
@@ -63,6 +73,7 @@ beforeEach(() => {
   seenIds.mockReset().mockResolvedValue(undefined);
   aetherEnabled.mockReset().mockResolvedValue(false); aetherEconomy.mockReset().mockResolvedValue(undefined);
   buyRemote.mockReset(); openRemote.mockReset(); ownCrates.mockReset().mockResolvedValue(undefined);
+  packsEnabled.mockReset().mockResolvedValue(undefined); packShopRead.mockReset(); buyPackRemote.mockReset(); openPackRemote.mockReset(); claimRemote.mockReset();
   localStorage.clear();
 });
 
@@ -379,5 +390,135 @@ describe('Aether (capability, economy, buyCrate)', () => {
     S.resetProgressionForTests();
     expect(S.useProgression.getState().aetherCapability).toBe('unknown');
     expect(S.useProgression.getState().economy).toBe(DEFAULT_AETHER_ECONOMY);
+  });
+});
+
+describe('the pack economy (2026-12-01)', () => {
+  const rare = { kind: 'rarity', id: 'rarity-rare', name: 'Rare Pack', guaranteedFloor: 'rare' } as const;
+  const snapshot = (over: Partial<PackShopSnapshot> = {}): PackShopSnapshot => ({
+    windowId: 'w1', nextRefreshAt: 2_000_000_000_000, shelves: [{ id: 'rarity', name: 'Rarity Packs' }],
+    offers: [
+      { offerId: 'w1:rarity-rare', look: rare, price: 175, shelf: 'rarity', contains: 1 },
+      { offerId: 'w1:deal:0', look: rare, price: 105, fullPrice: 175, stock: 1, shelf: 'featured', contains: 1 },
+    ],
+    packs: [{ packId: 'p-1', look: rare }], packMeter: { progress: 3, ready: 0 }, aether: 1000, ...over,
+  });
+  const loaded = async (over: Partial<PackShopSnapshot> = {}): Promise<void> => {
+    S.adoptProgressionProfile('u-1', profile({ aether: 1000 }));
+    packShopRead.mockResolvedValueOnce({ status: 'ok', shop: snapshot(over) });
+    await S.refreshPackShop();
+  };
+  const shop = (): PackShopSnapshot => S.useProgression.getState().packShop!.shop!;
+
+  it('the probe reads packs_enabled after the other switches; packsVisible needs progression on too', async () => {
+    enabled.mockResolvedValue(true);
+    packsEnabled.mockResolvedValue(true);
+    await S.probeProgression();
+    expect(S.useProgression.getState().packsCapability).toBe('on');
+    expect(S.packsVisible(S.useProgression.getState())).toBe(true);
+    expect(S.packsVisible({ capability: 'off', packsCapability: 'on' })).toBe(false);
+    packsEnabled.mockResolvedValue(undefined); // could not ask: keeps what it had
+    await S.probeProgression();
+    expect(S.useProgression.getState().packsCapability).toBe('on');
+  });
+
+  it('the shop read keeps the last answer while loading, adopts the balance, and a failed read is "failed"', async () => {
+    await loaded();
+    expect(S.useProgression.getState().packShop).toMatchObject({ userId: 'u-1', status: 'ready' });
+    expect(S.aetherBalance(S.useProgression.getState())).toBe(1000);
+    packShopRead.mockResolvedValueOnce({ status: 'error', reason: 'packs_disabled' });
+    await S.refreshPackShop();
+    expect(S.useProgression.getState().packShop).toMatchObject({ status: 'failed', shop: { windowId: 'w1' } });
+  });
+
+  it("a buy sends the price the shop shows and the shop's request id; ok adds the pack, moves the balance, the meter and the stock", async () => {
+    await loaded();
+    buyPackRemote.mockResolvedValueOnce({ status: 'ok', packs: [{ packId: 'p-2', look: rare }], aether: 895, meter: { progress: 4, ready: 0 } });
+    const out = await S.buyPack('w1:deal:0', 'req-1');
+    expect(buyPackRemote).toHaveBeenCalledWith({ offerId: 'w1:deal:0', expectedPrice: 105, requestId: 'req-1' });
+    expect(out).toEqual({ status: 'ok', packs: [{ packId: 'p-2', look: rare }], aether: 895 });
+    expect(shop().packs.map((p) => p.packId)).toEqual(['p-1', 'p-2']);
+    expect(shop().packMeter).toEqual({ progress: 4, ready: 0 });
+    expect(shop().offers[1]).toMatchObject({ stock: 0, soldOut: true });
+    expect(S.aetherBalance(S.useProgression.getState())).toBe(895);
+  });
+
+  it('refusals: no_room and guest pass through (nothing re-read), expired swaps in the offers it carried, an unknown failure is "failed" and re-reads', async () => {
+    await loaded();
+    buyPackRemote.mockResolvedValueOnce({ status: 'error', reason: 'no_room', aether: 1000 });
+    expect(await S.buyPack('w1:rarity-rare', 'r1')).toEqual({ status: 'error', reason: 'no_room', aether: 1000 });
+    buyPackRemote.mockResolvedValueOnce({ status: 'error', reason: 'guest', aether: 1000 });
+    expect(await S.buyPack('w1:rarity-rare', 'r2')).toEqual({ status: 'error', reason: 'guest', aether: 1000 });
+    expect(packShopRead).toHaveBeenCalledTimes(1);
+    const fresh = [{ offerId: 'w2:rarity-rare', look: rare, price: 175, shelf: 'rarity', contains: 1 }];
+    packShopRead.mockResolvedValue({ status: 'ok', shop: snapshot({ windowId: 'w2', offers: fresh }) });
+    buyPackRemote.mockResolvedValueOnce({ status: 'error', reason: 'expired', aether: 1000, offers: fresh });
+    expect(await S.buyPack('w1:rarity-rare', 'r3')).toMatchObject({ status: 'error', reason: 'expired' });
+    expect(shop().offers.map((o) => o.offerId)).toEqual(['w2:rarity-rare']);
+    await vi.waitFor(() => expect(S.useProgression.getState().packShop?.status).toBe('ready'));
+    buyPackRemote.mockResolvedValueOnce({ status: 'error', reason: 'timeout' });
+    const before = packShopRead.mock.calls.length;
+    expect(await S.buyPack('w2:rarity-rare', 'r4')).toEqual({ status: 'error', reason: 'failed' });
+    expect(packShopRead.mock.calls.length).toBeGreaterThan(before);
+  });
+
+  it('opening takes the pack out of the hand and adopts the balance after the duplicates; a claim adds its pack and meter', async () => {
+    await loaded();
+    const cards = [0, 1, 2, 3, 4].map((i) => ({ rewardId: 'x' + i, rarity: 'common' as const, guaranteed: i === 4, duplicate: null }));
+    openPackRemote.mockResolvedValueOnce({ status: 'ok', result: { packId: 'p-1', pack: rare, cards, aether: 1020 }, alreadyOpened: false });
+    const out = await S.openPack('p-1');
+    expect(out.status).toBe('ok');
+    expect(shop().packs).toEqual([]);
+    expect(S.aetherBalance(S.useProgression.getState())).toBe(1020);
+    const epic = { kind: 'rarity', id: 'rarity-epic', name: 'Epic Pack', guaranteedFloor: 'epic' } as const;
+    claimRemote.mockResolvedValueOnce({ status: 'ok', packs: [{ packId: 'p-r', look: epic }], meter: { progress: 0, ready: 0 } });
+    expect(await S.claimPackReward('c-1')).toEqual({ status: 'ok', packs: [{ packId: 'p-r', look: epic }] });
+    expect(shop().packs.map((p) => p.packId)).toEqual(['p-r']);
+    claimRemote.mockResolvedValueOnce({ status: 'error', reason: 'packs_disabled' });
+    packShopRead.mockResolvedValue({ status: 'ok', shop: snapshot() });
+    expect(await S.claimPackReward('c-2')).toEqual({ status: 'error', reason: 'failed' });
+  });
+
+  it("an open's new cards are owned in the mirror at once (duplicates add nothing), and the profile is re-read", async () => {
+    await loaded();
+    const before = own.mock.calls.length;
+    const cards = [
+      { rewardId: 'title_hearthkeeper', rarity: 'rare' as const, guaranteed: false, duplicate: null },
+      { rewardId: 'title_star_chaser', rarity: 'common' as const, guaranteed: true, duplicate: { aether: 20 } },
+    ];
+    openPackRemote.mockResolvedValueOnce({ status: 'ok', result: { packId: 'p-1', pack: rare, cards, aether: 1020 }, alreadyOpened: false });
+    await S.openPack('p-1');
+    const m = S.useProgression.getState().mirror!;
+    expect(m.cosmetics).toContain('title_hearthkeeper');
+    expect(m.titles).toContain('title_hearthkeeper');
+    expect(m.cosmetics!.filter((id) => id === 'title_star_chaser').length).toBeLessThanOrEqual(1);
+    expect(own.mock.calls.length).toBeGreaterThan(before);
+  });
+
+  it('a replayed buy that answers a pack already opened here never puts it back in the hand', async () => {
+    await loaded();
+    const cards = [0, 1, 2, 3, 4].map((i) => ({ rewardId: 'x' + i, rarity: 'common' as const, guaranteed: i === 4, duplicate: null }));
+    openPackRemote.mockResolvedValueOnce({ status: 'ok', result: { packId: 'p-1', pack: rare, cards }, alreadyOpened: false });
+    await S.openPack('p-1');
+    buyPackRemote.mockResolvedValueOnce({ status: 'ok', packs: [{ packId: 'p-1', look: rare }], aether: 1000, meter: null });
+    const out = await S.buyPack('w1:rarity-rare', 'req-1');
+    expect(out).toEqual({ status: 'ok', packs: [], aether: 1000 });
+    expect(shop().packs).toEqual([]);
+  });
+
+  it("a buy's meter moves progress and ready, and keeps the shop's reward size and rarity", async () => {
+    await loaded({ packMeter: { progress: 3, ready: 0, every: 10, rarity: 'legendary' } });
+    buyPackRemote.mockResolvedValueOnce({ status: 'ok', packs: [{ packId: 'p-2', look: rare }], aether: 825, meter: { progress: 4, ready: 0 } });
+    await S.buyPack('w1:rarity-rare', 'req-1');
+    expect(shop().packMeter).toEqual({ progress: 4, ready: 0, every: 10, rarity: 'legendary' });
+  });
+
+  it('a settlement that granted packs re-reads a loaded shop; its pack ids queue as new rewards', async () => {
+    await loaded();
+    packShopRead.mockResolvedValue({ status: 'ok', shop: snapshot({ packs: [{ packId: 'p-1', look: rare }, { packId: 'w-1', look: rare }] }) });
+    S.applyProgressionOutcome({ userId: 'u-1', runId: 'run-1', mode: 'ranked' }, { status: 'confirmed', result: result({ packsAwarded: 1, packIds: ['w-1'] }), profile: profile({ revision: 5 }), deduped: false });
+    await vi.waitFor(() => expect(shop().packs.map((p) => p.packId)).toEqual(['p-1', 'w-1']));
+    const { useNewRewards } = await import('./newRewards');
+    expect(useNewRewards.getState().unseen.packs).toEqual(['w-1']);
   });
 });

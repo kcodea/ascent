@@ -1,4 +1,4 @@
-import { aetherShort, canAfford, COSMETIC_CATEGORIES, counterHasRoom, counterSplit, DEFAULT_PACK_ECONOMY, lookKey, ownsEveryCosmetic, type CosmeticCategory, type CrateRarity, type OwnedPack, type PackLook, type PackOffer, type WaitingPacks } from '@game/progression';
+import { aetherShort, canAfford, COSMETIC_CATEGORIES, COSMETIC_RARITIES, RARITY_LABELS, counterHasRoom, counterSplit, DEFAULT_PACK_ECONOMY, lookKey, ownsEveryCosmetic, type CosmeticCategory, type CrateRarity, type OwnedPack, type PackLook, type PackOffer, type WaitingPacks } from '@game/progression';
 import { SCRIBBLE_PACK_LOOK_ID, STYLE_PACKS } from '../packOpening/packArt';
 import { packRarityLabel } from '../packOpening/packRarity';
 import { startScroll } from './shopLayout';
@@ -41,6 +41,27 @@ export function packGuarantee(look: PackLook): PackGuarantee {
   }
   if (look.kind === 'themed' && STYLE_IDS.has(look.id)) return { kind: 'style', label: look.name.replace(/\s+Pack$/i, '') };
   return { kind: 'rarity', rarity: look.guaranteedFloor };
+}
+
+/** One line of a Rarity pack's odds on its tag: which cards it covers, then each rarity it can roll with its percent. */
+export interface PackOddsRow {
+  label: string;
+  items: { rarity: CrateRarity; text: string }[];
+}
+
+/**
+ * THE ODDS ON A RARITY PACK'S TAG (owner 2026-11-27: "pack odds can show on the rarity packs. the other packs dont need
+ * it. o nthe pack tag"; R-PROG-PACK-12). The server's own numbers (`offer.odds`, from the roll's `pack_config`), never
+ * recomputed here: cards 1-4, then card 5, each rarity it can roll (a 0 is left out). A Common pack's card 5 rolls like
+ * the rest, so it reads as one line for all five. Null for a Category or style pack, or an offer with no odds.
+ */
+export function packOddsRows(offer: PackOffer): PackOddsRow[] | null {
+  if (!offer.odds || packGuarantee(offer.look).kind !== 'rarity') return null;
+  const items = (rec: Record<CrateRarity, number>) =>
+    COSMETIC_RARITIES.filter((r) => rec[r] > 0).map((rarity) => ({ rarity, text: `${RARITY_LABELS[rarity]} ${rec[rarity]}%` }));
+  const { cards, last } = offer.odds;
+  if (COSMETIC_RARITIES.every((r) => cards[r] === last[r])) return [{ label: 'Cards 1-5', items: items(cards) }];
+  return [{ label: 'Cards 1-4', items: items(cards) }, { label: 'Card 5', items: items(last) }];
 }
 
 /** The tag's promise line for `offer`. Once the player owns every cosmetic a category pack can give, its fifth card can only be a duplicate. */

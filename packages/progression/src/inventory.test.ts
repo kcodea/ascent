@@ -305,7 +305,7 @@ describe('the pack actions (2026-12-01)', () => {
   });
 
   it('maps every RAISED code to its status', async () => {
-    const codes: Record<string, number> = { packs_disabled: 409, pack_not_found: 404, unsupported_offer: 409, shop_retired: 409, chests_frozen: 409, bad_offer_id: 400, bad_pack_id: 400 };
+    const codes: Record<string, number> = { packs_disabled: 409, pack_not_found: 404, unsupported_offer: 409, shop_retired: 409, chests_frozen: 409, bad_offer_id: 400, bad_pack_id: 400, pack_config_missing: 503 };
     for (const [code, status] of Object.entries(codes)) {
       expect(await handleInventory(USER, buyPack(), rpcReturning(null, { message: `P0001: ${code}` }))).toEqual({ status, body: { error: code } });
     }

@@ -9,6 +9,8 @@ import { achievementsVisible, useProgression } from './progressionStore';
 import { hasNewRewards, markNewRewardsSeen, syncNewRewards, unseenCount, useNewRewards, type UnseenRewards } from './newRewards';
 import { xpText } from './progressionFormat';
 import { usePhLayer } from '../partyHome/shell/usePhLayer';
+import { openPackShopDoor } from '../partyHome/shell/shellStore';
+import { FROZEN_CHESTS_NOTE } from './collectionModel';
 import './collection.css';
 
 /**
@@ -19,7 +21,12 @@ import './collection.css';
  *  - `NewRewardsPopup`: the one tidy summary the Collection opens with: achievements unlocked (with XP, and a link to
  *    them all in Career), titles unlocked, crates earned (Open / Open all through the Collection's own crate
  *    theatre, by the bay's own rules). Any way out of it marks everything seen.
+ *
+ * PACKS ON (the pack economy, 2026-12-01, spec section 11): no chest Open (a sealed chest is frozen; the frozen line
+ * says why), and the packs a settlement granted are listed with one way to them, the Pack Shop.
  */
+export const PACKS_EARNED_NOTE = 'They are waiting for you in the Pack Shop.';
+export const TO_PACK_SHOP = 'Go to the Pack Shop';
 
 /** Is anything waiting? Keeps the queue pointed at the signed-in account. */
 export function useHasNewRewards(): boolean {
@@ -35,9 +42,14 @@ export function NewPill() {
 /** The Career's one-shot open intent (Career.tsx `CAREER_OPEN_TAB_KEY`): "See all in Career" opens the Achievements tab. */
 const CAREER_TAB_KEY = 'ascent.career.openTab';
 
-export function NewRewardsPopup({ sealedIds, onOpenCrates }: {
+export function NewRewardsPopup({ sealedIds, sealedPackIds = null, onOpenCrates, packsOn = false }: {
   /** The crates still sealed right now (a queued crate opened elsewhere drops out). */
   sealedIds: ReadonlySet<string> | null;
+  /** The packs still sealed right now, once the Pack Shop has been read (a queued pack opened there drops out); null =
+   *  not known yet, so every queued pack is listed. */
+  sealedPackIds?: ReadonlySet<string> | null;
+  /** The server's packs switch: chests show without Open, and packs link to the Pack Shop. */
+  packsOn?: boolean;
   /** Open the crates in the Collection's theatre: one, or all. */
   onOpenCrates: (all: boolean) => void;
 }) {
@@ -69,8 +81,12 @@ export function NewRewardsPopup({ sealedIds, onOpenCrates }: {
   const crates = shown.crates.filter((c) => !sealedIds || sealedIds.has(c.crateId));
   const achievements = shown.achievements.map((a) => ({ ...a, def: achievementOf(a.id) })).filter((a) => !!a.def);
   const titles = shown.titles.filter((t) => titleName(t));
+  // Packs are listed only with packs on (the Pack Shop is where they are); before the switch none are granted.
+  // Only the ones still sealed: "They are waiting for you in the Pack Shop" must be true of each one listed.
+  const packs = packsOn ? (shown.packs ?? []).filter((id) => !sealedPackIds || sealedPackIds.has(id)) : [];
   // Everything it held has gone (the crates opened elsewhere, ids this build does not know): nothing to show.
-  if (achievements.length + titles.length + crates.length === 0) { queueMicrotask(dismiss); return null; }
+  if (achievements.length + titles.length + crates.length + packs.length === 0) { queueMicrotask(dismiss); return null; }
+  const toPackShop = (): void => { sfx.pulse(); dismiss(); openPackShopDoor(); };
   const openCrates = (all: boolean): void => { sfx.pulse(); dismiss(); onOpenCrates(all); };
   const seeCareer = (): void => {
     sfx.pulse();
@@ -114,10 +130,25 @@ export function NewRewardsPopup({ sealedIds, onOpenCrates }: {
             <div className="nrw-cratetext">
               <div className="nrw-kicker">{crates.length === 1 ? 'Chest earned' : `${crates.length} chests earned`}</div>
               <div className="nrw-note">{crates.map((c) => crateLabel(c)).join(', ')}</div>
+              {packsOn && <div className="nrw-note nrw-frozen">{FROZEN_CHESTS_NOTE}</div>}
+            </div>
+            {packsOn ? null : (
+              <div className="nrw-crate-actions">
+                <button type="button" className="crate-btn pressable" onClick={() => openCrates(false)}>Open</button>
+                {crates.length > 1 && <button type="button" className="colls-quiet pressable quiet" onClick={() => openCrates(true)}>Open all ({crates.length})</button>}
+              </div>
+            )}
+          </div>
+        )}
+        {packs.length > 0 && (
+          <div className="nrw-sec nrw-crates nrw-packs">
+            <span className="acctxp-crates-icon" aria-hidden />
+            <div className="nrw-cratetext">
+              <div className="nrw-kicker">{packs.length === 1 ? 'Pack earned' : `${packs.length} packs earned`}</div>
+              <div className="nrw-note">{PACKS_EARNED_NOTE}</div>
             </div>
             <div className="nrw-crate-actions">
-              <button type="button" className="crate-btn pressable" onClick={() => openCrates(false)}>Open</button>
-              {crates.length > 1 && <button type="button" className="colls-quiet pressable quiet" onClick={() => openCrates(true)}>Open all ({crates.length})</button>}
+              <button type="button" className="crate-btn pressable" onClick={toPackShop}>{TO_PACK_SHOP}</button>
             </div>
           </div>
         )}

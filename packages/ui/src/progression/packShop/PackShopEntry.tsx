@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
-import { packDuplicateAether } from '@game/progression';
+import { PACK_REWARD_EVERY, PACK_REWARD_RARITY, packDuplicateAether } from '@game/progression';
 import { closePackShopDoor, usePhShell } from '../../partyHome/shell/shellStore';
 import { getScreenWipeConfig } from '../../screenWipeConfig';
 import { sfx } from '../../sfx';
@@ -10,6 +10,9 @@ import { PACK_LAB_SAMPLES, cancelLabTimers, makeLabOpen, type LabTimers } from '
 import { PackShop, type PackShopProps } from './PackShop';
 import { SHOP_LAB_SHELVES, labNextRefresh, labRewardCount, labShopDay, shopLabOffers, labHand, makeLabBuy, type LabState } from './shopLabData';
 import { useLabReward } from './useLabReward';
+import { useGame } from '../../store';
+import { CrateSignInGate } from '../CrateSignInGate';
+import { buyPack, claimPackReward, openPack, packsVisible, refreshPackShop, useProgression } from '../progressionStore';
 
 /**
  * THE WAY INTO THE PACK SHOP FROM THE MENU (owner 2026-11-26: "when clicking shop. i want to use the return to shop
@@ -20,8 +23,10 @@ import { useLabReward } from './useLabReward';
  * timings as Recruit's: the land rises in, a hold, the dive through the door; styles.css `.wipevista`) over the menu, and
  * mounts the pack shop behind it at the hold, so the dive lands inside the shop.
  *
- * DEV ONLY for now: there is no server for pack purchases yet, so the shop behind the door runs on the Pack Shop lab's
- * fake catalog, wallet and hand (`shopLabData.ts`). Production keeps the crate shop on the Shop tab.
+ * WHICH SHOP IS BEHIND THE DOOR (the pack economy, 2026-12-01): with the server's `packs_enabled` on, the real one
+ * (`ServerPackShop`: the `pack_shop` read, and every purchase, opening and reward claim through the server). With it
+ * off, a DEV build keeps the Pack Shop lab's fake catalog, wallet and hand (`shopLabData.ts`) for tuning; a production
+ * build never mounts this then (the Shop tab is the Chest Shop, `shopTabTarget.ts`).
  */
 
 /** The vista's layers behind the shop, back to front (Recruit's `VISTA_LAYERS`, here as plain CSS pictures). */
@@ -155,16 +160,111 @@ function LabPackShop({ onClose }: { onClose: () => void }) {
   );
 }
 
-/** Mounted once by the app shell (dev builds). Each press of the Shop tab plays the trip and opens the shop behind it. */
+/** The failed state (the read did not answer, or the switch went off under it): one line and the way out. */
+const SHOP_FAILED_NOTE = 'The Pack Shop could not be reached. Try again in a moment.';
+
+/** The shop's read did not answer: the generic failed state, over the stage like the shop, with focus on Try again and
+ *  Esc to close. */
+function PackShopFailed({ onClose }: { onClose: () => void }) {
+  const tryRef = useRef<HTMLButtonElement>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  useEffect(() => { tryRef.current?.focus(); }, []);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key !== 'Escape' || e.defaultPrevented) return;
+      e.preventDefault();
+      e.stopPropagation();
+      sfx.tick();
+      onCloseRef.current();
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, []);
+  return createPortal(
+    <div className="pks pks-failed" role="dialog" aria-modal="true" aria-label="Pack Shop">
+      <p className="pks-failed-note" role="alert">{SHOP_FAILED_NOTE}</p>
+      <div className="pks-failed-actions">
+        <button ref={tryRef} type="button" className="cv2-btn pressable" onClick={() => { sfx.pulse(); void refreshPackShop(); }}>Try again</button>
+        <button type="button" className="colls-quiet pressable quiet" onClick={() => { sfx.tick(); onClose(); }}>Close</button>
+      </div>
+    </div>,
+    stageHost(),
+  );
+}
+
+/**
+ * THE PACK SHOP ON THE SERVER (packs on). The shop is read when it opens (and again when its window turns over); a
+ * purchase sends the price the shop shows and the shop's request id (one per attempt, reused on its retry, so the
+ * server never charges twice); an opening and a reward claim go through the server too. A guest sees everything but
+ * spends nothing (R-PROG-PACK-10): a buy, an opening or a claim shows the sign-in gate and never reaches the server, and
+ * a server `guest` answer to any of them asks for the gate too (it stands only while the account is a guest).
+ */
+export function ServerPackShop({ onClose }: { onClose: () => void }) {
+  const state = useProgression((s) => s.packShop);
+  const userId = useGame((s) => s.account.userId);
+  const anonymous = useGame((s) => s.account.anonymous);
+  const anonRef = useRef(anonymous);
+  anonRef.current = anonymous;
+  const [gate, setGate] = useState(false);
+  const closeGate = useCallback((): void => setGate(false), []);
+  // Read on open, unless the door's trip already asked (a read in flight is shared, one already back is used).
+  useEffect(() => {
+    const cur = useProgression.getState().packShop;
+    if (!cur || cur.userId !== useGame.getState().account.userId || cur.status === 'failed') void refreshPackShop();
+  }, []);
+  const mine = state && state.userId === userId ? state : null;
+  const shop = mine?.shop ?? null;
+  const buy = useCallback<PackShopProps['buy']>(async (offerId, requestId) => {
+    if (anonRef.current) { setGate(true); return { status: 'error', reason: 'guest' }; }
+    const out = await buyPack(offerId, requestId);
+    if (out.status === 'error' && out.reason === 'guest') setGate(true);
+    return out;
+  }, []);
+  const open = useCallback<PackShopProps['open']>(async (packId) => {
+    if (anonRef.current) { setGate(true); return { status: 'error', reason: 'guest' }; }
+    const out = await openPack(packId);
+    if (out.status === 'error' && out.reason === 'guest') setGate(true);
+    return out;
+  }, []);
+  const claim = useCallback<NonNullable<PackShopProps['claimReward']>>(async (requestId) => {
+    if (anonRef.current) { setGate(true); return { status: 'error', reason: 'guest' }; }
+    const out = await claimPackReward(requestId);
+    if (out.status === 'error' && out.reason === 'guest') setGate(true);
+    return out;
+  }, []);
+  const onRefresh = useCallback((): void => { void refreshPackShop(); }, []);
+  // the reward's size and rarity are the server's (pack_config); the constants only stand in for an older server
+  const meter = shop?.packMeter;
+  const reward = useMemo(() => (meter ? {
+    rarity: meter.rarity ?? PACK_REWARD_RARITY, every: meter.every ?? PACK_REWARD_EVERY, progress: meter.progress, ready: meter.ready,
+  } : undefined), [meter]);
+  if (!shop) {
+    // Loading: nothing yet (the door's trip covers the wait). Failed: the generic failed state.
+    return mine?.status === 'failed' ? <PackShopFailed onClose={onClose} /> : null;
+  }
+  return (
+    <>
+      <PackShop shelves={shop.shelves} offers={shop.offers} refreshesAt={shop.nextRefreshAt} onRefresh={onRefresh} hand={shop.packs} aether={shop.aether}
+        reward={reward} claimReward={claim} buy={buy} open={open} onClose={onClose} modalAbove={gate && anonymous} />
+      {/* over the shop on the stage (the shop is portalled there at z 690; the gate's scrim sits at 720) */}
+      {createPortal(<div className="pks-gatehost"><CrateSignInGate open={gate} onClose={closeGate} /></div>, stageHost())}
+    </>
+  );
+}
+
+/** Mounted once by the app shell. Each press of the Shop tab plays the trip and opens the shop behind it. */
 export default function PackShopEntry() {
+  const packsOn = useProgression(packsVisible);
   const door = usePhShell((s) => s.packShopDoor);
   const [trip, setTrip] = useState(0); // the door count whose trip is playing (0 = none)
   const [shop, setShop] = useState(false);
-  useEffect(() => { if (door > 0) setTrip(door); }, [door]);
+  // With packs on, the shop's read starts with the trip, so the dive usually lands on a stocked shop.
+  useEffect(() => { if (door > 0) { setTrip(door); if (useProgression.getState().packsCapability === 'on') void refreshPackShop(); } }, [door]);
   const close = useCallback((): void => { setShop(false); setTrip(0); closePackShopDoor(); }, []);
   return (
     <>
-      {shop && <LabPackShop onClose={close} />}
+      {shop && (packsOn ? <ServerPackShop onClose={close} /> : import.meta.env.DEV ? <LabPackShop onClose={close} /> : null)}
       {trip > 0 && <ShopDoorTrip key={trip} onCovered={() => setShop(true)} onDone={() => setTrip(0)} />}
     </>
   );

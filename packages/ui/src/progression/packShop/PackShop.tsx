@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { aetherShort, saleOff, type BuyPackOutcome, type ClaimRewardOutcome, type CosmeticCategory, type CrateRarity, type OwnedPack, type PackOffer, type PackShelf } from '@game/progression';
 import { rectToStage, stageHost, stageViewport, type StageRect } from '../../stage';
@@ -14,7 +14,7 @@ import { createShopScene, type ScreenRect, type ShopScene } from './shopScene';
 import { createShopSounds, type ShopSounds } from './shopSounds';
 import { isLoopRack, shopLayout } from './shopLayout';
 import { setNavAether } from '../../partyHome/shell/shellStore';
-import { NO_ROOM_NOTE, buyKey, buyableIds, counterHasRoom, counterSplit, ownedCount, packGuarantee, packTag, shelfOffers, srLine, startIndex } from './shopModel';
+import { NO_ROOM_NOTE, buyKey, buyableIds, counterHasRoom, counterSplit, ownedCount, packGuarantee, packOddsRows, packTag, shelfOffers, srLine, startIndex } from './shopModel';
 import '../packOpening/packOpening.css';
 import './packShop.css';
 
@@ -28,12 +28,12 @@ const CATEGORY_MEDALS: Partial<Record<CosmeticCategory, MenuMedalName>> = {
  * THE PACK SHOP SHELL (spec docs/superpowers/specs/2026-11-25-pack-shop-design.md, sections 4, 6, 7, 14). The Pixi scene
  * (`shopScene.ts`) draws and moves everything; this shell owns the words and the controls: the shelf tabs, the wallet,
  * the tag beside a hovered / focused / selected pack, the words at the counter line, the purchase call, the handoff to
- * `PackOpener`, a visually hidden list mirroring the shelf and the hand, and one polite live region. Dev-only for now:
- * only the Shop Lab mounts it.
+ * `PackOpener`, a visually hidden list mirroring the shelf and the hand, and one polite live region. Mounted by
+ * `PackShopEntry` on the server's shop (packs on), and by the Shop Lab on a fake one (dev).
  *
  * NEVER CHARGED TWICE (as the Chest Shop, `CrateShop.tsx`): every purchase attempt sends a request id, kept per
  * `buyKey(offer)` (the offer AND its quote) until a DEFINITE answer: `ok`, or a refusal (`insufficient`,
- * `price_changed`, `sold_out`, `guest`). An attempt that threw or answered `failed` may have landed, so a retry of the
+ * `price_changed`, `sold_out`, `no_room`, `expired`, `guest`). An attempt that threw or answered `failed` may have landed, so a retry of the
  * same quote sends the SAME id. One purchase at a time: while one is pending, another drop goes back, a Buy does
  * nothing, no pack is played and Esc does not close. Behind the opener the shop is `inert` and buys nothing. A purchase with no answer after `BUY_TIMEOUT_MS` settles as `failed` (the id kept); its late answer is
  * ignored.
@@ -69,6 +69,8 @@ export interface PackShopProps {
   /** Passed straight to `PackOpener`. */
   open: (packId: string) => Promise<PackOpenOutcome>;
   onClose?: () => void;
+  /** A modal stands over the shop (the sign-in gate): its Esc is that modal's, so the shop ignores Esc meanwhile. */
+  modalAbove?: boolean;
   reducedMotion?: boolean;
   /** Tests inject a fake. */
   sceneFactory?: typeof createShopScene;
@@ -130,7 +132,9 @@ const SPARK_RAYS = 12;
 /** A purchase with no answer by then settles as `failed` (its request id kept), so the shop is never held for good. */
 export const BUY_TIMEOUT_MS = 15000;
 /** Refusals that are definite: the server did not charge, so the attempt's request id is spent. */
-const DEFINITE = new Set(['insufficient', 'price_changed', 'sold_out', 'guest']);
+const DEFINITE = new Set(['insufficient', 'price_changed', 'sold_out', 'no_room', 'expired', 'guest']);
+/** The offer has left the shelf (the window turned over): the parent swaps in the new offers. */
+export const EXPIRED_NOTE = 'That offer has ended. The shop has new packs';
 
 function mintRequestId(): string {
   const c = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto;
@@ -159,6 +163,26 @@ function tagStyle(r: StageRect | null, kind: 'shelf' | 'hand'): CSSProperties | 
   const foot = shopLayout(vp.w, vp.h).floorY + TAG_GAP;
   return { left, top: Math.min(r.top + r.height + TAG_GAP, foot), translate: '-50% 0' };
 }
+
+/**
+ * A Rarity pack's odds on its tag and grid card (R-PROG-PACK-12), always shown, small and quiet under the price: one
+ * line for cards 1-4 and one for card 5, each rarity in its own colour. Memoized on the offer (a stable quote object), so
+ * a hover, a drag or a balance change never rebuilds it. Category and style packs draw nothing.
+ */
+const PackOddsLines = memo(function PackOddsLines({ offer, cls }: { offer: PackOffer; cls: string }) {
+  const rows = useMemo(() => packOddsRows(offer), [offer]);
+  if (!rows) return null;
+  return (
+    <div className={`pks-odds ${cls}-odds`} data-testid="pks-odds">
+      {rows.map((row) => (
+        <p key={row.label} className="pks-odds-row">
+          <span className="pks-odds-label">{row.label}:</span>
+          {row.items.map((it) => <span key={it.rarity} className={`pks-odds-r r-${it.rarity}`}>{' '}{it.text}</span>)}
+        </p>
+      ))}
+    </div>
+  );
+});
 
 /**
  * The browse tip (owner 2026-11-27: "Hold down right click to browse the shop options. once the player holds right click,
@@ -218,6 +242,7 @@ export function PackShop(props: PackShopProps) {
   const balanceRef = useRef(balance);
   const buyRef = useRef(buy); buyRef.current = buy;
   const onCloseRef = useRef(onClose); onCloseRef.current = onClose;
+  const modalAboveRef = useRef(!!props.modalAbove); modalAboveRef.current = !!props.modalAbove;
   const pendingRef = useRef(false);
   const playedRef = useRef<string | null>(null);
   const playTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -381,6 +406,9 @@ export function PackShop(props: PackShopProps) {
             break;
           }
           case 'sold_out': say('Sold out'); break;
+          // the server's counter was fuller than the one shown (a pack granted meanwhile): the pack goes back, nothing charged
+          case 'no_room': say(NO_ROOM_NOTE); break;
+          case 'expired': say(EXPIRED_NOTE); break;
           case 'guest': say('Sign in to buy packs'); break; // the caller's own `buy` shows its sign-in gate
           default: say(FAILED_NOTE);
         }
@@ -695,7 +723,7 @@ export function PackShop(props: PackShopProps) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       // The opener has its own keys (its Esc closes it, not the shop); a handled key is not ours.
-      if (e.key !== 'Escape' || openingRef.current || e.defaultPrevented) return;
+      if (e.key !== 'Escape' || openingRef.current || modalAboveRef.current || e.defaultPrevented) return;
       // Esc is the shop's alone (window, capture: heard before the game's own Esc listener, which opens Settings).
       e.preventDefault();
       e.stopPropagation();
@@ -797,6 +825,7 @@ export function PackShop(props: PackShopProps) {
             <span className="pks-off">{`-${saleOff(o)}%`}</span>
           </>}
         </div>
+        <PackOddsLines offer={o} cls={cls} />
         {!t.soldOut && o.stock !== undefined && <div className="pks-stock">{`${o.stock} left today`}</div>}
         {t.soldOut ? <div className={`${cls}-short`}>Sold out</div> : t.short > 0 && <div className={`${cls}-short`}>{`Need ${t.short} more Aether`}</div>}
         {full && t.short <= 0 && <div className={`${cls}-short`}>Open packs to make room</div>}

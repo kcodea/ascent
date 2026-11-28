@@ -216,7 +216,7 @@ export const ENTRIES: readonly WikiEntry[] = [
     a: "A single-player challenge of hand-built **stages** that you play one at a time. Open the **Gauntlet** tab on the Play screen, pick a stage, press **Start** and pick any hero. Each stage is **10 rounds** against one opponent whose board grows every round: **survive all ten** and you clear it. **Clearing a stage unlocks the next one.** Nothing is rated, so it never touches your Rating. Signed in, the **first clear of each stage earns a chest**, or **200 Aether** once Aether has arrived; replaying a cleared stage doesn't. Signed out, your clears are saved on this device only and earn nothing.",
     aliases: ['stages', 'stage select', 'single player', 'solo', 'campaign', 'challenge'],
     seeAlso: ['game-modes', 'crates'],
-    covers: [{ rule: 'R-PROG-AETHER-01', fp: '2865f837' }],
+    covers: [{ rule: 'R-PROG-AETHER-01', fp: '204d6c10' }],
   },
   {
     id: 'practice-mode',
@@ -371,10 +371,15 @@ export const ENTRIES: readonly WikiEntry[] = [
     q: 'What are chests and how do I get them?',
     a: "Your first game gives a **Welcome Chest**. After that you get **one chest per Account Level**, and the **first time you clear each Gauntlet stage** while signed in earns one too. **Once Aether arrives**, that changes: you get a free **Epic Chest** at Level **10, 20, 30** and every 10th level after instead of one every level (these milestone chests open like any other chest and can't be focused; ones you already got as Legendary stay Legendary), a first Gauntlet clear pays **Aether**, and you spend Aether in the **Shop** in the top bar (Standard 100, Rare 200, Epic 400, Legendary 600, Ancient 900). Everyone gets **1,000 Aether** free when it arrives; after that it is only earned by playing, never bought with real money, and chests you already hold stay yours. Open a chest right after the game or later from the **Collection**. It gives you a cosmetic you **don't already own**. A plain chest rolls **Common 35%, Rare 31%, Epic 22%, Legendary 9%, Ancient 3%** (if you already own everything of the rarity it rolls, you get the nearest rarity that still has something); a Rare, Epic, Legendary or Ancient chest never gives less than its own rarity.",
     aliases: ['chest', 'chests', 'gauntlet chest', 'crate', 'crates', 'gauntlet crate', 'loot box', 'rewards', 'unlock', 'open chest', 'open crate', 'aether', 'chest shop', 'buy chest', 'milestone chest'],
+    packs: {
+      q: 'What are packs and how do I get them?',
+      a: "A **pack** holds **5 cards**, each one a cosmetic. You get packs and open them in the **Shop** in the top bar. New accounts start with **nine packs**: 5 Common, 2 Rare, 1 Epic and 1 Legendary. After that you get a free **Legendary pack** every **5 levels** (Level 5, 10, 15 and on; levels you reached before packs arrived don't count), you earn a free **Epic pack** for every **15 packs you buy**, and the shop hands out a free **Rare pack** in every window. The shop refreshes every **6 hours**. **Rarity packs** cost **Common 100, Rare 175, Epic 300, Legendary 500, Ancient 850** Aether, and **themed packs** (a category or a style) cost **200**. A Rarity pack's first four cards roll **Common 35%, Rare 31%, Epic 22%, Legendary 9%, Ancient 3%** and its last card is guaranteed to be its own rarity or better; a themed pack's last card comes from that theme and is always one you **don't own yet** (unless you already own the whole theme). Any other card can be one you already own; a card you already own pays you back some Aether instead. Aether is only earned by playing, never bought with real money. Chests you got before packs arrived are kept, sealed, until a later exchange.",
+      aliases: ['pack', 'packs', 'card pack', 'chest', 'chests', 'gauntlet chest', 'crate', 'crates', 'gauntlet crate', 'loot box', 'rewards', 'unlock', 'open chest', 'open crate', 'open pack', 'buy pack', 'pack shop', 'aether', 'chest shop', 'buy chest', 'milestone chest'],
+    },
     seeAlso: ['collection', 'account-levels'],
     covers: [
-      { rule: 'R-PROG-CRATE-01', fp: '1ac19df4' }, { rule: 'R-PROG-CRATE-02', fp: 'f8a0ebcc' },
-      { rule: 'R-PROG-AETHER-01', fp: '2865f837' }, { rule: 'R-PROG-AETHER-02', fp: 'c6de6628' }, { rule: 'R-PROG-AETHER-04', fp: 'c9e8b35c' },
+      { rule: 'R-PROG-CRATE-01', fp: '1ac19df4' }, { rule: 'R-PROG-CRATE-02', fp: 'b98a5986' },
+      { rule: 'R-PROG-AETHER-01', fp: '204d6c10' }, { rule: 'R-PROG-AETHER-02', fp: '09cad20f' }, { rule: 'R-PROG-AETHER-04', fp: 'bb86eb5e' },
     ],
   },
   {
@@ -382,6 +387,7 @@ export const ENTRIES: readonly WikiEntry[] = [
     topic: 'lobby',
     q: 'What is the Collection?',
     a: "Your cosmetics page, in the top bar. Open your chests there and equip what you've won: **titles** (shown under your name), hero and minion **skins**, hero **attack animations**, **portrait frames**, **Card Plates**, **emotes** and **announcers**. Locked items show how to get them. Cosmetics are just looks and never change how anything plays.",
+    packs: { a: "Your cosmetics page, in the top bar. Equip what you've won from your packs there (you open packs in the **Shop**): **titles** (shown under your name), hero and minion **skins**, hero **attack animations**, **portrait frames**, **Card Plates**, **emotes** and **announcers**. Locked items show how to get them. Cosmetics are just looks and never change how anything plays." },
     aliases: ['cosmetics', 'skins', 'titles', 'hero attack', 'equip', 'wardrobe'],
     seeAlso: ['crates'],
   },

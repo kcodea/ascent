@@ -224,6 +224,31 @@ describe('the Collection in the party home shell', () => {
     expect(document.body.textContent).toMatch(/account/i);
   });
 
+  it('ON, packs on (2026-12-01): the bay holds the chests with no Open or Open all, and the exchanged-later line', async () => {
+    const { FROZEN_CHESTS_NOTE } = await import('../collectionModel');
+    useProgression.setState({ packsCapability: 'on' });
+    await open({ ph: true });
+    expect($('.phc-bay-frozen')).not.toBeNull();
+    expect($('.phc-bay-frozen-note')?.textContent).toBe(FROZEN_CHESTS_NOTE);
+    expect(btn('Open')).toBeUndefined();
+    expect(btn('Open all (2)')).toBeUndefined();
+    expect($('.phc-bay-actions')).toBeNull();
+    expect($('.phc-rail')?.getAttribute('aria-label')).toBe('Categories and chests');
+  });
+
+  it('ON, packs on, no chest held: only the level-only bay (no chest, no Open, no frozen line)', async () => {
+    useProgression.setState({ packsCapability: 'on' });
+    await open({ ph: true, crates: [] });
+    expect($('.phc-bay-frozen')).toBeNull();
+    expect($('.phc-bay-frozen-note')).toBeNull();
+    expect(btn('Open')).toBeUndefined();
+    const bay = $('.phc-bay');
+    expect(bay).not.toBeNull();
+    expect(bay!.className).toContain('phc-bay-levelonly');
+    // no chest drawn, so the rail is named for what it holds
+    expect($('.phc-rail')?.getAttribute('aria-label')).toBe('Categories');
+  });
+
   it('ON: a switched-off category is listed as Soon and opens a coming-soon view', async () => {
     await open({ ph: true });
     const locked = $$('.phc-cat.locked');

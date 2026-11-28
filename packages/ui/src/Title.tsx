@@ -18,7 +18,7 @@ import { warmRankedGate } from './rankedGate/RankedGate';
 import { cancelRankedGate, requestRankedGate } from './rankedGate/rankedGateController';
 import { revealForPending } from './locationReveal/startPractice';
 import { IconHelm, MenuMedal } from './menuIcons';
-import { cratesVisible, useProgression } from './progression/progressionStore';
+import { cratesVisible, packsVisible, useProgression } from './progression/progressionStore';
 import { startReplay } from './replay/replayPlayer';
 import { getCourseProgress, skipCourse } from './tutorial/tutorialProfile';
 import { AncientsPrompt, shouldShowAncientsPrompt } from './tutorial/AncientsPrompt';
@@ -112,7 +112,9 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   // count. Shown once crates are live (always in DEV, so the screen and its tuner are reachable before the SQL).
   const openCollection = useGame((s) => s.openCollection);
   const newRewards = useHasNewRewards();
-  const collectionOn = useProgression(cratesVisible) || import.meta.env.DEV;
+  const packsOn = useProgression(packsVisible);
+  // With packs on the Collection shows whatever the crate switch says (as PhTopNav): packs alone make it reachable.
+  const collectionOn = useProgression(cratesVisible) || packsOn || import.meta.env.DEV;
   const sealedCrates = useProgression((s) => (s.crateList ?? []).filter((c) => c.state === 'sealed').length);
   const openBalance = useGame((s) => s.openBalance);
   const openPatchNotes = useGame((s) => s.openPatchNotes);
@@ -648,7 +650,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
             <span className="mblabel">Social</span>
           </button>
           {collectionOn && (
-            <button className={`menubtn${newRewards ? ' hasnew' : ''}`} onClick={() => { sfx.pulse(); openCollection(); }} data-tip={newRewards ? 'New rewards are waiting in your Collection' : 'Open your chests and wear your titles'}>
+            <button className={`menubtn${newRewards ? ' hasnew' : ''}`} onClick={() => { sfx.pulse(); openCollection(); }} data-tip={newRewards ? 'New rewards are waiting in your Collection' : packsOn ? 'Wear your titles, skins and other cosmetics' : 'Open your chests and wear your titles'}>
               <span className="mbicon"><MenuMedal name="collection" /></span>
               <span className="mblabel">Collection</span>
               {newRewards && <NewPill />}

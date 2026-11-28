@@ -140,6 +140,7 @@ import { OwnSkins, RunSkins } from './skins/skins';
 import { CloudMovedModal } from './CloudMovedModal';
 import { GiftNotice } from './progression/GiftNotice';
 import { AetherGiftNotice } from './progression/AetherGiftNotice';
+import { PackShopIntro } from './progression/PackShopIntroPopup';
 import { installLivePublisher } from './live/livePublisher';
 import { installGameSession } from './session/gameSession';
 import { LiveGames } from './live/LiveGames';
@@ -838,6 +839,8 @@ export function Game() {
       {preRun && <GiftNotice />}
       {/* AETHER GIFTS (owner 2026-11-20): "you've been gifted N Aether from the Ascent team for: …", one per gift. */}
       {preRun && <AetherGiftNotice />}
+      {/* THE PACK SHOP (2026-12-01): its one-time announcement, once packs are on. Self-gates (and waits for the gift notices). */}
+      {preRun && <PackShopIntro />}
       {/* REPLAY VIEWER: the round rail (left) + the transport bar. Both self-gate on `replaySession`;
           the overlay mounts LAST so the transport controls float above everything (salvaged v1 order). */}
       {/* The drag ghost self-gates on `replayDragGhost` (only ever set mid-replay) and sits UNDER the

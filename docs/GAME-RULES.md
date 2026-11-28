@@ -618,7 +618,7 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
 - **Level title.** The title **Alpha Tester**, unlocked by **every** account at Level 2 (a level milestone, never
   in a chest) and equipped when no title is equipped. Shown in the Collection's New rewards pop-up and on the
   Career (public).
-- **Level chests (2026-09-28; REPLACED once Aether is on, see "Aether and the Chest Shop" below, R-PROG-AETHER-04).** **Every level grants one sealed chest**; an account's first settled game
+- **Level chests (2026-09-28; REPLACED once Aether is on, see "Aether and the Pack Shop" below, R-PROG-AETHER-04).** **Every level grants one sealed chest**; an account's first settled game
   (enrollment) also grants the Level 1 **Welcome Chest**. So an account at Level L has earned L chests. Earn only:
   no keys, currency, purchases or rerolls. Accounts enrolled before chests shipped received their Welcome Chest
   plus one chest per level already reached (a one-time backfill).
@@ -1064,86 +1064,88 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   rank result / the player's own practice row / a unique tutorial claim / the Versus match row and the player's
   seat / the spectator's own watch record (`spectate_sessions`), and a duplicate returns the original result. The client queues the request durably and retries; a failure reads "Progress pending".
 
-### Aether and the Chest Shop (owner rulings 2026-10-18, 2026-10-19 and 2026-10-20; R-PROG-AETHER-01, R-PROG-AETHER-02, R-PROG-AETHER-03, R-PROG-AETHER-04, R-PROG-AETHER-05, R-PROG-AETHER-06)
+### Aether and the Pack Shop (owner rulings 2026-10-18 to 2026-10-20 and 2026-11-27; R-PROG-AETHER-01, R-PROG-AETHER-04, R-PROG-AETHER-05, R-PROG-PACK-01 to R-PROG-PACK-12)
 
-**Aether** is a currency you earn by playing and spend on chests. It is **never bought with real money**. Apart from
-the one-time launch gift below, an account starts with 0. It arrives behind a switch the owner flips (`aether_enabled`): until then chests work exactly as above.
-**Once Aether is on, the per-level chest rule above is replaced** by the milestone chests below (the Welcome Chest is
-kept), and a Gauntlet first clear pays Aether instead of a chest.
+**Aether** is a currency you earn by playing and spend in the **Pack Shop**. It is **never bought with real money**.
+Apart from the one-time launch gifts below, an account starts with 0. It arrives behind a switch the owner flips
+(`aether_enabled`): until then chests work exactly as above. **The Pack Shop** arrives behind a second switch
+(`packs_enabled`); with it on, the Shop sells card packs and the Chest Shop is gone (R-PROG-PACK-01). Until it is
+flipped, see "Before the Pack Shop" at the end of this section.
 
-- **Earning.**
+- **Earning (R-PROG-AETHER-01).**
   - **Ranked:** **50 Aether** for every accepted, placed game, win or lose, plus a bonus for how you finished:
     1st **140**, 2nd **80**, 3rd 45, 4th 35, 5th 25, 6th 15, 7th 10, 8th 0. No valid placement pays 0.
   - **Versus:** **25** for a completed match, **+45** for the winner (an abandoned match with no winner pays 25).
   - **Practice and Tutorial:** 0. There is no comeback bonus.
   - **Gauntlet:** the first clear of each stage pays **200**, once per stage. Stages you cleared before Aether launched
-    pay nothing. (If the Gauntlet amount is ever misconfigured, the first clear falls back to a chest.)
-  - **Guests** earn Aether and see their balance like anyone, but **cannot spend it**: every place that would spend it
-    asks them to sign in (the sign-in prompt arrives with the Chest Shop screen).
-- **The five chests.** Each chest guarantees a **rarity floor**: nothing below it can drop.
+    pay nothing.
+- **Guests (R-PROG-PACK-10)** earn Aether, see their balance and browse the Pack Shop like anyone, but **never buy,
+  open or claim a pack**: each of those asks them to sign in instead, and the server refuses a guest's purchase, opening
+  or claim and changes nothing.
+- **The packs (R-PROG-PACK-01).** Every pack holds **5 cards**. There is no Focus: a Category or style pack is how you
+  aim at one kind of cosmetic.
 
-  | Chest | Floor | Price |
-  |---|---|---|
-  | Standard | Common | 100 |
-  | Rare | Rare | 200 |
-  | Epic | Epic | 400 |
-  | Legendary | Legendary | 600 |
-  | Ancient | Ancient | 900 |
+  | Pack | Cards 1-4 | Card 5 (guaranteed) | Price |
+  |---|---|---|---|
+  | Common | Standard odds | Standard odds | 100 |
+  | Rare | Standard odds | Rare or better | 175 |
+  | Epic | Standard odds | Epic or better | 300 |
+  | Legendary | Standard odds | Legendary or better | 500 |
+  | Ancient | Standard odds | Ancient | 850 |
+  | Category (one per cosmetic category) | Standard odds | From that category, never one you own | 200 |
+  | Style (Scribble, Plushie, 8 Bit, ...) | Standard odds | From that style, never one you own | 200 |
 
-  Epic is about 4x a Standard chest, Legendary 6x and Ancient 9x. The price you see is the price you pay: if it changed
-  since your screen loaded, the purchase is refused and you see the new price, never a silent re-price. A double-click
-  or a retry is charged once.
-- **Each chest has its own look and opening (2026-10-19, tiered chest openings).** A Rare, Epic, Legendary or Ancient
-  chest opens with its own art, and its colour builds more magic than the one below it: Rare blue, Epic purple,
-  Legendary gold, Ancient opal. Its shake and glow build through the charge, and at the burst Rare, Epic and Legendary
-  flash in their own colour. Ancient pulls swirling opal energy in during the charge and bursts with a white flash and
-  multichrome sparkles. A Standard chest (and a level or Welcome chest) opens exactly as before, except that an Ancient
-  reward's sparks now shimmer through the colours (from any chest; the Ancient reward itself stays cyan to magenta).
-  **What is inside still decides the finale**: the reward's rarity drives the burst, rays and sound as it always did,
-  and the chest's tier only adds to it, so a Rare chest can still produce an Ancient finale. A milestone chest opens as
-  its own floor's chest: an Epic chest (a milestone chest granted before 2026-10-20 opens as a Legendary chest). If a chest's art is not ready in time, that opening uses the Standard chest's art, but its tier's
-  effects and sounds still play; reduced motion is still a short fade.
-- **The odds inside a chest.** The usual odds (Common 35 / Rare 31 / Epic 22 / Legendary 9 / Ancient 3) are kept, but
-  only the rarities **at or above the floor** stay in the draw, and their odds are scaled up to total 100%. (An Epic chest
-  rolls Epic 22/34, Legendary 9/34, Ancient 3/34.) If the rolled rarity has nothing left you could receive, the draw
-  moves to the nearest rarity that still does, **never below the floor**. A Standard chest with no focus rolls exactly
-  as the older chests did. You still never get a duplicate, and a chest whose floor has nothing left for you cannot be
-  bought (or, if it was earned, stays sealed and uncharged).
-- **Focus.** For an extra fee you can **focus** a chest on one or more categories (hero skins, minion skins, titles,
-  hero attacks, portrait frames, emotes, card plates): the reward then comes only from those
-  categories. **Announcers can never be focused** (owner 2026-10-20, R-PROG-AETHER-06: "lets remove announcers from being
-  able to be focused"); they still drop from chests that are not focused. The fee is a share of the chest's price that
-  **falls as you tick more categories**, because ticking more makes the result less precise (owner: "focusing shouldnt be added cost per extra category"):
+  A Category or style pack whose cosmetics you already own in full is **greyed out with a notice but still buyable**;
+  its fifth card is then a duplicate from that theme. A pack is never sold unless it can be opened: a style pack with
+  nothing in it yet is not on the shelf, nor is a Rarity pack while nothing at or above its rarity can roll (every Ancient
+  item switched off hides the Ancient pack), and an offer that stops being openable mid-window is refused, uncharged. The price
+  you see is the price you pay: if it changed since your screen loaded, the purchase is refused, uncharged, and you see
+  the new price. A double-click or a retry is charged once, and a pack opens once (R-PROG-PACK-11).
+- **What is inside (R-PROG-PACK-02).** The server rolls all five cards when you open the pack. Each card first rolls a
+  rarity at the **Standard odds** (Common 35 / Rare 31 / Epic 22 / Legendary 9 / Ancient 3) over the whole catalog;
+  card 5 of a Category or style pack rolls its rarity at the Standard odds too. Card 5 of a Rarity pack keeps only the
+  pack's rarity and above, scaled to total 100% (a Rare pack's card 5: Rare 47.7, Epic 33.8, Legendary 13.8,
+  Ancient 4.6). Once the rarity is drawn, every category with an item of that rarity is equally likely, then every item
+  of it. A rarity with nothing left falls to the nearest rarity that has something, never below a Rarity pack's own
+  rarity. No pack ever gives a Secret item.
+- **Odds on the tag (R-PROG-PACK-12).** A Rarity pack's tag shows its odds, a line for cards 1-4 and a line for card 5
+  (one line for all five on a Common pack): the same numbers the server rolls. Category and style packs show none.
+- **Duplicates (R-PROG-PACK-03).** Unlike a chest, a pack **can** give a cosmetic you already own (from before, or from
+  an earlier card of the same pack). A duplicate pays Aether by **its own rarity**, whatever pack it came from: Common
+  **20**, Rare **35**, Epic **60**, Legendary **100**, Ancient **170** (20% of that rarity's pack price), paid once.
+- **The counter (R-PROG-PACK-04).** Your sealed packs sit on the counter by type, oldest first: at most **5 types**
+  and **8 of each**. A purchase that would not fit is refused and costs nothing; open a pack to make room. A pack you
+  are given (Welcome, Level, the purchase reward) is never refused: it waits beside the counter until there is room.
+- **The shop window (R-PROG-PACK-05, R-PROG-PACK-06).** The shop turns over every 6 hours, at **12am, 6am, 12pm and
+  6pm Eastern** (daylight saving included). Each window has **one free Rare pack** for every player (take it once per
+  window; it needs counter room like any pack) and **four Featured deals**: four different packs (never the Rare pack),
+  each **20% to 60% off** in 5% steps, priced to the nearest 5 Aether and never below 5, with **2 to 5 in stock for
+  each player** (one player buying a deal out leaves everyone else's stock alone).
+- **The purchase reward (R-PROG-PACK-07).** Every **15 paid packs** (Featured deals included) earn **one free Epic
+  pack**. The free Rare and the reward itself do not count. Rewards stack: the shop's gauge glows while one is ready,
+  and each click claims one.
+- **Welcome and level packs (R-PROG-PACK-08, R-PROG-AETHER-04).** A new account's first settled game gives **nine
+  Welcome packs** (5 Common, 2 Rare, 1 Epic, 1 Legendary) in place of the Welcome Chest. **Every 5th level** (5, 10,
+  15, ...) gives a **free Legendary pack**, in place of the Epic milestone chest, but only for levels reached **after
+  the Pack Shop launched**: nothing is backdated (an account at Level 37 at the launch gets its first at Level 40). No
+  more milestone chests are made.
+- **The launch gifts.** When the Pack Shop launches, **every account that exists at that moment receives 3,000 Aether,
+  once**; accounts made later never get it and start with their nine Welcome packs instead (R-PROG-PACK-09). The first
+  time the game opens with packs on, an **"Introducing the Pack Shop"** note shows once per account on each device.
+  This is separate from the **1,000 Aether** every account received once when Aether launched (R-PROG-AETHER-05).
+- **Chests you already hold (R-PROG-CRATE-02).** Sealed chests are **frozen** with packs on: they stay in your
+  Collection, sealed and counted, and cannot be opened; they will be exchanged later. Chests you opened, and what they
+  gave, are untouched.
+- **Before the Pack Shop.** While `packs_enabled` is off, Aether is spent in the older **Chest Shop**: five chests with
+  a rarity floor (Standard 100, Rare 200, Epic 400, Legendary 600, Ancient 900), an optional paid category focus, no
+  duplicates, and a free Epic milestone chest every 10th level. Those rules (R-PROG-AETHER-02, R-PROG-AETHER-03,
+  R-PROG-AETHER-06) are **retired once packs are on**.
 
-  | Categories ticked | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 or more |
-  |---|---|---|---|---|---|---|---|---|
-  | Fee (% of the chest's price) | 100% | 60% | 40% | 25% | 15% | 10% | 5% | 5% |
-
-  Only **focusable categories with something left** count (never Announcers, R-PROG-AETHER-06): a category with nothing left that you could receive from that chest (at its floor
-  or above, not already owned) cannot be ticked and does not count toward the number ticked. **Ticking
-  every focusable category with something left is no focus at all and costs nothing**, and an unfocused chest can give an Announcer (owner:
-  "Free, may give an Announcer"): this also happens when the categories you ticked are all that is left at that chest's
-  tier. A focus whose categories are all sold out cannot be
-  bought. The chest price and the fee are one charge.
-- **Milestone chests.** Reaching Level **10, 20, 30, and every 10th level** after grants one **free Epic-floor chest**
-  (owner 2026-10-20: "reduce down to Epic for the milestone chests"); other levels grant no chest. When Aether launches,
-  every multiple of 10 at or below your level is granted at once, once each (a Level 37 account receives three). A
-  milestone chest **cannot be focused** ("you cannot focus those ones specifically"): it opens unfocused, for free, like
-  any other chest you earned, and **Open all** opens it with the rest. Milestone chests granted **before 2026-10-20** were
-  Legendary-floor and **stay Legendary** (owner: "Keep them Legendary"); they cannot be focused either. Focus is something
-  you buy with a chest in the Chest Shop, never at opening.
-- **Chests you already hold.** Sealed chests earned before Aether launched are kept and open exactly as before (no
-  floor, no focus, no fee).
-- **The launch gift (owner 2026-10-19, R-PROG-AETHER-05).** When Aether launches, **every account receives 1,000 Aether,
-  once**; an account created later receives it as soon as it has a profile (its first game). The first time you open the
-  Collection with Aether live, an **"Introducing Aether"** note opens first (the Ranked confirmation's window and pop-in):
-  what Aether is, how you earn it, that it unlocks chests, and that the first 1,000 is on us. It shows once per account
-  on each device; the New Rewards summary waits until it is closed.
-
-Source: `supabase/migrations/2026-10-18-aether.sql` (`aether_config`, `aether_apply`, `buy_crate`, `open_crate`,
-`settle_progression`, `record_gauntlet_clear`, `aether_rollout`), `supabase/migrations/2026-10-19-aether-launch-grant.sql`
-(the launch gift), `packages/progression/src/aether.ts`, `packages/progression/src/crateShop.ts`,
-`packages/ui/src/progression/AetherIntroPopup.tsx`.
+Source: `supabase/migrations/2026-10-18-aether.sql` (`aether_config`, `aether_apply`, `settle_progression`,
+`record_gauntlet_clear`, `aether_rollout`), `supabase/migrations/2026-10-19-aether-launch-grant.sql` (the 1,000 gift),
+`supabase/migrations/2026-12-01-packs.sql` (`pack_config`, `buy_pack`, `open_pack`, `claim_pack_reward`, `pack_rollout`),
+`packages/progression/src/packEconomy.ts`, `packages/progression/src/packRoll.ts`, `packages/progression/src/packShop.ts`,
+`packages/ui/src/progression/packShop/`.
 
 Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per level),
 `packages/progression/src/cosmetics.ts` (catalog, weights, the roll), `packages/sim/src/runDerive.ts`

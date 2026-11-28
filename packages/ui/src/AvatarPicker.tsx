@@ -7,7 +7,7 @@ import { RARITY_LABELS, withStarterCosmetics, type CosmeticDef, type CosmeticRar
 import { AVATAR_ART, type AvatarArt } from './art';
 import { useGame } from './store';
 import { PhButton, PhEmpty, PhSearch, PhSelect, PhTabs } from './partyHome/kit';
-import { mirrorFor, useProgression } from './progression/progressionStore';
+import { mirrorFor, packsVisible, useProgression } from './progression/progressionStore';
 import { albumOf, ownedIds, skinTargetName } from './progression/collectionModel';
 import { skinArtOf } from './skins/skinArt';
 import './avatarPicker.css';
@@ -122,6 +122,7 @@ export function AvatarTabBody({ selected, onSelect, onApply, side }: {
   selected: string | null; onSelect: (id: string) => void; onApply: (id: string) => void; side?: ReactNode;
 }) {
   const close = useGame((s) => s.closeAvatarPicker);
+  const packsOn = useProgression(packsVisible);
   const current = useGame((s) => s.playerAvatar);
   const openCollection = useGame((s) => s.openCollection);
   const { skins, all } = usePortraitEntries();
@@ -171,7 +172,7 @@ export function AvatarTabBody({ selected, onSelect, onApply, side }: {
             onPointerLeave={() => caption('')}>
             {rows.length === 0 && (all[tab].length > 0
               ? <PhEmpty title="No matches" sub="Try another name or filter, or look in another tab." />
-              : <PhEmpty title="No skins yet" sub="Open chests to unlock hero and minion skins. Any skin you own can be your portrait."
+              : <PhEmpty title="No skins yet" sub={`Open ${packsOn ? 'packs' : 'chests'} to unlock hero and minion skins. Any skin you own can be your portrait.`}
                   action={<PhButton onClick={() => { close(); openCollection(); }}>Go to Collection</PhButton>} />)}
             {rows.length > 0 && groups.map((g) => (
               <div key={g} className="avp-group">

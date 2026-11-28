@@ -24,18 +24,21 @@ export interface UnseenRewards {
   achievements: QueuedAchievement[];
   titles: string[];
   crates: QueuedCrate[];
+  /** PACKS a settlement granted (the pack economy, 2026-12-01: Welcome and Level packs), by id. Absent = none (an
+   *  older stored queue). They wait in the Pack Shop; the pop-up links there. */
+  packs?: string[];
 }
 
 interface Stored extends UnseenRewards {
-  /** Every reward key ever queued for this account (`a:<id>`, `t:<id>`, `c:<id>`): the never-twice guard. */
+  /** Every reward key ever queued for this account (`a:<id>`, `t:<id>`, `c:<id>`, `p:<id>`): the never-twice guard. */
   known: string[];
 }
 
 const KEY_PREFIX = 'ascent.rewards.';
 const KNOWN_CAP = 600;
-const EMPTY: UnseenRewards = Object.freeze({ achievements: [], titles: [], crates: [] }) as UnseenRewards;
+const EMPTY: UnseenRewards = Object.freeze({ achievements: [], titles: [], crates: [], packs: [] }) as UnseenRewards;
 
-const blank = (): Stored => ({ achievements: [], titles: [], crates: [], known: [] });
+const blank = (): Stored => ({ achievements: [], titles: [], crates: [], packs: [], known: [] });
 
 function readCrate(c: QueuedCrate): QueuedCrate {
   const source = typeof c.source === 'string' ? c.source : undefined;
@@ -52,6 +55,7 @@ function load(userId: string): Stored {
       achievements: Array.isArray(raw.achievements) ? raw.achievements.filter((a): a is QueuedAchievement => !!a && typeof a.id === 'string').map((a) => ({ id: a.id, xp: typeof a.xp === 'number' ? a.xp : 0 })) : [],
       titles: strs(raw.titles),
       crates: Array.isArray(raw.crates) ? raw.crates.filter((c): c is QueuedCrate => !!c && typeof c.crateId === 'string').map(readCrate) : [],
+      packs: strs(raw.packs),
       known: strs(raw.known),
     };
   } catch {
@@ -63,7 +67,7 @@ function save(userId: string, s: Stored): void {
   try { localStorage.setItem(KEY_PREFIX + userId, JSON.stringify(s)); } catch { /* best-effort */ }
 }
 
-const unseenOf = (s: Stored): UnseenRewards => ({ achievements: s.achievements, titles: s.titles, crates: s.crates });
+const unseenOf = (s: Stored): UnseenRewards => ({ achievements: s.achievements, titles: s.titles, crates: s.crates, packs: s.packs ?? [] });
 
 export const useNewRewards = create<{ userId: string | null; unseen: UnseenRewards }>(() => ({ userId: null, unseen: EMPTY }));
 
@@ -74,8 +78,8 @@ export function syncNewRewards(userId: string | null): void {
   useNewRewards.setState({ userId, unseen: unseenOf(load(userId)) });
 }
 
-/** Queue what a CONFIRMED settlement awarded: achievements (with their XP), first-time titles, crates. Idempotent. */
-export function queueNewRewards(userId: string, result: Pick<ProgressionResult, 'achievements' | 'unlockedTitles' | 'crateIds' | 'after'>): void {
+/** Queue what a CONFIRMED settlement awarded: achievements (with their XP), first-time titles, crates, packs. Idempotent. */
+export function queueNewRewards(userId: string, result: Pick<ProgressionResult, 'achievements' | 'unlockedTitles' | 'crateIds' | 'after'> & Partial<Pick<ProgressionResult, 'packIds'>>): void {
   const s = load(userId);
   const known = new Set(s.known);
   let changed = false;
@@ -96,6 +100,11 @@ export function queueNewRewards(userId: string, result: Pick<ProgressionResult, 
     // Oldest first: one crate per new level, so the i-th of n was earned at level after - (n - 1 - i).
     s.crates.push({ crateId, earnedLevel: Math.max(1, (result.after?.level ?? 1) - (ids.length - 1 - i)) });
   });
+  for (const packId of result.packIds ?? []) {
+    if (known.has(`p:${packId}`)) continue;
+    known.add(`p:${packId}`); changed = true;
+    (s.packs ??= []).push(packId);
+  }
   if (!changed) return;
   s.known = [...known].slice(-KNOWN_CAP);
   save(userId, s);
@@ -124,12 +133,12 @@ export function queueNewCrate(userId: string, crate: Pick<CrateRow, 'crateId' | 
 export function markNewRewardsSeen(userId: string | null): void {
   if (!userId) return;
   const s = load(userId);
-  s.achievements = []; s.titles = []; s.crates = [];
+  s.achievements = []; s.titles = []; s.crates = []; s.packs = [];
   save(userId, s);
   if (useNewRewards.getState().userId === userId) useNewRewards.setState({ unseen: EMPTY });
 }
 
-export const unseenCount = (u: UnseenRewards): number => u.achievements.length + u.titles.length + u.crates.length;
+export const unseenCount = (u: UnseenRewards): number => u.achievements.length + u.titles.length + u.crates.length + (u.packs?.length ?? 0);
 /** Selector: anything waiting in the Collection (the NEW pill). */
 export const hasNewRewards = (s: { unseen: UnseenRewards }): boolean => unseenCount(s.unseen) > 0;
 

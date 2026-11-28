@@ -109,7 +109,7 @@ type Opened = { status: string; reason?: string; packId: string; pack: PackLook;
 async function open(u: string, packId: string): Promise<Opened> {
   return (await one<{ j: Opened }>('select public.open_pack($1, $2) as j', [u, packId])).j;
 }
-type Shop = { windowId: string; nextRefreshAt: number; shelves: unknown[]; offers: PackOffer[]; packs: OwnedPack[]; packMeter: { progress: number; ready: number }; aether: number };
+type Shop = { windowId: string; nextRefreshAt: number; shelves: unknown[]; offers: PackOffer[]; packs: OwnedPack[]; packMeter: { progress: number; ready: number; every?: number; rarity?: string }; aether: number };
 async function shop(u: string): Promise<Shop> {
   return (await one<{ j: Shop }>('select public.pack_shop_json($1) as j', [u])).j;
 }
@@ -530,6 +530,34 @@ describe('buy_pack', () => {
     expect((await buy(u, `${w}:category-emote`, 200)).status).toBe('ok');
   });
 
+  it('R-PROG-PACK-01: a Rarity pack with nothing at or above its rarity is not listed (as windowOffers) and is expired, uncharged', async () => {
+    await setWindow(); // made while Ancient items are rollable: the window still lists the Ancient pack
+    const w = await currentWindow();
+    const u = await newUser({ aether: 1000 });
+    expect((await shop(u)).offers.some((o) => o.offerId === `${w}:rarity-ancient`)).toBe(true);
+    await db.exec("update public.cosmetic_catalog set admin_off = true where rarity = 'ancient';");
+    try {
+      // a window made now has no Ancient pack (not on the shelf, never a deal), exactly as the TS twin
+      const noAncient = CATALOG.map((c) => (c.rarity === 'ancient' ? { ...c, active: false } : c));
+      const r = rand(91);
+      for (let k = 0; k < 20; k++) {
+        const d = Array.from({ length: 12 }, r);
+        const sql = (await one<{ o: PackOffer[] }>('select public.progression_pack_window_offers($1, $2::float8[]) as o', [w, arr(d)])).o;
+        expect(sql).toEqual(json(windowOffers(w, d, noAncient)));
+        expect(sql.some((o) => o.look.id === 'rarity-ancient')).toBe(false);
+        expect(sql.some((o) => o.look.id === 'rarity-legendary')).toBe(true);
+      }
+      // the window made before it still lists the Ancient pack: buying it is expired and charges nothing
+      const before = await snapshot(u);
+      expect(await buy(u, `${w}:rarity-ancient`, 850)).toMatchObject({ status: 'error', reason: 'expired', aether: 1000 });
+      expect(await snapshot(u)).toEqual(before);
+      // a lower Rarity pack still sells (Legendary items remain)
+      expect((await buy(u, `${w}:rarity-common`, 100)).status).toBe('ok');
+    } finally {
+      await db.exec("update public.cosmetic_catalog set admin_off = false where rarity = 'ancient';");
+    }
+  });
+
   it('an offer of more than one pack (a box, not designed yet) is refused and charges nothing', async () => {
     const offers = await setWindow();
     const w = await currentWindow();
@@ -699,8 +727,29 @@ describe('pack_shop_json', () => {
     const all = packPool(CATALOG, 'all').length;
     expect(s.offers.find((o) => o.offerId === `${w}:rarity-common`)!.newToYou).toEqual({ unowned: all - packPool(CATALOG, { category: 'emote' }).length, total: all });
     expect(s.packs.map((p) => p.packId)).toEqual(ids);
-    expect(s.packMeter).toEqual({ progress: 2, ready: 0 });
+    expect(s.packMeter).toEqual({ progress: 2, ready: 0, every: 15, rarity: 'epic' });
     expect(s.aether).toBe(1234);
+  });
+
+  it('the free offer reads as taken once this player has its pack (and only for them)', async () => {
+    await setWindow();
+    const w = await currentWindow();
+    const u = await newUser();
+    const free = (s: Shop): PackOffer => s.offers.find((o) => o.offerId === `${w}:free`)!;
+    expect(free(await shop(u)).soldOut).toBeUndefined();
+    await buy(u, `${w}:free`, 0);
+    expect(free(await shop(u)).soldOut).toBe(true);
+    expect(free(await shop(await newUser())).soldOut).toBeUndefined();
+  });
+
+  it("the meter's reward size and rarity are pack_config's (a retune reaches the label)", async () => {
+    await setWindow();
+    await setEconomy({ ...DEFAULT_PACK_ECONOMY, rewardEvery: 10, rewardRarity: 'legendary' });
+    try {
+      expect((await shop(await newUser())).packMeter).toEqual({ progress: 0, ready: 0, every: 10, rarity: 'legendary' });
+    } finally {
+      await setEconomy(DEFAULT_PACK_ECONOMY);
+    }
   });
 
   it('the odds a Rarity offer shows are re-read from pack_config (what the roll uses)', async () => {

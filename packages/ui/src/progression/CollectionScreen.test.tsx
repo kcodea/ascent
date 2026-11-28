@@ -48,7 +48,10 @@ vi.mock('./progressionRemote', async (orig) => ({
 
 import { CollectionPage, CollectionScreen } from './CollectionScreen';
 import { refreshSeenList, resetProgressionForTests, useProgression } from './progressionStore';
-import { queueNewCrate, resetNewRewardsForTests } from './newRewards';
+import { queueNewCrate, queueNewRewards, resetNewRewardsForTests } from './newRewards';
+import { FROZEN_CHESTS_NOTE } from './collectionModel';
+import { PACKS_EARNED_NOTE, TO_PACK_SHOP } from './NewRewardsPopup';
+import { usePhShell } from '../partyHome/shell/shellStore';
 import { setCrateFxFactoryForTests } from './crateFx/crateFxPixi';
 import { chestArtFor, setChestArtLoaderForTests } from './crateFx/chestArt';
 import { useGame } from '../store';
@@ -1068,5 +1071,89 @@ describe('the Collection screen: stage and performance tripwires', () => {
       expect(rule, sel).not.toMatch(/blur\(/);
     }
     expect(css).not.toMatch(/transition:[^;]*filter/);
+  });
+});
+
+describe('the Collection screen with packs on (the pack economy, 2026-12-01)', () => {
+  const packsOn = (): void => { useProgression.setState({ packsCapability: 'on' }); };
+
+  it('the chest bay holds the sealed chests with no Open or Open all, no odds, and the exchanged-later line', () => {
+    packsOn();
+    open({ aether: 1200 }, { aether: true });
+    expect($('.colls-bay-frozen')).not.toBeNull();
+    expect(text('.colls-bay-frozen-note')).toBe(FROZEN_CHESTS_NOTE);
+    expect(button('Open')).toBeUndefined();
+    expect(button('Open all (2)')).toBeUndefined();
+    expect($('.colls-bay-odds')).toBeNull();
+    clean();
+  });
+
+  it('with no sealed chest held, the frozen bay is not shown at all', () => {
+    packsOn();
+    open({ aether: 1200 }, { aether: true, crates: [crateList[0]!] });
+    expect($('.colls-bay')).toBeNull();
+  });
+
+  it('the Chest Shop button shows with packs off and is gone with packs on', () => {
+    open({ aether: 1200 }, { aether: true });
+    expect($('.colls-shopbtn')).not.toBeNull();
+    ui!.unmount(); ui = null;
+    packsOn();
+    open({ aether: 1200 }, { aether: true });
+    expect($('.colls-shopbtn')).toBeNull();
+    expect(button('Chest Shop')).toBeUndefined();
+  });
+
+  it('the New rewards pop-up lists a chest with no Open and the frozen line; an earned pack links to the Pack Shop', () => {
+    resetNewRewardsForTests();
+    packsOn();
+    queueNewCrate('u-1', { crateId: 'c-2', earnedLevel: 2 });
+    queueNewRewards('u-1', { achievements: [], unlockedTitles: [], crateIds: [], after: { lifetimeXp: 0, level: 2 }, packIds: ['pk-1'] });
+    open({ aether: 1200 }, { aether: true });
+    expect($('.nrw-panel')).not.toBeNull();
+    const inPanel = (label: string): HTMLButtonElement | undefined => [...document.querySelectorAll<HTMLButtonElement>('.nrw-panel button')].find((b) => b.textContent === label);
+    expect(inPanel('Open')).toBeUndefined();
+    expect(text('.nrw-frozen')).toBe(FROZEN_CHESTS_NOTE);
+    expect(text('.nrw-packs .nrw-kicker')).toBe('Pack earned');
+    expect(text('.nrw-packs .nrw-note')).toBe(PACKS_EARNED_NOTE);
+    const door = usePhShell.getState().packShopDoor;
+    act(() => inPanel(TO_PACK_SHOP)!.click());
+    expect(usePhShell.getState().packShopDoor).toBe(door + 1);
+    expect($('.nrw-panel')).toBeNull();
+    resetNewRewardsForTests();
+    clean();
+  });
+
+  it('the New rewards pop-up lists only packs still sealed: one opened in the Pack Shop drops out', () => {
+    resetNewRewardsForTests();
+    packsOn();
+    queueNewRewards('u-1', { achievements: [], unlockedTitles: [], crateIds: [], after: { lifetimeXp: 0, level: 2 }, packIds: ['pk-1', 'pk-2'] });
+    const look = { kind: 'rarity' as const, id: 'rarity-common', name: 'Common Pack', guaranteedFloor: 'common' as const };
+    // the Pack Shop has been read: pk-1 was opened there, only pk-2 is still in the hand
+    useProgression.setState({ packShop: { userId: 'u-1', status: 'ready', shop: { packs: [{ packId: 'pk-2', look }] } as never } });
+    try {
+      open({ aether: 1200 }, { aether: true });
+      expect(text('.nrw-packs .nrw-kicker')).toBe('Pack earned');
+      expect(text('.nrw-packs .nrw-note')).toBe(PACKS_EARNED_NOTE);
+      ui!.unmount(); ui = null;
+      // both opened: nothing is waiting in the Pack Shop, so no pack line
+      useProgression.setState({ packShop: { userId: 'u-1', status: 'ready', shop: { packs: [] } as never } });
+      open({ aether: 1200 }, { aether: true });
+      expect($('.nrw-packs')).toBeNull();
+    } finally {
+      useProgression.setState({ packShop: null });
+      act(() => { resetNewRewardsForTests(); });
+      clean();
+    }
+  });
+
+  it('with packs off, an earned pack id is never listed and the chest keeps its Open', () => {
+    resetNewRewardsForTests();
+    queueNewCrate('u-1', { crateId: 'c-2', earnedLevel: 2 });
+    queueNewRewards('u-1', { achievements: [], unlockedTitles: [], crateIds: [], after: { lifetimeXp: 0, level: 2 }, packIds: ['pk-1'] });
+    open({ aether: 1200 }, { aether: true });
+    expect($('.nrw-packs')).toBeNull();
+    expect([...document.querySelectorAll<HTMLButtonElement>('.nrw-panel button')].some((b) => b.textContent === 'Open')).toBe(true);
+    act(() => { resetNewRewardsForTests(); });
   });
 });

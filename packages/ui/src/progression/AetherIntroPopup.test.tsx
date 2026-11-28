@@ -25,7 +25,7 @@ vi.mock('./progressionRemote', async (orig) => ({
 }));
 
 import { CollectionPage } from './CollectionScreen';
-import { AETHER_INTRO_GIFT, AETHER_INTRO_OK, AETHER_INTRO_SIGN, AETHER_INTRO_TEXT, AETHER_INTRO_TITLE, resetAetherIntroForTests } from './AetherIntroPopup';
+import { AETHER_INTRO_GIFT, AETHER_INTRO_OK, AETHER_INTRO_SIGN, AETHER_INTRO_TEXT, AETHER_INTRO_TEXT_PACKS, AETHER_INTRO_TITLE, resetAetherIntroForTests } from './AetherIntroPopup';
 import { RANKED_CONFIRM_EXIT_MS } from '../rank/rankedEntry';
 import { resetProgressionForTests, useProgression } from './progressionStore';
 import { queueNewCrate, resetNewRewardsForTests } from './newRewards';
@@ -61,6 +61,13 @@ const pressContinue = async (): Promise<void> => {
 };
 
 describe('Introducing Aether', () => {
+  it('with packs on it says Aether buys packs, never chests', () => {
+    useProgression.setState({ packsCapability: 'on' });
+    open();
+    expect(text(dialog()!.querySelector('.rankedconfirm-text'))).toBe(AETHER_INTRO_TEXT_PACKS);
+    expect(AETHER_INTRO_TEXT_PACKS).not.toMatch(/chest/i);
+  });
+
   it("is the owner's announcement, naming the server's 1,000", () => {
     expect(AETHER_INTRO_TITLE).toBe('Introducing Aether');
     expect(AETHER_INTRO_TEXT).toBe('Aether is a currency that you earn by playing Ascent. Earn even more by placing higher in ranked matches. Aether is used to unlock chests of various rarities that contain hundreds of different cosmetic items.');

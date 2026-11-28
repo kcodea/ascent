@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { mdBold } from './Card';
-import { WIKI_BY_ID, WIKI_ENTRIES, WIKI_TOPICS, searchWiki, type WikiEntry, type WikiTopic } from './rulesWiki';
+import { WIKI_ENTRIES, WIKI_TOPICS, searchWiki, wikiEntriesFor, type WikiEntry, type WikiTopic } from './rulesWiki';
+import { packsVisible, useProgression } from './progression/progressionStore';
 import { isTouchDevice, touchWording } from './touchInput';
 
 /**
@@ -19,7 +20,10 @@ export function CompendiumRules() {
   const [focusId, setFocusId] = useState<string | null>(null);
   const itemRefs = useRef(new Map<string, HTMLDivElement>());
 
-  const results = useMemo(() => searchWiki(WIKI_ENTRIES, query, topics), [query, topics]);
+  const packsOn = useProgression(packsVisible);
+  const entries = useMemo(() => wikiEntriesFor(packsOn), [packsOn]);
+  const byId = useMemo(() => new Map(entries.map((e) => [e.id, e])), [entries]);
+  const results = useMemo(() => searchWiki(entries, query, topics), [entries, query, topics]);
   const searching = query.trim() !== '';
 
   // After a See-also jump, bring the target into view once it has rendered.
@@ -55,7 +59,7 @@ export function CompendiumRules() {
               <div className="wiki-see">
                 <span className="wiki-see-cap">See also</span>
                 {e.seeAlso.map((id) => (
-                  <button className="wiki-see-link" key={id} onClick={() => jumpTo(id)}>{WIKI_BY_ID[id]?.q}</button>
+                  <button className="wiki-see-link" key={id} onClick={() => jumpTo(id)}>{byId.get(id)?.q}</button>
                 ))}
               </div>
             )}

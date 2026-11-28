@@ -66,6 +66,18 @@ describe('the queue', () => {
     expect(useNewRewards.getState().unseen.achievements.map((a) => a.id)).toEqual(['ranked.first_win']);
   });
 
+  it('earned packs (the pack economy, 2026-12-01) queue once by id, count, survive a reload, and clear on seen', () => {
+    queueNewRewards('u-1', { ...result({ achievements: [], unlockedTitles: [], crateIds: [] }), packIds: ['pk-1', 'pk-2'] });
+    queueNewRewards('u-1', { ...result({ achievements: [], unlockedTitles: [], crateIds: [] }), packIds: ['pk-2'] });
+    reload('u-1');
+    expect(useNewRewards.getState().unseen.packs).toEqual(['pk-1', 'pk-2']);
+    expect(unseenCount(useNewRewards.getState().unseen)).toBe(2);
+    markNewRewardsSeen('u-1');
+    queueNewRewards('u-1', { ...result({ achievements: [], unlockedTitles: [], crateIds: [] }), packIds: ['pk-1'] });
+    reload('u-1');
+    expect(unseenCount(useNewRewards.getState().unseen)).toBe(0);
+  });
+
   it('accounts are kept apart', () => {
     queueNewRewards('u-1', result());
     reload('u-2');

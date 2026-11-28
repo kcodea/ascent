@@ -179,6 +179,8 @@ export const INVENTORY_ERROR_STATUS: Readonly<Record<string, number>> = Object.f
   packs_disabled: 409,
   unsupported_offer: 409,
   pack_not_found: 404,
+  // An unreadable number in `pack_config` is the OWNER's config problem, like `aether_config_missing`: 503, retry once fixed.
+  pack_config_missing: 503,
 });
 
 /**

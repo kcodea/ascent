@@ -17,7 +17,7 @@ type Row = Record<string, unknown>;
 interface Read { table: string; columns: string; filter: string | null }
 const reads: Read[] = [];
 let bytes = 0;
-let config: { data: Row[] | null; error: unknown } = { data: [{ epoch: '2026-09-27', crates_enabled: true, aether_enabled: true, achievements_epoch: '2026-09-28', catalog_state_hash: 'h1' }], error: null };
+let config: { data: Row[] | null; error: unknown } = { data: [{ epoch: '2026-09-27', crates_enabled: true, aether_enabled: true, achievements_epoch: '2026-09-28', catalog_state_hash: 'h1', packs_enabled: true }], error: null };
 let retired = new Set<string>(['skin_a']);
 
 const catalogRows = (): Row[] => COSMETICS.map((c) => ({ cosmetic_id: c.id, active: c.active, admin_off: retired.has(c.id) }));
@@ -54,7 +54,7 @@ const S = await import('./progressionStore');
 
 beforeEach(() => {
   reads.length = 0; bytes = 0; retired = new Set(['skin_a']);
-  config = { data: [{ epoch: '2026-09-27', crates_enabled: true, aether_enabled: true, achievements_epoch: '2026-09-28', catalog_state_hash: 'h1' }], error: null };
+  config = { data: [{ epoch: '2026-09-27', crates_enabled: true, aether_enabled: true, achievements_epoch: '2026-09-28', catalog_state_hash: 'h1', packs_enabled: true }], error: null };
   R.resetProgressionConfigForTests();
   S.resetProgressionForTests();
 });
@@ -62,12 +62,13 @@ const configReads = () => reads.filter((r) => r.table === 'progression_config').
 const catalogReads = () => reads.filter((r) => r.table === 'cosmetic_catalog').length;
 
 describe('progression_config: one read per session', () => {
-  it('the four probes, asked repeatedly, send ONE request (was four per probe)', async () => {
+  it('the five probes (packs_enabled too, 2026-12-01), asked repeatedly, send ONE request (was four per probe)', async () => {
     for (let i = 0; i < 5; i++) {
       expect(await R.fetchProgressionEnabled()).toBe(true);
       expect(await R.fetchCratesEnabled()).toBe(true);
       expect(await R.fetchAchievementsEnabled()).toBe(true);
       expect(await R.fetchAetherEnabled()).toBe(true);
+      expect(await R.fetchPacksEnabled()).toBe(true);
     }
     expect(configReads()).toBe(1);
     expect(reads[0]).toEqual({ table: 'progression_config', columns: '*', filter: null });

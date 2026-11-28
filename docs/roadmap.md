@@ -443,11 +443,16 @@ offsets in `styles.css`).
 
 ## Next
 
-- **Pack economy (packs replace chests).** The pack opening experience is built and dev-only (see
-  `docs/devlog/2026-11-23-pack-opening-experience.md`). Next is the economy behind it, scoped in
-  `docs/superpowers/specs/2026-11-23-pack-opening-design.md` section 12: server rolls in the `PackOpenResult` shape,
-  `packs.ts` into `SHARED_ARTIFACTS`, pricing, what the Secret medallion is for, gating packFeel
-  persistence, and the owner's pack art.
+- **Pack economy (packs replace chests): built, awaiting rollout.** The economy behind the pack opening experience is
+  built behind `packs_enabled` (PRs #2902, #2903, #2904 and `feat/pack-economy-client`; see
+  `docs/devlog/2026-11-28-pack-economy.md`). Left: the rollout in spec section 12 (migration, Edge Functions, Ship
+  Ascent, then the owner runs `pack_rollout()` right after), plus:
+  - **Run a real two-connection Postgres race test on the last counter slot before `pack_rollout`** (PGlite runs a single
+    connection, so the suite cannot race two real sessions on the lock).
+  - **`aether_rollout` re-run / `record_gauntlet_clear` with an unreadable Aether economy can still create (frozen)
+    chests while packs are on.**
+  - Still open from the opening spec: what the Secret medallion is for, gating packFeel persistence, and the owner's
+    pack art.
 
 - **Live information on Cloudflare: retire the Supabase halves** (R-LIVE-DIR-01, R-FRIENDS-HUB-LIVE-01 built
   2026-10-30 on feat/cf-live-directory). Apply `2026-11-19-retire-supabase-live-list.sql` about 24 h after the pack, then

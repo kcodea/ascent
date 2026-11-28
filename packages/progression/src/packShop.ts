@@ -166,8 +166,9 @@ const titleCase = (id: string): string => id.split('_').map((w) => w.charAt(0).t
 /**
  * THE SHELVES of a shop window, in shelf order: the Rarity Packs (common to ancient, shelf 'rarity'), then a pack per
  * Category in COSMETIC_CATEGORIES order, then a pack per style in STYLE_PACK_IDS order (both shelf 'category', the Themed
- * Packs tab). A pack is offered only when its pool is not empty (`packPool`: enabled categories only). Each is at its
- * price and its offerId is `<windowId>:<look id>`; only Rarity offers carry `odds`.
+ * Packs tab). A pack is offered only when it can be opened (R-PROG-PACK-01; `packPool`: enabled categories only): a
+ * Rarity pack while the pool holds an item AT OR ABOVE its rarity, a themed pack while its own pool is not empty. Each
+ * is at its price and its offerId is `<windowId>:<look id>`; only Rarity offers carry `odds`.
  */
 export function shelfOffers(windowId: string, catalog: readonly CosmeticDef[] = COSMETICS, eco: PackEconomy = DEFAULT_PACK_ECONOMY): PackOffer[] {
   const make = (look: PackLook, shelf: string, price: number): PackOffer => ({
@@ -175,10 +176,11 @@ export function shelfOffers(windowId: string, catalog: readonly CosmeticDef[] = 
     ...(look.kind === 'rarity' ? { odds: rarityPackOdds(look.guaranteedFloor, eco) } : null),
   });
   const out: PackOffer[] = [];
-  if (packPool(catalog, 'all').length > 0) {
-    for (const r of COSMETIC_RARITIES) {
-      out.push(make({ kind: 'rarity', id: `rarity-${r}`, name: `${RARITY_LABELS[r]} Pack`, guaranteedFloor: r }, 'rarity', eco.rarityPackPrice[r]));
-    }
+  const rank = (r: string): number => (COSMETIC_RARITIES as readonly string[]).indexOf(r);
+  const all = packPool(catalog, 'all');
+  for (const r of COSMETIC_RARITIES) {
+    if (!all.some((c) => rank(c.rarity) >= rank(r))) continue; // nothing at or above its rarity: it could never open
+    out.push(make({ kind: 'rarity', id: `rarity-${r}`, name: `${RARITY_LABELS[r]} Pack`, guaranteedFloor: r }, 'rarity', eco.rarityPackPrice[r]));
   }
   for (const c of COSMETIC_CATEGORIES) {
     if (packPool(catalog, { category: c }).length === 0) continue;
@@ -229,12 +231,9 @@ export function windowOffers(
 
 // ── The counter ─────────────────────────────────────────────────────────────────────────────────────────────
 
-/**
- * THE COUNTER HOLDS `eco.counterTypes` (5) PACK TYPES, `eco.stackMax` (8) PACKS OF EACH (owner 2026-11-26: "they should
- * stack once per purchase, up to a max of 8", "cap the max pack types at 5"). Packs that do not fit (rewards given while the
- * counter is full) WAIT beside it and take a place as packs are opened. The counter is a view of the hand in the order
- * given; the server supplies it oldest first and mirrors these rules in SQL.
- */
+// The counter holds `eco.counterTypes` pack types, `eco.stackMax` of each (owner 2026-11-26: "they should stack once per
+// purchase, up to a max of 8", "cap the max pack types at 5"); packs that do not fit wait beside it (counterSplit).
+
 /** A pack's type: packs of one type lie in one stack. */
 export const lookKey = (look: PackLook): string => `${look.kind}:${look.id}`;
 /** Packs of one type waiting for room on the counter. */

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { CARD_INDEX, RUNE_INDEX } from '@game/content';
 import { KEYWORD_GLOSSARY, GLOSSARY_BY_ID } from './keywordGlossary';
-import { WIKI_ENTRIES } from './rulesWiki';
+import { WIKI_ENTRIES, wikiEntriesFor } from './rulesWiki';
 
 // R-TEXT-PRINTED-01 (owner 2026-10-08): "find any place the game says 'printed stats' and fix the wording. make
 // rise say 'Returns once when destroyed with 1 health.'" Designer jargon ("printed stats", "printed Attack",
@@ -22,7 +22,8 @@ describe('player-facing rules text says what happens, not "printed stats"', () =
   });
 
   it('no Rules wiki question or answer uses the jargon', () => {
-    const hits = WIKI_ENTRIES.filter((e) => JARGON.test(e.q) || JARGON.test(e.a)).map((e) => e.id);
+    // both wordings a player can see: chests (packs off) and packs (packs on)
+    const hits = [...WIKI_ENTRIES, ...wikiEntriesFor(true)].filter((e) => JARGON.test(e.q) || JARGON.test(e.a)).map((e) => e.id);
     expect(hits).toEqual([]);
   });
 

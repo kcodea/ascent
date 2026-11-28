@@ -13,10 +13,10 @@ import { CrateOpener, type CrateQueueItem } from './CrateOpener';
 import { chestFloorOf, chestTierOf, type ChestTier } from './crateFx/chestTiers';
 import { warmChestArt } from './crateFx/chestArt';
 import {
-  aetherBalance, aetherVisible, cratesVisible, equipCosmetic, equipTitle, markCosmeticsSeen, mirrorFor, refreshCrates, useProgression, type CrateOpenOutcome,
+  aetherBalance, aetherVisible, cratesVisible, equipCosmetic, equipTitle, markCosmeticsSeen, mirrorFor, packsVisible, refreshCrates, useProgression, type CrateOpenOutcome,
 } from './progressionStore';
 import {
-  COMING_BLURB, acquisitionText, albumOf, categoryLive, collectibleItems, collectionCategories, countOf, filterAlbum, hasSeenBaseline,
+  COMING_BLURB, FROZEN_CHESTS_NOTE, acquisitionText, albumOf, categoryLive, collectibleItems, collectionCategories, countOf, filterAlbum, hasSeenBaseline,
   isEquipped, isNew, loadSeen, masteryText, missingHint, ownedIds, rarityCounts, skinTargetName, type RarityFilter, type ShowFilter,
 } from './collectionModel';
 import { defaultArtOf, skinArtOf } from '../skins/skinArt';
@@ -134,6 +134,8 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
   const crateList = useProgression((s) => s.crateList);
   const cratesOn = useProgression(cratesVisible);
   const aetherOn = useProgression(aetherVisible);
+  // THE PACK ECONOMY (2026-12-01): with packs on the Chest Shop is retired and sealed chests are frozen (no Open).
+  const packsOn = useProgression(packsVisible);
   const balance = useProgression(aetherBalance);
   const milestoneEvery = useProgression((s) => s.economy.milestoneEvery);
   // THE PARTY HOME SHELL (DEV switch, off by default): the same page, state and handlers, drawn in the shell's language.
@@ -224,7 +226,7 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
   // Crates tab asked for (it would land on the Collection with Crates lit).
   const aetherWasOn = useRef(aetherOn);
   useEffect(() => { if (aetherWasOn.current && !aetherOn) setShopOpen(false); aetherWasOn.current = aetherOn; }, [aetherOn]);
-  const shopShown = shopOpen && aetherOn;
+  const shopShown = shopOpen && aetherOn && !packsOn;
 
   const sealedRows: CrateRow[] = useMemo(() => (crateList ?? []).filter((c) => c.state === 'sealed'), [crateList]);
   const sealed: CrateQueueItem[] = useMemo(
@@ -243,6 +245,9 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
   const oddsLine = useMemo(() => (aetherOn ? floorOddsLine(firstFloor ?? MILESTONE_FLOOR) : crateOddsLine()), [aetherOn, firstFloor]);
 
   const sealedIds = useMemo(() => (crateList ? new Set(sealed.map((c) => c.crateId)) : null), [crateList, sealed]);
+  // The packs still sealed, once this account's Pack Shop has been read (null before: the pop-up then lists them all).
+  const packHand = useProgression((s) => (s.packShop && s.packShop.userId === userId ? s.packShop.shop?.packs ?? null : null));
+  const sealedPackIds = useMemo(() => (packHand ? new Set(packHand.map((p) => p.packId)) : null), [packHand]);
   // The Titles album shows each hero title once (its golden master once owned), so both lists read ownership.
   const everything = useMemo(() => collectibleItems(undefined, owned), [catalogEpoch, owned]);
   const total = useMemo(() => countOf(everything, owned), [everything, owned]);
@@ -338,7 +343,7 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
    *  gets the sign-in gate instead (owner 2026-09-29); `anonymous` is read fresh each render, so the first Open
    *  after the account is created goes straight through. */
   const begin = (openAll: boolean, queue: CrateQueueItem[] = sealed): void => {
-    if (!queue.length || shopBusy) return; // a purchase in flight owns the theatre next
+    if (!queue.length || shopBusy || packsOn) return; // a purchase in flight owns the theatre next; frozen chests never open
     sfx.pulse();
     if (anonymous) { setGate(true); return; }
     setTheatre({ queue: [...queue], openAll });
@@ -387,7 +392,7 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
     <>
       {/* NEW REWARDS (owner 2026-09-28): what the last games awarded, summarised once, then marked seen. */}
       {introFor && <AetherIntroPopup userId={introFor} onDone={() => setIntroFor(null)} />}
-      {!introUp && <NewRewardsPopup sealedIds={sealedIds} onOpenCrates={(all) => { if (all) openAllBay(); else openBay(); }} />}
+      {!introUp && <NewRewardsPopup sealedIds={sealedIds} sealedPackIds={sealedPackIds} packsOn={packsOn} onOpenCrates={(all) => { if (all) openAllBay(); else openBay(); }} />}
       <CrateSignInGate open={gate} onClose={closeGate} />
       {hover && <SkinCardPreview key={`${hover.cardId}:${hover.art ?? ''}:${hover.plate === undefined ? '' : hover.plate?.id ?? 'standard'}:${hover.rect.left}:${hover.rect.top}`} cardId={hover.cardId} art={hover.art} anchor={hover.rect} plate={hover.plate} />}
       {theatre && (
@@ -412,7 +417,7 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
       emoteMenu, onPlaceEmote: (pos) => { if (selected) void onPlaceEmote(selected, pos); },
       onDropEmote: (id, pos) => { const it = cosmeticOf(id); if (it && it.category === 'emote' && owned.has(id)) void onPlaceEmote(it, pos); },
       onEquip: () => { if (selected) void onEquip(selected, true); }, onTakeOff: () => { if (selected) void onEquip(selected, false); },
-      shopOffline: shopOpen && !aetherOn, closeShop, cratesOn, cratesLoading: crateList === null, sealed, bayTier, nextCrateLevel, guest: anonymous, oddsLine, shopBusy, openBay, openAllBay,
+      shopOffline: shopOpen && !aetherOn && !packsOn, closeShop, cratesOn, chestsFrozen: packsOn, cratesLoading: crateList === null, sealed, bayTier, nextCrateLevel, guest: anonymous, oddsLine, shopBusy, openBay, openAllBay,
       openAccount: () => { sfx.pulse(); openAccountPanel(); },
     };
     return (
@@ -517,7 +522,7 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
               <div className="colls-gridwrap" onScroll={hover ? clearHover : undefined}>
                 {shown.length === 0 ? (
                   <div className="colls-nomatch">
-                    <div>{show === 'owned' && albumCount.owned === 0 ? 'You have none yet. Open a chest to find one.' : show === 'missing' && albumCount.owned === albumCount.total ? 'You have them all.' : show === 'new' && rarity === 'all' ? 'Nothing new here. New items from chests and rewards show up here.' : 'Nothing matches these filters.'}</div>
+                    <div>{show === 'owned' && albumCount.owned === 0 ? `You have none yet. Open a ${packsOn ? 'pack' : 'chest'} to find one.` : show === 'missing' && albumCount.owned === albumCount.total ? 'You have them all.' : show === 'new' && rarity === 'all' ? `Nothing new here. New items from ${packsOn ? 'packs' : 'chests'} and rewards show up here.` : 'Nothing matches these filters.'}</div>
                     <button type="button" className="colls-quiet pressable quiet" onClick={() => { sfx.pulse(); setShow('all'); setRarity('all'); }}>Show all</button>
                   </div>
                 ) : (
@@ -527,7 +532,7 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
                         <ItemTile
                           id={c.id} name={c.name} rarity={c.rarity} art={c.category === 'portrait_frame' ? frameSrc(c.id) : c.category === 'emote' ? emoteSrc(c.id) : c.category === 'card_plate' ? plateLookOf(c)?.thumb : skinArtOf(c)} ring={c.category === 'portrait_frame' || c.category === 'card_plate'} emote={c.category === 'emote'} target={skinTargetName(c) ?? undefined}
                           owned={owned.has(c.id)} equipped={worn(c)} fresh={fresh(c)} selected={selectedId === c.id} master={hasTitlePlate(c.id)}
-                          how={owned.has(c.id) ? undefined : acquisitionText(c)}
+                          how={owned.has(c.id) ? undefined : acquisitionText(c, packsOn)}
                           onPick={onPick} onHover={c.target?.type === 'card' || c.category === 'card_plate' ? onHover : undefined}
                         />
                       </li>
@@ -542,12 +547,12 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
         </main>
 
         <aside className="colls-side">
-          {aetherOn && (
+          {aetherOn && !packsOn && (
             <button type="button" className="colls-shopbtn" onClick={openShop}><AetherIcon className="colls-shopbtn-gem" />Chest Shop</button>
           )}
           <CrateBay
             cratesOn={cratesOn} loading={crateList === null} sealed={sealed} tier={bayTier} nextLevel={nextCrateLevel} guest={anonymous} oddsLine={oddsLine} busy={shopBusy}
-            onOpen={openBay} onOpenAll={openAllBay}
+            frozen={packsOn} onOpen={openBay} onOpenAll={openAllBay}
           />
           {live && selected && (
             <DetailPanel
@@ -645,6 +650,7 @@ function DetailPanel({ item, owned, equipped, busy, error, playerName, reducedMo
   emoteSlots?: readonly (string | null)[];
   onPlaceEmote?: (position: number) => void;
 }): JSX.Element {
+  const packsOn = useProgression(packsVisible);
   const skinArt = skinArtOf(item);
   const art = showDefault ? defaultArtOf(item) ?? skinArt : skinArt;
   const cardSkin = item.target?.type === 'card';
@@ -720,7 +726,7 @@ function DetailPanel({ item, owned, equipped, busy, error, playerName, reducedMo
         {emote && <div className="colls-fact"><span>For</span><b>Your hero. {touchText('Right-click', 'Tap and hold')} your portrait in a game to say it</b></div>}
         {emote && emotePosition >= 0 && <div className="colls-fact"><span>In your menu</span><b>Slot {emotePosition + 1}</b></div>}
         {/* Owned: where it came from. Missing: the hint under the facts already says how to get it (it repeated it). */}
-        {owned && <div className="colls-fact"><span>How to get</span><b>{acquisitionText(item)}</b></div>}
+        {owned && <div className="colls-fact"><span>How to get</span><b>{acquisitionText(item, packsOn)}</b></div>}
         {masteryText(item) && <div className="colls-fact"><span>Mastery</span><b>{masteryText(item)}</b></div>}
       </div>
       {item.category === 'title' && (
@@ -741,7 +747,7 @@ function DetailPanel({ item, owned, equipped, busy, error, playerName, reducedMo
       <div className="colls-detail-actions">
         {emote && <EmoteSlotRow item={item} owned={owned} busy={busy} slots={emoteSlots} onPlace={onPlaceEmote} />}
         {emote && owned ? null : !owned ? (
-          <div className="colls-hint">{missingHint(item)}</div>
+          <div className="colls-hint">{missingHint(item, packsOn)}</div>
         ) : equipped ? (
           <>
             <div className="colls-worn-tag" role="status">Equipped</div>
@@ -853,8 +859,10 @@ export const plateLookOf = (item: CosmeticDef | null | undefined): CardPlateLook
 
 // ── The crate bay (always in view) ─────────────────────────────────────────────────────────────────────────
 
-function CrateBay({ cratesOn, loading, sealed, tier, nextLevel, guest, oddsLine, busy, onOpen, onOpenAll }: {
+function CrateBay({ cratesOn, loading, sealed, tier, nextLevel, guest, oddsLine, busy, frozen, onOpen, onOpenAll }: {
   cratesOn: boolean; loading: boolean; sealed: CrateQueueItem[]; nextLevel: number; guest: boolean;
+  /** Packs are on (spec section 11): the bay shows only while a sealed chest is held, with no Open, and the frozen line. */
+  frozen: boolean;
   /** The chest the bay draws (see `bayTier`). */
   tier: ChestTier;
   /** The odds line's body (`crateOddsLine()` with Aether off; the first sealed crate's floor odds with it on). */
@@ -862,9 +870,25 @@ function CrateBay({ cratesOn, loading, sealed, tier, nextLevel, guest, oddsLine,
   /** A Crate Shop purchase is in flight: hold Open / Open all (a second theatre would replace the reveal). */
   busy: boolean;
   onOpen: () => void; onOpenAll: () => void;
-}): JSX.Element {
+}): JSX.Element | null {
   const n = sealed.length;
   const ready = cratesOn && !loading && n > 0;
+  if (frozen && !ready) return null;
+  if (frozen) {
+    return (
+      <section className="colls-panel colls-bay colls-bay-frozen" aria-label="Sealed chests">
+        <div className="colls-bay-art" aria-hidden>
+          <ChestPicture tier={tier} className="colls-bay-chest" />
+          <span className="colls-hero-count">{n}</span>
+        </div>
+        <div className="colls-bay-body">
+          <div className="colls-bay-head">Sealed chests</div>
+          <div className="colls-bay-sub"><b>{n}</b> held</div>
+          <div className="colls-bay-frozen-note">{FROZEN_CHESTS_NOTE}</div>
+        </div>
+      </section>
+    );
+  }
   return (
     <section className={`colls-panel colls-bay${ready ? ' ready' : ''}`} aria-label="Sealed chests">
       <div className="colls-bay-art" aria-hidden>

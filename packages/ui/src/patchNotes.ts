@@ -56,6 +56,36 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-11-28',
+    label: 'Card Packs',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Card packs replace chests. Every pack holds 5 cards, and you buy them in the Shop.',
+        details: [
+          'Rarity packs cost Common 100, Rare 175, Epic 300, Legendary 500 and Ancient 850 Aether. Themed packs, one for each category and style, cost 200.',
+          'A Rarity pack rolls its first four cards at the usual odds, and its last card is guaranteed to be that rarity or better. The last card of a themed pack comes from its theme and is never one you own.',
+          'The odds are shown on Rarity packs.',
+          'The shop refreshes every 6 hours, with a free Rare pack in every window and a few discounted packs to snap up.',
+          'Every 15 packs you buy earns you a free Epic pack.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'New accounts start with nine packs, and you earn a Legendary pack every 5 levels from now on.',
+        details: [
+          'The nine starting packs are 5 Common, 2 Rare, 1 Epic and 1 Legendary.',
+          'Level packs start with the levels you reach from now on; the levels you had already passed do not count.',
+          'Players here at launch also get a one-time Aether gift.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Chests you already hold are kept, sealed, until they are exchanged in a later update.',
+      },
+    ],
+  },
+  {
     date: '2026-11-27',
     changes: [
       {

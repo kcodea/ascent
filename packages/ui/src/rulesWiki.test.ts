@@ -11,7 +11,7 @@ import { describe, expect, it } from 'vitest';
 import { allRules } from '@game/rules';
 import { SETS, activeSet } from '@game/content';
 import { KEYWORD_GLOSSARY } from './keywordGlossary';
-import { WIKI_BY_ID, WIKI_ENTRIES, WIKI_TOPICS } from './rulesWiki';
+import { WIKI_BY_ID, WIKI_ENTRIES, WIKI_TOPICS, wikiEntriesFor } from './rulesWiki';
 import { fingerprint } from './rulesWiki/fingerprint';
 import { UNCOVERED_KEYWORDS } from './rulesWiki/uncoveredKeywords';
 
@@ -32,7 +32,8 @@ describe('rules wiki: integrity', () => {
 
   it('every entry has a known topic, a question, and a jargon-free answer', () => {
     const topics = new Set(WIKI_TOPICS.map((t) => t.id));
-    const bad = WIKI_ENTRIES.flatMap((e) => [
+    // both wordings a player can see: chests (packs off) and packs (packs on, wikiEntriesFor(true))
+    const bad = [...WIKI_ENTRIES, ...wikiEntriesFor(true)].flatMap((e) => [
       ...(topics.has(e.topic) ? [] : [`${e.id}: unknown topic ${e.topic}`]),
       ...(e.q.trim().endsWith('?') ? [] : [`${e.id}: question should end with "?"`]),
       ...(e.a.trim() ? [] : [`${e.id}: empty answer`]),

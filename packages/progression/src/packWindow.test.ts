@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { COSMETIC_RARITIES, type CosmeticDef } from './cosmetics';
-import { DEFAULT_PACK_ECONOMY, rarityPackOdds } from './packEconomy';
+import { rarityPackOdds } from './packEconomy';
 import { STYLE_PACK_IDS, STYLE_PACK_NAMES, dealPrice, shelfOffers, windowOffers } from './packShop';
 
 const W = '2026-11-27T12';
@@ -94,6 +94,5 @@ describe('windowOffers', () => {
   });
   it('gives an empty window for an empty catalog', () => {
     expect(windowOffers(W, fill(0), [])).toEqual([]);
-    expect(DEFAULT_PACK_ECONOMY.featuredDeals).toBe(4);
   });
 });

@@ -14,6 +14,22 @@
 
 import { COSMETIC_RARITIES, type CrateRarity } from './progressionCosmetics.ts';
 
+/**
+ * THE STYLE PACK LOOK IDS: the Scribble Pack, then the ten themed style packs. A cosmetic joins a style pack by naming
+ * one of these in `CosmeticDef.packStyles`; the UI keeps its own art table (`packArt.ts`) keyed by the same ids.
+ */
+export const STYLE_PACK_IDS: readonly string[] = Object.freeze([
+  'themed-scribble', 'themed-plushie', 'themed-8bit', 'themed-voxel', 'themed-low-poly', 'themed-sketchbook',
+  'themed-encore', 'themed-crayon', 'themed-sports', 'themed-stained-glass', 'themed-scifi',
+]);
+
+/** The names the style packs show (the UI's `packArt.ts` names, pinned equal by a UI test; progression cannot import the UI). */
+export const STYLE_PACK_NAMES: Readonly<Record<string, string>> = Object.freeze({
+  'themed-scribble': 'Scribble Pack', 'themed-plushie': 'Plushie Pack', 'themed-8bit': '8 Bit Pack', 'themed-voxel': 'Voxel Pack',
+  'themed-low-poly': 'Low Poly Pack', 'themed-sketchbook': 'Sketchbook Pack', 'themed-encore': 'Encore Pack',
+  'themed-crayon': 'Crayon Pack', 'themed-sports': 'Sports Pack', 'themed-stained-glass': 'Stained Glass Pack', 'themed-scifi': 'Sci-Fi Pack',
+});
+
 /** What art / name / colour a pack shows. */
 export interface PackLook {
   kind: 'rarity' | 'category' | 'themed';

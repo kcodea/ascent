@@ -17,8 +17,7 @@ import {
   type CosmeticCategory, type CosmeticDef, type CrateRarity,
 } from './progressionCosmetics.ts';
 import { DEFAULT_PACK_ECONOMY, type PackEconomy } from './progressionPackEconomy.ts';
-import type { PackCard, PackLook } from './progressionPacks.ts';
-import { STYLE_PACK_IDS } from './progressionPackShop.ts';
+import { STYLE_PACK_IDS, type PackCard, type PackLook } from './progressionPacks.ts';
 
 export const PACK_CARD_COUNT = 5;
 /** Three draws per card: rarity, category, item. */

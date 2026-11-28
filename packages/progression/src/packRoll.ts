@@ -14,8 +14,7 @@ import {
   type CosmeticCategory, type CosmeticDef, type CrateRarity,
 } from './cosmetics';
 import { DEFAULT_PACK_ECONOMY, type PackEconomy } from './packEconomy';
-import type { PackCard, PackLook } from './packs';
-import { STYLE_PACK_IDS } from './packShop';
+import { STYLE_PACK_IDS, type PackCard, type PackLook } from './packs';
 
 export const PACK_CARD_COUNT = 5;
 /** Three draws per card: rarity, category, item. */

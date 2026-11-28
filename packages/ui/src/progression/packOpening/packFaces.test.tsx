@@ -143,6 +143,21 @@ describe('PackFace', () => {
     expect(face().querySelector('.pkf-dup')).toBeNull();
   });
 
+  it('in the summary row NEW floats above the card (outside the window), with a looping glow on opacity and a bob on transform only', () => {
+    m = mount(<PackFace card={card('alpha_tester')} phase="summary" />);
+    const pill = face().querySelector('.pkf-new')!;
+    expect(pill.classList.contains('pkf-new-above')).toBe(true);
+    expect(pill.closest('.pkf-win')).toBeNull();
+    expect(face().querySelectorAll('.pkf-new')).toHaveLength(1);
+    m.render(<PackFace card={card('alpha_tester', { duplicate: { aether: 25 } })} phase="summary" />);
+    expect(face().querySelector('.pkf-new')).toBeNull();
+    const css = readFileSync(join(__dirname, 'packOpening.css'), 'utf8');
+    const kf = (name: string) => new RegExp(`@keyframes ${name} \\{([\\s\\S]*?)\\}\\s*\\}`).exec(css)![1]!;
+    expect(kf('pkf-newglow')).not.toMatch(/shadow|filter|background/);
+    expect(kf('pkf-newbob')).toMatch(/transform/);
+    expect(kf('pkf-newbob')).not.toMatch(/shadow|filter|background/);
+  });
+
   it('shows the rarity ribbon and puts the breathing glow only on a featured Legendary / Ancient', () => {
     m = mount(<PackFace card={card('alpha_tester', { rarity: 'legendary' })} phase="featured" />);
     expect(face().querySelector('.pkf-ribbon')!.textContent).toBe('Legendary');

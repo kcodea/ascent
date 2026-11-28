@@ -429,7 +429,7 @@ export function PackFace({ card, phase, from, slot, slow = 1, still = false, bes
                   <span className="pkf-aether">{`+${card.duplicate.aether} Aether`}</span>
                 </div>
               )
-              : <div className="pkf-new">New</div>}
+              : phase !== 'summary' && <div className="pkf-new">New</div>}
           </div>
           {!isTitle && <div className="pkf-name"><span>{p.label.name}</span></div>}
           {p.category === null && <div className="pkf-note">{p.label.kind}</div>}
@@ -439,6 +439,9 @@ export function PackFace({ card, phase, from, slot, slow = 1, still = false, bes
           <div className="pkf-cat">{cat}</div>
         </div>
         <img src={rarityIconSrc(card.rarity)} alt="" decoding="sync" draggable={false} className="pkf-rarity-icon" />
+        {/* in the summary row NEW floats ABOVE the card, outside the window's clip, glowing and bobbing (owner 2026-11-27:
+            "lets put the new pill up here, make it a bit larger and add a subtle pulsing glow and slight up and down bob. very slight") */}
+        {!card.duplicate && phase === 'summary' && <div className="pkf-new pkf-new-above"><span>New</span></div>}
         {dissolve && phase === 'summary' && <div className="pkf-aglow" style={{ '--pkf-plate': `url("${cardPlateSrc(card.rarity)}")` } as CSSProperties} />}
         {revealed && <div className="pkf-flash" data-testid="pkf-flash" style={{ '--pkf-plate': `url("${cardPlateSrc(card.rarity)}")` } as CSSProperties} />}
       </div>

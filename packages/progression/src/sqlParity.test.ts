@@ -357,7 +357,7 @@ describe('the crates migration (2026-09-28)', () => {
     const nul = (v: string | undefined): string | null => (v === undefined || v === 'null' ? null : v);
     const sqlRows = seedRows('cosmetic_catalog').map(([id, category, rarity, source, level, targetType, targetId, achievementId, active]) => ({
       cosmeticId: id!, category: category!, rarity: rarity!, acquisitionSource: source!, milestoneLevel: nul(level) === null ? null : Number(level),
-      targetType: nul(targetType), targetId: nul(targetId), achievementId: nul(achievementId), active: active === 'true',
+      targetType: nul(targetType), targetId: nul(targetId), achievementId: nul(achievementId), active: active === 'true', packStyles: [],
     }));
     // the hero titles (2026-09-29) came later, in their own file's seed (below); titles batch 2 (2026-11-11) arrives through the catalog sync, as does the Game Breaker gift (2026-11-25)
     const batch2: readonly string[] = ['title_banana', 'title_beastmaster', 'title_dwarven_warlord', 'title_leader_of_the_pack', 'title_doom', 'title_gem_stoned', 'title_dragonborn', 'title_re_blarted', 'title_game_breaker'];
@@ -416,7 +416,7 @@ describe('the hero titles migration (2026-09-29): a title at 3 Ranked 1sts with 
     const nul = (v: string | undefined): string | null => (v === undefined || v === 'null' ? null : v);
     const sqlRows = seedRowsOf('cosmetic_catalog', heroTitles).map(([id, category, rarity, source, level, targetType, targetId, achievementId, active]) => ({
       cosmeticId: id!, category: category!, rarity: rarity!, acquisitionSource: source!, milestoneLevel: nul(level) === null ? null : Number(level),
-      targetType: nul(targetType), targetId: nul(targetId), achievementId: nul(achievementId), active: active === 'true',
+      targetType: nul(targetType), targetId: nul(targetId), achievementId: nul(achievementId), active: active === 'true', packStyles: [],
     }));
     const hero = new Set(HERO_TITLE_COSMETICS.map((c) => c.id));
     expect([...sqlRows].sort((a, b) => (a.cosmeticId < b.cosmeticId ? -1 : 1))).toEqual(catalogSyncPayload().items.filter((i) => hero.has(i.cosmeticId)));
@@ -475,7 +475,8 @@ describe('the skins migration (2026-09-28): the code-owned catalog sync + the em
     const body = fnBody('sync_cosmetic_catalog');
     const payload = catalogSyncPayload();
     for (const k of Object.keys(payload.categories[0]!)) expect(body, k).toContain(`'${k}'`);
-    for (const k of Object.keys(payload.items[0]!)) expect(body, k).toContain(`'${k}'`);
+    // packStyles is synced to its SQL column by the pack economy migration (a later task); that task removes this filter.
+    for (const k of Object.keys(payload.items[0]!).filter((key) => key !== 'packStyles')) expect(body, k).toContain(`'${k}'`);
     expect(body.indexOf('catalog_hash')).toBeLessThan(body.indexOf('insert into'));
     expect(body).not.toMatch(/admin_off/);
     expect(body).not.toMatch(/\bdelete\b/);

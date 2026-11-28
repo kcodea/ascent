@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { COSMETIC_RARITIES } from '@game/progression';
+import { COSMETIC_RARITIES, STYLE_PACK_IDS } from '@game/progression';
 import { CATEGORY_PACKS, LAUNCH_PACK_LOOK_ID, LAUNCH_PACK_SRC, RARITY_PACK_ART, SCRIBBLE_PACK_LOOK_ID, SCRIBBLE_PACK_SRC, SECRET_PACK_LOOK_ID, SECRET_PACK_SRC, STYLE_PACKS, packArtFor, packShineFor } from './packArt';
 import { PACK_LAB_LOOKS } from './packLabSamples';
 import { PACK_ART_TEMPLATE, PACK_GEOM, derivePackHeights } from './packGeom';
@@ -106,5 +106,11 @@ describe('packGeom', () => {
   it('the stack still fits inside the sleeve', () => {
     expect(PACK_GEOM.CARD_W).toBeLessThan(PACK_GEOM.W);
     expect(PACK_GEOM.CARD_H).toBeLessThan(PACK_GEOM.BODY_H);
+  });
+});
+
+describe('style pack ids', () => {
+  it('match the progression STYLE_PACK_IDS list', () => {
+    expect([SCRIBBLE_PACK_LOOK_ID, ...STYLE_PACKS.map((p) => p.id)]).toEqual([...STYLE_PACK_IDS]);
   });
 });

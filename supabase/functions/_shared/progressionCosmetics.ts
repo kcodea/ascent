@@ -154,6 +154,12 @@ export interface CosmeticDef {
    */
   collection?: string;
   /**
+   * The STYLE PACKS this item belongs to (pack economy spec section 5): a style pack's guaranteed 5th card is drawn from
+   * the items that name its look id here (`STYLE_PACK_IDS` in `packShop.ts`). Absent = in no style pack. Membership is
+   * the owner's content; the server reads it from the catalog sync.
+   */
+  packStyles?: readonly string[];
+  /**
    * A TITLE's themed look (owner ask 2026-11-20: "make the new titles more exciting/fun looking based on their tribes or
    * whatever unlocks them"). Presentation only: the client paints `TitleBadge` in this theme. It never reaches the server
    * (`catalogSyncPayload` names its fields), so adding or changing one needs no deploy.
@@ -2271,10 +2277,15 @@ export interface CatalogSyncItem {
   active: boolean;
   /** The collection the item belongs to (`CosmeticDef.collection`), or null (absent = null). */
   collectionId?: string | null;
+  /** The style pack look ids the item belongs to (`CosmeticDef.packStyles`), empty when none. */
+  packStyles: string[];
 }
 export interface CatalogSyncPayload { version: 1; categories: CatalogSyncCategory[]; items: CatalogSyncItem[] }
 
 const byKey = <T>(key: (x: T) => string) => (a: T, b: T): number => (key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : 0);
+
+/** The style pack look ids a cosmetic belongs to (empty when none). */
+export const packStyleIds = (c: CosmeticDef): readonly string[] => c.packStyles ?? [];
 
 export function catalogSyncPayload(
   catalog: readonly CosmeticDef[] = COSMETICS,
@@ -2297,6 +2308,7 @@ export function catalogSyncPayload(
         achievementId: c.acquisition.type === 'achievement' ? c.acquisition.id : null,
         active: c.active,
         ...(c.collection ? { collectionId: c.collection } : {}),
+        packStyles: [...packStyleIds(c)],
       }))
       .sort(byKey((i) => i.cosmeticId)),
   };

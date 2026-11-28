@@ -327,7 +327,7 @@ describe('the catalog sync (owner 2026-09-28: "make it automated when i add skin
     // skin_blackbelt_9 is a hypothetical item that is NOT in code (skin_blackbelt_3 became real on 2026-09-28).
     const p = base();
     p.items = [...p.items.map((i) => (i.cosmeticId === 'skin_albus_1' ? { ...i, rarity: 'legendary' } : i)),
-      { cosmeticId: 'skin_blackbelt_9', category: 'minion_skin', rarity: 'rare', acquisitionSource: 'crate', milestoneLevel: null, targetType: 'card', targetId: 'blackbelt', achievementId: null, active: true }];
+      { cosmeticId: 'skin_blackbelt_9', category: 'minion_skin', rarity: 'rare', acquisitionSource: 'crate', milestoneLevel: null, targetType: 'card', targetId: 'blackbelt', achievementId: null, active: true, packStyles: [] }];
     const res = await sync(p, 'test-hash-add-1');
     expect(res).toMatchObject({ status: 'synced', itemsChanged: 2, itemsDeactivated: 0 });
     expect(await itemRow('skin_blackbelt_9')).toMatchObject({ category: 'minion_skin', rarity: 'rare', active: true, admin_off: false });

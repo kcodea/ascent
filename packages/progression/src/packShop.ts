@@ -13,6 +13,15 @@ import type { CrateRarity } from './cosmetics';
 import type { PackLook } from './packs';
 import { DEFAULT_PACK_ECONOMY, type PackEconomy } from './packEconomy';
 
+/**
+ * THE STYLE PACK LOOK IDS: the Scribble Pack, then the ten themed style packs. A cosmetic joins a style pack by naming
+ * one of these in `CosmeticDef.packStyles`; the UI keeps its own art table (`packArt.ts`) keyed by the same ids.
+ */
+export const STYLE_PACK_IDS: readonly string[] = Object.freeze([
+  'themed-scribble', 'themed-plushie', 'themed-8bit', 'themed-voxel', 'themed-low-poly', 'themed-sketchbook',
+  'themed-encore', 'themed-crayon', 'themed-sports', 'themed-stained-glass', 'themed-scifi',
+]);
+
 /** One pack (or box of packs) standing on a shelf. */
 export interface PackOffer {
   offerId: string;

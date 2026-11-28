@@ -200,3 +200,14 @@ describe('fetchPackLaunchGiftReceived', () => {
     expect(await R.fetchPackLaunchGiftReceived('u-1')).toBeUndefined();
   });
 });
+
+describe('the pack meter (fix round 1)', () => {
+  it("carries pack_config's reward size and rarity when the shop read sends them, and stays valid without", async () => {
+    const { parsePackShopSnapshot } = await import('./progressionRemote');
+    const base = { windowId: 'w1', nextRefreshAt: 1, shelves: [], offers: [], packs: [], aether: 0 };
+    expect(parsePackShopSnapshot({ ...base, packMeter: { progress: 2, ready: 0, every: 10, rarity: 'legendary' } })?.packMeter)
+      .toEqual({ progress: 2, ready: 0, every: 10, rarity: 'legendary' });
+    expect(parsePackShopSnapshot({ ...base, packMeter: { progress: 2, ready: 0 } })?.packMeter).toEqual({ progress: 2, ready: 0 });
+    expect(parsePackShopSnapshot({ ...base, packMeter: { progress: 2, ready: 0, every: 0, rarity: 'shiny' } })?.packMeter).toEqual({ progress: 2, ready: 0 });
+  });
+});

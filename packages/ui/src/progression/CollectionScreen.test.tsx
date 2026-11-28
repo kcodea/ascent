@@ -1131,6 +1131,6 @@ describe('the Collection screen with packs on (the pack economy, 2026-12-01)', (
     open({ aether: 1200 }, { aether: true });
     expect($('.nrw-packs')).toBeNull();
     expect([...document.querySelectorAll<HTMLButtonElement>('.nrw-panel button')].some((b) => b.textContent === 'Open')).toBe(true);
-    resetNewRewardsForTests();
+    act(() => { resetNewRewardsForTests(); });
   });
 });

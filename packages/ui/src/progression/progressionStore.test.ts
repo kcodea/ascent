@@ -479,6 +479,40 @@ describe('the pack economy (2026-12-01)', () => {
     expect(await S.claimPackReward('c-2')).toEqual({ status: 'error', reason: 'failed' });
   });
 
+  it("an open's new cards are owned in the mirror at once (duplicates add nothing), and the profile is re-read", async () => {
+    await loaded();
+    const before = own.mock.calls.length;
+    const cards = [
+      { rewardId: 'title_hearthkeeper', rarity: 'rare' as const, guaranteed: false, duplicate: null },
+      { rewardId: 'title_star_chaser', rarity: 'common' as const, guaranteed: true, duplicate: { aether: 20 } },
+    ];
+    openPackRemote.mockResolvedValueOnce({ status: 'ok', result: { packId: 'p-1', pack: rare, cards, aether: 1020 }, alreadyOpened: false });
+    await S.openPack('p-1');
+    const m = S.useProgression.getState().mirror!;
+    expect(m.cosmetics).toContain('title_hearthkeeper');
+    expect(m.titles).toContain('title_hearthkeeper');
+    expect(m.cosmetics!.filter((id) => id === 'title_star_chaser').length).toBeLessThanOrEqual(1);
+    expect(own.mock.calls.length).toBeGreaterThan(before);
+  });
+
+  it('a replayed buy that answers a pack already opened here never puts it back in the hand', async () => {
+    await loaded();
+    const cards = [0, 1, 2, 3, 4].map((i) => ({ rewardId: 'x' + i, rarity: 'common' as const, guaranteed: i === 4, duplicate: null }));
+    openPackRemote.mockResolvedValueOnce({ status: 'ok', result: { packId: 'p-1', pack: rare, cards }, alreadyOpened: false });
+    await S.openPack('p-1');
+    buyPackRemote.mockResolvedValueOnce({ status: 'ok', packs: [{ packId: 'p-1', look: rare }], aether: 1000, meter: null });
+    const out = await S.buyPack('w1:rarity-rare', 'req-1');
+    expect(out).toEqual({ status: 'ok', packs: [], aether: 1000 });
+    expect(shop().packs).toEqual([]);
+  });
+
+  it("a buy's meter moves progress and ready, and keeps the shop's reward size and rarity", async () => {
+    await loaded({ packMeter: { progress: 3, ready: 0, every: 10, rarity: 'legendary' } });
+    buyPackRemote.mockResolvedValueOnce({ status: 'ok', packs: [{ packId: 'p-2', look: rare }], aether: 825, meter: { progress: 4, ready: 0 } });
+    await S.buyPack('w1:rarity-rare', 'req-1');
+    expect(shop().packMeter).toEqual({ progress: 4, ready: 0, every: 10, rarity: 'legendary' });
+  });
+
   it('a settlement that granted packs re-reads a loaded shop; its pack ids queue as new rewards', async () => {
     await loaded();
     packShopRead.mockResolvedValue({ status: 'ok', shop: snapshot({ packs: [{ packId: 'p-1', look: rare }, { packId: 'w-1', look: rare }] }) });

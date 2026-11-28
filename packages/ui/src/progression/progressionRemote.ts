@@ -650,7 +650,13 @@ export async function fetchPackLaunchGiftReceived(userId: string): Promise<boole
 }
 
 /** The purchase reward meter: paid packs toward the next reward, and rewards ready to claim. */
-export interface PackMeter { progress: number; ready: number }
+export interface PackMeter {
+  progress: number;
+  ready: number;
+  /** The shop read's reward size and rarity (pack_config's `rewardEvery` / `rewardRarity`); buy and claim answers omit them. */
+  every?: number;
+  rarity?: CrateRarity;
+}
 
 /** The `pack_shop` read: the window's offers with this player's numbers, the sealed packs in counter order, the meter and the balance. */
 export interface PackShopSnapshot {
@@ -742,7 +748,10 @@ function parseOwnedPacks(v: unknown): OwnedPack[] | null {
 function parseMeter(v: unknown): PackMeter | null {
   if (!isRec(v)) return null;
   const progress = countOf(v.progress); const ready = countOf(v.ready);
-  return progress === null || ready === null ? null : { progress, ready };
+  if (progress === null || ready === null) return null;
+  const every = countOf(v.every);
+  const rarity = (COSMETIC_RARITIES as readonly unknown[]).includes(v.rarity) ? (v.rarity as CrateRarity) : undefined;
+  return { progress, ready, ...(every !== null && every > 0 ? { every } : {}), ...(rarity ? { rarity } : {}) };
 }
 
 /** The `pack_shop` answer; null on anything malformed. */

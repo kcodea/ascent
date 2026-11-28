@@ -540,11 +540,32 @@ function patchPackShop(userId: string, fn: (shop: PackShopSnapshot) => PackShopS
   useProgression.setState({ packShop: { ...cur, shop: fn(cur.shop) } });
 }
 
-/** `hand` plus the packs it does not hold yet (by id), in order. */
+/** Pack ids this session has opened. A replayed answer (a retried buy, the free pack's second "buy") hands back the pack it
+ *  first made, which may be opened by now: it must never return to the hand. */
+const openedPackIds = new Set<string>();
+
+/** `hand` plus the packs it does not hold yet (by id) and that were never opened here, in order. */
 const withPacks = (hand: readonly OwnedPack[], add: readonly OwnedPack[]): OwnedPack[] => {
   const have = new Set(hand.map((p) => p.packId));
-  return [...hand, ...add.filter((p) => !have.has(p.packId))];
+  return [...hand, ...add.filter((p) => !have.has(p.packId) && !openedPackIds.has(p.packId))];
 };
+
+/** A meter from a buy or claim answer (progress and ready) over the shop's (which also names the reward's size and rarity). */
+const withMeter = (cur: PackShopSnapshot['packMeter'], next: PackShopSnapshot['packMeter'] | null): PackShopSnapshot['packMeter'] =>
+  (next ? { ...cur, ...next } : cur);
+
+/** The cards an open made new to this account join the mirror at once (the Collection reads ownership from it); the
+ *  profile re-read that follows brings anything else the open changed (a title worn because none was). */
+function adoptOpenedCards(userId: string, rewardIds: readonly string[]): void {
+  const cur = mirrorFor(userId, useProgression.getState().mirror);
+  if (!cur || rewardIds.length === 0) return;
+  const owned = cur.cosmetics ?? cur.titles;
+  const cosmetics = [...owned, ...rewardIds.filter((id) => !owned.includes(id))];
+  const newTitles = rewardIds.filter((id) => !!titleName(id) && !cur.titles.includes(id));
+  const next: ProgressionMirror = { ...cur, cosmetics, titles: newTitles.length ? [...cur.titles, ...newTitles] : cur.titles };
+  saveMirror(next);
+  useProgression.setState({ mirror: next });
+}
 
 let packShopRead: Promise<void> | null = null;
 
@@ -606,7 +627,7 @@ export async function buyPack(offerId: string, requestId: string): Promise<BuyPa
     ...s,
     packs: withPacks(s.packs, out.packs),
     aether: out.aether,
-    packMeter: out.meter ?? s.packMeter,
+    packMeter: withMeter(s.packMeter, out.meter),
     // a limited deal's stock counts down for this player (the server's next read says the same)
     offers: s.offers.map((o) => {
       if (o.offerId !== offerId) return o;
@@ -617,7 +638,8 @@ export async function buyPack(offerId: string, requestId: string): Promise<BuyPa
     }),
   }));
   setOwnAether(userId, out.aether);
-  return { status: 'ok', packs: out.packs, aether: out.aether };
+  const fresh = out.packs.filter((p) => !openedPackIds.has(p.packId));
+  return { status: 'ok', packs: fresh, aether: out.aether };
 }
 
 /**
@@ -630,9 +652,13 @@ export async function openPack(packId: string): Promise<PackOpenOutcome> {
   const out = await openPackRemote(packId).catch(() => ({ status: 'error' as const, reason: 'threw' }));
   if (currentUserId() !== userId) return { status: 'error', reason: 'account_changed' };
   if (out.status !== 'ok') return { status: 'error', reason: out.reason };
+  openedPackIds.add(packId);
   const aether = out.result.aether;
   patchPackShop(userId, (s) => ({ ...s, packs: s.packs.filter((p) => p.packId !== packId), ...(aether !== undefined ? { aether } : {}) }));
+  adoptOpenedCards(userId, out.result.cards.filter((c) => c.duplicate === null).map((c) => c.rewardId));
   if (aether !== undefined) setOwnAether(userId, aether);
+  // the open may also have worn a title (when none was worn): the profile is the truth for that
+  void refreshOwnProfile();
   return { status: 'ok', result: out.result };
 }
 
@@ -647,7 +673,7 @@ export async function claimPackReward(requestId: string): Promise<ClaimRewardOut
     if (reason !== 'guest') void refreshPackShop();
     return { status: 'error', reason };
   }
-  patchPackShop(userId, (s) => ({ ...s, packs: withPacks(s.packs, out.packs), packMeter: out.meter ?? s.packMeter }));
+  patchPackShop(userId, (s) => ({ ...s, packs: withPacks(s.packs, out.packs), packMeter: withMeter(s.packMeter, out.meter) }));
   return { status: 'ok', packs: out.packs };
 }
 
@@ -824,6 +850,7 @@ export function markProgressionPresented(mode: ProgressionMode, runId: string): 
 /** Tests: forget the markers, the current run and the mirror. */
 export function resetProgressionForTests(): void {
   presented = [];
+  openedPackIds.clear();
   try { localStorage.removeItem(PRESENTED_KEY); localStorage.removeItem(MIRROR_KEY); } catch { /* ignore */ }
   try { localStorage.removeItem(SERVER_CATALOG_KEY); localStorage.removeItem(SERVER_CATALOG_HASH_KEY); } catch { /* ignore */ }
   setServerCatalogState(null);

@@ -60,8 +60,9 @@ export function PhTopNav({ current: given, friendsDocked = false, ownDrawer = fa
   const progressionOn = useProgression((s) => s.capability === 'on');
   const mirror = useProgression((s) => mirrorFor(userId, s.mirror));
   const aetherOn = useProgression(aetherVisible);
-  const collectionOn = useProgression(cratesVisible) || import.meta.env.DEV;
   const packsOn = useProgression(packsVisible);
+  // The Pack Shop follows packs_enabled alone: with packs on, the Shop (and the Collection) show whatever the crate switch says.
+  const collectionOn = useProgression(cratesVisible) || packsOn || import.meta.env.DEV;
   const friendsBadge = useFriendsBadge();
   const newRewards = useHasNewRewards();
   // LIVE GAMES (owner 2026-11-20): the tab glows green while anyone is playing, with the count on its icon's foot.

@@ -69,6 +69,8 @@ export interface PackShopProps {
   /** Passed straight to `PackOpener`. */
   open: (packId: string) => Promise<PackOpenOutcome>;
   onClose?: () => void;
+  /** A modal stands over the shop (the sign-in gate): its Esc is that modal's, so the shop ignores Esc meanwhile. */
+  modalAbove?: boolean;
   reducedMotion?: boolean;
   /** Tests inject a fake. */
   sceneFactory?: typeof createShopScene;
@@ -220,6 +222,7 @@ export function PackShop(props: PackShopProps) {
   const balanceRef = useRef(balance);
   const buyRef = useRef(buy); buyRef.current = buy;
   const onCloseRef = useRef(onClose); onCloseRef.current = onClose;
+  const modalAboveRef = useRef(!!props.modalAbove); modalAboveRef.current = !!props.modalAbove;
   const pendingRef = useRef(false);
   const playedRef = useRef<string | null>(null);
   const playTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -700,7 +703,7 @@ export function PackShop(props: PackShopProps) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       // The opener has its own keys (its Esc closes it, not the shop); a handled key is not ours.
-      if (e.key !== 'Escape' || openingRef.current || e.defaultPrevented) return;
+      if (e.key !== 'Escape' || openingRef.current || modalAboveRef.current || e.defaultPrevented) return;
       // Esc is the shop's alone (window, capture: heard before the game's own Esc listener, which opens Settings).
       e.preventDefault();
       e.stopPropagation();

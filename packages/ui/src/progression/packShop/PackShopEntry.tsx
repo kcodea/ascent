@@ -163,6 +163,36 @@ function LabPackShop({ onClose }: { onClose: () => void }) {
 /** The failed state (the read did not answer, or the switch went off under it): one line and the way out. */
 const SHOP_FAILED_NOTE = 'The Pack Shop could not be reached. Try again in a moment.';
 
+/** The shop's read did not answer: the generic failed state, over the stage like the shop, with focus on Try again and
+ *  Esc to close. */
+function PackShopFailed({ onClose }: { onClose: () => void }) {
+  const tryRef = useRef<HTMLButtonElement>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  useEffect(() => { tryRef.current?.focus(); }, []);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key !== 'Escape' || e.defaultPrevented) return;
+      e.preventDefault();
+      e.stopPropagation();
+      sfx.tick();
+      onCloseRef.current();
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, []);
+  return createPortal(
+    <div className="pks pks-failed" role="dialog" aria-modal="true" aria-label="Pack Shop">
+      <p className="pks-failed-note" role="alert">{SHOP_FAILED_NOTE}</p>
+      <div className="pks-failed-actions">
+        <button ref={tryRef} type="button" className="cv2-btn pressable" onClick={() => { sfx.pulse(); void refreshPackShop(); }}>Try again</button>
+        <button type="button" className="colls-quiet pressable quiet" onClick={() => { sfx.tick(); onClose(); }}>Close</button>
+      </div>
+    </div>,
+    stageHost(),
+  );
+}
+
 /**
  * THE PACK SHOP ON THE SERVER (packs on). The shop is read when it opens (and again when its window turns over); a
  * purchase sends the price the shop shows and the shop's request id (one per attempt, reused on its retry, so the
@@ -201,25 +231,21 @@ export function ServerPackShop({ onClose }: { onClose: () => void }) {
     return out;
   }, []);
   const onRefresh = useCallback((): void => { void refreshPackShop(); }, []);
-  const reward = useMemo(() => (shop ? { rarity: PACK_REWARD_RARITY, every: PACK_REWARD_EVERY, progress: shop.packMeter.progress, ready: shop.packMeter.ready } : undefined), [shop]);
+  // the reward's size and rarity are the server's (pack_config); the constants only stand in for an older server
+  const meter = shop?.packMeter;
+  const reward = useMemo(() => (meter ? {
+    rarity: meter.rarity ?? PACK_REWARD_RARITY, every: meter.every ?? PACK_REWARD_EVERY, progress: meter.progress, ready: meter.ready,
+  } : undefined), [meter]);
   if (!shop) {
     // Loading: nothing yet (the door's trip covers the wait). Failed: the generic failed state.
-    if (mine?.status !== 'failed') return null;
-    return (
-      <div className="pks pks-failed" role="dialog" aria-modal="true" aria-label="Pack Shop">
-        <p className="pks-failed-note" role="alert">{SHOP_FAILED_NOTE}</p>
-        <div className="pks-failed-actions">
-          <button type="button" className="cv2-btn pressable" onClick={() => { sfx.pulse(); void refreshPackShop(); }}>Try again</button>
-          <button type="button" className="colls-quiet pressable quiet" onClick={() => { sfx.tick(); onClose(); }}>Close</button>
-        </div>
-      </div>
-    );
+    return mine?.status === 'failed' ? <PackShopFailed onClose={onClose} /> : null;
   }
   return (
     <>
       <PackShop shelves={shop.shelves} offers={shop.offers} refreshesAt={shop.nextRefreshAt} onRefresh={onRefresh} hand={shop.packs} aether={shop.aether}
-        reward={reward} claimReward={claim} buy={buy} open={open} onClose={onClose} />
-      <div className="pks-gatehost"><CrateSignInGate open={gate} onClose={closeGate} /></div>
+        reward={reward} claimReward={claim} buy={buy} open={open} onClose={onClose} modalAbove={gate && anonymous} />
+      {/* over the shop on the stage (the shop is portalled there at z 690; the gate's scrim sits at 720) */}
+      {createPortal(<div className="pks-gatehost"><CrateSignInGate open={gate} onClose={closeGate} /></div>, stageHost())}
     </>
   );
 }

@@ -345,6 +345,16 @@ describe('PackShop', () => {
     expect(new Set(buys.map((b) => b.requestId)).size).toBe(2);
   });
 
+  it('Esc is ignored while a modal stands over the shop (the sign-in gate), and closes it again once it is gone', () => {
+    const onClose = vi.fn();
+    render({ onClose, modalAbove: true });
+    key('Escape');
+    expect(onClose).not.toHaveBeenCalled();
+    render({ onClose, modalAbove: false });
+    key('Escape');
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
   describe('playing a hand pack', () => {
     beforeEach(() => { vi.useFakeTimers(); });
     afterEach(() => { vi.useRealTimers(); });

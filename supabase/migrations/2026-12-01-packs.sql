@@ -1142,6 +1142,12 @@ begin
         - (select count(*) from public.packs p where p.user_id = p_user and p.offer_id = v_o ->> 'offerId')::int);
       v_o := v_o || jsonb_build_object('stock', v_left) || case when v_left = 0 then jsonb_build_object('soldOut', true) else '{}'::jsonb end;
     end if;
+    -- the free pack is one per player per window: once this player has `free:<window>` it is taken (a re-read must
+    -- never show it buyable again, or a "buy" would hand back the pack already made, perhaps already opened)
+    if v_o ->> 'offerId' = v_window || ':free'
+       and exists (select 1 from public.packs p where p.user_id = p_user and p.source = 'free:' || v_window) then
+      v_o := v_o || jsonb_build_object('soldOut', true);
+    end if;
     if v_look ->> 'kind' = 'rarity' then
       v_o := v_o || jsonb_build_object('odds', public.progression_pack_odds(v_eco, v_look ->> 'guaranteedFloor'));
     end if;
@@ -1158,7 +1164,10 @@ begin
       jsonb_build_object('id', 'rarity', 'name', 'Rarity Packs')),
     'offers', v_offers,
     'packs', public.progression_pack_hand_json(p_user),
-    'packMeter', public.progression_pack_meter_json(p_user),
+    -- the meter, plus the reward's size and rarity from pack_config, so the shop's label follows a retune
+    'packMeter', public.progression_pack_meter_json(p_user) || jsonb_build_object(
+      'every', public.progression_pack_config_int(v_eco, array['rewardEvery']),
+      'rarity', public.progression_pack_config_rarity(v_eco, 'rewardRarity')),
     'aether', public.progression_aether_balance(p_user));
 end;
 $$;

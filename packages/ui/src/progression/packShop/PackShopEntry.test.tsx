@@ -60,6 +60,13 @@ describe('which shop the Shop tab opens', () => {
     expect(shopTabTarget(false, true)).toBe('pack_lab'); // a DEV build keeps the lab behind the door
   });
 
+  it('with packs on the Shop tab shows even with the crate switch off (packs_enabled alone)', () => {
+    useProgression.setState({ cratesCapability: 'off' });
+    ui = mount(<PhTopNav current="home" />);
+    const labels = [...ui.container.querySelectorAll<HTMLButtonElement>('button')].map((b) => b.textContent ?? '');
+    expect(labels.some((l) => l.includes('Shop'))).toBe(true);
+  });
+
   it('with packs on, the nav\'s Shop tab plays the trip into the Pack Shop, never the Chest Shop', () => {
     const door = usePhShell.getState().packShopDoor;
     ui = mount(<PhTopNav current="home" />);
@@ -128,6 +135,40 @@ describe('ServerPackShop', () => {
     let opened: unknown;
     await act(async () => { opened = await shopProps!.open('p-1'); });
     expect(opened).toEqual({ status: 'error', reason: 'guest' });
+  });
+
+  it("the reward label uses the server's size and rarity (pack_config), the constants only without them", async () => {
+    fetchPackShop.mockResolvedValue({ status: 'ok', shop: { ...shopJson, packMeter: { progress: 3, ready: 1, every: 10, rarity: 'legendary' } } });
+    ui = mount(<ServerPackShop onClose={() => {}} />);
+    await flush();
+    expect(shopProps!.reward).toMatchObject({ rarity: 'legendary', every: 10, progress: 3, ready: 1 });
+  });
+
+  it('while the sign-in gate is up the shop ignores Esc (modalAbove), and the gate is on the stage above the shop', async () => {
+    asGuest(true);
+    fetchPackShop.mockResolvedValue({ status: 'ok', shop: shopJson });
+    ui = mount(<ServerPackShop onClose={() => {}} />);
+    await flush();
+    expect(shopProps!.modalAbove).toBe(false);
+    await act(async () => { await shopProps!.buy('w1:rarity-rare', 'req-1'); });
+    expect(shopProps!.modalAbove).toBe(true);
+    const host = document.querySelector('.pks-gatehost')!;
+    expect(ui!.container.contains(host)).toBe(false); // portalled, not inline under the shop's parent
+    act(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })); });
+    expect(document.querySelector('.crgate-panel')).toBeNull();
+    expect(shopProps!.modalAbove).toBe(false);
+  });
+
+  it('the failed panel is on the stage, takes focus on Try again, and Esc closes it', async () => {
+    fetchPackShop.mockResolvedValue({ status: 'error', reason: 'timeout' });
+    const onClose = vi.fn();
+    ui = mount(<ServerPackShop onClose={onClose} />);
+    await flush();
+    const panel = document.querySelector('.pks-failed')!;
+    expect(ui!.container.contains(panel)).toBe(false);
+    expect(document.activeElement?.textContent).toBe('Try again');
+    act(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })); });
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 
   it('a read that does not answer (the switch off) is the generic failed state, with Try again and Close', async () => {

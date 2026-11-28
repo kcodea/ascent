@@ -109,7 +109,7 @@ type Opened = { status: string; reason?: string; packId: string; pack: PackLook;
 async function open(u: string, packId: string): Promise<Opened> {
   return (await one<{ j: Opened }>('select public.open_pack($1, $2) as j', [u, packId])).j;
 }
-type Shop = { windowId: string; nextRefreshAt: number; shelves: unknown[]; offers: PackOffer[]; packs: OwnedPack[]; packMeter: { progress: number; ready: number }; aether: number };
+type Shop = { windowId: string; nextRefreshAt: number; shelves: unknown[]; offers: PackOffer[]; packs: OwnedPack[]; packMeter: { progress: number; ready: number; every?: number; rarity?: string }; aether: number };
 async function shop(u: string): Promise<Shop> {
   return (await one<{ j: Shop }>('select public.pack_shop_json($1) as j', [u])).j;
 }
@@ -699,8 +699,29 @@ describe('pack_shop_json', () => {
     const all = packPool(CATALOG, 'all').length;
     expect(s.offers.find((o) => o.offerId === `${w}:rarity-common`)!.newToYou).toEqual({ unowned: all - packPool(CATALOG, { category: 'emote' }).length, total: all });
     expect(s.packs.map((p) => p.packId)).toEqual(ids);
-    expect(s.packMeter).toEqual({ progress: 2, ready: 0 });
+    expect(s.packMeter).toEqual({ progress: 2, ready: 0, every: 15, rarity: 'epic' });
     expect(s.aether).toBe(1234);
+  });
+
+  it('the free offer reads as taken once this player has its pack (and only for them)', async () => {
+    await setWindow();
+    const w = await currentWindow();
+    const u = await newUser();
+    const free = (s: Shop): PackOffer => s.offers.find((o) => o.offerId === `${w}:free`)!;
+    expect(free(await shop(u)).soldOut).toBeUndefined();
+    await buy(u, `${w}:free`, 0);
+    expect(free(await shop(u)).soldOut).toBe(true);
+    expect(free(await shop(await newUser())).soldOut).toBeUndefined();
+  });
+
+  it("the meter's reward size and rarity are pack_config's (a retune reaches the label)", async () => {
+    await setWindow();
+    await setEconomy({ ...DEFAULT_PACK_ECONOMY, rewardEvery: 10, rewardRarity: 'legendary' });
+    try {
+      expect((await shop(await newUser())).packMeter).toEqual({ progress: 0, ready: 0, every: 10, rarity: 'legendary' });
+    } finally {
+      await setEconomy(DEFAULT_PACK_ECONOMY);
+    }
   });
 
   it('the odds a Rarity offer shows are re-read from pack_config (what the roll uses)', async () => {

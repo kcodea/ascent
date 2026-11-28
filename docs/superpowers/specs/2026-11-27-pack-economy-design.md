@@ -1,0 +1,376 @@
+# The Pack Economy: design
+
+Date: 2026-11-27 · Owner: Mike · Status: draft for owner review
+
+**Builds on:** the pack opening (`2026-11-23-pack-opening-design.md`) and the pack shop
+(`2026-11-25-pack-shop-design.md`), both on PR kcodea/ascent#2865. Those two are presentation only and run on dev
+sample data. This doc is the server side they were waiting for: where the packs come from, what they cost, what is
+inside them, and how today's Chest Shop goes away.
+
+**Replaces:** the Chest Shop economy (`2026-10-18-aether-crate-shop-design.md`, `crateShop.ts`, `buy_crate`, the
+category focus, the milestone and Welcome chests).
+
+## 1. Intent
+
+Cosmetic rewards move from single-item chests to 5-card packs. A chest gave one item and could never give a duplicate,
+so a near-complete collector ran out of things to buy. A pack gives five, may give duplicates, and turns each duplicate
+into Aether, so there is always something to open and the collection keeps paying back.
+
+The server has to own all of it: every price, every roll, every grant, the duplicate payouts and the hand limit. The
+client only names what it wants and plays what the server answers, as with chests today (R-PROG-AETHER-02: the price
+shown is the price charged, a repeated request is charged once).
+
+## 2. Goals, non-goals, anti-goals
+
+**Goals**
+- One authoritative, versioned server roll for every pack, mirrored in TypeScript and proven equal draw for draw.
+- Buying, holding and opening packs on the server, each in one transaction under the per-user progression lock,
+  idempotent per request.
+- The counter limit (5 pack types, 8 of each) enforced on the server, not only drawn by the shop.
+- Level and Welcome grants become packs. Match Aether payouts stay exactly as they are.
+- The Chest Shop and the category focus are retired. Chests a player already holds are left alone.
+- An old client during the Ship Ascent rollout never loses a pack, never double-charges and never shows a wrong price.
+- Every player-facing "chest" becomes "pack" where it now means a pack, and the oracle knows the new rules.
+
+**Non-goals (this project)**
+- The look of anything: shelf, counter, opening, faces. PR kcodea/ascent#2865 owns presentation; this project only
+  wires it to the server.
+- The lump sum of Aether for unopened chests (owner 2026-11-27: Mike handles it later).
+- Launch, Season and Secret packs, booster boxes and anything else in section 13.
+- Real-money purchases. Aether stays earned-only (R-PROG-AETHER-01).
+
+**Anti-goals (a failure even if it works)**
+- A charge without a pack, a pack without a charge, or one request charged twice.
+- A category or style pack's fifth card that the player already owned while the pool still had something new.
+- A price, payout or odds number that lives only in client code, so a retune needs a release.
+- An old client that can still spend Aether on a chest after the switch is flipped.
+- Renaming the Ancient rarity. "Ancient" is the rarity and "Ascendant" is the rank (memory: never relabel).
+
+## 3. The owner's rulings this design is built on (all 2026-11-27)
+
+| Topic | Ruling |
+|---|---|
+| Packs vs chests | Packs REPLACE the Chest Shop. |
+| Size | Every pack has 5 cards. |
+| Rarity packs | Cards 1-4 roll like any card at the Standard odds (Common 35, Rare 31, Epic 22, Legendary 9, Ancient 3). Only card 5 is guaranteed, at the pack's rarity or higher ("they are just guaranteeing that the final pull is of that tier or higher"). |
+| Category and style packs | Cards 1-4 at the Standard odds from the whole catalog. Card 5 comes from the pack's category or style and is never a duplicate. When that pool is fully owned the pack greys out but stays buyable. |
+| Within a rarity | "When that rarity is determined or drawn, then from there, any category has equal odds of showing up." |
+| Prices | Common 100, Rare 175, Epic 300, Legendary 500, Ancient 850. Every category and style pack is a flat 200. |
+| Duplicates | A duplicate pays 20% of its OWN rarity's Rarity-pack price: Common 20, Rare 35, Epic 60, Legendary 100, Ancient 170. |
+| Shop refresh | Every 6 hours: 12am, 6am, 12pm and 6pm Eastern (daylight saving included). |
+| Free pack | A free Rare pack in the Featured window. The shop spec records "Every 6 hours" when asked whether it stays daily (section 13, item 5). |
+| Purchase reward | Every 15 packs purchased earns a free Epic pack. |
+| Counter | 5 pack types on the counter, up to 8 of each. "The player cannot purchase any more packs until a slot opens up." Packs given while it is full wait beside it. |
+| Match payouts | Unchanged. |
+| Level packs | A free Legendary pack every 5 levels (5, 10, 15, ...), replacing the Epic milestone chest every 10 levels. |
+| New accounts | A free Legendary pack in place of the Welcome Chest. |
+| Focus | Removed. |
+| Old chests | Not converted into packs. The lump sum is out of scope. |
+
+## 4. Approaches considered
+
+| | Approach | Trade-off |
+|---|---|---|
+| A | **Stretch `loot_crates`** into packs: a `kind` column, five reward columns, the chest roll widened. | Fewest new tables. But every chest constraint, trigger and parser (one reward, never a duplicate, `pool_exhausted`, the milestone floor check) would have to learn two shapes, and the chests still in players' hands share a table with the thing replacing them. One mistake breaks both. |
+| B | **New pack tables beside the chests** (chosen). `packs`, `pack_shop_windows`, `pack_meters`, a `pack_config` row; new functions `buy_pack`, `open_pack`, `claim_pack_reward`; `loot_crates` and `open_crate` are left exactly as they are. | More new SQL, but nothing about a chest changes, the new rules are written once in their own shape, and the chest side can be deleted later in one piece when the lump-sum project is done. |
+| C | **Roll at purchase**, store the five cards sealed, reveal at open. | Simpler opening, and the result is fixed the moment Aether is spent. But a category pack's "never a duplicate" fifth card would be judged against what the player owned at purchase; two packs of one category bought together could promise the same item. Rejected: the roll happens at open (B). |
+
+**B, rolling at open, is my call** for the owner to overrule. It is the same split today's chests use (bought and
+created in one step, rolled when opened), and it keeps "never a duplicate" true at the moment the card is seen.
+
+## 5. The pack lineup
+
+| Kind | Look id | Count | Price | Card 5 |
+|---|---|---|---|---|
+| Rarity | `rarity-common` ... `rarity-ancient` | 5 | 100 / 175 / 300 / 500 / 850 | At the pack's rarity or higher. |
+| Category | `category-<category>`, one per enabled cosmetic category | up to 10 | 200 | From that category, never owned. |
+| Style | `themed-<style>` (Scribble, Plushie, 8 Bit, Voxel, Low Poly, Sketchbook, Encore, Crayon, Sports, Stained Glass, Sci-Fi) | 11 | 200 | From that style, never owned. |
+
+A **style pack's pool** needs data the catalog does not have yet. `CosmeticDef` gains an optional `packStyles: string[]`
+(the style look ids the item belongs to), synced to the server through `catalogSyncPayload` into a new
+`cosmetic_catalog.pack_styles text[]` column. A style pack whose pool is empty is not offered. Which items belong to
+which style is the owner's content, filled in over time; until a style has members its pack stays off the shelf.
+A category pack for a disabled or `admin_off` category is not offered either.
+
+"Themed pack" in the shop's tabs means category and style packs together (the "Themed Packs" shelf); in this doc
+"themed" means both, and the pricing and roll rules for the two are identical.
+
+## 6. The roll (one authoritative roll, versioned)
+
+### 6.1 The pools
+- **The whole catalog** (cards 1-4 of every pack, card 5 of a rarity pack): every active, crate-sourced item in an
+  enabled category, not `admin_off` (the chest pool's filter, `eligibleCrateCosmetics`, **without** the "not owned"
+  clause). Owned items stay in: duplicates are allowed.
+- **The pack's own pool** (card 5 of a category or style pack): the same filter narrowed to the category or style, and
+  **with** the "not owned" clause, judged after cards 1-4 of the same pack are granted.
+- Secret items are never in any pool (R-PROG-SECRET-01: achievement only). Announcers are in every pool; the focus rule
+  that kept them out of focused chests (R-PROG-AETHER-06) goes with the focus.
+
+### 6.2 One card
+Three draws in [0, 1) per card, from the server's `random()`:
+1. **Rarity.** Cards 1-4: the Standard odds, 35/31/22/9/3. Card 5 of a rarity pack: the same odds restricted to the
+   pack's rarity and above, renormalized (an Ancient pack's card 5 is always Ancient; a Common pack is five Standard
+   cards). Card 5 of a category or style pack: the Standard odds.
+2. **Category.** Equal odds among the categories that have at least one item of that rarity in the pool (owner: "any
+   category has equal odds"). For a category pack's card 5 this step is a single choice.
+3. **Item.** Equal odds among that rarity-and-category's items, in id order (the chest roll's uniform pick).
+
+If the drawn rarity has nothing in the pool, it falls to the nearest rarity that has something, ties toward the more
+common one (`crateRarityFallback`), never below the pack's floor on a rarity pack's card 5. *(My call: today's chest
+fall-back, kept.)*
+
+**A category or style pack whose own pool is empty** (the player owns it all): card 5 is drawn from the pack's
+category or style as a duplicate, at the Standard odds, and pays its duplicate Aether. This is the greyed-but-buyable
+case.
+
+### 6.3 Order and duplicates inside one pack
+- The five cards are granted in order. A card is a duplicate if the player owned it before the pack or an earlier card
+  of the same pack gave it. *(My call.)*
+- The guaranteed card is always card 5, the last flip (the opening contract, `parsePackOpenResult`).
+- A duplicate pays `duplicateAether[its own rarity]` (20 / 35 / 60 / 100 / 170). All the pack's duplicates are one
+  ledger entry, `reason 'pack_duplicate'`, `source = pack id`, so a replayed open pays once.
+
+### 6.4 The mirror and the version
+- TS: `packages/progression/src/packRoll.ts`, a pure `rollPack(look, owned, catalog, draws: number[], config)` that
+  returns the five cards. The SQL copy is `progression_pack_roll(p_user, p_look_kind, p_look_id, p_floor, p_draws
+  float8[])`, so a test can hand both the same 15 draws. `open_pack` calls it with 15 fresh `random()` values.
+- `PACK_ROLL_VERSION = 1`, stored on every opened pack. Any change to how a pack rolls bumps it; an opened pack is never
+  re-rolled.
+- `packRoll.db.test.ts` runs the migration on PGlite and checks SQL equals TS for a few thousand random draw sets
+  across every pack kind, including the fall-back and fully-owned cases (the `aether.db.test.ts` pattern).
+
+## 7. The pack config (server-owned numbers)
+
+A new one-row table `pack_config` (public read), its JSON exactly `DEFAULT_PACK_ECONOMY` in a new
+`packages/progression/src/packEconomy.ts`, parsed strictly by `parsePackEconomy` (null on anything malformed, never a
+partly-trusted document), and versioned like `aether_config`. A retune is an UPDATE, no release.
+
+```ts
+interface PackEconomy {
+  version: number;
+  rarityPackPrice: Record<CrateRarity, number>;     // 100 / 175 / 300 / 500 / 850
+  themedPackPrice: number;                          // 200
+  duplicateAether: Record<CrateRarity, number>;     // 20 / 35 / 60 / 100 / 170
+  standardOdds: Record<CrateRarity, number>;        // 35 / 31 / 22 / 9 / 3, sums to 100
+  rewardEvery: number;                              // 15
+  rewardRarity: CrateRarity;                        // 'epic'
+  levelPackEvery: number;                           // 5
+  levelPackRarity: CrateRarity;                     // 'legendary'
+  welcomePackRarity: CrateRarity;                   // 'legendary'
+  freePackRarity: CrateRarity;                      // 'rare'
+  counterTypes: number;                             // 5
+  stackMax: number;                                 // 8
+  refreshHours: number;                             // 6
+  refreshZone: string;                              // 'America/New_York'
+}
+```
+
+- `duplicateAether` is stored, not computed from the prices, so a price retune never silently changes a payout. A
+  retune that keeps the owner's 20% rule updates both. *(My call.)*
+- `aether_config` is untouched: match payouts are unchanged, and old clients keep parsing it.
+- The roll's odds live here, not in the code. `CRATE_RARITY_ODDS` stays for the chests.
+- `packEconomy.ts`, `packRoll.ts`, `packs.ts` and `packShop.ts` join `SHARED_ARTIFACTS` so the Edge Functions get
+  generated Deno copies (`npm run progression:shared`).
+
+## 8. The shop window
+
+- The **window id** is the Eastern wall-clock date and block: `YYYY-MM-DDTHH`, HH in 00 / 06 / 12 / 18, computed in SQL
+  from `now() at time zone 'America/New_York'` (the lab's `labShopDay`, moved into `packShop.ts` as the one copy).
+- `pack_shop_windows (window_id primary key, offers jsonb, created_at)`: the window's offers, made by the first request
+  in that window and the same for every player. The Category and Rarity shelves are the same every window; the
+  Featured shelf holds the free pack and whatever Featured deals exist (section 13, item 3). *(My call: one shared
+  window, not one per player.)*
+- Each offer carries its `offerId` (window id + look, so an offer from a past window is recognisably stale), `look`,
+  `price`, `contains`, optional `fullPrice` and `stock`. Per-player numbers (`newToYou`, stock left) are added when the
+  shop is read, never stored in the window.
+- **Free pack:** one per player per window, a `buy_pack` of the free offer at price 0, `source = 'free:<window id>'`
+  (unique), so a second claim in the same window answers with the first. It needs counter room like any purchase
+  (the player drags it to the counter), does not count toward the purchase reward, and a guest cannot claim it (it is a
+  shop action). *(My calls.)*
+
+## 9. Buying, holding and opening
+
+### 9.1 Tables
+- `packs (pack_id uuid, user_id, look_kind, look_id, floor_rarity, source text, state 'sealed'|'opened',
+  price_paid int, created_at, opened_at, roll_version int, cards jsonb)`, unique `(user_id, source)`. A transition
+  guard (like `loot_crates_transition_guard`) lets a pack move only sealed to opened, once, and freezes its identity.
+- `pack_meters (user_id, purchased int, claimed int)`. Rewards ready = `floor(purchased / rewardEvery) - claimed`.
+- Owner-only reads; only security-definer functions write.
+
+**Sources:** `shop:<request id>` (one per pack in a purchase: `shop:<request id>:<n>`), `free:<window id>`,
+`reward:<n>` (the nth claimed reward), `level:<L>`, `welcome`.
+
+### 9.2 The counter limit on the server
+The counter is a **view of the sealed packs in one fixed order**: oldest first (`created_at`, then `pack_id`). The
+first 5 types in that order are on the counter, up to 8 of each; every other sealed pack is waiting. `counterSplit`
+and `counterHasRoom` move from `packages/ui/.../shopModel.ts` into `packages/progression/src/packShop.ts`, the SQL
+mirrors them (`progression_counter_has_room(p_user, p_look_kind, p_look_id)`), and a parity test pins the two.
+- A **purchase** (paid or free) is refused with `no_room` when a pack of that type would not fit on the counter. Nothing
+  is charged.
+- A **grant** (level, Welcome, purchase reward, any later gift) is never refused: the pack is created and waits if
+  there is no room (owner: "if it cant fit, send to their backpack").
+- The profile and the shop read return the sealed packs in that same order, so the client draws exactly what the
+  server will enforce.
+
+### 9.3 `buy_pack(p_user, p_offer_id, p_expected_price, p_request_id)`
+One transaction under the per-user progression lock, in this order:
+1. A repeated `p_request_id` returns the first answer, charged once.
+2. `packs_enabled` off: `failed`. A guest: `guest` (R-PROG-AETHER-02: guests earn but cannot spend).
+3. The offer is looked up in the **current** window. Not there (a past window, an unknown id): `expired` with the
+   current offers. Price differs from `p_expected_price`: `price_changed`. No stock left: `sold_out`.
+4. No counter room: `no_room`. Balance short: `insufficient` with the balance.
+5. Charge through `aether_apply(-price, 'pack_purchase', request id)` (skipped at price 0), create the pack(s), add
+   `contains` to `pack_meters.purchased` when the price is above 0, and answer
+   `{status 'ok', packs, aether, meter}`.
+
+`BuyPackError` gains `no_room` and `expired` (the PR's type has neither). *(My call.)*
+
+### 9.4 `open_pack(p_user, p_pack_id)`
+One transaction under the lock. Not the player's pack: `pack_not_found`. A guest: `guest` (as crates,
+R-PROG-CRATE-04). Already opened: the stored result (`already_opened`), nothing paid again. Otherwise: roll (section 6),
+insert every new card into `player_cosmetics`, pay the duplicates once, mark the pack opened with its `cards` and
+`roll_version`, and answer the `PackOpenResult` shape `parsePackOpenResult` already accepts, with `aether` set to the
+balance after payouts. A pack never fails to open for lack of items: duplicates are always possible.
+
+### 9.5 `claim_pack_reward(p_user, p_request_id)`
+Under the lock: a guest `guest`; no reward ready `none`; otherwise create one `rewardRarity` Rarity pack
+(`source = 'reward:<claimed + 1>'`), add 1 to `claimed`, answer `{status 'ok', packs}`. It is a grant, so it is never
+refused for room. Guests: a guest buys nothing, so they never have a reward ready.
+
+### 9.6 Reads
+- The profile JSON gains `packs` (sealed, in counter order) and `packMeter {progress, ready}`. `crates` stays.
+- A new Edge Function action `pack_shop` answers `{windowId, nextRefreshAt, shelves, offers (with per-player
+  newToYou and stock), packs, packMeter, aether}`.
+- `progression-inventory` gains actions `pack_shop`, `buy_pack`, `open_pack`, `claim_pack_reward`. The old actions stay.
+
+## 10. Level and Welcome grants
+
+Inside `settle_progression`, behind the switch:
+- **Welcome:** the settlement that enrolls an account creates one `welcomePackRarity` (Legendary) Rarity pack,
+  `source = 'welcome'`, instead of the Welcome Chest. Accounts enrolled before the switch keep the Welcome Chest they
+  got and get no Welcome pack.
+- **Level packs:** one `levelPackRarity` (Legendary) Rarity pack per multiple of `levelPackEvery` (5) at or below the new
+  level, `source = 'level:<L>'`, so each is made once and a missing one self-heals (today's milestone pattern). Whether
+  levels already passed before the switch get packs is section 13, question 1.
+- No more milestone chests. Milestone chests already granted stay, sealed or opened.
+- The result JSON gains `packsAwarded` and `packIds`; `cratesAwarded` stays (0). `isPlausibleProgressionResult`
+  (server.ts) gets the matching cap for packs: at most the level packs through the reached level, plus one.
+- Gauntlet is unchanged (a first clear already pays 200 Aether and no chest).
+
+## 11. Retiring the Chest Shop
+
+One switch, `progression_config.packs_enabled` (off by default), read in the same single config read as the other
+switches (R-EGRESS-02). Flipped by an owner-run `pack_rollout()` (service role, idempotent), like `aether_rollout()`.
+
+With the switch ON:
+- `buy_crate` refuses with `shop_retired` before charging. `aether_quote` answers null. Focus is gone with it.
+- The settlement grants packs, not chests (section 10).
+- `open_crate` keeps working, unchanged, for chests already held. *(Section 13, question 2.)*
+- The new client hides the Chest Shop and its focus picker and shows the Pack Shop; the Collection's chest bay shows
+  only while the player still holds a sealed chest.
+
+The chest code (`crateShop.ts`, `CrateShop.tsx`, `buy_crate`, the tiered pick) is deleted in a later cleanup PR, once
+the lump-sum project has dealt with the remaining chests. Nothing in this project removes a table or a column.
+
+## 12. Rollout and old clients (Ship Ascent)
+
+**Order:**
+1. Migration `2026-11-xx-packs.sql`, run in the SQL Editor (dormant: the switch is off; every new function refuses
+   while it is off). Also appended to `schema.sql`.
+2. Deploy `progression-inventory` and `submit-progression` with the new actions (additive; old actions unchanged).
+3. **Ship Ascent** with the new client. With the switch still off it shows the Chest Shop as today, so shipping first
+   changes nothing for anyone.
+4. Owner runs `select public.pack_rollout();`. From this moment packs are live.
+5. Patch notes entry (`patchNotes.ts`) in the client PR of step 3, worded for the day the switch flips.
+
+**An old client after the flip** (a friend who has not restarted to take the update):
+- Its Chest Shop buy answers `shop_retired`. It does not know that reason and shows its generic failure; nothing is
+  charged. It cannot buy anything until it updates.
+- Its settlements still go to the server, which grants packs. The old client ignores `packsAwarded` and shows no new
+  chest; the packs wait on the server and appear when it updates. Nothing is lost.
+- Its chest bay still opens old chests.
+- No minimum-version gate is added: the desktop app updates itself on restart, an old client can lose nothing, and the
+  window is short. *(My call.)*
+
+**A new client before the flip** behaves exactly as today. The client never decides which shop to show from its own
+version, only from `packs_enabled`.
+
+## 13. Open items (listed, not decided)
+
+For the owner, in order of how much they change the build:
+
+1. **Backdated level packs.** At the flip, does an account get Legendary packs for the multiples of 5 it has already
+   passed? (a) Yes, all of them (a Level 37 account gets 7; the Aether launch backdated milestone chests the same way);
+   (b) only levels reached after the flip; (c) only the multiples of 5 that never gave an Epic chest (5, 15, 25, ...).
+   My lean: (a), the precedent and the self-healing grant both point there. Build cost: (a) is the grant in section 10
+   as written, with `pack_rollout()` backfilling like `aether_rollout()` did; (b) needs each account's level stored at
+   the flip and the grant to stop self-healing below it; (c) skips multiples of 10 and changes the plausibility cap.
+   Packs once opened cannot be taken back, so this is decided before the flip.
+2. **Old chests meanwhile.** Until the lump-sum project, can a player still open the sealed chests they hold? My lean:
+   yes, exactly as today (no code changes, nothing taken away). The alternative is freezing them so the lump sum
+   counts every one.
+3. **Featured deals.** The lab has four discounted packs (20-60% off, 2-5 in stock, re-rolled every window). Launch with
+   them, and is stock per player? The server supports `fullPrice` and `stock` either way. Launching them moves the
+   lab's pick-and-discount rule into the window generator and its numbers into `pack_config`. Per-player stock fits
+   the per-user lock; shared stock (one counter every buyer competes for) does not, and needs its own locking. My lean:
+   per player.
+4. **Odds shown to players.** Chests print their odds (R-PROG-CRATE-03). Packs: show them, and where?
+5. **Free-pack cadence.** The brief calls the free Rare once per Eastern day, but the shop spec quotes the owner,
+   asked whether it stays daily, answering "Every 6 hours", and the lab gives one per window. This doc builds one per
+   window (`free:<window id>`); a daily pack is a one-line change to the source key.
+6. **Launch, Season and Secret packs**, and Secret as a sixth rarity in packs with its odds (today Secret exists as an
+   achievement-only rarity above Ancient, R-PROG-SECRET-01).
+7. **Booster box pricing.** The shop supports `contains` > 1; how a box fits the counter limit is decided with it.
+
+## 14. The "chest" to "pack" copy sweep
+
+Player-facing text only. Internal names (`loot_crates`, `CrateRarity`, `crateShop.ts`, the chest SQL) are not renamed.
+- Where the word now means a pack: the Collection, the New rewards pop-up and the end screen's rewards line, the guest
+  gate ("Create an account to open packs"), the level-up reward text, the Rules wiki answers about chests, menu labels
+  and tooltips (`.gtip`), `aria-label`s.
+- Where it still means a chest the player holds (the old-chest bay), it stays "chest".
+- Never "Ascendant" for the rarity.
+- Method: grep `\b[Cc]hests?\b|\b[Cc]rates?\b` in `packages/ui/src` string literals (about 570 matches today, most of
+  them identifiers), list the player-visible ones in the PR description, and change them in one commit so the review is
+  one read. *(My call on the method.)*
+
+## 15. Oracle rules that must change
+
+Amend or retire (in `packages/rules/src/registry/approved/foundation.ts`), each with the owner's 2026-11-27 words as
+evidence and a regression test as enforcement:
+
+| Rule | Change |
+|---|---|
+| R-PROG-AETHER-02 (the five crates and prices) | Retired with packs on; replaced by R-PROG-PACK-01. |
+| R-PROG-AETHER-03 (focus fee) | Retired. |
+| R-PROG-AETHER-04 (Epic chest every 10 levels, Welcome Chest) | Amended: Legendary pack every 5 levels, Welcome Legendary pack; old milestone chests kept. |
+| R-PROG-AETHER-06 (Announcers not focusable) | Retired (no focus). |
+| R-PROG-AETHER-01 (payouts) | Unchanged numbers; "spent in the Pack Shop". |
+| R-PROG-CRATE-02 (never an owned item; never converted to currency) | Scoped to chests. Packs may duplicate and pay Aether. |
+| R-PROG-CRATE-03 (one draw, odds shown) | Scoped to chests; pack roll in R-PROG-PACK-02. |
+| R-PROG-CRATE-04 (guests cannot open crates) | Extended to packs, or a twin R-PROG-PACK rule. |
+| R-PROG-SECRET-01 ("No chest ever rolls it") | "No chest or pack". |
+| R-PROG-COLLECTION-01, R-PH-COLLECTION-01, R-PROG-NEWREWARDS-01, R-GODMODE-01 | Their chest wording, where it now means packs. |
+| R-EGRESS-02 (one config read) | Adds the packs switch. |
+
+New rules, `R-PROG-PACK-01` onward: the lineup and prices; the roll (sections 6.1 to 6.3); duplicate payouts; the
+counter limit and that grants wait; the 6-hour window and free pack; the purchase reward; level and Welcome packs;
+guests; idempotency (a request charged once, an open paid once). Each is added in the PR that makes it true.
+
+## 16. What a builder decides
+
+Exact SQL names and file split; the Edge Function action payload field names beyond those above; the JSON of the
+window's offers; error text; how the profile JSON grows; the PGlite test matrix; the order of PRs (a sensible one:
+progression TS + SQL + tests, then Edge Functions, then the client wiring on top of #2865, then the copy sweep and
+oracle rules).
+
+## 17. Testing
+
+- `packRoll.test.ts`: every pack kind, the floor, the renormalized card-5 odds, the equal-category step, the fall-back,
+  fully-owned category, a duplicate inside one pack, Secret never rolled.
+- `packRoll.db.test.ts`: SQL equals TS draw for draw.
+- `packs.db.test.ts`: buy (each refusal, including `no_room` and `expired`), a repeated request charged once, open paid
+  once, claim, the counter order, grants waiting, guests refused, the switch off refusing everything, `buy_crate`
+  answering `shop_retired` with the switch on.
+- Settlement: Welcome pack on enrollment, level packs at 5/10/15 and self-healing, no milestone chest with packs on.
+- `sqlParity.test.ts` extended for the new config document.

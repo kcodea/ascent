@@ -1,4 +1,4 @@
-import { DEFAULT_PACK_ECONOMY, nextShopRefresh, PACK_REWARD_RARITY, shopWindowId, type BuyPackOutcome, type OwnedPack, type PackLook, type PackOffer, type PackShelf } from '@game/progression';
+import { DEFAULT_PACK_ECONOMY, nextShopRefresh, PACK_REWARD_RARITY, shopWindowId, windowOffers, type BuyPackOutcome, type OwnedPack, type PackLook, type PackOffer, type PackShelf } from '@game/progression';
 import { SCRIBBLE_PACK_LOOK_ID, STYLE_PACKS } from '../packOpening/packArt';
 import { PACK_LAB_LOOKS, type LabTimers } from '../packOpening/packLabSamples';
 
@@ -73,35 +73,22 @@ function dayRng(day: string): () => number {
   };
 }
 
-/** The featured window's discounted packs: this many, each 20% to 60% off (in 5% steps), each with 2 to 5 in stock. */
-export const FEATURED_DEALS = 4;
-export const DEAL_STOCK = { min: 2, max: 5 } as const;
-export const DEAL_OFF = { min: 20, max: 60, step: 5 } as const;
+/** The featured window's rules live in `@game/progression` (`windowOffers`); the lab reads them from the same economy document. */
+export const FEATURED_DEALS = DEFAULT_PACK_ECONOMY.featuredDeals;
+export const DEAL_STOCK = DEFAULT_PACK_ECONOMY.dealStock;
+export const DEAL_OFF = DEFAULT_PACK_ECONOMY.dealOff;
 
 /**
  * THE FEATURED WINDOW for a shop day (owner 2026-11-27: "it has a daily free card pack, and let's make that daily free
  * card pack a rare card pack. And then in featured should also have 4 other discounted, randomly discounted between 20
  * and 60% off card packs of any other type, whether it is rarity or category. And those should rotate out of the shop
- * every day"): the free Rare first, then four different packs off the Category and Rarity shelves (never the Rare, never
- * a sold-out one), each at its own discount. A sale's `fullPrice` is the price it was before.
+ * every day"): the free Rare first, then four different packs, each at its own discount. The rule is the server's
+ * (`windowOffers`); the lab only supplies the window's draws, from its seeded generator.
  */
 export function featuredOffers(day: string): PackOffer[] {
-  const rare = SHELF_OFFERS.find((o) => o.look.id === 'rarity-rare')!;
-  // a free pack EVERY REFRESH, like the deals (owner 2026-11-27, asked whether the free Rare stays daily: "Every 6 hours")
-  const free: PackOffer = { ...rare, offerId: `lab-daily-free-${day}`, shelf: 'featured', price: 0, badge: 'free' };
   const rnd = dayRng(day);
-  const pool = SHELF_OFFERS.filter((o) => o.look.id !== 'rarity-rare' && !o.soldOut);
-  const deals: PackOffer[] = [];
-  for (let k = 0; k < FEATURED_DEALS && pool.length > 0; k++) {
-    const pick = pool.splice(Math.floor(rnd() * pool.length), 1)[0]!;
-    const steps = (DEAL_OFF.max - DEAL_OFF.min) / DEAL_OFF.step;
-    const off = DEAL_OFF.min + DEAL_OFF.step * Math.floor(rnd() * (steps + 1));
-    const price = Math.max(5, Math.round((pick.price * (100 - off)) / 100 / 5) * 5);
-    // (owner 2026-11-27: "the discounted packs in the daily feature should also randomly roll which amount of stock they have from 2 to 5")
-    const stock = DEAL_STOCK.min + Math.floor(rnd() * (DEAL_STOCK.max - DEAL_STOCK.min + 1));
-    deals.push({ ...pick, offerId: `${pick.offerId}-deal-${day}`, shelf: 'featured', price, fullPrice: pick.price, badge: undefined, stock });
-  }
-  return [free, ...deals];
+  const draws = Array.from({ length: 3 * DEFAULT_PACK_ECONOMY.featuredDeals }, () => rnd());
+  return windowOffers(day, draws).filter((o) => o.shelf === 'featured');
 }
 
 /** Every offer in the shop on a shop day: the featured window, then the Category and Rarity shelves. */

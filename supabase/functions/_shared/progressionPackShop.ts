@@ -12,9 +12,10 @@
  * (the Edge Functions import the generated copy), so it also owns the shop window maths the server and the lab share.
  */
 
-import type { CrateRarity } from './progressionCosmetics.ts';
+import { COSMETICS, COSMETIC_CATEGORIES, COSMETIC_RARITIES, RARITY_LABELS, type CosmeticDef, type CrateRarity } from './progressionCosmetics.ts';
 import type { PackLook } from './progressionPacks.ts';
-import { DEFAULT_PACK_ECONOMY, type PackEconomy } from './progressionPackEconomy.ts';
+import { DEFAULT_PACK_ECONOMY, rarityPackOdds, type PackEconomy } from './progressionPackEconomy.ts';
+import { packPool } from './progressionPackRoll.ts';
 
 /**
  * THE STYLE PACK LOOK IDS: the Scribble Pack, then the ten themed style packs. A cosmetic joins a style pack by naming
@@ -24,6 +25,16 @@ export const STYLE_PACK_IDS: readonly string[] = Object.freeze([
   'themed-scribble', 'themed-plushie', 'themed-8bit', 'themed-voxel', 'themed-low-poly', 'themed-sketchbook',
   'themed-encore', 'themed-crayon', 'themed-sports', 'themed-stained-glass', 'themed-scifi',
 ]);
+
+/** The names the style packs show (the UI's `packArt.ts` names, pinned equal by a UI test; progression cannot import the UI). */
+export const STYLE_PACK_NAMES: Readonly<Record<string, string>> = Object.freeze({
+  'themed-scribble': 'Scribble Pack', 'themed-plushie': 'Plushie Pack', 'themed-8bit': '8 Bit Pack', 'themed-voxel': 'Voxel Pack',
+  'themed-low-poly': 'Low Poly Pack', 'themed-sketchbook': 'Sketchbook Pack', 'themed-encore': 'Encore Pack',
+  'themed-crayon': 'Crayon Pack', 'themed-sports': 'Sports Pack', 'themed-stained-glass': 'Stained Glass Pack', 'themed-scifi': 'Sci-Fi Pack',
+});
+
+/** The odds a Rarity Pack displays (`rarityPackOdds`): every card's Standard roll, and the guaranteed last card's. */
+export type PackOdds = ReturnType<typeof rarityPackOdds>;
 
 /** One pack (or box of packs) standing on a shelf. */
 export interface PackOffer {
@@ -43,6 +54,8 @@ export interface PackOffer {
   stock?: number;
   badge?: 'new' | 'free' | 'featured';
   soldOut?: boolean;
+  /** Rarity Packs only: the odds to display. */
+  odds?: PackOdds;
 }
 
 export interface PackShelf {
@@ -161,6 +174,74 @@ export function nextShopRefresh(now: Date = new Date(), eco: PackEconomy = DEFAU
   const wall = Date.UTC(z.y, z.mo - 1, z.d, next, 0, 0); // the boundary, as if the zone were UTC
   const guess = wall - zoneOffset(now.getTime(), eco.refreshZone);
   return wall - zoneOffset(guess, eco.refreshZone); // re-read the offset AT the boundary (a DST change may fall in between)
+}
+
+// ── The window's offers ─────────────────────────────────────────────────────────────────────────────────────
+
+const titleCase = (id: string): string => id.split('_').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+
+/**
+ * THE SHELVES of a shop window, in shelf order: the Rarity Packs (common to ancient, shelf 'rarity'), then a pack per
+ * Category in COSMETIC_CATEGORIES order, then a pack per style in STYLE_PACK_IDS order (both shelf 'category', the Themed
+ * Packs tab). A pack is offered only when its pool is not empty (`packPool`: enabled categories only). Each is at its
+ * price and its offerId is `<windowId>:<look id>`; only Rarity offers carry `odds`.
+ */
+export function shelfOffers(windowId: string, catalog: readonly CosmeticDef[] = COSMETICS, eco: PackEconomy = DEFAULT_PACK_ECONOMY): PackOffer[] {
+  const make = (look: PackLook, shelf: string, price: number): PackOffer => ({
+    offerId: `${windowId}:${look.id}`, look, price, shelf, contains: 1,
+    ...(look.kind === 'rarity' ? { odds: rarityPackOdds(look.guaranteedFloor, eco) } : null),
+  });
+  const out: PackOffer[] = [];
+  if (packPool(catalog, 'all').length > 0) {
+    for (const r of COSMETIC_RARITIES) {
+      out.push(make({ kind: 'rarity', id: `rarity-${r}`, name: `${RARITY_LABELS[r]} Pack`, guaranteedFloor: r }, 'rarity', eco.rarityPackPrice[r]));
+    }
+  }
+  for (const c of COSMETIC_CATEGORIES) {
+    if (packPool(catalog, { category: c }).length === 0) continue;
+    out.push(make({ kind: 'category', id: `category-${c}`, name: `${titleCase(c)} Pack`, guaranteedFloor: 'common' }, 'category', eco.themedPackPrice));
+  }
+  for (const id of STYLE_PACK_IDS) {
+    if (packPool(catalog, { style: id }).length === 0) continue;
+    out.push(make({ kind: 'themed', id, name: STYLE_PACK_NAMES[id] ?? id, guaranteedFloor: 'common' }, 'category', eco.themedPackPrice));
+  }
+  return out;
+}
+
+/**
+ * A deal's price: `full` less `off` percent, rounded to the NEAREST 5 with a .5 tie going UP, and at least 5. In integers:
+ * `floor((full * (100 - off) + 250) / 500) * 5` (so 850 at 25% off is 63750 / 500 = 127.5, a tie, and costs 640). The SQL
+ * twin must use that integer form (or `round()` on a numeric, which also rounds a positive tie up), never a banker's round.
+ */
+export const dealPrice = (full: number, off: number): number => Math.max(5, Math.floor((full * (100 - off) + 250) / 500) * 5);
+
+/**
+ * THE SHOP WINDOW'S OFFERS from the window's draws: the free pack (`eco.freePackRarity`, offerId `<windowId>:free`, price 0,
+ * badge 'free'), then `eco.featuredDeals` deals (offerId `<windowId>:deal:<k>`, k from 0), then `shelfOffers`. The deals
+ * come from the shelf offers except the free pack's look, each picked without repeats; deal k reads `draws[3k]` (the pick:
+ * `floor(u * left)` of the pool still left, in shelf order), `draws[3k + 1]` (the discount: `min + step * floor(u * steps)`
+ * over `(max - min) / step + 1` values) and `draws[3k + 2]` (the stock: `smin + floor(u * (smax - smin + 1))`). Exactly
+ * `3 * eco.featuredDeals` draws, each finite in [0, 1), or it throws. The same for every player; stock is per player.
+ */
+export function windowOffers(
+  windowId: string, draws: readonly number[], catalog: readonly CosmeticDef[] = COSMETICS, eco: PackEconomy = DEFAULT_PACK_ECONOMY,
+): PackOffer[] {
+  if (draws.length !== 3 * eco.featuredDeals) throw new Error(`windowOffers: needs ${3 * eco.featuredDeals} draws, got ${draws.length}`);
+  for (const u of draws) if (typeof u !== 'number' || !Number.isFinite(u) || u < 0 || u >= 1) throw new Error('windowOffers: a draw is outside [0, 1)');
+  const shelf = shelfOffers(windowId, catalog, eco);
+  const freeId = `rarity-${eco.freePackRarity}`;
+  const out: PackOffer[] = [];
+  const freeSource = shelf.find((o) => o.look.id === freeId);
+  if (freeSource) out.push({ ...freeSource, offerId: `${windowId}:free`, shelf: 'featured', price: 0, badge: 'free' });
+  const pool = shelf.filter((o) => o.look.id !== freeId);
+  const steps = (eco.dealOff.max - eco.dealOff.min) / eco.dealOff.step + 1;
+  for (let k = 0; k < eco.featuredDeals && pool.length > 0; k++) {
+    const src = pool.splice(Math.floor(draws[3 * k]! * pool.length), 1)[0]!;
+    const off = eco.dealOff.min + eco.dealOff.step * Math.floor(draws[3 * k + 1]! * steps);
+    const stock = eco.dealStock.min + Math.floor(draws[3 * k + 2]! * (eco.dealStock.max - eco.dealStock.min + 1));
+    out.push({ ...src, offerId: `${windowId}:deal:${k}`, shelf: 'featured', price: dealPrice(src.price, off), fullPrice: src.price, stock });
+  }
+  return [...out, ...shelf];
 }
 
 // ── The counter ─────────────────────────────────────────────────────────────────────────────────────────────

@@ -311,9 +311,15 @@ only if Aether ever buys something other than packs.) Economy-project behaviour;
 converted to packs, we will give players a lump sum of aether to offset any chests they didnt open. we will keep aether
 payouts the same fo rmatches, players should get a Legendary card pack whenever they level up 5 times (intead of the
 chest). so level 5, 10, 15, and so on. change the free legendary after 15 purchases to Epic."
-- Unopened chests are NOT converted to packs: their owners get a lump sum of Aether instead (the amount is not set yet).
+- Unopened chests are NOT converted to packs: their owners get a lump sum of Aether instead. The amount is the owner's
+  to set ("dont worry about the unopened chests. ill take care of that later").
 - Match Aether payouts stay as they are.
 - Every 5 account levels (5, 10, 15, ...) gives a free Legendary pack, replacing today's milestone chest (an Epic crate
   every 10 levels). Economy-project behaviour.
 - The reward for every 15 packs purchased is a free EPIC pack, no longer Legendary (`PACK_REWARD_RARITY` in
   `packages/progression/src/packShop.ts`; built in the shop's reward gauge).
+
+**New accounts and Focus (owner 2026-11-27).** "yes legendary pack for new accounts, and remove focus".
+- A new account gets a free Legendary pack in place of the Welcome Crate. Economy-project behaviour.
+- Crate Focus is removed. The Category and themed packs take its place (they are how a player aims at a kind of
+  cosmetic). The shop and opener never offered Focus, so nothing in them changes.

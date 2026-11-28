@@ -60,7 +60,8 @@ shown is the price charged, a repeated request is charged once).
 | Prices | Common 100, Rare 175, Epic 300, Legendary 500, Ancient 850. Every category and style pack is a flat 200. |
 | Duplicates | A duplicate pays 20% of its OWN rarity's Rarity-pack price: Common 20, Rare 35, Epic 60, Legendary 100, Ancient 170. |
 | Shop refresh | Every 6 hours: 12am, 6am, 12pm and 6pm Eastern (daylight saving included). |
-| Free pack | A free Rare pack in the Featured window. The shop spec records "Every 6 hours" when asked whether it stays daily (section 13, item 5). |
+| Free pack | A free Rare pack in the Featured window. The shop spec records "Every 6 hours" when asked whether it stays daily (section 13, item 3). |
+| Featured deals | "in featured should also have 4 other discounted, randomly discounted between 20 and 60% off card packs of any other type, whether it is rarity or category" (2026-11-27), each with "2 to 5" in stock, turning over every window. Asked whether they launch with the shop and whether stock is per player: "Yes, per player" (2026-11-27). |
 | Purchase reward | Every 15 packs purchased earns a free Epic pack. |
 | Counter | 5 pack types on the counter, up to 8 of each. "The player cannot purchase any more packs until a slot opens up." Packs given while it is full wait beside it. |
 | Match payouts | Unchanged. |
@@ -165,6 +166,9 @@ interface PackEconomy {
   stackMax: number;                                 // 8
   refreshHours: number;                             // 6
   refreshZone: string;                              // 'America/New_York'
+  featuredDeals: number;                            // 4
+  dealOff: { min: number; max: number; step: number };   // 20 / 60 / 5 (percent)
+  dealStock: { min: number; max: number };          // 2 / 5, per player
 }
 ```
 
@@ -181,8 +185,19 @@ interface PackEconomy {
   from `now() at time zone 'America/New_York'` (the lab's `labShopDay`, moved into `packShop.ts` as the one copy).
 - `pack_shop_windows (window_id primary key, offers jsonb, created_at)`: the window's offers, made by the first request
   in that window and the same for every player. The Category and Rarity shelves are the same every window; the
-  Featured shelf holds the free pack and whatever Featured deals exist (section 13, item 3). *(My call: one shared
-  window, not one per player.)*
+  Featured shelf holds the free pack and the Featured deals. *(My call: one shared window, not one per player: everyone
+  sees the same four deals at the same prices.)*
+- **Featured deals** (owner 2026-11-27, at launch, "Yes, per player"). When the window row is made, the server draws
+  `featuredDeals` (4) different packs from the Category and Rarity shelves (never the Rare Rarity pack, which is the
+  free one, and never a pack that is not offered), each with its own discount of `dealOff` (20% to 60% in 5% steps)
+  and its own stock of `dealStock` (2 to 5). The deal price is the shelf price less the discount, rounded to the
+  nearest 5 Aether and never below 5 (the lab's `featuredOffers` rule, moved to the server); `fullPrice` is the shelf
+  price. The draws use `random()` once, when the window row is created, and are stored in it, so every player and
+  every read see the same deals.
+- **Deal stock is per player.** `stock` is how many of that deal ONE player may buy in the window. Stock left =
+  `stock` minus the packs that player already bought of that offer (`packs.offer_id`), so each player can buy up to
+  their own 2-5 and one player's buying never sells out anyone else. It is counted under the per-user lock, so no
+  shared counter is needed. A deal is a paid purchase: it needs counter room and counts toward the purchase reward.
 - Each offer carries its `offerId` (window id + look, so an offer from a past window is recognisably stale), `look`,
   `price`, `contains`, optional `fullPrice` and `stock`. Per-player numbers (`newToYou`, stock left) are added when the
   shop is read, never stored in the window.
@@ -195,7 +210,7 @@ interface PackEconomy {
 
 ### 9.1 Tables
 - `packs (pack_id uuid, user_id, look_kind, look_id, floor_rarity, source text, state 'sealed'|'opened',
-  price_paid int, created_at, opened_at, roll_version int, cards jsonb)`, unique `(user_id, source)`. A transition
+  price_paid int, offer_id text, created_at, opened_at, roll_version int, cards jsonb)`, unique `(user_id, source)`. A transition
   guard (like `loot_crates_transition_guard`) lets a pack move only sealed to opened, once, and freezes its identity.
 - `pack_meters (user_id, purchased int, claimed int)`. Rewards ready = `floor(purchased / rewardEvery) - claimed`.
 - Owner-only reads; only security-definer functions write.
@@ -342,18 +357,13 @@ version, only from `packs_enabled`.
 
 For the owner, in order of how much they change the build:
 
-1. **Featured deals.** The lab has four discounted packs (20-60% off, 2-5 in stock, re-rolled every window). Launch with
-   them, and is stock per player? The server supports `fullPrice` and `stock` either way. Launching them moves the
-   lab's pick-and-discount rule into the window generator and its numbers into `pack_config`. Per-player stock fits
-   the per-user lock; shared stock (one counter every buyer competes for) does not, and needs its own locking. My lean:
-   per player.
-2. **Odds shown to players.** Chests print their odds (R-PROG-CRATE-03). Packs: show them, and where?
-3. **Free-pack cadence.** The brief calls the free Rare once per Eastern day, but the shop spec quotes the owner,
+1. **Odds shown to players.** Chests print their odds (R-PROG-CRATE-03). Packs: show them, and where?
+2. **Free-pack cadence.** The brief calls the free Rare once per Eastern day, but the shop spec quotes the owner,
    asked whether it stays daily, answering "Every 6 hours", and the lab gives one per window. This doc builds one per
    window (`free:<window id>`); a daily pack is a one-line change to the source key.
-4. **Launch, Season and Secret packs**, and Secret as a sixth rarity in packs with its odds (today Secret exists as an
+3. **Launch, Season and Secret packs**, and Secret as a sixth rarity in packs with its odds (today Secret exists as an
    achievement-only rarity above Ancient, R-PROG-SECRET-01).
-5. **Booster box pricing.** The shop supports `contains` > 1; how a box fits the counter limit is decided with it.
+4. **Booster box pricing.** The shop supports `contains` > 1; how a box fits the counter limit is decided with it.
 
 ## 14. The "chest" to "pack" copy sweep
 
@@ -388,7 +398,7 @@ evidence and a regression test as enforcement:
 | R-EGRESS-02 (one config read) | Adds the packs switch. |
 
 New rules, `R-PROG-PACK-01` onward: the lineup and prices; the roll (sections 6.1 to 6.3); duplicate payouts; the
-counter limit and that grants wait; the 6-hour window and free pack; the purchase reward; level and Welcome packs;
+counter limit and that grants wait; the 6-hour window and free pack; the four Featured deals and their per-player stock; the purchase reward; level and Welcome packs;
 the 3,000 Aether launch gift, once per account;
 guests; idempotency (a request charged once, an open paid once). Each is added in the PR that makes it true.
 
@@ -411,6 +421,8 @@ oracle rules).
 - Settlement: the nine Welcome packs on enrollment (and not again on a retry), level packs at 5/10/15 for a
   new account, none at or below the launch level for an existing one (Level 37 at launch: first pack at 40), a re-run
   rollout never moving the launch level, self-healing above it, no milestone chest with packs on.
+- Featured deals: a window's four deals are the same for every player and every read, never the Rare pack, prices
+  rounded to 5 and at least 5, and a player buying their whole stock leaves every other player's stock untouched.
 - Launch gift: `pack_rollout()` pays 3,000 once per account, a second run pays nothing, and it pays before the switch flips;
   a profile created after the flip is not paid.
 - `sqlParity.test.ts` extended for the new config document.

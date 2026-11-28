@@ -60,7 +60,7 @@ shown is the price charged, a repeated request is charged once).
 | Prices | Common 100, Rare 175, Epic 300, Legendary 500, Ancient 850. Every category and style pack is a flat 200. |
 | Duplicates | A duplicate pays 20% of its OWN rarity's Rarity-pack price: Common 20, Rare 35, Epic 60, Legendary 100, Ancient 170. |
 | Shop refresh | Every 6 hours: 12am, 6am, 12pm and 6pm Eastern (daylight saving included). |
-| Free pack | A free Rare pack in the Featured window. The shop spec records "Every 6 hours" when asked whether it stays daily (section 13, item 3). |
+| Free pack | A free Rare pack in the Featured window. The shop spec records "Every 6 hours" when asked whether it stays daily (section 13, item 2). |
 | Featured deals | "in featured should also have 4 other discounted, randomly discounted between 20 and 60% off card packs of any other type, whether it is rarity or category" (2026-11-27), each with "2 to 5" in stock, turning over every window. Asked whether they launch with the shop and whether stock is per player: "Yes, per player" (2026-11-27). |
 | Purchase reward | Every 15 packs purchased earns a free Epic pack. |
 | Counter | 5 pack types on the counter, up to 8 of each. "The player cannot purchase any more packs until a slot opens up." Packs given while it is full wait beside it. |

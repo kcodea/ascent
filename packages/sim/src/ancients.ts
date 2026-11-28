@@ -7093,6 +7093,24 @@ function batchBOnSpellCast(state: RunState): void {
 
 // EMISSARY
 /** EMISSARY × WAR / BONDS: United Front's shape (read by `fireShopUnitedFront`; combat reads its own mod). */
+/**
+ * GORUN x GENESIS UNDER COMBAT PROWESS (owner bug report 2026-11-27: "combat prowess didnt trigger"): the Start of Combat "your two
+ * left-most minions gain Ward and Flurry" replayed at End of Turn (`socRuneReplaysOf`). A Shop grant is permanent (Combat Prowess's
+ * shop semantics), so the two left-most board minions keep Ward and Flurry. Returns whether anyone gained.
+ */
+export function ancientShopSocWardFlurry(state: RunState): boolean {
+  const wf = effectOf(state, 'socWardFlurry');
+  if (!wf) return false;
+  const front = state.board.slice(0, Math.max(0, wf.count));
+  let hit = false;
+  for (const m of front) {
+    for (const kw of ['W', 'DS'] as const) if (!m.keywords.includes(kw)) { m.keywords = [...m.keywords, kw]; hit = true; }
+  }
+  if (hit) procAncient(state);
+  return hit;
+}
+export const ancientShopSocWardFlurryLive = (state: RunState): boolean => !!effectOf(state, 'socWardFlurry');
+
 export function ancientUnitedFrontShape(state: RunState): { reps: number; all: boolean } {
   if (!live(state)) return { reps: 1, all: false };
   return { reps: Math.max(1, effectOf(state, 'unitedFrontReps')?.times ?? 1), all: !!effectOf(state, 'unitedFrontHitsAll') };

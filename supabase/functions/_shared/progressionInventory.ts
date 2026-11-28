@@ -83,9 +83,6 @@ function parseFocus(v: unknown): CosmeticCategory[] | null | 'bad' {
   return [...v] as CosmeticCategory[];
 }
 
-/** The most Aether a client may NAME as a pack price. The dearest offer is an Ancient pack at 850; this leaves headroom for owner repricing. */
-const MAX_PACK_PRICE = 10_000;
-
 /**
  * A pack offer id, the shapes `windowOffers` / `shelfOffers` (packShop.ts) mint: `<window>:<suffix>` with the window
  * `YYYY-MM-DDTHH` and the suffix `free`, `deal:<k>`, `rarity-<rarity>`, `category-<category>` or a style pack id.
@@ -135,7 +132,7 @@ export function validateInventoryBody(body: unknown): InventoryValidation {
   if (b.action === 'pack_shop') return { ok: true, request: { action: 'pack_shop' } };
   if (b.action === 'buy_pack') {
     if (typeof b.offerId !== 'string' || !OFFER_ID.test(b.offerId)) return { ok: false, status: 400, error: 'bad_offer_id' };
-    if (typeof b.expectedPrice !== 'number' || !Number.isInteger(b.expectedPrice) || b.expectedPrice < 0 || b.expectedPrice > MAX_PACK_PRICE) return { ok: false, status: 400, error: 'bad_price' };
+    if (!isPrice(b.expectedPrice)) return { ok: false, status: 400, error: 'bad_price' };
     if (typeof b.requestId !== 'string' || !UUID.test(b.requestId)) return { ok: false, status: 400, error: 'bad_request_id' };
     return { ok: true, request: { action: 'buy_pack', offerId: b.offerId, expectedPrice: b.expectedPrice, requestId: b.requestId.toLowerCase() } };
   }
@@ -219,26 +216,26 @@ export function openParity(r: OpenCrateResult): boolean {
   return true;
 }
 
+/** The SQL function a request calls and its args: the caller's id plus what the request names, nothing else. */
+function inventoryCall(userId: string, r: InventoryRequest): [string, Record<string, unknown>] {
+  switch (r.action) {
+    case 'open_crate': return ['open_crate', { p_user: userId, p_crate_id: r.crateId, ...(r.focus ? { p_focus: r.focus, p_expected_fee: r.expectedFee } : {}) }];
+    case 'buy_crate': return ['buy_crate', { p_user: userId, p_tier: r.tier, p_focus: r.focus, p_expected_total: r.expectedTotal, p_request_id: r.requestId }];
+    case 'equip_title': return ['equip_title', { p_user: userId, p_title_id: r.titleId }];
+    case 'equip_cosmetic': return ['equip_cosmetic', { p_user: userId, p_slot: r.slot, p_target_id: r.targetId, p_cosmetic_id: r.cosmeticId }];
+    case 'pack_shop': return ['pack_shop_json', { p_user: userId }];
+    case 'buy_pack': return ['buy_pack', { p_user: userId, p_offer_id: r.offerId, p_expected_price: r.expectedPrice, p_request_id: r.requestId }];
+    case 'open_pack': return ['open_pack', { p_user: userId, p_pack_id: r.packId }];
+    case 'claim_pack_reward': return ['claim_pack_reward', { p_user: userId, p_request_id: r.requestId }];
+  }
+}
+
 export async function handleInventory(userId: string | null, body: unknown, rpc: RpcCall, log: (msg: string, detail?: unknown) => void = () => {}): Promise<HandlerResponse> {
   if (!userId) return { status: 401, body: { error: 'unauthenticated' } };
   const v = validateInventoryBody(body);
   if (!v.ok) return { status: v.status, body: { error: v.error } };
   const r = v.request;
-  const [fn, args]: [string, Record<string, unknown>] = r.action === 'pack_shop'
-    ? ['pack_shop_json', { p_user: userId }]
-    : r.action === 'buy_pack'
-      ? ['buy_pack', { p_user: userId, p_offer_id: r.offerId, p_expected_price: r.expectedPrice, p_request_id: r.requestId }]
-      : r.action === 'open_pack'
-        ? ['open_pack', { p_user: userId, p_pack_id: r.packId }]
-        : r.action === 'claim_pack_reward'
-          ? ['claim_pack_reward', { p_user: userId, p_request_id: r.requestId }]
-          : r.action === 'open_crate'
-    ? ['open_crate', { p_user: userId, p_crate_id: r.crateId, ...(r.focus ? { p_focus: r.focus, p_expected_fee: r.expectedFee } : {}) }]
-    : r.action === 'buy_crate'
-      ? ['buy_crate', { p_user: userId, p_tier: r.tier, p_focus: r.focus, p_expected_total: r.expectedTotal, p_request_id: r.requestId }]
-      : r.action === 'equip_title'
-        ? ['equip_title', { p_user: userId, p_title_id: r.titleId }]
-        : ['equip_cosmetic', { p_user: userId, p_slot: r.slot, p_target_id: r.targetId, p_cosmetic_id: r.cosmeticId }];
+  const [fn, args] = inventoryCall(userId, r);
   let res: Awaited<ReturnType<RpcCall>>;
   try {
     res = await rpc(fn, args);
@@ -255,7 +252,10 @@ export async function handleInventory(userId: string | null, body: unknown, rpc:
   }
   const out = (res.data ?? null) as Record<string, unknown> | null;
   if (r.action === 'pack_shop' || r.action === 'buy_pack' || r.action === 'open_pack' || r.action === 'claim_pack_reward') {
-    if (!out || typeof out !== 'object' || Array.isArray(out) || typeof out.status !== 'string') return { status: 500, body: { error: 'inventory_malformed' } };
+    if (!out || typeof out !== 'object' || Array.isArray(out)) return { status: 500, body: { error: 'inventory_malformed' } };
+    // `pack_shop_json` is a plain read: no `status` key, nothing to refuse. The three writers always carry one.
+    if (r.action === 'pack_shop') return { status: 200, body: out };
+    if (typeof out.status !== 'string') return { status: 500, body: { error: 'inventory_malformed' } };
     if (out.status !== 'error') return { status: 200, body: out };
     const refusal = typeof out.reason === 'string' ? PACK_REFUSAL_STATUS[out.reason] : undefined;
     return refusal ? { status: refusal, body: out } : { status: 500, body: { error: 'inventory_malformed' } };

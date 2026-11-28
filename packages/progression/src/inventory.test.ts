@@ -248,3 +248,69 @@ describe('parseOpenCrateResult keeps the Aether balance', () => {
     expect(parseOpenCrateResult(opened())).not.toHaveProperty('aether');
   });
 });
+
+describe('the pack actions (2026-12-01)', () => {
+  const WIN = '2026-12-01T06';
+  const PACK = 'bbbbbbbb-cccc-dddd-eeee-ffffffffffff';
+  const buyPack = (over: Record<string, unknown> = {}) => ({ action: 'buy_pack', offerId: `${WIN}:rarity-rare`, expectedPrice: 175, requestId: REQ, ...over });
+
+  it('validates each action and refuses a bad uuid, an over-bound price and an unknown offer shape (400)', () => {
+    expect(validateInventoryBody({ action: 'pack_shop' })).toEqual({ ok: true, request: { action: 'pack_shop' } });
+    expect(validateInventoryBody(buyPack({ requestId: REQ.toUpperCase() }))).toEqual({ ok: true, request: { action: 'buy_pack', offerId: `${WIN}:rarity-rare`, expectedPrice: 175, requestId: REQ } });
+    for (const offerId of [`${WIN}:free`, `${WIN}:deal:0`, `${WIN}:deal:3`, `${WIN}:rarity-ancient`, `${WIN}:category-hero_skin`, `${WIN}:themed-8bit`]) {
+      expect(validateInventoryBody(buyPack({ offerId }))).toMatchObject({ ok: true });
+    }
+    for (const offerId of ['free', WIN, `${WIN}:`, `${WIN}:deal`, `${WIN}:deal:x`, `${WIN}:deal:123`, `${WIN}:rarity-mythic`, `${WIN}:category-nope`, `${WIN}:themed-nope`, `2026-12-01:free`, `${WIN}:free `, 7, null]) {
+      expect(validateInventoryBody(buyPack({ offerId }))).toEqual({ ok: false, status: 400, error: 'bad_offer_id' });
+    }
+    expect(validateInventoryBody(buyPack({ expectedPrice: 10_001 }))).toEqual({ ok: false, status: 400, error: 'bad_price' });
+    expect(validateInventoryBody(buyPack({ expectedPrice: -1 }))).toMatchObject({ error: 'bad_price' });
+    expect(validateInventoryBody(buyPack({ expectedPrice: 1.5 }))).toMatchObject({ error: 'bad_price' });
+    expect(validateInventoryBody(buyPack({ expectedPrice: '175' }))).toMatchObject({ error: 'bad_price' });
+    expect(validateInventoryBody(buyPack({ requestId: 'x' }))).toEqual({ ok: false, status: 400, error: 'bad_request_id' });
+    expect(validateInventoryBody({ action: 'open_pack', packId: PACK.toUpperCase() })).toEqual({ ok: true, request: { action: 'open_pack', packId: PACK } });
+    expect(validateInventoryBody({ action: 'open_pack', packId: 'nope' })).toEqual({ ok: false, status: 400, error: 'bad_pack_id' });
+    expect(validateInventoryBody({ action: 'claim_pack_reward', requestId: REQ })).toEqual({ ok: true, request: { action: 'claim_pack_reward', requestId: REQ } });
+    expect(validateInventoryBody({ action: 'claim_pack_reward', requestId: 'x' })).toEqual({ ok: false, status: 400, error: 'bad_request_id' });
+  });
+
+  it('calls each SQL function with server-side args only and passes an ok answer through intact', async () => {
+    const answer = { status: 'ok', packs: [], aether: 5 };
+    const cases: Array<[Record<string, unknown>, string, Record<string, unknown>]> = [
+      [{ action: 'pack_shop' }, 'pack_shop_json', { p_user: USER }],
+      [buyPack(), 'buy_pack', { p_user: USER, p_offer_id: `${WIN}:rarity-rare`, p_expected_price: 175, p_request_id: REQ }],
+      [{ action: 'open_pack', packId: PACK }, 'open_pack', { p_user: USER, p_pack_id: PACK }],
+      [{ action: 'claim_pack_reward', requestId: REQ }, 'claim_pack_reward', { p_user: USER, p_request_id: REQ }],
+    ];
+    for (const [body, fn, args] of cases) {
+      const rpc = rpcReturning(answer);
+      expect(await handleInventory(USER, body, rpc)).toEqual({ status: 200, body: answer });
+      expect(rpc).toHaveBeenCalledWith(fn, args);
+    }
+  });
+
+  it('maps every RAISED code to its status', async () => {
+    const codes: Record<string, number> = { packs_disabled: 409, pack_not_found: 404, unsupported_offer: 409, shop_retired: 409, chests_frozen: 409, bad_offer_id: 400, bad_pack_id: 400 };
+    for (const [code, status] of Object.entries(codes)) {
+      expect(await handleInventory(USER, buyPack(), rpcReturning(null, { message: `P0001: ${code}` }))).toEqual({ status, body: { error: code } });
+    }
+  });
+
+  it('maps every JSON refusal to its status and keeps the answer body intact', async () => {
+    const statuses: Record<string, number> = { guest: 403, expired: 409, price_changed: 409, sold_out: 409, no_room: 409, insufficient: 409, none: 409 };
+    for (const [reason, status] of Object.entries(statuses)) {
+      const body = { status: 'error', reason, aether: 40, offers: [{ offerId: `${WIN}:free` }] };
+      expect(await handleInventory(USER, buyPack(), rpcReturning(body))).toEqual({ status, body });
+    }
+  });
+
+  it('an unknown reason, a missing status or a non-object answer is a 500, and 401 without a caller', async () => {
+    const bad = { status: 500, body: { error: 'inventory_malformed' } };
+    expect(await handleInventory(USER, buyPack(), rpcReturning({ status: 'error', reason: 'weird' }))).toEqual(bad);
+    expect(await handleInventory(USER, buyPack(), rpcReturning({ packs: [] }))).toEqual(bad);
+    expect(await handleInventory(USER, buyPack(), rpcReturning(null))).toEqual(bad);
+    const rpc = rpcReturning(null);
+    expect(await handleInventory(null, buyPack(), rpc)).toEqual({ status: 401, body: { error: 'unauthenticated' } });
+    expect(rpc).not.toHaveBeenCalled();
+  });
+});

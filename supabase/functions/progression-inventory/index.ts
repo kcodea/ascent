@@ -3,6 +3,9 @@
  * `equip_cosmetic` added with skins v1 the same day: `{ action: 'equip_cosmetic', slot, targetId, cosmeticId }`,
  * cosmeticId null = Default).
  *
+ * The pack economy (2026-12-01) adds `pack_shop`, `buy_pack`, `open_pack` and `claim_pack_reward`, each calling its SQL
+ * function (`pack_shop_json`, ...) and answering its JSON; no wiring change here. Deploy in rollout order (spec 12).
+ *
  * THE CATALOG SYNC (owner 2026-09-28: "make it automated when i add skins"). On the first request of every cold
  * start, BEFORE anything else (so even the anon 401 probe triggers it), this function pushes the catalog it was
  * deployed with (`_shared/progressionCosmetics.ts`, generated from packages/progression/src/cosmetics.ts) to

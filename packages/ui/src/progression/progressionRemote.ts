@@ -17,6 +17,9 @@
  *    `fetchAetherEconomy` (the public `aether_config` row: prices, fee table, rewards), and `buyCrateRemote` (the
  *    `buy_crate` action: the client names a tier, a focus, the total it was shown and a request id; the server prices,
  *    charges and rolls). `openCrateRemote` also carries a milestone crate's focus + the fee the player was shown.
+ *  - THE PACK ECONOMY (2026-12-01): `fetchPacksEnabled` (the fourth switch, `progression_config.packs_enabled`, from the
+ *    same single config read), and the four pack actions of `progression-inventory`: `fetchPackShop`, `buyPackRemote`,
+ *    `openPackRemote`, `claimPackRewardRemote`. Their refusals are JSON bodies (`status: 'error'`, `reason`), read intact.
  *
  * Never throws; every read is time-boxed.
  */
@@ -24,6 +27,7 @@ import {
   COSMETIC_INDEX, parseServerCatalogState, type ServerCatalogState, type EquipSlot, PROGRESSION_RULES_VERSION, TUTORIAL_COURSE_ID, TUTORIAL_COURSE_VERSION, parseCrate, parseOpenCrateResult, parseProgressionProfile,
   parseProgressionResult, parseAetherEconomy, parseBuyCrateResult, type AetherEconomy, type BuyCrateResult, type CosmeticCategory, type CrateRow, type CrateTier, type OpenCrateResult, type ProgressionMode, type ProgressionProfile, type ProgressionResult,
   type ProgressionRunFacts, factsAsV1, loadoutFromRows, type RunCosmeticSnapshot,
+  COSMETIC_RARITIES, parsePackLook, parsePackOpenResult, type CrateRarity, type OwnedPack, type PackOffer, type PackOpenResult, type PackShelf,
 } from '@game/progression';
 import { currentUserId } from '../identity';
 import { supabaseClient } from '../remoteBoards';
@@ -114,6 +118,8 @@ function parseSubmitResponse(data: unknown): ProgressionSubmitOutcome {
 /** Row 1 of `progression_config` as the client reads it. Every column is optional: an older server lacks the newer ones. */
 export interface ProgressionConfigRow {
   epoch?: unknown; crates_enabled?: unknown; aether_enabled?: unknown; achievements_epoch?: unknown;
+  /** THE PACK ECONOMY's switch (2026-12-01): on = the Pack Shop replaces the Chest Shop and sealed chests are frozen. */
+  packs_enabled?: unknown;
   /** md5 of the kill-switch state the client reads (`cosmetic_catalog` + `cosmetic_categories`), kept by a trigger. */
   catalog_state_hash?: unknown;
 }
@@ -608,6 +614,241 @@ export async function fetchAetherEconomy(): Promise<AetherEconomy | undefined> {
   } catch {
     return undefined;
   }
+}
+
+// ── The pack economy (2026-12-01) ────────────────────────────────────────────────────────────────────────────
+
+/**
+ * THE PACKS PROBE. `true` = the packs migration has run and the owner's `pack_rollout()` flipped
+ * `progression_config.packs_enabled`; `false` = asked, and it is not (no column yet, or still off); `undefined` = could
+ * not ask. Read from the same single config row as every other switch (R-EGRESS-02). The client decides which shop to
+ * show from this answer alone, never from its own version.
+ */
+export async function fetchPacksEnabled(): Promise<boolean | undefined> {
+  const a = await fetchProgressionConfig();
+  return a && a.row?.packs_enabled === true;
+}
+
+/**
+ * Did THIS account get the 3,000 Aether launch gift (spec 12.1: launch-day accounts only)? One owner-read row of the
+ * ledger (`grant` / `pack_launch`), asked only while the one-time Pack Shop announcement has not been seen. `undefined`
+ * = could not ask (the announcement waits for an answer rather than claim a gift that was never paid).
+ */
+export async function fetchPackLaunchGiftReceived(userId: string): Promise<boolean | undefined> {
+  try {
+    const c = supabaseClient();
+    if (!c) return undefined;
+    const res = await Promise.race([
+      Promise.resolve(c.from('aether_ledger').select('id').eq('user_id', userId).eq('reason', 'grant').eq('source_id', 'pack_launch').limit(1)),
+      timeout(READ_TIMEOUT_MS, null),
+    ]);
+    if (!res || res.error) return undefined;
+    return ((res.data as unknown[] | null) ?? []).length > 0;
+  } catch {
+    return undefined;
+  }
+}
+
+/** The purchase reward meter: paid packs toward the next reward, and rewards ready to claim. */
+export interface PackMeter { progress: number; ready: number }
+
+/** The `pack_shop` read: the window's offers with this player's numbers, the sealed packs in counter order, the meter and the balance. */
+export interface PackShopSnapshot {
+  windowId: string;
+  /** When the window ends (ms since the epoch). */
+  nextRefreshAt: number;
+  shelves: PackShelf[];
+  offers: PackOffer[];
+  /** The sealed packs, oldest first (the counter's order). */
+  packs: OwnedPack[];
+  packMeter: PackMeter;
+  aether: number;
+}
+
+const isRec = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
+const countOf = (v: unknown): number | null => (typeof v === 'number' && Number.isInteger(v) && v >= 0 ? v : null);
+const PACK_BADGES: readonly string[] = ['new', 'free', 'featured'];
+
+function parseRarityRecord(v: unknown): Record<CrateRarity, number> | null {
+  if (!isRec(v)) return null;
+  const out = {} as Record<CrateRarity, number>;
+  for (const r of COSMETIC_RARITIES) {
+    const n = v[r];
+    if (typeof n !== 'number' || !Number.isFinite(n) || n < 0 || n > 100) return null;
+    out[r] = n;
+  }
+  return out;
+}
+
+/** One shelf offer; null on anything malformed (an optional field that is present but wrong drops the offer). */
+export function parsePackOffer(v: unknown): PackOffer | null {
+  if (!isRec(v) || typeof v.offerId !== 'string' || !v.offerId || typeof v.shelf !== 'string') return null;
+  const look = parsePackLook(v.look);
+  const price = countOf(v.price);
+  const contains = countOf(v.contains);
+  if (!look || price === null || contains === null || contains < 1) return null;
+  const offer: PackOffer = { offerId: v.offerId, look, price, shelf: v.shelf, contains };
+  if (v.fullPrice !== undefined && v.fullPrice !== null) {
+    const full = countOf(v.fullPrice);
+    if (full === null) return null;
+    if (full > price) offer.fullPrice = full;
+  }
+  if (v.newToYou !== undefined && v.newToYou !== null) {
+    if (!isRec(v.newToYou)) return null;
+    const unowned = countOf(v.newToYou.unowned); const total = countOf(v.newToYou.total);
+    if (unowned === null || total === null || unowned > total) return null;
+    offer.newToYou = { unowned, total };
+  }
+  if (v.stock !== undefined && v.stock !== null) {
+    const stock = countOf(v.stock);
+    if (stock === null) return null;
+    offer.stock = stock;
+  }
+  if (v.badge !== undefined && v.badge !== null) {
+    if (typeof v.badge !== 'string' || !PACK_BADGES.includes(v.badge)) return null;
+    offer.badge = v.badge as PackOffer['badge'];
+  }
+  if (v.soldOut === true || offer.stock === 0) offer.soldOut = true;
+  if (v.odds !== undefined && v.odds !== null) {
+    const cards = isRec(v.odds) ? parseRarityRecord(v.odds.cards) : null;
+    const last = isRec(v.odds) ? parseRarityRecord(v.odds.last) : null;
+    if (!cards || !last) return null;
+    offer.odds = { cards, last };
+  }
+  return offer;
+}
+
+/** A list of offers; null when it is not a list or any entry is malformed (never a half-trusted shelf). */
+function parseOffers(v: unknown): PackOffer[] | null {
+  if (!Array.isArray(v)) return null;
+  const out: PackOffer[] = [];
+  for (const raw of v) { const o = parsePackOffer(raw); if (!o) return null; out.push(o); }
+  return out;
+}
+
+/** A list of owned packs (`{packId, look}`); null on anything malformed. */
+function parseOwnedPacks(v: unknown): OwnedPack[] | null {
+  if (!Array.isArray(v)) return null;
+  const out: OwnedPack[] = [];
+  for (const raw of v) {
+    if (!isRec(raw) || typeof raw.packId !== 'string' || !raw.packId) return null;
+    const look = parsePackLook(raw.look);
+    if (!look) return null;
+    out.push({ packId: raw.packId, look });
+  }
+  return out;
+}
+
+function parseMeter(v: unknown): PackMeter | null {
+  if (!isRec(v)) return null;
+  const progress = countOf(v.progress); const ready = countOf(v.ready);
+  return progress === null || ready === null ? null : { progress, ready };
+}
+
+/** The `pack_shop` answer; null on anything malformed. */
+export function parsePackShopSnapshot(v: unknown): PackShopSnapshot | null {
+  if (!isRec(v) || typeof v.windowId !== 'string') return null;
+  const next = typeof v.nextRefreshAt === 'number' ? v.nextRefreshAt : typeof v.nextRefreshAt === 'string' && /^\d+$/.test(v.nextRefreshAt) ? Number(v.nextRefreshAt) : NaN;
+  if (!Number.isFinite(next) || next <= 0) return null;
+  if (!Array.isArray(v.shelves)) return null;
+  const shelves: PackShelf[] = [];
+  for (const s of v.shelves) {
+    if (!isRec(s) || typeof s.id !== 'string' || typeof s.name !== 'string') return null;
+    shelves.push({ id: s.id, name: s.name });
+  }
+  const offers = parseOffers(v.offers);
+  const packs = parseOwnedPacks(v.packs);
+  const packMeter = parseMeter(v.packMeter);
+  const aether = countOf(v.aether);
+  if (!offers || !packs || !packMeter || aether === null) return null;
+  return { windowId: v.windowId, nextRefreshAt: next, shelves, offers, packs, packMeter, aether };
+}
+
+/**
+ * A pack action's answer: the body (2xx), or the server's JSON REFUSAL (`{status: 'error', reason, ...}`, a 403 / 409
+ * whose body is passed through intact), or an error code (`packs_disabled`, `pack_not_found`, a timeout, a network or
+ * transport failure).
+ */
+async function invokePackAction(body: Record<string, unknown>): Promise<{ data: Record<string, unknown> } | { refusal: Record<string, unknown> } | { error: string }> {
+  const c = supabaseClient();
+  if (!c) return { error: 'no_backend' };
+  if (!currentUserId()) return { error: 'no_session' };
+  try {
+    const call = c.functions.invoke('progression-inventory', { body }) as Promise<{ data: unknown; error: unknown }>;
+    const raced = await Promise.race([call, timeout(SUBMIT_TIMEOUT_MS, { timedOut: true } as const)]);
+    if ('timedOut' in raced) return { error: 'timeout' };
+    if (raced.error) {
+      const e = raced.error as { context?: { status?: number; json?: () => Promise<unknown> }; message?: string };
+      let parsed: unknown = null;
+      try { parsed = e.context?.json ? await e.context.json() : null; } catch { /* no readable body */ }
+      if (isRec(parsed) && parsed.status === 'error' && typeof parsed.reason === 'string') return { refusal: parsed };
+      const code = isRec(parsed) && typeof parsed.error === 'string' ? parsed.error : '';
+      return { error: code || (e.context?.status ? `http_${e.context.status}` : e.message || 'function_error') };
+    }
+    const data = (raced.data ?? {}) as Record<string, unknown>;
+    // A 2xx refusal (never sent today, but the shape is the server's): read it as one.
+    if (data.status === 'error' && typeof data.reason === 'string') return { refusal: data };
+    return { data };
+  } catch (e) {
+    return { error: `network:${(e as Error)?.message ?? 'unknown'}` };
+  }
+}
+
+/** The shop read. Errors: `packs_disabled` (the switch is off), a transport code, or `server_outdated` (did not parse). */
+export async function fetchPackShop(): Promise<{ status: 'ok'; shop: PackShopSnapshot } | { status: 'error'; reason: string }> {
+  const r = await invokePackAction({ action: 'pack_shop' });
+  if ('error' in r) return { status: 'error', reason: r.error };
+  if ('refusal' in r) return { status: 'error', reason: String(r.refusal.reason) };
+  const shop = parsePackShopSnapshot(r.data);
+  return shop ? { status: 'ok', shop } : { status: 'error', reason: 'server_outdated' };
+}
+
+export type BuyPackRemoteOutcome =
+  | { status: 'ok'; packs: OwnedPack[]; aether: number; meter: PackMeter | null }
+  | { status: 'error'; reason: string; aether?: number; offers?: PackOffer[] };
+
+/**
+ * BUY a pack offer (the `buy_pack` action). The client names the offer, the price it SHOWED and a request id (one per
+ * attempt, reused on a retry of the same attempt: the server answers a repeated id with the packs it first made and
+ * never charges twice); the server prices, charges and creates the pack. A refusal carries the server's reason
+ * (`expired` with the current offers, `price_changed`, `sold_out`, `no_room`, `insufficient`, `guest`) and the balance.
+ */
+export async function buyPackRemote(req: { offerId: string; expectedPrice: number; requestId: string }): Promise<BuyPackRemoteOutcome> {
+  const r = await invokePackAction({ action: 'buy_pack', offerId: req.offerId, expectedPrice: req.expectedPrice, requestId: req.requestId });
+  if ('error' in r) return { status: 'error', reason: r.error };
+  if ('refusal' in r) {
+    const out: BuyPackRemoteOutcome = { status: 'error', reason: String(r.refusal.reason) };
+    const aether = countOf(r.refusal.aether);
+    if (aether !== null) out.aether = aether;
+    const offers = parseOffers(r.refusal.offers);
+    if (offers) out.offers = offers;
+    return out;
+  }
+  const packs = parseOwnedPacks(r.data.packs);
+  const aether = countOf(r.data.aether);
+  if (r.data.status !== 'ok' || !packs || packs.length === 0 || aether === null) return { status: 'error', reason: 'server_outdated' };
+  return { status: 'ok', packs, aether, meter: parseMeter(r.data.meter) };
+}
+
+/** OPEN one sealed pack (the `open_pack` action). An already-opened pack answers its stored result, never a new roll. */
+export async function openPackRemote(packId: string): Promise<{ status: 'ok'; result: PackOpenResult; alreadyOpened: boolean } | { status: 'error'; reason: string }> {
+  const r = await invokePackAction({ action: 'open_pack', packId });
+  if ('error' in r) return { status: 'error', reason: r.error };
+  if ('refusal' in r) return { status: 'error', reason: String(r.refusal.reason) };
+  if (r.data.status !== 'opened' && r.data.status !== 'already_opened') return { status: 'error', reason: 'server_outdated' };
+  const result = parsePackOpenResult(r.data);
+  if (!result) return { status: 'error', reason: 'server_outdated' };
+  return { status: 'ok', result, alreadyOpened: r.data.status === 'already_opened' };
+}
+
+/** CLAIM one waiting purchase reward (the `claim_pack_reward` action). A repeated request id answers its first pack. */
+export async function claimPackRewardRemote(requestId: string): Promise<{ status: 'ok'; packs: OwnedPack[]; meter: PackMeter | null } | { status: 'error'; reason: string }> {
+  const r = await invokePackAction({ action: 'claim_pack_reward', requestId });
+  if ('error' in r) return { status: 'error', reason: r.error };
+  if ('refusal' in r) return { status: 'error', reason: String(r.refusal.reason) };
+  const packs = parseOwnedPacks(r.data.packs);
+  if (r.data.status !== 'ok' || !packs || packs.length === 0) return { status: 'error', reason: 'server_outdated' };
+  return { status: 'ok', packs, meter: parseMeter(r.data.meter) };
 }
 
 /** Equip an owned title (null takes it off). The server checks ownership. */

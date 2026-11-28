@@ -33,7 +33,7 @@ import { create } from 'zustand';
 import { queueNewRewards } from './newRewards';
 import { addSeen, adoptAccountSeen, ensureSeenBaseline } from './collectionSeen';
 import {
-  COSMETICS, DEFAULT_AETHER_ECONOMY, HERO_TITLE_COSMETICS, INVENTORY_ERROR_STATUS, PROGRESSION_RULES_VERSION, heroMasterTitleId, heroTitleId, isMasterTitle, setServerCatalogState, titleName, withEmoteAt, type ServerCatalogState, type AetherEconomy, type BuyCrateResult, type CosmeticCategory, type CrateTier, type EquipSlot, type CrateRow, type OpenCrateResult, type ProgressionMode, type ProgressionProfile, type ProgressionResult, type ProgressionRunFacts, type RunCosmeticSnapshot,
+  COSMETICS, DEFAULT_AETHER_ECONOMY, HERO_TITLE_COSMETICS, INVENTORY_ERROR_STATUS, PROGRESSION_RULES_VERSION, heroMasterTitleId, heroTitleId, isMasterTitle, setServerCatalogState, titleName, withEmoteAt, type ServerCatalogState, type AetherEconomy, type BuyPackError, type BuyPackOutcome, type ClaimRewardOutcome, type OwnedPack, type BuyCrateResult, type CosmeticCategory, type CrateTier, type EquipSlot, type CrateRow, type OpenCrateResult, type ProgressionMode, type ProgressionProfile, type ProgressionResult, type ProgressionRunFacts, type RunCosmeticSnapshot,
 } from '@game/progression';
 import { currentUserId } from '../identity';
 import { remoteEnabled } from '../remoteBoards';
@@ -41,9 +41,10 @@ import {
   enqueuePendingProgression, flushPendingProgressions, installProgressionRetryTriggers, type PendingProgression,
 } from './progressionQueue';
 import {
-  ackAetherGiftRemote, buyCrateRemote, equipCosmeticRemote, equipTitleRemote, fetchAchievementsEnabled, fetchAetherEconomy, fetchAetherEnabled, fetchCratesEnabled, fetchOwnCrates, fetchProgressionConfig, fetchOwnProgression, fetchProgressionEnabled, fetchSeenCosmeticIds, fetchServerCatalogState, fetchUnseenAetherGifts, fetchUnseenGiftIds, markCosmeticsSeenRemote, openCrateRemote, progressionRequestFor,
-  type AetherGift, type ProgressionSubmitOutcome,
+  ackAetherGiftRemote, buyCrateRemote, buyPackRemote, claimPackRewardRemote, fetchPackShop, fetchPacksEnabled, openPackRemote, equipCosmeticRemote, equipTitleRemote, fetchAchievementsEnabled, fetchAetherEconomy, fetchAetherEnabled, fetchCratesEnabled, fetchOwnCrates, fetchProgressionConfig, fetchOwnProgression, fetchProgressionEnabled, fetchSeenCosmeticIds, fetchServerCatalogState, fetchUnseenAetherGifts, fetchUnseenGiftIds, markCosmeticsSeenRemote, openCrateRemote, progressionRequestFor,
+  type AetherGift, type PackShopSnapshot, type ProgressionSubmitOutcome,
 } from './progressionRemote';
+import type { PackOpenOutcome } from './packOpening/PackOpener';
 
 export type ProgressionCapability = 'unknown' | 'on' | 'off';
 /** `none`: this run earns nothing we can settle (no session, no source row). */
@@ -89,7 +90,15 @@ interface ProgressionStore {
   /** AETHER GIFTS waiting to be announced (owner 2026-11-20, R-PROG-GIFT-02), oldest first. `AetherGiftNotice` shows
    *  the head, one pop-up per gift; `dismissAetherGift` drops it and marks it seen on the account. */
   aetherGifts: { userId: string; gifts: readonly AetherGift[] } | null;
+  /** THE PACK ECONOMY (2026-12-01): `on` once the owner's rollout flipped `packs_enabled`. While on, the Pack Shop
+   *  replaces the Chest Shop, sealed chests show without an Open, and the new-shop announcement shows once. */
+  packsCapability: ProgressionCapability;
+  /** The Pack Shop as the server last answered it, for this account: `loading` while a read is out (the last answer
+   *  stays), `failed` when the last read did not answer. Null until the shop is first opened. */
+  packShop: PackShopState | null;
 }
+
+export interface PackShopState { userId: string; status: 'loading' | 'ready' | 'failed'; shop: PackShopSnapshot | null }
 
 const MIRROR_KEY = 'ascent.progression';
 const SERVER_CATALOG_KEY = 'ascent.cosmetics.server';
@@ -139,6 +148,8 @@ export const useProgression = create<ProgressionStore>(() => ({
   seenKnown: null,
   gifts: null,
   aetherGifts: null,
+  packsCapability: 'unknown',
+  packShop: null,
 }));
 
 // The last server kill-switch answer we saw, applied before anything renders (never un-retires on its own).
@@ -177,6 +188,8 @@ export function applyProgressionOutcome(item: Pick<PendingProgression, 'userId' 
   if (outcome.status === 'confirmed') queueNewRewards(item.userId, outcome.result);
   // New crates: re-read the list so the Collection and the post-game Open button see them.
   if (outcome.status === 'confirmed' && outcome.result.cratesAwarded > 0 && !outcome.deduped) void refreshCrates();
+  // New packs (a level or Welcome grant): a Pack Shop already read re-reads its hand.
+  if (outcome.status === 'confirmed' && outcome.result.packsAwarded > 0 && !outcome.deduped && useProgression.getState().packShop?.userId === item.userId) void refreshPackShop();
   const cur = useProgression.getState().current;
   if (!cur || cur.runId !== item.runId || cur.mode !== item.mode) return;
   if (outcome.status === 'confirmed') {
@@ -305,6 +318,9 @@ export function probeProgression(): Promise<void> {
     const aether = await fetchAetherEnabled();
     if (aether !== undefined) useProgression.setState({ aetherCapability: aether ? 'on' : 'off' });
     if (aether) await refreshEconomy();
+    // The packs switch: the last of the four, from the same row. Unanswerable keeps what it had.
+    const packs = await fetchPacksEnabled();
+    if (packs !== undefined) useProgression.setState({ packsCapability: packs ? 'on' : 'off' });
     await seenRead;
     // Gifts last: their dismissal writes through the seen list just read.
     await refreshGifts(userId);
@@ -503,6 +519,138 @@ export async function buyCrate(tier: CrateTier, focus: CosmeticCategory[] | null
   return { status: 'ok', result: out.value };
 }
 
+// ── The pack economy (2026-12-01) ─────────────────────────────────────────────────────────────────────────────
+
+/** The Pack Shop replaces the Chest Shop: progression is on AND the owner's rollout flipped `packs_enabled`. */
+export const packsVisible = (s: Pick<ProgressionStore, 'capability' | 'packsCapability'>): boolean => s.capability === 'on' && s.packsCapability === 'on';
+
+/** Set THIS account's mirrored Aether balance to a number a pack answer carried (it carries no profile to adopt). */
+function setOwnAether(userId: string, aether: number): void {
+  const cur = mirrorFor(userId, useProgression.getState().mirror);
+  if (!cur || cur.aether === aether) return;
+  const next: ProgressionMirror = { ...cur, aether };
+  saveMirror(next);
+  useProgression.setState({ mirror: next });
+}
+
+/** Change the loaded Pack Shop of `userId` (a no-op when it is another account's, or not loaded). */
+function patchPackShop(userId: string, fn: (shop: PackShopSnapshot) => PackShopSnapshot): void {
+  const cur = useProgression.getState().packShop;
+  if (!cur || cur.userId !== userId || !cur.shop) return;
+  useProgression.setState({ packShop: { ...cur, shop: fn(cur.shop) } });
+}
+
+/** `hand` plus the packs it does not hold yet (by id), in order. */
+const withPacks = (hand: readonly OwnedPack[], add: readonly OwnedPack[]): OwnedPack[] => {
+  const have = new Set(hand.map((p) => p.packId));
+  return [...hand, ...add.filter((p) => !have.has(p.packId))];
+};
+
+let packShopRead: Promise<void> | null = null;
+
+/**
+ * Read the Pack Shop (the window's offers, this account's packs, the meter and the balance). Concurrent calls share one
+ * read. While it is out the last answer stays on screen (`loading`); a read that does not answer (the switch off, a
+ * timeout, a malformed answer) marks it `failed`, which the shop shows as its generic failed state.
+ */
+export function refreshPackShop(): Promise<void> {
+  if (packShopRead) return packShopRead;
+  const userId = currentUserId();
+  if (!userId) return Promise.resolve();
+  const prev = useProgression.getState().packShop;
+  const kept = prev && prev.userId === userId ? prev.shop : null;
+  useProgression.setState({ packShop: { userId, status: 'loading', shop: kept } });
+  const p = (async (): Promise<void> => {
+    const out = await fetchPackShop().catch(() => ({ status: 'error' as const, reason: 'threw' }));
+    if (currentUserId() !== userId) return;
+    if (out.status !== 'ok') {
+      const cur = useProgression.getState().packShop;
+      useProgression.setState({ packShop: { userId, status: 'failed', shop: cur && cur.userId === userId ? cur.shop : null } });
+      return;
+    }
+    useProgression.setState({ packShop: { userId, status: 'ready', shop: out.shop } });
+    setOwnAether(userId, out.shop.aether);
+  })().finally(() => { if (packShopRead === p) packShopRead = null; });
+  packShopRead = p;
+  return p;
+}
+
+/** The reasons the shop knows; anything else (`packs_disabled`, a timeout, a network or 5xx error, a bad answer) is `failed`. */
+const BUY_REASONS: ReadonlySet<string> = new Set<BuyPackError>(['insufficient', 'price_changed', 'sold_out', 'no_room', 'expired', 'guest']);
+
+/**
+ * BUY one pack offer through the server (the Pack Shop's one purchase call). `requestId` is the shop's, one per attempt
+ * and reused on a retry of the same attempt (the server dedupes). The price sent is the one the loaded shop shows.
+ * On success the bought pack(s) join the hand, the balance and the meter move. On a refusal: `expired` swaps in the
+ * offers it carried (and re-reads the window), `price_changed` and `sold_out` re-read the shop so it re-quotes, a
+ * carried balance is adopted, and a failure that is not a definite answer re-reads the shop (the purchase may have
+ * landed, so the hand and the balance must be true before the player tries again).
+ */
+export async function buyPack(offerId: string, requestId: string): Promise<BuyPackOutcome> {
+  const userId = currentUserId();
+  if (!userId) return { status: 'error', reason: 'failed' };
+  const st = useProgression.getState().packShop;
+  const offer = st && st.userId === userId ? st.shop?.offers.find((o) => o.offerId === offerId) : undefined;
+  if (!offer) { void refreshPackShop(); return { status: 'error', reason: 'expired' }; }
+  const out = await buyPackRemote({ offerId, expectedPrice: offer.price, requestId }).catch(() => ({ status: 'error' as const, reason: 'threw' }));
+  if (currentUserId() !== userId) return { status: 'error', reason: 'failed' };
+  if (out.status !== 'ok') {
+    const reason: BuyPackError = BUY_REASONS.has(out.reason) ? (out.reason as BuyPackError) : 'failed';
+    const aether = 'aether' in out ? out.aether : undefined;
+    if (aether !== undefined) setOwnAether(userId, aether);
+    if (reason === 'expired' && 'offers' in out && out.offers) { const offers = out.offers; patchPackShop(userId, (s) => ({ ...s, offers })); }
+    if (reason !== 'insufficient' && reason !== 'guest' && reason !== 'no_room') void refreshPackShop();
+    return aether !== undefined ? { status: 'error', reason, aether } : { status: 'error', reason };
+  }
+  patchPackShop(userId, (s) => ({
+    ...s,
+    packs: withPacks(s.packs, out.packs),
+    aether: out.aether,
+    packMeter: out.meter ?? s.packMeter,
+    // a limited deal's stock counts down for this player (the server's next read says the same)
+    offers: s.offers.map((o) => {
+      if (o.offerId !== offerId) return o;
+      if (o.badge === 'free') return { ...o, soldOut: true };
+      if (o.stock === undefined) return o;
+      const stock = Math.max(0, o.stock - out.packs.length);
+      return stock === 0 ? { ...o, stock, soldOut: true } : { ...o, stock };
+    }),
+  }));
+  setOwnAether(userId, out.aether);
+  return { status: 'ok', packs: out.packs, aether: out.aether };
+}
+
+/**
+ * OPEN one sealed pack through the server. The cards and the balance after the duplicates' payout come back; the pack
+ * leaves the hand. Every failure is the opener's generic failed state (it offers to try again).
+ */
+export async function openPack(packId: string): Promise<PackOpenOutcome> {
+  const userId = currentUserId();
+  if (!userId) return { status: 'error', reason: 'no_session' };
+  const out = await openPackRemote(packId).catch(() => ({ status: 'error' as const, reason: 'threw' }));
+  if (currentUserId() !== userId) return { status: 'error', reason: 'account_changed' };
+  if (out.status !== 'ok') return { status: 'error', reason: out.reason };
+  const aether = out.result.aether;
+  patchPackShop(userId, (s) => ({ ...s, packs: s.packs.filter((p) => p.packId !== packId), ...(aether !== undefined ? { aether } : {}) }));
+  if (aether !== undefined) setOwnAether(userId, aether);
+  return { status: 'ok', result: out.result };
+}
+
+/** CLAIM one waiting purchase reward. Its pack joins the hand (the counter, or beside it when it is full). */
+export async function claimPackReward(requestId: string): Promise<ClaimRewardOutcome> {
+  const userId = currentUserId();
+  if (!userId) return { status: 'error', reason: 'failed' };
+  const out = await claimPackRewardRemote(requestId).catch(() => ({ status: 'error' as const, reason: 'threw' }));
+  if (currentUserId() !== userId) return { status: 'error', reason: 'failed' };
+  if (out.status !== 'ok') {
+    const reason = out.reason === 'none' || out.reason === 'guest' ? out.reason : 'failed';
+    if (reason !== 'guest') void refreshPackShop();
+    return { status: 'error', reason };
+  }
+  patchPackShop(userId, (s) => ({ ...s, packs: withPacks(s.packs, out.packs), packMeter: out.meter ?? s.packMeter }));
+  return { status: 'ok', packs: out.packs };
+}
+
 /** Equip an owned title (null takes it off). Returns whether the server accepted it. */
 export async function equipTitle(titleId: string | null): Promise<boolean> {
   if (import.meta.env.DEV && devUnlockAllOn()) { devUnlockEquipTitle(titleId); return true; }
@@ -679,7 +827,7 @@ export function resetProgressionForTests(): void {
   try { localStorage.removeItem(PRESENTED_KEY); localStorage.removeItem(MIRROR_KEY); } catch { /* ignore */ }
   try { localStorage.removeItem(SERVER_CATALOG_KEY); localStorage.removeItem(SERVER_CATALOG_HASH_KEY); } catch { /* ignore */ }
   setServerCatalogState(null);
-  useProgression.setState({ capability: 'unknown', mirror: null, current: null, cratesCapability: 'unknown', crateList: null, catalogEpoch: 0, achievementsCapability: 'unknown', aetherCapability: 'unknown', economy: DEFAULT_AETHER_ECONOMY, seenKnown: null, gifts: null, aetherGifts: null });
+  useProgression.setState({ capability: 'unknown', mirror: null, current: null, cratesCapability: 'unknown', crateList: null, catalogEpoch: 0, achievementsCapability: 'unknown', aetherCapability: 'unknown', economy: DEFAULT_AETHER_ECONOMY, seenKnown: null, gifts: null, aetherGifts: null, packsCapability: 'unknown', packShop: null });
   seenAccount = null;
   seenOnServer.clear();
 }

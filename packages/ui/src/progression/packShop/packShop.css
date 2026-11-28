@@ -260,3 +260,10 @@ html[data-pks-navaway] .ph-navhost { opacity: 0; pointer-events: none; transitio
 @keyframes vistashopdooropen { 0% { opacity: 1; } 100% { opacity: 0; } }
 .wipevista.shoptrip.dive .wipevista-doordark { animation: vistashopdoordark var(--shop-door-ms, 300ms) ease-out both; }
 @keyframes vistashopdoordark { 0% { opacity: 0; } 100% { opacity: 1; } }
+
+/* THE SERVER'S SHOP (PackShopEntry.tsx `ServerPackShop`): the failed state, one line and the way out; and the sign-in gate a
+   guest's spend opens, lifted over the shop (the gate's own scrim sits under the shop's layer by default). Static paint. */
+.pks-failed { display: grid; place-content: center; justify-items: center; gap: 18px; background: rgba(4, 8, 16, 0.86); }
+.pks-failed-note { margin: 0; font-size: 20px; font-weight: 700; text-align: center; }
+.pks-failed-actions { display: flex; gap: 12px; }
+.pks-gatehost > .nrw-scrim { z-index: 720; }

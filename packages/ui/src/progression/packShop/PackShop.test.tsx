@@ -41,7 +41,8 @@ vi.mock('../packOpening/AetherTally', async () => {
   };
 });
 
-import { BUY_TIMEOUT_MS, PackShop, SHOP_PLAY_TRAVEL_MS, refreshClock, type PackShopProps } from './PackShop';
+import { NO_ROOM_NOTE } from './shopModel';
+import { BUY_TIMEOUT_MS, EXPIRED_NOTE, PackShop, SHOP_PLAY_TRAVEL_MS, refreshClock, type PackShopProps } from './PackShop';
 import type { ShopScene, ShopSceneEvents } from './shopScene';
 
 const look = (id: string, name: string) => ({ kind: 'rarity', id, name, guaranteedFloor: 'rare' } as const);
@@ -318,6 +319,30 @@ describe('PackShop', () => {
     expect(fake().calls.filter((c) => c.startsWith('setHand'))).toHaveLength(handCalls);
     expect(handLabels()).toEqual(['Rare Pack, Open']);
     expect(balance()).toBe('1000 Aether');
+  });
+
+  it("a server no_room (its counter fuller than the one shown) sends the pack back to the shelf with the counter's note; the id is spent", async () => {
+    render();
+    fire((e) => { e.onDrop('buy', 'rare', R); });
+    const handCalls = fake().calls.filter((c) => c.startsWith('setHand')).length;
+    await settle({ status: 'error', reason: 'no_room', aether: 1000 });
+    expect(fake().calls.at(-1)).toBe('buySettled:false');
+    expect(live()).toBe(NO_ROOM_NOTE);
+    expect(fake().calls.filter((c) => c.startsWith('setHand'))).toHaveLength(handCalls);
+    expect(fake().calls.some((c) => c.startsWith('payAether'))).toBe(false);
+    expect(balance()).toBe('1000 Aether');
+    fire((e) => { e.onDrop('buy', 'rare', R); });
+    expect(new Set(buys.map((b) => b.requestId)).size).toBe(2);
+  });
+
+  it('an expired offer (the window turned over) returns the pack and says the shop has new packs; the id is spent', async () => {
+    render();
+    fire((e) => { e.onDrop('buy', 'rare', R); });
+    await settle({ status: 'error', reason: 'expired', aether: 1000 });
+    expect(fake().calls.at(-1)).toBe('buySettled:false');
+    expect(live()).toBe(EXPIRED_NOTE);
+    fire((e) => { e.onDrop('buy', 'rare', R); });
+    expect(new Set(buys.map((b) => b.requestId)).size).toBe(2);
   });
 
   describe('playing a hand pack', () => {

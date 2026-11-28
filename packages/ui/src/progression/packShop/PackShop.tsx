@@ -28,12 +28,12 @@ const CATEGORY_MEDALS: Partial<Record<CosmeticCategory, MenuMedalName>> = {
  * THE PACK SHOP SHELL (spec docs/superpowers/specs/2026-11-25-pack-shop-design.md, sections 4, 6, 7, 14). The Pixi scene
  * (`shopScene.ts`) draws and moves everything; this shell owns the words and the controls: the shelf tabs, the wallet,
  * the tag beside a hovered / focused / selected pack, the words at the counter line, the purchase call, the handoff to
- * `PackOpener`, a visually hidden list mirroring the shelf and the hand, and one polite live region. Dev-only for now:
- * only the Shop Lab mounts it.
+ * `PackOpener`, a visually hidden list mirroring the shelf and the hand, and one polite live region. Mounted by
+ * `PackShopEntry` on the server's shop (packs on), and by the Shop Lab on a fake one (dev).
  *
  * NEVER CHARGED TWICE (as the Chest Shop, `CrateShop.tsx`): every purchase attempt sends a request id, kept per
  * `buyKey(offer)` (the offer AND its quote) until a DEFINITE answer: `ok`, or a refusal (`insufficient`,
- * `price_changed`, `sold_out`, `guest`). An attempt that threw or answered `failed` may have landed, so a retry of the
+ * `price_changed`, `sold_out`, `no_room`, `expired`, `guest`). An attempt that threw or answered `failed` may have landed, so a retry of the
  * same quote sends the SAME id. One purchase at a time: while one is pending, another drop goes back, a Buy does
  * nothing, no pack is played and Esc does not close. Behind the opener the shop is `inert` and buys nothing. A purchase with no answer after `BUY_TIMEOUT_MS` settles as `failed` (the id kept); its late answer is
  * ignored.
@@ -130,7 +130,9 @@ const SPARK_RAYS = 12;
 /** A purchase with no answer by then settles as `failed` (its request id kept), so the shop is never held for good. */
 export const BUY_TIMEOUT_MS = 15000;
 /** Refusals that are definite: the server did not charge, so the attempt's request id is spent. */
-const DEFINITE = new Set(['insufficient', 'price_changed', 'sold_out', 'guest']);
+const DEFINITE = new Set(['insufficient', 'price_changed', 'sold_out', 'no_room', 'expired', 'guest']);
+/** The offer has left the shelf (the window turned over): the parent swaps in the new offers. */
+export const EXPIRED_NOTE = 'That offer has ended. The shop has new packs';
 
 function mintRequestId(): string {
   const c = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto;
@@ -381,6 +383,9 @@ export function PackShop(props: PackShopProps) {
             break;
           }
           case 'sold_out': say('Sold out'); break;
+          // the server's counter was fuller than the one shown (a pack granted meanwhile): the pack goes back, nothing charged
+          case 'no_room': say(NO_ROOM_NOTE); break;
+          case 'expired': say(EXPIRED_NOTE); break;
           case 'guest': say('Sign in to buy packs'); break; // the caller's own `buy` shows its sign-in gate
           default: say(FAILED_NOTE);
         }

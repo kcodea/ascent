@@ -48,6 +48,8 @@
 .phc-bay-num b { font-weight: 900; font-size: var(--ph-t4); line-height: 1; color: var(--ph-ink); text-shadow: var(--pill-num-shadow); margin-right: calc(4 * var(--phu)); }
 .phc-bay-sub { font-size: var(--ph-t1); line-height: 1.4; color: var(--ph-muted); }
 .phc-bay-guest { font-size: var(--ph-t1); color: var(--ph-foe); }
+/* Packs on: a sealed chest is frozen (no Open), and the bay says so in one line. */
+.phc-bay-frozen-note { font-size: var(--ph-t1); line-height: 1.4; color: var(--ph-muted); }
 .phc-bay-actions { display: flex; gap: calc(8 * var(--phu)); }
 .phc-bay-actions .phk-btn { flex: 1; padding: 0 calc(8 * var(--phu)); }
 .phc-bay-actions .colls-lock { width: calc(16 * var(--phu)); height: calc(16 * var(--phu)); margin-right: calc(4 * var(--phu)); }

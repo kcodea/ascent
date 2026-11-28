@@ -10,6 +10,7 @@ import { phAttach, phPagePushed, phTakeReloadPage, phTakeReturn } from './phHist
 import { closeSceneBuilderPanel } from '../../sceneBuilderPanel';
 import { PhTopNav, type PhNavCurrent } from './PhTopNav';
 import { leaveCrates, openCrates, usePhShell } from './shellStore';
+import { packsVisible, useProgression } from '../../progression/progressionStore';
 
 /** Bring a page on screen: every overlay comes off, then that page is there. */
 function showPage(page: string): void {
@@ -19,7 +20,8 @@ function showPage(page: string): void {
   if (st.settingsOpen) st.closeSettings();
   if (st.showBook) st.closeBook();
   if (st.careerOf) st.closeCareer();
-  if (page === 'crates') { openCrates(); st.goTo('collection'); return; }
+  // With packs on the Chest Shop is retired: a reload on it comes back to the Collection.
+  if (page === 'crates') { if (!packsVisible(useProgression.getState())) openCrates(); st.goTo('collection'); return; }
   leaveCrates();
   st.goTo(page === 'home' ? 'menu' : (page as Parameters<typeof st.goTo>[0]));
 }
@@ -38,14 +40,15 @@ function useCurrent(): PhNavCurrent {
   });
 }
 
-/** DEV: the pack shop behind the Shop tab's door (its own chunk, never in a production build's menu). */
-const PackShopEntry = import.meta.env.DEV ? lazy(() => import('../../progression/packShop/PackShopEntry')) : null;
+/** The pack shop behind the Shop tab's door (its own chunk): mounted once packs are on, and always in a DEV build (the lab). */
+const PackShopEntry = lazy(() => import('../../progression/packShop/PackShopEntry'));
 
 export default function PhSteadyNav() {
   const current = useCurrent();
   const home = current === 'home';
   const book = useGame((s) => s.showBook);
   const crates = usePhShell((s) => s.crates);
+  const packsOn = useProgression(packsVisible);
   const entry = book ? 'compendium' : current === 'collection' && crates ? 'crates' : current ?? 'other';
   useEffect(() => { phPagePushed(entry); }, [entry]);
   useEffect(() => phAttach(showPage), []);
@@ -65,7 +68,7 @@ export default function PhSteadyNav() {
   return (
     <>
       <div className="ph-navhost"><PhTopNav current={current} ownDrawer={home && compact} /></div>
-      {PackShopEntry && <Suspense fallback={null}><PackShopEntry /></Suspense>}
+      {(import.meta.env.DEV || packsOn) && <Suspense fallback={null}><PackShopEntry /></Suspense>}
     </>
   );
 }

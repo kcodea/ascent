@@ -38,7 +38,7 @@ import { CratesOfflinePh } from './CrateShopPh';
 import { ChestPicture } from '../ChestPicture';
 import { chestFloorOf, type ChestTier } from '../crateFx/chestTiers';
 import type { CrateQueueItem } from '../CrateOpener';
-import { COMING_BLURB, acquisitionText, albumOf, categoryLive, countOf, masteryText, skinTargetName, type RarityFilter, type ShowFilter } from '../collectionModel';
+import { COMING_BLURB, FROZEN_CHESTS_NOTE, acquisitionText, albumOf, categoryLive, countOf, masteryText, skinTargetName, type RarityFilter, type ShowFilter } from '../collectionModel';
 import { CategoryIcon, EmoteSlotRow, FramePreview, LockGlyph, PLATE_SAMPLE_CARD, plateLookOf } from '../CollectionScreen';
 import { InlinePlateCard } from '../SkinCardPreview';
 import { startEmoteDrag } from './emoteDrag';
@@ -69,6 +69,8 @@ export interface CollectionPhView {
   shopOffline: boolean; closeShop: () => void;
   cratesOn: boolean; cratesLoading: boolean; sealed: readonly CrateQueueItem[]; bayTier: ChestTier; nextCrateLevel: number; guest: boolean;
   oddsLine: string; shopBusy: boolean; openBay: () => void; openAllBay: () => void; openAccount: () => void;
+  /** Packs are on (spec section 11): sealed chests show with no Open / Open all and the frozen line; none held, no chest at all. */
+  chestsFrozen?: boolean;
 }
 
 /** The categories whose tiles carry art (a taller tile, the art filling it). */
@@ -314,9 +316,35 @@ function RarityProgress({ v }: { v: CollectionPhView }): JSX.Element {
 
 // ── The chest bay ──────────────────────────────────────────────────────────────────────────────────────────
 
-function ChestBay({ v }: { v: CollectionPhView }): JSX.Element {
+function ChestBay({ v }: { v: CollectionPhView }): JSX.Element | null {
   const n = v.sealed.length;
   const ready = v.cratesOn && !v.cratesLoading && n > 0;
+  const level = v.me && (
+    <div className="phc-bay-level" role="group" aria-label={`Account Level ${v.level.level}`}>
+      <span className="phc-bay-lvl">Level <b>{v.level.level}</b></span>
+      <span className="phc-bar" aria-hidden><span style={{ transform: `scaleX(${v.level.fraction})` }} /></span>
+      <span className="phc-bay-xp">{v.level.xpIntoLevel} / {v.level.xpForNextLevel} XP</span>
+    </div>
+  );
+  if (v.chestsFrozen) {
+    // No chest held: only the level stays (the bay is the chests'). Held: the chests, no Open, and the frozen line.
+    if (!ready) return level ? <section className="phc-bay phc-bay-levelonly" aria-label={`Account Level ${v.level.level}`}>{level}</section> : null;
+    return (
+      <section className="phc-bay phc-bay-frozen" aria-label="Sealed chests">
+        <div className="phc-bay-top">
+          <div className="phc-bay-art" aria-hidden>
+            <ChestPicture tier={v.bayTier} className="phc-bay-chest" />
+          </div>
+          <div className="phc-bay-who">
+            <span className="phc-bay-lbl">Sealed chests</span>
+            <span className="phc-bay-num"><b>{n}</b> held</span>
+          </div>
+        </div>
+        <div className="phc-bay-frozen-note">{FROZEN_CHESTS_NOTE}</div>
+        {level}
+      </section>
+    );
+  }
   return (
     <section className={`phc-bay${ready ? ' ready' : ''}`} aria-label="Sealed chests">
       <div className="phc-bay-top">

@@ -16,7 +16,8 @@ import { levelProgress } from '@game/progression';
 import { TITLE_LOGO_SRC } from '../../AscentLogo';
 import { MenuMedal, type MenuMedalName } from '../../menuIcons';
 import { AetherIcon } from '../../progression/AetherIcon';
-import { aetherVisible, cratesVisible, mirrorFor, useProgression } from '../../progression/progressionStore';
+import { aetherVisible, cratesVisible, mirrorFor, packsVisible, useProgression } from '../../progression/progressionStore';
+import { shopTabTarget } from '../../progression/packShop/shopTabTarget';
 import { useHasNewRewards } from '../../progression/NewRewardsPopup';
 import { sfx } from '../../sfx';
 import { PAGES_CLOSED, useGame, type MenuDest } from '../../store';
@@ -60,6 +61,7 @@ export function PhTopNav({ current: given, friendsDocked = false, ownDrawer = fa
   const mirror = useProgression((s) => mirrorFor(userId, s.mirror));
   const aetherOn = useProgression(aetherVisible);
   const collectionOn = useProgression(cratesVisible) || import.meta.env.DEV;
+  const packsOn = useProgression(packsVisible);
   const friendsBadge = useFriendsBadge();
   const newRewards = useHasNewRewards();
   // LIVE GAMES (owner 2026-11-20): the tab glows green while anyone is playing, with the count on its icon's foot.
@@ -103,9 +105,9 @@ export function PhTopNav({ current: given, friendsDocked = false, ownDrawer = fa
       st.openSettings();
       return;
     }
-    if (dest === 'crates' && import.meta.env.DEV) {
-      // DEV: the Shop tab goes through the shop's door into the pack shop (PackShopEntry.tsx; owner 2026-11-26). Production
-      // keeps the crate shop below until pack purchases have a server.
+    if (dest === 'crates' && shopTabTarget(packsOn, import.meta.env.DEV) !== 'chests') {
+      // The Shop tab goes through the shop's door into the pack shop (PackShopEntry.tsx; owner 2026-11-26): the real one once
+      // the server's `packs_enabled` is on, the lab's in a DEV build before that. Otherwise the Chest Shop below.
       setFriendsOpen(false); if (showBook) closeBook(); openPackShopDoor();
       return;
     }

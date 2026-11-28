@@ -155,6 +155,12 @@ export function masteryText(c: CosmeticDef): string | null {
   return req ? `${req.replace(/\.$/, '')} to master it.` : null;
 }
 
+/**
+ * THE FROZEN CHESTS (the pack economy, 2026-12-01, spec section 11: owner "Freeze them"): with packs on, a sealed chest
+ * can no longer be opened. The chest bay shows it with no Open, and this one line (no amount promised).
+ */
+export const FROZEN_CHESTS_NOTE = 'Chests can no longer be opened. They will be exchanged in a later update.';
+
 /** What a switched-off category will hold, for its "coming soon" view. */
 export const COMING_BLURB: Readonly<Record<CosmeticCategory, string>> = {
   title: 'Titles to wear under your name.',

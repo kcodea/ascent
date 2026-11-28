@@ -409,6 +409,8 @@ img.colls-caticon { object-fit: contain; filter: drop-shadow(0 1px 2px rgba(0, 0
 /* A guest's Open wears a small lock: it opens the gate, not the crate. */
 .colls-open .colls-lock { width: 16px; height: 16px; margin-right: 6px; vertical-align: -3px; }
 .colls-bay-guest { font-weight: 700; font-size: 13px; color: #ffb45a; }
+/* Packs on: a sealed chest is frozen (no Open), and the bay says so in one line. */
+.colls-bay-frozen-note { font-weight: 700; font-size: 13px; line-height: 1.4; color: var(--colls-dim); }
 
 /* CROSS-DEVICE SAVES: the "your game moved" prompt blocks the stale run, above the game HUD and menus. */
 .nrw-scrim.cloudmoved-scrim { z-index: 8000; }

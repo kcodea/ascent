@@ -18,11 +18,15 @@ vi.mock('./PackShop', () => ({
 }));
 const buyPackRemote = vi.fn();
 const fetchPackShop = vi.fn();
+const openPackRemote = vi.fn();
+const claimPackRewardRemote = vi.fn();
 vi.mock('../../identity', async (orig) => ({ ...(await orig<typeof import('../../identity')>()), currentUserId: () => 'u-1' }));
 vi.mock('../progressionRemote', async (orig) => ({
   ...(await orig<typeof import('../progressionRemote')>()),
   fetchPackShop: () => fetchPackShop(),
   buyPackRemote: (r: unknown) => buyPackRemote(r),
+  openPackRemote: (id: string) => openPackRemote(id),
+  claimPackRewardRemote: (id: string) => claimPackRewardRemote(id),
 }));
 
 import PackShopEntry, { ServerPackShop } from './PackShopEntry';
@@ -46,7 +50,7 @@ const asGuest = (anonymous: boolean): void => {
 };
 beforeEach(() => {
   resetProgressionForTests();
-  shopProps = null; buyPackRemote.mockReset(); fetchPackShop.mockReset();
+  shopProps = null; buyPackRemote.mockReset(); fetchPackShop.mockReset(); openPackRemote.mockReset(); claimPackRewardRemote.mockReset();
   useProgression.setState({ capability: 'on', cratesCapability: 'on', aetherCapability: 'on', packsCapability: 'on' });
   asGuest(false);
 });
@@ -135,6 +139,47 @@ describe('ServerPackShop', () => {
     let opened: unknown;
     await act(async () => { opened = await shopProps!.open('p-1'); });
     expect(opened).toEqual({ status: 'error', reason: 'guest' });
+  });
+
+  it("a guest's opening and reward claim show the sign-in gate and never reach the server (R-PROG-PACK-10)", async () => {
+    asGuest(true);
+    fetchPackShop.mockResolvedValue({ status: 'ok', shop: shopJson });
+    ui = mount(<ServerPackShop onClose={() => {}} />);
+    await flush();
+    const gate = (): Element | null => document.querySelector('.pks-gatehost .crgate-panel');
+    const closeGate = (): void => { act(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })); }); };
+    let out: unknown;
+    await act(async () => { out = await shopProps!.open('p-1'); });
+    expect(out).toEqual({ status: 'error', reason: 'guest' });
+    expect(openPackRemote).not.toHaveBeenCalled();
+    expect(gate()).not.toBeNull();
+    closeGate();
+    expect(gate()).toBeNull();
+    await act(async () => { out = await shopProps!.claimReward!('req-c'); });
+    expect(out).toEqual({ status: 'error', reason: 'guest' });
+    expect(claimPackRewardRemote).not.toHaveBeenCalled();
+    expect(gate()).not.toBeNull();
+  });
+
+  it("an opening or claim the server refuses as `guest` is passed back unchanged and changes nothing (R-PROG-PACK-10)", async () => {
+    // the server's own refusal (it charges, opens and grants nothing); the gate only ever stands for a guest account
+    fetchPackShop.mockResolvedValue({ status: 'ok', shop: shopJson });
+    openPackRemote.mockResolvedValue({ status: 'error', reason: 'guest' });
+    claimPackRewardRemote.mockResolvedValue({ status: 'error', reason: 'guest' });
+    ui = mount(<ServerPackShop onClose={() => {}} />);
+    await flush();
+    let out: unknown;
+    await act(async () => { out = await shopProps!.open('p-1'); });
+    expect(openPackRemote).toHaveBeenCalledWith('p-1');
+    expect(out).toEqual({ status: 'error', reason: 'guest' });
+    await act(async () => { out = await shopProps!.claimReward!('req-c'); });
+    expect(claimPackRewardRemote).toHaveBeenCalledWith('req-c');
+    expect(out).toEqual({ status: 'error', reason: 'guest' });
+    await flush();
+    // the sealed pack is still in the hand, the meter still has its reward waiting, and the balance is unchanged
+    expect(shopProps!.hand).toEqual(shopJson.packs);
+    expect(shopProps!.reward).toMatchObject({ ready: 1, progress: 3 });
+    expect(shopProps!.aether).toBe(900);
   });
 
   it("the reward label uses the server's size and rarity (pack_config), the constants only without them", async () => {

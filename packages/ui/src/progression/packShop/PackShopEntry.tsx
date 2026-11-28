@@ -197,7 +197,8 @@ function PackShopFailed({ onClose }: { onClose: () => void }) {
  * THE PACK SHOP ON THE SERVER (packs on). The shop is read when it opens (and again when its window turns over); a
  * purchase sends the price the shop shows and the shop's request id (one per attempt, reused on its retry, so the
  * server never charges twice); an opening and a reward claim go through the server too. A guest sees everything but
- * spends nothing (R-PROG-AETHER-02): a buy, an opening or a claim shows the sign-in gate and never reaches the server.
+ * spends nothing (R-PROG-PACK-10): a buy, an opening or a claim shows the sign-in gate and never reaches the server, and
+ * a server `guest` answer to any of them asks for the gate too (it stands only while the account is a guest).
  */
 export function ServerPackShop({ onClose }: { onClose: () => void }) {
   const state = useProgression((s) => s.packShop);
@@ -222,7 +223,9 @@ export function ServerPackShop({ onClose }: { onClose: () => void }) {
   }, []);
   const open = useCallback<PackShopProps['open']>(async (packId) => {
     if (anonRef.current) { setGate(true); return { status: 'error', reason: 'guest' }; }
-    return openPack(packId);
+    const out = await openPack(packId);
+    if (out.status === 'error' && out.reason === 'guest') setGate(true);
+    return out;
   }, []);
   const claim = useCallback<NonNullable<PackShopProps['claimReward']>>(async (requestId) => {
     if (anonRef.current) { setGate(true); return { status: 'error', reason: 'guest' }; }

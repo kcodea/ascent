@@ -17660,8 +17660,9 @@ export const FOUNDATION_RULES: GameRule[] = [
       'Opening a pack makes one server-side roll of 5 cards, the guaranteed card last. Cards 1 to 4 each roll a rarity at the '
       + 'Standard odds (Common 35, Rare 31, Epic 22, Legendary 9, Ancient 3) over the whole catalog. Card 5 of a Rarity pack '
       + 'rolls at the same odds kept only for the pack\x27s rarity and above, so it is never below that rarity. Card 5 of a '
-      + 'Category or style pack comes from that category or style and is never an item the player owns, counting cards 1 to 4 '
-      + 'of the same pack; only when the whole theme is owned is it a duplicate from the theme. Once the rarity is drawn, every '
+      + 'Category or style pack takes its rarity at the Standard odds and comes from that category or style, never an item the '
+      + 'player owns, counting cards 1 to 4 of the same pack; only when the whole theme is owned is it a duplicate from the '
+      + 'theme. Once the rarity is drawn, every '
       + 'category that has an item of that rarity is equally likely, then every item of it in that category. A rarity with '
       + 'nothing in the pool falls to the nearest rarity that has something (ties toward the more common one), never below a '
       + 'Rarity pack\x27s own rarity. No card ever rolls a Secret item, an inactive or non-crate item, or an item or category '
@@ -17776,7 +17777,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     domain: 'foundation',
     status: 'approved',
     evidence: [
-      { kind: 'owner-chat', ref: 'Owner, 2026-11-27 (the pack reward; recorded in docs/superpowers/specs/2026-11-23-pack-opening-design.md)', quote: 'Every 15 packs purchased gives the player one free Legendary Rarity Pack.' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-27 (the pack reward, since changed to Epic by the ruling below; recorded in docs/superpowers/specs/2026-11-23-pack-opening-design.md)', quote: 'Every 15 packs purchased gives the player one free Legendary Rarity Pack.' },
       { kind: 'owner-chat', ref: 'Owner, 2026-11-27, later (recorded in docs/superpowers/specs/2026-11-25-pack-shop-design.md)', quote: 'change the free legendary after 15 purchases to Epic' },
       { kind: 'fix-pr', ref: 'PR #2902 — packages/progression/src/packShop.ts (PACK_REWARD_EVERY, PACK_REWARD_RARITY, packRewardAfter)' },
       { kind: 'fix-pr', ref: 'PR #2903 — supabase/migrations/2026-12-01-packs.sql (buy_pack: the meter, claim_pack_reward, progression_pack_meter_json)' },
@@ -17840,8 +17841,9 @@ export const FOUNDATION_RULES: GameRule[] = [
     statement:
       'A guest (anonymous account) sees the Pack Shop and its Aether but never spends or opens: buying a pack, opening a pack '
       + 'and claiming the purchase reward show the sign-in gate instead and never reach the server. The server refuses a '
-      + 'guest\x27s purchase, opening and claim as guest and changes nothing, so a guest answer from the server shows the same '
-      + 'gate. While the gate is up it sits above the shop, and Esc closes the gate, not the shop.',
+      + 'guest\x27s purchase, opening and claim as guest and changes nothing; the client passes that answer back unchanged and '
+      + 'asks for the same gate (which stands only while the account is a guest). While the gate is up it sits above the shop, '
+      + 'and Esc closes the gate, not the shop.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -17850,7 +17852,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'fix-pr', ref: 'PR #2903 — supabase/migrations/2026-12-01-packs.sql (progression_is_guest; buy_pack, open_pack and claim_pack_reward answer guest)' },
       { kind: 'code', ref: 'packages/ui/src/progression/packShop/PackShopEntry.tsx (ServerPackShop: a guest\x27s buy, opening or claim opens the sign-in gate and never calls the server; the gate sits on the stage)' },
     ],
-    currentBehaviour: 'Built 2026-12-01 (PR #2903 and feat/pack-economy-client), behind progression_config.packs_enabled. PARTIAL pin on the client: PackShopEntry.test.tsx pins the gate for a guest\x27s buy and for a server guest answer; the client gate on a guest\x27s opening and claim is in the code but not pinned by a test (the server refusal of both is pinned in packs.db.test.ts).',
+    currentBehaviour: 'Built 2026-12-01 (PR #2903 and feat/pack-economy-client), behind progression_config.packs_enabled. PackShopEntry.test.tsx pins the client gate for a guest\x27s buy, opening and claim (the gate shows and the server is never called), that a server guest answer to an opening or claim comes back unchanged and leaves the hand, the reward meter and the balance as they were, and the gate above the shop with Esc. The server refusal of all three is pinned in packs.db.test.ts. The sign-in gate closes itself for a signed-in account, so a server guest answer to a client that believes it is signed in shows no gate (the refusal still changes nothing).',
     enforcement: { kind: 'scenario', refs: ['packages/progression/src/packs.db.test.ts', 'packages/ui/src/progression/packShop/PackShopEntry.test.tsx', 'packages/ui/src/progression/packShop/PackShop.test.tsx'], lastVerifiedAt: '2026-11-28' },
   },
   {
@@ -17890,8 +17892,9 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'fix-pr', ref: 'PR #2902 — packages/progression/src/packEconomy.ts (rarityPackOdds); packages/progression/src/packShop.ts (shelfOffers: odds on Rarity offers only)' },
       { kind: 'fix-pr', ref: 'PR #2903 — supabase/migrations/2026-12-01-packs.sql (progression_pack_odds, pack_shop_json)' },
       { kind: 'code', ref: 'packages/ui/src/progression/progressionRemote.ts (the offer parser reads odds)' },
+      { kind: 'code', ref: 'packages/ui/src/progression/packShop/shopModel.ts (packOddsRows); packages/ui/src/progression/packShop/PackShop.tsx (PackOddsLines on the tag and the grid card)' },
     ],
-    currentBehaviour: 'PARTIAL as of 2026-12-01 (PRs #2902, #2903 and feat/pack-economy-client). The server sends odds on Rarity offers only, re-read from pack_config, and the client parses them; the Pack Shop tag does not draw them yet, so nothing on screen shows the odds.',
-    enforcement: { kind: 'scenario', refs: ['packages/progression/src/packEconomy.test.ts', 'packages/progression/src/packWindow.test.ts', 'packages/progression/src/packs.db.test.ts'], lastVerifiedAt: '2026-11-28' },
+    currentBehaviour: 'Built 2026-12-01 (PRs #2902, #2903 and feat/pack-economy-client), behind progression_config.packs_enabled. The server sends odds on Rarity offers only, re-read from pack_config, and the client parses them. The Pack Shop tag (and its reduced-motion grid card) always shows them under the price: a line for cards 1-4 and one for card 5 (one line for all five on a Common pack, whose card 5 rolls like the rest), each rarity it can roll with the server\x27s percent, never recomputed on the client. Category and style pack tags show none (PackShop.test.tsx).',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/packEconomy.test.ts', 'packages/progression/src/packWindow.test.ts', 'packages/progression/src/packs.db.test.ts', 'packages/ui/src/progression/packShop/PackShop.test.tsx'], lastVerifiedAt: '2026-11-28' },
   },
 ];

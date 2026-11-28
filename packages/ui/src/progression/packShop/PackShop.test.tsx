@@ -6,7 +6,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
-import type { BuyPackOutcome, OwnedPack, PackOffer, PackShelf } from '@game/progression';
+import { COSMETIC_RARITIES, RARITY_LABELS, rarityPackOdds, type BuyPackOutcome, type OwnedPack, type PackOffer, type PackShelf } from '@game/progression';
 import { mount, type Mounted } from '../../renderedText.mount';
 import type { PackOpenerProps } from '../packOpening/PackOpener';
 
@@ -635,6 +635,43 @@ describe('PackShop', () => {
     expect(tag.querySelector('.pks-tag-medal')!.getAttribute('src')).toContain('ascent_rarity_rare');
     expect(tag.querySelector('.pks-bar')).toBeNull();
     expect(tag.textContent).not.toContain('new to you');
+  });
+
+  it("a Rarity pack's tag shows its server odds, cards 1-4 and card 5; a Category and a style pack's tag shows none (R-PROG-PACK-12)", () => {
+    // the odds the server sends are `rarityPackOdds` (the roll's own numbers); the tag draws exactly what it is handed
+    const odds = rarityPackOdds('rare');
+    const category = { kind: 'category', id: 'category-emote', name: 'Emote Pack', guaranteedFloor: 'common' } as const;
+    const style = { kind: 'themed', id: 'themed-plushie', name: 'Plushie Pack', guaranteedFloor: 'common' } as const;
+    render({
+      offers: [offer('rare', 'Rare Pack', 175, { odds }), offer('cat', 'Emote Pack', 200, { look: category }), offer('sty', 'Plushie Pack', 200, { look: style })],
+    });
+    const rowsOf = (root: Element): string[][] => [...root.querySelectorAll('.pks-odds-row')].map((r) =>
+      [r.querySelector('.pks-odds-label')!.textContent!, ...[...r.querySelectorAll('.pks-odds-r')].map((x) => x.textContent!.trim())]);
+    const expected = (label: string, rec: Record<string, number>): string[] =>
+      [label, ...COSMETIC_RARITIES.filter((r) => rec[r]! > 0).map((r) => `${RARITY_LABELS[r]} ${rec[r]}%`)];
+    fire((e) => { e.onHover('rare', R); });
+    const tag = (): Element => document.querySelector('[data-testid="pks-tag"]')!;
+    expect(rowsOf(tag())).toEqual([expected('Cards 1-4:', odds.cards), expected('Card 5:', odds.last)]);
+    expect(rowsOf(tag())[0]).toEqual(['Cards 1-4:', 'Common 35%', 'Rare 31%', 'Epic 22%', 'Legendary 9%', 'Ancient 3%']);
+    expect(rowsOf(tag())[1]).toEqual(['Card 5:', 'Rare 47.7%', 'Epic 33.8%', 'Legendary 13.8%', 'Ancient 4.6%']);
+    expect(tag().querySelector('.pks-odds-r.r-epic')).not.toBeNull();
+    fire((e) => { e.onHover('cat', R); });
+    expect(tag().textContent).toContain('Emote Pack');
+    expect(tag().querySelector('[data-testid="pks-odds"]')).toBeNull();
+    fire((e) => { e.onHover('sty', R); });
+    expect(tag().textContent).toContain('Plushie Pack');
+    expect(tag().querySelector('[data-testid="pks-odds"]')).toBeNull();
+    // a Common pack's card 5 rolls like the rest: one line for all five
+    render({ offers: [offer('common', 'Common Pack', 100, { odds: rarityPackOdds('common') })] });
+    fire((e) => { e.onHover('common', R); });
+    expect(rowsOf(tag())).toEqual([expected('Cards 1-5:', rarityPackOdds('common').cards)]);
+    // the reduced-motion grid card is the tag's twin: the same odds on the Rarity card, none on the others
+    render({ reducedMotion: true, offers: [offer('rare', 'Rare Pack', 175, { odds }), offer('cat', 'Emote Pack', 200, { look: category })] });
+    const cards = [...document.querySelectorAll('.pks-card')];
+    expect(cards).toHaveLength(2);
+    expect(rowsOf(cards[0]!)).toEqual([expected('Cards 1-4:', odds.cards), expected('Card 5:', odds.last)]);
+    expect(cards[1]!.querySelector('[data-testid="pks-odds"]')).toBeNull();
+    expect(document.querySelector('[title]')).toBeNull();
   });
 
   it('reduced motion renders the grid with Buy and Open buttons and no scene', async () => {

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { aetherShort, saleOff, type BuyPackOutcome, type ClaimRewardOutcome, type CosmeticCategory, type CrateRarity, type OwnedPack, type PackOffer, type PackShelf } from '@game/progression';
 import { rectToStage, stageHost, stageViewport, type StageRect } from '../../stage';
@@ -14,7 +14,7 @@ import { createShopScene, type ScreenRect, type ShopScene } from './shopScene';
 import { createShopSounds, type ShopSounds } from './shopSounds';
 import { isLoopRack, shopLayout } from './shopLayout';
 import { setNavAether } from '../../partyHome/shell/shellStore';
-import { NO_ROOM_NOTE, buyKey, buyableIds, counterHasRoom, counterSplit, ownedCount, packGuarantee, packTag, shelfOffers, srLine, startIndex } from './shopModel';
+import { NO_ROOM_NOTE, buyKey, buyableIds, counterHasRoom, counterSplit, ownedCount, packGuarantee, packOddsRows, packTag, shelfOffers, srLine, startIndex } from './shopModel';
 import '../packOpening/packOpening.css';
 import './packShop.css';
 
@@ -163,6 +163,26 @@ function tagStyle(r: StageRect | null, kind: 'shelf' | 'hand'): CSSProperties | 
   const foot = shopLayout(vp.w, vp.h).floorY + TAG_GAP;
   return { left, top: Math.min(r.top + r.height + TAG_GAP, foot), translate: '-50% 0' };
 }
+
+/**
+ * A Rarity pack's odds on its tag and grid card (R-PROG-PACK-12), always shown, small and quiet under the price: one
+ * line for cards 1-4 and one for card 5, each rarity in its own colour. Memoized on the offer (a stable quote object), so
+ * a hover, a drag or a balance change never rebuilds it. Category and style packs draw nothing.
+ */
+const PackOddsLines = memo(function PackOddsLines({ offer, cls }: { offer: PackOffer; cls: string }) {
+  const rows = useMemo(() => packOddsRows(offer), [offer]);
+  if (!rows) return null;
+  return (
+    <div className={`pks-odds ${cls}-odds`} data-testid="pks-odds">
+      {rows.map((row) => (
+        <p key={row.label} className="pks-odds-row">
+          <span className="pks-odds-label">{row.label}:</span>
+          {row.items.map((it) => <span key={it.rarity} className={`pks-odds-r r-${it.rarity}`}>{' '}{it.text}</span>)}
+        </p>
+      ))}
+    </div>
+  );
+});
 
 /**
  * The browse tip (owner 2026-11-27: "Hold down right click to browse the shop options. once the player holds right click,
@@ -805,6 +825,7 @@ export function PackShop(props: PackShopProps) {
             <span className="pks-off">{`-${saleOff(o)}%`}</span>
           </>}
         </div>
+        <PackOddsLines offer={o} cls={cls} />
         {!t.soldOut && o.stock !== undefined && <div className="pks-stock">{`${o.stock} left today`}</div>}
         {t.soldOut ? <div className={`${cls}-short`}>Sold out</div> : t.short > 0 && <div className={`${cls}-short`}>{`Need ${t.short} more Aether`}</div>}
         {full && t.short <= 0 && <div className={`${cls}-short`}>Open packs to make room</div>}

@@ -1,6 +1,6 @@
 # The Pack Economy: design
 
-Date: 2026-11-27 · Owner: Mike · Status: draft for owner review
+Date: 2026-11-27 · Owner: Mike · Status: every build question answered by the owner 2026-11-27; awaiting his approval
 
 **Builds on:** the pack opening (`2026-11-23-pack-opening-design.md`) and the pack shop
 (`2026-11-25-pack-shop-design.md`), both on PR kcodea/ascent#2865. Those two are presentation only and run on dev
@@ -60,8 +60,9 @@ shown is the price charged, a repeated request is charged once).
 | Prices | Common 100, Rare 175, Epic 300, Legendary 500, Ancient 850. Every category and style pack is a flat 200. |
 | Duplicates | A duplicate pays 20% of its OWN rarity's Rarity-pack price: Common 20, Rare 35, Epic 60, Legendary 100, Ancient 170. |
 | Shop refresh | Every 6 hours: 12am, 6am, 12pm and 6pm Eastern (daylight saving included). |
-| Free pack | A free Rare pack in the Featured window. The shop spec records "Every 6 hours" when asked whether it stays daily (section 13, item 2). |
+| Free pack | A free Rare pack in the Featured window. The shop spec records "Every 6 hours" when asked whether it stays daily (section 13, item 1). |
 | Featured deals | "in featured should also have 4 other discounted, randomly discounted between 20 and 60% off card packs of any other type, whether it is rarity or category" (2026-11-27), each with "2 to 5" in stock, turning over every window. Asked whether they launch with the shop and whether stock is per player: "Yes, per player" (2026-11-27). |
+| Odds shown | "pack odds can show on the rarity packs. the other packs dont need it. o nthe pack tag" (2026-11-27). |
 | Purchase reward | Every 15 packs purchased earns a free Epic pack. |
 | Counter | 5 pack types on the counter, up to 8 of each. "The player cannot purchase any more packs until a slot opens up." Packs given while it is full wait beside it. |
 | Match payouts | Unchanged. |
@@ -260,6 +261,14 @@ refused for room. Guests: a guest buys nothing, so they never have a reward read
 - The profile JSON gains `packs` (sealed, in counter order) and `packMeter {progress, ready}`. `crates` stays.
 - A new Edge Function action `pack_shop` answers `{windowId, nextRefreshAt, shelves, offers (with per-player
   newToYou and stock), packs, packMeter, aether}`.
+- **Odds on the Rarity pack tags** (owner 2026-11-27: "pack odds can show on the rarity packs. the other packs dont
+  need it. o nthe pack tag"). Each Rarity pack offer carries `odds: { cards: Record<CrateRarity, number>, last:
+  Record<CrateRarity, number> }`: cards 1-4 at the Standard odds, and card 5 at the odds restricted to the pack's rarity
+  and above, renormalized (a Rare pack's card 5: Rare 47.7, Epic 33.8, Legendary 13.8, Ancient 4.6; percent to one
+  decimal, the `tierOddsPercent` rounding). The server computes them from `pack_config.standardOdds`, the same numbers
+  the roll reads, so what the tag shows is what is rolled. The shop's tag shows them on Rarity packs only; Category and
+  style pack offers carry no `odds` and their tags show none. Where on the tag, and how it opens, is the shop's
+  (presentation) call.
 - `progression-inventory` gains actions `pack_shop`, `buy_pack`, `open_pack`, `claim_pack_reward`. The old actions stay.
 
 ## 10. Level and Welcome grants
@@ -353,17 +362,16 @@ The same shape as the 1,000 Aether launch gift (`2026-10-19-aether-launch-grant.
 **A new client before the flip** behaves exactly as today. The client never decides which shop to show from its own
 version, only from `packs_enabled`.
 
-## 13. Open items (listed, not decided)
+## 13. Open items
 
-For the owner, in order of how much they change the build:
+Everything that changes this build is settled. Left open, none of it blocking:
 
-1. **Odds shown to players.** Chests print their odds (R-PROG-CRATE-03). Packs: show them, and where?
-2. **Free-pack cadence.** The brief calls the free Rare once per Eastern day, but the shop spec quotes the owner,
+1. **Free-pack cadence.** The brief calls the free Rare once per Eastern day, but the shop spec quotes the owner,
    asked whether it stays daily, answering "Every 6 hours", and the lab gives one per window. This doc builds one per
    window (`free:<window id>`); a daily pack is a one-line change to the source key.
-3. **Launch, Season and Secret packs**, and Secret as a sixth rarity in packs with its odds (today Secret exists as an
+2. **Launch, Season and Secret packs**, and Secret as a sixth rarity in packs with its odds (today Secret exists as an
    achievement-only rarity above Ancient, R-PROG-SECRET-01).
-4. **Booster box pricing.** The shop supports `contains` > 1; how a box fits the counter limit is decided with it.
+3. **Booster box pricing.** The shop supports `contains` > 1; how a box fits the counter limit is decided with it.
 
 ## 14. The "chest" to "pack" copy sweep
 
@@ -391,7 +399,7 @@ evidence and a regression test as enforcement:
 | R-PROG-AETHER-01 (payouts) | Unchanged numbers; "spent in the Pack Shop"; names the 3,000 launch gift beside R-PROG-AETHER-05's 1,000. |
 | R-PROG-CRATE-02 (opening is optional, now or later; never an owned item; never converted to currency) | Scoped to chests, and amended: with packs on, a sealed chest cannot be opened (frozen until the lump-sum project). Packs may duplicate and pay Aether. |
 | R-PROG-CRATE-04 / R-PROG-COLLECTION-01 (the chest bay's Open and Open all) | No Open while frozen. |
-| R-PROG-CRATE-03 (one draw, odds shown) | Scoped to chests; pack roll in R-PROG-PACK-02. |
+| R-PROG-CRATE-03 (one draw, odds shown) | Scoped to chests; pack roll in R-PROG-PACK-02, and a new pack rule: a Rarity pack's tag shows its odds (cards 1-4 and card 5), equal to the odds rolled; Category and style packs show none. |
 | R-PROG-CRATE-04 (guests cannot open crates) | Extended to packs, or a twin R-PROG-PACK rule. |
 | R-PROG-SECRET-01 ("No chest ever rolls it") | "No chest or pack". |
 | R-PROG-COLLECTION-01, R-PH-COLLECTION-01, R-PROG-NEWREWARDS-01, R-GODMODE-01 | Their chest wording, where it now means packs. |
@@ -411,6 +419,8 @@ oracle rules).
 
 ## 17. Testing
 
+- Odds: a Rarity pack offer's `odds` equal what `rollPack` uses for that floor (from the same config), each set sums to
+  100 within rounding, and Category and style offers carry none.
 - `packRoll.test.ts`: every pack kind, the floor, the renormalized card-5 odds, the equal-category step, the fall-back,
   fully-owned category, a duplicate inside one pack, Secret never rolled.
 - `packRoll.db.test.ts`: SQL equals TS draw for draw.

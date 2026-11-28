@@ -841,10 +841,12 @@ def terys_specs():
     rightpillar = cR([(1245, 420), (1290, 378), (1400, 348), (1520, 348), (1520, 1075), (1272, 1065), (1254, 700)])
     leaves = [(-.02, -.02), (.36, -.02), (.36, .14), (.30, .14), (.24, .08), (.20, .10), (.165, .19), (.10, .22), (.08, .27), (-.02, .27)]
     return {
-        1: dict(groups=[([gate], gate_holes, 12)]),  # a wide band: the skyline is traced outside the marble, the cut finds its edge
-        2: dict(groups=[([post, urnL, urnR], None, 8)]),
+        # The gate building is NOT a piece (2026-11-27, second pass): it fills the middle third, and a cutout that size slid across
+        # an invented valley read as cardboard. It stays painted in the ground and never moves; only the frame does.
+        1: dict(groups=[([post, urnL, urnR], None, 8)]),
+        2: dict(groups=[([[(-.5, -.5), (-.49, -.5), (-.49, -.49)]], None, 2)]),  # empty
         3: dict(groups=[([trunk, vine, banner, leftfoliage], None, 8), ([rail], rail_holes, 8), ([right, rightpillar], None, 8)], key=[(leaves, canopy)]),
-        'snap': True, 'tone': .08, 'planes': lambda x: [.075, .14, .26],
+        'snap': True, 'tone': .08, 'planes': lambda x: [.12, .12, .26],
     }
 
 

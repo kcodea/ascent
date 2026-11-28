@@ -299,3 +299,10 @@ the real boundary.
 player is more interested in, lets have those at a flat 200". Rarity packs: Common 100, Rare 175, Epic 300, Legendary
 500, Ancient 850 Aether. Themed packs (the Category packs and the style packs alike): a flat 200. The lab:
 `RARITY_PACK_PRICE` and `THEMED_PACK_PRICE` in `shopLabData.ts`; the server will own the real prices.
+
+**Duplicate refunds (owner 2026-11-27).** "lets refund 20% of the pack's rarity value. so common would be 20, and so
+forth"; asked whether that is the duplicate's rarity or its pack's: "its own rarity". A duplicate pays 20% of the Rarity
+pack price for ITS OWN rarity, whatever pack it came from: Common 20, Rare 35, Epic 60, Legendary 100, Ancient 170
+Aether. (Known and accepted: a near-complete collector gets about 225 Aether back per 100-Aether Common pack; it matters
+only if Aether ever buys something other than packs.) Economy-project behaviour; the lab's sample opens pay it
+(`DUPLICATE_AETHER` in `packOpening/packLabSamples.ts`).

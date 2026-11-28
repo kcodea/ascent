@@ -55,8 +55,16 @@ export function withLook(result: PackOpenResult, look: PackLook): PackOpenResult
 
 export interface PackLabSample { id: string; label: string; result: PackOpenResult; delayMs?: number; fail?: boolean }
 
-const card = (rewardId: string, rarity: CrateRarity, aether?: number, guaranteed = false): PackCard => (
-  { rewardId, rarity, guaranteed, duplicate: aether === undefined ? null : { aether } }
+/**
+ * WHAT A DUPLICATE PAYS, by its OWN rarity (owner 2026-11-27: "lets refund 20% of the pack's rarity value. so common would
+ * be 20, and so forth", and asked whether that is the card's rarity or its pack's: "its own rarity"): 20% of that rarity's
+ * pack price (100 / 175 / 300 / 500 / 850, packShop/shopLabData.ts `RARITY_PACK_PRICE`), whatever pack the card came from.
+ * The server will pay the real refund (the economy project); the lab's samples pay this.
+ */
+export const DUPLICATE_AETHER: Readonly<Record<CrateRarity, number>> = { common: 20, rare: 35, epic: 60, legendary: 100, ancient: 170 };
+
+const card = (rewardId: string, rarity: CrateRarity, dup = false, guaranteed = false): PackCard => (
+  { rewardId, rarity, guaranteed, duplicate: dup ? { aether: DUPLICATE_AETHER[rarity] } : null }
 );
 
 const make = (id: string, label: string, look: PackLook, cards: readonly PackCard[], extra: { delayMs?: number; fail?: boolean } = {}): PackLabSample => (
@@ -71,38 +79,38 @@ const ancient = rarityLook('ancient');
 export const PACK_LAB_SAMPLES: readonly PackLabSample[] = [
   make('all-new', 'All new (5 cards)', rare, [
     card('title_wanderer', 'common'), card('skin_blackbelt_1', 'common'), card('emote_angry_mushy', 'common'),
-    card('alpha_tester', 'rare'), card('plate_aquarium_rocks', 'rare', undefined, true),
+    card('alpha_tester', 'rare'), card('plate_aquarium_rocks', 'rare', false, true),
   ]),
   make('mixed-dupes', 'Mixed duplicates', rare, [
-    card('title_wanderer', 'common', 20), card('skin_blackbelt_1', 'common'), card('frame_glass_shard', 'rare', 60),
-    card('title_kingbreaker', 'epic'), card('plate_moonstone', 'epic', 120, true),
+    card('title_wanderer', 'common', true), card('skin_blackbelt_1', 'common'), card('frame_glass_shard', 'rare', true),
+    card('title_kingbreaker', 'epic'), card('plate_moonstone', 'epic', true, true),
   ]),
   make('legendary-guaranteed', 'Legendary guaranteed', legendary, [
     card('title_wanderer', 'common'), card('frame_honey', 'common'), card('attack_coin', 'rare'),
-    card('skin_bram_1', 'rare', 60), card('skin_soren_2', 'legendary', undefined, true),
+    card('skin_bram_1', 'rare', true), card('skin_soren_2', 'legendary', false, true),
   ]),
   make('ancient-guaranteed', 'Ancient guaranteed', ancient, [
-    card('title_wanderer', 'common'), card('emote_nervous_jensen', 'rare'), card('title_kingbreaker', 'epic', 120),
-    card('attack_blast', 'legendary'), card('plate_mooncloud', 'ancient', undefined, true),
+    card('title_wanderer', 'common'), card('emote_nervous_jensen', 'rare'), card('title_kingbreaker', 'epic', true),
+    card('attack_blast', 'legendary'), card('plate_mooncloud', 'ancient', false, true),
   ]),
   // Two packs = ten cards = all ten categories (board and music via the fake ids above).
   make('every-category-a', 'Every category (1 of 2)', epic, [
     card('announcer_lemon', 'legendary'), card('skin_frank_1', 'common'), card('skin_blackbelt_1', 'common'),
-    card('title_the_unbroken', 'legendary'), card('attack_cards', 'epic', undefined, true),
+    card('title_the_unbroken', 'legendary'), card('attack_cards', 'epic', false, true),
   ]),
   make('every-category-b', 'Every category (2 of 2)', epic, [
     card('lab_fake_board', 'rare'), card('lab_fake_music', 'rare'), card('frame_multichrome_energy', 'epic'),
-    card('emote_flirty_midas', 'epic'), card('plate_blossom', 'legendary', undefined, true),
+    card('emote_flirty_midas', 'epic'), card('plate_blossom', 'legendary', false, true),
   ]),
   make('unknown-reward', 'Unknown reward (newer server)', rare, [
     card('title_wanderer', 'common'), card('future_reward_from_a_newer_server', 'rare'), card('frame_honey', 'common'),
-    card('lab_unknown_item', 'rare'), card('plate_aquarium_rocks', 'rare', undefined, true),
+    card('lab_unknown_item', 'rare'), card('plate_aquarium_rocks', 'rare', false, true),
   ]),
   make('slow', 'Slow server (5 s wait at the pop)', rare, [
     card('title_wanderer', 'common'), card('frame_honey', 'common'), card('emote_angry_mushy', 'common'),
-    card('alpha_tester', 'rare'), card('plate_aquarium_rocks', 'rare', undefined, true),
+    card('alpha_tester', 'rare'), card('plate_aquarium_rocks', 'rare', false, true),
   ], { delayMs: 5000 }),
-  make('failed', 'Failed (server error at the pop)', rare, [card('title_wanderer', 'rare', undefined, true)], { fail: true }),
+  make('failed', 'Failed (server error at the pop)', rare, [card('title_wanderer', 'rare', false, true)], { fail: true }),
 ];
 
 

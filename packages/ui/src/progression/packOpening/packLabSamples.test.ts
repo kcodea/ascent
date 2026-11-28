@@ -1,8 +1,19 @@
 import { describe, expect, it, vi } from 'vitest';
 import { COSMETIC_CATEGORIES, parsePackOpenResult } from '@game/progression';
-import { PACK_LAB_SAMPLES, PACK_LAB_LOOKS, cancelLabTimers, makeLabOpen, sampleCategoryOf, withLook } from './packLabSamples';
+import { DUPLICATE_AETHER, PACK_LAB_SAMPLES, PACK_LAB_LOOKS, cancelLabTimers, makeLabOpen, sampleCategoryOf, withLook } from './packLabSamples';
+import { RARITY_PACK_PRICE } from '../packShop/shopLabData';
 
 const byId = (id: string) => PACK_LAB_SAMPLES.find((s) => s.id === id)!;
+
+// owner 2026-11-27: "lets refund 20% of the pack's rarity value. so common would be 20, and so forth" ... "its own rarity"
+describe('duplicate refunds', () => {
+  it('pay 20% of the rarity pack price for the card\'s OWN rarity, in every sample', () => {
+    for (const [r, price] of Object.entries(RARITY_PACK_PRICE)) expect(DUPLICATE_AETHER[r as keyof typeof DUPLICATE_AETHER], r).toBe(price * 0.2);
+    let dups = 0;
+    for (const s of PACK_LAB_SAMPLES) for (const c of s.result.cards) if (c.duplicate) { dups++; expect(c.duplicate.aether, `${s.id} ${c.rewardId}`).toBe(DUPLICATE_AETHER[c.rarity]); }
+    expect(dups).toBeGreaterThan(3);
+  });
+});
 
 describe('Pack Lab samples', () => {
   it('has every sample the brief names', () => {

@@ -48,30 +48,7 @@ html[data-touch-ui] .guidesbtn > svg { width: 56%; height: 56%; }
 /* Combat: the button goes quiet and inert with the rail (the panel is not drawn then). */
 .app.staged .guidesbtn { opacity: 0; pointer-events: none; }
 
-/* ── THE GUIDES OVERLAY (owner 2026-11-27: "Make the guides overlay look like the new in game compendium overlay";
-   R-GUIDES-QUICKLOOK-01) ───────────────────────────────────────────────────────────────────────────────────────────────
-   It wears the quick Compendium's own classes (quickBook.css): `.qb` (the layer, its dim and its type), `.qb-place` (the
-   game's place, dark, dissolving into the game on its left), `.qb-panel`, `.qb-head` / `.qb-title` / `.qb-count` (the
-   name in light), `.qb-x` and `.qb-line`. Every one of those moves once (transform / opacity) and nothing loops. Only what
-   differs is here: one column of guides, not a card grid, so the page is narrower; no parchment rail, so it sits nearer
-   the edge; and it fades away on close, the quick Compendium's 190 ms fade. The guide cards read the lobby units. */
-.guidesdock {
-  --lu: calc(var(--u) * var(--lby-scale, 0.82));
-  --lrow: calc(var(--lu) * var(--lby-row, 1.91));
-  --lfont: calc(var(--lu) * var(--lby-font, 0.9));
-  --gd-w: calc(660 * var(--phu));
-}
-.guidesdock.guides-full { --gd-w: calc(980 * var(--phu)); }
-.guidesdock .qb-place { width: calc(var(--gd-w) + 460 * var(--phu)); }
-.guidesdock .qb-panel { right: calc(56 * var(--phu) + var(--safe-r, 0px)); width: min(var(--gd-w), calc(100% - 112 * var(--phu))); }
-.guidesdock .qb-head { padding-bottom: calc(14 * var(--phu)); }
-.guidesdock > .qb-panel > .lobbyview { flex: 1 1 0; min-height: 0; margin-top: calc(14 * var(--phu)); color: var(--ui-text); font-family: var(--font-ui); }
-.guidesdock.closing { animation: guidesdockout 0.19s ease-out forwards; pointer-events: none; }
-@keyframes guidesdockout { to { opacity: 0; } }
-@media (prefers-reduced-motion: reduce) { .guidesdock.closing { animation-duration: 0.01s; } }
-.guidesdock.guides-simple .lobbyguide-unit { --lgu-s: min(var(--lby-guide-unit-simple, 0.5), var(--lgu-fit, 0.4)); }
-.guidesdock.guides-simple .lobbyguide-body { padding-left: calc(2 * var(--lrow)); padding-right: calc(2 * var(--lrow)); }
-.guidesdock.guides-simple .lobbyguide-unitrow { justify-content: center; }
+/* The Guides overlay the square opens is GuidesBook (guidesBook.css, R-GUIDES-QUICKLOOK-01). */
 /* The build badge above the gear moves up out of the Guides square's way while it is on screen. */
 body:has(.guidesbtn) .version { bottom: calc(var(--edge-b) + 16px + 2 * (40 * var(--u)) + 17px); }
 body:has(.guidesdock) .version { opacity: 0; }

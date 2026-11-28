@@ -1975,11 +1975,12 @@ Ranked Duos party).
   (R-GUIDES-QUICKLOOK-01: the game dims, the place opens dark along the right, "Guides" in light with its count, the line,
   the X; it fades away on close). The list scrolls inside with the
   game's scrollbar. Every Versus mode, a 1v1 included, uses the same corner (R-RAIL-DOCKED-ALLMODES-01). The panel holds short
-  BUILD GUIDES (data in `packages/ui/src/guides/guides.ts`, one card per build line). Only guides for the run's
-  pinned set and for tribes in this lobby show; neutral guides always show. A guide opens in place to its **Core** and
-  **Enablers** minions (board portraits with the normal hover preview). Each card wears its signature card's art and
-  its tribe name in the tribe's colour. **Simple** (the default) is the narrower page and shows only the portraits;
-  the open card's **Detailed** button widens the panel to the left and adds the write-up (remembered per device). Every new game starts closed. Gone in combat (the button goes quiet, the panel is not drawn), back after it,
+  BUILD GUIDES (data in `packages/ui/src/guides/guides.ts`, one per build line). Only guides for the run's
+  pinned set and for tribes in this lobby show; neutral guides always show. The guides hang down the right edge as the
+  overlay's tabs (art, name, tribes; Team Ascent's, then Your guides, then Bookmarked); the page beside them is the picked
+  guide in full: tagline, write-up with hoverable card names, then its **Core** and **Enablers** as the Compendium's own
+  card cells. The first guide is open at once, the pick is kept for the game, Up and Down walk them; there is no Simple /
+  Detailed view any more (R-GUIDES-QUICKLOOK-01). Gone in combat (the button goes quiet, the overlay is not drawn), back after it,
   absent in the Tutorial, the Gauntlet (no rail) and God Mode (no rail). Presentation only; no game effect.
 - **Gold** ("Embers"): start with **3**, **+1 per wave**, capped at **10**
   (`startEmbers: 3`, `embersPerWave: 1`, `embersCap: 10`).

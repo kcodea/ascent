@@ -85,7 +85,9 @@ describe('G opens the guides', () => {
     const ov = c.querySelector('.guidesdock')!;
     expect(ov.classList.contains('qb')).toBe(true);
     for (const part of ['.qb-dim', '.qb-place', '.qb-panel', '.qb-head .qb-title h2', '.qb-count', '.qb-line', '.qb-x']) expect(ov.querySelector(part)).not.toBeNull();
-    expect(ov.querySelector('.qb-title h2')!.textContent).toBe('Guides');
+    expect(ov.querySelector('.guidesdock-title')!.textContent).toBe('Guides');
+    // The page is the first guide, its name in the quick Compendium's title.
+    expect(ov.querySelector('.qb-title h2')!.textContent).toBe(ov.querySelector('.lobbyguide.open .lobbyguide-title')!.textContent);
     expect(ov.getAttribute('aria-label')).toBe('Build guides. Press Esc or G to close.');
     expect(ov.querySelector('[title]')).toBeNull();
     click(ov.querySelector('.qb-x')!);

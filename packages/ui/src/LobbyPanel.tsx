@@ -35,12 +35,12 @@ import { duosRailTeamOf, duosRailTeams, duosTeamHealthRow, duosTeamPlaces, duosT
 import { isRankedDuosRaw, rankedTeamLabels } from './versus/rankedDuosView';
 import { enterTeammateView } from './versus/teammateView';
 import { LobbyGuides } from './guides/LobbyGuides';
+import { GuidesBook } from './guides/GuidesBook';
 import { canEditGuide, guidesFor, type Guide, type GuidesMode } from './guides/guides';
 import { ownsMine, useGuides } from './guides/guidesStore';
 import { onGuidesKey } from './guides/guidesHotkey';
-import { locationArt, locationOfSet } from './locationReveal/locations';
+import { locationOfSet } from './locationReveal/locations';
 import { useKeyLabel } from './keybinds/keybinds';
-import './quickBook/quickBook.css'; // the Guides overlay wears the quick Compendium's look (R-GUIDES-QUICKLOOK-01)
 import './lobbyRail.css'; // the Gem / Classic rail looks (switch: `data-lobby-rail`, 🎨 Lobby Rail Look tuner)
 import { railKey } from './pings/pingKeys';
 import { railHeroName } from './railHeroName';
@@ -386,23 +386,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
     setModeState(m);
     try { localStorage.setItem(GUIDES_MODE_KEY, m); } catch { /* storage unavailable: the choice lasts this session */ }
   };
-  // DETAILED folds back to SIMPLE on a press anywhere outside the rail (owner 2026-10-12: "clicking outside of the
-  // guide area should automatically collapse back to the simple view"). The rail, its view tab and its header are
-  // "inside". Listening only while Detailed is showing, so the Opponents view and Simple cost nothing and a press
-  // elsewhere never rewrites the saved choice behind the player's back. Capture phase + `pointerdown`: it also folds
-  // when a drag starts on the board, and nothing can swallow the press first. The press itself is left alone.
-  useEffect(() => {
-    if (!showGuides || mode !== 'full') return;
-    const onDown = (e: Event): void => {
-      const t = e.target;
-      if (t instanceof Element && t.closest('.lobbyrail, .lobbyrailhead, .vsfoe-guides, .guidesdock, .guidesbtn')) return;
-      if (railGuides) setSwap('narrow');
-      setModeState('simple');
-      try { localStorage.setItem(GUIDES_MODE_KEY, 'simple'); } catch { /* storage unavailable: the choice lasts this session */ }
-    };
-    document.addEventListener('pointerdown', onDown, true);
-    return () => document.removeEventListener('pointerdown', onDown, true);
-  }, [showGuides, mode, railGuides]);
+  // (The Detailed rail's fold-back on a press outside went with the corner panel: the Guides overlay is always in full, R-GUIDES-QUICKLOOK-01.)
   const railMods = `${railGuides ? ` guidesview guides-${mode}` : ''}${swap ? ` swap-${swap}` : ''}`;
   // THE HOVER CARD CAN BE REACHED (owner ask 2026-11-01, R-RAIL-SCOUT-RUNE-TIP-02: "mouseover on runes here is
   // important"): the pointer can cross from a seat into its card and hover the runes. The card is portaled, but it is
@@ -769,33 +753,10 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
       </button>
     )}
     {guidesOn && !staged && (showGuides || gdClosing) && createPortal(
-      // THE QUICK COMPENDIUM'S LOOK (owner 2026-11-27: "Make the guides overlay look like the new in game compendium
-      // overlay"; R-GUIDES-QUICKLOOK-01): its own classes (quickBook.css): the place opened dark along the right, its
-      // name in light with the line drawn from it, the X, a press outside closes. The list is the same LobbyGuides.
-      // PORTALED to the stage, where the quick Compendium lives: inside `.app` the HUD's own layers (the hero, the corner
-      // buttons) sat over it, undimmed.
-      <div className={`guidesdock qb ph-tokens game${gdPlace ? '' : ' plain'} guides-${mode}${showGuides ? '' : ' closing'}`} role="dialog"
-        aria-label={`Build guides. Press Esc${guidesKey ? ` or ${guidesKey}` : ''} to close.`} style={{ '--c': '#fbe6a6' } as React.CSSProperties}>
-        <div className="qb-dim" onClick={closeGuides} />
-        <div className="qb-place" aria-hidden="true">
-          <div className="qb-pic" style={gdPlace ? { backgroundImage: `url(${locationArt(gdPlace.id, 'blur')})` } : undefined} />
-          <div className="qb-tint" />
-          <div className="qb-wash" />
-        </div>
-        <section className="qb-panel guidesdock-panel">
-          <header className="qb-head">
-            <div className="qb-title">
-              <h2 className="guidesdock-title">Guides</h2>
-              <span className="qb-count guidesdock-count">{guideCountLabel}</span>
-            </div>
-            <button type="button" className="qb-x" onClick={closeGuides} aria-label="Close">✕</button>
-          </header>
-          <div className="qb-line" aria-hidden="true" />
-          <div className="lobbyview">
-            <LobbyGuides guides={guides} mine={myGuides} bookmarked={bookmarkedGuides} canEdit={canEditInRail} tribes={runTribes} runKey={runKey} mode={mode} onMode={setMode} />
-          </div>
-        </section>
-      </div>,
+      // THE QUICK COMPENDIUM'S LOOK (owner 2026-11-27; R-GUIDES-QUICKLOOK-01): GuidesBook, always in full. PORTALED to the
+      // stage, where the quick Compendium lives: inside `.app` the HUD's own layers (the hero, the corner buttons) sat over it.
+      <GuidesBook guides={guides} mine={myGuides} bookmarked={bookmarkedGuides} canEdit={canEditInRail} tribes={runTribes} runKey={runKey}
+        count={guideCountLabel} closing={!showGuides} place={gdPlace} keyLabel={guidesKey} onClose={closeGuides} />,
       stageHost(),
     )}
     {/* `--lby-n`: the seat count, so the Gem rail can hold exactly the height Classic sizes to (lobbyRail.css). */}

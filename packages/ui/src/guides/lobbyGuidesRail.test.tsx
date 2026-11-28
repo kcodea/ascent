@@ -74,9 +74,9 @@ describe('lobby rail guides view', () => {
     const css = ['../lobbyRailDocked.css', 'lobbyGuides.css', '../touchUi.css', '../phoneLayout.css'].map((f) => readFileSync(join(__dirname, f), 'utf8')).join(' ');
     expect(css).not.toMatch(/lobbyrailtab|--lr2-tab/);
     // R-GUIDES-QUICKLOOK-01: the panel wears the quick Compendium's look (its own classes), fading away on close.
-    const g = readFileSync(join(__dirname, 'lobbyGuides.css'), 'utf8');
+    const g = readFileSync(join(__dirname, 'guidesBook.css'), 'utf8');
     expect(g).toContain('@keyframes guidesdockout { to { opacity: 0; } }');
-    expect(g).not.toMatch(/\.guides(btn|dock)[^{]*\{[^}]*cursor:/);
+    expect(g.replace(/\/\*[\s\S]*?\*\//g, '')).not.toMatch(/cursor:/);
   });
 
   it('Escape closes the Guides panel', () => {
@@ -87,99 +87,52 @@ describe('lobby rail guides view', () => {
     expect(c.querySelector('.guidesdock.closing')).not.toBeNull();
   });
 
-  it('a guide expands in place to Core / Enablers rows of real board cards; SIMPLE hides the write-up', () => {
+  const waitCards = async (c: HTMLElement): Promise<void> => {
+    for (let i = 0; i < 300 && !c.querySelector('.gdbook-page .book-cell'); i++) await act(async () => { await new Promise((r) => setTimeout(r, 10)); });
+  };
+
+  it('R-GUIDES-QUICKLOOK-01: the first guide is open in full at once: its write-up, then Core and Enablers as the Compendium cells', async () => {
     const c = mountRail(2024);
     openGuides(c);
     const first = c.querySelector('.lobbyguide')!;
-    const head = first.querySelector('.lobbyguide-head')!;
-    click(head);
-    expect(head.getAttribute('aria-expanded')).toBe('true');
-    expect(first.querySelectorAll('.lobbyguide-unitslabel').length).toBeGreaterThan(0);
-    expect(first.querySelectorAll('.lobbyguide-unit .card').length).toBeGreaterThan(0);
-    expect(c.querySelector('.guidesdock')!.classList.contains('guides-simple')).toBe(true);
-    expect(first.querySelector('.lobbyguide-text')).toBeNull();
-    click(head);
-    expect(head.getAttribute('aria-expanded')).toBe('false');
+    expect(first.classList.contains('open')).toBe(true);
+    expect(first.querySelector('.lobbyguide-head')!.getAttribute('aria-pressed')).toBe('true');
+    const page = c.querySelector(`.gdbook-page[data-guide="${first.getAttribute('data-guide')}"]`)!;
+    expect(page.querySelector('.qb-head .qb-title h2')!.textContent).toBe(first.querySelector('.lobbyguide-title')!.textContent);
+    expect(page.querySelector('.lobbyguide-text')).not.toBeNull();
+    await waitCards(c);
+    expect([...page.querySelectorAll('.gdbook-seclabel')].map((n) => n.textContent)[0]).toBe('Core');
+    expect(page.querySelectorAll('.qb-grid .book-cell').length).toBeGreaterThan(0);
+    // No Simple / Detailed any more: everything is shown.
+    expect(c.querySelector('.lobbyguide-modebtn')).toBeNull();
+    expect(c.querySelector('.guides-simple, .guides-full')).toBeNull();
   });
 
-  it("an open card's Detailed button widens the rail and shows the write-up; it is remembered; Simple folds back", () => {
+  it('another guide in the list switches the page; pressing the open one keeps it; Up and Down walk them; the pick is kept for the run', () => {
     const c = mountRail(31337);
     openGuides(c);
-    click(c.querySelector('.lobbyguide-head')!);
-    const detailed = c.querySelector('.lobbyguide.open .lobbyguide-modebtn')!;
-    expect(detailed.textContent).toBe('Detailed');
-    click(detailed);
-    expect(c.querySelector('.guidesdock')!.classList.contains('guides-full')).toBe(true);
-    expect(c.querySelector('.lobbyguide.open .lobbyguide-text')).not.toBeNull();
-    expect(localStorage.getItem('ascent.guidesMode')).toBe('full');
-    // ...and back.
-    expect(c.querySelector('.lobbyguide.open .lobbyguide-modebtn')!.textContent).toBe('Simple');
-    click(c.querySelector('.lobbyguide.open .lobbyguide-modebtn')!);
-    expect(c.querySelector('.guidesdock')!.classList.contains('guides-simple')).toBe(true);
-    expect(c.querySelector('.lobbyguides-group')).toBeNull();
-  });
-
-  // Owner 2026-10-12: "when in the detailed view, clicking outside of the guide area should automatically collapse
-  // back to the simple view".
-  const press = (el: Element): void => { act(() => { el.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true })); }); };
-  const openDetailed = (seed: number): HTMLElement => {
-    const c = mountRail(seed);
-    openGuides(c);
-    click(c.querySelector('.lobbyguide-head')!);
-    click(c.querySelector('.lobbyguide.open .lobbyguide-modebtn')!);
-    expect(c.querySelector('.guidesdock')!.classList.contains('guides-full')).toBe(true);
-    return c;
-  };
-
-  it('Detailed folds back to Simple on a press outside the rail; the open card stays open', () => {
-    const c = openDetailed(60601);
-    const outside = document.createElement('div');
-    document.body.appendChild(outside);
-    try {
-      press(outside);
-      expect(c.querySelector('.guidesdock')!.classList.contains('guides-simple')).toBe(true);
-      expect(c.querySelector('.guidesdock')!.classList.contains('guides-full')).toBe(false);
-      expect(c.querySelector('.lobbyguide.open')).not.toBeNull();
-      expect(c.querySelector('.lobbyguide.open .lobbyguide-text')).toBeNull();
-      expect(c.querySelector('.lobbyguide.open .lobbyguide-modebtn')!.textContent).toBe('Detailed');
-      expect(localStorage.getItem('ascent.guidesMode')).toBe('simple');
-      // It is still the Guides view: only the mode changed.
-      expect(c.querySelector('.guidesdock-title')!.textContent).toBe('Guides');
-    } finally { outside.remove(); }
-  });
-
-  it('a press inside the rail, on its view tab or on its header keeps Detailed', () => {
-    const c = openDetailed(60602);
-    press(c.querySelector('.lobbyguide.open .lobbyguide-text')!);
-    press(c.querySelector('.lobbyguide-head')!);
-    press(c.querySelector('.guidesbtn')!);
-    press(c.querySelector('.lobbyrailhead')!);
-    expect(c.querySelector('.guidesdock')!.classList.contains('guides-full')).toBe(true);
-    expect(localStorage.getItem('ascent.guidesMode')).toBe('full');
-  });
-
-  it('a press outside changes nothing while the rail shows Opponents: the Detailed choice is kept for next time', () => {
-    const c = openDetailed(60603);
-    click(c.querySelector('.guidesbtn')!); // back to Opponents
-    expect(c.querySelector('.lobbyseat')).not.toBeNull();
-    press(document.body);
-    expect(localStorage.getItem('ascent.guidesMode')).toBe('full');
-    click(c.querySelector('.guidesbtn')!); // Guides again
-    expect(c.querySelector('.guidesdock')!.classList.contains('guides-full')).toBe(true);
-  });
-
-  it('stops listening when the rail goes away', () => {
-    openDetailed(60604);
-    ui!.unmount(); ui = null;
-    act(() => { document.body.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true })); });
-    expect(localStorage.getItem('ascent.guidesMode')).toBe('full');
+    const rows = [...c.querySelectorAll('.lobbyguide')];
+    expect(rows.length).toBeGreaterThan(1);
+    const id = (n: number): string => rows[n]!.getAttribute('data-guide')!;
+    click(rows[1]!.querySelector('.lobbyguide-head')!);
+    expect(c.querySelector('.gdbook-page')!.getAttribute('data-guide')).toBe(id(1));
+    expect(c.querySelectorAll('.lobbyguide.open').length).toBe(1);
+    click(rows[1]!.querySelector('.lobbyguide-head')!);
+    expect(c.querySelector('.gdbook-page')!.getAttribute('data-guide')).toBe(id(1));
+    act(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' })); });
+    expect(c.querySelector('.gdbook-page')!.getAttribute('data-guide')).toBe(id(2 % rows.length));
+    act(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp' })); });
+    expect(c.querySelector('.gdbook-page')!.getAttribute('data-guide')).toBe(id(1));
+    // Closed and opened again in the same game: the same guide.
+    click(c.querySelector('.guidesbtn')!);
+    click(c.querySelector('.guidesbtn')!);
+    expect(c.querySelector('.guidesdock:not(.closing) .gdbook-page')!.getAttribute('data-guide')).toBe(id(1));
   });
 
   it('the write-up highlights every mentioned card and every nickname its text really holds', () => {
     const run = createLobbyRun(5150, 'warden');
     run.tribes = ['beast', 'dragon', 'kobold', 'dwarf', 'demon'];
     act(() => { useGame.setState({ run, combatStaged: false }); });
-    try { localStorage.setItem('ascent.guidesMode', 'full'); } catch { /* ignore */ }
     /** Is `name` in `body` as words of its own (not inside a longer word)? Only such a name can be highlighted: a
      *  guide may list a card its write-up no longer names (a stale mention after an edit), and that is not this
      *  test's business. */
@@ -197,7 +150,7 @@ describe('lobby rail guides view', () => {
         const el = [...c.querySelectorAll('.lobbyguide')].find((x) => x.getAttribute('data-guide') === guide.id)!;
         expect(el, guide.id).toBeDefined();
         if (!el.classList.contains('open')) click(el.querySelector('.lobbyguide-head')!);
-        const shown = [...el.querySelectorAll('.lobbyguide-text .lobbyguide-name')].map((n) => n.textContent!.toLowerCase());
+        const shown = [...c.querySelectorAll(`.gdbook-page[data-guide="${guide.id}"] .lobbyguide-text .lobbyguide-name`)].map((n) => n.textContent!.toLowerCase());
         for (const id of guide.mentions ?? []) {
           const name = CARD_INDEX[id]?.name;
           if (!name || !holds(guide.body, name)) continue; // listed, and not in the text: nothing to highlight
@@ -230,7 +183,7 @@ describe('lobby rail guides view', () => {
     ui = mount(<LobbyPanel lobby={run.lobby!} />);
     openGuides(document.body);
     expect(check(document.body, [made])).toBe(2);
-    const shown = [...document.body.querySelectorAll('.lobbyguide[data-guide="made-up"] .lobbyguide-text .lobbyguide-name')].map((n) => n.textContent!.toLowerCase());
+    const shown = [...document.body.querySelectorAll('.gdbook-page[data-guide="made-up"] .lobbyguide-text .lobbyguide-name')].map((n) => n.textContent!.toLowerCase());
     expect(shown.sort()).toEqual(['king', named.toLowerCase()].sort());
   });
 
@@ -315,9 +268,9 @@ describe('lobby rail guides view', () => {
     const head = (id: string): Element => c.querySelector(`.lobbyguide[data-guide="${id}"] .lobbyguide-head`)!;
     const official = guidesFor(run.setId, run.tribes)[0]!;
     click(head(official.id));
-    expect(c.querySelector(`.lobbyguide[data-guide="${official.id}"] .lobbyguide-editbtn`)).toBeNull();
+    expect(c.querySelector(`.gdbook-page[data-guide="${official.id}"] .lobbyguide-editbtn`)).toBeNull();
     click(head('own-1'));
-    const edit = c.querySelector(`.lobbyguide[data-guide="own-1"] .lobbyguide-editbtn`)!;
+    const edit = c.querySelector(`.gdbook-page[data-guide="own-1"] .lobbyguide-editbtn`)!;
     expect(edit.textContent).toBe('Edit');
     click(edit);
     expect(useGuides.getState().pendingEdit).toBe('own-1');
@@ -335,7 +288,7 @@ describe('lobby rail guides view', () => {
     });
     openGuides(c);
     click(c.querySelector('.lobbyguide[data-guide="own-1"] .lobbyguide-head')!);
-    expect(c.querySelector('.lobbyguide[data-guide="own-1"] .lobbyguide-modebtn')).not.toBeNull();
+    expect(c.querySelector('.gdbook-page[data-guide="own-1"]')).not.toBeNull();
     expect(c.querySelector('.lobbyguide-editbtn')).toBeNull();
   });
 
@@ -352,7 +305,7 @@ describe('lobby rail guides view', () => {
     openGuides(c);
     const first = official[0]!;
     click(c.querySelector(`.lobbyguide[data-guide="${first.id}"] .lobbyguide-head`)!);
-    const open = (): Element | null => c.querySelector(`.lobbyguide[data-guide="${first.id}"] .lobbyguide-modebtn`);
+    const open = (): Element | null => c.querySelector(`.gdbook-page[data-guide="${first.id}"]`);
     expect(open()).not.toBeNull();
     expect(c.querySelector('.lobbyguide-editbtn')).not.toBeNull();
     // The same account, its lists still held for it, but NOT on the team: a Team Ascent guide offers it no Edit.
@@ -501,7 +454,7 @@ describe('lobby rail guides view', () => {
       if (st.showBook && !prev.showBook && pendingWhenOpened === undefined) pendingWhenOpened = useGuides.getState().pendingEdit;
     });
     try {
-      click(c.querySelector('.lobbyguide[data-guide="own-1"] .lobbyguide-editbtn')!);
+      click(c.querySelector('.gdbook-page[data-guide="own-1"] .lobbyguide-editbtn')!);
     } finally {
       unsubscribe();
     }
@@ -558,7 +511,7 @@ describe('lobby rail guides view', () => {
     openGuides(c);
     expect(c.querySelectorAll('.lobbyguide[data-guide="own-1"]').length).toBe(1);
     click(c.querySelector('.lobbyguide[data-guide="bm-1"] .lobbyguide-head')!);
-    expect(c.querySelector('.lobbyguide[data-guide="bm-1"] .lobbyguide-editbtn')).toBeNull();
+    expect(c.querySelector('.gdbook-page[data-guide="bm-1"] .lobbyguide-editbtn')).toBeNull();
   });
 
   it('bookmarks held for another account, or for nobody, are never drawn; they leave an open rail when the account changes', () => {

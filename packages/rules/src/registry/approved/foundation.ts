@@ -17517,22 +17517,25 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-GUIDES-QUICKLOOK-01',
-    title: 'The in-game Guides overlay wears the quick Compendium\x27s look',
+    title: 'The in-game Guides overlay is the quick Compendium, with the guides as its tabs and every guide shown in full',
     statement:
-      'The build guides in a game open as the quick Compendium does (R-COMPENDIUM-QUICK-01), built from its own parts: the game dims, the game\x27s '
-      + 'place opens dark along the right side and dissolves into the game on its left, the name Guides is written large in light with the count '
-      + 'beside it and a line of light drawn from it, and an X sits at the right of the head. The guides list below it is the same list as before '
-      + '(one card per guide, Simple and Detailed, Edit where allowed). There are no parchments, so the page sits nearer the edge and is narrower, '
-      + 'wider in Detailed. Esc, the X, a press outside or the key closes it, and it fades away as the quick Compendium does. Everything moves once '
-      + '(transform and opacity); nothing loops.',
+      'The build guides in a game open as the quick Compendium does (R-COMPENDIUM-QUICK-01), built from its own parts: the game dims and the game\x27s '
+      + 'place opens dark along the right side. The guides of this game hang down the right edge where the Compendium\x27s parchments hang (Team Ascent\x27s, '
+      + 'then Your guides, then Bookmarked), each its art, name and tribes; the one being read is lit, the rest sit back. The page beside them, as wide as '
+      + 'the room left, is that guide in full: its name written large in light with its tribes beside it, the line of light in its tribe\x27s colour, its '
+      + 'tagline, its write-up with every card name hoverable, then Core and Enablers as the Compendium\x27s own card cells (full card art, hover and '
+      + 'inspect as in the Compendium). The first guide is open at once and the one picked is kept for the game; another one switches the page, and Up '
+      + 'and Down walk them. There is no Simple or Detailed view. Edit, where allowed, sits in the head. Esc, the X, a press outside or the key closes '
+      + 'it, and it fades away as the quick Compendium does. Everything moves once (transform and opacity); nothing loops.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Owner, 2026-11-27, relayed by the coordinator', quote: 'add "g" as a keybind to open guides. Make the guides overlay look like the new in game compendium overlay' },
-      { kind: 'code', ref: 'packages/ui/src/LobbyPanel.tsx (guidesdock: the qb classes, portaled to the stage); packages/ui/src/guides/lobbyGuides.css; packages/ui/src/quickBook/quickBook.css' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-27, relayed by the coordinator (same PR)', quote: 'give the guide appearance an overhaul so it looks more like the in game compendium a bit. make it the "full/detailed" look and information as well, taking up more space since we have more with this new setup and screen.' },
+      { kind: 'code', ref: 'packages/ui/src/guides/GuidesBook.tsx (the qb classes, BookCardCell, portaled to the stage by LobbyPanel.tsx); packages/ui/src/guides/guidesBook.css; packages/ui/src/quickBook/quickBook.css' },
     ],
-    currentBehaviour: 'Conforms, built 2026-11-27 (feat/guides-keybind). Before, the guides were a small panel growing up out of the Guides square on the rail\x27s plate, and a press outside did not close it.',
-    example: 'Press the Guides square: the board dims, the place opens dark on the right with Guides written in light; a press on the board closes it.',
+    currentBehaviour: 'Conforms, built 2026-11-27 (feat/guides-keybind). Before, the guides were a small panel growing up out of the Guides square on the rail\x27s plate: folding cards, Simple (portraits only) by default with a per-card Detailed button for the write-up, and a press outside did not close it.',
+    example: 'Press G: the board dims and Sunmane is open in full beside the list of guides. Press Combat Rubies in the list: its write-up and its Kobold cards take the page. A press on the board closes it.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/guides/guidesHotkey.test.tsx', 'packages/ui/src/guides/lobbyGuidesRail.test.tsx'], lastVerifiedAt: '2026-11-27' },
   },
 ];

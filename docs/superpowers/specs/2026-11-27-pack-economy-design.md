@@ -1,6 +1,6 @@
 # The Pack Economy: design
 
-Date: 2026-11-27 · Owner: Mike · Status: every build question answered by the owner 2026-11-27; awaiting his approval
+Date: 2026-11-27 · Owner: Mike · Status: approved by the owner 2026-11-27 ("Approved")
 
 **Builds on:** the pack opening (`2026-11-23-pack-opening-design.md`) and the pack shop
 (`2026-11-25-pack-shop-design.md`), both on PR kcodea/ascent#2865. Those two are presentation only and run on dev

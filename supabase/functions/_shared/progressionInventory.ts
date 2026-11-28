@@ -137,6 +137,9 @@ export const INVENTORY_ERROR_STATUS: Readonly<Record<string, number>> = Object.f
   bad_cosmetic_id: 400,
   wrong_target: 409,
   not_equippable: 409,
+  // The pack economy (2026-12-01): with packs on the Chest Shop is retired and a sealed chest is frozen.
+  shop_retired: 409,
+  chests_frozen: 409,
 });
 
 /**

@@ -6,7 +6,7 @@
  * comeback streak, the level-milestone titles (Alpha Tester at Level 2) and crates per level, the fact document the client derives at run end,
  * and the presentation payload the server returns.
  *
- * DEPENDENCY-FREE ON PURPOSE (its one import is the sibling catalog, `cosmetics.ts`, generated alongside).
+ * DEPENDENCY-FREE ON PURPOSE (sibling imports only: `cosmetics.ts`, `achievements.ts`, `packs.ts`, each generated alongside).
  * `npm run progression:shared` copies this file VERBATIM into
  * `supabase/functions/_shared/progressionRules.ts`, the module the `submit-progression` Edge Function (Deno)
  * imports. `sharedArtifact.test.ts` fails CI when the two drift, so there is exactly ONE hand-edited copy of the
@@ -22,6 +22,7 @@
 
 import { COSMETICS, loadoutFromRows, milestoneLevelOf, type RunCosmeticSnapshot } from './cosmetics';
 import { sanitizeRunMetrics, type RunMetric } from './achievements';
+import { parsePackLook, type PackLook } from './packs';
 
 // ── Versions ────────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -416,13 +417,18 @@ export interface ProgressionResult {
   cratesAwarded: number;
   /** Their ids, oldest level first (the post-game Open button opens these). */
   crateIds: string[];
+  /** PACKS (2026-12-01): the sealed packs this settlement made with packs on (the Welcome packs on enrollment, then a
+   *  Level pack per 5 levels above the launch level), and their ids in that order. Absent from a pre-packs server, and
+   *  0 / empty with packs off: read as none. With packs on `cratesAwarded` is 0. */
+  packsAwarded: number;
+  packIds: string[];
   /** Achievements this settlement completed (2026-09-28), in completion order, and the XP they paid on top of
    *  `xp.total` (so `after.lifetimeXp = before.lifetimeXp + xp.total + achievementXp`). Absent from a
    *  pre-achievements server: read as none. */
   achievements: string[];
   achievementXp: number;
   /** AETHER (2026-10-18): what this settlement paid, split as `aetherForSettlement` splits it (the `AetherBreakdown`
-   *  shape of aether.ts, spelled out here so this file keeps its two imports). Null = Aether was off when the game
+   *  shape of aether.ts, spelled out here so this file does not import aether.ts). Null = Aether was off when the game
    *  settled (the crate-per-level rules applied), or a pre-Aether server. With Aether on, `cratesAwarded` counts the
    *  Welcome Crate and milestone crates only. */
   aether: { base: number; placement: number; total: number } | null;
@@ -445,6 +451,11 @@ export interface ProgressionProfile {
   loadout?: RunCosmeticSnapshot;
   /** The Aether balance (2026-10-18; 0 for an account that never earned any). Absent from a pre-Aether server. */
   aether?: number;
+  /** The sealed packs (2026-12-01), in counter order (oldest first). Absent from a pre-packs server, or when malformed. */
+  packs?: Array<{ packId: string; look: PackLook }>;
+  /** The purchase reward meter (2026-12-01): packs bought toward the next reward, and rewards ready to claim. Absent
+   *  from a pre-packs server, or while the server cannot read its pack economy. */
+  packMeter?: { progress: number; ready: number };
 }
 
 const int = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? Math.trunc(v) : typeof v === 'string' && /^-?\d+$/.test(v) ? Number(v) : null);
@@ -495,6 +506,8 @@ export function parseProgressionResult(v: unknown): ProgressionResult | null {
     unlockedTitles: stringList(o.unlockedTitles),
     // A pre-crates server (the 2026-09-27 SQL) sends neither: read as none.
     cratesAwarded: Math.max(0, int(o.cratesAwarded) ?? 0), crateIds: stringList(o.crateIds),
+    // A pre-packs server sends neither: read as none.
+    packsAwarded: Math.max(0, int(o.packsAwarded) ?? 0), packIds: stringList(o.packIds),
     // A pre-achievements server sends neither: read as none.
     achievements: stringList(o.achievements), achievementXp: Math.max(0, int(o.achievementXp) ?? 0),
     // Aether off, or a pre-Aether server: neither. A balance without its breakdown is dropped too.
@@ -517,5 +530,29 @@ export function parseProgressionProfile(v: unknown): ProgressionProfile | null {
     ...(Array.isArray(o.cosmetics) ? { cosmetics: stringList(o.cosmetics) } : {}),
     ...(Array.isArray(o.loadout) ? { loadout: loadoutFromRows(o.loadout) } : {}),
     ...(nonNegInt(o.aether) !== null ? { aether: nonNegInt(o.aether)! } : {}),
+    ...packsOf(o.packs),
+    ...packMeterOf(o.packMeter),
   };
+}
+
+/** The profile's sealed packs: every entry a `{packId, look}`, else the key is dropped (never a half-trusted hand). */
+function packsOf(v: unknown): { packs?: Array<{ packId: string; look: PackLook }> } {
+  if (!Array.isArray(v)) return {};
+  const packs: Array<{ packId: string; look: PackLook }> = [];
+  for (const raw of v) {
+    if (!raw || typeof raw !== 'object') return {};
+    const e = raw as Record<string, unknown>;
+    const look = parsePackLook(e.look);
+    if (typeof e.packId !== 'string' || !look) return {};
+    packs.push({ packId: e.packId, look });
+  }
+  return { packs };
+}
+
+/** The profile's purchase reward meter, or no key (absent, null or malformed). */
+function packMeterOf(v: unknown): { packMeter?: { progress: number; ready: number } } {
+  if (!v || typeof v !== 'object') return {};
+  const o = v as Record<string, unknown>;
+  const progress = nonNegInt(o.progress); const ready = nonNegInt(o.ready);
+  return progress === null || ready === null ? {} : { packMeter: { progress, ready } };
 }

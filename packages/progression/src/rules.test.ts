@@ -215,6 +215,31 @@ describe('facts + payload parsing', () => {
     expect(parseProgressionProfile(prof)).not.toHaveProperty('aether');
     expect(parseProgressionProfile({ ...prof, aether: -3 })).not.toHaveProperty('aether');
   });
+  it('PACKS (2026-12-01): the result keeps `packsAwarded` + `packIds` (none when absent); the profile keeps `packs` + `packMeter` only when well formed', () => {
+    const raw = {
+      runId: 'r1', mode: 'ranked', rulesVersion: 1, placement: 8, comeback: false,
+      xp: { base: 100, topFour: 0, firstPlace: 0, comeback: 0, total: 100 },
+      before: { lifetimeXp: 0, level: 1 }, after: { lifetimeXp: 100, level: 1 }, revisionAfter: 1, settledAt: null,
+    };
+    expect(parseProgressionResult(raw)).toMatchObject({ packsAwarded: 0, packIds: [] });
+    expect(parseProgressionResult({ ...raw, packsAwarded: 2, packIds: ['a', 'b'] })).toMatchObject({ packsAwarded: 2, packIds: ['a', 'b'] });
+    expect(parseProgressionResult({ ...raw, packsAwarded: -4, packIds: 'x' })).toMatchObject({ packsAwarded: 0, packIds: [] });
+    const prof = { accountXp: 325, accountLevel: 2, revision: 3, equippedTitleId: null, titles: [] };
+    const look = { kind: 'rarity', id: 'rarity-common', name: 'Common Pack', guaranteedFloor: 'common' };
+    const packs = [{ packId: 'p1', look }, { packId: 'p2', look: { ...look, id: 'rarity-epic', name: 'Epic Pack', guaranteedFloor: 'epic' } }];
+    expect(parseProgressionProfile({ ...prof, packs, packMeter: { progress: 3, ready: 1 } }))
+      .toEqual({ ...prof, packs, packMeter: { progress: 3, ready: 1 } });
+    expect(parseProgressionProfile({ ...prof, packs: [] })).toEqual({ ...prof, packs: [] });
+    // a pre-packs server: neither key
+    expect(parseProgressionProfile(prof)).toEqual(prof);
+    // a malformed hand or meter is dropped whole, never half-trusted (the rest of the profile still parses)
+    expect(parseProgressionProfile({ ...prof, packs: [...packs, { packId: 'p3', look: { ...look, guaranteedFloor: 'mythic' } }] })).not.toHaveProperty('packs');
+    expect(parseProgressionProfile({ ...prof, packs: [{ look }] })).not.toHaveProperty('packs');
+    expect(parseProgressionProfile({ ...prof, packs: 'p1' })).not.toHaveProperty('packs');
+    expect(parseProgressionProfile({ ...prof, packMeter: null })).not.toHaveProperty('packMeter');
+    expect(parseProgressionProfile({ ...prof, packMeter: { progress: -1, ready: 0 } })).not.toHaveProperty('packMeter');
+    expect(parseProgressionProfile({ ...prof, packMeter: { progress: 2 } })).not.toHaveProperty('packMeter');
+  });
 });
 
 describe('Versus and spectating XP (owner 2026-10-24: 50% of a normal game)', () => {

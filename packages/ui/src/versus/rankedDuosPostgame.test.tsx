@@ -35,7 +35,7 @@ const xp = (over: Partial<ProgressionResult> = {}): ProgressionResult => ({
   runId: `versus:${MATCH}`, mode: 'versus', rulesVersion: 1, placement: 2, comeback: false,
   xp: { base: 50, topFour: 30, firstPlace: 0, comeback: 0, total: 80 },
   before: { lifetimeXp: 100, level: 1 }, after: { lifetimeXp: 180, level: 1 }, unlockedTitles: [], cratesAwarded: 0, crateIds: [], revisionAfter: 1,
-  settledAt: new Date().toISOString(), achievements: [], achievementXp: 0, aether: null, aetherBalance: null, ...over,
+  settledAt: new Date().toISOString(), achievements: [], achievementXp: 0, aether: null, aetherBalance: null, packsAwarded: 0, packIds: [], ...over,
 });
 
 let ui: Mounted | null = null;

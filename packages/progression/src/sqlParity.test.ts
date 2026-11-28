@@ -15,6 +15,7 @@ import {
 } from './achievements';
 import { INVENTORY_ERROR_STATUS } from './inventory';
 import { DEFAULT_AETHER_ECONOMY, MILESTONE_CRATE_TIER } from './aether';
+import { PACK_LAUNCH_GRANT } from './packEconomy';
 
 /**
  * TS ↔ SQL PARITY for the progression writer. There is no Postgres in CI, so (like the medal-rank parity test)
@@ -77,18 +78,27 @@ const versusSpectatorXp = readFileSync(join(root, 'supabase/migrations/2026-10-2
 /** Versus Duos XP (2026-10-25, R-DUOS-01): the newest settle_progression (a Duos seat's TEAM placement on the scale of the
  *  number of teams); appended to schema.sql right after the Versus + spectator XP file. */
 const duosXp = readFileSync(join(root, 'supabase/migrations/2026-10-25-versus-duos-xp.sql'), 'utf8');
+/** The pack economy (2026-12-01): the newest sync_cosmetic_catalog (it writes `pack_styles`) and, since its sections
+ *  10-13, the newest settle_progression, buy_crate, open_crate, aether_quote and result / profile JSON. NOT in
+ *  schema.sql (that file's last block is the Duos XP file), so the schema.sql checks compare with `schemaFnBody`. */
+const packs = readFileSync(join(root, 'supabase/migrations/2026-12-01-packs.sql'), 'utf8');
 const schema = readFileSync(join(root, 'schema.sql'), 'utf8');
 
-/** The body of a function's LATEST definition (the eight emote positions file, else the announcers file, else the milestone file, else Aether, else the card plates, else the emotes, else the announcer slot, else placement XP, else ancient, else frames, else gauntlet, else hero titles, else equal chance, else fixed odds, else hero attack, else achievements, else skins, else crates, else the MVP's). */
-function fnBody(name: string, from?: string): string {
+/** The body of a function's LATEST definition (the packs file, else the Duos XP file, else the spectator XP file, else the eight emote positions file, else the announcers file, else the milestone file, else Aether, else the card plates, else the emotes, else the announcer slot, else placement XP, else ancient, else frames, else gauntlet, else hero titles, else equal chance, else fixed odds, else hero attack, else achievements, else skins, else crates, else the MVP's). */
+function newestDefining(name: string, withPacks = true): string {
   const defines = (t: string): boolean => t.includes(`create or replace function public.${name}(`);
-  const text = from ?? (defines(duosXp) ? duosXp : defines(versusSpectatorXp) ? versusSpectatorXp : defines(emoteEight) ? emoteEight : defines(announcersNotFocusable) ? announcersNotFocusable : defines(milestoneEpic) ? milestoneEpic : defines(aether) ? aether : defines(cardPlates) ? cardPlates : defines(versusProg) ? versusProg : defines(emotes) ? emotes : defines(announcerSlot) ? announcerSlot : defines(placementXp) ? placementXp : defines(ancient) ? ancient : defines(frames) ? frames : defines(gauntlet) ? gauntlet : defines(heroTitles) ? heroTitles : defines(uniform) ? uniform : defines(odds) ? odds : defines(heroAttack) ? heroAttack : defines(ach) ? ach : defines(skins) ? skins : defines(crates) ? crates : sql);
+  return withPacks && defines(packs) ? packs : defines(duosXp) ? duosXp : defines(versusSpectatorXp) ? versusSpectatorXp : defines(emoteEight) ? emoteEight : defines(announcersNotFocusable) ? announcersNotFocusable : defines(milestoneEpic) ? milestoneEpic : defines(aether) ? aether : defines(cardPlates) ? cardPlates : defines(versusProg) ? versusProg : defines(emotes) ? emotes : defines(announcerSlot) ? announcerSlot : defines(placementXp) ? placementXp : defines(ancient) ? ancient : defines(frames) ? frames : defines(gauntlet) ? gauntlet : defines(heroTitles) ? heroTitles : defines(uniform) ? uniform : defines(odds) ? odds : defines(heroAttack) ? heroAttack : defines(ach) ? ach : defines(skins) ? skins : defines(crates) ? crates : sql;
+}
+function fnBody(name: string, from?: string): string {
+  const text = from ?? newestDefining(name);
   const start = text.indexOf(`create or replace function public.${name}(`);
   if (start < 0) throw new Error(`no function ${name} in the migration`);
   const open = text.indexOf('$$', start);
   const close = text.indexOf('$$', open + 2);
   return text.slice(open + 2, close);
 }
+/** The newest definition a paste of schema.sql leaves (every migration but the packs file, which schema.sql omits). */
+const schemaFnBody = (name: string): string => fnBody(name, newestDefining(name, false));
 function constOf(body: string, name: string): string {
   const m = new RegExp(`${name}\\s+constant\\s+[a-z]+\\s*:=\\s*([^;]+);`).exec(body);
   if (!m) throw new Error(`could not find ${name}`);
@@ -212,6 +222,10 @@ describe('the migration shape', () => {
       [crates, 'equip_title', 'uuid, text'],
       [skins, 'equip_cosmetic', 'uuid, text, text, text'],
       [skins, 'sync_cosmetic_catalog', 'jsonb, text'],
+      [packs, 'sync_cosmetic_catalog', 'jsonb, text'],
+      [packs, 'buy_pack', 'uuid, text, int, uuid'],
+      [packs, 'open_pack', 'uuid, uuid'],
+      [packs, 'claim_pack_reward', 'uuid, uuid'],
       [ach, 'settle_progression', 'uuid, text, text, bigint, boolean, int, jsonb'],
       [ach, 'sync_achievement_catalog', 'jsonb, text'],
       [heroTitles, 'settle_progression', 'uuid, text, text, bigint, boolean, int, jsonb'],
@@ -475,8 +489,7 @@ describe('the skins migration (2026-09-28): the code-owned catalog sync + the em
     const body = fnBody('sync_cosmetic_catalog');
     const payload = catalogSyncPayload();
     for (const k of Object.keys(payload.categories[0]!)) expect(body, k).toContain(`'${k}'`);
-    // packStyles is synced to its SQL column by the pack economy migration (a later task); that task removes this filter.
-    for (const k of Object.keys(payload.items[0]!).filter((key) => key !== 'packStyles')) expect(body, k).toContain(`'${k}'`);
+    for (const k of Object.keys(payload.items[0]!)) expect(body, k).toContain(`'${k}'`);
     expect(body.indexOf('catalog_hash')).toBeLessThan(body.indexOf('insert into'));
     expect(body).not.toMatch(/admin_off/);
     expect(body).not.toMatch(/\bdelete\b/);
@@ -621,7 +634,7 @@ describe('the Aether migration (2026-10-18): the wallet, the Crate Shop and the 
     expect(flat.slice(at + body.length).trim()).toBe(`${lf(launchGrant).trim()}\n\n${lf(milestoneEpic).trim()}\n\n${lf(announcersNotFocusable).trim()}\n\n${lf(emoteEight).trim()}\n\n${lf(versusSpectatorXp).trim()}\n\n${lf(duosXp).trim()}`);
     const tail = flat.slice(at);
     for (const fn of ['settle_progression', 'open_crate', 'buy_crate', 'record_gauntlet_clear']) {
-      expect(fnBody(fn, tail.slice(tail.lastIndexOf(`create or replace function public.${fn}(`))), fn).toBe(fnBody(fn));
+      expect(fnBody(fn, tail.slice(tail.lastIndexOf(`create or replace function public.${fn}(`))), fn).toBe(schemaFnBody(fn));
       // no later migration in schema.sql redefines it
       expect(flat.lastIndexOf(`create or replace function public.${fn}(`), fn).toBeGreaterThanOrEqual(at);
     }
@@ -650,7 +663,7 @@ describe('milestone chests are Epic and never focused (2026-10-20, R-PROG-AETHER
     const at = flat.lastIndexOf(body);
     for (const fn of ['open_crate', 'settle_progression', 'aether_rollout']) {
       expect(flat.lastIndexOf(`create or replace function public.${fn}(`), fn).toBeGreaterThan(at);
-      expect(fnBody(fn, flat.slice(flat.lastIndexOf(`create or replace function public.${fn}(`))), fn).toBe(fnBody(fn));
+      expect(fnBody(fn, flat.slice(flat.lastIndexOf(`create or replace function public.${fn}(`))), fn).toBe(schemaFnBody(fn));
     }
   });
 
@@ -696,7 +709,7 @@ describe("Announcers can't be a chest focus (2026-10-20, R-PROG-AETHER-06)", () 
     const at = flat.lastIndexOf(body);
     const fnAt = flat.lastIndexOf('create or replace function public.aether_quote(');
     expect(fnAt).toBeGreaterThan(at);
-    expect(fnBody('aether_quote', flat.slice(fnAt))).toBe(fnBody('aether_quote'));
+    expect(fnBody('aether_quote', flat.slice(fnAt))).toBe(schemaFnBody('aether_quote'));
   });
 
   it('aether_quote keeps Announcers out of the available focus categories only, and the pool is untouched', () => {
@@ -747,7 +760,7 @@ describe('Versus + spectator XP (2026-10-24, R-PROG-VERSUS-XP-01, R-PROG-SPECTAT
     for (const fn of ['settle_progression', 'spectate_beat']) {
       const fnAt = flat.lastIndexOf(`create or replace function public.${fn}(`);
       expect(fnAt, fn).toBeGreaterThan(flat.lastIndexOf(body) - 1);
-      expect(fnBody(fn, flat.slice(fnAt)), fn).toBe(fnBody(fn));
+      expect(fnBody(fn, flat.slice(fnAt)), fn).toBe(schemaFnBody(fn));
     }
   });
 
@@ -785,7 +798,7 @@ describe('Versus Duos XP (2026-10-25, R-DUOS-01: "In duos you only place 1 and 2
     expect(flat.trimEnd().endsWith(body)).toBe(true);
     const fnAt = flat.lastIndexOf('create or replace function public.settle_progression(');
     expect(fnAt).toBeGreaterThan(flat.lastIndexOf(body) - 1);
-    expect(fnBody('settle_progression', flat.slice(fnAt))).toBe(fnBody('settle_progression'));
+    expect(fnBody('settle_progression', flat.slice(fnAt))).toBe(schemaFnBody('settle_progression'));
   });
 
   it('settle_progression is the spectator XP body with only the group seat count made Duos-aware (teams)', () => {
@@ -802,5 +815,85 @@ describe('Versus Duos XP (2026-10-25, R-DUOS-01: "In duos you only place 1 and 2
     expect(middle).toContain("g2.options->>'mode' = 'duos'");
     expect(middle).toContain('from public.versus_group_teams t where t.match_id = v_g_id');
     expect(middle).toContain(old);
+  });
+});
+
+describe('the pack economy grants, the retired Chest Shop and the rollout (2026-12-01, spec sections 10-13)', () => {
+  /** Remove the one span from `start` (inclusive) to `end` (exclusive), checking both are there once. */
+  const cut = (body: string, start: string, end: string, put = ''): string => {
+    const a = body.indexOf(start);
+    const b = body.indexOf(end, a);
+    expect(a, start).toBeGreaterThan(0);
+    expect(body.indexOf(start, a + 1), start).toBe(-1);
+    expect(b, end).toBeGreaterThan(a);
+    return body.slice(0, a) + put + body.slice(b);
+  };
+  const drop = (body: string, text: string, put = ''): string => {
+    expect(body.split(text).length - 1, text).toBe(1);
+    return body.replace(text, put);
+  };
+
+  it('settle_progression is the Duos XP body plus only the packs declarations, the packs branch of 9b and the two result columns', () => {
+    let body = fnBody('settle_progression', packs);
+    body = cut(body, '  -- packs (2026-12-01):', 'begin\n');
+    body = cut(body, '  -- PACKS ON (2026-12-01, spec section 10;', '  elsif v_aether then', '  v_enrolling := prof.progression_enrolled_at is null;\n');
+    body = drop(body, '  elsif v_aether then', '  if v_aether then');
+    body = drop(body, 'aether_on,\n    packs_awarded, pack_ids\n', 'aether_on\n');
+    body = drop(body, 'v_aether,\n    coalesce(array_length(v_pack_ids, 1), 0), v_pack_ids\n', 'v_aether\n');
+    expect(body).toBe(fnBody('settle_progression', duosXp));
+  });
+
+  it('with packs on the settlement grants Welcome and Level packs at the TS sources, and no crate', () => {
+    const body = fnBody('settle_progression', packs);
+    const branch = body.slice(body.indexOf('  if v_packs then'), body.indexOf('  elsif v_aether then'));
+    // it reads loot_crates (the Welcome self-heal's discriminator) but never writes one
+    expect(branch).not.toMatch(/insert into public\.loot_crates/);
+    expect(branch).toContain('where v_pk_live');
+    expect(branch).toMatch(/v_enrolling or \(v_pk_live and prof\.pack_level_baseline is null/);
+    expect(branch).toContain("'welcome:' || w.r || ':' || w.n");
+    expect(branch).toContain("'level:' || g.lvl");
+    expect(branch).toContain("array['welcomePacks', r.r]");
+    expect(branch).toContain("array['levelPackEvery']");
+    expect(branch).toContain('(coalesce(prof.pack_level_baseline, 0) / v_pk_every + 1) * v_pk_every, v_l1, v_pk_every');
+    // grants never consult the counter
+    expect(branch).not.toContain('progression_counter_has_room');
+    expect(/c_pk_rarities constant text\[\] := array\[([^\]]*)\]/.exec(body)![1]!.split(',').map((x) => x.trim().replace(/^'(.*)'$/, '$1'))).toEqual([...COSMETIC_RARITIES]);
+  });
+
+  it('buy_crate, open_crate and aether_quote are their predecessors plus only the packs switch', () => {
+    const buy = drop(drop(drop(fnBody('buy_crate', packs),
+      '  v_packs   boolean;\n'),
+      'select crates_enabled, aether_enabled, packs_enabled into v_enabled, v_aether, v_packs', 'select crates_enabled, aether_enabled into v_enabled, v_aether'),
+      "  -- PACKS ON (spec section 11): the Chest Shop is retired. Refused before the quote and before any charge.\n  if coalesce(v_packs, false) then raise exception 'shop_retired'; end if;\n");
+    expect(buy).toBe(fnBody('buy_crate', aether));
+    const open = cut(drop(drop(fnBody('open_crate', packs),
+      '  v_packs   boolean;\n'),
+      'select crates_enabled, aether_enabled, packs_enabled into v_enabled, v_aether, v_packs', 'select crates_enabled, aether_enabled into v_enabled, v_aether'),
+      '  -- PACKS ON (owner 2026-11-27, "Freeze them")', "  if not coalesce(v_enabled, false) then raise exception 'crates_disabled'");
+    expect(open).toBe(fnBody('open_crate', milestoneEpic));
+    // the freeze comes after the opened-chest answer and before anything else
+    const packsOpen = fnBody('open_crate', packs);
+    expect(packsOpen.indexOf("raise exception 'chests_frozen'")).toBeGreaterThan(packsOpen.indexOf("'already_opened'"));
+    expect(packsOpen.indexOf("raise exception 'chests_frozen'")).toBeLessThan(packsOpen.indexOf('progression_tiered_crate_pool'));
+    const quote = cut(fnBody('aether_quote', packs), '  -- PACKS ON (spec section 11): no chest is sold', '  v_tier := ');
+    expect(quote).toBe(fnBody('aether_quote', announcersNotFocusable));
+  });
+
+  it('the result and profile JSON carry the packs keys', () => {
+    const resultJson = fnBody('progression_result_json', packs);
+    for (const k of ['packsAwarded', 'packIds']) expect(resultJson, k).toContain(`'${k}'`);
+    const profileJson = fnBody('progression_profile_json', packs);
+    for (const k of ['packs', 'packMeter', 'progress', 'ready']) expect(profileJson, k).toContain(`'${k}'`);
+  });
+
+  it('the rollout pays PACK_LAUNCH_GRANT under its own ledger key, is service-role only, and there is no new-profile trigger', () => {
+    expect(n(fnBody('pack_launch_grant', packs), 'c_grant')).toBe(PACK_LAUNCH_GRANT);
+    expect(fnBody('pack_launch_grant', packs)).toContain("public.aether_apply(p_user, c_grant, 'grant', 'pack_launch')");
+    expect(packs).toContain('grant execute on function public.pack_rollout() to service_role;');
+    expect(packs).toContain('revoke all on function public.pack_launch_grant(uuid) from public, anon, authenticated, service_role;');
+    expect(packs).not.toMatch(/create trigger [a-z_]*launch[a-z_]* after insert on public\.profiles/);
+    // the runbook line is commented out: a re-run of the file never flips the switch
+    expect(packs).toMatch(/^-- select public\.pack_rollout\(\);$/m);
+    expect(packs).not.toMatch(/^update public\.progression_config set packs_enabled/m);
   });
 });

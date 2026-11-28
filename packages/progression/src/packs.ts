@@ -64,7 +64,8 @@ const isCount = (v: unknown): v is number => typeof v === 'number' && Number.isI
 const isRarity = (v: unknown): v is CrateRarity => typeof v === 'string' && (COSMETIC_RARITIES as readonly string[]).includes(v);
 const isRecord = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
 
-function parsePackLook(v: unknown): PackLook | null {
+/** Parse a `PackLook`; null on anything malformed. */
+export function parsePackLook(v: unknown): PackLook | null {
   if (!isRecord(v)) return null;
   if (typeof v.kind !== 'string' || !PACK_KINDS.includes(v.kind)) return null;
   if (typeof v.id !== 'string' || typeof v.name !== 'string' || !isRarity(v.guaranteedFloor)) return null;

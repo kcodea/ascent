@@ -29,6 +29,7 @@ import {
 } from './rules';
 import { achievementCatalogHash, achievementCatalogPayload, achievementOf, achievementXpOf } from './achievements';
 import { milestoneLevelsThrough } from './aether';
+import { levelPacksBetween, welcomePackCount } from './packEconomy';
 
 /** A validated request, ready for `settle_progression`. */
 export interface SettleRequest {
@@ -186,6 +187,13 @@ export function settlementParity(result: NonNullable<ReturnType<typeof parseProg
     if ((result.mode === 'practice' || result.mode === 'tutorial' || result.mode === 'spectate') && total !== 0) return false;
     if (result.cratesAwarded > milestoneLevelsThrough(result.after.level).length + 1) return false;
   }
+  // PACKS (2026-12-01): with packs on a settlement makes packs and never a crate: the Welcome packs (when it enrolled
+  // the account) and a Level pack per multiple of 5 above the launch level up to the level reached. The launch level is
+  // not in the result, so the cap counts from 0 (the most a new account can get); the default economy's numbers stand
+  // in for the live `pack_config` (a cap only: a retune that raises them shows as `parity: false`, never a refusal).
+  if (result.packIds.length !== result.packsAwarded) return false;
+  if (result.packsAwarded > 0 && result.cratesAwarded > 0) return false;
+  if (result.packsAwarded > levelPacksBetween(0, result.after.level).length + welcomePackCount()) return false;
   return titlesUnlockedBetween(result.before.level, result.after.level).every((t) => result.unlockedTitles.includes(t));
 }
 

@@ -19,6 +19,7 @@ export const SHARED_ARTIFACTS: ReadonlyArray<{ source: string; target: string }>
   { source: 'packEconomy.ts', target: 'progressionPackEconomy.ts' },
   { source: 'packs.ts', target: 'progressionPacks.ts' },
   { source: 'packShop.ts', target: 'progressionPackShop.ts' },
+  { source: 'packRoll.ts', target: 'progressionPackRoll.ts' },
 ];
 
 const HEADER = (source: string): string =>

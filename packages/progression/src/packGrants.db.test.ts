@@ -123,6 +123,7 @@ let at12 = '';          // Review Focus 5
 let at37 = '';
 let atBaseline20 = '';  // a launch level already written (never moved)
 let guest = '';
+let lagging = '';       // its stored account_level lags its XP
 
 beforeAll(async () => {
   db = new PGlite();
@@ -189,6 +190,23 @@ describe('before the flip: chests as today', () => {
     atBaseline20 = await newUser({ level: 30, enrolled: true });
     await db.query('update public.profiles set pack_level_baseline = 20 where user_id = $1', [atBaseline20]);
     guest = await newUser({ guest: true });
+    lagging = await newUser({ level: 12, enrolled: true });
+    await db.query('update public.profiles set account_level = 3 where user_id = $1', [lagging]);
+  });
+
+  it('a hand-flipped switch without pack_rollout grants Welcome packs on enrollment but never a Level pack', async () => {
+    await db.exec('update public.progression_config set packs_enabled = true where id = 1;');
+    try {
+      const fresh = await newUser({ xp: justBelow(10) });
+      const s = await settle(fresh);
+      expect(s.result.after.level).toBe(10);
+      expect(await sources(fresh)).toEqual(WELCOME);
+      const old = await newUser({ xp: justBelow(10), enrolled: true });
+      expect((await settle(old)).result.packsAwarded).toBe(0);
+      expect(await sources(old)).toEqual([]);
+    } finally {
+      await db.exec('update public.progression_config set packs_enabled = false where id = 1;');
+    }
   });
 });
 
@@ -222,6 +240,7 @@ describe('pack_rollout (spec 12, 12.1)', () => {
       balances.set(u, await balance(u));
       revisions.set(u, (await one<{ r: number }>('select progression_revision as r from public.profiles where user_id = $1', [u])).r);
     }
+    const packsBefore = (await one<{ n: number }>('select count(*)::int as n from public.packs')).n;
     const out = (await one<{ j: { status: string; baselines: number; granted: number } }>('select public.pack_rollout() as j')).j;
     expect(out).toEqual({ status: 'rolled_out', baselines: everyone.length - 1, granted: everyone.length });
     for (const u of everyone) {
@@ -235,7 +254,8 @@ describe('pack_rollout (spec 12, 12.1)', () => {
     expect(await base(at37)).toBe(37);
     expect(await base(atBaseline20)).toBe(20);   // already written: never moved
     expect(await base(guest)).toBe(1);
-    expect((await one<{ n: number }>('select count(*)::int as n from public.packs')).n).toBe(0);
+    expect(await base(lagging)).toBe(12);   // the level its XP derives, not the stored (lagging) 3
+    expect((await one<{ n: number }>('select count(*)::int as n from public.packs')).n).toBe(packsBefore);
     expect(await switchOn()).toBe(true);
   });
 
@@ -384,7 +404,8 @@ describe('after the flip: the settlement grants packs (spec 10)', () => {
     expect(s.result.after.level).toBe(20);
     expect(s.result.cratesAwarded).toBe(0);
     expect((await one<{ n: number }>('select count(*)::int as n from public.loot_crates where user_id = $1', [u])).n).toBe(0);
-    expect(await sources(u)).toEqual(['level:5', 'level:10', 'level:15', 'level:20']);   // made after the launch: line 0
+    // made after the launch (line 0, no Welcome Chest), so its missing Welcome packs self-heal too
+    expect(await sources(u)).toEqual([...WELCOME, 'level:5', 'level:10', 'level:15', 'level:20']);
   });
 
   it('an unreadable pack economy grants no pack this settlement and never blocks the game', async () => {
@@ -396,9 +417,26 @@ describe('after the flip: the settlement grants packs (spec 10)', () => {
       expect(s.result.packsAwarded).toBe(0);
       expect(s.result.cratesAwarded).toBe(0);
       expect(parseProgressionProfile(s.profile)).not.toBeNull();
+      await db.query('update public.pack_config set economy = $1::jsonb where id = 1', [JSON.stringify(DEFAULT_PACK_ECONOMY)]);
+      // the next, healthy settlement makes the Welcome packs it missed (and the Level pack), once
+      const healed = await settle(u);
+      expect(healed.result.packsAwarded).toBe(10);
+      expect(await sources(u)).toEqual([...WELCOME, 'level:5']);
+      expect((await settle(u)).result.packsAwarded).toBe(0);
     } finally {
       await db.query('update public.pack_config set economy = $1::jsonb where id = 1', [JSON.stringify(DEFAULT_PACK_ECONOMY)]);
     }
+  });
+
+  it('the Welcome self-heal never reaches an account enrolled before the flip', async () => {
+    // enrolled before the rollout: a launch level and the Welcome Chest
+    expect((await settle(preEnrolled)).result.packsAwarded).toBe(0);
+    expect((await sources(preEnrolled)).filter((x) => x.startsWith('welcome:'))).toEqual([]);
+    // even with no launch level (enrolled while the rollout ran): it holds its Welcome Chest
+    const u = await newUser({ enrolled: true });
+    await db.query('insert into public.loot_crates (user_id, earned_level) values ($1, 1)', [u]);
+    expect((await settle(u)).result.packsAwarded).toBe(0);
+    expect(await sources(u)).toEqual([]);
   });
 });
 

@@ -1339,6 +1339,7 @@ declare
   v_pk_r       text;
   v_pk_n       int;
   v_pack_ids   uuid[] := '{}';
+  v_pk_live    boolean := false;
 begin
   -- 1. validate
   if p_mode is null or p_mode not in ('ranked', 'practice', 'tutorial', 'versus', 'spectate') then raise exception 'bad_mode'; end if;
@@ -1725,9 +1726,16 @@ begin
   -- nothing and a missing one self-heals. Grants never wait on the counter: they are made even beside a full one.
   -- `v_pack_ids` holds only the packs actually created, Welcome first. An UNREADABLE pack economy (no row, a Welcome
   -- count or `levelPackEvery` not a valid integer, `levelPackEvery` below 1, `levelPackRarity` not a rarity) grants no
-  -- pack THIS settlement and never raises (a bad retune must never block a game; the level packs self-heal later).
-  select packs_enabled into v_packs from public.progression_config where id = 1;
+  -- pack THIS settlement and never raises (a bad retune must never block a game; the packs self-heal later).
+  -- SELF-HEAL OF THE WELCOME PACKS: a later settlement makes them too for an account made after the launch (launch
+  -- level null, `pack_rollout` having run) that holds no Welcome pack and no Welcome Crate, so an enrollment that met a
+  -- broken pack economy is made whole. Every account that existed at the rollout has a launch level, and every account
+  -- enrolled before the flip holds its Welcome Crate, so neither can match.
+  -- NO LEVEL PACK BEFORE `pack_rollout` HAS RUN (`packs_rolled_out_at` null, e.g. a hand-flipped switch): without the
+  -- launch levels every account would read 0 and be granted `level:5` .. its level at once.
+  select packs_enabled, packs_rolled_out_at is not null into v_packs, v_pk_live from public.progression_config where id = 1;
   v_packs := coalesce(v_packs, false);
+  v_pk_live := coalesce(v_pk_live, false);
   v_enrolling := prof.progression_enrolled_at is null;
   if v_packs then
     select economy into v_pk_eco from public.pack_config where id = 1;
@@ -1742,7 +1750,9 @@ begin
       if v_pk_n is null then v_pk_ok := false; else v_pk_welcome := v_pk_welcome + v_pk_n; end if;
     end loop;
     if v_pk_ok then
-      if v_enrolling then
+      if v_enrolling or (v_pk_live and prof.pack_level_baseline is null
+          and not exists (select 1 from public.packs k where k.user_id = p_user and k.source like 'welcome:%')
+          and not exists (select 1 from public.loot_crates c where c.user_id = p_user and c.earned_level = 1)) then
         with w as (
           select r.r, r.o, g.n
           from unnest(c_pk_rarities) with ordinality as r(r, o)
@@ -1762,6 +1772,7 @@ begin
           select p_user, 'rarity', 'rarity-' || v_pk_rarity, v_pk_rarity, 'level:' || g.lvl,
                  now() + (v_pk_welcome + g.lvl) * interval '1 microsecond'
           from generate_series((coalesce(prof.pack_level_baseline, 0) / v_pk_every + 1) * v_pk_every, v_l1, v_pk_every) as g(lvl)
+          where v_pk_live
           on conflict (user_id, source) do nothing
           returning pack_id, created_at
       )
@@ -2164,8 +2175,9 @@ revoke all on function public.pack_launch_grant(uuid) from public, anon, authent
 
 -- pack_rollout(): THE OWNER'S ONE-SHOT (run once from the SQL Editor, after the Edge Functions and Ship Ascent, spec
 -- 12 step 4), one transaction, in this order:
---  1. every existing profile's launch level: `pack_level_baseline = account_level`, only where it is still null (a
---     written one never moves);
+--  1. every existing profile's launch level: `pack_level_baseline` = the level its lifetime XP derives
+--     (`progression_level_of`, never the stored `account_level`, which can lag), only where it is still null (a written
+--     one never moves);
 --  2. the 3,000 Aether launch gift to every existing profile (guests too), once per account through the ledger key
 --     (`grant` / `pack_launch`), each paid account's progression revision moved so its mirrors adopt the balance;
 --  3. the switch: `packs_enabled = true`, and `packs_rolled_out_at` stamped.
@@ -2205,7 +2217,7 @@ begin
   perform public.progression_pack_config_rarity(v_eco, 'levelPackRarity');
   foreach v_r in array c_rarities loop perform public.progression_pack_config_int(v_eco, array['welcomePacks', v_r]); end loop;
 
-  update public.profiles set pack_level_baseline = account_level where pack_level_baseline is null;
+  update public.profiles set pack_level_baseline = public.progression_level_of(account_xp) where pack_level_baseline is null;
   get diagnostics v_baselines = row_count;
 
   for v_user in

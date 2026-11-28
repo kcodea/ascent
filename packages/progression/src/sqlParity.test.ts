@@ -846,7 +846,10 @@ describe('the pack economy grants, the retired Chest Shop and the rollout (2026-
   it('with packs on the settlement grants Welcome and Level packs at the TS sources, and no crate', () => {
     const body = fnBody('settle_progression', packs);
     const branch = body.slice(body.indexOf('  if v_packs then'), body.indexOf('  elsif v_aether then'));
-    expect(branch).not.toContain('loot_crates');
+    // it reads loot_crates (the Welcome self-heal's discriminator) but never writes one
+    expect(branch).not.toMatch(/insert into public\.loot_crates/);
+    expect(branch).toContain('where v_pk_live');
+    expect(branch).toMatch(/v_enrolling or \(v_pk_live and prof\.pack_level_baseline is null/);
     expect(branch).toContain("'welcome:' || w.r || ':' || w.n");
     expect(branch).toContain("'level:' || g.lvl");
     expect(branch).toContain("array['welcomePacks', r.r]");

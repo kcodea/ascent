@@ -64,7 +64,7 @@ shown is the price charged, a repeated request is charged once).
 | Purchase reward | Every 15 packs purchased earns a free Epic pack. |
 | Counter | 5 pack types on the counter, up to 8 of each. "The player cannot purchase any more packs until a slot opens up." Packs given while it is full wait beside it. |
 | Match payouts | Unchanged. |
-| Level packs | A free Legendary pack every 5 levels (5, 10, 15, ...), replacing the Epic milestone chest every 10 levels. |
+| Level packs | A free Legendary pack every 5 levels (5, 10, 15, ...), replacing the Epic milestone chest every 10 levels. Not backdated: asked whether accounts get packs for levels already passed at launch, Mike chose "Only after launch" (2026-11-27). |
 | New accounts | "give new accounts 5 common packs, 2 rare packs, 1 epic and 1 legendary pack". Nine packs in place of the Welcome Chest. (This replaces the earlier ruling of one free Legendary pack.) |
 | Launch gift | "give all accounts 3k Aether when we release the new shop announcement". A one-time 3,000 Aether for every account, delivered with the new-shop announcement. Accounts made after launch do NOT get it: Mike first answered "yes, new accounts get the 3k too", then, asked to confirm, chose "Launch-day accounts only" (2026-11-27). New players get the nine Welcome packs instead. |
 | Focus | Removed. |
@@ -255,12 +255,19 @@ Inside `settle_progression`, behind the switch:
   made once, so a retried settlement never makes a tenth. Nine packs of four types fit an empty counter (5 types, 8 of
   each), and grants wait anyway if they do not. Accounts enrolled before the switch keep the Welcome Chest they got and
   get no Welcome packs.
-- **Level packs:** one `levelPackRarity` (Legendary) Rarity pack per multiple of `levelPackEvery` (5) at or below the new
-  level, `source = 'level:<L>'`, so each is made once and a missing one self-heals (today's milestone pattern). Whether
-  levels already passed before the switch get packs is section 13, question 1.
+- **Level packs, only for levels reached after launch** (owner 2026-11-27, "Only after launch"). One `levelPackRarity`
+  (Legendary) Rarity pack per multiple of `levelPackEvery` (5) that is ABOVE the account's launch level and at or below
+  its new level, `source = 'level:<L>'`, so each is made once and a missing one self-heals above that line.
+  - The **launch level** is a new column `profiles.pack_level_baseline int`. `pack_rollout()` writes every existing
+    profile's current level into it before flipping the switch (and never overwrites one already written, so a re-run
+    changes nothing). A profile created after the rollout has it null, read as 0: a new player's packs start at Level 5.
+  - Example: an account at Level 37 on launch day gets nothing for 5 through 35; its first pack is at Level 40. An
+    account at exactly Level 35 gets its first at 40 too (35 was reached before launch).
+  - A settlement that lands after the flip counts as after launch, even for a game started before it. *(My call.)*
+  - Settlements before the flip still grant the Epic milestone chest at a multiple of 10, as today.
 - No more milestone chests. Milestone chests already granted stay, sealed or opened.
 - The result JSON gains `packsAwarded` and `packIds`; `cratesAwarded` stays (0). `isPlausibleProgressionResult`
-  (server.ts) gets the matching cap for packs: at most the level packs through the reached level, plus the nine Welcome packs.
+  (server.ts) gets the matching cap for packs: at most the level packs between the launch level and the reached level, plus the nine Welcome packs.
 - Gauntlet is unchanged (a first clear already pays 200 Aether and no chest).
 
 ## 11. Retiring the Chest Shop
@@ -286,8 +293,9 @@ the lump-sum project has dealt with the remaining chests. Nothing in this projec
 2. Deploy `progression-inventory` and `submit-progression` with the new actions (additive; old actions unchanged).
 3. **Ship Ascent** with the new client. With the switch still off it shows the Chest Shop as today, so shipping first
    changes nothing for anyone.
-4. Owner runs `select public.pack_rollout();`. It pays the 3,000 Aether launch gift to every existing account (12.1),
-   then flips the switch. From this moment packs are live.
+4. Owner runs `select public.pack_rollout();`. It writes every existing account's launch level
+   (`pack_level_baseline`, section 10), pays the 3,000 Aether launch gift to every existing account (12.1), then flips
+   the switch. It grants no level packs. From this moment packs are live.
 5. Patch notes entry (`patchNotes.ts`) in the client PR of step 3, worded for the day the switch flips.
 
 ### 12.1 The 3,000 Aether launch gift
@@ -328,28 +336,21 @@ version, only from `packs_enabled`.
 
 For the owner, in order of how much they change the build:
 
-1. **Backdated level packs.** At the flip, does an account get Legendary packs for the multiples of 5 it has already
-   passed? (a) Yes, all of them (a Level 37 account gets 7; the Aether launch backdated milestone chests the same way);
-   (b) only levels reached after the flip; (c) only the multiples of 5 that never gave an Epic chest (5, 15, 25, ...).
-   My lean: (a), the precedent and the self-healing grant both point there. Build cost: (a) is the grant in section 10
-   as written, with `pack_rollout()` backfilling like `aether_rollout()` did; (b) needs each account's level stored at
-   the flip and the grant to stop self-healing below it; (c) skips multiples of 10 and changes the plausibility cap.
-   Packs once opened cannot be taken back, so this is decided before the flip.
-2. **Old chests meanwhile.** Until the lump-sum project, can a player still open the sealed chests they hold? My lean:
+1. **Old chests meanwhile.** Until the lump-sum project, can a player still open the sealed chests they hold? My lean:
    yes, exactly as today (no code changes, nothing taken away). The alternative is freezing them so the lump sum
    counts every one.
-3. **Featured deals.** The lab has four discounted packs (20-60% off, 2-5 in stock, re-rolled every window). Launch with
+2. **Featured deals.** The lab has four discounted packs (20-60% off, 2-5 in stock, re-rolled every window). Launch with
    them, and is stock per player? The server supports `fullPrice` and `stock` either way. Launching them moves the
    lab's pick-and-discount rule into the window generator and its numbers into `pack_config`. Per-player stock fits
    the per-user lock; shared stock (one counter every buyer competes for) does not, and needs its own locking. My lean:
    per player.
-4. **Odds shown to players.** Chests print their odds (R-PROG-CRATE-03). Packs: show them, and where?
-5. **Free-pack cadence.** The brief calls the free Rare once per Eastern day, but the shop spec quotes the owner,
+3. **Odds shown to players.** Chests print their odds (R-PROG-CRATE-03). Packs: show them, and where?
+4. **Free-pack cadence.** The brief calls the free Rare once per Eastern day, but the shop spec quotes the owner,
    asked whether it stays daily, answering "Every 6 hours", and the lab gives one per window. This doc builds one per
    window (`free:<window id>`); a daily pack is a one-line change to the source key.
-6. **Launch, Season and Secret packs**, and Secret as a sixth rarity in packs with its odds (today Secret exists as an
+5. **Launch, Season and Secret packs**, and Secret as a sixth rarity in packs with its odds (today Secret exists as an
    achievement-only rarity above Ancient, R-PROG-SECRET-01).
-7. **Booster box pricing.** The shop supports `contains` > 1; how a box fits the counter limit is decided with it.
+6. **Booster box pricing.** The shop supports `contains` > 1; how a box fits the counter limit is decided with it.
 
 ## 14. The "chest" to "pack" copy sweep
 
@@ -372,7 +373,7 @@ evidence and a regression test as enforcement:
 |---|---|
 | R-PROG-AETHER-02 (the five crates and prices) | Retired with packs on; replaced by R-PROG-PACK-01. |
 | R-PROG-AETHER-03 (focus fee) | Retired. |
-| R-PROG-AETHER-04 (Epic chest every 10 levels, Welcome Chest) | Amended: Legendary pack every 5 levels, nine Welcome packs (5 Common, 2 Rare, 1 Epic, 1 Legendary); old milestone chests kept. |
+| R-PROG-AETHER-04 (Epic chest every 10 levels, Welcome Chest) | Amended: Legendary pack every 5 levels reached after launch (not backdated), nine Welcome packs (5 Common, 2 Rare, 1 Epic, 1 Legendary); old milestone chests kept. |
 | R-PROG-AETHER-06 (Announcers not focusable) | Retired (no focus). |
 | R-PROG-AETHER-01 (payouts) | Unchanged numbers; "spent in the Pack Shop"; names the 3,000 launch gift beside R-PROG-AETHER-05's 1,000. |
 | R-PROG-CRATE-02 (never an owned item; never converted to currency) | Scoped to chests. Packs may duplicate and pay Aether. |
@@ -402,8 +403,9 @@ oracle rules).
 - `packs.db.test.ts`: buy (each refusal, including `no_room` and `expired`), a repeated request charged once, open paid
   once, claim, the counter order, grants waiting, guests refused, the switch off refusing everything, `buy_crate`
   answering `shop_retired` with the switch on.
-- Settlement: the nine Welcome packs on enrollment (and not again on a retry), level packs at 5/10/15 and
-  self-healing, no milestone chest with packs on.
+- Settlement: the nine Welcome packs on enrollment (and not again on a retry), level packs at 5/10/15 for a
+  new account, none at or below the launch level for an existing one (Level 37 at launch: first pack at 40), a re-run
+  rollout never moving the launch level, self-healing above it, no milestone chest with packs on.
 - Launch gift: `pack_rollout()` pays 3,000 once per account, a second run pays nothing, and it pays before the switch flips;
   a profile created after the flip is not paid.
 - `sqlParity.test.ts` extended for the new config document.

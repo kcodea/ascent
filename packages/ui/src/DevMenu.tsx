@@ -136,6 +136,8 @@ import { GlowTuner } from './GlowTuner';
 import { AlignArcTuner } from './AlignArcTuner';
 import { CardPlateTuner } from './CardPlateTuner';
 import { CardPlateEditorTuner } from './CardPlateEditorTuner';
+import { PackLabTuner } from './progression/packOpening/PackLabTuner';
+import { PackShopLab } from './progression/packShop/PackShopLab';
 import { BackgroundTuner } from './BackgroundTuner';
 import { CardTextTuner } from './CardTextTuner';
 import { PlateDissolveTuner } from './PlateDissolveTuner';
@@ -206,6 +208,8 @@ const GROUPS: Group[] = [
       { key: 'frame', icon: '🖼️', label: 'Card Frames', C: FrameTuner, hint: 'The gold oval on minions and purple square on spells' },
       { key: 'cardplate', icon: '🂠', label: 'Card Plate', C: CardPlateTuner, hint: "The hand card's backplate geometry" },
       { key: 'plateeditor', icon: '🪟', label: 'Card Plate Editor', C: CardPlateEditorTuner, hint: 'One card plate cosmetic at a time: its frame and interior size and position, saved to the repo', alt: 'card plate cosmetic frame interior size position editor save' },
+      { key: 'packlab', icon: '🎴', label: 'Pack Lab', C: PackLabTuner, hint: 'Open sample card packs and tune the tear, sleeve and flip feel', alt: 'pack opening tear peel sleeve flip cards chest feel tuner' },
+      { key: 'packshop', icon: '🛒', label: 'Pack Shop', C: PackShopLab, hint: 'Browse the pack shelf, buy by dragging to the hand, play a pack to open it', alt: 'pack shop shelf counter hand buy aether' },
       { key: 'cardtext', icon: '🔤', label: 'Card Text', C: CardTextTuner, hint: 'Where the rules-text box sits on a card' },
       { key: 'cardpills', icon: '🏷️', label: 'Card Pills', C: CardPillsTuner, hint: 'Cost coin, tier badge, attack and health badges' },
       { key: 'medallion', icon: '🎖️', label: 'Medallions', C: MedallionTuner, hint: 'Card mechanic medallion — size, placement, and the art inset', alt: 'medallion mechanic icon size position' },

@@ -62,6 +62,6 @@ describe('Netlify _headers', () => {
     expect(rule('/frames/*')).not.toMatch(/immutable/);
   });
   it('public art never rides stale-while-revalidate: an expired copy pops in on every mount (R-PERF-ART-STAYS-FRESH-01)', () => {
-    for (const p of ['/frames/*', '/medallions/*', '/fx/*', '/backdrops/*', '/menu/*', '/m1/*']) expect(rule(p), p).not.toMatch(/stale-while-revalidate/);
+    for (const p of ['/frames/*', '/medallions/*', '/packs/*', '/fx/*', '/backdrops/*', '/menu/*', '/m1/*']) expect(rule(p), p).not.toMatch(/stale-while-revalidate/);
   });
 });

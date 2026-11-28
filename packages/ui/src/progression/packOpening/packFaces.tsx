@@ -1,0 +1,473 @@
+import {
+  useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactElement,
+} from 'react';
+import { cosmeticOf, type PackCard } from '@game/progression';
+import { HeroAttackPreview, heroAttackPreviewKnown } from '../../heroBlast/HeroAttackPreview';
+import { MenuMedal, type MenuMedalName } from '../../menuIcons';
+import { TitleBadge } from '../../titles/TitleBadge';
+import { stageViewport, type StageRect } from '../../stage';
+import { rewardPreview, type RewardEmblem } from '../rewardPreview';
+import { CARD_PLATE_SRC, CARD_WINDOW_MASK_SRC, cardPlateSrc, packRarityLabel, rarityIconSrc } from './packRarity';
+import {
+  FLIP_LIFT, flipHalfMs, FLIP_LIFT_GUARANTEED, FLIP_PERSPECTIVE_PER_WIDTH, PILE_MAX_H, REVEAL_FACE_X,
+  REVEAL_Y, REVEALED_SCALE,
+} from './cardFlip';
+import { getPackFeel } from './packFxConfig';
+import { CARD_GLOW_TIERS, faceGlowOpacity } from './packGlow';
+import { cardHoloStrength } from './packHolo';
+
+export { CARD_PLATE_SRC };
+
+/**
+ * THE PACK CARD FACES (spec sections 6 and 11). Every face is the owner's cosmetic card plate (2:3, a gold frame around a
+ * navy window) with one layout inside the window: category label, art area (the reward's art, or an emblem drawn
+ * below), name, rarity ribbon with its medallion, and NEW or a DUPLICATE stamp with "+N Aether".
+ *
+ * Placement is transform-only. A placed face (the theatre passes `from` and / or `slot`) is laid out ONCE at the
+ * featured slot (`SLOT_*`, `FACE_*`, never animated) and every move is a `transform` on the outer element:
+ * - `handoff`: mounts on the scene's card at edge-on (`from`, the card's FLAT rect in stage px, converted with
+ *   `rectToStage` at the edge event by the shell) turned to -90 deg with the scene's perspective, then transitions to
+ *   the featured slot and 0 deg at the REVEALED PILE's size (owner 2026-11-23: "the preview is so much smaller than the
+ *   card back", then "the revealed pile should be slightly larger than the draw pile"): `REVEALED_SCALE` x the back's
+ *   resting size (the handoff rect over the flip's lift), so it grows a little while it turns, never shrinks. The turn
+ *   sits on an inner element so it can take its own easing (it continues the scene's accelerating first half,
+ *   decelerating), while the move eases in and out.
+ * - `featured`: on top of the revealed pile (right of the stack, `REVEAL_FACE_X`).
+ *   `tray`: an earlier face, in the pile under the featured one: the same size, nudged a few px and a degree or two
+ *   (`PILE_JITTER`) so it reads as a real pile. `summary`: one centred row of all faces.
+ * The scene turns the card's BACK from 0 to +90 deg (its left edge toward the camera) while it travels right; the FACE
+ * is the back turned a further 180 deg, so it continues from -90 deg to 0 (edge-on either way; the sign keeps the motion
+ * continuous) over the rest of the way right.
+ * An unplaced face (the reduced-motion row) has no inline pose; its parent places it.
+ */
+
+/** The rarities that tremble in the summary row (packOpening.css sets each one's amount). */
+const SHAKE_RARITIES: ReadonlySet<string> = new Set(['epic', 'legendary', 'ancient']);
+
+export type PackFacePhase = 'handoff' | 'featured' | 'tray' | 'summary';
+export interface PackFaceSlot { index: number; count: number }
+export interface PackFaceProps {
+  card: PackCard;
+  phase: PackFacePhase;
+  from?: StageRect;
+  slot?: PackFaceSlot;
+  /** The Pack Lab's slow-mo factor (the shell's `--pk-slow`, 1 / speed): scales the handoff's own transitions. Default 1. */
+  slow?: number;
+  /** Reduced motion: the holo is static (no sweep, no pointer follow). */
+  still?: boolean;
+  /** The summary row's best pull: raised and a little larger than the rest. */
+  best?: boolean;
+  /** The face's turn-in transition really started: its start on the document timeline and its length (ms). */
+  onTurnStart?: (startMs: number, durMs: number) => void;
+  /** The summary row's duplicate is dissolving into Aether: it glows white-blue, then fades to a faint ghost. */
+  dissolve?: boolean;
+}
+
+/**
+ * The face's LAYOUT size (stage px; 2:3, the plate's and the scene card's shape) and its slot's centre as a fraction of
+ * the theatre. A face is drawn at the pile's on-screen size by its transform, so this sets the size it is laid out and
+ * rasterised at: near the pile's on-screen size at 1920 x 1080 (about 530 x 800), so the transform scale stays near 1
+ * and the text stays sharp.
+ */
+export const FACE_W = 480;
+export const FACE_H = 720;
+export const SLOT_X = REVEAL_FACE_X;
+export const SLOT_Y = REVEAL_Y;
+/** The revealed pile's per-card nudge under the top face: [dx px, dy px, deg], by reveal index (cycles). */
+const PILE_JITTER: readonly (readonly [number, number, number])[] = [[-6, 4, -2], [5, -3, 1.5], [-3, -6, -1], [7, 3, 2.2], [-5, 6, -1.6]];
+/**
+ * The summary row: as big as the revealed pile (never bigger), shrunk only as far as one row must to fit the theatre.
+ * The row spans at most `SUMMARY_ROW_W` of the theatre's width with `SUMMARY_GAP` px between faces, each face at most
+ * `SUMMARY_MAX_H` of its height; the row's centre sits at `SUMMARY_Y` of the height (the list panel goes below it).
+ */
+const SUMMARY_ROW_W = 0.82;
+const SUMMARY_GAP = 24;
+const SUMMARY_MAX_H = 0.5;
+export const SUMMARY_Y = 0.455;
+/** The face turns with the scene's perspective: the same multiple of the card's width (the face's own, pre-scale). */
+const PERSPECTIVE = FLIP_PERSPECTIVE_PER_WIDTH * FACE_W;
+/** The handoff's easing: the move eases in and out; the turn starts at the first half's end speed (slope ~1.65). */
+const MOVE_EASE = 'cubic-bezier(0.45, 0, 0.25, 1)';
+const TURN_EASE = 'cubic-bezier(0.3, 0.5, 0.4, 1)';
+
+/** The slot's style in the theatre (the shell's `.pkop-slot` uses it too, so the two can never drift apart). */
+export const slotBox = (): CSSProperties => ({
+  left: `${SLOT_X * 100}%`, top: `${SLOT_Y * 100}%`, width: FACE_W, height: FACE_H, marginLeft: -FACE_W / 2, marginTop: -FACE_H / 2,
+});
+
+/** A face's pose relative to the slot: a translation (stage px), a rotation (deg), then a scale about its centre. */
+export interface FacePose { x: number; y: number; r: number; sx: number; sy: number }
+
+/** The pile's scale for a face handed off at `from`: `REVEALED_SCALE` x the back's resting size (the lift taken out). */
+/** Capped at `PILE_MAX_H` of the theatre's height. */
+function pileScale(from: StageRect | undefined, guaranteed: boolean, vp: { w: number; h: number }): { sx: number; sy: number } {
+  if (!from) return { sx: 1, sy: 1 };
+  const k = REVEALED_SCALE / (1 + (guaranteed ? FLIP_LIFT_GUARANTEED : FLIP_LIFT));
+  const sx = (from.width / FACE_W) * k, sy = (from.height / FACE_H) * k;
+  const cap = Math.min(1, (PILE_MAX_H * vp.h) / FACE_H / sy);
+  return { sx: sx * cap, sy: sy * cap };
+}
+
+const rowOffset = (slot: PackFaceSlot | undefined, step: number): number => (slot ? (slot.index - (slot.count - 1) / 2) * step : 0);
+
+/**
+ * Where a placed face rests in `phase` (pure; `vp` is the theatre's size in stage px). The featured / handoff pose is the
+ * top of the revealed pile: `REVEALED_SCALE` x the back it flipped from (`from` with the flip's lift taken out). An
+ * earlier face (`tray`) sits in the pile beneath it at the same size, nudged by `PILE_JITTER`.
+ */
+export function facePose(
+  phase: PackFacePhase, slot: PackFaceSlot | undefined, from: StageRect | undefined, vp: { w: number; h: number }, guaranteed = false,
+): FacePose {
+  const { sx, sy } = pileScale(from, guaranteed, vp);
+  if (phase === 'summary') {
+    const n = Math.max(1, slot?.count ?? 1);
+    const fit = Math.min((SUMMARY_ROW_W * vp.w - SUMMARY_GAP * (n - 1)) / n / FACE_W, (SUMMARY_MAX_H * vp.h) / FACE_H);
+    const k = Math.max(0.05, Math.min(fit, from ? sy : fit)); // the pile's size, or smaller to fit; uniform aspect
+    const step = fit * FACE_W + SUMMARY_GAP; // one step for the whole row, so it stays evenly spaced
+    return { x: (0.5 - SLOT_X) * vp.w + rowOffset(slot, step), y: (SUMMARY_Y - SLOT_Y) * vp.h, r: 0, sx: k, sy: k };
+  }
+  if (phase === 'tray') {
+    const [x, y, r] = PILE_JITTER[(slot?.index ?? 0) % PILE_JITTER.length]!;
+    return { x, y, r, sx, sy };
+  }
+  return { x: 0, y: 0, r: 0, sx, sy };
+}
+
+/** The pose that puts the slot-laid face exactly on `from` (stage px). Uses the theatre's size, never a DOM read. */
+export function edgePose(from: StageRect, vp: { w: number; h: number }): FacePose {
+  return {
+    x: from.left + from.width / 2 - vp.w * SLOT_X,
+    y: from.top + from.height / 2 - vp.h * SLOT_Y,
+    r: 0,
+    sx: from.width / FACE_W,
+    sy: from.height / FACE_H,
+  };
+}
+
+/** The gap between two cards being dealt into the summary row (ms at speed 1). */
+export const SUMMARY_DEAL_MS = 90;
+
+const css = (p: FacePose): string => `translate(${p.x}px, ${p.y}px) rotate(${p.r}deg) scale(${p.sx}, ${p.sy})`;
+
+/** The face's category, singular ("Hero skin", "Title"); an unknown reward is just a "Reward". */
+function categoryLabel(kind: string, known: boolean): string {
+  if (!known) return 'Reward';
+  const s = kind.replace(/^New /, '');
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+/** The foil's cut-out: the plate's window, its real outline (packRarity.ts CARD_WINDOW_MASK_SRC), read by `.pkf-holo`. */
+const HOLO_MASK = `url("${CARD_WINDOW_MASK_SRC}")`;
+
+const STROKE = { fill: 'none', stroke: 'currentColor', strokeWidth: 3.5, strokeLinecap: 'round', strokeLinejoin: 'round' } as const;
+
+/**
+ * The Collection's painted category medallions (menuIcons.tsx, `public/menu/`), for the categories with no art of
+ * their own (owner 2026-11-24: "there are medallions to use instead of these random icons", "We also have a title
+ * medallion"). Board and Music have no painted medallion yet, so they keep a drawn emblem.
+ */
+const EMBLEM_MEDALS: Partial<Record<RewardEmblem, MenuMedalName>> = { title: 'titles', announcer: 'announcers', hero_attack: 'attacks' };
+
+/** The drawn emblems, only for what has no painted medallion (no `<title>`: the shell's status region announces the face). */
+const EMBLEMS: Readonly<Record<'music' | 'board' | 'unknown', ReactElement>> = {
+  music: (
+    <g {...STROKE}>
+      <path d="M24 46V16l26-6v30" />
+      <path d="M24 24l26-6" />
+      <ellipse cx="18" cy="46" rx="6" ry="5" />
+      <ellipse cx="44" cy="40" rx="6" ry="5" />
+    </g>
+  ),
+  board: (
+    <g {...STROKE}>
+      <path d="M32 8l24 14v20L32 56 8 42V22z" />
+      <path d="M8 22l24 14 24-14M32 36v20" />
+    </g>
+  ),
+  unknown: (
+    <g {...STROKE}>
+      <circle cx="32" cy="32" r="22" />
+      <path d="M25 26a7 7 0 1 1 10 6c-2 1-3 3-3 5v2" />
+      <circle cx="32" cy="46" r="0.6" strokeWidth="5" />
+    </g>
+  ),
+};
+
+/** A category's emblem: its painted medallion, else the drawn one. */
+function Emblem({ emblem }: { emblem: RewardEmblem }): ReactElement {
+  const medal = EMBLEM_MEDALS[emblem];
+  return (
+    <div className="pkf-emblem" data-emblem={emblem}>
+      {medal
+        ? <MenuMedal name={medal} className="pkf-medal" />
+        : <svg viewBox="0 0 64 64" aria-hidden focusable="false">{EMBLEMS[emblem === 'music' || emblem === 'board' ? emblem : 'unknown']}</svg>}
+    </div>
+  );
+}
+
+/**
+ * WHAT THE ART WINDOW SHOWS, per category, with the Collection's own pieces (owner 2026-11-24: "use elements from the
+ * existing cosmetics menu to better make each cosmetic fit the card"):
+ * - a hero skin and a minion skin with NO framed window (`.pkf-art-full`, owner 2026-11-26: "removing the border around
+ *   them, and have their art full width and fade to navy by the bottom"): the art runs the card window's full width from
+ *   its top and fades into the navy;
+ * - an attack animation PLAYING in the Collection's sandbox (`HeroAttackPreview`, embedded): by itself once as the face
+ *   lands on the pile and again as the summary row appears (`autoKey`), never under the top face; a click replays it;
+ * - an announcer its painted medallion; an emote, portrait frame and card plate their art as before.
+ * A TITLE has no window at all (`.pkf-art-bare`): its medallion over the title's own badge, the way it is worn.
+ */
+/** The art kinds that fill the card's whole plate window instead of a framed art window. */
+const FULL_ART_KINDS: ReadonlySet<string> = new Set(['hero', 'minion', 'plate', 'frame']);
+
+function FaceArt({ card, p, lands, phase, still }: {
+  card: PackCard; p: ReturnType<typeof rewardPreview>; lands: boolean; phase: string; still: boolean;
+}): ReactElement {
+  if (p.art) {
+    return <img src={p.art.url} alt="" decoding="sync" draggable={false} className={`pkf-img pkf-img-${p.art.kind}`} />;
+  }
+  if (p.emblem === 'hero_attack') {
+    const style = cosmeticOf(card.rewardId)?.assets.style;
+    if (typeof style === 'string' && heroAttackPreviewKnown(style)) {
+      return <HeroAttackPreview style={style} reducedMotion={still} embedded autoKey={lands ? phase : null} />;
+    }
+  }
+  if (p.emblem === 'title') {
+    return (
+      <>
+        <Emblem emblem="title" />
+        <TitleBadge item id={card.rewardId} size="md" className="pkf-title" />
+      </>
+    );
+  }
+  return <Emblem emblem={p.emblem ?? 'unknown'} />;
+}
+
+/**
+ * THE FACE HOLO (packHolo.ts; owner 2026-11-23, "a holographic or pearlescent sheen"): Epic and up wear a static
+ * pearl / rainbow gradient on the card's BACKGROUND only (owner 2026-11-24: "the item, text and rarity should be in
+ * front of it"): over the plate's navy window, clipped to it, under the window's content, and blended (`.pkf-holo`, at the tier
+ * x the `holo` knob). It only ever moves by `transform`: a one-shot sweep when the face lands on the pile (`featured`)
+ * and when the summary row appears, and, while hovered, it leans with the pointer (pointermove -> one rAF -> a CSS var
+ * on the moving layer; the face's rect is read once at pointerenter, never per move). No looping animation. Reduced
+ * motion (`still`): static, no sweep, no pointer follow.
+ */
+function useHoloFollow(enabled: boolean) {
+  const layer = useRef<HTMLDivElement | null>(null);
+  const st = useRef({ l: 0, t: 0, w: 1, h: 1, x: 0.5, y: 0.5, raf: 0 });
+  useEffect(() => () => { if (st.current.raf && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(st.current.raf); }, []);
+  // Follow turned off (the face went under the top one, or reduced motion): drop a queued frame and recentre the layer.
+  useEffect(() => {
+    if (enabled) return;
+    const s = st.current;
+    if (s.raf && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(s.raf);
+    s.raf = 0;
+    s.x = 0.5; s.y = 0.5;
+    const el = layer.current;
+    if (el) { el.style.setProperty('--hx', '0.5'); el.style.setProperty('--hy', '0.5'); }
+  }, [enabled]);
+  const flush = (): void => {
+    const s = st.current;
+    if (s.raf || typeof requestAnimationFrame !== 'function') return;
+    s.raf = requestAnimationFrame(() => {
+      s.raf = 0;
+      const el = layer.current;
+      if (!el) return;
+      el.style.setProperty('--hx', s.x.toFixed(3));
+      el.style.setProperty('--hy', s.y.toFixed(3));
+    });
+  };
+  if (!enabled) return { layer, handlers: undefined };
+  const handlers = {
+    onPointerEnter: (e: ReactPointerEvent<HTMLDivElement>) => {
+      const r = e.currentTarget.getBoundingClientRect(); // once per hover, screen px (only ratios are used)
+      const s = st.current;
+      s.l = r.left; s.t = r.top; s.w = Math.max(1, r.width); s.h = Math.max(1, r.height);
+    },
+    onPointerMove: (e: ReactPointerEvent<HTMLDivElement>) => {
+      const s = st.current;
+      s.x = Math.min(1, Math.max(0, (e.clientX - s.l) / s.w));
+      s.y = Math.min(1, Math.max(0, (e.clientY - s.t) / s.h));
+      flush();
+    },
+    onPointerLeave: () => {
+      const s = st.current;
+      s.x = 0.5; s.y = 0.5;
+      flush();
+    },
+  };
+  return { layer, handlers };
+}
+
+export function PackFace({ card, phase, from, slot, slow = 1, still = false, best, onTurnStart, dissolve = false }: PackFaceProps) {
+  const p = rewardPreview(card.rewardId);
+  const placed = from !== undefined || slot !== undefined;
+  const handoff = phase === 'handoff' && from !== undefined;
+  // Any face handed a `from` mounts edge-on on the scene's card and turns in, whatever phase it mounts in: the shell
+  // mounts it in `handoff`, but a face that mounts straight into the pile still turns rather than popping there.
+  const [arrived, setArrived] = useState(!(from !== undefined && phase !== 'summary'));
+  const ref = useRef<HTMLDivElement | null>(null);
+
+  // The turn's transition exists now: report its real start and length (document timeline ms), so the scene's aura can
+  // read the same clock and stay on this face's edges. One read per flip, never per frame.
+  const turnRef = useRef<HTMLDivElement | null>(null);
+  const reported = useRef(false);
+  useLayoutEffect(() => {
+    if (!arrived || reported.current || !onTurnStart || from === undefined) return;
+    reported.current = true;
+    const el = turnRef.current;
+    const a = el && typeof el.getAnimations === 'function' ? el.getAnimations()[0] : undefined;
+    if (!a) return;
+    let live = true;
+    void a.ready.then(() => {
+      const t0 = a.startTime, d = a.effect?.getComputedTiming().duration;
+      if (live && typeof t0 === 'number' && typeof d === 'number') onTurnStart(t0, d);
+    }).catch(() => undefined);
+    return () => { live = false; };
+  }, [arrived, onTurnStart, from]);
+
+  // Mounted on the scene's card: flush that pose once (one style/layout read per flip, never per frame), then let the
+  // transition carry it to the slot.
+  useLayoutEffect(() => {
+    if (arrived) return;
+    void ref.current?.offsetWidth;
+    setArrived(true);
+  }, [arrived]);
+
+  const atEdge = !arrived;
+  // The DOM half of the flip, at the same clock as the scene's half and every class transition (slow-mo included).
+  const turnMs = flipHalfMs(card.rarity, card.guaranteed) * (Number.isFinite(slow) && slow > 0 ? slow : 1);
+  // The reveal's own beats on a face that turned in from the scene (never the summary row, the tray or reduced motion):
+  // a flash of the rarity's light as it opens, and a punch of scale as it lands flat.
+  const revealed = placed && !still && phase !== 'summary';
+  // The rarity aura (packGlow.ts): on the TOP face of the revealed pile and on every summary face, never on the faces
+  // under the top one (five glows would blend into a blob). Common / Rare static, Epic breathes gently, Legendary /
+  // Ancient strongly (`pkf-glow` marks the strong tier).
+  const aura = phase === 'handoff' || phase === 'featured' || phase === 'summary';
+  const pulse = CARD_GLOW_TIERS[card.rarity].pulse;
+  const glow = aura && pulse === 'strong';
+
+  // The holo (Epic and up, at the tier x the knob): it sweeps once as the face lands on the pile and as the summary row
+  // appears, and follows the pointer on the top pile face and the summary faces; never under reduced motion.
+  const holo = cardHoloStrength(card.rarity, getPackFeel().holo);
+  const lands = phase === 'featured' || phase === 'summary';
+  const follow = useHoloFollow(holo > 0 && lands && !still);
+
+  const vp = placed ? stageViewport() : null; // the theatre's size, read once per render (never per frame)
+  const outer: CSSProperties | undefined = placed
+    ? {
+      ...slotBox(),
+      transform: css(atEdge ? edgePose(from!, vp!) : facePose(phase, slot, from, vp!, card.guaranteed)),
+      transition: atEdge ? 'none' : handoff ? `transform ${turnMs}ms ${MOVE_EASE}` : undefined,
+      // the summary row is DEALT: each card leaves the pile a beat after the one before it
+      ...(phase === 'summary' && !still ? { '--pkf-deal': `${(slot?.index ?? 0) * SUMMARY_DEAL_MS * (Number.isFinite(slow) && slow > 0 ? slow : 1)}ms` } : null),
+    }
+    : undefined;
+  const inner: CSSProperties | undefined = placed
+    ? {
+      transform: `perspective(${PERSPECTIVE}px) rotateY(${atEdge ? -90 : 0}deg)`,
+      // The turn's transition stays on in EVERY placed phase: a face that leaves `handoff` mid-turn finishes its turn
+      // instead of snapping flat (removing the transition would cancel the running one).
+      transition: atEdge ? 'none' : `transform ${turnMs}ms ${TURN_EASE}`,
+      animationDelay: revealed ? `${Math.round(turnMs * 0.82)}ms` : undefined,
+    }
+    : undefined;
+
+  // A title wears its own badge in place of the art window and the name line.
+  const isTitle = p.emblem === 'title';
+  const cat = categoryLabel(p.label.kind, p.category !== null);
+  // (owner 2026-11-27: "lets try the full card window effect that we did with minions and hero skins, but for portraits and
+  // card plates as well")
+  const fullArt = p.art && FULL_ART_KINDS.has(p.art.kind) ? p.art : null;
+  // Epic and up TREMBLE in the summary row, more each tier, "like they are shaking with imbued power" (owner 2026-11-27);
+  // never under reduced motion, never a duplicate dissolving into Aether (packOpening.css `pkf-imbue`).
+  const shake = phase === 'summary' && !still && !dissolve && SHAKE_RARITIES.has(card.rarity);
+  const cls = `pkf r-${card.rarity} pkf-${phase}${placed ? ' pkf-placed' : ''}${glow ? ' pkf-glow' : ''}${follow.handlers ? ' pkf-hover' : ''}${best && phase === 'summary' ? ' pkf-best' : ''}${dissolve && phase === 'summary' ? ' pkf-dissolve' : ''}${shake ? ' pkf-shake' : ''}`;
+  return (
+    <div
+      ref={ref}
+      className={cls}
+      style={outer}
+      data-testid="pack-face"
+      data-phase={phase}
+      data-from={from ? `${from.left},${from.top},${from.width},${from.height}` : undefined}
+      aria-hidden
+      {...follow.handlers}
+    >
+      <div ref={turnRef} className={`pkf-card${revealed ? ' pkf-punch' : ''}`} style={inner}>
+        {aura && (
+          <div
+            className={`pkf-aura pkf-aura-${pulse}`}
+            data-glow={pulse}
+            style={{ opacity: faceGlowOpacity(card.rarity, getPackFeel().cardGlow) }}
+          />
+        )}
+        <img src={cardPlateSrc(card.rarity)} alt="" decoding="sync" draggable={false} className="pkf-plate" />
+        {/* the rarity tint over the navy: cut to the plate's real window (the notch too), so it has no straight top edge */}
+        <div className="pkf-tint" data-testid="pkf-tint" style={{ '--pkf-window': HOLO_MASK } as CSSProperties} />
+        {/* the foil is the card's BACKGROUND: over the plate's window, under the item, the text and the rarity */}
+        {holo > 0 && (
+          <div className="pkf-holo" data-testid="pkf-holo" style={{ opacity: Math.min(1, holo), '--pkf-window': HOLO_MASK } as CSSProperties}>
+            <div className="pkf-holo-move" ref={follow.layer}>
+              {/* a distinct class (and animation name) per landing, so the top face sweeps again when it joins the row */}
+              <div className={`pkf-holo-sheet${lands && !still ? (phase === 'summary' ? ' pkf-holo-sweep-row' : ' pkf-holo-sweep') : ''}`} />
+            </div>
+          </div>
+        )}
+        {/* a skin's art is a layer of the CARD, cut to the plate's traced window (the top notch too), over the foil */}
+        {fullArt && (
+          <div className="pkf-fullart" style={{ '--pkf-window': HOLO_MASK } as CSSProperties}>
+            <img src={fullArt.url} alt="" decoding="sync" draggable={false} className={`pkf-img-${fullArt.kind}`} />
+          </div>
+        )}
+        <div className="pkf-win">
+          <div className={`pkf-art${isTitle ? ' pkf-art-bare' : ''}${fullArt ? ' pkf-art-full' : ''}`}>
+            {!fullArt && <FaceArt card={card} p={p} lands={lands} phase={phase} still={still} />}
+            {card.duplicate
+              ? (
+                <div className="pkf-dup">
+                  <span className="pkf-stamp">Duplicate</span>
+                  <span className="pkf-aether">{`+${card.duplicate.aether} Aether`}</span>
+                </div>
+              )
+              : phase !== 'summary' && <div className="pkf-new">New</div>}
+          </div>
+          {!isTitle && <div className="pkf-name"><span>{p.label.name}</span></div>}
+          {p.category === null && <div className="pkf-note">{p.label.kind}</div>}
+          {/* the rarity, in its colour, then what kind of cosmetic it is in white between rules of the rarity's colour
+              (owner 2026-11-24: "swap the rarity and the cosmetic type"); the medallion sits on the card's bottom edge (below) */}
+          <div className="pkf-ribbon"><span>{packRarityLabel(card.rarity)}</span></div>
+          <div className="pkf-cat">{cat}</div>
+        </div>
+        <img src={rarityIconSrc(card.rarity)} alt="" decoding="sync" draggable={false} className="pkf-rarity-icon" />
+        {/* in the summary row NEW floats ABOVE the card, outside the window's clip, glowing and bobbing (owner 2026-11-27:
+            "lets put the new pill up here, make it a bit larger and add a subtle pulsing glow and slight up and down bob. very slight") */}
+        {!card.duplicate && phase === 'summary' && <div className="pkf-new pkf-new-above"><span>New</span></div>}
+        {dissolve && phase === 'summary' && <div className="pkf-aglow" style={{ '--pkf-plate': `url("${cardPlateSrc(card.rarity)}")` } as CSSProperties} />}
+        {revealed && <div className="pkf-flash" data-testid="pkf-flash" style={{ '--pkf-plate': `url("${cardPlateSrc(card.rarity)}")` } as CSSProperties} />}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Warm every face's art (the card plate, each reward's art, each rarity medallion) the moment a result arrives (spec
+ * section 11), so the handoff never shows a blank face. Called
+ * once per result, never per render. Returns the images so the caller can hold them until the next pack.
+ */
+export function warmFaceArt(cards: readonly PackCard[]): HTMLImageElement[] {
+  if (typeof Image === 'undefined') return [];
+  const seen = new Set<string>();
+  const held: HTMLImageElement[] = [];
+  for (const c of cards) {
+    for (const url of [cardPlateSrc(c.rarity), CARD_WINDOW_MASK_SRC, rewardPreview(c.rewardId).art?.url, rarityIconSrc(c.rarity)]) {
+      if (!url || seen.has(url)) continue;
+      seen.add(url);
+      const img = new Image();
+      img.decoding = 'sync';
+      img.src = url;
+      if (typeof img.decode === 'function') img.decode().catch(() => undefined);
+      held.push(img);
+    }
+  }
+  return held;
+}

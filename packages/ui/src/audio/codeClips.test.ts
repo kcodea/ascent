@@ -6,7 +6,9 @@ import { ATTACK_FX_CLIPS, CODE_FX_CLIPS } from './codeClips';
 
 /** Re-run the scan `codeClips.ts` is a snapshot of: every `'fx/<slug>'` literal in a non-test source file whose clip
  *  is in `audio/fx/`, split by where it is named: inside a `hero<Style>/` folder (that attack style's own clips) or
- *  anywhere else (shared). */
+ *  anywhere else (shared). The pack shop and pack opener are skipped (`MENU_ONLY_DIRS`): menu screens that never run in a fight,
+ *  so a phone decodes their clips when they first play there, not ahead of every fight. */
+const MENU_ONLY_DIRS = [path.join('progression', 'packShop'), path.join('progression', 'packOpening')];
 function scan(): { shared: string[]; byStyle: Record<string, string[]> } {
   const root = path.join(__dirname, '..');
   const bank = new Set(fs.readdirSync(path.join(__dirname, 'fx')).map((f) => f.replace(/\.(mp3|wav)$/, '')));
@@ -15,7 +17,7 @@ function scan(): { shared: string[]; byStyle: Record<string, string[]> } {
   const walk = (d: string): void => {
     for (const e of fs.readdirSync(d, { withFileTypes: true })) {
       const p = path.join(d, e.name);
-      if (e.isDirectory()) walk(p);
+      if (e.isDirectory()) { if (!MENU_ONLY_DIRS.includes(path.relative(root, p))) walk(p); }
       else if (/\.tsx?$/.test(e.name) && !/\.test\.tsx?$/.test(e.name) && p !== path.join(__dirname, 'codeClips.ts')) {
         const top = path.relative(root, p).split(path.sep)[0]!;
         const style = /^hero([A-Z][A-Za-z0-9]*)$/.exec(top)?.[1]?.toLowerCase();

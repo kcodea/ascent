@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Pack peel - curl prototype</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #090b14; color: #e9e3cf;
+    font-family: "Segoe UI", system-ui, sans-serif; user-select: none; }
+  canvas { display: block; }
+  #panel { position: fixed; top: 12px; right: 12px; width: 250px; background: rgba(16,19,32,.92); border: 1px solid #3a3f58;
+    border-radius: 10px; padding: 10px 12px; font-size: 12px; z-index: 10; }
+  #panel h3 { margin: 0 0 6px; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: #e6c873; }
+  #panel label { display: block; margin-top: 7px; }
+  #panel label span { float: right; color: #9fd3ff; }
+  #panel input[type=range] { width: 100%; }
+  #panel .row { display: flex; gap: 6px; margin-top: 10px; }
+  #panel button { flex: 1; background: #232a44; color: #eee; border: 1px solid #4b5375; border-radius: 6px; padding: 6px; font-size: 12px; }
+  #panel button.on { border-color: #e6c873; color: #ffeaa8; }
+  #hint { position: fixed; bottom: 24px; width: 100%; text-align: center; font-size: 15px; letter-spacing: .14em;
+    text-transform: uppercase; color: #e8d9a8; text-shadow: 0 2px 8px #000; pointer-events: none; }
+  #note { position: fixed; top: 12px; left: 14px; font-size: 12px; color: #8a8fa8; max-width: 340px; line-height: 1.45; }
+</style>
+</head>
+<body>
+<div id="note">Throwaway curl prototype, real Pixi (the game's renderer). You hold the strip by its loose edge: pinch the top-left corner and pull, any direction.
+The foil hangs and bends between your hand and the tear; pull it taut to tear further. Let go midway and it stands up; grab the edge again. Sound is on (click first).</div>
+<div id="panel"><h3>Feel knobs</h3><div id="knobs"></div>
+  <div class="row"><button id="reset">Reset</button><button id="skip">Skip to sleeve</button><button id="slow">Slow-mo</button></div></div>
+<div id="hint">Pinch the top-left corner and peel</div>
+<script src="/files/pixi.min.js"></script>
+<script>
+(async () => {
+// ---------------- knobs ----------------
+// Defaults = the owner's tuned settings (2026-11-23).
+const P = { angle: 0.4, zLift: 139, stiff: 0.92, follow: 0.1, maxSpeed: 18, grain: 0.7, tilt: 0.65, hi: 0.65, D: 1780, vol: 0.45,
+  sGrip: 80, sFollow: 0.36, sDrag: 1, sPinch: 0.08, sDrop: 295, sZoom: 0.3, dirBias: 0.15 };
+const KNOBS = [
+  ['angle', 'Peel-off angle at the tear', 0.2, 1.55, 0.05], ['zLift', 'Edge toward camera', 0, 160, 1],
+  ['stiff', 'Slack before it tears', 0.7, 1, 0.01], ['follow', 'Edge follows hand', 0.1, 1, 0.01],
+  ['maxSpeed', 'Max tear speed', 3, 40, 1], ['grain', 'Fibre catch (stutter)', 0, 1, 0.05],
+  ['tilt', 'Pinch twist', 0, 1, 0.05], ['dirBias', 'Tears when pulled straight up', 0, 0.6, 0.05], ['hi', 'Highlight', 0, 1, 0.05], ['D', 'Perspective', 350, 2200, 10], ['vol', 'Volume', 0, 1, 0.05],
+  ['sGrip', 'SLEEVE: grip before it slides (px)', 0, 80, 1], ['sFollow', 'SLEEVE: follows hand', 0.1, 1, 0.01],
+  ['sDrag', 'SLEEVE: rim drags on cards', 0, 1, 0.05], ['sPinch', 'SLEEVE: finger pinch', 0, 0.2, 0.01],
+  ['sDrop', 'SLEEVE: pull to let go (px)', 60, 340, 5], ['sZoom', 'Stack zoom', 0, 0.6, 0.02],
+];
+const knobs = document.getElementById('knobs');
+for (const [k, name, min, max, step] of KNOBS) {
+  const l = document.createElement('label');
+  l.innerHTML = `${name}<span>${P[k]}</span><input type="range" min="${min}" max="${max}" step="${step}" value="${P[k]}">`;
+  const inp = l.querySelector('input'), out = l.querySelector('span');
+  inp.addEventListener('input', () => { P[k] = +inp.value; out.textContent = inp.value; if (k === 'vol' && master) master.gain.value = P.vol; });
+  knobs.append(l);
+}
+const hint = document.getElementById('hint');
+
+// ---------------- app ----------------
+const app = new PIXI.Application();
+await app.init({ resizeTo: window, background: '#090b14', antialias: true, resolution: window.devicePixelRatio || 1, autoDensity: true });
+document.body.prepend(app.canvas);
+
+const W = 300, H = 56, BODY_H = 420;
+const NX = 60, NY = 8;
+
+// ---------------- textures (canvas-drawn placeholders) ----------------
+function canvasTex(w, h, draw) { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); return PIXI.Texture.from(c); }
+const foil = (g, w, h) => { const gr = g.createLinearGradient(0, 0, w, h); gr.addColorStop(0, '#41598c'); gr.addColorStop(.5, '#1f2d50'); gr.addColorStop(1, '#5f80bb'); return gr; };
+
+const stripTex = canvasTex(W * 2, H * 2, (g, w, h) => {
+  g.fillStyle = foil(g, w, h); g.fillRect(0, 0, w, h);
+  g.fillStyle = 'rgba(0,0,0,.22)'; for (let x = 0; x < w; x += 12) g.fillRect(x, 0, 5, 22);             // crimp
+  const sh = g.createLinearGradient(0, 0, w, 0); sh.addColorStop(.3, 'rgba(255,255,255,0)'); sh.addColorStop(.45, 'rgba(255,255,255,.25)'); sh.addColorStop(.6, 'rgba(255,255,255,0)');
+  g.fillStyle = sh; g.fillRect(0, 0, w, h);
+  g.strokeStyle = 'rgba(255,255,255,.6)'; g.setLineDash([10, 8]); g.lineWidth = 3; g.beginPath(); g.moveTo(10, h - 10); g.lineTo(w - 10, h - 10); g.stroke();
+  g.fillStyle = 'rgba(255,255,255,.75)'; g.font = 'bold 22px Segoe UI'; g.fillText('TEAR HERE →', 24, 62);
+});
+const backTex = canvasTex(W * 2, H * 2, (g, w, h) => {
+  const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#d7dbe3'); gr.addColorStop(1, '#b9bfcb'); g.fillStyle = gr; g.fillRect(0, 0, w, h);
+  for (let n = 0; n < 1400; n++) { g.fillStyle = `rgba(${Math.random() < .5 ? '255,255,255' : '90,95,110'},${Math.random() * .12})`; g.fillRect(Math.random() * w, Math.random() * h, 2 + Math.random() * 6, 1); }
+});
+const bodyTex = canvasTex(W * 2, BODY_H * 2, (g, w, h) => {
+  g.fillStyle = foil(g, w, h); g.fillRect(0, 0, w, h);
+  const sh = g.createLinearGradient(0, 0, w, h); sh.addColorStop(.3, 'rgba(255,255,255,0)'); sh.addColorStop(.42, 'rgba(255,255,255,.22)'); sh.addColorStop(.55, 'rgba(255,255,255,0)');
+  g.fillStyle = sh; g.fillRect(0, 0, w, h);
+  g.fillStyle = 'rgba(0,0,0,.22)'; for (let x = 0; x < w; x += 12) g.fillRect(x, h - 22, 5, 22);
+  g.textAlign = 'center'; g.fillStyle = '#efe6c6';
+  g.font = 'bold 28px Georgia'; g.fillText('A S C E N T', w / 2, 150);
+  g.font = '110px serif'; g.fillText('✦', w / 2, 360);
+  g.font = 'bold 64px Georgia'; g.fillText('STANDARD', w / 2, 500); g.fillText('PACK', w / 2, 575);
+  g.font = '24px Segoe UI'; g.fillText('5 CARDS · 1 GUARANTEED RARE+', w / 2, 660);
+});
+const grad1D = (stops) => canvasTex(256, 2, (g, w, h) => { const gr = g.createLinearGradient(0, 0, w, 0); for (const [o, c] of stops) gr.addColorStop(o, c); g.fillStyle = gr; g.fillRect(0, 0, w, h); });
+const shadeTex = grad1D([[0, '#ffffff'], [.12, '#f4f4f6'], [.38, '#a0a0ac'], [.5, '#6c6c78'], [.62, '#a2a2ae'], [.85, '#d2d2da'], [1, '#c4c4ce']]);
+const specTex = grad1D([[0, '#000'], [.17, '#000'], [.25, '#fff4d6'], [.33, '#000'], [.7, '#000'], [.79, '#5a5a5a'], [.88, '#000'], [1, '#000']]);
+const blobTex = canvasTex(128, 128, (g) => { const gr = g.createRadialGradient(64, 64, 0, 64, 64, 64); gr.addColorStop(0, 'rgba(0,0,0,.75)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(0, 0, 128, 128); });
+const fleckTex = canvasTex(6, 3, (g) => { g.fillStyle = '#fff'; g.fillRect(0, 0, 6, 3); });
+
+// ---------------- scene ----------------
+const root = new PIXI.Container(); app.stage.addChild(root);
+const pack = new PIXI.Container(); root.addChild(pack);
+
+// THE SLEEVE: the pack's back wall (sleeveBack) and its front (body mesh + torn lip) slide together; the card stack sits
+// between them and stays put while you pull the sleeve down off it.
+const CARD_W = 260, CARD_H = 370;
+const cardBackTex = canvasTex(CARD_W * 2, CARD_H * 2, (g, w, h) => {
+  g.beginPath(); g.roundRect(0, 0, w, h, 28);
+  const gr = g.createLinearGradient(0, 0, w, h); gr.addColorStop(0, '#1d2448'); gr.addColorStop(1, '#0c0f22'); g.fillStyle = gr; g.fill();
+  g.save(); g.clip(); g.globalAlpha = 0.07; g.fillStyle = '#fff';
+  for (let y = 0; y < h; y += 36) for (let x = (y / 36) % 2 ? 18 : 0; x < w; x += 36) { g.beginPath(); g.moveTo(x, y - 9); g.lineTo(x + 9, y); g.lineTo(x, y + 9); g.lineTo(x - 9, y); g.fill(); }
+  g.restore(); g.globalAlpha = 1;
+  g.lineWidth = 10; g.strokeStyle = '#c9a85a'; g.beginPath(); g.roundRect(16, 16, w - 32, h - 32, 20); g.stroke();
+  g.fillStyle = '#e6c873'; g.font = '220px serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('✦', w / 2, h / 2);
+});
+const sleeveBack = new PIXI.Graphics().rect(0, H * 0.3, W, BODY_H + H * 0.7).fill('#0c0a12');
+const CARDS_Y = H * 0.42 + CARD_H / 2;
+const cardsC = new PIXI.Container(); cardsC.position.set(W / 2, CARDS_Y);
+for (let i = 4; i >= 0; i--) {
+  const s = new PIXI.Sprite(cardBackTex); s.anchor.set(0.5); s.width = CARD_W; s.height = CARD_H;
+  s.x = (i % 2 ? 1 : -1) * i * 0.9; s.y = i * 2.4; s.tint = i === 0 ? 0xffffff : 0xb8bccc; cardsC.addChild(s);
+}
+const body = new PIXI.MeshPlane({ texture: bodyTex, verticesX: 12, verticesY: 20 }); body.scale.set(0.5); body.y = H;
+const bodyBase = Float32Array.from(body.geometry.positions);
+const lip = new PIXI.Graphics();
+const shadow = new PIXI.Sprite(blobTex); shadow.anchor.set(0.5); shadow.alpha = 0;
+const sleeveFront = new PIXI.Container(); sleeveFront.addChild(body, lip, shadow);
+
+// strip meshes: per-triangle (unshared) vertices so a triangle can be hidden by collapsing it
+const GW = NX + 1, G = GW * (NY + 1);
+const tris = [];
+for (let j = 0; j < NY; j++) for (let i = 0; i < NX; i++) { const a = j * GW + i, b = a + 1, d = a + GW, c = d + 1; tris.push(a, b, c, a, c, d); }
+const NV = tris.length;
+function makeGeom() {
+  const uv = new Float32Array(NV * 2);
+  for (let k = 0; k < NV; k++) { const g = tris[k]; uv[k * 2] = (g % GW) / NX; uv[k * 2 + 1] = Math.floor(g / GW) / NY; }
+  return new PIXI.MeshGeometry({ positions: new Float32Array(NV * 2), uvs: uv, indices: Uint32Array.from({ length: NV }, (_, k) => k) });
+}
+const frontG = makeGeom(), backG = makeGeom(), shadeG = makeGeom();
+const frontM = new PIXI.Mesh({ geometry: frontG, texture: stripTex });
+const backM = new PIXI.Mesh({ geometry: backG, texture: backTex });
+const shadeM = new PIXI.Mesh({ geometry: shadeG, texture: shadeTex }); shadeM.blendMode = 'multiply';
+const specM = new PIXI.Mesh({ geometry: shadeG, texture: specTex }); specM.blendMode = 'add';
+const flap = new PIXI.Container(); flap.addChild(frontM, backM, shadeM, specM);
+const particles = new PIXI.Container();
+pack.addChild(sleeveBack, cardsC, sleeveFront, flap, particles);
+
+function layoutStage() { root.x = Math.round(app.screen.width / 2 - W / 2 - 120); root.y = Math.round(app.screen.height / 2 - (H + BODY_H) / 2); }
+layoutStage(); window.addEventListener('resize', layoutStage);
+
+// ---------------- state ----------------
+// THE MODEL: you hold the strip's free EDGE (its top-left corner). `hand` is that corner in 3D (x right, y down, z toward
+// the camera). The tear front sits at x = T on the pack. The peeled length T of foil hangs between the tear and your hand
+// as a curve: slack makes it bow, a taut pull advances the tear. The bend lives wherever physics puts it, not under you.
+let T, tension, started, done, held, grabOff, cursor, flying, fv, shake, prevT, slow = false, time = 0, hand, curveK = 0;
+const gx = new Float32Array(G), gy = new Float32Array(G), gz = new Float32Array(G), gth = new Float32Array(G);
+const jag = Array.from({ length: Math.ceil(W / 5) + 2 }, () => (Math.random() - 0.5) * 4);
+const pts = []; let vel = { x: 0, y: 0 }, lastP = null;
+
+function reset() {
+  T = 0.5; tension = 0; started = false; done = false; held = false; grabOff = { x: 0, y: 0 }; cursor = null;
+  flying = false; fv = null; shake = 0; prevT = T; hand = { x: 0, y: 0, z: 0 };
+  flap.alpha = 1; flap.rotation = 0; flap.scale.set(1); flap.pivot.set(0, 0); flap.position.set(0, 0);
+  for (const p of pts) p.s.destroy(); pts.length = 0;
+  phase = 'peel';
+  sl = { dy: 0, held: false, freed: false, grabY: 0, curY: 0, lag: 0, pinch: 0, card: 0, cardV: 0, falling: false, vy: 0, rot: 0, rotDir: 1, zoom: 0, zoomV: 0 };
+  sleeveFront.position.set(0, 0); sleeveFront.rotation = 0; sleeveFront.alpha = 1; sleeveBack.position.set(0, 0); sleeveBack.alpha = 1; lip.y = 0;
+  cardsC.position.set(W / 2, CARDS_Y); cardsC.scale.set(1);
+  if (bodyBase.length === body.geometry.positions.length) { body.geometry.positions.set(bodyBase); body.geometry.getBuffer('aPosition').update(); }
+  hint.textContent = 'Pinch the top-left corner and peel';
+}
+let phase, sl;
+reset();
+
+// screen <-> 3D for the corner you hold
+const proj = (x, y, z) => { const f = P.D / Math.max(40, P.D - z); return { x: W / 2 + (x - W / 2) * f, y: H / 2 + (y - H / 2) * f }; };
+const unproj = (X, Y, z) => { const f = P.D / Math.max(40, P.D - z); return { x: W / 2 + (X - W / 2) / f, y: H / 2 + (Y - H / 2) / f }; };
+
+// ---------------- input ----------------
+const local = (e) => ({ x: e.clientX - root.x, y: e.clientY - root.y });
+const edgeScreen = () => proj(hand.x, hand.y, hand.z);
+app.canvas.addEventListener('pointerdown', (e) => {
+  audioInit();
+  if (phase === 'sleeve') {
+    const p = local(e);
+    if (!sl.falling && p.x > -10 && p.x < W + 10 && p.y > H + sl.dy + 24 && p.y < H + sl.dy + BODY_H) {
+      sl.held = true; try { app.canvas.setPointerCapture(e.pointerId); } catch { /* synthetic pointer */ }
+      sl.grabY = p.y - sl.dy; sl.curY = p.y; lastP = { ...p, t: performance.now() }; vel = { x: 0, y: 0 };
+      app.canvas.style.cursor = 'grabbing'; hint.textContent = '';
+    }
+    return;
+  }
+  if (done) return;
+  const p = local(e), c = edgeScreen();
+  if (Math.hypot(p.x - c.x, p.y - c.y) > (started ? 55 : 45)) { hint.textContent = started ? 'Grab the loose edge' : 'Pinch the top-left corner'; return; }
+  held = true; try { app.canvas.setPointerCapture(e.pointerId); } catch { /* synthetic pointer */ }
+  grabOff = { x: c.x - p.x, y: c.y - p.y }; cursor = p; lastP = { ...p, t: performance.now() };
+  app.canvas.style.cursor = 'grabbing'; hint.textContent = '';
+});
+app.canvas.addEventListener('pointermove', (e) => {
+  const p = local(e);
+  if (!held && !sl.held) {
+    if (phase === 'sleeve') app.canvas.style.cursor = (!sl.falling && p.x > 0 && p.x < W && p.y > H + sl.dy + 24 && p.y < H + sl.dy + BODY_H) ? 'grab' : 'default';
+    else { const c = edgeScreen(); app.canvas.style.cursor = (!done && Math.hypot(p.x - c.x, p.y - c.y) < 45) ? 'grab' : 'default'; }
+    return;
+  }
+  const now = performance.now();
+  if (lastP) { const dt = Math.max(1, now - lastP.t) / 16.7; vel = { x: (p.x - lastP.x) / dt * 0.5 + vel.x * 0.5, y: (p.y - lastP.y) / dt * 0.5 + vel.y * 0.5 }; }
+  lastP = { ...p, t: now }; cursor = p; sl.curY = p.y;
+});
+const release = () => {
+  if (sl.held) {
+    sl.held = false; app.canvas.style.cursor = 'default';
+    if (sl.dy > P.sDrop || vel.y > 9) dropSleeve(Math.max(vel.y * 0.8, 5));
+    else hint.textContent = 'Pull it further down';
+    return;
+  }
+  if (!held) return; held = false; app.canvas.style.cursor = 'default'; if (!done && started) hint.textContent = 'Grab the loose edge to keep peeling'; };
+app.canvas.addEventListener('pointerup', release); app.canvas.addEventListener('pointercancel', release);
+document.getElementById('reset').onclick = reset;
+document.getElementById('skip').onclick = () => {
+  reset(); T = W; started = true; done = true; flying = true; hand = { x: W, y: 0, z: 0 }; computeStrip();
+  flap.alpha = 0; fv = { x: 0, y: 0, r: 0 }; shadow.alpha = 0;
+};
+document.getElementById('slow').onclick = (e) => { slow = !slow; e.target.classList.toggle('on', slow); };
+
+// ---------------- audio (synthesised placeholder foil sounds) ----------------
+let ac = null, master = null, noiseBuf = null, loopGain = null, loopBp = null;
+function audioInit() {
+  if (ac) return;
+  ac = new AudioContext();
+  noiseBuf = ac.createBuffer(1, ac.sampleRate * 2, ac.sampleRate);
+  const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  master = ac.createGain(); master.gain.value = P.vol; master.connect(ac.destination);
+  const src = ac.createBufferSource(); src.buffer = noiseBuf; src.loop = true;
+  loopBp = ac.createBiquadFilter(); loopBp.type = 'bandpass'; loopBp.Q.value = 0.9; loopBp.frequency.value = 1800;
+  loopGain = ac.createGain(); loopGain.gain.value = 0;
+  src.connect(loopBp).connect(loopGain).connect(master); src.start();
+}
+function burst(dur, freq, gain, q = 1, sweepTo = 0) {
+  if (!ac) return;
+  const t = ac.currentTime, s = ac.createBufferSource(); s.buffer = noiseBuf;
+  const f = ac.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = freq; f.Q.value = q;
+  if (sweepTo) f.frequency.exponentialRampToValueAtTime(sweepTo, t + dur);
+  const g = ac.createGain(); g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  s.connect(f).connect(g).connect(master); s.start(t, Math.random() * 1.5, dur + 0.05);
+}
+
+// ---------------- simulation ----------------
+function spawnFlecks(n, x, y) {
+  for (let k = 0; k < n; k++) {
+    const s = new PIXI.Sprite(fleckTex); s.anchor.set(0.5); s.tint = Math.random() < 0.5 ? 0xdfe6f5 : 0x6f8cc4;
+    s.x = x + (Math.random() - 0.5) * 6; s.y = y + (Math.random() - 0.5) * 4; s.scale.set(0.5 + Math.random() * 0.9);
+    particles.addChild(s);
+    pts.push({ s, vx: (Math.random() - 0.3) * 2.4, vy: -Math.random() * 2.6 - 0.4, vr: (Math.random() - 0.5) * 0.4, life: 40 + Math.random() * 30 });
+  }
+}
+
+// The hanging foil: a cubic curve from the tear (leaving the pack at the peel-off angle) to the edge in your hand.
+const M = 40;
+const cX = new Float32Array(M + 1), cY = new Float32Array(M + 1), cZ = new Float32Array(M + 1), cL = new Float32Array(M + 1);
+function buildCurve(A, Hd, k) {
+  const a = P.angle;
+  const p1x = A[0] - k * Math.cos(a), p1y = A[1], p1z = A[2] + k * Math.sin(a);
+  let dx = A[0] - Hd[0], dy = A[1] - Hd[1], dz = A[2] - Hd[2]; const dl = Math.hypot(dx, dy, dz) || 1; dx /= dl; dy /= dl; dz /= dl;
+  const p2x = Hd[0] + dx * k * 0.5, p2y = Hd[1] + dy * k * 0.5, p2z = Hd[2] + dz * k * 0.5 + k * 0.45;
+  let len = 0;
+  for (let m = 0; m <= M; m++) {
+    const t = m / M, u = 1 - t, b0 = u * u * u, b1 = 3 * u * u * t, b2 = 3 * u * t * t, b3 = t * t * t;
+    cX[m] = b0 * A[0] + b1 * p1x + b2 * p2x + b3 * Hd[0];
+    cY[m] = b0 * A[1] + b1 * p1y + b2 * p2y + b3 * Hd[1];
+    cZ[m] = b0 * A[2] + b1 * p1z + b2 * p2z + b3 * Hd[2];
+    if (m > 0) len += Math.hypot(cX[m] - cX[m - 1], cY[m] - cY[m - 1], cZ[m] - cZ[m - 1]);
+    cL[m] = len;
+  }
+  return len;
+}
+// how much the foil must bow so its length matches the peeled length (slack = more bow)
+function solveK(A, Hd, L) {
+  const chord = Math.hypot(Hd[0] - A[0], Hd[1] - A[1], Hd[2] - A[2]);
+  if (chord >= L * 0.995) return chord * 0.12;
+  let lo = 0, hi = L * 1.6;
+  for (let it = 0; it < 14; it++) { const mid = (lo + hi) / 2; if (buildCurve(A, Hd, mid) < L) lo = mid; else hi = mid; }
+  return (lo + hi) / 2;
+}
+
+function computeStrip() {
+  const Hd = [hand.x, hand.y, hand.z];
+  curveK = solveK([T, 0, 0], Hd, T);
+  const up = Math.min(1.2, Math.max(0, -hand.y / 80)), phi = -P.tilt * up * 0.6;
+  const ex = Math.sin(phi), ey = Math.cos(phi);
+  for (let j = 0; j <= NY; j++) {
+    const v = j / NY, y0 = v * H;
+    const A = [T, y0, 0], Hj = [hand.x + ex * y0, hand.y + ey * y0 + (1 - ey) * 0, hand.z];
+    const len = buildCurve(A, Hj, curveK);
+    let m = 0;
+    for (let i = NX; i >= 0; i--) { // descending: d grows, so the curve walk only moves forward
+      const g = j * GW + i, s = (i / NX) * W, d = T - s;
+      let x = s, y = y0, z = 0, th = 0;
+      if (d > 0) {
+        const target = Math.min(1, d / T) * len;
+        while (m < M - 1 && cL[m + 1] < target) m++;
+        const seg = Math.max(1e-6, cL[m + 1] - cL[m]), f = Math.min(1, Math.max(0, (target - cL[m]) / seg));
+        x = cX[m] + (cX[m + 1] - cX[m]) * f; y = cY[m] + (cY[m + 1] - cY[m]) * f; z = cZ[m] + (cZ[m + 1] - cZ[m]) * f;
+        // surface tilt for the light: tangent along the strip (toward the free end is -s), normal = tangent x down
+        const tx = -(cX[m + 1] - cX[m]), tz = -(cZ[m + 1] - cZ[m]), tl = Math.hypot(tx, tz) || 1;
+        th = Math.acos(Math.max(-1, Math.min(1, tx / tl)));
+        x += Math.sin(time * 0.11 + v * 2) * 0.5 * (d / W);
+      }
+      const p = proj(x, y, z);
+      gx[g] = p.x; gy[g] = p.y; gz[g] = z; gth[g] = th;
+    }
+  }
+  const fp = frontG.positions, bp = backG.positions, sp = shadeG.positions, su = shadeG.uvs;
+  for (let t = 0; t < NV; t += 3) {
+    const a = tris[t], b = tris[t + 1], c = tris[t + 2];
+    const front = (gx[b] - gx[a]) * (gy[c] - gy[a]) - (gy[b] - gy[a]) * (gx[c] - gx[a]) >= 0;
+    for (let k = 0; k < 3; k++) {
+      const g = tris[t + k], o = (t + k) * 2, X = gx[g], Y = gy[g];
+      sp[o] = X; sp[o + 1] = Y; su[o] = Math.min(0.999, gth[g] / Math.PI); su[o + 1] = 0.5;
+      if (front) { fp[o] = X; fp[o + 1] = Y; bp[o] = gx[a]; bp[o + 1] = gy[a]; }
+      else { bp[o] = X; bp[o + 1] = Y; fp[o] = gx[a]; fp[o + 1] = gy[a]; }
+    }
+  }
+  frontG.getBuffer('aPosition').update(); backG.getBuffer('aPosition').update();
+  shadeG.getBuffer('aPosition').update(); shadeG.getBuffer('aUV').update();
+  specM.alpha = P.hi;
+
+  // contact shadow under the lifted foil
+  let minX = 1e9, maxX = -1e9, zMax = 0;
+  for (let g = 0; g < G; g++) if (gz[g] > 0.5) { minX = Math.min(minX, gx[g]); maxX = Math.max(maxX, gx[g]); zMax = Math.max(zMax, gz[g]); }
+  if (zMax > 0) {
+    shadow.x = (minX + maxX) / 2 + zMax * 0.18; shadow.y = H + 6 + zMax * 0.12;
+    shadow.width = (maxX - minX) + zMax * 0.7 + 20; shadow.height = 26 + zMax * 0.45; shadow.alpha = Math.min(0.6, zMax / 50);
+  } else shadow.alpha = 0;
+
+  // torn lip along the pack where the strip has come away
+  lip.clear();
+  if (T > 1) {
+    lip.moveTo(0, H + jag[0]);
+    for (let x = 5, k = 1; x <= T; x += 5, k++) lip.lineTo(x, H + jag[k]);
+    lip.stroke({ width: 2, color: 0xd9e0ee, alpha: 0.9 });
+  }
+}
+
+// ---------------- the sleeve pull ----------------
+const SLEEVE_CLEAR = CARDS_Y + CARD_H / 2 - H + 14;   // pulled this far, the sleeve's rim is below the stack
+function dropSleeve(vy) {
+  sl.held = false; sl.falling = true; sl.vy = vy; sl.rotDir = Math.random() < 0.5 ? -1 : 1;
+  shake = 3; burst(0.22, 260, 1.3, 0.8); burst(0.3, 2200, 0.5, 0.7, 400);
+  if (ac) loopGain.gain.setTargetAtTime(0, ac.currentTime, 0.03);
+}
+function deformBody() {
+  const pos = body.geometry.positions;
+  if (pos.length !== bodyBase.length) return;
+  const gy = (sl.grabY - H) * 2, TH = BODY_H * 2;
+  for (let k = 0; k < pos.length; k += 2) {
+    const bx = bodyBase[k], by = bodyBase[k + 1];
+    const above = gy > 0 ? Math.max(0, 1 - by / gy) : 0;              // 1 at the rim, 0 at your fingers
+    const pinch = sl.pinch * Math.exp(-(((by - gy) / 170) ** 2));
+    pos[k] = W + (bx - W) * (1 - pinch);                                // squeezed in where you hold it
+    pos[k + 1] = by - sl.lag * 2 * above * above;                       // the rim trails, rubbing on the cards
+  }
+  body.geometry.getBuffer('aPosition').update();
+  lip.y = -sl.lag;
+}
+function sleeveTick(dt) {
+  if (phase === 'sleeve') {
+    const prevDy = sl.dy;
+    if (sl.falling) {
+      sl.vy += 0.9 * dt; sl.dy += sl.vy * dt; sl.rot += 0.0035 * sl.vy * dt * sl.rotDir;
+      const a = Math.max(0, 1 - Math.max(0, sl.dy - SLEEVE_CLEAR) / 420); sleeveFront.alpha = sleeveBack.alpha = a;
+      if (sl.dy > SLEEVE_CLEAR && phase === 'sleeve' && sl.zoom === 0) { sl.zoomV = 0.02; burst(0.3, 600, 0.6, 0.8, 2400); }
+      if (a <= 0) phase = 'zoom';
+    } else if (sl.held) {
+      const want = Math.max(0, sl.curY - sl.grabY);
+      if (!sl.freed) {
+        // the sleeve grips the cards: it stretches a few px with you, then breaks free
+        const g = Math.min(want, 6 + Math.max(0, want - 6) * 0.12);
+        sl.dy += (g - sl.dy) * Math.min(1, 0.4 * dt);
+        if (want > P.sGrip) { sl.freed = true; shake = 2.5; burst(0.05, 700, 1.0, 1.2); burst(0.02, 3000, 0.5, 2); }
+      } else sl.dy += (want - sl.dy) * Math.min(1, P.sFollow * dt);
+      if (sl.dy > SLEEVE_CLEAR) dropSleeve(Math.max(vel.y * 0.8, 6));
+    } else sl.dy += (0 - sl.dy) * Math.min(1, 0.12 * dt);   // let go early: it slides back up
+    const sp = (sl.dy - prevDy) / Math.max(dt, 0.001);
+
+    // friction: the cards ride down a touch with the sleeve until it breaks free, then settle back with a bounce
+    const cardT = sl.freed || sl.falling ? 0 : Math.min(7, sl.dy * 0.6);
+    sl.cardV += (cardT - sl.card) * 0.25 * dt; sl.cardV *= Math.pow(0.72, dt); sl.card += sl.cardV * dt;
+    sl.lag += ((sl.held ? Math.min(20, Math.max(0, sp) * 2.2) * P.sDrag : 0) - sl.lag) * Math.min(1, 0.25 * dt);
+    sl.pinch += ((sl.held ? P.sPinch : 0) - sl.pinch) * Math.min(1, 0.2 * dt);
+    deformBody();
+    sleeveFront.y = sleeveBack.y = sl.dy; sleeveFront.rotation = sleeveBack.rotation = sl.rot;
+    cardsC.y = CARDS_Y + sl.card;
+    if (ac && !sl.falling) {
+      loopGain.gain.setTargetAtTime(sl.held && sl.freed ? Math.min(1, Math.abs(sp) / 10) * 0.45 : 0, ac.currentTime, 0.03);
+      loopBp.frequency.setTargetAtTime(450 + Math.abs(sp) * 80, ac.currentTime, 0.04);
+    }
+  }
+  if (sl.zoomV !== 0 || sl.zoom !== 0) {
+    // the freed stack springs toward the camera
+    sl.zoomV += (1 - sl.zoom) * 0.11 * dt; sl.zoomV *= Math.pow(0.8, dt); sl.zoom += sl.zoomV * dt;
+    const cy = H + BODY_H / 2 - 10;
+    cardsC.scale.set(1 + P.sZoom * sl.zoom); cardsC.y = CARDS_Y + (cy - CARDS_Y) * Math.min(1.2, sl.zoom);
+    if (phase === 'zoom' && Math.abs(1 - sl.zoom) < 0.003 && Math.abs(sl.zoomV) < 0.002) { phase = 'end'; hint.textContent = 'Stack ready. (Next: click to flip, as in the first mockup)'; }
+  }
+}
+
+const easeTo = (o, t, f) => { o.x += (t.x - o.x) * f; o.y += (t.y - o.y) * f; o.z += (t.z - o.z) * f; };
+function keepInReach() { // the foil can't stretch: the edge stays within the peeled length of the tear
+  const dx = hand.x - T, dy = hand.y, dz = hand.z, d = Math.hypot(dx, dy, dz);
+  if (d > T) { const s = T / d; hand.x = T + dx * s; hand.y = dy * s; hand.z = dz * s; }
+}
+
+app.ticker.add((tk) => {
+  const dt = tk.deltaTime * (slow ? 0.25 : 1);
+  time += dt;
+
+  if (!flying) {
+    let tgt;
+    if (held && cursor) {
+      const zt = P.zLift * Math.min(1, T / 50);
+      const u = unproj(cursor.x + grabOff.x, cursor.y + grabOff.y, hand.z);
+      tgt = { x: u.x, y: u.y, z: zt };
+    } else if (started) {
+      tgt = { x: T * 0.7, y: -T * 0.25, z: T * 0.85 };   // let go: the flap stands up toward you and sags a little
+    } else tgt = { x: 0, y: 0, z: 0 };
+    easeTo(hand, tgt, Math.min(1, (held ? P.follow : 0.08) * dt));
+
+    if (!started) {
+      // the seal holds: the corner stretches a few px with your pull, then pops
+      tension = held ? Math.hypot(Math.max(0, tgt.x), Math.min(0, tgt.y)) : 0;
+      T = 0.5 + Math.min(10, tension * 0.3);
+      keepInReach();
+      if (tension > 30) { started = true; shake = 4; burst(0.07, 1700, 1.3, 0.7); burst(0.03, 5200, 0.6, 2); }
+    } else if (!done) {
+      const chord = Math.hypot(hand.x - T, hand.y, hand.z);
+      // only a pull ALONG the tear line opens it: pull back the other way and the foil just goes taut and holds.
+      // (dirBias lets a straight-up pull creep it a little.)
+      const along = Math.max(0, Math.min(1, P.dirBias + (hand.x - T) / Math.max(1, chord)));
+      if (chord > T * P.stiff && along > 0) {
+        const catchAmt = 0.5 + 0.5 * Math.sin(time * 0.9) * Math.sin(time * 0.37 + 1.3);
+        const adv = Math.min((chord - T * P.stiff) * along * (1 - P.grain * catchAmt * 0.85), P.maxSpeed * along * dt);
+        T = Math.min(W, T + adv);
+      }
+      keepInReach();
+    }
+
+    // sound + flecks follow the tear speed
+    const speed = Math.max(0, (T - prevT) / Math.max(dt, 0.001));
+    if (ac) {
+      loopGain.gain.setTargetAtTime(started && !done ? Math.min(1, speed / 9) * 0.55 : 0, ac.currentTime, 0.03);
+      loopBp.frequency.setTargetAtTime(1300 + speed * 220, ac.currentTime, 0.03);
+      if (started && Math.random() < speed * 0.07 * dt) burst(0.01 + Math.random() * 0.025, 2400 + Math.random() * 4500, 0.2 + Math.random() * 0.55, 2.2);
+    }
+    if (started && speed > 0.3) spawnFlecks(Math.min(4, Math.floor(speed * 0.25 + Math.random())), T, H);
+    prevT = T;
+
+    computeStrip();
+
+    if (started && T >= W - 1 && !done) {
+      done = true; flying = true; held = false;
+      let cx = 0, cy = 0; for (let g = 0; g < G; g++) { cx += gx[g]; cy += gy[g]; } cx /= G; cy /= G;
+      flap.pivot.set(cx, cy); flap.position.set(cx, cy);
+      fv = { x: Math.max(4, Math.min(22, vel.x * 0.9 + 6)), y: Math.min(-6, vel.y * 0.9 - 9), r: 0.05 + Math.random() * 0.05 };
+      shake = 7; burst(0.38, 4200, 1.1, 0.6, 500); burst(0.08, 900, 1.0, 0.8);
+      spawnFlecks(18, W - 4, H);
+      phase = 'sleeve'; hint.textContent = 'Grab the pack and pull the sleeve down';   // the sleeve is live the instant the strip rips free
+      if (ac) loopGain.gain.setTargetAtTime(0, ac.currentTime, 0.02);
+    }
+  } else {
+    flap.x += fv.x * dt; flap.y += fv.y * dt; fv.y += 0.55 * dt; flap.rotation += fv.r * dt;
+    flap.scale.set(flap.scale.x + 0.006 * dt); flap.alpha = Math.max(0, flap.alpha - 0.012 * dt);
+    shadow.alpha = Math.max(0, shadow.alpha - 0.05 * dt);
+    if (phase === 'peel' && flap.alpha <= 0.35) { phase = 'sleeve'; hint.textContent = 'Grab the pack and pull the sleeve down'; }   // (Skip-to-sleeve path)
+  }
+  if (phase !== 'peel') sleeveTick(dt);
+
+  for (let k = pts.length - 1; k >= 0; k--) {
+    const p = pts[k]; p.s.x += p.vx * dt; p.s.y += p.vy * dt; p.vy += 0.14 * dt; p.s.rotation += p.vr * dt; p.life -= dt;
+    p.s.alpha = Math.min(1, p.life / 20);
+    if (p.life <= 0) { p.s.destroy(); pts.splice(k, 1); }
+  }
+
+  if (shake > 0.05) { pack.x = (Math.random() - 0.5) * shake; pack.y = (Math.random() - 0.5) * shake; shake *= Math.pow(0.82, dt); }
+  else { pack.x = pack.y = 0; }
+});
+})();
+</script>
+</body>
+</html>

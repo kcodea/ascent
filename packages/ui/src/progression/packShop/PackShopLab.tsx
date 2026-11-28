@@ -1,0 +1,227 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useDraggablePanel } from '../../useDraggablePanel';
+import { PACK_RELIEF_IDS, reliefDefaultDepth, reliefDefaultMat, reliefDepth, reliefMat, setReliefDepth, setReliefMat } from '../packOpening/packRelief';
+import { PACK_LAB_SAMPLES, cancelLabTimers, makeLabOpen, type LabTimers } from '../packOpening/packLabSamples';
+import { packDuplicateAether } from '@game/progression';
+import { PackShop, type PackShopProps } from './PackShop';
+import { useLabReward } from './useLabReward';
+import { castShadowTune, setCastShadowTune, type CastShadowTune } from './castShadowTune';
+import {
+  SHOP_LAB_OFFERS, SHOP_LAB_SHELVES, labHand, labRewardCount, makeLabBuy,
+  type LabBuyMode, type LabBuyOpts, type LabState,
+} from './shopLabData';
+
+
+/** The cast shadow tuner's sliders: x / y and the size are shares of the pack's height / outline; blur is px on its texture. */
+const SHADOW_SLIDERS: readonly { k: keyof CastShadowTune; label: string; min: number; max: number; step: number; digits: number }[] = [
+  { k: 'x', label: 'X', min: -0.2, max: 0.2, step: 0.005, digits: 3 },
+  { k: 'y', label: 'Y', min: -0.15, max: 0.3, step: 0.005, digits: 3 },
+  { k: 'blur', label: 'Blur', min: 0, max: 16, step: 0.5, digits: 1 },
+  { k: 'w', label: 'Width', min: 0.8, max: 1.4, step: 0.01, digits: 2 },
+  { k: 'h', label: 'Height', min: 0.8, max: 1.6, step: 0.01, digits: 2 },
+  { k: 'alpha', label: 'Opacity', min: 0, max: 1, step: 0.01, digits: 2 },
+];
+/**
+ * THE PACK SHOP LAB (dev only). Mounts the real `PackShop` against a fake catalog, wallet and hand. The knobs set the
+ * starting Aether and hand, how long the fake server takes to answer a purchase and what it answers; playing a hand pack
+ * runs the real pack opener against a sample result. Wallet and hand live in this panel and survive until Reset.
+ * While the shop is open the panel sits above it (the shop is a full-screen layer), so the relief and material sliders
+ * can be dragged with the packs in view.
+ */
+
+const MODES: readonly { id: LabBuyMode; label: string }[] = [
+  { id: 'ok', label: 'Succeeds' },
+  { id: 'insufficient', label: 'Insufficient Aether' },
+  { id: 'price_changed', label: 'Price changed' },
+  { id: 'guest', label: 'Guest (no account)' },
+  { id: 'failed', label: 'Failed' },
+  { id: 'never', label: 'Never answers' },
+];
+
+const clampInt = (v: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, Math.floor(v) || 0));
+
+export function PackShopLab(): JSX.Element {
+  // The key MUST match DevMenu's, so the panel's own close button works.
+  const { panelRef, headerPointerDown, panelStyle } = useDraggablePanel('packshop');
+  const [startAether, setStartAether] = useState(2000);
+  const [startHand, setStartHand] = useState(4);
+  const [delayMs, setDelayMs] = useState(100); // owner 2026-11-26: "make the answer delay 100ms and default it"
+  const [mode, setMode] = useState<LabBuyMode>('ok');
+  const [reduced, setReduced] = useState(false);
+  const [run, setRun] = useState<number | null>(null);
+  const [state, setStateRaw] = useState<LabState>({ aether: 0, hand: [] });
+
+  /** The relief tuner: each wrapper's depth (0 = no relief), live on every pack on screen. */
+  const [depths, setDepths] = useState<Record<string, number>>(() => Object.fromEntries(PACK_RELIEF_IDS.map((id) => [id, reliefDepth(id)])));
+  const [copied, setCopied] = useState(false);
+  const setDepth = (id: string, v: number): void => { setReliefDepth(id, v); setDepths((d) => ({ ...d, [id]: v })); setCopied(false); };
+  /** The material tuner: one wrapper at a time, its band boost on the glossy parts and the fuzz of its matte parts. */
+  const [matId, setMatId] = useState('plushie');
+  const [mats, setMats] = useState<Record<string, [number, number]>>(() => Object.fromEntries(PACK_RELIEF_IDS.map((id) => [id, reliefMat(id)])));
+  const mat = mats[matId] ?? [1, 0];
+  const setMat = (band: number, fuzz: number): void => { setReliefMat(matId, [band, fuzz]); setMats((m) => ({ ...m, [matId]: [band, fuzz] })); setCopied(false); };
+  /** The counter packs' cast shadow tuner (`castShadowTune.ts`): live on the packs on the counter. */
+  const [shadow, setShadowState] = useState<CastShadowTune>(() => ({ ...castShadowTune() }));
+  const setShadow = (k: keyof CastShadowTune, v: number): void => { setCastShadowTune({ [k]: v }); setShadowState((t) => ({ ...t, [k]: v })); setCopied(false); };
+  const shippedDepths = (): void => {
+    setCastShadowTune(null);
+    setShadowState({ ...castShadowTune() });
+    for (const id of PACK_RELIEF_IDS) { setReliefDepth(id, null); setReliefMat(id, null); }
+    setMats(Object.fromEntries(PACK_RELIEF_IDS.map((id) => [id, reliefDefaultMat(id)])));
+    setDepths(Object.fromEntries(PACK_RELIEF_IDS.map((id) => [id, reliefDefaultDepth(id)])));
+    setCopied(false);
+  };
+  const copyDepths = (): void => {
+    const sh = `shadow: x ${shadow.x.toFixed(3)} y ${shadow.y.toFixed(3)} blur ${shadow.blur.toFixed(1)} width ${shadow.w.toFixed(2)} height ${shadow.h.toFixed(2)} opacity ${shadow.alpha.toFixed(2)}`;
+    const text = [sh, ...PACK_RELIEF_IDS.map((id) => `${id}: depth ${depths[id] ? depths[id].toFixed(2) : 'off'} band ${(mats[id]?.[0] ?? 1).toFixed(2)} fuzz ${(mats[id]?.[1] ?? 0).toFixed(2)}`)].join(', ');
+    void navigator.clipboard?.writeText(text).then(() => setCopied(true), () => undefined);
+  };
+
+  const stateRef = useRef<LabState>(state);
+  const setState = useCallback((next: LabState): void => { stateRef.current = next; setStateRaw(next); }, []);
+  const optsRef = useRef<LabBuyOpts>({ delayMs, mode });
+  optsRef.current = { delayMs, mode };
+  // Pending answer timers (purchases and sample opens): cleared on unmount, on close and on reset.
+  const timersRef = useRef<LabTimers>(new Set());
+  useEffect(() => { const t = timersRef.current; return () => cancelLabTimers(t); }, []);
+  const sampleN = useRef(0);
+
+  const lab = useLabReward(stateRef, setState);
+  const countReward = lab.count;
+  const buy = useMemo<PackShopProps['buy']>(() => {
+    const labBuy = makeLabBuy(() => stateRef.current, setState, () => optsRef.current, timersRef.current, SHOP_LAB_OFFERS);
+    const counted = new Set<string>(); // a repeated request id is answered again, never counted again
+    return async (offerId, requestId) => {
+      const out = await labBuy(offerId, requestId);
+      if (out.status === 'ok' && !counted.has(requestId)) { counted.add(requestId); countReward(labRewardCount(SHOP_LAB_OFFERS.find((o) => o.offerId === offerId), out.packs.length)); }
+      return out;
+    };
+  }, [setState, countReward]);
+
+  const open = useCallback<PackShopProps['open']>(async (packId) => {
+    const pack = stateRef.current.hand.find((p) => p.packId === packId);
+    const sample = PACK_LAB_SAMPLES[sampleN.current++ % PACK_LAB_SAMPLES.length]!;
+    const look = pack?.look ?? sample.result.pack;
+    const outcome = await makeLabOpen(sample, look, timersRef.current)();
+    if (outcome.status === 'ok') {
+      const cur = stateRef.current;
+      // the duplicates' Aether is refunded, as the real server will (the shop shows it arriving on the way back)
+      setState({ aether: cur.aether + packDuplicateAether(outcome.result), hand: cur.hand.filter((p) => p.packId !== packId) });
+    }
+    return outcome;
+  }, [setState]);
+
+  const start = (): void => {
+    cancelLabTimers(timersRef.current);
+    setState({ aether: clampInt(startAether, 0, 1_000_000), hand: labHand(startHand) });
+    lab.reset();
+    setRun((n) => (n ?? 0) + 1);
+  };
+  const close = (): void => { cancelLabTimers(timersRef.current); setRun(null); };
+  const reset = (): void => {
+    cancelLabTimers(timersRef.current);
+    setState({ aether: clampInt(startAether, 0, 1_000_000), hand: labHand(startHand) });
+    lab.reset();
+    setRun((n) => (n === null ? n : n + 1));
+  };
+
+  return (
+    <div className="sfxmix tunerpanel" ref={panelRef} style={{ minWidth: 380, ...panelStyle, ...(run !== null ? { zIndex: 700 } : null) }}>
+      <div className="sfxmix-h drag" onPointerDown={headerPointerDown}>
+        <span aria-hidden="true">🛒</span> <b>Pack Shop</b>
+      </div>
+
+      <div className="sfxmix-row tuner-row">
+        <span className="sfxmix-name">Starting Aether</span>
+        <input type="number" min={0} step={100} value={startAether} aria-label="Starting Aether"
+          onChange={(e) => setStartAether(clampInt(Number(e.target.value), 0, 1_000_000))} />
+      </div>
+      <div className="sfxmix-row tuner-row">
+        <span className="sfxmix-name">Starting hand</span>
+        <input type="number" min={0} max={80} step={1} value={startHand} aria-label="Starting hand size"
+          onChange={(e) => setStartHand(clampInt(Number(e.target.value), 0, 80))} />
+      </div>
+      <div className="sfxmix-row tuner-row">
+        <span className="sfxmix-name">Answer delay (ms)</span>
+        <input type="number" min={0} step={100} value={delayMs} aria-label="Answer delay in milliseconds"
+          onChange={(e) => setDelayMs(clampInt(Number(e.target.value), 0, 60_000))} />
+      </div>
+      <div className="sfxmix-row tuner-row">
+        <span className="sfxmix-name">Answer</span>
+        <select value={mode} aria-label="Purchase answer" onChange={(e) => setMode(e.target.value as LabBuyMode)}>
+          {MODES.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
+        </select>
+      </div>
+      <div className="sfxmix-row tuner-row">
+        <span className="sfxmix-name">Reduced motion</span>
+        <input type="checkbox" checked={reduced} aria-label="Reduced motion" onChange={(e) => setReduced(e.target.checked)} />
+      </div>
+      <div className="sfxmix-row tuner-row">
+        <span className="sfxmix-name">Now</span>
+        <span className="sfxmix-val">{`${state.aether} Aether, ${state.hand.length} in hand`}</span>
+      </div>
+      <div className="lunge-btns">
+        <button type="button" className="sfxmix-copy" onClick={start}>Open shop</button>
+        <button type="button" className="sfxmix-copy" onClick={reset}>Reset</button>
+      </div>
+
+      <div className="sfxmix-sub">Relief depth (0 = off)</div>
+      {PACK_RELIEF_IDS.map((id) => (
+        <div className="sfxmix-row" key={id}>
+          <span className="sfxmix-name">{id}</span>
+          <input type="range" min={0} max={1.5} step={0.05} value={depths[id] ?? 0} aria-label={`${id} relief depth`}
+            onChange={(e) => setDepth(id, Number(e.target.value))} />
+          <span className="sfxmix-val">{depths[id] ? depths[id].toFixed(2) : 'off'}</span>
+        </div>
+      ))}
+      <div className="sfxmix-sub">Material</div>
+      <div className="sfxmix-row tuner-row">
+        <span className="sfxmix-name">Wrapper</span>
+        <select value={matId} aria-label="Wrapper to tune" onChange={(e) => setMatId(e.target.value)}>
+          {PACK_RELIEF_IDS.map((id) => <option key={id} value={id}>{id}</option>)}
+        </select>
+      </div>
+      <div className="sfxmix-row">
+        <span className="sfxmix-name">Gloss boost</span>
+        <input type="range" min={0} max={5} step={0.1} value={mat[0]} aria-label="Gloss boost on the glossy parts"
+          onChange={(e) => setMat(Number(e.target.value), mat[1])} />
+        <span className="sfxmix-val">{mat[0].toFixed(1)}</span>
+      </div>
+      <div className="sfxmix-row">
+        <span className="sfxmix-name">Fuzz</span>
+        <input type="range" min={0} max={1} step={0.05} value={mat[1]} aria-label="Fuzz of the matte parts"
+          onChange={(e) => setMat(mat[0], Number(e.target.value))} />
+        <span className="sfxmix-val">{mat[1].toFixed(2)}</span>
+      </div>
+      <div className="sfxmix-sub">Counter pack shadow</div>
+      {SHADOW_SLIDERS.map((sl) => (
+        <div className="sfxmix-row" key={sl.k}>
+          <span className="sfxmix-name">{sl.label}</span>
+          <input type="range" min={sl.min} max={sl.max} step={sl.step} value={shadow[sl.k]} aria-label={`Shadow ${sl.label}`}
+            onChange={(e) => setShadow(sl.k, Number(e.target.value))} />
+          <span className="sfxmix-val">{shadow[sl.k].toFixed(sl.digits)}</span>
+        </div>
+      ))}
+      <div className="lunge-btns">
+        <button type="button" className="sfxmix-copy" onClick={copyDepths}>{copied ? 'Copied' : 'Copy values'}</button>
+        <button type="button" className="sfxmix-copy" onClick={shippedDepths}>Shipped values</button>
+      </div>
+
+      {run !== null && (
+        <PackShop
+          key={run}
+          shelves={SHOP_LAB_SHELVES}
+          offers={SHOP_LAB_OFFERS}
+          hand={state.hand}
+          aether={state.aether}
+          reward={lab.reward}
+          claimReward={lab.claim}
+          buy={buy}
+          open={open}
+          reducedMotion={reduced}
+          onClose={close}
+        />
+      )}
+    </div>
+  );
+}

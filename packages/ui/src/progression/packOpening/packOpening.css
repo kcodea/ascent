@@ -1,0 +1,354 @@
+/* PACK OPENING: the dev theatre around the Pixi pack scene (Task 7) and the DOM card faces (Task 8, packFaces.tsx).
+   Layout px inside #stage; no viewport units. Animations are opacity/transform only: the faces move by `transform`, the
+   rarity aura (every rarity; Epic and up breathe) is the opacity of a ::before with a STATIC shadow (the kwglow rule). Buttons reuse the crate
+   buttons and take the global gauntlet cursor (no cursor rules here). Rarity colour comes from the shared `.r-<rarity>`
+   tokens in styles.css (`--rc`, `--rc-a`, Ancient's `--rc-grad`). Colours below are literals only where no token exists. */
+/* z-index 700: the crate theatre's layer (crateTheatre.css); there is no z-index token. */
+.pkop { position: fixed; inset: 0; z-index: 700; outline: none; --pk-rim: color-mix(in srgb, var(--gold) 70%, transparent);
+  --pk-slow: 1; --pk-text: #f6ecd0; --pk-panel: #1a2033; }
+/* THE SHOP HANDOFF (entryFadeMs): the dialog mounts held at opacity 0, then fades to 1 over `--pk-entry-ms` (already slow-mo
+   scaled inline). Only present when the shop passes entryFadeMs; opacity only. */
+.pkop-fade { transition: opacity var(--pk-entry-ms, 0ms) linear; }
+.pkop-entering { opacity: 0; }
+/* The way back to the shop (`exitFadeMs`): the dialog fades out as the shop rises behind it; inert meanwhile. */
+.pkop-closing { opacity: 0; pointer-events: none; transition: opacity var(--pk-exit-ms, 0ms) ease-in; }
+@media (prefers-reduced-motion: reduce) { .pkop-fade, .pkop-closing { transition: none; } .pkop-entering { opacity: 1; } }
+/* The theatre's backdrop: near-opaque and dark, so the menu never shows through (owner 2026-11-24: "the entire
+   presentation"). The Pixi stage (packFx.ts) lights it during the opening; this is what the summary and the
+   reduced-motion path stand on. */
+.pkop-scrim { position: absolute; inset: 0; opacity: 0.985;
+  background: radial-gradient(ellipse 80% 72% at 50% 42%, #0d1632 0%, #070b19 55%, #030509 100%); }
+/* THE BIG-PULL SHAKE (bigPull.ts): the scene and the faces shake as one, once, when a Legendary / Ancient lands. A
+   one-shot transform keyframe (BIG_PULL_SHAKE_MS = 260ms, slow-mo scaled), decaying; `--pk-quake` is the amplitude (px,
+   set inline). Two identical names (-a / -b) so consecutive big pulls restart it. Never under reduced motion. */
+.pkop-quake { position: absolute; inset: 0; isolation: isolate; --pk-quake: 0px; }
+.pkop-quake-a { animation: pkop-quake-a calc(0.26s * var(--pk-slow, 1)) linear; }
+.pkop-quake-b { animation: pkop-quake-b calc(0.26s * var(--pk-slow, 1)) linear; }
+@keyframes pkop-quake-a {
+  0%, 100% { transform: translate(0, 0); }
+  10% { transform: translate(calc(var(--pk-quake) * 1), calc(var(--pk-quake) * -0.6)); }
+  24% { transform: translate(calc(var(--pk-quake) * -0.85), calc(var(--pk-quake) * 0.5)); }
+  40% { transform: translate(calc(var(--pk-quake) * 0.6), calc(var(--pk-quake) * -0.35)); }
+  56% { transform: translate(calc(var(--pk-quake) * -0.38), calc(var(--pk-quake) * 0.24)); }
+  72% { transform: translate(calc(var(--pk-quake) * 0.2), calc(var(--pk-quake) * -0.12)); }
+  87% { transform: translate(calc(var(--pk-quake) * -0.07), calc(var(--pk-quake) * 0.04)); }
+}
+@keyframes pkop-quake-b {
+  0%, 100% { transform: translate(0, 0); }
+  10% { transform: translate(calc(var(--pk-quake) * 1), calc(var(--pk-quake) * -0.6)); }
+  24% { transform: translate(calc(var(--pk-quake) * -0.85), calc(var(--pk-quake) * 0.5)); }
+  40% { transform: translate(calc(var(--pk-quake) * 0.6), calc(var(--pk-quake) * -0.35)); }
+  56% { transform: translate(calc(var(--pk-quake) * -0.38), calc(var(--pk-quake) * 0.24)); }
+  72% { transform: translate(calc(var(--pk-quake) * 0.2), calc(var(--pk-quake) * -0.12)); }
+  87% { transform: translate(calc(var(--pk-quake) * -0.07), calc(var(--pk-quake) * 0.04)); }
+}
+@media (prefers-reduced-motion: reduce) { .pkop-quake-a, .pkop-quake-b { animation: none; } }
+.pkop-fx { position: absolute; inset: 0; }
+/* The summary keeps the scene's stage lit behind the row, but takes no input from it. */
+.pkop-fx.pkop-still { pointer-events: none; }
+/* THE SUMMARY'S HEAD: what was opened and what came out of it, above the row. One-shot entrance (opacity / transform). */
+.pkop-sumhead { position: absolute; left: 0; right: 0; top: 7.5%; display: flex; flex-direction: column; align-items: center; gap: 10px;
+  pointer-events: none; font-family: var(--font-ui); color: var(--pk-text);
+  animation: pkf-fade calc(0.45s * var(--pk-slow, 1)) ease-out both; }
+.pkop-sumtitle { font-family: var(--font-cardname); font-size: 40px; font-weight: 800; line-height: 1.1; color: var(--gold-lt);
+  text-shadow: 0 3px 8px rgba(0, 0, 0, 0.7); display: flex; align-items: center; gap: 22px; }
+/* pointed rules beside the title, as on the cards */
+.pkop-sumtitle::before, .pkop-sumtitle::after { content: ''; width: 150px; height: 4px; }
+.pkop-sumtitle::before { background: linear-gradient(90deg, transparent, var(--gold)); clip-path: polygon(0 50%, 100% 0, 100% 100%); }
+.pkop-sumtitle::after { background: linear-gradient(90deg, var(--gold), transparent); clip-path: polygon(0 0, 100% 50%, 0 100%); }
+.pkop-sumline { display: flex; gap: 26px; font-size: 20px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; opacity: 0.86; }
+.pkop-sumline > span + span::before { content: '\2022'; margin-right: 26px; opacity: 0.55; }
+/* The reveal's caption has had its say by the summary: kept for screen readers, not shown. */
+.pkop-live-quiet { width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+/* THE SUMMARY ROW: a card lifts under the pointer; the best pull stands raised and a little larger. The standalone
+   `scale` / `translate` properties, so they compose with the row's inline transform. */
+.pkf-summary { transition: transform calc(0.42s * var(--pk-slow, 1)) cubic-bezier(0.2, 0.9, 0.25, 1.08) var(--pkf-deal, 0ms), scale 0.2s ease-out, translate 0.2s ease-out; }
+.pkf-summary.pkf-best { scale: 1.05; translate: 0 -14px; z-index: 3; }
+.pkf-summary.pkf-hover:hover { scale: 1.06; translate: 0 -10px; z-index: 4; }
+.pkf-summary.pkf-best.pkf-hover:hover { scale: 1.09; translate: 0 -18px; }
+@media (prefers-reduced-motion: reduce) { .pkop-sumhead { animation: none; } .pkf-summary { transition: none; } }
+/* The featured slot's box is set inline from packFaces.tsx (`slotBox`), shared with the faces. */
+.pkop-slot { position: absolute; pointer-events: none; }
+.pkop-note { position: absolute; left: 0; right: 0; bottom: 130px; text-align: center; font-family: var(--font-ui); font-size: 20px; color: var(--gold-lt); pointer-events: none; }
+.pkop-live { position: absolute; left: 0; right: 0; bottom: 96px; text-align: center; font-family: var(--font-ui); font-size: 16px; color: var(--pk-text); opacity: 0.8; pointer-events: none; }
+.pkop-btns { position: absolute; left: 0; right: 0; bottom: 36px; display: flex; justify-content: center; gap: 16px; }
+/* the end screen: its buttons are much larger and sit higher; with an Aether tally (top 77%, 104px) they stay below it */
+.pkop-btns-end { bottom: 4%; gap: 22px; }
+.pkop-btns-end.pkop-btns-high { bottom: 16%; }
+.pkop-btns-end .crate-btn { font-size: 24px; padding: 18px 56px; border-radius: 14px; }
+.pkop-corner { position: absolute; top: 24px; right: 28px; }
+.pkop-row { position: absolute; left: 0; right: 0; top: 26%; display: flex; justify-content: center; gap: 18px; }
+.pkop-back, .pkop-pack { position: relative; width: 150px; height: 225px; box-sizing: border-box; border-radius: 12px; overflow: hidden;
+  border: 2px solid var(--pk-rim); background: var(--pk-panel); color: var(--gold-lt); display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-ui); font-size: 18px; font-weight: 700; text-align: center; padding: 10px; }
+/* A back never tells its rarity (owner 2026-11-24): the rarity's edge colour comes only once it is turned. */
+.pkop-back.flipped { border-color: var(--rc, var(--pk-rim)); }
+.pkop-pack { width: 220px; height: 320px; position: absolute; left: 50%; top: 24%; margin-left: -110px; }
+/* Reduced motion: each back holds its face (laid out at the face's layout size, 480 x 720, scaled to the 150 px back),
+   crossfaded on flip. */
+.pkop-back .pkf { position: absolute; left: 0; top: 0; width: 480px; height: 720px; transform: scale(0.3125); transform-origin: 0 0;
+  opacity: 0; transition: opacity calc(0.25s * var(--pk-slow, 1)) ease-out; }
+.pkop-back.flipped .pkf { opacity: 1; }
+.pkop-back .pkop-back-mark { transition: opacity calc(0.25s * var(--pk-slow, 1)) ease-out; }
+.pkop-back.flipped .pkop-back-mark { opacity: 0; }
+.pkop-faces { position: absolute; inset: 0; pointer-events: none; }
+/* The summary: the face row says it all, so the card list is for screen readers only (the faces are aria-hidden);
+   only the duplicates' Aether total shows, as a pill under the row. */
+.pkop-summary { position: absolute; left: 0; right: 0; top: 76%; display: flex; justify-content: center; pointer-events: none;
+  color: var(--pk-text); font-family: var(--font-ui); }
+.pkop-summary ul { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0);
+  white-space: nowrap; border: 0; }
+/* the refund's words are for screen readers; the Aether tally below shows it */
+.pkop-summary-total { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+/* THE AETHER TALLY (AetherTally.tsx): the medallion and its rolling counter under the row. The medallion's spring and
+   its halo's flash are one-shot Web Animations (transform / opacity only). */
+/* laid out from a FIXED left edge, never centred on its own width: the number grows to the right as digits appear, and the
+   gem must not move (the dust is aimed at it once) */
+.pkop-aether { position: absolute; left: calc(50% - 140px); top: 77%; display: flex; align-items: center; gap: 20px; pointer-events: none;
+  font-family: var(--font-ui); opacity: 0; transform: translateY(14px);
+  transition: opacity calc(0.35s * var(--pk-slow, 1)) ease-out, transform calc(0.35s * var(--pk-slow, 1)) cubic-bezier(0.2, 0.9, 0.25, 1); }
+.pkop-aether-on { opacity: 1; transform: none; }
+.pkop-aether-orb { position: relative; display: grid; place-items: center; width: 104px; height: 104px; }
+.pkop-aether-halo { position: absolute; inset: -42%; border-radius: 50%; opacity: 0.28;
+  background: radial-gradient(circle, rgba(226, 246, 255, 0.95) 0%, rgba(120, 200, 255, 0.6) 30%, rgba(60, 140, 255, 0.22) 55%, transparent 72%); }
+.pkop-aether-gem.aether-icon { position: relative; width: 104px; height: 104px; margin: 0; vertical-align: middle; }
+.pkop-aether-num { display: flex; align-items: center; font-size: 58px; font-weight: 800; line-height: 1; color: #dcf3ff;
+  font-variant-numeric: tabular-nums;
+  /* ONE glow for the whole number (a shadow per digit column painted over its neighbours) */
+  filter: drop-shadow(0 0 10px rgba(96, 184, 255, 0.8)) drop-shadow(0 3px 4px rgba(0, 0, 0, 0.9)); }
+.pkop-aether-plus { margin-right: 4px; opacity: 0.85; }
+/* the digits roll behind one soft window (rows 1.8em apart: a resting digit's neighbours are out of sight); the glow is
+   added after the window, so nothing cuts it */
+.pkop-odo { display: flex; height: 1.8em; overflow: hidden;
+  -webkit-mask: linear-gradient(180deg, transparent 0, #000 24%, #000 76%, transparent 100%); mask: linear-gradient(180deg, transparent 0, #000 24%, #000 76%, transparent 100%); }
+.pkop-odo-col { display: inline-block; height: 1.8em; }
+/* a leading zero's column takes no room until the value reaches it (it changes at 10, 100, ...: a handful of times) */
+.pkop-odo-col.pkop-odo-off { width: 0; opacity: 0; }
+.pkop-odo-strip { display: flex; flex-direction: column; }
+.pkop-odo-strip > span { display: block; height: 1.8em; line-height: 1.8em; text-align: center; }
+/* the landing's ring and streak (one-shot Web Animations, transform / opacity) */
+.pkop-aether-ring { position: absolute; inset: -6%; border-radius: 50%; border: 3px solid rgba(190, 236, 255, 0.9); opacity: 0; }
+.pkop-aether-streak { position: absolute; left: 50%; top: 50%; width: 260px; height: 5px; margin: -2.5px 0 0 -130px; opacity: 0;
+  background: radial-gradient(ellipse at center, #fff 0%, rgba(160, 222, 255, 0.85) 30%, rgba(160, 222, 255, 0) 70%); }
+.pkop-aether-ring2 { position: absolute; inset: -6%; border-radius: 50%; border: 2px solid rgba(150, 214, 255, 0.8); opacity: 0; }
+/* A DUPLICATE DISSOLVES: the plate goes white-blue hot, then the card fades to a faint ghost as its light leaves. */
+.pkf-aglow { position: absolute; inset: 0; pointer-events: none; opacity: 0;
+  -webkit-mask: var(--pkf-plate) center / 100% 100% no-repeat; mask: var(--pkf-plate) center / 100% 100% no-repeat;
+  background: radial-gradient(ellipse at 50% 45%, #ffffff 0%, #d6f0ff 42%, #74c2ff 100%);
+  animation: pkf-aglow calc(1.5s * var(--pk-slow, 1)) ease-out both; }
+@keyframes pkf-aglow { 0% { opacity: 0; } 12% { opacity: 1; } 30% { opacity: 0.94; } 76%, 100% { opacity: 0; } }
+.pkf-dissolve { pointer-events: none; animation: pkf-dissolve calc(1.5s * var(--pk-slow, 1)) cubic-bezier(0.5, 0, 0.6, 1) both; }
+/* it swells as it goes white-hot, then lets go */
+@keyframes pkf-dissolve { 0% { opacity: 1; scale: 1; } 14% { opacity: 1; scale: 1.06; } 28% { opacity: 1; scale: 1.02; } 80%, 100% { opacity: 0.13; scale: 1; } }
+@media (prefers-reduced-motion: reduce) { .pkf-aglow, .pkf-dissolve { animation: none; } .pkop-aether { transition: none; } }
+
+/* ── THE FACE ─────────────────────────────────────────────────────────────────────────────────────────────────────────
+   Every face is the owner's cosmetic card plate (packs/cosmetic-card-plate.webp, 2:3: a gold frame, a raised notch at
+   the top centre, and a navy window). `.pkf` is the placed box (moved by transform, laid out at FACE_W x FACE_H =
+   480 x 720); `.pkf-card` is the card (turned by transform, with the scene's perspective inline); `.pkf-plate` is the
+   plate image filling it; `.pkf-win` is the content, inset to the plate's navy window. 480 x 720 is near the face's
+   on-screen size in the pile, so its transform scale stays near 1 and the text rasterises sharp; `will-change` is set
+   only while a face is handed off (the move), never on a settled face.
+   The window, measured on the 2048 x 3072 source: x 130..1918 (6.35% each side), y 201..2910 at the shoulders (the
+   notch lifts the centre to y 132), so 6.4% / 7% / 5.3% insets; its corners round at about 14% of the width. The
+   plate's outer edge (the glow's shape): x 64..1980, y 131..2975 at the shoulders. */
+.pkf { position: absolute; width: 480px; height: 720px; transform-origin: 50% 50%;
+  transition: transform calc(0.36s * var(--pk-slow, 1)) cubic-bezier(0.2, 0.8, 0.3, 1); }
+.pkf-handoff, .pkf-featured { z-index: 2; }
+/* THE REVEAL'S BEATS ON THE FACE (owner 2026-11-24: the "dopamine rush of hitting it big"), both one-shots.
+   .pkf-flash: the rarity's light as the face opens (opacity only), stronger each rarity up. .pkf-punch: the card swells
+   as it lands flat and settles (the standalone `scale` property, so it composes with the turn's inline transform; its
+   delay is set inline to the end of the turn), bigger each rarity up. Never under reduced motion. */
+/* (cut to the plate's OWN silhouette, its alpha as the mask: a plain rounded box showed as a pale frame off the card's
+   edges while it turned, owner 2026-11-24) */
+.pkf-flash { position: absolute; inset: 0; pointer-events: none; opacity: 0;
+  -webkit-mask: var(--pkf-plate) center / 100% 100% no-repeat; mask: var(--pkf-plate) center / 100% 100% no-repeat;
+  background: radial-gradient(ellipse 80% 70% at 50% 45%, #fff 0%, color-mix(in srgb, var(--rc) 55%, #fff) 45%, var(--rc) 100%);
+  animation: pkf-flash calc(0.6s * var(--pk-slow, 1)) cubic-bezier(0.3, 0.6, 0.4, 1) both; }
+@keyframes pkf-flash { from { opacity: var(--pkf-fl, 0.3); } to { opacity: 0; } }
+.r-rare .pkf-flash { --pkf-fl: 0.45; }
+.r-epic .pkf-flash { --pkf-fl: 0.65; }
+.r-legendary .pkf-flash, .r-ancient .pkf-flash { --pkf-fl: 0.95; }
+.pkf-punch { animation: pkf-punch calc(0.46s * var(--pk-slow, 1)) cubic-bezier(0.2, 0.9, 0.3, 1) both; }
+@keyframes pkf-punch { 0% { scale: 1; } 28% { scale: var(--pkf-pn, 1.02); } 100% { scale: 1; } }
+.r-epic .pkf-punch { --pkf-pn: 1.045; }
+.r-legendary .pkf-punch { --pkf-pn: 1.075; }
+.r-ancient .pkf-punch { --pkf-pn: 1.095; }
+@media (prefers-reduced-motion: reduce) { .pkf-flash, .pkf-punch { animation: none; } }
+.pkf-handoff { will-change: transform; }
+.pkf-card { position: relative; width: 100%; height: 100%; color: var(--pk-text, var(--gold-lt)); font-family: var(--font-ui);
+  backface-visibility: hidden; transform-origin: 50% 50%; }
+.pkf-plate { position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; user-select: none; }
+.pkf-win { position: absolute; left: 6.4%; right: 6.4%; top: 7%; bottom: 5.3%; border-radius: 14% / 9.5%; overflow: hidden;
+  box-sizing: border-box; padding: 40px 26px 26px; display: flex; flex-direction: column; align-items: center; gap: 13px; }
+/* The rarity tint on the navy (the same wash the window used to carry, in the card's box): masked by the plate's traced
+   window like the foil, so it fills the notch and has no straight edge across the top (owner 2026-11-24: "theres still
+   a hard line up near the top"). */
+.pkf-tint { position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(ellipse 74% 48% at 50% 37%, color-mix(in srgb, var(--rc) 26%, transparent), transparent 72%);
+  -webkit-mask: var(--pkf-window) center / 100% 100% no-repeat; mask: var(--pkf-window) center / 100% 100% no-repeat; }
+/* THE RARITY AURA (packGlow.ts): behind the plate's outer edge, on the top face of the revealed pile and on every summary
+   face. `.pkf-aura` holds the tier's STATIC opacity (inline: the tier x the cardGlow knob); its ::before carries a STATIC
+   shadow in the rarity colour, and only that ::before's opacity breathes (the kwglow rule): Common / Rare none, Epic
+   gently, Legendary / Ancient strongly. The halo is sized for a face at scale ~1 (it reaches ~50px at the strongest, clear
+   of the live line and the buttons). will-change only on the face in flight. */
+.pkf-aura { position: absolute; left: 3.2%; right: 3.2%; top: 4.3%; bottom: 3.2%; border-radius: 9% / 6%; pointer-events: none; z-index: -1; }
+.pkf-aura::before { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  box-shadow: 0 0 18px 4px var(--rc-a), 0 0 30px 6px color-mix(in srgb, var(--rc) 22%, transparent); }
+.r-common .pkf-aura::before { box-shadow: 0 0 12px 2px var(--rc-a); }
+.r-epic .pkf-aura::before, .r-legendary .pkf-aura::before {
+  box-shadow: 0 0 22px 6px var(--rc-a), 0 0 40px 10px color-mix(in srgb, var(--rc) 30%, transparent); }
+/* Ancient: its cyan close in, its pink (--rc2) further out: the aurora's two tones. */
+.r-ancient .pkf-aura::before {
+  box-shadow: 0 0 22px 6px var(--rc-a), 0 0 44px 12px color-mix(in srgb, var(--rc2) 40%, transparent); }
+.pkf-aura-gentle::before { animation: pkf-aura-gentle 3s ease-in-out infinite; }
+.pkf-aura-strong::before { animation: kwglow 2.2s ease-in-out infinite; }
+.pkf-handoff .pkf-aura-gentle::before, .pkf-handoff .pkf-aura-strong::before { will-change: opacity; }
+@keyframes pkf-aura-gentle { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .pkf-aura::before { animation: none; } }
+/* THE HOLO (packHolo.ts; packFaces.tsx): Epic and up. `.pkf-holo` is the cut-out (the card's box, masked by the plate's
+   window traced from the plates, `--pkf-window` inline: the notch and the stepped corners, no gap to the frame; the
+   foil is the card's BACKGROUND, under the item, the text and the rarity) and the blend, at a STATIC opacity (inline: the tier x the holo knob); `.pkf-holo-move` leans with the pointer
+   (`--hx` / `--hy`, 0..1, written once per rAF on hover); `.pkf-holo-sheet` is the static gradient, twice the card's
+   size, and plays the one-shot sweep. Transform only, no looping animation; under the card's own stacking context, so
+   it blends with the plate and the window, not the theatre behind. Epic / Legendary: a pearl on the rarity hue;
+   Ancient: a full pastel rainbow. */
+.pkf-holo { position: absolute; inset: 0; overflow: hidden; pointer-events: none; mix-blend-mode: color-dodge;
+  -webkit-mask: var(--pkf-window) center / 100% 100% no-repeat; mask: var(--pkf-window) center / 100% 100% no-repeat; }
+.pkf-holo-move { position: absolute; inset: -50%;
+  transform: translate(calc((var(--hx, 0.5) - 0.5) * -18%), calc((var(--hy, 0.5) - 0.5) * -14%));
+  transition: transform calc(0.22s * var(--pk-slow, 1)) ease-out; }
+.pkf-holo-sheet { position: absolute; inset: 0;
+  background: repeating-linear-gradient(115deg, transparent 0%, color-mix(in srgb, var(--rc) 55%, #fff) 7%, #fff6fb 10%,
+    color-mix(in srgb, var(--rc) 45%, #c4f1ff) 13%, transparent 21%, transparent 26%); }
+/* Ancient: OPAL (owner 2026-11-24: "less rainbow looking and a little more opal prismatic looking"): then "focus on
+   the colors of white teal and pink"): bands of teal, white and pink with the navy between them, over a faint teal to
+   pink wash, screened over the navy instead of dodged, so the three hues stay clean and never posterise into a rainbow. */
+.r-ancient .pkf-holo { mix-blend-mode: screen; }
+.r-ancient .pkf-holo-sheet {
+  background:
+    repeating-linear-gradient(115deg, transparent 0%, rgba(70, 240, 222, 0.8) 6%, rgba(255, 255, 255, 0.95) 10%, rgba(255, 120, 220, 0.8) 14%,
+      transparent 21%, transparent 26%),
+    linear-gradient(160deg, rgba(70, 240, 222, 0.2), rgba(255, 120, 220, 0.2)); }
+/* Legendary: GOLD (owner 2026-11-24: "a bit more gold? white blue gold?"): bands of gold, white and blue with the navy
+   between them, over a faint gold wash, screened like Ancient's so the gold stays gold. */
+.r-legendary .pkf-holo { mix-blend-mode: screen; }
+.r-legendary .pkf-holo-sheet {
+  background:
+    repeating-linear-gradient(115deg, transparent 0%, rgba(255, 186, 72, 0.9) 6%, rgba(255, 255, 255, 0.95) 10%, rgba(110, 170, 255, 0.8) 14%,
+      transparent 21%, transparent 26%),
+    linear-gradient(160deg, rgba(255, 186, 72, 0.28), rgba(255, 186, 72, 0.1)); }
+.pkf-holo-sweep { animation: pkf-holo-sweep calc(0.9s * var(--pk-slow, 1)) cubic-bezier(0.25, 0.6, 0.3, 1) both; }
+@keyframes pkf-holo-sweep { from { transform: translate(-22%, -12%); } to { transform: none; } }
+/* the summary row's sweep: its own name, so a face that swept on the pile sweeps again as it joins the row */
+.pkf-holo-sweep-row { animation: pkf-holo-sweep-row calc(0.9s * var(--pk-slow, 1)) cubic-bezier(0.25, 0.6, 0.3, 1) both; }
+@keyframes pkf-holo-sweep-row { from { transform: translate(-22%, -12%); } to { transform: none; } }
+.pkf-hover { pointer-events: auto; }
+@media (prefers-reduced-motion: reduce) { .pkf-holo-sweep, .pkf-holo-sweep-row { animation: none; } .pkf-holo-move { transition: none; } }
+/* The category sits at the very bottom, under the rarity: white, between two short rules in the rarity's colour. Its
+   bottom margin clears the medallion's top half. */
+.pkf-cat { margin-top: -5px; margin-bottom: 22px; display: flex; align-items: center; gap: 13px; white-space: nowrap; font-size: 18px; font-weight: 600; letter-spacing: 0.24em; text-transform: uppercase;
+  color: #fff; text-shadow: 0 2px 3px rgba(0, 0, 0, 0.8); }
+/* The rules beside it are POINTED (owner 2026-11-24, as the website's dividers): each tapers to a point away from the word
+   and fades as it goes. Static paint. */
+.pkf-cat::before, .pkf-cat::after { content: ''; width: 62px; height: 4px; }
+.pkf-cat::before { background: linear-gradient(90deg, transparent, var(--rc)); clip-path: polygon(0 50%, 100% 0, 100% 100%); }
+.pkf-cat::after { background: linear-gradient(90deg, var(--rc), transparent); clip-path: polygon(0 0, 100% 50%, 0 100%); }
+/* The art window: framed in the plate's gold. The NEW chip and the DUPLICATE stamp sit on it. */
+.pkf-art { position: relative; flex: none; width: 100%; height: 358px; display: flex; align-items: center; justify-content: center;
+  border-radius: 16px; overflow: hidden; background: #091226; /* the plate's own navy, SOLID: the foil never shows through the preview (owner 2026-11-24) */
+  box-shadow: 0 0 0 2px var(--gold), 0 0 0 5px color-mix(in srgb, var(--gold) 22%, transparent), inset 0 0 35px rgba(0, 0, 0, 0.7); }
+.pkf-img { max-width: 100%; max-height: 100%; object-fit: contain; pointer-events: none; }
+.pkf-img-hero, .pkf-img-minion { width: 100%; height: 100%; object-fit: cover; }
+/* A card plate fills the window's width from its top, so about half of it shows, fading out at the bottom: the Collection
+   tile's crop (collectionPh.css `.phc-tile.arttop`; owner 2026-11-24: "so only half of it is showing"). */
+.pkf-img-plate { width: 100%; height: 100%; max-width: none; max-height: none; object-fit: cover; object-position: 50% 0;
+  -webkit-mask-image: linear-gradient(180deg, #000 62%, transparent 98%); mask-image: linear-gradient(180deg, #000 62%, transparent 98%); }
+.pkf-emblem { width: 176px; height: 176px; color: var(--rc); }
+.pkf-emblem svg { display: block; width: 100%; height: 100%; }
+.pkf-medal { display: block; width: 100%; height: 100%; object-fit: contain; pointer-events: none; user-select: none; }
+/* A TITLE: no window. Its medallion over its own badge (TitleBadge, sized by this font-size), filling down to the rarity. */
+.pkf-art-bare { flex: 1 1 auto; height: auto; flex-direction: column; gap: 22px; overflow: visible; background: none; box-shadow: none; }
+.pkf-art-bare .pkf-emblem { width: 150px; height: 150px; }
+.pkf-title.titlebadge { --tb-fs: 23px; max-width: 100%; }
+/* A HERO SKIN and a MINION SKIN: no framed window (owner 2026-11-26). `.pkf-fullart` is the card's box cut to the
+   plate's TRACED window (`--pkf-window`, the top notch too: owner, "theres still a gap"); the art fills its top and
+   fades out by its bottom, so the plate's navy (with the rarity's tint and foil) shows through. `.pkf-art-full` is the
+   empty space the art shows in (it still carries the NEW chip and the DUPLICATE stamp). Static paint. */
+.pkf-fullart { position: absolute; inset: 0; pointer-events: none;
+  -webkit-mask: var(--pkf-window) center / 100% 100% no-repeat; mask: var(--pkf-window) center / 100% 100% no-repeat; }
+.pkf-fullart > img { position: absolute; left: 4%; top: 2.5%; width: 92%; height: 64%; object-fit: cover; object-position: 50% 18%; user-select: none;
+  -webkit-mask-image: linear-gradient(180deg, #000 55%, transparent 97%); mask-image: linear-gradient(180deg, #000 55%, transparent 97%); }
+/* A CARD PLATE and a PORTRAIT FRAME get the same full window (owner 2026-11-27, a trial). The plate keeps its Collection crop
+   (from its top); the portrait frame is a ring, so it is shown whole, centred in the window's upper part. */
+.pkf-fullart > img.pkf-img-plate { object-position: 50% 0; }
+.pkf-fullart > img.pkf-img-frame { left: 12%; top: 6%; width: 76%; height: 56%; object-fit: contain; object-position: 50% 50%; -webkit-mask-image: none; mask-image: none; }
+.pkf-art-full { border-radius: 0; background: none; box-shadow: none; overflow: visible; }
+.pkf-art-full .pkf-new { top: 6px; right: 8px; }
+/* The name sits in its own thin frame: the preview window's navy, rounded corners and gold line (owner 2026-11-24), so
+   the foil never runs behind the words. The span clamps to two lines inside the frame's padding. */
+.pkf-name { margin-top: 6px; width: 100%; box-sizing: border-box; padding: 10px 14px 12px; border-radius: 14px; background: rgba(9, 18, 38, 0.6); /* the plate navy at 60% (owner 2026-11-24) */
+  box-shadow: 0 0 0 2px var(--gold), 0 0 0 5px color-mix(in srgb, var(--gold) 22%, transparent);
+  font-family: var(--font-cardname); font-size: 32px; font-weight: 800; line-height: 1.1; text-align: center; }
+.pkf-name > span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  text-shadow: 0 3px 6px rgba(0, 0, 0, 0.7); }
+.pkf-note { font-size: 19px; opacity: 0.75; text-align: center; }
+/* THE RARITY (owner 2026-11-24): its name in the rarity's colour with a drop shadow, no pill, centred at the bottom of the
+   window, above the category (it takes the free space above, so the pair hugs the bottom); its medallion sits ON the
+   card's bottom edge, centred (a child of the card, outside the window's clip). */
+.pkf-ribbon { margin-top: auto; width: 100%; display: flex; justify-content: center; }
+.pkf-ribbon > span { display: block; text-align: center; font-size: 25px; line-height: 1.1; font-weight: 900; letter-spacing: 0.26em; text-indent: 0.26em; text-transform: uppercase;
+  color: var(--rc); text-shadow: 0 3px 4px rgba(0, 0, 0, 0.85), 0 0 2px rgba(0, 0, 0, 0.9); }
+.pkf-rarity-icon { position: absolute; left: 50%; bottom: -11px; width: 86px; height: 86px; margin-left: -43px; object-fit: contain; pointer-events: none;
+  filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.6)); }
+.pkf-new { position: absolute; top: 13px; right: 13px; padding: 3px 14px; border-radius: 999px; font-size: 18px; font-weight: 900; letter-spacing: 0.14em;
+  text-transform: uppercase; color: #12160c; background: var(--gold-lt); box-shadow: 0 0 0 2px #000, 0 2px 6px rgba(0, 0, 0, 0.6); } /* a black stroke round the pill (owner 2026-11-26) */
+/* THE SUMMARY ROW'S NEW (owner 2026-11-27: "lets put the new pill up here, make it a bit larger and add a subtle pulsing
+   glow and slight up and down bob. very slight"): above the card's top edge, a little left of centre where he marked it,
+   larger. Looping, so compositor-only (the kwglow rule): the glow is a STATIC shadow on a ::before whose OPACITY
+   breathes, and the bob is a transform (`translate` centres it, so the two never fight). Calm under reduced motion. */
+.pkf-new.pkf-new-above { top: auto; right: auto; left: 45%; bottom: 100%; translate: -50% -55%; z-index: 2; pointer-events: none;
+  padding: 5px 20px; font-size: 23px; animation: pkf-newbob 2.6s ease-in-out infinite; }
+.pkf-new-above > span { position: relative; }
+.pkf-new-above::before { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  box-shadow: 0 0 14px 4px color-mix(in srgb, var(--gold-lt) 70%, transparent), 0 0 30px 8px color-mix(in srgb, var(--gold) 35%, transparent);
+  opacity: 0; will-change: opacity; animation: pkf-newglow 2.2s ease-in-out infinite; }
+@keyframes pkf-newbob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+@keyframes pkf-newglow { 0%, 100% { opacity: 0.25; } 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .pkf-new.pkf-new-above { animation: none; }
+  .pkf-new-above::before { animation: none; opacity: 0.6; }
+}
+.pkf-dup { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 13px; pointer-events: none; }
+/* The stamp lands once, after the turn (one-shot, transform/opacity only). */
+.pkf-stamp { padding: 6px 22px; border: 5px solid var(--threat); border-radius: 10px; color: var(--threat); background: rgba(10, 8, 14, 0.75);
+  font-size: 29px; font-weight: 900; letter-spacing: 0.18em; text-transform: uppercase; transform: rotate(-12deg);
+  animation: pkf-stamp calc(0.32s * var(--pk-slow, 1)) cubic-bezier(0.3, 1.5, 0.5, 1) calc(0.3s * var(--pk-slow, 1)) both; }
+.pkf-aether { font-size: 24px; font-weight: 800; color: var(--watcher-pulse-color); text-shadow: 0 2px 5px #000; animation: pkf-fade calc(0.3s * var(--pk-slow, 1)) ease-out calc(0.5s * var(--pk-slow, 1)) both; }
+@keyframes pkf-stamp { from { opacity: 0; transform: rotate(-12deg) scale(1.8); } to { opacity: 1; transform: rotate(-12deg) scale(1); } }
+@keyframes pkf-fade { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+/* THE RARE ONES TREMBLE (owner 2026-11-27: "in the final showcase view, have epic, legendary, and ancient tier cards slightly
+   shake, like they are shaking with imbued power. have the amount of shake increase from epic to ancient"). A fast,
+   irregular tremor on the card inside a summary face (the face itself keeps its deal, lift and hover), starting once it
+   has been dealt. Amount per rarity: `--pkf-sa` (px) and `--pkf-sr` (deg). Looping on translate + rotate only (compositor);
+   the class is never set under reduced motion (`still`) or on a dissolving duplicate. */
+.pkf-summary.pkf-shake { --pkf-sa: 0.5px; --pkf-sr: 0.2deg; }
+.pkf-summary.pkf-shake.r-legendary { --pkf-sa: 0.9px; --pkf-sr: 0.38deg; }
+.pkf-summary.pkf-shake.r-ancient { --pkf-sa: 1.5px; --pkf-sr: 0.6deg; }
+.pkf-summary.pkf-shake > .pkf-card { animation: pkf-imbue 0.46s linear calc(var(--pkf-deal, 0ms) + 0.45s * var(--pk-slow, 1)) infinite; }
+.pkf-summary.pkf-shake.r-ancient > .pkf-card { animation-duration: 0.38s; }
+@keyframes pkf-imbue {
+  0% { translate: 0 0; rotate: 0deg; }
+  10% { translate: calc(var(--pkf-sa) * -0.8) calc(var(--pkf-sa) * 0.5); rotate: calc(var(--pkf-sr) * 0.6); }
+  20% { translate: calc(var(--pkf-sa) * 0.6) calc(var(--pkf-sa) * -0.9); rotate: calc(var(--pkf-sr) * -0.4); }
+  30% { translate: calc(var(--pkf-sa) * -0.3) calc(var(--pkf-sa) * 0.8); rotate: calc(var(--pkf-sr) * 0.9); }
+  40% { translate: calc(var(--pkf-sa) * 0.9) calc(var(--pkf-sa) * 0.2); rotate: calc(var(--pkf-sr) * -0.7); }
+  50% { translate: calc(var(--pkf-sa) * -0.7) calc(var(--pkf-sa) * -0.6); rotate: calc(var(--pkf-sr) * 0.3); }
+  60% { translate: calc(var(--pkf-sa) * 0.4) calc(var(--pkf-sa) * 0.9); rotate: calc(var(--pkf-sr) * -0.9); }
+  70% { translate: calc(var(--pkf-sa) * -0.9) calc(var(--pkf-sa) * -0.2); rotate: calc(var(--pkf-sr) * 0.5); }
+  80% { translate: calc(var(--pkf-sa) * 0.6) calc(var(--pkf-sa) * -0.7); rotate: calc(var(--pkf-sr) * -0.3); }
+  90% { translate: calc(var(--pkf-sa) * -0.2) calc(var(--pkf-sa) * 0.6); rotate: calc(var(--pkf-sr) * 0.8); }
+  100% { translate: 0 0; rotate: 0deg; }
+}
+@media (prefers-reduced-motion: reduce) { .pkf-summary.pkf-shake > .pkf-card { animation: none; } }

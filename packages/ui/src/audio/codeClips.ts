@@ -8,7 +8,8 @@
  * `hero<Style>/` folder), decoded ahead only for the styles actually in play (yours and your current opponent's).
  *
  * A committed SNAPSHOT of a scan of `packages/ui/src` (every `'fx/<slug>'` literal in a non-test .ts/.tsx file whose
- * clip is in `audio/fx/`). `codeClips.test.ts` re-runs the scan and fails, printing the lists, when this drifts.
+ * clip is in `audio/fx/`). `codeClips.test.ts` re-runs the scan and fails, printing the lists, when this drifts. The pack
+ * shop and pack opener (`progression/packShop`, `progression/packOpening`) are left out: menu screens, never in a fight.
  */
 export const CODE_FX_CLIPS: readonly string[] = [
   'fx/alexis_gaming_cam-woosh-long-cartoon-370386',

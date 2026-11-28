@@ -26,7 +26,7 @@ import { getTitleText } from '../../titleTextConfig';
 import { warmPhPages } from './phWarm';
 import { useLiveCount } from '../../live/liveCount';
 import { clearDevToolsSlot, setDevToolsSlot } from './devToolsSlot';
-import { leaveCrates, openCrates, setFriendsOpen, toggleFriends, usePhShell, pulseFriends } from './shellStore';
+import { leaveCrates, openCrates, openPackShopDoor, setFriendsOpen, toggleFriends, usePhShell, pulseFriends } from './shellStore';
 import { unreadLabel, useFriendsBadge } from './friendsBadge';
 import './shell.css';
 
@@ -36,6 +36,12 @@ const PhFriends = lazy(() => import('./PhFriends').then((m) => ({ default: m.PhF
 export type PhNavCurrent = 'home' | 'compendium' | Exclude<MenuDest, 'menu' | 'friends'> | null;
 
 type PageDest = 'career' | 'collection' | 'rankings' | 'recent' | 'live' | 'patchnotes';
+
+/** The nav's Aether number: the account's, or the one a screen is showing (the pack shop's rolling count). Only this re-renders as it rolls. */
+function NavAether({ value }: { value: number }) {
+  const shown = usePhShell((s) => s.aetherShown);
+  return <b>{shown ?? value}</b>;
+}
 
 export function PhTopNav({ current: given, friendsDocked = false, ownDrawer = false, extra }: {
   current: PhNavCurrent; friendsDocked?: boolean;
@@ -95,6 +101,12 @@ export function PhTopNav({ current: given, friendsDocked = false, ownDrawer = fa
       if (st.settingsOpen) { st.closeSettings(); return; }
       if (showBook) closeBook();
       st.openSettings();
+      return;
+    }
+    if (dest === 'crates' && import.meta.env.DEV) {
+      // DEV: the Shop tab goes through the shop's door into the pack shop (PackShopEntry.tsx; owner 2026-11-26). Production
+      // keeps the crate shop below until pack purchases have a server.
+      setFriendsOpen(false); if (showBook) closeBook(); openPackShopDoor();
       return;
     }
     if (dest === 'crates') {
@@ -171,11 +183,11 @@ export function PhTopNav({ current: given, friendsDocked = false, ownDrawer = fa
               // The Aether count is a way into the shop (owner 2026-11-06: "make the aether count clickable, link it to shop").
               <button type="button" className={`ph-coin ph-coinbtn${aetherOn ? '' : ' offline'}`} onClick={() => hop('crates')}
                 aria-label={aetherOn ? `${aether} Aether. Open the shop` : 'Aether, offline. Open the shop'} data-tip={aetherOn ? 'Aether: open the shop' : 'Aether (offline)'}>
-                <AetherIcon className="ph-aether" /><b>{aether}</b>
+                <AetherIcon className="ph-aether" /><NavAether value={aether} />
               </button>
             ) : (
               <span className={`ph-coin${aetherOn ? '' : ' offline'}`} aria-label={aetherOn ? `${aether} Aether` : 'Aether, offline'} data-tip={aetherOn ? 'Aether' : 'Aether (offline)'}>
-                <AetherIcon className="ph-aether" /><b>{aether}</b>
+                <AetherIcon className="ph-aether" /><NavAether value={aether} />
               </span>
             )
           )}

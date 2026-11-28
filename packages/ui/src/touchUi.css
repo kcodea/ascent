@@ -539,3 +539,9 @@ html[data-touch-ui] #root .lbpage.set-page .escpanel { display: block; }
 
 /* A touch device has no hover, so the Settings backdrop preview (.escselect-thumb) stays hidden there. */
 html[data-touch-ui] .escselect-thumb { display: none; }
+
+/* The pack shop (PackShop.tsx): a finger needs larger Buy and Open buttons than a pointer. */
+html[data-touch-ui] :is(.pks-buy, .pks-open) { min-height: 56px; padding: 12px 26px; font-size: 18px; }
+
+/* The shop's browse tip names right click and the scroll wheel: a finger has neither (it swipes the shelf). */
+html[data-touch-ui] .pks-hint { display: none; }

@@ -24,13 +24,12 @@ export const PACK_CARD_COUNT = 5;
 /** Three draws per card: rarity, category, item. */
 export const PACK_DRAW_COUNT = PACK_CARD_COUNT * 3;
 
-type PoolKind = 'all' | { category: CosmeticCategory } | { style: string };
+export type PoolKind = 'all' | { category: CosmeticCategory } | { style: string };
 
 const byId = (a: CosmeticDef, b: CosmeticDef): number => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
 const isRollable = (r: CosmeticDef['rarity']): r is CrateRarity => (COSMETIC_RARITIES as readonly string[]).includes(r);
-const clamp01 = (u: number): number => Math.min(Math.max(u, 0), 1);
-/** floor(u * n), kept inside [0, n - 1]. */
-const pick = (u: number, n: number): number => Math.min(Math.floor(clamp01(u) * n), n - 1);
+/** floor(u * n); u is validated in [0, 1) so the index is inside [0, n - 1]. */
+const pick = (u: number, n: number): number => Math.floor(u * n);
 
 /**
  * The items a pack can give, owned or not: active, crate-sourced, in an ENABLED category, never Secret (the chest
@@ -49,7 +48,7 @@ function drawRarity(u: number, odds: Record<CrateRarity, number>, floor: CrateRa
   const at = COSMETIC_RARITIES.indexOf(floor);
   const weight = (i: number): number => (i >= at ? odds[COSMETIC_RARITIES[i]!] : 0);
   const total = COSMETIC_RARITIES.reduce((s, _, i) => s + weight(i), 0);
-  const x = clamp01(u) * total;
+  const x = u * total;
   let hi = 0;
   let last: CrateRarity = floor;
   for (let i = 0; i < COSMETIC_RARITIES.length; i++) {
@@ -101,6 +100,7 @@ export function rollPack(input: {
   const eco = input.eco ?? DEFAULT_PACK_ECONOMY;
   const catalog = input.catalog ?? COSMETICS;
   if (draws.length !== PACK_DRAW_COUNT) throw new Error(`rollPack: needs ${PACK_DRAW_COUNT} draws, got ${draws.length}`);
+  if (!draws.every((u) => Number.isFinite(u) && u >= 0 && u < 1)) throw new Error('rollPack: every draw must be a finite number in [0, 1)');
 
   const all = packPool(catalog, 'all');
   const own = packPool(catalog, ownPoolKind(look));

@@ -43,6 +43,7 @@ describe('rollPack', () => {
     for (let i = 0; i < 100; i++) {
       const c5 = rollPack({ look: categoryLook('emote'), owned: [], draws: drawSet(r), catalog })[4]!;
       expect(c5.rewardId.startsWith('emote-')).toBe(true);
+      expect(c5.duplicate).toBeNull();
     }
     const cat = [item('emote-a', 'emote', 'common'), item('emote-b', 'emote', 'common'), item('title-a', 'title', 'common')];
     const c5 = rollPack({ look: categoryLook('emote'), owned: ['emote-a'], draws: zeros, catalog: cat })[4]!;
@@ -50,7 +51,7 @@ describe('rollPack', () => {
   });
   it('Review Focus 4: cards 1-2 grant both unowned emotes, card 5 is an owned emote paying its own rarity', () => {
     const cat = [item('emote-a', 'emote', 'common'), item('emote-b', 'emote', 'common'), item('title-a', 'title', 'common')];
-    // cards 1-2: category draw 0 picks emote (categories in catalog order: title, emote? see below), item draws 0 then 0.9
+    // cards 1-2: COSMETIC_CATEGORIES puts title before emote, so a category draw of 0.99 picks emote; item draws 0 then 0.9
     const draws = [0, 0.99, 0, 0, 0.99, 0.9, 0, 0, 0, 0, 0, 0, 0, 0, 0];
     const cards = rollPack({ look: categoryLook('emote'), owned: [], draws, catalog: cat });
     expect(cards[0]).toMatchObject({ rewardId: 'emote-a', duplicate: null });
@@ -105,6 +106,13 @@ describe('rollPack', () => {
     const d = drawSet(rand(5));
     expect(rollPack({ look: rarityLook('epic'), owned: [], draws: d, catalog })).toEqual(rollPack({ look: rarityLook('epic'), owned: [], draws: d, catalog }));
     expect(() => rollPack({ look: rarityLook('epic'), owned: [], draws: d.slice(0, 14), catalog })).toThrow();
+  });
+  it('throws on a draw that is NaN, negative or 1', () => {
+    for (const bad of [NaN, -0.1, 1]) {
+      const d = [...zeros];
+      d[7] = bad;
+      expect(() => rollPack({ look: rarityLook('epic'), owned: [], draws: d, catalog })).toThrow();
+    }
   });
 });
 

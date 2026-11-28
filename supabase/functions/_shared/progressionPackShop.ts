@@ -74,7 +74,7 @@ export type ClaimRewardOutcome =
   | { status: 'error'; reason: ClaimRewardError };
 
 /** Why a purchase did not go through. */
-export type BuyPackError = 'insufficient' | 'price_changed' | 'sold_out' | 'guest' | 'failed';
+export type BuyPackError = 'insufficient' | 'price_changed' | 'sold_out' | 'no_room' | 'expired' | 'guest' | 'failed';
 
 export type BuyPackOutcome =
   | { status: 'ok'; packs: readonly OwnedPack[]; aether: number }
@@ -152,4 +152,49 @@ export function nextShopRefresh(now: Date = new Date(), eco: PackEconomy = DEFAU
   const wall = Date.UTC(z.y, z.mo - 1, z.d, next, 0, 0); // the boundary, as if the zone were UTC
   const guess = wall - zoneOffset(now.getTime(), eco.refreshZone);
   return wall - zoneOffset(guess, eco.refreshZone); // re-read the offset AT the boundary (a DST change may fall in between)
+}
+
+// ── The counter ─────────────────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * THE COUNTER HOLDS `eco.counterTypes` (5) PACK TYPES, `eco.stackMax` (8) PACKS OF EACH (owner 2026-11-26: "they should
+ * stack once per purchase, up to a max of 8", "cap the max pack types at 5"). Packs that do not fit (rewards given while the
+ * counter is full) WAIT beside it and take a place as packs are opened. The counter is a view of the hand in the order
+ * given; the server supplies it oldest first and mirrors these rules in SQL.
+ */
+/** A pack's type: packs of one type lie in one stack. */
+export const lookKey = (look: PackLook): string => `${look.kind}:${look.id}`;
+/** Packs of one type waiting for room on the counter. */
+export interface WaitingPacks { key: string; look: PackLook; count: number }
+
+/**
+ * The hand, split: the packs on the counter (the first `eco.counterTypes` types owned, in the order given, up to
+ * `eco.stackMax` of each) and the rest, counted by type.
+ */
+export function counterSplit(hand: readonly OwnedPack[], eco: PackEconomy = DEFAULT_PACK_ECONOMY): { counter: OwnedPack[]; waiting: WaitingPacks[] } {
+  const stacks = new Map<string, number>();
+  const wait = new Map<string, WaitingPacks>();
+  const counter: OwnedPack[] = [];
+  for (const p of hand) {
+    const key = lookKey(p.look), n = stacks.get(key);
+    if (n === undefined ? stacks.size < eco.counterTypes : n < eco.stackMax) { stacks.set(key, (n ?? 0) + 1); counter.push(p); continue; }
+    const w = wait.get(key);
+    if (w) w.count += 1; else wait.set(key, { key, look: p.look, count: 1 });
+  }
+  return { counter, waiting: [...wait.values()] };
+}
+
+/**
+ * A bought pack of this type would have a place on the counter: its stack there is not full, or a place is free (owner
+ * 2026-11-26: "theres a legendary pack on the counter. i should be able to stack these", also while other packs wait).
+ */
+export function counterHasRoom(hand: readonly OwnedPack[], look: PackLook, eco: PackEconomy = DEFAULT_PACK_ECONOMY): boolean {
+  const key = lookKey(look);
+  const stacks = new Map<string, number>(); // the stacks ON the counter (the first `counterTypes` types owned)
+  for (const p of hand) {
+    const k = lookKey(p.look), c = stacks.get(k);
+    if (c !== undefined) stacks.set(k, c + 1); else if (stacks.size < eco.counterTypes) stacks.set(k, 1);
+  }
+  const n = stacks.get(key);
+  return n === undefined ? stacks.size < eco.counterTypes : n < eco.stackMax;
 }

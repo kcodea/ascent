@@ -5,8 +5,8 @@
  * always LAST), and optionally the Aether balance after any duplicate refunds. The economy project's server answers in
  * this shape; the opening UI only ever sees the parsed value.
  *
- * DEPENDENCY-FREE ON PURPOSE, like the other progression files: sibling relative imports only. Not yet a shared
- * artifact (the economy project adds it to `SHARED_ARTIFACTS` once the server answers in this shape).
+ * DEPENDENCY-FREE ON PURPOSE, like the other progression files: sibling relative imports only. A shared
+ * artifact (the Edge Functions import the generated copy).
  */
 
 import { COSMETIC_RARITIES, type CrateRarity } from './cosmetics';

@@ -112,8 +112,9 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   // count. Shown once crates are live (always in DEV, so the screen and its tuner are reachable before the SQL).
   const openCollection = useGame((s) => s.openCollection);
   const newRewards = useHasNewRewards();
-  const collectionOn = useProgression(cratesVisible) || import.meta.env.DEV;
   const packsOn = useProgression(packsVisible);
+  // With packs on the Collection shows whatever the crate switch says (as PhTopNav): packs alone make it reachable.
+  const collectionOn = useProgression(cratesVisible) || packsOn || import.meta.env.DEV;
   const sealedCrates = useProgression((s) => (s.crateList ?? []).filter((c) => c.state === 'sealed').length);
   const openBalance = useGame((s) => s.openBalance);
   const openPatchNotes = useGame((s) => s.openPatchNotes);
@@ -649,7 +650,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
             <span className="mblabel">Social</span>
           </button>
           {collectionOn && (
-            <button className={`menubtn${newRewards ? ' hasnew' : ''}`} onClick={() => { sfx.pulse(); openCollection(); }} data-tip={newRewards ? 'New rewards are waiting in your Collection' : packsOn ? 'Open your packs and wear your titles' : 'Open your chests and wear your titles'}>
+            <button className={`menubtn${newRewards ? ' hasnew' : ''}`} onClick={() => { sfx.pulse(); openCollection(); }} data-tip={newRewards ? 'New rewards are waiting in your Collection' : packsOn ? 'Wear your titles, skins and other cosmetics' : 'Open your chests and wear your titles'}>
               <span className="mbicon"><MenuMedal name="collection" /></span>
               <span className="mblabel">Collection</span>
               {newRewards && <NewPill />}

@@ -106,6 +106,16 @@ describe('Rules wiki with packs on', () => {
     expect(packs.a).toContain('5 cards');
     expect(packs.a).toContain("levels you reached before packs arrived don't count");
     expect(wikiEntriesFor(false)).toBe(WIKI_ENTRIES);
-    expect(wikiEntriesFor(true).find((e) => e.id === 'collection')!.a).toContain('Open your packs');
+    // Packs only open in the Shop; the Collection has no pack opener (final review 2026-11-28).
+    const coll = wikiEntriesFor(true).find((e) => e.id === 'collection')!.a;
+    expect(coll).not.toMatch(/open your packs there/i);
+    expect(coll).toContain('you open packs in the **Shop**');
+  });
+
+  it("never says every card is new: cards can be duplicates, only a themed pack's last card is never owned", () => {
+    const packs = wikiEntriesFor(true).find((e) => e.id === 'crates')!.a;
+    expect(packs).not.toContain("(cosmetics you **don't already own**)");
+    expect(packs).toContain("a themed pack's last card comes from that theme and is always one you **don't own yet**");
+    expect(packs).toContain('Any other card can be one you already own');
   });
 });

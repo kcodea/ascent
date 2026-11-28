@@ -3,8 +3,9 @@ import {
   ALPHA_TESTER_TITLE_ID, COSMETICS, COSMETIC_CATEGORIES, COSMETIC_CATEGORY_DEFS, COSMETIC_RARITIES, CRATE_RARITY_ODDS, crateChances, crateName, crateOddsLine,
   crateRarityFallback, eligibleCrateCosmetics, parseCrate, parseOpenCrateResult, pickCrateReward,
   rollCrateRarity, type CosmeticDef, HERO_TITLE_COSMETICS, HERO_TITLE_NAMES, heroMasterTitleId, heroTitleId, heroTitleInfo, isMasterTitle, titleShelf,
-  crateLabel, isShopSource, milestoneLevelOfSource,
+  crateLabel, isShopSource, milestoneLevelOfSource, catalogSyncPayload, packStyleIds,
 } from './cosmetics';
+import { STYLE_PACK_IDS } from './packShop';
 import { CRATE_TIERS } from './aether';
 import { CRATE_TIER_FLOOR, CRATE_TIER_LABELS } from './crateShop';
 import { ACHIEVEMENT_HEROES, ACHIEVEMENT_INDEX } from './achievements';
@@ -428,5 +429,26 @@ describe(`hero titles (owner 2026-09-29: "the hero's title is granted at 3 wins 
     expect(titleShelf(ids, new Set())).toEqual(['title_wanderer', heroTitleId('warden'), heroTitleId('indy')]);
     expect(titleShelf(ids, new Set([heroTitleId('warden')]))).toEqual(['title_wanderer', heroTitleId('warden'), heroTitleId('indy')]);
     expect(titleShelf(ids, new Set([heroTitleId('warden'), heroMasterTitleId('warden')]))).toEqual(['title_wanderer', heroMasterTitleId('warden'), heroTitleId('indy')]);
+  });
+});
+
+describe('style pack membership (pack economy spec section 5)', () => {
+  it('lists the Scribble pack first, then the ten themed style packs, with no duplicates', () => {
+    expect(STYLE_PACK_IDS).toHaveLength(11);
+    expect(STYLE_PACK_IDS[0]).toBe('themed-scribble');
+    expect(new Set(STYLE_PACK_IDS).size).toBe(STYLE_PACK_IDS.length);
+  });
+
+  it('only names known style pack look ids', () => {
+    for (const c of COSMETICS) for (const id of packStyleIds(c)) expect(STYLE_PACK_IDS).toContain(id);
+  });
+
+  it('carries packStyles for every item in the catalog sync payload (empty when absent)', () => {
+    const payload = catalogSyncPayload();
+    expect(payload.items).toHaveLength(COSMETICS.length);
+    for (const i of payload.items) expect(Array.isArray(i.packStyles)).toBe(true);
+    const member = { ...COSMETICS[0]!, packStyles: ['themed-scribble'] };
+    expect(catalogSyncPayload([member]).items[0]!.packStyles).toEqual(['themed-scribble']);
+    expect(packStyleIds({ ...COSMETICS[0]!, packStyles: undefined })).toEqual([]);
   });
 });

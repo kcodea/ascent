@@ -883,7 +883,7 @@ describe('the catalog sync payload (code is the source of truth, owner 2026-09-2
     expect(p.items.map((i) => i.cosmeticId)).toEqual(COSMETICS.map((c) => c.id).sort());
     expect(p.items.find((i) => i.cosmeticId === 'skin_albus_1')).toEqual({
       cosmeticId: 'skin_albus_1', category: 'hero_skin', rarity: 'epic', acquisitionSource: 'crate', milestoneLevel: null,
-      targetType: 'hero', targetId: 'albus', achievementId: null, active: true,
+      targetType: 'hero', targetId: 'albus', achievementId: null, active: true, packStyles: [],
     });
     expect(p.items.find((i) => i.cosmeticId === 'alpha_tester')).toMatchObject({ acquisitionSource: 'level_milestone', milestoneLevel: 2 });
   });

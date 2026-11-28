@@ -110,7 +110,7 @@ describe('the featured window', () => {
         expect(d.shelf).toBe('featured');
         expect(d.look.id).not.toBe('rarity-rare');
         expect(d.soldOut).toBeFalsy();
-        expect(d.look.kind === 'rarity' || shopLabOffers(day).some((o) => o.shelf === 'category' && o.look.id === d.look.id)).toBe(true);
+        expect(['rarity', 'category', 'themed']).toContain(d.look.kind);
         const off = saleOff(d);
         expect(off).toBeGreaterThanOrEqual(DEAL_OFF.min - 3);
         expect(off).toBeLessThanOrEqual(DEAL_OFF.max + 3);

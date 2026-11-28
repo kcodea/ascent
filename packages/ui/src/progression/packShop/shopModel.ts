@@ -1,4 +1,4 @@
-import { aetherShort, canAfford, COSMETIC_CATEGORIES, ownsEveryCosmetic, type CosmeticCategory, type CrateRarity, type OwnedPack, type PackLook, type PackOffer } from '@game/progression';
+import { aetherShort, canAfford, COSMETIC_CATEGORIES, counterHasRoom, counterSplit, DEFAULT_PACK_ECONOMY, lookKey, ownsEveryCosmetic, type CosmeticCategory, type CrateRarity, type OwnedPack, type PackLook, type PackOffer, type WaitingPacks } from '@game/progression';
 import { SCRIBBLE_PACK_LOOK_ID, STYLE_PACKS } from '../packOpening/packArt';
 import { packRarityLabel } from '../packOpening/packRarity';
 import { startScroll } from './shopLayout';
@@ -113,50 +113,14 @@ export function affordableIds(offers: readonly PackOffer[], aether: number): Set
 }
 
 /**
- * THE COUNTER HOLDS 7 PACK TYPES, 8 PACKS OF EACH (owner 2026-11-26: "they should stack once per purchase, up to a max of
- * 8. lets cap it at 7 different pack types that can be on the store counter at a time. the player cannot purchase any more
- * packs until a slot opens up"). Packs that do not fit (rewards given while the counter is full) WAIT beside it and take a
- * place as packs are opened.
+ * THE COUNTER HOLDS 5 PACK TYPES, 8 PACKS OF EACH (owner 2026-11-26). The rules (`counterSplit`, `counterHasRoom`,
+ * `lookKey`) live in `@game/progression` so the server mirrors the same ones; re-exported here for the shop's importers.
  */
-export const COUNTER_TYPES_MAX = 5; // owner 2026-11-26: "cap the max pack types at 5" (was 7)
-export const STACK_MAX = 8;
+export { counterHasRoom, counterSplit, lookKey };
+export type { WaitingPacks };
+export const COUNTER_TYPES_MAX = DEFAULT_PACK_ECONOMY.counterTypes;
+export const STACK_MAX = DEFAULT_PACK_ECONOMY.stackMax;
 export const NO_ROOM_NOTE = 'No room on the counter. Open packs to clear space';
-/** A pack's type: packs of one type lie in one stack. */
-export const lookKey = (look: PackLook): string => `${look.kind}:${look.id}`;
-/** Packs of one type waiting for room on the counter. */
-export interface WaitingPacks { key: string; look: PackLook; count: number }
-
-/**
- * The hand, split: the packs on the counter (the first `COUNTER_TYPES_MAX` types owned, in the order given, up to
- * `STACK_MAX` of each) and the rest, counted by type.
- */
-export function counterSplit(hand: readonly OwnedPack[]): { counter: OwnedPack[]; waiting: WaitingPacks[] } {
-  const stacks = new Map<string, number>();
-  const wait = new Map<string, WaitingPacks>();
-  const counter: OwnedPack[] = [];
-  for (const p of hand) {
-    const key = lookKey(p.look), n = stacks.get(key);
-    if (n === undefined ? stacks.size < COUNTER_TYPES_MAX : n < STACK_MAX) { stacks.set(key, (n ?? 0) + 1); counter.push(p); continue; }
-    const w = wait.get(key);
-    if (w) w.count += 1; else wait.set(key, { key, look: p.look, count: 1 });
-  }
-  return { counter, waiting: [...wait.values()] };
-}
-
-/**
- * A bought pack of this type would have a place on the counter: its stack there is not full, or a place is free (owner
- * 2026-11-26: "theres a legendary pack on the counter. i should be able to stack these", also while other packs wait).
- */
-export function counterHasRoom(hand: readonly OwnedPack[], look: PackLook): boolean {
-  const key = lookKey(look);
-  const stacks = new Map<string, number>(); // the stacks ON the counter (the first `COUNTER_TYPES_MAX` types owned)
-  for (const p of hand) {
-    const k = lookKey(p.look), c = stacks.get(k);
-    if (c !== undefined) stacks.set(k, c + 1); else if (stacks.size < COUNTER_TYPES_MAX) stacks.set(k, 1);
-  }
-  const n = stacks.get(key);
-  return n === undefined ? stacks.size < COUNTER_TYPES_MAX : n < STACK_MAX;
-}
 
 /** The offers that can be bought right now: the balance covers them and the counter has room. */
 export function buyableIds(offers: readonly PackOffer[], aether: number, hand: readonly OwnedPack[]): Set<string> {

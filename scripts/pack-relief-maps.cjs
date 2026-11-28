@@ -56,6 +56,10 @@ const PACKS = {
   crayon: { logo: [0.41, 0.495], forms: 0.3, parts: 0.3, detail: 0.5, slope: 5, ground: 0.4 }, // crayon on paper, like Scribble
   sports: { logo: [0.395, 0.47], forms: 0.4, parts: 0.5, detail: 0.34, slope: 5.5, ground: 1 }, // painted foil, a stadium
   scifi: { logo: [0.41, 0.53], forms: 0.4, parts: 0.5, detail: 0.34, slope: 5.5, ground: 1 }, // gunmetal plates and cyan light
+  heroskin: { logo: [0.395, 0.49], forms: 0.4, parts: 0.5, detail: 0.34, slope: 5.5, ground: 1 }, // painted foil, a crimson banner
+  minionskin: { logo: [0.405, 0.5], forms: 0.4, parts: 0.5, detail: 0.34, slope: 5.5, ground: 1 }, // painted foil, a jungle
+  emote: { logo: [0.395, 0.49], forms: 0.4, parts: 0.5, detail: 0.34, slope: 5.5, ground: 1 }, // glossy cartoon
+  cardplate: { logo: [0.375, 0.465], forms: 0.4, parts: 0.5, detail: 0.34, slope: 5.5, ground: 1 }, // painted foil, violet dusk
   stainedglass: { logo: [0.405, 0.49], forms: 0.4, parts: 0.5, detail: 0.34, slope: 5.5, ground: 1 }, // glass panes in gold leading
   sketchbook: { logo: [0.38, 0.487], forms: 0.2, parts: 0.25, detail: 0.5, slope: 4.5, ground: 0.3 }, // pencil on paper: nearly flat, the lines bite in
 };

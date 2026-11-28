@@ -26,6 +26,7 @@ const FOIL: PackMaterial = { band: 0.8, fuzz: 0, depth: 0.1 };
 const RELIEF: Readonly<Record<string, PackMaterial>> = {
   common: FOIL, rare: FOIL, epic: FOIL, legendary: FOIL, ancient: FOIL, secret: FOIL, launch: FOIL,
   eightbit: FOIL, voxel: FOIL, lowpoly: FOIL, encore: FOIL, sports: FOIL, stainedglass: FOIL, scifi: FOIL,
+  heroskin: FOIL, minionskin: FOIL, emote: FOIL, cardplate: FOIL,
   plushie: { band: 0.8, fuzz: 1, depth: 0.1 },      // felt on a glossy ground
   scribble: { band: 0.8, fuzz: 0.5, depth: 0.1 }, // crayon on paper (finish 0.4 all over: the band as it was, a waxy tooth)
   crayon: { band: 0.8, fuzz: 0.5, depth: 0.1 }, // crayon on paper, like Scribble

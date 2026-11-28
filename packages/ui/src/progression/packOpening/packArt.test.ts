@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { COSMETIC_RARITIES } from '@game/progression';
-import { LAUNCH_PACK_LOOK_ID, LAUNCH_PACK_SRC, RARITY_PACK_ART, SCRIBBLE_PACK_LOOK_ID, SCRIBBLE_PACK_SRC, SECRET_PACK_LOOK_ID, SECRET_PACK_SRC, STYLE_PACKS, packArtFor, packShineFor } from './packArt';
+import { CATEGORY_PACKS, LAUNCH_PACK_LOOK_ID, LAUNCH_PACK_SRC, RARITY_PACK_ART, SCRIBBLE_PACK_LOOK_ID, SCRIBBLE_PACK_SRC, SECRET_PACK_LOOK_ID, SECRET_PACK_SRC, STYLE_PACKS, packArtFor, packShineFor } from './packArt';
 import { PACK_LAB_LOOKS } from './packLabSamples';
 import { PACK_ART_TEMPLATE, PACK_GEOM, derivePackHeights } from './packGeom';
 
@@ -19,7 +19,7 @@ function webpSize(file: string): { w: number; h: number } {
 }
 
 describe('packArtFor', () => {
-  it('every rarity pack wears its own rarity wrapper; category and themed packs keep the placeholder', () => {
+  it('every rarity pack wears its own rarity wrapper; category and themed packs with art wear theirs, the rest keep the placeholder', () => {
     for (const r of COSMETIC_RARITIES) {
       const look = PACK_LAB_LOOKS.find((l) => l.id === `rarity-${r}`);
       expect(look, r).toBeDefined();
@@ -31,11 +31,13 @@ describe('packArtFor', () => {
     expect(packArtFor(launch)).toBe(LAUNCH_PACK_SRC);
     const scribble = PACK_LAB_LOOKS.find((l) => l.id === SCRIBBLE_PACK_LOOK_ID)!;
     expect(packArtFor(scribble)).toBe(SCRIBBLE_PACK_SRC);
-    const styled = new Set(STYLE_PACKS.map((p) => p.id));
+    const styled = new Set([...STYLE_PACKS, ...CATEGORY_PACKS].map((p) => p.id));
+    for (const p of CATEGORY_PACKS) expect(packArtFor(PACK_LAB_LOOKS.find((l) => l.id === p.id)!), p.id).toMatch(new RegExp(`packs/${p.file}-pack\\.webp$`));
     for (const p of STYLE_PACKS) expect(packArtFor(PACK_LAB_LOOKS.find((l) => l.id === p.id)!), p.id).toMatch(new RegExp(`packs/${p.file}-pack\\.webp$`));
     for (const look of PACK_LAB_LOOKS.filter((l) => l.kind !== 'rarity' && l !== secret && l !== launch && l !== scribble && !styled.has(l.id))) expect(packArtFor(look), look.id).toBeNull();
-    // a category pack with a Common floor is not the Common pack
-    expect(packArtFor({ kind: 'category', id: 'category-emote', name: 'Emote Pack', guaranteedFloor: 'common' })).toBeNull();
+    // a category pack with a Common floor is still its category's pack, not the Common pack; an unknown category has none
+    expect(packArtFor({ kind: 'category', id: 'category-emote', name: 'Emote Pack', guaranteedFloor: 'common' })).toMatch(/packs\/emote-pack\.webp$/);
+    expect(packArtFor({ kind: 'category', id: 'category-nope', name: 'Nope Pack', guaranteedFloor: 'common' })).toBeNull();
   });
 
   it('ships every wrapper where it points, at 2x the pack on the packGeom template', () => {
@@ -56,7 +58,7 @@ describe('packArtFor', () => {
     const scribble = join(PUBLIC, 'packs', 'scribble-pack.webp');
     expect(existsSync(scribble)).toBe(true);
     expect(webpSize(scribble)).toEqual({ w: PACK_GEOM.W * 2, h: (PACK_GEOM.H + PACK_GEOM.BODY_H) * 2 });
-    for (const p of STYLE_PACKS) {
+    for (const p of [...STYLE_PACKS, ...CATEGORY_PACKS]) {
       const file = join(PUBLIC, 'packs', `${p.file}-pack.webp`);
       expect(existsSync(file), p.id).toBe(true);
       expect(webpSize(file), p.id).toEqual({ w: PACK_GEOM.W * 2, h: (PACK_GEOM.H + PACK_GEOM.BODY_H) * 2 });
@@ -64,7 +66,7 @@ describe('packArtFor', () => {
   });
 
   it('every wrapper look has its shine mask (half the wrapper, 300 x 450, on disk); the rest none', () => {
-    const ids = [...COSMETIC_RARITIES, 'secret', 'launch', 'scribble', ...STYLE_PACKS.map((p) => p.file)];
+    const ids = [...COSMETIC_RARITIES, 'secret', 'launch', 'scribble', ...STYLE_PACKS.map((p) => p.file), ...CATEGORY_PACKS.map((p) => p.file)];
     let masked = 0;
     for (const look of PACK_LAB_LOOKS) {
       const art = packArtFor(look);

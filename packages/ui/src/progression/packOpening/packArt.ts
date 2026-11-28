@@ -4,9 +4,9 @@ import { packGlowRarity } from './packGlow';
 /**
  * PACK WRAPPER ART (owner 2026-11-23: a wrapper per pack rarity). Which pack wears a painted wrapper: the whole pack
  * (tear strip + sleeve body) as one image cut on the `packGeom.ts` template, 600 x 900 webp (2x the pack's 300 x 450
- * base). The strip is the art above the tear line, the body the rest. A look with no entry (category and themed packs)
- * keeps the placeholder painting (packTextures.ts), except the themed looks named in `THEMED_PACK_ART` (the Launch
- * Pack, owner 2026-11-25). The owner's Secret wrapper ships as a THEMED look
+ * base). The strip is the art above the tear line, the body the rest. A look with no entry keeps the placeholder
+ * painting (packTextures.ts): the category packs with art are named in `CATEGORY_PACKS`, the themed ones in
+ * `THEMED_PACK_ART` (the Launch Pack, owner 2026-11-25). The owner's Secret wrapper ships as a THEMED look
  * (`SECRET_PACK_LOOK_ID`): Secret is not a rarity yet (its role is undecided), so it hangs off the look's id.
  *
  * Each wrapper has a greyscale SHINE MASK (`packShineFor` below) limiting where the holo sheen shows (packHoloMesh.ts).
@@ -51,6 +51,18 @@ export const STYLE_PACKS: readonly { id: string; file: string; name: string }[] 
   { id: 'themed-scifi', file: 'scifi', name: 'Sci-Fi Pack' }, // owner 2026-11-27: "here is the wrapper" (the Sci-Fi Pack)
 ];
 
+/**
+ * THE CATEGORY PACKS (owner 2026-11-27, the Hero Skin, Minion Skin, Emote and Card Plate wrappers): a wrapper per
+ * cosmetic category, by look id (`category-<category>`). `file` names the art, `packs/<file>-pack.webp`.
+ */
+export const CATEGORY_PACKS: readonly { id: string; file: string; name: string }[] = [
+  { id: 'category-hero_skin', file: 'heroskin', name: 'Hero Skin Pack' },
+  { id: 'category-minion_skin', file: 'minionskin', name: 'Minion Skin Pack' },
+  { id: 'category-emote', file: 'emote', name: 'Emote Pack' },
+  { id: 'category-card_plate', file: 'cardplate', name: 'Card Plate Pack' },
+];
+const CATEGORY_PACK_ART: Readonly<Record<string, string>> = Object.fromEntries(CATEGORY_PACKS.map((p) => [p.id, `${BASE}packs/${p.file}-pack.webp`]));
+
 /** Themed looks that wear their own wrapper, by look id. */
 export const THEMED_PACK_ART: Readonly<Record<string, string>> = {
   [SECRET_PACK_LOOK_ID]: SECRET_PACK_SRC,
@@ -59,9 +71,10 @@ export const THEMED_PACK_ART: Readonly<Record<string, string>> = {
   ...Object.fromEntries(STYLE_PACKS.map((p) => [p.id, `${BASE}packs/${p.file}-pack.webp`])),
 };
 
-/** The wrapper art for `look`, or null (the placeholder painting): every rarity pack, and the themed packs with art. */
+/** The wrapper art for `look`, or null (the placeholder painting): every rarity pack, and the category and themed packs with art. */
 export function packArtFor(look: PackLook): string | null {
   if (look.kind === 'themed') return THEMED_PACK_ART[look.id] ?? null;
+  if (look.kind === 'category') return CATEGORY_PACK_ART[look.id] ?? null;
   if (look.kind !== 'rarity') return null;
   return RARITY_PACK_ART[packGlowRarity(look)];
 }

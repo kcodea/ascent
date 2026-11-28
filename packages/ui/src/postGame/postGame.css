@@ -50,11 +50,11 @@
    (Updating rank, Calculating Score) overlay the space under the slots instead of taking it. The two plaques sit as a centred pair. */
 .pg2 { --slot-w: calc(470 * var(--phu)); --slot-h: calc(176 * var(--phu)); --slot-gap: calc(20 * var(--phu)); }
 .pg2 .rankend-panel { position: relative; display: grid; grid-template-columns: var(--slot-w) var(--slot-w); justify-content: center; column-gap: var(--slot-gap); row-gap: 0;
-  justify-items: stretch; grid-template-areas: 'place place' 'word word' 'rank xp' 'act act'; grid-template-rows: auto auto calc(var(--slot-h) + 28 * var(--phu)) auto; max-height: none; }
+  justify-items: stretch; grid-template-areas: 'place place' 'word word' 'rank xp' 'act act'; grid-template-rows: calc(222 * var(--phu)) calc(78 * var(--phu)) calc(var(--slot-h) + 30 * var(--phu)) auto; /* the first two rows ARE the band (300) */ max-height: none; }
 .pg2 .rankend-panel > .rankend-place { grid-area: place; justify-self: center; height: calc(222 * var(--phu)); justify-content: center; }
 .pg2 .rankend-panel > .pg2-word { grid-area: word; justify-self: center; }
-.pg2 .rankend-panel > .rankend-rank { grid-area: rank; align-self: start; }
-.pg2 .rankend-panel > .pg2-xpslot { grid-area: xp; align-self: start; display: flex; }
+.pg2 .rankend-panel > .rankend-rank { grid-area: rank; align-self: start; margin-top: calc(30 * var(--phu)); } /* clear of the band's foot */
+.pg2 .rankend-panel > .pg2-xpslot { grid-area: xp; align-self: start; display: flex; margin-top: calc(30 * var(--phu)); }
 .pg2 .pg2-xpslot > .acctxp { flex: 1; }
 /* No rank (Practice): the XP takes the middle, alone. */
 .pg2 .rankend-panel:not(:has(> .rankend-rank)) > .pg2-xpslot { grid-column: 1 / -1; justify-self: center; width: var(--slot-w); }
@@ -89,7 +89,7 @@
 .pg2-num > i, .pg2-ord { font-style: normal; display: inline-block; color: var(--b1);
   text-shadow: 0 0.04em 0 var(--b3), 0 0.075em 0 rgba(0, 0, 0, 0.55), 0 0 0.3em var(--bglow), 0 0.14em 0.32em rgba(0, 0, 0, 0.8); }
 .pg2-ord { margin: 0.14em 0 0 0.05em; font-size: 0.36em; letter-spacing: 0.04em; }
-.pg2-word { display: flex; align-items: center; gap: calc(22 * var(--phu)); height: calc(64 * var(--phu)); }
+.pg2-word { display: flex; align-items: center; gap: calc(22 * var(--phu)); height: calc(78 * var(--phu)); padding-bottom: calc(10 * var(--phu)); box-sizing: border-box; }
 .pg2-word > span { font-family: 'Cinzel', var(--title-font, 'Cinzel Decorative'), serif; font-weight: 900; font-size: calc(32 * var(--phu)); letter-spacing: 0.42em; padding-left: 0.42em; text-transform: uppercase;
   color: var(--b1); text-shadow: 0 0.06em 0 var(--b3), 0 0 0.6em var(--bglow), 0 0.12em 0.3em rgba(0, 0, 0, 0.7); }
 

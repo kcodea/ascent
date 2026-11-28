@@ -23,7 +23,7 @@ import './locationReveal.css';
 
 export interface LocationRevealRequest {
   location: LocationDef;
-  /** The parchments, in order (`postersFor`). None: a JOURNEY (`JOURNEY_REST`), the travel alone, with no name either. */
+  /** The parchments, in order (`postersFor`). None: a JOURNEY (`JOURNEY_REST`), the travel and the place's name alone. */
   tribes: readonly Poster[];
   /** The screen the leaving wave washes in (default: hero select). Called once, as the wave starts. */
   arrive?: (from: ArriveFrom) => void;
@@ -134,7 +134,8 @@ function makeWordsWriter(w: ReturnType<typeof buildWords>, n: number): (s: numbe
       const eased = outCubic(k);
       const hop = Math.sin(Math.PI * seg(u, 0.62 + i * 0.035, 1.02 + i * 0.035)) ** 2;
       const hot = (k > 0 ? Math.exp(-Math.max(0, u - from) * 3.6) : 0) + 0.35 * hop;
-      const away = smoother(seg(s, out + 0.16 + from, out + 0.52 + from)); // it lifts off, letter by letter, as it came
+      // It lifts off, letter by letter, as it came. A JOURNEY's name stays: the screen it washes into shows it in the same place.
+      const away = n === 0 ? 0 : smoother(seg(s, out + 0.16 + from, out + 0.52 + from));
       e.style.opacity = String(smoother(Math.min(1, k * 1.6)) * (1 - away));
       e.style.transform = `translate(${((i - mid) * ((1 - eased) * 9 + away * 5)).toFixed(2)}%, ${(14 * (1 - eased) - 5 * hop - 22 * away).toFixed(2)}%)`;
       e.style.filter = hot > 0.02 ? `brightness(${(1 + hot * 1.5).toFixed(3)})` : 'none';
@@ -170,7 +171,7 @@ export function playFullReveal(host: HTMLElement, r: LocationRevealRequest, gl: 
     const root = el('div', 'lrev', host);
     gl.canvas.className = 'lrev-canvas';
     root.appendChild(gl.canvas);
-    const words = n > 0 ? buildWords(root, r) : null;
+    const words = n > 0 || locationName(r.location) ? buildWords(root, r) : null;
     const write = words ? makeWordsWriter(words, n) : (): void => undefined;
     let fit = 1;
     let stagePx = 0;
@@ -249,7 +250,7 @@ function waveFrom(root: HTMLElement, gl: RevealGl, stagePx: number, n: number): 
 
 /** The light version's own moments (s from when the doors start to part). */
 export const LIGHT = { name: 1.1, posters: 2.6, step: POST_GAP, hold: HOLD, fade: 0.55 } as const;
-export const lightSeconds = (n: number): number => (n === 0 ? 0.35 + LIGHT.fade : LIGHT.posters + Math.max(0, n - 1) * LIGHT.step + 0.5 + LIGHT.hold + LIGHT.fade);
+export const lightSeconds = (n: number): number => (n === 0 ? LIGHT.name + 2 + LIGHT.fade : LIGHT.posters + Math.max(0, n - 1) * LIGHT.step + 0.5 + LIGHT.hold + LIGHT.fade);
 
 /**
  * THE LIGHT VERSION, in `under` (behind the gate's doors, which the gate opens itself). `partAt` (ms): when they start to
@@ -270,7 +271,7 @@ export function playLightReveal(under: HTMLElement, r: LocationRevealRequest, pa
       e.style.backgroundImage = `url(${locationArt(r.location.id, `poster-${t}`)})`;
       return e;
     });
-    const words = n > 0 ? buildWords(root, r) : null; // a journey: the place alone, no name
+    const words = n > 0 || locationName(r.location) ? buildWords(root, r) : null;
     words?.letters.forEach((e) => { e.style.opacity = '1'; });
     const unwatch = watchSize(root, (stageH, fit) => {
       const u = stageH * fit;

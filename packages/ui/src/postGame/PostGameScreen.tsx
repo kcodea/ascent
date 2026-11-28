@@ -22,7 +22,7 @@ import { beginExitFade } from '../rank/exitFade';
 import type { RankPosition, RankResult, RankSubmission } from '../rank/types';
 import { ProgressionPostgame } from '../progression/ProgressionPostgame';
 import { PostGameGround, postGameLocation, usePostGameHeld } from '../locationReveal/postGame';
-import { resultBand, type ResultBand } from '../locationReveal/locations';
+import { locationArt, locationName, resultBand, type ResultBand } from '../locationReveal/locations';
 import { SeatAncientBadge, SeatPower } from '../matchDetails/SeatPower';
 import { placeLabel } from '../matchDetails/matchDetailsText';
 import { StoredTeam } from '../StoredTeam';
@@ -109,6 +109,14 @@ export function PostGameScreen(p: PostGameScreenProps): JSX.Element {
   const [leaving, setLeaving] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const held = usePostGameHeld();
+  // The sharp picture is decoded while the journey plays (the screen is mounted behind the doors), so the wash lands on it whole.
+  useEffect(() => {
+    if (!at) return;
+    const img = new Image();
+    img.decoding = 'async';
+    img.src = locationArt(at.id, 'layer0');
+    img.decode?.().catch(() => { /* it paints when it arrives */ });
+  }, [at]);
   // The scoreboard mounts behind the result, a seat a frame, once the journey has arrived (nothing competes with the wave).
   const mounted = useStagger(p.match?.seats.length ?? 0, !held);
 
@@ -144,6 +152,11 @@ export function PostGameScreen(p: PostGameScreenProps): JSX.Element {
   return (
     <div ref={rootRef} className={`heroselect endscreen lobbyend rankend pg2 ph-tokens band-${band}${at ? ' at-place' : ''}${held ? '' : ' arrived'}${beat === 'lobby' ? ' on-lobby' : ''}`}>
       {ground}
+      {/* THE PLACE ITSELF, sharp (owner 2026-11-27: "Have the ranked progress and experience from the game all happen on top of that
+          art, then go from there to the post game rows"): the picture the journey landed on, still drifting, and its name where the
+          journey left it. The lobby steps back onto the blurred ground. */}
+      {at && <div className="pg2-sharp" aria-hidden="true" style={{ backgroundImage: `url(${locationArt(at.id, 'layer0')})`, backgroundPosition: `${at.focus[0] * 100}% ${at.focus[1] * 100}%` }} />}
+      {at && <div className="pg2-placename" aria-hidden="true">{[...locationName(at)].map((c, i) => <i key={i}>{c}</i>)}</div>}
       <div className="pg2-vignette" aria-hidden="true" />
       <div className="pg2-result" aria-hidden={beat === 'lobby'} {...inertIf(beat === 'lobby')}>
         <div className="pg2-band" aria-hidden="true"><b className="pg2-rays" /><i className="pg2-bloom" /><em className="pg2-flare" /></div>

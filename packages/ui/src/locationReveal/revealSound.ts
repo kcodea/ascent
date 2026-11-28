@@ -50,7 +50,7 @@ export function revealCues(id: LocationId, n: number): Cue[] {
   const end = t(simEnd(n));
   const ride = land - t0;
   const { mix } = locationById(id);
-  // A JOURNEY (no parchments): no name and no line, and the place is heard for the moment it has the screen, then a step back.
+  // A JOURNEY (no parchments): its name but no line, and the place is heard while it has the screen, then a step back.
   const journey = n === 0;
   const ambienceEnv: [number, number][] = journey
     ? [[0, 0], [0.75, 0.8], [end - land - 0.7, 0.8], [end - land + 0.6, AMBIENCE_STAY]]
@@ -70,10 +70,8 @@ export function revealCues(id: LocationId, n: number): Cue[] {
       // the place goes on sounding into hero select, a step back from where the reveal had it
       env: ambienceEnv,
     },
-    ...(journey ? [] : [
-      { clip: 'title', at: name - 0.12, gain: 0.62 },
-      { clip: `vo-${id}`, at: name + LINE_DELAY, gain: VOICE * mix.line, voice: true },
-    ] as Cue[]),
+    { clip: 'title', at: name - 0.12, gain: 0.62 },
+    ...(journey ? [] : [{ clip: `vo-${id}`, at: name + LINE_DELAY, gain: VOICE * mix.line, voice: true }] as Cue[]),
     ...Array.from({ length: n }, (_, i): Cue => ({
       clip: 'poster', at: t(posterRest(i, n).at) - 0.1, gain: 0.36, lowpass: 1900, env: [[0, 0.2], [0.1, 1], [0.8, 1], [1, 0]],
       rate: [[0, POSTER_RATE[i % POSTER_RATE.length]!]], pan: [[0, clamp((i - (n - 1) / 2) * 0.32, -1, 1)]],
@@ -90,7 +88,8 @@ export function revealCues(id: LocationId, n: number): Cue[] {
 /** The light version's cues (phones): the name, the line, the parchments and the leaving wave, on ITS times. Short clips only: a
  *  phone decodes nothing it does not play (R-TOUCH-GPU-MEMORY-01's audio budget). Times are seconds from the doors parting. */
 export function lightCues(id: LocationId, n: number, at: { name: number; posters: number; step: number; leave: number }): Cue[] {
-  if (n === 0) return [{ clip: 'wave', at: at.leave - 0.2, gain: 0.3, rate: [[0, 1.08]], lowpass: 5200 }]; // a journey: the wave alone
+  // A journey: its name's sting, then the wave (no announcer line, no parchments).
+  if (n === 0) return [{ clip: 'title', at: at.name - 0.12, gain: 0.62 }, { clip: 'wave', at: at.leave - 0.2, gain: 0.3, rate: [[0, 1.08]], lowpass: 5200 }];
   return [
     { clip: 'title', at: at.name - 0.12, gain: 0.62 },
     { clip: `vo-${id}`, at: at.name + LINE_DELAY, gain: VOICE * locationById(id).mix.line, voice: true },

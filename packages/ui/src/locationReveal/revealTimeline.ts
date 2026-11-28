@@ -48,10 +48,11 @@ export const postDone = (n: number): number => POST + Math.max(0, n - 1) * POST_
 export const outroAt = (n: number): number => (n === 0 ? L + JOURNEY_REST : postDone(n) + HOLD);
 /**
  * THE JOURNEY (owner 2026-11-27, the end of a game: "you click it to shatter and play the same portal style animation that takes you
- * to a brand new post game screen"): the same travel with no name and no parchments, asked for with none (`n` = 0). After the
- * landing the place has the screen for this long, then the wave washes it into the screen behind.
+ * to a brand new post game screen"): the same travel with no parchments (`n` = 0), and its place's NAME as every location says it
+ * ("have the text say "terys gate" at the top of it like our other location text does"). After the landing the place has the
+ * screen for this long, then the wave washes it into the screen behind, which stands on the same picture with the same name.
  */
-export const JOURNEY_REST = 0.95;
+export const JOURNEY_REST = 3.0; // owner 2026-11-27: "Let the gate art parallax play longer": the name at L + 1.05, then ~2 s on it
 export const ROLL_STEP = 0.06;
 export const ROLL = 0.36;
 export const washAt = (n: number): number => outroAt(n) + 0.5;

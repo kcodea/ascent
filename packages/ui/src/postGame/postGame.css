@@ -9,6 +9,21 @@
 .pg2.band-lost { --b1: #ffe6e1; --b2: #ff7868; --b3: #8e1f1a; --bglow: rgba(255, 120, 104, 0.24); --bdeep: rgba(64, 10, 10, 0.62); }
 .pg2 { overflow: hidden; }
 
+/* THE PLACE ITSELF, sharp, under the result (the journey's picture, still drifting: one long one-shot transform), and its NAME where the
+   journey's reveal left it (the reveal's own lettering, `.lrev-title`: top 5.5%, 0.117 of the height). The lobby fades both to the
+   blurred ground. */
+.pg2 { container-type: size; }
+.pg2-sharp { position: absolute; inset: 0; z-index: 0; background: #06101f no-repeat; background-size: cover; transform-origin: 50% 40%; transition: opacity 0.5s ease; }
+.pg2-placename { position: absolute; left: 0; right: 0; top: 5.5cqh; z-index: 1; display: flex; justify-content: center; pointer-events: none; transition: opacity 0.4s ease;
+  font-family: 'Cinzel', var(--title-font, 'Cinzel Decorative'), serif; font-weight: 900; font-size: 11.7cqh; line-height: 1.15; white-space: nowrap; }
+.pg2-placename > i { font-style: normal; display: block; white-space: pre; color: #fff3cf;
+  text-shadow: 0 0.045em 0 #6b430f, 0 0 0.33em rgba(255, 196, 96, 0.55), 0 0.136em 0.3em rgba(0, 0, 0, 0.75); }
+.pg2.on-lobby :is(.pg2-sharp, .pg2-placename) { opacity: 0; }
+@media (prefers-reduced-motion: no-preference) {
+  .pg2-sharp { animation: pg2-drift 40s cubic-bezier(0.2, 0.5, 0.3, 1) both; }
+}
+@keyframes pg2-drift { from { transform: scale(1.04); } to { transform: scale(1.12); } }
+
 /* The place, dimmed toward the edges so the screen's content owns the middle. */
 .pg2-vignette { position: absolute; inset: 0; z-index: 1; pointer-events: none;
   background: radial-gradient(ellipse 75% 70% at 50% 45%, transparent 35%, rgba(3, 7, 18, 0.72) 100%); transition: opacity 0.4s ease; }
@@ -26,7 +41,7 @@
 
 /* ── BEAT 1: THE RESULT ──────────────────────────────────────────────────────────────────────────────────────────────────── */
 /* The panel is pinned so its first two rows (the numeral and the word) sit exactly on the band. */
-.pg2 .pg2-result .endbox { position: absolute; left: 0; right: 0; top: calc(50% - 300 * var(--phu)); margin: 0; max-width: none; max-height: none; zoom: 1;
+.pg2 .pg2-result .endbox { position: absolute; left: 0; right: 0; top: calc(50% - 250 * var(--phu)); margin: 0; max-width: none; max-height: none; zoom: 1;
   padding: 0; background: none; box-shadow: none; border: 0; }
 .pg2 .rankend-panel { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: calc(20 * var(--phu)); row-gap: 0; justify-items: center;
   grid-template-areas: 'place place' 'word word' 'rank xp' 'status status' 'scoring scoring' 'act sec'; max-height: none; }
@@ -44,7 +59,7 @@
 .pg2 .rankend-panel:not(:has(> .rankend-rank)):not(:has(> .acctxp)) > :is(.rankend-actions, .rankend-secondary) { margin-top: calc(72 * var(--phu)); }
 
 /* THE BAND: the result's light, full width, with a hairline of it top and bottom. Static paint; it sweeps open once (scaleX). */
-.pg2-band { position: absolute; left: 0; right: 0; top: calc(50% - 300 * var(--phu)); height: calc(300 * var(--phu)); z-index: 0; pointer-events: none;
+.pg2-band { position: absolute; left: 0; right: 0; top: calc(50% - 250 * var(--phu)); height: calc(300 * var(--phu)); z-index: 0; pointer-events: none;
   background: linear-gradient(90deg, transparent 0%, var(--bdeep) 18%, var(--bdeep) 82%, transparent 100%); transform-origin: 50% 50%; }
 .pg2-band::before, .pg2-band::after { content: ''; position: absolute; left: 0; right: 0; height: calc(2 * var(--phu));
   background: linear-gradient(90deg, transparent 4%, var(--b2) 30%, var(--b1) 50%, var(--b2) 70%, transparent 96%); }

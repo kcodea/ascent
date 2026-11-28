@@ -58,7 +58,7 @@ describe('the locations', () => {
     }
   });
 
-  it('TERYS GATE (owner 2026-11-27): every game ends its journey there; it is no set place, hangs nothing, says nothing, and ships its files', () => {
+  it('TERYS GATE (owner 2026-11-27): every game ends its journey there; it is no set place, hangs nothing, says its name (no announcer line), and ships its files', () => {
     expect(locationName(TERYS_GATE)).toBe('Terys Gate');
     expect(locationById('terys')).toBe(TERYS_GATE);
     for (const s of ['set1', 'set2', 'set3', 'set4'] as const) expect(locationOfSet(s)?.id).not.toBe('terys');
@@ -73,18 +73,19 @@ describe('the locations', () => {
     expect(TERYS_GATE_BY_RESULT.lost.second[0]).toBeGreaterThan(TERYS_GATE_BY_RESULT.lost.second[1]); // red
     expect(TERYS_GATE.posters).toEqual([]);
     for (const f of ['flat', 'blur', 'data', 'water', 'layer0', 'layer1', 'layer2', 'layer3']) expect(existsSync(join(PUBLIC, 'terys', `${f}.webp`)), f).toBe(true);
-    // A journey (no parchments): no name sting and no announcer line. The one `title` left is the leaving wave's shimmer.
+    // A journey (no parchments): its name's sting and the leaving wave's shimmer, and no announcer line (owner 2026-11-27: "have the
+    // text say "terys gate" at the top of it like our other location text does").
     const clips = revealCues('terys', 0).map((c) => c.clip);
-    expect(clips.filter((c) => c === 'title')).toHaveLength(1);
+    expect(clips.filter((c) => c === 'title')).toHaveLength(2);
     expect(revealCues('outskirts', 5).filter((c) => c.clip === 'title')).toHaveLength(2);
     expect(clips.some((c) => c.startsWith('vo-'))).toBe(false);
     for (const c of clips) expect(existsSync(join(PUBLIC, 'sfx', `${c}.mp3`)), c).toBe(true);
-    expect(lightCues('terys', 0, { name: 1, posters: 2, step: 0.3, leave: 3 }).map((c) => c.clip)).toEqual(['wave']);
+    expect(lightCues('terys', 0, { name: 1, posters: 2, step: 0.3, leave: 3 }).map((c) => c.clip)).toEqual(['title', 'wave']);
   });
 
   it('a journey is the travel alone: the wash comes a short rest after the landing', () => {
     expect(outroAt(0)).toBeLessThan(outroAt(1));
-    expect(outroAt(0)).toBeGreaterThan(L);
+    expect(outroAt(0)).toBeGreaterThan(NAME + 1.5); // long enough to read its name (owner: "Let the gate art parallax play longer")
   });
 
   it('Ranked is always the Outskirts, Practice is its own pick, God Mode the live one, every other mode none', () => {

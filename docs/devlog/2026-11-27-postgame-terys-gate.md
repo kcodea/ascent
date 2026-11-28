@@ -59,6 +59,14 @@ two beats, a line pool per place, every board expanded. Rule R-POSTGAME-01.
   (4.2 s) later the screen moves into the lobby once, unless the player already moved. Filmed with the rank fixtures injected (the
   bench is offline): the Account XP panel itself was not seen.
 
+- TERYS GATE SAYS ITS NAME (owner: "Let the gate art parallax play longer, and have the text say "terys gate" at the top of it like
+  our other location text does. Have the ranked progress and experience from the game all happen on top of that art"): the journey
+  builds the reveal's words for a named place with no parchments (the name's sting, no announcer line), keeps the name (no lift-off),
+  and rests `JOURNEY_REST` 3.0 s. The result beat stands on the same picture, sharp (`layer0`, a slow 40 s drift, decoded while the
+  journey plays) with the name in the reveal's own place and lettering; the band sits lower to clear it. The Lobby fades both to the
+  blurred ground.
+- DEV: `EndGameTuner` (🏁 End Practice game) ends the current Practice game at a chosen place on the next fight.
+
 ## Open
 
 - Rewatch sits on the lobby beat although the 2026-09-20 rank screen had none (it was in the owner's picked layout).

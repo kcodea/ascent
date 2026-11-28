@@ -11,6 +11,22 @@
 import type { GameRule } from '../../schema';
 
 export const SUMMONING_RULES: GameRule[] = [
+  {
+    id: 'R-HAND-SPELL-NEVER-BOARD-01',
+    title: 'A granted spell never takes a board slot',
+    statement:
+      'When a card is granted with the hand full, a minion goes onto the board if there is room, but a spell or a Ruby never '
+      + 'does: it is a hand card. With no room in hand it is lost, like any full-hand spell grant, unless it is a reward that '
+      + 'may go past the hand limit, in which case it goes into the hand.',
+    domain: 'summoning',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-27 (bug report, screenshot of two Dragonflames on the board)', quote: 'player\x27s hand was full and this happened - can you please figure out how' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts grantMinionToHandOrBoard (every quest / rune `cards` / `grantCards` grant goes through it; Rune of Dragon Hoard is the one that showed it)' },
+    ],
+    currentBehaviour: 'Conforms since 2026-11-27 (fix/spell-grant-board-overflow). Before it, a full hand sent a granted spell onto the board.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/handCap.test.ts'], lastVerifiedAt: '2026-11-27' },
+  },
   /* ── 2026-09-09 / 2026-09-10 — the Set 3 Spirits rulings and the owner's bug-report rulings of 2026-09-10 ── */
   {
     id: 'R-HAND-03',

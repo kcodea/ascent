@@ -60,6 +60,10 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Fixed: a spell granted while your hand was full (for example a Dragonflame from Rune of Dragon Hoard) could land on your board in a minion slot.',
+      },
+      {
+        category: 'Systems',
         text: 'Watch replay can always be skipped: the diamond offers Skip Combat again, even for a fight you already skipped.',
         details: [
           'Before, if you had skipped a fight and then pressed Watch replay in the Fight Recap, the diamond stayed dim and you had to sit through the whole fight.',

@@ -18,7 +18,8 @@ export interface PackTag {
 
 /**
  * WHAT A PACK GUARANTEES, by the owner's roll rulings (2026-11-27, docs/superpowers/specs/2026-11-23-pack-opening-design.md
- * §12): a RARITY pack's fifth card is its rarity (cards 1-4 at Common-pack odds); a CATEGORY pack's fifth card is from its
+ * §12): a RARITY pack guarantees only its fifth card, at its rarity or higher (cards 1-4 at Common-pack odds; owner
+ * 2026-11-27: "no they are just guaranteeing that the final pull is of that tier or higher"); a CATEGORY pack's fifth card is from its
  * own category and never a duplicate, and the STYLE packs (Scribble and its kin) count as category packs, their fifth card
  * from their style. Themed looks with no ruling yet (Launch, Season, Secret: on no shelf) keep their rarity floor. The
  * economy project's roll must follow the same rulings; this is the shop's one reading of them (owner 2026-11-27: "we need
@@ -45,7 +46,7 @@ export function packGuarantee(look: PackLook): PackGuarantee {
 /** The tag's promise line for `offer`. Once the player owns every cosmetic a category pack can give, its fifth card can only be a duplicate. */
 function guaranteeLine(offer: PackOffer): string {
   const g = packGuarantee(offer.look);
-  if (g.kind === 'rarity') return g.rarity === 'ancient' ? 'Guaranteed Ancient' : `Guaranteed ${packRarityLabel(g.rarity)} or better`;
+  if (g.kind === 'rarity') return g.rarity === 'ancient' ? '4 random cards + 1 Ancient' : `4 random cards + 1 ${packRarityLabel(g.rarity)} or better`;
   const what = g.kind === 'category' ? g.label : `${g.label} cosmetic`;
   return ownsEveryCosmetic(offer) ? `4 random cards + 1 ${what} (you own them all)` : `4 random cards + 1 guaranteed new ${what}`;
 }

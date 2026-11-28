@@ -9,12 +9,12 @@ const offer = (id: string, over: Partial<PackOffer> = {}, floor: CrateRarity = '
 describe('shopModel', () => {
   it('packTag: price and floor strings; how much is new to the player is not on the card (owner 2026-11-25)', () => {
     const t = packTag(offer('a', { newToYou: { unowned: 14, total: 40 } }), 500);
-    expect(t).toEqual({ price: '200 Aether', floor: 'Guaranteed Rare or better', short: 0, soldOut: false });
+    expect(t).toEqual({ price: '200 Aether', floor: '4 random cards + 1 Rare or better', short: 0, soldOut: false });
   });
 
   it('packTag: Free at 0, Ancient has no "or better"', () => {
     expect(packTag(offer('a', { price: 0 }), 0).price).toBe('Free');
-    expect(packTag(offer('a', {}, 'ancient'), 0).floor).toBe('Guaranteed Ancient');
+    expect(packTag(offer('a', {}, 'ancient'), 0).floor).toBe('4 random cards + 1 Ancient');
   });
 
   it('packTag: a Category or style pack promises its guaranteed new fifth card, not a rarity floor (owner 2026-11-27)', () => {
@@ -27,7 +27,7 @@ describe('shopModel', () => {
     // owning the whole category: the fifth card can only be a duplicate, so the line stops promising "new"
     expect(packTag({ ...cat, newToYou: { unowned: 0, total: 40 } }, 500).floor).toBe('4 random cards + 1 Hero Skin (you own them all)');
     // themed looks with no ruling (Launch) and unknown categories keep their rarity floor
-    expect(packTag(offer('l', { look: { kind: 'themed', id: 'themed-launch', name: 'Launch Pack', guaranteedFloor: 'epic' } }), 0).floor).toBe('Guaranteed Epic or better');
+    expect(packTag(offer('l', { look: { kind: 'themed', id: 'themed-launch', name: 'Launch Pack', guaranteedFloor: 'epic' } }), 0).floor).toBe('4 random cards + 1 Epic or better');
     expect(packGuarantee({ kind: 'category', id: 'category-nope', name: 'Nope Pack', guaranteedFloor: 'rare' })).toEqual({ kind: 'rarity', rarity: 'rare' });
   });
 
@@ -37,10 +37,10 @@ describe('shopModel', () => {
   });
 
   it('srLine: one line, box count before the price, short and sold out last', () => {
-    expect(srLine(offer('a', { newToYou: { unowned: 14, total: 40 } }), 500)).toBe('Rare Pack, 200 Aether, Guaranteed Rare or better');
-    expect(srLine(offer('b', { contains: 10, price: 1800 }, 'epic', 'Epic Box'), 5000)).toBe('Epic Box, 10 packs, 1800 Aether, Guaranteed Epic or better');
-    expect(srLine(offer('a'), 150)).toBe('Rare Pack, 200 Aether, Guaranteed Rare or better, Need 50 more Aether');
-    expect(srLine(offer('a', { soldOut: true }), 0)).toBe('Rare Pack, 200 Aether, Guaranteed Rare or better, Sold out');
+    expect(srLine(offer('a', { newToYou: { unowned: 14, total: 40 } }), 500)).toBe('Rare Pack, 200 Aether, 4 random cards + 1 Rare or better');
+    expect(srLine(offer('b', { contains: 10, price: 1800 }, 'epic', 'Epic Box'), 5000)).toBe('Epic Box, 10 packs, 1800 Aether, 4 random cards + 1 Epic or better');
+    expect(srLine(offer('a'), 150)).toBe('Rare Pack, 200 Aether, 4 random cards + 1 Rare or better, Need 50 more Aether');
+    expect(srLine(offer('a', { soldOut: true }), 0)).toBe('Rare Pack, 200 Aether, 4 random cards + 1 Rare or better, Sold out');
   });
 
   it('shelfOffers: filters by shelf and keeps the given order (no featured-first sort)', () => {

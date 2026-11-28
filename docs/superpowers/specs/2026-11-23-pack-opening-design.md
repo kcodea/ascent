@@ -238,7 +238,9 @@ shop and retires `CrateOpener`.
 
 ### Owner rulings on what a pack holds (2026-11-27, for the economy project's roll)
 
-- **Rarity packs.** Cards 1–4 roll at Common-pack rarity odds; card 5 is the pack's rarity. Each card's rarity is drawn
+- **Rarity packs.** Cards 1–4 roll at Common-pack rarity odds, like any other card; only card 5 is guaranteed, at the
+  pack's rarity OR HIGHER (owner 2026-11-27: "no they are just guaranteeing that the final pull is of that tier or
+  higher"). The shop's info card reads "4 random cards + 1 <Rarity> or better". Each card's rarity is drawn
   first, then its category, every category at equal odds ("When that rarity is determined or drawn, then from there, any
   category has equal odds of showing up"). Any card may be a duplicate of what the player owns (duplicates pay Aether).
 - **Category packs (style packs count as category packs).** Cards 1–4 come "from whole catalog": Common-pack rarity odds,

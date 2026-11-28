@@ -14,7 +14,7 @@ import { createShopScene, type ScreenRect, type ShopScene } from './shopScene';
 import { createShopSounds, type ShopSounds } from './shopSounds';
 import { isLoopRack, shopLayout } from './shopLayout';
 import { setNavAether } from '../../partyHome/shell/shellStore';
-import { NO_ROOM_NOTE, buyKey, buyableIds, counterHasRoom, counterSplit, packGuarantee, packTag, shelfOffers, srLine, startIndex } from './shopModel';
+import { NO_ROOM_NOTE, buyKey, buyableIds, counterHasRoom, counterSplit, ownedCount, packGuarantee, packTag, shelfOffers, srLine, startIndex } from './shopModel';
 import '../packOpening/packOpening.css';
 import './packShop.css';
 
@@ -182,6 +182,8 @@ export function PackShop(props: PackShopProps) {
   const shownHand = useMemo(() => shownHandOf(hand, bought, opened), [hand, bought, opened]);
   const [pending, setPending] = useState(false);
   const [announce, setAnnounce] = useState('');
+  /** The refund's "+N" floating up beside the wallet's gem (owner 2026-11-27: "when the aether is refunded and you return to shop, the ticker goes up, but i want to see the flat +N number float up too, signifying how much was refunded from that entire pack"): the pack's whole refund, at the gem's stage spot. */
+  const [refundFloat, setRefundFloat] = useState<{ n: number; key: number; x: number; y: number } | null>(null);
   const [hover, setHover] = useState<{ id: string; rect: StageRect } | null>(null);
   const [sel, setSel] = useState<Selection | null>(null);
   /** The shelf pack being carried (the counter line's words), and whether it is over the line. */
@@ -532,6 +534,10 @@ export function PackShop(props: PackShopProps) {
       const to = st.deferred, from = tallyTargetRef.current;
       st.deferred = null;
       const g = gemRect();
+      if (g && to > from) {
+        const gs = rectToStage(g);
+        setRefundFloat({ n: Math.round(to - from), key: Date.now(), x: gs.left, y: gs.top + gs.height / 2 });
+      }
       if (scene && g && to > from) {
         st.active = true; st.to = to;
         scene.gainAether({ left: g.left, top: g.top, width: g.width, height: g.height }, (frac, done) => {
@@ -761,6 +767,7 @@ export function PackShop(props: PackShopProps) {
 
   const offerCard = (o: PackOffer, withButton: boolean, cls: string) => {
     const t = packTag(o, balance);
+    const own = ownedCount(o);
     const full = !t.soldOut && !counterHasRoom(shownHand, o.look);
     // the grid card has no pack beside it (the tag does): it stands its pack's art on a little stage of its own
     // (a look with no art yet stands its rarity's medallion there instead)
@@ -774,6 +781,8 @@ export function PackShop(props: PackShopProps) {
               : <img className="pks-card-art pks-card-art-medal" src={rarityIconSrc(o.look.guaranteedFloor)} alt="" decoding="sync" draggable={false} />}
           </div>
         )}
+        {/* a themed pack's collection count, top right (owner 2026-11-27: 'we need to add a counter to each of the themed packs that shows how many of the themed cards they have unlocked of the amount available. show it here, have it in the hover tooltip as well as a N/N value. keep it white and the same size as the card packs in stock numbers') */}
+        {own && <span className={`${cls}-owned`} aria-label={`${own.owned} of ${own.total} collected`}>{own.text}</span>}
         <div className={`${cls}-head`}>
           {guaranteeIcon(o.look, cls)}
           <div>
@@ -1014,6 +1023,13 @@ export function PackShop(props: PackShopProps) {
   return (
     <>
       {createPortal(shop, stageHost())}
+      {refundFloat && createPortal(
+        <div key={refundFloat.key} className={`pks-refund${reduced ? ' pks-refund-still' : ''}`} aria-hidden="true"
+             style={{ left: refundFloat.x, top: refundFloat.y }} onAnimationEnd={() => setRefundFloat(null)}>
+          {`+${refundFloat.n}`}
+        </div>,
+        stageHost(),
+      )}
       {opening && (
         <PackOpener queue={opening} open={open} reducedMotion={reducedMotion} onOpened={(r) => onOpened(r.packId)} entryFadeMs={SHOP_HANDOFF_MS} doneLabel="Return to shop"
                     exitFadeMs={SHOP_HANDOFF_MS} onClose={openerLeaving} onClosed={openerGone} />

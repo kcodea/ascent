@@ -106,6 +106,23 @@
 @keyframes pks-tag-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 .pks-tag-name, .pks-card-name { font-family: var(--font-cardname); font-size: 22px; font-weight: 800; color: var(--gold-lt); line-height: 1.15; }
 .pks-tag-head, .pks-card-head { display: flex; align-items: center; gap: 12px; }
+/* THE REFUND'S "+N" (owner 2026-11-27: 'when the aether is refunded and you return to shop, the ticker goes up, but i want to see the flat +N number float up too, signifying how much was refunded from that entire pack'): the whole pack's duplicate refund rises and fades just left of the
+   wallet's gem as the count rolls up. One-shot, transform/opacity only; under reduced motion it only fades. Its own layer
+   over the nav (portalled to the stage, so it is not under the shop's stacking). */
+.pks-refund { position: fixed; z-index: 960; translate: calc(-100% - 14px) -50%; pointer-events: none; white-space: nowrap;
+  font-family: var(--font-ui); font-size: 30px; font-weight: 900; color: #fff; letter-spacing: 0.02em;
+  text-shadow: 0 0 10px rgba(110, 190, 255, 0.9), 0 2px 4px rgba(0, 0, 0, 0.85);
+  animation: pksrefund 1.7s cubic-bezier(0.2, 0.8, 0.3, 1) both; }
+.pks-refund-still { animation-name: pksrefundfade; }
+@keyframes pksrefund { 0% { opacity: 0; transform: translateY(14px) scale(0.85); } 15% { opacity: 1; transform: translateY(0) scale(1.08); }
+  25% { transform: translateY(-4px) scale(1); } 70% { opacity: 1; } 100% { opacity: 0; transform: translateY(-46px) scale(1); } }
+@keyframes pksrefundfade { 0% { opacity: 0; } 15%, 70% { opacity: 1; } 100% { opacity: 0; } }
+/* A themed pack's collection count, "owned/total", top right: white, the size of the shelf's "N LEFT" (that label is 22px
+   at a 400px pack; a shelf pack is about 360px tall on the 1080 stage, so about 20px). The name leaves room for it. */
+.pks-tag-owned, .pks-card-owned { position: absolute; top: 9px; right: 16px; color: #fff; font-size: 20px; font-weight: 800; letter-spacing: 0.05em;
+  line-height: 1; text-shadow: 0 2px 4px rgba(0, 0, 0, 0.85); pointer-events: none; }
+.pks-tag:has(.pks-tag-owned) .pks-tag-head { padding-right: 64px; }
+.pks-card { position: relative; }
 .pks-tag-medal, .pks-card-medal { width: 54px; height: 54px; object-fit: contain; flex: none; pointer-events: none; }
 .pks-tag-price, .pks-card-price { display: flex; align-items: center; font-size: 22px; font-weight: 800; color: #dcf3ff; margin-top: 4px; }
 .pks-tag-price .aether-icon, .pks-card-price .aether-icon { width: 30px; height: 30px; margin-right: 6px; }

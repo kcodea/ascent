@@ -433,6 +433,8 @@ describe('PackShop', () => {
       act(() => { openerProps!.onClose!(); });
       expect(fake().calls.filter((c) => c === 'gain')).toHaveLength(1);
       expect(tallyTargets.at(-1)).toBe(1300);
+      // the whole refund floats up beside the gem as a flat +N (owner 2026-11-27)
+      expect(document.querySelector('.pks-refund')?.textContent).toBe('+300');
       act(() => { openerProps!.onClosed!(); });
       expect(fake().calls.filter((c) => c === 'gain')).toHaveLength(1);
       expect(balance()).toBe('1300 Aether');

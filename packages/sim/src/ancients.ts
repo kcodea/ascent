@@ -52,8 +52,9 @@ import { isEchoEffect } from '@game/core'; // what counts as an Echo (R-ECHO-WAT
  *  · `friendlyDeathBuffsGilded`   SHOP: `afterShopDestroy`, the one chokepoint both shop-destroy paths walk;
  *                                 COMBAT: `QuestCombatMods.ancientWar`, an `onDeath` listener in `simulate`, with
  *                                 the gain recorded as `permaGain` so it carries back (War, cross-phase).
- *  · `socGildRightmost`           COMBAT only: `QuestCombatMods.ancientTimeGild`, at Start of Combat (Time). The
- *                                 gild lives on the combat body only, so it reverts after the fight.
+ *  · `socGildRightmost`           COMBAT: `QuestCombatMods.ancientTimeGild`, at Start of Combat (Time). The
+ *                                 gild lives on the combat body only, so it reverts after the fight. Under Combat
+ *                                 Prowess its End-of-Turn replay is a real, permanent Shop gild (`ancientSocShopReplays`).
  *  · `powerTargetsGilded`         the reducer's `gild` branch: an already-Gilded target is legal (Bonds).
  *  · `powerBuffPerGild`           the same branch, after the gild: the target gains +a/+h × the run's gild count
  *                                 (`AncientsState.gilds`, ticked by `noteGilded` in `gildMinion` + the triple).
@@ -639,6 +640,7 @@ import { STARFORM_ID } from './starform';
 import { activePowers, getHero, hasPower, wieldedPowerId, type HeroPower } from './heroes';
 import { queueTeamEffect } from './duosPass'; // Cindy: what a pairing gives the teammate rides the pass channel
 import type { CombatResult } from '@game/core';
+import { replayBattlecry, bladeMasteryGrantOf } from './recruit'; // Combat Prowess replays the Ancients' Start of Combat (R-PROWESS-ANCIENT-SOC-01)
 import { castSpell, exactBoardCopy, stampXeroxBond, addBuff, addOfferBuff, aegisGrantOf, captureBuffFx, destroyMinionInShop, fireShopEchoOf, grantMinionToHandOrBoard, improveReps, instanceEffects, makeContext, queueDiscover, dominantBoardTribe, fireSummonBuffs, fireSummonOverflow, gainGold, hasDeathrattle } from './recruit';
 import { CONFIG, INDY_GILD_RECHARGE_GOLD, hasTier7Access, maxTierFor } from './config';
 import { conjureToHand, gildMinion } from './recruit'; // Braum's Gilded payout (Investment's own conjure + gild)
@@ -7094,10 +7096,164 @@ function batchBOnSpellCast(state: RunState): void {
 // EMISSARY
 /** EMISSARY × WAR / BONDS: United Front's shape (read by `fireShopUnitedFront`; combat reads its own mod). */
 /**
- * GORUN x GENESIS UNDER COMBAT PROWESS (owner bug report 2026-11-27: "combat prowess didnt trigger"): the Start of Combat "your two
- * left-most minions gain Ward and Flurry" replayed at End of Turn (`socRuneReplaysOf`). A Shop grant is permanent (Combat Prowess's
- * shop semantics), so the two left-most board minions keep Ward and Flurry. Returns whether anyone gained.
+ * EVERY ANCIENT START OF COMBAT UNDER COMBAT PROWESS (owner bug report 2026-11-27: "combat prowess didnt trigger"; owner
+ * ruling, same day: "All of them", R-PROWESS-ANCIENT-SOC-01). Rune of Combat Prowess replays your Start of Combat effects
+ * at End of Turn (`socRuneReplaysOf`), and an Ancient pairing's Start of Combat is one of them. Each replay mirrors its
+ * combat block in `simulate.ts` (the `ancient*` Start-of-Combat section of `socRunLevel`) with the family's SHOP
+ * semantics: every grant is PERMANENT (stats, keywords, the gild, the Rally graft), a copy is a real card (a summoned copy
+ * goes to hand when the board is full), a membership no-op leaves nothing, and random picks draw the run's `rngCursor`.
+ * Each `fire` reads ONLY the state it is handed (the projection fires a clone).
+ *
+ * Deliberately NOT replayed (no Shop meaning, so absent from the list):
+ *  · `socMateCopiesShareStats` (Magician × War, Duos): it needs the teammate's board, which a run never holds in the Shop
+ *    (only its type counts, `DuosRunState.mateTribes`), and its other half lands on the teammate's run.
+ *  · `socEnemyCopy`: no pairing uses the primitive any more (Flash × Time became `flashClaimGivesStats` in ancient pass 2).
  */
+export interface AncientSocShopReplay {
+  label: string;
+  /** None opens its own nested recruit trigger (a Shout replay diffs inside the caller's scope, Double Bill's shape). */
+  fire: (state: RunState) => void;
+}
+
+/** GILD an end of the board for good (Indy × Time: right-most; Cindy × War: left-most). Already Gilded: nothing. */
+function shopSocGildEnd(st: RunState, end: 'left' | 'right'): void {
+  const m = end === 'left' ? st.board[0] : st.board[st.board.length - 1];
+  const d = m ? CARD_INDEX[m.cardId] : undefined;
+  if (!m || !d || m.golden || d.spell || d.ruby) return;
+  procAncient(st);
+  gildMinion(m, st);
+}
+
+/** An EXACT copy of `src` beside it; a full board sends it to hand instead (hand full too: nothing). */
+function shopSocCopy(st: RunState, src: BoardCard): void {
+  if (st.board.length < CONFIG.boardMax) st.board.splice(st.board.indexOf(src) + 1, 0, exactBoardCopy(st, src));
+  else if (st.hand.length < handCap(st)) st.hand.push(exactBoardCopy(st, src));
+}
+
+/** Braum's `ancientSocBuffAll` shape (Braum / Flint / Priestess × War): every friendly minion, or every one of `tribe`. */
+function shopSocBuffAll(st: RunState, attack: number, health: number, tribe?: Tribe): void {
+  if (attack <= 0 && health <= 0) return;
+  const band = st.board.filter((m) => !tribe || isTribe(m, tribe));
+  if (band.length === 0) return;
+  procAncient(st);
+  for (const m of band) addBuff(m, ANCIENTS.war.name, attack, health);
+}
+
+/** The grafted Rally Nadja × War gives, marked so a later End of Turn grows the one graft instead of stacking another. */
+const NADJA_SOC_RALLY = 'ancientSocRally';
+
+export function ancientSocShopReplays(state: RunState): AncientSocShopReplay[] {
+  const out: AncientSocShopReplay[] = [];
+  if (!live(state)?.picked) return out;
+  const label = getHero(state.heroId).power.name;
+  const add = (fire: (st: RunState) => void): void => { out.push({ label, fire }); };
+  // INDY × TIME: the right-most minion becomes Gilded. CINDY × WAR (Duos): the left-most.
+  if (effectOf(state, 'socGildRightmost')) add((st) => shopSocGildEnd(st, 'right'));
+  if (effectOf(state, 'socGildLeftmost')) add((st) => shopSocGildEnd(st, 'left'));
+  // XEROX × WAR: a copy of your highest-Health minion (ties: left-most).
+  if (effectOf(state, 'socCopyTopHealth')) add((st) => {
+    const src = topBy(st.board, 'health');
+    if (!src) return;
+    procAncient(st);
+    shopSocCopy(st, src);
+  });
+  // BRAUM × WAR: +a/+h x the Gilded minions played this game. FLINT × WAR: Dwarves, x Dwarves bought this game.
+  // PRIESTESS × WAR (Duos): x the cards passed this game.
+  if (effectOf(state, 'socBuffPerGildedPlayed')) add((st) => {
+    const w = effectOf(st, 'socBuffPerGildedPlayed');
+    const n = live(st)?.bramGildedPlays ?? 0;
+    if (w && n > 0) shopSocBuffAll(st, w.attack * n, w.health * n);
+  });
+  if (effectOf(state, 'socBuffTribePerBought')) add((st) => {
+    const w = effectOf(st, 'socBuffTribePerBought');
+    const n = Math.max(0, live(st)?.flintDwarvesBought ?? 0);
+    if (w && n > 0) shopSocBuffAll(st, w.attack * n, w.health * n, w.tribe);
+  });
+  if (effectOf(state, 'socBuffPerPass')) add((st) => {
+    const w = effectOf(st, 'socBuffPerPass');
+    const n = w ? ancientPassesThisGame(st) : 0;
+    if (w && n > 0) shopSocBuffAll(st, w.attack * n, w.health * n);
+  });
+  // BRAUM × BONDS: your Neutral minions triple their stats (each gains twice its current Attack and Health).
+  if (effectOf(state, 'socTripleNeutrals')) add((st) => {
+    const band = st.board.filter((m) => {
+      const d = CARD_INDEX[m.cardId];
+      return isTribe(m, 'neutral') && !d?.tribe2 && !d?.universalTribe && !m.allTribes && !(m.addedTribes?.length) && !m.unityTribes;
+    });
+    if (band.length === 0) return;
+    procAncient(st);
+    const before = band.map((m) => ({ m, a: Math.max(0, m.attack), h: Math.max(0, m.health) }));
+    for (const { m, a, h } of before) if (a > 0 || h > 0) addBuff(m, ANCIENTS.bonds.name, a * 2, h * 2);
+  });
+  // GORUN × GENESIS: the two left-most minions gain Ward and Flurry.
+  if (effectOf(state, 'socWardFlurry')) add((st) => { ancientShopSocWardFlurry(st); });
+  // MIDAS × WAR: a random minion without Ward gains it, once for every Gilded minion you control.
+  if (effectOf(state, 'socWardPerGilded')) add((st) => {
+    let n = st.board.filter((m) => m.golden).length;
+    const open = st.board.filter((m) => !m.keywords.includes('DS'));
+    if (n <= 0 || open.length === 0) return;
+    procAncient(st);
+    const rng = makeRng(st.rngCursor);
+    while (n > 0 && open.length > 0) {
+      const m = open.splice(rng.int(open.length), 1)[0]!;
+      m.keywords = [...m.keywords, 'DS'];
+      n--;
+    }
+    st.rngCursor = rng.state();
+  });
+  // GORUN × TIME: each of your minions gains Blade Mastery once (its current grant; no attack is counted).
+  if (effectOf(state, 'socBladeMastery')) add((st) => {
+    if (!hasPower(st, 'bladeMastery') || st.board.length === 0) return;
+    const grant = bladeMasteryGrantOf(st);
+    procAncient(st);
+    for (const m of st.board) addBuff(m, 'Blade Mastery', grant, 0);
+  });
+  // DRAKKO × WAR: a random minion +a/+h, repeated for every Shout triggered this turn (each step re-drawn).
+  if (effectOf(state, 'socBuffPerShout')) add((st) => {
+    const w = effectOf(st, 'socBuffPerShout');
+    if (!w || (w.attack <= 0 && w.health <= 0) || st.board.length === 0) return;
+    procAncient(st);
+    const reps = 1 + Math.max(0, st.shoutFiresThisTurn ?? 0);
+    const rng = makeRng(st.rngCursor);
+    for (let r = 0; r < reps && st.board.length > 0; r++) addBuff(st.board[rng.int(st.board.length)]!, ANCIENTS.war.name, w.attack, w.health);
+    st.rngCursor = rng.state();
+  });
+  // BRACKUS × WAR: a copy of your left-most Tier 7 minion (and a plain copy to hand, when the pairing says so).
+  if (effectOf(state, 'socCopyTier7')) add((st) => {
+    const src = st.board.find((m) => { const d = CARD_INDEX[m.cardId]; return d?.tier === 7 && !d.spell; });
+    const def = src ? CARD_INDEX[src.cardId] : undefined;
+    if (!src || !def) return;
+    procAncient(st);
+    if (effectOf(st, 'socCopyTier7')?.toHand) conjureToHand(st, [def], 1);
+    shopSocCopy(st, src);
+  });
+  // AUCTIONEER × TIME: your left-most and right-most Shouts trigger (one Shout minion: once). DRAKKO × TIME (`alsoSoc`):
+  // the left-most alone. Through `replayBattlecry`, so every Shout multiplier and tally hears it (Double Bill's rule).
+  const edgeLeftOnly = !!effectOf(state, 'eotTriggerLeftmostShout')?.alsoSoc;
+  if (effectOf(state, 'socTriggerEdgeShouts') || edgeLeftOnly) add((st) => {
+    const shouters = st.board.filter((c) => { const d = CARD_INDEX[c.cardId]; return !!d && hasBattlecry(d); });
+    if (shouters.length === 0) return;
+    const edges = edgeLeftOnly ? [shouters[0]!] : [...new Set([shouters[0]!, shouters[shouters.length - 1]!])];
+    procAncient(st);
+    for (const c of edges) if (st.board.includes(c)) replayBattlecry(st, c);
+  });
+  // NADJA × WAR: the left-most minion gains Rally: give your minions +attack x the Gold spent this turn (itself included;
+  // `fixed`, so a Gilded body gives the same). Kept for good: a later End of Turn grows the same graft.
+  if (effectOf(state, 'socRallyPerGoldSpent')) add((st) => {
+    const lead = st.board[0];
+    const atk = ancientNadjaRallyAttack(st);
+    if (!lead || atk <= 0) return;
+    procAncient(st);
+    const had = lead.grantedEffects?.find((e) => e.do === 'rallyBuff' && e.params?.[NADJA_SOC_RALLY] === true);
+    if (had) had.params = { ...had.params, attack: (typeof had.params?.attack === 'number' ? had.params.attack : 0) + atk };
+    else (lead.grantedEffects ??= []).push({ on: 'onAttack', do: 'rallyBuff', params: { attack: atk, health: 0, self: true, fixed: true, [NADJA_SOC_RALLY]: true } });
+    if (!lead.keywords.includes('RL')) lead.keywords = [...lead.keywords, 'RL'];
+  });
+  return out;
+}
+
+/** GORUN × GENESIS under Combat Prowess: the two left-most board minions gain Ward and Flurry, for good. Returns whether
+ *  anyone gained. */
 export function ancientShopSocWardFlurry(state: RunState): boolean {
   const wf = effectOf(state, 'socWardFlurry');
   if (!wf) return false;

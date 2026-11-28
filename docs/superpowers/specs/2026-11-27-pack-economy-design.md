@@ -66,7 +66,7 @@ shown is the price charged, a repeated request is charged once).
 | Match payouts | Unchanged. |
 | Level packs | A free Legendary pack every 5 levels (5, 10, 15, ...), replacing the Epic milestone chest every 10 levels. |
 | New accounts | "give new accounts 5 common packs, 2 rare packs, 1 epic and 1 legendary pack". Nine packs in place of the Welcome Chest. (This replaces the earlier ruling of one free Legendary pack.) |
-| Launch gift | "give all accounts 3k Aether when we release the new shop announcement". A one-time 3,000 Aether for every account, delivered with the new-shop announcement. Asked whether accounts made after launch get it too: "yes, new accounts get the 3k too". |
+| Launch gift | "give all accounts 3k Aether when we release the new shop announcement". A one-time 3,000 Aether for every account, delivered with the new-shop announcement. Accounts made after launch do NOT get it: Mike first answered "yes, new accounts get the 3k too", then, asked to confirm, chose "Launch-day accounts only" (2026-11-27). New players get the nine Welcome packs instead. |
 | Focus | Removed. |
 | Old chests | Not converted into packs. The lump sum is out of scope. |
 
@@ -303,11 +303,13 @@ The same shape as the 1,000 Aether launch gift (`2026-10-19-aether-launch-grant.
   packs on, naming the 3,000 Aether gift (the "Introducing Aether" announcement is the pattern). The Aether is paid
   by the rollout, not by seeing the announcement, so a player who dismisses it, or plays on an old client, still has it.
   *(My call.)* Whether the announcement wording also mentions the nine Welcome packs is copy, left to the builder.
-- **Accounts created AFTER the launch get it too** (owner 2026-11-27: "yes, new accounts get the 3k too"). A trigger on
-  a new profile calls `pack_launch_grant` once packs are on (the `profiles_aether_launch_grant` pattern of
-  2026-10-19), so a new account starts with 3,000 Aether on top of its nine Welcome packs. The rollout and the trigger
-  share the one ledger key (`grant` / `pack_launch`), so an account made while the rollout runs is still paid
-  exactly once. An account made before packs are on is paid by the rollout.
+- **Launch-day accounts only** (owner 2026-11-27, "Launch-day accounts only", which replaces his earlier "yes, new
+  accounts get the 3k too"). Only profiles that exist when `pack_rollout()` runs are paid. There is NO trigger on new
+  profiles (unlike the 1,000 gift's `profiles_aether_launch_grant`): an account made after the rollout starts with its
+  nine Welcome packs and no 3,000 Aether. The rollout pays every profile in the table at the moment it runs, under the
+  one ledger key (`grant` / `pack_launch`), so a second run pays only profiles it missed, never one twice. A profile
+  created while the rollout runs is paid if the rollout's read sees it, and is not otherwise. *(My call: no cut-off
+  timestamp beyond the rollout itself.)*
 - Separate from the unopened-chest lump sum, which this project does not build.
 
 **An old client after the flip** (a friend who has not restarted to take the update):
@@ -403,5 +405,5 @@ oracle rules).
 - Settlement: the nine Welcome packs on enrollment (and not again on a retry), level packs at 5/10/15 and
   self-healing, no milestone chest with packs on.
 - Launch gift: `pack_rollout()` pays 3,000 once per account, a second run pays nothing, and it pays before the switch flips;
-  a profile created after the flip is paid by the trigger, once, and a profile created during the rollout is paid once.
+  a profile created after the flip is not paid.
 - `sqlParity.test.ts` extended for the new config document.

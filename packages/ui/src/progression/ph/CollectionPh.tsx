@@ -184,7 +184,7 @@ export function CollectionPh({ view: v }: { view: CollectionPhView }): JSX.Eleme
       )}
     >
       <div className={`phc-body${compact ? ' sheeted' : ''}`}>
-        <aside ref={railRef} className="phc-rail" aria-label="Categories and chests">
+        <aside ref={railRef} className="phc-rail" aria-label={bayShowsChests(v) ? 'Categories and chests' : 'Categories'}>
           {compact && <span className="phc-railedge start" data-edge="start" aria-hidden />}
           {/* Top to bottom (owner 2026-11-06): sealed chests, the categories, then this category by rarity. */}
           <ChestBay v={v} />
@@ -315,6 +315,9 @@ function RarityProgress({ v }: { v: CollectionPhView }): JSX.Element {
 }
 
 // ── The chest bay ──────────────────────────────────────────────────────────────────────────────────────────
+
+/** The bay draws chests: always with packs off, and with packs on (chests frozen) only while one is held. */
+const bayShowsChests = (v: CollectionPhView): boolean => !v.chestsFrozen || (v.cratesOn && !v.cratesLoading && v.sealed.length > 0);
 
 function ChestBay({ v }: { v: CollectionPhView }): JSX.Element | null {
   const n = v.sealed.length;

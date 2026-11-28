@@ -233,6 +233,7 @@ describe('the Collection in the party home shell', () => {
     expect(btn('Open')).toBeUndefined();
     expect(btn('Open all (2)')).toBeUndefined();
     expect($('.phc-bay-actions')).toBeNull();
+    expect($('.phc-rail')?.getAttribute('aria-label')).toBe('Categories and chests');
   });
 
   it('ON, packs on, no chest held: only the level-only bay (no chest, no Open, no frozen line)', async () => {
@@ -242,7 +243,10 @@ describe('the Collection in the party home shell', () => {
     expect($('.phc-bay-frozen-note')).toBeNull();
     expect(btn('Open')).toBeUndefined();
     const bay = $('.phc-bay');
-    if (bay) expect(bay.className).toContain('phc-bay-levelonly');
+    expect(bay).not.toBeNull();
+    expect(bay!.className).toContain('phc-bay-levelonly');
+    // no chest drawn, so the rail is named for what it holds
+    expect($('.phc-rail')?.getAttribute('aria-label')).toBe('Categories');
   });
 
   it('ON: a switched-off category is listed as Soon and opens a coming-soon view', async () => {

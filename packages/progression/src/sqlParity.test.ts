@@ -77,12 +77,15 @@ const versusSpectatorXp = readFileSync(join(root, 'supabase/migrations/2026-10-2
 /** Versus Duos XP (2026-10-25, R-DUOS-01): the newest settle_progression (a Duos seat's TEAM placement on the scale of the
  *  number of teams); appended to schema.sql right after the Versus + spectator XP file. */
 const duosXp = readFileSync(join(root, 'supabase/migrations/2026-10-25-versus-duos-xp.sql'), 'utf8');
+/** The pack economy (2026-12-01): the newest sync_cosmetic_catalog (it writes `pack_styles`). NOT in schema.sql (that
+ *  file's last block is the Duos XP file). */
+const packs = readFileSync(join(root, 'supabase/migrations/2026-12-01-packs.sql'), 'utf8');
 const schema = readFileSync(join(root, 'schema.sql'), 'utf8');
 
-/** The body of a function's LATEST definition (the eight emote positions file, else the announcers file, else the milestone file, else Aether, else the card plates, else the emotes, else the announcer slot, else placement XP, else ancient, else frames, else gauntlet, else hero titles, else equal chance, else fixed odds, else hero attack, else achievements, else skins, else crates, else the MVP's). */
+/** The body of a function's LATEST definition (the packs file, else the Duos XP file, else the spectator XP file, else the eight emote positions file, else the announcers file, else the milestone file, else Aether, else the card plates, else the emotes, else the announcer slot, else placement XP, else ancient, else frames, else gauntlet, else hero titles, else equal chance, else fixed odds, else hero attack, else achievements, else skins, else crates, else the MVP's). */
 function fnBody(name: string, from?: string): string {
   const defines = (t: string): boolean => t.includes(`create or replace function public.${name}(`);
-  const text = from ?? (defines(duosXp) ? duosXp : defines(versusSpectatorXp) ? versusSpectatorXp : defines(emoteEight) ? emoteEight : defines(announcersNotFocusable) ? announcersNotFocusable : defines(milestoneEpic) ? milestoneEpic : defines(aether) ? aether : defines(cardPlates) ? cardPlates : defines(versusProg) ? versusProg : defines(emotes) ? emotes : defines(announcerSlot) ? announcerSlot : defines(placementXp) ? placementXp : defines(ancient) ? ancient : defines(frames) ? frames : defines(gauntlet) ? gauntlet : defines(heroTitles) ? heroTitles : defines(uniform) ? uniform : defines(odds) ? odds : defines(heroAttack) ? heroAttack : defines(ach) ? ach : defines(skins) ? skins : defines(crates) ? crates : sql);
+  const text = from ?? (defines(packs) ? packs : defines(duosXp) ? duosXp : defines(versusSpectatorXp) ? versusSpectatorXp : defines(emoteEight) ? emoteEight : defines(announcersNotFocusable) ? announcersNotFocusable : defines(milestoneEpic) ? milestoneEpic : defines(aether) ? aether : defines(cardPlates) ? cardPlates : defines(versusProg) ? versusProg : defines(emotes) ? emotes : defines(announcerSlot) ? announcerSlot : defines(placementXp) ? placementXp : defines(ancient) ? ancient : defines(frames) ? frames : defines(gauntlet) ? gauntlet : defines(heroTitles) ? heroTitles : defines(uniform) ? uniform : defines(odds) ? odds : defines(heroAttack) ? heroAttack : defines(ach) ? ach : defines(skins) ? skins : defines(crates) ? crates : sql);
   const start = text.indexOf(`create or replace function public.${name}(`);
   if (start < 0) throw new Error(`no function ${name} in the migration`);
   const open = text.indexOf('$$', start);
@@ -212,6 +215,7 @@ describe('the migration shape', () => {
       [crates, 'equip_title', 'uuid, text'],
       [skins, 'equip_cosmetic', 'uuid, text, text, text'],
       [skins, 'sync_cosmetic_catalog', 'jsonb, text'],
+      [packs, 'sync_cosmetic_catalog', 'jsonb, text'],
       [ach, 'settle_progression', 'uuid, text, text, bigint, boolean, int, jsonb'],
       [ach, 'sync_achievement_catalog', 'jsonb, text'],
       [heroTitles, 'settle_progression', 'uuid, text, text, bigint, boolean, int, jsonb'],
@@ -475,8 +479,7 @@ describe('the skins migration (2026-09-28): the code-owned catalog sync + the em
     const body = fnBody('sync_cosmetic_catalog');
     const payload = catalogSyncPayload();
     for (const k of Object.keys(payload.categories[0]!)) expect(body, k).toContain(`'${k}'`);
-    // packStyles is synced to its SQL column by the pack economy migration (a later task); that task removes this filter.
-    for (const k of Object.keys(payload.items[0]!).filter((key) => key !== 'packStyles')) expect(body, k).toContain(`'${k}'`);
+    for (const k of Object.keys(payload.items[0]!)) expect(body, k).toContain(`'${k}'`);
     expect(body.indexOf('catalog_hash')).toBeLessThan(body.indexOf('insert into'));
     expect(body).not.toMatch(/admin_off/);
     expect(body).not.toMatch(/\bdelete\b/);
